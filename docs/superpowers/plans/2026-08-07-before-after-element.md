@@ -35,8 +35,27 @@ dependency on Task 5 — but grouping it with the other `views.py` context work 
 | Task | Red test | Goes green at |
 | --- | --- | --- |
 | 1 | `test_render_seam.py` (template does not exist yet) | Task 2 Step 6 |
-| 3 | `test_nestable_keys_are_a_subset_of_serializers` (no `SERIALIZERS` entry yet) | Task 4 Step 3 |
-| 3 | `test_container_keys_agree_by_key_not_by_count` — it compares `{model_to_key(m) for m in _CONTAINER_REGISTRY}` against `CONTAINER_TRANSFER_KEYS`, and `model_to_key` is built from `export.SERIALIZERS`, which Task 3 does not touch. Until Task 4 the new model maps to `None`. | Task 4 Step 3 |
+| 3 | **EIGHT tests** — one root cause: `builder.NESTABLE_TYPE_KEYS` gains `"before_after"` before `export.SERIALIZERS` has the matching entry. MEASURED at Task 3's HEAD, not estimated. | Task 4 Step 3 |
+
+The eight in full. **Six are pre-existing sibling tests** asserting the shared
+`NESTABLE_TYPE_KEYS <= set(SERIALIZERS)` invariant, so adding one key reddens them all at
+once:
+
+| File | Test |
+| --- | --- |
+| `courses/tests/test_beforeafter_nesting.py` | `test_nestable_keys_are_a_subset_of_serializers` |
+| `courses/tests/test_nesting_rule.py` | `test_container_keys_agree_by_key_not_by_count` — compares `{model_to_key(m) …}` against `CONTAINER_TRANSFER_KEYS`; `model_to_key` is built from `SERIALIZERS`, so the new model maps to `None` |
+| `courses/tests/test_spoiler_transfer.py` | `test_registered_in_all_three_and_nestable` |
+| `courses/tests/test_callout_transfer.py` | `test_callout_is_nestable_and_invariant_holds` |
+| `courses/tests/test_switchgrid_transfer.py` | `test_registered_and_nestable` |
+| `courses/tests/test_switchgate_transfer.py` | `test_registered_and_nestable` |
+| `courses/tests/test_fillgate_transfer.py` | `test_registered_and_nestable` |
+| `tests/test_filltable_transfer.py` | `test_registered_and_nestable` — lives in `tests/`, **not** `courses/tests/`, so a single-tree scan misses it |
+
+**Do not edit the six sibling files.** They are correct: they are reporting a half-landed
+invariant, and Task 4 Step 3 turns all eight green together.
+`test_container_key_spaces_do_not_drift` must stay GREEN throughout — if *it* reddens, a
+seam really is missing.
 
 Everywhere else, "Expected: PASS" means the whole named selection passes. Do not treat
 these two as licence to leave anything else red.
@@ -1097,12 +1116,15 @@ Register in `BUILDERS` (`:817`):
 
 ```bash
 uv run pytest courses/tests/test_beforeafter_transfer.py courses/tests/test_beforeafter_nesting.py \
-               courses/tests/test_nesting_rule.py -v
+               courses/tests/test_nesting_rule.py courses/tests/test_spoiler_transfer.py \
+               courses/tests/test_callout_transfer.py courses/tests/test_switchgrid_transfer.py \
+               courses/tests/test_switchgate_transfer.py courses/tests/test_fillgate_transfer.py \
+               tests/test_filltable_transfer.py -v
 ```
-Expected: PASS — **including both tests left red at Task 3**
-(`test_nestable_keys_are_a_subset_of_serializers` and
-`test_container_keys_agree_by_key_not_by_count`; the latter lives in
-`test_nesting_rule.py`, which is why that file must be in this command).
+Expected: PASS — **including all EIGHT tests left red at Task 3** (see the table in Global
+Constraints). Every file in this command is here because it holds one of them; do not trim
+the list. Six of the eight are pre-existing sibling tests that assert the shared
+`NESTABLE_TYPE_KEYS <= set(SERIALIZERS)` invariant — this step is where they recover.
 
 - [ ] **Step 8: Round-trip through a real archive**
 
