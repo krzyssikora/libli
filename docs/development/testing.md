@@ -117,6 +117,13 @@ Read its output with three things in mind:
   its breadth cap: a list that long is no longer meaningfully narrower than the
   suite.
 
+  **A CSS or JS edit can trigger this too, which surprises people.**
+  `templates/base.html` and the five assets it loads on every page —
+  `core/css/reset.css`, `tokens.css`, `app.css`, `core/js/ui.js`,
+  `scroll_affordance.js` — are in the same class, because a change to any of
+  them can alter a test that never mentions it. Per-page assets like
+  `courses/static/courses/css/courses.css` are not, and map normally.
+
   This does **not** override the two rules above. A full-run answer normally
   means commit and let CI's 8m45s be the gate — that is what the branch gate is
   for. Run it locally only if you have not already spent your one full run this
