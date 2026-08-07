@@ -20,10 +20,10 @@ pytest exits **5** — which means "nothing selected", not "green".
 ## Use the tuned test database
 
 e2e teardown runs `TRUNCATE ... CASCADE` over 89 tables after each test that
-takes `live_server` — **575 of the 845 collected e2e tests**. On a normal
-Postgres that statement costs **2,881 ms**; on a server with durability off and
-its data directory on a tmpfs it costs about **78.5 ms** — roughly **37x**
-faster. Both measured against a populated database.
+takes `live_server` — **575 of the 845 collected e2e tests** (as of 2026-08). On
+a normal Postgres that statement costs **2,881 ms**; on a server with
+durability off and its data directory on a tmpfs it costs about **78.5 ms** —
+roughly **37x** faster. Both measured against a populated database.
 
 ```bash
 # start (once per session)
@@ -36,9 +36,11 @@ docker compose -p libli-test -f docker-compose.test.yml down
 Then uncomment `TEST_DATABASE_URL` in your `.env`. A shell export works too if
 you would rather keep it per-command.
 
-The `-p libli-test` project name is required, not cosmetic: without it Compose
-names the project after the current directory, so each worktree would get its own
-container.
+`docker-compose.test.yml` pins its own Compose project name via a top-level
+`name: libli-test`, which outranks the directory-basename default (Compose
+precedence: `-p` > `COMPOSE_PROJECT_NAME` > the file's `name:` key > directory
+basename). So `-p libli-test` above is redundant — a forgotten `-p` still hits
+the same project — but it is kept in the documented commands for explicitness.
 
 Requires Docker Desktop, and Compose v2.17+ for `--wait`. Without Docker, leave
 `TEST_DATABASE_URL` unset — that is a supported configuration, just slower.

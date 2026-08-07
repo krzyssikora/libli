@@ -30,10 +30,16 @@ def test_valid_url_yields_a_databases_dict():
     assert resolved["default"]["PORT"] == 55433
 
 
+@pytest.mark.filterwarnings("ignore:Engine not recognized")
 def test_unparseable_value_is_rejected():
     # django-environ returns {} rather than raising for garbage. MEASURED: the
     # resulting config has no PORT either, so the port check is what actually
     # fires -- assert the specific message rather than merely "it raised".
+    #
+    # django-environ also emits `UserWarning: Engine not recognized from url:
+    # ...` for this input; silenced above so it doesn't pollute the warnings
+    # summary, which this project treats as a signal channel (a
+    # teardown-deadlock check greps it).
     with pytest.raises(ImproperlyConfigured) as exc:
         _resolve_databases("not-a-url", DEV)
 

@@ -114,9 +114,6 @@ uv run playwright install chromium
 uv run pytest -m e2e
 ```
 
-See [`testing.md`](testing.md) for which tests to run locally, and for the
-optional tuned test database that makes e2e runs substantially faster.
-
 ## Gotchas
 
 - **Emailed links say `example.com`.** Invitation and password-reset links are

@@ -60,7 +60,7 @@ def _should_emit_test_db_notice(*, has_e2e_items: bool, env: Mapping[str, str]) 
     return True
 
 
-def _markexpr_selects_e2e(markexpr: str) -> bool:
+def _markexpr_selects_e2e(markexpr: str | None) -> bool:
     """Whether `-m <markexpr>` selects e2e tests. Substring matching is WRONG here.
 
     MEASURED: the default `addopts` sets markexpr to "not e2e", and
@@ -85,6 +85,8 @@ def pytest_sessionstart(session):
     config = session.config
     if hasattr(config, "workerinput"):
         return
+    if config.option.collectonly:
+        return
     if not _markexpr_selects_e2e(config.option.markexpr):
         return
     if not _should_emit_test_db_notice(has_e2e_items=True, env=os.environ):
@@ -107,6 +109,8 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
     warnings summary have previously made an unanchored `grep FAILED` report
     failures on a green run.
     """
+    if getattr(config, "_libli_test_db_notice_shown", False):
+        return  # already said it up front; don't say it twice
     has_e2e = any(
         "e2e" in (getattr(report, "keywords", {}) or {})
         # "deselected" MUST be excluded. MEASURED: it holds collected-but-
@@ -117,7 +121,5 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         if key != "deselected"
         for report in reports
     )
-    if getattr(config, "_libli_test_db_notice_shown", False):
-        return  # already said it up front; don't say it twice
     if _should_emit_test_db_notice(has_e2e_items=has_e2e, env=os.environ):
         terminalreporter.write_line(TEST_DB_NOTICE, yellow=True)
