@@ -134,6 +134,16 @@ def _resolve_databases(env_value: str, current: dict) -> dict | None:
             f"({env_value!r}). It must be a separate, disposable server -- "
             "see docker-compose.test.yml."
         )
+    # Fail fast when the container is not running. psycopg's default
+    # connect_timeout is 130s and Django attempts two databases in sequence
+    # (the `postgres` maintenance DB, then the app DB), so a stopped container
+    # costs ~4m21s of silence before erroring -- MEASURED at 261.71s. That
+    # reads as a hung suite, not a stopped container, and the container being
+    # down is the expected daily failure for an opt-in server.
+    #
+    # setdefault, not assignment: `?connect_timeout=...` in the URL is already
+    # parsed into OPTIONS by django-environ, and an explicit choice wins.
+    cfg.setdefault("OPTIONS", {}).setdefault("connect_timeout", 5)
     return {"default": cfg}
 
 

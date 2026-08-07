@@ -58,13 +58,19 @@ or mat-pp data.** That is why it listens on 55433 rather than 5432, and only on
 A connection error at the start of a run almost always means `TEST_DATABASE_URL`
 is set but the container is not running. Start it with the command above.
 
-**This failure is not fast.** Expect to wait about **4 minutes 20 seconds**
-before the error appears — psycopg's default `connect_timeout` is 130s, and
-Django attempts two databases in sequence (the `postgres` maintenance database,
-then `libli`), so the timeout is paid twice. The eventual error is a
-`django.db.utils.OperationalError` about a connection timeout. If the suite
-seems to have hung right after starting, this is almost certainly why — let it
-finish erroring out rather than assuming it is stuck, and start the container.
+It fails in about **12 seconds** with a
+`django.db.utils.OperationalError` about a connection timeout.
+
+That is deliberate. `TEST_DATABASE_URL` configs get `connect_timeout: 5`, because
+psycopg's default is **130 s** and Django attempts two databases in sequence (the
+`postgres` maintenance database, then `libli`) — so the timeout is paid twice and
+the unmodified failure took **4 minutes 21 seconds** of complete silence.
+Measured before and after: **261.71 s → 11.6 s**. A four-minute silent wait reads
+as a hung suite rather than a stopped container, which is the wrong thing to
+learn from the most common daily failure.
+
+If you deliberately want a different timeout, put `?connect_timeout=N` in the
+URL — an explicit value in `TEST_DATABASE_URL` is respected and not overridden.
 
 ### One run at a time
 
