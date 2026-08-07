@@ -86,3 +86,102 @@ class TestNormalizeNameStatus:
             "a.py",
             "b.py",
         ]
+
+
+Reason = affected_tests.Reason
+Result = affected_tests.Result
+is_global_path = affected_tests.is_global_path
+map_paths = affected_tests.map_paths
+
+
+def no_hits(term):
+    """A `search` stub finding nothing -- including an empty corpus."""
+    return set()
+
+
+def no_symbols(path):
+    """A `module_symbols` stub finding nothing."""
+    return set()
+
+
+class TestIsGlobalPath:
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "conftest.py",
+            "tests/conftest.py",
+            "tests/factories.py",
+            "tests/db_quiesce.py",
+            "tests/deadlock_retry.py",
+            "config/settings/base.py",
+            "config/settings/test.py",
+            "config/urls.py",
+            "pyproject.toml",
+            "uv.lock",
+            "templates/base.html",
+            "templates/allauth/layouts/base.html",
+            "templates/_groups_tabs.html",
+            "locale/pl/LC_MESSAGES/django.po",
+            "locale/pl/LC_MESSAGES/django.mo",
+        ],
+    )
+    def test_members(self, path):
+        assert is_global_path(path)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "courses/models.py",
+            # A per-app conftest is not the root one. Safe only while no
+            # per-app conftest defines an AUTOUSE fixture -- one that did
+            # would meet the membership criterion and belong in the class.
+            # VERIFIED: today only conftest.py and tests/conftest.py exist,
+            # and both are already members.
+            "courses/tests/conftest.py",
+            "templates/courses/detail.html",
+            "templates/allauth/account/login.html",
+        ],
+    )
+    def test_non_members(self, path):
+        assert not is_global_path(path)
+
+    def test_star_does_not_cross_a_directory_separator(self):
+        # `templates/_*.html` must not match a file nested under a `_`-prefixed
+        # directory. VERIFIED: fnmatch's `*` crosses `/` and would match this;
+        # PurePosixPath.full_match does not.
+        assert not is_global_path("templates/_partials/deep/thing.html")
+
+
+class TestGlobalShortCircuit:
+    def test_a_global_path_sets_both_reasons_to_global(self):
+        result = map_paths(["tests/conftest.py"], no_hits, no_symbols)
+        assert result.unit_reason is Reason.GLOBAL
+        assert result.e2e_reason is Reason.GLOBAL
+
+    def test_the_short_circuit_beats_the_module_rule(self):
+        # conftest.py and factories.py ARE Python modules, so without the
+        # short-circuit the module rule would emit a small, confidently-wrong
+        # list -- the failure mode "advisory only" does not protect against,
+        # because a human sees a plausible list and trusts it.
+        def search_finds_one(term):
+            return {"tests/test_unrelated.py"}
+
+        def symbols(path):
+            return {"make_pa"}
+
+        result = map_paths(["tests/factories.py"], search_finds_one, symbols)
+        assert result.unit_reason is Reason.GLOBAL
+        assert result.unit_files == ()
+        assert result.e2e_files == ()
+
+    def test_one_global_path_among_ordinary_ones_still_short_circuits(self):
+        result = map_paths(["courses/models.py", "config/urls.py"], no_hits, no_symbols)
+        assert result.unit_reason is Reason.GLOBAL
+
+    def test_a_binary_catalog_is_global_not_unmapped(self):
+        # A .mo maps to nothing under the per-path rules, but Django loads
+        # COMPILED catalogs at runtime, so it changes every assertion on
+        # translated strings.
+        result = map_paths(["locale/pl/LC_MESSAGES/django.mo"], no_hits, no_symbols)
+        assert result.e2e_reason is Reason.GLOBAL
+        assert result.unmapped == ()

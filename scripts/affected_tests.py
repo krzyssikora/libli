@@ -31,6 +31,9 @@ rules are testable against literal stubs instead of a fixture repository.
 """
 
 import fnmatch
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import PurePosixPath
 
 # Mirrors `python_files` in pyproject.toml's [tool.pytest.ini_options]. pytest
@@ -82,3 +85,91 @@ def normalize_name_status(lines: list[str]) -> list[str]:
         if path not in out:
             out.append(path)
     return out
+
+
+# Paths whose change can alter the behaviour of tests that do not mention them.
+# That is the whole membership criterion, and it is why the class is checked
+# FIRST and short-circuits: conftest.py and factories.py are themselves Python
+# modules, so the module rule below would otherwise emit a small,
+# confidently-wrong list -- which "advisory only" does not protect against,
+# because a human sees a plausible list and trusts it.
+GLOBAL_PATHS = frozenset(
+    {
+        "conftest.py",
+        "tests/conftest.py",
+        "tests/factories.py",
+        "tests/db_quiesce.py",
+        "tests/deadlock_retry.py",
+        # Would otherwise fall to the module rule and map to almost nothing,
+        # despite affecting every view test.
+        "config/urls.py",
+        "pyproject.toml",
+        "uv.lock",
+        "templates/base.html",
+    }
+)
+
+GLOBAL_GLOBS = (
+    "config/settings/*.py",
+    "templates/allauth/layouts/**",
+    "templates/_*.html",
+    # .mo matters MORE than .po: Django loads compiled catalogs at runtime, so a
+    # .po edit without recompilation changes no behaviour, while a committed .mo
+    # changes every assertion on translated strings -- and a binary file maps to
+    # nothing under the per-path rules.
+    "locale/**/*.po",
+    "locale/**/*.mo",
+)
+
+
+def is_global_path(path: str) -> bool:
+    """Whether `path` belongs to the global blast-radius class."""
+    if path in GLOBAL_PATHS:
+        return True
+    # PurePosixPath.full_match, NOT fnmatch: fnmatch's `*` crosses `/`, so
+    # `templates/_*.html` would match `templates/_partials/deep/thing.html`.
+    candidate = PurePosixPath(path)
+    return any(candidate.full_match(glob) for glob in GLOBAL_GLOBS)
+
+
+class Reason(StrEnum):
+    """Why a selection's emitted command is what it is."""
+
+    NONE = "NONE"  # ordinary mapping; emit the candidate list
+    GLOBAL = "GLOBAL"  # a global-blast-radius path changed; emit the full run
+    CAPPED = "CAPPED"  # too many candidates to be meaningful; emit the full run
+
+
+@dataclass(frozen=True)
+class Result:
+    """The outcome of mapping a diff.
+
+    Two reasons, not one: the caps are independent, so "unit capped, e2e fine"
+    and "e2e capped, unit fine" are both reachable and a single shared field
+    would collapse them. GLOBAL is necessarily set on both.
+    """
+
+    unit_files: tuple[str, ...]
+    e2e_files: tuple[str, ...]
+    unmapped: tuple[str, ...]
+    unit_reason: Reason
+    e2e_reason: Reason
+
+
+def map_paths(
+    paths: list[str],
+    search: Callable[[str], set[str]],
+    module_symbols: Callable[[str], set[str]],
+) -> Result:
+    """Map changed paths to candidate test files. Pure -- all I/O is injected.
+
+    On the GLOBAL path `unmapped` is deliberately left empty rather than being
+    populated: reporting it would mean running every per-path rule anyway, and
+    the answer is already "run everything", which no per-path detail refines.
+    This is the one place the bias-toward-visibility rule is traded away, and
+    it is traded for the short-circuit that keeps a confidently-wrong list off
+    the screen.
+    """
+    if any(is_global_path(p) for p in paths):
+        return Result((), (), (), Reason.GLOBAL, Reason.GLOBAL)
+    return Result((), (), (), Reason.NONE, Reason.NONE)
