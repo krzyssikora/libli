@@ -7,6 +7,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
 
 from courses import ordering
+from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import ContentNode
 from courses.models import Element
@@ -57,9 +58,13 @@ MAX_NEST_DEPTH = 4  # a top-level element has depth 1
 
 # Container TYPE KEYS (transfer namespace). Clause 4 of the containment rule tests
 # membership here. Any new container must be added to THIS set, to
-# _CONTAINER_REGISTRY and to payloads._CONTAINER_SLOT_KEY -- all three. The drift
-# test in test_nesting_rule.py is what stops it landing in only two.
-CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler", "callout"})
+# _CONTAINER_REGISTRY and to payloads._CONTAINER_SLOT_KEY. A NESTABLE container
+# (one that may itself be pasted inside another container) needs two more:
+# NESTABLE_TYPE_KEYS and _NESTABLE_FORM_KEY_ALIASES -- five structures in all. The
+# drift test in test_nesting_rule.py is what stops it landing in only some of them.
+CONTAINER_TRANSFER_KEYS = frozenset(
+    {"tabs", "two_column", "spoiler", "callout", "before_after"}
+)
 
 # Type keys whose element form takes course= (it re-validates a submitted
 # MediaAsset pk against the course). "table" joins in slice C2: without it,
@@ -100,15 +105,19 @@ NESTABLE_TYPE_KEYS = frozenset(
         "stepper",
         "mark_done",
         "guess_number",
-        # Containers, as of the depth-3 slice. Both are already in
-        # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS holds.
+        # Container keys. EVERY member of this set is in
+        # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS
+        # holds. (Phrased about the invariant, not a count -- "Both" was already
+        # stale, and "all three" would ignore the callout/spoiler keys above.)
         "tabs",
         "two_column",
+        "before_after",
     }
 )
 
 # Form key -> transfer key, for the types where the two namespaces diverge.
 _NESTABLE_FORM_KEY_ALIASES = {
+    "beforeafter": "before_after",
     "fillblankquestion": "fill_blank",
     "fillgate": "fill_gate",
     "filltable": "fill_table",
@@ -158,6 +167,14 @@ _CONTAINER_REGISTRY = {
     # un-registers a live container.
     CalloutElement: (
         lambda _data: {"slots": [{"id": CalloutElement.SLOT_ID}]},
+        "slots",
+        "id",
+        None,
+    ),
+    # Fixed TWO-slot: ignores its argument and returns both slots. Like Spoiler /
+    # Callout it has no `data` field, which is why the call sites use getattr().
+    BeforeAfterElement: (
+        lambda _data: {"slots": [{"id": sid} for sid in BeforeAfterElement.SLOT_IDS]},
         "slots",
         "id",
         None,

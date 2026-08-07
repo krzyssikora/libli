@@ -295,6 +295,7 @@ def test_container_registry_carries_a_slot_cap():
     """Clause 1's truncation check needs each container's MAX. A registry entry
     without one forces an ad-hoc getattr(type(obj), "MAX_TABS", ...) inside
     paste_allowed -- a second copy of container knowledge outside the registry."""
+    from courses.models import BeforeAfterElement
     from courses.models import CalloutElement
     from courses.models import SpoilerElement
     from courses.models import TabsElement
@@ -313,7 +314,9 @@ def test_container_registry_carries_a_slot_cap():
     assert reg[SpoilerElement][3] is None
     # Callout became a container in PR #214 and is the second fixed-slot one.
     assert reg[CalloutElement][3] is None
-    assert len(reg) == 4
+    # The second fixed-slot shape: two ids, still never truncated.
+    assert reg[BeforeAfterElement][3] is None
+    assert len(reg) == 5
 
 
 def test_container_keys_agree_by_key_not_by_count():
