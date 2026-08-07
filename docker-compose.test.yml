@@ -3,7 +3,8 @@
 # Durability is deliberately OFF and the data directory is a tmpfs: nothing on
 # this server survives a restart, which is correct for a database pytest drops
 # and recreates anyway. MEASURED: TRUNCATE of the suite's 89 tables costs
-# 2,881 ms on a normal server and 88 ms here -- ~33x.
+# 2,881 ms on a normal server and 78.548 ms here -- ~37x. (Measured at Task 2
+# against a populated database: one e2e test's fixtures, 89 tables.)
 #
 # NEVER apply these settings to the instance holding dev or mat-pp data.
 # Port 55433 (not 5432) and the loopback binding are both deliberate.

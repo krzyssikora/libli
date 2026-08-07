@@ -29,9 +29,9 @@
 |---|---|---|
 | `TRUNCATE … CASCADE`, 89 tables, default durability | **2,881 ms** | raw `docker run` postgres:16 |
 | Same, `fsync=off` + tmpfs, raw `docker run` | **78 ms** | spec §2.1 |
-| Same, `fsync=off` + tmpfs, via `docker-compose.test.yml` | **88 ms** | this plan, Task 2 verification |
+| Same, `fsync=off` + tmpfs, via `docker-compose.test.yml` | **78.548 ms** | measured at Task 2, populated state |
 
-Use **"~33×"** in user-facing copy (2,881 / 88, the conservative compose figure — the configuration developers actually run). The spec's 37× is 2,881 / 78 from the raw-`docker run` variant. Both are real; they differ by the Compose networking path. Do not mix them.
+Use **"~37×"** in user-facing copy (2,881 / 78.548, measured at Task 2 against a populated database — one e2e test's fixtures, 89 tables). This landed within noise of the raw-`docker run` figure (78 ms) rather than the pre-plan 88 ms placeholder, so the spec's 37× and the compose figure now agree; there is no separate "conservative compose" number to keep distinct from the raw-`docker run` one.
 
 ## Deviations from the spec — three, all deliberate
 
