@@ -24,6 +24,22 @@
 - Work in the worktree `C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/before-after-element` on branch `pipeline/before-after-element`.
 - Every task ends with a commit. Commit messages: `feat(before-after): …` / `test(before-after): …` / `docs(before-after): …`.
 
+**Execution order: 1 → 2 → 3 → 4 → 5 → 4a → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15.**
+
+Note **4a runs after 5**, not after 4: it is written out-of-sequence at the end of this
+document (the self-review added it late) and it creates its own test file, so it has no
+dependency on Task 5 — but grouping it with the other `views.py` context work is cheaper.
+
+**Two commits are knowingly RED**, and they are the only ones:
+
+| Task | Red test | Goes green at |
+| --- | --- | --- |
+| 1 | `test_render_seam.py` (template does not exist yet) | Task 2 Step 6 |
+| 3 | `test_nestable_keys_are_a_subset_of_serializers` (no `SERIALIZERS` entry yet) | Task 4 Step 3 |
+
+Everywhere else, "Expected: PASS" means the whole named selection passes. Do not treat
+these two as licence to leave anything else red.
+
 ## File Structure
 
 **Created**
@@ -142,11 +158,14 @@ def test_both_slots_come_from_one_children_queryset():
 
     with CaptureQueriesContext(connection) as ctx:
         obj.resolved_slots()
-    parent_queries = [
-        q for q in ctx.captured_queries if "parent_id" in q["sql"]
-    ]
-    assert len(parent_queries) == 1
-    assert "tab_id" not in parent_queries[0]["sql"]
+    # Match on the WHERE clause, NOT the whole SQL string: every SELECT over
+    # courses_element names "parent_id" and "tab_id" in its COLUMN LIST, so a
+    # substring scan would count join_row()'s own query too and would find
+    # "tab_id" in a query that does not filter on it.
+    wheres = [q["sql"].split("WHERE", 1)[-1] for q in ctx.captured_queries if "WHERE" in q["sql"]]
+    parent_filters = [w for w in wheres if '"parent_id" =' in w]
+    assert len(parent_filters) == 1
+    assert '"tab_id" =' not in parent_filters[0]
 
 
 @pytest.mark.django_db
@@ -299,9 +318,27 @@ and to the `placement` parametrize list (`:184-186`):
 )
 ```
 
-Add the `beforeafter` branch to that file's placement fixture so the host fills a slot with `tab_id=BeforeAfterElement.BEFORE_SLOT_ID`. **A wrong id here would be masked** by `resolved_slots()`' re-homing rule and the test would pass vacuously. `CONCRETES` alone makes this element a *child* in five hosts but never a *host*.
+Add `from courses.models import BeforeAfterElement` to that file's imports — both the `CONCRETES` entry and the `parametrize` need it.
 
-This step will fail until Task 2 creates the template. That is expected — run it at the end of Task 2.
+The placement fixture is an `elif placement == …` ladder inside `test_lesson_renders_200_with_each_concrete` (`:195` onward). Add a branch mirroring the `callout` one:
+
+```python
+    elif placement == "beforeafter":
+        host = BeforeAfterElement.objects.create()
+        host_join = Element.objects.create(unit=unit, content_object=host)
+        Element.objects.create(
+            unit=unit,
+            content_object=obj,
+            parent=host_join,
+            # BEFORE_SLOT_ID, not a literal: a wrong id would be MASKED by
+            # resolved_slots()' re-homing rule and the test would pass vacuously.
+            tab_id=BeforeAfterElement.BEFORE_SLOT_ID,
+        )
+```
+
+Read the `callout` branch first and match its exact local names — the sketch above uses `unit`/`obj`, which may differ.
+
+**This step is expected RED until Task 2 creates the template.** Do not run it here; run it at Task 2 Step 6. Task 1's commit therefore contains a knowingly-red test — an explicit, bounded exception to "every task ends with a green commit", closed one task later.
 
 - [ ] **Step 8: Run the count tests**
 
@@ -452,6 +489,10 @@ In `courses/static/courses/css/courses.css`, near the other `.el--*` element blo
   cursor: pointer;
   transition: background .15s ease, color .15s ease, border-color .15s ease;
 }
+/* Sized to the label's line-box so icon-only and icon+label buttons are the same
+   height. An inline <svg> with no intrinsic size would otherwise collapse or
+   render at the UA default -- only the screenshot step would catch it. */
+.ba__toggle .ic { width: 1em; height: 1em; flex: none; }
 .ba__toggle:hover { background: var(--primary); color: var(--text-inverse); border-color: transparent; }
 .ba__toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
@@ -462,9 +503,9 @@ In `courses/static/courses/css/courses.css`, near the other `.el--*` element blo
    collapse and gives a fixed gap, whereas a margin-top on .ba__panels would
    collapse with the first panel content's own margin-top and give max(). */
 
-/* Bare grouping box: no margin, no padding, no border, NOT a flow-root, so
-   margins collapse through it untouched. */
-.ba__panels { }
+/* .ba__panels deliberately gets NO rule at all: it is a bare grouping box --
+   no margin, no padding, no border, not a flow-root -- so margins collapse
+   through it untouched. An empty rule set would be dead CSS. */
 
 /* Ported verbatim from app.css:986-990 (.spoiler__body, .spoiler > .spoiler__children).
    HORIZONTAL padding only, no vertical margin, not a flow-root -- so the
@@ -642,8 +683,10 @@ CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler", "callout",
 In `NESTABLE_TYPE_KEYS` (`:82-108`) add `"before_after"`, and **rewrite the stale comment** above the container entries — "Both are already in transfer.export.SERIALIZERS" is false with a third key:
 
 ```python
-        # Containers. All three are already in transfer.export.SERIALIZERS, so
-        # NESTABLE_TYPE_KEYS <= SERIALIZERS holds.
+        # Container keys. EVERY member of this set is in
+        # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS
+        # holds. (Phrased about the invariant, not a count -- "Both" was already
+        # stale, and "all three" would ignore the callout/spoiler keys above.)
         "tabs",
         "two_column",
         "before_after",
@@ -723,9 +766,11 @@ In `validate_nesting` (`:857-862`), and rewrite its inline comment (`:849-851`) 
 ```bash
 uv run pytest courses/tests/test_beforeafter_nesting.py courses/tests/test_nesting_rule.py -v
 ```
-Expected: PASS. `test_container_key_spaces_do_not_drift` and `test_container_keys_agree_by_key_not_by_count` must pass **unchanged** — they are the guard against a partial landing. If either fails, a seam is missing; do not relax them.
+Expected: **PASS except `test_nestable_keys_are_a_subset_of_serializers`, which is
+expected RED until Task 4 Step 3** — one of the plan's two knowingly-red checkpoints (see
+Global Constraints). Everything else must be green.
 
-`test_nestable_keys_are_a_subset_of_serializers` will still fail until Task 4. Expected.
+`test_container_key_spaces_do_not_drift` and `test_container_keys_agree_by_key_not_by_count` must pass **unchanged** — they are the guard against a partial landing. If either fails, a seam is missing; do not relax them.
 
 - [ ] **Step 7: Commit**
 
@@ -778,6 +823,11 @@ def _ba_with_children(unit, label="Flip"):
     return join, obj
 
 
+# build_element_export(unit, root_join) -> (document, media_assets, problems).
+# TWO positionals and a 3-TUPLE (export.py:993) -- not build_element_export(join).
+# See tests/test_transfer_element_scope.py:54 for the call convention.
+
+
 @pytest.mark.django_db
 def test_export_emits_both_children_under_their_slot_ids():
     """Mutant: omit the emit() walker isinstance branch -> the serializer runs but
@@ -787,8 +837,8 @@ def test_export_emits_both_children_under_their_slot_ids():
 
     _course, unit = make_course_with_unit()
     join, _obj = _ba_with_children(unit)
-    payload = build_element_export(join)
-    tabs = {el["tab"] for el in payload["elements"] if el["parent"] is not None}
+    document, _media, _problems = build_element_export(unit, join)
+    tabs = {el["tab"] for el in document["elements"] if el["parent"] is not None}
     assert tabs == set(BeforeAfterElement.SLOT_IDS)
 
 
@@ -801,8 +851,8 @@ def test_export_carries_button_label():
 
     _course, unit = make_course_with_unit()
     join, _obj = _ba_with_children(unit, label="Show solution")
-    payload = build_element_export(join)
-    root = [el for el in payload["elements"] if el["parent"] is None][0]
+    document, _media, _problems = build_element_export(unit, join)
+    root = [el for el in document["elements"] if el["parent"] is None][0]
     assert root["data"] == {"button_label": "Show solution"}
 
 
@@ -825,10 +875,10 @@ def test_a_stray_child_exports_under_the_before_slot():
         parent=join,
         tab_id="bogus",
     )
-    payload = build_element_export(join)
+    document, _media, _problems = build_element_export(unit, join)
     assert all(
         el["tab"] in BeforeAfterElement.SLOT_IDS
-        for el in payload["elements"]
+        for el in document["elements"]
         if el["parent"] is not None
     )
 
@@ -837,14 +887,53 @@ def test_a_stray_child_exports_under_the_before_slot():
 def test_duplicate_element_copies_children_and_label():
     """duplicate_element routes through build_element_export -> graft_elements, so
     the same walker mutant makes duplication return 200 with an empty copy.
+
+    Signature is duplicate_element(course, element_pk, unit_token) returning
+    (unit, new_join) -- builder.py:709. Model the call on
+    tests/test_builder_duplicate_element.py.
     """
     from courses import builder
 
-    _course, unit = make_course_with_unit()
+    course, unit = make_course_with_unit()
     join, _obj = _ba_with_children(unit, label="Flip")
-    copy = builder.duplicate_element(join)
-    assert copy.content_object.button_label == "Flip"
-    assert [len(children) for _sid, children in copy.content_object.resolved_slots()] == [1, 1]
+    _unit, new_join = builder.duplicate_element(
+        course, join.pk, unit.updated.isoformat()
+    )
+    copy = new_join.content_object
+    assert copy.button_label == "Flip"
+    assert [len(children) for _sid, children in copy.resolved_slots()] == [1, 1]
+
+
+@pytest.mark.django_db
+def test_validate_nesting_accepts_both_slots_and_rejects_a_bad_one():
+    """The _CONTAINER_SLOT_KEY reshape in Task 3 changed the branch computing
+    valid_slot_ids for ALL FIVE container types, not just this one. Nothing else
+    in the plan exercises the rewritten `isinstance(slot_key, str)` ternary
+    end-to-end, so inverting it could regress spoiler/callout imports with the
+    whole suite green.
+
+    Mutant: invert the ternary -> the before/after case raises and the spoiler
+    case stops raising.
+    """
+    from courses.models import SINGLE_SLOT_ID
+    from courses.transfer.payloads import validate_nesting
+    from courses.transfer.schema import TransferError
+
+    def _els(parent_type, tab, parent_data=None):
+        return [
+            {"id": "p", "type": parent_type, "parent": None, "tab": "",
+             "data": parent_data or {}},
+            {"id": "c", "type": "text", "parent": "p", "tab": tab, "data": {}},
+        ]
+
+    for slot in BeforeAfterElement.SLOT_IDS:
+        validate_nesting(_els("before_after", slot))          # accepted
+    with pytest.raises(TransferError):
+        validate_nesting(_els("before_after", "bogus"))       # rejected
+    # The reshape must not regress the other fixed-slot containers.
+    validate_nesting(_els("spoiler", SINGLE_SLOT_ID))
+    with pytest.raises(TransferError):
+        validate_nesting(_els("spoiler", "bogus"))
 
 
 def test_validator_rejects_unknown_and_missing_keys():
@@ -904,7 +993,9 @@ In the `emit()` walker (`~:626`), after the `CalloutElement` branch (`:638`):
             # function's docstring states.
             for slot_id, children in obj.resolved_slots():
                 for child in children:
-                    yield from emit(child, parent=join, tab=slot_id)
+                    # Positional: the inner function is emit(join, parent_join,
+                    # slot_id) and every sibling branch calls it that way.
+                    yield from emit(child, join, slot_id)
 ```
 
 Match the exact call shape the sibling branches use — read `:627-640` and mirror it rather than copying the sketch above verbatim.
@@ -981,6 +1072,13 @@ git commit -m "feat(before-after): transfer serializer, validator, builder and w
 
 Create `courses/tests/test_beforeafter_context.py`:
 
+**There is no `courses/tests/conftest.py`.** `lesson_unit_node` and `student_user` are
+**file-local** fixtures redefined in each of `test_fillgate_context.py`,
+`test_spoiler_context.py`, `test_switchgate_context.py` and `test_callout_has_math.py`.
+Copy them in, or every test here errors with "fixture not found". A quiz-unit fixture
+exists nowhere and must be written from scratch (`test_reveal_gate_editor_row.py` has a
+local `quiz_unit` to model it on).
+
 ```python
 import pytest
 
@@ -988,6 +1086,37 @@ from courses.models import BeforeAfterElement
 from courses.models import Element
 from courses.models import TabsElement
 from courses.views import build_lesson_context
+
+
+# Copied from test_fillgate_context.py:21-35 -- these are file-local everywhere.
+@pytest.fixture
+def lesson_unit_node():
+    from tests.factories import make_course_with_unit
+
+    _course, unit = make_course_with_unit()
+    return unit
+
+
+@pytest.fixture
+def student_user():
+    from tests.factories import make_verified_user
+
+    return make_verified_user(username="student_ba_ctx")
+
+
+@pytest.fixture
+def quiz_unit_node():
+    """No such fixture exists in the repo. Build a quiz unit the way
+    ContentNodeFactory is used elsewhere (see test_callout_authoring.py:16-19 for
+    the lesson form) with unit_type="quiz".
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    course = CourseFactory()
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="quiz"
+    )
 
 
 @pytest.mark.django_db
@@ -1023,12 +1152,11 @@ def test_flag_is_set_for_a_NESTED_instance(lesson_unit_node, student_user):
 
 @pytest.mark.django_db
 def test_flag_is_false_without_the_element(lesson_unit_node, student_user):
-    assert build_lesson_context(unit=lesson_unit_node, user=student_user)[
-        "has_before_after"
-    ] is False
+    # Positional: the signature is build_lesson_context(node, user) -- views.py:314.
+    # `unit=` raises TypeError, failing for the wrong reason both before and after
+    # the implementation lands.
+    assert build_lesson_context(lesson_unit_node, student_user)["has_before_after"] is False
 ```
-
-Check the fixture names against `courses/tests/test_fillgate_context.py:55-62` and match them.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1325,9 +1453,26 @@ In `build_quiz_context` (`courses/views.py:1139`), compute `has_before_after` wi
 
 - [ ] **Step 4: Add the blocks to `quiz_unit.html`**
 
-`quiz_unit.html` has **no `prepaint` block** — the reveal gate and stepper are lesson-only. Add one (`templates/base.html:43` renders it, empty by default, so overriding is safe) containing the **same** arming script as Task 5 Step 6. Add the pre-hide `<style>` to the existing `extra_css` block and the `defer` include to the existing `extra_js` block.
+`quiz_unit.html` has **no `prepaint` block** — the reveal gate and stepper are lesson-only. `templates/base.html:43` renders it, empty by default, so overriding is safe.
 
-To avoid two copies of the arming script drifting, extract it to `templates/courses/_before_after_prepaint.html` and `{% include %}` it from both unit templates.
+To keep the arming script in one place, do this as three explicit edits:
+
+1. **Create `templates/courses/_before_after_prepaint.html`** containing *only* the
+   `<script>` element from Task 5 Step 6 — **without** the `{% if has_before_after %}`
+   wrapper. The gate stays at each call site so the partial has no hidden dependency on a
+   context name.
+2. **Rewrite `lesson_unit.html`'s** `{% block prepaint %}` entry from Task 5 to:
+   `{% if has_before_after %}{% include "courses/_before_after_prepaint.html" %}{% endif %}`.
+   This *replaces* the inline block Task 5 added — do not leave both.
+3. **Add the same two lines to `quiz_unit.html`** inside a new `{% block prepaint %}`.
+
+The pre-hide `<style>` is **not** extracted: it stays inline in each template's
+`extra_css` block, because Task 12's `test_after_slot_id_matches_every_css_selector`
+reads exactly these three files for `[data-ba-side="after"]` —
+`templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html`, and
+`courses/static/courses/css/courses.css`. Keeping the selector in both templates is what
+makes that guard cover three sites rather than one. Add the `defer` include to each
+template's existing `extra_js` block.
 
 - [ ] **Step 5: Run the tests**
 
@@ -1433,10 +1578,22 @@ git commit -m "feat(before-after): add .ba__panel as the fifth reveal-cascade sc
 
 Create `courses/tests/test_beforeafter_authoring.py`, modelled on `courses/tests/test_callout_authoring.py`:
 
+`test_callout_authoring.py` defines **no** `_add_url` / `_save_url` helpers and no
+`editor_user` fixture — it uses `make_pa`, `CourseFactory`, a local `_lesson_unit`, and
+inline `reverse(...)`. The POST body needs **`"unit": unit.pk`** and the
+**`HTTP_X_REQUESTED_WITH="fetch"`** header; without them the add does not resolve the
+unit. This is the real shape (`test_callout_authoring.py:22-36`, `:53-70`):
+
 ```python
 import pytest
+from django.urls import reverse
 
 from courses.models import BeforeAfterElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_pa
+
+pytestmark = pytest.mark.django_db
 
 # Three separate mutants, each of which leaves the rest of the suite green:
 #   * drop the FORM_FOR_TYPE entry
@@ -1445,32 +1602,53 @@ from courses.models import BeforeAfterElement
 # Plus: the row branch omitting el-edit-slot (Task 9).
 
 
-@pytest.mark.django_db
-def test_add_then_open_form_offers_the_button_label_input(client, editor_user, lesson_unit_node):
-    client.force_login(editor_user)
-    resp = client.post(_add_url(lesson_unit_node), {"type": "beforeafter"})
+def _lesson_unit(course):
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+
+
+def test_add_form_renders_the_beforeafter_edit_partial(client):
+    """Proves _edit_beforeafter.html exists (else 500) and carries the field."""
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "beforeafter", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
     assert resp.status_code == 200
+    html = resp.content.decode()
+    assert 'name="button_label"' in html
+    assert 'class="el-editor' in html   # the grid item the scroll fix keys on
+    # Mutant: omit the _EDITOR_TYPE_LABELS entry -> the form opens with no heading.
+    assert "Before / after" in html
 
-    el = lesson_unit_node.elements.get()
-    form = client.get(_form_url(lesson_unit_node, el))
-    body = form.content.decode()
-    assert 'name="button_label"' in body
-    assert 'class="el-editor' in body  # the grid-item wrapper the scroll fix keys on
 
-
-@pytest.mark.django_db
-def test_saving_a_label_persists_and_renders(client, editor_user, lesson_unit_node):
-    client.force_login(editor_user)
-    client.post(_add_url(lesson_unit_node), {"type": "beforeafter"})
-    el = lesson_unit_node.elements.get()
-
-    client.post(_save_url(lesson_unit_node, el), {"button_label": "Show solution"})
-    el.refresh_from_db()
-    assert el.content_object.button_label == "Show solution"
-    assert "Show solution" in el.content_object.render(element=el)
+def test_save_round_trips_the_button_label(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        {
+            "type": "beforeafter",
+            "element": "new",
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+            "button_label": "Show solution",
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    obj = BeforeAfterElement.objects.get()
+    assert obj.button_label == "Show solution"
+    assert "Show solution" in obj.render(element=obj.join_row())
 ```
 
-Copy the exact URL helpers and fixture names from `test_callout_authoring.py` — do not invent them.
+Read `test_callout_authoring.py` before writing this and match its conventions exactly;
+the `manage_element_save` body above mirrors its `:53-70`.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1567,10 +1745,17 @@ def test_row_renders_type_tag_and_summary(client, editor_user, lesson_unit_node)
     el.content_object.save()
 
     body = client.get(_editor_url(lesson_unit_node)).content.decode()
-    assert "Before / after" in body          # el-tag via _ELEMENT_LABELS
+    # Assert on the TAG MARKUP, not the bare string: from Task 10 onward the
+    # add-menu card also renders {% trans "Before / after" %} on this same page,
+    # so `"Before / after" in body` is satisfied whether or not the row emits
+    # el-tag -- the bare-substring trap this repo has hit before.
+    assert '<span class="el-tag">Before / after</span>' in body
     assert "Show solution" in body           # el-row__label via element_summary
     assert 'class="el-edit-slot"' in body    # hosts the open form
     assert "element-list--nested" in body    # child-row wrapper
+    # Mutant: drop {% paste_buttons %} from a slot -> this drops to 1.
+    assert body.count('data-ba-slot="') == 2
+    assert body.count("data-paste-into") == 2  # match the real paste_buttons markup
 
 
 @pytest.mark.django_db
@@ -1822,36 +2007,67 @@ def _strip_comments(css):
     return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
 
 
-def _base_block(css):
-    """The element's own base block: from the literal delimiter comment to the
-    FIRST state-scoped rule. Asserting the match is what stops a silent
-    non-match making this test vacuous (the _print_block convention).
+def _delimited(css, start_marker, end_marker):
+    """Extract between two literal markers, asserting BOTH matched.
+
+    Comments are stripped FIRST, then both delimiters are located in the stripped
+    text: the plan's own prose and CSS comments mention `html:not(.ba-js)`, and
+    locating the end marker in RAW text would let a comment truncate the block --
+    making the invariant test vacuous.
     """
-    start = css.index("/* Before / after — base */")
-    end = css.index("html:not(.ba-js)", start)
-    return _strip_comments(css[start:end])
+    stripped = _strip_comments(css)
+    start = stripped.index(start_marker)
+    end = stripped.index(end_marker, start + len(start_marker))
+    return stripped[start:end]
 
 
-def test_base_block_declares_no_display():
-    """That is what keeps the `hidden` attribute working through the UA default.
-    Scoped to the base block: the armed pre-hide, the html:not(.ba-js)/.ba--dead
-    rules and the print block legitimately declare display.
+def _rule_body(block, selector):
+    """The declarations of one rule, so an invariant about `.ba__panel` is not
+    asserted against a whole block that legitimately contains other rules."""
+    m = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", block)
+    assert m, f"no rule for {selector}"
+    return m.group(1)
+
+
+def test_panel_and_child_declare_no_display():
+    """The invariant is narrow: `.ba__panel` and `.ba__child` declare no display.
+    It is NOT "the base block declares no display" -- the block also holds
+    `.ba__toggle { display: inline-flex }`, which the spec requires.
 
     Mutant: add `display: block` to .ba__panel -> RED.
     """
-    block = _base_block(_read(COURSES_CSS))
-    assert ".ba__panel" in block
-    assert "border-left" in block
-    assert "display" not in block
+    block = _delimited(_read(COURSES_CSS), "Before / after — base", "html:not(.ba-js)")
+    panel = _rule_body(block, ".ba__panel")
+    assert "border-left" in panel
+    assert "display" not in panel
+    if ".ba__child" in block:
+        assert "display" not in _rule_body(block, ".ba__child")
 
 
 def test_ba_child_joins_the_hidden_guard():
     """.ba__child is a reveal-cascade wrapper exactly as .tabs__child is, so it
     needs the same protection against an author display beating [hidden].
+
+    Anchor on the guard LINE itself: app.css:1009 is
+    `.reveal-gate[hidden] { display: none !important; }`, which is the FIRST line
+    matching a generic [hidden]+!important pattern and would never contain
+    .ba__child -- making a first-match regex RED against correct code.
     """
     css = _strip_comments(_read(APP_CSS))
-    guard = re.search(r"([^\n]*\[hidden\][^\n]*display:\s*none\s*!important[^\n]*)", css)
-    assert guard and ".ba__child[hidden]" in guard.group(1)
+    guard = re.search(r"^.*\.lesson-block\[hidden\].*$", css, re.M)
+    assert guard, "the shared [hidden] guard line moved"
+    assert ".ba__child[hidden]" in guard.group(0)
+
+
+# courses.css contains SEVEN @media print blocks (the first at :103). A
+# first-match `@media print` regex -- the convention test_reveal_scope_agreement
+# uses for app.css, where it holds -- extracts the WRONG one here, so all three
+# print tests below would be RED against a correct implementation. Anchor on the
+# element's own delimiter comment instead.
+
+
+def _print_block(css):
+    return _delimited(css, "Before / after — print", "\n}")
 
 
 def test_print_unhides_with_block_not_revert():
@@ -1860,10 +2076,7 @@ def test_print_unhides_with_block_not_revert():
 
     Mutant: change to `display: revert` -> the panel stays hidden in print.
     """
-    css = _strip_comments(_read(COURSES_CSS))
-    m = re.search(r"@media print\s*\{(.*?)\n\}", css, re.S)
-    assert m, "no @media print block in courses.css"
-    block = m.group(1)
+    block = _print_block(_read(COURSES_CSS))
     assert ".ba__panel[hidden]" in block and "display: block !important" in block
     assert ".ba__toggle" in block
 
@@ -1873,8 +2086,7 @@ def test_print_reverts_clip_not_clip_path():
     `clip-path: none` override is a no-op leaving a 1x1 overflow-hidden box --
     an unlabelled printed page that LOOKS handled.
     """
-    css = _strip_comments(_read(COURSES_CSS))
-    block = re.search(r"@media print\s*\{(.*?)\n\}", css, re.S).group(1)
+    block = _print_block(_read(COURSES_CSS))
     assert "clip: auto !important" in block
     assert "clip-path" not in block
 
@@ -1884,17 +2096,33 @@ def test_print_carries_the_eyebrow_and_separation_rules():
 
     Mutant: drop them -> two butted-together panels under unstyled bare <p>s.
     """
-    block = re.search(
-        r"@media print\s*\{(.*?)\n\}", _strip_comments(_read(COURSES_CSS)), re.S
-    ).group(1)
+    block = _print_block(_read(COURSES_CSS))
     assert "text-transform: uppercase" in block
     assert ".ba__panel + .ba__panel" in block
 
 
+def test_print_child_rule_follows_the_app_css_guard_in_document_order():
+    """Both are `.ba__child[hidden]` at specificity 0-2-0 with !important, so
+    NEITHER specificity nor @media print decides the winner -- only document
+    order does. base.html loads app.css before courses.css, so the print
+    declaration living in courses.css is what makes it win.
+
+    Mutant: move the print block into app.css above :1010 -> the child stays
+    hidden in print.
+    """
+    assert ".ba__child[hidden]" in _print_block(_read(COURSES_CSS))
+    app = _strip_comments(_read(APP_CSS))
+    if ".ba__child[hidden]" in app and "Before / after — print" in app:
+        assert app.index("Before / after — print") > app.index(".lesson-block[hidden]")
+
+
 def test_no_js_rules_revert_the_same_five_properties():
-    css = _strip_comments(_read(COURSES_CSS))
-    start = css.index("html:not(.ba-js)")
-    block = css[start : start + 1200]
+    """Bounded by the print delimiter -- a fixed character window would go red
+    whenever the block grows, and would silently swallow the print block if it
+    shrank."""
+    block = _delimited(
+        _read(COURSES_CSS), "html:not(.ba-js)", "Before / after — print"
+    )
     for decl in ("position: static", "width: auto", "height: auto",
                  "overflow: visible", "clip: auto"):
         assert decl in block
@@ -1920,7 +2148,9 @@ def test_after_slot_id_matches_every_css_selector():
         assert selector in text, f"{selector} missing from {path}"
 ```
 
-If Task 6 extracted the arming script to `_before_after_prepaint.html`, point the third assertion at the two `<style>` sites that actually carry the selector and adjust the paths — but keep **all three** sites covered.
+These three paths are fixed by Task 6 step 4, which deliberately keeps the pre-hide
+`<style>` inline in both unit templates (only the `<script>` is extracted to a partial)
+precisely so this guard covers three sites. Do not "simplify" it to one.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1941,8 +2171,12 @@ Expected: FAIL — no `@media print` block for this element yet.
 
 At the **end** of the element's rules in `courses/static/courses/css/courses.css`, after the state-scoped block:
 
+The opening comment is the test delimiter (`courses.css` has seven `@media print`
+blocks, so a first-match regex would extract the wrong one) — keep it exactly:
+
 ```css
-/* Print reveals both sides. `display: block !important`, NOT `revert`: revert
+/* Before / after — print
+   Print reveals both sides. `display: block !important`, NOT `revert`: revert
    rolls back to the UA origin, which is exactly where [hidden] { display: none }
    lives, so it cannot un-hide an element carrying the attribute.
    The .ba__child line is here because the shared print block in app.css uses
@@ -2028,8 +2262,15 @@ def test_after_is_not_visible_while_the_script_is_pending(page, live_server):
     stalling is what brackets the pre-paint window rather than measuring the
     settled state.
     """
+    # A stalled `defer` script blocks BOTH DOMContentLoaded and load, so a plain
+    # page.goto() (default wait_until="load") times out after 30s and the test
+    # fails on a CORRECT build. Navigate with wait_until="commit", and unroute
+    # before the test ends -- a handler that neither fulfils, aborts nor continues
+    # leaves the route unhandled and can raise at context teardown.
     page.route("**/beforeafter.js", lambda route: None)  # never fulfil
+    page.goto(url, wait_until="commit")
     ...
+    page.unroute("**/beforeafter.js")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2101,6 +2342,30 @@ def test_preview_toggle_is_visible_and_works(page, live_server):
     distinguish this from "not wired".
     """
     ...
+
+
+@pytest.mark.django_db(transaction=True)
+def test_preview_toggle_still_works_after_a_fragment_swap(page, live_server):
+    """Edit a DIFFERENT element (forcing a preview fragment swap), then toggle.
+
+    Mutants: omit the editor.js re-init call -> the button is dead after the
+    swap; break the dataset.baReady guard -> the handler is double-bound and one
+    click swaps twice (back to where it started).
+    """
+    ...
+
+
+@pytest.mark.django_db(transaction=True)
+def test_preview_re_init_does_not_touch_html_classes(page, live_server):
+    """libliInitBeforeAfter is initAll -- the root-scoped ENHANCER, not the
+    document-level boot. The editor page has no ba-armed at all.
+
+    Mutant: bind the export to the document-level boot -> re-init throws on the
+    absent class or re-runs once-only work on every swap.
+    """
+    before = page.evaluate("document.documentElement.className")
+    ...  # trigger a fragment swap
+    assert page.evaluate("document.documentElement.className") == before
 ```
 
 Fill in every body — the skeletons above are the required coverage, not the deliverable. Drive the **real UI** (click the actual button); do not call JS directly. Sync on conditions (`expect(...).to_be_visible()`), never `sleep`.
@@ -2246,9 +2511,14 @@ git commit -am "fix(before-after): branch-gate fixes"
 
 ## Task 4a: Math detection
 
+**Runs after Task 5** (see the execution order in Global Constraints).
+
 **Files:**
 - Modify: `courses/views.py` (`_element_has_math` `:176-222`; new helper beside `_twocolumn_has_math` `:298`)
-- Modify: `courses/tests/test_beforeafter_context.py`
+- Create: `courses/tests/test_beforeafter_math.py` — its **own** file with its own imports
+  and its own copy of the `lesson_unit_node` / `student_user` fixtures (they are
+  file-local everywhere; there is no `courses/tests/conftest.py`). Written this way so
+  this task has no ordering dependency on Task 5's file.
 
 Without this, KaTeX's CSS and JS never load for a unit whose only math sits inside a before/after, and `\(…\)` renders literally. "An equation before and after simplification" is a headline use case in the spec's Purpose.
 
@@ -2296,8 +2566,9 @@ def _before_after_has_math(el):
 
     if not isinstance(el, BeforeAfterElement):
         return False
-    if el.join_row() is None:
-        return False
+    # No redundant `join_row() is None` guard: resolved_slots() already returns
+    # empty pairs for a transient join row, and calling join_row() here would
+    # issue the SAME query twice per element on every lesson render.
     return any(
         _element_has_math(child.content_object)
         for _slot_id, children in el.resolved_slots()
@@ -2332,6 +2603,7 @@ git commit -m "feat(before-after): recurse into both slots for math detection"
 
 ---
 
-**Execution order:** 1 → 2 → 3 → 4 → 4a → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15.
+**Execution order** is stated in Global Constraints at the top of this document:
+**1 → 2 → 3 → 4 → 5 → 4a → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15.**
 
 Tasks 3 and 4 are coupled (`test_nestable_keys_are_a_subset_of_serializers` spans both) and 8–11 are coupled (the editor path is not exercisable until 11). Everything else is independently verifiable at its own commit.
