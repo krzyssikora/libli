@@ -28,40 +28,7 @@
   })();
 </script>
 {% endif %}
-{% if has_before_after %}
-<script>
-  (function () {
-    "use strict";
-    var d = document.documentElement;
-    // BOTH classes here, before first paint. `ba-js` must NOT be set from the
-    // deferred module: it runs after parsing with no guarantee of running before
-    // paint, so the html:not(.ba-js) rules -- five !important declarations that
-    // UN-HIDE the side headings -- would be live through first paint, flashing
-    // "Before"/"After" and shifting layout on every load.
-    d.classList.add("ba-armed");
-    d.classList.add("ba-js");
-    // Defined HERE, not in beforeafter.js: on the 404/blocked path the module
-    // never executes, so a module-defined function would not exist for this
-    // watchdog to call.
-    window.__baDisarm = function () {
-      d.classList.remove("ba-armed");
-      d.classList.remove("ba-js");
-      // Reverse the PER-INSTANCE state too. Removing only the classes would leave
-      // `hidden` on the after panel while html:not(.ba-js) .ba__toggle hides the
-      // one control that could clear it -- stranding the content.
-      var nodes = document.querySelectorAll("[data-beforeafter]");
-      for (var i = 0; i < nodes.length; i++) {
-        var panels = nodes[i].querySelectorAll(".ba__panel");
-        for (var k = 0; k < panels.length; k++) panels[k].removeAttribute("hidden");
-        delete nodes[i].dataset.baReady;
-      }
-    };
-    document.addEventListener("DOMContentLoaded", function () {
-      if (!window.__beforeAfterBooted) window.__baDisarm();
-    });
-  })();
-</script>
-{% endif %}
+{% if has_before_after %}{% include "courses/_before_after_prepaint.html" %}{% endif %}
 {% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">

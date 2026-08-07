@@ -70,3 +70,16 @@ def test_flag_is_false_without_the_element(lesson_unit_node, student_user):
     # the implementation lands.
     ctx = build_lesson_context(lesson_unit_node, student_user)
     assert ctx["has_before_after"] is False
+
+
+@pytest.mark.django_db
+def test_flag_is_set_for_a_quiz_unit(quiz_unit_node, student_user):
+    """Mutant: omit it from build_quiz_context -> the answer side is permanently
+    visible in every quiz unit.
+    """
+    from courses.views import build_quiz_context
+
+    Element.objects.create(
+        unit=quiz_unit_node, content_object=BeforeAfterElement.objects.create()
+    )
+    assert build_quiz_context(quiz_unit_node, student_user)["has_before_after"] is True

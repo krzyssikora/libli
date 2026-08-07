@@ -1276,6 +1276,13 @@ def build_quiz_context(node, user):
     has_html = node.elements.filter(
         content_type__app_label="courses", content_type__model="htmlelement"
     ).exists()
+    # Flat query (NOT scoped to parent__isnull=True) so an instance nested inside a
+    # tab -- children keep their own `unit` FK -- is still detected. Same query as
+    # build_lesson_context's has_before_after (views.py:445).
+    has_before_after = node.elements.filter(
+        content_type__app_label="courses",
+        content_type__model="beforeafterelement",
+    ).exists()
     ctx = {
         "course": node.course,
         "unit": node,
@@ -1294,6 +1301,7 @@ def build_quiz_context(node, user):
         "read_only": quiz_submitted or not enrolled,
         "has_math": has_math,
         "has_html": has_html,
+        "has_before_after": has_before_after,
         "has_questions": True,
     }
     from tags.rendering import unit_tags_context
