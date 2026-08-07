@@ -216,6 +216,12 @@ def _val_callout(data, elid, media_kinds):
     return set()
 
 
+def _val_before_after(data, elid, media_kinds):
+    _exact_keys(data, ["button_label"], _("before/after data"))
+    check_str(data["button_label"], _("button label"), max_length=120)
+    return set()  # references no media
+
+
 def _val_fill_gate(data, elid, media_kinds):
     stem = data.get("stem", "")
     answers = data.get("answers", [])
@@ -904,6 +910,7 @@ VALIDATORS = {
     "reveal_gate": _val_reveal_gate,
     "spoiler": _val_spoiler,
     "callout": _val_callout,
+    "before_after": _val_before_after,
     "fill_gate": _val_fill_gate,
     "switch_gate": _val_switch_gate,
     "switch_grid": _val_switch_grid,

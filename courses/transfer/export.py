@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
+from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
@@ -124,6 +125,10 @@ def _ser_callout(concrete, media_ids):
         "heading": concrete.heading,
         "body": concrete.body,
     }
+
+
+def _ser_before_after(concrete, media_ids):
+    return {"button_label": concrete.button_label}
 
 
 def _ser_fill_gate(concrete, media_ids):
@@ -469,6 +474,7 @@ SERIALIZERS = {
     "reveal_gate": (RevealGateElement, _ser_reveal_gate),
     "spoiler": (SpoilerElement, _ser_spoiler),
     "callout": (CalloutElement, _ser_callout),
+    "before_after": (BeforeAfterElement, _ser_before_after),
     "fill_gate": (FillGateElement, _ser_fill_gate),
     "switch_gate": (SwitchGateElement, _ser_switch_gate),
     "switch_grid": (SwitchGridElement, _ser_switch_grid),
@@ -594,10 +600,14 @@ def walk_unit_joins(unit_pk, joins_by_unit):
     traversal unification this slice deliberately descoped.
 
     Children are reached ONLY through resolved_tabs()/resolved_columns()/
-    resolved_children(), never join.children.all(): a child whose tab_id matches no
-    slot is deliberately OMITTED, because exporting it would produce a payload the
-    import validator rejects. (The DELETE path differs and must use join.children --
-    see builder._collect_subtree_pks.)
+    resolved_children()/resolved_slots(), never join.children.all(): a child whose
+    tab_id matches no slot is deliberately OMITTED, because exporting it would
+    produce a payload the import validator rejects -- except resolved_slots()
+    (BeforeAfterElement), which RE-HOMES such a child into the before slot rather
+    than omitting it. The walker must still yield the PAIR's slot id, never the
+    child's own tab_id, so the invariant's purpose -- never emit a slot id the
+    validator rejects -- holds either way. (The DELETE path differs and must use
+    join.children -- see builder._collect_subtree_pks.)
 
     Parents-before-children is an EXPORT-side requirement: build_export's
     walk_index_by_join_pk[parent_join.pk] lookup is unguarded and KeyErrors on a
@@ -638,6 +648,14 @@ def walk_unit_joins(unit_pk, joins_by_unit):
         elif isinstance(obj, CalloutElement):
             for child in obj.resolved_children():
                 yield from emit(child, join, CalloutElement.SLOT_ID)
+        elif isinstance(obj, BeforeAfterElement):
+            # The PAIR's slot id, never child.tab_id: resolved_slots() re-homes a
+            # stray child into `before`, so yielding its own tab_id would emit a
+            # slot id the import validator rejects -- breaking the invariant this
+            # function's docstring states.
+            for slot_id, children in obj.resolved_slots():
+                for child in children:
+                    yield from emit(child, join, slot_id)
 
     for join in joins_by_unit.get(unit_pk, []):
         yield from emit(join, None, "")

@@ -21,6 +21,7 @@ from django.utils.translation import gettext as _
 from courses.forms import unique_course_slug
 from courses.media import create_asset
 from courses.media import truncate_filename
+from courses.models import BeforeAfterElement
 from courses.models import Blank
 from courses.models import CalloutElement
 from courses.models import Choice
@@ -550,6 +551,10 @@ def _build_callout(data, assets):
     return _clean_save(el), ()
 
 
+def _build_before_after(data, assets):
+    return _clean_save(BeforeAfterElement(button_label=data["button_label"])), ()
+
+
 def _build_fill_gate(data, assets):
     return FillGateElement.objects.create(
         stem=data.get("stem", ""), answers=data.get("answers", [])
@@ -825,6 +830,7 @@ BUILDERS = {
     "reveal_gate": _build_reveal_gate,
     "spoiler": _build_spoiler,
     "callout": _build_callout,
+    "before_after": _build_before_after,
     "fill_gate": _build_fill_gate,
     "switch_gate": _build_switch_gate,
     "switch_grid": _build_switch_grid,
