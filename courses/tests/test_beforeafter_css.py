@@ -61,8 +61,13 @@ def test_panel_and_child_declare_no_display():
     panel = _rule_body(block, ".ba__panel")
     assert "border-left" in panel
     assert "display" not in panel
-    if ".ba__child" in block:
-        assert "display" not in _rule_body(block, ".ba__child")
+    # .ba__child deliberately has NO base rule: that is what keeps the `hidden`
+    # attribute working through the UA default. If one is ever added it must not
+    # declare `display`, and this assertion must be updated to check it rather
+    # than silently skipping.
+    assert ".ba__child" not in block, (
+        "a .ba__child base rule appeared -- assert it declares no display"
+    )
 
 
 def test_ba_child_joins_the_hidden_guard():
