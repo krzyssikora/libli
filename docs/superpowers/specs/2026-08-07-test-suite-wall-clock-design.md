@@ -126,8 +126,19 @@ CI runs an **untuned** Linux Postgres over the same 845 tests at `-n 2` in
 the same premise**. Two effects compound:
 
 - **The sample is not representative.** All 69 sample tests take `live_server`
-  and pay a truncate. The full 845 includes `test_e2e_math_reflow_dom.py` — 171
-  tests, 20% of the selection — which uses no `live_server` and pays none.
+  and pay a truncate. **Four e2e files use no `live_server` and pay none**,
+  totalling **270 of 845 — 32% of the selection**, measured by collection:
+
+  | File | e2e tests |
+  |---|---|
+  | `tests/test_e2e_math_reflow_dom.py` | 171 |
+  | `tests/test_table_grid_algebra.py` | 38 |
+  | `tests/test_link_dialog_behaviour.py` | 32 |
+  | `tests/test_link_apply.py` | 29 |
+
+  So **575 tests pay the truncate, not 674**. Per-test extrapolation from the
+  sample therefore overstates full-suite time by more than a one-file correction
+  would suggest.
 - **Local container I/O is not CI I/O.** Docker Desktop nests virtualization and
   its PGDATA sits on a virtual disk, where fsync is far costlier than a GitHub
   runner's ephemeral NVMe. This is why the durability flags buy so much locally
@@ -280,17 +291,26 @@ Four deliberate choices:
   verified, not assumed. A future second alias makes this a silent drop and must
   change to a targeted update.
 
-**Two failure classes, deliberately separated.** A `try/except` around a lax
-parser converts raised exceptions; it adds no validation. So:
+**The explicit check does all the real work; the `except` is defensive only.**
+This was measured, because the intuitive division of labour is wrong:
+`env.db_url_config` (django-environ 0.14.0) **does not raise on garbage** — it
+returns `{}` and emits a `UserWarning`. Verified for `"not-a-url"`, `"://x"` and
+`""`, all of which returned `{}`.
 
-- **Unparseable** values (e.g. `"not-a-url"`, whose empty scheme misses
-  `DB_SCHEMES`) raise from the `except` branch.
-- **Parseable but wrong** values are the dangerous case, and the `except` branch
-  cannot catch them: `postgres://libli@127.0.0.1:5432/libli` — the real dev
-  instance's port instead of 55433 — parses cleanly and would point the whole
-  test run at the developer's real Postgres, inverting §7's first risk row. The
-  explicit engine/port check exists for exactly this, and is why the validation
-  is not left to `db_url_config`.
+Consequently **both** bad-value classes are caught by the engine/port check, and
+both raise its message, not the `except` branch's:
+
+- **Garbage** (`"not-a-url"`) → `{}` → fails the `ENGINE` test.
+- **Parses cleanly but points somewhere dangerous** —
+  `postgres://libli@127.0.0.1:5432/libli`, the real dev instance's port instead
+  of 55433 — → valid-looking config → fails the port test. Without this check it
+  would point the whole test run at the developer's real Postgres, inverting §7's
+  first risk row.
+
+The `except` branch is retained for genuinely raising inputs (non-string types,
+future parser behaviour) but **is not exercised by any named exemplar**, and
+§5.4's test table asserts the engine/port message accordingly. An implementer who
+assumes the `except` fires for `"not-a-url"` will write a test that fails.
 
 **Naming and precedence, for `.env.example` and `testing.md`:**
 `TEST_DATABASE_URL` configures the *server the test database is created on*,
@@ -306,8 +326,9 @@ are present, **under `config.settings.test` the latter wins outright**.
   works; `base.py`'s `env.read_env` reads only `.env`.
 - **`docs/development/setup.md`** — starting the service, the `--wait` version
   floor, and **Docker Desktop as a prerequisite for the tuned path** (the unset
-  fallback remains supported). Its **test-command block at lines 98 and 107**
-  points at `testing.md`.
+  fallback remains supported). Its **test-command blocks — line 98, and lines
+  107–108** (107 is `playwright install chromium`; 108 is the `-m e2e`
+  invocation) — point at `testing.md`.
 - **`docs/development/conventions.md` — three edits:**
   1. **`## Testing` (lines 27–40)** rewritten to defer to `testing.md`. The
      `fsync=off` warning lands here.
@@ -360,12 +381,18 @@ env var; without a prompt the speedup will be available and unused.
 When e2e tests are selected and `TEST_DATABASE_URL` is unset, pytest emits a
 one-line notice naming the compose command. Four things are pinned:
 
-- **Hook location: the root `conftest.py`, not `tests/conftest.py`.** e2e tests
-  live outside `tests/` — `integrations/tests/test_e2e.py`,
-  `notifications/tests/test_e2e_bell.py`, `test_e2e_email_prefs.py`,
-  `test_e2e_notifications.py` — and a directory conftest loads only for its own
-  subtree, so the notice would silently never fire for those. The root
-  `conftest.py` docstring already states this rule for exactly this reason.
+- **Hook location: the root `conftest.py`, not `tests/conftest.py`.** **Three**
+  e2e files live outside `tests/` — `notifications/tests/test_e2e_bell.py`,
+  `test_e2e_email_prefs.py`, `test_e2e_notifications.py` — and a directory
+  conftest loads only for its own subtree, so the notice would silently never
+  fire for those. The root `conftest.py` docstring already states this rule for
+  exactly this reason.
+
+  **`integrations/tests/test_e2e.py` is *not* one of them** — despite the name it
+  contains no `e2e` marker (its `pytestmark` is `django_db`) and collects nothing
+  under `-m e2e`. This is precisely why B2's naming glob is `test_e2e_*.py`
+  **with the trailing underscore**: a looser `test_e2e*.py` would misclassify
+  this file as e2e-only and strand its unit tests.
 - **Controller only:** guard with `if hasattr(config, "workerinput"): return`.
   Under xdist the hook runs in every worker, where the terminal reporter is
   absent or output swallowed — giving N duplicate lines or silence.
@@ -419,8 +446,20 @@ Advisory, not authoritative.
 
 ```
 normalize_name_status(lines: list[str]) -> list[str]
-map_paths(paths: list[str], search: Callable[[str], set[str]]) -> Result
+map_paths(
+    paths: list[str],
+    search: Callable[[str], set[str]],
+    migration_models: Callable[[str], set[str]],
+) -> Result
 ```
+
+**`migration_models` is a third injected dependency, and it is required.** The
+migration rule needs the model names in a migration's operations, but a migration
+is not a test file, so it is absent from the corpus and `search()` cannot reach
+it — while `paths: list[str]` carries no content. Without this seam the migration
+rule, the purity constraint and B3's stub-based testing are jointly unsatisfiable.
+The **wrapper** performs the extraction (it owns all file access); `map_paths`
+merely calls the callable, and B3 stubs it.
 
 `normalize_name_status` consumes raw `--name-status` output and **follows renames
 to the new path**. It **drops deleted paths only when they are test files** — a
@@ -516,15 +555,26 @@ short-circuit exists to prevent, reappearing in the classifier.
 
 The rule:
 
-| File shape | Goes to |
+| Test, in order | Goes to |
 |---|---|
-| name matches `test_e2e_*.py`, or module-level `pytestmark` is `e2e` | e2e only |
-| per-function `@pytest.mark.e2e` on some tests | **both** selections |
-| no `e2e` marker anywhere | unit only |
+| name matches `test_e2e_*.py` (trailing underscore required) | e2e only |
+| else `f in search("pytest.mark.e2e")` | **both** selections |
+| else | unit only |
 
-The marker check goes through **`search()`** (`f in search("pytest.mark.e2e")`),
-not by opening files — otherwise `map_paths` would perform I/O and break the
-purity B3's stub-based tests rely on.
+**Deliberately only two tests, both expressible through `search()`.** An earlier
+draft distinguished a module-level `pytestmark` from per-function decorators,
+which is **not implementable under the stated purity constraint**: a substring
+search for `pytest.mark.e2e` cannot tell the two apart, and the obvious refinement
+`search("pytestmark = pytest.mark.e2e")` misses the list form that exists in this
+repo (`tests/test_e2e_builder_filter.py`, `test_e2e_builder_toggle.py`:
+`pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]`). The
+distinction is also unnecessary — every module-level-marked file here is already
+named `test_e2e_*.py`, so row 1 catches it. Routing a file with any marker to
+**both** selections is safe: the surplus command simply selects nothing there,
+which row 3 of the exit-5 note covers.
+
+The marker check goes through **`search()`**, never by opening files — otherwise
+`map_paths` would perform I/O and break the purity B3's stub-based tests rely on.
 
 **Empty selections.** `NONE` with a non-empty candidate list emits that list.
 `NONE` with an **empty** list — a docs-only diff, a binary-only diff, or one
@@ -534,9 +584,15 @@ file list into a pytest command would yield a bare `uv run pytest`, i.e. all
 5,104 tests: the maximally wrong answer, emitted silently, for the input that
 means "nothing to run".
 
-The emitted e2e command **always carries `-m e2e`**, and the output states that
-**exit code 5 means "nothing selected", not "green"** — an e2e path in the unit
-invocation is silently deselected by the existing `-m 'not e2e'`.
+The emitted e2e command **always carries `-m e2e`**, and **both** emitted
+commands carry the note that **exit code 5 means "nothing selected", not
+"green"**. The caveat belongs on the unit command too, not just the e2e one:
+non-exclusive classification puts every per-function-marked file into both
+selections, and three such files
+(`tests/test_link_apply.py`, `test_link_dialog_behaviour.py`,
+`test_table_grid_algebra.py`) collect **zero** non-e2e tests — so a diff touching
+only those emits a unit command whose every file is deselected by the existing
+`-m 'not e2e'`, yielding a bare exit 5.
 
 ### B3. Tests for the helper — `tests/test_affected_tests.py`
 
@@ -599,6 +655,22 @@ the thresholds:
 **Two draws per run**, because §2.4's ~21% variance makes any single-draw
 comparison unreliable — the rule that made the container rows provisional.
 
+**Cost, stated because §5.2 refuses full-suite replication on exactly this
+ground.** Six runs × 2 draws = **eight full unit runs and four full e2e runs**.
+On §1's "roughly an hour" per full suite that is plausibly **8–12 hours of wall
+clock** — a one-off cost, but far larger than anything else in this design, and
+the reason §5.2's gate deliberately uses a 69-test subset instead. The plan must
+therefore either:
+
+- justify two draws for every run, **or**
+- drop to one draw where the decision rule tolerates it. Run 3's 1.25× bar is the
+  candidate: it sits well outside §2.4's 21% band, so a single draw can settle it
+  in most outcomes, with the second draw taken only if the first lands between
+  1.15× and 1.35×.
+
+This is a plan-phase decision, not a spec-phase one, but it must be made
+deliberately rather than by discovering the cost mid-measurement.
+
 **Statistical conventions, fixed once and used in §5.1, §5.2 and §5.3:**
 
 - The **median of an even-sized sample is the mean of the two middle values**.
@@ -609,13 +681,21 @@ comparison unreliable — the rule that made the container rows provisional.
 
 (§A4's three-run medians are odd-count and unaffected.)
 
-**Instrumentation, required on the e2e runs: `--durations=0 -vv`.** Both parts
-matter — a bare `--durations` is a hard error (it takes an integer argument), a
-positive integer reports only the N slowest, and without `-vv` pytest hides
-entries under 0.005 s. The figure wanted is the **mean of `setup+call+teardown`
-across the 171 tests in `test_e2e_math_reflow_dom.py`**, which is the only
-quantity §5.2's 0.4 s assumption concerns; without it the "recompute the
-thresholds" path cannot recompute anything.
+**Instrumentation, required on the e2e runs:
+`--durations=0 --durations-min=0`.** A bare `--durations` is a hard error (it
+takes an integer argument) and a positive integer reports only the N slowest.
+**`-vv` is not sufficient to unhide sub-5 ms entries here** — pytest's filter
+tests `get_verbosity() >= 2`, and verbosity is the `-v` count minus the `-q`
+count, so `addopts`' `-q` offsets `-vv` down to 1. Measured:
+`pytest tests/test_video_url.py --durations=0 -vv` still prints
+`(211 durations < 0.005s hidden…)`. `--durations-min=0` is verbosity-independent
+and therefore the correct flag; `-vvv` would also work but depends on the same
+fragile arithmetic.
+
+The figures wanted are **per-file means of `setup+call+teardown` for all four
+non-truncate e2e files** (§2.3), not just one. Scoping this to
+`math_reflow_dom` alone would leave §5.2's recomputation unable to consume the
+other three.
 
 **Do not add `-q` to these runs.** `addopts` already supplies one; a second makes
 it `-qq`, which suppresses the warnings summary entirely and turns the
@@ -700,11 +780,19 @@ anywhere:**
 > mean-over-mean, because it pairs the fastest before draw with the mean after,
 > matching the decision statistic's pessimism.
 >
-> Diluting to the full 845: roughly 171 tests (`math_reflow_dom`) pay no
-> truncate, leaving **845 − 171 = 674** truncate-paying. Assuming the 171 cost
+> Diluting to the full 845: **270 tests across four files** pay no truncate
+> (§2.3), leaving **845 − 270 = 575** truncate-paying. Assuming the 270 cost
 > ~0.4 s each (**unmeasured — the largest assumption here**; §5.1 run 4 measures
-> it), the ratio falls to **≈1.57×**. The absolute seconds behind that figure are
+> all four files), expected wall clock goes 575×3.08 + 270×0.4 = 1,879 s →
+> 575×1.93 + 270×0.4 = 1,218 s, i.e. **≈1.54×**. The absolute seconds are
 > scaffolding for the ratio, not a wall-clock prediction (§2.3).
+
+**The dilution deliberately holds the 270 constant across both arms** — i.e. it
+assumes only the truncate improves, the very assumption §2.1 rejects as
+falsified. That is a **conservative** choice: §2.1's `setup`/`call` speedup
+would only raise the achieved ratio, so this biases the thresholds stricter than
+intended rather than laxer. It is called out because the two sections otherwise
+appear to argue opposite things about the same mechanism.
 
 **Population, which the thresholds must match.** The derivation above dilutes to
 the full suite, but the gate measures the **sample**, where all 69 tests pay a
@@ -719,21 +807,22 @@ therefore stated for the sample**, and the relationship is:
 | reject below | **1.28×** | 1.30× |
 
 The sample thresholds are the full-suite targets scaled by
-`sample_ratio / diluted_ratio` = 1.60 / 1.57. If §5.1 run 4's durations
+`sample_ratio / diluted_ratio` = 1.60 / 1.54. If §5.1 run 4's per-file durations
 invalidate the 0.4 s assumption, only `diluted_ratio` moves, so recompute
 directly from the table's own numbers:
 
 ```
-new_sample_threshold = 1.45 × (1.57 / new_diluted_ratio)     # and 1.30 likewise
+new_sample_threshold = 1.45 × (1.54 / new_diluted_ratio)     # and 1.30 likewise
 ```
 
 Recomputation happens **before the gate is run**, never after seeing the result.
 
-**On the 674 used in the dilution:** §2.1 says 93 of 630 *functions* skip the
-truncate while the derivation assumes 171 of 845 *collected tests* do. These
-reconcile through parametrization, but 674 is an **approximation ignoring
-non-`live_server` functions outside `math_reflow_dom`**, so it slightly overstates
-the truncate-paying share. §5.1's per-file durations replace it.
+**On the 575 used in the dilution:** §2.1 says 93 of 630 *functions* skip the
+truncate while the derivation counts 270 of 845 *collected tests*. These
+reconcile through parametrization — the four non-truncate files are heavily
+parametrized, `math_reflow_dom` most of all. The 270 is now an enumerated
+measurement rather than the earlier one-file approximation, but §5.1's per-file
+durations still supersede the 0.4 s cost assumption attached to it.
 
 ### 5.3 Revert semantics, per deliverable
 
@@ -756,7 +845,19 @@ comparisons use the ratio-of-medians convention fixed in §5.1.
 |---|---|
 | **Run 2 ÷ run 1** — the unit half under the container | If run 2 is **slower than run 1 by more than 5%**, `testing.md` must document `TEST_DATABASE_URL` as an **e2e-only activation** (exported per command, not set in `.env`), and A3's activation guidance changes to match |
 | **Run 3 ÷ run 1** — the parallelism lever | If run 3 beats run 1 by **≥1.25×**, `testing.md` documents `-n auto` as the local unit command |
-| **Run 6** — both levers together | If both rules above fire positively, `testing.md`'s recommended unit command is whichever of runs 3 and 6 is faster; run 6 exists so this is measured rather than assumed |
+| **Run 6** — both levers together | Branches on run 2's outcome; see the truth table below |
+
+**Truth table for the recommended local unit command**, because "if both rules
+fire positively" is undefined when one rule's *trigger* is a regression — and on
+the literal reading it would recommend the container-plus-`-n auto`
+configuration that the run-2 rule had just excluded:
+
+| Run 2 vs run 1 | Run 3 vs run 1 | `testing.md` recommends |
+|---|---|---|
+| within 5% | ≥ 1.25× | faster of **run 3** and **run 6** (measured, not assumed) |
+| within 5% | < 1.25× | single-process; `TEST_DATABASE_URL` may stay in `.env` |
+| **> 5% slower** | ≥ 1.25× | **run 3's command** — `-n auto`, *no* container; run 6 is excluded because the container is now e2e-only |
+| **> 5% slower** | < 1.25× | single-process, no container; `TEST_DATABASE_URL` exported per-command for e2e only |
 
 The **run 2 rule matters more than it looks**. `TEST_DATABASE_URL` is activated
 once in `.env` (A3) and then applies to *every* invocation — including the
@@ -783,14 +884,26 @@ explicitly which items can *also* reject the work and which are merely recorded.
   still reports green, so a regression in the apparatus §6 refuses to touch would
   be invisible.
 
-  **Scope limit, stated because the check is otherwise falsely reassuring:** the
-  barrier and deadlock-retry fixtures live in `tests/conftest.py`, a *directory*
-  conftest, so they never load for the four e2e files outside `tests/`
-  (`integrations/tests/test_e2e.py`, `notifications/tests/test_e2e_bell.py`,
-  `test_e2e_email_prefs.py`, `test_e2e_notifications.py`). Zero warnings from
-  those files is guaranteed regardless of Part A. The must-stay-zero claim is
-  therefore scoped to `tests/`, and those four need a separate
-  green-and-no-teardown-error check.
+  **Scope limit — and the two fixtures behave differently, which inverts the
+  obvious reading.** Both live in `tests/conftest.py`, a *directory* conftest,
+  but:
+
+  - **The quiescence barrier is function-scoped**, so it genuinely never applies
+    to the three e2e files outside `tests/`
+    (`notifications/tests/test_e2e_bell.py`, `test_e2e_email_prefs.py`,
+    `test_e2e_notifications.py`). Its warning cannot fire for them.
+  - **The deadlock-retry patch is session-scoped and monkeypatches
+    `TransactionTestCase._fixture_teardown` globally.** Once any `tests/` test
+    activates it on a worker, its warning *can* fire for the notifications files
+    too — whether it does is xdist-distribution-dependent, not guaranteed either
+    way.
+
+  **Those three files are the most exposed, not the least.** All three take
+  `live_server` (verified), so they pay the truncate **without** the barrier
+  protecting their teardown. Declaring them clean by construction would be
+  exactly backwards: they need their own green-and-no-teardown-error check, and
+  a deadlock warning attributed to them is a stronger signal than one from
+  `tests/`.
 
   **Remediation branch on a non-zero count**, since "must stay zero" without a
   consequence is unactionable: a **barrier-timeout** warning means the 5 s
@@ -813,8 +926,8 @@ explicitly which items can *also* reject the work and which are merely recorded.
   |---|---|
   | `""` | `None` |
   | `postgres://libli@127.0.0.1:55433/libli` | parsed `DATABASES` dict |
-  | `"not-a-url"` | `ImproperlyConfigured` (unparseable — empty scheme misses `DB_SCHEMES`) |
-  | `postgres://libli@127.0.0.1:5432/libli` | `ImproperlyConfigured` (**parses cleanly**; caught only by the explicit port check) |
+  | `"not-a-url"` | `ImproperlyConfigured` — **from the engine/port check**, since `db_url_config` returns `{}` rather than raising (measured) |
+  | `postgres://libli@127.0.0.1:5432/libli` | `ImproperlyConfigured` — **parses cleanly**; caught only by the explicit port check |
 
   Mutant: make the helper return a dict for the empty case so the override
   applies unconditionally, and require red.
