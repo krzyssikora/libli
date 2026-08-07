@@ -1856,6 +1856,64 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 [data-theme="dark"] .callout--tip     { --callout-accent: #5cd193; }
 [data-theme="dark"] .callout--warning { --callout-accent: #e8b761; }
 
+/* Before / after — base */
+.el--beforeafter { margin-block: var(--space-6); }
+
+/* Borrows .spoiler__toggle's token set (app.css:933-950) minus its two
+   <summary>-specific declarations. Both are "press this to change what you see"
+   controls; an author who has used one should recognise the other. */
+.ba__toggle {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+/* Sized to the label's line-box so icon-only and icon+label buttons are the same
+   height. An inline <svg> with no intrinsic size would otherwise collapse or
+   render at the UA default -- only the screenshot step would catch it. */
+.ba__toggle .ic { width: 1em; height: 1em; flex: none; }
+.ba__toggle:hover { background: var(--primary); color: var(--text-inverse); border-color: transparent; }
+.ba__toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* The gap lives on the TOGGLE, not on .ba__panels. `.ba__toggle + .ba__panels`
+   would select .ba__panels (the adjacent-sibling combinator names the subject on
+   its RIGHT), breaking the no-margin invariant below -- and the two are not
+   equivalent anyway: the toggle is inline-flex so its margin-bottom does not
+   collapse and gives a fixed gap, whereas a margin-top on .ba__panels would
+   collapse with the first panel content's own margin-top and give max(). */
+
+/* .ba__panels deliberately gets NO rule at all: it is a bare grouping box --
+   no margin, no padding, no border, not a flow-root -- so margins collapse
+   through it untouched. An empty rule set would be dead CSS. */
+
+/* Ported verbatim from app.css:986-990 (.spoiler__body, .spoiler > .spoiler__children).
+   HORIZONTAL padding only, no vertical margin, not a flow-root -- so the
+   children's own margins keep collapsing OUT and the rule starts and stops on the
+   content rather than on the margins. Do NOT add :first-child/:last-child margin
+   resets: those are the CALLOUT's treatment, needed only because .callout has
+   padding that blocks collapsing (courses.css:1823-1834 says the spoiler's
+   rationale does not transfer). They would defeat the hug.
+   Each side is ONE box holding all that side's children, so a single border per
+   side is continuous by construction -- which is why this needs no
+   .spoiler__children-style wrapper.
+   NO `display` here: that is what keeps the `hidden` attribute working through
+   the UA default. */
+.ba__panel {
+  padding-left: var(--space-4);
+  border-left: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
 /* Step-by-step (inline reveal stepper) — student render */
 .stepper__prompt { color: var(--text-secondary); margin: 0 0 0.4rem; }
 .stepper__line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.55rem; }

@@ -103,3 +103,65 @@ def test_element_models_includes_before_after():
     from courses.models import ELEMENT_MODELS
 
     assert "beforeafterelement" in ELEMENT_MODELS
+
+
+@pytest.mark.django_db
+def test_render_emits_namespaced_ids_and_both_panels():
+    """Mutant: use node_pk instead of element.pk -> two elements on one page emit
+    the same id and one button controls the other's panels.
+    """
+    _course, unit = make_course_with_unit()
+    join, obj = _ba(unit, label="Show solution")
+    _child(unit, join, BeforeAfterElement.BEFORE_SLOT_ID, "problem")
+    _child(unit, join, BeforeAfterElement.AFTER_SLOT_ID, "answer")
+
+    html = obj.render(element=join, node_pk=999)
+
+    assert f'id="ba-{join.pk}-panels"' in html
+    assert f'aria-controls="ba-{join.pk}-panels"' in html
+    assert "ba-999-panels" not in html  # node_pk must not be the id source
+    assert 'data-ba-side="before"' in html and 'data-ba-side="after"' in html
+    assert "problem" in html and "answer" in html
+    assert 'aria-pressed="false"' in html
+    assert "Show solution" in html
+
+
+@pytest.mark.django_db
+def test_render_without_label_carries_an_aria_label():
+    """An icon-only button with no accessible name is a defect.
+
+    Mutant: drop the {% if not el.button_label %} branch -> no aria-label.
+    """
+    _course, unit = make_course_with_unit()
+    join, obj = _ba(unit)
+    html = obj.render(element=join)
+    assert "aria-label=" in html
+
+
+@pytest.mark.django_db
+def test_icon_is_inline_svg_not_a_sprite_reference():
+    """_icon_sprite.html is included only in builder.html, editor.html and
+    help/doc.html -- never in a student unit template. A <use href="#..."> would
+    resolve to nothing on every student page, leaving an empty pill.
+
+    Mutant: swap the include for <use href="#el-beforeafter"> -> RED.
+    """
+    _course, unit = make_course_with_unit()
+    join, obj = _ba(unit)
+    html = obj.render(element=join)
+    assert "<svg" in html and "<path" in html
+    assert "use href=" not in html
+
+
+@pytest.mark.django_db
+def test_empty_slot_still_renders_its_panel():
+    """Unlike calloutelement.html / spoilerelement.html (which wrap children in
+    {% if children %}), an empty slot still emits its <section> -- that is what
+    makes the "empty ruled panel" behaviour real.
+
+    Mutant: wrap the panel in {% if children %} -> only one section renders.
+    """
+    _course, unit = make_course_with_unit()
+    join, obj = _ba(unit)
+    html = obj.render(element=join)
+    assert html.count('class="ba__panel"') == 2
