@@ -24,7 +24,7 @@ Every task's requirements implicitly include this section. Values are copied ver
 - **Breadth caps, per selection, independent:** unit **40**, e2e **15**.
 - **Diff range is merge-base with `origin/master`** (not local `master`, routinely stale in a worktree). `--base` overrides. A missing ref is a hard error, never a silent empty diff.
 - **ruff applies to `scripts/`** — `select = ["E", "F", "I", "UP", "B", "S"]`, `ignore = ["S101"]`, `isort.force-single-line = true`, **line length 88** (no override). Consequences, all verified: `subprocess` calls need `# noqa: S603` (precedent `tests/test_help_capture_isolation.py:19`); no unused imports (`F401`), so each task adds only the imports it uses; no mid-file imports (`E402`); bare `assert` in tests is fine (`S101` is ignored globally); and `ruff format` rewrites `"...\"x\"..."` to `'..."x"...'`, so **write strings containing double quotes with single outer quotes**.
-- **Comments recording an observation are prefixed `MEASURED:`**, matching `conftest.py` (3 occurrences) and the 32 other python files repo-wide that use it.
+- **Comments recording an observation are prefixed `MEASURED:`**, matching `conftest.py` (3 occurrences) and 31 other python files repo-wide.
 - **Never run the full suite to check this work.** Run the named test file only.
 
 ### Deviations from the spec, already decided
@@ -1432,14 +1432,8 @@ def git_lines(args: list[str], cwd: Path) -> list[str]:
         cwd=cwd,
         capture_output=True,
         text=True,
+        check=True,
     )
-    if proc.returncode != 0:
-        # NOT check=True: capture_output would swallow git's own diagnosis, and
-        # every caller here either guards this (resolve_base) or has nothing
-        # better to say than what git already said.
-        raise subprocess.CalledProcessError(
-            proc.returncode, ["git", *args], proc.stdout, proc.stderr
-        )
     return proc.stdout.splitlines()
 
 
@@ -1496,6 +1490,12 @@ def make_search(corpus: set[str], cwd: Path) -> Callable[[str], set[str]]:
             # every file before the regex runs. It cannot change the result --
             # \bTERM\b can only match where TERM occurs. MEASURED over the
             # 647-file corpus, 18 terms: 2.26 s without it, 0.09 s with. 25x.
+            #
+            # re.escape is therefore belt-and-braces: the pre-filter already
+            # rejects any file lacking the literal term, so an unescaped `.`
+            # cannot match a stray character in practice. It stays because the
+            # pattern must not depend on that argument staying true if the
+            # pre-filter is ever removed.
             cache[term] = {
                 rel for rel, t in contents.items() if term in t and pattern.search(t)
             }
@@ -1619,7 +1619,7 @@ Expected: PASS, **77** tests.
 
 | Mutant | Must turn red |
 |---|---|
-| Drop `re.escape` from the pattern | `test_a_dotted_term_is_escaped_not_treated_as_regex` |
+| Drop `re.escape` **and** the `term in t` pre-filter together | `test_a_dotted_term_is_escaped_not_treated_as_regex` |
 | Drop the `\b` anchors | `test_matches_on_word_boundaries` |
 | Remove the `not node.name.startswith("_")` filter | `test_module_level_public_defs_and_classes_only` |
 | `tree.body` → `ast.walk(tree)` | `test_module_level_public_defs_and_classes_only` (picks up `inner_fn`, `a_method`) |
@@ -1915,7 +1915,7 @@ No new production code is planned. If a test fails, diagnose and fix `scripts/af
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **88** tests — or 88 plus any assertion Step 3 added while fixing a real defect. Record the total; a higher number is not itself a failure.
+Expected: PASS, **88** tests — or 88 plus any **new test** Step 3 added while fixing a real defect. An assertion added to an existing test leaves the count at 88. Record the total; a higher number is not itself a failure.
 
 - [ ] **Step 5: Falsify**
 
@@ -2145,7 +2145,7 @@ A **syntax error from the shell** on any paste is a defect in `render_commands`,
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **88** tests — or 88 plus any assertion Step 4 added — exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
+Expected: PASS, **88** tests — or 88 plus any **new test** Step 4 added; an assertion added to an existing test leaves it at 88 — exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
 
 - [ ] **Step 6: Lint the whole diff**
 
