@@ -6,6 +6,7 @@ the existing configuration collects them.
 """
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -608,3 +609,235 @@ class TestSearch:
         first = search("render")
         first.add("bogus.py")
         assert search("render") == {"test_a.py"}
+
+
+def run_git(cwd, *args):
+    proc = subprocess.run(  # noqa: S603 -- fixed argv, tmp_path fixture repo
+        ["git", *args],  # noqa: S607
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        # NOT check=True. It would carry stderr on the exception just fine
+        # (VERIFIED) -- the reason is the SHAPE of the failure: a fixture
+        # problem (an old git without `init -b`, a global commit.template, a
+        # locked index) is not a test failing, and pytest.fail reports it as
+        # one clear line instead of a CalledProcessError traceback.
+        pytest.fail(f"git {' '.join(args)} failed:\n{proc.stderr}")
+
+
+@pytest.fixture
+def fixture_repo(tmp_path):
+    """A deterministic repo with a known origin/master and one ignored worktree."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_git(repo, "init", "-q", "-b", "master")
+    run_git(repo, "config", "user.email", "t@example.com")
+    run_git(repo, "config", "user.name", "T")
+    # A global commit.gpgsign or core.hooksPath would otherwise surface as a
+    # fixture error rather than an assertion failure.
+    run_git(repo, "config", "commit.gpgsign", "false")
+    run_git(repo, "config", "core.hooksPath", "")
+
+    (repo / "tests").mkdir()
+    (repo / "courses").mkdir()
+    (repo / "courses" / "models.py").write_text(
+        "class Widget:\n    pass\n", encoding="utf-8"
+    )
+    (repo / "tests" / "test_widget.py").write_text(
+        "from courses.models import Widget\n\n\ndef test_w():\n    assert Widget\n",
+        encoding="utf-8",
+    )
+    (repo / "tests" / "test_e2e_widget.py").write_text(
+        "import pytest\n\npytestmark = pytest.mark.e2e\n\n\n"
+        "def test_w(page):\n    assert Widget\n",
+        encoding="utf-8",
+    )
+    (repo / ".gitignore").write_text(".claude/\n", encoding="utf-8")
+    run_git(repo, "add", "-A")
+    run_git(repo, "commit", "-q", "-m", "base")
+    # A stand-in for the nested worktrees: gitignored, on disk, must never enter
+    # the corpus.
+    phantom = repo / ".claude" / "worktrees" / "other" / "tests"
+    phantom.mkdir(parents=True)
+    (phantom / "test_phantom.py").write_text(
+        "def test_p():\n    pass\n", encoding="utf-8"
+    )
+    run_git(repo, "update-ref", "refs/remotes/origin/master", "HEAD")
+    return repo
+
+
+class TestCorpusExcludesIgnoredPaths:
+    def test_a_nested_worktree_test_file_never_enters_the_corpus(self, fixture_repo):
+        corpus = build_corpus(fixture_repo)
+        assert corpus == {"tests/test_widget.py", "tests/test_e2e_widget.py"}
+
+    def test_an_untracked_test_file_does_enter_the_corpus(self, fixture_repo):
+        # Tracked-only would be wrong: classification reads the corpus, so an
+        # untracked marked file would look unmarked. See the next test.
+        (fixture_repo / "tests" / "test_fresh.py").write_text(
+            "def test_f():\n    pass\n", encoding="utf-8"
+        )
+        assert "tests/test_fresh.py" in build_corpus(fixture_repo)
+
+    def test_the_phantom_really_is_on_disk(self, fixture_repo):
+        # Guards the guard: if the fixture stopped writing the phantom, the test
+        # above would pass vacuously.
+        phantom = (
+            fixture_repo
+            / ".claude"
+            / "worktrees"
+            / "other"
+            / "tests"
+            / "test_phantom.py"
+        )
+        assert phantom.exists()
+
+
+class TestWrapperIntegration:
+    def test_a_source_change_maps_to_its_tests_with_both_commands(
+        self, fixture_repo, capsys
+    ):
+        (fixture_repo / "courses" / "models.py").write_text(
+            "class Widget:\n    pass\n\n\ndef helper():\n    pass\n", encoding="utf-8"
+        )
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "change")
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "uv run pytest tests/test_widget.py" in out
+        assert "uv run pytest tests/test_e2e_widget.py -m e2e" in out
+        assert out.count(affected_tests.EXIT5_NOTE) == 2
+        assert "test_phantom.py" not in out
+
+    def test_the_diff_is_taken_from_the_fork_point_not_the_base_tip(
+        self, fixture_repo, capsys
+    ):
+        # THE merge-base test. In every other scenario origin/master is an
+        # ancestor of HEAD, so merge-base(origin/master, HEAD) == origin/master
+        # and `return base` would pass everything -- leaving the stated
+        # "merge-base with origin/master" constraint entirely unfalsified.
+        #
+        # Here origin/master ADVANCES onto a commit that is not in HEAD's
+        # history. Diffing against its tip would report courses/on_master.py as
+        # a deleted path (it is absent from HEAD); diffing against the fork
+        # point correctly reports only what HEAD changed.
+        run_git(fixture_repo, "checkout", "-q", "-b", "topic")
+        (fixture_repo / "courses" / "models.py").write_text(
+            "class Widget:\n    pass\n\n\ndef on_topic():\n    pass\n",
+            encoding="utf-8",
+        )
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "topic work")
+
+        run_git(fixture_repo, "checkout", "-q", "master")
+        (fixture_repo / "courses" / "on_master.py").write_text(
+            "def only_on_master():\n    pass\n", encoding="utf-8"
+        )
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "master work")
+        run_git(fixture_repo, "update-ref", "refs/remotes/origin/master", "HEAD")
+        run_git(fixture_repo, "checkout", "-q", "topic")
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "on_master.py" not in out
+
+    def test_an_untracked_marked_file_still_lands_in_both_selections(
+        self, fixture_repo, capsys
+    ):
+        # THE untracked-classification case. This file is untracked (so it is
+        # invisible to `git diff`), carries a MODULE-LEVEL e2e marker, and is
+        # NOT named test_e2e_* -- so only the marker search can classify it. If
+        # the corpus were tracked-only it would be routed to unit alone, where
+        # `-m 'not e2e'` deselects everything in it: selected nowhere, silently.
+        (fixture_repo / "tests" / "test_mixed_new.py").write_text(
+            "import pytest\n\npytestmark = pytest.mark.e2e\n\n\n"
+            "def test_m():\n    pass\n",
+            encoding="utf-8",
+        )
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        unit_line = next(
+            ln for ln in out.splitlines() if ln.strip().startswith("uv run pytest")
+        )
+        assert "tests/test_mixed_new.py" in unit_line
+        e2e_line = next(
+            ln
+            for ln in out.splitlines()
+            if ln.strip().startswith("uv run pytest") and ln.rstrip().endswith("-m e2e")
+        )
+        assert "tests/test_mixed_new.py" in e2e_line
+
+    def test_an_explicit_base_override_is_honoured(self, fixture_repo, capsys):
+        # The --base flag is a stated requirement, but only its FAILURE path was
+        # covered -- code that ignored args.base and always used origin/master
+        # would have gone unnoticed.
+        (fixture_repo / "courses" / "models.py").write_text(
+            "class Widget:\n    pass\n\n\ndef helper():\n    pass\n", encoding="utf-8"
+        )
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "change")
+
+        assert affected_tests.main(["--repo", str(fixture_repo), "--base", "HEAD"]) == 0
+        out = capsys.readouterr().out
+
+        # Against HEAD itself there is no diff, so the default (origin/master,
+        # one commit back) and this must give different answers.
+        assert "nothing to run" in out
+
+    def test_a_missing_base_ref_fails_loudly(self, fixture_repo):
+        with pytest.raises(SystemExit) as excinfo:
+            affected_tests.main(["--repo", str(fixture_repo), "--base", "origin/nope"])
+        assert "does not exist" in str(excinfo.value)
+
+    def test_an_untracked_new_test_file_still_reaches_the_selection(
+        self, fixture_repo, capsys
+    ):
+        # `git diff` cannot see it (VERIFIED), yet "I just created this test" is
+        # the most common iterating state. Without the ls-files --others union
+        # the tool would answer "nothing to run".
+        (fixture_repo / "tests" / "test_brand_new.py").write_text(
+            "def test_n():\n    pass\n", encoding="utf-8"
+        )
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "uv run pytest tests/test_brand_new.py" in out
+        # --exclude-standard must still keep the gitignored phantom out, and
+        # this assertion is non-vacuous because the command list is non-empty.
+        assert "test_phantom.py" not in out
+
+    def test_a_clean_tree_reports_nothing_to_run_and_emits_no_command(
+        self, fixture_repo, capsys
+    ):
+        # HEAD == origin/master, and the only untracked file is the gitignored
+        # phantom the fixture wrote. This is the branch that would mask the
+        # untracked-file gap, so it gets its own test -- and it doubles as proof
+        # that --exclude-standard really excludes the phantom, since any leak
+        # would make `changed` non-empty and suppress this message.
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "nothing to run" in out
+        assert "uv run pytest" not in out
+
+    def test_a_docs_only_diff_emits_no_pytest_command(self, fixture_repo, capsys):
+        (fixture_repo / "README.md").write_text("hi\n", encoding="utf-8")
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "docs")
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "uv run pytest" not in out
+        assert "unit: nothing mapped" in out
+        assert "e2e: nothing mapped" in out
+        assert "README.md" in out
