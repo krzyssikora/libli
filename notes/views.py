@@ -158,7 +158,9 @@ def note_result(request):
 def note_add(request, slug, node_pk):
     if request.method != "POST":
         raise Http404  # hide the endpoint before any gate runs
-    unit = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    unit = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     if not can_access_course(request.user, unit.course):
         raise PermissionDenied
     element_pk = request.POST.get("element") or None

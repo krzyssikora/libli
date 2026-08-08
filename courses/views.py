@@ -618,7 +618,7 @@ def progress_reset(request, slug, node_pk=None):
         # NOT optional: can_access_course authorizes against `slug`, but nothing
         # otherwise ties node_pk to that course -- a foreign node_pk would resolve
         # its own subtree and wipe the student's state THERE.
-        node = get_node_or_404(node_pk, slug, require_unit=False)
+        node = get_node_or_404(node_pk, slug, viewer=request.user, require_unit=False)
         course = node.course
         targets = units_under(node)
     if not can_access_course(request.user, course):
@@ -679,7 +679,7 @@ def progress_reset(request, slug, node_pk=None):
 
 @login_required
 def lesson_unit(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True)
+    node = get_node_or_404(node_pk, slug, viewer=request.user, require_unit=True)
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -758,7 +758,9 @@ def _seen_current_ids(node):
 @require_POST
 @login_required
 def seen(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -814,7 +816,9 @@ def seen(request, slug, node_pk):
 @require_POST
 @login_required
 def complete(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     course = node.course
     # can_access_course is DELIBERATELY the sole guard on this write: the row is the
     # viewer's OWN record, not course analytics, so any viewer who can open the lesson
@@ -872,7 +876,9 @@ def save_element_state(user, unit, element_pk, blob):
 @require_POST
 @login_required
 def element_state_save(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -960,7 +966,9 @@ def element_state_save(request, slug, node_pk):
 @require_POST
 @login_required
 def check_answer(request, slug, node_pk, element_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1320,7 +1328,9 @@ def build_quiz_context(node, user):
 
 @login_required
 def quiz_unit(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_quiz=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1381,7 +1391,9 @@ def _quiz_render_feedback(
 @require_POST
 @login_required
 def quiz_answer(request, slug, node_pk, element_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_quiz=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1483,7 +1495,9 @@ def quiz_answer(request, slug, node_pk, element_pk):
 @require_POST
 @login_required
 def quiz_finish(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_quiz=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1513,7 +1527,9 @@ def quiz_finish(request, slug, node_pk):
 
 @login_required
 def quiz_results(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_quiz=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
