@@ -309,8 +309,13 @@ precisely the green-but-uncovered outcome ANA3 exists to prevent. Leave it as th
 
 `frontier_columns` emits a leaf column for every unexpanded *container*, carrying `lesson_pks` /
 `quiz_pks` aggregated over its subtree. Under `keep-with-data`, a chapter whose units are all
-never-published reduces to **empty pk sets on both**, leaving `has_lessons` and `has_quizzes` both
-false — a combination the matrix builders were never written to expect.
+never-published contributes nothing to either set.
+
+**The motive is editorial, not defensive:** a container that holds only unpublished drafts is one
+neither a teacher nor a student has any reason to see a column for — the same judgement §2's
+container pruning makes on the student side. It is emphatically **not** that empty pk sets are an
+unhandled state; they occur today on any chapter of only optional lessons, with everything
+published, and those columns must keep rendering (see the warning below).
 
 **Rule: drop the column when the container's subtree contains no *visible unit*** — the same
 condition §2's container pruning uses for students, computed from the filtered unit set.
@@ -322,6 +327,38 @@ only optional lessons therefore has two empty pk sets *today*, with every unit p
 emptiness rule would silently delete that column from every analytics matrix, a behaviour regression
 entirely unrelated to drafts. §9 ANA6's fixture includes exactly that container and asserts it keeps
 its column.
+
+### The drop happens INSIDE `walk`, and must move three outputs together
+
+`frontier_columns` emits **three coupled outputs from one traversal**, not one list:
+
+| Output | Built by | Consumed by |
+|---|---|---|
+| `columns` | `columns.append(...)` | the body cells, aligned **positionally** |
+| `header_rows` | `cells_by_depth.setdefault(depth, []).append(cell)` | `<thead>` in `analytics_matrix.html` |
+| an ancestor's `colspan` | the `leaves` counter returned by `walk` | the spanning `<th>` of an expanded ancestor |
+
+**Post-filtering `result["columns"]` is therefore wrong, and it is the reading a "drop the column"
+rule invites.** It leaves a stale `<th>` in `header_rows` and an over-counted ancestor `colspan`,
+which shifts every column header off its data by one for the rest of the row — a silently misread
+matrix, not a visibly broken one.
+
+The guard goes **inside `walk`**, suppressing the `columns.append`, the `cells_by_depth` append and
+the `leaves += 1` **together**, so the flat list, the nested header cells and the ancestors' spans
+stay in lockstep.
+
+**Both arms of `walk`, not just the leaf arm.** The `if node.pk in expanded_pks and kids` arm keys
+on the **unfiltered** children map, so a drilled-into chapter whose units are all draft is still
+recursed through, `walk` returns `0`, and the header emits `<th colspan="0">` — invalid HTML5 that
+browsers clamp to 1, producing a phantom spanning cell over a chapter with no columns beneath it. A
+container with no visible unit in its subtree is dropped **whether or not it is expanded**, and is
+then also absent from `expanded_nodes`.
+
+If that leaves `columns` empty, `header_rows` must be empty too and `total_rows` zero — the
+existing "empty course" shape, which the matrix builders already handle.
+
+§9 ANA6 asserts `len(header_rows[-1]) == len(columns)` and the dropped container's absence from
+`header_rows`; a columns-only assertion is green on every bug in this section.
 
 ### Per-call-site values
 
@@ -968,6 +1005,7 @@ inherit:
 <input type="hidden" name="flag"      value="{{ flag }}">
 <input type="hidden" name="scope"     value="subtree">   {# or "node" for the quiz case #}
 <input type="hidden" name="confirmed" value="1">
+{% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
 {# value rides on the BUTTONS, not as a hidden input — the mixed case has two: #}
 <button type="submit" name="value" value="1">Publish all 5</button>
 <button type="submit" name="value" value="0">Hide all 5</button>
@@ -1609,6 +1647,27 @@ if flag == "published" and on > 0:
 An all-draft container offers no hide action and needs no warning; an `obligatory` change needs none
 either.
 
+### The filter query `q` rides on every arm
+
+`q` is not optional plumbing in this builder: `node_confirm_delete.html`, `_move_picker.html`,
+`_add_affordance.html` and the rowhead form itself all render
+`{% if q %}<input type="hidden" name="q" …>{% endif %}`, and `_raw_q`'s own docstring states that
+"mutation forms carry a hidden `q` in the body". `_redirect_to_builder(course, q="")` **defaults to
+dropping it**.
+
+So `q` must be threaded through all four of these, or a confirmed write silently clears the CA's
+active filter and re-renders the whole unfiltered tree:
+
+1. The **container/quiz anchor's href** — same shape as the existing Move and Delete anchors.
+2. The **strip form's** hidden fields (above).
+3. The **no-JS interstitial's** form.
+4. The **success redirect**: `_redirect_to_builder(course, _raw_q(request))`, never the bare
+   two-arg call.
+
+This is reachable and ordinary, not a corner: unit toggles are deliberately live under a filter, and
+a published quiz with submissions renders as a confirming anchor — so "filter to find the quiz, then
+unpublish it" is exactly the path that loses the filter. §9 WR18 pins it.
+
 **In the mixed case the warning attaches to the hide action, not to the strip.** A mixed strip
 offers both "Publish all 5" and "Hide all 5", and printing "12 students have submitted / their
 results will be out of reach" above both would misdescribe the publish button sitting next to it.
@@ -1944,11 +2003,18 @@ cross-reference in this document.
 - **ANA5. The gradebook and the review queue drop never-published quizzes**, proving
   `quiz_units_in_order` carries the keyword. *Mutant:* leave `quiz_units_in_order` parameterless →
   both surfaces stay unfiltered → red.
-- **ANA6. Two containers, one fixture.** A chapter whose whole subtree is never-published has **no**
-  analytics column; a chapter holding only **non-obligatory published lessons** still **has** one.
-  *Mutant:* key the drop on `lesson_pks` and `quiz_pks` both being empty → the optional-lessons
-  chapter has two empty sets today, with everything published, and loses its column — an unrelated
-  regression → red on the second half. The second container is the entire reason this test needs two.
+- **ANA6. Three containers, plus a header-alignment assertion.** (a) A chapter whose whole subtree
+  is never-published has **no** analytics column. (b) A chapter holding only **non-obligatory
+  published lessons** still **has** one. (c) An **expanded** chapter whose whole subtree is
+  never-published is dropped too, and is absent from `expanded_nodes`. Then assert
+  `len(header_rows[-1]) == len(columns)` and that (a)'s title appears nowhere in `header_rows`.
+
+  *Mutant A:* key the drop on `lesson_pks`/`quiz_pks` emptiness → (b) has two empty sets today with
+  everything published, and loses its column → red on (b). *Mutant B:* post-filter
+  `result["columns"]` instead of guarding inside `walk` → a stale `<th>` survives and the ancestor's
+  `colspan` over-counts, so every header shifts one column off its data → red on the alignment
+  assertion, and **green on (a), (b) and (c)**. *Mutant C:* guard only the leaf arm → the expanded
+  empty chapter emits `<th colspan="0">` → red on (c).
 - **ANA7. `with_data=None` with `drafts="keep-with-data"` raises; `with_data=frozenset()` does
   not.** *Mutant:* assert on emptiness instead of on the sentinel → every gradebook, review queue
   and breakdown on a course no student has touched 500s → red.
@@ -2028,6 +2094,11 @@ cross-reference in this document.
   for every course.** *Mutant:* implement `manageable_courses` as `filter(owner=user)` alone → the
   global-permission branch is missing and a PA loses drafts everywhere → red. WR15b's owner fixture
   is green on that mutant.
+- **WR18. A confirmed write under an active filter comes back still filtered.** Set `q`, open a
+  container strip, confirm, and assert the returned fragment is still the restricted tree — then the
+  same for the no-JS redirect. *Mutant:* omit `q` from the strip anchor's href, the strip form, or
+  the success `_redirect_to_builder` call → `_raw_q` finds nothing, `q_active` is false, and the CA's
+  filter is silently cleared → red. Every other write-path test runs unfiltered and stays green.
 - **WR16. `scope` must agree with the node's kind.** `scope=node` on a container and
   `scope=subtree` on a unit both 422, with no write. *Mutant:* validate `scope` against its
   allow-list only → a container gets a `published` value written to it, undoing the normalisation
