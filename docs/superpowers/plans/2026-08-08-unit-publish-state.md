@@ -253,8 +253,11 @@ grep -rn "ContentNode.objects.create" tests/ courses/tests/ | wc -l
 Most create containers (`kind="part"/"chapter"/"section"`), where `published` is never read and no change is needed. Only **unit** creations matter. Find them:
 
 ```bash
-grep -rn "ContentNode.objects.create" tests/ courses/tests/ | grep -i "unit"
+grep -rn -A3 "ContentNode.objects.create" tests/ courses/tests/ | grep -i "unit"
 ```
+
+The `-A3` matters: `ruff format` wraps any call over 88 columns, so `ContentNode.objects.create(
+    course=course, kind="unit", ...)` puts `kind="unit"` on a *different line* from the call and a same-line filter never sees it. Treat this as a first pass — Task 1 Step 11 and Task 3 Step 7 are what actually catch the misses.
 
 Add `published=True` to each that creates a `kind="unit"` node **and** is later fetched through a student-facing surface. Where a test creates a unit and only ever inspects the row directly, leave it — an unnecessary edit is churn, and Task 3's and Task 5's suite runs will surface anything missed.
 
@@ -504,6 +507,25 @@ def get_node_or_404(
 
 Import `can_see_drafts` at the top of `courses/views.py`.
 
+- [ ] **Step 5b: Add ACC4 — a draft UNIT permalink 404s for a student**
+
+Distinct from ACC5, which covers the *container* half of the same view. ACC4 pins that the inline guard fires when it should; ACC5 pins that it does not fire when it shouldn't. One without the other is half a guard.
+
+```python
+@pytest.mark.django_db
+def test_permalink_to_draft_unit_404s_for_student(client):
+    """ACC4. Mutant: omit the inline published check in node_permalink ->
+    the student is redirected into a draft unit."""
+    course = CourseFactory()
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    unit = ContentNodeFactory(course=course, kind="unit", published=False)
+    client.force_login(student)
+
+    url = reverse("courses:node_permalink", kwargs={"node_pk": unit.pk})
+    assert client.get(url).status_code == 404
+```
+
 - [ ] **Step 6: Add the permalink half of ACC5** to `tests/test_publish_access.py`:
 
 ```python
@@ -584,10 +606,27 @@ def test_draft_unit_rejects_every_student_post(client, name, payload):
 
     Mutant: gate only the GET views -> the POSTs still write.
     """
-    ...
+    course = CourseFactory()
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    unit = ContentNodeFactory(course=course, kind="unit", published=False)
+    client.force_login(student)
+
+    url = reverse(name, kwargs={"slug": course.slug, "node_pk": unit.pk})
+    before = UnitProgress.objects.filter(student=student, unit=unit).count()
+
+    assert client.post(url, payload).status_code == 404
+    # 404 alone is not enough: assert the write did not land either.
+    assert UnitProgress.objects.filter(student=student, unit=unit).count() == before
 ```
 
-Fill in the fixture setup and the exact URL kwargs by reading each view's `urls.py` entry. Include `check_answer` and `quiz_answer` too — they take an extra `element_pk`.
+**Do not leave the body as `...`.** A body of `...` after a docstring is a *passing* test — the same trap Task 5 Step 1 names — and Step 3 would report 9 PASSED, leaving the most security-relevant test in the plan with no RED gate.
+
+Two shapes the parameterisation above does not cover; give each its own test rather than bending the fixture:
+- `check_answer` and `quiz_answer` take an extra `element_pk` kwarg.
+- `quiz_finish` and `quiz_answer` need a quiz unit (`ContentNodeFactory(unit_type="quiz", published=False)`), not a lesson.
+
+Read each view's `urls.py` entry for the exact kwarg names before writing the `reverse()` calls; `node_pk` is the common one but not universal.
 
 - [ ] **Step 2: Write the source-scan test (ACC6)**
 
@@ -938,7 +977,18 @@ git commit -m "feat(rollups): drafts=/with_data= on the traversal helpers, valid
 - Consumes: `unit_is_visible` (Task 4).
 - Produces: `build_outline` returns a tree with draft units absent and empty containers pruned per mode.
 
-- [ ] **Step 1: Write the failing tests (OUT1, OUT4, OUT5, OUT5b)**
+- [ ] **Step 1: Write the failing tests (OUT1, OUT2, OUT3, OUT4, OUT5, OUT5b)**
+
+**OUT2 — `test_required_total_excludes_drafts`**
+Fixture: 10 obligatory lesson units under one Part; draft 7 of them.
+Assert: the student's root `required_total` is 3.
+*Mutant:* filter drafts in the outline but not in the rollup → 10.
+
+**OUT3 — `test_a_completed_unit_later_drafted_leaves_both_counters`**
+Fixture: one obligatory lesson unit, published, with a `UnitProgressFactory(completed=True)` row.
+Assert: `required_total == 1` and `required_done == 1`. Draft the unit, rebuild, assert **both** are 0 — and that the `UnitProgress` row is unchanged in the database.
+*Mutant:* exclude from `required_total` only → `required_done` exceeds it, which is arithmetically impossible and is what the assertion catches.
+
 
 Create `tests/test_publish_outline.py` with four tests. **Do not write body-less functions with only a docstring** — those *parse and pass*, so Step 2's "run to verify failure" would report PASS and the RED gate would silently report the wrong colour. Write each body from the fixture spec below.
 
@@ -972,7 +1022,9 @@ Import `CourseFactory`, `ContentNodeFactory`, `UserFactory`, `UnitProgressFactor
 uv run pytest tests/test_publish_outline.py -v
 ```
 
-Expected: four **assertion failures** (the draft is still present, `additional_done` is still 1, the empty Part still renders). If any test reports PASS at this point, its body is missing — a `def` containing only a docstring is a green test, and that is the failure mode this step exists to catch.
+Expected: **five assertion failures and one PASS.** OUT1, OUT2, OUT3, OUT4 and OUT5 go red (the draft is still present, `required_total` is 10, `additional_done` is still 1, the empty Part still renders). **OUT5b passes** — with no filtering and no pruning yet, both of its halves hold trivially.
+
+That is not a missing body. OUT5b's RED gate is the Step 5 falsification (delete the `if prune:` guard around the `roots` filter), not this step. Only treat a PASS as a missing body for the other five — a `def` containing just a docstring is a green test, and that is the trap this step exists to catch.
 
 - [ ] **Step 3: Filter at dict creation**
 
@@ -1022,7 +1074,17 @@ The `prune` guard applies to **both** passes. Copying the `roots` line unconditi
 uv run pytest tests/test_publish_outline.py -v
 ```
 
-Then delete the `if prune:` guard around the `roots` filter and confirm `test_pruning_is_mode_dependent` goes RED. Then delete the `roots` filter entirely and confirm `test_a_root_level_part_with_only_drafts_is_pruned` goes RED while a nested fixture would not. Restore.
+Then delete the `if prune:` guard around the `roots` filter and confirm `test_pruning_is_mode_dependent` goes RED — this is OUT5b's only RED gate, since it passes trivially at Step 2. Then delete the `roots` filter entirely and confirm `test_a_root_level_part_with_only_drafts_is_pruned` goes RED while a nested fixture would not. Restore.
+
+- [ ] **Step 5b: Re-run the existing outline suites**
+
+This task changes `build_outline` for **every** caller — draft filtering, plus pruning of *genuinely empty* containers under both `hide` and `keep`, a behaviour change the spec adopts knowingly. Task 4 Step 7 ran these before the filtering existed, so this is the first honest check:
+
+```bash
+uv run pytest tests/test_courses_rollups.py tests/test_analytics_rollups.py courses/tests/test_rollups_units_under.py tests/test_unit_nav_render.py -q --verbosity=0
+```
+
+A failure here is one of two things, and neither is a defect in this task's logic: an existing assertion about an empty chapter that pruning now removes, or a unit built by one of the raw `create` calls Task 1 Step 10 deliberately left alone. Diagnose before "fixing" — running this only at Task 6 or Task 8 gets the cause misattributed to whatever changed there.
 
 - [ ] **Step 6: Format and commit**
 
@@ -1037,7 +1099,7 @@ git commit -m "feat(rollups): filter drafts at dict creation, prune empty contai
 ## Task 6: Student-facing call sites
 
 **Files:**
-- Modify: `courses/views.py` (`course_outline`, `course_results`, `progress_reset`, `full_lesson_render_context`, `quiz_unit`, `_quiz_render_feedback`), `notes/services.py`, `grouping/services.py`
+- Modify: `courses/views.py` (`course_outline`, `course_results`, `progress_reset`, `full_lesson_render_context`, `quiz_unit`, `_quiz_render_feedback`), `notes/services.py`, **`notes/views.py`**, `grouping/services.py`
 - Create: `tests/test_publish_call_sites.py`
 
 **Interfaces:**
@@ -1046,15 +1108,40 @@ git commit -m "feat(rollups): filter drafts at dict creation, prune empty contai
 
 - [ ] **Step 1: Write the failing tests (OUT6, OUT6b, OUT8, OUT9, OUT10)**
 
-Create `tests/test_publish_call_sites.py` with all five, docstrings naming the mutants:
+Create `tests/test_publish_call_sites.py`. Fixture specs, in the Task 5 style:
 
-- **OUT10** — one course, two fetches: the author's `course_outline` **and** `build_unit_nav` prev/next still contain the draft; the student's drop it. *Mutant: hard-code `drafts="hide"` at the call sites.* **This is the mutant the rest of the roster cannot catch** — OUT1–OUT4 assert the student side, ACC1 asserts only direct-URL access (which still works), OUT5b calls `build_outline` directly.
-- **OUT6** — `progress_reset`'s count drops drafts on **both** branches (course-wide and node-scoped).
-- **OUT6b** — the reset **POST still clears** a drafted unit's `element_state`. *Mutant: filter `targets` rather than only the count.* Without this, the safe and unsafe implementations are indistinguishable.
-- **OUT8** — a student's own `course_results` drops a drafted quiz **they submitted to**. *Mutant: put the filter inside `build_course_results`.*
-- **OUT9** — a course whose units are all draft does not appear in the self-enrolment catalogue.
+**OUT10 — `test_author_keeps_drafts_on_student_surfaces`**
+Fixture: one course, one Part, three lesson units A, B, C with B drafted. An owner and an enrolled student.
+Assert, for the **author**: `GET course_outline` renders B, and `build_unit_nav`'s next from A is B. For the **student**: B absent from the outline, and next from A is C.
+*Mutant:* hard-code `drafts="hide"` at the call sites instead of evaluating the viewer-conditional expression → the author loses B on both surfaces.
+**This is the mutant the rest of the roster cannot catch** — OUT1–OUT4 assert the student side, ACC1 asserts only direct-URL access (which still works on the mutant), OUT5b calls `build_outline` directly rather than through a view.
+
+**OUT6 — `test_reset_count_excludes_drafts_on_both_branches`**
+Fixture: two lesson units, both with `UnitProgressFactory(element_state={"1": {"x": 1}})`; draft one.
+Assert: the **course-wide** reset confirmation page (`node_pk=None`) reports 1, and the **node-scoped** one for the parent Part also reports 1.
+*Mutant:* filter `units_under` but leave `units_in_order` unfiltered → the course-wide branch, the commonly used one, still reports 2.
+
+**OUT6b — `test_reset_post_still_clears_a_drafted_units_state`**
+Same fixture; POST the course-wide reset. Assert the **drafted** unit's `element_state == {}`.
+*Mutant:* filter `targets` rather than only the count → the drafted unit keeps its state, which resurfaces on republish. **Without this assertion the safe and unsafe implementations are indistinguishable**, since OUT6 alone is green on both.
+
+**OUT8 — `test_student_results_drops_a_drafted_quiz_they_submitted_to`**
+Fixture: one quiz unit, published; a `QuizSubmissionFactory(status=SUBMITTED)` for the student. Then draft the quiz.
+Assert: the student's `course_results` page has no row for it.
+*Mutant:* put the `keep-with-data` filter inside `build_course_results` instead of in each caller → the student's own submission keeps the row alive for them. This is the one call site where "holds data" and "the viewer is a student" are true at once.
+
+**OUT9 — `test_all_draft_course_is_absent_from_the_catalogue`**
+Fixture: a course with `visibility="open"` whose only unit is drafted, and a student not enrolled.
+Assert: it does not appear in `catalog`. Publish the unit; assert it does.
+*Mutant:* leave the `Exists(... kind="unit")` subquery without `published=True`.
 
 - [ ] **Step 2: Run to verify failure**
+
+```bash
+uv run pytest tests/test_publish_call_sites.py -v
+```
+
+Expected: five assertion failures. A PASS here means a missing body, not a passing implementation.
 
 - [ ] **Step 3: Add the viewer-conditional expression at each site**
 
@@ -1068,7 +1155,7 @@ Apply at `course_outline`, `course_results`, `progress_reset`, and the notes hub
 
 - [ ] **Step 4: Thread it into `build_unit_nav`'s THREE call sites**
 
-`full_lesson_render_context` (`courses/views.py:537` — serves the lesson GET, the `check_answer` re-render **and** the notes no-JS re-render), `quiz_unit` (`:1329`), and `_quiz_render_feedback` (`:1358` — the no-JS quiz-answer re-render). Patching only the two named views leaves two re-render paths shipping an unfiltered nav.
+`full_lesson_render_context` (serves the lesson GET, the `check_answer` re-render **and** the notes no-JS re-render), `quiz_unit`, and `_quiz_render_feedback` (the no-JS quiz-answer re-render) — all three in `courses/views.py`; find them by name, the line numbers drift. Patching only the two named views leaves two re-render paths shipping an unfiltered nav.
 
 Neither helper takes `request`, but both take `user`, and **on these paths `user` IS the viewer** — so the expression evaluates from the existing argument. This is the one place reading the viewer off a `user` parameter is correct, and it is correct for the opposite reason to `build_student_breakdown`, where `user` is the student being *read about*. Do not generalise from either case to the other.
 
@@ -1116,11 +1203,41 @@ Preserve the existing `can_access_course` check and the `raise PermissionDenied`
 
 Two calls to the same helper, deliberately. `units_in_order`/`units_under` default to `"keep"`, so `targets` gets the unfiltered set for free.
 
-- [ ] **Step 6: Parameterise `notes.services.course_notes`** with `*, drafts, with_data=None` and pass them to its internal `units_in_order` call.
+- [ ] **Step 6: Parameterise `notes.services.course_notes` AND its one caller**
+
+Add `*, drafts, with_data=None` to the service and pass them to its internal `units_in_order` call.
+
+**Then edit `notes/views.py` — the sole caller, and easy to miss because it lives in another app.** `notes/views.py:60` calls `services.course_notes(request.user, course)` positionally; a required keyword breaks the notes hub with `TypeError` on every request, and WR15d (Task 7) asserts that hub filters for a student and keeps drafts for the author, which only that view can decide:
+
+```python
+def course_notes(request, slug):
+    course = get_object_or_404(Course, slug=slug)
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    return render(
+        request,
+        "notes/course_notes.html",
+        {
+            "course": course,
+            "units": services.course_notes(request.user, course, drafts=drafts),
+        },
+    )
+```
 
 - [ ] **Step 7: Gate the catalogue**
 
-In `grouping/services.py`, add `published=True` to the `Exists(ContentNode.objects.filter(course=OuterRef("pk"), kind="unit"))` subquery. Without it, a CA building a new course privately publishes a course listing for content that does not exist yet.
+In `grouping/services.py`, the subquery is assigned first and applied a few lines later:
+
+```python
+has_unit = ContentNode.objects.filter(
+    course=OuterRef("pk"), kind="unit", published=True   # <-- add published
+)
+...
+.filter(Exists(has_unit))
+```
+
+Edit the `has_unit` assignment, not the `Exists(...)` call. Without it, a CA building a new course privately publishes a course listing for content that does not exist yet.
 
 - [ ] **Step 8: Run, falsify OUT10, run the neighbouring suites**
 
@@ -1134,7 +1251,7 @@ Falsify by hard-coding `drafts="hide"` at all six sites and confirming **only** 
 
 ```bash
 uv run ruff format .
-git add courses/views.py notes/services.py grouping/services.py tests/test_publish_call_sites.py
+git add courses/views.py notes/services.py notes/views.py grouping/services.py tests/test_publish_call_sites.py
 git commit -m "feat(courses): viewer-conditional draft filtering on every student-facing surface"
 ```
 
@@ -1143,12 +1260,12 @@ git commit -m "feat(courses): viewer-conditional draft filtering on every studen
 ## Task 7: Tags and notes hub queryset filters
 
 **Files:**
-- Modify: `tags/services.py` (`units_by_tag`, `list_tags`, `tags_by_course`), `notes/services.py` (`note_counts_by_course`)
+- Modify: `courses/access.py` (the new `exclude_foreign_drafts`), `tags/services.py` (`units_by_tag`, `list_tags`, `tags_by_course`), `notes/services.py` (`note_counts_by_course`)
 - Create: `tests/test_publish_hubs.py`
 
 **Interfaces:**
 - Consumes: `manageable_courses` (Task 2).
-- Produces: nothing new.
+- Produces: `access.exclude_foreign_drafts(qs, author, *, unit_field="unit")` — shared by both apps.
 
 - [ ] **Step 1: Write the failing tests (WR15, WR15b, WR15d)**
 
@@ -1162,24 +1279,32 @@ git commit -m "feat(courses): viewer-conditional draft filtering on every studen
 
 These queries take only `author` and select over `accessible_courses(author)` — there is no single `course` to hand to `can_see_drafts`, and a boolean could not express the right answer anyway, since a user who manages A but not B must keep A's drafts and lose B's in the same result set:
 
+Three of the four consumers live in `tags/services.py` and the fourth in `notes/services.py`, so the helper cannot be a private name in either. **Define it in `courses/access.py` as a public function** and import it from both — `notes` reaching into `tags` for a `_`-prefixed name would be a new cross-app coupling for no reason:
+
 ```python
+# courses/access.py
 from django.db.models import Q
 
-from courses.access import manageable_courses
 
+def exclude_foreign_drafts(qs, author, *, unit_field="unit"):
+    """Drop drafted units the viewer may not author.
 
-def _hide_foreign_drafts(qs, author):
-    """Drop drafted units the viewer may not author. The unit__kind conjunct
-    matters: exclude(unit__published=False) alone would also drop rows
-    attached to containers, whose published column is meaningless.
+    A per-course condition inside the query, NOT a boolean: these hubs are
+    cross-course (they take only `author` and select over accessible_courses),
+    so there is no single course to hand to can_see_drafts — and a boolean
+    could not express the answer anyway, since a user who manages course A
+    but not B must keep A's drafts and lose B's in the SAME result set.
+
+    The kind conjunct matters: excluding published=False alone would also drop
+    rows attached to containers, whose published column is meaningless.
     """
     return qs.exclude(
-        Q(unit__kind="unit", unit__published=False)
-        & ~Q(unit__course__in=manageable_courses(author))
+        Q(**{f"{unit_field}__kind": "unit", f"{unit_field}__published": False})
+        & ~Q(**{f"{unit_field}__course__in": manageable_courses(author)})
     )
 ```
 
-Apply in `units_by_tag`, `list_tags`, `tags_by_course` and `note_counts_by_course`.
+Apply in `tags.services.units_by_tag`, `list_tags`, `tags_by_course` and `notes.services.note_counts_by_course`. Add `courses/access.py` to this task's Files and `git add`.
 
 - [ ] **Step 4: Leave `_accessible_unit_count` alone**
 
@@ -1190,7 +1315,7 @@ Tag deletion deliberately counts drafts: it backs the "this will remove the tag 
 ```bash
 uv run pytest tests/test_publish_hubs.py tests/test_tags_services.py tests/test_tags_notes_hub.py tests/test_notes_services.py -q --verbosity=0
 uv run ruff format .
-git add tags/services.py notes/services.py tests/test_publish_hubs.py
+git add courses/access.py tags/services.py notes/services.py tests/test_publish_hubs.py
 git commit -m "feat(tags,notes): exclude foreign drafts from the queryset-driven hubs"
 ```
 
@@ -1277,7 +1402,7 @@ It has **zero production callers** — it is test-only. Adding the keyword defen
 
 - [ ] **Step 6: Pass `drafts="keep-with-data", with_data=...` from every teacher-facing caller, then REMOVE the defaults**
 
-Thread the values at `views_analytics.py:193`, `gradebook.py`, `review.py`, and `rollups.py:378` (`build_student_breakdown` → `build_course_results`). Task 6 has already threaded `views.py:596`.
+Thread the values at `views_analytics.py:67`, `:69` (the two matrix calls), `views_analytics.py:193` (`build_student_breakdown`), `gradebook.py`, `review.py`, and `rollups.py:378` (`build_student_breakdown` → `build_course_results`). Task 6 has already threaded `views.py:596`.
 
 Then tighten both results helpers from `drafts="keep"` to a **required** keyword:
 
@@ -1296,13 +1421,21 @@ uv run pytest tests/test_courses_rollups.py tests/test_analytics_rollups.py -q -
 
 Those tests are asserting about *live* content, so `drafts="keep"` is the correct value to add to each.
 
-- [ ] **Step 6b: Give `frontier_columns` its keywords**
+- [ ] **Step 6b: Give `frontier_columns` AND both matrix builders their keywords**
 
 ```python
-def frontier_columns(course, expanded_pks, *, drafts="keep-with-data", with_data=None): ...
+def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None): ...
+def build_results_matrix(course, students, expanded=frozenset(), values="percent",
+                         *, drafts, with_data=None): ...
+def build_progress_matrix(course, students, expanded=frozenset(),
+                          *, drafts, with_data=None): ...
 ```
 
-Defaulting to `"keep-with-data"`, **not** `"keep"`: its only production callers are the two analytics matrices, which are teacher-facing, and this plan's own rule is that a helper whose callers are all viewer-facing takes the restrictive default. `_check_drafts` then forces any caller that forgets `with_data` into a loud `ValueError` rather than a silent leak.
+**All three, not just `frontier_columns`.** `views_analytics.py` calls the two **matrix builders**, never `frontier_columns` directly — the real chain is `views_analytics` → `build_results_matrix` / `build_progress_matrix` (`rollups.py:540`, `:591`) → `frontier_columns`. Without the middle link parameterised, the `with_data` frozenset built in Step 3 has **no route** to the filter, and ANA3 (which must be driven through `views_analytics`) has no implementation at all.
+
+Each matrix builder calls `_check_drafts` and forwards both keywords into its `frontier_columns(course, expanded, …)` call.
+
+**`frontier_columns` defaults to `"keep"`, not `"keep-with-data"`.** The restrictive default would be right if every caller were viewer-facing, but two are not: `build_matrix_columns` calls it bare (Step 5 says to leave that alone), and `tests/test_analytics_rollups.py` calls it bare at lines 304, 327, 346, 368, 395, 407 and 684. A `"keep-with-data"` default makes `_check_drafts` raise `ValueError` on every one of them — nine call sites broken by a default chosen for tidiness. The matrix builders take `drafts` as a **required** keyword instead, which puts the strictness exactly where the viewer-facing callers are.
 
 - [ ] **Step 7: Run, falsify ANA6's Mutant B, commit**
 
@@ -1524,9 +1657,13 @@ git commit -m "feat(courses): quiz submission counts and the archived-group quie
 - Consumes: Task 10's predicates.
 - Produces:
   - `builder.set_node_flag(course, node_pk, *, flag, value, scope, token) -> ContentNode`
+  - `views_manage._flag_error(request, course, node, msg, *, ctx)` — the three-arm 422/409 renderer
+  - `views_manage._flag_strip(request, course, node, *, flag, scope)` — **a minimal version lands here**, because Step 4 calls it; Task 12 replaces its body with the full copy and counts
   - URL name `courses:manage_node_flag`, path `manage/courses/<slug:slug>/build/node/flag/`
 
-- [ ] **Step 1: Write the failing tests (WR1, WR1b, WR2, WR3, WR4, WR9, WR11–WR14, WR16, WR18)**
+> **`_flag_strip` is a forward dependency, and this task must not defer it.** Step 4 returns it on the unconfirmed path, and WR13 and WR18 both drive that path. Write a minimal version here — the strip's `<form>` with its hidden fields, `data-flag-strip="<pk>"` on the root, and a bare count — and leave the four copy variants, the quiet/loud split and the quiz aggregation to Task 12. Without it, Task 11 Step 8 cannot go green and the implementer discovers the gap mid-task.
+
+- [ ] **Step 1: Write the failing tests (WR1–WR5, WR7–WR9, WR11–WR14, WR16, WR18)**
 
 The high-value ones, each with its mutant:
 
@@ -1535,6 +1672,9 @@ The high-value ones, each with its mutant:
 - **WR9** — the **no-JS POST shape** works (parameters as hidden inputs in `request.POST`, not a `formaction` query string). *Mutant: read from `request.GET` only → the interstitial silently 422s.* Every other write-path test drives the JS path and stays green.
 - **WR11** — `value` and `scope` are allow-listed like `flag`: 422 for `value="true"`, `value=""`, missing `scope`, `scope="everything"`, with **no write**.
 - **WR14** — `flag=obligatory scope=subtree` writes **lesson units only** and bumps `updated`. *Mutant A: restrict to `kind="unit"` alone → the quiz's inert flag is stamped. Mutant B: fork on `flag` and omit `updated` from the obligatory arm.*
+- **WR5** — a container toggle **does not touch nodes outside its subtree**. Seed two sibling chapters, each with units; toggle one; assert the other's units are byte-identical, `updated` included. *Mutant:* build `unit_pks` from `course.nodes.filter(kind="unit")` instead of from `_subtree_node_ids()` → the whole course flips on one click.
+- **WR7** — every successful fragment response has **`data-scope="top"` on its root**, for a unit toggle **and** for a **collapsed** container's subtree toggle. Assert the *attribute*, not just a 200. *Mutant:* return the acted node's `<li>`, or the container's own `_scope.html` → the root carries no matching `data-scope`, `applyFragment` no-ops, and the UI shows nothing while the status code stays 200. **A status-code assertion is green on this**, which is the entire reason WR7 asserts markup.
+- **WR8** — the returned fragment carries the **post-write `data-updated`** for every affected open row. Read `data-updated` out of the returned fragment and re-post it as `token` on a second edit to a descendant; assert it succeeds rather than 409ing. *Mutant:* omit `updated=now` from the bulk `.update()` → the fragment carries stale tokens and the follow-up 409s.
 - **WR16** — `scope=node` on a container and `scope=subtree` on a unit both **422**, no write.
 - **WR1b** — an anonymous request gets a **login redirect, not a 403**. *Mutant: omit `@login_required` → `_require_manage` raises `PermissionDenied` and the endpoint 403s where every neighbouring view redirects.* WR1 alone is green on that mutant.
 - **WR18** — a confirmed write under an active filter comes back **still filtered**. **Fixture: the confirming QUIZ anchor**, not a container strip — container anchors are inert under a filter (TREE5), so "set `q`, open a container strip" is unreachable through the UI.
@@ -1628,12 +1768,18 @@ def node_flag(request, slug):  # anonymous request it raises PermissionDenied
 
 Validate `flag` ∈ `FLAG_COLUMNS`, `value` ∈ `{"0","1"}` (required on POST, optional on GET), `scope` ∈ `{"node","subtree"}`, `ctx` ∈ `{"editor","unit"}` or absent, all 422 otherwise. Nothing defaults — a missing `scope` is an error, not an implicit `"node"`, because the two differ in blast radius by orders of magnitude.
 
+**`node` is validated too** — it is not in the allow-list table because it is not an enum, but `param("node")` returns `None` when absent, and `get_object_or_404(qs, pk=None)` raises inside the ORM. A 500 on a trivially malformed request, at the one endpoint that can unpublish a whole course:
+
+| Parameter | Missing / non-integer | Resolves but foreign |
+|---|---|---|
+| `node` | **422**, before any resolution | 404 via `get_node_or_404`'s slug check |
+
 **Convert `value` to a bool once, immediately after the allow-list**, and pass the bool onward:
 
 ```python
     raw_value = param("value")
     if request.method == "POST" and raw_value not in ("0", "1"):
-        return _flag_error(request, course, status=422)
+        return _flag_error(request, course, node, _("Bad value."), ctx=ctx)
     value = raw_value == "1"        # a real bool from here on
 ```
 
@@ -1653,9 +1799,66 @@ Then compute `needs_confirmation` **server-side** — the template's choice of e
         and node.unit_type == ContentNode.UnitType.QUIZ
         and QuizSubmission.objects.filter(unit=node).exists()  # ANY status
     )
+    # A GET NEVER writes. The spec's contract is "GET -> the confirm strip",
+    # full stop — without this branch a GET where needs_confirmation is false
+    # (?node=<lesson>&flag=published&value=1&scope=node) falls straight
+    # through to set_node_flag, i.e. a GET that mutates. "The UI never emits
+    # that GET" is not an answer in a view whose whole premise is that the
+    # server, not the markup, is the guard.
+    if request.method == "GET":
+        return _flag_strip(request, course, node, flag=flag, scope=scope)
+
     if needs_confirmation and param("confirmed") != "1":
         return _flag_strip(request, course, node, flag=flag, scope=scope)
+
+    try:
+        node = builder_svc.set_node_flag(
+            course, node.pk, flag=flag, value=value, scope=scope, token=param("token")
+        )
+    except builder_svc.ConflictError:
+        return _flag_conflict(request, course, node, ctx=ctx)      # 409 arm
+    except ValidationError as e:
+        return _flag_error(request, course, node, "; ".join(e.messages), ctx=ctx)
 ```
+
+**The two exception arms are not optional.** `builder._check_token` raises `ConflictError` and `set_node_flag` raises `ValidationError` for the scope/kind and quiz/obligatory rejections — WR3 (stale token → 409), WR16 (scope/kind → 422) and TREE9's server half (quiz + obligatory → 422) all depend on this wrapping. Mirror `node_rename` (`views_manage.py:799`) and `node_duplicate` (`:973`); import `ConflictError` alongside `set_node_flag`.
+
+- [ ] **Step 4b: Write the two error renderers**
+
+Both dispatch on `ctx`, which neither existing helper does — `_op_error(request, message)` and `_builder_with_notice(request, course, message, status)` each know only the builder arm:
+
+```python
+def _flag_error(request, course, node, msg, *, ctx):
+    """422. Three arms, per Step 5's response table. An unrecognised ctx has
+    already been normalised to None (the builder arm) by validation."""
+    if ctx == "editor":
+        return _editor_page(request, node, error=msg, status=422)
+    if ctx == "unit":
+        return redirect(_unit_url(node))
+    if _wants_fragment(request):
+        return render(request, "courses/manage/_op_error.html",
+                      {"message": msg}, status=422)
+    return _builder_with_notice(request, course, msg, status=422)
+
+
+def _flag_conflict(request, course, node, *, ctx):
+    """409. Same three arms; the builder arm re-renders the scope so the tree
+    picks up whatever changed elsewhere."""
+    if ctx == "editor":
+        url = reverse("courses:manage_editor",
+                      kwargs={"slug": course.slug, "pk": node.pk})
+        return redirect(f"{url}?changed=1")
+    if ctx == "unit":
+        return redirect(_unit_url(node))
+    if _wants_fragment(request):
+        return _conflict_scope(request, course, node.pk)
+    return _builder_with_notice(
+        request, course, _("This changed elsewhere — reloaded to the latest."),
+        status=409,
+    )
+```
+
+`_unit_url(node)` reverses `courses:lesson_unit` or `courses:quiz_unit` on `node.unit_type` — the same branch `node_permalink` already makes.
 
 A single-node `.exists()` here, **not** the course-wide set Task 13 builds for the tree render. And **any status**, not `SUBMITTED`-only: an in-progress attempt is interrupted by unpublishing, which is worth confirming even though it damages no data.
 
@@ -1712,8 +1915,29 @@ git commit -m "feat(builder): manage_node_flag endpoint with server-side confirm
 - Create: `tests/test_publish_strip.py`
 
 **Interfaces:**
-- Consumes: Task 10's `submission_counts` / `is_quiet`, Task 11's view.
-- Produces: a fragment whose root is `<div data-flag-strip="<pk>">`.
+- Consumes: Task 10's `submission_counts` / `is_quiet`, Task 11's minimal `_flag_strip`.
+- Produces: `_flag_strip` upgraded from Task 11's stub to the full renderer, returning a fragment whose root is `<div data-flag-strip="<pk>">`.
+
+The signature and the context dict are the interface between Steps 2/3 and Step 4, so they are pinned here rather than left to inference:
+
+```python
+def _flag_strip(request, course, node, *, flag, scope):
+    """Render the confirm strip. Returns a fragment for a `fetch`, the
+    full-page interstitial otherwise (_wants_fragment decides)."""
+    return render(request, template, {
+        "node": node,
+        "flag": flag,            # "published" | "obligatory"
+        "scope": scope,          # "node" | "subtree"
+        "total": total,          # units in subtree, or LESSONS when flag=obligatory
+        "on": on,                # how many of `total` currently have the flag set
+        "submitted": submitted,  # 0 when flag != published or on == 0
+        "in_progress": in_progress,
+        "quiet": quiet,          # selects the archived-groups copy
+        "q": _raw_q(request),    # the filter, threaded through every arm
+    })
+```
+
+TREE11 asserts the **rendered numbers**, so a key missing from this dict renders as a silent blank rather than raising — which is exactly why the dict is written down.
 
 - [ ] **Step 1: Write the failing tests (QZ5, QZ10, TREE11)**
 
@@ -1807,7 +2031,9 @@ git commit -m "feat(builder): in-place confirm strip with aggregated quiz warnin
 - Consumes: Task 4's helpers.
 - Produces: context keys `flag_counts` (`dict[pk] -> (live_units, total_units, obligatory_lessons, total_lessons)`) and `quizzes_with_submissions` (a set of unit pks).
 
-- [ ] **Step 1: Write the failing tests (TREE1–TREE11)**
+- [ ] **Step 1: Write the failing tests (TREE1–TREE10)**
+
+TREE11 belongs to **Task 12**, which spells it out in full — do not write it twice.
 
 The ones whose mutants are subtle:
 
@@ -1928,6 +2154,42 @@ Element type by row:
 | Container | `<a data-flag-confirm>`, `scope=subtree` | `<a>`, `flag=obligatory`, inert when `total_lessons == 0` |
 
 Note the quiz confirming anchor uses `scope=node`, not `subtree` — it is a single unit; it merely needs confirmation. The inert controls carry no `formaction` and no `href` at all, which is exactly what makes them inert (TREE9).
+
+- [ ] **Step 4b: Select the glyph — the step TREE2, TREE4, TREE6 and TREE10 all assert**
+
+Those four tests read *glyphs*, and nothing so far says how a glyph is chosen. Two mechanics an implementer will otherwise have to invent:
+
+**Django cannot index a dict by a variable key.** `flag_counts[node.pk]` is not valid template syntax. The repo already has the filter for this — `get_item` in `courses/templatetags/courses_manage_extras.py`, which `_tree_node.html` already loads for `children_map|get_item:node.pk`.
+
+**Units read their own booleans; containers read the fold.** A unit has no `flag_counts` entry (Step 3's helper keys containers only), so the two branches differ:
+
+```django
+{% load courses_manage_extras %}
+
+{% if node.kind == "unit" %}
+  {# binary: the node's own two flags #}
+  {% if node.published %}bi-live{% else %}bi-draft{% endif %}
+  {% if node.obligatory %}bi-req{% else %}bi-opt{% endif %}
+{% else %}
+  {% with fc=flag_counts|get_item:node.pk %}
+    {# publish tri-state: slots 0 (live_units) and 1 (total_units) #}
+    {% if fc.1 == 0 %}inert
+    {% elif fc.0 == fc.1 %}bi-live
+    {% elif fc.0 == 0 %}bi-draft
+    {% else %}bi-live-mixed{% endif %}
+
+    {# obligatory tri-state: slots 2 (obligatory_lessons) and 3 (total_lessons) #}
+    {% if fc.3 == 0 %}inert
+    {% elif fc.2 == fc.3 %}bi-req
+    {% elif fc.2 == 0 %}bi-opt
+    {% else %}bi-req-mixed{% endif %}
+  {% endwith %}
+{% endif %}
+```
+
+The two `== 0` guards are the inert cases from Step 5's table and they use **different** slots — `fc.1` (units) for publish, `fc.3` (lessons) for obligatory. That asymmetry is the whole of TREE10: a quiz-only chapter has `fc.1 > 0` and `fc.3 == 0`, so its publish control is live while its obligatory control is inert.
+
+Tuple slots are addressed positionally in Django (`fc.0`, `fc.1`, …). If that reads badly at the call site, return a small namedtuple from `_fold_flag_counts` instead and use `fc.live_units` — but then say so in Step 3, because the two are not interchangeable in the template.
 
 **Inert means two different things**, because the two rows use two different elements:
 
@@ -2074,7 +2336,7 @@ git commit -m "feat(builder): client wiring for flag toggles and the confirm str
 ## Task 15: Unit settings and the draft banners
 
 **Files:**
-- Modify: `templates/courses/manage/editor/_unit_settings.html`, `templates/courses/manage/editor/editor.html`, `templates/courses/lesson_unit.html`, the quiz unit template, `courses/builder.py` (`rename_node`), `courses/views_manage.py` (`node_rename`)
+- Modify: `templates/courses/manage/editor/_unit_settings.html`, `templates/courses/manage/editor/editor.html`, `templates/courses/lesson_unit.html`, the quiz unit template, `courses/builder.py` (`rename_node`), `courses/views_manage.py` (`node_rename`), **`courses/views.py`** (the render context the student-facing banner reads)
 - Create: `tests/test_publish_banners.py`
 
 **Interfaces:**
@@ -2083,7 +2345,12 @@ git commit -m "feat(builder): client wiring for flag toggles and the confirm str
 - [ ] **Step 1: Write the failing tests (WR6, WR10/WR17, OUT5c, QZ6, QZ7, QZ8, QZ9)**
 
 - **WR6** — the settings form round-trips `published`, including **unchecking** it (absent-means-false).
-- **WR17** — the banner POST carries every required parameter and honours `ctx`: post from `ctx=editor`, assert a redirect to the **editor**, not the builder. *Mutant: let `_wants_fragment` decide instead of `ctx`.* Second half: the banner form actually renders `flag`, `value` and `scope` — without them every click 422s.
+- **WR17** — the banner form actually renders `flag`, `value`, `scope` and `ctx` as hidden inputs. Assert the rendered markup; without them every click 422s.
+- **WR10** — the redirect honours `ctx` on **both** arms, which are two different banners on two different pages:
+  - `ctx=editor` (editor-page banner) → redirect to `manage_editor`, **not** the builder. *Mutant: let `_wants_fragment` decide instead of `ctx`* — the banner posts are ordinary no-JS-shaped forms, so `_wants_fragment` is false and the author lands on the builder.
+  - `ctx=unit` (the **student-facing render** banner, posted by the author) → redirect back to the unit URL, and a stale token redirects there too.
+
+  Do not fold these into one test. The `ctx=unit` arm is the only thing exercising the render-context wiring in Step 3 item 2, and without it that whole column of Task 11's response table is untested.
 - **OUT5c** — the **editor page** renders the draft banner for a draft unit and not for a published one. Nothing else covers it: E2E3 covers only the student render, WR17 only the redirect.
 - **QZ6** — in-progress rows are counted **on their own line, never as "submitted"**. Open a quiz without finishing; assert the banner **renders**, says "1 student is part-way through", and does **not** claim anyone submitted. *Mutant A: count every row into the submitted figure. Mutant B: trigger the banner on `SUBMITTED` only → a published in-progress-only quiz shows no banner at all, and unchecking Published below it strands those attempts in silence.*
 - **QZ7** — a student who submitted **404s on `quiz_results`** while the quiz is drafted, and the row is gone from their `course_results`.
@@ -2100,6 +2367,10 @@ This path is **deliberately exempt** from the confirmation invariant — §6's e
 
 1. **Editor page, draft unit** — "Draft — not visible to students" + a Publish button.
 2. **Student-facing render, viewed by an author** — same. **Text-only, no sprite glyph**: `_icon_sprite.html` is included only by `builder.html`, `editor/editor.html` and `help/doc.html`, so a glyph here would paint blank, and pulling the sprite into the lesson template to serve one banner ships the whole symbol set to every student page.
+
+   **This banner needs render context that `courses/views.py` must supply.** `lesson_unit.html` and the quiz template can only ask "is the viewer an author?" if something puts the answer in the context. Add `"is_author": drafts == "keep"` to all **three** render paths — `full_lesson_render_context`, `quiz_unit` and `_quiz_render_feedback` — reusing the `drafts` expression Task 6 already computes there rather than calling `can_see_drafts` a second time. Then the template is `{% if is_author and not node.published %}`.
+
+   Miss this and the banner renders for nobody, silently, on a page that otherwise looks correct.
 3. **Editor page, quiz with any submission row** — the counts on **two lines**, plus the three hazards. **Both lines**: a published quiz whose only rows are `IN_PROGRESS` would otherwise carry no banner at all (it is live, so the draft banner does not apply), and unchecking Published directly below would strand every in-flight attempt in silence.
 
 Each banner is a real `<form method="post">` carrying **every** field:
@@ -2119,7 +2390,7 @@ Each banner is a real `<form method="post">` carrying **every** field:
 ```bash
 uv run pytest tests/test_publish_banners.py tests/test_manage_builder.py -q --verbosity=0
 uv run ruff format .
-git add templates/ courses/builder.py courses/views_manage.py tests/test_publish_banners.py
+git add templates/ courses/builder.py courses/views_manage.py courses/views.py tests/test_publish_banners.py
 git commit -m "feat(editor): Published setting and the draft / submission banners"
 ```
 
@@ -2186,7 +2457,27 @@ PR body: link the spec, list migration `0057` and `FORMAT_VERSION` 10 as deploy-
 
 ## Self-Review
 
-**Spec coverage:** §1 → Task 1. §2 → Tasks 4–8. §3 → Tasks 2–3. §4 → Tasks 11–12. §5 → Task 13. §6 → Tasks 10, 12, 15. §7 → Task 16. §8 → Task 9. §9 → distributed, every id assigned. §10 → Task 16. §11 (out of scope) → no tasks, correctly.
+**Spec coverage:** §1 → Task 1. §2 → Tasks 4–8. §3 → Tasks 2–3. §4 → Tasks 11–12. §5 → Task 13. §6 → Tasks 10, 12, 15. §7 → Task 16. §8 → Task 9. §10 → Task 16. §11 (out of scope) → no tasks, correctly.
+
+**§9 test-id assignment**, checked by sweeping every task's Step 1 list against the spec rather than asserted:
+
+| Prefix | Task |
+|---|---|
+| MIG1–MIG3 | 1 |
+| ACC1–ACC6 | 2 (ACC1, ACC2, ACC4, ACC5), 3 (ACC3, ACC6) |
+| OUT1–OUT5c | 5 (OUT1–OUT5b), 15 (OUT5c) |
+| OUT6–OUT10 | 6 (OUT6, OUT6b, OUT8, OUT9, OUT10), 8 (OUT7) |
+| ANA1–ANA7 | 8 |
+| WR1–WR18 | 11 (WR1–WR5, WR7–WR9, WR11–WR14, WR16, WR18), 7 (WR15, WR15b, WR15c, WR15d), 15 (WR6, WR10, WR17) |
+| TREE1–TREE10 | 13 |
+| TREE11 | 12 |
+| QZ1–QZ4 | 10 |
+| QZ5–QZ10 | 12 (QZ5, QZ10), 15 (QZ6–QZ9) |
+| LNK1 | 16 |
+| KEEP1, TR1–TR4 | 9 |
+| E2E1–E2E6 | 14 |
+
+An earlier draft of this section claimed "every id assigned" while ACC4, OUT2, OUT3, WR5, WR7 and WR8 had no home. The table above is the reason the claim is now checkable — do not replace it with a sentence.
 
 **Deliberate gaps carried from the spec:** the element-level `*_check` endpoints stay ungated (§3), content links render and 404 (§7), and quiz edits warn rather than re-grade (§6). All three are stated decisions, not omissions.
 
