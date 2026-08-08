@@ -10,13 +10,16 @@ import pytest
 from django.urls import reverse
 
 from courses.models import QuizSubmission
+from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
 from courses.rollups import units_under
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
+from tests.factories import NoteFactory
 from tests.factories import QuizSubmissionFactory
 from tests.factories import UnitProgressFactory
+from tests.factories import add_element
 from tests.factories import make_login
 
 
@@ -83,6 +86,193 @@ def test_author_keeps_drafts_on_student_surfaces(client):
 
     resp = client.get(lesson_url)
     assert resp.context["unit_nav"]["next"].pk == c.pk
+
+
+@pytest.mark.django_db
+def test_author_sees_own_drafted_quiz_result(client):
+    """Companion to OUT8, the author path at the SAME site (course_results,
+    courses/views.py). After a quiz the author submitted to is drafted, their
+    own results page still lists it -- only a non-author student's page
+    drops the row (OUT8 covers that side).
+
+    Mutant: hard-code drafts="hide" at course_results -> the author loses
+    the row too.
+    """
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    quiz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", published=True
+    )
+    QuizSubmissionFactory(
+        student=owner, unit=quiz, status=QuizSubmission.Status.SUBMITTED
+    )
+
+    quiz.published = False
+    quiz.save(update_fields=["published"])
+
+    resp = client.get(reverse("courses:course_results", kwargs={"slug": course.slug}))
+    unit_pks = {row["unit"].pk for row in resp.context["summary"]["rows"]}
+    assert quiz.pk in unit_pks
+
+
+@pytest.mark.django_db
+def test_author_reset_count_includes_drafted_units_state(client):
+    """Companion to OUT6, the author path at the SAME site (progress_reset,
+    courses/views.py). The author's OWN reset confirmation count includes
+    practice state on a drafted unit; OUT6 covers a non-author student's
+    count excluding it.
+
+    Mutant: hard-code drafts="hide" at progress_reset -> the author's count
+    silently narrows too.
+    """
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    part = ContentNodeFactory(course=course, kind="part", parent=None, unit_type=None)
+    u1 = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=part, order=0
+    )
+    u2 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=1,
+        published=False,
+    )
+    UnitProgressFactory(student=owner, unit=u1, element_state={"1": {"x": 1}})
+    UnitProgressFactory(student=owner, unit=u2, element_state={"1": {"x": 1}})
+
+    resp = client.get(
+        reverse("courses:progress_reset_course", kwargs={"slug": course.slug})
+    )
+    assert resp.context["affected_count"] == 2
+
+
+def _make_quiz_nav_fixture(client):
+    """Course owned by `owner`, one Part holding three quiz units A (with one
+    question), B (drafted), C. `owner` (author) and `student` (enrolled) are
+    both created, and the client is left logged in as `owner`."""
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    part = ContentNodeFactory(course=course, kind="part", parent=None, unit_type=None)
+    qa = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="quiz",
+        parent=part,
+        order=0,
+        title="Quiz-A",
+    )
+    question = ShortTextQuestionElement.objects.create(stem="Q?", accepted="a")
+    element = add_element(qa, question)
+    qb = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="quiz",
+        parent=part,
+        order=1,
+        title="Quiz-B-Drafted",
+        published=False,
+    )
+    qc = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="quiz",
+        parent=part,
+        order=2,
+        title="Quiz-C",
+    )
+    student = make_login(client, "student")
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(owner)
+    return owner, student, course, qa, qb, qc, element
+
+
+@pytest.mark.django_db
+def test_author_quiz_unit_nav_steps_through_drafted_quiz(client):
+    """Companion to OUT10, a second build_unit_nav call site (quiz_unit,
+    courses/views.py). The author's unit_nav still steps from quiz A to
+    drafted quiz B; the student's nav skips straight to C.
+
+    Mutant: hard-code drafts="hide" at quiz_unit -> the author's next/prev
+    jump straight from A to C too.
+    """
+    owner, student, course, qa, qb, qc, _element = _make_quiz_nav_fixture(client)
+    quiz_url = reverse(
+        "courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": qa.pk}
+    )
+
+    client.force_login(owner)
+    resp = client.get(quiz_url)
+    assert resp.context["unit_nav"]["next"].pk == qb.pk
+
+    client.force_login(student)
+    resp = client.get(quiz_url)
+    assert resp.context["unit_nav"]["next"].pk == qc.pk
+
+
+@pytest.mark.django_db
+def test_author_quiz_answer_rerender_nav_steps_through_drafted_quiz(client):
+    """Companion to OUT10, a third build_unit_nav call site
+    (_quiz_render_feedback, courses/views.py) -- the no-JS quiz-answer
+    re-render, driven here with a plain POST carrying no
+    X-Requested-With: fetch header. The author's re-rendered nav still steps
+    through drafted quiz B; the student's skips it.
+
+    Mutant: hard-code drafts="hide" at _quiz_render_feedback -> the author's
+    re-rendered nav skips the draft too.
+    """
+    owner, student, course, qa, qb, qc, element = _make_quiz_nav_fixture(client)
+    answer_url = reverse(
+        "courses:quiz_answer",
+        kwargs={"slug": course.slug, "node_pk": qa.pk, "element_pk": element.pk},
+    )
+
+    client.force_login(owner)
+    resp = client.post(answer_url, {"answer": "a"})
+    assert resp.context["unit_nav"]["next"].pk == qb.pk
+
+    client.force_login(student)
+    resp = client.post(answer_url, {"answer": "a"})
+    assert resp.context["unit_nav"]["next"].pk == qc.pk
+
+
+@pytest.mark.django_db
+def test_author_notes_hub_shows_note_on_drafted_unit(client):
+    """Companion to OUT10, a fourth, cross-app call site (the notes hub,
+    notes/views.py). The author's own note on a drafted lesson unit still
+    shows on their notes hub; a non-author student's own note on the same
+    unit does not show on theirs.
+
+    Mutant: hard-code drafts="hide" at the notes hub view -> the author's
+    own note disappears too.
+    """
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        published=False,
+        title="Drafted-Lesson",
+    )
+    NoteFactory(author=owner, unit=unit, body="Owner note")
+
+    student = make_login(client, "student")
+    EnrollmentFactory(student=student, course=course)
+    NoteFactory(author=student, unit=unit, body="Student note")
+
+    notes_url = reverse("notes:course_notes", kwargs={"slug": course.slug})
+
+    client.force_login(owner)
+    resp = client.get(notes_url)
+    unit_pks = {row["unit"].pk for row in resp.context["units"]}
+    assert unit.pk in unit_pks
+
+    client.force_login(student)
+    resp = client.get(notes_url)
+    unit_pks = {row["unit"].pk for row in resp.context["units"]}
+    assert unit.pk not in unit_pks
 
 
 @pytest.mark.django_db
