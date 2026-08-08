@@ -22,8 +22,6 @@ def test_en_catalog_has_the_task_msgid():
     # than dropping them -- so the `not e["obsolete"]` filter is what makes "live"
     # in the message below actually true. Without it a commented-out
     # `#~ msgid "Task"` block would count, exactly like a raw substring search.
-    matches = [
-        e for e in _entries(EN_PO) if e["msgid"] == "Task" and not e["obsolete"]
-    ]
+    matches = [e for e in _entries(EN_PO) if e["msgid"] == "Task" and not e["obsolete"]]
     assert len(matches) == 1, "expected exactly one live `Task` entry in locale/en"
     assert matches[0]["msgstrs"] == [""], "the en catalog entry must stay empty"

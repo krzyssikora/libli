@@ -3907,3 +3907,13 @@ prevented by the once-only invariant (per-order `rewritten` flags), not detected
 **Plan complete and saved to `docs/superpowers/plans/2026-07-27-internal-link-cutover.md`.**
 
 **Blocked on part 2** — see the PREREQUISITE section. Run its gate command before Task 1.
+
+---
+
+## Callout Task kind — sequencing constraint
+
+Do not author a Task callout in mat-pp until PROD is running code that contains the `TASK`
+enum member. `FORMAT_VERSION` was deliberately not bumped, so an archive containing a Task
+callout fails on an older PROD at that element with "unknown callout kind", which does not
+name the version as the cause. The gate is the **deployed code**, not migration `0056` (a
+state-only `AlterField` whose SQL is a no-op).
