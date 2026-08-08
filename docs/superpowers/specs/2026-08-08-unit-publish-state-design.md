@@ -898,14 +898,8 @@ flag=published, all-draft (single action):
 └───────────────────────────────────────────┘
 
 flag=published, unpublishing a quiz with submissions:
-┌─ Hide "Test 2" from students? ────────────┐
-│  12 students have submitted.              │
-│  Their results are kept, but they will    │
-│  not be able to see them while it is      │
-│  hidden, and edits will not re-grade      │
-│  their answers.                           │
-│  [ Hide it ]                          ×   │
-└───────────────────────────────────────────┘
+    -> NOT REPEATED HERE. §6 holds the single normative copy for this variant,
+       including the separate in-progress line. Do not author it from this block.
 ```
 
 Note the obligatory variant counts **lessons**, not units — the denominators differ (see §5).
@@ -944,7 +938,7 @@ names the additions rather than leaving them to be inferred:
 | `data-op="flag"` + `data-flag="published"\|"obligatory"` on the unit toggle buttons | Routed through the existing form-submit dispatch, like `rename` and `duplicate`. `data-flag` is required as well as `data-op`, because both buttons on a row share the op and the focus selector must disambiguate them. |
 | `data-flag-confirm="<pk>"` + `data-flag="…"` on the container and confirming-quiz anchors | Click handler: `fetch` the GET, insert the returned strip as a sibling after the rowhead, move focus into it. |
 | `data-op="flag-confirm"` on the strip's own form | Ordinary POST through the existing dispatch; response applied via `applyFragment`. |
-| Strip dismiss (`×`, and `Esc`) | Removes the strip, returns focus to the anchor that opened it. |
+| Strip dismiss (`×`, and `Esc`) | Removes the strip, returns focus to the control that opened it — the **anchor** on the GET path, the **toggle button** on the POST-returns-a-strip path, where no anchor exists. |
 | Double-submit guard | For **buttons**, `disabled` for the duration of the request. For **anchors**, `aria-disabled="true"` plus the handler's bail — `disabled` does nothing on an `<a>`. Cleared when the response is applied. |
 | Fetch headers | Every fetch sends `X-Requested-With: "fetch"`, matching the four existing fetch sites in `builder.js`. Omitting it makes `_wants_fragment` false and injects a whole `node_confirm_delete.html`-shaped **page** into an `<li>`. |
 | Open-strip exclusivity | Opening a strip closes any other open strip. Two live confirmations with different counts on screen at once is a mis-click waiting to happen. |
@@ -1023,15 +1017,29 @@ The strip's root therefore carries **`data-flag-strip="<pk>"`**, and the POST ha
 before reaching `applyFragment`:
 
 ```js
-if (incoming.matches("[data-flag-strip]")) {   // server is asking, not answering
-  insertStripAfterRowhead(incoming); focusInto(incoming); return;
+try {
+  if (incoming.matches("[data-flag-strip]")) {   // server is asking, not answering
+    insertStripAfterRowhead(incoming); focusInto(incoming); return;
+  }
+  applyFragment(text);
+} finally {
+  reenable(control);        // MUST run on every arm — see below
 }
-applyFragment(text);
 ```
 
 Same insertion and focus behaviour as the GET path — the two arrive at the same place by different
-routes. §9 E2E6 drives it end to end, because WR13 asserts only the server half and is green on a
-client that drops the response on the floor.
+routes.
+
+**The `finally` is not decoration.** On this path the tree is **not** re-rendered: the original
+`<button data-op="flag">` survives in the DOM, and the branch `return`s before `applyFragment`. An
+implementer who clears the double-submit `disabled` "where the response is applied" — i.e. in or
+after `applyFragment` — leaves that button **permanently disabled**. The author dismisses the strip
+and the publish control is dead until a page reload.
+
+So: the double-submit guard is cleared on **every** response arm — success, 409, 422, and the strip
+branch. §9 E2E6 asserts the full cycle (click → strip opens → dismiss → click again succeeds),
+because an assertion that only checks the strip opened is green on the stuck-disabled bug. WR13
+asserts only the server half and is green on a client that drops the response entirely.
 
 `X-Builder-Info` carries full state and is emitted on the same terms as the other builder ops — this
 endpoint introduces no new convention for it.
@@ -1040,14 +1048,23 @@ endpoint introduces no new convention for it.
 the user just activated, and this project has already shipped one focus bug of exactly this shape.
 The two paths need different selectors, because a container row has no toggle *button*:
 
+**The rule is "focus whichever publish control the re-rendered row now carries"**, not "focus the
+kind of control that was clicked". Those are different, and the difference bites on the main path:
+
 | Path | Focus target on the freshly rendered row |
 |---|---|
 | Unit toggle | `[data-node="<pk>"] [data-op="flag"][data-flag="<flag>"]` |
-| Confirmed strip write (container or quiz) | `[data-node="<pk>"] [data-flag-confirm="<pk>"][data-flag="<flag>"]` |
+| Confirmed **container** write | `[data-node="<pk>"] [data-flag-confirm="<pk>"][data-flag="<flag>"]` |
+| Confirmed **quiz** unpublish | `[data-node="<pk>"] [data-op="flag"][data-flag="<flag>"]` — a **button**, not an anchor |
 
-Using the unit selector for the strip path would match nothing, focus would fall to `<body>`, and a
-keyboard user would be dropped to the top of a 2,866-row tree — the same defect in a new place.
-§9 E2E4 asserts `document.activeElement` after **both**.
+**Why the quiz case takes the unit selector even though a strip performed the write:** the write set
+`published=False`, so by the rendering table above (and TREE7's third case) that row now renders a
+plain submit button — a drafted quiz needs no confirmation to be *published*. Reaching for
+`[data-flag-confirm]` because "a strip did this" would match nothing, drop focus to `<body>`, and
+strand a keyboard user at the top of a 2,866-row tree.
+
+§9 E2E4 must cover the **quiz unpublish** case specifically. A container fixture satisfies "assert
+after both" while staying green on this bug.
 
 ### The bulk write bypasses `auto_now`
 
@@ -1298,7 +1315,7 @@ key will either recompute per row or reach for `children_map` — which is exact
 targets.
 
 **One additional course-wide query is required, not zero.** The quiz carve-out (§4) means the tree
-must know which quiz units have ≥1 submitted submission:
+must know which quiz units have **≥1 submission row of any status**:
 
 ```python
 quizzes_with_submissions = set(
@@ -1486,6 +1503,9 @@ What changes is the confirm strip's trigger and copy. `needs_confirmation` fires
 submission row, in progress or submitted, and the strip reports the two counts **separately**
 because they carry different warnings:
 
+**This is the single normative copy for the quiz variant** — §4's mockup block deliberately does not
+repeat it. Either count is omitted when it is zero:
+
 ```
 ┌─ Hide "Test 2" from students? ────────────┐
 │  12 students have submitted.              │
@@ -1496,6 +1516,8 @@ because they carry different warnings:
 │  and edits will not re-grade them.        │
 │  Attempts in progress will be interrupted │
 │  and can be resumed when you publish.     │
+│                                           │
+│  [ Hide it ]                          ×   │
 └───────────────────────────────────────────┘
 ```
 
@@ -1958,17 +1980,25 @@ cross-reference in this document.
   row in the tree; the tree's scroll position and expansion state survive.
 - **E2E3.** A draft unit is absent from the student's outline in a real browser session, and the
   author sees it with the draft banner.
-- **E2E4.** After toggling, focus lands on the same control on the re-rendered row, so a second
-  keyboard activation works without re-navigating the tree. Assert `document.activeElement`, not
-  merely that the row re-rendered.
+- **E2E4.** After toggling, focus lands on whichever publish control the re-rendered row now
+  carries, so a second keyboard activation works without re-navigating the tree. Assert
+  `document.activeElement`, not merely that the row re-rendered. **Three cases: a unit toggle, a
+  confirmed container write, and a confirmed quiz unpublish.** *Mutant:* focus
+  `[data-flag-confirm]` after every strip write → the drafted quiz now renders a *button*, the
+  selector misses, and focus falls to `<body>` → red on the third case only. A two-case test using a
+  container is green on it.
 - **E2E5.** A **collapsed** container's toggle visibly updates its own glyph and its ancestors'.
   This is the case every narrower fragment choice silently no-ops on, and a test that expands the
   container first would pass on all of them.
-- **E2E6.** A POST that comes back as a strip **opens the strip** rather than doing nothing. Drive
-  it by unpublishing a quiz whose first submission arrives between render and click (seed the
-  submission, then click a button rendered before it existed). *Mutant:* route the response straight
-  to `applyFragment` → the root has no `data-scope`, the swap silently no-ops, and the author sees a
-  dead click → red. WR13 asserts only the server half and is green on that mutant.
+- **E2E6.** A POST that comes back as a strip **opens the strip**, and the originating button is
+  **usable again afterwards**. Drive it by unpublishing a quiz whose first submission arrives
+  between render and click (seed the submission, then click a button rendered before it existed).
+  Assert the full cycle: click → strip opens → dismiss → **click again succeeds**.
+  *Mutant A:* route the response straight to `applyFragment` → the root has no `data-scope`, the
+  swap silently no-ops, the author sees a dead click → red at "strip opens". *Mutant B:* clear the
+  double-submit `disabled` inside `applyFragment` instead of a `finally` → the strip branch returns
+  first, the button stays disabled forever → red at "click again". **A test that stops at "strip
+  opens" is green on Mutant B**, which is why the dismiss-and-retry half is not optional.
 
 `checkVisibility()` is required wherever a collapsed `<details>` is involved, and the confirm strip
 must be synchronised on a condition rather than a sleep, per the project's e2e conventions.
