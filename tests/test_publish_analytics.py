@@ -10,7 +10,6 @@ from courses.gradebook import build_quiz_gradebook
 from courses.review import pending_reviews_for
 from courses.rollups import build_outline
 from courses.rollups import build_progress_matrix
-from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
 from courses.rollups import frontier_columns
 from courses.views_analytics import _with_data_for
@@ -166,6 +165,21 @@ def test_ana5_gradebook_and_review_queue_drop_never_published_quizzes():
     )
     assert [sub.unit_id for sub in data["in_progress"]] == [live.pk]
 
+    # Under "keep-with-data" the filter is a structural no-op for the review
+    # queue: it only ever surfaces units that HAVE submissions, and any unit
+    # with a submission is in with_data by construction (_with_data_for scans
+    # QuizSubmission). The only configuration where this filter can actually
+    # change the result is "hide", which ignores with_data entirely -- a draft
+    # quiz's submission must disappear even though it plainly holds data.
+    draft_with_data = _quiz(course, ch, title="DraftWithData", published=False)
+    QuizSubmissionFactory(student=s, unit=draft_with_data, status="in_progress")
+
+    kept = pending_reviews_for(owner, course, drafts="keep")
+    assert draft_with_data.pk in [sub.unit_id for sub in kept["in_progress"]]
+
+    hidden = pending_reviews_for(owner, course, drafts="hide")
+    assert draft_with_data.pk not in [sub.unit_id for sub in hidden["in_progress"]]
+
 
 @pytest.mark.django_db
 def test_ana6_container_drop_rule_and_header_alignment():
@@ -177,7 +191,7 @@ def test_ana6_container_drop_rule_and_header_alignment():
     optional_only = _chapter(course, title="OptionalOnly")
     _lesson(course, optional_only, obligatory=False, published=True)
 
-    empty_ch = _chapter(course, title="Empty")  # no units at all
+    _chapter(course, title="Empty")  # no units at all
 
     to_expand = _chapter(course, title="ToExpand")
     _lesson(course, to_expand, published=False)
@@ -211,7 +225,6 @@ def test_ana6_container_drop_rule_and_header_alignment():
             course, frozenset(), drafts=drafts_mode, with_data=wd
         )
         assert "Empty" in [c["title"] for c in fc_mode["columns"]]
-    assert empty_ch  # fixture used
 
 
 @pytest.mark.django_db
@@ -241,6 +254,6 @@ def test_out7_teacher_breakdown_keeps_draft_with_data_students_own_view_hides_it
 
     student_own_outline = build_outline(course, student, drafts="hide")
     student_total = sum(r["required_total"] for r in student_own_outline)
-    assert student_total == 1  # the student's own page never sees with_data
-
-    assert teacher_total != student_total  # the deliberate divergence, pinned
+    # The student's own page never sees with_data: 1, not 2 -- the deliberate
+    # divergence from the teacher's denominator above, pinned.
+    assert student_total == 1

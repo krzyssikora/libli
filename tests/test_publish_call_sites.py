@@ -389,7 +389,7 @@ def test_all_draft_course_is_absent_from_the_catalogue(client):
     Mutant: leave the Exists(... kind="unit") subquery without published=True.
     """
     course = CourseFactory(visibility="open")
-    student = make_login(client, "student")
+    make_login(client, "student")  # non-enrolled: only the login side effect matters
     units = [
         ContentNodeFactory(
             course=course, kind="unit", unit_type="lesson", published=False

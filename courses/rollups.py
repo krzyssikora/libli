@@ -559,7 +559,8 @@ def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):
             # (unit_is_visible is unconditionally True under "keep", so
             # `visible == total` always and this branch never fires).
             if total and not visible:
-                continue  # suppresses columns.append, cells_by_depth AND leaves together
+                # Suppresses columns.append, cells_by_depth AND leaves together.
+                continue
             kids = children.get(node.pk, [])
             if node.pk in expanded_pks and kids:
                 expanded_nodes.append({"node": node, "pk": node.pk})
