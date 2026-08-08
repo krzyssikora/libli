@@ -59,6 +59,20 @@ outstanding, and its sanctioned flow is to export mat-pp from the local instance
 into PROD. A bump would break that import outright until PROD is upgraded — a real cost paid
 for a cosmetic improvement to an error message.
 
+**Operational constraint that follows, and which must be handed to the operator.** Not bumping
+removes the blanket failure but not the element-level one: an archive that *does* contain a
+Task callout still fails on a PROD that predates this build, with a message that does not name
+the cause. The two halves compose, so state the policy rather than leaving it implicit:
+
+> **Do not author a Task callout in mat-pp until PROD is running this build (migrated through
+> `0056`).** The cutover is imminent and this costs nothing to honour, whereas the alternative
+> policy — upgrade PROD first, then author freely — puts a deploy on the critical path of the
+> cutover.
+
+This is a sequencing note for the human running the cutover, not something the code can
+enforce. It is the intended policy; if PROD is upgraded before the export instead, the
+constraint lifts entirely.
+
 **Accepted cost of not bumping:** an older build importing an archive that *does* contain a
 Task callout fails at that element with "Element 'x' has an unknown callout kind" rather than
 naming the version as the cause. This is the same degradation a new element type already
@@ -118,7 +132,7 @@ has repeatedly produced a stale count somewhere else:
 - `courses/tests/test_callout_render.py:22` — "The four kinds emit four distinct icon markers"
   becomes "The five kinds emit five distinct icon markers"; the comment sits directly beside
   where the new icon test goes;
-- `tests/test_text_colour_css.py:3` (module docstring) — "which is ten surfaces, not two"
+- `tests/test_text_colour_css.py:2` (module docstring) — "which is ten surfaces, not two"
   becomes "eleven surfaces";
 - `tests/test_text_colour_css.py:20-21` — "recomputes the four callout grounds from
   courses.css" becomes "the five callout grounds";
@@ -126,9 +140,13 @@ has repeatedly produced a stale count somewhere else:
   `[".callout--example", ".callout--note", ".callout--tip", ".callout--warning"]` gains
   `".callout--task"`. **Additive only.** Appending here is *not* a substitute for the two
   anchored regexes in Testing rows 1-2: this list is exactly the bare-substring form those rows
-  exist to replace, and appending to it alone leaves the light rule unguarded.
-- `docs/superpowers/specs/2026-07-14-callout-element-design.md:18` — **leave alone**, it is a
-  historical record of that feature's design, not live documentation.
+  exist to replace, and appending to it alone leaves the light rule unguarded. The file
+  currently imports only `pathlib.Path`, so rows 1-2 also need **`import re`** added.
+- **Leave alone** — historical records of their own features' designs, not live documentation,
+  even though the prescribed grep will surface both:
+  `docs/superpowers/specs/2026-07-14-callout-element-design.md:18` and
+  `docs/superpowers/specs/2026-07-30-text-colour-design.md:110-111` (which enumerates
+  `.callout--tip` / `.callout--warning` as surfaces 9 and 10 of a "ten surfaces" list).
 
 ### 2. Migration
 
@@ -194,6 +212,15 @@ Everything else derives from that single custom property, exactly as the other f
 the 3px left spine, the 6%-accent-over-`--surface-raised` container tint, the 14%-accent icon
 chip, and the eyebrow colour.
 
+**Source order is load-bearing — put the light rule in the light group, not at the end of the
+file.** `test_surface_literals_still_match_the_css` finds each light accent with
+`re.search(rf"{theme}\.callout--{kind}\s*\{{\s*--callout-accent:\s*(#…)", css)` where `theme`
+is the empty string — **no `^` anchor and no `re.M`**, so it takes the *first* occurrence in
+the file, and `[data-theme="dark"] .callout--task {` contains `.callout--task {` as a
+substring. Appending the new pair *after* the dark block would therefore compute the light
+ground from `#ee9fd8` over `#FFFFFF` and fail Testing row 10 with a message that blames the
+wrong thing.
+
 **Contrast, computed against the tinted callout background** (`color-mix(accent 6%, surface)`,
 which resolves to `#FAF3F8` light and `#383030` dark under the project's own mixing):
 
@@ -251,10 +278,12 @@ selected state with no template edit.
 **But no existing test iterates `CalloutElement.Kind` or the form's choices** — the authoring
 tests hardcode `"warning"` (`test_callout_authoring.py:64,73,82`). So "data-driven, therefore
 covered" is false: without a new test, the one surface through which an author can reach this
-feature at all has zero coverage. §9 adds one.
+feature at all has zero coverage. Testing rows 6-7 add two.
 
-`_element_row.html`'s callout branch is kind-agnostic (it shows the type label and either the
-element title or `element_summary`), so the editor list itself needs nothing.
+`_element_row.html`'s callout branch needs no edit either, but it is not kind-*agnostic*: its
+row label runs through `element_summary`, and `courses_manage_extras.py:120` returns
+`el.display_heading` for a `CalloutElement`. So a heading-less Task callout's editor row reads
+"Task" / "Zadanie" — a second place the new label surfaces, picked up automatically.
 
 ### 7. Transfer — no change at all
 
@@ -302,11 +331,18 @@ result in each so the initial values are pinned:
   Notatka, Wskazówka lub Ważne — …" becomes "Wybierz **Rodzaj** (Przykład, Notatka, Wskazówka,
   Ważne lub Zadanie — …". The final item must match the `Zadanie` msgstr exactly.
 
-**Residual risk, stated rather than denied:** quoting the target text pins the *initial* commit
-only. No test in this repo reads `docs/help/` at all, so nothing prevents the Polish help
-sentence and the `Zadanie` msgstr drifting apart later. Testing row 9 guards the catalog; the
-help prose is **unguarded by design** — adding the repo's first docs-prose test to close a
-drift no one has yet observed is not worth the brittleness it introduces here.
+**These edits are guarded — but not in the way you might assume.** `tests/test_help.py` reads
+and renders every help markdown file off disk, and `core/help.py:89`'s
+`_EL_PARA_RE = re.compile(r"<p>\s*\{el:([a-z0-9-]+)\}\s*(.*?)</p>", re.DOTALL)` parses the
+`{el:callout}` entry **positionally**. So the token, its `el-callout` icon slug, and the EN/PL
+token ordering are all pinned, and a prose edit that disturbs the paragraph structure breaks
+those tests. That is why `tests/test_help.py` is in the DoD 3 floor.
+
+**Residual risk, stated rather than denied:** what `test_help.py` does *not* assert is anything
+about the prose *inside* those paragraphs. So the `Zadanie` wording itself is unguarded, and
+quoting the target text above pins the initial commit only. Testing row 9 guards the catalog
+msgstr; the help sentence is **unguarded by design** — adding the repo's first docs-prose
+assertion to close a drift no one has yet observed is not worth the brittleness here.
 
 ## Data flow
 
@@ -360,10 +396,10 @@ callout branch were exactly that.
 | 3 | `display_heading` for `kind="task"` is "Task" — extend the existing `test_display_heading_falls_back_to_kind_default` (`test_callout_model.py:41-44`) with a fifth line rather than adding a function | `courses/tests/test_callout_model.py` | remove the `TASK` enum member |
 | 4 | a **persisted** task callout renders `callout--task`: `CalloutElement.objects.create(kind="task")` then `.render()` | `courses/tests/test_callout_render.py` | remove the `TASK` enum member — `save()` then coerces the kind to `example` and the class becomes `callout--example` |
 | 5 | render emits the pencil path `m15 5 4 4` for `task`, and that path is **absent** from an `example` render | same file | delete the `{% elif el.kind == "task" %}` branch — it then falls through to book-open, and both halves move together |
-| 6 | the editor form offers the kind: GET `manage_element_form` for a callout, assert an `<option value="task">` labelled "Task" is present | `courses/tests/test_callout_authoring.py` | remove the `TASK` enum member |
+| 6 | the editor form offers the kind: GET `manage_element_form` for a callout, then assert the **exact** unselected option string `'<option value="task">Task</option>'` — `_edit_callout.html` emits value and label with no intervening whitespace, and two separate `'value="task"' in html` / `'Task' in html` asserts would both pass with the label wrong. The neighbouring `test_edit_form_preselects_stored_kind` asserts the *selected* form (`value="warning" selected`); row 6 wants the unselected one | `courses/tests/test_callout_authoring.py` | remove the `TASK` enum member |
 | 7 | authoring persists it: POST `kind="task"`, assert the saved `content_object.kind == "task"` | same file | as above |
 | 8 | a `kind="task"` callout survives an export/import round trip | `courses/tests/test_callout_transfer.py` | revert the enum, so `_val_callout` rejects the payload |
-| 9 | the pl catalog renders `Task` as "Zadanie": `with translation.override("pl"): assert str(CalloutElement(kind="task").display_heading) == "Zadanie"` | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | leave the `msgmerge` fuzzy pre-fill in place |
+| 9 | the pl catalog renders `Task` as "Zadanie": `with translation.override("pl"): assert str(CalloutElement(kind="task").display_heading) == "Zadanie"`. The module needs **no `pytest.mark.django_db`** — the instance is never saved, matching `test_display_heading_survives_stray_unsaved_kind`'s style — even though every neighbouring callout module carries the mark | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | leave the `msgmerge` fuzzy pre-fill in place |
 | 10 | the new callout grounds are in the normative surface list and match the CSS | `tests/test_text_colour_css.py` (extend, don't add a file) | change either accent hex without updating the literal |
 
 **Assertion form — this is where the last branch bled.** Tests 1 and 2 scan stylesheet source
@@ -412,8 +448,12 @@ mechanics, which this change does not touch.
      courses/tests/test_callout_form.py courses/tests/test_callout_authoring.py \
      courses/tests/test_callout_transfer.py tests/test_callout_css.py \
      tests/test_text_colour_css.py tests/test_i18n_po_health.py \
-     tests/test_i18n_callout_task.py
+     tests/test_i18n_callout_task.py tests/test_help.py
    ```
+
+   `tests/test_help.py` is in the floor because the §8 help edits land **inside** a
+   `{el:callout}` paragraph that `core/help.py` parses positionally — that file renders every
+   help doc off disk and checks the token, its icon slug, and EN/PL token ordering.
 
    `scripts/affected_tests.py` may be used to widen this from the diff, but the list above is
    the floor. A whole-repo sweep is a branch gate, not a per-task step.
@@ -426,8 +466,17 @@ mechanics, which this change does not touch.
    at 0 fuzzy / 0 obsolete. Both `.mo` files regenerated via `compilemessages` — **before** DoD 3.
 7. Light + dark screenshot of all five kinds together. No existing page renders them side by
    side (`seed_demo_course._callout` creates a single `kind="tip"` callout), so the mechanism is:
-   author a scratch lesson unit holding one callout of each kind in a local course, then capture
-   it with Playwright.
+   write a **temporary** e2e file that seeds a lesson unit holding one callout of each kind and
+   screenshots it in both themes. It is a throwaway capture harness, **deleted before the PR** —
+   the two images are the artifact, and the Testing section's "no e2e test is warranted" still
+   holds for what ships. Run it with the marker, which is mandatory in this repo:
+
+   ```
+   uv run pytest -m e2e tests/test_e2e_callout_kinds_shot.py
+   ```
+
+   Without `-m e2e` the file silently deselects and pytest exits 5, which reads as "nothing to
+   do" rather than a failure.
 
    **The dark shot has a specific trap.** `base.html:4` bakes `data-theme` from the server, and
    for an authenticated user the stored `User.theme` is what wins — a cookie or an OS preference
