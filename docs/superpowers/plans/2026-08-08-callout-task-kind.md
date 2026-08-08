@@ -17,7 +17,7 @@
 - **Every tool call goes through `uv run`** — ruff, pytest and `manage.py` are not on PATH.
 - **Start the test DB before any pytest run:** `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`. If it is down the suite looks hung for ~4m21s before erroring.
 - **`uv run ruff format .` runs LAST**, after every other edit in the whole plan (Task 8). Running it earlier means running it twice.
-- **Never run the whole test suite.** Each task runs only its own files. The branch-wide selection is Task 8's job.
+- **Never run the whole test suite.** Each task runs only its own files; Task 8 runs the 12-file DoD 3 floor twice (baseline and post-mutant). **That floor plus CI is the branch gate** — the whole-repo sweep is CI's job, not a step in this plan. `scripts/affected_tests.py` may be used to widen the floor from the diff if you want extra assurance, but it is optional and the floor is the requirement.
 - **`-m e2e` is mandatory** for any e2e file, or pytest silently deselects and exits 5.
 - Stored value is `"task"`; English label `"Task"`; Polish `"Zadanie"`; light accent `#a8318f`; dark accent `#ee9fd8`.
 
@@ -612,7 +612,21 @@ Expected: PASS. `test_i18n_po_health` must report 0 fuzzy / 0 obsolete / 0 untra
 
 `docs/help/course-admin/content-editors.md` (~:116): "Choose a **Kind** (Example, Note, Tip, or Important —" becomes "Choose a **Kind** (Example, Note, Tip, Important, or Task —".
 
-`docs/help/course-admin/content-editors.pl.md` (~:125-126): "Wybierz **Rodzaj** (Przykład, Notatka, Wskazówka lub Ważne —" becomes "Wybierz **Rodzaj** (Przykład, Notatka, Wskazówka, Ważne lub Zadanie —". The final item must match the `Zadanie` msgstr exactly.
+`docs/help/course-admin/content-editors.pl.md`: **the phrase is wrapped across two physical lines**, so a single-line find-and-replace will not match. Lines 125-126 currently read:
+
+```
+wyróżnić na tle otaczającego tekstu. Wybierz **Rodzaj** (Przykład, Notatka,
+Wskazówka lub Ważne — każdy z własnym kolorem akcentu i ikoną), opcjonalny
+```
+
+Replace those two lines with:
+
+```
+wyróżnić na tle otaczającego tekstu. Wybierz **Rodzaj** (Przykład, Notatka,
+Wskazówka, Ważne lub Zadanie — każdy z własnym kolorem akcentu i ikoną), opcjonalny
+```
+
+The final item must match the `Zadanie` msgstr exactly.
 
 Keep both edits **inside** the existing `{el:callout}` paragraph — `core/help.py:89` parses it positionally with `<p>\s*\{el:slug\}\s*(.*?)</p>`, and `tests/test_help.py` renders every doc.
 
@@ -664,7 +678,9 @@ uv run pytest courses/tests/test_callout_model.py courses/tests/test_callout_ren
   courses/tests/test_callout_editor_row.py courses/tests/test_callout_nesting_css.py
 ```
 
-Expected: all PASS. This is the spec's DoD 3 and its executed order is `6 → 3 → 4` — baseline first, mutants second.
+Expected: all PASS. This is the spec's DoD 3, and the baseline-before-mutants ordering is the point.
+
+**The full executed order in this task is `6 → 3 → 7 → delete harness → 4 → 8 → 5`**, i.e. the screenshots (Steps 2-4) run *before* the mutants (Step 6), swapping the spec's `4 → 7`. That is a deliberate, safe reorder: the throwaway harness is then already deleted by the time the tree is deliberately damaged, so no mutant can interact with it and the linter never sees it. Everything else follows the spec's sequence.
 
 - [ ] **Step 2: Write the screenshot harness**
 
@@ -710,6 +726,11 @@ def test_capture_all_five_callout_kinds_dark(live_server, page):
     page.goto(f"{live_server.url}{url}")
     # Prove the capture really is dark, or a light render passes as "the dark shot".
     assert page.locator("html[data-theme='dark']").count() == 1
+    # ...and prove it is the RIGHT page. base.html bakes data-theme on EVERY page,
+    # including the 403 lesson_unit raises on a course-access mistake, so the theme
+    # guard alone would happily screenshot a page with zero callouts on it.
+    page.wait_for_selector(".callout--task")
+    assert page.locator(".callout").count() == 5
     page.screenshot(path=r"<SCRATCHPAD>/callout-kinds-dark.png", full_page=True)
 
 
@@ -724,6 +745,8 @@ def test_capture_all_five_callout_kinds_light(live_server, page):
     # The mirror guard, written out rather than left as "repeat with light": a
     # hardcoded 'dark' selector here would either fail or assert the wrong theme.
     assert page.locator("html[data-theme='light']").count() == 1
+    page.wait_for_selector(".callout--task")
+    assert page.locator(".callout").count() == 5
     page.screenshot(path=r"<SCRATCHPAD>/callout-kinds-light.png", full_page=True)
 ```
 
@@ -739,13 +762,25 @@ Without `-m e2e` the file silently deselects and pytest exits 5, which reads as 
 
 - [ ] **Step 4: Judge both screenshots and surface them**
 
-Write the PNGs to the session scratchpad, **not** the repo. Show both to the human. Pass criteria, judged on each theme separately:
+Write the PNGs to the session scratchpad, **not** the repo.
 
-- (a) the five accents are mutually distinguishable at the real 3px spine and 18px chip — in particular the task chip must not read as a shade of Tip's green or as severity next to Important's amber;
-- (b) the 0.75rem/700 uppercase eyebrow is legible against its tint;
-- (c) the icon is identifiable as a pencil at 18px.
+**This step has a named actor and a deterministic outcome — it is not "show someone and hope".** This plan is executed autonomously, so "show it to the human" alone would silently no-op, and DoD 7 is the *only* evidence behind the whole magenta decision. Concretely:
 
-If an accent must change, **every hex and ratio in spec §4 and §5 moves together** — including the icon-chip paragraph (`#EFD8E9` / `#514048`, 4.48:1 / 4.86:1) and the spine-adjacency paragraph (5.32:1 / 8.92:1), neither of which sits in a table — plus the light rule, the dark rule, both `test_text_colour_css.py` surface entries, and the two regex hex literals in `tests/test_callout_css.py`.
+1. **`Read` both PNGs yourself.** You can see images; do not delegate the judgement to a human who may not be at the keyboard.
+2. **Record an explicit verdict per theme** — light and dark separately — against each criterion, in the run log:
+   - (a) the five accents are mutually distinguishable at the real 3px spine and 18px chip — in particular the task chip must not read as a shade of Tip's green or as severity next to Important's amber (the two failure modes that eliminated teal and rose);
+   - (b) the 0.75rem/700 uppercase eyebrow is legible against its tint;
+   - (c) the icon is identifiable as a pencil at 18px.
+3. **Surface both images to the human** as well, and say which verdict you recorded. Confirmation is solicited, but **the run proceeds on your recorded verdict** — an unanswered prompt is not a failure and not a pass, it is simply not a gate.
+4. **On a fail against any criterion, take the accent-change branch below.** Do not proceed to the mutants with a failed DoD 7.
+
+**Accent-change branch (only if step 4 fires).** Edit sites: the light rule, the dark rule, both `test_text_colour_css.py` surface entries, the two regex hex literals in `tests/test_callout_css.py`, and **every hex and ratio in spec §4 and §5** — including the icon-chip paragraph (`#EFD8E9` / `#514048`, 4.48:1 / 4.86:1) and the spine-adjacency paragraph (5.32:1 / 8.92:1), neither of which sits in a table.
+
+Then **loop back, or the contingency terminates in an edit list rather than a verified state**:
+
+1. recompute both `callout-task` grounds through `test_text_colour_css.py`'s own `_mix()` with the new accent, and recompute every affected ratio with the WCAG formula in spec §4;
+2. re-run `uv run pytest tests/test_callout_css.py tests/test_text_colour_css.py`;
+3. re-capture both themes (Step 3) and re-judge them (this step) before continuing.
 
 - [ ] **Step 5: Delete the capture harness**
 
@@ -827,17 +862,44 @@ enum member.** The gate is the deployed code, not migration `0056` (a state-only
 whose SQL is a no-op). Archives without a Task callout are unaffected.
 ```
 
+Then **echo the resolved absolute path of that file into the run log**. The scratchpad is
+session-specific, so a relative mention is not a durable pointer, and Step 14 is the only
+consumer.
+
 - [ ] **Step 10: Verify the stale-prose sweep is still complete**
 
 The spec turns a verification procedure into this plan's fixed list of update sites; run the sweep to confirm master has not added a new one under the branch:
 
+**The three greps have three different expected outputs. "Zero hits" is the wrong gate for two of them** — grep #2 in particular returns the very sites this plan updates, so reading it as "anything found is a miss" would flag correct work.
+
 ```bash
+# 1 -- count statements. Case-sensitive, so "FOURTH" does not appear.
 grep -rn "four" --include=*.py --include=*.html --include=*.css --include=*.md . | grep -i callout
+```
+
+Expected outside `docs/superpowers/`: **exactly one** hit, `tests/test_e2e_callout_container.py:4` ("These four tests…"), which counts tests, not kinds. `courses/tests/test_callout_render.py:22` and `tests/test_text_colour_css.py:20` must have already been rewritten to "five" by Tasks 2 and 4 and so must **not** appear. Anything else is a missed site.
+
+```bash
+# 2 -- the label sequence. These are UPDATE sites, not misses.
 grep -rEn "Note\s*[/,]\s*Tip" --include=*.py --include=*.html --include=*.css --include=*.md .
+```
+
+Expected outside `docs/superpowers/`: **exactly three** hits, and the check is *"does each one already contain `Task`"* — not "are there zero":
+
+| Hit | Must read |
+|---|---|
+| `courses/models.py:458` | `(Example/Note/Tip/Important/Task)` |
+| `courses/static/courses/css/courses.css:1775` | `(Example / Note / Tip / Important / Task)` |
+| `docs/help/course-admin/content-editors.md:116` | `(Example, Note, Tip, Important, or Task` |
+
+A fourth hit is a missed site. A listed hit lacking `Task` is an incomplete edit.
+
+```bash
+# 3 -- the Polish sequence. Line-scoped.
 grep -rEn "Notatka.*Wskazówka" --include=*.md .
 ```
 
-Expected hits: only `docs/superpowers/` historical records, plus two documented false positives — `tests/test_paste_rule.py:293` ("FOURTH container") and `tests/test_e2e_callout_container.py:4` ("four tests"), neither of which is a kind count. Anything else is a site this plan missed; update it.
+Expected **before** Task 7: nothing outside `docs/superpowers/`, because `content-editors.pl.md` wraps the phrase across lines 125-126. **After** Task 7's rewrite a hit on `content-editors.pl.md` is **expected and correct** if the rewrap puts both words on one line — verify it reads `Przykład, Notatka, Wskazówka, Ważne lub Zadanie`, and treat its absence as equally fine (the phrase may still be wrapped).
 
 - [ ] **Step 11: Lint, format, and COMMIT THE RESULT**
 
@@ -868,7 +930,14 @@ uv run pytest courses/tests/test_callout_model.py courses/tests/test_callout_ren
   courses/tests/test_callout_editor_row.py courses/tests/test_callout_nesting_css.py
 ```
 
-Expected: all PASS. This is the spec's DoD 4b and is **not** redundant with Step 1 — Step 6 deliberately damaged shipped artifacts, and none of the closing gates below can see a missing CSS rule, a missing template branch, or a stale compiled `.mo`. If `compilemessages` changed a `.mo` byte, commit it before proceeding.
+Expected: all PASS. This is the spec's DoD 4b and is **not** redundant with Step 1 — Step 6 deliberately damaged shipped artifacts, and none of the closing gates below can see a missing CSS rule, a missing template branch, or a stale compiled `.mo`.
+
+If `compilemessages` changed a `.mo` byte, commit it now — Step 13 requires an empty working tree, so this branch must be executed exactly:
+
+```bash
+git add locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.mo
+git commit -m "chore(i18n): recompile catalogs after the falsification pass"
+```
 
 - [ ] **Step 13: Closing gates**
 
@@ -880,6 +949,12 @@ git status --short
 ```
 
 Expected: the three commands clean, and `git status --short` **empty** — an empty working tree is what proves the checked tree and the committed tree are the same one.
+
+- [ ] **Step 14: Hand the PR-body note to the PR-opening phase**
+
+**When the PR is opened, paste the full contents of `<SCRATCHPAD>/pr-body-note.md` into the PR body verbatim, under its own heading.**
+
+This step exists because Step 9 had a producer and no consumer. DoD 8 requires the constraint in *two* places and argues explicitly that a note no artifact carries is not communicated at all — a file written to a session scratchpad that nobody is instructed to read reproduces exactly that failure one level down. The runbook half (Step 8) is committed and safe; this half is not, until it is pasted.
 
 ## Self-Review
 
