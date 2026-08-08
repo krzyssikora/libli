@@ -75,11 +75,12 @@ def test_a_stray_child_exports_under_the_before_slot():
         tab_id="bogus",
     )
     document, _media, _problems = build_element_export(unit, join)
-    assert all(
-        el["tab"] in BeforeAfterElement.SLOT_IDS
-        for el in document["elements"]
-        if el["parent"] is not None
-    )
+    children = [el for el in document["elements"] if el["parent"] is not None]
+    assert len(children) == 3
+    assert all(el["tab"] in BeforeAfterElement.SLOT_IDS for el in children)
+    stray = [el for el in children if el["data"].get("body") == "stray"]
+    assert len(stray) == 1
+    assert stray[0]["tab"] == BeforeAfterElement.BEFORE_SLOT_ID
 
 
 @pytest.mark.django_db

@@ -58,6 +58,9 @@
         // panels with a dead button" state the recovery contract exists to
         // exclude. Route it into the SAME degraded state as every other failure.
         killOne(container);
+        if (window.console && console.error) {
+          console.error("beforeafter.js: malformed instance", container);
+        }
         return;
       }
       container.dataset.baReady = "1";

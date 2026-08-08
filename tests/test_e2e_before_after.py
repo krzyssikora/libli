@@ -270,8 +270,18 @@ def test_boot_guard_recovers_from_an_aborted_script(page, live_server):
 
     expect(before_panel).to_be_visible()
     expect(after_panel).to_be_visible()
-    expect(headings.nth(0)).to_be_visible()
-    expect(headings.nth(1)).to_be_visible()
+    # `.ba__side-heading` keeps `.visually-hidden` (a clipped 1x1px box) in every
+    # state, and Playwright's to_be_visible() only checks a non-empty bounding
+    # box -- it would report a still-clipped heading "visible". Measure the box
+    # directly: a genuinely revealed heading is a real text line (height > 1px).
+    box0 = headings.nth(0).bounding_box()
+    box1 = headings.nth(1).bounding_box()
+    assert box0 is not None and box0["height"] > 1, (
+        f"heading 0 is still visually-hidden: {box0}"
+    )
+    assert box1 is not None and box1["height"] > 1, (
+        f"heading 1 is still visually-hidden: {box1}"
+    )
     expect(toggle).to_be_hidden()
 
     page.unroute("**/beforeafter.js")
@@ -291,11 +301,12 @@ def test_a_malformed_instance_does_not_strand_its_siblings(page, live_server):
     an early return, so no DOM break can make initOne actually *throw*. That
     guard now calls killOne, which is what makes this state assertable at all.
 
-    Mutants: (a) revert the guard to a bare `return` -> instance 2 shows
-    unlabelled panels (no .ba--dead, headings stay visually-hidden) with no
-    live control to reveal them; (b) move the try/catch to the document level ->
-    instances 1 and 3 are stranded too (their click handlers never get attached
-    because the whole `for` loop aborts on instance 2).
+    Mutant: revert the guard to a bare `return` -> instance 2 shows unlabelled
+    panels (no .ba--dead, headings stay visually-hidden) with no live control
+    to reveal them. (Moving the try/catch to the document level is NOT a
+    realizable mutant here: the malformed path is this early `return`, not a
+    throw, so relocating the `try` changes nothing observable and the test
+    would stay green regardless.)
     """
     pa = _make_pa_user("ba_malformed")
     course, unit = _seed_unit(pa, "ba-malformed")
@@ -331,8 +342,17 @@ def test_a_malformed_instance_does_not_strand_its_siblings(page, live_server):
     expect(dead_panels.nth(0)).to_be_visible()
     expect(dead_panels.nth(1)).to_be_visible()
     dead_headings = dead.locator(".ba__side-heading")
-    expect(dead_headings.nth(0)).to_be_visible()
-    expect(dead_headings.nth(1)).to_be_visible()
+    # Same false-negative risk as the abort test above: to_be_visible() cannot
+    # tell a genuinely revealed heading from a still-clipped .visually-hidden
+    # one. Measure the box instead.
+    dead_box0 = dead_headings.nth(0).bounding_box()
+    dead_box1 = dead_headings.nth(1).bounding_box()
+    assert dead_box0 is not None and dead_box0["height"] > 1, (
+        f"dead heading 0 is still visually-hidden: {dead_box0}"
+    )
+    assert dead_box1 is not None and dead_box1["height"] > 1, (
+        f"dead heading 1 is still visually-hidden: {dead_box1}"
+    )
     expect(dead.locator(".ba__toggle")).to_have_count(0)  # dropped from the served HTML
 
     for idx in (0, 2):
@@ -758,10 +778,21 @@ def test_preview_toggle_still_works_after_a_fragment_swap(page, live_server):
 @pytest.mark.django_db(transaction=True)
 def test_preview_re_init_does_not_touch_html_classes(page, live_server):
     """libliInitBeforeAfter is initAll -- the root-scoped ENHANCER, not the
-    document-level boot. The editor page has no ba-armed at all.
+    document-level boot. The editor page has no ba-armed at all, and re-init
+    must never ARM it either.
 
-    Mutant: bind the export to the document-level boot -> re-init throws on the
-    absent class or re-runs once-only work on every swap.
+    Mutant: add `document.documentElement.classList.add("ba-armed")` inside
+    `initAll` itself (the function bound to window.libliInitBeforeAfter, and
+    the same function the document-level boot calls once at load) -> every
+    scoped re-init call editor.js makes after a fragment swap now arms <html>
+    too, with no watchdog left to disarm it (the boot's own
+    `classList.remove("ba-armed")` only runs once, at initial load, before any
+    swap). `ba-armed` shows up in document.documentElement.classList after the
+    swap. (The className-unchanged assertion alone would NOT catch this: the
+    boot's only pre-existing <html> write, `classList.remove("ba-armed")`, is
+    a no-op when the class was never present, so removing that call cannot
+    fail an unchanged-className check either -- the class must actually be
+    ADDED for any assertion here to move.)
     """
     from courses.models import Element
     from courses.models import TextElement
@@ -794,6 +825,9 @@ def test_preview_re_init_does_not_touch_html_classes(page, live_server):
     ).to_be_visible()
 
     assert page.evaluate("document.documentElement.className") == before
+    assert not page.evaluate(
+        "document.documentElement.classList.contains('ba-armed')"
+    ), "re-init must never arm the editor preview page"
 
 
 # ---------------------------------------------------------------------------

@@ -30,9 +30,9 @@ def _print_block(css):
 
 def _prehide_block(html):
     """lesson_unit.html has TWO `{% if has_reveal_gate %}` blocks: the prepaint boot
-    guard at :5 and the pre-hide <style> at :37. A non-greedy match from the first
+    guard at :5 and the pre-hide <style> at :38. A non-greedy match from the first
     `has_reveal_gate` stops at the INNER `{% endif %}` on :11 and returns a JS
-    fragment with none of the four scopes -- red against a correct implementation.
+    fragment with none of the five scopes -- red against a correct implementation.
     Anchor on the <style> tag instead.
     """
     m = re.search(r"has_reveal_gate %\}\s*<style>(.*?)</style>", html, re.S)
