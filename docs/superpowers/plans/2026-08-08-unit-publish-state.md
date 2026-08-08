@@ -1035,14 +1035,16 @@ git commit -m "feat(rollups): drafts=/with_data= on the traversal helpers, valid
 
 - [ ] **Step 1: Write the failing tests (OUT1, OUT2, OUT3, OUT4, OUT5, OUT5b)**
 
+**Every fixture below puts its units under a Part that keeps at least one PUBLISHED unit.** Once Step 3 filters at dict creation and Step 4 prunes, a course whose only unit is drafted returns `build_outline(...) == []` — so `roots[0]["required_total"]` is an `IndexError`, not a `0`. Give each fixture a published sibling, or write the assertion as a sum over the returned list (`sum(r["required_total"] for r in roots) == 0`). Do not read `roots[0]` after drafting.
+
 **OUT2 — `test_required_total_excludes_drafts`**
-Fixture: 10 obligatory lesson units under one Part; draft 7 of them.
+Fixture: 10 obligatory lesson units under one Part; draft 7 of them (3 stay published, so the Part survives).
 Assert: the student's root `required_total` is 3.
 *Mutant:* filter drafts in the outline but not in the rollup → 10.
 
 **OUT3 — `test_a_completed_unit_later_drafted_leaves_both_counters`**
-Fixture: one obligatory lesson unit, published, with a `UnitProgressFactory(completed=True)` row.
-Assert: `required_total == 1` and `required_done == 1`. Draft the unit, rebuild, assert **both** are 0 — and that the `UnitProgress` row is unchanged in the database.
+Fixture: one Part with **two** obligatory lesson units — the subject unit (with a `UnitProgressFactory(completed=True)` row) and a published sibling that keeps the Part alive.
+Assert: `required_total == 2` and `required_done == 1`. Draft the subject unit, rebuild, assert `required_total == 1` and `required_done == 0` — and that the `UnitProgress` row is unchanged in the database.
 *Mutant:* exclude from `required_total` only → `required_done` exceeds it, which is arithmetically impossible and is what the assertion catches.
 
 
@@ -1054,7 +1056,7 @@ Assert: from A, `build_unit_nav(course, student, A, drafts="hide")`'s next is **
 *Mutant:* omit `build_unit_nav`'s forwarding of `drafts=` into `build_outline` (Task 4 Step 4b) → next is B.
 
 **OUT4 — `test_additional_done_excludes_drafts_and_the_dict_is_gone`**
-Fixture: one lesson unit with `obligatory=False, published=True`; a `UnitProgressFactory` row marking it complete for the student.
+Fixture: one Part holding a **published obligatory** lesson (which keeps the Part alive after the draft) plus the subject unit — `obligatory=False, published=True` — with a `UnitProgressFactory` row marking it complete for the student.
 Assert: `additional_done` at the root is 1. Then set `published=False`, rebuild, and assert `additional_done` is 0 **and** that no dict anywhere in the tree has `d["node"].pk == unit.pk`.
 Assert the dict's **absence** — not `completed is not True` on it. With the node filtered at dict creation there is no dict to read, so a `d.get("completed") is not True` sweep over the survivors passes vacuously on every mutant.
 *Mutant:* gate `is_obligatory_lesson` instead of filtering at dict creation → `additional_done` still counts it, because that expression never calls the predicate.
@@ -1659,7 +1661,16 @@ Per node, **immediately before** the `_exact_keys(nd, [...])` call — the same 
         # Optional-key pattern (see the FORMAT_VERSION-2 width/height note).
         # Default True, NOT False: a v9 archive came from an install with no
         # concept of drafts, so every unit in it was live.
-        nd.setdefault("published", True)
+        #
+        # The isinstance guard is NOT optional, and both existing shims in this
+        # file carry it (schema.py:118 for link_nodes, :312 for the element
+        # shim). check_list(doc["nodes"]) proves only that the CONTAINER is a
+        # list, so `nd` may be a string or a list -- and an unguarded
+        # .setdefault raises AttributeError BEFORE _exact_keys' own
+        # `if not isinstance(obj, dict): _err(...)` runs, turning a hostile
+        # archive's clean 422 into a 500.
+        if isinstance(nd, dict):
+            nd.setdefault("published", True)
 ```
 
 Then normalise containers so the two creation paths agree. **Position matters twice:**
@@ -1699,7 +1710,17 @@ Also update `tests/test_table_transfer.py:560`, which names the value in a **com
         # archive-import path must keep honouring the payload (TR1), and a
         # shared builder growing a flag for one of its two callers is how
         # that path acquires a bug later.
-        ContentNode.objects.filter(pk__in=node_map.values()).update(published=False)
+        #
+        # node_map maps ARCHIVE IDS -> ContentNode INSTANCES (importer.py:903
+        # is `node_map[nd["id"]] = node`), so the pks must be pulled out.
+        # Passing node_map.values() straight to pk__in raises
+        # `TypeError: Field 'id' expected a number but got <ContentNode: ...>`,
+        # which duplicate_unit's except-Exception then reports as a
+        # TransferError -> 422, and TR4 goes red for a reason unrelated to
+        # publish state.
+        ContentNode.objects.filter(pk__in=[n.pk for n in node_map.values()]).update(
+            published=False
+        )
         created = _create_elements(document, node_map, media_map)
 ```
 
@@ -1856,7 +1877,14 @@ The high-value ones, each with its mutant:
 
 - [ ] **Step 3: Add the service function**
 
-In `courses/builder.py`, beside `rename_node`, reusing its `_locked_node` + `_check_token` preamble verbatim:
+**Add two imports to `courses/builder.py` first.** Its django import block is only `transaction`, `parse_datetime` and `gettext as _` — **neither `timezone` nor `ValidationError` is imported**, despite two `# ValidationError -> 422` comments in the file that make it read as though the name is in scope (today `full_clean()` raises it and the *views* catch it). Both would be `NameError` on first call:
+
+```python
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+```
+
+Then, beside `rename_node`, reusing its `_locked_node` + `_check_token` preamble verbatim:
 
 ```python
 FLAG_COLUMNS = ("published", "obligatory")
@@ -1917,6 +1945,10 @@ def set_node_flag(course, node_pk, *, flag, value, scope, token):
 In `courses/views_manage.py`:
 
 ```python
+# Add `from courses.models import QuizSubmission` to views_manage.py's import
+# block (one name per line, alphabetical) -- it currently imports ContentNode,
+# Course, Element, Enrollment, QuestionElement, Subject and UnitProgress, but
+# NOT QuizSubmission, which both this view and Task 13's _tree_context need.
 @login_required  # _require_manage does NOT check authentication: for an
 def node_flag(request, slug):  # anonymous request it raises PermissionDenied
     course = _require_manage(request, slug)  # -> 403 where every neighbour redirects
@@ -1932,10 +1964,7 @@ def node_flag(request, slug):  # anonymous request it raises PermissionDenied
     # arm, so when ctx is itself the bad parameter it is treated as absent
     # and the 422 renders through the builder arm.
     ctx = param("ctx")
-    bad_ctx = ctx is not None and ctx not in ("editor", "unit")
-    if bad_ctx:
-        ctx = None
-    if bad_ctx:
+    if ctx is not None and ctx not in ("editor", "unit"):
         return _flag_error(request, course, None, _("Bad ctx."), ctx=None)
 
     # `node` is validated BEFORE resolution: param("node") returns None when
@@ -1968,6 +1997,19 @@ Validate `flag` ∈ `FLAG_COLUMNS`, `value` ∈ `{"0","1"}` (required on POST, o
 | `node` | **422** via `_builder_with_notice`, before any resolution — see the snippet above | 404 via `get_node_or_404`'s slug check |
 
 Add `confirmed` to the allow-list too: accepted `"1"`, **missing allowed** (it means "not yet confirmed"), anything else 422. The plan's `param("confirmed") != "1"` test alone would turn `confirmed=true` or `confirmed=yes` into a silent re-prompt rather than an error. Extend WR11's cases to cover it alongside `value` and `scope`.
+
+**`scope` must also agree with the node's kind, and that check belongs HERE — in the view, before `needs_confirmation` is computed.**
+
+| Combination | Result |
+|---|---|
+| `scope=node` on a **unit** | proceed |
+| `scope=subtree` on a **container** | proceed |
+| `scope=node` on a **container** | **422** |
+| `scope=subtree` on a **unit** | **422** |
+
+`set_node_flag` also rejects both (Step 3), but the service check is unreachable for one of them: `needs_confirmation` begins with `scope == "subtree"`, so a POST with `scope=subtree` at a **unit** satisfies it unconditionally and short-circuits to `_flag_strip` before the service is ever called. The response is a 200 strip whose copy reads "N units in ⟨title⟩" for a single unit, and **WR16's second half can never go green**. Keep the service guard as the invariant; the view's copy is what makes the 422 reachable.
+
+The `scope=node`-on-a-container half is already fine either way — a container's `unit_type` is `None`, so `needs_confirmation` is False and the service's `ValidationError` arm fires.
 
 **Convert `value` to a bool once, immediately after the allow-list**, and pass the bool onward:
 
@@ -2278,7 +2320,8 @@ git commit -m "feat(builder): in-place confirm strip with aggregated quiz warnin
 ## Task 13: Tree UI — sprite, markup, fold, CSS, legend
 
 **Files:**
-- Modify: `templates/courses/manage/_icon_sprite.html`, `_tree_node.html`, `builder.html`, `courses/views_manage.py` (`_tree_context` **and the new `_fold_flag_counts`**), **`courses/static/courses/css/builder.css`**
+- Modify: `templates/courses/manage/_tree_node.html`, **`_scope.html`** (hoists `flag_url`, Step 4), `builder.html`, `courses/views_manage.py` (`_tree_context` **and the new `_fold_flag_counts`**), **`courses/static/courses/css/builder.css`**
+- Modify *only if* you take the sprite option for `_flag_legend.html` (Step 2): `templates/courses/manage/_icon_sprite.html`. Under the recommended masked-icon path it is untouched.
 - Create: `templates/courses/manage/_flag_legend.html`
 - Create: `tests/test_publish_tree.py`
 
@@ -2520,12 +2563,14 @@ Enter in the title picks the form's first submit button in **tree** order, which
 | Expand toggle / leaf spacer | 1 | `1` |
 | Kind badge | 2 | `2` |
 | Title input | 3 | `4` |
-| Visually-hidden Rename submit | 4 | `4` |
+| Visually-hidden Rename submit | 4 | **n/a — out of flow** |
 | Publish toggle | 5 | `3` |
 | Obligatory toggle | 6 | `3` |
 | `.tree__cluster` | 7 | `5` |
 
-The two repeated values are **deliberate**: within an equal `order`, flex falls back to DOM order — publish left of obligatory, and the hidden Rename's position cosmetically irrelevant because it is 1×1 and clipped. Do not "fix" them into distinct values.
+The two toggles deliberately share `order: 3` — within an equal `order`, flex falls back to DOM order, which is exactly what is wanted: publish left of obligatory. Do not "fix" them into distinct values.
+
+**The hidden Rename button takes no `order`, because it is not a flex item at all.** `builder.css:51-53` says so: *"the visually-hidden Rename button is `position:absolute`, so [it does not] become a flex item."* An out-of-flow child ignores `order` entirely — the reason is being out of flow, not being 1×1 and clipped. Its **DOM** position still matters, and is TREE1's whole subject; its visual position is simply not something `order` can influence.
 
 Accepted cost: a screen reader reaches the toggles after the title. Tolerable because each `aria-label` states a self-contained action rather than relying on proximity to the title.
 
@@ -2544,7 +2589,9 @@ The `node.kind == 'unit'` conjunct is load-bearing: a container has no publish s
 
 **Every rule this task adds goes in `courses/static/courses/css/builder.css`.** `builder.html` loads only `builder.css`, and `.tree__row`, `.tree__rowhead`, `.tree__cluster` and `input.tree__title` are all defined there. `editor.css` says so itself: *"The builder's `.tree__scope`/`.tree__row`/`.tree__rowhead` are deliberately NOT reused: they live in builder.css, which this page does not load."*
 
-Put **the six `.icm--*` rules from Step 2**, the strike-through, the seven `order` values from Step 5, and the opacity exemption below into `builder.css`. All four groups; omitting the `--icm` rules leaves every toggle rendering an empty 15×15 box, since `.icm::before` masks against an undefined custom property. Written into `editor.css` they would be inert — the builder never pulls that file in, so E2E1 and the whole Step 5 layout would fail silently, with correct-looking CSS sitting in the repo.
+Put **three groups** into `builder.css`: the six `.icm--*` rules from Step 2, the strike-through, and the `order` values from Step 5. Omitting the `--icm` rules leaves every toggle rendering an empty 15×15 box, since `.icm::before` masks against an undefined custom property.
+
+**There is no fourth "opacity exemption" rule to write.** `builder.css:62` scopes the dim to `.tree__cluster { opacity: .5 }`, and Step 4 places the toggles as *siblings* of that element — so they are at full opacity already. Nothing to add; do not go looking for a selector. Written into `editor.css` they would be inert — the builder never pulls that file in, so E2E1 and the whole Step 5 layout would fail silently, with correct-looking CSS sitting in the repo.
 
 The class lands on the `<li>` while the strike-through belongs on the title, so it is a **descendant** selector — not a rule on the class itself:
 
@@ -2617,11 +2664,18 @@ Omitting the fetch header makes `_wants_fragment` false and injects a whole page
 
 A POST can come back as a strip (a stale page, or a click that raced the quiz's first submission). That response's root is **not** `<… data-scope="top">`, so `applyFragment` misses the lookup and **silently no-ops** — the author clicks, nothing happens, nothing writes, nothing explains why:
 
-`incoming`, `control` and `reenable` are not existing symbols — the existing dispatch has a raw `text` response, `e.submitter`, and `releaseForm(form, op)` (which returns early unless `op === "rename"`). Derive them:
+`incoming`, `control` and `reenable` are not existing symbols — the existing dispatch has a raw `text` response, `e.submitter`, and `releaseForm(form, op)` (which returns early unless `op === "rename"`, so it cannot carry this).
+
+**The guard is SET in the synchronous submit handler and CLEARED in the response handler.** These are two different places, and putting both in the response handler — where `text` already exists — leaves the control enabled for the entire in-flight window, i.e. no guard at all. E2E6's Mutant B only reddens if the `disabled = true` happened at submit time; set it late and both the correct build and the mutant pass.
 
 ```js
-var control = e.submitter;                 // the clicked button/anchor
-control.disabled = true;                   // buttons; anchors get aria-disabled
+// --- submit handler, synchronous, beside the existing e.preventDefault()
+//     and the `op` / `action` reads (e.submitter is already consulted there):
+var control = e.submitter;
+control.disabled = true;                    // buttons
+control.setAttribute("aria-disabled", "true");   // anchors, where disabled is inert
+
+// --- response handler, once `text` has arrived:
 try {
   var incoming = parseFragment(text).firstElementChild;
   if (incoming && incoming.matches("[data-flag-strip]")) {
@@ -2631,10 +2685,12 @@ try {
   }
   applyFragment(text);
 } finally {
-  control.disabled = false;                // MUST run on every arm
-  control.removeAttribute("aria-disabled");
+  control.disabled = false;                 // MUST run on every arm, including
+  control.removeAttribute("aria-disabled"); // the strip branch's early return
 }
 ```
+
+The `finally` matters most on the strip branch: that path does **not** re-render the tree, so the original control survives in the DOM and a clear placed inside `applyFragment` never runs for it — the button stays dead until a page reload.
 
 The `finally` is not decoration: on this path the tree is **not** re-rendered, the original button survives in the DOM, and the branch `return`s before `applyFragment`. Clearing the guard "where the response is applied" leaves that button **permanently disabled** until a page reload.
 
