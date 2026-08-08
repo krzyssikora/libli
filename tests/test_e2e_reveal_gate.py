@@ -14,9 +14,10 @@ Covers the six scenarios from the task brief, each its own test:
      reveal-armed class, no reveal.js.
   4. Watchdog: abort the reveal.js request; the DOMContentLoaded fallback (reveal.js
      never set window.__revealBooted) strips reveal-armed, so all content is visible.
-  5. Focus: after clicking gateA, document.activeElement is gateB's button; for a
-     TRAILING gate whose run is empty, focus lands on the scope container (.slide),
-     not <body>.
+  5. Focus: after clicking gateA, document.activeElement is the FIRST block gateA
+     revealed (not gateB, which would scroll the whole revealed run past the
+     viewport); for a TRAILING gate whose run is empty, focus lands on the scope
+     container (.slide), not <body>.
   6. Single-slide: a single-slide lesson gate actually collapses its run.
 
 Task 5 (slice 2) adds the WALK edge-case, fail-safe, and editor-preview coverage on top
@@ -458,9 +459,18 @@ def test_watchdog_unhides_when_reveal_js_blocked(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_focus_lands_on_next_gate(page, live_server):
-    """After clicking gateA the cascade stops at gateB, and focus moves to gateB's
-    button, so keyboard users continue without hunting for it."""
+def test_focus_lands_on_the_first_revealed_block(page, live_server):
+    """After clicking gateA the cascade stops at gateB, and focus moves to the FIRST
+    block gateA revealed — the start of the content the student just earned.
+
+    It used to move to gateB's button. focus() scrolls its target into view, so with a
+    long run between the two gates that scrolled the whole run past the viewport and
+    the student had to scroll back up to read it (see
+    test_confirm_keeps_the_reader_at_the_revealed_content in test_e2e_switchgate.py,
+    which measures the viewport). Keyboard users still land on a gate's own control
+    when that gate is the first revealed sibling — see
+    test_plain_gate_stops_at_fillgate_and_focuses_blank in test_e2e_fillgate.py.
+    """
     _student, unit = _new_unit("rg_focus")
     add_element(unit, _text("<p>intro block</p>"))
     add_element(unit, _gate("Reveal A"))
@@ -473,10 +483,10 @@ def test_focus_lands_on_next_gate(page, live_server):
     expect(gate_a).to_be_visible()
     gate_a.click()
     expect(page.get_by_role("button", name="Reveal B")).to_be_visible()
-    assert page.evaluate("() => document.activeElement.matches('[data-reveal-gate]')")
-    assert (
-        page.evaluate("() => document.activeElement.textContent").strip() == "Reveal B"
-    )
+    assert "block B" in page.evaluate("() => document.activeElement.textContent")
+    assert not page.evaluate(
+        "() => document.activeElement.matches('[data-reveal-gate]')"
+    ), "focus skipped the revealed content and landed on the next gate"
 
 
 @pytest.mark.django_db(transaction=True)
