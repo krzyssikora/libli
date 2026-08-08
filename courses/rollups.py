@@ -40,6 +40,46 @@ _QUESTION_MODELS = [
 # The visible glyph is authored only in templates/courses/_unit_crumbs.html.
 HIDDEN_PATH_SEP = ", "
 
+# The three draft-filtering modes. `with_data` is the set of unit pks that hold
+# data (>=1 QuizSubmission or >=1 UnitProgress); it is REQUIRED when
+# drafts == "keep-with-data" and ignored otherwise.
+DRAFTS_MODES = ("hide", "keep", "keep-with-data")
+
+
+def _check_drafts(drafts, with_data):
+    """Validate at the TOP of every public helper, before any traversal.
+
+    NOT a bare `assert`: those are stripped under python -O and raise
+    AssertionError, which no caller catches.
+
+    NOT a check inside unit_is_visible: that runs per node, so a course with
+    ZERO units would never reach it and the guard would be absent exactly
+    where a brand-new course is concerned.
+
+    None is the sentinel, NOT emptiness: an empty with_data is the ordinary
+    state of a course no student has touched and must never raise.
+    """
+    if drafts not in DRAFTS_MODES:
+        raise ValueError(f"unknown drafts mode {drafts!r}")
+    if drafts == "keep-with-data" and with_data is None:
+        raise ValueError("drafts='keep-with-data' requires with_data")
+
+
+def unit_is_visible(node, *, drafts, with_data):
+    """Whether this unit gets a dict in the outline tree at all. The ONE gate.
+
+    In all three modes "appears in the tree" and "counts toward the totals"
+    are the SAME condition, so there is no second, counter-level gate to
+    write. Do not add a publish check to the rollup expressions: with the
+    dict already gone those checks can never fire, and any test written
+    against them passes vacuously on every mutant.
+    """
+    if drafts == "keep" or node.published:
+        return True
+    if drafts == "keep-with-data":
+        return node.pk in (with_data or frozenset())
+    return False
+
 
 def _walk_preorder(course):
     """Yield every ContentNode of `course` in depth-first pre-order.
@@ -62,16 +102,26 @@ def _walk_preorder(course):
     yield from walk(None)
 
 
-def units_in_order(course):
+def units_in_order(course, *, drafts="keep", with_data=None):
     """Flat list of all leaf units (lessons AND quizzes) in outline pre-order.
 
     Quizzes have required_total == 0 but are still navigable units — they are NOT
     dropped here. Crosses chapter/part boundaries.
+
+    Defaults to "keep" — its existing callers include the builder, the link
+    picker and the exporter, where dropping drafts is data loss on transfer.
+    Student-facing callers must opt in to "hide" explicitly.
     """
-    return [n for n in _walk_preorder(course) if n.kind == ContentNode.Kind.UNIT]
+    _check_drafts(drafts, with_data)
+    return [
+        n
+        for n in _walk_preorder(course)
+        if n.kind == ContentNode.Kind.UNIT
+        and unit_is_visible(n, drafts=drafts, with_data=with_data)
+    ]
 
 
-def units_under(node):
+def units_under(node, *, drafts="keep", with_data=None):
     """Every unit ContentNode in the subtree rooted at `node`, inclusive.
 
     A SET, not an ordered list: reset does not care about order, so the pre-order
@@ -80,8 +130,13 @@ def units_under(node):
     serve: it walks from parent_id=None over a WHOLE course and cannot start from an
     arbitrary node.
     """
+    _check_drafts(drafts, with_data)
     if node.kind == ContentNode.Kind.UNIT:
-        return {node}
+        return (
+            {node}
+            if unit_is_visible(node, drafts=drafts, with_data=with_data)
+            else set()
+        )
     children = {}
     for n in node.course.nodes.all():
         children.setdefault(n.parent_id, []).append(n)
@@ -90,7 +145,8 @@ def units_under(node):
     while stack:
         cur = stack.pop()
         if cur.kind == ContentNode.Kind.UNIT:
-            out.add(cur)
+            if unit_is_visible(cur, drafts=drafts, with_data=with_data):
+                out.add(cur)
         else:
             stack.extend(children.get(cur.pk, []))
     return out
@@ -114,12 +170,16 @@ def is_quiz_unit(node):
     )
 
 
-def quiz_units_in_order(course):
+def quiz_units_in_order(course, *, drafts="keep", with_data=None):
     """Quiz units in depth-first pre-order — units_in_order filtered to quizzes."""
-    return [n for n in units_in_order(course) if is_quiz_unit(n)]
+    return [
+        n
+        for n in units_in_order(course, drafts=drafts, with_data=with_data)
+        if is_quiz_unit(n)
+    ]
 
 
-def build_outline(course, user):
+def build_outline(course, user, *, drafts="hide", with_data=None):
     """Return a nested list of node dicts with required/additional rollups.
 
     Folds the shared _walk_preorder stream into a tree (pre-order guarantees a parent
@@ -127,7 +187,11 @@ def build_outline(course, user):
     then a post-order pass sums the rollups. Two queries (nodes + the user's completed
     unit ids). `required` counts only obligatory lesson units; `additional_done` counts
     completed non-obligatory lesson units; quiz units are excluded from both.
+
+    `drafts`/`with_data` are validated here only in this task — the filtering
+    itself (dict-creation gating + container pruning) is Task 5's deliverable.
     """
+    _check_drafts(drafts, with_data)
     completed = set()
     if user.is_authenticated:
         completed = set(
@@ -252,7 +316,7 @@ def submission_is_counted(sub, total_review, reviewed_counts):
     return not (total_r > 0 and reviewed_r < total_r)
 
 
-def build_course_results(course, student):
+def build_course_results(course, student, *, drafts="keep", with_data=None):
     """Per-course quiz summary for one student (the viewing user). Pure of side
     effects. Sums the headline over SUBMITTED quizzes only, excluding quizzes
     that are still awaiting review (i.e. have ≥1 unreviewed [R] element).
@@ -268,8 +332,12 @@ def build_course_results(course, student):
       2. QuizSubmission filter  (one query)
       3. Element filter + prefetch_related  (one query + one prefetch for questions)
       4. QuestionResponse reviewed-count aggregation  (one batched annotate query)
+
+    `drafts`/`with_data` default to "keep" — see this module's DRAFTS_MODES
+    callers note; a required keyword here would break existing positional
+    call sites before Task 8 threads every caller.
     """
-    units = quiz_units_in_order(course)
+    units = quiz_units_in_order(course, drafts=drafts, with_data=with_data)
     unit_pks = [u.pk for u in units]
 
     submissions = {
@@ -371,11 +439,16 @@ def _quiz_pill(row):
     return {"kind": "not_started"}
 
 
-def build_student_breakdown(course, student):
+def build_student_breakdown(course, student, *, drafts="keep", with_data=None):
     """Compose build_outline + build_course_results into one teacher-facing tree
-    (spec §3). NOT pure — calls two query-backed builders. Quiz units gain `pill`."""
-    tree = build_outline(course, student)
-    results = build_course_results(course, student)
+    (spec §3). NOT pure — calls two query-backed builders. Quiz units gain `pill`.
+
+    Forwards drafts/with_data into BOTH internal calls: build_outline defaults to
+    "hide", so leaving it unthreaded would drop draft units from the tree while
+    pill_by_unit (from build_course_results) still carries their results.
+    """
+    tree = build_outline(course, student, drafts=drafts, with_data=with_data)
+    results = build_course_results(course, student, drafts=drafts, with_data=with_data)
     pill_by_unit = {r["unit"].pk: _quiz_pill(r) for r in results["rows"]}
 
     def attach(nodes):
@@ -751,7 +824,7 @@ def _current_ancestors(tree):
         level = match["children"]
 
 
-def build_unit_nav(course, user, current_node):
+def build_unit_nav(course, user, current_node, *, drafts="hide", with_data=None):
     """Pure navigation context for a unit page (mirrors build_lesson_context's role:
     the single source both unit views call, so they cannot drift).
 
@@ -764,8 +837,10 @@ def build_unit_nav(course, user, current_node):
     instances, distinct from the view's current_node). No queries beyond
     build_outline's.
 
+    Forwards drafts/with_data into build_outline and computes nothing itself: it
+    has no unit list of its own to filter, only the tree build_outline returns.
     """
-    tree = build_outline(course, user)
+    tree = build_outline(course, user, drafts=drafts, with_data=with_data)
     leaves = _flatten_unit_leaves(tree)
     units = [d["node"] for d in leaves]
 
