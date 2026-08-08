@@ -108,12 +108,25 @@ Constraints already satisfied, verified against the current field definition:
 - `save()`'s defensive coercion (`if self.kind not in self.Kind.values: self.kind = EXAMPLE`)
   needs no change — `"task"` is now a member, so it survives the check.
 
-**Stale "four kinds" prose to update in the same change** — the enumeration is repeated in
-three places, of which two are live:
+**Stale "four kinds" prose and counts to update in the same change.** The enumeration recurs
+across the tree; this list is the known set, not a proof of exhaustiveness — grep for `four`
+near `callout` before finishing. Each entry gives the target wording, because "update" alone
+has repeatedly produced a stale count somewhere else:
 
-- the `CalloutElement` class docstring ("Example/Note/Tip/Important") — update;
-- `courses/tests/test_callout_render.py:22`, the comment "The four kinds emit four distinct
-  icon markers…", which sits directly beside where the new icon test goes — update;
+- the `CalloutElement` class docstring — "(Example/Note/Tip/Important)" becomes
+  "(Example/Note/Tip/Important/Task)";
+- `courses/tests/test_callout_render.py:22` — "The four kinds emit four distinct icon markers"
+  becomes "The five kinds emit five distinct icon markers"; the comment sits directly beside
+  where the new icon test goes;
+- `tests/test_text_colour_css.py:3` (module docstring) — "which is ten surfaces, not two"
+  becomes "eleven surfaces";
+- `tests/test_text_colour_css.py:20-21` — "recomputes the four callout grounds from
+  courses.css" becomes "the five callout grounds";
+- `tests/test_callout_css.py:15-18` — the existing class list
+  `[".callout--example", ".callout--note", ".callout--tip", ".callout--warning"]` gains
+  `".callout--task"`. **Additive only.** Appending here is *not* a substitute for the two
+  anchored regexes in Testing rows 1-2: this list is exactly the bare-substring form those rows
+  exist to replace, and appending to it alone leaves the light rule unguarded.
 - `docs/superpowers/specs/2026-07-14-callout-element-design.md:18` — **leave alone**, it is a
   historical record of that feature's design, not live documentation.
 
@@ -128,9 +141,12 @@ field's deconstruction: without it the migration state drifts and the next unrel
 mode that shipped in #203 and prompted the CI guard; `.github/workflows/ci.yml` now runs
 `makemigrations --check --dry-run` in the `unit` job, so a missing migration fails CI.
 
-Migration number `0056` assumes `0055` (from the before/after element, merged as #227) is the
-current head. The implementation must confirm the actual head with `showmigrations` rather
-than assuming, and let `makemigrations` assign the number.
+Migration number `0056` assumes `0055_beforeafterelement_alter_element_content_type` (from the
+before/after element, merged as #227) is the current head. Confirm that by **listing
+`courses/migrations/`** — not with `showmigrations`, which reports *applied* state and needs a
+live database connection, and so can disagree with the on-disk head that actually determines
+the next number. In practice `makemigrations` assigns the number itself; the listing is just
+the sanity check.
 
 ### 3. Student render
 
@@ -190,6 +206,12 @@ Both clear WCAG AA for normal text, so the 0.75rem/700 eyebrow is safe with marg
 ground colours are **also** the values §5 registers in the normative surface list, which is what
 gives the table above an automated drift guard.
 
+**The icon sits on a different, more saturated ground** and is not covered by the table above:
+`courses.css:1807-1808` puts it on `color-mix(accent 14%, transparent)` layered over the 6%
+tint — `#EFD8E9` light, `#514048` dark. As a non-text graphic the applicable threshold is 3:1,
+and it measures **4.48:1 light / 4.86:1 dark**. Comfortable; nothing to change. Recorded so the
+table above is not misread as covering the whole component.
+
 ### 5. The normative text-colour surface list — `tests/test_text_colour_css.py`
 
 This file is not incidental test housekeeping; its header states *"The surface list is the
@@ -209,9 +231,14 @@ A fifth kind is a **new ground that rich text can sit on**, so both must learn a
   (currently `("example", "note", "tip", "warning")`), or the drift loop skips the new accent
   entirely.
 
+Both count statements in that file also become false and are listed as update sites in §1.
+
 Omitting this is silent: the new ground simply escapes the AA guard, and the two new hexes get
-no drift guard at all. The magenta itself is safe on both grounds — this is a coverage gap to
-close, not a colour to change.
+no drift guard at all. **The magenta is safe on both grounds, with the margin stated rather
+than asserted:** the binding case across the four `--tc-*` slots is `--tc-red` `#EA8A82` on the
+dark ground `#383030` at **~5.17:1**, against the 4.5:1 AA threshold. So the new grounds are not
+the constraining surface in either theme — this is a coverage gap to close, not a colour to
+change, and adding them will not redden the suite.
 
 ### 6. Editor — no template change, but it is the only author-facing surface
 
@@ -241,25 +268,45 @@ The only transfer work is a round-trip test proving `kind="task"` survives expor
 
 ### 8. i18n and the help manual
 
-`Task` is a new msgid in the Polish catalog, translated **`Zadanie`**.
+`Task` is a new msgid, translated **`Zadanie`** in Polish.
+
+**There are two catalogs, not one.** `tests/test_i18n_po_health.py:22` reads
+`CATALOGS = {"pl": PL_PO, "en": EN_PO}`, so `locale/en/LC_MESSAGES/django.po` also gains
+`msgid "Task"` — with a **deliberately empty msgstr**, which is the established convention for
+the English catalog and is why `test_pl_has_no_untranslated_msgid` is scoped to `pl` alone. A
+branch that touches only `pl` ships an inconsistent pair and no guard fires; a branch that runs
+extraction without expecting the `en` diff may revert it as noise. Extract both explicitly:
+
+```
+uv run python manage.py makemessages -l pl -l en --no-obsolete
+uv run python manage.py compilemessages
+```
 
 This is precisely the shape that triggers the known `makemessages` fuzzy trap: `msgmerge`
 pre-fills a new short msgid from a similar existing one and marks it `#, fuzzy` with a `#|
 msgid` reference line. Clearing it is **two** deletions — the `#, fuzzy` flag line *and* the
-`#| msgid` line — not one. `.mo` files must be regenerated with `compilemessages`.
+`#| msgid` line — not one.
 
-The trap's failure mode is a **wrong but non-empty** msgstr, which `tests/test_i18n_po_health.py`
+The trap's failure mode is a **wrong but non-empty** msgstr, which `test_i18n_po_health.py`
 does not catch: it guards fuzzy, obsolete and *blank* entries, none of which fire once the flag
-is cleared off a wrong translation. §9 therefore pins the string itself.
+is cleared off a wrong translation. Testing row 9 therefore pins the string itself — and it
+reads the compiled `.mo`, so `compilemessages` must run **before** the test selection (see
+DoD 3).
 
 Help manual — both editions list the kinds inline and must gain the fifth. Quote the target
-result in each so the prose and the catalog cannot drift:
+result in each so the initial values are pinned:
 
 - `docs/help/course-admin/content-editors.md:116` — "Choose a **Kind** (Example, Note, Tip, or
   Important — …" becomes "(Example, Note, Tip, Important, or Task — …".
 - `docs/help/course-admin/content-editors.pl.md:125-126` — "Wybierz **Rodzaj** (Przykład,
   Notatka, Wskazówka lub Ważne — …" becomes "Wybierz **Rodzaj** (Przykład, Notatka, Wskazówka,
   Ważne lub Zadanie — …". The final item must match the `Zadanie` msgstr exactly.
+
+**Residual risk, stated rather than denied:** quoting the target text pins the *initial* commit
+only. No test in this repo reads `docs/help/` at all, so nothing prevents the Polish help
+sentence and the `Zadanie` msgstr drifting apart later. Testing row 9 guards the catalog; the
+help prose is **unguarded by design** — adding the repo's first docs-prose test to close a
+drift no one has yet observed is not worth the brittleness it introduces here.
 
 ## Data flow
 
@@ -310,13 +357,13 @@ callout branch were exactly that.
 |---|---|---|---|
 | 1 | the **light** `.callout--task` rule carries `#a8318f` | `tests/test_callout_css.py` | delete the light rule |
 | 2 | the **dark** `[data-theme="dark"] .callout--task` rule carries `#ee9fd8` | same file | delete the dark override |
-| 3 | `display_heading` for `kind="task"` is "Task" | `courses/tests/test_callout_model.py` | remove the `TASK` enum member |
-| 4 | render carries `callout--task` | `courses/tests/test_callout_render.py` | revert `calloutelement.html`'s class interpolation |
+| 3 | `display_heading` for `kind="task"` is "Task" — extend the existing `test_display_heading_falls_back_to_kind_default` (`test_callout_model.py:41-44`) with a fifth line rather than adding a function | `courses/tests/test_callout_model.py` | remove the `TASK` enum member |
+| 4 | a **persisted** task callout renders `callout--task`: `CalloutElement.objects.create(kind="task")` then `.render()` | `courses/tests/test_callout_render.py` | remove the `TASK` enum member — `save()` then coerces the kind to `example` and the class becomes `callout--example` |
 | 5 | render emits the pencil path `m15 5 4 4` for `task`, and that path is **absent** from an `example` render | same file | delete the `{% elif el.kind == "task" %}` branch — it then falls through to book-open, and both halves move together |
 | 6 | the editor form offers the kind: GET `manage_element_form` for a callout, assert an `<option value="task">` labelled "Task" is present | `courses/tests/test_callout_authoring.py` | remove the `TASK` enum member |
 | 7 | authoring persists it: POST `kind="task"`, assert the saved `content_object.kind == "task"` | same file | as above |
 | 8 | a `kind="task"` callout survives an export/import round trip | `courses/tests/test_callout_transfer.py` | revert the enum, so `_val_callout` rejects the payload |
-| 9 | the pl catalog renders `Task` as "Zadanie" (assert `display_heading` under `activate("pl")`) | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | leave the `msgmerge` fuzzy pre-fill in place |
+| 9 | the pl catalog renders `Task` as "Zadanie": `with translation.override("pl"): assert str(CalloutElement(kind="task").display_heading) == "Zadanie"` | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | leave the `msgmerge` fuzzy pre-fill in place |
 | 10 | the new callout grounds are in the normative surface list and match the CSS | `tests/test_text_colour_css.py` (extend, don't add a file) | change either accent hex without updating the literal |
 
 **Assertion form — this is where the last branch bled.** Tests 1 and 2 scan stylesheet source
@@ -330,6 +377,20 @@ the contrast table depends on, and must tolerate the block's column alignment:
 
 The `^` anchor is what stops the light pattern matching inside the dark selector.
 
+**Two further test-authoring hazards, both previously shipped in this repo:**
+
+- **Row 4 must persist the instance.** `calloutelement.html:2` is
+  `<aside class="callout callout--{{ el.kind }}">`, a bare interpolation, so an *unsaved*
+  `CalloutElement(kind="task").render()` emits `callout--task` even with the enum member,
+  the icon branch and the CSS all absent — it passes against a completely unimplemented
+  feature. Only `objects.create()` routes through `save()`'s coercion, which is what makes the
+  mutant bite. The neighbouring tests in that file use the unsaved form (`:9`), so the house
+  pattern is the trap here.
+- **Row 9 must use `translation.override("pl")`, never a bare `activate("pl")`.** `activate`
+  is process-global and is not undone at test exit, so every later test in that xdist worker
+  runs under the Polish catalog; under `-n 2` the failures land on unrelated tests and vary by
+  shard. Wrap the lazy label in `str()`, matching `test_callout_model.py:44`.
+
 **Layer.** All of this is falsifiable at the unit/template level. Nothing here is behavioural,
 so **no e2e test is warranted** — the existing callout e2e coverage exercises the container
 mechanics, which this change does not touch.
@@ -338,9 +399,13 @@ mechanics, which this change does not touch.
 
 1. `uv run python manage.py makemigrations --check --dry-run` clean (the migration exists).
 2. `uv run python manage.py check` clean.
-3. The affected selection green. Start the containerised test DB first
+3. The affected selection green. **Two prerequisites, in this order, or the run misleads you:**
+   start the containerised test DB
    (`docker compose -p libli-test -f docker-compose.test.yml up -d --wait`) or the run looks
-   hung for ~4m21s. Explicit paths, rather than a prose category:
+   hung for ~4m21s before erroring; and run `compilemessages` (DoD 6) **first**, because row 9
+   resolves through the compiled `django.mo`, not the `.po` — running the suite before it is
+   compiled gives a red test 9 that is not a defect. Explicit paths, rather than a prose
+   category:
 
    ```
    uv run pytest courses/tests/test_callout_model.py courses/tests/test_callout_render.py \
@@ -355,11 +420,22 @@ mechanics, which this change does not touch.
 4. Each new test verified **red** against its named mutant, not merely observed green.
 5. `uv run ruff check .` and `uv run ruff format --check .` clean — the format check is a real
    CI gate; run `ruff format .` **last**, after every other edit.
-6. Polish catalog at **0 fuzzy / 0 obsolete / 0 untranslated** (`test_i18n_po_health.py`'s three
-   guards, including `test_pl_has_no_untranslated_msgid`), `.mo` regenerated via
-   `compilemessages`.
-7. Light + dark screenshot of all five kinds together. There is no existing page that renders
-   them side by side — `seed_demo_course._callout` creates a single `kind="tip"` callout — so
-   the mechanism is: author a scratch lesson unit containing one callout of each kind in a local
-   course, then capture it in both themes via the standard Playwright screenshot flow. Judge the
-   dark shot on its own merits, not by assuming it follows from the light one.
+6. **Both catalogs**, extracted with the §8 command. `pl` at **0 fuzzy / 0 obsolete /
+   0 untranslated** (`test_i18n_po_health.py`'s three guards, including
+   `test_pl_has_no_untranslated_msgid`); `en` gains `msgid "Task"` with an empty msgstr and stays
+   at 0 fuzzy / 0 obsolete. Both `.mo` files regenerated via `compilemessages` — **before** DoD 3.
+7. Light + dark screenshot of all five kinds together. No existing page renders them side by
+   side (`seed_demo_course._callout` creates a single `kind="tip"` callout), so the mechanism is:
+   author a scratch lesson unit holding one callout of each kind in a local course, then capture
+   it with Playwright.
+
+   **The dark shot has a specific trap.** `base.html:4` bakes `data-theme` from the server, and
+   for an authenticated user the stored `User.theme` is what wins — a cookie or an OS preference
+   does not deterministically drive it. Set `user.theme = "dark"` and save before navigating, the
+   pattern `tests/test_e2e_html_element.py:358` and `test_e2e_link_dialog.py:318` already use.
+   Then **verify the capture actually is dark** — assert
+   `page.locator("html[data-theme='dark']").count() == 1` (as `test_e2e_auth.py:69` does) before
+   trusting the image. Without that assertion a light-rendered page passes as "the dark
+   screenshot", which would make DoD 7 unfalsifiable — and D3 stakes the whole
+   magenta-over-violet/teal/rose decision on this evidence. Judge the dark shot on its own
+   merits; do not infer it from the light one.
