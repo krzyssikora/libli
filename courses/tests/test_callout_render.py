@@ -4,6 +4,14 @@ from courses.models import CalloutElement
 
 pytestmark = pytest.mark.django_db
 
+# The task-kind pencil icon's body path (barrel/tip outline), pinned in full so a
+# truncation anywhere in the ~128-char `d` value -- not just past a short prefix --
+# turns test_task_render_emits_pencil_icon RED.
+TASK_ICON_BODY_PATH = (
+    "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83"
+    "l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"
+)
+
 
 def test_render_carries_kind_modifier_class_and_heading_default():
     html = CalloutElement(kind="warning", body="<p>hi</p>").render()
@@ -55,7 +63,9 @@ def test_task_render_emits_pencil_icon():
     assert "m15 5 4 4" in html
     # ...and the pencil's body (the barrel/tip outline), not just the nib stroke --
     # a truncated or garbled body path would leave a lone diagonal tick on screen.
-    assert "M21.174 6.812a1 1 0 0 0-3.986-3.987" in html
+    # The FULL body path is pinned (not a prefix), so a truncation anywhere in the
+    # `d` value -- including past the curve back and the closing z -- goes RED.
+    assert TASK_ICON_BODY_PATH in html
     # ...and the chip must still be styled and hidden from assistive tech.
     # NOTE: these two do NOT fall to the delete-the-elif mutant -- the {% else %}
     # book-open SVG carries the identical class and aria-hidden. They have their
