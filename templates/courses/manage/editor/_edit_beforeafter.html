@@ -1,0 +1,8 @@
+{% load i18n %}
+<div class="el-editor el-editor--beforeafter">
+  <label>{% trans "Button label" %}
+    <input type="text" name="button_label" maxlength="120"
+           value="{{ form.button_label.value|default:'' }}">
+  </label>
+  {% for e in form.button_label.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

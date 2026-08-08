@@ -133,6 +133,15 @@ leftmost columns and moves the content of any dropped column into the last
 remaining one, rather than deleting it. See "Containers and nesting" below
 for what can go inside.
 
+{el:beforeafter} **Before / after** — a container with two fixed slots, **Before** and
+**After**, that a student flips between with a single toggle button; unlike
+Tabs and Columns it always has exactly two slots. Fill each slot from its own
+group in the element list below the editor. Give the button an optional
+**Button label** shown as its text; leave it blank and the button shows only
+an icon, with "Switch content" as its accessible name. See "Containers and
+nesting" below for what can go inside — quiz questions can't go in either
+slot.
+
 ## Structure
 
 {el:slidebreak} **Slide break** — a marker, not a content block: it carries no fields and
@@ -143,25 +152,26 @@ a row, never produces an empty slide — it's simply absorbed.
 
 ## Containers and nesting
 
-Tabs, Columns, Spoiler, and Callout are the four container types. A container
-can hold another container, up to three container levels — for example a
-Spoiler holding a Tabs container that holds another Spoiler. Ordinary content
-sits inside that third level, so a nested element can be four levels down.
-The third-level container's own **Add element** menu offers leaves only: no
-further container, question, or Slide break.
+Tabs, Columns, Spoiler, Callout, and Before / after are the five container
+types. A container can hold another container, up to three container levels
+— for example a Spoiler holding a Tabs container that holds another Spoiler.
+Ordinary content sits inside that third level, so a nested element can be
+four levels down. The third-level container's own **Add element** menu
+offers leaves only: no further container, question, or Slide break.
 
 Inside any container, a nested **Add element** menu offers the non-container
 Content types — Text, Image, Video, Iframe, Math, HTML, Table, Gallery —
-plus, where depth still allows it, the Tabs, Columns, Spoiler, and Callout
-container cards themselves. In a lesson it also offers the [Interactive
-elements](interactive-elements) self-checks (Show more, Fill in & confirm,
-Choose & confirm, Switch grid, Fill-in table, Step-by-step, Checklist, Guess
-the number) and Fill in the blanks.
+plus, where depth still allows it, the Tabs, Columns, Spoiler, Callout, and
+Before / after container cards themselves. In a lesson it also offers the
+[Interactive elements](interactive-elements) self-checks (Show more, Fill in
+& confirm, Choose & confirm, Switch grid, Fill-in table, Step-by-step,
+Checklist, Guess the number) and Fill in the blanks.
 
 Interactive elements are lesson-only: the Interactive group doesn't appear at
 all when editing a quiz. So inside a quiz, a nested add-menu offers the
-Content types plus — where depth allows — Tabs, Columns, and Callout; Spoiler
-and Fill in the blanks are never offered nested in a quiz.
+Content types plus — where depth allows — Tabs, Columns, Callout, and
+Before / after; Spoiler and Fill in the blanks are never offered nested in a
+quiz.
 
 ## Tips
 

@@ -195,6 +195,59 @@
     {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
   </div>
 </li>
+{% elif el.content_type.model == "beforeafterelement" %}
+<li class="el-row el-row--beforeafter{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
+    data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
+  <div class="el-row__head">
+    <button type="button" class="iconbtn ica--grip" draggable="true"
+            aria-label="{% trans 'Drag to reorder' %}" title="{% trans 'Drag to reorder' %}">⠿</button>
+    <div class="el-row__body">
+      <div class="el-row__top">
+        <span class="el-tag">{% element_type_label el.content_type obj %}</span>
+        <span class="el-actions">
+          <button type="button" class="iconbtn el-select el-act-edit" data-element-id="{{ el.pk }}"
+                  data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"
+                  aria-label="{% trans 'Edit' %}" title="{% trans 'Edit' %}">✎</button>
+          <button type="button" class="iconbtn el-act-cancel" data-cancel-edit
+                  aria-label="{% trans 'Cancel' %}" title="{% trans 'Cancel' %}">✕</button>
+          {% include "courses/manage/editor/_element_row_controls.html" with el=el unit=unit %}
+        </span>
+      </div>
+      <button type="button" class="el-select el-row__label" data-element-id="{{ el.pk }}"
+              data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}">{% if el.title %}{{ el.title }}{% else %}{{ obj|element_summary }}{% endif %}</button>
+    </div>
+  </div>
+  <div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>
+
+  {% comment %}
+  Two FIXED slots (before/after), not author-configurable, so unlike tabs/columns
+  there is no <details> to collapse -- plain always-open divs. Same substrate as
+  the spoiler/callout branches otherwise.
+
+  Why the recursive include terminates: the editor enters from _editor_rows'
+  `parent__isnull=True` roots and descends only through the resolved-* accessors.
+  Element.parent is single-valued, so every node in a cycle has a non-null parent
+  and is therefore never a root; the reachable subgraph is acyclic by
+  construction. The child-row recursion is deliberately UNBOUNDED; only the
+  ADD-MENU include below carries the depth guard.
+  {% endcomment %}
+  <div class="el-row__ba">
+    {% for slot_id, children in obj.resolved_slots %}
+    <div class="ba-rows" data-ba-slot="{{ slot_id }}">
+      <div class="ba-rows__label">{% if forloop.first %}{% trans "Before" %}{% else %}{% trans "After" %}{% endif %}
+        <span class="ba-rows__count">{{ children|length }}</span></div>
+      <ol class="element-list element-list--nested">
+        {% for child in children %}
+          {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
+        {% empty %}
+          <li class="empty-state">{% trans "This slot is empty." %}</li>
+        {% endfor %}
+      </ol>
+      {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=slot_id depth=depth %}{% endif %}{% paste_buttons el.pk slot_id %}
+    </div>
+    {% endfor %}
+  </div>
+</li>
 {% elif el.content_type.model == "calloutelement" %}
 <li class="el-row el-row--callout{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">

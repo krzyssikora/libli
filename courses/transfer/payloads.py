@@ -13,6 +13,8 @@ from django.utils.translation import gettext as _
 
 from courses.embed import extract_embed_url
 from courses.fillblank import SENTINEL
+from courses.models import SINGLE_SLOT_ID
+from courses.models import BeforeAfterElement
 from courses.models import DragZone
 from courses.models import ImageElement
 from courses.models import TableElement
@@ -212,6 +214,12 @@ def _val_callout(data, elid, media_kinds):
     if data["kind"] not in CalloutElement.Kind.values:
         _err(_("Element '%(el)s' has an unknown callout kind."), el=elid)
     return set()
+
+
+def _val_before_after(data, elid, media_kinds):
+    _exact_keys(data, ["button_label"], _("before/after data"))
+    check_str(data["button_label"], _("button label"), max_length=120)
+    return set()  # references no media
 
 
 def _val_fill_gate(data, elid, media_kinds):
@@ -811,15 +819,15 @@ def _val_twocolumn(data, elid, media_kinds):
 
 # Module-level, transfer-type-string keyed (distinct from the model-keyed builder
 # registry in courses.builder._CONTAINER_REGISTRY): the container type's transfer
-# key -> the key its `data` dict uses for the slot list validate_nesting reads.
-# `None` means SINGLE-SLOT (the only valid id is SINGLE_SLOT_ID), NOT
-# "missing". Membership is tested BEFORE this lookup, because `None` already
-# serves as the not-a-container sentinel.
+# key -> either the key its `data` dict uses for the slot list, or a frozenset of
+# its FIXED slot ids for a container that has no `data`. Membership is tested
+# BEFORE this lookup.
 _CONTAINER_SLOT_KEY = {
     "tabs": "tabs",
     "two_column": "columns",
-    "spoiler": None,
-    "callout": None,
+    "spoiler": frozenset({SINGLE_SLOT_ID}),
+    "callout": frozenset({SINGLE_SLOT_ID}),
+    "before_after": frozenset(BeforeAfterElement.SLOT_IDS),
 }
 
 
@@ -835,7 +843,6 @@ def validate_nesting(elements):
     from courses.builder import CONTAINER_TRANSFER_KEYS
     from courses.builder import MAX_NEST_DEPTH
     from courses.builder import NESTABLE_TYPE_KEYS
-    from courses.models import SINGLE_SLOT_ID
 
     # Step 4a applies the v2 shim before _exact_keys, so both keys are present.
     by_id = {el["id"]: el for el in elements}
@@ -846,19 +853,18 @@ def validate_nesting(elements):
         parent = by_id.get(parent_ref)
         if parent is None:
             _err(_("Element '%(el)s' references an unknown parent."), el=el["id"])
-        # Slot-membership: spoiler and callout are single-slot containers with no
-        # `data` slot list, so their sole valid slot id is SINGLE_SLOT_ID; every
-        # other container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
         if parent["type"] not in _CONTAINER_SLOT_KEY:  # membership FIRST
             _err(
                 _("Element '%(el)s' has a parent that is not a container element."),
                 el=el["id"],
             )
-        slot_key = _CONTAINER_SLOT_KEY[parent["type"]]  # then read
+        # Slot-membership: a fixed-slot container carries its valid ids directly;
+        # every other container reads its slot list from `data`.
+        slot_key = _CONTAINER_SLOT_KEY[parent["type"]]
         valid_slot_ids = (
-            {SINGLE_SLOT_ID}
-            if slot_key is None
-            else {s["id"] for s in parent["data"][slot_key]}
+            {s["id"] for s in parent["data"][slot_key]}
+            if isinstance(slot_key, str)
+            else set(slot_key)
         )
         # Depth check runs for EVERY container (must NOT be skipped for
         # spoiler or callout).
@@ -904,6 +910,7 @@ VALIDATORS = {
     "reveal_gate": _val_reveal_gate,
     "spoiler": _val_spoiler,
     "callout": _val_callout,
+    "before_after": _val_before_after,
     "fill_gate": _val_fill_gate,
     "switch_gate": _val_switch_gate,
     "switch_grid": _val_switch_grid,

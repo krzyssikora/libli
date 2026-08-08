@@ -8,7 +8,7 @@ from courses.models import GuessNumberElement
 
 def test_guessnumber_in_element_models():
     assert "guessnumberelement" in ELEMENT_MODELS
-    assert len(ELEMENT_MODELS) == 31
+    assert len(ELEMENT_MODELS) == 32
 
 
 @pytest.mark.django_db

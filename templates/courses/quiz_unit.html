@@ -1,10 +1,18 @@
 {% extends "base.html" %}
 {% load i18n static courses_extras %}
 {% block head_title %}{{ unit.title }} — libli{% endblock %}
+{% block prepaint %}
+{% if has_before_after %}{% include "courses/_before_after_prepaint.html" %}{% endif %}
+{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+  {% if has_before_after %}
+  <style>
+    html.ba-armed .ba__panels > [data-ba-side="after"] { display: none; }
+  </style>
+  {% endif %}
 {% endblock %}
 {% block content %}
   {% include "courses/_unit_strip.html" %}
@@ -32,4 +40,5 @@
   <script src="{% static 'courses/js/imagezoom.js' %}" defer></script>
   <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}", carouselNav: "{% trans 'Carousel' %}", prevSlide: "{% trans 'Previous slide' %}", nextSlide: "{% trans 'Next slide' %}", goToSlide: "{% trans 'Go to slide {n}' %}", slidePos: "{% trans 'Slide {n} of {total}' %}", slideRole: "{% trans 'slide' %}" };</script>
   <script src="{% static 'courses/js/tabs.js' %}" defer></script>
+  {% if has_before_after %}<script src="{% static 'courses/js/beforeafter.js' %}" defer></script>{% endif %}
 {% endblock %}

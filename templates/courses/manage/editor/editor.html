@@ -2,6 +2,18 @@
 {% load i18n static %}
 {% block head_title %}{{ unit.title }} — {% trans "Editor" %}{% endblock %}
 {% block body_class %}editor-page{% endblock %}
+{% comment %}The before/after element's degraded-state CSS is keyed on
+html:not(.ba-js): it un-hides the side headings and hides the toggle. The
+editor page has no prepaint script of its own, so without this the preview
+would show one labelled panel and no control at all. Deliberately NOT setting
+ba-armed here -- that class drives the render-blocking pre-hide and is removed
+by beforeafter.js's document-level boot on a normal page; the editor has no
+pre-hide <style> and no watchdog, so arming it here would hide the after panel
+with nothing to un-arm it. Unconditional: the editor cannot know which element
+types a unit holds without a query, and one class costs nothing.{% endcomment %}
+{% block prepaint %}
+<script>document.documentElement.classList.add("ba-js");</script>
+{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'courses/css/editor.css' %}">
@@ -168,6 +180,11 @@
   {% endcomment %}
   <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}", carouselNav: "{% trans 'Carousel' %}", prevSlide: "{% trans 'Previous slide' %}", nextSlide: "{% trans 'Next slide' %}", goToSlide: "{% trans 'Go to slide {n}' %}", slidePos: "{% trans 'Slide {n} of {total}' %}", slideRole: "{% trans 'slide' %}" };</script>
   <script src="{% static 'courses/js/tabs.js' %}" defer></script>
+  {% comment %}The preview also renders the student before/after template, whose
+  no-JS form shows both panels labelled Before/After; beforeafter.js is what makes
+  it an actual toggle there too. editor.js re-runs window.libliInitBeforeAfter over
+  the pane after each fragment swap.{% endcomment %}
+  <script src="{% static 'courses/js/beforeafter.js' %}" defer></script>
   {% comment %}The preview also renders the student reveal-gate button, which ships
   `hidden` (reveal.js un-hides it). Without this the preview shows no button at all.
   editor.js re-runs window.libliInitRevealGates over the pane after each fragment swap.

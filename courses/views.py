@@ -34,6 +34,7 @@ from courses.marking import MarkResult  # noqa: F401  (documents the return type
 from courses.marking import blank_matches
 from courses.marking import parse_number
 from courses.models import Attempt  # noqa: F401
+from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
@@ -201,6 +202,8 @@ def _element_has_math(obj):
         return _spoiler_has_math(obj)
     if isinstance(obj, CalloutElement):
         return _callout_has_math(obj)
+    if isinstance(obj, BeforeAfterElement):
+        return _before_after_has_math(obj)
     if isinstance(obj, SwitchGridElement):
         return _switch_grid_has_math(obj)
     if isinstance(obj, StepperElement):
@@ -311,6 +314,25 @@ def _twocolumn_has_math(el):
     )
 
 
+def _before_after_has_math(el):
+    """COLLECT + MUST RECURSE, mirrors _twocolumn_has_math. has_math consumes the
+    element list AFTER the render filter strips nested children, so it walks into
+    them here. The transient guard sits at the top because this element has no
+    text of its own to check first."""
+    from courses.models import BeforeAfterElement
+
+    if not isinstance(el, BeforeAfterElement):
+        return False
+    # No redundant `join_row() is None` guard: resolved_slots() already returns
+    # empty pairs for a transient join row, and calling join_row() here would
+    # issue the SAME query twice per element on every lesson render.
+    return any(
+        _element_has_math(child.content_object)
+        for _slot_id, children in el.resolved_slots()
+        for child in children
+    )
+
+
 def build_lesson_context(node, user):
     """Shared element/has_*/progress context for a LESSON unit. Reached through
     full_lesson_render_context, which serves every render site (see its docstring --
@@ -418,6 +440,12 @@ def build_lesson_context(node, user):
     has_guess_number = node.elements.filter(
         content_type__model="guessnumberelement"
     ).exists()
+    # Flat query (NOT scoped to parent__isnull=True) so an instance nested inside a
+    # tab -- children keep their own `unit` FK -- is still detected.
+    has_before_after = node.elements.filter(
+        content_type__app_label="courses",
+        content_type__model="beforeafterelement",
+    ).exists()
 
     # Capability, NOT stored state: true iff this unit CONTAINS a state-bearing element
     # type, regardless of whether this student has stored anything (spec D1). Flat over
@@ -485,6 +513,7 @@ def build_lesson_context(node, user):
         "has_stepper": has_stepper,
         "has_markdone": has_markdone,
         "has_guess_number": has_guess_number,
+        "has_before_after": has_before_after,
         "has_stateful_elements": has_stateful_elements,
         "element_state": state,
         "slug": node.course.slug,
@@ -1247,6 +1276,13 @@ def build_quiz_context(node, user):
     has_html = node.elements.filter(
         content_type__app_label="courses", content_type__model="htmlelement"
     ).exists()
+    # Flat query (NOT scoped to parent__isnull=True) so an instance nested inside a
+    # tab -- children keep their own `unit` FK -- is still detected. Same query as
+    # build_lesson_context's has_before_after (views.py:445).
+    has_before_after = node.elements.filter(
+        content_type__app_label="courses",
+        content_type__model="beforeafterelement",
+    ).exists()
     ctx = {
         "course": node.course,
         "unit": node,
@@ -1265,6 +1301,7 @@ def build_quiz_context(node, user):
         "read_only": quiz_submitted or not enrolled,
         "has_math": has_math,
         "has_html": has_html,
+        "has_before_after": has_before_after,
         "has_questions": True,
     }
     from tags.rendering import unit_tags_context

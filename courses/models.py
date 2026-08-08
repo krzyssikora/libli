@@ -290,6 +290,7 @@ ELEMENT_MODELS = [
     "twocolumnelement",
     "markdoneelement",
     "guessnumberelement",
+    "beforeafterelement",
 ]
 
 
@@ -525,6 +526,77 @@ class CalloutElement(ElementBase):
 # Defined AFTER the class so it can read the choice labels; keyed by value string.
 # `.label` is the lazy translation string, so this stays translation-safe.
 KIND_DEFAULT_HEADING = {k.value: k.label for k in CalloutElement.Kind}
+
+
+class BeforeAfterElement(ElementBase):
+    """Two fixed child slots the student swaps between with one button.
+
+    The slots are CLASS CONSTANTS, not persisted data, so unlike TabsElement /
+    TwoColumnElement there is nothing to normalize: no id minting, no truncation,
+    and no way for the stored slot set to drift from what the code expects.
+    Children live in Element rows whose `parent` is this element's join row and
+    whose `tab_id` is one of SLOT_IDS.
+    """
+
+    BEFORE_SLOT_ID = "before"
+    AFTER_SLOT_ID = "after"
+    SLOT_IDS = (BEFORE_SLOT_ID, AFTER_SLOT_ID)  # order is the contract
+
+    button_label = models.CharField(max_length=120, blank=True)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join row
+
+    def join_row(self):
+        """This concrete's single Element join row (the GFK is effectively 1:1)."""
+        return self.elements.order_by("pk").first()
+
+    def resolved_slots(self):
+        """[(slot_id, children), ...] in SLOT_IDS order.
+
+        ONE children queryset for both slots, partitioned in Python -- not one
+        queryset per slot. A child whose tab_id is not in SLOT_IDS is APPENDED to
+        the before bucket rather than dropped: TwoColumnElement.resolved_columns
+        drops (`by_col.get(...)`), which would make authored content invisible.
+        """
+        join = self.join_row()
+        if join is None:
+            return [(sid, []) for sid in self.SLOT_IDS]
+        rows = list(
+            join.children.order_by("order", "pk")
+            .select_related("content_type")
+            .prefetch_related("content_object")
+        )
+        by_slot = {sid: [] for sid in self.SLOT_IDS}
+        strays = []
+        for row in rows:
+            if row.tab_id in by_slot:
+                by_slot[row.tab_id].append(row)
+            else:
+                strays.append(row)
+        by_slot[self.BEFORE_SLOT_ID].extend(strays)
+        return [(sid, by_slot[sid]) for sid in self.SLOT_IDS]
+
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+        from django.template.loader import render_to_string
+
+        # `element.pk`, NOT node_pk: node_pk is the UNIT's pk (views.py:491), the
+        # same for every element on the page, so keying DOM ids off it would make
+        # one element's button control another's panels. `element` is None only in
+        # direct render() calls (courses_extras.render_element always supplies it),
+        # i.e. test_render_seam's CONCRETES loop -- so the 0 fallback cannot
+        # collide on a served page.
+        return render_to_string(
+            "courses/elements/beforeafterelement.html",
+            {
+                "el": self,
+                "eid": element.pk if element is not None else 0,
+                "slots": self.resolved_slots(),
+                # `element_state`, NOT `state`: courses_extras.render_element
+                # reads that name.
+                "element_state": state,
+                "slug": slug,
+                "node_pk": node_pk,
+            },
+        )
 
 
 class StepperElement(ElementBase):

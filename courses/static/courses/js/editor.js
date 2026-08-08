@@ -103,6 +103,7 @@
     if (preview && window.libliInitGallery) window.libliInitGallery(preview);  // re-enhance galleries into carousels
     if (preview && window.libliInitImageZoom) window.libliInitImageZoom(preview);  // re-arm zoomable images
     if (preview && window.libliInitTabs) window.libliInitTabs(preview);  // re-enhance tabs
+    if (preview && window.libliInitBeforeAfter) window.libliInitBeforeAfter(preview);  // re-enhance before/after
     if (preview && window.libliInitRevealGates) window.libliInitRevealGates(preview);  // un-hide reveal-gate buttons
     if (preview && window.libliInitFillGates) window.libliInitFillGates(preview);  // re-arm fill-gates
     if (preview && window.libliInitSwitchGates) window.libliInitSwitchGates(preview);  // re-arm switch-gates

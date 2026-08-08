@@ -15,6 +15,7 @@ from courses import switchgrid
 from courses.embed import extract_embed_url
 from courses.embed import parse_iframe_dimensions
 from courses.marking import parse_number
+from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import Choice
 from courses.models import ChoiceGridQuestionElement
@@ -226,6 +227,12 @@ class CalloutElementForm(forms.ModelForm):
     class Meta:
         model = CalloutElement
         fields = ["kind", "heading", "body"]
+
+
+class BeforeAfterElementForm(forms.ModelForm):
+    class Meta:
+        model = BeforeAfterElement
+        fields = ["button_label"]
 
 
 class FillGateElementForm(forms.ModelForm):
@@ -1962,6 +1969,7 @@ FORM_FOR_TYPE = {
     "revealgate": RevealGateElementForm,
     "spoiler": SpoilerElementForm,
     "callout": CalloutElementForm,
+    "beforeafter": BeforeAfterElementForm,
     "choicequestion": ChoiceQuestionElementForm,
     "shorttextquestion": ShortTextQuestionElementForm,
     "shortnumericquestion": ShortNumericQuestionElementForm,

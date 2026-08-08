@@ -3,9 +3,9 @@
 RENDER SCOPE IS PART OF EVERY ASSERTION HERE.
 
 `_editor_scope.html` renders the TOP-LEVEL add-menu unconditionally, and after this
-slice that menu still carries all four container cards (tabs, two-column, spoiler,
-callout -- its depth is 0, and 0 < max_nest_depth - 1). So on an unscoped whole-page
-render:
+slice that menu still carries all five container cards (tabs, two-column, spoiler,
+callout, before/after -- its depth is 0, and 0 < max_nest_depth - 1). So on an
+unscoped whole-page render:
 
 * a NEGATIVE assertion (`'data-add-type="tabs"' not in html`) fails against a CORRECT
   implementation -- the top-level card is always there;
@@ -80,7 +80,7 @@ def _menu_block(html, join_pk, tab_id):
     return html[start : end if end != -1 else len(html)]
 
 
-CONTAINER_CARDS = ("tabs", "twocolumn", "spoiler", "callout")
+CONTAINER_CARDS = ("tabs", "twocolumn", "spoiler", "callout", "beforeafter")
 
 
 # --- tests ----------------------------------------------------------------------
@@ -161,9 +161,9 @@ def test_depth_3_nested_menu_hides_containers_but_keeps_leaves(client, lesson):
 
 def test_no_add_menu_inside_a_depth_4_element(client, lesson):
     """The depth-4 container MUST be a TABS element, matching the `:91` mutant.
-    _element_row.html includes _add_menu.html at four sites -- tabs, two-column,
-    spoiler and callout -- so a spoiler, two-column or callout fixture would leave
-    the named mutant green and this row vacuous.
+    _element_row.html includes _add_menu.html at five sites -- tabs, two-column,
+    spoiler, before/after and callout -- so a spoiler, two-column, before/after or
+    callout fixture would leave the named mutant green and this row vacuous.
 
     ORM-constructed: clause 4 makes a depth-4 container unreachable through
     resolve_scope. Defence in depth -- do not delete as dead.

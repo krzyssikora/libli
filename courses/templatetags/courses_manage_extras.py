@@ -58,6 +58,7 @@ _ELEMENT_LABELS = {
     "switchgridelement": _("Switch grid"),
     "filltableelement": _("Fill-in table"),
     "calloutelement": _("Callout"),
+    "beforeafterelement": _("Before / after"),
     "stepperelement": _("Steps"),
     "markdoneelement": _("Checklist"),
     "guessnumberelement": _("Guess the number"),
@@ -117,6 +118,8 @@ def element_summary(el):
         return el.label or _("Reveal")
     if name == "CalloutElement":
         return el.display_heading
+    if name == "BeforeAfterElement":
+        return el.button_label or _("Before / after")
     if name == "TableElement":
         d = TableElement.normalize_data(el.data)
         rows, cols = len(d["cells"]), len(d["cells"][0])
