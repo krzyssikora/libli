@@ -258,7 +258,15 @@ Three things this is deliberately **not**. Not a bare `assert` — those are str
 `unit_is_visible` — that runs per node, so a course with **zero units** would never reach it and the
 guard would be absent exactly where a brand-new course is concerned. And not a silent fallthrough
 for an unrecognised `drafts` string: a typo like `"keep_with_data"` defaulting to `"keep"` is a leak
-that no test would catch. ANA7's fixture must contain ≥1 unit for the same reason.
+that no test would catch.
+
+**ANA7 needs two fixtures, and they are opposites** — this is subtle enough that getting it backwards
+produces two halves that each pass vacuously:
+
+| Half | Fixture | Why that one |
+|---|---|---|
+| `with_data=None` **raises** | a course with **zero units** | With ≥1 unit, a guard wrongly placed *inside* `unit_is_visible` still raises during traversal, so the half is green on the very mutant it targets. Only a zero-unit course proves the check runs **before** any traversal. |
+| `with_data=frozenset()` **does not raise** | a course with **≥1 unit** | On a zero-unit course nothing is traversed, so "does not raise" is true of every implementation. |
 
 **"The filter lives in the caller" means the *value* is chosen by the caller and threaded through.
 It does not mean the helper can be wrapped.** Any helper that reaches the tree internally needs the
@@ -427,6 +435,25 @@ Pruning therefore folds into the **existing post-order `rollup` pass**, which al
 children before parents: a non-unit dict whose subtree contributed no unit dict is removed from its
 parent's `children` list there.
 
+**That is not sufficient on its own — `roots` must be filtered separately.** `build_outline` keeps
+top-level nodes in a `roots` list, drives the pass as `for r in roots: rollup(r)`, and **returns
+`roots`**. A root container has no parent dict, so "removed from its parent's `children`" never
+reaches it:
+
+```python
+for r in roots:
+    rollup(r)
+roots = [r for r in roots if r["is_unit"] or r["children"]]   # <-- REQUIRED
+return roots
+```
+
+Without that line, a CA who drafts an entire new **Part** — the top-level structure, and precisely
+the "add content privately" case the Purpose section opens with — leaves every student staring at an
+empty Part. `build_unit_nav` consumes the same `roots`, so it survives in the nav too.
+
+§9 OUT5's fixture is therefore a **root-level** container. A chapter-nested fixture is green on this
+bug, which makes it the wrong test for the headline use case.
+
 Per mode:
 
 | Mode | Prunes empty containers? |
@@ -531,6 +558,13 @@ has_progress    = set(UnitProgress.objects.filter(unit__course=course)
 Their union is the `with_data` frozenset that every `keep-with-data` call site passes alongside
 `drafts="keep-with-data"` — built **once per request by the view**, never inside the rollup
 helpers, so a single course-wide pair of queries serves the whole page.
+
+**`has_submissions` deliberately takes ANY status**, unlike §6's banner count. A student who opened
+a quiz and stopped has left an interrupted attempt, which is data a teacher may need to see —
+especially on a quiz that has since been pulled back, since §6 says that attempt is stranded until
+republication. A drafted quiz keeps its column on the strength of an `IN_PROGRESS` row alone, and
+ANA1's "a draft quiz with none" fixture must therefore have **no submission row at all**, not merely
+no submitted one.
 
 Do **not** try to fold this into `rollups._quiz_review_maps`. That helper is fed
 `quiz_units_in_order(course)` and knows nothing about lesson units or `UnitProgress`, so extending
@@ -1556,11 +1590,38 @@ of reach.
 subtree, and carries the same warning lines.** One extra query alongside the counts the strip
 already computes:
 
+**The gate cannot be `value == "0"`.** The subtree strip is rendered from the **container GET**,
+which carries no `value` at all — by design, on every container, because the direction comes from
+the buttons (§4). A literal `value == "0"` gate is therefore never true on that path and the warning
+would never render.
+
+The gate is instead "this strip offers a hide action", which *is* known at render time:
+
 ```python
-# only for flag=published, value=0 — a publish or an obligatory change needs none of this
-subs = QuizSubmission.objects.filter(unit_id__in=unit_pks)
-submitted   = subs.filter(status=QuizSubmission.Status.SUBMITTED).count()
-in_progress = subs.exclude(status=QuizSubmission.Status.SUBMITTED).count()
+# flag == "published" and the strip offers a hide button (i.e. something is live).
+# `on` is the live-unit count already computed for the strip's own numbers (§4).
+if flag == "published" and on > 0:
+    subs = QuizSubmission.objects.filter(unit_id__in=unit_pks)
+    submitted   = subs.filter(status=QuizSubmission.Status.SUBMITTED).count()
+    in_progress = subs.exclude(status=QuizSubmission.Status.SUBMITTED).count()
+```
+
+An all-draft container offers no hide action and needs no warning; an `obligatory` change needs none
+either.
+
+**In the mixed case the warning attaches to the hide action, not to the strip.** A mixed strip
+offers both "Publish all 5" and "Hide all 5", and printing "12 students have submitted / their
+results will be out of reach" above both would misdescribe the publish button sitting next to it.
+The lines render **beneath the hide button**, scoped to it:
+
+```
+┌─ Publish or hide 5 units in "Chapter 3"? ─┐
+│  2 are live, 3 are drafts.                │
+│  [ Publish all 5 ]  [ Hide all 5 ]    ×   │
+│                                           │
+│  Hiding will affect 12 submitted and 3    │
+│  in-progress quiz attempts — see below.   │
+└───────────────────────────────────────────┘
 ```
 
 Note this is **not** reachable through `needs_confirmation`'s quiz clause: that clause is `or`-ed
@@ -1819,8 +1880,11 @@ cross-reference in this document.
   creation there is no dict to read, so a `d.get("completed") is not True` sweep over the surviving
   dicts passes vacuously on every mutant.
 - **OUT5. A container whose units are all draft is pruned from the outline**, and reappears when one
-  is published. *Mutant:* filter only at dict creation with no post-order pruning pass → the empty
-  chapter still renders → red. Pins that pruning is a second pass, which §2 says it must be.
+  is published. **The fixture is a ROOT-level container (a Part), not a nested chapter.**
+  *Mutant A:* filter only at dict creation with no post-order pruning pass → the empty container
+  still renders → red. *Mutant B:* prune via the parent's `children` list only, without filtering
+  `roots` → a nested-chapter fixture is **green**, and only the root-level fixture goes red. Since
+  drafting a whole new Part is the headline use case, Mutant B is the one that matters.
 - **OUT5b. Pruning per mode**: `keep` prunes an empty container for an author;
   `keep-with-data` does **not** prune one whose drafts hold no data, so a teacher's breakdown keeps
   the course's shape. *Mutant:* apply pruning uniformly across all three modes → the breakdown
@@ -1887,8 +1951,12 @@ cross-reference in this document.
   regression → red on the second half. The second container is the entire reason this test needs two.
 - **ANA7. `with_data=None` with `drafts="keep-with-data"` raises; `with_data=frozenset()` does
   not.** *Mutant:* assert on emptiness instead of on the sentinel → every gradebook, review queue
-  and breakdown on a course no student has touched 500s → red. The fixture is a brand-new course,
-  which is also the state this feature is most used in.
+  and breakdown on a course no student has touched 500s → red.
+
+  **The two halves take opposite fixtures** (see §2): the raising half uses a **zero-unit** course,
+  so it proves the guard runs before any traversal rather than per node; the non-raising half uses a
+  course with **≥1 unit**, since on a zero-unit course nothing is traversed and "does not raise" is
+  vacuously true. Swapping them gives two halves that both pass on the mutants they target.
 
 ### Write path — `WR`
 
@@ -1942,6 +2010,16 @@ cross-reference in this document.
 - **WR15. The tags/notes hub querysets exclude drafted units for a student and keep them for an
   author.** *Mutant:* rely on the traversal keyword → `units_by_tag` builds from `UnitTag` rows and
   filters nothing, so a student keeps seeing a live link to a drafted unit → red.
+- **WR15d. The per-course notes hub drops a note attached to a drafted lesson for a student**, and
+  keeps it for the author. *Mutant:* leave `notes.services.course_notes`'s `units_in_order` call
+  unparameterised → it inherits the `"keep"` default and leaks the drafted unit's **title and live
+  link** to a student → red.
+
+  This is the **one** surface in the tags/notes table that filters through the traversal keyword
+  rather than a queryset, so WR15's mutant ("rely on the traversal keyword") is the opposite
+  direction and is green here. There is also no source-scanning guard for traversal-keyword plumbing
+  the way ACC6 covers `get_node_or_404`, and OUT10's mutant is the reverse (hard-coded `"hide"`) —
+  so without this test nothing goes red.
 - **WR15b. A user who manages course A but not course B sees A's drafts and not B's, in one result
   set.** *Mutant:* implement the hub filter as a single `can_see_drafts` boolean → it cannot be
   evaluated (no `course` in scope) or is evaluated for the wrong course → red. This is the fixture
@@ -1971,8 +2049,15 @@ cross-reference in this document.
   `<a … disabled>` → the attribute is ignored on an anchor, the control stays clickable, and an
   assertion on `disabled` passes anyway → the `href`/`aria-disabled` assertion goes red.
 - **TREE4. Container counts are computed over the FULL subtree while a filter is active.** Seed a
-  chapter with 6 units, filter so only 2 match, assert the container's rendered count is 6.
-  *Mutant:* fold over the template's `children_map` (`fc.restricted`) → 2 → red.
+  chapter with 6 units of which 2 are live, filter so only the 2 live ones match, and assert the
+  container renders the **mixed** glyph. *Mutant:* fold over the template's `children_map`
+  (`fc.restricted`) → the restricted view sees 2 units, both live → renders **all-live** → red.
+
+  **Assert the glyph, not a rendered number.** TREE4 is by definition a filtered render, and under a
+  filter the container anchor is inert with its `title` replaced by the filter tooltip — so the
+  count may not appear anywhere in the markup. The glyph distinguishes the mutant just as sharply
+  and is always present. This is the only guard against the fold-over-`fc.restricted` mutant, which
+  §5 calls "removes the only guard", so it must not be an assertion with nothing to read.
 - **TREE5. Container toggles are inert while a filter is active**; unit toggles are not. Same
   assertion shape as TREE3 — `href` absent / `aria-disabled` present.
 - **TREE9. A quiz unit row's obligatory control cannot write, and its publish control stays live.**
