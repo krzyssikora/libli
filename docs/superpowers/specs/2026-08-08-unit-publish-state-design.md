@@ -668,15 +668,14 @@ def get_node_or_404(node_pk, slug, *, viewer=None, require_unit=False, ...):
 
 **The `kind == UNIT` guard is mandatory, not defensive tidiness.** Every container row created after
 the migration carries `published=False`, because the model default applies to the whole table while
-only units' values are ever *meant* to be read (§1). Without the guard, two existing call sites
-break for every student:
+only units' values are ever *meant* to be read (§1). Without the guard, `progress_reset`'s
+node-scoped branch — which calls `get_node_or_404(..., require_unit=False)` and legitimately
+resolves chapters and parts — would 404 on any chapter or part created after the migration, letting
+a container's own flag decide visibility, which §1 and §2 both forbid.
 
-- `progress_reset`'s node-scoped branch calls `get_node_or_404(..., require_unit=False)` and
-  legitimately resolves chapters and parts.
-- `node_permalink` explicitly branches on `node.kind != UNIT` and redirects to an outline anchor.
-
-Both would 404 on any chapter or part created after the migration — a container's own flag deciding
-visibility, which §1 and §2 both forbid.
+`node_permalink` has the **same hazard through a different route**: it does not call
+`get_node_or_404` at all (no slug — see below), so it needs the `kind == UNIT` conjunct in its own
+inline check. Two guards, two places; neither covers the other.
 
 **A permalink to a container** is governed by §2's pruning rule, not by the container's field: it
 redirects to the outline anchor as it does today, and if the container has no visible unit the
@@ -1611,8 +1610,18 @@ cannot know. Quiz versioning is a separate feature with its own spec.
 
 What ships is a count and a banner:
 
-1. The **editor page** for a quiz unit with ≥1 counted submission shows a persistent banner naming
-   the count and the three facts above.
+1. The **editor page** for a quiz unit shows a persistent banner whenever it has **any** submission
+   row, naming the counts and the three facts above. It reports the two counts on separate lines,
+   exactly as the confirm strip does:
+
+   > 12 students have submitted. 3 students are part-way through.
+
+   **Both lines, not just the submitted one.** A published quiz whose only rows are `IN_PROGRESS`
+   would otherwise carry no banner at all — it is live, so §5's draft banner does not apply either —
+   and unchecking **Published** in the settings form directly below would strand every in-flight
+   attempt in silence. That is the population §4 widened `needs_confirmation` for and QZ8 exists to
+   protect, and it is the silence this section calls unacceptable. Either line is omitted when its
+   count is zero; the banner does not render when both are.
 2. The **unpublish confirm strip** repeats the count — which is why §4 carves out unpublishing a
    quiz-with-submissions as the one unit-scope action that confirms. "Pull it back to edit" is
    exactly the gesture that precedes the damage, and it is a unit-scope click.
@@ -1623,7 +1632,9 @@ What ships is a count and a banner:
 quiz**. Counting every row would report "12 submissions" for a quiz twelve students merely glanced
 at, which trains the CA to ignore the banner — the failure mode a warning cannot recover from.
 
-The count and the archived-group predicate both filter `status=Status.SUBMITTED`.
+The **"have submitted" count** and the archived-group predicate both filter
+`status=Status.SUBMITTED`. The in-progress line counts the rest, and the banner's *trigger* is any
+row at all — the same widening §4 applies to `needs_confirmation`, for the same reason.
 
 This does mean the three hazards divide unevenly, and the banner's wording must not overclaim:
 
@@ -1950,10 +1961,14 @@ cross-reference in this document.
   implementation misses.
 - **ACC4. `node_permalink` 404s** on a draft unit for a student.
 - **ACC5. A container created after the migration is reachable by every student.** Create a chapter
-  natively (so it carries `published=False`), then assert a student gets a normal redirect from
-  `node_permalink` and a normal `progress_reset` confirmation page for it. *Mutant:* drop the
-  `kind == UNIT` guard from the chokepoint → both 404 → red. This is the test that catches the
-  whole-course outage; without it the guard is a comment.
+  natively (so it carries `published=False`), then assert a student gets a normal `progress_reset`
+  confirmation page **and** a normal `node_permalink` redirect for it.
+
+  **Two independent mutants, one per guard** — the halves do not cover each other, because
+  `node_permalink` never touches the chokepoint. *Mutant A:* drop the `kind == UNIT` conjunct from
+  `get_node_or_404` → the `progress_reset` half 404s → red. *Mutant B:* drop it from
+  `node_permalink`'s inline check → the permalink half 404s → red. This is the test that catches the
+  whole-course outage; without both halves, one guard is a comment.
 - **ACC6. Source scan: every `get_node_or_404(` call outside `courses/views_manage.py` passes
   `viewer=`.** *Mutant:* add a student-facing view that omits it → red. This is the only test that
   covers call sites that do not exist yet, which is the whole point — `viewer=None` means "skip the
@@ -2227,9 +2242,12 @@ cross-reference in this document.
   applies immediately.** One test, both halves — the §4 carve-out is only meaningful if both sides
   hold. *Mutant:* apply "units never confirm" uniformly → the warning §6 exists to deliver never
   fires in the case §6 is about → red on the first half.
-- **QZ6. In-progress submissions are not counted.** Open a quiz as a student without finishing, and
-  assert the editor shows no banner. *Mutant:* count every `QuizSubmission` row → "1 student has
-  submitted" for a quiz nobody submitted → red.
+- **QZ6. In-progress rows are counted on their own line, never as "submitted".** Open a quiz as a
+  student without finishing, and assert the editor banner **renders**, says "1 student is part-way
+  through", and does **not** claim anyone has submitted. *Mutant A:* count every `QuizSubmission`
+  row into the submitted figure → "1 student has submitted" for a quiz nobody submitted → red.
+  *Mutant B:* trigger the banner on `status=SUBMITTED` only → a published in-progress-only quiz
+  shows no banner at all, and unchecking Published below it strands those attempts in silence → red.
 - **QZ8. A quiz with ONLY in-progress attempts still gets a confirm strip on unpublish**, and the
   strip reports the in-progress count on its own line. *Mutant:* filter `needs_confirmation` to
   `status=SUBMITTED` → the quiz unpublishes on one click with no warning, stranding three people
