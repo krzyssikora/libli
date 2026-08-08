@@ -91,7 +91,7 @@ def note_counts_by_course(author):
     return {r["unit__course_id"]: r["n"] for r in rows}
 
 
-def course_notes(author, course):
+def course_notes(author, course, *, drafts, with_data=None):
     """Ordered per-course notes for the revision index.
 
     Returns [{"unit": ContentNode, "groups": [(elt_or_None, [Note, ...]), ...]}, ...]
@@ -113,7 +113,7 @@ def course_notes(author, course):
         by_unit.setdefault(note.unit_id, []).append(note)
 
     result = []
-    for unit in units_in_order(course):
+    for unit in units_in_order(course, drafts=drafts, with_data=with_data):
         if unit.unit_type != ContentNode.UnitType.LESSON:
             continue
         unit_notes = by_unit.get(unit.pk)

@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.urls import reverse
 
 from courses.access import can_access_course
+from courses.access import can_see_drafts
 from courses.access import get_node_or_404
 from courses.models import Course
 from courses.views import full_lesson_render_context
@@ -54,10 +55,14 @@ def course_notes(request, slug):
     course = get_object_or_404(Course, slug=slug)
     if not can_access_course(request.user, course):
         raise PermissionDenied
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
     return render(
         request,
         "notes/course_notes.html",
-        {"course": course, "units": services.course_notes(request.user, course)},
+        {
+            "course": course,
+            "units": services.course_notes(request.user, course, drafts=drafts),
+        },
     )
 
 

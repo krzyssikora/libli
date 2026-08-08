@@ -535,7 +535,8 @@ def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False
     from tags.rendering import unit_tags_context
 
     ctx = build_lesson_context(node, user)
-    ctx["unit_nav"] = build_unit_nav(node.course, user, node)
+    drafts = "keep" if can_see_drafts(user, node.course) else "hide"
+    ctx["unit_nav"] = build_unit_nav(node.course, user, node, drafts=drafts)
     ctx.update(
         feedback_for_pk=None,
         selected_ids=frozenset(),
@@ -562,7 +563,8 @@ def course_outline(request, slug):
     from notes.services import note_counts_for_outline  # lazy: avoid cycle
     from tags import services as tag_services
 
-    outline = build_outline(course, request.user)
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    outline = build_outline(course, request.user, drafts=drafts)
     tags_by_unit, course_tags = tag_services.tags_for_outline(request.user, course)
     course_tag_ids = {t.pk for t in course_tags}
     active_tag_ids = [
@@ -594,7 +596,8 @@ def course_results(request, slug):
         raise PermissionDenied
     # student is always request.user — no IDOR surface. `course` is passed
     # top-level as the template's canonical source (summary also carries it).
-    summary = build_course_results(course, request.user)
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    summary = build_course_results(course, request.user, drafts=drafts)
     return render(
         request,
         "courses/course_results.html",
@@ -611,18 +614,30 @@ def progress_reset(request, slug, node_pk=None):
     protection against automatic persistence -- shipping it as a one-click no-undo
     form for no-JS students would make the safety valve the hazard.
     """
+    node = None
     if node_pk is None:
         course = get_object_or_404(Course, slug=slug)
-        targets = units_in_order(course)
     else:
         # NOT optional: can_access_course authorizes against `slug`, but nothing
         # otherwise ties node_pk to that course -- a foreign node_pk would resolve
         # its own subtree and wipe the student's state THERE.
         node = get_node_or_404(node_pk, slug, viewer=request.user, require_unit=False)
         course = node.course
-        targets = units_under(node)
     if not can_access_course(request.user, course):
         raise PermissionDenied
+
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+
+    # targets is UNFILTERED -- it drives the WRITE. Reset is the student's
+    # protection against automatic persistence; leaving hidden state behind is
+    # precisely the failure it exists to prevent. visible_targets is a SECOND
+    # call, and drives only the count.
+    if node is None:
+        targets = units_in_order(course)
+        visible_targets = units_in_order(course, drafts=drafts)
+    else:
+        targets = units_under(node)
+        visible_targets = units_under(node, drafts=drafts)
 
     rows = UnitProgress.objects.filter(student=request.user, unit__in=targets)
     fallback = reverse("courses:course_outline", args=[slug])
@@ -662,8 +677,11 @@ def progress_reset(request, slug, node_pk=None):
 
     # Honest blast radius: lessons that actually HOLD work, not every lesson in the
     # subtree. Telling a student "this clears 14 lessons" when 3 have anything makes
-    # a harmless reset sound destructive.
-    affected_count = rows.exclude(element_state={}).count()
+    # a harmless reset sound destructive. Filter the COUNT, never the WRITE (the
+    # POST branch above uses the unfiltered `rows`/`targets`).
+    affected_count = (
+        rows.exclude(element_state={}).filter(unit__in=visible_targets).count()
+    )
     return render(
         request,
         "courses/progress_reset_confirm.html",
@@ -1343,7 +1361,8 @@ def quiz_unit(request, slug, node_pk):
         if request.GET.get("panel") == "tags":
             target += "?panel=tags"
         return redirect(target)
-    ctx["unit_nav"] = build_unit_nav(course, request.user, node)
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    ctx["unit_nav"] = build_unit_nav(course, request.user, node, drafts=drafts)
     ctx["tags_panel_open"] = request.GET.get("panel") == "tags"
     return render(request, "courses/quiz_unit.html", ctx)
 
@@ -1372,7 +1391,8 @@ def _quiz_render_feedback(
     # single feedback box (render_states[pk]["feedback_html"]) and rehydrate its
     # inputs — the same render path resume (Task 12) uses, so no double container.
     ctx = build_quiz_context(node, request.user)
-    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node)
+    drafts = "keep" if can_see_drafts(request.user, node.course) else "hide"
+    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node, drafts=drafts)
     fragment = render_to_string("courses/elements/_quiz_question_feedback.html", fb_ctx)
     st = ctx["render_states"].get(element.pk)
     if st is not None:
@@ -1702,7 +1722,7 @@ def catalog_detail(request, slug):
     ctx = {
         "course": course,
         "enrolled": enrolled,
-        "unit_count": course.nodes.filter(kind="unit").count(),
+        "unit_count": course.nodes.filter(kind="unit", published=True).count(),
     }
     if _wants_fragment(request):
         return render(request, "courses/_catalog_detail.html", ctx)
