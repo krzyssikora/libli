@@ -160,6 +160,10 @@ has repeatedly produced a stale count somewhere else:
   `docs/superpowers/plans/2026-07-14-callout-element.md:475`, which is a verbatim copy of the
   `test_callout_render.py:22` comment this change *does* update — copy the live one, leave the
   plan's copy frozen.
+- **One carve-out from that class rule:**
+  `docs/superpowers/plans/2026-07-27-internal-link-cutover.md` is a **live operational runbook**,
+  not a historical design record, and it lives under `docs/superpowers/plans/` only by filing
+  convention. DoD 8 requires an edit to it. Do not skip it on the strength of the rule above.
 
 ### 2. Migration
 
@@ -225,22 +229,35 @@ Everything else derives from that single custom property, exactly as the other f
 the 3px left spine, the 6%-accent-over-`--surface-raised` container tint, the 14%-accent icon
 chip, and the eyebrow colour.
 
-**Source order is load-bearing — put the light rule in the light group, not at the end of the
-file.** `test_surface_literals_still_match_the_css` finds each light accent with
-`re.search(rf"{theme}\.callout--{kind}\s*\{{\s*--callout-accent:\s*(#…)", css)` where `theme`
-is the empty string — **no `^` anchor and no `re.M`**, so it takes the *first* occurrence in
-the file, and `[data-theme="dark"] .callout--task {` contains `.callout--task {` as a
-substring. Appending the new pair *after* the dark block would therefore compute the light
-ground from `#ee9fd8` over `#FFFFFF` and fail Testing row 10 with a message that blames the
-wrong thing.
+**Source order and spacing are both load-bearing.** `test_surface_literals_still_match_the_css`
+finds each accent with
+`re.search(rf"{re.escape(theme)}\.callout--{kind}\s*\{{\s*--callout-accent:\s*(#[0-9A-Fa-f]{{6}})", css)`.
+Two consequences:
+
+- For the **light** pass `theme` is the empty string, and there is **no `^` anchor and no
+  `re.M`** — so it takes the *first* occurrence in the file, and
+  `[data-theme="dark"] .callout--task {` contains `.callout--task {` as a substring. Putting the
+  new pair *after* the dark block would compute the light ground from `#ee9fd8` over `#FFFFFF`
+  and fail Testing row 10 with a message blaming the wrong thing. Put the light rule in the
+  light group.
+- For the **dark** pass `theme` is `'[data-theme="dark"] '` **with a trailing space**, and
+  `re.escape` turns that space into a literal single space. So alignment padding is allowed only
+  *before* the `{` (absorbed by `\s*`) — **never between `]` and `.callout--task`**. Align the
+  brace column, as the existing block does; do not align the selector prefix.
 
 **Contrast, computed against the tinted callout background** (`color-mix(accent 6%, surface)`,
 which resolves to `#FAF3F8` light and `#383030` dark under the project's own mixing):
 
 | Theme | Accent | Background | Ratio |
 |---|---|---|---|
-| Light | `#a8318f` | `#FAF3F8` | ~5.5:1 |
-| Dark | `#ee9fd8` | `#383030` | ~6.5:1 |
+| Light | `#a8318f` | `#FAF3F8` | 5.50:1 |
+| Dark | `#ee9fd8` | `#383030` | 6.48:1 |
+
+Every ratio in this spec is WCAG 2.x sRGB relative luminance — channel `c/255`, then
+`c/12.92 if c <= 0.03928 else ((c+0.055)/1.055) ** 2.4`, weighted `0.2126/0.7152/0.0722`, with
+`(L_hi + 0.05) / (L_lo + 0.05)`. Stated so a recomputation that disagrees is attributable to a
+different formula rather than mysterious. Three independent recomputations of these figures
+agreed to two decimal places.
 
 Both clear WCAG AA for normal text, so the 0.75rem/700 eyebrow is safe with margin. These two
 ground colours are **also** the values §5 registers in the normative surface list, which is what
@@ -249,8 +266,8 @@ gives the table above an automated drift guard.
 **The icon sits on a different, more saturated ground** and is not covered by the table above:
 `courses.css:1807-1808` puts it on `color-mix(accent 14%, transparent)` layered over the 6%
 tint — `#EFD8E9` light, `#514048` dark. As a non-text graphic the applicable threshold is 3:1,
-and it measures **4.48:1 light / 4.86:1 dark**. Comfortable; nothing to change. Recorded so the
-table above is not misread as covering the whole component.
+and it measures **4.48:1 light / 4.86:1 dark** (same formula as above). Comfortable; nothing to
+change. Recorded so the table above is not misread as covering the whole component.
 
 ### 5. The normative text-colour surface list — `tests/test_text_colour_css.py`
 
@@ -284,9 +301,10 @@ change, and adding them will not redden the suite.
 
 `templates/courses/manage/editor/_edit_callout.html` renders the kind picker by iterating
 `form.fields.kind.choices`, with the selected-state comparison
-`form.kind.value|stringformat:"s" == value|stringformat:"s"`. `CalloutElementForm` is a plain
-`ModelForm`, so a new enum member appears in the dropdown automatically and round-trips its
-selected state with no template edit.
+`form.kind.value|stringformat:"s" == value|stringformat:"s"`. `CalloutElementForm`
+(`courses/element_forms.py:226` — `Meta.fields = ["kind", "heading", "body"]`, no widget
+override on `kind`) is a plain `ModelForm`, so a new enum member appears in the dropdown
+automatically and round-trips its selected state with no template edit.
 
 **But no existing test iterates `CalloutElement.Kind` or the form's choices** — the authoring
 tests hardcode `"warning"` (`test_callout_authoring.py:64,73,82`). So "data-driven, therefore
@@ -296,7 +314,9 @@ feature at all has zero coverage. Testing rows 6-7 add two.
 `_element_row.html`'s callout branch needs no edit either, but it is not kind-*agnostic*: its
 row label runs through `element_summary`, and `courses_manage_extras.py:120` returns
 `el.display_heading` for a `CalloutElement`. So a heading-less Task callout's editor row reads
-"Task" / "Zadanie" — a second place the new label surfaces, picked up automatically.
+"Task" / "Zadanie" — a second place the new label surfaces, picked up automatically. That path
+is kind-independent, so it gets no new test, but `courses/tests/test_callout_editor_row.py` is
+in the DoD 3 floor as a regression pin rather than leaving the claim asserted only in prose.
 
 ### 7. Transfer — no change at all
 
@@ -377,6 +397,14 @@ the class. There is no JS on this path.
 archive fails at the Task element with "unknown callout kind" — the accepted cost stated in D2.
 Archives without a Task callout are unaffected.
 
+**Rollback, the other face of the same skew.** If a build carrying `TASK` is rolled back after
+Task callouts have been authored, those rows keep `kind="task"` in the database. They render as
+`class="callout callout--task"` with no matching rule, so `--callout-accent` falls back to the
+`.callout` base (`var(--primary)`) — degraded but legible. The quieter hazard is that **any
+subsequent save through the editor silently rewrites them to `example`**, because `save()`
+coerces anything outside `Kind.values`; that downgrade is lossy and irreversible. Worth knowing
+before a rollback, though it needs no code change here.
+
 **Math.** No change is needed. `_element_has_math` dispatches on the *element type*
 (`CalloutElement` → heading + body + recursive children), never on the kind, so a Task callout
 arms KaTeX under exactly the same conditions as any other callout.
@@ -410,10 +438,10 @@ callout branch were exactly that.
 | 4 | a **persisted** task callout renders `callout--task`: `CalloutElement.objects.create(kind="task")` then `.render()` | `courses/tests/test_callout_render.py` | remove the `TASK` enum member — `save()` then coerces the kind to `example` and the class becomes `callout--example` |
 | 5a | a task render **contains** the pencil path `m15 5 4 4` | same file | delete the `{% elif el.kind == "task" %}` branch — the render then falls through to book-open |
 | 5b | an **example** render does **not** contain `m15 5 4 4` | same file | put the pencil into the existing `{% else %}` fallback instead of adding an elif — a plausible mistake, since `_callout_icon.html` has no explicit `example` branch and `example` is served by that `{% else %}` |
-| 6 | the editor form offers the kind: GET `manage_element_form` for a callout, then assert the **exact** unselected option string `'<option value="task">Task</option>'` — `_edit_callout.html` emits value and label with no intervening whitespace, and two separate `'value="task"' in html` / `'Task' in html` asserts would both pass with the label wrong. The neighbouring `test_edit_form_preselects_stored_kind` asserts the *selected* form (`value="warning" selected`); row 6 wants the unselected one | `courses/tests/test_callout_authoring.py` | remove the `TASK` enum member |
+| 6 | the editor form offers the kind: GET `manage_element_form` for a callout whose kind is **not** `task` (use `kind="example"`, mirroring `test_edit_form_preselects_stored_kind`'s warning fixture) — a task-kind fixture would emit `<option value="task" selected>` and fail the assertion on a correct build — then assert the **exact** unselected option string `'<option value="task">Task</option>'` — `_edit_callout.html` emits value and label with no intervening whitespace, and two separate `'value="task"' in html` / `'Task' in html` asserts would both pass with the label wrong. The neighbouring `test_edit_form_preselects_stored_kind` asserts the *selected* form (`value="warning" selected`); row 6 wants the unselected one | `courses/tests/test_callout_authoring.py` | remove the `TASK` enum member |
 | 7 | authoring persists it: POST `kind="task"`, assert the saved `content_object.kind == "task"` | same file | as above |
-| 8 | a `kind="task"` callout survives an export/import round trip. The new test carries **its own `@pytest.mark.django_db`** — this module marks per-test and has no module-level `pytestmark` (see its own comment at `:83`), unlike every other callout module | `courses/tests/test_callout_transfer.py` | revert the enum, so `_val_callout` rejects the payload |
-| 9 | the pl catalog renders `Task` as "Zadanie": `with translation.override("pl"): assert str(CalloutElement(kind="task").display_heading) == "Zadanie"`. The module needs **no `pytest.mark.django_db`** — the instance is never saved, matching `test_display_heading_survives_stray_unsaved_kind`'s style — even though every neighbouring callout module carries the mark | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | leave the `msgmerge` fuzzy pre-fill in place |
+| 8 | a `kind="task"` callout survives an export/import round trip. The new test carries **its own `@pytest.mark.django_db`** — this module marks per-test and has no module-level `pytestmark` (see its own comment at `:83`), unlike every other callout module | `courses/tests/test_callout_transfer.py` | revert the enum. **Note the mechanism, or the failure looks wrong:** `save()` coerces the kind to `example` *before* serialization, so `_ser_callout` emits `{"kind": "example"}` and `_val_callout` **accepts** it — the test goes red on the round-trip equality assertion, not on a `TransferError` |
+| 9 | the pl catalog renders `Task` as "Zadanie": `with translation.override("pl"): assert str(CalloutElement(kind="task").display_heading) == "Zadanie"`. The module needs **no `pytest.mark.django_db`** — the instance is never saved, matching `test_display_heading_survives_stray_unsaved_kind`'s style — even though every neighbouring callout module carries the mark | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | **clear the `#, fuzzy` flag but keep the pre-filled wrong msgstr** (e.g. `msgstr "Wskazówka"`). Not "leave the fuzzy in place": `test_no_fuzzy_entries` iterates both catalogs and is already in the DoD 3 selection, so that mutant reddens an existing guard and proves nothing about row 9. The wrong-but-flag-cleared msgstr passes all three po-health guards and is red **only** here — which is exactly the failure §8 describes |
 | 10 | the new callout grounds are in the normative surface list and match the CSS | `tests/test_text_colour_css.py` (extend, don't add a file) | change either accent hex without updating the literal |
 
 **Assertion form — this is where the last branch bled.** Tests 1 and 2 scan stylesheet source
@@ -462,7 +490,8 @@ mechanics, which this change does not touch.
      courses/tests/test_callout_form.py courses/tests/test_callout_authoring.py \
      courses/tests/test_callout_transfer.py tests/test_callout_css.py \
      tests/test_text_colour_css.py tests/test_i18n_po_health.py \
-     tests/test_i18n_callout_task.py tests/test_help.py
+     tests/test_i18n_callout_task.py tests/test_help.py \
+     courses/tests/test_callout_editor_row.py
    ```
 
    `tests/test_help.py` is in the floor because the §8 help edits land **inside** a
@@ -524,8 +553,17 @@ mechanics, which this change does not touch.
    two `LIGHT_SURFACES`/`DARK_SURFACES` entries in `tests/test_text_colour_css.py`, and the hex
    literals inside Testing rows 1 and 2's regexes.
 
-8. **The D2 operational constraint is written into the PR body**, in its own clearly-headed
-   paragraph: *do not author a Task callout in mat-pp until PROD runs code containing the `TASK`
-   enum member.* The cutover has its own runbook and its operator has no reason to open this
-   spec, so the PR is the artifact that carries the note. If a cutover runbook is touched during
-   this work, put it there too.
+8. **The D2 operational constraint lands in two places, both required:**
+   *do not author a Task callout in mat-pp until PROD runs code containing the `TASK` enum
+   member.*
+
+   - the **PR body**, in its own clearly-headed paragraph; and
+   - **`docs/superpowers/plans/2026-07-27-internal-link-cutover.md`**, the live mat-pp cutover
+     runbook.
+
+   The runbook is not optional and not conditional. It is the artifact the cutover operator
+   actually opens — they have no reason to open this spec, and a PR body is easy to lose once
+   merged. D2's whole premise is that a note no artifact carries is not communicated at all;
+   putting it only in the PR would reproduce exactly that failure. (Note the runbook sits under
+   `docs/superpowers/plans/`, which §1's leave-alone class rule otherwise covers — §1 carves it
+   out by name for this reason.)
