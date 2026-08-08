@@ -174,3 +174,19 @@ def test_duplicate_element_preserves_a_table_inside_a_callout():
     assert "DUP-MARKER" in str(child.content_object.data), (
         "the callout's child was dropped by the duplicate"
     )
+
+
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
+def test_round_trip_preserves_the_task_kind():
+    el = CalloutElement.objects.create(kind="task", heading="", body="<p>hi</p>")
+    _model, ser = SERIALIZERS["callout"]
+
+    class _Ids:
+        def register(self, *a, **k):  # unused by callout
+            return None
+
+    data = ser(el, _Ids())
+    assert data["kind"] == "task"
+    VALIDATORS["callout"](data, "e1", set())
+    rebuilt, _refs = BUILDERS["callout"](data, {})
+    assert rebuilt.kind == "task"
