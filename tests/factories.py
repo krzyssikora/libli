@@ -96,6 +96,11 @@ class ContentNodeFactory(factory.django.DjangoModelFactory):
     kind = "unit"
     title = factory.Sequence(lambda n: f"Node {n}")
     unit_type = "lesson"
+    # Fixtures represent LIVE content. The model default is False (a new unit
+    # is authored privately), but a test that has not opted into drafts is
+    # asserting about content students can see. Pass published=False
+    # explicitly to build a draft.
+    published = True
 
 
 class EnrollmentFactory(factory.django.DjangoModelFactory):

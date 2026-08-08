@@ -199,6 +199,7 @@ class ContentNode(models.Model):
         max_length=10, choices=UnitType.choices, null=True, blank=True
     )
     obligatory = models.BooleanField(default=True)  # meaningful only for units
+    published = models.BooleanField(default=False)  # meaningful only for units
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     html_seed_js = models.TextField(blank=True)  # per-unit seed; dormant on non-units

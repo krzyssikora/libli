@@ -70,7 +70,7 @@ def _seed_extended_lesson(username):
     course = Course.objects.create(title="C", slug=f"c-{username}", language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="lesson", title="U"
+        course=course, kind="unit", unit_type="lesson", title="U", published=True
     )
     q = ExtendedResponseQuestionElement.objects.create(
         stem="<p>Describe alpha and beta.</p>",
@@ -95,7 +95,7 @@ def _seed_extended_quiz(username, slug, *, marking_mode, max_attempts=None):
     course = Course.objects.create(title="C", slug=slug, language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="quiz", title="Q"
+        course=course, kind="unit", unit_type="quiz", title="Q", published=True
     )
     kwargs = dict(
         stem="<p>Explain the stages of mitosis.</p>",
