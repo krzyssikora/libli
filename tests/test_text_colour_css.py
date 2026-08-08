@@ -1,5 +1,5 @@
 """The palette must clear WCAG AA body text (4.5:1) on EVERY surface rich text can
-appear on — which is ten surfaces, not two. An earlier draft of this feature measured
+appear on — which is eleven surfaces, not two. An earlier draft of this feature measured
 only --surface-raised/--surface-base and shipped a light palette that scored 3.79:1 on
 --danger-subtle, where QuestionElement.explanation renders. This test is that lesson.
 """
@@ -17,7 +17,7 @@ SLOTS = ("red", "blue", "green", "orange")
 #
 # These literals are a CROSS-CHECK, not the source of truth:
 # test_surface_literals_still_match_the_css below re-reads the six token surfaces
-# from tokens.css and recomputes the four callout grounds from courses.css. So
+# from tokens.css and recomputes the five callout grounds from courses.css. So
 # changing --surface-base, a .callout--* accent, or the 6% mix reddens the suite
 # instead of silently leaving the AA guard measuring values that no longer exist.
 # Callout grounds are
@@ -33,6 +33,7 @@ LIGHT_SURFACES = {
     "callout-note": "#F5F5F6",
     "callout-tip": "#F2F8F5",
     "callout-warning": "#FAF6F1",
+    "callout-task": "#FAF3F8",
 }
 DARK_SURFACES = {
     "--surface-raised": "#2C2925",
@@ -45,6 +46,7 @@ DARK_SURFACES = {
     "callout-note": "#34322F",
     "callout-tip": "#2F332C",
     "callout-warning": "#373229",
+    "callout-task": "#383030",
 }
 
 
@@ -123,7 +125,7 @@ def test_surface_literals_still_match_the_css():
         ("", LIGHT_SURFACES, LIGHT_SURFACES["--surface-raised"]),
         ('[data-theme="dark"] ', DARK_SURFACES, DARK_SURFACES["--surface-raised"]),
     ):
-        for kind in ("example", "note", "tip", "warning"):
+        for kind in ("example", "note", "tip", "warning", "task"):
             match = re.search(
                 rf"{re.escape(theme)}\.callout--{kind}\s*\{{\s*--callout-accent:\s*"
                 rf"(#[0-9A-Fa-f]{{6}})",
@@ -155,3 +157,16 @@ def test_every_slot_clears_aa_on_every_surface():
                         f"{ratio:.2f}:1"
                     )
     assert not failures, "below AA 4.5:1:\n" + "\n".join(failures)
+
+
+def test_every_callout_kind_has_a_ground_in_both_surface_lists():
+    # Derived from the enum, NOT a second hardcoded list: that is what makes a
+    # sixth kind fail loudly here instead of silently escaping the AA sweep.
+    from courses.models import CalloutElement
+
+    expected = {f"callout-{value}" for value in CalloutElement.Kind.values}
+    for name, surfaces in (("LIGHT", LIGHT_SURFACES), ("DARK", DARK_SURFACES)):
+        got = {k for k in surfaces if not k.startswith("--")}
+        assert got == expected, (
+            f"{name}_SURFACES callout grounds drifted: {got ^ expected}"
+        )
