@@ -1,18 +1,29 @@
 {% load i18n courses_extras %}
+{% comment %}A fully-correct answer finishes the question, so its blanks render
+read-only (locked=mark_result.correct) and the Check button is disabled. The
+`element.pk == feedback_for_pk` pairing is load-bearing: the no-JS re-render hands
+ONE page-level mark_result to EVERY element (see _lesson_article.html), so a bare
+mark_result.correct would lock every other fill-blank on the unit. mark_result is
+None in quiz mode (_quiz_article.html passes feedback_html instead), so the quiz's
+own quiz_submitted/locked gating is untouched.
+
+data-lock-on-correct is question.js's opt-in flag: after a live correct check it
+locks these inputs client-side the same way, so the fetch path and a reload agree.
+{% endcomment %}
 <div class="el el--question el--fillblank" data-question>
   {% if element %}
-  <form class="question__form" method="post" action="{{ action_url }}">
+  <form class="question__form" method="post" action="{{ action_url }}" data-lock-on-correct>
     {% csrf_token %}
     <fieldset class="question__stem" {% if quiz_submitted or locked %}disabled{% endif %}
               style="border:0;padding:0;margin:0 0 var(--space-3);">
       {% if element.pk == feedback_for_pk %}
-        {% render_fill_blanks el submitted_values %}
+        {% render_fill_blanks el submitted_values locked=mark_result.correct %}
       {% else %}
         {% render_fill_blanks el %}
       {% endif %}
     </fieldset>
     <button type="submit" class="btn btn--small"
-            {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+            {% if quiz_submitted or locked %}disabled{% elif element.pk == feedback_for_pk and mark_result.correct %}disabled{% endif %}>{% trans "Check" %}</button>
     <div class="question__feedback" data-question-feedback>
       {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
     </div>

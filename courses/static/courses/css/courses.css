@@ -225,6 +225,24 @@ blockquote {
    (and wins on source order, courses.css loading later) so blanks stay inline
    instead of each stretching to full width on its own line. */
 input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15rem; }
+/* Solved fill-blank: a fully-correct answer locks its blanks read-only (server side
+   via fillblank.render_inputs(locked=True); question.js does the same after a live
+   correct check), so give them the answered look a consumed fill gate already has
+   -- app.css scopes that one under [data-fillgate], which the question element is
+   not inside. The width release is not cosmetic: the rule above pins every blank to
+   8ch, and a locked input can no longer be scrolled by typing, so without it a
+   longer correct answer is clipped with no way to read it. Both sides set `size` to
+   the value length for width:auto to honour. */
+.el--fillblank .question__blank-input.is-correct {
+  border-color: var(--success);
+  background: var(--success-subtle);
+}
+.el--fillblank .question__blank-input.is-correct:read-only {
+  color: var(--text-secondary);
+  cursor: default;
+  width: auto;
+  min-width: 8ch;
+}
 .question__reveal--blanks { margin: var(--space-2) 0; padding-left: 1.25rem; }
 .question__reveal-item.answer-wrong { color: var(--danger); }
 .question__reveal-text { margin: var(--space-1) 0; }

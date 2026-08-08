@@ -16,6 +16,27 @@
     var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
     return m ? m[1] : "";
   }
+  // A fully-correct answer finishes the question: hide the Check button (no re-check
+  // needed), and — for a form that opts in with data-lock-on-correct (fill-blank) —
+  // lock its blanks read-only so the answered text can no longer be retyped, which
+  // would otherwise let an implicit Enter submit overwrite a correct stored answer
+  // with a wrong one. Mirrors the server's locked render (fillblank.render_inputs)
+  // and fillgate.js's lock(), `size` included: the width-release CSS only honours
+  // `size`, so without it a long answer stays clipped to the fixed 8ch box.
+  function finishSolved(form) {
+    var btn = form.querySelector("button[type='submit'], input[type='submit']");
+    if (btn) btn.hidden = true;
+    if (!form.hasAttribute("data-lock-on-correct")) return;
+    Array.prototype.forEach.call(
+      form.querySelectorAll('input[name="blank"]'),
+      function (inp) {
+        inp.readOnly = true;
+        inp.classList.add("is-correct");
+        inp.size = Math.max(inp.value.length, 2);
+      }
+    );
+  }
+
   var questions = document.querySelectorAll("[data-question]");
   questions.forEach(renderQ);  // initial inline-math pass over stems/choices
   questions.forEach(function (q) {
@@ -42,21 +63,16 @@
             if (newForm) {
               form.innerHTML = newForm.innerHTML;
               renderQ(form);
-              if (form.querySelector(".question__verdict.is-correct")) {
-                var cbtn = form.querySelector("button[type='submit'], input[type='submit']");
-                if (cbtn) cbtn.hidden = true;
-              }
+              if (form.querySelector(".question__verdict.is-correct")) finishSolved(form);
               return;
             }
           }
           if (!slot) return;
           slot.innerHTML = html;
           renderQ(slot);  // typeset revealed-choice / explanation math
-          // A fully-correct answer needs no re-check: hide the Check button.
-          if (slot.querySelector(".question__verdict.is-correct")) {
-            var btn = form.querySelector("button[type='submit'], input[type='submit']");
-            if (btn) btn.hidden = true;
-          }
+          // A fully-correct answer needs no re-check: hide the Check button (and
+          // lock the blanks on an opted-in form).
+          if (slot.querySelector(".question__verdict.is-correct")) finishSolved(form);
         })
         .catch(function () { /* leave the form intact on network error */ });
     });
@@ -64,14 +80,14 @@
 
   // Boot pass: a restored (or server-rendered) correct answer already shows its
   // verdict; hide its Check/Submit button so it matches the post-fetch behavior.
-  // Scoped to questions that HAVE a form (results/review pages render form-less
-  // [data-question] blocks and must be untouched).
+  // (The server already rendered an opted-in form's blanks locked, so finishSolved
+  // is a no-op there — it is the safety net for any other path that reaches a
+  // correct verdict without the locked render.) Scoped to questions that HAVE a
+  // form (results/review pages render form-less [data-question] blocks and must be
+  // untouched).
   questions.forEach(function (q) {
     var form = q.querySelector("form");
     if (!form) return;
-    if (form.querySelector(".question__verdict.is-correct")) {
-      var btn = form.querySelector("button[type='submit'], input[type='submit']");
-      if (btn) btn.hidden = true;
-    }
+    if (form.querySelector(".question__verdict.is-correct")) finishSolved(form);
   });
 })();
