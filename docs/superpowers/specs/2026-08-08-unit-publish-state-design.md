@@ -906,6 +906,24 @@ Note the obligatory variant counts **lessons**, not units — the denominators d
 
 For an all-live or all-draft container only the meaningful action is offered.
 
+**Where the strip's counts come from.** They are *not* the `_tree_context` fold — the write view
+never calls it (see `needs_confirmation` above). The strip derives its own numbers from the same
+subtree query the write already needs:
+
+```python
+ids = node._subtree_node_ids()
+units = ContentNode.objects.filter(pk__in=ids, kind="unit")
+if flag == "obligatory":
+    units = units.filter(unit_type="lesson")        # the lesson-only denominator, §5
+total = units.count()
+on    = units.filter(**{flag: True}).count()        # "2 are live" / "3 are obligatory"
+```
+
+One aggregate over the set the write will touch, so the count and the action cannot disagree. §9
+TREE11 asserts the **rendered numbers**, not merely that a mixed strip came back — §5 calls this
+count "the sole stated mitigation for the accepted over-publish cost", and an unasserted mitigation
+is a comment.
+
 **The strip's form is standalone and must render every field itself** — it has no rowhead inputs to
 inherit:
 
@@ -1297,8 +1315,31 @@ quizzes has units yet `total_lessons == 0`, so its publish control is legitimate
 obligatory control has no denominator to render a tri-state from — and "All obligatory" would write
 nothing while appearing to act. The two controls are made inert **independently**, never as a row.
 
-Inert means the same thing here as everywhere in §5: no `href`, `aria-disabled="true"`,
-`tabindex="-1"`, handler bails. §9 TREE9 and TREE10 pin the two cases.
+### "Inert" means two different things, because the two rows use two different elements
+
+**This is the one place where §5's anchor reasoning does NOT transfer, and copying it produces a
+control that still writes.**
+
+Container rows carry anchors; **unit rows carry `<button type="submit" formaction="…">` inside the
+rowhead form**. On a submit button, the anchor recipe is worthless: "no `href`" is vacuous (a button
+never had one), `tabindex="-1"` only removes it from the tab order, `aria-disabled` is advisory, and
+a mouse click **submits the form natively** — a `builder.js` handler "bailing" does not stop a
+native submit.
+
+| Row | Element | Inert rendering |
+|---|---|---|
+| Container (filter active, zero units, zero lessons) | `<a>` | no `href`, `aria-disabled="true"`, `tabindex="-1"`, handler bails |
+| **Quiz row's obligatory control** | `<button>` | **`type="button"`, `disabled`, `aria-disabled="true"`, and NO `formaction`** |
+
+Note the irony worth stating plainly: §5 spends a paragraph talking the reader *out* of `disabled`
+— correctly, for anchors — and `disabled` is exactly the right mechanism here, because this one is a
+button.
+
+**§9 TREE9 must assert the property that actually blocks the write** — `disabled` present, or
+`type != "submit"` / no `formaction` — plus the behavioural half: a POST from a quiz row leaves
+`obligatory` unchanged. Asserting "no `href`, `aria-disabled`" on a button is an assertion that
+**cannot fail**, since a button has no `href` under any implementation. TREE3, TREE5 and TREE10 are
+anchors and keep the existing shape.
 
 ### The fold
 
@@ -1503,8 +1544,35 @@ What changes is the confirm strip's trigger and copy. `needs_confirmation` fires
 submission row, in progress or submitted, and the strip reports the two counts **separately**
 because they carry different warnings:
 
+### A container hide carries the same warning, aggregated
+
+Every consequence above applies identically when a CA clicks **"Hide all 5"** on a chapter that
+contains a live quiz with submissions — and "hide chapter 3 while I rework it" is an ordinary
+gesture with a *larger* blast radius than unpublishing one quiz. Left alone, the subtree strip would
+say only "5 units in Chapter 3 / 2 are live, 3 are drafts" and silently take students' results out
+of reach.
+
+**The subtree hide strip therefore reports the same two counts, aggregated over every quiz in the
+subtree, and carries the same warning lines.** One extra query alongside the counts the strip
+already computes:
+
+```python
+# only for flag=published, value=0 — a publish or an obligatory change needs none of this
+subs = QuizSubmission.objects.filter(unit_id__in=unit_pks)
+submitted   = subs.filter(status=QuizSubmission.Status.SUBMITTED).count()
+in_progress = subs.exclude(status=QuizSubmission.Status.SUBMITTED).count()
+```
+
+Note this is **not** reachable through `needs_confirmation`'s quiz clause: that clause is `or`-ed
+after `scope == "subtree"` and keys on `node.unit_type == "quiz"`, which a container never is. The
+subtree branch already confirms unconditionally; what is added here is the *copy*, not the trigger.
+§9 QZ10 pins it — QZ5 and QZ8 are both unit-scope and are green without it.
+
+### The normative quiz copy
+
 **This is the single normative copy for the quiz variant** — §4's mockup block deliberately does not
-repeat it. Either count is omitted when it is zero:
+repeat it. Either count is omitted when it is zero, and the subtree variant uses the same lines with
+the aggregated numbers and "these units" in place of the quiz title:
 
 ```
 ┌─ Hide "Test 2" from students? ────────────┐
@@ -1774,6 +1842,18 @@ cross-reference in this document.
   from an explicit parameter → the teacher-facing breakdown silently applies the student rule → red.
   **Assert both denominators in this one test** — the teacher's `required_total` and the student's
   own — so §2's deliberate divergence is a pinned fixture rather than a bug someone later "fixes".
+- **OUT10. An AUTHOR keeps their drafts on every student-facing surface.** One course, two fetches:
+  the author's `course_outline` still contains the draft unit **and** `build_unit_nav`'s prev/next
+  chain still steps through it, while the student's fetch drops both. *Mutant:* hard-code
+  `drafts="hide"` at the call sites — `course_outline`, the three `build_unit_nav` sites,
+  `course_notes`, `course_results`, `progress_reset` — instead of evaluating the viewer-conditional
+  expression → the author can no longer navigate to their own unpublished work → red.
+
+  **This is the mutant the rest of the roster cannot catch.** Reading §2's surface table and writing
+  `drafts="hide"` at each site is the single most likely implementation shortcut, and every other
+  test stays green on it: OUT1–OUT4 and OUT8 assert the *student* side, ACC1 asserts only that the
+  owner can reach the unit by **direct URL** (which still works), and OUT5b calls `build_outline`
+  directly rather than exercising any call site's choice of value.
 - **OUT8. A student's own `course_results` page drops a drafted quiz they submitted to.** *Mutant:*
   put the `keep-with-data` filter inside `build_course_results` instead of in each caller → the
   student's own submission keeps the row alive for them → red. This is the one call site where
@@ -1895,15 +1975,26 @@ cross-reference in this document.
   *Mutant:* fold over the template's `children_map` (`fc.restricted`) → 2 → red.
 - **TREE5. Container toggles are inert while a filter is active**; unit toggles are not. Same
   assertion shape as TREE3 — `href` absent / `aria-disabled` present.
-- **TREE9. A quiz unit row renders its obligatory control inert** (no `href`, `aria-disabled`) while
-  its publish control stays live. *Mutant:* render both live → one click writes `obligatory` onto a
-  quiz, exactly what WR14 forbids in bulk → red.
+- **TREE9. A quiz unit row's obligatory control cannot write, and its publish control stays live.**
+  Assert the property that actually blocks a **button**: `disabled` present, `type != "submit"`, no
+  `formaction`. Then assert the **behaviour**: a POST from that row leaves `obligatory` unchanged.
+  *Mutant A:* render both controls live → one click writes `obligatory` onto a quiz, exactly what
+  WR14 forbids in bulk → red. *Mutant B:* apply the **anchor** inert recipe (drop `href`, add
+  `aria-disabled`) to this button → it is still `type="submit"` with a `formaction`, so a click
+  submits natively and writes → red on the behavioural half.
+
+  **Do not assert "no `href`, `aria-disabled` present" here.** A button has no `href` under any
+  implementation, so that assertion is green on Mutant B — the failure mode this test exists for.
 - **TREE10. A container holding only quizzes renders the obligatory control inert and the publish
   control live.** *Mutant:* key inertness on unit count → a quiz-only chapter has units but zero
   lessons, so it renders a tri-state over an empty denominator and offers an action that writes
   nothing → red.
-- **TREE11. A container anchor's href carries no `value`**, and following it returns the mixed
-  strip. *Mutant:* require `value` on the GET → every container anchor 422s → red.
+- **TREE11. A container anchor's href carries no `value`**, following it returns the mixed strip,
+  and **the strip's rendered numbers are correct** — seed 5 units, 2 live, and assert the strip says
+  "5" and "2 are live". *Mutant A:* require `value` on the GET → every container anchor 422s → red.
+  *Mutant B:* count over the restricted/filtered set, or over all nodes rather than units → the
+  numbers disagree with what the write touches → red. Asserting only that a mixed strip came back
+  leaves the count — §5's sole mitigation for the over-publish cost — unpinned.
 - **TREE8. `builder.html` renders six legend rows, and their symbol ids match the six sprite
   symbols.** *Mutant:* add a seventh sprite symbol without a legend row, or drop a row → red. This
   is the drift signal §5 names; without a test it is only a comment.
@@ -1939,6 +2030,11 @@ cross-reference in this document.
   strip reports the in-progress count on its own line. *Mutant:* filter `needs_confirmation` to
   `status=SUBMITTED` → the quiz unpublishes on one click with no warning, stranding three people
   mid-attempt → red. QZ1–QZ6 all use submitted rows and are green on that mutant.
+- **QZ10. Hiding a CHAPTER that contains a quiz with submissions shows the submission warning in
+  the subtree strip**, with the counts aggregated over the subtree. *Mutant:* render the plain
+  container copy ("5 units / 2 are live") → the CA takes students' results out of reach with no
+  warning, on the higher-blast-radius path → red. QZ5 and QZ8 are both unit-scope and are green
+  without this.
 - **QZ9. An interrupted attempt resumes on republication** — same `QuizSubmission`, answers intact,
   no second row created. Pins §6's "nothing is auto-submitted and nothing is discarded".
 - **QZ7. A student who submitted 404s on `quiz_results` while the quiz is drafted**, and the row is
@@ -1978,8 +2074,10 @@ cross-reference in this document.
   reload.
 - **E2E2.** Clicking a container's icon opens the confirm strip; confirming updates every descendant
   row in the tree; the tree's scroll position and expansion state survive.
-- **E2E3.** A draft unit is absent from the student's outline in a real browser session, and the
-  author sees it with the draft banner.
+- **E2E3.** A draft unit is absent from the student's rendered outline in a real browser session,
+  and **present in the author's rendered outline**, carrying the draft banner when opened. Assert
+  the author's *outline* explicitly — "the author sees it" is ambiguous and is satisfied by opening
+  the unit directly, which works even when the outline has dropped it (see OUT10's mutant).
 - **E2E4.** After toggling, focus lands on whichever publish control the re-rendered row now
   carries, so a second keyboard activation works without re-navigating the tree. Assert
   `document.activeElement`, not merely that the row re-rendered. **Three cases: a unit toggle, a
