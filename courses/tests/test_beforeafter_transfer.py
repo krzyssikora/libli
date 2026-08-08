@@ -155,11 +155,15 @@ def test_validator_rejects_unknown_and_missing_keys():
         val({"button_label": "x" * 121}, "e1", set())
 
 
-def test_format_version_is_unchanged():
-    """A new element TYPE has never bumped it; the version rises only when an
-    EXISTING payload shape changes. Not bumping also sidesteps the silent-merge
-    hazard (two branches setting the same new number do not conflict in git).
+def test_format_version_is_pinned():
+    """Before/after itself never bumped this (a new element TYPE doesn't change
+    an EXISTING payload shape) -- the version rises only when something else
+    does. Renamed from test_format_version_is_unchanged: Task 9 (published on
+    the node payload) bumped FORMAT_VERSION to 10, so a name asserting "is
+    unchanged" would now contradict its own body. Not bumping-for-this-feature
+    also sidesteps the silent-merge hazard (two branches setting the same new
+    number do not conflict in git).
     """
     from courses.transfer.schema import FORMAT_VERSION
 
-    assert FORMAT_VERSION == 9
+    assert FORMAT_VERSION == 10
