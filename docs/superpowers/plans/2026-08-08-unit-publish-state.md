@@ -17,7 +17,7 @@
 - **Never run the whole suite mid-task.** Run only the files a task touches. A whole-repo sweep is a branch gate (Task 16), never a task step.
 - **`uv run ruff format .` runs LAST**, after every other edit in a task. CI gates on `ruff format --check`.
 - **e2e runs need `-m e2e`** or they silently deselect and exit 5.
-- **New field name:** `published`. New CSS class: `tree__row--draft`. New context key: `flag_counts`. New sprite ids: `bi-live`, `bi-draft`, `bi-live-mixed`, `bi-req`, `bi-opt`, `bi-req-mixed`. Do not rename these — later tasks depend on them verbatim.
+- **New field name:** `published`. New CSS class: `tree__row--draft`. New context key: `flag_counts`. **New masked-icon classes** (not sprite ids — see Task 13 Step 2): `icm--live`, `icm--draft`, `icm--live-mixed`, `icm--req`, `icm--opt`, `icm--req-mixed`. Do not rename these — later tasks depend on them verbatim.
 - **`drafts` modes are exactly** `"hide"`, `"keep"`, `"keep-with-data"`. `with_data` defaults to `None` (a sentinel), never `frozenset()`.
 - **Every user-visible string is wrapped in `{% trans %}` / `gettext_lazy`.** Task 16 extracts them.
 - **A test that cannot be made red by breaking what it covers does not count.** Each step below names its mutant; verify RED before implementing.
@@ -620,8 +620,16 @@ POST_ENDPOINTS = [
         lambda s, u: {"student": s, "unit": u},
     ),
     ("notes:note_add", {"body": "x"}, Note, lambda s, u: {"author": s, "unit": u}),
-    ("tags:tag_add", {"tag": "x"}, UnitTag, lambda s, u: {"unit": u}),
-    ("tags:tag_remove", {"tag": "x"}, UnitTag, lambda s, u: {"unit": u}),
+    # tag_add reads request.POST.getlist("tag_pk") and .get("name") -- there is
+    # NO "tag" parameter. Posting {"tag": "x"} falls through both branches and
+    # writes nothing, so before == after == 0 and the write assertion is
+    # vacuous on the mutant. Use "name".
+    ("tags:tag_add", {"name": "x"}, UnitTag, lambda s, u: {"unit": u}),
+    # tag_remove calls untag_unit(user, unit, request.POST.get("tag_pk")). With
+    # no pre-seeded UnitTag its count is 0 == 0 either way -- so the fixture
+    # MUST seed one on the draft unit and post its real pk, or a mutant
+    # deletion is undetectable.
+    ("tags:tag_remove", {"tag_pk": "<seeded>"}, UnitTag, lambda s, u: {"unit": u}),
 ]
 
 
@@ -654,7 +662,7 @@ Import `Note` from `notes.models` and `UnitTag` from `tags.models` alongside the
 Three shapes the parameterisation above does not cover; give each its own test rather than bending the fixture:
 - `check_answer` and `quiz_answer` take an extra `element_pk` kwarg.
 - `quiz_finish` and `quiz_answer` need a quiz unit (`ContentNodeFactory(unit_type="quiz", published=False)`), not a lesson, and write `QuizSubmission`.
-- `tag_add` / `tag_remove` may need a pre-existing `Tag` owned by the student; read the views before writing the payload.
+- `tag_remove`'s row needs the fixture to seed a `Tag` owned by the student **and** a `UnitTag` joining it to the draft unit, then post that tag's real pk — the `"<seeded>"` placeholder above is a reminder, not a literal. Without it `before` is 0 and the write assertion cannot fail.
 
 Read each view's `urls.py` entry for the exact kwarg names before writing the `reverse()` calls; `node_pk` is the common one but not universal.
 
@@ -1166,7 +1174,9 @@ Assert, for the **author**: `GET course_outline` renders B, and `build_unit_nav`
 
 **OUT6 — `test_reset_count_excludes_drafts_on_both_branches`**
 Fixture: two lesson units, both with `UnitProgressFactory(element_state={"1": {"x": 1}})`; draft one.
-Assert: the **course-wide** reset confirmation page (`node_pk=None`) reports 1, and the **node-scoped** one for the parent Part also reports 1.
+Assert: the **course-wide** reset confirmation page reports 1, and the **node-scoped** one for the parent Part also reports 1.
+
+`progress_reset` is registered under **two** URL names for the same view — reverse `courses:progress_reset_course` (`courses/<slug>/reset/`) for the course-wide branch and `courses:progress_reset` (`courses/<slug>/reset/<node_pk>/`) for the subtree one. Reversing `courses:progress_reset` without `node_pk` raises `NoReverseMatch`.
 *Mutant:* filter `units_under` but leave `units_in_order` unfiltered → the course-wide branch, the commonly used one, still reports 2.
 
 **OUT6b — `test_reset_post_still_clears_a_drafted_units_state`**
@@ -1205,7 +1215,15 @@ Apply at `course_outline`, `course_results`, `progress_reset`, and the notes hub
 
 `full_lesson_render_context` (serves the lesson GET, the `check_answer` re-render **and** the notes no-JS re-render), `quiz_unit`, and `_quiz_render_feedback` (the no-JS quiz-answer re-render) — all three in `courses/views.py`; find them by name, the line numbers drift. Patching only the two named views leaves two re-render paths shipping an unfiltered nav.
 
-Neither helper takes `request`, but both take `user`, and **on these paths `user` IS the viewer** — so the expression evaluates from the existing argument. This is the one place reading the viewer off a `user` parameter is correct, and it is correct for the opposite reason to `build_student_breakdown`, where `user` is the student being *read about*. Do not generalise from either case to the other.
+The three sites do **not** share a shape — read each signature rather than assuming:
+
+| Site | Signature | Viewer comes from |
+|---|---|---|
+| `full_lesson_render_context(node, user, …)` | takes `user`, no `request` | the `user` argument |
+| `quiz_unit(request, slug, node_pk)` | a view | `request.user` |
+| `_quiz_render_feedback(request, node, element, question, response, …)` | takes `request`, **no `user` at all** | `request.user` — its body already does this |
+
+Only the first reads the viewer off a `user` parameter, and there it is correct — for the opposite reason to `build_student_breakdown`, where `user` is the student being *read about*. That distinction is the whole reason the filter is a parameter; do not generalise from either case to the other.
 
 - [ ] **Step 5: Split `progress_reset`'s count from its write**
 
@@ -1438,7 +1456,9 @@ git commit -m "feat(tags,notes): exclude foreign drafts from the queryset-driven
 - **ANA3** — drive `build_results_matrix` / `build_progress_matrix` through `views_analytics`, **including one drill-down expansion**. *Mutant: filter `build_matrix_columns` (a three-line alias with zero production callers) → both real matrices and every expansion stay unfiltered, and the test looks green.*
 - **ANA4** — `lesson_pks` denominators match the columns.
 - **ANA5** — the gradebook and review queue drop never-published quizzes, proving `quiz_units_in_order` carries the keyword.
-- **ANA6** — **three containers plus an alignment assertion.** (a) an all-draft chapter has no column; (b) a chapter of only **non-obligatory published lessons** still **has** one; (c) an **expanded** all-draft chapter is dropped and absent from `expanded_nodes`. Then `len(header_rows[-1]) == len(columns)`, and (a)'s title absent from `header_rows`.
+- **ANA6** — **four containers plus an alignment assertion.** (a) an all-draft chapter has no column; (b) a chapter of only **non-obligatory published lessons** still **has** one; (c) an **expanded** all-draft chapter is dropped and absent from `expanded_nodes`; (d) a chapter with **no units at all** keeps its column, in **all three modes**. Then `len(header_rows[-1]) == len(columns)`, and (a)'s title absent from `header_rows`.
+
+  *Mutant A:* key the drop on `lesson_pks`/`quiz_pks` emptiness → red on (b). *Mutant B:* post-filter `result["columns"]` instead of guarding inside `walk` → red on the alignment assertion only, green on (a)–(d). *Mutant C:* guard only the leaf arm → red on (c). *Mutant D:* drop the `total and` conjunct from Step 4's rule → red on (d), **and three existing `frontier_columns` tests go red too** (see Step 4).
 - **OUT7** — `build_student_breakdown` keeps a draft unit that holds data even though its `user` argument is the *student*, and the test asserts **both** denominators (teacher's and student's) so the deliberate divergence is a pinned fixture.
 
 - [ ] **Step 2: Run to verify failure**
@@ -1478,22 +1498,36 @@ Post-filtering `result["columns"]` is therefore wrong, and it is the reading a "
 Guard **both arms** of `walk`. The `if node.pk in expanded_pks and kids` arm keys on the unfiltered children map, so a drilled-into all-draft chapter is still recursed through, `walk` returns `0`, and the header emits `<th colspan="0">` — invalid HTML5 that browsers clamp to 1, producing a phantom spanning cell:
 
 ```python
-    def has_visible_unit(root):
-        stack, seen = [root], False
-        while stack and not seen:
+    def unit_counts(root):
+        """(total_units, visible_units) over root's subtree."""
+        stack, total, visible = [root], 0, 0
+        while stack:
             n = stack.pop()
             if n.kind == ContentNode.Kind.UNIT:
-                seen = unit_is_visible(n, drafts=drafts, with_data=with_data)
+                total += 1
+                visible += unit_is_visible(n, drafts=drafts, with_data=with_data)
             stack.extend(children.get(n.pk, []))
-        return seen
+        return total, visible
 
     def walk(parent_id, depth):
         leaves = 0
         for node in children.get(parent_id, []):
-            if not has_visible_unit(node):
+            total, visible = unit_counts(node)
+            # Drop ONLY when the subtree HAS units and none is visible.
+            if total and not visible:
                 continue  # suppresses columns.append, cells_by_depth AND leaves
             ...
 ```
+
+**The `total and` conjunct is load-bearing — do not simplify it to "has a visible unit".** A container with **zero units** would then be dropped in every mode, including the `"keep"` default, and today `frontier_columns` emits a leaf column for any frontier node regardless of contents. Three existing tests pin that:
+
+| Test | Fixture it asserts |
+|---|---|
+| `test_frontier_empty_matches_build_matrix_columns` | `_ch2` is a childless chapter; asserts it is column 1 with `expandable is False` |
+| `test_frontier_expand_chapter_replaces_with_children` | expects `["Sec", "Loose"]`, where `Sec` is a childless section |
+| `test_frontier_header_rows_colspan_rowspan_nesting` | expects `["P1","S1","S2","C2","C3"]`, where `P1`, `C2` and `C3` hold no units |
+
+All three would go red on the simplified rule — and Step 6's diagnostic ("those tests assert about live content, so `drafts="keep"` is the correct value to add") would send the implementer chasing keyword threading for what is actually a container-pruning regression. With the conjunct, the rule is a **no-op under `keep`** and today's columns are preserved exactly.
 
 Key the drop on **visible units**, never on `lesson_pks`/`quiz_pks` being empty: `subtree_pks` adds to `lesson_pks` only for `is_obligatory_lesson(n)` and to `quiz_pks` only for `is_quiz_unit(n)`, so a **non-obligatory lesson contributes to neither**. A chapter of only optional lessons has two empty pk sets *today*, with everything published — an emptiness rule would delete that column as an unrelated regression.
 
@@ -1531,7 +1565,7 @@ def build_student_breakdown(course, student, *, drafts, with_data=None): ...
 
 This is where "every caller must decide" becomes true — it could not be done in Task 4, whose Files list touched none of these call sites. Removing the default now converts any site still calling positionally into a loud `TypeError` at import/call time rather than a silent `"keep"`.
 
-Run the two rollup suites and fix the 13 assertions that call them positionally:
+Run the two rollup suites and fix **every positional call they report as a `TypeError`** — there are 14 today (10 in `tests/test_courses_rollups.py`, 4 in `tests/test_analytics_rollups.py`), but treat the failure list as the checklist rather than the number, which drifts:
 
 ```bash
 uv run pytest tests/test_courses_rollups.py tests/test_analytics_rollups.py -q --verbosity=0
@@ -2025,7 +2059,28 @@ def _flag_conflict(request, course, node, *, ctx):
     )
 ```
 
-`_unit_url(node)` reverses `courses:lesson_unit` or `courses:quiz_unit` on `node.unit_type` — the same branch `node_permalink` already makes.
+**`_unit_url` does not exist yet — this task creates it in `views_manage.py`.** The only one in the repo is `tags/views._unit_url`, a module-private helper in another app; importing a `_`-prefixed name across apps is not the answer. Add it beside `_flag_error`, making the same branch `node_permalink` already makes:
+
+```python
+def _unit_url(node):
+    name = (
+        "courses:quiz_unit"
+        if node.unit_type == ContentNode.UnitType.QUIZ
+        else "courses:lesson_unit"
+    )
+    return reverse(name, kwargs={"slug": node.course.slug, "node_pk": node.pk})
+```
+
+**Both error renderers fall back to the builder arm for a non-unit `node`, whatever `ctx` says.** `_editor_page(request, unit, …)` calls `_editor_rows(unit)` and `_unit_ancestors(unit)` — it is a unit-only surface — and `_unit_url` has no meaning for a container. But `node_flag` accepts any node, and two of its own 422 paths fire on containers (`scope=node` on a container, and a bad `value` posted with `ctx=editor&node=<container>`). So each `ctx` test carries a conjunct:
+
+```python
+    is_unit = node is not None and node.kind == ContentNode.Kind.UNIT
+    if ctx == "editor" and is_unit: ...
+    if ctx == "unit" and is_unit: ...
+    # otherwise fall through to the builder arm
+```
+
+This is the same "never trust the caller" rule the endpoint validates `node` for; WR16 exercises the builder arm only, so extend it with a `ctx=editor` container case.
 
 A single-node `.exists()` here, **not** the course-wide set Task 13 builds for the tree render. And **any status**, not `SUBMITTED`-only: an in-progress attempt is interrupted by unpublishing, which is worth confirming even though it damages no data.
 
@@ -2098,6 +2153,10 @@ def _flag_strip(request, course, node, *, flag, scope, ctx=None):
 
     `ctx` must round-trip -- see the response table in Task 11 Step 5."""
     return render(request, template, {
+        "course": course,        # the form's action and the interstitial's
+                                 # Cancel href both reverse on course.slug --
+                                 # omit it and you get NoReverseMatch, not a
+                                 # blank
         "node": node,
         "flag": flag,            # "published" | "obligatory"
         "scope": scope,          # "node" | "subtree"
@@ -2174,6 +2233,9 @@ Root element `<div class="flag-strip" data-flag-strip="{{ node.pk }}">`. It is a
 Standalone form, every field rendered explicitly — there are no rowhead inputs to inherit:
 
 ```html
+<form method="post"
+      action="{% url 'courses:manage_node_flag' slug=course.slug %}"
+      data-op="flag-confirm">
 {% csrf_token %}
 <input type="hidden" name="node"      value="{{ node.pk }}">
 <input type="hidden" name="token"     value="{{ node.updated.isoformat }}">
@@ -2239,7 +2301,7 @@ The ones whose mutants are subtle:
 - **TREE7** — **three** quiz rows, three renderings: published+submissions → confirming anchor; no submissions → button; **drafted+submissions → button**. *Mutant B: key the rendering on "has submissions" without `and node.published` → the drafted quiz opens a strip asking the user to confirm hiding something already hidden.* **The third case is the one a two-case test misses**, and it is the state every quiz lands in immediately after the carve-out fires.
 - **TREE9** — two halves. **Markup**: the quiz row's obligatory control is `type="button"` with **no `formaction`**. *Mutant: apply the anchor recipe (drop `href`, add `aria-disabled`) → it is still `type="submit"` with a `formaction`, so a click submits natively and writes.* **Do not assert "no `href`" — a button has no `href` under any implementation, so that assertion is green on the very mutant this half exists for.* **Server**: `POST` with `flag=obligatory&scope=node&node=<quiz>` returns 422.
 - **TREE10** — a **quiz-only** container renders the obligatory control inert and the publish control live. *Mutant: key inertness on unit count → a quiz-only chapter has units but zero lessons, so it renders a tri-state over an empty denominator.*
-- **TREE8** — `builder.html` renders **six** legend rows matching six sprite symbol ids.
+- **TREE8** — `builder.html` renders **six** legend rows, one per state, and each names one of the six `icm--*` classes from Step 2 (or the six `bi-*` symbols, if you took the sprite option there — assert whichever mechanism the legend actually uses).
 
 - [ ] **Step 1b: Run to verify failure**
 
@@ -2249,7 +2311,30 @@ uv run pytest tests/test_publish_tree.py -v
 
 Expected: ten assertion failures — no toggles are rendered yet, so every glyph, inertness and Enter assertion fails.
 
-- [ ] **Step 2: Add six monochrome `currentColor` sprite symbols** — `bi-live`, `bi-draft`, `bi-live-mixed`, `bi-req`, `bi-opt`, `bi-req-mixed`. Filled/hollow/half dot and filled/outline/half star. Fill **and** silhouette both carry the state, so the pair survives greyscale and colour-blindness; colour is reinforcement, never the sole channel.
+- [ ] **Step 2: Add six MASKED icon classes to `builder.css` — NOT sprite symbols**
+
+**The builder tree does not use the `#bi-*` sprite, deliberately.** `builder.css` says so in a comment with measured numbers: `<use>` instances were 33% of mat-pp's expanded DOM (6,678 of them), and replacing them with CSS masks cut the swap's insert+layout from 334 ms to 230 ms. *"The sprite stays for `el-*` (element cards) and the editors, which render a bounded number of icons and where this trade does not pay."* Two `<use>`-backed glyphs per row would add ~5,700 shadow trees on mat-pp and re-introduce exactly that regression.
+
+So the six icons are `--icm` custom properties beside `.icm--grip`, `.icm--trash` and the rest:
+
+```css
+.icm--live       { --icm: url("data:image/svg+xml,…"); }   /* filled dot   */
+.icm--draft      { --icm: url("data:image/svg+xml,…"); }   /* hollow dot   */
+.icm--live-mixed { --icm: url("data:image/svg+xml,…"); }   /* half dot     */
+.icm--req        { --icm: url("data:image/svg+xml,…"); }   /* filled star  */
+.icm--opt        { --icm: url("data:image/svg+xml,…"); }   /* outline star */
+.icm--req-mixed  { --icm: url("data:image/svg+xml,…"); }   /* half star    */
+```
+
+**Fills inside the data URI are written `black`, never `currentColor`.** The same comment explains why: inside a `data:` URI the SVG is its own document, so `currentColor` there resolves against *that* document's initial colour, and the mask reads **alpha** — all that matters is that the glyph be opaque. `.icm::before` then paints it with `background-color: currentColor`, which is what makes hover, `:disabled` and `.ica--danger` keep working untouched.
+
+Each control carries the base class `icm` plus its state class, exactly as the existing row controls do (`class="ica icm icm--grip"`).
+
+Fill **and** silhouette both carry the state, so the pair survives greyscale and colour-blindness; colour is reinforcement, never the sole channel.
+
+**`_flag_legend.html` is the one exception.** It renders six icons once per page — a bounded count, which is precisely the case the comment says the sprite is still for. It may use either mechanism; if you use the sprite there, add the six `bi-*` symbols for it alone and keep the two id sets distinct so TREE8 and the tree tests cannot collide. Simplest is to reuse the `icm--*` classes and add no sprite symbols at all.
+
+TREE2, TREE4, TREE6 and TREE10 assert the **`icm--*` class**, not a `#bi-*` href.
 
 - [ ] **Step 3: Compute the fold in `_tree_context`**
 
@@ -2327,9 +2412,15 @@ Direct children of `<form class="tree__rowhead">`, **siblings of `.tree__cluster
 
 Write the URL once per row variant. `value` is the **opposite** of the row's current state — the control's job is to flip it:
 
+**`flag_url` is reversed once per SCOPE, in `_scope.html`, and passed down** — not reversed here. `_scope.html` already hoists `rename_url`, `move_url`, `delete_url` and `duplicate_url` with an explicit comment: *"reverse it once per scope and pass it down instead of paying a reversal on every row (an 840-node course reversed it 840 times, ~64µs each)."* `_tree_node.html` is the per-row partial, so `{% url … as flag_url %}` here would pay 2,866 reversals on mat-pp — the exact cost Task 11 Step 7 chose the `<slug>`-only path shape to avoid.
+
+Add to `_scope.html` beside the other four, and add `flag_url=flag_url` to its `{% include "courses/manage/_tree_node.html" with … %}` call. Add `templates/courses/manage/_scope.html` to this task's Files list.
+
 ```django
+{# _scope.html, once per scope: #}
 {% url 'courses:manage_node_flag' slug=course.slug as flag_url %}
 
+{# _tree_node.html consumes the passed-in flag_url. #}
 {# Lesson unit — publish toggle #}
 <button type="submit" data-op="flag" data-flag="published"
         formaction="{{ flag_url }}?flag=published&amp;value={% if node.published %}0{% else %}1{% endif %}&amp;scope=node"
@@ -2386,24 +2477,28 @@ Those four tests read *glyphs*, and nothing so far says how a glyph is chosen. T
 
 {% if node.kind == "unit" %}
   {# binary: the node's own two flags #}
-  {% if node.published %}bi-live{% else %}bi-draft{% endif %}
-  {% if node.obligatory %}bi-req{% else %}bi-opt{% endif %}
+  {% if node.published %}icm--live{% else %}icm--draft{% endif %}
+  {% if node.obligatory %}icm--req{% else %}icm--opt{% endif %}
 {% else %}
   {% with fc=flag_counts|get_item:node.pk %}
-    {# publish tri-state: slots 0 (live_units) and 1 (total_units) #}
-    {% if fc.1 == 0 %}{# inert: NO glyph -- aria-disabled + the title IS the control #}
-    {% elif fc.0 == fc.1 %}bi-live
-    {% elif fc.0 == 0 %}bi-draft
-    {% else %}bi-live-mixed{% endif %}
+    {% if fc %}
+      {# publish tri-state: slots 0 (live_units) and 1 (total_units) #}
+      {% if fc.1 == 0 %}{# inert: no glyph -- aria-disabled + the title IS the control #}
+      {% elif fc.0 == fc.1 %}icm--live
+      {% elif fc.0 == 0 %}icm--draft
+      {% else %}icm--live-mixed{% endif %}
 
-    {# obligatory tri-state: slots 2 (obligatory_lessons) and 3 (total_lessons) #}
-    {% if fc.3 == 0 %}{# inert: NO glyph, as above #}
-    {% elif fc.2 == fc.3 %}bi-req
-    {% elif fc.2 == 0 %}bi-opt
-    {% else %}bi-req-mixed{% endif %}
+      {# obligatory tri-state: slots 2 (obligatory_lessons) and 3 (total_lessons) #}
+      {% if fc.3 == 0 %}{# inert: no glyph, as above #}
+      {% elif fc.2 == fc.3 %}icm--req
+      {% elif fc.2 == 0 %}icm--opt
+      {% else %}icm--req-mixed{% endif %}
+    {% endif %}
   {% endwith %}
 {% endif %}
 ```
+
+**The `{% if fc %}` guard is not defensive padding.** `get_item` is `mapping.get(key, [])`, so a missing container key yields `[]` — and then `fc.0` / `fc.1` both resolve to Django's invalid-variable string `""`. `"" == 0` is False but `"" == ""` is True, so the `elif fc.0 == fc.1` arm fires and the row silently renders **all-live**. That is the worst possible default for this feature, and it fails without raising. The guard turns a silent wrong glyph into a missing one, which a test can see.
 
 The two `== 0` guards are the **count-based** inert cases from Step 4's row table — the filter-active case is a third, also in Step 4 — and they use **different** slots — `fc.1` (units) for publish, `fc.3` (lessons) for obligatory. That asymmetry is the whole of TREE10: a quiz-only chapter has `fc.1 > 0` and `fc.3 == 0`, so its publish control is live while its obligatory control is inert.
 
@@ -2449,7 +2544,7 @@ The `node.kind == 'unit'` conjunct is load-bearing: a container has no publish s
 
 **Every rule this task adds goes in `courses/static/courses/css/builder.css`.** `builder.html` loads only `builder.css`, and `.tree__row`, `.tree__rowhead`, `.tree__cluster` and `input.tree__title` are all defined there. `editor.css` says so itself: *"The builder's `.tree__scope`/`.tree__row`/`.tree__rowhead` are deliberately NOT reused: they live in builder.css, which this page does not load."*
 
-Put the strike-through, the seven `order` values from Step 5, and the opacity exemption below into `builder.css`. Written into `editor.css` they would be inert — the builder never pulls that file in, so E2E1 and the whole Step 5 layout would fail silently, with correct-looking CSS sitting in the repo.
+Put **the six `.icm--*` rules from Step 2**, the strike-through, the seven `order` values from Step 5, and the opacity exemption below into `builder.css`. All four groups; omitting the `--icm` rules leaves every toggle rendering an empty 15×15 box, since `.icm::before` masks against an undefined custom property. Written into `editor.css` they would be inert — the builder never pulls that file in, so E2E1 and the whole Step 5 layout would fail silently, with correct-looking CSS sitting in the repo.
 
 The class lands on the `<li>` while the strike-through belongs on the title, so it is a **descendant** selector — not a rule on the class itself:
 
@@ -2522,14 +2617,22 @@ Omitting the fetch header makes `_wants_fragment` false and injects a whole page
 
 A POST can come back as a strip (a stale page, or a click that raced the quiz's first submission). That response's root is **not** `<… data-scope="top">`, so `applyFragment` misses the lookup and **silently no-ops** — the author clicks, nothing happens, nothing writes, nothing explains why:
 
+`incoming`, `control` and `reenable` are not existing symbols — the existing dispatch has a raw `text` response, `e.submitter`, and `releaseForm(form, op)` (which returns early unless `op === "rename"`). Derive them:
+
 ```js
+var control = e.submitter;                 // the clicked button/anchor
+control.disabled = true;                   // buttons; anchors get aria-disabled
 try {
-  if (incoming.matches("[data-flag-strip]")) {   // server is asking, not answering
+  var incoming = parseFragment(text).firstElementChild;
+  if (incoming && incoming.matches("[data-flag-strip]")) {
+    // The server is asking, not answering: this response is a strip, whose
+    // root has no data-scope, so applyFragment would silently no-op.
     insertStripAfterRowhead(incoming); focusInto(incoming); return;
   }
   applyFragment(text);
 } finally {
-  reenable(control);        // MUST run on every arm
+  control.disabled = false;                // MUST run on every arm
+  control.removeAttribute("aria-disabled");
 }
 ```
 
