@@ -166,6 +166,21 @@ qs = qs.exclude(
 of `can_manage_course`, which today exists only as a per-object predicate. `accessible_courses`
 is not it: that is the read gate, and using it here would show drafts to every enrolled student.
 
+Its two branches follow `can_manage_course`'s two disjuncts, and the first is easy to get wrong:
+
+```python
+def manageable_courses(user):
+    if not user.is_authenticated:
+        return Course.objects.none()
+    if user.has_perm("courses.change_course"):
+        return Course.objects.all()      # Platform Admin — a GLOBAL perm, no per-course row
+    return Course.objects.filter(owner=user)
+```
+
+`courses.change_course` is a model-level permission with nothing per-course to filter on, so a
+Platform Admin's result is **unfiltered**. §9 WR15c covers that branch; WR15b's manages-A-not-B
+fixture exercises only the owner branch and is green on an implementation that forgets the first.
+
 The `unit__kind="unit"` conjunct matters too: `exclude(unit__published=False)` alone would also drop
 rows attached to containers, whose `published` column is meaningless (§1).
 
@@ -687,12 +702,22 @@ button is an optimisation; it is never the guard.
 
 ```python
 needs_confirmation = scope == "subtree" or (
-    flag == "published" and value == "0" and node.unit_type == "quiz"
-    and QuizSubmission.objects.filter(
-        unit=node, status=QuizSubmission.Status.SUBMITTED
-    ).exists()
+    flag == "published" and value == "0"
+    and node.published                       # nothing to confirm about hiding what is hidden
+    and node.unit_type == "quiz"
+    and QuizSubmission.objects.filter(unit=node).exists()   # ANY status — see §6
 )
 ```
+
+**`node.published` makes this exactly the rendering condition in the row table above.** Without it,
+a stale page posting `value=0` at an already-drafted quiz reaches a strip reading "Hide 'Test 2'
+from students?" for a unit that is already hidden — the server-side mirror of the bug TREE7's
+Mutant B guards against on the client.
+
+**`.exists()` over ANY status, not `SUBMITTED` only** — §6 explains why: an in-progress attempt is
+interrupted by unpublishing, which is worth confirming even though it damages no data. This is the
+one place the two counts diverge in *direction*: the confirmation trigger widens to all rows, while
+the editor banner's count stays `SUBMITTED`-only.
 
 **A single-node `.exists()` here, not the course-wide `quizzes_with_submissions` set.** That set
 exists only in §5, built in `_tree_context` to avoid an N+1 across every quiz row of the *tree
@@ -745,10 +770,21 @@ All three parameters are validated against literal allow-lists **before** anythi
 | Parameter | Accepted | Missing | Anything else |
 |---|---|---|---|
 | `flag` | `"published"`, `"obligatory"` | 422 | 422 |
-| `value` | `"0"`, `"1"` | 422 | 422 — **not** a truthiness coercion; `"true"`, `""` and `"False"` are all 422 |
+| `value` | `"0"`, `"1"` | **422 on POST; allowed on GET** — see below | 422 — **not** a truthiness coercion; `"true"`, `""` and `"False"` are all 422 |
 | `scope` | `"node"`, `"subtree"` | 422 | 422 |
-| `ctx` | `"editor"`, `"unit"` | *allowed* — absent means "from the builder" | 422 |
+| `ctx` | `"editor"`, `"unit"` | *allowed* — absent means "from the builder" | 422, rendered through the **builder** arm |
 | `confirmed` | `"1"` | allowed — means "not yet confirmed" | 422 |
+
+**`value` is optional on the GET, and the container anchor does not send one.** A mixed container's
+strip offers *both* directions, and an all-live or all-draft container's single action is derived
+from the counts — so the GET has no direction to be told. The anchor's href is therefore
+`?node=<pk>&flag=<flag>&scope=subtree` with **no `value`**, and the strip supplies the direction on
+its submit buttons. Requiring `value` on GET would 422 every container anchor; the write path still
+requires it absolutely.
+
+An unrecognised **`ctx`** is a 422 like any other bad parameter, but `ctx` is also what selects the
+response arm — so when `ctx` is itself the invalid value it is treated as **absent** for
+response-shape purposes and the 422 renders through the builder arm.
 
 **`scope` must also agree with the node's kind**, and the server enforces it rather than trusting
 the markup — the same principle that makes confirmation server-side:
@@ -800,8 +836,8 @@ markup does. The template still cooperates so the interaction is not a surprise 
 | Row | Publish control renders as | On activation |
 |---|---|---|
 | Unit, ordinary | `<button type="submit" data-op="flag">` | POSTs; writes immediately |
-| Unit, quiz, **currently published**, with ≥1 submitted | `<a data-flag-confirm="<pk>">` | GETs the strip |
-| Unit, quiz, **currently draft**, with ≥1 submitted | `<button type="submit" data-op="flag">` | POSTs; writes immediately |
+| Unit, quiz, **currently published**, with ≥1 submission (**any status**) | `<a data-flag-confirm="<pk>">` | GETs the strip |
+| Unit, quiz, **currently draft**, with ≥1 submission | `<button type="submit" data-op="flag">` | POSTs; writes immediately |
 | Container | `<a data-flag-confirm="<pk>">` | GETs the strip |
 
 **`and node.published` is load-bearing in that second row.** Keying the rendering on "has
@@ -967,13 +1003,35 @@ them and the "non-fragment" row below would send an editor-page author to the bu
 | Success, non-fragment | Redirect via `_redirect_to_builder` | Redirect to `courses:manage_editor` | Redirect to the unit URL |
 | Stale token (409) | `_conflict_scope` (fragment) / `_builder_with_notice` | Redirect to the editor with `?changed=1` | Redirect to the unit URL |
 | Bad parameter (422) | `_op_error.html` (fragment) / `_builder_with_notice` | `_editor_page(..., error=msg, status=422)` | Redirect to the unit URL |
-| Needs confirmation, unconfirmed | Strip (fragment) / interstitial | interstitial | interstitial |
+| Needs confirmation, unconfirmed | Strip, marked (fragment) / interstitial | interstitial | interstitial |
 | `node` not in this course (404) | Existing `_require_manage` + node-scoping behaviour, unchanged | | |
 
 **Fragment vs full page is otherwise decided by the existing `_wants_fragment(request)` helper**, on
 both methods — the same discriminator every other builder view uses. The new GET is the first
 builder endpoint where an anchor navigation and a `fetch` hit the same URL, so this must be explicit
 rather than assumed.
+
+### A POST can come back as a strip, and the client must not treat that as a swap
+
+§4 admits a reachable case where a **POST** from the JS path returns the strip instead of writing —
+a stale page, or a click that raced the quiz's first submission. That response is a confirm strip,
+whose root is **not** `<… data-scope="top">`. Handed to `applyFragment` it misses the lookup and
+**silently no-ops**: the author clicks the publish dot, nothing happens, nothing writes, and nothing
+explains why.
+
+The strip's root therefore carries **`data-flag-strip="<pk>"`**, and the POST handler branches on it
+before reaching `applyFragment`:
+
+```js
+if (incoming.matches("[data-flag-strip]")) {   // server is asking, not answering
+  insertStripAfterRowhead(incoming); focusInto(incoming); return;
+}
+applyFragment(text);
+```
+
+Same insertion and focus behaviour as the GET path — the two arrive at the same place by different
+routes. §9 E2E6 drives it end to end, because WR13 asserts only the server half and is green on a
+client that drops the response on the floor.
 
 `X-Builder-Info` carries full state and is emitted on the same terms as the other builder ops — this
 endpoint introduces no new convention for it.
@@ -994,10 +1052,15 @@ keyboard user would be dropped to the top of a 2,866-row tree — the same defec
 ### The bulk write bypasses `auto_now`
 
 ```python
+# The column comes from the ALLOW-LISTED flag — this endpoint serves both.
 ContentNode.objects.filter(pk__in=unit_pks).update(
-    published=value, updated=timezone.now()
+    **{flag: value}, updated=timezone.now()
 )
 ```
+
+Written `published=value`, the snippet reads as a publish-only implementation and invites an
+`if flag == "published": … else: …` fork whose second arm quietly omits the `updated` bump. `flag`
+has already passed the allow-list (§4 Validation), which is what makes `**{flag: value}` safe.
 
 `QuerySet.update()` does **not** fire `auto_now`, so an `update(published=...)` alone would leave
 every touched row's `updated` — and therefore its optimistic-concurrency token, and the builder's
@@ -1192,6 +1255,34 @@ The subtree **write** follows the same split: `flag=obligatory` with `scope=subt
 `flag=published` writes every unit. §9 TREE6 uses a container holding exactly one quiz and one
 obligatory lesson — the fixture where a shared denominator and a split one disagree.
 
+### The obligatory control is inert wherever `obligatory` is meaningless
+
+The split has two consequences for rendering that the glyph table alone does not imply. Both follow
+the same principle: **the control is always present so the row's layout is uniform, and inert
+wherever the flag would mean nothing** — the `order` table's seven-child layout stays fixed, with no
+conditional slots.
+
+| Row | Publish control | Obligatory control |
+|---|---|---|
+| Lesson unit | live | live |
+| **Quiz unit** | live | **inert**, tooltip "Obligatory applies to lessons only" |
+| Container with ≥1 unit but **zero lessons** (e.g. quizzes only) | live | **inert**, tooltip "No lessons" |
+| Container with zero units | inert | inert |
+
+**A quiz's obligatory star must not be clickable.** One click would do precisely what WR14 forbids
+the bulk path from doing — write `obligatory` onto a row where no progress path ever reads it. That
+the same spec bans it in bulk and permits it per-click would be an inconsistency an implementer
+would have to guess their way out of.
+
+**The quiz-only container is the case the "zero units" rule misses.** That carve-out keys on unit
+count, but the obligatory tri-state's denominator is `total_lessons`. A chapter of nothing but
+quizzes has units yet `total_lessons == 0`, so its publish control is legitimately live while its
+obligatory control has no denominator to render a tri-state from — and "All obligatory" would write
+nothing while appearing to act. The two controls are made inert **independently**, never as a row.
+
+Inert means the same thing here as everywhere in §5: no `href`, `aria-disabled="true"`,
+`tabindex="-1"`, handler bails. §9 TREE9 and TREE10 pin the two cases.
+
 ### The fold
 
 Per container the tree needs `(live_units, total_units, obligatory_lessons, total_lessons)` over its
@@ -1211,11 +1302,15 @@ must know which quiz units have ≥1 submitted submission:
 
 ```python
 quizzes_with_submissions = set(
-    QuizSubmission.objects
-        .filter(unit__course=course, status=QuizSubmission.Status.SUBMITTED)
+    QuizSubmission.objects           # ANY status — matches needs_confirmation, §4/§6
+        .filter(unit__course=course)
         .values_list("unit_id", flat=True)
 )
 ```
+
+Note this set is **not** `SUBMITTED`-only. It mirrors `needs_confirmation`, which widens to any
+submission row so an interrupted in-flight attempt still earns a confirmation. The `SUBMITTED`
+filter belongs to the editor banner's *count*, which is a different question (§6).
 
 Built once in `_tree_context` and carried in the same context. Per-row it would be an N+1 across
 every quiz in a 2,866-node tree.
@@ -1368,11 +1463,46 @@ This does mean the three hazards divide unevenly, and the banner's wording must 
 | `CASCADE` deleting `QuestionResponse` with its element | Yes |
 | `max_score` cached at Finish | No — it is null until Finish |
 
-An in-progress attempt is genuinely at risk from an edit, but it is also *live* — the student is
-mid-quiz — and a "12 students have submitted" banner is the wrong instrument for that. The
-protection for a mid-attempt student is that the quiz stays published while they work; nothing in
-this spec pulls a quiz out from under an in-flight attempt, because unpublishing is always a
-deliberate, confirmed act by an author.
+### Unpublishing DOES strand an in-flight attempt, and the strip says so
+
+An earlier draft of this spec claimed a mid-attempt student was protected because "unpublishing is
+always a deliberate, confirmed act". **That claim was false in both halves**, and the real behaviour
+is stated here instead:
+
+- **Unpublishing is not always confirmed.** `needs_confirmation` requires a `SUBMITTED` row to
+  exist. A quiz with only `IN_PROGRESS` attempts therefore unpublishes on **one click**, with no
+  strip, no count and no warning — exactly the population a "protection" claim would cover.
+- **The attempt is stranded, not merely paused.** §3 gates `quiz_answer` and `quiz_finish` with
+  `viewer=request.user`, so the moment the quiz goes draft the student 404s on their next answer and
+  on Finish. Their `QuizSubmission` stays `IN_PROGRESS` with `max_score` null.
+
+**The behaviour is accepted; the silence is not.** Nothing is auto-submitted and nothing is
+discarded: the row survives untouched, and when the quiz is republished the student resumes the same
+submission with their existing answers intact — `quiz_unit` reopens an `IN_PROGRESS` submission
+rather than creating a second one. Auto-submitting on unpublish would score a partial attempt as
+final, which is worse than making the student wait.
+
+What changes is the confirm strip's trigger and copy. `needs_confirmation` fires on **any**
+submission row, in progress or submitted, and the strip reports the two counts **separately**
+because they carry different warnings:
+
+```
+┌─ Hide "Test 2" from students? ────────────┐
+│  12 students have submitted.              │
+│  3 students are part-way through.         │
+│                                           │
+│  Submitted results are kept, but students │
+│  will not see them while it is hidden,    │
+│  and edits will not re-grade them.        │
+│  Attempts in progress will be interrupted │
+│  and can be resumed when you publish.     │
+└───────────────────────────────────────────┘
+```
+
+The banner count in the editor stays `SUBMITTED`-only — "12 students have submitted" must not be
+inflated by people who merely opened the quiz. Only the *confirmation trigger* widens, because
+interrupting three people is worth one click's pause even though it damages no data. §9 QZ8 pins
+the in-progress-only quiz getting a strip.
 
 ### Archived groups soften the warning, they do not silence it
 
@@ -1663,6 +1793,10 @@ cross-reference in this document.
 - **WR1. A student and an assigned group teacher are both rejected** from `manage_node_flag`, on
   **both** the GET strip and the POST, with no write. *Mutant:* omit `_require_manage` → a student
   can unpublish the course → red.
+- **WR1b. An anonymous request gets a login redirect, not a 403.** *Mutant:* omit
+  `@login_required` → `_require_manage` raises `PermissionDenied` and the endpoint 403s where every
+  neighbouring management view redirects → red. WR1 alone is green on that mutant, since a logged-in
+  student is rejected either way.
 - **WR2. Bulk publish writes every descendant unit and bumps `updated` on each.** Assert the
   `updated` values actually changed. *Mutant:* drop `updated=timezone.now()` from the `.update()` →
   tokens go stale → red. **The highest-value test in the file**: the bug it catches is invisible
@@ -1698,9 +1832,11 @@ cross-reference in this document.
   strip rather than a 4xx. Drive it with a hand-rolled POST, not through the UI. *Mutant:* let the
   template's choice of element be the only guard → a direct POST unpublishes a quiz with no
   confirmation, and every UI-driven test stays green → red.
-- **WR14. `flag=obligatory` with `scope=subtree` writes lesson units only.** Seed a chapter with one
-  lesson and one quiz; assert the quiz's `obligatory` is untouched. *Mutant:* restrict to
-  `kind="unit"` alone → the quiz's inert flag is stamped → red.
+- **WR14. `flag=obligatory` with `scope=subtree` writes lesson units only, and bumps `updated`.**
+  Seed a chapter with one lesson and one quiz; assert the quiz's `obligatory` is untouched **and**
+  that the lesson's `updated` advanced. *Mutant A:* restrict to `kind="unit"` alone → the quiz's
+  inert flag is stamped → red. *Mutant B:* fork on `flag` and omit `updated=timezone.now()` from the
+  obligatory arm → red. WR2 pins the bump only for `published` and is green on Mutant B.
 - **WR15. The tags/notes hub querysets exclude drafted units for a student and keep them for an
   author.** *Mutant:* rely on the traversal keyword → `units_by_tag` builds from `UnitTag` rows and
   filters nothing, so a student keeps seeing a live link to a drafted unit → red.
@@ -1708,6 +1844,10 @@ cross-reference in this document.
   set.** *Mutant:* implement the hub filter as a single `can_see_drafts` boolean → it cannot be
   evaluated (no `course` in scope) or is evaluated for the wrong course → red. This is the fixture
   proving the filter had to move into the query.
+- **WR15c. A Platform Admin (`courses.change_course`, owning nothing) sees drafts on the tags hub
+  for every course.** *Mutant:* implement `manageable_courses` as `filter(owner=user)` alone → the
+  global-permission branch is missing and a PA loses drafts everywhere → red. WR15b's owner fixture
+  is green on that mutant.
 - **WR16. `scope` must agree with the node's kind.** `scope=node` on a container and
   `scope=subtree` on a unit both 422, with no write. *Mutant:* validate `scope` against its
   allow-list only → a container gets a `published` value written to it, undoing the normalisation
@@ -1733,6 +1873,15 @@ cross-reference in this document.
   *Mutant:* fold over the template's `children_map` (`fc.restricted`) → 2 → red.
 - **TREE5. Container toggles are inert while a filter is active**; unit toggles are not. Same
   assertion shape as TREE3 — `href` absent / `aria-disabled` present.
+- **TREE9. A quiz unit row renders its obligatory control inert** (no `href`, `aria-disabled`) while
+  its publish control stays live. *Mutant:* render both live → one click writes `obligatory` onto a
+  quiz, exactly what WR14 forbids in bulk → red.
+- **TREE10. A container holding only quizzes renders the obligatory control inert and the publish
+  control live.** *Mutant:* key inertness on unit count → a quiz-only chapter has units but zero
+  lessons, so it renders a tri-state over an empty denominator and offers an action that writes
+  nothing → red.
+- **TREE11. A container anchor's href carries no `value`**, and following it returns the mixed
+  strip. *Mutant:* require `value` on the GET → every container anchor 422s → red.
 - **TREE8. `builder.html` renders six legend rows, and their symbol ids match the six sprite
   symbols.** *Mutant:* add a seventh sprite symbol without a legend row, or drop a row → red. This
   is the drift signal §5 names; without a test it is only a comment.
@@ -1764,6 +1913,12 @@ cross-reference in this document.
 - **QZ6. In-progress submissions are not counted.** Open a quiz as a student without finishing, and
   assert the editor shows no banner. *Mutant:* count every `QuizSubmission` row → "1 student has
   submitted" for a quiz nobody submitted → red.
+- **QZ8. A quiz with ONLY in-progress attempts still gets a confirm strip on unpublish**, and the
+  strip reports the in-progress count on its own line. *Mutant:* filter `needs_confirmation` to
+  `status=SUBMITTED` → the quiz unpublishes on one click with no warning, stranding three people
+  mid-attempt → red. QZ1–QZ6 all use submitted rows and are green on that mutant.
+- **QZ9. An interrupted attempt resumes on republication** — same `QuizSubmission`, answers intact,
+  no second row created. Pins §6's "nothing is auto-submitted and nothing is discarded".
 - **QZ7. A student who submitted 404s on `quiz_results` while the quiz is drafted**, and the row is
   gone from their `course_results`. Both halves in one test. This pins the consequence §2 states —
   a student temporarily loses sight of their own marks — so it is a fixture rather than a support
@@ -1809,6 +1964,11 @@ cross-reference in this document.
 - **E2E5.** A **collapsed** container's toggle visibly updates its own glyph and its ancestors'.
   This is the case every narrower fragment choice silently no-ops on, and a test that expands the
   container first would pass on all of them.
+- **E2E6.** A POST that comes back as a strip **opens the strip** rather than doing nothing. Drive
+  it by unpublishing a quiz whose first submission arrives between render and click (seed the
+  submission, then click a button rendered before it existed). *Mutant:* route the response straight
+  to `applyFragment` → the root has no `data-scope`, the swap silently no-ops, and the author sees a
+  dead click → red. WR13 asserts only the server half and is green on that mutant.
 
 `checkVisibility()` is required wherever a collapsed `<details>` is involved, and the confirm strip
 must be synchronised on a condition rather than a sleep, per the project's e2e conventions.
