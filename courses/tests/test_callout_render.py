@@ -53,6 +53,9 @@ def test_task_render_emits_pencil_icon():
     html = CalloutElement(kind="task", body="").render()
     # The path is the pencil's distinguishing geometry...
     assert "m15 5 4 4" in html
+    # ...and the pencil's body (the barrel/tip outline), not just the nib stroke --
+    # a truncated or garbled body path would leave a lone diagonal tick on screen.
+    assert "M21.174 6.812a1 1 0 0 0-3.986-3.987" in html
     # ...and the chip must still be styled and hidden from assistive tech.
     # NOTE: these two do NOT fall to the delete-the-elif mutant -- the {% else %}
     # book-open SVG carries the identical class and aria-hidden. They have their
