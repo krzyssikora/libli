@@ -26,11 +26,14 @@ The kind is author-facing in English as **Task** and in Polish as **Zadanie**.
 ## Decisions and rationale
 
 **D1 — the stored value is `"task"`, matching its label.** The existing fourth kind stores
-`"warning"` while displaying "Important", a mismatch that now needs a comment in the model to
-stop a future contributor "fixing" it with a data migration. That mismatch exists only because
-the relabel came after the data. Here there is no data and no constraint, so value and label
-agree from the start rather than introducing a second such trap. `Kind.TASK = "task"`, CSS
-class `.callout--task`, transfer payload `{"kind": "task"}`.
+`"warning"` while displaying "Important" — a mismatch that already carries its own guard
+comment at `courses/models.py:467-468` ("Value stays 'warning' … only the author-facing label
+reads 'Important'"), precisely to stop a future contributor "fixing" it with a data migration.
+That mismatch exists only because the relabel came after the data. Here there is no data and no
+constraint, so value and label agree from the start rather than introducing a second such trap.
+`Kind.TASK = "task"`, CSS class `.callout--task`, transfer payload `{"kind": "task"}`.
+**This change adds no comment to the model** — the existing guard needs no reinforcement, and
+§1's change list contains no such edit.
 
 **D2 — `FORMAT_VERSION` is NOT bumped; it stays at 9.**
 
@@ -64,14 +67,21 @@ removes the blanket failure but not the element-level one: an archive that *does
 Task callout still fails on a PROD that predates this build, with a message that does not name
 the cause. The two halves compose, so state the policy rather than leaving it implicit:
 
-> **Do not author a Task callout in mat-pp until PROD is running this build (migrated through
-> `0056`).** The cutover is imminent and this costs nothing to honour, whereas the alternative
-> policy — upgrade PROD first, then author freely — puts a deploy on the critical path of the
-> cutover.
+> **Do not author a Task callout in mat-pp until PROD is running code that contains the `TASK`
+> enum member.** The cutover is imminent and this costs nothing to honour, whereas the
+> alternative policy — upgrade PROD first, then author freely — puts a deploy on the critical
+> path of the cutover.
+
+**The gate is the deployed code, not the database.** Acceptance is decided by `_val_callout`'s
+`data["kind"] not in CalloutElement.Kind.values`, a read of the running Python. Migration `0056`
+is a state-only `AlterField` whose SQL is a no-op (§2), so whether it has been applied changes
+nothing about whether an import succeeds — citing it as the criterion would point the operator
+at the wrong check. Apply it with the rest, but do not treat it as the test.
 
 This is a sequencing note for the human running the cutover, not something the code can
-enforce. It is the intended policy; if PROD is upgraded before the export instead, the
-constraint lifts entirely.
+enforce; if PROD is upgraded before the export instead, the constraint lifts entirely. **A note
+the code cannot enforce and no artifact carries is not communicated at all**, so DoD 8 requires
+it to be written into the PR body, where the cutover operator will actually meet it.
 
 **Accepted cost of not bumping:** an older build importing an archive that *does* contain a
 Task callout fails at that element with "Element 'x' has an unknown callout kind" rather than
@@ -142,11 +152,14 @@ has repeatedly produced a stale count somewhere else:
   anchored regexes in Testing rows 1-2: this list is exactly the bare-substring form those rows
   exist to replace, and appending to it alone leaves the light rule unguarded. The file
   currently imports only `pathlib.Path`, so rows 1-2 also need **`import re`** added.
-- **Leave alone** — historical records of their own features' designs, not live documentation,
-  even though the prescribed grep will surface both:
-  `docs/superpowers/specs/2026-07-14-callout-element-design.md:18` and
-  `docs/superpowers/specs/2026-07-30-text-colour-design.md:110-111` (which enumerates
-  `.callout--tip` / `.callout--warning` as surfaces 9 and 10 of a "ten surfaces" list).
+- **Leave alone, as a class: every hit under `docs/superpowers/` is a historical record of its
+  own feature's design, not live documentation.** The grep returns on the order of a *thousand*
+  matching lines, overwhelmingly in `plans/` and `specs/`, so the rule has to be a class rule
+  rather than a list. Two illustrations:
+  `docs/superpowers/specs/2026-07-14-callout-element-design.md:18`, and
+  `docs/superpowers/plans/2026-07-14-callout-element.md:475`, which is a verbatim copy of the
+  `test_callout_render.py:22` comment this change *does* update — copy the live one, leave the
+  plan's copy frozen.
 
 ### 2. Migration
 
@@ -391,14 +404,15 @@ callout branch were exactly that.
 
 | # | Test | Location | Mutant that must fail it |
 |---|---|---|---|
-| 1 | the **light** `.callout--task` rule carries `#a8318f` | `tests/test_callout_css.py` | delete the light rule |
-| 2 | the **dark** `[data-theme="dark"] .callout--task` rule carries `#ee9fd8` | same file | delete the dark override |
+| 1 | the **light** `.callout--task` rule carries `#a8318f` — a **new** test function, not an assertion folded into `test_courses_css_defines_callout_element` (which stays the additive class-list check; burying a regex behind a name promising only class presence is how these get overlooked) | `tests/test_callout_css.py` | delete the light rule |
+| 2 | the **dark** `[data-theme="dark"] .callout--task` rule carries `#ee9fd8` — likewise its own new function | same file | delete the dark override |
 | 3 | `display_heading` for `kind="task"` is "Task" — extend the existing `test_display_heading_falls_back_to_kind_default` (`test_callout_model.py:41-44`) with a fifth line rather than adding a function | `courses/tests/test_callout_model.py` | remove the `TASK` enum member |
 | 4 | a **persisted** task callout renders `callout--task`: `CalloutElement.objects.create(kind="task")` then `.render()` | `courses/tests/test_callout_render.py` | remove the `TASK` enum member — `save()` then coerces the kind to `example` and the class becomes `callout--example` |
-| 5 | render emits the pencil path `m15 5 4 4` for `task`, and that path is **absent** from an `example` render | same file | delete the `{% elif el.kind == "task" %}` branch — it then falls through to book-open, and both halves move together |
+| 5a | a task render **contains** the pencil path `m15 5 4 4` | same file | delete the `{% elif el.kind == "task" %}` branch — the render then falls through to book-open |
+| 5b | an **example** render does **not** contain `m15 5 4 4` | same file | put the pencil into the existing `{% else %}` fallback instead of adding an elif — a plausible mistake, since `_callout_icon.html` has no explicit `example` branch and `example` is served by that `{% else %}` |
 | 6 | the editor form offers the kind: GET `manage_element_form` for a callout, then assert the **exact** unselected option string `'<option value="task">Task</option>'` — `_edit_callout.html` emits value and label with no intervening whitespace, and two separate `'value="task"' in html` / `'Task' in html` asserts would both pass with the label wrong. The neighbouring `test_edit_form_preselects_stored_kind` asserts the *selected* form (`value="warning" selected`); row 6 wants the unselected one | `courses/tests/test_callout_authoring.py` | remove the `TASK` enum member |
 | 7 | authoring persists it: POST `kind="task"`, assert the saved `content_object.kind == "task"` | same file | as above |
-| 8 | a `kind="task"` callout survives an export/import round trip | `courses/tests/test_callout_transfer.py` | revert the enum, so `_val_callout` rejects the payload |
+| 8 | a `kind="task"` callout survives an export/import round trip. The new test carries **its own `@pytest.mark.django_db`** — this module marks per-test and has no module-level `pytestmark` (see its own comment at `:83`), unlike every other callout module | `courses/tests/test_callout_transfer.py` | revert the enum, so `_val_callout` rejects the payload |
 | 9 | the pl catalog renders `Task` as "Zadanie": `with translation.override("pl"): assert str(CalloutElement(kind="task").display_heading) == "Zadanie"`. The module needs **no `pytest.mark.django_db`** — the instance is never saved, matching `test_display_heading_survives_stray_unsaved_kind`'s style — even though every neighbouring callout module carries the mark | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | leave the `msgmerge` fuzzy pre-fill in place |
 | 10 | the new callout grounds are in the normative surface list and match the CSS | `tests/test_text_colour_css.py` (extend, don't add a file) | change either accent hex without updating the literal |
 
@@ -464,6 +478,12 @@ mechanics, which this change does not touch.
    0 untranslated** (`test_i18n_po_health.py`'s three guards, including
    `test_pl_has_no_untranslated_msgid`); `en` gains `msgid "Task"` with an empty msgstr and stays
    at 0 fuzzy / 0 obsolete. Both `.mo` files regenerated via `compilemessages` — **before** DoD 3.
+
+   **If the branch is rebased onto a moved master, re-run `makemessages` + `compilemessages`
+   after the rebase — do not merge the `.mo`.** They are binary and have no 3-way merge; the
+   regeneration is the authority. Expect the diff to include catalog-wide `#:` reference-line and
+   `POT-Creation-Date` churn — that is normal extraction noise, not scope creep, and it is this
+   repo's known long-branch failure mode.
 7. Light + dark screenshot of all five kinds together. No existing page renders them side by
    side (`seed_demo_course._callout` creates a single `kind="tip"` callout), so the mechanism is:
    write a **temporary** e2e file that seeds a lesson unit holding one callout of each kind and
@@ -488,3 +508,24 @@ mechanics, which this change does not touch.
    screenshot", which would make DoD 7 unfalsifiable — and D3 stakes the whole
    magenta-over-violet/teal/rose decision on this evidence. Judge the dark shot on its own
    merits; do not infer it from the light one.
+
+   **What a pass looks like** (a verification step with no pass criterion cannot fail): in both
+   themes, (a) the five accents are mutually distinguishable at the real 3px spine and 18px
+   chip — in particular the task chip must not read as a shade of Tip's green or as severity
+   next to Important's amber, the two failure modes that eliminated teal and rose; (b) the
+   0.75rem/700 uppercase eyebrow is legible against its tint; (c) the icon is identifiable as a
+   pencil at 18px.
+
+   **Write the images to the session scratchpad, not the repo**, and record the pass as a line
+   in the PR body — the harness is deleted, so nothing else preserves the evidence D3 leans on.
+
+   **If an accent has to change, five sites move together** and both contrast tables must be
+   recomputed: the `.callout--task` rule in `courses.css`, its `[data-theme="dark"]` twin, the
+   two `LIGHT_SURFACES`/`DARK_SURFACES` entries in `tests/test_text_colour_css.py`, and the hex
+   literals inside Testing rows 1 and 2's regexes.
+
+8. **The D2 operational constraint is written into the PR body**, in its own clearly-headed
+   paragraph: *do not author a Task callout in mat-pp until PROD runs code containing the `TASK`
+   enum member.* The cutover has its own runbook and its operator has no reason to open this
+   spec, so the PR is the artifact that carries the note. If a cutover runbook is touched during
+   this work, put it there too.
