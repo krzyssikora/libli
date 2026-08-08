@@ -122,8 +122,11 @@ git commit -m "feat(callout): add the Task kind to CalloutElement.Kind"
 Append to `courses/tests/test_callout_render.py`:
 
 ```python
-@pytest.mark.django_db
 def test_persisted_task_callout_renders_kind_class():
+    # No django_db decorator needed: this module already sets
+    # `pytestmark = pytest.mark.django_db` at :5. (test_callout_transfer.py is the
+    # one callout module that marks per-test -- see Task 6.)
+    #
     # PERSISTED deliberately: the template interpolates el.kind directly, so an
     # unsaved instance renders callout--task even with the enum member absent.
     # Only save()'s coercion (task -> example) makes the mutant bite.
@@ -137,6 +140,9 @@ def test_task_render_emits_pencil_icon():
     # The path is the pencil's distinguishing geometry...
     assert "m15 5 4 4" in html
     # ...and the chip must still be styled and hidden from assistive tech.
+    # NOTE: these two do NOT fall to the delete-the-elif mutant -- the {% else %}
+    # book-open SVG carries the identical class and aria-hidden. They have their
+    # own mutant in Task 8 Step 4 ("strip aria-hidden in the task branch only").
     assert 'class="callout__icon"' in html
     assert 'aria-hidden="true"' in html
 
@@ -200,7 +206,16 @@ git commit -m "feat(callout): render the pencil icon for the Task kind"
 
 - [ ] **Step 1: Write the two failing tests**
 
-Add `import re` at the top of `tests/test_callout_css.py`, then append:
+The file currently opens with `from pathlib import Path`. Ruff's isort (`I` is selected,
+`force-single-line = true`) puts plain `import x` **above** `from x import y` in the stdlib
+section, so the import block must end up exactly:
+
+```python
+import re
+from pathlib import Path
+```
+
+Then append:
 
 ```python
 def test_callout_task_light_accent_is_pinned():
@@ -298,8 +313,14 @@ def test_every_callout_kind_has_a_ground_in_both_surface_lists():
     expected = {f"callout-{value}" for value in CalloutElement.Kind.values}
     for name, surfaces in (("LIGHT", LIGHT_SURFACES), ("DARK", DARK_SURFACES)):
         got = {k for k in surfaces if not k.startswith("--")}
-        assert got == expected, f"{name}_SURFACES callout grounds drifted: {got ^ expected}"
+        assert got == expected, (
+            f"{name}_SURFACES callout grounds drifted: {got ^ expected}"
+        )
 ```
+
+The assertion message is pre-wrapped deliberately: on one line it is 92 characters, over
+ruff's default 88 (`pyproject.toml` selects `E` and sets no `line-length` override), which
+would fail `ruff check .` in Task 8.
 
 This closes a hole the drift loop cannot: adding the dict entries but forgetting the tuple at `:126` is green (the loop skips the kind), and forgetting **both** is also green. Only the reverse partial reddens.
 
@@ -511,18 +532,27 @@ uv run python manage.py makemessages -l pl -l en --no-obsolete
 
 Expect catalog-wide `#:` reference-line and `POT-Creation-Date` churn. That is normal extraction noise, not scope creep.
 
-- [ ] **Step 2: Fix the Polish entry and clear the fuzzy trap**
+**Accepted downstream noise:** Task 8's `ruff format .` may reflow Python files after these `#:` line references were written, staling some of them. Nothing tests reference lines and the only cost is diff noise at the next extraction, so this is accepted rather than worked around — do not re-run `makemessages` after formatting just to refresh them, because that would undo the deliberate ordering in Step 3.
 
-Find `msgid "Task"` in `locale/pl/LC_MESSAGES/django.po`. `msgmerge` will likely have pre-filled it from a similar short msgid and marked it fuzzy. Set the translation and delete **both** metadata lines:
+- [ ] **Step 2: Fix the entries and clear the fuzzy trap in BOTH catalogs**
+
+`msgmerge` marks a new short msgid fuzzy in **both** catalogs, and `test_no_fuzzy_entries` iterates `CATALOGS = {"pl": PL_PO, "en": EN_PO}` — so a leftover flag in `en` reddens that guard just as surely as one in `pl`.
+
+In `locale/pl/LC_MESSAGES/django.po`:
 
 ```po
 msgid "Task"
 msgstr "Zadanie"
 ```
 
-Delete the `#, fuzzy` flag line **and** the `#| msgid "..."` reference line. Deleting only the flag leaves a wrong-but-non-empty translation that no po-health guard can see.
+In `locale/en/LC_MESSAGES/django.po`, leave the msgstr **empty** — that is the convention for the English catalog and why `test_pl_has_no_untranslated_msgid` is pl-scoped:
 
-In `locale/en/LC_MESSAGES/django.po`, leave `msgid "Task"` with an **empty** msgstr — that is the convention for the English catalog and why `test_pl_has_no_untranslated_msgid` is pl-scoped.
+```po
+msgid "Task"
+msgstr ""
+```
+
+**In both files** delete the `#, fuzzy` flag line **and** the `#| msgid "..."` reference line. Deleting only the flag leaves a wrong-but-non-empty translation that no po-health guard can see — that is exactly the failure Testing row 9 exists to catch.
 
 - [ ] **Step 3: Compile**
 
@@ -557,14 +587,18 @@ def test_task_kind_renders_zadanie_in_polish():
 
 
 def test_en_catalog_has_the_task_msgid():
-    # _entries() is obsolete-aware; a raw substring search would also match a
-    # commented-out `#~ msgid "Task"` block and assert nothing about the msgstr.
-    matches = [e for e in _entries(EN_PO) if e.msgid == "Task"]
+    # _entries() returns dicts, and it RETAINS obsolete entries with a flag rather
+    # than dropping them -- so the `not e["obsolete"]` filter is what makes "live"
+    # in the message below actually true. Without it a commented-out
+    # `#~ msgid "Task"` block would count, exactly like a raw substring search.
+    matches = [
+        e for e in _entries(EN_PO) if e["msgid"] == "Task" and not e["obsolete"]
+    ]
     assert len(matches) == 1, "expected exactly one live `Task` entry in locale/en"
-    assert matches[0].msgstrs == [""], "the en catalog entry must stay empty"
+    assert matches[0]["msgstrs"] == [""], "the en catalog entry must stay empty"
 ```
 
-**Before writing this, open `tests/test_i18n_po_health.py`** and confirm the real names of `_entries` and the entry object's attributes (`msgid`, `msgstrs`). Adapt the two assertions to whatever that helper actually returns — the *shape* above is the requirement, the attribute names are to be verified, not assumed.
+`_entries()` appends plain dicts with keys `msgid`, `msgstrs`, `fuzzy`, `obsolete`, `plural` (`tests/test_i18n_po_health.py:95-103`) — verified, use them as written.
 
 - [ ] **Step 5: Run the i18n tests**
 
@@ -608,35 +642,92 @@ git commit -m "i18n(callout): Zadanie for the Task kind, plus help manual entrie
 **Files:**
 - Create (temporarily, then delete): `tests/test_e2e_callout_kinds_shot.py`
 - Modify: `docs/superpowers/plans/2026-07-27-internal-link-cutover.md`
+- Create: `<SCRATCHPAD>/pr-body-note.md`
 
 **Interfaces:**
 - Consumes: everything from Tasks 1-7.
-- Produces: the verified branch.
+- Produces: the verified branch, plus the PR-body paragraph the pipeline's PR phase copies verbatim.
 
 This task is the spec's Definition of Done. **Do not skip a step because an earlier task was green** — several of these checks exist precisely because the earlier green was not evidence.
 
-- [ ] **Step 1: Capture the five-kind screenshots**
+- [ ] **Step 1: Establish the combined green baseline**
 
-Create `tests/test_e2e_callout_kinds_shot.py`. Copy `_make_pa_user` and `_login` **verbatim** from `tests/test_e2e_html_element.py` (they are file-local helpers there, plus its `TEST_PASSWORD` import). Seed a course with a lesson unit holding one callout of **each of the five kinds**, then:
+Before mutating anything, prove the whole selection is green with the compiled `.mo` in place. Without this, a "must go RED" in Step 5 is not attributable — you would not know the test was green to begin with.
+
+```
+docker compose -p libli-test -f docker-compose.test.yml up -d --wait
+uv run pytest courses/tests/test_callout_model.py courses/tests/test_callout_render.py \
+  courses/tests/test_callout_form.py courses/tests/test_callout_authoring.py \
+  courses/tests/test_callout_transfer.py tests/test_callout_css.py \
+  tests/test_text_colour_css.py tests/test_i18n_po_health.py \
+  tests/test_i18n_callout_task.py tests/test_help.py \
+  courses/tests/test_callout_editor_row.py courses/tests/test_callout_nesting_css.py
+```
+
+Expected: all PASS. This is the spec's DoD 3 and its executed order is `6 → 3 → 4` — baseline first, mutants second.
+
+- [ ] **Step 2: Write the screenshot harness**
+
+Create `tests/test_e2e_callout_kinds_shot.py`. It needs **four** things carried over from `tests/test_e2e_html_element.py`, not two — copying only the helpers yields `NameError` and an async-unsafe ORM error:
 
 ```python
-@pytest.mark.e2e
+import os
+
+import pytest
+
+from tests.factories import TEST_PASSWORD          # used by _login
+from tests.factories import make_verified_user     # used by _make_pa_user
+
+pytestmark = pytest.mark.e2e
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    # Sync Playwright + Django ORM in the same thread.
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+```
+
+Then copy `_make_pa_user` and `_login` verbatim from that file.
+
+Write `_seed_five_callout_unit(slug, viewer)` yourself. **Its contract, in full** — the access half is load-bearing, because `courses/views.py`'s `lesson_unit` calls `can_access_course`, which resolves to *enrolled OR `is_staff` OR owner* (`courses/access.py:32`), and `_make_pa_user` grants the `PLATFORM_ADMIN` **group**, which is model permissions, **not** `is_staff`. A course the viewer neither owns nor is enrolled in raises `PermissionDenied` and no screenshot is possible:
+
+1. create the course with `owner=viewer` (simplest satisfying branch — an `Enrollment` for the viewer also works);
+2. create a `ContentNode` lesson unit under it;
+3. create five `CalloutElement`s, one per `CalloutElement.Kind.values`, each with a short body, and attach each via `Element.objects.create(unit=unit, content_object=el)`;
+4. return the `courses:lesson_unit` path for that unit.
+
+- [ ] **Step 3: Capture both themes, each with its own guard**
+
+```python
 @pytest.mark.django_db(transaction=True)
-def test_capture_all_five_callout_kinds(live_server, page):
-    user = _make_pa_user("shot_viewer")
+def test_capture_all_five_callout_kinds_dark(live_server, page):
+    user = _make_pa_user("shot_dark")
     user.theme = "dark"      # authed User.theme wins -> deterministic baked data-theme
     user.save(update_fields=["theme"])
-    url = _seed_five_callout_unit("shot-course", user)   # you write this helper
-    _login(page, live_server, "shot_viewer")
+    url = _seed_five_callout_unit("shot-course-dark", user)
+    _login(page, live_server, "shot_dark")
     page.goto(f"{live_server.url}{url}")
     # Prove the capture really is dark, or a light render passes as "the dark shot".
     assert page.locator("html[data-theme='dark']").count() == 1
     page.screenshot(path=r"<SCRATCHPAD>/callout-kinds-dark.png", full_page=True)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_capture_all_five_callout_kinds_light(live_server, page):
+    user = _make_pa_user("shot_light")
+    user.theme = "light"
+    user.save(update_fields=["theme"])
+    url = _seed_five_callout_unit("shot-course-light", user)
+    _login(page, live_server, "shot_light")
+    page.goto(f"{live_server.url}{url}")
+    # The mirror guard, written out rather than left as "repeat with light": a
+    # hardcoded 'dark' selector here would either fail or assert the wrong theme.
+    assert page.locator("html[data-theme='light']").count() == 1
+    page.screenshot(path=r"<SCRATCHPAD>/callout-kinds-light.png", full_page=True)
 ```
 
-Then repeat with `user.theme = "light"` for the light shot.
-
-**It must be the STUDENT lesson-unit view, not the editor** — the glyph decision is scoped to the surface where no `✎` Edit affordance exists. Borrow the theme mechanism from the cited e2e files; do not borrow their editor destination.
+**Both must capture the STUDENT lesson-unit view, not the editor** — the glyph decision is scoped to the surface where no `✎` Edit affordance exists. Borrow the theme mechanism from the cited e2e file; do not borrow its editor destination.
 
 Run it:
 
@@ -646,7 +737,7 @@ uv run pytest -m e2e tests/test_e2e_callout_kinds_shot.py -v
 
 Without `-m e2e` the file silently deselects and pytest exits 5, which reads as success.
 
-- [ ] **Step 2: Judge both screenshots and surface them**
+- [ ] **Step 4: Judge both screenshots and surface them**
 
 Write the PNGs to the session scratchpad, **not** the repo. Show both to the human. Pass criteria, judged on each theme separately:
 
@@ -654,9 +745,9 @@ Write the PNGs to the session scratchpad, **not** the repo. Show both to the hum
 - (b) the 0.75rem/700 uppercase eyebrow is legible against its tint;
 - (c) the icon is identifiable as a pencil at 18px.
 
-If an accent must change, **six sites move together**: the light rule, the dark rule, both `test_text_colour_css.py` surface entries, the two regex hex literals in `tests/test_callout_css.py`, and every hex and ratio in the spec's §4 (including the icon-chip paragraph, which sits outside any table).
+If an accent must change, **every hex and ratio in spec §4 and §5 moves together** — including the icon-chip paragraph (`#EFD8E9` / `#514048`, 4.48:1 / 4.86:1) and the spine-adjacency paragraph (5.32:1 / 8.92:1), neither of which sits in a table — plus the light rule, the dark rule, both `test_text_colour_css.py` surface entries, and the two regex hex literals in `tests/test_callout_css.py`.
 
-- [ ] **Step 3: Delete the capture harness**
+- [ ] **Step 5: Delete the capture harness**
 
 ```bash
 rm tests/test_e2e_callout_kinds_shot.py
@@ -664,38 +755,53 @@ rm tests/test_e2e_callout_kinds_shot.py
 
 Delete it **now**, before the ruff step, so the linter never has to pass over a throwaway file.
 
-- [ ] **Step 4: Falsify every test against its named mutant**
+- [ ] **Step 6: Falsify every test against its named mutant**
 
-Run each mutant with **only its named test selected** (`-k`), never the whole selection — several mutants redden more than one test, so a red *suite* is not evidence about the named row. Revert each mutant before the next.
+Run each mutant with **only its named test selected**, and **always name the owning file** — a bare `-k` still collects every module in the repo, fourteen times over. Revert each mutant before the next.
 
-| Mutant | `-k` target | Must go RED |
+| Mutant | Command | Must go RED |
 |---|---|---|
-| remove `TASK` from `Kind` | `test_display_heading_falls_back_to_kind_default` | ✓ |
-| remove `TASK` from `Kind` | `test_persisted_task_callout_renders_kind_class` | ✓ (save() coerces to example) |
-| remove `TASK` from `Kind` | `test_edit_form_offers_the_task_kind` | ✓ |
-| remove `TASK` from `Kind` | `test_save_round_trips_the_task_kind` | ✓ |
-| remove `TASK` from `Kind` | `test_round_trip_preserves_the_task_kind` | ✓ (equality, not TransferError) |
-| remove `TASK` from `Kind` | `test_every_callout_kind_has_a_ground_in_both_surface_lists` | ✓ |
-| delete the `{% elif el.kind == "task" %}` branch | `test_task_render_emits_pencil_icon` | ✓ |
-| move the pencil into the `{% else %}` fallback | `test_example_render_does_not_emit_pencil_icon` | ✓ |
-| delete the light `.callout--task` rule | `test_callout_task_light_accent_is_pinned` | ✓ |
-| delete the dark `.callout--task` rule | `test_callout_task_dark_accent_is_pinned` | ✓ |
-| change either accent hex in `courses.css` | `test_surface_literals_still_match_the_css` | ✓ |
-| omit both `callout-task` surface entries | `test_every_callout_kind_has_a_ground_in_both_surface_lists` | ✓ |
-| delete the `en` `Task` entry | `test_en_catalog_has_the_task_msgid` | ✓ |
-| set `msgstr "Task"` in the `en` catalog | `test_en_catalog_has_the_task_msgid` | ✓ |
+| remove `TASK` from `Kind` | `uv run pytest courses/tests/test_callout_model.py -k test_display_heading_falls_back_to_kind_default` | ✓ |
+| remove `TASK` from `Kind` | `uv run pytest courses/tests/test_callout_render.py -k test_persisted_task_callout_renders_kind_class` | ✓ (save() coerces to example) |
+| remove `TASK` from `Kind` | `uv run pytest courses/tests/test_callout_authoring.py -k test_edit_form_offers_the_task_kind` | ✓ |
+| remove `TASK` from `Kind` | `uv run pytest courses/tests/test_callout_authoring.py -k test_save_round_trips_the_task_kind` | ✓ |
+| remove `TASK` from `Kind` | `uv run pytest courses/tests/test_callout_transfer.py -k test_round_trip_preserves_the_task_kind` | ✓ (equality, not TransferError) |
+| remove `TASK` from `Kind` | `uv run pytest tests/test_text_colour_css.py -k test_every_callout_kind_has_a_ground_in_both_surface_lists` | ✓ |
+| delete the `{% elif el.kind == "task" %}` branch | `uv run pytest courses/tests/test_callout_render.py -k test_task_render_emits_pencil_icon` | ✓ (path assertion only) |
+| **strip `aria-hidden="true"` from the NEW task branch only** | `uv run pytest courses/tests/test_callout_render.py -k test_task_render_emits_pencil_icon` | ✓ — this is the mutant for the `class=` / `aria-hidden` assertions, which the delete-the-elif mutant leaves green because the `{% else %}` book-open SVG carries both identically |
+| move the pencil into the `{% else %}` fallback | `uv run pytest courses/tests/test_callout_render.py -k test_example_render_does_not_emit_pencil_icon` | ✓ |
+| delete the light `.callout--task` rule | `uv run pytest tests/test_callout_css.py -k test_callout_task_light_accent_is_pinned` | ✓ |
+| delete the dark `.callout--task` rule | `uv run pytest tests/test_callout_css.py -k test_callout_task_dark_accent_is_pinned` | ✓ |
+| change either accent hex in `courses.css` | `uv run pytest tests/test_text_colour_css.py -k test_surface_literals_still_match_the_css` | ✓ |
+| omit both `callout-task` surface entries | `uv run pytest tests/test_text_colour_css.py -k test_every_callout_kind_has_a_ground_in_both_surface_lists` | ✓ |
+| delete the `en` `Task` entry | `uv run pytest tests/test_i18n_callout_task.py -k test_en_catalog_has_the_task_msgid` | ✓ |
+| set `msgstr "Task"` in the `en` catalog | `uv run pytest tests/test_i18n_callout_task.py -k test_en_catalog_has_the_task_msgid` | ✓ |
 
 **The Polish mutant needs a compile step or it is a no-op** — the test reads the compiled `.mo`, not the `.po`:
 
 ```bash
 # edit locale/pl/LC_MESSAGES/django.po -> msgstr "Wskazówka"
 uv run python manage.py compilemessages
-uv run pytest -k test_task_kind_renders_zadanie_in_polish   # confirm RED
+uv run pytest tests/test_i18n_callout_task.py -k test_task_kind_renders_zadanie_in_polish   # RED
 # restore the .po
-uv run python manage.py compilemessages                     # do NOT skip
+uv run python manage.py compilemessages                                                      # do NOT skip
 ```
 
-- [ ] **Step 5: Add the operational note to the cutover runbook**
+- [ ] **Step 7: Verify every mutant is reverted**
+
+Check **only the mutated paths**, not the whole tree — Step 8's runbook edit and Step 9's PR-body file are legitimately pending at this point, so a bare `git status` cannot distinguish "a mutant survived" from "expected work in progress":
+
+```bash
+git diff -- courses/models.py \
+            templates/courses/elements/_callout_icon.html \
+            courses/static/courses/css/courses.css \
+            tests/test_text_colour_css.py \
+            locale/
+```
+
+Expected: **empty**. Anything here is a surviving mutant.
+
+- [ ] **Step 8: Add the operational note to the cutover runbook**
 
 Append to `docs/superpowers/plans/2026-07-27-internal-link-cutover.md`, under a clear heading:
 
@@ -703,18 +809,53 @@ Append to `docs/superpowers/plans/2026-07-27-internal-link-cutover.md`, under a 
 
 This file is a **live runbook** despite living under `docs/superpowers/plans/` — it is the artifact the cutover operator actually opens.
 
-- [ ] **Step 6: Lint and format**
+- [ ] **Step 9: Write the PR-body paragraph to a file the PR phase can copy**
+
+The spec's DoD 8 requires this note in **two** places, both mandatory. Step 8 covered the runbook; this covers the PR body. Write the exact text to `<SCRATCHPAD>/pr-body-note.md` so the PR-opening phase copies a file rather than reconstructing it from memory:
+
+```markdown
+## Operational constraint for the mat-pp cutover
+
+`FORMAT_VERSION` is deliberately **not** bumped by this PR (see the spec's D2: the version
+gate is archive-wide, and the repo's encoded rule is that a new element *type* has never
+bumped it). The consequence: an archive containing a Task callout will fail to import on a
+PROD that predates this build, at that element, with "unknown callout kind" — a message that
+does not name the version as the cause.
+
+**Do not author a Task callout in mat-pp until PROD is running code containing the `TASK`
+enum member.** The gate is the deployed code, not migration `0056` (a state-only `AlterField`
+whose SQL is a no-op). Archives without a Task callout are unaffected.
+```
+
+- [ ] **Step 10: Verify the stale-prose sweep is still complete**
+
+The spec turns a verification procedure into this plan's fixed list of update sites; run the sweep to confirm master has not added a new one under the branch:
+
+```bash
+grep -rn "four" --include=*.py --include=*.html --include=*.css --include=*.md . | grep -i callout
+grep -rEn "Note\s*[/,]\s*Tip" --include=*.py --include=*.html --include=*.css --include=*.md .
+grep -rEn "Notatka.*Wskazówka" --include=*.md .
+```
+
+Expected hits: only `docs/superpowers/` historical records, plus two documented false positives — `tests/test_paste_rule.py:293` ("FOURTH container") and `tests/test_e2e_callout_container.py:4` ("four tests"), neither of which is a kind count. Anything else is a site this plan missed; update it.
+
+- [ ] **Step 11: Lint, format, and COMMIT THE RESULT**
 
 ```
 uv run ruff check .
 uv run ruff format .
 ```
 
-`ruff format --check .` is a real CI gate. Run this **after** every other edit, including the runbook.
+**Then commit whatever the formatter touched, together with the runbook.** This is not optional bookkeeping: Tasks 1-7 each committed their files *before* the formatter ever ran, so without this step the working tree is formatted while `HEAD` is not. Step 12's `ruff format --check .` inspects the **working tree** and would pass, while CI (`.github/workflows/ci.yml:20-21`) runs the same check against the **pushed commit** and fails, with nothing in the diff to explain it. The same hole would swallow any `.mo` byte change from a recompile.
 
-- [ ] **Step 7: Revert every mutant, recompile, and re-verify green**
+```bash
+git add -u
+git add docs/superpowers/plans/2026-07-27-internal-link-cutover.md
+git status            # confirm nothing unexpected is staged, and NOTHING is left unstaged
+git commit -m "chore(callout): formatting pass and the cutover sequencing note"
+```
 
-Confirm the tree is clean of mutations (`git status`, `git diff`), then:
+- [ ] **Step 12: Re-verify green on the committed tree**
 
 ```
 docker compose -p libli-test -f docker-compose.test.yml up -d --wait
@@ -727,31 +868,25 @@ uv run pytest courses/tests/test_callout_model.py courses/tests/test_callout_ren
   courses/tests/test_callout_editor_row.py courses/tests/test_callout_nesting_css.py
 ```
 
-Expected: all PASS. This step is not redundant with the per-task runs — Step 4 deliberately damaged shipped artifacts, and **none of the closing gates below can see a missing CSS rule, a missing template branch, or a stale compiled `.mo`**.
+Expected: all PASS. This is the spec's DoD 4b and is **not** redundant with Step 1 — Step 6 deliberately damaged shipped artifacts, and none of the closing gates below can see a missing CSS rule, a missing template branch, or a stale compiled `.mo`. If `compilemessages` changed a `.mo` byte, commit it before proceeding.
 
-- [ ] **Step 8: Closing gates**
+- [ ] **Step 13: Closing gates**
 
 ```
 uv run python manage.py makemigrations --check --dry-run
 uv run python manage.py check
 uv run ruff format --check .
+git status --short
 ```
 
-Expected: all clean.
-
-- [ ] **Step 9: Commit**
-
-```bash
-git add docs/superpowers/plans/2026-07-27-internal-link-cutover.md
-git commit -m "docs(cutover): note the Task-kind sequencing constraint for mat-pp"
-```
-
----
+Expected: the three commands clean, and `git status --short` **empty** — an empty working tree is what proves the checked tree and the committed tree are the same one.
 
 ## Self-Review
 
-**Spec coverage.** §1 model → Task 1. §2 migration → Task 1 (Steps 6-7). §3 render → Task 2. §4 CSS + header comment → Task 3. §5 surface list → Task 4. §6 editor → Task 5. §7 transfer → Task 6. §8 i18n + help → Task 7. Testing rows 1-11 → Tasks 2-7, falsified in Task 8 Step 4. DoD 1-2 → Task 8 Step 8. DoD 3 → Step 7. DoD 4 → Step 4. DoD 4b → Step 7. DoD 5 → Step 6. DoD 6 → Task 7 Steps 1-3. DoD 7 → Steps 1-3. DoD 8 → Step 5 plus the PR body (pipeline phase 6). The `courses/views.py:187` do-not-change entry is honoured by no task touching that file.
+**Spec coverage.** §1 model → Task 1. §2 migration → Task 1 (Steps 6-7). §3 render → Task 2. §4 CSS + header comment → Task 3. §5 surface list → Task 4. §6 editor → Task 5. §7 transfer → Task 6. §8 i18n + help → Task 7. Testing rows 1-11 → Tasks 2-7, falsified in Task 8 Step 6. DoD 1-2 → Task 8 Step 13. DoD 3 → Task 8 Step 1 (baseline, before the mutants — the spec's `6 → 3 → 4` order). DoD 4 → Step 6. DoD 4b → Step 12. DoD 5 → Step 11. DoD 6 → Task 7 Steps 1-3. DoD 7 → Task 8 Steps 2-4. DoD 8 → **both halves**: Step 8 (runbook) and Step 9 (the PR-body paragraph written verbatim to the scratchpad, so the PR phase copies a file rather than reconstructing it). The `courses/views.py:187` do-not-change entry is honoured by no task touching that file, and Step 10 re-runs the spec's three prescribed greps so the fixed site list is verified rather than trusted.
 
-**Placeholders.** One deliberate `<SCRATCHPAD>` token in Task 8 Step 1 (a session-specific path, not knowable at plan time) and one named-but-unwritten helper, `_seed_five_callout_unit`, whose contract is stated in the surrounding prose. Task 7 Step 4 deliberately instructs verification of `_entries`'s real attribute names rather than asserting them — the plan states the requirement and flags the assumption instead of inventing an API.
+**Placeholders.** One deliberate `<SCRATCHPAD>` token (a session-specific path, not knowable at plan time) and one named-but-unwritten helper, `_seed_five_callout_unit`, whose contract is now stated in full as a four-point list in Task 8 Step 2 — including the course-access requirement, without which `lesson_unit` raises `PermissionDenied` and no screenshot is possible. `_entries()`'s return shape is verified (plain dicts, keys `msgid`/`msgstrs`/`fuzzy`/`obsolete`/`plural`) and used as such; the earlier "verify the attribute names yourself" hedge is gone.
+
+**Commit integrity.** Every file the formatter touches is committed in Step 11, *before* Step 13's `ruff format --check .`, and Step 13 additionally asserts `git status --short` is empty. That pairing is what makes the checked tree and the pushed tree provably the same one — a `--check` that passes against a working tree while `HEAD` holds unformatted source is the failure mode this guards.
 
 **Type consistency.** Test function names are identical between the task that creates them and Task 8's mutant table: `test_persisted_task_callout_renders_kind_class`, `test_task_render_emits_pencil_icon`, `test_example_render_does_not_emit_pencil_icon`, `test_callout_task_light_accent_is_pinned`, `test_callout_task_dark_accent_is_pinned`, `test_every_callout_kind_has_a_ground_in_both_surface_lists`, `test_edit_form_offers_the_task_kind`, `test_save_round_trips_the_task_kind`, `test_round_trip_preserves_the_task_kind`, `test_task_kind_renders_zadanie_in_polish`, `test_en_catalog_has_the_task_msgid`. The accent hexes `#a8318f` / `#ee9fd8` and the grounds `#FAF3F8` / `#383030` agree across Tasks 3, 4 and 8.
