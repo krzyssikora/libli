@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-08 01:52+0200\n"
+"POT-Creation-Date: 2026-08-08 16:07+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -775,7 +775,7 @@ msgstr "Maks."
 msgid "Total"
 msgstr "Suma"
 
-#: .\courses\media.py:21 .\courses\models.py:681
+#: .\courses\media.py:21 .\courses\models.py:682
 #: .\courses\templatetags\courses_manage_extras.py:34
 #: .\courses\views_manage.py:1623
 #: .\templates\courses\manage\editor\_add_menu.html:30
@@ -784,7 +784,7 @@ msgstr "Suma"
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:22 .\courses\models.py:682
+#: .\courses\media.py:22 .\courses\models.py:683
 #: .\courses\templatetags\courses_manage_extras.py:35
 #: .\courses\views_manage.py:1624
 #: .\templates\courses\manage\editor\_add_menu.html:31
@@ -839,78 +839,82 @@ msgstr "Wskazówka"
 msgid "Important"
 msgstr "Ważne"
 
-#: .\courses\models.py:724 .\courses\models.py:974
+#: .\courses\models.py:470
+msgid "Task"
+msgstr "Zadanie"
+
+#: .\courses\models.py:725 .\courses\models.py:975
 msgid "Small"
 msgstr "Mały"
 
-#: .\courses\models.py:725 .\courses\models.py:975
+#: .\courses\models.py:726 .\courses\models.py:976
 msgid "Medium"
 msgstr "Średni"
 
-#: .\courses\models.py:726 .\courses\models.py:976
+#: .\courses\models.py:727 .\courses\models.py:977
 msgid "Large"
 msgstr "Duży"
 
-#: .\courses\models.py:733 .\courses\models.py:980
+#: .\courses\models.py:734 .\courses\models.py:981
 msgctxt "image size"
 msgid "Full"
 msgstr "Pełny"
 
-#: .\courses\models.py:1553
+#: .\courses\models.py:1554
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr "Zakładki"
 
-#: .\courses\models.py:1554
+#: .\courses\models.py:1555
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr "Karuzela"
 
-#: .\courses\models.py:1563
+#: .\courses\models.py:1564
 msgctxt "tabs label position"
 msgid "Above"
 msgstr "Nad"
 
-#: .\courses\models.py:1564
+#: .\courses\models.py:1565
 msgctxt "tabs label position"
 msgid "Below"
 msgstr "Pod"
 
-#: .\courses\models.py:1565
+#: .\courses\models.py:1566
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr "Ukryta"
 
-#: .\courses\models.py:1861 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1862 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:1862
+#: .\courses\models.py:1863
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:1863
+#: .\courses\models.py:1864
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:2571
+#: .\courses\models.py:2572
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:2573
+#: .\courses\models.py:2574
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:2578
+#: .\courses\models.py:2579
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:2649
+#: .\courses\models.py:2650
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:2650
+#: .\courses\models.py:2651
 msgid "Submitted"
 msgstr "Przesłano"
 
