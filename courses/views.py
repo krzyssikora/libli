@@ -26,6 +26,7 @@ from django.views.decorators.http import require_POST
 from courses import quiz as quiz_svc
 from courses import state as state_svc
 from courses.access import can_access_course
+from courses.access import can_see_drafts
 from courses.access import get_node_or_404
 from courses.access import is_enrolled
 from courses.constants import COURSE_LANGUAGES
@@ -708,6 +709,12 @@ def node_permalink(request, node_pk):
     node = get_object_or_404(ContentNode.objects.select_related("course"), pk=node_pk)
     if not can_access_course(request.user, node.course):
         raise Http404("node is not accessible")
+    if (
+        node.kind == ContentNode.Kind.UNIT
+        and not node.published
+        and not can_see_drafts(request.user, node.course)
+    ):
+        raise Http404("node is not published")
     if node.kind == ContentNode.Kind.UNIT:
         # Branch explicitly rather than letting lesson_unit forward a quiz: that
         # would cost a second redirect hop on every quiz link and couple this view
