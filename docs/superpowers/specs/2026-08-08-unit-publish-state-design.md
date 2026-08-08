@@ -480,9 +480,16 @@ reaches it:
 ```python
 for r in roots:
     rollup(r)
-roots = [r for r in roots if r["is_unit"] or r["children"]]   # <-- REQUIRED
+if drafts != "keep-with-data":            # <-- the mode guard, see the table below
+    roots = [r for r in roots if r["is_unit"] or r["children"]]
 return roots
 ```
+
+**The mode guard applies to BOTH pruning passes** — the parent-`children` removal inside `rollup`
+and the `roots` filter above. Copying the `roots` line unconditionally prunes in all three modes,
+including `keep-with-data`, where the table below forbids it: a root-level Part holding only
+never-published units would then vanish from `build_student_breakdown`, which is exactly the
+"silently loses chapters and misrepresents the course's shape" outcome that row rejects.
 
 Without that line, a CA who drafts an entire new **Part** — the top-level structure, and precisely
 the "add content privately" case the Purpose section opens with — leaves every student staring at an
@@ -866,6 +873,14 @@ the markup — the same principle that makes confirmation server-side:
 | `scope=subtree` on a **container** | write |
 | `scope=node` on a **container** | **422** |
 | `scope=subtree` on a **unit** | **422** |
+| `flag=obligatory` on a `unit_type="quiz"` node | **422** |
+
+**The quiz/obligatory row closes the last markup-only guard.** The subtree path already restricts to
+`unit_type="lesson"` (§5) and the UI path renders the control dead — but without this row, nothing
+stops a direct `flag=obligatory&scope=node` POST at a quiz, and the spec would be banning in bulk
+exactly what it permits per-click, resolved only by markup, at the one endpoint that otherwise
+insists markup is never the guard. §9 TREE9's behavioural half asserts **this endpoint call**, not
+a browser form submission, so it pins the server rather than the button.
 
 Both rejects matter. `scope=node` on a container would write `published` onto a container row —
 reintroducing through the endpoint the exact divergence §8 forces the importer and
@@ -1401,17 +1416,27 @@ native submit.
 | Row | Element | Inert rendering |
 |---|---|---|
 | Container (filter active, zero units, zero lessons) | `<a>` | no `href`, `aria-disabled="true"`, `tabindex="-1"`, handler bails |
-| **Quiz row's obligatory control** | `<button>` | **`type="button"`, `disabled`, `aria-disabled="true"`, and NO `formaction`** |
+| **Quiz row's obligatory control** | `<button>` | **`type="button"`, NO `formaction`, `aria-disabled="true"`, `tabindex="-1"`** — and **not** `disabled` |
 
-Note the irony worth stating plainly: §5 spends a paragraph talking the reader *out* of `disabled`
-— correctly, for anchors — and `disabled` is exactly the right mechanism here, because this one is a
-button.
+**Why not `disabled` on that button, having just argued `disabled` is the button-correct mechanism:**
+browsers do not dispatch pointer events to disabled form controls, so a `title` on a `disabled`
+`<button>` **never shows its tooltip** — and the tooltip ("Obligatory applies to lessons only") is
+the only thing telling the CA why the control is dead. `type="button"` with no `formaction` already
+blocks the write completely: it cannot submit, and there is nothing for it to submit to. Same
+treatment for the lesson-less container's obligatory control.
 
-**§9 TREE9 must assert the property that actually blocks the write** — `disabled` present, or
-`type != "submit"` / no `formaction` — plus the behavioural half: a POST from a quiz row leaves
-`obligatory` unchanged. Asserting "no `href`, `aria-disabled`" on a button is an assertion that
-**cannot fail**, since a button has no `href` under any implementation. TREE3, TREE5 and TREE10 are
-anchors and keep the existing shape.
+This is the third member of the same family the spec keeps tripping over — `disabled` on an `<a>`,
+`order` inside `.tree__cluster`, and now `title` on a `disabled` button: an attribute that is valid
+in general and inert on the element actually being used.
+
+**§9 TREE9's markup half must assert the property that actually blocks a button** — `type="button"`
+and no `formaction`. Asserting "no `href`" on a button is an assertion that **cannot fail**, since a
+button has no `href` under any implementation. TREE3, TREE5 and TREE10 are anchors and keep the
+existing shape.
+
+`disabled` remains correct for the **transient** double-submit guard (§4), where the control is dead
+for a few hundred milliseconds and no tooltip is wanted. The distinction is duration, not element
+type: a permanently inert control must still be able to explain itself.
 
 ### The fold
 
@@ -1455,6 +1480,21 @@ does not merely mislead, it removes the only guard.
 **Container toggles are inert while a filter is active.** Reordering under a filter is confusing;
 bulk-publishing under one is worse, because it invites the CA to believe the action is scoped to
 what they can see. Unit toggles stay live under a filter — they affect exactly the one row shown.
+
+**This one is rendering-only, and is the deliberate exception to §4's "the server is the guard"
+principle.** A hand-rolled `scope=subtree` POST under an active filter is accepted and writes the
+whole subtree.
+
+That is not a hole, because there is nothing to enforce: `q` is a **display** filter with no
+scoping semantics anywhere in the builder — `scope=subtree` means the entire subtree whether or not
+a filter happens to be on screen, and the write is identical either way. The inertness exists solely
+to stop a CA **misreading** the action as scoped to the visible rows. Confirmation is server-side
+because a missing confirmation changes what the user consented to; filter-inertness is not, because
+skipping it changes nothing about what the request does.
+
+Do **not** add a "reject `scope=subtree` when `q` is present" guard. It would make the endpoint's
+behaviour depend on a presentational parameter, and it would break the no-JS interstitial, which
+legitimately carries `q` through a confirmed write (see "The filter query `q` rides on every arm").
 
 **`disabled` will not do this, and the grip button is not the precedent it looks like.** The grip is
 `<button type="button" … disabled>`; the container toggles are **anchors** (§5, above), and
@@ -2094,11 +2134,16 @@ cross-reference in this document.
   for every course.** *Mutant:* implement `manageable_courses` as `filter(owner=user)` alone → the
   global-permission branch is missing and a PA loses drafts everywhere → red. WR15b's owner fixture
   is green on that mutant.
-- **WR18. A confirmed write under an active filter comes back still filtered.** Set `q`, open a
-  container strip, confirm, and assert the returned fragment is still the restricted tree — then the
-  same for the no-JS redirect. *Mutant:* omit `q` from the strip anchor's href, the strip form, or
-  the success `_redirect_to_builder` call → `_raw_q` finds nothing, `q_active` is false, and the CA's
-  filter is silently cleared → red. Every other write-path test runs unfiltered and stays green.
+- **WR18. A confirmed write under an active filter comes back still filtered.** *Mutant:* omit `q`
+  from the strip anchor's href, the strip form, or the success `_redirect_to_builder` call →
+  `_raw_q` finds nothing, `q_active` is false, and the CA's filter is silently cleared → red. Every
+  other write-path test runs unfiltered and stays green.
+
+  **The fixture is the confirming QUIZ anchor, not a container strip.** Container anchors are inert
+  under a filter (TREE5), so "set `q`, open a container strip" is unreachable through the UI and a
+  test written that way would have to bypass the markup it is meant to exercise. The reachable path
+  is the one §5 names: filter to find the quiz, then unpublish it — a **unit-scope** confirming
+  anchor, which stays live under a filter. Keep the no-JS redirect half as a second assertion.
 - **WR16. `scope` must agree with the node's kind.** `scope=node` on a container and
   `scope=subtree` on a unit both 422, with no write. *Mutant:* validate `scope` against its
   allow-list only → a container gets a `published` value written to it, undoing the normalisation
@@ -2132,15 +2177,18 @@ cross-reference in this document.
 - **TREE5. Container toggles are inert while a filter is active**; unit toggles are not. Same
   assertion shape as TREE3 — `href` absent / `aria-disabled` present.
 - **TREE9. A quiz unit row's obligatory control cannot write, and its publish control stays live.**
-  Assert the property that actually blocks a **button**: `disabled` present, `type != "submit"`, no
-  `formaction`. Then assert the **behaviour**: a POST from that row leaves `obligatory` unchanged.
-  *Mutant A:* render both controls live → one click writes `obligatory` onto a quiz, exactly what
-  WR14 forbids in bulk → red. *Mutant B:* apply the **anchor** inert recipe (drop `href`, add
-  `aria-disabled`) to this button → it is still `type="submit"` with a `formaction`, so a click
-  submits natively and writes → red on the behavioural half.
+  Two independent halves:
 
-  **Do not assert "no `href`, `aria-disabled` present" here.** A button has no `href` under any
-  implementation, so that assertion is green on Mutant B — the failure mode this test exists for.
+  **Markup half** — assert the property that actually blocks a **button**: `type="button"` and no
+  `formaction`. *Mutant:* apply the **anchor** inert recipe (drop `href`, add `aria-disabled`) to
+  this button → it is still `type="submit"` with a `formaction`, so a click submits natively and
+  writes → red. **Do not assert "no `href`" here**: a button has no `href` under any implementation,
+  so that assertion is green on the very mutant this half exists for.
+
+  **Server half** — `POST manage_node_flag` with `flag=obligatory&scope=node&node=<quiz pk>` returns
+  **422** and leaves `obligatory` unchanged. Assert the *endpoint call*, not a browser form
+  submission: the markup half already covers the button, and only a direct call reaches the
+  validation row §4 adds for this. *Mutant:* omit that row → the write lands → red.
 - **TREE10. A container holding only quizzes renders the obligatory control inert and the publish
   control live.** *Mutant:* key inertness on unit count → a quiz-only chapter has units but zero
   lessons, so it renders a tri-state over an empty denominator and offers an action that writes
