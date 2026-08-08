@@ -166,6 +166,12 @@ has repeatedly produced a stale count somewhere else:
   `docs/superpowers/plans/2026-07-14-callout-element.md:475`, which is a verbatim copy of the
   `test_callout_render.py:22` comment this change *does* update — copy the live one, leave the
   plan's copy frozen.
+- **`courses/views.py:187` — do NOT change.** The prescribed grep hits its docstring ("the final
+  fallback dispatches those four kinds without an explicit isinstance ladder here"), but those
+  four are the self-guarding math helpers `_table_has_math` / `_gallery_has_math` /
+  `_tabs_has_math` / `_fill_table_has_math` — **not** callout kinds. It sits a few lines from the
+  `CalloutElement` clause this spec's Math paragraph discusses, so it is the one false positive
+  likely to be "fixed" to five. It would be wrong and nothing would catch it.
 - **One carve-out from that class rule:**
   `docs/superpowers/plans/2026-07-27-internal-link-cutover.md` is a **live operational runbook**,
   not a historical design record, and it lives under `docs/superpowers/plans/` only by filing
@@ -277,7 +283,7 @@ change.
 
 **The 3px spine has a second adjacency too.** Its inner edge sits on the 6% tint (the table
 above), but its outer edge abuts whatever the callout is placed on — `--surface-base`, `#F4F1EA`
-light and `#1A1816` dark. That measures **5.32:1 light / 8.93:1 dark**, again against the 3:1
+light and `#1A1816` dark. That measures **5.32:1 light / 8.92:1 dark**, again against the 3:1
 non-text threshold.
 
 Together these close the gap the table alone leaves: the accent is now measured at every
@@ -356,8 +362,12 @@ worked example of the collision at `courses/models.py:726-732` — `ImageElement
 become `pgettext_lazy("image size", "Full")` because `courses/forms.py:166` already owned the
 bare `"Full"`, and sharing it shipped an ungrammatical Polish string that no test could see.
 `"Task"` is a similarly generic English noun. **Rule for the future: if a second feature wants
-`"Task"`, the *other* one takes `pgettext_lazy`** — this one is the incumbent, and mirroring the
-`Full` comment saves the next contributor from rediscovering the mechanism.
+`"Task"`, the *other* one takes `pgettext_lazy`** — this one is the incumbent.
+
+**This paragraph is the record of that rule; no comment is added to the model.** (Stated
+explicitly because D1 also forbids a model comment, for a different reason — the `warning`/
+"Important" guard at `models.py:467-468` already exists and needs no reinforcement. Neither
+sentence is asking for source-level prose, and §1's change list contains no such edit.)
 
 **There are two catalogs, not one.** `tests/test_i18n_po_health.py:22` reads
 `CATALOGS = {"pl": PL_PO, "en": EN_PO}`, so `locale/en/LC_MESSAGES/django.po` also gains
@@ -459,17 +469,18 @@ callout branch were exactly that.
 
 | # | Test | Location | Mutant that must fail it |
 |---|---|---|---|
-| 1 | the **light** `.callout--task` rule carries `#a8318f` — a **new** test function, not an assertion folded into `test_courses_css_defines_callout_element` (which stays the additive class-list check; burying a regex behind a name promising only class presence is how these get overlooked) | `tests/test_callout_css.py` | delete the light rule |
-| 2 | the **dark** `[data-theme="dark"] .callout--task` rule carries `#ee9fd8` — likewise its own new function | same file | delete the dark override |
+| 1 | the **light** `.callout--task` rule carries `#a8318f` — a **new** test function, not an assertion folded into `test_courses_css_defines_callout_element` (which stays the additive class-list check; burying a regex behind a name promising only class presence is how these get overlooked) | `tests/test_callout_css.py::test_callout_task_light_accent_is_pinned` | delete the light rule |
+| 2 | the **dark** `[data-theme="dark"] .callout--task` rule carries `#ee9fd8` — likewise its own new function | `tests/test_callout_css.py::test_callout_task_dark_accent_is_pinned` | delete the dark override |
 | 3 | `display_heading` for `kind="task"` is "Task" — extend the existing `test_display_heading_falls_back_to_kind_default` (`test_callout_model.py:41-44`) with a fifth line rather than adding a function | `courses/tests/test_callout_model.py` | remove the `TASK` enum member |
-| 4 | a **persisted** task callout renders `callout--task`: `CalloutElement.objects.create(kind="task")` then `.render()` | `courses/tests/test_callout_render.py` | remove the `TASK` enum member — `save()` then coerces the kind to `example` and the class becomes `callout--example` |
-| 5a | a task render **contains** the pencil path `m15 5 4 4` **and its opening tag carries `class="callout__icon"` and `aria-hidden="true"`** — asserting the path alone would pass a branch that emits the right geometry with the class misspelled or the ARIA attribute dropped, shipping an unstyled or unlabelled graphic. The **unsaved** constructor form is fine here (unlike row 4): these mutants are template-level, so `save()`'s coercion is not what makes them bite | same file | delete the `{% elif el.kind == "task" %}` branch — the render then falls through to book-open |
-| 5b | an **example** render does **not** contain `m15 5 4 4`; unsaved form likewise fine | same file | put the pencil into the existing `{% else %}` fallback instead of adding an elif — a plausible mistake, since `_callout_icon.html` has no explicit `example` branch and `example` is served by that `{% else %}` |
+| 4 | a **persisted** task callout renders `callout--task`: `CalloutElement.objects.create(kind="task")` then `.render()` | `courses/tests/test_callout_render.py::test_persisted_task_callout_renders_kind_class` | remove the `TASK` enum member — `save()` then coerces the kind to `example` and the class becomes `callout--example` |
+| 5a | a task render **contains** the pencil path `m15 5 4 4` **and its opening tag carries `class="callout__icon"` and `aria-hidden="true"`** — asserting the path alone would pass a branch that emits the right geometry with the class misspelled or the ARIA attribute dropped, shipping an unstyled or unlabelled graphic. The **unsaved** constructor form is fine here (unlike row 4): these mutants are template-level, so `save()`'s coercion is not what makes them bite | `courses/tests/test_callout_render.py::test_task_render_emits_pencil_icon` | delete the `{% elif el.kind == "task" %}` branch — the render then falls through to book-open |
+| 5b | an **example** render does **not** contain `m15 5 4 4`; unsaved form likewise fine | `…::test_example_render_does_not_emit_pencil_icon` | put the pencil into the existing `{% else %}` fallback instead of adding an elif — a plausible mistake, since `_callout_icon.html` has no explicit `example` branch and `example` is served by that `{% else %}` |
 | 6 | the editor form offers the kind: GET `manage_element_form` for a callout whose kind is **not** `task` (use `kind="example"`, mirroring `test_edit_form_preselects_stored_kind`'s warning fixture) — a task-kind fixture would emit `<option value="task" selected>` and fail the assertion on a correct build — then assert the **exact** unselected option string `'<option value="task">Task</option>'` — `_edit_callout.html` emits value and label with no intervening whitespace, and two separate `'value="task"' in html` / `'Task' in html` asserts would both pass with the label wrong. The neighbouring `test_edit_form_preselects_stored_kind` asserts the *selected* form (`value="warning" selected`); row 6 wants the unselected one | `courses/tests/test_callout_authoring.py` | remove the `TASK` enum member |
 | 7 | authoring persists it: POST `kind="task"`, **assert `resp.status_code == 200` first**, then the saved `content_object.kind == "task"` | same file | remove the `TASK` enum member — without the status assertion the form rejects the POST, nothing is saved, and `Element.objects.get(unit=unit)` raises `DoesNotExist` (an error, not the intended assertion failure). `test_callout_authoring.py:70` asserts the status for exactly this reason |
 | 8 | a `kind="task"` callout survives an export/import round trip — **mirror `test_round_trip_preserves_fields` (`test_callout_transfer.py:24-42`)**: the payload must come from `CalloutElement.objects.create(kind="task", …)` passed through `SERIALIZERS["callout"]` with the stub `_Ids`, then `VALIDATORS` → `BUILDERS`. Not a hand-written `data = {"kind": "task"}` dict — that reverses the mutant's behaviour (it would raise `TransferError`), and not the full `build_export` + importer, which is far heavier than anything in that file. Same persisted-vs-constructed distinction as row 4. The new test carries **its own `@pytest.mark.django_db`** — this module marks per-test and has no module-level `pytestmark` (see its own comment at `:83`), unlike every other callout module | `courses/tests/test_callout_transfer.py` | revert the enum. **Note the mechanism, or the failure looks wrong:** `save()` coerces the kind to `example` *before* serialization, so `_ser_callout` emits `{"kind": "example"}` and `_val_callout` **accepts** it — the test goes red on the round-trip equality assertion, not on a `TransferError` |
 | 9 | the pl catalog renders `Task` as "Zadanie": `with translation.override("pl"): assert str(CalloutElement(kind="task").display_heading) == "Zadanie"`. The module needs **no `pytest.mark.django_db`** — the instance is never saved, matching `test_display_heading_survives_stray_unsaved_kind`'s style — even though every neighbouring callout module carries the mark | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | **clear the `#, fuzzy` flag but keep the pre-filled wrong msgstr** (e.g. `msgstr "Wskazówka"`). Not "leave the fuzzy in place": `test_no_fuzzy_entries` iterates both catalogs and is already in the DoD 3 selection, so that mutant reddens an existing guard and proves nothing about row 9. The wrong-but-flag-cleared msgstr passes all three po-health guards and is red **only** here — which is exactly the failure §8 describes |
-| 10 | the new callout grounds are in the normative surface list and match the CSS | `tests/test_text_colour_css.py` (extend, don't add a file) | change either accent hex without updating the literal |
+| 10 | the new callout grounds are in the normative surface list and match the CSS | `tests/test_text_colour_css.py` (extend, don't add a file). Its `-k` targets are the two existing functions `test_surface_literals_still_match_the_css` and `test_every_slot_clears_aa_on_every_surface` | change either accent hex without updating the literal |
+| 11 | `locale/en/LC_MESSAGES/django.po` contains `msgid "Task"` with an **empty** msgstr — read the file directly (`test_i18n_po_health.py:18` already exposes the path as `EN_PO`) | `tests/test_i18n_callout_task.py::test_en_catalog_has_the_task_msgid` | delete the `en` entry. **This is the only mechanical check on DoD 6's `en` half**: `test_pl_has_no_untranslated_msgid` is pl-scoped by design, the fuzzy/obsolete guards pass either way, row 9 tests `pl` only, and row 3 passes via msgid fallback even with `en` absent — so without this row, every gate in the spec is green on a branch that never touched `locale/en` |
 
 **Assertion form — this is where the last branch bled.** Tests 1 and 2 scan stylesheet source
 text, and a bare `assert ".callout--task" in css` **cannot fail its own mutant**: the dark rule
@@ -504,11 +515,14 @@ mechanics, which this change does not touch.
 
 **The list is numbered for reference, not for execution order.** Several items produce edits
 that later items check, so working top-to-bottom formats the tree before the screenshot harness
-and the runbook edit exist. The executed order is:
+and the runbook edit exist. The executed order, **starting only once every edit in §1–§8 is in
+the tree** (extraction reads msgids out of the source, so step 6 is meaningless before
+`TASK = "task", _("Task")` exists and would otherwise have to be redone):
 
-> **6** (catalogs + `compilemessages`) → **3** (the pytest selection, which reads the compiled
-> `.mo`) → **4** (mutants, each run in isolation) → **7** and **8** (screenshots, PR body,
-> runbook) → then **5** (`ruff check` and `ruff format .` **last**, after every other edit) and
+> **0** all §1–§8 edits → **6** (catalogs + `compilemessages`) → **3** (the pytest selection,
+> which reads the compiled `.mo`) → **4** (mutants, each run in isolation) → **7** and **8**
+> (screenshots, PR body, runbook) → **5** (`ruff check` and `ruff format .` **last**, after
+> every other edit) → **4b** (revert mutants, recompile, re-run the DoD 3 selection green) →
 > finally **1** and **2** as the closing gates.
 
 1. `uv run python manage.py makemigrations --check --dry-run` clean (the migration exists).
@@ -552,6 +566,30 @@ and the runbook edit exist. The executed order is:
    changing either hex reddens rows 1/2's pinned literals. That co-firing is fine (it is
    defence in depth), but a red *suite* is then not evidence about the named row. This is the
    same attribution standard row 9's mutant was rewritten to meet; it applies here too.
+
+   **Row 9's mutant needs a compile step, or it is a no-op.** Its subject is a *compiled
+   derivative* of the file being mutated: editing `locale/pl/LC_MESSAGES/django.po` leaves
+   `django.mo` still holding `Zadanie`, so the test stays **green** and the falsification never
+   happens. The procedure is:
+
+   ```
+   # edit locale/pl/LC_MESSAGES/django.po -> msgstr "Wskazówka"
+   uv run python manage.py compilemessages
+   uv run pytest -k test_<row9_name>          # confirm RED
+   # restore the .po
+   uv run python manage.py compilemessages    # <- do not skip; see step 4b
+   ```
+
+   The same applies to any future catalog-backed mutant.
+
+4b. **Revert every mutant, recompile the catalogs, and re-run the DoD 3 selection green.** Run
+   this **after** DoD 5's `ruff format .`, so what is measured is the tree that ships. DoD 3
+   alone is not enough: it runs *before* the mutants exist, and DoD 4 deliberately damages
+   shipped artifacts — a deleted CSS rule, a deleted template branch, a removed enum member, a
+   corrupted catalog. None of the closing gates can see those: `makemigrations --check` and
+   `manage.py check` are blind to a missing CSS rule or template branch. The stale-`.mo` case is
+   the worst, because `test_i18n_po_health` reads only the `.po`, so a restored `.po` sitting
+   over a stale compiled `.mo` has **no guard at all** once DoD 3 has already run.
 5. `uv run ruff check .` and `uv run ruff format --check .` clean — the format check is a real
    CI gate; run `ruff format .` **last**, after every other edit.
 6. **Both catalogs**, extracted with the §8 command. `pl` at **0 fuzzy / 0 obsolete /
@@ -567,7 +605,16 @@ and the runbook edit exist. The executed order is:
 7. Light + dark screenshot of all five kinds together. No existing page renders them side by
    side (`seed_demo_course._callout` creates a single `kind="tip"` callout), so the mechanism is:
    write a **temporary** e2e file that seeds a lesson unit holding one callout of each kind and
-   screenshots it in both themes. It is a throwaway capture harness, **deleted before the PR** —
+   screenshots it in both themes.
+
+   **It must capture the STUDENT lesson-unit view, not the editor.** D3's glyph argument is
+   explicitly scoped to the student render, "where no Edit affordance exists" — the editor page
+   renders the same elements *and* is where the `✎` collision D3 discounts actually lives, so
+   capturing it would answer the wrong question while satisfying pass criteria (a)-(c) equally
+   well. Note the two e2e patterns cited below are editor-side fixtures; borrow their
+   theme mechanism, not their destination. Concretely: seed a course and a lesson unit, create a
+   user, enrol them (or use a staff preview), set `user.theme = "dark"` **on that same user**,
+   log in as them, and navigate to the student unit URL. It is a throwaway capture harness, **deleted before the PR** —
    the two images are the artifact, and the Testing section's "no e2e test is warranted" still
    holds for what ships. Run it with the marker, which is mandatory in this repo:
 
