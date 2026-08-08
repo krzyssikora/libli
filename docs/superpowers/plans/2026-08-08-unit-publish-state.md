@@ -860,9 +860,18 @@ def test_empty_with_data_is_legitimate():
 
 @pytest.mark.django_db
 def test_low_level_helpers_default_to_keep():
-    """The asymmetry IS the safety property: units_in_order's existing
-    callers include the builder, the link picker and the exporter, where
-    dropping drafts silently is DATA LOSS on transfer (KEEP1).
+    """The "keep" default means adding the keyword changes NO existing
+    behaviour.
+
+    units_in_order's real production callers are exactly two --
+    progress_reset (views.py:615) and notes.services.course_notes
+    (notes/services.py:116) -- plus quiz_units_in_order internally. The
+    builder and link_picker use _children_map, and build_export walks
+    course.nodes.all() itself; none of the three calls this.
+
+    The concrete reason for "keep": a "hide" default would silently narrow
+    progress_reset's `targets`, the UNFILTERED list that drives the write
+    (Task 6 Step 5).
     """
     course = CourseFactory()
     draft = ContentNodeFactory(course=course, kind="unit", published=False)
@@ -1305,7 +1314,9 @@ has_unit = ContentNode.objects.filter(
 .filter(Exists(has_unit))
 ```
 
-Edit the `has_unit` assignment, not the `Exists(...)` call. Without it, a CA building a new course privately publishes a course listing for content that does not exist yet.
+Edit the `has_unit` assignment, not the `Exists(...)` call.
+
+**`catalog_detail` needs the same treatment, and the listing gate does not cover it.** `courses/views.py:1682` computes `"unit_count": course.nodes.filter(kind="unit").count()` — unfiltered — for the pre-enrolment modal any student reaching `can_self_enroll` can open. A course with one published unit and nine drafts passes the new `Exists` gate and then advertises **"10 units"**, leaking both the existence and the volume of unpublished content on the first surface a CA building privately will look at. Add `published=True` there too; a viewer on that page is by definition not an author. Extend OUT9 with an assertion on the rendered count. Without it, a CA building a new course privately publishes a course listing for content that does not exist yet.
 
 - [ ] **Step 8: Run, falsify OUT10, run the neighbouring suites**
 
@@ -1632,7 +1643,9 @@ Two branches bumping this to the *same* number produce **no git conflict** — t
 - **TR2** — a **v9** archive imports with every unit published. *Mutant: `setdefault("published", False)` → everything imports hidden.*
 - **TR3** — imported containers land `published=False`, matching natively-created ones.
 - **TR4** — **duplicating a PUBLISHED unit yields a DRAFT copy.** *Mutant: let `materialize_duplicate` honour the payload like archive import does → the duplicate is live to students the instant it is created.* **Highest-value test outside the migration**: duplicate-and-edit is the most common way a CA adds content to a running course, and the defect is invisible in review because §8 reads as a data-fidelity change.
-- **KEEP1** — a course containing draft units exports **all** of them, and the link picker lists them. *Mutant: push the draft filter into `units_in_order`/`_walk_preorder` → drafts vanish from the builder and are silently dropped from the export — data loss on transfer.*
+- **KEEP1** — a course containing draft units exports **all** of them, and the link picker lists them. *Mutant: filter inside `export._ordered_nodes` or `_children_map`.*
+
+  **Not** "push the filter into `units_in_order`" — the export and link-picker halves are **green** on that mutant, because neither calls it (`build_export` walks `course.nodes.all()`; the picker uses `_children_map`). A mutant that cannot redden the assertion it is paired with is exactly what this plan's Global Constraints forbid. If neither replacement mutant is convenient, state plainly that KEEP1 is a structural regression test with no single-line mutant and keep it anyway — silently dropping units from an export is data loss on transfer, and that is worth an unmutated assertion.
 
 - [ ] **Step 2b: Run to verify failure**
 
@@ -1694,7 +1707,15 @@ Then normalise containers so the two creation paths agree. **Position matters tw
 
 Also update `tests/test_table_transfer.py:560`, which names the value in a **comment** — comments in this repo are matched by source-scanning tests, so a stale one is not merely untidy.
 
-**`courses/tests/test_beforeafter_transfer.py` needs more than a number edit.** The assertion at :165 lives in a function named `test_format_version_is_unchanged` (:158), named that because the before/after element deliberately did *not* bump the format. Editing its body to `== 10` leaves a test whose name asserts the opposite of what it checks. Rename it (e.g. `test_format_version_is_pinned`) or add a comment recording why the number moved; do not leave the contradiction.
+**Three files need more than a number edit** — each has a test *name* that will contradict its body once the number moves:
+
+| File | Test name | Why it goes stale |
+|---|---|---|
+| `courses/tests/test_beforeafter_transfer.py:158` | `test_format_version_is_unchanged` | named that because before/after deliberately did NOT bump the format |
+| `tests/test_table_transfer.py:295` | `test_format_version_is_bumped_for_cell_images` | claims ownership of a number this feature bumped |
+| `courses/tests/test_image_size_transfer.py:40` | `test_format_version_is_bumped` | same |
+
+Rename each to a neutral `test_format_version_is_pinned`, or add a one-line comment recording why the number moved. Details for the first: The assertion at :165 lives in a function named `test_format_version_is_unchanged` (:158), named that because the before/after element deliberately did *not* bump the format. Editing its body to `== 10` leaves a test whose name asserts the opposite of what it checks. Rename it (e.g. `test_format_version_is_pinned`) or add a comment recording why the number moved; do not leave the contradiction.
 
 - [ ] **Step 6: Force `published=False` in `materialize_duplicate`**
 
@@ -1718,9 +1739,18 @@ Also update `tests/test_table_transfer.py:560`, which names the value in a **com
         # which duplicate_unit's except-Exception then reports as a
         # TransferError -> 422, and TR4 goes red for a reason unrelated to
         # publish state.
-        ContentNode.objects.filter(pk__in=[n.pk for n in node_map.values()]).update(
-            published=False
-        )
+        nodes = list(node_map.values())
+        ContentNode.objects.filter(pk__in=[n.pk for n in nodes]).update(published=False)
+        # Set the ATTRIBUTE too, not just the column. duplicate_unit calls
+        # ordering.place_node(new_node, ...) after this returns, and place_node
+        # does an unconditional FULL n.save() ("full save: persists the new
+        # parent + order", ordering.py:90) on this very instance -- which
+        # _create_nodes built from the payload with published=True. Without
+        # this line that save writes published=True straight back over the
+        # update, the duplicate lands LIVE, and TR4 is red on a faithful
+        # implementation of this step.
+        for n in nodes:
+            n.published = False
         created = _create_elements(document, node_map, media_map)
 ```
 
@@ -1730,11 +1760,13 @@ Also update `tests/test_table_transfer.py:560`, which names the value in a **com
 uv run pytest tests/test_publish_transfer.py tests/test_transfer_import.py tests/test_transfer_export.py tests/test_transfer_schema.py tests/test_builder_duplicate_unit.py -q --verbosity=0
 ```
 
-Falsify by removing the post-pass `update()` and confirming TR4 goes red while TR1 stays green.
+**Confirm TR4 is GREEN before falsifying it.** `place_node`'s full save (see Step 6) makes it easy to ship an implementation where TR4 is red for a reason that has nothing to do with the mutant — so a red-after-mutation result proves nothing unless you saw green first.
+
+Then falsify twice: remove the post-pass `update()` (TR4 red, TR1 green), and separately remove only the `n.published = False` attribute loop while keeping the `.update()` — TR4 must **still** go red, which is what proves the attribute assignment is load-bearing rather than belt-and-braces.
 
 ```bash
 uv run ruff format .
-git add courses/transfer/schema.py courses/transfer/export.py courses/transfer/importer.py courses/builder.py tests/test_publish_transfer.py tests/test_link_transfer.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_transfer_schema.py tests/test_transfer_export.py courses/tests/test_beforeafter_transfer.py courses/tests/test_image_size_transfer.py
+git add courses/transfer/schema.py courses/transfer/export.py courses/transfer/importer.py tests/test_publish_transfer.py tests/test_link_transfer.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_transfer_schema.py tests/test_transfer_export.py courses/tests/test_beforeafter_transfer.py courses/tests/test_image_size_transfer.py
 git commit -m "feat(transfer): FORMAT_VERSION 10 carries published; duplicates land as drafts"
 ```
 
@@ -2250,6 +2282,11 @@ One aggregate over the set the write will touch, so the count and the action can
 **Not gated on `value == "0"`** — the subtree strip is rendered from the container GET, which carries no `value` at all, so a literal `value == "0"` gate is never true on that path and the warning would never render:
 
 ```python
+    # views_manage.py does not import from courses.quiz_warnings -- add
+    # `from courses import quiz_warnings` and use the MODULE-QUALIFIED form,
+    # matching Task 15. (notes/views.py likewise imports only
+    # can_access_course and get_node_or_404 from courses.access, so Task 6
+    # Step 6's can_see_drafts needs adding there too.)
     unit_pks = list(units.values_list("pk", flat=True))   # from Step 2
 
     # Initialise BEFORE the branch. For an obligatory strip, or a published
@@ -2260,8 +2297,8 @@ One aggregate over the set the write will touch, so the count and the action can
     quiet = False
 
     if flag == "published" and on > 0:  # i.e. this strip offers a hide action
-        submitted, in_progress = submission_counts(unit_pks)
-        quiet = is_quiet(unit_pks, course)
+        submitted, in_progress = quiz_warnings.submission_counts(unit_pks)
+        quiet = quiz_warnings.is_quiet(unit_pks, course)
 ```
 
 `unit_pks` is **every unit in the subtree**, not only the published ones. The strip is warning about what the *hide* action will take down, and on a mixed chapter the already-drafted units are not part of that — but their submissions still belong to the same quizzes the CA is about to bury, and under-reporting is the failure mode this warning exists to prevent. QZ10 asserts the aggregate over all subtree units.
@@ -2498,12 +2535,18 @@ The flag is already in the tree context: `_tree_context` emits `filtered` (fed f
 
 ```django
 {% if filtered %}
-  <a class="ica icm--live is-inert" aria-disabled="true" tabindex="-1"
+  {# SAME glyph class as the live branch -- compute it via Step 4b, do not #}
+  {# hardcode. The inert branch differs ONLY by dropping href and adding    #}
+  {# aria-disabled / tabindex / the tooltip.                                #}
+  <a class="ica icm {{ publish_glyph }} is-inert" aria-disabled="true" tabindex="-1"
      title="{% trans 'Clear the filter to publish or hide a whole section.' %}"></a>
 {% else %}
-  <a data-flag-confirm="{{ node.pk }}" data-flag="published" href="…">…</a>
+  <a class="ica icm {{ publish_glyph }}" data-flag-confirm="{{ node.pk }}"
+     data-flag="published" href="…">…</a>
 {% endif %}
 ```
+
+**Do not hardcode `icm--live` on the inert branch.** TREE4 is the *only* test that exercises the fold under an active filter — so it renders this branch — and it asserts the **mixed** glyph. A literal `icm--live` here makes a filtered container always read all-live, and TREE4 becomes unsatisfiable against markup that can never carry the class it looks for.
 
 **Unit toggles stay live under a filter** — they affect exactly the one row shown. Without this step TREE5 is a test with nothing to test, and WR18's fixture rationale in Task 11 (which relies on container anchors being unreachable under a filter, so it uses the quiz anchor instead) rests on behaviour that was never built.
 
@@ -2589,7 +2632,13 @@ The `node.kind == 'unit'` conjunct is load-bearing: a container has no publish s
 
 **Every rule this task adds goes in `courses/static/courses/css/builder.css`.** `builder.html` loads only `builder.css`, and `.tree__row`, `.tree__rowhead`, `.tree__cluster` and `input.tree__title` are all defined there. `editor.css` says so itself: *"The builder's `.tree__scope`/`.tree__row`/`.tree__rowhead` are deliberately NOT reused: they live in builder.css, which this page does not load."*
 
-Put **three groups** into `builder.css`: the six `.icm--*` rules from Step 2, the strike-through, and the `order` values from Step 5. Omitting the `--icm` rules leaves every toggle rendering an empty 15×15 box, since `.icm::before` masks against an undefined custom property.
+Put **four groups** into `builder.css`: the six `.icm--*` rules from Step 2, the strike-through, the `order` values from Step 5, and one rule for `is-inert`:
+
+```css
+.ica.is-inert { opacity: .35; cursor: default; }
+```
+
+`is-inert` exists nowhere in the repo, so without this the three inert cases (filter active, zero units, zero lessons) render **visually identical to live controls** — an anchor that looks clickable and does nothing, with only a tooltip to explain it. Mirror the existing `.ica:disabled` treatment. Omitting the `--icm` rules leaves every toggle rendering an empty 15×15 box, since `.icm::before` masks against an undefined custom property.
 
 **There is no fourth "opacity exemption" rule to write.** `builder.css:62` scopes the dim to `.tree__cluster { opacity: .5 }`, and Step 4 places the toggles as *siblings* of that element — so they are at full opacity already. Nothing to add; do not go looking for a selector. Written into `editor.css` they would be inert — the builder never pulls that file in, so E2E1 and the whole Step 5 layout would fail silently, with correct-looking CSS sitting in the repo.
 
@@ -2668,12 +2717,16 @@ A POST can come back as a strip (a stale page, or a click that raced the quiz's 
 
 **The guard is SET in the synchronous submit handler and CLEARED in the response handler.** These are two different places, and putting both in the response handler — where `text` already exists — leaves the control enabled for the entire in-flight window, i.e. no guard at all. E2E6's Mutant B only reddens if the `disabled = true` happened at submit time; set it late and both the correct build and the mutant pass.
 
+**`e.submitter` is NULL on the rename path** — `commitRename()` calls `form.requestSubmit()` with no argument, and `builder.js` guards every read of it (`e.submitter && e.submitter.getAttribute(...)`) with a comment saying exactly this. An unguarded `control.disabled = true` throws `TypeError: Cannot set properties of null` **inside the submit listener, after `e.preventDefault()` has run** — so the fetch never fires and inline rename is dead on every row in the builder. Guard it, and scope it to the flag ops:
+
 ```js
 // --- submit handler, synchronous, beside the existing e.preventDefault()
 //     and the `op` / `action` reads (e.submitter is already consulted there):
-var control = e.submitter;
-control.disabled = true;                    // buttons
-control.setAttribute("aria-disabled", "true");   // anchors, where disabled is inert
+var control = e.submitter;                  // NULL on the rename path
+if (control && (op === "flag" || op === "flag-confirm")) {
+  control.disabled = true;                  // buttons
+  control.setAttribute("aria-disabled", "true");  // anchors, where disabled is inert
+}
 
 // --- response handler, once `text` has arrived:
 try {
@@ -2685,12 +2738,16 @@ try {
   }
   applyFragment(text);
 } finally {
-  control.disabled = false;                 // MUST run on every arm, including
-  control.removeAttribute("aria-disabled"); // the strip branch's early return
+  if (control) {
+    control.disabled = false;                 // MUST run on every arm, including
+    control.removeAttribute("aria-disabled"); // the strip branch's early return
+  }
 }
 ```
 
 The `finally` matters most on the strip branch: that path does **not** re-render the tree, so the original control survives in the DOM and a clear placed inside `applyFragment` never runs for it — the button stays dead until a page reload.
+
+**The clear must ALSO run on the fetch-rejection arm.** The `finally` above lives inside the `r.text().then(...)` success callback; `builder.js`'s dispatch has a second arm — `}, function () { notice(msg("network", …)); releaseForm(form, op); })` — which never enters it. A network failure would therefore leave the toggle permanently disabled, which is E2E6's dead-button failure reached from the other side. `releaseForm` cannot carry it: it returns immediately unless `op === "rename"`. Either duplicate the clear on the rejection arm or hoist it into a shared continuation that both arms run.
 
 The `finally` is not decoration: on this path the tree is **not** re-rendered, the original button survives in the DOM, and the branch `return`s before `applyFragment`. Clearing the guard "where the response is applied" leaves that button **permanently disabled** until a page reload.
 
