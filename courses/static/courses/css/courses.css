@@ -1772,7 +1772,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .reset-confirm__safe { margin: 0 0 var(--space-4); color: var(--text-secondary); font-size: .9rem; }
 
 /* --- Callout element (student consumption). A framed, always-visible aside
-   (Example / Note / Tip / Important) holding rich text + math. Zero JS: the
+   (Example / Note / Tip / Important / Task) holding rich text + math. Zero JS: the
    static render IS the behaviour.
 
    Design: a textbook-style "category marker", not a coloured alert box. The
@@ -1850,11 +1850,13 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .callout--note    { --callout-accent: #55606b; }
 .callout--tip     { --callout-accent: #1f8a52; }
 .callout--warning { --callout-accent: #b06f0f; }
+.callout--task    { --callout-accent: #a8318f; }
 
 [data-theme="dark"] .callout--example { --callout-accent: #7db0f7; }
 [data-theme="dark"] .callout--note    { --callout-accent: #aabac8; }
 [data-theme="dark"] .callout--tip     { --callout-accent: #5cd193; }
 [data-theme="dark"] .callout--warning { --callout-accent: #e8b761; }
+[data-theme="dark"] .callout--task    { --callout-accent: #ee9fd8; }
 
 /* Before / after — base */
 .el--beforeafter { margin-block: var(--space-6); }
