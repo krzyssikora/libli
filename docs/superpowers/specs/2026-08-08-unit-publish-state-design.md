@@ -68,6 +68,11 @@ every course in every existing database on the next `migrate` (see "Deployment r
 that means the populated dev databases today, and the first real install later). Migration
 `0057_contentnode_published` therefore carries **two operations in one file**:
 
+**Re-verify the `0057` prefix against `origin/master` immediately before the PR**, under the same
+discipline §8 applies to `FORMAT_VERSION`. It is correct against this worktree (`0056` is the
+current leaf), but any branch that lands a migration first turns this into a second `0057_*` leaf
+and a `Conflicting migrations detected` failure at rebase time.
+
 ```python
 operations = [
     migrations.AddField(
@@ -120,14 +125,38 @@ Filtering becomes an explicit layer on top:
 | Surface | Rule |
 |---|---|
 | Course outline, unit nav, prev/next, all four progress counters | `hide` — drop draft units; drop containers whose subtree contains no visible unit. |
-| Notes hub, tags hub (`notes/services.py` iterates `units_in_order`) | `hide`. |
+| Notes hub, tags hub | `hide` — but **not** through the traversal keyword; see below. |
 | The student's **own** results page (`course_results`) | `hide` — see the `course_results` note below; a student must not see a row for a quiz that was pulled back. |
 | Self-enrolment catalogue | `hide` — see "The catalogue must not advertise an empty course". |
 | Direct unit URL, node permalink, every unit-addressed POST | 404 for non-authors (§3). |
 | Analytics matrix, gradebook, student breakdown, review queue | `keep-with-data` — drop draft units **unless** the unit holds data. |
 | Builder tree, link picker, course/subtree export | `keep` — everything, always. |
 
-### The catalogue must not advertise an empty course
+### The tags and notes hubs are queryset-driven and do NOT inherit the keyword
+
+Only one of these four surfaces reaches the tree through a traversal helper. The rest build their
+unit lists from join rows, so parameterising `units_in_order` filters **nothing** on them:
+
+| Surface | Real entry point | Fix |
+|---|---|---|
+| Notes hub (per-course) | `notes.services.course_notes` → `units_in_order` | the `drafts=` keyword |
+| Notes overview | `notes.services.note_counts_by_course` — a `Note` aggregate | queryset filter |
+| Tags hub | `tags.services.units_by_tag` — built from `UnitTag` rows; touches `_walk_preorder` only to derive an ordering index | queryset filter |
+| Tag list / per-course counts | `tags.services.list_tags`, `tags.services.tags_by_course` — `UnitTag` aggregates | queryset filter |
+
+For the three queryset-driven ones, the filter is applied where the rows are selected:
+
+```python
+if not can_see_drafts(author, course):
+    qs = qs.exclude(unit__kind="unit", unit__published=False)
+```
+
+The `unit__kind="unit"` conjunct matters: `exclude(unit__published=False)` alone would also drop
+rows attached to containers, whose `published` column is meaningless (§1).
+
+**Without this, a student who tagged a unit that is later drafted keeps seeing its title and a live
+link on `/tags/`** — exactly the leak §2 exists to close, on a page that never appears in a
+traversal-layer diff.
 
 `grouping/services.py` gates a course's appearance in the self-enrolment catalogue on
 `Exists(ContentNode.objects.filter(course=OuterRef("pk"), kind="unit"))`. Left alone, a course whose
@@ -152,20 +181,36 @@ teacher-facing analytics surface, which is the exact opposite of the §2 table. 
 The filter is therefore an **explicit keyword**, carried by every helper in the traversal layer:
 
 ```python
-# The three modes. `with_data` is REQUIRED when drafts == "keep-with-data" and
-# ignored otherwise; it is the set of unit pks that hold data (see "Analytics",
-# below). Passing "keep-with-data" with an empty with_data is a programming
-# error, not a silent "keep nothing" — assert it.
+# The three modes. `with_data` is the set of unit pks that hold data (see
+# "Analytics", below). Its default is None, NOT an empty set: `keep-with-data`
+# requires it, and `None` is the sentinel that distinguishes "the caller forgot"
+# from "this course genuinely has no data yet" — an empty set is a perfectly
+# ordinary state for a course no student has touched, and must not raise.
+#   assert not (drafts == "keep-with-data" and with_data is None)
 DRAFTS = "hide" | "keep" | "keep-with-data"
 
-def build_outline(course, user, *, drafts="hide", with_data=frozenset()): ...
-def build_unit_nav(course, user, current_node, *, drafts="hide", with_data=frozenset()): ...
-def counts_for_progress(node, *, drafts, with_data): ...
-def units_in_order(course, *, drafts="keep", with_data=frozenset()): ...
-def units_under(node, *, drafts="keep", with_data=frozenset()): ...
-def quiz_units_in_order(course, *, drafts="keep", with_data=frozenset()): ...
-def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=frozenset()): ...
+def build_outline(course, user, *, drafts="hide", with_data=None): ...
+def build_unit_nav(course, user, current_node, *, drafts="hide", with_data=None): ...
+def unit_is_visible(node, *, drafts, with_data): ...
+def units_in_order(course, *, drafts="keep", with_data=None): ...
+def units_under(node, *, drafts="keep", with_data=None): ...
+def quiz_units_in_order(course, *, drafts="keep", with_data=None): ...
+def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None): ...
+
+# These three call the helpers above INTERNALLY, so a caller cannot filter their
+# output after the fact — build_course_results computes score_sum / max_sum /
+# done_count from its own quiz_units_in_order() call, and post-filtering the
+# returned rows would leave the headline totals still summing a drafted quiz.
+# They must thread the values through, not derive them.
+def build_course_results(course, student, *, drafts, with_data=None): ...
+def build_student_breakdown(course, student, *, drafts, with_data=None): ...
+def notes.services.course_notes(author, course, *, drafts, with_data=None): ...
 ```
+
+**"The filter lives in the caller" means the *value* is chosen by the caller and threaded through.
+It does not mean the helper can be wrapped.** Any helper that reaches the tree internally needs the
+keyword, however thin it looks — see `quiz_units_in_order` and `frontier_columns` below for the two
+that look most like conveniences and are not.
 
 **The defaults differ deliberately, and the asymmetry is the safety property.**
 `build_outline`/`build_unit_nav` default to `"hide"` because every one of their callers is
@@ -194,6 +239,22 @@ required-lesson denominators. Those sets are filtered by the same rule as the co
 excluded from the columns must not survive in the denominator, or the matrix divides by units it
 does not display.
 
+**`build_matrix_columns` is test-only.** Outside the test suite it has no callers at all. It does
+*not* gain the keyword: adding it defensively invites a test written against the alias, which is
+precisely the green-but-uncovered outcome ANA3 exists to prevent. Leave it as the frozen
+`frontier_columns(course, frozenset())` alias it is.
+
+### Analytics container columns whose whole subtree is filtered out
+
+`frontier_columns` emits a leaf column for every unexpanded *container*, carrying `lesson_pks` /
+`quiz_pks` aggregated over its subtree. Under `keep-with-data`, a chapter whose units are all
+never-published reduces to **empty pk sets on both**, leaving `has_lessons` and `has_quizzes` both
+false — a combination the matrix builders were never written to expect.
+
+**Rule: drop the column entirely when both pk sets are empty.** A header over nothing but dashes
+tells a teacher less than its absence does, and it is the same judgement §2's container pruning
+makes for students. §9 ANA6 pins it.
+
 ### Per-call-site values
 
 | Call site | `drafts=` |
@@ -219,8 +280,23 @@ hard-codes `"hide"`.
 student)` is called by the *student-facing* `course_results` view **and** by the teacher-facing
 `build_student_breakdown` and the gradebook. If it simply inherited `keep-with-data` from its
 teacher-facing callers, a student would see a row and a link for a quiz that was pulled back to
-draft — because *their own* submission is what makes it "hold data". The filter therefore lives in
-each **caller**, never inside `build_course_results`.
+draft — because *their own* submission is what makes it "hold data". The value is therefore chosen
+by each **caller** and threaded in, never derived inside `build_course_results`.
+
+### Unpublishing a quiz hides students' own marks from them, for the duration
+
+The `hide` rule on `course_results` and the `viewer=` gate on `quiz_results` compose into a
+consequence worth stating outright, because neither section says it alone:
+
+**When a CA pulls a quiz back to fix a typo, every student who already submitted loses the row from
+their results page and 404s on their results detail — their own graded work becomes unreachable
+until the quiz is published again.**
+
+This is the correct behaviour (a hidden unit is hidden), and it is temporary. But it is invisible to
+the person causing it, so the unpublish confirm strip must say so in as many words — §4's quiz
+strip copy carries the sentence, alongside the count and the re-grading warning. §9 QZ7 pins the
+`quiz_results` 404 for a student who submitted, so the consequence is a fixture rather than a
+support ticket.
 
 ### The author's denominator differs from the student's, and that is accepted
 
@@ -252,9 +328,33 @@ adopted knowingly, not a side effect to be discovered later.
 A draft unit must not count: a student seeing "3 of 10 required units" with seven of them invisible
 has no way to reach 100%.
 
-**`is_obligatory_lesson` is NOT the single gate, despite its docstring saying so.** Reading
-`build_outline`'s rollup (`rollups.py:150–176`) shows four independent expressions, and only two
-route through that predicate:
+### The filter runs at dict-creation time, NOT inside the counters
+
+**This is the single most important implementation decision in §2, and getting it backwards
+produces either a leak or dead code.**
+
+`build_outline` builds one dict per node and *then* folds the rollup over that tree. The draft
+filter belongs at **dict creation**: a filtered-out unit gets **no dict at all**, so it is absent
+from the outline, absent from prev/next, and absent from every counter, by construction.
+
+```python
+def unit_is_visible(node, *, drafts, with_data):
+    """Whether this unit gets a dict in the outline tree at all. The ONE gate.
+    hide -> published only. keep -> everything. keep-with-data -> published, plus
+    drafts whose pk is in with_data."""
+```
+
+In all three modes "appears in the tree" and "counts toward the totals" are **the same
+condition** — `keep` deliberately counts the author's drafts (see below), and `keep-with-data`
+counts exactly the drafts it displays. There is therefore no second, counter-level gate to write.
+
+**Do not instead add a publish check to the rollup expressions.** If the dict is already gone, those
+checks can never fire: they would be dead code, and any test written against them would pass
+vacuously on every mutant — one more assertion that could not fail.
+
+**Why the tempting alternative is wrong.** The obvious shortcut is to gate `is_obligatory_lesson`,
+since its docstring calls itself "the SINGLE source for counts toward required_total". It is not.
+The rollup has **four** independent expressions and only two route through it:
 
 | Counter | Current expression | Routes through `is_obligatory_lesson`? |
 |---|---|---|
@@ -263,20 +363,10 @@ route through that predicate:
 | `additional_done` | `is_lesson and not node.obligatory and pk in completed` | **no** |
 | `"completed"` (per-node key, `rollups.py:150`) | `is_unit and pk in completed` | **no** |
 
-Gating `is_obligatory_lesson` alone would fix the first two and leave `additional_done` counting
-drafted optional units the student cannot see, and leave every draft unit's dict carrying
-`completed: True`.
-
-The fix is one new predicate that all four call, rather than four parallel edits that can drift:
-
-```python
-def counts_for_progress(node, *, drafts):
-    """A unit whose progress the viewer may see at all. The publish gate, applied
-    once. is_obligatory_lesson and the three sibling expressions all sit on top."""
-```
-
-§9 OUT2 and OUT3 cover the first two counters; **OUT4** covers `additional_done` and the `completed`
-key specifically, because those are the two the obvious implementation misses.
+So gating that predicate would fix two counters, leave `additional_done` counting drafted optional
+units, and leave every draft unit's dict carrying `completed: True`. This table is retained as the
+argument for filtering at dict creation — one gate that all four inherit — not as four sites to
+patch.
 
 A student who *had* completed a unit that is later pulled back to draft keeps their `UnitProgress`
 row untouched; it simply stops being counted while the unit is hidden, and resumes counting
@@ -289,13 +379,39 @@ unchanged when the unit is published again.
 - `node_pk is None` (the course-wide reset, the more commonly used one) → `units_in_order(course)`
 - `node_pk` given (the subtree reset) → `units_under(node)`
 
-Both pass the viewer-conditional value. Filtering only the subtree branch — the obvious reading,
-since it is the one with a node in hand — leaves the course-wide reset counting drafts, reproducing
-exactly the dishonesty this section exists to remove, on the path students actually use.
+Filtering only the subtree branch — the obvious reading, since it is the one with a node in hand —
+leaves the course-wide reset counting drafts, reproducing exactly the dishonesty this section exists
+to remove, on the path students actually use.
 
-In practice a draft unit holds no student practice state, so the number is usually identical either
-way — but that is a property of today's data, not an invariant, and a view whose docstring makes
-honesty its entire point should not depend on a coincidence. §9 OUT6 pins both branches.
+**But `targets` is not a display-only quantity, and this is the trap.** The same list drives the
+write:
+
+```python
+rows = UnitProgress.objects.filter(student=request.user, unit__in=targets)
+...
+rows.update(element_state={})        # the POST branch
+```
+
+Filtering `targets` would therefore silently narrow the **reset itself**: a student who clears their
+whole course would keep stale `element_state` on every currently-draft unit, which then resurfaces
+the moment the CA republishes it. Reset is described in its own docstring as "the student's
+protection against automatic persistence"; leaving hidden state behind is precisely the failure it
+exists to prevent.
+
+**The rule: filter the COUNT, never the WRITE.**
+
+```python
+affected_count = rows.exclude(element_state={}).filter(unit__in=visible_targets).count()
+rows.update(element_state={})        # unfiltered — clears everything the student owns
+```
+
+The student is told about what they can see; the reset clears everything of theirs regardless. Both
+halves are honest, and they are honest about different things. §9 OUT6 pins the count on both
+branches, and **OUT6b pins that the write still clears a drafted unit's state** — without that
+second assertion the safe implementation and the unsafe one are indistinguishable.
+
+In practice a draft unit rarely holds student practice state, so the count is usually identical
+either way — but that is a property of today's data, not an invariant.
 
 ### Analytics keeps columns that hold data
 
@@ -438,6 +554,14 @@ before:
 - **Docstrings and comments are raw source too.** A regex over file text hits prose that mentions
   the function — including the prose in this spec if the docs tree is ever scanned. Restrict the
   scan to `**/views.py` and `**/views_*.py` under the app packages, and exclude comment lines.
+- **Exclude every author-facing view module by name, not just `views_manage.py`.** That glob also
+  matches `courses/views_analytics.py`, `views_review.py`, `views_export.py`, `views_transfer.py`
+  and `views_media.py` — all surfaces where `keep` is correct (§2's export row, pinned by KEEP1).
+  None calls `get_node_or_404` today, so a `views_manage.py`-only exclusion is green right now; but
+  this test exists to govern call sites that do not exist yet, and as written it would push the next
+  implementer to pass `viewer=` in the exporter and silently drop drafts from archives.
+- **The failure message must say which side a new file belongs on**, since the test's whole value is
+  guiding code that has not been written.
 
 The inverse default — `viewer` required, with management views passing an explicit
 `viewer=None` — was considered. It is genuinely safer, but it touches every management call site
@@ -460,15 +584,42 @@ views the same `unit → course` resolution the graded path uses, not by a speci
 ### One endpoint for both flags
 
 ```
-GET  courses:manage_node_flag    -> the confirm strip (containers only)
-POST courses:manage_node_flag    -> performs the write
+GET  courses:manage_node_flag    -> the confirm strip
+POST courses:manage_node_flag    -> writes IF confirmation is satisfied, else returns the strip
 
-  node   = <pk>
-  token  = <node.updated.isoformat()>       # optimistic concurrency, as rename_node
-  flag   = "published" | "obligatory"
-  value  = "0" | "1"
-  scope  = "node" | "subtree"
+  node      = <pk>
+  token     = <node.updated.isoformat()>    # optimistic concurrency, as rename_node
+  flag      = "published" | "obligatory"
+  value     = "0" | "1"
+  scope     = "node" | "subtree"
+  confirmed = "1"                           # present only when posted BY the strip
 ```
+
+### Confirmation is a server-side invariant, not a UI convention
+
+The view computes `needs_confirmation` itself and, when it is true and `confirmed=1` is absent,
+**returns the strip instead of writing**. The template deciding to render an anchor rather than a
+button is an optimisation; it is never the guard.
+
+```python
+needs_confirmation = scope == "subtree" or (
+    flag == "published" and value == "0"
+    and node.unit_type == "quiz" and node.pk in quizzes_with_submissions
+)
+```
+
+This single rule replaces three that would otherwise have to agree with each other — the template's
+element choice, the JS dispatch, and the no-JS interstitial — and it is what makes the quiz
+carve-out implementable at all. Without it, a unit toggle is a submit button that POSTs, and a POST
+that reaches the view has by construction already been authorised to write.
+
+The strip's own submit carries `confirmed=1` and writes. The response to an unconfirmed POST is the
+strip itself (200 for fragments, the full-page interstitial otherwise) — **not** a 4xx: nothing is
+wrong with the request, the server is asking a question.
+
+@login_required is required on the view in addition to `_require_manage`. `_require_manage` does not
+check authentication — for an anonymous request it raises `PermissionDenied` and produces a 403
+where every neighbouring management view produces a login redirect.
 
 **Route:** added to `courses/urls.py` beside `manage_node_rename` and `manage_node_duplicate`, with
 the same `<slug>`-only path shape they use (`node` travels as a parameter, not as a path segment).
@@ -533,9 +684,23 @@ is a *unit-scope* action — so a rule of "units never confirm" would mean the w
 the one case §6 is about. The reversibility argument also fails here: the click is reversible, but
 the quiz edits it invites are not.
 
-Precisely: `scope=node AND flag=published AND value=0 AND unit_type=quiz AND ≥1 submission` →
-confirm strip. Every other unit-scope click applies immediately. §9 QZ5 pins both halves — that a
-quiz *with* submissions gets the strip and a quiz *without* does not.
+The condition is the `needs_confirmation` expression above, and the server enforces it whatever the
+markup does. The template still cooperates so the interaction is not a surprise round-trip:
+
+| Row | Publish control renders as | On activation |
+|---|---|---|
+| Unit, ordinary | `<button type="submit" data-op="flag">` | POSTs; writes immediately |
+| Unit, quiz with ≥1 submitted | `<a data-flag-confirm="<pk>">` | GETs the strip |
+| Container | `<a data-flag-confirm="<pk>">` | GETs the strip |
+
+If a POST arrives anyway for a confirming row — a stale page, or a submission that raced the
+quiz's first submission — the server returns the strip rather than writing. No-JS follows the
+anchor to the full-page interstitial, whose form posts `confirmed=1`.
+
+§9 QZ5 pins both halves: a quiz *with* submissions gets the strip, a quiz *without* applies
+immediately. **WR13 pins the server-side half specifically** — a hand-rolled POST without
+`confirmed=1` must not write — because every UI-driven test would pass on an implementation where
+the template is the only guard.
 
 ### Subtree scope: the in-place confirm strip
 
@@ -555,14 +720,41 @@ inside the rowhead form would produce markup browsers silently re-parent, breaki
 way that looks like a server bug.
 
 The strip always states the count, and for a **mixed** container offers *both* actions rather than
-guessing which way a half-filled icon toggles:
+guessing which way a half-filled icon toggles. **One template, with a `flag`-keyed string table** —
+the endpoint and the strip serve both flags, so both variants must be written or half the feature's
+user-visible text is missing (and §10 cannot produce PL/EN entries for it):
 
 ```
+flag=published, mixed:
 ┌─ Publish or hide 5 units in "Chapter 3"? ─┐
 │  2 are live, 3 are drafts.                │
 │  [ Publish all 5 ]  [ Hide all 5 ]   ×    │
 └───────────────────────────────────────────┘
+
+flag=obligatory, mixed:
+┌─ Change 5 lessons in "Chapter 3"? ────────┐
+│  3 are obligatory, 2 are optional.        │
+│  [ All obligatory ]  [ All optional ] ×   │
+└───────────────────────────────────────────┘
+
+flag=published, all-draft (single action):
+┌─ Publish 5 units in "Chapter 3"? ─────────┐
+│  All 5 are currently drafts.              │
+│  [ Publish all 5 ]                    ×   │
+└───────────────────────────────────────────┘
+
+flag=published, unpublishing a quiz with submissions:
+┌─ Hide "Test 2" from students? ────────────┐
+│  12 students have submitted.              │
+│  Their results are kept, but they will    │
+│  not be able to see them while it is      │
+│  hidden, and edits will not re-grade      │
+│  their answers.                           │
+│  [ Hide it ]                          ×   │
+└───────────────────────────────────────────┘
 ```
+
+Note the obligatory variant counts **lessons**, not units — the denominators differ (see §5).
 
 For an all-live or all-draft container only the meaningful action is offered.
 
@@ -576,12 +768,20 @@ names the additions rather than leaving them to be inferred:
 
 | Addition | Behaviour |
 |---|---|
-| `data-op="flag"` on the two unit toggle buttons | Routed through the existing form-submit dispatch, like `rename` and `duplicate`. Response applied via `applyFragment` (see below). |
-| `data-flag-confirm="<pk>"` on the container anchors | Click handler: `fetch` the GET, insert the returned strip as a sibling after the rowhead, move focus into it. |
+| `data-op="flag"` + `data-flag="published"\|"obligatory"` on the unit toggle buttons | Routed through the existing form-submit dispatch, like `rename` and `duplicate`. `data-flag` is required as well as `data-op`, because both buttons on a row share the op and the focus selector must disambiguate them. |
+| `data-flag-confirm="<pk>"` + `data-flag="…"` on the container and confirming-quiz anchors | Click handler: `fetch` the GET, insert the returned strip as a sibling after the rowhead, move focus into it. |
+| `data-op="flag-confirm"` on the strip's own form | Ordinary POST through the existing dispatch; response applied via `applyFragment`. |
 | Strip dismiss (`×`, and `Esc`) | Removes the strip, returns focus to the anchor that opened it. |
-| Strip submit | Ordinary form POST through the existing dispatch; response applied via `applyFragment`. |
-| Busy state | The strip participates in `busyStart()` / `releaseForm()` exactly as other ops do — a second click while a toggle is in flight must not queue a second write. |
+| Double-submit guard | **A per-control `disabled` for the duration of the request** — set on the button (or anchor) before the fetch, cleared when the response is applied. |
 | Open-strip exclusivity | Opening a strip closes any other open strip. Two live confirmations with different counts on screen at once is a mis-click waiting to happen. |
+
+**The double-submit guard cannot be delegated to the existing busy machinery, despite appearances.**
+`busyStart()` only sets `data-busy` on the root, and the sole rule keyed to it is a visual dim
+(`opacity: .6; cursor: progress`) with **no `pointer-events` suppression** — a second click during a
+dimmed tree fires a second submit. `releaseForm(form, op)` returns immediately unless
+`op === "rename"`, so it provides no lock either. Saying "it participates in `busyStart()` like
+other ops" would have described a guarantee the machinery does not deliver. The per-control
+`disabled` is new, small, and actually blocks the second click.
 
 ### Response contract
 
@@ -628,11 +828,18 @@ than assumed.
 `X-Builder-Info` carries full state and is emitted on the same terms as the other builder ops — this
 endpoint introduces no new convention for it.
 
-**Focus must be restored after the swap.** Re-rendering `top` destroys the button the user just
-clicked, and this project has already shipped one focus bug of exactly this shape. After
-`applyFragment`, move focus to `[data-node="<pk>"] [data-op="flag"][data-flag="<flag>"]` — the same
-control on the freshly rendered row — so a keyboard user can toggle a second time without
-re-navigating the tree. §9 E2E4 pins it.
+**Focus must be restored after the swap, on BOTH paths.** Re-rendering `top` destroys the control
+the user just activated, and this project has already shipped one focus bug of exactly this shape.
+The two paths need different selectors, because a container row has no toggle *button*:
+
+| Path | Focus target on the freshly rendered row |
+|---|---|
+| Unit toggle | `[data-node="<pk>"] [data-op="flag"][data-flag="<flag>"]` |
+| Confirmed strip write (container or quiz) | `[data-node="<pk>"] [data-flag-confirm="<pk>"][data-flag="<flag>"]` |
+
+Using the unit selector for the strip path would match nothing, focus would fall to `<body>`, and a
+keyboard user would be dropped to the top of a 2,866-row tree — the same defect in a new place.
+§9 E2E4 asserts `document.activeElement` after **both**.
 
 ### The bulk write bypasses `auto_now`
 
@@ -647,8 +854,17 @@ every touched row's `updated` — and therefore its optimistic-concurrency token
 `data-updated` attribute — pointing at a state that no longer exists. Setting `updated` explicitly
 in the same call is mandatory. §9 pins it.
 
-The subtree's unit ids come from `ContentNode._subtree_node_ids()` filtered to `kind="unit"`; that
-method already exists and is already used by `delete()`.
+The subtree's unit ids take **two steps**, not one. `ContentNode._subtree_node_ids()` returns a flat
+list of pks carrying no kind information, and it **includes the container's own pk**:
+
+```python
+ids = node._subtree_node_ids()
+unit_pks = ContentNode.objects.filter(pk__in=ids, kind="unit").values_list("pk", flat=True)
+# flag=obligatory additionally restricts to unit_type="lesson" (see §5)
+```
+
+A second query, not an in-memory comprehension. The kind filter is also what excludes the container
+itself from the write.
 
 **The container's own `updated` is bumped in the same transaction**, even though its `published`
 column is untouched. Two reasons: its row's `data-updated` token and `_scope.html`'s `scope_updated`
@@ -749,6 +965,12 @@ sibling's order becomes load-bearing, so a future row control added without an `
 and jumps to the front. Note that in a CSS-less rendering (or if the stylesheet fails to load) the
 toggles appear after the title; that is cosmetic and acceptable.
 
+**The toggles render at full opacity at rest, and are exempt from the cluster's hover-reveal.**
+`.tree__cluster` is styled `opacity: .5` with a `:hover` / `:focus-within` reveal — the convention
+for row *actions*. The toggles sit outside the cluster and must not inherit it: they are **state
+indicators** first and controls second, so a 50%-dimmed publish dot would defeat the one thing the
+feature is for, which is seeing publish state at a glance down a long tree.
+
 **A unit toggle click discards an uncommitted title edit.** The button submits the rowhead form,
 which serialises `input.tree__title`, and `manage_node_flag` ignores `title` — so a CA who types a
 new title and then clicks the publish dot loses the edit with no warning. The existing **Duplicate**
@@ -793,8 +1015,52 @@ striking it would assert something the model does not hold.
 
 ### Tri-state rollup — fold the FULL map, never the rendered one
 
-Per container, the tree needs `(live_unit_count, obligatory_unit_count, total_unit_count)` over its
-whole subtree: one bottom-up fold over the already-loaded node list, no additional queries.
+### The two tri-states need DIFFERENT denominators
+
+`obligatory` is only ever read for **lesson** units — `is_obligatory_lesson` requires
+`unit_type == LESSON`, and a quiz's `obligatory` column is stored but consulted by nothing.
+
+A single shared `total_unit_count` would therefore make a chapter of five obligatory lessons and one
+quiz render **mixed obligatory**, purely because of an inert flag on a row where the concept does not
+apply. Publish, by contrast, genuinely spans every unit.
+
+| Tri-state | Denominator |
+|---|---|
+| Publish | all units in the subtree |
+| Obligatory | **lesson units only** |
+
+The subtree **write** follows the same split: `flag=obligatory` with `scope=subtree` restricts to
+`unit_type="lesson"`, so "make all obligatory" does not stamp a meaningless `True` onto quiz rows.
+`flag=published` writes every unit. §9 TREE6 uses a container holding exactly one quiz and one
+obligatory lesson — the fixture where a shared denominator and a split one disagree.
+
+### The fold
+
+Per container the tree needs `(live_units, total_units, obligatory_lessons, total_lessons)` over its
+whole subtree: one bottom-up fold over the already-loaded node list.
+
+**Where it lives.** `_tree_context(course, cmap, …)` is the one shared place that already receives
+the full `cmap` and is called by both `builder` and `_render_scope`. The fold runs there and returns
+`dict[pk] -> (live_units, total_units, obligatory_lessons, total_lessons)`, delivered to
+`_tree_node.html` under its own context key. It **must** arrive precomputed: `_tree_node.html` is
+rendered recursively from `_scope.html` with only `children_map`, `open_ids`, the reversed URLs and
+`course` in scope, and no template filter can walk a subtree. An implementer without a named context
+key will either recompute per row or reach for `children_map` — which is exactly the mutant TREE4
+targets.
+
+**One additional course-wide query is required, not zero.** The quiz carve-out (§4) means the tree
+must know which quiz units have ≥1 submitted submission:
+
+```python
+quizzes_with_submissions = set(
+    QuizSubmission.objects
+        .filter(unit__course=course, status=QuizSubmission.Status.SUBMITTED)
+        .values_list("unit_id", flat=True)
+)
+```
+
+Built once in `_tree_context` and carried in the same context. Per-row it would be an N+1 across
+every quiz in a 2,866-node tree.
 
 **Fold `cmap = _children_map(course)`, the unrestricted map — never the `children_map` in the
 template context.** When the builder's filter is active, the template's `children_map` is
@@ -1006,6 +1272,27 @@ nd.setdefault("published", True)
 document-level `doc.setdefault("link_nodes", {})` occupies relative to its own `_exact_keys`. After
 that call is too late: a v9 node would already have been rejected as missing the key.
 
+### Duplicating a unit must force `published=False` — otherwise this change defeats its own purpose
+
+`builder.duplicate_unit` does not construct a node. It runs `export.build_export(...)` →
+`importer.materialize_duplicate(...)`, reusing the transfer path wholesale. So the moment `published`
+joins the export payload and the importer's node construction, **duplicating a live unit produces a
+live duplicate** — visible to students the instant the CA clicks the button, half-edited.
+
+"Duplicate a finished unit and edit the copy" is the most common way a CA adds content to a running
+course. Left alone, this change would reintroduce the exact problem the Purpose section opens with,
+on the exact gesture the feature exists to protect, while §8 reads as though it is only about data
+fidelity.
+
+**`materialize_duplicate` forces `published=False` on every node it creates**, overriding the
+payload. Duplication is authoring new content, not restoring an archive, so the two paths through
+`_create_nodes` genuinely differ here and the override belongs at the duplication entry point rather
+than in the shared node builder. §9 TR4 pins it.
+
+Note the asymmetry with archive import, which honours the payload (TR1): an archive is a *transfer
+of existing content*, and a course exported mid-authoring should arrive with its drafts still
+drafts.
+
 **Default `True`, not `False`.** A v9 archive was exported from an install that had no concept of
 drafts, so every unit in it was live; importing it as a pile of hidden units would be wrong.
 
@@ -1103,18 +1390,25 @@ cross-reference in this document.
 - **OUT3. A completed unit that is later drafted drops out of both numerator and denominator**, and
   its `UnitProgress` row is unchanged. *Mutant:* exclude from `required_total` only →
   `required_done` exceeds it → red.
-- **OUT4. `additional_done` and the per-node `completed` key also exclude drafts.** Complete a
-  *non-obligatory* lesson unit, then draft it; assert `additional_done` returns to 0 and the node's
-  `completed` key is not `True` for a student. *Mutant:* add the publish gate to
-  `is_obligatory_lesson` only → `additional_done` still counts it → red. **This is the counter the
-  obvious implementation misses**, because it is the one expression in the rollup that never calls
-  the shared predicate.
+- **OUT4. `additional_done` excludes drafts, and the draft unit has NO dict in the returned tree.**
+  Complete a *non-obligatory* lesson unit, then draft it; assert `additional_done` returns to 0
+  **and** that no dict in the tree has that node's pk. *Mutant:* add the publish gate to
+  `is_obligatory_lesson` instead of at dict creation → `additional_done` still counts it → red.
+
+  Assert the dict's **absence**, not `completed is not True` on it: with the node filtered at dict
+  creation there is no dict to read, so a `d.get("completed") is not True` sweep over the surviving
+  dicts passes vacuously on every mutant.
 - **OUT5. A container whose units are all draft is pruned from the outline**, and reappears when one
   is published.
 - **OUT6. `progress_reset`'s affected-count excludes drafts on BOTH branches** — the node-scoped
   reset *and* the course-wide one. Seed practice state on a unit, draft it, assert both confirmation
   pages' counts drop. *Mutant:* filter `units_under` but leave `units_in_order` unfiltered → the
   course-wide branch (the commonly used one) still counts the invisible unit → red.
+- **OUT6b. The reset POST still clears a drafted unit's `element_state`.** Same fixture as OUT6;
+  post the reset and assert the drafted unit's state is `{}`. *Mutant:* filter `targets` rather than
+  only the count → stale state survives on the hidden unit and resurfaces on republish → red.
+  **Without this assertion the safe implementation and the unsafe one are indistinguishable**, since
+  OUT6 alone is green on both.
 - **OUT7. `build_student_breakdown` keeps a draft unit that holds data**, even though its `user`
   argument is the *student*. *Mutant:* derive the filter from `build_outline`'s `user` instead of
   from an explicit parameter → the teacher-facing breakdown silently applies the student rule → red.
@@ -1146,6 +1440,13 @@ cross-reference in this document.
 - **ANA5. The gradebook and the review queue drop never-published quizzes**, proving
   `quiz_units_in_order` carries the keyword. *Mutant:* leave `quiz_units_in_order` parameterless →
   both surfaces stay unfiltered → red.
+- **ANA6. A container whose whole subtree is never-published has no analytics column** — both pk
+  sets empty ⇒ column dropped. *Mutant:* keep the column → a header over nothing but dashes, and
+  `has_lessons`/`has_quizzes` both false in a builder that does not expect it → red.
+- **ANA7. `with_data=None` with `drafts="keep-with-data"` raises; `with_data=frozenset()` does
+  not.** *Mutant:* assert on emptiness instead of on the sentinel → every gradebook, review queue
+  and breakdown on a course no student has touched 500s → red. The fixture is a brand-new course,
+  which is also the state this feature is most used in.
 
 ### Write path — `WR`
 
@@ -1183,6 +1484,16 @@ cross-reference in this document.
 - **WR12. The container's own `updated` is bumped by a subtree write**, even though its `published`
   is untouched. *Mutant:* update only the descendant units → a later rename of the container
   succeeds against a pre-write token → red.
+- **WR13. A POST that needs confirmation and lacks `confirmed=1` does not write**, and returns the
+  strip rather than a 4xx. Drive it with a hand-rolled POST, not through the UI. *Mutant:* let the
+  template's choice of element be the only guard → a direct POST unpublishes a quiz with no
+  confirmation, and every UI-driven test stays green → red.
+- **WR14. `flag=obligatory` with `scope=subtree` writes lesson units only.** Seed a chapter with one
+  lesson and one quiz; assert the quiz's `obligatory` is untouched. *Mutant:* restrict to
+  `kind="unit"` alone → the quiz's inert flag is stamped → red.
+- **WR15. The tags/notes hub querysets exclude drafted units for a student and keep them for an
+  author.** *Mutant:* rely on the traversal keyword → `units_by_tag` builds from `UnitTag` rows and
+  filters nothing, so a student keeps seeing a live link to a drafted unit → red.
 
 ### Tree rendering — `TREE`
 
@@ -1195,6 +1506,13 @@ cross-reference in this document.
   chapter with 6 units, filter so only 2 match, assert the container's rendered count is 6.
   *Mutant:* fold over the template's `children_map` (`fc.restricted`) → 2 → red.
 - **TREE5. Container toggles are `disabled` while a filter is active**; unit toggles are not.
+- **TREE6. A container holding one quiz and one obligatory lesson renders "all obligatory", not
+  "mixed".** *Mutant:* share one `total_unit_count` between both tri-states → the quiz's inert
+  `obligatory` flag drags the container to mixed → red. This exact fixture is the only one where the
+  shared and split denominators disagree.
+- **TREE7. A quiz unit with ≥1 submitted submission renders its publish control as a confirming
+  anchor; one without renders a submit button.** *Mutant:* render every unit the same → the strip
+  never opens from the UI, and only WR13's direct POST catches it → red.
 
 ### Quiz warning — `QZ`
 
@@ -1212,6 +1530,10 @@ cross-reference in this document.
 - **QZ6. In-progress submissions are not counted.** Open a quiz as a student without finishing, and
   assert the editor shows no banner. *Mutant:* count every `QuizSubmission` row → "1 student has
   submitted" for a quiz nobody submitted → red.
+- **QZ7. A student who submitted 404s on `quiz_results` while the quiz is drafted**, and the row is
+  gone from their `course_results`. Both halves in one test. This pins the consequence §2 states —
+  a student temporarily loses sight of their own marks — so it is a fixture rather than a support
+  ticket, and so the strip copy that warns about it has something to be true of.
 
 ### Content links — `LNK`
 
@@ -1233,6 +1555,11 @@ cross-reference in this document.
 - **TR2. A v9 archive imports with every unit published.** *Mutant:* `setdefault("published",
   False)` → everything imports hidden → red.
 - **TR3. Imported containers land `published=False`**, matching natively-created ones.
+- **TR4. Duplicating a PUBLISHED unit yields a DRAFT copy.** *Mutant:* let `materialize_duplicate`
+  honour the payload like archive import does → the duplicate is live to students the instant it is
+  created → red. **This is the highest-value test outside the migration**: duplicate-and-edit is the
+  most common way a CA adds content to a running course, and the defect is invisible in review
+  because §8 reads as a data-fidelity change.
 
 ### e2e — `E2E`
 
