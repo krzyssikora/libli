@@ -253,7 +253,7 @@ def test_pending_reviews_for_lists_awaiting_and_in_progress():
         unit=u2,
         status=QuizSubmission.Status.IN_PROGRESS,
     )
-    data = review_svc.pending_reviews_for(owner, course)
+    data = review_svc.pending_reviews_for(owner, course, drafts="keep")
     assert [s.unit_id for s in data["awaiting"]] == [u1.pk]
     assert [s.unit_id for s in data["in_progress"]] == [u2.pk]
 
@@ -296,6 +296,6 @@ def test_pending_reviews_excludes_fully_reviewed_and_out_of_scope():
         score=Decimal("0"),
         max_score=Decimal("0"),
     )
-    data = review_svc.pending_reviews_for(owner, course)
+    data = review_svc.pending_reviews_for(owner, course, drafts="keep")
     assert data["awaiting"] == []  # fully-reviewed dropped; other-course excluded
     assert data["in_progress"] == []

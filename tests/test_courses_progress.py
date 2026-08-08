@@ -502,7 +502,7 @@ def test_off_roster_previewer_absent_from_matrix_and_drilldown(client):
     # inline at each call site here, so no stale cache can exist -- see Task 11 for
     # the two-sided case where re-resolving across the enrollment is load-bearing.
     matrix = build_progress_matrix(
-        course, list(students_in_scope(resolver, course, "all"))
+        course, list(students_in_scope(resolver, course, "all")), drafts="keep"
     )
     row_students = [row["student"] for row in matrix["rows"]]
     assert control in row_students
@@ -604,7 +604,9 @@ def test_previewer_completion_becomes_learner_progress_on_enrollment(client):
     before_roster = list(students_in_scope(resolver, course, "all"))
     assert previewer not in before_roster
     assert control in before_roster
-    before_rows = build_progress_matrix(course, list(before_roster))["rows"]
+    before_rows = build_progress_matrix(course, list(before_roster), drafts="keep")[
+        "rows"
+    ]
     assert previewer not in [r["student"] for r in before_rows]
     assert control in [r["student"] for r in before_rows]
 
@@ -615,7 +617,9 @@ def test_previewer_completion_becomes_learner_progress_on_enrollment(client):
     # behaviour.
     after_roster = list(students_in_scope(resolver, course, "all"))
     assert previewer in after_roster
-    after_rows = build_progress_matrix(course, list(after_roster))["rows"]
+    after_rows = build_progress_matrix(course, list(after_roster), drafts="keep")[
+        "rows"
+    ]
     previewer_row = next(r for r in after_rows if r["student"] == previewer)
     # Non-zero is achievable here (unlike test 10) precisely because the previewer
     # DOES hold the completion.

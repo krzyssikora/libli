@@ -233,9 +233,11 @@ def roster_neighbours(roster, current_submission):
     return {"prev": prev, "next_to_review": next_to_review}
 
 
-def pending_reviews_for(user, course):
+def pending_reviews_for(user, course, *, drafts, with_data=None):
+    """`drafts` is REQUIRED (Task 8): without it this silently inherited
+    quiz_units_in_order's "keep" default and filtered nothing."""
     student_ids = scoping.reviewable_students(user, course).values("pk")
-    units = quiz_units_in_order(course)
+    units = quiz_units_in_order(course, drafts=drafts, with_data=with_data)
     unit_pks = [u.pk for u in units]
     subs = list(
         QuizSubmission.objects.filter(unit_id__in=unit_pks, student_id__in=student_ids)

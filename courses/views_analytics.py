@@ -15,10 +15,41 @@ from courses.color_bands import default_color_bands
 from courses.color_bands import legend_rows
 from courses.forms import ColorBandsForm
 from courses.models import Course
+from courses.models import QuizSubmission
+from courses.models import UnitProgress
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
 from grouping import scoping
+
+
+def _with_data_for(course):
+    """The set of unit pks holding student data for `course`: >=1 QuizSubmission
+    of ANY status, or >=1 UnitProgress. Built ONCE per request by every
+    teacher-facing analytics/gradebook/review caller (Task 8) — a draft unit
+    pulled back for a typo fix must not blank a mid-term column. Two batched
+    queries, never one per unit.
+
+    has_submissions deliberately takes ANY status: a student who opened a quiz
+    and stopped has left an interrupted attempt, which is data a teacher may
+    need to see — especially on a quiz since pulled back, whose attempt is
+    stranded until republication.
+
+    Lives in the VIEW layer, not in rollups.py: folding this into a rollup
+    helper (e.g. _quiz_review_maps) would batch only the quiz half and leave
+    the lesson half issuing a query per unit — see rollups.build_course_results.
+    """
+    has_submissions = set(
+        QuizSubmission.objects.filter(unit__course=course).values_list(
+            "unit_id", flat=True
+        )
+    )
+    has_progress = set(
+        UnitProgress.objects.filter(unit__course=course).values_list(
+            "unit_id", flat=True
+        )
+    )
+    return frozenset(has_submissions | has_progress)
 
 
 def _decorate(matrix, bands):
@@ -63,10 +94,20 @@ def analytics_matrix(request, slug):
         students = pool.filter(pk__in=subset_pks).order_by("username")
     else:
         students = pool.order_by("username")
+    with_data = _with_data_for(course)
     if mode == "results":
-        matrix = build_results_matrix(course, students, expand_pks, values)
+        matrix = build_results_matrix(
+            course,
+            students,
+            expand_pks,
+            values,
+            drafts="keep-with-data",
+            with_data=with_data,
+        )
     else:
-        matrix = build_progress_matrix(course, students, expand_pks)
+        matrix = build_progress_matrix(
+            course, students, expand_pks, drafts="keep-with-data", with_data=with_data
+        )
     bands = course_color_bands(course)
     _decorate(matrix, bands)
     reviewable_ids = set(
@@ -190,7 +231,10 @@ def analytics_student(request, slug, student_pk):
     if student is None:
         # non-existent OR out-of-reach -> 404, never 403 (manage convention)
         raise Http404
-    breakdown = build_student_breakdown(course, student)
+    with_data = _with_data_for(course)
+    breakdown = build_student_breakdown(
+        course, student, drafts="keep-with-data", with_data=with_data
+    )
     scope = request.GET.get("scope", "all")
     mode = "results" if request.GET.get("mode") == "results" else "progress"
     values = "raw" if request.GET.get("values") == "raw" else "percent"

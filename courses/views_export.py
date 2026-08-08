@@ -12,6 +12,7 @@ from courses.gradebook import build_matrix_table
 from courses.gradebook import build_quiz_gradebook
 from courses.models import Course
 from courses.views_analytics import _clean_expand  # shared param parser (see note)
+from courses.views_analytics import _with_data_for  # shared with_data builder
 from grouping import scoping
 
 _SHAPES = {"matrix", "quiz"}
@@ -52,11 +53,25 @@ def gradebook_export(request, slug):
         else pool.order_by("username")
     )
 
+    with_data = _with_data_for(course)
     if shape == "quiz":
-        table = build_quiz_gradebook(course, students, numbers_only)
+        table = build_quiz_gradebook(
+            course,
+            students,
+            numbers_only,
+            drafts="keep-with-data",
+            with_data=with_data,
+        )
         shape_label = _("Quiz gradebook")
     else:
-        table = build_matrix_table(course, students, mode, expanded)
+        table = build_matrix_table(
+            course,
+            students,
+            mode,
+            expanded,
+            drafts="keep-with-data",
+            with_data=with_data,
+        )
         shape_label = _("Results") if mode == "results" else _("Progress")
 
     label = _scope_label(request.user, course, scope)

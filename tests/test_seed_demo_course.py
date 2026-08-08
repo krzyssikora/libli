@@ -117,7 +117,9 @@ def test_seed_quiz_group_populate_analytics():
         assert sub.status == QuizSubmission.Status.SUBMITTED
         assert sub.max_score and sub.max_score > 0
 
-    matrix = build_results_matrix(course, students, expanded=set(), values="percent")
+    matrix = build_results_matrix(
+        course, students, expanded=set(), values="percent", drafts="keep"
+    )
     # "Demo quiz" is AUTO-only (the REVIEW question now lives on the separate
     # "Practice quiz"), so the group's fully-graded submissions populate the
     # percent matrix: at least one populated cell exists across the group×quiz
@@ -199,7 +201,7 @@ def test_seed_review_submission_is_in_review_queue():
     User = get_user_model()
     teacher = User.objects.get(username="demo_teacher")
     course = Course.objects.get(slug="demo-course")
-    pending = pending_reviews_for(teacher, course)
+    pending = pending_reviews_for(teacher, course, drafts="keep")
     assert pending["awaiting"], (
         "expected an awaiting-review submission for the queue shot"
     )

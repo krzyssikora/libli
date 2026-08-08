@@ -326,7 +326,7 @@ def submission_is_counted(sub, total_review, reviewed_counts):
     return not (total_r > 0 and reviewed_r < total_r)
 
 
-def build_course_results(course, student, *, drafts="keep", with_data=None):
+def build_course_results(course, student, *, drafts, with_data=None):
     """Per-course quiz summary for one student (the viewing user). Pure of side
     effects. Sums the headline over SUBMITTED quizzes only, excluding quizzes
     that are still awaiting review (i.e. have ≥1 unreviewed [R] element).
@@ -343,9 +343,9 @@ def build_course_results(course, student, *, drafts="keep", with_data=None):
       3. Element filter + prefetch_related  (one query + one prefetch for questions)
       4. QuestionResponse reviewed-count aggregation  (one batched annotate query)
 
-    `drafts`/`with_data` default to "keep" — see this module's DRAFTS_MODES
-    callers note; a required keyword here would break existing positional
-    call sites before Task 8 threads every caller.
+    `drafts` is REQUIRED (Task 8): every caller must now decide. `with_data`
+    stays optional — ignored outside "keep-with-data". Validated by the
+    nested quiz_units_in_order -> units_in_order call, same as before.
     """
     units = quiz_units_in_order(course, drafts=drafts, with_data=with_data)
     unit_pks = [u.pk for u in units]
@@ -449,7 +449,7 @@ def _quiz_pill(row):
     return {"kind": "not_started"}
 
 
-def build_student_breakdown(course, student, *, drafts="keep", with_data=None):
+def build_student_breakdown(course, student, *, drafts, with_data=None):
     """Compose build_outline + build_course_results into one teacher-facing tree
     (spec §3). NOT pure — calls two query-backed builders. Quiz units gain `pill`.
 
@@ -472,7 +472,7 @@ def build_student_breakdown(course, student, *, drafts="keep", with_data=None):
     return {"student": student, "tree": tree}
 
 
-def frontier_columns(course, expanded_pks):
+def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):
     """Recursive drill-down columns + a nested header structure (spec §1).
 
     One `course.nodes` query + a parent_id-grouped recursion. A node whose pk is
@@ -488,23 +488,59 @@ def frontier_columns(course, expanded_pks):
                         no breadcrumb), is_leaf, expandable, depth, colspan, rowspan.
       total_rows     -- number of header rows (= max leaf depth + 1, or 0 if empty).
     Pure: no `user`, no DB beyond the one nodes query.
+
+    `drafts` defaults to "keep" (NOT "keep-with-data"): build_matrix_columns
+    (test-only, Step 5) and several test call sites call this bare, and a
+    restrictive default would raise on every one of them. The strictness lives
+    on the matrix builders below, which take `drafts` as a required keyword
+    and forward it here. Under "keep" this filtering is a total no-op — see
+    the `total and` conjunct note on the drop rule below.
+
+    A leaf/container node whose subtree HAS units and NONE of them is visible
+    (per unit_is_visible) is dropped entirely: no `columns` entry, no
+    `cells_by_depth`/header cell, and — if it was the expand target — no
+    `expanded_nodes` entry either (it never reaches the branch that would add
+    one). This drop is done INSIDE `walk`, not as a post-filter on
+    `result["columns"]`: `columns`, `cells_by_depth` (-> `header_rows`), and
+    the `leaves` counter (-> colspan) are three outputs of the SAME traversal,
+    positionally coupled. A post-filter would leave a stale `<th>` and an
+    over-counted `colspan` in `header_rows`, silently shifting every column
+    header off its data for the rest of the row.
     """
+    _check_drafts(drafts, with_data)
     nodes = list(course.nodes.all())
     children = {}
     for n in nodes:
         children.setdefault(n.parent_id, []).append(n)
 
     def subtree_pks(root):
+        """As before, but a unit only contributes to lesson_pks/quiz_pks when
+        it is VISIBLE — else the matrix would divide by units it never shows."""
         lesson_pks, quiz_pks = set(), set()
         stack = [root]
         while stack:
             n = stack.pop()
-            if is_obligatory_lesson(n):
+            if is_obligatory_lesson(n) and unit_is_visible(
+                n, drafts=drafts, with_data=with_data
+            ):
                 lesson_pks.add(n.pk)
-            elif is_quiz_unit(n):
+            elif is_quiz_unit(n) and unit_is_visible(
+                n, drafts=drafts, with_data=with_data
+            ):
                 quiz_pks.add(n.pk)
             stack.extend(children.get(n.pk, []))
         return lesson_pks, quiz_pks
+
+    def unit_counts(root):
+        """(total_units, visible_units) over root's subtree (inclusive)."""
+        stack, total, visible = [root], 0, 0
+        while stack:
+            n = stack.pop()
+            if n.kind == ContentNode.Kind.UNIT:
+                total += 1
+                visible += unit_is_visible(n, drafts=drafts, with_data=with_data)
+            stack.extend(children.get(n.pk, []))
+        return total, visible
 
     columns = []
     expanded_nodes = []
@@ -515,6 +551,15 @@ def frontier_columns(course, expanded_pks):
         produced under parent_id (= the colspan of an expanded ancestor)."""
         leaves = 0
         for node in children.get(parent_id, []):
+            total, visible = unit_counts(node)
+            # Drop ONLY when the subtree HAS units and none is visible. The
+            # `total and` conjunct is load-bearing: a container with ZERO
+            # units (e.g. a childless chapter) must NEVER be dropped, in any
+            # mode -- including "keep", where this guard must be a no-op
+            # (unit_is_visible is unconditionally True under "keep", so
+            # `visible == total` always and this branch never fires).
+            if total and not visible:
+                continue  # suppresses columns.append, cells_by_depth AND leaves together
             kids = children.get(node.pk, [])
             if node.pk in expanded_pks and kids:
                 expanded_nodes.append({"node": node, "pk": node.pk})
@@ -578,7 +623,15 @@ def frontier_columns(course, expanded_pks):
 
 def build_matrix_columns(course):
     """Depth-1 roots as analytics columns (the un-expanded frontier). Thin alias
-    over frontier_columns so the single walk stays single-source (spec §2)."""
+    over frontier_columns so the single walk stays single-source (spec §2).
+
+    Deliberately left un-parameterised (Task 8, Step 5): it has ZERO production
+    callers (the real chain is views_analytics -> build_results_matrix /
+    build_progress_matrix -> frontier_columns), so it stays a bare "keep" call.
+    Do not add drafts/with_data here defensively — a test written against this
+    alias instead of the real chain is exactly the green-but-uncovered outcome
+    the analytics drill-down test (ANA3) exists to catch.
+    """
     return frontier_columns(course, frozenset())["columns"]
 
 
@@ -617,10 +670,17 @@ def _public_columns(columns):
     ]
 
 
-def build_progress_matrix(course, students, expanded=frozenset()):
-    """Required-lesson completion %, students × frontier columns. No N+1. See spec."""
+def build_progress_matrix(
+    course, students, expanded=frozenset(), *, drafts, with_data=None
+):
+    """Required-lesson completion %, students × frontier columns. No N+1. See spec.
+
+    `drafts` is REQUIRED (Task 8): every caller — the analytics matrix view,
+    the gradebook export's build_matrix_table, and tests — must decide.
+    """
+    _check_drafts(drafts, with_data)
     students = list(students)
-    fc = frontier_columns(course, expanded)
+    fc = frontier_columns(course, expanded, drafts=drafts, with_data=with_data)
     columns = fc["columns"]
     all_lesson_pks = set()
     for c in columns:
@@ -665,13 +725,20 @@ def build_progress_matrix(course, students, expanded=frozenset()):
     }
 
 
-def build_results_matrix(course, students, expanded=frozenset(), values="percent"):
+def build_results_matrix(
+    course, students, expanded=frozenset(), values="percent", *, drafts, with_data=None
+):
     """Quiz score %, students × frontier columns. Excludes not-started /
     in-progress / awaiting-review from the ratio (neutral, not 0). No N+1.
     values="raw" relabels cells/overall/footer as earned/max (percent kept for
-    colouring); footer becomes class totals Σearned/Σmx."""
+    colouring); footer becomes class totals Σearned/Σmx.
+
+    `drafts` is REQUIRED (Task 8): every caller — the analytics matrix view,
+    the gradebook export's build_matrix_table, and tests — must decide.
+    """
+    _check_drafts(drafts, with_data)
     students = list(students)
-    fc = frontier_columns(course, expanded)
+    fc = frontier_columns(course, expanded, drafts=drafts, with_data=with_data)
     columns = fc["columns"]
     all_quiz_pks = set()
     for c in columns:
