@@ -139,15 +139,24 @@ Constraints already satisfied, verified against the current field definition:
   needs no change — `"task"` is now a member, so it survives the check.
 
 **Stale "four kinds" prose and counts to update in the same change.** The enumeration recurs
-across the tree; this list is the known set, not a proof of exhaustiveness — grep for `four`
-near `callout` before finishing. Each entry gives the target wording, because "update" alone
-has repeatedly produced a stale count somewhere else:
+across the tree. Each entry below gives the target wording, because "update" alone has
+repeatedly produced a stale count somewhere else.
+
+**Two greps, because one is provably insufficient.** `four` near `callout` finds the *count*
+statements but misses every site that spells the kinds out without counting them — including
+`courses.css:1774`, which sits ~74 lines above the rules §4 edits and would be edited *around*.
+Also sweep for the label sequence itself: `Note\s*[/,]\s*Tip` and `Notatka.*Wskazówka`.
 
 - the `CalloutElement` class docstring — "(Example/Note/Tip/Important)" becomes
   "(Example/Note/Tip/Important/Task)";
 - `courses/tests/test_callout_render.py:22` — "The four kinds emit four distinct icon markers"
   becomes "The five kinds emit five distinct icon markers"; the comment sits directly beside
   where the new icon test goes;
+- **`courses/static/courses/css/courses.css:1774`** — the callout block's own header comment,
+  "(Example / Note / Tip / Important) holding rich text + math", becomes
+  "(Example / Note / Tip / Important / Task)". Neither grep recipe's `four` half reaches it: the
+  line contains no count and uses the spaced `Example / Note / …` form. This is the site most
+  likely to be missed, because it is in the file being edited but far from the edit.
 - `tests/test_text_colour_css.py:2` (module docstring) — "which is ten surfaces, not two"
   becomes "eleven surfaces";
 - `tests/test_text_colour_css.py:20-21` — "recomputes the four callout grounds from
@@ -314,7 +323,7 @@ Both count statements in that file also become false and are listed as update si
 Omitting this is silent: the new ground simply escapes the AA guard, and the two new hexes get
 no drift guard at all. **The magenta is safe on both grounds, with the margin stated rather
 than asserted:** the binding case across the four `--tc-*` slots is `--tc-red` `#EA8A82` on the
-dark ground `#383030` at **~5.17:1**, against the 4.5:1 AA threshold. So the new grounds are not
+dark ground `#383030` at **5.18:1**, against the 4.5:1 AA threshold. So the new grounds are not
 the constraining surface in either theme — this is a coverage gap to close, not a colour to
 change, and adding them will not redden the suite.
 
@@ -476,11 +485,12 @@ callout branch were exactly that.
 | 5a | a task render **contains** the pencil path `m15 5 4 4` **and its opening tag carries `class="callout__icon"` and `aria-hidden="true"`** — asserting the path alone would pass a branch that emits the right geometry with the class misspelled or the ARIA attribute dropped, shipping an unstyled or unlabelled graphic. The **unsaved** constructor form is fine here (unlike row 4): these mutants are template-level, so `save()`'s coercion is not what makes them bite | `courses/tests/test_callout_render.py::test_task_render_emits_pencil_icon` | delete the `{% elif el.kind == "task" %}` branch — the render then falls through to book-open |
 | 5b | an **example** render does **not** contain `m15 5 4 4`; unsaved form likewise fine | `…::test_example_render_does_not_emit_pencil_icon` | put the pencil into the existing `{% else %}` fallback instead of adding an elif — a plausible mistake, since `_callout_icon.html` has no explicit `example` branch and `example` is served by that `{% else %}` |
 | 6 | the editor form offers the kind: GET `manage_element_form` for a callout whose kind is **not** `task` (use `kind="example"`, mirroring `test_edit_form_preselects_stored_kind`'s warning fixture) — a task-kind fixture would emit `<option value="task" selected>` and fail the assertion on a correct build — then assert the **exact** unselected option string `'<option value="task">Task</option>'` — `_edit_callout.html` emits value and label with no intervening whitespace, and two separate `'value="task"' in html` / `'Task' in html` asserts would both pass with the label wrong. The neighbouring `test_edit_form_preselects_stored_kind` asserts the *selected* form (`value="warning" selected`); row 6 wants the unselected one | `courses/tests/test_callout_authoring.py` | remove the `TASK` enum member |
-| 7 | authoring persists it: POST `kind="task"`, **assert `resp.status_code == 200` first**, then the saved `content_object.kind == "task"` | same file | remove the `TASK` enum member — without the status assertion the form rejects the POST, nothing is saved, and `Element.objects.get(unit=unit)` raises `DoesNotExist` (an error, not the intended assertion failure). `test_callout_authoring.py:70` asserts the status for exactly this reason |
+| 7 | authoring persists it: POST `kind="task"`, **assert `resp.status_code == 200` first**, then the saved `content_object.kind == "task"`. **Mirror `test_save_round_trips_kind_heading_body`'s POST envelope** (`type`, `element="new"`, `unit`, `unit_token=unit.updated.isoformat()`, `HTTP_X_REQUESTED_WITH="fetch"`) — `save_element` runs `_check_token` and returns **409** on a missing or stale `unit_token`, which reads as a feature defect rather than a malformed request | same file | remove the `TASK` enum member — without the status assertion the form rejects the POST, nothing is saved, and `Element.objects.get(unit=unit)` raises `DoesNotExist` (an error, not the intended assertion failure). `test_callout_authoring.py:70` asserts the status for exactly this reason |
 | 8 | a `kind="task"` callout survives an export/import round trip — **mirror `test_round_trip_preserves_fields` (`test_callout_transfer.py:24-42`)**: the payload must come from `CalloutElement.objects.create(kind="task", …)` passed through `SERIALIZERS["callout"]` with the stub `_Ids`, then `VALIDATORS` → `BUILDERS`. Not a hand-written `data = {"kind": "task"}` dict — that reverses the mutant's behaviour (it would raise `TransferError`), and not the full `build_export` + importer, which is far heavier than anything in that file. Same persisted-vs-constructed distinction as row 4. The new test carries **its own `@pytest.mark.django_db`** — this module marks per-test and has no module-level `pytestmark` (see its own comment at `:83`), unlike every other callout module | `courses/tests/test_callout_transfer.py` | revert the enum. **Note the mechanism, or the failure looks wrong:** `save()` coerces the kind to `example` *before* serialization, so `_ser_callout` emits `{"kind": "example"}` and `_val_callout` **accepts** it — the test goes red on the round-trip equality assertion, not on a `TransferError` |
 | 9 | the pl catalog renders `Task` as "Zadanie": `with translation.override("pl"): assert str(CalloutElement(kind="task").display_heading) == "Zadanie"`. The module needs **no `pytest.mark.django_db`** — the instance is never saved, matching `test_display_heading_survives_stray_unsaved_kind`'s style — even though every neighbouring callout module carries the mark | new `tests/test_i18n_callout_task.py`, per the house per-feature convention | **clear the `#, fuzzy` flag but keep the pre-filled wrong msgstr** (e.g. `msgstr "Wskazówka"`). Not "leave the fuzzy in place": `test_no_fuzzy_entries` iterates both catalogs and is already in the DoD 3 selection, so that mutant reddens an existing guard and proves nothing about row 9. The wrong-but-flag-cleared msgstr passes all three po-health guards and is red **only** here — which is exactly the failure §8 describes |
-| 10 | the new callout grounds are in the normative surface list and match the CSS | `tests/test_text_colour_css.py` (extend, don't add a file). Its `-k` targets are the two existing functions `test_surface_literals_still_match_the_css` and `test_every_slot_clears_aa_on_every_surface` | change either accent hex without updating the literal |
-| 11 | `locale/en/LC_MESSAGES/django.po` contains `msgid "Task"` with an **empty** msgstr — read the file directly (`test_i18n_po_health.py:18` already exposes the path as `EN_PO`) | `tests/test_i18n_callout_task.py::test_en_catalog_has_the_task_msgid` | delete the `en` entry. **This is the only mechanical check on DoD 6's `en` half**: `test_pl_has_no_untranslated_msgid` is pl-scoped by design, the fuzzy/obsolete guards pass either way, row 9 tests `pl` only, and row 3 passes via msgid fallback even with `en` absent — so without this row, every gate in the spec is green on a branch that never touched `locale/en` |
+| 10a | **membership**: every callout kind has a ground in both surface dicts, derived from the enum rather than a second hardcoded list — `{k for k in LIGHT_SURFACES if not k.startswith("--")} == {f"callout-{v}" for v in CalloutElement.Kind.values}`, and the same for `DARK_SURFACES` | `tests/test_text_colour_css.py` (new function) | **omit the `callout-task` entries entirely.** This row exists because §5 is otherwise unfalsifiable: adding the dicts but forgetting `"task"` in the `:126` tuple is green (the drift loop skips it), and forgetting *both* is also green — so a branch that skips §5 altogether passes every other gate. Only the reverse partial reddens, via `KeyError`. Deriving from `Kind.values` also makes a *sixth* kind fail loudly instead of silently |
+| 10b | the new grounds match the CSS | `tests/test_text_colour_css.py` (extend, don't add a file). Its `-k` targets are the two existing functions `test_surface_literals_still_match_the_css` and `test_every_slot_clears_aa_on_every_surface` | change either accent hex without updating the literal |
+| 11 | `locale/en/LC_MESSAGES/django.po` contains `msgid "Task"` with an **empty** msgstr. **Reuse `test_i18n_po_health.py`'s `_entries(EN_PO)`** — an already-parsed, obsolete-aware view — and assert one *live* entry with `msgid == "Task"` and `msgstrs == [""]`. A naive `'msgid "Task"' in EN_PO.read_text()` is unacceptable twice over: it asserts nothing about the msgstr, and it matches an obsolete `#~ msgid "Task"` block, since the `#~` prefix leaves the substring intact | `tests/test_i18n_callout_task.py::test_en_catalog_has_the_task_msgid` | two mutants, both required: delete the `en` entry; **and** set `msgstr "Task"` in `en`, which the presence half alone would not catch. **This is the only mechanical check on DoD 6's `en` half**: `test_pl_has_no_untranslated_msgid` is pl-scoped by design, the fuzzy/obsolete guards pass either way, row 9 tests `pl` only, and row 3 passes via msgid fallback even with `en` absent — so without this row, every gate in the spec is green on a branch that never touched `locale/en` |
 
 **Assertion form — this is where the last branch bled.** Tests 1 and 2 scan stylesheet source
 text, and a bare `assert ".callout--task" in css` **cannot fail its own mutant**: the dark rule
@@ -519,11 +529,16 @@ and the runbook edit exist. The executed order, **starting only once every edit 
 the tree** (extraction reads msgids out of the source, so step 6 is meaningless before
 `TASK = "task", _("Task")` exists and would otherwise have to be redone):
 
-> **0** all §1–§8 edits → **6** (catalogs + `compilemessages`) → **3** (the pytest selection,
-> which reads the compiled `.mo`) → **4** (mutants, each run in isolation) → **7** and **8**
-> (screenshots, PR body, runbook) → **5** (`ruff check` and `ruff format .` **last**, after
-> every other edit) → **4b** (revert mutants, recompile, re-run the DoD 3 selection green) →
-> finally **1** and **2** as the closing gates.
+> **0** all §1–§8 edits → **6** (catalogs + `compilemessages` + **commit the `.mo`**) → **3**
+> (the pytest selection, which reads the compiled `.mo`) → **4** (mutants, each run in
+> isolation) → **7** (screenshots) → **delete the capture harness** → **8** (PR body, runbook)
+> → **5** (`ruff check` and `ruff format .` **last**, after every other edit) → **4b** (revert
+> mutants, recompile, re-run the DoD 3 selection green) → finally **1** and **2** as the closing
+> gates.
+
+The harness deletion is placed explicitly because it changes what `ruff` sees: this repo lints
+`tests/**` with `E,F,I,UP,B,S`, so a harness still present at step 5 would have to be lint- and
+format-clean for no lasting benefit.
 
 1. `uv run python manage.py makemigrations --check --dry-run` clean (the migration exists).
 2. `uv run python manage.py check` clean.
@@ -558,8 +573,13 @@ the tree** (extraction reads msgids out of the source, so step 6 is meaningless 
    the floor. A whole-repo sweep is a branch gate, not a per-task step.
 4. Each new test verified **red** against its named mutant, not merely observed green.
 
-   **Run each mutant with only the named test selected** (`-k`), not against the whole selection.
-   Rows 1, 2 and 10 deliberately overlap: once §5 lands, `test_surface_literals_still_match_the_css`
+   **Run every mutant, without exception, with only its named test selected** (`-k`), never
+   against the whole selection. The overlaps below are illustrative, **not** an exhaustive list
+   of which mutants co-fire — row 5b's, for instance, also reddens the pre-existing
+   `test_render_selects_correct_icon_per_kind` (`test_callout_render.py:28`), because moving the
+   pencil into the `{% else %}` removes the book-open paths that test asserts on.
+
+   Rows 1, 2 and 10b deliberately overlap: once §5 lands, `test_surface_literals_still_match_the_css`
    also reads `.callout--task` out of `courses.css`, so *every* one of those three mutants
    reddens two tests — deleting the light rule makes row 10's light pass match inside the dark
    selector and compute a wrong ground; deleting the dark rule makes its dark pass find nothing;
@@ -595,7 +615,13 @@ the tree** (extraction reads msgids out of the source, so step 6 is meaningless 
 6. **Both catalogs**, extracted with the §8 command. `pl` at **0 fuzzy / 0 obsolete /
    0 untranslated** (`test_i18n_po_health.py`'s three guards, including
    `test_pl_has_no_untranslated_msgid`); `en` gains `msgid "Task"` with an empty msgstr and stays
-   at 0 fuzzy / 0 obsolete. Both `.mo` files regenerated via `compilemessages` — **before** DoD 3.
+   at 0 fuzzy / 0 obsolete. Both `.mo` files regenerated via `compilemessages` **and committed** —
+   **before** DoD 3.
+
+   **"Committed" is load-bearing, not tidiness.** Both `.mo` files are tracked in git, and
+   `.github/workflows/ci.yml` contains **no `compilemessages` step** — so CI resolves Testing row
+   9 through whatever binary blob the branch commits. Regenerating locally without staging the
+   `.mo` is green locally and red in CI on row 9 alone, with nothing in the diff to explain it.
 
    **If the branch is rebased onto a moved master, re-run `makemessages` + `compilemessages`
    after the rebase — do not merge the `.mo`.** They are binary and have no 3-way merge; the
