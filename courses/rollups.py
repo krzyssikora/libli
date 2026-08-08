@@ -204,6 +204,8 @@ def build_outline(course, user, *, drafts="hide", with_data=None):
     roots = []
     for node in _walk_preorder(course):
         is_unit = node.kind == ContentNode.Kind.UNIT
+        if is_unit and not unit_is_visible(node, drafts=drafts, with_data=with_data):
+            continue
         d = {
             "node": node,
             "children": [],
@@ -219,6 +221,8 @@ def build_outline(course, user, *, drafts="hide", with_data=None):
         else:
             by_pk[node.parent_id]["children"].append(d)
 
+    prune = drafts != "keep-with-data"
+
     def rollup(d):
         node = d["node"]
         if d["is_unit"]:
@@ -232,12 +236,18 @@ def build_outline(course, user, *, drafts="hide", with_data=None):
         else:
             for k in d["children"]:
                 rollup(k)
+            if prune:
+                d["children"] = [
+                    k for k in d["children"] if k["is_unit"] or k["children"]
+                ]
             d["required_total"] = sum(k["required_total"] for k in d["children"])
             d["required_done"] = sum(k["required_done"] for k in d["children"])
             d["additional_done"] = sum(k["additional_done"] for k in d["children"])
 
     for r in roots:
         rollup(r)
+    if prune:
+        roots = [r for r in roots if r["is_unit"] or r["children"]]
     return roots
 
 

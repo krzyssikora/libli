@@ -404,8 +404,12 @@ def test_flat_course_renders_no_details(client):
 
 
 @pytest.mark.django_db
-def test_childless_group_keeps_the_plain_head_shape(client):
-    """An empty disclosure would be a dead control, so childless groups get none."""
+def test_a_genuinely_empty_group_is_pruned_not_rendered(client):
+    """build_outline (courses/rollups.py, Task 5) prunes a container with no
+    children from the tree under BOTH "hide" and "keep" — the plain-div
+    fallback in _unit_tree_node.html (for a childless group) is unreachable
+    from this student-facing page as a result, since an empty chapter never
+    reaches the template at all."""
     student = _make_student("nav_render")
     course = CourseFactory(owner=student)
     EnrollmentFactory(student=student, course=course)
@@ -423,7 +427,9 @@ def test_childless_group_keeps_the_plain_head_shape(client):
     client.force_login(student)
     html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
 
-    assert '<div class="unit-tree__head"' in html, "childless group keeps the plain div"
+    assert "Empty Chapter" not in html, "a childless group is pruned from the tree"
+    assert '<div class="unit-tree__head"' not in html
+    assert "unit-tree__group" not in html, "the surviving unit is a flat root"
 
 
 def _chain_course(depth):
