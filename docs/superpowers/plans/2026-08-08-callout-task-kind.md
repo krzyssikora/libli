@@ -270,7 +270,7 @@ In `courses/static/courses/css/courses.css`, extend the two existing blocks so t
 
 - [ ] **Step 4: Update the block's header comment**
 
-At ~:1774, change `(Example / Note / Tip / Important)` to `(Example / Note / Tip / Important / Task)`. This site is easy to miss — it is ~74 lines above the rules you just edited, and it contains neither the word "four" nor the unspaced label form, so neither stale-prose grep finds it.
+At **`:1775`** (line 1774 is the `/* --- Callout element (student consumption)…` opener; the kind list is on the next line — this anchor must agree with Step 10's grep table, which cites 1775), change `(Example / Note / Tip / Important)` to `(Example / Note / Tip / Important / Task)`. This site is easy to miss — it is ~74 lines above the rules you just edited, and it contains neither the word "four" nor the unspaced label form, so neither stale-prose grep finds it.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -363,7 +363,9 @@ to:
 ```
 
 Docstring line 2: "which is ten surfaces, not two" → "which is eleven surfaces, not two".
-Comment line ~20: "recomputes the four callout grounds from courses.css" → "the five callout grounds".
+Comment line ~20 — a same-shape swap, not a phrase deletion. The line reads
+`# from tokens.css and recomputes the four callout grounds from courses.css. So`, so change
+only `recomputes the four callout grounds` → `recomputes the five callout grounds`.
 
 - [ ] **Step 5: Run the whole file to verify it passes**
 
@@ -532,6 +534,8 @@ uv run python manage.py makemessages -l pl -l en --no-obsolete
 
 Expect catalog-wide `#:` reference-line and `POT-Creation-Date` churn. That is normal extraction noise, not scope creep.
 
+**If the diff shows a new msgid other than `Task`**, that is a pre-existing gap on master — some `_()` landed without a catalog refresh. **Translate it and note it in the commit message; do not revert it.** Step 5's gate requires 0 untranslated and cannot pass otherwise, and reverting would only defer the same failure to the next branch. Check with `git diff locale/pl/LC_MESSAGES/django.po`.
+
 **Accepted downstream noise:** Task 8's `ruff format .` may reflow Python files after these `#:` line references were written, staling some of them. Nothing tests reference lines and the only cost is diff noise at the next extraction, so this is accepted rather than worked around — do not re-run `makemessages` after formatting just to refresh them, because that would undo the deliberate ordering in Step 3.
 
 - [ ] **Step 2: Fix the entries and clear the fuzzy trap in BOTH catalogs**
@@ -680,7 +684,7 @@ uv run pytest courses/tests/test_callout_model.py courses/tests/test_callout_ren
 
 Expected: all PASS. This is the spec's DoD 3, and the baseline-before-mutants ordering is the point.
 
-**The full executed order in this task is `6 → 3 → 7 → delete harness → 4 → 8 → 5`**, i.e. the screenshots (Steps 2-4) run *before* the mutants (Step 6), swapping the spec's `4 → 7`. That is a deliberate, safe reorder: the throwaway harness is then already deleted by the time the tree is deliberately damaged, so no mutant can interact with it and the linter never sees it. Everything else follows the spec's sequence.
+**The full executed order in this task is `6 → 3 → 7 → delete harness → 4 → 8 → 5 → 4b → 1, 2`** (DoD numbers): the screenshots (Steps 2-4) run *before* the mutants (Step 6), swapping the spec's `4 → 7`, and the post-mutant re-verify (4b, Step 12) and closing gates (1 and 2, Step 13) come last. The screenshot reorder is deliberate and safe: the throwaway harness is already deleted by the time the tree is deliberately damaged, so no mutant can interact with it and the linter never sees it.
 
 - [ ] **Step 2: Write the screenshot harness**
 
@@ -792,7 +796,9 @@ Delete it **now**, before the ruff step, so the linter never has to pass over a 
 
 - [ ] **Step 6: Falsify every test against its named mutant**
 
-Run each mutant with **only its named test selected**, and **always name the owning file** — a bare `-k` still collects every module in the repo, fourteen times over. Revert each mutant before the next.
+Run each mutant with **only its named test selected**, and **always name the owning file** — a bare `-k` still collects every module in the repo, fourteen times over.
+
+**The first six rows are ONE mutant, not six.** Remove `TASK` from `Kind` **once**, run all six commands against that single edit, then revert **once**. Applying and reverting the same edit six times adds five needless cycles and five chances to mis-restore `courses/models.py`. For every remaining row — which are genuinely distinct edits — revert before moving to the next.
 
 | Mutant | Command | Must go RED |
 |---|---|---|
@@ -894,12 +900,14 @@ Expected outside `docs/superpowers/`: **exactly three** hits, and the check is *
 
 A fourth hit is a missed site. A listed hit lacking `Task` is an incomplete edit.
 
+Grep #3 from the spec (`Notatka.*Wskazówka`) is **deliberately not run**: it is line-scoped, and Task 7's prescribed replacement keeps `Notatka` on line 125 and `Wskazówka` on line 126, so it can never fire. A check that cannot fire is not a check. Since `test_help.py` asserts nothing about the prose *inside* the `{el:callout}` paragraph, the Polish edit would otherwise end this plan with no positive verification at all. Use one that can fire:
+
 ```bash
-# 3 -- the Polish sequence. Line-scoped.
-grep -rEn "Notatka.*Wskazówka" --include=*.md .
+# 3 -- the Polish edit actually landed.
+grep -n "Ważne lub Zadanie" docs/help/course-admin/content-editors.pl.md
 ```
 
-Expected **before** Task 7: nothing outside `docs/superpowers/`, because `content-editors.pl.md` wraps the phrase across lines 125-126. **After** Task 7's rewrite a hit on `content-editors.pl.md` is **expected and correct** if the rewrap puts both words on one line — verify it reads `Przykład, Notatka, Wskazówka, Ważne lub Zadanie`, and treat its absence as equally fine (the phrase may still be wrapped).
+Expected: **exactly one** hit, on line 126. Zero hits means Task 7 Step 6's two-line replacement did not apply.
 
 - [ ] **Step 11: Lint, format, and COMMIT THE RESULT**
 
@@ -944,11 +952,14 @@ git commit -m "chore(i18n): recompile catalogs after the falsification pass"
 ```
 uv run python manage.py makemigrations --check --dry-run
 uv run python manage.py check
+uv run ruff check .
 uv run ruff format --check .
 git status --short
 ```
 
-Expected: the three commands clean, and `git status --short` **empty** — an empty working tree is what proves the checked tree and the committed tree are the same one.
+Expected: the four commands clean, and `git status --short` **empty** — an empty working tree is what proves the checked tree and the committed tree are the same one.
+
+**`ruff check .` is here as well as in Step 11 deliberately.** `.github/workflows/ci.yml:20-21` runs *both* `ruff check .` and `ruff format --check .`, but Step 11 ran `ruff check` **before** `ruff format .` — so the only tree whose lint status was confirmed there is the pre-format one. A reflow that joins or splits a line can move an `E501` or `I001` verdict, which would leave every gate here green while CI's lint job goes red. Both halves of the CI pair must run against the committed tree.
 
 - [ ] **Step 14: Hand the PR-body note to the PR-opening phase**
 
