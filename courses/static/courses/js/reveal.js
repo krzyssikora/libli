@@ -83,12 +83,21 @@
   }
 
   // The first sibling after a (now-consumed) gate wrapper that the cascade
-  // revealed, used as a focus fallback when there is no next gate to land on.
-  function firstRevealed(gateWrap, scope) {
+  // revealed — i.e. where the content the student just earned BEGINS, which is
+  // the cascade's focus target. Pure: `makeFocusable` is applied only to the
+  // node actually focused, so a wrapper that loses the race to a next-gate
+  // control (the adjacent case in cascadeFrom) keeps its attributes untouched.
+  function firstRevealed(gateWrap) {
     var n = gateWrap.nextElementSibling;
     while (n && !n.classList.contains("reveal-shown")) n = n.nextElementSibling;
-    if (n && !n.hasAttribute("tabindex")) n.setAttribute("tabindex", "-1");
     return n;
+  }
+
+  // A content block is not focusable on its own; -1 lets focus() land on it
+  // without adding it to the Tab order.
+  function makeFocusable(el) {
+    if (el && !el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
+    return el;
   }
 
   // Resolve a FOCUSABLE node inside a gate wrapper. A plain gate is a <button>
@@ -144,14 +153,28 @@
 
     if (!focus) return; // restore skips focus-target resolution ENTIRELY
 
-    // Focus management: land on the next gate's focusable target if the cascade
-    // stopped at one, otherwise the first newly-revealed sibling, otherwise the
-    // scope itself.
+    // Focus management: land on the FIRST newly-revealed block — where the content
+    // the student just earned begins. focus() scrolls its target into view, so this
+    // is what keeps the reader (and a screen reader's cursor) at the top of the new
+    // run. Landing on the NEXT GATE instead, which this did unconditionally, scrolls
+    // the entire revealed run past the viewport: with a long run between two gates
+    // the student had to scroll back up to read what they had just unlocked, or
+    // missed it (measured: scrollY 0 -> 2778 on a 12-block run).
+    //
+    // Exception, and the reason `lastRevealed === firstNew` is tested rather than
+    // just dropping the branch: when the next gate IS the first revealed sibling
+    // (nothing between the two gates) the two candidates sit at the same place, so
+    // prefer its focusable control — a keyboard user lands on the button / blank /
+    // cycler instead of a wrapper div. Pinned by the fill-gate and switch-gate
+    // chaining tests, whose fixtures are exactly that adjacent shape.
+    //
+    // Falls back to the scope itself when the run is empty (a trailing gate).
+    var firstNew = firstRevealed(gateWrap);
     var target =
-      lastRevealed && isGateWrapper(lastRevealed, scope)
+      lastRevealed && lastRevealed === firstNew && isGateWrapper(lastRevealed, scope)
         ? focusTargetIn(lastRevealed)
         : null;
-    target = target || firstRevealed(gateWrap, scope);
+    target = target || makeFocusable(firstNew);
     if (!target) {
       scope.setAttribute("tabindex", "-1");
       // A non-slideshow `.slide` is `display: contents` (line in courses.css) so it

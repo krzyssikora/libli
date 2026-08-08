@@ -454,3 +454,48 @@ def test_stored_open_switchgate_typesets_math_on_load(page, live_server):
     expect(page.locator("[data-switchgate]")).to_have_class(
         re.compile(r"\bswitchgate--done\b")
     )
+
+
+# ---------------------------------------------------------------------------
+# 9. Confirming does not scroll the revealed content past the viewport
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_confirm_keeps_the_reader_at_the_revealed_content(page, live_server):
+    """A correct Confirm must leave the reader AT the content it just unlocked.
+
+    reveal.js used to focus the NEXT gate's control unconditionally, and focus()
+    scrolls its target into view: with a long run of content between two gates the
+    page jumped the whole run (measured: scrollY 0 -> 2778, the confirmed gate to
+    viewport top -2445), so the student had to scroll back up to read what they had
+    just earned -- or missed it. Focus now lands on the FIRST revealed block instead.
+
+    The adjacent case (next gate immediately after, nothing between) still lands on
+    that gate's control -- pinned by test_chains_to_next_gate_and_focuses_cycler here
+    and by test_plain_gate_stops_at_fillgate_and_focuses_blank in test_e2e_fillgate.
+    """
+    _student, unit = _new_unit("sg_noscroll")
+    add_element(unit, _text("<p>intro block</p>"))
+    add_element(unit, _switchgate("Pick: {{choice}}", ["Alpha", "Bravo"], answer=0))
+    for i in range(12):
+        add_element(unit, _text(f"<p>content paragraph {i}</p>" * 6))
+    add_element(unit, _switchgate("Next: {{choice}}", ["Gamma", "Delta"], answer=0))
+    _login(page, live_server, "sg_noscroll")
+    page.set_viewport_size({"width": 1100, "height": 800})
+    page.goto(_unit_url(live_server, unit))
+
+    gate = page.locator("[data-switchgate]").first
+    _cycler(page).click()  # placeholder -> option 0 (correct)
+    _confirm(page).click()
+    expect(page.locator("[data-switchgate]").nth(1)).to_be_visible()
+
+    # The confirmed gate is still on screen: the reader is where they were, with the
+    # newly revealed content running downward from it.
+    top = gate.evaluate("el => el.getBoundingClientRect().top")
+    assert 0 <= top < 800, f"the page jumped: confirmed gate is at viewport top {top}"
+
+    # And focus is on the start of the revealed run, not on the far-away next gate.
+    assert page.evaluate(
+        "() => document.activeElement.textContent.indexOf('content paragraph 0') !== -1"
+    ), "focus did not land on the first revealed block"
