@@ -92,3 +92,48 @@ def test_edit_form_preselects_stored_kind(client):
     html = resp.content.decode()
     # the warning option must be the selected one, not example (the first option)
     assert 'value="warning" selected' in html
+
+
+def test_edit_form_offers_the_task_kind(client):
+    # Fixture kind is deliberately NOT task: a task-kind callout would render
+    # <option value="task" selected> and fail this exact-string assert.
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    el = CalloutElement.objects.create(kind="example", heading="", body="")
+    join = Element.objects.create(unit=unit, content_object=el)
+    resp = client.get(
+        reverse(
+            "courses:manage_element_form",
+            kwargs={"slug": course.slug, "pk": join.pk},
+        ),
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    # Exact string: two separate `'value="task"' in html` / `'Task' in html`
+    # asserts would both pass with the label wrong.
+    assert '<option value="task">Task</option>' in resp.content.decode()
+
+
+def test_save_round_trips_the_task_kind(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        {
+            "type": "callout",
+            "element": "new",
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+            "kind": "task",
+            "heading": "",
+            "body": "<p>x</p>",
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    # Status first: without the enum member the form rejects the POST, nothing is
+    # saved, and the .get() below raises DoesNotExist instead of asserting.
+    assert resp.status_code == 200
+    el = Element.objects.get(unit=unit)
+    assert el.content_object.kind == "task"

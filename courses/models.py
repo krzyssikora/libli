@@ -455,7 +455,7 @@ class SpoilerElement(ElementBase):
 
 
 class CalloutElement(ElementBase):
-    """A framed, always-visible callout/aside (Example/Note/Tip/Important) holding
+    """A framed, always-visible callout/aside (Example/Note/Tip/Important/Task) holding
     rich text + math. Zero JS, no server endpoint. Mirrors SpoilerElement minus the
     toggle, plus a `kind` and an optional heading. See the callout-element design
     doc."""
@@ -467,6 +467,7 @@ class CalloutElement(ElementBase):
         # Value stays "warning" (existing rows, `.callout--warning`, exported
         # archives); only the author-facing label reads "Important".
         WARNING = "warning", _("Important")
+        TASK = "task", _("Task")
 
     SLOT_ID = SINGLE_SLOT_ID  # the single implicit child slot; child Element.tab_id
 
