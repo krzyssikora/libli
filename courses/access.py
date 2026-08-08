@@ -61,6 +61,32 @@ def manageable_courses(user):
     return Course.objects.filter(owner=user)
 
 
+def exclude_foreign_drafts(qs, author, *, unit_field="unit"):
+    """Drop drafted units the viewer may not author.
+
+    A per-course condition inside the query, NOT a boolean: these hubs are
+    cross-course (they take only `author` and select over accessible_courses),
+    so there is no single course to hand to can_see_drafts — and a boolean
+    could not express the answer anyway, since a user who manages course A
+    but not B must keep A's drafts and lose B's in the SAME result set.
+
+    The kind conjunct matters: excluding published=False alone would also drop
+    rows attached to containers, whose published column is meaningless.
+    """
+    return qs.exclude(
+        Q(**{f"{unit_field}__kind": "unit", f"{unit_field}__published": False})
+        & ~Q(**{f"{unit_field}__course__in": manageable_courses(author)})
+    )
+
+
+def foreign_draft_q(author, unit_field="unit"):
+    """The condition exclude_foreign_drafts negates, as a bare Q, for callers
+    that must fold it into an annotation rather than an .exclude()."""
+    return Q(**{f"{unit_field}__kind": "unit", f"{unit_field}__published": False}) & ~Q(
+        **{f"{unit_field}__course__in": manageable_courses(author)}
+    )
+
+
 def can_see_drafts(user, course):
     """Draft units are visible only to authors — the course owner or a
     holder of courses.change_course.

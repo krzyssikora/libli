@@ -7,6 +7,7 @@ from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
 from courses.access import accessible_courses
+from courses.access import exclude_foreign_drafts
 from courses.models import ContentNode
 from notes.models import NOTE_MAX_LEN
 from notes.models import Note
@@ -80,10 +81,13 @@ def note_counts_for_outline(author, course):
 def note_counts_by_course(author):
     """{course_id: count} of the author's notes per accessible course (lesson units)."""
     rows = (
-        Note.objects.filter(
-            author=author,
-            unit__course__in=accessible_courses(author),
-            unit__unit_type=ContentNode.UnitType.LESSON,
+        exclude_foreign_drafts(
+            Note.objects.filter(
+                author=author,
+                unit__course__in=accessible_courses(author),
+                unit__unit_type=ContentNode.UnitType.LESSON,
+            ),
+            author,
         )
         .values("unit__course_id")
         .annotate(n=Count("pk"))

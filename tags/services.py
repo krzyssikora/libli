@@ -12,6 +12,8 @@ from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 
 from courses.access import accessible_courses
+from courses.access import exclude_foreign_drafts
+from courses.access import foreign_draft_q
 from tags.models import TAG_NAME_MAX_LEN
 from tags.models import TAG_PALETTE
 from tags.models import Tag
@@ -74,6 +76,10 @@ def recolor_tag(author, tag_pk, color):
 
 
 def _accessible_unit_count(author, tag):
+    # Deliberately NOT exclude_foreign_drafts'd: this backs the tag-deletion
+    # confirmation ("this will remove the tag from N units"), and the author
+    # deleting the tag owns it. Telling them N-minus-drafts and then removing
+    # more is the dishonesty progress_reset is careful to avoid.
     return UnitTag.objects.filter(
         tag=tag, unit__course__in=accessible_courses(author)
     ).count()
@@ -91,7 +97,9 @@ def list_tags(author):
     return list(
         Tag.objects.filter(author=author).annotate(
             unit_count=Count(
-                "unit_tags", filter=Q(unit_tags__unit__course__in=accessible)
+                "unit_tags",
+                filter=Q(unit_tags__unit__course__in=accessible)
+                & ~foreign_draft_q(author, "unit_tags__unit"),
             )
         )
     )
@@ -194,8 +202,8 @@ def units_by_tag(author):
     accessible = accessible_courses(author)
     result = []
     for tag in list_tags(author):  # ordered, carries accessible unit_count
-        links = UnitTag.objects.filter(
-            tag=tag, unit__course__in=accessible
+        links = exclude_foreign_drafts(
+            UnitTag.objects.filter(tag=tag, unit__course__in=accessible), author
         ).select_related("unit", "unit__course")
         by_course = defaultdict(list)
         for link in links:
@@ -215,8 +223,11 @@ def tags_by_course(author):
     accessible course's units, courses keyed by object, tags in Lower(name) order.
     One UnitTag query."""
     links = (
-        UnitTag.objects.filter(
-            tag__author=author, unit__course__in=accessible_courses(author)
+        exclude_foreign_drafts(
+            UnitTag.objects.filter(
+                tag__author=author, unit__course__in=accessible_courses(author)
+            ),
+            author,
         )
         .select_related("tag", "unit__course")
         .order_by(Lower("tag__name"), "tag__pk")

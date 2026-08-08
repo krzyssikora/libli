@@ -63,14 +63,14 @@ def test_course_notes_orders_by_element_order_reorder_stable():
     assert e1.order < e2.order
     services.create_note(me, unit, e2.pk, "on-e2")
     services.create_note(me, unit, e1.pk, "on-e1")
-    rows = services.course_notes(me, course)
+    rows = services.course_notes(me, course, drafts="hide")
     assert len(rows) == 1
     groups = rows[0]["groups"]
     assert [g[0].pk for g in groups] == [e1.pk, e2.pk]  # by Element.order, not creation
     # reorder: make e1 come AFTER e2
     e1.order = e2.order + 5
     e1.save(update_fields=["order"])
-    rows = services.course_notes(me, course)
+    rows = services.course_notes(me, course, drafts="hide")
     assert [g[0].pk for g in rows[0]["groups"]] == [e2.pk, e1.pk]
 
 
@@ -83,7 +83,7 @@ def test_course_notes_unanchored_bucket_last_and_intrablock_order():
     n1 = services.create_note(me, unit, e1.pk, "first")
     n2 = services.create_note(me, unit, e1.pk, "second")
     services.create_note(me, unit, None, "unanchored")
-    groups = services.course_notes(me, course)[0]["groups"]
+    groups = services.course_notes(me, course, drafts="hide")[0]["groups"]
     assert groups[0][0] == e1
     assert [n.pk for n in groups[0][1]] == [n1.pk, n2.pk]  # created, pk
     assert groups[-1][0] is None
@@ -99,7 +99,7 @@ def test_course_notes_units_in_outline_order_skip_empty():
     u3 = _lesson(course, "Third")
     services.create_note(me, u3, None, "z")
     services.create_note(me, u1, None, "a")
-    rows = services.course_notes(me, course)
+    rows = services.course_notes(me, course, drafts="hide")
     assert [r["unit"].pk for r in rows] == [u1.pk, u3.pk]
 
 
