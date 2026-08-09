@@ -262,17 +262,16 @@ follow-up migration.
   **or `TOO_LONG`**.
 - `validate_tolerance_text` **accepts `""`** (returns `None`) and raises when
   `canonical_tolerance_text` returns `None` **or `TOO_LONG`**, i.e. for unparseable, negative, or
-  over-long input.
+  over-long input. In practice `full_clean()` never passes `""` to it at all — Django's
+  `run_validators` skips values in `empty_values` — but a direct unit test will, so the behaviour
+  is specified rather than incidental.
 
 **Both must test for the sentinel, or the model-level gate has a hole exactly where it matters.**
 A 64-character `"." + 63 digits` value passes `MaxLengthValidator`; if the validator checks only
 for `None`, it also passes validation; and `clean()`'s guard then correctly declines to rewrite —
 so non-canonical text is saved. The element is afterwards **uneditable**, because reopening the
 editor and saving routes the stored value back through `clean_value`, which reports "too long".
-That is precisely the silent-violation scenario the validators were added to close. In practice
-  `full_clean()` never passes `""` to it at all — Django's `run_validators` skips values in
-  `empty_values` — but a direct unit test will, so the behaviour is specified rather than
-  incidental.
+That is precisely the silent-violation scenario the validators were added to close.
 
 **Canonicality is enforced at the model, not merely at each caller.** The validators check
 *parseability*, so `ShortNumericQuestionElement(value="1.50000000", tolerance="0").full_clean()`
