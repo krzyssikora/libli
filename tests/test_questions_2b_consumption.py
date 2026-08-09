@@ -58,11 +58,9 @@ def test_shorttext_check_answer_fragment(client):
 
 @pytest.mark.django_db
 def test_shortnumeric_check_answer_fragment(client):
-    from decimal import Decimal
-
     course, unit = _enrolled_unit(client)
     q = ShortNumericQuestionElement.objects.create(
-        stem="<p>Pi?</p>", value=Decimal("3.14"), tolerance=Decimal("0.01")
+        stem="<p>Pi?</p>", value="3.14", tolerance="0.01"
     )
     el = Element.objects.create(unit=unit, content_object=q)
     url = _check_url(course, unit, el)
@@ -74,6 +72,63 @@ def test_shortnumeric_check_answer_fragment(client):
         b"is-incorrect"
         in client.post(url, {"answer": "9"}, HTTP_X_REQUESTED_WITH="fetch").content
     )
+
+
+@pytest.mark.django_db
+def test_shortnumeric_reveal_shows_the_canonical_string(client):
+    course, unit = _enrolled_unit(client)
+    q = ShortNumericQuestionElement.objects.create(
+        stem="<p>Third?</p>", value="1/3", tolerance=""
+    )
+    el = Element.objects.create(unit=unit, content_object=q)
+    url = _check_url(course, unit, el)
+    resp = client.post(url, {"answer": "9"})  # wrong, reveal renders
+    html = resp.content.decode()
+    assert "1/3" in html
+    assert "0.33333333" not in html
+    assert "±" not in html  # zero tolerance renders no tolerance clause
+
+
+@pytest.mark.django_db
+def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot(client):
+    course, unit = _enrolled_unit(client)
+    q = ShortNumericQuestionElement.objects.create(
+        stem="<p>Pi?</p>", value="3.14", tolerance=""
+    )
+    el = Element.objects.create(unit=unit, content_object=q)
+    url = _check_url(course, unit, el)
+    # Accepted trade-off: Django localises Decimal template variables, so the
+    # reveal used to render "3,14000000" under pl. A canonical string renders
+    # "3.14" in every locale.
+    #
+    # The session write must come AFTER _enrolled_unit, which calls
+    # make_login -> force_login (via seed_language_on_login) and would
+    # otherwise overwrite the session language.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    # Do NOT send X-Requested-With: the fetch fragment omits the Check button
+    # that the "Sprawdź" assertion below relies on.
+    response = client.post(url, {"answer": "9"}, HTTP_ACCEPT_LANGUAGE="pl")
+    html = response.content.decode()
+    assert "3,14" not in html  # the pre-change rendering
+    assert "3.14" in html
+    # Prove the page really did render in Polish, or the assertion above is vacuous.
+    assert "Sprawdź" in html  # the pl translation of the "Check" button
+
+
+@pytest.mark.django_db
+def test_student_numeric_input_uses_text_inputmode(client):
+    course, unit = _enrolled_unit(client)
+    q = ShortNumericQuestionElement.objects.create(
+        stem="<p>Third?</p>", value="1/3", tolerance=""
+    )
+    Element.objects.create(unit=unit, content_object=q)
+    resp = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    )
+    html = resp.content.decode()
+    assert 'inputmode="text"' in html
 
 
 @pytest.mark.django_db
