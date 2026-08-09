@@ -34,8 +34,9 @@ normative — where this plan and the spec disagree, the spec wins and the plan 
   behaviour is *not* test-coverable; do not invent assertions there.
 - `MAX_STORED_NUMERIC_CHARS = 64` and `MAX_PARSED_NUMERIC_CHARS = 256` are **separate constants**
   and must not be merged.
-- New user-facing strings use `gettext_lazy` and need hand-written Polish. `locale/en` msgstrs
-  stay intentionally empty.
+- New user-facing strings need hand-written Polish; `locale/en` msgstrs stay intentionally empty.
+  Use `gettext_lazy` **except in `courses/transfer/*`**, which binds `_` to request-time
+  `gettext` by design (`payloads.py:12`, `schema.py:9`) — there, use the module's existing `_`.
 - Commit after every task. Do not skip hooks.
 
 ## File Structure
@@ -82,7 +83,11 @@ whole existing suite must stay green.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_questions_2b_marking.py`:
+`tests/test_questions_2b_marking.py` already imports `pytest` (line 4) and
+`parse_numeric_value` (line 9) at the top. Add **only the genuinely new names** —
+`format_decimal_plain` — to that existing import block; do **not** append imports at the bottom
+of the file. Ruff selects `E`, and `tests/**` only ignores `S105/S106/S107`, so a mid-file import
+is an `E402` violation that fails the branch gate. Then append the test functions:
 
 ```python
 def test_parse_numeric_value_rejects_over_long_input_instead_of_raising():
@@ -133,8 +138,10 @@ def test_parse_numeric_value_rejects_bool_without_raising():
 
 
 def test_parse_number_did_not_get_a_length_guard():
-    # views.py:1162 and element_forms.py:314/338 parse raw input through
-    # parse_number; it never calls int(str) so it was never vulnerable.
+    # PINNING TEST — green before and after, and that is the point: it must stay
+    # green while parse_numeric_value gains its guard. Its mutant is not a change
+    # to this task's diff but a plausible FUTURE one: adding the same length guard
+    # to parse_number would regress views.py:1162 and element_forms.py:314/338.
     from decimal import Decimal
 
     from courses.marking import parse_number
@@ -155,22 +162,32 @@ def test_format_decimal_plain_keeps_precision_and_avoids_exponent():
     assert format_decimal_plain(Decimal(long_value)) == long_value
 
 
-def test_format_target_delegates_to_format_decimal_plain():
+def test_format_target_inherits_the_raised_precision():
+    # NOT a delegation test: format_target on master is ALREADY
+    # format(Decimal(target).normalize(), "f"), so asserting on 40401 passes with
+    # or without the delegation and could never fail. The >28-digit value is the
+    # only assertion that distinguishes the two, because it needs the localcontext
+    # that only the shared helper has.
     from decimal import Decimal
 
     from courses.guessnumber import format_target
 
-    assert format_target(Decimal("40401.00000000")) == "40401"
-    assert format_target(Decimal("40401.50000000")) == "40401.5"
+    long_value = "0.1000000000000000000000000000000001"
+    assert format_target(Decimal(long_value)) == long_value
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `uv run pytest tests/test_questions_2b_marking.py -k "over_long or 100_chars or coerces or bool_without or did_not_get or format_decimal_plain or format_target_delegates" -v`
+Run: `uv run pytest tests/test_questions_2b_marking.py -k "over_long or 100_chars or coerces or bool_without or did_not_get or format_decimal_plain or format_target_inherits" -v`
 
-Expected: FAIL. `over_long` fails with `ValueError: Exceeds the limit (4300 digits)`, not an
-assertion error — that is the failure mode being fixed. The `format_decimal_plain` and coercion
-tests fail with `ImportError`/`AttributeError`.
+Expected: **six FAIL, two PASS.** `over_long` fails with `ValueError: Exceeds the limit (4300
+digits)` — not an assertion error; that is the failure mode being fixed. The
+`format_decimal_plain` and coercion tests fail with `ImportError`/`AttributeError`.
+`format_target_inherits` fails on the >28-digit value (it comes back `0.1`).
+
+The two that **pass already** are `did_not_get_a_length_guard` and
+`100_chars_so_fill_blank_is_not_narrowed`. Both are deliberate pinning tests guarding against a
+regression this task must *not* introduce; do not "fix" them to go red.
 
 - [ ] **Step 3: Implement in `courses/marking.py`**
 
@@ -279,7 +296,7 @@ and add `from courses.marking import format_decimal_plain` to its imports.
 
 - [ ] **Step 4: Run the new tests to verify they pass**
 
-Run: `uv run pytest tests/test_questions_2b_marking.py -k "over_long or 100_chars or coerces or bool_without or did_not_get or format_decimal_plain or format_target_delegates" -v`
+Run: `uv run pytest tests/test_questions_2b_marking.py -k "over_long or 100_chars or coerces or bool_without or did_not_get or format_decimal_plain or format_target_inherits" -v`
 
 Expected: PASS (8 tests).
 
@@ -670,8 +687,14 @@ The model change and the migration must land in one commit — a model/migration
 - Modify: `courses/models.py:22-25` (imports), `:2150-2173` (the element)
 - Create: `courses/migrations/0058_shortnumeric_text_value.py`
 - Test: `tests/test_questions_2b_marking.py`, `courses/tests/test_shortnumeric_migration.py` (new)
-- Fix (breaks in this task): `tests/test_questions_2b_authoring.py:81`,
-  `tests/test_lal_loader_units.py:597`
+- Fix (breaks in this task): `tests/test_questions_2b_authoring.py:81` **only**
+
+**`tests/test_lal_loader_units.py:597` does NOT break here** — do not touch it in this task.
+`build_element` returns the in-memory instance (`_attach_row` at `builders.py:428` does
+`return obj`), and Django does not write the field's coerced value back onto the instance. The
+loader still assigns `Decimal(el["value"])` until Task 8, so `obj.value` is still
+`Decimal("2.5")` and the existing assertion stays green. Editing it here would make it red for
+four tasks and break this task's own Step 7 verification.
 
 **Interfaces:**
 - Consumes: everything from tasks 1–3.
@@ -746,9 +769,14 @@ def test_shortnumeric_full_clean_rejects_and_reports_the_right_key():
         ShortNumericQuestionElement(stem="?", value="1", tolerance="-1").full_clean()
     assert "tolerance" in bad_tol.value.error_dict
 
+    overflowing = ShortNumericQuestionElement(stem="?", value="." + "1" * 63)
     with pytest.raises(ValidationError) as too_long:
-        ShortNumericQuestionElement(stem="?", value="." + "1" * 63).full_clean()
+        overflowing.full_clean()
     assert "value" in too_long.value.error_dict
+    # clean() must not leave the TOO_LONG sentinel on the instance — to_python
+    # would stringify it into "<object object at 0x...>" and write that to the row.
+    # This assertion is what makes the `is not TOO_LONG` guard falsifiable.
+    assert overflowing.value == "." + "1" * 63
 
 
 @pytest.mark.django_db
@@ -1031,7 +1059,11 @@ def test_0058_strips_trailing_zeros_and_empties_zero_tolerance():
 
 
 @pytest.mark.django_db(transaction=True)
-def test_0058_aborts_on_a_negative_tolerance_before_writing_anything():
+def test_0058_aborts_with_a_named_error_on_a_negative_tolerance():
+    # Deliberately NOT named "...before_writing_anything": 0058 is atomic on
+    # PostgreSQL, so a partial write would roll back regardless and this test
+    # cannot observe the difference. What it does pin is that the operator gets a
+    # named RuntimeError naming the rows, not an opaque IntegrityError.
     try:
         old_apps = _migrate(BEFORE).loader.project_state(BEFORE).apps
         Element = old_apps.get_model("courses", "ShortNumericQuestionElement")
@@ -1060,14 +1092,28 @@ def test_0058_is_irreversible():
         _migrate(AFTER)
 ```
 
-- [ ] **Step 6: Fix the two existing tests this task breaks**
+- [ ] **Step 6: Fix the one existing test this task breaks, and pin the cap**
 
 `tests/test_questions_2b_authoring.py:81` — change
 `q.value == Decimal("3.14") and q.tolerance == Decimal("0.01")` to
-`q.value == "3.14" and q.tolerance == "0.01"`.
+`q.value == "3.14" and q.tolerance == "0.01"`, and remove the now-unused function-local
+`Decimal` import at line 68 (ruff F401 fails the branch gate otherwise).
 
-`tests/test_lal_loader_units.py:597` — change `obj.value == Decimal("2.5")` to
-`obj.value == "2.5"` (`"2.5" == Decimal("2.5")` is `False`).
+Add the spec's constant-pinning test to `tests/test_questions_2b_marking.py` — it needs the model
+fields, so it belongs here rather than in Task 1:
+
+```python
+def test_storage_cap_matches_both_column_widths():
+    # The equality is what makes an oversized transfer payload produce a clean
+    # TransferError instead of a ValidationError deep inside _clean_save. The model
+    # declares a literal 64, so nothing else detects drift.
+    from courses.marking import MAX_STORED_NUMERIC_CHARS
+    from courses.models import ShortNumericQuestionElement
+
+    meta = ShortNumericQuestionElement._meta
+    assert MAX_STORED_NUMERIC_CHARS == meta.get_field("value").max_length
+    assert MAX_STORED_NUMERIC_CHARS == meta.get_field("tolerance").max_length
+```
 
 - [ ] **Step 7: Run everything for this task**
 
@@ -1076,6 +1122,9 @@ uv run pytest tests/test_questions_2b_marking.py courses/tests/test_shortnumeric
 uv run pytest tests/test_questions_2b_authoring.py tests/test_lal_loader_units.py -v
 uv run pytest courses/tests/test_publish_makemigrations.py -v
 ```
+
+`tests/test_lal_loader_units.py` is run here to confirm it is **still green** — it must not be
+edited in this task (see the Files block).
 
 Expected: all PASS. `test_no_pending_migrations` is the check that the hand-written five-op chain
 left a state matching the model — a leftover `default`, a missing `blank` or a different validator
@@ -1088,9 +1137,11 @@ ordering all surface here and nowhere else.
    that would have taken down the production migration.
 2. Delete the counting pass → the negative-tolerance test dies with `IntegrityError` mid-write
    instead of a clean `RuntimeError`.
-3. Remove the `is not TOO_LONG` half of `clean()`'s guards → `clean_canonicalises` still passes,
-   but a `value="." + "1"*63` instance ends up holding the sentinel. (Note: the guard's `None`
-   half is covered by `test_..._does_not_null_a_rejected_field`.)
+3. Remove the `is not TOO_LONG` half of `clean()`'s guards → the new
+   `assert overflowing.value == "." + "1"*63` in
+   `test_shortnumeric_full_clean_rejects_and_reports_the_right_key` fails, showing the sentinel
+   object on the instance. (The guard's `None` half is covered by
+   `test_..._does_not_null_a_rejected_field`.)
 
 - [ ] **Step 9: Commit**
 
@@ -1127,7 +1178,10 @@ canonicaliser would NULL every zero-tolerance row mid-run."
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_questions_2b_forms.py` (reuse the file's existing `_form` helper):
+Append to `tests/test_questions_2b_forms.py`, reusing the file's existing `_form` helper. **Mark
+every new test `@pytest.mark.django_db`** — every existing test in that file carries it, and
+`is_valid()` on a ModelForm runs `_post_clean` → `full_clean` → `validate_unique`, so an unmarked
+test fails against pytest-django's DB blocker on a *correct* build.
 
 ```python
 def test_shortnumeric_form_stores_canonical_text():
@@ -1367,13 +1421,22 @@ def test_shortnumeric_reveal_shows_the_canonical_string(client, ...):
 
 @pytest.mark.django_db
 def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot():
-    # Accepted trade-off: canonical storage is '.'-only, so the reveal no longer
-    # localises the separator. Pinned so the behaviour is deliberate.
-    from django.utils import translation
-
-    with translation.override("pl"):
-        ...
-        assert "3.14" in html
+    # Accepted trade-off: Django localises Decimal template variables, so the
+    # reveal used to render "3,14000000" under pl. A canonical string renders
+    # "3.14" in every locale.
+    #
+    # TWO things make this test able to fail, and both are required:
+    #  1. Drive the language THROUGH THE REQUEST. translation.override() around a
+    #     client call does nothing — LocaleMiddleware re-activates the request's
+    #     language inside the view and discards it.
+    #  2. Assert the NEGATIVE. `"3.14" in html` is true under en as well, so on its
+    #     own it passes on every build and pins nothing.
+    response = client.get(url, headers={"accept-language": "pl"})
+    html = response.content.decode()
+    assert "3,14" not in html      # the pre-change rendering
+    assert "3.14" in html
+    # Prove the page really did render in Polish, or assertion 1 is vacuous.
+    assert "Sprawdź" in html  # the pl translation of the "Check" button
 
 
 @pytest.mark.django_db
@@ -1408,7 +1471,13 @@ The `{% if %}` is correct **only because** zero tolerance is canonically `""`.
 
 Run: `uv run pytest tests/test_questions_2b_consumption.py -v`
 
-Expected: PASS. Update the two construction sites at `:65` to canonical strings while here.
+Expected: PASS. Update the single construction site at `:64-66` to canonical strings while here,
+and drop the now-unused function-local `Decimal` import at `:61` (ruff F401).
+
+Verify the Polish assertion is real before moving on: confirm that `"Sprawdź"` is the actual
+`pl` msgstr for the Check button in `locale/pl/LC_MESSAGES/django.po`, and substitute the real
+string if it differs. An assertion on a string that is never rendered would make the whole test
+vacuous in the other direction.
 
 - [ ] **Step 5: Commit**
 
@@ -1480,7 +1549,12 @@ def test_short_numeric_unparseable_tolerance_rejects_without_a_typeerror():
 
 def test_short_numeric_accepts_empty_tolerance():
     # The export round-trip case: every zero-tolerance element now exports "".
-    _accept(doc_with(el_of("short_numeric", q_fields(value="3/2", tolerance=""))))
+    # There is no _accept helper in this file — positive cases call
+    # validate_document directly, as test_happy_minimal does.
+    validate_document(
+        doc_with(el_of("short_numeric", q_fields(value="3/2", tolerance=""))),
+        kind="course",
+    )
 ```
 
 Update `:548` and `:557` from `"decimal"` to `"is not a valid number or fraction"`.
@@ -1512,6 +1586,15 @@ def test_format_version_is_eleven():
     assert FORMAT_VERSION == 11
 
 
+def test_a_newer_format_version_is_refused(...):
+    # The half the bump actually buys operationally. First check whether
+    # tests/test_transfer_import.py already covers `version > FORMAT_VERSION`
+    # generically (importer.py:190); if it does, skip this and note which test.
+    ...
+    with pytest.raises(TransferError, match="version"):
+        import_course(zip_with_format_version(12))
+
+
 def test_duplicate_element_preserves_a_fraction_and_empty_tolerance(...):
     # duplicate_element runs export -> _val_short_numeric -> _build_numeric in one
     # process; the cheapest end-to-end check of the ""-tolerance contract.
@@ -1525,6 +1608,20 @@ def test_duplicate_element_preserves_a_fraction_and_empty_tolerance(...):
 Run: `uv run pytest tests/test_transfer_validation.py tests/test_transfer_import.py -k "short_numeric or tolerance or format_version or duplicate or round_trips" -v`
 
 - [ ] **Step 3: Rewrite `_val_short_numeric`**
+
+First add the imports to `courses/transfer/payloads.py` (single-line style, per the repo's isort
+config):
+
+```python
+from courses.marking import TOO_LONG
+from courses.marking import canonical_numeric_text
+from courses.marking import canonical_tolerance_text
+from courses.marking import parse_numeric_value
+```
+
+`check_decimal_str` **stays imported** — `_val_guess_number` still uses it at `payloads.py:353`.
+`Decimal` also stays (used at `payloads.py:93`). Note this module binds `_` to **`gettext`**, not
+`gettext_lazy` (`payloads.py:12`); use the module's existing `_`, do not introduce a lazy import.
 
 ```python
 def _val_short_numeric(data, elid, media_kinds):
@@ -1559,6 +1656,9 @@ other validators still use it.
 
 - [ ] **Step 4: Rewrite `_build_numeric`**
 
+Add the same four `from courses.marking import …` lines to `courses/transfer/importer.py`.
+`Decimal` stays there too (used at `importer.py:478`, `:789`, `:790`).
+
 ```python
 def _build_numeric(data, assets):
     value = canonical_numeric_text(data["value"])
@@ -1567,11 +1667,18 @@ def _build_numeric(data, assets):
     # internal-consistency failure — and it must be a TransferError. _clean_save
     # does not wrap full_clean(), and the import view catches only TransferError,
     # so any other type turns a bad payload into a 500. "" is VALID, not a failure.
+    #
+    # Reuses the validator's msgid rather than inventing a seventh string, so this
+    # needs no extra catalogue work.
     if value is None or value is TOO_LONG or tolerance is None or tolerance is TOO_LONG:
-        raise TransferError(_("short_numeric data is not a valid number or fraction."))
+        _err(_("%(what)s is not a valid number or fraction."), what="short_numeric data")
     q = ShortNumericQuestionElement(**_q_kwargs(data), value=value, tolerance=tolerance)
     return _clean_save(q), ()
 ```
+
+If `importer.py` has no `_err` helper in scope, raise `TransferError` with the same interpolated
+string instead — the requirement is the exception **type** and the **reused msgid**, not the
+helper.
 
 - [ ] **Step 5: Bump `FORMAT_VERSION`**
 
@@ -1581,28 +1688,45 @@ def _build_numeric(data, assets):
 took 11 — two branches bumping the same line to the same value merge with no conflict. The same
 check applies to the migration number: the base's leaf is `0057_contentnode_published`.
 
-- [ ] **Step 6: Run**
+- [ ] **Step 6: Translate the sixth msgid**
+
+`_("%(what)s is not a valid number or fraction.")` is new in this task, **after** Task 5 ran
+`makemessages`, so it is not yet in either catalogue and would ship untranslated in Polish —
+the exact regression the spec's three-step i18n rule exists to prevent, and
+`test_i18n_po_health.py::test_pl_has_no_untranslated_msgid` scans the whole PL catalogue.
+
+```bash
+uv run python manage.py makemessages -l pl -l en
+```
+
+Clear any fuzzy markers in **both** catalogues, delete wrongly prefilled msgstrs, and hand-write
+the Polish: `"%(what)s nie jest poprawną liczbą ani ułamkiem."`. Leave the `en` msgstr empty. Add
+the msgid to `tests/test_i18n_questions_2b.py::test_pl_translation_present`.
+
+- [ ] **Step 7: Run**
 
 ```bash
 uv run pytest tests/test_transfer_validation.py tests/test_transfer_import.py tests/test_transfer_export.py -v
+uv run pytest tests/test_i18n_questions_2b.py tests/test_i18n_po_health.py -v
 ```
 
 Also repurpose `tests/test_transfer_export.py:121 test_short_numeric_decimals_are_strings`: it is
 now tautological (`str()` on a `CharField` is a no-op), so change it to assert that a
 fraction-valued element exports its canonical string.
 
-- [ ] **Step 7: Falsify**
+- [ ] **Step 8: Falsify**
 
 Route the importer's tolerance through `canonical_numeric_text` → the zero-tolerance round-trip
 raises. Change `_val_short_numeric` to test only `is None` → the canonical-overflow test lets the
 sentinel through. Drop the `parsed is not None` guard → the unparseable-tolerance test raises
 `TypeError`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add courses/transfer/payloads.py courses/transfer/importer.py courses/transfer/schema.py \
-  tests/test_transfer_validation.py tests/test_transfer_import.py tests/test_transfer_export.py
+  tests/test_transfer_validation.py tests/test_transfer_import.py tests/test_transfer_export.py \
+  tests/test_i18n_questions_2b.py locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
 git commit -m "feat(transfer): carry canonical numeric text, FORMAT_VERSION 11
 
 Deploy before transferring any course: an older build reading a fraction-bearing
@@ -1617,6 +1741,10 @@ zip would otherwise fail with a misleading 'not a valid decimal number' instead 
 **Files:**
 - Modify: `courses/lal_loader/builders.py:397-406`
 - Test: `tests/test_lal_loader_units.py`
+- Fix (breaks in **this** task, not Task 4): `tests/test_lal_loader_units.py:597` — change
+  `obj.value == Decimal("2.5")` to `obj.value == "2.5"`. This is the task where the loader stops
+  assigning a `Decimal`, so this is where the in-memory instance's `value` becomes a string and
+  the old assertion flips red (`"2.5" == Decimal("2.5")` is `False`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1688,8 +1816,9 @@ other branch in the file uses it.
 
 Run: `uv run pytest tests/test_lal_loader_units.py -v`
 
-Expected: PASS. Add the `tolerance == ""` assertion to
-`test_build_numeric_with_points_sets_max_marks` while the file is open.
+Expected: PASS, **including** the `:597` assertion listed in this task's Files block. Add the
+`tolerance == ""` assertion to `test_build_numeric_with_points_sets_max_marks` while the file is
+open, and drop the `Decimal` import if no other line in the file still needs it.
 
 - [ ] **Step 5: Falsify**
 
@@ -1717,7 +1846,6 @@ git commit -m "feat(lal): canonicalise numeric values, raise LoaderError on junk
 - [ ] **Step 1: Re-derive the sweep rather than trusting this list**
 
 ```bash
-uv run python -c "print('grep both packages')"
 grep -rn "ShortNumericQuestionElement" tests/ courses/tests/
 grep -rn "short_numeric" tests/ courses/tests/
 ```
@@ -1728,7 +1856,10 @@ package — scoping the sweep to `tests/` alone is how the restore sites get mis
 - [ ] **Step 2: Convert each site**
 
 `value=Decimal("3.14")` → `value="3.14"`; `tolerance=Decimal("0")` and `tolerance=0` → `tolerance=""`;
-`value=42` → `value="42"`. Leave
+`value=42` → `value="42"`. **At each converted site, remove the now-unused `Decimal` import** —
+several of these files import it function-locally for exactly the line being changed, and ruff
+F401 fails the branch gate. (`tests/test_lal_loader_units.py` and `tests/test_transfer_export.py`
+keep theirs; other lines still use it.) Leave
 `tests/test_questions_2b_marking.py::test_shortnumeric_mark_tolerance_and_decimal_comma`
 **green and unmodified** — it builds an in-memory instance with `value=Decimal("3.14")` and is the
 only end-to-end evidence that the coercion prologue works. Add canonical-string equivalents
@@ -1746,8 +1877,14 @@ for an exact match**. Keep the two files structurally parallel.
 
 ```bash
 uv run pytest tests/test_quiz_answer.py tests/test_quiz_consumption_render.py \
-  courses/tests/test_question_restore.py -v
+  courses/tests/test_question_restore.py tests/test_transfer_export.py \
+  tests/test_transfer_import.py -v
+uv run ruff check tests/ courses/tests/
 ```
+
+The two transfer files are edited by this task's sweep, so they must be in its verification
+command — otherwise a bad edit there surfaces only at the ~1h branch gate. The `ruff check` is
+what catches the dropped-`Decimal`-import mistakes from Step 2.
 
 - [ ] **Step 5: Commit**
 
@@ -1766,45 +1903,69 @@ not set to 0."
 **Files:**
 - Modify: `tests/test_e2e_questions_2b.py`
 
-- [ ] **Step 1: Write the e2e tests**
+- [ ] **Step 1: Understand the existing harness before writing anything**
+
+`tests/test_e2e_questions_2b.py` has **no `page` fixture and no `expect` import**. Its two tests
+take `(browser, live_server)` and build their own context; the helpers are `_login(page,
+live_server, username)` at `:50` and `_seed_all_types(username, slug)` at `:70`, and the existing
+tests are `test_answer_all_types_js_path` (`:119`) and `test_answer_all_types_no_js` (`:198`).
+`_seed_all_types` currently creates the short-numeric element with `value="3.14",
+tolerance="0.01"` — **no fixture builds a `1.5`- or `1/3`-valued element**, so one must be added.
+
+Do this first: read `_seed_all_types`, then extend it with two more short-numeric elements —
+`value="1.5", tolerance=""` and `value="1/3", tolerance=""` — returning their ids alongside the
+existing ones. Follow the file's existing context/login pattern exactly rather than introducing
+a `page` fixture.
+
+- [ ] **Step 2: Write the e2e tests**
+
+Add `from playwright.sync_api import expect` to the file's imports (it is not there today).
 
 ```python
 @pytest.mark.e2e
-def test_student_can_answer_with_a_fraction(page, ...):
-    # Drive the real input, not a direct POST.
-    ...
-    page.fill("input[name='answer']", "3/2")   # element's value is "1.5"
-    page.click("button[type='submit']")
-    expect(page.locator("[data-question-feedback]")).to_contain_text("Correct")
+def test_student_can_answer_with_a_fraction(browser, live_server):
+    # Drives the real input, not page.request.post() — the point is that a
+    # student can type "3/2" into a question whose stored answer is "1.5".
+    context = browser.new_context()
+    page = context.new_page()
+    _login(page, live_server, username)
+    page.goto(f"{live_server.url}{unit_url}")
+    page.fill(f"#{fraction_q_id} input[name='answer']", "3/2")
+    page.click(f"#{fraction_q_id} button[type='submit']")
+    expect(page.locator(f"#{fraction_q_id} [data-question-feedback]")).to_contain_text("Correct")
+    context.close()
 
 
 @pytest.mark.e2e
-def test_student_numeric_input_offers_a_full_keyboard(page, ...):
-    # The only test that can catch the mobile trap — a desktop browser types "/"
-    # regardless of the inputmode hint.
+def test_student_numeric_input_offers_a_full_keyboard(browser, live_server):
+    # The only test that can catch the mobile trap: a desktop browser types "/"
+    # regardless of the inputmode hint, so no functional test can see it.
     ...
-    assert page.get_attribute("input[name='answer']", "inputmode") == "text"
+    assert page.get_attribute(f"#{fraction_q_id} input[name='answer']", "inputmode") == "text"
 
 
 @pytest.mark.e2e
-def test_reveal_shows_the_fraction_and_hides_a_zero_tolerance(page, ...):
+def test_reveal_shows_the_fraction_and_hides_a_zero_tolerance(browser, live_server):
     ...
     expect(page.locator(".question__reveal-text")).to_contain_text("1/3")
     expect(page.locator(".question__reveal-text")).not_to_contain_text("±")
 ```
 
-- [ ] **Step 2: Run them**
+The remaining `...` are the login/goto/seed lines from the first test, repeated verbatim; the
+`_seed_all_types` return values supply `username`, `unit_url` and the element ids.
+
+- [ ] **Step 3: Run them**
 
 Run: `uv run pytest tests/test_e2e_questions_2b.py -m e2e -k "fraction or keyboard or reveal" -v`
 
 `-m e2e` is mandatory or the tests silently deselect and pytest exits 5.
 
-- [ ] **Step 3: Screenshot the editor and the reveal in both themes**
+- [ ] **Step 4: Screenshot the editor and the reveal in both themes**
 
 Capture light and dark. Judge the dark screenshots **separately** — do not assume a light-mode
 pass carries over.
 
-- [ ] **Step 4: Branch gate**
+- [ ] **Step 5: Branch gate**
 
 Only now, run the whole suite. This is a branch gate, not a task step; expect roughly an hour, so
 start the run detached and poll the PID rather than backgrounding it through the harness (a
@@ -1817,7 +1978,7 @@ uv run pytest -q --verbosity=0
 uv run pytest -m e2e -q --verbosity=0
 ```
 
-- [ ] **Step 5: Pre-merge collision check**
+- [ ] **Step 6: Pre-merge collision check**
 
 ```bash
 git fetch origin
@@ -1829,7 +1990,7 @@ gh pr list --state open
 Confirm no other open PR also took `FORMAT_VERSION = 11` or a `0058_*` migration. Two branches
 taking the same value merge **without a conflict**.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add tests/test_e2e_questions_2b.py
@@ -1846,10 +2007,18 @@ reveal templates → 6; transfer + `FORMAT_VERSION` → 7; LAL loader → 8; aff
 author docs → 9; e2e + branch gate → 10. The `rollups._fmt_mark` third twin is explicitly left
 alone per the spec and needs no task.
 
-**Placeholder scan.** Tasks 6, 7, 8 and 10 contain `...` inside test bodies where the existing
-file's fixtures must be reused. These are **not** placeholders for undecided behaviour — the
-assertions are complete and exact; the elision is only the scaffolding already present in each
-file. Every implementation code block is complete.
+**Placeholder scan.** Tasks 6, 7 and 10 contain `...` inside test bodies where the existing
+file's fixtures are reused. In Tasks 6 and 7 the elided lines really are scaffolding already
+present in the file. **Task 10 was different and has been corrected:** its harness did not exist
+(no `page` fixture, no `expect` import, and no fixture building a `1.5`- or `1/3`-valued
+element), so Step 1 now names what must be built before any test is written. Every
+implementation code block is complete.
+
+**Ordering.** One test moved between tasks after review: `tests/test_lal_loader_units.py:597`
+flips red at the **loader** change (Task 8), not the model change (Task 4), because
+`_attach_row` returns the in-memory instance and Django does not write the field's coerced value
+back onto it. Editing it in Task 4 would have left it red across four tasks and broken Task 4's
+own verification.
 
 **Type consistency.** `canonical_numeric_text` / `canonical_tolerance_text` return
 `str | None | TOO_LONG` everywhere they appear. `TOO_LONG` is compared by identity at every site
