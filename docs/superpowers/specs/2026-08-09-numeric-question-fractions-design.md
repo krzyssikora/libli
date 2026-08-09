@@ -153,6 +153,12 @@ Both details are load-bearing:
 text, or `None` if `s` does not parse. It shares `_MIXED_RE`, `_FRAC_RE` and `parse_number` with
 the existing parsers, so its grammar cannot drift from `parse_numeric_value`'s.
 
+It must try the three grammars in the **same order** as `parse_numeric_value` — mixed, then
+fraction, then decimal. Sharing the regexes is not by itself enough to prevent drift; the order
+is what guarantees it, and the load-bearing `\s+` in `_MIXED_RE` (without which `11/2` reads as
+one-and-a-half) exists precisely because order and greediness interact. The round-trip and
+idempotence tests are only meaningful under this shared order.
+
 The rule, in full:
 
 1. Apply the `MAX_STORED_NUMERIC_CHARS` guard to the **stripped input** first — this function
@@ -205,12 +211,29 @@ Reduction happens only at comparison time, inside `Fraction`.
 | `"1 1/0"` | `None` | zero denominator, **mixed** path — `parse_numeric_value` has a *second, separate* guard for this; copying only the `_FRAC_RE` one yields `ZeroDivisionError` |
 | `"abc"`, `""` | `None` | no grammar matches |
 | 65+ input characters | `None` | input length guard |
-| `"." + "1"*63` (64 chars) | `None` | canonical result is 65 chars — **output** length guard |
+| `"-0 1/2"` | `"-0 1/2"` | non-zero mixed with a zero whole part; form preserved |
+| `"." + "1"*63`, `"," + "1"*63`, `"-." + "1"*62` (all 64 chars) | `TOO_LONG` | canonical result is 65 chars — **output** length guard. All three members of the class, not just the first |
 
-**`canonical_tolerance_text(s)` → `str | None`.** Returns `""` for blank input **or** any
-spelling of zero; the canonical text for a positive value; and `None` for unparseable **or
-negative** input. This single helper is the one place the zero encoding is decided, and the form,
-the importer and the LAL loader all use it. (The migration uses a frozen copy — see below.)
+**`canonical_tolerance_text(s)` → `str | None | TOO_LONG`.** Returns `""` for blank input **or**
+any spelling of zero; the canonical text for a positive value; `TOO_LONG` propagated from
+`canonical_numeric_text` for the length case; and `None` for unparseable **or negative** input.
+This single helper is the one place the zero encoding is decided, and the form, the importer and
+the LAL loader all use it. (The migration uses a frozen, `Decimal`-native variant — see below.)
+
+**The `TOO_LONG` sentinel.** `TOO_LONG = object()`, module-level in `courses/marking.py`,
+compared by identity. It exists so an author who typed a well-formed but over-long number gets a
+length message instead of "enter a number or fraction". It is **never stored and never
+rendered** — a sentinel that reaches a `CharField` is stringified by `to_python` into
+`<object object at 0x…>`, so every call site must handle it. Because `TOO_LONG is not None` is
+true, a `if x is not None` guard is **not** sufficient anywhere:
+
+| call site | handling |
+|---|---|
+| `clean_value` / `clean_tolerance` | the only sites that branch: `TOO_LONG` → the length message, checked **first** |
+| `ShortNumericQuestionElement.clean()` | rewrite only when the result is neither `None` nor `TOO_LONG` |
+| `_val_short_numeric` | `None` **or** `TOO_LONG` → `TransferError` |
+| `_build_numeric` | `None` **or** `TOO_LONG` → `TransferError` |
+| LAL loader | `None` **or** `TOO_LONG` → `LoaderError` |
 
 **`validate_numeric_text(value)` and `validate_tolerance_text(value)`** — Django field
 validators, and they live **in `courses/marking.py`** beside the canonicalisers. Naming the
@@ -242,21 +265,23 @@ calls `clean()`, so every path that validates is covered. `objects.create()` doe
 def clean(self):
     super().clean()
     c = canonical_numeric_text(self.value)
-    if c is not None:
+    if c is not None and c is not TOO_LONG:
         self.value = c
     t = canonical_tolerance_text(self.tolerance)
-    if t is not None:
+    if t is not None and t is not TOO_LONG:
         self.tolerance = t
 ```
 
-The `is not None` guards are load-bearing, not defensive style. Django's `full_clean()` runs
-`clean()` **even when `clean_fields()` has already raised** — its source comments this explicitly
-— so on `value="abc"` the validator reports the error *and* `clean()` still executes. An
-unguarded assignment would leave the instance holding `None` in a non-null `CharField`, which is
-exactly the context-free `IntegrityError` hazard this spec goes out of its way to prevent in the
-LAL loader. `super().clean()` is called because `ShortNumericQuestionElement` sits under a base
-shared by 14 element types; no ancestor defines `clean()` today, so omitting it is harmless now
-and silently wrong the moment one does.
+The guards are load-bearing, not defensive style, and they must test **both** rejection values.
+Django's `full_clean()` runs `clean()` **even when `clean_fields()` has already raised** — its
+source comments this explicitly — so on `value="abc"` the validator reports the error *and*
+`clean()` still executes. An unguarded assignment would leave the instance holding `None` in a
+non-null `CharField`; a `None`-only guard would leave it holding the `TOO_LONG` object, which
+`to_python` stringifies into `<object object at 0x…>` and writes to the row. Both are the
+context-free-corruption hazard this spec goes out of its way to prevent in the LAL loader, and
+both are reachable on ordinary input. `super().clean()` is called because
+`ShortNumericQuestionElement` sits under a base shared by 14 element types; no ancestor defines
+`clean()` today, so omitting it is harmless now and silently wrong the moment one does.
 
 **Invariants** (holding wherever `canonical_numeric_text(s)` is not `None`), pinned by an
 enumerated table covering every row above plus the >28-digit case —
@@ -284,8 +309,24 @@ functions that call `int()` leaves all three untouched.
 
 **Non-string input.** `parse_numeric_value` currently opens with `(s or "").strip()`, which
 raises `AttributeError` — a 500 — for a `Decimal`, `int` or `float`, exactly what an un-migrated
-in-process instance or an un-updated test constructs. It becomes
-`s = "" if s is None else str(s)`, then strip.
+in-process instance or an un-updated test constructs. The coercion is:
+
+```python
+if s is None:
+    s = ""
+elif isinstance(s, Decimal):
+    s = format(s, "f")
+else:
+    s = str(s)
+```
+
+**A bare `str()` is wrong and the `Decimal` branch is mandatory.** `str(Decimal("0.00000000"))`
+is `'0E-8'`, and `str(Decimal("0.00000001"))` is `'1E-8'` — E-notation, which `_NUM_RE` has no
+branch for. Since the old column is `numeric(20,8)`, *every* value read back from it below 1e-6
+— including every zero — stringifies that way. A bare `str()` would therefore not "degrade to
+incorrect rather than crash"; it would make a legitimately-valued in-memory element silently
+unmatchable. `format(d, "f")` gives `'0.00000000'`, which parses. Verified in this repo's
+interpreter.
 
 ### Marking
 
@@ -348,13 +389,20 @@ completes *before* `clean_value()` is called. A custom over-length branch would 
 a test asserting its message would fail. The expected behaviour is Django's built-in
 "Ensure this value has at most 64 characters".
 
+`_num` — the private helper both `clean_*` methods currently delegate to
+(`courses/element_forms.py:768`), and the home of the shared msgid at line 774 — is **deleted**
+along with the `__init__` override; nothing else calls it. One consequence to expect: the PL
+catalogue entry's `#:` reference comment narrows from `element_forms.py:340 element_forms.py:774`
+to `:340` only, so that line changing in the diff is correct, not accidental.
+
 **The error string is shared and must not be blanket-replaced.** The literal
 `_("Enter a number (e.g. 3.14 or 3,14).")` appears **twice** in `element_forms.py`: at line 774
 (short-numeric, the one that changes) and at line 340 (`GuessNumberElementForm`, which must NOT
 advertise fractions, per the non-goals). Only the short-numeric occurrence changes, and the old
 msgid **stays in both catalogues** because line 340 still references it — it is not an orphan to
 delete. **i18n is a three-step job here, and stopping after two regresses the Polish UI.**
-`locale/pl/LC_MESSAGES/django.po:338-339` currently carries a real translation of the old string
+The PL catalogue entry for `"Enter a number (e.g. 3.14 or 3,14)."` currently carries a real
+translation of the old string
 (`"Wpisz liczbę (np. 3.14 lub 3,14)."`). Introducing a *new* msgid, clearing the fuzzy marker and
 deleting the wrong prefilled msgstr leaves the new entry **empty**, so a Polish author who
 mistypes now sees English where today they see Polish. So: (1) clear the fuzzy marker, (2) delete
@@ -364,8 +412,25 @@ one, something like `"Wpisz liczbę lub ułamek (np. 3,14 lub 3/2)."`. New strin
 `tests/test_i18n_questions_2b.py::test_pl_translation_present`, so an empty translation fails the
 suite rather than shipping.
 
-The new msgids introduced by this change: the value/tolerance parse error, the `TOO_LONG`
-message, and the editor placeholder (see Templates).
+**Step (1) covers both catalogues.** `tests/test_i18n_po_health.py::test_no_fuzzy_entries`
+iterates `CATALOGS = {"pl", "en"}`, so a fuzzy marker `msgmerge` leaves on the **en** entry also
+fails the gate — while `test_pl_has_no_untranslated_msgid` is deliberately PL-only, so the empty
+`en` msgstr is correct and must be left alone.
+
+**The complete list of new msgids** — `test_i18n_po_health.py::test_pl_has_no_untranslated_msgid`
+scans the whole PL catalogue, so every one of these fails the suite until hand-translated:
+
+1. the value/tolerance parse error (`Enter a number or fraction (e.g. 3.14, 3,14 or 3/2).`);
+2. the `TOO_LONG` form message (`That number is too long (at most 64 characters once
+   normalised).`);
+3. the editor placeholder (`3.14, 3/2 or 1 1/2`);
+4. the transfer validator's `%(what)s is not a valid number or fraction.`;
+5. `validate_numeric_text`'s message — `Enter a number or fraction.`;
+6. `validate_tolerance_text`'s message — `Enter a non-negative number or fraction.`
+
+Items 5 and 6 are the model validators' `ValidationError` text, which no earlier section
+specified; they are deliberately terser than the form's, since they surface to whoever bypassed
+the form rather than to an author mid-edit.
 
 ### Templates
 
@@ -398,6 +463,13 @@ message, and the editor placeholder (see Templates).
 - Drop `|floatformat:"-8"` and print the stored strings. `{% if mark_result.reveal.tolerance %}`
   is correct **only because** zero tolerance is canonically `""`; see the storage section. The
   reveal reads `Expected: 1/3`, not `Expected: 0.33333333`.
+- **Accepted locale change:** Django localises `Decimal` template variables, so under `pl` the
+  reveal currently renders `3,14000000` and the editor `3,14000000`. Printing a plain string
+  means both now render `3.14` — Polish users lose the decimal comma along with the trailing
+  zeros. This is accepted rather than fixed: canonical storage is `.`-only by construction, a
+  fraction has no locale form at all, and re-localising only the decimal grammar would make the
+  editor display something the author cannot round-trip. Pinned by an assertion under
+  `translation.override("pl")` so the behaviour is deliberate rather than incidental.
 
 ### Migration `0058`
 
@@ -413,23 +485,47 @@ trailing-zero strip:
 5. `AlterField` `value` to drop the temporary `default=""` and attach `validate_numeric_text`;
    `AlterField` `tolerance` to attach `validate_tolerance_text`.
 
-`forwards` — `value_text = format_decimal_plain(value)`, `tolerance_text =
-canonical_tolerance_text(str(tolerance))` (so every spelling of zero becomes `""`). This
-retro-fixes defect 3 on every existing element. Written against **historical models** only (no
+`forwards` operates on the `Decimal`s **directly**, never routing them through a text
+canonicaliser:
+
+```python
+value_text = format_decimal_plain(value)          # Decimal in, plain text out
+if tolerance == 0:      tolerance_text = ""
+elif tolerance < 0:     # unreachable: the counting pass already aborted
+else:                   tolerance_text = format_decimal_plain(tolerance)
+```
+
+**`str(tolerance)` would fail on the majority of rows.** The column is `numeric(20,8)`, so a
+zero tolerance reads back as `Decimal('0.00000000')` whose `str()` is `'0E-8'` — E-notation,
+which `_NUM_RE` rejects. Routing that through `canonical_tolerance_text` returns `None` for
+every zero tolerance and every value below 1e-6, `bulk_update` writes NULL into a non-null
+column, and the **irreversible** production migration dies with `IntegrityError` partway
+through. `format_decimal_plain` takes a `Decimal` and emits `'0'`, exactly as
+`guessnumber.format_target` already does. Verified in this repo's interpreter.
+
+As a backstop, the write site asserts `value_text is not None and tolerance_text is not None`
+and raises `RuntimeError` if either is — so *any* future `None`, from any cause, aborts before a
+NULL reaches the database rather than after. This retro-fixes defect 3 on every existing element. Written against **historical models** only (no
 import of the live model class), and **accumulate-and-flush**: pull from
 `.iterator(chunk_size=500)` into a list, `bulk_update` once the list reaches 500, clear it,
 repeat, then flush the remainder. A single terminal `bulk_update` over the whole iterator would
 defeat the point — `batch_size` bounds rows per SQL statement, not Python objects held, so every
 row would be in memory anyway.
 
-**Frozen helper copies.** The migration must **not** import `format_decimal_plain` or
-`canonical_tolerance_text` from `courses.marking`; it inlines its own copies. The
-historical-models rule exists so a migration keeps doing what it did the day it shipped, and
-importing live helpers reintroduces exactly that hazard by the back door: a later change to the
-zero rule, the precision, or the storage cap would retroactively alter what `0058` does on a
-fresh deploy, and the migration test would stop describing the migration that ships. It also
-couples the migration to `courses.marking` remaining importable at that path forever. They are a
-handful of lines each.
+**Frozen helper copies.** The migration must **not** import from `courses.marking`; it inlines
+its own copies. The historical-models rule exists so a migration keeps doing what it did the day
+it shipped, and importing live helpers reintroduces exactly that hazard by the back door: a
+later change to the zero rule, the precision, or the storage cap would retroactively alter what
+`0058` does on a fresh deploy, and the migration test would stop describing the migration that
+ships. It also couples the migration to `courses.marking` remaining importable at that path
+forever.
+
+This is affordable **only because** the migration is `Decimal`-native. Frozen-copying
+`canonical_tolerance_text` would drag in `canonical_numeric_text`, `parse_number`,
+`parse_numeric_value`, all three regexes, the storage cap and the `TOO_LONG` sentinel — a page of
+code, at which point an implementer would reasonably give up and import after all. The three-line
+`Decimal` branch above plus `format_decimal_plain` needs no regexes and no sentinel. The two
+concerns reinforce each other; neither is optional.
 
 **Negative legacy tolerances must be handled explicitly.** `canonical_tolerance_text` returns
 `None` for a negative value, and this spec establishes that negative tolerances are constructible
@@ -456,8 +552,8 @@ rolling back this deploy means restoring a database backup, not running `migrate
 
 - `_val_short_numeric` (`courses/transfer/payloads.py:432`) — replace both
   `check_decimal_str(..., 20, 8)` calls with a string-type check plus `canonical_numeric_text` /
-  `canonical_tolerance_text`, raising `TransferError` on `None`. The `tolerance` **key must still
-  be present** — `_exact_keys` (`courses/transfer/schema.py:97`) errors on any missing key, and
+  `canonical_tolerance_text`, raising `TransferError` on `None` **or `TOO_LONG`**. The
+  `tolerance` **key must still be present** — `_exact_keys` (`courses/transfer/schema.py:97`) errors on any missing key, and
   loosening it would break the missing-key rejection tests — but its **value may be `""`**.
   **The explicit negative check stays.** Folding it into the generic parse failure would replace
   `"Element '<id>': tolerance must not be negative."` — which names the element and says exactly
@@ -468,11 +564,25 @@ rolling back this deploy means restoring a database backup, not running `migrate
   `courses/transfer/payloads.py:438` therefore stays in use, and it is in any case still
   referenced by `_val_guess_number` at line 356.
 
+  **The branch needs a mechanism, because the value it used to read is gone.** Today the check is
+  `tolerance = check_decimal_str(...); if tolerance < 0`. With `check_decimal_str` removed there
+  is no `Decimal` to compare, and `canonical_tolerance_text` collapses negative into `None`. So
+  `_val_short_numeric` re-derives it, in this fixed order — the same three-way shape as
+  `clean_tolerance`:
+  1. `TOO_LONG` → the parse-failure message;
+  2. `None` **and** `parse_numeric_value(data["tolerance"]) < 0` → the existing
+     `"Element '%(el)s': tolerance must not be negative."`;
+  3. `None` otherwise → the parse-failure message.
+
   **The exact messages, since two tests pin their substrings.** `check_decimal_str` emits three
   today; the replacement emits two:
-  - non-string input keeps the existing `"%(what)s must be a decimal string."` — unchanged, so
-    the wrong-type half of `test_malformed_decimal_and_wrong_type_reject` still matches on
-    `"decimal"`;
+  - non-string input keeps the existing `"%(what)s must be a decimal string."`, unchanged.
+    **This branch will have no test coverage unless one is added.** The wrong-type half of
+    `test_malformed_decimal_and_wrong_type_reject` is `_reject(el_of("text", {"body": 42}), "text")`
+    — a *text* element, matching `"text"`, nothing to do with short-numeric. The only
+    `"decimal"`-matching assertion in that test is its malformed half, which the affected-tests
+    table changes. So add a payload test for `"value": 42` asserting the
+    `"must be a decimal string"` substring;
   - anything `canonical_*` rejects (unparseable, zero denominator, over-length, negative
     tolerance) emits a single new `"%(what)s is not a valid number or fraction."`.
 
@@ -482,8 +592,8 @@ rolling back this deploy means restoring a database backup, not running `migrate
 - `_build_numeric` (`courses/transfer/importer.py:672`) — **both** `Decimal(...)` calls change:
   `value=canonical_numeric_text(data["value"])` and
   `tolerance=canonical_tolerance_text(data["tolerance"])`. Validation already happened in the
-  payload validator, so `None` here is an internal-consistency failure — and it raises
-  **`TransferError`**, not a bare `ValueError`. `_clean_save` (`courses/transfer/importer.py:482`)
+  payload validator, so `None` **or `TOO_LONG`** here is an internal-consistency failure — and it
+  raises **`TransferError`**, not a bare `ValueError`. `_clean_save` (`courses/transfer/importer.py:482`)
   does not wrap `full_clean()`, and the import view catches `TransferError`, so any other
   exception type here turns an internally-inconsistent payload into a 500 rather than a rejected
   upload. `""` is a valid tolerance result and must **not** be treated as failure — this is the
@@ -502,8 +612,8 @@ rolling back this deploy means restoring a database backup, not running `migrate
   produce "Conflicting migrations detected".
 - `courses/lal_loader/builders.py:400` — `Decimal(el["value"])` and
   `Decimal(el.get("tolerance", "0"))` become `canonical_numeric_text` / `canonical_tolerance_text`.
-  Unlike the importer, the loader has **no upstream validator**, so a `None` must raise
-  **`LoaderError`** (`courses/lal_loader/builders.py:41`, already used at lines 100, 137, 380 and
+  Unlike the importer, the loader has **no upstream validator**, so a `None` or `TOO_LONG` must
+  raise **`LoaderError`** (`courses/lal_loader/builders.py:41`, already used at lines 100, 137, 380 and
   417) with a message in the house style — `f"... in unit {unit.pk}"` — rather than being passed
   into `objects.create(value=None)` and surfacing as a context-free `IntegrityError` mid-import.
   The old `Decimal(...)` at least raised at the parse site; the replacement must not be worse.
@@ -545,6 +655,13 @@ fill-blank since PR #218. With answer `1/3`, `2/6` is correct and `0.333` / `0.3
 which is the whole point.
 
 **Reveal.** `mark_result.reveal` carries the canonical strings straight to the template.
+
+**Duplicating an element** is a fourth path, and the one authors hit most.
+`duplicate_element` (`courses/builder.py:791`) calls `build_element_export` and feeds the result
+straight into `graft_elements` in the same process, so copying a short-numeric element runs
+export → `_val_short_numeric` → `_build_numeric` end to end. It is the cheapest place to catch a
+regression in the `""`-tolerance validator contract, and it gets a test: duplicating a
+zero-tolerance fraction element yields a copy holding `"3/2"` and `""`.
 
 ## Error handling
 
@@ -611,7 +728,10 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
   (pinning that it uses the 256 cap, not the 64 one), while `canonical_numeric_text` rejects it.
   *Mutant:* collapse them into one constant — the fill-blank behaviour silently narrows.
 - Non-string input: `parse_numeric_value(Decimal("1.5"))` returns `Fraction(3, 2)`, not
-  `AttributeError`.
+  `AttributeError`; and `parse_numeric_value(Decimal("0.00000000"))` returns `Fraction(0)`.
+  *Mutant:* coerce with a bare `str()` — the second case becomes `'0E-8'`, which no grammar
+  matches, and returns `None`. This is the same root cause as the migration's `str()` trap, at a
+  second call site.
 - `parse_number` is asserted to still accept a 5000-digit string, pinning that it did **not**
   receive a length guard and that `views.py:1162` / `element_forms.py:314` are unaffected.
 - The existing `parse_number("1/2") is None` regression test stays green, pinning that the two
@@ -642,6 +762,11 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
 - **Defect 3 regression, red on `master`:** save tolerance `0.1`, reload the edit form, assert the
   rendered value is exactly `"0.1"`; then post `0.01` over it and assert the form is valid. This
   is the user's exact reported sequence.
+- **The fraction round-trip, same mechanism:** save `3/2`, reload the edit form, assert the
+  rendered value is exactly `"3/2"`. The Purpose section's headline promise ("reopening the
+  editor renders `3/2` verbatim") is otherwise never asserted, and removing the `__init__`
+  override changes precisely this initial-value path.
+- An over-length value reports the length message, not "enter a number or fraction".
 - `1/0` is a field error, not a 500.
 - Over-length input produces Django's built-in max-length error.
 - The guess-number tolerance error text is asserted **unchanged**, guarding against a blanket
@@ -649,9 +774,14 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
 
 **Model-validator test**
 
-- `ShortNumericQuestionElement(value="abc").full_clean()` and `(tolerance="-1").full_clean()`
-  each raise `ValidationError`. *Mutant:* drop the `validators=[...]` argument — the silent
-  all-incorrect question becomes constructible.
+- `ShortNumericQuestionElement(value="abc")` and
+  `ShortNumericQuestionElement(value="1", tolerance="-1")` each raise `ValidationError` from
+  `full_clean()`, asserted **on the error-dict key** (`"value"` / `"tolerance"`), not merely that
+  some `ValidationError` was raised. *Mutant:* drop the `validators=[...]` argument.
+  **The `value="1"` is load-bearing.** `value` is a non-blank `CharField` with no default, so
+  `ShortNumericQuestionElement(tolerance="-1")` has `value == ""` and `clean_fields()` raises
+  "This field cannot be blank" whether or not `validate_tolerance_text` exists — the named mutant
+  would leave the test green. Asserting the key is what makes it able to fail.
 - **Canonicalisation is enforced, not assumed:** `ShortNumericQuestionElement(value="1.50000000",
   tolerance="0")` after `full_clean()` holds `value == "1.5"` and `tolerance == ""`. *Mutant:*
   remove the `clean()` override — the validators still pass and defect 3 is reconstituted in
@@ -662,12 +792,22 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
   column, and `full_clean()` runs `clean()` even after `clean_fields()` raised, so this is
   reachable on the ordinary invalid-input path, not an exotic one.
 
-**Migration test**
+**Migration test** — follow `courses/tests/test_publish_migration.py` as the template. Its
+constraints are mandatory here and this repo has already been bitten by ignoring them:
+`@pytest.mark.django_db(transaction=True)`, and a `finally` block that re-migrates to the leaf.
+Three of the tests below unapply and re-apply `0058`, one of them deliberately aborting `forwards`
+mid-run and one deliberately raising on the way down; a half-restored migration state poisons
+every later test on that xdist worker with failures that land nowhere near this file.
 
 - Build rows at the old schema with `value=Decimal("1.50000000")`,
   `tolerance=Decimal("0.10000000")` and `tolerance=Decimal("0")`; run `0058` forwards; assert
   `"1.5"`, `"0.1"`, `""`. *Mutant:* drop `format_decimal_plain` in favour of `str()` — the
   assertions fail on the trailing zeros, which is precisely the defect being retro-fixed.
+- **The E-notation row:** include `tolerance=Decimal("0.00000001")` and a plain zero, asserting
+  `"0.00000001"` and `""`. *Mutant:* route the tolerance through `str()` — both become
+  E-notation, canonicalise to `None`, and the migration dies on `IntegrityError`. Without this
+  row the migration looks healthy on any fixture that happens to use round numbers, and fails on
+  the real database.
 - A row with `tolerance=Decimal("-0.5")` aborts the migration with the named error, **before**
   any row is written. *Mutant:* drop the counting pass — the run dies on `IntegrityError`
   partway through, which is unrecoverable given the irreversibility.
@@ -688,7 +828,16 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
 - A legacy payload with `"1.50000000"` / `"0.00000000"` imports as `"1.5"` / `""`.
 - A payload with `"value": "abc"` raises `TransferError`, not `InvalidOperation`.
 - A payload **missing** the `tolerance` key still raises (the `_exact_keys` contract is unchanged).
+- A **non-string** `"value": 42` raises with the `"must be a decimal string"` substring — the
+  branch is otherwise untested (see the transfer section).
+- A 64-character `"." + 63 digits` value raises `TransferError`. *Mutant:* test only for `None` —
+  `TOO_LONG` passes the validator and the sentinel object reaches the column.
+- A **negative** tolerance raises with the element-naming `"tolerance must not be negative"`
+  message, not the generic parse failure. *Mutant:* fold the negative branch into the parse
+  failure — the element id vanishes from a whole-course import's diagnostics.
 - `FORMAT_VERSION == 11` is asserted, and a version-12 zip is refused.
+- **Duplicate-element:** duplicating a zero-tolerance `3/2` element yields a copy holding `"3/2"`
+  and `""`, exercising export → validate → build in one process.
 
 **Existing tests affected** — per the project's affected-tests discipline these are enumerated
 now, not discovered at the branch gate. The split matters: a table that mixes "will fail" with
@@ -714,9 +863,11 @@ sweep to one of them is how the LAL and restore sites below get missed.
 |---|---|---|
 | `tests/test_questions_2b_consumption.py:65` | `CharField.to_python` stringifies a `Decimal` on save, so `objects.create(value=Decimal("3.14"))` stores `"3.14"`; the test never reads it back as a `Decimal` | pass canonical strings so the intent is legible |
 | `tests/test_quiz_answer.py:109` | same coercion | `value="4", tolerance=""` |
-| `tests/test_lal_loader_units.py:605` | feeds `tolerance: "0"`, which now canonicalises to `""`, but asserts only on `max_marks` | add a `tolerance == ""` assertion while it is open |
+| `tests/test_lal_loader_units.py` `test_build_numeric_with_points_sets_max_marks` | feeds `tolerance: "0"`, which now canonicalises to `""`, but asserts only on `max_marks` | add a `tolerance == ""` assertion while it is open |
 | `tests/test_transfer_export.py:121` `test_short_numeric_decimals_are_strings` | **becomes tautological.** Its whole point is that a `Decimal` field serialises to a string; once `value` *is* a `CharField`, `str()` is a no-op and the test can no longer fail for the reason it was written — this repo's recurring "assertion that cannot fail" defect | repurpose it: assert a fraction-valued element exports its *canonical* string |
-| `courses/tests/test_question_restore.py:136` and `:290` | both `objects.create(stem="Q", value=42, tolerance=0)` — **ints**. They survive via `CharField.to_python` coercion, and they are the only tests in the repo that drive the non-string path end-to-end through the check endpoint | pass canonical strings (`value="42", tolerance=""`) so the suite stops seeding the non-canonical `"0"` tolerance the error table calls unreachable |
+| `courses/tests/test_question_restore.py:136` and `:290` | both `objects.create(stem="Q", value=42, tolerance=0)` — **ints**, which survive via `CharField.to_python`. They do **not** exercise the non-string parse path: they post to the check endpoint, which refetches from the DB, so `mark()` already sees strings | pass canonical strings (`value="42", tolerance=""`) so the suite stops seeding the non-canonical `"0"` tolerance the error table calls unreachable |
+| `tests/test_questions_2b_marking.py:219` `test_shortnumeric_mark_tolerance_and_decimal_comma` | **this** is the test that depends on the new coercion: it calls `q.mark(...)` on the in-memory instance built with `value=Decimal("3.14")`, so `self.value` is still a `Decimal`. It is also the element's primary marking test and was missing from both halves of this table | keep it green as coercion evidence, then add canonical-string equivalents alongside rather than replacing it |
+| `tests/test_quiz_consumption_render.py:50`, `tests/test_transfer_export.py:144`, `tests/test_transfer_import.py:186` | three further construction sites | sweep them in the same pass; canonical strings |
 
 `tests/factories.py` needs **no** change: it re-exports `ShortNumericQuestionElement` as a name
 but defines no factory for it, so there are no `value`/`tolerance` defaults there to update.
