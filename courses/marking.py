@@ -7,6 +7,9 @@ from decimal import InvalidOperation
 from decimal import localcontext
 from fractions import Fraction
 
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
+
 _WS_RE = re.compile(r"\s+")
 # Optional sign; then either int part with optional [.,]frac, OR a leading-bare
 # decimal (.5 / ,5). No thousands separators, no internal whitespace.
@@ -269,3 +272,29 @@ def blank_matches(got_raw, accepted_lines, *, case_sensitive=False):
             if acc_num is not None and acc_num == got_num:
                 return True
     return False
+
+
+def validate_numeric_text(value):
+    """Field validator for ShortNumericQuestionElement.value.
+
+    Must reject TOO_LONG as well as None. A 64-character input whose canonical form
+    is 65 passes MaxLengthValidator; if this checks only for None it also passes
+    here, clean() correctly declines to rewrite it, and non-canonical text is saved
+    — leaving an element that cannot be re-saved from the editor.
+    """
+    result = canonical_numeric_text(value)
+    if result is None or result is TOO_LONG:
+        raise ValidationError(_("Enter a number or fraction."))
+
+
+def validate_tolerance_text(value):
+    """Field validator for ShortNumericQuestionElement.tolerance.
+
+    Accepts "" (full_clean never passes it here — run_validators skips empty_values
+    — but a direct unit test will, so the behaviour is pinned rather than incidental).
+    """
+    if value == "":
+        return
+    result = canonical_tolerance_text(value)
+    if result is None or result is TOO_LONG:
+        raise ValidationError(_("Enter a non-negative number or fraction."))

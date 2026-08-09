@@ -463,3 +463,30 @@ def test_canonical_tolerance_text_keeps_positive_and_rejects_negative():
     assert canonical_tolerance_text("-1") is None
     assert canonical_tolerance_text("abc") is None
     assert canonical_tolerance_text("." + "1" * 63) is TOO_LONG
+
+
+def test_validate_numeric_text_rejects_unparseable_and_too_long():
+    from django.core.exceptions import ValidationError
+
+    from courses.marking import validate_numeric_text
+
+    with pytest.raises(ValidationError):
+        validate_numeric_text("abc")
+    # 64 chars, passes MaxLengthValidator, canonicalises to 65. A None-only check
+    # lets this through and stores non-canonical, uneditable text.
+    with pytest.raises(ValidationError):
+        validate_numeric_text("." + "1" * 63)
+    validate_numeric_text("3/2")  # must not raise
+
+
+def test_validate_tolerance_text_accepts_blank_and_rejects_negative():
+    from django.core.exceptions import ValidationError
+
+    from courses.marking import validate_tolerance_text
+
+    validate_tolerance_text("")  # must not raise
+    validate_tolerance_text("1/100")
+    with pytest.raises(ValidationError):
+        validate_tolerance_text("-1")
+    with pytest.raises(ValidationError):
+        validate_tolerance_text("abc")
