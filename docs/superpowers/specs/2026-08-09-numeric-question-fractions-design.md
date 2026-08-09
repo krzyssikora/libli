@@ -97,7 +97,8 @@ specified precision. Without the output check, that input passes `clean_value` a
 typed — and in transfer it reaches `_clean_save`'s unwrapped `full_clean()` as an uncaught
 `ValidationError`, i.e. a 500. It also breaks both stated invariants, since
 `canonical_numeric_text` would not be idempotent on that class. So: guard the input, build the
-canonical string, then return `None` if the **result** exceeds `MAX_STORED_NUMERIC_CHARS`.
+canonical string, then return the sentinel `TOO_LONG` (rule 4 below) if the **result** exceeds
+`MAX_STORED_NUMERIC_CHARS`.
 
 Note this overflow only exists *because* of the raised precision above — in the default
 28-digit context the same input canonicalises to 30 characters. The two fixes interact, which is
@@ -237,14 +238,16 @@ compared by identity. It exists so an author who typed a well-formed but over-lo
 length message instead of "enter a number or fraction". It is **never stored and never
 rendered** — a sentinel that reaches a `CharField` is stringified by `to_python` into
 `<object object at 0x…>`, so every call site must handle it. Because `TOO_LONG is not None` is
-true, a `if x is not None` guard is **not** sufficient anywhere:
+true, a `if x is not None` guard is **not** sufficient anywhere. Three sites *branch* on the
+distinction — `clean_value`, `clean_tolerance` and `_val_short_numeric` — and the rest simply
+treat it as a rejection (`if result is None or result is TOO_LONG`):
 
 | call site | handling |
 |---|---|
 | `clean_value` / `clean_tolerance` | the only sites that branch: `TOO_LONG` → the length message, checked **first** |
 | `validate_numeric_text` / `validate_tolerance_text` | `None` **or** `TOO_LONG` → `ValidationError`; the length case reuses msgid 5/6 rather than adding a seventh |
 | `ShortNumericQuestionElement.clean()` | rewrite only when the result is neither `None` nor `TOO_LONG` |
-| `_val_short_numeric` | `None` **or** `TOO_LONG` → `TransferError` |
+| `_val_short_numeric` | **branches**, in the fixed order given in the transfer section: `TOO_LONG` → parse-failure message; then the guarded negative re-derivation; then the parse-failure message. Collapsing `TOO_LONG` into the `None` path would misreport an over-long *negative* tolerance (which parses fine at the 256-char comparison cap) as "must not be negative" |
 | `_build_numeric` | `None` **or** `TOO_LONG` → `TransferError` |
 | LAL loader | `None` **or** `TOO_LONG` → `LoaderError` |
 
@@ -494,12 +497,16 @@ the form rather than to an author mid-edit.
   template hand-writes its `<input>` rather than rendering the widget, so without `maxlength` the
   new storage cap would surface only after a server round-trip. The model validator remains the
   real gate.
-- **`|default:''` → `|default_if_none:''` on both inputs.** `default` renders empty for anything
-  falsy, so a correct answer canonically stored as `"0"` reopens the editor **blank** and
-  re-saving fails with "This field is required". The bug is pre-existing (`Decimal("0E-8")` is
-  equally falsy), but this change elevates `"0"` to a headline canonical form with five table
-  rows, so the natural zero round-trip test would hit it on the very line being edited. Fixed
-  here rather than left to be misread as a regression.
+- **`|default:''` → `|default_if_none:''` on both inputs — a no-op tidy, explicitly not a bug fix
+  and not independently testable.** An earlier draft of this spec claimed `"0"` would render
+  blank; that is **wrong**. `default` substitutes for *falsy* values, and the string `"0"` is
+  truthy, so both filters return `"0"` identically once the field is a `CharField`. (The hazard
+  was real only for the old `Decimal("0E-8")`, which *is* falsy — so `default` was correct here
+  only by accident.) The swap is made because the line is already being edited and
+  `default_if_none` is the filter that actually expresses the intent; it changes no rendered
+  output today, so **no test can distinguish it** and the plan must not invent one. A zero
+  round-trip test is still worth writing, but it belongs to the canonicalisation rule, not to
+  this filter.
 
 `templates/courses/elements/shortnumericquestionelement.html:8`
 
@@ -782,7 +789,7 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
   *Mutant:* drop the `"f"` from `format_decimal_plain` — `40401` then fails as `4.0401E+4`.
 - A >28-significant-digit input (e.g. `0.1000000000000000000000000000000001`) round-trips
   unchanged. *Mutant:* remove the `localcontext` — the value silently becomes `0.1`. This is the
-  only test that catches C1.
+  only test that catches the raised-precision silent-truncation defect.
 - Zero-form rows (`-0`, `0/4`, `00/4`, `-0/4`, `0 0/4`, `-0.0`) all canonicalise to `"0"`.
   *Mutant:* remove the zero rule — `-0/4` comes back as `-0/4` or `"-0"`.
 - Round-trip and idempotence over the same enumerated table, **excluding** the `None` and
@@ -798,7 +805,7 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
   branch — `Decimal("True")` raises `InvalidOperation`.
 - `canonical_tolerance_text`: `""`, `"0"`, `"0.00000000"`, `"0/5"` → `""`; `"1/100"` → `"1/100"`;
   `"-1"` → `None`. *Mutant:* have it fall through to `canonical_numeric_text` for zero — `"0"` is
-  returned and I2's reveal regression reappears.
+  returned and the "± 0" reveal regression reappears.
 - Length guard: a 5000-digit numerator returns `None` from **both** `parse_numeric_value` and
   `canonical_numeric_text`. *Mutant:* remove either guard — the test fails with `ValueError`,
   not with a wrong return value.
@@ -921,7 +928,8 @@ every later test on that xdist worker with failures that land nowhere near this 
 - Export → import an element with `value="1/3"` preserves `"1/3"`.
 - **Export → import a zero-tolerance element** round-trips `""` without error. *Mutant:* route
   the importer's tolerance through `canonical_numeric_text` — `""` becomes `None` and the import
-  raises. This is C2 and it breaks every existing element, so it must be a named test.
+  raises. This is the `""`-tolerance import failure, and it breaks every existing zero-tolerance
+  element, so it must be a named test.
 - A legacy payload with `"1.50000000"` / `"0.00000000"` imports as `"1.5"` / `""`.
 - A payload with `"value": "abc"` raises `TransferError`, not `InvalidOperation`.
 - A payload **missing** the `tolerance` key still raises (the `_exact_keys` contract is unchanged).
