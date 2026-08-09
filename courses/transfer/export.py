@@ -362,8 +362,13 @@ def _ser_extended(el, ids):
 def _ser_numeric(el, ids):
     return {
         **_question_fields(el),
-        "value": str(el.value),
-        "tolerance": str(el.tolerance),
+        # No str(): these are CharFields, already text for a DB-loaded row. Wrapping
+        # them in str() would be a no-op for a normal row but would silently paper
+        # over an un-refetched in-memory instance that still held a Decimal (e.g.
+        # str(Decimal("0E-8")) == "0E-8"), corrupting the export instead of failing
+        # loudly at JSON serialisation.
+        "value": el.value,
+        "tolerance": el.tolerance,
     }
 
 

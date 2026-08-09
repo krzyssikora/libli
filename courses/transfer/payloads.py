@@ -442,9 +442,13 @@ def _val_short_numeric(data, elid, media_kinds):
     if canonical_numeric_text(data["value"]) in (None, TOO_LONG):
         _err(_("%(what)s is not a valid number or fraction."), what="value")
     tolerance = canonical_tolerance_text(data["tolerance"])
-    # Order is fixed. TOO_LONG first, so an over-long NEGATIVE tolerance (which
-    # parses fine at the 256-char comparison cap) reports the length problem
-    # rather than the sign. Then the negative branch, which keeps its
+    # Order is fixed. TOO_LONG first, because a negative value can hit TOO_LONG too:
+    # its INPUT can fit the 64-char storage cap while its canonical OUTPUT does not,
+    # e.g. "-." + "1"*62 (64 chars in) canonicalises to "-0." + "1"*62 (65 chars out,
+    # the inserted leading "0"). That case must report the length problem, not the
+    # sign. (An input that is already over 64 chars, negative or not, canonicalises
+    # to None rather than TOO_LONG, so it falls to the negative/generic branches
+    # below regardless of this ordering.) Then the negative branch, which keeps its
     # element-naming message — folding it into the generic parse failure would
     # drop the element id from a whole-course import's diagnostics.
     if tolerance is TOO_LONG:

@@ -75,6 +75,10 @@ def forwards(apps, schema_editor):
         else:
             row.tolerance_text = _format_decimal_plain(row.tolerance)
         if row.value_text is None or row.tolerance_text is None:
+            # Unreachable by construction today: _format_decimal_plain always returns
+            # a str, and the zero branch above assigns "". Kept as a cheap backstop
+            # against a future edit to either path, not as live coverage — don't
+            # mistake this for a branch a test can exercise as written.
             raise RuntimeError(f"refusing to write NULL for pk={row.pk}")
         batch.append(row)
         # Accumulate and FLUSH. batch_size bounds rows per statement, not Python

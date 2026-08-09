@@ -405,8 +405,13 @@ def build_element(
         # mid-import; the old Decimal(...) at least raised at the parse site.
         rejected = (None, TOO_LONG)
         if value in rejected or tolerance in rejected:
+            bad_field, bad_raw = (
+                ("value", el["value"])
+                if value in rejected
+                else ("tolerance", el.get("tolerance", "0"))
+            )
             raise LoaderError(
-                f"invalid numeric value {el['value']!r} in unit {unit.pk}"
+                f"invalid numeric {bad_field} {bad_raw!r} in unit {unit.pk}"
             )
         return _attach(
             unit,

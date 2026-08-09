@@ -685,7 +685,7 @@ def _build_numeric(data, assets):
     if value in rejected or tolerance in rejected:
         raise TransferError(
             _("%(what)s is not a valid number or fraction.")
-            % {"what": "short_numeric data"}
+            % {"what": _("short_numeric data")}
         )
     q = ShortNumericQuestionElement(**_q_kwargs(data), value=value, tolerance=tolerance)
     return _clean_save(q), ()
