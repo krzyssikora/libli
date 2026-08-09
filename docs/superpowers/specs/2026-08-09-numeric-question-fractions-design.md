@@ -149,7 +149,7 @@ Both details are load-bearing:
   canonicalisation would silently change the author's value. `format_target`'s existing callers
   are bounded to 20 digits and are unaffected either way, but they inherit the fix.
 
-**`canonical_numeric_text(s)` → `str | None`.** The write-side normaliser: canonical storage
+**`canonical_numeric_text(s)` → `str | None | TOO_LONG`.** The write-side normaliser: canonical storage
 text, or `None` if `s` does not parse. It shares `_MIXED_RE`, `_FRAC_RE` and `parse_number` with
 the existing parsers, so its grammar cannot drift from `parse_numeric_value`'s.
 
@@ -167,9 +167,12 @@ The rule, in full:
    `{"value": 2.5, "tolerance": 0}` is perfectly ordinary manifest content that reaches
    `canonical_numeric_text` directly. Today `Decimal(2.5)` accepts it; without the prologue,
    `.strip()` on a `float` raises `AttributeError` mid-import — a context-free crash, which is
-   worse than the `Decimal(...)` it replaces and fails the bar the loader bullet sets. The same
-   hole is reachable from `clean()`, since `clean_fields()` does not write `to_python` results
-   back onto the instance.
+   worse than the `Decimal(...)` it replaces and fails the bar the loader bullet sets. The
+   direct loader call is the load-bearing justification. `clean()` is a secondary, narrower
+   exposure: `clean_fields()` **does** write `to_python` results back
+   (`setattr(self, f.attname, f.clean(raw_value, self))`, Django 5.2.15 `db/models/base.py`), so
+   a validating field is already a `str` by the time `clean()` runs — the raw value survives only
+   on the *error* path, which `full_clean()` does not stop `clean()` from reaching.
 1. Apply the `MAX_STORED_NUMERIC_CHARS` guard to the **stripped input** — this function
    calls `int()` itself, and is reached directly from the LAL loader on unvalidated data. Both
    guards measure the **stripped** string, matching Django's `forms.CharField(strip=True)` so the
@@ -239,6 +242,7 @@ true, a `if x is not None` guard is **not** sufficient anywhere:
 | call site | handling |
 |---|---|
 | `clean_value` / `clean_tolerance` | the only sites that branch: `TOO_LONG` → the length message, checked **first** |
+| `validate_numeric_text` / `validate_tolerance_text` | `None` **or** `TOO_LONG` → `ValidationError`; the length case reuses msgid 5/6 rather than adding a seventh |
 | `ShortNumericQuestionElement.clean()` | rewrite only when the result is neither `None` nor `TOO_LONG` |
 | `_val_short_numeric` | `None` **or** `TOO_LONG` → `TransferError` |
 | `_build_numeric` | `None` **or** `TOO_LONG` → `TransferError` |
@@ -251,9 +255,18 @@ import path, so `courses.marking.validate_numeric_text` becomes a permanent inte
 future `migrate` run resolves. These two functions must not later be moved or renamed without a
 follow-up migration.
 
-- `validate_numeric_text` raises `ValidationError` when `canonical_numeric_text` returns `None`.
+- `validate_numeric_text` raises `ValidationError` when `canonical_numeric_text` returns `None`
+  **or `TOO_LONG`**.
 - `validate_tolerance_text` **accepts `""`** (returns `None`) and raises when
-  `canonical_tolerance_text` returns `None`, i.e. for unparseable or negative input. In practice
+  `canonical_tolerance_text` returns `None` **or `TOO_LONG`**, i.e. for unparseable, negative, or
+  over-long input.
+
+**Both must test for the sentinel, or the model-level gate has a hole exactly where it matters.**
+A 64-character `"." + 63 digits` value passes `MaxLengthValidator`; if the validator checks only
+for `None`, it also passes validation; and `clean()`'s guard then correctly declines to rewrite —
+so non-canonical text is saved. The element is afterwards **uneditable**, because reopening the
+editor and saving routes the stored value back through `clean_value`, which reports "too long".
+That is precisely the silent-violation scenario the validators were added to close. In practice
   `full_clean()` never passes `""` to it at all — Django's `run_validators` skips values in
   `empty_values` — but a direct unit test will, so the behaviour is specified rather than
   incidental.
@@ -294,13 +307,14 @@ both are reachable on ordinary input. `super().clean()` is called because
 
 **Invariants**, holding wherever `canonical_numeric_text(s)` is **neither `None` nor
 `TOO_LONG`** — the enumerated invariant table skips those rows, because `TOO_LONG is not None`
-and feeding the sentinel back in would stringify it to `<object object at 0x…>` (round-trip) or
-raise `AttributeError` (idempotence), producing a red test that is not a real defect. Pinned by
-an enumerated table covering every other row above plus the >28-digit case —
+and feeding the sentinel back in stringifies it to `<object object at 0x…>`, which matches no
+grammar — so the round-trip comparison sees `None` against a real `Fraction`, and the idempotence
+check sees `None` against the sentinel. Both produce a red test that is not a real defect. Pinned
+by an enumerated table covering every other row above plus the >28-digit case —
 **not** by a property-testing library. `hypothesis` is not in `pyproject.toml` or `uv.lock`, and
 this spec does not authorise adding a dependency:
 
-- for every input where `canonical_numeric_text(s)` is not `None`,
+- for every input where `canonical_numeric_text(s)` is neither `None` nor `TOO_LONG`,
   `parse_numeric_value(canonical_numeric_text(s)) == parse_numeric_value(s)`;
 - `canonical_numeric_text` is idempotent.
 
@@ -328,17 +342,31 @@ if s is None:
     s = ""
 elif isinstance(s, Decimal):
     s = format(s, "f")
+elif isinstance(s, (int, float)) and not isinstance(s, bool):
+    s = format(Decimal(str(s)), "f")
 else:
     s = str(s)
 ```
 
-**A bare `str()` is wrong and the `Decimal` branch is mandatory.** `str(Decimal("0.00000000"))`
-is `'0E-8'`, and `str(Decimal("0.00000001"))` is `'1E-8'` — E-notation, which `_NUM_RE` has no
-branch for. Since the old column is `numeric(20,8)`, *every* value read back from it below 1e-6
-— including every zero — stringifies that way. A bare `str()` would therefore not "degrade to
-incorrect rather than crash"; it would make a legitimately-valued in-memory element silently
-unmatchable. `format(d, "f")` gives `'0.00000000'`, which parses. Verified in this repo's
-interpreter.
+**A bare `str()` is wrong for every numeric type, not just `Decimal`.** `str(Decimal("0.00000000"))`
+is `'0E-8'` and `str(Decimal("0.00000001"))` is `'1E-8'`; Python switches floats to exponent form
+below 1e-4 and above 1e16, so `str(0.00001)` is `'1e-05'` and `str(1e16)` is `'1e+16'`. `_NUM_RE`
+has no exponent branch, so all of these canonicalise to `None`. Since the old column is
+`numeric(20,8)`, *every* `Decimal` read back from it below 1e-6 — including every zero —
+stringifies that way; and a LAL manifest carrying `"tolerance": 0.00001` is ordinary JSON that
+`Decimal(0.00001)` accepts on `master` today. Routing floats through the bare `str()` branch
+would abort that import with `LoaderError`. Verified in this repo's interpreter.
+
+Three details in the branch order:
+
+- **`Decimal(str(f))`, never `Decimal(f)`,** for floats. `Decimal(0.1)` is
+  `0.1000000000000000055511151231257827021181583404541015625` — 55 digits of binary noise, which
+  would blow the storage cap and change the stored value. `Decimal(str(0.1))` is `Decimal("0.1")`.
+- **`bool` is excluded explicitly** because `isinstance(True, int)` is true, and `Decimal("True")`
+  raises `InvalidOperation`. A JSON `true` in a manifest must fall to the `str()` branch, match no
+  grammar, and return `None` so the loader raises `LoaderError` — not crash.
+- `NaN`/`Infinity` (which `json.loads` does accept) format as `'NaN'`/`'Infinity'`, match no
+  grammar, and return `None`. Correct by construction.
 
 ### Marking
 
@@ -759,10 +787,15 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
   *Mutant:* remove the zero rule — `-0/4` comes back as `-0/4` or `"-0"`.
 - Round-trip and idempotence over the same enumerated table, **excluding** the `None` and
   `TOO_LONG` rows (feeding a sentinel back in is not a meaningful round-trip).
-- **JSON-numeric input**, the LAL manifest case: `canonical_numeric_text(2.5)` returns `"2.5"`
-  and `canonical_tolerance_text(0)` returns `""`. *Mutant:* drop the coercion prologue from the
-  canonicalisers — a `float` from `json.loads` raises `AttributeError` mid-import. A loader test
-  feeding `{"value": 2.5, "tolerance": 0}` covers the same ground end to end.
+- **JSON-numeric input**, the LAL manifest case: `canonical_numeric_text(2.5)` returns `"2.5"`,
+  `canonical_tolerance_text(0)` returns `""`, and — the case that matters —
+  `canonical_tolerance_text(0.00001)` returns `"0.00001"`. *Mutant a:* drop the coercion prologue
+  — a `float` raises `AttributeError` mid-import. *Mutant b:* route floats through a bare
+  `str()` — `0.00001` becomes `'1e-05'`, canonicalises to `None`, and the loader aborts. Only the
+  small-float case catches mutant b; `2.5` passes under both. A loader test feeding
+  `{"value": 2.5, "tolerance": 0.00001}` covers it end to end.
+- A JSON `true` returns `None` rather than raising. *Mutant:* fold `bool` into the numeric
+  branch — `Decimal("True")` raises `InvalidOperation`.
 - `canonical_tolerance_text`: `""`, `"0"`, `"0.00000000"`, `"0/5"` → `""`; `"1/100"` → `"1/100"`;
   `"-1"` → `None`. *Mutant:* have it fall through to `canonical_numeric_text` for zero — `"0"` is
   returned and I2's reveal regression reappears.
@@ -842,6 +875,10 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
   `ShortNumericQuestionElement(tolerance="-1")` has `value == ""` and `clean_fields()` raises
   "This field cannot be blank" whether or not `validate_tolerance_text` exists — the named mutant
   would leave the test green. Asserting the key is what makes it able to fail.
+- **The validator catches the sentinel too:** `ShortNumericQuestionElement(value="." + "1"*63)`
+  raises from `full_clean()` with key `"value"`. *Mutant:* have the validator check only for
+  `None` — the 64-character input passes `MaxLengthValidator` **and** the validator, `clean()`
+  correctly declines to rewrite, and a non-canonical, uneditable element is saved.
 - **Canonicalisation is enforced, not assumed:** `ShortNumericQuestionElement(value="1.50000000",
   tolerance="0")` after `full_clean()` holds `value == "1.5"` and `tolerance == ""`. *Mutant:*
   remove the `clean()` override — the validators still pass and defect 3 is reconstituted in
