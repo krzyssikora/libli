@@ -126,24 +126,48 @@ list.
 the list and the add button is preserved. Note this is *not* because "CSS is unaffected by the DOM"
 — CSS combinators are DOM-based too, and `display: contents` removes the box, not the node, so any
 `.el-editor > X`, `X + Y` or `:nth-child` rule crossing the new wrapper would still stop matching.
-An audit was done: **`editor.css:779` (`.el-editor > .scroll-x`) is the only `.el-editor >` rule in
-the codebase, and none of the five touched partials use `.scroll-x`**, so the risk is zero here.
-That is a verified finding, not an assumption.
+An audit was done, covering **all three** selector shapes:
+
+- child combinator — `editor.css:779` (`.el-editor > .scroll-x`) is the only `.el-editor >` rule in
+  the codebase, and none of the five touched partials use `.scroll-x`;
+- sibling combinators and `:nth-child` — no rule of either shape touches `.el-editor*`,
+  `.pair-row*`, `.choice-row*`, `.stepper-row*` or `.markdone-row*`.
+
+So the risk is zero here. Both sweeps must be re-run if the wrapper's position changes; the
+conclusion is only as good as its evidence, which is why both are recorded rather than just the
+first.
 
 | Attribute | On | Meaning |
 |---|---|---|
 | `data-fsrows` | **wrapper** (`display: contents`) enclosing list + button + template + management form | Value is the formset prefix (`pairs`, `steps`, `items`, `choices`) |
 | `data-fsrows-confirm` | wrapper | Translated confirm string for a non-empty removal |
 | `data-fsrows-list` | the `<ul>` | Where new rows are appended |
-| `data-fsrow` | a row | Marks one form's row |
+| `data-fsrows-min` | wrapper | Minimum non-hidden rows the remove guard enforces |
+| `data-fsrows-max` | wrapper | Maximum non-hidden rows; disables the add button — **optional** |
+| `data-fsrow-item` | a row | Marks one form's row |
 | `data-fsrows-add` | button | Add control — **optional** |
 | `data-fsrows-template` | `<template>` | Blueprint row — **optional** |
 | `data-fsrow-remove` | button inside a row | Remove control (JS-only affordance) |
+
+**The row hook is `data-fsrow-item`, not `data-fsrow`.** A bare `data-fsrow` is a strict *prefix* of
+`data-fsrows`, `data-fsrows-list` and `data-fsrow-remove`, and this repo's render tests assert by raw
+substring (`resp.content.count(b"data-stepper-row") >= 1`, `"data-markdone-editor" in html`). A
+retargeted `count(b"data-fsrow") >= 1` would be satisfied by the wrapper alone, so a template
+shipping **zero rows** would still pass — an assertion that cannot fail. Every retargeted and new
+render assertion must additionally match a **delimited** form (`data-fsrow-item>` or
+`data-fsrow-item=""`), never a bare prefix.
 
 `data-fsrows-add` and `data-fsrows-template` are **optional and must be absent together**: a wrapper
 without them is *remove-only* and must not trip the warn-and-no-op rule below. **Choice is exactly
 this case** — it keeps `addChoiceRow` and its own `data-choice-add`, so its wrapper has no blueprint
 and no `data-fsrows-add`.
+
+**Consequence for the reveal:** init job 1 must reveal `[data-fsrows-add], [data-choice-add]` within
+the wrapper, not `[data-fsrows-add]` alone. Choice's add button carries only `data-choice-add`, so a
+single-selector reveal would render it `hidden` and never unhide it — permanently breaking a
+*currently working* control (`editor.js:375-376` → `addChoiceRow`), which is strictly worse than the
+inert match button this design exists to fix. The progressive-enhancement render test would have
+locked that in.
 
 Every lookup resolves as `event.target.closest("[data-fsrows]")` then a scoped `querySelector`, so
 nested containers and multiple formsets on one page cannot cross-talk.
@@ -189,11 +213,18 @@ scrolls ancestor scrollports leaves the author unable to scroll back — the bug
 documents in its own comments. `scrollIntoView` is likewise forbidden; both new modules join the
 `PANE_RESIDENT` roster in `tests/test_editor_js_scroll_invariants.py`.
 
-That roster **does not currently police `focus()`** — its only regex is `\.scrollIntoView\s*\(`, and
-`stepper_editor.js:20` calls a bare `input.focus()` today while sitting in the roster. This change
-therefore **extends that test with a second regex** flagging a `.focus(` call with no
-`preventScroll` in any pane-resident module. Without the extension the rule is convention-only and
-would silently rot.
+That roster **does not currently police `focus()`** — its only regex is `\.scrollIntoView\s*\(`. This
+change adds a second regex flagging a `.focus(` call with no `preventScroll`, but **scoped to the two
+new modules only**, via an explicit opt-in list separate from `PANE_RESIDENT`.
+
+The scoping is not timidity: a repo-wide version would be **RED the moment it is added**. Bare
+`.focus()` calls exist today throughout the roster — `filltable_editor.js:540,573,644,805,827,881,893`,
+`table_editor.js:478,545,690,712,765,777`, `gallery_editor.js:75,86`, `text_toolbar.js:77,121,163`,
+`tabs_editor.js:183` — 22 sites across five modules this change does not otherwise touch. Fixing them
+is a separate piece of work, and several are legitimately different (`text_toolbar.js` refocuses an
+editing surface, not a newly added row). The opt-in list must also match a **call**, not a mention:
+`filltable_editor.js:570,642,879` and `unit_nav.js:75` discuss `.focus()` in comments, exactly the
+hazard the file's existing `CALL` comment warns about.
 
 **The blueprint.** Never `{{ formset.empty_form }}` bare — that invokes the form renderer and emits
 Django's default `<div><label>…</label><input></div>` layout, structurally unlike the loop-body row.
@@ -207,9 +238,8 @@ three blueprint consumers are **match, stepper and checklist** — choice has no
 
 **Remove.**
 
-1. **Guard:** if this is the last non-hidden row in the list, do nothing (see "Disabled state").
-   Removing every row would post an empty formset, failing validation with "Add at least one pair."
-   (`element_forms.py:920-923`) and leaving the author staring at an empty list.
+1. **Guard:** if removing would take the list below the wrapper's `data-fsrows-min`, do nothing (see
+   "Disabled state").
 2. **Confirm:** if the row is non-empty, `window.confirm(...)` with the wrapper's
    `data-fsrows-confirm` string. **Non-empty means:** any `input[type="text"]` or `textarea`
    descendant whose `.value.trim()` is non-empty. The `DELETE` checkbox and hidden `id` input are
@@ -220,6 +250,11 @@ three blueprint consumers are **match, stepper and checklist** — choice has no
    see "Dead code this change removes" for why the only listener becomes unreachable.
 4. **Hide:** set `row.hidden = true`.
 5. Recompute the disabled state.
+6. **Move focus.** The click left focus on a button that is now hidden, so focus would otherwise fall
+   to `<body>` — a keyboard-a11y regression and, on this `overflow:hidden` page, the same scroll
+   hazard the add path guards against. Move it to the remove button of the nearest **following**
+   non-hidden row, falling back to the nearest preceding one, then to the add button, using
+   `focus({ preventScroll: true })`. Module 2 does the same after detaching.
 
 **The row is never detached from the DOM and `TOTAL_FORMS` is never decremented.** Django validates
 forms `0 … TOTAL_FORMS-1`; punching a gap in the indices means a persisted row's `id` field vanishes
@@ -260,9 +295,38 @@ of the eight rules is deleted. This repo has been bitten by this gotcha at least
 `core/static/core/css/app.css` carries guards with comments naming it at `:42`, `:185`, `:546`,
 `:1009`, `:1191`.
 
-**Disabled state.** When the guard in step 1 would fire — exactly one non-hidden row remains — the
-remove buttons are set `disabled`, not left live to silently no-op. A control that does nothing when
-clicked is the defect this design exists to remove. Recomputed after every add, remove and init.
+**Disabled state.** When the guard in step 1 would fire, the remove buttons are set `disabled`, not
+left live to silently no-op. A control that does nothing when clicked is the defect this design
+exists to remove. Recomputed after every add, remove and init.
+
+**The bounds are per-formset, carried on `data-fsrows-min` / `data-fsrows-max`** — a uniform "one"
+would be wrong, and two of the four editors have a *maximum* as well. All four were read from the
+code:
+
+| Editor | min | max | Server rule |
+|---|---|---|---|
+| Match pairs | `1` | — | ≥1 complete pair — "Add at least one pair." (`element_forms.py:915-924`) |
+| Choice | `2` | — | ≥2 non-deleted non-empty rows — "Add at least two choices." (`element_forms.py:667-674`) |
+| Stepper | `1` | `20` | `StepperElement.MIN_STEPS` / `MAX_STEPS` (`models.py:618-619`), enforced at `element_forms.py:1888-1895` |
+| Checklist | `1` | `20` | `MarkDoneElement.MIN_ITEMS` / `MAX_ITEMS` (`models.py:655-656`), enforced at `element_forms.py:1944-1952` |
+
+Choice is why the minimum is an attribute rather than a constant: under a hard-coded "one" an author
+could remove down to a single choice, hit Save, and get a validation error the client could have
+prevented — inconsistent with switchgate's threshold of two and with the principle above.
+
+**The maximum matters for the same reason, in the other direction.** Stepper and checklist reject a
+21st row on save ("A stepper can have at most 20 steps."). An uncapped add button would let an author
+type a 21st step and only discover the limit at Save — a new instance of exactly the
+could-have-been-prevented failure this design is about. When the non-hidden row count reaches
+`data-fsrows-max`, the **add** button is `disabled`, recomputed alongside the remove buttons. Editors
+with no maximum omit the attribute.
+
+**The remove button renders inside `{% if formset.can_delete %}`.** In all four templates the DELETE
+label is wrapped in that conditional (`_edit_matchpairquestion.html:17-19`, `_edit_stepper.html:20-22`,
+`_edit_markdone.html:20-22`, `_edit_choicequestion.html:37-39`). A remove button rendered *outside* it
+would, on a `can_delete=False` formset, have no checkbox to tick — a silently inert control, the
+defect this design condemns. Correspondingly, module 1 **skips (and `console.warn`s on) any row whose
+`DELETE` input is absent**, mirroring the prefix warn-and-no-op rule.
 
 **Progressive enhancement.** The existing `<label class="…__del">{{ f.DELETE }} Remove</label>`
 remains in the DOM as the state carrier and as the **no-JS affordance**. The JS-only controls — the
@@ -275,10 +339,14 @@ currently renders `＋ Add pair` unconditionally, so a no-JS author sees it and 
 same inert-control defect Purpose condemns, in the very editor this design is named for. Hiding and
 revealing every add button makes the rule uniform with switchgate's.
 
-**Remove-button affordance.** In the formset editors the remove control is a **text button using
-`.btn`**, whose `[hidden]` state is already guarded (`app.css:42`), carrying a translated label. This
-deliberately avoids introducing a new `display`-setting component that would need its own guard.
-(Switchgate differs — see module 2.)
+**Remove-button affordance.** In the formset editors the remove control is
+`<button type="button" class="btn btn--small btn--ghost" data-fsrow-remove hidden>`, matching the add
+buttons' existing classes, carrying a translated label. `.btn`'s `[hidden]` state is already guarded
+(`app.css:42`), so this deliberately avoids introducing a new `display`-setting component that would
+need its own guard. It is placed **immediately after the `__del` label** in each of the four row
+templates — inside `.choice-row__main` for choice, and as the last child of the `<li>` for match,
+stepper and checklist — so it occupies the position the hidden label vacates and row rhythm is
+unchanged. (Switchgate differs — see module 2.)
 
 **Init pass.** `window.libliInitFormsetRows(root)` performs three idempotent jobs:
 
@@ -397,7 +465,7 @@ If the removed row was the checked one, **leave nothing checked.** The existing 
 **Minimum guard.** The guard counts **DOM rows, not filled values** — a value-based guard would fire
 on a legitimately blank-but-in-progress list, and the padded render always starts with blanks. The
 stricter "at least two *non-empty* options" rule stays server-side, where `_MIN_OPTIONS`
-(`element_forms.py:427`) already enforces it.
+(defined at `element_forms.py:361`, compared at `:427`) already enforces it.
 
 **Init pass.** `window.libliInitSwitchGateEditor(root)`, three idempotent jobs:
 
@@ -409,16 +477,26 @@ stricter "at least two *non-empty* options" rule stays server-side, where `_MIN_
 the init pass. Without this a no-JS author would be shown a brand-new Add button and per-row Remove
 buttons with no server-side handler behind either.
 
-**Affordance and CSS scoping.** Switchgate's remove control **reuses the existing
-`.el-editor__remove` `×` component**, matching the visually adjacent switch-grid editor — a
-`×`-free button beside switchgrid's `×` would be a gratuitous inconsistency. That component is
-`display: inline-grid`, so it needs its own guard, exactly as switchgrid's does
-(`app.css:1469`: `.el-editor--switchgrid .el-editor__remove[hidden] { display: none; }`, comment
-"inline-grid overrides the [hidden] attribute"). Add the switchgate-scoped twin
-`.el-editor--switchgate .el-editor__remove[hidden] { display: none; }` and include it in the
-stylesheet-guard test. A *scoped* twin rather than one unscoped rule is deliberate: an unscoped
-`.el-editor__remove[hidden]` ties on specificity with the existing
-`.el-editor--switchgrid .el-editor__remove` block and would be decided by source order.
+**Affordance and CSS scoping.** Switchgate's remove control uses the `.el-editor__remove` `×`
+component, matching the visually adjacent switch-grid editor — a `×`-free button beside switchgrid's
+`×` would be a gratuitous inconsistency.
+
+**That component is not currently reusable, and this is the one place the change adds CSS rather than
+just guarding it.** Every rule for it is scoped to switchgrid — `app.css:1452-1478` holds the sizing,
+`display: inline-grid`, `:hover` and `:focus-visible` blocks, all under
+`.el-editor--switchgrid .el-editor__remove`. Dropping the bare class into a switchgate row would
+inherit *none* of it and render a raw UA button. Two rules are therefore added, both scoped to
+`.el-editor--switchgate`:
+
+1. a **style twin** of the `app.css:1452` block (sizing, `display: inline-grid`, hover, focus), and
+2. the `[hidden]` **guard twin**: `.el-editor--switchgate .el-editor__remove[hidden] { display: none; }`,
+   mirroring `app.css:1469` and its comment "inline-grid overrides the [hidden] attribute".
+
+Promoting the component to an unscoped `.el-editor__remove` was considered and rejected: it would
+restyle switchgrid's shipped control as a side effect, and an unscoped `.el-editor__remove[hidden]`
+ties on specificity with the existing `.el-editor--switchgrid .el-editor__remove` block, leaving the
+outcome to source order. Duplicating under a scope leaves switchgrid untouched. Both new rules go in
+the stylesheet-guard test.
 
 `.el-editor__option-row` is likewise **shared**: defined at `app.css:1223` and re-styled under
 `.el-editor--switchgrid` at `:1437-1445`. Every new rule must be scoped under
@@ -493,7 +571,11 @@ addition, and the stale comment goes with the dead code above.
 re-run by `editor.js`, exactly as `libliInitSwitchGridEditors` is today.
 
 **Confirm dialogs.** `window.confirm` with the translated string read from a data attribute, matching
-`tabs_editor.js:146`.
+`tabs_editor.js:146` — which is `label(editor, "confirm", "Delete this tab?")`, a lookup **with a
+hard-coded English default**. Both modules must do the same: a missing or mistyped
+`data-fsrows-confirm` / `data-sgate-confirm` must fall back to a built-in default string and
+`console.warn`, never reach `window.confirm(null)` (which renders a dialog reading "null"). Silence
+there would contradict the loud-failure rule applied to a mistyped prefix.
 
 **Degradation without JavaScript.** In the formset editors the DELETE checkbox labels stay visible
 and functional while the add and remove buttons stay `hidden`. In switchgate both new controls stay
@@ -525,7 +607,9 @@ shown an add button that does nothing.
   `<label class="choice-row__del">` the init pass hides, so under JS — the only mode Playwright runs
   in — `.check()` fails actionability. Rewrite to click `data-fsrow-remove` and assert the row is no
   longer visible and its DELETE is ticked. The `choice-row--del` assertion at `:315` is **deleted**
-  along with the dim rule itself.
+  along with the dim rule itself. ***Needs a `dialog` handler*** — the row is filled at `:301`
+  (`fill("Gamma")`), so the removal is confirm-guarded and Playwright's auto-dismiss would otherwise
+  take the cancel path and fail against a correct build.
 
 **New form-level tests (pytest).**
 
@@ -540,10 +624,15 @@ shown an add button that does nothing.
   `formset_rows.js` — where the literal appears merely because the module performs the replace, so it
   would pass even if a template shipped no blueprint at all. Match, the headline defect, would
   otherwise gain its first blueprint with no test that it exists.
-- **Progressive-enhancement render**, per touched editor: the JS-only add and remove buttons render
-  carrying `hidden`, and the DELETE checkbox label renders *without* it. This is the only guard on
-  the no-JS story, which is why the checkbox stays and why the template-side `f.DELETE.value()` rule
-  was rejected.
+- **Progressive-enhancement render.** Two halves with different scopes: (a) across **all five**
+  touched editors, the JS-only add and remove buttons render carrying `hidden`; (b) across the
+  **four formset editors only**, the DELETE checkbox label renders *without* it. Switchgate has no
+  formset and no DELETE checkbox (`_edit_switchgate.html:12-21` is a positional list), so half (b)
+  does not apply there. This is the only guard on the no-JS story, which is why the checkbox stays
+  and why the template-side `f.DELETE.value()` rule was rejected.
+- **Bounds render:** each formset wrapper carries the `data-fsrows-min` (and, for stepper and
+  checklist, `data-fsrows-max="20"`) matching the server constant, so a drift between the client
+  guard and `MIN_STEPS`/`MAX_ITEMS` fails a test rather than reaching an author.
 - A stylesheet guard reading **both** `editor.css` and `courses.css`, asserting all eight
   `[hidden] { display: none }` rules plus the switchgate `.el-editor__remove[hidden]` twin,
   structured so deleting any one fails the test.
@@ -563,6 +652,10 @@ against the current build, which is the point.
   handler.)*
 - **Post-init state:** after the editor opens, the DELETE label is not visible and the remove button
   is — the JS half of the progressive-enhancement guarantee.
+- **Focus after removal** does not fall to `<body>`: remove a middle row by keyboard and assert
+  `document.activeElement` is the following row's remove button. Without this the keyboard path
+  regresses silently, since a mouse user never notices.
+- **The maximum cap:** on a stepper at 20 steps, the add button is `disabled`.
 - **The 422 reconciliation**, the subtlest mechanism in the design: remove a row, trigger a
   validation failure on save, assert the removed row comes back **not visible** with its DELETE still
   ticked, then fix the error and assert the removal persisted.
