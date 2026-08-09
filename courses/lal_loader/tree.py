@@ -18,6 +18,18 @@ def upsert_node(course, parent, order, kind, title, unit_type=None):
             kind=kind,
             title=title,
             unit_type=unit_type,
+            # The LAL import ingests FINISHED content, not drafts. Since
+            # migration 0057 the model default is published=False (a CA's new
+            # unit is authored privately), so a bulk import of published
+            # material must opt out of that default EXPLICITLY -- otherwise a
+            # fresh import lands ~793 units invisible: the course drops out of
+            # the self-enrolment catalogue, catalog_detail reports 0 units, and
+            # every student's outline prunes to blank. The failure is silent and
+            # only reproduces on a FRESH import, because upsert_node is
+            # idempotent and an existing row keeps whatever `published` it had.
+            # Containers keep False -- `published` is meaningless on them
+            # (spec 1), matching transfer/schema.py's normalisation.
+            published=(kind == ContentNode.Kind.UNIT),
         )
     # An existing node KEEPS its title: a manual rename in the editor (chapters
     # seed as "__PLACEHOLDER chapter N__") is user-owned and must survive an

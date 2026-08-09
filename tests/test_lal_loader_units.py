@@ -130,6 +130,24 @@ def test_upsert_node_still_syncs_unit_type_on_reload():
     assert again.unit_type == "quiz"  # structural change synced
 
 
+def test_upsert_node_creates_units_live_and_containers_draft():
+    # Final-review C1a. ContentNode.published defaults to False since migration
+    # 0057, so a creation site that does not pass it silently produces drafts.
+    # The LAL import is the mat-pp ingestion path: a fresh run must land units
+    # LIVE (that is what the command did before the publish-state branch), or
+    # the whole course is invisible -- absent from the self-enrolment catalogue
+    # and pruned out of every student's outline, with nothing raised or logged.
+    course = CourseFactory()
+    unit = upsert_node(course, None, 0, "unit", "U", unit_type="lesson")
+    assert unit.published is True
+    unit.refresh_from_db()
+    assert unit.published is True  # persisted, not just set on the instance
+    # Containers keep the default: `published` is meaningless on them, and the
+    # transfer importer normalises them to False too.
+    chapter = upsert_node(course, None, 1, "chapter", "C")
+    assert chapter.published is False
+
+
 def test_build_mark_done(tmp_path):
     from courses.models import MarkDoneElement
 

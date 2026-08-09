@@ -9,11 +9,20 @@ def _isolate_media_root(settings, tmp_path):
 
 @pytest.mark.django_db
 def test_seed_is_idempotent_and_builds_demo():
+    from courses.models import ContentNode
     from courses.models import Course
     from courses.models import Element
     from courses.models import Enrollment
 
     call_command("seed_demo_course")
+    # Final-review C1b. ContentNode.published defaults to False since migration
+    # 0057, so _node()'s get_or_create defaults must set it explicitly. Asserted
+    # here rather than through a view because the rest of this file traverses
+    # with drafts="keep", which is exactly the value that MASKS a drafted seed.
+    course_obj = Course.objects.get(slug="demo-course")
+    assert not ContentNode.objects.filter(
+        course=course_obj, kind="unit", published=False
+    ).exists()
     courses_after_first = Course.objects.count()
     elements_after_first = Element.objects.count()
     enrollments_after_first = Enrollment.objects.count()
