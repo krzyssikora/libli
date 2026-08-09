@@ -37,6 +37,12 @@ normative — where this plan and the spec disagree, the spec wins and the plan 
 - New user-facing strings need hand-written Polish; `locale/en` msgstrs stay intentionally empty.
   Use `gettext_lazy` **except in `courses/transfer/*`**, which binds `_` to request-time
   `gettext` by design (`payloads.py:12`, `schema.py:9`) — there, use the module's existing `_`.
+- **Run `uv run ruff format` on every file you touch, before the task's `ruff check`.** Ruff
+  selects `E`, and with no `line-length` override in `pyproject.toml` that means `E501` at **88
+  characters**. Several code blocks in this plan exceed it — they are written for readability in
+  a document, not for the formatter — so pasting them verbatim produces a red gate in Tasks 4,
+  5, 7 and 9. Formatting first is idempotent and cheaper than reflowing by hand. (Migrations are
+  exempt: `extend-exclude = ["*/migrations/*.py"]`.)
 - Commit after every task. Do not skip hooks.
 
 ## File Structure
@@ -310,6 +316,7 @@ Expected: PASS (8 tests).
 ```bash
 uv run pytest tests/test_questions_2b_marking.py tests/test_guessnumber_form.py \
   tests/test_guessnumber_endpoint.py -v
+uv run ruff format courses/ tests/
 uv run ruff check courses/ tests/
 ```
 
@@ -755,7 +762,9 @@ def test_shortnumeric_accepts_every_spelling_of_the_same_value():
 def test_shortnumeric_fractional_tolerance():
     from courses.models import ShortNumericQuestionElement
 
-    q = ShortNumericQuestionElement.objects.create(stem="?", value="1.5", tolerance="1/100")
+    q = ShortNumericQuestionElement.objects.create(
+        stem="?", value="1.5", tolerance="1/100"
+    )
     assert q.mark("1.505").correct is True
     assert q.mark("1.52").correct is False
 
@@ -1104,8 +1113,10 @@ def test_0058_strips_trailing_zeros_and_empties_zero_tolerance():
 
         new_apps = _migrate(AFTER).loader.project_state(AFTER).apps
         New = new_apps.get_model("courses", "ShortNumericQuestionElement")
-        assert (New.objects.get(pk=plain.pk).value, New.objects.get(pk=plain.pk).tolerance) == ("1.5", "0.1")
-        assert (New.objects.get(pk=zero_tol.pk).value, New.objects.get(pk=zero_tol.pk).tolerance) == ("40401", "")
+        got = New.objects.get(pk=plain.pk)
+        assert (got.value, got.tolerance) == ("1.5", "0.1")
+        got = New.objects.get(pk=zero_tol.pk)
+        assert (got.value, got.tolerance) == ("40401", "")
         assert New.objects.get(pk=tiny.pk).tolerance == "0.00000001"
     finally:
         _migrate(AFTER)
@@ -1187,6 +1198,7 @@ def test_storage_cap_matches_both_column_widths():
 uv run pytest tests/test_questions_2b_marking.py courses/tests/test_shortnumeric_migration.py -v
 uv run pytest tests/test_questions_2b_authoring.py tests/test_lal_loader_units.py -v
 uv run pytest courses/tests/test_publish_makemigrations.py -v
+uv run ruff format courses/ tests/ courses/tests/
 uv run ruff check courses/ tests/ courses/tests/
 ```
 
@@ -1339,9 +1351,23 @@ Also update the two pre-existing assertions at `tests/test_questions_2b_forms.py
 
 - [ ] **Step 2: Run to verify they fail**
 
-Run: `uv run pytest tests/test_questions_2b_forms.py -k shortnumeric -v`
+Run: `uv run pytest tests/test_questions_2b_forms.py -k "shortnumeric or guess_number" -v`
 
-Expected: FAIL. The round-trip test in particular shows `'0.10000000'`.
+Expected: **three FAIL, three PASS.** By this point Task 4 has already made the model a
+`CharField` while the *old* form's `_num` still returns a `Decimal`, so the RED/GREEN split is
+not the obvious one:
+
+| test | before the rewrite | why |
+|---|---|---|
+| `..._stores_canonical_text` | **FAIL** | old `_num` rejects `3/2`; `"0"` stores as `Decimal("0")`, not `""` |
+| `..._distinguishes_the_two_length_failures` | **FAIL** | no `TOO_LONG` branch exists yet |
+| `..._editor_round_trips_a_fraction_and_a_tolerance` | **FAIL** | on `edited.is_valid()` — `parse_number("3/2")` is `None`. **Not** on the rendered tolerance: `form["tolerance"].value()` already reads `"0.1"` off the `CharField`, because Task 4 fixed the storage. Defect 3's editor symptom is already gone by now; what this test still proves is the fraction half of the round-trip |
+| `..._negative_tolerance_keeps_its_own_message` | PASS | the old `clean_tolerance` already raises "Tolerance cannot be negative." for `-1` |
+| `..._unparseable_tolerance_is_a_field_error_not_a_typeerror` | PASS | old `_num` already rejects `abc` and `1/0` |
+| `test_guess_number_tolerance_error_text_is_unchanged` | PASS | a pure pinning test — it must stay green through the rewrite, which is the point |
+
+Do not "fix" the three that pass. The two tolerance tests become meaningful *after* the rewrite,
+when the new `p is not None` re-derivation could reintroduce a `TypeError`.
 
 - [ ] **Step 3: Rewrite the form**
 
@@ -1453,6 +1479,7 @@ this step the assertion cannot pass and the branch ships stale binaries.
 ```bash
 uv run pytest tests/test_questions_2b_forms.py -v
 uv run pytest tests/test_i18n_questions_2b.py tests/test_i18n_po_health.py -v
+uv run ruff format courses/ tests/
 uv run ruff check courses/ tests/
 ```
 
@@ -1505,7 +1532,12 @@ def test_shortnumeric_reveal_shows_the_canonical_string(client, ...):
 
 
 @pytest.mark.django_db
-def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot():
+def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot(client):
+    course, unit = _enrolled_unit(client)
+    el = _attach(unit, ShortNumericQuestionElement.objects.create(
+        stem="<p>Pi?</p>", value="3.14", tolerance=""
+    ))
+    url = _check_url(course, unit, el)
     # Accepted trade-off: Django localises Decimal template variables, so the
     # reveal used to render "3,14000000" under pl. A canonical string renders
     # "3.14" in every locale.
@@ -1526,12 +1558,12 @@ def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot():
     #     ("en" by default), and SessionLocaleMiddleware PREFERS that key over the
     #     header. Every other Polish view test here sets the session key too —
     #     see tests/test_i18n_quiz.py:21.
+    #     The session write must come AFTER _enrolled_unit, which calls
+    #     make_login -> force_login and would otherwise overwrite it.
     session = client.session
     session["_language"] = "pl"
     session.save()
-    response = client.post(
-        check_url, {"answer": "9"}, HTTP_ACCEPT_LANGUAGE="pl"
-    )   # against an element whose value is "3.14"
+    response = client.post(url, {"answer": "9"}, HTTP_ACCEPT_LANGUAGE="pl")
     html = response.content.decode()
     assert "3,14" not in html      # the pre-change rendering
     assert "3.14" in html
@@ -1795,7 +1827,8 @@ def _build_numeric(data, assets):
     #
     # Reuses the validator's msgid rather than inventing a seventh string, so this
     # needs no extra catalogue work.
-    if value is None or value is TOO_LONG or tolerance is None or tolerance is TOO_LONG:
+    rejected = (None, TOO_LONG)
+    if value in rejected or tolerance in rejected:
         raise TransferError(
             _("%(what)s is not a valid number or fraction.") % {"what": "short_numeric data"}
         )
@@ -1845,6 +1878,7 @@ uv run pytest tests/test_transfer_validation.py tests/test_transfer_import.py \
   tests/test_table_transfer.py tests/test_tabs_transfer.py \
   courses/tests/test_beforeafter_transfer.py courses/tests/test_image_size_transfer.py -v
 uv run pytest tests/test_i18n_questions_2b.py tests/test_i18n_po_health.py -v
+uv run ruff format courses/ tests/ courses/tests/
 uv run ruff check courses/ tests/ courses/tests/
 ```
 
@@ -1950,7 +1984,8 @@ Run: `uv run pytest tests/test_lal_loader_units.py -k "build_numeric" -v`
         # No upstream validator here, unlike the transfer importer. Passing None
         # into objects.create() would surface as a context-free IntegrityError
         # mid-import; the old Decimal(...) at least raised at the parse site.
-        if value is None or value is TOO_LONG or tolerance is None or tolerance is TOO_LONG:
+        rejected = (None, TOO_LONG)
+        if value in rejected or tolerance in rejected:
             raise LoaderError(
                 f"invalid numeric value {el['value']!r} in unit {unit.pk}"
             )
@@ -2153,9 +2188,15 @@ word "Correct", which is translated.
 
 - [ ] **Step 3: Run them**
 
-Run: `uv run pytest tests/test_e2e_questions_2b.py -m e2e -k "fraction or keyboard or reveal" -v`
+Run: `uv run pytest tests/test_e2e_questions_2b.py -m e2e -v`
 
-`-m e2e` is mandatory or the tests silently deselect and pytest exits 5.
+**No `-k` filter.** Step 1 rewrites `_seed_all_types`, which both pre-existing tests depend on
+for their `nth(0..2)` positional locators and their 5-tuple unpacking. Filtering to the three new
+tests would deselect exactly the two that prove the fixture edit was safe, pushing an
+element-inserted-in-the-wrong-position bug to the ~1h branch gate — the same hole Task 9 Step 4
+closes for the transfer files. Expect **five** tests.
+
+`-m e2e` is mandatory or they silently deselect and pytest exits 5.
 
 - [ ] **Step 4: Screenshot the editor and the reveal in both themes**
 
