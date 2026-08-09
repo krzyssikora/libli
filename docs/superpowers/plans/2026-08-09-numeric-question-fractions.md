@@ -1534,9 +1534,10 @@ def test_shortnumeric_reveal_shows_the_canonical_string(client, ...):
 @pytest.mark.django_db
 def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot(client):
     course, unit = _enrolled_unit(client)
-    el = _attach(unit, ShortNumericQuestionElement.objects.create(
+    q = ShortNumericQuestionElement.objects.create(
         stem="<p>Pi?</p>", value="3.14", tolerance=""
-    ))
+    )
+    el = Element.objects.create(unit=unit, content_object=q)
     url = _check_url(course, unit, el)
     # Accepted trade-off: Django localises Decimal template variables, so the
     # reveal used to render "3,14000000" under pl. A canonical string renders
