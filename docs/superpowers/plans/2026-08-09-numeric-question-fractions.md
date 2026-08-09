@@ -836,7 +836,17 @@ def test_shortnumeric_clean_canonicalises_and_does_not_null_a_rejected_field():
 
 Run: `uv run pytest tests/test_questions_2b_marking.py -k "shortnumeric_marks or spelling or fractional_tolerance or zero_tolerance_from or junk_value or full_clean_rejects or clean_canonicalises" -v`
 
-Expected: FAIL — the `DecimalField` rejects `"1/3"` with `InvalidOperation`/`ValidationError`.
+Expected: **six FAIL, one PASS.** The six marking/`clean()` tests fail because the `DecimalField`
+rejects `"1/3"` with `InvalidOperation`/`ValidationError`.
+
+**`test_shortnumeric_full_clean_rejects_and_reports_the_right_key` is already GREEN** on the old
+model, for reasons that have nothing to do with this change: `value="abc"` is rejected by
+`DecimalField.to_python`, `tolerance="-1"` by the existing `MinValueValidator(0)`, and
+`"." + "1"*63` by `DecimalValidator` (63 decimal places > 8) — all with the right error keys. And
+`clean_fields()` skips its `setattr` on error, so the raw value survives. Do not "fix" it. Its
+falsification is the stated mutant (drop `validators=[...]`), which turns it red **after** the
+field becomes a `CharField` — at which point `MaxLengthValidator` alone would let all three
+through.
 
 - [ ] **Step 3: Change the model**
 
@@ -1339,7 +1349,14 @@ def test_shortnumeric_editor_round_trips_a_fraction_and_a_tolerance():
 @pytest.mark.django_db
 def test_guess_number_tolerance_error_text_is_unchanged():
     # Guards against a blanket find-replace of the msgid shared with :340.
-    bad = _form("guessnumberquestion", {"stem": "<p>Guess {{5}}</p>", "tolerance": "abc"})
+    # The FORM_FOR_TYPE key is "guessnumber" — NOT "guessnumberquestion". The
+    # "*question" suffix exists only for choicequestion / shorttextquestion /
+    # shortnumericquestion / ...; the wrong key raises KeyError, which would make
+    # this test error rather than pin anything.
+    bad = _form(
+        "guessnumber",
+        {"stem": "<p>Guess {{5}}</p>", "tolerance": "abc", "success_message": ""},
+    )
     assert not bad.is_valid()
     assert any("3.14 or 3,14" in str(e) for e in bad.errors["tolerance"])
 ```
@@ -1353,7 +1370,7 @@ Also update the two pre-existing assertions at `tests/test_questions_2b_forms.py
 
 Run: `uv run pytest tests/test_questions_2b_forms.py -k "shortnumeric or guess_number" -v`
 
-Expected: **three FAIL, three PASS.** By this point Task 4 has already made the model a
+Expected: **seven selected — four FAIL, three PASS.** By this point Task 4 has already made the model a
 `CharField` while the *old* form's `_num` still returns a `Decimal`, so the RED/GREEN split is
 not the obvious one:
 
@@ -1365,6 +1382,7 @@ not the obvious one:
 | `..._negative_tolerance_keeps_its_own_message` | PASS | the old `clean_tolerance` already raises "Tolerance cannot be negative." for `-1` |
 | `..._unparseable_tolerance_is_a_field_error_not_a_typeerror` | PASS | old `_num` already rejects `abc` and `1/0` |
 | `test_guess_number_tolerance_error_text_is_unchanged` | PASS | a pure pinning test — it must stay green through the rewrite, which is the point |
+| **pre-existing** `..._accepts_comma_decimal_and_rejects_negative_tolerance` (`:20`) | **FAIL** | Step 1 edited its assertions to compare against `"3.14"`/`"0.01"`, but the old `_num` still returns `Decimal`. Its name matches the `-k` filter, so it is in this run — do not mistake it for a mistake |
 
 Do not "fix" the three that pass. The two tolerance tests become meaningful *after* the rewrite,
 when the new `p is not None` re-derivation could reintroduce a `TypeError`.
@@ -1586,7 +1604,12 @@ Fill the `...` from the existing fixtures in `tests/test_questions_2b_consumptio
 
 Run: `uv run pytest tests/test_questions_2b_consumption.py -k "reveal or inputmode" -v`
 
-Expected: FAIL — the reveal shows `0.33333333` and the input shows `inputmode="decimal"`.
+Expected: FAIL. The `inputmode` test fails on `decimal`. The reveal tests fail because the reveal
+renders **blank** — not `0.33333333`. By this point `value` holds the string `"1/3"`, and the
+unchanged template still applies `|floatformat:"-8"`, which tries `Decimal("1/3")`, then
+`float("1/3")`, and **returns `""`** on failure (`django/template/defaultfilters.py`). So the
+assertion that goes red is `"1/3" in html`. Getting this failure mode wrong would send you
+debugging Task 4.
 
 - [ ] **Step 3: Edit the templates**
 
@@ -1763,7 +1786,25 @@ def test_duplicate_element_preserves_a_fraction_and_empty_tolerance(...):
 
 - [ ] **Step 2: Run to verify they fail**
 
-Run: `uv run pytest tests/test_transfer_validation.py tests/test_transfer_import.py -k "short_numeric or tolerance or format_version or duplicate or round_trips" -v`
+Run: `uv run pytest tests/test_transfer_validation.py tests/test_transfer_import.py -v`
+
+No `-k`: an earlier filter silently deselected `test_legacy_v10_payload_canonicalises`, so it was
+never demonstrated red — which the "falsify, don't run" rule forbids.
+
+Expected: **four FAIL, three PASS** among the new tests.
+
+| new test | before the rewrite | why |
+|---|---|---|
+| `..._rejects_unparseable_value` | **FAIL** | the message is still `check_decimal_str`'s "decimal" wording |
+| `..._rejects_a_canonical_overflow` | **FAIL** | `check_decimal_str` accepts it — 63 dp is fine for it, and nothing checks canonical length |
+| `..._unparseable_tolerance_rejects_without_a_typeerror` | **FAIL** | same message mismatch |
+| `..._accepts_empty_tolerance` | **FAIL** | `Decimal("")` raises `InvalidOperation` today — this is the transient breakage Task 4 introduced |
+| `..._rejects_non_string_value_with_the_type_message` | PASS | `check_decimal_str` already emits "must be a decimal string" — a pinning test for a branch this task must not lose |
+| `..._negative_tolerance_keeps_the_element_naming_message` | PASS | the negative branch is unchanged today; the point is that it survives the rewrite |
+| `..._still_requires_the_tolerance_key` | PASS | `_exact_keys` is untouched; it pins that the rewrite does not relax it |
+
+Three greens is correct here. Each is a pinning test for behaviour this task must **preserve**,
+not introduce.
 
 - [ ] **Step 3: Rewrite `_val_short_numeric`**
 
