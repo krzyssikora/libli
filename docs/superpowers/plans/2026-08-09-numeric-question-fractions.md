@@ -370,7 +370,9 @@ from courses.marking import canonical_numeric_text
 from courses.marking import canonical_tolerance_text
 ```
 
-Then append the constants and test functions:
+…placed in isort order (`order-by-type` puts the constant `TOO_LONG` **above** the lowercase
+names, so it goes at the head of the `courses.marking` group, not at line 9). Then append the
+constants and test functions:
 
 ```python
 # Every row of the spec's canonicalisation table. Do not trim this list.
@@ -829,16 +831,30 @@ Expected: FAIL — the `DecimalField` rejects `"1/3"` with `InvalidOperation`/`V
 
 - [ ] **Step 3: Change the model**
 
-In `courses/models.py`, replace line 25's `from courses.marking import parse_number` with:
+In `courses/models.py`, drop line 25's `from courses.marking import parse_number` and add the six
+new imports **in isort order**. Ruff selects `I` with `force-single-line = true` and the default
+`order-by-type = true`, which sorts CONSTANTS before CLASSES before lowercase names — so
+`TOO_LONG` goes **above** `MarkResult` (currently line 22), not where `parse_number` was. The
+existing block already demonstrates this convention at `payloads.py:16-17` (`SINGLE_SLOT_ID`
+before `BeforeAfterElement`). The resulting `courses.marking` group reads:
 
 ```python
 from courses.marking import TOO_LONG
+from courses.marking import MarkResult
+from courses.marking import blank_matches
 from courses.marking import canonical_numeric_text
 from courses.marking import canonical_tolerance_text
+from courses.marking import normalize_text
 from courses.marking import parse_numeric_value
 from courses.marking import validate_numeric_text
 from courses.marking import validate_tolerance_text
 ```
+
+The same rule applies everywhere this plan adds a `TOO_LONG` import —
+`tests/test_questions_2b_marking.py`, `courses/element_forms.py`,
+`courses/transfer/payloads.py`, `courses/transfer/importer.py`,
+`courses/lal_loader/builders.py`. Getting it wrong is an `I001` failure that surfaces only at the
+branch gate.
 
 (`parse_number`'s only use in this file is `mark()` at line 2167; leaving the import would fail
 ruff F401 at the branch gate.)
@@ -1171,6 +1187,7 @@ def test_storage_cap_matches_both_column_widths():
 uv run pytest tests/test_questions_2b_marking.py courses/tests/test_shortnumeric_migration.py -v
 uv run pytest tests/test_questions_2b_authoring.py tests/test_lal_loader_units.py -v
 uv run pytest courses/tests/test_publish_makemigrations.py -v
+uv run ruff check courses/ tests/ courses/tests/
 ```
 
 `tests/test_lal_loader_units.py` is run here to confirm it is **still green** — it must not be
@@ -1436,6 +1453,7 @@ this step the assertion cannot pass and the branch ships stale binaries.
 ```bash
 uv run pytest tests/test_questions_2b_forms.py -v
 uv run pytest tests/test_i18n_questions_2b.py tests/test_i18n_po_health.py -v
+uv run ruff check courses/ tests/
 ```
 
 Expected: all PASS.
@@ -1503,8 +1521,16 @@ def test_shortnumeric_reveal_under_polish_locale_keeps_the_dot():
     #     fail and "3,14" not in html would pass vacuously. Post a wrong answer,
     #     and do NOT send X-Requested-With — the fetch fragment omits the Check
     #     button that assertion 3 below relies on.
+    #  4. Accept-Language ALONE is not enough in this app. force_login fires
+    #     seed_language_on_login, which writes session["_language"] = user.language
+    #     ("en" by default), and SessionLocaleMiddleware PREFERS that key over the
+    #     header. Every other Polish view test here sets the session key too —
+    #     see tests/test_i18n_quiz.py:21.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
     response = client.post(
-        check_url, {"answer": "9"}, headers={"accept-language": "pl"}
+        check_url, {"answer": "9"}, HTTP_ACCEPT_LANGUAGE="pl"
     )   # against an element whose value is "3.14"
     html = response.content.decode()
     assert "3,14" not in html      # the pre-change rendering
@@ -1543,7 +1569,10 @@ The `{% if %}` is correct **only because** zero tolerance is canonically `""`.
 
 - [ ] **Step 4: Run to verify they pass**
 
-Run: `uv run pytest tests/test_questions_2b_consumption.py -v`
+```bash
+uv run pytest tests/test_questions_2b_consumption.py -v
+uv run ruff check tests/
+```
 
 Expected: PASS. Update the single construction site at `:64-66` to canonical strings while here,
 and drop the now-unused function-local `Decimal` import at `:61` (ruff F401).
@@ -1575,7 +1604,7 @@ phone the feature would be untypable while every desktop test passed."
 - Modify: `courses/transfer/schema.py:14`
 - Test: `tests/test_transfer_validation.py`, `tests/test_transfer_import.py`,
   `tests/test_transfer_export.py`
-- Fix (breaks in this task): `tests/test_transfer_validation.py:548`, `:557`, **plus all seven
+- Fix (breaks in this task): `tests/test_transfer_validation.py:549`, `:558`, **plus all seven
   `FORMAT_VERSION` pins** — the bump is a one-line edit with a seven-file blast radius:
 
 | file:line | edit |
@@ -1635,6 +1664,18 @@ def test_short_numeric_unparseable_tolerance_rejects_without_a_typeerror():
     )
 
 
+def test_short_numeric_still_requires_the_tolerance_key():
+    # The spec names this guard because the change makes "" a LEGAL tolerance, so
+    # the tempting next "simplification" is to let the key be absent entirely.
+    # Nothing in either test package currently pins the _exact_keys contract for
+    # this element — grep finds no assertion on "missing the key" at all — so the
+    # spec's parenthetical about "the missing-key rejection tests" refers to tests
+    # that do not exist. Mutant: relax _exact_keys to tolerate an absent tolerance.
+    data = q_fields(value="1")
+    data.pop("tolerance", None)
+    _reject(doc_with(el_of("short_numeric", data)), "tolerance")
+
+
 def test_short_numeric_accepts_empty_tolerance():
     # The export round-trip case: every zero-tolerance element now exports "".
     # There is no _accept helper in this file — positive cases call
@@ -1645,7 +1686,9 @@ def test_short_numeric_accepts_empty_tolerance():
     )
 ```
 
-Update `:548` and `:557` from `"decimal"` to `"is not a valid number or fraction"`.
+Update the needles at `:549` and `:558` (inside `test_malformed_decimal_and_wrong_type_reject`
+and `test_nonfinite_decimal_strings_reject_not_500`) from `"decimal"` to
+`"is not a valid number or fraction"`.
 (`Infinity`/`NaN` still reject — no grammar matches them — only the message changes.)
 
 In `tests/test_transfer_import.py`:
@@ -1802,6 +1845,7 @@ uv run pytest tests/test_transfer_validation.py tests/test_transfer_import.py \
   tests/test_table_transfer.py tests/test_tabs_transfer.py \
   courses/tests/test_beforeafter_transfer.py courses/tests/test_image_size_transfer.py -v
 uv run pytest tests/test_i18n_questions_2b.py tests/test_i18n_po_health.py -v
+uv run ruff check courses/ tests/ courses/tests/
 ```
 
 Every file carrying a `FORMAT_VERSION` pin is in that first command; `test_transfer_archive.py`
@@ -2030,12 +2074,22 @@ locate questions **positionally**: `questions = page.locator("[data-question]")`
 `questions.nth(0)` / `.nth(1)` / `.nth(2)` (see `:140-183`). Use that pattern; there is no id to
 select on.
 
-`_seed_all_types` currently creates the short-numeric element with `value="3.14",
-tolerance="0.01"` — **no fixture builds a `1.5`- or `1/3`-valued element**. Extend it with two
-more short-numeric elements, `value="1.5", tolerance=""` and `value="1/3", tolerance=""`,
-appended **after** the existing three so the current `nth(0..2)` indices in
-`test_answer_all_types_js_path` and `test_answer_all_types_no_js` keep working. The new elements
-are then `nth(3)` and `nth(4)`.
+**`_seed_all_types(username, slug)` has a contract that must be obeyed exactly:**
+
+- it returns a **5-tuple** `(course, unit, st_join, sn_join, fb_join)` (`:110`);
+- it opens with `User.objects.get(username=username)`, so **`_make_pa_user(username)` must be
+  called first** — both existing tests do (`:130`, `:209`) and omitting it gives
+  `User.DoesNotExist`;
+- the page carrying the questions is the **lesson**,
+  `f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/"` (`:136`, `:218`), **not**
+  `/courses/{slug}/`, which is the course page and has no `[data-question]` at all.
+
+It creates the short-numeric element with `value="3.14", tolerance="0.01"` — **no fixture builds
+a `1.5`- or `1/3`-valued element**. Extend it to create two more short-numeric elements,
+`value="1.5", tolerance=""` and `value="1/3", tolerance=""`, **appended after the existing
+three** so the current `nth(0..2)` indices keep working; they become `nth(3)` and `nth(4)`.
+**Leave the 5-tuple return unchanged** — the new tests locate positionally and do not need the
+join rows, and widening the tuple would break both existing tests' unpacking.
 
 - [ ] **Step 2: Write the e2e tests**
 
@@ -2046,11 +2100,13 @@ Add `from playwright.sync_api import expect` to the file's imports (it is not th
 def test_student_can_answer_with_a_fraction(browser, live_server):
     # Drives the real input, not page.request.post() — the point is that a
     # student can type "3/2" into a question whose stored answer is "1.5".
-    username, slug = _seed_all_types("frac_student", "frac-unit")
+    _make_pa_user("frac_student")
+    course, unit, _st, _sn, _fb = _seed_all_types("frac_student", "frac-unit")
     context = browser.new_context()
     page = context.new_page()
-    _login(page, live_server, username)
-    page.goto(f"{live_server.url}/courses/{slug}/")
+    _login(page, live_server, "frac_student")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector("[data-question]")
     q = page.locator("[data-question]").nth(3)     # the value="1.5" element
     q.locator("input[name='answer']").fill("3/2")
     q.locator("button[type='submit']").click()
@@ -2062,11 +2118,13 @@ def test_student_can_answer_with_a_fraction(browser, live_server):
 def test_student_numeric_input_offers_a_full_keyboard(browser, live_server):
     # The only test that can catch the mobile trap: a desktop browser types "/"
     # regardless of the inputmode hint, so no functional test can see it.
-    username, slug = _seed_all_types("kbd_student", "kbd-unit")
+    _make_pa_user("kbd_student")
+    course, unit, _st, _sn, _fb = _seed_all_types("kbd_student", "kbd-unit")
     context = browser.new_context()
     page = context.new_page()
-    _login(page, live_server, username)
-    page.goto(f"{live_server.url}/courses/{slug}/")
+    _login(page, live_server, "kbd_student")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector("[data-question]")
     q = page.locator("[data-question]").nth(3)
     assert q.locator("input[name='answer']").get_attribute("inputmode") == "text"
     context.close()
@@ -2074,11 +2132,13 @@ def test_student_numeric_input_offers_a_full_keyboard(browser, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_reveal_shows_the_fraction_and_hides_a_zero_tolerance(browser, live_server):
-    username, slug = _seed_all_types("reveal_student", "reveal-unit")
+    _make_pa_user("reveal_student")
+    course, unit, _st, _sn, _fb = _seed_all_types("reveal_student", "reveal-unit")
     context = browser.new_context()
     page = context.new_page()
-    _login(page, live_server, username)
-    page.goto(f"{live_server.url}/courses/{slug}/")
+    _login(page, live_server, "reveal_student")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector("[data-question]")
     q = page.locator("[data-question]").nth(4)     # the value="1/3" element
     q.locator("input[name='answer']").fill("9")     # wrong, so the reveal renders
     q.locator("button[type='submit']").click()
@@ -2088,10 +2148,8 @@ def test_reveal_shows_the_fraction_and_hides_a_zero_tolerance(browser, live_serv
     context.close()
 ```
 
-Confirm `_seed_all_types`' return signature and the unit URL shape against the file before
-copying — the `(username, slug)` unpacking and `/courses/{slug}/` path above follow the existing
-tests' pattern and must match it exactly. Likewise confirm the verdict class the existing tests
-wait on (`.is-correct`) rather than matching on the word "Correct", which is translated.
+Confirm the verdict class the existing tests wait on (`.is-correct`) rather than matching on the
+word "Correct", which is translated.
 
 - [ ] **Step 3: Run them**
 
