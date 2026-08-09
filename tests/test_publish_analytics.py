@@ -140,7 +140,17 @@ def test_ana4_lesson_pks_denominator_matches_displayed_columns():
 @pytest.mark.django_db
 def test_ana5_gradebook_and_review_queue_drop_never_published_quizzes():
     """Proves quiz_units_in_order carries the keyword on BOTH surfaces the
-    plan calls out as easy to miss: build_quiz_gradebook and pending_reviews_for."""
+    plan calls out as easy to miss: build_quiz_gradebook and pending_reviews_for.
+
+    Read the two halves differently (final-review A5). The GRADEBOOK half is
+    pinned by the column-label assertions below. The REVIEW-QUEUE half is
+    pinned by the keep/hide pair at the END of this test, NOT by the
+    keep-with-data assertion above it: `_draft` holds no QuizSubmission, so it
+    could never appear in `in_progress` even on a build where
+    pending_reviews_for forwarded neither keyword. Task 8's fix round added
+    that pair for exactly this reason; the docstring was not updated with it,
+    and claimed a proof the assertions did not deliver.
+    """
     owner = UserFactory()
     course = CourseFactory(owner=owner)
     ch = _chapter(course)
@@ -163,6 +173,10 @@ def test_ana5_gradebook_and_review_queue_drop_never_published_quizzes():
     data = pending_reviews_for(
         owner, course, drafts="keep-with-data", with_data=with_data
     )
+    # NOT the load-bearing half (final-review A5): `_draft` has zero
+    # QuizSubmission rows, so it can never appear in `in_progress` whether or
+    # not pending_reviews_for forwards drafts/with_data at all. It is kept as a
+    # shape check; the keep/hide pair below is what actually discriminates.
     assert [sub.unit_id for sub in data["in_progress"]] == [live.pk]
 
     # Under "keep-with-data" the filter is a structural no-op for the review

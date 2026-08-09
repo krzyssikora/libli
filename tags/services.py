@@ -131,9 +131,26 @@ def tags_for_unit(author, unit):
 
 
 def tags_for_outline(author, course):
-    """({unit_pk: [Tag, ...]}, [Tag, ...]) — per-unit chips + the in-course tag set."""
+    """({unit_pk: [Tag, ...]}, [Tag, ...]) — per-unit chips + the in-course tag set.
+
+    Draft-filtered with the same helper the tags hub uses (WR15/WR15b/WR15c).
+    Without it a tag living only on now-drafted units still produces a filter
+    chip in the outline that matches nothing -- the outline itself has already
+    dropped those units. That is not a leak (tags are author-owned, so the only
+    person who can see the chip is the person who created it, about a unit they
+    tagged themselves), but it is the same data one page over from the hub, and
+    spec 2 filters it there. Two surfaces disagreeing about one row is a bug
+    waiting to be "fixed" in the wrong direction.
+
+    Filtering the whole queryset also prunes `tags_by_unit`, which is right: the
+    per-unit chips for a unit the outline dropped are unreachable anyway, and
+    exclude_foreign_drafts keeps drafts in courses this author manages, so an
+    author's own drafts still carry their chips.
+    """
     qs = (
-        UnitTag.objects.filter(tag__author=author, unit__course=course)
+        exclude_foreign_drafts(
+            UnitTag.objects.filter(tag__author=author, unit__course=course), author
+        )
         .select_related("tag")
         .order_by(Lower("tag__name"), "tag__pk")
     )

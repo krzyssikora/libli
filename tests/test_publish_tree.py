@@ -89,8 +89,13 @@ def test_tree2_unit_row_glyph_is_binary_on_its_own_flags(client):
     assert "icm--req" in classes(live.pk, "obligatory")
     assert "icm--draft" in classes(draft.pk, "published")
     assert "icm--opt" in classes(draft.pk, "obligatory")
-    assert "#bi-live" not in body
-    assert "#bi-draft" not in body
+    # No `assert "#bi-live" not in body` here. Final-review A2: the strings
+    # "bi-live"/"bi-draft" occur NOWHERE in this repository -- Task 13's
+    # accepted deviation implemented the glyphs as masked icm--* classes and no
+    # bi-* symbol was ever added -- so no implementation can emit them and the
+    # assertions could not fail. The alternate-mechanism mutant they targeted
+    # (render the glyph as <use href="#bi-live">) is already killed by the four
+    # positive assertions above, which redden first.
 
 
 @pytest.mark.django_db
@@ -110,7 +115,12 @@ def test_tree3_empty_container_is_inert_not_disabled(client):
         assert ctrl.name == "a"
         assert ctrl.get("href") is None
         assert ctrl.get("aria-disabled") == "true"
-        assert ctrl.get("disabled") is None
+        # No `assert ctrl.get("disabled") is None`. Final-review A3: this is
+        # verbatim the anti-pattern the docstring two lines above warns
+        # against. The template never writes `disabled` on an anchor and the
+        # attribute is invalid on <a> in any case, so it could not fail -- and
+        # a mutant that deletes aria-disabled and adds the live branch's href
+        # (the exact break this test exists to prevent) leaves it green.
 
 
 @pytest.mark.django_db
@@ -278,6 +288,11 @@ def test_tree8_legend_renders_six_rows_one_per_state(client):
         "icm--req-mixed",
     ):
         assert legend.select_one(f".{cls}") is not None, cls
+    # Final-review A5. The test is NAMED "renders six rows" but asserted no
+    # count: a legend that grew a seventh row, or dropped <dl> rows while
+    # keeping the spans, was invisible to it -- precisely the drift signal spec
+    # 5 says TREE8 exists to provide.
+    assert len(legend.select(".flag-legend__row")) == 6
 
 
 @pytest.mark.django_db
@@ -287,7 +302,14 @@ def test_tree9_quiz_obligatory_control_is_an_inert_button_and_server_422s(client
     href under any implementation, so that assertion cannot fail). Server
     half: POSTing flag=obligatory on a quiz unit returns 422."""
     _, course = _setup(client)
-    quiz = make_quiz_unit(course=course, parent=None, title="Q1", published=True)
+    # obligatory=False, deliberately the OPPOSITE of what the rejected POST
+    # below writes (value="1"). Seeded True -- make_quiz_unit's default -- the
+    # "unchanged" assertion could not fail: a mutant that wrote before raising
+    # would set True over True and stay green. The state has to differ from the
+    # write for "unchanged" to mean anything.
+    quiz = make_quiz_unit(
+        course=course, parent=None, title="Q1", published=True, obligatory=False
+    )
     body = _get(client, course)
     soup = BeautifulSoup(body, "html.parser")
     row = _row(soup, quiz.pk)
@@ -295,6 +317,14 @@ def test_tree9_quiz_obligatory_control_is_an_inert_button_and_server_422s(client
     assert ctrl.name == "button"
     assert ctrl.get("type") == "button"
     assert ctrl.get("formaction") is None
+    # Final-review m4. Both a11y attributes were unasserted, so dropping either
+    # from _tree_node.html passed silently -- and they are the only thing that
+    # tells a screen-reader user, or a keyboard user tabbing the row, that this
+    # control is dead. `disabled` is deliberately NOT used (a disabled button
+    # never shows its title tooltip, which is the only explanation the CA gets),
+    # so these two carry the whole of the inertness contract.
+    assert ctrl.get("aria-disabled") == "true"
+    assert ctrl.get("tabindex") == "-1"
 
     url = reverse("courses:manage_node_flag", kwargs={"slug": course.slug})
     resp = client.post(
@@ -309,6 +339,11 @@ def test_tree9_quiz_obligatory_control_is_an_inert_button_and_server_422s(client
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 422
+    # Spec 9 TREE9 asks for "returns 422 and leaves `obligatory` UNCHANGED".
+    # A 422 that wrote first would satisfy the status assertion alone. See the
+    # fixture comment above for why this is seeded False, not True.
+    quiz.refresh_from_db()
+    assert quiz.obligatory is False
 
 
 @pytest.mark.django_db

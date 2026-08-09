@@ -145,6 +145,46 @@ def test_tags_by_course_excludes_inaccessible_and_other_authors():
     assert all(c == course for c in out)  # inaccessible course absent
 
 
+def test_tags_for_outline_drops_a_tag_that_only_lives_on_a_draft():
+    """Final-review m3. The outline's filter-chip set was built from UnitTag
+    rows with no draft exclusion, so a tag living only on now-drafted units
+    still produced a chip that filters to nothing -- inconsistent with the tags
+    hub one page over, which spec 2 queryset-filters (WR15/WR15b/WR15c).
+
+    Both directions, in one test, because "the chip is gone" alone is also
+    satisfied by a helper that drops the tag for everyone: the OWNER of the
+    course still sees it, since exclude_foreign_drafts keeps drafts in courses
+    the viewer manages.
+    """
+    owner = _user(20)
+    student = _user(21)
+    course = CourseFactory(owner=owner)
+    _enroll(student, course)
+    _enroll(owner, course)
+    live = _lesson(course, title="Live")
+    draft = _lesson(course, title="Draft")
+    live.published = True
+    live.save(update_fields=["published"])
+    draft.published = False
+    draft.save(update_fields=["published"])
+
+    kept = TagFactory(author=student, name="kept")  # on the live unit
+    only_draft = TagFactory(author=student, name="onlydraft")  # on the draft only
+    UnitTagFactory(tag=kept, unit=live)
+    UnitTagFactory(tag=only_draft, unit=draft)
+
+    by_unit, course_tags = tag_services.tags_for_outline(student, course)
+    assert [t.name for t in course_tags] == ["kept"]
+    assert draft.pk not in by_unit  # the draft's chips go with it
+
+    # The course owner authors the draft, so nothing is hidden from them.
+    owner_tag = TagFactory(author=owner, name="ownersdraft")
+    UnitTagFactory(tag=owner_tag, unit=draft)
+    o_by_unit, o_course_tags = tag_services.tags_for_outline(owner, course)
+    assert [t.name for t in o_course_tags] == ["ownersdraft"]
+    assert o_by_unit[draft.pk] == [owner_tag]
+
+
 # ---- Task 3: overview page ----
 
 

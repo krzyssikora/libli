@@ -12,7 +12,7 @@ from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
-from tests.factories import EnrollmentFactory  # noqa: F401
+from tests.factories import EnrollmentFactory
 from tests.factories import UnitProgressFactory
 from tests.factories import UserFactory
 
