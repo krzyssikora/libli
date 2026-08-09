@@ -1709,3 +1709,57 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 @media print {
   .scroll-y::before, .scroll-y::after { display: none; }
 }
+
+
+/* ── Publish/obligatory confirm-strip shared parts (Task 12) ────────────────
+   These four selectors live HERE, not in builder.css, because the partials
+   that emit them (_flag_strip_counts.html, _flag_strip_actions.html) are
+   included by BOTH callers: the in-row strip on the builder page, and
+   templates/courses/manage/node_confirm_flag.html -- the no-JS interstitial,
+   which declares no extra_css block and therefore loads reset/tokens/app only. A rule in builder.css would style the strip and leave the interstitial
+   bare. tests/test_publish_styles.py pins this. */
+.flag-strip__counts { color: var(--text-secondary); }
+.flag-strip__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: flex-start; }
+/* The Hide button and its warning are one unit: the warning explains what that
+   specific button is about to do, so they stack together and the warning must
+   not drift alongside the Publish button in the wrap. */
+.flag-strip__hide-action { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+/* A column flex item stretches by default, so without this the Hide button
+   spans the full width of the warning below it -- a full-bleed danger bar,
+   which reads as far more alarming than the sibling Publish button beside it
+   and breaks the pairing with it. */
+.flag-strip__hide-action > .btn { align-self: start; }
+
+/* The no-JS interstitial only. reset.css zeroes every margin and this page has
+   no .manage__head to establish rhythm, so the <h1>, the counts line, the form
+   and the Cancel link would otherwise butt together. Attribute-scoped so
+   node_confirm_delete.html (the page this one was modelled on, which has the
+   same shape) is untouched -- a rhythm change there is a separate decision. */
+.manage[data-flag-strip] > * + * { margin-top: var(--space-4); }
+
+/* LOUD: the established warning treatment, i.e. .alert--warning's palette with
+   a rail instead of a full border, so it reads as a note attached to the
+   button above rather than a second page-level alert. */
+.flag-strip__quiz-warning {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--warning-subtle);
+  border-inline-start: 3px solid var(--warning);
+  color: var(--text-primary);
+  max-width: 34rem;
+}
+.flag-strip__quiz-warning > * + * { margin-top: var(--space-2); }   /* reset.css zeroes margins */
+/* QUIET: archived is not deleted, so the box STAYS -- only the amber goes.
+   --text-secondary, never --text-tertiary: the latter fails AA at body size
+   (see tests/test_text_colour_css.py and the design-language notes). */
+.flag-strip__quiz-warning--quiet {
+  background: var(--surface-sunken);
+  /* The loud variant needs no outline: its amber fill defines the box on its
+     own. --surface-sunken does not -- measured in both themes it sits within a
+     few percent of --surface-base, so without a rim the quiet note loses its
+     edges and stops reading as a bounded note at all, which is more than
+     "quieter". The rim is what keeps "archived is not deleted" true. */
+  border: 1px solid var(--border-default);
+  border-inline-start: 3px solid var(--border-strong);
+  color: var(--text-secondary);
+}

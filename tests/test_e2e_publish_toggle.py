@@ -425,6 +425,58 @@ def test_e2e5_collapsed_container_toggle_updates_its_own_and_ancestor_glyphs(
     assert page.locator(f'ol[data-scope="{chapter.pk}"]').count() == 0
 
 
+def test_an_inert_flag_control_paints_no_glyph(page, live_server):
+    """Final-review I4. `.icm::before` is a MASK over a solid `currentColor`
+    fill. A control carrying `.icm` with no `icm--*` variant leaves `--icm`
+    undefined, `mask: var(--icm)` is invalid at computed-value time, and
+    because mask-image is not inherited it falls back to `none` -- nothing is
+    cut out and the box paints as a SOLID 15x15 square. `.ica.is-inert` dims it
+    to opacity .35 but does not remove it.
+
+    That is the one thing the quiz row's inert obligatory control must not look
+    like: a FILLED glyph means "published" everywhere else in this tree, and
+    flag_glyph's docstring reasons explicitly that a miss must resolve to "no
+    glyph", never to the live class. The CSS partly undid the Python.
+
+    Every existing tree test asserts class names and attributes; none can see
+    rendered geometry, which is why this is an e2e. Asserted on the pseudo
+    element, not the button: the button box legitimately still occupies its
+    slot (the row's `order`-based layout depends on it).
+    """
+    owner = _make_pa_user("pa7")
+    course = CourseFactory(slug="e2e-icm", owner=owner)
+    quiz = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="quiz",
+        parent=None,
+        published=True,
+        title="Quiz",
+    )
+
+    _login(page, live_server, "pa7")
+    url = reverse("courses:manage_builder", kwargs={"slug": "e2e-icm"})
+    page.goto(f"{live_server.url}{url}")
+
+    sel = (
+        f'li.tree__row[data-node="{quiz.pk}"] > .tree__rowhead '
+        'button[data-flag="obligatory"].is-inert'
+    )
+    assert page.locator(sel).count() == 1  # the inert, variant-less control
+    # Sanity: this control really does carry no icm--* variant, so the assertion
+    # below is about the no-variant case and not about some other rule.
+    assert "icm--" not in (page.locator(sel).get_attribute("class") or "")
+
+    display = page.evaluate(
+        f"""() => getComputedStyle(
+            document.querySelector({sel!r}), "::before").display"""
+    )
+    assert display == "none", (
+        f"the inert obligatory control's ::before computes display={display!r}; "
+        "with no mask it paints a solid currentColor square"
+    )
+
+
 def test_e2e6_a_racing_post_returns_a_strip_and_the_button_recovers(page, live_server):
     """E2E6. Full cycle: click -> strip opens -> dismiss -> click again
     succeeds.

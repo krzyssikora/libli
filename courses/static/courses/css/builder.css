@@ -97,6 +97,19 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
   -webkit-mask: var(--icm) no-repeat center / contain;
   mask: var(--icm) no-repeat center / contain;
 }
+/* A control that carries .icm but NO icm--* variant leaves --icm undefined.
+   `mask: var(--icm)` is then invalid at computed-value time; mask-image is not
+   inherited, so it falls back to its initial value `none` -- and with no mask,
+   `background-color: currentColor` above paints the full 15x15 box as a SOLID
+   square. The three inert cases in _tree_node.html (a quiz row's obligatory
+   control :86, a zero-units container :106, a zero-lessons container :128)
+   deliberately render NO glyph, because flag_glyph returns "" rather than risk
+   defaulting to "all live" -- and a solid box is the one thing they must not
+   look like: a FILLED glyph means "published" everywhere else in this tree.
+   `.ica.is-inert`'s opacity .35 dims it but does not remove it.
+   display:none on the pseudo-element only: the button box itself still occupies
+   its slot, so the row's order-based layout is unchanged. */
+.icm:not([class*="icm--"])::before { display: none; }
 .icm--grip { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='black'%3E%3Ccircle cx='6' cy='4' r='1.1'/%3E%3Ccircle cx='10' cy='4' r='1.1'/%3E%3Ccircle cx='6' cy='8' r='1.1'/%3E%3Ccircle cx='10' cy='8' r='1.1'/%3E%3Ccircle cx='6' cy='12' r='1.1'/%3E%3Ccircle cx='10' cy='12' r='1.1'/%3E%3C/g%3E%3C/svg%3E"); }
 .icm--up { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 10l4-4 4 4'/%3E%3C/svg%3E"); }
 .icm--down { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); }
@@ -350,3 +363,57 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    `.manage__head .btn` ties on specificity and would depend on builder.css
    being linked after app.css (base.html:46-48) -- true today, and exactly the
    kind of accident that breaks silently when someone moves the rule. */
+
+
+/* ── Confirm strip + flag legend (Tasks 12/13) ──────────────────────────────
+   The strip is injected as a SIBLING after <form class="tree__rowhead">, inside
+   the same dense <li class="tree__row"> (HTML forbids nested forms). Without a
+   box of its own it reads as loose text that has fallen into the tree, so the
+   containment here is the feature, not decoration: a raised card, an accent
+   rail on the inline-start edge tying it to the row it belongs to, and enough
+   padding to separate it from the rows above and below.
+
+   Only what is builder-ONLY lives here: the wrapper card, the headline <p>
+   (the interstitial renders an <h1> instead) and the JS-injected dismiss.
+   Everything the shared partials emit -- .flag-strip__counts,
+   .flag-strip__actions, .flag-strip__hide-action and the quiz warning -- also
+   renders on node_confirm_flag.html, which declares no extra_css and therefore
+   loads base's reset/tokens/app ONLY. Those rules live in app.css for exactly
+   that reason; putting them here would leave the no-JS interstitial unstyled.
+   tests/test_publish_styles.py pins the split. */
+.flag-strip {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-inline-start: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+  position: relative;   /* containing block for the dismiss button */
+}
+/* reset.css zeroes every margin, so the strip re-establishes its own rhythm. */
+.flag-strip > form > * + * { margin-top: var(--space-2); }
+.flag-strip__headline { font-weight: 600; padding-inline-end: var(--space-6); }
+/* Injected by builder.js (insertStripAfterRowhead), never by a template -- a
+   bare "×" with no rule is a stray character in the corner of the card. */
+.flag-strip__dismiss {
+  position: absolute; top: var(--space-1); inset-inline-end: var(--space-2);
+  background: none; border: none; padding: 0 var(--space-1);
+  color: var(--text-secondary); font-size: 1.1rem; line-height: 1.2; cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.flag-strip__dismiss:hover { color: var(--text-primary); background: var(--surface-sunken); }
+/* The strip takes focus on open (tabindex="-1" + focusInto), so it must show a
+   ring: a focused element with no visible indicator is a keyboard dead end. */
+.flag-strip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* The legend is a <dl> whose rows are <div class="flag-legend__row">. Left
+   alone it renders with the UA's <dd> indentation and no glyph/label
+   alignment. Grid rather than flex on the row so every label starts at the
+   same x regardless of glyph box rounding. */
+.flag-legend {
+  display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+  margin: 0 0 var(--space-3); color: var(--text-secondary); font-size: .8125rem;
+}
+.flag-legend__row { display: grid; grid-template-columns: 15px auto; align-items: center; gap: var(--space-2); }
+.flag-legend__row dt, .flag-legend__row dd { margin: 0; }   /* UA <dd> indent */
