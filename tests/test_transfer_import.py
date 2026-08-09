@@ -188,9 +188,7 @@ def _mk_full_source_course():
     )
     attach(er_q)
 
-    num_q = ShortNumericQuestionElement.objects.create(
-        value=Decimal("3.14"), tolerance=Decimal("0.01")
-    )
+    num_q = ShortNumericQuestionElement.objects.create(value="3.14", tolerance="0.01")
     attach(num_q)
 
     fb_q = FillBlankQuestionElement.objects.create(stem="a ￿0￿ b")

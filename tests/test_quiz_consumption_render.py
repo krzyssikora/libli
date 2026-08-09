@@ -44,11 +44,9 @@ def test_fresh_quiz_shorttext_input_is_empty_not_none(client):
 
 @pytest.mark.django_db
 def test_fresh_quiz_shortnumeric_input_is_empty_not_none(client):
-    from decimal import Decimal
-
     course, unit = _enrolled_quiz(client)
     q = ShortNumericQuestionElement.objects.create(
-        stem="<p>Pi?</p>", value=Decimal("3.14"), tolerance=Decimal("0.01")
+        stem="<p>Pi?</p>", value="3.14", tolerance="0.01"
     )
     Element.objects.create(unit=unit, content_object=q)
     resp = client.get(_quiz_url(course, unit))

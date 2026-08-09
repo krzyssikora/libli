@@ -98,15 +98,13 @@ def test_empty_answer_does_not_burn_attempt(client):
 @pytest.mark.django_db
 def test_empty_numeric_answer_does_not_burn_attempt(client):
     # Cross-type uniformity (spec §3.1 step 3): numeric empty submit is also guarded.
-    from decimal import Decimal
-
     from tests.factories import ShortNumericQuestionElement
 
     user = make_login(client, "stunum")
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortNumericQuestionElement.objects.create(
-        stem="2+2?", value=Decimal("4"), tolerance=Decimal("0"), max_attempts=2
+        stem="2+2?", value="4", tolerance="0", max_attempts=2
     )
     el = add_element(unit, q)
     resp = client.post(

@@ -60,8 +60,11 @@ match exactly; by default matching ignores case and surrounding whitespace.
 ## {el:shortnumeric} Short numeric
 
 A numeric answer, marked correct if it falls within a **tolerance** of the
-target **value** (tolerance 0 means an exact match). Use this for calculated
-answers where you want to accept small rounding differences.
+target **value**. Both the value and the tolerance accept a decimal (`3.14`
+or `3,14`), a fraction (`3/2`), or a mixed number (`1 1/2`) — any value equal
+to the target is accepted, so `6/4` matches a target of `3/2`. **Leave the
+tolerance blank for an exact match**; use this for calculated answers where
+you want to accept small rounding differences instead.
 
 ## {el:fillblank} Fill in the blanks
 

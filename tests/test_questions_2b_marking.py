@@ -237,6 +237,25 @@ def test_shortnumeric_mark_tolerance_and_decimal_comma():
 
 
 @pytest.mark.django_db
+def test_shortnumeric_mark_tolerance_canonical_strings():
+    # Canonical-string equivalent of the Decimal-coercion test above: this is
+    # the shape every construction site outside test_shortnumeric_mark_tolerance_
+    # and_decimal_comma now uses. That test stays on Decimal() as the only
+    # end-to-end evidence the coercion prologue still works; this one proves
+    # the same marking behaviour holds when the fields are already strings.
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(value="3.14", tolerance="0.01")
+    assert q.mark("3,15").correct is True  # within tolerance, comma decimal
+    assert q.mark("3.13").correct is True  # at the boundary
+    assert q.mark("3.20").correct is False
+    assert q.mark("abc").correct is False  # unparseable → incorrect
+    assert q.mark("").correct is False
+    exact = ShortNumericQuestionElement.objects.create(value="2")
+    assert exact.mark("2").correct is True and exact.mark("2.0001").correct is False
+
+
+@pytest.mark.django_db
 def test_fillblank_mark_per_blank_and_fraction():
     from courses.models import Blank
     from courses.models import FillBlankQuestionElement

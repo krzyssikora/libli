@@ -66,9 +66,13 @@ białe znaki.
 ## {el:shortnumeric} Liczba
 
 Odpowiedź liczbowa, uznawana za poprawną, jeśli mieści się w zadanej
-**tolerancji** od docelowej **wartości** (tolerancja 0 oznacza dopasowanie
-dokładne). Użyj tego typu dla odpowiedzi obliczeniowych, gdy chcesz
-akceptować niewielkie różnice zaokrągleń.
+**tolerancji** od docelowej **wartości**. Zarówno wartość, jak i tolerancja
+przyjmują liczbę dziesiętną (`3.14` lub `3,14`), ułamek (`3/2`) albo liczbę
+mieszaną (`1 1/2`) — akceptowana jest każda wartość równa docelowej, więc
+`6/4` pasuje do wartości docelowej `3/2`. **Pozostaw tolerancję pustą, aby
+wymagać dopasowania dokładnego**; użyj tego typu dla odpowiedzi
+obliczeniowych, gdy zamiast tego chcesz akceptować niewielkie różnice
+zaokrągleń.
 
 ## {el:fillblank} Uzupełnij luki
 

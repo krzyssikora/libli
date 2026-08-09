@@ -133,7 +133,7 @@ def test_check_persists_fillblank_list_envelope(client):
 
 def test_check_persists_shortnumeric_envelope(client):
     student, course, unit = _enrolled(client)
-    obj = ShortNumericQuestionElement.objects.create(stem="Q", value=42, tolerance=0)
+    obj = ShortNumericQuestionElement.objects.create(stem="Q", value="42", tolerance="")
     row = _add(unit, obj)
     client.post(_check_url(unit, row.pk), {"answer": "42"})
     up = UnitProgress.objects.get(student=student, unit=unit)
@@ -287,7 +287,7 @@ def test_matchpair_malformed_blob_is_fail_open(client):
 
 def test_restore_shortnumeric_fills_value(client):
     student, course, unit = _enrolled(client)
-    obj = ShortNumericQuestionElement.objects.create(stem="Q", value=42, tolerance=0)
+    obj = ShortNumericQuestionElement.objects.create(stem="Q", value="42", tolerance="")
     _seed(unit, student, obj, {"answer": "42"})
     body = client.get(_lesson_url(unit)).content.decode()
     assert 'value="42"' in body

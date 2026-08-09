@@ -143,7 +143,7 @@ def test_all_14_types_have_a_serializer(course, image_asset):
         ExtendedResponseQuestionElement.objects.create(
             required_keywords="k", **q_kwargs
         ),
-        ShortNumericQuestionElement.objects.create(value=Decimal("1"), **q_kwargs),
+        ShortNumericQuestionElement.objects.create(value="1", **q_kwargs),
         FillBlankQuestionElement.objects.create(stem="￿0￿", **q_kwargs),
         DragFillBlankQuestionElement.objects.create(
             stem="￿0￿", distractors="d", **q_kwargs
