@@ -20,6 +20,7 @@ from django.views.decorators.http import require_POST
 from courses import builder as builder_svc
 from courses import builder_filter
 from courses import builder_open  # for builder_open.CEILING -- see below
+from courses import quiz_warnings
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.builder_open import LAST_NODE_KEY
@@ -1203,37 +1204,52 @@ def _unit_url(node):
 
 
 def _flag_strip(request, course, node, *, flag, scope, ctx=None):
-    """Minimal confirm strip/interstitial.
+    """Render the confirm strip/interstitial.
 
-    A form that carries the write forward with confirmed=1, plus a bare
-    count. Task 12 replaces this body with the full copy variants (quiet vs
-    loud), the quiet/loud split and the quiz submission aggregation -- this
-    task only needs the mechanics: WR13 and WR18 drive the unconfirmed path,
-    and both only need the form and the count to exist.
-
-    `value` is not a keyword here (the produced interface has none): a
-    mixed container's GET carries no value at all, so it is re-read from the
-    request the same way the view's own `param` does, rather than forcing
-    every caller to thread through a value that may not exist.
+    Counts come from the SUBTREE QUERY, not `_tree_context`'s fold -- the
+    write view never calls it, so this is the one aggregate that cannot
+    disagree with what the write will touch. `node._subtree_node_ids()`
+    includes the node's own pk, so scope="node" (a unit) naturally reduces
+    to a one-unit subtree here -- no separate branch needed.
     """
-    raw_value = request.POST.get("value") or request.GET.get("value")
-    if scope == "node":
-        count = 1
-    else:
-        ids = node._subtree_node_ids()
-        qs = ContentNode.objects.filter(pk__in=ids, kind=ContentNode.Kind.UNIT)
-        if flag == "obligatory":
-            qs = qs.filter(unit_type=ContentNode.UnitType.LESSON)
-        count = qs.count()
+    ids = node._subtree_node_ids()
+    units = ContentNode.objects.filter(pk__in=ids, kind=ContentNode.Kind.UNIT)
+    if flag == "obligatory":
+        units = units.filter(unit_type=ContentNode.UnitType.LESSON)
+    total = units.count()
+    on = units.filter(**{flag: True}).count()
+    unit_pks = list(units.values_list("pk", flat=True))
+
+    # Initialised BEFORE the branch: an obligatory strip, or a published
+    # strip on an all-draft container (on == 0), never enters the branch
+    # below, and the context dict passes all three unconditionally -- so
+    # leaving them unbound would raise NameError at render() rather than
+    # showing a blank.
+    submitted = in_progress = 0
+    quiet = False
+    # Gated on `on > 0`, NOT `value == "0"`: the subtree strip is rendered
+    # from the container GET, which carries no `value` at all, so a literal
+    # `value == "0"` gate would never be true on that path and the warning
+    # would never render. "on > 0" means "this strip offers a hide action".
+    if flag == "published" and on > 0:
+        submitted, in_progress = quiz_warnings.submission_counts(unit_pks)
+        quiet = quiz_warnings.is_quiet(unit_pks, course)
+
     context = {
         "course": course,
         "node": node,
         "flag": flag,
         "scope": scope,
-        "ctx": ctx,
-        "value": raw_value,
-        "count": count,
+        "total": total,
+        "on": on,
+        "off": total - on,
+        "is_mixed": 0 < on < total,
+        "submitted": submitted,
+        "in_progress": in_progress,
+        "quiet": quiet,
+        "show_warning": flag == "published" and (submitted > 0 or in_progress > 0),
         "q": _raw_q(request),
+        "ctx": ctx,
     }
     # `ctx` wins over `_wants_fragment` on every arm: the banner forms
     # (Task 15) are ordinary no-JS-shaped posts, so an editor/unit-context

@@ -1,22 +1,126 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% comment %}Minimal interstitial (Task 11). Task 12 replaces this body with the
-   quiet/loud copy split and the quiz submission aggregation.{% endcomment %}
+{% comment %}
+No-JS interstitial (Task 12), reusing node_confirm_delete.html's page shape.
+Same copy table as _flag_strip.html -- kept in sync by hand, same rule as
+the fragment vs the anchor markup that opens it.
+{% endcomment %}
 {% block content %}
 <section class="manage" data-flag-strip="{{ node.pk }}">
-  <h1>{% trans "Confirm this change" %}</h1>
-  <p>{% blocktrans count n=count %}This affects {{ n }} unit.{% plural %}This affects {{ n }} units.{% endblocktrans %}</p>
+  <h1>
+    {% if scope == "node" %}
+      {% if flag == "published" %}
+        {% if on == total %}
+          {% if show_warning %}
+            {% blocktrans with title=node.title %}Hide "{{ title }}" from students?{% endblocktrans %}
+          {% else %}
+            {% blocktrans with title=node.title %}Hide "{{ title }}"?{% endblocktrans %}
+          {% endif %}
+        {% else %}
+          {% blocktrans with title=node.title %}Publish "{{ title }}"?{% endblocktrans %}
+        {% endif %}
+      {% else %}
+        {% if on == total %}
+          {% blocktrans with title=node.title %}Make "{{ title }}" optional?{% endblocktrans %}
+        {% else %}
+          {% blocktrans with title=node.title %}Make "{{ title }}" obligatory?{% endblocktrans %}
+        {% endif %}
+      {% endif %}
+    {% else %}
+      {% if flag == "published" %}
+        {% if is_mixed %}
+          {% blocktrans with title=node.title count n=total %}Publish or hide {{ n }} unit in "{{ title }}"?{% plural %}Publish or hide {{ n }} units in "{{ title }}"?{% endblocktrans %}
+        {% elif on == 0 %}
+          {% blocktrans with title=node.title count n=total %}Publish {{ n }} unit in "{{ title }}"?{% plural %}Publish {{ n }} units in "{{ title }}"?{% endblocktrans %}
+        {% else %}
+          {% blocktrans with title=node.title count n=total %}Hide {{ n }} unit in "{{ title }}"?{% plural %}Hide {{ n }} units in "{{ title }}"?{% endblocktrans %}
+        {% endif %}
+      {% else %}
+        {% if is_mixed %}
+          {% blocktrans with title=node.title count n=total %}Change {{ n }} lesson in "{{ title }}"?{% plural %}Change {{ n }} lessons in "{{ title }}"?{% endblocktrans %}
+        {% elif on == 0 %}
+          {% blocktrans with title=node.title count n=total %}Make {{ n }} lesson in "{{ title }}" obligatory?{% plural %}Make {{ n }} lessons in "{{ title }}" obligatory?{% endblocktrans %}
+        {% else %}
+          {% blocktrans with title=node.title count n=total %}Make {{ n }} lesson in "{{ title }}" optional?{% plural %}Make {{ n }} lessons in "{{ title }}" optional?{% endblocktrans %}
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  </h1>
+
+  {% if is_mixed %}
+    <p>
+      {% if flag == "published" %}
+        {% blocktrans %}{{ on }} are live, {{ off }} are drafts.{% endblocktrans %}
+      {% else %}
+        {% blocktrans %}{{ on }} are obligatory, {{ off }} are optional.{% endblocktrans %}
+      {% endif %}
+    </p>
+  {% elif scope == "subtree" %}
+    <p>
+      {% if flag == "published" %}
+        {% if on == 0 %}
+          {% blocktrans count n=total %}All {{ n }} unit is currently a draft.{% plural %}All {{ n }} units are currently drafts.{% endblocktrans %}
+        {% else %}
+          {% blocktrans count n=total %}All {{ n }} unit is currently live.{% plural %}All {{ n }} units are currently live.{% endblocktrans %}
+        {% endif %}
+      {% else %}
+        {% if on == 0 %}
+          {% blocktrans count n=total %}All {{ n }} lesson is currently optional.{% plural %}All {{ n }} lessons are currently optional.{% endblocktrans %}
+        {% else %}
+          {% blocktrans count n=total %}All {{ n }} lesson is currently obligatory.{% plural %}All {{ n }} lessons are currently obligatory.{% endblocktrans %}
+        {% endif %}
+      {% endif %}
+    </p>
+  {% endif %}
+
   <form method="post" action="{% url 'courses:manage_node_flag' slug=course.slug %}">
     {% csrf_token %}
     <input type="hidden" name="node" value="{{ node.pk }}">
+    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
     <input type="hidden" name="flag" value="{{ flag }}">
     <input type="hidden" name="scope" value="{{ scope }}">
-    {% if value %}<input type="hidden" name="value" value="{{ value }}">{% endif %}
-    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
     <input type="hidden" name="confirmed" value="1">
-    {% if ctx %}<input type="hidden" name="ctx" value="{{ ctx }}">{% endif %}
     {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
-    <button class="btn btn--danger" type="submit">{% trans "Confirm" %}</button>
+    {% if ctx %}<input type="hidden" name="ctx" value="{{ ctx }}">{% endif %}
+
+    <div class="flag-strip__actions">
+      {% if flag == "published" %}
+        {% if is_mixed or on == 0 %}
+          <button class="btn btn--primary" type="submit" name="value" value="1">
+            {% if scope == "node" %}{% trans "Publish it" %}{% else %}{% blocktrans count n=total %}Publish all {{ n }}{% plural %}Publish all {{ n }}{% endblocktrans %}{% endif %}
+          </button>
+        {% endif %}
+        {% if is_mixed or on == total %}
+          <div class="flag-strip__hide-action">
+            <button class="btn btn--danger" type="submit" name="value" value="0">
+              {% if scope == "node" %}{% trans "Hide it" %}{% else %}{% blocktrans count n=total %}Hide all {{ n }}{% plural %}Hide all {{ n }}{% endblocktrans %}{% endif %}
+            </button>
+            {% if show_warning %}
+              <div class="flag-strip__quiz-warning{% if quiet %} flag-strip__quiz-warning--quiet{% endif %}">
+                {% if quiet %}
+                  <p>{% blocktrans count n=submitted %}{{ n }} submission, all from archived groups.{% plural %}{{ n }} submissions, all from archived groups.{% endblocktrans %}</p>
+                {% else %}
+                  {% if submitted %}<p>{% blocktrans count n=submitted %}{{ n }} student has submitted.{% plural %}{{ n }} students have submitted.{% endblocktrans %}</p>{% endif %}
+                  {% if in_progress %}<p>{% blocktrans count n=in_progress %}{{ n }} student is part-way through.{% plural %}{{ n }} students are part-way through.{% endblocktrans %}</p>{% endif %}
+                {% endif %}
+                <p>{% trans "Submitted results are kept, but students will not see them while it is hidden, and edits will not re-grade them. Attempts in progress will be interrupted and can be resumed when you publish." %}</p>
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% else %}
+        {% if is_mixed or on == 0 %}
+          <button class="btn btn--primary" type="submit" name="value" value="1">
+            {% if scope == "node" %}{% trans "Make it obligatory" %}{% else %}{% trans "All obligatory" %}{% endif %}
+          </button>
+        {% endif %}
+        {% if is_mixed or on == total %}
+          <button class="btn btn--secondary" type="submit" name="value" value="0">
+            {% if scope == "node" %}{% trans "Make it optional" %}{% else %}{% trans "All optional" %}{% endif %}
+          </button>
+        {% endif %}
+      {% endif %}
+    </div>
   </form>
   <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}{% if q %}?q={{ q|urlencode }}{% endif %}">{% trans "Cancel" %}</a>
 </section>
