@@ -9,31 +9,57 @@
    the two id sets (bi-* vs icm--*) distinct so TREE8 and the tree tests
    cannot collide.
 
+   TWO structural decisions, both deliberate:
+
+   1. It is a CLOSED <details>. As six always-on rows it sat as a wrapping band
+      of grey glyph+label pairs directly above the tree and read as a row of
+      checkboxes -- permanent screen cost for something a CA learns once. The
+      root class and the six .flag-legend__row children are unchanged, so the
+      structural pins (TREE8's count, the stylesheet guard) still hold.
+
+   2. The six rows are SPLIT INTO THE TWO AXES they belong to. Published/Draft
+      and Required/Optional are independent settings, not one three-state
+      control -- that is the design's central constraint, and a flat list of
+      six actively hid it. Grouping is the cheapest place to teach it.
+
    `aria-hidden` on the glyph span: the label text beside it already carries
    the meaning; a bare masked box has nothing for a screen reader to read.{% endcomment %}
-<dl class="flag-legend">
-  <div class="flag-legend__row">
-    <dt><span class="icm icm--live" aria-hidden="true"></span></dt>
-    <dd>{% trans "Published" %}</dd>
+<details class="flag-legend">
+  <summary class="flag-legend__summary">{% trans "Key" %}</summary>
+  <div class="flag-legend__axes">
+    <section class="flag-legend__axis">
+      <h3 class="flag-legend__axis-name">{% trans "Visibility" %}</h3>
+      <dl class="flag-legend__list">
+        <div class="flag-legend__row">
+          <dt><span class="icm icm--live" aria-hidden="true"></span></dt>
+          <dd>{% trans "Published" %}</dd>
+        </div>
+        <div class="flag-legend__row">
+          <dt><span class="icm icm--draft" aria-hidden="true"></span></dt>
+          <dd>{% trans "Draft" %}</dd>
+        </div>
+        <div class="flag-legend__row">
+          <dt><span class="icm icm--live-mixed" aria-hidden="true"></span></dt>
+          <dd>{% trans "Partly published" %}</dd>
+        </div>
+      </dl>
+    </section>
+    <section class="flag-legend__axis">
+      <h3 class="flag-legend__axis-name">{% trans "Requirement" %}</h3>
+      <dl class="flag-legend__list">
+        <div class="flag-legend__row">
+          <dt><span class="icm icm--req" aria-hidden="true"></span></dt>
+          <dd>{% trans "Required" %}</dd>
+        </div>
+        <div class="flag-legend__row">
+          <dt><span class="icm icm--opt" aria-hidden="true"></span></dt>
+          <dd>{% trans "Optional" %}</dd>
+        </div>
+        <div class="flag-legend__row">
+          <dt><span class="icm icm--req-mixed" aria-hidden="true"></span></dt>
+          <dd>{% trans "Partly required" %}</dd>
+        </div>
+      </dl>
+    </section>
   </div>
-  <div class="flag-legend__row">
-    <dt><span class="icm icm--draft" aria-hidden="true"></span></dt>
-    <dd>{% trans "Draft" %}</dd>
-  </div>
-  <div class="flag-legend__row">
-    <dt><span class="icm icm--live-mixed" aria-hidden="true"></span></dt>
-    <dd>{% trans "Partly published" %}</dd>
-  </div>
-  <div class="flag-legend__row">
-    <dt><span class="icm icm--req" aria-hidden="true"></span></dt>
-    <dd>{% trans "Required" %}</dd>
-  </div>
-  <div class="flag-legend__row">
-    <dt><span class="icm icm--opt" aria-hidden="true"></span></dt>
-    <dd>{% trans "Optional" %}</dd>
-  </div>
-  <div class="flag-legend__row">
-    <dt><span class="icm icm--req-mixed" aria-hidden="true"></span></dt>
-    <dd>{% trans "Partly required" %}</dd>
-  </div>
-</dl>
+</details>

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-09 12:52+0200\n"
+"POT-Creation-Date: 2026-08-09 14:35+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -568,7 +568,7 @@ msgstr ""
 msgid "Overview"
 msgstr ""
 
-#: .\courses\forms.py:84
+#: .\courses\forms.py:84 .\templates\courses\manage\_flag_legend.html:32
 msgid "Visibility"
 msgstr ""
 
@@ -4214,7 +4214,7 @@ msgid "Correct label:"
 msgstr ""
 
 #: .\templates\courses\elements\_reveal_extendedresponse.html:8
-#: .\templates\courses\manage\_flag_legend.html:30
+#: .\templates\courses\manage\_flag_legend.html:53
 msgid "Required"
 msgstr ""
 
@@ -4405,24 +4405,32 @@ msgstr ""
 msgid "Media library"
 msgstr ""
 
-#: .\templates\courses\manage\_flag_legend.html:18
+#: .\templates\courses\manage\_flag_legend.html:29
+msgid "Key"
+msgstr ""
+
+#: .\templates\courses\manage\_flag_legend.html:36
 #: .\templates\courses\manage\editor\_unit_settings.html:13
 msgid "Published"
 msgstr ""
 
-#: .\templates\courses\manage\_flag_legend.html:22
+#: .\templates\courses\manage\_flag_legend.html:40
 msgid "Draft"
 msgstr ""
 
-#: .\templates\courses\manage\_flag_legend.html:26
+#: .\templates\courses\manage\_flag_legend.html:44
 msgid "Partly published"
 msgstr ""
 
-#: .\templates\courses\manage\_flag_legend.html:34
+#: .\templates\courses\manage\_flag_legend.html:49
+msgid "Requirement"
+msgstr ""
+
+#: .\templates\courses\manage\_flag_legend.html:57
 msgid "Optional"
 msgstr ""
 
-#: .\templates\courses\manage\_flag_legend.html:38
+#: .\templates\courses\manage\_flag_legend.html:61
 msgid "Partly required"
 msgstr ""
 

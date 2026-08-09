@@ -107,9 +107,11 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    defaulting to "all live" -- and a solid box is the one thing they must not
    look like: a FILLED glyph means "published" everywhere else in this tree.
    `.ica.is-inert`'s opacity .35 dims it but does not remove it.
-   display:none on the pseudo-element only: the button box itself still occupies
-   its slot, so the row's order-based layout is unchanged. */
-.icm:not([class*="icm--"])::before { display: none; }
+   `background-color: transparent`, NOT `display: none`. The button has no text,
+   so the ::before IS its width -- display:none collapsed it to its 6px of
+   padding and pulled every quiz row's title ~15px left of every lesson row's.
+   Keeping the box and dropping only the paint holds the column. */
+.icm:not([class*="icm--"])::before { background-color: transparent; }
 .icm--grip { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='black'%3E%3Ccircle cx='6' cy='4' r='1.1'/%3E%3Ccircle cx='10' cy='4' r='1.1'/%3E%3Ccircle cx='6' cy='8' r='1.1'/%3E%3Ccircle cx='10' cy='8' r='1.1'/%3E%3Ccircle cx='6' cy='12' r='1.1'/%3E%3Ccircle cx='10' cy='12' r='1.1'/%3E%3C/g%3E%3C/svg%3E"); }
 .icm--up { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 10l4-4 4 4'/%3E%3C/svg%3E"); }
 .icm--down { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); }
@@ -130,6 +132,37 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .icm--req        { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='black' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3C/svg%3E"); }
 .icm--opt        { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='none' stroke='black' stroke-width='1' stroke-linejoin='round' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3C/svg%3E"); }
 .icm--req-mixed  { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='none' stroke='black' stroke-width='1' stroke-linejoin='round' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3Cpath fill='black' d='M8,1.7 L9.5,5.9 L14,6.1 L10.5,8.8 L11.7,13.1 L8,10.6 Z'/%3E%3C/svg%3E"); }
+
+/* State TINT. The glyphs above carry state in their silhouette; this carries it
+   in colour as well, because silhouette alone did not survive contact with a real
+   tree: every flag inherited `.ica`'s --text-tertiary, so a filled disc and a
+   hollow ring at 15px in the SAME grey read as the same mark, and the row of them
+   looked like a column of checkboxes. Two channels, not one.
+
+   The two axes are tinted DIFFERENTLY on purpose, and this is the main design
+   decision here:
+     - publish  -> colour + fill. It is the consequential state (can a student see
+                   this?), so it gets the scannable channel.
+     - obligatory -> shape only, neutral grey. It is a property of the lesson, not
+                   a visibility decision. Tinting it too would put two competing
+                   colour systems in every row; across mat-pp's 2,866 rows that is
+                   a fruit salad, not information.
+
+   Colour is still never the SOLE channel -- fill/outline/half already distinguish
+   all three states in greyscale -- so this stays safe for colour-blind users while
+   restoring the green/red the design called for. */
+.icm--live       { --flag-tint: var(--success); }
+.icm--draft      { --flag-tint: var(--danger); }
+.icm--live-mixed { --flag-tint: var(--warning); }
+.icm--req, .icm--opt, .icm--req-mixed { --flag-tint: var(--text-secondary); }
+
+/* The fallback keeps an un-tinted control (the inert cases, which carry no
+   icm--* variant) on the neutral it had before. */
+.tree__flag, .flag-legend .icm { color: var(--flag-tint, var(--text-tertiary)); }
+/* `.ica:hover` (0,2,0) sets color:--primary; this must match that specificity and
+   come later, or hovering a flag would recolour it and momentarily lie about the
+   state. Hover still gives feedback -- via .ica:hover's background, untouched. */
+.tree__flag:hover { color: var(--flag-tint, var(--text-tertiary)); }
 
 /* is-inert: a control that carries no `href`/`formaction` (or, for the anchor
    cases, `aria-disabled`) but is NOT `disabled` -- see the row markup comments in
@@ -407,13 +440,30 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    ring: a focused element with no visible indicator is a keyboard dead end. */
 .flag-strip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-/* The legend is a <dl> whose rows are <div class="flag-legend__row">. Left
-   alone it renders with the UA's <dd> indentation and no glyph/label
-   alignment. Grid rather than flex on the row so every label starts at the
-   same x regardless of glyph box rounding. */
-.flag-legend {
-  display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
-  margin: 0 0 var(--space-3); color: var(--text-secondary); font-size: .8125rem;
+/* The legend is a closed <details>. Collapsed it costs one short line above the
+   tree; open it shows the six glyphs GROUPED BY AXIS, which is the point -- see
+   the template comment. Grid rather than flex on each row so every label starts
+   at the same x regardless of glyph box rounding. */
+.flag-legend { margin: 0 0 var(--space-3); color: var(--text-secondary); font-size: .8125rem; }
+.flag-legend__summary {
+  cursor: pointer; width: max-content; padding: 2px 0;
+  color: var(--text-secondary); list-style-position: inside;
 }
+.flag-legend__summary:hover { color: var(--text-primary); }
+.flag-legend__summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* auto-fit rather than a fixed 2: at the builder's narrow tree column the two
+   axes stack instead of squeezing the labels. */
+.flag-legend__axes {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, max-content));
+  gap: var(--space-2) var(--space-5); padding: var(--space-2) 0 0;
+}
+.flag-legend__axis-name {
+  font-size: .6875rem; font-weight: 600; text-transform: uppercase;
+  /* NOT --text-tertiary: it fails AA at body size, and this is smaller still. */
+  letter-spacing: .04em; color: var(--text-secondary);
+  margin: 0 0 4px;
+}
+.flag-legend__list { margin: 0; display: grid; gap: 3px; }
 .flag-legend__row { display: grid; grid-template-columns: 15px auto; align-items: center; gap: var(--space-2); }
 .flag-legend__row dt, .flag-legend__row dd { margin: 0; }   /* UA <dd> indent */

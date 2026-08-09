@@ -467,13 +467,28 @@ def test_an_inert_flag_control_paints_no_glyph(page, live_server):
     # below is about the no-variant case and not about some other rule.
     assert "icm--" not in (page.locator(sel).get_attribute("class") or "")
 
-    display = page.evaluate(
-        f"""() => getComputedStyle(
-            document.querySelector({sel!r}), "::before").display"""
+    before = page.evaluate(
+        f"""() => {{
+            const s = getComputedStyle(document.querySelector({sel!r}), "::before");
+            return {{bg: s.backgroundColor, width: s.width, display: s.display}};
+        }}"""
     )
-    assert display == "none", (
-        f"the inert obligatory control's ::before computes display={display!r}; "
-        "with no mask it paints a solid currentColor square"
+
+    # (a) It must not PAINT. `background-color` is the fill the missing mask would
+    # otherwise expose as a solid square.
+    assert before["bg"] in ("rgba(0, 0, 0, 0)", "transparent"), (
+        f"the inert control's ::before has background {before['bg']!r}; "
+        "with no mask that paints as a solid currentColor square"
+    )
+
+    # (b) It must still OCCUPY its slot. The button carries no text, so the
+    # ::before is its entire width -- `display: none` here (the first attempt at
+    # this fix) collapsed the button to its padding and pulled every quiz row's
+    # title ~15px left of every lesson row's, breaking the title column.
+    assert before["display"] != "none" and before["width"] == "15px", (
+        f"the inert control's ::before is {before['width']} / "
+        f"display={before['display']!r}; it must keep its 15px box so quiz and "
+        "lesson titles stay in one column"
     )
 
 
