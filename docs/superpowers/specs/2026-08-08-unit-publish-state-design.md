@@ -132,6 +132,19 @@ Filtering becomes an explicit layer on top:
 | Direct unit URL, node permalink, every unit-addressed POST | 404 for non-authors (§3). |
 | Analytics matrix, gradebook, student breakdown, review queue | `keep-with-data` — drop draft units **unless** the unit holds data. |
 | Builder tree, link picker, course/subtree export | `keep` — everything, always. |
+| Notification bell and list | **unfiltered, accepted** — see below. |
+
+**Notifications are deliberately not filtered.** `notifications/services.py` denormalizes
+`unit_title` and `node_pk` into `Notification.data` at creation time and never re-checks
+`published`. This is safe: every unit-bearing notification is tied to a `QuizSubmission`,
+so the student necessarily saw that unit while it was live — no never-published draft can
+surface this way. What can happen is that a CA later drafts a quiz and the student keeps a
+stale title in the bell plus a link that 404s. That is the same trade-off §7 already accepts
+for content links ("renders normally and 404s on click") and the same consequence §2 accepts
+for `course_results` ("their own graded work becomes unreachable until the quiz is published
+again"). Filtering it would cost a publish lookup on every bell render, site-wide, to
+improve a transient case. Recorded as a decision so a future reader does not have to
+re-derive it; revisit only if drafting a graded quiz stops being rare.
 
 ### Most of the tags and notes hubs are queryset-driven and do NOT inherit the keyword
 
