@@ -171,6 +171,14 @@ def test_capture(page, live_server):
         # (1) The tree itself: the legend, a quiz row's inert obligatory control
         # (I4), and the draft strike-through.
         page.wait_for_selector(".flag-legend")
+        # Collapsed is the DEFAULT view, so shoot that first -- the whole point of
+        # making it a <details> was what the top of the tree looks like at rest.
+        shoot(f"tree-collapsed-key-{theme}")
+        # Then open it, because a key nobody can see cannot be judged. Set the
+        # attribute rather than clicking: <summary> toggling is UA-driven and a
+        # click would race the screenshot.
+        page.eval_on_selector(".flag-legend", "el => el.open = true")
+        page.wait_for_selector(".flag-legend__axes", state="visible")
         shoot(f"tree-and-legend-{theme}")
 
         # (2) The in-row confirm strip on a MIXED container.
@@ -240,4 +248,4 @@ def test_capture(page, live_server):
         live_unit.save(update_fields=["published"])
 
     print(f"SCREENSHOTS ({len(shots)}): {OUT_DIR}")
-    assert len(shots) == 18
+    assert len(shots) == 20  # 10 surfaces x light/dark

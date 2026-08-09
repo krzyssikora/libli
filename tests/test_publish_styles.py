@@ -52,6 +52,10 @@ CASES = [
     (".flag-strip__headline", BUILDER_CSS, "strip only; interstitial uses <h1>"),
     (".flag-strip__dismiss", BUILDER_CSS, "injected by builder.js"),
     (".flag-legend", BUILDER_CSS, "builder page only"),
+    (".flag-legend__summary", BUILDER_CSS, "the <details> is unstyled without it"),
+    (".flag-legend__axes", BUILDER_CSS, "the two-axis grid"),
+    (".flag-legend__axis-name", BUILDER_CSS, "builder page only"),
+    (".flag-legend__list", BUILDER_CSS, "builder page only"),
     (".flag-legend__row", BUILDER_CSS, "builder page only"),
     # Shared partials: rendered by _flag_strip.html AND node_confirm_flag.html.
     # The interstitial declares no extra_css, so these MUST be in app.css.
@@ -115,11 +119,60 @@ def test_inert_flag_control_paints_no_glyph():
     conveniently renders. The e2e screenshot pass is the other half.
     """
     css = _code_only(BUILDER_CSS)
-    rule = r'\.icm:not\(\[class\*="icm--"\]\)::before\s*\{[^}]*display:\s*none'
-    assert re.search(rule, css), (
-        "builder.css must suppress the ::before of an .icm carrying no icm--* "
+    block = re.search(r'\.icm:not\(\[class\*="icm--"\]\)::before\s*\{([^}]*)\}', css)
+    assert block, (
+        "builder.css must neutralise the ::before of an .icm carrying no icm--* "
         "variant, or every quiz row paints a solid dark square beside its "
         "publish dot"
+    )
+    body = block.group(1)
+
+    # It must not PAINT...
+    assert re.search(r"background-color:\s*transparent", body), (
+        f"the no-variant rule is {body.strip()!r}; it must drop the "
+        "`background-color: currentColor` fill that the missing mask exposes"
+    )
+    # ...but it must still OCCUPY its slot. `display: none` also stops the paint,
+    # which is why it was the first fix -- but the button carries no text, so the
+    # ::before IS its width, and collapsing it pulled every quiz row's title
+    # ~15px left of every lesson row's. Caught by screenshot, not by this file.
+    assert not re.search(r"display:\s*none", body), (
+        "the no-variant rule uses `display: none`, which collapses the control "
+        "and breaks the title column; drop the paint, keep the box"
+    )
+
+
+def test_the_three_visibility_glyphs_carry_three_distinct_tints():
+    """The publish glyphs must differ by COLOUR, not only by silhouette.
+
+    They originally did not: every flag inherited `.ica`'s --text-tertiary, so a
+    filled disc (live) and a hollow ring (draft) rendered as the same grey mark
+    at 15px and the column read as checkboxes. Silhouette alone was not enough
+    in a real tree.
+
+    Pins three things a future edit could quietly undo:
+      1. each of the three states defines --flag-tint,
+      2. the three values are DISTINCT (a copy-paste that gives draft the same
+         token as live restores the original bug while looking intentional),
+      3. .tree__flag actually CONSUMES the variable -- defining it and never
+         reading it is the same screen as defining nothing.
+    """
+    css = _code_only(BUILDER_CSS)
+
+    tints = {}
+    for state in ("live", "draft", "live-mixed"):
+        rule = rf"\.icm--{re.escape(state)}\s*\{{[^}}]*--flag-tint:\s*([^;]+);"
+        m = re.search(rule, css)
+        assert m, f".icm--{state} does not define --flag-tint; its glyph stays grey"
+        tints[state] = m.group(1).strip()
+
+    assert len(set(tints.values())) == 3, (
+        f"the three visibility states share a tint: {tints}. A filled and a "
+        "hollow circle in the SAME colour is what made them unreadable."
+    )
+    assert re.search(r"\.tree__flag[^{]*\{[^}]*color:\s*var\(--flag-tint", css), (
+        "no rule reads var(--flag-tint) for .tree__flag, so the tints above are "
+        "declared and never applied"
     )
 
 
