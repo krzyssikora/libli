@@ -594,7 +594,7 @@ def test_build_numeric(tmp_path):
         allow_html=False,
     )
     assert isinstance(obj, ShortNumericQuestionElement)
-    assert obj.value == Decimal("2.5")
+    assert obj.value == "2.5"
 
 
 def test_build_numeric_with_points_sets_max_marks(tmp_path):
@@ -616,6 +616,54 @@ def test_build_numeric_with_points_sets_max_marks(tmp_path):
     )
     assert isinstance(obj, ShortNumericQuestionElement)
     assert obj.max_marks == Decimal("0.5")
+    assert obj.tolerance == ""
+
+
+def test_build_numeric_accepts_json_numbers(tmp_path):
+    # The manifest is json.loads'd, so these are ordinary content. Decimal(2.5)
+    # accepts them on master; a text canonicaliser without the coercion prologue
+    # would raise AttributeError, and a bare str() would turn 0.00001 into '1e-05'.
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {"type": "numeric", "stem": "<p>n</p>", "value": 2.5, "tolerance": 0.00001},
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert (obj.value, obj.tolerance) == ("2.5", "0.00001")
+
+
+def test_build_numeric_accepts_a_fraction(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {"type": "numeric", "stem": "<p>n</p>", "value": "3/2", "tolerance": "0"},
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert (obj.value, obj.tolerance) == ("3/2", "")
+
+
+def test_build_numeric_raises_loader_error_on_junk(tmp_path):
+    from courses.lal_loader.builders import LoaderError
+
+    course = CourseFactory()
+    unit = _unit(course)
+    with pytest.raises(LoaderError, match="unit"):
+        build_element(
+            course,
+            unit,
+            {"type": "numeric", "stem": "<p>n</p>", "value": "abc", "tolerance": "0"},
+            source_root=tmp_path,
+            source_dir="x",
+            allow_html=False,
+        )
 
 
 def test_build_shorttext(tmp_path):
