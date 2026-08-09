@@ -490,3 +490,111 @@ def test_validate_tolerance_text_accepts_blank_and_rejects_negative():
         validate_tolerance_text("-1")
     with pytest.raises(ValidationError):
         validate_tolerance_text("abc")
+
+
+@pytest.mark.django_db
+def test_shortnumeric_marks_exact_fractions():
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(stem="g?", value="1/3", tolerance="")
+    assert q.mark("1/3").correct is True
+    assert q.mark("2/6").correct is True
+    assert q.mark("0.333").correct is False
+    assert q.mark("0.33333333").correct is False
+
+
+@pytest.mark.django_db
+def test_shortnumeric_accepts_every_spelling_of_the_same_value():
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(stem="g?", value="3/2", tolerance="")
+    for answer in ["3/2", "6/4", "15/10", "1 1/2", "1.5", "1,5"]:
+        assert q.mark(answer).correct is True, answer
+
+
+@pytest.mark.django_db
+def test_shortnumeric_fractional_tolerance():
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(
+        stem="?", value="1.5", tolerance="1/100"
+    )
+    assert q.mark("1.505").correct is True
+    assert q.mark("1.52").correct is False
+
+
+@pytest.mark.django_db
+def test_shortnumeric_zero_tolerance_from_both_spellings():
+    from courses.models import ShortNumericQuestionElement
+
+    for tol in ["", "0"]:
+        q = ShortNumericQuestionElement.objects.create(
+            stem="?", value="1.0", tolerance=tol
+        )
+        assert q.mark("1.0").correct is True
+        assert q.mark("1.01").correct is False
+
+
+@pytest.mark.django_db
+def test_shortnumeric_junk_value_marks_incorrect_without_raising():
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(stem="?", value="junk", tolerance="")
+    assert q.mark("1").correct is False
+
+
+@pytest.mark.django_db
+def test_shortnumeric_full_clean_rejects_and_reports_the_right_key():
+    from django.core.exceptions import ValidationError
+
+    from courses.models import ShortNumericQuestionElement
+
+    with pytest.raises(ValidationError) as bad_value:
+        ShortNumericQuestionElement(stem="?", value="abc").full_clean()
+    assert "value" in bad_value.value.error_dict
+
+    # value="1" is load-bearing: without it, value=="" raises "cannot be blank"
+    # and the test passes whether or not validate_tolerance_text exists.
+    with pytest.raises(ValidationError) as bad_tol:
+        ShortNumericQuestionElement(stem="?", value="1", tolerance="-1").full_clean()
+    assert "tolerance" in bad_tol.value.error_dict
+
+    overflowing = ShortNumericQuestionElement(stem="?", value="." + "1" * 63)
+    with pytest.raises(ValidationError) as too_long:
+        overflowing.full_clean()
+    assert "value" in too_long.value.error_dict
+    # clean() must not leave the TOO_LONG sentinel on the instance — to_python
+    # would stringify it into "<object object at 0x...>" and write that to the row.
+    # This assertion is what makes the `is not TOO_LONG` guard falsifiable.
+    assert overflowing.value == "." + "1" * 63
+
+
+@pytest.mark.django_db
+def test_shortnumeric_clean_canonicalises_and_does_not_null_a_rejected_field():
+    from django.core.exceptions import ValidationError
+
+    from courses.models import ShortNumericQuestionElement
+
+    ok = ShortNumericQuestionElement(stem="?", value="1.50000000", tolerance="0")
+    ok.full_clean()
+    assert ok.value == "1.5"
+    assert ok.tolerance == ""
+
+    # full_clean runs clean() even after clean_fields() raised, so an unguarded
+    # rewrite would leave None (or the TOO_LONG object) in a non-null column.
+    bad = ShortNumericQuestionElement(stem="?", value="abc")
+    with pytest.raises(ValidationError):
+        bad.full_clean()
+    assert bad.value == "abc"
+
+
+def test_storage_cap_matches_both_column_widths():
+    # The equality is what makes an oversized transfer payload produce a clean
+    # TransferError instead of a ValidationError deep inside _clean_save. The model
+    # declares a literal 64, so nothing else detects drift.
+    from courses.marking import MAX_STORED_NUMERIC_CHARS
+    from courses.models import ShortNumericQuestionElement
+
+    meta = ShortNumericQuestionElement._meta
+    assert MAX_STORED_NUMERIC_CHARS == meta.get_field("value").max_length
+    assert MAX_STORED_NUMERIC_CHARS == meta.get_field("tolerance").max_length

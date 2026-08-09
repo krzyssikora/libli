@@ -2,6 +2,7 @@ import json
 import re
 import secrets
 from decimal import Decimal
+from fractions import Fraction
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -19,10 +20,15 @@ from django.utils.translation import pgettext_lazy
 
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
+from courses.marking import TOO_LONG
 from courses.marking import MarkResult
 from courses.marking import blank_matches
+from courses.marking import canonical_numeric_text
+from courses.marking import canonical_tolerance_text
 from courses.marking import normalize_text
-from courses.marking import parse_number
+from courses.marking import parse_numeric_value
+from courses.marking import validate_numeric_text
+from courses.marking import validate_tolerance_text
 from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
 from courses.sanitize import sanitize_label
@@ -2154,18 +2160,45 @@ class ShortNumericQuestionElement(QuestionElement):
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
 
-    value = models.DecimalField(max_digits=20, decimal_places=8)
-    tolerance = models.DecimalField(
-        max_digits=20, decimal_places=8, default=0, validators=[MinValueValidator(0)]
+    value = models.CharField(max_length=64, validators=[validate_numeric_text])
+    tolerance = models.CharField(
+        max_length=64, blank=True, default="", validators=[validate_tolerance_text]
     )
     elements = GenericRelation(Element)
 
     def build_answer(self, post):
         return post.get("answer", "")
 
+    def clean(self):
+        # Canonicality is ENFORCED here, not merely conventional at each caller:
+        # the validators check parseability, so value="1.50000000" tolerance="0"
+        # would otherwise validate and store non-canonical text (defect 3
+        # reconstituted, plus a truthy "0" tolerance that prints "+/- 0").
+        #
+        # Both guards are load-bearing. full_clean() runs clean() EVEN WHEN
+        # clean_fields() has already raised, so on value="abc" this executes with
+        # a rejecting canonicaliser; an unguarded assignment would leave None in a
+        # non-null column, and a None-only guard would leave the TOO_LONG object,
+        # which to_python stringifies into "<object object at 0x...>".
+        super().clean()
+        canonical_value = canonical_numeric_text(self.value)
+        if canonical_value is not None and canonical_value is not TOO_LONG:
+            self.value = canonical_value
+        canonical_tolerance = canonical_tolerance_text(self.tolerance)
+        if canonical_tolerance is not None and canonical_tolerance is not TOO_LONG:
+            self.tolerance = canonical_tolerance
+
     def mark(self, answer):
-        n = parse_number(answer)
-        is_correct = n is not None and abs(n - self.value) <= self.tolerance
+        want = parse_numeric_value(self.value)
+        got = parse_numeric_value(answer)
+        tol = parse_numeric_value(self.tolerance)
+        # Explicit `is None`, NOT `... or Fraction(0)`: Fraction(0) is falsy, so the
+        # `or` form is right only by accident and breaks under any reordering.
+        if tol is None:
+            tol = Fraction(0)
+        # `want is not None` is a real guard: a hand-edited row or a pre-migration
+        # import can hold junk, and the check endpoint must mark incorrect, never 500.
+        is_correct = want is not None and got is not None and abs(got - want) <= tol
         return MarkResult(
             correct=is_correct,
             fraction=1.0 if is_correct else 0.0,

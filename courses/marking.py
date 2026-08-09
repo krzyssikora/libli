@@ -131,11 +131,11 @@ def parse_numeric_value(s):
     COMPARISON-side parser.
 
     Deliberately separate from parse_number, which returns a Decimal and feeds the
-    persistence path (ShortNumericQuestionElement.value/tolerance, GuessNumber's
-    target — all DecimalField(max_digits=20, decimal_places=8)). 1/3 has no exact
-    Decimal form, so admitting fractions there would silently store a rounded,
-    different number and break the editor round-trip. Comparison has no such
-    constraint: Fraction is exact, so 2/4 == 1/2 == 0,5 while 0.333 != 1/3.
+    persistence path (GuessNumber's target — DecimalField(max_digits=20,
+    decimal_places=8)). 1/3 has no exact Decimal form, so admitting fractions there
+    would silently store a rounded, different number and break the editor
+    round-trip. Comparison has no such constraint: Fraction is exact, so
+    2/4 == 1/2 == 0,5 while 0.333 != 1/3.
 
     Spaces around the slash are allowed. parse_number bans internal whitespace to
     kill thousands-separator ambiguity ('1 234'), which a slash cannot create.
