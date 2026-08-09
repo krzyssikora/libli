@@ -288,6 +288,14 @@ Extend `parse_numeric_value`'s docstring with a line noting that `parse_number` 
 **not** get this guard — it goes through `Decimal`, which has no digit limit, and guarding it
 would regress `views.py:1162` and `element_forms.py:314`/`:338`.
 
+**Task 4 must then correct the rest of that docstring.** `courses/marking.py:68-71` currently says
+`parse_number` "feeds the persistence path (`ShortNumericQuestionElement.value/tolerance`,
+GuessNumber's target — all `DecimalField(max_digits=20, decimal_places=8)`)". After Task 4 that is
+false: short-numeric's fields are `CharField(64)` and `parse_number` no longer feeds them at all.
+Leaving it would plant a confidently-wrong mechanism in the very docstring that explains why the
+two parsers are separate. Drop the short-numeric clause there, leaving GuessNumber's target as the
+remaining `DecimalField` persistence path.
+
 In `courses/guessnumber.py`, replace the body of `format_target`:
 
 ```python
@@ -1792,11 +1800,29 @@ def test_legacy_v10_payload_canonicalises(...):
 # format_version=99. Run it, do not duplicate it.
 
 
-def test_duplicate_element_preserves_a_fraction_and_empty_tolerance(...):
+@pytest.mark.django_db
+def test_duplicate_element_preserves_a_fraction_and_empty_tolerance():
     # duplicate_element runs export -> _val_short_numeric -> _build_numeric in one
     # process; the cheapest end-to-end check of the ""-tolerance contract.
-    from courses.builder import duplicate_element
-    ...
+    #
+    # NONE of this scaffolding exists in this file: its only builder is
+    # _mk_full_source_course() (:96), which returns just a course, and there is no
+    # unit-token helper here (the _tok one lives in
+    # tests/test_builder_duplicate_element.py:21). duplicate_element takes the unit
+    # token as an isoformat STRING — see the precedent and its warning comment at
+    # tests/test_tabs_transfer.py:344-347.
+    from courses import builder as builder_svc
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    obj = ShortNumericQuestionElement.objects.create(
+        stem="<p>g?</p>", value="3/2", tolerance=""
+    )
+    join = Element.objects.create(unit=unit, content_object=obj)
+    _unit_after, new_join = builder_svc.duplicate_element(
+        course, join.pk, unit.updated.isoformat()
+    )
+    copy = new_join.content_object
     assert (copy.value, copy.tolerance) == ("3/2", "")
 ```
 
@@ -1815,14 +1841,14 @@ seven validation tests:
 |---|---|---|
 | **pre-existing** `test_malformed_decimal_and_wrong_type_reject` (`:549`) | **FAIL** | Step 1 changed its needle to "is not a valid number or fraction"; the old message still says "decimal" |
 | **pre-existing** `test_nonfinite_decimal_strings_reject_not_500` (`:558`) | **FAIL** | same needle change |
-| **new** `test_zero_tolerance_element_round_trips` | **FAIL** | `Decimal("")` raises today |
+| **new** `test_zero_tolerance_element_round_trips` | **FAIL** | export now emits `"tolerance": ""` and `Decimal("")` raises — this *is* the Tasks 4-6 transient breakage, closed here |
 | **new** `test_fraction_value_round_trips` | **FAIL** | `check_decimal_str` rejects `1/3` |
 | **new** `test_legacy_v10_payload_canonicalises` | **FAIL** | the importer still stores `"1.50000000"` verbatim |
 | **new** `test_duplicate_element_preserves_a_fraction_and_empty_tolerance` | **FAIL** | both of the above, end to end |
 | `..._rejects_unparseable_value` | **FAIL** | the message is still `check_decimal_str`'s "decimal" wording |
-| `..._rejects_a_canonical_overflow` | **FAIL** | `check_decimal_str` accepts it — 63 dp is fine for it, and nothing checks canonical length |
+| `..._rejects_a_canonical_overflow` | **FAIL** | `check_decimal_str` *does* reject it, but with the wrong message (`value has too many digits.`, since 63 dp > 8), so the new needle does not match |
 | `..._unparseable_tolerance_rejects_without_a_typeerror` | **FAIL** | same message mismatch |
-| `..._accepts_empty_tolerance` | **FAIL** | `Decimal("")` raises `InvalidOperation` today — this is the transient breakage Task 4 introduced |
+| `..._accepts_empty_tolerance` | **FAIL** | `check_decimal_str` rejects `3/2` on the **value**, before the tolerance is reached (it would reject `""` too). This test hand-builds a payload dict and never touches the model, so it is not Task 4's transient breakage |
 | `..._rejects_non_string_value_with_the_type_message` | PASS | `check_decimal_str` already emits "must be a decimal string" — a pinning test for a branch this task must not lose |
 | `..._negative_tolerance_keeps_the_element_naming_message` | PASS | the negative branch is unchanged today; the point is that it survives the rewrite |
 | `..._still_requires_the_tolerance_key` | PASS | `_exact_keys` is untouched; it pins that the rewrite does not relax it |
