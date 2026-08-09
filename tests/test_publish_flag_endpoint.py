@@ -2,6 +2,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from django.utils.dateparse import parse_datetime
 
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -265,34 +266,52 @@ def test_wr7_success_fragment_carries_top_scope_for_unit_and_subtree(client):
 
 @pytest.mark.django_db
 def test_wr8_fragment_carries_post_write_token_for_a_second_edit(client):
-    """WR8. Read data-updated out of the returned fragment and re-post it as
-    token on a second edit; assert it succeeds rather than 409ing."""
+    """WR8. A SUBTREE write, and a second edit to a DESCENDANT (not the acted-on
+    node itself) -- per the brief. Read data-updated out of the returned
+    fragment for that descendant, assert it is strictly greater than the
+    pre-write value, and re-post it as token on a second edit to the same
+    descendant; assert that succeeds rather than 409ing.
+
+    Mutant: omit updated=now from the bulk .update(). The row's DB `updated`
+    is then left unbumped too, so a round-trip-only assertion (token
+    accepted, 200) stays green: _render_scope reads back exactly the stale
+    value it just wrote into the fragment, and the follow-up token still
+    matches it. The strictly-greater-than-old assertion is what actually
+    dies under that mutant.
+    """
     _, course = _setup(client)
-    unit = ContentNodeFactory(
-        course=course, kind="unit", unit_type="lesson", published=False
+    chapter = ContentNodeFactory(course=course, kind="chapter")
+    descendant = ContentNodeFactory(
+        course=course, parent=chapter, kind="unit", unit_type="lesson", published=False
     )
+    old_updated = descendant.updated
 
     resp = client.post(
         _url(course),
         {
-            "node": unit.pk,
+            "node": chapter.pk,
             "flag": "published",
             "value": "1",
-            "scope": "node",
-            "token": _tok(unit),
+            "scope": "subtree",
+            "token": _tok(chapter),
+            "confirmed": "1",
+            "open": str(
+                chapter.pk
+            ),  # keep the chapter's scope expanded in the fragment
         },
         **FETCH,
     )
     assert resp.status_code == 200
     html = resp.content.decode()
-    m = re.search(rf'id="node-{unit.pk}"[^>]*data-updated="([^"]+)"', html)
+    m = re.search(rf'id="node-{descendant.pk}"[^>]*data-updated="([^"]+)"', html)
     assert m, html
     fresh_token = m.group(1)
+    assert parse_datetime(fresh_token) > old_updated
 
     resp2 = client.post(
         _url(course),
         {
-            "node": unit.pk,
+            "node": descendant.pk,
             "flag": "obligatory",
             "value": "0",
             "scope": "node",
@@ -301,6 +320,9 @@ def test_wr8_fragment_carries_post_write_token_for_a_second_edit(client):
         **FETCH,
     )
     assert resp2.status_code == 200
+
+    descendant.refresh_from_db()
+    assert descendant.updated > old_updated
 
 
 @pytest.mark.django_db
@@ -357,7 +379,12 @@ def test_wr11_value_scope_and_confirmed_are_allow_listed(client):
 @pytest.mark.django_db
 def test_wr12_container_own_updated_bumped_by_subtree_write(client):
     """WR12. The container's own updated is bumped by a subtree write, even
-    though its published column is untouched."""
+    though the container's OWN flag column is untouched.
+
+    The request writes flag=obligatory, so the column that must stay
+    untouched on the container is `obligatory` -- not `published`, which no
+    in-scope mutant can flip. (ContentNode.obligatory defaults to True.)
+    """
     _, course = _setup(client)
     chapter = ContentNodeFactory(course=course, kind="chapter")
     ContentNodeFactory(
@@ -368,7 +395,7 @@ def test_wr12_container_own_updated_bumped_by_subtree_write(client):
         obligatory=True,
     )
     old_chapter_updated = chapter.updated
-    chapter_published_before = chapter.published
+    chapter_obligatory_before = chapter.obligatory
 
     resp = client.post(
         _url(course),
@@ -386,7 +413,7 @@ def test_wr12_container_own_updated_bumped_by_subtree_write(client):
 
     chapter.refresh_from_db()
     assert chapter.updated > old_chapter_updated
-    assert chapter.published == chapter_published_before
+    assert chapter.obligatory == chapter_obligatory_before
 
 
 @pytest.mark.django_db
@@ -409,7 +436,6 @@ def test_wr13_unconfirmed_post_does_not_write_and_returns_the_strip(client):
         },
     )  # no confirmed=1, no fetch header -> the full-page interstitial
     assert resp.status_code == 200
-    assert not (400 <= resp.status_code < 600)
     assert any(
         t.name == "courses/manage/node_confirm_flag.html" for t in resp.templates
     )
@@ -522,3 +548,98 @@ def test_wr18_confirmed_write_under_a_filter_stays_filtered(client):
 
     quiz.refresh_from_db()
     assert quiz.published is False
+
+
+@pytest.mark.django_db
+def test_critical1_a_non_post_non_get_request_does_not_write(client):
+    """CRITICAL 1 (fix round 1). Django's CsrfViewMiddleware exempts
+    GET/HEAD/OPTIONS/TRACE, and HEAD is CORS-safelisted -- so a check phrased
+    as `request.method == "GET"` lets a credentialed cross-origin HEAD (or a
+    PUT/DELETE) fall through the strip branch entirely and reach
+    set_node_flag without ever satisfying CSRF. The endpoint's stated premise
+    is that the server, not the markup, is the guard; that must hold for
+    every method, not just the two the UI happens to use."""
+    _, course = _setup(client)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", published=False
+    )
+    payload = {
+        "node": unit.pk,
+        "flag": "published",
+        "value": "1",
+        "scope": "node",
+        "token": _tok(unit),
+    }
+
+    resp = client.head(_url(course), payload)
+    assert resp.status_code == 200
+    unit.refresh_from_db()
+    assert unit.published is False
+
+    # PUT with the same shape as a `formaction` query string -- Django never
+    # populates request.POST for a non-POST method, so this is the realistic
+    # exploit shape: the params ride the URL's query string exactly as the JS
+    # toggle's formaction does, just under a method CsrfViewMiddleware exempts.
+    qs = "&".join(f"{k}={v}" for k, v in payload.items())
+    resp2 = client.put(f"{_url(course)}?{qs}")
+    assert resp2.status_code == 200
+    unit.refresh_from_db()
+    assert unit.published is False
+
+
+@pytest.mark.django_db
+def test_ctx_editor_with_a_container_falls_back_to_the_builder_arm(client):
+    """The `is_unit` conjunct in _flag_error: _editor_page and _unit_url are
+    unit-only surfaces, but ctx=editor can arrive attached to a container
+    node (e.g. a stray ctx carried by a container's rowhead). A 422 in that
+    combination must fall through to the builder page, not attempt
+    _editor_page on a non-unit and 404/error there."""
+    _, course = _setup(client)
+    chapter = ContentNodeFactory(course=course, kind="chapter")
+
+    resp = client.post(
+        _url(course),
+        {
+            "node": chapter.pk,
+            "flag": "title",  # outside the allow-list -> 422
+            "value": "1",
+            "scope": "subtree",
+            "token": _tok(chapter),
+            "ctx": "editor",
+        },
+    )  # no fetch header -> the builder (non-fragment) arm
+    assert resp.status_code == 422
+    assert any(t.name == "courses/manage/builder.html" for t in resp.templates)
+    assert not any(
+        t.name == "courses/manage/editor/editor.html" for t in resp.templates
+    )
+
+
+@pytest.mark.django_db
+def test_get_renders_the_strip_and_never_writes(client):
+    """No test previously drove the GET path: every existing GET test returns
+    early on 403/redirect before reaching _flag_strip, so deleting the GET
+    (now `!= "POST"`) branch reddened nothing. A well-formed GET where
+    needs_confirmation is False must still return the strip, unconfirmed and
+    unwritten."""
+    _, course = _setup(client)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", published=False
+    )
+
+    resp = client.get(
+        _url(course),
+        {
+            "node": unit.pk,
+            "flag": "published",
+            "value": "1",
+            "scope": "node",
+            "token": _tok(unit),
+        },
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    assert any(t.name == "courses/manage/_flag_strip.html" for t in resp.templates)
+
+    unit.refresh_from_db()
+    assert unit.published is False

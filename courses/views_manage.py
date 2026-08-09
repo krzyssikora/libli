@@ -1109,12 +1109,16 @@ def node_flag(request, slug):  # anonymous request it raises PermissionDenied
         and node.unit_type == ContentNode.UnitType.QUIZ
         and QuizSubmission.objects.filter(unit=node).exists()  # ANY status
     )
-    # A GET NEVER writes. The spec's contract is "GET -> the confirm strip",
-    # full stop -- without this branch a GET where needs_confirmation is
-    # false falls straight through to set_node_flag, i.e. a GET that
-    # mutates. "The UI never emits that GET" is not an answer in a view
-    # whose whole premise is that the server, not the markup, is the guard.
-    if request.method == "GET":
+    # A non-POST request NEVER writes. The spec's contract names exactly two
+    # methods -- GET returns the confirm strip, POST may write -- so this is
+    # phrased as `!= "POST"`, not `== "GET"`: Django's CsrfViewMiddleware
+    # exempts GET/HEAD/OPTIONS/TRACE, and HEAD is CORS-safelisted, so
+    # `== "GET"` alone would let a credentialed cross-origin HEAD (or a
+    # PUT/DELETE) fall straight through to set_node_flag below -- a write
+    # reachable without ever satisfying the CSRF guard. "The UI never emits
+    # that request" is not an answer in a view whose whole premise is that
+    # the server, not the markup, is the guard.
+    if request.method != "POST":
         return _flag_strip(request, course, node, flag=flag, scope=scope, ctx=ctx)
 
     if needs_confirmation and param("confirmed") != "1":
@@ -1129,9 +1133,13 @@ def node_flag(request, slug):  # anonymous request it raises PermissionDenied
     except ValidationError as e:
         return _flag_error(request, course, node, "; ".join(e.messages), ctx=ctx)
 
-    if ctx == "editor":
+    # Same is_unit conjunct the error arms carry: a successful SUBTREE write
+    # leaves `node` a container, and manage_editor/_unit_url are both
+    # unit-only surfaces -- unguarded, either 404s after a container write.
+    is_unit = node.kind == ContentNode.Kind.UNIT
+    if ctx == "editor" and is_unit:
         return redirect("courses:manage_editor", slug=slug, pk=node.pk)
-    if ctx == "unit":
+    if ctx == "unit" and is_unit:
         return redirect(_unit_url(node))
     if not _wants_fragment(request):
         # `q` is threaded through: the bare two-arg call defaults q="" and
