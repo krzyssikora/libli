@@ -23,12 +23,16 @@ def _avg(total, count):
     return (total / count).quantize(_CENT, rounding=ROUND_HALF_UP)
 
 
-def build_matrix_table(course, students, mode, expanded):
+def build_matrix_table(course, students, mode, expanded, *, drafts, with_data=None):
     """Reshape the analytics matrix into the neutral Table (spec §3.1). Pure
     re-shaping — no new aggregation. Reads ["percent"] out of the matrix's _cell
-    dicts; a neutral cell (None) passes through unchanged. title/subtitle left ""."""
+    dicts; a neutral cell (None) passes through unchanged. title/subtitle left "".
+
+    `drafts` is REQUIRED (Task 8) — this is a THIRD caller of the two matrix
+    builders (alongside views_analytics), reached from the gradebook export.
+    """
     builder = build_results_matrix if mode == "results" else build_progress_matrix
-    matrix = builder(course, students, expanded)
+    matrix = builder(course, students, expanded, drafts=drafts, with_data=with_data)
 
     columns = [
         {"label": c["title"], "max": None, "kind": "percent"} for c in matrix["columns"]
@@ -61,12 +65,16 @@ def build_matrix_table(course, students, mode, expanded):
     }
 
 
-def build_quiz_gradebook(course, students, numbers_only):
+def build_quiz_gradebook(course, students, numbers_only, *, drafts, with_data=None):
     """Per-quiz raw-marks register (spec §3.2). One column per quiz leaf unit;
     cells are raw counted sub.score or a —/…/R marker; a dedicated Max row; a
-    per-student Total and a participants-only class Average. title/subtitle "" ."""
+    per-student Total and a participants-only class Average. title/subtitle "" .
+
+    `drafts` is REQUIRED (Task 8): without it this silently inherited
+    quiz_units_in_order's "keep" default and filtered nothing.
+    """
     students = list(students)
-    units = quiz_units_in_order(course)
+    units = quiz_units_in_order(course, drafts=drafts, with_data=with_data)
     maxes = quiz_gradeable_max(units)
 
     columns = [

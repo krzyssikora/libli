@@ -1,0 +1,50 @@
+{% load i18n %}
+{% comment %}
+Shared with node_confirm_flag.html (fix round 1): the buttons and the quiz
+warning, scoped beneath the Hide button/group. The one real difference
+between the two callers is `data-op="flag-confirm"` -- needed by
+builder.js's fetch dispatch on the in-row fragment, meaningless on a plain
+full-page form submit -- so the caller passes it in as `data_op` rather
+than this partial assuming it always applies.
+{% endcomment %}
+{% if flag == "published" %}
+  {% if is_mixed or on == 0 %}
+    <button class="btn btn--primary" type="submit" name="value" value="1"{% if data_op %} data-op="{{ data_op }}"{% endif %}>
+      {% if scope == "node" %}{% trans "Publish it" %}{% else %}{% blocktrans count n=total %}Publish all {{ n }}{% plural %}Publish all {{ n }}{% endblocktrans %}{% endif %}
+    </button>
+  {% endif %}
+  {% if is_mixed or on == total %}
+    <div class="flag-strip__hide-action">
+      <button class="btn btn--danger" type="submit" name="value" value="0"{% if data_op %} data-op="{{ data_op }}"{% endif %}>
+        {% if scope == "node" %}{% trans "Hide it" %}{% else %}{% blocktrans count n=total %}Hide all {{ n }}{% plural %}Hide all {{ n }}{% endblocktrans %}{% endif %}
+      </button>
+      {% if show_warning %}
+        <div class="flag-strip__quiz-warning{% if quiet %} flag-strip__quiz-warning--quiet{% endif %}">
+          {% if quiet %}
+            <p>{% blocktrans count n=submitted %}{{ n }} submission, all from archived groups.{% plural %}{{ n }} submissions, all from archived groups.{% endblocktrans %}</p>
+          {% else %}
+            {% if submitted %}<p>{% blocktrans count n=submitted %}{{ n }} student has submitted.{% plural %}{{ n }} students have submitted.{% endblocktrans %}</p>{% endif %}
+          {% endif %}
+          {% comment %}Outside the quiet/loud choice -- see the twin comment in
+          editor/editor.html. `is_quiet` counts SUBMITTED rows only, so
+          in-flight attempts cannot force the loud branch, and nesting this line
+          under the else would leave the CA about to hide a quiz with no count of
+          the attempts they are interrupting.{% endcomment %}
+          {% if in_progress %}<p>{% blocktrans count n=in_progress %}{{ n }} student is part-way through.{% plural %}{{ n }} students are part-way through.{% endblocktrans %}</p>{% endif %}
+          <p>{% trans "Submitted results are kept, but students will not see them while it is hidden, and edits will not re-grade them. Attempts in progress will be interrupted and can be resumed when you publish." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+{% else %}
+  {% if is_mixed or on == 0 %}
+    <button class="btn btn--primary" type="submit" name="value" value="1"{% if data_op %} data-op="{{ data_op }}"{% endif %}>
+      {% if scope == "node" %}{% trans "Make it obligatory" %}{% else %}{% trans "All obligatory" %}{% endif %}
+    </button>
+  {% endif %}
+  {% if is_mixed or on == total %}
+    <button class="btn btn--secondary" type="submit" name="value" value="0"{% if data_op %} data-op="{{ data_op }}"{% endif %}>
+      {% if scope == "node" %}{% trans "Make it optional" %}{% else %}{% trans "All optional" %}{% endif %}
+    </button>
+  {% endif %}
+{% endif %}

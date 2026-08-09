@@ -292,8 +292,11 @@ def _img(media, **kw):
     }
 
 
-def test_format_version_is_bumped_for_cell_images():
-    assert FORMAT_VERSION == 9
+def test_format_version_is_pinned():
+    # Renamed from test_format_version_is_bumped_for_cell_images: that name
+    # claimed ownership of the number this feature bumped, but Task 9
+    # (published on the node payload) has since bumped it again to 10.
+    assert FORMAT_VERSION == 10
 
 
 def test_ser_table_registers_the_asset_and_emits_a_string_local_id(tmp_path, settings):
@@ -557,7 +560,7 @@ def test_spanning_table_imports_from_legacy_v4_declared_bundle(
     client, settings, tmp_path
 ):
     # Spec test #8: a bundle DECLARING format_version=4 but carrying a spanning
-    # table imports through the full gate (4 <= FORMAT_VERSION=9) AND the spanning
+    # table imports through the full gate (4 <= FORMAT_VERSION=10) AND the spanning
     # branch — proving span handling keys on span-key presence, not the version.
     # Build a real archive via write_archive (emits v5), then downgrade the
     # manifest's declared version to 4 and re-drive it through the importer.

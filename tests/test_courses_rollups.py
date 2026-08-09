@@ -145,7 +145,7 @@ def test_build_course_results_combined_headline_and_statuses():
     # E: not_started (no submission)
     _quiz_with_questions(course, [("A", Decimal("1"))])
 
-    s = build_course_results(course, student)
+    s = build_course_results(course, student, drafts="keep")
     assert s["done_count"] == 3
     assert s["total_count"] == 5
     # B is awaiting_review (pending) so its score (3.00/5.00) is excluded from
@@ -180,7 +180,7 @@ def test_awaiting_review_is_element_driven_even_for_unanswered_review_question()
         max_score=Decimal("0.00"),
     )
 
-    row = build_course_results(course, student)["rows"][0]
+    row = build_course_results(course, student, drafts="keep")["rows"][0]
     assert row["status"] == "awaiting_review"
     assert row["pending"] is True
     assert row["graded"] is False  # no [A] question
@@ -192,14 +192,14 @@ def test_build_course_results_empty_and_zero_guards():
 
     # No quizzes at all → empty rows, percent None.
     empty_course = CourseFactory()
-    s0 = build_course_results(empty_course, UserFactory())
+    s0 = build_course_results(empty_course, UserFactory(), drafts="keep")
     assert s0["rows"] == [] and s0["total_count"] == 0 and s0["percent"] is None
 
     # One quiz, none submitted → not_started, percent None.
     course = CourseFactory()
     student = UserFactory()
     _quiz_with_questions(course, [("A", Decimal("1"))])
-    s1 = build_course_results(course, student)
+    s1 = build_course_results(course, student, drafts="keep")
     assert s1["done_count"] == 0 and s1["total_count"] == 1
     assert s1["rows"][0]["status"] == "not_started"
     assert s1["percent"] is None and s1["score"] is None
@@ -221,7 +221,10 @@ def test_build_course_results_row_url_names():
     )
     _quiz_with_questions(course, [("A", Decimal("1"))])  # not started
 
-    by_status = {r["status"]: r for r in build_course_results(course, student)["rows"]}
+    by_status = {
+        r["status"]: r
+        for r in build_course_results(course, student, drafts="keep")["rows"]
+    }
     assert by_status["submitted"]["url_name"] == "courses:quiz_results"
     assert by_status["not_started"]["url_name"] == "courses:quiz_unit"
 
@@ -248,12 +251,12 @@ def test_build_course_results_query_count_is_size_independent():
             )
 
     add(3)
-    build_course_results(course, student)  # warm the ContentType cache
+    build_course_results(course, student, drafts="keep")  # warm the ContentType cache
     with CaptureQueriesContext(connection) as c1:
-        build_course_results(course, student)
+        build_course_results(course, student, drafts="keep")
     add(20)
     with CaptureQueriesContext(connection) as c2:
-        build_course_results(course, student)
+        build_course_results(course, student, drafts="keep")
     assert len(c1) == len(c2)  # N-independent: no per-unit / per-submission N+1
 
 
@@ -306,7 +309,7 @@ def test_awaiting_review_until_all_reviewed():
     student = UserFactory()
     EnrollmentFactory(student=student, course=course)
     _review_quiz_with_submission(course, student, reviewed=False)
-    res = build_course_results(course, student)
+    res = build_course_results(course, student, drafts="keep")
     row = res["rows"][0]
     assert row["status"] == "awaiting_review"
     # All-pending: the pending quiz is excluded from the headline sums, so they are
@@ -327,7 +330,7 @@ def test_graded_after_review_unfolds_score():
     student = UserFactory()
     EnrollmentFactory(student=student, course=course)
     _review_quiz_with_submission(course, student, reviewed=True)
-    res = build_course_results(course, student)
+    res = build_course_results(course, student, drafts="keep")
     row = res["rows"][0]
     assert row["status"] == "submitted"
     assert res["score"] == Decimal("4.00")

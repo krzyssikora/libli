@@ -1224,3 +1224,37 @@ button.asset-cell:hover { border-color: var(--primary); }
    through. Note data-scope is NOT editor-only (the builder puts it on every tree
    scope), so this selector must stay pinned to ="preview". */
 [data-scope="preview"] .el a { pointer-events: none; }
+
+
+/* ── Quiz submission banner (Task 15) ───────────────────────────────────────
+   editor.html only -- the student-facing unit pages never render it, so unlike
+   .draft-banner this does NOT belong in courses.css.
+
+   The PALETTE deliberately matches .flag-strip__quiz-warning in app.css: that
+   strip and this banner warn about the same submissions, and reading as two
+   different severities would be a lie. The geometry differs because this is a
+   full-width page banner and that is a note pinned under one button, so the
+   two are not twins and no drift guard ties them -- only the token choices
+   (--warning-subtle / --warning, and --surface-sunken / --border-strong /
+   --text-secondary when quiet) have to stay in step. */
+.quiz-submission-banner {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--warning-subtle);
+  border-inline-start: 3px solid var(--warning);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+.quiz-submission-banner > * + * { margin-top: var(--space-2); }   /* reset.css zeroes margins */
+/* QUIET (all submitters in archived groups): the box stays -- archived is not
+   deleted -- and only the amber goes. --text-secondary, NOT --text-tertiary,
+   which fails AA at body size. */
+.quiz-submission-banner--quiet {
+  background: var(--surface-sunken);
+  /* Rim for the same reason as .flag-strip__quiz-warning--quiet in app.css:
+     --surface-sunken is within a few percent of --surface-base in BOTH themes,
+     so the amber fill was the only thing giving the loud banner its edges. */
+  border: 1px solid var(--border-default);
+  border-inline-start: 3px solid var(--border-strong);
+  color: var(--text-secondary);
+}

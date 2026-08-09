@@ -1,0 +1,34 @@
+{% load i18n %}
+{% comment %}
+Confirm strip (Task 12). A sibling AFTER <form class="tree__rowhead">, inside
+the same <li> -- never a descendant, because this carries its own
+<form method="post"> and HTML forbids nested forms.
+
+The conditional copy (headline / counts / actions+quiz-warning) lives in
+three shared partials, also included by node_confirm_flag.html, so the two
+surfaces cannot drift apart -- see fix round 1 in
+.superpowers/sdd/2026-08-08-unit-publish-state/task-12-report.md. Only the
+wrapper (this root div/form and its hidden inputs) is per-template.
+{% endcomment %}
+<div class="flag-strip" data-flag-strip="{{ node.pk }}">
+  <form method="post"
+        action="{% url 'courses:manage_node_flag' slug=course.slug %}"
+        data-op="flag-confirm">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ node.pk }}">
+    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+    <input type="hidden" name="flag" value="{{ flag }}">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    <input type="hidden" name="confirmed" value="1">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    {% if ctx %}<input type="hidden" name="ctx" value="{{ ctx }}">{% endif %}
+
+    <p class="flag-strip__headline">{% include "courses/manage/_flag_strip_headline.html" %}</p>
+
+    {% include "courses/manage/_flag_strip_counts.html" %}
+
+    <div class="flag-strip__actions">
+      {% include "courses/manage/_flag_strip_actions.html" with data_op="flag-confirm" %}
+    </div>
+  </form>
+</div>

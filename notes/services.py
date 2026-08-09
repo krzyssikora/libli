@@ -7,6 +7,7 @@ from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
 from courses.access import accessible_courses
+from courses.access import exclude_foreign_drafts
 from courses.models import ContentNode
 from notes.models import NOTE_MAX_LEN
 from notes.models import Note
@@ -80,10 +81,13 @@ def note_counts_for_outline(author, course):
 def note_counts_by_course(author):
     """{course_id: count} of the author's notes per accessible course (lesson units)."""
     rows = (
-        Note.objects.filter(
-            author=author,
-            unit__course__in=accessible_courses(author),
-            unit__unit_type=ContentNode.UnitType.LESSON,
+        exclude_foreign_drafts(
+            Note.objects.filter(
+                author=author,
+                unit__course__in=accessible_courses(author),
+                unit__unit_type=ContentNode.UnitType.LESSON,
+            ),
+            author,
         )
         .values("unit__course_id")
         .annotate(n=Count("pk"))
@@ -91,7 +95,7 @@ def note_counts_by_course(author):
     return {r["unit__course_id"]: r["n"] for r in rows}
 
 
-def course_notes(author, course):
+def course_notes(author, course, *, drafts, with_data=None):
     """Ordered per-course notes for the revision index.
 
     Returns [{"unit": ContentNode, "groups": [(elt_or_None, [Note, ...]), ...]}, ...]
@@ -113,7 +117,7 @@ def course_notes(author, course):
         by_unit.setdefault(note.unit_id, []).append(note)
 
     result = []
-    for unit in units_in_order(course):
+    for unit in units_in_order(course, drafts=drafts, with_data=with_data):
         if unit.unit_type != ContentNode.UnitType.LESSON:
             continue
         unit_notes = by_unit.get(unit.pk)

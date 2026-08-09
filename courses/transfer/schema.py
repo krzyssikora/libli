@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from courses.color_bands import is_valid_stored
 from courses.constants import COURSE_LANGUAGES
 
-FORMAT_VERSION = 9
+FORMAT_VERSION = 10
 KIND_COURSE = "course"
 KIND_SUBTREE = "subtree"
 
@@ -227,6 +227,19 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
     node_kind = {}
     roots = 0
     for nd in nodes:
+        # Optional-key pattern (see the FORMAT_VERSION-2 width/height note).
+        # Default True, NOT False: a v9 archive came from an install with no
+        # concept of drafts, so every unit in it was live.
+        #
+        # The isinstance guard is NOT optional, and both existing shims in this
+        # file carry it (schema.py:118 for link_nodes, :335 for the element
+        # shim). check_list(doc["nodes"]) proves only that the CONTAINER is a
+        # list, so `nd` may be a string or a list -- and an unguarded
+        # .setdefault raises AttributeError BEFORE _exact_keys' own
+        # `if not isinstance(obj, dict): _err(...)` runs, turning a hostile
+        # archive's clean 422 into a 500.
+        if isinstance(nd, dict):
+            nd.setdefault("published", True)
         _exact_keys(
             nd,
             [
@@ -236,6 +249,7 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
                 "title",
                 "unit_type",
                 "obligatory",
+                "published",
                 "html_seed_js",
             ],
             _("node"),
@@ -253,6 +267,15 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
             )
         check_str(nd["title"], _("node title"), max_length=200, required=True)
         check_bool(nd["obligatory"], "obligatory")
+        check_bool(nd["published"], "published")
+        # AFTER the `nd["kind"] not in ContentNode.RANK` validity check above --
+        # otherwise this reads an unvalidated kind.
+        # AFTER check_bool(nd["published"], "published") above -- otherwise a
+        # v10 archive carrying "published": "yes" on a container is silently
+        # accepted, because the normalisation overwrites the bad value before
+        # anything type-checks it.
+        if nd["kind"] != "unit":
+            nd["published"] = False
         check_str(nd["html_seed_js"], "html_seed_js")
         if nd["kind"] == "unit":
             if nd["unit_type"] not in ("lesson", "quiz"):

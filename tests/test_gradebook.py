@@ -79,7 +79,9 @@ def test_build_matrix_table_mirrors_progress_matrix():
     les = _lesson(course, ch)
     s1, s2 = UserFactory(username="aaa"), UserFactory(username="bbb")
     UnitProgressFactory(student=s1, unit=les, completed=True)  # s1 100%, s2 0%
-    table = build_matrix_table(course, [s1, s2], mode="progress", expanded=frozenset())
+    table = build_matrix_table(
+        course, [s1, s2], mode="progress", expanded=frozenset(), drafts="keep"
+    )
     assert table["total_kind"] == "percent"
     assert table["meta_row"] is None
     assert [c["kind"] for c in table["columns"]] == ["percent"]
@@ -98,7 +100,9 @@ def test_build_matrix_table_neutral_cell_is_none():
     ch = _chapter(course)
     _quiz(course, ch)  # results mode, no submissions -> neutral
     s1 = UserFactory()
-    table = build_matrix_table(course, [s1], mode="results", expanded=frozenset())
+    table = build_matrix_table(
+        course, [s1], mode="results", expanded=frozenset(), drafts="keep"
+    )
     assert table["rows"][0]["cells"] == [None]  # neutral -> None, not "—", not 0
 
 
@@ -110,11 +114,13 @@ def test_build_matrix_table_honours_expand_set():
     _lesson(course, ch)
     s1 = UserFactory(username="a")
     # un-expanded: one aggregated column (the chapter)
-    collapsed = build_matrix_table(course, [s1], mode="progress", expanded=frozenset())
+    collapsed = build_matrix_table(
+        course, [s1], mode="progress", expanded=frozenset(), drafts="keep"
+    )
     assert len(collapsed["columns"]) == 1
     # expanded through the chapter: its two lesson columns
     expanded = build_matrix_table(
-        course, [s1], mode="progress", expanded=frozenset({ch.pk})
+        course, [s1], mode="progress", expanded=frozenset({ch.pk}), drafts="keep"
     )
     assert len(expanded["columns"]) == 2
 
@@ -143,7 +149,9 @@ def test_quiz_gradebook_scores_markers_max_and_total():
     _submit(s_done, qz1, "7", "10")  # counted -> 7
     _submit(s_prog, qz1, "0", "0", status="in_progress")  # -> "…"
     # s_none: nothing -> "—"
-    table = build_quiz_gradebook(course, [s_done, s_prog, s_none], numbers_only=False)
+    table = build_quiz_gradebook(
+        course, [s_done, s_prog, s_none], numbers_only=False, drafts="keep"
+    )
     assert [c["label"] for c in table["columns"]] == ["1. Quiz", "2. Quiz"]
     assert [c["max"] for c in table["columns"]] == [Decimal("10"), Decimal("10")]
     assert table["meta_row"]["label"] == "Max"
@@ -165,7 +173,7 @@ def test_quiz_gradebook_numbers_only_blanks_markers_not_scores():
     s1, s2 = UserFactory(username="a"), UserFactory(username="b")
     _submit(s1, qz, "5", "10")  # counted
     # s2 not started
-    table = build_quiz_gradebook(course, [s1, s2], numbers_only=True)
+    table = build_quiz_gradebook(course, [s1, s2], numbers_only=True, drafts="keep")
     assert table["rows"][0]["cells"][0] == Decimal("5")  # real score untouched
     assert table["rows"][1]["cells"][0] is None  # marker blanked
 
@@ -178,7 +186,7 @@ def test_quiz_gradebook_awaiting_review_marker_R():
     _q(qz, QuestionElement.MarkingMode.REVIEW, "10")  # one [R], never reviewed
     s1 = UserFactory()
     _submit(s1, qz, "0", "10")  # SUBMITTED but the [R] is unreviewed -> pending
-    table = build_quiz_gradebook(course, [s1], numbers_only=False)
+    table = build_quiz_gradebook(course, [s1], numbers_only=False, drafts="keep")
     assert table["rows"][0]["cells"][0] == "R"
     assert table["rows"][0]["total"] is None
 
@@ -193,7 +201,9 @@ def test_quiz_gradebook_participants_only_average_quantized():
     _submit(s1, qz, "10", "10")
     _submit(s2, qz, "5", "10")
     # s3 not taken -> excluded from denominator
-    table = build_quiz_gradebook(course, [s1, s2, s3], numbers_only=False)
+    table = build_quiz_gradebook(
+        course, [s1, s2, s3], numbers_only=False, drafts="keep"
+    )
     # mean(10, 5) over 2 participants = 7.50, quantized to 2dp
     assert table["footer"][0]["values"][0] == Decimal("7.50")
     assert table["footer"][0]["total"] == Decimal("7.50")
@@ -207,7 +217,7 @@ def test_quiz_gradebook_non_gradeable_column_blank_and_excluded():
     _q(qz, QuestionElement.MarkingMode.NOT_MARKED, "5")  # max 0 -> non-gradeable
     s1 = UserFactory()
     _submit(s1, qz, "0", "0")  # a counted submission exists
-    table = build_quiz_gradebook(course, [s1], numbers_only=False)
+    table = build_quiz_gradebook(course, [s1], numbers_only=False, drafts="keep")
     assert table["columns"][0]["max"] == Decimal("0")
     assert table["rows"][0]["cells"][0] is None  # blanked
     assert table["rows"][0]["total"] is None  # excluded from total
@@ -218,6 +228,11 @@ def test_quiz_gradebook_non_gradeable_column_blank_and_excluded():
 def test_quiz_gradebook_no_quizzes_and_empty_students():
     course = CourseFactory()
     _chapter(course)
-    assert build_quiz_gradebook(course, [], numbers_only=False)["rows"] == []
-    empty = build_quiz_gradebook(course, [UserFactory()], numbers_only=False)
+    assert (
+        build_quiz_gradebook(course, [], numbers_only=False, drafts="keep")["rows"]
+        == []
+    )
+    empty = build_quiz_gradebook(
+        course, [UserFactory()], numbers_only=False, drafts="keep"
+    )
     assert empty["columns"] == [] and empty["rows"][0]["cells"] == []

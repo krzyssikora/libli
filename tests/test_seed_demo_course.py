@@ -9,11 +9,20 @@ def _isolate_media_root(settings, tmp_path):
 
 @pytest.mark.django_db
 def test_seed_is_idempotent_and_builds_demo():
+    from courses.models import ContentNode
     from courses.models import Course
     from courses.models import Element
     from courses.models import Enrollment
 
     call_command("seed_demo_course")
+    # Final-review C1b. ContentNode.published defaults to False since migration
+    # 0057, so _node()'s get_or_create defaults must set it explicitly. Asserted
+    # here rather than through a view because the rest of this file traverses
+    # with drafts="keep", which is exactly the value that MASKS a drafted seed.
+    course_obj = Course.objects.get(slug="demo-course")
+    assert not ContentNode.objects.filter(
+        course=course_obj, kind="unit", published=False
+    ).exists()
     courses_after_first = Course.objects.count()
     elements_after_first = Element.objects.count()
     enrollments_after_first = Enrollment.objects.count()
@@ -117,7 +126,9 @@ def test_seed_quiz_group_populate_analytics():
         assert sub.status == QuizSubmission.Status.SUBMITTED
         assert sub.max_score and sub.max_score > 0
 
-    matrix = build_results_matrix(course, students, expanded=set(), values="percent")
+    matrix = build_results_matrix(
+        course, students, expanded=set(), values="percent", drafts="keep"
+    )
     # "Demo quiz" is AUTO-only (the REVIEW question now lives on the separate
     # "Practice quiz"), so the group's fully-graded submissions populate the
     # percent matrix: at least one populated cell exists across the group×quiz
@@ -199,7 +210,7 @@ def test_seed_review_submission_is_in_review_queue():
     User = get_user_model()
     teacher = User.objects.get(username="demo_teacher")
     course = Course.objects.get(slug="demo-course")
-    pending = pending_reviews_for(teacher, course)
+    pending = pending_reviews_for(teacher, course, drafts="keep")
     assert pending["awaiting"], (
         "expected an awaiting-review submission for the queue shot"
     )

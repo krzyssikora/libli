@@ -147,7 +147,7 @@ def _seed_dragimage_lesson(
     course = Course.objects.create(title="C", slug=slug, language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="lesson", title="U"
+        course=course, kind="unit", unit_type="lesson", title="U", published=True
     )
     q = DragToImageQuestionElement.objects.create(
         media=_make_media(course), alt="Diagram", distractors=distractors
@@ -166,7 +166,7 @@ def _seed_dragimage_quiz(
     course = Course.objects.create(title="C", slug=slug, language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="quiz", title="Q"
+        course=course, kind="unit", unit_type="quiz", title="Q", published=True
     )
     q = DragToImageQuestionElement.objects.create(
         media=_make_media(course),

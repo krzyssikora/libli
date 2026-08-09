@@ -2183,3 +2183,34 @@ dialog.imgzoom:not([open]) { display: none; }
   content: "\00A0\2197"; /* north-east arrow */
   text-decoration: none; display: inline-block;
 }
+
+
+/* ── Draft banner (Task 15) ─────────────────────────────────────────────────
+   templates/courses/_draft_banner.html is shared by the EDITOR page and the
+   student-facing lesson/quiz render (shown to an author only). courses.css is
+   the one stylesheet BOTH of those load -- editor.css is not on the unit pages
+   and neither loads builder.css -- so the rule has to live here.
+
+   Unstyled this is a bare <p> plus a button, indistinguishable from body copy
+   on a lesson page: the single marker telling an author "students cannot see
+   this" carrying no visual weight at all. It uses the amber warning palette
+   rather than an accent: a draft is a state that needs correcting before the
+   page is of any use to anyone, and the page around it otherwise looks live. */
+.draft-banner {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--warning-subtle);
+  border-inline-start: 3px solid var(--warning);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+.draft-banner__text { flex: 1 1 12rem; min-width: 0; margin: 0; font-weight: 600; }
+/* app.css gives `form p` a margin (the blockquote/form-p leak); the banner's
+   form holds only hidden inputs and one button, so zero it and keep the button
+   from stretching in the flex row. */
+.draft-banner__form { margin: 0; flex: 0 0 auto; }
+/* The banner states a fact about the page; the Publish control is an authoring
+   affordance that does not belong on paper. */
+@media print { .draft-banner__form { display: none; } }

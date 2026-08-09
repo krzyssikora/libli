@@ -15,6 +15,7 @@ from courses.htmlsandbox import has_math_delimiters
 from courses.models import Course
 from courses.models import QuestionElement
 from courses.models import QuizSubmission
+from courses.views_analytics import _with_data_for  # shared with_data builder
 from grouping import scoping
 
 
@@ -110,7 +111,10 @@ def review_queue(request, slug):
     course = get_object_or_404(Course, slug=slug)
     if not scoping.can_review_course(request.user, course):
         raise Http404
-    data = review_svc.pending_reviews_for(request.user, course)
+    with_data = _with_data_for(course)
+    data = review_svc.pending_reviews_for(
+        request.user, course, drafts="keep-with-data", with_data=with_data
+    )
     return render(
         request,
         "courses/manage/review_queue.html",

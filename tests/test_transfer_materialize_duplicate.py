@@ -30,3 +30,24 @@ def test_materialize_duplicate_shares_media_and_creates_nodes():
     assert new_img.media_id == asset.pk
     # no new MediaAsset rows were created
     assert MediaAsset.objects.filter(course=course).count() == 1
+
+
+def test_materialize_duplicate_forces_the_copy_unpublished_with_no_place_node():
+    # This caller (unlike duplicate_unit) never calls ordering.place_node
+    # afterwards, so the copy's draft state depends ENTIRELY on
+    # materialize_duplicate's own .update() -- there is no later full save to
+    # fall back on. This is the guard the .update() call in
+    # courses/transfer/importer.py needs: without it, deleting that line is
+    # invisible to every other test in the repo (see the falsification note
+    # there).
+    course, unit = make_course_with_unit()
+    unit.published = True
+    unit.save(update_fields=["published"])
+    _manifest, document, media_assets, _problems = build_export(
+        course, node=unit, drop_missing_media=False
+    )
+    media_map = {mid: a for (mid, a, _p) in media_assets}
+
+    new_root = materialize_duplicate(document, media_map, course, unit.parent)
+
+    assert ContentNode.objects.get(pk=new_root.pk).published is False

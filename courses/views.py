@@ -26,6 +26,7 @@ from django.views.decorators.http import require_POST
 from courses import quiz as quiz_svc
 from courses import state as state_svc
 from courses.access import can_access_course
+from courses.access import can_see_drafts
 from courses.access import get_node_or_404
 from courses.access import is_enrolled
 from courses.constants import COURSE_LANGUAGES
@@ -534,7 +535,25 @@ def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False
     from tags.rendering import unit_tags_context
 
     ctx = build_lesson_context(node, user)
-    ctx["unit_nav"] = build_unit_nav(node.course, user, node)
+    drafts = "keep" if can_see_drafts(user, node.course) else "hide"
+    # Task 15 §5: the student-facing draft banner's `{% if is_author and not
+    # unit.published %}` gate. Reuses `drafts` rather than a second
+    # can_see_drafts call -- the two questions ("can this viewer see drafts
+    # in general" / "is this viewer an author") are the same question here.
+    #
+    # REDUNDANT TODAY, KEPT DELIBERATELY: every caller of this function (and
+    # of quiz_unit/_quiz_render_feedback below) resolves `node` through
+    # get_node_or_404(..., viewer=user, ...), which already 404s a
+    # non-author before this render is ever reached -- so on every present
+    # call site `{% if is_author and not unit.published %}` is
+    # observationally identical to `{% if not unit.published %}` alone. This
+    # flag is defence-in-depth for a future render site that reaches this
+    # template WITHOUT that view-level viewer= gate; it would otherwise leak
+    # the banner (and the Publish button behind it) to a non-author. Do not
+    # delete it as dead code without re-verifying that every caller still
+    # carries the gate.
+    ctx["is_author"] = drafts == "keep"
+    ctx["unit_nav"] = build_unit_nav(node.course, user, node, drafts=drafts)
     ctx.update(
         feedback_for_pk=None,
         selected_ids=frozenset(),
@@ -561,7 +580,8 @@ def course_outline(request, slug):
     from notes.services import note_counts_for_outline  # lazy: avoid cycle
     from tags import services as tag_services
 
-    outline = build_outline(course, request.user)
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    outline = build_outline(course, request.user, drafts=drafts)
     tags_by_unit, course_tags = tag_services.tags_for_outline(request.user, course)
     course_tag_ids = {t.pk for t in course_tags}
     active_tag_ids = [
@@ -593,7 +613,8 @@ def course_results(request, slug):
         raise PermissionDenied
     # student is always request.user — no IDOR surface. `course` is passed
     # top-level as the template's canonical source (summary also carries it).
-    summary = build_course_results(course, request.user)
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    summary = build_course_results(course, request.user, drafts=drafts)
     return render(
         request,
         "courses/course_results.html",
@@ -610,18 +631,30 @@ def progress_reset(request, slug, node_pk=None):
     protection against automatic persistence -- shipping it as a one-click no-undo
     form for no-JS students would make the safety valve the hazard.
     """
+    node = None
     if node_pk is None:
         course = get_object_or_404(Course, slug=slug)
-        targets = units_in_order(course)
     else:
         # NOT optional: can_access_course authorizes against `slug`, but nothing
         # otherwise ties node_pk to that course -- a foreign node_pk would resolve
         # its own subtree and wipe the student's state THERE.
-        node = get_node_or_404(node_pk, slug, require_unit=False)
+        node = get_node_or_404(node_pk, slug, viewer=request.user, require_unit=False)
         course = node.course
-        targets = units_under(node)
     if not can_access_course(request.user, course):
         raise PermissionDenied
+
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+
+    # targets is UNFILTERED -- it drives the WRITE. Reset is the student's
+    # protection against automatic persistence; leaving hidden state behind is
+    # precisely the failure it exists to prevent. visible_targets is a SECOND
+    # call, and drives only the count.
+    if node is None:
+        targets = units_in_order(course)
+        visible_targets = units_in_order(course, drafts=drafts)
+    else:
+        targets = units_under(node)
+        visible_targets = units_under(node, drafts=drafts)
 
     rows = UnitProgress.objects.filter(student=request.user, unit__in=targets)
     fallback = reverse("courses:course_outline", args=[slug])
@@ -661,8 +694,11 @@ def progress_reset(request, slug, node_pk=None):
 
     # Honest blast radius: lessons that actually HOLD work, not every lesson in the
     # subtree. Telling a student "this clears 14 lessons" when 3 have anything makes
-    # a harmless reset sound destructive.
-    affected_count = rows.exclude(element_state={}).count()
+    # a harmless reset sound destructive. Filter the COUNT, never the WRITE (the
+    # POST branch above uses the unfiltered `rows`/`targets`).
+    affected_count = (
+        rows.exclude(element_state={}).filter(unit__in=visible_targets).count()
+    )
     return render(
         request,
         "courses/progress_reset_confirm.html",
@@ -678,7 +714,7 @@ def progress_reset(request, slug, node_pk=None):
 
 @login_required
 def lesson_unit(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True)
+    node = get_node_or_404(node_pk, slug, viewer=request.user, require_unit=True)
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -708,6 +744,12 @@ def node_permalink(request, node_pk):
     node = get_object_or_404(ContentNode.objects.select_related("course"), pk=node_pk)
     if not can_access_course(request.user, node.course):
         raise Http404("node is not accessible")
+    if (
+        node.kind == ContentNode.Kind.UNIT
+        and not node.published
+        and not can_see_drafts(request.user, node.course)
+    ):
+        raise Http404("node is not published")
     if node.kind == ContentNode.Kind.UNIT:
         # Branch explicitly rather than letting lesson_unit forward a quiz: that
         # would cost a second redirect hop on every quiz link and couple this view
@@ -751,7 +793,9 @@ def _seen_current_ids(node):
 @require_POST
 @login_required
 def seen(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -807,7 +851,9 @@ def seen(request, slug, node_pk):
 @require_POST
 @login_required
 def complete(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     course = node.course
     # can_access_course is DELIBERATELY the sole guard on this write: the row is the
     # viewer's OWN record, not course analytics, so any viewer who can open the lesson
@@ -865,7 +911,9 @@ def save_element_state(user, unit, element_pk, blob):
 @require_POST
 @login_required
 def element_state_save(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -953,7 +1001,9 @@ def element_state_save(request, slug, node_pk):
 @require_POST
 @login_required
 def check_answer(request, slug, node_pk, element_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_lesson=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1313,7 +1363,9 @@ def build_quiz_context(node, user):
 
 @login_required
 def quiz_unit(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_quiz=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1326,7 +1378,11 @@ def quiz_unit(request, slug, node_pk):
         if request.GET.get("panel") == "tags":
             target += "?panel=tags"
         return redirect(target)
-    ctx["unit_nav"] = build_unit_nav(course, request.user, node)
+    drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    # Task 15 §5: the student-facing draft banner's is_author flag -- see the
+    # matching comment in full_lesson_render_context.
+    ctx["is_author"] = drafts == "keep"
+    ctx["unit_nav"] = build_unit_nav(course, request.user, node, drafts=drafts)
     ctx["tags_panel_open"] = request.GET.get("panel") == "tags"
     return render(request, "courses/quiz_unit.html", ctx)
 
@@ -1355,7 +1411,11 @@ def _quiz_render_feedback(
     # single feedback box (render_states[pk]["feedback_html"]) and rehydrate its
     # inputs — the same render path resume (Task 12) uses, so no double container.
     ctx = build_quiz_context(node, request.user)
-    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node)
+    drafts = "keep" if can_see_drafts(request.user, node.course) else "hide"
+    # Task 15 §5: the student-facing draft banner's is_author flag -- see the
+    # matching comment in full_lesson_render_context.
+    ctx["is_author"] = drafts == "keep"
+    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node, drafts=drafts)
     fragment = render_to_string("courses/elements/_quiz_question_feedback.html", fb_ctx)
     st = ctx["render_states"].get(element.pk)
     if st is not None:
@@ -1374,7 +1434,9 @@ def _quiz_render_feedback(
 @require_POST
 @login_required
 def quiz_answer(request, slug, node_pk, element_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_quiz=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1476,7 +1538,9 @@ def quiz_answer(request, slug, node_pk, element_pk):
 @require_POST
 @login_required
 def quiz_finish(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_quiz=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1506,7 +1570,9 @@ def quiz_finish(request, slug, node_pk):
 
 @login_required
 def quiz_results(request, slug, node_pk):
-    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        node_pk, slug, viewer=request.user, require_unit=True, require_quiz=True
+    )
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
@@ -1679,7 +1745,7 @@ def catalog_detail(request, slug):
     ctx = {
         "course": course,
         "enrolled": enrolled,
-        "unit_count": course.nodes.filter(kind="unit").count(),
+        "unit_count": course.nodes.filter(kind="unit", published=True).count(),
     }
     if _wants_fragment(request):
         return render(request, "courses/_catalog_detail.html", ctx)

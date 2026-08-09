@@ -885,6 +885,7 @@ def _create_nodes(document, course, root_parent=None):
             title=nd["title"],
             unit_type=nd["unit_type"],
             obligatory=nd["obligatory"],
+            published=nd["published"],
             html_seed_js=nd["html_seed_js"],
         )
         try:
@@ -1144,6 +1145,51 @@ def materialize_duplicate(
 
     def work():
         node_map = _create_nodes(document, target_course, root_parent=insertion_node)
+        # Duplication is authoring NEW content, not restoring an archive.
+        # Chosen over a force_draft= keyword on _create_nodes because the
+        # archive-import path must keep honouring the payload (TR1), and a
+        # shared builder growing a flag for one of its two callers is how
+        # that path acquires a bug later.
+        #
+        # node_map maps ARCHIVE IDS -> ContentNode INSTANCES (importer.py:903
+        # is `node_map[nd["id"]] = node`), so the pks must be pulled out.
+        # Passing node_map.values() straight to pk__in raises
+        # `TypeError: Field 'id' expected a number but got <ContentNode: ...>`,
+        # which duplicate_unit's except-Exception then reports as a
+        # TransferError -> 422, and TR4 goes red for a reason unrelated to
+        # publish state.
+        nodes = list(node_map.values())
+        ContentNode.objects.filter(pk__in=[n.pk for n in nodes]).update(published=False)
+        # Set the ATTRIBUTE too, not just the column. duplicate_unit calls
+        # ordering.place_node(new_node, ...) after this returns, and place_node
+        # does an unconditional FULL n.save() ("full save: persists the new
+        # parent + order", ordering.py:90) on this very instance -- which
+        # _create_nodes built from the payload with published=True. Without
+        # this line that save writes published=True straight back over the
+        # update, the duplicate lands LIVE, and TR4 is red on a faithful
+        # implementation of this step.
+        #
+        # FALSIFIED (both required to catch a REAL regression):
+        #  - removing this .update() call ALONE, keeping the loop below, does
+        #    NOT redden TR4: duplicate_unit's caller always duplicates exactly
+        #    one node (a unit has no children -- ContentNode.clean() forbids
+        #    it), so `nodes` here is always the single new_node that
+        #    ordering.place_node then full-saves; the in-memory attribute
+        #    assignment alone reaches the DB through that later save. This
+        #    line is still necessary for the OTHER caller of this function --
+        #    materialize_duplicate is called directly (no place_node
+        #    afterward) by test_transfer_materialize_duplicate.py's
+        #    test_materialize_duplicate_forces_the_copy_unpublished_with_no_place_node,
+        #    which is what actually goes red if this .update() is deleted;
+        #    that is the guard, not the OTHER test in the same file (which
+        #    asserts node count / pk identity / media sharing and makes no
+        #    claim about `published` at all).
+        #  - removing ONLY this loop, keeping the .update(), DOES redden TR4:
+        #    place_node's full n.save() then writes the untouched in-memory
+        #    published=True (from _create_nodes/the payload) straight back
+        #    over the row .update() just set.
+        for n in nodes:
+            n.published = False
         created = _create_elements(document, node_map, media_map)
         _rewrite_links(
             document, node_map, created, on_missing=on_missing, report=report

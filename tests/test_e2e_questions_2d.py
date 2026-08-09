@@ -62,7 +62,7 @@ def _seed_dragfill_lesson(username):
     course = Course.objects.create(title="C", slug=f"c-{username}", language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="lesson", title="U"
+        course=course, kind="unit", unit_type="lesson", title="U", published=True
     )
     q = DragFillBlankQuestionElement.objects.create(
         stem="Cap is ￿0￿", distractors="Rome"
@@ -143,7 +143,7 @@ def _seed_dragfill_quiz(username, slug):
     course = Course.objects.create(title="C", slug=slug, language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="quiz", title="Q"
+        course=course, kind="unit", unit_type="quiz", title="Q", published=True
     )
     q = DragFillBlankQuestionElement.objects.create(
         stem="￿0￿ and ￿1￿", distractors="Rome", marking_mode="A", max_attempts=2
@@ -248,7 +248,7 @@ def _seed_matchpair_lesson(username, slug):
     course = Course.objects.create(title="C", slug=slug, language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="lesson", title="U"
+        course=course, kind="unit", unit_type="lesson", title="U", published=True
     )
     q = MatchPairQuestionElement.objects.create(stem="<p>Match</p>", distractors="Rome")
     MatchPair.objects.create(question=q, left="France", right="Paris")

@@ -1,0 +1,44 @@
+{% load i18n %}
+{% comment %}
+Shared with node_confirm_flag.html (fix round 1): the headline TEXT only --
+each caller wraps it in its own tag (<p class="flag-strip__headline"> for
+the in-row fragment, <h1> for the full-page interstitial), because that
+wrapper is a real structural difference, not duplicated copy.
+{% endcomment %}
+{% if scope == "node" %}
+  {% if flag == "published" %}
+    {% if on == total %}
+      {% if show_warning %}
+        {% blocktrans with title=node.title %}Hide "{{ title }}" from students?{% endblocktrans %}
+      {% else %}
+        {% blocktrans with title=node.title %}Hide "{{ title }}"?{% endblocktrans %}
+      {% endif %}
+    {% else %}
+      {% blocktrans with title=node.title %}Publish "{{ title }}"?{% endblocktrans %}
+    {% endif %}
+  {% else %}
+    {% if on == total %}
+      {% blocktrans with title=node.title %}Make "{{ title }}" optional?{% endblocktrans %}
+    {% else %}
+      {% blocktrans with title=node.title %}Make "{{ title }}" obligatory?{% endblocktrans %}
+    {% endif %}
+  {% endif %}
+{% else %}
+  {% if flag == "published" %}
+    {% if is_mixed %}
+      {% blocktrans with title=node.title count n=total %}Publish or hide {{ n }} unit in "{{ title }}"?{% plural %}Publish or hide {{ n }} units in "{{ title }}"?{% endblocktrans %}
+    {% elif on == 0 %}
+      {% blocktrans with title=node.title count n=total %}Publish {{ n }} unit in "{{ title }}"?{% plural %}Publish {{ n }} units in "{{ title }}"?{% endblocktrans %}
+    {% else %}
+      {% blocktrans with title=node.title count n=total %}Hide {{ n }} unit in "{{ title }}"?{% plural %}Hide {{ n }} units in "{{ title }}"?{% endblocktrans %}
+    {% endif %}
+  {% else %}
+    {% if is_mixed %}
+      {% blocktrans with title=node.title count n=total %}Change {{ n }} lesson in "{{ title }}"?{% plural %}Change {{ n }} lessons in "{{ title }}"?{% endblocktrans %}
+    {% elif on == 0 %}
+      {% blocktrans with title=node.title count n=total %}Make {{ n }} lesson in "{{ title }}" obligatory?{% plural %}Make {{ n }} lessons in "{{ title }}" obligatory?{% endblocktrans %}
+    {% else %}
+      {% blocktrans with title=node.title count n=total %}Make {{ n }} lesson in "{{ title }}" optional?{% plural %}Make {{ n }} lessons in "{{ title }}" optional?{% endblocktrans %}
+    {% endif %}
+  {% endif %}
+{% endif %}

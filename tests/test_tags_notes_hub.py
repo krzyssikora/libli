@@ -63,14 +63,14 @@ def test_course_notes_orders_by_element_order_reorder_stable():
     assert e1.order < e2.order
     services.create_note(me, unit, e2.pk, "on-e2")
     services.create_note(me, unit, e1.pk, "on-e1")
-    rows = services.course_notes(me, course)
+    rows = services.course_notes(me, course, drafts="hide")
     assert len(rows) == 1
     groups = rows[0]["groups"]
     assert [g[0].pk for g in groups] == [e1.pk, e2.pk]  # by Element.order, not creation
     # reorder: make e1 come AFTER e2
     e1.order = e2.order + 5
     e1.save(update_fields=["order"])
-    rows = services.course_notes(me, course)
+    rows = services.course_notes(me, course, drafts="hide")
     assert [g[0].pk for g in rows[0]["groups"]] == [e2.pk, e1.pk]
 
 
@@ -83,7 +83,7 @@ def test_course_notes_unanchored_bucket_last_and_intrablock_order():
     n1 = services.create_note(me, unit, e1.pk, "first")
     n2 = services.create_note(me, unit, e1.pk, "second")
     services.create_note(me, unit, None, "unanchored")
-    groups = services.course_notes(me, course)[0]["groups"]
+    groups = services.course_notes(me, course, drafts="hide")[0]["groups"]
     assert groups[0][0] == e1
     assert [n.pk for n in groups[0][1]] == [n1.pk, n2.pk]  # created, pk
     assert groups[-1][0] is None
@@ -99,7 +99,7 @@ def test_course_notes_units_in_outline_order_skip_empty():
     u3 = _lesson(course, "Third")
     services.create_note(me, u3, None, "z")
     services.create_note(me, u1, None, "a")
-    rows = services.course_notes(me, course)
+    rows = services.course_notes(me, course, drafts="hide")
     assert [r["unit"].pk for r in rows] == [u1.pk, u3.pk]
 
 
@@ -143,6 +143,46 @@ def test_tags_by_course_excludes_inaccessible_and_other_authors():
     out = tag_services.tags_by_course(me)
     assert list(out[course]) == [mine]
     assert all(c == course for c in out)  # inaccessible course absent
+
+
+def test_tags_for_outline_drops_a_tag_that_only_lives_on_a_draft():
+    """Final-review m3. The outline's filter-chip set was built from UnitTag
+    rows with no draft exclusion, so a tag living only on now-drafted units
+    still produced a chip that filters to nothing -- inconsistent with the tags
+    hub one page over, which spec 2 queryset-filters (WR15/WR15b/WR15c).
+
+    Both directions, in one test, because "the chip is gone" alone is also
+    satisfied by a helper that drops the tag for everyone: the OWNER of the
+    course still sees it, since exclude_foreign_drafts keeps drafts in courses
+    the viewer manages.
+    """
+    owner = _user(20)
+    student = _user(21)
+    course = CourseFactory(owner=owner)
+    _enroll(student, course)
+    _enroll(owner, course)
+    live = _lesson(course, title="Live")
+    draft = _lesson(course, title="Draft")
+    live.published = True
+    live.save(update_fields=["published"])
+    draft.published = False
+    draft.save(update_fields=["published"])
+
+    kept = TagFactory(author=student, name="kept")  # on the live unit
+    only_draft = TagFactory(author=student, name="onlydraft")  # on the draft only
+    UnitTagFactory(tag=kept, unit=live)
+    UnitTagFactory(tag=only_draft, unit=draft)
+
+    by_unit, course_tags = tag_services.tags_for_outline(student, course)
+    assert [t.name for t in course_tags] == ["kept"]
+    assert draft.pk not in by_unit  # the draft's chips go with it
+
+    # The course owner authors the draft, so nothing is hidden from them.
+    owner_tag = TagFactory(author=owner, name="ownersdraft")
+    UnitTagFactory(tag=owner_tag, unit=draft)
+    o_by_unit, o_course_tags = tag_services.tags_for_outline(owner, course)
+    assert [t.name for t in o_course_tags] == ["ownersdraft"]
+    assert o_by_unit[draft.pk] == [owner_tag]
 
 
 # ---- Task 3: overview page ----

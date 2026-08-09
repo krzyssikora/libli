@@ -105,12 +105,19 @@ def test_outline_links_reset_per_grouping_node(client):
     ch = ContentNode.objects.create(
         course=course, kind=ContentNode.Kind.CHAPTER, title="c"
     )
+    # published=True: this fixture predates migration 0057, whose model default
+    # (published=False) would otherwise leave this raw-created unit -- and so
+    # the now-empty chapter above it -- invisible to the enrolled STUDENT this
+    # test logs in as. ContentNodeFactory opts into True for exactly this
+    # reason (see its docstring); a raw .objects.create() call must do the
+    # same to keep representing student-visible content.
     ContentNode.objects.create(
         course=course,
         kind=ContentNode.Kind.UNIT,
         parent=ch,
         unit_type=ContentNode.UnitType.LESSON,
         title="u",
+        published=True,
     )
     _login(client, course)
     r = client.get(reverse("courses:course_outline", args=[course.slug]))

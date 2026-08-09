@@ -42,7 +42,19 @@
     {% else %}
       {% comment %}No children: an empty disclosure would be a dead control. The
          chevron-width spacer keeps this title's left edge aligned with the <details>
-         shape's.{% endcomment %}
+         shape's.
+
+         DEAD on the student path since the publish-state branch, and something
+         now DEPENDS on that: build_outline prunes every zero-child container
+         under BOTH "hide" and "keep" (courses/rollups.py, the two pruning
+         passes), and the student rail only ever uses those two modes. Task 16
+         dropped tests/test_e2e_unit_nav.py::
+         test_chapter_microtype_survives_the_details_nesting's "childless shape"
+         iteration on exactly that reasoning, and
+         tests/test_unit_nav_render.py::
+         test_a_genuinely_empty_group_is_pruned_not_rendered is the pin.
+         "Restoring" reachability here would silently invalidate that e2e edit,
+         so change the pruning first, or not at all.{% endcomment %}
       <div class="unit-tree__head">
         <span class="unit-tree__chevron unit-tree__chevron--spacer" aria-hidden="true"></span>
         <span class="unit-tree__grouptitle" lang="{{ course.language }}">{{ item.node.title }}</span>

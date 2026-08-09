@@ -212,6 +212,11 @@ urlpatterns = [
         name="manage_node_duplicate",
     ),
     path(
+        "manage/courses/<slug:slug>/build/node/flag/",
+        views_manage.node_flag,
+        name="manage_node_flag",
+    ),
+    path(
         "manage/courses/<slug:slug>/build/element/move/",
         views_manage.element_move,
         name="manage_element_move",

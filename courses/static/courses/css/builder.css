@@ -97,6 +97,19 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
   -webkit-mask: var(--icm) no-repeat center / contain;
   mask: var(--icm) no-repeat center / contain;
 }
+/* A control that carries .icm but NO icm--* variant leaves --icm undefined.
+   `mask: var(--icm)` is then invalid at computed-value time; mask-image is not
+   inherited, so it falls back to its initial value `none` -- and with no mask,
+   `background-color: currentColor` above paints the full 15x15 box as a SOLID
+   square. The three inert cases in _tree_node.html (a quiz row's obligatory
+   control :86, a zero-units container :106, a zero-lessons container :128)
+   deliberately render NO glyph, because flag_glyph returns "" rather than risk
+   defaulting to "all live" -- and a solid box is the one thing they must not
+   look like: a FILLED glyph means "published" everywhere else in this tree.
+   `.ica.is-inert`'s opacity .35 dims it but does not remove it.
+   display:none on the pseudo-element only: the button box itself still occupies
+   its slot, so the row's order-based layout is unchanged. */
+.icm:not([class*="icm--"])::before { display: none; }
 .icm--grip { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='black'%3E%3Ccircle cx='6' cy='4' r='1.1'/%3E%3Ccircle cx='10' cy='4' r='1.1'/%3E%3Ccircle cx='6' cy='8' r='1.1'/%3E%3Ccircle cx='10' cy='8' r='1.1'/%3E%3Ccircle cx='6' cy='12' r='1.1'/%3E%3Ccircle cx='10' cy='12' r='1.1'/%3E%3C/g%3E%3C/svg%3E"); }
 .icm--up { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 10l4-4 4 4'/%3E%3C/svg%3E"); }
 .icm--down { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); }
@@ -105,6 +118,53 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .icm--download { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M8 1.5v8m0 0-2.8-2.8M8 9.5l2.8-2.8M2.5 12v1.5a1 1 0 001 1h9a1 1 0 001-1V12'/%3E%3C/svg%3E"); }
 .icm--duplicate { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M6 6h6v6H6z M4 10V4h6v2'/%3E%3C/svg%3E"); }
 .icm--chevron { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M6 3l5 5-5 5'/%3E%3C/svg%3E"); }
+
+/* Task 13: the two tree-row flag toggles (publish/obligatory). Same masked-icon
+   mechanism as the block above -- fills written `black`, never `currentColor`,
+   for the reason given at line 87. Fill AND silhouette both carry the state
+   (a ring/outline plus a filled half for the "mixed" pair) so the glyph survives
+   greyscale and colour-blindness; colour is reinforcement, never the sole channel. */
+.icm--live       { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5.5' fill='black'/%3E%3C/svg%3E"); }
+.icm--draft      { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='none' stroke='black' stroke-width='1.6'/%3E%3C/svg%3E"); }
+.icm--live-mixed { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='none' stroke='black' stroke-width='1.6'/%3E%3Cpath fill='black' d='M8 3A5 5 0 0 1 8 13Z'/%3E%3C/svg%3E"); }
+.icm--req        { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='black' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3C/svg%3E"); }
+.icm--opt        { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='none' stroke='black' stroke-width='1' stroke-linejoin='round' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3C/svg%3E"); }
+.icm--req-mixed  { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='none' stroke='black' stroke-width='1' stroke-linejoin='round' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3Cpath fill='black' d='M8,1.7 L9.5,5.9 L14,6.1 L10.5,8.8 L11.7,13.1 L8,10.6 Z'/%3E%3C/svg%3E"); }
+
+/* is-inert: a control that carries no `href`/`formaction` (or, for the anchor
+   cases, `aria-disabled`) but is NOT `disabled` -- see the row markup comments in
+   _tree_node.html for why. Without this rule the three inert cases (filter
+   active, zero units, zero lessons) render visually identical to a live control:
+   an anchor that looks clickable and does nothing, with only a tooltip to
+   explain it. Mirrors the existing .ica:disabled treatment above. */
+.ica.is-inert { opacity: .35; cursor: default; }
+
+/* Draft strike-through (Task 13, E2E1): the class lands on the <li>
+   (tree__row--draft), the strike-through belongs on the title, so this is a
+   DESCENDANT selector, not a rule on the class itself. .tree__title is an
+   <input type="text">, on which text-decoration renders correctly. */
+.tree__row--draft .tree__title { text-decoration: line-through; }
+
+/* Explicit flex `order` on every .tree__rowhead child (Task 13). The two flag
+   toggles must appear AFTER the hidden Rename button in DOM order (TREE1 --
+   Enter must still rename) while sitting LEFT of the title visually. The
+   chevron/leaf-spacer, badge and title are all at the default order 0, so a
+   single negative value on the toggles would not do it -- every child needs an
+   explicit value. The two toggles deliberately SHARE order 3: within an equal
+   order flex falls back to DOM order, which is exactly what is wanted (publish
+   left of obligatory) -- do not split them into distinct values.
+   The hidden Rename button carries NO order: it is position:absolute (line
+   ~53), so it is not a flex item at all, and an out-of-flow child ignores
+   `order` entirely -- only its DOM position matters, and CSS cannot touch that. */
+.tree__rowhead > .tree__toggle { order: 1; }
+.tree__rowhead > .tree__badge { order: 2; }
+.tree__rowhead > .tree__flag { order: 3; }
+.tree__rowhead > input.tree__title { order: 4; }
+.tree__rowhead > .tree__cluster { order: 5; }
+/* No opacity-exemption rule needed: .tree__cluster's `opacity: .5` hover-reveal
+   (line 62) is scoped to that element, and the toggles are SIBLINGS of it, not
+   descendants -- so they already render at full opacity at rest. They are
+   state indicators first; a 50%-dimmed publish dot would defeat the point. */
 
 /* #11 contextual "+" affordance */
 .tree__add-row { list-style: none; }
@@ -303,3 +363,57 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    `.manage__head .btn` ties on specificity and would depend on builder.css
    being linked after app.css (base.html:46-48) -- true today, and exactly the
    kind of accident that breaks silently when someone moves the rule. */
+
+
+/* ── Confirm strip + flag legend (Tasks 12/13) ──────────────────────────────
+   The strip is injected as a SIBLING after <form class="tree__rowhead">, inside
+   the same dense <li class="tree__row"> (HTML forbids nested forms). Without a
+   box of its own it reads as loose text that has fallen into the tree, so the
+   containment here is the feature, not decoration: a raised card, an accent
+   rail on the inline-start edge tying it to the row it belongs to, and enough
+   padding to separate it from the rows above and below.
+
+   Only what is builder-ONLY lives here: the wrapper card, the headline <p>
+   (the interstitial renders an <h1> instead) and the JS-injected dismiss.
+   Everything the shared partials emit -- .flag-strip__counts,
+   .flag-strip__actions, .flag-strip__hide-action and the quiz warning -- also
+   renders on node_confirm_flag.html, which declares no extra_css and therefore
+   loads base's reset/tokens/app ONLY. Those rules live in app.css for exactly
+   that reason; putting them here would leave the no-JS interstitial unstyled.
+   tests/test_publish_styles.py pins the split. */
+.flag-strip {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-inline-start: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+  position: relative;   /* containing block for the dismiss button */
+}
+/* reset.css zeroes every margin, so the strip re-establishes its own rhythm. */
+.flag-strip > form > * + * { margin-top: var(--space-2); }
+.flag-strip__headline { font-weight: 600; padding-inline-end: var(--space-6); }
+/* Injected by builder.js (insertStripAfterRowhead), never by a template -- a
+   bare "×" with no rule is a stray character in the corner of the card. */
+.flag-strip__dismiss {
+  position: absolute; top: var(--space-1); inset-inline-end: var(--space-2);
+  background: none; border: none; padding: 0 var(--space-1);
+  color: var(--text-secondary); font-size: 1.1rem; line-height: 1.2; cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.flag-strip__dismiss:hover { color: var(--text-primary); background: var(--surface-sunken); }
+/* The strip takes focus on open (tabindex="-1" + focusInto), so it must show a
+   ring: a focused element with no visible indicator is a keyboard dead end. */
+.flag-strip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* The legend is a <dl> whose rows are <div class="flag-legend__row">. Left
+   alone it renders with the UA's <dd> indentation and no glyph/label
+   alignment. Grid rather than flex on the row so every label starts at the
+   same x regardless of glyph box rounding. */
+.flag-legend {
+  display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+  margin: 0 0 var(--space-3); color: var(--text-secondary); font-size: .8125rem;
+}
+.flag-legend__row { display: grid; grid-template-columns: 15px auto; align-items: center; gap: var(--space-2); }
+.flag-legend__row dt, .flag-legend__row dd { margin: 0; }   /* UA <dd> indent */

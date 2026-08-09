@@ -144,7 +144,9 @@ def catalog_courses_for(student):
         .values_list("cohort_id", flat=True)
         .first()
     )
-    has_unit = ContentNode.objects.filter(course=OuterRef("pk"), kind="unit")
+    has_unit = ContentNode.objects.filter(
+        course=OuterRef("pk"), kind="unit", published=True
+    )
     return (
         Course.objects.filter(visibility="open")
         .filter(Q(self_enroll_cohorts__isnull=True) | Q(self_enroll_cohorts=cohort_id))

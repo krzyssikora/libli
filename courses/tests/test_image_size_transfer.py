@@ -37,8 +37,11 @@ def _validate(data):
     VALIDATORS["image"](data, "e1", MEDIA_KINDS)
 
 
-def test_format_version_is_bumped():
-    assert FORMAT_VERSION == 9
+def test_format_version_is_pinned():
+    # Renamed from test_format_version_is_bumped: that name claimed ownership
+    # of the number this feature bumped, but Task 9 (published on the node
+    # payload) has since bumped it again to 10.
+    assert FORMAT_VERSION == 10
 
 
 @pytest.mark.django_db

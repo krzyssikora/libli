@@ -83,7 +83,7 @@ def _seed_dragimage_lesson(username, slug):
     course = Course.objects.create(title="C", slug=slug, language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="lesson", title="U"
+        course=course, kind="unit", unit_type="lesson", title="U", published=True
     )
     media = MediaAsset.objects.create(
         course=course,
@@ -170,7 +170,7 @@ def _seed_dragfill_lesson(username, slug):
     course = Course.objects.create(title="C", slug=slug, language="en")
     Enrollment.objects.create(student=user, course=course)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="lesson", title="U"
+        course=course, kind="unit", unit_type="lesson", title="U", published=True
     )
     q = DragFillBlankQuestionElement.objects.create(
         stem="Cap is ￿0￿", distractors="Rome"

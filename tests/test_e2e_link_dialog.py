@@ -56,7 +56,12 @@ def _seed(owner, *, with_link=False):
         course=course, kind="chapter", parent=part, title="Quadratics"
     )
     unit = ContentNode.objects.create(
-        course=course, kind="unit", unit_type="lesson", parent=chapter, title="Lesson"
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=chapter,
+        title="Lesson",
+        published=True,
     )
     if with_link:
         el = TextElement(

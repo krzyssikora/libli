@@ -92,6 +92,41 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
               {% if unit.unit_type == 'quiz' %}aria-current="true"{% endif %}>{% trans "Quiz" %}</button>
     </form>
   </div>
+  {% if not unit.published %}
+    {% include "courses/_draft_banner.html" with banner_ctx="editor" %}
+  {% endif %}
+  {% if unit.unit_type == "quiz" %}
+    {% if submitted or in_progress %}
+    {% comment %}Task 15 §6, `is_quiet`'s SECOND consumer (Task 12's confirm
+    strip is the first). Both count lines render independently -- a
+    published quiz whose only rows are IN_PROGRESS would otherwise carry no
+    banner at all (it is live, so the draft banner above does not apply
+    either), and unchecking Published in the settings form directly below
+    would strand every in-flight attempt in silence.{% endcomment %}
+    <div class="quiz-submission-banner{% if quiet %} quiz-submission-banner--quiet{% endif %}">
+      {% if quiet %}
+        <p>{% blocktrans count n=submitted %}{{ n }} submission, all from archived groups.{% plural %}{{ n }} submissions, all from archived groups.{% endblocktrans %}</p>
+      {% else %}
+        {% if submitted %}<p>{% blocktrans count n=submitted %}{{ n }} student has submitted.{% plural %}{{ n }} students have submitted.{% endblocktrans %}</p>{% endif %}
+      {% endif %}
+      {% comment %}The in-progress line sits OUTSIDE the quiet/loud choice, by
+      construction. `is_quiet` (courses/quiz_warnings.py) derives `submitters`
+      from SUBMITTED rows only, so a student mid-attempt cannot force the loud
+      branch -- a last-year archived cohort's 12 submissions plus this year's 3
+      live IN_PROGRESS attempts renders quiet, and nesting this line back inside
+      the else branch would drop the only mention of them. Unchecking Published
+      in the settings form
+      directly below then strands all three in silence, which is exactly what
+      spec 4 exempts that form from confirming ON THE GROUNDS that this banner
+      already delivered the counts. An attempt in flight is by definition
+      current, never "archived" information.{% endcomment %}
+      {% if in_progress %}<p>{% blocktrans count n=in_progress %}{{ n }} student is part-way through.{% plural %}{{ n }} students are part-way through.{% endblocktrans %}</p>{% endif %}
+      <p>{% trans "Editing this quiz will not re-grade the responses already recorded." %}</p>
+      <p>{% trans "Adding or removing questions can make old and new submissions' scores incomparable." %}</p>
+      <p>{% trans "Deleting a question also deletes every recorded answer to it." %}</p>
+    </div>
+    {% endif %}
+  {% endif %}
   {% include "courses/manage/editor/_unit_settings.html" %}
   <div class="view-toggle" hidden>
     <span class="view-toggle__caption">{% trans "View" %}</span>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+No-JS interstitial (Task 12), reusing node_confirm_delete.html's page shape.
+The conditional copy (headline / counts / actions+quiz-warning) lives in
+three shared partials, also included by _flag_strip.html, so the two
+surfaces cannot drift apart -- see fix round 1 in
+.superpowers/sdd/2026-08-08-unit-publish-state/task-12-report.md. Only the
+page chrome and the Cancel href are per-template.
+{% endcomment %}
+{% block content %}
+<section class="manage" data-flag-strip="{{ node.pk }}">
+  <h1>{% include "courses/manage/_flag_strip_headline.html" %}</h1>
+
+  {% include "courses/manage/_flag_strip_counts.html" %}
+
+  <form method="post" action="{% url 'courses:manage_node_flag' slug=course.slug %}">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ node.pk }}">
+    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+    <input type="hidden" name="flag" value="{{ flag }}">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    <input type="hidden" name="confirmed" value="1">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    {% if ctx %}<input type="hidden" name="ctx" value="{{ ctx }}">{% endif %}
+
+    <div class="flag-strip__actions">
+      {% include "courses/manage/_flag_strip_actions.html" %}
+    </div>
+  </form>
+  <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}{% if q %}?q={{ q|urlencode }}{% endif %}">{% trans "Cancel" %}</a>
+</section>
+{% endblock %}

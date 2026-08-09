@@ -19,7 +19,15 @@ from django.template.loader import render_to_string
 
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import QuizSubmission
 from courses.views_manage import _children_map
+
+# The REAL helper, not a local copy like _containers/_descendants below. Those
+# two are copies so the probe can run on PRE-Task-1 code to capture a baseline;
+# _fold_flag_counts ships in the same commit as this line, so there is no
+# earlier code for it to have to run against -- and a copy could drift from the
+# original, which is the one thing TREE4 exists to prevent.
+from courses.views_manage import _fold_flag_counts
 
 SLUG = os.environ.get("SLUG", "mat-pp")
 OPEN = os.environ.get("OPEN", "all")
@@ -116,6 +124,34 @@ def _run():
         "parent_kind": None,
         "course": course,
         "builder_url": f"/manage/courses/{course.slug}/build/",
+        # Task 13 made these HARD requirements of _tree_node.html, and only
+        # _tree_context supplied them -- so without them the probe dies on the
+        # FIRST container row. `string_if_invalid` is unset (defaults to ""), so
+        # `flag_counts|get_item:node.pk` calls get_item("", pk) ->
+        # AttributeError: 'str' object has no attribute 'get'. On mat-pp the top
+        # level is 21 Parts, so it fires on row one. A published quiz row is a
+        # parallel TypeError on `node.pk in quizzes_with_submissions`, which
+        # Django's IfNode does NOT swallow (it catches only
+        # VariableDoesNotExist). The probe is the tool spec 4's own cost analysis
+        # points a future profiler at; it has to work.
+        #
+        # Fold `cmap`, NEVER `render_map`. Under an active filter render_map is
+        # the RESTRICTED map, and folding that makes a container claim "3 units"
+        # when its subtree holds 40 -- TREE4's mutant exactly. The probe already
+        # keeps that distinction for open_descendants above.
+        "flag_counts": _fold_flag_counts(cmap),
+        # One course-wide query, matching _tree_context: per-row this would be
+        # an N+1 across every quiz in a 2,866-node tree, which would show up in
+        # the probe's own query count and be blamed on the render.
+        "quizzes_with_submissions": set(
+            QuizSubmission.objects.filter(unit__course=course).values_list(
+                "unit_id", flat=True
+            )
+        ),
+        # Not required to render, but the flag controls emit it into every
+        # container row's href -- omitting it understates the byte size this
+        # branch actually added, which is half of what the probe reports.
+        "flag_url": f"/manage/courses/{course.slug}/build/node/flag/",
     }
     render_to_string("courses/manage/_scope.html", ctx)  # warm the template
     t0 = time.perf_counter()

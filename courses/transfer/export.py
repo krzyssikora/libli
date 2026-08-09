@@ -586,6 +586,7 @@ def _node_dict(node, nid, parent_internal):
         # legitimately exported course survives the strict null-only import rule.
         "unit_type": node.unit_type or None,
         "obligatory": node.obligatory,
+        "published": node.published,
         "html_seed_js": node.html_seed_js,
     }
 

@@ -12,6 +12,7 @@
          data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}"
          data-msg-illegal="{% trans "That move isn't allowed here." %}"
          data-msg-network="{% trans 'Network error — please try again.' %}"
+         data-msg-close="{% trans 'Close' %}"
          data-msg-truncation="{% trans 'Only the first %(limit)s scopes were opened.' %}"
          data-msg-filter="{% trans 'Filtered: %(shown)s / %(total)s' %}"
          data-applied-q="{{ q }}"
@@ -42,6 +43,7 @@
          href="{{ builder_url }}?open={% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Collapse all" %}</a>
     </header>
     {% include "courses/manage/_structure_legend.html" with course=course %}
+    {% include "courses/manage/_flag_legend.html" %}
     <p class="helptext">{% trans "Add a slide break to split this unit into a slideshow." %}</p>
     <ul class="builder__info" role="status" data-info>{% for entry in info %}<li data-info-key="{{ entry.key }}">{{ entry.text }}</li>{% endfor %}</ul>
     {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None open_ids=open_ids %}

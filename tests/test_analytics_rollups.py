@@ -83,7 +83,7 @@ def test_progress_matrix_cells_overall_and_average():
     s1, s2 = UserFactory(), UserFactory()
     UnitProgressFactory(student=s1, unit=l1, completed=True)  # s1: 1/2 -> 50%
     # s2: 0/2 -> 0%  (defined, NOT None)
-    m = build_progress_matrix(course, [s1, s2])
+    m = build_progress_matrix(course, [s1, s2], drafts="keep")
     assert m["mode"] == "progress"
     assert m["rows"][0]["cells"][0]["percent"] == 50
     assert m["rows"][0]["cells"][0]["label"] == "50%"
@@ -100,7 +100,7 @@ def test_progress_column_with_no_obligatory_lessons_is_none():
     ch = _chapter(course)
     _quiz(course, ch)  # all-quiz chapter -> no obligatory lessons
     s1 = UserFactory()
-    m = build_progress_matrix(course, [s1])
+    m = build_progress_matrix(course, [s1], drafts="keep")
     assert m["rows"][0]["cells"][0]["percent"] is None
     assert m["rows"][0]["cells"][0]["label"] == "—"
     assert m["averages"][0]["percent"] is None  # mean of zero defined cells
@@ -117,7 +117,7 @@ def test_progress_overall_parity_with_build_outline():
     s1 = UserFactory()
     UnitProgressFactory(student=s1, unit=l1, completed=True)
     UnitProgressFactory(student=s1, unit=l2, completed=True)  # 2/3
-    m = build_progress_matrix(course, [s1])
+    m = build_progress_matrix(course, [s1], drafts="keep")
     tree = build_outline(course, s1)
     done = sum(d["required_done"] for d in tree)
     total = sum(d["required_total"] for d in tree)
@@ -137,12 +137,12 @@ def test_progress_matrix_query_count_size_independent():
         return [UserFactory() for _ in range(n)]
 
     s = add_students(3)
-    build_progress_matrix(course, s)  # warm caches
+    build_progress_matrix(course, s, drafts="keep")  # warm caches
     with CaptureQueriesContext(connection) as c1:
-        build_progress_matrix(course, s)
+        build_progress_matrix(course, s, drafts="keep")
     s2 = s + add_students(20)
     with CaptureQueriesContext(connection) as c2:
-        build_progress_matrix(course, s2)
+        build_progress_matrix(course, s2, drafts="keep")
     assert len(c1) == len(c2)
 
 
@@ -192,7 +192,7 @@ def test_results_matrix_counts_submitted_not_started_and_in_progress():
         max_score=Decimal("0.00"),
     )
     # s3: no submission (not started)
-    m = build_results_matrix(course, [s1, s2, s3])
+    m = build_results_matrix(course, [s1, s2, s3], drafts="keep")
     assert m["mode"] == "results"
     assert m["rows"][0]["cells"][0]["percent"] == 80  # s1 counted
     assert m["rows"][1]["cells"][0]["percent"] is None  # s2 in_progress -> neutral
@@ -221,13 +221,13 @@ def test_results_matrix_excludes_awaiting_review_until_reviewed():
     )
     resp = QuestionResponse.objects.create(submission=sub, element=el, locked=True)
     # unreviewed [R] -> awaiting review -> excluded from the ratio (neutral)
-    m = build_results_matrix(course, [s1])
+    m = build_results_matrix(course, [s1], drafts="keep")
     assert m["rows"][0]["cells"][0]["percent"] is None
     # once reviewed -> counted (reads the frozen score/max)
     resp.reviewed_at = timezone.now()
     resp.earned_marks = Decimal("7.00")
     resp.save()
-    m2 = build_results_matrix(course, [s1])
+    m2 = build_results_matrix(course, [s1], drafts="keep")
     assert m2["rows"][0]["cells"][0]["percent"] == 70
 
 
@@ -255,10 +255,10 @@ def test_results_overall_parity_with_build_course_results():
         score=Decimal("9.00"),
         max_score=Decimal("10.00"),
     )
-    m = build_results_matrix(course, [s1])
+    m = build_results_matrix(course, [s1], drafts="keep")
     assert (
         m["rows"][0]["overall"]["percent"]
-        == build_course_results(course, s1)["percent"]
+        == build_course_results(course, s1, drafts="keep")["percent"]
     )
 
 
@@ -287,12 +287,12 @@ def test_results_matrix_query_count_size_independent():
         return out
 
     s = students(3)
-    build_results_matrix(course, s)  # warm ContentType cache
+    build_results_matrix(course, s, drafts="keep")  # warm ContentType cache
     with CaptureQueriesContext(connection) as c1:
-        build_results_matrix(course, s)
+        build_results_matrix(course, s, drafts="keep")
     s2 = s + students(20)
     with CaptureQueriesContext(connection) as c2:
-        build_results_matrix(course, s2)
+        build_results_matrix(course, s2, drafts="keep")
     assert len(c1) == len(c2)
 
 
@@ -418,8 +418,8 @@ def test_progress_partition_invariant_under_expansion():
     l2 = _lesson(course, ch)  # sibling of sec
     s = UserFactory()
     UnitProgressFactory(student=s, unit=l1, completed=True)  # 1 of 2 obligatory
-    flat = build_progress_matrix(course, [s])
-    expanded = build_progress_matrix(course, [s], {ch.pk})
+    flat = build_progress_matrix(course, [s], drafts="keep")
+    expanded = build_progress_matrix(course, [s], {ch.pk}, drafts="keep")
     # expanding regroups, never changes the student's overall
     assert (
         flat["rows"][0]["overall"]["percent"]
@@ -447,8 +447,8 @@ def test_results_partition_invariant_under_expansion():
         score=Decimal("7"),
         max_score=Decimal("10"),
     )
-    flat = build_results_matrix(course, [s])
-    expanded = build_results_matrix(course, [s], {ch.pk})
+    flat = build_results_matrix(course, [s], drafts="keep")
+    expanded = build_results_matrix(course, [s], {ch.pk}, drafts="keep")
     assert flat["rows"][0]["overall"]["percent"] == 70
     assert expanded["rows"][0]["overall"]["percent"] == 70  # unchanged by expansion
 
@@ -458,7 +458,7 @@ def test_builders_expose_expanded_nodes_and_expandable():
     course = CourseFactory()
     ch = _chapter(course)
     _section(course, ch)
-    m = build_progress_matrix(course, [])
+    m = build_progress_matrix(course, [], drafts="keep")
     assert m["expanded_nodes"] == []
     assert m["columns"][0]["expandable"] is True
     assert set(m["columns"][0].keys()) == {"node", "title", "expandable"}
@@ -474,11 +474,11 @@ def test_progress_query_count_constant_under_expansion():
     sec = _section(course, ch)
     _lesson(course, sec)
     s = [UserFactory() for _ in range(3)]
-    build_progress_matrix(course, s)  # warm
+    build_progress_matrix(course, s, drafts="keep")  # warm
     with CaptureQueriesContext(connection) as c1:
-        build_progress_matrix(course, s)
+        build_progress_matrix(course, s, drafts="keep")
     with CaptureQueriesContext(connection) as c2:
-        build_progress_matrix(course, s, {ch.pk, sec.pk})
+        build_progress_matrix(course, s, {ch.pk, sec.pk}, drafts="keep")
     assert len(c1) == len(c2)  # only in-memory grouping changes
 
 
@@ -499,7 +499,7 @@ def test_build_course_results_rows_carry_submission_pk():
         score=Decimal("0"),
         max_score=Decimal("0"),
     )
-    res = build_course_results(course, s)
+    res = build_course_results(course, s, drafts="keep")
     by_unit = {r["unit"].pk: r for r in res["rows"]}
     assert by_unit[qz1.pk]["submission_pk"] == sub.pk
     assert by_unit[qz2.pk]["submission_pk"] is None  # not_started -> no submission
@@ -534,7 +534,7 @@ def test_build_student_breakdown_pills():
         max_score=Decimal("10"),
     )
     # pending has an unreviewed [R] -> awaiting_review (no QuestionResponse reviewed)
-    bd = build_student_breakdown(course, s)
+    bd = build_student_breakdown(course, s, drafts="keep")
     by_unit = {}
 
     def collect(nodes):
@@ -570,7 +570,7 @@ def test_build_student_breakdown_submitted_ungraded_no_percent():
         score=Decimal("0"),
         max_score=Decimal("0"),
     )
-    bd = build_student_breakdown(course, s)
+    bd = build_student_breakdown(course, s, drafts="keep")
     pill = bd["tree"][0]["children"][0]["pill"]
     # no score/max/percent -> no divide-by-zero
     assert pill == {"kind": "submitted"}
@@ -620,12 +620,12 @@ def test_results_matrix_raw_cell_and_overall_labels():
     _auto_q(qz, "50")
     s1 = UserFactory()
     _counted_sub(s1, qz, "34", "50")
-    m = build_results_matrix(course, [s1], values="raw")
+    m = build_results_matrix(course, [s1], values="raw", drafts="keep")
     cell = m["rows"][0]["cells"][0]
     assert cell["label"] == "34/50"
     assert cell["percent"] == 68
     assert m["rows"][0]["overall"]["label"] == "34/50"
-    p = build_results_matrix(course, [s1])
+    p = build_results_matrix(course, [s1], drafts="keep")
     assert m["rows"][0]["cells"][0]["percent"] == p["rows"][0]["cells"][0]["percent"]
 
 
@@ -640,7 +640,7 @@ def test_results_matrix_raw_student_specific_denominator():
     _counted_sub(s_full, q1, "8", "10")
     _counted_sub(s_full, q2, "6", "10")
     _counted_sub(s_partial, q1, "5", "10")
-    m = build_results_matrix(course, [s_full, s_partial], values="raw")
+    m = build_results_matrix(course, [s_full, s_partial], values="raw", drafts="keep")
     assert m["rows"][0]["cells"][0]["label"] == "14/20"
     assert m["rows"][1]["cells"][0]["label"] == "5/10"
 
@@ -652,7 +652,7 @@ def test_results_matrix_raw_empty_cell():
     qz = _quiz(course, ch)
     _auto_q(qz, "10")
     s = UserFactory()
-    m = build_results_matrix(course, [s], values="raw")
+    m = build_results_matrix(course, [s], values="raw", drafts="keep")
     cell = m["rows"][0]["cells"][0]
     assert cell["label"] == "—" and cell["percent"] is None
 
@@ -666,7 +666,7 @@ def test_results_matrix_raw_footer_is_class_totals():
     s1, s2 = UserFactory(), UserFactory()
     _counted_sub(s1, qz, "8", "10")
     _counted_sub(s2, qz, "6", "10")
-    m = build_results_matrix(course, [s1, s2], values="raw")
+    m = build_results_matrix(course, [s1, s2], values="raw", drafts="keep")
     assert m["averages"][0]["label"] == "14/20"
     assert m["averages"][0]["percent"] == 70
     assert m["overall_average"]["label"] == "14/20"
@@ -707,9 +707,12 @@ def test_progress_matrix_exposes_has_lessons():
     course = CourseFactory()
     ch = _chapter(course)
     _lesson(course, ch)
-    m = build_progress_matrix(course, [UserFactory()])
+    m = build_progress_matrix(course, [UserFactory()], drafts="keep")
     assert m["has_lessons"] is True
     quizless = CourseFactory()
     chq = _chapter(quizless)
     _quiz(quizless, chq)
-    assert build_progress_matrix(quizless, [UserFactory()])["has_lessons"] is False
+    assert (
+        build_progress_matrix(quizless, [UserFactory()], drafts="keep")["has_lessons"]
+        is False
+    )

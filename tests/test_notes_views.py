@@ -15,6 +15,7 @@ def _lesson(course=None):
         kind=ContentNode.Kind.UNIT,
         unit_type=ContentNode.UnitType.LESSON,
         title="U",
+        published=True,
     )
 
 

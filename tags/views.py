@@ -35,7 +35,7 @@ def _panel_response(request, unit, *, status=200, error=None, draft=""):
 @login_required
 @require_POST
 def tag_add(request, slug, node_pk):
-    unit = get_node_or_404(node_pk, slug, require_unit=True)
+    unit = get_node_or_404(node_pk, slug, viewer=request.user, require_unit=True)
     if not can_access_course(request.user, unit.course):
         raise PermissionDenied
     tag_pks = request.POST.getlist("tag_pk")
@@ -72,7 +72,7 @@ def _add_error(request, unit, draft, exc):
 @login_required
 @require_POST
 def tag_remove(request, slug, node_pk):
-    unit = get_node_or_404(node_pk, slug, require_unit=True)
+    unit = get_node_or_404(node_pk, slug, viewer=request.user, require_unit=True)
     if not can_access_course(request.user, unit.course):
         raise PermissionDenied
     services.untag_unit(request.user, unit, request.POST.get("tag_pk"))

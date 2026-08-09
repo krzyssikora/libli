@@ -557,20 +557,26 @@ def test_clicking_a_folded_summary_reveals_its_units(browser, live_server):
 def test_chapter_microtype_survives_the_details_nesting(browser, live_server):
     """The highest-risk change in 2A: the > child combinator stops matching once
     <details> is interposed, and chapters silently lose their uppercase micro-type.
-    Baseline is the literal current value (courses.css:540-542), not 'same as today'."""
+    Baseline is the literal current value (courses.css:540-542), not 'same as today'.
+
+    Originally also checked the "childless shape" (a chapter with zero children,
+    rendered as a plain <div class="unit-tree__head"> per _unit_tree_node.html's
+    else-branch) -- but the unit-publish-state feature's container pruning
+    (courses/rollups.py build_outline: `if prune: d["children"] = [k for k in
+    d["children"] if k["is_unit"] or k["children"]]`, applied under BOTH "hide"
+    and "keep") now drops any group with zero children from its parent's list
+    before the template ever sees it, under every viewer. That branch is
+    unreachable from a real course structure now, for anyone -- see
+    tests/test_unit_nav_render.py::test_a_genuinely_empty_group_is_pruned_not_rendered,
+    which pins the absence of `<div class="unit-tree__head"` directly. Keeping a
+    dead second iteration here would either hang on the 30s Playwright timeout
+    (as it did) or silently pass on stale DOM once xdist ordering coincidentally
+    left one around -- neither is a real assertion, so the branch is dropped
+    rather than special-cased around the pruning it can no longer survive.
+    """
     _make_student("e2e_micro")
     course, _chapters, _units, middle, _sec = _seed_grouped_course(
         "e2e_micro", "e2e-micro"
-    )
-    from tests.factories import ContentNodeFactory
-
-    # the childless shape
-    ContentNodeFactory(
-        course=course,
-        kind="chapter",
-        parent=None,
-        unit_type=None,
-        title="Empty Chapter",
     )
 
     ctx = browser.new_context(reduced_motion="reduce")
@@ -579,19 +585,16 @@ def test_chapter_microtype_survives_the_details_nesting(browser, live_server):
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
 
     rail = page.locator("[data-unit-tree]")
-    for locator, shape in (
-        (rail.locator("details > summary.unit-tree__head").first, "<details> shape"),
-        (rail.locator("div.unit-tree__head").first, "childless shape"),
-    ):
-        style = locator.evaluate(
-            "el => { const s = getComputedStyle(el);"
-            " return {tt: s.textTransform, fs: s.fontSize}; }"
-        )
-        assert style["tt"] == "uppercase", f"{shape}: lost uppercase ({style['tt']})"
-        # .64rem against the 16px root = 10.24px.
-        assert abs(float(style["fs"].rstrip("px")) - 10.24) < 0.5, (
-            f"{shape}: font-size drifted ({style['fs']})"
-        )
+    locator = rail.locator("details > summary.unit-tree__head").first
+    style = locator.evaluate(
+        "el => { const s = getComputedStyle(el);"
+        " return {tt: s.textTransform, fs: s.fontSize}; }"
+    )
+    assert style["tt"] == "uppercase", f"lost uppercase ({style['tt']})"
+    # .64rem against the 16px root = 10.24px.
+    assert abs(float(style["fs"].rstrip("px")) - 10.24) < 0.5, (
+        f"font-size drifted ({style['fs']})"
+    )
     ctx.close()
 
 

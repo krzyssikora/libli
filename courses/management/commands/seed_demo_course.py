@@ -193,7 +193,19 @@ class Command(BaseCommand):
             course=course,
             parent=parent,
             title=title,
-            defaults={"kind": kind, "unit_type": unit_type, "obligatory": obligatory},
+            defaults={
+                "kind": kind,
+                "unit_type": unit_type,
+                "obligatory": obligatory,
+                # The demo course represents LIVE content -- demo_student must
+                # see it, and the help screenshots render student-facing pages
+                # driven off this seed. The model default is False since
+                # migration 0057, so without this a fresh seed produces a course
+                # that is blank to students and absent from the catalogue.
+                # get_or_create's `defaults` apply on CREATE only, so an existing
+                # demo database is left untouched.
+                "published": True,
+            },
         )
         return node
 

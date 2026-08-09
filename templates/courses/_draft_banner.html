@@ -1,0 +1,28 @@
+{% load i18n %}
+{% comment %}
+Shared between the editor page (banner_ctx="editor") and the student-facing
+render (banner_ctx="unit", shown only to an author -- see the caller's own
+`is_author` guard). Text-only, NO sprite glyph: `_icon_sprite.html` is
+included only by builder.html, editor/editor.html and help/doc.html, so a
+glyph here would resolve to nothing on the student-facing render, and
+pulling the sprite into the lesson/quiz templates to serve one banner would
+ship the whole symbol set to every student page for no other purpose.
+
+The form carries EVERY parameter manage_node_flag validates -- it has no
+rowhead form to inherit hidden inputs from, and omitting flag/value/scope
+422s every click.
+{% endcomment %}
+<div class="draft-banner">
+  <p class="draft-banner__text">{% trans "Draft — not visible to students" %}</p>
+  <form class="draft-banner__form" method="post"
+        action="{% url 'courses:manage_node_flag' slug=unit.course.slug %}">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ unit.pk }}">
+    <input type="hidden" name="token" value="{{ unit.updated.isoformat }}">
+    <input type="hidden" name="flag" value="published">
+    <input type="hidden" name="value" value="1">
+    <input type="hidden" name="scope" value="node">
+    <input type="hidden" name="ctx" value="{{ banner_ctx }}">
+    <button class="btn btn--primary btn--small" type="submit">{% trans "Publish" %}</button>
+  </form>
+</div>
