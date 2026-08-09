@@ -1144,7 +1144,10 @@ def test_0058_aborts_with_a_named_error_on_a_negative_tolerance():
         Element.objects.create(
             stem="neg", value=Decimal("1.00000000"), tolerance=Decimal("-0.5")
         )
-        with pytest.raises(RuntimeError, match="negative"):
+        # match= on a substring ONLY the counting pass emits. "negative" alone
+        # would also match the write-site backstop, making the "delete the
+        # counting pass" mutant undetectable.
+        with pytest.raises(RuntimeError, match="Repair them before running 0058"):
             _migrate(AFTER)
     finally:
         Element = _migrate(BEFORE).loader.project_state(BEFORE).apps.get_model(
@@ -1224,8 +1227,17 @@ ordering all surface here and nowhere else.
 1. In the migration, replace `_format_decimal_plain(row.tolerance)` with `str(row.tolerance)` and
    drop the `tolerance == 0` branch → the `tiny` assertion fails on `'1E-8'`. This is the mutant
    that would have taken down the production migration.
-2. Delete the counting pass → the negative-tolerance test dies with `IntegrityError` mid-write
-   instead of a clean `RuntimeError`.
+2. Delete the counting pass **and** the write-site `elif row.tolerance < 0` backstop → `forwards`
+   silently writes `"-0.5"` and the test fails with `DID NOT RAISE RuntimeError`.
+   **Deleting the counting pass alone is not a valid mutant**: the backstop raises the same
+   `RuntimeError` with a message that also contains "negative", so
+   `pytest.raises(RuntimeError, match="negative")` stays green and the falsification proves
+   nothing. There is also no `IntegrityError` to reach here — this migration is `Decimal`-native,
+   so `_format_decimal_plain(Decimal("-0.5"))` returns the valid string `"-0.5"` and no `None` is
+   ever produced. (The `IntegrityError` narrative belongs to `canonical_tolerance_text`, which
+   the migration deliberately does not use.) To keep the two raise sites distinguishable, the
+   test's `match=` is tightened to `"Repair them before running 0058"`, which only the counting
+   pass emits.
 3. Remove the `is not TOO_LONG` half of `clean()`'s guards → the new
    `assert overflowing.value == "." + "1"*63` in
    `test_shortnumeric_full_clean_rejects_and_reports_the_right_key` fails, showing the sentinel
@@ -1604,7 +1616,11 @@ Fill the `...` from the existing fixtures in `tests/test_questions_2b_consumptio
 
 Run: `uv run pytest tests/test_questions_2b_consumption.py -k "reveal or inputmode" -v`
 
-Expected: FAIL. The `inputmode` test fails on `decimal`. The reveal tests fail because the reveal
+Expected: **four selected, three FAIL, one PASS.** The pre-existing
+`test_post_submit_reveals_only_answered_across_types` (`:127`) matches the `reveal` token, builds
+no short-numeric element, and is unaffected — do not read it as a partial failure.
+
+The `inputmode` test fails on `decimal`. The reveal tests fail because the reveal
 renders **blank** — not `0.33333333`. By this point `value` holds the string `"1/3"`, and the
 unchanged template still applies `|floatformat:"-8"`, which tries `Decimal("1/3")`, then
 `float("1/3")`, and **returns `""`** on failure (`django/template/defaultfilters.py`). So the
@@ -1791,10 +1807,18 @@ Run: `uv run pytest tests/test_transfer_validation.py tests/test_transfer_import
 No `-k`: an earlier filter silently deselected `test_legacy_v10_payload_canonicalises`, so it was
 never demonstrated red — which the "falsify, don't run" rule forbids.
 
-Expected: **four FAIL, three PASS** among the new tests.
+Expected: **ten FAIL, three PASS.** The command runs both files whole, so it includes the two
+pre-existing needles Step 1 edited and the four new `test_transfer_import.py` tests, not just the
+seven validation tests:
 
-| new test | before the rewrite | why |
+| test | before the rewrite | why |
 |---|---|---|
+| **pre-existing** `test_malformed_decimal_and_wrong_type_reject` (`:549`) | **FAIL** | Step 1 changed its needle to "is not a valid number or fraction"; the old message still says "decimal" |
+| **pre-existing** `test_nonfinite_decimal_strings_reject_not_500` (`:558`) | **FAIL** | same needle change |
+| **new** `test_zero_tolerance_element_round_trips` | **FAIL** | `Decimal("")` raises today |
+| **new** `test_fraction_value_round_trips` | **FAIL** | `check_decimal_str` rejects `1/3` |
+| **new** `test_legacy_v10_payload_canonicalises` | **FAIL** | the importer still stores `"1.50000000"` verbatim |
+| **new** `test_duplicate_element_preserves_a_fraction_and_empty_tolerance` | **FAIL** | both of the above, end to end |
 | `..._rejects_unparseable_value` | **FAIL** | the message is still `check_decimal_str`'s "decimal" wording |
 | `..._rejects_a_canonical_overflow` | **FAIL** | `check_decimal_str` accepts it — 63 dp is fine for it, and nothing checks canonical length |
 | `..._unparseable_tolerance_rejects_without_a_typeerror` | **FAIL** | same message mismatch |
@@ -2089,8 +2113,10 @@ package — scoping the sweep to `tests/` alone is how the restore sites get mis
 `value=Decimal("3.14")` → `value="3.14"`; `tolerance=Decimal("0")` and `tolerance=0` → `tolerance=""`;
 `value=42` → `value="42"`. **At each converted site, remove the now-unused `Decimal` import** —
 several of these files import it function-locally for exactly the line being changed, and ruff
-F401 fails the branch gate. (`tests/test_lal_loader_units.py` and `tests/test_transfer_export.py`
-keep theirs; other lines still use it.) Leave
+F401 fails the branch gate. (`tests/test_lal_loader_units.py`, `tests/test_transfer_export.py` **and
+`tests/test_transfer_import.py`** keep theirs — the last still needs it at `:172` for
+`max_marks=Decimal("2.00")`. The `ruff check` in Step 4 is the real arbiter; this list is a
+convenience, not an exhaustive rule.) Leave
 `tests/test_questions_2b_marking.py::test_shortnumeric_mark_tolerance_and_decimal_comma`
 **green and unmodified** — it builds an in-memory instance with `value=Decimal("3.14")` and is the
 only end-to-end evidence that the coercion prologue works. Add canonical-string equivalents
