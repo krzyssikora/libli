@@ -285,3 +285,90 @@ def test_new_types_in_element_models():
         "fillblankquestionelement",
     ):
         assert name in ELEMENT_MODELS
+
+
+def test_parse_numeric_value_rejects_over_long_input_instead_of_raising():
+    # Pre-existing crash: int() on >4300 digits raises ValueError under CPython >=3.11,
+    # and this parser runs on student input via blank_matches.
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value("1" * 5000 + "/2") is None
+
+
+def test_parse_numeric_value_accepts_100_chars_so_fill_blank_is_not_narrowed():
+    # Pins the 256 comparison cap, NOT the 64 storage cap. Collapsing the two
+    # constants would silently stop 65-4300 char numbers matching in fill-blank.
+    from fractions import Fraction
+
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value("1" * 100) == Fraction(int("1" * 100))
+
+
+def test_parse_numeric_value_coerces_decimal_without_e_notation():
+    from decimal import Decimal
+    from fractions import Fraction
+
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value(Decimal("1.5")) == Fraction(3, 2)
+    # str(Decimal("0.00000000")) is '0E-8', which no grammar matches.
+    assert parse_numeric_value(Decimal("0.00000000")) == Fraction(0)
+
+
+def test_parse_numeric_value_coerces_json_floats_without_e_notation():
+    from fractions import Fraction
+
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value(2.5) == Fraction(5, 2)
+    # str(0.00001) is '1e-05'.
+    assert parse_numeric_value(0.00001) == Fraction(1, 100000)
+    # Decimal(0.1) is 55 digits of binary noise; Decimal(str(0.1)) is not.
+    assert parse_numeric_value(0.1) == Fraction(1, 10)
+
+
+def test_parse_numeric_value_rejects_bool_without_raising():
+    # isinstance(True, int) is True; Decimal("True") raises InvalidOperation.
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value(True) is None
+
+
+def test_parse_number_did_not_get_a_length_guard():
+    # PINNING TEST — green before and after, and that is the point: it must stay
+    # green while parse_numeric_value gains its guard. Its mutant is not a change
+    # to this task's diff but a plausible FUTURE one: adding the same length guard
+    # to parse_number would regress views.py:1162 and element_forms.py:314/338.
+    from decimal import Decimal
+
+    from courses.marking import parse_number
+
+    assert parse_number("9" * 5000) == Decimal("9" * 5000)
+
+
+def test_format_decimal_plain_keeps_precision_and_avoids_exponent():
+    from decimal import Decimal
+
+    from courses.marking import format_decimal_plain
+
+    assert format_decimal_plain(Decimal("40401.00000000")) == "40401"
+    assert format_decimal_plain(Decimal("0.10000000")) == "0.1"
+    assert format_decimal_plain(Decimal("0.00000000")) == "0"
+    # Default context precision is 28; without localcontext this returns "0.1".
+    long_value = "0.1000000000000000000000000000000001"
+    assert format_decimal_plain(Decimal(long_value)) == long_value
+
+
+def test_format_target_inherits_the_raised_precision():
+    # NOT a delegation test: format_target on master is ALREADY
+    # format(Decimal(target).normalize(), "f"), so asserting on 40401 passes with
+    # or without the delegation and could never fail. The >28-digit value is the
+    # only assertion that distinguishes the two, because it needs the localcontext
+    # that only the shared helper has.
+    from decimal import Decimal
+
+    from courses.guessnumber import format_target
+
+    long_value = "0.1000000000000000000000000000000001"
+    assert format_target(Decimal(long_value)) == long_value

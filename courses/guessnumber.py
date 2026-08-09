@@ -8,9 +8,9 @@ fillblank, it never splits on '|' into alternatives. See the design doc §2.3.
 """
 
 import re
-from decimal import Decimal
 
 from courses import fillblank
+from courses.marking import format_decimal_plain
 from courses.switchgate import render_stem  # noqa: F401 — re-exported; see below
 
 SENTINEL_TOKEN = fillblank.SENTINEL + "0" + fillblank.SENTINEL
@@ -54,11 +54,11 @@ def parse_stem(clean):
 def format_target(target):
     """Canonical author-facing text for a stored Decimal (§2.6).
 
-    normalize() alone yields Decimal('4.0401E+4') for 40401, which parse_number
-    then REJECTS — making the element uneditable. format(..., "f") strips the
-    exponent, so 40401.00000000 -> "40401" and 40401.50000000 -> "40401.5".
+    Delegates to courses.marking.format_decimal_plain, which owns the "f"-is-
+    load-bearing rationale (40401 must not render as 4.0401E+4) and the raised
+    precision. Kept as a named function because the guess-number spec refers to it.
     """
-    return format(Decimal(target).normalize(), "f")
+    return format_decimal_plain(target)
 
 
 def to_author_stem(token_stem, target):

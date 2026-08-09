@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from decimal import Decimal
 from decimal import InvalidOperation
+from decimal import localcontext
 from fractions import Fraction
 
 _WS_RE = re.compile(r"\s+")
@@ -47,6 +48,67 @@ def normalize_text(s, *, case_sensitive=False):
     return s if case_sensitive else s.casefold()
 
 
+# The storage cap for ShortNumericQuestionElement.value/tolerance. MUST equal those
+# fields' max_length — that equality is what makes an oversized transfer payload
+# produce a clean TransferError instead of a ValidationError deep in _clean_save.
+MAX_STORED_NUMERIC_CHARS = 64
+# The comparison-side cap, used only by parse_numeric_value. Deliberately NOT the
+# same constant: parse_numeric_value is blank_matches' parser, so a 64-char cap here
+# would silently stop 65-4300 character numbers matching in fill-blank, fill-in-table
+# and fill-&-confirm. 256 stays far below the 4300-digit int() limit while changing
+# no plausible existing content.
+MAX_PARSED_NUMERIC_CHARS = 256
+
+# Returned by canonical_numeric_text/canonical_tolerance_text when the input parses
+# but its canonical form will not fit the column, so the form can say "too long"
+# rather than "enter a number or fraction". Compared by identity. NEVER stored or
+# rendered: a sentinel reaching a CharField is stringified into "<object object ...>".
+# Note TOO_LONG is not None, so `if x is not None` is never a sufficient guard.
+TOO_LONG = object()
+
+
+def format_decimal_plain(d):
+    """Format a Decimal as plain notation with trailing zeros stripped.
+
+    Takes a Decimal (or anything Decimal() accepts) — NEVER raw author text:
+    Decimal("1,5") raises InvalidOperation, so the comma must already be gone.
+
+    Two load-bearing details:
+    - "f" forces fixed-point. Decimal("40401").normalize() is Decimal("4.0401E+4"),
+      whose plain str() the parsers reject, making the element uneditable.
+    - localcontext raises the precision. normalize() applies the CURRENT context,
+      whose default precision is 28, so a 29+ significant-digit value would be
+      silently rounded — reachable now that the column is a 64-char CharField.
+      The +16 is headroom if the storage cap is ever raised.
+    """
+    with localcontext() as ctx:
+        ctx.prec = MAX_STORED_NUMERIC_CHARS + 16
+        return format(Decimal(d).normalize(), "f")
+
+
+def _coerce_numeric_input(s):
+    """Coerce arbitrary input to text the grammars can match.
+
+    A bare str() is wrong for every numeric type. str(Decimal("0.00000000")) is
+    '0E-8'; Python switches floats to exponent form below 1e-4 and above 1e16, so
+    str(0.00001) is '1e-05'. _NUM_RE has no exponent branch, so all of those would
+    parse as None. Reachable two ways: every Decimal read from the old numeric(20,8)
+    column below 1e-6, and JSON numbers in a LAL manifest.
+    """
+    if s is None:
+        return ""
+    if isinstance(s, Decimal):
+        return format(s, "f")
+    # bool must be excluded explicitly: isinstance(True, int) is True and
+    # Decimal("True") raises InvalidOperation. A JSON `true` falls through to
+    # str() -> "True" -> no grammar matches -> None, which is what callers expect.
+    if isinstance(s, (int, float)) and not isinstance(s, bool):
+        # Decimal(str(f)), never Decimal(f): Decimal(0.1) is 55 digits of binary
+        # noise, which would blow the storage cap and change the stored value.
+        return format(Decimal(str(s)), "f")
+    return str(s)
+
+
 def parse_number(s):
     """Parse a single number to Decimal, or None if malformed. Accepts a single
     '.' OR ',' decimal separator (',' normalized to '.'); rejects thousands
@@ -73,8 +135,17 @@ def parse_numeric_value(s):
     constraint: Fraction is exact, so 2/4 == 1/2 == 0,5 while 0.333 != 1/3.
 
     Spaces around the slash are allowed. parse_number bans internal whitespace to
-    kill thousands-separator ambiguity ('1 234'), which a slash cannot create."""
-    s = (s or "").strip()
+    kill thousands-separator ambiguity ('1 234'), which a slash cannot create.
+
+    parse_number deliberately does NOT get the same length guard: it goes through
+    Decimal, which has no digit limit, and guarding it would regress
+    views.py:1162 and element_forms.py:314/338."""
+    s = _coerce_numeric_input(s).strip()
+    if len(s) > MAX_PARSED_NUMERIC_CHARS:
+        # Guard BEFORE any regex: the branches below call int() on captured digit
+        # runs, and int() raises ValueError above 4300 digits (CPython >=3.11).
+        # blank_matches feeds this student input, so an unguarded call is a live 500.
+        return None
     m = _MIXED_RE.match(s)
     if m:
         sign, whole, numerator, denominator = m.groups()
