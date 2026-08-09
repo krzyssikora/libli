@@ -48,11 +48,15 @@ def test_add_see_edit_delete_note_via_ui(page, live_server):
 
     seed_roles()
     course = CourseFactory(slug="e2e-notes")
+    # published=True: migration 0057's model default is False, and this student
+    # must be able to reach the unit at all (see tests/test_reset_controls.py's
+    # equivalent fix / ContentNodeFactory's docstring).
     unit = ContentNode.objects.create(
         course=course,
         kind=ContentNode.Kind.UNIT,
         unit_type=ContentNode.UnitType.LESSON,
         title="Lesson",
+        published=True,
     )
     ElementFactory(unit=unit)
     # make_verified_user creates a user with a verified primary email — mandatory
@@ -137,11 +141,13 @@ def test_cancel_add_composer_closes_without_saving(page, live_server):
 
     seed_roles()
     course = CourseFactory(slug="e2e-notes-cancel")
+    # published=True: see the matching comment in test_add_see_edit_delete_note_via_ui.
     unit = ContentNode.objects.create(
         course=course,
         kind=ContentNode.Kind.UNIT,
         unit_type=ContentNode.UnitType.LESSON,
         title="Lesson",
+        published=True,
     )
     ElementFactory(unit=unit)
     student = make_verified_user(
@@ -186,11 +192,13 @@ def test_existing_note_is_read_first(page, live_server):
 
     seed_roles()
     course = CourseFactory(slug="e2e-readfirst")
+    # published=True: see the matching comment in test_add_see_edit_delete_note_via_ui.
     unit = ContentNode.objects.create(
         course=course,
         kind=ContentNode.Kind.UNIT,
         unit_type=ContentNode.UnitType.LESSON,
         title="Lesson",
+        published=True,
     )
     el = ElementFactory(unit=unit)
     student = make_verified_user(
