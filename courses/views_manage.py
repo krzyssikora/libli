@@ -1172,13 +1172,20 @@ def node_flag(request, slug):  # anonymous request it raises PermissionDenied
     )
     # A non-POST request NEVER writes. The spec's contract names exactly two
     # methods -- GET returns the confirm strip, POST may write -- so this is
-    # phrased as `!= "POST"`, not `== "GET"`: Django's CsrfViewMiddleware
-    # exempts GET/HEAD/OPTIONS/TRACE, and HEAD is CORS-safelisted, so
-    # `== "GET"` alone would let a credentialed cross-origin HEAD (or a
-    # PUT/DELETE) fall straight through to set_node_flag below -- a write
-    # reachable without ever satisfying the CSRF guard. "The UI never emits
-    # that request" is not an answer in a view whose whole premise is that
-    # the server, not the markup, is the guard.
+    # phrased as `!= "POST"`, not `== "GET"`.
+    #
+    # Two separate reasons, and they are NOT the same reason:
+    #  - HEAD/OPTIONS/TRACE: Django's CsrfViewMiddleware exempts exactly
+    #    GET/HEAD/OPTIONS/TRACE, and HEAD is additionally CORS-safelisted, so
+    #    under `== "GET"` a credentialed cross-origin HEAD would fall straight
+    #    through to set_node_flag -- a write reachable without ever satisfying
+    #    the CSRF guard.
+    #  - PUT/DELETE: these ARE CSRF-checked (process_view gates on
+    #    `method not in ("GET", "HEAD", "OPTIONS", "TRACE")`), so they are not a
+    #    cross-origin hole. They are excluded because this endpoint's contract
+    #    names two methods and a PUT must not write whoever sends it -- "the UI
+    #    never emits that request" is not an answer in a view whose whole
+    #    premise is that the server, not the markup, is the guard.
     if request.method != "POST":
         return _flag_strip(request, course, node, flag=flag, scope=scope, ctx=ctx)
 

@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlencode
 
 import pytest
 from django.urls import reverse
@@ -577,11 +578,20 @@ def test_critical1_a_non_post_non_get_request_does_not_write(client):
     assert unit.published is False
 
     # PUT with the same shape as a `formaction` query string -- Django never
-    # populates request.POST for a non-POST method, so this is the realistic
-    # exploit shape: the params ride the URL's query string exactly as the JS
-    # toggle's formaction does, just under a method CsrfViewMiddleware exempts.
-    qs = "&".join(f"{k}={v}" for k, v in payload.items())
-    resp2 = client.put(f"{_url(course)}?{qs}")
+    # populates request.POST for a non-POST method, so the params ride the URL's
+    # query string exactly as the JS toggle's formaction does.
+    #
+    # urlencode, NOT "&".join(f"{k}={v}"): the token is an aware UTC isoformat
+    # ending in "+00:00", and a raw "+" in a query string is decoded by
+    # QueryDict as a SPACE. The view would then see "...123456 00:00",
+    # parse_datetime returns None, _check_token raises ConflictError and the
+    # request 409s BEFORE reaching the write -- so `unit.published is False`
+    # below would stay green on the very mutant it exists to kill
+    # (`request.method == "GET"`), for the wrong reason. Encoded, the token
+    # arrives intact and only the method guard stands between this request and
+    # set_node_flag. Falsified by hand: with the guard mutated to `== "GET"`,
+    # the `published is False` assertion goes RED, not just the status one.
+    resp2 = client.put(f"{_url(course)}?{urlencode(payload)}")
     assert resp2.status_code == 200
     unit.refresh_from_db()
     assert unit.published is False
