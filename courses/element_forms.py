@@ -14,7 +14,11 @@ from courses import switchgate
 from courses import switchgrid
 from courses.embed import extract_embed_url
 from courses.embed import parse_iframe_dimensions
+from courses.marking import TOO_LONG
+from courses.marking import canonical_numeric_text
+from courses.marking import canonical_tolerance_text
 from courses.marking import parse_number
+from courses.marking import parse_numeric_value
 from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import Choice
@@ -758,32 +762,38 @@ class ShortNumericQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Replace the locale-sensitive DecimalField parsing with parse_number so
-        # authors get the same ','/'.'  leniency as students (PL/EN bilingual).
-        self.fields["value"] = forms.CharField()
-        self.fields["tolerance"] = forms.CharField(required=False)
-
-    def _num(self, field, *, required):
-        raw = self.cleaned_data.get(field, "")
-        if not raw and not required:
-            return None
-        parsed = parse_number(raw)
-        if parsed is None:
-            raise forms.ValidationError(_("Enter a number (e.g. 3.14 or 3,14)."))
-        return parsed
-
     def clean_value(self):
-        return self._num("value", required=True)
+        raw = self.cleaned_data.get("value", "")
+        canonical = canonical_numeric_text(raw)
+        if canonical is TOO_LONG:
+            raise forms.ValidationError(
+                _("That number is too long (at most 64 characters once normalised).")
+            )
+        if canonical is None:
+            raise forms.ValidationError(
+                _("Enter a number or fraction (e.g. 3.14, 3,14 or 3/2).")
+            )
+        return canonical
 
     def clean_tolerance(self):
-        parsed = self._num("tolerance", required=False)
-        if parsed is None:
-            return 0
-        if parsed < 0:
+        raw = self.cleaned_data.get("tolerance", "")
+        canonical = canonical_tolerance_text(raw)
+        if canonical is TOO_LONG:
+            raise forms.ValidationError(
+                _("That number is too long (at most 64 characters once normalised).")
+            )
+        if canonical is not None:
+            return canonical
+        # canonical_tolerance_text collapses "unparseable" and "negative" into one
+        # None, so re-derive the reason. The `is not None` guard is NOT optional:
+        # unparseable input reaches here too, and None < 0 raises TypeError — a 500
+        # in the editor on the commonest bad input.
+        parsed = parse_numeric_value(raw)
+        if parsed is not None and parsed < 0:
             raise forms.ValidationError(_("Tolerance cannot be negative."))
-        return parsed
+        raise forms.ValidationError(
+            _("Enter a number or fraction (e.g. 3.14, 3,14 or 3/2).")
+        )
 
 
 class FillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):

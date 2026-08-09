@@ -3,7 +3,10 @@ from fractions import Fraction
 
 import pytest
 
+from courses.marking import TOO_LONG
 from courses.marking import blank_matches
+from courses.marking import canonical_numeric_text
+from courses.marking import canonical_tolerance_text
 from courses.marking import normalize_text
 from courses.marking import parse_number
 from courses.marking import parse_numeric_value
@@ -234,6 +237,25 @@ def test_shortnumeric_mark_tolerance_and_decimal_comma():
 
 
 @pytest.mark.django_db
+def test_shortnumeric_mark_tolerance_canonical_strings():
+    # Canonical-string equivalent of the Decimal-coercion test above: this is
+    # the shape every construction site outside test_shortnumeric_mark_tolerance_
+    # and_decimal_comma now uses. That test stays on Decimal() as the only
+    # end-to-end evidence the coercion prologue still works; this one proves
+    # the same marking behaviour holds when the fields are already strings.
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(value="3.14", tolerance="0.01")
+    assert q.mark("3,15").correct is True  # within tolerance, comma decimal
+    assert q.mark("3.13").correct is True  # at the boundary
+    assert q.mark("3.20").correct is False
+    assert q.mark("abc").correct is False  # unparseable → incorrect
+    assert q.mark("").correct is False
+    exact = ShortNumericQuestionElement.objects.create(value="2")
+    assert exact.mark("2").correct is True and exact.mark("2.0001").correct is False
+
+
+@pytest.mark.django_db
 def test_fillblank_mark_per_blank_and_fraction():
     from courses.models import Blank
     from courses.models import FillBlankQuestionElement
@@ -285,3 +307,313 @@ def test_new_types_in_element_models():
         "fillblankquestionelement",
     ):
         assert name in ELEMENT_MODELS
+
+
+def test_parse_numeric_value_rejects_over_long_input_instead_of_raising():
+    # Pre-existing crash: int() on >4300 digits raises ValueError under CPython >=3.11,
+    # and this parser runs on student input via blank_matches.
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value("1" * 5000 + "/2") is None
+
+
+def test_parse_numeric_value_accepts_100_chars_so_fill_blank_is_not_narrowed():
+    # Pins the 256 comparison cap, NOT the 64 storage cap. Collapsing the two
+    # constants would silently stop 65-4300 char numbers matching in fill-blank.
+    from fractions import Fraction
+
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value("1" * 100) == Fraction(int("1" * 100))
+
+
+def test_parse_numeric_value_coerces_decimal_without_e_notation():
+    from decimal import Decimal
+    from fractions import Fraction
+
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value(Decimal("1.5")) == Fraction(3, 2)
+    # str(Decimal("0.00000000")) is '0E-8', which no grammar matches.
+    assert parse_numeric_value(Decimal("0.00000000")) == Fraction(0)
+
+
+def test_parse_numeric_value_coerces_json_floats_without_e_notation():
+    from fractions import Fraction
+
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value(2.5) == Fraction(5, 2)
+    # str(0.00001) is '1e-05'.
+    assert parse_numeric_value(0.00001) == Fraction(1, 100000)
+    # Decimal(0.1) is 55 digits of binary noise; Decimal(str(0.1)) is not.
+    assert parse_numeric_value(0.1) == Fraction(1, 10)
+
+
+def test_parse_numeric_value_rejects_bool_without_raising():
+    # isinstance(True, int) is True; Decimal("True") raises InvalidOperation.
+    from courses.marking import parse_numeric_value
+
+    assert parse_numeric_value(True) is None
+
+
+def test_parse_number_did_not_get_a_length_guard():
+    # PINNING TEST — green before and after, and that is the point: it must stay
+    # green while parse_numeric_value gains its guard. Its mutant is not a change
+    # to this task's diff but a plausible FUTURE one: adding the same length guard
+    # to parse_number would regress views.py:1162 and element_forms.py:314/338.
+    from decimal import Decimal
+
+    from courses.marking import parse_number
+
+    assert parse_number("9" * 5000) == Decimal("9" * 5000)
+
+
+def test_format_decimal_plain_keeps_precision_and_avoids_exponent():
+    from decimal import Decimal
+
+    from courses.marking import format_decimal_plain
+
+    assert format_decimal_plain(Decimal("40401.00000000")) == "40401"
+    assert format_decimal_plain(Decimal("0.10000000")) == "0.1"
+    assert format_decimal_plain(Decimal("0.00000000")) == "0"
+    # Default context precision is 28; without localcontext this returns "0.1".
+    long_value = "0.1000000000000000000000000000000001"
+    assert format_decimal_plain(Decimal(long_value)) == long_value
+
+
+def test_format_target_inherits_the_raised_precision():
+    # NOT a delegation test: format_target on master is ALREADY
+    # format(Decimal(target).normalize(), "f"), so asserting on 40401 passes with
+    # or without the delegation and could never fail. The >28-digit value is the
+    # only assertion that distinguishes the two, because it needs the localcontext
+    # that only the shared helper has.
+    from decimal import Decimal
+
+    from courses.guessnumber import format_target
+
+    long_value = "0.1000000000000000000000000000000001"
+    assert format_target(Decimal(long_value)) == long_value
+
+
+# Every row of the spec's canonicalisation table. Do not trim this list.
+CANONICAL_ROWS = [
+    ("1,5", "1.5"),
+    ("1.50", "1.5"),
+    ("0.10000000", "0.1"),
+    ("40401.00000000", "40401"),
+    (" 3 / 2 ", "3/2"),
+    ("1  1/2", "1 1/2"),
+    ("+7", "7"),
+    ("+3/2", "3/2"),
+    ("-0.50", "-0.5"),
+    ("06/4", "6/4"),
+    ("-06/4", "-6/4"),
+    ("1 0/2", "1 0/2"),
+    ("-1 1/2", "-1 1/2"),
+    ("+1 1/2", "1 1/2"),
+    (".5", "0.5"),
+    (",5", "0.5"),
+    ("-.5", "-0.5"),
+    ("+,5", "0.5"),
+    ("-0 1/2", "-0 1/2"),
+    ("0", "0"),
+    ("00", "0"),
+    ("-0", "0"),
+    ("-0.0", "0"),
+    ("0/4", "0"),
+    ("00/4", "0"),
+    ("-0/4", "0"),
+    ("0 0/4", "0"),
+    ("-0 0/4", "0"),
+]
+
+REJECTED_ROWS = ["1/0", "1 1/0", "abc", "", "1" * 65]
+
+
+@pytest.mark.parametrize("raw,expected", CANONICAL_ROWS)
+def test_canonical_numeric_text_table(raw, expected):
+    assert canonical_numeric_text(raw) == expected
+
+
+@pytest.mark.parametrize("raw", REJECTED_ROWS)
+def test_canonical_numeric_text_rejects(raw):
+    assert canonical_numeric_text(raw) is None
+
+
+@pytest.mark.parametrize("raw", ["." + "1" * 63, "," + "1" * 63, "-." + "1" * 62])
+def test_canonical_numeric_text_rejects_output_overflow(raw):
+    # 64 chars in, 65 chars out. Only reachable because format_decimal_plain
+    # raises the precision; in the default 28-digit context this canonicalises
+    # to 30 chars and fits.
+    assert len(raw) == 64
+    assert canonical_numeric_text(raw) is TOO_LONG
+
+
+def test_canonical_numeric_text_preserves_long_precision():
+    long_value = "0.1000000000000000000000000000000001"
+    assert canonical_numeric_text(long_value) == long_value
+
+
+@pytest.mark.parametrize("raw,expected", CANONICAL_ROWS)
+def test_canonical_numeric_text_round_trips_and_is_idempotent(raw, expected):
+    # Excludes the None/TOO_LONG rows by construction: feeding a sentinel back
+    # in is not a meaningful round-trip.
+    assert parse_numeric_value(expected) == parse_numeric_value(raw)
+    assert canonical_numeric_text(expected) == expected
+
+
+def test_canonical_numeric_text_accepts_json_numbers():
+    # The LAL manifest is json.loads'd, so these reach the canonicaliser directly.
+    assert canonical_numeric_text(2.5) == "2.5"
+    assert canonical_numeric_text(0.00001) == "0.00001"
+    assert canonical_numeric_text(True) is None
+
+
+def test_canonical_tolerance_text_collapses_every_zero_to_empty():
+    for raw in ["", "0", "0.00000000", "0/5", "-0", 0, 0.0]:
+        assert canonical_tolerance_text(raw) == ""
+
+
+def test_canonical_tolerance_text_keeps_positive_and_rejects_negative():
+    assert canonical_tolerance_text("1/100") == "1/100"
+    assert canonical_tolerance_text("0,01") == "0.01"
+    assert canonical_tolerance_text(0.00001) == "0.00001"
+    assert canonical_tolerance_text("-1") is None
+    assert canonical_tolerance_text("abc") is None
+    assert canonical_tolerance_text("." + "1" * 63) is TOO_LONG
+
+
+def test_validate_numeric_text_rejects_unparseable_and_too_long():
+    from django.core.exceptions import ValidationError
+
+    from courses.marking import validate_numeric_text
+
+    with pytest.raises(ValidationError):
+        validate_numeric_text("abc")
+    # 64 chars, passes MaxLengthValidator, canonicalises to 65. A None-only check
+    # lets this through and stores non-canonical, uneditable text.
+    with pytest.raises(ValidationError):
+        validate_numeric_text("." + "1" * 63)
+    validate_numeric_text("3/2")  # must not raise
+
+
+def test_validate_tolerance_text_accepts_blank_and_rejects_negative():
+    from django.core.exceptions import ValidationError
+
+    from courses.marking import validate_tolerance_text
+
+    validate_tolerance_text("")  # must not raise
+    validate_tolerance_text("1/100")
+    with pytest.raises(ValidationError):
+        validate_tolerance_text("-1")
+    with pytest.raises(ValidationError):
+        validate_tolerance_text("abc")
+
+
+@pytest.mark.django_db
+def test_shortnumeric_marks_exact_fractions():
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(stem="g?", value="1/3", tolerance="")
+    assert q.mark("1/3").correct is True
+    assert q.mark("2/6").correct is True
+    assert q.mark("0.333").correct is False
+    assert q.mark("0.33333333").correct is False
+
+
+@pytest.mark.django_db
+def test_shortnumeric_accepts_every_spelling_of_the_same_value():
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(stem="g?", value="3/2", tolerance="")
+    for answer in ["3/2", "6/4", "15/10", "1 1/2", "1.5", "1,5"]:
+        assert q.mark(answer).correct is True, answer
+
+
+@pytest.mark.django_db
+def test_shortnumeric_fractional_tolerance():
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(
+        stem="?", value="1.5", tolerance="1/100"
+    )
+    assert q.mark("1.505").correct is True
+    assert q.mark("1.52").correct is False
+
+
+@pytest.mark.django_db
+def test_shortnumeric_zero_tolerance_from_both_spellings():
+    from courses.models import ShortNumericQuestionElement
+
+    for tol in ["", "0"]:
+        q = ShortNumericQuestionElement.objects.create(
+            stem="?", value="1.0", tolerance=tol
+        )
+        assert q.mark("1.0").correct is True
+        assert q.mark("1.01").correct is False
+
+
+@pytest.mark.django_db
+def test_shortnumeric_junk_value_marks_incorrect_without_raising():
+    from courses.models import ShortNumericQuestionElement
+
+    q = ShortNumericQuestionElement.objects.create(stem="?", value="junk", tolerance="")
+    assert q.mark("1").correct is False
+
+
+@pytest.mark.django_db
+def test_shortnumeric_full_clean_rejects_and_reports_the_right_key():
+    from django.core.exceptions import ValidationError
+
+    from courses.models import ShortNumericQuestionElement
+
+    with pytest.raises(ValidationError) as bad_value:
+        ShortNumericQuestionElement(stem="?", value="abc").full_clean()
+    assert "value" in bad_value.value.error_dict
+
+    # value="1" is load-bearing: without it, value=="" raises "cannot be blank"
+    # and the test passes whether or not validate_tolerance_text exists.
+    with pytest.raises(ValidationError) as bad_tol:
+        ShortNumericQuestionElement(stem="?", value="1", tolerance="-1").full_clean()
+    assert "tolerance" in bad_tol.value.error_dict
+
+    overflowing = ShortNumericQuestionElement(stem="?", value="." + "1" * 63)
+    with pytest.raises(ValidationError) as too_long:
+        overflowing.full_clean()
+    assert "value" in too_long.value.error_dict
+    # clean() must not leave the TOO_LONG sentinel on the instance — to_python
+    # would stringify it into "<object object at 0x...>" and write that to the row.
+    # This assertion is what makes the `is not TOO_LONG` guard falsifiable.
+    assert overflowing.value == "." + "1" * 63
+
+
+@pytest.mark.django_db
+def test_shortnumeric_clean_canonicalises_and_does_not_null_a_rejected_field():
+    from django.core.exceptions import ValidationError
+
+    from courses.models import ShortNumericQuestionElement
+
+    ok = ShortNumericQuestionElement(stem="?", value="1.50000000", tolerance="0")
+    ok.full_clean()
+    assert ok.value == "1.5"
+    assert ok.tolerance == ""
+
+    # full_clean runs clean() even after clean_fields() raised, so an unguarded
+    # rewrite would leave None (or the TOO_LONG object) in a non-null column.
+    bad = ShortNumericQuestionElement(stem="?", value="abc")
+    with pytest.raises(ValidationError):
+        bad.full_clean()
+    assert bad.value == "abc"
+
+
+def test_storage_cap_matches_both_column_widths():
+    # The equality is what makes an oversized transfer payload produce a clean
+    # TransferError instead of a ValidationError deep inside _clean_save. The model
+    # declares a literal 64, so nothing else detects drift.
+    from courses.marking import MAX_STORED_NUMERIC_CHARS
+    from courses.models import ShortNumericQuestionElement
+
+    meta = ShortNumericQuestionElement._meta
+    assert MAX_STORED_NUMERIC_CHARS == meta.get_field("value").max_length
+    assert MAX_STORED_NUMERIC_CHARS == meta.get_field("tolerance").max_length

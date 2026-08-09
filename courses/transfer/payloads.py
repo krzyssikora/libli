@@ -13,6 +13,10 @@ from django.utils.translation import gettext as _
 
 from courses.embed import extract_embed_url
 from courses.fillblank import SENTINEL
+from courses.marking import TOO_LONG
+from courses.marking import canonical_numeric_text
+from courses.marking import canonical_tolerance_text
+from courses.marking import parse_numeric_value
 from courses.models import SINGLE_SLOT_ID
 from courses.models import BeforeAfterElement
 from courses.models import DragZone
@@ -432,10 +436,30 @@ def _val_extended_response(data, elid, media_kinds):
 def _val_short_numeric(data, elid, media_kinds):
     _exact_keys(data, Q_KEYS + ["value", "tolerance"], _("short_numeric data"))
     _check_question_fields(data, elid)
-    check_decimal_str(data["value"], "value", 20, 8)
-    tolerance = check_decimal_str(data["tolerance"], "tolerance", 20, 8)
-    if tolerance < 0:
-        _err(_("Element '%(el)s': tolerance must not be negative."), el=elid)
+    for key in ("value", "tolerance"):
+        if not isinstance(data[key], str):
+            _err(_("%(what)s must be a decimal string."), what=key)
+    if canonical_numeric_text(data["value"]) in (None, TOO_LONG):
+        _err(_("%(what)s is not a valid number or fraction."), what="value")
+    tolerance = canonical_tolerance_text(data["tolerance"])
+    # Order is fixed. TOO_LONG first, because a negative value can hit TOO_LONG too:
+    # its INPUT can fit the 64-char storage cap while its canonical OUTPUT does not,
+    # e.g. "-." + "1"*62 (64 chars in) canonicalises to "-0." + "1"*62 (65 chars out,
+    # the inserted leading "0"). That case must report the length problem, not the
+    # sign. (An input that is already over 64 chars, negative or not, canonicalises
+    # to None rather than TOO_LONG, so it falls to the negative/generic branches
+    # below regardless of this ordering.) Then the negative branch, which keeps its
+    # element-naming message — folding it into the generic parse failure would
+    # drop the element id from a whole-course import's diagnostics.
+    if tolerance is TOO_LONG:
+        _err(_("%(what)s is not a valid number or fraction."), what="tolerance")
+    if tolerance is None:
+        parsed = parse_numeric_value(data["tolerance"])
+        # `is not None` guard: unparseable input reaches here too, and None < 0
+        # would turn `"tolerance": "abc"` into a 500 in the import view.
+        if parsed is not None and parsed < 0:
+            _err(_("Element '%(el)s': tolerance must not be negative."), el=elid)
+        _err(_("%(what)s is not a valid number or fraction."), what="tolerance")
     return set()
 
 

@@ -6,6 +6,9 @@ from courses.geogebra import canonicalize_geogebra_url
 from courses.lal_loader.media import get_or_create_asset
 from courses.lal_loader.media import resolve_source
 from courses.lal_loader.media import source_present
+from courses.marking import TOO_LONG
+from courses.marking import canonical_numeric_text
+from courses.marking import canonical_tolerance_text
 from courses.models import Blank
 from courses.models import Choice
 from courses.models import ChoiceGridQuestionElement
@@ -395,12 +398,27 @@ def build_element(
             )
         return _attach(unit, q)
     if etype == "numeric":
+        value = canonical_numeric_text(el["value"])
+        tolerance = canonical_tolerance_text(el.get("tolerance", "0"))
+        # No upstream validator here, unlike the transfer importer. Passing None
+        # into objects.create() would surface as a context-free IntegrityError
+        # mid-import; the old Decimal(...) at least raised at the parse site.
+        rejected = (None, TOO_LONG)
+        if value in rejected or tolerance in rejected:
+            bad_field, bad_raw = (
+                ("value", el["value"])
+                if value in rejected
+                else ("tolerance", el.get("tolerance", "0"))
+            )
+            raise LoaderError(
+                f"invalid numeric {bad_field} {bad_raw!r} in unit {unit.pk}"
+            )
         return _attach(
             unit,
             ShortNumericQuestionElement.objects.create(
                 stem=el["stem"],
-                value=Decimal(el["value"]),
-                tolerance=Decimal(el.get("tolerance", "0")),
+                value=value,
+                tolerance=tolerance,
                 **_max_marks_kwargs(el),
             ),
         )

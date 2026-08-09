@@ -19,6 +19,9 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from courses.forms import unique_course_slug
+from courses.marking import TOO_LONG
+from courses.marking import canonical_numeric_text
+from courses.marking import canonical_tolerance_text
 from courses.media import create_asset
 from courses.media import truncate_filename
 from courses.models import BeforeAfterElement
@@ -669,11 +672,22 @@ def _build_extended(data, assets):
 
 
 def _build_numeric(data, assets):
-    q = ShortNumericQuestionElement(
-        **_q_kwargs(data),
-        value=Decimal(data["value"]),
-        tolerance=Decimal(data["tolerance"]),
-    )
+    value = canonical_numeric_text(data["value"])
+    tolerance = canonical_tolerance_text(data["tolerance"])
+    # The payload validator already accepted these, so a rejection here is an
+    # internal-consistency failure — and it must be a TransferError. _clean_save
+    # does not wrap full_clean(), and the import view catches only TransferError,
+    # so any other type turns a bad payload into a 500. "" is VALID, not a failure.
+    #
+    # Reuses the validator's msgid rather than inventing a seventh string, so this
+    # needs no extra catalogue work.
+    rejected = (None, TOO_LONG)
+    if value in rejected or tolerance in rejected:
+        raise TransferError(
+            _("%(what)s is not a valid number or fraction.")
+            % {"what": _("short_numeric data")}
+        )
+    q = ShortNumericQuestionElement(**_q_kwargs(data), value=value, tolerance=tolerance)
     return _clean_save(q), ()
 
 

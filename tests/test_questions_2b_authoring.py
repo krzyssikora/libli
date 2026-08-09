@@ -64,8 +64,6 @@ def test_save_shorttext(client):
 
 @pytest.mark.django_db
 def test_save_shortnumeric_comma_decimal(client):
-    from decimal import Decimal
-
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _unit(course)
@@ -78,7 +76,7 @@ def test_save_shortnumeric_comma_decimal(client):
     )
     assert resp.status_code == 200
     q = ShortNumericQuestionElement.objects.get()
-    assert q.value == Decimal("3.14") and q.tolerance == Decimal("0.01")
+    assert q.value == "3.14" and q.tolerance == "0.01"
 
 
 @pytest.mark.django_db

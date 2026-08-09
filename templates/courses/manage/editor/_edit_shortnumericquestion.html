@@ -8,11 +8,15 @@
   {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__label">{% trans "Correct value" %}</label>
-  <input type="text" name="value" inputmode="decimal" value="{{ form.value.value|default:'' }}">
+  <input type="text" name="value" inputmode="text" maxlength="64"
+         placeholder="{% trans '3.14, 3/2 or 1 1/2' %}"
+         value="{{ form.value.value|default_if_none:'' }}">
   {% for e in form.value.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__label">{% trans "Tolerance (±, optional)" %}</label>
-  <input type="text" name="tolerance" inputmode="decimal" value="{{ form.tolerance.value|default:'' }}">
+  <input type="text" name="tolerance" inputmode="text" maxlength="64"
+         placeholder="{% trans '3.14, 3/2 or 1 1/2' %}"
+         value="{{ form.tolerance.value|default_if_none:'' }}">
   {% for e in form.tolerance.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   {% include "courses/manage/editor/_marking_fields.html" %}

@@ -296,7 +296,7 @@ def test_format_version_is_pinned():
     # Renamed from test_format_version_is_bumped_for_cell_images: that name
     # claimed ownership of the number this feature bumped, but Task 9
     # (published on the node payload) has since bumped it again to 10.
-    assert FORMAT_VERSION == 10
+    assert FORMAT_VERSION == 11
 
 
 def test_ser_table_registers_the_asset_and_emits_a_string_local_id(tmp_path, settings):
