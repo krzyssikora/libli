@@ -78,12 +78,23 @@ def test_every_flag_and_banner_class_has_a_rule_in_a_loaded_stylesheet(
     selector, stylesheet, why
 ):
     css = _code_only(stylesheet)
-    # A declaration BLOCK, not a bare substring: `.flag-strip` appears inside
-    # `.flag-strip__headline` too, so a naive `in` check would pass for a
-    # selector that has no rule of its own. The lookahead allows the selector to
-    # sit in a comma list or carry a combinator/pseudo, but requires a `{`
-    # before the next `}` -- i.e. an actual rule.
-    pattern = re.escape(selector) + r"(?![\w-])[^{}]*\{"
+    # The selector must TERMINATE a selector in the rule's list -- only
+    # whitespace may follow it before the `,` or `{`.
+    #
+    # Two weaker patterns were tried and are wrong:
+    #  - a bare substring test: `.flag-strip` occurs inside
+    #    `.flag-strip__headline`, so it passes for a class with no rule at all.
+    #  - `re.escape(selector) + r"(?![\w-])[^{}]*\{"`: this accepts the class
+    #    appearing ANYWHERE in a selector, so a descendant/state rule keeps the
+    #    guard green after the rule that matters is deleted. Measured: deleting
+    #    the `.flag-strip` card block still passed, because
+    #    `.flag-strip > form > * + *` and `.flag-strip:focus-visible` both
+    #    matched. Same hole for .flag-legend__row, .flag-strip__quiz-warning
+    #    and .quiz-submission-banner -- 4 of the 15 cases could not fail.
+    #
+    # This form still allows a comma list (`.a, .draft-banner {`), which is how
+    # several of these are actually written.
+    pattern = re.escape(selector) + r"\s*[,{]"
     assert re.search(pattern, css), (
         f"{selector} has no rule in {stylesheet.name} ({why}). "
         "The page that renders it does not load any other stylesheet that could."
