@@ -36,9 +36,14 @@ from courses.transfer.importer import open_archive
 from courses.transfer.importer import validate_archive_document
 from courses.transfer.schema import TransferError
 from tests.factories import UserFactory
+from tests.factories import make_course_with_unit
+from tests.test_transfer_archive import make_manifest
 from tests.test_transfer_archive import make_zip
 from tests.test_transfer_validation import base_course_doc
+from tests.test_transfer_validation import doc_with
+from tests.test_transfer_validation import el_of
 from tests.test_transfer_validation import node
+from tests.test_transfer_validation import q_fields
 from tests.test_transfer_validation import text_el
 
 pytestmark = pytest.mark.django_db
@@ -375,6 +380,81 @@ def test_domain_removed_after_validate_rolls_back_and_cleans_media(settings, tmp
     assert MediaAsset.objects.count() == 0
     media_dir = tmp_path / "courses" / "media"
     assert not media_dir.exists() or not any(media_dir.rglob("*"))
+
+
+# --- Task 7: canonical numeric text carried through import --------------------
+
+
+def test_zero_tolerance_element_round_trips():
+    # Mutant: route the importer's tolerance through canonical_numeric_text —
+    # "" becomes None and every existing zero-tolerance element fails to import.
+    doc = doc_with(el_of("short_numeric", q_fields(value="3/2", tolerance="")))
+    buf = make_zip(document=doc)
+    importer = UserFactory()
+
+    course = _import_zip(buf, importer)
+
+    copy = ShortNumericQuestionElement.objects.get(elements__unit__course=course)
+    assert (copy.value, copy.tolerance) == ("3/2", "")
+
+
+def test_fraction_value_round_trips():
+    doc = doc_with(el_of("short_numeric", q_fields(value="1/3", tolerance="0.01")))
+    buf = make_zip(document=doc)
+    importer = UserFactory()
+
+    course = _import_zip(buf, importer)
+
+    copy = ShortNumericQuestionElement.objects.get(elements__unit__course=course)
+    assert copy.value == "1/3"
+
+
+def test_legacy_v10_payload_canonicalises():
+    # "1.50000000" / "0.00000000" -> "1.5" / ""
+    doc = doc_with(
+        el_of("short_numeric", q_fields(value="1.50000000", tolerance="0.00000000"))
+    )
+    buf = make_zip(document=doc, manifest=make_manifest(format_version=10))
+    importer = UserFactory()
+
+    course = _import_zip(buf, importer)
+
+    copy = ShortNumericQuestionElement.objects.get(elements__unit__course=course)
+    assert (copy.value, copy.tolerance) == ("1.5", "")
+
+
+# NO new FORMAT_VERSION test. tests/test_transfer_schema.py:57 already owns that
+# pin — update it to 11 (see the Files block) rather than adding a second
+# assertion on the same constant in a different module.
+#
+# NO new version-refusal test either: tests/test_transfer_archive.py:152
+# test_newer_format_version_named already covers `version > FORMAT_VERSION` with
+# format_version=99. Run it, do not duplicate it.
+
+
+@pytest.mark.django_db
+def test_duplicate_element_preserves_a_fraction_and_empty_tolerance():
+    # duplicate_element runs export -> _val_short_numeric -> _build_numeric in one
+    # process; the cheapest end-to-end check of the ""-tolerance contract.
+    #
+    # NONE of this scaffolding exists in this file: its only builder is
+    # _mk_full_source_course() (:96), which returns just a course, and there is no
+    # unit-token helper here (the _tok one lives in
+    # tests/test_builder_duplicate_element.py:21). duplicate_element takes the unit
+    # token as an isoformat STRING — see the precedent and its warning comment at
+    # tests/test_tabs_transfer.py:344-347.
+    from courses import builder as builder_svc
+
+    course, unit = make_course_with_unit()
+    obj = ShortNumericQuestionElement.objects.create(
+        stem="<p>g?</p>", value="3/2", tolerance=""
+    )
+    join = Element.objects.create(unit=unit, content_object=obj)
+    _unit_after, new_join = builder_svc.duplicate_element(
+        course, join.pk, unit.updated.isoformat()
+    )
+    copy = new_join.content_object
+    assert (copy.value, copy.tolerance) == ("3/2", "")
 
 
 # --- controller-directed: unexpected exceptions never leak past TransferError -

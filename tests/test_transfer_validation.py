@@ -546,7 +546,7 @@ def test_unhashable_media_ref_rejects_not_500():
 def test_malformed_decimal_and_wrong_type_reject():
     _reject(
         doc_with(el_of("short_numeric", q_fields(value="abc", tolerance="0"))),
-        "decimal",
+        "is not a valid number or fraction",
     )
     _reject(doc_with(el_of("text", {"body": 42})), "text")
 
@@ -555,8 +555,67 @@ def test_nonfinite_decimal_strings_reject_not_500():
     for bad in ("Infinity", "-Infinity", "NaN"):
         _reject(
             doc_with(el_of("short_numeric", q_fields(value=bad, tolerance="0"))),
-            "decimal",
+            "is not a valid number or fraction",
         )
+
+
+def test_short_numeric_rejects_unparseable_value():
+    _reject(
+        doc_with(el_of("short_numeric", q_fields(value="abc", tolerance="0"))),
+        "is not a valid number or fraction",
+    )
+
+
+def test_short_numeric_rejects_non_string_value_with_the_type_message():
+    # The wrong-type branch is otherwise untested: the existing test's wrong-type
+    # half is a TEXT element matching "text", not short_numeric.
+    _reject(
+        doc_with(el_of("short_numeric", q_fields(value=42, tolerance="0"))),
+        "must be a decimal string",
+    )
+
+
+def test_short_numeric_rejects_a_canonical_overflow():
+    _reject(
+        doc_with(el_of("short_numeric", q_fields(value="." + "1" * 63, tolerance="0"))),
+        "is not a valid number or fraction",
+    )
+
+
+def test_short_numeric_negative_tolerance_keeps_the_element_naming_message():
+    _reject(
+        doc_with(el_of("short_numeric", q_fields(value="1", tolerance="-1"))),
+        "tolerance must not be negative",
+    )
+
+
+def test_short_numeric_unparseable_tolerance_rejects_without_a_typeerror():
+    _reject(
+        doc_with(el_of("short_numeric", q_fields(value="1", tolerance="abc"))),
+        "is not a valid number or fraction",
+    )
+
+
+def test_short_numeric_still_requires_the_tolerance_key():
+    # The spec names this guard because the change makes "" a LEGAL tolerance, so
+    # the tempting next "simplification" is to let the key be absent entirely.
+    # Nothing in either test package currently pins the _exact_keys contract for
+    # this element — grep finds no assertion on "missing the key" at all — so the
+    # spec's parenthetical about "the missing-key rejection tests" refers to tests
+    # that do not exist. Mutant: relax _exact_keys to tolerate an absent tolerance.
+    data = q_fields(value="1")
+    data.pop("tolerance", None)
+    _reject(doc_with(el_of("short_numeric", data)), "tolerance")
+
+
+def test_short_numeric_accepts_empty_tolerance():
+    # The export round-trip case: every zero-tolerance element now exports "".
+    # There is no _accept helper in this file — positive cases call
+    # validate_document directly, as test_happy_minimal does.
+    validate_document(
+        doc_with(el_of("short_numeric", q_fields(value="3/2", tolerance=""))),
+        kind="course",
+    )
 
 
 def test_unknown_data_key_rejects():

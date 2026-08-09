@@ -118,12 +118,14 @@ def test_choice_question(course):
     ]
 
 
-def test_short_numeric_decimals_are_strings(course):
-    q = ShortNumericQuestionElement.objects.create(
-        value=Decimal("3.14159265"), tolerance=Decimal("0.001")
-    )
+def test_short_numeric_exports_a_fraction_value(course):
+    # Was test_short_numeric_decimals_are_strings, which str()'d a Decimal into a
+    # CharField-backed value/tolerance — a no-op now that both fields ARE
+    # CharFields, so it could no longer fail for the reason it was written.
+    # A fraction value is the case that actually exercises canonical text.
+    q = ShortNumericQuestionElement.objects.create(value="1/3", tolerance="0.001")
     _, data = serialize_element_data(q, MediaIdMap())
-    assert data["value"] == "3.14159265"
+    assert data["value"] == "1/3"
     assert data["tolerance"] == "0.001"
 
 
@@ -217,7 +219,7 @@ def test_build_export_full_course_document(course, image_asset):
     _attach(unit, TextElement.objects.create(body="hi"))
     _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
     manifest, doc, media, _problems = build_export(course)
-    assert manifest["format_version"] == 10
+    assert manifest["format_version"] == 11
     assert manifest["kind"] == "course"
     assert manifest["course"] == {"title": "Src", "slug": "src"}
     assert doc["course"]["title"] == "Src"

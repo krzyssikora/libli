@@ -17,6 +17,7 @@ from django.utils import translation
         "3.14, 3/2 or 1 1/2",
         "Enter a number or fraction.",
         "Enter a non-negative number or fraction.",
+        "%(what)s is not a valid number or fraction.",
     ],
 )
 def test_pl_translation_present(msgid):
