@@ -336,6 +336,43 @@
         }
       }
     }
+
+    // Double-submit guard for the flag ops (Task 14): `disabled` for the unit
+    // toggle and the strip's own submit buttons; `aria-disabled` alongside,
+    // harmless on a button and load-bearing on the confirming anchor's OWN
+    // click handler below, which bails on it. SET here, synchronously, at
+    // submit time -- never in the response handler, where `text` already
+    // exists and the control would sit enabled for the whole in-flight
+    // window (no guard at all; that is E2E6's Mutant B, reached from the
+    // "set too late" side rather than the "cleared too rarely" side below).
+    //
+    // `e.submitter` is NULL on the rename path -- commitRename() calls
+    // requestSubmit() with no argument, and every other read of it in this
+    // file is guarded the same way, with the same reason. An unguarded
+    // `control.disabled = true` here throws inside this listener, AFTER
+    // preventDefault() already ran, so the fetch never fires and inline
+    // rename goes dead on every row in the builder. Guard it, and scope it
+    // to the flag ops so no other op's button is touched.
+    var control = e.submitter;
+    if (control && (op === "flag" || op === "flag-confirm")) {
+      control.disabled = true;
+      control.setAttribute("aria-disabled", "true");
+    }
+    // Cleared exactly once, from wherever the in-flight request settles:
+    // ordinary success/409/422, a strip response (which does NOT re-render
+    // the tree, so the original control survives in the DOM and a clear
+    // placed only inside applyFragment never runs for it -- the button
+    // would stay dead until a reload), or a network rejection (the second
+    // arm of the dispatch below, which never reaches the success `.then`
+    // and its `finally` at all). Missing any ONE of the three leaves some
+    // control permanently disabled.
+    var releaseControl = function () {
+      if (control) {
+        control.disabled = false;
+        control.removeAttribute("aria-disabled");
+      }
+    };
+
     busyStart();
     var finish = function () { busyEnd(); };
     fetch(action, {
@@ -347,33 +384,159 @@
         applyInfo(r);          // FIRST, on every arm. A rename 200 and a 422
                                // carry no header, so this is a no-op there --
                                // by construction, not by a call-site list.
-        if (r.status === 200 || r.status === 409) {
-          // A rename's 200 is patched in place; its 409 deliberately still goes through
-          // applyFragment -- there the tree genuinely diverged and _conflict_scope must
-          // be applied, or the stale row is never reloaded.
-          if (r.status === 200 && op === "rename") {
-            applyRename(form, text);
-          } else {
-            applyFragment(text);
-            syncUrl();
+        try {
+          if (r.status === 200 || r.status === 409) {
+            // A rename's 200 is patched in place; its 409 deliberately still goes through
+            // applyFragment -- there the tree genuinely diverged and _conflict_scope must
+            // be applied, or the stale row is never reloaded.
+            if (r.status === 200 && op === "rename") {
+              applyRename(form, text);
+            } else {
+              var incoming = parseFragment(text).firstElementChild;
+              if (incoming && incoming.matches("[data-flag-strip]")) {
+                // The server is asking, not answering: a confirmation is
+                // still needed (a stale page, or a click that raced the
+                // node's own first write landing elsewhere). This root
+                // carries no data-scope, so applyFragment would silently
+                // no-op on it -- branch before calling it.
+                insertStripAfterRowhead(incoming, control || form);
+                focusInto(incoming);
+                return;   // no tree re-render on this arm; releaseControl()
+                          // below still runs, via the `finally`.
+              }
+              applyFragment(text);
+              syncUrl();
+              if (op === "flag" || op === "flag-confirm") {
+                restoreFlagFocus(op, control, body);
+              }
+            }
+            if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
+            // Only the Move picker remains as a panel form with data-op; it resets the
+            // panel to neutral. (The panel's rename form is gone, so the re-token helper
+            // that existed solely to refresh it was deleted along with it.)
+            if (inPanel) setPanel(neutralPanel);
+            clearMoving();
+            if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
+          } else if (r.status === 422) {
+            notice(parseFragment(text).textContent.trim());
           }
-          if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
-          // Only the Move picker remains as a panel form with data-op; it resets the
-          // panel to neutral. (The panel's rename form is gone, so the re-token helper
-          // that existed solely to refresh it was deleted along with it.)
-          if (inPanel) setPanel(neutralPanel);
-          clearMoving();
-          if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
-        } else if (r.status === 422) {
-          notice(parseFragment(text).textContent.trim());
+        } finally {
+          releaseControl();
         }
         releaseForm(form, op);
       });
     }, function () {
       notice(msg("network", "Network error — please try again."));   // network only
+      releaseControl();
       releaseForm(form, op);
     }).then(finish, function (e) { finish(); if (window.console) console.error(e); });        // BOTH arms, like every other site
   });
+
+  // ---- publish / obligatory flag toggles + confirm strip (Task 14) --------
+  //
+  // The unit toggle buttons (data-op="flag") ride the generic submit dispatch
+  // above unmodified beyond the guard/focus hooks already threaded through
+  // it. What is new here is the GET-driven confirm strip: a container's (or
+  // a confirming quiz's) `<a data-flag-confirm>` fetches the strip instead of
+  // navigating, and the strip dismisses via its own "x" -- added here, since
+  // the server-rendered fragment carries none, being shared with the no-JS
+  // interstitial, which dismisses via a plain page Cancel link instead -- or
+  // via Esc.
+
+  // After a flag write's applyFragment (a fresh `top` scope replaces the row,
+  // destroying whatever control was actually activated), land focus back on
+  // whichever flag control the re-rendered row now carries. TWO different
+  // targets, because a confirmed write can leave either a confirming anchor
+  // behind (a container, or a still-submission-bearing published quiz) or a
+  // plain button -- a unit toggle always leaves one, and so does a confirmed
+  // write that just UNPUBLISHED a quiz: a drafted quiz needs no confirmation
+  // to be re-published, so that row renders a button, not an anchor. Trying
+  // the container selector FIRST and falling back to the unit one covers all
+  // three cases (E2E4) without the caller having to say which one this is.
+  function restoreFlagFocus(op, control, body) {
+    var pk = body.get("node");
+    var flag = (control && control.getAttribute("data-flag")) || body.get("flag");
+    if (!pk || !flag) return;
+    var rowSel = '[data-node="' + pk + '"] ';
+    var el = null;
+    if (op === "flag-confirm") {
+      el = root.querySelector(rowSel + '[data-flag-confirm="' + pk + '"][data-flag="' + flag + '"]');
+    }
+    if (!el) el = root.querySelector(rowSel + '[data-op="flag"][data-flag="' + flag + '"]');
+    if (el) el.focus();
+  }
+
+  // Opening a strip closes any other -- remove every `[data-flag-strip]`
+  // (including one already open on THIS row, the re-ask-on-POST case) before
+  // inserting the fresh one, or exclusivity would leave two siblings.
+  function insertStripAfterRowhead(incoming, opener) {
+    var pk = incoming.getAttribute("data-flag-strip");
+    var row = root.querySelector('li.tree__row[data-node="' + pk + '"]');
+    if (!row) return;
+    root.querySelectorAll("[data-flag-strip]").forEach(function (s) { s.remove(); });
+    var rowhead = row.querySelector(":scope > form.tree__rowhead");
+    if (!rowhead) return;
+    var closeBtn = document.createElement("button");
+    closeBtn.type = "button";                       // never a submitter
+    closeBtn.className = "flag-strip__dismiss";
+    closeBtn.setAttribute("data-flag-dismiss", "");
+    closeBtn.setAttribute("aria-label", msg("close", "Close"));
+    closeBtn.textContent = "×";
+    incoming.insertBefore(closeBtn, incoming.firstChild);
+    incoming.setAttribute("tabindex", "-1");   // a focus target for focusInto()
+    incoming._flagOpener = opener || null;     // dismiss returns focus here
+    rowhead.insertAdjacentElement("afterend", incoming);
+  }
+
+  function focusInto(strip) { strip.focus(); }
+
+  function dismissStrip(strip) {
+    if (!strip) return;
+    var opener = strip._flagOpener;
+    strip.remove();
+    if (opener && opener.isConnected && typeof opener.focus === "function") {
+      opener.focus();
+    }
+  }
+
+  // The confirming anchor: GET the strip and insert it, rather than navigate.
+  root.addEventListener("click", function (e) {
+    var a = e.target.closest("[data-flag-confirm]");
+    if (!a) return;
+    e.preventDefault();                                       // it is an <a href>
+    if (!a.getAttribute("href")) return;                       // inert: no href
+    if (a.getAttribute("aria-disabled") === "true") return;    // inert, or already in flight
+    a.setAttribute("aria-disabled", "true");
+    fetch(a.getAttribute("href"), { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var incoming = parseFragment(html).firstElementChild;
+        if (!incoming) return;
+        insertStripAfterRowhead(incoming, a);
+        focusInto(incoming);
+      })
+      .catch(function () { notice(msg("network", "Network error — please try again.")); })
+      .then(function () { a.removeAttribute("aria-disabled"); },
+            function (err) { a.removeAttribute("aria-disabled"); if (window.console) console.error(err); });
+  });
+
+  // Dismiss via the injected "x".
+  root.addEventListener("click", function (e) {
+    var x = e.target.closest("[data-flag-dismiss]");
+    if (!x) return;
+    e.preventDefault();
+    dismissStrip(x.closest("[data-flag-strip]"));
+  });
+
+  // Dismiss via Esc, while focus is inside the strip (focusInto() lands it
+  // there, on the strip's own tabindex="-1" root).
+  root.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    var strip = e.target.closest("[data-flag-strip]");
+    if (!strip) return;
+    dismissStrip(strip);
+  });
+  // ---- end publish / obligatory flag toggles + confirm strip --------------
 
   // Node selection -> load the detail panel fragment.
   root.addEventListener("click", function (e) {
