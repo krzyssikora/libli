@@ -542,7 +542,8 @@ trailing-zero strip:
 
 1. `AddField` `value_text` (`CharField(max_length=64, default="")`) and `tolerance_text`
    (`CharField(max_length=64, blank=True, default="")`).
-2. `RunPython(forwards)` — **no `reverse_code`** (see below).
+2. `RunPython(forwards, migrations.RunPython.noop)` — the reverse is a deliberate no-op, not an
+   omission (see below).
 3. `RemoveField` `value`, `RemoveField` `tolerance`.
 4. `RenameField` `value_text` → `value`, `tolerance_text` → `tolerance`.
 5. `AlterField` `value` to drop the temporary `default=""` and attach `validate_numeric_text`;
@@ -612,13 +613,31 @@ same way whether invoked by `manage.py migrate` or by the migration test, and it
 management command.) A pre-migration audit query is included in the PR description. A migration
 test seeds `tolerance=Decimal("-0.5")` and asserts `pytest.raises(RuntimeError)`.
 
-**The migration is deliberately irreversible.** Omitting `reverse_code` makes Django raise
-`IrreversibleError` on the way down. This is not laziness: reversing would run step 3's
-`RemoveField` backwards *before* step 2, re-adding `value` as a non-null `DecimalField` with no
-default, which fails outright on any populated table — so a `backwards` function would be
-unreachable code masquerading as a rollback path. And the reverse is lossy by nature: `1/3` has
-no `Decimal` form, which is the entire premise of this change. **Operational consequence:
-rolling back this deploy means restoring a database backup, not running `migrate` backwards.**
+**The reverse is a documented no-op: `reverse_code=migrations.RunPython.noop`.**
+
+The obvious choice — omitting `reverse_code` so Django raises `IrreversibleError` — is **wrong**,
+and for a reason that only surfaces when the tests are written. `Migration.unapply()` checks
+`operation.reversible` for *every* operation and raises **before running any of them**
+(`django/db/migrations/migration.py:153`). pytest-django builds the test database at the leaf,
+so any test of the data conversion must first unapply `0058` to create old-schema rows. A truly
+irreversible migration therefore makes the conversion **untestable through the executor** — and
+the conversion is the part that would take down production, since routing a scale-8 `Decimal`
+through `str()` yields `'0E-8'` and NULLs every zero-tolerance row.
+
+Testability wins, and almost nothing is given up:
+
+- **The data is never reconstructed.** `noop` means reversing does not invent `Decimal`s from
+  text. `1/3` has no `Decimal` form, so guessing would be worse than refusing.
+- **A production rollback still fails, loudly.** Reversing runs step 3's `RemoveField` backwards,
+  re-adding `value` as a non-null `DecimalField` with no default — which errors at the database
+  layer on any populated table. The protection is a `NOT NULL` violation instead of
+  `IrreversibleError`; the operator is stopped either way.
+- **In tests it succeeds**, because `transaction=True` leaves the table empty, and adding a
+  non-null column to an empty table is fine. That is exactly the window the conversion tests need.
+
+**Operational consequence is unchanged: rolling back this deploy means restoring a database
+backup, not running `migrate` backwards.** The migration's module docstring must say so, since
+the `noop` alone no longer signals it.
 
 ### Transfer and loaders
 
@@ -763,7 +782,7 @@ zero-tolerance fraction element yields a copy holding `"3/2"` and `""`.
 | LAL source has an unparseable value | `LoaderError` naming the element and unit; never `objects.create(value=None)`. |
 | A row somehow holds a non-canonical `"0"` tolerance | The reveal would print "± 0". Unreachable through any path that calls `full_clean()`, because the model's `clean()` rewrites it to `""`; reachable only via a raw `objects.create`/`update`, which is why `clean()` exists rather than a per-caller convention. |
 | Migration `0058` meets a pre-existing **negative** tolerance | Counting pass aborts before any write, naming the offending element ids. Never a mid-migration `IntegrityError`. |
-| Someone runs `migrate` backwards past `0058` | `IrreversibleError`. Rollback is a database restore. |
+| Someone runs `migrate` backwards past `0058` **with data present** | The reverse re-adds a non-null `DecimalField` with no default and the database rejects it. No `Decimal`s are invented from text (the data reverse is a `noop`). Rollback is a database restore. |
 
 ## Testing
 
@@ -914,7 +933,11 @@ every later test on that xdist worker with failures that land nowhere near this 
 - A row with `tolerance=Decimal("-0.5")` aborts the migration with the named error, **before**
   any row is written. *Mutant:* drop the counting pass — the run dies on `IntegrityError`
   partway through, which is unrecoverable given the irreversibility.
-- Reversing `0058` raises `IrreversibleError`.
+- Reversing `0058` **with rows present** fails at the database layer (re-adding a non-null
+  `DecimalField` with no default), asserted as `django.db.utils.Error` — deliberately the base
+  class, because the exact subclass is backend-specific and pinning it would test Postgres, not
+  us. This replaces the `IrreversibleError` assertion an earlier draft called for; see the
+  reverse-is-a-noop rationale above for why true irreversibility had to be given up.
 - No **new** makemigrations test is needed:
   `courses/tests/test_publish_makemigrations.py::test_no_pending_migrations` already runs
   `makemigrations courses --check --dry-run`. It must be run as part of the migration task's
