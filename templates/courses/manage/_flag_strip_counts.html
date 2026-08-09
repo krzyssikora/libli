@@ -1,0 +1,32 @@
+{% load i18n %}
+{% comment %}
+Shared with node_confirm_flag.html (fix round 1): the whole counts line,
+tag included -- both callers render an identical
+<p class="flag-strip__counts">, so unlike the headline there is no wrapper
+difference to keep out of this partial.
+{% endcomment %}
+{% if is_mixed %}
+  <p class="flag-strip__counts">
+    {% if flag == "published" %}
+      {% blocktrans %}{{ on }} are live, {{ off }} are drafts.{% endblocktrans %}
+    {% else %}
+      {% blocktrans %}{{ on }} are obligatory, {{ off }} are optional.{% endblocktrans %}
+    {% endif %}
+  </p>
+{% elif scope == "subtree" %}
+  <p class="flag-strip__counts">
+    {% if flag == "published" %}
+      {% if on == 0 %}
+        {% blocktrans count n=total %}All {{ n }} unit is currently a draft.{% plural %}All {{ n }} units are currently drafts.{% endblocktrans %}
+      {% else %}
+        {% blocktrans count n=total %}All {{ n }} unit is currently live.{% plural %}All {{ n }} units are currently live.{% endblocktrans %}
+      {% endif %}
+    {% else %}
+      {% if on == 0 %}
+        {% blocktrans count n=total %}All {{ n }} lesson is currently optional.{% plural %}All {{ n }} lessons are currently optional.{% endblocktrans %}
+      {% else %}
+        {% blocktrans count n=total %}All {{ n }} lesson is currently obligatory.{% plural %}All {{ n }} lessons are currently obligatory.{% endblocktrans %}
+      {% endif %}
+    {% endif %}
+  </p>
+{% endif %}

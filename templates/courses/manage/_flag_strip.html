@@ -4,12 +4,11 @@ Confirm strip (Task 12). A sibling AFTER <form class="tree__rowhead">, inside
 the same <li> -- never a descendant, because this carries its own
 <form method="post"> and HTML forbids nested forms.
 
-One template, keyed on flag/scope/on/total: published/mixed,
-published/single-action, obligatory/mixed (lessons, not units), and the quiz
-hide warning attached beneath the Hide button. See
-docs/superpowers/specs/2026-08-08-unit-publish-state-design.md sections 4 and 6.
-Kept in sync with node_confirm_flag.html by hand -- same rule as
-node_confirm_delete.html vs the delete anchor's own markup.
+The conditional copy (headline / counts / actions+quiz-warning) lives in
+three shared partials, also included by node_confirm_flag.html, so the two
+surfaces cannot drift apart -- see fix round 1 in
+.superpowers/sdd/2026-08-08-unit-publish-state/task-12-report.md. Only the
+wrapper (this root div/form and its hidden inputs) is per-template.
 {% endcomment %}
 <div class="flag-strip" data-flag-strip="{{ node.pk }}">
   <form method="post"
@@ -24,109 +23,12 @@ node_confirm_delete.html vs the delete anchor's own markup.
     {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
     {% if ctx %}<input type="hidden" name="ctx" value="{{ ctx }}">{% endif %}
 
-    <p class="flag-strip__headline">
-      {% if scope == "node" %}
-        {% if flag == "published" %}
-          {% if on == total %}
-            {% if show_warning %}
-              {% blocktrans with title=node.title %}Hide "{{ title }}" from students?{% endblocktrans %}
-            {% else %}
-              {% blocktrans with title=node.title %}Hide "{{ title }}"?{% endblocktrans %}
-            {% endif %}
-          {% else %}
-            {% blocktrans with title=node.title %}Publish "{{ title }}"?{% endblocktrans %}
-          {% endif %}
-        {% else %}
-          {% if on == total %}
-            {% blocktrans with title=node.title %}Make "{{ title }}" optional?{% endblocktrans %}
-          {% else %}
-            {% blocktrans with title=node.title %}Make "{{ title }}" obligatory?{% endblocktrans %}
-          {% endif %}
-        {% endif %}
-      {% else %}
-        {% if flag == "published" %}
-          {% if is_mixed %}
-            {% blocktrans with title=node.title count n=total %}Publish or hide {{ n }} unit in "{{ title }}"?{% plural %}Publish or hide {{ n }} units in "{{ title }}"?{% endblocktrans %}
-          {% elif on == 0 %}
-            {% blocktrans with title=node.title count n=total %}Publish {{ n }} unit in "{{ title }}"?{% plural %}Publish {{ n }} units in "{{ title }}"?{% endblocktrans %}
-          {% else %}
-            {% blocktrans with title=node.title count n=total %}Hide {{ n }} unit in "{{ title }}"?{% plural %}Hide {{ n }} units in "{{ title }}"?{% endblocktrans %}
-          {% endif %}
-        {% else %}
-          {% if is_mixed %}
-            {% blocktrans with title=node.title count n=total %}Change {{ n }} lesson in "{{ title }}"?{% plural %}Change {{ n }} lessons in "{{ title }}"?{% endblocktrans %}
-          {% elif on == 0 %}
-            {% blocktrans with title=node.title count n=total %}Make {{ n }} lesson in "{{ title }}" obligatory?{% plural %}Make {{ n }} lessons in "{{ title }}" obligatory?{% endblocktrans %}
-          {% else %}
-            {% blocktrans with title=node.title count n=total %}Make {{ n }} lesson in "{{ title }}" optional?{% plural %}Make {{ n }} lessons in "{{ title }}" optional?{% endblocktrans %}
-          {% endif %}
-        {% endif %}
-      {% endif %}
-    </p>
+    <p class="flag-strip__headline">{% include "courses/manage/_flag_strip_headline.html" %}</p>
 
-    {% if is_mixed %}
-      <p class="flag-strip__counts">
-        {% if flag == "published" %}
-          {% blocktrans %}{{ on }} are live, {{ off }} are drafts.{% endblocktrans %}
-        {% else %}
-          {% blocktrans %}{{ on }} are obligatory, {{ off }} are optional.{% endblocktrans %}
-        {% endif %}
-      </p>
-    {% elif scope == "subtree" %}
-      <p class="flag-strip__counts">
-        {% if flag == "published" %}
-          {% if on == 0 %}
-            {% blocktrans count n=total %}All {{ n }} unit is currently a draft.{% plural %}All {{ n }} units are currently drafts.{% endblocktrans %}
-          {% else %}
-            {% blocktrans count n=total %}All {{ n }} unit is currently live.{% plural %}All {{ n }} units are currently live.{% endblocktrans %}
-          {% endif %}
-        {% else %}
-          {% if on == 0 %}
-            {% blocktrans count n=total %}All {{ n }} lesson is currently optional.{% plural %}All {{ n }} lessons are currently optional.{% endblocktrans %}
-          {% else %}
-            {% blocktrans count n=total %}All {{ n }} lesson is currently obligatory.{% plural %}All {{ n }} lessons are currently obligatory.{% endblocktrans %}
-          {% endif %}
-        {% endif %}
-      </p>
-    {% endif %}
+    {% include "courses/manage/_flag_strip_counts.html" %}
 
     <div class="flag-strip__actions">
-      {% if flag == "published" %}
-        {% if is_mixed or on == 0 %}
-          <button class="btn btn--primary" type="submit" name="value" value="1" data-op="flag-confirm">
-            {% if scope == "node" %}{% trans "Publish it" %}{% else %}{% blocktrans count n=total %}Publish all {{ n }}{% plural %}Publish all {{ n }}{% endblocktrans %}{% endif %}
-          </button>
-        {% endif %}
-        {% if is_mixed or on == total %}
-          <div class="flag-strip__hide-action">
-            <button class="btn btn--danger" type="submit" name="value" value="0" data-op="flag-confirm">
-              {% if scope == "node" %}{% trans "Hide it" %}{% else %}{% blocktrans count n=total %}Hide all {{ n }}{% plural %}Hide all {{ n }}{% endblocktrans %}{% endif %}
-            </button>
-            {% if show_warning %}
-              <div class="flag-strip__quiz-warning{% if quiet %} flag-strip__quiz-warning--quiet{% endif %}">
-                {% if quiet %}
-                  <p>{% blocktrans count n=submitted %}{{ n }} submission, all from archived groups.{% plural %}{{ n }} submissions, all from archived groups.{% endblocktrans %}</p>
-                {% else %}
-                  {% if submitted %}<p>{% blocktrans count n=submitted %}{{ n }} student has submitted.{% plural %}{{ n }} students have submitted.{% endblocktrans %}</p>{% endif %}
-                  {% if in_progress %}<p>{% blocktrans count n=in_progress %}{{ n }} student is part-way through.{% plural %}{{ n }} students are part-way through.{% endblocktrans %}</p>{% endif %}
-                {% endif %}
-                <p>{% trans "Submitted results are kept, but students will not see them while it is hidden, and edits will not re-grade them. Attempts in progress will be interrupted and can be resumed when you publish." %}</p>
-              </div>
-            {% endif %}
-          </div>
-        {% endif %}
-      {% else %}
-        {% if is_mixed or on == 0 %}
-          <button class="btn btn--primary" type="submit" name="value" value="1" data-op="flag-confirm">
-            {% if scope == "node" %}{% trans "Make it obligatory" %}{% else %}{% trans "All obligatory" %}{% endif %}
-          </button>
-        {% endif %}
-        {% if is_mixed or on == total %}
-          <button class="btn btn--secondary" type="submit" name="value" value="0" data-op="flag-confirm">
-            {% if scope == "node" %}{% trans "Make it optional" %}{% else %}{% trans "All optional" %}{% endif %}
-          </button>
-        {% endif %}
-      {% endif %}
+      {% include "courses/manage/_flag_strip_actions.html" with data_op="flag-confirm" %}
     </div>
   </form>
 </div>

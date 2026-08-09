@@ -175,7 +175,11 @@ def test_quiz_warning_quiet_vs_loud_copy_selection(client):
     )
     html = resp.content.decode()
     assert "all from archived groups" in html
-    assert "have submitted" not in html
+    # NOT "have submitted" -- with a single submitter a wrongly-loud render
+    # would emit the SINGULAR "1 student has submitted.", which "have
+    # submitted" can never match. Assert against what the mutant actually
+    # produces for n=1.
+    assert "student has submitted" not in html
 
     live_group = GroupFactory(course=course, archived=False)
     loud_student = UserFactory()
@@ -244,3 +248,46 @@ def test_no_js_container_interstitial_round_trip_writes(client):
     draft.refresh_from_db()
     assert live.published is False
     assert draft.published is False
+
+
+@pytest.mark.django_db
+def test_no_js_interstitial_renders_the_same_copy_as_the_fragment(client):
+    """Fix round 1: every QZ5/QZ10/TREE11/quiet-loud assertion above drives
+    the `X-Requested-With: fetch` path, so `node_confirm_flag.html`'s copy
+    was exercised by no test at all -- the one no-JS test only checked the
+    Hide button's `value`, never the surrounding text. Drive the SAME
+    quiz-hide scenario through both the fetch (fragment) and non-fetch
+    (interstitial) GET and assert the interstitial carries the identical
+    headline and quiz-warning text. The two templates now share that copy
+    via included partials (_flag_strip_headline.html / _flag_strip_actions.html),
+    so this is also the regression guard for that sharing: if either
+    template stopped including the shared partials, this goes red."""
+    _, course = _setup(client)
+    quiz = make_quiz_unit(course=course, title="Test 2", published=True)
+    s1, s2 = UserFactory(), UserFactory()
+    QuizSubmissionFactory(unit=quiz, student=s1, status=QuizSubmission.Status.SUBMITTED)
+    QuizSubmissionFactory(unit=quiz, student=s2, status=QuizSubmission.Status.SUBMITTED)
+    payload = {
+        "node": quiz.pk,
+        "flag": "published",
+        "value": "0",
+        "scope": "node",
+        "token": _tok(quiz),
+    }
+
+    fragment_resp = client.get(_url(course), payload, **FETCH)
+    interstitial_resp = client.get(_url(course), payload)  # no fetch header
+    assert any(
+        t.name == "courses/manage/node_confirm_flag.html"
+        for t in interstitial_resp.templates
+    )
+    fragment_html = fragment_resp.content.decode()
+    interstitial_html = interstitial_resp.content.decode()
+
+    for expected in (
+        'Hide "Test 2" from students?',
+        "2 students have submitted.",
+        "Attempts in progress will be interrupted",
+    ):
+        assert expected in fragment_html, expected
+        assert expected in interstitial_html, expected
