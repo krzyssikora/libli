@@ -288,13 +288,8 @@ Extend `parse_numeric_value`'s docstring with a line noting that `parse_number` 
 **not** get this guard — it goes through `Decimal`, which has no digit limit, and guarding it
 would regress `views.py:1162` and `element_forms.py:314`/`:338`.
 
-**Task 4 must then correct the rest of that docstring.** `courses/marking.py:68-71` currently says
-`parse_number` "feeds the persistence path (`ShortNumericQuestionElement.value/tolerance`,
-GuessNumber's target — all `DecimalField(max_digits=20, decimal_places=8)`)". After Task 4 that is
-false: short-numeric's fields are `CharField(64)` and `parse_number` no longer feeds them at all.
-Leaving it would plant a confidently-wrong mechanism in the very docstring that explains why the
-two parsers are separate. Drop the short-numeric clause there, leaving GuessNumber's target as the
-remaining `DecimalField` persistence path.
+The rest of that docstring becomes false once the field type changes, and **Task 4 Step 3 carries
+the actual edit** — see there. Do not make it here; at this point it is still accurate.
 
 In `courses/guessnumber.py`, replace the body of `format_target`:
 
@@ -716,6 +711,7 @@ The model change and the migration must land in one commit — a model/migration
 
 **Files:**
 - Modify: `courses/models.py:22-25` (imports), `:2150-2173` (the element)
+- Modify: `courses/marking.py:68-71` (docstring only — see Step 3)
 - Create: `courses/migrations/0058_shortnumeric_text_value.py`
 - Test: `tests/test_questions_2b_marking.py`, `courses/tests/test_shortnumeric_migration.py` (new)
 - Fix (breaks in this task): `tests/test_questions_2b_authoring.py:81` **only**
@@ -936,6 +932,17 @@ Then replace the fields and `mark()`:
 ```
 
 Add `from fractions import Fraction` to `courses/models.py` imports if absent.
+
+**Also correct `parse_numeric_value`'s docstring in `courses/marking.py:68-71`.** It currently
+explains the two-parser split by saying `parse_number` "feeds the persistence path
+(`ShortNumericQuestionElement.value/tolerance`, GuessNumber's target — all
+`DecimalField(max_digits=20, decimal_places=8)`)". **This task makes that false**: short-numeric's
+fields become `CharField(64)` and `parse_number` no longer touches them. Delete the
+short-numeric clause, leaving GuessNumber's target as the sole remaining `DecimalField`
+persistence path. Left alone it would plant a confidently-wrong mechanism in the exact docstring
+a future reader consults to understand why the two parsers must stay separate — a tracked defect
+class in this repo. `courses/marking.py` is in this task's Files block and Step 9's `git add` for
+this reason.
 
 - [ ] **Step 4: Write migration `0058`**
 
@@ -1255,9 +1262,10 @@ ordering all surface here and nowhere else.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add courses/models.py courses/migrations/0058_shortnumeric_text_value.py \
+git add courses/models.py courses/marking.py \
+  courses/migrations/0058_shortnumeric_text_value.py \
   courses/tests/test_shortnumeric_migration.py tests/test_questions_2b_marking.py \
-  tests/test_questions_2b_authoring.py tests/test_lal_loader_units.py
+  tests/test_questions_2b_authoring.py
 git commit -m "feat(courses): store the numeric answer as canonical text
 
 value/tolerance move from DecimalField(20,8) to CharField(64) holding canonical
