@@ -1,0 +1,18 @@
+{% load i18n %}
+{% comment %}Minimal confirm strip (Task 11). Task 12 replaces this body with the
+   quiet/loud copy split and the quiz submission aggregation.{% endcomment %}
+<div class="flag-strip" data-flag-strip="{{ node.pk }}">
+  <form method="post" action="{% url 'courses:manage_node_flag' slug=course.slug %}">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ node.pk }}">
+    <input type="hidden" name="flag" value="{{ flag }}">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    {% if value %}<input type="hidden" name="value" value="{{ value }}">{% endif %}
+    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+    <input type="hidden" name="confirmed" value="1">
+    {% if ctx %}<input type="hidden" name="ctx" value="{{ ctx }}">{% endif %}
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <p class="flag-strip__count">{{ count }}</p>
+    <button class="btn btn--danger" type="submit">{% trans "Confirm" %}</button>
+  </form>
+</div>

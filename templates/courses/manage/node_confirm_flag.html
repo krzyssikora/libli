@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}Minimal interstitial (Task 11). Task 12 replaces this body with the
+   quiet/loud copy split and the quiz submission aggregation.{% endcomment %}
+{% block content %}
+<section class="manage" data-flag-strip="{{ node.pk }}">
+  <h1>{% trans "Confirm this change" %}</h1>
+  <p>{% blocktrans count n=count %}This affects {{ n }} unit.{% plural %}This affects {{ n }} units.{% endblocktrans %}</p>
+  <form method="post" action="{% url 'courses:manage_node_flag' slug=course.slug %}">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ node.pk }}">
+    <input type="hidden" name="flag" value="{{ flag }}">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    {% if value %}<input type="hidden" name="value" value="{{ value }}">{% endif %}
+    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+    <input type="hidden" name="confirmed" value="1">
+    {% if ctx %}<input type="hidden" name="ctx" value="{{ ctx }}">{% endif %}
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <button class="btn btn--danger" type="submit">{% trans "Confirm" %}</button>
+  </form>
+  <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}{% if q %}?q={{ q|urlencode }}{% endif %}">{% trans "Cancel" %}</a>
+</section>
+{% endblock %}

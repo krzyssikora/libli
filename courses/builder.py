@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
 
@@ -611,6 +613,59 @@ def rename_node(
             fields.append("html_seed_js")
     node.full_clean()
     node.save(update_fields=fields)  # cannot clobber a concurrent order
+    return node
+
+
+FLAG_COLUMNS = ("published", "obligatory")
+
+
+@transaction.atomic
+def set_node_flag(course, node_pk, *, flag, value, scope, token):
+    """Write `flag` on one unit or on every unit in a subtree.
+
+    `flag` has already passed the view's allow-list, which is what makes
+    **{flag: value} safe — it selects a COLUMN NAME, so the allow-list is a
+    security boundary, not input hygiene.
+    """
+    node = _locked_node(course, node_pk)
+    _check_token(node.updated, token)
+
+    # Unit-scope only by construction: for scope="subtree" the node is a
+    # container, whose unit_type is None. Placed BEFORE the branch so the
+    # invariant reads as a precondition rather than as a late guard on
+    # work already done.
+    if flag == "obligatory" and node.unit_type == ContentNode.UnitType.QUIZ:
+        raise ValidationError("obligatory does not apply to quiz units.")
+
+    if scope == "node":
+        if node.kind != ContentNode.Kind.UNIT:
+            raise ValidationError("scope=node requires a unit.")
+        unit_pks = [node.pk]
+    else:
+        if node.kind == ContentNode.Kind.UNIT:
+            raise ValidationError("scope=subtree requires a container.")
+        # TWO steps: _subtree_node_ids returns bare pks with no kind
+        # information, and INCLUDES the container's own pk.
+        ids = node._subtree_node_ids()
+        qs = ContentNode.objects.filter(pk__in=ids, kind=ContentNode.Kind.UNIT)
+        if flag == "obligatory":
+            # obligatory is read only for lessons; stamping it on a quiz
+            # writes a value no progress path consults.
+            qs = qs.filter(unit_type=ContentNode.UnitType.LESSON)
+        unit_pks = list(qs.values_list("pk", flat=True))
+
+    # QuerySet.update() does NOT fire auto_now, so updating the flag alone
+    # would leave every touched row's `updated` — and therefore its
+    # concurrency token and the builder's data-updated attribute — pointing
+    # at a state that no longer exists.
+    now = timezone.now()
+    ContentNode.objects.filter(pk__in=unit_pks).update(**{flag: value}, updated=now)
+    # The container's own updated is bumped too, even though its flag column
+    # is untouched: its data-updated and _scope.html's scope_updated would
+    # otherwise describe a subtree that has changed underneath them.
+    if scope == "subtree":
+        ContentNode.objects.filter(pk=node.pk).update(updated=now)
+    node.refresh_from_db()
     return node
 
 

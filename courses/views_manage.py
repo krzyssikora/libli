@@ -35,6 +35,7 @@ from courses.models import Course
 from courses.models import Element
 from courses.models import Enrollment
 from courses.models import QuestionElement
+from courses.models import QuizSubmission
 from courses.models import Subject
 from courses.models import UnitProgress
 from courses.richtext import count_inbound_links
@@ -1009,6 +1010,229 @@ def node_duplicate(request, slug):
         _scope_ref(new_node.parent_id),
         extra_open=_ancestor_chain(new_node),
     )
+
+
+@login_required  # _require_manage does NOT check authentication: for an
+def node_flag(request, slug):  # anonymous request it raises PermissionDenied
+    course = _require_manage(request, slug)  # -> 403 where every neighbour redirects
+
+    # Three request shapes, one rule. A `formaction` query string is part of
+    # the URL and lands in request.GET even on a POST; the no-JS interstitial
+    # sends hidden inputs in request.POST; the strip GET uses request.GET.
+    def param(name):
+        return request.POST.get(name) or request.GET.get(name)
+
+    # ctx is read HERE, before any error path can reference it. An
+    # unrecognised value is a 422 -- but ctx is also what SELECTS the error
+    # arm, so when ctx is itself the bad parameter it is treated as absent
+    # and the 422 renders through the builder arm.
+    ctx = param("ctx")
+    if ctx is not None and ctx not in ("editor", "unit"):
+        return _flag_error(request, course, None, _("Bad ctx."), ctx=None)
+
+    # `node` is validated BEFORE resolution: param("node") returns None when
+    # absent, and get_object_or_404(qs, pk=None) raises inside the ORM -- a
+    # 500 on a trivially malformed request, at the one endpoint that can
+    # unpublish a whole course.
+    raw_node = param("node")
+    if raw_node is None or not str(raw_node).isdigit():
+        # This ONE 422 bypasses _flag_error: that helper dereferences `node`
+        # on two of its three arms, and `node` is what failed.
+        return _builder_with_notice(request, course, _("Bad node."), status=422)
+
+    # NO viewer= -- this is an authoring surface and an author must be able to
+    # reach a draft; the Task 3 source scan excludes views_manage.py for
+    # exactly this reason.
+    node = get_node_or_404(raw_node, slug)
+
+    # `mode` and `title` also arrive, because the toggles live inside the
+    # rowhead form. Both are IGNORED here — same precedent as the Duplicate
+    # button, whose formaction posts the identical payload to node_duplicate.
+    # A flag toggle must never be mistaken for a rename.
+
+    raw_flag = param("flag")
+    if raw_flag not in builder_svc.FLAG_COLUMNS:
+        return _flag_error(request, course, node, _("Bad flag."), ctx=ctx)
+    flag = raw_flag
+
+    # Convert `value` to a bool ONCE, right after the allow-list. It happens
+    # to work if the string reaches .update(**{flag: value}) --
+    # BooleanField.to_python coerces "0"/"1" -- but leaving it a string
+    # invites a later `bool(raw_value)` "cleanup" under which "0" is TRUTHY
+    # and every hide action becomes a publish.
+    raw_value = param("value")
+    # TWO conditions, not one. `value` may be ABSENT on a GET (a container
+    # strip derives its direction from counts), but an out-of-domain value is
+    # a 422 on EITHER method -- gating the whole check on POST silently
+    # accepts ?value=true on the strip GET.
+    if raw_value is not None and raw_value not in ("0", "1"):
+        return _flag_error(request, course, node, _("Bad value."), ctx=ctx)
+    if request.method == "POST" and raw_value is None:
+        return _flag_error(request, course, node, _("Missing value."), ctx=ctx)
+    value = raw_value == "1"  # a real bool from here on
+
+    raw_scope = param("scope")
+    if raw_scope not in ("node", "subtree"):
+        return _flag_error(request, course, node, _("Bad scope."), ctx=ctx)
+    scope = raw_scope
+
+    # Accepted "1", missing allowed (means "not yet confirmed"), anything
+    # else 422 -- `confirmed=true`/`confirmed=yes` must not silently
+    # re-prompt as though nothing were wrong.
+    raw_confirmed = param("confirmed")
+    if raw_confirmed is not None and raw_confirmed != "1":
+        return _flag_error(request, course, node, _("Bad confirmed."), ctx=ctx)
+
+    # `scope` must also agree with the node's kind, and that check belongs
+    # HERE -- in the view, before `needs_confirmation` is computed.
+    # `needs_confirmation` begins with `scope == "subtree"`, so a POST with
+    # scope=subtree at a UNIT would otherwise satisfy it unconditionally and
+    # short-circuit to _flag_strip before set_node_flag's own guard ever
+    # runs. `set_node_flag` also rejects both combinations (belt and
+    # braces), but the service's own guard is unreachable for this one case.
+    if scope == "node" and node.kind != ContentNode.Kind.UNIT:
+        return _flag_error(
+            request, course, node, _("scope=node requires a unit."), ctx=ctx
+        )
+    if scope == "subtree" and node.kind == ContentNode.Kind.UNIT:
+        return _flag_error(
+            request, course, node, _("scope=subtree requires a container."), ctx=ctx
+        )
+
+    # `node` is resolved twice by design: unlocked here to answer
+    # needs_confirmation, then re-resolved under select_for_update inside
+    # set_node_flag. The second is the one the write depends on.
+    needs_confirmation = scope == "subtree" or (
+        flag == "published"
+        and value is False  # the bool from the conversion above, not "0"
+        and node.published  # nothing to confirm about hiding what is hidden
+        and node.unit_type == ContentNode.UnitType.QUIZ
+        and QuizSubmission.objects.filter(unit=node).exists()  # ANY status
+    )
+    # A GET NEVER writes. The spec's contract is "GET -> the confirm strip",
+    # full stop -- without this branch a GET where needs_confirmation is
+    # false falls straight through to set_node_flag, i.e. a GET that
+    # mutates. "The UI never emits that GET" is not an answer in a view
+    # whose whole premise is that the server, not the markup, is the guard.
+    if request.method == "GET":
+        return _flag_strip(request, course, node, flag=flag, scope=scope, ctx=ctx)
+
+    if needs_confirmation and param("confirmed") != "1":
+        return _flag_strip(request, course, node, flag=flag, scope=scope, ctx=ctx)
+
+    try:
+        node = builder_svc.set_node_flag(
+            course, node.pk, flag=flag, value=value, scope=scope, token=param("token")
+        )
+    except builder_svc.ConflictError:
+        return _flag_conflict(request, course, node, ctx=ctx)  # 409 arm
+    except ValidationError as e:
+        return _flag_error(request, course, node, "; ".join(e.messages), ctx=ctx)
+
+    if ctx == "editor":
+        return redirect("courses:manage_editor", slug=slug, pk=node.pk)
+    if ctx == "unit":
+        return redirect(_unit_url(node))
+    if not _wants_fragment(request):
+        # `q` is threaded through: the bare two-arg call defaults q="" and
+        # would silently clear the CA's active filter.
+        return _redirect_to_builder(course, _raw_q(request))
+    # Every successful fragment response re-renders the `top` scope. A bare
+    # <li> has no data-scope so applyFragment silently no-ops; the
+    # container's own _scope.html misses the row that was clicked; and a
+    # collapsed container has no <ol data-scope> in the DOM at all.
+    return _render_scope(request, course, "top")
+
+
+def _flag_error(request, course, node, msg, *, ctx):
+    """422. Three arms, per the response-contract table. An unrecognised ctx
+    has already been normalised to None (the builder arm) by validation.
+
+    Both error renderers fall back to the builder arm for a non-unit `node`,
+    whatever `ctx` says: `_editor_page` and `_unit_url` are unit-only
+    surfaces, but two of node_flag's own 422 paths fire on containers.
+    """
+    is_unit = node is not None and node.kind == ContentNode.Kind.UNIT
+    if ctx == "editor" and is_unit:
+        return _editor_page(request, node, error=msg, status=422)
+    if ctx == "unit" and is_unit:
+        return redirect(_unit_url(node))
+    if _wants_fragment(request):
+        return render(
+            request, "courses/manage/_op_error.html", {"message": msg}, status=422
+        )
+    return _builder_with_notice(request, course, msg, status=422)
+
+
+def _flag_conflict(request, course, node, *, ctx):
+    """409. Same three arms; the builder arm re-renders the scope so the tree
+    picks up whatever changed elsewhere."""
+    is_unit = node is not None and node.kind == ContentNode.Kind.UNIT
+    if ctx == "editor" and is_unit:
+        url = reverse(
+            "courses:manage_editor", kwargs={"slug": course.slug, "pk": node.pk}
+        )
+        return redirect(f"{url}?changed=1")
+    if ctx == "unit" and is_unit:
+        return redirect(_unit_url(node))
+    if _wants_fragment(request):
+        return _conflict_scope(request, course, node.pk)
+    return _builder_with_notice(
+        request,
+        course,
+        _("This changed elsewhere — reloaded to the latest."),
+        status=409,
+    )
+
+
+def _unit_url(node):
+    name = (
+        "courses:quiz_unit"
+        if node.unit_type == ContentNode.UnitType.QUIZ
+        else "courses:lesson_unit"
+    )
+    return reverse(name, kwargs={"slug": node.course.slug, "node_pk": node.pk})
+
+
+def _flag_strip(request, course, node, *, flag, scope, ctx=None):
+    """Minimal confirm strip/interstitial.
+
+    A form that carries the write forward with confirmed=1, plus a bare
+    count. Task 12 replaces this body with the full copy variants (quiet vs
+    loud), the quiet/loud split and the quiz submission aggregation -- this
+    task only needs the mechanics: WR13 and WR18 drive the unconfirmed path,
+    and both only need the form and the count to exist.
+
+    `value` is not a keyword here (the produced interface has none): a
+    mixed container's GET carries no value at all, so it is re-read from the
+    request the same way the view's own `param` does, rather than forcing
+    every caller to thread through a value that may not exist.
+    """
+    raw_value = request.POST.get("value") or request.GET.get("value")
+    if scope == "node":
+        count = 1
+    else:
+        ids = node._subtree_node_ids()
+        qs = ContentNode.objects.filter(pk__in=ids, kind=ContentNode.Kind.UNIT)
+        if flag == "obligatory":
+            qs = qs.filter(unit_type=ContentNode.UnitType.LESSON)
+        count = qs.count()
+    context = {
+        "course": course,
+        "node": node,
+        "flag": flag,
+        "scope": scope,
+        "ctx": ctx,
+        "value": raw_value,
+        "count": count,
+        "q": _raw_q(request),
+    }
+    # `ctx` wins over `_wants_fragment` on every arm: the banner forms
+    # (Task 15) are ordinary no-JS-shaped posts, so an editor/unit-context
+    # confirmation always renders the full-page interstitial.
+    if ctx is None and _wants_fragment(request):
+        return render(request, "courses/manage/_flag_strip.html", context)
+    return render(request, "courses/manage/node_confirm_flag.html", context)
 
 
 def _wants_fragment(request):
