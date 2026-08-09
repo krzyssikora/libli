@@ -293,10 +293,24 @@ def test_editor_banner_quiet_vs_loud_copy_selection(client):
         unit=quiz, student=quiet_student, status=QuizSubmission.Status.SUBMITTED
     )
 
+    # Final-review I2. A student in a LIVE group with an IN_PROGRESS attempt:
+    # `is_quiet` derives `submitters` from SUBMITTED rows only, so this cannot
+    # force the loud branch -- the render must stay quiet AND still name the
+    # in-flight attempt. Mutant: nest the in-progress <p> back inside the
+    # {% else %} -> the "part-way through" assertion goes red while the
+    # "all from archived groups" one stays green, which is the discrimination.
+    inflight_group = GroupFactory(course=course, archived=False)
+    inflight_student = UserFactory()
+    GroupMembershipFactory(group=inflight_group, student=inflight_student)
+    QuizSubmissionFactory(
+        unit=quiz, student=inflight_student, status=QuizSubmission.Status.IN_PROGRESS
+    )
+
     resp = client.get(_editor_url(course, quiz))
     html = resp.content.decode()
     assert "all from archived groups" in html
     assert "student has submitted" not in html
+    assert "part-way through" in html
 
     live_group = GroupFactory(course=course, archived=False)
     loud_student = UserFactory()

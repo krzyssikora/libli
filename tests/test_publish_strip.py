@@ -168,6 +168,18 @@ def test_quiz_warning_quiet_vs_loud_copy_selection(client):
         unit=quiz, student=quiet_student, status=QuizSubmission.Status.SUBMITTED
     )
 
+    # Final-review I2, mirroring tests/test_publish_banners.py. A live-group
+    # student mid-attempt cannot force the loud branch (`is_quiet` counts
+    # SUBMITTED rows only), so the strip stays quiet -- and must still name the
+    # attempt it is about to interrupt. Mutant: nest the in-progress <p> back
+    # inside the {% else %} -> only the "part-way through" assertion reddens.
+    inflight_group = GroupFactory(course=course, archived=False)
+    inflight_student = UserFactory()
+    GroupMembershipFactory(group=inflight_group, student=inflight_student)
+    QuizSubmissionFactory(
+        unit=quiz, student=inflight_student, status=QuizSubmission.Status.IN_PROGRESS
+    )
+
     resp = client.get(
         _url(course),
         {"node": quiz.pk, "flag": "published", "value": "0", "scope": "node"},
@@ -175,6 +187,7 @@ def test_quiz_warning_quiet_vs_loud_copy_selection(client):
     )
     html = resp.content.decode()
     assert "all from archived groups" in html
+    assert "part-way through" in html
     # NOT "have submitted" -- with a single submitter a wrongly-loud render
     # would emit the SINGULAR "1 student has submitted.", which "have
     # submitted" can never match. Assert against what the mutant actually
