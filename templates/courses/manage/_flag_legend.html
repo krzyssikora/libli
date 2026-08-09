@@ -1,0 +1,39 @@
+{% load i18n %}
+{% comment %}Six symbol+label rows, one per publish/obligatory tri-state glyph
+   (Task 13). A row count that disagrees with the glyph count is the first
+   sign the two have drifted -- TREE8 pins six.
+
+   Reuses the icm--* masked-icon classes rather than adding six #bi-* sprite
+   symbols: the legend renders a BOUNDED count (once per page), so either
+   mechanism is fine per the builder.css comment, and reusing icm--* keeps
+   the two id sets (bi-* vs icm--*) distinct so TREE8 and the tree tests
+   cannot collide.
+
+   `aria-hidden` on the glyph span: the label text beside it already carries
+   the meaning; a bare masked box has nothing for a screen reader to read.{% endcomment %}
+<dl class="flag-legend">
+  <div class="flag-legend__row">
+    <dt><span class="icm icm--live" aria-hidden="true"></span></dt>
+    <dd>{% trans "Published" %}</dd>
+  </div>
+  <div class="flag-legend__row">
+    <dt><span class="icm icm--draft" aria-hidden="true"></span></dt>
+    <dd>{% trans "Draft" %}</dd>
+  </div>
+  <div class="flag-legend__row">
+    <dt><span class="icm icm--live-mixed" aria-hidden="true"></span></dt>
+    <dd>{% trans "Partly published" %}</dd>
+  </div>
+  <div class="flag-legend__row">
+    <dt><span class="icm icm--req" aria-hidden="true"></span></dt>
+    <dd>{% trans "Required" %}</dd>
+  </div>
+  <div class="flag-legend__row">
+    <dt><span class="icm icm--opt" aria-hidden="true"></span></dt>
+    <dd>{% trans "Optional" %}</dd>
+  </div>
+  <div class="flag-legend__row">
+    <dt><span class="icm icm--req-mixed" aria-hidden="true"></span></dt>
+    <dd>{% trans "Partly required" %}</dd>
+  </div>
+</dl>

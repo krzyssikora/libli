@@ -106,6 +106,53 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .icm--duplicate { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M6 6h6v6H6z M4 10V4h6v2'/%3E%3C/svg%3E"); }
 .icm--chevron { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M6 3l5 5-5 5'/%3E%3C/svg%3E"); }
 
+/* Task 13: the two tree-row flag toggles (publish/obligatory). Same masked-icon
+   mechanism as the block above -- fills written `black`, never `currentColor`,
+   for the reason given at line 87. Fill AND silhouette both carry the state
+   (a ring/outline plus a filled half for the "mixed" pair) so the glyph survives
+   greyscale and colour-blindness; colour is reinforcement, never the sole channel. */
+.icm--live       { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5.5' fill='black'/%3E%3C/svg%3E"); }
+.icm--draft      { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='none' stroke='black' stroke-width='1.6'/%3E%3C/svg%3E"); }
+.icm--live-mixed { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='none' stroke='black' stroke-width='1.6'/%3E%3Cpath fill='black' d='M8 3A5 5 0 0 1 8 13Z'/%3E%3C/svg%3E"); }
+.icm--req        { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='black' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3C/svg%3E"); }
+.icm--opt        { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='none' stroke='black' stroke-width='1' stroke-linejoin='round' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3C/svg%3E"); }
+.icm--req-mixed  { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolygon fill='none' stroke='black' stroke-width='1' stroke-linejoin='round' points='8,1.7 9.5,5.9 14,6.1 10.5,8.8 11.7,13.1 8,10.6 4.3,13.1 5.5,8.8 2,6.1 6.5,5.9'/%3E%3Cpath fill='black' d='M8,1.7 L9.5,5.9 L14,6.1 L10.5,8.8 L11.7,13.1 L8,10.6 Z'/%3E%3C/svg%3E"); }
+
+/* is-inert: a control that carries no `href`/`formaction` (or, for the anchor
+   cases, `aria-disabled`) but is NOT `disabled` -- see the row markup comments in
+   _tree_node.html for why. Without this rule the three inert cases (filter
+   active, zero units, zero lessons) render visually identical to a live control:
+   an anchor that looks clickable and does nothing, with only a tooltip to
+   explain it. Mirrors the existing .ica:disabled treatment above. */
+.ica.is-inert { opacity: .35; cursor: default; }
+
+/* Draft strike-through (Task 13, E2E1): the class lands on the <li>
+   (tree__row--draft), the strike-through belongs on the title, so this is a
+   DESCENDANT selector, not a rule on the class itself. .tree__title is an
+   <input type="text">, on which text-decoration renders correctly. */
+.tree__row--draft .tree__title { text-decoration: line-through; }
+
+/* Explicit flex `order` on every .tree__rowhead child (Task 13). The two flag
+   toggles must appear AFTER the hidden Rename button in DOM order (TREE1 --
+   Enter must still rename) while sitting LEFT of the title visually. The
+   chevron/leaf-spacer, badge and title are all at the default order 0, so a
+   single negative value on the toggles would not do it -- every child needs an
+   explicit value. The two toggles deliberately SHARE order 3: within an equal
+   order flex falls back to DOM order, which is exactly what is wanted (publish
+   left of obligatory) -- do not split them into distinct values.
+   The hidden Rename button carries NO order: it is position:absolute (line
+   ~53), so it is not a flex item at all, and an out-of-flow child ignores
+   `order` entirely -- only its DOM position matters, and CSS cannot touch that. */
+.tree__rowhead > .tree__toggle { order: 1; }
+.tree__rowhead > .tree__badge { order: 2; }
+.tree__rowhead > .tree__flag { order: 3; }
+.tree__rowhead > input.tree__title { order: 4; }
+.tree__rowhead > .tree__cluster { order: 5; }
+/* No opacity-exemption rule needed: .tree__cluster's `opacity: .5` hover-reveal
+   (line 62) is scoped to that element, and the toggles are SIBLINGS of it, not
+   descendants -- so they already render at full opacity at rest. They are
+   state indicators first; a 50%-dimmed publish dot would defeat the point. */
+
 /* #11 contextual "+" affordance */
 .tree__add-row { list-style: none; }
 .tree__add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: 4px 0; margin: 0; }

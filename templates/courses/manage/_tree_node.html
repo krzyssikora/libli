@@ -1,5 +1,6 @@
 {% load i18n courses_manage_extras %}
-<li class="tree__row" id="node-{{ node.pk }}" data-node="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}"
+<li class="tree__row{% if node.kind == 'unit' and not node.published %} tree__row--draft{% endif %}"
+    id="node-{{ node.pk }}" data-node="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}"
     data-kind="{{ node.kind }}" data-parent="{{ node.parent_id|default:'top' }}">
   {% comment %}ONE form per row, not three. The rename, reorder and duplicate forms
      used to be siblings, and each re-rendered its own {% csrf_token %}, `node` and
@@ -49,6 +50,96 @@
            title="{{ node.title }}" aria-label="{% trans 'Title' %}"
            required maxlength="200" autocomplete="off" spellcheck="false">
     <button class="visually-hidden" type="submit" tabindex="-1">{% trans "Rename" %}</button>
+    {% comment %}Publish + obligatory toggles (Task 13). Siblings of .tree__cluster,
+       both AFTER the hidden Rename button in DOM order (TREE1 -- Enter must still
+       rename) and both carrying the shared `tree__flag` class that builder.css gives
+       `order: 3`, so they sit visually left of the title without moving in the DOM.
+
+       `data-flag` is JS-only, never submitted; the real parameters ride in
+       `formaction`/`href`, which is why a unit's controls are two-way (POST, `value`
+       flips the current state) while a container's or a confirming quiz's is a GET
+       anchor carrying `node` and `q` but no `value` -- a mixed container's strip
+       derives the action from counts, and requiring `value` here would 422 every
+       container anchor.{% endcomment %}
+    {% if node.kind == "unit" %}
+      {% if node.unit_type == "quiz" and node.published and node.pk in quizzes_with_submissions %}
+      {% comment %}The ONLY case a unit row confirms: a published quiz with >=1
+         submission (any status). `and node.published` is load-bearing -- without it
+         a DRAFTED quiz with submissions (the state every quiz lands in immediately
+         after this carve-out fires) would wrongly open a strip asking to confirm
+         hiding something already hidden (TREE7).{% endcomment %}
+      <a class="ica icm icm--live tree__flag" data-flag-confirm="{{ node.pk }}" data-flag="published"
+         href="{{ flag_url }}?node={{ node.pk }}&amp;flag=published&amp;scope=node{% if q %}&amp;q={{ q|urlencode }}{% endif %}"
+         aria-label="{% trans 'Hide from students' %}" title="{% trans 'Hide from students' %}"></a>
+      {% else %}
+      <button type="submit" class="ica icm {% if node.published %}icm--live{% else %}icm--draft{% endif %} tree__flag"
+              data-op="flag" data-flag="published"
+              formaction="{{ flag_url }}?flag=published&amp;value={% if node.published %}0{% else %}1{% endif %}&amp;scope=node"
+              aria-label="{% if node.published %}{% trans 'Hide from students' %}{% else %}{% trans 'Publish' %}{% endif %}"
+              title="{% if node.published %}{% trans 'Hide from students' %}{% else %}{% trans 'Publish' %}{% endif %}"></button>
+      {% endif %}
+      {% if node.unit_type == "quiz" %}
+      {% comment %}Obligatory is meaningless for a quiz (set_node_flag rejects it
+         outright -- TREE9). type="button" + NO formaction, never `disabled`: a
+         disabled button never shows its title tooltip, and the tooltip is the only
+         thing telling the CA why the control is dead.{% endcomment %}
+      <button type="button" class="ica icm tree__flag is-inert" data-flag="obligatory"
+              aria-disabled="true" tabindex="-1"
+              aria-label="{% trans 'Not applicable to quizzes' %}"
+              title="{% trans 'Obligatory applies to lessons only.' %}"></button>
+      {% else %}
+      <button type="submit" class="ica icm {% if node.obligatory %}icm--req{% else %}icm--opt{% endif %} tree__flag"
+              data-op="flag" data-flag="obligatory"
+              formaction="{{ flag_url }}?flag=obligatory&amp;value={% if node.obligatory %}0{% else %}1{% endif %}&amp;scope=node"
+              aria-label="{% if node.obligatory %}{% trans 'Make optional' %}{% else %}{% trans 'Make required' %}{% endif %}"
+              title="{% if node.obligatory %}{% trans 'Make optional' %}{% else %}{% trans 'Make required' %}{% endif %}"></button>
+      {% endif %}
+    {% else %}
+      {% comment %}Container: units read their own booleans above; a container reads
+         the fold instead (flag_counts, keyed by pk -- get_item because Django cannot
+         index a dict by a variable key). flag_glyph mirrors what a bare "if fc" guard
+         would do: a missing/zero-denominator entry returns "" ("no glyph"), never the
+         worst-case default of silently reading "all live" (TREE3, TREE10).{% endcomment %}
+      {% with fc=flag_counts|get_item:node.pk %}
+      {% flag_glyph fc 0 1 "icm--live" "icm--draft" "icm--live-mixed" as publish_glyph %}
+      {% if not publish_glyph %}
+      <a class="ica icm tree__flag is-inert" data-flag="published" aria-disabled="true" tabindex="-1"
+         aria-label="{% trans 'Publish or hide…' %}" title="{% trans 'No units to publish here.' %}"></a>
+      {% elif filtered %}
+      {% comment %}A THIRD inert case, separate from the count-based one above and
+         the one TREE5 asserts: bulk-publishing under a filter invites the CA to
+         believe the action is scoped to the visible rows. SAME glyph class as the
+         live branch below -- computed once via flag_glyph, never hardcoded, or
+         TREE4's mixed assertion would be unsatisfiable.{% endcomment %}
+      <a class="ica icm {{ publish_glyph }} tree__flag is-inert" data-flag="published"
+         aria-disabled="true" tabindex="-1"
+         aria-label="{% trans 'Publish or hide…' %}"
+         title="{% trans 'Clear the filter to publish or hide a whole section.' %}"></a>
+      {% else %}
+      <a class="ica icm {{ publish_glyph }} tree__flag" data-flag-confirm="{{ node.pk }}" data-flag="published"
+         href="{{ flag_url }}?node={{ node.pk }}&amp;flag=published&amp;scope=subtree{% if q %}&amp;q={{ q|urlencode }}{% endif %}"
+         aria-label="{% trans 'Publish or hide…' %}" title="{% trans 'Publish or hide…' %}"></a>
+      {% endif %}
+      {% flag_glyph fc 2 3 "icm--req" "icm--opt" "icm--req-mixed" as obligatory_glyph %}
+      {% if not obligatory_glyph %}
+      {% comment %}Zero-lessons case: a quiz-only container has units but no
+         lessons -- a DIFFERENT slot (fc.3, not fc.1) drives this inertness, which
+         is the whole of TREE10.{% endcomment %}
+      <a class="ica icm tree__flag is-inert" data-flag="obligatory" aria-disabled="true" tabindex="-1"
+         aria-label="{% trans 'Make required or optional…' %}"
+         title="{% trans 'No lessons to mark here.' %}"></a>
+      {% elif filtered %}
+      <a class="ica icm {{ obligatory_glyph }} tree__flag is-inert" data-flag="obligatory"
+         aria-disabled="true" tabindex="-1"
+         aria-label="{% trans 'Make required or optional…' %}"
+         title="{% trans 'Clear the filter to publish or hide a whole section.' %}"></a>
+      {% else %}
+      <a class="ica icm {{ obligatory_glyph }} tree__flag" data-flag-confirm="{{ node.pk }}" data-flag="obligatory"
+         href="{{ flag_url }}?node={{ node.pk }}&amp;flag=obligatory&amp;scope=subtree{% if q %}&amp;q={{ q|urlencode }}{% endif %}"
+         aria-label="{% trans 'Make required or optional…' %}" title="{% trans 'Make required or optional…' %}"></a>
+      {% endif %}
+      {% endwith %}
+    {% endif %}
     <span class="tree__cluster">
       <button type="button" class="ica ica--grip icm icm--grip"{% if filtered %} disabled{% else %} draggable="true"{% endif %} aria-label="{% trans 'Drag to move' %}" title="{% if filtered %}{% trans 'Clear the filter to reorder.' %}{% else %}{% trans 'Drag to move' %}{% endif %}"></button>
       {% include "courses/manage/_move_buttons.html" with node=node is_first=is_first is_last=is_last move_url=move_url %}

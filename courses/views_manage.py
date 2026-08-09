@@ -148,6 +148,46 @@ def _children_map(course):
     return cmap
 
 
+def _fold_flag_counts(cmap):
+    """pk -> (live_units, total_units, obligatory_lessons, total_lessons) over
+    each CONTAINER's whole subtree.
+
+    Fold the UNRESTRICTED cmap. Under an active filter the template's
+    children_map is fc.restricted, and folding THAT makes a container claim
+    "3 units" when its subtree holds 40 (TREE4).
+
+    Containers only: a unit row reads its own node.published / node.obligatory
+    directly in the template and needs no entry here. Roots live under the
+    cmap key None, which is not a node and gets no entry either.
+    """
+    counts = {}
+
+    def visit(pk):
+        live = total = ob = lessons = 0
+        for child in cmap.get(pk, []):
+            if child.kind == ContentNode.Kind.UNIT:
+                total += 1
+                live += 1 if child.published else 0
+                if child.unit_type == ContentNode.UnitType.LESSON:
+                    lessons += 1
+                    ob += 1 if child.obligatory else 0
+            else:
+                c_live, c_total, c_ob, c_lessons = visit(child.pk)
+                live, total, ob, lessons = (
+                    live + c_live,
+                    total + c_total,
+                    ob + c_ob,
+                    lessons + c_lessons,
+                )
+        counts[pk] = (live, total, ob, lessons)
+        return counts[pk]
+
+    for root in cmap.get(None, []):
+        if root.kind != ContentNode.Kind.UNIT:
+            visit(root.pk)
+    return counts
+
+
 def _open_descendants(cmap, ids):
     """pk -> the OPEN container pks beneath it, in one bottom-up pass.
 
@@ -299,6 +339,22 @@ def _tree_context(course, cmap, ids, *, q, filtered, expand_all_disabled, q_min)
         "filtered": filtered,
         "expand_all_disabled": expand_all_disabled,
         "q_min": q_min,
+        # Fold the UNRESTRICTED cmap. The template's children_map is
+        # fc.restricted under an active filter, so folding THAT makes a
+        # container claim "3 units" when its subtree holds 40 -- and the
+        # strip's count is the sole stated mitigation for the accepted
+        # over-publish cost, so a wrong count does not merely mislead, it
+        # removes the only guard.
+        "flag_counts": _fold_flag_counts(cmap),
+        # ONE additional course-wide query, not zero. Per-row this would be
+        # an N+1 across every quiz in a 2,866-node tree. ANY status --
+        # mirrors needs_confirmation, so an interrupted attempt still earns
+        # a confirm.
+        "quizzes_with_submissions": set(
+            QuizSubmission.objects.filter(unit__course=course).values_list(
+                "unit_id", flat=True
+            )
+        ),
     }
 
 

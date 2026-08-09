@@ -74,6 +74,43 @@ def get_item(mapping, key):
 
 
 @register.simple_tag
+def flag_glyph(fc, on_idx, total_idx, live_class, draft_class, mixed_class):
+    """Tri-state CSS class for one flag over a container's fold (Task 13,
+    design doc "The fold" / "Select the glyph").
+
+    `fc` is a `flag_counts[node.pk]` entry -- a `(live_units, total_units,
+    obligatory_lessons, total_lessons)` tuple -- or the `get_item` filter's
+    miss default `[]`. Falsy `fc` (missing key OR an all-zero tuple is still
+    TRUTHY, so this is not "empty counts") returns "" for "no fold entry",
+    mirroring what a bare `{% if fc %}` guard in the template would do: the
+    worst possible default here is silently rendering "all live", so a miss
+    must resolve to "no glyph", never to `live_class`.
+
+    `on_idx`/`total_idx` select which pair of slots this call reads: (0, 1)
+    for publish (all units), (2, 3) for obligatory (lesson units only) --
+    the two flags have DIFFERENT denominators, so a quiz-only container can
+    be zero on one axis and non-zero on the other (TREE10).
+
+    Returns "" when the denominator is zero -- the count-based inert case
+    (TREE3, TREE10's obligatory half); the caller renders the control
+    without an icm--* class (an empty masked box) and marks it inert. A
+    filter-active inert container (TREE5) is a THIRD, separate case the
+    caller applies on top of whatever this returns (TREE4): the SAME glyph
+    class is kept, only href/aria differ.
+    """
+    if not fc:
+        return ""
+    on, total = fc[on_idx], fc[total_idx]
+    if total == 0:
+        return ""
+    if on == total:
+        return live_class
+    if on == 0:
+        return draft_class
+    return mixed_class
+
+
+@register.simple_tag
 def element_type_label(content_type, obj=None):
     """Short tile tag for an element's type. Pass the concrete content object as
     `obj` to distinguish single- vs multiple-choice (single -> "Choice",
