@@ -594,6 +594,7 @@ def rename_node(
     unit_type=_UNSET,
     obligatory=_UNSET,
     html_seed_js=_UNSET,
+    published=_UNSET,
 ):
     node = _locked_node(course, node_pk)
     _check_token(node.updated, token)
@@ -611,6 +612,15 @@ def rename_node(
         if html_seed_js is not _UNSET:
             node.html_seed_js = html_seed_js
             fields.append("html_seed_js")
+        # Deliberately exempt from manage_node_flag's confirmation invariant:
+        # this form lives on the editor page, directly BELOW the persistent
+        # submission banner (Task 15 §6) that has already delivered the
+        # counts and the three hazards on this very surface. A confirmation
+        # here would restate what the author is currently looking at, and
+        # would give the rule two homes that can drift.
+        if published is not _UNSET:
+            node.published = published
+            fields.append("published")
     node.full_clean()
     node.save(update_fields=fields)  # cannot clobber a concurrent order
     return node

@@ -841,6 +841,10 @@ def node_rename(request, slug):
             html_seed_js=request.POST.get("html_seed_js", "")
             if is_settings
             else builder_svc._UNSET,
+            # Same absent-means-false idiom as `obligatory` above.
+            published=("published" in request.POST)
+            if is_settings
+            else builder_svc._UNSET,
         )
     except builder_svc.ConflictError:
         if to_editor:
@@ -1879,6 +1883,15 @@ def _editor_page(
     editor view and the unit-settings save path so a 422 can re-render with an
     error banner."""
     join_rows, rows = _editor_rows(unit)
+    # The quiz submission banner's context (Task 15 §6) -- pinned unconditionally,
+    # like _flag_strip's own submitted/in_progress/quiet keys, so a non-quiz unit
+    # renders a silent blank rather than a template NameError. `is_quiet`'s SECOND
+    # consumer: Task 12's confirm strip is the first.
+    submitted = in_progress = 0
+    quiet = False
+    if unit.unit_type == ContentNode.UnitType.QUIZ:
+        submitted, in_progress = quiz_warnings.submission_counts(unit)
+        quiet = quiz_warnings.is_quiet(unit, unit.course)
     resp = render(
         request,
         "courses/manage/editor/editor.html",
@@ -1898,6 +1911,9 @@ def _editor_page(
             # nesting cap for the depth guards — module attribute, see the matching
             # comment in _render_editor_fragments.
             "max_nest_depth": builder_svc.MAX_NEST_DEPTH,
+            "submitted": submitted,
+            "in_progress": in_progress,
+            "quiet": quiet,
             # The clipboard's render-side state. Must be set HERE as well as in
             # _render_editor_fragments: every editor operation returns through that
             # renderer, so a key on only one builder makes the first page load look

@@ -92,6 +92,30 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
               {% if unit.unit_type == 'quiz' %}aria-current="true"{% endif %}>{% trans "Quiz" %}</button>
     </form>
   </div>
+  {% if not unit.published %}
+    {% include "courses/_draft_banner.html" with banner_ctx="editor" %}
+  {% endif %}
+  {% if unit.unit_type == "quiz" %}
+    {% if submitted or in_progress %}
+    {% comment %}Task 15 §6, `is_quiet`'s SECOND consumer (Task 12's confirm
+    strip is the first). Both count lines render independently -- a
+    published quiz whose only rows are IN_PROGRESS would otherwise carry no
+    banner at all (it is live, so the draft banner above does not apply
+    either), and unchecking Published in the settings form directly below
+    would strand every in-flight attempt in silence.{% endcomment %}
+    <div class="quiz-submission-banner{% if quiet %} quiz-submission-banner--quiet{% endif %}">
+      {% if quiet %}
+        <p>{% blocktrans count n=submitted %}{{ n }} submission, all from archived groups.{% plural %}{{ n }} submissions, all from archived groups.{% endblocktrans %}</p>
+      {% else %}
+        {% if submitted %}<p>{% blocktrans count n=submitted %}{{ n }} student has submitted.{% plural %}{{ n }} students have submitted.{% endblocktrans %}</p>{% endif %}
+        {% if in_progress %}<p>{% blocktrans count n=in_progress %}{{ n }} student is part-way through.{% plural %}{{ n }} students are part-way through.{% endblocktrans %}</p>{% endif %}
+      {% endif %}
+      <p>{% trans "Editing this quiz will not re-grade the responses already recorded." %}</p>
+      <p>{% trans "Adding or removing questions can make old and new submissions' scores incomparable." %}</p>
+      <p>{% trans "Deleting a question also deletes every recorded answer to it." %}</p>
+    </div>
+    {% endif %}
+  {% endif %}
   {% include "courses/manage/editor/_unit_settings.html" %}
   <div class="view-toggle" hidden>
     <span class="view-toggle__caption">{% trans "View" %}</span>

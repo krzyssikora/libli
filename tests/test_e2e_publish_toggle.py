@@ -196,17 +196,13 @@ def test_e2e2_container_confirm_updates_descendants_and_preserves_state(
 def test_e2e3_draft_unit_outline_visibility_and_author_open(page, live_server, browser):
     """E2E3.
 
-    The "carrying the draft banner when opened" half of the original scope is
-    DEFERRED to Task 15: its Step 3 item 2 ("student-facing render, viewed by
-    an author -- text-only, no sprite glyph") owns both the banner and the
-    `is_author` render-context flag its `{% if %}` needs, neither of which
-    exists yet. Building it here would duplicate Task 15's work outside this
-    task's file list. This test proves only what Task 14 can: the draft is
-    absent from the student's rendered outline, present in the author's
-    (asserted as CONTAINMENT, not merely a 200 -- opening the unit directly
-    would pass even on a build where the outline itself dropped it, which is
-    exactly OUT10's mutant at the view level), and the author's open of it
-    succeeds.
+    The draft is absent from the student's rendered outline, present in the
+    author's (asserted as CONTAINMENT, not merely a 200 -- opening the unit
+    directly would pass even on a build where the outline itself dropped it,
+    which is exactly OUT10's mutant at the view level), and the author's open
+    of it succeeds AND carries the draft banner (Task 15 Step 3 item 2: the
+    student-facing render, viewed by an author -- text-only, no sprite
+    glyph, driven by the `is_author` render-context flag).
     """
     owner = _make_pa_user("pa3")
     course = CourseFactory(slug="e2e3", owner=owner)
@@ -251,6 +247,7 @@ def test_e2e3_draft_unit_outline_visibility_and_author_open(page, live_server, b
         author_page.click(f'[data-unit="{draft.pk}"] a.outline-unit')
         author_page.wait_for_url(f"**/u/{draft.pk}/")
         assert author_page.title().startswith("Draft Unit")
+        assert author_page.locator("text=Draft — not visible to students").count() == 1
     finally:
         author_ctx.close()
 

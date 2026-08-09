@@ -16,6 +16,9 @@
 {% endblock %}
 {% block content %}
   {% include "courses/_unit_strip.html" %}
+  {% if is_author and not unit.published %}
+    {% include "courses/_draft_banner.html" with banner_ctx="unit" %}
+  {% endif %}
   {% include "courses/_unit_shell.html" with content_partial="courses/_quiz_article.html" %}
   {% include "tags/_tags_i18n.html" %}
 {% endblock %}

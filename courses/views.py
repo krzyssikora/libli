@@ -536,6 +536,11 @@ def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False
 
     ctx = build_lesson_context(node, user)
     drafts = "keep" if can_see_drafts(user, node.course) else "hide"
+    # Task 15 §5: the student-facing draft banner's `{% if is_author and not
+    # unit.published %}` gate. Reuses `drafts` rather than a second
+    # can_see_drafts call -- the two questions ("can this viewer see drafts
+    # in general" / "is this viewer an author") are the same question here.
+    ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(node.course, user, node, drafts=drafts)
     ctx.update(
         feedback_for_pk=None,
@@ -1362,6 +1367,9 @@ def quiz_unit(request, slug, node_pk):
             target += "?panel=tags"
         return redirect(target)
     drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    # Task 15 §5: the student-facing draft banner's is_author flag -- see the
+    # matching comment in full_lesson_render_context.
+    ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(course, request.user, node, drafts=drafts)
     ctx["tags_panel_open"] = request.GET.get("panel") == "tags"
     return render(request, "courses/quiz_unit.html", ctx)
@@ -1392,6 +1400,9 @@ def _quiz_render_feedback(
     # inputs — the same render path resume (Task 12) uses, so no double container.
     ctx = build_quiz_context(node, request.user)
     drafts = "keep" if can_see_drafts(request.user, node.course) else "hide"
+    # Task 15 §5: the student-facing draft banner's is_author flag -- see the
+    # matching comment in full_lesson_render_context.
+    ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(node.course, request.user, node, drafts=drafts)
     fragment = render_to_string("courses/elements/_quiz_question_feedback.html", fb_ctx)
     st = ctx["render_states"].get(element.pk)
