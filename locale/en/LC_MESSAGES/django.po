@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-09 14:35+0200\n"
+"POT-Creation-Date: 2026-08-09 21:50+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -301,227 +301,235 @@ msgstr ""
 msgid "— choose —"
 msgstr ""
 
-#: .\courses\element_forms.py:261 .\courses\element_forms.py:818
+#: .\courses\element_forms.py:265 .\courses\element_forms.py:828
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 
-#: .\courses\element_forms.py:275
+#: .\courses\element_forms.py:279
 msgid "Write the answer in double braces, e.g. {{42}}."
 msgstr ""
 
-#: .\courses\element_forms.py:277
+#: .\courses\element_forms.py:281
 msgid ""
 "Use exactly one answer in braces — alternatives separated by \"|\" are not "
 "supported here."
 msgstr ""
 
-#: .\courses\element_forms.py:317
+#: .\courses\element_forms.py:321
 msgid "The answer must be a number (e.g. 42 or 3,14)."
 msgstr ""
 
-#: .\courses\element_forms.py:327
+#: .\courses\element_forms.py:331
 msgid ""
 "The answer has too many digits (at most 12 before and 8 after the decimal "
 "point)."
 msgstr ""
 
-#: .\courses\element_forms.py:340 .\courses\element_forms.py:774
+#: .\courses\element_forms.py:344
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr ""
 
-#: .\courses\element_forms.py:342 .\courses\element_forms.py:785
+#: .\courses\element_forms.py:346 .\courses\element_forms.py:793
 msgid "Tolerance cannot be negative."
 msgstr ""
 
-#: .\courses\element_forms.py:415
+#: .\courses\element_forms.py:419
 msgid "Mark the choice position with {{choice}} exactly once."
 msgstr ""
 
-#: .\courses\element_forms.py:422
+#: .\courses\element_forms.py:426
 msgid "Options cannot be empty."
 msgstr ""
 
-#: .\courses\element_forms.py:424
+#: .\courses\element_forms.py:428
 msgid "Add at least two options."
 msgstr ""
 
-#: .\courses\element_forms.py:431 .\courses\element_forms.py:434
+#: .\courses\element_forms.py:435 .\courses\element_forms.py:438
 msgid "Select the correct option."
 msgstr ""
 
-#: .\courses\element_forms.py:537
+#: .\courses\element_forms.py:541
 #, python-format
 msgid "Line %(n)d: mark each cycler with {{choice}} exactly once."
 msgstr ""
 
-#: .\courses\element_forms.py:544
+#: .\courses\element_forms.py:548
 msgid "Each cycler needs at least two options."
 msgstr ""
 
-#: .\courses\element_forms.py:546
+#: .\courses\element_forms.py:550
 msgid "Select the correct option in every cycler."
 msgstr ""
 
-#: .\courses\element_forms.py:548
+#: .\courses\element_forms.py:552
 msgid "Add at least one line."
 msgstr ""
 
-#: .\courses\element_forms.py:550
+#: .\courses\element_forms.py:554
 msgid "Add at least one cycler with options."
 msgstr ""
 
-#: .\courses\element_forms.py:671
+#: .\courses\element_forms.py:675
 msgid "Add at least two choices."
 msgstr ""
 
-#: .\courses\element_forms.py:674
+#: .\courses\element_forms.py:678
 msgid "Mark at least one choice correct."
 msgstr ""
 
-#: .\courses\element_forms.py:677
+#: .\courses\element_forms.py:681
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 
-#: .\courses\element_forms.py:693
+#: .\courses\element_forms.py:697
 msgid "Optional — shown if the student gets this option wrong"
 msgstr ""
 
-#: .\courses\element_forms.py:740
+#: .\courses\element_forms.py:744
 msgid "Add at least one accepted answer."
 msgstr ""
 
-#: .\courses\element_forms.py:858
+#: .\courses\element_forms.py:770 .\courses\element_forms.py:783
+msgid "That number is too long (at most 64 characters once normalised)."
+msgstr ""
+
+#: .\courses\element_forms.py:774 .\courses\element_forms.py:795
+msgid "Enter a number or fraction (e.g. 3.14, 3,14 or 3/2)."
+msgstr ""
+
+#: .\courses\element_forms.py:868
 msgid "Mark at least one gap with {{token}}."
 msgstr ""
 
-#: .\courses\element_forms.py:865
+#: .\courses\element_forms.py:875
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 
-#: .\courses\element_forms.py:871
+#: .\courses\element_forms.py:881
 msgid "A token is too long (max 500 characters)."
 msgstr ""
 
-#: .\courses\element_forms.py:914
+#: .\courses\element_forms.py:924
 msgid "Add at least one pair."
 msgstr ""
 
-#: .\courses\element_forms.py:984 .\courses\element_forms.py:1111
+#: .\courses\element_forms.py:994 .\courses\element_forms.py:1121
 msgid "Add at least one column."
 msgstr ""
 
-#: .\courses\element_forms.py:1029 .\courses\element_forms.py:1162
+#: .\courses\element_forms.py:1039 .\courses\element_forms.py:1172
 msgid "Add at least one row."
 msgstr ""
 
-#: .\courses\element_forms.py:1032
+#: .\courses\element_forms.py:1042
 msgid "Each row needs a correct column."
 msgstr ""
 
-#: .\courses\element_forms.py:1166
+#: .\courses\element_forms.py:1176
 msgid "Each row needs at least one correct column."
 msgstr ""
 
-#: .\courses\element_forms.py:1249
+#: .\courses\element_forms.py:1259
 msgid "Add at least one zone."
 msgstr ""
 
-#: .\courses\element_forms.py:1259
+#: .\courses\element_forms.py:1269
 msgid "Label for this zone"
 msgstr ""
 
-#: .\courses\element_forms.py:1311
+#: .\courses\element_forms.py:1321
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
 msgstr ""
 
-#: .\courses\element_forms.py:1357
+#: .\courses\element_forms.py:1367
 #, python-format
 msgid "A merged cell may not span more than %(n)d columns."
 msgstr ""
 
-#: .\courses\element_forms.py:1360
+#: .\courses\element_forms.py:1370
 #, python-format
 msgid "A merged cell may not span more than %(n)d rows."
 msgstr ""
 
-#: .\courses\element_forms.py:1411
+#: .\courses\element_forms.py:1421
 #, python-format
 msgid "A table cannot be made larger than %(r)d rows by %(c)d columns."
 msgstr ""
 
-#: .\courses\element_forms.py:1472 .\courses\element_forms.py:1479
+#: .\courses\element_forms.py:1482 .\courses\element_forms.py:1489
 msgid "A table needs at least one cell."
 msgstr ""
 
-#: .\courses\element_forms.py:1485
+#: .\courses\element_forms.py:1495
 msgid "All table rows must have the same number of cells."
 msgstr ""
 
-#: .\courses\element_forms.py:1507 .\courses\element_forms.py:1592
+#: .\courses\element_forms.py:1517 .\courses\element_forms.py:1602
 msgid "A table image is not an image in this course."
 msgstr ""
 
-#: .\courses\element_forms.py:1572
+#: .\courses\element_forms.py:1582
 #: .\templates\courses\manage\editor\_edit_filltable.html:19
 msgid "Mark at least one answer cell (use the “Answer cell” button)."
 msgstr ""
 
-#: .\courses\element_forms.py:1577
+#: .\courses\element_forms.py:1587
 #: .\templates\courses\manage\editor\_edit_filltable.html:18
 msgid ""
 "An answer cell is blank — type its accepted answer, or make it a normal cell."
 msgstr ""
 
-#: .\courses\element_forms.py:1647
+#: .\courses\element_forms.py:1657
 msgid "A gallery needs a list of images."
 msgstr ""
 
-#: .\courses\element_forms.py:1651
+#: .\courses\element_forms.py:1661
 #, python-format
 msgid "A gallery needs at least %(n)d images."
 msgstr ""
 
-#: .\courses\element_forms.py:1656
+#: .\courses\element_forms.py:1666
 #, python-format
 msgid "A gallery is limited to %(n)d images."
 msgstr ""
 
-#: .\courses\element_forms.py:1667
+#: .\courses\element_forms.py:1677
 msgid "A gallery image is not an image in this course."
 msgstr ""
 
-#: .\courses\element_forms.py:1743
+#: .\courses\element_forms.py:1753
 msgid "A tabs element needs a list of tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1746
+#: .\courses\element_forms.py:1756
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1751
+#: .\courses\element_forms.py:1761
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1826
+#: .\courses\element_forms.py:1836
 #: .\templates\courses\manage\editor\_edit_twocolumn.html:8
 msgid "Number of columns"
 msgstr ""
 
-#: .\courses\element_forms.py:1879
+#: .\courses\element_forms.py:1889
 msgid "Add at least one step."
 msgstr ""
 
-#: .\courses\element_forms.py:1882
+#: .\courses\element_forms.py:1892
 #, python-format
 msgid "A stepper can have at most %(n)d steps."
 msgstr ""
 
-#: .\courses\element_forms.py:1936
+#: .\courses\element_forms.py:1946
 #, python-format
 msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr ""
@@ -738,7 +746,15 @@ msgstr ""
 msgid "Total"
 msgstr ""
 
-#: .\courses\media.py:21 .\courses\models.py:683
+#: .\courses\marking.py:287
+msgid "Enter a number or fraction."
+msgstr ""
+
+#: .\courses\marking.py:300
+msgid "Enter a non-negative number or fraction."
+msgstr ""
+
+#: .\courses\media.py:21 .\courses\models.py:689
 #: .\courses\templatetags\courses_manage_extras.py:34
 #: .\courses\views_manage.py:1950
 #: .\templates\courses\manage\editor\_add_menu.html:30
@@ -747,7 +763,7 @@ msgstr ""
 msgid "Image"
 msgstr ""
 
-#: .\courses\media.py:22 .\courses\models.py:684
+#: .\courses\media.py:22 .\courses\models.py:690
 #: .\courses\templatetags\courses_manage_extras.py:35
 #: .\courses\views_manage.py:1951
 #: .\templates\courses\manage\editor\_add_menu.html:31
@@ -760,124 +776,124 @@ msgstr ""
 msgid "Drag to image"
 msgstr ""
 
-#: .\courses\models.py:180 .\templates\courses\_unit_footer.html:40
+#: .\courses\models.py:186 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr ""
 
-#: .\courses\models.py:181
+#: .\courses\models.py:187
 msgid "Chapter"
 msgstr ""
 
-#: .\courses\models.py:182
+#: .\courses\models.py:188
 msgid "Section"
 msgstr ""
 
-#: .\courses\models.py:183 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:189 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr ""
 
-#: .\courses\models.py:186 .\templates\courses\manage\_add_affordance.html:23
+#: .\courses\models.py:192 .\templates\courses\manage\_add_affordance.html:23
 #: .\templates\courses\manage\editor\editor.html:94
 msgid "Lesson"
 msgstr ""
 
-#: .\courses\models.py:187 .\templates\courses\manage\_add_affordance.html:26
+#: .\courses\models.py:193 .\templates\courses\manage\_add_affordance.html:26
 #: .\templates\courses\manage\editor\editor.html:97
 msgid "Quiz"
 msgstr ""
 
-#: .\courses\models.py:465
+#: .\courses\models.py:471
 msgid "Example"
 msgstr ""
 
-#: .\courses\models.py:466 .\notes\forms.py:11
+#: .\courses\models.py:472 .\notes\forms.py:11
 msgid "Note"
 msgstr ""
 
-#: .\courses\models.py:467
+#: .\courses\models.py:473
 msgid "Tip"
 msgstr ""
 
-#: .\courses\models.py:470
+#: .\courses\models.py:476
 msgid "Important"
 msgstr ""
 
-#: .\courses\models.py:471
+#: .\courses\models.py:477
 msgid "Task"
 msgstr ""
 
-#: .\courses\models.py:726 .\courses\models.py:976
+#: .\courses\models.py:732 .\courses\models.py:982
 msgid "Small"
 msgstr ""
 
-#: .\courses\models.py:727 .\courses\models.py:977
+#: .\courses\models.py:733 .\courses\models.py:983
 msgid "Medium"
 msgstr ""
 
-#: .\courses\models.py:728 .\courses\models.py:978
+#: .\courses\models.py:734 .\courses\models.py:984
 msgid "Large"
 msgstr ""
 
-#: .\courses\models.py:735 .\courses\models.py:982
+#: .\courses\models.py:741 .\courses\models.py:988
 msgctxt "image size"
 msgid "Full"
 msgstr ""
 
-#: .\courses\models.py:1555
+#: .\courses\models.py:1561
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr ""
 
-#: .\courses\models.py:1556
+#: .\courses\models.py:1562
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr ""
 
-#: .\courses\models.py:1565
+#: .\courses\models.py:1571
 msgctxt "tabs label position"
 msgid "Above"
 msgstr ""
 
-#: .\courses\models.py:1566
+#: .\courses\models.py:1572
 msgctxt "tabs label position"
 msgid "Below"
 msgstr ""
 
-#: .\courses\models.py:1567
+#: .\courses\models.py:1573
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr ""
 
-#: .\courses\models.py:1863 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1869 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:1864
+#: .\courses\models.py:1870
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:1865
+#: .\courses\models.py:1871
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:2573
+#: .\courses\models.py:2606
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:2575
+#: .\courses\models.py:2608
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:2580
+#: .\courses\models.py:2613
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:2651
+#: .\courses\models.py:2684
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:2652
+#: .\courses\models.py:2685
 msgid "Submitted"
 msgstr ""
 
@@ -5288,7 +5304,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:13
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:31
 #: .\templates\courses\manage\editor\_edit_multigridquestion.html:79
-#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:20
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:24
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:26
 msgid "Explanation (optional)"
 msgstr ""
@@ -5595,7 +5611,7 @@ msgid "Mark the answer with {{42}} (exactly once)."
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_guessnumber.html:11
-#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:14
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:16
 msgid "Tolerance (±, optional)"
 msgstr ""
 
@@ -5704,6 +5720,11 @@ msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:10
 msgid "Correct value"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:12
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:18
+msgid "3.14, 3/2 or 1 1/2"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:10

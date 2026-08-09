@@ -12,6 +12,11 @@ from django.utils import translation
         "Correct value",
         "Correct answer:",
         "Expected:",
+        "Enter a number or fraction (e.g. 3.14, 3,14 or 3/2).",
+        "That number is too long (at most 64 characters once normalised).",
+        "3.14, 3/2 or 1 1/2",
+        "Enter a number or fraction.",
+        "Enter a non-negative number or fraction.",
     ],
 )
 def test_pl_translation_present(msgid):
