@@ -14,6 +14,7 @@ import os
 import urllib.parse
 
 import pytest
+from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
@@ -106,6 +107,18 @@ def _seed_all_types(username, slug):
     fb = FillBlankQuestionElement.objects.create(stem="On the ￿0￿.")
     Blank.objects.create(question=fb, accepted="Seine")
     fb_join = Element.objects.create(unit=unit, content_object=fb)
+
+    # 4) short-numeric: fraction-valued answer, no tolerance
+    frac_sn = ShortNumericQuestionElement.objects.create(
+        stem="<p>Half?</p>", value="1.5", tolerance=""
+    )
+    Element.objects.create(unit=unit, content_object=frac_sn)
+
+    # 5) short-numeric: canonical-fraction value, no tolerance
+    third_sn = ShortNumericQuestionElement.objects.create(
+        stem="<p>Third?</p>", value="1/3", tolerance=""
+    )
+    Element.objects.create(unit=unit, content_object=third_sn)
 
     return course, unit, st_join, sn_join, fb_join
 
@@ -297,3 +310,55 @@ def test_answer_all_types_no_js(browser, live_server):
     result.close()
 
     ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_student_can_answer_with_a_fraction(browser, live_server):
+    # Drives the real input, not page.request.post() — the point is that a
+    # student can type "3/2" into a question whose stored answer is "1.5".
+    _make_pa_user("frac_student")
+    course, unit, _st, _sn, _fb = _seed_all_types("frac_student", "frac-unit")
+    context = browser.new_context()
+    page = context.new_page()
+    _login(page, live_server, "frac_student")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector("[data-question]")
+    q = page.locator("[data-question]").nth(3)  # the value="1.5" element
+    q.locator("input[name='answer']").fill("3/2")
+    q.locator("button[type='submit']").click()
+    expect(q.locator("[data-question-feedback] .is-correct")).to_be_visible()
+    context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_student_numeric_input_offers_a_full_keyboard(browser, live_server):
+    # The only test that can catch the mobile trap: a desktop browser types "/"
+    # regardless of the inputmode hint, so no functional test can see it.
+    _make_pa_user("kbd_student")
+    course, unit, _st, _sn, _fb = _seed_all_types("kbd_student", "kbd-unit")
+    context = browser.new_context()
+    page = context.new_page()
+    _login(page, live_server, "kbd_student")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector("[data-question]")
+    q = page.locator("[data-question]").nth(3)
+    assert q.locator("input[name='answer']").get_attribute("inputmode") == "text"
+    context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reveal_shows_the_fraction_and_hides_a_zero_tolerance(browser, live_server):
+    _make_pa_user("reveal_student")
+    course, unit, _st, _sn, _fb = _seed_all_types("reveal_student", "reveal-unit")
+    context = browser.new_context()
+    page = context.new_page()
+    _login(page, live_server, "reveal_student")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector("[data-question]")
+    q = page.locator("[data-question]").nth(4)  # the value="1/3" element
+    q.locator("input[name='answer']").fill("9")  # wrong, so the reveal renders
+    q.locator("button[type='submit']").click()
+    reveal = q.locator(".question__reveal-text")
+    expect(reveal).to_contain_text("1/3")
+    expect(reveal).not_to_contain_text("±")
+    context.close()
