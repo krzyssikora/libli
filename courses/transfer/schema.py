@@ -232,7 +232,7 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
         # concept of drafts, so every unit in it was live.
         #
         # The isinstance guard is NOT optional, and both existing shims in this
-        # file carry it (schema.py:118 for link_nodes, :312 for the element
+        # file carry it (schema.py:118 for link_nodes, :335 for the element
         # shim). check_list(doc["nodes"]) proves only that the CONTAINER is a
         # list, so `nd` may be a string or a list -- and an unguarded
         # .setdefault raises AttributeError BEFORE _exact_keys' own

@@ -1175,11 +1175,15 @@ def materialize_duplicate(
         #    one node (a unit has no children -- ContentNode.clean() forbids
         #    it), so `nodes` here is always the single new_node that
         #    ordering.place_node then full-saves; the in-memory attribute
-        #    assignment alone reaches the DB through that later save. The
-        #    .update() still matters for the OTHER caller of this function --
-        #    tests/test_transfer_materialize_duplicate.py calls
-        #    materialize_duplicate directly, with no place_node afterward, so
-        #    only a DIRECT write (this .update()) would persist there.
+        #    assignment alone reaches the DB through that later save. This
+        #    line is still necessary for the OTHER caller of this function --
+        #    materialize_duplicate is called directly (no place_node
+        #    afterward) by test_transfer_materialize_duplicate.py's
+        #    test_materialize_duplicate_forces_the_copy_unpublished_with_no_place_node,
+        #    which is what actually goes red if this .update() is deleted;
+        #    that is the guard, not the OTHER test in the same file (which
+        #    asserts node count / pk identity / media sharing and makes no
+        #    claim about `published` at all).
         #  - removing ONLY this loop, keeping the .update(), DOES redden TR4:
         #    place_node's full n.save() then writes the untouched in-memory
         #    published=True (from _create_nodes/the payload) straight back
