@@ -540,6 +540,18 @@ def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False
     # unit.published %}` gate. Reuses `drafts` rather than a second
     # can_see_drafts call -- the two questions ("can this viewer see drafts
     # in general" / "is this viewer an author") are the same question here.
+    #
+    # REDUNDANT TODAY, KEPT DELIBERATELY: every caller of this function (and
+    # of quiz_unit/_quiz_render_feedback below) resolves `node` through
+    # get_node_or_404(..., viewer=user, ...), which already 404s a
+    # non-author before this render is ever reached -- so on every present
+    # call site `{% if is_author and not unit.published %}` is
+    # observationally identical to `{% if not unit.published %}` alone. This
+    # flag is defence-in-depth for a future render site that reaches this
+    # template WITHOUT that view-level viewer= gate; it would otherwise leak
+    # the banner (and the Publish button behind it) to a non-author. Do not
+    # delete it as dead code without re-verifying that every caller still
+    # carries the gate.
     ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(node.course, user, node, drafts=drafts)
     ctx.update(

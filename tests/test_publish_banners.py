@@ -202,6 +202,58 @@ def test_out5c_editor_page_renders_draft_banner_for_draft_only(client):
 
 
 @pytest.mark.django_db
+def test_draft_quiz_unit_get_renders_the_banner_for_its_author(client):
+    """Fix round 1, IMPORTANT 1: the extended E2E3 only drives the
+    `lesson_unit` GET path -- nothing anywhere renders a draft QUIZ for its
+    author and checks for the banner. This pins the banner's presence on
+    `quiz_unit`'s own render (`courses/views.py:1372`) specifically.
+
+    NOT an `is_author`-isolation test: `is_author` is currently redundant
+    with `not unit.published` on every reachable path, because
+    `get_node_or_404(..., viewer=request.user, ...)` already 404s a
+    non-author before this template is ever reached. This test cannot (and
+    does not try to) prove the flag itself gates anything -- it proves the
+    banner block exists and is wired into `quiz_unit`'s context at all,
+    which was previously unverified on this path."""
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="quizauthorbanner", owner=owner)
+    quiz = make_quiz_unit(course=course, title="Quiz", published=False)
+
+    url = reverse("courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": quiz.pk})
+    resp = client.get(url)
+    assert resp.status_code == 200
+    assert "Draft — not visible to students" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_draft_quiz_no_js_answer_rerender_renders_the_banner_for_its_author(client):
+    """Fix round 1, IMPORTANT 1: the no-JS `quiz_answer` re-render
+    (`_quiz_render_feedback`, `courses/views.py:1405`) is the path the
+    brief specifically flagged as easy to miss, because it builds its own
+    context from `request` rather than reusing a shared helper. Nothing
+    exercised it before this test.
+
+    NOT an `is_author`-isolation test, for the same reason as the GET test
+    above -- it pins the banner's presence on THIS render path, not the
+    flag in isolation."""
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="quizanswerbanner", owner=owner)
+    quiz = make_quiz_unit(course=course, title="Quiz", published=False)
+    question = ShortTextQuestionElement.objects.create(
+        stem="Capital?", accepted="Paris"
+    )
+    element = add_element(quiz, question)
+
+    url = reverse(
+        "courses:quiz_answer",
+        kwargs={"slug": course.slug, "node_pk": quiz.pk, "element_pk": element.pk},
+    )
+    resp = client.post(url, {"answer": "Paris"})  # no fetch header -> no-JS re-render
+    assert resp.status_code == 200
+    assert "Draft — not visible to students" in resp.content.decode()
+
+
+@pytest.mark.django_db
 def test_qz6_in_progress_only_editor_banner_says_part_way_not_submitted(client):
     """QZ6: in-progress rows are counted on their own line, never as
     "submitted". A published quiz with only an IN_PROGRESS row must still
