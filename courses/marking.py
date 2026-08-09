@@ -163,6 +163,89 @@ def parse_numeric_value(s):
     return None if dec is None else Fraction(dec)
 
 
+def canonical_numeric_text(s):
+    """Canonical storage text for a number or fraction; None if it does not parse;
+    TOO_LONG if it parses but its canonical form will not fit the column.
+
+    Tries the three grammars in the SAME ORDER as parse_numeric_value (mixed,
+    fraction, decimal). Sharing the regexes is not enough to prevent drift — the
+    order is, because the load-bearing \\s+ in _MIXED_RE interacts with greediness.
+
+    Structural form is preserved (mixed stays mixed, fraction stays fraction) and
+    fractions are NOT reduced: an author who writes 6/4 reopens the editor and sees
+    6/4. Reduction happens only at comparison time, inside Fraction.
+    """
+    s = _coerce_numeric_input(s).strip()
+    if len(s) > MAX_STORED_NUMERIC_CHARS:
+        return None
+
+    result = None
+    m = _MIXED_RE.match(s)
+    if m:
+        sign, whole, numerator, denominator = m.groups()
+        if int(denominator) == 0:
+            return None
+        # _MIXED_RE carries the sign in its OWN group and leaves the whole part
+        # unsigned, unlike _FRAC_RE where the sign lives inside the numerator.
+        # Dropping this re-prepend silently stores "1 1/2" for "-1 1/2".
+        value = int(whole) + Fraction(int(numerator), int(denominator))
+        if sign == "-":
+            value = -value
+        if value == 0:
+            return "0"
+        prefix = "-" if sign == "-" else ""
+        result = f"{prefix}{int(whole)} {int(numerator)}/{int(denominator)}"
+    else:
+        m = _FRAC_RE.match(s)
+        if m:
+            numerator, denominator = int(m.group(1)), int(m.group(2))
+            if denominator == 0:
+                return None
+            if numerator == 0:
+                return "0"
+            result = f"{numerator}/{denominator}"
+        else:
+            dec = parse_number(s)
+            if dec is None:
+                return None
+            if dec == 0:
+                # Covers "0", "00", "-0", "-0.0" — never store "-0".
+                return "0"
+            result = format_decimal_plain(dec)
+
+    # Canonicalisation is NOT length-preserving: "." + 63 digits is a legal 64-char
+    # input whose canonical form is "0.111..." at 65. Without this re-check that
+    # input dies in _post_clean's full_clean with a max-length error the author
+    # cannot act on, or reaches _clean_save's unwrapped full_clean as a 500.
+    if len(result) > MAX_STORED_NUMERIC_CHARS:
+        return TOO_LONG
+    return result
+
+
+def canonical_tolerance_text(s):
+    """Canonical storage text for a tolerance.
+
+    Zero has exactly ONE encoding: the empty string. Blank input and every spelling
+    of zero both map to "". Without this, an author typing 0 would store the truthy
+    string "0" and the reveal would start printing "+/- 0" where a zero tolerance is
+    hidden today. This helper is the single place that decision is made.
+
+    Returns "" for blank-or-zero, the canonical text for a positive value, TOO_LONG
+    propagated from canonical_numeric_text, and None for unparseable OR negative.
+    """
+    text = _coerce_numeric_input(s).strip()
+    if text == "":
+        return ""
+    canonical = canonical_numeric_text(text)
+    if canonical is None or canonical is TOO_LONG:
+        return canonical
+    if canonical == "0":
+        return ""
+    if parse_numeric_value(canonical) < 0:
+        return None
+    return canonical
+
+
 def blank_matches(got_raw, accepted_lines, *, case_sensitive=False):
     """True if got_raw matches any accepted line, by normalized text OR — when both
     the input and that accepted line parse as numbers — by numeric value equality.

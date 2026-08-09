@@ -3,7 +3,10 @@ from fractions import Fraction
 
 import pytest
 
+from courses.marking import TOO_LONG
 from courses.marking import blank_matches
+from courses.marking import canonical_numeric_text
+from courses.marking import canonical_tolerance_text
 from courses.marking import normalize_text
 from courses.marking import parse_number
 from courses.marking import parse_numeric_value
@@ -372,3 +375,91 @@ def test_format_target_inherits_the_raised_precision():
 
     long_value = "0.1000000000000000000000000000000001"
     assert format_target(Decimal(long_value)) == long_value
+
+
+# Every row of the spec's canonicalisation table. Do not trim this list.
+CANONICAL_ROWS = [
+    ("1,5", "1.5"),
+    ("1.50", "1.5"),
+    ("0.10000000", "0.1"),
+    ("40401.00000000", "40401"),
+    (" 3 / 2 ", "3/2"),
+    ("1  1/2", "1 1/2"),
+    ("+7", "7"),
+    ("+3/2", "3/2"),
+    ("-0.50", "-0.5"),
+    ("06/4", "6/4"),
+    ("-06/4", "-6/4"),
+    ("1 0/2", "1 0/2"),
+    ("-1 1/2", "-1 1/2"),
+    ("+1 1/2", "1 1/2"),
+    (".5", "0.5"),
+    (",5", "0.5"),
+    ("-.5", "-0.5"),
+    ("+,5", "0.5"),
+    ("-0 1/2", "-0 1/2"),
+    ("0", "0"),
+    ("00", "0"),
+    ("-0", "0"),
+    ("-0.0", "0"),
+    ("0/4", "0"),
+    ("00/4", "0"),
+    ("-0/4", "0"),
+    ("0 0/4", "0"),
+    ("-0 0/4", "0"),
+]
+
+REJECTED_ROWS = ["1/0", "1 1/0", "abc", "", "1" * 65]
+
+
+@pytest.mark.parametrize("raw,expected", CANONICAL_ROWS)
+def test_canonical_numeric_text_table(raw, expected):
+    assert canonical_numeric_text(raw) == expected
+
+
+@pytest.mark.parametrize("raw", REJECTED_ROWS)
+def test_canonical_numeric_text_rejects(raw):
+    assert canonical_numeric_text(raw) is None
+
+
+@pytest.mark.parametrize("raw", ["." + "1" * 63, "," + "1" * 63, "-." + "1" * 62])
+def test_canonical_numeric_text_rejects_output_overflow(raw):
+    # 64 chars in, 65 chars out. Only reachable because format_decimal_plain
+    # raises the precision; in the default 28-digit context this canonicalises
+    # to 30 chars and fits.
+    assert len(raw) == 64
+    assert canonical_numeric_text(raw) is TOO_LONG
+
+
+def test_canonical_numeric_text_preserves_long_precision():
+    long_value = "0.1000000000000000000000000000000001"
+    assert canonical_numeric_text(long_value) == long_value
+
+
+@pytest.mark.parametrize("raw,expected", CANONICAL_ROWS)
+def test_canonical_numeric_text_round_trips_and_is_idempotent(raw, expected):
+    # Excludes the None/TOO_LONG rows by construction: feeding a sentinel back
+    # in is not a meaningful round-trip.
+    assert parse_numeric_value(expected) == parse_numeric_value(raw)
+    assert canonical_numeric_text(expected) == expected
+
+
+def test_canonical_numeric_text_accepts_json_numbers():
+    # The LAL manifest is json.loads'd, so these reach the canonicaliser directly.
+    assert canonical_numeric_text(2.5) == "2.5"
+    assert canonical_numeric_text(0.00001) == "0.00001"
+    assert canonical_numeric_text(True) is None
+
+
+def test_canonical_tolerance_text_collapses_every_zero_to_empty():
+    for raw in ["", "0", "0.00000000", "0/5", "-0", 0, 0.0]:
+        assert canonical_tolerance_text(raw) == ""
+
+
+def test_canonical_tolerance_text_keeps_positive_and_rejects_negative():
+    assert canonical_tolerance_text("1/100") == "1/100"
+    assert canonical_tolerance_text("0,01") == "0.01"
+    assert canonical_tolerance_text(0.00001) == "0.00001"
+    assert canonical_tolerance_text("-1") is None
+    assert canonical_tolerance_text("abc") is None
+    assert canonical_tolerance_text("." + "1" * 63) is TOO_LONG
