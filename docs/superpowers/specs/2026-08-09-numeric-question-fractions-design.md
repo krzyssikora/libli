@@ -161,7 +161,16 @@ idempotence tests are only meaningful under this shared order.
 
 The rule, in full:
 
-1. Apply the `MAX_STORED_NUMERIC_CHARS` guard to the **stripped input** first — this function
+0. **Coerce non-string input first**, using the identical prologue as `parse_numeric_value`
+   (`None` → `""`, `Decimal` → `format(d, "f")`, else `str(s)`). This is not symmetry for its own
+   sake: the LAL manifest is parsed with `json.loads` (`courses/lal_loader/guards.py:42`), so
+   `{"value": 2.5, "tolerance": 0}` is perfectly ordinary manifest content that reaches
+   `canonical_numeric_text` directly. Today `Decimal(2.5)` accepts it; without the prologue,
+   `.strip()` on a `float` raises `AttributeError` mid-import — a context-free crash, which is
+   worse than the `Decimal(...)` it replaces and fails the bar the loader bullet sets. The same
+   hole is reachable from `clean()`, since `clean_fields()` does not write `to_python` results
+   back onto the instance.
+1. Apply the `MAX_STORED_NUMERIC_CHARS` guard to the **stripped input** — this function
    calls `int()` itself, and is reached directly from the LAL loader on unvalidated data. Both
    guards measure the **stripped** string, matching Django's `forms.CharField(strip=True)` so the
    parser and the form-level `MaxLengthValidator` cannot disagree about a whitespace-padded input.
@@ -283,8 +292,11 @@ both are reachable on ordinary input. `super().clean()` is called because
 `ShortNumericQuestionElement` sits under a base shared by 14 element types; no ancestor defines
 `clean()` today, so omitting it is harmless now and silently wrong the moment one does.
 
-**Invariants** (holding wherever `canonical_numeric_text(s)` is not `None`), pinned by an
-enumerated table covering every row above plus the >28-digit case —
+**Invariants**, holding wherever `canonical_numeric_text(s)` is **neither `None` nor
+`TOO_LONG`** — the enumerated invariant table skips those rows, because `TOO_LONG is not None`
+and feeding the sentinel back in would stringify it to `<object object at 0x…>` (round-trip) or
+raise `AttributeError` (idempotence), producing a red test that is not a real defect. Pinned by
+an enumerated table covering every other row above plus the >28-digit case —
 **not** by a property-testing library. `hypothesis` is not in `pyproject.toml` or `uv.lock`, and
 this spec does not authorise adding a dependency:
 
@@ -375,10 +387,21 @@ existed only to get `,`/`.` leniency out of a `DecimalField`, and the model fiel
 
   **Recovering *why* the tolerance was rejected.** `canonical_tolerance_text` collapses
   "unparseable" and "negative" into one `None`, so the form cannot tell them apart from the
-  return value alone and must re-derive it: on `None`, call `parse_numeric_value(raw)`; if that
-  yields a value `< 0`, raise the existing `Tolerance cannot be negative.`, otherwise raise the
-  number-or-fraction message. Precedence is fixed: `TOO_LONG` is checked **before** the negative
-  branch, so an over-length negative reports the length problem.
+  return value alone and must re-derive it:
+
+  ```python
+  p = parse_numeric_value(raw)
+  if p is not None and p < 0:
+      raise ValidationError(_("Tolerance cannot be negative."))
+  raise ValidationError(_("Enter a number or fraction (e.g. 3.14, 3,14 or 3/2)."))
+  ```
+
+  **The `p is not None` guard is not optional.** The re-derivation also runs for *unparseable*
+  input, where `parse_numeric_value` likewise returns `None` — and `None < 0` raises `TypeError`.
+  Without the guard, typing `abc` or `1/0` into the tolerance field is a **500 in the editor**,
+  and the same payload is a 500 in the import view, since `TransferError` is the only exception
+  it catches. Precedence is fixed: `TOO_LONG` is checked **before** this block, so an over-length
+  negative reports the length problem.
 - `1/0` fails to parse and lands on the "number or fraction" message. There is no
   `ZeroDivisionError` path, because `parse_numeric_value` returns `None` for a zero denominator
   rather than raising.
@@ -443,6 +466,12 @@ the form rather than to an author mid-edit.
   template hand-writes its `<input>` rather than rendering the widget, so without `maxlength` the
   new storage cap would surface only after a server round-trip. The model validator remains the
   real gate.
+- **`|default:''` → `|default_if_none:''` on both inputs.** `default` renders empty for anything
+  falsy, so a correct answer canonically stored as `"0"` reopens the editor **blank** and
+  re-saving fails with "This field is required". The bug is pre-existing (`Decimal("0E-8")` is
+  equally falsy), but this change elevates `"0"` to a headline canonical form with five table
+  rows, so the natural zero round-trip test would hit it on the very line being edited. Fixed
+  here rather than left to be misread as a regression.
 
 `templates/courses/elements/shortnumericquestionelement.html:8`
 
@@ -490,9 +519,14 @@ canonicaliser:
 
 ```python
 value_text = format_decimal_plain(value)          # Decimal in, plain text out
-if tolerance == 0:      tolerance_text = ""
-elif tolerance < 0:     # unreachable: the counting pass already aborted
-else:                   tolerance_text = format_decimal_plain(tolerance)
+if tolerance == 0:
+    tolerance_text = ""
+elif tolerance < 0:
+    # Unreachable: the counting pass already aborted. Belt-and-braces, matching
+    # the write-site backstop below.
+    raise RuntimeError(f"negative tolerance survived the counting pass: pk={pk}")
+else:
+    tolerance_text = format_decimal_plain(tolerance)
 ```
 
 **`str(tolerance)` would fail on the majority of rows.** The column is `numeric(20,8)`, so a
@@ -526,6 +560,10 @@ This is affordable **only because** the migration is `Decimal`-native. Frozen-co
 code, at which point an implementer would reasonably give up and import after all. The three-line
 `Decimal` branch above plus `format_decimal_plain` needs no regexes and no sentinel. The two
 concerns reinforce each other; neither is optional.
+
+The frozen `format_decimal_plain` **hard-codes `ctx.prec = 80`** rather than referencing
+`MAX_STORED_NUMERIC_CHARS`, which it is forbidden to import. The old column is `numeric(20,8)`,
+so 80 is far more than sufficient for anything the migration can read.
 
 **Negative legacy tolerances must be handled explicitly.** `canonical_tolerance_text` returns
 `None` for a negative value, and this spec establishes that negative tolerances are constructible
@@ -570,9 +608,13 @@ rolling back this deploy means restoring a database backup, not running `migrate
   `_val_short_numeric` re-derives it, in this fixed order — the same three-way shape as
   `clean_tolerance`:
   1. `TOO_LONG` → the parse-failure message;
-  2. `None` **and** `parse_numeric_value(data["tolerance"]) < 0` → the existing
-     `"Element '%(el)s': tolerance must not be negative."`;
+  2. `None`, **and** `p = parse_numeric_value(data["tolerance"])` is `not None` **and** `p < 0`
+     → the existing `"Element '%(el)s': tolerance must not be negative."`;
   3. `None` otherwise → the parse-failure message.
+
+  The `p is not None` guard carries the same weight here as in `clean_tolerance`: unparseable
+  input reaches this branch too, and `None < 0` would turn `"tolerance": "abc"` into a 500 in
+  the import view instead of a rejected upload.
 
   **The exact messages, since two tests pin their substrings.** `check_decimal_str` emits three
   today; the replacement emits two:
@@ -582,7 +624,9 @@ rolling back this deploy means restoring a database backup, not running `migrate
     — a *text* element, matching `"text"`, nothing to do with short-numeric. The only
     `"decimal"`-matching assertion in that test is its malformed half, which the affected-tests
     table changes. So add a payload test for `"value": 42` asserting the
-    `"must be a decimal string"` substring;
+    `"must be a decimal string"` substring. The wording is **knowingly stale** — the field now
+    accepts fractions too — and is retained only to keep the msgid shared with `check_decimal_str`
+    and `_val_guess_number`; it is not an oversight to tidy later;
   - anything `canonical_*` rejects (unparseable, zero denominator, over-length, negative
     tolerance) emits a single new `"%(what)s is not a valid number or fraction."`.
 
@@ -669,13 +713,15 @@ zero-tolerance fraction element yields a copy holding `"3/2"` and `""`.
 |---|---|
 | Student submits unparseable text (`abc`, empty, `1/0`) | `got is None` → marked incorrect. No exception. |
 | Student submits a >256-char answer | `MAX_PARSED_NUMERIC_CHARS` guard → `None` → incorrect. No `ValueError`, no 500. This also closes the pre-existing fill-blank crash. |
-| Author enters a 64-char value whose canonical form is 65 chars (`.` + 63 digits) | Output-length re-check → `None` → the "number or fraction" field error, rather than a confusing built-in max-length error or a transfer 500. |
+| Author enters a 64-char value whose canonical form is 65 chars (`.` + 63 digits) | Output-length re-check → `TOO_LONG` → `That number is too long (at most 64 characters once normalised).` |
+| The same 64-char value arrives in a transfer payload | `_val_short_numeric` treats `TOO_LONG` as a rejection → `TransferError`, never a sentinel reaching the column. |
+| Author submits an **unparseable** tolerance (`abc`, `1/0`) | The number-or-fraction field error. The negative-branch re-derivation is guarded (`p is not None and p < 0`), so this never evaluates `None < 0`. |
 | Author submits unparseable `value` | Field error `Enter a number or fraction (e.g. 3.14, 3,14 or 3/2).` |
 | Author submits `value` over 64 chars | Django's built-in `MaxLengthValidator` message, from `field.clean()` before `clean_value` runs. |
 | Author submits a negative tolerance | Existing `Tolerance cannot be negative.` |
 | Author submits `0` as the tolerance | Stored as `""`; the reveal shows no `±`. |
 | Stored `value` is junk *text* | `want is None` → marked incorrect, feedback still renders. Never a 500. |
-| Stored `value` is a non-string (`Decimal`, `int`) from an un-migrated in-process instance | Coerced via `str()` in the parser; degrades to incorrect rather than `AttributeError`. |
+| Stored `value` is a non-string (`Decimal`, `int`) from an un-migrated in-process instance | Coerced via the `Decimal`-aware prologue (`format(d, "f")`, never a bare `str()`) and marks **correctly**. A bare `str()` would yield `'0E-8'` for a scale-8 zero and silently mismatch. |
 | A write path bypasses the form (loader, shell) with junk or a negative tolerance | Model-level `validate_numeric_text` / `validate_tolerance_text` reject inside `full_clean()`. |
 | Import payload has a bad `value`/`tolerance`, or a missing `tolerance` **key** | `TransferError` from the payload validator, before any model is constructed. |
 | Import payload has `"tolerance": ""` | Valid — the canonical zero encoding, and the export round-trip case. |
@@ -711,7 +757,12 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
   only test that catches C1.
 - Zero-form rows (`-0`, `0/4`, `00/4`, `-0/4`, `0 0/4`, `-0.0`) all canonicalise to `"0"`.
   *Mutant:* remove the zero rule — `-0/4` comes back as `-0/4` or `"-0"`.
-- Round-trip and idempotence over the same enumerated table.
+- Round-trip and idempotence over the same enumerated table, **excluding** the `None` and
+  `TOO_LONG` rows (feeding a sentinel back in is not a meaningful round-trip).
+- **JSON-numeric input**, the LAL manifest case: `canonical_numeric_text(2.5)` returns `"2.5"`
+  and `canonical_tolerance_text(0)` returns `""`. *Mutant:* drop the coercion prologue from the
+  canonicalisers — a `float` from `json.loads` raises `AttributeError` mid-import. A loader test
+  feeding `{"value": 2.5, "tolerance": 0}` covers the same ground end to end.
 - `canonical_tolerance_text`: `""`, `"0"`, `"0.00000000"`, `"0/5"` → `""`; `"1/100"` → `"1/100"`;
   `"-1"` → `None`. *Mutant:* have it fall through to `canonical_numeric_text` for zero — `"0"` is
   returned and I2's reveal regression reappears.
@@ -766,9 +817,18 @@ scoped (`-k` / single files). A whole-repo sweep is a branch gate, not a task st
   rendered value is exactly `"3/2"`. The Purpose section's headline promise ("reopening the
   editor renders `3/2` verbatim") is otherwise never asserted, and removing the `__init__`
   override changes precisely this initial-value path.
-- An over-length value reports the length message, not "enter a number or fraction".
+- **The two length failures are different tests and must not be conflated.** A *64-character*
+  `"." + 63 digits` value reports the custom
+  `That number is too long (at most 64 characters once normalised).` — it passes
+  `MaxLengthValidator` and is caught by the canonical-output check. A *>64-character* input never
+  reaches `clean_value` at all and reports Django's built-in max-length message. Writing the
+  first test with a 70-character input is the natural mistake and makes it fail.
+- An **unparseable tolerance** (`abc`) is a field error, not a `TypeError`. *Mutant:* drop the
+  `p is not None` guard in the negative re-derivation — the editor 500s on the commonest bad
+  input, and no existing test covers a bad *tolerance* (only a bad value).
 - `1/0` is a field error, not a 500.
-- Over-length input produces Django's built-in max-length error.
+- A >64-character input produces Django's built-in max-length error (the other half of the pair
+  above).
 - The guess-number tolerance error text is asserted **unchanged**, guarding against a blanket
   find-replace of the shared msgid.
 
@@ -835,6 +895,9 @@ every later test on that xdist worker with failures that land nowhere near this 
 - A **negative** tolerance raises with the element-naming `"tolerance must not be negative"`
   message, not the generic parse failure. *Mutant:* fold the negative branch into the parse
   failure — the element id vanishes from a whole-course import's diagnostics.
+- An **unparseable** `"tolerance": "abc"` raises `TransferError` with the parse-failure substring.
+  *Mutant:* drop the `p is not None` guard — the import view 500s instead of rejecting. No
+  existing transfer test exercises a bad tolerance at all.
 - `FORMAT_VERSION == 11` is asserted, and a version-12 zip is refused.
 - **Duplicate-element:** duplicating a zero-tolerance `3/2` element yields a copy holding `"3/2"`
   and `""`, exercising export → validate → build in one process.
