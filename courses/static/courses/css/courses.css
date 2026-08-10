@@ -2249,11 +2249,20 @@ dialog.imgzoom:not([open]) { display: none; }
    affordance that does not belong on paper. */
 @media print { .draft-banner__form { display: none; } }
 
-/* --- Maths in node titles: the unit-chrome clamp (spec 2026-08-10) ---------- */
-/* The GLOBAL normalisation lives in app.css (see the block there); this file
-   carries only the clamps for surfaces courses.css owns. KaTeX's line-height:1.2
-   survives the global rules, and these four are all tight, single-line or
-   line-clamped boxes.
+/* --- Maths in node titles: unit-chrome surface notes (spec 2026-08-10) ------ */
+/* The GLOBAL normalisation lives in app.css. This file once carried a
+   `line-height:1;vertical-align:baseline` clamp for the four surfaces below;
+   it was REMOVED on 2026-08-11 after an A/B on the real pages measured its
+   total effect at 0.15px (.unit-crumbs__label), 0.06px (.unit-tree__label) and
+   0.00px on the other two -- rendering noise by the same standard this change
+   already applies to .result-row__title and .outline-unit__title. All four
+   inherit line-height 1.5, which already exceeds KaTeX's 1.2, so there was
+   never a taller value to clamp. The full measurement and the one case where
+   the mechanism IS real (h1, at reset.css:10's 1.15) are recorded in app.css's
+   block -- read it before adding a clamp here.
+
+   The per-surface behaviour below is unaffected by that removal and is still
+   what a reader needs:
 
    THE FOUR SURFACES BEHAVE DIFFERENTLY AND MUST NOT BE CONFLATED:
    - .unit-foot__navtitle (:778), .unit-tree__label (:755) and
@@ -2281,7 +2290,3 @@ dialog.imgzoom:not([open]) { display: none; }
    under @media print with overflow-wrap:anywhere, which cannot break a KaTeX
    inline-block, so a long maths crumb can still overflow in print. Accepted --
    printing a breadcrumb is marginal and the text is not lost, only over-wide. */
-.unit-foot__navtitle .katex,
-.unit-tree__label .katex,
-.unit-tree__grouptitle .katex,
-.unit-crumbs__label .katex { line-height: 1; vertical-align: baseline; }

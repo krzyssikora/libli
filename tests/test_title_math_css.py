@@ -1,9 +1,14 @@
 """The [data-math-title] CSS normalisation (spec §3).
 
-Source assertions, not rendering: the MEASURED confirmation of these values is
-Task 11's job (screenshots + devtools), and this file only pins that the rules
-exist, live in the right stylesheet, and keep their specificity edge over the
-vendor rules they override.
+Source assertions, not rendering: this file pins that the rules exist, live in
+the right stylesheet, and keep their specificity edge over the vendor rules they
+override. The rendered confirmation is a browser A/B, not a source check.
+
+It also pins one ABSENCE. Every `line-height`/`vertical-align` clamp this change
+originally shipped was measured inert and removed (2026-08-11); the numbers and
+the mechanism live in `test_no_title_surface_carries_a_line_height_clamp` and in
+app.css's own block. That test is what keeps a plausible-sounding clamp from
+returning without a measurement.
 """
 
 import re
@@ -49,7 +54,11 @@ def test_font_size_weight_and_style_are_all_restored():
 
 
 def test_line_height_is_not_inherited_by_the_global_rule():
-    """Deliberately NOT inherited here -- the compact-chrome clamps own it."""
+    """Deliberately left alone: the vendor's 1.2 is measured harmless on every
+    title surface (see test_no_title_surface_carries_a_line_height_clamp), so
+    there is nothing for this rule to override. `line-height: inherit` here would
+    be a change with no measurement behind it -- and on an <h1>, whose 1.15 sits
+    below 1.2, it would silently alter heights the change decided to accept."""
     block = re.search(r"\[data-math-title\]\s+\.katex\s*\{([^}]*)\}", _app())
     assert "line-height" not in block.group(1)
 
@@ -117,38 +126,65 @@ def _has_rule(css, selector):
     return _rule_body(css, selector) is not None
 
 
-def test_the_analytics_clamp_lives_in_app_css_and_actually_clamps():
-    """The analytics pages have no courses.css.
+ANALYTICS_SURFACES = (
+    ".analytics__matrix thead th .katex",
+    ".breakdown-unit__title .katex",
+    ".breakdown-node__title .katex",
+)
+UNIT_CHROME_SURFACES = (
+    ".unit-foot__navtitle .katex",
+    ".unit-tree__label .katex",
+    ".unit-tree__grouptitle .katex",
+    ".unit-crumbs__label .katex",
+)
 
-    Asserts the DECLARATIONS, not just the selector: a rule with an empty body --
-    or one carrying line-height:1.2 -- would satisfy a selector-only check while
-    clamping nothing, and the clamp's whole purpose is those two properties. The
-    analytics sticky header is the most fragile surface in the change (a cell
-    taller than --ahead-h desynchronises every sticky row beneath it)."""
-    css = _app()
-    for sel in (
-        ".analytics__matrix thead th .katex",
-        ".breakdown-unit__title .katex",
-        ".breakdown-node__title .katex",
+
+def test_no_title_surface_carries_a_line_height_clamp():
+    """MEASURED ABSENCE, not an oversight -- this is the pin that stops the clamp
+    coming back on a plausible-sounding argument.
+
+    Both files once carried `line-height: 1; vertical-align: baseline` for these
+    seven selectors. An A/B on the real pages (2026-08-11), forcing the vendor's
+    line-height:1.2 back onto the same .katex boxes, moved every surface by at
+    most 0.19px -- .breakdown-unit__title +0.19, .unit-crumbs__label +0.15,
+    .unit-tree__label +0.06, the other four 0.00, and 0.00 on ALL seven for a
+    fraction (the strut dominates, and line-height cannot touch a strut).
+
+    The mechanism: all seven inherit line-height 1.5, which already exceeds the
+    vendor's 1.2, so there was never a taller value to clamp; and
+    `vertical-align` computes `baseline` either way, since the vendored
+    stylesheet sets it on no .katex selector and baseline is the initial value.
+
+    0.19px is the same delta this change rejects as noise for .result-row__title
+    (49.2 vs 49.0) and .outline-unit__title. One standard, applied consistently.
+
+    If a surface ever genuinely needs a clamp, A/B it against the rule's ABSENCE
+    before adding it -- measuring only with the rule present proves nothing, which
+    is exactly how the .outline-unit__title clamp was once justified and had to be
+    withdrawn. Delete this test in the same commit, with the numbers."""
+    for css, name, sels in (
+        (_app(), "app.css", ANALYTICS_SURFACES),
+        (_courses(), "courses.css", UNIT_CHROME_SURFACES),
     ):
-        body = _rule_body(css, sel)
-        assert body is not None, f"missing analytics clamp rule: {sel}"
-        assert "line-height: 1;" in body, f"{sel} does not clamp line-height"
-        assert "vertical-align: baseline" in body, f"{sel} lacks baseline align"
+        for sel in sels:
+            assert not _has_rule(css, sel), (
+                f"{name} has re-gained a rule for `{sel}`. If this is deliberate, "
+                f"it needs an A/B measurement against the rule's absence."
+            )
 
 
-def test_the_unit_chrome_clamp_lives_in_courses_css_and_actually_clamps():
-    css = _courses()
-    for sel in (
-        ".unit-foot__navtitle .katex",
-        ".unit-tree__label .katex",
-        ".unit-tree__grouptitle .katex",
-        ".unit-crumbs__label .katex",
-    ):
-        body = _rule_body(css, sel)
-        assert body is not None, f"missing unit-chrome clamp rule: {sel}"
-        assert "line-height: 1;" in body, f"{sel} does not clamp line-height"
-        assert "vertical-align: baseline" in body, f"{sel} lacks baseline align"
+def test_the_one_surface_where_line_height_would_bite_is_documented():
+    """reset.css gives h1-h4 line-height:1.15 -- BELOW the vendor's 1.2 -- so an
+    <h1> title (.lesson-unit__title) is the single place a clamp would actually
+    do something. It is deliberately unclamped (a tall construct keeps its own
+    height), and app.css records why. This pins the heading value the reasoning
+    rests on, so a future edit to reset.css cannot silently invalidate it."""
+    reset = (ROOT / "core/static/core/css/reset.css").read_text(encoding="utf-8")
+    m = re.search(r"h1,\s*h2,\s*h3,\s*h4\s*\{([^}]*)\}", reset)
+    assert m, "the h1-h4 rule moved; re-check the clamp reasoning in app.css"
+    assert "line-height: 1.15" in m.group(1)
+    assert not _has_rule(_app(), ".lesson-unit__title .katex")
+    assert not _has_rule(_courses(), ".lesson-unit__title .katex")
 
 
 def test_the_display_child_override_does_not_touch_white_space():

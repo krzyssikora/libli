@@ -1813,7 +1813,8 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    -- a font SHORTHAND, so it resets every unset font longhand. Restoring only
    font-size leaves a maths run at `normal` weight inside a bold title, visibly
    lighter than the prose beside it. line-height is deliberately NOT inherited:
-   the compact-chrome clamps below own that. */
+   the vendor's 1.2 is measured harmless on every title surface -- see the
+   clamp note below, which is also why no clamp rule follows it. */
 [data-math-title] .katex {                              /* (0,2,0) > (0,1,0) */
   font-size: inherit; font-weight: inherit; font-style: inherit;
 }
@@ -1856,20 +1857,56 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   display: inline-block; text-align: inherit;
 }
 
-/* The analytics clamp lives here, not in courses.css: neither analytics page
-   links it. The matrix header is the most fragile surface in this change --
-   .analytics{--ahead-h:2.4rem} and `thead th{position:sticky;height:var(--ahead-h);
-   white-space:nowrap}`, with each header row positioned at
-   top:calc(var(--ahead-h) * counter0). A title taller than 2.4rem DESYNCHRONISES
-   every sticky row beneath it (a layout break, not a cosmetic one), and because
-   the cell is nowrap a long maths title WIDENS the column instead of wrapping. */
-.analytics__matrix thead th .katex,
-.breakdown-unit__title .katex,
-.breakdown-node__title .katex { line-height: 1; vertical-align: baseline; }
+/* NO line-height / vertical-align CLAMP IS WARRANTED ON ANY TITLE SURFACE --
+   MEASURED 2026-08-11, and the reason generalises, so read this before adding
+   one. An earlier version of this file carried a clamp here
+   (.analytics__matrix thead th, .breakdown-unit__title, .breakdown-node__title)
+   and a matching one in courses.css (.unit-foot__navtitle, .unit-tree__label,
+   .unit-tree__grouptitle, .unit-crumbs__label). Both were removed: an A/B on
+   the real pages -- forcing the vendor's line-height:1.2 back onto the same
+   .katex boxes -- moved every surface by AT MOST 0.19px:
 
-/* Task 11 measured .outline-unit__title (2026-08-10) and found NO rule is
-   warranted here -- an earlier version of this comment claimed otherwise and
-   was wrong; see the correction below.
+     .breakdown-unit__title  +0.19    .unit-crumbs__label      +0.15
+     .unit-tree__label       +0.06    everything else           0.00
+     (fractions: 0.00 on ALL seven -- the strut dominates)
+
+   THE MECHANISM, so it is not re-derived from scratch: every one of those
+   surfaces inherits line-height 1.5 (measured 19.68/13.12, 19.2/12.8,
+   18.72/12.48, 20.4/13.6, 24/16 -- all exactly 1.5), which already EXCEEDS the
+   vendor's 1.2. The vendor value is never the taller one there, so clamping it
+   changes nothing. `vertical-align: baseline` computed `baseline` with AND
+   without the declaration -- the vendored stylesheet sets vertical-align on no
+   .katex/.katex-display selector and baseline is the initial value, so that
+   half was inert by construction.
+
+   THE ONE PLACE THE MECHANISM IS REAL: reset.css:10 gives h1-h4
+   line-height:1.15, which is BELOW the vendor's 1.2 -- so on .lesson-unit__title
+   (an <h1>) a clamp would actually bite. It is deliberately left unclamped, on
+   the same footing as the .katex-display neutralisation and the five-line group
+   clamp: a tall construct keeps its own height rather than being deformed to
+   fit one text line.
+
+   0.19px is the same delta this change already rejects as rendering noise for
+   .result-row__title (49.2 vs 49.0) and .outline-unit__title -- one standard,
+   applied consistently. If you think a surface needs a clamp, A/B it against
+   the rule's ABSENCE first; measuring only with the rule present proves nothing.
+
+   The analytics sticky header was the stated worry and is measured safe:
+   .analytics{--ahead-h:2.4rem} with `thead th{position:sticky;
+   height:var(--ahead-h);white-space:nowrap}` positions each header row at
+   top:calc(var(--ahead-h) * counter0), so a cell taller than 2.4rem would
+   desynchronise every sticky row beneath it. Measured 38.39px against a
+   38.4px --ahead-h with a maths title present, clamp or no clamp: the explicit
+   `height` caps it either way. (A long maths title still WIDENS the nowrap
+   column instead of wrapping -- unchanged by any of this, and unrelated to
+   line-height.)
+
+   The .outline-unit__title measurement that started all this is recorded
+   immediately below, and reaches the same conclusion by the same method. */
+
+/* THE ORIGIN CASE. Task 11 measured .outline-unit__title (2026-08-10) and found
+   NO rule is warranted there either -- an earlier version of this file shipped
+   one, justified by a real but MISREAD measurement, and it was withdrawn.
 
    A plain maths-titled row (e.g. \(\sum_{i=1}^{n} a_i b_i\)) measures 24.0px,
    identical to a maths-free row. A row whose title carries a fraction
