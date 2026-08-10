@@ -18,9 +18,9 @@ Two independent causes:
    (`templates/courses/lesson_unit.html:37,71-77`), and `has_math` is computed purely from
    the unit's *elements* and *questions* (`courses/views.py:406`, `:1318`, `:1588`;
    `courses/views_review.py:101`). A unit whose only maths is in its title ships no KaTeX,
-   so fixing cause 1 alone would leave it unrendered. Six of the pages that display unit
+   so fixing cause 1 alone would leave it unrendered. Five of the pages that display unit
    titles — course outline, course results, analytics matrix, analytics breakdown, review
-   queue, builder — load no KaTeX under any condition today.
+   queue — load no KaTeX under any condition today.
 
 A third defect surfaced while scoping the above, and is in scope because the shared
 partial introduced below fixes it as a side effect:
@@ -33,11 +33,16 @@ partial introduced below fixes it as a side effect:
    `question.js`/`quiz.js` reach. This is pre-existing and independent of titles.
 
 **Decisions taken during design.** Maths in titles is a first-class authoring capability,
-not a one-off repair of imported content, so every read-only display surface is in scope
-except where §1 states a specific reason otherwise. Asset loading extends the existing
-server-side `has_math` gate rather than introducing a client-side sniffer or dropping the
-gate. Maths inside compact chrome is normalised by CSS so it cannot alter row height.
-Plain-text contexts strip the delimiters.
+not a one-off repair of imported content. Asset loading extends the existing server-side
+`has_math` gate rather than introducing a client-side sniffer or dropping the gate. Maths
+inside compact chrome is normalised by CSS so it cannot alter row height. Plain-text
+contexts strip the delimiters.
+
+**Scope boundary: server-rendered display surfaces only.** Every site in §1 is markup the
+server emits on page load, so the single document pass `math.js` already performs is
+sufficient. Surfaces injected into the DOM by JavaScript *after* that pass are deferred —
+see §5, which states exactly which they are and what they would additionally require. This
+boundary is the reason the change needs no new client-side re-render plumbing.
 
 **Non-goals.** No authoring affordance is added: the title inputs stay plain `<input
 type="text">` and authors type the delimiters by hand, exactly as they already do for table
@@ -53,8 +58,8 @@ KaTeX auto-render's existing behaviour everywhere else in the app.
 
 Adding a class name per surface to `renderInlineText`'s list would be brittle, and would
 put the include/exclude decision in a place where it cannot be reviewed against the
-surrounding markup. Instead every **read-only display** of a node title gains a
-`data-math-title` attribute, and `renderInlineText` gains exactly one new entry:
+surrounding markup. Instead every **read-only, server-rendered display** of a node title
+gains a `data-math-title` attribute, and `renderInlineText` gains exactly one new entry:
 `[data-math-title]`.
 
 **Student and results surfaces:**
@@ -79,43 +84,34 @@ surrounding markup. Instead every **read-only display** of a node title gains a
 | Review queue | `templates/courses/manage/review_queue.html` | 15, 30 |
 | Review submission heading | `templates/courses/manage/review_submission.html` | 58 |
 
-**Editor and builder surfaces:**
+**Editor surfaces** (the editor page is server-rendered and already loads KaTeX
+unconditionally — see §2):
 
 | Surface | File | Lines |
 | --- | --- | --- |
 | Editor heading | `templates/courses/manage/editor/editor.html` | 80 |
 | Editor crumb (ancestor titles) | `templates/courses/manage/editor/editor.html` | 75 |
 | Editor preview heading | `templates/courses/manage/editor/_preview.html` | 6 |
-| Link picker display title | `templates/courses/manage/editor/_link_picker_node.html` | 26 |
-| Move picker | `templates/courses/manage/_move_picker.html` | 9, 27, 29, 34 |
-| Builder node panel | `templates/courses/manage/_node_panel.html` | 3 |
-| Builder unit panel | `templates/courses/manage/_unit_panel.html` | 3 |
-| Delete confirmation | `templates/courses/manage/node_confirm_delete.html` | 5 |
 
-Review queue lines 15 and 30 interpolate the student name and the title into one `<span>`.
-The attribute must go on a `<span>` wrapping the title alone, not on the shared parent —
-otherwise a student whose display name happens to contain `\(` would be typeset too. The
-same applies to `_move_picker.html:9,27`, where a `tree__badge` precedes the title, and to
-`editor.html:75`, where the loop emits a separator and each ancestor title: the marker goes
-on a span around `{{ a.title }}` alone, not around the whole `.editor-crumb__path` (which
-also holds `course.title`, out of scope per §4).
+**The title-alone rule.** Where a template interpolates other content into the same
+element, the marker goes on a `<span>` wrapping the title **alone**, never on the shared
+parent — otherwise a student's display name or a translated word gets typeset too. This
+applies to:
+
+- `review_queue.html:15,30` — student name + title in one `<span>`.
+- `review_submission.html:58` — `{% trans "Review" %}: <student> — {{ submission.unit.title }}`.
+- `quiz_results.html:12` — `{{ unit.title }} — {% trans "results" %}`.
+- `editor.html:75` — the loop emits a separator and each ancestor title; the marker wraps
+  `{{ a.title }}` only, not `.editor-crumb__path`, which also holds `course.title`
+  (out of scope per §4).
 
 **Deliberately excluded — the raw text is load-bearing, not displayed:**
 
 | Excluded site | File | Line | Why |
 | --- | --- | --- | --- |
-| Builder inline rename input | `templates/courses/manage/_tree_node.html` | 49 | `<input value=>` — the edit buffer; typesetting would corrupt what is saved |
-| Editor settings title input | `templates/courses/manage/editor/_unit_settings.html` | 12 | same |
-| Link picker payload | `templates/courses/manage/editor/_link_picker_node.html` | 14 | `data-title=` read by JS |
+| Editor settings title input | `templates/courses/manage/editor/_unit_settings.html` | 12 | `<input value=>` — the edit buffer; typesetting would corrupt what is saved |
 | Rename result payload | `templates/courses/manage/_rename_result.html` | 7 | `<data value=>` read by JS |
 | Every `title=` tooltip | various | — | plain-text attribute; see §4 |
-
-**Deliberately excluded — for a stated technical reason, not oversight:**
-
-| Excluded site | File | Why |
-| --- | --- | --- |
-| Flag/publish confirm headline | `templates/courses/manage/_flag_strip_headline.html` | The title is interpolated *inside* a `{% blocktrans with title=node.title %}` msgid. Marking it would require splitting the title out of the msgid, changing every one of the eight msgids in this file and invalidating their existing Polish translations — `makemessages` would then fuzzy-prefill wrong strings. Disproportionate for a transient confirm prompt. |
-| Gradebook print/export | `templates/courses/manage/gradebook_print.html:56` | A print/PDF surface. KaTeX depends on webfonts that do not render reliably through print pipelines, so typesetting here needs its own font-embedding decision. Separate work. |
 
 Exclusion by *absence of an attribute the neighbours carry* is legible in review. Exclusion
 by *absence from a selector list in another file* is not. That is the whole reason for the
@@ -133,6 +129,9 @@ call site to them:
 - `templates/courses/_katex_css.html` — the `katex.min.css` `<link>`.
 - `templates/courses/_katex_js.html` — `katex.min.js`, `contrib/auto-render.min.js`,
   `math_reflow.js`, `text_colour.js`, `math.js`, in that order.
+
+Both partials open with their own `{% load static %}` — template libraries are not
+inherited from the including template, so omitting it is a `TemplateSyntaxError`.
 
 Script order is load-bearing and must be preserved exactly: `math_reflow.js` installs
 pre-hooks on `window.renderMathInElement` and `katex.render`, and its header comment
@@ -157,22 +156,29 @@ what allows the next paragraph.
 `:182-186` (JS) have **no** `{% if has_math %}` wrapper — the editor ships KaTeX on every
 unit because MathLive and the live preview need it regardless of the unit's content. Both
 editor includes remain **unguarded**, no `has_math` is computed for the editor page, and the
-editor does not appear in the gate table below. Note the JS range is `182-186` (five tags
-beginning at `katex.min.js`), not `183-186`; replacing only `183-186` would strand a
-`katex.min.js` tag above the include.
+editor does not appear in the gate table below.
 
-**Call sites to convert:** `lesson_unit.html:37,71-77`, `quiz_unit.html:10,28-32`,
-`quiz_results.html:7,63-66`, `manage/review_submission.html:6,135-138`,
-`manage/editor/editor.html:20,182-186`.
+**Call sites to convert.** Cited as the script-tag lines only; every existing
+`{% if has_math %}` guard line stays exactly where it is:
 
-The editor additionally loads `mathlive.min.js` and its bootstrap
-(`manage/editor/editor.html:169-176`); that stays where it is and is not part of the shared
-partial, because no other page has a MathLive authoring surface.
+| Template | CSS line | JS tag lines |
+| --- | --- | --- |
+| `lesson_unit.html` | 37 | 72-76 |
+| `quiz_unit.html` | 10 | 28-32 |
+| `quiz_results.html` | 7 | 63-66 (plus `math.js`, newly added by the partial) |
+| `manage/review_submission.html` | 6 | 135-138 (plus `math.js`) |
+| `manage/editor/editor.html` | 20 | 182-186 |
+
+The editor's JS range begins at `182`, not `183`; replacing only `183-186` would strand a
+`katex.min.js` tag above the include. The editor additionally loads `mathlive.min.js` and
+its inline bootstrap (`manage/editor/editor.html:169-181`, `math_input.js` at `:181`); that
+stays where it is and is not part of the shared partial, because no other page has a
+MathLive authoring surface.
 
 **The helpers.** Two public functions, placed so that every consumer imports *downward*.
-Putting them in `courses/views.py` would force `views_analytics.py`, `views_review.py` and
-`views_manage.py` — none of which imports `courses.views` today — to import a very large
-view module, and to import a private name across module boundaries.
+Putting them in `courses/views.py` would force `views_analytics.py` and `views_review.py` —
+neither of which imports `courses.views` today — to import a very large view module, and to
+import a private name across module boundaries.
 
 - `titles_have_math(titles)` in **`courses/htmlsandbox.py`**, beside `has_math_delimiters`.
   Takes an **iterable of strings** and returns `True` iff any carries a delimiter. A string
@@ -192,12 +198,22 @@ Per page, `has_math` becomes the existing value OR the title scan:
 | Course outline | `course_outline` (`views.py:576`) | `tree_titles_have_math(outline)` |
 | Course results | `course_results` (`views.py:610`) | `titles_have_math(r["unit"].title for r in summary["rows"])` |
 | Analytics matrix | `analytics_matrix` (`views_analytics.py:74`) | `titles_have_math(c["title"] for row in matrix["header_rows"] for c in row)` |
-| Analytics breakdown | `analytics_student` (`views_analytics.py:224`) | `tree_titles_have_math(breakdown)` — `build_student_breakdown` returns a `build_outline` tree |
-| Review queue | `review_queue` (`views_review.py:110`) | `titles_have_math(s.unit.title for s in awaiting + in_progress)` |
+| Analytics breakdown | `analytics_student` (`views_analytics.py:224`) | `tree_titles_have_math(breakdown["tree"])` |
+| Review queue | `review_queue` (`views_review.py:110`) | `titles_have_math(s.unit.title for s in data["awaiting"] + data["in_progress"])` |
 | Review submission | `_review_context` (`views_review.py:95`) | `titles_have_math([submission.unit.title])` |
-| Builder | the builder view rendering `_move_picker`/`_node_panel`/`_unit_panel` | `tree_titles_have_math` over the builder's node tree |
 
 The editor is absent by design (see above).
+
+**Two scan expressions that must be written against the real shape.** Both were wrong in an
+earlier draft in ways that fail loudly or silently:
+
+- `build_student_breakdown` (`rollups.py:452`) returns `{"student": student, "tree": tree}`
+  — a **dict wrapper**, not a tree; `analytics_student.html:12` iterates `breakdown.tree`.
+  Passing `breakdown` itself would iterate the dict's keys and raise
+  `TypeError: string indices must be integers` — a 500 on the breakdown page.
+- `review_queue` (`views_review.py:110`) binds only `data`; it unpacks
+  `data["awaiting"]` / `data["in_progress"]` inline in the `render()` call (`:118-126`).
+  There are no `awaiting` / `in_progress` locals, so referring to them is a `NameError`.
 
 **Analytics matrix: scan `header_rows`, never `columns`.** The titles at
 `analytics_matrix.html:115,116` (leaf) and `:126` (group) come from `matrix["header_rows"]`
@@ -205,9 +221,8 @@ The editor is absent by design (see above).
 (`courses/rollups.py:569,584,596`, assembled at `:615`), **not** in `build_results_matrix` /
 `build_progress_matrix`. `matrix["columns"]` is `_public_columns(...)` (`:667`) and holds
 **leaf columns only**, so a scan over it silently misses every expanded group cell — which
-is exactly what line 126 renders. That is the always-`False` scan this spec warns about two
-paragraphs below; §Testing requires a fixture with the maths title on an **expanded group**
-node, not only on a leaf.
+is exactly what line 126 renders. §Testing requires a fixture with the maths title on an
+**expanded group** node, not only on a leaf.
 
 **Why the lesson/quiz row scans two things.** `unit_nav["tree"]` is `build_outline(...)` and
 already contains the ancestors, the previous and next units, and normally the current unit
@@ -221,15 +236,17 @@ guards and both partial includes — and four of them have nowhere to put them t
 
 | Template | What exists | What must be added |
 | --- | --- | --- |
-| `outline.html` | `extra_css` **with** `{{ block.super }}` | `extra_js` block |
-| `course_results.html` | `extra_css` **without** `{{ block.super }}` | `extra_js` block |
-| `manage/analytics_matrix.html` | `extra_js` only | `extra_css` block |
+| `outline.html` | `extra_css` with `{{ block.super }}` | `extra_js` block |
+| `course_results.html` | `extra_css` without `{{ block.super }}` | `extra_js` block |
+| `manage/analytics_matrix.html` | `extra_js` only, `{% load i18n %}` only | `extra_css` block + `{% load static %}` |
 | `manage/analytics_student.html` | neither block, no `{% load static %}` | both blocks + `{% load static %}` |
 | `manage/review_queue.html` | neither block, no `{% load static %}` | both blocks + `{% load static %}` |
 
-The `{{ block.super }}` asymmetry between `outline.html` and `course_results.html` is
-pre-existing; preserve each file's current behaviour rather than normalising it, since
-changing it would silently add or drop `base.html`'s own stylesheets.
+Leave the `{{ block.super }}` asymmetry between `outline.html` and `course_results.html`
+alone. It is pre-existing and **inert**: `base.html:49` is `{% block extra_css %}{% endblock %}`
+— an empty block — and base's own stylesheets (`reset.css`, `tokens.css`, `app.css`) are at
+`:44-46`, *outside* it. So `{{ block.super }}` expands to the empty string in both cases.
+Preserve each file as-is purely to keep the diff minimal.
 
 **The trap.** On a unit page the contents tree is `unit_nav["tree"]`, which
 `build_unit_nav` sets to the entire course outline (`courses/rollups.py:921`), and
@@ -266,18 +283,22 @@ or a tree row. Since §Purpose commits to supporting `\[...\]` in titles, neutra
 Putting the global normalisation in `courses.css` would leave the three manage pages that
 newly gain KaTeX rendering at an unnormalised 1.21em.
 
-- **`core/static/core/css/app.css`** (loaded by `base.html` on every page) — the global rule:
+- **`core/static/core/css/app.css`** (linked by `base.html:46` on every page) — the two
+  global rules. Both live here only; a `courses.css` copy could never match anything these
+  do not already match, and would drift:
 
   ```css
   [data-math-title] .katex { font-size: inherit; }
+  [data-math-title] .katex-display {
+    display: inline-block; margin: 0; text-align: inherit;
+  }
   ```
 
 - **`core/static/core/css/app.css`** — the analytics clamp, since those pages have no
   `courses.css`:
 
   ```css
-  .analytics__colhead [data-math-title] .katex,
-  .analytics__group-title .katex,
+  .analytics__matrix thead th .katex,
   .breakdown-unit__title .katex,
   .breakdown-node__title .katex { line-height: 1; vertical-align: baseline; }
   ```
@@ -291,34 +312,30 @@ newly gain KaTeX rendering at an unnormalised 1.21em.
   .unit-crumbs__label .katex { line-height: 1; vertical-align: baseline; }
   ```
 
-- **Both files** — the display-math neutralisation, applied wherever a clamp applies:
+**The compact surfaces behave differently and must not be conflated.**
 
-  ```css
-  [data-math-title] .katex-display {
-    display: inline-block; margin: 0; text-align: inherit;
-  }
-  ```
-
-**The three compact surfaces behave differently and must not be conflated.**
-
-- `.unit-foot__navtitle` (`courses.css:778`) is a genuine single-line clip:
-  `white-space:nowrap; overflow:hidden; text-overflow:ellipsis`. A long maths title
-  hard-clips rather than showing an ellipsis — `text-overflow` applies to inline text, not
-  to KaTeX's inline-block box. Accepted; it is why §4 keeps the tooltip useful.
-- `.unit-tree__grouptitle` (`courses.css:702-704`) is **not** a single-line clip. It is
-  `display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical` with
-  `overflow-wrap:break-word; hyphens:auto` — a five-line clamp. `-webkit-box` line counting
-  and its ellipsis both behave differently with an inline-block `.katex` child. The intended
-  behaviour is: the surrounding prose keeps wrapping and clamping as today, and the formula
-  stays intact on whichever line it lands on rather than being broken internally. This is a
-  **measured** case, not an assumed one.
-- `.analytics__colhead` is height-constrained by a shared custom property, and that makes it
-  the most fragile surface of the three. `app.css:675` sets `.analytics{--ahead-h:2.4rem}`,
-  `:755` sets `.analytics__colhead{height:var(--ahead-h)}`, and
-  `analytics_matrix.html:112` positions each sticky header row at
-  `top:calc(var(--ahead-h) * counter0)`. A column title taller than `2.4rem`
-  desynchronises every sticky header row beneath it — a layout break, not merely a taller
-  row.
+- **Three single-line clips** — `.unit-foot__navtitle` (`courses.css:778`),
+  `.unit-tree__label` (`:755`) and `.unit-crumbs__label` (`:848`) — are all
+  `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`. A long maths title
+  hard-clips rather than showing an ellipsis: `text-overflow` applies to inline text, not to
+  KaTeX's inline-block box. Accepted; it is why §4 keeps the tooltips useful. Note this hits
+  the contents-tree unit rows and the breadcrumb leaf, not just the nav buttons — the two
+  most frequently seen surfaces of the three.
+- **One five-line clamp** — `.unit-tree__grouptitle` (`courses.css:702-704`) is **not** a
+  single-line clip. It is `display:-webkit-box; -webkit-line-clamp:5;
+  -webkit-box-orient:vertical` with `overflow-wrap:break-word; hyphens:auto`. `-webkit-box`
+  line counting and its ellipsis both behave differently with an inline-block `.katex`
+  child. Intended behaviour: the surrounding prose keeps wrapping and clamping as today, and
+  the formula stays intact on whichever line it lands on rather than being broken
+  internally. A **measured** case, not an assumed one.
+- **One fixed-height sticky header** — the analytics matrix, the most fragile of the four.
+  `app.css:675` sets `.analytics{--ahead-h:2.4rem}`; `app.css:755-756` sets
+  `.analytics__matrix thead th{position:sticky; height:var(--ahead-h); white-space:nowrap; …}`
+  (there is no `.analytics__colhead{height:…}` rule); and `analytics_matrix.html:112`
+  positions each sticky header row at `top:calc(var(--ahead-h) * counter0)`. Two distinct
+  failures follow: a title taller than `2.4rem` desynchronises every sticky header row
+  beneath it — a layout break, not a cosmetic one — and because the cell is `nowrap`, a long
+  maths title **widens the column** instead of wrapping.
 
 All clamp values above are a **starting hypothesis, not a result**. They are confirmed or
 corrected from the measurements §Testing requires before the PR opens.
@@ -352,8 +369,9 @@ readability improvement, not a LaTeX-to-text converter.
 | Breadcrumb tooltip | `_unit_crumbs.html` | 34 |
 | Collapsed-crumb tooltip | `_unit_crumbs.html` | 27 |
 | Collapsed-crumb SR-only name | `_unit_crumbs.html` | 29 |
-| Builder rename tooltip | `manage/_tree_node.html` | 50 |
+| Part-progress chip tooltip | `_unit_footer.html` | 37 |
 | Browser tab | `lesson_unit.html`, `quiz_unit.html`, `quiz_results.html` | 3 |
+| Browser tab | `manage/editor/editor.html`, `manage/review_submission.html` | 3 |
 
 `_unit_crumbs.html:27` and `:29` both render `{{ unit_nav.hidden_path }}` — the
 `HIDDEN_PATH_SEP`-joined ancestor titles (`rollups.py:954`). Line 29 sits inside a
@@ -362,20 +380,53 @@ for a screen reader and must be stripped, never marked for typesetting. Without 
 maths ancestor title is read aloud as "backslash paren x caret 2" on a page that is
 otherwise fully typeset.
 
-**Required `{% load %}` additions.** `_unit_tree_node.html` and `_unit_crumbs.html` open
-with `{% load i18n %}` only, and `manage/_tree_node.html` loads `courses_manage_extras`, not
-`courses_extras`. A missing `{% load %}` is a `TemplateSyntaxError` — a 500 on a
-student-facing page. Register `strip_math_delimiters` in **both** `courses_extras` and
-`courses_manage_extras` (a one-line re-registration) rather than adding a second library
-load to the builder partial.
+`_unit_footer.html:37` renders `title="{{ unit_nav.part_progress.title }}"` — the top-level
+part's node title (`rollups.py:940`) — which would otherwise show raw delimiters in a
+tooltip on an otherwise fully typeset footer.
 
-Not applied to `manage/_move_picker.html`'s `data-child-pk` list items or the link picker
-`data-title=`, which are payloads rather than display.
+**Required `{% load %}` additions.** `_unit_tree_node.html`, `_unit_crumbs.html` and
+`_unit_footer.html` open with `{% load i18n %}` only; `editor.html:2` and
+`review_submission.html:2` load `i18n static`. Each needs `courses_extras` added. A missing
+`{% load %}` is a `TemplateSyntaxError` — a 500 on a student-facing page.
 
 **Course titles are out of scope.** `_unit_crumbs.html:20`, `outline.html:3`,
 `course_results.html:3` and `manage/editor/editor.html:75`'s leading `{{ course.title }}`
 render `Course.title`, a different field on a different model. This change touches node
 titles only; if course titles should typeset too, that is separate work.
+
+### 5. Deferred: JavaScript-injected surfaces
+
+Six further read-only title displays exist. All are excluded from this change, and all for
+the same structural reason: **they are written into the DOM by JavaScript after `math.js`
+has already made its single document pass**, so a `data-math-title` marker on them would
+have no effect whatsoever. They are listed here so their absence is a decision, not an
+oversight.
+
+| Deferred site | File | Injected by |
+| --- | --- | --- |
+| Builder node panel | `manage/_node_panel.html:3` | `builder.js:15-18` `setPanel()` — `panel.innerHTML = html` |
+| Builder unit panel | `manage/_unit_panel.html:3` | same |
+| Move picker heading | `manage/_move_picker.html:9` | same |
+| Move picker destination rows | `manage/_move_picker.html:27` | same |
+| Link picker display title | `manage/editor/_link_picker_node.html:26` | `link_dialog.js:238` — `mount.innerHTML = html` |
+| Builder tree labels | `manage/_tree_node.html` | builder fragment swaps |
+
+Enabling these needs three things this change deliberately does not do: exporting
+`renderInlineText` on `window` (today only `renderMath` is exported, as
+`window.libliRenderMath`, and it matches `[data-katex]` only); a re-render call in
+`builder.js`'s `setPanel` and in `link_dialog.js` after `mount.innerHTML`; and a gate on
+`builder.html` (`:4` and `:56` already hold `extra_css`/`extra_js`, neither carrying KaTeX).
+That is a distinct piece of client-side work with its own failure modes, and per this
+repo's history a diff with no JS is exactly where such defects hide.
+
+**Two sites are excluded for reasons that would survive the above:**
+
+| Excluded site | File | Why |
+| --- | --- | --- |
+| Move picker child rows | `manage/_move_picker.html:29,34` | `<li data-child-pk>` items are **payload, not display**. `builder.js:39` caches `kidsOl.innerHTML` and `:49` rebuilds each row as `escHtml(li.textContent)` — KaTeX markup here would be flattened into a garbage move-anchor label, this repo's known `.textContent`-flattens-KaTeX failure. Must stay unmarked even when the deferred work lands. |
+| Flag/publish confirm headline | `manage/_flag_strip_headline.html` | The title is interpolated *inside* `{% blocktrans with title=node.title %}`. Marking it needs the title split out of the msgid, changing every msgid in the file (eleven blocks, six of them msgid/msgid_plural pairs) and invalidating their existing Polish translations — `makemessages` would then fuzzy-prefill wrong strings. Disproportionate for a transient confirm prompt. |
+| Delete confirmation headline | `manage/node_confirm_delete.html:5` | Identical `{% blocktrans with title=node.title %}` shape, excluded for the identical reason. |
+| Gradebook print/export | `manage/gradebook_print.html:56` | A print/PDF surface. KaTeX depends on webfonts that do not render reliably through print pipelines, so typesetting here needs its own font-embedding decision. |
 
 ## Data flow
 
@@ -402,20 +453,20 @@ matches the delimiters and replaces them with KaTeX markup in place.
 `{% block head_title %}`. This path never reaches KaTeX; it terminates as attribute or
 text-node content.
 
-**Path C — the edit buffers.** `<input value=>`, `data-title=` and `<data value=>` receive
-the title with no filter and no marker attribute, so the round-trip through the rename and
-settings forms is byte-identical to what was stored. Path C must stay disjoint from A and
-B: applying either would corrupt what the author saves.
+**Path C — the edit buffers.** `<input value=>` and `<data value=>` receive the title with
+no filter and no marker attribute, so the round-trip through the rename and settings forms
+is byte-identical to what was stored. Path C must stay disjoint from A and B: applying
+either would corrupt what the author saves.
 
-**The one DOM-replacement site.** `manage/editor/_preview.html:6` sits inside
-`[data-scope="preview"]`, which `editor.js:88-101` `replaceWith`s on every editor mutation —
-so its `data-math-title` element is destroyed and rebuilt without `math.js` running again.
-It re-typesets only because `editor.js` calls `renderPreviewMath(preview)` over the whole
-pane after `applyFragments`; that whole-scope call is this site's re-render path and must
-not be removed. `math.js` exports only `renderMath` (`window.libliRenderMath`, `[data-katex]`
-only); `renderInlineText` stays module-private. **No other display site in §1 is ever
-DOM-replaced**, so no further re-render hook is needed. If a future swap handler needs one,
-exporting `renderInlineText` on `window` is the intended extension point.
+**DOM replacement.** Every §1 site is server-rendered and never replaced, with one
+exception: `manage/editor/_preview.html:6` sits inside `[data-scope="preview"]`, which
+`editor.js:88-101` `replaceWith`s on every editor mutation. It re-typesets because
+`editor.js`'s `renderPreviewMath(scope)` runs `renderMathInElement` over the **whole**
+preview pane — on initial load (`:539`) and after every swap (`:101`). That call is this
+site's re-render path and must not be removed. A consequence worth stating plainly: the
+preview heading **already typesets today**, before this change; its `data-math-title` marker
+merely regularises it and is not a defect fix. Every other DOM-replaced title site is listed
+in §5 as deferred.
 
 ## Error handling
 
@@ -491,8 +542,12 @@ This is the assertion that fails if the redundant-looking `unit.title` scan is t
 
 **The analytics group case (view test).** A maths title on an **expanded group** node, with
 every leaf column maths-free, must load KaTeX on the matrix page. This fails if the scan
-reads `matrix["columns"]` instead of `matrix["header_rows"]` — the silently-always-`False`
-mistake §2 warns about.
+reads `matrix["columns"]` instead of `matrix["header_rows"]`.
+
+**The breakdown shape (view test).** The analytics-breakdown page must return 200 with a
+maths title present. A bare smoke test suffices: passing `breakdown` instead of
+`breakdown["tree"]` raises `TypeError`, so this is the assertion that catches the wrapper
+mistake rather than shipping a 500.
 
 **Marker coverage (template test).** Assert that each display site emits `data-math-title`
 and that each excluded site does not. A regex over raw source is not acceptable — per this
@@ -501,15 +556,23 @@ The entry point is specified per template so this is not written N different way
 
 - **Page templates** (`lesson_unit`, `quiz_unit`, `quiz_results`, `outline`,
   `course_results`, `analytics_matrix`, `analytics_student`, `review_queue`,
-  `review_submission`, `editor`, `node_confirm_delete`) — drive the owning **view** through
-  the test client and assert on the response body.
+  `review_submission`, `editor`) — drive the owning **view** through the test client and
+  assert on the response body.
 - **Partials that cannot render bare** (`_outline_node` needs `item`, `course`,
   `note_counts` and the `get_item` filter; `_unit_tree_node` needs `current_pk` and
-  recurses; `_breakdown_node` needs `course`; `_move_picker`, `_node_panel`, `_unit_panel`)
-  — `render_to_string` with a named minimal context fixture, shared across the cases.
-- **The two fragment exclusions** are endpoints, not page templates: cover
-  `_link_picker_node.html` via the link-picker fragment endpoint and `_rename_result.html`
-  via the inline-rename POST, asserting the payload attributes are unmarked and unfiltered.
+  recurses; `_breakdown_node` needs `course`) — `render_to_string` with a named minimal
+  context fixture, shared across the cases.
+- **`_unit_tree_node.html:60`** — the childless-container branch — is unreachable through
+  any view: the template's own comment (`:46-57`) records that `build_outline` prunes every
+  zero-child container under both `"hide"` and `"keep"`, pinned by
+  `tests/test_unit_nav_render.py::test_a_genuinely_empty_group_is_pruned_not_rendered`. Its
+  marker is covered by the `render_to_string` fixture only.
+- **The `_rename_result.html` exclusion** is a fragment endpoint, not a page template: cover
+  it via the inline-rename POST, asserting the `<data value=>` payload is unmarked and
+  unfiltered.
+
+No builder-page assertion is required: §5 defers every builder surface, so no builder
+template changes in this diff.
 
 **End-to-end.** Drive a real lesson page in a browser where the *only* maths in the entire
 course is in the **next** unit's title, and assert a `.katex` element exists inside
@@ -519,12 +582,12 @@ gate is what fails.
 
 **Visual verification.** Screenshots in light and dark, judged separately, of: the
 previous/next buttons with an inline-maths title; the same with a **display-maths** (`\[…\]`)
-title, which is the `.katex-display` case; the contents tree with a maths title at two
-nesting depths, including a title long enough to exercise the five-line clamp; the
-breadcrumbs; and an analytics matrix column header with maths at two nesting depths, which
-is the `--ahead-h` sticky-offset case. The §3 clamp values are confirmed or corrected from
-these measurements before the PR opens — they are a hypothesis in this document, not a
-result.
+title, which is the `.katex-display` case; a long maths title in a contents-tree unit row
+and in the breadcrumb leaf, which are the other two single-line clips; a contents-tree
+**group** title long enough to exercise the five-line clamp; and an analytics matrix column
+header with maths at two nesting depths, which is the `--ahead-h` sticky-offset and
+`nowrap` column-widening case. The §3 clamp values are confirmed or corrected from these
+measurements before the PR opens — they are a hypothesis in this document, not a result.
 
 ## Risks
 
@@ -535,8 +598,10 @@ result.
   `review_submission.html` `math.js` typesets container elements there that were previously
   left raw. Intended, but it is a visible change beyond the stated feature.
 - **Clamp values unmeasured.** §3's CSS is a starting hypothesis. If measurement shows the
-  struts still overflow — most likely on `.analytics__colhead`, where the failure is a
-  sticky-header desync rather than a cosmetic one — the fix is more CSS in the same rules,
-  not a change of approach.
-- **Two stated exclusions.** The flag-confirm headline and the gradebook print surface will
-  still show raw delimiters. Both have reasons in §1; neither is an oversight.
+  struts still overflow — most likely on the analytics sticky header, where the failure is a
+  header desync rather than a cosmetic one — the fix is more CSS in the same rules, not a
+  change of approach.
+- **Partial coverage is visible to users.** After this change a maths title typesets on the
+  student and analytics surfaces but still shows raw delimiters in the builder panels, the
+  move picker, the link picker and the two confirm prompts (§5). A teacher who uses the
+  builder will see the inconsistency. This is a deliberate boundary, not an unknown.
