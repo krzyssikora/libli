@@ -1,7 +1,9 @@
 import pytest
 
+from courses.geogebra import DIM_MAX
 from courses.geogebra import canonicalize_geogebra_url
 from courses.geogebra import geogebra_sized_src
+from courses.geogebra import usable_dimensions
 
 CANON = "https://www.geogebra.org/material/iframe/id/egZJdjsC"
 
@@ -88,3 +90,29 @@ def test_sized_src_unchanged_for_non_material_geogebra_path():
 
 def test_sized_src_never_raises_on_junk():
     assert geogebra_sized_src("https://[::1", 800, 760) == "https://[::1"
+
+
+@pytest.mark.parametrize("w,h", [(880, 660), (1, 1), (DIM_MAX, DIM_MAX)])
+def test_usable_dimensions_accepts_positive_in_range_ints(w, h):
+    assert usable_dimensions(w, h) is True
+
+
+@pytest.mark.parametrize(
+    "w,h",
+    [
+        (0, 660),           # zero
+        (-5, 660),          # negative
+        (880, 0),
+        (None, 660),        # partial pair
+        (880, None),
+        (None, None),
+        ("880", 660),       # string, not int
+        (880.0, 660),       # integral float still rejected
+        (True, 660),        # bool is an int subclass in Python — must NOT pass
+        (880, True),
+        (DIM_MAX + 1, 660), # over the PositiveIntegerField ceiling
+        (880, DIM_MAX + 1),
+    ],
+)
+def test_usable_dimensions_rejects_everything_else(w, h):
+    assert usable_dimensions(w, h) is False

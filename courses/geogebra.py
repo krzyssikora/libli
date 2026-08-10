@@ -22,6 +22,35 @@ _GEOGEBRA_HOSTS = ("geogebra.org", "www.geogebra.org")
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 _CANONICAL = "https://www.geogebra.org/material/iframe/id/{}"
 
+DIM_MAX = 2147483647  # PositiveIntegerField ceiling; public — imported across modules
+GEOGEBRA_DEFAULT_SIZE = (800, 600)  # GeoGebra's own iframe-shell fallback -> 4:3
+# ^ The shell hardcodes `parameters.width = (parameters.width || 800) * 1`, so a
+#   dimensionless embed ALWAYS renders 800x600 whatever the material's authored size.
+#   Measured: a 4:3 wrapper leaves a 0.0px gap; today's 16:9 leaves 161.3px at the
+#   648px content width. Consumed by frame_ratio step 3 (Task 7).
+
+
+def usable_dimensions(width, height):
+    """True iff both are real, positive, in-range ints (1..DIM_MAX).
+
+    The single definition of "known size", shared by the API parser, clean_url's
+    guards, frame_ratio and size_unknown, so the badge and the ratio can never
+    disagree. The ceiling lives HERE rather than only in the API parser: width and
+    height are absent from IframeElementForm.Meta.fields, so ModelForm._post_clean
+    excludes them from full_clean and the PositiveIntegerField range validator never
+    runs — an over-range value would reach the DB and 500 on save.
+
+    bool is excluded explicitly: isinstance(True, int) is True in Python, so a
+    payload of {"width": true} would otherwise render `aspect-ratio: True / 660`.
+    Non-int types are rejected outright, including an integral float like 880.0.
+    """
+    for value in (width, height):
+        if isinstance(value, bool) or not isinstance(value, int):
+            return False
+        if value < 1 or value > DIM_MAX:
+            return False
+    return True
+
 
 def _material_id(segments):
     """Return the material id from path segments, or '' if none is extractable.
