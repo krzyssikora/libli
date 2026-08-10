@@ -405,19 +405,36 @@ def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
 
     pq = page.locator('[data-scope="preview"] [data-question]').first
     radios = pq.locator("input[name='choice']")
+    options = pq.locator(".question__choice")
     fb = pq.locator("[data-question-feedback]")
 
     # Attempt 1 (wrong) → incorrect, correct answer WITHHELD.
     radios.nth(0).check()
     pq.locator("button[type='submit']").click()
     fb.locator(".is-incorrect").wait_for(timeout=6000)
-    assert fb.locator(".answer-correct").count() == 0
+    assert pq.locator(".question__choice-marker").count() == 0, (
+        "nothing may be marked while an attempt remains"
+    )
 
-    # Attempt 2 (wrong, last) → reveal + lock.
+    # Attempt 2 (wrong, last) → reveal + lock. A locked choice question marks its
+    # OPTIONS LIST inline (✗ on the pick, ＋ on the missed correct option) rather
+    # than printing a duplicate .answer-correct list in the feedback box, so the
+    # reveal is asserted on the options — not on `fb`.
+    #
+    # This also guards editor.js's try-it path: the response is now the whole
+    # element, and the handler must swap the form body AND still run the attempt
+    # counter and the terminal-state freeze (it used to early-return on the swap).
+    # Reaching attempt 2 at all proves the counter survived; is_disabled proves the
+    # freeze did.
     radios.nth(0).check()
     pq.locator("button[type='submit']").click()
-    fb.locator(".answer-correct").wait_for(timeout=6000)
-    assert fb.locator(".answer-correct").count() >= 1
+    options.nth(0).locator(".question__choice-marker--wrong").wait_for(timeout=6000)
+    assert options.nth(1).locator(".question__choice-marker--missed").count() == 1, (
+        "the correct option the author missed is not flagged"
+    )
+    assert pq.locator(".question__reveal").count() == 0, (
+        "the duplicate bottom reveal list should be gone for choice questions"
+    )
     assert radios.nth(0).is_disabled()  # inputs frozen after lock
 
     assert QuestionResponse.objects.count() == 0
