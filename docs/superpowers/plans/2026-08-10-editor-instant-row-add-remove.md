@@ -14,9 +14,27 @@
 - **Never detach a formset row and never decrement `TOTAL_FORMS`** (module 1). Django validates forms `0 … TOTAL_FORMS-1`; a gap makes a persisted row lose its `id` field.
 - **Switchgate rows MUST be detached** (module 2) — a hidden input still submits and `clean()` rejects interior blanks.
 - **Every new control renders `type="button"`** — a bare `<button>` in the editor form defaults to `submit`.
-- **`focus()` is always `focus({ preventScroll: true })`, preceded by `window.libliAlignTopInPane`.** `scrollIntoView` is forbidden in these modules.
+- **`focus()` is always `focus({ preventScroll: true })`.** On the **add** path it is preceded by `window.libliAlignTopInPane(row)` — the new row may be below the fold. On the **remove** path focus moves without aligning: the surviving neighbour is already on screen, and scrolling after a deletion is disorienting. `scrollIntoView` is forbidden in both modules.
 - **Every `hidden` element whose class sets `display` needs an explicit `[hidden] { display: none }` guard.**
 - **Init passes must be idempotent** and must accept *either* an ancestor node or the wrapper itself (`root.matches(SEL) ? [root] : root.querySelectorAll(SEL)`).
+- **Every new e2e file uses this repo's Playwright harness**, copied from `tests/test_e2e_switchgate.py:33-41`. Without it there is no server URL and the server thread cannot see fixture data:
+
+```python
+pytestmark = pytest.mark.e2e          # NOT [django_db, e2e] — django_db goes per-test
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    # Sync Playwright + Django ORM in the same thread.
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+@pytest.mark.django_db(transaction=True)   # the server thread must see the fixtures
+def test_x(page, live_server, ...):        # live_server provides the base URL
+```
+
+- **The save gesture is `page.locator("[data-edit-slot] button[type='submit']").click()`** (`tests/test_e2e_questions.py:184`). There is no `data-el-save` attribute in this repo — do not invent one.
+- **Never `wait_for_load_state("networkidle")` after a save.** Saving posts via `postFragment` and swaps the `[data-scope]` panes — there is no navigation, so `networkidle` is a timing heuristic. Wait on the concrete post-save selector instead, as the existing e2e do.
+- **Shared e2e/test helpers live in `tests/helpers_editor_rows.py`** (created in Task 3 Step 0). Module-level helper *functions* cannot be pytest fixtures — a fixture is only injectable via a test signature.
 - **Translated strings come from server-rendered data attributes**, with a hard-coded English fallback + `console.warn` when absent.
 - **Start the test-DB container before any pytest run**, or the suite appears to hang for ~4m21s.
 - **Playwright auto-dismisses `confirm`.** Every test that removes a *non-blank* row needs an explicit `dialog` handler, or it takes the cancel path and fails against a correct build.
@@ -57,11 +75,17 @@ EDITOR_CSS = BASE / "courses" / "static" / "courses" / "css" / "editor.css"
 COURSES_CSS = BASE / "courses" / "static" / "courses" / "css" / "courses.css"
 APP_CSS = BASE / "core" / "static" / "core" / "css" / "app.css"
 
-HIDDEN_NONE = r"\{[^}]*display:\s*none[^}]*\}"
+def _has_rule(css: str, selector: str) -> bool:
+    """True if `selector` heads a rule declaring display:none.
 
-
-def _has_rule(css: str, selector: str, body: str = HIDDEN_NONE) -> bool:
-    return re.search(re.escape(selector) + r"\s*" + body, css) is not None
+    The selector may appear anywhere in a comma-separated list, so we allow any
+    run of further selector characters between it and the `{`. A naive
+    `re.escape(selector) + r"\\s*\\{"` matches only the LAST selector in a group —
+    `.pair-row[hidden], .choice-row[hidden] { ... }` would report the first as
+    missing and the assertion would be red against correct CSS.
+    """
+    pattern = re.escape(selector) + r"[^{}]*\{[^}]*display:\s*none[^}]*\}"
+    return re.search(pattern, css) is not None
 
 
 def test_row_hidden_guards_in_editor_css():
@@ -106,9 +130,13 @@ def test_switchgate_remove_style_twin():
         r"\.el-editor--switchgate\s+\.el-editor__remove\s*\{([^}]*)\}", css
     )
     assert match, "switchgate .el-editor__remove style twin missing from app.css"
-    block = match.group(1)
+    # Strip comments first: otherwise a stub body of `/* ...display: inline-grid... */`
+    # satisfies every assertion below and the test cannot tell a placeholder from
+    # the finished rule.
+    block = re.sub(r"/\*.*?\*/", "", match.group(1), flags=re.S)
     assert "inline-grid" in block, "style twin must set display: inline-grid"
     assert "flex:" in block, "style twin must set flex: 0 0 auto or the x shrinks"
+    assert "width:" in block, "style twin must set an explicit size"
 
 
 def test_switchgate_remove_hidden_guard():
@@ -156,6 +184,12 @@ Insert immediately after the `.markdone-row__del` rule (around `:2050`):
 
 Insert after the switchgrid `.el-editor__remove:focus-visible` block (after `:1478`). Copy the declarations from the `.el-editor--switchgrid .el-editor__remove` block at `:1452` verbatim, including `flex: 0 0 auto`:
 
+**Open `app.css:1452-1478` and copy each of the four blocks verbatim, changing only the
+`--switchgrid` scope to `--switchgate`.** Do not paste a stub with a "copy the rest" comment: a
+comment body still satisfies a naive substring assertion, so the guard test would pass on a `×` that
+renders with no size and no `inline-grid`. The result should look like this — fill each `…` from the
+source block rather than from memory:
+
 ```css
 /* Switchgate reuses switchgrid's x component, but every rule for it is scoped to
    .el-editor--switchgrid, so a bare class inherits nothing. Duplicated under a
@@ -164,14 +198,19 @@ Insert after the switchgrid `.el-editor__remove:focus-visible` block (after `:14
    specificity with the block above, leaving the outcome to source order. */
 .el-editor--switchgate .el-editor__remove {
   flex: 0 0 auto;
-  /* ...copy the remaining declarations from .el-editor--switchgrid
-     .el-editor__remove at :1452 verbatim, including display: inline-grid... */
+  width: …; height: …;              /* from :1452 */
+  display: inline-grid;
+  place-items: center;
+  …                                  /* every remaining declaration from :1452-1468 */
 }
 /* inline-grid overrides the [hidden] attribute, so hide explicitly (JS toggles it) */
 .el-editor--switchgate .el-editor__remove[hidden] { display: none; }
-.el-editor--switchgate .el-editor__remove:hover { /* copy from :1470 */ }
-.el-editor--switchgate .el-editor__remove:focus-visible { /* copy from :1475 */ }
+.el-editor--switchgate .el-editor__remove:hover { … }           /* from :1470-1474 */
+.el-editor--switchgate .el-editor__remove:focus-visible { … }   /* from :1475-1478 */
 ```
+
+Verify by opening a switchgate editor and a switchgrid editor side by side: the two `×` controls must
+be visually identical.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
@@ -183,7 +222,15 @@ Expected: 7 PASSED.
 
 - [ ] **Step 7: Falsify the guard**
 
-Delete the `.stepper-row[hidden]` selector from `courses.css`, re-run, confirm `test_row_hidden_guards_in_courses_css` FAILS, then restore it. A guard test that cannot fail is worthless.
+Delete the **whole** `.stepper-row[hidden], .markdone-row[hidden] { display: none; }` rule from
+`courses.css`, re-run, confirm `test_row_hidden_guards_in_courses_css` FAILS naming both selectors,
+then restore it.
+
+Deleting only the `.stepper-row[hidden]` *selector* from the group is the wrong mutant: it leaves
+`.markdone-row[hidden] { display: none; }` behind, and the point of this falsification is that
+`_has_rule` finds a selector **anywhere** in a comma-separated list. Run that variant too and confirm
+it also fails — that is what proves the helper is not silently matching only the last selector in
+each group.
 
 - [ ] **Step 8: Commit**
 
@@ -201,8 +248,15 @@ Lands the module and loads it, with no template consuming it yet. Deliverable: t
 **Files:**
 - Create: `courses/static/courses/js/formset_rows.js`
 - Modify: `templates/courses/manage/editor/editor.html` (add a `<script>` + `{% comment %}`)
+- Modify: `courses/static/courses/js/editor.js:125` (add the post-swap init call)
 - Modify: `tests/test_editor_js_scroll_invariants.py:24-40`
 - Test: `tests/test_formset_rows_assets.py` (create)
+
+**Ordering is load-bearing:** the init call must land *here*, not in Task 4. Every JS-only control
+renders with a bare `hidden` attribute and only the init pass reveals it, and the editor form arrives
+through a **fragment swap** (`editor.js:110-135`), not on `DOMContentLoaded`. Without the post-swap
+call, Task 3's e2e would click an element that is still `hidden` and fail Playwright actionability —
+and the `{% comment %}` added in Step 4 would describe wiring that does not yet exist.
 
 **Interfaces:**
 - Consumes: the CSS contract from Task 1.
@@ -356,7 +410,9 @@ Expected: FAIL — `finders.find` returns `None`, `open(None)` raises `TypeError
   /* ---- init: three idempotent jobs ---- */
   function initOne(wrap) {
     // job 1 — swap the no-JS DELETE label for the JS-only buttons.
-    wrap.querySelectorAll("[data-fsrow-item]").forEach(function (row) {
+    // Array.prototype.forEach.call, not NodeList.forEach: matches editor.js and the
+    // rest of this file's ES5 idiom.
+    Array.prototype.forEach.call(wrap.querySelectorAll("[data-fsrow-item]"), function (row) {
       var label = row.querySelector("[data-fsrow-del]");
       if (!label) {
         if (window.console) console.warn("formset_rows: row without [data-fsrow-del]", row);
@@ -471,6 +527,7 @@ Expected: FAIL — `finders.find` returns `None`, `open(None)` raises `TypeError
   }
 
   document.addEventListener("click", function (e) {
+    if (!e.target.closest) return;   // non-Element target (synthetic dispatch)
     var add = e.target.closest("[data-fsrows-add]");
     if (add) {
       var w = add.closest(WRAP);
@@ -510,9 +567,26 @@ Add near the other editor modules (keep the repo's comment convention):
   <script src="{% static 'courses/js/formset_rows.js' %}" defer></script>
 ```
 
-- [ ] **Step 5: Add both new modules to the scroll-invariant roster and add the focus regex**
+- [ ] **Step 4b: Add the post-swap init call**
 
-In `tests/test_editor_js_scroll_invariants.py`, add `"formset_rows.js"` and `"switchgate_editor.js"` to `PANE_RESIDENT` (do **not** remove `stepper_editor.js` / `markdone_editor.js` yet — Task 4 does that), and append:
+In `courses/static/courses/js/editor.js`, immediately after the existing init block at `:125-126`
+(leave the two retired calls alone — Task 4 removes them):
+
+```js
+    if (editorPane && window.libliInitFormsetRows) window.libliInitFormsetRows(editorPane);
+```
+
+The `libliInitSwitchGateEditor` line is added in Task 6, when that module exists.
+
+- [ ] **Step 5: Add `formset_rows.js` to the scroll-invariant roster and add the focus regex**
+
+In `tests/test_editor_js_scroll_invariants.py`, add **only** `"formset_rows.js"` to `PANE_RESIDENT`
+(do **not** remove `stepper_editor.js` / `markdone_editor.js` yet — Task 4 does that; and do **not**
+add `switchgate_editor.js` — that roster entry belongs in Task 6). `PANE_RESIDENT` is consumed by a
+loop whose first statement is `assert path.exists(), f"{name} moved or was renamed"`, so listing a
+file four tasks before it is created leaves the suite red through Tasks 2-5.
+
+Append:
 
 ```python
 # Bare focus() scrolls every ancestor scrollport, and this page's viewport is
@@ -521,10 +595,17 @@ In `tests/test_editor_js_scroll_invariants.py`, add `"formset_rows.js"` and `"sw
 # text_toolbar.js and tabs_editor.js would make a repo-wide version RED on arrival,
 # and fixing those is separate work.
 FOCUS_OPT_IN = ["formset_rows.js", "switchgate_editor.js"]
-FOCUS_CALL = re.compile(r"\.focus\s*\(\s*(?!\{[^)]*preventScroll)")
+FOCUS_CALL = re.compile(r"\.focus\s*\(")
 
 
 def test_new_modules_never_focus_without_preventscroll():
+    """A positive, line-level check: flag any line that CALLS .focus( without also
+    mentioning preventScroll. Deliberately not a negative lookahead like
+    `\\.focus\\s*\\(\\s*(?!\\{[^)]*preventScroll)` — that form is spacing-sensitive
+    (it false-positives on `focus( { preventScroll: true } )`, because `\\s*`
+    backtracks to zero and the lookahead then tests a space instead of the brace).
+    Comment lines are skipped: filltable_editor.js and unit_nav.js discuss .focus()
+    in prose, the mention-vs-call hazard the file's existing CALL comment warns of."""
     offenders = {}
     for name in FOCUS_OPT_IN:
         path = JS_DIR / name
@@ -533,13 +614,16 @@ def test_new_modules_never_focus_without_preventscroll():
         hits = [
             i
             for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
-            if FOCUS_CALL.search(line) and not line.strip().startswith("//")
+            if FOCUS_CALL.search(line)
+            and "preventScroll" not in line
+            and not line.strip().startswith("//")
+            and not line.strip().startswith("*")
         ]
         if hits:
             offenders[name] = hits
     assert not offenders, (
-        f"bare focus() in {offenders}: use focus({{ preventScroll: true }}), "
-        "preceded by window.libliAlignTopInPane(el)"
+        f"bare focus() in {offenders}: use focus({{ preventScroll: true }}) — "
+        "the editor viewport is overflow:hidden, so a scrolling focus strands the author"
     )
 ```
 
@@ -574,7 +658,76 @@ git commit -m "feat(editor): add formset_rows.js row add/remove helper"
 
 **Interfaces:**
 - Consumes: `window.libliInitFormsetRows`, the markup contract, and the CSS guards.
-- Produces: the match template as the reference shape every other formset template copies.
+- Produces: the match template as the reference shape every other formset template copies, plus `tests/helpers_editor_rows.py` — `save_url(el)`, `open_element_form(client, el)`, `reopen(page, el)`, `rendered_rows(html)`.
+
+- [ ] **Step 0: Create the shared helper module**
+
+These are plain functions, **not fixtures** — a fixture is only injectable through a test signature,
+so `save_url(el)` called at module level from a test that never requests it would raise `NameError`.
+Every later task imports from here.
+
+```python
+"""Shared helpers for the editor row-mechanics tests. Plain functions, not fixtures:
+the tests call them directly rather than injecting them."""
+
+from bs4 import BeautifulSoup
+from django.urls import reverse
+
+
+def save_url(course):
+    """courses:manage_element_save takes only the course slug; the element and unit
+    travel in the POST body (see views_manage.element_save)."""
+    return reverse("courses:manage_element_save", kwargs={"slug": course.slug})
+
+
+def form_url(course, element):
+    return reverse(
+        "courses:manage_element_form", kwargs={"slug": course.slug, "pk": element.pk}
+    )
+
+
+def open_element_form(client, course, element):
+    """GET the element's edit fragment and return its HTML."""
+    resp = client.get(form_url(course, element))
+    assert resp.status_code == 200
+    return resp.content.decode()
+
+
+def base_post(course, unit, element, type_key):
+    """The host-form keys every element save requires. `unit` is mandatory —
+    views_manage.element_save reads request.POST['unit'] and filters ContentNode
+    on it, so omitting it 404s rather than saving."""
+    return {
+        "type": type_key,
+        "element": element.pk,
+        "unit": unit.pk,
+        "unit_token": unit.pk,
+    }
+
+
+def rendered_rows(html):
+    """Rows actually in the list, with <template> content removed first.
+
+    bs4 exposes <template> children as ordinary nodes, so a plain
+    select("[data-fsrow-item]") also matches the blueprint row — an assertion that
+    passes even when the list renders nothing."""
+    soup = BeautifulSoup(html, "html.parser")
+    for tmpl in soup.select("template"):
+        tmpl.decompose()
+    listing = soup.select_one("[data-fsrows-list]")
+    return listing.select("[data-fsrow-item]") if listing else []
+
+
+def reopen(page, slot="[data-edit-slot]"):
+    """Re-open the element editor after a save and wait for the swapped fragment."""
+    page.locator(f"{slot} [data-el-edit]").first.click()
+    page.locator("[data-fsrows-list]").first.wait_for(timeout=8000)
+```
+
+Before writing it, **confirm the URL names and the host-form keys** against
+`courses/views_manage.py:element_save` and `templates/courses/manage/editor/_host_form.html` —
+`unit_token` in particular must match what the host form posts. Adjust the helper, not the tests, if
+they differ.
 
 - [ ] **Step 1: Write the failing render tests**
 
@@ -596,19 +749,9 @@ decomposed first.
 import pytest
 from bs4 import BeautifulSoup
 
-from courses.models import MarkDoneElement
-from courses.models import StepperElement
+from tests.helpers_editor_rows import rendered_rows
 
 pytestmark = pytest.mark.django_db
-
-
-def rendered_rows(html: str):
-    """Rows actually in the list — blueprint content removed first."""
-    soup = BeautifulSoup(html, "html.parser")
-    for tmpl in soup.select("template"):
-        tmpl.decompose()
-    listing = soup.select_one("[data-fsrows-list]")
-    return listing.select("[data-fsrow-item]") if listing else []
 
 
 def test_matchpair_renders_exactly_the_formset_rows(open_matchpair_editor):
@@ -698,9 +841,11 @@ Replace lines 11-24 (management form through non-form errors) with:
       <li class="pair-row" data-fsrow-item>
         {{ formset.empty_form.id }}
         {{ formset.empty_form.left }} {{ formset.empty_form.right }}
-        <label class="pair-row__del" data-fsrow-del>{{ formset.empty_form.DELETE }} {% trans "Remove" %}</label>
-        <button type="button" class="btn btn--small btn--ghost"
-                data-fsrow-remove hidden>{% trans "Remove" %}</button>
+        {% if formset.can_delete %}
+          <label class="pair-row__del" data-fsrow-del>{{ formset.empty_form.DELETE }} {% trans "Remove" %}</label>
+          <button type="button" class="btn btn--small btn--ghost"
+                  data-fsrow-remove hidden>{% trans "Remove" %}</button>
+        {% endif %}
       </li>
     </template>
   </div>
@@ -729,45 +874,62 @@ import pytest
 pytestmark = pytest.mark.django_db
 
 
+from tests.helpers_editor_rows import base_post, save_url
+
+
 def test_more_rows_than_were_rendered_all_save(pa_client, matchpair_element):
     """The path that is unreachable today: the Add button has no handler, so the
     POST can never carry more forms than the server rendered."""
-    el = matchpair_element(pairs=[("a", "1"), ("b", "2")])
-    data = {
-        "type": "matchpairquestion", "element": el.pk, "stem": "",
+    course, unit, el = matchpair_element(pairs=[("a", "1"), ("b", "2")])
+    data = base_post(course, unit, el, "matchpairquestion")
+    data.update({
+        "stem": "",
         "pairs-TOTAL_FORMS": "5", "pairs-INITIAL_FORMS": "2",
         "pairs-MIN_NUM_FORMS": "0", "pairs-MAX_NUM_FORMS": "1000",
-    }
-    for i, (left, right) in enumerate([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4"), ("e", "5")]):
+    })
+    for i, (left, right) in enumerate(
+        [("a", "1"), ("b", "2"), ("c", "3"), ("d", "4"), ("e", "5")]
+    ):
         data[f"pairs-{i}-left"] = left
         data[f"pairs-{i}-right"] = right
     for i, pair in enumerate(el.pairs.all()):
         data[f"pairs-{i}-id"] = pair.pk
-    resp = pa_client.post(save_url(el), data)
+    # X-Requested-With: the success path ends `if not _wants_fragment(request):
+    # return redirect(...)`, so a plain post returns 302, not 200.
+    resp = pa_client.post(save_url(course), data, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 200
     el.refresh_from_db()
     assert el.pairs.count() == 5
 
 
 def test_ticked_delete_removes_exactly_that_pair(pa_client, matchpair_element):
-    el = matchpair_element(pairs=[("a", "1"), ("b", "2"), ("c", "3")])
+    course, unit, el = matchpair_element(pairs=[("a", "1"), ("b", "2"), ("c", "3")])
     pairs = list(el.pairs.all())
-    data = {
-        "type": "matchpairquestion", "element": el.pk, "stem": "",
+    data = base_post(course, unit, el, "matchpairquestion")
+    data.update({
+        "stem": "",
         "pairs-TOTAL_FORMS": "3", "pairs-INITIAL_FORMS": "3",
         "pairs-MIN_NUM_FORMS": "0", "pairs-MAX_NUM_FORMS": "1000",
         "pairs-1-DELETE": "on",
-    }
+    })
     for i, p in enumerate(pairs):
         data[f"pairs-{i}-id"] = p.pk
         data[f"pairs-{i}-left"] = p.left
         data[f"pairs-{i}-right"] = p.right
-    resp = pa_client.post(save_url(el), data)
+    resp = pa_client.post(save_url(course), data, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 200
     assert sorted(p.left for p in el.pairs.all()) == ["a", "c"]
 ```
 
-Add `pa_client`, `matchpair_element` and `save_url` helpers to `tests/conftest.py`, following `tests/test_questions_2d_matchpair_form.py` for the field names and `courses:manage_element_save` for the URL.
+Add `pa_client` and `matchpair_element` fixtures to `tests/conftest.py` — `matchpair_element`
+returns the `(course, unit, element)` triple the payload needs. Follow
+`tests/test_questions_2d_matchpair_form.py` for the formset field names and
+`courses/tests/test_markdone_editor.py:16` for the `HTTP_X_REQUESTED_WITH="fetch"` idiom.
+
+**Before writing these, POST once by hand and print `resp.status_code` and `resp.content[:400]`.**
+The host form carries several hidden keys (`unit`, `unit_token`, `parent`, `tab`, `el_title`) and a
+missing one fails as a 404 or a re-rendered 422 rather than an obvious error. Fix the payload from
+what the real form posts, not from this plan.
 
 - [ ] **Step 6: Run them**
 
@@ -783,16 +945,31 @@ Create `tests/test_e2e_matchpair_rows.py`:
 
 ```python
 """e2e for the reported defect. The add test is RED on master by construction:
-the ＋ Add pair button has never had a handler."""
+the ＋ Add pair button has never had a handler.
+
+Harness mirrors tests/test_e2e_switchgate.py — see the Global Constraints."""
+
+import os
 
 import pytest
 
-pytestmark = [pytest.mark.django_db, pytest.mark.e2e]
+from tests.helpers_editor_rows import reopen
+
+pytestmark = pytest.mark.e2e
+
+SAVE = "[data-edit-slot] button[type='submit']"
 
 
-def test_add_three_pairs_without_saving(page, open_matchpair_editor_e2e):
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_three_pairs_without_saving(page, live_server, open_matchpair_editor_e2e):
     """The whole point: three new pairs in ONE session, no save-and-reopen."""
-    page = open_matchpair_editor_e2e(saved_pairs=2)
+    open_matchpair_editor_e2e(page, live_server, saved_pairs=2)
     add = page.locator("[data-fsrows-add]")
     for _ in range(3):
         add.click()
@@ -801,28 +978,35 @@ def test_add_three_pairs_without_saving(page, open_matchpair_editor_e2e):
     for i, (left, right) in enumerate([("x", "9"), ("y", "8"), ("z", "7")], start=4):
         rows.nth(i).locator('input[name$="-left"]').fill(left)
         rows.nth(i).locator('input[name$="-right"]').fill(right)
-    page.click("[data-el-save]")
-    page.wait_for_load_state("networkidle")
-    reopen_matchpair(page)
-    assert page.locator("[data-fsrows-list] [data-fsrow-item] input[name$='-left']").count() >= 5
+    page.locator(SAVE).click()
+    # Wait on the swapped-in preview, not networkidle: the save is a fetch +
+    # fragment swap with no navigation, so networkidle is a timing heuristic.
+    page.locator("[data-preview] [data-question]").first.wait_for(timeout=8000)
+    reopen(page)
+    assert page.locator("[data-fsrows-list] input[name$='-left']").count() >= 5
 
 
-def test_remove_a_filled_pair(page, open_matchpair_editor_e2e):
-    page = open_matchpair_editor_e2e(saved_pairs=3)
+@pytest.mark.django_db(transaction=True)
+def test_remove_a_filled_pair(page, live_server, open_matchpair_editor_e2e):
+    open_matchpair_editor_e2e(page, live_server, saved_pairs=3)
     # Playwright AUTO-DISMISSES confirm: without this handler the removal takes
     # the cancel path and the test fails against a CORRECT build.
     page.on("dialog", lambda d: d.accept())
     row = page.locator("[data-fsrows-list] [data-fsrow-item]").nth(1)
     row.locator("[data-fsrow-remove]").click()
-    # A hidden row is still matched by count() — assert on VISIBILITY.
-    assert not row.is_visible()
-    page.click("[data-el-save]")
-    page.wait_for_load_state("networkidle")
-    reopen_matchpair(page)
-    assert page.locator("[data-fsrows-list] [data-fsrow-item] input[name$='-left']").count() == 4
+    # A hidden row is still matched by count() — assert on VISIBILITY, and wait
+    # rather than asserting immediately after the click.
+    row.wait_for(state="hidden", timeout=4000)
+    page.locator(SAVE).click()
+    page.locator("[data-preview] [data-question]").first.wait_for(timeout=8000)
+    reopen(page)
+    assert page.locator("[data-fsrows-list] input[name$='-left']").count() == 4
 ```
 
-Model the fixtures on the existing e2e editor helpers (e.g. `tests/test_e2e_questions.py`), and reuse this repo's save/reopen helpers rather than inventing new ones.
+Build `open_matchpair_editor_e2e` from the login/seed/open helpers in `tests/test_e2e_questions.py`
+(it takes `page` and `live_server` and navigates to the unit editor with the element's form open).
+Confirm the real post-save selector before using `[data-preview] [data-question]` — copy whatever the
+existing question e2e wait on.
 
 - [ ] **Step 8: Falsify the add test against master, then run it**
 
@@ -868,33 +1052,46 @@ import pytest
 pytestmark = [pytest.mark.django_db, pytest.mark.e2e]
 
 
+ROWS = {"stepper": ".stepper-rows li", "markdone": ".markdone-rows li"}
+
+
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("kind,label", [("stepper", "Add step"), ("markdone", "Add item")])
-def test_add_row_still_works_after_retrofit(page, open_element_editor, kind, label):
+def test_add_row_still_works_after_retrofit(page, live_server, open_element_editor, kind, label):
     """GREEN on master AND after: proves the rewiring did not break a working editor.
-    Located by visible label on purpose — the data hook changes in this commit."""
-    page = open_element_editor(kind)
+
+    EVERY selector here must survive the retrofit, not just the button. The button is
+    found by visible label because data-stepper-add-row becomes data-fsrows-add; the
+    row list is found by its CLASS (.stepper-rows / .markdone-rows, unchanged by this
+    change) because data-stepper-rows becomes data-fsrows-list. Selecting the list by
+    the NEW hook would make this red on master, and the no-regression guarantee — the
+    riskiest part of this change — would not actually be established."""
+    open_element_editor(page, live_server, kind)
     page.get_by_role("button", name=label).click()
-    rows = page.locator("[data-fsrows-list] li")
+    rows = page.locator(ROWS[kind])
     rows.last.locator('input[type="text"]').fill("retrofit row")
-    page.click("[data-el-save]")
-    page.wait_for_load_state("networkidle")
-    reopen(page, kind)
+    page.locator(SAVE).click()
+    page.locator("[data-preview]").first.wait_for(timeout=8000)
+    reopen(page)
     assert page.get_by_display_value("retrofit row").count() == 1
 
 
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("kind", ["stepper", "markdone"])
-def test_remove_row_after_retrofit(page, open_element_editor, kind):
+def test_remove_row_after_retrofit(page, live_server, open_element_editor, kind):
     """RED on master: there is no per-row remove BUTTON there, only a checkbox."""
-    page = open_element_editor(kind, rows=["one", "two", "three"])
+    open_element_editor(page, live_server, kind, rows=["one", "two", "three"])
     page.on("dialog", lambda d: d.accept())   # persisted rows are non-blank
-    row = page.locator("[data-fsrows-list] li").nth(1)
+    row = page.locator(ROWS[kind]).nth(1)
     row.locator("[data-fsrow-remove]").click()
-    assert not row.is_visible()
-    page.click("[data-el-save]")
-    page.wait_for_load_state("networkidle")
-    reopen(page, kind)
+    row.wait_for(state="hidden", timeout=4000)
+    page.locator(SAVE).click()
+    page.locator("[data-preview]").first.wait_for(timeout=8000)
+    reopen(page)
     assert page.get_by_display_value("two").count() == 0
 ```
+
+Use the same `pytestmark = pytest.mark.e2e` + `_allow_async_unsafe` + `SAVE` header as Task 3.
 
 - [ ] **Step 2: Run to verify the remove half fails and the add half passes**
 
@@ -924,8 +1121,8 @@ ship hidden until the init pass reveals them.
   <label class="el-editor__label">{% trans "Steps" %}</label>
   <p class="el-editor__hint">{% trans "Each step is a short line (text or math, e.g. \\(2^{10}\\)). The first shows immediately; the button reveals the rest one at a time." %}</p>
   <div data-fsrows="steps"
-       data-fsrows-min="{{ min_steps }}"
-       data-fsrows-max="{{ max_steps }}"
+       data-fsrows-min="{{ form.instance.MIN_STEPS }}"
+       data-fsrows-max="{{ form.instance.MAX_STEPS }}"
        data-fsrows-confirm="{% trans 'Remove this step?' %}"
        data-fsrows-atmin="{% trans 'A stepper needs at least one step.' %}"
        data-fsrows-atcap="{% trans 'No room for another step.' %}">
@@ -951,23 +1148,23 @@ ship hidden until the init pass reveals them.
       <li class="stepper-row" data-fsrow-item>
         {{ formset.empty_form.id }}
         {{ formset.empty_form.content }}
-        <label class="stepper-row__del" data-fsrow-del>{{ formset.empty_form.DELETE }} {% trans "Remove" %}</label>
-        <button type="button" class="btn btn--small btn--ghost"
-                data-fsrow-remove hidden>{% trans "Remove" %}</button>
+        {% if formset.can_delete %}
+          <label class="stepper-row__del" data-fsrow-del>{{ formset.empty_form.DELETE }} {% trans "Remove" %}</label>
+          <button type="button" class="btn btn--small btn--ghost"
+                  data-fsrow-remove hidden>{% trans "Remove" %}</button>
+        {% endif %}
       </li>
     </template>
   </div>
 </div>
 ```
 
-**Use `{{ form.instance.MIN_STEPS }}` / `{{ form.instance.MAX_STEPS }}` directly** — no view change and no new context variable. `StepperElementForm` is a `ModelForm` over `StepperElement` (`element_forms.py:1857-1860`), so `form.instance` is a `StepperElement` and Django's template attribute lookup resolves the class constants (`courses/models.py:618-619`) on it. This keeps the "no application Python is modified" constraint intact, and it is what makes the bounds-render test's constant comparison meaningful rather than literal-vs-literal.
-
-So the wrapper reads:
-
-```html
-       data-fsrows-min="{{ form.instance.MIN_STEPS }}"
-       data-fsrows-max="{{ form.instance.MAX_STEPS }}"
-```
+**Why `{{ form.instance.MIN_STEPS }}` works** — and why no view change is needed:
+`StepperElementForm` is a `ModelForm` over `StepperElement` (`element_forms.py:1857-1860`), so
+`form.instance` is a `StepperElement` and Django's template attribute lookup resolves the class
+constants (`courses/models.py:618-619`) on it. This keeps the "no application Python is modified"
+constraint intact, and it is what makes the bounds-render test's constant comparison meaningful
+rather than literal-vs-literal.
 
 - [ ] **Step 4: Rewrite `_edit_markdone.html` the same way**
 
@@ -994,16 +1191,21 @@ In `editor.js:125-126`, replace the two retired init calls with:
 
 - [ ] **Step 6: Retarget the broken tests**
 
-- `tests/test_stepper_editor_assets.py`: point at `formset_rows.js` / `libliInitFormsetRows`; **delete** the `steps-TOTAL_FORMS` assertion (a prefix-agnostic helper can never contain it) and the `stepper_editor.js` page assertion. The `__prefix__` coverage now lives in the blueprint-render test.
+- `tests/test_stepper_editor_assets.py`: **`git rm` the file.** Retargeting it leaves nothing behind — its `steps-TOTAL_FORMS` assertion must go (a prefix-agnostic helper can never contain that literal), its `__prefix__` assertion is replaced by the blueprint-render test below, its `libliInitStepperEditor` export check becomes byte-identical to `test_formset_rows_js_exports`, and deleting the page assertion from `test_editor_page_loads_stepper_editor_js` would leave a test body with no assertion at all — one that passes forever. Say in the commit message that the coverage moved to `tests/test_formset_rows_assets.py` and `tests/test_editor_formset_rows_render.py` rather than vanishing.
 - `courses/tests/test_markdone_editor.py:20,30`: `data-markdone-editor` → `data-fsrows="items"`; `courses/js/markdone_editor.js` → `courses/js/formset_rows.js`.
 - `tests/test_editor_stepper_add.py:27-28`: `data-stepper-editor` → `data-fsrows="steps"`, `data-stepper-row` → `data-fsrow-item>` (delimited).
 - `tests/test_editor_js_scroll_invariants.py`: remove `stepper_editor.js` and `markdone_editor.js` from `PANE_RESIDENT`.
 
 - [ ] **Step 7: Extend the render tests to stepper and checklist**
 
-Add to `tests/test_editor_formset_rows_render.py`:
+Add to `tests/test_editor_formset_rows_render.py` (adding the two model imports **here**, not in
+Task 3, so `ruff check` never sees them unused):
 
 ```python
+from courses.models import MarkDoneElement
+from courses.models import StepperElement
+
+
 def test_stepper_bounds_come_from_the_model_constants(open_stepper_editor):
     """Literals on both sides stay green when MAX_STEPS changes — build the
     expected value from the constant so the test can catch the drift it exists for."""
@@ -1016,6 +1218,38 @@ def test_markdone_bounds_come_from_the_model_constants(open_markdone_editor):
     html = open_markdone_editor()
     assert f'data-fsrows-max="{MarkDoneElement.MAX_ITEMS}"' in html
     assert f'data-fsrows-min="{MarkDoneElement.MIN_ITEMS}"' in html
+
+
+@pytest.mark.parametrize(
+    "opener,prefix,field",
+    [("open_stepper_editor", "steps", "content"),
+     ("open_markdone_editor", "items", "content")],
+)
+def test_retrofit_blueprint_carries_the_prefix_token(request, opener, prefix, field):
+    """The retrofit swaps hand-written blueprints for formset.empty_form ones — the
+    highest-drift edit in this task. Task 4 also DELETES the old __prefix__
+    assertion, so without this the coverage net-decreases on exactly the change
+    most likely to break."""
+    html = request.getfixturevalue(opener)()
+    soup = BeautifulSoup(html, "html.parser")
+    tmpl = soup.select_one("[data-fsrows-template]")
+    assert tmpl is not None
+    assert f"{prefix}-__prefix__-{field}" in tmpl.decode_contents()
+
+
+@pytest.mark.parametrize(
+    "opener", ["open_stepper_editor", "open_markdone_editor"]
+)
+def test_retrofit_progressive_enhancement(request, opener):
+    """Half (a) and (b) of the no-JS guarantee, for the two retrofitted editors."""
+    html = request.getfixturevalue(opener)()
+    soup = BeautifulSoup(html, "html.parser")
+    for tmpl in soup.select("template"):
+        tmpl.decompose()
+    assert soup.select_one("[data-fsrows-add]").has_attr("hidden")
+    row = soup.select_one("[data-fsrows-list] [data-fsrow-item]")
+    assert row.select_one("[data-fsrow-remove]").has_attr("hidden")
+    assert not row.select_one("[data-fsrow-del]").has_attr("hidden")
 ```
 
 - [ ] **Step 8: Run the affected suites**
@@ -1042,9 +1276,13 @@ Choice keeps its own add path. Its existing hooks stay **in addition** to the ne
 
 **Files:**
 - Modify: `templates/courses/manage/editor/_edit_choicequestion.html`
-- Modify: `courses/static/courses/js/editor.js` (`addChoiceRow` at `:419-443`; delete `:439`, `:492`, `:493-497`)
-- Modify: `courses/static/courses/css/editor.css` (delete `:176-179`)
-- Modify: `tests/test_e2e_questions.py` (`:262` docstring, `:310-317`)
+- Modify: `courses/static/courses/js/editor.js` (`addChoiceRow`; delete the `choice-row--del` line in the clone, the "Reversible" comment, and the DELETE branch in the `change` handler)
+- Modify: `courses/static/courses/css/editor.css` (delete the `.choice-row--del` block **and the comment above it**)
+- Modify: `tests/test_e2e_questions.py` (module docstring; the `.check()` block)
+
+**Cite by content, not line number, from here on.** Task 1 inserted ~7 lines into `editor.css` and
+Step 1 below edits `_edit_choicequestion.html`, so every line reference in the spec and in earlier
+tasks has drifted. The spec's numbers are as-of-master.
 
 **Interfaces:**
 - Consumes: `libliInitFormsetRows`.
@@ -1091,7 +1329,14 @@ Seven changes at `editor.js:419-443`:
     }
     var idx = parseInt(total.value, 10);
     var clone = last.cloneNode(true);
-    // ...existing renumbering of name/id via /([-_])\d+([-_])/ ...
+    // KEEP BOTH existing loops from editor.js:428-437, unchanged and in order:
+    //   1. the name/id/for renumbering via /([-_])\d+([-_])/
+    //   2. the value-clearing loop over `input, textarea` that blanks values and
+    //      unchecks checkboxes/radios.
+    // Loop 2 is easy to lose when retyping this function, and dropping it ships
+    // clones carrying the source row's option text, its feedback textarea and its
+    // is_correct state. No test in this plan would catch it, because the choice
+    // e2e fill() over the new row immediately after adding it.
     clone.hidden = false;
     var del = clone.querySelector('[name$="-DELETE"]');
     if (del) del.checked = false;
@@ -1121,20 +1366,46 @@ Verify first that `choice-row--del` has no other consumers:
 grep -rn "choice-row--del" courses/ templates/ tests/
 ```
 
+- [ ] **Step 3b: Add a clone-is-blank assertion**
+
+The clearing loop above has no coverage today, because the choice e2e `fill()`s the new row
+immediately. Add one line to the existing add-a-choice e2e, before the fill:
+
+```python
+    assert new_row.locator("input[name$='-text']").input_value() == ""
+```
+
 - [ ] **Step 4: Rewrite the broken e2e**
 
-In `tests/test_e2e_questions.py`, replace the `:310-317` block:
+In `tests/test_e2e_questions.py`, **keep** the `row2 = slot.locator("[data-choice-row]").nth(2)`
+binding (it is inside the block being replaced and is used by the new code) and replace only from the
+`.check()` call onward. Match on the existing text rather than a line range — the line numbers have
+already drifted from Task 1's CSS insertions and Step 1's template edits:
+
+Replace:
+
+```python
+    row2.locator("input[name='choices-2-DELETE']").check()
+    page.wait_for_function(
+        "() => document.querySelectorAll('.choice-row--del').length === 1"
+    )
+```
+
+with:
 
 ```python
     # The DELETE checkbox now sits inside a hidden label, so .check() would fail
     # actionability. Drive the JS control instead.
-    page.on("dialog", lambda d: d.accept())   # row was filled with "Gamma" at :301
+    page.on("dialog", lambda d: d.accept())   # the row was filled with "Gamma" above
     row2.locator("[data-fsrow-remove]").click()
-    assert not row2.is_visible()
+    # Replaces the removed wait_for_function: without an explicit wait the
+    # assertion races the click handler.
+    row2.wait_for(state="hidden", timeout=4000)
     assert row2.locator("input[name='choices-2-DELETE']").is_checked()
 ```
 
-and remove `- "Remove" gives live feedback (row dims) before save;` from the docstring at `:262`.
+Read the surrounding lines first and adapt the `before` text to what is actually there. Then remove
+`- "Remove" gives live feedback (row dims) before save;` from the module docstring.
 
 - [ ] **Step 5: Run the choice suites**
 
@@ -1159,6 +1430,9 @@ git commit -m "feat(editor): instant remove for choice rows; drop the unreachabl
 - Create: `courses/static/courses/js/switchgate_editor.js`
 - Modify: `templates/courses/manage/editor/_edit_switchgate.html`
 - Modify: `templates/courses/manage/editor/editor.html` (script tag)
+- Modify: `courses/static/courses/js/editor.js` (add the `libliInitSwitchGateEditor` post-swap call)
+- Modify: `tests/test_editor_js_scroll_invariants.py` (add `switchgate_editor.js` to `PANE_RESIDENT` — **now**, not in Task 2, because the roster asserts the file exists)
+- Modify: `tests/test_formset_rows_assets.py` (add the module-2 asset assertions)
 - Test: `tests/test_switchgate_client_post_shapes.py`, `tests/test_e2e_switchgate_rows.py` (create)
 
 **Interfaces:**
@@ -1170,44 +1444,64 @@ git commit -m "feat(editor): instant remove for choice rows; drop the unreachabl
 Create `tests/test_e2e_switchgate_rows.py`:
 
 ```python
+import os
+
 import pytest
 
-pytestmark = [pytest.mark.django_db, pytest.mark.e2e]
+pytestmark = pytest.mark.e2e
+
+SAVE = "[data-edit-slot] button[type='submit']"
 
 
-def test_add_option_beyond_the_padded_blanks(page, open_switchgate_editor):
-    page = open_switchgate_editor(options=["two", "three", "four"])
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_option_beyond_the_padded_blanks(page, live_server, open_switchgate_editor):
+    open_switchgate_editor(page, live_server, options=["two", "three", "four"])
     before = page.locator("[data-sgate-row]").count()
     page.locator("[data-sgate-add]").click()
     assert page.locator("[data-sgate-row]").count() == before + 1
 
 
-def test_removing_a_middle_option_keeps_the_right_answer(page, open_switchgate_editor):
+@pytest.mark.django_db(transaction=True)
+def test_removing_a_middle_option_keeps_the_right_answer(
+    page, live_server, open_switchgate_editor, switchgate_element
+):
     """The renumbering test: if the radio values are not rewritten, `answer` points
     at the wrong option and the question silently marks the wrong choice correct."""
-    page = open_switchgate_editor(options=["alpha", "beta", "gamma"], answer=2)
+    el = open_switchgate_editor(
+        page, live_server, options=["alpha", "beta", "gamma"], answer=2
+    )
     page.on("dialog", lambda d: d.accept())   # filled row -> confirm fires
     page.locator("[data-sgate-row]").nth(1).locator("[data-sgate-remove]").click()
-    page.click("[data-el-save]")
-    page.wait_for_load_state("networkidle")
-    el = reload_switchgate()
+    page.locator(SAVE).click()
+    page.locator("[data-preview]").first.wait_for(timeout=8000)
+    el.refresh_from_db()
     assert el.options[el.answer] == "gamma"
 
 
-def test_removing_an_interior_blank_lets_the_save_succeed(page, open_switchgate_editor):
+@pytest.mark.django_db(transaction=True)
+def test_removing_an_interior_blank_lets_the_save_succeed(
+    page, live_server, open_switchgate_editor
+):
     """Today this is a dead end: clean() rejects interior blanks and there is no
     remove control, so an author who fills rows 1, 2 and 6 cannot save at all."""
-    page = open_switchgate_editor(options=[])
+    open_switchgate_editor(page, live_server, options=[])
     rows = page.locator("[data-sgate-row]")
     rows.nth(0).locator('input[name="option"]').fill("first")
     rows.nth(1).locator('input[name="option"]').fill("second")
     rows.nth(5).locator('input[name="option"]').fill("sixth")
     rows.nth(0).locator('input[name="answer"]').check()
     # Blank rows are removed WITHOUT a confirm — no dialog handler on purpose.
+    # Descending order: each removal renumbers, so ascending indices would shift.
     for i in (4, 3, 2):
         rows.nth(i).locator("[data-sgate-remove]").click()
-    page.click("[data-el-save]")
-    page.wait_for_load_state("networkidle")
+    page.locator(SAVE).click()
+    page.locator("[data-preview]").first.wait_for(timeout=8000)
     assert page.locator("text=Options cannot be empty").count() == 0
 ```
 
@@ -1277,9 +1571,10 @@ Expected: all FAIL — `[data-sgate-add]` / `[data-sgate-remove]` do not exist.
   }
 
   function initOne(wrap) {
-    wrap.querySelectorAll("[data-sgate-add], [data-sgate-remove]").forEach(function (b) {
-      b.hidden = false;
-    });
+    Array.prototype.forEach.call(
+      wrap.querySelectorAll("[data-sgate-add], [data-sgate-remove]"),
+      function (b) { b.hidden = false; }
+    );
     recompute(wrap);
     renumber(wrap);
   }
@@ -1344,6 +1639,7 @@ Expected: all FAIL — `[data-sgate-add]` / `[data-sgate-remove]` do not exist.
   }
 
   document.addEventListener("click", function (e) {
+    if (!e.target.closest) return;   // non-Element target (synthetic dispatch)
     var add = e.target.closest("[data-sgate-add]");
     if (add) {
       var w = add.closest(WRAP);
@@ -1406,11 +1702,77 @@ Expected: all FAIL — `[data-sgate-add]` / `[data-sgate-remove]` do not exist.
   </div>
 ```
 
-Add the script tag to `editor.html` with the customary `{% comment %}`.
+`_edit_switchgate.html`'s `{% for e in form.non_field_errors %}` block **stays outside** the
+`[data-sgate]` wrapper, after it. Module 2's wrapper only needs to enclose the list, the add button
+and the `<template>` for `closest()` to work; module 1's wrapper encloses its errors block only
+because the formset's `management_form` and `<template>` sit on either side of it. The wrapper is
+`display: contents`, so the placement has no visual effect either way — this is stated so the
+implementer does not have to guess.
 
-- [ ] **Step 5: Add the switchgate characterization test**
+Add the script tag to `editor.html` with the customary `{% comment %}`, add the
+`libliInitSwitchGateEditor` post-swap call in `editor.js` beside the `libliInitFormsetRows` one from
+Task 2, and add `"switchgate_editor.js"` to `PANE_RESIDENT`.
 
-Create `tests/test_switchgate_client_post_shapes.py` — a POST with a middle option removed and `answer` renumbered stores the intended option as correct. Green on master (a stated falsification exception).
+- [ ] **Step 4b: Add the module-2 asset assertions**
+
+Without these, a forgotten `<script>` tag leaves switchgate's controls permanently `hidden` while
+every server-side test stays green — the exact failure mode of the defect being fixed. Add to
+`tests/test_formset_rows_assets.py`:
+
+```python
+def test_switchgate_editor_js_exports():
+    src = open(finders.find("courses/js/switchgate_editor.js"), encoding="utf-8").read()
+    assert "window.libliInitSwitchGateEditor" in src
+    assert "__index__" in src and "__pos__" in src   # both tokens, not one
+
+
+def test_editor_page_loads_switchgate_editor_js(client):
+    ...  # same body as the formset_rows variant
+    assert b"courses/js/switchgate_editor.js" in resp.content
+```
+
+- [ ] **Step 5: Add the switchgate characterization and bounds tests**
+
+Create `tests/test_switchgate_client_post_shapes.py`. Green on master (a stated falsification
+exception) — its job is to pin the "No server changes" claim for module 2.
+
+```python
+import pytest
+
+from courses.element_forms import _MIN_OPTIONS
+from tests.helpers_editor_rows import base_post, open_element_form, save_url
+
+pytestmark = pytest.mark.django_db
+
+
+def test_middle_option_removed_and_renumbered(pa_client, switchgate_element):
+    """What module 2 emits after removing the middle of three options: a SHORTER
+    option list plus an `answer` index renumbered to match its new position."""
+    course, unit, el = switchgate_element(
+        options=["alpha", "beta", "gamma"], answer=2, stem="2 {{choice}} 2 = 4"
+    )
+    data = base_post(course, unit, el, "switchgate")
+    data["stem"] = "2 {{choice}} 2 = 4"
+    data["option"] = ["alpha", "gamma"]   # beta detached
+    data["answer"] = "1"                  # gamma moved from index 2 to 1
+    resp = pa_client.post(save_url(course), data, HTTP_X_REQUESTED_WITH="fetch")
+    assert resp.status_code == 200
+    el.refresh_from_db()
+    assert el.options == ["alpha", "gamma"]
+    assert el.options[el.answer] == "gamma"
+
+
+def test_switchgate_min_bound_matches_the_server_constant(pa_client, switchgate_element):
+    """Built from _MIN_OPTIONS, not a literal 2: a literal on both sides stays green
+    when the constant changes, so it could not catch the drift it exists for."""
+    course, unit, el = switchgate_element(options=["a", "b"], answer=0)
+    html = open_element_form(pa_client, course, el)
+    assert f'data-sgate-min="{_MIN_OPTIONS}"' in html
+```
+
+Note `data["option"]` is a **list** — Django's test client encodes a list as repeated keys, which is
+what `getlist("option")` reads. Passing a string would post one option and the test would pass for
+the wrong reason.
 
 - [ ] **Step 6: Run**
 
@@ -1444,11 +1806,27 @@ The mechanisms that only appear when the pieces interact. Each of these covers s
 - [ ] **Step 1: Write the tests**
 
 ```python
-"""Mechanisms that only appear when the pieces interact."""
+"""Mechanisms that only appear when the pieces interact.
+
+Same harness as the other e2e files: pytestmark = e2e, a session
+_allow_async_unsafe fixture, live_server in every signature, and
+@pytest.mark.django_db(transaction=True) per test so the server thread sees the
+fixtures. Signatures below are abbreviated for readability — every one takes
+(page, live_server, <opener>) and carries the transaction=True marker."""
+
+import os
 
 import pytest
 
-pytestmark = [pytest.mark.django_db, pytest.mark.e2e]
+pytestmark = pytest.mark.e2e
+
+SAVE = "[data-edit-slot] button[type='submit']"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
 
 
 def test_post_init_state(page, open_matchpair_editor_e2e):
@@ -1490,7 +1868,10 @@ def test_maximum_cap_and_its_residual_hole(page, open_stepper_editor_e2e):
     # The accepted residual hole: extra=1 renders a 21st row the author can type
     # into without touching Add. Pinned so the limitation is documented, not assumed.
     page.locator("[data-fsrows-list] li").last.locator('input[type="text"]').fill("21st")
-    page.click("[data-el-save]")
+    page.locator(SAVE).click()
+    # wait_for BEFORE count(): the save is a fetch + fragment swap, so counting
+    # immediately after the click reads the pre-save DOM and returns 0.
+    page.locator("text=at most 20").first.wait_for(timeout=8000)
     assert page.locator("text=at most 20").count() == 1
 
 
@@ -1503,8 +1884,8 @@ def test_422_reconciliation(page, open_matchpair_editor_e2e):
     row = page.locator("[data-fsrow-item]").nth(1)
     row.locator("[data-fsrow-remove]").click()
     page.locator("[data-fsrow-item]").nth(0).locator('input[name$="-right"]').fill("")
-    page.click("[data-el-save]")
-    page.wait_for_load_state("networkidle")
+    page.locator(SAVE).click()
+    page.locator("[data-preview]").first.wait_for(timeout=8000)
     back = page.locator("[data-fsrow-item]").nth(1)
     assert not back.is_visible()
     assert back.locator('input[name$="-DELETE"]').is_checked()
@@ -1519,8 +1900,8 @@ def test_422_minimum_floor(page, open_choice_editor):
         "document.querySelectorAll('[name$=\\'-DELETE\\']')"
         ".forEach(function (d) { d.checked = true; })"
     )
-    page.click("[data-el-save]")
-    page.wait_for_load_state("networkidle")
+    page.locator(SAVE).click()
+    page.locator("[data-preview]").first.wait_for(timeout=8000)
     visible = page.locator("[data-fsrow-item]:visible")
     assert visible.count() >= 2
     assert not visible.first.locator('input[name$="-DELETE"]').is_checked()
@@ -1557,7 +1938,20 @@ git commit -m "test(editor): cover 422 reconciliation, bounds, focus and the min
 uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
-New strings: five confirm strings, the add labels, the remove buttons' labels/`aria-label`s plus `title` on switchgate's `×`, **five at-min strings** (worded per editor — "at least one" for match/stepper/checklist, "at least two" for choice/switchgate) and **two at-cap strings**.
+New msgids — gettext deduplicates identical strings, so count *distinct* ones:
+
+- **four confirm strings**: "Remove this pair?", "Remove this step?", "Remove this item?",
+  "Remove this option?" — choice and switchgate share the last one, so it is one msgid, not two;
+- the add labels: "＋ Add pair" already exists; "＋ Add step", "＋ Add item", "＋ Add option" —
+  check which are already in the catalog before assuming they are new;
+- "Remove" (the per-row button label, already in the catalog) and **"Remove option"**, used for both
+  switchgate's `aria-label` and its `title` — again one msgid;
+- **five at-min strings**, worded per editor: "at least one …" for match/stepper/checklist, "at
+  least two …" for choice/switchgate;
+- **two at-cap strings**: "No room for another step." / "No room for another item."
+
+Confirm the real roster from `makemessages`' output rather than this list — it is the count the
+catalog-guard step asserts against.
 
 - [ ] **Step 2: Translate and clear every fuzzy flag**
 
