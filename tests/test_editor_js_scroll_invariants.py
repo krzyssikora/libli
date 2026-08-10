@@ -36,6 +36,7 @@ PANE_RESIDENT = [
     "code_field.js",
     "editor_dnd.js",
     "formset_rows.js",
+    "switchgate_editor.js",
 ]
 
 # A CALL, not a mention: the explanatory comments in these files name

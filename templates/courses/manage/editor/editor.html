@@ -271,6 +271,11 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
   window.libliInitFormsetRows over the pane after each fragment swap for the
   progressive-enhancement reveal and the 422 reconciliation.{% endcomment %}
   <script src="{% static 'courses/js/formset_rows.js' %}" defer></script>
+  {% comment %}Choose & confirm (switchgate) option add/remove. NOT a formset: the
+  options are positional, so a removed row is DETACHED and the survivors renumbered.
+  Delegated at document level; editor.js re-runs window.libliInitSwitchGateEditor over
+  the pane after each fragment swap for the progressive-enhancement reveal.{% endcomment %}
+  <script src="{% static 'courses/js/switchgate_editor.js' %}" defer></script>
   {% comment %}Guess-the-number student enhancer: arms the input/Check widget in the
   preview and posts each attempt to the check endpoint. editor.js re-runs
   window.libliInitGuessNumbers over the pane after each fragment swap.{% endcomment %}

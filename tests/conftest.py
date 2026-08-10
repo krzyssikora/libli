@@ -219,6 +219,92 @@ def open_choice_editor_html(pa_client):
     return _open
 
 
+def _seed_switchgate_element(options, answer=0, stem="2 {{choice}} 2 = 4"):
+    """(course, unit, element) for a Choose & confirm gate.
+
+    `stem` MUST carry exactly one `{{choice}}` marker: SwitchGateElementForm.clean()
+    adds a stem error without one, and the model field is blank=True — so an
+    element seeded with an empty stem makes every save-path switchgate e2e fail
+    against a CORRECT build, with a 422 that looks like a row-mechanics bug.
+
+    It is stored as the parsed TOKEN stem, exactly as the form's save() writes it.
+    The raw U+FFFF sentinel is never pasted here (file tools corrupt it) —
+    switchgate.parse_stem builds it from fillblank's SENTINEL, the same idiom as
+    tests/test_e2e_switchgate.py's `_switchgate` helper.
+    """
+    from courses import switchgate
+    from courses.models import SwitchGateElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    obj = SwitchGateElement.objects.create(
+        stem=switchgate.parse_stem(stem), options=list(options), answer=answer
+    )
+    return course, unit, add_element(unit, obj)
+
+
+@pytest.fixture
+def switchgate_element():
+    """Factory -> (course, unit, element) for a switchgate.
+
+    `element` is the Element JOIN ROW; the options/answer live on
+    `element.content_object`.
+    """
+
+    def _make(options=("alpha", "beta"), answer=0, stem="2 {{choice}} 2 = 4"):
+        return _seed_switchgate_element(options, answer=answer, stem=stem)
+
+    return _make
+
+
+@pytest.fixture
+def open_switchgate_editor_html(pa_client, switchgate_element):
+    """Server-render opener: seeds a switchgate and returns its edit HTML."""
+
+    def _open(options=("alpha", "beta"), answer=0):
+        course, _unit, element = switchgate_element(options=options, answer=answer)
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+@pytest.fixture
+def open_switchgate_editor(switchgate_element):
+    """e2e opener for the switchgate editor. Returns the Element JOIN ROW.
+
+    `ready` keys on the option row's CLASS rather than the new [data-sgate-list]
+    hook: the class exists before and after this task, so the RED run fails on the
+    control genuinely under test ("[data-sgate-add] not found") instead of on an
+    8-second fragment-wait timeout that proves nothing. Same reasoning as
+    open_element_editor's `.{kind}-rows li`.
+    """
+
+    def _open(
+        page,
+        live_server,
+        options=("alpha", "beta"),
+        answer=0,
+        stem="2 {{choice}} 2 = 4",
+        username="sgate_rows",
+    ):
+        _pa_user(username)
+        _course, unit, element = switchgate_element(
+            options=options, answer=answer, stem=stem
+        )
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk, ready=".el-editor__option-row")
+        return element
+
+    return _open
+
+
 @pytest.fixture
 def open_element_editor():
     """e2e opener for the two retrofitted row editors.

@@ -125,3 +125,14 @@ def test_choice_bounds(open_choice_editor_html):
     first)."""
     soup = BeautifulSoup(open_choice_editor_html(), "html.parser")
     assert soup.select_one("[data-fsrows]")["data-fsrows-min"] == "2"
+
+
+def test_switchgate_progressive_enhancement(open_switchgate_editor_html):
+    """Half (a) only — switchgate has no formset and so no DELETE label. A
+    forgotten `hidden` here ships an add button that is live for no-JS authors with
+    no server handler behind it, and is otherwise green everywhere."""
+    soup = BeautifulSoup(open_switchgate_editor_html(), "html.parser")
+    for tmpl in soup.select("template"):
+        tmpl.decompose()
+    assert soup.select_one("[data-sgate-add]").has_attr("hidden")
+    assert soup.select_one("[data-sgate-row] [data-sgate-remove]").has_attr("hidden")
