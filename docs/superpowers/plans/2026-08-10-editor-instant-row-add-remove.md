@@ -658,7 +658,7 @@ Temporarily change `target.focus({ preventScroll: true })` in `formset_rows.js` 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/static/courses/js/formset_rows.js templates/courses/manage/editor/editor.html tests/test_formset_rows_assets.py tests/test_editor_js_scroll_invariants.py
+git add courses/static/courses/js/formset_rows.js courses/static/courses/js/editor.js templates/courses/manage/editor/editor.html tests/test_formset_rows_assets.py tests/test_editor_js_scroll_invariants.py
 git commit -m "feat(editor): add formset_rows.js row add/remove helper"
 ```
 
@@ -1040,8 +1040,9 @@ def test_add_three_pairs_without_saving(page, live_server, open_matchpair_editor
         rows.nth(i).locator('input[name$="-left"]').fill(left)
         rows.nth(i).locator('input[name$="-right"]').fill(right)
     page.locator(SAVE).click()
-    # Wait on the swapped-in preview, not networkidle: the save is a fetch +
-    # fragment swap with no navigation, so networkidle is a timing heuristic.
+    # Wait on the edit slot CLEARING, not on the preview: the element is pre-seeded,
+    # so its preview node already exists and waiting on it would return instantly.
+    # The slot emptying is what this save actually changes.
     page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
     reopen(page, el.pk)
     # Exact count, not >= 5: after a correct run the reopened editor shows
@@ -1102,7 +1103,7 @@ selector.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add templates/courses/manage/editor/_edit_matchpairquestion.html tests/test_editor_formset_rows_render.py tests/test_matchpair_client_post_shapes.py tests/test_e2e_matchpair_rows.py tests/conftest.py
+git add templates/courses/manage/editor/_edit_matchpairquestion.html tests/helpers_editor_rows.py tests/test_editor_formset_rows_render.py tests/test_matchpair_client_post_shapes.py tests/test_e2e_matchpair_rows.py tests/conftest.py
 git commit -m "fix(editor): make Add pair work without saving and re-opening"
 ```
 
@@ -1478,18 +1479,24 @@ Update the call site at `:375-376` to `addChoiceRow(addChoice)`.
 Once init job 1 hides the DELETE label, the checkbox is out of the accessibility tree and out of tab order, so **no JS author can fire its `change` event** and its only listener is unreachable. Delete:
 
 - `editor.js:493-497` — the DELETE branch toggling `choice-row--del`;
-- `editor.js:492` — the now-false "Reversible: untick to restore the row." comment;
+- `editor.js:491-492` — the **whole two-line** comment (`:491` is "Live feedback for the formset DELETE checkbox…", `:492` its continuation "Reversible: untick to restore the row."). Deleting only `:492` leaves `:491` dangling above unrelated code, the same stale-comment defect the plan forbids elsewhere;
 - `editor.js:439` — `clone.classList.remove("choice-row--del")` (already gone via Step 2);
 - `editor.css:176-179` — the dim rule **and its comment**, which says the row stays "visible so the author can undo by un-ticking Remove before saving".
 
 Verify first that `choice-row--del` has no other consumers:
 
-Use the harness **Grep** tool (or `Select-String`) — `grep` is absent from PowerShell, the shell the
-rest of these commands run in:
+Use the harness **Grep** tool, or this recursive PowerShell form. `grep` is absent from PowerShell,
+and `courses\**\*.js` is NOT recursive there — it expands to one directory level, misses
+`courses/static/courses/js/editor.js` entirely, and returns a false clean:
 
 ```
-Select-String -Path courses\**\*.js,courses\**\*.css,templates\**\*.html,tests\*.py -Pattern "choice-row--del"
+Get-ChildItem -Recurse -Include *.js,*.css,*.html,*.py courses,templates,tests |
+  Select-String -Pattern "choice-row--del"
 ```
+
+**Expect exactly 5 hits on master** (two in `editor.js`, two in `editor.css`, one in
+`tests/test_e2e_questions.py`). A smaller count means the command is wrong, not that the code is
+already clean — this step exists to prove there are no other consumers.
 
 - [ ] **Step 3b: Add a clone-is-blank assertion**
 
@@ -2158,10 +2165,14 @@ def test_minimum_floor_is_an_invariant(page, live_server, open_choice_editor):
     init pass, and assert it refuses to hide below the minimum and un-ticks what it
     left visible, so the checkbox state and the display never disagree."""
     open_choice_editor(page, live_server, options=["a", "b"])
+    # Double quotes INSIDE the selector: quoting it with the same single quotes that
+    # delimit the JS string produces `querySelectorAll('[name$='-DELETE']')`, a
+    # SyntaxError that kills the test against a CORRECT build — and would make the
+    # Step 3 falsification unable to tell the mutant from the baseline.
     page.evaluate(
-        "document.querySelectorAll('[name$='-DELETE']')"
-        ".forEach(function (d) { d.checked = true; });"
-        "window.libliInitFormsetRows(document.querySelector('[data-fsrows]'));"
+        """document.querySelectorAll('[name$="-DELETE"]')"""
+        """.forEach(function (d) { d.checked = true; });"""
+        """window.libliInitFormsetRows(document.querySelector('[data-fsrows]'));"""
     )
     visible = page.locator("[data-fsrow-item]:visible")
     assert visible.count() == 2, "init job 2 must not hide below data-fsrows-min"
@@ -2198,7 +2209,7 @@ git commit -m "test(editor): cover 422 reconciliation, bounds, focus and the min
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po` + `.mo`, `locale/en/LC_MESSAGES/django.po` + `.mo`
-- Modify: `tests/test_i18n_stepper.py` (extend)
+- Create: `tests/test_i18n_editor_rows.py`
 
 - [ ] **Step 1: Extract the new strings**
 
