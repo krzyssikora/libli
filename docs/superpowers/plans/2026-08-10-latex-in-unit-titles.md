@@ -3768,7 +3768,8 @@ git commit -m "feat(css): normalise KaTeX sizing and display math inside node ti
 
 **Files:**
 - Create: `tests/test_e2e_title_math.py`
-- Modify (only if measurement demands it): `core/static/core/css/app.css`, `courses/static/courses/css/courses.css`, `courses/static/courses/js/math.js`
+- Modify (only if measurement demands it) — **all five possible clamp targets**, because Step 5b routes each selector to the stylesheet its own page links: `core/static/core/css/app.css`, `courses/static/courses/css/courses.css`, `notes/static/notes/css/notes.css`, `tags/static/tags/css/tags.css`, `courses/static/courses/css/editor.css`; plus `courses/static/courses/js/math.js` (the pre-filter branch)
+- Modify (**whenever any clamp changes**): `tests/test_title_math_css.py` — Step 5b requires a `_has_rule` assertion against the *specific* stylesheet for every selector added, an `EDITOR_CSS` reader if row 14 needs one, and an update to `test_font_size_weight_and_style_are_all_restored` if row 8's synthetic-bold fallback fires
 - Modify (**always** — see Step 6): `docs/superpowers/specs/2026-08-10-latex-in-unit-titles-design.md` §3, to record the confirmed or corrected clamp values and to fix the `white-space` code block
 
 **Interfaces:**
@@ -4222,19 +4223,30 @@ left untracked at PR time — making Step 5b's verification unreproducible.
 uv run ruff check --fix tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
 uv run ruff format tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
 git add tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py \
-        tests/helpers_title_math.py \
+        tests/helpers_title_math.py tests/test_title_math_css.py \
         docs/superpowers/specs/2026-08-10-latex-in-unit-titles-design.md
-# helpers_title_math.py is staged because Step 4's large-course branch adds
-# make_large_title_course to it. Staging it unconditionally is harmless when that
-# branch was not taken (no diff = no-op) and REQUIRED when it was: without it the
-# committed branch holds an e2e importing a name that is not in the commit, and
-# Step 7's suite still passes because the file is on disk -- so nothing surfaces
-# until CI or a fresh clone.
+# The four unconditional paths above are staged whether or not the measurement
+# changed anything: staging a file with no diff is a no-op, while OMITTING one
+# that changed is silent and only surfaces in CI or a fresh clone (Step 7's suite
+# passes locally because the files are on disk). helpers_title_math.py carries
+# Step 4's make_large_title_course; test_title_math_css.py carries the per-
+# stylesheet _has_rule assertions Step 5b requires for every selector added; the
+# spec carries Step 6's §3 confirmation, which happens on the clean path too.
 #
-# The spec is ALWAYS staged: Step 6's §3 confirmation edit happens on the clean
-# path too. Add the CSS / math.js paths only if the measurement corrected them:
+# Then add whichever of the five clamp targets the measurement actually
+# corrected -- Step 5b routes each selector to the stylesheet ITS OWN page links,
+# so more than one may be in play, and a rule appended to a stylesheet the page
+# does not link is a silent no-op that the tests cannot catch:
 # git add core/static/core/css/app.css courses/static/courses/css/courses.css \
+#         notes/static/notes/css/notes.css tags/static/tags/css/tags.css \
+#         courses/static/courses/css/editor.css \
 #         courses/static/courses/js/math.js
+#
+# SANITY CHECK before committing -- nothing this task touched may be left behind:
+#   git status --porcelain
+# should show no modified-but-unstaged file. A committed test_title_math_css.py
+# asserting a rule whose stylesheet was never staged is a branch that is green
+# locally and red in CI.
 git commit -m "test(e2e): drive a maths title through the real nav button and measure render cost"
 ```
 
