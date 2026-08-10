@@ -1501,6 +1501,22 @@ Expected: PASS. `tests/test_element_add_save.py:16` reaches the form through `FO
 
 (Task 7's "no collateral damage" run covers `test_geogebra.py` / `test_embed.py` / `test_transfer_import.py`, which do **not** overlap the form's consumers at all — so this run is not redundant with it.)
 
+- [ ] **Step 4b: Falsify the no-lookup guards — Step 2's RED run did not**
+
+`patch("courses.element_forms.fetch_geogebra_dimensions", ...)` raises at `with _patch_lookup()` **entry**, so in Step 2's RED run the body of every `assert_not_called()` test never executed. After Step 3 they all pass. Six absence assertions would therefore ship having never discriminated — the same gap Tasks 7, 8, 9 and 10 each get an explicit mutant step for. The test comments already *name* these mutants ("a build that DELETES `and mid`", "Gating on `url_changed` alone would kill this"); this step is where they actually get applied.
+
+One at a time, against `clean_url`, from a clean tree, reverting between each:
+
+| mutant | edit | expected RED |
+|---|---|---|
+| **a** | delete `and mid` from the **lookup** condition | `test_form_non_geogebra_dimensionless_paste_never_looks_up` (fires a GET at `…/materials/?scope=basic` with an empty id), `test_form_geogebra_host_without_a_material_id_never_looks_up` |
+| **b** | delete `not usable_dimensions(width, height) and` from the **lookup** condition | `test_form_static_embed_paste_never_looks_up` — a paste that already carries dimensions would look them up anyway |
+| **c** | delete `and not stored_usable` from the **lookup** condition | `test_form_title_only_edit_of_a_sized_element_never_looks_up` — every rename fires a network call inside the row lock |
+| **d** | delete `and mid` from the **stale-clear** condition | `test_form_non_geogebra_url_change_keeps_its_dimensions` (a Vimeo element loses its captured pair), `test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` |
+| **e** | delete the **whole stale-clear block** | `test_form_url_change_with_a_failed_lookup_does_not_keep_the_old_pair` — the previous material's `880 / 660` survives onto the new one |
+
+Record each outcome. Any of the six that cannot be driven red must be deleted or escalated, per Global Constraints.
+
 - [ ] **Step 5: Re-label the two pre-existing tests whose meaning THIS task changes**
 
 Both are **form** tests, so their semantics change the moment this task lands — not in Task 7, which touches only `models.py` and the render template. Do this **before** the commit below, so the commit that changes the behaviour is also the commit that records it; otherwise the branch carries two committed tests whose names assert something the code no longer does.
@@ -1532,7 +1548,14 @@ git commit -m "feat(embed): look up GeoGebra dimensions when a paste does not ca
 - Consumes: `usable_dimensions`, `is_geogebra_iframe_url`, `geogebra_url_size`, `geogebra_material_id`, `GEOGEBRA_DEFAULT_SIZE` (Tasks 1–4).
 - Produces: `IframeElement.frame_ratio -> str | None` and `IframeElement.size_unknown -> bool` (the latter consumed by Task 8).
 
-**Import style:** all five names are imported at **module level** in `models.py`. The cycle argument covers them equally (`geogebra.py` imports nothing from `courses`). `embed_src`'s existing in-method `from courses.geogebra import geogebra_sized_src` stays as the **sole** exception — but its comment is **amended**, not left alone: with module-level imports of the same module now sitting a few lines above, an unexplained in-method import reads as an accident. Add a clause noting the module-level predicate imports are safe for the same reason (`geogebra.py` imports nothing from `courses`), so the two styles in one file are visibly deliberate.
+**Import style:** all five names are imported at **module level** in `models.py`. The cycle argument covers them equally (`geogebra.py` imports nothing from `courses`). `embed_src`'s existing in-method `from courses.geogebra import geogebra_sized_src` (`courses/models.py:793`) stays as the **sole** exception. That import line is currently **bare — there is no comment on or near it to amend**, so this is a new one-line comment, not an edit to an existing one. It is needed because with module-level imports of the same module now sitting a few lines above, an unexplained in-method import reads as an accident:
+
+```python
+        # In-method purely for historical reasons; the module-level courses.geogebra
+        # imports above are equally cycle-safe (geogebra.py imports nothing from
+        # courses). Left as-is to keep this diff off a working method.
+        from courses.geogebra import geogebra_sized_src
+```
 
 **The five-step order is load-bearing.** Step 0 before step 2, and step 1 before step 2, are each pinned by a test with a *disagreeing* precondition.
 
@@ -1765,13 +1788,16 @@ Two *form* tests also change meaning on this branch — `test_form_bare_url_past
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_iframe_dimensions.py -v`
-Expected: FAIL, with **three distinct failure modes** — Global Constraints require the observed reason to match the stated one, so check all three:
+Expected: FAIL, with **four distinct failure modes** — Global Constraints require the observed reason to match the stated one, so check all four rather than assuming a single message:
 
-- the new **render** tests fail with `aspect-ratio: 800 / 600` absent (the template still tests `el.width and el.height`);
-- `test_size_unknown_drives_the_editor_badge` and `test_url_change_with_a_failed_lookup_leaves_the_element_badged` fail with `AttributeError: 'IframeElement' object has no attribute 'size_unknown'`;
-- `test_render_material_url_that_sized_src_will_not_rewrite_claims_no_ratio` fails because an **unexpected** ratio is present — the old template emits the stored `880 / 660` for `/m/<id>` — not because `800 / 600` is missing.
+1. `aspect-ratio: 800 / 600` **absent** — the two GeoGebra-default tests (`test_render_geogebra_without_dimensions_uses_geogebras_own_default`, `test_render_geogebra_partial_or_zero_pair_uses_the_default`). The template still tests `el.width and el.height`.
+2. **Their own** ratio absent — the three URL-sized tests, each with a different expected string: `880 / 660` (`test_render_url_sized_applet_reads_the_ratio_from_the_url`), `800 / 400` (`test_render_url_sized_applet_beats_a_disagreeing_stored_pair`, which additionally shows `880 / 660` *present*, since the old template renders the stored pair), and `1600 / 763` (`test_render_geogebras_real_embed_tail_gets_the_urls_own_ratio`).
+3. An **unexpected** ratio present — `test_render_material_url_that_sized_src_will_not_rewrite_claims_no_ratio`, because the old template emits the stored `880 / 660` for `/m/<id>`. Not a missing-string failure.
+4. `AttributeError: 'IframeElement' object has no attribute 'size_unknown'` — `test_size_unknown_drives_the_editor_badge` and `test_url_change_with_a_failed_lookup_leaves_the_element_badged`.
 
-**Ten further new assertions will NOT appear in this RED output at all**, because they are already true against the unedited template. That is expected, not a miscount; Step 5 is where they get their own mutants.
+**A further ~15 new assertions will NOT appear in this RED output at all**, because they are already true against the unedited template. That is expected, not a miscount. They are, explicitly — this list is the checklist Step 5's audit works against:
+
+`test_render_non_geogebra_without_dimensions_keeps_the_css_default`; `test_render_non_geogebra_partial_or_zero_pair_keeps_the_css_default` (2 params); `test_render_non_geogebra_with_a_usable_pair_still_gets_its_ratio`; `test_render_geogebra_host_without_a_material_id_keeps_the_css_default`; `test_render_degenerate_shapes_follow_the_stored_pair` (2 params × 2 URLs); `test_render_rejects_style_injection_from_the_url`; `test_render_step0_rejection_cases_fall_through_to_no_inline_ratio` (4 params); `test_render_non_geogebra_url_with_width_height_segments_gets_no_ratio`; `test_render_never_raises_on_a_malformed_authority`.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -1886,8 +1912,13 @@ Apply one mutant at a time, from a clean tree, reverting between each:
 | **B** | `frame_ratio` **step 1**: delete the whole two-line `if` block | `test_render_material_url_that_sized_src_will_not_rewrite_claims_no_ratio` (falls through to step 2 and emits the stored `880 / 660`) |
 | **C** | **A and B together** | the four `test_render_step0_rejection_cases_fall_through_to_no_inline_ratio` params, and `test_render_rejects_style_injection_from_the_url` — all five exit at step 1 on a correct build, so only removing step 1 lets them reach the over-emitting step 4 |
 | **D** | `geogebra_url_size`: replace the validation tail (`isdecimal` check, `int()`, `usable_dimensions`) with `return raw_width, raw_height`; **and** `frame_ratio` step 0's gate with `if url_width and url_height:` | `test_render_rejects_style_injection_from_the_url` — this is the **security** mutant: it puts the raw `1;position:fixed;top:0;height:100vh` text into the `style` attribute, which is a strictly stronger claim than mutant C's "some ratio appeared" |
-| **E** | `geogebra_url_size`: delete the `except (ValueError, TypeError, IndexError)` handler | `test_render_never_raises_on_a_malformed_authority` — `urlsplit("https://[::1").hostname` raises `ValueError` and the render 500s |
+| **E** | `geogebra_url_size`: remove the `try:` / `except (ValueError, TypeError, IndexError)` **wrapper entirely** and de-indent its body one level (deleting only the `except` clause leaves a bare `try:`, i.e. a `SyntaxError` that reddens the whole run and proves nothing) | `test_render_never_raises_on_a_malformed_authority` — `urlsplit("https://[::1").hostname` raises `ValueError` and the render 500s |
 | **F** | `frame_ratio` **step 2**: add `and is_geogebra_iframe_url(self.url)` to its condition, scoping it to GeoGebra | `test_render_non_geogebra_with_a_usable_pair_still_gets_its_ratio`; the `(880, 660)` half of `test_render_degenerate_shapes_follow_the_stored_pair` |
+| **G** | `size_unknown`: drop the `is_geogebra_iframe_url(self.url) and` conjunct | `test_size_unknown_drives_the_editor_badge` params **4, 5, 6** (`/m/<id>`, `/x`, `OTHER_RENDER_URL`) — all three then report a badge they should not |
+| **H** | `size_unknown`: invert the dimension half to `and usable_dimensions(...)` | `test_size_unknown_drives_the_editor_badge` params **1, 2, 3**, **and** `test_url_change_with_a_failed_lookup_leaves_the_element_badged` |
+| **I** | `clean_url` (Task 6 code): delete the stale-clear `if` block | `test_url_change_with_a_failed_lookup_leaves_the_element_badged` — the old `880 / 660` survives the URL change, so `size_unknown` is False. This is the mutant that falsifies what that test *exists for*, as opposed to H which only inverts the property |
+
+**G, H and I exist because `size_unknown` is otherwise never behaviourally falsified.** Its seven assertions are red at Step 2 only via `AttributeError: 'IframeElement' object has no attribute 'size_unknown'` — raised *before* the assertion executes. That is precisely the standard this plan rejects in Task 5 Step 4 ("an import-error red does not demonstrate that the assertion discriminates") and enforces in Task 8. Since `size_unknown` is what Task 8's entire badge rests on, it does not get an exemption here.
 
 **Note why B is the whole block, not just its second clause.** Deleting only `and not is_geogebra_iframe_url(self.url)` leaves `if geogebra_material_id(self.url): return None`, which fires on *more* URLs — so `/m/<id>` still returns `None` and the named test stays **green**. Removing the guard means removing the step.
 
@@ -2018,7 +2049,23 @@ Expected: PASS.
 uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
-Write the Polish translations for both new strings, then **clear any `#, fuzzy` marker** the extractor pre-filled — the repo has a recorded hazard where a fuzzy pre-fill ships a wrong translation and clearing it requires two deletions. Verify:
+Fill in these two `msgstr` values in `locale/pl/LC_MESSAGES/django.po` — supplied verbatim so this is a mechanical edit like the rest of the task, not an authoring decision made mid-execution:
+
+```po
+msgid "applet size unknown"
+msgstr "nieznany rozmiar apletu"
+
+msgid ""
+"The applet size is unknown, so it renders in a 4:3 frame and may be cropped. "
+"Paste the <iframe> embed code for exact sizing."
+msgstr ""
+"Nieznany rozmiar apletu, więc jest wyświetlany w ramce 4:3 i może zostać "
+"przycięty. Wklej kod osadzania <iframe>, aby uzyskać dokładny rozmiar."
+```
+
+(`locale/en/LC_MESSAGES/django.po` keeps empty `msgstr`s — `LANGUAGE_CODE = "en"`, so English falls through to the msgid, matching every other entry in that catalog.)
+
+Then **clear any `#, fuzzy` marker** the extractor pre-filled — the repo has a recorded hazard where a fuzzy pre-fill ships a wrong translation and clearing it requires two deletions. Verify:
 
 ```bash
 # BOTH catalogs — makemessages ran for -l pl AND -l en, so either can be pre-filled.
@@ -2268,7 +2315,7 @@ Capture light + dark and confirm the flag is still legible and still reads as a 
 
 This is **not** an optional tidy-up that can be "recorded as accepted". The script now defines `verify_coverage()`, which diffs `pytest -m e2e --collect-only` against the `C1..C7` lists and returns 1 with `!!! CHUNK COVERAGE IS STALE -- refusing to claim a full run.`; the `all` path runs `verify_coverage || exit 1`. An unregistered module therefore breaks **every** full chunked run, not merely its own coverage. (The script's header still describes the historical "84 of 97" gap — that is the defect `verify_coverage` was added to fix, not a description of today's behaviour.)
 
-**Append `tests/test_e2e_editor_row_layout.py` to `C3`**, alphabetically after `tests/test_e2e_editor.py` — that chunk already holds `test_e2e_editor.py`, `test_e2e_editor_force_open.py`, `test_e2e_editor_preview_state_regression.py`, `test_e2e_editor_scroll_containment.py`, `test_e2e_editor_unit_token.py`, `test_e2e_editor_view_toggle.py` and `test_e2e_editor_ws3.py`, so it is right on both naming and balance.
+**Insert `tests/test_e2e_editor_row_layout.py` into `C3`, between `tests/test_e2e_editor_preview_state_regression.py` and `tests/test_e2e_editor_scroll_containment.py`** — its alphabetical slot. That chunk already holds the whole `test_e2e_editor*` family (`test_e2e_editor.py`, `_force_open`, `_preview_state_regression`, `_scroll_containment`, `_unit_token`, `_view_toggle`, `_ws3`), so it is right on both naming and balance. (`verify_coverage` sorts before comparing, so position does not affect the check — but keep the list readable.)
 
 Verify before committing:
 
