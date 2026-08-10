@@ -356,3 +356,60 @@ def test_the_title_widening_is_applied_at_all_three_unit_render_sites():
         "quiz_unit",
         "_quiz_render_feedback",
     }, f"title widening applied at the wrong set of render sites: {sorted(callers)}"
+
+
+# =============================================================================
+# The gate: pages that gain has_math (outline + course results)
+# =============================================================================
+
+
+def test_course_outline_loads_katex_for_a_maths_title(client):
+    course, _unit, _n = make_title_course(maths_on="far")
+    login_student(client, course)
+    url = reverse("courses:course_outline", kwargs={"slug": course.slug})
+    _assert_katex_present(client.get(url).content.decode())
+
+
+def test_course_outline_loads_katex_for_a_maths_group_title(client):
+    """The outline renders group titles too (_outline_node.html:21), and
+    build_outline's tree is what the scan walks -- so a GROUP-only maths title
+    must arm the gate."""
+    course, _unit, _n = make_title_course(maths_on="group")
+    login_student(client, course)
+    url = reverse("courses:course_outline", kwargs={"slug": course.slug})
+    _assert_katex_present(client.get(url).content.decode())
+
+
+def test_course_outline_loads_no_katex_without_maths(client):
+    course, _unit, _n = make_title_course(maths_on="none")
+    login_student(client, course)
+    url = reverse("courses:course_outline", kwargs={"slug": course.slug})
+    _assert_katex_absent(client.get(url).content.decode())
+
+
+def _course_results_url_with_quiz_title(client, title):
+    course = CourseFactory()
+    ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="quiz",
+        parent=None,
+        order=0,
+        title=title,
+    )
+    login_student(client, course)
+    return reverse("courses:course_results", kwargs={"slug": course.slug})
+
+
+def test_course_results_loads_katex_for_a_maths_row_title(client):
+    url = _course_results_url_with_quiz_title(client, MATHS_TITLE)
+    body = client.get(url).content.decode()
+    # A quiz with no submission still renders: build_course_results appends a
+    # "not_started" row for every quiz unit (build_course_results).
+    assert MATHS_TITLE in body, "the results row did not render"
+    _assert_katex_present(body)
+
+
+def test_course_results_loads_no_katex_without_maths(client):
+    url = _course_results_url_with_quiz_title(client, "Plain quiz")
+    _assert_katex_absent(client.get(url).content.decode())

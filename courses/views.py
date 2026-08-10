@@ -619,6 +619,8 @@ def course_outline(request, slug):
     ]
     tag_services.outline_with_tags(outline, tags_by_unit, active_tag_ids)
     base = reverse("courses:course_outline", kwargs={"slug": course.slug})
+    # The whole outline is in the DOM, so scan the whole tree.
+    has_math = tree_titles_have_math(outline)
     return render(
         request,
         "courses/outline.html",
@@ -630,6 +632,7 @@ def course_outline(request, slug):
             "filter_chips": tag_services.filter_chip_hrefs(
                 base, course_tags, active_tag_ids
             ),
+            "has_math": has_math,
         },
     )
 
@@ -643,10 +646,16 @@ def course_results(request, slug):
     # top-level as the template's canonical source (summary also carries it).
     drafts = "keep" if can_see_drafts(request.user, course) else "hide"
     summary = build_course_results(course, request.user, drafts=drafts)
+    # build_course_results builds "rows" with three rows.append calls, so it is
+    # a real list -- scanning it here and then passing it to the template
+    # iterates it twice safely. Were it a generator, the scan would exhaust it and
+    # the page would render EMPTY, a silent severe failure no test here would
+    # catch, which is why the return type is pinned rather than assumed.
+    has_math = titles_have_math(r["unit"].title for r in summary["rows"])
     return render(
         request,
         "courses/course_results.html",
-        {"course": course, "summary": summary},
+        {"course": course, "summary": summary, "has_math": has_math},
     )
 
 
