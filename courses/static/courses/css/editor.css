@@ -81,6 +81,20 @@ body.editor-page .app-main { max-width: 102rem; }
   border: 1px solid var(--border-strong); border-radius: var(--radius-full);
   padding: 0 var(--space-2); color: var(--text-secondary);
 }
+/* Typography applies to this badge AND the pre-existing revealgate flag, which has
+   shipped unstyled. cursor:help is attribute-scoped because that flag has no title and
+   would otherwise promise a tooltip that never appears. */
+.el-row__flag { font-size: .7rem; color: var(--text-secondary); }
+.el-row__flag[title] { cursor: help; }
+/* Shrink behaviour is scoped to THIS row only. Giving it to the revealgate flag would
+   make a shipped, load-bearing warning truncatable -- a behavioural change to an
+   existing surface. `white-space: nowrap` is required for text-overflow to fire at all;
+   `min-width: 0` + `flex: 0 1 auto` is what makes a flex text item shrink instead of
+   pushing (the escape .el-actions lacked, being a bar of inline-flex forms). */
+.el-row__top > .el-row__flag {
+  flex: 0 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .el-select {
   flex: 1; text-align: left; background: none; border: 0; cursor: pointer;
   color: var(--text-primary); text-decoration: underline; padding: 0;

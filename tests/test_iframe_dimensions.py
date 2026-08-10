@@ -5,6 +5,11 @@ from django.template.loader import render_to_string
 
 from courses.element_forms import IframeElementForm
 from courses.models import IframeElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import add_element
+from tests.factories import make_pa
+from tests.test_editor_page import _editor_url
 
 URL = "https://www.geogebra.org/material/iframe/id/abc"
 
@@ -191,6 +196,36 @@ def test_render_never_raises_on_a_malformed_authority():
 def test_size_unknown_drives_the_editor_badge(url, width, height, expected):
     el = IframeElement(url=url, width=width, height=height)
     assert el.size_unknown is expected
+
+
+def _editor_html(client, obj):
+    """Seed a unit holding `obj`, GET the real editor page, return its HTML."""
+    make_pa(client, "pa")                      # creates + logs in a platform admin
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course)   # kind defaults to "unit"
+    add_element(unit, obj)                     # Element.objects.create join row
+    response = client.get(_editor_url(course, unit))
+    assert response.status_code == 200
+    return response.content.decode()
+
+
+@pytest.mark.django_db
+def test_editor_row_shows_the_badge_for_a_dimensionless_geogebra_element(client):
+    html = _editor_html(client, IframeElement.objects.create(url=URL, title="P"))
+    assert "el-row__flag" in html
+    assert "applet size unknown" in html
+
+
+@pytest.mark.django_db
+def test_editor_row_hides_the_badge_once_dimensions_are_known(client):
+    html = _editor_html(
+        client,
+        IframeElement.objects.create(url=URL, title="P", width=880, height=660),
+    )
+    # Assert on the BADGE TEXT, not on the class: _element_row.html:29 emits an
+    # .el-row__flag for revealgate elements too, so a class-only assertion would fail
+    # for an unrelated reason if the seeded unit ever gained one.
+    assert "applet size unknown" not in html
 
 
 @pytest.mark.django_db
