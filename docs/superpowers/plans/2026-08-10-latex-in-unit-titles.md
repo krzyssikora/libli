@@ -25,8 +25,8 @@
 - **Script order inside the JS partial is load-bearing and fixed:** `katex.min.js` → `contrib/auto-render.min.js` → `math_reflow.js` → `text_colour.js` → `math.js`. `math_reflow.js` pre-hooks `window.renderMathInElement` and `katex.render` with a single install attempt and no deferred retry; `text_colour.js` post-hooks the same two globals; `math.js` runs the document pass and must be last.
 - **`ruff` config:** `force-single-line = true` for imports; `select = ["E", "F", "I", "UP", "B", "S"]`. Run `uv run ruff check --fix` and `uv run ruff format` on touched Python before each commit.
 - **Course titles are out of scope.** `Course.title` is a different field on a different model. Never mark or filter it.
-- **Path C (edit buffers) stays disjoint.** `manage/editor/_unit_settings.html:12`, `manage/_rename_result.html:7` and `manage/_tree_node.html:49` must receive the title with **no** marker and **no** filter.
-- **No builder templates change in this diff.** §5 defers every builder surface.
+- **Path C (edit buffers) stays disjoint.** `manage/editor/_unit_settings.html:12`, `manage/_rename_result.html:7` and `manage/_tree_node.html:49` must receive the title with **no** marker and **no** filter — typesetting or stripping any of them corrupts what the author saves.
+- **No builder templates change in this diff.** §5 defers every builder surface. Note this covers two *different* kinds of site in the same file: `_tree_node.html:49` is the Path-C edit buffer above (permanently unfiltered, even after the deferred work lands), while `:50`'s `title="{{ node.title }}"` is an ordinary plain-text tooltip that *would* take `|strip_math_delimiters` — it is untouched here only because the builder is out of scope, not because it is an edit buffer. The same distinction applies to `_tree_toggle.html:6,7`.
 
 ---
 
@@ -243,7 +243,7 @@ git commit -m "feat(courses): add strip_math_delimiters for plain-text title con
 
 **Interfaces:**
 - Consumes: `strip_math_delimiters` from Task 1.
-- Produces: `tests/helpers_title_math.py` exporting `MATHS_TITLE`, `PLAIN_TITLE`, `make_title_course(...)`, `login_student(...)` — reused by Tasks 5–9.
+- Produces: `tests/helpers_title_math.py` exporting `MATHS_TITLE`, `MATHS_TITLE_STRIPPED`, `make_title_course(*, maths_on=...)`, `login_student(client, course, username=...)` — reused by Tasks 5–9 and 11.
 
 **Why one assertion per (file, line) and not per spec-table row:** three rows cover several sites each. `_unit_tree_node.html:15` (unit label) and `:25` (group title) are independent interpolations, and the two "Browser tab" rows span five templates. A per-row test is satisfied by stripping at `:15` but not `:25`, or in `lesson_unit.html:3` but not `quiz_results.html:3` — exactly the wiring gap this task exists to close. Without it, an implementation that defines the filter, registers it, and wires it into **no** site at all passes Task 1 entirely green.
 
@@ -332,17 +332,32 @@ def make_title_course(*, maths_on="none"):
 
 - [ ] **Step 2: Write the failing wiring tests**
 
-Append to `tests/test_title_math_filter.py`. **Merge these imports into the file's single
-top-level import block** rather than starting a second one mid-file — `ruff`'s `I` rule sorts
-per block and `force-single-line` is on, so a stray second block invites churn. The
-`pytestmark` assignment is module-level and applies to every test in the file regardless of
-where it sits; put it directly under the imports.
+Append to `tests/test_title_math_filter.py`. **Everything this step adds — including the
+imports the later code blocks use — goes into the file's single top-level import block**,
+which means extending the one Task 1 wrote rather than starting a second block mid-file
+(`ruff`'s `I` rule sorts per block and `force-single-line` is on, so a stray second block
+invites churn, and the helpers below would transiently reference names imported further down).
+The `pytestmark` assignment is module-level and applies to every test in the file wherever it
+sits; put it directly under the imports.
+
+The complete added import set, sorted as `ruff` will leave it:
 
 ```python
+from decimal import Decimal
+
 import pytest
 from bs4 import BeautifulSoup
 from django.urls import reverse
 
+from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
+from courses.models import QuestionElement
+from courses.models import QuizSubmission
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import UserFactory
+from tests.factories import make_pa
 from tests.helpers_title_math import MATHS_TITLE
 from tests.helpers_title_math import MATHS_TITLE_STRIPPED
 from tests.helpers_title_math import login_student
@@ -399,13 +414,25 @@ def test_crumb_li_tooltip_is_stripped(client):
 
 
 # --- (4)+(5) _unit_crumbs.html:27 and :29 -- the collapsed crumb --------------
-def _deep_course_with_maths_mid():
-    """>1 ancestor so the ellipsis crumb renders (gated on ancestor COUNT), with
-    the maths title on a MID ancestor so it lands in hidden_path."""
+def _deep_course_with_maths_in_hidden_path():
+    """>1 ancestor so the ellipsis crumb renders (it is gated on ancestor COUNT),
+    with the maths title on an ancestor that hidden_path ACTUALLY CONTAINS.
+
+    THE TRAP: `hidden_path` is `HIDDEN_PATH_SEP.join(a.title for a in
+    ancestors[:-1])` (rollups.py:954) -- ALL BUT THE DEEPEST -- and `ancestors`
+    already excludes the unit itself (_current_ancestors, rollups.py:878-879).
+    For part1 -> chapter -> deep, `ancestors == [part1, chapter]` and
+    `ancestors[:-1] == [part1]`. So the maths must go on **part1**; putting it on
+    the chapter leaves hidden_path maths-free and both tests below fail no matter
+    how correctly the filter is wired.
+    """
     course, _unit, nodes = make_title_course(maths_on="none")
+    part1 = nodes["part1"]
+    part1.title = MATHS_TITLE          # ancestors[:-1] == [part1]
+    part1.save(update_fields=["title"])
     chapter = ContentNodeFactory(
-        course=course, kind="chapter", parent=nodes["part1"], unit_type=None,
-        order=0, title=MATHS_TITLE,
+        course=course, kind="chapter", parent=part1, unit_type=None,
+        order=0, title="Rozdzial zwykly",   # the DEEPEST ancestor: dropped by [:-1]
     )
     deep = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=chapter, order=0,
@@ -415,7 +442,7 @@ def _deep_course_with_maths_mid():
 
 
 def test_collapsed_crumb_tooltip_is_stripped(client):
-    course, deep = _deep_course_with_maths_mid()
+    course, deep = _deep_course_with_maths_in_hidden_path()
     login_student(client, course)
     url = reverse(
         "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": deep.pk}
@@ -431,7 +458,7 @@ def test_collapsed_crumb_accessible_name_is_stripped(client):
     """The .visually-hidden span IS the collapsed crumb's accessible name. Without
     stripping, a maths ancestor is read aloud as "backslash paren x caret 2" on an
     otherwise fully typeset page."""
-    course, deep = _deep_course_with_maths_mid()
+    course, deep = _deep_course_with_maths_in_hidden_path()
     login_student(client, course)
     url = reverse(
         "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": deep.pk}
@@ -473,23 +500,9 @@ def test_lesson_unit_browser_tab_is_stripped(client):
     assert MATHS_TITLE_STRIPPED in _head_title(body)
 ```
 
-Add the four remaining `<title>` assertions — `quiz_unit`, `quiz_results`, `editor`, `review_submission` — each driving its own view. Spell them out fully:
+Add the four remaining `<title>` assertions — `quiz_unit`, `quiz_results`, `editor`, `review_submission` — each driving its own view. Their imports are already in the consolidated block above; only the test bodies follow:
 
 ```python
-from decimal import Decimal
-
-from courses.models import Element
-from courses.models import ExtendedResponseQuestionElement
-from courses.models import QuestionElement
-from courses.models import QuizSubmission
-from tests.factories import ContentNodeFactory
-from tests.factories import CourseFactory
-from tests.factories import EnrollmentFactory
-from tests.factories import UserFactory
-from tests.factories import make_login
-from tests.factories import make_pa
-
-
 def test_quiz_unit_browser_tab_is_stripped(client):
     course = CourseFactory()
     quiz = ContentNodeFactory(
@@ -908,7 +921,7 @@ def tree_titles_have_math(tree):
 uv run pytest tests/test_title_math_helpers.py -v
 ```
 
-Expected: 14 passed.
+Expected: 13 passed (7 `titles_have_math` + 6 `tree_titles_have_math`).
 
 - [ ] **Step 6: Falsify — observe RED against the two failure-mode mutants**
 
@@ -979,6 +992,7 @@ Create `tests/test_title_math_assets.py`:
 ```python
 """Shared KaTeX partials, defect 3 (missing math.js), and the per-page gate."""
 
+import re
 from decimal import Decimal
 from pathlib import Path
 
@@ -1044,9 +1058,13 @@ def test_every_script_in_the_js_partial_is_deferred():
     runs DURING parsing and typesets nothing below its own tag, a failure that
     looks exactly like a missing marker."""
     src = JS_PARTIAL.read_text(encoding="utf-8")
-    tags = [line for line in src.splitlines() if "<script" in line]
-    assert len(tags) == 5, f"expected 5 script tags, found {len(tags)}"
-    assert all(" defer>" in t or " defer " in t for t in tags), tags
+    # Match TAGS, not lines: a line-based count changes when a tag wraps across
+    # two lines or a comment merely mentions "<script", and under-counts two tags
+    # on one line -- brittle for exactly the edit (adding a KaTeX-family asset)
+    # this assertion is meant to police. \b so "<scripting" cannot match.
+    tags = re.findall(r"<script\b[^>]*>", src)
+    assert len(tags) == 5, f"expected 5 script tags, found {len(tags)}: {tags}"
+    assert all(re.search(r"\sdefer(\s|>)", t) for t in tags), tags
 
 
 # --- defect 3 -----------------------------------------------------------------
@@ -1521,7 +1539,13 @@ def test_course_results_row_titles_are_marked(client):
     )
     login_student(client, course)
     url = reverse("courses:course_results", kwargs={"slug": course.slug})
-    assert _marked(client.get(url).content.decode(), "span.result-row__title")
+    body = client.get(url).content.decode()
+    # Precondition, stated rather than assumed: build_course_results appends a
+    # "not_started" row for EVERY quiz unit (rollups.py:366-381), so a quiz with
+    # no submission still renders. Without this the positive assertion below
+    # could fail for fixture reasons and read as a wiring bug.
+    assert MATHS_TITLE in body, "the results row did not render"
+    assert _marked(body, "span.result-row__title")
 
 
 # --- analytics ----------------------------------------------------------------
@@ -1544,12 +1568,27 @@ def _analytics_bodies(client, *, maths_on):
     return matrix, breakdown
 
 
-def test_analytics_matrix_leaf_and_group_headers_are_marked(client):
+def test_analytics_matrix_group_header_is_marked(client):
     matrix, _b = _analytics_bodies(client, maths_on="group")
     assert _marked(matrix, "span.analytics__group-title")
-    assert _marked(matrix, "th.analytics__colhead a.analytics__expand") or _marked(
-        matrix, "th.analytics__colhead span"
-    )
+
+
+def test_analytics_matrix_leaf_headers_are_marked(client):
+    """BOTH leaf branches, with selectors that cannot be satisfied by the group
+    cell. analytics_matrix.html:110 keeps `analytics__colhead` on the group <th>
+    and only ADDS `analytics__group`, so a bare `th.analytics__colhead span`
+    selector matches the group-title span the test above already asserted --
+    leaving the expandable <a> (:114) and the non-expandable <span> (:115)
+    unmarked with the suite still green.
+
+    The `?expand=` fixture produces both: part2 is expanded (so its own children
+    are leaves) while part1 is an unexpanded, child-bearing leaf -> expandable."""
+    matrix, _b = _analytics_bodies(client, maths_on="group")
+    leaf_th = "th.analytics__colhead:not(.analytics__group)"
+    expandable = _marked(matrix, f"{leaf_th} a.analytics__expand")
+    plain = _marked(matrix, f"{leaf_th} span")
+    assert expandable, "the expandable leaf header (<a class=analytics__expand>) is unmarked"
+    assert plain, "the non-expandable leaf header (<span>) is unmarked"
 
 
 def test_analytics_breakdown_titles_are_marked(client):
@@ -1571,7 +1610,12 @@ def _review_setup(client, unit_title):
         marking_mode=QuestionElement.MarkingMode.REVIEW, max_marks=Decimal("5"),
     )
     Element.objects.create(unit=unit, content_object=q)
-    student = UserFactory(username="anna")
+    # display_name MUST be set explicitly: UserFactory defaults it to
+    # factory.Faker("name") (tests/factories.py:62), and review_queue.html:15
+    # renders `display_name|default:username` -- so a test asserting on "anna"
+    # while the factory renders a random Faker name CANNOT FAIL under any
+    # implementation, including the mutant it exists to catch.
+    student = UserFactory(username="anna", display_name="Anna Nowak")
     EnrollmentFactory(student=student, course=course)
     sub = QuizSubmission.objects.create(
         student=student, unit=unit, status=QuizSubmission.Status.SUBMITTED,
@@ -1584,9 +1628,10 @@ def test_review_queue_marks_the_title_alone_not_the_student_name(client):
     course, _sub = _review_setup(client, MATHS_TITLE)
     url = reverse("courses:manage_review_queue", kwargs={"slug": course.slug})
     body = client.get(url).content.decode()
+    assert "Anna Nowak" in body, "the student name did not render at all"
     marked = _marked_texts(body)
     assert MATHS_TITLE in marked
-    assert all("anna" not in t for t in marked)
+    assert all("Anna Nowak" not in t for t in marked)
 
 
 def test_review_submission_marks_the_title_alone(client):
@@ -1602,12 +1647,20 @@ def test_review_submission_marks_the_title_alone(client):
 
 
 # --- editor + preview ---------------------------------------------------------
+# A title DISTINCT from MATHS_TITLE, so the crumb assertion cannot be satisfied
+# by the <h1>: _editor_body gives the unit MATHS_TITLE, and editor.html:80 marks
+# that h1 -- so asserting `MATHS_TITLE in _marked_texts(body)` would stay green
+# with the per-ancestor crumb marker never added at all, which is precisely the
+# "wired at some sites, not others" gap these tests exist to close.
+MATHS_PART_TITLE = r"Czesc \(a_1\)"
+
+
 def _editor_body(client, title=MATHS_TITLE):
     pa = make_pa(client)
     course = CourseFactory(owner=pa)
     part = ContentNodeFactory(
         course=course, kind="part", parent=None, unit_type=None, order=0,
-        title=MATHS_TITLE,
+        title=MATHS_PART_TITLE,
     )
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=part, order=0,
@@ -1626,9 +1679,13 @@ def test_editor_heading_and_preview_heading_are_marked(client):
 
 
 def test_editor_crumb_marks_each_ancestor_title_not_the_path(client):
-    """.editor-crumb__path also holds course.title, which is out of scope."""
+    """.editor-crumb__path also holds course.title, which is out of scope.
+
+    Asserts on MATHS_PART_TITLE, not MATHS_TITLE: only the ancestor's own title
+    pins the :75 site independently of the :80 heading."""
     body = _editor_body(client)
-    assert MATHS_TITLE in _marked_texts(body)
+    assert MATHS_PART_TITLE in body, "the ancestor crumb did not render"
+    assert MATHS_PART_TITLE in _marked_texts(body)
     assert not _marked(body, "span.editor-crumb__path")
 
 
@@ -1879,6 +1936,24 @@ The failure mode is *"the marker went on the shared parent, so a student name or
 
 Revert each.
 
+- [ ] **Step 7b: Regression-check the eighteen edited templates**
+
+This is the largest template diff in the plan and several of these files are asserted on by
+existing markup tests — `test_analytics_views.py` in particular pins literal header markup
+(`">Sec ▸<"`), which the `analytics_matrix.html` edit sits directly on top of. Without this
+step a regression here surfaces only at Task 11's whole-repo sweep, many commits later.
+
+```bash
+uv run pytest tests/test_unit_nav_render.py tests/test_consumption_pages.py \
+              tests/test_analytics_views.py tests/test_review_views.py \
+              tests/test_tags_views.py tests/test_tags_outline.py \
+              tests/test_notes_views.py tests/test_courses_views.py -v
+```
+
+Expected: all pass. A failure asserting on literal header markup means the marker changed a
+string an existing test pins — update that test only if the change is genuinely intended
+(adding an attribute should not move any text), otherwise fix the template edit.
+
 - [ ] **Step 8: Commit**
 
 ```bash
@@ -2027,6 +2102,43 @@ def test_review_submission_loads_katex_for_a_maths_title(client):
 def test_review_submission_loads_no_katex_without_maths(client):
     url = _review_url(client, unit_title="Plain", stem="<p>Explain plainly.</p>")
     _assert_katex_absent(client.get(url).content.decode())
+
+
+def test_the_title_widening_is_applied_at_all_three_unit_render_sites():
+    """The ONLY detector for the _quiz_render_feedback site.
+
+    Two of the three sites are covered behaviourally by the tests above; the
+    third cannot be -- its fixture necessarily has >=1 question, so
+    has_math = bool(questions) is already True and a gate assertion is vacuous.
+    Without this, an implementation that widens two of three ships fully green.
+
+    Counts CALLS, not the statement body: the helper's own `def` line and its
+    docstring do not match `_widen_has_math_for_titles(ctx, node)`, so this does
+    not fall into the regexes-match-docstrings trap. It is a source assertion by
+    necessity, not by preference."""
+    import ast
+    import inspect
+
+    from courses import views
+
+    src = inspect.getsource(views)
+    tree = ast.parse(src)
+    callers = {
+        fn.name
+        for fn in ast.walk(tree)
+        if isinstance(fn, ast.FunctionDef)
+        and any(
+            isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Name)
+            and n.func.id == "_widen_has_math_for_titles"
+            for n in ast.walk(fn)
+        )
+    }
+    assert callers == {
+        "full_lesson_render_context",
+        "quiz_unit",
+        "_quiz_render_feedback",
+    }, f"title widening applied at the wrong set of render sites: {sorted(callers)}"
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -2056,17 +2168,32 @@ from courses.htmlsandbox import titles_have_math
 
 - [ ] **Step 4: Widen the four `courses/views.py` sites**
 
-**Lesson** — in `full_lesson_render_context`, immediately after `ctx["unit_nav"] = build_unit_nav(...)` (`:556`):
+**The shared helper.** The same widening lands at **three** render sites; two are covered by
+the tests above and the third (`_quiz_render_feedback`) is not coverable behaviourally — its
+fixture necessarily has ≥1 question, so `has_math = bool(questions)` is already `True` and any
+gate assertion there is vacuous. Three hand-copied statements with one of them undetectable is
+exactly how a two-of-three implementation ships fully green. Extract the statement once, so
+"was it applied at every site?" becomes a countable question:
 
 ```python
-    # The contents tree in the DOM is the WHOLE course outline, so one maths
-    # title anywhere in the course needs KaTeX on every unit page of it. The
-    # second scan (`[node.title]`) is REDUNDANT TODAY and kept deliberately --
-    # see the is_author comment above for the identical reasoning: it is
-    # defence-in-depth for a future render site that reaches this template
-    # WITHOUT the view-level viewer= gate, which would otherwise silently lose
-    # the current unit's own title. Do not delete it as dead code without
-    # re-verifying that every caller still carries that gate.
+def _widen_has_math_for_titles(ctx, node):
+    """OR the node-title scan into ctx["has_math"] on a unit-page context.
+
+    Call AFTER ctx["unit_nav"] is assigned -- the tree it scans is that value.
+
+    The contents tree in the DOM is the WHOLE course outline (build_unit_nav sets
+    unit_nav["tree"] to it), so one maths title anywhere in the course needs KaTeX
+    on every unit page of that course.
+
+    The second scan (`[node.title]`) is REDUNDANT TODAY and kept deliberately --
+    the same reasoning as the is_author flag in full_lesson_render_context: every
+    present caller resolves `node` through get_node_or_404(..., viewer=user, ...),
+    which 404s an unpublished unit before this render is reached, so the on-screen
+    unit is always in the tree already. It is defence-in-depth for a future render
+    site that reaches these templates WITHOUT that view-level gate, which would
+    otherwise silently lose the current unit's own title. Do not delete it as dead
+    code without re-verifying that every caller still carries the gate.
+    """
     ctx["has_math"] = (
         ctx["has_math"]
         or tree_titles_have_math(ctx["unit_nav"]["tree"])
@@ -2074,19 +2201,28 @@ from courses.htmlsandbox import titles_have_math
     )
 ```
 
-**Quiz** — in `quiz_unit`, immediately after `ctx["unit_nav"] = build_unit_nav(...)` (`:1385`), the same statement verbatim.
+Place it beside `full_lesson_render_context` in `courses/views.py`, then call it at all three
+sites, in each case on the line **immediately after** `ctx["unit_nav"] = build_unit_nav(...)`:
 
-**Quiz, no-JS feedback** — in `_quiz_render_feedback`, immediately after `ctx["unit_nav"] = build_unit_nav(...)` (`:1418`), the same statement again, with this note above it:
+| Site | Function | Call line goes after |
+| --- | --- | --- |
+| Lesson | `full_lesson_render_context` (`:529`) | `:556` |
+| Quiz | `quiz_unit` (`:1365`) | `:1385` |
+| Quiz, no-JS feedback | `_quiz_render_feedback` (`:1402`) | `:1418` |
+
+The call is identical at all three: `_widen_has_math_for_titles(ctx, node)`.
+
+At the third site, add this above the call:
 
 ```python
     # The quiz page renders TWICE: this no-JS answer path re-renders
-    # quiz_unit.html with its own context. Applying the OR only in quiz_unit
-    # would leave this render on the un-widened flag. Masked today because
-    # has_math = bool(questions) or ... and this path is reachable only when the
-    # quiz HAS questions -- but that over-inclusiveness is an "accepted
-    # tradeoff" that could be tightened later, at which point the omission goes
-    # live. Knowingly uncovered by tests: a fixture here necessarily has >=1
-    # question, so the positive assertion would be vacuous.
+    # quiz_unit.html with its own context, so applying the widening only in
+    # quiz_unit would leave this render on the un-widened flag. Masked today
+    # because has_math = bool(questions) or ... and this path is reachable only
+    # when the quiz HAS questions -- but that over-inclusiveness is an "accepted
+    # tradeoff" the code comment says may be tightened later, at which point the
+    # omission goes live. Knowingly uncovered BEHAVIOURALLY (a gate assertion
+    # here would be vacuous); pinned instead by the call-site count test.
 ```
 
 **Quiz results** — in `quiz_results`, after the `for el in node.elements...` loop's last line (`:1601`) and **before** `ctx = {` (`:1602`), at function-body indentation:
@@ -2137,6 +2273,8 @@ Expected: `test_lesson_loads_katex_for_a_maths_title_sections_away` FAILS; `test
 Second mutant, the *quiz-results* site: delete the `has_math = has_math or titles_have_math([node.title])` line → `test_quiz_results_loads_katex_for_a_maths_title` FAILS.
 
 Third mutant, `_review_context`: delete the `or titles_have_math(...)` clause → `test_review_submission_loads_katex_for_a_maths_title` FAILS.
+
+Fourth mutant, the *undetectable* site — delete the `_widen_has_math_for_titles(ctx, node)` call from `_quiz_render_feedback` **only** → `test_the_title_widening_is_applied_at_all_three_unit_render_sites` FAILS and **every other test in the suite still passes**. That asymmetry is the entire reason the call-site test exists; if it does not hold, the test is not doing its job.
 
 Revert each.
 
@@ -2215,7 +2353,11 @@ def _course_results_url_with_quiz_title(client, title):
 
 def test_course_results_loads_katex_for_a_maths_row_title(client):
     url = _course_results_url_with_quiz_title(client, MATHS_TITLE)
-    _assert_katex_present(client.get(url).content.decode())
+    body = client.get(url).content.decode()
+    # A quiz with no submission still renders: build_course_results appends a
+    # "not_started" row for every quiz unit (rollups.py:366-381).
+    assert MATHS_TITLE in body, "the results row did not render"
+    _assert_katex_present(body)
 
 
 def test_course_results_loads_no_katex_without_maths(client):
@@ -2331,6 +2473,12 @@ git commit -m "feat(courses): load KaTeX for maths titles on the outline and res
 - Produces: `has_math` in three more contexts.
 
 **Three shapes that must be written against the real data, not guessed:**
+
+> **On the analytics line numbers, which look like they contradict Task 5.** They do not, and
+> nothing here needs "correcting": Task 5 cites the **enclosing opening tags** (`:114` the leaf
+> `<a>`, the `<span>` opening at the end of `:115`, `:125` the group `<span>`) because that is
+> where the *attribute* goes; this task cites the **title interpolations** (`:115`, `:116`,
+> `:126`) because that is what the *scan* must reach. Both sets are the file's current numbers.
 
 1. **Scan `header_rows`, never `columns`.** The titles at `analytics_matrix.html:115,116` (leaf) and `:126` (group) come from `matrix["header_rows"]` — a list of lists of cell dicts each with a `"title"` string, built in `frontier_columns` (`rollups.py:569,584,596`, assembled at `:615`). `matrix["columns"]` is `_public_columns(...)` (`:667`) and holds **leaf columns only**, so a scan over it silently misses every expanded group cell — exactly what line 126 renders.
 2. **`build_student_breakdown` returns a dict wrapper, not a tree.** `rollups.py:452` returns `{"student": …, "tree": tree}`; `analytics_student.html:12` iterates `breakdown.tree`. Passing `breakdown` itself iterates the dict's keys and raises `TypeError: string indices must be integers` — a 500 on the breakdown page.
@@ -2924,8 +3072,12 @@ def test_the_global_normalisation_lives_in_app_css_not_courses_css():
     """Seven of the twelve gate-table templates link NO courses.css -- their rules
     live in app.css / notes.css / tags.css. A courses.css copy would leave all
     seven at an unnormalised 1.21em."""
-    assert "[data-math-title] .katex" in _app()
-    assert "[data-math-title] .katex" not in _courses()
+    # Anchored to a RULE, not a mention: the courses.css block this task appends
+    # is a long comment that cross-references the app.css block, and a bare
+    # `not in` substring check would go red for a documentation edit with no
+    # behavioural change.
+    assert re.search(r"^\s*\[data-math-title\]\s+\.katex\s*\{", _app(), re.M)
+    assert not re.search(r"^\s*\[data-math-title\]\s+\.katex", _courses(), re.M)
 
 
 def test_font_size_weight_and_style_are_all_restored():
@@ -3173,8 +3325,13 @@ Create `tests/test_e2e_title_math.py`:
 ```python
 """Playwright e2e for LaTeX-in-titles: the asset gate, measured in a real browser.
 
-Marked e2e (excluded from the default run; run with -m e2e). Mirrors the harness
-in tests/test_e2e_unit_nav.py (_allow_async_unsafe, _login, pytestmark).
+Marked e2e (excluded from the default run; run with -m e2e). Follows
+tests/test_e2e_unit_nav.py's harness: _allow_async_unsafe, _login, and the
+explicit `@pytest.mark.django_db(transaction=True)` + `browser.new_context()`
+idiom rather than the bare `page` fixture -- the marker is what that file uses,
+and owning the context is what makes the viewport controllable (this file does
+not need a custom viewport today, but diverging from the house idiom for two
+tests buys nothing and costs the next reader a double-take).
 """
 
 import os
@@ -3183,8 +3340,8 @@ import pytest
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import EnrollmentFactory
-from tests.helpers_title_math import make_title_course
 from tests.factories import make_verified_user
+from tests.helpers_title_math import make_title_course
 
 pytestmark = pytest.mark.e2e
 
@@ -3204,7 +3361,8 @@ def _login(page, live_server, username):
     page.wait_for_load_state("networkidle")
 
 
-def test_next_unit_title_typesets_in_the_nav_button(page, live_server, db):
+@pytest.mark.django_db(transaction=True)
+def test_next_unit_title_typesets_in_the_nav_button(browser, live_server):
     """The ONLY maths in the entire course is in the NEXT unit's title. The
     template is correct either way; what fails without the widened gate is that
     the page ships no KaTeX at all -- which is exactly why this cannot be a
@@ -3215,52 +3373,85 @@ def test_next_unit_title_typesets_in_the_nav_button(page, live_server, db):
         password=TEST_PASSWORD,
     )
     EnrollmentFactory(student=student, course=course)
-    _login(page, live_server, "e2estudent")
-    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit_a.pk}/")
-    katex = page.locator(".unit-foot__navtitle .katex")
-    katex.first.wait_for(state="attached", timeout=5000)
-    assert katex.count() >= 1
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2estudent")
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit_a.pk}/")
+        katex = page.locator(".unit-foot__navtitle .katex")
+        katex.first.wait_for(state="attached", timeout=5000)
+        assert katex.count() >= 1
+    finally:
+        ctx.close()
 
 
-def test_render_inline_text_main_thread_cost_is_recorded(page, live_server, db, capsys):
+@pytest.mark.django_db(transaction=True)
+def test_render_inline_text_main_thread_cost_is_recorded(browser, live_server, capsys):
     """RENDER COST, MEASURED not predicted. renderInlineText calls
     renderMathInElement ONCE PER MATCHED ELEMENT, and a unit page holds the whole
     course outline TWICE (the rail plus the drawer copy at _unit_shell.html:40),
     with every group title marked as well as every unit row.
 
+    MEASURE THE FIRST PASS, NOT A SECOND ONE. math.js is deferred but runs before
+    this test's evaluate(), and it replaces the delimiters with KaTeX markup whose
+    <annotation> text carries none -- so timing a re-run over the live DOM times a
+    walk of a DELIMITER-FREE tree and reports a near-zero number on a fast AND on
+    a pathologically slow build. The route below aborts math.js so KaTeX and
+    auto-render still load (window.renderMathInElement exists) while the document
+    pass never happens, leaving the markup pristine for one real, timed pass.
+
     Take the element count FROM THE PAGE, never derive it. If the measured time
-    exceeds ~50 ms, switch renderInlineText to a single renderMathInElement over
-    a common ancestor -- and note that the single-root alternative over
-    document.body is NOT the default, because it would typeset every delimiter on
-    the page including the edit buffers Path C must keep untouched."""
+    exceeds ~50 ms, switch renderInlineText to a single renderMathInElement over a
+    common ancestor -- and note that the single-root alternative over document.body
+    is NOT the default, because it would typeset every delimiter on the page
+    including the edit buffers Path C must keep untouched."""
     course, unit_a, _nodes = make_title_course(maths_on="far")
     student = make_verified_user(
         username="e2eperf", email="e2eperf@t.example.com", password=TEST_PASSWORD
     )
     EnrollmentFactory(student=student, course=course)
-    _login(page, live_server, "e2eperf")
-    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit_a.pk}/")
-    page.wait_for_load_state("networkidle")
-    stats = page.evaluate(
-        """() => {
-            const els = document.querySelectorAll('[data-math-title]');
-            const t0 = performance.now();
-            els.forEach(el => window.renderMathInElement(el, {
-                delimiters: [
-                    { left: '\\\\(', right: '\\\\)', display: false },
-                    { left: '\\\\[', right: '\\\\]', display: true },
-                ],
-                throwOnError: false,
-            }));
-            return { count: els.length, ms: performance.now() - t0 };
-        }"""
-    )
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2eperf")
+        page.route("**/courses/js/math.js", lambda route: route.abort())
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit_a.pk}/")
+        page.wait_for_function(
+            "() => typeof window.renderMathInElement === 'function'"
+        )
+        stats = page.evaluate(
+            """() => {
+                const els = document.querySelectorAll('[data-math-title]');
+                let withMaths = 0;
+                els.forEach(el => {
+                    if (/\\\\[([]/.test(el.textContent)) withMaths++;
+                });
+                const t0 = performance.now();
+                els.forEach(el => window.renderMathInElement(el, {
+                    delimiters: [
+                        { left: '\\\\(', right: '\\\\)', display: false },
+                        { left: '\\\\[', right: '\\\\]', display: true },
+                    ],
+                    throwOnError: false,
+                }));
+                const ms = performance.now() - t0;
+                return { count: els.length, withMaths: withMaths, ms: ms,
+                         rendered: document.querySelectorAll('.katex').length };
+            }"""
+        )
+    finally:
+        ctx.close()
     with capsys.disabled():
         print(
-            f"\n[render cost] {stats['count']} marked elements, "
-            f"renderInlineText-equivalent pass: {stats['ms']:.1f} ms"
+            f"\n[render cost] {stats['count']} marked elements "
+            f"({stats['withMaths']} carrying delimiters), first renderInlineText "
+            f"pass: {stats['ms']:.1f} ms, produced {stats['rendered']} .katex nodes"
         )
     assert stats["count"] > 0, "no [data-math-title] elements on the page"
+    # The pass must have done REAL work -- otherwise the number above is a walk of
+    # an already-typeset tree and the whole measurement is vacuous.
+    assert stats["withMaths"] > 0, "math.js was not actually blocked; DOM already typeset"
+    assert stats["rendered"] > 0, "the timed pass produced no KaTeX output"
 ```
 
 - [ ] **Step 2: Run the e2e and verify the first test's premise**
@@ -3291,9 +3482,52 @@ Read the `[render cost]` line from the run above. Note the element count and the
 
 Note the fixture above is a five-node course, not the matematyka worst case (21 parts / 793 units ≈ 1,600+ invocations). If the small-course number is anywhere near the threshold, re-measure against a larger seeded course before concluding.
 
-- [ ] **Step 5: Visual verification — light and dark, judged separately**
+- [ ] **Step 5a: Seed the visual-verification fixtures**
 
-Take screenshots of each surface below in **both** themes and judge the dark one on its own terms, not as "the light one but darker". Set the theme via the user's `theme` preference (an e2e that sets only the cookie does not reliably apply it).
+None of the surfaces below exist under the fixtures written so far — `MATHS_TITLE` is short,
+`make_title_course` has no long-title or two-depth-analytics mode, and nothing seeds a
+`\[…\]`-only title. Add a **capture script** (not a test) at
+`tests/capture_title_math_screenshots.py`, modelled on the repo's existing
+`tests/capture_help_screenshots.py` / `tests/capture_publish_screenshots.py`, that seeds this
+course and drives it:
+
+```python
+TITLES = {
+    # (key, title) -- each one exists to exercise a specific §3 claim
+    "inline":   r"Rozwiaz \(x^2 + 2x + 1 = 0\) metoda delty",
+    "display":  r"Rozwiaz \[\int_0^1 x^2\,dx\] i zapisz wynik",   # .katex-display
+    "long":     r"Bardzo dlugi tytul lekcji z formula \(\sum_{i=1}^{n} a_i b_i\) na koncu",
+    "mixed_h1": r"Policz \(a_1\) oraz \[\frac{p}{q}\] i porownaj",  # forced-inline + weight
+    "plain":    "Lekcja bez matematyki",
+}
+```
+
+Course shape: **part A** (title = `TITLES["long"]`, to exercise the 5-line group clamp)
+containing chapter A1 (title = `TITLES["inline"]`) containing three lesson units titled
+`TITLES["mixed_h1"]`, `TITLES["display"]` and `TITLES["long"]` in that order — so the middle
+unit's page shows a display-maths **prev** and a long **next** in one shot; plus **part B**
+(title = `TITLES["inline"]`) with one quiz unit titled `TITLES["long"]`, giving the analytics
+matrix maths at two nesting depths once part B is expanded. Enrol one student, submit the quiz
+(so the results/review rows exist), and tag one unit (so the tags hub renders).
+
+Follow `tests/capture_publish_screenshots.py` exactly — it already solved every mechanical
+question here:
+
+- **Filename is not `test_`-prefixed**, so `python_files = ["test_*.py"]` never auto-collects
+  it; the `test_`-named function inside runs only when the path is passed explicitly.
+- **Markers:** `pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]`.
+- **Invocation:** `uv run pytest tests/capture_title_math_screenshots.py -m e2e`.
+- **Dark is set through `User.theme`, never the `libli_theme` cookie** — that file's own
+  docstring records why: for an authenticated user `_resolve_theme_pref` lets `User.theme` win
+  outright, so a cookie is silently ignored and the "dark" shot comes back light.
+- **Output:** `SHOT_DIR` (env) or `./.superpowers/shots/`, both gitignored. One file per row
+  per theme, named `title-math-<row>-<theme>.png`.
+- **Viewports:** desktop `1440×900` via `browser.new_context(viewport=…)`; mobile `390×844`
+  for row 7 only (matching `test_e2e_unit_nav.py`'s drawer tests).
+
+- [ ] **Step 5b: Visual verification — light and dark, judged separately**
+
+Read every image and judge the dark one **on its own terms**, not as "the light one but darker".
 
 | # | Surface | What is being judged |
 | --- | --- | --- |
