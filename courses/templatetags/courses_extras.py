@@ -529,3 +529,47 @@ def quiz_answer_url(element):
             "element_pk": element.pk,
         },
     )
+
+
+# The four two-character maths delimiter sequences. Kept as a module constant so
+# the filter's behaviour is readable at a glance; the DETECTION side of the same
+# question lives in courses.htmlsandbox.has_math_delimiters and must never be
+# re-implemented -- see titles_have_math.
+_MATH_DELIMS = ("\\(", "\\)", "\\[", "\\]")
+
+
+@register.filter
+def strip_math_delimiters(value):
+    """Remove the four maths delimiter sequences for plain-text contexts.
+
+    `title=` attributes, <title>, and screen-reader-only text cannot contain
+    markup, so they can never typeset; leaving `\\(x^2\\)` in a tooltip beside a
+    rendered heading reads as a bug (spec §4).
+
+    Naive left-to-right replacement, REGARDLESS of pairing: `\\(x` yields `x`
+    and a stray `\\)` is removed too. A literal escaped backslash (`\\\\(`) is out
+    of scope -- it is treated as `\\` followed by `\\(`.
+
+    ALWAYS returns a plain `str`, never a SafeString, INCLUDING the no-delimiter
+    path: this filter sits on `title=` attributes, where silently passing a
+    marked-safe value through would lose autoescaping and open an injection seam.
+
+    WHERE THAT GUARANTEE ACTUALLY COMES FROM -- measured, not assumed. It is NOT
+    the `"%s"` coercion: `"%s" % (SafeString("x"),)` returns a **SafeString**, and
+    so does `str(SafeString("x"))` (SafeString.__str__ returns self). What drops
+    the marker is `str.replace`, which for a non-exact str subclass returns an
+    exact `str` even when nothing matched. The `"%s"` line exists only to accept
+    a non-string (None, a gettext_lazy proxy, an int) instead of raising -- a
+    template filter that raises takes down the whole page render.
+
+    Because that makes the guarantee INCIDENTAL to the loop, the final coercion
+    below is explicit: a future "fast path, return early when there is no
+    delimiter" would otherwise silently reintroduce the SafeString leak while
+    every other line still looked correct.
+    """
+    text = "%s" % (value,)  # noqa: UP031 -- % coercion is deliberate, see docstring
+    for delim in _MATH_DELIMS:
+        text = text.replace(delim, "")
+    if type(text) is not str:  # a str SUBCLASS check, deliberately
+        text = str.__str__(text)  # copies a str subclass to an exact str
+    return text
