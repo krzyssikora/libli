@@ -1865,6 +1865,14 @@ class QuestionElement(ElementBase):
     # restore (render_element) sides.
     RESTORABLE_IN_LESSON = False
 
+    # Does this type mark its own controls in place once a quiz question locks,
+    # rather than printing the correct answer in a separate list below it? Types
+    # that opt in get reveal_template dropped from their quiz feedback context
+    # (courses.quiz.quiz_feedback_context) and are answered with the WHOLE element
+    # instead of the bare feedback fragment, so the in-place markers can land. Base
+    # default off; only ChoiceQuestionElement opts in so far.
+    INLINE_QUIZ_REVEAL = False
+
     class MarkingMode(models.TextChoices):
         AUTO = "A", _("Auto-marked")
         NOT_MARKED = "N", _("Not marked")
@@ -1962,6 +1970,12 @@ class ChoiceQuestionElement(QuestionElement):
 
     RESTORABLE_IN_LESSON = True
 
+    # A locked quiz marks its OPTIONS LIST inline (see choice_marks), so the bottom
+    # reveal list would echo the same answer key twice — and echo it detached from the
+    # options. The lesson path already suppresses it via render()'s reveal_template
+    # override below; this is the quiz half of the same rule.
+    INLINE_QUIZ_REVEAL = True
+
     multiple = models.BooleanField(default=False)
     elements = GenericRelation(Element)
 
@@ -1988,6 +2002,59 @@ class ChoiceQuestionElement(QuestionElement):
         ctx = super().feedback_context(mark_result)
         ctx["choices"] = list(self.choices.all())
         return ctx
+
+    # Marker glyph + screen-reader label per outcome. The glyph is aria-hidden (a
+    # bare "✓" announces as "check mark", which says nothing about whose answer it
+    # is), so the label is the ONLY thing assistive tech gets — it must stand alone.
+    MARK_GLYPHS = {
+        "correct": ("✓", _("your answer, correct")),
+        "wrong": ("✗", _("your answer, incorrect")),
+        "missed": ("＋", _("correct answer, not chosen")),
+    }
+
+    def choice_marks(self, choices, selected, mark_result, mode, locked):
+        """Per-option outcome markers: {choice pk: "correct"|"wrong"|"missed"}.
+
+        QUIZ — marks appear only once the question LOCKS, and then cover every
+        option. A locked quiz disables its inputs, and a disabled radio's dot is
+        grey-on-grey: it cannot carry "this is what you picked" on its own, which
+        left a correct answer showing a green verdict beside options that all
+        looked untouched. While attempts remain this returns {} — the withhold
+        rule owns that window and must not leak the key mid-quiz.
+
+        LESSON — unchanged from the per-option-feedback design (#132): only
+        options the author wrote feedback for, and only where the selection state
+        is wrong (mark_result.annotated), so a lesson never grows a tick it did
+        not have. A lesson leaves its inputs live, so the radio dot still reads.
+
+        Public because the RESULTS page needs the same vocabulary from a different
+        renderer: it has no live controls, so _reveal_choice.html is its only
+        vehicle. views._results_row calls this with mode="quiz", locked=True (a
+        submitted question is terminal by definition).
+        """
+        if mark_result is None:
+            return {}
+        if mode != "lesson" and not locked:
+            return {}
+        correct = set(mark_result.reveal or ())
+        marks = {}
+        for c in choices:
+            picked = c.pk in selected
+            if mode == "lesson":
+                if c.pk in mark_result.annotated:
+                    marks[c.pk] = "wrong" if picked else "missed"
+            elif picked:
+                marks[c.pk] = "correct" if c.pk in correct else "wrong"
+            elif c.pk in correct:
+                marks[c.pk] = "missed"
+        return {
+            pk: {
+                "kind": kind,
+                "glyph": self.MARK_GLYPHS[kind][0],
+                "label": self.MARK_GLYPHS[kind][1],
+            }
+            for pk, kind in marks.items()
+        }
 
     def mark(self, answer):
         # `answer` is an already-validated set of this question's choice ids.
@@ -2032,6 +2099,8 @@ class ChoiceQuestionElement(QuestionElement):
         # action and the per-element feedback gate). `submitted_values` is accepted
         # for signature uniformity but unused (choices repopulate from selected_ids).
         choices = list(self.choices.all())
+        selected = set(selected_ids or ())
+        marks = self.choice_marks(choices, selected, mark_result, mode, locked)
         unit = element.unit if element is not None else None
         if action_url is None and unit is not None:
             action_url = reverse(
@@ -2051,8 +2120,14 @@ class ChoiceQuestionElement(QuestionElement):
                 "slug": unit.course.slug if unit is not None else "",
                 "node_pk": unit.pk if unit is not None else "",
                 "feedback_for_pk": feedback_for_pk,
-                "selected_ids": set(selected_ids or ()),
+                "selected_ids": selected,
                 "mark_result": mark_result,
+                "marks": marks,
+                # Tint the option the student picked. Quiz-locked only: that is the
+                # state where the input is disabled and its dot stops being legible.
+                # A lesson (and a quiz with attempts left) keeps its inputs live, so
+                # the native dot already answers "what did I pick?".
+                "show_picks": bool(mode != "lesson" and locked),
                 # Lesson: per-option feedback renders INLINE in the choices list, so
                 # the bottom reveal list is suppressed (this override only — the base
                 # QuestionElement.render must keep REVEAL_TEMPLATE for other types'

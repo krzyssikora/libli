@@ -120,10 +120,13 @@ def test_element_try_lesson_choice_returns_inline(client):
 
 
 @pytest.mark.django_db
-def test_element_try_quiz_choice_returns_feedback_partial(client):
-    # A choice question in a QUIZ unit also carries data-question-inline, but the
-    # element_try quiz branch returns the (form-LESS) _quiz_question_feedback.html.
-    # Guards the server side of the editor.js fall-through: a 200 with NO <form>.
+def test_element_try_quiz_choice_returns_the_whole_element(client):
+    # A choice question in a QUIZ unit marks its OPTIONS LIST once locked, and those
+    # markers sit outside the feedback box — so the element_try quiz branch returns
+    # the WHOLE element (a <form>), not the bare _quiz_question_feedback.html it used
+    # to. Guards the server side of editor.js's form-body swap; the [data-quiz-locked]
+    # sentinel must survive INSIDE that form, because editor.js reads it off the
+    # post-swap feedback box to freeze the preview's inputs.
     from courses.models import Enrollment
 
     user = make_pa(client, "pa2")
@@ -147,4 +150,10 @@ def test_element_try_quiz_choice_returns_feedback_partial(client):
     )
     assert resp.status_code == 200
     body = resp.content.decode()
-    assert "<form" not in body  # quiz feedback fragment is form-less -> falls through
+    assert "<form" in body  # the whole element -> editor.js takes the form-body swap
+    assert "data-quiz-locked" in body  # sentinel still reachable after the swap
+    # max_attempts defaults to 1, so this wrong answer locks: the options carry the
+    # marking and the duplicate bottom list is gone.
+    assert "question__choice-marker--wrong" in body
+    assert "question__choice-marker--missed" in body
+    assert "question__reveal" not in body

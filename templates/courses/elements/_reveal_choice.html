@@ -1,12 +1,27 @@
-{% load i18n %}
+{% load i18n courses_extras %}
+{% comment %}Choice reveal (results page). `marks` (ChoiceQuestionElement.choice_marks)
+carries the per-option outcome — correct / wrong / missed — which encodes BOTH the
+answer key and what the student actually chose. The bare tick below is the fallback
+for a caller that supplies no marks: it shows the key alone, which is all this partial
+could ever show before, and is why a multi-select row could not distinguish a correct
+option the student picked from one they missed.{% endcomment %}
 <ul class="question__reveal">
   {% for c in choices %}
-    <li class="question__reveal-item {% if c.pk in mark_result.reveal %}answer-correct{% endif %}">
+    {% with mk=marks|dictkey:c.pk %}
+    <li class="question__reveal-item {% if c.pk in mark_result.reveal %}answer-correct{% elif mk.kind == "wrong" %}answer-wrong{% endif %}">
       <span>{{ c.text }}</span>
-      {% if c.pk in mark_result.reveal %}<span class="question__tick" aria-hidden="true">✓</span>{% endif %}
+      {% if mk %}
+        <span class="question__reveal-mark question__reveal-mark--{{ mk.kind }}" aria-hidden="true">{{ mk.glyph }}</span>
+        {% comment %}The glyph is aria-hidden, so this label is the only thing a screen
+        reader gets — it must say whose answer this is, not just "check mark".{% endcomment %}
+        <span class="sr-only">{{ mk.label }}</span>
+      {% elif c.pk in mark_result.reveal %}
+        <span class="question__tick" aria-hidden="true">✓</span>
+      {% endif %}
       {% if c.pk in mark_result.annotated %}
         <p class="question__nudge">{{ c.feedback }}</p>
       {% endif %}
     </li>
+    {% endwith %}
   {% endfor %}
 </ul>
