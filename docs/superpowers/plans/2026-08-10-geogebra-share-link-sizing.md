@@ -103,6 +103,8 @@ Reference counts, as measured 2026-08-10 against the `libli` dev DB:
 
 > **`('mat-pp', 'canonical', False)` is absent, i.e. its count is 0** — no mat-pp canonical GeoGebra row is dimensionless.
 
+**These are `Element` JOIN-row counts, not `IframeElement` counts**, because the counter increments inside `for e in o.elements.all()`. So one `IframeElement` reused in two units counts twice, and an orphan `IframeElement` with no join row counts **zero**. That scoping is deliberate — the predicate is about rows that actually *render* somewhere, and an orphan renders nowhere (though the admin can still reach and re-save it). Do not reconcile these numbers against `IframeElement.objects.count()` and read the difference as drift.
+
 **If that predicate is violated → STOP and report before continuing.** The consequences are concrete, not cosmetic: every dimensionless mat-pp row flips 16:9 → 4:3, grows a badge, and fires a live GET inside the unit row lock on its next save. That changes whether a backfill is warranted, which is a design decision, not an implementation one.
 
 **Also report the `canonical+width` count, and inspect any rows in it.** Task 7's malformed-tail "accepted gap" rests partly on that bucket measuring zero — but this gate waves through drift in every bucket except the mat-pp one, so a non-zero `canonical+width` would be filed as "expected drift" while silently invalidating that justification. The bucket also cannot tell a *valid* tail (handled by `frame_ratio` step 0) from a *junk* one. So: if the count is non-zero, print those rows' URLs and check each tail against the step-0 rules (`segments[4] == "width"`, `segments[6] == "height"`, both decimal, both in range). Report any that fail — those are the shapes that render 16:9 with no badge.
@@ -1528,7 +1530,7 @@ Run: `uv run pytest tests/test_iframe_dimensions.py -v` — **the whole file**, 
 | mutant | edit | expected RED | expected collateral |
 |---|---|---|---|
 | **a** | delete `and mid` from the **lookup** condition | `test_form_non_geogebra_dimensionless_paste_never_looks_up` (fires a GET at `…/materials/?scope=basic` with an empty id), `test_form_geogebra_host_without_a_material_id_never_looks_up` | — |
-| **b** | delete `not usable_dimensions(width, height) and` from the **lookup** condition | `test_form_static_embed_paste_never_looks_up` — a paste that already carries dimensions would look them up anyway | the lookup then **overwrites** the parsed pair with `(None, None)`, so the pre-existing `test_form_captures_dimensions_from_full_iframe` (expects `(800, 760)`) and `test_form_re_paste_overwrites_dimensions` (expects `(640, 480)`) go red too |
+| **b** | delete `not usable_dimensions(width, height) and` from the **lookup** condition | `test_form_static_embed_paste_never_looks_up` — a paste that already carries dimensions would look them up anyway | the lookup then **overwrites** the parsed pair with `(None, None)`, so the pre-existing `test_form_captures_dimensions_from_full_iframe` (expects `(800, 760)`) goes red too. **`test_form_re_paste_overwrites_dimensions` stays GREEN** — its instance already holds a usable `(800, 760)`, and the surviving `not stored_usable` conjunct still blocks the lookup, so it saves `(640, 480)` as normal. Expect **two** reds here, not three |
 | **c** | delete `and not stored_usable` from the **lookup** condition | `test_form_title_only_edit_of_a_sized_element_never_looks_up` — every rename fires a network call inside the row lock | — |
 | **d** | delete `and mid` from the **stale-clear** condition | `test_form_non_geogebra_url_change_keeps_its_dimensions` (a Vimeo element loses its captured pair), `test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` | — |
 | **e** | delete the **whole stale-clear block** | `test_form_url_change_with_a_failed_lookup_does_not_keep_the_old_pair` — the previous material's `880 / 660` survives onto the new one | `stored_usable` stays True, so `test_form_url_change_clears_the_stale_pair_and_looks_up_afresh` also fails, on **both** `lookup.call_count == 1` and its `(800, 400)` assertion |
@@ -1944,7 +1946,11 @@ Run: `uv run pytest tests/test_iframe_dimensions.py -v` — the whole file, not 
 
 **Note why B is the whole block, not just its second clause.** Deleting only `and not is_geogebra_iframe_url(self.url)` leaves `if geogebra_material_id(self.url): return None`, which fires on *more* URLs — so `/m/<id>` still returns `None` and the named test stays **green**. Removing the guard means removing the step.
 
-**Mutants A, C and F also redden genuinely-positive tests** (they assert a *different* ratio, or lose one they should keep). That is expected collateral, not a signal — judge each mutant only against its own expected-RED column.
+**Expected collateral — pre-declared so extra reds are not mistaken for a mis-applied mutant.** Judge each mutant only against its own expected-RED column:
+
+- **A, C, F** also redden genuinely-positive tests (they assert a *different* ratio, or lose one they should keep).
+- **D** additionally reddens two `test_render_step0_rejection_cases_fall_through_to_no_inline_ratio` params — with the validation tail gone, `"abc"`/`"def"` and `"0"`/`"0"` are truthy *strings*, so the loosened step-0 gate emits `aspect-ratio: abc / def` and `aspect-ratio: 0 / 0`. The other two params stay green (`…/width/880` fails the `len >= 8` check, `…/height/660/width/880` fails the `segments[4] == "width"` check).
+- **I** edits `clean_url`, which lives in the same test file, so it also reddens Task 6's `test_form_url_change_with_a_failed_lookup_does_not_keep_the_old_pair` and `test_form_url_change_clears_the_stale_pair_and_looks_up_afresh`.
 
 Record which assertions went red under each. **Any assertion that cannot be made to fail under any mutant must be deleted or escalated** — the Global Constraints rule, applied here exactly as in Tasks 8 and 9. Note that mutants D and E cover assertions guarding a stated **security boundary** and a **never-raises** contract respectively; if either cannot be driven red, escalate rather than delete, and say so in the PR.
 
@@ -2067,6 +2073,13 @@ Single quotes inside the attribute, matching lines 305 and 312 of the same file.
 Run: `uv run pytest tests/test_iframe_dimensions.py -k editor_row -v`
 Expected: PASS.
 
+- [ ] **Step 5b: Run the collateral-damage set — this task touches three shared surfaces**
+
+Tasks 1, 2, 6 and 7 each carry a no-collateral-damage run; Task 8 edits more shared surface than any of them and has had none. `_element_row.html` is rendered by several editor test modules, and `editor.css` is parsed rule-by-rule by `tests/test_editor_styles.py` (which matches with `re.escape(selector) + r"\s*\{([^}]*)\}"`, so an inserted rule can shift what a later selector match picks up).
+
+Run: `uv run pytest tests/test_editor_page.py tests/test_editor_styles.py tests/test_editor_clip_templates.py tests/test_editor_depth.py tests/test_editor_view_toggle.py tests/test_enumerate_slots.py -v`
+Expected: PASS.
+
 - [ ] **Step 6: Update the message catalogs**
 
 ```bash
@@ -2100,6 +2113,15 @@ grep -c "#, fuzzy" locale/en/LC_MESSAGES/django.po   # when the count is 0, so a
                                                      # that ambiguity bothers you.
 uv run python manage.py compilemessages
 ```
+
+**Inspect the catalog diff before staging — `makemessages` edits far more than the two new strings.** Inserting a `<span>` between lines 308 and 309 of `_element_row.html` shifts the `#:` source references for every message extracted below that point (and for any other file whose lines moved on this branch), and `--no-obsolete` **deletes** entries no longer found in source — which a stale working tree or an unrelated in-flight branch would otherwise have kept. `git add locale/` in Step 7 would commit all of it unexamined, and this repo already carries two recorded hazards here (a stale-branch binary `.mo` conflict, and a fuzzy pre-fill shipping a wrong translation).
+
+```bash
+git diff --stat locale/
+git diff locale/pl/LC_MESSAGES/django.po | grep '^[-+]msg'
+```
+
+Expected: the only `msgid`/`msgstr` changes are the **two new badge strings**; everything else in `--stat` is `#:` line-reference churn. **Any deleted `msgid` is a halt** — investigate before staging rather than committing a translation loss.
 
 - [ ] **Step 7: Commit**
 
@@ -2262,9 +2284,19 @@ Run: `uv run pytest tests/test_e2e_editor_row_layout.py -m e2e -v`
 
 **Permitted responses, in order — this is a decision, so state which you took and why in the PR:**
 
-1. **Shorten the badge label** (e.g. `size unknown`). ⚠️ The label is already committed to both `.po` catalogs and compiled by **Task 8 Step 6**, so this is *not* a one-line change: re-run `makemessages`/`compilemessages`, update the Polish `msgstr`, re-clear any fuzzy marker, and note the catalog churn in the PR.
-2. **Reduce the badge to an icon plus its existing `title` tooltip**, keeping the text for screen readers via `.visually-hidden`. ⚠️ Playwright reports `.visually-hidden` as *visible*, so any later assertion on it must measure `bounding_box()`, not `to_be_visible()`.
-3. **Move the badge onto the `.el-row__label` line** instead of `.el-row__top`, taking it out of the contested row entirely. This invalidates the `.el-row__top > .el-row__flag` scoping in Task 8 Step 4, so that rule moves with it.
+**Each option breaks something already committed earlier on the branch. The blast radius is listed so you fix it deliberately, not at the final gate.**
+
+1. **Shorten the badge label** (e.g. `size unknown`).
+   - The label is committed to both `.po` catalogs and compiled by **Task 8 Step 6** — re-run `makemessages`/`compilemessages`, update the Polish `msgstr`, re-clear any fuzzy marker, and note the catalog churn in the PR.
+   - **Task 8 Step 1 pins the literal string twice**: `assert "applet size unknown" in html` and `assert "applet size unknown" not in html`. Shortening the label turns the first red and makes the second **vacuous** — it would pass for the wrong reason. Update both, then re-run `uv run pytest tests/test_iframe_dimensions.py -k editor_row -v`. Task 9 never runs that file, so nothing else catches this until the final gate.
+
+2. **Reduce the badge to an icon plus its existing `title` tooltip**, keeping the text for screen readers via `.visually-hidden`.
+   - ⚠️ Playwright reports `.visually-hidden` as *visible*, so any assertion on it must measure `bounding_box()`, not `to_be_visible()`.
+   - **Assertion 5's `>= 60` floor becomes wrong by construction** — an icon at `.7rem` is far under 60px. Re-derive the floor for an icon, or replace assertion 5 with a check that the `.visually-hidden` text is present *and* the icon's own box is non-zero. Do not simply delete it; the readability guarantee is the reason it exists.
+
+3. **Move the badge onto the `.el-row__label` line** instead of `.el-row__top`, taking it out of the contested row entirely.
+   - This invalidates the `.el-row__top > .el-row__flag` scoping in Task 8 Step 4, so that rule moves with it.
+   - **It also breaks this test's own locators.** `badge` is resolved as `badged_row.locator(".el-row__flag")` where `badged_row` **is** `.el-row__top`; once the badge is a sibling of that container the locator matches nothing — assertion 4 hangs to the Playwright timeout and assertion 5 raises `TypeError: 'NoneType' object is not subscriptable` on `bounding_box()`. Re-point `badge` at `[data-element='…'] .el-row__flag`, and decide whether assertions 1-3 still measure the right container now that the badge has left it.
 
 Do **not** resolve it by deleting assertion 1 — unlike assertion 4, it is measuring a real regression, and a red here means the badge genuinely costs a line.
 
