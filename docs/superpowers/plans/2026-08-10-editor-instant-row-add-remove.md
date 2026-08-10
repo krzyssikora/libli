@@ -1013,6 +1013,7 @@ Harness mirrors tests/test_e2e_switchgate.py — see the Global Constraints."""
 import os
 
 import pytest
+from playwright.sync_api import expect
 
 from tests.helpers_editor_rows import reopen
 
@@ -1035,6 +1036,10 @@ def test_add_three_pairs_without_saving(page, live_server, open_matchpair_editor
     for _ in range(3):
         add.click()
     rows = page.locator("[data-fsrows-list] [data-fsrow-item]")
+    # Assert the count BEFORE filling. Without this, the Step 8 mutant leaves only 4
+    # rows and the run dies on `rows.nth(4).fill(...)` with a 30s locator timeout —
+    # exactly the failure mode Step 8 tells you to rule out. Here it fails on 7 != 4.
+    expect(rows).to_have_count(7)
     # 2 saved + extra=2 blanks + 3 added = 7 rendered rows; fill the last three.
     for i, (left, right) in enumerate([("x", "9"), ("y", "8"), ("z", "7")], start=4):
         rows.nth(i).locator('input[name$="-left"]').fill(left)
@@ -1600,6 +1605,10 @@ Without this, Task 5 is the only implementation task in the plan with no falsifi
 - [ ] **Step 5: Run the choice suites**
 
 ```bash
+# Unmarked run FIRST: Step 4b's two render tests are plain django_db tests, and
+# `-m e2e` would deselect them silently — the documented trap in this repo. They are
+# the only guard on choice's data-fsrows-min, which falls back to 1 if dropped.
+uv run pytest tests/test_editor_formset_rows_render.py -v        # expect 11 PASSED
 uv run pytest tests/test_e2e_questions.py tests/test_e2e_choice_editor_feedback.py tests/test_e2e_math_input.py -m e2e -v
 ```
 
@@ -1998,7 +2007,10 @@ the wrong reason.
 - [ ] **Step 6: Run**
 
 ```bash
-uv run pytest tests/test_switchgate_client_post_shapes.py -v
+# All four files this task touches. The last three are modified in Steps 4b/4c and
+# would otherwise go unrun until Task 8 — so a forgotten <script> tag, a missing
+# `hidden`, or a bare focus() in the new module would surface several commits later.
+uv run pytest tests/test_switchgate_client_post_shapes.py tests/test_formset_rows_assets.py tests/test_editor_formset_rows_render.py tests/test_editor_js_scroll_invariants.py -v
 uv run pytest tests/test_e2e_switchgate_rows.py -m e2e -v
 ```
 
