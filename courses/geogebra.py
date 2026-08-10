@@ -44,8 +44,13 @@ logger = logging.getLogger(__name__)
 
 _API_PREFIX = "https://api.geogebra.org/"
 # A module constant rather than a setting, matching the pattern of
-# integrations/delivery.py :: TIMEOUT_SECONDS = 10. The shorter 3s is chosen because
-# this call sits inside save_element's row lock.
+# integrations/delivery.py :: TIMEOUT_SECONDS = 10. This bounds urllib's SOCKET
+# ops -- connect() and each individual read(), not the total call -- so a peer
+# dribbling bytes slowly can hold the wall clock (and, since this call sits
+# inside save_element's row lock, the unit row + worker) well past 3s. Accepted:
+# hardcoded host, _NoRedirect, and delivery.py already carries this same shape
+# at 10s. The measured 3.29s timeout (blackholed address) validated only the
+# connect leg; a blackholed SYN never reaches the read stage.
 _TIMEOUT_SECONDS = 3
 _MAX_BODY_BYTES = 65536  # ~55x the measured 1,177-byte ws response
 _NEGATIVE_TTL_SECONDS = 60
