@@ -115,7 +115,7 @@ Reference counts, as measured 2026-08-10 against the `libli` dev DB:
 
 **If the predicate holds but the other counts have drifted, that is expected — proceed.** The reference numbers are one developer's dev DB on one date; local authoring since, a colleague's machine, or a fresh checkout will all differ without touching the design conclusion. Record the numbers you actually saw in the PR body; do not halt on them.
 
-**If the dev DB is unavailable or holds no mat-pp rows, that is a third outcome, not a violation.** `manage.py` defaults `DATABASE_URL` to `postgres://libli:libli@localhost:5432/libli`, so with the Postgres server down this step dies with a connection error rather than printing counts, and a fresh checkout prints nothing at all. In either case the predicate is *unevaluated*, not *false*: record that in the PR body and proceed — the design decision it guards (no backfill) is only actionable on a database that actually holds mat-pp.
+**If the dev DB is unavailable or holds no mat-pp rows, that is a third outcome, not a violation.** `config/settings/base.py:82` defaults `DATABASE_URL` to `postgres://libli:libli@localhost:5432/libli`, so with the Postgres server down this step dies with a connection error rather than printing counts, and a fresh checkout prints nothing at all. In either case the predicate is *unevaluated*, not *false*: record that in the PR body and proceed — the design decision it guards (no backfill) is only actionable on a database that actually holds mat-pp.
 
 **Both** counting predicates are deliberately *looser* than the runtime ones, and both matter:
 
