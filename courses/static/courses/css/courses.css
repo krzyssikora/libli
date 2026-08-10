@@ -2235,10 +2235,13 @@ dialog.imgzoom:not([open]) { display: none; }
      line it lands on.
    - The MOBILE DRAWER is a fourth case, not covered here: courses.css:943
      overrides .unit-drawer__list .unit-tree__label to white-space:normal, so at
-     <=640px titles WRAP rather than clip, in a title column squeezed to ~98px --
-     and an unbreakable KaTeX inline-block is exactly what overflows it and
-     paints under the action buttons. Needs its own measurement (see the plan's
-     Task 11) before any rule is added for it.
+     <=640px titles WRAP rather than clip, in a title column squeezed to ~98px.
+     Task 11 MEASURED this at 390x780 (a long maths title, both themes): the
+     wrap absorbs it and no .katex box intersected a sibling control's
+     (.unit-tree__count / .unit-tree__groupcheck / .unit-tree__check /
+     .unit-tree__chevron / .unit-drawer__close) rect. CONFIRMED clean -- no
+     rule needed here. Re-check if the drawer's title column ever narrows
+     further, since the risk scales with how little width the wrap gets.
 
    Also unaddressed on purpose: courses.css:903-907 re-opens .unit-crumbs__label
    under @media print with overflow-wrap:anywhere, which cannot break a KaTeX

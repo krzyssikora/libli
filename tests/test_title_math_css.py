@@ -151,6 +151,24 @@ def test_the_unit_chrome_clamp_lives_in_courses_css_and_actually_clamps():
         assert "vertical-align: baseline" in body, f"{sel} lacks baseline align"
 
 
+def test_the_outline_unit_title_clamp_lives_in_app_css_and_actually_clamps():
+    """Task 11's measured correction: outline.html links notes.css + tags.css
+    but no courses.css, so a maths-titled outline row has nothing normalising
+    KaTeX's vendored line-height:1.2 -- measured 32.1px against a plain row's
+    24.0px on a real render. Lives in app.css, the only stylesheet outline.html
+    and this rule have in common (Task 10's own central argument, applied to a
+    surface Task 10 did not pre-empt).
+
+    .result-row__title (courses.css) and .card-list__row (also no courses.css,
+    so it would belong in app.css too) were measured alongside it and came
+    back CLEAN -- 49.2px vs 49.0px and 57.0px vs 57.0px, both within rendering
+    noise -- so neither gets a rule."""
+    body = _rule_body(_app(), ".outline-unit__title .katex")
+    assert body is not None, "missing outline-unit__title clamp rule"
+    assert "line-height: 1;" in body
+    assert "vertical-align: baseline" in body
+
+
 def test_the_display_child_override_does_not_touch_white_space():
     """The vendor's `.katex-display>.katex{white-space:nowrap}` must SURVIVE.
 

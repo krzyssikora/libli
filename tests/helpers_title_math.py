@@ -101,3 +101,38 @@ def make_title_course(*, maths_on="none"):
             "unitC": unit_c,
         },
     )
+
+
+def make_large_title_course(*, parts=20, units_per_part=40):
+    """A ~800-unit course with ONE maths title, for the render-cost measurement.
+
+    Mirrors this repo's matematyka course (21 parts / 793 units). Only the first
+    part's title carries maths, so the gate arms exactly once and every other
+    title is a realistic maths-free string.
+
+    Returns (course, first_unit) -- the unit whose page the measurement opens.
+    """
+    course = CourseFactory()
+    first_unit = None
+    for p in range(parts):
+        part = ContentNodeFactory(
+            course=course,
+            kind="part",
+            parent=None,
+            unit_type=None,
+            order=p,
+            title=MATHS_TITLE if p == 0 else f"Czesc {p + 1}",
+        )
+        for u in range(units_per_part):
+            unit = ContentNodeFactory(
+                course=course,
+                kind="unit",
+                unit_type="lesson",
+                parent=part,
+                order=u,
+                obligatory=True,
+                title=f"Lekcja {p + 1}.{u + 1}",
+            )
+            if first_unit is None:
+                first_unit = unit
+    return course, first_unit

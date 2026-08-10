@@ -427,9 +427,19 @@ that survives casual editing.
     display: inline-block; margin: 0; text-align: inherit;
   }
   [data-math-title] .katex-display > .katex {                      /* (0,3,0) > (0,2,0) */
-    display: inline-block; text-align: inherit; white-space: inherit;
+    display: inline-block; text-align: inherit;
   }
   ```
+
+  **`white-space` is deliberately absent from the child override**, not merely omitted from
+  the excerpt above. An earlier draft of this block listed `white-space: inherit` here, which
+  directly contradicts this section's own prose two paragraphs below: the vendor's
+  `white-space: nowrap` is "which we in fact want to keep for a formula". Task 10 followed the
+  prose, not the code block, when it implemented this rule — `inherit` would hand a
+  `white-space: normal` `<h1>` the exact mid-formula wrapping the vendor rule exists to
+  prevent. This code block was corrected to match the shipped CSS and the prose during Task
+  11's measurement pass; `tests/test_title_math_css.py::
+  test_the_display_child_override_does_not_touch_white_space` pins it.
 
   **`font-weight` and `font-style` must be restored too, not just `font-size`.** The
   vendored rule is `.katex{font:normal 1.21em KaTeX_Main,…;line-height:1.2;…}` — a `font`
@@ -490,6 +500,31 @@ that survives casual editing.
   .unit-crumbs__label .katex { line-height: 1; vertical-align: baseline; }
   ```
 
+- **`core/static/core/css/app.css`** — Task 11's one CORRECTION, the outline clamp:
+
+  ```css
+  .outline-unit__title .katex { line-height: 1; vertical-align: baseline; }
+  ```
+
+  `outline.html` was hypothesised in §Testing's first pass to need no clamp at all (see
+  below). A real render disproved that: a maths-titled `.outline-unit__title` measured
+  32.1px against a maths-free row's 24.0px, a real 8px/34% growth. Lives in `app.css`, not
+  `courses.css` — `outline.html` links `notes.css` and `tags.css` but no `courses.css` at
+  all, so a rule appended there would be a silent no-op on the only page that renders this
+  class (the same argument this section already makes for the analytics clamp, applied to a
+  surface the original pass missed). `.result-row__title` and `.card-list__row` were
+  re-measured alongside it and came back clean — 49.2px vs 49.0px and 57.0px vs 57.0px, both
+  within rendering noise — so neither gets a rule.
+
+  The clamp does not fully flatten every maths title's growth: it normalises the common case
+  (a plain inline run, even `\(\sum_{i=1}^{n} a_i b_i\)` with limits, measured back down to
+  the plain row's 24.0px) but a genuinely tall construct — a fraction (`\(\frac{p}{q}\)`,
+  32.1px) or a `\[...\]` display integral (39.6px) — still grows the row, because
+  `line-height` only removes the leading around inline content; it cannot shrink a fraction's
+  own two-line-tall glyph stack. Accepted, for the same reason the five-line clamp and the
+  `.katex-display` neutralisation both keep a formula intact rather than deforming it: this
+  is the same class of trade-off already made twice elsewhere in this section, not a new one.
+
 **The compact surfaces behave differently and must not be conflated.**
 
 - **Three single-line clips (desktop)** — `.unit-foot__navtitle` (`courses.css:778`),
@@ -503,10 +538,15 @@ that survives casual editing.
   **second full copy** of the tree into the drawer, and `courses.css:943` overrides the
   label there: `.unit-drawer__list .unit-tree__label { white-space: normal; overflow:
   visible; text-overflow: clip; }`. So at ≤640px titles **wrap** rather than clip. The
-  adjacent comment records that the title column is squeezed to roughly 98px and that a word
-  wider than that column overflows and paints *under* the action buttons — which is exactly
-  what an unbreakable KaTeX inline-block box is. This surface needs its own measurement and
-  its own screenshot; it cannot be inferred from the desktop rail.
+  adjacent comment records that the title column is squeezed to roughly 98px, which raises
+  the risk that a word wider than that column overflows and paints *under* the action
+  buttons — which is exactly what an unbreakable KaTeX inline-block box could be. **Task 11
+  measured this at 390×780, both themes, with the longest title in the fixture:** the wrap
+  absorbs it and no `.katex` box intersected a sibling control's rect
+  (`.unit-tree__count` / `.unit-tree__groupcheck` / `.unit-tree__check` /
+  `.unit-tree__chevron` / `.unit-drawer__close`). CONFIRMED clean — no rule needed. The risk
+  is real in principle (an unbreakable inline-block in a ~98px column) and should be
+  re-checked if that column ever narrows further; it did not materialise on this measurement.
 - **One five-line clamp** — `.unit-tree__grouptitle` (`courses.css:702-704`) is **not** a
   single-line clip. It is `display:-webkit-box; -webkit-line-clamp:5;
   -webkit-box-orient:vertical` with `overflow-wrap:break-word; hyphens:auto`. `-webkit-box`
@@ -526,14 +566,19 @@ that survives casual editing.
   wrapping.
 
 **The remaining marked surfaces take the global rules only.** This list is exhaustive
-against §1: `_outline_node.html:7,21`, `course_results.html:21`, `course_notes.html:16`,
-`_tag_section.html:25`, `panel_page.html:5`, `review_queue.html:15,30`, `editor.html:75`
-and `_preview.html:6` are neither compact chrome nor fixed-height headings: they wrap
-freely, so no clamp is specified for them. Note this is a *claim to be checked*, not a free pass —
-KaTeX's `line-height:1.2` survives the global rules, and `.result-row`, `.outline-unit` and
-`.card-list__row` are flex rows that can still gain height from it. §Testing screenshots the
-course-results, outline and review-queue rows so "needs no clamp" is a measurement rather
-than an assumption.
+against §1, MEASURED by Task 11, and corrected once: `_outline_node.html:21` (the group
+heading branch — `.outline-node__title`, a `flex-wrap` heading row at 1.1–1.35rem, the same
+shape as the `.lesson-unit__title` `<h1>` row 8 already confirms clean), `course_results.html:21`,
+`course_notes.html:16`, `_tag_section.html:25`, `panel_page.html:5`, `review_queue.html:15,30`,
+`editor.html:75` and `_preview.html:6` are neither compact chrome nor fixed-height headings:
+they wrap freely, so no clamp is specified for them, and a real render confirms none is
+needed. `_outline_node.html:7` (the unit-row branch, `.outline-unit__title`) is **no longer
+in this list** — it measured tall enough to need the correction above. Note this is a *claim
+to be checked*, not a free pass — KaTeX's `line-height:1.2` survives the global rules, and
+`.result-row`, `.outline-unit` and `.card-list__row` are flex rows that can still gain height
+from it. §Testing screenshots the course-results, outline and review-queue rows so "needs no
+clamp" is a measurement rather than an assumption; for `.result-row__title` and
+`.card-list__row` that measurement came back clean, and for `.outline-unit__title` it did not.
 
 **Display math is forced inline everywhere, including the `<h1>`s.** The neutralisation is
 keyed on bare `[data-math-title]`, so it also reshapes `_lesson_article.html:7`,
@@ -551,8 +596,22 @@ text. `overflow-wrap: anywhere` cannot break a KaTeX inline-block, so a long mat
 still overflow in print. Accepted for now — printing a breadcrumb is a marginal case and the
 text is not *lost*, only over-wide — but stated so it is not rediscovered as a defect.
 
-All clamp values above are a **starting hypothesis, not a result**. They are confirmed or
-corrected from the measurements §Testing requires before the PR opens.
+**Measured and confirmed, 2026-08-10 (Task 11).** All clamp values above have been checked
+against a real Chromium render, in a real browser context, in both themes, across all
+fourteen surfaces §Testing's screenshot table names — this is no longer a hypothesis. Of the
+values Task 10 shipped, thirteen surfaces confirmed clean exactly as specified: the
+`.katex`/`.katex-display` global normalisation (rows 1, 2, 8), the analytics clamp including
+its depth-2 leaf headers under an expanded group (row 6, measured 38.4px against
+`--ahead-h: 38.4px`, an exact match) and the breakdown rows (row 11), the unit-chrome clamp
+(rows 3, 4, 5), the mobile drawer (row 7, previously flagged as needing its own measurement —
+now measured clean, see above), and the "global rules only" surfaces including the
+review-queue row, course-results row, notes page, tags hub, tags panel, the two synthetic-bold
+`<h1>` surfaces, and the editor (rows 9, 10-results, 12, 13, 14). One surface was corrected:
+`.outline-unit__title` (row 10-outline) measured a real 32.1px-vs-24.0px growth and gained the
+app.css clamp documented above — the one value this pass changed. See
+`tests/capture_title_math_screenshots.py` for the fixture and
+`.superpowers/shots/title-math-*-{light,dark}.png` for the screenshots this confirmation is
+based on.
 
 ### 4. Plain-text contexts strip the delimiters
 
@@ -892,6 +951,19 @@ The single-root alternative was considered and is **not** the default: one call 
 `renderInlineText`'s selector list deliberately scopes and the edit buffers §Data-flow Path C
 must keep untouched. Per-element calls are what make the marker opt-in meaningful.
 
+**Measured, 2026-08-10 (Task 11).** The small five-node fixture already exceeded this
+section's own 5ms screening threshold (~34–53ms for 13 marked elements, machine-dependent),
+so per the plan it was re-measured at the matematyka-scale fixture predicted above (21 parts
+/ 793 units, 1,643 marked elements measured — matching the ~1,600+ prediction): **~130–150ms**,
+well past the 50ms threshold. The prediction that "each individual call is trivial" held for
+a single call; it did not account for the aggregate cost across ~1,600 unconditional calls
+when only one title in the whole course carries maths. `renderInlineText`
+(`courses/static/courses/js/math.js`) now pre-filters: the first statement inside the
+`forEach` callback checks `el.textContent` for `\(` / `\[` and returns immediately if neither
+is present, skipping the `renderMathInElement` call entirely for the overwhelming majority of
+marked elements that carry no delimiters at all. The single-root-over-a-common-ancestor
+alternative remains rejected for the reason above; the pre-filter is the realisable fix.
+
 **End-to-end.** Drive a real lesson page in a browser where the *only* maths in the entire
 course is in the **next** unit's title, and assert a `.katex` element exists inside
 `.unit-foot__navtitle`. Driving the real page is required: this defect is precisely one
@@ -914,8 +986,9 @@ smears, drop `font-weight: inherit` and accept the weight mismatch as the lesser
 a **review-queue row** (`.card-list__row`), which is a flex row like the two below; and a
 **course-results row and an outline row**,
 which are the surfaces §3 claims need no clamp — screenshotted so that claim is measured
-rather than assumed. The §3 clamp values are confirmed or corrected from these
-measurements before the PR opens — they are a hypothesis in this document, not a result.
+rather than assumed. **Done, 2026-08-10 (Task 11):** the §3 clamp values are confirmed or
+corrected from these measurements — see §3's own closing note for the per-surface results
+and the one correction (`.outline-unit__title`).
 
 ## Risks
 
@@ -935,10 +1008,13 @@ measurements before the PR opens — they are a hypothesis in this document, not
   carries maths — a script that previously never executed there. Believed benign: both pages
   emit form-less `[data-question]` blocks, per the templates' own comments. Named here so the
   diff's reviewer is not surprised by it.
-- **Clamp values unmeasured.** §3's CSS is a starting hypothesis. If measurement shows the
-  struts still overflow — most likely on the analytics sticky header, where the failure is a
-  header desync rather than a cosmetic one — the fix is more CSS in the same rules, not a
-  change of approach.
+- **Clamp values measured (Task 11).** §3's CSS was a starting hypothesis; it has since been
+  checked against a real render on all fourteen §Testing surfaces. The analytics sticky
+  header — the surface this risk singled out as most likely to desync — measured its
+  depth-2 leaf headers at exactly `--ahead-h` (38.4px = 38.4px), clean. One surface *did*
+  need the anticipated follow-up: `.outline-unit__title` measured real growth and gained a
+  clamp, applying the same "more CSS in the same rules" fix this risk predicted, just on a
+  different surface than the one it named.
 - **Partial coverage is visible to users.** After this change a maths title typesets on the
   student and analytics surfaces but still shows raw delimiters in the builder panels, the
   move picker, the link picker and the two confirm prompts (§5). A teacher who uses the
