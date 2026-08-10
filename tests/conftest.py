@@ -1,5 +1,130 @@
 import pytest
 
+from tests.helpers_editor_rows import open_element_form
+from tests.helpers_editor_rows import reopen
+
+# ---------------------------------------------------------------------------
+# Editor row-mechanics fixtures (the roster in the instant-row-add/remove plan).
+#
+# Every e2e opener has ONE contract: opener(page, live_server, **kwargs) ->
+# Element. It logs in, seeds the element, navigates, opens its edit form and
+# returns the **Element join row** — never the page, and never the content
+# object (the payload lives on `element.content_object`).
+# ---------------------------------------------------------------------------
+
+
+def _pa_user(username):
+    """A verified Platform Admin, created directly (not through a test client) so
+    an e2e opener can log in through the real allauth form."""
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+    from tests.factories import TEST_PASSWORD
+    from tests.factories import make_verified_user
+
+    seed_roles()
+    user = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+def _editor_login(page, live_server, username):
+    """Log in via the allauth HTML form (mirrors tests/test_e2e_questions.py)."""
+    from tests.factories import TEST_PASSWORD
+
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+
+def _editor_url(live_server, unit):
+    from django.urls import reverse
+
+    path = reverse(
+        "courses:manage_editor", kwargs={"slug": unit.course.slug, "pk": unit.pk}
+    )
+    return f"{live_server.url}{path}"
+
+
+def _lettered_pairs(n):
+    """n pairs ("a", "1"), ("b", "2"), … — distinct on both sides so an assertion
+    can tell which pair survived a remove."""
+    return [(chr(ord("a") + i), str(i + 1)) for i in range(n)]
+
+
+@pytest.fixture
+def pa_client(client):
+    """A Django test client logged in as a Platform Admin.
+
+    A PA holds `courses.change_course`, so can_manage_course() lets it author any
+    course — the seeded course needs no explicit owner.
+    """
+    from tests.factories import make_pa
+
+    make_pa(client, "pa")
+    return client
+
+
+@pytest.fixture
+def matchpair_element():
+    """Factory -> (course, unit, element) with `pairs` persisted.
+
+    `element` is the Element JOIN ROW (what the POST's `element` key and
+    `form_url` take); the pairs live on `element.content_object.pairs`.
+    """
+
+    def _make(pairs=(("France", "Paris"), ("Spain", "Madrid"))):
+        from courses.models import MatchPair
+        from courses.models import MatchPairQuestionElement
+        from tests.factories import ContentNodeFactory
+        from tests.factories import CourseFactory
+        from tests.factories import add_element
+
+        course = CourseFactory()
+        unit = ContentNodeFactory(
+            course=course, parent=None, kind="unit", unit_type="lesson"
+        )
+        question = MatchPairQuestionElement.objects.create(stem="")
+        for left, right in pairs:
+            MatchPair.objects.create(question=question, left=left, right=right)
+        return course, unit, add_element(unit, question)
+
+    return _make
+
+
+@pytest.fixture
+def open_matchpair_editor(pa_client, matchpair_element):
+    """Server-render opener: seeds a match-pairs element with `saved_pairs` pairs,
+    GETs its edit fragment and returns the HTML."""
+
+    def _open(saved_pairs=2):
+        course, _unit, element = matchpair_element(pairs=_lettered_pairs(saved_pairs))
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+@pytest.fixture
+def open_matchpair_editor_e2e(matchpair_element):
+    """e2e opener: log in a PA, seed the element, open the unit editor and swap its
+    edit form into the slot. Returns the Element join row."""
+
+    def _open(page, live_server, saved_pairs=2, username="mp_rows"):
+        _pa_user(username)
+        _course, unit, element = matchpair_element(pairs=_lettered_pairs(saved_pairs))
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk)
+        return element
+
+    return _open
+
 
 @pytest.fixture
 def course_with_image(db, tmp_path, settings):
