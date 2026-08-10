@@ -103,7 +103,9 @@ This matters because the two call sites pass different things: `editor.js` passe
 (an ancestor), while `addChoiceRow` passes the wrapper itself.
 
 **Both modules self-init at load**, via a `DOMContentLoaded` pass over `document`, matching
-`switchgrid_editor.js`'s file tail and the retired `stepper_editor.js:30`. Without this, any
+`switchgrid_editor.js`'s file tail. (The retired `stepper_editor.js:30` is *not* the precedent: it is
+a bare `initStepperEditor(document)` at module scope, which works only because the tag is `defer` —
+the variant the new modules deliberately do not copy.) Without this, any
 first-paint render carrying an already-open edit form (`_editor_scope.html:51,53` render `open_form`
 server-side, and `_render_open_form` is reachable outside the fragment path) would leave every
 JS-only control permanently `hidden`. Both init passes must be **idempotent** — safe to run
@@ -281,7 +283,11 @@ three blueprint consumers are **match, stepper and checklist** — choice has no
 3. **Tick:** set the row's `DELETE` checkbox `checked = true`. **No `change` event is dispatched** —
    see "Dead code this change removes" for why the only listener becomes unreachable.
 4. **Hide:** set `row.hidden = true`.
-5. Recompute the disabled state.
+5. **Recompute both bounds:** the remove buttons' disabled state, **the add button's** disabled state,
+   and the at-bound hint — the same work init job 3 does. Recomputing only the remove buttons would
+   leave a stepper that drops from 20 rows to 19 with a greyed-out Add button and a now-false at-cap
+   hint until the next fragment swap: a dead control, which is the defect this design exists to
+   remove.
 6. **Move focus.** The click left focus on a button that is now hidden, so focus would otherwise fall
    to `<body>` — a keyboard-a11y regression and, on this `overflow:hidden` page, the same scroll
    hazard the add path guards against. Using `focus({ preventScroll: true })`, try in order:
@@ -353,10 +359,17 @@ own small version of the defect, so each wrapper renders one hint carrier — a 
 `<p class="el-editor__hint" data-fsrows-hint>` immediately after the add button — and the module
 fills it from `data-fsrows-atmin` or `data-fsrows-atcap` and unhides it while that bound is in
 force, re-hiding it otherwise. The strings are server-rendered attributes for the same reason the
-confirm string is: JavaScript cannot emit translated text. Both strings join Delivery's roster and
-the i18n catalog guard, and the maximum-cap e2e asserts the hint is visible, not merely that the
-button is `disabled`. The minimum needs this at least as much as the maximum — switchgate's two-row
-floor is exactly where an author closing interior blanks will meet it.
+confirm string is: JavaScript cannot emit translated text. Both e2e roster entries assert the hint is
+*visible*, not merely that the button is `disabled`. The minimum needs this at least as much as the
+maximum — switchgate's two-row floor is exactly where an author closing interior blanks will meet it,
+and module 2 carries the same mechanism (`data-sgate-hint` / `data-sgate-atmin`).
+
+**The at-minimum string is authored per template, not shared.** The minimum differs by editor, so one
+fixed sentence would be false somewhere: "you cannot remove the last row" is simply untrue for choice
+and switchgate, whose floor is two — and a freshly created choice question renders exactly `extra=2`
+rows, so that wrong hint would greet every new choice question. Match, stepper and checklist word it
+as "at least one …"; choice and switchgate as "at least two …". Delivery and the i18n guard therefore
+cover **five** at-min strings plus the two at-cap strings, not two strings total.
 
 **The bounds are per-formset, carried on `data-fsrows-min` / `data-fsrows-max`** — a uniform "one"
 would be wrong, and two of the four editors have a *maximum* as well. All four were read from the
@@ -374,9 +387,22 @@ could remove down to a single choice, hit Save, and get a validation error the c
 prevented — inconsistent with switchgate's threshold of two and with the principle above.
 
 **The maximum matters for the same reason, in the other direction.** Stepper and checklist reject a
-21st row on save ("A stepper can have at most 20 steps."). When the non-hidden row count reaches
-`data-fsrows-max`, the **add** button is `disabled` and a translated at-cap hint is shown next to it.
-Editors with no maximum omit the attribute.
+21st row on save ("A stepper can have at most 20 steps."). When the cap is reached the **add** button
+is `disabled` and a translated at-cap hint is shown next to it. Editors with no maximum omit the
+attribute.
+
+**The two bounds count different things, deliberately.** The minimum counts **non-hidden rows**; the
+maximum counts **non-hidden rows with a non-blank first text input**, and is therefore also
+recomputed on `input`, not only on add/remove/init.
+
+The asymmetry is not an inconsistency — each side matches the failure it prevents. A value-based
+*minimum* would fire on a legitimately blank-but-in-progress list (module 2 gives this reasoning for
+switchgate). A row-based *maximum* is wrong for the opposite reason: both formsets render `extra=1`,
+so a stepper with **19** saved steps renders 19 + 1 = **20** rows. A row-based cap would disable Add
+and show "at most 20 steps" while the author has nineteen — and a 20-row stepper whose author has
+blanked several rows is genuinely below the cap and still could not add. Counting non-blank rows
+matches `BaseStepperFormSet`'s own rule (`element_forms.py:1888-1895` counts `content` after
+`.strip()`), so client and server agree at every moment.
 
 **A residual hole is knowingly accepted here.** Both formsets are built with `extra=1`, so a stepper
 already at `MAX_STEPS = 20` renders **21** rows server-side. An author can type into that trailing
@@ -466,7 +492,7 @@ see while `TOTAL_FORMS` still increments. Seven amendments:
    takes no arguments and resolves everything from the module-level `root` (`:420-421`); amendments 4
    and 5 both need *the wrapper*, and obtaining it as another unscoped `root.querySelector(...)`
    would reintroduce exactly the cross-talk the `closest()` rule forbids;
-7. **warn and no-op when there is no non-hidden row to clone.** `editor.js:426` returns silently on
+7. **warn and no-op when there is no non-hidden row to clone.** `editor.js:425` returns silently on
    `!last` today. Init job 2's minimum floor now makes that state unreachable, so this is a
    defensive guard rather than a live path — but under this spec's loud-failure rule it must
    `console.warn` rather than return silently, so that if the floor is ever regressed the symptom is
@@ -523,6 +549,8 @@ button outside it and `closest()` would return `null`, reproducing the dead-butt
 | `data-sgate-row` | `.el-editor__option-row` | One option |
 | `data-sgate-add` | button | Add control |
 | `data-sgate-min` | wrapper | Minimum rows the remove guard enforces (`2`) |
+| `data-sgate-atmin` | wrapper | Translated at-minimum message ("at least two …") |
+| `data-sgate-hint` | a `hidden` `<p class="el-editor__hint">` after the add button | Carrier for that message |
 | `data-sgate-template` | `<template>` inside the wrapper | Blank row blueprint |
 | `data-sgate-remove` | button inside a row | Remove control |
 
@@ -569,12 +597,17 @@ need removing — then `libliAlignTopInPane` + `focus({ preventScroll: true })` 
 
 **Remove.**
 
-1. **Guard:** when exactly two rows remain, the remove buttons are `disabled`.
+1. **Guard:** when the row count is at `data-sgate-min`, the remove buttons are `disabled`.
 2. **Confirm:** prompt only when the row's `input[type="text"]` has a non-empty `.value.trim()`.
    Blank rows are removed with no prompt — essential, because the padded render is mostly blank rows
    and closing an *interior blank* is the headline use case; prompting on every blank removal would
    make the fix worse than the defect.
-3. **Detach and renumber.**
+3. **Capture the neighbours** for the focus move (see below), *then* detach and renumber.
+4. **Recompute the disabled state and the hint** — i.e. call `libliInitSwitchGateEditor(wrapper)`,
+   mirroring module 1's step 5 and module 2's own Add. Without this the guard is a one-shot render
+   state rather than a live check: after the first removal the buttons stay enabled and the author
+   can click down past the floor, which `_MIN_OPTIONS` then rejects at save.
+5. **Move focus** using the captured neighbours.
 
 Unlike module 1 the row **must be detached from the DOM**. Hiding is not sufficient and would
 actively corrupt the data: a hidden input still submits, and `clean()` (`element_forms.py:421-428`)
@@ -590,11 +623,13 @@ on a legitimately blank-but-in-progress list, and the padded render always start
 stricter "at least two *non-empty* options" rule stays server-side, where `_MIN_OPTIONS`
 (defined at `element_forms.py:361`, compared at `:427`) already enforces it.
 
-**Init pass.** `window.libliInitSwitchGateEditor(root)`, three idempotent jobs:
+**Init pass.** `window.libliInitSwitchGateEditor(root)`, four idempotent jobs:
 
 1. reveal the JS-only add and remove controls;
-2. recompute the two-row disabled state;
-3. renumber the rows, so a re-swap or 422 re-render always lands on contiguous indices.
+2. recompute the `data-sgate-min` disabled state;
+3. fill the `data-sgate-hint` carrier from `data-sgate-atmin` and unhide it while that bound is in
+   force, re-hiding it otherwise;
+4. renumber the rows, so a re-swap or 422 re-render always lands on contiguous indices.
 
 **No-JS story.** Both switchgate controls render with a bare `hidden` attribute and are revealed by
 the init pass. Without this a no-JS author would be shown a brand-new Add button and per-row Remove
@@ -800,9 +835,16 @@ persisted row and assert it is gone.
 The level is not incidental. The risk being covered is the client-side rewiring — the two modules
 retired, the hand-written blueprints replaced by `empty_form`. A server-side POST test hand-builds
 `steps-TOTAL_FORMS=N+1` and stays green even if the add button is completely dead, which is precisely
-the defect under repair elsewhere in this spec. Only a test that drives the button covers it. These
-are a **GREEN-on-master, GREEN-after** pair — not falsifiable against the current build, which is the
-point.
+the defect under repair elsewhere in this spec. Only a test that drives the button covers it.
+
+**Only the *add* half is GREEN-on-master, and only if it locates the button by visible label.** The
+hook changes from `data-stepper-add-row` / `data-markdone-add-row` to `data-fsrows-add`, so a test
+written against the new attribute is red on `master` too and proves nothing about the retrofit. The
+**remove half is a normal new test**, subject to the RED-before-fix rule: on `master` these templates
+render only `<label class="…__del">{{ f.DELETE }} Remove</label>` (`_edit_stepper.html:20-22`,
+`_edit_markdone.html:20-22`) — there is no per-row remove *button* to click under any selector, so it
+cannot be green there. Claiming the whole pair as GREEN-on-master would have exempted the riskiest
+new control in the change from falsification.
 
 **New end-to-end tests (Playwright).**
 
@@ -822,9 +864,23 @@ point.
   is visible**; and, per the accepted residual hole, typing into the trailing `extra` row and saving
   still surfaces the server's "at most 20 steps" error — asserted so the limitation is pinned rather
   than assumed.
-- **The 422 minimum floor:** tick DELETE on every row of a choice question without JS, save, and
-  assert the JS re-render leaves `data-fsrows-min` rows **visible and un-ticked** rather than hiding
-  them all. This is the dead-end guard; without it the editor is unrecoverable.
+- **The 422 minimum floor:** produce a POST **shaped like** a no-JS submission — under JS, set every
+  row's `DELETE` `.checked = true` via `page.evaluate`, which emits a byte-identical payload — then
+  save and assert the re-render leaves `data-fsrows-min` rows **visible and un-ticked** rather than
+  hiding them all. This is the dead-end guard; without it the editor is unrecoverable.
+
+  It must be written that way because the obvious phrasing is not executable: `java_script_enabled`
+  is a per-*context* Playwright setting that cannot be flipped mid-page, and the 422 body is the
+  response to a POST (`views_manage.py:2267` → `_render_open_form(..., status=422)`) that cannot be
+  re-fetched with GET in a second context. A no-JS context can produce the POST but never runs init
+  job 2 to observe its effect; a JS context can observe it but cannot `.check()` the boxes, since
+  init job 1 hides their labels — the same actionability failure already flagged for
+  `tests/test_e2e_questions.py:312`.
+- **The at-minimum hint:** on a fresh choice question (`extra=2` rows = `data-fsrows-min`), the remove
+  buttons are `disabled` **and** the hint carrier is visible with the at-min text. Without this the
+  at-min half of the mechanism has no behavioural coverage at all — the i18n guard only proves the
+  string exists in the catalog, so an implementation that wired only `data-fsrows-atcap` into the
+  carrier would ship fully green.
 - **The 422 reconciliation**, the subtlest mechanism in the design: remove a row, trigger a
   validation failure on save, assert the removed row comes back **not visible** with its DELETE still
   ticked, then fix the error and assert the removal persisted.
