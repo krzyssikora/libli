@@ -166,6 +166,17 @@ body.editor-page .app-main { max-width: 102rem; }
   display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
   font-size: .75rem; color: var(--text-secondary); cursor: pointer;
 }
+
+/* [hidden] is inert against the display: flex/grid these rows and labels set at
+   equal specificity. formset_rows.js hides a removed row and swaps the no-JS
+   DELETE label for the JS remove button, so both need an explicit guard. */
+.pair-row[hidden], .choice-row[hidden] { display: none; }
+.pair-row__del[hidden], .choice-row__del[hidden] { display: none; }
+
+/* The add/remove wrapper must not become a grid item itself: .el-editor is a grid
+   with gap var(--space-3), and the list and the add button are separate items. */
+[data-fsrows], [data-sgate] { display: contents; }
+
 /* Feedback tier: subordinate to its option, set off by a quiet left rule. */
 .choice-row__feedback {
   margin-left: var(--space-2);

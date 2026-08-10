@@ -2049,6 +2049,10 @@ html:not(.ba-js) .ba__toggle,
 .markdone-row input[type="text"] { flex: 1; }
 .markdone-row__del { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--text-secondary); white-space: nowrap; }
 
+/* See editor.css: [hidden] is inert against these display: inline-flex rules. */
+.stepper-row[hidden], .markdone-row[hidden] { display: none; }
+.stepper-row__del[hidden], .markdone-row__del[hidden] { display: none; }
+
 /* ---------------------------------------------------------------------------
    Click-to-enlarge images. imagezoom.js arms [data-zoomable] images as buttons
    and opens one reused modal <dialog> holding a copy of the image. All sizing is
