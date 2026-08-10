@@ -446,8 +446,9 @@ that survives casual editing.
   **shorthand**, which resets every unset font longhand, `font-weight` among them. Restoring
   only `font-size` leaves a maths run rendering at `normal` weight inside a bold
   `lesson-unit__title`, `result__title` or `editor-head__title`, visibly lighter than the
-  prose beside it. `line-height` is deliberately *not* inherited here; the compact-chrome
-  clamps below own that.
+  prose beside it. `line-height` is deliberately *not* inherited here: the vendor's 1.2 is
+  measured harmless on every title surface (see the clamp note below), so there is nothing
+  for this rule to override.
 
   **Both rules must set `display`, and neither alone is sufficient.** The vendored
   stylesheet carries six `.katex-display` rules. Two matter here:
@@ -482,23 +483,44 @@ that survives casual editing.
   above — and its `text-align:left` would then collide with that override's
   `text-align:inherit`, with source order deciding.
 
-- **`core/static/core/css/app.css`** — the analytics clamp, since those pages have no
-  `courses.css`:
+- **No per-surface `line-height` / `vertical-align` clamp is shipped — measured 2026-08-11
+  (superseding this section's original design).** Two clamps were specified and shipped here:
+  an analytics clamp in `app.css` (`.analytics__matrix thead th`, `.breakdown-unit__title`,
+  `.breakdown-node__title`) and a unit-chrome clamp in `courses.css`
+  (`.unit-foot__navtitle`, `.unit-tree__label`, `.unit-tree__grouptitle`,
+  `.unit-crumbs__label`). Both have been **removed**. An A/B on the real pages — forcing the
+  vendor's `line-height: 1.2` back onto the same `.katex` boxes, i.e. simulating the clamp's
+  absence — moved every one of the seven surfaces by at most **0.19px**:
 
-  ```css
-  .analytics__matrix thead th .katex,
-  .breakdown-unit__title .katex,
-  .breakdown-node__title .katex { line-height: 1; vertical-align: baseline; }
-  ```
+  | surface | plain inline | fraction |
+  | --- | --- | --- |
+  | `.breakdown-unit__title` | +0.19px | 0.00 |
+  | `.unit-crumbs__label` | +0.15px | 0.00 |
+  | `.unit-tree__label` | +0.06px | 0.00 |
+  | `.unit-tree__grouptitle`, `.unit-foot__navtitle`, `.breakdown-node__title`, `.analytics__matrix thead th` | 0.00 | 0.00 |
 
-- **`courses/static/courses/css/courses.css`** — the unit-chrome clamp:
+  **The mechanism, so it is not re-derived:** every one of those surfaces inherits
+  `line-height: 1.5` — measured 19.68/13.12, 19.2/12.8, 18.72/12.48, 20.4/13.6 and 24/16, all
+  exactly 1.5 — which already *exceeds* the vendor's 1.2. The vendor value was never the
+  taller one on any of them, so there was nothing to clamp. `vertical-align` computed
+  `baseline` with and without the declaration, since the vendored stylesheet sets it on no
+  `.katex`/`.katex-display` selector and `baseline` is the initial value.
 
-  ```css
-  .unit-foot__navtitle .katex,
-  .unit-tree__label .katex,
-  .unit-tree__grouptitle .katex,
-  .unit-crumbs__label .katex { line-height: 1; vertical-align: baseline; }
-  ```
+  **The one place the mechanism is real, and is deliberately left alone:** `reset.css:10`
+  gives `h1`–`h4` `line-height: 1.15`, which is *below* the vendor's 1.2 — so on
+  `.lesson-unit__title` (an `<h1>`) a clamp would genuinely bite. It stays unclamped, on the
+  same footing as the `.katex-display` neutralisation and the five-line group clamp: a tall
+  construct keeps its own height rather than being deformed to fit one text line.
+
+  **The analytics sticky risk this section flagged is measured safe.** `thead th` carries an
+  explicit `height: var(--ahead-h)`, and measured 38.39px against a 38.4px `--ahead-h` with a
+  maths title present, clamp or no clamp — the `height` caps it either way, so no sticky row
+  desynchronises. (A long maths title still *widens* the `nowrap` column rather than wrapping;
+  that is unchanged and unrelated to `line-height`.)
+
+  0.19px is the same delta this section already rejects as rendering noise for
+  `.result-row__title` (49.2 vs 49.0) and `.outline-unit__title` below — the standard is now
+  applied consistently to all of them. `tests/test_title_math_css.py` pins the absence.
 
 - **`.outline-unit__title`: measured, and no rule was added.** A maths-titled outline row
   (`_outline_node.html:7`) measured 32.1px against a maths-free row's 24.0px for a title
