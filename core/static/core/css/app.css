@@ -1834,16 +1834,22 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .breakdown-unit__title .katex,
 .breakdown-node__title .katex { line-height: 1; vertical-align: baseline; }
 
-/* Task 11's measured confirmation (2026-08-10): .outline-unit__title has no
-   explicit line-height of its own, so KaTeX's vendored line-height:1.2 grows
-   the row -- measured 32.1px with a maths title against 24.0px without, on a
-   real render. Lives here, not courses.css: outline.html links notes.css and
-   tags.css but no courses.css at all (base's app.css is the only stylesheet
-   the outline page and this rule have in common).
+/* Task 11 measured .outline-unit__title (2026-08-10) and found NO rule is
+   warranted here -- an earlier version of this comment claimed otherwise and
+   was wrong; see the correction below.
 
-   .result-row__title (course_results.html, links courses.css) and
-   .card-list__row (review_queue.html, no courses.css) were measured
-   alongside it and came back CLEAN -- 49.2px vs 49.0px and 57.0px vs 57.0px,
-   both within rendering noise -- so neither gets a rule: adding one would be
-   uncovered by any assertion pinning it to a real measured need. */
-.outline-unit__title .katex { line-height: 1; vertical-align: baseline; }
+   A plain maths-titled row (e.g. \(\sum_{i=1}^{n} a_i b_i\)) measures 24.0px,
+   identical to a maths-free row. A row whose title carries a fraction
+   (\(\frac{p}{q}\)) measures 32.1px, and a \[...\] display integral 39.6px --
+   but an A/B against a same-specificity override that RESTORES the vendor's
+   line-height:1.2 reproduces the IDENTICAL 32.1px / 39.6px. The growth is not
+   caused by line-height at all (reset.css:6 sets body{line-height:1.5}, a
+   24px box at 16px, which already EXCEEDS the vendor's 1.2 * 16px = 19.2px --
+   line-height was never the taller value here) -- it is the fraction's own
+   strut height, which line-height cannot touch. `vertical-align:baseline` is
+   equally inert: the vendor sets vertical-align on no .katex/.katex-display
+   selector, and baseline is the initial value regardless.
+
+   Accepted, same as the .katex-display neutralisation and the five-line
+   group clamp elsewhere in this file: a tall construct keeps its own height
+   rather than being deformed to fit a single text line. */

@@ -69,6 +69,7 @@ TITLES = {
 @pytest.fixture(scope="session", autouse=True)
 def _allow_async_unsafe():
     os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
 
 
 def _login(page, live_server, username):

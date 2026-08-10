@@ -10,6 +10,7 @@ tests buys nothing and costs the next reader a double-take).
 """
 
 import os
+import time
 
 import pytest
 
@@ -62,6 +63,46 @@ def test_next_unit_title_typesets_in_the_nav_button(browser, live_server):
         assert katex.count() >= 1
     finally:
         ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_math_js_pre_filter_runs_end_to_end(browser, live_server, capsys):
+    """Coverage for the pre-filter branch itself
+    (courses/static/courses/js/math.js:33-34): both perf tests below
+    deliberately ABORT math.js and reimplement its loop inside page.evaluate
+    WITHOUT the pre-filter, to get a controlled, interference-free timing of
+    the raw per-call cost -- which means the pre-filter's early return is
+    never executed by either of them. This test lets math.js run UNMODIFIED
+    (no route interception) and times typesetting end-to-end, so the new
+    branch actually runs under test. Deliberately the SMALL fixture, not the
+    large one -- this is a coverage check, not a perf measurement, and needs
+    to stay fast."""
+    course, unit_a, _nodes = make_title_course(maths_on="far")
+    student = make_verified_user(
+        username="e2eprefilter",
+        email="e2eprefilter@t.example.com",
+        password=TEST_PASSWORD,
+    )
+    EnrollmentFactory(student=student, course=course)
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2eprefilter")
+        t0 = time.perf_counter()
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit_a.pk}/")
+        katex = page.locator("[data-math-title] .katex")
+        katex.first.wait_for(state="attached", timeout=5000)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        katex_count = katex.count()
+    finally:
+        ctx.close()
+    with capsys.disabled():
+        print(
+            f"\n[pre-filter e2e] math.js (unmodified) typeset "
+            f"{katex_count} .katex node(s) in {elapsed_ms:.1f} ms "
+            f"(page load + asset fetch + typesetting, wall clock)"
+        )
+    assert katex_count >= 1, "math.js never typeset the far-off maths title"
 
 
 @pytest.mark.django_db(transaction=True)
