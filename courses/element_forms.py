@@ -14,6 +14,9 @@ from courses import switchgate
 from courses import switchgrid
 from courses.embed import extract_embed_url
 from courses.embed import parse_iframe_dimensions
+from courses.geogebra import fetch_geogebra_dimensions
+from courses.geogebra import geogebra_material_id
+from courses.geogebra import usable_dimensions
 from courses.marking import TOO_LONG
 from courses.marking import canonical_numeric_text
 from courses.marking import canonical_tolerance_text
@@ -183,12 +186,38 @@ class IframeElementForm(forms.ModelForm):
         raw = self.cleaned_data.get("url", "")
         url = extract_embed_url(raw)
         width, height = parse_iframe_dimensions(raw)
-        # Capture only a usable pair (a full <iframe> with numeric width & height);
-        # a plain-URL / dimensionless input leaves stored dims unchanged so a
-        # title-only edit never wipes a captured ratio. width/height are not form
-        # fields, so full_clean excludes them — the ceiling is enforced in
-        # parse_iframe_dimensions, not here.
-        if width and height:
+        mid = geogebra_material_id(url)  # hoisted: both guards below use it
+        url_changed = url != self.instance.url
+
+        # A stored pair describes the OLD material once the URL changes, so drop it
+        # and let the new material take the normal lookup path. Scoped to GeoGebra:
+        # clearing provider-neutrally would wipe a Vimeo element's captured pair on
+        # any URL edit, with no lookup available to restore it.
+        if url_changed and not usable_dimensions(width, height) and mid:
+            self.instance.width = self.instance.height = None
+
+        # INVARIANT: a *usable* stored pair is never re-derived for an unchanged
+        # URL. On an edit the textarea holds the stored canonical URL, so
+        # parse_iframe_dimensions returns (None, None) every time; without the
+        # instance guard a title-only rename would fire a network call and could
+        # silently replace the author's captured size. The lookup therefore fires
+        # on exactly three occasions: a fresh dimensionless paste, a URL change,
+        # and any save where the stored pair is unusable -- the last being the
+        # deliberate retry path the badge invites, and why _NEGATIVE_TTL_SECONDS
+        # is only 60s.
+        #
+        # NOTE: this depends on clean_url running BEFORE _post_clean.
+        # self.instance.url still holds the DB value during field cleaning
+        # because Django only copies cleaned data onto the instance in
+        # construct_instance, which _post_clean calls afterwards. Moving this
+        # logic to _post_clean or save() silently inverts url_changed.
+        # width/height are not in Meta.fields, so the ceiling is enforced by
+        # usable_dimensions here, not by full_clean.
+        stored_usable = usable_dimensions(self.instance.width, self.instance.height)
+        if not usable_dimensions(width, height) and not stored_usable and mid:
+            width, height = fetch_geogebra_dimensions(mid)
+
+        if usable_dimensions(width, height):
             self.instance.width = width
             self.instance.height = height
         return url
