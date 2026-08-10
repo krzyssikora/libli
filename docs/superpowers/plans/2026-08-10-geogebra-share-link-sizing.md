@@ -23,7 +23,7 @@
 - **Where new test imports go.** Each task's test block shows the *tests*; put every new import at the **top of the module**, in the existing single-line isort-ordered import block. Do **not** paste import lines mid-file: ruff selects `E` and `I`, only `S105/S106/S107` are ignored under `tests/**`, so mid-file imports fire `E402` and `I001` and the final `ruff check .` gate goes red for reasons unrelated to the feature. (`config/settings/test.py` carries an explicit `# noqa: E402` for exactly this rule.)
 - **Keep every line of pasted code at or under 88 characters.** `ruff`'s `E` selection includes **E501** and the repo sets no `line-length` override, so the default 88 applies (verified: an 89-char line reports `E501 Line too long`). This matters more than it looks — the final gate runs `ruff check .` *before* `ruff format .`, and roughly half of this plan's long lines are **comments and docstrings, which `ruff format` cannot rewrap at all**. Every code block below has been wrapped to fit; if you re-flow one while editing, re-check its width.
 - **`urllib.request.Request` needs `# noqa: S310`** with a one-line justification, mirroring `integrations/delivery.py:50,122`.
-- **The `# noqa: BLE001` markers on the bare `except Exception` handlers are anticipatory, not active — but `S110` on one of them IS active.** `pyproject.toml` selects `["E", "F", "I", "UP", "B", "S"]`, so `BLE` is not enabled and that half of the suppression currently does nothing (`RUF100` is not selected either, so an inert `noqa` is not itself flagged). Keep it — it documents intent and pre-empts a future `BLE` selection. **However**, `S` *is* selected, and `S110` (try-except-pass) fires on the one handler whose body is a bare `pass` — the `exc.close()` guard in `fetch_geogebra_dimensions`. That handler must carry `# noqa: BLE001, S110` or the final `ruff check .` gate goes red; the repo's precedent for the same suppression is `tests/capture_help_screenshots.py:460`. Do not generalise "the noqa does nothing" from BLE001 to the whole comment.
+- **The `# noqa: BLE001` markers on the bare `except Exception` handlers are anticipatory, not active — but `S110` on one of them IS active.** `pyproject.toml` selects `["E", "F", "I", "UP", "B", "S"]`, so `BLE` is not enabled and that half of the suppression currently does nothing (`RUF100` is not selected either, so an inert `noqa` is not itself flagged). Keep it — it documents intent and pre-empts a future `BLE` selection. **However**, `S` *is* selected, and `S110` (try-except-pass) fires on the one handler whose body is a bare `pass` — the `exc.close()` guard in `fetch_geogebra_dimensions`. That handler must carry `# noqa: BLE001, S110` or the final `ruff check .` gate goes red. `tests/capture_help_screenshots.py:460` (`except Exception:  # noqa: S110 - bounded, third-party-only wait`) is the precedent for **`S110` on the handler line, with trailing prose** — not for the two-code pairing; the added `BLE001` is new on this branch and inert until `BLE` is selected. Do not generalise "the noqa does nothing" from BLE001 to the whole comment.
 - **`element_forms.py` must use the from-import style** (`from courses.geogebra import fetch_geogebra_dimensions`) — the form tests patch `courses.element_forms.fetch_geogebra_dimensions`, which only exists under that style.
 - **Run `uv run ruff format .` LAST**, after every other edit — CI gates on `ruff format --check`.
 
@@ -843,7 +843,13 @@ def test_fetch_refuses_to_guess_on_a_multi_applet_worksheet(caplog):
     # with size_unknown False is worse than the 4:3 fallback plus a badge.
     with _patch_open(_payload("ws_two_sized_g.json")):
         assert fetch_geogebra_dimensions("derived") == (None, None)
-    assert any("multiple" in r.message.lower() for r in caplog.records)
+    # Filter by logger name, like the HTTP-error test below: an unfiltered scan of
+    # caplog.records would be satisfied by ANY logger emitting the substring.
+    assert any(
+        "multiple" in r.message.lower()
+        for r in caplog.records
+        if r.name == "courses.geogebra"
+    )
 
 
 @override_settings(GEOGEBRA_API_LOOKUP=True)
@@ -893,7 +899,11 @@ def test_fetch_logs_a_valid_json_non_object_body(body, caplog):
     # exactly like a material having no dimensions.
     with _patch_open(body):
         assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
-    assert any("not an object" in r.message for r in caplog.records)
+    assert any(
+        "not an object" in r.message
+        for r in caplog.records
+        if r.name == "courses.geogebra"
+    )
 
 
 @override_settings(GEOGEBRA_API_LOOKUP=True)
@@ -912,7 +922,11 @@ def test_fetch_treats_an_oversized_body_as_a_distinct_failure(caplog):
 
     with _patch_open(b"x" * (_MAX_BODY_BYTES + 1)):
         assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
-    assert any("oversiz" in r.message.lower() for r in caplog.records)
+    assert any(
+        "oversiz" in r.message.lower()
+        for r in caplog.records
+        if r.name == "courses.geogebra"
+    )
 
 
 @override_settings(GEOGEBRA_API_LOOKUP=True)
@@ -1165,10 +1179,12 @@ def fetch_geogebra_dimensions(material_id):
         return None, None
 
     try:
-        # noqa: S310 mirrors integrations/delivery.py:50,122 — the URL is built from a
-        # hardcoded _API_PREFIX plus an _ID_RE-validated id, so it cannot carry an
-        # attacker-chosen scheme or host, and _NoRedirect stops the opener from
-        # following one.
+        # S310 justification (mirrors integrations/delivery.py:50,122): the URL is
+        # built from a hardcoded _API_PREFIX plus an _ID_RE-validated id, so it cannot
+        # carry an attacker-chosen scheme or host, and _NoRedirect stops the opener
+        # from following one. NOTE the wording: a comment LINE beginning "# noqa: S310"
+        # is parsed by ruff as a suppression directive on a line carrying no
+        # diagnostic -- inert today, but a duplicate the moment RUF100 is selected.
         request = urllib.request.Request(  # noqa: S310
             url, headers={"User-Agent": _USER_AGENT}
         )
@@ -1180,8 +1196,8 @@ def fetch_geogebra_dimensions(material_id):
         # surfaces an unexplained ResourceWarning.
         try:
             exc.close()
-        # S110 (try-except-pass) IS enabled and DOES fire here; BLE001 is not. Precedent
-        # for this exact pairing: tests/capture_help_screenshots.py:460.
+        # S110 (try-except-pass) IS enabled and DOES fire here; BLE001 is not.
+        # Precedent for S110 on a handler line: tests/capture_help_screenshots.py:460.
         except Exception:  # noqa: BLE001, S110 - closing must never mask the original
             pass
         return _fail(f"HTTP {exc.code}")
@@ -1505,17 +1521,21 @@ Expected: PASS. `tests/test_element_add_save.py:16` reaches the form through `FO
 
 `patch("courses.element_forms.fetch_geogebra_dimensions", ...)` raises at `with _patch_lookup()` **entry**, so in Step 2's RED run the body of every `assert_not_called()` test never executed. After Step 3 they all pass. Six absence assertions would therefore ship having never discriminated — the same gap Tasks 7, 8, 9 and 10 each get an explicit mutant step for. The test comments already *name* these mutants ("a build that DELETES `and mid`", "Gating on `url_changed` alone would kill this"); this step is where they actually get applied.
 
-One at a time, against `clean_url`, from a clean tree, reverting between each:
+One at a time, against `clean_url`, from a clean tree, reverting between each.
 
-| mutant | edit | expected RED |
-|---|---|---|
-| **a** | delete `and mid` from the **lookup** condition | `test_form_non_geogebra_dimensionless_paste_never_looks_up` (fires a GET at `…/materials/?scope=basic` with an empty id), `test_form_geogebra_host_without_a_material_id_never_looks_up` |
-| **b** | delete `not usable_dimensions(width, height) and` from the **lookup** condition | `test_form_static_embed_paste_never_looks_up` — a paste that already carries dimensions would look them up anyway |
-| **c** | delete `and not stored_usable` from the **lookup** condition | `test_form_title_only_edit_of_a_sized_element_never_looks_up` — every rename fires a network call inside the row lock |
-| **d** | delete `and mid` from the **stale-clear** condition | `test_form_non_geogebra_url_change_keeps_its_dimensions` (a Vimeo element loses its captured pair), `test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` |
-| **e** | delete the **whole stale-clear block** | `test_form_url_change_with_a_failed_lookup_does_not_keep_the_old_pair` — the previous material's `880 / 660` survives onto the new one |
+Run: `uv run pytest tests/test_iframe_dimensions.py -v` — **the whole file**, for the same reason Step 2 gives: a `-k` selector here would silently skip the five `…_looks_up` tests that are the point of the exercise.
 
-Record each outcome. Any of the six that cannot be driven red must be deleted or escalated, per Global Constraints.
+| mutant | edit | expected RED | expected collateral |
+|---|---|---|---|
+| **a** | delete `and mid` from the **lookup** condition | `test_form_non_geogebra_dimensionless_paste_never_looks_up` (fires a GET at `…/materials/?scope=basic` with an empty id), `test_form_geogebra_host_without_a_material_id_never_looks_up` | — |
+| **b** | delete `not usable_dimensions(width, height) and` from the **lookup** condition | `test_form_static_embed_paste_never_looks_up` — a paste that already carries dimensions would look them up anyway | the lookup then **overwrites** the parsed pair with `(None, None)`, so the pre-existing `test_form_captures_dimensions_from_full_iframe` (expects `(800, 760)`) and `test_form_re_paste_overwrites_dimensions` (expects `(640, 480)`) go red too |
+| **c** | delete `and not stored_usable` from the **lookup** condition | `test_form_title_only_edit_of_a_sized_element_never_looks_up` — every rename fires a network call inside the row lock | — |
+| **d** | delete `and mid` from the **stale-clear** condition | `test_form_non_geogebra_url_change_keeps_its_dimensions` (a Vimeo element loses its captured pair), `test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` | — |
+| **e** | delete the **whole stale-clear block** | `test_form_url_change_with_a_failed_lookup_does_not_keep_the_old_pair` — the previous material's `880 / 660` survives onto the new one | `stored_usable` stays True, so `test_form_url_change_clears_the_stale_pair_and_looks_up_afresh` also fails, on **both** `lookup.call_count == 1` and its `(800, 400)` assertion |
+
+**Judge each mutant only against its own expected-RED column** — the same rule Task 7's table carries. Mutants b and e each produce two or three reds where one was predicted; that is the collateral above, not a mis-applied mutant.
+
+Record each outcome. Any of the six guards that cannot be driven red must be deleted or escalated, per Global Constraints.
 
 - [ ] **Step 5: Re-label the two pre-existing tests whose meaning THIS task changes**
 
@@ -1776,7 +1796,7 @@ This is accepted, and it is the conservative choice rather than a missed case:
 
 Record this paragraph's conclusion in the PR body so the reviewer sees the gap was chosen, not missed.
 
-**Delete or rewrite these two existing render tests** — they are not implementation bugs:
+**Delete these two existing render tests** — they are not implementation bugs, and the table names what replaces each, so there is nothing left to rewrite. (Rewriting instead of deleting leaves near-duplicate coverage and throws off Step 2's enumerated failure modes.)
 
 | existing test | why it changes |
 |---|---|
@@ -1904,7 +1924,9 @@ Step 2's RED run does **not** cover **ten** of this task's assertions — they a
 
 **The mutants below were derived by tracing each test through `frame_ratio`'s five steps, not by guessing.** The subtlety that makes the obvious table wrong: the step-0 rejection cases and the style-injection URL all carry a material id **and** have `"width" in segments`, so `is_geogebra_iframe_url` is False and they return `None` at **step 1** — they never reach step 4 at all. A step-4 mutant therefore cannot touch them.
 
-Apply one mutant at a time, from a clean tree, reverting between each:
+Apply one mutant at a time, from a clean tree, reverting between each.
+
+Run: `uv run pytest tests/test_iframe_dimensions.py -v` — the whole file, not a `-k` subset.
 
 | mutant | edit to `courses/models.py` (or `geogebra.py`) | expected RED |
 |---|---|---|
@@ -1951,7 +1973,9 @@ The concrete object is in scope as **`obj`**, not `el` (which is the join row). 
 
 - [ ] **Step 1: Write the failing test**
 
-The `size_unknown` property test lives in **Task 7**, alongside the code that adds the property. What this task adds is the render-level check that the badge actually reaches the page — **the property test alone would pass with the template never edited.** Fully concrete; nothing to substitute. Imports go at the top of the module (see Global Constraints):
+The `size_unknown` property test lives in **Task 7**, alongside the code that adds the property. What this task adds is the render-level check that the badge actually reaches the page — **the property test alone would pass with the template never edited.** Imports go at the top of the module (see Global Constraints).
+
+`tests/test_editor_page.py:15` already defines `_editor_url(course, unit)` with the identical `reverse(...)`; import it rather than restating it if you prefer. Two deliberate divergences from that module's seeding convention, noted so neither reads as an omission: `CourseFactory()` is called **without `owner=`**, because `can_manage_course` grants a platform admin `courses.change_course` regardless of ownership (`courses/access.py:41-43`); and `ContentNodeFactory(course=course)` omits `kind`/`unit_type`/`parent` because the factory already defaults them to `"unit"` / `"lesson"` / `None`.
 
 ```python
 from django.urls import reverse
@@ -2212,6 +2236,15 @@ def test_badge_does_not_grow_the_editor_row_at_the_pane_floor(page, live_server)
     # weakening the operator: a check that cannot discriminate is worse than none.
     badge = badged_row.locator(".el-row__flag")
     assert badge.evaluate("el => el.clientWidth < el.scrollWidth")
+
+    # 5 (load-bearing): the badge is still READABLE, not shrunk to a bare ellipsis.
+    # min-width: 0 lets it shrink to zero, and assertion 4 treats being truncated as
+    # SUCCESS -- so without this floor the "passing" state includes a 0px badge that
+    # tells the author nothing and cannot even be hovered for its title tooltip,
+    # defeating the feature's whole editor-facing purpose. 60px is roughly "applet
+    # siz..." at .7rem; if the real build lands below it, that is the I1 branch in
+    # Step 2, not a reason to lower the number.
+    assert badge.bounding_box()["width"] >= 60
 ```
 
 **Do not** assert that the badge's own box lies inside the card: it renders *before* `.el-actions`, so negative free space is pushed onto the trailing item and the badge's box stays inside even on a build where it refuses to shrink.
@@ -2223,7 +2256,21 @@ Start the test DB first, then:
 Run: `uv run pytest tests/test_e2e_editor_row_layout.py -m e2e -v`
 (`-m e2e` is mandatory — e2e tests are deselected by default and the run would silently exit 5.)
 
-**This is not a plain green gate.** Assertions 1-3 must pass on the real build — a failure there is a genuine layout problem, so stop and investigate. **Assertion 4 is different: the plan expects it may be false on a correct build**, because `.el-actions` already wraps and "applet size unknown" is short, so the badge may simply never overflow at 1130px.
+**This is not a plain green gate**, and assertion 1 is not guaranteed either — read the branch below before treating a red as a defect.
+
+**Assertion 1 / the wrapped-line equality may legitimately go red, and that is a DESIGN outcome, not a bug to fix in the test.** `editor.css:562-566` records a measurement taken when the seventh control was added: at a 1130px viewport `.el-row__top` **offers 196px and the action bar wants 250px** — so the bar already overflows and already takes a second wrapped line *before* this feature exists. Inserting a `.7rem` "applet size unknown" badge (~110px) into that same contested 196px can plausibly push the badged row's bar onto a **third** line, making its row taller than the control row. If that happens, the implementation is correct and the layout is over-subscribed.
+
+**Permitted responses, in order — this is a decision, so state which you took and why in the PR:**
+
+1. **Shorten the badge label** (e.g. `size unknown`). ⚠️ The label is already committed to both `.po` catalogs and compiled by **Task 8 Step 6**, so this is *not* a one-line change: re-run `makemessages`/`compilemessages`, update the Polish `msgstr`, re-clear any fuzzy marker, and note the catalog churn in the PR.
+2. **Reduce the badge to an icon plus its existing `title` tooltip**, keeping the text for screen readers via `.visually-hidden`. ⚠️ Playwright reports `.visually-hidden` as *visible*, so any later assertion on it must measure `bounding_box()`, not `to_be_visible()`.
+3. **Move the badge onto the `.el-row__label` line** instead of `.el-row__top`, taking it out of the contested row entirely. This invalidates the `.el-row__top > .el-row__flag` scoping in Task 8 Step 4, so that rule moves with it.
+
+Do **not** resolve it by deleting assertion 1 — unlike assertion 4, it is measuring a real regression, and a red here means the badge genuinely costs a line.
+
+**Assertions 2 and 3 must pass.** A failure there is a genuine layout problem — the badge is pushing content outside the card — so stop and investigate rather than choosing from the list above.
+
+**Assertion 4 is different again: the plan expects it may be false on a correct build**, because `.el-actions` already wraps and "applet size unknown" is short, so the badge may simply never overflow at 1130px.
 
 If **only** assertion 4 fails, do not treat it as a defect and do not weaken its `<` operator. Apply its own rule now rather than waiting for Step 3: either escalate until it discriminates (widen the badge text to a temporary ~80-character label, or narrow the viewport in 50px steps, recording the width at which it goes red) or **delete the assertion** and say so in the PR. A check that cannot discriminate is worse than none.
 
@@ -2310,6 +2357,8 @@ Seed it, then capture — **seeding first, capture loop second, and re-navigatin
 **Precondition before the capture counts:** the string `inactive in quizzes` must be present in the rendered page. If it is not, the flag did not render and the step has not been performed — fix the unit type rather than filing the screenshot.
 
 Capture light + dark and confirm the flag is still legible and still reads as a warning — the shrink properties are scoped away from it (`.el-row__top > .el-row__flag`), so it must NOT have become truncatable.
+
+**Judge the NEW badge's readability too, not only the revealgate flag's.** `badge-light.png` / `badge-dark.png` are captured at 1130px, where the badge is deliberately allowed to ellipsise. Assertion 5 pins a 60px floor, but a number is not the same as legible: read the captures and confirm the text still communicates "size unknown" to an author at a glance. If it renders as a stub, take the I1 branch in Step 2 — do not accept it because the assertion passed.
 
 - [ ] **Step 5: Register the module in `scripts/e2e_chunks.sh` — MANDATORY — then commit**
 
