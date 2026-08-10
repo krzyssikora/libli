@@ -35,7 +35,13 @@ def test_x(page, live_server, ...):        # live_server provides the base URL
 - **The save gesture is `page.locator("[data-edit-slot] button[type='submit']").click()`** (`tests/test_e2e_questions.py:184`). There is no `data-el-save` attribute in this repo — do not invent one.
 - **The preview pane is `[data-scope="preview"]`** (`_preview.html:2`), used by `tests/test_e2e_questions.py:186`. There is no `data-preview` attribute — only unrelated `data-preview-el` / `-logo` / `-name`.
 - **Never `wait_for_load_state("networkidle")` after a save.** Saving posts via `postFragment` and swaps the `[data-scope]` panes — there is no navigation, so `networkidle` is a timing heuristic. Wait on a concrete selector instead.
-- **A post-save wait must target a node the swap *introduces*, not the pane that hosts it.** `[data-scope="preview"]` exists before the save, so waiting on it returns immediately and gives no synchronisation at all. Wait on the new content (`[data-scope="preview"] [data-question]`) on success, and on `[data-edit-slot] .field-error` when the save is expected to fail with a 422.
+- **A post-save wait must target a node the swap actually CHANGES.** `[data-scope="preview"]` exists before the save, so waiting on it returns immediately and gives no synchronisation at all — and neither does waiting on `[data-question]` / `[data-stepper]` / `[data-switchgate]`, because every test here opens a **pre-seeded** element that is already rendered in the preview. (The precedent at `tests/test_e2e_questions.py:186` works only because it *creates* the element, so the node genuinely appears.) On the **edit path**, wait for the save to clear the edit slot instead:
+
+  ```python
+  page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
+  ```
+
+  When the save is expected to **fail** with a 422 the slot is re-rendered rather than cleared, so wait on `[data-edit-slot] .field-error`.
 - **Every editor-opener fixture has one contract:** `opener(page, live_server, **kwargs) -> Element`. It logs in, seeds the element, navigates, opens its edit form, and returns the **`Element` join row**. It never returns the page.
 - **"element" always means the `Element` join row, never the content object.** This distinction is load-bearing and easy to get wrong in both directions:
   - the POST's `element` key, `form_url`, and `.el-act-edit[data-element-id]` all take the **join-row** pk — `builder._locked_element_in_unit` does `Element.objects.get(pk=element_pk, unit=unit)` (`:1464-1468`) and *then* reads `.content_object` (`:1088`). A content-object pk raises `ConflictError` → **409**, the misdiagnosis trap noted in `base_post`;
@@ -683,12 +689,12 @@ git commit -m "feat(editor): add formset_rows.js row add/remove helper"
 | `matchpair_element(pairs=[…])` | factory | `(course, unit, element)` with those pairs saved |
 | `switchgate_element(options=[…], answer=N, stem=…)` | factory | `(course, unit, element)` |
 | `open_matchpair_editor(saved_pairs=N)` | server-render | returns the edit fragment's HTML |
-| `open_stepper_editor()` / `open_markdone_editor()` / `open_choice_editor_html()` | server-render | edit fragment HTML |
+| `open_stepper_editor()` / `open_markdone_editor()` / `open_choice_editor_html()` / `open_switchgate_editor_html(options=[…], answer=N)` | server-render | edit fragment HTML |
 | `open_matchpair_editor_e2e(page, live_server, saved_pairs=N)` | e2e opener | returns the element |
 | `open_element_editor(page, live_server, kind, rows=[…])` | e2e opener | `kind` in `{"stepper","markdone"}`; returns the element |
 | `open_stepper_editor_e2e(page, live_server, steps=[…])` | e2e opener | returns the element (used at 20 steps) |
 | `open_choice_editor(page, live_server, options=[…])` | e2e opener | returns the element |
-| `open_switchgate_editor(page, live_server, options=[…], answer=N)` | e2e opener | returns the element |
+| `open_switchgate_editor(page, live_server, options=[…], answer=N, stem="2 {{choice}} 2 = 4")` | e2e opener | returns the element. **The stem must carry exactly one `{{choice}}` marker** — `SwitchGateElementForm.clean()` errors otherwise (`element_forms.py:415-421`), and `stem` is `blank=True`, so an opener that seeds without one makes every save-path switchgate e2e fail against a correct build |
 
 Write them all in Step 0 alongside the helpers, modelled on the login/seed helpers in
 `tests/test_e2e_questions.py` and `tests/test_e2e_switchgate.py`. Every later task assumes this
@@ -947,7 +953,7 @@ def test_more_rows_than_were_rendered_all_save(pa_client, matchpair_element):
     ):
         data[f"pairs-{i}-left"] = left
         data[f"pairs-{i}-right"] = right
-    for i, pair in enumerate(el.pairs.all()):
+    for i, pair in enumerate(el.content_object.pairs.all()):
         data[f"pairs-{i}-id"] = pair.pk
     # X-Requested-With: the success path ends `if not _wants_fragment(request):
     # return redirect(...)`, so a plain post returns 302, not 200.
@@ -959,7 +965,7 @@ def test_more_rows_than_were_rendered_all_save(pa_client, matchpair_element):
 
 def test_ticked_delete_removes_exactly_that_pair(pa_client, matchpair_element):
     course, unit, el = matchpair_element(pairs=[("a", "1"), ("b", "2"), ("c", "3")])
-    pairs = list(el.pairs.all())
+    pairs = list(el.content_object.pairs.all())
     data = base_post(course, unit, el, "matchpairquestion")
     data.update({
         "stem": "",
@@ -1036,7 +1042,7 @@ def test_add_three_pairs_without_saving(page, live_server, open_matchpair_editor
     page.locator(SAVE).click()
     # Wait on the swapped-in preview, not networkidle: the save is a fetch +
     # fragment swap with no navigation, so networkidle is a timing heuristic.
-    page.locator('[data-scope="preview"] [data-question]').first.wait_for(timeout=8000)
+    page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
     reopen(page, el.pk)
     # Exact count, not >= 5: after a correct run the reopened editor shows
     # 5 saved + extra=2 = 7 left-inputs, but >= 5 is ALSO satisfied when only one
@@ -1058,15 +1064,16 @@ def test_remove_a_filled_pair(page, live_server, open_matchpair_editor_e2e):
     # rather than asserting immediately after the click.
     row.wait_for(state="hidden", timeout=4000)
     page.locator(SAVE).click()
-    page.locator('[data-scope="preview"] [data-question]').first.wait_for(timeout=8000)
+    page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
     reopen(page, el.pk)
     assert page.locator("[data-fsrows-list] input[name$='-left']").count() == 4
 ```
 
 Build `open_matchpair_editor_e2e` from the login/seed/open helpers in `tests/test_e2e_questions.py`
 (it takes `page` and `live_server` and navigates to the unit editor with the element's form open).
-Confirm the real post-save selector against `tests/test_e2e_questions.py:186` before relying on
-`[data-scope="preview"] [data-question]` — copy whatever the existing question e2e wait on.
+Note this waits on the edit slot's form **detaching**, not on the preview: the element is
+pre-seeded, so its preview node already exists and waiting on it would return instantly (see Global
+Constraints).
 
 - [ ] **Step 8: Falsify the add test against master, then run it**
 
@@ -1075,22 +1082,22 @@ Confirm the real post-save selector against `tests/test_e2e_questions.py:186` be
 "file or directory not found" — an error, not the RED this step demonstrates. The module from Task 2
 is already committed and must stay.
 
-Stash that one path and pop it back — no `/tmp`, no `cp`, both of which are absent in the
-PowerShell shell the rest of these commands run in:
+**Mutate the handler, not the template.** Reverting the template would restore master's
+`data-pair-add` markup, so `[data-fsrows-add]` would not exist and the test would fail with a locator
+timeout — a selector error, proving only that the attribute is new. Disable the behaviour instead,
+leaving the button and every selector in place, so the click lands and the row count is what fails:
 
 ```
-git stash push -- templates/courses/manage/editor/_edit_matchpairquestion.html
+# in courses/static/courses/js/formset_rows.js, in the delegated click handler,
+# comment out:  if (w) addRow(w);
 uv run pytest tests/test_e2e_matchpair_rows.py::test_add_three_pairs_without_saving -m e2e -v   # expect FAIL
-git stash pop
+# restore the line
 uv run pytest tests/test_e2e_matchpair_rows.py -m e2e -v                                        # expect PASS
 ```
 
-A path-scoped `git stash push` is safe here even though the stash stack is shared across worktrees:
-it is popped immediately, in the same step. If anything else is stashed concurrently, capture the SHA
-from `git stash list --format='%H %gs'` and `git stash apply <sha>` instead of popping blind.
-
-Confirm the failure is "the add button did nothing" (no new rows), not a fixture or selector error —
-the mutant must fail for the reason under test.
+Confirm the failure is the **row count** (4 rendered instead of 7) — "the add button did nothing" —
+and not a locator timeout. That is what makes this a falsification of the handler rather than of the
+selector.
 
 - [ ] **Step 9: Commit**
 
@@ -1130,14 +1137,6 @@ pytestmark = pytest.mark.e2e   # NOT [django_db, e2e] — see Global Constraints
 
 SAVE = "[data-edit-slot] button[type='submit']"
 ROWS = {"stepper": ".stepper-rows li", "markdone": ".markdone-rows li"}
-# The preview markup differs per element type: only question elements render
-# [data-question]. stepperelement.html renders [data-stepper], markdoneelement.html
-# [data-markdone], and switchgate [data-switchgate]. Waiting on [data-question] here
-# would time out on a correct build.
-PREVIEW = {
-    "stepper": '[data-scope="preview"] [data-stepper]',
-    "markdone": '[data-scope="preview"] [data-markdone]',
-}
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -1172,7 +1171,7 @@ def test_add_row_still_works_after_retrofit(page, live_server, open_element_edit
     rows = page.locator(ROWS[kind])
     rows.last.locator('input[type="text"]').fill("retrofit row")
     page.locator(SAVE).click()
-    page.locator(PREVIEW[kind]).first.wait_for(timeout=8000)
+    page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
     reopen(page, el.pk, ready=ROWS[kind])
     assert "retrofit row" in _values(page, kind)
 
@@ -1187,7 +1186,7 @@ def test_remove_row_after_retrofit(page, live_server, open_element_editor, kind)
     row.locator("[data-fsrow-remove]").click()
     row.wait_for(state="hidden", timeout=4000)
     page.locator(SAVE).click()
-    page.locator(PREVIEW[kind]).first.wait_for(timeout=8000)
+    page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
     reopen(page, el.pk, ready=ROWS[kind])
     assert "two" not in _values(page, kind)
 ```
@@ -1381,7 +1380,8 @@ Choice keeps its own add path. Its existing hooks stay **in addition** to the ne
 - Modify: `templates/courses/manage/editor/_edit_choicequestion.html`
 - Modify: `courses/static/courses/js/editor.js` (`addChoiceRow`; delete the `choice-row--del` line in the clone, the "Reversible" comment, and the DELETE branch in the `change` handler)
 - Modify: `courses/static/courses/css/editor.css` (delete the `.choice-row--del` block **and the comment above it**)
-- Modify: `tests/test_e2e_questions.py` (module docstring; the `.check()` block)
+- Modify: `tests/test_e2e_questions.py` (the `test_choice_editor_add_remove_and_radio_js` docstring; the `.check()` block)
+- Modify: `tests/test_editor_formset_rows_render.py` (choice's PE + bounds tests, Step 4b)
 
 **Cite by content, not line number, from here on.** Task 1 inserted ~7 lines into `editor.css` and
 Step 1 below edits `_edit_choicequestion.html`, so every line reference in the spec and in earlier
@@ -1484,8 +1484,11 @@ Once init job 1 hides the DELETE label, the checkbox is out of the accessibility
 
 Verify first that `choice-row--del` has no other consumers:
 
-```bash
-grep -rn "choice-row--del" courses/ templates/ tests/
+Use the harness **Grep** tool (or `Select-String`) — `grep` is absent from PowerShell, the shell the
+rest of these commands run in:
+
+```
+Select-String -Path courses\**\*.js,courses\**\*.css,templates\**\*.html,tests\*.py -Pattern "choice-row--del"
 ```
 
 - [ ] **Step 3b: Add a clone-is-blank assertion**
@@ -1534,7 +1537,9 @@ with:
 ```
 
 Read the surrounding lines first and adapt the `before` text to what is actually there. Then remove
-`- "Remove" gives live feedback (row dims) before save;` from the module docstring.
+`- "Remove" gives live feedback (row dims) before save;` from the
+`test_choice_editor_add_remove_and_radio_js` docstring (around `:263`) — it is that
+function's docstring, not the module's.
 
 - [ ] **Step 4b: Add choice's render tests**
 
@@ -1568,10 +1573,20 @@ def test_choice_bounds(open_choice_editor_html):
 
 Task 5 introduces choice's remove control and the seven `addChoiceRow` amendments, and the
 clone-the-last-**non-hidden**-row rule has a silent failure mode: a clone of an invisible row while
-`TOTAL_FORMS` increments. Add a remove-then-add e2e to `tests/test_e2e_questions.py` (remove the last
-choice, click Add option, assert the new row **is visible** and its text input is empty), then revert
-the `if (!rows[i].hidden)` scan to `rows[rows.length - 1]` and confirm it goes RED with an invisible
-new row. Restore.
+`TOTAL_FORMS` increments.
+
+Add a remove-then-add e2e to `tests/test_e2e_questions.py`. **It must add a row first:** a fresh
+choice question renders exactly `extra=2` rows, which equals `data-fsrows-min="2"`, so every remove
+button starts `disabled` (Task 7's `test_at_minimum_hint` asserts exactly that) and the removal
+cannot execute. So: click Add option (now 3 rows), remove the last, click Add option again, and
+assert the new row **is visible** with an empty text input.
+
+**The mutant must drop `clone.hidden = false` as well as reverting the scan.** Reverting
+`if (!rows[i].hidden)` to `rows[rows.length - 1]` alone is not falsifiable: the amended function
+unconditionally un-hides the clone, unticks its DELETE, re-enables its remove button and blanks every
+input, so a clone of a hidden row still comes out visible, blank and enabled — indistinguishable from
+correct output. Amendments 1 and 2 are jointly what prevent the invisible clone, so the mutant has to
+break both.
 
 Without this, Task 5 is the only implementation task in the plan with no falsification step.
 
@@ -1601,6 +1616,7 @@ git commit -m "feat(editor): instant remove for choice rows; drop the unreachabl
 - Modify: `courses/static/courses/js/editor.js` (add the `libliInitSwitchGateEditor` post-swap call)
 - Modify: `tests/test_editor_js_scroll_invariants.py` (add `switchgate_editor.js` to `PANE_RESIDENT` — **now**, not in Task 2, because the roster asserts the file exists)
 - Modify: `tests/test_formset_rows_assets.py` (add the module-2 asset assertions)
+- Modify: `tests/test_editor_formset_rows_render.py` (switchgate's PE test, Step 4c)
 - Test: `tests/test_switchgate_client_post_shapes.py`, `tests/test_e2e_switchgate_rows.py` (create)
 
 **Interfaces:**
@@ -1647,8 +1663,7 @@ def test_removing_a_middle_option_keeps_the_right_answer(
     page.on("dialog", lambda d: d.accept())   # filled row -> confirm fires
     page.locator("[data-sgate-row]").nth(1).locator("[data-sgate-remove]").click()
     page.locator(SAVE).click()
-    # switchgate renders [data-switchgate], not [data-question]
-    page.locator('[data-scope="preview"] [data-switchgate]').first.wait_for(timeout=8000)
+    page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
     obj = el.content_object
     obj.refresh_from_db()
     assert obj.options[obj.answer] == "gamma"
@@ -1671,8 +1686,7 @@ def test_removing_an_interior_blank_lets_the_save_succeed(
     for i in (4, 3, 2):
         rows.nth(i).locator("[data-sgate-remove]").click()
     page.locator(SAVE).click()
-    # switchgate renders [data-switchgate], not [data-question]
-    page.locator('[data-scope="preview"] [data-switchgate]').first.wait_for(timeout=8000)
+    page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
     assert page.locator("text=Options cannot be empty").count() == 0
 ```
 
@@ -1912,7 +1926,7 @@ def test_editor_page_loads_switchgate_editor_js(client):
 (Written out rather than left as `...`: an ellipsis body leaves `resp` unbound, which raises
 `NameError` instead of failing — the same stub hazard Task 1 Step 5 warns about.)
 
-- [ ] **Step 4c: Add switchgate's progressive-enhancement render test**
+- [ ] **Step 4c: Add switchgate's progressive-enhancement render test to `tests/test_editor_formset_rows_render.py`**
 
 Half (a) only — switchgate has no formset and no DELETE label:
 
@@ -2105,15 +2119,17 @@ def test_422_reconciliation(page, live_server, open_matchpair_editor_e2e):
     page.on("dialog", lambda d: d.accept())
     row = page.locator("[data-fsrow-item]").nth(1)
     row.locator("[data-fsrow-remove]").click()
-    # The failure MUST be a NON-FORM error. _edit_matchpairquestion.html renders only
+    # The failure MUST be a NON-FORM error, and every form must stay INDIVIDUALLY
+    # valid to get one. _edit_matchpairquestion.html renders only
     # `{% for e in formset.non_form_errors %}`, and BaseMatchPairFormSet.clean()
-    # returns early on `any(self.errors)` — so blanking one field produces a per-form
-    # error that the template never displays, and no .field-error node would exist to
-    # wait on. Emptying every remaining pair instead yields "Add at least one pair."
-    for i in (0, 2):
-        r = page.locator("[data-fsrow-item]").nth(i)
-        r.locator('input[name$="-left"]').fill("")
-        r.locator('input[name$="-right"]').fill("")
+    # returns early on `any(self.errors)`. left/right are required CharFields with no
+    # blank=True, so BLANKING a saved row raises a per-form error the template never
+    # displays — no .field-error would exist to wait on. Removing the remaining saved
+    # rows instead marks them DELETE: deleted initial forms and untouched blank extras
+    # both produce no per-form errors, so clean() reaches len(kept) < 1 and renders
+    # "Add at least one pair."
+    for i in (2, 0):
+        page.locator("[data-fsrow-item]").nth(i).locator("[data-fsrow-remove]").click()
     page.locator(SAVE).click()
     # Wait on the ERROR, not the preview: this save is expected to fail, so the
     # preview never changes — and [data-scope="preview"] already exists, so waiting
@@ -2125,31 +2141,35 @@ def test_422_reconciliation(page, live_server, open_matchpair_editor_e2e):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_422_minimum_floor(page, live_server, open_choice_editor):
-    """The dead-end guard. Written via page.evaluate because the obvious phrasing
-    is not executable: java_script_enabled is per-CONTEXT and cannot be flipped
-    mid-page, and the 422 body is a POST response that cannot be re-fetched."""
+def test_minimum_floor_is_an_invariant(page, live_server, open_choice_editor):
+    """The dead-end guard, asserted DIRECTLY as an invariant rather than staged
+    through a 422 — because no 422 can reach it.
+
+    Both formsets render extra=2, so a re-render always carries at least two
+    un-ticked blank rows: `rows - ticked >= 2 == data-fsrows-min` ALWAYS, and the
+    floor branch never executes on any real server response. (Ticking the blanks too
+    does not help: each then has_changed(), the required `text` errors, clean()
+    returns early on any(self.errors), BaseFormSet skips DELETE-marked forms when
+    computing validity — so the save returns 200 and silently deletes everything,
+    never a 422.)
+
+    The floor is therefore a defensive invariant of init job 2, not a reachable
+    path. Testing it means driving job 2 directly: tick every DELETE, re-run the
+    init pass, and assert it refuses to hide below the minimum and un-ticks what it
+    left visible, so the checkbox state and the display never disagree."""
     open_choice_editor(page, live_server, options=["a", "b"])
-    # Tick ONLY the two PERSISTED rows. Ticking the extra=2 blanks as well makes each
-    # blank form has_changed(), so Django 5.2 no longer short-circuits empty_permitted
-    # and the required `text` field errors; BaseChoiceFormSet.clean() then returns
-    # early on `any(self.errors)` and never raises "Add at least two choices.", while
-    # BaseFormSet skips DELETE-marked forms when computing validity — so the save
-    # SUCCEEDS with a 200 and silently deletes all four rows. The .field-error wait
-    # would time out and the dead-end guard would never be exercised.
     page.evaluate(
-        "document.querySelectorAll('[data-fsrow-item]').forEach(function (row) {"
-        "  var t = row.querySelector('input[type=\\'text\\']');"
-        "  var d = row.querySelector('[name$=\\'-DELETE\\']');"
-        "  if (t && d && t.value.trim() !== '') d.checked = true;"
-        "})"
+        "document.querySelectorAll('[name$='-DELETE']')"
+        ".forEach(function (d) { d.checked = true; });"
+        "window.libliInitFormsetRows(document.querySelector('[data-fsrows]'));"
     )
-    page.locator(SAVE).click()
-    # Expected to fail validation ("Add at least two choices."), so wait on the error.
-    page.locator("[data-edit-slot] .field-error").first.wait_for(timeout=8000)
     visible = page.locator("[data-fsrow-item]:visible")
-    assert visible.count() >= 2
-    assert not visible.first.locator('input[name$="-DELETE"]').is_checked()
+    assert visible.count() == 2, "init job 2 must not hide below data-fsrows-min"
+    for i in range(visible.count()):
+        assert not visible.nth(i).locator('input[name$="-DELETE"]').is_checked(), (
+            "a row left visible by the floor must be un-ticked, or the checkbox "
+            "state and what the author sees disagree"
+        )
 ```
 
 - [ ] **Step 2: Run them**
@@ -2160,7 +2180,10 @@ uv run pytest tests/test_e2e_editor_row_mechanics.py -m e2e -v
 
 - [ ] **Step 3: Falsify the minimum floor**
 
-Remove the `if (keepVisible < min)` branch from init job 2, confirm `test_422_minimum_floor` FAILS with zero visible rows, then restore. This is the test whose absence would let an unrecoverable editor ship.
+Remove the `if (keepVisible < min)` branch from init job 2, confirm
+`test_minimum_floor_is_an_invariant` FAILS with **zero** visible rows, then restore. With the branch
+gone every ticked row hides, which is exactly the unrecoverable state the floor exists to prevent —
+so this mutant fails for the right reason.
 
 - [ ] **Step 4: Commit**
 
@@ -2206,9 +2229,9 @@ Confirm the roster against `makemessages`' actual output before writing the guar
 
 Fill in the Polish translations. `makemessages` fuzzy-prefills a *wrong* translation from a similar string — clearing a fuzzy entry is **two** deletions (the `#, fuzzy` line and the wrong `msgstr`). Verify:
 
-```bash
-grep -c "fuzzy" locale/pl/LC_MESSAGES/django.po   # expect 0
-grep -c "#~" locale/pl/LC_MESSAGES/django.po      # expect 0 (no obsolete)
+```
+(Select-String -Path locale\pl\LC_MESSAGES\django.po -Pattern "fuzzy").Count   # expect 0
+(Select-String -Path locale\pl\LC_MESSAGES\django.po -Pattern "#~").Count      # expect 0
 ```
 
 - [ ] **Step 3: Extend the catalog guard**
