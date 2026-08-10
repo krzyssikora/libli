@@ -43,6 +43,12 @@ def quiz_feedback_context(question, response, *, result=None, validation=False):
     if revealing:
         # Reuse the per-type feedback_context (choices, reveal_template) for the reveal.
         ctx.update(question.feedback_context(result))
+        if question.INLINE_QUIZ_REVEAL:
+            # This type marks its own options list once locked (choice: ✓/✗/＋ per
+            # option), so the bottom list would print the same answer key a second
+            # time — and print it detached from the options, which is what made a
+            # student unable to line up "what I picked" against "what was right".
+            ctx["reveal_template"] = None
     else:
         # Withhold: no reveal_template, no mark_result payload beyond correct=False.
         ctx["mark_result"] = result

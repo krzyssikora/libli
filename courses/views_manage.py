@@ -11,6 +11,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.translation import gettext as _
@@ -2389,6 +2390,29 @@ def element_try(request, slug, pk):
     ctx = quiz_feedback_context(
         question, stand_in, result=result, validation=validation
     )
+    if question.INLINE_QUIZ_REVEAL:
+        # This type's reveal is the marking ON its options list, which lives outside
+        # the feedback box — so the fragment alone would preview a verdict with no
+        # marked options. Return the whole element, exactly as the student path does
+        # (views._quiz_render_feedback); editor.js swaps the live form's body.
+        from courses.quiz import rehydrate
+
+        selected, _submitted = rehydrate(question, stand_in.latest_answer)
+        return HttpResponse(
+            question.render(
+                element=el,
+                mode="quiz",
+                feedback_for_pk=el.pk,
+                action_url=request.path,
+                selected_ids=selected,
+                mark_result=result if stand_in.locked else None,
+                locked=stand_in.locked,
+                attempts_left=ctx.get("attempts_left"),
+                feedback_html=render_to_string(
+                    "courses/elements/_quiz_question_feedback.html", ctx
+                ),
+            )
+        )
     return render(request, "courses/elements/_quiz_question_feedback.html", ctx)
 
 

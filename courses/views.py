@@ -1293,6 +1293,7 @@ def build_quiz_context(node, user):
             "locked": bool(r.locked) if r else False,
             "attempts_left": None,
             "feedback_html": "",
+            "mark_result": None,
         }
         if r is not None and r.attempt_count > 0:
             selected, submitted = rehydrate(q, r.latest_answer)
@@ -1303,6 +1304,12 @@ def build_quiz_context(node, user):
                 if q.marking_mode == QuestionElement.MarkingMode.AUTO
                 else None  # [N]/[R] -> neutral branch in quiz_feedback_context
             )
+            # Only a LOCKED question hands its result to the element render: the
+            # types that mark their options inline key the reveal off it, and while
+            # attempts remain the answer key must stay withheld. Same gate
+            # quiz_feedback_context applies to reveal_template.
+            if r.locked:
+                state["mark_result"] = result
             fb_ctx = quiz_feedback_context(q, r, result=result)
             state["attempts_left"] = fb_ctx.get("attempts_left")
             state["feedback_html"] = render_to_string(
@@ -1406,6 +1413,35 @@ def _quiz_render_feedback(
         question, response, result=result, validation=validation
     )
     if _wants_fragment(request):
+        if question.INLINE_QUIZ_REVEAL:
+            # The marking lives IN the options list, which sits outside the feedback
+            # box — so returning the box alone would swap in "Correct" while leaving
+            # the options unmarked. Return the whole element and let quiz.js swap the
+            # live form's body (the data-question-inline contract question.js already
+            # implements for the lesson path).
+            selected, _submitted = rehydrate(question, response.latest_answer)
+            return HttpResponse(
+                question.render(
+                    element=element,
+                    mode="quiz",
+                    feedback_for_pk=element.pk,
+                    action_url=reverse(
+                        "courses:quiz_answer",
+                        kwargs={
+                            "slug": node.course.slug,
+                            "node_pk": node.pk,
+                            "element_pk": element.pk,
+                        },
+                    ),
+                    selected_ids=selected,
+                    mark_result=result if response.locked else None,
+                    locked=response.locked,
+                    attempts_left=fb_ctx.get("attempts_left"),
+                    feedback_html=render_to_string(
+                        "courses/elements/_quiz_question_feedback.html", fb_ctx
+                    ),
+                )
+            )
         return render(request, "courses/elements/_quiz_question_feedback.html", fb_ctx)
     # No-JS: full quiz_unit re-render. Inject THIS question's fragment into its
     # single feedback box (render_states[pk]["feedback_html"]) and rehydrate its
@@ -1428,6 +1464,10 @@ def _quiz_render_feedback(
         selected, submitted = rehydrate(question, response.latest_answer)
         st["selected_ids"] = selected
         st["submitted_values"] = submitted
+        # Same locked-only gate build_quiz_context applies. Needed here for the
+        # PREVIEWER, whose responses map is empty, so build_quiz_context derived
+        # nothing to mark this question's options with.
+        st["mark_result"] = result if response.locked else None
     return render(request, "courses/quiz_unit.html", ctx)
 
 

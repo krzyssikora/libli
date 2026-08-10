@@ -142,6 +142,19 @@ blockquote {
 .el--question .question__stem { margin-bottom: var(--space-3); }
 .el--question .question__choices { list-style: none; padding: 0; margin: 0 0 var(--space-3); }
 .el--question .question__choice { margin: var(--space-1) 0; }
+/* The option the student picked, in a LOCKED quiz. Locking disables every input,
+   and a disabled radio is drawn grey-dot-on-grey-ring — at body size that is
+   indistinguishable from an unchecked option, so the selection has to be carried by
+   the row itself. Same chosen-cell tint the grid question types already use
+   (.choicegrid/.multigrid `td:has(input:checked)`), for one visual vocabulary.
+   Padding is on the modifier only, so an unmarked options list keeps its metrics. */
+.el--question .question__choice--picked {
+  background: var(--primary-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  margin-left: calc(var(--space-2) * -1);
+  margin-right: calc(var(--space-2) * -1);
+}
 .el--question .question__feedback:empty { display: none; }
 
 /* Feedback panel: sets per-question feedback apart from the question content with a
@@ -205,6 +218,14 @@ blockquote {
   font-weight: 600;
 }
 .question__choice-marker--wrong { color: var(--danger); }
+.question__choice-marker--correct { color: var(--success); }
+/* Locked quiz: put the marker INLINE after the option text ("Paris ✓") instead of
+   on its own line. app.css's `label { display: block }` is what pushes it down, so
+   the label has to become inline-block for the row to read as one statement — a
+   lone glyph on the next line reads as unrelated content. Any per-option feedback
+   is still a block, so it drops below and keeps its own indent. */
+.question__choices--marked .question__choice > label { display: inline-block; margin-bottom: 0; }
+.question__choices--marked .question__choice-marker { margin: 0 0 0 var(--space-2); }
 /* A correct option the student did NOT pick: amber "you missed this", never the
    affirming green of --success (which reads as "you got it right"). */
 .question__choice-marker--missed { color: var(--warning); }

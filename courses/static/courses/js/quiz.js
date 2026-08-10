@@ -49,8 +49,27 @@
         window.location.reload();
         return;
       }
-      const box = form.querySelector("[data-question-feedback]");
-      box.innerHTML = await res.text();
+      const html = await res.text();
+      let box = null;
+      if (form.hasAttribute("data-question-inline")) {
+        // Types that mark their options list inline (choice) answer with the WHOLE
+        // element, because the markers land outside the feedback box. Swap the live
+        // form's body — not the form itself — so this submit listener survives, then
+        // re-query: the pre-swap feedback box is detached by the assignment. Same
+        // contract question.js implements on the lesson side. A response with no
+        // <form> (defensive) falls through to the plain box swap below.
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const newForm = doc.querySelector("form");
+        if (newForm) {
+          form.innerHTML = newForm.innerHTML;
+          box = form.querySelector("[data-question-feedback]");
+          typeset(form); // re-typeset the swapped stems/choices, not just the box
+        }
+      }
+      if (!box) {
+        box = form.querySelector("[data-question-feedback]");
+        box.innerHTML = html;
+      }
       // An empty-answer validation doesn't consume an attempt; everything else does.
       if (qEl && !box.querySelector(".is-validation")) {
         qEl.setAttribute("data-attempts-made", String(made + 1));

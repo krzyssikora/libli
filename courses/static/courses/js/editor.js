@@ -253,30 +253,35 @@
         headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
         body: body,
       }).then(function (r) { return r.text(); }).then(function (html) {
+        var slot = null;
         if (tryForm.hasAttribute("data-question-inline")) {
-          // Choice LESSON preview: full element -> swap the live form body, re-render
-          // math against the live form (the pre-fetch `slot` is detached). A choice
-          // question in a QUIZ unit ALSO carries data-question-inline (the attribute is
-          // unconditional on the form), but element_try's quiz branch returns a
-          // form-LESS _quiz_question_feedback.html; so only take the form-body swap when
-          // a <form> is actually present, and otherwise FALL THROUGH to the existing
-          // bottom-slot swap below — never early-return on the null case (that would
-          // break the quiz choice-question preview).
+          // Choice preview (LESSON and QUIZ both): the response is the full element,
+          // because this type's feedback is marked ON its options list, outside the
+          // feedback box. Swap the live form's body — not the form — so the delegated
+          // handler and the form node survive, then re-render math against the live
+          // form (the pre-fetch slot is detached by the assignment).
+          //
+          // Do NOT return here. The quiz branch still needs the attempt counter and
+          // the terminal-state freeze below, and those read the POST-swap slot; this
+          // used to early-return, which was safe only while element_try's quiz branch
+          // answered with a form-LESS fragment. A response with no <form> (a lesson
+          // non-choice type, or a defensive miss) falls through to the plain swap.
           var doc = new DOMParser().parseFromString(html, "text/html");
           var newForm = doc.querySelector("form");
           if (newForm) {
             tryForm.innerHTML = newForm.innerHTML;
             if (window.libliRenderMath) window.libliRenderMath(tryForm);
             renderPreviewMath(tryForm);
-            return;
+            slot = tryForm.querySelector("[data-question-feedback]");
           }
-          // no <form> in the response (quiz feedback fragment) -> fall through.
         }
-        var slot = tryForm.querySelector("[data-question-feedback]");
-        if (!slot) return;
-        slot.innerHTML = html;
-        if (window.libliRenderMath) window.libliRenderMath(slot);
-        renderPreviewMath(slot);  // inline math in revealed answers / explanation
+        if (!slot) {
+          slot = tryForm.querySelector("[data-question-feedback]");
+          if (!slot) return;
+          slot.innerHTML = html;
+          if (window.libliRenderMath) window.libliRenderMath(slot);
+          renderPreviewMath(slot);  // inline math in revealed answers / explanation
+        }
         if (!qEl) return;
         // An empty-answer validation doesn't consume an attempt; everything else does.
         if (!slot.querySelector(".is-validation")) {
