@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block head_title %}{% trans "Breakdown" %} · {{ course.title }} · libli{% endblock %}
+{% block extra_css %}{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 {% block content %}
 <section class="manage breakdown">
   <header class="manage__head">
@@ -15,3 +16,4 @@
   </ul>
 </section>
 {% endblock %}
+{% block extra_js %}{% if has_math %}{% include "courses/_katex_js.html" %}{% endif %}{% endblock %}

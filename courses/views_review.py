@@ -118,6 +118,13 @@ def review_queue(request, slug):
     data = review_svc.pending_reviews_for(
         request.user, course, drafts="keep-with-data", with_data=with_data
     )
+    # `data` is the only local: awaiting/in_progress are unpacked inline in the
+    # render() call below, so there are no locals of those names. Both are plain
+    # lists (pending_reviews_for materialises them with list(...select_related)),
+    # so the concatenation is valid and the scan touches no database.
+    has_math = titles_have_math(
+        s.unit.title for s in data["awaiting"] + data["in_progress"]
+    )
     return render(
         request,
         "courses/manage/review_queue.html",
@@ -125,6 +132,7 @@ def review_queue(request, slug):
             "course": course,
             "awaiting": data["awaiting"],
             "in_progress": data["in_progress"],
+            "has_math": has_math,
         },
     )
 

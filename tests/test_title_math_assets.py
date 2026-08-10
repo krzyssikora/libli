@@ -413,3 +413,116 @@ def test_course_results_loads_katex_for_a_maths_row_title(client):
 def test_course_results_loads_no_katex_without_maths(client):
     url = _course_results_url_with_quiz_title(client, "Plain quiz")
     _assert_katex_absent(client.get(url).content.decode())
+
+
+# =============================================================================
+# The gate: analytics + review queue
+# =============================================================================
+
+
+def _owned_course(client, *, maths_on):
+    """A course owned by the logged-in PA, with one enrolled student."""
+    pa = make_pa(client)
+    course, _unit, nodes = make_title_course(maths_on=maths_on)
+    course.owner = pa
+    course.save(update_fields=["owner"])
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    return course, student, nodes
+
+
+def test_analytics_matrix_loads_katex_for_a_maths_leaf_title(client):
+    course, _s, _n = _owned_course(client, maths_on="far")
+    url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    _assert_katex_present(client.get(url).content.decode())
+
+
+def test_analytics_matrix_loads_katex_for_an_expanded_group_title(client):
+    """THE GROUP CASE. A maths title on an EXPANDED group node, with every leaf
+    column maths-free. This fails if the scan reads matrix["columns"] instead of
+    matrix["header_rows"] -- columns holds leaf columns only, so the group cell
+    line 126 renders would be silently missed."""
+    course, _s, nodes = _owned_course(client, maths_on="group")
+    base = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    body = client.get(f"{base}?expand={nodes['part2'].pk}").content.decode()
+    # Precondition: every LEAF title is maths-free.
+    for key in ("unitA", "unitB", "unitC", "part1"):
+        assert "\\(" not in nodes[key].title
+    _assert_katex_present(body)
+
+
+def test_analytics_matrix_loads_no_katex_without_maths(client):
+    course, _s, _n = _owned_course(client, maths_on="none")
+    url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    _assert_katex_absent(client.get(url).content.decode())
+
+
+def test_analytics_breakdown_returns_200_and_loads_katex(client):
+    """THE SHAPE TEST. A bare smoke assertion suffices for the wrapper mistake:
+    passing `breakdown` instead of `breakdown["tree"]` raises TypeError, so this
+    catches it rather than shipping a 500."""
+    course, student, _n = _owned_course(client, maths_on="far")
+    url = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": student.pk},
+    )
+    resp = client.get(url)
+    assert resp.status_code == 200
+    _assert_katex_present(resp.content.decode())
+
+
+def test_analytics_breakdown_loads_no_katex_without_maths(client):
+    course, student, _n = _owned_course(client, maths_on="none")
+    url = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": student.pk},
+    )
+    _assert_katex_absent(client.get(url).content.decode())
+
+
+def _review_queue_url(client, unit_title):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="quiz",
+        parent=None,
+        order=0,
+        title=unit_title,
+    )
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="<p>Explain plainly.</p>",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5"),
+    )
+    Element.objects.create(unit=unit, content_object=q)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    return reverse("courses:manage_review_queue", kwargs={"slug": course.slug})
+
+
+def test_review_queue_loads_katex_for_a_maths_title(client):
+    url = _review_queue_url(client, MATHS_TITLE)
+    resp = client.get(url)
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    # Precondition, inline rather than in prose: the submission must actually
+    # land in data["awaiting"] (SUBMITTED + an unreviewed [R] question). An empty
+    # queue would otherwise read as a scan bug rather than a fixture bug.
+    assert MATHS_TITLE in body, "the review-queue row did not render"
+    _assert_katex_present(body)
+
+
+def test_review_queue_loads_no_katex_without_maths(client):
+    url = _review_queue_url(client, "Plain quiz")
+    _assert_katex_absent(client.get(url).content.decode())

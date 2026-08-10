@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block head_title %}{% trans "Analytics" %} · {{ course.title }} · libli{% endblock %}
+{% block extra_css %}{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 {% block content %}
 <section class="manage analytics">
   <header class="manage__head">
@@ -189,6 +190,7 @@
 {% endblock %}
 
 {% block extra_js %}
+  {% if has_math %}{% include "courses/_katex_js.html" %}{% endif %}
 <script>
   // Select-all + subset-bar disclosure. Pure enhancement: no-JS users always see
   // the "Apply selection" bar and check rows individually. With JS, the bar is
