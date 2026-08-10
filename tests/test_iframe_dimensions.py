@@ -214,6 +214,13 @@ def test_editor_row_shows_the_badge_for_a_dimensionless_geogebra_element(client)
     html = _editor_html(client, IframeElement.objects.create(url=URL, title="P"))
     assert "el-row__flag" in html
     assert "applet size unknown" in html
+    # The visible signal is now an icon, not the text above (which survives only
+    # for screen readers as a .visually-hidden span) -- so also pin the <use>/
+    # <symbol> pair. Without this, renaming or dropping #ic-warn in
+    # _icon_sprite.html leaves the badge an invisible blank box while every
+    # other assertion here (and the CSS-fixed-size e2e check) stays green.
+    assert 'href="#ic-warn"' in html
+    assert 'id="ic-warn"' in html
 
 
 @pytest.mark.django_db

@@ -98,12 +98,20 @@ body.editor-page .app-main { max-width: 102rem; }
    which matched the no-badge control exactly -- so .el-actions keeps its no-badge
    width. The label text survives for screen readers as a nested .visually-hidden
    span: NOT deleted, just taken out of layout (position: absolute), so it no longer
-   contributes to the row's flex-basis at all. Scoped to .el-row__top so the
-   revealgate flag (plain text, unstyled on purpose) is untouched. */
+   contributes to the row's flex-basis at all. Scoped to .el-row__top (both rules
+   below) so the revealgate flag (plain text, unstyled on purpose) is untouched.
+   `color: var(--warning)` overrides the inherited --text-secondary from the shared
+   rule above: with the label text gone from view, colour is now the ONLY at-a-glance
+   signal a sighted author gets before hovering for the title tooltip -- grey read as
+   "just another tag", not a warning, in review. --warning exists in both themes
+   (#B8811F light / #E8B761 dark). */
 .el-row__top > .el-row__flag {
   flex: 0 0 auto; display: inline-flex; align-items: center;
+  color: var(--warning);
 }
-.el-row__flag .ic { width: 14px; height: 14px; display: block; fill: currentColor; }
+.el-row__top > .el-row__flag .ic {
+  width: 14px; height: 14px; display: block; fill: currentColor;
+}
 .el-select {
   flex: 1; text-align: left; background: none; border: 0; cursor: pointer;
   color: var(--text-primary); text-decoration: underline; padding: 0;
