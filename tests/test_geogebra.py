@@ -4,6 +4,7 @@ from courses.geogebra import DIM_MAX
 from courses.geogebra import canonicalize_geogebra_url
 from courses.geogebra import geogebra_material_id
 from courses.geogebra import geogebra_sized_src
+from courses.geogebra import is_geogebra_iframe_url
 from courses.geogebra import usable_dimensions
 
 CANON = "https://www.geogebra.org/material/iframe/id/egZJdjsC"
@@ -148,3 +149,39 @@ def test_geogebra_material_id_never_raises_on_malformed_authority():
 )
 def test_usable_dimensions_rejects_everything_else(w, h):
     assert usable_dimensions(w, h) is False
+
+
+# --- is_geogebra_iframe_url: the render/badge predicate ---
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("https://www.geogebra.org/material/iframe/id/dcjktevj", True),
+        ("https://geogebra.org/material/iframe/id/dcjktevj", True),      # bare host
+        # the "width" in segments clause — geogebra_sized_src refuses this one too
+        (
+            "https://www.geogebra.org/material/iframe/id/dcjktevj"
+            "/width/880/height/660",
+            False,
+        ),
+        # not a shape sized_src rewrites
+        ("https://www.geogebra.org/m/dcjktevj", False),
+        ("https://www.geogebra.org/material/show/id/dcjktevj", False),
+        ("https://www.geogebra.org/x", False),
+        ("https://www.geogebra.org/classic/abc", False),
+        # non-https
+        ("http://www.geogebra.org/material/iframe/id/dcjktevj", False),
+        ("https://example.com/material/iframe/id/dcjktevj", False),
+        # deliberately STRICTER than geogebra_sized_src, which never indexes segments[3]
+        ("https://www.geogebra.org/material/iframe/id", False),  # no id at all
+        # id fails _ID_RE
+        ("https://www.geogebra.org/material/iframe/id/ab%20cd", False),
+    ],
+)
+def test_is_geogebra_iframe_url(url, expected):
+    assert is_geogebra_iframe_url(url) is expected
+
+
+def test_is_geogebra_iframe_url_never_raises_on_malformed_authority():
+    assert is_geogebra_iframe_url("https://[::1") is False

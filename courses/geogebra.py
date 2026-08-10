@@ -101,6 +101,32 @@ def canonicalize_geogebra_url(url):
     return _CANONICAL.format(material_id) if material_id else url
 
 
+def is_geogebra_iframe_url(url):
+    """True only for the canonical shape geogebra_sized_src will rewrite.
+
+    Mirrors that function's guard in FULL — including the easily-missed
+    `"width" in segments` disjunct — so frame_ratio can never claim a ratio the
+    rendered src does not back up. Deliberately STRICTER in one respect:
+    geogebra_sized_src never validates segments[3], so ".../id" (no id) and an id
+    failing _ID_RE are True there and False here. Both are degenerate shapes that
+    clean_url cannot produce; see the design doc's divergence table.
+
+    Never raises.
+    """
+    try:
+        parts = urlsplit(url)
+        if parts.scheme != "https":
+            return False
+        if (parts.hostname or "").lower() not in _GEOGEBRA_HOSTS:
+            return False
+        segments = parts.path.split("/")[1:]
+        if segments[:3] != ["material", "iframe", "id"] or "width" in segments:
+            return False
+        return len(segments) > 3 and bool(_ID_RE.match(segments[3]))
+    except (ValueError, TypeError, IndexError):
+        return False
+
+
 def geogebra_sized_src(url, width, height):
     """Append ``/width/W/height/H`` to a canonical GeoGebra material/iframe URL.
 
