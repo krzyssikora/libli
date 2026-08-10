@@ -730,7 +730,7 @@ git commit -m "feat(geogebra): add geogebra_url_size for URL-sized applets"
 GEOGEBRA_API_LOOKUP = env.bool("LIBLI_GEOGEBRA_API_LOOKUP", default=True)
 ```
 
-`config/settings/test.py`:
+`config/settings/test.py`, **immediately after `HTMLEL_SANDBOX_ORIGIN = "http://testserver"`** and before the `--- optional: run against the disposable tuned server ---` block. (This file is not a flat constants list — it ends with `import ipaddress` / `import socket` under `# noqa: E402`, three helper functions and a conditional `DATABASES` reassignment, so appending blindly lands the flag in the wrong region.)
 
 ```python
 # The suite must never reach geogebra.org. Tests that exercise the lookup opt back in
@@ -750,6 +750,8 @@ The line is **commented out**, matching its neighbour `.env.example:21` (`# LIBL
 - [ ] **Step 3: Write the failing tests**
 
 As in Task 1, **`import pytest` is already line 1** of `tests/test_geogebra.py` — it is shown below only to place the others in isort order, not to be pasted again.
+
+**Why several of these tests can safely reuse the same material id.** `"derived"` appears in two tests and `"dcjktevj"` in four, and the first of each group writes a 60-second negative-cache sentinel under that id. They stay independent only because `tests/conftest.py::_clear_site_cache` is **autouse** and calls `cache.clear()` around every test. That fixture is load-bearing here: without it three of these tests go red for reasons unrelated to the code, and three others pass vacuously. If you ever debug a sentinel-shaped failure in this file, look there first.
 
 ```python
 import json
@@ -912,6 +914,21 @@ def test_fetch_negative_caches_a_failure_for_the_same_id():
         assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
         assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
     assert opener.call_count == 1
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_negative_cache_is_scoped_to_ONE_id():
+    # THE guard on the {material_id} in the cache key. A build using a constant key
+    # (e.g. "geogebra:dims") passes every other test here: the same-id test still sees
+    # call_count == 1, and the kill-switch test asserts an ABSENCE, true for a constant
+    # key too. The mutant is not cosmetic -- one 400 on a bad id would suppress sizing
+    # for EVERY material for 60s, so unrelated embeds silently render 4:3 with a badge
+    # and no log naming them.
+    with _patch_open(exc=urllib.error.URLError("down")):
+        assert fetch_geogebra_dimensions("badid0000") == (None, None)
+    with _patch_open(_payload("wseg.json")) as opener:
+        assert fetch_geogebra_dimensions("wgzr7tsu") == (880, 660)
+    opener.assert_called_once()   # the second id was NOT short-circuited
 
 
 def test_fetch_kill_switch_makes_no_request_and_writes_no_sentinel():
@@ -1294,7 +1311,8 @@ def test_form_url_change_with_a_failed_lookup_does_not_keep_the_old_pair():
         assert form.is_valid(), form.errors
     saved = form.save()
     assert (saved.width, saved.height) == (None, None)
-    assert saved.size_unknown is True   # the badge the author needs, not a stale frame
+    # NOTE: the badge half of this outcome (size_unknown is True) is asserted in Task 7,
+    # which is what adds the property. Do NOT add it here -- it would AttributeError.
 
 
 @pytest.mark.django_db
@@ -1453,6 +1471,8 @@ git commit -m "feat(embed): look up GeoGebra dimensions when a paste does not ca
 
 In `tests/test_iframe_dimensions.py`, add a second render constant and the new cases. **`OTHER_RENDER_URL` is only safe in render tests** — they build an unsaved `IframeElement` and call `render_to_string`, bypassing validation; `example.com` is not in `ALLOWED_EMBED_DOMAINS` and would raise in a form test.
 
+**`_render` below REPLACES the existing helper at `tests/test_iframe_dimensions.py:10-12` — delete those three lines and put the `_render_url` + `_render` pair in their place.** Appending instead leaves two module-level `def _render` in one file. Every test still passes (the later binding wins at call time), so nothing in Tasks 7-9 catches it — but `F811` (redefinition) is in ruff's `F` selection and turns the final `ruff check .` gate red, a trap the Global Constraints list does not otherwise name. After the edit, exactly one `def _render` may remain in the file; check before moving on.
+
 ```python
 # render tests only — example.com is NOT whitelisted, so a form test would raise
 OTHER_RENDER_URL = "https://example.com/embed/abc"
@@ -1466,12 +1486,11 @@ def _render_url(url, width=None, height=None):
 
 
 def _render(width, height):
-    """The pre-existing helper, redefined in terms of _render_url.
+    """The pre-existing helper, REPLACED IN PLACE (not appended) by this one line.
 
-    tests/test_iframe_dimensions.py:10 already defines _render(width, height) and two
-    surviving tests still call it. Keep the name so those callers are untouched, but
-    give it ONE implementation -- two near-identical render helpers in one module leave
-    the next reader unable to tell which is canonical.
+    Keeps the name so the two surviving callers are untouched, but leaves ONE
+    implementation -- two near-identical render helpers would leave the next reader
+    unable to tell which is canonical.
     """
     return _render_url(URL, width, height)
 
@@ -1618,6 +1637,23 @@ def test_render_never_raises_on_a_malformed_authority():
 def test_size_unknown_drives_the_editor_badge(url, width, height, expected):
     el = IframeElement(url=url, width=width, height=height)
     assert el.size_unknown is expected
+
+
+@pytest.mark.django_db
+def test_url_change_with_a_failed_lookup_leaves_the_element_badged():
+    # The badge half of Task 6's
+    # test_form_url_change_with_a_failed_lookup_does_not_keep_the_old_pair, which could
+    # not assert it there: size_unknown does not exist until this task. Together they
+    # pin the full outcome -- the new material neither inherits the old 880x660 nor
+    # renders a confidently wrong frame with no badge to explain it.
+    obj = IframeElement.objects.create(url=URL, title="P", width=880, height=660)
+    new_url = "https://www.geogebra.org/material/iframe/id/other123"
+    form = IframeElementForm(data={"url": new_url, "title": "P"}, instance=obj)
+    with patch(
+        "courses.element_forms.fetch_geogebra_dimensions", return_value=(None, None)
+    ):
+        assert form.is_valid(), form.errors
+    assert form.save().size_unknown is True
 ```
 
 `test_size_unknown_drives_the_editor_badge` lives **here, not in Task 8**, because Task 7 Step 3 is what adds the property. Left in Task 8 it would first run against an implementation that already exists and pass immediately, never demonstrating a failure mode — Task 7 would ship production code its own task never tests. Here it fails cleanly with `AttributeError: 'IframeElement' object has no attribute 'size_unknown'`.
@@ -1705,6 +1741,24 @@ Add to `IframeElement`, after `embed_src`:
         return is_geogebra_iframe_url(self.url) and not usable_dimensions(
             self.width, self.height
         )
+```
+
+**Also amend the `width`/`height` field comment** at `courses/models.py:778-780`, which this task makes wrong on both clauses. It currently reads:
+
+```python
+    # Pasted <iframe> intrinsic size; drives the render aspect ratio (16:9 fallback
+    # when null). Null = unknown (plain-URL paste). Not form fields — captured in
+    # IframeElementForm.clean_url.
+```
+
+After this task a null pair on a canonical GeoGebra URL yields `800 / 600`, **not** the 16:9 fallback, and the pair is no longer only "pasted" — it can come from the API lookup. Replace with:
+
+```python
+    # Intrinsic applet/embed size, from a pasted <iframe> or from the GeoGebra API
+    # lookup. Null = unknown; frame_ratio's five ordered steps decide what the wrapper
+    # then claims (a canonical GeoGebra embed falls back to GeoGebra's own 800x600,
+    # everything else to .embed-frame's 16:9). Not form fields — captured in
+    # IframeElementForm.clean_url.
 ```
 
 In `templates/courses/elements/iframeelement.html`, line 3. Bind the value **once** with `{% with %}` rather than naming the property twice:
@@ -1823,7 +1877,7 @@ Single quotes inside the attribute, matching lines 305 and 312 of the same file.
 
 - [ ] **Step 4: Add the CSS**
 
-`.el-row__flag` has **no rule anywhere in the repo** today — the existing revealgate flag at line 29 ships unstyled. Add after the `.el-tag` rule (editor.css:79):
+`.el-row__flag` has **no rule anywhere in the repo** today — the existing revealgate flag at line 29 ships unstyled. Insert after **`editor.css:83`** — the `.el-tag` rule's **closing brace**, immediately before `.el-select {` at line 84. (The rule *opens* at line 79; inserting "after line 79" would drop the new rules inside its declaration block.)
 
 ```css
 /* Typography applies to this badge AND the pre-existing revealgate flag, which has
@@ -1856,8 +1910,9 @@ uv run python manage.py makemessages -l pl -l en --no-obsolete
 Write the Polish translations for both new strings, then **clear any `#, fuzzy` marker** the extractor pre-filled — the repo has a recorded hazard where a fuzzy pre-fill ships a wrong translation and clearing it requires two deletions. Verify:
 
 ```bash
+# BOTH catalogs — makemessages ran for -l pl AND -l en, so either can be pre-filled.
 grep -c "#, fuzzy" locale/pl/LC_MESSAGES/django.po   # expect 0 — note grep -c EXITS 1
-                                                     # when the count is 0, so a
+grep -c "#, fuzzy" locale/en/LC_MESSAGES/django.po   # when the count is 0, so a
                                                      # "failed" command here is the
                                                      # PASS case. Use the Grep tool if
                                                      # that ambiguity bothers you.
@@ -2034,7 +2089,13 @@ Shipping four green assertions of which only one was ever seen red is the failur
 
 Take light and dark screenshots of the badged row at 1130px. Dark mode needs `user.theme`, **not** the cookie. Judge the dark one separately rather than assuming it follows the light one.
 
-**Also screenshot a revealgate element's row.** The `.el-row__flag` typography rule added in Task 8 restyles the pre-existing "inactive in quizzes" flag at `_element_row.html:29`, which has shipped **unstyled** and has no test coverage. Giving it `.7rem` + `--text-secondary` is a visible change to a shipped, load-bearing warning on a surface nothing else in this branch exercises. Seed a revealgate element into the same unit, capture light + dark, and confirm the flag is still legible and still reads as a warning — the shrink properties are scoped away from it (`.el-row__top > .el-row__flag`), so it must NOT have become truncatable.
+**Also screenshot a revealgate element's row — in a QUIZ unit.** The `.el-row__flag` typography rule added in Task 8 restyles the pre-existing "inactive in quizzes" flag at `_element_row.html:29`, which has shipped **unstyled** and has no test coverage. Giving it `.7rem` + `--text-secondary` is a visible change to a shipped, load-bearing warning on a surface nothing else in this branch exercises.
+
+**Do not seed it into the same unit as the badge test.** That flag is gated on `{% if unit.unit_type == 'quiz' %}` (`_element_row.html:28`), and `_seed_course_and_unit` hard-codes a **lesson** unit — so a revealgate seeded there renders no `.el-row__flag` at all, and the screenshot would show an empty row while being filed in the PR as confirmation. Seed a **second** unit with `unit_type="quiz"` (a separate `ContentNodeFactory(course=course, kind="unit", unit_type="quiz")`, or a second `_seed_course_and_unit` call parameterised that way) and put the revealgate element there.
+
+**Precondition before the capture counts:** the string `inactive in quizzes` must be present in the rendered page. If it is not, the flag did not render and the step has not been performed — fix the unit type rather than filing the screenshot.
+
+Capture light + dark and confirm the flag is still legible and still reads as a warning — the shrink properties are scoped away from it (`.el-row__top > .el-row__flag`), so it must NOT have become truncatable.
 
 - [ ] **Step 5: Commit**
 
@@ -2066,10 +2127,12 @@ If you need to search, use the **`Grep` tool**, not `uv run grep` — Task 1 Ste
 
 - [ ] **Step 2: Write the test**
 
+**There are no fixtures to substitute — the signature is empty.** `test_full_course_round_trip_new_course_shape` (line 259) and `test_full_course_round_trip_graph_equality` (line 277) both take **no parameters**; they call module-level helpers directly and get DB access from the autouse `tests/conftest.py::_enable_db_access`. Reuse exactly three of those helpers: `_mk_full_source_course()`, `write_archive(source, None, buf)` and `_import_zip(buf, importer)` (with `importer = UserFactory()`).
+
 ```python
 @pytest.mark.django_db
 @override_settings(GEOGEBRA_API_LOOKUP=True)
-def test_course_import_performs_no_geogebra_lookup(<round-trip fixtures>):
+def test_course_import_performs_no_geogebra_lookup():
     """extract_embed_url is shared by the authoring form AND course import. The lookup
     lives in the form, deliberately, so imports stay offline -- archives have carried
     width/height since FORMAT_VERSION 2. (A legacy v1 archive carries neither and lands
@@ -2082,21 +2145,25 @@ def test_course_import_performs_no_geogebra_lookup(<round-trip fixtures>):
     default the kill switch short-circuits before _open is ever reached, making the
     assertion vacuous a second way.
     """
-    # <copied setup: a course containing an IframeElement with a canonical GeoGebra URL>
+    source = _mk_full_source_course()   # already seeds an IframeElement
+    buf = io.BytesIO()
+    write_archive(source, None, buf)
+    buf.seek(0)
+    importer = UserFactory()
+
     with patch("courses.geogebra._open") as opener:
-        # <copied call: export the course, then import the archive>
-        pass
+        _import_zip(buf, importer)
 
     opener.assert_not_called()
 ```
 
-Substitute the round-trip test's own fixtures and export/import calls for the angle-bracketed parts.
+`_mk_full_source_course` already seeds an `IframeElement`, so nothing extra needs constructing. Note the seeded URL is **not** a canonical GeoGebra material URL — that is fine and is why the mutant in Step 3 adds an *unconditional* `fetch_geogebra_dimensions("dcjktevj")` call rather than relying on the URL shape to trigger one. What this test pins is that the import path never reaches the transport at all, for any URL.
 
-Also add `from unittest.mock import patch` and `from django.test import override_settings` to the module's top import block if they are not already there — both are used above.
+Add `from unittest.mock import patch` and `from django.test import override_settings` to the module's top import block if they are not already there — both are used above.
 
 - [ ] **Step 3: Run it and falsify it**
 
-Run: `uv run pytest <located module> -k geogebra_lookup -v`
+Run: `uv run pytest tests/test_transfer_import.py -k geogebra_lookup -v`
 Expected: PASS on the correct build. **Then prove it can fail** — temporarily, inside `courses/embed.py`:
 
 1. add `from courses.geogebra import fetch_geogebra_dimensions` to the existing geogebra import group (today that file imports **only** `canonicalize_geogebra_url`, at line 13 — without this the mutant dies on `NameError`, which is still red but for the wrong reason and therefore demonstrates nothing);
@@ -2169,14 +2236,21 @@ import time
 from django.core.cache import cache
 import courses.geogebra as gg
 cache.clear()
-gg._API_PREFIX = 'https://10.255.255.1/'   # RFC5737-style unroutable: connect stalls
+gg._API_PREFIX = 'https://192.0.2.1/'   # TEST-NET-1 (RFC5737): blackholed, connect stalls
 t = time.monotonic()
 print('RESULT:', gg.fetch_geogebra_dimensions('dcjktevj'))
 print('ELAPSED: %.1fs' % (time.monotonic() - t))
 "
 ```
 
-Expected: `(None, None)` in **≈3s**, not ≈2 minutes. Anything much above 3s means the timeout is not reaching the socket — investigate before merging rather than shipping a lock-holding stall. Record the measured elapsed time in the PR body.
+**The pass condition is two-sided: `2.5s <= ELAPSED <= 4.0s`, with `RESULT: (None, None)`.**
+
+Both bounds are load-bearing, and the lower one is the whole point:
+
+- **Above ~4s** → the `timeout` is not reaching the socket; the stdlib default (effectively none) is in force. This is the bug the step exists to catch, and it would hold a `select_for_update` row lock for its duration.
+- **Under ~1s** → the connection was **refused or unreachable**, not stalled, so the timeout was never exercised at all and the run proves nothing. A one-sided "not too slow" check would record this as a pass — which is exactly how the forgotten-kwarg build slips through, since it also returns fast when the host refuses.
+
+If elapsed is under ~1s, the address is not blackholed **from this machine** — some networks answer TEST-NET with ICMP unreachable or a NAT RST. Retry against another genuinely filtered target (e.g. `198.51.100.1`, `203.0.113.1`, or a routable host on a firewalled port such as `https://example.com:81/`) until the call actually stalls. **Record which address produced the stall**, alongside the elapsed time, in the PR body — a reader cannot tell a real 3s stall from a fast refusal without it.
 
 (Monkey-patching `_API_PREFIX` here is a throwaway shell mutation, not a code change — the module is reloaded fresh next process. It is also why the defensive `url.startswith(_API_PREFIX)` check stays unreachable in real code.)
 
