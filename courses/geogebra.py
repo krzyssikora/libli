@@ -358,9 +358,10 @@ def fetch_geogebra_dimensions(material_id):
         # S310 justification (mirrors integrations/delivery.py:50,122): the URL is
         # built from a hardcoded _API_PREFIX plus an _ID_RE-validated id, so it cannot
         # carry an attacker-chosen scheme or host, and _NoRedirect stops the opener
-        # from following one. NOTE the wording: a comment LINE beginning "# noqa: S310"
-        # is parsed by ruff as a suppression directive on a line carrying no
-        # diagnostic -- inert today, but a duplicate the moment RUF100 is selected.
+        # from following one. NOTE the wording: a comment line whose text begins with
+        # a noqa directive naming S310 is parsed by ruff as a suppression directive on
+        # a line carrying no diagnostic -- inert today, but a duplicate the moment
+        # RUF100 is selected.
         request = urllib.request.Request(  # noqa: S310
             url, headers={"User-Agent": _USER_AGENT}
         )

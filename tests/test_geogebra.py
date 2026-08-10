@@ -445,7 +445,7 @@ def test_fetch_negative_cache_is_scoped_to_ONE_id():
         assert fetch_geogebra_dimensions("badid0000") == (None, None)
     with _patch_open(_payload("wseg.json")) as opener:
         assert fetch_geogebra_dimensions("wgzr7tsu") == (880, 660)
-    opener.assert_called_once()   # the second id was NOT short-circuited
+    opener.assert_called_once()  # the second id was NOT short-circuited
 
 
 def test_fetch_kill_switch_makes_no_request_and_writes_no_sentinel():
