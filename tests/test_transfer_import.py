@@ -1,9 +1,11 @@
 # tests/test_transfer_import.py
 import io
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 
 from courses.models import Blank
 from courses.models import Choice
@@ -284,6 +286,34 @@ def test_full_course_round_trip_graph_equality():
     imported = _import_zip(buf, importer)
 
     _assert_graphs_equal(source, imported)
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_course_import_performs_no_geogebra_lookup():
+    """extract_embed_url is shared by the authoring form AND course import. The
+    lookup lives in the form, deliberately, so imports stay offline -- archives
+    have carried width/height since FORMAT_VERSION 2. (A legacy v1 archive
+    carries neither and lands on the 4:3 + badge path, which is the intended
+    degraded behaviour, not a gap.)
+
+    Patch the TRANSPORT seam, not the form's re-export. courses.element_forms
+    is never touched by the import path, so assert_not_called() there is true
+    by construction -- including on a build that added a lookup inside
+    extract_embed_url, which is exactly the regression this guards.
+    override_settings is required too: under the suite default the kill
+    switch short-circuits before _open is ever reached, making the assertion
+    vacuous a second way.
+    """
+    source = _mk_full_source_course()  # already seeds an IframeElement
+    buf = io.BytesIO()
+    write_archive(source, None, buf)
+    buf.seek(0)
+    importer = UserFactory()
+
+    with patch("courses.geogebra._open") as opener:
+        _import_zip(buf, importer)
+
+    opener.assert_not_called()
 
 
 def test_empty_color_bands_round_trips():
