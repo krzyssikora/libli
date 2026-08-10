@@ -197,7 +197,7 @@ def strip_math_delimiters(value):
     text = "%s" % (value,)
     for delim in _MATH_DELIMS:
         text = text.replace(delim, "")
-    if type(text) is not str:  # noqa: E721 -- subclass check is the whole point
+    if type(text) is not str:  # a str SUBCLASS check, deliberately
         text = str.__str__(text)  # copies a str subclass to an exact str
     return text
 ```
@@ -1490,8 +1490,14 @@ def test_lesson_heading_is_marked(client):
 
 
 def test_nav_button_titles_are_marked(client):
-    body = _lesson_body(client, maths_on="unitB")
-    assert _marked(body, "span.unit-foot__navtitle")
+    """View unitB, NOT unitA: unitA is the first unit in the course, so
+    unit_nav.prev is None and _unit_footer.html:17-21 renders the DISABLED branch
+    with no .unit-foot__navtitle at all. Only the `next` span would exist, and the
+    prev marker at :14 could be dropped with this test still green.
+
+    unitB has both a prev and a next, so the count assertion pins both sites."""
+    body = _lesson_body(client, maths_on="unitB", node="unitB")
+    assert len(_marked(body, "span.unit-foot__navtitle")) == 2
 
 
 def test_tree_unit_labels_are_marked(client):
@@ -1604,11 +1610,20 @@ def test_course_results_row_titles_are_marked(client):
 # --- analytics ----------------------------------------------------------------
 def _analytics_bodies(client, *, maths_on):
     """(matrix_body, breakdown_body) for a course seeded by make_title_course,
-    viewed by the course owner. `expand` opens part2 so its GROUP header renders."""
+    viewed by the course owner. `expand` opens part2 so its GROUP header renders.
+
+    Adds a QUIZ unit: make_title_course creates only unit_type="lesson", so
+    _breakdown_node.html's `{% if item.node.unit_type == "quiz" %}` branch
+    (:4-21, holding the :6 marker) would never render and the :24 lesson branch
+    -- same class -- would satisfy the assertion on its own."""
     pa = make_pa(client)
     course, _unit, nodes = make_title_course(maths_on=maths_on)
     course.owner = pa
     course.save(update_fields=["owner"])
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=nodes["part2"],
+        order=1, title=MATHS_TITLE if maths_on == "far" else "Quiz zwykly",
+    )
     student = UserFactory()
     EnrollmentFactory(student=student, course=course)
     matrix_url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
@@ -1645,8 +1660,13 @@ def test_analytics_matrix_leaf_headers_are_marked(client):
 
 
 def test_analytics_breakdown_titles_are_marked(client):
+    """BOTH unit branches plus the group branch. The quiz branch (:6) and the
+    lesson branch (:24) share the class `breakdown-unit__title`, so a single
+    truthiness check is satisfied by either one alone -- the count is what pins
+    both. The fixture seeds four lesson units and one quiz unit."""
     _m, breakdown = _analytics_bodies(client, maths_on="far")
-    assert _marked(breakdown, "span.breakdown-unit__title")
+    units = _marked(breakdown, "span.breakdown-unit__title")
+    assert len(units) >= 2, "only one of the quiz/lesson unit branches is marked"
     assert _marked(breakdown, "span.breakdown-node__title")
 
 
@@ -1664,7 +1684,7 @@ def _review_setup(client, unit_title):
     )
     Element.objects.create(unit=unit, content_object=q)
     # display_name MUST be set explicitly: UserFactory defaults it to
-    # factory.Faker("name") (tests/factories.py:62), and review_queue.html:15
+    # factory.Faker("name") (tests/factories.py:63), and review_queue.html:15
     # renders `display_name|default:username` -- so a test asserting on "anna"
     # while the factory renders a random Faker name CANNOT FAIL under any
     # implementation, including the mutant it exists to catch.
@@ -1672,6 +1692,17 @@ def _review_setup(client, unit_title):
     EnrollmentFactory(student=student, course=course)
     sub = QuizSubmission.objects.create(
         student=student, unit=unit, status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"), max_score=Decimal("0"),
+    )
+    # A SECOND submission, IN_PROGRESS, so review_queue.html:30 renders at all.
+    # A SUBMITTED row lands in data["awaiting"] (courses/review.py:248-255) and
+    # only exercises the :15 branch; :30 is inside {% if in_progress %}, which
+    # stays empty without this -- the same duplicated-branch gap the analytics
+    # leaf-header test closes with :not(.analytics__group).
+    other = UserFactory(username="bogdan", display_name="Bogdan Lis")
+    EnrollmentFactory(student=other, course=course)
+    QuizSubmission.objects.create(
+        student=other, unit=unit, status=QuizSubmission.Status.IN_PROGRESS,
         score=Decimal("0"), max_score=Decimal("0"),
     )
     return course, sub
@@ -1682,9 +1713,12 @@ def test_review_queue_marks_the_title_alone_not_the_student_name(client):
     url = reverse("courses:manage_review_queue", kwargs={"slug": course.slug})
     body = client.get(url).content.decode()
     assert "Anna Nowak" in body, "the student name did not render at all"
+    assert "Bogdan Lis" in body, "the in-progress row did not render"
     marked = _marked_texts(body)
-    assert MATHS_TITLE in marked
-    assert all("Anna Nowak" not in t for t in marked)
+    # BOTH branches -- the awaiting row (:15) and the in-progress row (:30) --
+    # carry the title, and neither carries a student name.
+    assert marked.count(MATHS_TITLE) == 2
+    assert all("Anna Nowak" not in t and "Bogdan Lis" not in t for t in marked)
 
 
 def test_review_submission_marks_the_title_alone(client):
@@ -1742,6 +1776,68 @@ def test_editor_crumb_marks_each_ancestor_title_not_the_path(client):
     assert not _marked(body, "span.editor-crumb__path")
 
 
+# --- notes + tags: three marked sites that nothing else pins ------------------
+# Without these, dropping data-math-title from all three leaves Tasks 5 AND 9
+# fully green -- Task 9 asserts only on KaTeX assets and on the title being
+# present, neither of which sees the attribute.
+
+
+def test_course_notes_unit_heading_is_marked(client):
+    from notes.models import Note
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, order=0,
+        title=MATHS_TITLE,
+    )
+    student = login_student(client, course)
+    Note.objects.create(author=student, unit=unit, body="a note")
+    body = client.get(
+        reverse("notes:course_notes", kwargs={"slug": course.slug})
+    ).content.decode()
+    assert _marked(body, "h2.course-notes__unit-title")
+
+
+def _tagged(client, title):
+    from tags import services as tag_services
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, order=0,
+        title=title,
+    )
+    student = login_student(client, course)
+    tag_services.tag_unit(student, unit, "algebra")
+    return course, unit
+
+
+def test_tags_hub_unit_link_is_marked(client):
+    _tagged(client, MATHS_TITLE)
+    body = client.get(reverse("tags:my_tags")).content.decode()
+    assert _marked(body, "div.tag-section__units li a")
+
+
+def test_tags_panel_heading_marks_the_title_alone(client):
+    """panel_page.html:5 is `<h1>{{ unit.title }} — {% trans "Tags" %}</h1>` --
+    structurally identical to quiz_results.html:12, so the marker goes on an
+    inner span and NOT on the shared <h1>. Reachable only via the invalid-tag
+    no-JS POST (422)."""
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, order=0,
+        title=MATHS_TITLE,
+    )
+    login_student(client, course)
+    resp = client.post(
+        reverse("tags:tag_add", kwargs={"slug": course.slug, "node_pk": unit.pk}),
+        {"name": ""},
+    )
+    assert resp.status_code == 422
+    body = resp.content.decode()
+    assert MATHS_TITLE in _marked_texts(body)
+    assert not _marked(body, "h1")
+
+
 # --- the exclusions -----------------------------------------------------------
 def test_the_editor_settings_title_input_is_neither_marked_nor_filtered(client):
     """Path C, the edit buffer: typesetting or stripping it corrupts what is saved.
@@ -1787,9 +1883,13 @@ def test_the_rename_result_payload_is_neither_marked_nor_filtered(client):
     assert "data-math-title" not in payload.attrs
 ```
 
-> The rename-POST idiom above matches `tests/test_builder_lazy_scopes.py:698-707` (a real
-> ISO `token` from `node.updated`, not a sentinel string). `_wants_fragment` reads
-> `X-Requested-With: fetch` in both `courses/views_manage.py:1329` and `tags/views.py:20`.
+> The **token** idiom above — a real ISO `token` from `node.updated`, not a sentinel string —
+> matches `tests/test_builder_lazy_scopes.py:698-707`. Note that call is **not** a model for
+> the rest of this test: it sends no `X-Requested-With` header and follows `resp["Location"]`,
+> i.e. it drives the redirect path, whereas this test needs the *fragment* branch. The header
+> is what selects it: `_wants_fragment` reads `X-Requested-With: fetch` in both
+> `courses/views_manage.py:1329` and `tags/views.py:20`. Omit it and you get a 302, not
+> `_rename_result.html`.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -1986,6 +2086,11 @@ The failure mode is *"the marker went on the shared parent, so a student name or
 3. Move it in `editor.html:75` from the per-ancestor `<span>` to `.editor-crumb__path` → `test_editor_crumb_marks_each_ancestor_title_not_the_path` FAILS.
 4. Add `data-math-title` to `_unit_settings.html:12`'s `<input>` → `test_the_editor_settings_title_input_is_neither_marked_nor_filtered` FAILS.
 5. Drop `[data-math-title]` from the `math.js` selector → `test_math_js_selector_includes_the_marker` FAILS.
+6. Drop the marker from `notes/course_notes.html:16`, `tags/_tag_section.html:25` and `tags/panel_page.html:5` — **all three at once** → exactly the three new notes/tags tests FAIL and nothing in Task 9 does. That asymmetry is the point: those three sites are the ones Task 9's asset assertions cannot see.
+7. Move the `panel_page.html:5` marker from the inner `<span>` to the `<h1>` → `test_tags_panel_heading_marks_the_title_alone` FAILS on the `not _marked(body, "h1")` assertion.
+8. Drop the marker from `_unit_footer.html:14` (prev) only, leaving `:48` → `test_nav_button_titles_are_marked` FAILS on the `== 2` count. With the old `node="unitA"` fixture this mutant was invisible.
+9. Drop the marker from `_breakdown_node.html:6` (the quiz branch) only, leaving `:24` → `test_analytics_breakdown_titles_are_marked` FAILS on the `>= 2` count.
+10. Drop the marker from `review_queue.html:30` (the in-progress branch) only, leaving `:15` → `test_review_queue_marks_the_title_alone_not_the_student_name` FAILS on the `== 2` count.
 
 Revert each.
 
@@ -2653,7 +2758,12 @@ def test_review_queue_loads_katex_for_a_maths_title(client):
     url = _review_queue_url(client, MATHS_TITLE)
     resp = client.get(url)
     assert resp.status_code == 200
-    _assert_katex_present(resp.content.decode())
+    body = resp.content.decode()
+    # Precondition, inline rather than in prose: the submission must actually
+    # land in data["awaiting"] (SUBMITTED + an unreviewed [R] question). An empty
+    # queue would otherwise read as a scan bug rather than a fixture bug.
+    assert MATHS_TITLE in body, "the review-queue row did not render"
+    _assert_katex_present(body)
 
 
 def test_review_queue_loads_no_katex_without_maths(client):
@@ -2809,7 +2919,7 @@ git commit -m "feat(courses): load KaTeX for maths titles on the analytics and r
 2. **`tags_by_tag`'s shape, stated so it is not re-derived from the template.** `units_by_tag` returns `[(Tag, {Course: [unit, ...]})]`. The `{% for course, units in grouped.items %}` at `_tag_section.html:21` is the **inner** loop over one tag's `grouped` dict — translating it directly against `tags_by_tag` yields `for course, units in tags_by_tag`, which unpacks `(tag, grouped)` into `(course, units)` and then iterates a dict's keys, silently scanning `Course` objects instead of units. Use the literal generator below.
 3. **The tags hub renders twice.** `tags/my_tags.html` is rendered by `my_tags` (`:88`) **and** inside `tag_recolor`'s `ValidationError` branch (`:127`), which rebuilds the context inline. Unlike the lesson and review pages there is no shared helper here, so the scan must be applied at **both** sites — otherwise a recolor validation error re-renders the hub with no `has_math` and shows raw delimiters. **That failure is live today, not masked by anything**, so its gate assertion is required, driven through the invalid-colour POST that reaches `tags/views.py:125`.
 
-**The tags panel is unreachable by GET.** `tags/views.py:69` reaches `panel_page.html` only through `_add_error`, i.e. a **non-fragment POST that fails validation**, returning 422. Drive the invalid-tag no-JS POST (empty `name`, no `tag_pk`), which hits the `_("Enter a tag name or pick a tag.")` branch at `tags/views.py:54-56`.
+**The tags panel is unreachable by GET.** `tags/views.py:69` reaches `panel_page.html` only through `_add_error`, i.e. a **non-fragment POST that fails validation**, returning 422. Drive the invalid-tag no-JS POST (empty `name`, no `tag_pk`), which hits the `_("Enter a tag name or pick a tag.")` branch at `tags/views.py:53-55`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3441,12 +3551,14 @@ def _allow_async_unsafe():
 
 
 def _login(page, live_server, username):
+    """Log in via the allauth HTML form. Copied verbatim from
+    tests/test_e2e_unit_nav.py:40-46 -- no `.first`, no networkidle wait; the
+    subsequent page.goto is the synchronisation point."""
     page.goto(f"{live_server.url}/accounts/login/")
     form = page.locator("form[action*='login']")
     form.locator("input[name='login']").fill(username)
     form.locator("input[name='password']").fill(TEST_PASSWORD)
-    form.locator("button[type='submit'], input[type='submit']").first.click()
-    page.wait_for_load_state("networkidle")
+    form.locator("button[type='submit']").click()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -3567,7 +3679,24 @@ Expected: `test_next_unit_title_typesets_in_the_nav_button` FAILS on the `wait_f
 Read the `[render cost]` line from the run above. Note the element count and the milliseconds.
 
 - If the time is **≤ ~50 ms**: record it and change nothing.
-- If it **exceeds ~50 ms**: switch `renderInlineText` to a single `renderMathInElement` over a common ancestor for the `[data-math-title]` set, re-run, and re-record. Do **not** fall back to one call over `document.body` — that would typeset element prose the selector list deliberately scopes and the edit buffers Path C must keep untouched.
+- If it **exceeds ~50 ms**: add a **delimiter pre-filter** in `renderInlineText`, so the expensive call is skipped for the overwhelming majority of titles that carry no maths at all:
+
+  ```js
+      var text = el.textContent;
+      if (text.indexOf("\\(") === -1 && text.indexOf("\\[") === -1) return;
+  ```
+
+  placed as the first statement inside the `forEach` callback, before the `try`. This is the
+  cheap win the measurement itself already quantifies — the e2e prints `withMaths` beside
+  `count` precisely so you know the ratio. Re-run and re-record.
+
+  **There is deliberately no "one call over a common ancestor" branch.** On a unit page the
+  marked set spans the `<h1>` and crumbs (`_lesson_article.html`), the rail tree *and* its
+  drawer copy (`_unit_shell.html:21,40`) and the footer nav titles (`:24`) — their nearest
+  common ancestor is the page shell, which also contains the lesson prose. So the only
+  available "common ancestor" is exactly what must not be passed: a single call over it would
+  typeset element prose the selector list deliberately scopes, and the edit buffers §Data-flow
+  Path C must keep untouched. Per-element calls plus the pre-filter is the realisable fix.
 
 Note the fixture above is a five-node course, not the matematyka worst case (21 parts / 793 units ≈ 1,600+ invocations). If the small-course number is anywhere near the threshold, re-measure against a larger seeded course before concluding.
 
@@ -3659,6 +3788,14 @@ Read every image and judge the dark one **on its own terms**, not as "the light 
 | 11 | The **analytics breakdown** page, quiz + lesson rows | `.breakdown-unit__title .katex` and `.breakdown-node__title .katex` are **two of the three selectors in the `app.css` clamp** — without this row they ship on a hypothesis Task 11 never tests |
 | 12 | **Notes page** (`h2.course-notes__unit-title`), **tags hub** (`_tag_section.html`'s `<li><a>`) and **tags panel** (`<h1>`) | three pages that newly gain KaTeX rendering and receive **no clamp at all**; §3 puts them in the "global rules only" bucket, and this row is what turns that from an assumption into a measurement |
 | 13 | `h1.result__title` (quiz results) and `h1.review-topbar__title` (review submission) | the **same synthetic-bold risk as row 8** on two different pages — row 8 only judges the lesson `<h1>` |
+| 14 | The **editor page**: the ancestor crumb, `h1.editor-head__title`, and the preview `h2.prev-unit-title` | the editor ships KaTeX **unconditionally**, so all three typeset on *every* editor load — and their rules live in a **third** stylesheet the rest of this task never touches: `.editor-crumb__path` is `font-size:.9rem` in a flex row (`editor.css:366`), `.editor-head__title` is `1.1rem` (`:370`), and `.prev-unit-title` is `font-weight:700` (`:513`). Both the line-height-growth risk and the synthetic-bold risk apply here, unmeasured |
+
+**Pass criterion for #14:** if either editor surface needs a clamp, the selector goes in
+**`courses/static/courses/css/editor.css`** — the editor links `courses.css` *and* `editor.css`,
+and these three rules live in the latter, so that is where a correction belongs. This is a
+**third** clamp target alongside `app.css` and `courses.css`; Task 10 does not pre-empt it
+because no §3 surface lives there. Extend `tests/test_title_math_css.py` with an `EDITOR_CSS`
+reader and a `_has_rule` assertion if you add one.
 
 **Pass criterion for #8, stated explicitly:** the maths run must read at the same weight as the adjacent words **without synthetic smearing**. `KaTeX_Main` has no true bold face, so an inherited `bold` is browser-synthesised. **If it smears, drop `font-weight: inherit` and accept the weight mismatch as the lesser defect** — and update `tests/test_title_math_css.py::test_font_size_weight_and_style_are_all_restored` and the spec's §3 to match.
 
