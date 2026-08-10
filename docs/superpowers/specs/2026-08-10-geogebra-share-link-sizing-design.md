@@ -229,8 +229,10 @@ instead of silently at 16:9.
 
 ## Architecture / components
 
-Nine deliverables, in five sections: (1) the lookup helper, the three predicates
-(`usable_dimensions`, `is_geogebra_iframe_url`, `geogebra_url_size`), and the rewritten module
+Nine deliverables, in five sections: (1) the lookup helper, the four helpers
+(`usable_dimensions`, `is_geogebra_iframe_url`, `geogebra_url_size`, `geogebra_material_id` —
+of which the latter three are the URL-parsing trio carrying the never-raises contract in §1;
+`usable_dimensions` is pure `isinstance` checks and cannot raise), and the rewritten module
 docstring in `courses/geogebra.py` **and** the rewritten `clean_url` comment in
 `courses/element_forms.py:186-190` (its current text — "a plain-URL / dimensionless input
 leaves stored dims unchanged" — becomes false under the three firing cases and the
