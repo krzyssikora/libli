@@ -220,7 +220,8 @@ The failure mode is *"the no-delimiter fast path leaks a SafeString"*. Temporari
 ```
 
 Run: `uv run pytest tests/test_title_math_filter.py -v`
-Expected: `test_returns_a_plain_str_not_safestring_on_the_no_delimiter_path` FAILS (`type(out)` is `SafeString`).
+
+Expected: **three** FAIL. `test_returns_a_plain_str_not_safestring_on_the_no_delimiter_path` (`type(out)` is `SafeString`) is the one the mutant targets; `test_none_renders_as_the_string_none` and `test_an_int_renders_as_its_digits` also go red, because the early return hands back the *original object* — `None` and `7`, not `"None"` and `"7"`. All three are expected.
 
 Second mutant — the failure mode *"raises on a non-string"*: replace `text = "%s" % (value,)` with `text = value`. Expected: `test_none_renders_as_the_string_none` and `test_an_int_renders_as_its_digits` FAIL with `AttributeError`.
 
@@ -352,8 +353,16 @@ imports the later code blocks use — goes into the file's single top-level impo
 which means extending the one Task 1 wrote rather than starting a second block mid-file
 (`ruff`'s `I` rule sorts per block and `force-single-line` is on, so a stray second block
 invites churn, and the helpers below would transiently reference names imported further down).
-The `pytestmark` assignment is module-level and applies to every test in the file wherever it
-sits; put it directly under the imports.
+**File layout, stated explicitly so the committed file matches this listing:** the imports and
+`pytestmark` go **under the existing import block at the top**, and the helpers plus the new
+tests are **appended at the end of the file**, after Task 1's eleven unit tests. The listing
+below therefore shows them out of file order.
+
+`pytestmark` is module-level and applies to every test in the file wherever it sits — including
+Task 1's. That is harmless here and needs no per-test marking: `tests/conftest.py` already
+declares an **autouse** `_enable_db_access(db)` fixture over the whole `tests/` subtree, so
+every test in this directory has DB access and requires the running Postgres container
+regardless. The mark is belt-and-braces, not a new cost.
 
 The complete added import set, sorted as `ruff` will leave it:
 
@@ -971,8 +980,25 @@ Revert both.
 the settings module has to be set and `django.setup()` called, or the check has no diagnostic
 value at all:
 
+**PowerShell is this repo's primary shell, and `VAR=value cmd` is a POSIX-only prefix that
+PowerShell rejects as a parse error.** Use the form that matches the shell you are in:
+
+PowerShell:
+
+```powershell
+$env:DJANGO_SETTINGS_MODULE = 'config.settings.test'
+uv run python -c "import django; django.setup(); import courses.rollups, courses.views, courses.views_analytics, courses.views_review; print('ok')"
+```
+
+bash:
+
 ```bash
 DJANGO_SETTINGS_MODULE=config.settings.test uv run python -c "import django; django.setup(); import courses.rollups, courses.views, courses.views_analytics, courses.views_review; print('ok')"
+```
+
+Then, in either shell:
+
+```bash
 uv run pytest tests/test_courses_rollups.py -v
 ```
 
@@ -1321,7 +1347,7 @@ Expected: all pass.
 
 - [ ] **Step 6: Falsify — observe RED against the ordering and defect-3 mutants**
 
-1. *Defect 3 regressed*: delete the `math.js` line from `_katex_js.html` → **four** tests FAIL: both `math_js_before_question_js` tests, `test_js_partial_keeps_the_load_bearing_script_order` (`ValueError: substring not found`), and `test_every_script_in_the_js_partial_is_deferred` (count 4 ≠ 5). All four are expected; none is a second, separate defect.
+1. *Defect 3 regressed*: delete the `math.js` line from `_katex_js.html` → **five** tests FAIL: both `math_js_before_question_js` tests, `test_js_partial_keeps_the_load_bearing_script_order` (`ValueError: substring not found`), `test_every_script_in_the_js_partial_is_deferred` (count 4 ≠ 5), and `test_editor_ships_katex_for_a_unit_with_no_maths_anywhere` — after Step 4 the shared partial is the editor's *only* source of `math.js`. All five are expected; none is a second, separate defect.
 2. *Order reshuffled*: move `math_reflow.js` above `auto-render.min.js` in the partial → `test_js_partial_keeps_the_load_bearing_script_order` FAILS.
 3. *A tag loses `defer`*: drop ` defer` from `text_colour.js` → `test_every_script_in_the_js_partial_is_deferred` FAILS.
 4. *`question.js` folded into the partial*: move it inside `_katex_js.html` → `test_every_script_in_the_js_partial_is_deferred` FAILS on the count assertion (6 ≠ 5).
@@ -1331,8 +1357,13 @@ Revert each.
 
 - [ ] **Step 7: Regression-check the pages that already had KaTeX**
 
+`courses/tests/test_beforeafter_css.py:177-184` and `test_reveal_scope_agreement.py:65` read
+`lesson_unit.html` / `quiz_unit.html` as **source**, which is precisely what this task's script-block
+replacement rewrites — so that package belongs in this run too:
+
 ```bash
-uv run pytest tests/test_review_views.py tests/test_consumption_pages.py tests/test_choice_feedback_has_math.py -v
+uv run pytest tests/test_review_views.py tests/test_consumption_pages.py \
+              tests/test_choice_feedback_has_math.py courses/tests/ -v
 ```
 
 Expected: all pass — in particular `test_review_loads_katex_when_stem_has_math` and `test_review_no_katex_without_math`.
@@ -1563,7 +1594,7 @@ def test_course_results_row_titles_are_marked(client):
     url = reverse("courses:course_results", kwargs={"slug": course.slug})
     body = client.get(url).content.decode()
     # Precondition, stated rather than assumed: build_course_results appends a
-    # "not_started" row for EVERY quiz unit (rollups.py:366-381), so a quiz with
+    # "not_started" row for EVERY quiz unit (rollups.py:369-380), so a quiz with
     # no submission still renders. Without this the positive assertion below
     # could fail for fixture reasons and read as a wiring bug.
     assert MATHS_TITLE in body, "the results row did not render"
@@ -1958,18 +1989,26 @@ The failure mode is *"the marker went on the shared parent, so a student name or
 
 Revert each.
 
-- [ ] **Step 7b: Regression-check the eighteen edited templates**
+- [ ] **Step 7b: Regression-check the eighteen edited files (seventeen templates plus `math.js`)**
 
 This is the largest template diff in the plan and several of these files are asserted on by
 existing markup tests — `test_analytics_views.py` in particular pins literal header markup
 (`">Sec ▸<"`), which the `analytics_matrix.html` edit sits directly on top of. Without this
 step a regression here surfaces only at Task 11's whole-repo sweep, many commits later.
 
+**`courses/tests/` is a SECOND, separately-rooted test package** — 106 files, collected by the
+whole-repo run because `pyproject.toml` sets no `testpaths` — and a dozen of its files assert
+on exactly the templates this task rewrites (`test_reveal_gate_palette.py`,
+`test_callout_editor_row.py`, `test_spoiler_nesting.py` and others GET the editor page whose
+`<h1>`, crumb and preview heading change here). It must be in this run for the same reason
+`tests/` is:
+
 ```bash
 uv run pytest tests/test_unit_nav_render.py tests/test_consumption_pages.py \
               tests/test_analytics_views.py tests/test_review_views.py \
               tests/test_tags_views.py tests/test_tags_outline.py \
-              tests/test_notes_views.py tests/test_courses_views.py -v
+              tests/test_notes_views.py tests/test_courses_views.py \
+              courses/tests/ -v
 ```
 
 Expected: all pass. A failure asserting on literal header markup means the marker changed a
@@ -2390,7 +2429,7 @@ def test_course_results_loads_katex_for_a_maths_row_title(client):
     url = _course_results_url_with_quiz_title(client, MATHS_TITLE)
     body = client.get(url).content.decode()
     # A quiz with no submission still renders: build_course_results appends a
-    # "not_started" row for every quiz unit (rollups.py:366-381).
+    # "not_started" row for every quiz unit (rollups.py:369-380).
     assert MATHS_TITLE in body, "the results row did not render"
     _assert_katex_present(body)
 
@@ -2422,8 +2461,8 @@ and add `"has_math": has_math,` to the context dict.
 `course_results` (`:610`), immediately before `return render(...)`:
 
 ```python
-    # build_course_results builds "rows" with rows.append (rollups.py:422), so it
-    # is a real list -- scanning it here and then passing it to the template
+    # build_course_results builds "rows" with rows.append (rollups.py:369, :383,
+    # :399), so it is a real list -- scanning it here and then passing it to the template
     # iterates it twice safely. Were it a generator, the scan would exhaust it and
     # the page would render EMPTY, a silent severe failure no test here would
     # catch, which is why the return type is pinned rather than assumed.
@@ -2516,7 +2555,7 @@ git commit -m "feat(courses): load KaTeX for maths titles on the outline and res
 > `:126`) because that is what the *scan* must reach. Both sets are the file's current numbers.
 
 1. **Scan `header_rows`, never `columns`.** The titles at `analytics_matrix.html:115,116` (leaf) and `:126` (group) come from `matrix["header_rows"]` — a list of lists of cell dicts each with a `"title"` string, built in `frontier_columns` (`rollups.py:569,584,596`, assembled at `:615`). `matrix["columns"]` is `_public_columns(...)` (`:667`) and holds **leaf columns only**, so a scan over it silently misses every expanded group cell — exactly what line 126 renders.
-2. **`build_student_breakdown` returns a dict wrapper, not a tree.** `rollups.py:452` returns `{"student": …, "tree": tree}`; `analytics_student.html:12` iterates `breakdown.tree`. Passing `breakdown` itself iterates the dict's keys and raises `TypeError: string indices must be integers` — a 500 on the breakdown page.
+2. **`build_student_breakdown` returns a dict wrapper, not a tree.** `build_student_breakdown` (`rollups.py:452`) returns `{"student": …, "tree": tree}` at `:472`; `analytics_student.html:12` iterates `breakdown.tree`. Passing `breakdown` itself iterates the dict's keys and raises `TypeError: string indices must be integers` — a 500 on the breakdown page.
 3. **`review_queue` binds only `data`.** It unpacks `data["awaiting"]` / `data["in_progress"]` inline in the `render()` call (`:118-126`); there are no `awaiting` / `in_progress` locals, so referring to them is a `NameError`. `pending_reviews_for` materialises both with `list(... .select_related("student", "unit"))` (`review.py:242-246`) and returns two plain lists, so `data["awaiting"] + data["in_progress"]` is a valid list concatenation and the scan touches no database.
 
 - [ ] **Step 1: Write the failing tests**
@@ -3557,8 +3596,25 @@ containing chapter A1 (title = `TITLES["inline"]`) containing three lesson units
 `TITLES["mixed_h1"]`, `TITLES["display"]` and `TITLES["long"]` in that order — so the middle
 unit's page shows a display-maths **prev** and a long **next** in one shot; plus **part B**
 (title = `TITLES["inline"]`) with one quiz unit titled `TITLES["long"]`, giving the analytics
-matrix maths at two nesting depths once part B is expanded. Enrol one student, submit the quiz
-(so the results/review rows exist), and tag one unit (so the tags hub renders).
+matrix maths at two nesting depths once part B is expanded.
+
+**The part-B quiz must carry an `[R]` question, or rows 9 and 13 are unshootable.**
+`courses/review.py::_awaiting_review` requires `state["total"] > 0` — i.e. at least one element
+whose `marking_mode` is `REVIEW` — and `pending_reviews_for` only appends to `awaiting` when
+that holds. A quiz unit with a submission but no review-mode question leaves `data["awaiting"]`
+empty, so `review_queue.html` renders "Nothing awaiting review." and `review_submission.html`
+renders no rows. Seed it with an `ExtendedResponseQuestionElement(marking_mode=
+QuestionElement.MarkingMode.REVIEW, max_marks=Decimal("5"))` — the `_review_quiz` shape at
+`tests/test_review_views.py:54-63` — and a `SUBMITTED` submission that has not been reviewed.
+
+Then: enrol one student, submit that quiz (so the results/review rows exist), and tag one unit
+(so the tags hub renders). Also seed **one lesson unit and one quiz unit under part B** so the
+breakdown page (row 11) shows both `.breakdown-unit__title` branches.
+
+**Two logins, not one.** Rows 6 (analytics matrix), 9 (review queue), 11 (breakdown) and the
+review-submission half of row 13 are manage surfaces gated by `scoping.can_review_course`,
+which passes only for a platform admin or `course.owner` — capture those as a `make_pa`-style
+admin (or the owner). Every other row is captured as the enrolled student.
 
 Follow `tests/capture_publish_screenshots.py` exactly — it already solved every mechanical
 question here:
@@ -3572,8 +3628,8 @@ question here:
   outright, so a cookie is silently ignored and the "dark" shot comes back light.
 - **Output:** `SHOT_DIR` (env) or `./.superpowers/shots/`, both gitignored. One file per row
   per theme, named `title-math-<row>-<theme>.png`.
-- **Viewports:** desktop `1440×900` via `browser.new_context(viewport=…)`; mobile `390×844`
-  for row 7 only (matching `test_e2e_unit_nav.py`'s drawer tests).
+- **Viewports:** desktop `1440×900` via `browser.new_context(viewport=…)`; mobile `390×780`
+  for row 7 only — the exact viewport `test_e2e_unit_nav.py:311,355` uses for its drawer tests.
 - **Row 7 needs an INTERACTION — it is the one row that is not a plain page load.** The drawer
   is not visible at load: `_unit_footer.html:29-33` ships
   `<button … data-unit-drawer-open … hidden>` and `unit_nav.js` un-hides it, and the drawer's
@@ -3600,10 +3656,21 @@ Read every image and judge the dark one **on its own terms**, not as "the light 
 | 8 | A lesson **`<h1>`** carrying `\(…\)` **and** `\[…\]` alongside words | the forced-inline decision **and** the `font-weight` restoration |
 | 9 | A **review-queue row** (`.card-list__row`) | a flex row §3 claims needs no clamp |
 | 10 | A **course-results row** and an **outline row** | the other two surfaces §3 claims need no clamp |
+| 11 | The **analytics breakdown** page, quiz + lesson rows | `.breakdown-unit__title .katex` and `.breakdown-node__title .katex` are **two of the three selectors in the `app.css` clamp** — without this row they ship on a hypothesis Task 11 never tests |
+| 12 | **Notes page** (`h2.course-notes__unit-title`), **tags hub** (`_tag_section.html`'s `<li><a>`) and **tags panel** (`<h1>`) | three pages that newly gain KaTeX rendering and receive **no clamp at all**; §3 puts them in the "global rules only" bucket, and this row is what turns that from an assumption into a measurement |
+| 13 | `h1.result__title` (quiz results) and `h1.review-topbar__title` (review submission) | the **same synthetic-bold risk as row 8** on two different pages — row 8 only judges the lesson `<h1>` |
 
 **Pass criterion for #8, stated explicitly:** the maths run must read at the same weight as the adjacent words **without synthetic smearing**. `KaTeX_Main` has no true bold face, so an inherited `bold` is browser-synthesised. **If it smears, drop `font-weight: inherit` and accept the weight mismatch as the lesser defect** — and update `tests/test_title_math_css.py::test_font_size_weight_and_style_are_all_restored` and the spec's §3 to match.
 
-**Pass criterion for #9 and #10:** these are a *claim to be checked*, not a free pass. KaTeX's `line-height: 1.2` survives the global rules, and `.result-row`, `.outline-unit` and `.card-list__row` are flex rows that can still gain height from it. Measure the row height with and without a maths title; if it grows, add those selectors to the `courses.css` clamp (`.result-row__title .katex`, `.outline-unit__title .katex`) or to the `app.css` one for `.card-list__row`, whichever stylesheet the page actually links.
+**Pass criterion for #9 and #10:** these are a *claim to be checked*, not a free pass. KaTeX's `line-height: 1.2` survives the global rules, and `.result-row`, `.outline-unit` and `.card-list__row` are flex rows that can still gain height from it. Measure the row height with and without a maths title; if it grows, add a clamp — **and put each selector in the stylesheet its own page actually links**, which is not the same file for all three:
+
+| Selector | Goes in | Because |
+| --- | --- | --- |
+| `.result-row__title .katex` | `courses.css` | `course_results.html:4` links `courses.css`. |
+| `.outline-unit__title .katex` | **`app.css`** | `outline.html:4` links only `notes.css` + `tags.css` (plus base's `app.css`) — **no `courses.css` at all**. A rule for it appended to `courses.css` is a silent no-op on the only page that renders the class, and `test_title_math_css.py` would stay green because it only asserts the rule exists *somewhere*. This is Task 10's own central argument, applied to a surface Task 10 did not pre-empt. |
+| `.card-list__row` / review-queue | **`app.css`** | `review_queue.html` extends `base.html` and links no `courses.css` either. |
+
+If you add any selector, extend `tests/test_title_math_css.py` with a `_has_rule` assertion **against the specific stylesheet**, so the placement is pinned and not just the existence.
 
 **Pass criterion for #6:** measure the `thead th` height against `--ahead-h` (`2.4rem`). If any header cell exceeds it, every sticky row beneath desynchronises — that is a layout break, and the fix is more CSS in the same rules (a tighter clamp, or a `max-height` on the cell), not a change of approach.
 
