@@ -88,8 +88,7 @@ def test_badge_does_not_grow_the_editor_row_at_the_pane_floor(page, live_server)
     card = page.locator(f"[data-element='{badged_join.pk}']")
     actions_box, card_box = badged_actions.bounding_box(), card.bounding_box()
     assert (
-        actions_box["x"] + actions_box["width"]
-        <= card_box["x"] + card_box["width"] + 1
+        actions_box["x"] + actions_box["width"] <= card_box["x"] + card_box["width"] + 1
     )
 
     # Assertion 4 (the original text-badge "ellipsised rather than pushed" check) is

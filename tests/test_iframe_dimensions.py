@@ -56,7 +56,7 @@ def test_render_geogebra_partial_or_zero_pair_uses_the_default(w, h):
 def test_render_non_geogebra_without_dimensions_keeps_the_css_default():
     html = _render_url(OTHER_RENDER_URL)
     assert "embed-frame" in html
-    assert "aspect-ratio:" not in html   # the .embed-frame 16:9 default stands
+    assert "aspect-ratio:" not in html  # the .embed-frame 16:9 default stands
 
 
 @pytest.mark.parametrize("w,h", [(800, None), (0, 0)])
@@ -111,9 +111,9 @@ def test_render_degenerate_shapes_follow_the_stored_pair(stored):
     ):
         html = _render_url(url, *stored)
         if stored == (880, 660):
-            assert "aspect-ratio: 880 / 660" in html   # step 2
+            assert "aspect-ratio: 880 / 660" in html  # step 2
         else:
-            assert "aspect-ratio:" not in html          # step 4
+            assert "aspect-ratio:" not in html  # step 4
 
 
 def test_render_rejects_style_injection_from_the_url():
@@ -162,7 +162,7 @@ def test_render_geogebras_real_embed_tail_gets_the_urls_own_ratio():
     )
     html = _render_url(url)
     assert "aspect-ratio: 1600 / 763" in html
-    assert f'src="{url}"' in html   # the frame matches the src it is framing
+    assert f'src="{url}"' in html  # the frame matches the src it is framing
 
 
 def test_render_non_geogebra_url_with_width_height_segments_gets_no_ratio():
@@ -184,13 +184,13 @@ def test_render_never_raises_on_a_malformed_authority():
 @pytest.mark.parametrize(
     "url,width,height,expected",
     [
-        (URL, None, None, True),            # canonical GeoGebra, no size -> badge
-        (URL, 880, 660, False),             # sized -> no badge
-        (URL, 800, None, True),             # partial pair mirrors frame_ratio
+        (URL, None, None, True),  # canonical GeoGebra, no size -> badge
+        (URL, 880, 660, False),  # sized -> no badge
+        (URL, 800, None, True),  # partial pair mirrors frame_ratio
         # not the canonical shape sized_src rewrites
         ("https://www.geogebra.org/m/dcjktevj", None, None, False),
         ("https://www.geogebra.org/x", None, None, False),
-        (OTHER_RENDER_URL, None, None, False),   # non-GeoGebra
+        (OTHER_RENDER_URL, None, None, False),  # non-GeoGebra
     ],
 )
 def test_size_unknown_drives_the_editor_badge(url, width, height, expected):
@@ -200,10 +200,10 @@ def test_size_unknown_drives_the_editor_badge(url, width, height, expected):
 
 def _editor_html(client, obj):
     """Seed a unit holding `obj`, GET the real editor page, return its HTML."""
-    make_pa(client, "pa")                      # creates + logs in a platform admin
+    make_pa(client, "pa")  # creates + logs in a platform admin
     course = CourseFactory()
-    unit = ContentNodeFactory(course=course)   # kind defaults to "unit"
-    add_element(unit, obj)                     # Element.objects.create join row
+    unit = ContentNodeFactory(course=course)  # kind defaults to "unit"
+    add_element(unit, obj)  # Element.objects.create join row
     response = client.get(_editor_url(course, unit))
     assert response.status_code == 200
     return response.content.decode()
@@ -390,9 +390,7 @@ def test_form_non_geogebra_dimensionless_paste_never_looks_up():
 def test_form_geogebra_host_without_a_material_id_never_looks_up():
     # Second half of the `and mid` guard: a GeoGebra HOST whose URL yields no
     # material id must not trigger a lookup either.
-    form = IframeElementForm(
-        data={"url": "https://www.geogebra.org/x", "title": "P"}
-    )
+    form = IframeElementForm(data={"url": "https://www.geogebra.org/x", "title": "P"})
     with _patch_lookup() as lookup:
         # If extract_embed_url rejects this URL the form is invalid -- that is fine
         # and the assertion below still holds; the point is that no lookup fires.

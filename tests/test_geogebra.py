@@ -122,7 +122,7 @@ def test_usable_dimensions_accepts_positive_in_range_ints(w, h):
     "url,expected",
     [
         ("https://www.geogebra.org/m/dcjktevj", "dcjktevj"),
-        ("https://geogebra.org/m/dcjktevj", "dcjktevj"),            # bare host
+        ("https://geogebra.org/m/dcjktevj", "dcjktevj"),  # bare host
         ("https://www.geogebra.org/material/show/id/dcjktevj", "dcjktevj"),
         ("https://www.geogebra.org/material/iframe/id/dcjktevj", "dcjktevj"),
         # _ID_RE charset gate
@@ -131,9 +131,9 @@ def test_usable_dimensions_accepts_positive_in_range_ints(w, h):
         ("https://www.geogebra.org/classic/dcjktevj", ""),
         # the LAL-stored shape
         ("https://www.geogebra.org/x", ""),
-        ("http://www.geogebra.org/m/dcjktevj", ""),     # non-https
-        ("https://beta.geogebra.org/m/dcjktevj", ""),   # subdomain
-        ("https://example.com/m/dcjktevj", ""),         # other host
+        ("http://www.geogebra.org/m/dcjktevj", ""),  # non-https
+        ("https://beta.geogebra.org/m/dcjktevj", ""),  # subdomain
+        ("https://example.com/m/dcjktevj", ""),  # other host
     ],
 )
 def test_geogebra_material_id(url, expected):
@@ -149,17 +149,17 @@ def test_geogebra_material_id_never_raises_on_malformed_authority():
 @pytest.mark.parametrize(
     "w,h",
     [
-        (0, 660),           # zero
-        (-5, 660),          # negative
+        (0, 660),  # zero
+        (-5, 660),  # negative
         (880, 0),
-        (None, 660),        # partial pair
+        (None, 660),  # partial pair
         (880, None),
         (None, None),
-        ("880", 660),       # string, not int
-        (880.0, 660),       # integral float still rejected
-        (True, 660),        # bool is an int subclass in Python — must NOT pass
+        ("880", 660),  # string, not int
+        (880.0, 660),  # integral float still rejected
+        (True, 660),  # bool is an int subclass in Python — must NOT pass
         (880, True),
-        (DIM_MAX + 1, 660), # over the PositiveIntegerField ceiling
+        (DIM_MAX + 1, 660),  # over the PositiveIntegerField ceiling
         (880, DIM_MAX + 1),
     ],
 )
@@ -174,11 +174,10 @@ def test_usable_dimensions_rejects_everything_else(w, h):
     "url,expected",
     [
         ("https://www.geogebra.org/material/iframe/id/dcjktevj", True),
-        ("https://geogebra.org/material/iframe/id/dcjktevj", True),      # bare host
+        ("https://geogebra.org/material/iframe/id/dcjktevj", True),  # bare host
         # the "width" in segments clause — geogebra_sized_src refuses this one too
         (
-            "https://www.geogebra.org/material/iframe/id/dcjktevj"
-            "/width/880/height/660",
+            "https://www.geogebra.org/material/iframe/id/dcjktevj/width/880/height/660",
             False,
         ),
         # not a shape sized_src rewrites
@@ -212,21 +211,20 @@ _BASE = "https://www.geogebra.org/material/iframe/id/abc"
     "url,expected",
     [
         (f"{_BASE}/width/880/height/660", (880, 660)),
-        (f"{_BASE}/width/800/height/400", (800, 400)),     # non-4:3: read, not assumed
-        (f"{_BASE}/width/abc/height/def", (None, None)),   # non-numeric
-        (f"{_BASE}/width/880", (None, None)),              # height segment missing
-        (f"{_BASE}/width/0/height/0", (None, None)),       # fails usable_dimensions
-        (f"{_BASE}/height/660/width/880", (None, None)),   # reversed order
+        (f"{_BASE}/width/800/height/400", (800, 400)),  # non-4:3: read, not assumed
+        (f"{_BASE}/width/abc/height/def", (None, None)),  # non-numeric
+        (f"{_BASE}/width/880", (None, None)),  # height segment missing
+        (f"{_BASE}/width/0/height/0", (None, None)),  # fails usable_dimensions
+        (f"{_BASE}/height/660/width/880", (None, None)),  # reversed order
         # Trailing segments after offset 7 are IGNORED, so the first positional pair
         # wins. Same rule that admits GeoGebra's real border/sfsb cruft below.
         (f"{_BASE}/width/880/height/660/width/999", (880, 660)),
-        (_BASE, (None, None)),                             # no tail at all
+        (_BASE, (None, None)),  # no tail at all
         # scoped to GeoGebra: another provider with width/height path segments
         ("https://player.vimeo.com/video/1/width/4/height/3", (None, None)),
         # non-https
         (
-            "http://www.geogebra.org/material/iframe/id/abc"
-            "/width/880/height/660",
+            "http://www.geogebra.org/material/iframe/id/abc/width/880/height/660",
             (None, None),
         ),
     ],
