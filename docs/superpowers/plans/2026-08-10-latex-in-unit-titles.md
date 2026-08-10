@@ -442,9 +442,10 @@ def _deep_course_with_maths_in_hidden_path():
     """>1 ancestor so the ellipsis crumb renders (it is gated on ancestor COUNT),
     with the maths title on an ancestor that hidden_path ACTUALLY CONTAINS.
 
-    THE TRAP: `hidden_path` is `HIDDEN_PATH_SEP.join(a.title for a in
-    ancestors[:-1])` (rollups.py:954) -- ALL BUT THE DEEPEST -- and `ancestors`
-    already excludes the unit itself (_current_ancestors, rollups.py:878-879).
+    THE TRAP: `build_unit_nav` sets `hidden_path` to
+    `HIDDEN_PATH_SEP.join(a.title for a in ancestors[:-1])` -- ALL BUT THE
+    DEEPEST -- and `ancestors` comes from `_current_ancestors`, which already
+    excludes the unit itself.
     For part1 -> chapter -> deep, `ancestors == [part1, chapter]` and
     `ancestors[:-1] == [part1]`. So the maths must go on **part1**; putting it on
     the chapter leaves hidden_path maths-free and both tests below fail no matter
@@ -905,6 +906,14 @@ def titles_have_math(titles):
     return any(has_math_delimiters(t) for t in titles)
 ```
 
+> **After this step, every `rollups.py:NNN` citation later in the plan is stale by ~26 lines**
+> (the import plus the ~24-line function). Those later references — `frontier_columns`
+> (`:569,584,596`, assembled at `:615`), `_public_columns` (`:667`), `build_student_breakdown`
+> (`:452`, returning at `:472`) — are all **pre-Task-3** numbers, kept because they are what you
+> see if you look at `master`. Navigate by symbol name, not by line. No committed comment or
+> docstring in this plan cites a `rollups.py` line number, precisely so the repo does not ship
+> references that this task invalidates.
+
 - [ ] **Step 4: Write `tree_titles_have_math`**
 
 In `courses/rollups.py`, add the import (isort places it with the other `from courses...` lines, `force-single-line`):
@@ -1305,9 +1314,15 @@ lines 28-32 → `    {% include "courses/_katex_js.html" %}`
   {% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}
 ```
 
-lines 63-67 (the four KaTeX tags **plus** `question.js`) → the include followed by the retained `question.js`, keeping the existing `{% comment %}` at `:60-62` untouched:
+lines 63-67 (the four KaTeX tags **plus** `question.js`) → the include followed by the retained `question.js`. **Rewrite the `{% comment %}` at `:60-62` rather than preserving it verbatim** — it describes the tags being deleted, and left as-is it would sit above an `{% include %}` naming assets that are no longer there:
 
 ```
+    {% comment %}The KaTeX family now comes from courses/_katex_js.html (which
+    also adds math.js, previously missing here). question.js stays OUTSIDE that
+    partial and MUST remain after the include: each result item is marked
+    data-question so question.js's initial pass typesets the inline \(...\) math
+    in its stem/reveal/explanation. The items have no form, so its submit wiring
+    is a no-op here.{% endcomment %}
     {% include "courses/_katex_js.html" %}
     <script src="{% static 'courses/js/question.js' %}" defer></script>
 ```
@@ -1318,9 +1333,15 @@ lines 63-67 (the four KaTeX tags **plus** `question.js`) → the include followe
   {% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}
 ```
 
-lines 135-139 → the include plus the retained `question.js`, keeping the `{% comment %}` at `:131-134`:
+lines 135-139 → the include plus the retained `question.js`. **Rewrite the `{% comment %}` at `:131-134` too** — it currently says "PRESERVE the existing math **quartet**", and after this edit there is no quartet; keeping it would leave a comment naming assets that moved into the partial, while losing the warning that actually matters:
 
 ```
+    {% comment %}The KaTeX family now comes from courses/_katex_js.html (which
+    also adds math.js, previously missing here). PRESERVE question.js and keep it
+    AFTER the include: the read-only stem/answer live in a form-less
+    [data-question] and question.js's initial pass typesets their inline math.
+    Dropping it regresses math rendering AND breaks
+    test_review_views.py::test_review_loads_katex_when_stem_has_math.{% endcomment %}
     {% include "courses/_katex_js.html" %}
     <script src="{% static 'courses/js/question.js' %}" defer></script>
 ```
@@ -1650,7 +1671,7 @@ def test_course_results_row_titles_are_marked(client):
     url = reverse("courses:course_results", kwargs={"slug": course.slug})
     body = client.get(url).content.decode()
     # Precondition, stated rather than assumed: build_course_results appends a
-    # "not_started" row for EVERY quiz unit (rollups.py:369-380), so a quiz with
+    # "not_started" row for EVERY quiz unit (build_course_results), so a quiz with
     # no submission still renders. Without this the positive assertion below
     # could fail for fixture reasons and read as a wiring bug.
     assert MATHS_TITLE in body, "the results row did not render"
@@ -1985,7 +2006,7 @@ def test_the_builder_rename_input_is_neither_marked_nor_filtered(client):
 uv run pytest tests/test_title_math_markers.py -v
 ```
 
-Expected: every marker test FAILS (no element carries the attribute); the two exclusion tests already PASS (nothing is marked yet) — that is expected and they become meaningful once Step 3 lands.
+Expected: every marker test FAILS (no element carries the attribute); the three exclusion tests already PASS (nothing is marked yet) — that is expected and they become meaningful once Step 3 lands.
 
 - [ ] **Step 3: Add `[data-math-title]` to the `math.js` selector**
 
@@ -2470,9 +2491,17 @@ def _widen_has_math_for_titles(ctx, node):
 ```
 
 Place it beside `full_lesson_render_context` in `courses/views.py`, then call it at all three
-sites, in each case on the line **immediately after** `ctx["unit_nav"] = build_unit_nav(...)`:
+sites, in each case on the line **immediately after** `ctx["unit_nav"] = build_unit_nav(...)`.
 
-| Site | Function | Call line goes after |
+> **All line numbers in this table are PRE-EDIT** — they describe `views.py` as it stands at
+> the start of Task 6. Step 3 adds two imports (+2 lines) and this step inserts the ~24-line
+> helper above the quiz functions, so by the time you make the second and third calls the quiz
+> rows have drifted by ~26. **Navigate by the anchor, not the number:**
+> `ctx["unit_nav"] = build_unit_nav(` occurs **exactly three times** in `views.py`, once per
+> site, and the call goes directly beneath each occurrence. Confirm the count first with
+> `grep -c 'ctx\["unit_nav"\] = build_unit_nav(' courses/views.py` → `3`.
+
+| Site | Function (pre-edit) | Call goes after (pre-edit) |
 | --- | --- | --- |
 | Lesson | `full_lesson_render_context` (`:529`) | `:556` |
 | Quiz | `quiz_unit` (`:1365`) | `:1385` |
@@ -2562,7 +2591,7 @@ git commit -m "feat(courses): widen has_math to node titles on the lesson, quiz 
 ## Task 7: Gate the outline and course-results pages
 
 **Files:**
-- Modify: `courses/views.py` — `course_outline` (`:576`), `course_results` (`:610`)
+- Modify: `courses/views.py` — `course_outline` (`:576` pre-edit), `course_results` (`:610` pre-edit) — both have drifted by ~26 lines after Task 6's imports + helper; navigate by function name
 - Modify: `templates/courses/outline.html:4` (+ new `extra_js` block)
 - Modify: `templates/courses/course_results.html:4` (+ new `extra_js` block)
 - Test: `tests/test_title_math_assets.py` (append)
@@ -2623,7 +2652,7 @@ def test_course_results_loads_katex_for_a_maths_row_title(client):
     url = _course_results_url_with_quiz_title(client, MATHS_TITLE)
     body = client.get(url).content.decode()
     # A quiz with no submission still renders: build_course_results appends a
-    # "not_started" row for every quiz unit (rollups.py:369-380).
+    # "not_started" row for every quiz unit (build_course_results).
     assert MATHS_TITLE in body, "the results row did not render"
     _assert_katex_present(body)
 
@@ -2655,9 +2684,8 @@ and add `"has_math": has_math,` to the context dict.
 `course_results` (`:610`), immediately before `return render(...)`:
 
 ```python
-    # build_course_results builds "rows" with rows.append (rollups.py:369, :383,
-    # :399), so it is a real list -- scanning it here and then passing it to
-    # the template
+    # build_course_results builds "rows" with three rows.append calls, so it is
+    # a real list -- scanning it here and then passing it to the template
     # iterates it twice safely. Were it a generator, the scan would exhaust it and
     # the page would render EMPTY, a silent severe failure no test here would
     # catch, which is why the return type is pinned rather than assumed.
@@ -3424,8 +3452,16 @@ def _rule_body(css, selector):
     comment blocks naming several of these class names, and they pass today only
     because those comments happen to omit the ` .katex` suffix, which is an
     incidental property rather than a designed one.
+
+    THE COMMA BRANCH MUST BE OPTIONAL, NOT ALTERNATIVE. `[,{][^{}]*\{` looks
+    right and is broken: when the selector is the LAST member of a group -- or a
+    solo rule -- the `{` is consumed by the character class and the pattern then
+    demands a second `{` that never comes. Verified: that form misses
+    `.breakdown-node__title .katex`, `.unit-crumbs__label .katex` and
+    `[data-math-title] .katex-display > .katex`, i.e. three of this file's own
+    assertions, including the sole pin on the deliberate spec §3 deviation.
     """
-    m = re.search(re.escape(selector) + r"\s*[,{][^{}]*\{([^}]*)\}", css)
+    m = re.search(re.escape(selector) + r"\s*(?:,[^{}]*)?\{([^}]*)\}", css)
     return m.group(1) if m else None
 
 
@@ -3606,7 +3642,7 @@ Append to `courses/static/courses/css/courses.css`:
 uv run pytest tests/test_title_math_css.py -v
 ```
 
-Expected: 8 passed.
+Expected: 9 passed.
 
 - [ ] **Step 6: Falsify — observe RED against the specificity and shorthand mutants**
 
@@ -3638,7 +3674,7 @@ git commit -m "feat(css): normalise KaTeX sizing and display math inside node ti
 **Files:**
 - Create: `tests/test_e2e_title_math.py`
 - Modify (only if measurement demands it): `core/static/core/css/app.css`, `courses/static/courses/css/courses.css`, `courses/static/courses/js/math.js`
-- Modify (only if measurement demands it): `docs/superpowers/specs/2026-08-10-latex-in-unit-titles-design.md` §3, to record the confirmed or corrected values
+- Modify (**always** — see Step 6): `docs/superpowers/specs/2026-08-10-latex-in-unit-titles-design.md` §3, to record the confirmed or corrected clamp values and to fix the `white-space` code block
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–10.
@@ -3832,7 +3868,33 @@ Read the `[render cost]` line from the run above. Note the element count and the
   typeset element prose the selector list deliberately scopes, and the edit buffers §Data-flow
   Path C must keep untouched. Per-element calls plus the pre-filter is the realisable fix.
 
-Note the fixture above is a five-node course, not the matematyka worst case (21 parts / 793 units ≈ 1,600+ invocations). If the small-course number is anywhere near the threshold, re-measure against a larger seeded course before concluding.
+**The small-course caveat, made concrete.** The fixture above is a five-node course; this repo's real matematyka course is 21 parts / 793 units, and the unit page renders the whole outline **twice** (rail + drawer), so the realistic worst case is ~1,600+ marked elements rather than ~10. Scale is therefore ~100×, and a 0.5 ms reading says nothing about a 50 ms one.
+
+**If the small-course reading exceeds 5 ms** (i.e. 10% of the threshold — "near" defined, not left to judgement), re-measure at scale before concluding. Do not invent a fixture: parametrise the existing one. Add to `tests/helpers_title_math.py`:
+
+```python
+def make_large_title_course(*, parts=20, units_per_part=40):
+    """A ~800-unit course with ONE maths title, for the render-cost measurement.
+
+    Mirrors this repo's matematyka course (21 parts / 793 units). Only the first
+    part's title carries maths, so the gate arms exactly once and every other
+    title is a realistic maths-free string.
+    """
+    course = CourseFactory()
+    for p in range(parts):
+        part = ContentNodeFactory(
+            course=course, kind="part", parent=None, unit_type=None, order=p,
+            title=MATHS_TITLE if p == 0 else f"Czesc {p + 1}",
+        )
+        for u in range(units_per_part):
+            ContentNodeFactory(
+                course=course, kind="unit", unit_type="lesson", parent=part,
+                order=u, obligatory=True, title=f"Lekcja {p + 1}.{u + 1}",
+            )
+    return course
+```
+
+Then re-run the same measurement against it (one extra e2e, same `page.route` block and same `evaluate` body) and judge the **large-course** number against the 50 ms threshold. The small-course number is only ever a screening reading.
 
 - [ ] **Step 5a: Seed the visual-verification fixtures**
 
@@ -3875,9 +3937,12 @@ renders no rows. Seed it with an `ExtendedResponseQuestionElement(marking_mode=
 QuestionElement.MarkingMode.REVIEW, max_marks=Decimal("5"))` — the `_review_quiz` shape at
 `tests/test_review_views.py:54-63` — and a `SUBMITTED` submission that has not been reviewed.
 
-Then: enrol one student, submit that quiz (so the results/review rows exist), and tag one unit
-(so the tags hub renders). Also seed **one lesson unit and one quiz unit under part B** so the
-breakdown page (row 11) shows both `.breakdown-unit__title` branches.
+Then: enrol one student, submit that quiz (so the results/review rows exist), tag one unit (so
+the tags hub renders), and **create one `Note(author=student, unit=<a maths-titled unit>,
+body="…")`** — `notes.services.course_notes` **omits units with no notes**, so without this the
+notes page renders `course-notes__empty` and row 12's `h2.course-notes__unit-title` never
+appears at all. Also seed **one lesson unit and one quiz unit under part B** so the breakdown
+page (row 11) shows both `.breakdown-unit__title` branches.
 
 **Two logins, not one.** Rows 6 (analytics matrix), 9 (review queue), 11 (breakdown) and the
 review-submission half of row 13 are manage surfaces gated by `scoping.can_review_course`,
@@ -3898,6 +3963,35 @@ question here:
   per theme, named `title-math-<row>-<theme>.png`.
 - **Viewports:** desktop `1440×900` via `browser.new_context(viewport=…)`; mobile `390×780`
   for row 7 only — the exact viewport `test_e2e_unit_nav.py:311,355` uses for its drawer tests.
+- **The analytics shot (row 6) needs `?expand=<part B pk>`.** Expansion is driven purely by
+  the query parameter (`views_analytics.py:83` reads `request.GET.getlist("expand")`), so a
+  plain `page.goto(manage_analytics)` renders part B as an unexpanded **leaf** and the
+  `analytics__group-title` header — the entire point of row 6 — never appears. Same parameter
+  the `_analytics_bodies` fixture uses in Task 5. The breakdown shot (row 11) needs no
+  parameter.
+- **The tags-panel shot (part of row 12) needs a NON-fragment POST, which JS prevents.**
+  `panel_page.html` is reachable only through `_add_error`, i.e. a POST that is *not* a
+  fragment — but `tags/static/tags/js/tags.js` intercepts every `.unit-tags__add` submit and
+  adds `X-Requested-With: fetch`, so a JS-enabled browser always gets the 422 *fragment*
+  instead. Disabling JS is not an escape either: KaTeX could not run and the shot would show
+  raw delimiters. Route around the interceptor by submitting a **fresh form the handler does
+  not listen to** — from the unit page, inject one carrying the same CSRF token and POST it:
+
+  ```js
+  () => {
+    const tok = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const f = document.createElement('form');           // no .unit-tags__add class,
+    f.method = 'post';                                  // so tags.js never sees it
+    f.action = TAG_ADD_URL;                             // passed in from Python
+    f.innerHTML = '<input name="csrfmiddlewaretoken" value="' + tok + '">' +
+                  '<input name="name" value="">';       // empty -> ValidationError -> 422
+    document.body.appendChild(f); f.submit();
+  }
+  ```
+
+  That is a real same-origin navigation, so `{% static %}` URLs resolve and KaTeX loads
+  normally. If this proves flaky, drop the tags-panel sub-row and **record that surface as
+  visually unverified** rather than shooting the fragment by mistake.
 - **Row 7 needs an INTERACTION — it is the one row that is not a plain page load.** The drawer
   is not visible at load: `_unit_footer.html:29-33` ships
   `<button … data-unit-drawer-open … hidden>` and `unit_nav.js` un-hides it, and the drawer's
@@ -3956,8 +4050,11 @@ If you add any selector, extend `tests/test_title_math_css.py` with a `_has_rule
 
 The values in Task 10 are a **starting hypothesis, not a result**. Having measured:
 
-- If every surface is clean, record that in the spec's §3 closing paragraph: replace "All clamp values above are a **starting hypothesis, not a result**" with the measured confirmation and the date.
-- If any surface needs a different value or an extra selector, change the CSS, re-run `tests/test_title_math_css.py` (extending it if you added selectors), update §3, and re-screenshot that surface.
+**The §3 edit is UNCONDITIONAL** — it happens on the clean path too, which is why Step 8 stages the spec unconditionally rather than "only if the measurement corrected something":
+
+- If every surface is clean, replace §3's closing "All clamp values above are a **starting hypothesis, not a result**" with the measured confirmation and today's date. A hypothesis that has been confirmed is no longer a hypothesis, and leaving that sentence in place would tell the next reader the work was never done.
+- If any surface needs a different value or an extra selector, change the CSS, re-run `tests/test_title_math_css.py` (extending it if you added selectors), update §3 with the corrected values, and re-screenshot that surface.
+- **Also record the `white-space` deviation** (Task 10): §3's code block says `white-space: inherit` on the display-math child rule, its prose says nowrap should be kept, and the plan follows the prose. Fix the code block so spec and implementation agree.
 
 Whenever you change a value, **re-apply the overriding invariant**: the vendor stylesheet always loads after ours, so any new rule must be strictly more specific than the vendor rule it overrides.
 
@@ -3987,11 +4084,12 @@ left untracked at PR time — making Step 5b's verification unreproducible.
 ```bash
 uv run ruff check --fix tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
 uv run ruff format tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
-git add tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
-# plus any CSS / math.js / spec files the measurement corrected:
+git add tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py \
+        docs/superpowers/specs/2026-08-10-latex-in-unit-titles-design.md
+# The spec is ALWAYS staged: Step 6's §3 confirmation edit happens on the clean
+# path too. Add the CSS / math.js paths only if the measurement corrected them:
 # git add core/static/core/css/app.css courses/static/courses/css/courses.css \
-#         courses/static/courses/js/math.js \
-#         docs/superpowers/specs/2026-08-10-latex-in-unit-titles-design.md
+#         courses/static/courses/js/math.js
 git commit -m "test(e2e): drive a maths title through the real nav button and measure render cost"
 ```
 
