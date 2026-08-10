@@ -2,6 +2,7 @@ import pytest
 
 from courses.geogebra import DIM_MAX
 from courses.geogebra import canonicalize_geogebra_url
+from courses.geogebra import geogebra_material_id
 from courses.geogebra import geogebra_sized_src
 from courses.geogebra import usable_dimensions
 
@@ -95,6 +96,37 @@ def test_sized_src_never_raises_on_junk():
 @pytest.mark.parametrize("w,h", [(880, 660), (1, 1), (DIM_MAX, DIM_MAX)])
 def test_usable_dimensions_accepts_positive_in_range_ints(w, h):
     assert usable_dimensions(w, h) is True
+
+
+# --- geogebra_material_id: the lookup gate ---
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("https://www.geogebra.org/m/dcjktevj", "dcjktevj"),
+        ("https://geogebra.org/m/dcjktevj", "dcjktevj"),            # bare host
+        ("https://www.geogebra.org/material/show/id/dcjktevj", "dcjktevj"),
+        ("https://www.geogebra.org/material/iframe/id/dcjktevj", "dcjktevj"),
+        # _ID_RE charset gate
+        ("https://www.geogebra.org/m/bad id", ""),
+        # app link, not a material
+        ("https://www.geogebra.org/classic/dcjktevj", ""),
+        # the LAL-stored shape
+        ("https://www.geogebra.org/x", ""),
+        ("http://www.geogebra.org/m/dcjktevj", ""),     # non-https
+        ("https://beta.geogebra.org/m/dcjktevj", ""),   # subdomain
+        ("https://example.com/m/dcjktevj", ""),         # other host
+    ],
+)
+def test_geogebra_material_id(url, expected):
+    assert geogebra_material_id(url) == expected
+
+
+def test_geogebra_material_id_never_raises_on_malformed_authority():
+    # urlsplit("https://[::1").hostname raises ValueError; this runs on the render
+    # path, so it must degrade rather than 500 the page.
+    assert geogebra_material_id("https://[::1") == ""
 
 
 @pytest.mark.parametrize(

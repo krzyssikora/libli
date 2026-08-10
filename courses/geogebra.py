@@ -68,30 +68,37 @@ def _material_id(segments):
     return ""
 
 
+def geogebra_material_id(url):
+    """Return the material id for a recognized https GeoGebra URL, else "".
+
+    Applies _ID_RE, which _material_id does NOT — canonicalize_geogebra_url used to
+    apply it afterwards. Without the regex here, ".../m/bad id" would return a truthy
+    "bad id" and clean_url would build an API URL containing a raw space.
+
+    Never raises: urlsplit/.hostname can raise ValueError on a malformed authority,
+    and this runs during page render (frame_ratio) as well as in clean_url.
+    """
+    try:
+        parts = urlsplit(url)
+        if parts.scheme != "https":
+            return ""
+        if (parts.hostname or "").lower() not in _GEOGEBRA_HOSTS:
+            return ""
+        candidate = _material_id(parts.path.split("/")[1:])
+        return candidate if _ID_RE.match(candidate) else ""
+    except (ValueError, TypeError, IndexError):
+        return ""
+
+
 def canonicalize_geogebra_url(url):
     """Rewrite a recognized https GeoGebra material URL to the worksheet embed URL.
 
     Anything not recognized — non-https, non-GeoGebra host, a *.geogebra.org
     subdomain, an app link, a missing/malformed id, or any parse failure — is
-    returned unchanged.
+    returned unchanged. Recognition lives entirely in geogebra_material_id.
     """
-    try:
-        parts = urlsplit(url)
-        if parts.scheme != "https":
-            return url
-        host = (parts.hostname or "").lower()  # .hostname can raise / be None
-        if host not in _GEOGEBRA_HOSTS:
-            return url
-        segments = parts.path.split("/")[1:]  # drop the single leading ''
-        candidate = _material_id(segments)
-        if _ID_RE.match(candidate):
-            return _CANONICAL.format(candidate)
-        return url
-    except (ValueError, TypeError, IndexError):
-        # Backstop: urlsplit/.hostname/.port can raise ValueError on a malformed
-        # authority; bounds-guards above already prevent IndexError. Any failure
-        # → pass through unchanged (honors the "never raises" contract).
-        return url
+    material_id = geogebra_material_id(url)
+    return _CANONICAL.format(material_id) if material_id else url
 
 
 def geogebra_sized_src(url, width, height):
