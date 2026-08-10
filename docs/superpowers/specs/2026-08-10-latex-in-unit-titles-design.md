@@ -123,6 +123,13 @@ applies to:
 - `tags/panel_page.html:5` — `<h1>{{ unit.title }} — {% trans "Tags" %}</h1>`, structurally
   identical to `quiz_results.html:12`.
 
+**The rule's limit.** It bites only when the sibling content **could itself contain
+delimiters** — translated prose, a student name, another node's title. A static glyph does
+not qualify: `analytics_matrix.html:114-115` renders `{{ cell.title }} ▸` inside the leaf
+`<a>`, and the marker goes on that `<a>` with the `▸` inside its scope. Auto-render scans
+the glyph, finds no delimiters, and leaves it alone. Stated because the two rules otherwise
+give contradictory answers there.
+
 `notes/course_notes.html:16` and `tags/_tag_section.html:25` were checked in the same pass
 and hold the title **alone**, so the marker goes on the existing element there. They are
 named here so the reader knows they were considered rather than skipped.
@@ -230,18 +237,31 @@ Per page, `has_math` becomes the existing value OR the title scan:
 
 | Page | View | Scan expression |
 | --- | --- | --- |
-| Lesson unit | `full_lesson_render_context` (`views.py:529`) | `tree_titles_have_math(unit_nav["tree"])` or `titles_have_math([unit.title])` |
-| Quiz unit | `views.py:1385` | same |
-| Quiz results | `views.py:1609` region | `titles_have_math([unit.title])` |
-| Course outline | `course_outline` (`views.py:576`) | `tree_titles_have_math(outline)` |
-| Course results | `course_results` (`views.py:610`) | `titles_have_math(r["unit"].title for r in summary["rows"])` |
-| Analytics matrix | `analytics_matrix` (`views_analytics.py:74`) | `titles_have_math(c["title"] for row in matrix["header_rows"] for c in row)` |
-| Analytics breakdown | `analytics_student` (`views_analytics.py:224`) | `tree_titles_have_math(breakdown["tree"])` |
-| Review queue | `review_queue` (`views_review.py:110`) | `titles_have_math(s.unit.title for s in data["awaiting"] + data["in_progress"])` |
-| Review submission | `_review_context` (`views_review.py:95`) | `titles_have_math([submission.unit.title])` |
-| Course notes | `course_notes` (`notes/views.py:53`) | `titles_have_math(r["unit"].title for r in units)` |
-| Unit tags panel | `tags/views.py:69` (no-JS 422 path) | `titles_have_math([unit.title])` |
-| Tags hub | `my_tags` (`tags/views.py:85`) **and** `tag_recolor`'s error branch (`tags/views.py:127`) | `titles_have_math(u.title for _tag, grouped in tags_by_tag for units in grouped.values() for u in units)` |
+Every function is cited by its `def` line. Expressions are written to be **paste-able at the
+stated insertion point**, using the locals that actually exist there — five earlier drafts of
+this table referred to names the views never bind.
+
+| Page | Function (`def` line) | Insertion point and expression |
+| --- | --- | --- |
+| Lesson unit | `full_lesson_render_context` (`views.py:529`) | after `ctx["unit_nav"] = …` (`:556`): `ctx["has_math"] = ctx["has_math"] or tree_titles_have_math(ctx["unit_nav"]["tree"]) or titles_have_math([node.title])` |
+| Quiz unit | `quiz_unit` (`views.py:1365`) | after `ctx["unit_nav"] = …` (`:1385`): same statement, with `node` |
+| Quiz unit (no-JS feedback) | `_quiz_render_feedback` (`views.py:1411`) | after `ctx["unit_nav"] = …` (`:1418`): same statement again — see below |
+| Quiz results | `views.py:1573` | after the loop that sets `has_math` closes (`:1599`), before the ctx dict: `has_math = has_math or titles_have_math([node.title])` |
+| Course outline | `course_outline` (`views.py:576`) | `outline` local exists: `tree_titles_have_math(outline)` |
+| Course results | `course_results` (`views.py:610`) | `summary` local exists: `titles_have_math(r["unit"].title for r in summary["rows"])` |
+| Analytics matrix | `analytics_matrix` (`views_analytics.py:74`) | `matrix` local exists: `titles_have_math(c["title"] for row in matrix["header_rows"] for c in row)` |
+| Analytics breakdown | `analytics_student` (`views_analytics.py:224`) | `breakdown` local exists: `tree_titles_have_math(breakdown["tree"])` |
+| Review queue | `review_queue` (`views_review.py:110`) | `data` local exists: `titles_have_math(s.unit.title for s in data["awaiting"] + data["in_progress"])` |
+| Review submission | `_review_context` (`views_review.py:94`) | `submission` param: `titles_have_math([submission.unit.title])` |
+| Course notes | `course_notes` (`notes/views.py:54`) | **bind a local first** — the view passes `services.course_notes(...)` inline into the dict, so `units` does not exist. Assign `units = services.course_notes(...)`, then `titles_have_math(r["unit"].title for r in units)` |
+| Unit tags panel | `_add_error` (`tags/views.py:61`, no-JS 422 path) | `unit` param: `titles_have_math([unit.title])` |
+| Tags hub | `my_tags` (`tags/views.py:85`) **and** `tag_recolor`'s error branch (`tags/views.py:127`) | **bind a local first** at both sites — `tags_by_tag` is passed inline into the dict at each. Assign `tags_by_tag = services.units_by_tag(...)`, then `titles_have_math(u.title for _tag, grouped in tags_by_tag for units in grouped.values() for u in units)` |
+
+**`node`, not `unit`.** `full_lesson_render_context(node, …)`, `build_quiz_context(node, user)`
+(`views.py:1218`) and the quiz-results view all bind the node as **`node`**; `unit` exists only
+as a *context key*, never as a local. Likewise `has_math` and `unit_nav` on the two quiz paths
+are reachable only as `ctx["has_math"]` / `ctx["unit_nav"]`, and `ctx["unit_nav"]` is assigned
+on the very line cited — so the OR must come *after* that assignment, not before.
 
 The editor is absent by design (see above).
 
@@ -288,17 +308,29 @@ earlier draft in ways that fail loudly or silently:
 is exactly what line 126 renders. §Testing requires a fixture with the maths title on an
 **expanded group** node, not only on a leaf.
 
-**Why the lesson/quiz row scans two things.** `unit_nav["tree"]` is `build_outline(...)` and
-already contains the ancestors, the previous and next units, and normally the current unit
-itself — so the second scan looks redundant. It is not: under `drafts="hide"` a draft or
-hidden unit is pruned from the tree while still being the unit on screen, and then
-`unit.title` is the only source. Both scans are required; neither may be trimmed.
+**Why the lesson/quiz row scans two things — REDUNDANT TODAY, KEPT DELIBERATELY.**
+`unit_nav["tree"]` is `build_outline(...)` and already contains the ancestors, the previous
+and next units, **and** the current unit, so the `[node.title]` scan is provably redundant at
+every present call site. It cannot be otherwise reached: `access.py:135-141` raises `Http404`
+for an unpublished unit whose viewer cannot see drafts, and both `lesson_unit` (`views.py:717`)
+and `quiz_unit` (`:1366`) resolve through `get_node_or_404(..., viewer=request.user, ...)`.
+Since `drafts == "hide"` is exactly `not can_see_drafts`, the on-screen unit is always
+`published`, so `unit_is_visible` (`rollups.py:77`) is `True` and it is never pruned.
 
-**Templates that need new blocks.** The gate table lists twelve pages. Four
+Keep the second scan anyway, on the same footing as the `is_author` flag documented at
+`views.py:544-553`: it is defence-in-depth for a future render site that reaches these
+templates **without** the view-level `viewer=` gate, which would otherwise silently lose the
+current unit's own title. Do not delete it as dead code without re-verifying that every
+caller still carries that gate. There is deliberately **no test** for this branch — see
+§Testing.
+
+**Templates that need new blocks.** The gate table has thirteen rows across twelve distinct
+templates (`quiz_unit.html` appears twice — one row per render site). Four templates
 (`lesson_unit`, `quiz_unit`, `quiz_results`, `review_submission`) already have the guards
 and need only the include swap, and the editor is excluded — leaving **eight** templates
-that gain the flag, the `{% if has_math %}` guards and both partial includes. Six of the
-eight have nowhere to put them today (`base.html:49` and `:161` are the anchors):
+that gain the flag, the `{% if has_math %}` guards and both partial includes. Seven of the
+eight need at least one new block; only `notes/course_notes.html` has both today
+(`base.html:49` and `:161` are the anchors):
 
 | Template | What exists | What must be added |
 | --- | --- | --- |
@@ -337,7 +369,9 @@ not fetched on demand.
 
 **Query cost: none.** Every page already has its node list materialised in context.
 `pending_reviews_for` (`courses/review.py:244`) does `.select_related("student", "unit")`
-and returns a `list`, so the review queue scan touches no database.
+materialises its submissions with `list(... .select_related("student", "unit"))` at `:242`
+and returns two plain lists inside a dict (`:256`), so the review-queue scan touches no
+database and `data["awaiting"] + data["in_progress"]` is a valid list concatenation.
 
 ### 3. CSS normalisation
 
@@ -350,9 +384,11 @@ or a tree row. Since §Purpose commits to supporting `\[...\]` in titles, neutra
 `.katex-display` in compact chrome is required, not optional.
 
 **Which stylesheet.** This matters: of the pages in §2's gate table, only five link
-`courses.css`. The other six — `analytics_matrix.html`, `analytics_student.html`,
-`review_queue.html`, `notes/course_notes.html`, `tags/my_tags.html` and
-`tags/panel_page.html` — extend `base.html` and link no `courses.css` at all (their rules
+`courses.css`. The other seven — `outline.html`, `analytics_matrix.html`,
+`analytics_student.html`, `review_queue.html`, `notes/course_notes.html`,
+`tags/my_tags.html` and `tags/panel_page.html` — extend `base.html` and link no
+`courses.css` at all (the outline's own rules already live in `app.css`: `.outline-unit__title`
+at `:519`, `.outline-node__title` at `:495`) (their rules
 live in `core/static/core/css/app.css`, `notes.css` and `tags.css`). Putting the global
 normalisation in `courses.css` would leave every one of those six, all of which newly gain
 KaTeX rendering under this change, at an unnormalised 1.21em.
@@ -438,7 +474,7 @@ that survives casual editing.
   child. Intended behaviour: the surrounding prose keeps wrapping and clamping as today, and
   the formula stays intact on whichever line it lands on rather than being broken
   internally. A **measured** case, not an assumed one.
-- **One fixed-height sticky header** — the analytics matrix, the most fragile of the five.
+- **One fixed-height sticky header** — the analytics matrix, the most fragile of the six.
   `app.css:675` sets `.analytics{--ahead-h:2.4rem}`; `app.css:754-755` sets
   `.analytics__matrix thead th{position:sticky; height:var(--ahead-h); white-space:nowrap; …}`
   (there is no `.analytics__colhead{height:…}` rule), with an earlier
@@ -539,11 +575,11 @@ titles only; if course titles should typeset too, that is separate work.
 
 ### 5. Deferred: JavaScript-injected surfaces
 
-Six further read-only title displays exist. All are excluded from this change, and all for
-the same structural reason: **they are written into the DOM by JavaScript after `math.js`
-has already made its single document pass**, so a `data-math-title` marker on them would
-have no effect whatsoever. They are listed here so their absence is a decision, not an
-oversight.
+Seven further read-only title displays exist. All are excluded from this change; six share
+one structural reason — **they are written into the DOM by JavaScript after `math.js` has
+already made its single document pass**, so a `data-math-title` marker on them would have no
+effect whatsoever — and the seventh (the media library) is mixed and carries its own reason
+in the table. They are listed here so their absence is a decision, not an oversight.
 
 | Deferred site | File | Injected by |
 | --- | --- | --- |
@@ -553,6 +589,7 @@ oversight.
 | Move picker destination rows | `manage/_move_picker.html:27` | same |
 | Link picker display title | `manage/editor/_link_picker_node.html:26` | `link_dialog.js:238` — `mount.innerHTML = html` |
 | Builder tree labels | `manage/_tree_node.html` | builder fragment swaps |
+| Media library usage list | `manage/media/_asset_cell.html:23` | **Mixed, and excluded for two reasons.** It is server-rendered from `_asset_grid.html` *and* returned as a JS-swapped fragment (`views_media.py:60,89`), so the swapped path needs the same re-render hook as the rows above — but unlike them, a marker on the server-rendered path *would* take effect, so the blanket rule alone does not cover it. Independently, `u.unit_title` comes from `courses/media.py:51` as a **snapshot**, not a live `ContentNode.title`, so it is not the same data this change is about. |
 
 Enabling these needs three things this change deliberately does not do: exporting
 `renderInlineText` on `window` (today only `renderMath` is exported, as
@@ -614,7 +651,12 @@ exception: `manage/editor/_preview.html:6` sits inside `[data-scope="preview"]`,
 preview pane — on initial load (`:539`) and after every swap (`:101`). That call is this
 site's re-render path and must not be removed. A consequence worth stating plainly: the
 preview heading **already typesets today**, before this change; its `data-math-title` marker
-merely regularises it and is not a defect fix. Every other DOM-replaced title site is listed
+merely regularises it and is not a defect fix. One consequence to expect rather than
+rediscover: on the editor's initial load that heading is now visited **twice** — once by
+`renderPreviewMath` over the whole pane, once by `renderInlineText`'s `[data-math-title]`
+pass. This is a no-op, not a double render: the first pass replaces the delimiters with
+KaTeX markup whose `<annotation>` text carries none, so the second pass finds nothing to
+match. Every other DOM-replaced title site is listed
 in §5 as deferred.
 
 ## Error handling
@@ -686,9 +728,18 @@ one thing §Purpose defect 3 promises to fix is pinned by nothing, and the §2 o
 constraint is unpinned too.
 
 **Gate, per page (view tests).** For each page in the §2 gate table: with a title carrying
-maths and **nothing else on the page carrying maths**, the response contains the KaTeX
-`<script>`; with no maths anywhere, it does not. Mirrors the existing
+maths and **nothing else on the page carrying maths**, the response contains **both** the
+KaTeX `<script>` **and** the `katex.min.css` `<link>`; with no maths anywhere, neither is
+present. Mirrors the existing
 `test_review_views.py::test_review_loads_katex_when_stem_has_math`.
+
+**Assert the stylesheet, not only the script.** An implementation that adds
+`{% include "courses/_katex_js.html" %}` to the eight new templates but forgets
+`_katex_css.html` in the `extra_css` block passes a script-only suite entirely green, while
+KaTeX renders with no stylesheet — overlapping glyphs and fallback fonts, i.e. visibly
+broken rather than merely unstyled. Two blocks are being added per template and only one of
+them is load-bearing for the test, so this is the same wiring gap the per-(file,line) rule
+closes for the filter.
 
 The two directions are **not** equally load-bearing everywhere, and the spec must not
 pretend otherwise:
@@ -703,10 +754,9 @@ pretend otherwise:
 
 Two pages need further special handling, or the test cannot fail at all:
 
-- **The editor is excluded from this test.** Its assets are unconditional (§2), so the
-  positive assertion would pass on any build and the negative is unsatisfiable. Assert
-  instead that the editor emits KaTeX for a unit with **no** maths anywhere — pinning the
-  unconditional behaviour the shared partial must preserve.
+- **The editor is not in the gate table** (§2), because its assets are unconditional. It
+  still needs its own assertion — that it emits both KaTeX tags for a unit with **no** maths
+  anywhere — to pin the unconditional behaviour the shared partial must preserve.
 - **The quiz-unit fixture must have zero questions.** `has_math = bool(questions) or ...`
   (`views.py:1318`), so any quiz with a single question already loads KaTeX and the positive
   assertion is vacuous. Only a question-free quiz exercises the title scan.
@@ -716,9 +766,12 @@ away from the unit being viewed, with the viewed unit and its immediate neighbou
 maths-free, must still load KaTeX on that unit's page. This is the assertion that fails if
 the scan is narrowed to `unit`/`prev`/`next`; without it the narrowing is invisible.
 
-**The pruned-unit case (view test).** A draft unit viewed with `drafts="hide"` — pruned from
-`build_outline` but still the unit on screen — with maths in its own title and nowhere else.
-This is the assertion that fails if the redundant-looking `unit.title` scan is trimmed.
+**No pruned-unit test — and that is deliberate.** An earlier draft of this spec demanded a
+test for "a draft unit pruned from the tree but still on screen". That state is
+**unreachable**: `access.py:135-141` 404s the request before any render (see §2). The test
+cannot be written through the client, so it is not required here. This paragraph exists so
+its absence reads as a decision rather than an implementation gap — the `[node.title]` scan
+is kept as defence-in-depth and is knowingly uncovered.
 
 **The analytics group case (view test).** A maths title on an **expanded group** node, with
 every leaf column maths-free, must load KaTeX on the matrix page. This fails if the scan
@@ -809,6 +862,12 @@ measurements before the PR opens — they are a hypothesis in this document, not
   (`elements/mathelement.html` emits `<div class="el el--math" data-katex>`) goes from raw
   LaTeX to a full `displayMode: true` render, and the listed inline containers begin
   typesetting too. Intended, but a larger visible change than the title feature itself.
+- **A second newly-executing script on those two pages.** `question.js` sits *inside* their
+  `{% if has_math %}` block (`quiz_results.html:59-68`, `review_submission.html:130-140`), so
+  widening the flag for a maths **title** starts running it on responses where no question
+  carries maths — a script that previously never executed there. Believed benign: both pages
+  emit form-less `[data-question]` blocks, per the templates' own comments. Named here so the
+  diff's reviewer is not surprised by it.
 - **Clamp values unmeasured.** §3's CSS is a starting hypothesis. If measurement shows the
   struts still overflow — most likely on the analytics sticky header, where the failure is a
   header desync rather than a cosmetic one — the fix is more CSS in the same rules, not a
