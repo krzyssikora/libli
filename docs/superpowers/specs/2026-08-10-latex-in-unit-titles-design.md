@@ -18,9 +18,10 @@ Two independent causes:
    (`templates/courses/lesson_unit.html:37,71-77`), and `has_math` is computed purely from
    the unit's *elements* and *questions* (`courses/views.py:406`, `:1318`, `:1588`;
    `courses/views_review.py:101`). A unit whose only maths is in its title ships no KaTeX,
-   so fixing cause 1 alone would leave it unrendered. Five of the pages that display unit
+   so fixing cause 1 alone would leave it unrendered. Eight of the pages that display unit
    titles — course outline, course results, analytics matrix, analytics breakdown, review
-   queue — load no KaTeX under any condition today.
+   queue, course notes, the unit tags panel and the tags hub — load no KaTeX under any
+   condition today.
 
 A third defect surfaced while scoping the above, and is in scope because the shared
 partial introduced below fixes it as a side effect:
@@ -43,6 +44,12 @@ server emits on page load, so the single document pass `math.js` already perform
 sufficient. Surfaces injected into the DOM by JavaScript *after* that pass are deferred —
 see §5, which states exactly which they are and what they would additionally require. This
 boundary is the reason the change needs no new client-side re-render plumbing.
+
+**How the enumeration was produced.** The site list below is a sweep of **every** app
+template directory (`templates/`, `notes/templates/`, `tags/templates/`,
+`notifications/templates/`), not only `templates/courses/` — three student-facing node-title
+displays live in `notes/` and `tags/` and would otherwise have been missed. Any template
+directory added later must be swept before this list can be called complete.
 
 **Non-goals.** No authoring affordance is added: the title inputs stay plain `<input
 type="text">` and authors type the delimiters by hand, exactly as they already do for table
@@ -74,6 +81,9 @@ gains a `data-math-title` attribute, and `renderInlineText` gains exactly one ne
 | Course outline | `templates/courses/_outline_node.html` | 7, 21 |
 | Quiz results heading | `templates/courses/quiz_results.html` | 12 |
 | Course results rows | `templates/courses/course_results.html` | 21 |
+| Course notes headings | `notes/templates/notes/course_notes.html` | 16 |
+| Unit tags panel heading | `tags/templates/tags/panel_page.html` | 5 |
+| Tags hub unit list | `tags/templates/tags/_tag_section.html` | 25 |
 
 **Teacher / management surfaces:**
 
@@ -92,6 +102,12 @@ unconditionally — see §2):
 | Editor heading | `templates/courses/manage/editor/editor.html` | 80 |
 | Editor crumb (ancestor titles) | `templates/courses/manage/editor/editor.html` | 75 |
 | Editor preview heading | `templates/courses/manage/editor/_preview.html` | 6 |
+
+**Reading the "Lines" column.** It points at the **title interpolation**, and the attribute
+goes on that title's nearest enclosing element — which for a multi-line opening tag is an
+earlier line. In `analytics_matrix.html` the leaf `<a class="analytics__expand">` opens at
+`:114`, the leaf `<span>` opens at the end of `:115`, and `<span class="analytics__group-title">`
+opens at `:125`, even though the cited interpolations are at `:115,116,126`.
 
 **The title-alone rule.** Where a template interpolates other content into the same
 element, the marker goes on a `<span>` wrapping the title **alone**, never on the shared
@@ -201,8 +217,19 @@ Per page, `has_math` becomes the existing value OR the title scan:
 | Analytics breakdown | `analytics_student` (`views_analytics.py:224`) | `tree_titles_have_math(breakdown["tree"])` |
 | Review queue | `review_queue` (`views_review.py:110`) | `titles_have_math(s.unit.title for s in data["awaiting"] + data["in_progress"])` |
 | Review submission | `_review_context` (`views_review.py:95`) | `titles_have_math([submission.unit.title])` |
+| Course notes | `course_notes` (`notes/views.py:53`) | `titles_have_math(r["unit"].title for r in units)` |
+| Unit tags panel | `tags/views.py:69` (no-JS 422 path) | `titles_have_math([unit.title])` |
+| Tags hub | `my_tags` (`tags/views.py:85`) | every unit across `tags_by_tag` — the template nests `{% for course, units in grouped.items %}` inside the tag loop |
 
 The editor is absent by design (see above).
+
+**The quiz page renders twice.** `_quiz_render_feedback` (the no-JS answer path) calls
+`build_quiz_context`, sets its own `ctx["unit_nav"]` at `views.py:1418` and re-renders
+`quiz_unit.html` at `:1431`. Applying the OR only at `:1385` would leave that render on the
+un-widened flag. It is masked today because `has_math = bool(questions) or …` and this path
+is reachable only when the quiz has questions — but the code comment calls that
+over-inclusiveness an "accepted tradeoff", i.e. something that could be tightened later, at
+which point the omission would become live. Apply the OR at `:1418` as well.
 
 **Two scan expressions that must be written against the real shape.** Both were wrong in an
 earlier draft in ways that fail loudly or silently:
@@ -283,16 +310,34 @@ or a tree row. Since §Purpose commits to supporting `\[...\]` in titles, neutra
 Putting the global normalisation in `courses.css` would leave the three manage pages that
 newly gain KaTeX rendering at an unnormalised 1.21em.
 
-- **`core/static/core/css/app.css`** (linked by `base.html:46` on every page) — the two
-  global rules. Both live here only; a `courses.css` copy could never match anything these
-  do not already match, and would drift:
+**The overriding invariant.** `app.css` is at `base.html:46`; every `katex.min.css` link
+lands in `{% block extra_css %}` at `:49` or later. **The vendor stylesheet therefore always
+loads after ours on every page in this change.** At equal specificity KaTeX wins, so every
+rule below must be *strictly more specific* than the vendor rule it overrides. This is the
+check to re-apply whenever the measured clamp values are corrected — it is not a property
+that survives casual editing.
+
+- **`core/static/core/css/app.css`** (linked by `base.html:46` on every page) — the global
+  rules. All live here only; a `courses.css` copy could never match anything these do not
+  already match, and would drift:
 
   ```css
-  [data-math-title] .katex { font-size: inherit; }
-  [data-math-title] .katex-display {
-    display: inline-block; margin: 0; text-align: inherit;
+  [data-math-title] .katex { font-size: inherit; }                 /* (0,2,0) > (0,1,0) */
+  [data-math-title] .katex-display { margin: 0; }
+  [data-math-title] .katex-display > .katex {                      /* (0,3,0) > (0,2,0) */
+    display: inline-block; text-align: inherit; white-space: inherit;
   }
   ```
+
+  **Both `.katex-display` rules are required.** The vendored stylesheet has *two*:
+  `.katex-display{display:block;margin:1em 0;text-align:center}` **and**
+  `.katex-display>.katex{display:block;text-align:center;white-space:nowrap}`. Neutralising
+  only the wrapper leaves a block-level `.katex` child inside it, so a `\[…\]` title still
+  generates its own line box and still centres itself — the failure this section exists to
+  prevent. And the child rule is (0,2,0), identical to `[data-math-title] .katex`, so the
+  override must use the child combinator to reach (0,3,0). Setting `display:inline-block` on
+  the wrapper is then unnecessary: with the child inline-block, the wrapper collapses to the
+  child's line box, and leaving the wrapper `display:block` keeps the change minimal.
 
 - **`core/static/core/css/app.css`** — the analytics clamp, since those pages have no
   `courses.css`:
@@ -314,13 +359,21 @@ newly gain KaTeX rendering at an unnormalised 1.21em.
 
 **The compact surfaces behave differently and must not be conflated.**
 
-- **Three single-line clips** — `.unit-foot__navtitle` (`courses.css:778`),
+- **Three single-line clips (desktop)** — `.unit-foot__navtitle` (`courses.css:778`),
   `.unit-tree__label` (`:755`) and `.unit-crumbs__label` (`:848`) — are all
   `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`. A long maths title
   hard-clips rather than showing an ellipsis: `text-overflow` applies to inline text, not to
   KaTeX's inline-block box. Accepted; it is why §4 keeps the tooltips useful. Note this hits
   the contents-tree unit rows and the breadcrumb leaf, not just the nav buttons — the two
   most frequently seen surfaces of the three.
+- **The mobile drawer is a fourth, different case.** `_unit_shell.html:40` renders a
+  **second full copy** of the tree into the drawer, and `courses.css:943` overrides the
+  label there: `.unit-drawer__list .unit-tree__label { white-space: normal; overflow:
+  visible; text-overflow: clip; }`. So at ≤640px titles **wrap** rather than clip. The
+  adjacent comment records that the title column is squeezed to roughly 98px and that a word
+  wider than that column overflows and paints *under* the action buttons — which is exactly
+  what an unbreakable KaTeX inline-block box is. This surface needs its own measurement and
+  its own screenshot; it cannot be inferred from the desktop rail.
 - **One five-line clamp** — `.unit-tree__grouptitle` (`courses.css:702-704`) is **not** a
   single-line clip. It is `display:-webkit-box; -webkit-line-clamp:5;
   -webkit-box-orient:vertical` with `overflow-wrap:break-word; hyphens:auto`. `-webkit-box`
@@ -328,14 +381,32 @@ newly gain KaTeX rendering at an unnormalised 1.21em.
   child. Intended behaviour: the surrounding prose keeps wrapping and clamping as today, and
   the formula stays intact on whichever line it lands on rather than being broken
   internally. A **measured** case, not an assumed one.
-- **One fixed-height sticky header** — the analytics matrix, the most fragile of the four.
-  `app.css:675` sets `.analytics{--ahead-h:2.4rem}`; `app.css:755-756` sets
+- **One fixed-height sticky header** — the analytics matrix, the most fragile of the five.
+  `app.css:675` sets `.analytics{--ahead-h:2.4rem}`; `app.css:754-755` sets
   `.analytics__matrix thead th{position:sticky; height:var(--ahead-h); white-space:nowrap; …}`
-  (there is no `.analytics__colhead{height:…}` rule); and `analytics_matrix.html:112`
-  positions each sticky header row at `top:calc(var(--ahead-h) * counter0)`. Two distinct
-  failures follow: a title taller than `2.4rem` desynchronises every sticky header row
-  beneath it — a layout break, not a cosmetic one — and because the cell is `nowrap`, a long
-  maths title **widens the column** instead of wrapping.
+  (there is no `.analytics__colhead{height:…}` rule), with an earlier
+  `.analytics__matrix thead th{vertical-align:top}` at `:739` governing how an over-tall cell
+  paints; and `analytics_matrix.html:112` positions each sticky header row at
+  `top:calc(var(--ahead-h) * counter0)`. Two distinct failures follow: a title taller than
+  `2.4rem` desynchronises every sticky header row beneath it — a layout break, not a cosmetic
+  one — and because the cell is `nowrap`, a long maths title **widens the column** instead of
+  wrapping.
+
+**Display math is forced inline everywhere, including the `<h1>`s.** The neutralisation is
+keyed on bare `[data-math-title]`, so it also reshapes `_lesson_article.html:7`,
+`_quiz_article.html:5`, `quiz_results.html:12`, `review_submission.html:58` and
+`editor.html:80`, where nothing is clipped and a centred block would technically fit. That
+is deliberate: a title is a single line of prose by definition, and an author who writes
+`\[…\]` in one is reaching for emphasis, not for a standalone equation block. A centred,
+1em-margined block inside an `<h1>` that also contains words would look like a rendering
+bug. One rule, one behaviour, everywhere.
+
+**The print override.** `courses.css:903-907` re-opens `.unit-crumbs__label` under
+`@media print` to `overflow:visible; white-space:normal; overflow-wrap:anywhere`, and that
+block's own comment records it exists because a screen-only rule once silently lost printed
+text. `overflow-wrap: anywhere` cannot break a KaTeX inline-block, so a long maths crumb can
+still overflow in print. Accepted for now — printing a breadcrumb is a marginal case and the
+text is not *lost*, only over-wide — but stated so it is not rediscovered as a defect.
 
 All clamp values above are a **starting hypothesis, not a result**. They are confirmed or
 corrected from the measurements §Testing requires before the PR opens.
@@ -354,12 +425,19 @@ def strip_math_delimiters(value):
 
 **Behaviour, pinned.** Coerce to `str` first (see §Error handling), then remove the exact
 two-character sequences `\(`, `\)`, `\[`, `\]` by naive left-to-right replacement,
-**regardless of pairing** — `\(x` yields `x`, and a stray `\)` is removed too. Returns a
-plain `str`, never a `SafeString`, so Django autoescapes it into the attribute. A literal
+**regardless of pairing** — `\(x` yields `x`, and a stray `\)` is removed too. A literal
 escaped backslash (`\\(`) is explicitly out of scope: it is treated as `\` followed by `\(`
-and the trailing pair is removed. A title with no delimiters passes through byte-identical.
-No attempt is made to render `\frac{1}{2}` as anything friendlier; the filter is a
-readability improvement, not a LaTeX-to-text converter.
+and the trailing pair is removed. A title with no delimiters passes through with identical
+*content*. No attempt is made to render `\frac{1}{2}` as anything friendlier; the filter is
+a readability improvement, not a LaTeX-to-text converter.
+
+**Every path must return a new plain `str`, never a `SafeString`** — including the
+no-delimiter path. The tempting optimisation (return the input untouched when it holds no
+delimiter) would satisfy "identical content" while passing a `SafeString` straight through,
+and `SafeString.__str__` returns `self`, so even the `str()` coercion does not strip the
+safe marker. `ContentNode.title` is a `CharField`, so this cannot bite today; it is pinned
+because the filter sits on `title=` attributes, where silently losing autoescaping is an
+injection seam, and because a future caller may pass marked-safe text.
 
 **Applied at:**
 
@@ -427,6 +505,8 @@ repo's history a diff with no JS is exactly where such defects hide.
 | Flag/publish confirm headline | `manage/_flag_strip_headline.html` | The title is interpolated *inside* `{% blocktrans with title=node.title %}`. Marking it needs the title split out of the msgid, changing every msgid in the file (eleven blocks, six of them msgid/msgid_plural pairs) and invalidating their existing Polish translations — `makemessages` would then fuzzy-prefill wrong strings. Disproportionate for a transient confirm prompt. |
 | Delete confirmation headline | `manage/node_confirm_delete.html:5` | Identical `{% blocktrans with title=node.title %}` shape, excluded for the identical reason. |
 | Gradebook print/export | `manage/gradebook_print.html:56` | A print/PDF surface. KaTeX depends on webfonts that do not render reliably through print pipelines, so typesetting here needs its own font-embedding decision. |
+| Move picker no-JS `<option>` | `manage/_move_picker.html:15` | `<option>` is in auto-render's own ignored-tags list and cannot hold markup at all, so this can never typeset under any future work. Structurally a plain-text context — it would take `\|strip_math_delimiters` if the builder were ever brought into scope. |
+| Notification bodies | `notifications/templates/notifications/list.html:21,23`, `_bell_panel.html:25,27` | `{{ n.data.unit_title }}` inside `{% blocktrans %}` — the same msgid-splitting problem as the two confirm headlines. Also note `unit_title` is a **stored snapshot** taken when the notification was created, not a live `ContentNode.title`, so it can diverge from the node and is not strictly the same data. |
 
 ## Data flow
 
@@ -515,13 +595,38 @@ anything red: `None` → `"None"`, a `gettext_lazy` proxy → its resolved text,
 digits. Assert the return is a plain `str` and **not** `SafeString`, so autoescaping still
 applies in a `title=` attribute.
 
+**Filter application (rendered-output tests).** One assertion **per row of the §4 table**:
+for a unit whose title is `\(x^2\)`, the rendered output must contain the stripped form in
+that attribute and must not contain `\(` anywhere inside a `title=` or inside the `<title>`
+element. Without this, an implementation that defines the filter, registers it in both
+libraries, and then wires it into **none** of the seven sites passes the entire suite green
+— including the browser tab and the collapsed-crumb accessible name, the two sites §4 argues
+hardest for. The unit tests above exercise the filter in isolation and cannot see this.
+
+**Defect 3 (view tests).** On `quiz_results.html` and `review_submission.html`, assert
+`courses/js/math.js` appears in the response **and** appears *before* `courses/js/question.js`.
+A gate test phrased as "contains the KaTeX `<script>`" is green on those two pages both
+before and after the change — they already emit four KaTeX tags today — so without this the
+one thing §Purpose defect 3 promises to fix is pinned by nothing, and the §2 ordering
+constraint is unpinned too.
+
 **Gate, per page (view tests).** For each page in the §2 gate table: with a title carrying
 maths and **nothing else on the page carrying maths**, the response contains the KaTeX
-`<script>`; with no maths anywhere, it does not. Both directions are required — the negative
-is what catches a flag that is accidentally always true. Mirrors the existing
+`<script>`; with no maths anywhere, it does not. Mirrors the existing
 `test_review_views.py::test_review_loads_katex_when_stem_has_math`.
 
-Two pages need special handling, or the test cannot fail:
+The two directions are **not** equally load-bearing everywhere, and the spec must not
+pretend otherwise:
+
+- On `course_outline`, `course_results`, `analytics_matrix`, `review_queue` and the three
+  notes/tags pages, no `has_math` exists in the context today. `{% if has_math %}` on a
+  missing variable is silently false, so the **negative assertion passes trivially** even if
+  the view change is omitted entirely and only the template change lands. Only the positive
+  assertion has force on those pages, and its falsification mutant must remove **the view's
+  OR**, not the template's guard.
+- On the pages that already compute `has_math`, both directions have force.
+
+Two pages need further special handling, or the test cannot fail at all:
 
 - **The editor is excluded from this test.** Its assets are unconditional (§2), so the
   positive assertion would pass on any build and the negative is unsatisfiable. Assert
@@ -574,6 +679,22 @@ The entry point is specified per template so this is not written N different way
 No builder-page assertion is required: §5 defers every builder surface, so no builder
 template changes in this diff.
 
+**Render cost (measured).** `renderInlineText` calls `window.renderMathInElement` **once per
+matched element**, and a unit page holds the whole course outline *twice* — the rail plus
+the drawer copy at `_unit_shell.html:40`. On this repo's own matematyka course (21 parts /
+793 units) that is roughly 1,600 invocations, each entering `math_reflow.js`'s three
+post-order walks, on every unit page in the course as soon as one title anywhere carries
+maths. Each individual call is trivial (a title is a single text node), so the expected
+result is "fine" — but that is a prediction, not a measurement, and the coarse gate makes
+this the worst realistic case rather than a contrived one. Measure main-thread time for
+`renderInlineText` on a 793-unit tree and record the number; if it exceeds ~50 ms, switch to
+a single `renderMathInElement` over a common ancestor.
+
+The single-root alternative was considered and is **not** the default: one call over
+`document.body` would typeset every delimiter on the page, including element prose that
+`renderInlineText`'s selector list deliberately scopes and the edit buffers §Data-flow Path C
+must keep untouched. Per-element calls are what make the marker opt-in meaningful.
+
 **End-to-end.** Drive a real lesson page in a browser where the *only* maths in the entire
 course is in the **next** unit's title, and assert a `.katex` element exists inside
 `.unit-foot__navtitle`. Driving the real page is required: this defect is precisely one
@@ -584,9 +705,10 @@ gate is what fails.
 previous/next buttons with an inline-maths title; the same with a **display-maths** (`\[…\]`)
 title, which is the `.katex-display` case; a long maths title in a contents-tree unit row
 and in the breadcrumb leaf, which are the other two single-line clips; a contents-tree
-**group** title long enough to exercise the five-line clamp; and an analytics matrix column
+**group** title long enough to exercise the five-line clamp; an analytics matrix column
 header with maths at two nesting depths, which is the `--ahead-h` sticky-offset and
-`nowrap` column-widening case. The §3 clamp values are confirmed or corrected from these
+`nowrap` column-widening case; and — at ≤640px — the **mobile drawer** with a long maths
+title, which wraps rather than clips and whose title column is squeezed to roughly 98px. The §3 clamp values are confirmed or corrected from these
 measurements before the PR opens — they are a hypothesis in this document, not a result.
 
 ## Risks
@@ -595,8 +717,12 @@ measurements before the PR opens — they are a hypothesis in this document, not
   unit page of that course. Accepted above; noted here so it is not rediscovered as a
   surprise.
 - **Behaviour change on two pages.** Giving `quiz_results.html` and
-  `review_submission.html` `math.js` typesets container elements there that were previously
-  left raw. Intended, but it is a visible change beyond the stated feature.
+  `review_submission.html` `math.js` runs **both** of its passes there for the first time:
+  `renderMath(document)` over `[data-katex]` (`math.js:43`) as well as
+  `renderInlineText(document)` (`:44`). So any `MathElement` reachable on those pages
+  (`elements/mathelement.html` emits `<div class="el el--math" data-katex>`) goes from raw
+  LaTeX to a full `displayMode: true` render, and the listed inline containers begin
+  typesetting too. Intended, but a larger visible change than the title feature itself.
 - **Clamp values unmeasured.** §3's CSS is a starting hypothesis. If measurement shows the
   struts still overflow — most likely on the analytics sticky header, where the failure is a
   header desync rather than a cosmetic one — the fix is more CSS in the same rules, not a
