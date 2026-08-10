@@ -54,7 +54,7 @@
 | `courses/htmlsandbox.py` | `+ titles_have_math(titles)`, beside `has_math_delimiters`. |
 | `courses/rollups.py` | `+ tree_titles_have_math(tree)`, beside `build_outline`. |
 | `courses/static/courses/js/math.js` | `renderInlineText` selector gains `[data-math-title]`. |
-| `courses/views.py` | Widen `has_math` at four render sites. |
+| `courses/views.py` | `+ _widen_has_math_for_titles` helper; widen `has_math` at **six** render sites (four in Task 6, two in Task 7). |
 | `courses/views_analytics.py` | `+ has_math` on the matrix and breakdown pages. |
 | `courses/views_review.py` | Widen `_review_context`; `+ has_math` on the review queue. |
 | `notes/views.py`, `tags/views.py` | `+ has_math` on the notes page, the tags hub (two sites) and the tags panel. |
@@ -177,17 +177,28 @@ def strip_math_delimiters(value):
     and a stray `\\)` is removed too. A literal escaped backslash (`\\\\(`) is out
     of scope -- it is treated as `\\` followed by `\\(`.
 
-    ALWAYS returns a NEW plain `str`, never a SafeString, INCLUDING the
-    no-delimiter path: this filter sits on `title=` attributes, where silently
-    passing a marked-safe value through would lose autoescaping and open an
-    injection seam. `"%s" % (value,)` is what guarantees that -- str() on a
-    SafeString returns the SafeString itself. It also coerces None, a
-    gettext_lazy proxy and an int instead of raising: a template filter that
-    raises takes down the whole page render.
+    ALWAYS returns a plain `str`, never a SafeString, INCLUDING the no-delimiter
+    path: this filter sits on `title=` attributes, where silently passing a
+    marked-safe value through would lose autoescaping and open an injection seam.
+
+    WHERE THAT GUARANTEE ACTUALLY COMES FROM -- measured, not assumed. It is NOT
+    the `"%s"` coercion: `"%s" % (SafeString("x"),)` returns a **SafeString**, and
+    so does `str(SafeString("x"))` (SafeString.__str__ returns self). What drops
+    the marker is `str.replace`, which for a non-exact str subclass returns an
+    exact `str` even when nothing matched. The `"%s"` line exists only to accept
+    a non-string (None, a gettext_lazy proxy, an int) instead of raising -- a
+    template filter that raises takes down the whole page render.
+
+    Because that makes the guarantee INCIDENTAL to the loop, the final coercion
+    below is explicit: a future "fast path, return early when there is no
+    delimiter" would otherwise silently reintroduce the SafeString leak while
+    every other line still looked correct.
     """
     text = "%s" % (value,)
     for delim in _MATH_DELIMS:
         text = text.replace(delim, "")
+    if type(text) is not str:  # noqa: E721 -- subclass check is the whole point
+        text = str.__str__(text)  # copies a str subclass to an exact str
     return text
 ```
 
@@ -211,9 +222,13 @@ The failure mode is *"the no-delimiter fast path leaks a SafeString"*. Temporari
 Run: `uv run pytest tests/test_title_math_filter.py -v`
 Expected: `test_returns_a_plain_str_not_safestring_on_the_no_delimiter_path` FAILS (`type(out)` is `SafeString`).
 
-Second mutant — the failure mode *"raises on a non-string"*: replace `text = "%s" % (value,)` with `text = value`. Expected: the `None`, lazy-proxy and `int` tests all FAIL with `AttributeError`.
+Second mutant — the failure mode *"raises on a non-string"*: replace `text = "%s" % (value,)` with `text = value`. Expected: `test_none_renders_as_the_string_none` and `test_an_int_renders_as_its_digits` FAIL with `AttributeError`.
 
-Revert both mutants.
+**`test_a_lazy_proxy_resolves_to_its_text` still PASSES under that mutant, and that is not a bug in the test** — Django's `lazy()` promotes every `str` method onto the `__proxy__` class, so `gettext_lazy("Review").replace("\\(", "")` returns the real `str` `'Review'`. Verified by running it. If you see that test green here, the mutant *was* applied; do not go hunting.
+
+Third mutant, for the explicit coercion the docstring calls out: delete the `if type(text) is not str:` guard **and** add an early `if not any(d in text for d in _MATH_DELIMS): return text` immediately after the `"%s"` line. Expected: `test_returns_a_plain_str_not_safestring_on_the_no_delimiter_path` FAILS again — this is the exact "future fast path" regression the guard exists to stop.
+
+Revert all three mutants.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -754,9 +769,12 @@ git commit -m "feat(courses): strip maths delimiters in title attributes and bro
 Create `tests/test_title_math_helpers.py`:
 
 ```python
-"""titles_have_math / tree_titles_have_math -- the scan half of the gate (spec §2)."""
+"""titles_have_math / tree_titles_have_math -- the scan half of the gate (spec §2).
 
-import pytest
+No `import pytest`: this file has no pytestmark, no marks and no pytest.raises,
+and `monkeypatch` is a fixture that needs no import -- ruff's F401 would strip
+the line and leave the committed file differing from this listing.
+"""
 
 from courses import htmlsandbox
 from courses import rollups
@@ -948,12 +966,18 @@ Revert both.
 
 - [ ] **Step 7: Guard against an import cycle**
 
+`courses/rollups.py` imports `courses.models` at module level, so a bare `python -c` raises
+`ImproperlyConfigured: Requested setting INSTALLED_APPS` **whether or not a cycle exists** —
+the settings module has to be set and `django.setup()` called, or the check has no diagnostic
+value at all:
+
 ```bash
-uv run python -c "import courses.rollups, courses.views, courses.views_analytics, courses.views_review; print('ok')"
+DJANGO_SETTINGS_MODULE=config.settings.test uv run python -c "import django; django.setup(); import courses.rollups, courses.views, courses.views_analytics, courses.views_review; print('ok')"
 uv run pytest tests/test_courses_rollups.py -v
 ```
 
-Expected: `ok`, and the rollups suite green.
+Expected: `ok`, and the rollups suite green. A genuine cycle surfaces as `ImportError: cannot
+import name ... (most likely due to a circular import)`, not as `ImproperlyConfigured`.
 
 - [ ] **Step 8: Lint and commit**
 
@@ -1008,9 +1032,7 @@ from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import UserFactory
 from tests.factories import make_pa
-from tests.helpers_title_math import MATHS_TITLE
 from tests.helpers_title_math import login_student
-from tests.helpers_title_math import make_title_course
 
 pytestmark = pytest.mark.django_db
 
@@ -1299,7 +1321,7 @@ Expected: all pass.
 
 - [ ] **Step 6: Falsify — observe RED against the ordering and defect-3 mutants**
 
-1. *Defect 3 regressed*: delete the `math.js` line from `_katex_js.html` → both `math_js_before_question_js` tests FAIL **and** `test_js_partial_keeps_the_load_bearing_script_order` FAILS (`ValueError: substring not found`).
+1. *Defect 3 regressed*: delete the `math.js` line from `_katex_js.html` → **four** tests FAIL: both `math_js_before_question_js` tests, `test_js_partial_keeps_the_load_bearing_script_order` (`ValueError: substring not found`), and `test_every_script_in_the_js_partial_is_deferred` (count 4 ≠ 5). All four are expected; none is a second, separate defect.
 2. *Order reshuffled*: move `math_reflow.js` above `auto-render.min.js` in the partial → `test_js_partial_keeps_the_load_bearing_script_order` FAILS.
 3. *A tag loses `defer`*: drop ` defer` from `text_colour.js` → `test_every_script_in_the_js_partial_is_deferred` FAILS.
 4. *`question.js` folded into the partial*: move it inside `_katex_js.html` → `test_every_script_in_the_js_partial_is_deferred` FAILS on the count assertion (6 ≠ 5).
@@ -1996,7 +2018,18 @@ git commit -m "feat(courses): mark node-title display sites with data-math-title
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_title_math_assets.py`:
+Append to `tests/test_title_math_assets.py`. **Add these two imports to the file's top-level
+block now** — Task 4 deliberately does not carry them, because nothing in Task 4 uses them and
+its `ruff check --fix` step would strip them as F401 before the commit, leaving Task 6 with a
+module-level `NameError` (a whole-file collection error, not the per-assertion failures Step 2
+predicts):
+
+```python
+from tests.helpers_title_math import MATHS_TITLE
+from tests.helpers_title_math import make_title_course
+```
+
+Then the tests:
 
 ```python
 # =============================================================================
@@ -2144,10 +2177,12 @@ def test_the_title_widening_is_applied_at_all_three_unit_render_sites():
 - [ ] **Step 2: Run to verify they fail**
 
 ```bash
-uv run pytest tests/test_title_math_assets.py -v -k "gate or lesson or quiz or review"
+uv run pytest tests/test_title_math_assets.py -v -k "lesson or quiz or review or widening"
 ```
 
-Expected: every **positive** assertion FAILS (no KaTeX for a title-only maths page); every negative one passes.
+`or widening` is not optional: without it `test_the_title_widening_is_applied_at_all_three_unit_render_sites` — the **only** detector for the `_quiz_render_feedback` site — is silently deselected from the red run.
+
+Expected: every **positive** assertion FAILS (no KaTeX for a title-only maths page), the call-site test FAILS (the helper does not exist yet), and every negative one passes. The filter also re-runs some Task-4 tests, which stay green.
 
 - [ ] **Step 3: Add the imports**
 
@@ -2656,16 +2691,18 @@ and add `"has_math": has_math,` to the context dict.
 
 - [ ] **Step 4: Add the blocks to the three templates**
 
-`templates/courses/manage/analytics_matrix.html` — a **new** `extra_css` block (it has `extra_js` at `:191` but no `extra_css`). Insert it immediately after line 3 (`{% block head_title %}…{% endblock %}`):
+`templates/courses/manage/analytics_matrix.html` — it has an `extra_js` block at `:191` but no `extra_css`. **Do the `extra_js` edit FIRST**, so the second edit's line number does not drift: inserting the `extra_css` block near the top pushes `{% block extra_js %}` from `:191` to `:192`, and this is a 196-line region dense with `<script>` tags where landing one line off is easy and quiet.
 
-```
-{% block extra_css %}{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
-```
-
-and add the include inside the existing `extra_js` block, as its first line after `{% block extra_js %}` (`:191`):
+1. Add the include inside the existing `extra_js` block, as its first line after `{% block extra_js %}` (**`:191`, pre-edit**):
 
 ```
   {% if has_math %}{% include "courses/_katex_js.html" %}{% endif %}
+```
+
+2. Then insert the new `extra_css` block immediately after line 3 (`{% block head_title %}…{% endblock %}`):
+
+```
+{% block extra_css %}{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 ```
 
 `templates/courses/manage/analytics_student.html` — **both** blocks are new. Insert after line 3:
@@ -3138,6 +3175,18 @@ def test_both_display_rules_are_present_neither_alone_suffices():
     assert re.search(r"\[data-math-title\]\s+\.katex-display\s*>\s*\.katex\s*\{", css)
 
 
+def _has_rule(css, selector):
+    """True iff `selector` heads an actual RULE, not merely a mention.
+
+    Both stylesheets gain long comment blocks that name several of these class
+    names, so a bare `selector in css` check passes today only because those
+    comments happen to omit the ` .katex` suffix -- an incidental property, not a
+    designed one. Match up to the `{` (allowing a comma, i.e. the selector being
+    one member of a grouped rule) so a documentation edit can never satisfy it.
+    """
+    return re.search(re.escape(selector) + r"\s*[,{]", css) is not None
+
+
 def test_the_analytics_clamp_lives_in_app_css():
     """The analytics pages have no courses.css."""
     css = _app()
@@ -3146,7 +3195,7 @@ def test_the_analytics_clamp_lives_in_app_css():
         ".breakdown-unit__title .katex",
         ".breakdown-node__title .katex",
     ):
-        assert sel in css, f"missing analytics clamp selector: {sel}"
+        assert _has_rule(css, sel), f"missing analytics clamp rule: {sel}"
 
 
 def test_the_unit_chrome_clamp_lives_in_courses_css():
@@ -3157,7 +3206,7 @@ def test_the_unit_chrome_clamp_lives_in_courses_css():
         ".unit-tree__grouptitle .katex",
         ".unit-crumbs__label .katex",
     ):
-        assert sel in css, f"missing unit-chrome clamp selector: {sel}"
+        assert _has_rule(css, sel), f"missing unit-chrome clamp rule: {sel}"
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -3470,7 +3519,8 @@ Expected: both pass. If `test_next_unit_title_typesets_in_the_nav_button` fails,
 
 - [ ] **Step 3: Falsify the e2e**
 
-Mutant: revert `full_lesson_render_context`'s widening (delete the `ctx["has_math"] = …` line).
+Mutant: delete the `_widen_has_math_for_titles(ctx, node)` **call** from `full_lesson_render_context` only — leaving the helper itself intact, which is what keeps the mutant site-specific. (Do **not** gut the helper's `ctx["has_math"] = …` body: after Task 6 that statement lives *only* inside the helper, so removing it would neuter all three render sites at once and prove nothing about the lesson page.)
+
 Expected: `test_next_unit_title_typesets_in_the_nav_button` FAILS on the `wait_for` timeout — the page ships no KaTeX, so no `.katex` element ever appears. Revert.
 
 - [ ] **Step 4: Record the render-cost measurement**
@@ -3524,6 +3574,15 @@ question here:
   per theme, named `title-math-<row>-<theme>.png`.
 - **Viewports:** desktop `1440×900` via `browser.new_context(viewport=…)`; mobile `390×844`
   for row 7 only (matching `test_e2e_unit_nav.py`'s drawer tests).
+- **Row 7 needs an INTERACTION — it is the one row that is not a plain page load.** The drawer
+  is not visible at load: `_unit_footer.html:29-33` ships
+  `<button … data-unit-drawer-open … hidden>` and `unit_nav.js` un-hides it, and the drawer's
+  contents only appear once the dialog is open. A script that merely sets a 390px viewport and
+  shoots the page photographs the **footer bar**, not the drawer — and row 7 is precisely the
+  surface Task 10's own CSS comment leaves unaddressed pending measurement. So: wait for
+  `[data-unit-drawer-open]` to lose `hidden`, click it, wait for the drawer dialog to be open,
+  then shoot. Mirror the drawer tests in `tests/test_e2e_unit_nav.py`
+  (`test_mobile_drawer_open_close_scrim_and_esc`).
 
 - [ ] **Step 5b: Visual verification — light and dark, judged separately**
 
@@ -3577,10 +3636,15 @@ uv run pytest -m e2e -v
 
 - [ ] **Step 8: Commit**
 
+The capture script is **tracked**, not scratch: `tests/capture_help_screenshots.py` and
+`tests/capture_publish_screenshots.py` are both committed (and one of them has a dedicated
+isolation test), and under this plan's "never `git add -A`" rule an unlisted new file would be
+left untracked at PR time — making Step 5b's verification unreproducible.
+
 ```bash
-uv run ruff check --fix tests/test_e2e_title_math.py
-uv run ruff format tests/test_e2e_title_math.py
-git add tests/test_e2e_title_math.py
+uv run ruff check --fix tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
+uv run ruff format tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
+git add tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
 # plus any CSS / math.js / spec files the measurement corrected:
 # git add core/static/core/css/app.css courses/static/courses/css/courses.css \
 #         courses/static/courses/js/math.js \
@@ -3595,7 +3659,7 @@ git commit -m "test(e2e): drive a maths title through the real nav button and me
 - **The gate is coarse.** Because the contents tree is course-wide, a single maths title anywhere in a course loads ~275 KB of JavaScript and ~23 KB of CSS on **every** unit page of that course. This is correct — those titles really are in the DOM — but it makes the gate coarse in practice. The alternative, scanning only the expanded subtree, is wrong: collapsed nodes are present in the markup, not fetched on demand.
 - **Behaviour change on two pages.** Giving `quiz_results.html` and `review_submission.html` `math.js` runs **both** of its passes there for the first time: `renderMath(document)` over `[data-katex]` as well as `renderInlineText(document)`. Any `MathElement` reachable on those pages goes from raw LaTeX to a full `displayMode: true` render, and the listed inline containers begin typesetting too. Intended, but a larger visible change than the title feature itself.
 - **A second newly-executing script on those two pages.** `question.js` sits *inside* their `{% if has_math %}` block, so widening the flag for a maths **title** starts running it on responses where no question carries maths — a script that previously never executed there. Believed benign: both pages emit form-less `[data-question]` blocks, per the templates' own comments.
-- **Partial coverage is visible to users.** A maths title typesets on the student and analytics surfaces but still shows raw delimiters in the builder panels, the move picker, the link picker and the two confirm prompts (spec §5). A teacher who uses the builder will see the inconsistency. Deliberate boundary, not an unknown.
+- **Partial coverage is visible to users.** A maths title typesets on the student and analytics surfaces but still shows raw delimiters in the builder panels, the move picker, the link picker, the two confirm prompts, the notification bodies, the gradebook print/export, and — the densest of them — `manage/_flag_strip_headline.html`, which carries **eleven** title interpolations (`:12,14,17,21,23,29,31,33,37,39,41`), every one inside a `{% blocktrans with title=node.title %}` whose msgid would have to be split and re-translated (spec §5). A teacher who uses the builder will see the inconsistency. Deliberate boundary, not an unknown.
 - **Knowingly untested branches, each a decision:** the `[node.title]` defence-in-depth scan (Task 6) is unreachable through the client because `access.py` 404s first; the `_quiz_render_feedback` gate assertion would be vacuous because that path always has ≥1 question.
 - **No authoring affordance is added.** Title inputs stay plain `<input type="text">` and authors type the delimiters by hand, exactly as for table cells and tab labels. A live preview or a MathLive field may follow as separate work.
 - **Titles are not validated.** An unclosed `\(` renders as raw text and invalid TeX renders as a `.katex-error` span — KaTeX auto-render's existing behaviour everywhere else in the app.
