@@ -1608,7 +1608,8 @@ Without this, Task 5 is the only implementation task in the plan with no falsifi
 # Unmarked run FIRST: Step 4b's two render tests are plain django_db tests, and
 # `-m e2e` would deselect them silently — the documented trap in this repo. They are
 # the only guard on choice's data-fsrows-min, which falls back to 1 if dropped.
-uv run pytest tests/test_editor_formset_rows_render.py -v        # expect 11 PASSED
+uv run pytest tests/test_editor_formset_rows_render.py -v        # expect 12 PASSED
+#   (4 from Task 3 + 6 from Task 4 + 2 here; becomes 13 after Task 6 Step 4c)
 uv run pytest tests/test_e2e_questions.py tests/test_e2e_choice_editor_feedback.py tests/test_e2e_math_input.py -m e2e -v
 ```
 
@@ -1678,6 +1679,15 @@ def test_removing_a_middle_option_keeps_the_right_answer(
     )
     page.on("dialog", lambda d: d.accept())   # filled row -> confirm fires
     page.locator("[data-sgate-row]").nth(1).locator("[data-sgate-remove]").click()
+    # Pin the renumbering IN THE DOM, before saving. Without this the Step 7 mutant
+    # is caught only indirectly: an un-renumbered radio still reads value="2" while
+    # the option list shrinks to two, so clean() adds "Select the correct option.",
+    # the save 422s, the slot is re-rendered instead of cleared, and the test dies on
+    # an 8s detach timeout that proves nothing about renumbering.
+    assert (
+        page.locator("[data-sgate-row]").nth(1)
+        .locator('input[name="answer"]').get_attribute("value") == "1"
+    )
     page.locator(SAVE).click()
     page.locator("[data-edit-slot] form").wait_for(state="detached", timeout=8000)
     obj = el.content_object
@@ -2018,7 +2028,12 @@ Expected: all PASS.
 
 - [ ] **Step 7: Falsify the renumbering test**
 
-Comment out the `radio.value = String(i)` line in `renumber()` and confirm `test_removing_a_middle_option_keeps_the_right_answer` FAILS with the wrong option marked correct — the failure mode, not the assertion. Restore.
+Comment out the `radio.value = String(i)` line in `renumber()` and confirm
+`test_removing_a_middle_option_keeps_the_right_answer` FAILS on the **pre-save value assertion**
+(`"2" != "1"`) — the surviving radio keeping its server-rendered index. That is the failure mode
+under test. If instead you see an 8-second detach timeout, the assertion above is missing: the mutant
+is then only being caught indirectly through a 422, which is indistinguishable from any other save
+failure. Restore afterwards.
 
 - [ ] **Step 8: Commit**
 
