@@ -22,7 +22,7 @@
       <p class="tag-section__course">{{ course.title }}</p>
       <ul>
         {% for unit in units %}
-          <li><a href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">{{ unit.title }}</a></li>
+          <li><a href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}" data-math-title>{{ unit.title }}</a></li>
         {% endfor %}
       </ul>
     {% endfor %}

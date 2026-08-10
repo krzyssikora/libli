@@ -2248,3 +2248,40 @@ dialog.imgzoom:not([open]) { display: none; }
 /* The banner states a fact about the page; the Publish control is an authoring
    affordance that does not belong on paper. */
 @media print { .draft-banner__form { display: none; } }
+
+/* --- Maths in node titles: the unit-chrome clamp (spec 2026-08-10) ---------- */
+/* The GLOBAL normalisation lives in app.css (see the block there); this file
+   carries only the clamps for surfaces courses.css owns. KaTeX's line-height:1.2
+   survives the global rules, and these four are all tight, single-line or
+   line-clamped boxes.
+
+   THE FOUR SURFACES BEHAVE DIFFERENTLY AND MUST NOT BE CONFLATED:
+   - .unit-foot__navtitle (:778), .unit-tree__label (:755) and
+     .unit-crumbs__label (:848) are single-line clips
+     (overflow:hidden;text-overflow:ellipsis;white-space:nowrap). A long maths
+     title HARD-CLIPS rather than showing an ellipsis -- text-overflow applies to
+     inline text, not to KaTeX's inline-block box. Accepted; it is why the
+     title= tooltips are kept useful by strip_math_delimiters.
+   - .unit-tree__grouptitle (:702-704) is NOT a single-line clip: it is
+     -webkit-box with -webkit-line-clamp:5 plus overflow-wrap:break-word and
+     hyphens:auto. Intended behaviour is that the surrounding prose keeps
+     wrapping and clamping as today while the formula stays intact on whichever
+     line it lands on.
+   - The MOBILE DRAWER is a fourth case, not covered here: courses.css:943
+     overrides .unit-drawer__list .unit-tree__label to white-space:normal, so at
+     <=640px titles WRAP rather than clip, in a title column squeezed to ~98px.
+     Task 11 MEASURED this at 390x780 (a long maths title, both themes): the
+     wrap absorbs it and no .katex box intersected a sibling control's
+     (.unit-tree__count / .unit-tree__groupcheck / .unit-tree__check /
+     .unit-tree__chevron / .unit-drawer__close) rect. CONFIRMED clean -- no
+     rule needed here. Re-check if the drawer's title column ever narrows
+     further, since the risk scales with how little width the wrap gets.
+
+   Also unaddressed on purpose: courses.css:903-907 re-opens .unit-crumbs__label
+   under @media print with overflow-wrap:anywhere, which cannot break a KaTeX
+   inline-block, so a long maths crumb can still overflow in print. Accepted --
+   printing a breadcrumb is marginal and the text is not lost, only over-wide. */
+.unit-foot__navtitle .katex,
+.unit-tree__label .katex,
+.unit-tree__grouptitle .katex,
+.unit-crumbs__label .katex { line-height: 1; vertical-align: baseline; }

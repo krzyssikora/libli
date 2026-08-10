@@ -1,0 +1,20 @@
+{% load static %}
+{% comment %}Shared KaTeX script block. ORDER IS LOAD-BEARING and must not be
+reshuffled: math_reflow.js pre-hooks window.renderMathInElement and katex.render
+with a SINGLE install attempt and no deferred retry, precisely because it is
+loaded after both vendor files in document order; text_colour.js post-hooks the
+same two globals; math.js runs the initial document pass and must be last.
+
+EVERY tag carries `defer`. Source order only guarantees execution order AMONG
+defer scripts, so one non-deferred tag silently reorders the rest -- and a
+non-deferred math.js runs DURING parsing, so renderMath(document) and
+renderInlineText(document) see a partial DOM and typeset nothing below their own
+tag, a failure that looks exactly like a missing marker.
+
+question.js is deliberately NOT here: only two pages need it, and it must come
+AFTER this include on both.{% endcomment %}
+<script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+<script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
+<script src="{% static 'courses/js/math_reflow.js' %}" defer></script>
+<script src="{% static 'courses/js/text_colour.js' %}" defer></script>
+<script src="{% static 'courses/js/math.js' %}" defer></script>

@@ -3,7 +3,7 @@
   <div class="pane-head"><h2>{% trans "Live preview" %}</h2><span class="pane-head__count">{% trans "as students see it" %}</span></div>
   <div class="pane-body prev">
     <div class="prev-inner">
-      <h2 class="prev-unit-title">{{ unit.title }}</h2>
+      <h2 class="prev-unit-title" data-math-title>{{ unit.title }}</h2>
       {% for el in preview_elements %}
         {% comment %}
           "Try it" preview: questions render via the student template (a POST form) but

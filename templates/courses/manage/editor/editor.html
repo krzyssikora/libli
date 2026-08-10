@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% load i18n static %}
-{% block head_title %}{{ unit.title }} — {% trans "Editor" %}{% endblock %}
+{% load i18n static courses_extras %}
+{% block head_title %}{{ unit.title|strip_math_delimiters }} — {% trans "Editor" %}{% endblock %}
 {% block body_class %}editor-page{% endblock %}
 {% comment %}The before/after element's degraded-state CSS is keyed on
 html:not(.ba-js): it un-hides the side headings and hides the toggle. The
@@ -17,7 +17,7 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'courses/css/editor.css' %}">
-  <link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">
+  {% include "courses/_katex_css.html" %}
 {% endblock %}
 {% block content %}
 <section class="editor" data-course-slug="{{ course.slug }}"
@@ -72,12 +72,12 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
     <a class="iconbtn" href="{% url 'courses:manage_builder' slug=course.slug %}"
        aria-label="{% trans 'Back to builder' %}" title="{% trans 'Back to builder' %}">←</a>
     <span class="editor-crumb__path">
-      {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> {{ a.title }}{% endfor %}
+      {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> <span data-math-title>{{ a.title }}</span>{% endfor %}
     </span>
     <a class="editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}">{% trans "Media library" %}</a>
   </p>
   <div class="editor-head">
-    <h1 class="editor-head__title">{{ unit.title }}</h1>
+    <h1 class="editor-head__title" data-math-title>{{ unit.title }}</h1>
     <form class="type-toggle" method="post" action="{% url 'courses:manage_node_rename' slug=course.slug %}">
       {% csrf_token %}
       <input type="hidden" name="node" value="{{ unit.pk }}">
@@ -179,11 +179,7 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
     });
   </script>
   <script src="{% static 'courses/js/math_input.js' %}" defer></script>
-  <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
-  <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
-  <script src="{% static 'courses/js/math_reflow.js' %}" defer></script>
-  <script src="{% static 'courses/js/text_colour.js' %}" defer></script>
-  <script src="{% static 'courses/js/math.js' %}" defer></script>
+  {% include "courses/_katex_js.html" %}
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
   <script src="{% static 'courses/js/link_apply.js' %}" defer></script>
   <script src="{% static 'courses/js/link_dialog.js' %}" defer></script>

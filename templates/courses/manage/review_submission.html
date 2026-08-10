@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% load i18n static %}
-{% block head_title %}{% trans "Review" %} · {{ submission.unit.title }} · libli{% endblock %}
+{% load i18n static courses_extras %}
+{% block head_title %}{% trans "Review" %} · {{ submission.unit.title|strip_math_delimiters }} · libli{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
-  {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+  {% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}
 {% endblock %}
 
 {% block prepaint %}
@@ -55,7 +55,7 @@
 
   <div class="unit-shell__main">
     <header class="review-topbar">
-      <h1 class="review-topbar__title">{% trans "Review" %}: {{ submission.student.display_name|default:submission.student.username }} — {{ submission.unit.title }}</h1>
+      <h1 class="review-topbar__title">{% trans "Review" %}: {{ submission.student.display_name|default:submission.student.username }} — <span data-math-title>{{ submission.unit.title }}</span></h1>
       <span class="review-topbar__sp"></span>
       {% if in_progress_count %}
       <form method="post"
@@ -128,14 +128,13 @@
 
 {% block extra_js %}
   {% if has_math %}
-    {% comment %}PRESERVE the existing math quartet — the read-only stem/answer live in a
-    form-less [data-question] and question.js's initial pass typesets their inline
-    math. Dropping these regresses math rendering AND breaks
+    {% comment %}The KaTeX family now comes from courses/_katex_js.html (which
+    also adds math.js, previously missing here). PRESERVE question.js and keep it
+    AFTER the include: the read-only stem/answer live in a form-less
+    [data-question] and question.js's initial pass typesets their inline math.
+    Dropping it regresses math rendering AND breaks
     test_review_views.py::test_review_loads_katex_when_stem_has_math.{% endcomment %}
-    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
-    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
-    <script src="{% static 'courses/js/math_reflow.js' %}" defer></script>
-    <script src="{% static 'courses/js/text_colour.js' %}" defer></script>
+    {% include "courses/_katex_js.html" %}
     <script src="{% static 'courses/js/question.js' %}" defer></script>
   {% endif %}
   {% if roster %}<script src="{% static 'courses/js/review_roster.js' %}" defer></script>{% endif %}

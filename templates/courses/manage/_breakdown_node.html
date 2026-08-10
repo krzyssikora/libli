@@ -3,7 +3,7 @@
   {% if item.is_unit %}
     {% if item.node.unit_type == "quiz" %}
       <div class="breakdown-unit">
-        <span class="breakdown-unit__title" lang="{{ course.language }}">{{ item.node.title }}</span>
+        <span class="breakdown-unit__title" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
         {% with p=item.pill %}
           {% if p.kind == "scored" %}
             <span class="pill pill--scored">{% blocktrans with s=p.score|floatformat m=p.max_score|floatformat %}scored {{ s }}/{{ m }}{% endblocktrans %} ({{ p.percent }}%)</span>
@@ -21,13 +21,13 @@
       </div>
     {% else %}
       <div class="breakdown-unit">
-        <span class="breakdown-unit__title{% if item.completed %} is-done{% endif %}" lang="{{ course.language }}">{{ item.node.title }}</span>
+        <span class="breakdown-unit__title{% if item.completed %} is-done{% endif %}" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
         {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
       </div>
     {% endif %}
   {% else %}
     <div class="breakdown-node__head">
-      <span class="breakdown-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
+      <span class="breakdown-node__title" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
       {% if item.required_total %}<span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>{% endif %}
     </div>
     {% if item.children %}

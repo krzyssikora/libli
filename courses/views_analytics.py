@@ -14,12 +14,14 @@ from courses.color_bands import course_color_bands
 from courses.color_bands import default_color_bands
 from courses.color_bands import legend_rows
 from courses.forms import ColorBandsForm
+from courses.htmlsandbox import titles_have_math
 from courses.models import Course
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
+from courses.rollups import tree_titles_have_math
 from grouping import scoping
 
 
@@ -125,6 +127,12 @@ def analytics_matrix(request, slug):
     colours_qs = _expand_qs(scope, mode, base_pks, subset_pks, values)
     percent_qs = _expand_qs(scope, mode, base_pks, subset_pks, "percent")
     raw_qs = _expand_qs(scope, mode, base_pks, subset_pks, "raw")
+    # header_rows, NOT columns: `columns` is _public_columns(...) and holds LEAF
+    # columns only, so a scan over it silently misses every expanded GROUP cell
+    # -- which is exactly what analytics_matrix.html:126 renders.
+    has_math = titles_have_math(
+        c["title"] for row in matrix["header_rows"] for c in row
+    )
     return render(
         request,
         "courses/manage/analytics_matrix.html",
@@ -147,6 +155,7 @@ def analytics_matrix(request, slug):
             "colours_url": f"{bands_path}?{colours_qs}",
             "percent_url": f"{matrix_path}?{percent_qs}",
             "raw_url": f"{matrix_path}?{raw_qs}",
+            "has_math": has_math,
         },
     )
 
@@ -242,6 +251,10 @@ def analytics_student(request, slug, student_pk):
     subset_pks = _clean_expand(request.GET.getlist("student"))
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
     back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
+    # build_student_breakdown returns a DICT WRAPPER, {"student": …, "tree": …};
+    # passing `breakdown` itself would iterate the dict's keys and raise
+    # TypeError -- a 500 on this page.
+    has_math = tree_titles_have_math(breakdown["tree"])
     return render(
         request,
         "courses/manage/analytics_student.html",
@@ -250,6 +263,7 @@ def analytics_student(request, slug, student_pk):
             "student": student,
             "breakdown": breakdown,
             "back_url": f"{matrix_path}?{back_qs}",
+            "has_math": has_math,
         },
     )
 
