@@ -127,7 +127,14 @@
     ticked.forEach(function (row) {
       var d = delInput(row);
       if (keepVisible < min) {
-        d.checked = false;   // state and appearance must never disagree
+        // State and appearance must never disagree — so un-tick AND un-hide.
+        // Un-ticking alone holds today only because every reachable caller runs on
+        // a server-fresh DOM where nothing is hidden yet. On the addRow -> init
+        // re-init path the ticked rows are already hidden, so a row rescued here
+        // would post as KEPT (silently resurrecting its old content) while staying
+        // invisible to the author.
+        d.checked = false;
+        row.hidden = false;
         keepVisible += 1;
         return;
       }
