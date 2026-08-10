@@ -13,6 +13,8 @@ decomposed first.
 import pytest
 from bs4 import BeautifulSoup
 
+from courses.models import MarkDoneElement
+from courses.models import StepperElement
 from tests.helpers_editor_rows import rendered_rows
 
 pytestmark = pytest.mark.django_db
@@ -58,3 +60,49 @@ def test_matchpair_bounds(open_matchpair_editor):
     assert not wrap.has_attr("data-fsrows-max")
     assert wrap.get("data-fsrows-atmin")
     assert wrap.get("data-fsrows-confirm")
+
+
+def test_stepper_bounds_come_from_the_model_constants(open_stepper_editor):
+    """Literals on both sides stay green when MAX_STEPS changes — build the
+    expected value from the constant so the test can catch the drift it exists for."""
+    html = open_stepper_editor()
+    assert f'data-fsrows-max="{StepperElement.MAX_STEPS}"' in html
+    assert f'data-fsrows-min="{StepperElement.MIN_STEPS}"' in html
+
+
+def test_markdone_bounds_come_from_the_model_constants(open_markdone_editor):
+    html = open_markdone_editor()
+    assert f'data-fsrows-max="{MarkDoneElement.MAX_ITEMS}"' in html
+    assert f'data-fsrows-min="{MarkDoneElement.MIN_ITEMS}"' in html
+
+
+@pytest.mark.parametrize(
+    "opener,prefix,field",
+    [
+        ("open_stepper_editor", "steps", "content"),
+        ("open_markdone_editor", "items", "content"),
+    ],
+)
+def test_retrofit_blueprint_carries_the_prefix_token(request, opener, prefix, field):
+    """The retrofit swaps hand-written blueprints for formset.empty_form ones — the
+    highest-drift edit in this task. Task 4 also DELETES the old __prefix__
+    assertion, so without this the coverage net-decreases on exactly the change
+    most likely to break."""
+    html = request.getfixturevalue(opener)()
+    soup = BeautifulSoup(html, "html.parser")
+    tmpl = soup.select_one("[data-fsrows-template]")
+    assert tmpl is not None
+    assert f"{prefix}-__prefix__-{field}" in tmpl.decode_contents()
+
+
+@pytest.mark.parametrize("opener", ["open_stepper_editor", "open_markdone_editor"])
+def test_retrofit_progressive_enhancement(request, opener):
+    """Half (a) and (b) of the no-JS guarantee, for the two retrofitted editors."""
+    html = request.getfixturevalue(opener)()
+    soup = BeautifulSoup(html, "html.parser")
+    for tmpl in soup.select("template"):
+        tmpl.decompose()
+    assert soup.select_one("[data-fsrows-add]").has_attr("hidden")
+    row = soup.select_one("[data-fsrows-list] [data-fsrow-item]")
+    assert row.select_one("[data-fsrow-remove]").has_attr("hidden")
+    assert not row.select_one("[data-fsrow-del]").has_attr("hidden")

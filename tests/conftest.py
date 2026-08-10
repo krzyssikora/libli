@@ -126,6 +126,85 @@ def open_matchpair_editor_e2e(matchpair_element):
     return _open
 
 
+def _seed_rows_element(kind, rows):
+    """(course, unit, element) for the two retrofitted row editors.
+
+    `kind` is "stepper" or "markdone"; the child rows are created directly through
+    the ORM so the element is PRE-SEEDED (the e2e openers rely on that — a
+    pre-seeded element already has a preview node, which is why the post-save wait
+    targets the edit slot clearing rather than the preview).
+    """
+    from courses.models import MarkDoneElement
+    from courses.models import MarkDoneItem
+    from courses.models import StepperElement
+    from courses.models import StepperStep
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    if kind == "stepper":
+        obj = StepperElement.objects.create(prompt="")
+        for content in rows:
+            StepperStep.objects.create(stepper=obj, content=content)
+    elif kind == "markdone":
+        obj = MarkDoneElement.objects.create(prompt="")
+        for content in rows:
+            MarkDoneItem.objects.create(element=obj, content=content)
+    else:  # pragma: no cover - a typo'd kind must not silently seed nothing
+        raise ValueError(f"unknown row-editor kind {kind!r}")
+    return course, unit, add_element(unit, obj)
+
+
+@pytest.fixture
+def open_stepper_editor(pa_client):
+    """Server-render opener: seeds a stepper element and returns its edit HTML."""
+
+    def _open(rows=("one",)):
+        course, _unit, element = _seed_rows_element("stepper", rows)
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+@pytest.fixture
+def open_markdone_editor(pa_client):
+    """Server-render opener: seeds a checklist element and returns its edit HTML."""
+
+    def _open(rows=("one",)):
+        course, _unit, element = _seed_rows_element("markdone", rows)
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+@pytest.fixture
+def open_element_editor():
+    """e2e opener for the two retrofitted row editors.
+
+    `kind` is "stepper" or "markdone". Returns the Element JOIN ROW.
+
+    `ready` is passed through to `reopen`: this opener is used by the
+    no-regression test that must be GREEN on master too, where the new
+    [data-fsrows-list] hook does not exist yet, so the wait keys on the row
+    list's CLASS instead.
+    """
+
+    def _open(page, live_server, kind, rows=("one",), username="row_editor"):
+        _pa_user(username)
+        _course, unit, element = _seed_rows_element(kind, rows)
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk, ready=f".{kind}-rows li")
+        return element
+
+    return _open
+
+
 @pytest.fixture
 def course_with_image(db, tmp_path, settings):
     """A Course plus one real IMAGE MediaAsset with a readable file on disk.

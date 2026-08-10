@@ -28,8 +28,6 @@ PANE_RESIDENT = [
     "table_editor.js",
     "gallery_editor.js",
     "tabs_editor.js",
-    "stepper_editor.js",
-    "markdone_editor.js",
     "choicegrid.js",
     "multigrid.js",
     "zone-editor.js",
