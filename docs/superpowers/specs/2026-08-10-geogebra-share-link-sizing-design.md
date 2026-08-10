@@ -76,10 +76,19 @@ So the endpoint is reachable from this code path today with no custom header. An
 `User-Agent` is still specified below (see §1) as courtesy and future-proofing, not as a
 fix for a present breakage. **Acceptance criterion:** re-run this one-off call through the
 shipped `fetch_geogebra_dimensions` before opening the PR and record the returned pair in
-the PR body — the offline test suite cannot detect the API moving. **Clear the default
-cache (or use a fresh process) immediately before that check**, or a negative-cache
-sentinel from an earlier failed attempt will short-circuit it and return `(None, None)`
-with no request — indistinguishable from the very failure the check exists to detect.
+the PR body — the offline test suite cannot detect the API moving.
+
+**Two short-circuits can fake a pass, and the check must defeat both.** Each returns
+`(None, None)` with no request, indistinguishable from "the API moved":
+
+1. a negative-cache sentinel from an earlier failed attempt — so **clear the default cache,
+   or run in a fresh process**, immediately before the check;
+2. `GEOGEBRA_API_LOOKUP` being false — which is exactly what `config/settings/test.py`
+   ships, and `manage.py` resolves `DJANGO_SETTINGS_MODULE` from the environment
+   (`default="config.settings.local"`), so a developer `.env` can silently pin it.
+
+So the check must run under **`config/settings/local`** with the flag true, and must assert
+**positively**: the returned pair equals `(880, 660)`. "It did not raise" is not a pass.
 
 ### Scope in existing content, and every creation path
 
@@ -110,6 +119,26 @@ So of 134 GeoGebra rows, exactly **two reachable ones lack dimensions**, both in
 GeoGebra rows are canonical *and* dimensioned, so they emit `aspect-ratio: W / H` before and
 after; its 5 non-GeoGebra dimensionless rows keep the 16:9 CSS default untouched.
 
+### Why the reported page already looks correct — and how to reproduce the defect
+
+That last paragraph appears to contradict the bug report, which named
+`/courses/mat-pp/u/294/`. It does not, and the resolution is the acceptance path.
+
+Unit 294 currently holds **two** GeoGebra iframes — elements 22019 (`…/id/wgzr7tsu`) and
+22024 (`…/id/safjjtdz`) — both canonical and both stored 880×660. Those are the
+**static-embed-code** versions. The original report says so explicitly: adding the material
+*by share link* showed the white space, and adding it *by the embed code GeoGebra suggests*
+looked right. The author had already replaced the broken element with the working one before
+the census was taken. So unit 294 renders correctly today **because the bug was worked
+around**, not because it was absent — and it is inside the 131.
+
+**Acceptance path, therefore, is a fresh reproduction, not a revisit of unit 294:** in a
+scratch unit, add material `dcjktevj` (or any GeoGebra material) *by share link*
+`https://www.geogebra.org/m/dcjktevj`, and confirm the applet fills its frame with no
+right-hand gap and the same viewport as the static embed. Before the change that element
+renders 16:9 with the measured ~161px gap; after it, it must be indistinguishable from an
+element created with the embed code.
+
 That census is a snapshot, so here is every path that constructs an `IframeElement` and
 whether it gets the lookup:
 
@@ -118,16 +147,45 @@ whether it gets the lookup:
 | `IframeElementForm` (editor create/edit) | **yes** | the interactive path this design targets |
 | `courses/lal_loader/builders.py:350` (`IframeElement.objects.create(url=…, title=…)`) | **no** | bulk mat-pp ingest; a per-element network call would make a large import slow and network-dependent |
 | `courses/management/commands/seed_demo_course.py` | **no** | fixture seeding, not authored content |
-| `courses/transfer` import (`_build_iframe`) | **no** | archives already carry `width`/`height` (`FORMAT_VERSION` ≥ 2), so a lookup would be redundant *and* would put the network in the import path |
+| `courses/transfer` import (`_build_iframe`) | **no** | archives from `FORMAT_VERSION` ≥ 2 carry the pair, so a lookup would be redundant *and* would put the network in the import path. A **legacy v1 archive** carries neither — `payloads.py:169-175` `setdefault`s both to `None` for exactly that reason — so it imports dimensionless and lands on the 4:3 + badge path, which is the intended degraded behaviour rather than an oversight |
 | Django admin (`admin.site.register(IframeElement)`) | **no** | raw model form, no `clean_url`; a staff-only escape hatch |
 
-Note the tension between rows one and two of that table and the census: `builders.py:350`
-constructs iframes with no dimensions, yet mat-pp measures 131/131 *with* dimensions. Both
-facts are stated as measured; the reconciliation (mat-pp's iframes did not reach the
-database through that constructor, or did so before it took its current form) is not
-established and this design does not depend on it. What matters is the forward-looking
-consequence: **any future LAL import will produce dimensionless GeoGebra elements**, and
-those now render at 4:3 with a badge instead of silently at 16:9.
+Note the tension between rows one and two of that table and the census: `builders.py:350` is
+`IframeElement.objects.create(url=canonicalize_geogebra_url(el["url"]), title=…)` — canonical
+shape, **no** dimensions — yet mat-pp measures 131/131 *with* dimensions. Both facts are
+measured, and the reconciliation is **not** established. Candidate explanations, none
+verified: the rows arrived via `courses/transfer` (`_build_iframe` does carry `width`/
+`height`) rather than the LAL loader; the loader had a different shape when mat-pp was
+ingested; or the elements were re-saved through the editor form afterwards.
+
+Because three decisions lean on that column — the no-appearance-change claim, the no-backfill
+non-goal, and the blast-radius estimate — **the census must be reproducible rather than
+believed.** This is the literal query; re-run it before implementing and restate the sections
+below if the numbers differ:
+
+```python
+from urllib.parse import urlsplit
+from collections import Counter
+from courses.models import IframeElement
+c = Counter()
+for o in IframeElement.objects.all():
+    for e in o.elements.all():                      # join rows; 0 joins == orphan
+        p = urlsplit(o.url); segs = p.path.split("/")[1:]
+        host = (p.hostname or "").lower()
+        shape = ("non-geogebra" if host not in ("geogebra.org", "www.geogebra.org")
+                 else "canonical" if segs[:3] == ["material","iframe","id"] and "width" not in segs
+                 else "canonical+width" if segs[:3] == ["material","iframe","id"]
+                 else "gg-host-other")
+        c[(e.unit.course.slug, shape, bool(o.width and o.height))] += 1
+```
+
+If the 131 turn out to be dimensionless, the consequences are concrete and must be written up
+rather than discovered: 131 published units flip 16:9 → 4:3, every one grows a badge, and
+every subsequent save of any of them fires a live GET inside the unit row lock (case 3).
+
+Independent of the reconciliation, the forward-looking consequence holds: **any future LAL
+import produces dimensionless GeoGebra elements**, which now render at 4:3 with a badge
+instead of silently at 16:9.
 
 ### Goals
 
@@ -141,8 +199,13 @@ those now render at 4:3 with a badge instead of silently at 16:9.
 
 ### Non-goals
 
-- **No backfill mechanism.** Two reachable rows are affected, both in `demo-course`, and the
-  user will fix them by hand. There is no deployment and no production database.
+- **No backfill mechanism.** The decision rests on the census and the recovery path, not on
+  the absence of a deployment: two reachable rows are affected, both in `demo-course`, the
+  user will fix them by hand, and any row missed anywhere is self-announcing (the badge) and
+  self-healing (re-saving re-attempts the lookup, per case 3). The user confirms there is no
+  deployment and no production database **today** — but `config/settings/production.py`
+  exists and is fully env-driven, so a deployment is anticipated, and no argument here may
+  depend on one never existing.
 - **No lookup on the bulk paths** (LAL loader, seed command, transfer import, admin).
 - **No manual width/height fields in the editor.** Considered and rejected during
   brainstorming; the static embed paste remains the explicit escape hatch.
@@ -162,7 +225,12 @@ those now render at 4:3 with a badge instead of silently at 16:9.
 
 ## Architecture / components
 
-Five changes plus one settings flag and one CSS rule.
+Seven deliverables, in five sections: (1) the lookup helper, predicates, and the rewritten
+module docstring in `courses/geogebra.py`; (2) the `clean_url` capture; (3) the two model
+properties and the consumption-template switch; (4) the editor badge **and** its new
+`.el-row__flag` CSS rule **and** the Polish catalog entries; (5) the `GEOGEBRA_API_LOOKUP`
+flag in **both** `config/settings/base.py` and `config/settings/test.py`, plus its
+`.env.example` line.
 
 ### 1. Lookup helper — `courses/geogebra.py`
 
@@ -208,7 +276,10 @@ explanatory comment untouched — this change does not need to disturb it — wh
 The comment is amended only to note that the module-level predicates are safe for the same
 reason (`geogebra.py` imports nothing from `courses`), so the two import styles in one file
 do not read as an accident. `embed.py`'s existing `_INT_MAX` is folded into `DIM_MAX` here so the
-ceiling has one definition. **Both** `usable_dimensions` and `DIM_MAX` deliberately carry
+ceiling has one definition. The fold touches **three** sites in `embed.py`, not two — the
+definition (line 27), the comparison (line 42), and the `_dimension` **docstring** (line 31,
+"A positive int (1.._INT_MAX)…"), which would otherwise name a constant that no longer
+exists. `grep -rn "_INT_MAX"` must return zero hits afterwards. **Both** `usable_dimensions` and `DIM_MAX` deliberately carry
 **no leading underscore**: each is imported across module boundaries, and an underscore on a
 cross-module name invites a reviewer to "fix" the import by re-declaring the thing locally —
 the exact duplication these exist to prevent. The rule is applied consistently: names that
@@ -270,9 +341,18 @@ handler (`exc.close()` / `exc.fp.close()`), or the 400 test will surface an unex
 
 Refusing redirects matters: `urlopen` follows them by default, so a check on the
 *constructed* URL says nothing about the host actually contacted.
-`integrations/delivery.py :: _NoRedirect` already exists for exactly this reason and should
-be reused (imported, or duplicated with a comment pointing at the original — the plan
-decides which; the behaviour is fixed).
+`integrations/delivery.py :: _NoRedirect` already exists for exactly this reason — but
+**duplicate it in `courses/geogebra.py` with a comment pointing at the original; do not
+import it.** This is decided here, not left to the plan, because the import has a real cost:
+`integrations/delivery.py` does `from integrations.models import WebhookDelivery` at module
+level, so importing `_NoRedirect` into `geogebra.py` — which `models.py` now imports at
+module level — would pull `integrations.models` in at app-load time. Every existing
+`courses → integrations` reference in the repo is a deliberate lazy in-function import
+(`courses/review.py:71,100`, `courses/views.py:1565`), and §1 justifies `geogebra.py` as the
+sole cycle-free home precisely because it imports nothing from its own package. Reaching
+across an app boundary for a private four-line handler would trade that away. (A
+function-local import inside `_open` would also work; duplication is preferred because the
+handler is trivial and the comment keeps the two discoverable from each other.)
 
 The URL is `_API_PREFIX + "v1.0/materials/" + material_id + "?scope=basic"`, where
 `material_id` has passed `_ID_RE` and so cannot introduce a scheme, host, or traversal. A
@@ -369,8 +449,12 @@ construction, none of which are `URLError` subclasses. Anything escaping into `c
 would 500 the save. Wrap the whole fetch-and-parse body in a bare `except Exception:`,
 matching `courses/embed.py :: parse_iframe_dimensions`.
 
-**Observability.** On any failure path, emit a `logger.warning` carrying the material id and
-the exception type (or HTTP status). Without it, a systemic failure — API path changed,
+**Observability.** `courses/geogebra.py` has no logger today; add
+`logger = logging.getLogger(__name__)` at module scope, mirroring `integrations/delivery.py:16`.
+Tests assert on `record.name == "courses.geogebra"` as well as message content, so a
+`caplog` assertion cannot be written against the wrong logger and pass vacuously. On any
+failure path, emit a `logger.warning` carrying the material id and the exception type (or
+HTTP status). Without it, a systemic failure — API path changed,
 schema reshaped, UA blocked — is indistinguishable from "this material genuinely has no
 dimensions", and the only signal is a badge the author reads as a property of their own
 material. A successful lookup logs nothing.
@@ -406,19 +490,25 @@ pair **for this same URL**:
 ```python
 url = extract_embed_url(raw)
 width, height = parse_iframe_dimensions(raw)
+mid = geogebra_material_id(url)                 # hoisted: used by both guards below
 url_changed = url != self.instance.url
-if url_changed and not usable_dimensions(width, height) and geogebra_material_id(url):
+if url_changed and not usable_dimensions(width, height) and mid:
     self.instance.width = self.instance.height = None   # stale: they describe the old material
 stored_usable = usable_dimensions(self.instance.width, self.instance.height)
-if not usable_dimensions(width, height) and not stored_usable:
-    mid = geogebra_material_id(url)
-    if mid:
-        width, height = fetch_geogebra_dimensions(mid)
+if not usable_dimensions(width, height) and not stored_usable and mid:
+    width, height = fetch_geogebra_dimensions(mid)
 if usable_dimensions(width, height):
     self.instance.width = width
     self.instance.height = height
 return url
 ```
+
+**This depends on `clean_url` running before `_post_clean`.** `self.instance.url` still holds
+the **database** value during field cleaning, because Django only copies cleaned data onto the
+instance in `construct_instance`, which `_post_clean` calls afterwards. The entire
+`url_changed` mechanism silently inverts — every save looking like "URL unchanged" — if this
+logic is ever moved to `_post_clean` or `save()`. Stated so a future refactor is a deliberate
+choice rather than a silent regression.
 
 **Invariant: a *usable* stored pair is never re-derived for an unchanged URL.** Every word
 is load-bearing, and the corollary matters as much as the rule: **the lookup fires on three
@@ -459,6 +549,18 @@ default. And because the textarea is pre-filled with the stored URL, *any* edit 
 sets `url_changed`. That would be a behaviour change on non-GeoGebra content, contradicting
 the stated non-goal. Scoped as written, a non-GeoGebra URL change keeps its dimensions;
 a form test pins this.
+
+*The conjunct tests the **new** URL, which leaves one case open — accepted explicitly.*
+Editing a GeoGebra element's URL to a **non**-GeoGebra one (a plain Vimeo URL, no dimensions
+in the paste) keeps the GeoGebra 880×660 and renders a video in a 4:3 frame. That is the same
+"the pair describes the old material" failure the clause exists to prevent, in the direction
+the conjunct does not cover. It is **not** a regression — today's code never clears — and the
+alternative (clear when the *old* URL was GeoGebra and the new one is not) is deliberately
+not taken here: it would add a second, opposite-keyed branch to a guard whose whole value is
+being easy to reason about, for a provider-swap-in-place that is rare and self-evident to the
+author, who can re-paste the correct embed code. Recorded as a known, bounded gap rather than
+silently left undiscussed; a form test pins the current behaviour so a future change is a
+deliberate one.
 
 Re-pasting a full `<iframe>` still overwrites dimensions, because that path is satisfied by
 `parse_iframe_dimensions` before either guard is consulted — preserving today's
@@ -531,6 +633,19 @@ same admin path that motivates this split — `True` for the predicate while
 `geogebra_sized_src` refuses to touch it, reopening the very ratio/src disagreement the
 split exists to close.
 
+**It is a *stricter* guard, not an exact mirror** — the `_ID_RE.match(segments[3])` clause has
+no counterpart in `geogebra_sized_src`, which never indexes `segments[3]` at all. The two
+therefore diverge on two shapes, both deliberate and both tested:
+
+| URL | `geogebra_sized_src` | `is_geogebra_iframe_url` | why the divergence is right |
+|---|---|---|---|
+| `…/material/iframe/id` (no id) | would append `/width/…` | `False` (`IndexError` → the never-raises guard) | appending to an id-less URL yields a nonsense src; claiming a ratio for it would be worse |
+| `…/material/iframe/id/ab%20cd` | would append `/width/…` | `False` (charset) | an id we would refuse to look up is not one whose ratio we should assert |
+
+In both, the frame falls back to 16:9 while the src may be sized — the mirror-direction gap
+step 0 closes for the `/width/` shape but which is unreachable here, since neither URL can be
+produced by `clean_url` (both fail `extract_embed_url`/`_ID_RE`) and both are degenerate.
+
 Host membership is explicitly *not* the test: `https://www.geogebra.org/x` (a shape the LAL
 parser stores un-canonicalized) and `https://www.geogebra.org/classic/abc` sit on a GeoGebra
 host but are not worksheet embeds. Under a host-based reading such an element would get
@@ -572,12 +687,20 @@ def size_unknown(self):
 `frame_ratio` resolves in **four** ordered steps. The first one is easy to omit and its
 omission silently reintroduces the original bug:
 
+0. **The URL already carries `/width/W/height/H` segments → `"W / H"` read from the URL.**
+   Such a URL sizes the applet itself, so the frame must match *it*, not the stored columns
+   and not 16:9. Without this step the shape falls to step 4 and gets the CSS 16:9 default
+   around an 880×660 applet — reproducing the original defect in the mirror direction, with
+   `size_unknown` False so no badge explains it. The ratio/src invariant runs **both** ways:
+   never a frame ratio the src does not back up, and never a src ratio the frame does not
+   back up. (Reachable through the admin, which exposes `url` raw.)
 1. **`geogebra_material_id(self.url)` truthy AND `is_geogebra_iframe_url(self.url)` false
-   → `None`.** A GeoGebra material in a shape `geogebra_sized_src` will not rewrite. Stored
-   dimensions must be *ignored* here, because emitting `W / H` while the src stays bare
-   frames GeoGebra's 800×600 default in a W/H box — the exact white-space defect this design
-   removes. This step must come **before** step 2, or a `/m/<id>` row carrying 880×660 takes
-   the ratio branch and contradicts the render test that pins it.
+   → `None`.** A GeoGebra material in a shape `geogebra_sized_src` will not rewrite *and*
+   which carries no sizing of its own. Stored dimensions must be *ignored* here, because
+   emitting `W / H` while the src stays bare frames GeoGebra's 800×600 default in a W/H box —
+   the exact white-space defect this design removes. This step must come **before** step 2,
+   or a `/m/<id>` row carrying 880×660 takes the ratio branch and contradicts the render test
+   that pins it.
 2. `usable_dimensions(self.width, self.height)` → `"<width> / <height>"`. This is also the
    branch every **non-GeoGebra** provider with a captured pair (Vimeo, YouTube) reaches —
    step 1 cannot swallow them, since `geogebra_material_id` is falsy for them.
@@ -686,17 +809,23 @@ automatically, and clears itself once dimensions are known.
 
 ### 5. Settings
 
-`config/settings/base.py` gains exactly one flag:
+Two deliverables, not one — `config/settings/base.py` **and** `config/settings/test.py`:
 
 ```python
-GEOGEBRA_API_LOOKUP = True      # kill switch; False in test.py
+# base.py — env-backed so a deployed instance can disable the lookup without a code change
+GEOGEBRA_API_LOOKUP = env.bool("LIBLI_GEOGEBRA_API_LOOKUP", default=True)
+
+# test.py — the suite must never reach the network
+GEOGEBRA_API_LOOKUP = False
 ```
 
-A Django setting rather than a module constant specifically because
-`config/settings/test.py` must turn it off suite-wide. Timeout and other tunables stay
-**module constants** in `courses/geogebra.py`, matching
-`integrations/delivery.py :: TIMEOUT_SECONDS = 10`. Neither is `env()`-backed and neither
-goes in `.env.example`, because there is no deployment to configure them for.
+A Django setting rather than a module constant specifically because `test.py` must turn it
+off suite-wide. It is **`env()`-backed and gets an `.env.example` line**, matching
+`ALLOWED_EMBED_DOMAINS` beside it: an instance deployed behind an egress-restricted network
+would otherwise have no documented way to stop a per-save outbound call that always times
+out. Timeout and the other tunables stay **module constants** in `courses/geogebra.py`,
+matching the pattern of `integrations/delivery.py :: TIMEOUT_SECONDS = 10` — they are
+implementation detail, not operational policy.
 
 ## Data flow
 
@@ -743,7 +872,8 @@ author pastes …
 | id already in the negative cache | `(None, None)` without a request |
 | `GEOGEBRA_API_LOOKUP` false | `(None, None)` without a cache read or request |
 | GeoGebra host but no material id (`/x`, `/classic/…`) | not a material embed: 16:9 default, no badge, no lookup |
-| GeoGebra material id in a non-canonical shape (`/m/<id>`, `/material/show/id/<id>`) stored directly (admin) | `is_geogebra_iframe_url` false → 16:9 default, no badge, and no `/width/…` appended — ratio and src stay in agreement |
+| GeoGebra material id in a non-canonical shape (`/m/<id>`, `/material/show/id/<id>`) stored directly (admin) | `frame_ratio` step 1 → `None` → 16:9 default, no badge, and no `/width/…` appended: the frame claims no ratio the src cannot deliver |
+| stored URL already carrying `/width/W/height/H` (admin) | `frame_ratio` step 0 → `"W / H"` read from the URL itself, matching the applet the src sizes |
 | non-GeoGebra URL with no dimensions | unchanged: 16:9 CSS default, no badge |
 
 The element **always saves**. No failure mode of a third-party API can block authoring, and
@@ -879,6 +1009,9 @@ guard on promoting `_material_id`.
   Vimeo `<iframe>` paste, edited to a different `player.vimeo.com` URL with no dimensions in
   the paste → dimensions **unchanged**, lookup not called. This pins the GeoGebra scoping of
   the stale-clear clause; without it the pair is wiped with no way to restore it.
+- **GeoGebra → non-GeoGebra URL change keeps the GeoGebra pair:** an element storing 880×660
+  edited to a plain `player.vimeo.com` URL → dimensions **unchanged** (880×660). Pins the
+  known, accepted gap documented in §2 so a future change to it is deliberate.
 
 **`is_geogebra_iframe_url`** (the render/badge predicate, distinct from
 `geogebra_material_id`):
@@ -904,9 +1037,15 @@ guard on promoting `_material_id`.
   GeoGebra's 800×600 default in a W/H box and reproduce the original defect. Reachable via
   the admin, which exposes the raw fields. **This test fails against the obvious
   three-branch implementation** — it is the reason step 1 exists.
-- `…/material/iframe/id/abc/width/880/height/660` **with** stored 880×660 → no inline
-  `aspect-ratio`; and **without** stored dimensions → no inline `aspect-ratio` either
-  (the `"width" in segments` clause, both directions)
+- `…/material/iframe/id/abc/width/880/height/660` → `aspect-ratio: 880 / 660` **read from the
+  URL** (step 0), both **with** stored 880×660 and **without** any stored dimensions. Falling
+  to the 16:9 default here would put a 4:3 applet in a 16:9 frame — the original defect,
+  mirrored.
+- `…/material/iframe/id/abc/width/800/height/400` (a non-4:3 sizing) → `aspect-ratio:
+  800 / 400`, proving step 0 reads the URL rather than assuming 4:3
+- `…/material/iframe/id` (no id) and `…/material/iframe/id/ab%20cd` → no inline
+  `aspect-ratio`, no exception (the two deliberate stricter-than-`geogebra_sized_src`
+  divergences)
 - **non-GeoGebra with a usable pair** (`https://player.vimeo.com/video/123`, 640×360) →
   `aspect-ratio: 640 / 360`. Guards that step 1 does not swallow other providers.
 - GeoGebra **host, no material id** (`/x`) → **no** inline `aspect-ratio`
@@ -947,14 +1086,31 @@ code, and will lose time on the form-test `ValidationError`.
 
 **Editor row layout — a real browser measurement, not an inspection.** At a **1130px**
 viewport (the editor pane's floor, the width the existing `.el-actions` overflow was measured
-at), a row carrying the badge must not overflow its card. Mechanism: an **e2e test** that
-sets the viewport to 1130px, loads the editor for a unit containing a dimensionless GeoGebra
-element, and asserts via `bounding_box()` that `.el-row__top`'s right edge lies within its
-card's right edge — the same measured-not-assumed standard the original `.el-actions` finding
-was held to. Reading the CSS and concluding "it has `min-width: 0`, so it shrinks" is **not**
-acceptance evidence. This e2e touches no external network (it renders our editor page, not
-the applet), which is why it is carved out of the no-e2e non-goal. Capture light and dark
-screenshots for the PR body.
+at), a row carrying the badge must not overflow its card. Mechanism: an **e2e test** that sets the viewport to 1130px, loads the editor for a unit
+containing a dimensionless GeoGebra element, and measures with `bounding_box()`.
+
+**Assert on the elements that can actually overflow — not on `.el-row__top`.** Asserting
+that `.el-row__top`'s right edge lies inside the card is an assertion that **cannot fail**:
+`.el-row__head` is `display:grid; grid-template-columns:auto 1fr` and `.el-row__body` carries
+`min-width:0`, so `.el-row__top`'s border box is sized *by the grid column* and is inside the
+card by construction, on a broken build too. The defect the CSS comment records was a **child
+escaping** its container — "🗑 rendered 41px OUTSIDE the card's rounded border". So assert:
+
+1. `.el-actions`' right edge (or its last button's) lies within the card's right edge, **and**
+2. the `.el-row__flag` span's own box lies within the card's right edge, **and**
+3. as an independent signal, `.el-row__top`'s `scrollWidth <= clientWidth`.
+
+Reading the CSS and concluding "it has `min-width: 0`, so it shrinks" is **not** acceptance
+evidence.
+
+The fixture element is built **directly via the ORM** — `IframeElement.objects.create(url=<a
+canonical GeoGebra URL>, title=…)` with no width/height, plus its `Element` join row — so the
+test depends on neither `IframeElementForm` nor the value of `GEOGEBRA_API_LOOKUP`, and can
+never issue a live GET from an e2e run.
+
+This e2e touches no external network (it renders our editor page, not the applet), which is
+why it is carved out of the no-e2e non-goal. Capture light and dark screenshots for the PR
+body.
 
 **Import:** an existing round-trip test is extended to assert the import path performs no
 GeoGebra lookup, guarding the `extract_embed_url` boundary decision.
