@@ -33,7 +33,10 @@ def test_x(page, live_server, ...):        # live_server provides the base URL
 ```
 
 - **The save gesture is `page.locator("[data-edit-slot] button[type='submit']").click()`** (`tests/test_e2e_questions.py:184`). There is no `data-el-save` attribute in this repo — do not invent one.
-- **Never `wait_for_load_state("networkidle")` after a save.** Saving posts via `postFragment` and swaps the `[data-scope]` panes — there is no navigation, so `networkidle` is a timing heuristic. Wait on the concrete post-save selector instead, as the existing e2e do.
+- **The preview pane is `[data-scope="preview"]`** (`_preview.html:2`), used by `tests/test_e2e_questions.py:186`. There is no `data-preview` attribute — only unrelated `data-preview-el` / `-logo` / `-name`.
+- **Never `wait_for_load_state("networkidle")` after a save.** Saving posts via `postFragment` and swaps the `[data-scope]` panes — there is no navigation, so `networkidle` is a timing heuristic. Wait on a concrete selector instead.
+- **A post-save wait must target a node the swap *introduces*, not the pane that hosts it.** `[data-scope="preview"]` exists before the save, so waiting on it returns immediately and gives no synchronisation at all. Wait on the new content (`[data-scope="preview"] [data-question]`) on success, and on `[data-edit-slot] .field-error` when the save is expected to fail with a 422.
+- **Every editor-opener fixture has one contract:** `opener(page, live_server, **kwargs) -> element`. It logs in, seeds the element, navigates, opens its edit form, and returns the **model instance** (so tests can `refresh_from_db()`). It never returns the page.
 - **Shared e2e/test helpers live in `tests/helpers_editor_rows.py`** (created in Task 3 Step 0). Module-level helper *functions* cannot be pytest fixtures — a fixture is only injectable via a test signature.
 - **Translated strings come from server-rendered data attributes**, with a hard-coded English fallback + `console.warn` when absent.
 - **Start the test-DB container before any pytest run**, or the suite appears to hang for ~4m21s.
@@ -658,7 +661,31 @@ git commit -m "feat(editor): add formset_rows.js row add/remove helper"
 
 **Interfaces:**
 - Consumes: `window.libliInitFormsetRows`, the markup contract, and the CSS guards.
-- Produces: the match template as the reference shape every other formset template copies, plus `tests/helpers_editor_rows.py` — `save_url(el)`, `open_element_form(client, el)`, `reopen(page, el)`, `rendered_rows(html)`.
+- Produces: the match template as the reference shape every other formset template copies, plus `tests/helpers_editor_rows.py` with **exactly these six signatures** (later tasks import them, so the names and argument lists are the contract):
+  - `save_url(course) -> str`
+  - `form_url(course, element) -> str`
+  - `open_element_form(client, course, element) -> str` (HTML)
+  - `base_post(course, unit, element, type_key) -> dict`
+  - `rendered_rows(html) -> list` (blueprint decomposed first)
+  - `reopen(page, element_pk) -> None`
+- Produces: the **fixture roster** in `tests/conftest.py`, all of which follow the opener contract in Global Constraints (`opener(page, live_server, **kwargs) -> element`):
+
+| Fixture | Kind | Seeds / returns |
+|---|---|---|
+| `pa_client` | Django test client | a logged-in platform admin |
+| `matchpair_element(pairs=[…])` | factory | `(course, unit, element)` with those pairs saved |
+| `switchgate_element(options=[…], answer=N, stem=…)` | factory | `(course, unit, element)` |
+| `open_matchpair_editor(saved_pairs=N)` | server-render | returns the edit fragment's HTML |
+| `open_stepper_editor()` / `open_markdone_editor()` / `open_choice_editor_html()` | server-render | edit fragment HTML |
+| `open_matchpair_editor_e2e(page, live_server, saved_pairs=N)` | e2e opener | returns the element |
+| `open_element_editor(page, live_server, kind, rows=[…])` | e2e opener | `kind` in `{"stepper","markdone"}`; returns the element |
+| `open_stepper_editor_e2e(page, live_server, steps=[…])` | e2e opener | returns the element (used at 20 steps) |
+| `open_choice_editor(page, live_server, options=[…])` | e2e opener | returns the element |
+| `open_switchgate_editor(page, live_server, options=[…], answer=N)` | e2e opener | returns the element |
+
+Write them all in Step 0 alongside the helpers, modelled on the login/seed helpers in
+`tests/test_e2e_questions.py` and `tests/test_e2e_switchgate.py`. Every later task assumes this
+roster exists; leaving any of them to be invented mid-task is what the plan exists to prevent.
 
 - [ ] **Step 0: Create the shared helper module**
 
@@ -694,14 +721,22 @@ def open_element_form(client, course, element):
 
 
 def base_post(course, unit, element, type_key):
-    """The host-form keys every element save requires. `unit` is mandatory —
-    views_manage.element_save reads request.POST['unit'] and filters ContentNode
-    on it, so omitting it 404s rather than saving."""
+    """The host-form keys every element save requires.
+
+    `unit` is mandatory — views_manage.element_save reads request.POST['unit'] and
+    filters ContentNode on it.
+
+    `unit_token` is an OPTIMISTIC-CONCURRENCY token, not an id: _host_form.html:9
+    posts `unit.updated.isoformat`, and builder._check_token (:524-527) does
+    parse_datetime(token) and raises ConflictError unless it equals unit.updated.
+    Passing unit.pk parses to None and every save returns **409**, not 200 — and
+    409 is easy to misdiagnose, because it looks like neither the 404 of a missing
+    unit nor the 422 of a validation error."""
     return {
         "type": type_key,
         "element": element.pk,
         "unit": unit.pk,
-        "unit_token": unit.pk,
+        "unit_token": unit.updated.isoformat(),
     }
 
 
@@ -718,16 +753,24 @@ def rendered_rows(html):
     return listing.select("[data-fsrow-item]") if listing else []
 
 
-def reopen(page, slot="[data-edit-slot]"):
-    """Re-open the element editor after a save and wait for the swapped fragment."""
-    page.locator(f"{slot} [data-el-edit]").first.click()
+def reopen(page, element_pk):
+    """Re-open an element's editor after a save, and wait for the swapped fragment.
+
+    The edit trigger lives in the element ROW HEAD (`_element_row.html`), NOT inside
+    [data-edit-slot] — the slot is where the form is swapped IN. Scoping the click
+    to the slot finds nothing and the test hangs until timeout."""
+    page.locator(f'.el-act-edit[data-element-id="{element_pk}"]').first.click()
     page.locator("[data-fsrows-list]").first.wait_for(timeout=8000)
 ```
 
-Before writing it, **confirm the URL names and the host-form keys** against
-`courses/views_manage.py:element_save` and `templates/courses/manage/editor/_host_form.html` —
-`unit_token` in particular must match what the host form posts. Adjust the helper, not the tests, if
-they differ.
+Before writing it, **verify three things against the tree**, because getting any of them wrong
+produces a confusing failure rather than an obvious one:
+
+1. the URL names and their kwargs (`courses/views_manage.py`);
+2. the host-form hidden keys (`_host_form.html`) — `unit_token` especially, per the docstring above;
+3. the real edit-trigger selector in `templates/courses/manage/editor/_element_row.html` — the class
+   is `el-act-edit` / `el-select` with a `data-element-id`, handled by `editor.js`'s `.el-select`
+   branch. Adapt `reopen` to what is actually there.
 
 - [ ] **Step 1: Write the failing render tests**
 
@@ -857,7 +900,7 @@ Replace lines 11-24 (management form through non-form errors) with:
 uv run pytest tests/test_editor_formset_rows_render.py -v
 ```
 
-Expected: 5 PASSED.
+Expected: 4 PASSED.
 
 - [ ] **Step 5: Add the characterization POST tests**
 
@@ -974,14 +1017,14 @@ def test_add_three_pairs_without_saving(page, live_server, open_matchpair_editor
     for _ in range(3):
         add.click()
     rows = page.locator("[data-fsrows-list] [data-fsrow-item]")
-    # extra=2 blanks + 3 added = 7 rendered rows; fill the last three.
+    # 2 saved + extra=2 blanks + 3 added = 7 rendered rows; fill the last three.
     for i, (left, right) in enumerate([("x", "9"), ("y", "8"), ("z", "7")], start=4):
         rows.nth(i).locator('input[name$="-left"]').fill(left)
         rows.nth(i).locator('input[name$="-right"]').fill(right)
     page.locator(SAVE).click()
     # Wait on the swapped-in preview, not networkidle: the save is a fetch +
     # fragment swap with no navigation, so networkidle is a timing heuristic.
-    page.locator("[data-preview] [data-question]").first.wait_for(timeout=8000)
+    page.locator('[data-scope="preview"] [data-question]').first.wait_for(timeout=8000)
     reopen(page)
     assert page.locator("[data-fsrows-list] input[name$='-left']").count() >= 5
 
@@ -998,26 +1041,33 @@ def test_remove_a_filled_pair(page, live_server, open_matchpair_editor_e2e):
     # rather than asserting immediately after the click.
     row.wait_for(state="hidden", timeout=4000)
     page.locator(SAVE).click()
-    page.locator("[data-preview] [data-question]").first.wait_for(timeout=8000)
+    page.locator('[data-scope="preview"] [data-question]').first.wait_for(timeout=8000)
     reopen(page)
     assert page.locator("[data-fsrows-list] input[name$='-left']").count() == 4
 ```
 
 Build `open_matchpair_editor_e2e` from the login/seed/open helpers in `tests/test_e2e_questions.py`
 (it takes `page` and `live_server` and navigates to the unit editor with the element's form open).
-Confirm the real post-save selector before using `[data-preview] [data-question]` — copy whatever the
-existing question e2e wait on.
+Confirm the real post-save selector against `tests/test_e2e_questions.py:186` before relying on
+`[data-scope="preview"] [data-question]` — copy whatever the existing question e2e wait on.
 
 - [ ] **Step 8: Falsify the add test against master, then run it**
 
+**Revert only the template**, never `git stash -u`. At this point the four new test files are still
+*untracked* (the commit is Step 9), so `-u` would stash the very test being run and pytest would exit
+"file or directory not found" — an error, not the RED this step demonstrates. The module from Task 2
+is already committed and must stay.
+
 ```bash
-git stash push -u -m "falsify-matchpair-add"
+cp templates/courses/manage/editor/_edit_matchpairquestion.html /tmp/keep.html
+git checkout HEAD -- templates/courses/manage/editor/_edit_matchpairquestion.html
 uv run pytest tests/test_e2e_matchpair_rows.py::test_add_three_pairs_without_saving -m e2e -v   # expect FAIL
-git stash list --format='%H %gs'    # capture the SHA, then: git stash apply <sha>; git stash drop
+cp /tmp/keep.html templates/courses/manage/editor/_edit_matchpairquestion.html
 uv run pytest tests/test_e2e_matchpair_rows.py -m e2e -v                                        # expect PASS
 ```
 
-(Prefer a temporary WIP commit to stashing — the stash stack is shared across worktrees.)
+Confirm the failure is "the add button did nothing" (no new rows), not a fixture or selector error —
+the mutant must fail for the reason under test.
 
 - [ ] **Step 9: Commit**
 
@@ -1052,7 +1102,32 @@ import pytest
 pytestmark = [pytest.mark.django_db, pytest.mark.e2e]
 
 
+import os
+
+import pytest
+
+from tests.helpers_editor_rows import reopen
+
+pytestmark = pytest.mark.e2e   # NOT [django_db, e2e] — see Global Constraints
+
+SAVE = "[data-edit-slot] button[type='submit']"
 ROWS = {"stepper": ".stepper-rows li", "markdone": ".markdone-rows li"}
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+def _values(page, kind):
+    """Playwright has NO get_by_display_value (that is a Testing Library API — the
+    real roster is get_by_alt_text/label/placeholder/role/test_id/text/title). Read
+    input_value() off the located rows instead: for JS-filled fields the `value`
+    PROPERTY is what changed, while the `value` ATTRIBUTE selector would still match
+    the server-rendered original."""
+    inputs = page.locator(f'{ROWS[kind]} input[type="text"]')
+    return [inputs.nth(i).input_value() for i in range(inputs.count())]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1066,32 +1141,30 @@ def test_add_row_still_works_after_retrofit(page, live_server, open_element_edit
     change) because data-stepper-rows becomes data-fsrows-list. Selecting the list by
     the NEW hook would make this red on master, and the no-regression guarantee — the
     riskiest part of this change — would not actually be established."""
-    open_element_editor(page, live_server, kind)
+    el = open_element_editor(page, live_server, kind)
     page.get_by_role("button", name=label).click()
     rows = page.locator(ROWS[kind])
     rows.last.locator('input[type="text"]').fill("retrofit row")
     page.locator(SAVE).click()
-    page.locator("[data-preview]").first.wait_for(timeout=8000)
-    reopen(page)
-    assert page.get_by_display_value("retrofit row").count() == 1
+    page.locator('[data-scope="preview"] [data-question]').first.wait_for(timeout=8000)
+    reopen(page, el.pk)
+    assert "retrofit row" in _values(page, kind)
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("kind", ["stepper", "markdone"])
 def test_remove_row_after_retrofit(page, live_server, open_element_editor, kind):
     """RED on master: there is no per-row remove BUTTON there, only a checkbox."""
-    open_element_editor(page, live_server, kind, rows=["one", "two", "three"])
+    el = open_element_editor(page, live_server, kind, rows=["one", "two", "three"])
     page.on("dialog", lambda d: d.accept())   # persisted rows are non-blank
     row = page.locator(ROWS[kind]).nth(1)
     row.locator("[data-fsrow-remove]").click()
     row.wait_for(state="hidden", timeout=4000)
     page.locator(SAVE).click()
-    page.locator("[data-preview]").first.wait_for(timeout=8000)
-    reopen(page)
-    assert page.get_by_display_value("two").count() == 0
+    page.locator('[data-scope="preview"] [data-question]').first.wait_for(timeout=8000)
+    reopen(page, el.pk)
+    assert "two" not in _values(page, kind)
 ```
-
-Use the same `pytestmark = pytest.mark.e2e` + `_allow_async_unsafe` + `SAVE` header as Task 3.
 
 - [ ] **Step 2: Run to verify the remove half fails and the add half passes**
 
@@ -1193,7 +1266,13 @@ In `editor.js:125-126`, replace the two retired init calls with:
 
 - `tests/test_stepper_editor_assets.py`: **`git rm` the file.** Retargeting it leaves nothing behind — its `steps-TOTAL_FORMS` assertion must go (a prefix-agnostic helper can never contain that literal), its `__prefix__` assertion is replaced by the blueprint-render test below, its `libliInitStepperEditor` export check becomes byte-identical to `test_formset_rows_js_exports`, and deleting the page assertion from `test_editor_page_loads_stepper_editor_js` would leave a test body with no assertion at all — one that passes forever. Say in the commit message that the coverage moved to `tests/test_formset_rows_assets.py` and `tests/test_editor_formset_rows_render.py` rather than vanishing.
 - `courses/tests/test_markdone_editor.py:20,30`: `data-markdone-editor` → `data-fsrows="items"`; `courses/js/markdone_editor.js` → `courses/js/formset_rows.js`.
-- `tests/test_editor_stepper_add.py:27-28`: `data-stepper-editor` → `data-fsrows="steps"`, `data-stepper-row` → `data-fsrow-item>` (delimited).
+- `tests/test_editor_stepper_add.py:27-28`: `data-stepper-editor` → `data-fsrows="steps"`. For the row assertion, **do not** simply swap `data-stepper-row` for a delimited `data-fsrow-item>` count: the new `<template>` blueprint always emits one, so `count(...) >= 1` would pass on a render with **zero** rows — the exact trap this plan documents in Task 3. Replace it with an exact scoped count instead:
+
+```python
+from tests.helpers_editor_rows import rendered_rows
+...
+    assert len(rendered_rows(resp.content.decode())) == 1   # extra=1 on a fresh stepper
+```
 - `tests/test_editor_js_scroll_invariants.py`: remove `stepper_editor.js` and `markdone_editor.js` from `PANE_RESIDENT`.
 
 - [ ] **Step 7: Extend the render tests to stepper and checklist**
@@ -1255,7 +1334,7 @@ def test_retrofit_progressive_enhancement(request, opener):
 - [ ] **Step 8: Run the affected suites**
 
 ```bash
-uv run pytest tests/test_stepper_editor_assets.py courses/tests/test_markdone_editor.py tests/test_editor_stepper_add.py tests/test_editor_js_scroll_invariants.py tests/test_editor_formset_rows_render.py -v
+uv run pytest tests/test_formset_rows_assets.py courses/tests/test_markdone_editor.py tests/test_editor_stepper_add.py tests/test_editor_js_scroll_invariants.py tests/test_editor_formset_rows_render.py -v
 uv run pytest tests/test_e2e_retrofit_rows.py -m e2e -v
 ```
 
@@ -1299,7 +1378,15 @@ In `_edit_choicequestion.html`, wrap from `{{ formset.management_form }}` throug
        data-fsrows-atmin="{% trans 'A question needs at least two options.' %}">
 ```
 
-Keep `class="choice-rows" data-choice-rows` **and add** `data-fsrows-list` to the `<ul>`; keep `data-choice-row` **and add** `data-fsrow-item` on each `<li>`; add `data-fsrow-del` to the `<label class="choice-row__del">`; add the remove button after it; keep `data-choice-add` on the add button and add `hidden`; add the `data-fsrows-hint` carrier. Choice has **no** `data-fsrows-add` and **no** `<template>` — they are optional and must be absent together.
+Keep `class="choice-rows" data-choice-rows` **and add** `data-fsrows-list` to the `<ul>`; keep `data-choice-row` **and add** `data-fsrow-item` on each `<li>`; add `data-fsrow-del` to the `<label class="choice-row__del">`; add the remove button after it; keep `data-choice-add` on the add button and add `hidden`. Choice has **no** `data-fsrows-add` and **no** `<template>` — they are optional and must be absent together.
+
+The hint carrier goes immediately after the **`data-choice-add`** button (choice's add button is not
+`data-fsrows-add`, so "after the add button" would otherwise be ambiguous) and before the
+`non_form_errors` loop, matching the other four templates:
+
+```html
+    <p class="el-editor__hint" data-fsrows-hint hidden></p>
+```
 
 - [ ] **Step 2: Amend `addChoiceRow`**
 
@@ -1312,7 +1399,11 @@ Seven changes at `editor.js:419-443`:
     var wrap = btn.closest("[data-fsrows]");
     if (!wrap) return;
     var list = wrap.querySelector("[data-fsrows-list]");
-    var total = wrap.querySelector('input[name="choices-TOTAL_FORMS"]');
+    // Read the prefix from the attribute, as module 1's totalInput() does —
+    // hardcoding "choices" re-creates the drift hazard data-fsrows exists to remove.
+    var total = wrap.querySelector(
+      'input[name="' + wrap.getAttribute("data-fsrows") + '-TOTAL_FORMS"]'
+    );
     if (!list || !total) return;
     var rows = list.querySelectorAll("[data-choice-row]");
     // Clone the last NON-HIDDEN row: cloning a removed one yields a new row the
@@ -1329,14 +1420,21 @@ Seven changes at `editor.js:419-443`:
     }
     var idx = parseInt(total.value, 10);
     var clone = last.cloneNode(true);
-    // KEEP BOTH existing loops from editor.js:428-437, unchanged and in order:
-    //   1. the name/id/for renumbering via /([-_])\d+([-_])/
-    //   2. the value-clearing loop over `input, textarea` that blanks values and
-    //      unchecks checkboxes/radios.
-    // Loop 2 is easy to lose when retyping this function, and dropping it ships
-    // clones carrying the source row's option text, its feedback textarea and its
-    // is_correct state. No test in this plan would catch it, because the choice
-    // e2e fill() over the new row immediately after adding it.
+    // BOTH existing loops, unchanged and in order — reproduced in full rather than
+    // described, because losing the second one ships clones carrying the source
+    // row's option text, feedback textarea and is_correct state, and losing the
+    // first produces duplicate choices-N-* names that silently corrupt the POST.
+    Array.prototype.forEach.call(clone.querySelectorAll("[name],[id],[for]"), function (el) {
+      ["name", "id", "for"].forEach(function (attr) {
+        var v = el.getAttribute(attr);
+        // replace the form index (the first -N- / _N_ run) with the new index
+        if (v) el.setAttribute(attr, v.replace(/([-_])\d+([-_])/, "$1" + idx + "$2"));
+      });
+    });
+    Array.prototype.forEach.call(clone.querySelectorAll("input, textarea"), function (el) {
+      if (el.type === "checkbox" || el.type === "radio") el.checked = false;
+      else el.value = "";
+    });
     clone.hidden = false;
     var del = clone.querySelector('[name$="-DELETE"]');
     if (del) del.checked = false;
@@ -1369,10 +1467,15 @@ grep -rn "choice-row--del" courses/ templates/ tests/
 - [ ] **Step 3b: Add a clone-is-blank assertion**
 
 The clearing loop above has no coverage today, because the choice e2e `fill()`s the new row
-immediately. Add one line to the existing add-a-choice e2e, before the fill:
+immediately. Add one line to `test_choice_editor_add_remove_and_radio_js` in
+`tests/test_e2e_questions.py`, immediately after the existing `wait_for_function` that follows the
+add click and **before** the three `fill()` calls. Use the binding that is actually there — the test
+has no `new_row`; it addresses the new row as `slot.locator("input[name='choices-2-text']")`:
 
 ```python
-    assert new_row.locator("input[name$='-text']").input_value() == ""
+    # The clone must arrive blank: addChoiceRow copies the last row, so losing its
+    # value-clearing loop would carry the source row's text into every new option.
+    assert slot.locator("input[name='choices-2-text']").input_value() == ""
 ```
 
 - [ ] **Step 4: Rewrite the broken e2e**
@@ -1382,12 +1485,14 @@ binding (it is inside the block being replaced and is used by the new code) and 
 `.check()` call onward. Match on the existing text rather than a line range — the line numbers have
 already drifted from Task 1's CSS insertions and Step 1's template edits:
 
-Replace:
+Replace (note the real text is an implicitly concatenated two-part string scoped to the slot — copy
+it from the file rather than from here):
 
 ```python
     row2.locator("input[name='choices-2-DELETE']").check()
     page.wait_for_function(
-        "() => document.querySelectorAll('.choice-row--del').length === 1"
+        "() => document.querySelectorAll("
+        "'[data-edit-slot] .choice-row--del').length === 1"
     )
 ```
 
@@ -1469,7 +1574,7 @@ def test_add_option_beyond_the_padded_blanks(page, live_server, open_switchgate_
 
 @pytest.mark.django_db(transaction=True)
 def test_removing_a_middle_option_keeps_the_right_answer(
-    page, live_server, open_switchgate_editor, switchgate_element
+    page, live_server, open_switchgate_editor
 ):
     """The renumbering test: if the radio values are not rewritten, `answer` points
     at the wrong option and the question silently marks the wrong choice correct."""
@@ -1479,7 +1584,7 @@ def test_removing_a_middle_option_keeps_the_right_answer(
     page.on("dialog", lambda d: d.accept())   # filled row -> confirm fires
     page.locator("[data-sgate-row]").nth(1).locator("[data-sgate-remove]").click()
     page.locator(SAVE).click()
-    page.locator("[data-preview]").first.wait_for(timeout=8000)
+    page.locator('[data-scope="preview"] [data-question]').first.wait_for(timeout=8000)
     el.refresh_from_db()
     assert el.options[el.answer] == "gamma"
 
@@ -1501,7 +1606,7 @@ def test_removing_an_interior_blank_lets_the_save_succeed(
     for i in (4, 3, 2):
         rows.nth(i).locator("[data-sgate-remove]").click()
     page.locator(SAVE).click()
-    page.locator("[data-preview]").first.wait_for(timeout=8000)
+    page.locator('[data-scope="preview"] [data-question]').first.wait_for(timeout=8000)
     assert page.locator("text=Options cannot be empty").count() == 0
 ```
 
@@ -1808,11 +1913,11 @@ The mechanisms that only appear when the pieces interact. Each of these covers s
 ```python
 """Mechanisms that only appear when the pieces interact.
 
-Same harness as the other e2e files: pytestmark = e2e, a session
-_allow_async_unsafe fixture, live_server in every signature, and
-@pytest.mark.django_db(transaction=True) per test so the server thread sees the
-fixtures. Signatures below are abbreviated for readability — every one takes
-(page, live_server, <opener>) and carries the transaction=True marker."""
+EVERY test below carries the full harness written out — no abbreviation. The
+per-test @pytest.mark.django_db(transaction=True) is load-bearing: conftest's
+autouse _enable_db_access(db) otherwise supplies a NON-transactional db, and the
+live_server thread then sees none of the seeded rows. That is the single most
+common way this repo's e2e fail."""
 
 import os
 
@@ -1829,40 +1934,45 @@ def _allow_async_unsafe():
     yield
 
 
-def test_post_init_state(page, open_matchpair_editor_e2e):
+@pytest.mark.django_db(transaction=True)
+def test_post_init_state(page, live_server, open_matchpair_editor_e2e):
     """The JS half of the progressive-enhancement guarantee."""
-    page = open_matchpair_editor_e2e(saved_pairs=2)
+    open_matchpair_editor_e2e(page, live_server, saved_pairs=2)
     row = page.locator("[data-fsrow-item]").first
     assert not row.locator("[data-fsrow-del]").is_visible()
     assert row.locator("[data-fsrow-remove]").is_visible()
 
 
-def test_focus_after_removal_formset(page, open_matchpair_editor_e2e):
+@pytest.mark.django_db(transaction=True)
+def test_focus_after_removal_formset(page, live_server, open_matchpair_editor_e2e):
     """Blank row on purpose: no confirm fires, so NO dialog handler. A filled row
     would need one, and getting that wrong makes this RED on a correct build."""
-    page = open_matchpair_editor_e2e(saved_pairs=4)
+    open_matchpair_editor_e2e(page, live_server, saved_pairs=4)
     rows = page.locator("[data-fsrow-item]")
     rows.nth(4).locator("[data-fsrow-remove]").click()   # an extra=2 blank
     assert page.evaluate("document.activeElement.tagName") != "BODY"
 
 
-def test_focus_after_removal_switchgate(page, open_switchgate_editor):
+@pytest.mark.django_db(transaction=True)
+def test_focus_after_removal_switchgate(page, live_server, open_switchgate_editor):
     """The variant that covers capture-before-detach: module 2 removes the row from
     the DOM, so neighbours resolved afterwards would all be null."""
-    page = open_switchgate_editor(options=[])
+    open_switchgate_editor(page, live_server, options=[])
     page.locator("[data-sgate-row]").nth(2).locator("[data-sgate-remove]").click()
     assert page.evaluate("document.activeElement.tagName") != "BODY"
 
 
-def test_at_minimum_hint(page, open_choice_editor):
+@pytest.mark.django_db(transaction=True)
+def test_at_minimum_hint(page, live_server, open_choice_editor):
     """A fresh choice question renders exactly extra=2 rows = data-fsrows-min."""
-    page = open_choice_editor(options=[])
+    open_choice_editor(page, live_server, options=[])
     assert page.locator("[data-fsrow-remove]").first.is_disabled()
     assert page.locator("[data-fsrows-hint]").is_visible()
 
 
-def test_maximum_cap_and_its_residual_hole(page, open_stepper_editor_e2e):
-    page = open_stepper_editor_e2e(steps=[f"step {i}" for i in range(20)])
+@pytest.mark.django_db(transaction=True)
+def test_maximum_cap_and_its_residual_hole(page, live_server, open_stepper_editor_e2e):
+    open_stepper_editor_e2e(page, live_server, steps=[f"step {i}" for i in range(20)])
     assert page.locator("[data-fsrows-add]").is_disabled()
     assert page.locator("[data-fsrows-hint]").is_visible()
     # The accepted residual hole: extra=1 renders a 21st row the author can type
@@ -1875,33 +1985,39 @@ def test_maximum_cap_and_its_residual_hole(page, open_stepper_editor_e2e):
     assert page.locator("text=at most 20").count() == 1
 
 
-def test_422_reconciliation(page, open_matchpair_editor_e2e):
+@pytest.mark.django_db(transaction=True)
+def test_422_reconciliation(page, live_server, open_matchpair_editor_e2e):
     """Remove a row, fail validation, and the removed row must come back NOT
     VISIBLE with its DELETE still ticked — the server re-renders from the POST and
     knows nothing about row.hidden."""
-    page = open_matchpair_editor_e2e(saved_pairs=3)
+    open_matchpair_editor_e2e(page, live_server, saved_pairs=3)
     page.on("dialog", lambda d: d.accept())
     row = page.locator("[data-fsrow-item]").nth(1)
     row.locator("[data-fsrow-remove]").click()
     page.locator("[data-fsrow-item]").nth(0).locator('input[name$="-right"]').fill("")
     page.locator(SAVE).click()
-    page.locator("[data-preview]").first.wait_for(timeout=8000)
+    # Wait on the ERROR, not the preview: this save is expected to fail, so the
+    # preview never changes — and [data-scope="preview"] already exists, so waiting
+    # on it returns instantly and the assertions below would read the pre-swap DOM.
+    page.locator("[data-edit-slot] .field-error").first.wait_for(timeout=8000)
     back = page.locator("[data-fsrow-item]").nth(1)
     assert not back.is_visible()
     assert back.locator('input[name$="-DELETE"]').is_checked()
 
 
-def test_422_minimum_floor(page, open_choice_editor):
+@pytest.mark.django_db(transaction=True)
+def test_422_minimum_floor(page, live_server, open_choice_editor):
     """The dead-end guard. Written via page.evaluate because the obvious phrasing
     is not executable: java_script_enabled is per-CONTEXT and cannot be flipped
     mid-page, and the 422 body is a POST response that cannot be re-fetched."""
-    page = open_choice_editor(options=["a", "b"])
+    open_choice_editor(page, live_server, options=["a", "b"])
     page.evaluate(
         "document.querySelectorAll('[name$=\\'-DELETE\\']')"
         ".forEach(function (d) { d.checked = true; })"
     )
     page.locator(SAVE).click()
-    page.locator("[data-preview]").first.wait_for(timeout=8000)
+    # Expected to fail validation ("Add at least two choices."), so wait on the error.
+    page.locator("[data-edit-slot] .field-error").first.wait_for(timeout=8000)
     visible = page.locator("[data-fsrow-item]:visible")
     assert visible.count() >= 2
     assert not visible.first.locator('input[name$="-DELETE"]').is_checked()
@@ -1938,20 +2054,24 @@ git commit -m "test(editor): cover 422 reconciliation, bounds, focus and the min
 uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
-New msgids — gettext deduplicates identical strings, so count *distinct* ones:
+**Exactly eleven new msgids.** gettext deduplicates identical strings, so count *distinct* ones:
 
 - **four confirm strings**: "Remove this pair?", "Remove this step?", "Remove this item?",
   "Remove this option?" — choice and switchgate share the last one, so it is one msgid, not two;
-- the add labels: "＋ Add pair" already exists; "＋ Add step", "＋ Add item", "＋ Add option" —
-  check which are already in the catalog before assuming they are new;
-- "Remove" (the per-row button label, already in the catalog) and **"Remove option"**, used for both
-  switchgate's `aria-label` and its `title` — again one msgid;
 - **five at-min strings**, worded per editor: "at least one …" for match/stepper/checklist, "at
   least two …" for choice/switchgate;
 - **two at-cap strings**: "No room for another step." / "No room for another item."
 
-Confirm the real roster from `makemessages`' output rather than this list — it is the count the
-catalog-guard step asserts against.
+**Already in the catalog — do not add them, and do not assert the `＋` forms.** The `＋` sits
+*outside* the `{% trans %}` tag in every template (`＋ {% trans "Add pair" %}`), so the msgids are
+`Add pair` / `Add step` / `Add item` / `Add option` with no `＋`. All four already ship
+(`_edit_stepper.html:26`, `_edit_markdone.html:26`, `_edit_choicequestion.html:47`,
+`_edit_matchpairquestion.html:23`), as do `Remove` and `Remove option`
+(`_edit_switchgrid.html:30`) — the last serving both switchgate's `aria-label` and its `title`, one
+msgid either way. A catalog guard written against `"＋ Add step"` asserts a msgid that can never
+exist.
+
+Confirm the roster against `makemessages`' actual output before writing the guard.
 
 - [ ] **Step 2: Translate and clear every fuzzy flag**
 
@@ -1986,8 +2106,18 @@ Run this **last** — CI gates on `ruff format --check` and any later edit re-di
 ```bash
 uv run python scripts/affected_tests.py          # ~30s targeted selection
 uv run pytest tests/ courses/tests/ -q --verbosity=0
-uv run pytest -m e2e -n 2 -q --verbosity=0
 ```
+
+Then the e2e branch gate — **detached**, not in the foreground. The full e2e suite runs far past any
+single tool timeout here, and a reaped run orphans the test database so the next invocation dies with
+`DuplicateDatabase`:
+
+```powershell
+Start-Process -NoNewWindow -PassThru uv -ArgumentList 'run','pytest','-m','e2e','-n','2','-q','--verbosity=0'
+# poll the returned PID; do not foreground this
+```
+
+Before the next pytest call, confirm no orphaned `test_libli_*` database remains.
 
 - [ ] **Step 7: Commit**
 
