@@ -31,6 +31,7 @@ from courses.access import get_node_or_404
 from courses.access import is_enrolled
 from courses.constants import COURSE_LANGUAGES
 from courses.htmlsandbox import has_math_delimiters
+from courses.htmlsandbox import titles_have_math
 from courses.marking import MarkResult  # noqa: F401  (documents the return type)
 from courses.marking import blank_matches
 from courses.marking import parse_number
@@ -80,6 +81,7 @@ from courses.rendering import unit_edit_context
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
+from courses.rollups import tree_titles_have_math
 from courses.rollups import units_in_order
 from courses.rollups import units_under
 from courses.scoring import earned_marks
@@ -526,6 +528,31 @@ def build_lesson_context(node, user):
     }
 
 
+def _widen_has_math_for_titles(ctx, node):
+    """OR the node-title scan into ctx["has_math"] on a unit-page context.
+
+    Call AFTER ctx["unit_nav"] is assigned -- the tree it scans is that value.
+
+    The contents tree in the DOM is the WHOLE course outline (build_unit_nav sets
+    unit_nav["tree"] to it), so one maths title anywhere in the course needs KaTeX
+    on every unit page of that course.
+
+    The second scan (`[node.title]`) is REDUNDANT TODAY and kept deliberately --
+    the same reasoning as the is_author flag in full_lesson_render_context: every
+    present caller resolves `node` through get_node_or_404(..., viewer=user, ...),
+    which 404s an unpublished unit before this render is reached, so the on-screen
+    unit is always in the tree already. It is defence-in-depth for a future render
+    site that reaches these templates WITHOUT that view-level gate, which would
+    otherwise silently lose the current unit's own title. Do not delete it as dead
+    code without re-verifying that every caller still carries the gate.
+    """
+    ctx["has_math"] = (
+        ctx["has_math"]
+        or tree_titles_have_math(ctx["unit_nav"]["tree"])
+        or titles_have_math([node.title])
+    )
+
+
 def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False):
     """Full context for rendering courses/lesson_unit.html: lesson context +
     unit nav + feedback defaults + the author's notes + tag panel + the
@@ -554,6 +581,7 @@ def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False
     # carries the gate.
     ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(node.course, user, node, drafts=drafts)
+    _widen_has_math_for_titles(ctx, node)
     ctx.update(
         feedback_for_pk=None,
         selected_ids=frozenset(),
@@ -1383,6 +1411,7 @@ def quiz_unit(request, slug, node_pk):
     # matching comment in full_lesson_render_context.
     ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(course, request.user, node, drafts=drafts)
+    _widen_has_math_for_titles(ctx, node)
     ctx["tags_panel_open"] = request.GET.get("panel") == "tags"
     return render(request, "courses/quiz_unit.html", ctx)
 
@@ -1416,6 +1445,15 @@ def _quiz_render_feedback(
     # matching comment in full_lesson_render_context.
     ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(node.course, request.user, node, drafts=drafts)
+    # The quiz page renders TWICE: this no-JS answer path re-renders
+    # quiz_unit.html with its own context, so applying the widening only in
+    # quiz_unit would leave this render on the un-widened flag. Masked today
+    # because has_math = bool(questions) or ... and this path is reachable only
+    # when the quiz HAS questions -- but that over-inclusiveness is an "accepted
+    # tradeoff" the code comment says may be tightened later, at which point the
+    # omission goes live. Knowingly uncovered BEHAVIOURALLY (a gate assertion
+    # here would be vacuous); pinned instead by the call-site count test.
+    _widen_has_math_for_titles(ctx, node)
     fragment = render_to_string("courses/elements/_quiz_question_feedback.html", fb_ctx)
     st = ctx["render_states"].get(element.pk)
     if st is not None:
@@ -1599,6 +1637,7 @@ def quiz_results(request, slug, node_pk):
             has_math = _question_has_math(q)
         r = responses.get(el.pk)
         rows.append(_results_row(q, r))
+    has_math = has_math or titles_have_math([node.title])
     ctx = {
         "course": course,
         "unit": node,
