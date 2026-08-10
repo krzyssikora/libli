@@ -231,7 +231,10 @@ instead of silently at 16:9.
 
 Nine deliverables, in five sections: (1) the lookup helper, the three predicates
 (`usable_dimensions`, `is_geogebra_iframe_url`, `geogebra_url_size`), and the rewritten module
-docstring in `courses/geogebra.py`; (1b) the `_INT_MAX` → `DIM_MAX` fold in
+docstring in `courses/geogebra.py` **and** the rewritten `clean_url` comment in
+`courses/element_forms.py:186-190` (its current text — "a plain-URL / dimensionless input
+leaves stored dims unchanged" — becomes false under the three firing cases and the
+URL-change clear; keep its ceiling clause, restate the rest); (1b) the `_INT_MAX` → `DIM_MAX` fold in
 `courses/embed.py`, **three** sites including the `_dimension` docstring, gated on
 `grep -rn "_INT_MAX"` returning zero hits; (2) the `clean_url` capture; (3) the two model
 properties and the consumption-template switch; (4) the editor badge **and** the new
@@ -281,7 +284,12 @@ predicate in `geogebra.py` lets `embed.py`, `element_forms.py`, and `models.py` 
 at module level safely. **Decision on the existing lazy import: leave it alone.**
 `embed_src` keeps its in-method `from courses.geogebra import geogebra_sized_src` and its
 explanatory comment untouched — this change does not need to disturb it — while
-`usable_dimensions` and `is_geogebra_iframe_url` are imported at module level in `models.py`.
+**all five** names `frame_ratio`/`size_unknown` need — `usable_dimensions`,
+`is_geogebra_iframe_url`, `geogebra_url_size`, `geogebra_material_id`, and
+`GEOGEBRA_DEFAULT_SIZE` — are imported at module level in `models.py`. The cycle argument
+covers them equally, so listing only two would invite an implementer to import the rest
+lazily "for consistency" with `embed_src`. `geogebra_sized_src`'s in-method import is the
+**sole** documented exception.
 The comment is amended only to note that the module-level predicates are safe for the same
 reason (`geogebra.py` imports nothing from `courses`), so the two import styles in one file
 do not read as an accident. `embed.py`'s existing `_INT_MAX` is folded into `DIM_MAX` here so the
@@ -312,11 +320,15 @@ Its contract, all three parts load-bearing:
   ratio it does not have today — contradicting the "no change to non-GeoGebra embeds"
   non-goal. The justification for step 0 ("such a URL sizes the applet itself") is a fact
   about the GeoGebra iframe shell only.
-- **Validated exactly like every other dimension source.** Both segments must be present, in
-  the literal `…/width/W/height/H` order, parse as decimal ints, and pass
-  `usable_dimensions` (1..`DIM_MAX`). Anything else — `/width/abc/height/def`, `/width/880`
-  with no height, `/width/0/height/0`, a reversed `…/height/H/width/W`, or a repeated `width`
-  segment — returns `(None, None)` and falls through to step 1.
+- **Validated exactly like every other dimension source, at fixed positions.** The tail must
+  sit **immediately after the id** and be the whole path: `segments[4:8] == ["width", W,
+  "height", H]` **and** `len(segments) == 8`. Both values must parse as decimal ints and pass
+  `usable_dimensions` (1..`DIM_MAX`). The positional rule is stated because index-searching
+  (`segments.index("width")`) silently accepts a trailing
+  `…/width/880/height/660/width/999`, contradicting the repeated-segment rejection below.
+  Anything else — `/width/abc/height/def`, `/width/880` with no height, `/width/0/height/0`,
+  a reversed `…/height/H/width/W`, a repeated `width` segment, or extra segments before the
+  tail — returns `(None, None)` and falls through to step 1.
 
   **This is a security boundary, not tidiness.** `frame_ratio`'s value is interpolated into
   `style="aspect-ratio: {{ el.frame_ratio }}"`. Django's autoescape covers `< > & " '` — it
@@ -692,10 +704,22 @@ therefore diverge on two shapes, both deliberate and both tested:
 | `…/material/iframe/id` (no id) | would append `/width/…` | `False` (`IndexError` → the never-raises guard) | appending to an id-less URL yields a nonsense src; claiming a ratio for it would be worse |
 | `…/material/iframe/id/ab%20cd` | would append `/width/…` | `False` (charset) | an id we would refuse to look up is not one whose ratio we should assert |
 
-In both, the frame falls back to 16:9 while the src may be sized. That is the same
-mirror-direction gap step 0 closes for the `/width/` shape. Here it is harmless: neither URL
-can be produced by `clean_url` (both fail `extract_embed_url`/`_ID_RE`), and both are
-degenerate shapes an admin would have to hand-write.
+**What actually happens for these two is not "16:9 while the src is sized"** — an earlier
+draft said so and was wrong in both directions. `geogebra_material_id` returns `""` for both
+(no segment follows `id`; `%` fails `_ID_RE`), so `frame_ratio` **step 1 is skipped** and the
+outcome depends only on the stored columns:
+
+- **with** usable stored dimensions → step 2 emits `W / H`, and `geogebra_sized_src` *does*
+  append `/width/W/height/H` (its guard passes: canonical prefix, no `width` segment). Frame
+  and src **agree**; nothing is wrong.
+- **without** stored dimensions → step 3 is skipped (the predicate is `False`), so step 4
+  gives `None` → the CSS 16:9 default, while the src stays bare and GeoGebra renders its
+  800×600 default. That is the original white-space defect, on these two shapes only.
+
+Both are accepted: neither URL can be produced by `clean_url` (both fail
+`extract_embed_url`/`_ID_RE`), so reaching them requires an admin hand-writing a degenerate
+URL. Tests must pin the *stored-dimension precondition* explicitly rather than assuming a
+16:9 outcome.
 
 Host membership is explicitly *not* the test: `https://www.geogebra.org/x` (a shape the LAL
 parser stores un-canonicalized) and `https://www.geogebra.org/classic/abc` sit on a GeoGebra
@@ -1110,20 +1134,33 @@ guard on promoting `_material_id`.
   800 / 400`, proving step 0 reads the URL rather than assuming 4:3
 - **step-0 rejection cases**, each → **no** inline `aspect-ratio` (fall through to step 1):
   `/width/abc/height/def`, `/width/880` (no height segment), `/width/0/height/0`,
-  `/height/660/width/880` (reversed order)
+  `/height/660/width/880` (reversed order), and
+  `…/id/abc/width/880/height/660/width/999` (repeated segment — the case that separates the
+  positional rule from an index search)
 - **style-injection guard:** `…/id/abc/width/1;position:fixed;top:0;height:100vh/height/1`
-  emits **no** inline `aspect-ratio`, and the rendered HTML contains no `position:fixed`.
-  Django's autoescape does not escape `;` or `:`, so this is the test that proves step 0
-  emits validated ints rather than raw path text.
+  emits **no** inline `aspect-ratio` — assert the rendered wrapper carries no
+  `style="aspect-ratio:` at all. Django's autoescape does not escape `;` or `:`, so this is
+  the test that proves step 0 emits validated ints rather than raw path text.
+  **Do not assert that `position:fixed` is absent from the rendered HTML — that assertion is
+  RED against a correct build.** The template renders `src="{{ el.embed_src }}"`, and
+  `geogebra_sized_src` returns this URL unchanged (both because `"width" in segments` and
+  because there are no dimensions to append), so the injected text legitimately survives
+  inside the `src` attribute, where it is inert. Sanitising `embed_src` is **not** in scope
+  and would be a wrong fix. If a positional assertion is wanted, scope it to the `style`
+  attribute's contents, never to the whole document.
 - **non-GeoGebra URL with `width`/`height` path segments**
   (`https://player.vimeo.com/video/1/width/4/height/3`) → **no** inline `aspect-ratio`;
   step 0 is scoped to GeoGebra and must not touch other providers
 - **malformed authority:** `frame_ratio` and `size_unknown` on a stored `https://[::1`
   return `None`/`False` without raising — step 0 runs first, so an unguarded `urlsplit` here
   would 500 the unit page before any fallback
-- `…/material/iframe/id` (no id) and `…/material/iframe/id/ab%20cd` → no inline
-  `aspect-ratio`, no exception (the two deliberate stricter-than-`geogebra_sized_src`
-  divergences)
+- the two stricter-than-`geogebra_sized_src` divergences, each with **both** dimension
+  preconditions pinned (see §3 — the outcome depends entirely on the stored columns):
+  - `…/material/iframe/id` (no id) and `…/material/iframe/id/ab%20cd`, **no stored
+    dimensions** → no inline `aspect-ratio`, no exception
+  - the same two URLs **with** stored 880×660 → `aspect-ratio: 880 / 660` (step 2), and the
+    src is sized to match. Asserting "no inline aspect-ratio" here would be RED against a
+    correct build.
 - **non-GeoGebra with a usable pair** (`https://player.vimeo.com/video/123`, 640×360) →
   `aspect-ratio: 640 / 360`. Guards that step 1 does not swallow other providers.
 - GeoGebra **host, no material id** (`/x`) → **no** inline `aspect-ratio`
@@ -1196,6 +1233,14 @@ The fixture element is built **directly via the ORM** — `IframeElement.objects
 canonical GeoGebra URL>, title=…)` with no width/height, plus its `Element` join row — so the
 test depends on neither `IframeElementForm` nor the value of `GEOGEBRA_API_LOOKUP`, and can
 never issue a live GET from an e2e run.
+
+**The A/B baseline must differ only in the badge.** The comparison row is a **second**
+`IframeElement` in the same unit with an **identical `title`** and *usable* width/height (so
+`size_unknown` is False and no badge renders). Same element type keeps `.el-tag` identical;
+identical title length keeps `.el-row__label` wrapping identical. Without that discipline a
+height difference could come from a longer title rather than from the badge, and the
+assertion would be measuring the wrong thing. Row order is safe — `_element_row_controls.html`
+is position-independent.
 
 This e2e touches no external network (it renders our editor page, not the applet), which is
 why it is carved out of the no-e2e non-goal. Capture light and dark screenshots for the PR
