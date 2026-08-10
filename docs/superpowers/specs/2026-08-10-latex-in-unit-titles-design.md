@@ -961,10 +961,11 @@ must keep untouched. Per-element calls are what make the marker opt-in meaningfu
 section's own 5ms screening threshold (~30–53ms for 13 marked elements across several runs,
 machine-dependent), so per the plan it was re-measured at the matematyka-scale fixture
 predicted above (21 parts / 793 units, 1,643 marked elements measured — matching the ~1,600+
-prediction). Across several runs this measured **~85–150ms**, machine-dependent but
-consistently well past the 50ms threshold; `tests/test_e2e_title_math.py`'s own committed
-output (the number this repo's test run actually prints) is the authoritative reading for any
-given run — see the Task 11 report for the exact figure from the run it records. The
+prediction). Across several runs this measured **~85–155ms** (observed readings included
+86.2, 104.7, 105.0, 133.3, and 152.0ms), machine-dependent but consistently well past the
+50ms threshold; `tests/test_e2e_title_math.py`'s own committed output (the number this
+repo's test run actually prints) is the authoritative reading for any given run — see the
+Task 11 report for the exact figure from the run it records. The
 prediction that "each individual call is trivial" held for a single call; it did not account
 for the aggregate cost across ~1,600 unconditional calls when only one title in the whole
 course carries maths. `renderInlineText` (`courses/static/courses/js/math.js`) now

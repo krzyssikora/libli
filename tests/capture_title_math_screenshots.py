@@ -348,14 +348,20 @@ def test_capture(browser, live_server):
             with_math_h = page.locator(
                 ".outline-unit:has(.outline-unit__title .katex) .outline-unit__title"
             ).first.bounding_box()["height"]
-            # Per-row breakdown, not just one with/without pair: the clamp
-            # normalises MOST maths titles back to the plain-row height (even
-            # an inline \sum with limits), but a genuinely tall construct --
-            # a fraction, or a \[...\] display integral -- still grows the
-            # row. That is accepted elsewhere in §3 (the .katex-display and
-            # 5-line-clamp cases both keep the formula intact rather than
-            # forcing it into a single text line), so it is recorded here
-            # rather than chased further.
+            # Per-row breakdown, not just one with/without pair: NO CSS rule
+            # normalises .outline-unit__title -- Task 11 first shipped a
+            # line-height/vertical-align clamp here, then an A/B proved it
+            # changed nothing and dropped it (see app.css's comment on this
+            # class). MOST maths titles still read within noise of the
+            # plain-row height on their own (even an inline \sum with
+            # limits), simply because a shallow inline formula's own strut
+            # doesn't exceed the line box to begin with -- but a genuinely
+            # tall construct -- a fraction, or a \[...\] display integral --
+            # DOES grow the row, and no rule here removes that (line-height
+            # cannot shrink a fraction's own strut height). Accepted, same as
+            # the .katex-display and 5-line-clamp cases elsewhere in §3: a
+            # tall formula keeps its own height rather than being deformed to
+            # fit one text line. Recorded here, not chased further.
             row_heights = page.evaluate(
                 """() => {
                     const rows = document.querySelectorAll('.outline-unit__title');
