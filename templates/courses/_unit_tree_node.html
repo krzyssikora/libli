@@ -12,7 +12,7 @@
          identifiable on hover — sibling units often share a long prefix and differ
          only at the end, which renders them indistinguishable. Touch has no hover,
          so the drawer wraps these labels instead (courses.css).{% endcomment %}
-      <span class="unit-tree__label" title="{{ item.node.title|strip_math_delimiters }}">{{ item.node.title }}</span>
+      <span class="unit-tree__label" title="{{ item.node.title|strip_math_delimiters }}" data-math-title>{{ item.node.title }}</span>
     </a>
   {% else %}
     {% if item.children %}
@@ -22,7 +22,7 @@
       <details class="unit-tree__group"{% if item.contains_current %} open{% endif %}>
         <summary class="unit-tree__head">
           <svg class="icon unit-tree__chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
-          <span class="unit-tree__grouptitle" lang="{{ course.language }}" title="{{ item.node.title|strip_math_delimiters }}">{{ item.node.title }}</span>
+          <span class="unit-tree__grouptitle" lang="{{ course.language }}" title="{{ item.node.title|strip_math_delimiters }}" data-math-title>{{ item.node.title }}</span>
           {% if item.required_total %}
             <span class="unit-tree__count" aria-hidden="true">{{ item.required_done }}/{{ item.required_total }}</span>
             {% if item.required_done == item.required_total %}
@@ -57,7 +57,7 @@
          so change the pruning first, or not at all.{% endcomment %}
       <div class="unit-tree__head">
         <span class="unit-tree__chevron unit-tree__chevron--spacer" aria-hidden="true"></span>
-        <span class="unit-tree__grouptitle" lang="{{ course.language }}">{{ item.node.title }}</span>
+        <span class="unit-tree__grouptitle" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
       </div>
     {% endif %}
   {% endif %}

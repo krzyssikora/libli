@@ -13,7 +13,7 @@
   {% else %}
     {% for row in units %}
       <section class="course-notes__unit">
-        <h2 class="course-notes__unit-title">{{ row.unit.title }}</h2>
+        <h2 class="course-notes__unit-title" data-math-title>{{ row.unit.title }}</h2>
         {% for element, notes in row.groups %}
           {% if not element %}<h3 class="course-notes__general">{% trans "General" %}</h3>{% endif %}
           {% for note in notes %}{% include "notes/_readonly_note_card.html" with note=note course=course %}{% endfor %}

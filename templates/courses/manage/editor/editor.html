@@ -72,12 +72,12 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
     <a class="iconbtn" href="{% url 'courses:manage_builder' slug=course.slug %}"
        aria-label="{% trans 'Back to builder' %}" title="{% trans 'Back to builder' %}">←</a>
     <span class="editor-crumb__path">
-      {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> {{ a.title }}{% endfor %}
+      {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> <span data-math-title>{{ a.title }}</span>{% endfor %}
     </span>
     <a class="editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}">{% trans "Media library" %}</a>
   </p>
   <div class="editor-head">
-    <h1 class="editor-head__title">{{ unit.title }}</h1>
+    <h1 class="editor-head__title" data-math-title>{{ unit.title }}</h1>
     <form class="type-toggle" method="post" action="{% url 'courses:manage_node_rename' slug=course.slug %}">
       {% csrf_token %}
       <input type="hidden" name="node" value="{{ unit.pk }}">

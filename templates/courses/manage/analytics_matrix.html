@@ -112,8 +112,8 @@
                       style="top:calc(var(--ahead-h) * {{ forloop.parentloop.counter0 }})">
                     {% if cell.is_leaf %}
                       {% if cell.expandable %}<a class="analytics__expand" href="{{ cell.expand_url }}"
-                         lang="{{ course.language }}">{{ cell.title }} ▸</a>{% else %}<span
-                         lang="{{ course.language }}">{{ cell.title }}</span>{% endif %}
+                         lang="{{ course.language }}" data-math-title>{{ cell.title }} ▸</a>{% else %}<span
+                         lang="{{ course.language }}" data-math-title>{{ cell.title }}</span>{% endif %}
                       {% if mode == "progress" and matrix.has_lessons and not cell.has_lessons %}<span
                          class="analytics__badge icon" role="img"
                          aria-label="{% trans 'Not part of progress tracking' %}"
@@ -123,7 +123,7 @@
                          aria-label="{% trans 'Not scored in this view' %}"
                          title="{% trans 'Not scored in this view' %}"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="4" y1="12" x2="12" y2="4"/></svg></span>{% endif %}
                     {% else %}<span class="analytics__group-title"
-                         lang="{{ course.language }}">{{ cell.title }}</span><a
+                         lang="{{ course.language }}" data-math-title>{{ cell.title }}</span><a
                          class="analytics__collapse" href="{{ cell.collapse_url }}"
                          aria-label="{% trans 'Collapse' %}">✕</a>{% endif %}
                   </th>

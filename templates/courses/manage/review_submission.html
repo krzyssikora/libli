@@ -55,7 +55,7 @@
 
   <div class="unit-shell__main">
     <header class="review-topbar">
-      <h1 class="review-topbar__title">{% trans "Review" %}: {{ submission.student.display_name|default:submission.student.username }} — {{ submission.unit.title }}</h1>
+      <h1 class="review-topbar__title">{% trans "Review" %}: {{ submission.student.display_name|default:submission.student.username }} — <span data-math-title>{{ submission.unit.title }}</span></h1>
       <span class="review-topbar__sp"></span>
       {% if in_progress_count %}
       <form method="post"

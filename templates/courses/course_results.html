@@ -18,7 +18,7 @@
   <ul class="result-list">
     {% for row in summary.rows %}
     <li class="result-row is-{{ row.status }}">
-      <span class="result-row__title">{{ row.unit.title }}</span>
+      <span class="result-row__title" data-math-title>{{ row.unit.title }}</span>
       {% if row.status == "submitted" %}
         {% if row.graded %}<span class="result-row__score">{{ row.score|marks }} / {{ row.max_score|marks }}</span>
         {% else %}<span class="badge badge--muted">{% trans "submitted — not graded" %}</span>{% endif %}

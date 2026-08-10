@@ -11,7 +11,7 @@
         <span class="unit-foot__chev">‹</span>
         <span class="unit-foot__navtext">
           <span class="unit-foot__navmeta">{% trans "Previous" %}</span>
-          <span class="unit-foot__navtitle" lang="{{ course.language }}">{{ unit_nav.prev.title }}</span>
+          <span class="unit-foot__navtitle" lang="{{ course.language }}" data-math-title>{{ unit_nav.prev.title }}</span>
         </span>
       </a>
     {% else %}
@@ -45,7 +45,7 @@
       <a class="unit-foot__nav unit-foot__nav--primary" href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit_nav.next.pk %}">
         <span class="unit-foot__navtext unit-foot__navtext--right">
           <span class="unit-foot__navmeta">{% trans "Next" %}</span>
-          <span class="unit-foot__navtitle" lang="{{ course.language }}">{{ unit_nav.next.title }}</span>
+          <span class="unit-foot__navtitle" lang="{{ course.language }}" data-math-title>{{ unit_nav.next.title }}</span>
         </span>
         <span class="unit-foot__chev">›</span>
       </a>

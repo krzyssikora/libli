@@ -33,7 +33,7 @@ attribute, which holds the same author content.{% endcomment %}
       <li class="unit-crumbs__item unit-crumbs__item--{% if forloop.last %}leaf{% else %}mid{% endif %}"
           role="listitem" lang="{{ course.language }}" title="{{ a.title|strip_math_delimiters }}">
         <span class="unit-crumbs__sep" aria-hidden="true">›</span>
-        <span class="unit-crumbs__label">{{ a.title }}</span>
+        <span class="unit-crumbs__label" data-math-title>{{ a.title }}</span>
       </li>
     {% endfor %}
   </ol>

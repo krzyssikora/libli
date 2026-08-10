@@ -2,7 +2,7 @@
 {% load i18n %}
 {% block content %}
   <main class="page-narrow">
-    <h1>{{ unit.title }} — {% trans "Tags" %}</h1>
+    <h1><span data-math-title>{{ unit.title }}</span> — {% trans "Tags" %}</h1>
     {% include "tags/_unit_tag_panel.html" %}
     <p><a href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">{% trans "Back to the unit" %}</a></p>
   </main>
