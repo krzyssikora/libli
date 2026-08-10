@@ -219,6 +219,49 @@ def open_choice_editor_html(pa_client):
     return _open
 
 
+@pytest.fixture
+def open_choice_editor():
+    """e2e opener for the choice-question editor. Returns the Element JOIN ROW.
+
+    `options=[]` is the interesting seed: the formset ships extra=2, so an element
+    with no saved choices renders exactly 2 rows — which is also
+    data-fsrows-min="2", i.e. the at-minimum boundary, reached without any click.
+    """
+
+    def _open(page, live_server, options=("Alpha", "Beta"), username="choice_rows"):
+        _pa_user(username)
+        _course, unit, element = _seed_choice_element(options)
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk)
+        return element
+
+    return _open
+
+
+@pytest.fixture
+def open_stepper_editor_e2e():
+    """e2e opener for the stepper editor, seeded with `steps`. Returns the Element.
+
+    Separate from `open_element_editor` because the caller that matters here drives
+    the MAXIMUM boundary (20 steps) and reads better naming its payload `steps`;
+    `open_element_editor` keys on a `kind` and waits on the pre-retrofit row CLASS
+    so it can stay green on master, which this one never needs to do.
+    """
+
+    def _open(page, live_server, steps=("one",), username="stepper_rows"):
+        _pa_user(username)
+        _course, unit, element = _seed_rows_element("stepper", steps)
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk)
+        return element
+
+    return _open
+
+
 def _seed_switchgate_element(options, answer=0, stem="2 {{choice}} 2 = 4"):
     """(course, unit, element) for a Choose & confirm gate.
 
