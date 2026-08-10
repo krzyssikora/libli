@@ -408,10 +408,16 @@ matches `BaseStepperFormSet`'s own rule (`element_forms.py:1888-1895` counts `co
 already at `MAX_STEPS = 20` renders **21** rows server-side. An author can type into that trailing
 blank without ever touching the add button and still hit the validation error at Save. Disabling or
 stripping that row was rejected — it is a legitimately editable server-rendered field, and blanking
-it would be a worse surprise than the error. So the cap prevents the *button* path, not every path;
-the at-cap hint is what covers the rest. The e2e must therefore assert the **save-time outcome**, not
-merely the button's `disabled` state, or it would pass while the named failure stayed fully
-reachable.
+it would be a worse surprise than the error.
+
+**The hole's true extent, stated plainly:** because the cap counts *non-blank* rows, an author at 19
+filled steps still has Add enabled, and each click appends a blank row without moving the count — so
+arbitrarily many rows can be created before the cap ever engages, and can then be filled past 20.
+The client cap is therefore a **guard against the common path, not an enforcement**; the server
+remains authoritative. That is the accepted trade: the alternatives (a row-based cap, or disabling
+surplus blank rows) each break a legitimate flow, as set out above. The e2e must assert the
+**save-time outcome**, not merely the button's `disabled` state, or it would pass while the failure
+stayed fully reachable.
 
 **The guards count rows; the server counts non-blank values.** `data-fsrows-min` is a *row* guard,
 while `BaseChoiceFormSet.clean()` counts non-deleted rows with non-empty `text`
@@ -485,8 +491,10 @@ see while `TOTAL_FORMS` still increments. Seven amendments:
 4. call `window.libliInitFormsetRows(wrapper)` afterwards — `addChoiceRow` lives in `editor.js`, not
    module 1, so module 1's own post-add init does not cover it;
 5. resolve `total` from the choice wrapper's prefix instead of `editor.js:421`'s
-   `root.querySelector('[name$="-TOTAL_FORMS"]')`, which is the loose pattern this spec forbids —
-   shipping the rule and a counter-example to it in one diff would be incoherent;
+   `root.querySelector('[name$="-TOTAL_FORMS"]')`, **and resolve the row list from the wrapper's
+   `data-fsrows-list` instead of `editor.js:420`'s `root.querySelector("[data-choice-rows]")`** —
+   both are the unscoped pattern this spec forbids, on adjacent lines, and fixing only one would ship
+   the rule and a counter-example to it in the same diff;
 6. **take the clicked `[data-choice-add]` button as a parameter** and derive the wrapper from it via
    `closest("[data-fsrows]")`, updating the `editor.js:375-376` call site. `addChoiceRow()` currently
    takes no arguments and resolves everything from the module-level `root` (`:420-421`); amendments 4
@@ -501,9 +509,12 @@ see while `TOTAL_FORMS` still increments. Seven amendments:
 **Wiring.** `editor.html` loads every editor module by an explicit `<script src=… defer>` line
 (`:259-289`); there is no glob. It gains tags for **both** new modules with the customary explanatory
 `{% comment %}`, and loses the two retired ones. **Each retired `<script>` line carries a multi-line
-`{% comment %}` block above it** naming `window.libliInitStepperEditor` / `window.libliInitMarkDoneEditor`
-(`:266-268` and `:274-276`); those go with their script lines (`:269`, `:277`), or the page keeps two
-comments describing modules that no longer exist. The same applies to the `{% comment %}` headers at
+`{% comment %}` block above it** naming `window.libliInitStepperEditor` / `window.libliInitMarkDoneEditor`;
+each block goes with its script line (`:269`, `:277`), or the page keeps two comments describing
+modules that no longer exist. **Delete each block in full, from its opening `{% comment %}` to its
+`{% endcomment %}`** — the stepper block opens at `:265` (not `:266`, which is only its second line),
+the markdone block at `:274`. Deleting a partial range leaves an unterminated `{% comment %}` and the
+editor page raises `TemplateSyntaxError`. The same applies to the `{% comment %}` headers at
 `_edit_stepper.html:2-6` and `_edit_markdone.html:2-6`, which also name the retired modules and their
 `<template>` mechanics.
 
@@ -517,7 +528,9 @@ order, so **no JS author can ever fire its `change` event**. Its only listener t
 unreachable. Delete, in the same change:
 
 - `editor.js:493-497` — the DELETE branch that toggles `choice-row--del`;
-- `editor.css:178-179` — the `.choice-row--del` dim rule;
+- `editor.css:176-179` — the `.choice-row--del` dim rule **and its comment**, which reads "still
+  visible so the author can undo by un-ticking Remove before saving" — behaviour this change makes
+  impossible, so leaving it would breach the same stale-comment rule applied to `editor.js:492`;
 - `editor.js:439` — `clone.classList.remove("choice-row--del")` in `addChoiceRow`.
 
 Verified: `choice-row--del` has exactly two references in the codebase (`editor.js:439`, `:496`);
@@ -815,8 +828,10 @@ shown an add button that does nothing.
   `MarkDoneElement.MAX_ITEMS`, `StepperElement.MIN_STEPS`, `MarkDoneElement.MIN_ITEMS` and
   `_MIN_OPTIONS` — never a literal `20`.
   A literal on both sides stays green when someone changes `MAX_STEPS` to 30, so it could not catch
-  the drift it exists for. Choice's `2` has no named constant; assert it against
-  `BaseChoiceFormSet`'s rule or record it as a documented literal-vs-literal exception.
+  the drift it exists for. **Two of the six bounds have no named constant** — choice's `2`
+  (`BaseChoiceFormSet.clean()` uses a bare `len(kept) < 2`) and match's `1` (`BaseMatchPairFormSet`
+  likewise) — so both are documented literal-vs-literal exceptions, or are asserted against those
+  formsets' rules directly.
 - A stylesheet guard reading **three** files — `editor.css`, `courses.css` and `app.css` — asserting
   all **eleven** rules this design depends on, structured so deleting any one fails the test: the
   four row `[hidden]` rules, the four `__del` label `[hidden]` rules, the
@@ -830,7 +845,8 @@ shown an add button that does nothing.
 form-level ones.** Stepper and checklist are *working* editors being rewired onto a new module;
 nothing above would catch a regression there. For each: click the **real add button** to produce the
 new row, fill it, save, re-open, assert it persisted; then click the **real remove button** on a
-persisted row and assert it is gone.
+persisted row and assert it is gone *(needs a `dialog` handler — a persisted row has non-blank
+content by the server's own rules, so the confirm always fires)*.
 
 The level is not incidental. The risk being covered is the client-side rewiring — the two modules
 retired, the hand-written blueprints replaced by `empty_form`. A server-side POST test hand-builds
@@ -854,8 +870,10 @@ new control in the change from falsification.
   handler.)*
 - **Post-init state:** after the editor opens, the DELETE label is not visible and the remove button
   is — the JS half of the progressive-enhancement guarantee.
-- **Focus after removal** does not fall to `<body>`: remove a middle row by keyboard and assert
-  `document.activeElement` is the following row's remove button. Without this the keyboard path
+- **Focus after removal** does not fall to `<body>`: remove **a blank middle row** by keyboard and
+  assert `document.activeElement` is the following row's remove button. The row must be blank so no
+  confirm fires — *no `dialog` handler*; a filled row would need one, and getting this wrong makes
+  the test RED against a correct build. Without this the keyboard path
   regresses silently, since a mouse user never notices. **Two variants are required** — one on a
   formset editor (row hidden) and one on **switchgate** (row detached), because the two modules
   resolve their neighbours differently and only the switchgate one covers the capture-before-detach
@@ -883,7 +901,8 @@ new control in the change from falsification.
   carrier would ship fully green.
 - **The 422 reconciliation**, the subtlest mechanism in the design: remove a row, trigger a
   validation failure on save, assert the removed row comes back **not visible** with its DELETE still
-  ticked, then fix the error and assert the removal persisted.
+  ticked, then fix the error and assert the removal persisted *(needs a `dialog` handler — the row is
+  filled, since the test asserts its removal persists)*.
 - Switchgate: add an option beyond the padded blanks; remove a middle *filled* option and assert the
   correct answer still points at the intended option **text** after save *(needs a `dialog`
   handler)*; and remove an *interior blank* row and assert the save now succeeds where it previously
