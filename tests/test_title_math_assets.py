@@ -526,3 +526,121 @@ def test_review_queue_loads_katex_for_a_maths_title(client):
 def test_review_queue_loads_no_katex_without_maths(client):
     url = _review_queue_url(client, "Plain quiz")
     _assert_katex_absent(client.get(url).content.decode())
+
+
+# =============================================================================
+# The gate: notes + tags (four render sites across three templates)
+# =============================================================================
+
+
+def _course_notes_url_with_unit_title(client, title):
+    from notes.models import Note
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=None,
+        order=0,
+        title=title,
+    )
+    student = login_student(client, course)
+    Note.objects.create(author=student, unit=unit, body="a note")
+    return reverse("notes:course_notes", kwargs={"slug": course.slug})
+
+
+def test_course_notes_loads_katex_for_a_maths_unit_title(client):
+    url = _course_notes_url_with_unit_title(client, MATHS_TITLE)
+    resp = client.get(url)
+    assert resp.status_code == 200
+    assert MATHS_TITLE in resp.content.decode(), "the notes row did not render"
+    _assert_katex_present(resp.content.decode())
+
+
+def test_course_notes_loads_no_katex_without_maths(client):
+    url = _course_notes_url_with_unit_title(client, "Plain lesson")
+    _assert_katex_absent(client.get(url).content.decode())
+
+
+def _tagged_unit(client, title):
+    from tags import services as tag_services
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=None,
+        order=0,
+        title=title,
+    )
+    student = login_student(client, course)
+    tag_services.tag_unit(student, unit, "algebra")
+    return course, unit, student
+
+
+def test_tags_hub_loads_katex_for_a_maths_unit_title(client):
+    _c, _u, _s = _tagged_unit(client, MATHS_TITLE)
+    resp = client.get(reverse("tags:my_tags"))
+    assert resp.status_code == 200
+    assert MATHS_TITLE in resp.content.decode(), "the tagged unit did not render"
+    _assert_katex_present(resp.content.decode())
+
+
+def test_tags_hub_loads_no_katex_without_maths(client):
+    _c, _u, _s = _tagged_unit(client, "Plain lesson")
+    _assert_katex_absent(client.get(reverse("tags:my_tags")).content.decode())
+
+
+def test_tags_hub_recolor_error_branch_also_loads_katex(client):
+    """THE SECOND RENDER SITE. tag_recolor's ValidationError branch rebuilds the
+    hub context inline, with no shared helper -- so "one test per gate-table row"
+    is satisfiable by wiring only my_tags while this branch still ships raw
+    delimiters. Unlike the no-JS quiz-feedback case, that failure is LIVE today.
+
+    422, not 200: the branch renders with status=422 (tags/views.py:133) and that
+    status must survive the refactor."""
+    from tags.models import Tag
+
+    _c, _u, student = _tagged_unit(client, MATHS_TITLE)
+    tag = Tag.objects.filter(author=student).first()
+    resp = client.post(
+        reverse("tags:tag_recolor", kwargs={"tag_pk": tag.pk}),
+        {"color": "not-a-real-colour"},
+    )
+    assert resp.status_code == 422
+    body = resp.content.decode()
+    assert MATHS_TITLE in body, "the error branch did not re-render the hub"
+    _assert_katex_present(body)
+
+
+def _tags_panel_response(client, title):
+    """panel_page.html is reachable ONLY through _add_error: a NON-fragment POST
+    that fails validation, returning 422. A plain client.get() cannot reach it."""
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=None,
+        order=0,
+        title=title,
+    )
+    login_student(client, course)
+    return client.post(
+        reverse("tags:tag_add", kwargs={"slug": course.slug, "node_pk": unit.pk}),
+        {"name": ""},  # neither a name nor a tag_pk -> ValidationError
+    )
+
+
+def test_tags_panel_error_page_loads_katex_for_a_maths_title(client):
+    resp = _tags_panel_response(client, MATHS_TITLE)
+    assert resp.status_code == 422
+    _assert_katex_present(resp.content.decode())
+
+
+def test_tags_panel_error_page_loads_no_katex_without_maths(client):
+    resp = _tags_panel_response(client, "Plain lesson")
+    assert resp.status_code == 422
+    _assert_katex_absent(resp.content.decode())
