@@ -1763,3 +1763,73 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   border-inline-start: 3px solid var(--border-strong);
   color: var(--text-secondary);
 }
+
+/* --- Maths in node titles ([data-math-title], spec 2026-08-10) -------------- */
+/* THE OVERRIDING INVARIANT: app.css is base.html:46; every katex.min.css link
+   lands in {% block extra_css %} at :49 or later, so THE VENDOR STYLESHEET
+   ALWAYS LOADS AFTER OURS on every page in this change. At equal specificity
+   KaTeX wins, so each rule below is strictly MORE specific than the vendor rule
+   it overrides -- the specificity comments are the check to re-apply whenever a
+   value here is corrected.
+
+   These live ONLY here, never in courses.css: seven of the twelve templates that
+   newly gain KaTeX rendering link no courses.css at all, and a copy there could
+   never match anything these do not already match. */
+
+/* The vendored rule is `.katex{font:normal 1.21em KaTeX_Main,…;line-height:1.2}`
+   -- a font SHORTHAND, so it resets every unset font longhand. Restoring only
+   font-size leaves a maths run at `normal` weight inside a bold title, visibly
+   lighter than the prose beside it. line-height is deliberately NOT inherited:
+   the compact-chrome clamps below own that. */
+[data-math-title] .katex {                              /* (0,2,0) > (0,1,0) */
+  font-size: inherit; font-weight: inherit; font-style: inherit;
+}
+/* math.js's INLINE_DELIMS maps \[ to display:true, and the vendored
+   `.katex-display{display:block;margin:1em 0;text-align:center}` would then turn
+   a display-maths TITLE into a centred block with 1em margins inside a nav
+   button, a breadcrumb <li> or a tree row.
+
+   THE WRAPPER RULE IS THE LOAD-BEARING ONE: a display:block wrapper is still a
+   block-level box, so inside an <h1> that also holds words it splits the inline
+   content into anonymous block boxes and renders on three lines. `margin: 0`
+   removes the gaps but NOT the line break -- an inline-block child cannot make a
+   block parent join the surrounding line box. Once the wrapper is inline-block
+   it establishes its own formatting context, so a display:block .katex inside it
+   is harmless.
+
+   Display maths is forced inline EVERYWHERE, including the <h1>s where nothing
+   is clipped and a centred block would technically fit: a title is a single line
+   of prose by definition, and an author writing \[…\] in one is reaching for
+   emphasis, not a standalone equation block. One rule, one behaviour. */
+[data-math-title] .katex-display {                      /* (0,2,0) > (0,1,0) */
+  display: inline-block; margin: 0; text-align: inherit;
+}
+/* DEFENSIVE, not load-bearing -- see above. It neutralises the vendor's
+   text-align:center (a no-op inside a shrink-to-fit box anyway).
+
+   white-space is DELIBERATELY NOT OVERRIDDEN, so the vendor's
+   `white-space: nowrap` survives. A formula must not break mid-formula, and an
+   <h1> is white-space:normal -- so `white-space: inherit` here would hand the
+   formula back exactly the wrapping the vendor rule exists to prevent.
+   (KNOWING DEVIATION FROM THE SPEC: §3's code block lists
+   `white-space: inherit` while its own prose says nowrap is "which we in fact
+   want to keep for a formula". The prose is right and the declaration was
+   wrong; the test below pins the prose. Record this in the PR body.)
+
+   The child combinator is REQUIRED: the vendor's `.katex-display>.katex` is
+   (0,2,0), identical to `[data-math-title] .katex`, so reaching (0,3,0) is the
+   only way to win without relying on source order. */
+[data-math-title] .katex-display > .katex {             /* (0,3,0) > (0,2,0) */
+  display: inline-block; text-align: inherit;
+}
+
+/* The analytics clamp lives here, not in courses.css: neither analytics page
+   links it. The matrix header is the most fragile surface in this change --
+   .analytics{--ahead-h:2.4rem} and `thead th{position:sticky;height:var(--ahead-h);
+   white-space:nowrap}`, with each header row positioned at
+   top:calc(var(--ahead-h) * counter0). A title taller than 2.4rem DESYNCHRONISES
+   every sticky row beneath it (a layout break, not a cosmetic one), and because
+   the cell is nowrap a long maths title WIDENS the column instead of wrapping. */
+.analytics__matrix thead th .katex,
+.breakdown-unit__title .katex,
+.breakdown-node__title .katex { line-height: 1; vertical-align: baseline; }
