@@ -264,9 +264,11 @@ view's `render()` context dict. Every row below is a complete statement, not a b
 | Unit tags panel | `_add_error` (`tags/views.py:61`, no-JS 422 path) | after `ctx.update(...)`, before `return render(...)` at `:69`: `ctx["has_math"] = titles_have_math([unit.title])` |
 | Tags hub | `my_tags` (`tags/views.py:85`) **and** `tag_recolor` (`tags/views.py:120`) | **bind a local first at both sites** — `tags_by_tag` is passed inline into the dict at each. In `my_tags`, before `return render(` at `:86`; in `tag_recolor`, inside the `except ValidationError:` block before `return render(` at `:125`. Both: `tags_by_tag = services.units_by_tag(request.user)`, then `has_math = titles_have_math(u.title for _tag, grouped in tags_by_tag for units in grouped.values() for u in units)`, then pass both into the context |
 
-**Both helpers return real lists, so the double iteration above is safe.**
+**Both service functions return real lists, so the double iteration above is safe.**
 `notes/services.py:98` builds and returns a `list` of `{"unit": ContentNode, "groups": …}`;
-`tags/services.py:209` returns `[(Tag, {Course: [unit]})]`. Scanning the local and then
+`tags/services.py:209` returns `[(Tag, {Course: [unit]})]`; and `build_course_results`
+(`rollups.py:329`) builds `"rows"` with `rows.append` at `:422`, so `summary["rows"]` is a
+list too. Scanning the local and then
 passing it to the template iterates each twice. Were either a generator, the scan would
 exhaust it and the page would render empty — a silent, severe failure that no test here
 would catch, which is why the return types are pinned rather than assumed.
@@ -351,12 +353,12 @@ eight need at least one new block; only `notes/course_notes.html` has both today
 | --- | --- | --- |
 | `outline.html` | `extra_css` with `{{ block.super }}` | `extra_js` block |
 | `course_results.html` | `extra_css` without `{{ block.super }}` | `extra_js` block |
-| `manage/analytics_matrix.html` | `extra_js` only, `{% load i18n %}` only | `extra_css` block |
+| `manage/analytics_matrix.html` | `extra_js` only | `extra_css` block |
 | `manage/analytics_student.html` | neither block | both blocks |
 | `manage/review_queue.html` | neither block | both blocks |
 | `notes/course_notes.html` | both blocks exist | includes only |
 | `tags/my_tags.html` | `extra_css` only | `extra_js` block |
-| `tags/panel_page.html` | neither block, `{% load i18n %}` only | both blocks |
+| `tags/panel_page.html` | neither block | both blocks |
 
 None of these rows needs `{% load static %}` added: the partials self-load it, and a
 template that only `{% include %}`s them never evaluates `{% static %}` itself.
@@ -442,24 +444,33 @@ that survives casual editing.
   `.katex-display{display:block;margin:1em 0;text-align:center}` **and**
   `.katex-display>.katex{display:block;text-align:center;white-space:nowrap}`.
 
-  - Neutralising only the **wrapper** leaves a block-level `.katex` child inside it, so the
-    title still generates its own line box. The child rule is (0,2,0) — identical to
-    `[data-math-title] .katex` — so overriding it needs the child combinator to reach (0,3,0).
-  - Neutralising only the **child** is equally wrong, and this is the subtler half: a
+  - The **wrapper** rule is the load-bearing one, and the child rule is **defensive**. Once
+    the wrapper is `inline-block` it establishes its own formatting context, so a
+    `display:block` `.katex` inside it does *not* break the surrounding line box. What the
+    child rule still neutralises is `text-align:center` (a no-op inside a shrink-to-fit box)
+    and `white-space:nowrap` (which we in fact want to keep for a formula). It is specified
+    because it costs nothing, guards against a future vendor change, and the §Testing
+    measurement is what actually decides — not because omitting it would break the line box.
+    Note it is (0,2,0), identical to `[data-math-title] .katex`, so overriding it needs the
+    child combinator to reach (0,3,0).
+  - Neutralising only the **child** *is* wrong, and this is the half that matters: a
     `display:block` wrapper is still a block-level box. Inside `<h1>Rozwiąż \[x^2\] teraz</h1>`
     it splits the inline content into anonymous block boxes and renders on three lines; inside
     the inline `.unit-foot__navtitle` or `.unit-tree__label` it breaks the inline box and grows
     the row. `margin: 0` removes the 1em gaps but **not** the line break — an inline-block child
     cannot make a block parent join the surrounding line box.
 
-  The three remaining vendor rules need no action.
+  The **four** remaining vendor rules need no action.
   `.katex-display>.katex>.katex-html{display:block;position:relative}` is benign: a
   block-level child inside an inline-block `.katex` establishes that box's own formatting
-  context and does not affect the outer line. `.katex-display.fleqn>.katex{padding-left:2em}`
-  and `.katex-display.leqno>.katex>.katex-html>.tag{left:0}` are unreachable — this app sets
-  neither `fleqn` nor `leqno` and uses no `\tag`. Should either become reachable, note that
-  the `fleqn` rule is (0,3,0), the same specificity as the override above, and source order
-  would then decide.
+  context and does not affect the outer line. The other three are unreachable — this app
+  sets neither `fleqn` nor `leqno` and uses no `\tag`:
+  `.katex-display>.katex>.katex-html>.tag{position:absolute;right:0}`,
+  `.katex-display.leqno>.katex>.katex-html>.tag{left:0;right:auto}` and
+  `.katex-display.fleqn>.katex{padding-left:2em;text-align:left}`. Should `fleqn` become
+  reachable, note that its rule is (0,3,0) — the same specificity as the child override
+  above — and its `text-align:left` would then collide with that override's
+  `text-align:inherit`, with source order deciding.
 
 - **`core/static/core/css/app.css`** — the analytics clamp, since those pages have no
   `courses.css`:
@@ -519,14 +530,15 @@ against §1: `_outline_node.html:7,21`, `course_results.html:21`, `course_notes.
 `_tag_section.html:25`, `panel_page.html:5`, `review_queue.html:15,30`, `editor.html:75`
 and `_preview.html:6` are neither compact chrome nor fixed-height headings: they wrap
 freely, so no clamp is specified for them. Note this is a *claim to be checked*, not a free pass —
-KaTeX's `line-height:1.2` survives the global rules, and `.result-row` and `.outline-unit`
-are flex rows that can still gain height from it. §Testing screenshots the course-results
-and outline rows so "needs no clamp" is a measurement rather than an assumption.
+KaTeX's `line-height:1.2` survives the global rules, and `.result-row`, `.outline-unit` and
+`.card-list__row` are flex rows that can still gain height from it. §Testing screenshots the
+course-results, outline and review-queue rows so "needs no clamp" is a measurement rather
+than an assumption.
 
 **Display math is forced inline everywhere, including the `<h1>`s.** The neutralisation is
 keyed on bare `[data-math-title]`, so it also reshapes `_lesson_article.html:7`,
-`_quiz_article.html:5`, `quiz_results.html:12`, `review_submission.html:58` and
-`editor.html:80`, where nothing is clipped and a centred block would technically fit. That
+`_quiz_article.html:5`, `quiz_results.html:12`, `review_submission.html:58`,
+`editor.html:80` and `tags/panel_page.html:5`, where nothing is clipped and a centred block would technically fit. That
 is deliberate: a title is a single line of prose by definition, and an author who writes
 `\[…\]` in one is reaching for emphasis, not for a standalone equation block. A centred,
 1em-margined block inside an `<h1>` that also contains words would look like a rendering
@@ -618,7 +630,6 @@ in the table. They are listed here so their absence is a decision, not an oversi
 | Move picker heading | `manage/_move_picker.html:9` | same |
 | Move picker destination rows | `manage/_move_picker.html:27` | same |
 | Link picker display title | `manage/editor/_link_picker_node.html:26` | `link_dialog.js:238` — `mount.innerHTML = html` |
-| Builder tree labels | `manage/_tree_node.html` | builder fragment swaps |
 | Media library usage list | `manage/media/_asset_cell.html:23` | **Mixed, and excluded for two reasons.** It is server-rendered from `_asset_grid.html` *and* returned as a JS-swapped fragment (`views_media.py:60,89`), so the swapped path needs the same re-render hook as the rows above — but unlike them, a marker on the server-rendered path *would* take effect, so the blanket rule alone does not cover it. Independently, `u.unit_title` comes from `courses/media.py:51` as a **snapshot**, not a live `ContentNode.title`, so it is not the same data this change is about. |
 
 Enabling these needs three things this change deliberately does not do: exporting
@@ -642,6 +653,7 @@ repo's history a diff with no JS is exactly where such defects hide.
 | Notification bodies | `notifications/templates/notifications/list.html:21,23`, `_bell_panel.html:25,27` | `{{ n.data.unit_title }}` inside `{% blocktrans %}` — the same msgid-splitting problem as the two confirm headlines. Also note `unit_title` is a **stored snapshot** taken when the notification was created, not a live `ContentNode.title`, so it can diverge from the node and is not strictly the same data. |
 | Builder tree toggle aria-labels | `manage/_tree_toggle.html:6,7` | `node.title` inside `{% blocktrans count … asvar %}` expand/collapse accessible names. Plain-text attributes that can never typeset — they would take `\|strip_math_delimiters` if the builder were ever brought into scope, not a marker. |
 | Builder rename tooltip | `manage/_tree_node.html:50` | `title="{{ node.title }}"` — likewise a plain-text attribute, listed separately from the row above it because "fragment swaps" is not the reason it is excluded. |
+| Link picker payload | `manage/editor/_link_picker_node.html:14` | `data-title="{{ n.title }}"`, a JS-read payload of the same kind as `_rename_result.html:7`. Must stay unmarked and unfiltered when the deferred link-picker work lands. |
 | Builder rename input | `manage/_tree_node.html:49` | `<input type="text" name="title" value="{{ node.title }}">` — a **Path C edit buffer**, the third in the app alongside `_unit_settings.html:12` and `_rename_result.html:7`. Must stay unmarked and unfiltered even when the deferred builder work lands; typesetting or stripping it would corrupt what the author saves. |
 
 ## Data flow
@@ -776,8 +788,9 @@ closes for the filter.
 The two directions are **not** equally load-bearing everywhere, and the spec must not
 pretend otherwise:
 
-- On `course_outline`, `course_results`, `analytics_matrix`, `review_queue` and the three
-  notes/tags pages, no `has_math` exists in the context today. `{% if has_math %}` on a
+- On **all eight** pages that gain the flag — `course_outline`, `course_results`,
+  `analytics_matrix`, `analytics_student`, `review_queue` and the three notes/tags pages —
+  no `has_math` exists in the context today. `{% if has_math %}` on a
   missing variable is silently false, so the **negative assertion passes trivially** even if
   the view change is omitted entirely and only the template change lands. Only the positive
   assertion has force on those pages, and its falsification mutant must remove **the view's
@@ -797,6 +810,16 @@ Two pages need further special handling, or the test cannot fail at all:
 away from the unit being viewed, with the viewed unit and its immediate neighbours all
 maths-free, must still load KaTeX on that unit's page. This is the assertion that fails if
 the scan is narrowed to `unit`/`prev`/`next`; without it the narrowing is invisible.
+
+**The tags hub needs two gate assertions, not one.** Its gate-table row covers two render
+sites, so "one test per row" is satisfiable by wiring only `my_tags` while `tag_recolor`'s
+error branch still ships raw delimiters — and unlike the quiz-feedback case below, that
+failure is **live today**, not masked by anything. Drive the second assertion through the
+invalid-colour POST that reaches `tags/views.py:125`.
+
+**The tags panel is unreachable by GET.** Its gate assertion needs the same invalid-tag
+no-JS POST entry point described under Marker coverage below; a plain `client.get()` cannot
+reach `panel_page.html`.
 
 **No no-JS quiz-feedback gate test — and that is deliberate too.** The
 `_quiz_render_feedback` row is reachable only by answering a question, so its fixture
