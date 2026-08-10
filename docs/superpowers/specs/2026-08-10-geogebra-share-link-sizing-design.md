@@ -161,11 +161,12 @@ _TIMEOUT_SECONDS = 3          # module constant, matching integrations/delivery.
 _MAX_BODY_BYTES = 65536
 _NEGATIVE_TTL_SECONDS = 60
 _USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"
-_DIM_MAX = 2147483647         # PositiveIntegerField ceiling
+DIM_MAX = 2147483647          # PositiveIntegerField ceiling; no underscore — see below
 
-def usable_dimensions(width, height) -> bool   # the shared predicate — see §3
-def _open(request, timeout)                    # the transport seam tests patch
-def geogebra_material_id(url) -> str
+def usable_dimensions(width, height) -> bool    # the shared dimension predicate — see §3
+def is_geogebra_iframe_url(url) -> bool         # the render/badge predicate — see §3
+def _open(request, timeout)                     # the transport seam tests patch
+def geogebra_material_id(url) -> str            # the lookup gate
 def fetch_geogebra_dimensions(material_id) -> tuple[int, int] | tuple[None, None]
 ```
 
@@ -176,10 +177,14 @@ the sole cycle-free home. The alternatives both create cycles or churn:
 inverting that edge, and `courses/models.py :: embed_src` deliberately imports `geogebra`
 *lazily inside the method* to avoid a models→geogebra edge at import time. Putting the
 predicate in `geogebra.py` lets `embed.py`, `element_forms.py`, and `models.py` all import it
-at module level safely. `embed.py`'s existing `_INT_MAX` is folded into `_DIM_MAX` here so the
-ceiling has one definition. The name deliberately carries **no leading underscore**: it is a
-cross-module contract, and an underscore would invite a reviewer to "fix" the imports by
-duplicating the predicate — the exact outcome it exists to prevent.
+at module level safely. `embed.py`'s existing `_INT_MAX` is folded into `DIM_MAX` here so the
+ceiling has one definition. **Both** `usable_dimensions` and `DIM_MAX` deliberately carry
+**no leading underscore**: each is imported across module boundaries, and an underscore on a
+cross-module name invites a reviewer to "fix" the import by re-declaring the thing locally —
+the exact duplication these exist to prevent. The rule is applied consistently: names that
+cross a module boundary are public, names that do not (`_open`, `_API_PREFIX`,
+`_TIMEOUT_SECONDS`, `_MAX_BODY_BYTES`, `_NEGATIVE_TTL_SECONDS`, `_USER_AGENT`, `_ID_RE`) keep
+the underscore.
 
 `geogebra_material_id` promotes the existing private `_material_id` logic to a public entry
 point taking a URL. **It must also apply `_ID_RE`** (`^[A-Za-z0-9_-]+$`) before returning:
@@ -199,17 +204,29 @@ seam, so a test patching `_open` can inspect its headers:
 
 ```python
 req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
-with _open(req, _TIMEOUT_SECONDS) as resp:
-    payload = resp.read(_MAX_BODY_BYTES)
+with _open(req, timeout=_TIMEOUT_SECONDS) as resp:        # keyword, not positional
+    payload = resp.read(_MAX_BODY_BYTES + 1)              # +1 so oversize is detectable
 
 def _open(request, timeout):                      # the seam
     return urllib.request.build_opener(_NoRedirect).open(request, timeout=timeout)
 ```
 
+**`timeout` is passed by keyword** at the call site so the seam's contract is unambiguous
+and the test can assert `call_args.kwargs["timeout"]`. An earlier draft passed it
+positionally while the test asserted a keyword — two normative sections disagreeing, which a
+TDD implementer hits on the first red-green cycle.
+
 The `with` is required, not stylistic: `integrations/delivery.py` — the cited precedent —
 uses `with opener.open(...) as resp:`, and because the read is capped the connection is
 never drained, so an unclosed response leaks a socket per call and raises `ResourceWarning`
 in tests. **The test double for `_open` must therefore be a context manager.**
+
+**The `with` does not cover the error path.** Because `build_opener` keeps
+`HTTPErrorProcessor`, a 4xx/5xx raises `HTTPError` from *inside* `_open`, so the `with` block
+is never entered and the exception's own `fp` is never closed — leaking exactly the socket
+the `with` was justified to protect, on the most common failure. Close it explicitly in the
+handler (`exc.close()` / `exc.fp.close()`), or the 400 test will surface an unexplained
+`ResourceWarning`.
 
 Refusing redirects matters: `urlopen` follows them by default, so a check on the
 *constructed* URL says nothing about the host actually contacted.
@@ -226,9 +243,19 @@ because a branch that cannot be driven cannot be falsified to RED. The real cont
 acceptable because the URL reaching this code has already passed `URLField`'s length cap —
 noted so nobody mistakes `_ID_RE` for a length guard.
 
-**Body handling.** Read at most `_MAX_BODY_BYTES` and parse. An oversized, truncated, or
-non-JSON body degrades to `(None, None)` — the socket timeout alone does not bound how much
-a slow or hostile endpoint can send.
+**Body handling.** Read `_MAX_BODY_BYTES + 1` bytes; if the read comes back full-length the
+body is **oversized** — log it as such and return `(None, None)`. Reading one byte past the
+cap is what makes "too large" *distinguishable* from "not JSON" in the warning log, instead
+of both surfacing as a parse failure. The socket timeout alone does not bound how much a
+slow or hostile endpoint can send.
+
+The cap is sized against measurement, not guessed: the captured responses are **1,177 bytes**
+(`ws`/`dcjktevj`), **891 bytes** (`wseg`/`wgzr7tsu`), and **35 bytes** (the 400). At 65,536 the
+cap leaves ~55× headroom over the observed worksheet. A worksheet with many elements is
+larger — each carries its own `settings` and `thumbUrl` — so the failure mode is worth
+naming: a *valid* material whose document exceeds the cap degrades to the 4:3 fallback plus a
+badge, indistinguishable to the author from a genuinely dimensionless one. The `logger.warning`
+oversize signal is the only way to tell them apart, which is why it must say which case fired.
 
 **Response shapes.** Two are observed. A real `ws` response, trimmed from the document root
 down to the dimensions so the paths below are verifiable from this spec alone:
@@ -269,6 +296,14 @@ elements, id, supportsLesson, thumbUrl, title, type, visibility`. The `wseg` doc
    `"G"` entry that does not — do not stop at the first `"G"`.
 3. If nothing yields a usable pair, return `(None, None)`.
 
+**Every access in that scan is defensive, per entry.** This is not a style note: the whole
+fetch-and-parse body is wrapped in a bare `except Exception`, so a single malformed entry
+raising mid-scan would abort the *entire* loop and return `(None, None)` even when a later
+valid `"G"` entry exists — silently contradicting "keep scanning". So a top-level `settings`
+that is not a dict, an `elements` value that is not a list, and any entry that is not a dict
+are **skipped, not fatal**: check types with `isinstance` and read with `.get`, and let the
+outer catch handle only genuinely unexpected failures.
+
 **Never raises — a bare `except Exception`.** An enumerated tuple is insufficient:
 `urlopen` can raise `http.client.RemoteDisconnected`, `ConnectionResetError`, `ssl.SSLError`
 variants, `UnicodeDecodeError` on a mis-encoded body, and `ValueError` from `Request()`
@@ -294,7 +329,12 @@ consequence:** a retry within 60 seconds of a failure is suppressed. Note also t
 `LocMemCache` applies — outside tests this bound is per worker process, not per site.
 
 **Kill switch.** When `settings.GEOGEBRA_API_LOOKUP` is false, return `(None, None)`
-immediately — no cache read, no request.
+immediately — no cache read, no request. **The flag is read inside
+`fetch_geogebra_dimensions` on every call, never captured at import time.** A module-level
+`LOOKUP = settings.GEOGEBRA_API_LOOKUP` would make every `override_settings(...=True)` a
+silent no-op; the positive-assertion tests would catch that, but the invalid-input tests
+would go on passing *vacuously* — the exact failure mode the `override_settings` requirement
+exists to prevent.
 
 ### 2. Capture — `IframeElementForm.clean_url`
 
@@ -319,8 +359,20 @@ if usable_dimensions(width, height):
 return url
 ```
 
-**Invariant: a stored dimension pair is never re-derived *for an unchanged URL*.** Both
-halves are load-bearing.
+**Invariant: a *usable* stored pair is never re-derived for an unchanged URL.** Every word
+is load-bearing, and the corollary matters as much as the rule: **the lookup fires on three
+occasions, not two** —
+
+1. a fresh element whose paste carries no dimensions,
+2. an edit that changes the URL (the stale pair is cleared first), and
+3. **any save of an element whose stored pair is unusable** — including a title-only rename
+   of a dimensionless element.
+
+Case 3 is deliberate, not an oversight. It is the retry path: the badge tells the author the
+size is unknown, and re-saving is the natural response, so a save must be able to try again.
+It is also why `_NEGATIVE_TTL_SECONDS` is only 60s — long enough to stop an outage from
+re-charging the row lock on every attempt, short enough that a deliberate retry works. An
+implementer who gated on `url_changed` alone would satisfy the prose but kill the retry.
 
 *The instance guard.* On an edit the textarea is pre-filled with the stored **canonical
 URL**, not the original `<iframe>` snippet — `tests/test_iframe_dimensions.py ::
@@ -353,10 +405,12 @@ it would make imports hit geogebra.org.
 the lookup holds an open transaction, a pooled DB connection, and an exclusive row lock on
 the unit for the duration of the call.
 
-This is **accepted deliberately** rather than restructured: the lookup fires only on a
-first save or a URL change, the only thing it can block is a concurrent edit of the *same
-unit*, and the mitigations — 3s socket timeout, capped body read, refused redirects, 60s
-negative cache — keep the common failure path short. Moving resolution out of `clean_url`
+This is **accepted deliberately** rather than restructured. Note honestly what that
+accepts: by case 3 above, *every* save of a dimensionless GeoGebra element issues a live GET
+inside the lock once the 60s sentinel expires — and the LAL-imported population is exactly
+that shape. The only thing it can block is a concurrent edit of the *same unit*, and the
+mitigations — 3s socket timeout, capped body read, refused redirects, 60s negative cache —
+keep the common failure path short. Moving resolution out of `clean_url`
 would leak iframe-specific logic into the view layer or change `save_element`'s signature, a
 larger blast radius than the risk warrants. The alternative is recorded so a future reader
 can revisit it rather than rediscover the lock.
@@ -367,7 +421,7 @@ can revisit it rather than rediscover the lock.
 
 ```python
 def usable_dimensions(width, height):
-    """True iff both are real, positive, in-range ints (1 .. _DIM_MAX).
+    """True iff both are real, positive, in-range ints (1 .. DIM_MAX).
 
     bool is excluded explicitly (isinstance(True, int) is True in Python, so a
     payload of {"width": true} would otherwise render `aspect-ratio: True / 660`).
@@ -375,7 +429,7 @@ def usable_dimensions(width, height):
     """
 ```
 
-**The `1 .. _DIM_MAX` bound is inside the predicate, not merely in the parser.** It has to
+**The `1 .. DIM_MAX` bound is inside the predicate, not merely in the parser.** It has to
 be: `IframeElement.width` is a `PositiveIntegerField` whose ceiling is *not* re-checked at
 save — `clean_url`'s existing comment says so ("the ceiling is enforced in
 parse_iframe_dimensions, not here") because `width`/`height` are absent from
@@ -389,15 +443,34 @@ Every consumer uses it: the parser's selection rule, `clean_url`'s guards, `fram
 down the partial/zero cases that independently-nullable columns allow (`check_int_or_null` in
 the transfer validator admits `(800, None)` and `(0, 0)` from an archive).
 
-**"Is this a GeoGebra embed?" is one named predicate too:** `bool(geogebra_material_id(self.url))`
-— the same gate `clean_url` uses. Host membership is explicitly *not* the test. The two
-diverge on URLs that exist in this database: `https://www.geogebra.org/x` (a shape the LAL
-parser stores un-canonicalized) and `https://www.geogebra.org/classic/abc` are on a GeoGebra
-host but yield no material id. Under a host-based reading such an element would get
-`aspect-ratio: 800 / 600` while `embed_src` left the src bare (`geogebra_sized_src` requires
-`segments[:3] == ["material","iframe","id"]`), forcing a full GeoGebra *web page* into a 4:3
-box and showing a badge whose workaround cannot help. Using the material-id predicate, those
-URLs take the `None` branch and no badge.
+**"Is this a GeoGebra embed?" is one named predicate too — and it must match
+`geogebra_sized_src` exactly.** Define
+`is_geogebra_iframe_url(url)`, true only for the **canonical worksheet shape** that
+`geogebra_sized_src` already rewrites: an https GeoGebra host whose path segments start
+`["material", "iframe", "id"]` followed by an `_ID_RE`-valid id.
+
+Host membership is explicitly *not* the test: `https://www.geogebra.org/x` (a shape the LAL
+parser stores un-canonicalized) and `https://www.geogebra.org/classic/abc` sit on a GeoGebra
+host but are not worksheet embeds. Under a host-based reading such an element would get
+`aspect-ratio: 800 / 600` while `embed_src` left the src bare, forcing a full GeoGebra *web
+page* into a 4:3 box and showing a badge whose workaround cannot help.
+
+But `bool(geogebra_material_id(url))` is **also** wrong here, for the mirror-image reason:
+it accepts `/m/<id>` and `/material/show/id/<id>`, which `geogebra_sized_src` does **not**
+rewrite (it requires `segments[:3] == ["material","iframe","id"]`). A stored `/m/<id>`
+carrying a usable pair would then get `aspect-ratio: W / H` from `frame_ratio` while the src
+stayed bare — GeoGebra would render its 800×600 default inside a W/H frame, i.e. reproduce
+the exact white-space defect this design exists to remove, with `size_unknown` False so no
+badge explains it. The form canonicalises every URL it stores, but the **Django admin path
+exposes `url`, `width` and `height` as raw model fields**, so that state is reachable with
+no code change at all.
+
+Two predicates, two jobs, stated explicitly so they cannot drift:
+
+- `geogebra_material_id(url)` — "can I look this up?" Gates the lookup in `clean_url`, where
+  the URL has already been canonicalised. Accepts every recognised material form.
+- `is_geogebra_iframe_url(url)` — "will `geogebra_sized_src` rewrite this?" Gates
+  `frame_ratio`'s 4:3 branch and `size_unknown`. Accepts only the canonical shape.
 
 `IframeElement` gains two properties:
 
@@ -414,7 +487,7 @@ def size_unknown(self):
 `frame_ratio` resolves in order:
 
 - `usable_dimensions(self.width, self.height)` → `"<width> / <height>"`
-- else `bool(geogebra_material_id(self.url))` → `"800 / 600"`, formatted from
+- else `is_geogebra_iframe_url(self.url)` → `"800 / 600"`, formatted from
   `GEOGEBRA_DEFAULT_SIZE` so the constant is the single source of truth. Same ratio as
   `4 / 3`, renders identically; the spec and tests use the literal `800 / 600` throughout to
   avoid an implementer/test mismatch.
@@ -437,9 +510,10 @@ unchanged: once the lookup supplies dimensions the existing code appends
 
 ### 4. Author feedback — a persistent editor badge
 
-`templates/courses/manage/editor/_element_row.html` has eight `{% elif %}` branches for
-container types; an iframe element falls through to the **terminal `{% else %}` block**
-(currently line 300), which is where the badge goes. The concrete object is in scope as
+`templates/courses/manage/editor/_element_row.html` dispatches on element type through six
+top-level `{% elif %}` branches (revealgate, tabs, twocolumn, spoiler, beforeafter, callout);
+an iframe element falls through to the **terminal `{% else %}` block** (currently line 300),
+which is where the badge goes. The concrete object is in scope as
 `obj` — **not** `el`, which is the join row — so the condition is `{% if obj.size_unknown %}`.
 
 ```html
@@ -457,19 +531,34 @@ returns exactly one non-spec hit — `_element_row.html:29`, the revealgate flag
 selector in `courses/static/courses/css/editor.css` or any other stylesheet**. Shipping the
 badge without a rule would put unstyled inline body text inside the flex `.el-row__top`,
 violating the repo's "every view ships styled" rule rather than satisfying it. Add a rule
-beside `.el-tag` (editor.css:79), mirroring its token usage, and note that it also
-**retro-styles the existing revealgate flag** — a latent defect this change incidentally
-fixes:
+beside `.el-tag` (editor.css:79), mirroring its token usage:
 
 ```css
 .el-row__flag {
   font-size: .7rem; color: var(--text-secondary);
-  white-space: nowrap; cursor: help;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis;
 }
+.el-row__flag[title] { cursor: help; }
 ```
 
-It sits inside `.el-row__top` (`display:flex; align-items:center; gap:var(--space-2)`) before
-`.el-actions`, which carries `margin-left:auto` and therefore keeps its right alignment
+**It must be shrinkable — `white-space: nowrap` is specifically forbidden here.**
+`editor.css` records a measurement directly above `.el-actions { flex-wrap: wrap }`: at a
+1130px viewport (the editor pane's floor) `.el-row__top` offers **196px** while the action
+bar alone wants **250px**, and the bar overflowed the card by 41px precisely *"because every
+child is a nowrap inline-flex form the bar could not shrink"*. Adding an unshrinkable
+~20-character span to a width budget already 54px in deficit would reintroduce that defect.
+Hence `min-width: 0` plus ellipsis, so the flag yields instead of pushing. **Acceptance
+step:** verify at the 1130px floor that the row still fits with the badge present.
+
+`cursor: help` is scoped to `.el-row__flag[title]` on purpose. The existing revealgate flag
+(`_element_row.html:29`) has **no `title` attribute**, so an unscoped rule would give it a
+help cursor promising a tooltip that never appears — turning a pure fix into a small new
+defect on a shipped surface. With the attribute selector, the badge gets the affordance and
+the revealgate flag simply gains the typography it always should have had. Since that row is
+being restyled either way, **re-check the revealgate row visually** as part of this change.
+
+The badge sits inside `.el-row__top` (`display:flex; align-items:center; gap:var(--space-2)`)
+before `.el-actions`, which carries `margin-left:auto` and keeps its right alignment
 regardless.
 
 **Catalog deliverable.** Add both strings to the Polish catalog explicitly: run
@@ -505,9 +594,13 @@ author pastes …
 │     parse_iframe_dimensions → (880, 660)          [no network]
 │     stored 880×660 → wrapper 880/660, src /width/880/height/660
 │
-├── later title-only edit (URL unchanged)
-│     parse → (None, None); url_changed = False; instance usable → short-circuit
+├── later title-only edit, URL unchanged, stored pair USABLE
+│     parse → (None, None); url_changed = False; stored usable → short-circuit
 │     [no network, dims untouched]
+│
+├── later title-only edit, URL unchanged, stored pair UNUSABLE  (case 3 — the retry)
+│     stored not usable → lookup runs again (unless the 60s sentinel is live)
+│     [this is how an author retries after a failed lookup]
 │
 ├── edit that pastes a DIFFERENT share link
 │     url_changed = True → stale pair cleared → lookup runs for the new material
@@ -534,10 +627,11 @@ author pastes …
 | body larger than `_MAX_BODY_BYTES`, truncated, or not JSON | `(None, None)` → same |
 | any exception type at all, listed or not | caught by the bare `except Exception` → `(None, None)` |
 | no `settings` and no `"G"` element yielding a usable pair | `(None, None)` → same |
-| dimension ≤ 0, non-int, `bool`, float, or > `_DIM_MAX` | not usable → `(None, None)` → same |
+| dimension ≤ 0, non-int, `bool`, float, or > `DIM_MAX` | not usable → `(None, None)` → same |
 | id already in the negative cache | `(None, None)` without a request |
 | `GEOGEBRA_API_LOOKUP` false | `(None, None)` without a cache read or request |
 | GeoGebra host but no material id (`/x`, `/classic/…`) | not a material embed: 16:9 default, no badge, no lookup |
+| GeoGebra material id in a non-canonical shape (`/m/<id>`, `/material/show/id/<id>`) stored directly (admin) | `is_geogebra_iframe_url` false → 16:9 default, no badge, and no `/width/…` appended — ratio and src stay in agreement |
 | non-GeoGebra URL with no dimensions | unchanged: 16:9 CSS default, no badge |
 
 The element **always saves**. No failure mode of a third-party API can block authoring, and
@@ -598,17 +692,30 @@ reusing one material id across two assertions **within** a single test.
   proving the bare `except Exception`
 - `width` of `0`, `-5`, `"880"`, `2147483648`, `True`, `880.0` → `(None, None)`
 - body exceeding `_MAX_BODY_BYTES` → `(None, None)`
-- **User-Agent:** the `Request` handed to `_open` carries `_USER_AGENT`, not `Python-urllib`
+- **User-Agent:** the `Request` handed to `_open` carries `_USER_AGENT`, not `Python-urllib`.
+  Assert it as **`req.get_header("User-agent")`** — lowercase `a`. `Request.add_header` stores
+  keys `.capitalize()`d, so `Request(url, headers={"User-Agent": …})` yields
+  `headers == {"User-agent": …}` and `get_header("User-Agent")` returns **`None`** (verified
+  in a REPL). A test written with the intuitive capitalisation fails against a correct
+  implementation and reads as an implementation bug.
+- **junk elements do not abort the scan:** a derived fixture with a non-dict entry (a string
+  and a `null`) *ahead* of a usable `"G"` entry → `(880, 660)`, not `(None, None)`. This is
+  the regression guard on defensive per-entry access; it fails if the scan leans on the outer
+  `except Exception`.
+- **oversize is distinguishable:** a body of exactly `_MAX_BODY_BYTES + 1` bytes →
+  `(None, None)` **and** an oversize-specific warning, not a generic parse failure
 - **timeout argument:** `_open` receives `timeout=_TIMEOUT_SECONDS`. State precisely what this
   pins — it proves the *caller* passes the constant, and **nothing more**. The
   forgotten-`timeout=`-kwarg bug lives at `opener.open(...)` *inside* `_open`, below the patch
   point, so this test stays green on that broken build. To guard the socket timeout itself,
   add a separate assertion at the `OpenerDirector.open` / `build_opener` level, or keep `_open`
   a one-expression function and assert its body directly.
-- **redirects:** a `_NoRedirect` unit test asserting `redirect_request` refuses (or, if
-  `integrations/delivery.py` already has equivalent coverage, name that test and state the
-  reuse). Without this the one behaviour called out as an SSRF control is unfalsified —
-  and it cannot be exercised at the `_open` seam, where the handler never runs.
+- **redirects:** a **new** `_NoRedirect` unit test asserting `redirect_request` refuses.
+  There is no reuse option — `grep -rn "_NoRedirect\|redirect_request" tests/` returns
+  **nothing**, so `integrations/delivery.py` ships this handler entirely untested today and
+  an implementer must not assume otherwise. Without this the one behaviour called out as an
+  SSRF control is unfalsified, and it cannot be exercised at the `_open` seam, where the
+  handler never runs.
 - **negative cache:** two consecutive failing calls for the same id issue exactly **one**
   `_open` call
 - **kill switch** (the one test under the `False` default): `_open` never called, result
@@ -644,10 +751,25 @@ guard on promoting `_material_id`.
 - non-GeoGebra plain URL → lookup not called
 - GeoGebra host without a material id (`https://www.geogebra.org/x`) → lookup not called
 
+**`is_geogebra_iframe_url`** (the render/badge predicate, distinct from
+`geogebra_material_id`):
+- `https://www.geogebra.org/material/iframe/id/dcjktevj` → `True`
+- `https://geogebra.org/material/iframe/id/dcjktevj` → `True` (bare host)
+- `https://www.geogebra.org/m/dcjktevj` → **`False`** (a material id, but not a shape
+  `geogebra_sized_src` rewrites)
+- `https://www.geogebra.org/material/show/id/dcjktevj` → **`False`** (same reason)
+- `https://www.geogebra.org/x`, `.../classic/abc`, `http://…`, `https://example.com/…` → `False`
+
 **Render:**
-- GeoGebra material, 880×660 → `aspect-ratio: 880 / 660`, src ends `/width/880/height/660`
-- GeoGebra material, no dimensions → `aspect-ratio: 800 / 600`
-- GeoGebra material, `(800, None)` / `(None, 600)` / `(0, 0)` → `aspect-ratio: 800 / 600`
+- canonical GeoGebra iframe URL, 880×660 → `aspect-ratio: 880 / 660`, src ends
+  `/width/880/height/660`
+- canonical GeoGebra iframe URL, no dimensions → `aspect-ratio: 800 / 600`
+- canonical GeoGebra iframe URL, `(800, None)` / `(None, 600)` / `(0, 0)` →
+  `aspect-ratio: 800 / 600`
+- **`https://www.geogebra.org/m/<id>` carrying a usable 880×660** → **no** inline
+  `aspect-ratio`. This is the ratio/src-agreement guard: `geogebra_sized_src` leaves this URL
+  bare, so emitting `880 / 660` here would frame GeoGebra's 800×600 default in a 4:3 box and
+  reproduce the original defect. Reachable via the admin, which exposes the raw fields.
 - GeoGebra **host, no material id** (`/x`) → **no** inline `aspect-ratio`
 - non-GeoGebra, no dimensions → **no** inline `aspect-ratio` (16:9 CSS default stands)
 - non-GeoGebra, `(800, None)` / `(0, 0)` → no inline `aspect-ratio`
@@ -669,11 +791,17 @@ coverage re-pointed at a **non-GeoGebra** URL (a second module constant, e.g.
 failures as a defect in their own code.
 
 **Editor row:**
-- GeoGebra material without dimensions → badge present, with the tooltip text
-- GeoGebra material with dimensions → badge absent
-- GeoGebra material with a partial/zero pair → badge present (mirrors `frame_ratio`)
+- canonical GeoGebra iframe URL without dimensions → badge present, with the tooltip text
+- canonical GeoGebra iframe URL with dimensions → badge absent
+- canonical GeoGebra iframe URL with a partial/zero pair → badge present (mirrors
+  `frame_ratio` — both read `usable_dimensions`, so they cannot disagree)
+- `https://www.geogebra.org/m/<id>` → badge absent (mirrors the render case above)
 - GeoGebra host without a material id → badge absent
 - non-GeoGebra without dimensions → badge absent
+
+**Editor row layout:** at a **1130px** viewport (the editor pane's floor, the width the
+existing `.el-actions` overflow was measured at), a row carrying the badge does not overflow
+its card. This is the acceptance step for the shrinkable-flag decision in §4.
 
 **Import:** an existing round-trip test is extended to assert the import path performs no
 GeoGebra lookup, guarding the `extract_embed_url` boundary decision.
@@ -686,9 +814,11 @@ untested rather than given a test that cannot fail.
 
 - **GeoGebra changes the 800×600 default or the shell.** The 4:3 fallback would drift. Low
   impact: it governs only the degraded path, and the primary path stores real dimensions.
-- **A save depends on a network call made while holding the unit's row lock** (§2). Mitigated
-  by the first-save/URL-change-only invariant, the socket timeout, the capped read, and the
-  negative cache; explicitly accepted, with the restructuring alternative recorded.
+- **A save depends on a network call made while holding the unit's row lock** (§2). It fires
+  on a fresh element, on a URL change, **and on every save of an element whose stored pair is
+  unusable** (the retry path) — so a dimensionless element re-attempts the lookup on each
+  save once the 60s sentinel expires. Mitigated by the socket timeout, the capped read, and
+  the negative cache; explicitly accepted, with the restructuring alternative recorded.
 - **The worst-case save latency is not hard-bounded** (see Error handling). A slow-drip
   endpoint or a stalled DNS resolver can exceed the nominal 3s.
 - **A retry within 60s of a failure is suppressed** by the negative cache, and outside tests
