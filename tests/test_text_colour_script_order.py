@@ -42,7 +42,10 @@ def _expanded(path):
     partial = (TEMPLATES / PARTIAL).read_text(encoding="utf-8")
     return re.sub(
         r'{%\s*include\s+"courses/_katex_js\.html"\s*%}',
-        lambda _m: partial,  # lambda: the partial holds backslashes
+        # lambda, not a plain string: re.sub treats a string replacement's
+        # backslashes as backreferences (\1 etc). The partial has none today,
+        # but the callable form is correct regardless of what it later gains.
+        lambda _m: partial,
         text,
     )
 

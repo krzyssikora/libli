@@ -3,6 +3,11 @@
 A regex over raw source is NOT acceptable -- per this repo's own experience
 regexes match docstrings and comments. Every assertion here is over RENDERED
 output: a view response, or render_to_string for the one branch no view reaches.
+
+ONE deliberate exception: test_math_js_selector_includes_the_marker, which
+regexes math.js's raw source. A static JS file has no rendered form to assert
+on, and that regex is anchored to the querySelectorAll(...) argument, not to
+the file generally, so it cannot be satisfied by the comment describing it.
 """
 
 from decimal import Decimal
@@ -68,9 +73,9 @@ def test_math_js_selector_includes_the_marker():
 
 
 # --- the lesson page: heading, nav buttons, tree (x2), crumb ------------------
-def _lesson_body(client, *, maths_on="far", node="unitA"):
+def _lesson_body(client, *, maths_on="far", node="unitA", username="student"):
     course, unit, nodes = make_title_course(maths_on=maths_on)
-    login_student(client, course)
+    login_student(client, course, username=username)
     url = reverse(
         "courses:lesson_unit",
         kwargs={"slug": course.slug, "node_pk": nodes[node].pk},
@@ -146,25 +151,65 @@ def test_the_visible_title_keeps_its_raw_delimiters(client):
     asserts attribute presence only, stays green. KaTeX needs the delimiters in
     the TEXT; the filter belongs on the attribute alone.
 
-    Checks the four sites where the same title is interpolated twice in one tag
-    (visible text + title= tooltip), which is exactly where the mistake is made.
+    Checks the THREE true double-interpolation sites -- where the same title is
+    interpolated twice in one tag/subtree, once as visible text and once as a
+    title= tooltip, which is exactly where the mistake is made:
+      - span.unit-tree__label       (_unit_tree_node.html:15)
+      - span.unit-tree__grouptitle  (_unit_tree_node.html:25 -- the branch WITH
+        children; the childless branch at :60 has no title= at all, so it is
+        not a double-interpolation site)
+      - the crumb pair in _unit_crumbs.html: the ancestor <li title=…> (:34)
+        and its child span.unit-crumbs__label (:36)
+
+    h1.lesson-unit__title is deliberately NOT in this guard: _lesson_article.html
+    and _quiz_article.html render it with no title= attribute at all (grep
+    confirms it), so there is no second interpolation to over-strip there --
+    piping strip_math_delimiters into that lone site would be a distinct
+    (and already-impossible, since the attribute doesn't exist) mistake, not
+    the one this test is built to catch.
     """
     body = _lesson_body(client, maths_on="unitA", node="unitA")
     soup = BeautifulSoup(body, "html.parser")
 
-    for selector in ("span.unit-tree__label", "h1.lesson-unit__title"):
-        els = soup.select(f"{selector}[data-math-title]")
-        assert els, f"no marked {selector} rendered"
-        assert any("\\(" in el.get_text() for el in els), (
-            f"{selector}: the VISIBLE title lost its delimiters -- "
-            "strip_math_delimiters was applied to the text, not just title="
-        )
-
+    label_els = soup.select("span.unit-tree__label[data-math-title]")
+    assert label_els, "no marked span.unit-tree__label rendered"
+    assert any("\\(" in el.get_text() for el in label_els), (
+        "span.unit-tree__label: the VISIBLE title lost its delimiters -- "
+        "strip_math_delimiters was applied to the text, not just title="
+    )
     # ...and the tooltip on the same element IS stripped. Both halves together
     # are what distinguish "correctly wired" from "filter applied everywhere".
-    labels = soup.select("span.unit-tree__label[title]")
-    assert labels
-    assert all("\\(" not in el["title"] for el in labels)
+    label_tooltips = soup.select("span.unit-tree__label[title]")
+    assert label_tooltips
+    assert all("\\(" not in el["title"] for el in label_tooltips)
+
+    # A second render: unitC's only ancestor is part2, so maths_on="group"
+    # puts the SAME maths title on both remaining double-interpolation sites
+    # -- the group tree node and the breadcrumb ancestor -- on one page.
+    group_body = _lesson_body(
+        client, maths_on="group", node="unitC", username="student2"
+    )
+    group_soup = BeautifulSoup(group_body, "html.parser")
+
+    group_els = group_soup.select("span.unit-tree__grouptitle[data-math-title]")
+    assert group_els, "no marked span.unit-tree__grouptitle rendered"
+    assert any("\\(" in el.get_text() for el in group_els), (
+        "span.unit-tree__grouptitle: the VISIBLE title lost its delimiters -- "
+        "strip_math_delimiters was applied to the text, not just title="
+    )
+    group_tooltips = group_soup.select("span.unit-tree__grouptitle[title]")
+    assert group_tooltips
+    assert all("\\(" not in el["title"] for el in group_tooltips)
+
+    crumb_els = group_soup.select("span.unit-crumbs__label[data-math-title]")
+    assert crumb_els, "no marked span.unit-crumbs__label rendered"
+    assert any("\\(" in el.get_text() for el in crumb_els), (
+        "span.unit-crumbs__label: the VISIBLE title lost its delimiters -- "
+        "strip_math_delimiters was applied to the text, not just title="
+    )
+    crumb_tooltips = group_soup.select("li.unit-crumbs__item[title]")
+    assert crumb_tooltips
+    assert all("\\(" not in el["title"] for el in crumb_tooltips)
 
 
 # --- the quiz page ------------------------------------------------------------
