@@ -1,5 +1,376 @@
 import pytest
 
+from tests.helpers_editor_rows import open_element_form
+from tests.helpers_editor_rows import reopen
+
+# ---------------------------------------------------------------------------
+# Editor row-mechanics fixtures (the roster in the instant-row-add/remove plan).
+#
+# Every e2e opener has ONE contract: opener(page, live_server, **kwargs) ->
+# Element. It logs in, seeds the element, navigates, opens its edit form and
+# returns the **Element join row** — never the page, and never the content
+# object (the payload lives on `element.content_object`).
+# ---------------------------------------------------------------------------
+
+
+def _pa_user(username):
+    """A verified Platform Admin, created directly (not through a test client) so
+    an e2e opener can log in through the real allauth form."""
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+    from tests.factories import TEST_PASSWORD
+    from tests.factories import make_verified_user
+
+    seed_roles()
+    user = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+def _editor_login(page, live_server, username):
+    """Log in via the allauth HTML form (mirrors tests/test_e2e_questions.py)."""
+    from tests.factories import TEST_PASSWORD
+
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+
+def _editor_url(live_server, unit):
+    from django.urls import reverse
+
+    path = reverse(
+        "courses:manage_editor", kwargs={"slug": unit.course.slug, "pk": unit.pk}
+    )
+    return f"{live_server.url}{path}"
+
+
+def _lettered_pairs(n):
+    """n pairs ("a", "1"), ("b", "2"), … — distinct on both sides so an assertion
+    can tell which pair survived a remove."""
+    return [(chr(ord("a") + i), str(i + 1)) for i in range(n)]
+
+
+@pytest.fixture
+def pa_client(client):
+    """A Django test client logged in as a Platform Admin.
+
+    A PA holds `courses.change_course`, so can_manage_course() lets it author any
+    course — the seeded course needs no explicit owner.
+    """
+    from tests.factories import make_pa
+
+    make_pa(client, "pa")
+    return client
+
+
+@pytest.fixture
+def matchpair_element():
+    """Factory -> (course, unit, element) with `pairs` persisted.
+
+    `element` is the Element JOIN ROW (what the POST's `element` key and
+    `form_url` take); the pairs live on `element.content_object.pairs`.
+    """
+
+    def _make(pairs=(("France", "Paris"), ("Spain", "Madrid"))):
+        from courses.models import MatchPair
+        from courses.models import MatchPairQuestionElement
+        from tests.factories import ContentNodeFactory
+        from tests.factories import CourseFactory
+        from tests.factories import add_element
+
+        course = CourseFactory()
+        unit = ContentNodeFactory(
+            course=course, parent=None, kind="unit", unit_type="lesson"
+        )
+        question = MatchPairQuestionElement.objects.create(stem="")
+        for left, right in pairs:
+            MatchPair.objects.create(question=question, left=left, right=right)
+        return course, unit, add_element(unit, question)
+
+    return _make
+
+
+@pytest.fixture
+def open_matchpair_editor(pa_client, matchpair_element):
+    """Server-render opener: seeds a match-pairs element with `saved_pairs` pairs,
+    GETs its edit fragment and returns the HTML."""
+
+    def _open(saved_pairs=2):
+        course, _unit, element = matchpair_element(pairs=_lettered_pairs(saved_pairs))
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+@pytest.fixture
+def open_matchpair_editor_e2e(matchpair_element):
+    """e2e opener: log in a PA, seed the element, open the unit editor and swap its
+    edit form into the slot. Returns the Element join row."""
+
+    def _open(page, live_server, saved_pairs=2, username="mp_rows"):
+        _pa_user(username)
+        _course, unit, element = matchpair_element(pairs=_lettered_pairs(saved_pairs))
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk)
+        return element
+
+    return _open
+
+
+def _seed_rows_element(kind, rows):
+    """(course, unit, element) for the two retrofitted row editors.
+
+    `kind` is "stepper" or "markdone"; the child rows are created directly through
+    the ORM so the element is PRE-SEEDED (the e2e openers rely on that — a
+    pre-seeded element already has a preview node, which is why the post-save wait
+    targets the edit slot clearing rather than the preview).
+    """
+    from courses.models import MarkDoneElement
+    from courses.models import MarkDoneItem
+    from courses.models import StepperElement
+    from courses.models import StepperStep
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    if kind == "stepper":
+        obj = StepperElement.objects.create(prompt="")
+        for content in rows:
+            StepperStep.objects.create(stepper=obj, content=content)
+    elif kind == "markdone":
+        obj = MarkDoneElement.objects.create(prompt="")
+        for content in rows:
+            MarkDoneItem.objects.create(element=obj, content=content)
+    else:  # pragma: no cover - a typo'd kind must not silently seed nothing
+        raise ValueError(f"unknown row-editor kind {kind!r}")
+    return course, unit, add_element(unit, obj)
+
+
+@pytest.fixture
+def open_stepper_editor(pa_client):
+    """Server-render opener: seeds a stepper element and returns its edit HTML."""
+
+    def _open(rows=("one",)):
+        course, _unit, element = _seed_rows_element("stepper", rows)
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+@pytest.fixture
+def open_markdone_editor(pa_client):
+    """Server-render opener: seeds a checklist element and returns its edit HTML."""
+
+    def _open(rows=("one",)):
+        course, _unit, element = _seed_rows_element("markdone", rows)
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+def _seed_choice_element(options, correct_index=0, multiple=False):
+    """(course, unit, element) for a single-choice question with `options` saved.
+
+    Saved options matter: the choice formset ships extra=2, so an element seeded
+    with two options renders 4 rows — enough that a render test cannot confuse a
+    saved row with a blank extra one.
+    """
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    question = ChoiceQuestionElement.objects.create(stem="", multiple=multiple)
+    for i, text in enumerate(options):
+        Choice.objects.create(
+            question=question, text=text, is_correct=(i == correct_index)
+        )
+    return course, unit, add_element(unit, question)
+
+
+@pytest.fixture
+def open_choice_editor_html(pa_client):
+    """Server-render opener: seeds a choice question and returns its edit HTML."""
+
+    def _open(options=("Alpha", "Beta"), correct_index=0, multiple=False):
+        course, _unit, element = _seed_choice_element(
+            options, correct_index=correct_index, multiple=multiple
+        )
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+@pytest.fixture
+def open_choice_editor():
+    """e2e opener for the choice-question editor. Returns the Element JOIN ROW.
+
+    `options=[]` is the interesting seed: the formset ships extra=2, so an element
+    with no saved choices renders exactly 2 rows — which is also
+    data-fsrows-min="2", i.e. the at-minimum boundary, reached without any click.
+    """
+
+    def _open(page, live_server, options=("Alpha", "Beta"), username="choice_rows"):
+        _pa_user(username)
+        _course, unit, element = _seed_choice_element(options)
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk)
+        return element
+
+    return _open
+
+
+@pytest.fixture
+def open_stepper_editor_e2e():
+    """e2e opener for the stepper editor, seeded with `steps`. Returns the Element.
+
+    Separate from `open_element_editor` because the caller that matters here drives
+    the MAXIMUM boundary (20 steps) and reads better naming its payload `steps`;
+    `open_element_editor` keys on a `kind` and waits on the pre-retrofit row CLASS
+    so it can stay green on master, which this one never needs to do.
+    """
+
+    def _open(page, live_server, steps=("one",), username="stepper_rows"):
+        _pa_user(username)
+        _course, unit, element = _seed_rows_element("stepper", steps)
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk)
+        return element
+
+    return _open
+
+
+def _seed_switchgate_element(options, answer=0, stem="2 {{choice}} 2 = 4"):
+    """(course, unit, element) for a Choose & confirm gate.
+
+    `stem` MUST carry exactly one `{{choice}}` marker: SwitchGateElementForm.clean()
+    adds a stem error without one, and the model field is blank=True — so an
+    element seeded with an empty stem makes every save-path switchgate e2e fail
+    against a CORRECT build, with a 422 that looks like a row-mechanics bug.
+
+    It is stored as the parsed TOKEN stem, exactly as the form's save() writes it.
+    The raw U+FFFF sentinel is never pasted here (file tools corrupt it) —
+    switchgate.parse_stem builds it from fillblank's SENTINEL, the same idiom as
+    tests/test_e2e_switchgate.py's `_switchgate` helper.
+    """
+    from courses import switchgate
+    from courses.models import SwitchGateElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    obj = SwitchGateElement.objects.create(
+        stem=switchgate.parse_stem(stem), options=list(options), answer=answer
+    )
+    return course, unit, add_element(unit, obj)
+
+
+@pytest.fixture
+def switchgate_element():
+    """Factory -> (course, unit, element) for a switchgate.
+
+    `element` is the Element JOIN ROW; the options/answer live on
+    `element.content_object`.
+    """
+
+    def _make(options=("alpha", "beta"), answer=0, stem="2 {{choice}} 2 = 4"):
+        return _seed_switchgate_element(options, answer=answer, stem=stem)
+
+    return _make
+
+
+@pytest.fixture
+def open_switchgate_editor_html(pa_client, switchgate_element):
+    """Server-render opener: seeds a switchgate and returns its edit HTML."""
+
+    def _open(options=("alpha", "beta"), answer=0):
+        course, _unit, element = switchgate_element(options=options, answer=answer)
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
+@pytest.fixture
+def open_switchgate_editor(switchgate_element):
+    """e2e opener for the switchgate editor. Returns the Element JOIN ROW.
+
+    `ready` keys on the option row's CLASS rather than the new [data-sgate-list]
+    hook: the class exists before and after this task, so the RED run fails on the
+    control genuinely under test ("[data-sgate-add] not found") instead of on an
+    8-second fragment-wait timeout that proves nothing. Same reasoning as
+    open_element_editor's `.{kind}-rows li`.
+    """
+
+    def _open(
+        page,
+        live_server,
+        options=("alpha", "beta"),
+        answer=0,
+        stem="2 {{choice}} 2 = 4",
+        username="sgate_rows",
+    ):
+        _pa_user(username)
+        _course, unit, element = switchgate_element(
+            options=options, answer=answer, stem=stem
+        )
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk, ready=".el-editor__option-row")
+        return element
+
+    return _open
+
+
+@pytest.fixture
+def open_element_editor():
+    """e2e opener for the two retrofitted row editors.
+
+    `kind` is "stepper" or "markdone". Returns the Element JOIN ROW.
+
+    `ready` is passed through to `reopen`: this opener is used by the
+    no-regression test that must be GREEN on master too, where the new
+    [data-fsrows-list] hook does not exist yet, so the wait keys on the row
+    list's CLASS instead.
+    """
+
+    def _open(page, live_server, kind, rows=("one",), username="row_editor"):
+        _pa_user(username)
+        _course, unit, element = _seed_rows_element(kind, rows)
+        _editor_login(page, live_server, username)
+        page.goto(_editor_url(live_server, unit))
+        page.wait_for_selector('[data-scope="editor"]')
+        reopen(page, element.pk, ready=f".{kind}-rows li")
+        return element
+
+    return _open
+
 
 @pytest.fixture
 def course_with_image(db, tmp_path, settings):
