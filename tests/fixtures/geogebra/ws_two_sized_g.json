@@ -1,0 +1,8 @@
+{
+  "id": "derived",
+  "type": "ws",
+  "elements": [
+    {"id": 1, "type": "G", "settings": {"appName": "classic", "width": 880, "height": 660}},
+    {"id": 2, "type": "G", "settings": {"appName": "classic", "width": 800, "height": 400}}
+  ]
+}

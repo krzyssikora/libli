@@ -4,14 +4,25 @@ GeoGebra publishes one material under several URL shapes; only
 ``https://www.geogebra.org/material/iframe/id/<ID>`` renders just the worksheet
 (share links and the classic ``/material/show`` form render the full page).
 
-This is the single GeoGebra parser: recognized ``https`` inputs are rebuilt from
-scratch (host + material id, dropping any width/height/border cruft), and
-everything else is returned unchanged for ``validate_embed_url`` to judge. It
-never raises — validation stays entirely in ``validate_embed_url``.
+This module is both the single GeoGebra URL parser and the single place the GeoGebra
+API is called. Parsing functions rebuild recognized ``https`` inputs from scratch
+(host + material id, dropping any width/height/border cruft) and return everything
+else unchanged for ``validate_embed_url`` to judge; the one network function performs
+a single capped GET behind the ``GEOGEBRA_API_LOOKUP`` kill switch. Nothing here
+raises — every failure degrades to a neutral value, because these run inside form
+validation and inside page render, where an exception would 500 a save or a student
+unit page.
 """
 
+import json
+import logging
 import re
+import urllib.error
+import urllib.request
 from urllib.parse import urlsplit
+
+from django.conf import settings
+from django.core.cache import cache
 
 # Recognized hosts are hardcoded and intentionally decoupled from
 # settings.ALLOWED_EMBED_DOMAINS: this function only *rewrites*, it never
@@ -28,6 +39,17 @@ GEOGEBRA_DEFAULT_SIZE = (800, 600)  # GeoGebra's own iframe-shell fallback -> 4:
 #   dimensionless embed ALWAYS renders 800x600 whatever the material's authored size.
 #   Measured: a 4:3 wrapper leaves a 0.0px gap; today's 16:9 leaves 161.3px at the
 #   648px content width. Consumed by frame_ratio step 3 (Task 7).
+
+logger = logging.getLogger(__name__)
+
+_API_PREFIX = "https://api.geogebra.org/"
+# A module constant rather than a setting, matching the pattern of
+# integrations/delivery.py :: TIMEOUT_SECONDS = 10. The shorter 3s is chosen because
+# this call sits inside save_element's row lock.
+_TIMEOUT_SECONDS = 3
+_MAX_BODY_BYTES = 65536  # ~55x the measured 1,177-byte ws response
+_NEGATIVE_TTL_SECONDS = 60
+_USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"
 
 
 def usable_dimensions(width, height):
@@ -199,3 +221,180 @@ def geogebra_url_size(url):
         return (width, height) if usable_dimensions(width, height) else (None, None)
     except (ValueError, TypeError, IndexError):
         return None, None
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse redirects, so a URL checked at construction cannot be followed elsewhere.
+
+    Duplicated from integrations/delivery.py :: _NoRedirect deliberately rather than
+    imported: that module does `from integrations.models import WebhookDelivery` at
+    module level, and courses/models.py imports this module at module level — an
+    import would pull integrations.models into courses at app-load time. Every
+    existing courses -> integrations reference in the repo is a lazy in-function
+    import.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Body copied VERBATIM from delivery.py — it RAISES, it does not return None.
+        # The raise is then swallowed by fetch_geogebra_dimensions' bare except and
+        # degrades to the 4:3 fallback, which is the intended behaviour.
+        raise urllib.error.HTTPError(
+            req.full_url, code, "redirect refused", headers, fp
+        )
+
+
+def _open(request, timeout):
+    """The transport seam. Patched by tests; the only place the network is touched."""
+    return urllib.request.build_opener(_NoRedirect).open(request, timeout=timeout)
+
+
+def _settings_dimensions(node):
+    """(W, H) from a node's `settings` block when usable, else (None, None).
+
+    Defensive on `settings`: a non-dict settings block is SKIPPED, not fatal. The outer
+    bare `except Exception` would otherwise abort the whole elements scan on one
+    malformed entry, silently contradicting "keep scanning".
+
+    What keeps ws_non_g_first.json's `null` and string entries non-fatal is the CALLER's
+    own isinstance check in the elements loop, not the node guard below -- every call
+    site already passes a dict, so that guard is unreachable by construction. It is kept
+    as a second declared defensive branch (alongside the _API_PREFIX check) rather than
+    deleted, because this function is the obvious place for a future caller to appear.
+    Like _API_PREFIX, it therefore gets no test: a branch that cannot be driven cannot
+    be falsified to RED.
+    """
+    if not isinstance(node, dict):
+        return None, None
+    block = node.get("settings")
+    if not isinstance(block, dict):
+        return None, None
+    width, height = block.get("width"), block.get("height")
+    return (width, height) if usable_dimensions(width, height) else (None, None)
+
+
+def _dimensions_from_payload(payload, material_id):
+    """Apply the selection rule; log which of the FOUR failure modes fired."""
+    if not isinstance(payload, dict):
+        # Valid JSON that is not an object -- b"[]" or b'"x"' parse fine and would
+        # otherwise return here silently, then hit fetch's unlogged cache.set tail.
+        # Every other failure path logs; this one must too, or a live API shape change
+        # is indistinguishable from a material genuinely having no dimensions.
+        logger.warning(
+            "geogebra %s: payload is not an object (%s)",
+            material_id,
+            type(payload).__name__,
+        )
+        return None, None
+
+    width, height = _settings_dimensions(payload)
+    if usable_dimensions(width, height):
+        return width, height
+
+    elements = payload.get("elements")
+    if not isinstance(elements, list):
+        logger.warning(
+            "geogebra %s: no usable settings and no elements list", material_id
+        )
+        return None, None
+
+    sized = []
+    for entry in elements:
+        if not isinstance(entry, dict) or entry.get("type") != "G":
+            continue
+        entry_width, entry_height = _settings_dimensions(entry)
+        if usable_dimensions(entry_width, entry_height):
+            sized.append((entry_width, entry_height))
+
+    if len(sized) == 1:
+        return sized[0]
+    if sized:
+        # The iframe embeds the whole worksheet, so picking one applet's ratio would be
+        # a guess. A confidently wrong frame with size_unknown False is worse than the
+        # 4:3 fallback plus a badge.
+        logger.warning(
+            "geogebra %s: multiple sized G elements (%d), refusing to guess",
+            material_id,
+            len(sized),
+        )
+    else:
+        logger.warning(
+            "geogebra %s: no G element yielded usable dimensions", material_id
+        )
+    return None, None
+
+
+def fetch_geogebra_dimensions(material_id):
+    """The material's authored (width, height), or (None, None). All-or-nothing.
+
+    Never raises — a bare `except Exception`, matching courses/embed.py's precedent:
+    urlopen can raise RemoteDisconnected, ConnectionResetError, ssl.SSLError,
+    UnicodeDecodeError and ValueError, none of which are URLError subclasses, and
+    anything escaping into clean_url would 500 the save.
+    """
+    # Read the flag on EVERY call — capturing it at import would make every
+    # override_settings a silent no-op and let the invalid-input tests pass vacuously.
+    if not settings.GEOGEBRA_API_LOOKUP:
+        return None, None  # no cache read, no cache WRITE, no request
+
+    cache_key = f"geogebra:dims:{material_id}"
+    if cache.get(cache_key):
+        return None, None
+
+    def _fail(reason):
+        logger.warning("geogebra %s: %s", material_id, reason)
+        # truthy: None reads as a cache miss
+        cache.set(cache_key, True, _NEGATIVE_TTL_SECONDS)
+        return None, None
+
+    url = f"{_API_PREFIX}v1.0/materials/{material_id}?scope=basic"
+    if not url.startswith(_API_PREFIX):
+        # Defensive only and unreachable by construction (material_id has passed
+        # _ID_RE, so it cannot introduce a scheme or host). Deliberately untested: a
+        # branch that cannot be driven cannot be falsified to RED. The real controls
+        # are _ID_RE and _NoRedirect.
+        return None, None
+
+    try:
+        # S310 justification (mirrors integrations/delivery.py:50,122): the URL is
+        # built from a hardcoded _API_PREFIX plus an _ID_RE-validated id, so it cannot
+        # carry an attacker-chosen scheme or host, and _NoRedirect stops the opener
+        # from following one. NOTE the wording: a comment LINE beginning "# noqa: S310"
+        # is parsed by ruff as a suppression directive on a line carrying no
+        # diagnostic -- inert today, but a duplicate the moment RUF100 is selected.
+        request = urllib.request.Request(  # noqa: S310
+            url, headers={"User-Agent": _USER_AGENT}
+        )
+        with _open(request, timeout=_TIMEOUT_SECONDS) as response:
+            body = response.read(_MAX_BODY_BYTES + 1)  # +1 so oversize is detectable
+    except urllib.error.HTTPError as exc:
+        # A 4xx/5xx raises from INSIDE _open, so the `with` above is never entered and
+        # the error's own fp is never closed — close it explicitly or the 400 test
+        # surfaces an unexplained ResourceWarning.
+        try:
+            exc.close()
+        # S110 (try-except-pass) IS enabled and DOES fire here; BLE001 is not.
+        # Precedent for S110 on a handler line: tests/capture_help_screenshots.py:460.
+        except Exception:  # noqa: BLE001, S110 - closing must never mask the original
+            pass
+        return _fail(f"HTTP {exc.code}")
+    except Exception as exc:  # noqa: BLE001 - the never-raises contract
+        return _fail(f"lookup failed ({type(exc).__name__})")
+
+    if len(body) > _MAX_BODY_BYTES:
+        return _fail(f"response body oversized (>{_MAX_BODY_BYTES} bytes)")
+
+    # The parse AND the selection scan both sit inside this try. Putting
+    # _dimensions_from_payload outside it would let anything raising in the scan
+    # propagate into clean_url and 500 the save -- the exact outcome the never-raises
+    # contract exists to prevent, and worse than the abort the per-entry defensiveness
+    # already guards against.
+    try:
+        payload = json.loads(body)
+        width, height = _dimensions_from_payload(payload, material_id)
+    except Exception as exc:  # noqa: BLE001 - the never-raises contract
+        return _fail(f"unparseable payload ({type(exc).__name__})")
+
+    if not usable_dimensions(width, height):
+        cache.set(cache_key, True, _NEGATIVE_TTL_SECONDS)
+        return None, None
+    return width, height
