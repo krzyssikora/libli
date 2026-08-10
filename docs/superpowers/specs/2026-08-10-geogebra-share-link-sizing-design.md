@@ -1013,10 +1013,14 @@ reusing one material id across two assertions **within** a single test.
 - `wseg.json` → `(880, 660)` from top-level `settings`
 - `ws.json` → `(880, 660)` from `elements[0]["settings"]`
 - **derived** fixture (real `ws.json` hand-edited to put a non-`"G"` element first) → the
-  first `"G"` entry is used. Flagged as derived: no captured response exhibits this, and the
-  fixture-realism rule yields here to covering the branch.
+  **sole** `"G"` entry is used and the non-`G` entry ahead of it is skipped. Worded that way
+  deliberately: "the first `G` is used" would restate the first-wins rule the selection rule
+  explicitly rejects, and would invite a wrong first draft even though this fixture has only
+  one `G`. Flagged as derived: no captured response exhibits this, and the fixture-realism
+  rule yields here to covering the branch.
 - **derived** fixture where the first `"G"` entry has no usable pair and a later `"G"` does →
-  the later one wins (pins "keep scanning")
+  the later one is returned, because it is the **only** `G` yielding a usable pair (pins
+  "keep scanning past a `G` that does not")
 - **derived** fixture with a top-level `settings` of layout-only keys plus a usable
   `elements[0]` → falls through to the element (pins the usable-dimensions fallthrough)
 - `err_invalid_id.json` served as a 400 `HTTPError` → `(None, None)`. Note plainly: because
@@ -1130,8 +1134,16 @@ guard on promoting `_material_id`.
   URL** (step 0), both **with** stored 880×660 and **without** any stored dimensions. Falling
   to the 16:9 default here would put a 4:3 applet in a 16:9 frame — the original defect,
   mirrored.
-- `…/material/iframe/id/abc/width/800/height/400` (a non-4:3 sizing) → `aspect-ratio:
-  800 / 400`, proving step 0 reads the URL rather than assuming 4:3
+- `…/material/iframe/id/abc/width/800/height/400` **with stored 880×660** →
+  `aspect-ratio: 800 / 400`. **The disagreeing precondition is the whole point:** this is the
+  test that separates step 0 from step 2, and it is the step-0 counterpart to the `/m/<id>`
+  test that separates step 1 from step 2. Without a stored pair that *contradicts* the URL
+  tail the assertion is unfalsifiable for ordering — the `/width/880/height/660` case cannot
+  do it, because the tail and the stored pair carry the same numbers, and a dimensionless
+  element only separates step 0 from step 4. **This test fails against a step-2-first
+  implementation**, which would emit `880 / 660` around a 2:1 applet while
+  `geogebra_sized_src` left the src alone (`"width" in segments`) — violating the "never a
+  frame ratio the src does not back up" invariant that step 0 exists to enforce.
 - **step-0 rejection cases**, each → **no** inline `aspect-ratio` (fall through to step 1):
   `/width/abc/height/def`, `/width/880` (no height segment), `/width/0/height/0`,
   `/height/660/width/880` (reversed order), and
@@ -1236,10 +1248,13 @@ never issue a live GET from an e2e run.
 
 **The A/B baseline must differ only in the badge.** The comparison row is a **second**
 `IframeElement` in the same unit with an **identical `title`** and *usable* width/height (so
-`size_unknown` is False and no badge renders). Same element type keeps `.el-tag` identical;
-identical title length keeps `.el-row__label` wrapping identical. Without that discipline a
-height difference could come from a longer title rather than from the badge, and the
-assertion would be measuring the wrong thing. Row order is safe — `_element_row_controls.html`
+`size_unknown` is False and no badge renders). Same element type keeps `.el-tag` identical. Identical titles are
+belt-and-braces rather than the mechanism: `.el-row__label` (editor.css:531) is
+`white-space: nowrap` + `overflow: hidden` + ellipsis and sits as a sibling *below*
+`.el-row__top`, so a title can never wrap and never contributes to row height. **The height
+risk actually being controlled is `.el-actions` gaining a wrapped line.** Matching the titles
+anyway keeps the two rows byte-identical apart from the badge, so a measured difference has
+exactly one possible cause. Row order is safe — `_element_row_controls.html`
 is position-independent.
 
 This e2e touches no external network (it renders our editor page, not the applet), which is
@@ -1247,7 +1262,20 @@ why it is carved out of the no-e2e non-goal. Capture light and dark screenshots 
 body.
 
 **Import:** an existing round-trip test is extended to assert the import path performs no
-GeoGebra lookup, guarding the `extract_embed_url` boundary decision.
+GeoGebra lookup, guarding the `extract_embed_url` boundary decision. **This test needs a
+third seam — not the form seam — or it cannot fail.** The import path is
+`courses/transfer/payloads.py :: _val_iframe` → `_canonical_embed` → `extract_embed_url` (in
+`courses/embed.py`); it never touches `courses.element_forms`, so `assert_not_called()` on
+that module's re-export is true by construction on a correct build *and* on a build that
+added a lookup inside `extract_embed_url` — the exact regression the boundary decision
+exists to prevent. Patching `courses.geogebra.fetch_geogebra_dimensions` does not fix it
+either: the mandated from-import style means a hypothetical `embed.py` consumer would hold
+its own binding. And patching `_open` under the suite default is vacuous, because
+`GEOGEBRA_API_LOOKUP=False` short-circuits before the seam.
+
+So: wrap this one test in `override_settings(GEOGEBRA_API_LOOKUP=True)` and patch
+**`courses.geogebra._open`**, asserting it is never called. That target goes RED for a lookup
+introduced anywhere in the import path, whatever the import style.
 
 Every test is falsified to RED before it counts. The one deliberate exception is the
 `_API_PREFIX` defensive check, unreachable by construction and therefore specified as
