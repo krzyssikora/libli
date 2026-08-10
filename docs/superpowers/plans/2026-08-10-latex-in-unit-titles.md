@@ -1460,18 +1460,37 @@ def _marked_texts(html):
 
 
 def _marked(html, selector):
+    """Elements matching `selector` that carry the marker attribute.
+
+    Attribute presence ONLY -- deliberately not a text check, because several
+    fixtures below mark maths-free titles on purpose (the analytics leaf headers
+    under maths_on="group" are the clearest case). The "visible text keeps its
+    delimiters" property is pinned separately, by
+    test_the_visible_title_keeps_its_raw_delimiters.
+    """
     return BeautifulSoup(html, "html.parser").select(f"{selector}[data-math-title]")
 
 
 # --- math.js's selector -------------------------------------------------------
 def test_math_js_selector_includes_the_marker():
+    """Anchored to the querySelectorAll ARGUMENT, not to the file.
+
+    A bare `"[data-math-title]" in src` is satisfied by the COMMENT this same
+    task writes above renderInlineText ("Inline \\(...\\) math typed into ... a
+    node TITLE ([data-math-title], ...)"), so dropping the entry from the actual
+    selector would leave it green -- the single most load-bearing line of the
+    feature, undetected until the Task 11 e2e six tasks later. This file's own
+    docstring says regexes match comments; that cuts both ways."""
+    import re
     from pathlib import Path
 
     src = (
         Path(__file__).resolve().parent.parent
         / "courses/static/courses/js/math.js"
     ).read_text(encoding="utf-8")
-    assert "[data-math-title]" in src
+    assert re.search(
+        r'querySelectorAll\(\s*"[^"]*\[data-math-title\][^"]*"\s*\)', src
+    ), "[data-math-title] is not in renderInlineText's querySelectorAll argument"
 
 
 # --- the lesson page: heading, nav buttons, tree (x2), crumb ------------------
@@ -1541,6 +1560,37 @@ def test_the_childless_container_branch_is_marked():
         },
     )
     assert _marked(html, "span.unit-tree__grouptitle")
+
+
+def test_the_visible_title_keeps_its_raw_delimiters(client):
+    """THE OVER-APPLICATION GUARD, and the only test that catches it.
+
+    The most natural way to get this feature wrong is to pipe the VISIBLE
+    interpolation through |strip_math_delimiters as well as the title=
+    attribute. That silently disables typesetting on every marked surface while
+    leaving the attribute in place -- so every other marker test here, which
+    asserts attribute presence only, stays green. KaTeX needs the delimiters in
+    the TEXT; the filter belongs on the attribute alone.
+
+    Checks the four sites where the same title is interpolated twice in one tag
+    (visible text + title= tooltip), which is exactly where the mistake is made.
+    """
+    body = _lesson_body(client, maths_on="unitA", node="unitA")
+    soup = BeautifulSoup(body, "html.parser")
+
+    for selector in ("span.unit-tree__label", "h1.lesson-unit__title"):
+        els = soup.select(f"{selector}[data-math-title]")
+        assert els, f"no marked {selector} rendered"
+        assert any("\\(" in el.get_text() for el in els), (
+            f"{selector}: the VISIBLE title lost its delimiters -- "
+            "strip_math_delimiters was applied to the text, not just title="
+        )
+
+    # ...and the tooltip on the same element IS stripped. Both halves together
+    # are what distinguish "correctly wired" from "filter applied everywhere".
+    labels = soup.select("span.unit-tree__label[title]")
+    assert labels
+    assert all("\\(" not in el["title"] for el in labels)
 
 
 # --- the quiz page ------------------------------------------------------------
@@ -1655,18 +1705,29 @@ def test_analytics_matrix_leaf_headers_are_marked(client):
     leaf_th = "th.analytics__colhead:not(.analytics__group)"
     expandable = _marked(matrix, f"{leaf_th} a.analytics__expand")
     plain = _marked(matrix, f"{leaf_th} span")
-    assert expandable, "the expandable leaf header (<a class=analytics__expand>) is unmarked"
-    assert plain, "the non-expandable leaf header (<span>) is unmarked"
+    assert expandable, "expandable leaf header <a> is unmarked"
+    assert plain, "non-expandable leaf header <span> is unmarked"
 
 
 def test_analytics_breakdown_titles_are_marked(client):
-    """BOTH unit branches plus the group branch. The quiz branch (:6) and the
-    lesson branch (:24) share the class `breakdown-unit__title`, so a single
-    truthiness check is satisfied by either one alone -- the count is what pins
-    both. The fixture seeds four lesson units and one quiz unit."""
+    """BOTH unit branches plus the group branch, selected DISTINCTLY.
+
+    The quiz branch (:6) and the lesson branch (:24) share the class
+    `breakdown-unit__title`, so neither a truthiness check nor a `>= 2` count
+    pins them: the fixture has THREE lesson units and one quiz, so dropping the
+    quiz marker still leaves three marked spans and `3 >= 2` passes. What
+    separates them structurally is the pill -- the quiz branch always emits one
+    (`{% with p=item.pill %}`), the lesson branch never does."""
     _m, breakdown = _analytics_bodies(client, maths_on="far")
-    units = _marked(breakdown, "span.breakdown-unit__title")
-    assert len(units) >= 2, "only one of the quiz/lesson unit branches is marked"
+    quiz = _marked(
+        breakdown, "div.breakdown-unit:has(.pill) > span.breakdown-unit__title"
+    )
+    lesson = _marked(
+        breakdown,
+        "div.breakdown-unit:not(:has(.pill)) > span.breakdown-unit__title",
+    )
+    assert quiz, "the quiz unit branch (_breakdown_node.html:6) is unmarked"
+    assert lesson, "the lesson unit branch (:24) is unmarked"
     assert _marked(breakdown, "span.breakdown-node__title")
 
 
@@ -1881,7 +1942,34 @@ def test_the_rename_result_payload_is_neither_marked_nor_filtered(client):
     assert payload is not None, "the rename fragment did not render _rename_result.html"
     assert payload["value"] == MATHS_TITLE
     assert "data-math-title" not in payload.attrs
+
+
+def test_the_builder_rename_input_is_neither_marked_nor_filtered(client):
+    """The THIRD Path-C edit buffer, and the only one not otherwise pinned.
+
+    `_tree_node.html:49` is `<input class="tree__title" type="text" name="title"
+    value="{{ node.title }}">`. The plan's own note stresses that :49 (permanent
+    edit buffer) and :50 (deferred builder tooltip) are different kinds of site
+    in the same tag -- exactly the confusion a later builder task could resolve
+    wrongly with nothing red. Rendered via the builder page.
+    """
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, order=0,
+        title=MATHS_TITLE,
+    )
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url).content.decode()
+    field = BeautifulSoup(body, "html.parser").select_one("input.tree__title")
+    assert field is not None, "the builder rename input did not render"
+    assert field.get("value") == MATHS_TITLE      # unfiltered
+    assert "data-math-title" not in field.attrs   # unmarked
 ```
+
+> `courses:manage_builder` is verified in `courses/urls.py:161`. The unit is seeded at **top
+> level** deliberately: the builder lazy-loads nested scopes (`tests/test_builder_lazy_scopes.py`),
+> so a nested unit's row may not be in the first render and the selector would find nothing.
 
 > The **token** idiom above — a real ISO `token` from `node.updated`, not a sentinel string —
 > matches `tests/test_builder_lazy_scopes.py:698-707`. Note that call is **not** a model for
@@ -2085,12 +2173,13 @@ The failure mode is *"the marker went on the shared parent, so a student name or
 2. Move it in `quiz_results.html:12` from the inner `<span>` to the `<h1>` → `test_quiz_results_heading_marks_the_title_alone` FAILS.
 3. Move it in `editor.html:75` from the per-ancestor `<span>` to `.editor-crumb__path` → `test_editor_crumb_marks_each_ancestor_title_not_the_path` FAILS.
 4. Add `data-math-title` to `_unit_settings.html:12`'s `<input>` → `test_the_editor_settings_title_input_is_neither_marked_nor_filtered` FAILS.
-5. Drop `[data-math-title]` from the `math.js` selector → `test_math_js_selector_includes_the_marker` FAILS.
+5. Drop `[data-math-title]` from the `math.js` **`querySelectorAll` argument** while leaving the comment above `renderInlineText` untouched → `test_math_js_selector_includes_the_marker` FAILS. If it passes, the assertion is matching the comment rather than the selector and the test is worthless — fix the test, not the mutant.
 6. Drop the marker from `notes/course_notes.html:16`, `tags/_tag_section.html:25` and `tags/panel_page.html:5` — **all three at once** → exactly the three new notes/tags tests FAIL and nothing in Task 9 does. That asymmetry is the point: those three sites are the ones Task 9's asset assertions cannot see.
 7. Move the `panel_page.html:5` marker from the inner `<span>` to the `<h1>` → `test_tags_panel_heading_marks_the_title_alone` FAILS on the `not _marked(body, "h1")` assertion.
 8. Drop the marker from `_unit_footer.html:14` (prev) only, leaving `:48` → `test_nav_button_titles_are_marked` FAILS on the `== 2` count. With the old `node="unitA"` fixture this mutant was invisible.
-9. Drop the marker from `_breakdown_node.html:6` (the quiz branch) only, leaving `:24` → `test_analytics_breakdown_titles_are_marked` FAILS on the `>= 2` count.
+9. Drop the marker from `_breakdown_node.html:6` (the quiz branch) only, leaving `:24` → `test_analytics_breakdown_titles_are_marked` FAILS on the `quiz` assertion. (A count-based assertion could **not** catch this — three lesson units keep the total above any small threshold — which is why the two branches are selected via `:has(.pill)`.)
 10. Drop the marker from `review_queue.html:30` (the in-progress branch) only, leaving `:15` → `test_review_queue_marks_the_title_alone_not_the_student_name` FAILS on the `== 2` count.
+11. **The over-application mutant**: add `|strip_math_delimiters` to the *visible* interpolation at `_unit_tree_node.html:15` (so the tag reads `title="{{ …|strip_math_delimiters }}" data-math-title>{{ item.node.title|strip_math_delimiters }}`) → `test_the_visible_title_keeps_its_raw_delimiters` FAILS, and **every other marker test stays green**. That asymmetry is the point: this is the one mistake that silently disables the whole feature while leaving all the attributes in place.
 
 Revert each.
 
@@ -2567,7 +2656,8 @@ and add `"has_math": has_math,` to the context dict.
 
 ```python
     # build_course_results builds "rows" with rows.append (rollups.py:369, :383,
-    # :399), so it is a real list -- scanning it here and then passing it to the template
+    # :399), so it is a real list -- scanning it here and then passing it to
+    # the template
     # iterates it twice safely. Were it a generator, the scan would exhaust it and
     # the page would render EMPTY, a silent severe failure no test here would
     # catch, which is why the return type is pinned rather than assumed.
@@ -3000,8 +3090,9 @@ def test_tags_hub_recolor_error_branch_also_loads_katex(client):
         {"color": "not-a-real-colour"},
     )
     assert resp.status_code == 422
-    assert MATHS_TITLE in resp.content.decode(), "the error branch did not re-render the hub"
-    _assert_katex_present(resp.content.decode())
+    body = resp.content.decode()
+    assert MATHS_TITLE in body, "the error branch did not re-render the hub"
+    _assert_katex_present(body)
 
 
 def _tags_panel_response(client, title):
@@ -3324,30 +3415,41 @@ def test_both_display_rules_are_present_neither_alone_suffices():
     assert re.search(r"\[data-math-title\]\s+\.katex-display\s*>\s*\.katex\s*\{", css)
 
 
-def _has_rule(css, selector):
-    """True iff `selector` heads an actual RULE, not merely a mention.
+def _rule_body(css, selector):
+    """The declaration block of the (possibly grouped) rule `selector` heads.
 
-    Both stylesheets gain long comment blocks that name several of these class
-    names, so a bare `selector in css` check passes today only because those
-    comments happen to omit the ` .katex` suffix -- an incidental property, not a
-    designed one. Match up to the `{` (allowing a comma, i.e. the selector being
-    one member of a grouped rule) so a documentation edit can never satisfy it.
+    Returns None if `selector` never heads a rule. Matching up to the `{` --
+    allowing a comma, i.e. the selector being one member of a grouped rule --
+    means a documentation edit can never satisfy it: both stylesheets gain long
+    comment blocks naming several of these class names, and they pass today only
+    because those comments happen to omit the ` .katex` suffix, which is an
+    incidental property rather than a designed one.
     """
-    return re.search(re.escape(selector) + r"\s*[,{]", css) is not None
+    m = re.search(re.escape(selector) + r"\s*[,{][^{}]*\{([^}]*)\}", css)
+    return m.group(1) if m else None
 
 
-def test_the_analytics_clamp_lives_in_app_css():
-    """The analytics pages have no courses.css."""
+def test_the_analytics_clamp_lives_in_app_css_and_actually_clamps():
+    """The analytics pages have no courses.css.
+
+    Asserts the DECLARATIONS, not just the selector: a rule with an empty body --
+    or one carrying line-height:1.2 -- would satisfy a selector-only check while
+    clamping nothing, and the clamp's whole purpose is those two properties. The
+    analytics sticky header is the most fragile surface in the change (a cell
+    taller than --ahead-h desynchronises every sticky row beneath it)."""
     css = _app()
     for sel in (
         ".analytics__matrix thead th .katex",
         ".breakdown-unit__title .katex",
         ".breakdown-node__title .katex",
     ):
-        assert _has_rule(css, sel), f"missing analytics clamp rule: {sel}"
+        body = _rule_body(css, sel)
+        assert body is not None, f"missing analytics clamp rule: {sel}"
+        assert "line-height: 1;" in body, f"{sel} does not clamp line-height"
+        assert "vertical-align: baseline" in body, f"{sel} lacks baseline align"
 
 
-def test_the_unit_chrome_clamp_lives_in_courses_css():
+def test_the_unit_chrome_clamp_lives_in_courses_css_and_actually_clamps():
     css = _courses()
     for sel in (
         ".unit-foot__navtitle .katex",
@@ -3355,7 +3457,23 @@ def test_the_unit_chrome_clamp_lives_in_courses_css():
         ".unit-tree__grouptitle .katex",
         ".unit-crumbs__label .katex",
     ):
-        assert _has_rule(css, sel), f"missing unit-chrome clamp rule: {sel}"
+        body = _rule_body(css, sel)
+        assert body is not None, f"missing unit-chrome clamp rule: {sel}"
+        assert "line-height: 1;" in body, f"{sel} does not clamp line-height"
+        assert "vertical-align: baseline" in body, f"{sel} lacks baseline align"
+
+
+def test_the_display_child_override_does_not_touch_white_space():
+    """The vendor's `.katex-display>.katex{white-space:nowrap}` must SURVIVE.
+
+    A formula must not break mid-formula, and an <h1> is white-space:normal, so
+    `white-space: inherit` here would hand the formula back exactly the wrapping
+    the vendor rule prevents. Spec §3's code block says `inherit` while its own
+    prose says nowrap is "which we in fact want to keep for a formula" -- the
+    prose is right, and this test is what pins it."""
+    body = _rule_body(_app(), "[data-math-title] .katex-display > .katex")
+    assert body is not None
+    assert "white-space" not in body
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -3411,13 +3529,23 @@ Append to `core/static/core/css/app.css`:
 [data-math-title] .katex-display {                      /* (0,2,0) > (0,1,0) */
   display: inline-block; margin: 0; text-align: inherit;
 }
-/* DEFENSIVE, not load-bearing -- see above. It neutralises text-align:center (a
-   no-op inside a shrink-to-fit box) and white-space:nowrap (which we in fact
-   want to keep for a formula). The child combinator is REQUIRED: the vendor's
-   `.katex-display>.katex` is (0,2,0), identical to `[data-math-title] .katex`,
-   so reaching (0,3,0) is the only way to win without relying on source order. */
+/* DEFENSIVE, not load-bearing -- see above. It neutralises the vendor's
+   text-align:center (a no-op inside a shrink-to-fit box anyway).
+
+   white-space is DELIBERATELY NOT OVERRIDDEN, so the vendor's
+   `white-space: nowrap` survives. A formula must not break mid-formula, and an
+   <h1> is white-space:normal -- so `white-space: inherit` here would hand the
+   formula back exactly the wrapping the vendor rule exists to prevent.
+   (KNOWING DEVIATION FROM THE SPEC: §3's code block lists
+   `white-space: inherit` while its own prose says nowrap is "which we in fact
+   want to keep for a formula". The prose is right and the declaration was
+   wrong; the test below pins the prose. Record this in the PR body.)
+
+   The child combinator is REQUIRED: the vendor's `.katex-display>.katex` is
+   (0,2,0), identical to `[data-math-title] .katex`, so reaching (0,3,0) is the
+   only way to win without relying on source order. */
 [data-math-title] .katex-display > .katex {             /* (0,3,0) > (0,2,0) */
-  display: inline-block; text-align: inherit; white-space: inherit;
+  display: inline-block; text-align: inherit;
 }
 
 /* The analytics clamp lives here, not in courses.css: neither analytics page
@@ -3487,6 +3615,8 @@ Expected: 8 passed.
 3. *Restore only `font-size`*: delete `font-weight: inherit; font-style: inherit;` → `test_font_size_weight_and_style_are_all_restored` FAILS.
 4. *Put the global rules in `courses.css` instead* → `test_the_global_normalisation_lives_in_app_css_not_courses_css` FAILS on both assertions.
 5. *Add `line-height: 1.2` to the global rule* → `test_line_height_is_not_inherited_by_the_global_rule` FAILS.
+6. *Empty the clamp bodies*: keep both clamp selectors but delete their declarations (`… .katex { }`) → both `…_actually_clamps` tests FAIL. Repeat with `line-height: 1.2` in place of `line-height: 1` — same result. A selector-only assertion would have passed both variants while clamping nothing.
+7. *Restore `white-space: inherit`* to `[data-math-title] .katex-display > .katex` → `test_the_display_child_override_does_not_touch_white_space` FAILS. This is the spec-deviation guard; if you "fix" the CSS back to the spec's literal code block, this test is what tells you.
 
 Revert each.
 
@@ -3516,7 +3646,11 @@ git commit -m "feat(css): normalise KaTeX sizing and display math inside node ti
 
 **Why an e2e is required here.** The defect this feature fixes is precisely one a template-level assertion cannot see: the template is correct and the **asset gate** is what fails. Only a real browser proves a `.katex` element actually appears.
 
-- [ ] **Step 1: Write the failing e2e**
+- [ ] **Step 1: Write the e2e**
+
+> **Unlike every earlier task, this file is expected GREEN on its first run.** All the
+> implementation landed in Tasks 1–10, so there is no RED phase here — the RED evidence for
+> these two tests is Step 3's mutant. Do not go hunting for a failure that should not exist.
 
 Create `tests/test_e2e_title_math.py`:
 
@@ -3650,7 +3784,7 @@ def test_render_inline_text_main_thread_cost_is_recorded(browser, live_server, c
     assert stats["count"] > 0, "no [data-math-title] elements on the page"
     # The pass must have done REAL work -- otherwise the number above is a walk of
     # an already-typeset tree and the whole measurement is vacuous.
-    assert stats["withMaths"] > 0, "math.js was not actually blocked; DOM already typeset"
+    assert stats["withMaths"] > 0, "math.js not blocked; DOM already typeset"
     assert stats["rendered"] > 0, "the timed pass produced no KaTeX output"
 ```
 
@@ -3714,14 +3848,19 @@ TITLES = {
     # (key, title) -- each one exists to exercise a specific §3 claim
     "inline":   r"Rozwiaz \(x^2 + 2x + 1 = 0\) metoda delty",
     "display":  r"Rozwiaz \[\int_0^1 x^2\,dx\] i zapisz wynik",   # .katex-display
-    "long":     r"Bardzo dlugi tytul lekcji z formula \(\sum_{i=1}^{n} a_i b_i\) na koncu",
-    "mixed_h1": r"Policz \(a_1\) oraz \[\frac{p}{q}\] i porownaj",  # forced-inline + weight
+    # (long) -- wraps past the 5-line group clamp and every single-line clip
+    "long": r"Bardzo dlugi tytul lekcji z formula \(\sum_{i=1}^{n} a_i b_i\) na koncu",
+    # (mixed_h1) -- the forced-inline decision AND the font-weight restoration
+    "mixed_h1": r"Policz \(a_1\) oraz \[\frac{p}{q}\] i porownaj",
     "plain":    "Lekcja bez matematyki",
 }
 ```
 
 Course shape: **part A** (title = `TITLES["long"]`, to exercise the 5-line group clamp)
-containing chapter A1 (title = `TITLES["inline"]`) containing three lesson units titled
+containing chapter A1 (**title = `TITLES["long"]`** — `_unit_crumbs.html:33` marks
+`forloop.last` of `unit_nav.ancestors` as the crumb **leaf**, and for any lesson under A1 that
+leaf is A1 itself; giving A1 a short title makes row 4 unshootable, because the long title
+would sit on part A, which renders as `--mid`) containing three lesson units titled
 `TITLES["mixed_h1"]`, `TITLES["display"]` and `TITLES["long"]` in that order — so the middle
 unit's page shows a display-maths **prev** and a long **next** in one shot; plus **part B**
 (title = `TITLES["inline"]`) with one quiz unit titled `TITLES["long"]`, giving the analytics
