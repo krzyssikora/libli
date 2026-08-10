@@ -40,8 +40,10 @@
           <p>{{ row.review_feedback }}</p>
         </div>
       {% endif %}
-      {% if row.reveal_template and row.outcome != "correct" %}
-        {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices answered=row.answered %}
+      {% comment %}show_reveal is computed in views._results_row: `A and B or C` binds
+      as `(A and B) or C` in a template, which is not the rule here.{% endcomment %}
+      {% if row.show_reveal %}
+        {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices answered=row.answered marks=row.marks %}
       {% endif %}
       {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" and row.outcome != "reviewed" %}
         <div class="question__explanation">{{ row.question.explanation|safe }}</div>

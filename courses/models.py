@@ -1970,7 +1970,7 @@ class ChoiceQuestionElement(QuestionElement):
 
     RESTORABLE_IN_LESSON = True
 
-    # A locked quiz marks its OPTIONS LIST inline (see _choice_marks), so the bottom
+    # A locked quiz marks its OPTIONS LIST inline (see choice_marks), so the bottom
     # reveal list would echo the same answer key twice — and echo it detached from the
     # options. The lesson path already suppresses it via render()'s reveal_template
     # override below; this is the quiz half of the same rule.
@@ -2012,7 +2012,7 @@ class ChoiceQuestionElement(QuestionElement):
         "missed": ("＋", _("correct answer, not chosen")),
     }
 
-    def _choice_marks(self, choices, selected, mark_result, mode, locked):
+    def choice_marks(self, choices, selected, mark_result, mode, locked):
         """Per-option outcome markers: {choice pk: "correct"|"wrong"|"missed"}.
 
         QUIZ — marks appear only once the question LOCKS, and then cover every
@@ -2026,6 +2026,11 @@ class ChoiceQuestionElement(QuestionElement):
         options the author wrote feedback for, and only where the selection state
         is wrong (mark_result.annotated), so a lesson never grows a tick it did
         not have. A lesson leaves its inputs live, so the radio dot still reads.
+
+        Public because the RESULTS page needs the same vocabulary from a different
+        renderer: it has no live controls, so _reveal_choice.html is its only
+        vehicle. views._results_row calls this with mode="quiz", locked=True (a
+        submitted question is terminal by definition).
         """
         if mark_result is None:
             return {}
@@ -2095,7 +2100,7 @@ class ChoiceQuestionElement(QuestionElement):
         # for signature uniformity but unused (choices repopulate from selected_ids).
         choices = list(self.choices.all())
         selected = set(selected_ids or ())
-        marks = self._choice_marks(choices, selected, mark_result, mode, locked)
+        marks = self.choice_marks(choices, selected, mark_result, mode, locked)
         unit = element.unit if element is not None else None
         if action_url is None and unit is not None:
             action_url = reverse(

@@ -1675,6 +1675,7 @@ def _results_row(question, response):
         "reveal_result": None,
         "reveal_template": None,
         "choices": None,
+        "marks": None,
         "answered": response is not None and response.latest_answer is not None,
         "review_feedback": (response.review_feedback if response else ""),
         "review_earned": (response.earned_marks if response else None),
@@ -1714,6 +1715,32 @@ def _results_row(question, response):
         row["reveal_template"] = question.REVEAL_TEMPLATE
         if isinstance(question, ChoiceQuestionElement):
             row["choices"] = list(question.choices.all())
+            # Per-option markers, same vocabulary the locked quiz page uses. Without
+            # these _reveal_choice.html shows the answer KEY only — it was the one
+            # reveal partial of seven that never marked the student's own answer, so
+            # a multi-select row could not distinguish a correct option the student
+            # picked from one they missed. locked=True: a submitted question is
+            # terminal, so the withhold window is over by definition.
+            row["marks"] = question.choice_marks(
+                row["choices"],
+                selected_ids(
+                    answer_from_json(question, response.latest_answer)
+                    if response is not None and response.latest_answer is not None
+                    else set()
+                ),
+                row["reveal_result"],
+                "quiz",
+                True,
+            )
+    # Suppress the reveal on a correct outcome ONLY for types whose reveal is the
+    # answer key alone — echoing it would tell the student nothing they did not just
+    # get right. A reveal that marks their OWN answer (choice) still says WHAT they
+    # answered, which the results page is otherwise the only place to see, and a
+    # submitted quiz redirects here. Precomputed: `A and B or C` binds the wrong way
+    # in a template.
+    row["show_reveal"] = bool(row["reveal_template"]) and (
+        row["outcome"] != "correct" or bool(row["marks"])
+    )
     return row
 
 

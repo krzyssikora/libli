@@ -266,6 +266,15 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
 }
 .question__reveal--blanks { margin: var(--space-2) 0; padding-left: 1.25rem; }
 .question__reveal-item.answer-wrong { color: var(--danger); }
+/* Per-option outcome marker in the choice reveal (results page). Separate from
+   .question__choice-marker, which is tuned for the interactive options list and
+   carries its indent; here the marker sits inline after the option text. */
+.question__reveal-mark { margin-left: var(--space-2); font-weight: 600; }
+.question__reveal-mark--correct { color: var(--success); }
+.question__reveal-mark--wrong { color: var(--danger); }
+/* A correct option the student did NOT pick: amber "you missed this", never the
+   affirming green of --success. Matches .question__choice-marker--missed. */
+.question__reveal-mark--missed { color: var(--warning); }
 .question__reveal-text { margin: var(--space-1) 0; }
 
 /* ── Quiz & lesson pages (student consumption) layout ─────────────────────────
