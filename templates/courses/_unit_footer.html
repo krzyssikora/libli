@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n courses_extras %}
 <footer class="unit-foot">
   {% if unit_nav.course_progress.total %}
     <div class="unit-foot__course" title="{% blocktrans with done=unit_nav.course_progress.done total=unit_nav.course_progress.total %}Course progress {{ done }} of {{ total }}{% endblocktrans %}">
@@ -34,7 +34,7 @@
       {% if unit_nav.part_progress %}
         {% comment %}title= surfaces the part NAME on hover so part_progress.title has a
            consumer; the visible chip stays "PART d/t". Desktop-only (hidden ≤640px).{% endcomment %}
-        <span class="unit-foot__part" title="{{ unit_nav.part_progress.title }}">
+        <span class="unit-foot__part" title="{{ unit_nav.part_progress.title|strip_math_delimiters }}">
           {% trans "Part" %} {{ unit_nav.part_progress.done }}/{{ unit_nav.part_progress.total }}
           <span class="unit-foot__bar"><i style="width: {% widthratio unit_nav.part_progress.done unit_nav.part_progress.total 100 %}%"></i></span>
         </span>

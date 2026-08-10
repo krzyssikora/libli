@@ -1,4 +1,4 @@
-{% load i18n %}{% get_current_language as LANGUAGE_CODE %}
+{% load i18n courses_extras %}{% get_current_language as LANGUAGE_CODE %}
 {% comment %}Student breadcrumb: the path TO this unit. The current unit is deliberately
 NOT a crumb — the <h1> immediately below already names it. Only the course crumb is a
 link; part/chapter/section have no student-facing page.
@@ -24,14 +24,14 @@ attribute, which holds the same author content.{% endcomment %}
       mids structurally, so a blank mid title would empty the string while a crumb was
       still hidden. Rendered at every width; CSS reveals it below the breakpoint.{% endcomment %}
       <li class="unit-crumbs__item unit-crumbs__item--ellipsis" role="listitem"
-          lang="{{ course.language }}" title="{{ unit_nav.hidden_path }}">
+          lang="{{ course.language }}" title="{{ unit_nav.hidden_path|strip_math_delimiters }}">
         <span class="unit-crumbs__sep" aria-hidden="true">›</span>
-        <span class="unit-crumbs__label">…<span class="visually-hidden">{{ unit_nav.hidden_path }}</span></span>
+        <span class="unit-crumbs__label">…<span class="visually-hidden">{{ unit_nav.hidden_path|strip_math_delimiters }}</span></span>
       </li>
     {% endif %}
     {% for a in unit_nav.ancestors %}
       <li class="unit-crumbs__item unit-crumbs__item--{% if forloop.last %}leaf{% else %}mid{% endif %}"
-          role="listitem" lang="{{ course.language }}" title="{{ a.title }}">
+          role="listitem" lang="{{ course.language }}" title="{{ a.title|strip_math_delimiters }}">
         <span class="unit-crumbs__sep" aria-hidden="true">›</span>
         <span class="unit-crumbs__label">{{ a.title }}</span>
       </li>

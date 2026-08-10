@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static courses_extras %}
-{% block head_title %}{{ unit.title }} — {% trans "results" %} — libli{% endblock %}
+{% block head_title %}{{ unit.title|strip_math_delimiters }} — {% trans "results" %} — libli{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% load i18n static %}
-{% block head_title %}{% trans "Review" %} · {{ submission.unit.title }} · libli{% endblock %}
+{% load i18n static courses_extras %}
+{% block head_title %}{% trans "Review" %} · {{ submission.unit.title|strip_math_delimiters }} · libli{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}

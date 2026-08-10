@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% load i18n static %}
-{% block head_title %}{{ unit.title }} — {% trans "Editor" %}{% endblock %}
+{% load i18n static courses_extras %}
+{% block head_title %}{{ unit.title|strip_math_delimiters }} — {% trans "Editor" %}{% endblock %}
 {% block body_class %}editor-page{% endblock %}
 {% comment %}The before/after element's degraded-state CSS is keyed on
 html:not(.ba-js): it un-hides the side headings and hides the toggle. The

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load i18n static courses_extras %}
-{% block head_title %}{{ unit.title }} — libli{% endblock %}
+{% block head_title %}{{ unit.title|strip_math_delimiters }} — libli{% endblock %}
 {% block prepaint %}
 {% if has_reveal_gate %}
 <script>
