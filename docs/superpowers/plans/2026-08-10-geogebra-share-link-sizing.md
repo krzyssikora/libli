@@ -23,7 +23,7 @@
 - **Where new test imports go.** Each task's test block shows the *tests*; put every new import at the **top of the module**, in the existing single-line isort-ordered import block. Do **not** paste import lines mid-file: ruff selects `E` and `I`, only `S105/S106/S107` are ignored under `tests/**`, so mid-file imports fire `E402` and `I001` and the final `ruff check .` gate goes red for reasons unrelated to the feature. (`config/settings/test.py` carries an explicit `# noqa: E402` for exactly this rule.)
 - **Keep every line of pasted code at or under 88 characters.** `ruff`'s `E` selection includes **E501** and the repo sets no `line-length` override, so the default 88 applies (verified: an 89-char line reports `E501 Line too long`). This matters more than it looks — the final gate runs `ruff check .` *before* `ruff format .`, and roughly half of this plan's long lines are **comments and docstrings, which `ruff format` cannot rewrap at all**. Every code block below has been wrapped to fit; if you re-flow one while editing, re-check its width.
 - **`urllib.request.Request` needs `# noqa: S310`** with a one-line justification, mirroring `integrations/delivery.py:50,122`.
-- **The `# noqa: BLE001` markers on the bare `except Exception` handlers are anticipatory, not active.** `pyproject.toml` selects `["E", "F", "I", "UP", "B", "S"]`, so `BLE` is not enabled and the suppression currently does nothing (`RUF100` is not selected either, so an inert `noqa` is not itself flagged). Keep them — they document the intent and pre-empt a future `BLE` selection — but do not read them as evidence a lint rule is being silenced today, and do not "fix" a `BLE` failure that cannot occur.
+- **The `# noqa: BLE001` markers on the bare `except Exception` handlers are anticipatory, not active — but `S110` on one of them IS active.** `pyproject.toml` selects `["E", "F", "I", "UP", "B", "S"]`, so `BLE` is not enabled and that half of the suppression currently does nothing (`RUF100` is not selected either, so an inert `noqa` is not itself flagged). Keep it — it documents intent and pre-empts a future `BLE` selection. **However**, `S` *is* selected, and `S110` (try-except-pass) fires on the one handler whose body is a bare `pass` — the `exc.close()` guard in `fetch_geogebra_dimensions`. That handler must carry `# noqa: BLE001, S110` or the final `ruff check .` gate goes red; the repo's precedent for the same suppression is `tests/capture_help_screenshots.py:460`. Do not generalise "the noqa does nothing" from BLE001 to the whole comment.
 - **`element_forms.py` must use the from-import style** (`from courses.geogebra import fetch_geogebra_dimensions`) — the form tests patch `courses.element_forms.fetch_geogebra_dimensions`, which only exists under that style.
 - **Run `uv run ruff format .` LAST**, after every other edit — CI gates on `ruff format --check`.
 
@@ -115,7 +115,10 @@ Reference counts, as measured 2026-08-10 against the `libli` dev DB:
 
 **If the dev DB is unavailable or holds no mat-pp rows, that is a third outcome, not a violation.** `manage.py` defaults `DATABASE_URL` to `postgres://libli:libli@localhost:5432/libli`, so with the Postgres server down this step dies with a connection error rather than printing counts, and a fresh checkout prints nothing at all. In either case the predicate is *unevaluated*, not *false*: record that in the PR body and proceed — the design decision it guards (no backfill) is only actionable on a database that actually holds mat-pp.
 
-Note the counting predicate is a deliberately *looser superset* of `is_geogebra_iframe_url` — it omits the https-scheme and `_ID_RE` checks, so it can over-count "canonical". It over-counted by zero on the measured data. A fifth bucket, `'unparseable'`, appears only if some stored URL has a malformed authority; any rows landing there should be reported alongside the counts, since they are the shape every `never raises` guard in this plan exists for.
+**Both** counting predicates are deliberately *looser* than the runtime ones, and both matter:
+
+- the **shape** leg is a looser superset of `is_geogebra_iframe_url` — it omits the https-scheme and `_ID_RE` checks, so it can over-count "canonical". It over-counted by zero on the measured data.
+- the **dimension** leg, `bool(o.width and o.height)`, is looser than `usable_dimensions`: it counts an over-`DIM_MAX` or otherwise unusable stored pair as `True` — i.e. as "sized" — while the feature treats exactly that row as *unknown* (badge + `800 / 600`). Such a row would hide inside `('mat-pp', 'canonical', True)` and defeat the gate's purpose. If you want the census and the runtime to agree exactly, `from courses.geogebra import usable_dimensions` in the snippet and use `usable_dimensions(o.width, o.height)` for the third tuple element — but note that import only exists **after Task 1**, so on a first pass either run the census as written and treat the `True` bucket as an upper bound, or re-run it after Task 1. A fifth bucket, `'unparseable'`, appears only if some stored URL has a malformed authority; any rows landing there should be reported alongside the counts, since they are the shape every `never raises` guard in this plan exists for.
 
 ---
 
@@ -1177,7 +1180,9 @@ def fetch_geogebra_dimensions(material_id):
         # surfaces an unexplained ResourceWarning.
         try:
             exc.close()
-        except Exception:  # noqa: BLE001 - closing must never mask the original failure
+        # S110 (try-except-pass) IS enabled and DOES fire here; BLE001 is not. Precedent
+        # for this exact pairing: tests/capture_help_screenshots.py:460.
+        except Exception:  # noqa: BLE001, S110 - closing must never mask the original
             pass
         return _fail(f"HTTP {exc.code}")
     except Exception as exc:  # noqa: BLE001 - the never-raises contract
@@ -1205,19 +1210,29 @@ def fetch_geogebra_dimensions(material_id):
 
 - [ ] **Step 6: Rewrite the module docstring**
 
-The current docstring ends *"It never raises — validation stays entirely in `validate_embed_url`"* and describes a pure-parsing module with no network, no cache and no settings dependency. All three are now false. Replace the module docstring's closing paragraph with:
+The current docstring (`courses/geogebra.py:1-11`) describes a pure-parsing module with no network, no cache and no settings dependency. All three are now false.
+
+**Keep paragraphs 1 and 2 verbatim (lines 1-5); replace only the third paragraph (lines 7-10).** The result, in full, so there is nothing to infer:
 
 ```python
-"""...
+"""Canonicalize a recognized GeoGebra material URL to the worksheet-only embed URL.
+
+GeoGebra publishes one material under several URL shapes; only
+``https://www.geogebra.org/material/iframe/id/<ID>`` renders just the worksheet
+(share links and the classic ``/material/show`` form render the full page).
 
 This module is both the single GeoGebra URL parser and the single place the GeoGebra
-API is called. Parsing functions rebuild recognized https inputs from scratch and return
-everything else unchanged; the one network function performs a single capped GET behind
-the GEOGEBRA_API_LOOKUP kill switch. Nothing here raises — every failure degrades to a
-neutral value, because these run inside form validation and inside page render, where an
-exception would 500 a save or a student unit page.
+API is called. Parsing functions rebuild recognized ``https`` inputs from scratch
+(host + material id, dropping any width/height/border cruft) and return everything
+else unchanged for ``validate_embed_url`` to judge; the one network function performs
+a single capped GET behind the ``GEOGEBRA_API_LOOKUP`` kill switch. Nothing here
+raises — every failure degrades to a neutral value, because these run inside form
+validation and inside page render, where an exception would 500 a save or a student
+unit page.
 """
 ```
+
+The deleted sentence to look for is *"It never raises — validation stays entirely in `validate_embed_url`"*: still half-true (it does not raise), but its claim that validation lives entirely elsewhere no longer holds once a network call and a settings read are in here.
 
 - [ ] **Step 7: Run tests to verify they pass**
 
@@ -1750,10 +1765,13 @@ Two *form* tests also change meaning on this branch — `test_form_bare_url_past
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_iframe_dimensions.py -v`
-Expected: FAIL, with **two distinct failure modes** — Global Constraints require the observed reason to match the stated one, so check both:
+Expected: FAIL, with **three distinct failure modes** — Global Constraints require the observed reason to match the stated one, so check all three:
 
 - the new **render** tests fail with `aspect-ratio: 800 / 600` absent (the template still tests `el.width and el.height`);
-- `test_size_unknown_drives_the_editor_badge` and `test_url_change_with_a_failed_lookup_leaves_the_element_badged` fail with `AttributeError: 'IframeElement' object has no attribute 'size_unknown'`.
+- `test_size_unknown_drives_the_editor_badge` and `test_url_change_with_a_failed_lookup_leaves_the_element_badged` fail with `AttributeError: 'IframeElement' object has no attribute 'size_unknown'`;
+- `test_render_material_url_that_sized_src_will_not_rewrite_claims_no_ratio` fails because an **unexpected** ratio is present — the old template emits the stored `880 / 660` for `/m/<id>` — not because `800 / 600` is missing.
+
+**Ten further new assertions will NOT appear in this RED output at all**, because they are already true against the unedited template. That is expected, not a miscount; Step 5 is where they get their own mutants.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -1856,18 +1874,26 @@ Expected: PASS — no collateral damage.
 
 - [ ] **Step 5: Falsify the absence-assertions with over-emission mutants**
 
-Step 2's RED run does **not** cover eight of this task's assertions. Every test that asserts `"aspect-ratio:" not in html` is **already true against the unedited template**, so it passed at Step 2 and has never discriminated:
+Step 2's RED run does **not** cover **ten** of this task's assertions — they are already true against the unedited template, so they passed at Step 2 and have never discriminated. This is the same defect the plan fixes in Task 8 (the hides-badge test) and Task 9 (assertions 2-4); Task 7 is the largest task and must not be the one that skips it.
 
-`test_render_non_geogebra_without_dimensions_keeps_the_css_default`, `test_render_non_geogebra_partial_or_zero_pair_keeps_the_css_default`, `test_render_geogebra_host_without_a_material_id_keeps_the_css_default`, `test_render_step0_rejection_cases_fall_through_to_no_inline_ratio` (all four params), `test_render_rejects_style_injection_from_the_url`, `test_render_non_geogebra_url_with_width_height_segments_gets_no_ratio`, `test_render_never_raises_on_a_malformed_authority`, and the `(None, None)` half of `test_render_degenerate_shapes_follow_the_stored_pair`.
+**The mutants below were derived by tracing each test through `frame_ratio`'s five steps, not by guessing.** The subtlety that makes the obvious table wrong: the step-0 rejection cases and the style-injection URL all carry a material id **and** have `"width" in segments`, so `is_geogebra_iframe_url` is False and they return `None` at **step 1** — they never reach step 4 at all. A step-4 mutant therefore cannot touch them.
 
-This is the same defect the plan fixes in Task 8 (the hides-badge test) and Task 9 (assertions 2-4); Task 7 is the largest task and must not be the one that skips it. Their red condition is **over**-emission, so apply these two mutants — one at a time, from a clean tree, reverting between:
+Apply one mutant at a time, from a clean tree, reverting between each:
 
-| mutant | edit | expected red |
+| mutant | edit to `courses/models.py` (or `geogebra.py`) | expected RED |
 |---|---|---|
-| A | `frame_ratio` step 4: `return "800 / 600"` instead of `return None` | every non-GeoGebra absence test, the step-0 rejection cases, the style-injection test, the malformed-authority test |
-| B | `frame_ratio` step 1: delete the `and not is_geogebra_iframe_url(self.url)` clause so step 1 stops guarding | `test_render_material_url_that_sized_src_will_not_rewrite_claims_no_ratio`, and the step-0 rejection cases via the stored pair |
+| **A** | `frame_ratio` **step 4**: `return "800 / 600"` instead of `return None` | `test_render_non_geogebra_without_dimensions_keeps_the_css_default`; `test_render_non_geogebra_partial_or_zero_pair_keeps_the_css_default` (both params); `test_render_geogebra_host_without_a_material_id_keeps_the_css_default`; `test_render_non_geogebra_url_with_width_height_segments_gets_no_ratio`; the `(None, None)` half of `test_render_degenerate_shapes_follow_the_stored_pair` |
+| **B** | `frame_ratio` **step 1**: delete the whole two-line `if` block | `test_render_material_url_that_sized_src_will_not_rewrite_claims_no_ratio` (falls through to step 2 and emits the stored `880 / 660`) |
+| **C** | **A and B together** | the four `test_render_step0_rejection_cases_fall_through_to_no_inline_ratio` params, and `test_render_rejects_style_injection_from_the_url` — all five exit at step 1 on a correct build, so only removing step 1 lets them reach the over-emitting step 4 |
+| **D** | `geogebra_url_size`: replace the validation tail (`isdecimal` check, `int()`, `usable_dimensions`) with `return raw_width, raw_height`; **and** `frame_ratio` step 0's gate with `if url_width and url_height:` | `test_render_rejects_style_injection_from_the_url` — this is the **security** mutant: it puts the raw `1;position:fixed;top:0;height:100vh` text into the `style` attribute, which is a strictly stronger claim than mutant C's "some ratio appeared" |
+| **E** | `geogebra_url_size`: delete the `except (ValueError, TypeError, IndexError)` handler | `test_render_never_raises_on_a_malformed_authority` — `urlsplit("https://[::1").hostname` raises `ValueError` and the render 500s |
+| **F** | `frame_ratio` **step 2**: add `and is_geogebra_iframe_url(self.url)` to its condition, scoping it to GeoGebra | `test_render_non_geogebra_with_a_usable_pair_still_gets_its_ratio`; the `(880, 660)` half of `test_render_degenerate_shapes_follow_the_stored_pair` |
 
-Record which assertions went red under each. **Any assertion that cannot be made to fail under either mutant must be deleted or escalated** — the Global Constraints rule, applied here exactly as in Tasks 8 and 9. Note that mutant A also reddens genuinely-positive tests (they assert a *different* ratio); that is expected collateral, not a signal.
+**Note why B is the whole block, not just its second clause.** Deleting only `and not is_geogebra_iframe_url(self.url)` leaves `if geogebra_material_id(self.url): return None`, which fires on *more* URLs — so `/m/<id>` still returns `None` and the named test stays **green**. Removing the guard means removing the step.
+
+**Mutants A, C and F also redden genuinely-positive tests** (they assert a *different* ratio, or lose one they should keep). That is expected collateral, not a signal — judge each mutant only against its own expected-RED column.
+
+Record which assertions went red under each. **Any assertion that cannot be made to fail under any mutant must be deleted or escalated** — the Global Constraints rule, applied here exactly as in Tasks 8 and 9. Note that mutants D and E cover assertions guarding a stated **security boundary** and a **never-raises** contract respectively; if either cannot be driven red, escalate rather than delete, and say so in the PR.
 
 - [ ] **Step 6: Commit**
 
@@ -2222,8 +2248,13 @@ Seed it, then capture — **seeding first, capture loop second, and re-navigatin
         # .screenshot() would hang until it timed out rather than failing clearly.
         page.goto(_editor_url(live_server, quiz_unit))
         assert "inactive in quizzes" in page.content()   # see the precondition below
+        # .revealgate-row__body, NOT .el-row__top: the revealgate branch of
+        # _element_row.html (lines 18-35) renders `.el-row__body revealgate-row__body`
+        # and has no .el-row__top at all -- that class appears only in the six other
+        # branches. A .el-row__top locator here resolves to zero elements and
+        # .screenshot() blocks until the Playwright timeout instead of failing.
         page.locator(
-            f"[data-element='{gate_join.pk}'] .el-row__top"
+            f"[data-element='{gate_join.pk}'] .revealgate-row__body"
         ).screenshot(path=str(out / f"revealgate-{theme}.png"))
 ```
 
@@ -2233,11 +2264,17 @@ Seed it, then capture — **seeding first, capture loop second, and re-navigatin
 
 Capture light + dark and confirm the flag is still legible and still reads as a warning — the shrink properties are scoped away from it (`.el-row__top > .el-row__flag`), so it must NOT have become truncatable.
 
-- [ ] **Step 5: Register the module in `scripts/e2e_chunks.sh`, then commit**
+- [ ] **Step 5: Register the module in `scripts/e2e_chunks.sh` — MANDATORY — then commit**
 
-That script enumerates e2e files by name and is **already known to be stale** (it covers a subset of the existing modules, so "I ran the full suite" via chunks is measurably incomplete). Adding a module without registering it silently widens that gap, and this test would then never run in a chunked sweep.
+This is **not** an optional tidy-up that can be "recorded as accepted". The script now defines `verify_coverage()`, which diffs `pytest -m e2e --collect-only` against the `C1..C7` lists and returns 1 with `!!! CHUNK COVERAGE IS STALE -- refusing to claim a full run.`; the `all` path runs `verify_coverage || exit 1`. An unregistered module therefore breaks **every** full chunked run, not merely its own coverage. (The script's header still describes the historical "84 of 97" gap — that is the defect `verify_coverage` was added to fix, not a description of today's behaviour.)
 
-Add `tests/test_e2e_editor_row_layout.py` to the appropriate chunk. If the script's structure makes that non-obvious, **say so explicitly in the PR body** and record the omission as accepted — do not leave it unmentioned, which is indistinguishable from not having noticed.
+**Append `tests/test_e2e_editor_row_layout.py` to `C3`**, alphabetically after `tests/test_e2e_editor.py` — that chunk already holds `test_e2e_editor.py`, `test_e2e_editor_force_open.py`, `test_e2e_editor_preview_state_regression.py`, `test_e2e_editor_scroll_containment.py`, `test_e2e_editor_unit_token.py`, `test_e2e_editor_view_toggle.py` and `test_e2e_editor_ws3.py`, so it is right on both naming and balance.
+
+Verify before committing:
+
+```bash
+bash scripts/e2e_chunks.sh check     # expect: "coverage ok: ..."
+```
 
 ```bash
 git add tests/test_e2e_editor_row_layout.py scripts/e2e_chunks.sh
@@ -2269,8 +2306,9 @@ If you need to search, use the **`Grep` tool**, not `uv run grep` — Task 1 Ste
 
 **There are no fixtures to substitute — the signature is empty.** `test_full_course_round_trip_new_course_shape` (line 259) and `test_full_course_round_trip_graph_equality` (line 277) both take **no parameters**; they call module-level helpers directly and get DB access from the autouse `tests/conftest.py::_enable_db_access`. Reuse exactly three of those helpers: `_mk_full_source_course()`, `write_archive(source, None, buf)` and `_import_zip(buf, importer)` (with `importer = UserFactory()`).
 
+No `@pytest.mark.django_db` — `tests/test_transfer_import.py:49` already sets `pytestmark = pytest.mark.django_db` for the whole module, and the round-trip tests you are mirroring carry no such decorator.
+
 ```python
-@pytest.mark.django_db
 @override_settings(GEOGEBRA_API_LOOKUP=True)
 def test_course_import_performs_no_geogebra_lookup():
     """extract_embed_url is shared by the authoring form AND course import. The lookup
@@ -2328,10 +2366,13 @@ git commit -m "test(transfer): pin that course import performs no GeoGebra looku
 
 ```bash
 docker compose -f docker-compose.test.yml up -d
-uv run python scripts/affected_tests.py          # ~30s targeted selection
 uv run pytest -n 2                                # unit suite
-uv run pytest -m e2e -n 2                         # e2e suite
+bash scripts/e2e_chunks.sh                        # e2e suite, in seven chunks
 ```
+
+**Use the chunk runner for e2e, not `uv run pytest -m e2e -n 2`.** The e2e suite runs far past the Bash tool's 10-minute foreground ceiling, and the script's own header records that backgrounded runs were killed within seconds of starting — which is exactly why the chunk runner exists. A direct invocation here gets reaped mid-run, and "I ran the full e2e suite" would be false. `scripts/e2e_chunks.sh` runs `verify_coverage` first (so Step 5's registration is enforced) and then seven in-ceiling chunks. If you must run pytest directly anyway, launch it with `Start-Process` and poll the PID rather than backgrounding it.
+
+**`scripts/affected_tests.py` is advisory and runs nothing.** Its own docstring says "Suggest the pytest commands worth running for a diff. Advisory, never authoritative." Use it *while iterating* — run the commands it prints instead of the whole unit suite — but it is not a step in this gate, which is the one place the full suite is the point.
 
 Never run two pytest invocations at once — the main repo currently has its own branch checked out and a concurrent run will fight over the test database.
 
