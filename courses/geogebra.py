@@ -155,3 +155,47 @@ def geogebra_sized_src(url, width, height):
         return f"{url.rstrip('/')}/width/{width}/height/{height}"
     except (ValueError, TypeError, IndexError):
         return url
+
+
+def geogebra_url_size(url):
+    """(W, H) from a canonical GeoGebra URL's /width/W/height/H tail, else (None, None).
+
+    Drives frame_ratio step 0: such a URL sizes the applet itself, so the frame must
+    match IT rather than the stored columns or the 16:9 default.
+
+    Scoped to GeoGebra on purpose — a bare "the path contains width" rule would fire
+    on other providers and give them an inline ratio they do not have today.
+
+    Positional, not index-searched: the pair must sit at fixed offsets right after the
+    id, so a `width` at any other depth is never picked up. Segments AFTER offset 7 are
+    ignored -- GeoGebra's real embed src ships .../width/1600/height/763/border/888888/
+    sfsb/true, and a `len == 8` rule would reject it, leaving the wrapper at 16:9 while
+    the src imposes 1600/763. A trailing repeat therefore loses to the first pair.
+
+    Returns validated ints, NEVER raw path text. frame_ratio's value is interpolated
+    into style="aspect-ratio: ...", and Django's autoescape does not escape ';' or ':',
+    both legal in a path segment — raw text would let an admin-stored URL inject CSS
+    declarations. Never raises.
+    """
+    try:
+        parts = urlsplit(url)
+        if parts.scheme != "https":
+            return None, None
+        if (parts.hostname or "").lower() not in _GEOGEBRA_HOSTS:
+            return None, None
+        segments = parts.path.split("/")[1:]
+        if len(segments) < 8 or segments[:3] != ["material", "iframe", "id"]:
+            return None, None
+        if segments[4] != "width" or segments[6] != "height":
+            return None, None
+        if not _ID_RE.match(segments[3]):
+            return None, None
+        raw_width, raw_height = segments[5], segments[7]
+        # .isdecimal(), not .isdigit(): isdigit accepts Unicode superscripts that
+        # int() then rejects with ValueError.
+        if not (raw_width.isdecimal() and raw_height.isdecimal()):
+            return None, None
+        width, height = int(raw_width), int(raw_height)
+        return (width, height) if usable_dimensions(width, height) else (None, None)
+    except (ValueError, TypeError, IndexError):
+        return None, None

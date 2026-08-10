@@ -4,6 +4,7 @@ from courses.geogebra import DIM_MAX
 from courses.geogebra import canonicalize_geogebra_url
 from courses.geogebra import geogebra_material_id
 from courses.geogebra import geogebra_sized_src
+from courses.geogebra import geogebra_url_size
 from courses.geogebra import is_geogebra_iframe_url
 from courses.geogebra import usable_dimensions
 
@@ -185,3 +186,60 @@ def test_is_geogebra_iframe_url(url, expected):
 
 def test_is_geogebra_iframe_url_never_raises_on_malformed_authority():
     assert is_geogebra_iframe_url("https://[::1") is False
+
+
+# --- geogebra_url_size: frame_ratio step 0, the URL-sized-applet override ---
+
+_BASE = "https://www.geogebra.org/material/iframe/id/abc"
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        (f"{_BASE}/width/880/height/660", (880, 660)),
+        (f"{_BASE}/width/800/height/400", (800, 400)),     # non-4:3: read, not assumed
+        (f"{_BASE}/width/abc/height/def", (None, None)),   # non-numeric
+        (f"{_BASE}/width/880", (None, None)),              # height segment missing
+        (f"{_BASE}/width/0/height/0", (None, None)),       # fails usable_dimensions
+        (f"{_BASE}/height/660/width/880", (None, None)),   # reversed order
+        # Trailing segments after offset 7 are IGNORED, so the first positional pair
+        # wins. Same rule that admits GeoGebra's real border/sfsb cruft below.
+        (f"{_BASE}/width/880/height/660/width/999", (880, 660)),
+        (_BASE, (None, None)),                             # no tail at all
+        # scoped to GeoGebra: another provider with width/height path segments
+        ("https://player.vimeo.com/video/1/width/4/height/3", (None, None)),
+        # non-https
+        (
+            "http://www.geogebra.org/material/iframe/id/abc"
+            "/width/880/height/660",
+            (None, None),
+        ),
+    ],
+)
+def test_geogebra_url_size(url, expected):
+    assert geogebra_url_size(url) == expected
+
+
+def test_geogebra_url_size_reads_geogebras_real_embed_tail():
+    # THE regression guard on the len(segments) rule. This is the shape GeoGebra's own
+    # embed code ships, already pinned verbatim at tests/test_geogebra.py:15 -- 12
+    # segments, not 8. A `len(segments) != 8` rule rejects it, frame_ratio then claims
+    # NO ratio (is_geogebra_iframe_url is False because "width" in segments), and the
+    # wrapper keeps 16:9 while the src imposes 1600/763 -- the original defect.
+    url = (
+        "https://www.geogebra.org/material/iframe/id/egZJdjsC"
+        "/width/1600/height/763/border/888888/sfsb/true"
+    )
+    assert geogebra_url_size(url) == (1600, 763)
+
+
+def test_geogebra_url_size_rejects_style_injection():
+    # ';' and ':' are legal in a path segment and Django's autoescape does not
+    # escape them. Returning raw text here would inject CSS declarations into the
+    # style attribute. Must reject, and must return ints when it does not.
+    hostile = f"{_BASE}/width/1;position:fixed;top:0;height:100vh/height/1"
+    assert geogebra_url_size(hostile) == (None, None)
+
+
+def test_geogebra_url_size_never_raises_on_malformed_authority():
+    assert geogebra_url_size("https://[::1") == (None, None)
