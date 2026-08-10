@@ -98,9 +98,13 @@ was reported). Naming the database matters: a count taken against a mat-pp-free 
 would say nothing about the real content set.
 
 Because `frame_ratio` keys on URL **shape** as well as on dimensions (§3), the census is
-split by both. The counting predicate for "canonical" is the same one
-`is_geogebra_iframe_url` uses: GeoGebra host, segments starting
-`["material","iframe","id"]`, no `width` segment.
+split by both. The counting predicate for "canonical" is a deliberately **looser superset**
+of `is_geogebra_iframe_url`: GeoGebra host, segments starting `["material","iframe","id"]`,
+no `width` segment — but it omits the https-scheme check and the `_ID_RE` id check that the
+real predicate applies. So it can over-count, classifying as "canonical" a row the predicate
+would reject (an `http://` URL, or an id failing the charset gate). It over-counts by zero
+here — every row measured is https with a clean id — but a re-run on different data must
+apply the stricter clauses before trusting the "canonical" column.
 
 | course | URL shape | dimensions | rows |
 |---|---|---|---|
@@ -225,12 +229,16 @@ instead of silently at 16:9.
 
 ## Architecture / components
 
-Seven deliverables, in five sections: (1) the lookup helper, predicates, and the rewritten
-module docstring in `courses/geogebra.py`; (2) the `clean_url` capture; (3) the two model
-properties and the consumption-template switch; (4) the editor badge **and** its new
-`.el-row__flag` CSS rule **and** the Polish catalog entries; (5) the `GEOGEBRA_API_LOOKUP`
+Nine deliverables, in five sections: (1) the lookup helper, the three predicates
+(`usable_dimensions`, `is_geogebra_iframe_url`, `geogebra_url_size`), and the rewritten module
+docstring in `courses/geogebra.py`; (1b) the `_INT_MAX` → `DIM_MAX` fold in
+`courses/embed.py`, **three** sites including the `_dimension` docstring, gated on
+`grep -rn "_INT_MAX"` returning zero hits; (2) the `clean_url` capture; (3) the two model
+properties and the consumption-template switch; (4) the editor badge **and** the new
+`.el-row__flag` CSS rules **and** the Polish catalog entries; (5) the `GEOGEBRA_API_LOOKUP`
 flag in **both** `config/settings/base.py` and `config/settings/test.py`, plus its
-`.env.example` line.
+`.env.example` line. Test-side, three checked-in fixtures under `tests/fixtures/geogebra/`
+(`ws.json`, `wseg.json`, `err_invalid_id.json`) plus the derived variants named in Testing.
 
 ### 1. Lookup helper — `courses/geogebra.py`
 
@@ -257,6 +265,7 @@ DIM_MAX = 2147483647          # PositiveIntegerField ceiling; no underscore — 
 
 def usable_dimensions(width, height) -> bool    # the shared dimension predicate — see §3
 def is_geogebra_iframe_url(url) -> bool         # the render/badge predicate — see §3
+def geogebra_url_size(url) -> tuple[int, int] | tuple[None, None]   # frame_ratio step 0
 def _open(request, timeout)                     # the transport seam tests patch
 def geogebra_material_id(url) -> str            # the lookup gate
 def fetch_geogebra_dimensions(material_id) -> tuple[int, int] | tuple[None, None]
@@ -287,10 +296,43 @@ cross a module boundary are public, names that do not (`_open`, `_API_PREFIX`,
 `_TIMEOUT_SECONDS`, `_MAX_BODY_BYTES`, `_NEGATIVE_TTL_SECONDS`, `_USER_AGENT`, `_ID_RE`) keep
 the underscore.
 
-**Both predicates never raise, and that contract is new.** `geogebra_material_id` and
-`is_geogebra_iframe_url` are called on arbitrary stored URLs *during page render*
-(`frame_ratio`/`size_unknown` run while a student unit template renders) and inside
-`clean_url`. Today the `try/except (ValueError, TypeError, IndexError)` around
+**`geogebra_url_size(url)` — the parser behind `frame_ratio` step 0.** A URL of the form
+`…/material/iframe/id/<id>/width/<W>/height/<H>` sizes the applet itself, so the frame must
+match *it*. This needs its own function: `is_geogebra_iframe_url` returns **`False`** for
+exactly that shape (the `"width" in segments` clause), so neither existing predicate can
+serve, and without a named home an implementer would inline `urlsplit(...).path.split("/")`
+inside `IframeElement.frame_ratio` — on the render path, with no guard.
+
+Its contract, all three parts load-bearing:
+
+- **Scoped like the other predicates, not to any URL carrying `width`/`height` segments.**
+  It requires https, a GeoGebra host, and `segments[:3] == ["material","iframe","id"]`. A
+  bare "the path contains `width`" rule would fire on a stored
+  `https://player.vimeo.com/video/1/width/4/height/3` and give a non-GeoGebra embed an inline
+  ratio it does not have today — contradicting the "no change to non-GeoGebra embeds"
+  non-goal. The justification for step 0 ("such a URL sizes the applet itself") is a fact
+  about the GeoGebra iframe shell only.
+- **Validated exactly like every other dimension source.** Both segments must be present, in
+  the literal `…/width/W/height/H` order, parse as decimal ints, and pass
+  `usable_dimensions` (1..`DIM_MAX`). Anything else — `/width/abc/height/def`, `/width/880`
+  with no height, `/width/0/height/0`, a reversed `…/height/H/width/W`, or a repeated `width`
+  segment — returns `(None, None)` and falls through to step 1.
+
+  **This is a security boundary, not tidiness.** `frame_ratio`'s value is interpolated into
+  `style="aspect-ratio: {{ el.frame_ratio }}"`. Django's autoescape covers `< > & " '` — it
+  does **not** escape `;` or `:`, both of which are legal in a URL path segment. An
+  admin-stored `…/width/1;position:fixed;top:0;height:100vh/height/1` would otherwise inject
+  arbitrary declarations into the style attribute, on precisely the path this design already
+  identifies as "reachable through the admin, which exposes `url` raw". Returning ints, never
+  strings, closes it: the rendered value is built from two validated integers.
+- **Never raises**, under the same guard as the predicates below.
+
+**All three predicates never raise, and that contract is new.** `geogebra_material_id`,
+`is_geogebra_iframe_url` and `geogebra_url_size` are called on arbitrary stored URLs *during
+page render* (`frame_ratio`/`size_unknown` run while a student unit template renders) and
+inside `clean_url`. `geogebra_url_size` matters most here because it runs **first** in
+`frame_ratio`, ahead of every other branch — an unguarded `urlsplit("https://[::1")` there
+500s the student unit page before any fallback can be reached. Today the `try/except (ValueError, TypeError, IndexError)` around
 `urlsplit`/`.hostname` lives in `canonicalize_geogebra_url`, because a malformed authority
 such as `https://[::1` really does raise. Promoting `_material_id` without carrying that
 guard across would let a single bad row — written by an admin or a future importer — 500 the
@@ -474,7 +516,10 @@ consequence:** a retry within 60 seconds of a failure is suppressed. Note also t
 `LocMemCache` applies — outside tests this bound is per worker process, not per site.
 
 **Kill switch.** When `settings.GEOGEBRA_API_LOOKUP` is false, return `(None, None)`
-immediately — no cache read, no request. **The flag is read inside
+immediately — no cache read, **no cache write**, no request. The write half matters: the
+natural refactor to a shared `return _fail(mid)` exit that logs *and* caches would poison the
+sentinel for 60s on the kill-switch path, so flipping the flag back on would still
+short-circuit for a minute on every id an author had touched while it was off. **The flag is read inside
 `fetch_geogebra_dimensions` on every call, never captured at import time.** A module-level
 `LOOKUP = settings.GEOGEBRA_API_LOOKUP` would make every `override_settings(...=True)` a
 silent no-op; the positive-assertion tests would catch that, but the invalid-input tests
@@ -610,8 +655,13 @@ merely said "positive int" would accept `2147483648` from the API, assign it, an
 psycopg *integer out of range* on `form.save()` — a 500 on the exact path the never-raises
 contract exists to protect.
 
-Every consumer uses it: the parser's selection rule, `clean_url`'s guards, `frame_ratio`, and
-`size_unknown`. That is what stops the badge and the ratio from ever disagreeing, and it pins
+Every consumer uses it: the parser's selection rule, `geogebra_url_size`, `clean_url`'s
+guards, `frame_ratio`, and `size_unknown`. **One deliberate exception:** `geogebra_sized_src`
+stays unchanged and keeps its bare-truthiness gate (`if not (width and height): return url`).
+The two cannot diverge for a DB-loaded row — `width`/`height` are `PositiveIntegerField`, so a
+stored value is either `None` or an int within range — but render tests build **in-memory**
+`IframeElement`s where the values are unconstrained, so a test author must not assume the
+`usable_dimensions` contract holds inside that function. That is what stops the badge and the ratio from ever disagreeing, and it pins
 down the partial/zero cases that independently-nullable columns allow (`check_int_or_null` in
 the transfer validator admits `(800, None)` and `(0, 0)` from an archive).
 
@@ -642,9 +692,10 @@ therefore diverge on two shapes, both deliberate and both tested:
 | `…/material/iframe/id` (no id) | would append `/width/…` | `False` (`IndexError` → the never-raises guard) | appending to an id-less URL yields a nonsense src; claiming a ratio for it would be worse |
 | `…/material/iframe/id/ab%20cd` | would append `/width/…` | `False` (charset) | an id we would refuse to look up is not one whose ratio we should assert |
 
-In both, the frame falls back to 16:9 while the src may be sized — the mirror-direction gap
-step 0 closes for the `/width/` shape but which is unreachable here, since neither URL can be
-produced by `clean_url` (both fail `extract_embed_url`/`_ID_RE`) and both are degenerate.
+In both, the frame falls back to 16:9 while the src may be sized. That is the same
+mirror-direction gap step 0 closes for the `/width/` shape. Here it is harmless: neither URL
+can be produced by `clean_url` (both fail `extract_embed_url`/`_ID_RE`), and both are
+degenerate shapes an admin would have to hand-write.
 
 Host membership is explicitly *not* the test: `https://www.geogebra.org/x` (a shape the LAL
 parser stores un-canonicalized) and `https://www.geogebra.org/classic/abc` sit on a GeoGebra
@@ -684,16 +735,18 @@ def size_unknown(self):
     will not size them either."""
 ```
 
-`frame_ratio` resolves in **four** ordered steps. The first one is easy to omit and its
-omission silently reintroduces the original bug:
+`frame_ratio` resolves in **five** ordered steps, numbered 0–4. Steps 0 and 1 are easy to
+omit and their omission silently reintroduces the original bug in one direction or the other:
 
-0. **The URL already carries `/width/W/height/H` segments → `"W / H"` read from the URL.**
+0. **`geogebra_url_size(self.url)` returns a usable pair → `"W / H"` from those ints.**
    Such a URL sizes the applet itself, so the frame must match *it*, not the stored columns
    and not 16:9. Without this step the shape falls to step 4 and gets the CSS 16:9 default
    around an 880×660 applet — reproducing the original defect in the mirror direction, with
    `size_unknown` False so no badge explains it. The ratio/src invariant runs **both** ways:
    never a frame ratio the src does not back up, and never a src ratio the frame does not
-   back up. (Reachable through the admin, which exposes `url` raw.)
+   back up. (Reachable through the admin, which exposes `url` raw.) The value comes from
+   `geogebra_url_size`'s validated ints — never from raw path text; see §1 for why that is a
+   security boundary and not a style preference.
 1. **`geogebra_material_id(self.url)` truthy AND `is_geogebra_iframe_url(self.url)` false
    → `None`.** A GeoGebra material in a shape `geogebra_sized_src` will not rewrite *and*
    which carries no sizing of its own. Stored dimensions must be *ignored* here, because
@@ -757,33 +810,45 @@ violating the repo's "every view ships styled" rule rather than satisfying it. A
 beside `.el-tag` (editor.css:79), mirroring its token usage:
 
 ```css
-.el-row__flag {
-  font-size: .7rem; color: var(--text-secondary);
+/* Typography only — applies to this badge AND the existing revealgate flag. */
+.el-row__flag { font-size: .7rem; color: var(--text-secondary); }
+.el-row__flag[title] { cursor: help; }
+/* Shrink behaviour is scoped to the badge's own context, NOT shared — see below. */
+.el-row__top > .el-row__flag {
   flex: 0 1 auto; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.el-row__flag[title] { cursor: help; }
 ```
 
-**It must be shrinkable.** `editor.css` records a measurement directly above
-`.el-actions { flex-wrap: wrap }`: at a 1130px viewport (the editor pane's floor)
-`.el-row__top` offers **196px** while the action bar alone wants **250px**, and the bar
-overflowed the card by 41px precisely *"because every child is a nowrap inline-flex form the
-bar could not shrink"*. Adding an **unshrinkable** ~20-character span to a width budget
-already 54px in deficit would reintroduce that defect.
+**The shrink properties are deliberately not shared with the revealgate flag.** That flag
+(`_element_row.html:29`, "inactive in quizzes") is a shipped, load-bearing warning sitting in
+a different flex row. Today it has `min-width: auto` and never shrinks below its text. Giving
+it `min-width: 0` + `overflow: hidden` + ellipsis would let it degrade to "inactive in…" or
+nearly vanish at a narrow split — a *behavioural* change to an existing surface, in a change
+described as purely additive. Splitting the rule means the revealgate flag gains only the
+typography it always should have had, and the badge alone becomes shrinkable. `cursor: help`
+stays attribute-scoped for the same reason: that flag has no `title`, so an unscoped rule
+would promise it a tooltip that never appears.
 
-The property to avoid is unshrinkability, **not `white-space: nowrap`** — an earlier draft
-banned the wrong thing. `text-overflow: ellipsis` only fires on content that overflows in the
-inline direction, which *requires* `nowrap`; without it the label simply wraps, the span
-grows taller (its height is auto, so `overflow: hidden` clips nothing), and the row gets
-taller instead of narrower. The correct combination for a shrinkable flex text item is
-`white-space: nowrap` **with** `min-width: 0` and `flex: 0 1 auto`. That is also why this is
-not the failure `.el-actions` hit: its children were nowrap inline-flex *forms* whose
-`min-width: auto` resolved to min-content, and `min-width: 0` — available to a text span,
-not to a button bar — is exactly the escape it lacked.
+**Why the badge must be shrinkable at all.** `editor.css` records a measurement above
+`.el-actions`: at a 1130px viewport (the editor pane's floor) `.el-row__top` offers **196px**
+while the action bar alone wants **250px**, and the bar overflowed the card by 41px *"because
+every child is a nowrap inline-flex form the bar could not shrink"*. **Read the next line
+too:** `.el-actions { flex-wrap: wrap; justify-content: flex-end; }` is the *fix* that
+followed that diagnosis. So the 54px horizontal deficit no longer describes the live layout —
+the bar wraps instead of escaping, and an earlier draft of this section quoted the diagnosis
+as if it were current state.
 
-**Acceptance step:** verify at the 1130px floor that the row still fits with the badge
-present (see Testing for the mechanism).
+That changes what the badge's cost actually is. Horizontally it is absorbed; the real risk is
+**vertical** — pushing `.el-actions` onto an additional wrapped line, or growing the row. So
+the requirement is stated as: adding the badge must not increase `.el-actions`' wrapped line
+count or the row's height at 1130px. `text-overflow: ellipsis` still needs `white-space:
+nowrap` (ellipsis only fires on content overflowing in the inline direction; without it the
+label wraps and the span grows *taller*, which is the failure mode we are trying to avoid),
+paired with `min-width: 0` and `flex: 0 1 auto` — the escape a text span has and a button bar
+does not.
+
+**Acceptance step:** measure at the 1130px floor (see Testing for the assertions).
 
 `cursor: help` is scoped to `.el-row__flag[title]` on purpose. The existing revealgate flag
 (`_element_row.html:29`) has **no `title` attribute**, so an unscoped rule would give it a
@@ -1043,6 +1108,19 @@ guard on promoting `_material_id`.
   mirrored.
 - `…/material/iframe/id/abc/width/800/height/400` (a non-4:3 sizing) → `aspect-ratio:
   800 / 400`, proving step 0 reads the URL rather than assuming 4:3
+- **step-0 rejection cases**, each → **no** inline `aspect-ratio` (fall through to step 1):
+  `/width/abc/height/def`, `/width/880` (no height segment), `/width/0/height/0`,
+  `/height/660/width/880` (reversed order)
+- **style-injection guard:** `…/id/abc/width/1;position:fixed;top:0;height:100vh/height/1`
+  emits **no** inline `aspect-ratio`, and the rendered HTML contains no `position:fixed`.
+  Django's autoescape does not escape `;` or `:`, so this is the test that proves step 0
+  emits validated ints rather than raw path text.
+- **non-GeoGebra URL with `width`/`height` path segments**
+  (`https://player.vimeo.com/video/1/width/4/height/3`) → **no** inline `aspect-ratio`;
+  step 0 is scoped to GeoGebra and must not touch other providers
+- **malformed authority:** `frame_ratio` and `size_unknown` on a stored `https://[::1`
+  return `None`/`False` without raising — step 0 runs first, so an unguarded `urlsplit` here
+  would 500 the unit page before any fallback
 - `…/material/iframe/id` (no id) and `…/material/iframe/id/ab%20cd` → no inline
   `aspect-ratio`, no exception (the two deliberate stricter-than-`geogebra_sized_src`
   divergences)
@@ -1094,11 +1172,22 @@ that `.el-row__top`'s right edge lies inside the card is an assertion that **can
 `.el-row__head` is `display:grid; grid-template-columns:auto 1fr` and `.el-row__body` carries
 `min-width:0`, so `.el-row__top`'s border box is sized *by the grid column* and is inside the
 card by construction, on a broken build too. The defect the CSS comment records was a **child
-escaping** its container — "🗑 rendered 41px OUTSIDE the card's rounded border". So assert:
+escaping** its container — "🗑 rendered 41px OUTSIDE the card's rounded border".
 
-1. `.el-actions`' right edge (or its last button's) lies within the card's right edge, **and**
-2. the `.el-row__flag` span's own box lies within the card's right edge, **and**
-3. as an independent signal, `.el-row__top`'s `scrollWidth <= clientWidth`.
+Because `.el-actions` now wraps rather than escaping (§4), the badge's cost is mostly
+vertical, so the load-bearing assertions are the height ones:
+
+1. **(load-bearing)** the row's height, and `.el-actions`' wrapped line count via
+   `getClientRects().length`, are **unchanged** by the badge's presence — compare the same
+   row rendered with and without it at 1130px
+2. **(load-bearing)** `.el-row__top`'s `scrollWidth <= clientWidth`
+3. **(load-bearing)** `.el-actions`' right edge (or its last button's) lies within the card's
+   right edge — the direct regression guard on the original 41px escape
+4. **(secondary, and weak by construction)** the badge ellipsised rather than pushed: its
+   rendered `clientWidth < scrollWidth` when the row is narrow. Note that asserting the
+   badge's *position* is inside the card would be near-unfalsifiable — it is rendered before
+   `.el-actions`, so negative free space is pushed onto the trailing item and the badge's own
+   box stays inside even on a build where it refuses to shrink.
 
 Reading the CSS and concluding "it has `min-width: 0`, so it shrinks" is **not** acceptance
 evidence.
