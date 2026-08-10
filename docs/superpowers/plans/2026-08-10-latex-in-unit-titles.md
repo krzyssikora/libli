@@ -655,7 +655,7 @@ def test_review_submission_browser_tab_is_stripped(client):
 uv run pytest tests/test_title_math_filter.py -v
 ```
 
-Expected: the eleven wiring tests FAIL (raw `\(` still present in every attribute and `<title>`); the eleven Task-1 unit tests still pass.
+Expected: the eleven wiring tests FAIL (raw `\(` still present in every attribute and `<title>`); the twelve Task-1 unit tests still pass.
 
 - [ ] **Step 4: Apply the filter at the eleven sites**
 
@@ -3553,6 +3553,13 @@ def _rule_body(css, selector):
     return m.group(1) if m else None
 
 
+def _has_rule(css, selector):
+    """True iff `selector` heads a rule in `css`. Takes the stylesheet as its
+    first argument so PLACEMENT is asserted, not merely existence -- a rule
+    appended to a stylesheet the page does not link is a silent no-op."""
+    return _rule_body(css, selector) is not None
+
+
 def test_the_analytics_clamp_lives_in_app_css_and_actually_clamps():
     """The analytics pages have no courses.css.
 
@@ -3730,7 +3737,7 @@ Append to `courses/static/courses/css/courses.css`:
 uv run pytest tests/test_title_math_css.py -v
 ```
 
-Expected: 9 passed.
+Expected: 9 passed. (`_rule_body` and `_has_rule` are helpers, not tests — adding them does not change the count.)
 
 - [ ] **Step 6: Falsify — observe RED against the specificity and shorthand mutants**
 
@@ -4215,7 +4222,15 @@ left untracked at PR time — making Step 5b's verification unreproducible.
 uv run ruff check --fix tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
 uv run ruff format tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py
 git add tests/test_e2e_title_math.py tests/capture_title_math_screenshots.py \
+        tests/helpers_title_math.py \
         docs/superpowers/specs/2026-08-10-latex-in-unit-titles-design.md
+# helpers_title_math.py is staged because Step 4's large-course branch adds
+# make_large_title_course to it. Staging it unconditionally is harmless when that
+# branch was not taken (no diff = no-op) and REQUIRED when it was: without it the
+# committed branch holds an e2e importing a name that is not in the commit, and
+# Step 7's suite still passes because the file is on disk -- so nothing surfaces
+# until CI or a fresh clone.
+#
 # The spec is ALWAYS staged: Step 6's §3 confirmation edit happens on the clean
 # path too. Add the CSS / math.js paths only if the measurement corrected them:
 # git add core/static/core/css/app.css courses/static/courses/css/courses.css \
