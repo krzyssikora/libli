@@ -9,15 +9,43 @@
   {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__label">{% trans "Options (mark the correct one)" %}</label>
-  <div class="el-editor__options">
-    {% for row in form.option_rows %}
-      <div class="el-editor__option-row">
-        <input type="radio" name="answer" value="{{ forloop.counter0 }}"{% if row.checked %} checked{% endif %}
-               aria-label="{% trans 'Correct option' %}">
-        <input type="text" name="option" class="rte-source" value="{{ row.value }}"
-               placeholder="{% trans 'Option' %} {{ forloop.counter }}">
+  <div data-sgate
+       data-sgate-min="2"
+       data-sgate-confirm="{% trans 'Remove this option?' %}"
+       data-sgate-atmin="{% trans 'A choice needs at least two options.' %}"
+       data-sgate-placeholder="{% trans 'Option' %} __pos__">
+    <div class="el-editor__options" data-sgate-list>
+      {% for row in form.option_rows %}
+        <div class="el-editor__option-row" data-sgate-row>
+          <input type="radio" name="answer" value="{{ forloop.counter0 }}"{% if row.checked %} checked{% endif %}
+                 aria-label="{% trans 'Correct option' %}">
+          <input type="text" name="option" class="rte-source" value="{{ row.value }}"
+                 placeholder="{% trans 'Option' %} {{ forloop.counter }}">
+          <button type="button" class="el-editor__remove" data-sgate-remove hidden
+                  aria-label="{% trans 'Remove option' %}"
+                  title="{% trans 'Remove option' %}">&times;</button>
+        </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn--small btn--ghost"
+            data-sgate-add hidden>＋ {% trans "Add option" %}</button>
+    <p class="el-editor__hint" data-sgate-hint hidden></p>
+    {% comment %}Blueprint: the loop body verbatim. Two tokens are required because
+    the radio is 0-based and the placeholder 1-based; one token would render
+    "Option 0, Option 1, ...".{% endcomment %}
+    <template data-sgate-template>
+      <div class="el-editor__option-row" data-sgate-row>
+        <input type="radio" name="answer" value="__index__" aria-label="{% trans 'Correct option' %}">
+        <input type="text" name="option" class="rte-source" value=""
+               placeholder="{% trans 'Option' %} __pos__">
+        <button type="button" class="el-editor__remove" data-sgate-remove hidden
+                aria-label="{% trans 'Remove option' %}"
+                title="{% trans 'Remove option' %}">&times;</button>
       </div>
-    {% endfor %}
+    </template>
   </div>
+  {% comment %}The non-field errors stay OUTSIDE [data-sgate]: the wrapper only needs
+  to enclose the list, the add button and the <template> for closest() to work. It is
+  display: contents, so the placement has no visual effect either way.{% endcomment %}
   {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 </div>

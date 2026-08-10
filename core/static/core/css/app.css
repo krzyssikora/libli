@@ -1477,6 +1477,39 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   outline-offset: 1px;
 }
 
+/* Switchgate reuses switchgrid's x component, but every rule for it is scoped to
+   .el-editor--switchgrid, so a bare class inherits nothing. Duplicated under a
+   scope rather than promoted to an unscoped rule: promoting would restyle
+   switchgrid as a side effect, and an unscoped .el-editor__remove[hidden] ties on
+   specificity with the block above, leaving the outcome to source order. */
+.el-editor--switchgate .el-editor__remove {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+/* inline-grid overrides the [hidden] attribute, so hide explicitly (JS toggles it) */
+.el-editor--switchgate .el-editor__remove[hidden] { display: none; }
+.el-editor--switchgate .el-editor__remove:hover {
+  color: var(--danger);
+  background: var(--danger-subtle);
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+}
+.el-editor--switchgate .el-editor__remove:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 1px;
+}
+
 /* "Add option": a quiet dashed affordance so a grid full of cyclers isn't a wall
    of solid buttons. Echoes the gate family's dashed "nothing here yet" pill.
    align-self keeps it hugging its text (no overlap with the ×'d rows above — the

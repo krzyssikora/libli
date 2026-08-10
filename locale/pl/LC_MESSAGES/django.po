@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-10 16:05+0200\n"
+"POT-Creation-Date: 2026-08-10 17:58+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -901,48 +901,48 @@ msgctxt "tabs label position"
 msgid "Hidden"
 msgstr "Ukryta"
 
-#: .\courses\models.py:1869 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1877 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:1870
+#: .\courses\models.py:1878
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:1871
+#: .\courses\models.py:1879
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:2002
+#: .\courses\models.py:2010
 msgid "your answer, correct"
 msgstr "twoja odpowiedź, poprawna"
 
-#: .\courses\models.py:2003
+#: .\courses\models.py:2011
 msgid "your answer, incorrect"
 msgstr "twoja odpowiedź, niepoprawna"
 
-#: .\courses\models.py:2004
+#: .\courses\models.py:2012
 msgid "correct answer, not chosen"
 msgstr "poprawna odpowiedź, niewybrana"
 
-#: .\courses\models.py:2668
+#: .\courses\models.py:2676
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:2670
+#: .\courses\models.py:2678
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:2675
+#: .\courses\models.py:2683
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:2746
+#: .\courses\models.py:2754
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:2747
+#: .\courses\models.py:2755
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -1161,7 +1161,7 @@ msgid "Before / after"
 msgstr "Przed / po"
 
 #: .\courses\templatetags\courses_manage_extras.py:62
-#: .\templates\courses\manage\editor\_edit_stepper.html:12
+#: .\templates\courses\manage\editor\_edit_stepper.html:14
 msgid "Steps"
 msgstr "Kroki"
 
@@ -3392,20 +3392,28 @@ msgstr "Dodaj"
 #: .\templates\courses\manage\editor\_edit_choicegridquestion.html:53
 #: .\templates\courses\manage\editor\_edit_choicegridquestion.html:69
 #: .\templates\courses\manage\editor\_edit_choicegridquestion.html:81
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:38
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:48
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:50
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:40
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:54
 #: .\templates\courses\manage\editor\_edit_gallery.html:36
 #: .\templates\courses\manage\editor\_edit_gallery.html:51
-#: .\templates\courses\manage\editor\_edit_markdone.html:21
-#: .\templates\courses\manage\editor\_edit_markdone.html:35
-#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:18
+#: .\templates\courses\manage\editor\_edit_markdone.html:29
+#: .\templates\courses\manage\editor\_edit_markdone.html:31
+#: .\templates\courses\manage\editor\_edit_markdone.html:50
+#: .\templates\courses\manage\editor\_edit_markdone.html:52
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:22
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:24
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:43
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:45
 #: .\templates\courses\manage\editor\_edit_multigridquestion.html:27
 #: .\templates\courses\manage\editor\_edit_multigridquestion.html:47
 #: .\templates\courses\manage\editor\_edit_multigridquestion.html:62
 #: .\templates\courses\manage\editor\_edit_multigridquestion.html:72
-#: .\templates\courses\manage\editor\_edit_stepper.html:21
-#: .\templates\courses\manage\editor\_edit_stepper.html:35
+#: .\templates\courses\manage\editor\_edit_stepper.html:29
+#: .\templates\courses\manage\editor\_edit_stepper.html:31
+#: .\templates\courses\manage\editor\_edit_stepper.html:50
+#: .\templates\courses\manage\editor\_edit_stepper.html:52
 msgid "Remove"
 msgstr "Usuń"
 
@@ -4359,7 +4367,7 @@ msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s"
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:29
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:39
 #: .\templates\courses\quiz_results.html:31
 msgid "Correct"
 msgstr "Poprawnie"
@@ -5511,12 +5519,12 @@ msgid "Add row"
 msgstr "Dodaj wiersz"
 
 #: .\templates\courses\manage\editor\_edit_choicegridquestion.html:88
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:52
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:66
 #: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:16
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:64
 #: .\templates\courses\manage\editor\_edit_extendedresponsequestion.html:21
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:13
-#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:31
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:56
 #: .\templates\courses\manage\editor\_edit_multigridquestion.html:79
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:24
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:26
@@ -5550,16 +5558,25 @@ msgstr ""
 "Opcjonalna informacja zwrotna pojawia się, gdy uczeń pomyli się na opcji — "
 "wybierze złą albo pominie poprawną."
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:19
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:25
+#: .\templates\courses\manage\editor\_edit_switchgate.html:14
+msgid "Remove this option?"
+msgstr "Usunąć tę opcję?"
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:26
+msgid "A question needs at least two options."
+msgstr "Pytanie musi zawierać co najmniej dwie opcje."
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:29
 msgid "Why this answer is correct (shown if the student misses it)"
 msgstr ""
 "Dlaczego ta odpowiedź jest poprawna (pokazywane, jeśli uczeń ją pominie)"
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:20
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:30
 msgid "Why this option is wrong (shown if the student picks it)"
 msgstr "Dlaczego ta opcja jest błędna (pokazywane, jeśli uczeń ją wybierze)"
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:44
 #: .\templates\courses\manage\editor\_edit_filltable.html:50
 #: .\templates\courses\manage\editor\_edit_gallery.html:25
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:14
@@ -5569,7 +5586,8 @@ msgstr "Dlaczego ta opcja jest błędna (pokazywane, jeśli uczeń ją wybierze)
 msgid "Insert math"
 msgstr "Wstaw wzór"
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:47
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:59
+#: .\templates\courses\manage\editor\_edit_switchgate.html:31
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:35
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:61
 msgid "Add option"
@@ -5586,7 +5604,7 @@ msgstr ""
 "|)."
 
 #: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:11
-#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:26
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:51
 msgid "Extra tokens (distractors, one per line)"
 msgstr "Dodatkowe tokeny (dystraktory, po jednym w wierszu)"
 
@@ -5911,16 +5929,16 @@ msgstr "Podpis"
 msgid "Size"
 msgstr "Rozmiar"
 
-#: .\templates\courses\manage\editor\_edit_markdone.html:8
-#: .\templates\courses\manage\editor\_edit_stepper.html:8
+#: .\templates\courses\manage\editor\_edit_markdone.html:10
+#: .\templates\courses\manage\editor\_edit_stepper.html:10
 msgid "Intro prompt (optional)"
 msgstr "Wprowadzenie (opcjonalne)"
 
-#: .\templates\courses\manage\editor\_edit_markdone.html:12
+#: .\templates\courses\manage\editor\_edit_markdone.html:14
 msgid "Checklist items"
 msgstr "Pozycje listy"
 
-#: .\templates\courses\manage\editor\_edit_markdone.html:13
+#: .\templates\courses\manage\editor\_edit_markdone.html:15
 msgid ""
 "Each item is one short line the student ticks. Math like \\\\(x^2\\\\) is "
 "allowed."
@@ -5928,7 +5946,19 @@ msgstr ""
 "Każda pozycja to jedna krótka linijka, którą zaznacza uczeń. Zapis "
 "matematyczny, np. \\\\(x^2\\\\), jest dozwolony."
 
-#: .\templates\courses\manage\editor\_edit_markdone.html:26
+#: .\templates\courses\manage\editor\_edit_markdone.html:19
+msgid "Remove this item?"
+msgstr "Usunąć tę pozycję?"
+
+#: .\templates\courses\manage\editor\_edit_markdone.html:20
+msgid "A checklist needs at least one item."
+msgstr "Lista zadań musi zawierać co najmniej jedną pozycję."
+
+#: .\templates\courses\manage\editor\_edit_markdone.html:21
+msgid "No room for another item."
+msgstr "Nie ma miejsca na kolejną pozycję."
+
+#: .\templates\courses\manage\editor\_edit_markdone.html:37
 msgid "Add item"
 msgstr "Dodaj pozycję"
 
@@ -5940,7 +5970,15 @@ msgstr "Pary"
 msgid "Left = the fixed item; right = its matching token."
 msgstr "Lewa = element stały; prawa = pasujący token."
 
-#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:23
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:13
+msgid "Remove this pair?"
+msgstr "Usunąć tę parę?"
+
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:14
+msgid "A matching question needs at least one pair."
+msgstr "Pytanie na dopasowywanie musi zawierać co najmniej jedną parę."
+
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:30
 msgid "Add pair"
 msgstr "Dodaj parę"
 
@@ -5984,7 +6022,7 @@ msgstr "Rozróżniaj wielkość liter"
 msgid "Shown on the spoiler button. Leave blank for the default “Reveal”."
 msgstr "Wyświetlany na przycisku. Pozostaw puste, aby użyć domyślnego „Pokaż”."
 
-#: .\templates\courses\manage\editor\_edit_stepper.html:13
+#: .\templates\courses\manage\editor\_edit_stepper.html:15
 #, python-brace-format
 msgid ""
 "Each step is a short line (text or math, e.g. \\\\(2^{10}\\\\)). The first "
@@ -5993,7 +6031,19 @@ msgstr ""
 "Każdy krok to krótka linijka (tekst lub wzór, np. \\\\(2^{10}\\\\)). "
 "Pierwszy jest widoczny od razu; przycisk odsłania kolejne pojedynczo."
 
-#: .\templates\courses\manage\editor\_edit_stepper.html:26
+#: .\templates\courses\manage\editor\_edit_stepper.html:19
+msgid "Remove this step?"
+msgstr "Usunąć ten krok?"
+
+#: .\templates\courses\manage\editor\_edit_stepper.html:20
+msgid "A stepper needs at least one step."
+msgstr "Sekwencja musi zawierać co najmniej jeden krok."
+
+#: .\templates\courses\manage\editor\_edit_stepper.html:21
+msgid "No room for another step."
+msgstr "Nie ma miejsca na kolejny krok."
+
+#: .\templates\courses\manage\editor\_edit_stepper.html:37
 msgid "Add step"
 msgstr "Dodaj krok"
 
@@ -6009,17 +6059,33 @@ msgstr "Oznacz miejsce wyboru za pomocą {{choice}} (dokładnie raz)."
 msgid "Options (mark the correct one)"
 msgstr "Opcje (zaznacz poprawną)"
 
+#: .\templates\courses\manage\editor\_edit_switchgate.html:15
+msgid "A choice needs at least two options."
+msgstr "Wybór musi zawierać co najmniej dwie opcje."
+
 #: .\templates\courses\manage\editor\_edit_switchgate.html:16
+#: .\templates\courses\manage\editor\_edit_switchgate.html:23
+#: .\templates\courses\manage\editor\_edit_switchgate.html:41
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:29
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:67
+msgid "Option"
+msgstr "Opcja"
+
+#: .\templates\courses\manage\editor\_edit_switchgate.html:21
+#: .\templates\courses\manage\editor\_edit_switchgate.html:39
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:27
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:66
 msgid "Correct option"
 msgstr "Poprawna opcja"
 
-#: .\templates\courses\manage\editor\_edit_switchgate.html:18
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:29
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:67
-msgid "Option"
-msgstr "Opcja"
+#: .\templates\courses\manage\editor\_edit_switchgate.html:25
+#: .\templates\courses\manage\editor\_edit_switchgate.html:26
+#: .\templates\courses\manage\editor\_edit_switchgate.html:43
+#: .\templates\courses\manage\editor\_edit_switchgate.html:44
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:31
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:69
+msgid "Remove option"
+msgstr "Usuń opcję"
 
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:3
 msgid "Cycler"
@@ -6042,11 +6108,6 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:52
 msgid "Remove line"
 msgstr "Usuń wiersz"
-
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:31
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:69
-msgid "Remove option"
-msgstr "Usuń opcję"
 
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:42
 msgid "Add line"

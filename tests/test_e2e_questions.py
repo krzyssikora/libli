@@ -259,7 +259,6 @@ def test_choice_editor_add_remove_and_radio_js(browser, live_server):
     - "Add option" appends a working formset row beyond the initial extra=2;
     - single-choice correct-markers are mutually exclusive (radios with distinct
       formset names are grouped by JS, not the browser);
-    - "Remove" gives live feedback (row dims) before save;
     - a dynamically-added row persists on save.
     """
     from courses.models import ChoiceQuestionElement
@@ -292,6 +291,12 @@ def test_choice_editor_add_remove_and_radio_js(browser, live_server):
         "() => document.querySelectorAll("
         "'[data-edit-slot] [data-choice-row]').length === 3"
     )
+    # The clone must arrive blank: addChoiceRow copies the last row, so losing its
+    # value-clearing loop would carry the source row's text into every new option.
+    # (Both source rows are still empty here; the load-bearing version of this
+    # assertion — clone-a-FILLED-row — is in
+    # test_choice_add_after_remove_clones_the_last_visible_row below.)
+    assert slot.locator("input[name='choices-2-text']").input_value() == ""
     assert slot.locator("input[name='choices-2-text']").count() == 1
     assert slot.locator("input[name='choices-TOTAL_FORMS']").input_value() == "3"
 
@@ -307,13 +312,16 @@ def test_choice_editor_add_remove_and_radio_js(browser, live_server):
     assert r1.is_checked()
     assert not r0.is_checked()
 
-    # Remove row 2 → live dim feedback (row keeps its DELETE ticked).
+    # Remove row 2 → the row hides immediately and keeps its DELETE ticked.
     row2 = slot.locator("[data-choice-row]").nth(2)
-    row2.locator("input[name='choices-2-DELETE']").check()
-    page.wait_for_function(
-        "() => document.querySelectorAll("
-        "'[data-edit-slot] .choice-row--del').length === 1"
-    )
+    # The DELETE checkbox now sits inside a hidden label, so .check() would fail
+    # actionability. Drive the JS control instead.
+    page.on("dialog", lambda d: d.accept())  # the row was filled with "Gamma" above
+    row2.locator("[data-fsrow-remove]").click()
+    # Replaces the removed wait_for_function: without an explicit wait the
+    # assertion races the click handler.
+    row2.wait_for(state="hidden", timeout=4000)
+    assert row2.locator("input[name='choices-2-DELETE']").is_checked()
 
     # Save → the question persists with the two kept choices (Gamma was removed).
     slot.locator("button[type='submit']").click()
@@ -325,6 +333,62 @@ def test_choice_editor_add_remove_and_radio_js(browser, live_server):
     texts = sorted(q.choices.values_list("text", flat=True))
     assert texts == ["Alpha", "Beta"]
     assert q.choices.get(is_correct=True).text == "Beta"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_choice_add_after_remove_clones_the_last_visible_row(browser, live_server):
+    """addChoiceRow must clone the last NON-HIDDEN row, and the clone must arrive
+    visible and blank.
+
+    A removed row is only hidden (never detached — TOTAL_FORMS must not go
+    backwards), so a naive `rows[rows.length - 1]` clones an invisible row: the
+    author sees nothing appear while TOTAL_FORMS increments. The two amendments
+    that prevent it are JOINT — the non-hidden scan and `clone.hidden = false` —
+    so the falsification mutant has to drop both.
+
+    A fresh choice question renders exactly extra=2 rows, which equals
+    data-fsrows-min="2", so every remove button starts disabled: this test must ADD
+    a row before it can remove one.
+    """
+    _make_pa_user("qe_clone")
+    unit = _seed_course_unit("qe_clone", slug="qe-clone-js")
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_clone")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    _add_element(page, "choice-single")
+    slot = page.locator("[data-edit-slot]")
+    page.on("dialog", lambda d: d.accept())
+
+    # Fill both seeded rows FIRST, so the clone's source is non-blank — this is what
+    # gives the value-clearing loop real coverage.
+    slot.locator("input[name='choices-0-text']").fill("Alpha")
+    slot.locator("input[name='choices-1-text']").fill("Beta")
+
+    # Add → row 2 is a clone of the filled row 1 and must come out blank.
+    slot.locator("[data-choice-add]").click()
+    slot.locator("input[name='choices-2-text']").wait_for(timeout=4000)
+    assert slot.locator("input[name='choices-2-text']").input_value() == ""
+
+    # Remove the row we just added: 3 visible > min 2, so its button is enabled.
+    row2 = slot.locator("[data-choice-row]").nth(2)
+    row2.locator("[data-fsrow-remove]").click()
+    row2.wait_for(state="hidden", timeout=4000)
+
+    # Add again → the clone must come from row 1 (the last VISIBLE row), and must be
+    # visible itself. With the mutant it is a clone of the hidden row 2 and stays
+    # hidden, so `to_be_visible` is what fails.
+    slot.locator("[data-choice-add]").click()
+    new_row = slot.locator("input[name='choices-3-text']")
+    new_row.wait_for(state="visible", timeout=4000)
+    assert new_row.is_visible()
+    assert new_row.input_value() == ""
+    assert slot.locator("input[name='choices-TOTAL_FORMS']").input_value() == "4"
 
     ctx.close()
 
