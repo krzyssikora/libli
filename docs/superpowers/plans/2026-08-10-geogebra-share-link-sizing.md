@@ -2069,7 +2069,7 @@ If you need to search, use the **`Grep` tool**, not `uv run grep` — Task 1 Ste
 ```python
 @pytest.mark.django_db
 @override_settings(GEOGEBRA_API_LOOKUP=True)
-def test_course_import_performs_no_geogebra_lookup(<fixtures used by the round-trip test>):
+def test_course_import_performs_no_geogebra_lookup(<round-trip fixtures>):
     """extract_embed_url is shared by the authoring form AND course import. The lookup
     lives in the form, deliberately, so imports stay offline -- archives have carried
     width/height since FORMAT_VERSION 2. (A legacy v1 archive carries neither and lands
