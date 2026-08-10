@@ -1,0 +1,7 @@
+{% load static %}
+{% comment %}Shared KaTeX stylesheet link. Emitted UNCONDITIONALLY -- the
+{% if has_math %} guard lives at each call site, never here, which is what lets
+the editor include it unguarded. Self-loads `static`: template libraries are not
+inherited from the including template, so omitting the load is a
+TemplateSyntaxError.{% endcomment %}
+<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">

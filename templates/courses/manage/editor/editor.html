@@ -17,7 +17,7 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'courses/css/editor.css' %}">
-  <link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">
+  {% include "courses/_katex_css.html" %}
 {% endblock %}
 {% block content %}
 <section class="editor" data-course-slug="{{ course.slug }}"
@@ -179,11 +179,7 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
     });
   </script>
   <script src="{% static 'courses/js/math_input.js' %}" defer></script>
-  <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
-  <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
-  <script src="{% static 'courses/js/math_reflow.js' %}" defer></script>
-  <script src="{% static 'courses/js/text_colour.js' %}" defer></script>
-  <script src="{% static 'courses/js/math.js' %}" defer></script>
+  {% include "courses/_katex_js.html" %}
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
   <script src="{% static 'courses/js/link_apply.js' %}" defer></script>
   <script src="{% static 'courses/js/link_dialog.js' %}" defer></script>

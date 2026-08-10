@@ -23,6 +23,29 @@ PAGES = [
 
 CALLERS = ("math.js", "question.js", "quiz.js", "editor.js")
 
+PARTIAL = "_katex_js.html"
+
+
+def _expanded(path):
+    """`path`'s source with the shared KaTeX include spliced in at its site.
+
+    The KaTeX family moved into courses/_katex_js.html, so a raw {% static %}
+    scan of a page template no longer sees it -- every assertion in this file
+    would go vacuous or raise. Splicing the partial's own text in at the include
+    site preserves document order, which is the only thing this file measures.
+
+    Deliberately NOT a Django render: these tests read source precisely so they
+    can assert on {% if has_math %} containment, which a rendered page has
+    already resolved away.
+    """
+    text = (TEMPLATES / path).read_text(encoding="utf-8")
+    partial = (TEMPLATES / PARTIAL).read_text(encoding="utf-8")
+    return re.sub(
+        r'{%\s*include\s+"courses/_katex_js\.html"\s*%}',
+        lambda _m: partial,  # lambda: the partial holds backslashes
+        text,
+    )
+
 
 def _script_order(path):
     """Script basenames in document order.
@@ -32,7 +55,7 @@ def _script_order(path):
     anchored on `.js"` matches nothing, and a `js/`-segment fallback misses everything
     under vendor/. Both mistakes make this test pass-proof rather than useful.
     """
-    text = (TEMPLATES / path).read_text(encoding="utf-8")
+    text = _expanded(path)
     return [
         m.group(1).rsplit("/", 1)[-1]
         for m in re.finditer(r"{%\s*static\s*'([^']+\.js)'", text)
@@ -113,7 +136,7 @@ def _has_math_block(path):
     auto-render.min.js, so the anti-vacuity assert stays quiet and the guard passes with
     the tag placed fully outside any conditional — measured. Hence the single-line skip.
     """
-    lines = (TEMPLATES / path).read_text(encoding="utf-8").splitlines()
+    lines = _expanded(path).splitlines()
     starts = [i for i, line in enumerate(lines) if "{% if has_math %}" in line]
     for start in starts:
         if "{% endif %}" in lines[start]:

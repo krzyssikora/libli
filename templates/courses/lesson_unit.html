@@ -34,7 +34,7 @@
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">
   <link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">
-  {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+  {% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}
   {% if has_reveal_gate %}
   <style>
     .reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block:not(.reveal-shown),
@@ -69,11 +69,7 @@
   <script src="{% static 'courses/js/unit_done.js' %}" defer></script>
   <script src="{% static 'courses/js/progress.js' %}" defer></script>
   {% if has_math %}
-    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
-    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
-    <script src="{% static 'courses/js/math_reflow.js' %}" defer></script>
-    <script src="{% static 'courses/js/text_colour.js' %}" defer></script>
-    <script src="{% static 'courses/js/math.js' %}" defer></script>
+    {% include "courses/_katex_js.html" %}
   {% endif %}
   {% if has_html %}<script src="{% static 'courses/js/html_element.js' %}" defer></script>{% endif %}
   {% if has_questions %}<script src="{% static 'courses/js/question.js' %}" defer></script>
