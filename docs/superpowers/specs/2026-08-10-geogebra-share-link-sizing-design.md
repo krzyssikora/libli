@@ -1226,9 +1226,20 @@ escaping** its container — "🗑 rendered 41px OUTSIDE the card's rounded bord
 Because `.el-actions` now wraps rather than escaping (§4), the badge's cost is mostly
 vertical, so the load-bearing assertions are the height ones:
 
-1. **(load-bearing)** the row's height, and `.el-actions`' wrapped line count via
-   `getClientRects().length`, are **unchanged** by the badge's presence — compare the same
-   row rendered with and without it at 1130px
+1. **(load-bearing)** the row's height and `.el-actions`' own height are **unchanged** by the
+   badge's presence — compare the same row rendered with and without it at 1130px. Measure
+   the wrap with `.el-actions`' `offsetHeight`, or with the number of distinct child-button
+   top offsets:
+   `new Set([...el.children].map(c => Math.round(c.getBoundingClientRect().top))).size`.
+   Either goes 1 → 2 when the bar wraps.
+   **Do not use `getClientRects().length` on `.el-actions` — it cannot vary.** That returns
+   one rect per line box only for non-atomic inline elements; `.el-actions` is
+   `display: inline-flex` (editor.css:556) *and* a flex item of the `display:flex`
+   `.el-row__top` (editor.css:530), which blockifies it either way, so the count is `1` on a
+   correct build and on a build where the badge pushes the bar onto a second line. That would
+   be a second undeclared unfalsifiable assertion — the only deliberate one in this spec is
+   the `_API_PREFIX` check — and the same defect class already caught two paragraphs above
+   for `.el-row__top`'s right edge.
 2. **(load-bearing)** `.el-row__top`'s `scrollWidth <= clientWidth`
 3. **(load-bearing)** `.el-actions`' right edge (or its last button's) lies within the card's
    right edge — the direct regression guard on the original 41px escape
