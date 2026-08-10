@@ -11,6 +11,7 @@
 ## Global Constraints
 
 - **Run everything through `uv run`** — `ruff`, `pytest` and `python` are not on PATH.
+- **Every ```bash block in this plan is to be run through the Bash tool (Git Bash), not PowerShell.** The two shells are both available and take different syntax; several blocks here are bash-only (an inline `VAR=value cmd` prefix, backslash line-continuation, `grep`). Where a command must run in PowerShell instead, the plan gives the PowerShell spelling explicitly. This is also why `grep` appears in some blocks while Task 1 Step 6 forbids `uv run grep`: `grep` exists in Git Bash, but `uv run grep` resolves against PATH, where it is absent.
 - **Start the test-DB container before any pytest run:** `docker compose -f docker-compose.test.yml up -d`. If it is down the suite looks hung for ~4m21s.
 - **Scope test runs narrowly.** Run the named test file/node, never the whole suite, until the final branch gate.
 - **Every test must be falsified to RED before it counts.** Run the new test and see it fail for the *stated* reason before writing the implementation. A passing test proves nothing until its failure mode has been demonstrated. The one declared exception is the `_API_PREFIX` defensive check, which is unreachable by construction and deliberately has no test.
@@ -103,6 +104,10 @@ Reference counts, as measured 2026-08-10 against the `libli` dev DB:
 > **`('mat-pp', 'canonical', False)` is absent, i.e. its count is 0** — no mat-pp canonical GeoGebra row is dimensionless.
 
 **If that predicate is violated → STOP and report before continuing.** The consequences are concrete, not cosmetic: every dimensionless mat-pp row flips 16:9 → 4:3, grows a badge, and fires a live GET inside the unit row lock on its next save. That changes whether a backfill is warranted, which is a design decision, not an implementation one.
+
+**Also report the `canonical+width` count, and inspect any rows in it.** Task 7's malformed-tail "accepted gap" rests partly on that bucket measuring zero — but this gate waves through drift in every bucket except the mat-pp one, so a non-zero `canonical+width` would be filed as "expected drift" while silently invalidating that justification. The bucket also cannot tell a *valid* tail (handled by `frame_ratio` step 0) from a *junk* one. So: if the count is non-zero, print those rows' URLs and check each tail against the step-0 rules (`segments[4] == "width"`, `segments[6] == "height"`, both decimal, both in range). Report any that fail — those are the shapes that render 16:9 with no badge.
+
+**A third bulk source exists and is deliberately not guarded: the LAL loader.** `courses/lal_loader/builders.py:350` does `IframeElement.objects.create(url=canonicalize_geogebra_url(...), title=...)` with **no** width/height, so any future matematyka re-import creates canonical GeoGebra rows that now render `800 / 600` and carry the `applet size unknown` badge in the editor — potentially hundreds at once. That is the intended new behaviour rather than a regression (those rows are exactly the dimensionless case this feature exists to improve), and the path needs no no-lookup boundary test because it bypasses `IframeElementForm` entirely and therefore can never reach `fetch_geogebra_dimensions`. Stated here so the blast-radius accounting covers creation paths, not just existing rows.
 
 **The gate is scoped to mat-pp on purpose, and the two demo-course rows WILL change appearance.** `('demo-course', 'canonical', False) 2` is exactly the shape the gate catches — those two elements flip 16:9 → 4:3, grow a badge, and fire a live GET on their next save. That is not halted, because demo-course is seed/demo content rather than published course material, and the change is the *intended* fix rather than a regression. But it means "no published unit changes appearance" is a claim about **mat-pp only**. Record the non-mat-pp dimensionless count in the PR body so a reviewer can reconcile the two statements instead of reading them as contradictory.
 
@@ -877,6 +882,18 @@ def test_fetch_degrades_on_unparseable_body():
 
 
 @override_settings(GEOGEBRA_API_LOOKUP=True)
+@pytest.mark.parametrize("body", [b"[]", b'"x"', b"42"])
+def test_fetch_logs_a_valid_json_non_object_body(body, caplog):
+    # Distinct from the unparseable case above: these PARSE fine, so they miss the
+    # JSONDecodeError path entirely and take the non-dict early return. Without its
+    # log line this is a silent fourth failure mode -- an API shape change would look
+    # exactly like a material having no dimensions.
+    with _patch_open(body):
+        assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    assert any("not an object" in r.message for r in caplog.records)
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
 @pytest.mark.parametrize("bad", [0, -5, "880", 2147483648, True, 880.0])
 def test_fetch_rejects_unusable_width_values(bad):
     body = json.dumps(
@@ -1000,6 +1017,13 @@ _NEGATIVE_TTL_SECONDS = 60
 _USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"
 ```
 
+**Accepted limitation — the negative cache is PER-PROCESS.** `CACHES` is configured **only** in `config/settings/test.py`; `base.py`, `local.py` and `production.py` set none, so the deployed stack runs Django's default `LocMemCache`, which is not shared between workers. Two consequences to state rather than discover:
+
+- the sentinel does **not** stop a second worker paying its own 3s stall inside the row lock — worst case is 3s × workers, not 3s once;
+- the blast radius argued in `test_fetch_negative_cache_is_scoped_to_ONE_id` ("one 400 suppresses sizing for every material for 60s") is likewise per-process, which makes the constant-key mutant *less* catastrophic than that comment implies but no less wrong.
+
+Adding a shared cache backend is **out of scope** for this branch. Record the limitation in the PR body so it is a known trade-off rather than an oversight.
+
 **(c) The transport — below every existing parsing function, and above the `_settings_dimensions` / `_dimensions_from_payload` / `fetch_geogebra_dimensions` group** added next, so the module still reads parsers-then-network:
 
 ```python
@@ -1034,9 +1058,17 @@ And the lookup itself:
 def _settings_dimensions(node):
     """(W, H) from a node's `settings` block when usable, else (None, None).
 
-    Defensive per entry: a non-dict node or non-dict settings is SKIPPED, not fatal.
-    The outer bare `except Exception` would otherwise abort the whole elements scan on
-    one malformed entry, silently contradicting "keep scanning".
+    Defensive on `settings`: a non-dict settings block is SKIPPED, not fatal. The outer
+    bare `except Exception` would otherwise abort the whole elements scan on one
+    malformed entry, silently contradicting "keep scanning".
+
+    What keeps ws_non_g_first.json's `null` and string entries non-fatal is the CALLER's
+    own isinstance check in the elements loop, not the node guard below -- every call
+    site already passes a dict, so that guard is unreachable by construction. It is kept
+    as a second declared defensive branch (alongside the _API_PREFIX check) rather than
+    deleted, because this function is the obvious place for a future caller to appear.
+    Like _API_PREFIX, it therefore gets no test: a branch that cannot be driven cannot
+    be falsified to RED.
     """
     if not isinstance(node, dict):
         return None, None
@@ -1048,8 +1080,17 @@ def _settings_dimensions(node):
 
 
 def _dimensions_from_payload(payload, material_id):
-    """Apply the selection rule; log which of the three failure modes fired."""
+    """Apply the selection rule; log which of the FOUR failure modes fired."""
     if not isinstance(payload, dict):
+        # Valid JSON that is not an object -- b"[]" or b'"x"' parse fine and would
+        # otherwise return here silently, then hit fetch's unlogged cache.set tail.
+        # Every other failure path logs; this one must too, or a live API shape change
+        # is indistinguishable from a material genuinely having no dimensions.
+        logger.warning(
+            "geogebra %s: payload is not an object (%s)",
+            material_id,
+            type(payload).__name__,
+        )
         return None, None
 
     width, height = _settings_dimensions(payload)
@@ -1210,6 +1251,8 @@ git commit -m "feat(geogebra): look the authored applet size up from the GeoGebr
 Append to `tests/test_iframe_dimensions.py` (`URL` is the existing module constant, a canonical GeoGebra URL):
 
 ```python
+# STDLIB group at the TOP of the module, not here — see Global Constraints. A literal
+# mid-file paste fires E402 + I001 at the final ruff gate.
 from unittest.mock import patch
 
 OTHER_FORM_URL = "https://player.vimeo.com/video/123"  # example.com is NOT whitelisted
@@ -1689,7 +1732,7 @@ It uses `OTHER_RENDER_URL` rather than `OTHER_FORM_URL` for the non-GeoGebra row
 
 This is accepted, and it is the conservative choice rather than a missed case:
 
-- **It is unreachable through the product.** `clean_url` canonicalizes every paste, stripping the tail; only the Django admin or a legacy row can produce this shape. The census's `canonical+width` bucket counts it, and measured zero.
+- **It is unreachable through the product.** `clean_url` canonicalizes every paste, stripping the tail, so only the Django admin or a hand-edited legacy row can produce this shape. This leg stands on the code path alone — deliberately **not** on the census, whose `canonical+width` bucket both measured zero on one machine *and* cannot distinguish a valid tail from a junk one. (Task 0 Step 2 now reports and inspects that bucket, but its drift is explicitly not gated, so it could not carry this argument.)
 - **`800 / 600` would be a fabricated claim.** Step 3's fallback is justified by a *measurement* — GeoGebra's shell hardcodes `(parameters.width || 800) * 1`, so a **dimensionless** embed provably renders 800×600. A junk tail is not dimensionless: the shell receives `"abc"` and computes `NaN`, and what it renders then is unmeasured. Emitting `800 / 600` here would violate the invariant the five-step order exists to protect — never claim a ratio the src does not back up.
 - **Widening `size_unknown` alone was considered and rejected for this branch.** A badge would genuinely help the author, and needs no ratio claim. But the property's stated contract is that it shares `usable_dimensions` with `frame_ratio` "so the badge and the ratio can never disagree", and widening one without the other breaks that invariant for a shape that cannot occur in production. Changing it is a design decision, not an implementation one — raise it as follow-up work rather than deciding it mid-execution.
 
@@ -1707,7 +1750,10 @@ Two *form* tests also change meaning on this branch — `test_form_bare_url_past
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_iframe_dimensions.py -v`
-Expected: FAIL — the new render tests fail with `aspect-ratio: 800 / 600` absent (the template still tests `el.width and el.height`).
+Expected: FAIL, with **two distinct failure modes** — Global Constraints require the observed reason to match the stated one, so check both:
+
+- the new **render** tests fail with `aspect-ratio: 800 / 600` absent (the template still tests `el.width and el.height`);
+- `test_size_unknown_drives_the_editor_badge` and `test_url_change_with_a_failed_lookup_leaves_the_element_badged` fail with `AttributeError: 'IframeElement' object has no attribute 'size_unknown'`.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -1808,7 +1854,22 @@ Expected: PASS.
 Run: `uv run pytest tests/test_geogebra.py tests/test_embed.py tests/test_transfer_import.py -v`
 Expected: PASS — no collateral damage.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Falsify the absence-assertions with over-emission mutants**
+
+Step 2's RED run does **not** cover eight of this task's assertions. Every test that asserts `"aspect-ratio:" not in html` is **already true against the unedited template**, so it passed at Step 2 and has never discriminated:
+
+`test_render_non_geogebra_without_dimensions_keeps_the_css_default`, `test_render_non_geogebra_partial_or_zero_pair_keeps_the_css_default`, `test_render_geogebra_host_without_a_material_id_keeps_the_css_default`, `test_render_step0_rejection_cases_fall_through_to_no_inline_ratio` (all four params), `test_render_rejects_style_injection_from_the_url`, `test_render_non_geogebra_url_with_width_height_segments_gets_no_ratio`, `test_render_never_raises_on_a_malformed_authority`, and the `(None, None)` half of `test_render_degenerate_shapes_follow_the_stored_pair`.
+
+This is the same defect the plan fixes in Task 8 (the hides-badge test) and Task 9 (assertions 2-4); Task 7 is the largest task and must not be the one that skips it. Their red condition is **over**-emission, so apply these two mutants — one at a time, from a clean tree, reverting between:
+
+| mutant | edit | expected red |
+|---|---|---|
+| A | `frame_ratio` step 4: `return "800 / 600"` instead of `return None` | every non-GeoGebra absence test, the step-0 rejection cases, the style-injection test, the malformed-authority test |
+| B | `frame_ratio` step 1: delete the `and not is_geogebra_iframe_url(self.url)` clause so step 1 stops guarding | `test_render_material_url_that_sized_src_will_not_rewrite_claims_no_ratio`, and the step-0 rejection cases via the stored pair |
+
+Record which assertions went red under each. **Any assertion that cannot be made to fail under either mutant must be deleted or escalated** — the Global Constraints rule, applied here exactly as in Tasks 8 and 9. Note that mutant A also reddens genuinely-positive tests (they assert a *different* ratio); that is expected collateral, not a signal.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add courses/models.py templates/courses/elements/iframeelement.html tests/test_iframe_dimensions.py
@@ -2117,20 +2178,7 @@ Shipping four green assertions of which only one was ever seen red is the failur
 
 **Mechanism — this is not a "go take screenshots" instruction.** Append a temporary capture block to the Task 9 test body, run it, then **revert the block before Step 5's commit** (the screenshots are PR artefacts, not committed test code). The repo's `tests/capture_help_screenshots.py` and `tests/capture_publish_screenshots.py` are the precedent for the shape if you prefer a standalone script; either is acceptable, but pick one and say which in the PR.
 
-Dark mode needs the **user's `theme` field**, not the cookie:
-
-```python
-    # --- TEMPORARY capture block: run, collect the PNGs, then DELETE before commit ---
-    from django.contrib.auth import get_user_model
-
-    out = pathlib.Path("artifacts/geogebra-badge")   # gitignored scratch dir
-    out.mkdir(parents=True, exist_ok=True)
-    for theme in ("light", "dark"):
-        get_user_model().objects.filter(username=username).update(theme=theme)
-        page.reload()
-        badged_row.screenshot(path=str(out / f"badge-{theme}.png"))
-        quiz_row.screenshot(path=str(out / f"revealgate-{theme}.png"))
-```
+Dark mode needs the **user's `theme` field**, not the cookie. The full block is given below, **after** the revealgate seeding it depends on — read that first, because the ordering is load-bearing: the two rows live on **different editor pages**, so a single loop cannot shoot both without navigating between them.
 
 Judge the dark capture **separately** rather than assuming it follows the light one.
 
@@ -2140,17 +2188,46 @@ Judge the dark capture **separately** rather than assuming it follows the light 
 
 Seed a **second, quiz** unit. Note `_seed_course_and_unit(username, slug=…, unit_title=…)` takes **no `unit_type` argument** (`tests/test_e2e_editor.py:51`) and must not be edited — it is shared with 93 other e2e modules. Build the quiz unit directly instead, taking the course from the unit you already have:
 
+Seed it, then capture — **seeding first, capture loop second, and re-navigating inside the loop**:
+
 ```python
-    from tests.factories import ContentNodeFactory
+    # --- TEMPORARY capture block: run, collect the PNGs, then DELETE before commit ---
+    import pathlib   # in-function: this block is reverted before Step 5's commit
+
+    from django.contrib.auth import get_user_model
+
     from courses.models import RevealGateElement
+    from tests.factories import ContentNodeFactory
 
     quiz_unit = ContentNodeFactory(
         course=unit.course, kind="unit", unit_type="quiz", title="Quiz"
     )
     gate_join = add_element(quiz_unit, RevealGateElement.objects.create(label="More"))
-    page.goto(_editor_url(live_server, quiz_unit))
-    quiz_row = page.locator(f"[data-element='{gate_join.pk}'] .el-row__top")
+
+    out = pathlib.Path("transfer_staging/geogebra-badge")   # already in .gitignore
+    out.mkdir(parents=True, exist_ok=True)
+    User = get_user_model()
+
+    for theme in ("light", "dark"):
+        User.objects.filter(username=username).update(theme=theme)
+
+        # The badged row lives on the LESSON unit's editor page...
+        page.goto(_editor_url(live_server, unit))
+        page.locator(
+            f"[data-element='{badged_join.pk}'] .el-row__top"
+        ).screenshot(path=str(out / f"badge-{theme}.png"))
+
+        # ...and the revealgate flag on the QUIZ unit's. Two pages, so re-locate after
+        # each goto: a locator resolved on one page matches nothing on the other, and
+        # .screenshot() would hang until it timed out rather than failing clearly.
+        page.goto(_editor_url(live_server, quiz_unit))
+        assert "inactive in quizzes" in page.content()   # see the precondition below
+        page.locator(
+            f"[data-element='{gate_join.pk}'] .el-row__top"
+        ).screenshot(path=str(out / f"revealgate-{theme}.png"))
 ```
+
+`transfer_staging/` is chosen because it is **already listed in `.gitignore`** (line 16); `artifacts/` is not, so PNGs written there would show up as untracked. Step 5 stages explicit paths regardless, but check `git status` before committing.
 
 **Precondition before the capture counts:** the string `inactive in quizzes` must be present in the rendered page. If it is not, the flag did not render and the step has not been performed — fix the unit type rather than filing the screenshot.
 
@@ -2268,6 +2345,19 @@ uv run ruff format .
 
 `makemigrations --check` must report nothing: this change adds **no** model fields and therefore **no** migration. If it wants one, something was added that should not have been.
 
+- [ ] **Commit the formatting, or the branch pushes dirty**
+
+Every task commits *before* any formatting runs, and Global Constraints mandate `ruff format .` as the **last** edit — so the run above leaves reformatted files uncommitted in the working tree. CI gates on `ruff format --check`, meaning the PR as pushed can fail the very gate just run locally.
+
+```bash
+uv run ruff format --check .          # must now report no changes
+git status --short                     # inspect BEFORE staging
+git add courses/ config/ tests/ templates/ locale/ .env.example
+git commit -m "style: ruff format"     # skip if nothing was reformatted
+```
+
+Stage **named paths, never `git add -A`** — the Task 9 capture step writes PNGs under `transfer_staging/`, and a blanket add would sweep in any other untracked scratch output.
+
 - [ ] **Live API acceptance check** (the offline suite cannot detect the API moving)
 
 Run under `config.settings.local` with the flag on, in a **fresh process** so no negative-cache sentinel from an earlier failed attempt short-circuits it:
@@ -2339,7 +2429,14 @@ Pass A stores a real pair and therefore never reaches `frame_ratio` step 3. So t
 Restart the server with the kill switch off:
 
 ```bash
+# Bash tool (Git Bash):
 LIBLI_GEOGEBRA_API_LOOKUP=false uv run python manage.py runserver
+```
+
+PowerShell has no inline env-var prefix, so if you run it there instead:
+
+```powershell
+$env:LIBLI_GEOGEBRA_API_LOOKUP = "false"; uv run python manage.py runserver
 ```
 
 Paste the same share link into a second scratch element and confirm **all three**:
