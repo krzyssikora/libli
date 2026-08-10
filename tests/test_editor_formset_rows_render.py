@@ -106,3 +106,22 @@ def test_retrofit_progressive_enhancement(request, opener):
     row = soup.select_one("[data-fsrows-list] [data-fsrow-item]")
     assert row.select_one("[data-fsrow-remove]").has_attr("hidden")
     assert not row.select_one("[data-fsrow-del]").has_attr("hidden")
+
+
+def test_choice_progressive_enhancement(open_choice_editor_html):
+    html = open_choice_editor_html()
+    soup = BeautifulSoup(html, "html.parser")
+    for tmpl in soup.select("template"):
+        tmpl.decompose()
+    assert soup.select_one("[data-choice-add]").has_attr("hidden")
+    row = soup.select_one("[data-fsrows-list] [data-fsrow-item]")
+    assert row.select_one("[data-fsrow-remove]").has_attr("hidden")
+    assert not row.select_one("[data-fsrow-del]").has_attr("hidden")
+
+
+def test_choice_bounds(open_choice_editor_html):
+    """BaseChoiceFormSet.clean() uses a bare `len(kept) < 2` with no named constant,
+    so this is the second documented literal-vs-literal exception (match's 1 is the
+    first)."""
+    soup = BeautifulSoup(open_choice_editor_html(), "html.parser")
+    assert soup.select_one("[data-fsrows]")["data-fsrows-min"] == "2"

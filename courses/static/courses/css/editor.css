@@ -184,10 +184,6 @@ body.editor-page .app-main { max-width: 102rem; }
   border-left: 2px solid var(--border-default);
 }
 .choice-row__feedback textarea { width: 100%; resize: vertical; }
-/* Row marked for deletion: dimmed + struck, but still visible so the author can undo
-   by un-ticking Remove before saving. */
-.choice-row--del { opacity: .5; }
-.choice-row--del input[type="text"] { text-decoration: line-through; }
 
 /* --- Matrix (choice-grid) editor — a columns list and a rows list (each row a
    statement + a correct-column <select> kept in sync with the column labels by

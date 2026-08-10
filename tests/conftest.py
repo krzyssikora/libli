@@ -181,6 +181,44 @@ def open_markdone_editor(pa_client):
     return _open
 
 
+def _seed_choice_element(options, correct_index=0, multiple=False):
+    """(course, unit, element) for a single-choice question with `options` saved.
+
+    Saved options matter: the choice formset ships extra=2, so an element seeded
+    with two options renders 4 rows — enough that a render test cannot confuse a
+    saved row with a blank extra one.
+    """
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    question = ChoiceQuestionElement.objects.create(stem="", multiple=multiple)
+    for i, text in enumerate(options):
+        Choice.objects.create(
+            question=question, text=text, is_correct=(i == correct_index)
+        )
+    return course, unit, add_element(unit, question)
+
+
+@pytest.fixture
+def open_choice_editor_html(pa_client):
+    """Server-render opener: seeds a choice question and returns its edit HTML."""
+
+    def _open(options=("Alpha", "Beta"), correct_index=0, multiple=False):
+        course, _unit, element = _seed_choice_element(
+            options, correct_index=correct_index, multiple=multiple
+        )
+        return open_element_form(pa_client, course, element)
+
+    return _open
+
+
 @pytest.fixture
 def open_element_editor():
     """e2e opener for the two retrofitted row editors.
