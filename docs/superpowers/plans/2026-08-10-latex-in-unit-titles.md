@@ -20,7 +20,7 @@
 - **Falsify every test before trusting it.** A test must be observed RED against a mutant chosen from the *failure mode*, not from the assertion. Every task below names its mutant explicitly. Revert the mutant before committing.
 - **Scope test runs narrowly.** Run only the files a task touches. A whole-repo sweep is a branch gate (Task 11), never a per-task step.
 - **Never `git add -A` / `git add .`.** Every commit lists explicit paths.
-- **Delimiters are exactly four two-character sequences:** `\(`, `\)`, `\[`, `\]`. Never re-implement the test for them — always delegate to `courses.htmlsandbox.has_math_delimiters`.
+- **Delimiters are exactly four two-character sequences:** `\(`, `\)`, `\[`, `\]`. Never re-implement the **detection** test — always delegate to `courses.htmlsandbox.has_math_delimiters`. The **strip** side (Task 1's `_MATH_DELIMS`) necessarily also needs the two *closers*, which the detector does not expose, so that one list is a deliberate, minimal fork — guarded by the openers-agree test in Task 1 rather than by delegation.
 - **Every KaTeX-family `<script>` carries `defer`.** Source order only guarantees execution order *among* `defer` scripts (`editor.html:173-175` records this). A non-deferred `math.js` runs during parsing and typesets nothing below its own tag — a failure that looks exactly like a missing marker.
 - **Script order inside the JS partial is load-bearing and fixed:** `katex.min.js` → `contrib/auto-render.min.js` → `math_reflow.js` → `text_colour.js` → `math.js`. `math_reflow.js` pre-hooks `window.renderMathInElement` and `katex.render` with a single install attempt and no deferred retry; `text_colour.js` post-hooks the same two globals; `math.js` runs the document pass and must be last.
 - **`ruff` config:** `force-single-line = true` for imports; `select = ["E", "F", "I", "UP", "B", "S"]`. Run `uv run ruff check --fix` and `uv run ruff format` on touched Python before each commit.
@@ -44,6 +44,11 @@
 | `tests/test_title_math_assets.py` | Partial extraction, defect 3 (`math.js` presence + order), and the per-page gate assertions. |
 | `tests/test_title_math_markers.py` | `data-math-title` marker coverage: present at every display site, absent at every excluded site. |
 | `tests/test_title_math_css.py` | Source assertions on the CSS normalisation rules. |
+
+**One existing test file must be modified, not just run:** `tests/test_text_colour_script_order.py`
+parses `{% static %}` out of the raw source of the five templates Task 4 rewrites, so Task 4
+Step 4b teaches it to splice the shared partial in first. It is the only test in the repo that
+reads those templates as source.
 | `tests/test_e2e_title_math.py` | Playwright: the next-unit-title-only case, plus the render-cost measurement. |
 
 **Modified files**
@@ -135,6 +140,27 @@ def test_returns_a_plain_str_not_safestring_when_delimiters_present():
     assert type(out) is str
 
 
+def test_the_strip_openers_agree_with_the_detector():
+    """THE FORK GUARD. _MATH_DELIMS is a deliberate, minimal fork: the filter needs
+    the two CLOSERS, which has_math_delimiters does not expose, so it cannot simply
+    delegate the way titles_have_math does.
+
+    What must never drift is the OPENERS. If a third opener is ever added to
+    has_math_delimiters, every gate would arm for it while the filter left the raw
+    delimiter sitting in a title= attribute and in <title> -- and nothing else in
+    this suite would go red. Task 3 pins the detection side; this pins the strip
+    side.
+    """
+    from courses.htmlsandbox import has_math_delimiters
+    from courses.templatetags.courses_extras import _MATH_DELIMS
+
+    openers = [d for d in _MATH_DELIMS if has_math_delimiters(d)]
+    assert openers, "no _MATH_DELIMS entry is recognised by has_math_delimiters"
+    # Anything the detector recognises, the filter must remove -- so a title made
+    # of every opener strips to nothing the detector would still flag.
+    assert not has_math_delimiters(strip_math_delimiters("".join(_MATH_DELIMS)))
+
+
 def test_returns_a_plain_str_not_safestring_on_the_no_delimiter_path():
     """The tempting optimisation -- return the input untouched when it holds no
     delimiter -- would pass a SafeString straight through and silently lose
@@ -208,7 +234,7 @@ def strip_math_delimiters(value):
 uv run pytest tests/test_title_math_filter.py -v
 ```
 
-Expected: 11 passed.
+Expected: 12 passed.
 
 - [ ] **Step 5: Falsify — observe RED against the failure-mode mutant**
 
@@ -1358,10 +1384,61 @@ lines **182-186** → `  {% include "courses/_katex_js.html" %}`
 > `katex.min.js` tag above the include. Lines `169-181` (mathlive + its inline bootstrap +
 > `math_input.js`) stay exactly where they are.
 
+- [ ] **Step 4b: Teach `tests/test_text_colour_script_order.py` to follow the indirection**
+
+**This step is not optional — without it Step 4 leaves five tests red for seven commits.**
+`tests/test_text_colour_script_order.py` parses `{% static '…js' %}` out of the **raw source**
+of exactly the five templates Step 4 rewrites (its `PAGES` list *is* those five files). Once the
+tags become `{% include "courses/_katex_js.html" %}`, none of those files contains
+`katex.min.js`, `auto-render.min.js`, `math_reflow.js` or `text_colour.js` any more, so
+`test_the_parser_actually_sees_the_katex_scripts`,
+`test_every_katex_page_loads_text_colour_in_the_right_place`,
+`test_math_reflow_present_on_every_katex_page`, `test_math_reflow_load_order` (`ValueError` on
+`order.index`) and `test_math_reflow_sits_inside_the_has_math_block` (`AssertionError: no
+has_math block containing auto-render.min.js`) all break. It lives in `tests/`, not
+`courses/tests/`, so Step 7's run would miss it and the breakage would surface only at Task 11.
+
+Add one helper and route both existing readers through it — every assertion below it then keeps
+working unchanged, **including** the two measured traps its docstrings record:
+
+```python
+PARTIAL = "_katex_js.html"
+
+
+def _expanded(path):
+    """`path`'s source with the shared KaTeX include spliced in at its site.
+
+    The KaTeX family moved into courses/_katex_js.html, so a raw {% static %}
+    scan of a page template no longer sees it -- every assertion in this file
+    would go vacuous or raise. Splicing the partial's own text in at the include
+    site preserves document order, which is the only thing this file measures.
+
+    Deliberately NOT a Django render: these tests read source precisely so they
+    can assert on {% if has_math %} containment, which a rendered page has
+    already resolved away.
+    """
+    text = (TEMPLATES / path).read_text(encoding="utf-8")
+    partial = (TEMPLATES / PARTIAL).read_text(encoding="utf-8")
+    return re.sub(
+        r'{%\s*include\s+"courses/_katex_js\.html"\s*%}',
+        lambda _m: partial,          # lambda: the partial holds backslashes
+        text,
+    )
+```
+
+Then change the two source readers to use it — `_script_order`'s body becomes
+`text = _expanded(path)` in place of its `read_text`, and `_has_math_block`'s becomes
+`lines = _expanded(path).splitlines()`. Nothing else in the file changes.
+
+> `_has_math_block`'s docstring cites line numbers (`lesson_unit.html:36`, `quiz_unit.html:7`,
+> …) that shift once the partial is spliced. Leave the prose — it documents *why* the
+> single-line skip exists, and that reasoning is unaffected — but do not treat those numbers as
+> current.
+
 - [ ] **Step 5: Run to verify they pass**
 
 ```bash
-uv run pytest tests/test_title_math_assets.py -v
+uv run pytest tests/test_title_math_assets.py tests/test_text_colour_script_order.py -v
 ```
 
 Expected: all pass.
@@ -1378,13 +1455,24 @@ Revert each.
 
 - [ ] **Step 7: Regression-check the pages that already had KaTeX**
 
-`courses/tests/test_beforeafter_css.py:177-184` and `test_reveal_scope_agreement.py:65` read
-`lesson_unit.html` / `quiz_unit.html` as **source**, which is precisely what this task's script-block
-replacement rewrites — so that package belongs in this run too:
+**Discover the affected tests; do not derive them from memory.** A hand-built list is exactly
+how `test_text_colour_script_order.py` was missed in an earlier draft of this plan. Run:
+
+```bash
+grep -rl "katex.min.js\|auto-render\|math_reflow" tests/ courses/tests/
+```
+
+That returns 13 files. Twelve assert on **rendered output** and are unaffected by moving tags
+into a partial; one — `tests/test_text_colour_script_order.py` — reads template **source** and is
+handled by Step 4b. (`tests/test_math_reflow_defaults.py` also reads source, but it reads the
+vendored JS, not templates.) `courses/tests/test_beforeafter_css.py:177-184` and
+`test_reveal_scope_agreement.py:65` read `lesson_unit.html` / `quiz_unit.html` as source too,
+which is why that whole package is in the run:
 
 ```bash
 uv run pytest tests/test_review_views.py tests/test_consumption_pages.py \
-              tests/test_choice_feedback_has_math.py courses/tests/ -v
+              tests/test_choice_feedback_has_math.py \
+              tests/test_text_colour_script_order.py courses/tests/ -v
 ```
 
 Expected: all pass — in particular `test_review_loads_katex_when_stem_has_math` and `test_review_no_katex_without_math`.
@@ -1399,7 +1487,7 @@ git add templates/courses/_katex_css.html templates/courses/_katex_js.html \
         templates/courses/quiz_results.html \
         templates/courses/manage/review_submission.html \
         templates/courses/manage/editor/editor.html \
-        tests/test_title_math_assets.py
+        tests/test_title_math_assets.py tests/test_text_colour_script_order.py
 git commit -m "refactor(courses): extract shared KaTeX partials and ship math.js on results/review"
 ```
 
@@ -3879,22 +3967,33 @@ def make_large_title_course(*, parts=20, units_per_part=40):
     Mirrors this repo's matematyka course (21 parts / 793 units). Only the first
     part's title carries maths, so the gate arms exactly once and every other
     title is a realistic maths-free string.
+
+    Returns (course, first_unit) -- the unit whose page the measurement opens.
     """
     course = CourseFactory()
+    first_unit = None
     for p in range(parts):
         part = ContentNodeFactory(
             course=course, kind="part", parent=None, unit_type=None, order=p,
             title=MATHS_TITLE if p == 0 else f"Czesc {p + 1}",
         )
         for u in range(units_per_part):
-            ContentNodeFactory(
+            unit = ContentNodeFactory(
                 course=course, kind="unit", unit_type="lesson", parent=part,
                 order=u, obligatory=True, title=f"Lekcja {p + 1}.{u + 1}",
             )
-    return course
+            if first_unit is None:
+                first_unit = unit
+    return course, first_unit
 ```
 
-Then re-run the same measurement against it (one extra e2e, same `page.route` block and same `evaluate` body) and judge the **large-course** number against the 50 ms threshold. The small-course number is only ever a screening reading.
+Then add one extra e2e that is `test_render_inline_text_main_thread_cost_is_recorded` with two
+lines changed: `course, unit_a = make_large_title_course()` in place of the
+`make_title_course(maths_on="far")` call, and a distinct username. **Everything else is copied
+unchanged** — the `make_verified_user` + `EnrollmentFactory` + `_login` preamble, the
+`page.route` block that aborts `math.js`, the `evaluate` body, and the three assertions. Judge
+the **large-course** number against the 50 ms threshold; the small-course number is only ever a
+screening reading.
 
 - [ ] **Step 5a: Seed the visual-verification fixtures**
 
@@ -3924,9 +4023,16 @@ containing chapter A1 (**title = `TITLES["long"]`** — `_unit_crumbs.html:33` m
 leaf is A1 itself; giving A1 a short title makes row 4 unshootable, because the long title
 would sit on part A, which renders as `--mid`) containing three lesson units titled
 `TITLES["mixed_h1"]`, `TITLES["display"]` and `TITLES["long"]` in that order — so the middle
-unit's page shows a display-maths **prev** and a long **next** in one shot; plus **part B**
-(title = `TITLES["inline"]`) with one quiz unit titled `TITLES["long"]`, giving the analytics
-matrix maths at two nesting depths once part B is expanded.
+unit's page shows a display-maths **prev** and a long **next** in one shot — **and a fourth
+lesson titled `TITLES["plain"]`**, so every tree/nav shot has a maths-free row directly beside a
+maths one, which is what makes the light/dark comparison judgeable rather than absolute.
+
+**Part B** (title = `TITLES["inline"]`) has exactly **two children, stated once**: one **quiz**
+titled `TITLES["long"]` — this is *the* part-B quiz referred to below, and the one that must
+carry the `[R]` question and the SUBMITTED submission — and one **lesson** titled
+`TITLES["inline"]`, which exists so the breakdown page (row 11) renders both
+`.breakdown-unit__title` branches. Part B gives the analytics matrix maths at two nesting depths
+once expanded.
 
 **The part-B quiz must carry an `[R]` question, or rows 9 and 13 are unshootable.**
 `courses/review.py::_awaiting_review` requires `state["total"] > 0` — i.e. at least one element
@@ -3937,17 +4043,26 @@ renders no rows. Seed it with an `ExtendedResponseQuestionElement(marking_mode=
 QuestionElement.MarkingMode.REVIEW, max_marks=Decimal("5"))` — the `_review_quiz` shape at
 `tests/test_review_views.py:54-63` — and a `SUBMITTED` submission that has not been reviewed.
 
-Then: enrol one student, submit that quiz (so the results/review rows exist), tag one unit (so
-the tags hub renders), and **create one `Note(author=student, unit=<a maths-titled unit>,
+Then: enrol one student, submit the part-B quiz (so the results/review rows exist), tag one unit
+(so the tags hub renders), and **create one `Note(author=student, unit=<a maths-titled unit>,
 body="…")`** — `notes.services.course_notes` **omits units with no notes**, so without this the
 notes page renders `course-notes__empty` and row 12's `h2.course-notes__unit-title` never
-appears at all. Also seed **one lesson unit and one quiz unit under part B** so the breakdown
-page (row 11) shows both `.breakdown-unit__title` branches.
+appears at all.
 
-**Two logins, not one.** Rows 6 (analytics matrix), 9 (review queue), 11 (breakdown) and the
-review-submission half of row 13 are manage surfaces gated by `scoping.can_review_course`,
-which passes only for a platform admin or `course.owner` — capture those as a `make_pa`-style
-admin (or the owner). Every other row is captured as the enrolled student.
+**Two logins, not one.** Rows 6 (analytics matrix), 9 (review queue), 11 (breakdown), the
+review-submission half of row 13, **and row 14 (the editor)** are manage surfaces — capture all
+of them as a `make_pa`-style admin (or the course owner). Every other row is captured as the
+enrolled student, who would get a 404 on any of these.
+
+Two different gates are involved and a PA satisfies both, so one admin login still suffices:
+rows 6/9/11/13 go through `scoping.can_review_course`, while **row 14 goes through
+`can_manage_course`** (`views_manage.py:1938`) — a reviewer who is not a manager could reach the
+first four and still 403 on the editor.
+
+**Row 14's navigation, named:** open the editor for the chapter-A1 lesson titled
+`TITLES["mixed_h1"]` — `…/manage/courses/<slug>/build/unit/<pk>/edit/`. That single page carries
+all three surfaces at once: the ancestor crumb (chapter A1, `TITLES["long"]`), the `<h1>`
+(`TITLES["mixed_h1"]`) and the preview `<h2>` (the same title).
 
 Follow `tests/capture_publish_screenshots.py` exactly — it already solved every mechanical
 question here:
@@ -4022,6 +4137,21 @@ Read every image and judge the dark one **on its own terms**, not as "the light 
 | 12 | **Notes page** (`h2.course-notes__unit-title`), **tags hub** (`_tag_section.html`'s `<li><a>`) and **tags panel** (`<h1>`) | three pages that newly gain KaTeX rendering and receive **no clamp at all**; §3 puts them in the "global rules only" bucket, and this row is what turns that from an assumption into a measurement |
 | 13 | `h1.result__title` (quiz results) and `h1.review-topbar__title` (review submission) | the **same synthetic-bold risk as row 8** on two different pages — row 8 only judges the lesson `<h1>` |
 | 14 | The **editor page**: the ancestor crumb, `h1.editor-head__title`, and the preview `h2.prev-unit-title` | the editor ships KaTeX **unconditionally**, so all three typeset on *every* editor load — and their rules live in a **third** stylesheet the rest of this task never touches: `.editor-crumb__path` is `font-size:.9rem` in a flex row (`editor.css:366`), `.editor-head__title` is `1.1rem` (`:370`), and `.prev-unit-title` is `font-weight:700` (`:513`). Both the line-height-growth risk and the synthetic-bold risk apply here, unmeasured |
+
+**Pass criterion for #12:** same measurement as #9/#10 — row height with and without a maths
+title — and the same placement discipline, which matters more here than anywhere else because
+these three pages link **three different stylesheets**. A single "notes/tags clamp" block would
+silently no-op on at least two of them:
+
+| Selector | Goes in | Because |
+| --- | --- | --- |
+| `.course-notes__unit-title .katex` | `notes.css` | `notes/course_notes.html:4` links `notes.css`. |
+| `.tag-section__units li a .katex` | `tags.css` | `tags/my_tags.html:4` links `tags.css`. |
+| the tags-panel `<h1>` inner span | **`app.css`** | `tags/panel_page.html` has no page stylesheet of its own — before this change it had no `extra_css` block at all, and Task 9 adds one that includes *only* the KaTeX link. Its own rules come from base's `app.css`. |
+
+As with rows 9/10, pin any added selector against **its specific stylesheet** in
+`tests/test_title_math_css.py` — `_has_rule`/`_rule_body` take the stylesheet as an argument
+precisely so placement is asserted, not just existence.
 
 **Pass criterion for #14:** if either editor surface needs a clamp, the selector goes in
 **`courses/static/courses/css/editor.css`** — the editor links `courses.css` *and* `editor.css`,
