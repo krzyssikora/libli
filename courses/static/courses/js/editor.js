@@ -124,6 +124,7 @@
     if (editorPane && window.libliInitMultiGrid) window.libliInitMultiGrid(editorPane);  // re-sync multi-select grid checkboxes
     if (editorPane && window.libliInitStepperEditor) window.libliInitStepperEditor(editorPane);  // add-step button
     if (editorPane && window.libliInitMarkDoneEditor) window.libliInitMarkDoneEditor(editorPane);  // add-item button
+    if (editorPane && window.libliInitFormsetRows) window.libliInitFormsetRows(editorPane);  // reveal JS-only row controls + reconcile a 422
     if (editorPane) syncChoiceFeedback(editorPane);  // adaptive per-option feedback prompts
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
