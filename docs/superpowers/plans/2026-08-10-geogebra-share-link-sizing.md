@@ -17,7 +17,7 @@
 - **`DIM_MAX = 2147483647`** — the `PositiveIntegerField` ceiling. Single definition, in `courses/geogebra.py`.
 - **`GEOGEBRA_DEFAULT_SIZE = (800, 600)`** — GeoGebra's own iframe-shell fallback. `frame_ratio` emits the literal `"800 / 600"` (identical to `4 / 3`); the plan and tests use `800 / 600` everywhere.
 - **`GEOGEBRA_API_LOOKUP` is `False` for the whole suite** (`pyproject.toml` pins `DJANGO_SETTINGS_MODULE = "config.settings.test"`). Every test that exercises the lookup — **including the invalid-input cases, which would otherwise pass vacuously** — must wrap in `override_settings(GEOGEBRA_API_LOOKUP=True)`.
-- **Public vs private naming:** names that **cross a module boundary** are public (`usable_dimensions`, `DIM_MAX`, `is_geogebra_iframe_url`, `geogebra_url_size`, `geogebra_material_id`, `fetch_geogebra_dimensions`, `GEOGEBRA_DEFAULT_SIZE`); names that **do not cross a module boundary keep the underscore** (`_open`, `_API_PREFIX`, `_TIMEOUT_SECONDS`, `_MAX_BODY_BYTES`, `_NEGATIVE_TTL_SECONDS`, `_USER_AGENT`, `_ID_RE`, `_NoRedirect`). `_open` is the only underscore name a test may **patch** — it is the transport seam, and that is deliberate. Tests additionally **read** `_MAX_BODY_BYTES`, `_TIMEOUT_SECONDS`, `_USER_AGENT` and `_NoRedirect` through in-function imports (Task 5); reading them is fine and does **not** justify promoting any of the four to a public name.
+- **Public vs private naming:** names that **cross a module boundary** are public (`usable_dimensions`, `DIM_MAX`, `is_geogebra_iframe_url`, `geogebra_url_size`, `geogebra_material_id`, `fetch_geogebra_dimensions`, `GEOGEBRA_DEFAULT_SIZE`); names that **do not cross a module boundary keep the underscore** (`_open`, `_API_PREFIX`, `_TIMEOUT_SECONDS`, `_MAX_BODY_BYTES`, `_NEGATIVE_TTL_SECONDS`, `_USER_AGENT`, `_ID_RE`, `_NoRedirect`). **`logger` is the one conventional exception** — a module-local `logging.getLogger(__name__)` binding keeps its bare name across this repo; do not rename it to `_logger`. `_open` is the only underscore name a test may **patch** — it is the transport seam, and that is deliberate. Tests additionally **read** `_MAX_BODY_BYTES`, `_TIMEOUT_SECONDS`, `_USER_AGENT` and `_NoRedirect` through in-function imports (Task 5); reading them is fine and does **not** justify promoting any of the four to a public name.
 - **Where new imports go — production files too, not just tests.** `I001` gates every file, so the two production modules need named insertion points in their existing single-line isort-ordered `from courses.*` blocks: in `courses/models.py` the five `courses.geogebra` lines go **between `courses.fields` (line 22) and `courses.marking` (line 23)**; in `courses/element_forms.py` the three go **between `courses.embed` (lines 15-16) and `courses.marking` (line 17)**. Appending them below the block instead fires `I001` on the final `ruff check .` gate.
 - **Where new test imports go.** Each task's test block shows the *tests*; put every new import at the **top of the module**, in the existing single-line isort-ordered import block. Do **not** paste import lines mid-file: ruff selects `E` and `I`, only `S105/S106/S107` are ignored under `tests/**`, so mid-file imports fire `E402` and `I001` and the final `ruff check .` gate goes red for reasons unrelated to the feature. (`config/settings/test.py` carries an explicit `# noqa: E402` for exactly this rule.)
 - **Keep every line of pasted code at or under 88 characters.** `ruff`'s `E` selection includes **E501** and the repo sets no `line-length` override, so the default 88 applies (verified: an 89-char line reports `E501 Line too long`). This matters more than it looks — the final gate runs `ruff check .` *before* `ruff format .`, and roughly half of this plan's long lines are **comments and docstrings, which `ruff format` cannot rewrap at all**. Every code block below has been wrapped to fit; if you re-flow one while editing, re-check its width.
@@ -103,6 +103,8 @@ Reference counts, as measured 2026-08-10 against the `libli` dev DB:
 > **`('mat-pp', 'canonical', False)` is absent, i.e. its count is 0** — no mat-pp canonical GeoGebra row is dimensionless.
 
 **If that predicate is violated → STOP and report before continuing.** The consequences are concrete, not cosmetic: every dimensionless mat-pp row flips 16:9 → 4:3, grows a badge, and fires a live GET inside the unit row lock on its next save. That changes whether a backfill is warranted, which is a design decision, not an implementation one.
+
+**The gate is scoped to mat-pp on purpose, and the two demo-course rows WILL change appearance.** `('demo-course', 'canonical', False) 2` is exactly the shape the gate catches — those two elements flip 16:9 → 4:3, grow a badge, and fire a live GET on their next save. That is not halted, because demo-course is seed/demo content rather than published course material, and the change is the *intended* fix rather than a regression. But it means "no published unit changes appearance" is a claim about **mat-pp only**. Record the non-mat-pp dimensionless count in the PR body so a reviewer can reconcile the two statements instead of reading them as contradictory.
 
 **If the predicate holds but the other counts have drifted, that is expected — proceed.** The reference numbers are one developer's dev DB on one date; local authoring since, a colleague's machine, or a fresh checkout will all differ without touching the design conclusion. Record the numbers you actually saw in the PR body; do not halt on them.
 
@@ -961,7 +963,9 @@ Expected: FAIL — `ImportError: cannot import name 'fetch_geogebra_dimensions'`
 
 **`or no_redirect` is not optional.** `test_no_redirect_handler_refuses_redirects` matches neither `fetch` nor anything else in a bare `-k fetch`, so under the original selector it would first execute at Step 7 against a *finished* implementation — green, having never been seen red. That is precisely the "a passing test proves nothing" hazard in Global Constraints, and it matters here more than usual: the plan's own note records that `integrations/delivery.py` ships this handler entirely untested, so this test is the first coverage the pattern has ever had.
 
-Its RED reason differs from the others — it fails on `ImportError: cannot import name '_NoRedirect'` rather than on the missing `fetch_geogebra_dimensions`. After Step 5 lands, additionally confirm it can fail for the *behavioural* reason: temporarily change `redirect_request` to `return None` instead of raising, re-run, confirm `Failed: DID NOT RAISE`, then revert. An import-error red does not demonstrate that the assertion discriminates.
+Its RED reason is **not** distinct, despite importing `_NoRedirect` inside the function body: the module-level `from courses.geogebra import fetch_geogebra_dimensions` fails at **collection** time, so every test in `tests/test_geogebra.py` errors with `ImportError: cannot import name 'fetch_geogebra_dimensions'` and the in-function import is never reached. Expect that message here too — Global Constraints require the failure to match the *stated* reason, so do not go looking for a `_NoRedirect` import error that cannot occur.
+
+This means collection-time red is all this step gives you for this test. After Step 5 lands, confirm it can fail for the *behavioural* reason — that is the real falsification: temporarily change `redirect_request` to `return None` instead of raising, re-run, confirm `Failed: DID NOT RAISE`, then revert. An import-error red does not demonstrate that the assertion discriminates.
 
 - [ ] **Step 5: Write the implementation**
 
@@ -996,7 +1000,7 @@ _NEGATIVE_TTL_SECONDS = 60
 _USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"
 ```
 
-**(c) The transport — immediately above `fetch_geogebra_dimensions`**, i.e. below every parsing function, so the module still reads parsers-then-network:
+**(c) The transport — below every existing parsing function, and above the `_settings_dimensions` / `_dimensions_from_payload` / `fetch_geogebra_dimensions` group** added next, so the module still reads parsers-then-network:
 
 ```python
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -1432,6 +1436,13 @@ Replace the body of `IframeElementForm.clean_url`:
 Run: `uv run pytest tests/test_iframe_dimensions.py -v`
 Expected: PASS, **including the pre-existing** `test_form_plain_url_edit_preserves_existing_dimensions` and `test_form_re_paste_overwrites_dimensions`.
 
+Then run the form's **other** consumers — `IframeElementForm` is exercised outside that file, and this task rewrites its `clean_url`, the riskiest change on the branch:
+
+Run: `uv run pytest tests/test_element_add_save.py tests/test_tabs_registry.py -v`
+Expected: PASS. `tests/test_element_add_save.py:16` reaches the form through `FORM_FOR_TYPE["iframe"]`, and `tests/test_tabs_registry.py:156` POSTs a real iframe save through `manage_element_save` with `https://www.geogebra.org/m/abc` — a canonical GeoGebra share link, i.e. exactly the shape that now triggers a lookup. Both stay offline because `config.settings.test` pins `GEOGEBRA_API_LOOKUP = False`; if either fails, the kill switch is not doing its job and nothing later in the plan will catch that.
+
+(Task 7's "no collateral damage" run covers `test_geogebra.py` / `test_embed.py` / `test_transfer_import.py`, which do **not** overlap the form's consumers at all — so this run is not redundant with it.)
+
 - [ ] **Step 5: Re-label the two pre-existing tests whose meaning THIS task changes**
 
 Both are **form** tests, so their semantics change the moment this task lands — not in Task 7, which touches only `models.py` and the render template. Do this **before** the commit below, so the commit that changes the behaviour is also the commit that records it; otherwise the branch carries two committed tests whose names assert something the code no longer does.
@@ -1476,7 +1487,10 @@ In `tests/test_iframe_dimensions.py`, add a second render constant and the new c
 ```python
 # render tests only — example.com is NOT whitelisted, so a form test would raise
 OTHER_RENDER_URL = "https://example.com/embed/abc"
-SIZED_BASE = "https://www.geogebra.org/material/iframe/id/abc"
+# NOT a new string: tests/test_iframe_dimensions.py:7 already defines URL with exactly
+# this value. Alias it rather than restating it -- two names for one literal is the
+# same ambiguity the _render replacement above exists to avoid.
+SIZED_BASE = URL
 SIZED_URL = f"{SIZED_BASE}/width/880/height/660"
 
 
@@ -1531,7 +1545,13 @@ def test_render_url_sized_applet_beats_a_disagreeing_stored_pair():
     # geogebra_sized_src leaves the src alone ("width" in segments), violating the
     # "never a frame ratio the src does not back up" invariant.
     url = "https://www.geogebra.org/material/iframe/id/abc/width/800/height/400"
-    assert "aspect-ratio: 800 / 400" in _render_url(url, 880, 660)
+    html = _render_url(url, 880, 660)
+    assert "aspect-ratio: 800 / 400" in html
+    # Both halves in ONE render. frame_ratio's contract is "never claim a ratio the src
+    # does not back up", but every other test here measures only the frame -- so a
+    # future change to geogebra_sized_src's guard could break the invariant with all of
+    # them still green. Asserting the src alongside is what actually pins the pair.
+    assert f'src="{url}"' in html
 
 
 def test_render_material_url_that_sized_src_will_not_rewrite_claims_no_ratio():
@@ -1606,7 +1626,9 @@ def test_render_geogebras_real_embed_tail_gets_the_urls_own_ratio():
         "https://www.geogebra.org/material/iframe/id/egZJdjsC"
         "/width/1600/height/763/border/888888/sfsb/true"
     )
-    assert "aspect-ratio: 1600 / 763" in _render_url(url)
+    html = _render_url(url)
+    assert "aspect-ratio: 1600 / 763" in html
+    assert f'src="{url}"' in html   # the frame matches the src it is framing
 
 
 def test_render_non_geogebra_url_with_width_height_segments_gets_no_ratio():
@@ -1622,7 +1644,10 @@ def test_render_never_raises_on_a_malformed_authority():
     assert "embed-frame" in _render_url("https://[::1")
 
 
-@pytest.mark.parametrize(   # no django_db: an UNSAVED instance touches no database
+# No explicit django_db marker needed -- tests/conftest.py::_enable_db_access is
+# autouse, so every test in the suite already has DB access. The instance below is
+# unsaved regardless, so this test touches no table either way.
+@pytest.mark.parametrize(
     "url,width,height,expected",
     [
         (URL, None, None, True),            # canonical GeoGebra, no size -> badge
@@ -1854,13 +1879,12 @@ def test_editor_row_hides_the_badge_once_dimensions_are_known(client):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `uv run pytest tests/test_iframe_dimensions.py -k badge -v`
+Run: `uv run pytest tests/test_iframe_dimensions.py -k editor_row -v`
 Expected: **exactly one failure** — `test_editor_row_shows_the_badge_for_a_dimensionless_geogebra_element`, with `el-row__flag` absent from the rendered row.
 
-The other two selected tests pass at this point, and neither passing is evidence of anything:
+(`-k editor_row`, not `-k badge`: "badge" also matches `test_size_unknown_drives_the_editor_badge` **and** Task 7's `test_url_change_with_a_failed_lookup_leaves_the_element_badged` — "badged" contains "badge" — so `-k badge` selects four tests, not the three enumerated here.)
 
-- `test_size_unknown_drives_the_editor_badge` is **already green from Task 7**, where the property was added.
-- `test_editor_row_hides_the_badge_once_dimensions_are_known` asserts an **absence** (`"applet size unknown" not in html`), which is trivially true against the unedited template. It cannot fail for the reason this step is about.
+The other selected test passes at this point, and its passing is not evidence of anything: `test_editor_row_hides_the_badge_once_dimensions_are_known` asserts an **absence** (`"applet size unknown" not in html`), which is trivially true against the unedited template. It cannot fail for the reason this step is about. Two further already-green tests from Task 7 (`test_size_unknown_drives_the_editor_badge`, `test_url_change_with_a_failed_lookup_leaves_the_element_badged`) are excluded by the narrower selector.
 
 That second one is a guard against **over**-rendering, so its red condition is the opposite mutant. After Step 3 lands, falsify it separately: temporarily drop the `{% if obj.size_unknown %}` guard so the badge renders on every iframe row, re-run, confirm this test goes RED while the shows-badge test stays green, then revert. Without that, the branch ships an assertion that has never discriminated — the failure mode Global Constraints exists to prevent.
 
@@ -1898,7 +1922,7 @@ Single quotes inside the attribute, matching lines 305 and 312 of the same file.
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `uv run pytest tests/test_iframe_dimensions.py -k badge -v`
+Run: `uv run pytest tests/test_iframe_dimensions.py -k editor_row -v`
 Expected: PASS.
 
 - [ ] **Step 6: Update the message catalogs**
@@ -1954,7 +1978,7 @@ def _allow_sync_orm_under_playwright():
     yield
 ```
 
-A fixture defined in a test *module* is visible only to that module **regardless of its scope**; `scope="session"` controls how often it runs, not who can see it. All 99 `tests/test_e2e_*.py` modules therefore each carry their own copy. Django's `async_unsafe` decorator reads the env var **at call time**, so without it `IframeElement.objects.create(...)` inside this Playwright sync test raises `SynchronousOnlyOperation` under this task's own Step 3 command (which runs the module alone). In a full `-m e2e -n 2` run it would pass or fail depending on which module the xdist worker happened to reach first — an order-dependent flake rather than a clean failure, which is worse.
+A fixture defined in a test *module* is visible only to that module **regardless of its scope**; `scope="session"` controls how often it runs, not who can see it. Every one of the 93 `tests/test_e2e_*.py` modules therefore carries its own copy. Django's `async_unsafe` decorator reads the env var **at call time**, so without it `IframeElement.objects.create(...)` inside this Playwright sync test raises `SynchronousOnlyOperation` under this task's own Step 3 command (which runs the module alone). In a full `-m e2e -n 2` run it would pass or fail depending on which module the xdist worker happened to reach first — an order-dependent flake rather than a clean failure, which is worse.
 
 ```python
 import os
@@ -2058,12 +2082,16 @@ def test_badge_does_not_grow_the_editor_row_at_the_pane_floor(page, live_server)
 
 **Do not** assert that the badge's own box lies inside the card: it renders *before* `.el-actions`, so negative free space is pushed onto the trailing item and the badge's box stays inside even on a build where it refuses to shrink.
 
-- [ ] **Step 2: Run it and confirm it passes on the real build**
+- [ ] **Step 2: Run it — assertions 1-3 must pass; assertion 4 may legitimately fail**
 
 Start the test DB first, then:
 
 Run: `uv run pytest tests/test_e2e_editor_row_layout.py -m e2e -v`
 (`-m e2e` is mandatory — e2e tests are deselected by default and the run would silently exit 5.)
+
+**This is not a plain green gate.** Assertions 1-3 must pass on the real build — a failure there is a genuine layout problem, so stop and investigate. **Assertion 4 is different: the plan expects it may be false on a correct build**, because `.el-actions` already wraps and "applet size unknown" is short, so the badge may simply never overflow at 1130px.
+
+If **only** assertion 4 fails, do not treat it as a defect and do not weaken its `<` operator. Apply its own rule now rather than waiting for Step 3: either escalate until it discriminates (widen the badge text to a temporary ~80-character label, or narrow the viewport in 50px steps, recording the width at which it goes red) or **delete the assertion** and say so in the PR. A check that cannot discriminate is worse than none.
 
 A green run here establishes nothing on its own; Step 3 is what makes it evidence.
 
@@ -2077,7 +2105,7 @@ Three assertions are labelled load-bearing, and **each needs a mutant that drive
 |---|---|---|---|
 | 1 | row heights equal | delete `min-width: 0` from `.el-row__top > .el-row__flag`, leaving `white-space: nowrap` — the badge can no longer shrink | assertion 1 |
 | 2 | `scrollWidth <= clientWidth` on `.el-row__top` | delete `min-width: 0` **and** `overflow: hidden` **and** `text-overflow: ellipsis` from that same rule — now the unshrinkable badge overflows visibly instead of being clipped | assertion 2; **assertion 1 going red alongside it is expected**, since this mutant is a superset of mutant 1 |
-| 3 | action bar's right edge inside the card | from a clean tree, remove `flex-wrap: wrap` from `.el-actions` (editor.css:572) — the fix for the originally-measured 41px escape — so the bar cannot wrap and pushes past the card edge | assertion 3 |
+| 3 | action bar's right edge inside the card | from a clean tree, remove `flex-wrap: wrap` from `.el-actions` (editor.css:572) — the fix for the originally-measured 41px escape — so the bar cannot wrap and pushes past the card edge | assertion 3; **assertion 2 is also expected red** (an unwrapped bar overflows `.el-row__top`), while **assertion 1 should stay green** — both rows lose wrapping equally, so their heights still match |
 
 Record each row's actual outcome (red / not red, and at what viewport width) in the PR body.
 
@@ -2087,20 +2115,55 @@ Shipping four green assertions of which only one was ever seen red is the failur
 
 - [ ] **Step 4: Capture screenshots for the PR — including the revealgate row**
 
-Take light and dark screenshots of the badged row at 1130px. Dark mode needs `user.theme`, **not** the cookie. Judge the dark one separately rather than assuming it follows the light one.
+**Mechanism — this is not a "go take screenshots" instruction.** Append a temporary capture block to the Task 9 test body, run it, then **revert the block before Step 5's commit** (the screenshots are PR artefacts, not committed test code). The repo's `tests/capture_help_screenshots.py` and `tests/capture_publish_screenshots.py` are the precedent for the shape if you prefer a standalone script; either is acceptable, but pick one and say which in the PR.
+
+Dark mode needs the **user's `theme` field**, not the cookie:
+
+```python
+    # --- TEMPORARY capture block: run, collect the PNGs, then DELETE before commit ---
+    from django.contrib.auth import get_user_model
+
+    out = pathlib.Path("artifacts/geogebra-badge")   # gitignored scratch dir
+    out.mkdir(parents=True, exist_ok=True)
+    for theme in ("light", "dark"):
+        get_user_model().objects.filter(username=username).update(theme=theme)
+        page.reload()
+        badged_row.screenshot(path=str(out / f"badge-{theme}.png"))
+        quiz_row.screenshot(path=str(out / f"revealgate-{theme}.png"))
+```
+
+Judge the dark capture **separately** rather than assuming it follows the light one.
 
 **Also screenshot a revealgate element's row — in a QUIZ unit.** The `.el-row__flag` typography rule added in Task 8 restyles the pre-existing "inactive in quizzes" flag at `_element_row.html:29`, which has shipped **unstyled** and has no test coverage. Giving it `.7rem` + `--text-secondary` is a visible change to a shipped, load-bearing warning on a surface nothing else in this branch exercises.
 
-**Do not seed it into the same unit as the badge test.** That flag is gated on `{% if unit.unit_type == 'quiz' %}` (`_element_row.html:28`), and `_seed_course_and_unit` hard-codes a **lesson** unit — so a revealgate seeded there renders no `.el-row__flag` at all, and the screenshot would show an empty row while being filed in the PR as confirmation. Seed a **second** unit with `unit_type="quiz"` (a separate `ContentNodeFactory(course=course, kind="unit", unit_type="quiz")`, or a second `_seed_course_and_unit` call parameterised that way) and put the revealgate element there.
+**Do not seed it into the same unit as the badge test.** That flag is gated on `{% if unit.unit_type == 'quiz' %}` (`_element_row.html:28`), and `_seed_course_and_unit` hard-codes a **lesson** unit — so a revealgate seeded there renders no `.el-row__flag` at all, and the screenshot would show an empty row while being filed in the PR as confirmation.
+
+Seed a **second, quiz** unit. Note `_seed_course_and_unit(username, slug=…, unit_title=…)` takes **no `unit_type` argument** (`tests/test_e2e_editor.py:51`) and must not be edited — it is shared with 93 other e2e modules. Build the quiz unit directly instead, taking the course from the unit you already have:
+
+```python
+    from tests.factories import ContentNodeFactory
+    from courses.models import RevealGateElement
+
+    quiz_unit = ContentNodeFactory(
+        course=unit.course, kind="unit", unit_type="quiz", title="Quiz"
+    )
+    gate_join = add_element(quiz_unit, RevealGateElement.objects.create(label="More"))
+    page.goto(_editor_url(live_server, quiz_unit))
+    quiz_row = page.locator(f"[data-element='{gate_join.pk}'] .el-row__top")
+```
 
 **Precondition before the capture counts:** the string `inactive in quizzes` must be present in the rendered page. If it is not, the flag did not render and the step has not been performed — fix the unit type rather than filing the screenshot.
 
 Capture light + dark and confirm the flag is still legible and still reads as a warning — the shrink properties are scoped away from it (`.el-row__top > .el-row__flag`), so it must NOT have become truncatable.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Register the module in `scripts/e2e_chunks.sh`, then commit**
+
+That script enumerates e2e files by name and is **already known to be stale** (it covers a subset of the existing modules, so "I ran the full suite" via chunks is measurably incomplete). Adding a module without registering it silently widens that gap, and this test would then never run in a chunked sweep.
+
+Add `tests/test_e2e_editor_row_layout.py` to the appropriate chunk. If the script's structure makes that non-obvious, **say so explicitly in the PR body** and record the omission as accepted — do not leave it unmentioned, which is indistinguishable from not having noticed.
 
 ```bash
-git add tests/test_e2e_editor_row_layout.py
+git add tests/test_e2e_editor_row_layout.py scripts/e2e_chunks.sh
 git commit -m "test(e2e): measure the editor row at the pane floor with the badge present"
 ```
 
@@ -2258,11 +2321,31 @@ If elapsed is under ~1s, the address is not blackholed **from this machine** —
 
 Four artefacts were deliberately collected during execution and are worthless if they stay in the transcript. The PR body must contain all of them:
 
-1. **Task 0** — the census counts you actually measured, or an explicit note that the predicate was *unevaluated* (dev DB unavailable / no mat-pp rows), plus any `'unparseable'` rows.
+1. **Task 0** — the census counts you actually measured, or an explicit note that the predicate was *unevaluated* (dev DB unavailable / no mat-pp rows); the **non-mat-pp dimensionless count** (demo-course rows that will change appearance, deliberately not gated); and any `'unparseable'` rows.
 2. **Task 7** — the malformed-tail accepted-gap conclusion, so a reviewer sees it was chosen rather than missed.
-3. **Task 9** — per-mutant outcomes for assertions 1-3 (red / not red, and the viewport width at which each discriminated), which assertions were deleted for failing to discriminate, and the light + dark screenshots **including the revealgate row**.
-4. **Final gate** — the live `(880, 660)` result and the measured timeout elapsed time.
+3. **Task 9** — per-mutant outcomes for assertions 1-3 (red / not red, expected collateral observed, and the viewport width at which each discriminated), whether assertion 4 survived or was deleted, the light + dark screenshots **including the revealgate row from a quiz unit**, and whether `scripts/e2e_chunks.sh` was updated.
+4. **Final gate** — the live `(880, 660)` result; the measured timeout elapsed time **and which address produced the stall**; and Pass B's measured fallback gap (expected ≈0.0px).
 
 - [ ] **Manual acceptance: reproduce the original defect and confirm it is fixed**
 
-Unit 294 renders correctly *today* because its two GeoGebra elements are the static-embed versions — the author replaced the broken share-link element before the census was taken. So do a **fresh** reproduction rather than revisiting it: in a scratch unit, add material `dcjktevj` **by share link** (`https://www.geogebra.org/m/dcjktevj`). Before this change it renders 16:9 with a ~161px right-hand gap; after it, it must be indistinguishable from an element created with the embed code — same viewport, no gap.
+Unit 294 renders correctly *today* because its two GeoGebra elements are the static-embed versions — the author replaced the broken share-link element before the census was taken. So do a **fresh** reproduction rather than revisiting it.
+
+**Pass A — the lookup path (`LIBLI_GEOGEBRA_API_LOOKUP=true`, the default).** In a scratch unit, add material `dcjktevj` **by share link** (`https://www.geogebra.org/m/dcjktevj`). Before this change it renders 16:9 with a ~161px right-hand gap; after it, it must be indistinguishable from an element created with the embed code — same viewport, no gap. The element stores `(880, 660)`, so the editor row carries **no** badge.
+
+- [ ] **Pass B — the fallback path, which Pass A does not exercise at all**
+
+Pass A stores a real pair and therefore never reaches `frame_ratio` step 3. So the plan's headline fallback claim — *"a 4:3 wrapper leaves a 0.0px gap; today's 16:9 leaves 161.3px"* — is never re-observed on a real build, and **no automated test can substitute**: every render test asserts the literal string `"800 / 600"`, which is the same constant the implementation emits, so a wrong `GEOGEBRA_DEFAULT_SIZE` is invisible to the entire suite. This pass is the only check on it.
+
+Restart the server with the kill switch off:
+
+```bash
+LIBLI_GEOGEBRA_API_LOOKUP=false uv run python manage.py runserver
+```
+
+Paste the same share link into a second scratch element and confirm **all three**:
+
+1. the element saves with **no** dimensions (the lookup is off);
+2. the rendered frame shows **no gap** at the content width — measure it, do not eyeball it; and
+3. the editor row **does** carry the `applet size unknown` badge.
+
+Record the measured gap (expected ≈0.0px, versus ≈161.3px on the pre-change build) in the PR body. If the gap is non-zero, `GEOGEBRA_DEFAULT_SIZE` is wrong and no test on the branch would have told you.
