@@ -646,10 +646,21 @@ stack rather than sit on one line, and the filename must truncate the way `.asse
   off — and the Polish labels are no shorter. Wrapping lets them stack at the narrow end and sit on
   one line where there is room.
 
-**Three states must appear in the screenshot check at the minimum column width**, because the foot's
-geometry differs in each and only one of them involves the strip: an **unused** cell (the majority
-case, and the one the truncation rule above exists for), an in-use cell with its `<details>`
-**open**, and a cell with the confirm strip open.
+**Four states must appear in the screenshot check at the minimum column width**, because the foot's
+geometry differs in each and only one of them involves the strip:
+
+1. an **unused** cell — the majority case, and the one the truncation rule above exists for;
+2. an in-use cell with its `<details>` **closed** — the default state of every in-use cell, and the
+   only state the `:not([open])` shrink rule actually targets. Watch the disclosure affordance: the
+   summary's marker is a trailing `::after { content: " ▸" }` (`editor.css:370`), i.e. generated
+   inline content at the end of the line box, which is exactly what `text-overflow: ellipsis` eats
+   first. At `.7rem`, "in use ×1 ▸" runs ~55px against the ~33px available, so at the minimum column
+   the triangle is clipped and the summary reads "in u…" with nothing signalling that it expands.
+   That is the accepted cost of truncation, not a defect to fix in CSS — but it must be *seen* and
+   judged here rather than discovered after merge;
+3. an in-use cell with its `<details>` **open** — the state deliberately left at its min-content
+   floor;
+4. a cell with the confirm strip open.
 
 **The strip grows its whole grid row.** `.asset-grid` is CSS Grid with the default
 `align-items: stretch`, so appending the strip to one cell makes that grid *row* taller and stretches
