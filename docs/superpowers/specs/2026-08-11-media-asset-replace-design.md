@@ -41,7 +41,7 @@ JSON `data`** and resolve them at render time through `MediaAsset.objects.in_bul
 |---|---|---|
 | `TableElement` | `resolved_cells` | `courses/models.py:1259-1266` |
 | `FillTableElement` | `resolved_cells` | `courses/models.py:1485-1493` |
-| `GalleryElement` | `resolved_images` | `courses/models.py:1546-1557` |
+| `GalleryElement` | `resolved_images()` — a **method**, not a property | `courses/models.py:1546-1557` |
 
 These have no FK, so they appear in neither `_MEDIA_REF_MODELS` nor any usage count.
 
@@ -83,12 +83,16 @@ storage, but it is a `post_delete` receiver on `MediaAsset` — it fires when a 
 keeps the row alive, so the old file would be orphaned unless the service deletes it explicitly.
 
 That receiver also keys on `file.name` with no check for other rows using the same name, so two
-`MediaAsset` rows sharing a name share a lifetime. In production this cannot arise (`create_asset`,
-the LAL loader and this design all let storage assign a name), but it arises readily from test
-fixtures constructing rows with a literal `file="courses/media/x.png"` — that exact literal appears
-in several fixtures across the suite, including
-`courses/tests/test_image_size_render.py:13-19` and `tests/test_e2e_media_picker.py:64`. The replace
-path therefore carries the guard the signal lacks.
+`MediaAsset` rows sharing a name share a lifetime. **Shared names are reachable in real data, not
+only in fixtures.** The three paths that *create* assets today — `create_asset`, the LAL loader and
+this design — all let storage assign the name, so none of them can collide. But
+`courses/migrations/0008_migrate_files_to_assets.py:32-37` populated `MediaAsset` by copying the
+*storage reference* off each `ImageElement.image` ("Copy the storage REFERENCE … never the bytes"),
+so any two image elements that pointed at one stored file produced two rows sharing a name on every
+database that ran 0008. Fixtures reach the same state more casually, via a literal
+`file="courses/media/x.png"` — that exact literal appears in several fixtures across the suite,
+including `courses/tests/test_image_size_render.py:13-19` and `tests/test_e2e_media_picker.py:64`.
+The replace path therefore carries the guard the signal lacks, and the guard is not dead code.
 
 **2. Deleting the old file can delete the *new* one.** `Storage.get_available_name` only avoids names
 that currently exist on disk. If the old file is already **missing** from storage — a row whose bytes
@@ -99,9 +103,11 @@ the file just written. The service must therefore compare names, not assume they
 **3. `full_clean()` on an existing row validates fields the replace never touches.**
 `MediaAsset.uploaded_by` is declared `null=True` **without** `blank=True`
 (`courses/models.py:709-711`), so `Model.clean_fields()` raises `"This field cannot be blank."` for
-any row whose uploader is `NULL`. That is every asset created by the LAL importer
-(`courses/lal_loader/media.py:35-47` never sets `uploaded_by`) plus every asset whose uploader
-account was later deleted — the FK is `SET_NULL` precisely so that happens. `create_asset` never hit
+any row whose uploader is `NULL`. Four populations have one: every asset created by the LAL importer
+(`courses/lal_loader/media.py:35-47` never sets `uploaded_by`), every row migration
+`0008_migrate_files_to_assets.py:32-37` created, everything the demo seeder makes
+(`seed_demo_course.py:236`), and every asset whose uploader account was later deleted — the FK is
+`SET_NULL` precisely so that happens. `create_asset` never hit
 this because `media_upload` is `@login_required` and always passes a real user; replace is the first
 path to validate an *existing* row, and an unscoped `full_clean()` there would 422 the entire
 imported catalogue with a meaningless message.
@@ -170,18 +176,25 @@ def replace_asset(asset, uploaded_file):
     if not uploaded_file.size:
         # MediaAsset.clean() has no lower size bound; only the upload FORM rejects an
         # empty file. Without this, a 0-byte upload would destroy the old bytes.
-        raise ValidationError("The submitted file is empty.")
+        # Translated (media.py already imports gettext_lazy as _): this is a SERVICE
+        # message, so the untranslated-view-literal exception in §i18n does not cover
+        # it, and the same condition already speaks Polish via the upload form.
+        raise ValidationError(_("The submitted file is empty."))
     old_name = asset.file.name
     old_storage = asset.file.storage
     asset.file = uploaded_file
     asset.original_filename = truncate_filename(uploaded_file.name)
     asset.content_hash = ""
-    # Validate exactly the fields this operation writes. A bare full_clean() would
-    # reject every LAL-imported asset: uploaded_by is null=True WITHOUT blank=True,
-    # so clean_fields() raises "This field cannot be blank." on a NULL uploader.
-    # clean() runs regardless of `exclude`, and still branches on the untouched
-    # self.kind — which is where the per-kind file validation lives.
-    asset.full_clean(exclude=["course", "kind", "name", "uploaded_by", "created"])
+    # Validate exactly the fields this operation writes. `uploaded_by` is the one
+    # exclusion that is load-bearing: it is null=True WITHOUT blank=True, so
+    # clean_fields() raises "This field cannot be blank." on a NULL uploader and a
+    # bare full_clean() would reject every LAL-imported asset. course/kind/name would
+    # pass anyway and are listed to express the rule, not to prevent a known failure.
+    # `created` is deliberately NOT listed: auto_now_add makes it editable=False, so
+    # Field.validate() early-returns and excluding it would be a no-op that reads as
+    # load-bearing. clean() runs regardless of `exclude`, and still branches on the
+    # untouched self.kind — which is where the per-kind file validation lives.
+    asset.full_clean(exclude=["course", "kind", "name", "uploaded_by"])
     asset.save(update_fields=["file", "original_filename", "content_hash"])
     # Storage hands back the SAME name when the old file was already missing, in
     # which case the "old" file IS the one just written.
@@ -411,10 +424,17 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
   every replace afterwards — no error, no flash, nothing. Per-strip closures keep the rename
   precedent exact.
 
-1. **Click** on `[data-replace-asset]` → locate any open strip with a **live DOM query**
-   (`root.querySelector("[data-replace-strip]")`), never a retained reference, and close it (remove
-   the node; clear that cell's input). At most one strip is open at a time. A click on a cell whose
-   own strip is already open is ignored. The live query matters because the debounced filter does
+1. **Click** on `[data-replace-asset]` → **if a replace POST is in flight anywhere, return
+   immediately** (see the in-flight guard in step 4). Otherwise locate any open strip with a **live
+   DOM query** (`root.querySelector("[data-replace-strip]")`), never a retained reference, and close
+   it (remove the node; clear that cell's input). At most one strip is open at a time.
+
+   A click on a cell whose *own* strip is open is **not** ignored — it re-opens the OS dialog, and
+   choosing a different file rebuilds that cell's strip. "Wrong file, let me pick another" is the
+   obvious correction to want, and making it a dead click would be a silent one; the `change` handler
+   already removes any existing strip on the cell before appending, so this costs no extra branch.
+
+   The live query matters because the debounced filter does
    `oldGrid.replaceWith(newGrid)` (`media_picker.js:373-376`), destroying every cell without
    notification — a retained reference would point at a detached node, and clearing its input would
    be a no-op on the live DOM. A filter/grid swap is therefore an implicit cancel, with no request in
@@ -424,7 +444,8 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
    matching the guards the file already uses at `:169` and `:270`. A cancelled OS dialog normally
    fires nothing at all, but that is browser-dependent rationale, not a defence; without the guard an
    empty `FileList` builds a strip whose filename reads `undefined` and whose commit posts nothing.
-   Then build and **append** the strip of §5 to `.asset-cell`, after `.asset-foot`. The foot is
+   Then **remove any strip already on this cell** (the re-pick path of step 1) and build and
+   **append** the strip of §5 to `.asset-cell`, after `.asset-foot`. The foot is
    neither replaced nor emptied, so the existing "in use ×N" summary and its expandable unit list
    stay on screen while the author decides — which is what makes a non-blocking warning defensible.
    The `__warn` span is included only when the cell's `data-di-uses` is greater than zero.
@@ -433,20 +454,31 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
 3. **Cancel** (`[data-replace-cancel]`) → remove the strip node, set `input.value = ""` on the cell's
    persistent input so re-choosing the same file fires `change` again, and **return focus to the
    `[data-replace-asset]` button**.
-4. **Replace** (`[data-replace-commit]`) → set the closure's `done` flag and **disable both the
-   commit and the cancel button** for the duration of the request, then `POST` the cell's
-   `data-replace-url` with a `FormData` carrying `file`, the `X-CSRFToken` header and
-   `X-Requested-With: fetch`, exactly as `uploadFile` does (`media_picker.js:240-249`).
+4. **Replace** (`[data-replace-commit]`) → **`if (done) return;` first**, then set `done`, raise the
+   shared in-flight flag read by step 1, and **disable both the commit and the cancel button** for the
+   duration of the request; then `POST` the cell's `data-replace-url` with a `FormData` carrying
+   `file`, the `X-CSRFToken` header and `X-Requested-With: fetch`, exactly as `uploadFile` does
+   (`media_picker.js:240-249`).
+
+   The `if (done) return;` read is the guard — setting the flag without reading it, which is easy to
+   do, would leave the hoisting bug §6's preamble describes undetectable and its regression test
+   vacuous. Disabling the buttons is the visible complement, not the mechanism.
 
    Disabling cancel is the point, not politeness: the POST is unabortable server-side, so a cancel
    accepted mid-flight would remove the strip, tell the author nothing happened, and then land a 200
-   that swaps in the replaced file anyway.
+   that swaps in the replaced file anyway. The in-flight flag closes the same hole from the other
+   side: without it, clicking ⇄ on a *different* cell mid-flight would sail past the disabled buttons
+   (the ⇄ handler is delegated and knows nothing about them), tear down the pending strip, and then
+   have the arriving response yank focus out of the newly opened one. As a second line of defence,
+   **every response branch below no-ops its cleanup and focus move if its own strip is no longer
+   attached to the live DOM.**
 
    Exactly three response branches, and the third is a catch-all:
 
-   - **200** → swap the whole `.asset-cell` for the returned HTML (the rename handler's
-     `cell.replaceWith(fresh)` pattern). The strip and the input go with the old node. **Move focus to
-     the fresh cell's `[data-replace-asset]` button**, since the element that had focus was just
+   - **200 *with* a parseable `.asset-cell` in the body** → swap the whole `.asset-cell` for the
+     returned HTML (the rename handler's `cell.replaceWith(fresh)` pattern, including its `if (fresh)`
+     check at `media_picker.js:343-344`). The strip and the input go with the old node. **Move focus
+     to the fresh cell's `[data-replace-asset]` button**, since the element that had focus was just
      destroyed.
    - **422** → remove the strip, clear the input, **return focus to `[data-replace-asset]`**, then
      flash the server's message. The body is an `_op_error.html` fragment, not a bare string, so it is
@@ -454,13 +486,19 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
      `querySelector(".op-error")`'s `textContent`, and passing that **string** to `flash()`. `flash`
      sets `textContent` (`media_picker.js:6-9`), so nothing server-echoed is ever inserted as markup.
      If the fragment has no `.op-error`, fall back to `msg(root, "replace-failed", …)`.
-   - **Any other status, and any rejected promise** → the same cleanup as 422 (remove strip, clear
-     input, restore focus) with the canned `replace-failed` message. This branch is mandatory, not
-     defensive padding: a 403 from a rotated CSRF token, a 404 from an asset deleted in another tab, a
-     405, a 500 and a dropped connection are none of them 200, 422 or necessarily a thrown error, and
-     an `if/else if` pair plus a `.catch` would leave every one of them with the strip open, no
-     message, and a wedged cell. Both siblings in this file already have catch-alls
-     (`media_picker.js:314-316`, `:341`).
+   - **Anything else** — any other status, **a 200 whose body yields no `.asset-cell`**, and any
+     rejected promise → the same cleanup as 422 (remove strip, clear input, restore focus) with the
+     canned `replace-failed` message.
+
+   That catch-all is mandatory, and the "200 with no cell" case is why it cannot be an afterthought.
+   `fetch` follows redirects by default, so a POST made after the session expires — logged out in
+   another tab, or a timeout — silently follows the `@login_required` 302 and resolves as **status
+   200 carrying the login page**. It is not 422, not an error status, and not a rejected promise, so a
+   naive `200 / 422 / else` split would take the success branch, find no cell, do nothing, and leave a
+   strip whose buttons this very step just disabled — unrecoverable without a page reload. The
+   ordinary failures (a 403 from a rotated CSRF token, a 404 from an asset deleted in another tab, a
+   405, a 500, a dropped connection) land here too. Both siblings in this file already have catch-alls
+   (`media_picker.js:314-316`, `:341`).
 
 **All six JS-rendered strings** reach the script the way the existing conflict message does: as
 `data-msg-*` attributes rendered with `{% trans %}` on the `.media-manager` root
@@ -474,6 +512,13 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
 | `replace-cancel` | `Cancel` |
 | `replace-failed` | `Could not replace the file.` |
 | `replace-aria` | `Confirm file replacement` |
+
+**One change to `flash()`.** It builds a bare `div.op-error` and `prepend`s it to `.media-manager`
+(`media_picker.js:6-9`), so on the 422 path the message appears at the top of a possibly scrolled
+grid while focus has just been returned to a ⇄ button far below it — and unlike the server's
+`_op_error.html`, the flashed div carries no `role="alert"`, so it is not announced either. Add
+`role="alert"` to that div. It is one attribute, it benefits the upload and delete flashes equally,
+and without it the replace path's careful focus management ends in silence.
 
 ### 7. CSS — `courses/static/courses/css/editor.css`
 
@@ -489,7 +534,13 @@ stack rather than sit on one line, and the filename must truncate the way `.asse
   and a heavier weight, mirroring `.asset-fname`.
 - `.asset-replace-confirm__warn` — `color: var(--text-secondary)`. Not `--text-tertiary`, which
   fails AA at body size.
-- `.asset-replace-confirm__actions` — row flex with a small gap.
+- `.asset-replace-confirm__actions` — row flex with a small gap, **plus `flex-wrap: wrap` and
+  `flex: 1 1 auto` on the two buttons**. Without that they overflow: `.btn--small` is
+  `padding: var(--space-1) var(--space-3); font-size: .875rem` (`core/css/app.css:50`,
+  `--space-3: 12px`), so "Replace" and "Cancel" side by side need roughly 160px against the ~112px of
+  content a minimum-width 8rem cell offers once `.asset-cell`'s `var(--space-2)` padding is taken
+  off — and the Polish labels are no shorter. Wrapping lets them stack at the narrow end and sit on
+  one line where there is room.
 
 **The strip grows its whole grid row.** `.asset-grid` is CSS Grid with the default
 `align-items: stretch`, so appending the strip to one cell makes that grid *row* taller and stretches
@@ -609,13 +660,21 @@ catalog recompiled, with any `#, fuzzy` pre-fill on a new entry cleared rather t
 
 **Shared mechanics — these are what keep the assertions falsifiable.**
 
-- **Real bytes.** Every test that asserts on a file being deleted or kept builds its asset with
-  `make_image_asset` (`tests/factories.py:150`), which writes an actual PNG. The bare
-  `MediaAssetFactory` defaults `file` to a `courses/media/test-N.png` *name with no bytes behind it*
-  (`tests/factories.py:122-129`); built that way, `storage.exists(old_name)` is already `False`, so
-  "gone after commit" passes on a build where the deletion never runs — and the code would take the
-  identical-name branch instead of the delete branch, so the test would not exercise what it names.
-  The **identical storage name** test is the single, deliberate exception that uses a byte-less row.
+- **Real bytes for the asset under replacement.** Every test that asserts on a file being deleted or
+  kept builds *that* asset with `make_image_asset` (`tests/factories.py:150`), which writes an actual
+  PNG. The bare `MediaAssetFactory` defaults `file` to a `courses/media/test-N.png` *name with no
+  bytes behind it* (`tests/factories.py:122-129`); built that way, `storage.exists(old_name)` is
+  already `False`, so "gone after commit" passes on a build where the deletion never runs — and the
+  code would take the identical-name branch instead of the delete branch, so the test would not
+  exercise what it names.
+
+  Two tests need a byte-less or absent file **by necessity**, and the rule above is about the
+  replaced asset, not every row in the fixture:
+  - the **identical storage name** test, whose whole subject is a row whose file is missing;
+  - the **shared filename** test's *decoy* row. `make_image_asset` always saves through storage, so
+    `get_available_name` guarantees it a unique name — two rows sharing a name are unconstructible
+    that way. The decoy must be a literal `MediaAssetFactory(file=<first>.file.name)`. The asset being
+    replaced in that test is still built with real bytes.
 - **`MEDIA_ROOT` redirection to `tmp_path`** before any asset is created, in **service, view and e2e**
   tests alike. These are the first tests in the repo whose subject is a file *deletion*; without the
   redirect a stray run deletes from the working tree's real `media/` directory.
@@ -643,9 +702,12 @@ catalog recompiled, with any `#, fuzzy` pre-fill on a new entry cleared rather t
   disk.
 - **Identical storage name:** an asset whose file is *absent* from storage, replaced by an upload with
   the same basename, ends with its file present on disk.
-- **Both JSON-pk resolvers:** a `GalleryElement` (`resolved_images`) **and** a `TableElement` image
-  cell (`resolved_cells`) referencing the asset by pk each resolve to the new file after a replace.
-  These are separate code paths; one does not cover the other.
+- **Both JSON-pk resolvers:** a `GalleryElement` **and** a `TableElement` image cell referencing the
+  asset by pk each resolve to the new file after a replace. These are separate code paths; one does
+  not cover the other. Mind the asymmetry: `TableElement.resolved_cells` is a `@property` but
+  `GalleryElement.resolved_images` is a **method** — writing `el.resolved_images` without `()` yields
+  a truthy bound method, so the assertion must call it and index into the returned list, or it is an
+  assertion that cannot fail.
 - **Drag-to-image survives:** a `DragToImageQuestionElement` with at least one `DragZone` keeps its
   `media_id` and all its zone rows (count and `x/y/w/h` values) after a replace. This is the consumer
   the design devotes a hazard section and a whole warning string to; leaving it unasserted would mean
@@ -684,14 +746,30 @@ catalog recompiled, with any `#, fuzzy` pre-fill on a new entry cleared rather t
 - A rejected file returns 422 carrying the validator's message.
 - A non-fragment POST redirects to `courses:manage_media`.
 
-**E2e (`tests/test_e2e_media_picker.py`)**
+**E2e — a new `tests/test_e2e_media_manager.py`**
 
-The module's existing `_setup` helper builds its asset as
-`MediaAssetFactory(course=course, kind="image", file="courses/media/x.png")` (`:64`) with no bytes and
-no `MEDIA_ROOT` override. The replace tests must **not** reuse it as-is: with the old file absent,
-storage reuses the name, `asset.file.url` never changes, and "the `<img>` src is the new file" would
-pass identically on a build that replaced nothing. They use a setup that redirects `MEDIA_ROOT` to
-`tmp_path` first and builds the asset with `make_image_asset`.
+These do **not** go in `tests/test_e2e_media_picker.py`. That module is scoped to the in-editor
+"Choose media" picker: every helper ends on the editor page
+(`page.goto(.../build/unit/<pk>/edit/)`, `wait_for_selector('[data-scope="editor"]')`, `:66-70`), it
+has no `MEDIA_ROOT` fixture, and its `_setup` builds the asset as
+`MediaAssetFactory(course=course, kind="image", file="courses/media/x.png")` (`:64`) — no bytes.
+Reusing that helper would break the central assertion twice over: with the old file absent storage
+reuses the name, so `asset.file.url` never changes and "the `<img>` src is the new file" passes
+identically on a build that replaced nothing; and without the redirect the run would write into, and
+delete from, the working tree's real `media/` directory. There is no existing e2e anywhere in
+`tests/` that visits the media manager, so the setup is new, not adapted.
+
+The new module's setup, per test (not module-`autouse`, so nothing leaks into other modules):
+
+- redirect `settings.MEDIA_ROOT` to `tmp_path` **before any asset is created** — `live_server`'s
+  media handler reads it per request (`tests/test_e2e_image_size.py:58-65`);
+- build the asset with `make_image_asset` so it has real bytes and a storage-assigned name;
+- attach it to an `ImageElement` on a unit, so the cell reports "in use ×1" and there is a unit page
+  to re-render;
+- `page.goto(f"{live_server.url}/manage/courses/{course.slug}/media/")`, then
+  `wait_for_selector(".asset-cell")` as the readiness signal.
+
+Tests:
 
 - Replace an image that an `ImageElement` in a unit uses: the strip (`[data-replace-strip]`) appears
   naming the chosen file in `[data-replace-filename]` **while the "in use ×N" summary remains
@@ -705,7 +783,16 @@ pass identically on a build that replaced nothing. They use a setup that redirec
   from the DOM) — assert the recorded list is empty.
 - **Two consecutive replaces on the same cell both succeed.** This is the regression test for the
   `done` flag's scope (§6): a flag hoisted out of the per-strip closure makes the second replace a
-  silent no-op, with no error and no flash, which every other test in this list would still pass.
+  silent no-op, with no error and no flash, which every other test in this list would still pass. It
+  only bites if the flag is actually *read* — which §6 now requires.
+- **A real 422 flashes the validator's message, not raw HTML.** Drive an `.mp4` onto an image asset
+  and assert the flashed text equals the extension error, that no markup leaked into the bar, that
+  the strip is gone and the input cleared. Without this, the fragment-parsing path of §6 — the one
+  the design argues hardest for — ships entirely unexercised, and flashing `undefined` or a chunk of
+  HTML would go unnoticed.
+- **The catch-all branch fires.** Force a non-200/non-422 outcome with `page.route(...)` (abort, or
+  fulfil with status 500) and assert the strip is removed, the input cleared, focus back on ⇄, and
+  `replace-failed` flashed. Every other test in this list passes with the catch-all deleted.
 - For an asset backing a drag-to-image question the strip shows `.asset-replace-confirm__warn`; for
   one that does not, it is absent.
 - Both themes are screenshotted and the dark rendering judged on its own, and the shot includes a
