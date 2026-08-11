@@ -1257,7 +1257,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: `validate_nesting` gains `unit_types=None`**
 
-Keyword-with-default is **required**: 19 positional call sites across six test files pass `elements` alone. Add the clause **immediately after** the existing `NESTABLE_TYPE_KEYS` clause (`:922`), so "not nestable at all" wins over "not nestable here":
+Keyword-with-default is **required**: **20** positional call sites across six test files pass `elements` alone (Task 4 Step 5 added one to the plan-time count of 19). Add the clause **immediately after** the existing `NESTABLE_TYPE_KEYS` clause (`:922`), so "not nestable at all" wins over "not nestable here":
 
 ```python
         if (
@@ -1360,13 +1360,15 @@ Bump each literal `11` → `12`. Nothing else in these seven files changes.
 
 `choice` is the only newly nestable type with child rows, and both `duplicate_element` and the paste flow go through the transfer serializers — so duplicating a callout is the first thing an author does after nesting a question.
 
-**Model it on an existing round-trip test rather than inventing the call shapes** — `courses/tests/test_callout_transfer.py` and `tests/test_twocolumn_transfer.py` already exercise export→validate→import for a container with children; copy whichever is closer and swap the child for a `choice`. `build_export` (`courses/transfer/export.py:670`) and `validate_document` (`courses/transfer/schema.py:108`) both take keyword-only arguments, and the importer entry point is whatever that sibling test already calls — read it, do not guess.
+**Model it on `tests/test_tabs_transfer.py:265`'s `_round_trip(client, course)`** — verified during execution as the only real export→validate→import shape in the suite: `write_archive` → `open_archive` → `validate_archive_document` → `import_course`. (`test_callout_transfer.py` has a *serializer-level* round trip plus export-only and `duplicate_*` tests but never calls `validate_document`; `test_twocolumn_transfer.py` calls none of the three. Do not model on either.)
+
+Note `build_export(course, node=None, source_host="", *, drop_missing_media=True, …)` — its first three arguments are **positional**, not keyword-only; `validate_document(doc, *, kind, …)` is keyword-only after the first.
 
 Assert the re-imported child's `parent`, `tab_id`, concrete type and its `Choice` rows (`is_correct`, `feedback`) all match.
 
 **Mutant:** drop `"choice"` from `NESTABLE_TYPE_KEYS` → the round-trip goes RED at the `validate_document` step. Edit it back out.
 
-- [ ] **Step 7: Verify the 19 positional call sites still pass**
+- [ ] **Step 7: Verify the 20 positional call sites still pass**
 
 ```bash
 uv run pytest courses/tests/test_beforeafter_transfer.py courses/tests/test_callout_transfer.py courses/tests/test_spoiler_transfer.py tests/test_tabs_transfer.py tests/test_transfer_nesting_depth.py tests/test_twocolumn_transfer.py -v
