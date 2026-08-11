@@ -460,8 +460,19 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
    matching the guards the file already uses at `:169` and `:270`. A cancelled OS dialog normally
    fires nothing at all, but that is browser-dependent rationale, not a defence; without the guard an
    empty `FileList` builds a strip whose filename reads `undefined` and whose commit posts nothing.
+
+   **Then capture the `File` object — `var file = input.files[0]` — before touching anything else,
+   and use that captured object for both `[data-replace-filename]` and the commit's `FormData`.
+   Never re-read `input.files` later.** This ordering is load-bearing. Teardown comes next, and in
+   the re-pick flow step 1 advertises, the open strip belongs to *this* cell — so a blanket "clear
+   that cell's input" would run `input.value = ""` on the very input that just received the new
+   selection, wiping `input.files` before the strip is built. `input.files` cannot be restored
+   programmatically, so the result would be a `TypeError` and no strip at all, or a commit that posts
+   no file. For the same reason the clear-the-input rule applies **only to a different cell's**
+   input; this cell's input is left alone until cancel or a response branch.
+
    Then **remove whatever `root.querySelector("[data-replace-strip]")` finds** — any open strip,
-   whether on this cell or another (clearing that cell's input too) — and build and
+   whether on this cell or another — and build and
    **append** the strip of §5 to `.asset-cell`, after `.asset-foot`. The foot is
    neither replaced nor emptied, so the existing "in use ×N" summary and its expandable unit list
    stay on screen while the author decides — which is what makes a non-blocking warning defensible.
@@ -510,10 +521,17 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
    — the in-flight flag guards ⇄ clicks, not the search box — and its grid swap detaches the strip.
    The replace has already committed server-side, but the refetched grid was rendered from a
    pre-commit read, so a plain no-op would leave the author looking at the old thumbnail and filename
-   with nothing to say it worked. So the **200 branch, on finding its strip detached, re-queries the
-   live grid for `.asset-cell[data-asset-id="<pk>"]` and swaps *that* node** instead, moving no focus.
-   If even that is gone (filtered out of the current view), it no-ops — the asset is not on screen to
-   be stale about.
+   with nothing to say it worked. So the **200 branch, on finding its strip detached, re-queries
+   `root.querySelector('.asset-cell[data-asset-id="<pk>"]')` and swaps *that* node** instead, moving
+   no focus. If even that is gone (filtered out of the current view), it no-ops — the asset is not on
+   screen to be stale about.
+
+   **Query from `root`, not from `wireManager`'s `grid` local.** That variable is captured once at
+   wire time (`media_picker.js:237`) while the filter's `oldGrid.replaceWith(newGrid)` (`:373-376`)
+   swaps in a *new* grid node — and a filter swap is the only way this branch is reached at all, so
+   `grid` is guaranteed stale exactly here. Using it would find the detached cell and `replaceWith`
+   inside a detached tree: precisely the silent no-op this rule exists to prevent, reintroduced by
+   the one variable already in scope at that line.
 
    Exactly three response branches, and the third is a catch-all:
 
@@ -575,15 +593,27 @@ stack rather than sit on one line, and the filename must truncate the way `.asse
   directly in that flex row" of `.asset-foot`; after this wrapper that flex parent is
   `.asset-actions`, so the comment is updated to say so rather than left describing a structure that
   no longer exists.
-- **`.asset-uses-detail` — `min-width: 0`** plus the `overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap` triple `.asset-fname` already uses (`editor.css:721-722`). Without it the foot
-  overflows at the grid's minimum column: two `.iconbtn`s (`min-width: 1.9rem` ≈ 32px each, plus
-  borders) with the `.asset-actions` and `.asset-foot` gaps come to roughly 77px, against the ~110px
-  an `8rem` column leaves after `.asset-cell`'s `var(--space-2)` padding — so about 33px remains for
-  a uses summary that needs 55-60px for `in use ×1` plus its `::after` marker. As a flex item it
-  defaults to `min-width: auto` and refuses to shrink, so it pushes out of the cell instead. Today,
-  with one icon button, the same sum just fits; adding the third control is what breaks it, which is
-  why the rule belongs to this change.
+- **The foot's first child must be allowed to shrink.** Without this the foot overflows at the grid's
+  minimum column: two `.iconbtn`s (`min-width: 1.9rem` ≈ 32px each, plus borders) with the
+  `.asset-actions` and `.asset-foot` gaps come to roughly 77px, against the ~110px an `8rem` column
+  leaves after `.asset-cell`'s `var(--space-2)` padding — so about 33px remains for a label that
+  needs more. Flex items default to `min-width: auto` and refuse to shrink, so they push out of the
+  cell instead. Today, with one icon button, the sum just fits; adding the third control is what
+  breaks it, which is why the rule belongs to this change.
+
+  It must cover **both** branches of `_asset_cell.html:31`, not just the in-use one. When `uses` is
+  falsy the left child is a bare `<span class="muted">unused</span>` — `.85rem`
+  (`core/css/app.css:375`), and the Polish `nieużywane` is a single unbreakable ~65px word, so an
+  *unused* cell overflows exactly as an in-use one would, and unused cells are the majority. Apply
+  `min-width: 0` via a common `.asset-foot > :first-child` rule so neither branch can be missed.
+
+- **The truncation triple goes on the summary, not the `<details>`.** `.asset-uses` gets
+  `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` (the trio `.asset-fname` already
+  uses, `editor.css:721-722`). Putting it on `.asset-uses-detail` instead would be a regression:
+  that is the `<details>` box, so `white-space: nowrap` inherits into every `<li>` of
+  `.asset-uses-list` while `overflow: hidden` hard-clips them at ~110px — and `text-overflow` does
+  not inherit, so there would not even be an ellipsis. That would gut the expandable unit list §6
+  step 2 explicitly leans on. Belt and braces: set `white-space: normal` on `.asset-uses-list`.
 - `.asset-replace-confirm` — column flex, small gap, `margin-top`/`padding-top` plus a
   `1px solid var(--border-default)` top rule to separate it from the foot, `font-size: .78rem`,
   `text-align: left`.
@@ -741,10 +771,11 @@ catalog recompiled, with any `#, fuzzy` pre-fill on a new entry cleared rather t
   `tests/conftest.py:379-385` and `tests/test_e2e_image_size.py:58-65` establish the pattern, and the
   "before any asset exists" ordering is load-bearing because `live_server`'s media handler reads
   `MEDIA_ROOT` per request.
-- **`django_capture_on_commit_callbacks(execute=True)`** around any assertion about a file being gone,
-  since `_delete_file_if_unshared` defers through `transaction.on_commit` and those callbacks never
-  fire under the plain `db` fixture (`tests/test_media_model.py:28,51`). The shared-filename test runs
-  *inside* the same capture block, or it passes for the wrong reason.
+- **`django_capture_on_commit_callbacks(execute=True)`** around the **`replace_asset` call**, with the
+  file assertions *after* the block — not around the assertion, which would capture nothing. The
+  callback is registered during the service call, so the context manager has to enclose that call;
+  `tests/test_media_model.py:28,51` is the precedent. This applies equally to the shared-filename
+  test: if its replace runs outside the block, "the file stayed" passes because no deletion ever ran.
 - **Re-fetch, don't re-read.** Assertions that a row is unchanged run against a freshly fetched
   `MediaAsset.objects.get(pk=…)`, never the instance the service just mutated in memory.
 - **Header discipline.** Every 422 assertion posts with `HTTP_X_REQUESTED_WITH="fetch"`; the redirect
@@ -773,7 +804,12 @@ catalog recompiled, with any `#, fuzzy` pre-fill on a new entry cleared rather t
   the design devotes a hazard section and a whole warning string to; leaving it unasserted would mean
   the one model whose content the feature can degrade is the one model no test touches.
 - **Video:** replacing a video asset preserves `kind="video"` and `VideoElement.media_id`, and swaps
-  the file.
+  the file. `make_image_asset` cannot build this fixture — it hard-codes a PNG and splats `**kw` into
+  `create()` — and a bare `MediaAssetFactory(kind="video")` would still name its file
+  `courses/media/test-N.png` with no bytes. Build it inline with real bytes, as
+  `MediaAsset.objects.create(course=…, kind="video", file=SimpleUploadedFile("v.mp4", b"…"),
+  original_filename="v.mp4")`, keeping the "real bytes for the replaced asset" rule intact rather
+  than adding a third exception to it.
 - **Rejections**, each asserting the re-fetched row's `file`, `original_filename` and `content_hash`
   are unchanged and the old file is still on disk: a **0-byte** file; an `.mp4` onto an image asset; a
   `.png` onto a video asset; a file over the effective size limit.
@@ -845,18 +881,32 @@ Tests:
 
 - Replace an image that an `ImageElement` in a unit uses: the strip (`[data-replace-strip]`) appears
   naming the chosen file in `[data-replace-filename]` **while the "in use ×N" summary remains
-  visible**; `[data-replace-commit]` swaps the cell; the cell shows the new filename; and the unit
-  page then renders an `<img>` whose `src` **differs from the recorded original** and resolves to the
-  new file. Files are supplied with `set_input_files` on the hidden input, which Playwright permits
-  without the input being visible.
+  visible**; `[data-replace-commit]` swaps the cell; the cell shows the new filename; and the
+  **editor page for that unit** (`/manage/courses/<slug>/build/unit/<pk>/edit/`, ready on
+  `[data-scope="editor"]`, the same target the existing picker e2es use) then renders an `<img>`
+  whose `src` **differs from the recorded original** and resolves to the new file. The editor page,
+  not the student unit view, because a course owner hits enrolment/preview gating there and the
+  assertion is about the rendered `src`, not about student access.
+
+**Two ways to supply a file, and which to use when.** Tests that do *not* exercise step 1 call
+`set_input_files` directly on `[data-replace-input]` — Playwright permits that on a hidden input.
+Tests that **click ⇄** must account for the file chooser step 1's `input.click()` raises:
+`with page.expect_file_chooser() as fc: page.click("[data-replace-asset]")` then
+`fc.value.set_files(...)`. Leaving it unintercepted hangs or dangles the chooser — the same class of
+Playwright trap this design cites when rejecting `window.confirm()`.
 - Cancel leaves the cell and the asset unchanged and issues no request. The negative is asserted, not
   slept on: register `page.on("request")` filtered to the replace URL *before* clicking, then — after
   a condition that provably post-dates any request the handler could have made (the strip's removal
   from the DOM) — assert the recorded list is empty.
-- **Two consecutive replaces on the same cell both succeed.** This is the regression test for the
-  `done` flag's scope (§6): a flag hoisted out of the per-strip closure makes the second replace a
-  silent no-op, with no error and no flash, which every other test in this list would still pass. It
-  only bites if the flag is actually *read* — which §6 now requires.
+- **Two consecutive replaces on the same cell both succeed, and the second one goes through the ⇄
+  click.** This carries two regressions at once, and the click is what makes the second one testable:
+  - the `done` flag's scope (§6) — hoisted out of the per-strip closure, the second replace becomes a
+    silent no-op with no error and no flash, which every other test here still passes;
+  - **the in-flight flag's lowering.** That flag is read in exactly one place: step 1's ⇄ handler. A
+    test that reaches the strip only via `set_input_files` fires `change` directly and never executes
+    step 1, so a flag that is raised and never lowered — the bug §6 calls "works exactly once per
+    page load" — would pass this and every other listed test. Clicking ⇄ on the second pass is the
+    single thing that falsifies it, and it also covers step 1's early return and the re-click path.
 - **A real 422 flashes the validator's message, not raw HTML.** Drive an `.mp4` onto an image asset
   and assert the flashed text **contains** the extension error, that no markup leaked into the bar,
   that the flashed `.op-error` carries `role="alert"`, and that the strip is gone and the input
@@ -871,6 +921,11 @@ Tests:
 - **The catch-all branch fires.** Force a non-200/non-422 outcome with `page.route(...)` (abort, or
   fulfil with status 500) and assert the strip is removed, the input cleared, focus back on ⇄, and
   `replace-failed` flashed. Every other test in this list passes with the catch-all deleted.
+- **A filter swap mid-flight still updates the cell.** Hold the replace POST with `page.route`, type
+  into `[data-filter-q]` to force the grid swap, release the response, and assert the **re-queried**
+  cell shows the new filename and that focus did not move. Then the negative case: filter the asset
+  *out* of the view and assert nothing happens and nothing throws. Without this the detached-strip
+  re-query branch ships unexercised — the same standard this spec applied to the catch-all.
 - For an asset backing a drag-to-image question the strip shows `.asset-replace-confirm__warn`; for
   one that does not, it is absent.
 - Both themes are screenshotted and the dark rendering judged on its own, and the shot includes a
