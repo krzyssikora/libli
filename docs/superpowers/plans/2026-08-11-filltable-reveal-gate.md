@@ -2109,12 +2109,13 @@ with `page.screenshot(path=...)` temporarily added around test 22's reveal — b
 **Do not use `git diff` for this check.** This file is created in Task 9 and is not `git add`ed until Step 10, so it is **untracked** at this point — and `git diff` on an untracked path prints nothing and exits 0 whether or not the capture edits are still there. That is an assertion that cannot fail, exactly what Task 2 Step 7 rejected a lookbehind regex for. Grep the file instead:
 
 ```bash
-grep -n 'screenshot\|theme\|student, unit = _new_unit("ftg_correct")' \
-     tests/test_e2e_filltable_gate.py
+grep -n 'screenshot\|theme' tests/test_e2e_filltable_gate.py
 uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 ```
 
-Expected: the grep finds **nothing** (test 22 binds `_student`, so the `student, unit` form only appears if the capture rebinding survived), and all seven tests PASS. Alternatively run `git add -N tests/test_e2e_filltable_gate.py` at the top of this step, which makes both this check and Step 10's `git diff` compare against the index and actually work.
+Expected: the grep finds **nothing**, and all seven tests PASS. Neither `screenshot` nor `theme` occurs legitimately anywhere in this file, so either hit is a real leftover.
+
+**Do not add a third alternative for the `_student` → `student` rebinding.** The obvious pattern `student, unit = _new_unit("ftg_correct")` is a *substring* of the correctly-reverted `_student, unit = …`, so grep matches it on a clean file and the check false-alarms every time — the same cannot-fail/always-fires trap in mirror image. A surviving rebinding on its own is inert anyway (it only renames a local); the two patterns above catch the leftovers that actually cause harm.
 
 The same "remove the mutant by editing it back" rule every falsify step in this plan uses applies here.
 
