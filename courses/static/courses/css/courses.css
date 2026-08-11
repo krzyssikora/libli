@@ -313,9 +313,13 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
   font-weight: 700;
 }
 /* A short-text / numeric answer never needs the full column width. Scoped to
-   `input` so it caps only the single-line short-text/short-numeric answers — the
-   extended-response `textarea` (same class) keeps app.css's width:100% and fills
-   the card column, resizable up to it. */
+   `input` so it caps only the single-line short-text/short-numeric answers. The
+   extended-response `textarea` (same class) keeps app.css's width:100%, but is
+   itself capped at 46rem in the collapsed shell by the prose-cap block below, so
+   it no longer fills the card column. Growth is vertical only regardless —
+   app.css:150 is `textarea { resize: vertical }`, which overrides the browser
+   default `resize: both` precisely so a full-width textarea cannot be dragged
+   past its container. */
 .quiz input.question__text-input,
 .lesson input.question__text-input { max-width: 22rem; }
 /* Set the irreversible "Finish quiz" action apart from the last question. */
