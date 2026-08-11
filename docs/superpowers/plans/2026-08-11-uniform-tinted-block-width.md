@@ -97,7 +97,9 @@ def _prose_cap_prelude():
     Both sentinels sit INSIDE the @media block and wrap only the rule, so the
     slice never contains the at-rule prelude. Were the begin sentinel placed
     before `@media ... {`, step 4 would return the at-rule fused onto the first
-    selector -- the trap documented at :186-190 of this file.
+    selector -- the trap described in the "rsplit is mandatory" comment above the
+    `examined` loop in this file. (Cited by text, not line: that comment moves
+    whenever anything above it is edited.)
     """
     import re
 
@@ -188,13 +190,17 @@ with exactly this:
 Then fix the five stale sites in `tests/test_consumption_css.py`:
 
 - `:158` — "none of the thirteen capped selectors" → "none of the twelve capped selectors"
-- `:163-164` — replace the **count** phrasing, which later tasks would falsify, with a
-  coverage-by-name phrasing: "Note the narrower claim: the e2e suite DOES give behavioural coverage
-  that several of the twelve entries cap at 46rem (`.lesson-unit__title` in
-  test_e2e_unit_nav.py, and `.el--text`, `.question__stem`, `.question__choices`,
-  `.question__feedback` and `textarea.question__text-input` in test_e2e_uniform_block_width.py). Do
-  not delete those assertions believing this test subsumes them" — naming the entries rather than a
-  number, so the docstring cannot drift as tests are added.
+- `:163-166` — **the whole four-line sentence**, not just its first two lines: the clause continues
+  "this test subsumes them, and do not weaken this test believing it carries more than scoping"
+  across `:165-166`, so replacing only `:163-164` leaves that fragment dangling and drops the
+  do-not-weaken instruction. Replace the **count** phrasing, which later tasks would falsify, with a
+  coverage-by-name phrasing, keeping the surviving clause intact: "Note the narrower claim: the e2e
+  suite DOES give behavioural coverage that several of the twelve entries cap at 46rem
+  (`.lesson-unit__title` in test_e2e_unit_nav.py, and `.el--text`, `.question__stem`,
+  `.question__choices`, `.question__feedback` and `textarea.question__text-input` in
+  test_e2e_uniform_block_width.py). Do not delete those assertions believing this test subsumes
+  them, and do not weaken this test believing it carries more than scoping." Naming the entries
+  rather than a number keeps the docstring from drifting as tests are added.
 - `:190` — "the entire thirteen-selector list" → "the entire twelve-selector list"
 - `:208-211` — "one per allow-list entry (13) = 17" → "one per allow-list entry (12) = 16"
 - `:212-213` — `assert examined >= 17` → `assert examined >= 16`, and the message
@@ -676,13 +682,48 @@ def test_every_tinted_block_and_its_chrome_is_one_width(page, live_server):
         f"the two callout shapes still differ: {prose_w} vs {wide_w}"
     )
 
-    # The title stays capped while its row widens -- but it is a flex:1 child of a
-    # THREE-item row, so it lands well under its own 736 cap (measured 643.6).
-    # Directional, never abs(w - 736): a 736 assertion fails on correct code.
+    # INERT BY CONSTRUCTION -- read this before trusting it as coverage. This unit
+    # has a question element, so has_stateful_elements is true and the head is a
+    # THREE-item flex row (title | pill | reset). The title is flex:1, so it lands
+    # at ~643.6 whether or not .lesson-unit__title is in the cap: NO prose-cap
+    # mutation reddens either assertion. They are a regression guard on the head
+    # keeping its pill and reset, nothing more. The real pin on the title's cap is
+    # test_lesson_title_caps_in_a_two_item_head below, where an uncapped title
+    # would measure ~746 and the < 738 assertion does bite.
     title_w = _width(page, ".lesson-unit__title")
     assert title_w < 738, f"the title must stay within the prose cap, got {title_w}"
     assert title_w < column - 50, (
         f"the title must not fill the widened head: {title_w} vs column {column}"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_lesson_title_caps_in_a_two_item_head(page, live_server):
+    """The pin the three-item test cannot carry.
+
+    Seeds NO stateful element, so has_stateful_elements is false, .lesson-unit__reset
+    does not render, and the head is a TWO-item row (title | pill). The title's flex
+    target is then ~872 - 16 gap - ~110 pill = ~746, ABOVE the 736 cap -- so the cap
+    is what holds it down and deleting the entry moves the number.
+    """
+    from courses.models import CalloutElement
+
+    user, _course, unit = _seed_unit("pa_title")
+    add_element(
+        unit,
+        CalloutElement.objects.create(kind="note", body="<p>no stateful element</p>"),
+    )
+
+    _login(page, live_server, user.username)
+    _collapsed(page, live_server, unit)
+
+    assert page.locator(".lesson-unit__reset").count() == 0, (
+        "the reset link renders, so this is a three-item head and the assertion "
+        "below is inert -- the fixture must seed no stateful element"
+    )
+    title_w = _width(page, ".lesson-unit__title")
+    assert abs(title_w - 736) < 2, (
+        f"the title must be held at the 46rem cap, got {title_w}"
     )
 ```
 
@@ -704,12 +745,17 @@ Hand-edit that selector out. Then, one at a time (restoring between each):
    at the column).
 2. Re-add `html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,`
    → expect FAIL on the `.lesson-unit__head` arm.
+3. Delete `html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title,`
+   → expect FAIL in **`test_lesson_title_caps_in_a_two_item_head`** (the title rises to ~746), and
+   expect the two title assertions in `test_every_tinted_block_and_its_chrome_is_one_width` to stay
+   **green** — that is the point of the inert-by-construction comment, and confirming it is what
+   proves the second test is doing the work.
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_e2e_uniform_block_width.py -m e2e --verbosity=0`
-Expected: PASS. Confirm the run reports `1 passed`, **not** `no tests ran` (exit 5 means `-m e2e` was
-dropped and nothing was checked).
+Expected: PASS (2 tests). Confirm the run reports `2 passed`, **not** `no tests ran` (exit 5 means
+`-m e2e` was dropped and nothing was checked).
 
 - [ ] **Step 5: Commit**
 
@@ -1144,9 +1190,16 @@ of the three to leave the cap. This confirms the test was really pinning the old
 
 - [ ] **Step 2: Apply the rewrite**
 
+**Apply these edits BOTTOM-UP**, in the order listed below. The first replacement swaps 5 lines for
+~19, shifting everything beneath it by roughly +14 — so working top-down would leave every later
+line anchor pointing at the wrong region. Working upward keeps each anchor valid at the moment it is
+used. (Equivalently: match on the quoted source text rather than the line number.)
+
+Order: `:1394-1398` → `:1384-1388` → `:1375-1379` → `:1339-1341`.
+
 Rename the test to `test_quiz_chrome_tracks_the_column_across_both_page_states`.
 
-Replace `:1375-1379` with:
+The `:1375-1379` replacement (Load A) is:
 
 ```python
     column = page.evaluate(
@@ -1248,7 +1301,16 @@ measures 872.
 
 Rename to `test_both_callout_shapes_render_at_one_width`.
 
-**Both** docstring paragraphs need rewriting, not just the second.
+**Three** pieces of prose in this file need rewriting: the module docstring and both paragraphs of
+the test's own docstring.
+
+First the **module docstring** at `:4-6`. It reads "These four tests are the ONLY pin for the
+combined spoiler rule (Task 11), **the prose-cap narrowing**, the heading katex reset, and the
+reveal cascade inside a callout." After Task 1 the narrowing does not exist — the
+`:not(:has(> .callout__children))` predicate is deleted and this test now pins the opposite. Replace
+that clause with "the one-width rule for both callout shapes", so a reader is not sent looking for a
+mechanism that was removed. (This is the same defect class Task 3 exists to fix; it is handled here
+rather than there because it lives in the file this task already rewrites.)
 
 Replace the FIRST paragraph (`:112-115`, "Without seeding it, both arms measure the uncapped state
 and the assertion is vacuous") — that sentence justified the *old* assertion (`prose == 736`
@@ -1268,12 +1330,13 @@ Then replace the second paragraph — **lines 117-119 only**; line 120 is the cl
 left in place — with:
 
 ```
-    641px is NOT enough either: the collapsed content box is .app-main's 960px cap,
-    less its 2x20px padding, less the 2.4rem pin lane and the 3rem .lesson padding
-    -- 872px at any viewport >= 1040px, and far less at 641px, which would put both
-    arms under the 736px cap and make the comparison vacuous. Use 1280x900.
-    (.unit-shell's max-width: 72rem never binds: .app-main caps the containing
-    block first.)
+    641px is NOT enough either. The collapsed content box is .app-main's 960px cap
+    less its 2x20px padding = 920; the -2.4rem shell shift at courses.css:1051
+    exactly OFFSETS the 2.4rem pin lane, so .unit-shell__main stays 920; less the
+    3rem .lesson padding = 872px at any viewport >= 1040px. At 641px it is far
+    smaller, which would put both arms under the 736px cap and make the comparison
+    vacuous. Use 1280x900. (.unit-shell's max-width: 72rem never binds: .app-main
+    caps the containing block first.)
 ```
 
 Replace the two measurement arms (`:146-155` — `:156` is the blank separator before the next test and
