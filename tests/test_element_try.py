@@ -135,12 +135,17 @@ def test_try_quiz_withholds_reveal_while_attempts_remain(client):
     assert resp.status_code == 200
     assert b"is-incorrect" in resp.content
     assert b"answer-correct" not in resp.content  # reveal withheld
+    assert b"question__choice-marker" not in resp.content  # nor marked inline
     assert b"data-quiz-locked" not in resp.content  # not terminal yet
     assert QuestionResponse.objects.count() == 0
 
 
 @pytest.mark.django_db
 def test_try_quiz_reveals_on_last_attempt(client):
+    # A locked quiz choice question marks its OPTIONS LIST (✗ on the pick, ＋ on the
+    # missed correct option) instead of printing a duplicate reveal list underneath.
+    # The preview must show that, not the old bottom list — an author previewing a
+    # question needs to see what the student will actually see.
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _quiz_unit(course)
@@ -151,16 +156,18 @@ def test_try_quiz_reveals_on_last_attempt(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert b"is-incorrect" in resp.content
-    assert b"answer-correct" in resp.content  # revealed now
+    assert b"question__choice-marker--wrong" in resp.content  # the author's pick
+    assert b"question__choice-marker--missed" in resp.content  # revealed now
+    assert b"question__reveal" not in resp.content  # bottom reveal list gone
     assert b"data-quiz-locked" in resp.content
     assert QuestionResponse.objects.count() == 0
 
 
 @pytest.mark.django_db
-def test_try_quiz_correct_is_terse_no_reveal(client):
-    # A fully-correct answer is terse: just the "Correct" verdict, no answer reveal
-    # (it would only echo what the author/student already got right). The preview
-    # mirrors the student feedback fragment, so it suppresses the reveal too.
+def test_try_quiz_correct_marks_the_chosen_option(client):
+    # A correct answer locks the question, which disables every input — so the pick
+    # has to be carried by the options list itself or the "Correct" verdict refers to
+    # nothing visible. Still no duplicate reveal list: the tick IS the reveal.
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _quiz_unit(course)
@@ -171,7 +178,9 @@ def test_try_quiz_correct_is_terse_no_reveal(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert b"is-correct" in resp.content
-    assert b"answer-correct" not in resp.content  # reveal suppressed when correct
+    assert b"question__choice--picked" in resp.content
+    assert b"question__choice-marker--correct" in resp.content
+    assert b"question__reveal" not in resp.content
     assert b"data-quiz-locked" in resp.content
     assert QuestionResponse.objects.count() == 0
 

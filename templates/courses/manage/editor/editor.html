@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% load i18n static %}
-{% block head_title %}{{ unit.title }} — {% trans "Editor" %}{% endblock %}
+{% load i18n static courses_extras %}
+{% block head_title %}{{ unit.title|strip_math_delimiters }} — {% trans "Editor" %}{% endblock %}
 {% block body_class %}editor-page{% endblock %}
 {% comment %}The before/after element's degraded-state CSS is keyed on
 html:not(.ba-js): it un-hides the side headings and hides the toggle. The
@@ -17,7 +17,7 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'courses/css/editor.css' %}">
-  <link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">
+  {% include "courses/_katex_css.html" %}
 {% endblock %}
 {% block content %}
 <section class="editor" data-course-slug="{{ course.slug }}"
@@ -72,12 +72,12 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
     <a class="iconbtn" href="{% url 'courses:manage_builder' slug=course.slug %}"
        aria-label="{% trans 'Back to builder' %}" title="{% trans 'Back to builder' %}">←</a>
     <span class="editor-crumb__path">
-      {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> {{ a.title }}{% endfor %}
+      {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> <span data-math-title>{{ a.title }}</span>{% endfor %}
     </span>
     <a class="editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}">{% trans "Media library" %}</a>
   </p>
   <div class="editor-head">
-    <h1 class="editor-head__title">{{ unit.title }}</h1>
+    <h1 class="editor-head__title" data-math-title>{{ unit.title }}</h1>
     <form class="type-toggle" method="post" action="{% url 'courses:manage_node_rename' slug=course.slug %}">
       {% csrf_token %}
       <input type="hidden" name="node" value="{{ unit.pk }}">
@@ -179,11 +179,7 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
     });
   </script>
   <script src="{% static 'courses/js/math_input.js' %}" defer></script>
-  <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
-  <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
-  <script src="{% static 'courses/js/math_reflow.js' %}" defer></script>
-  <script src="{% static 'courses/js/text_colour.js' %}" defer></script>
-  <script src="{% static 'courses/js/math.js' %}" defer></script>
+  {% include "courses/_katex_js.html" %}
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
   <script src="{% static 'courses/js/link_apply.js' %}" defer></script>
   <script src="{% static 'courses/js/link_dialog.js' %}" defer></script>
@@ -262,19 +258,20 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
   button in the preview. editor.js re-runs window.libliInitStepper over the pane
   after each fragment swap.{% endcomment %}
   <script src="{% static 'courses/js/stepper.js' %}" defer></script>
-  {% comment %}Step-by-step (stepper) editor add-row enhancer: wires the
-  add-step button to clone the row template and increment steps-TOTAL_FORMS.
-  editor.js re-runs window.libliInitStepperEditor over the pane after each
-  fragment swap.{% endcomment %}
-  <script src="{% static 'courses/js/stepper_editor.js' %}" defer></script>
   {% comment %}Checklist (mark-done) student enhancer: auto-saves ticks in the preview.
   editor.js re-runs window.libliInitMarkDone over the pane after each fragment
   swap.{% endcomment %}
   <script src="{% static 'courses/js/markdone.js' %}" defer></script>
-  {% comment %}Checklist (mark-done) editor add-row enhancer: wires the add-item
-  button to clone the row template and increment items-TOTAL_FORMS. editor.js re-runs
-  window.libliInitMarkDoneEditor over the pane after each fragment swap.{% endcomment %}
-  <script src="{% static 'courses/js/markdone_editor.js' %}" defer></script>
+  {% comment %}Generic inline-formset row add/remove (match pairs, stepper,
+  checklist, choice removal). Delegated at document level; editor.js re-runs
+  window.libliInitFormsetRows over the pane after each fragment swap for the
+  progressive-enhancement reveal and the 422 reconciliation.{% endcomment %}
+  <script src="{% static 'courses/js/formset_rows.js' %}" defer></script>
+  {% comment %}Choose & confirm (switchgate) option add/remove. NOT a formset: the
+  options are positional, so a removed row is DETACHED and the survivors renumbered.
+  Delegated at document level; editor.js re-runs window.libliInitSwitchGateEditor over
+  the pane after each fragment swap for the progressive-enhancement reveal.{% endcomment %}
+  <script src="{% static 'courses/js/switchgate_editor.js' %}" defer></script>
   {% comment %}Guess-the-number student enhancer: arms the input/Check widget in the
   preview and posts each attempt to the check endpoint. editor.js re-runs
   window.libliInitGuessNumbers over the pane after each fragment swap.{% endcomment %}

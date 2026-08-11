@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
 
+from courses.htmlsandbox import titles_have_math
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import DragFillBlankQuestionElement
@@ -249,6 +250,32 @@ def build_outline(course, user, *, drafts="hide", with_data=None):
     if prune:
         roots = [r for r in roots if r["is_unit"] or r["children"]]
     return roots
+
+
+def tree_titles_have_math(tree):
+    """True iff any node title anywhere in a build_outline tree carries maths.
+
+    COLLECT + MUST RECURSE, the same shape as _tabs_has_math (courses/views.py):
+    on a unit page the contents tree is unit_nav["tree"], which build_unit_nav
+    sets to the ENTIRE course outline, and _unit_tree_node.html renders all of
+    it into the DOM whether collapsed or not. Scanning only the current unit and
+    its prev/next therefore leaves a maths title three sections away rendering
+    raw -- and it fails SILENTLY, since the page looks correct for the unit under
+    test.
+
+    Delegates its leaf test to titles_have_math (which delegates to
+    has_math_delimiters); never inline a `"\\(" in title` check here.
+
+    `item.get("children") or []` is cheap defensiveness, not a response to a
+    known producer: build_outline unconditionally sets "children": [] on every
+    node dict and prunes by rebuilding the list, never by deleting the key.
+    """
+    for item in tree or []:
+        if titles_have_math([item["node"].title]):
+            return True
+        if tree_titles_have_math(item.get("children") or []):
+            return True
+    return False
 
 
 def _quiz_review_maps(unit_pks, submissions):

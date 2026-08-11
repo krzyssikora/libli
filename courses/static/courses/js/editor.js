@@ -122,8 +122,8 @@
     if (editorPane && window.libliInitSwitchGridEditors) window.libliInitSwitchGridEditors(editorPane);
     if (editorPane && window.libliInitChoiceGrid) window.libliInitChoiceGrid(editorPane);  // re-sync matrix column/row selects
     if (editorPane && window.libliInitMultiGrid) window.libliInitMultiGrid(editorPane);  // re-sync multi-select grid checkboxes
-    if (editorPane && window.libliInitStepperEditor) window.libliInitStepperEditor(editorPane);  // add-step button
-    if (editorPane && window.libliInitMarkDoneEditor) window.libliInitMarkDoneEditor(editorPane);  // add-item button
+    if (editorPane && window.libliInitFormsetRows) window.libliInitFormsetRows(editorPane);  // reveal JS-only row controls + reconcile a 422
+    if (editorPane && window.libliInitSwitchGateEditor) window.libliInitSwitchGateEditor(editorPane);  // reveal switchgate's add/remove + renumber
     if (editorPane) syncChoiceFeedback(editorPane);  // adaptive per-option feedback prompts
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
@@ -253,30 +253,35 @@
         headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
         body: body,
       }).then(function (r) { return r.text(); }).then(function (html) {
+        var slot = null;
         if (tryForm.hasAttribute("data-question-inline")) {
-          // Choice LESSON preview: full element -> swap the live form body, re-render
-          // math against the live form (the pre-fetch `slot` is detached). A choice
-          // question in a QUIZ unit ALSO carries data-question-inline (the attribute is
-          // unconditional on the form), but element_try's quiz branch returns a
-          // form-LESS _quiz_question_feedback.html; so only take the form-body swap when
-          // a <form> is actually present, and otherwise FALL THROUGH to the existing
-          // bottom-slot swap below — never early-return on the null case (that would
-          // break the quiz choice-question preview).
+          // Choice preview (LESSON and QUIZ both): the response is the full element,
+          // because this type's feedback is marked ON its options list, outside the
+          // feedback box. Swap the live form's body — not the form — so the delegated
+          // handler and the form node survive, then re-render math against the live
+          // form (the pre-fetch slot is detached by the assignment).
+          //
+          // Do NOT return here. The quiz branch still needs the attempt counter and
+          // the terminal-state freeze below, and those read the POST-swap slot; this
+          // used to early-return, which was safe only while element_try's quiz branch
+          // answered with a form-LESS fragment. A response with no <form> (a lesson
+          // non-choice type, or a defensive miss) falls through to the plain swap.
           var doc = new DOMParser().parseFromString(html, "text/html");
           var newForm = doc.querySelector("form");
           if (newForm) {
             tryForm.innerHTML = newForm.innerHTML;
             if (window.libliRenderMath) window.libliRenderMath(tryForm);
             renderPreviewMath(tryForm);
-            return;
+            slot = tryForm.querySelector("[data-question-feedback]");
           }
-          // no <form> in the response (quiz feedback fragment) -> fall through.
         }
-        var slot = tryForm.querySelector("[data-question-feedback]");
-        if (!slot) return;
-        slot.innerHTML = html;
-        if (window.libliRenderMath) window.libliRenderMath(slot);
-        renderPreviewMath(slot);  // inline math in revealed answers / explanation
+        if (!slot) {
+          slot = tryForm.querySelector("[data-question-feedback]");
+          if (!slot) return;
+          slot.innerHTML = html;
+          if (window.libliRenderMath) window.libliRenderMath(slot);
+          renderPreviewMath(slot);  // inline math in revealed answers / explanation
+        }
         if (!qEl) return;
         // An empty-answer validation doesn't consume an attempt; everything else does.
         if (!slot.querySelector(".is-validation")) {
@@ -373,7 +378,7 @@
       return;
     }
     var addChoice = e.target.closest("[data-choice-add]");
-    if (addChoice) { addChoiceRow(); return; }
+    if (addChoice) { addChoiceRow(addChoice); return; }
     var cancel = e.target.closest("[data-cancel-edit]");
     if (cancel) {
       var row = cancel.closest(".el-row");
@@ -416,15 +421,37 @@
   // Append a blank choice row by cloning the last one, renumbering its formset fields
   // to the next index, and bumping TOTAL_FORMS. No-JS authors still get the extra=2
   // blank rows server-side; this just removes the 2-row ceiling when JS is on.
-  function addChoiceRow() {
-    var list = root.querySelector("[data-choice-rows]");
-    var total = root.querySelector('[name$="-TOTAL_FORMS"]');
+  // Called with the clicked [data-choice-add] button so the wrapper is in hand;
+  // resolving it from `root` would reintroduce the cross-talk closest() prevents.
+  function addChoiceRow(btn) {
+    var wrap = btn.closest("[data-fsrows]");
+    if (!wrap) return;
+    var list = wrap.querySelector("[data-fsrows-list]");
+    // Read the prefix from the attribute, as module 1's totalInput() does —
+    // hardcoding "choices" re-creates the drift hazard data-fsrows exists to remove.
+    var total = wrap.querySelector(
+      'input[name="' + wrap.getAttribute("data-fsrows") + '-TOTAL_FORMS"]'
+    );
     if (!list || !total) return;
     var rows = list.querySelectorAll("[data-choice-row]");
-    var last = rows[rows.length - 1];
-    if (!last) return;
+    // Clone the last NON-HIDDEN row: cloning a removed one yields a new row the
+    // author cannot see while TOTAL_FORMS still increments.
+    var last = null;
+    for (var i = rows.length - 1; i >= 0; i--) {
+      if (!rows[i].hidden) { last = rows[i]; break; }
+    }
+    if (!last) {
+      // Unreachable while init job 2's minimum floor holds; loud so a regression
+      // of that floor shows up as a message rather than a mute button.
+      if (window.console) console.warn("addChoiceRow: no visible row to clone");
+      return;
+    }
     var idx = parseInt(total.value, 10);
     var clone = last.cloneNode(true);
+    // BOTH existing loops, unchanged and in order — reproduced in full rather than
+    // described, because losing the second one ships clones carrying the source
+    // row's option text, feedback textarea and is_correct state, and losing the
+    // first produces duplicate choices-N-* names that silently corrupt the POST.
     Array.prototype.forEach.call(clone.querySelectorAll("[name],[id],[for]"), function (el) {
       ["name", "id", "for"].forEach(function (attr) {
         var v = el.getAttribute(attr);
@@ -436,10 +463,15 @@
       if (el.type === "checkbox" || el.type === "radio") el.checked = false;
       else el.value = "";
     });
-    clone.classList.remove("choice-row--del");
+    clone.hidden = false;
+    var del = clone.querySelector('[name$="-DELETE"]');
+    if (del) del.checked = false;
+    var rm = clone.querySelector("[data-fsrow-remove]");
+    if (rm) rm.disabled = false;      // cloneNode(true) copies `disabled`
     list.appendChild(clone);
     total.value = idx + 1;
     syncChoiceFeedback(list);  // a fresh row is a distractor until ticked Correct
+    if (window.libliInitFormsetRows) window.libliInitFormsetRows(wrap);
   }
 
   // Adaptive feedback placeholder: the per-option feedback prompt reflects whether the
@@ -487,13 +519,6 @@
       // Re-prompt the whole group: a radio flip also demotes the previous correct row.
       syncChoiceFeedback(correct.closest("[data-choice-rows]"));
       return;
-    }
-    // Live feedback for the formset DELETE checkbox (otherwise "Remove" looks inert
-    // until the form is saved). Reversible: untick to restore the row.
-    var del = e.target.closest('[name$="-DELETE"]');
-    if (del) {
-      var row = del.closest("[data-choice-row]");
-      if (row) row.classList.toggle("choice-row--del", del.checked);
     }
     var preset = e.target.closest("[data-size-preset]");
     if (preset) {

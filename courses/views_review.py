@@ -12,6 +12,7 @@ from courses import quiz as quiz_svc
 from courses import review as review_svc
 from courses.forms import ReviewResponseForm
 from courses.htmlsandbox import has_math_delimiters
+from courses.htmlsandbox import titles_have_math
 from courses.models import Course
 from courses.models import QuestionElement
 from courses.models import QuizSubmission
@@ -97,12 +98,14 @@ def _review_context(course, submission):
         "submission": submission,
         "rows": rows,
         "state": review_svc.submission_review_state(submission),
-        # KaTeX is needed if the stem or the student's answer carries math.
+        # KaTeX is needed if the stem, the student's answer, or the UNIT TITLE
+        # carries math.
         "has_math": any(
             has_math_delimiters(row["question"].stem)
             or has_math_delimiters(row["answer_text"] or "")
             for row in rows
-        ),
+        )
+        or titles_have_math([submission.unit.title]),
     }
 
 
@@ -115,6 +118,13 @@ def review_queue(request, slug):
     data = review_svc.pending_reviews_for(
         request.user, course, drafts="keep-with-data", with_data=with_data
     )
+    # `data` is the only local: awaiting/in_progress are unpacked inline in the
+    # render() call below, so there are no locals of those names. Both are plain
+    # lists (pending_reviews_for materialises them with list(...select_related)),
+    # so the concatenation is valid and the scan touches no database.
+    has_math = titles_have_math(
+        s.unit.title for s in data["awaiting"] + data["in_progress"]
+    )
     return render(
         request,
         "courses/manage/review_queue.html",
@@ -122,6 +132,7 @@ def review_queue(request, slug):
             "course": course,
             "awaiting": data["awaiting"],
             "in_progress": data["in_progress"],
+            "has_math": has_math,
         },
     )
 

@@ -10,6 +10,7 @@ from django.urls import reverse
 from courses.access import can_access_course
 from courses.access import can_see_drafts
 from courses.access import get_node_or_404
+from courses.htmlsandbox import titles_have_math
 from courses.models import Course
 from courses.views import full_lesson_render_context
 from notes import services
@@ -56,13 +57,15 @@ def course_notes(request, slug):
     if not can_access_course(request.user, course):
         raise PermissionDenied
     drafts = "keep" if can_see_drafts(request.user, course) else "hide"
+    # Bound to a local first: the scan and the template both need it. Safe to
+    # iterate twice -- services.course_notes returns a real list. Were it a
+    # generator the scan would exhaust it and the page would render EMPTY.
+    units = services.course_notes(request.user, course, drafts=drafts)
+    has_math = titles_have_math(r["unit"].title for r in units)
     return render(
         request,
         "notes/course_notes.html",
-        {
-            "course": course,
-            "units": services.course_notes(request.user, course, drafts=drafts),
-        },
+        {"course": course, "units": units, "has_math": has_math},
     )
 
 

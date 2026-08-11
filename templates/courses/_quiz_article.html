@@ -2,7 +2,7 @@
 <article class="quiz{% if slides|length > 1 %} quiz--slideshow{% endif %}" lang="{{ course.language }}"
          {% if slides|length > 1 %}data-slideshow{% endif %}>
   {% include "courses/_unit_crumbs.html" %}
-  <h1 class="lesson-unit__title">{{ unit.title }}</h1>
+  <h1 class="lesson-unit__title" data-math-title>{{ unit.title }}</h1>
   {% if previewing %}
     {% get_current_language as LANGUAGE_CODE %}
     {% comment %}Rendered ONCE, outside the {% for slide %} loop: slideshow.js shows
@@ -29,7 +29,7 @@
         {% with st=render_states|dictkey:el.pk %}
         <section data-element-id="{{ el.pk }}">
           {% if st.qnum %}<span class="el__qnum" data-qnum="{{ st.qnum }}">{{ st.qnum }}.</span>{% endif %}
-          {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
+          {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values mark_result=st.mark_result attempts_left=st.attempts_left feedback_html=st.feedback_html %}
         </section>
         {% endwith %}
       {% endfor %}

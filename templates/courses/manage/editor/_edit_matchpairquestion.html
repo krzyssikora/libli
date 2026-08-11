@@ -8,20 +8,44 @@
 
   <label class="el-editor__label">{% trans "Pairs" %}</label>
   <p class="el-editor__hint">{% trans "Left = the fixed item; right = its matching token." %}</p>
-  {{ formset.management_form }}
-  <ul class="pair-rows" data-pair-rows>
-    {% for f in formset %}
-      <li class="pair-row" data-pair-row>
-        {{ f.id }}
-        {{ f.left }} {{ f.right }}
+  <div data-fsrows="pairs"
+       data-fsrows-min="1"
+       data-fsrows-confirm="{% trans 'Remove this pair?' %}"
+       data-fsrows-atmin="{% trans 'A matching question needs at least one pair.' %}">
+    {{ formset.management_form }}
+    <ul class="pair-rows" data-fsrows-list>
+      {% for f in formset %}
+        <li class="pair-row" data-fsrow-item>
+          {{ f.id }}
+          {{ f.left }} {{ f.right }}
+          {% if formset.can_delete %}
+            <label class="pair-row__del" data-fsrow-del>{{ f.DELETE }} {% trans "Remove" %}</label>
+            <button type="button" class="btn btn--small btn--ghost"
+                    data-fsrow-remove hidden>{% trans "Remove" %}</button>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    <button type="button" class="btn btn--small btn--ghost"
+            data-fsrows-add hidden>＋ {% trans "Add pair" %}</button>
+    <p class="el-editor__hint" data-fsrows-hint hidden></p>
+    {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+    {% comment %}Blueprint: the loop body verbatim, with each {{ f.X }} swapped for
+    {{ formset.empty_form.X }} so the added row inherits the ModelForm widget's
+    attributes exactly. Django renders empty_form's index literal as __prefix__.
+    Never {{ formset.empty_form }} bare -- that emits Django's default layout.{% endcomment %}
+    <template data-fsrows-template>
+      <li class="pair-row" data-fsrow-item>
+        {{ formset.empty_form.id }}
+        {{ formset.empty_form.left }} {{ formset.empty_form.right }}
         {% if formset.can_delete %}
-          <label class="pair-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+          <label class="pair-row__del" data-fsrow-del>{{ formset.empty_form.DELETE }} {% trans "Remove" %}</label>
+          <button type="button" class="btn btn--small btn--ghost"
+                  data-fsrow-remove hidden>{% trans "Remove" %}</button>
         {% endif %}
       </li>
-    {% endfor %}
-  </ul>
-  <button type="button" class="btn btn--small btn--ghost" data-pair-add>＋ {% trans "Add pair" %}</button>
-  {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+    </template>
+  </div>
 
   <label class="el-editor__label">{% trans "Extra tokens (distractors, one per line)" %}</label>
   <textarea name="distractors" rows="2">{{ form.distractors.value|default:"" }}</textarea>

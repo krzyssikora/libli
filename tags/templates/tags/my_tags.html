@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static %}
 {% block head_title %}{% trans "My tags" %} — libli{% endblock %}
-{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 {% block content %}
 <section class="my-tags">
   <h1>{% trans "Tags & notes" %}</h1>
@@ -17,3 +17,4 @@
 </section>
 {% include "tags/_tags_i18n.html" %}
 {% endblock %}
+{% block extra_js %}{% if has_math %}{% include "courses/_katex_js.html" %}{% endif %}{% endblock %}

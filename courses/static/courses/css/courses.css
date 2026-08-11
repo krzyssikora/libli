@@ -142,6 +142,19 @@ blockquote {
 .el--question .question__stem { margin-bottom: var(--space-3); }
 .el--question .question__choices { list-style: none; padding: 0; margin: 0 0 var(--space-3); }
 .el--question .question__choice { margin: var(--space-1) 0; }
+/* The option the student picked, in a LOCKED quiz. Locking disables every input,
+   and a disabled radio is drawn grey-dot-on-grey-ring — at body size that is
+   indistinguishable from an unchecked option, so the selection has to be carried by
+   the row itself. Same chosen-cell tint the grid question types already use
+   (.choicegrid/.multigrid `td:has(input:checked)`), for one visual vocabulary.
+   Padding is on the modifier only, so an unmarked options list keeps its metrics. */
+.el--question .question__choice--picked {
+  background: var(--primary-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  margin-left: calc(var(--space-2) * -1);
+  margin-right: calc(var(--space-2) * -1);
+}
 .el--question .question__feedback:empty { display: none; }
 
 /* Feedback panel: sets per-question feedback apart from the question content with a
@@ -205,6 +218,14 @@ blockquote {
   font-weight: 600;
 }
 .question__choice-marker--wrong { color: var(--danger); }
+.question__choice-marker--correct { color: var(--success); }
+/* Locked quiz: put the marker INLINE after the option text ("Paris ✓") instead of
+   on its own line. app.css's `label { display: block }` is what pushes it down, so
+   the label has to become inline-block for the row to read as one statement — a
+   lone glyph on the next line reads as unrelated content. Any per-option feedback
+   is still a block, so it drops below and keeps its own indent. */
+.question__choices--marked .question__choice > label { display: inline-block; margin-bottom: 0; }
+.question__choices--marked .question__choice-marker { margin: 0 0 0 var(--space-2); }
 /* A correct option the student did NOT pick: amber "you missed this", never the
    affirming green of --success (which reads as "you got it right"). */
 .question__choice-marker--missed { color: var(--warning); }
@@ -245,6 +266,15 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
 }
 .question__reveal--blanks { margin: var(--space-2) 0; padding-left: 1.25rem; }
 .question__reveal-item.answer-wrong { color: var(--danger); }
+/* Per-option outcome marker in the choice reveal (results page). Separate from
+   .question__choice-marker, which is tuned for the interactive options list and
+   carries its indent; here the marker sits inline after the option text. */
+.question__reveal-mark { margin-left: var(--space-2); font-weight: 600; }
+.question__reveal-mark--correct { color: var(--success); }
+.question__reveal-mark--wrong { color: var(--danger); }
+/* A correct option the student did NOT pick: amber "you missed this", never the
+   affirming green of --success. Matches .question__choice-marker--missed. */
+.question__reveal-mark--missed { color: var(--warning); }
 .question__reveal-text { margin: var(--space-1) 0; }
 
 /* ── Quiz & lesson pages (student consumption) layout ─────────────────────────
@@ -2049,6 +2079,10 @@ html:not(.ba-js) .ba__toggle,
 .markdone-row input[type="text"] { flex: 1; }
 .markdone-row__del { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--text-secondary); white-space: nowrap; }
 
+/* See editor.css: [hidden] is inert against these display: inline-flex rules. */
+.stepper-row[hidden], .markdone-row[hidden] { display: none; }
+.stepper-row__del[hidden], .markdone-row__del[hidden] { display: none; }
+
 /* ---------------------------------------------------------------------------
    Click-to-enlarge images. imagezoom.js arms [data-zoomable] images as buttons
    and opens one reused modal <dialog> holding a copy of the image. All sizing is
@@ -2214,3 +2248,45 @@ dialog.imgzoom:not([open]) { display: none; }
 /* The banner states a fact about the page; the Publish control is an authoring
    affordance that does not belong on paper. */
 @media print { .draft-banner__form { display: none; } }
+
+/* --- Maths in node titles: unit-chrome surface notes (spec 2026-08-10) ------ */
+/* The GLOBAL normalisation lives in app.css. This file once carried a
+   `line-height:1;vertical-align:baseline` clamp for the four surfaces below;
+   it was REMOVED on 2026-08-11 after an A/B on the real pages measured its
+   total effect at 0.15px (.unit-crumbs__label), 0.06px (.unit-tree__label) and
+   0.00px on the other two -- rendering noise by the same standard this change
+   already applies to .result-row__title and .outline-unit__title. All four
+   inherit line-height 1.5, which already exceeds KaTeX's 1.2, so there was
+   never a taller value to clamp. The full measurement and the one case where
+   the mechanism IS real (h1, at reset.css:10's 1.15) are recorded in app.css's
+   block -- read it before adding a clamp here.
+
+   The per-surface behaviour below is unaffected by that removal and is still
+   what a reader needs:
+
+   THE FOUR SURFACES BEHAVE DIFFERENTLY AND MUST NOT BE CONFLATED:
+   - .unit-foot__navtitle (:778), .unit-tree__label (:755) and
+     .unit-crumbs__label (:848) are single-line clips
+     (overflow:hidden;text-overflow:ellipsis;white-space:nowrap). A long maths
+     title HARD-CLIPS rather than showing an ellipsis -- text-overflow applies to
+     inline text, not to KaTeX's inline-block box. Accepted; it is why the
+     title= tooltips are kept useful by strip_math_delimiters.
+   - .unit-tree__grouptitle (:702-704) is NOT a single-line clip: it is
+     -webkit-box with -webkit-line-clamp:5 plus overflow-wrap:break-word and
+     hyphens:auto. Intended behaviour is that the surrounding prose keeps
+     wrapping and clamping as today while the formula stays intact on whichever
+     line it lands on.
+   - The MOBILE DRAWER is a fourth case, not covered here: courses.css:943
+     overrides .unit-drawer__list .unit-tree__label to white-space:normal, so at
+     <=640px titles WRAP rather than clip, in a title column squeezed to ~98px.
+     Task 11 MEASURED this at 390x780 (a long maths title, both themes): the
+     wrap absorbs it and no .katex box intersected a sibling control's
+     (.unit-tree__count / .unit-tree__groupcheck / .unit-tree__check /
+     .unit-tree__chevron / .unit-drawer__close) rect. CONFIRMED clean -- no
+     rule needed here. Re-check if the drawer's title column ever narrows
+     further, since the risk scales with how little width the wrap gets.
+
+   Also unaddressed on purpose: courses.css:903-907 re-opens .unit-crumbs__label
+   under @media print with overflow-wrap:anywhere, which cannot break a KaTeX
+   inline-block, so a long maths crumb can still overflow in print. Accepted --
+   printing a breadcrumb is marginal and the text is not lost, only over-wide. */

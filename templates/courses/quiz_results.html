@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% load i18n static courses_extras %}
-{% block head_title %}{{ unit.title }} — {% trans "results" %} — libli{% endblock %}
+{% block head_title %}{{ unit.title|strip_math_delimiters }} — {% trans "results" %} — libli{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">
-  {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+  {% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}
 {% endblock %}
 {% block content %}
   {% include "courses/_unit_strip.html" %}
 <article class="quiz-results result" lang="{{ course.language }}">
-  <h1 class="result__title">{{ unit.title }} — {% trans "results" %}</h1>
+  <h1 class="result__title"><span data-math-title>{{ unit.title }}</span> — {% trans "results" %}</h1>
 
   <div class="result-summary">
     <span class="result-summary__label">{% trans "Score" %}</span>
@@ -40,8 +40,10 @@
           <p>{{ row.review_feedback }}</p>
         </div>
       {% endif %}
-      {% if row.reveal_template and row.outcome != "correct" %}
-        {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices answered=row.answered %}
+      {% comment %}show_reveal is computed in views._results_row: `A and B or C` binds
+      as `(A and B) or C` in a template, which is not the rule here.{% endcomment %}
+      {% if row.show_reveal %}
+        {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices answered=row.answered marks=row.marks %}
       {% endif %}
       {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" and row.outcome != "reviewed" %}
         <div class="question__explanation">{{ row.question.explanation|safe }}</div>
@@ -57,13 +59,13 @@
 {% endblock %}
 {% block extra_js %}
   {% if has_math %}
-    {% comment %}Each result item is marked data-question so question.js's initial
-    pass typesets the inline \(...\) math in its stem/reveal/explanation. The items
-    have no form, so question.js's submit wiring is a no-op here.{% endcomment %}
-    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
-    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
-    <script src="{% static 'courses/js/math_reflow.js' %}" defer></script>
-    <script src="{% static 'courses/js/text_colour.js' %}" defer></script>
+    {% comment %}The KaTeX family now comes from courses/_katex_js.html (which
+    also adds math.js, previously missing here). question.js stays OUTSIDE that
+    partial and MUST remain after the include: each result item is marked
+    data-question so question.js's initial pass typesets the inline \(...\) math
+    in its stem/reveal/explanation. The items have no form, so its submit wiring
+    is a no-op here.{% endcomment %}
+    {% include "courses/_katex_js.html" %}
     <script src="{% static 'courses/js/question.js' %}" defer></script>
   {% endif %}
 {% endblock %}

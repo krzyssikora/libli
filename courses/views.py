@@ -31,6 +31,7 @@ from courses.access import get_node_or_404
 from courses.access import is_enrolled
 from courses.constants import COURSE_LANGUAGES
 from courses.htmlsandbox import has_math_delimiters
+from courses.htmlsandbox import titles_have_math
 from courses.marking import MarkResult  # noqa: F401  (documents the return type)
 from courses.marking import blank_matches
 from courses.marking import parse_number
@@ -80,6 +81,7 @@ from courses.rendering import unit_edit_context
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
+from courses.rollups import tree_titles_have_math
 from courses.rollups import units_in_order
 from courses.rollups import units_under
 from courses.scoring import earned_marks
@@ -526,6 +528,31 @@ def build_lesson_context(node, user):
     }
 
 
+def _widen_has_math_for_titles(ctx, node):
+    """OR the node-title scan into ctx["has_math"] on a unit-page context.
+
+    Call AFTER ctx["unit_nav"] is assigned -- the tree it scans is that value.
+
+    The contents tree in the DOM is the WHOLE course outline (build_unit_nav sets
+    unit_nav["tree"] to it), so one maths title anywhere in the course needs KaTeX
+    on every unit page of that course.
+
+    The second scan (`[node.title]`) is REDUNDANT TODAY and kept deliberately --
+    the same reasoning as the is_author flag in full_lesson_render_context: every
+    present caller resolves `node` through get_node_or_404(..., viewer=user, ...),
+    which 404s an unpublished unit before this render is reached, so the on-screen
+    unit is always in the tree already. It is defence-in-depth for a future render
+    site that reaches these templates WITHOUT that view-level gate, which would
+    otherwise silently lose the current unit's own title. Do not delete it as dead
+    code without re-verifying that every caller still carries the gate.
+    """
+    ctx["has_math"] = (
+        ctx["has_math"]
+        or tree_titles_have_math(ctx["unit_nav"]["tree"])
+        or titles_have_math([node.title])
+    )
+
+
 def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False):
     """Full context for rendering courses/lesson_unit.html: lesson context +
     unit nav + feedback defaults + the author's notes + tag panel + the
@@ -554,6 +581,7 @@ def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False
     # carries the gate.
     ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(node.course, user, node, drafts=drafts)
+    _widen_has_math_for_titles(ctx, node)
     ctx.update(
         feedback_for_pk=None,
         selected_ids=frozenset(),
@@ -591,6 +619,8 @@ def course_outline(request, slug):
     ]
     tag_services.outline_with_tags(outline, tags_by_unit, active_tag_ids)
     base = reverse("courses:course_outline", kwargs={"slug": course.slug})
+    # The whole outline is in the DOM, so scan the whole tree.
+    has_math = tree_titles_have_math(outline)
     return render(
         request,
         "courses/outline.html",
@@ -602,6 +632,7 @@ def course_outline(request, slug):
             "filter_chips": tag_services.filter_chip_hrefs(
                 base, course_tags, active_tag_ids
             ),
+            "has_math": has_math,
         },
     )
 
@@ -615,10 +646,16 @@ def course_results(request, slug):
     # top-level as the template's canonical source (summary also carries it).
     drafts = "keep" if can_see_drafts(request.user, course) else "hide"
     summary = build_course_results(course, request.user, drafts=drafts)
+    # build_course_results builds "rows" with three rows.append calls, so it is
+    # a real list -- scanning it here and then passing it to the template
+    # iterates it twice safely. Were it a generator, the scan would exhaust it and
+    # the page would render EMPTY, a silent severe failure no test here would
+    # catch, which is why the return type is pinned rather than assumed.
+    has_math = titles_have_math(r["unit"].title for r in summary["rows"])
     return render(
         request,
         "courses/course_results.html",
-        {"course": course, "summary": summary},
+        {"course": course, "summary": summary, "has_math": has_math},
     )
 
 
@@ -1293,6 +1330,7 @@ def build_quiz_context(node, user):
             "locked": bool(r.locked) if r else False,
             "attempts_left": None,
             "feedback_html": "",
+            "mark_result": None,
         }
         if r is not None and r.attempt_count > 0:
             selected, submitted = rehydrate(q, r.latest_answer)
@@ -1303,6 +1341,12 @@ def build_quiz_context(node, user):
                 if q.marking_mode == QuestionElement.MarkingMode.AUTO
                 else None  # [N]/[R] -> neutral branch in quiz_feedback_context
             )
+            # Only a LOCKED question hands its result to the element render: the
+            # types that mark their options inline key the reveal off it, and while
+            # attempts remain the answer key must stay withheld. Same gate
+            # quiz_feedback_context applies to reveal_template.
+            if r.locked:
+                state["mark_result"] = result
             fb_ctx = quiz_feedback_context(q, r, result=result)
             state["attempts_left"] = fb_ctx.get("attempts_left")
             state["feedback_html"] = render_to_string(
@@ -1383,6 +1427,7 @@ def quiz_unit(request, slug, node_pk):
     # matching comment in full_lesson_render_context.
     ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(course, request.user, node, drafts=drafts)
+    _widen_has_math_for_titles(ctx, node)
     ctx["tags_panel_open"] = request.GET.get("panel") == "tags"
     return render(request, "courses/quiz_unit.html", ctx)
 
@@ -1406,6 +1451,35 @@ def _quiz_render_feedback(
         question, response, result=result, validation=validation
     )
     if _wants_fragment(request):
+        if question.INLINE_QUIZ_REVEAL:
+            # The marking lives IN the options list, which sits outside the feedback
+            # box — so returning the box alone would swap in "Correct" while leaving
+            # the options unmarked. Return the whole element and let quiz.js swap the
+            # live form's body (the data-question-inline contract question.js already
+            # implements for the lesson path).
+            selected, _submitted = rehydrate(question, response.latest_answer)
+            return HttpResponse(
+                question.render(
+                    element=element,
+                    mode="quiz",
+                    feedback_for_pk=element.pk,
+                    action_url=reverse(
+                        "courses:quiz_answer",
+                        kwargs={
+                            "slug": node.course.slug,
+                            "node_pk": node.pk,
+                            "element_pk": element.pk,
+                        },
+                    ),
+                    selected_ids=selected,
+                    mark_result=result if response.locked else None,
+                    locked=response.locked,
+                    attempts_left=fb_ctx.get("attempts_left"),
+                    feedback_html=render_to_string(
+                        "courses/elements/_quiz_question_feedback.html", fb_ctx
+                    ),
+                )
+            )
         return render(request, "courses/elements/_quiz_question_feedback.html", fb_ctx)
     # No-JS: full quiz_unit re-render. Inject THIS question's fragment into its
     # single feedback box (render_states[pk]["feedback_html"]) and rehydrate its
@@ -1416,6 +1490,15 @@ def _quiz_render_feedback(
     # matching comment in full_lesson_render_context.
     ctx["is_author"] = drafts == "keep"
     ctx["unit_nav"] = build_unit_nav(node.course, request.user, node, drafts=drafts)
+    # The quiz page renders TWICE: this no-JS answer path re-renders
+    # quiz_unit.html with its own context, so applying the widening only in
+    # quiz_unit would leave this render on the un-widened flag. Masked today
+    # because has_math = bool(questions) or ... and this path is reachable only
+    # when the quiz HAS questions -- but that over-inclusiveness is an "accepted
+    # tradeoff" the code comment says may be tightened later, at which point the
+    # omission goes live. Knowingly uncovered BEHAVIOURALLY (a gate assertion
+    # here would be vacuous); pinned instead by the call-site count test.
+    _widen_has_math_for_titles(ctx, node)
     fragment = render_to_string("courses/elements/_quiz_question_feedback.html", fb_ctx)
     st = ctx["render_states"].get(element.pk)
     if st is not None:
@@ -1428,6 +1511,10 @@ def _quiz_render_feedback(
         selected, submitted = rehydrate(question, response.latest_answer)
         st["selected_ids"] = selected
         st["submitted_values"] = submitted
+        # Same locked-only gate build_quiz_context applies. Needed here for the
+        # PREVIEWER, whose responses map is empty, so build_quiz_context derived
+        # nothing to mark this question's options with.
+        st["mark_result"] = result if response.locked else None
     return render(request, "courses/quiz_unit.html", ctx)
 
 
@@ -1599,6 +1686,7 @@ def quiz_results(request, slug, node_pk):
             has_math = _question_has_math(q)
         r = responses.get(el.pk)
         rows.append(_results_row(q, r))
+    has_math = has_math or titles_have_math([node.title])
     ctx = {
         "course": course,
         "unit": node,
@@ -1635,6 +1723,7 @@ def _results_row(question, response):
         "reveal_result": None,
         "reveal_template": None,
         "choices": None,
+        "marks": None,
         "answered": response is not None and response.latest_answer is not None,
         "review_feedback": (response.review_feedback if response else ""),
         "review_earned": (response.earned_marks if response else None),
@@ -1674,6 +1763,32 @@ def _results_row(question, response):
         row["reveal_template"] = question.REVEAL_TEMPLATE
         if isinstance(question, ChoiceQuestionElement):
             row["choices"] = list(question.choices.all())
+            # Per-option markers, same vocabulary the locked quiz page uses. Without
+            # these _reveal_choice.html shows the answer KEY only — it was the one
+            # reveal partial of seven that never marked the student's own answer, so
+            # a multi-select row could not distinguish a correct option the student
+            # picked from one they missed. locked=True: a submitted question is
+            # terminal, so the withhold window is over by definition.
+            row["marks"] = question.choice_marks(
+                row["choices"],
+                selected_ids(
+                    answer_from_json(question, response.latest_answer)
+                    if response is not None and response.latest_answer is not None
+                    else set()
+                ),
+                row["reveal_result"],
+                "quiz",
+                True,
+            )
+    # Suppress the reveal on a correct outcome ONLY for types whose reveal is the
+    # answer key alone — echoing it would tell the student nothing they did not just
+    # get right. A reveal that marks their OWN answer (choice) still says WHAT they
+    # answered, which the results page is otherwise the only place to see, and a
+    # submitted quiz redirects here. Precomputed: `A and B or C` binds the wrong way
+    # in a template.
+    row["show_reveal"] = bool(row["reveal_template"]) and (
+        row["outcome"] != "correct" or bool(row["marks"])
+    )
     return row
 
 

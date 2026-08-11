@@ -197,6 +197,17 @@ body.editor-page .app-main { max-width: 102rem; }
   display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
   font-size: .75rem; color: var(--text-secondary); cursor: pointer;
 }
+
+/* [hidden] is inert against the display: flex/grid these rows and labels set at
+   equal specificity. formset_rows.js hides a removed row and swaps the no-JS
+   DELETE label for the JS remove button, so both need an explicit guard. */
+.pair-row[hidden], .choice-row[hidden] { display: none; }
+.pair-row__del[hidden], .choice-row__del[hidden] { display: none; }
+
+/* The add/remove wrapper must not become a grid item itself: .el-editor is a grid
+   with gap var(--space-3), and the list and the add button are separate items. */
+[data-fsrows], [data-sgate] { display: contents; }
+
 /* Feedback tier: subordinate to its option, set off by a quiet left rule. */
 .choice-row__feedback {
   margin-left: var(--space-2);
@@ -204,10 +215,6 @@ body.editor-page .app-main { max-width: 102rem; }
   border-left: 2px solid var(--border-default);
 }
 .choice-row__feedback textarea { width: 100%; resize: vertical; }
-/* Row marked for deletion: dimmed + struck, but still visible so the author can undo
-   by un-ticking Remove before saving. */
-.choice-row--del { opacity: .5; }
-.choice-row--del input[type="text"] { text-decoration: line-through; }
 
 /* --- Matrix (choice-grid) editor — a columns list and a rows list (each row a
    statement + a correct-column <select> kept in sync with the column labels by

@@ -1,13 +1,22 @@
-{% load i18n %}
+{% load i18n courses_extras %}
 <div class="el el--question" data-question>
   <div class="question__stem">{{ el.stem|safe }}</div>
   {% if element %}
   <form class="question__form" method="post" data-question-inline
         action="{{ action_url }}">
     {% csrf_token %}
-    <ul class="question__choices">
+    {% comment %}--marked switches the row to an inline layout (option text then
+    marker) for the quiz's locked state. Scoped to that state on purpose: a lesson
+    list keeps app.css's `label { display: block }` stacking, which its per-option
+    feedback indent was tuned against.{% endcomment %}
+    <ul class="question__choices{% if show_picks %} question__choices--marked{% endif %}">
       {% for c in choices %}
-        <li class="question__choice">
+        {% comment %}`marks` (ChoiceQuestionElement._choice_marks) owns WHICH options
+        carry a marker and why — a quiz marks every option once locked, a lesson only
+        the author-annotated ones. Keep that rule in Python; the template just paints
+        what it is handed.{% endcomment %}
+        {% with mk=marks|dictkey:c.pk %}
+        <li class="question__choice{% if show_picks and c.pk in selected_ids %} question__choice--picked{% endif %}">
           <label>
             <input type="{% if el.multiple %}checkbox{% else %}radio{% endif %}"
                    name="choice" value="{{ c.pk }}"
@@ -15,15 +24,23 @@
                    {% if quiz_submitted or locked %}disabled{% endif %}>
             <span class="question__choice-text">{{ c.text }}</span>
           </label>
-          {% if mode == "lesson" and mark_result and c.pk in mark_result.annotated %}
-            {% if c.pk in selected_ids %}
-              <span class="question__choice-marker question__choice-marker--wrong" aria-hidden="true">✗</span>
-            {% else %}
-              <span class="question__choice-marker question__choice-marker--missed" aria-hidden="true">＋</span>
-            {% endif %}
+          {% if mk %}
+            <span class="question__choice-marker question__choice-marker--{{ mk.kind }}" aria-hidden="true">{{ mk.glyph }}</span>
+            {% comment %}The glyph is aria-hidden, so this is the only thing a screen
+            reader gets for the outcome. The `checked` state is announced by the input
+            itself, but "checked" alone never says whether the pick was right.{% endcomment %}
+            <span class="sr-only">{{ mk.label }}</span>
+          {% endif %}
+          {% comment %}Gated on `mk`, not on mark_result alone: annotated options are
+          always a subset of marked ones, so this keeps the withhold rule single-sourced
+          in _choice_marks and stops author feedback leaking mid-quiz. The quiz used to
+          show this text in the bottom reveal list (question__nudge); that list is gone
+          for this type, so it has to land here or it would be lost.{% endcomment %}
+          {% if mk and c.pk in mark_result.annotated %}
             <p class="question__choice-feedback">{{ c.feedback }}</p>
           {% endif %}
         </li>
+        {% endwith %}
       {% endfor %}
     </ul>
     <button type="submit" class="btn btn--small"

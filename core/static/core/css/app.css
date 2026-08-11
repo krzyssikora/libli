@@ -1477,6 +1477,39 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   outline-offset: 1px;
 }
 
+/* Switchgate reuses switchgrid's x component, but every rule for it is scoped to
+   .el-editor--switchgrid, so a bare class inherits nothing. Duplicated under a
+   scope rather than promoted to an unscoped rule: promoting would restyle
+   switchgrid as a side effect, and an unscoped .el-editor__remove[hidden] ties on
+   specificity with the block above, leaving the outcome to source order. */
+.el-editor--switchgate .el-editor__remove {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+/* inline-grid overrides the [hidden] attribute, so hide explicitly (JS toggles it) */
+.el-editor--switchgate .el-editor__remove[hidden] { display: none; }
+.el-editor--switchgate .el-editor__remove:hover {
+  color: var(--danger);
+  background: var(--danger-subtle);
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+}
+.el-editor--switchgate .el-editor__remove:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 1px;
+}
+
 /* "Add option": a quiet dashed affordance so a grid full of cyclers isn't a wall
    of solid buttons. Echoes the gate family's dashed "nothing here yet" pill.
    align-self keeps it hugging its text (no overlap with the ×'d rows above — the
@@ -1763,3 +1796,130 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   border-inline-start: 3px solid var(--border-strong);
   color: var(--text-secondary);
 }
+
+/* --- Maths in node titles ([data-math-title], spec 2026-08-10) -------------- */
+/* THE OVERRIDING INVARIANT: app.css is base.html:46; every katex.min.css link
+   lands in {% block extra_css %} at :49 or later, so THE VENDOR STYLESHEET
+   ALWAYS LOADS AFTER OURS on every page in this change. At equal specificity
+   KaTeX wins, so each rule below is strictly MORE specific than the vendor rule
+   it overrides -- the specificity comments are the check to re-apply whenever a
+   value here is corrected.
+
+   These live ONLY here, never in courses.css: seven of the twelve templates that
+   newly gain KaTeX rendering link no courses.css at all, and a copy there could
+   never match anything these do not already match. */
+
+/* The vendored rule is `.katex{font:normal 1.21em KaTeX_Main,…;line-height:1.2}`
+   -- a font SHORTHAND, so it resets every unset font longhand. Restoring only
+   font-size leaves a maths run at `normal` weight inside a bold title, visibly
+   lighter than the prose beside it. line-height is deliberately NOT inherited:
+   the vendor's 1.2 is measured harmless on every title surface -- see the
+   clamp note below, which is also why no clamp rule follows it. */
+[data-math-title] .katex {                              /* (0,2,0) > (0,1,0) */
+  font-size: inherit; font-weight: inherit; font-style: inherit;
+}
+/* math.js's INLINE_DELIMS maps \[ to display:true, and the vendored
+   `.katex-display{display:block;margin:1em 0;text-align:center}` would then turn
+   a display-maths TITLE into a centred block with 1em margins inside a nav
+   button, a breadcrumb <li> or a tree row.
+
+   THE WRAPPER RULE IS THE LOAD-BEARING ONE: a display:block wrapper is still a
+   block-level box, so inside an <h1> that also holds words it splits the inline
+   content into anonymous block boxes and renders on three lines. `margin: 0`
+   removes the gaps but NOT the line break -- an inline-block child cannot make a
+   block parent join the surrounding line box. Once the wrapper is inline-block
+   it establishes its own formatting context, so a display:block .katex inside it
+   is harmless.
+
+   Display maths is forced inline EVERYWHERE, including the <h1>s where nothing
+   is clipped and a centred block would technically fit: a title is a single line
+   of prose by definition, and an author writing \[…\] in one is reaching for
+   emphasis, not a standalone equation block. One rule, one behaviour. */
+[data-math-title] .katex-display {                      /* (0,2,0) > (0,1,0) */
+  display: inline-block; margin: 0; text-align: inherit;
+}
+/* DEFENSIVE, not load-bearing -- see above. It neutralises the vendor's
+   text-align:center (a no-op inside a shrink-to-fit box anyway).
+
+   white-space is DELIBERATELY NOT OVERRIDDEN, so the vendor's
+   `white-space: nowrap` survives. A formula must not break mid-formula, and an
+   <h1> is white-space:normal -- so `white-space: inherit` here would hand the
+   formula back exactly the wrapping the vendor rule exists to prevent.
+   (KNOWING DEVIATION FROM THE SPEC: §3's code block lists
+   `white-space: inherit` while its own prose says nowrap is "which we in fact
+   want to keep for a formula". The prose is right and the declaration was
+   wrong; the test below pins the prose. Record this in the PR body.)
+
+   The child combinator is REQUIRED: the vendor's `.katex-display>.katex` is
+   (0,2,0), identical to `[data-math-title] .katex`, so reaching (0,3,0) is the
+   only way to win without relying on source order. */
+[data-math-title] .katex-display > .katex {             /* (0,3,0) > (0,2,0) */
+  display: inline-block; text-align: inherit;
+}
+
+/* NO line-height / vertical-align CLAMP IS WARRANTED ON ANY TITLE SURFACE --
+   MEASURED 2026-08-11, and the reason generalises, so read this before adding
+   one. An earlier version of this file carried a clamp here
+   (.analytics__matrix thead th, .breakdown-unit__title, .breakdown-node__title)
+   and a matching one in courses.css (.unit-foot__navtitle, .unit-tree__label,
+   .unit-tree__grouptitle, .unit-crumbs__label). Both were removed: an A/B on
+   the real pages -- forcing the vendor's line-height:1.2 back onto the same
+   .katex boxes -- moved every surface by AT MOST 0.19px:
+
+     .breakdown-unit__title  +0.19    .unit-crumbs__label      +0.15
+     .unit-tree__label       +0.06    everything else           0.00
+     (fractions: 0.00 on ALL seven -- the strut dominates)
+
+   THE MECHANISM, so it is not re-derived from scratch: every one of those
+   surfaces inherits line-height 1.5 (measured 19.68/13.12, 19.2/12.8,
+   18.72/12.48, 20.4/13.6, 24/16 -- all exactly 1.5), which already EXCEEDS the
+   vendor's 1.2. The vendor value is never the taller one there, so clamping it
+   changes nothing. `vertical-align: baseline` computed `baseline` with AND
+   without the declaration -- the vendored stylesheet sets vertical-align on no
+   .katex/.katex-display selector and baseline is the initial value, so that
+   half was inert by construction.
+
+   THE ONE PLACE THE MECHANISM IS REAL: reset.css:10 gives h1-h4
+   line-height:1.15, which is BELOW the vendor's 1.2 -- so on .lesson-unit__title
+   (an <h1>) a clamp would actually bite. It is deliberately left unclamped, on
+   the same footing as the .katex-display neutralisation and the five-line group
+   clamp: a tall construct keeps its own height rather than being deformed to
+   fit one text line.
+
+   0.19px is the same delta this change already rejects as rendering noise for
+   .result-row__title (49.2 vs 49.0) and .outline-unit__title -- one standard,
+   applied consistently. If you think a surface needs a clamp, A/B it against
+   the rule's ABSENCE first; measuring only with the rule present proves nothing.
+
+   The analytics sticky header was the stated worry and is measured safe:
+   .analytics{--ahead-h:2.4rem} with `thead th{position:sticky;
+   height:var(--ahead-h);white-space:nowrap}` positions each header row at
+   top:calc(var(--ahead-h) * counter0), so a cell taller than 2.4rem would
+   desynchronise every sticky row beneath it. Measured 38.39px against a
+   38.4px --ahead-h with a maths title present, clamp or no clamp: the explicit
+   `height` caps it either way. (A long maths title still WIDENS the nowrap
+   column instead of wrapping -- unchanged by any of this, and unrelated to
+   line-height.)
+
+   The .outline-unit__title measurement that started all this is recorded
+   immediately below, and reaches the same conclusion by the same method. */
+
+/* THE ORIGIN CASE. Task 11 measured .outline-unit__title (2026-08-10) and found
+   NO rule is warranted there either -- an earlier version of this file shipped
+   one, justified by a real but MISREAD measurement, and it was withdrawn.
+
+   A plain maths-titled row (e.g. \(\sum_{i=1}^{n} a_i b_i\)) measures 24.0px,
+   identical to a maths-free row. A row whose title carries a fraction
+   (\(\frac{p}{q}\)) measures 32.1px, and a \[...\] display integral 39.6px --
+   but an A/B against a same-specificity override that RESTORES the vendor's
+   line-height:1.2 reproduces the IDENTICAL 32.1px / 39.6px. The growth is not
+   caused by line-height at all (reset.css:6 sets body{line-height:1.5}, a
+   24px box at 16px, which already EXCEEDS the vendor's 1.2 * 16px = 19.2px --
+   line-height was never the taller value here) -- it is the fraction's own
+   strut height, which line-height cannot touch. `vertical-align:baseline` is
+   equally inert: the vendor sets vertical-align on no .katex/.katex-display
+   selector, and baseline is the initial value regardless.
+
+   Accepted, same as the .katex-display neutralisation and the five-line
+   group clamp elsewhere in this file: a tall construct keeps its own height
+   rather than being deformed to fit a single text line. */

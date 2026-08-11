@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static courses_extras %}
 {% block head_title %}{{ course.title }} — {% trans "My results" %} — libli{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 {% block content %}
 <article class="course-results result" lang="{{ course.language }}">
   <h1 class="result__title">{{ course.title }} — {% trans "My results" %}</h1>
@@ -18,7 +18,7 @@
   <ul class="result-list">
     {% for row in summary.rows %}
     <li class="result-row is-{{ row.status }}">
-      <span class="result-row__title">{{ row.unit.title }}</span>
+      <span class="result-row__title" data-math-title>{{ row.unit.title }}</span>
       {% if row.status == "submitted" %}
         {% if row.graded %}<span class="result-row__score">{{ row.score|marks }} / {{ row.max_score|marks }}</span>
         {% else %}<span class="badge badge--muted">{% trans "submitted — not graded" %}</span>{% endif %}
@@ -44,3 +44,4 @@
   <a class="btn btn--ghost" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Back to course" %}</a>
 </article>
 {% endblock %}
+{% block extra_js %}{% if has_math %}{% include "courses/_katex_js.html" %}{% endif %}{% endblock %}

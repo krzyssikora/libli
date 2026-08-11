@@ -125,6 +125,22 @@ def has_math_delimiters(html):
     return ("\\(" in html) or ("\\[" in html)
 
 
+def titles_have_math(titles):
+    """True iff any string in `titles` carries a maths delimiter (spec §2).
+
+    Takes an iterable of STRINGS, not of nodes: the call sites hold four
+    different shapes (a ContentNode, an analytics cell dict, a results row, a
+    submission), so each does its own extraction.
+
+    MUST delegate to has_math_delimiters, never re-implement the
+    `"\\(" in t or "\\[" in t` test. An independent copy satisfies every test
+    today, forks the delimiter definition the moment has_math_delimiters
+    changes, and nothing would go red. Delegating also inherits its
+    `html or ""` guard for a None title for free.
+    """
+    return any(has_math_delimiters(t) for t in titles)
+
+
 def _csp(origin):
     return (
         "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "

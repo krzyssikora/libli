@@ -17,7 +17,7 @@ def test_element_add_markdone_renders_200(client):
     )
     assert resp.status_code == 200
     html = resp.content.decode()
-    assert "data-markdone-editor" in html
+    assert 'data-fsrows="items"' in html
     assert Element.objects.filter(unit=unit).count() == 0  # render-only, nothing saved
 
 
@@ -27,4 +27,4 @@ def test_editor_html_includes_markdone_scripts(client):
         reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
     ).content.decode()
     assert "courses/js/markdone.js" in body
-    assert "courses/js/markdone_editor.js" in body
+    assert "courses/js/formset_rows.js" in body
