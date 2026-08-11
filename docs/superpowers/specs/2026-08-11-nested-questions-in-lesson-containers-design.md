@@ -465,9 +465,17 @@ which is where `element_depth` (the sibling walk cited above) already lives, so 
 no-DB unit test imports from `courses.builder` and `check_answer` calls it — over
 anything exposing `.pk` / `.parent`. The falsification is a **fast-failing bound
 assertion**, not a behavioural one:
-build an in-memory two-node cycle whose `parent` accessor raises after
-`MAX_NEST_DEPTH + 2` accesses. Correct code stops before the tripwire; the mutant
-hits it and the test is RED in milliseconds, with no database involved.
+build an in-memory two-node cycle whose `parent` accessor raises after a threshold.
+
+**Count the accesses before choosing the threshold — the obvious value has zero
+margin.** With `MAX_NEST_DEPTH = 4`, correct code reads `.parent` exactly **six**
+times on a cycle: once for the initializer (`node = element.parent`) plus five loop
+iterations, since `hops <= MAX_NEST_DEPTH` admits `hops` = 0,1,2,3,4. So
+`MAX_NEST_DEPTH + 2` is *also* 6, and a fixture written the natural way
+(`if self._n >= MAX_NEST_DEPTH + 2: raise`) turns the falsification RED against the
+**correct** implementation — whose likely fix is to tighten the production bound
+rather than the fixture. Use `MAX_NEST_DEPTH * 3` (12), which is unambiguous, still
+nowhere near a hang, and leaves the margin visible.
 
 `render_element` reads `feedback_ancestor_pks` from context **only** — it is never
 passed as a tag argument, because it is page-level by nature and no template needs
@@ -584,6 +592,12 @@ action_url=reverse(
 `TypeError`. This mirrors how `QuestionElement.render` builds its own fallback URL.
 `element_try` already fetches `el` with `select_related("unit__course")`, so the
 slug costs no extra query.
+
+`element_try` has a **second** whole-element re-render — the quiz
+`INLINE_QUIZ_REVEAL` branch at `views_manage.py:2393-2405`, which likewise passes no
+`action_url`. It is deliberately **out of scope**: after §6 a nested question cannot
+exist in a quiz at all, and `editor.js` discards the attribute either way. Recorded
+so the asymmetry reads as a decision rather than a miss.
 
 **Kept as defence-in-depth, and labelled as such**: a manage-gated fragment should
 not carry a student endpoint in its markup, and the change is two lines. But it
@@ -897,22 +911,44 @@ nodes of kind `unit`. `validate_nesting` looks up `el["unit"]`, which every elem
 already carries and which the element loop has already validated points at a unit
 node.
 
-**5. The LAL loader (`courses/lal_loader/builders.py`) — ONE gate, at child
-creation.** This is a real, currently-invisible authority: it builds nested
-`Element` rows directly, bypassing `builder` entirely, and it built the 793-unit
-imported corpus §8 cites. Its nesting surface is **spoiler-only** (the nested branch
-lives under `if etype == "spoiler"`), and it gates children against its own
-allowlist `LAL_SPOILER_CHILD_TYPES` (`:55-72`), which already contains `fill_blank`
-and never consults `NESTABLE_TYPE_KEYS` or `unit.unit_type`. It gains the quiz
-refusal at that same site — alongside the allowlist test and **after** the
-`flagged`-child exemption, which bypasses the allowlist entirely and can only ever
-produce an `HtmlElement`, never a question — raising `LoaderError`.
+**5. The LAL loader (`courses/lal_loader/builders.py`) — ONE guard at the top of
+`build_element`, NOT at the container branches.** This is a real,
+currently-invisible authority: it builds nested `Element` rows directly, bypassing
+`builder` entirely, and it built the 793-unit imported corpus §8 cites.
 
-**The gate is `fill_blank`-only in practice.** `LAL_SPOILER_CHILD_TYPES`'s sole
-question member is `fill_blank`; `choice`, `short_text` and `short_numeric` are
-absent and deliberately stay absent, since the two allowlists are not merged. So
-§9.5's loader test must use `fill_blank` — with any other type the allowlist refuses
-first and the new clause is never reached, making the test assert nothing.
+**It has TWO recursive nesting sites, not one**, and they are not equally guarded:
+
+- `if etype == "spoiler":` (`:114-163`) gates children against its own allowlist
+  `LAL_SPOILER_CHILD_TYPES` (`:55-72`), whose only question member is `fill_blank`;
+- `if etype == "tabs":` (`:201-224`) creates the join row and recurses
+  `build_element(..., parent=join, tab_id=t["id"])` for every child with **no
+  allowlist and no unit-type check at all**.
+
+The loader has `choice` (`:378`), `numeric` (`:400`), `shorttext` (`:425`) and
+`fillblank` (`:237`) branches, every one reachable from that tabs recursion. So a
+manifest with a quiz unit holding `tabs > choice` creates exactly the state this
+authority exists to forbid — and a gate placed at the spoiler branch would never
+run.
+
+**Therefore the guard goes at the top of `build_element`, keyed on
+`parent is not None`** (i.e. "this call is creating a nested row"), refusing a
+question `etype` when `unit.unit_type` is `QUIZ` and raising `LoaderError`. One
+site, covering both recursions and any container branch a future slice adds — which
+is the point: two call-site guards would have to be remembered a third time.
+
+It sits **after** the `flagged`-child exemption, which bypasses type handling
+entirely and can only ever produce an `HtmlElement`, never a question.
+
+**The tabs recursion's total absence of a type allowlist is a pre-existing
+`NESTABLE_TYPE_KEYS` bypass and stays OUT of scope.** This spec adds a unit-type
+refusal; it does not give the tabs path the allowlist the spoiler path has.
+Recorded so the implementer neither widens it by accident nor reads the asymmetry
+as an oversight.
+
+**The gate is NOT `fill_blank`-only.** Via the spoiler path it is — that allowlist
+admits no other question type. Via the tabs path any of the four is reachable. §9.5
+therefore needs **two** loader cases, and the tabs one is the case a spoiler-only
+gate leaves green.
 
 **A guard on `tree.upsert_node`'s unit_type re-sync is deliberately NOT added**, and
 the ordering is why. In `courses/management/commands/import_lal_content.py`,
@@ -1318,8 +1354,11 @@ file arithmetic is 11 existing + 5 seam + 7 claim = 23. All live in
 
   Both details are easy to get wrong first try: patched on the **class**, `capture`
   is an unbound descriptor and receives the instance as `self`; and it must return a
-  string or the surrounding lesson render blows up. Then assert
-  `"mode" not in captured`. The mutant it must catch is adding `"mode": mode` to the
+  string or the surrounding lesson render blows up. Then assert **the full key set**,
+  not just the absence — `captured.keys() == {"feedback_for_pk", "selected_ids",
+  "submitted_values", "mark_result", "editor_preview", "feedback_ancestor_pks"}` —
+  because `"mode" not in captured` alone is green also when `page` never arrived at
+  all. Pinning the key list makes the absence non-vacuous in one line. The mutant it must catch is adding `"mode": mode` to the
   dict.
 
 ### 9.5 Gate tests
@@ -1338,10 +1377,12 @@ ahead of the new clause for a document that trips both — `validate_nesting` ra
 through `_err()` with translated messages and has no reason keys, so the assertion
 matches on that msgid, not on a `paste_allowed` key — **and**
 still accepts its 19 existing positional call sites; the LAL loader refuses a
-**`fill_blank`** child in a quiz unit
-(the only type that reaches the clause — see §6.3 authority 5) **and** allows a
-manifest that flips a unit to quiz while dropping its nested question in the same
-revision (the case that authority exists to keep working).
+a nested question child in a quiz unit — **two cases, one per recursion site**: a
+`fill_blank` under a **spoiler** (the only question type that allowlist admits) and
+a `choice` under a **tabs** element (the ungated path a spoiler-only gate leaves
+green — see §6.3 authority 5) — **and** allows a manifest that flips a unit to quiz
+while dropping its nested question in the same revision (the case that authority
+exists to keep working).
 
 **The `rename_node` case must use a type OUTSIDE the four keys.** If it nests a
 `fill_blank` — the natural choice, matching every other fixture — then narrowing
@@ -1527,15 +1568,15 @@ whether the rule does anything.
 | `templates/courses/elements/spoilerelement.html` | `<details>` renders `open` when the checked element is in its subtree (§4.1) |
 | `courses/transfer/payloads.py` | `validate_nesting` gains `unit_types=None`, rejects question-in-quiz nesting |
 | `courses/transfer/schema.py` | `FORMAT_VERSION` 11 → 12 (§6.5); builds and passes the unit-type map (`:358`) — the one production `validate_nesting` call site that changes |
-| `courses/lal_loader/builders.py` | Question child refused in a quiz unit (the single loader gate) |
+| `courses/lal_loader/builders.py` | Question child refused in a quiz unit — **one guard at the top of `build_element`** keyed on `parent is not None`, covering both the spoiler *and* the ungated tabs recursion (§6.3 authority 5) |
 | `templates/courses/manage/editor/_add_menu.html` | Nested `Questions` group (sibling of the `{% if not nested %}` block); the `{% if nested %}` fill-blank card moved out of `Interactive`; top-level card untouched |
 | `templates/courses/manage/editor/_preview.html` | `editor_preview=True` on the `render_element` call |
-| `courses/tests/test_nested_question_nojs_feedback.py` | Cherry-picked from `06776cf4`, the parametrized assertion inverted + function renamed, eleven cases added (5 seam + 6 claim) |
+| `courses/tests/test_nested_question_nojs_feedback.py` | Cherry-picked from `06776cf4`, the parametrized assertion inverted + function renamed, twelve cases added (5 seam + 7 claim). **§9.4's bullet list is the checklist, not this count** — the shadowing claim-test is parametrized ×5, so the collected total is higher than the function count |
 | `courses/tests/test_render_seam.py` | **The gate on §3.1's container check** — 13 concretes × 6 placements; no edit expected, but it is the test that catches an unconditional `page=` |
 | `courses/tests/test_beforeafter_nesting.py` | **Expected RED** — rewrite the graded-question refusal as quiz-conditional (§9.6); it passes the *transfer* key `"choice"` |
 | `tests/test_twocolumn_registry.py` | **Expected RED** — same rewrite; it passes the *form* key `"choicequestion"` (§9.6) |
 | `courses/tests/test_spoiler_nesting.py` | **Expected RED** — three assertions rewritten; new home for the add-menu placement tests (§9.6) |
-| `courses/tests/test_nesting_rule.py` | Drift assertions for `NESTABLE_QUESTION_KEYS`, the four new aliases, and `CONTAINER_MODELS` vs `CONTAINER_TRANSFER_KEYS` |
+| `courses/tests/test_nesting_rule.py` | Drift assertions for `NESTABLE_QUESTION_KEYS`, the **three** new aliases (four nestable question form keys route through them), and `CONTAINER_MODELS` vs `CONTAINER_TRANSFER_KEYS` |
 | `tests/test_manage_editor_menu.py` | Verify the top-level card count stays 24 (its fixture is a **quiz**; a lesson is 33 — §9.6) |
 | Element-add endpoint tests (file per §9.5) | Four new form keys driven through `element_add` with `parent`+`tab`, plus the quiz-unit 400 |
 | A transfer test file (per §9.5) | `choice` export→import round-trip preserving `parent`, `tab_id`, concrete type and `Choice` rows |
@@ -1586,7 +1627,11 @@ Recorded so they are not re-litigated:
 - **`unit_has_nested_question` is deliberately wider** than
   `NESTABLE_QUESTION_KEYS`.
 - **The LAL loader's own allowlist is not merged** into `NESTABLE_TYPE_KEYS`; it is
-  deliberately narrower.
+  deliberately narrower. Its guard sits at the top of `build_element`, not at the
+  container branches — the loader has **two** recursion sites and the tabs one is
+  entirely ungated, so a per-branch guard would close only half of it.
+- **The tabs recursion's missing type allowlist stays out of scope** — a
+  pre-existing bypass this spec does not widen and does not close.
 - **The non-blank nested path is rerouted** (restore → live), not untouched, and
   §9.4 pins that the two routes agree.
 - **The spoiler re-opens on the no-JS re-render** (§4.1) — without it the fix is
