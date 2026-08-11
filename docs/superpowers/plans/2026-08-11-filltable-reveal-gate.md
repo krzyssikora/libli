@@ -472,13 +472,13 @@ Expected: all PASS. `test_reveal_scope_agreement.py` must stay green **unmodifie
 - [ ] **Step 12: Falsify both**
 
 1. Restore the bare `[data-reveal-gate]` selector → the print test goes RED, `test_reveal_scope_agreement.py` stays GREEN (proving it was never guarding this).
-2. Move `data-reveal-gate data-filltablegate` from the root `.filltable` div onto the inner `.el.el--filltable` div → `test_gate_marker_is_on_the_same_node_as_data_state` **and** the direct-child pin go RED (the pin fails on both its last assertions: `marked.parent` becomes the `.filltable` div rather than `.callout__child`, and the inner div's class list is `el el--filltable el--filltable--border-grid`, which contains no `"filltable"` entry), while `test_gated_table_marks_the_root_div` stays GREEN. That last contrast is the point of the co-location test — but note this mutant does **not** separate the two co-location tests from each other; only mutant 4 does.
-3. Drop the `{% if data.gate %}…{% endif %}` guard so the marker is emitted unconditionally → `test_ungated_table_has_no_gate_attributes` RED. It is green from the moment it is written, so without this it is never shown to be able to fail — and it is the only render-level guard on the "byte for byte" constraint.
-4. Wrap the root `.filltable` div in an extra `<div>` in `filltableelement.html` → the direct-child pin RED while the co-location test stays GREEN. Two tests, two distinct failure modes: co-location survives an extra ancestor, the pre-hide CSS does not.
+2. **Restore, then** move `data-reveal-gate data-filltablegate` from the root `.filltable` div onto the inner `.el.el--filltable` div → `test_gate_marker_is_on_the_same_node_as_data_state` **and** the direct-child pin go RED (the pin fails on both its last assertions: `marked.parent` becomes the `.filltable` div rather than `.callout__child`, and the inner div's class list is `el el--filltable el--filltable--border-grid`, which contains no `"filltable"` entry), while `test_gated_table_marks_the_root_div` stays GREEN. That last contrast is the point of the co-location test — but note this mutant does **not** separate the two co-location tests from each other; only mutant 4 does.
+3. **Restore, then** drop the `{% if data.gate %}…{% endif %}` guard so the marker is emitted unconditionally → `test_ungated_table_has_no_gate_attributes` RED. It is green from the moment it is written, so without this it is never shown to be able to fail — and it is the only render-level guard on the "byte for byte" constraint.
+4. **Restore, then** wrap the root `.filltable` div in an extra `<div>` in `filltableelement.html` → the direct-child pin RED while the co-location test stays GREEN. Two tests, two distinct failure modes: co-location survives an extra ancestor, the pre-hide CSS does not. **The restore is load-bearing here:** with mutant 2 still applied the co-location test is already RED, and this mutant's whole point — the GREEN half of the contrast — cannot be observed.
 
 - [ ] **Step 13: Restore, re-run, lint and commit**
 
-Mutant 4 left the template with an extra wrapper div — edit it back, then re-run before staging (`ruff` reads neither the template nor the CSS):
+Mutant 4 left the extra wrapper div in `filltableelement.html` — edit it back. Confirm too that mutant 1's `app.css` carve-out is restored (`[data-reveal-gate]:not([data-filltablegate])`, not the bare selector); `ruff` reads neither the template nor the CSS, so nothing else would notice. Then re-run before staging:
 
 ```bash
 uv run pytest tests/test_filltable_render.py courses/tests/test_filltable_gate_print.py -v
@@ -1416,6 +1416,8 @@ If the row does not survive, the fix belongs here (a shorter label, or letting t
 
 Mutants 4-6 are separate for the reason Task 1 Step 6 gives: that test makes three independent assertions, and one combined mutant would let two of them hide.
 
+**Restore mutant 7 before this block.** The e2e test does `page.locator("[data-edit-slot] [data-gate]").check()`, so with the `<label>` still removed that locator never resolves and the test dies on a 30-second Playwright timeout rather than the assertion predicted below — a failure that looks nothing like the one you are trying to observe.
+
 **Falsify the kept e2e test too — do not skip this.** `test_editor_gate_checkbox_round_trips` (Step 8) is written after the implementation lands, so it is green from birth, and it is the *only* test crossing the tick → Save → stored-flag seam. Trusting it unfalsified is therefore the worst case here, not the safest. **Use mutant 4 specifically** — `gate: !!(gate && gate.checked)` dropped from `serialize`. It is the only one of the three that produces the failure described below:
 
 - **Mutant 6 leaves this test GREEN**, so do not use it. Deleting the `change` listener does not break the save path at all: `filltable_editor.js` registers `document.addEventListener("submit", onSubmit, true)` (:1008, capture phase, "run before the POST") and `onSubmit` calls `editor.__filltableSerialize()` (:979), which re-runs `serialize()` over the live DOM and reads `gate.checked` directly. The listener is a live-preview convenience, behaviourally redundant on submit. It is falsified by `test_editor_js_serializes_the_gate_flag`'s **third** assertion, and only there.
@@ -1432,7 +1434,7 @@ Expected: RED on `assert obj.data["gate"] is True` — the checkbox still ticks 
 
 - [ ] **Step 10: Restore, re-run, then commit**
 
-Mutant 7 left the partial without its `<label>` — edit it back, then re-run before staging (`ruff` reads neither the template nor the editor JS):
+**Two mutants are outstanding at this point** — mutant 7 removed the `<label>` from the partial (restored during Step 9's e2e block), and mutant 4 dropped `gate:` from `serialize` in `filltable_editor.js` (applied for that same block). Edit **both** back, then re-run before staging; `ruff` reads neither the template nor the editor JS, so the lint gate below cannot see either:
 
 ```bash
 uv run pytest tests/test_filltable_editor_partial.py tests/test_filltable_form.py tests/test_editor_twin_drift.py -v
@@ -2120,7 +2122,7 @@ That last row is the mutant Step 3 names, and it is the **only** one that redden
 
 The `hideWrapper` row is narrow for a reason worth knowing: 24, 25 and 26's post-reload assertions all go through `restoreGates`, which computes `hideWrapper: gate.matches(RESTORABLE)` for itself (`reveal.js:249`) and never consults the call site — so the restore path is structurally immune to this mutant, and only a *live-solve* visibility assertion can catch it.
 
-That last row exists because Task 5's mutants for the focus branch run while only the *source-string* test exists — without it, test 23's `activeElement` assertion would be the one behavioural claim in the plan defending `focusTargetIn`, trusted without ever being shown able to fail. Under the mutant `focusTargetIn` returns the `.filltable` div, `focus()` on a div with no `tabindex` is a no-op, `activeElement` stays `<body>`, and the assertion is `False`. **Test 23's two visibility assertions stay GREEN under it** — check which assertion failed, not merely that the test did.
+The `focusTargetIn`-branch row exists because Task 5's mutants for the focus branch run while only the *source-string* test exists — without it, test 23's `activeElement` assertion would be the one behavioural claim in the plan defending `focusTargetIn`, trusted without ever being shown able to fail. Under the mutant `focusTargetIn` returns the `.filltable` div, `focus()` on a div with no `tabindex` is a no-op, `activeElement` stays `<body>`, and the assertion is `False`. **Test 23's two visibility assertions stay GREEN under it** — check which assertion failed, not merely that the test did.
 
 Do **not** treat a green test under the `libliRevealCascade` mutant as a broken test — for 21, 24, 25 and 27 that is the correct outcome. Test 26 is the one test appearing in two rows: it straddles both mutants, asserting once before the reload (live cascade) and once after (restore), so it goes red under either — but on a *different* assertion each time. Check which assertion failed, not merely that it failed.
 
