@@ -48,7 +48,7 @@ The chunked loop reads repeatedly, so the existing double — which returns `bod
 - Consumes: nothing.
 - Produces: module-level `class _Resp` with `__init__(self, body)`, `read(n=-1)`, `read1` (alias), `calls: int`, `__enter__`/`__exit__`. Tasks 2–4 construct it directly as `_Resp(body)`.
 
-- [ ] **Step 0: Capture the branch-point test count — before changing anything**
+- [x] **Step 0: Capture the branch-point test count — before changing anything**
 
 Task 6 compares the final suite against this figure, and **now** is the only moment it can be taken cleanly: the worktree currently differs from `d197a4c7` only by the spec and plan documents, which contribute no tests. Capturing it later would need a detached checkout of `d197a4c7`, which would **delete the plan and spec from disk** while the executing agent is reading them.
 
@@ -58,13 +58,13 @@ uv run pytest --collect-only --verbosity=0 | tail -1
 
 Record the **left-hand number** of the `A/B` pair it prints (e.g. `5974/6886 tests collected (912 deselected)` → record **5974**). The right-hand figure includes deselected e2e tests. Write it into this step as you go, so it survives a session boundary:
 
-> Branch-point selected-collection count: `__________`
+> Branch-point selected-collection count: `5974`
 
-- [ ] **Step 1: Read the current helper**
+- [x] **Step 1: Read the current helper**
 
 Read `tests/test_geogebra.py:264-287`. Note that `_Resp` is nested inside `_patch_open`, closes over `body`, and that `_side_effect` returns a fresh `_Resp()` per call.
 
-- [ ] **Step 2: Replace it with the module-scope version**
+- [x] **Step 2: Replace it with the module-scope version**
 
 Hoist `_Resp` **above** `_patch_open` and rewrite `_patch_open` to construct it. Keep `_patch_open`'s signature exactly — its ~17 callers must not change.
 
@@ -118,12 +118,12 @@ def _patch_open(body=None, exc=None):
 
 Note one deliberate semantic change: the old double treated `n == 0` as "read everything"; the new one returns `b""`, as a real file object does. No caller passes `0`.
 
-- [ ] **Step 3: Run the existing suite — it must be green with no production change**
+- [x] **Step 3: Run the existing suite — it must be green with no production change**
 
 Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
 Expected: **104 passed**. This is the whole point of doing it first — if anything reddens here, the double is not behaviour-preserving and Task 2 would be debugging two changes at once.
 
-- [ ] **Step 4: Format and lint the files this task touched**
+- [x] **Step 4: Format and lint the files this task touched**
 
 ```bash
 uv run ruff format .
@@ -132,7 +132,7 @@ uv run ruff check --no-cache tests/test_geogebra.py
 
 Do this **before** the commit, not at Task 6. `ruff format` does not sort imports, and `ruff format --check` is a separate CI gate — discovering either at the end means re-touching files from several earlier commits.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_geogebra.py
