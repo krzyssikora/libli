@@ -15,7 +15,13 @@
 - **No database migration.** `gate` lives in `data`; do not add a model field.
 - **No `FORMAT_VERSION` bump.** It stays at 11 (`courses/transfer/schema.py:14`).
 - **`courses/state.py` must not change.** `_val_done` stores only `{"done": True}` by design; see spec §4.
-- **`reveal.js` gets exactly one change** — the `focusTargetIn` branch in Task 5. Do not touch `scopeOf`, `isGateWrapper`, `cascadeFrom`, or `restoreGates`. **Two sanctioned exceptions, both in Task 9 Step 8's mutant table:** the `isGateWrapper`-`break` mutant (which edits `cascadeFrom`) and the `focusTargetIn`-branch mutant. Both must be edited back and the revert proved with `git diff --quiet courses/static/courses/js/reveal.js`, exactly as Task 3 Step 6 mutant 4 does for the equally-frozen `courses/state.py`.
+- **`reveal.js` gets exactly one PERMANENT change** — the `focusTargetIn` `[data-filltablegate]` branch added in Task 5 Step 4. Do not touch `scopeOf`, `isGateWrapper`, `cascadeFrom`, or `restoreGates`. **Four sanctioned TEMPORARY mutant sites, across two tasks** — the count matters, because taking "exactly one change" literally would mean refusing to falsify `test_focus_targets_fill_table_input` at all, which the falsify constraint below forbids:
+  - **Task 5 Step 6 mutant 3** — delete the `[data-filltablegate]` branch from `focusTargetIn`.
+  - **Task 5 Step 6 mutant 4** — drop `:not([disabled])` from that branch's selector.
+  - **Task 9 Step 8** — the `isGateWrapper`-`break` mutant (which edits `cascadeFrom`).
+  - **Task 9 Step 8** — the `focusTargetIn`-branch mutant.
+
+  Every one must be edited back out (never `git checkout`), and the revert proved with `git diff courses/static/courses/js/reveal.js` — **required at Task 5 Step 7 as well as Task 9 Steps 8 and 10**, since Task 5 is the commit that first stages this file. The expected diff at every one of those points is the same: only the `[data-filltablegate]` branch. This mirrors what Task 3 Step 6 mutant 4 does for the equally-frozen `courses/state.py`.
 - **An ungated fill-table must behave byte for byte as it does today.** Every change is conditional on `gate`.
 - **Falsify every test before trusting it.** Introduce the named mutant, confirm RED, then remove the mutant *by editing it out* — never `git checkout`, which would discard the new test along with it.
 - **Restore the LAST mutant too, and re-run before you stage.** Each falsify step ends on a mutant, and the commit step that follows runs only `ruff` — which does not read JS, templates or CSS at all. So an unreverted final mutant sails through a green lint gate into the commit. **Every commit step that follows a falsify step** therefore begins by re-running that task's own test command and confirming all PASS, before `git add` — that is Tasks 1-7 and 9. (Tasks 8 and 10 introduce no mutants, so their commit steps have nothing to restore.) Where a task mutates a file a Global Constraint freezes (`courses/state.py` in Task 3, `reveal.js` in Task 9), also prove it with `git diff --quiet <file>`.
@@ -376,6 +382,8 @@ Expected, enumerated (a blanket "FAIL" would hide the one that is green already)
 
 Leave every other attribute exactly where it is.
 
+**This is a deliberate correction of spec §2, recorded so the final spec-vs-code review does not read it as a transcription slip.** The spec says to add `{% if data.gate %}data-reveal-gate data-filltablegate{% endif %}` immediately after `data-filltable` — pasted literally, that renders `data-filltabledata-reveal-gate data-filltablegate`, one mangled attribute with no `data-reveal-gate` at all, and every gate test in Task 2 fails. **The leading space must be inside the `{% if %}`**, as written above. (Task 2 Step 2, Task 5 Step 4 and Task 9 Step 7 record the plan's other three spec deviations; this is the fourth.)
+
 - [ ] **Step 6: Run to verify they pass**
 
 ```bash
@@ -551,7 +559,7 @@ CONTROLS; a fill-table's marked node is the student's work, so it is excluded."
 ### Task 3: The `done` → `open` render seam
 
 **Files:**
-- Modify: `courses/models.py` — `FillTableElement.render` (~:1437-1454)
+- Modify: `courses/models.py` — `FillTableElement.render` (~:1437-1454 **pre-Task-1**; Task 1 inserts ~20 lines into `normalize_data` and 2 into the class docstring above it, so by now the method sits ~22 lines lower — key on the `def render(self, *, element=None, …)` line, not the number)
 - Test: `tests/test_filltable_restore.py` (extend `_seed_filltable` first)
 
 **Interfaces:**
@@ -673,7 +681,7 @@ Three of the four assert the *absence* of behaviour that does not exist yet, so 
 
 - [ ] **Step 4: Implement the seam**
 
-Replace `FillTableElement.render` (`courses/models.py:1437-1454`) with:
+Replace `FillTableElement.render` (`courses/models.py:1437-1454` **pre-Task-1** — find it by its `def render` line, see this task's Files entry) with:
 
 ```python
     def render(self, *, element=None, state=None, slug=None, node_pk=None):
@@ -952,7 +960,7 @@ Delete the now-duplicated `has_fill_table` assignment at its old site.
 **(d)** Correct the stale justification in the `has_stateful_elements` comment. Only **one**
 of the two comments actually makes the false claim: `:411-412` merely says "app_label-pinned
 … to avoid cold-cache ContentType SELECTs" and cites no test, which is fine. The one to fix
-is at `:458-459`, whose last clause reads:
+is the `has_stateful_elements` comment — at `:458-459` **pre-edit**. ⚠️ **Like `:438-440` above, that number is invalidated by Step 4(a) earlier in this same step:** the 10-for-35-line swap pushes this comment down to roughly `:483-484`, and post-edit `:458-459` lands inside the newly inserted `has_filltable_gate` block. **Key the replacement on the quoted text, not the position** — the quote below is verbatim-correct, so search for it. Its last clause reads:
 
 ```python
     # get_for_model ct-ids were rejected because cold-cache CT SELECTs break
@@ -1119,7 +1127,7 @@ Expected: all three PASS immediately — the implementation landed in Step 4, so
 
 - [ ] **Step 10: Restore, re-run, then commit**
 
-Mutant 6 left a duplicate `has_fill_table` assignment in `courses/views.py` — edit it back out, and confirm mutant 5's reverse-generic rewrite was already restored before it. Both are valid Python that ruff accepts happily, so without this re-run the mutated file is committed with source assertions RED:
+Mutant 6 left a duplicate `has_fill_table` assignment in `courses/views.py` — edit it back out, and confirm mutant 5's reverse-generic rewrite was already restored before it. **Confirm mutant 0's `window.__fillTableBooted = true;` is back in `filltable.js` too** — it is this task's only JS mutant, in a file `ruff` cannot read, and this commit stages that file. The re-run below does catch it via `test_boot_flag_is_assigned`, but check rather than assume. Both are valid Python that ruff accepts happily, so without this re-run the mutated file is committed with source assertions RED:
 
 ```bash
 uv run pytest tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py \
@@ -1291,13 +1299,14 @@ The boot flag's mutant is **not** here — it lives with the flag, in Task 4 Ste
 
 - [ ] **Step 7: Restore, re-run, then commit**
 
-Mutant 5 left `filltable.js` mutated — edit it back, then re-run before staging. `ruff` does not read JS, so the lint gate below would pass on a mutated build:
+Mutant 5 left `filltable.js` mutated — edit it back. **And confirm `reveal.js` too:** mutants 3 and 4 both edited `focusTargetIn`, and this commit **stages `reveal.js`**. `ruff` does not read JS at all, so the lint gate below would happily pass on a build with the focus branch deleted — and `test_focus_targets_fill_table_input` is a source-string assertion, so it is the only thing that would notice.
 
 ```bash
 uv run pytest courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py -v
+git diff courses/static/courses/js/reveal.js
 ```
 
-Expected: all PASS. Then:
+Expected: all PASS, **and** the diff shows only the `[data-filltablegate]` branch from Step 4 — nothing else, per the Global Constraint's four-sanctioned-sites rule. Then:
 
 ```bash
 uv run ruff check --no-cache courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py
@@ -1509,23 +1518,39 @@ page.locator(".filltable-editor__controls").screenshot(path=<scratch>/controls-1
 
 **Pass criterion, checked at both widths — measured, not eyeballed**, because the eyeballed version cannot fail (see above). Assert both, then look at the images for anything the numbers miss:
 
+**It must be an A/B, and the baseline must be measured, not guessed.** An absolute threshold (`width >= 120`) has no basis: the `.filltable-editor__prompt-field` label holds the caption "Instruction (optional)" plus a `gap` before its input, so at the label's 192px floor the input is legitimately narrow *on a correct build, with or without this feature* — the assertion would report a regression that does not exist. And a bare `scrollWidth <= clientWidth` check is the mirror problem: the row is `flex-wrap: wrap` and the label's min-content width is just its longest word, so it cannot overflow for any realistic label and the assertion cannot fail. Measure the **delta the new label actually causes** instead, by removing it in-page and re-measuring:
+
 ```python
-row = page.locator(".filltable-editor__controls")
-# 1. No horizontal overflow: a long unbreakable label is the one thing that can
-#    force it, and it is invisible in a screenshot cropped to the row.
-assert page.evaluate(
-    '(() => { const n = document.querySelector(".filltable-editor__controls");'
-    " return n.scrollWidth <= n.clientWidth; })()"
-) is True
-# 2. The Instruction input is still usable, i.e. the field really did wrap onto
-#    its own line rather than ending up a sliver. Its min-width guarantees 12rem
-#    (192px) for the LABEL; this checks the INPUT inside it, which has
-#    `flex: 1; min-width: 0` (courses.css:1327) and so has NO floor of its own.
-#    That is the assertion with teeth here.
-assert row.locator("input[data-prompt]").bounding_box()["width"] >= 120
+def _metrics(page):
+    return page.evaluate(
+        '(() => { const r = document.querySelector(".filltable-editor__controls");'
+        ' const i = r.querySelector("input[data-prompt]");'
+        " return {h: r.getBoundingClientRect().height,"
+        " w: i.getBoundingClientRect().width}; })()"
+    )
+
+with_label = _metrics(page)
+# One line's growth == the new label's own height; measure it, don't assume it.
+line_h = page.evaluate(
+    '(() => document.querySelector(".filltable-editor__controls [data-gate]")'
+    ".closest('label').getBoundingClientRect().height)()"
+)
+# THE A/B: drop only the new label and re-measure. Measuring the row with the
+# label present proves nothing about what the label cost.
+page.evaluate(
+    '(() => { document.querySelector(".filltable-editor__controls [data-gate]")'
+    ".closest('label').remove(); })()"
+)
+without_label = _metrics(page)
+
+# The row may gain ONE line -- that is the accepted wrap outcome. Two is a
+# regression, and this is the assertion that measures the risk the step names.
+assert with_label["h"] - without_label["h"] <= line_h + 8, (with_label, without_label)
+# And the Instruction input must not be materially squeezed by the new sibling.
+assert without_label["w"] - with_label["w"] <= 24, (with_label, without_label)
 ```
 
-Wrapping onto its own line is an accepted outcome; a sliver input, or horizontal overflow, is not. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed.
+**Record the four observed numbers in the PR description**, at both widths. If either assertion trips, the fix belongs here (a shorter label, or letting the checkbox wrap) — and `+ 8` / `<= 24` are gap-and-rounding tolerances, so a *large* excess is a real regression while a marginal one is worth re-measuring before acting. Wrapping onto its own line is an accepted outcome; a second wrapped line, or a squeezed input, is not. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed.
 
 **Keep the test, drop only the screenshots.** The tick → Save → stored-flag round trip is the one seam in this feature that *no* runtime test crosses: Step 1's three source assertions pin the strings (`querySelector("[data-gate]")`, `gate: !!(gate && gate.checked)`, the `change` listener) but never execute them together, and every Task 9 e2e seeds through the ORM rather than the editor. Since this step already stands up the whole PA-authenticated fixture, keeping a behavioural version costs three lines:
 
@@ -1579,7 +1604,9 @@ def test_editor_gate_checkbox_round_trips(page, live_server):
     assert obj.data["gate"] is True
 ```
 
-So: remove the `page.screenshot` calls, the two `page.set_viewport_size(...)` calls and the dark-theme `update()` before Step 10, but **keep the test itself**, named `test_editor_gate_checkbox_round_trips`, and add `tests/test_e2e_filltable.py` to Step 10's `git add` and ruff commands. That converts a throwaway harness into the only end-to-end guard on the authoring path.
+⚠️ **Put the layout capture and its A/B in a SEPARATE scratch test, not inside the kept one.** The A/B `.remove()`s the gate label from the DOM; if that runs before `page.locator("[data-edit-slot] [data-gate]").check()`, the locator never resolves and the kept test dies on a 30-second Playwright timeout. Keeping them separate also means the kept test never contains a line that has to be stripped.
+
+So: delete the whole scratch layout test — its `page.screenshot` calls, the two `page.set_viewport_size(...)` calls, `_metrics`, the A/B block and the dark-theme `update()` — before Step 10, but **keep `test_editor_gate_checkbox_round_trips` itself**, and add `tests/test_e2e_filltable.py` to Step 10's `git add` and ruff commands. That converts a throwaway harness into the only end-to-end guard on the authoring path.
 
 If the row does not survive, the fix belongs here (a shorter label, or letting the checkbox wrap) — do not leave it for the branch gate to discover.
 
@@ -1631,7 +1658,8 @@ uv run pytest tests/test_e2e_filltable.py -m e2e -k test_editor_gate_checkbox_ro
 # function-local per the file's own idiom (Step 8). The four pre-existing
 # function-local imports at :93/:300/:381/:489 stay exactly as they are -- do
 # not consolidate them into a module-level import, that is unrelated churn.
-# Anything else -- a screenshot call, a set_viewport_size call, a theme write --
+# Anything else -- the scratch layout test, a screenshot call, a
+# set_viewport_size call, a _metrics helper, a theme write --
 # is a capture leftover. This file IS tracked, so git diff works here (unlike
 # Task 9's still-untracked new file, where it would be silent).
 git diff tests/test_e2e_filltable.py
@@ -1777,10 +1805,13 @@ Without mutants 2 and 3, those two tests are green-on-write and never shown able
 Mutant 3 left `normalize_data`'s absent-key default flipped — edit it back, then re-run before staging:
 
 ```bash
+git diff --quiet courses/models.py && echo "models.py clean"
 uv run pytest tests/test_filltable_transfer.py tests/test_filltable_model.py -v
 ```
 
-Expected: all PASS (`test_filltable_model.py` is included because mutant 3 reddens `test_normalize_data_gate_defaults_false` there, outside this task's usual command).
+Expected: the echo fires and all PASS (`test_filltable_model.py` is included because mutant 3 reddens `test_normalize_data_gate_defaults_false` there, outside this task's usual command).
+
+**The `git diff --quiet` matters more here than the usual "confirm the mutant is out".** Mutant 3 mutates `courses/models.py`, which was committed back in Task 1 and is **not** in this task's `git add`. A partially-reverted mutant therefore survives as an *uncommitted working-tree* change that the final branch gate cannot see at all — its `git diff origin/master...HEAD` commands compare commits, not the working tree — so it would ride along into whatever later task next stages that file. Same reasoning as Task 3 Step 7's proof for `courses/state.py`.
 
 ```bash
 uv run ruff check --no-cache courses/transfer/export.py tests/test_filltable_transfer.py
@@ -1843,6 +1874,13 @@ first reveals the second, the second reveals what follows.
 Replace the final sentence of the `{el:filltable}` section:
 
 Likewise wrapped to the Polish file's own width — the switch-gate line in particular grew when the name was corrected to *zatwierdź*:
+
+**The `old_string` is, verbatim** — two lines, spanning the newline after `Nie` (`:89-90`), exactly as Step 1 states the English one:
+
+```markdown
+jednokierunkowe. Nie
+przyznaje punktów i niczego nie odsłania.
+```
 
 **Mind the splice point.** Unlike the English anchor (`is one-way.`, at column 0 of `:77`), the Polish anchor `jednokierunkowe. Nie` sits at **column 51** of `:89` — `bardziej, ale zmniejszenie jej poniżej limitu jest jednokierunkowe. Nie`. So the first replacement line must be *short*, or the spliced result is a ~125-column line, which is precisely the churn this is trying to avoid. Break immediately after `Nie`:
 
