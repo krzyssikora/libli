@@ -1,7 +1,9 @@
 import itertools
 import json
+import logging
 import pathlib
 import ssl
+import threading
 import urllib.error
 from unittest.mock import patch
 
@@ -524,3 +526,104 @@ def test_fetch_body_rechecks_the_budget_on_every_iteration(monkeypatch):
             # ticks: check1 -> 0.0 (ok), check2 -> 1.0 (ok), check3 -> 2.0 (trips)
             _fetch_body(object(), 2.0)
     assert resp.calls == 2
+
+
+def _slow_resp_cls(released, entered=None):
+    """A _Resp whose read1 blocks until `released` (bounded), then returns the body.
+
+    Bounded, never unbounded: there is no pytest-timeout in this project, so a fake
+    that blocks forever makes the MUTANT run hang rather than fail -- indistinguishable
+    from the "test-DB container is down" mode.
+    """
+
+    class _SlowResp(_Resp):
+        def read1(self, n=-1):
+            if entered is not None:
+                entered.set()
+            released.wait(3)
+            return super().read1(n)
+
+    return _SlowResp
+
+
+def _geogebra_reasons(caplog):
+    return [r.message for r in caplog.records if r.name == "courses.geogebra"]
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_abandons_a_slow_body_at_the_deadline(monkeypatch, caplog):
+    # Test 1. NOTE: (None, None) alone is NOT a sufficient assertion -- it is this
+    # function's universal degradation value. Under this test's own mutant the call
+    # also returns (None, None), so the caplog reason is the SOLE discriminator.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+    resp = _slow_resp_cls(released)(_payload("wseg.json"))
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", return_value=resp):
+                assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    finally:
+        released.set()  # release in teardown; never leave a thread parked
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_abandons_slow_HEADERS_at_the_deadline(monkeypatch, caplog):
+    # Test 2. Pins that the bound wraps _open itself, not merely the read -- the
+    # leg a chunk budget alone cannot cover.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+
+    def _slow_open(request, timeout=None):
+        released.wait(3)
+        return _Resp(_payload("wseg.json"))
+
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", side_effect=_slow_open):
+                assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    finally:
+        released.set()
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_negative_caches_a_deadline(monkeypatch):
+    # Test 3. BOTH directions race here and the fixed-build one is the dangerous
+    # one: asserting call_count == 1 on a CORRECT build needs the first worker to
+    # have reached _open before the post-join assertion runs. Synchronise on an
+    # event rather than trusting the deadline floor -- and BOUND the wait, or a
+    # never-started thread hangs the suite instead of failing it.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released, entered = threading.Event(), threading.Event()
+    cls = _slow_resp_cls(released, entered)
+    try:
+        opener_patch = patch(
+            "courses.geogebra._open",
+            side_effect=lambda *a, **k: cls(_payload("wseg.json")),
+        )
+        with opener_patch as opener:
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+            assert entered.wait(5)
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+            assert opener.call_count == 1
+    finally:
+        released.set()
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_deadline_log_names_the_id_AND_the_reason(monkeypatch, caplog):
+    # Test 4. Asserting the id alone would be vacuous: _fail logs "geogebra %s: %s",
+    # so `lookup failed (AttributeError)` from a broken fake also names the id --
+    # green on precisely the mistake this test is designated to catch.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+    resp = _slow_resp_cls(released)(_payload("wseg.json"))
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", return_value=resp):
+                fetch_geogebra_dimensions("wgzr7tsu")
+    finally:
+        released.set()
+    messages = _geogebra_reasons(caplog)
+    assert any("wgzr7tsu" in m and "deadline" in m for m in messages)

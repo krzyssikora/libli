@@ -103,7 +103,7 @@ also carries a one-line docstring at its head.
 | `builder.py` | Course-builder tree mutations with concurrency-token checks. |
 | `access.py` | Enrollment + role access checks (IDOR-safe node lookups). |
 | `media.py` | Media-asset CRUD + "where used" tracking. |
-| `video_url.py` / `geogebra.py` | Embed-URL canonicalization for video / GeoGebra. |
+| `video_url.py` / `geogebra.py` | Embed-URL canonicalization for video / GeoGebra. `geogebra.py` also performs the API dimension lookup, on a bounded background thread. |
 | `sanitize.py` | HTML sanitizer for the safe rich-text subset. |
 | `validators.py` | Upload size/extension limits from site config. |
 | `fields.py` | `OrderField`. `widgets.py` — the code-editor widget. |
