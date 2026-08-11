@@ -62,17 +62,19 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 | `courses/static/courses/css/editor.css` | modify | foot shrink/truncation, `.asset-actions`, the confirm strip |
 | `courses/static/courses/js/media_picker.js` | modify | the fourth op; `flash()` gains `role="alert"` and inserts-then-fills |
 | `locale/pl/LC_MESSAGES/django.po` | modify | Polish for the new strings |
+| `locale/en/LC_MESSAGES/django.po` | **deliberately untouched** | it carries live location comments for `_asset_cell.html`, which Task 4 shifts, and it gains no new entries — but its `msgstr`s are empty, so gettext falls back to the msgid and runtime is unaffected. Regenerating it would add an unrelated line-number diff to this branch for no behavioural gain; leave it to the next repo-wide `makemessages -a` |
 | `locale/pl/LC_MESSAGES/django.mo` | modify (compiled) | the binary catalog; committed, and the repo's known rebase-conflict hazard — regenerate it after any rebase rather than resolving the conflict by hand |
 | `tests/test_media_replace.py` | **create** | service-level: swap mechanics, disk hygiene, rejections, consumer survival |
 | `tests/test_media_manager.py` | modify | view-level: status codes, key guard, kind-ignored, render assertions |
 | `tests/test_e2e_media_manager.py` | **create** | browser-level: the strip, cancel, 422, catch-all, mid-flight filter, screenshots |
+| `docs/help/course-admin/media-manager.md` + `.pl.md` | modify | the cell's action list is closed prose that this feature makes wrong |
 | `scripts/e2e_chunks.sh` | modify | register the new e2e module in a chunk — its `verify_coverage` refuses to run at all if a collected e2e file is in no chunk |
 
 Task order follows the dependency chain: service → view → template/CSS → JS+e2e → i18n/gate.
 
 **Two deliberate exceptions to "each task is verified by its own tests":**
 
-- **Task 3 (view) ends 8 passed / 1 failed on its own, out of 9 tests.** `test_replace_returns_the_rerendered_cell` asserts `data-replace-url`, which Task 4 adds. Task 3 Step 5 says so, and Task 4 Step 6 re-runs it. This is an interface contract, not a broken task.
+- **Task 3 (view) ends 9 passed / 1 failed on its own, out of 10 tests.** `test_replace_returns_the_rerendered_cell` asserts `data-replace-url`, which Task 4 adds. Task 3 Step 5 says so, and Task 4 Step 6 re-runs it. This is an interface contract, not a broken task.
 - **The JS and its e2e are one task (Task 5), not two.** Nothing server-side can fail on a JS defect — a hoisted `done`, an unlowered `replaceBusy`, a wrong selector, a broken `flash` would all leave `tests/test_media_manager.py` green. Committing the JS behind server-side tests would be a gate that cannot catch anything, so the JS lands with the browser tests that actually exercise it.
 
 ---
@@ -342,11 +344,16 @@ These two are the tests most likely to pass for the wrong reason, so prove each 
    `uv run pytest tests/test_media_replace.py::test_a_row_sharing_the_old_filename_keeps_the_file -v`.
    Expected: **FAILS** on `assert storage.exists(old_name)` — the decoy's file was destroyed. Now **edit the lines back in** (do not `git checkout`).
 
-2. **Identical-name guard.** In `replace_asset`, change `if asset.file.name != old_name:` to `if True:`. Run
-   `uv run pytest tests/test_media_replace.py::test_identical_storage_name_keeps_the_newly_written_file -v`.
-   Expected: **FAILS** on `assert storage.exists(fresh.file.name)` — the row now points at a file its own cleanup deleted. **Edit it back.**
+2. **The identical-name guard is deliberately NOT falsified — and here is why**, so nobody wastes an hour proving a green mutant means a broken harness.
 
-3. Re-run the whole file to confirm you restored both:
+   Changing `if asset.file.name != old_name:` to `if True:` leaves
+   `test_identical_storage_name_keeps_the_newly_written_file` **GREEN**. Follow it through: by the time the call is reached, `asset.save(update_fields=["file", …])` has written that same name onto the row, so `_delete_file_if_unshared`'s own first check — `MediaAsset.objects.filter(file=name).exists()` — matches **the asset itself**, early-returns, and registers no deletion.
+
+   So the two guards overlap: whenever the names are equal the row always matches its own name, and the shared-name check alone already prevents the deletion. The `!=` guard is kept anyway, as documentation of the intent and as protection if that helper's query is ever narrowed (an `.exclude(pk=…)` would immediately make it load-bearing) — but it cannot be falsified in isolation, and a compound mutant that disabled both would only prove a state the code cannot reach.
+
+   The test itself is still worth having: it pins the end-to-end behaviour regardless of which guard delivers it.
+
+3. Re-run the whole file to confirm you restored the item-1 mutation:
    `uv run pytest tests/test_media_replace.py -v` → 5 passed.
 
 - [ ] **Step 6: Lint and commit**
@@ -681,6 +688,18 @@ def test_replace_rejects_get_before_authentication(client, settings, tmp_path):
 
 
 @pytest.mark.django_db
+def test_anonymous_post_redirects_to_login(client, settings, tmp_path):
+    """@login_required sends an anonymous POST to the login page -- a 302, not a
+    403. The 403 belongs to an AUTHENTICATED non-manager (next test)."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    course = CourseFactory()
+    asset = make_image_asset(course, filename="x.png")
+    r = client.post(_replace_url(course, asset), {"file": _upload_png()})
+    assert r.status_code == 302
+    assert "/accounts/login/" in r["Location"]
+
+
+@pytest.mark.django_db
 def test_replace_requires_manage_rights(client, settings, tmp_path):
     """The requester must be a TEACHER, not a Platform Admin.
 
@@ -930,7 +949,7 @@ def media_replace(request, slug, pk):
 uv run pytest tests/test_media_manager.py -k replace -v
 ```
 
-Expected: **9 selected, 8 passed, 1 failed.**
+Expected: **10 selected, 9 passed, 1 failed.**
 
 The single failure is `test_replace_returns_the_rerendered_cell`, on its `data-replace-url` assertion — that attribute is added by Task 4. This is deliberate: it is the interface contract between the two tasks, and Task 4 Step 6 turns it green. Do not delete the assertion. Any *other* failure, or a different count, is a real problem.
 
@@ -1034,7 +1053,9 @@ def test_cell_carries_di_uses_for_the_drag_warning(client, settings, tmp_path):
     import re
 
     for pk, expected in ((dragged.pk, "1"), (plain.pk, "0")):
-        tag = re.search(rf'<div class="asset-cell"[^>]*data-asset-id="{pk}"[^>]*>', body)
+        tag = re.search(
+            rf'<div class="asset-cell"[^>]*data-asset-id="{pk}"[^>]*>', body
+        )
         assert tag, pk
         assert f'data-di-uses="{expected}"' in tag.group(0), pk
 
@@ -1191,7 +1212,7 @@ Also update the existing comment above `.asset-del { display: contents; }` (edit
 uv run pytest tests/test_media_manager.py -k "replace or di_uses" -v
 ```
 
-Expected: **12 passed** — Task 3's nine (all green now) (including `test_replace_returns_the_rerendered_cell`, which was waiting on `data-replace-url`) plus this task's three. The `or di_uses` matters: `-k replace` alone does **not** match `test_cell_carries_di_uses_for_the_drag_warning`, so the task that adds `data-di-uses` would never confirm its own assertion green. If the count is lower, a test was silently deselected — check the selector before believing the result.
+Expected: **13 passed** — Task 3's ten (all green now) (including `test_replace_returns_the_rerendered_cell`, which was waiting on `data-replace-url`) plus this task's three. The `or di_uses` matters: `-k replace` alone does **not** match `test_cell_carries_di_uses_for_the_drag_warning`, so the task that adds `data-di-uses` would never confirm its own assertion green. If the count is lower, a test was silently deselected — check the selector before believing the result.
 
 - [ ] **Step 7: FALSIFY the enabled-when-in-use assertion**
 
@@ -1234,11 +1255,13 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 |---|---|
 | strip build, filename, foot preserved | `test_replace_swaps_the_cell_and_the_rendered_image` |
 | 200 → `cell.replaceWith(fresh)` | same |
-| cancel → strip removed, input cleared, no request | `test_cancel_changes_nothing_and_sends_no_request` |
+| cancel → strip removed, **input cleared**, no request | `test_cancel_changes_nothing_and_sends_no_request` |
+| `closeStrip(strip, true)` on the 422 and catch-all paths | the `input_value(...) == ""` assertion in each |
 | 422 → `.op-error` extraction + `role="alert"` | `test_a_422_flashes_the_validator_message` |
 | catch-all (non-200/non-422) | `test_a_server_error_removes_the_strip_and_flashes` |
 | per-strip `done`; `replaceBusy` **lowering**; the ⇄ click handler | `test_two_consecutive_replaces_both_succeed` |
-| detached-strip re-query from `root` | `test_a_filter_swap_mid_flight_still_updates_the_cell` |
+| detached-strip re-query from `root` (`live` found) | `test_a_filter_swap_mid_flight_still_updates_the_cell` |
+| detached-strip re-query, `if (live)` false | `test_a_filter_that_hides_the_asset_mid_flight_is_a_no_op` |
 | `Number(data-di-uses) > 0` gate | `test_the_drag_warning_appears_only_for_a_drag_to_image_asset` |
 
 The only branch with no direct e2e is **"200 whose body has no `.asset-cell`"** (the followed login redirect). Reproducing an expired session mid-flight is not worth a test; it is covered by construction, because the same code path is the catch-all that `test_a_server_error_removes_the_strip_and_flashes` drives.
@@ -1458,17 +1481,16 @@ a build that replaced nothing.
 """
 
 import os
-import re
 from io import BytesIO
 
 import pytest
 from PIL import Image
 
-from courses.models import Element
 from courses.models import ImageElement
 from tests.factories import TEST_PASSWORD
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
+from tests.factories import add_element
 from tests.factories import make_image_asset
 from tests.factories import make_verified_user
 
@@ -1539,9 +1561,7 @@ def _seed(username, slug, *, with_element=True):
     )
     asset = make_image_asset(course, filename="original.png", color="red")
     if with_element:
-        Element.objects.create(
-            unit=unit, content_object=ImageElement.objects.create(media=asset, alt="a")
-        )
+        add_element(unit, ImageElement.objects.create(media=asset, alt="a"))
     return owner, course, unit, asset
 
 
@@ -1566,13 +1586,25 @@ def test_replace_swaps_the_cell_and_the_rendered_image(page, live_server):
     assert page.locator(".asset-uses").is_visible()
 
     strip.locator("[data-replace-commit]").click()
-    page.wait_for_selector('.asset-cell:has-text("replacement.png")')
-    assert page.locator("[data-replace-strip]").count() == 0
 
-    page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/unit/{unit.pk}/edit/")
+    # Wait on the STRIP going away, then assert the filename inside
+    # `.asset-fname` -- the server-rendered node. A bare
+    # `.asset-cell:has-text("replacement.png")` would be satisfied the instant
+    # the strip appears, because :has-text matches DESCENDANTS and
+    # [data-replace-filename] holds exactly that name. The wait would then be a
+    # no-op and everything after it would race the round-trip.
+    page.wait_for_selector("[data-replace-strip]", state="detached")
+    page.wait_for_selector('.asset-cell .asset-fname:has-text("replacement.png")')
+
+    editor_url = (
+        f"{live_server.url}/manage/courses/{course.slug}"
+        f"/build/unit/{unit.pk}/edit/"
+    )
+    page.goto(editor_url)
     page.wait_for_selector('[data-scope="editor"]')
-    new_src = page.locator(".editor img").first.get_attribute("src")
-    assert new_src and new_src != original_src  # the whole point
+    new_src = page.locator(".prev-el img").first.get_attribute("src")
+    assert new_src != original_src          # it moved...
+    assert "replacement" in new_src         # ...and to the file we uploaded
 ```
 
 - [ ] **Step 5: Run it**
@@ -1587,13 +1619,15 @@ Expected: PASS. If the editor-page image selector misses, print `page.content()`
 
 Make `replace_asset` a no-op by putting **`return asset` as its very first statement**. Run the test.
 
-Expected: **FAILS** at `page.wait_for_selector('.asset-cell:has-text("replacement.png")')`, which times out.
+Expected: **FAILS** at `page.wait_for_selector('.asset-cell .asset-fname:has-text("replacement.png")')`, which times out.
 
-The position of the mutant matters. An early return placed just *before* `asset.save(...)` would **not** produce that failure: `original_filename` is assigned above the save, so the view still holds the mutated in-memory instance, `attach_usage` succeeds, and the cell renders `replacement.png` quite happily — the test would only go red much later, on the `new_src != original_src` line. Returning first makes the stated failure the real one.
+The position of the mutant matters. An early return placed just *before* `asset.save(...)` would **not** produce that failure: `original_filename` is assigned above the save, so the view still holds the mutated in-memory instance, `attach_usage` succeeds, and the cell renders `replacement.png` quite happily. Returning first makes the stated failure the real one.
 
-**Edit the early return back out** and re-run.
+**Edit the early return back out**, then run a **second mutant** that reaches further into the test: delete only the `asset.file = uploaded_file` line (leaving `original_filename` and the save intact).
 
-This is the assertion the byte-less fixture would have made unfalsifiable, so it is worth proving explicitly.
+Expected: **PASSES** the filename waits — the cell genuinely says `replacement.png` — and **FAILS on `assert new_src != original_src`**, because the row still points at the old file.
+
+That second mutant is the one that matters. The first proves the test notices a dead service; only this one proves the `src` comparison itself can fail, which is the assertion the byte-less fixture would have made permanently green. **Edit it back out** and re-run.
 
 - [ ] **Step 7: Add cancel, 422, catch-all and the mid-flight filter**
 
@@ -1615,6 +1649,11 @@ def test_cancel_changes_nothing_and_sends_no_request(page, live_server):
     page.wait_for_selector("[data-replace-strip]", state="detached")
 
     assert seen == []
+    # The input must be CLEARED, not merely abandoned: `change` fires only on a
+    # value change, so leaving the old value would make re-picking the SAME file
+    # a dead click. Nothing else in this module reads input.value, so without
+    # this assertion `closeStrip`'s clearInput argument is untested everywhere.
+    assert page.input_value("[data-replace-input]") == ""
     asset.refresh_from_db()
     assert asset.original_filename == "original.png"
 
@@ -1641,6 +1680,7 @@ def test_a_422_flashes_the_validator_message(page, live_server):
     assert "<" not in text                        # the fragment was parsed, not dumped
     assert bar.get_attribute("role") == "alert"   # announced, not silent
     assert page.locator("[data-replace-strip]").count() == 0
+    assert page.input_value("[data-replace-input]") == ""
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1657,7 +1697,10 @@ def test_a_server_error_removes_the_strip_and_flashes(page, live_server):
 
     page.wait_for_selector("[data-replace-strip]", state="detached")
     assert page.locator(".op-error").is_visible()
-    focused = page.evaluate("document.activeElement.hasAttribute('data-replace-asset')")
+    assert page.input_value("[data-replace-input]") == ""
+    focused = page.evaluate(
+        "document.activeElement.hasAttribute('data-replace-asset')"
+    )
     assert focused  # focus restored, not dropped to <body>
 
 
@@ -1676,7 +1719,12 @@ def test_two_consecutive_replaces_both_succeed(page, live_server):
 
     page.set_input_files("[data-replace-input]", _upload_payload("first.png"))
     page.locator("[data-replace-commit]").click()
-    page.wait_for_selector('.asset-cell:has-text("first.png")')
+    # Detached-first, then .asset-fname -- see the note in the happy-path test.
+    # Getting this wrong is not cosmetic here: a no-op wait would run the click
+    # below while replaceBusy is still true, the handler would return early, no
+    # chooser would be raised, and the test would time out ON A CORRECT BUILD.
+    page.wait_for_selector("[data-replace-strip]", state="detached")
+    page.wait_for_selector('.asset-cell .asset-fname:has-text("first.png")')
 
     # Second pass THROUGH the button. input.click() raises a file chooser that
     # must be intercepted, or it hangs.
@@ -1684,7 +1732,8 @@ def test_two_consecutive_replaces_both_succeed(page, live_server):
         page.click("[data-replace-asset]")
     fc.value.set_files(_upload_payload("second.png"))
     page.locator("[data-replace-commit]").click()
-    page.wait_for_selector('.asset-cell:has-text("second.png")')
+    page.wait_for_selector("[data-replace-strip]", state="detached")
+    page.wait_for_selector('.asset-cell .asset-fname:has-text("second.png")')
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1732,9 +1781,55 @@ def test_a_filter_swap_mid_flight_still_updates_the_cell(page, live_server):
 
     held[0].continue_()
 
-    page.wait_for_selector('.asset-cell:has-text("late.png")')
+    page.wait_for_selector('.asset-cell .asset-fname:has-text("late.png")')
     asset.refresh_from_db()
     assert asset.original_filename == "late.png"
+    # The re-query branch moves NO focus: the element that had it is long gone
+    # with the swapped-away grid, and stealing focus back would yank a keyboard
+    # user out of the filter box they are still typing in.
+    assert page.evaluate(
+        "() => document.activeElement === document.querySelector('[data-filter-q]')"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_filter_that_hides_the_asset_mid_flight_is_a_no_op(page, live_server):
+    """The negative half of the re-query branch: `if (live)` is false.
+
+    Filtering the asset OUT means root.querySelector(...) finds nothing, so the
+    200 must quietly do nothing rather than throw. Without this the `if (live)`
+    guard could be deleted and every other test would stay green.
+    """
+    _, course, _unit, asset = _seed("pa-repl-gone", "repl-gone")
+    _open_manager(page, live_server, "pa-repl-gone", course)
+
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+
+    held = []
+    page.route("**/replace/", lambda route: held.append(route))
+    page.set_input_files("[data-replace-input]", _upload_payload("hidden.png"))
+    page.locator("[data-replace-commit]").click()
+    page.wait_for_function(
+        "() => { const b = document.querySelector('[data-replace-commit]');"
+        "        return b && b.disabled; }"
+    )
+    for _ in range(50):
+        if held:
+            break
+        page.wait_for_timeout(100)
+    assert len(held) == 1
+
+    page.fill("[data-filter-q]", "zzz-matches-nothing")
+    page.wait_for_selector(".asset-cell", state="detached")
+
+    held[0].continue_()
+    page.wait_for_timeout(300)  # let the 200 land on an empty grid
+
+    assert errors == [], errors
+    assert page.locator(".asset-cell").count() == 0
+    asset.refresh_from_db()
+    assert asset.original_filename == "hidden.png"  # the replace still committed
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1743,9 +1838,9 @@ def test_the_drag_warning_appears_only_for_a_drag_to_image_asset(page, live_serv
 
     _, course, unit, plain = _seed("pa-repl-warn", "repl-warn", with_element=False)
     dragged = make_image_asset(course, filename="diagram.png", color="green")
-    Element.objects.create(
-        unit=unit,
-        content_object=DragToImageQuestionElement.objects.create(
+    add_element(
+        unit,
+        DragToImageQuestionElement.objects.create(
             media=dragged, alt="Diagram", distractors=""
         ),
     )
@@ -1842,7 +1937,7 @@ Expected: coverage verifies clean, with no "collected but NOT in any chunk" list
 uv run pytest -m e2e tests/test_e2e_media_manager.py -v -s
 ```
 
-Expected: 8 passed. The `-s` surfaces the `REPLACE_SHOTS_DIR=` line; open those eight PNGs and **judge the dark ones on their own**, not by assuming they follow the light ones. E2e flakes under parallel load — if one test fails, re-run it alone before blaming the diff.
+Expected: 9 passed. The `-s` surfaces the `REPLACE_SHOTS_DIR=` line; open those eight PNGs and **judge the dark ones on their own**, not by assuming they follow the light ones. E2e flakes under parallel load — if one test fails, re-run it alone before blaming the diff.
 
 If any state looks wrong, fix `courses/static/courses/css/editor.css` (Task 4's file — already committed, so this is a follow-up edit) and re-run Task 4's tests. Step 12's `git add` includes `editor.css` for exactly this reason: without it a screenshot-driven CSS correction would sit unstaged in the worktree and vanish from the branch with nothing to notice.
 
@@ -1854,13 +1949,13 @@ Step 6 proved the src assertion. These three prove the tests that guard the subt
 
 1. **Hoist `done`.** Move `var done = false;` out of `buildReplaceStrip` up to `wireManager` scope. Run
    `uv run pytest -m e2e tests/test_e2e_media_manager.py -k two_consecutive -v`.
-   Expected: **FAILS** at the second `wait_for_selector('.asset-cell:has-text("second.png")')` — the second commit returns early at `if (done) return;`.
+   Expected: **FAILS** at the second `wait_for_selector('.asset-cell .asset-fname:has-text("second.png")')` — the second commit returns early at `if (done) return;`.
 2. **Never lower the in-flight flag.** Restore `done`, then delete the trailing `.then(function () { replaceBusy = false; })`. Run the same test.
    Expected: **FAILS** at `page.expect_file_chooser()` — the ⇄ click returns immediately, so no chooser is ever raised. This is the test's whole reason for going through a real click.
 3. **Delete the catch-all.** Restore the flag, then remove the final `fail(...)` call so only 200 and 422 are handled. Run
    `uv run pytest -m e2e tests/test_e2e_media_manager.py -v`.
    Expected: **`test_a_server_error_removes_the_strip_and_flashes` FAILS** (the strip never detaches) **and every other test still passes** — which is the claim its docstring makes, now checked rather than asserted.
-4. Restore, then re-run the module: 8 passed.
+4. Restore, then re-run the module: 9 passed.
 
 - [ ] **Step 12: Commit**
 
@@ -1887,7 +1982,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 6: Polish translations and the branch gate
+### Task 6: Translations, help copy, and the branch gate
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po` (+ the compiled `.mo`)
@@ -1960,6 +2055,22 @@ Then the catch-all sweep for any fuzzy entry the loop above did not cover:
 grep -n -B 2 -A 4 "fuzzy" locale/pl/LC_MESSAGES/django.po
 ```
 
+- [ ] **Step 2c: Update the help pages, which this feature makes wrong**
+
+`docs/help/course-admin/media-manager.md:29-36` gives a **closed** list — "From an asset's cell you can: **Rename** … **Delete** …" — that this feature makes incomplete, and its delete bullet ends with advice that now actively collides with the new action:
+
+> …remove it from every element first (*or replace it there*), then delete it here.
+
+Edit both `docs/help/course-admin/media-manager.md` and its Polish twin `media-manager.pl.md`:
+
+1. Add a **Replace** bullet between Rename and Delete, saying it swaps the file behind the asset while every element keeps pointing at it, that it is available even while the asset is in use, and that the old file is removed from disk.
+2. Reword the delete bullet's parenthetical — "(or replace it there)" now reads as a pointer to the new button when it means "point that element at a different asset". Make it "(or point those elements at a different asset)".
+3. Mention the drag-to-image caution in one clause, since that is the one case where a replace can degrade content.
+
+`tests/test_help.py` gates structure, not prose, so nothing will catch this if it is skipped.
+
+**The two shipped screenshots are deliberately left for a follow-up.** `core/static/core/img/help/media-manager.en.png` and `.pl.png` will no longer show the ⇄ button. Recapturing them is a separate flow (`tests/capture_help_screenshots.py`) with its own review of every shot; doing it inside this branch would put unrelated binary churn in the diff. Note the staleness in the PR body so it is a recorded debt, not a silent one.
+
 - [ ] **Step 3: Compile**
 
 ```bash
@@ -1998,8 +2109,12 @@ Expected: empty. This feature changes no model field; a migration here means som
 - [ ] **Step 7: Commit**
 
 ```bash
-git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo
-git commit -m "i18n(media): Polish strings for the replace control
+git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo         docs/help/course-admin/media-manager.md         docs/help/course-admin/media-manager.pl.md
+git commit -m "i18n(media): Polish strings and help copy for the replace control
+
+The help page listed the cell's actions as a closed set and told authors to
+"replace it there" as a workaround; both are now wrong. The shipped help
+screenshots still predate the button and are left for a follow-up.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
@@ -2010,7 +2125,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Spec coverage.** Every spec section maps to a task: §Architecture 1-2 → Task 1; §3 (view + URL) → Task 3; §4 (template) and §7 (CSS) → Task 4; §5 (strip DOM contract) → Tasks 4 and 5; §6 (JS) → Task 5; §Data flow and §Error handling → asserted across Tasks 2, 3 and 6; §i18n → Tasks 4 and 6; §Testing → Tasks 1, 2, 3, 4 and 6. The spec's accepted limitations (rollback orphans, concurrent replace, the mirror filter ordering, the stale-cache edge) are deliberately **not** tasks — they are documented non-goals.
 
-**Known cross-task dependency.** `test_replace_returns_the_rerendered_cell` (Task 3) asserts `data-replace-url`, which Task 4 adds. Task 3 therefore ends 8 passed / 1 failed out of 9 when run standalone. This is called out in Task 3 Step 5 rather than hidden, and Task 4 Step 6 re-runs it.
+**Known cross-task dependency.** `test_replace_returns_the_rerendered_cell` (Task 3) asserts `data-replace-url`, which Task 4 adds. Task 3 therefore ends 9 passed / 1 failed out of 10 when run standalone. This is called out in Task 3 Step 5 rather than hidden, and Task 4 Step 6 re-runs it.
 
 **Naming consistency.** `replace_asset` / `_delete_file_if_unshared` / `media_replace` / `manage_media_replace` / `buildReplaceStrip` / `closeStrip` / `replaceBusy` / `done` are used identically wherever they appear. DOM hooks are `data-replace-asset`, `data-replace-input`, `data-replace-url`, `data-di-uses`, `data-replace-strip`, `data-replace-filename`, `data-replace-commit`, `data-replace-cancel`. Message keys are `replace-confirm`, `replace-drag-warning`, `replace-commit`, `replace-cancel`, `replace-failed`, `replace-aria` — six, matching Task 4's assertion.
 
