@@ -20,7 +20,7 @@
 - **Falsify every test before trusting it.** Introduce the named mutant, confirm RED, then remove the mutant *by editing it out* — never `git checkout`, which would discard the new test along with it.
 - **Run tests narrowly.** Start the test-DB container first (`docker compose -f docker-compose.test.yml up -d`); a down container makes the suite look hung for ~4 minutes. Never background a pytest run.
 - **Tooling is via `uv run`** — `pytest`, `ruff`, and `python` are not on PATH.
-- **Lint before each commit:** `uv run ruff check --no-cache <changed files>` and `uv run ruff format --check <changed files>` (a separate CI gate). `--no-cache` matters: a `# noqa` warning is cached away and the second run falsely reports clean.
+- **Lint before each commit:** `uv run ruff check --no-cache <changed files>` and `uv run ruff format --check <changed files>` (a separate CI gate). `--no-cache` matters: a `# noqa` warning is cached away and the second run falsely reports clean. **`--check` is a gate, not a fixer** — the code snippets dictated in this plan are written for readability and several are not `ruff format`-clean as pasted (Task 9's `_visible` helper and its four-pair unpacking among them). When `--check` reports "would be reformatted", run bare `uv run ruff format <changed files>` and re-run `--check`; that is expected, not a defect in the snippet.
 - **English source strings only** in Tasks 1–9; the Polish catalog and the binary `.mo` are Task 10, deliberately last.
 
 ---
@@ -224,14 +224,24 @@ the importer and programmatic construction bypass the form."
 
 - [ ] **Step 1: Add the imports and the shared grid constant**
 
-`tests/test_filltable_render.py` currently imports only `pytest`, `FillTableElement`, `make_course`, `make_image_asset`. Add:
+`tests/test_filltable_render.py` currently imports only `pytest`, `FillTableElement`, `make_course`, `make_image_asset`. Add four imports, **in two separate places** — ruff selects `I` with `force-single-line = true`, and `bs4` is third-party while `courses`/`tests` are first-party, so pasting these four as one block trips `I001`. Directly under the existing `import pytest`:
 
 ```python
 from bs4 import BeautifulSoup
+```
+
+and into the existing first-party block (after the blank line), in sorted position:
+
+```python
 from courses.models import CalloutElement
 from courses.models import Element
+from courses.models import FillTableElement   # already there
+from tests.factories import make_course
 from tests.factories import make_course_with_unit
+from tests.factories import make_image_asset  # already there
 ```
+
+This mirrors `courses/tests/test_reveal_gate_render.py:5-10`.
 
 and, at module level below `pytestmark`, the grid every new test uses. **It must contain a non-blank answer cell** — Task 1's guard suppresses `gate` otherwise, and every assertion below would invert:
 
@@ -651,6 +661,8 @@ the caller's reference."
 
 **The boot flag ships in THIS task, not Task 5 — the ordering is load-bearing.** The watchdog term added in Step 6 below reads `window.__fillTableBooted`, and `filltable.js` does not assign it today. If the term shipped first, then between this task's commit and Task 5's *every* lesson page carrying a gated fill-table would evaluate `!window.__fillTableBooted` as true at `DOMContentLoaded`, strip `.reveal-armed`, and disarm the pre-hide — the gated content visible from first paint, on a commit whose message claims the feature works. Task 5 consumes this flag; it must not produce it. Assign the flag (Step 5) *before* adding the term (Step 6).
 
+**The mirror-image window — this task's `has_reveal_gate` arming the pre-hide before Task 5 supplies the cascade — is real but unreachable, and that is why it is not restructured.** Between this commit and Task 5's, a gated table hides everything after it and solving it reveals nothing until a reload (which Task 3's derivation heals). The difference from the boot-flag hazard is reachability: `gate` cannot be set by any author-facing route until Task 6 adds the checkbox, so the only gated tables in existence across this window are test fixtures. Do not "fix" it by moving the cascade call earlier — that would recreate the ordering problem above.
+
 **This is not cosmetic.** `reveal.js` is loaded only under `{% if has_reveal_gate %}` (`lesson_unit.html:89`). On a unit whose only gate is a fill-table, omitting this term means **the cascade engine never loads at all** and the gate silently does nothing.
 
 **Use the CT-free query shape.** The obvious `FillTableElement.objects.filter(elements__unit=node, ...)` makes `GenericRelation.get_extra_restriction` call `ContentType.objects.get_for_model`, a DB SELECT on a cold cache. `views.py` rejects that pattern in two existing comments (:411-412 and :457-459), the second naming `tests/test_html_element.py`'s query-count assertion as the thing it breaks.
@@ -772,8 +784,8 @@ Three edits in `build_lesson_context`:
     has_fill_table = node.elements.filter(
         content_type__model="filltableelement"
     ).exists()
-    # CT-free by construction (see the has_html / has_stateful_elements comments
-    # below): a reverse-GenericRelation filter would resolve FillTableElement's
+    # CT-free by construction (see the has_html comment above and the
+    # has_stateful_elements one below): a reverse-GenericRelation filter would resolve FillTableElement's
     # ContentType and emit a cold-cache CT SELECT, breaking test_html_element's
     # query-count invariant. Short-circuited on has_fill_table so a unit with no
     # fill-table costs zero extra queries. NOT scoped to parent__isnull=True: a
@@ -831,7 +843,13 @@ def test_boot_flag_is_assigned():
     assert "window.__fillTableBooted = true" in SRC
 ```
 
-Confirm it FAILS (`filltable.js` carries no such assignment today — `grep -n Booted` returns nothing), then add, at the top of `filltable.js`'s IIFE, immediately after `"use strict";`:
+Confirm it FAILS — `filltable.js` carries no such assignment today (`grep -n Booted` returns nothing):
+
+```bash
+uv run pytest courses/tests/test_filltable_gate_static.py -v
+```
+
+Then add, at the top of `filltable.js`'s IIFE, immediately after `"use strict";`:
 
 ```js
 (function () {
@@ -843,7 +861,7 @@ Confirm it FAILS (`filltable.js` carries no such assignment today — `grep -n B
   window.__fillTableBooted = true;
 ```
 
-Confirm it now PASSES. Only then proceed to Step 6 — the term added there reads this flag.
+Re-run the same command and confirm it now PASSES. Only then proceed to Step 6 — the term added there reads this flag.
 
 - [ ] **Step 6: Add the watchdog term to the template**
 
@@ -902,6 +920,14 @@ def test_gate_query_uses_the_object_id_shape():
 def test_gate_query_does_not_use_a_reverse_generic_relation():
     assert "elements__unit=" not in _gate_term(SRC)
 ```
+
+Then **run it green before falsifying**:
+
+```bash
+uv run pytest courses/tests/test_filltable_gate_query_shape.py -v
+```
+
+Expected: both PASS immediately — the implementation landed in Step 4, so unlike the rest of the plan these two are green-on-write (the same situation Task 3 Step 3 flags for its three already-green tests). Running here matters precisely *because* their first execution would otherwise be under Step 9's mutant: `_gate_term`'s `src.index("has_reveal_gate = ", start)` raises `ValueError` if the block was laid out differently — a broken helper, not a working guard — and under a mutant that reads as success.
 
 - [ ] **Step 9: Falsify everything in this task**
 
@@ -1402,10 +1428,12 @@ wszystkie komórki są poprawne**, aby zamienić tabelę w bramkę odsłaniając
 wszystko, co znajduje się po niej, pozostaje ukryte, dopóki uczeń nie wypełni
 poprawnie każdej komórki z odpowiedzią, a potem pojawia się naraz. Podobnie jak
 w pozostałych bramkach (**Pokaż więcej**, **Uzupełnij i potwierdź**,
-**Wybierz i potwierdź**) odsłanianie zatrzymuje się na granicy elementu zawierającego tabelę — wewnątrz
+**Wybierz i zatwierdź**) odsłanianie zatrzymuje się na granicy elementu zawierającego tabelę — wewnątrz
 ramki odsłoni resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele
 tworzą łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
 ```
+
+**Verify the three bolded gate names against the `^## ` headings of each file before pasting.** They are not symmetric across the two languages, and prose mismatches are invisible to `tests/test_help.py`. In Polish the switch-gate is **Wybierz i zatwierdź** (`interactive-elements.pl.md:36`) — *zatwierdź*, not *potwierdź*, even though the fill-gate two lines earlier is **Uzupełnij i potwierdź** (`:27`). English: **Show more** (`:16`), **Fill in & confirm** (`:24`), **Choose & confirm** (`:32`).
 
 **Why the snippets above use plain bolded names rather than links:** that page contains no intra-page links at all (grep for `](interactive-elements` returns zero hits), so a cross-link would both invent a convention and link the page to itself. The bolded form matches the existing prose style.
 
@@ -1481,7 +1509,19 @@ def _allow_async_unsafe():
     yield
 ```
 
-Every test carries `@pytest.mark.django_db(transaction=True)`. Steps 1-7 show only the body; this is the full shape they all follow:
+**Test names are fixed, not invented.** Steps 1-7 below show only each test's fixture lines and body — the `def` line is omitted for brevity, but the name is not free: Step 8's mutant table refers to tests by number, and Step 9 selects one by name, so an invented name breaks both. Use exactly these, each preceded by `@pytest.mark.django_db(transaction=True)` and taking `(page, live_server)`:
+
+| # | Function name |
+|---|---|
+| 21 | `test_wrong_answer_keeps_content_hidden` |
+| 22 | `test_correct_answer_reveals` |
+| 23 | `test_chained_gates_reveal_in_sequence` |
+| 24 | `test_reload_restores_the_revealed_state` |
+| 25 | `test_gate_ticked_after_solving_reveals_on_reload` |
+| 26 | `test_chained_pretick_heals_only_on_reload` |
+| 27 | `test_ungated_table_does_not_cascade` |
+
+Every test carries `@pytest.mark.django_db(transaction=True)`. This is the full shape they all follow:
 
 ```python
 @pytest.mark.django_db(transaction=True)
@@ -1744,9 +1784,16 @@ _login(page, live_server, "ftg_ungated")
 page.goto(_unit_url(live_server, unit))
 
 inp = page.locator(f"{_block(table_row.pk)} .filltable__input").first
-inp.fill(_ANSWER)                       # fill() itself scrolls the input into view...
-scroll_before = page.evaluate("window.scrollY")   # ...so capture AFTER it
-page.locator(f"{_block(table_row.pk)} .filltable__confirm").click()
+inp.fill(_ANSWER)
+# BOTH gestures scroll: fill() and click() each run Playwright's scroll-into-view
+# actionability step. The Check button sits below the table, so capturing here
+# would still leave the click's own scroll inside the measured window and make
+# the final equality fail on a CORRECT build, on any viewport where the button
+# is not already fully visible. Spend that scroll first, THEN capture.
+confirm = page.locator(f"{_block(table_row.pk)} .filltable__confirm")
+confirm.scroll_into_view_if_needed()
+scroll_before = page.evaluate("window.scrollY")
+confirm.click()
 expect(page.locator(f"{_block(table_row.pk)} .filltable__summary")).to_have_class(_SUCCESS)
 
 assert page.evaluate(
@@ -1788,6 +1835,9 @@ So: apply each mutant below one at a time and confirm the **exact** RED set. Do 
 | Remove Task 5's `libliRevealCascade` call | 22, 23, 26 (on its *pre-reload* assertion) | 21, 24, 25, 27 |
 | Remove Task 3's `open` derivation | 24, 25, 26 (on its *post-reload* assertion) | 21, 22, 23, 27 |
 | Delete the `hasAttribute("data-reveal-gate")` guard | 27 | 21, 22, 23, 24, 25, 26 |
+| Delete the `[data-filltablegate]` branch in `focusTargetIn` | 23, on its **focus assertion only** | 21, 22, 24, 25, 26, 27 |
+
+That last row exists because Task 5's mutants for the focus branch run while only the *source-string* test exists — without it, test 23's `activeElement` assertion would be the one behavioural claim in the plan defending `focusTargetIn`, trusted without ever being shown able to fail. Under the mutant `focusTargetIn` returns the `.filltable` div, `focus()` on a div with no `tabindex` is a no-op, `activeElement` stays `<body>`, and the assertion is `False`. **Test 23's two visibility assertions stay GREEN under it** — check which assertion failed, not merely that the test did.
 
 Do **not** treat a green test under the `libliRevealCascade` mutant as a broken test — for 21, 24, 25 and 27 that is the correct outcome. Test 26 is the one test appearing in two rows: it straddles both mutants, asserting once before the reload (live cascade) and once after (restore), so it goes red under either — but on a *different* assertion each time. Check which assertion failed, not merely that it failed.
 
@@ -1796,8 +1846,10 @@ Do **not** treat a green test under the `libliRevealCascade` mutant as a broken 
 The three `tests/capture_*.py` scripts are help-doc, publish-flow and title-math harnesses; **none drives a lesson page**, so do not try to extend one. Write a scratch capture instead, reusing this file's own fixtures:
 
 ```bash
-uv run pytest tests/test_e2e_filltable_gate.py -m e2e -k "correct" -v
+uv run pytest tests/test_e2e_filltable_gate.py -m e2e -k test_correct_answer_reveals -v
 ```
+
+(The exact name from the table above — a substring selector like `-k correct` would also sweep in tests 21 and 27.)
 
 with `page.screenshot(path=...)` temporarily added around test 22's reveal — before the click (gated) and after `expect(_summary(page)).to_have_class(_SUCCESS)` (revealed) — writing to a scratch directory outside the repo. Then repeat with the student's `user.theme` set to dark (**the cookie alone is not enough**; set the field on the user row before `_login`).
 
@@ -1827,15 +1879,20 @@ cannot fail."
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po`
 - Modify: `locale/pl/LC_MESSAGES/django.mo` (binary, regenerated)
+- Modify: `locale/en/LC_MESSAGES/django.po`
+- Modify: `locale/en/LC_MESSAGES/django.mo` (binary, regenerated)
 
 **Interfaces:** consumes the msgid introduced in Task 6.
 
+**Both catalogs, not just Polish.** `locale/en/LC_MESSAGES/django.po` carries every msgid this repo emits — it already holds `Case-sensitive` from the very partial Task 6 edits — and the repo's history maintains the two in lockstep (`c0b8d555`, `2b4310c0`). A `-l pl`-only run ships a branch whose English catalog is missing the new msgid, and **nothing catches it**: `tests/test_i18n_po_health.py::test_pl_has_no_untranslated_msgid` is pl-only, and the `en` entries are deliberately blank so an empty `msgstr` there is not a defect. The omission surfaces later as unexplained churn in whoever next runs `makemessages -l en`.
+
 **This task is last on purpose.** The `.mo` is a binary artifact; regenerating it early in a branch invites a merge conflict that has bitten this repo before.
 
-- [ ] **Step 1: Extract messages**
+- [ ] **Step 1: Extract messages — both locales**
 
 ```bash
 uv run python manage.py makemessages -l pl
+uv run python manage.py makemessages -l en
 ```
 
 - [ ] **Step 2: Inspect the new entry for a fuzzy pre-fill**
@@ -1853,16 +1910,17 @@ msgstr "Odsłoń resztę tej sekcji, gdy wszystkie komórki są poprawne"
 **Then check the churn before staging.** `makemessages` rewrites every `#:` source-reference comment in the catalog, so a one-msgid change lands as a diff spanning the whole file and a real regression hides easily in it:
 
 ```bash
-git diff --stat locale/pl/LC_MESSAGES/django.po
-git diff -U0 locale/pl/LC_MESSAGES/django.po | grep -E "^[+-](msgid|msgstr|#, )"
+git diff --stat locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
+git diff -U0 locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po | grep -E "^[+-](msgid|msgstr|#, )"
 ```
 
-The second command must show **only** the new entry's `msgid`/`msgstr`. Any other `msgstr` change, or any `#, fuzzy` appearing on an entry this branch did not touch, is unrelated churn to revert — not something to commit alongside the feature.
+The second command must show **only** the new entry's `msgid`/`msgstr` (twice — once per catalog; the `en` `msgstr` is legitimately empty). Any other `msgstr` change, or any `#, fuzzy` appearing on an entry this branch did not touch, is unrelated churn to revert — not something to commit alongside the feature. Both catalogs rewrite their `#:` source-reference comments wholesale, so the `--stat` line count will be large in each; that part is expected.
 
-- [ ] **Step 3: Compile**
+- [ ] **Step 3: Compile — both locales**
 
 ```bash
 uv run python manage.py compilemessages -l pl
+uv run python manage.py compilemessages -l en
 ```
 
 - [ ] **Step 4: Verify no fuzzy markers remain on this entry**
@@ -1876,8 +1934,12 @@ Expected: no `#, fuzzy` line in the output.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo
-git commit -m "i18n(filltable): Polish string for the reveal-gate checkbox"
+git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo \
+        locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo
+git commit -m "i18n(filltable): catalog entry for the reveal-gate checkbox
+
+Both locales: the en catalog carries every msgid and is maintained in
+lockstep, and no test would have caught a pl-only regeneration."
 ```
 
 ---
