@@ -49,8 +49,11 @@
     grid swap (the debounced filter) can ever detach it while the OS file dialog
     is open. No `accept` here -- one input now serves both image and video
     assets, so the ⇄ click handler sets it per-cell before opening the dialog.
+    No `name` either: this input sits outside .media-upload, and the replace
+    commit builds its own FormData from the captured File -- a `name` would
+    only invite the misreading that it participates in the upload form.
   {% endcomment %}
-  <input type="file" name="file" hidden data-replace-input>
+  <input type="file" hidden data-replace-input>
 </section>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'courses/js/media_picker.js' %}" defer></script>{% endblock %}

@@ -406,6 +406,14 @@
       // Tear NOTHING down here. The dialog may be dismissed (which fires no
       // change at all), and destroying an open strip first would silently lose
       // the author's pending selection. Teardown belongs to the change handler.
+      // Clear the value first: the input is now shared and outlives every
+      // cell, so a strip discarded WITHOUT going through closeStrip (a filter
+      // swap, a delete, an inline rename, or fail()'s isConnected guard) can
+      // leave a stale value behind. `change` fires only on a value CHANGE, so
+      // re-picking the same file afterwards would be a silent dead click --
+      // no strip, no flash. Assigning .value programmatically fires no change
+      // event, so this cannot re-enter this handler.
+      replaceInput.value = "";
       replaceInput.click();
     });
 

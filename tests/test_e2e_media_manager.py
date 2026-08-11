@@ -380,8 +380,17 @@ def test_a_grid_swap_while_the_file_chooser_is_open_still_lands(page, live_serve
 
     with page.expect_file_chooser() as fc:
         page.click("[data-replace-asset]")
+    # Stamp the grid, then wait for the stamp to disappear -- a real
+    # post-swap condition rather than a blind sleep. A sleep short enough to
+    # be fast is also short enough to occasionally run BEFORE the debounce
+    # plus round trip lands, which would silently degrade this into a
+    # duplicate of the happy-path test rather than exercising the window it
+    # is named for.
+    page.evaluate(
+        "document.querySelector('.asset-grid').setAttribute('data-pre-swap','')"
+    )
     page.fill("[data-filter-q]", "original")  # still matches original.png
-    page.wait_for_timeout(400)  # past the 250ms debounce, then the swap lands
+    page.wait_for_selector(".asset-grid:not([data-pre-swap])")  # the swap landed
     fc.value.set_files(_upload_payload("after-swap.png"))
 
     strip = page.locator("[data-replace-strip]")
@@ -417,8 +426,93 @@ def test_a_grid_swap_to_no_match_while_the_chooser_is_open_is_noop(page, live_se
 
     assert errors == [], errors
     assert page.locator("[data-replace-strip]").count() == 0
+    # The `!cell` branch's input.value = "" is otherwise untested: without
+    # this assertion that clear could be deleted and every other test in
+    # this module would still be green.
+    assert page.input_value("[data-replace-input]") == ""
     asset.refresh_from_db()
     assert asset.original_filename == "original.png"  # unchanged
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_strip_discarded_by_a_grid_swap_does_not_deaden_the_next_pick(
+    page, live_server, tmp_path
+):
+    """Finding-1 regression: a strip destroyed WITHOUT going through
+    closeStrip -- here, the filter's oldGrid.replaceWith(newGrid) -- used to
+    leave the shared input's value behind. `change` fires only on a value
+    CHANGE, so re-picking the exact same file on the next ⇄ was a silent dead
+    click: no strip, no flash, nothing. The ⇄ click handler now clears
+    replaceInput.value before every dialog open, regardless of how the
+    previous strip died, so this sequence must still land a strip.
+
+    Uses the SAME real path on disk for both picks, via set_files(str(path))
+    rather than the buffer-dict form _upload_payload() builds. A buffer
+    upload gets a fresh synthetic backing file (and therefore a distinct
+    browser-internal path) on every call, which papers over the exact bug
+    this test exists to catch: a real OS file dialog reports the identical
+    fakepath string for the identical file on disk, and it is THAT equality
+    the browser uses to decide whether to fire `change` at all.
+    """
+    _, course, _unit, _asset = _seed("pa-repl-dead-strip", "repl-dead-strip")
+    _open_manager(page, live_server, "pa-repl-dead-strip", course)
+
+    same_file = tmp_path / "new-diagram.png"
+    same_file.write_bytes(_png_bytes(color="purple"))
+
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(str(same_file))
+    strip = page.locator("[data-replace-strip]")
+    strip.wait_for(state="visible")
+
+    # Discard the strip via a grid swap, NOT cancel/commit -- oldGrid
+    # .replaceWith(newGrid) removes the whole subtree the strip lives in,
+    # bypassing closeStrip entirely. "original" still matches original.png,
+    # so the asset (and its ⇄) remain in the swapped-in grid.
+    page.fill("[data-filter-q]", "original")
+    page.wait_for_selector("[data-replace-strip]", state="detached")
+
+    # Re-open on the same asset and pick the SAME path again. Without the
+    # fix the shared input's value is still that path, set_files with the
+    # identical path fires no `change`, and no strip ever appears.
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(str(same_file))
+    strip = page.locator("[data-replace-strip]")
+    strip.wait_for(state="visible")
+    assert "new-diagram.png" in strip.locator("[data-replace-filename]").inner_text()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_accept_attribute_matches_the_clicked_assets_kind(page, live_server):
+    """`accept` moved off the server-rendered per-cell markup onto the shared
+    input, set by the ⇄ click handler at open time. Every other e2e asset in
+    this module is an image, so a build that hardcoded accept="image/*" would
+    pass all of them while silently hiding every video file from the OS
+    dialog when replacing a video asset.
+    """
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from courses.models import MediaAsset
+
+    _, course, _unit, _asset = _seed("pa-repl-accept", "repl-accept")
+    video = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("v.mp4", b"\x00" * 256),
+        original_filename="v.mp4",
+    )
+    _open_manager(page, live_server, "pa-repl-accept", course)
+
+    cell = page.locator(f'.asset-cell[data-asset-id="{video.pk}"]')
+    with page.expect_file_chooser() as fc:
+        cell.locator("[data-replace-asset]").click()
+    accept = page.get_attribute("[data-replace-input]", "accept")
+    fc.value.set_files(
+        {"name": "v2.mp4", "mimeType": "video/mp4", "buffer": b"\x00" * 256}
+    )
+    assert accept == "video/*"
 
 
 @pytest.mark.django_db(transaction=True)
