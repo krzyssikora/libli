@@ -15,7 +15,7 @@
 - **No database migration.** `gate` lives in `data`; do not add a model field.
 - **No `FORMAT_VERSION` bump.** It stays at 11 (`courses/transfer/schema.py:14`).
 - **`courses/state.py` must not change.** `_val_done` stores only `{"done": True}` by design; see spec §4.
-- **`reveal.js` gets exactly one change** — the `focusTargetIn` branch in Task 5. Do not touch `scopeOf`, `isGateWrapper`, `cascadeFrom`, or `restoreGates`.
+- **`reveal.js` gets exactly one change** — the `focusTargetIn` branch in Task 5. Do not touch `scopeOf`, `isGateWrapper`, `cascadeFrom`, or `restoreGates`. **One sanctioned exception:** Task 9 Step 8's `isGateWrapper`-`break` mutant temporarily edits `cascadeFrom`. It must be edited back and the revert proved with `git diff --quiet courses/static/courses/js/reveal.js`, exactly as Task 3 Step 6 mutant 4 does for the equally-frozen `courses/state.py`.
 - **An ungated fill-table must behave byte for byte as it does today.** Every change is conditional on `gate`.
 - **Falsify every test before trusting it.** Introduce the named mutant, confirm RED, then remove the mutant *by editing it out* — never `git checkout`, which would discard the new test along with it.
 - **Run tests narrowly.** Start the test-DB container first (`docker compose -f docker-compose.test.yml up -d`); a down container makes the suite look hung for ~4 minutes. Never background a pytest run.
@@ -327,7 +327,7 @@ def test_gated_filltable_is_a_direct_child_of_the_callout_child_wrapper():
 
 `marked.parent is child` rather than a `:scope >` selector — it does not depend on the installed `soupsieve` version. `CalloutElement.objects.create()` needs no arguments (`courses/models.py:469`).
 
-**On the missing `.lesson-block__body >` twin.** The three existing gate families each pin their *top-level* depth with a regex (`test_reveal_gate_render.py:159`, `test_fillgate_restore.py:92`, `test_switchgate_restore.py:110`, all matching `<div class="lesson-block__body">\s*<…data-reveal-gate`), and `reveal.js::isGateWrapper`'s `.slide` branch depends on exactly that shape — as does every one of Task 9's seven e2e fixtures. This plan deliberately does not mirror the per-family regex: mutant 4 in Step 12 (wrapping the root div) reddens the callout-scoped pin, and the same extra wrapper would break the top-level shape identically, so one test covers both scopes. Noted rather than silently skipped, because the house pattern here is per-family duplication.
+**On the missing `.lesson-block__body >` twin.** The three existing gate families each pin their *top-level* depth with a regex (`courses/tests/test_reveal_gate_render.py:159`, `courses/tests/test_fillgate_restore.py:92`, `courses/tests/test_switchgate_restore.py:110`, all matching `<div class="lesson-block__body">\s*<…data-reveal-gate`), and `reveal.js::isGateWrapper`'s `.slide` branch depends on exactly that shape — as does every one of Task 9's seven e2e fixtures. This plan deliberately does not mirror the per-family regex: mutant 4 in Step 12 (wrapping the root div) reddens the callout-scoped pin, and the same extra wrapper would break the top-level shape identically, so one test covers both scopes. Noted rather than silently skipped, because the house pattern here is per-family duplication.
 
 **On spec test 5's "and the rendered output is otherwise unchanged" half:** that is delegated to the rest of `tests/test_filltable_render.py` staying green **unmodified** — the file already pins the ungated render's structure in detail, and a fresh snapshot assertion would duplicate it.
 
@@ -1299,7 +1299,14 @@ docker compose -f docker-compose.test.yml up -d
 uv run pytest tests/test_e2e_filltable.py -m e2e -k <your_scratch_test_name> -v
 ```
 
-**Dark mode needs the user row, not a cookie** — set `theme` on the **PA user** before calling `_goto_editor`, which logs in for you (it calls `_login` internally, so there is no separate login call to sit in front of). Same gotcha Task 9 Step 9 calls out for the student.
+**Dark mode needs the user row, not a cookie** — and `_editor_context` returns `(unit, asset_a, asset_b)`, so it hands you no handle on the PA user it created. Re-fetch it, then set the field, *before* calling `_goto_editor` (which calls `_login` internally, so there is no separate login call to sit in front of):
+
+```python
+from django.contrib.auth import get_user_model
+get_user_model().objects.filter(username=<the username you passed>).update(theme="dark")
+```
+
+Same gotcha Task 9 Step 9 calls out for the student.
 
 **Pass criterion:** the Instruction field is still usable at a normal editor width — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed — and **delete the scratch test before Step 10**, exactly as Task 9 Step 9 requires (`git diff tests/test_e2e_filltable.py` must print nothing).
 
@@ -1707,7 +1714,7 @@ expect(inp).to_have_class(_INCORRECT)      # <- synchronise BEFORE reading the D
 assert _visible(page, trailing_row.pk) is False
 ```
 
-*Mutant: cascade unconditionally, ignoring `all_correct`.*
+*Mutant: cascade unconditionally, ignoring `all_correct`* — concretely, **move the `if (root.hasAttribute("data-reveal-gate") && window.libliRevealCascade) { … }` call out of the `if (data.all_correct === true && …)` block**, leaving `lock` and `saveFlag` inside it. (Dropping the `all_correct` guard entirely gives the same RED set — 21 only — but move the call rather than restructuring the branch, so `lock`/`saveFlag` behaviour is not also perturbed.)
 
 - [ ] **Step 2: Test 22 — a correct answer reveals**
 
@@ -1916,6 +1923,7 @@ assert page.evaluate(
 - [ ] **Step 8: Run the suite and falsify per item**
 
 ```bash
+docker compose -f docker-compose.test.yml up -d
 uv run pytest tests/test_e2e_filltable_gate.py tests/test_e2e_filltable.py tests/test_e2e_reveal_gate.py -m e2e -v
 ```
 
@@ -1933,6 +1941,12 @@ The two existing suites run again here (Task 5 ran them first): every server-sid
 | 26 (pre-tick, chained) | **RED** — its *first* assertion (`table2_row` visible) runs BEFORE any reload, and on that first load `restoreGates` broke at the unsolved table 1, so the live cascade is the only thing that can reveal table 2 | its *post-reload* assertion is reddened instead by removing Task 3's `open` derivation |
 | 27 (ungated no cascade) | **GREEN** — also a negative assertion; nothing cascading is what it wants | deleting the `hasAttribute("data-reveal-gate")` guard (Step 7) |
 
+**Two of these mutants touch frozen files** — the `isGateWrapper` `break` edits `reveal.js`, which a Global Constraint otherwise forbids. Edit each mutant back out (never `git checkout`), and before moving to Step 9 prove both frozen files are untouched:
+
+```bash
+git diff --quiet courses/static/courses/js/reveal.js && echo "reveal.js clean"
+```
+
 So: apply each mutant below one at a time and confirm the **exact** RED set. Do not expect one test per mutant — the `open`-derivation mutant reddens three, and an implementer who was told to expect one will burn a session debugging the other two:
 
 | Mutant | Expected RED | Expected GREEN |
@@ -1943,6 +1957,9 @@ So: apply each mutant below one at a time and confirm the **exact** RED set. Do 
 | Delete the `hasAttribute("data-reveal-gate")` guard | 27 | 21, 22, 23, 24, 25, 26 |
 | Delete the `[data-filltablegate]` branch in `focusTargetIn` | 23, on its **focus assertion only** | 21, 22, 24, 25, 26, 27 |
 | Drop `{ hideWrapper: false }` from the cascade call | 22, on its **`_visible(table_row)` assertion only** | 21, 23, 24, 25, 26, 27 |
+| Delete `cascadeFrom`'s `break` at `isGateWrapper` | 23 and 26, both on their **`_visible(trailing_row) is False`** assertion | 21, 22, 24, 25, 27 |
+
+That last row is the mutant Step 3 names, and it is the **only** one that reddens those two assertions: under every other mutant above they either pass or are never reached (both tests die on an earlier assertion under the cascade-removal mutant). With the `break` gone, solving table 1 walks straight past table 2 to the trailing block and reveals everything at once.
 
 The `hideWrapper` row is narrow for a reason worth knowing: 24, 25 and 26's post-reload assertions all go through `restoreGates`, which computes `hideWrapper: gate.matches(RESTORABLE)` for itself (`reveal.js:249`) and never consults the call site — so the restore path is structurally immune to this mutant, and only a *live-solve* visibility assertion can catch it.
 
@@ -2047,8 +2064,10 @@ uv run python manage.py compilemessages -l en
 - [ ] **Step 4: Verify no fuzzy markers remain on this entry**
 
 ```bash
-grep -B 3 "Odsłoń resztę tej sekcji" locale/pl/LC_MESSAGES/django.po
+grep -B 6 'msgid "Reveal the rest of this section' locale/pl/LC_MESSAGES/django.po
 ```
+
+Keyed on the **msgid**, not the translation, and with a 6-line window: with `-B 3` on the `msgstr` the `#, fuzzy` line sits exactly at the edge of the window, so one extra `#:` reference line — or a msgid that gettext wraps once the label passes ~70 columns, which is precisely what Task 6 Step 8 contemplates — pushes the flag out of view and the check reports clean.
 
 Expected: the entry **is found** *and* has no `#, fuzzy` line above it. Check both halves — on empty output (which is what you get if the label was reworded in Task 6 Step 8 and this pattern was not updated with it) the "no fuzzy line" reading is trivially satisfied and tells you nothing. If the grep prints nothing, the msgid does not match: fix the pattern, not the catalog.
 
