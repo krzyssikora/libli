@@ -290,6 +290,11 @@ urlpatterns = [
         name="manage_media_delete",
     ),
     path(
+        "manage/courses/<slug:slug>/media/<int:pk>/replace/",
+        views_media.media_replace,
+        name="manage_media_replace",
+    ),
+    path(
         "manage/courses/<slug:slug>/media/picker/",
         views_media.media_picker,
         name="manage_media_picker",

@@ -7,7 +7,13 @@
          data-upload-url="{% url 'courses:manage_media_upload' slug=course.slug %}"
          data-rename-url="{% url 'courses:manage_media_rename' slug=course.slug %}"
          data-list-url="{% url 'courses:manage_media' slug=course.slug %}"
-         data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}">
+         data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}"
+         data-msg-replace-confirm="{% trans 'Replace with:' %}"
+         data-msg-replace-drag-warning="{% trans 'Used by a drag-to-image question. Drop zones are stored as fractions of the image, so a file with a different shape will move them.' %}"
+         data-msg-replace-commit="{% trans 'Replace' %}"
+         data-msg-replace-cancel="{% trans 'Cancel' %}"
+         data-msg-replace-failed="{% trans 'Could not replace the file.' %}"
+         data-msg-replace-aria="{% trans 'Confirm file replacement' %}">
   <div class="page-head"><h1>{% trans "Media" %}</h1>
     <a class="page-head__crumb" href="{% url 'courses:manage_builder' slug=course.slug %}">← {{ course.title }}</a></div>
   <div class="uploadcard">
@@ -38,6 +44,16 @@
     <span class="muted" data-media-count>{{ assets|length }} {% trans "files" %}</span>
   </div>
   {% include "courses/manage/media/_asset_grid.html" %}
+  {% comment %}
+    One shared input, outside .asset-grid, so no cell swap (inline rename) and no
+    grid swap (the debounced filter) can ever detach it while the OS file dialog
+    is open. No `accept` here -- one input now serves both image and video
+    assets, so the ⇄ click handler sets it per-cell before opening the dialog.
+    No `name` either: this input sits outside .media-upload, and the replace
+    commit builds its own FormData from the captured File -- a `name` would
+    only invite the misreading that it participates in the upload form.
+  {% endcomment %}
+  <input type="file" hidden data-replace-input>
 </section>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'courses/js/media_picker.js' %}" defer></script>{% endblock %}
