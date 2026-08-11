@@ -566,7 +566,10 @@ def test_saved_gated_state_stores_done_only(client):
     # render-time derivation in this task exists.
     student = make_student(client, "ftbl_gate4")
     course, unit = make_course_with_unit()
-    # the POST needs an enrolled, logged-in user
+    # can_access_course is the ONLY guard on this POST -- element_state_save is
+    # deliberately open to any viewer who can reach the lesson. The Enrollment is
+    # here for symmetry with the GET-based tests above, which DO need it because
+    # build_lesson_context populates `state` only for enrolled students.
     Enrollment.objects.create(student=student, course=course)
     row, _obj = _seed_filltable(unit, student, _CELLS, None, gate=True)
     resp = client.post(
@@ -639,7 +642,7 @@ Expected: all PASS, including both files' pre-existing tests. `test_filltable_re
 - [ ] **Step 6: Falsify all four**
 
 1. Remove the whole `if nd["gate"]:` block → `test_gated_done_renders_open_in_data_state` RED. **This is the highest-value mutant in the plan**: without this test, deleting the derivation is invisible to the entire suite and breaks restore for every gated table.
-2. Restore, then change the condition to always-true (drop `if nd["gate"]:`) → `test_ungated_done_does_not_render_open` RED.
+2. Restore, then change the condition to always-true (drop `if nd["gate"]:`) → **two** RED: the new `test_ungated_done_does_not_render_open`, **and** the pre-existing `test_filltable_stored_done_renders_locked_with_data_state` (`tests/test_filltable_restore.py:49`), which seeds an ungated table with `{"done": True}` and asserts the blob equals exactly `{"done": True}`. Step 5 runs the whole file, so expect two failures here, not one — both are reading the same ungated blob.
 3. Restore, then change the copy to an in-place mutation:
    ```python
    ctx["mine"]["open"] = True
@@ -1006,6 +1009,17 @@ def test_cascade_call_is_guarded_by_the_gate_attribute():
 def test_save_flag_stays_done_only():
     # _val_done strips anything else; writing `open` here would be dead code.
     assert "saveFlag(root, { done: true })" in SRC
+
+
+def test_cascade_keeps_the_solved_table_on_screen():
+    # cascadeFrom reads `hideWrapper = opts.hideWrapper !== false`, so OMITTING
+    # the option means TRUE: gateWrap.hidden = true, and app.css:1010
+    # (.lesson-block[hidden] { display: none !important }) deletes the solved
+    # table and its notes from the page. For a button gate that is right -- the
+    # control has been consumed. For a fill-table the wrapper IS the student's
+    # work. Nothing else catches this: the restore path recomputes hideWrapper
+    # itself as gate.matches(RESTORABLE) and is immune.
+    assert "{ hideWrapper: false }" in SRC
 ```
 
 Add to `courses/tests/test_reveal_refactor_static.py`, next to its existing `test_focus_targets_fill_gate_input`:
@@ -1027,7 +1041,7 @@ def test_focus_targets_fill_table_input():
 uv run pytest courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py -v
 ```
 
-Expected: **two** FAIL (`test_cascade_call_is_guarded_by_the_gate_attribute` and `test_focus_targets_fill_table_input`). `test_boot_flag_is_assigned` is GREEN — Task 4 Step 5 already landed the flag. `test_save_flag_stays_done_only` is GREEN already — `filltable.js:59` reads `window.libliState.saveFlag(root, { done: true });` today, and this task does not change that line. It is a **pin against future drift**, not a TDD test; its mutant is "change the payload to `{ done: true, open: true }`", which belongs in Step 7.
+Expected: **three** FAIL (`test_cascade_call_is_guarded_by_the_gate_attribute`, `test_cascade_keeps_the_solved_table_on_screen`, and `test_focus_targets_fill_table_input`). `test_boot_flag_is_assigned` is GREEN — Task 4 Step 5 already landed the flag. `test_save_flag_stays_done_only` is GREEN already — `filltable.js:59` reads `window.libliState.saveFlag(root, { done: true });` today, and this task does not change that line. It is a **pin against future drift**, not a TDD test; its mutant is "change the payload to `{ done: true, open: true }`", which belongs in Step 7.
 
 - [ ] **Step 3: Add the cascade call**
 
@@ -1071,6 +1085,8 @@ In `reveal.js::focusTargetIn`, after the `[data-fillgate]` branch and before the
     }
 ```
 
+**This is a deliberate correction of spec §6, recorded so the final spec-vs-code review does not read it as a misunderstanding.** The spec argues the qualifier fixes a live bug — that `lock()` disables every input on the success path and `focus()` would therefore be a silent no-op. The code is identical either way, but the reasoning is not: `cascadeFrom` calls `focusTargetIn(lastRevealed)` only when `lastRevealed === firstNew` (`reveal.js:174`), i.e. on a wrapper that was hidden until that instant, so its inputs cannot have been disabled by a live `lock()`; and the restore path renders `readonly`, which is focusable. Keep the qualifier, drop the causal claim.
+
 `test_focus_targets_fill_table_input`'s comment in Step 1 is already written to match this framing — no edit needed there.
 
 **The editor preview will now cascade too, and that is intended.** `editor.html` loads `reveal.js` (:229) and `filltable.js` (:279) unconditionally, and the preview renders real join rows with a real `data-check-url` — so checking a gated table in the preview fires `libliRevealCascade`, adds `.reveal-shown` to preview siblings and moves focus/scroll inside the preview pane. For a preview gate nested in a tabs element `scopeOf` returns a real `[data-tab-panel]`, so it is not a no-op there; a top-level preview gate is inert because `scopeOf` returns null. This matches what `fillgate.js` and `switchgate.js` already do in the preview, so it needs no carve-out — but do not read the "defensive load-order check" comment above as implying the preview never cascades.
@@ -1097,9 +1113,10 @@ Expected: all PASS, both files **unmodified**. This is the first point at which 
 - [ ] **Step 6: Falsify**
 
 1. Delete the `hasAttribute("data-reveal-gate") &&` clause → `test_cascade_call_is_guarded_by_the_gate_attribute` RED. (The behavioural counterpart is e2e test 27 in Task 9.)
-2. Restore, then delete the `[data-filltablegate]` branch from `focusTargetIn` → `test_focus_targets_fill_table_input` RED.
-3. Restore, then drop `:not([disabled])` from that selector → the same test RED. This proves only that the string is pinned — there is deliberately no behavioural counterpart, because no reachable path exercises it (see Step 4).
-4. Restore, then change `filltable.js`'s save line to `saveFlag(root, { done: true, open: true })` → `test_save_flag_stays_done_only` RED. This is the drift pin promised in Step 2; without this mutant it is the one test in the task trusted without ever being shown to fail.
+2. Restore, then **rewrite the call as `window.libliRevealCascade(root)`**, dropping the options object → `test_cascade_keeps_the_solved_table_on_screen` RED, and e2e test 22's `_visible(page, table_row.pk)` assertion RED (Task 9). Everything else GREEN. This is the plan's most consequential unguarded line before this mutant existed: the solved table simply vanishes from the page, and every reload-based test stays green because `restoreGates` computes `hideWrapper` for itself.
+3. Restore, then delete the `[data-filltablegate]` branch from `focusTargetIn` → `test_focus_targets_fill_table_input` RED.
+4. Restore, then drop `:not([disabled])` from that selector → the same test RED. This proves only that the string is pinned — there is deliberately no behavioural counterpart, because no reachable path exercises it (see Step 4).
+5. Restore, then change `filltable.js`'s save line to `saveFlag(root, { done: true, open: true })` → `test_save_flag_stays_done_only` RED. This is the drift pin promised in Step 2; without this mutant it is the one test in the task trusted without ever being shown to fail.
 
 The boot flag's mutant is **not** here — it lives with the flag, in Task 4 Step 9 mutant 0.
 
@@ -1275,14 +1292,14 @@ Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be unto
 
 Every other check in this task is a substring assertion on rendered HTML or on JS source; none of them can see a layout regression. The new label is ~54 characters and lands in `.table-editor__controls.filltable-editor__controls`, a wrapping flex row whose next sibling is `.filltable-editor__prompt-field { flex: 1 1 16rem; min-width: 12rem; }`. Adding a wide, inflexible item to that row is precisely the basis-weighted-shrink situation that squeezes or displaces the Instruction field.
 
-**Reuse the existing editor harness rather than inventing one** — the editor needs a Platform Admin, so a plain `make_student` login will not reach it. `tests/test_e2e_filltable.py` already carries everything: `_make_pa_user` (:329), `_login` (:52), `_goto_editor` (:368) and `_open_edit` (:398). Write a scratch test in that file's shape which seeds a fill-table, opens its editor panel, and screenshots `.filltable-editor__controls` to the scratch directory:
+**Reuse the existing editor harness rather than inventing one** — the editor needs a Platform Admin, so a plain `make_student` login will not reach it. `tests/test_e2e_filltable.py` already carries the whole fixture path: **`_editor_context(page, live_server, username, slug)`** (:346 — mints the PA user, a course and a lesson node; `_make_pa_user` at :329 creates only a user and is not enough on its own), **`_seed_filltable_for_images(unit)`** (:376 — a grid whose non-blank answer cell already satisfies the client-side submit guard), `_goto_editor` (:368) and `_open_edit` (:398). Write a scratch test in that file's shape which seeds a fill-table, opens its editor panel, and screenshots `.filltable-editor__controls` to the scratch directory:
 
 ```bash
 docker compose -f docker-compose.test.yml up -d
 uv run pytest tests/test_e2e_filltable.py -m e2e -k <your_scratch_test_name> -v
 ```
 
-**Dark mode needs the user row, not a cookie** — set `theme` on the **PA user** returned by `_make_pa_user` before `_login`, the same gotcha Task 9 Step 9 calls out for the student.
+**Dark mode needs the user row, not a cookie** — set `theme` on the **PA user** before calling `_goto_editor`, which logs in for you (it calls `_login` internally, so there is no separate login call to sit in front of). Same gotcha Task 9 Step 9 calls out for the student.
 
 **Pass criterion:** the Instruction field is still usable at a normal editor width — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed — and **delete the scratch test before Step 10**, exactly as Task 9 Step 9 requires (`git diff tests/test_e2e_filltable.py` must print nothing).
 
@@ -1418,7 +1435,9 @@ uv run pytest tests/test_filltable_transfer.py -v
 
 1. Delete `"gate": data["gate"],` → the export and round-trip tests go RED.
 2. Restore, then **bypass the normalizer on one write path**: `_build_fill_table`'s tail is `_clean_save(FillTableElement(data=FillTableElement.normalize_data(data)))` — change it to `_clean_save(FillTableElement(data=data))`, **keeping `_clean_save`**. Dropping the save too would return an unsaved instance and redden the image-remap and round-trip cases that read the persisted object, muddying the prediction. Expected RED: `test_every_production_write_path_stores_a_real_boolean`, on its second half, where `obj.data["gate"]` is the string `"yes"` rather than `True`. Expected GREEN: everything else in `tests/test_filltable_transfer.py`. This is the mutant the spec names for that test, and it is the whole point of it: the `data__gate=True` ORM filter in Task 4 matches the JSON literal `true` only, which is exact *because* every write path normalizes.
-3. Restore, then delete `"gate": gate,` from `normalize_data`'s return → `test_legacy_bundle_without_gate_imports_ungated` RED with `KeyError`. (Task 1's mutant 1 covers the same line against that task's tests; this confirms the transfer test reads it too, rather than being green for an unrelated reason.)
+3. Restore, then **flip the absent-key default**: `bool(data.get("gate"))` → `bool(data.get("gate", True))` in `normalize_data` → **only** `test_legacy_bundle_without_gate_imports_ungated` goes RED in this file (its payload omits the key entirely, so it now normalizes to `True`); the other three pass an explicit `gate` value and stay GREEN.
+
+   Do **not** use "delete `"gate": gate,` from the return" as this task's mutant. By now `_ser_fill_table` reads `data["gate"]` directly (Step 3) and `render` reads `nd["gate"]` (Task 3), so deleting the key raises `KeyError` inside the serializer and reddens essentially the whole file — a prediction of one RED would read as a broken mutant rather than an over-broad one. (Expect this mutant to redden `test_normalize_data_gate_defaults_false` in `tests/test_filltable_model.py` too, but that file is not in this step's command.)
 
 Without mutants 2 and 3, those two tests are green-on-write and never shown able to fail — the exact thing the "Falsify every test before trusting it" constraint forbids.
 
@@ -1706,9 +1725,14 @@ _confirm(page).click()
 expect(_summary(page)).to_have_class(_SUCCESS)   # <- synchronise first
 expect(inp).to_be_disabled()
 assert _visible(page, trailing_row.pk) is True
+# The solved table must STAY on screen -- hideWrapper:false. Without it
+# cascadeFrom sets gateWrap.hidden, and app.css:1010 removes the table and its
+# notes entirely. Both Playwright assertions above are visibility-agnostic, so
+# this line is the only behavioural guard on that option.
+assert _visible(page, table_row.pk) is True
 ```
 
-*Mutant: remove the `libliRevealCascade` call.*
+*Mutants: remove the `libliRevealCascade` call; and, separately, drop the `{ hideWrapper: false }` argument.*
 
 - [ ] **Step 3: Test 23 — a chain of two gates, adjacent**
 
@@ -1859,8 +1883,9 @@ rows = _seed(
     _gate("Show more"),
     _text("gated-trailing"),
 )
+# Only the first two rows are asserted on -- the _gate and its trailing text
+# exist solely to make has_reveal_gate true. Do not bind them.
 (table_row, _t), (ungated_trailing_row, _ut) = rows[0], rows[1]
-(gate_row, _g), (gated_trailing_row, _gt) = rows[2], rows[3]
 _login(page, live_server, "ftg_ungated")
 page.goto(_unit_url(live_server, unit))
 
@@ -1917,6 +1942,9 @@ So: apply each mutant below one at a time and confirm the **exact** RED set. Do 
 | Remove Task 3's `open` derivation | 24, 25, 26 (on its *post-reload* assertion) | 21, 22, 23, 27 |
 | Delete the `hasAttribute("data-reveal-gate")` guard | 27 | 21, 22, 23, 24, 25, 26 |
 | Delete the `[data-filltablegate]` branch in `focusTargetIn` | 23, on its **focus assertion only** | 21, 22, 24, 25, 26, 27 |
+| Drop `{ hideWrapper: false }` from the cascade call | 22, on its **`_visible(table_row)` assertion only** | 21, 23, 24, 25, 26, 27 |
+
+The `hideWrapper` row is narrow for a reason worth knowing: 24, 25 and 26's post-reload assertions all go through `restoreGates`, which computes `hideWrapper: gate.matches(RESTORABLE)` for itself (`reveal.js:249`) and never consults the call site — so the restore path is structurally immune to this mutant, and only a *live-solve* visibility assertion can catch it.
 
 That last row exists because Task 5's mutants for the focus branch run while only the *source-string* test exists — without it, test 23's `activeElement` assertion would be the one behavioural claim in the plan defending `focusTargetIn`, trusted without ever being shown able to fail. Under the mutant `focusTargetIn` returns the `.filltable` div, `focus()` on a div with no `tabindex` is a no-op, `activeElement` stays `<body>`, and the assertion is `False`. **Test 23's two visibility assertions stay GREEN under it** — check which assertion failed, not merely that the test did.
 
@@ -1997,6 +2025,8 @@ If a `#, fuzzy` marker is present, clearing it takes **two** deletions — the m
 msgid "Reveal the rest of this section when all cells are correct"
 msgstr "Odsłoń resztę tej sekcji, gdy wszystkie komórki są poprawne"
 ```
+
+**Copy the `msgstr` verbatim from Task 8 Step 2's bolded label** — the help page tells authors to tick a checkbox by that exact name, so the two must be byte-identical. They currently agree only by transcription. If you revise the Polish wording *here*, go back and change Task 8 Step 2's snippet (and the already-edited `.pl.md` if Task 8 has run) to match; `tests/test_help.py` inspects no prose, so nothing catches the drift. This mirrors the ⚠️ warning in Task 6 Step 8, which covers the English side.
 
 **Then check the churn before staging.** `makemessages` rewrites every `#:` source-reference comment in the catalog, so a one-msgid change lands as a diff spanning the whole file and a real regression hides easily in it:
 
