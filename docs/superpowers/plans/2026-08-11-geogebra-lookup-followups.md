@@ -712,7 +712,7 @@ Tasks 2–3 left two behaviours the design calls load-bearing with **no test tha
 **Interfaces:**
 - Consumes: everything from Tasks 1–3. Produces: nothing consumed later.
 
-- [ ] **Step 1: Write test 5c and the constant-relationship test**
+- [x] **Step 1: Write test 5c and the constant-relationship test**
 
 ```python
 @override_settings(GEOGEBRA_API_LOOKUP=True)
@@ -750,33 +750,33 @@ def test_the_deadline_clears_the_measured_connect_leg_failure():
     assert _DEADLINE_SECONDS >= _TIMEOUT_SECONDS + 1
 ```
 
-- [ ] **Step 2: Run — both should PASS immediately**
+- [x] **Step 2: Run — both should PASS immediately**
 
 Run: `uv run pytest tests/test_geogebra.py -k "budget_trip or connect_leg" --verbosity=0`
 Expected: PASS. These are falsification tests for code Task 3 already wrote, not new behaviour, so RED-first does not apply. Their value is proven by the mutants in Steps 3–5, not by an initial failure.
 
-- [ ] **Step 3: Falsify 5c — mutant one (wrong handler order)**
+- [x] **Step 3: Falsify 5c — mutant one (wrong handler order)**
 
 In `_run`, move `except _BudgetExceeded: return` *below* `except Exception as exc:`.
 Run: `uv run pytest tests/test_geogebra.py -k "budget_trip" --verbosity=0`
 Expected: FAIL — the logged reason becomes `lookup failed (_BudgetExceeded)`, so the `"deadline"` assertion misses.
 **Edit it back by hand.** Re-run: PASS.
 
-- [ ] **Step 4: Falsify 5c — mutant two (partial body stored)**
+- [x] **Step 4: Falsify 5c — mutant two (partial body stored)**
 
 Change `_fetch_body` to return `b"".join(chunks)` instead of raising on budget expiry. This removes the only `raise _BudgetExceeded`, so it also reddens 5a and 5b — the `-k` filter scopes the run to 5c.
 Run: `uv run pytest tests/test_geogebra.py -k "budget_trip" --verbosity=0`
 Expected: FAIL — the truncated body reaches the parse path and the reason becomes `unparseable payload`.
 **Edit it back by hand.** Re-run: PASS.
 
-- [ ] **Step 5: Falsify the constant test**
+- [x] **Step 5: Falsify the constant test**
 
 Swap the two constants' values (`_TIMEOUT_SECONDS = 5`, `_DEADLINE_SECONDS = 3`).
 Run: `uv run pytest tests/test_geogebra.py -k "connect_leg" --verbosity=0`
 Expected: FAIL on the assertion.
 **Edit both back by hand.** Re-run: PASS.
 
-- [ ] **Step 6: Run the whole file, then format and lint**
+- [x] **Step 6: Run the whole file, then format and lint**
 
 Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
 Expected: **112 passed**.
@@ -786,7 +786,7 @@ uv run ruff format .
 uv run ruff check --no-cache tests/test_geogebra.py
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tests/test_geogebra.py
@@ -994,7 +994,7 @@ The only wide sweep in this plan. Everything above ran narrowly.
 
 **Files:** none modified (fix-forward only if something reddens).
 
-- [ ] **Step 1: Confirm the database this worktree actually uses is up**
+- [x] **Step 1: Confirm the database this worktree actually uses is up**
 
 **Superseded in part by the Global Constraints:** since Task 1 this worktree runs against `test_libli_gg` on **55433** (`libli-test-db`) via the `TEST_DATABASE_URL` prefix, not the 5432 default — because a concurrent worktree occupies `test_libli` on 5432. So verify **`libli-test-db` (55433)** is healthy, and use the prefix for this step's full-suite run. The paragraph below describes the no-prefix default and is retained for the record.
 
@@ -1005,7 +1005,7 @@ Expected: a container publishing **5432** and healthy (`bonnot-postgres` at the 
 
 If you would rather run against the tuned server for parity with normal runs, copy `.env` into the worktree first — `cp ../../libli/.env .` from the worktree root — and then verify `libli-test-db` instead. Either is fine; what is not fine is verifying one and running against the other.
 
-- [ ] **Step 2: Full unit suite**
+- [x] **Step 2: Full unit suite**
 
 Run: `uv run pytest --verbosity=0`
 Expected: all pass, with **9 more tests than the branch point** (8 in `test_geogebra.py`, 1 in `test_iframe_dimensions.py`; B1 and B2 are rewritten in place and do not change the count).
@@ -1020,7 +1020,7 @@ That prints e.g. `5974/6886 tests collected (912 deselected) in 72.76s`. **Read 
 
 Do **not** background this run — a backgrounded pytest that is reaped mid-run orphans the test database and the next run dies with `DuplicateDatabase`.
 
-- [ ] **Step 3: Lint and format**
+- [x] **Step 3: Lint and format**
 
 ```bash
 uv run ruff check --no-cache .
@@ -1029,12 +1029,12 @@ uv run ruff format --check .
 
 Expected: both clean. `--no-cache` is required: a cached run reports "All checks passed" for a file that warned on a previous run. `ruff format --check` is a separate CI gate from `ruff check`.
 
-- [ ] **Step 4: Confirm no migration was implied**
+- [x] **Step 4: Confirm no migration was implied**
 
 Run: `uv run python manage.py makemigrations --check --dry-run`
 Expected: "No changes detected". This change touches no model field.
 
-- [ ] **Step 5: Draft the PR body from the spec's accepted gaps**
+- [x] **Step 5: Draft the PR body from the spec's accepted gaps**
 
 The spec has a section headed "Accepted gaps, to be recorded in the PR body" and names the PR body as their delivery surface. The commit messages carry only a fraction. Write the PR body to `docs/superpowers/plans/pr-body-geogebra-lookup-followups.md` in the worktree so it survives a session boundary, covering **all** of:
 
@@ -1052,7 +1052,7 @@ The spec has a section headed "Accepted gaps, to be recorded in the PR body" and
 - **prior design docs are left as historical record** — #238's spec and plan document the GeoGebra-scoped clear and its accepted gap; they are not annotated or amended, and this spec supersedes them
 - `docs/development/architecture.md:106` gets its one-line update (done in Task 3 Step 9) — note it here so the PR body reflects the full change surface
 
-- [ ] **Step 6: Commit any gate fixes**
+- [x] **Step 6: Commit any gate fixes**
 
 Step 5 always produces a **new, untracked** file, so this commit is unconditional and `git add -u` alone is not enough (it stages only tracked paths):
 
