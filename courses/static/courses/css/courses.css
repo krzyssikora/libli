@@ -1180,6 +1180,41 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .va-top { vertical-align: top; }
 .va-middle { vertical-align: middle; }
 .va-bottom { vertical-align: bottom; }
+
+/* DISPLAY MATHS MUST HONOUR THE CELL'S `.ta-*`. `\[…\]` typesets into KaTeX's own
+   wrapper, and the vendored `.katex-display{…;text-align:center}` plus
+   `.katex-display>.katex{display:block;text-align:center}` BOTH outrank the
+   cell's text-align — so an author who right-aligns `\[y=2(x\]` to hug the answer
+   input beside it still gets a centred formula. A/B MEASURED with these two
+   rules commented out: ta-left, ta-center and ta-right rendered IDENTICALLY,
+   45.4px of slack on both sides of the formula in all three — halign had no
+   effect whatever. Same defect class as `.cell-img` below — a display:block child
+   ignores the cell's text-align — and the same fix shape as
+   `[data-math-title] .katex-display` in app.css.
+
+   SPECIFICITY, NOT SOURCE ORDER, does the work: courses.css and
+   _katex_css.html are both emitted into base.html's extra_css block, and the
+   KaTeX link comes AFTER courses.css on every page that renders a table, so at
+   equal specificity the vendor wins. `.el--table .katex-display` is (0,2,0) >
+   the vendor's (0,1,0); the child rule is (0,3,0) > the vendor's (0,2,0).
+
+   BOTH RULES ARE LOAD-BEARING — each was FALSIFIED SEPARATELY (invalidate one
+   declaration, the e2e goes red at 21.1/21.1px, i.e. centred again). text-align
+   inherits, but the vendor sets it EXPLICITLY at each of the two levels: drop
+   the child rule and `.katex` (a display:block box filling the cell) re-centres
+   its own inline `.base` runs; drop the wrapper rule and the child's `inherit`
+   simply reads the wrapper's surviving `center`. `inherit` hands the formula
+   back to whichever `.ta-*` the cell carries: `center` keeps centring, and
+   left/right start working.
+
+   The vendor's `white-space: nowrap` and `margin: 1em 0` are DELIBERATELY left
+   alone — a formula must not break mid-formula, and the block spacing is a
+   separate concern from alignment. */
+.el--table .katex-display,
+.el--filltable .katex-display { text-align: inherit; }
+.el--table .katex-display > .katex,
+.el--filltable .katex-display > .katex { text-align: inherit; }
+
 .tc-red { color: var(--tc-red); }
 .tc-blue { color: var(--tc-blue); }
 .tc-green { color: var(--tc-green); }
