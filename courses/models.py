@@ -1268,7 +1268,9 @@ class TableElement(ElementBase):
 class FillTableElement(ElementBase):
     """Ungraded self-check table: a JSON grid whose cells are either static
     (rich HTML/math, sanitised at save) or answer cells (a plain accepted-answer
-    string). Checked server-side per cell; records no marks, reveals nothing."""
+    string). Checked server-side per cell; records no marks. When `data['gate']`
+    is set, a fully-correct check reveals the following siblings in scope — see
+    reveal.js and the fill-table reveal-gate design doc."""
 
     ANSWER = "answer"
     STATIC = "static"
@@ -1368,10 +1370,31 @@ class FillTableElement(ElementBase):
             ]
         border = data.get("border")
         prompt = data.get("prompt")
+        # A gate that can never be SATISFIED strands every following sibling behind
+        # an unsatisfiable check, with no author-visible symptom. TWO grid shapes do
+        # that, and FillTableElementForm.clean_data rejects BOTH:
+        #   (a) no answer cell at all -- filltable_check returns cells: [] /
+        #       all_correct: false unconditionally;
+        #   (b) an answer cell whose accepted-answer string is blank --
+        #       marking.blank_matches loops over an EMPTY accepted list and returns
+        #       False for every input.
+        # The form is only one write path: _build_fill_table (model-level only, and
+        # _val_fill_table never inspects answers) and programmatic construction both
+        # bypass it. So mirror both of the form's rules here.
+        from courses.filltable import answer_cells
+        from courses.filltable import is_blank_answer
+
+        answers = [ans for _r, _c, ans in answer_cells(cells)]
+        gate = (
+            bool(data.get("gate"))
+            and bool(answers)
+            and not any(is_blank_answer(a) for a in answers)
+        )
         return {
             "header_row": bool(data.get("header_row")),
             "header_col": bool(data.get("header_col")),
             "case_sensitive": bool(data.get("case_sensitive")),
+            "gate": gate,
             "border": border
             if border in TableElement.BORDERS
             else TableElement.DEFAULT_BORDER,
