@@ -24,18 +24,16 @@
 
 ### Two repo idioms this plan depends on
 
-**Making a quiz unit.** `make_course_with_unit(**kw)` (`tests/factories.py:138`) splats `**kw` into **`CourseFactory`** and hard-codes the unit as `unit_type="lesson"` — so `make_course_with_unit(unit_type="quiz")` raises, and would give you a lesson even if it didn't. Every quiz fixture in this plan uses:
+**Making a quiz unit.** Use the existing helper — do **not** hand-roll a `ContentNodeFactory` call:
 
 ```python
-from tests.factories import ContentNodeFactory, make_course_with_unit
+from tests.factories import make_course_with_unit, make_quiz_unit
 
-course, _lesson = make_course_with_unit()
-quiz = ContentNodeFactory(
-    course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
-)
+course, lesson = make_course_with_unit()
+quiz = make_quiz_unit(course=course)
 ```
 
-(The pattern is established in `tests/test_choice_nudge_paths.py:76` and `tests/test_courses_access.py:56`.)
+`make_quiz_unit(course=None, **kw)` (`tests/factories.py:240`) already sets `kind="unit"`, `unit_type="quiz"` and inherits `ContentNodeFactory`'s `parent=None`; it is the established idiom in ~10 files. **`make_course_with_unit(unit_type="quiz")` does NOT work** — it splats `**kw` into **`CourseFactory`** and hard-codes the unit as `unit_type="lesson"`, so it raises, and would give you a lesson even if it didn't.
 
 **Database access.** `courses/tests/test_beforeafter_nesting.py`, `tests/test_twocolumn_registry.py` and `tests/lal_import/*` have **no module-level `pytestmark`** — every test carries its own `@pytest.mark.django_db`. Copying a function into those files without the decorator fails with "Database access not allowed".
 
@@ -259,7 +257,7 @@ At `courses/views.py::build_lesson_context`'s prefetch block, beneath the existi
     # flat query on EVERY lesson render, including the vast majority with no nesting.
 ```
 
-At each container's `resolved_children()` / `resolved_tabs()` / `resolved_columns()` / `resolved_slots()` in `courses/models.py`, one comment (repeated, since the methods are separate):
+At **five** sites in `courses/models.py` — Spoiler `resolved_children()` (`:441`), Callout `resolved_children()` (`:509`), BeforeAfter `resolved_slots()` (`:565`), Tabs `resolved_tabs()` (`:1760`), TwoColumn `resolved_columns()` (`:1874`); note spoiler and callout share the *method name* but are separate methods — one comment each:
 
 ```python
         # NOTE: no select_related("unit__course") here. QuestionElement.render
@@ -359,10 +357,11 @@ class _Node:
     @property
     def parent(self):
         self.reads += 1
-        # Correct code reads .parent exactly MAX_NEST_DEPTH + 2 == 6 times on a
-        # cycle (one initializer + five iterations, since `hops <= 4` admits
-        # 0,1,2,3,4). The tripwire sits at 3x that, so the margin is visible and a
-        # correct implementation can never trip it.
+        # `reads` is PER NODE. The correct walk performs six .parent reads on a
+        # cycle in total (one initializer + five iterations, since `hops <= 4`
+        # admits 0,1,2,3,4), and a two-node cycle splits those 3/3 -- so any one
+        # instance sees at most 3. The tripwire at MAX_NEST_DEPTH * 3 == 12 leaves
+        # a 4x margin, which a correct implementation can never reach.
         if self.reads > MAX_NEST_DEPTH * 3:
             raise AssertionError("ancestor_pks did not terminate on a cycle")
         return self._parent
@@ -537,14 +536,33 @@ Add the slice helper in the same step:
 
 ```python
 def _child_slice(body, wrapper_class):
-    """The substring inside the container's child wrapper.
+    """The markup inside ONE container child wrapper, tag-depth matched.
 
     The three widened types render byte-identical markup
     (`<div class="el el--question" data-question>`) -- only fill_blank has a type
     class -- so the nested render is identified by POSITION, not by class.
+
+    A naive `body.index("</div>", start)` is WRONG and silently guts every
+    assertion built on it: each question template opens
+    `<div class="el el--question" data-question>` and then
+    `<div class="question__stem">`, so the first closing tag belongs to the STEM.
+    The slice would end mid-question, containing no <form>, no inputs and no
+    verdict -- and every `... in slice_` assertion would fail against a CORRECT
+    implementation.
     """
-    start = body.index(f'<div class="{wrapper_class}">')
-    return body[start : body.index("</div>", start)]
+    open_tag = f'<div class="{wrapper_class}">'
+    start = body.index(open_tag)
+    i, depth = start + len(open_tag), 1
+    while depth:
+        nxt_open = body.find("<div", i)
+        nxt_close = body.index("</div>", i)
+        if nxt_open != -1 and nxt_open < nxt_close:
+            depth += 1
+            i = nxt_open + len("<div")
+        else:
+            depth -= 1
+            i = nxt_close + len("</div>")
+    return body[start:i]
 ```
 
 - [ ] **Step 2: Add the type-axis fixtures with their per-type discriminators**
@@ -552,8 +570,9 @@ def _child_slice(body, wrapper_class):
 ```python
 def _choice():
     q = ChoiceQuestionElement.objects.create(stem="Pick one.", multiple=False)
-    Choice.objects.create(question=q, text="right", is_correct=True)
+    right = Choice.objects.create(question=q, text="right", is_correct=True)
     Choice.objects.create(question=q, text="wrong", is_correct=False)
+    q._correct_pk = right.pk  # read by the type-axis discriminator below
     return q
 
 
@@ -576,7 +595,12 @@ def _short_numeric():
 # The discriminators prove the right WIDGET rendered -- without them the three
 # parametrized cases are indistinguishable from one another.
 TYPES = [
-    pytest.param(_choice, {}, ['name="choice"'], [], id="choice"),
+    # `name="choice"` ALONE is satisfied by any choice question on the page, so the
+    # correct option's pk is what makes the assertion non-vacuous once the slice is
+    # right. `_choice()` must therefore expose it -- have it stash the correct
+    # Choice pk on the returned question (e.g. `q._correct_pk = c.pk`) and build the
+    # `present` list per-test rather than at module import.
+    pytest.param(_choice, {}, ['name="choice"', "VALUE_PK"], [], id="choice"),
     pytest.param(
         _short_text, {"answer": ""}, ['name="answer"'], ["inputmode"], id="short_text"
     ),
@@ -614,6 +638,10 @@ def test_nested_blank_answer_shows_feedback_by_type(
     # documents.)
     assert _check_url(unit, nested_row.pk) in slice_
     for needle in present:
+        # "VALUE_PK" is the placeholder for the choice case's correct-option pk,
+        # which is only known after the question is built.
+        if needle == "VALUE_PK":
+            needle = f'value="{nested_row.content_object._correct_pk}"'
         assert needle in slice_
     for needle in absent:
         assert needle not in slice_
@@ -622,13 +650,35 @@ def test_nested_blank_answer_shows_feedback_by_type(
 
 - [ ] **Step 4: Add seam tests 9 and 10**
 
+The depth-2 case needs **three hand-built rows** — `build()` creates only one
+container and one child, so it cannot express nesting-inside-nesting:
+
 ```python
 def test_nested_blank_answer_shows_feedback_at_depth_2(scene, client):
     """A question in a callout in a spoiler. Pins that the recursion RE-EMITS
     rather than forwarding one level, AND that ancestry (not direct childhood)
     drives the spoiler's `open` -- seam test 2 nests directly in the spoiler, so a
-    direct-parent implementation would satisfy it and leave the rule unpinned."""
-    ...
+    direct-parent implementation (`ancestors = {element.parent_id}`) would satisfy
+    it and leave the rule unpinned. Spec section 9.3 names this test as that
+    mutant's sole RED."""
+    _student, unit, _top, _build = scene
+    spoiler_row = add_element(unit, SpoilerElement.objects.create(label="s"))
+    callout_row = Element.objects.create(
+        unit=unit,
+        content_object=CalloutElement.objects.create(kind="example"),
+        parent=spoiler_row,
+        tab_id=SpoilerElement.SLOT_ID,
+    )
+    nested_row = Element.objects.create(
+        unit=unit,
+        content_object=_fill_blank(),
+        parent=callout_row,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+
+    body = client.post(
+        _check_url(unit, nested_row.pk), {"blank": [""]}
+    ).content.decode()
     assert VERDICT in body
     assert '<details class="spoiler" open>' in body
 
@@ -769,10 +819,25 @@ The five cards, with their exact `data-add-type` and icon ids (the icon id is **
     {% endif %}
 ```
 
-- [ ] **Step 3: Run the sweep and watch the expected REDs**
+- [ ] **Step 3: Re-run the spec's three sweeps BEFORE trusting the table**
+
+Spec §9.6 records that its enumeration came from three orthogonal greps and says the
+plan should re-run them rather than trust the list. Do that — it is what surfaces the
+files a single-angle grep misses:
 
 ```bash
-uv run pytest courses/tests/test_beforeafter_nesting.py courses/tests/test_spoiler_nesting.py tests/test_twocolumn_registry.py tests/test_tabs_registry.py -v
+grep -rn "choicequestion\|choice-single\|shorttextquestion\|shortnumericquestion" tests/ courses/tests/
+grep -rn "NESTABLE_TYPE_KEYS" tests/ courses/tests/
+grep -rn "FORMAT_VERSION == 11\|format_version\"\] == 11" tests/ courses/tests/
+```
+
+Reconcile every hit against the table below. **An un-listed hit is a defect in this
+table, not a surprise** — add it before proceeding.
+
+- [ ] **Step 4: Run the affected files and watch the expected REDs**
+
+```bash
+uv run pytest courses/tests/test_beforeafter_nesting.py courses/tests/test_spoiler_nesting.py tests/test_twocolumn_registry.py tests/test_tabs_registry.py tests/test_tabs_editor_partial.py tests/test_tabs_transfer.py -v
 ```
 Expected FAILs — **all expected, none a regression**:
 
@@ -783,8 +848,10 @@ Expected FAILs — **all expected, none a regression**:
 | `courses/tests/test_spoiler_nesting.py:157` | Same, key hidden in a `for bad in (…)` **loop variable**. |
 | `tests/test_tabs_registry.py:74` | `test_nested_add_of_a_blocked_type_is_400`, **the `choicequestion` param only** |
 | `test_spoiler_nesting.py:351-363, :389, :444-448` | Add-menu absence assertions |
+| `tests/test_tabs_editor_partial.py:89-114` | `test_nested_add_menu_offers_only_nestable_types` renders `_add_menu.html` directly with `nested=True` and **no `unit_is_quiz`** (falsy ⇒ the new group renders), then asserts `"choice-single" not in html`. Bare substring, so it matches the card **and** its `#el-choice-single` icon href. |
+| `tests/test_tabs_transfer.py:142` | `test_nesting_validation_rejects[elements2]` — `_child(type_="choice")` inside `pytest.raises(TransferError)`. It passes **no `unit_types`**, so the quiz clause is irrelevant: this breaks the moment `choice` joins `NESTABLE_TYPE_KEYS`, i.e. **here in Task 4**, not in Task 6. |
 
-- [ ] **Step 4: Rewrite each as quiz-conditional**
+- [ ] **Step 5: Rewrite each as quiz-conditional**
 
 Each refusal becomes: **refused in a quiz unit, accepted in a lesson**. Note the `@pytest.mark.django_db` — these files have no module-level `pytestmark`.
 
@@ -796,9 +863,7 @@ def test_a_graded_question_is_refused_as_a_child_of_a_QUIZ_before_after():
     Mutant: drop resolve_scope's quiz clause -> accepted, this goes RED.
     """
     course, _lesson = make_course_with_unit()
-    quiz = ContentNodeFactory(
-        course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
-    )
+    quiz = make_quiz_unit(course=course)
     join = _ba(quiz)
     with pytest.raises(NestingError):
         builder.resolve_scope(
@@ -830,13 +895,25 @@ def test_nested_add_of_a_question_is_200_in_a_lesson_and_400_in_a_quiz(client):
 
 For the add-menu assertions: drag/grid/extended keys stay banned nested; the four widened keys become expected-**present** in a lesson and expected-**absent** in a quiz.
 
+For **`tests/test_tabs_editor_partial.py:89-114`**: `slidebreak` stays banned;
+`choice-single` becomes expected-**present** in the existing lesson-style render, and
+add a second render with `"unit_is_quiz": True` in the context asserting it is
+absent. Keep the docstring's note that `depth`/`max_nest_depth` must be **integers**
+(a string binds and `smartif` swallows the `str < int` TypeError, silently reading
+every guard as False).
+
+For **`tests/test_tabs_transfer.py:142`**, apply Task 6 Step 5's rewrite **here**,
+since the break happens here: swap the subject to `type_="extended_response"` and add
+the positive case asserting `choice` is now accepted nested. Task 6 then only has to
+bump that file's `FORMAT_VERSION` literal.
+
 Also fix `test_spoiler_nesting.py:179-180`, which **stays green but becomes a lie** — `assert "choicequestion" not in NESTABLE_TYPE_KEYS` under the comment `# genuinely non-nestable`. Drop `choicequestion` from that tuple, or reword to "form keys never appear in the transfer-key set".
 
-- [ ] **Step 5: Add the add-menu placement tests**
+- [ ] **Step 6: Add the add-menu placement tests**
 
 In `test_spoiler_nesting.py`: nested + lesson shows the five cards; nested + quiz shows none; top level unchanged. **Assert the five `data-add-type` strings, not a card count** — a count is blind to the `choicequestion` mix-up. (`tests/test_manage_editor_menu.py` pins 24 for its **quiz** fixture; a top-level lesson menu is 33.)
 
-- [ ] **Step 6: Extend the drift test (spec §9.5)**
+- [ ] **Step 7: Extend the drift test (spec §9.5)**
 
 In `courses/tests/test_nesting_rule.py`:
 
@@ -863,7 +940,7 @@ def test_container_models_is_derived_from_the_registry():
     assert builder.CONTAINER_MODELS == frozenset(builder._CONTAINER_REGISTRY)
 ```
 
-- [ ] **Step 7: Add the `element_add` endpoint tests**
+- [ ] **Step 8: Add the `element_add` endpoint tests**
 
 Create `courses/tests/test_nested_question_add.py`.
 
@@ -906,22 +983,28 @@ def test_nested_add_of_a_widened_question_type_opens_its_form(
     if expect_multiple_checked is not None:
         # The ONLY thing distinguishing the two choice cards at this endpoint:
         # element_add passes initial={"multiple": ...} into the opened form.
-        assert ('name="multiple" checked' in html) is expect_multiple_checked
+        #
+        # `multiple` is a HiddenInput (element_forms.py:671), rendered by
+        # _edit_choicequestion.html:3 as {{ form.multiple }} -- so the markup is
+        # <input type="hidden" name="multiple" value="True"> and there is NO
+        # `checked` attribute anywhere. Render once and copy the exact substring
+        # before pinning it; Django emits type/name/value contiguously.
+        assert f'name="multiple" value="{expect_multiple_checked}"' in html
 ```
 
 Plus a fifth test: the same POST against a **quiz** unit returns 400.
 
-- [ ] **Step 8: Run, falsify, lint, commit**
+- [ ] **Step 9: Run, falsify, lint, commit**
 
 ```bash
-uv run pytest courses/tests/test_beforeafter_nesting.py courses/tests/test_spoiler_nesting.py courses/tests/test_nesting_rule.py courses/tests/test_nested_question_add.py tests/test_twocolumn_registry.py tests/test_tabs_registry.py tests/test_manage_editor_menu.py -v
+uv run pytest courses/tests/test_beforeafter_nesting.py courses/tests/test_spoiler_nesting.py courses/tests/test_nesting_rule.py courses/tests/test_nested_question_add.py tests/test_twocolumn_registry.py tests/test_tabs_registry.py tests/test_tabs_editor_partial.py tests/test_tabs_transfer.py tests/test_manage_editor_menu.py -v
 ```
 
 Falsify: change the alias to `"choice-single": "choice"` → the **two choice** endpoint tests FAIL and the short-text/short-numeric ones stay **green** (they resolve through untouched aliases). Do not chase the greens. Restore.
 
 ```bash
 uv run ruff check --no-cache courses/ tests/ && uv run ruff format --check courses/ tests/
-git add courses/builder.py templates/courses/manage/editor/_add_menu.html courses/tests/test_beforeafter_nesting.py courses/tests/test_spoiler_nesting.py courses/tests/test_nesting_rule.py courses/tests/test_nested_question_add.py tests/test_twocolumn_registry.py tests/test_tabs_registry.py
+git add courses/builder.py templates/courses/manage/editor/_add_menu.html courses/tests/test_beforeafter_nesting.py courses/tests/test_spoiler_nesting.py courses/tests/test_nesting_rule.py courses/tests/test_nested_question_add.py tests/test_twocolumn_registry.py tests/test_tabs_registry.py tests/test_tabs_editor_partial.py tests/test_tabs_transfer.py
 git commit -m "feat(nesting): allow choice/short_text/short_numeric inside lesson containers
 
 Task 4. Three transfer keys, three form-key aliases (choicequestion, not the
@@ -1037,7 +1120,8 @@ Quiz→lesson stays unconditionally allowed; a quiz→quiz no-op is accepted.
 Create `courses/tests/test_nested_question_gates.py`:
 
 - `resolve_scope` raises for a question into a quiz container; accepts into a lesson container.
-- `paste_allowed` returns `question_in_quiz`; returns it **ahead of `too_deep`** for a case that trips both; still permits a **top-level** paste into a quiz; and — asserted **on the paste endpoint**, not the function — surfaces its own message, not the generic fallback.
+- `paste_allowed` returns `question_in_quiz`; still permits a **top-level** paste into a quiz; and — asserted **on the paste endpoint**, not the function — surfaces its own message, not the generic fallback.
+- **The `too_deep` precedence case needs a depth-4 destination, built through the ORM.** A question is a leaf, so `subtree_facts` gives `min_headroom = MAX_NEST_DEPTH = 4` and `too_deep` fires only when `dest_depth > 4` — i.e. the destination container must itself sit at depth **4**, which `resolve_scope` clause 4 makes unreachable through any authoring path. Build the chain with direct `Element.objects.create` calls, modelling `courses/tests/test_nesting_rule.py::_mk`. Assert **both directions**: with the quiz unit_type it returns `question_in_quiz`; with the same fixture on a **lesson** unit it returns `too_deep`. Without the second half the test stays green even if the clause were placed *after* `too_deep`.
 - The `ast` completeness assertion (a source regex would sweep the docstring, which lists the reason names in prose; a hand-maintained constant just moves the drift):
 
 ```python
@@ -1104,7 +1188,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `courses/transfer/payloads.py:858`, `courses/transfer/schema.py:14,358`
-- Modify: 7 files asserting `FORMAT_VERSION == 11`; `tests/test_tabs_transfer.py`
+- Modify: 7 files asserting `FORMAT_VERSION == 11` (`tests/test_tabs_transfer.py`'s **nesting** case was already rewritten in Task 4 Step 5; only its version literal remains)
 - Create: `courses/tests/test_nested_question_transfer.py`
 
 - [ ] **Step 1: `validate_nesting` gains `unit_types=None`**
@@ -1140,16 +1224,37 @@ FORMAT_VERSION = 12
 
 - [ ] **Step 3: Write the clause's own tests FIRST**
 
-Create `courses/tests/test_nested_question_transfer.py`. Without these, deleting Step 1's clause entirely would leave the whole task green:
+Create `courses/tests/test_nested_question_transfer.py`. Without these, deleting Step 1's clause entirely would leave the whole task green.
+
+**Copy `_els` / `_tabs_el` / `_child` from `tests/test_tabs_transfer.py:109-125` — and ADD a `"unit"` key to both dicts.** Those helpers emit `{"id", "type", "data", "parent", "tab"}` with **no `"unit"`**, because every existing caller passes no `unit_types` and the clause short-circuits on `unit_types is not None` before ever reading it. A straight paste raises `KeyError: 'unit'` the moment `unit_types` is non-`None`:
 
 ```python
+def _tabs_el(eid="e1", unit="n1"):
+    return {"id": eid, "type": "tabs", "unit": unit,
+            "data": {"tabs": [{"id": "taaaaaa", "label": "A"}]},
+            "parent": None, "tab": ""}
+
+
+def _child(eid="e2", parent="e1", tab="taaaaaa", type_="choice", unit="n1"):
+    return {"id": eid, "type": type_, "unit": unit, "data": {},
+            "parent": parent, "tab": tab}
+
+
 def test_a_question_nested_in_a_quiz_unit_is_rejected():
     with pytest.raises(TransferError):
-        validate_nesting(_els_quiz_with_nested_choice(), unit_types={"n1": "quiz"})
+        validate_nesting([_tabs_el(), _child()], unit_types={"n1": "quiz"})
 
 
 def test_the_same_nesting_in_a_lesson_unit_is_accepted():
-    validate_nesting(_els_lesson_with_nested_choice(), unit_types={"n1": "lesson"})
+    validate_nesting([_tabs_el(), _child()], unit_types={"n1": "lesson"})
+
+
+def test_the_childs_own_unit_governs_not_the_parents():
+    """el["unit"], deliberately -- validate_nesting never checks that a child and
+    its parent share a unit, so a crafted archive can make them disagree."""
+    els = [_tabs_el(unit="n_lesson"), _child(unit="n_quiz")]
+    with pytest.raises(TransferError):
+        validate_nesting(els, unit_types={"n_lesson": "lesson", "n_quiz": "quiz"})
 
 
 def test_a_non_nestable_type_reports_the_existing_message_first():
@@ -1160,7 +1265,9 @@ def test_a_non_nestable_type_reports_the_existing_message_first():
     paste_allowed key.
     """
     with pytest.raises(TransferError, match="may not be nested"):
-        validate_nesting(_els_quiz_with_nested_dragfill(), unit_types={"n1": "quiz"})
+        validate_nesting(
+            [_tabs_el(), _child(type_="drag_fill_blank")], unit_types={"n1": "quiz"}
+        )
 ```
 
 - [ ] **Step 4: Run and watch eight assertions go RED**
@@ -1168,24 +1275,21 @@ def test_a_non_nestable_type_reports_the_existing_message_first():
 ```bash
 uv run pytest courses/tests/test_beforeafter_transfer.py courses/tests/test_image_size_transfer.py tests/test_link_transfer.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_transfer_schema.py tests/test_transfer_export.py -v
 ```
-Expected: seven `assert FORMAT_VERSION == 11` (or `manifest["format_version"] == 11`) FAIL, plus the tabs nesting case — collected as **`test_nesting_validation_rejects[elements2]`**, since that `parametrize` block (`tests/test_tabs_transfer.py:137-154`) supplies no `ids=`. Identify it by the `# non-nestable child` comment at `:142`.
+Expected: seven `assert FORMAT_VERSION == 11` (or `manifest["format_version"] == 11`) FAIL. **The tabs nesting case is NOT among them** — it broke in Task 4 and was rewritten there (Task 4 Step 5). Only that file's version literal remains.
 
 - [ ] **Step 5: Fix them**
 
-Bump each literal `11` → `12`. For the tabs case, swap the subject and add a positive case:
-
-```python
-        _els(_tabs_el(), _child(type_="extended_response")),  # still non-nestable
-```
-
-```python
-def test_nesting_validation_accepts_a_choice_child():
-    validate_nesting(_els(_tabs_el(), _child(type_="choice")))  # must not raise
-```
+Bump each literal `11` → `12`. Nothing else in these seven files changes.
 
 - [ ] **Step 6: Add the round-trip test**
 
-`choice` is the only newly nestable type with child rows, and both `duplicate_element` and the paste flow go through the transfer serializers — so duplicating a callout is the first thing an author does after nesting a question. Assert `parent`, `tab_id`, concrete type and the `Choice` rows (`is_correct`, `feedback`) all survive `build_export` → `validate_document` → import.
+`choice` is the only newly nestable type with child rows, and both `duplicate_element` and the paste flow go through the transfer serializers — so duplicating a callout is the first thing an author does after nesting a question.
+
+**Model it on an existing round-trip test rather than inventing the call shapes** — `courses/tests/test_callout_transfer.py` and `tests/test_twocolumn_transfer.py` already exercise export→validate→import for a container with children; copy whichever is closer and swap the child for a `choice`. `build_export` (`courses/transfer/export.py:670`) and `validate_document` (`courses/transfer/schema.py:108`) both take keyword-only arguments, and the importer entry point is whatever that sibling test already calls — read it, do not guess.
+
+Assert the re-imported child's `parent`, `tab_id`, concrete type and its `Choice` rows (`is_correct`, `feedback`) all match.
+
+**Mutant:** drop `"choice"` from `NESTABLE_TYPE_KEYS` → the round-trip goes RED at the `validate_document` step. Edit it back out.
 
 - [ ] **Step 7: Verify the 19 positional call sites still pass**
 
@@ -1196,7 +1300,7 @@ Expected: all PASS — that is exactly what the keyword-with-default protects.
 
 - [ ] **Step 8: Falsify**
 
-Change the clause's lookup from `unit_types.get(el["unit"])` to the **parent's** unit (`unit_types.get(by_id[el["parent"]]["unit"])`). Expected: `test_a_question_nested_in_a_quiz_unit_is_rejected` stays green on a same-unit fixture but a cross-unit fixture flips — so **also** add a cross-unit case asserting the child's own unit governs. Edit the mutant out by hand.
+Change the clause's lookup from `unit_types.get(el["unit"])` to the **parent's** unit (`unit_types.get(by_id[el["parent"]]["unit"])`). Expected: `test_a_question_nested_in_a_quiz_unit_is_rejected` stays **green** (same-unit fixture) while `test_the_childs_own_unit_governs_not_the_parents` goes RED — which is exactly why that third test exists. Edit the mutant out by hand.
 
 - [ ] **Step 9: Re-check for a competing bump, then commit**
 
@@ -1270,9 +1374,7 @@ Create `tests/lal_import/test_loader_question_in_quiz.py`, following the shape o
 def test_fillblank_in_a_spoiler_in_a_quiz_is_refused():
     """The spoiler path -- fill_blank is the only question type its allowlist admits."""
     course, _lesson = make_course_with_unit()
-    quiz = ContentNodeFactory(
-        course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
-    )
+    quiz = make_quiz_unit(course=course)
     spoiler = {
         "type": "spoiler",
         "label": "s",
@@ -1381,6 +1483,8 @@ Top-level preview elements keep their explicitly passed `try_url` — this fires
 Create `courses/tests/test_nested_question_preview.py`, with two tests:
 
 1. A nested question's form `action` in the rendered preview is `manage_element_try` for **its own** pk — three distinct assertions, since two of them are the actual bug: **not** `check_answer`, **not** the parent's pk, and **equal to** the child's own try URL.
+
+   **Drive the real editor page**, not `render_to_string` on the partial: a direct render would need `unit`, `preview_elements` and `editor_preview` seeded by hand and would never exercise `_preview.html:15`'s `{% url %}`. Log in as the course owner (the `_managed(client)` shape from `tests/test_tabs_registry.py:37-41`), put a `choice` question inside a callout in the lesson, then `GET reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})` and assert on the response body.
 2. For Step 3: `element_try`'s choice re-render returns a fragment whose form action is `manage_element_try`, not `check_answer`. This is a **markup** assertion — `editor.js` discards the attribute — and it is dropped if Step 3 is dropped.
 
 - [ ] **Step 5: Falsify, lint, commit**
@@ -1409,15 +1513,19 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Run the pre-flight against the local dev database**
 
-```python
+```bash
+uv run python manage.py shell -c '
+from django.contrib.contenttypes.models import ContentType
+from courses.models import ContentNode, Element
 from courses.richtext import CONCRETE_QUESTION_MODELS
 
-question_ct_ids = {ContentType.objects.get_for_model(m).id for m in CONCRETE_QUESTION_MODELS}
-Element.objects.filter(
+ct_ids = {ContentType.objects.get_for_model(m).id for m in CONCRETE_QUESTION_MODELS}
+print(Element.objects.filter(
     parent__isnull=False,
-    content_type_id__in=question_ct_ids,
+    content_type_id__in=ct_ids,
     unit__unit_type=ContentNode.UnitType.QUIZ,
-).count()
+).count())
+'
 ```
 
 All ten models, not the four widened ones — the point is to find anything at all. Expected: **0**. A non-zero count **halts the task and is reported**; do not auto-repair, the remedy is an editorial decision.
@@ -1429,7 +1537,7 @@ All ten models, not the four widened ones — the point is to find anything at a
 
 - [ ] **Step 3: Regenerate translations**
 
-**Exactly two new msgids**, not four — `NestingError` is discarded by the view and left untranslated per Task 5 Step 3, matching every other `NestingError` in `builder.py`:
+**Exactly three new msgids**, not four — `NestingError` is the excluded fourth: it is discarded by the view (`element_add` returns `HttpResponseBadRequest("bad nesting")`) and left untranslated per Task 5 Step 3, matching every other `NestingError` in `builder.py`:
 
 1. `_err(_("Element '%(el)s' is a question and may not be nested in a quiz."), …)` — Task 6
 2. `PASTE_REFUSAL_MESSAGES["question_in_quiz"]` — Task 5
@@ -1443,8 +1551,12 @@ uv run python manage.py makemessages -l en -l pl
 
 ```bash
 uv run python manage.py compilemessages
-uv run pytest tests/ -k i18n -v
+uv run pytest tests/test_i18n_po_health.py tests/test_i18n_questions.py tests/test_i18n_editor_rows.py -v
 ```
+
+Named files, not `tests/ -k i18n` — that collects the whole tree, which the Global
+Constraints reserve for the branch gate. `test_i18n_po_health.py` is the one that
+asserts no obsolete (`#~`) and no fuzzy entries survive.
 
 - [ ] **Step 4: Commit**
 
