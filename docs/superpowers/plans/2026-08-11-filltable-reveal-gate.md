@@ -775,7 +775,12 @@ the caller's reference."
 
 **The filter reads the STORED blob; the template reads the NORMALIZED one.** `data__gate=True` matches whatever is in the JSONField, while `{% if data.gate %}` (Task 2) sees `normalize_data`'s output. `FillTableElement.save()` runs `_sanitized_data`, **not** `normalize_data`, so the two agree only because every *production* write path normalizes first — it is a write-path property, not a query property, and Task 7's `test_every_production_write_path_stores_a_real_boolean` is what pins it. They can still diverge on a row built directly, e.g. `objects.create(data={"gate": True, "cells": [[static-only]]})`: the filter matches and arms `has_reveal_gate`, while the template suppresses the marker. That divergence is **inert** — the pre-hide CSS keys on `[data-reveal-gate]`, so with no marker nothing is hidden and the only cost is `reveal.js` loading needlessly.
 
-**The mirror direction is also possible, and also inert** — stated so "inert" is shown for both rather than asserted for one. On a row built directly as `data={"gate": "yes", …}`, `data__gate=True` **misses** (it matches the JSON literal `true` only, never a string), while `normalize_data` coerces `"yes"` to `True` — so the template stamps the marker on a page whose `has_reveal_gate` may be false. Harmless for the same structural reason, from the other side: the pre-hide `<style>` is gated on `has_reveal_gate` too (`lesson_unit.html:38-48`), so nothing is hidden to begin with, and `filltable.js`'s cascade call short-circuits on `window.libliRevealCascade` being undefined when `reveal.js` was never loaded. A stray marker with no engine is dead markup.
+**The mirror direction is also possible, and also harmless — but for a different reason, and only via the same unreachable route.** On a row built directly as `data={"gate": "yes", …}`, `data__gate=True` **misses** (it matches the JSON literal `true` only, never a string), while `normalize_data` coerces `"yes"` to `True` — so the template stamps the marker on a page where `has_filltable_gate` is false. Two sub-cases, and **do not collapse them into "no engine loads"**:
+
+- **The unit has no other gate** → `has_reveal_gate` is false, so neither the pre-hide `<style>` nor `reveal.js` ships (`lesson_unit.html:38-48`, `:89`). Nothing is hidden, and `filltable.js`'s cascade call short-circuits on `window.libliRevealCascade` being undefined. Dead markup.
+- **The unit also carries a Reveal/Fill/Switch gate** → `has_reveal_gate` is **true** anyway, so the pre-hide *is* armed and `reveal.js` *is* loaded. The marker is fully live and the gate actually works correctly. The only real gap is that `{% if has_filltable_gate %}` is false, so the **prepaint watchdog term is missing** — a blocked or dead `filltable.js` would then leave the following content hidden with nothing to disarm the pre-hide.
+
+Both are acceptable only because the route there is unreachable in production: every production write path normalizes (Task 7's `test_every_production_write_path_stores_a_real_boolean` pins exactly that), so no `"yes"` ever reaches the column.
 
 Do not "fix" either direction by normalizing at query time; that would cost a full table scan.
 
@@ -1038,20 +1043,29 @@ No change to the script-loading block: `filltable.js` already loads under `has_f
 uv run pytest tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py \
   courses/tests/test_filltable_gate_static.py tests/test_html_element.py \
   courses/tests/test_reveal_gate_view_flag.py courses/tests/test_reveal_gate_render.py \
-  courses/tests/test_switchgate_context.py courses/tests/test_fillgate_restore.py \
-  courses/tests/test_switchgate_restore.py -v
+  courses/tests/test_fillgate_context.py courses/tests/test_switchgate_context.py \
+  courses/tests/test_fillgate_restore.py courses/tests/test_switchgate_restore.py -v
 ```
 
 Expected: all PASS. `tests/test_html_element.py` must stay green **unmodified**.
 
-**The five gate-family files are here for the same reason Task 5 Step 5 runs the two
+**The six gate-family files are here for the same reason Task 5 Step 5 runs the two
 existing e2e suites: this task redefines a flag they own.** `has_reveal_gate` is consumed by
 all three existing gate families, and this step also edits `lesson_unit.html:11` — the
-template they render through. `courses/tests/test_reveal_gate_view_flag.py:94-106` asserts
+template they render through. `courses/tests/test_reveal_gate_view_flag.py:92-106` asserts
 `"reveal-armed" in html` / `not in html` directly, which is exactly the pair a bad
-`has_reveal_gate` rewrite flips. All five must stay green **unmodified**; without them a
-regression in someone else's gate family surfaces only at the final whole-suite gate, five
-commits downstream and expensive to bisect.
+`has_reveal_gate` rewrite flips.
+
+**All three families must be represented by their *context* assertion, not just their render
+markup — that is why `test_fillgate_context.py` is in the list.** Step 4(a) rewrites the
+whole `has_reveal_gate` assignment **including its three-model list**, so a mistyped or
+dropped `"fillgateelement"` is a live risk. Nothing else catches it: `test_reveal_gate_view_flag.py`
+seeds only a `RevealGateElement` (plus `TabsElement`/`TextElement`), and `test_fillgate_restore.py`'s
+guard is a render-markup regex that never reads the flag. The **only** assertion in the repo
+pinning `ctx["has_reveal_gate"] is True` for a fill-gate unit is `courses/tests/test_fillgate_context.py:59`
+— the exact twin of `courses/tests/test_switchgate_context.py:64`. Omitting it would leave the
+fill-gate model the one entry in that list whose loss reaches the final whole-suite gate five
+commits later. All six must stay green **unmodified**.
 
 - [ ] **Step 8: Write the query-shape source assertion**
 
@@ -1134,11 +1148,11 @@ uv run pytest tests/test_filltable_context.py tests/test_filltable_gate_prepaint
   courses/tests/test_filltable_gate_static.py courses/tests/test_filltable_gate_query_shape.py \
   tests/test_html_element.py \
   courses/tests/test_reveal_gate_view_flag.py courses/tests/test_reveal_gate_render.py \
-  courses/tests/test_switchgate_context.py courses/tests/test_fillgate_restore.py \
-  courses/tests/test_switchgate_restore.py -v
+  courses/tests/test_fillgate_context.py courses/tests/test_switchgate_context.py \
+  courses/tests/test_fillgate_restore.py courses/tests/test_switchgate_restore.py -v
 ```
 
-Expected: all PASS — the five gate-family files included, still **unmodified** (see Step 7).
+Expected: all PASS — the six gate-family files included, still **unmodified** (see Step 7).
 Then:
 
 ```bash
@@ -1805,13 +1819,14 @@ Without mutants 2 and 3, those two tests are green-on-write and never shown able
 Mutant 3 left `normalize_data`'s absent-key default flipped — edit it back, then re-run before staging:
 
 ```bash
-git diff --quiet courses/models.py && echo "models.py clean"
+git diff --quiet courses/models.py courses/transfer/importer.py
+echo "exit=$?   # 0 == both clean"
 uv run pytest tests/test_filltable_transfer.py tests/test_filltable_model.py -v
 ```
 
-Expected: the echo fires and all PASS (`test_filltable_model.py` is included because mutant 3 reddens `test_normalize_data_gate_defaults_false` there, outside this task's usual command).
+Expected: `exit=0` and all PASS (`test_filltable_model.py` is included because mutant 3 reddens `test_normalize_data_gate_defaults_false` there, outside this task's usual command).
 
-**The `git diff --quiet` matters more here than the usual "confirm the mutant is out".** Mutant 3 mutates `courses/models.py`, which was committed back in Task 1 and is **not** in this task's `git add`. A partially-reverted mutant therefore survives as an *uncommitted working-tree* change that the final branch gate cannot see at all — its `git diff origin/master...HEAD` commands compare commits, not the working tree — so it would ride along into whatever later task next stages that file. Same reasoning as Task 3 Step 7's proof for `courses/state.py`.
+**The `git diff --quiet` matters more here than the usual "confirm the mutant is out", and it covers BOTH mutants 2 and 3.** Mutant 3 mutates `courses/models.py` (committed back in Task 1) and mutant 2 mutates `courses/transfer/importer.py` (never touched by this branch at all) — and **neither** is in this task's `git add`. A partially-reverted mutant therefore survives as an *uncommitted working-tree* change that the final branch gate cannot see at all — its `git diff origin/master...HEAD` commands compare commits, not the working tree — so it would ride along into whatever later task next stages that file. Same reasoning as Task 3 Step 7's proof for `courses/state.py`.
 
 ```bash
 uv run ruff check --no-cache courses/transfer/export.py tests/test_filltable_transfer.py
