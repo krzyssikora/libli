@@ -460,8 +460,11 @@ provides none of the safety.
 **Falsifying this one needs care, because the mutant HANGS rather than fails.** A
 pytest run against the size-bounded version loops forever with a DB fetch per
 iteration — and in this repo a hung run also orphans the test DB for the next one.
-So the walk is extracted as a pure helper over anything exposing `.pk` / `.parent`,
-and the falsification is a **fast-failing bound assertion**, not a behavioural one:
+So the walk is extracted as a pure helper — **`builder.ancestor_pks(element)`**,
+which is where `element_depth` (the sibling walk cited above) already lives, so the
+no-DB unit test imports from `courses.builder` and `check_answer` calls it — over
+anything exposing `.pk` / `.parent`. The falsification is a **fast-failing bound
+assertion**, not a behavioural one:
 build an in-memory two-node cycle whose `parent` accessor raises after
 `MAX_NEST_DEPTH + 2` accesses. Correct code stops before the tripwire; the mutant
 hits it and the test is RED in milliseconds, with no database involved.
@@ -491,9 +494,9 @@ The template becomes:
 
 **The `feedback_ancestor_pks and` guard is required, and "the default is an empty
 frozenset" is NOT the reason.** That default lives in `render_element`'s fallback.
-On a direct `SpoilerElement.render(element=None)` — the sentinel case just described,
-and the one `test_render_seam` actually drives — `page` is `None`, so the key is
-**absent from the template context entirely**, not an empty set. A bare
+On a direct `SpoilerElement.render(...)` **without `page`** — the shape
+`test_render_seam`'s CONCRETES loop drives — the key is **absent from the template
+context entirely**, not an empty set. A bare
 `{% if eid in feedback_ancestor_pks %}` would then evaluate `0 in ''` and render
 correctly only because Django's `smartif` swallows the `TypeError`. Relying on a
 swallowed exception is not a mechanism. The `and` short-circuits on the missing or
@@ -556,10 +559,17 @@ if isinstance(question, ChoiceQuestionElement):
     return HttpResponse(question.render(element=el, mode="lesson", ...))
 ```
 
-That call passes **no `action_url`**, so the swapped-in form's action falls back to
-the student `check_answer` URL — and `editor.js` swaps that form body into the live
-DOM. The author's first Check would post correctly (§5's fix) and every subsequent
-Check would post to the student endpoint.
+That call passes **no `action_url`**, so the fragment's `<form action=…>` reverses
+the student `check_answer` URL.
+
+**This is NOT a live bug, and the spec previously claimed it was.** `editor.js`
+fetches `tryForm.getAttribute("action")` from the **live** form node (`:250`) and
+the inline-choice branch does `tryForm.innerHTML = newForm.innerHTML` (`:272`) —
+swapping the form's *body*, not the form, with an in-file comment saying exactly
+that ("so the delegated handler and the form node survive"). The response's `action`
+attribute is therefore **discarded**: the second Check reads the same attribute the
+first did. No author can observe a wrong post, and there is no top-level bug here
+either.
 
 `element_try` must therefore pass:
 
@@ -575,14 +585,18 @@ action_url=reverse(
 `element_try` already fetches `el` with `select_related("unit__course")`, so the
 slug costs no extra query.
 
-This is not a nesting-aware change: the same fix is correct for a top-level choice
-question, where the bug is equally live today.
+**Kept as defence-in-depth, and labelled as such**: a manage-gated fragment should
+not carry a student endpoint in its markup, and the change is two lines. But it
+fixes nothing observable today and must not be described as a bug fix — if the
+implementation cost turns out to be more than trivial, dropping it is the correct
+call, not a compromise. §9.7's assertion on it is a markup assertion with no
+user-facing meaning.
 
 ### 5.2 Stated behaviour change
 
-This also fixes the live nested-`fill_blank` preview defect, and (via §5.1) the
-top-level choice re-render. An author who had learned to expect the preview's Check
-button to misbehave will find it working.
+This fixes the live nested-`fill_blank` preview defect: an author who had learned to
+expect the preview's Check button to misbehave will find it working. §5.1 changes
+nothing observable — see there.
 
 ---
 
@@ -1018,8 +1032,15 @@ unsupported.
 - **Non-container leaves.** `page` is passed only to the five containers (§3.1); the
   other eight `render()` signatures never see it and cannot `TypeError` on it.
 - **`page=None`.** `**(page or {})` handles a container `render()` called directly
-  with no `page` — the shape used by unit tests and by `test_render_seam`'s
-  CONCRETES loop, which passes no `element` either.
+  with no `page` — the shape `test_render_seam`'s CONCRETES loop drives
+  (`obj.render(element=el, state={}, slug="x", node_pk=unit.pk)`: a real join row,
+  **no `page`**). That missing-`page` half is what makes §4.1's
+  `feedback_ancestor_pks and` guard necessary.
+- **`element=None`.** A separate shape, and **not** one the CONCRETES loop covers —
+  the only `element=None` call in `test_render_seam.py` uses `FillGateElement`, not
+  a container. So nothing in the suite currently drives
+  `SpoilerElement.render(element=None)`, and a bare `"eid": element.pk` would stay
+  green everywhere. §9.4 adds that case explicitly.
 - **Shadowing.** Structurally impossible: `page` is the lowest-precedence source, so
   any collision resolves in favour of the container's own key. §9.4 pins this by
   passing a `page` dict containing an `el` key and asserting the container still
@@ -1158,8 +1179,8 @@ Six **controls** carry over unchanged and must stay **green under every mutant**
 `test_top_level_blank_answer_shows_feedback` (1) and
 `test_nested_non_blank_answer_does_show_feedback[…]` (5, one per container).
 
-§9.4's six claim-tests also live in this file. File total: **22 tests** (11
-existing + 5 new seam + 6 claim).
+§9.4's seven claim-tests also live in this file. File total: **23 tests** (11
+existing + 5 new seam + 7 claim).
 
 **Per-type structural guards — and there is no per-type class to use.** The
 retained `el--fillblank` count-of-2 guard is fill-blank-specific and does not
@@ -1239,9 +1260,9 @@ checked against that trap.
 
 ### 9.4 Tests for the design's own claims
 
-Six claim-tests, covering five claims — the quiz claim needs two assertions and
+Seven claim-tests, covering seven claims — the quiz claim needs two assertions and
 invariant A is seam test 10, already counted among the five new seam tests, so the
-file arithmetic is 11 existing + 5 seam + 6 claim = 22. All live in
+file arithmetic is 11 existing + 5 seam + 7 claim = 23. All live in
 `courses/tests/test_nested_question_nojs_feedback.py` alongside the seam tests:
 
 - **Invariant A** (seam test 10): with two questions nested in the same container
@@ -1277,6 +1298,10 @@ file arithmetic is 11 existing + 5 seam + 6 claim = 22. All live in
   element. One container is not enough — the splat-order invariant would then be
   unpinned for four sites, including `TabsElement`, the very one §3.2 flags as the
   place an implementer copying the single-splat snippet goes wrong.
+- **The spoiler `eid` sentinel holds**: `SpoilerElement.render(element=None)`
+  returns without raising. Nothing in `test_render_seam.py` covers this today (its
+  CONCRETES loop passes a real join row, and its only `element=None` case uses
+  `FillGateElement`), so a bare `"eid": element.pk` would otherwise ship green.
 - **`mode` is not forwarded** — and the mechanism matters, because `page` is a
   function-local that no public API returns. A source regex would sweep the
   comments that discuss `mode`, and a rendered-output assertion cannot tell "`mode`
@@ -1307,8 +1332,11 @@ the function — surfaces its **own** `PASTE_REFUSAL_MESSAGES` string rather tha
 generic fallback, plus a completeness assertion that every reason `paste_allowed`
 can return has a map entry; `rename_node` refuses the lesson→quiz flip, leaves
 `unit_type` unchanged, accepts the quiz→quiz no-op, and allows quiz→lesson;
-`validate_nesting` rejects the archive, reports **`type_not_nestable` ahead of the
-new clause** for a document that trips both (the §6.3 authority-4 ordering), **and**
+`validate_nesting` rejects the archive, reports **the existing `NESTABLE_TYPE_KEYS`
+clause's message** ("Element '%(el)s' may not be nested.", `payloads.py:921-922`)
+ahead of the new clause for a document that trips both — `validate_nesting` raises
+through `_err()` with translated messages and has no reason keys, so the assertion
+matches on that msgid, not on a `paste_allowed` key — **and**
 still accepts its 19 existing positional call sites; the LAL loader refuses a
 **`fill_blank`** child in a quiz unit
 (the only type that reaches the clause — see §6.3 authority 5) **and** allows a
@@ -1346,43 +1374,66 @@ nestable type with child rows.
 
 Plus the preview tests (§9.7) and a drift test extending
 `courses/tests/test_nesting_rule.py`: `NESTABLE_QUESTION_KEYS <= NESTABLE_TYPE_KEYS`,
-every member is in `transfer.export.SERIALIZERS`, every new form-key alias resolves
-into `NESTABLE_TYPE_KEYS`, and `CONTAINER_MODELS` agrees with
-`CONTAINER_TRANSFER_KEYS` (§3.1's gate and the transfer key set must not drift).
+every member is in `transfer.export.SERIALIZERS`, and every new form-key alias
+resolves into `NESTABLE_TYPE_KEYS`.
+
+`CONTAINER_MODELS` needs **no** new agreement assertion:
+`test_container_keys_agree_by_key_not_by_count` (`test_nesting_rule.py:322-330`)
+already asserts `{model_to_key(m) for m in _CONTAINER_REGISTRY} ==
+set(CONTAINER_TRANSFER_KEYS)`, and `CONTAINER_MODELS` is *defined* as
+`frozenset(_CONTAINER_REGISTRY)`. The only incremental fact worth pinning is that
+definition — that it is derived, not a hand-written second list — which one
+assertion covers.
 
 ### 9.6 Existing tests that MUST go red, and their rewrites
 
-Existing tests in **four** files assert the exact behaviour this spec changes. Their
-RED is expected, not a regression, and an implementer must be told so up front — one
-of them names our change as its mutant in its own docstring.
+Existing assertions in **eleven** files go RED. Their RED is expected, not a
+regression, and an implementer must be told so up front — one of them names our
+change as its mutant in its own docstring.
 
-This list came from a sweep, not from recall: `grep -A 3 "resolve_scope("` across
-`courses/tests/` and `tests/` for a question key finds exactly two refusal sites,
-and they use **different namespaces** — `test_beforeafter_nesting.py` passes the
-*transfer* key `"choice"`, `test_twocolumn_registry.py` passes the *form* key
-`"choicequestion"`. A single-namespace grep finds one and misses the other.
+**On the sweep methodology, because the first two attempts were both incomplete.**
+Grepping `resolve_scope(` for a literal question key misses
+`test_spoiler_nesting.py:157`, where the key is a **loop variable**
+(`for bad in ("choicequestion",)`). Grepping one namespace misses the other —
+`test_beforeafter_nesting.py` passes the *transfer* key `"choice"`,
+`test_twocolumn_registry.py` and `test_spoiler_nesting.py` pass the *form* key
+`"choicequestion"`. And neither grep sees the endpoint-level or `FORMAT_VERSION`
+assertions at all. The list below came from three orthogonal sweeps —
+`grep -rn "choicequestion"`, `grep -rn "NESTABLE_TYPE_KEYS"`, and
+`grep -rn "FORMAT_VERSION == 11"` across `courses/tests/` and `tests/` — and the
+plan should re-run all three rather than trust this enumeration.
 
-**`courses/tests/test_beforeafter_nesting.py::test_a_graded_question_is_still_refused_as_a_child`**
-calls `resolve_scope(unit, …, "choice")` inside `pytest.raises(NestingError)` on a
-**lesson** unit, with the docstring *"Mutant: add `choice` to NESTABLE_TYPE_KEYS ->
-accepted."* After the widening it passes rather than raises. Rewrite: the refusal is
-now conditional on `unit.unit_type`, so assert refusal in a **quiz** unit and
-acceptance in a lesson.
+**Group A — nesting refusals that become acceptances (4 files).**
 
-**`courses/tests/test_spoiler_nesting.py`** asserts the new cards are absent from
-nested menus in three places — the `banned_question` loop at `:351-363`, the
-`isdisjoint({"choice-single", "shorttextquestion", "dragfillblankquestion"})`
-assertion at `:389`, and the `banned_question` loop at `:444-448`. Rewrite: the
-drag/grid/extended keys stay banned nested; the four widened keys become
-expected-**present** in a lesson and expected-**absent** in a quiz.
+| File | Assertion | Rewrite |
+|---|---|---|
+| `courses/tests/test_beforeafter_nesting.py:52-62` | `resolve_scope(..., "choice")` raises; docstring says *"Mutant: add `choice` to NESTABLE_TYPE_KEYS -> accepted."* | Refusal in a **quiz** unit, acceptance in a lesson |
+| `tests/test_twocolumn_registry.py:53` | `resolve_scope(..., "choicequestion")` raises — `# questions can't nest` | Same shape |
+| `courses/tests/test_spoiler_nesting.py:157` | `for bad in ("choicequestion",)` … raises | Same shape |
+| `tests/test_tabs_registry.py:74` | `element_add` with `{"type": "choicequestion"}` into a tab asserts **400** | Now 200 on a lesson; assert 400 on a **quiz** unit instead |
 
-**`tests/test_twocolumn_registry.py:53`** asserts
-`with pytest.raises(NestingError): resolve_scope(unit, str(join.pk), cid,
-"choicequestion")  # questions can't nest`, on a **lesson** unit. Once
-`choicequestion` maps to `choice` (§6.1) that raise stops happening. Same rewrite
-shape as above: refusal in a quiz unit, acceptance in a lesson.
+**Group B — add-menu absence assertions (1 file, 3 sites).**
+`courses/tests/test_spoiler_nesting.py` asserts the new cards are absent from nested
+menus at `:351-363` (`banned_question` loop), `:389`
+(`isdisjoint({"choice-single", "shorttextquestion", "dragfillblankquestion"})`) and
+`:444-448` (a second `banned_question` loop). The drag/grid/extended keys stay
+banned; the four widened keys become expected-**present** in a lesson and
+expected-**absent** in a quiz.
 
-**`tests/test_tabs_transfer.py::test_nesting_validation_rejects`** carries the
+**Group C — the `FORMAT_VERSION` bump (7 files).** Every one of these hard-asserts
+the literal and goes RED the moment §6.5's bump lands. The rewrite is mechanical —
+`11` → `12` — but the list must be explicit, because §10 otherwise tells the
+implementer that one of these files needs no edit:
+
+`courses/tests/test_beforeafter_transfer.py:169`,
+`courses/tests/test_image_size_transfer.py:44`,
+`tests/test_link_transfer.py:54`, `tests/test_table_transfer.py:299`,
+`tests/test_tabs_transfer.py:62`, `tests/test_transfer_schema.py:57`
+(all `assert FORMAT_VERSION == 11`), and `tests/test_transfer_export.py:222`
+(`assert manifest["format_version"] == 11`).
+
+**Group D — the archive nesting rejection (1 file, already counted in C).**
+`tests/test_tabs_transfer.py::test_nesting_validation_rejects` carries the
 parametrized case `_els(_tabs_el(), _child(type_="choice"))  # non-nestable child`
 (`:142`) inside `pytest.raises(TransferError)`. Once `choice` joins
 `NESTABLE_TYPE_KEYS` that document validates cleanly — the fixture passes no
@@ -1392,14 +1443,22 @@ the subject for a still-non-nestable type (`extended_response` or
 `drag_fill_blank`), and add a positive case asserting `choice` is now accepted
 nested.
 
-`test_spoiler_nesting.py` is also the natural home for the **add-menu placement
-tests** §6.2 requires, since the silent-unreachable-group failure is invisible to
-every other test: nested + lesson shows the five cards; nested + quiz shows none of
+**Stays green but becomes a lie.** `courses/tests/test_spoiler_nesting.py:179-180`
+asserts `"choicequestion" not in NESTABLE_TYPE_KEYS` under the comment
+`# genuinely non-nestable`. It still passes — `choicequestion` is a *form* key and
+only `choice` enters the set — but the comment becomes false, and a future reader
+would take the green assertion as evidence that choice questions cannot nest, which
+is exactly the namespace confusion §6.1 warns about. Drop `choicequestion` from that
+tuple or reword the comment to "form keys never appear in the transfer-key set".
+
+**The add-menu placement tests** §6.2 requires also live in
+`test_spoiler_nesting.py`, since the silent-unreachable-group failure is invisible
+to every other test: nested + lesson shows the five cards; nested + quiz shows none of
 them; the top-level menu is unchanged. The nested-lesson assertion pins the five
 `data-add-type` **strings**, not the card count — a count is blind to the
 `choice-single` / `choice-multi` / `choicequestion` mix-up §6.2 describes.
 
-**On that last one, mind which fixture.**
+**On the top-level card count, mind which fixture.**
 `tests/test_manage_editor_menu.py` pins `body.count('data-add-type="') == 24`, and
 24 is the count for a **quiz** unit — both its tests use `unit_type="quiz"`, where
 the whole `Interactive` group is suppressed by `{% if not unit_is_quiz %}`. A
@@ -1416,9 +1475,10 @@ A nested question's rendered form `action` is `manage_element_try` for **its own
 pk — asserted as three distinct facts, since two of them are the actual bug: not
 `check_answer`, not the parent's pk, and equal to the child's own try URL.
 
-Separately for §5.1: `element_try`'s choice re-render returns a form whose action is
-`manage_element_try`, not `check_answer` — asserted for a top-level choice question
-too, where the bug is equally live today.
+Separately for §5.1: `element_try`'s choice re-render returns a fragment whose form
+action is `manage_element_try`, not `check_answer`. This is a **markup** assertion —
+`editor.js` discards that attribute, so nothing user-facing depends on it, and it
+goes away if §5.1 is dropped.
 
 ### 9.8 e2e
 
@@ -1461,9 +1521,9 @@ whether the rule does anything.
 |---|---|
 | `courses/templatetags/courses_extras.py` | `render_element`: six context reads (five conditional fallbacks + the context-only `feedback_ancestor_pks`), `editor_preview=None` parameter, `page` dict **gated on `CONTAINER_MODELS`** with `or None` coercion, nested-preview try-URL branch |
 | `courses/models.py` | `page=None` + splat-first on the five container `render()`s (`:454`, `:522`, `:591`, `:1780`, `:1892`); tabs keeps `display_settings()` last; `SpoilerElement.render` also gains `eid` (§4.1); comment at `resolved_children()` recording the action-URL query cost (§8) |
-| `courses/builder.py` | `NESTABLE_TYPE_KEYS` += 3 keys; alias-comment update; `_NESTABLE_FORM_KEY_ALIASES` += **3** aliases (four *form keys* route through them — `choice-single`/`choice-multi` both collapse to `choicequestion` in `element_add` before the map is consulted); new `NESTABLE_QUESTION_KEYS`, `CONTAINER_MODELS` and `unit_has_nested_question`; `resolve_scope` clause; `paste_allowed` clause + reason; `rename_node` flip guard |
+| `courses/builder.py` | `NESTABLE_TYPE_KEYS` += 3 keys; alias-comment update; `_NESTABLE_FORM_KEY_ALIASES` += **3** aliases (four *form keys* route through them — `choice-single`/`choice-multi` both collapse to `choicequestion` in `element_add` before the map is consulted); new `NESTABLE_QUESTION_KEYS`, `CONTAINER_MODELS` and `unit_has_nested_question`; `resolve_scope` clause; `paste_allowed` clause + reason; `rename_node` flip guard; new `ancestor_pks()` helper (§4.1), beside the existing `element_depth` |
 | `courses/views_manage.py` | `element_try`'s choice branch passes `action_url` (§5.1); `PASTE_REFUSAL_MESSAGES["question_in_quiz"]`; **comment rewrite** at `:2179-2181`, which states `"choicequestion"` "is not in `NESTABLE_TYPE_KEYS`, so clause 1 rejects it" — false after §6.1, and it sits directly above the call site being edited |
-| `courses/views.py` | `check_answer` computes `feedback_ancestor_pks` (§4.1). Also **comment only** — the `has_questions` comment ("Only fill_blank is nestable today") becomes false |
+| `courses/views.py` | `check_answer` calls `builder.ancestor_pks(element)` into `ctx["feedback_ancestor_pks"]` (§4.1). Also **comment only** — the `has_questions` comment ("Only fill_blank is nestable today") becomes false |
 | `templates/courses/elements/spoilerelement.html` | `<details>` renders `open` when the checked element is in its subtree (§4.1) |
 | `courses/transfer/payloads.py` | `validate_nesting` gains `unit_types=None`, rejects question-in-quiz nesting |
 | `courses/transfer/schema.py` | `FORMAT_VERSION` 11 → 12 (§6.5); builds and passes the unit-type map (`:358`) — the one production `validate_nesting` call site that changes |
@@ -1485,8 +1545,10 @@ whether the rule does anything.
 | Gate tests — LAL loader | `fill_blank` child refused in a quiz unit; a manifest flipping to quiz while dropping its nested question still accepted |
 | Ancestor-walk helper unit test | The fast-failing cycle tripwire (§4.1) — no database |
 | `locale/en/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.po` (+ `.mo`) | New msgids; fuzzy pre-fills cleared |
-| `tests/test_tabs_transfer.py` | **Expected RED** — the `choice`-child rejection case at `:142` must change subject (§9.6) |
-| `courses/tests/test_beforeafter_transfer.py`, `test_callout_transfer.py`, `test_spoiler_transfer.py`, `tests/test_transfer_nesting_depth.py`, `tests/test_twocolumn_transfer.py` | No **signature** edit — the 19 positional `validate_nesting` call sites are exactly what the keyword-with-default protects (§6.3 authority 4). Note `test_tabs_transfer.py` shares that protection but still needs the assertion change above |
+| `tests/test_tabs_registry.py` | **Expected RED** — the `element_add` 400 case for `choicequestion` in a tab is now 200 on a lesson (§9.6 group A) |
+| `tests/test_tabs_transfer.py` | **Expected RED, twice** — the `choice`-child rejection at `:142` (§9.6 group D) **and** `assert FORMAT_VERSION == 11` at `:62` |
+| `courses/tests/test_beforeafter_transfer.py`, `courses/tests/test_image_size_transfer.py`, `tests/test_link_transfer.py`, `tests/test_table_transfer.py`, `tests/test_transfer_schema.py`, `tests/test_transfer_export.py` | **Expected RED** — each hard-asserts `FORMAT_VERSION == 11` (or the manifest value); bump each literal to 12 (§9.6 group C) |
+| `courses/tests/test_callout_transfer.py`, `test_spoiler_transfer.py`, `tests/test_transfer_nesting_depth.py`, `tests/test_twocolumn_transfer.py` | No edit — they hold `validate_nesting` positional call sites but no `FORMAT_VERSION` or nestability assertion (§6.3 authority 4) |
 
 No migration. No new model field. No JS change expected. **One archive-format
 change** — `FORMAT_VERSION` 11 → 12 (§6.5).
