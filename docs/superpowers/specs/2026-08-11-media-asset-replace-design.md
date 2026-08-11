@@ -351,16 +351,28 @@ The `.asset-cell` root gains two data attributes beside the existing
 - `data-di-uses="{{ asset.di_uses|default:0 }}"` (populated by both `attach_usage` and
   `assets_with_usage`, so every render path has it)
 
-It gains one **direct child**, deliberately *outside* `.asset-foot`:
+It does **not** gain an input of its own. An earlier version of this design put
 
 ```html
 <input type="file" name="file" hidden data-replace-input
        accept="{% if asset.kind == 'image' %}image/*{% else %}video/*{% endif %}">
 ```
 
-Keeping the input outside the foot matters: the confirm strip is added and removed inside the cell,
-and an input that lived in a region the JS manipulates could be detached while a reference to it is
-still held (making `input.value = ""` a no-op on the live DOM).
+directly on the cell, *outside* `.asset-foot`, reasoning that the confirm strip is added and removed
+inside the cell, and an input that lived in a region the JS manipulates could be detached while a
+reference to it is still held (making `input.value = ""` a no-op on the live DOM). That reasoning was
+right about the mechanism but did not go far enough: it is not only the strip's own region that gets
+manipulated — the **cell itself** is replaced wholesale by two other ops in this same file. Inline
+rename does `cell.replaceWith(fresh)` on a successful save, and the debounced filter does
+`oldGrid.replaceWith(newGrid)` on every keystroke past the 250ms debounce. If either lands while the
+OS file dialog is open, a per-cell input is detached along with its cell, its `change` bubbles only
+inside the orphaned tree, and the delegated `change` listener on `.media-manager` never sees it — the
+author picks a file and nothing happens at all: no strip, no flash, no error.
+
+So there is exactly **one** file input for the whole manager, and it lives on `.media-manager` itself
+(`manager.html`), a sibling of `.asset-grid` rather than a descendant of any `.asset-cell`. No cell
+swap and no grid swap can ever detach a node that was never inside the swapped subtree. See §6 for how
+a single shared input still knows which asset it is picking for.
 
 **The foot's three controls.** `.asset-foot` is `display: flex; justify-content: space-between` with
 exactly two children today: the uses summary and the `display: contents` delete form
@@ -379,11 +391,13 @@ The foot keeps two flex children, so `space-between` still pins the uses summary
 right; replace sits immediately left of the trash. The button is **not** disabled when the asset is
 in use — unlike delete, replace is *for* in-use assets.
 
-**`accept` is a hint, not the authority.** `effective_image_extensions()`
-(`courses/validators.py:65`) lets an admin narrow the accepted set, so the OS dialog may offer a file
-the server then rejects with a 422. That is acceptable: the 422 carries the real message, and
-rendering the effective list into the attribute would duplicate the admin-configured limits into the
-template for no correctness gain.
+**`accept` is a hint, not the authority.** With one shared input serving both kinds (see above), the
+template carries no `accept` attribute at all — the ⇄ click handler sets `input.accept` from *that
+cell's* `data-kind` immediately before opening the dialog (§6). `effective_image_extensions()`
+(`courses/validators.py:65`) lets an admin narrow the accepted set beyond the blanket `image/*` /
+`video/*` this sets, so the OS dialog may still offer a file the server then rejects with a 422. That
+is acceptable: the 422 carries the real message, and rendering the effective list into the attribute
+would duplicate the admin-configured limits into the template for no correctness gain.
 
 **Glyph choice.** A text glyph (`⇄`), not an SVG. The repo's icon convention is monochrome SVG using
 `currentColor`, but the two controls this one sits between are the text glyphs `✎` and `🗑`, and a
@@ -427,14 +441,13 @@ is an *attribute* rather than a text node, which is exactly why it is easy to le
 
 A fourth op inside `wireManager`. **Two binding styles, deliberately:**
 
-- The **⇄ click** and the **input `change`** are delegated from `root`, because those elements arrive
-  and depart with server-rendered cells (`cell.replaceWith(fresh)`, and the filter's whole-grid swap).
-  Both delegations filter on their own attribute — `e.target.closest("[data-replace-asset]")` and
-  `e.target.closest("[data-replace-input]")` — and return early when the enclosing `.asset-cell` is
-  absent. The second selector is not optional tidiness: `root` is `.media-manager`, which also
-  contains the upload form's `<input type="file" name="file">` (`manager.html:20`), and `change`
-  bubbles. A looser filter (`e.target.type === "file"`) would make choosing an *upload* file try to
-  build a confirm strip on a cell that does not exist.
+- The **⇄ click** and the **input `change`** are delegated from `root`, because the cells arrive and
+  depart with server-rendered swaps (`cell.replaceWith(fresh)`, and the filter's whole-grid swap) and
+  the shared input must keep working across every one of them. Both delegations filter on their own
+  attribute — `e.target.closest("[data-replace-asset]")` and `e.target.closest("[data-replace-input]")`
+  — the second is not optional tidiness: `root` is `.media-manager`, which also contains the upload
+  form's `<input type="file" name="file">` (`manager.html:20`), and `change` bubbles. A looser filter
+  (`e.target.type === "file"`) would make choosing an *upload* file try to build a confirm strip.
 - The **strip's own buttons are bound directly, at build time**, inside the closure that built that
   strip. This is not a stylistic choice: it is what makes the `done` re-entrancy flag work. The
   rename handler's `done` is declared inside its per-click listener (`media_picker.js:330`), so it is
@@ -443,38 +456,57 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
   every replace afterwards — no error, no flash, nothing. Per-strip closures keep the rename
   precedent exact.
 
+**One shared input, and a `wireManager`-scoped pending pk.** `replaceInput` is resolved once, from
+`.media-manager` (`manager.html`), not from any cell — there is exactly one, and it survives every
+cell/grid swap by construction (§4). Because it is shared, it carries no cell identity of its own once
+the OS dialog is open, so a second piece of state — `pendingReplacePk`, also `wireManager`-scoped —
+records *which* asset the currently-open dialog was raised for. It is set at click time (step 1) and
+read at `change` time (step 2) to re-resolve the cell from the live DOM, and it is reset to `null` on
+every strip close and on a completed replace, so a stale pk from a previous pick can never be reused
+for a later one.
+
 1. **Click** on `[data-replace-asset]` → **if a replace POST is in flight anywhere, return
-   immediately** (see the in-flight flag in step 4). Otherwise just `input.click()` on this cell's
-   `[data-replace-input]`, and **tear nothing down yet**.
+   immediately** (see the in-flight flag in step 4). Otherwise **set `replaceInput.accept`** from this
+   cell's `data-kind` (`image/*` or `video/*` — what a per-cell `accept` attribute used to do, before
+   one input had to serve both kinds), **record `pendingReplacePk = cell.getAttribute("data-asset-id")`**,
+   then `replaceInput.click()`, and **tear nothing down yet**.
 
    Teardown of any already-open strip belongs to the `change` handler, not here. Doing it on click
    would destroy the author's pending strip *before* the OS dialog opens, so dismissing that dialog —
    which fires no `change` at all — would silently discard their previous selection with no way back.
    Deferring means a dismissed dialog leaves everything exactly as it was. This is also what makes
    re-clicking ⇄ on a cell whose *own* strip is open a sensible "wrong file, let me pick another"
-   rather than a dead click.
+   rather than a dead click — clicking again just overwrites `pendingReplacePk` with the same value and
+   reopens the dialog.
 
    At most one strip is open at a time; step 2 enforces that by removing whatever it finds with a
    **live DOM query** (`root.querySelector("[data-replace-strip]")`), never a retained reference. The
    live query matters because the debounced filter does `oldGrid.replaceWith(newGrid)`
    (`media_picker.js:373-376`), destroying every cell without notification — a retained reference
-   would point at a detached node, and clearing its input would be a no-op on the live DOM. A
-   filter/grid swap before commit is therefore an implicit cancel, with no request in flight and
-   nothing to clean up. (For a swap *during* commit, see step 4's detached-strip rule.)
+   would point at a detached node. A filter/grid swap before commit is therefore an implicit cancel,
+   with no request in flight and nothing to clean up. (For a swap *during* commit, see step 4's
+   detached-strip rule.)
 2. **`change`** on the input → **first, return early if `!input.files || !input.files.length`**,
    matching the guards the file already uses at `:169` and `:270`. A cancelled OS dialog normally
    fires nothing at all, but that is browser-dependent rationale, not a defence; without the guard an
    empty `FileList` builds a strip whose filename reads `undefined` and whose commit posts nothing.
 
-   **Then capture the `File` object — `var file = input.files[0]` — before touching anything else,
-   and use that captured object for both `[data-replace-filename]` and the commit's `FormData`.
-   Never re-read `input.files` later.** This ordering is load-bearing. Teardown comes next, and in
-   the re-pick flow step 1 advertises, the open strip belongs to *this* cell — so a blanket "clear
-   that cell's input" would run `input.value = ""` on the very input that just received the new
-   selection, wiping `input.files` before the strip is built. `input.files` cannot be restored
-   programmatically, so the result would be a `TypeError` and no strip at all, or a commit that posts
-   no file. For the same reason the clear-the-input rule applies **only to a different cell's**
-   input; this cell's input is left alone until cancel or a response branch.
+   **Then re-resolve the target cell from the live DOM by the recorded pk** —
+   `root.querySelector('.asset-cell[data-asset-id="' + pendingReplacePk + '"]')` — rather than walking
+   up from the input, which is no longer possible: the input does not sit inside a cell at all. This
+   is the same pattern step 4's 200-response branch already uses for a detached strip. **If the query
+   finds nothing** — the asset was filtered out of view while the dialog was open — **clear the input,
+   reset `pendingReplacePk` to `null`, and return quietly**; there is no cell to attach a strip to.
+
+   **Once a cell is found, capture the `File` object — `var file = input.files[0]` — before touching
+   anything else, and use that captured object for both `[data-replace-filename]` and the commit's
+   `FormData`. Never re-read `input.files` later.** This ordering is load-bearing: teardown of any
+   already-open strip comes next, and with a single shared input, clearing it (`input.value = ""`) is
+   always what happens on that teardown — no per-cell exception is needed any more, because it is the
+   same physical input either way. Capturing `file` first is what makes that safe: `input.value = ""`
+   after the capture cannot un-set a reference already held in a local variable, whereas clearing
+   before capturing would raise a `TypeError` on the next read (`input.files` cannot be restored
+   programmatically).
 
    Then **remove whatever `root.querySelector("[data-replace-strip]")` finds** — any open strip,
    whether on this cell or another — and build and
@@ -487,9 +519,9 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
    drag-to-image caution on every asset in the library.
    **Focus moves to `[data-replace-commit]`** so a keyboard or screen-reader user is taken to the new
    content rather than left silently behind it.
-3. **Cancel** (`[data-replace-cancel]`) → remove the strip node, set `input.value = ""` on the cell's
-   persistent input so re-choosing the same file fires `change` again, and **return focus to the
-   `[data-replace-asset]` button**.
+3. **Cancel** (`[data-replace-cancel]`) → remove the strip node, set `input.value = ""` on the **shared**
+   input so re-choosing the same file fires `change` again, **reset `pendingReplacePk` to `null`**, and
+   **return focus to the `[data-replace-asset]` button**.
 4. **Replace** (`[data-replace-commit]`) → **`if (done) return;` first**, then set `done`, raise the
    shared in-flight flag read by step 1, and **disable both the commit and the cancel button** for the
    duration of the request; then `POST` the cell's `data-replace-url` with a `FormData` carrying
@@ -542,18 +574,20 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
 
    - **200 *with* a parseable `.asset-cell` in the body** → swap the whole `.asset-cell` for the
      returned HTML (the rename handler's `cell.replaceWith(fresh)` pattern, including its `if (fresh)`
-     check at `media_picker.js:343-344`). The strip and the input go with the old node. **Move focus
-     to the fresh cell's `[data-replace-asset]` button**, since the element that had focus was just
-     destroyed.
-   - **422** → remove the strip, clear the input, **return focus to `[data-replace-asset]`**, then
-     flash the server's message. The body is an `_op_error.html` fragment, not a bare string, so it is
-     parsed by assigning the response text to a detached element's `innerHTML`, reading
-     `querySelector(".op-error")`'s `textContent`, and passing that **string** to `flash()`. `flash`
-     sets `textContent` (`media_picker.js:6-9`), so nothing server-echoed is ever inserted as markup.
-     If the fragment has no `.op-error`, fall back to `msg(root, "replace-failed", …)`.
+     check at `media_picker.js:343-344`). The strip goes with the old node — but the input does **not**,
+     because it was never inside it: it lives on `.media-manager`. This branch therefore clears it and
+     resets `pendingReplacePk` to `null` explicitly, the one piece of cleanup a per-cell input used to
+     get for free by being destroyed along with its cell. **Move focus to the fresh cell's
+     `[data-replace-asset]` button**, since the element that had focus was just destroyed.
+   - **422** → remove the strip, clear the shared input, reset `pendingReplacePk`, **return focus to
+     `[data-replace-asset]`**, then flash the server's message. The body is an `_op_error.html`
+     fragment, not a bare string, so it is parsed by assigning the response text to a detached element's
+     `innerHTML`, reading `querySelector(".op-error")`'s `textContent`, and passing that **string** to
+     `flash()`. `flash` sets `textContent` (`media_picker.js:6-9`), so nothing server-echoed is ever
+     inserted as markup. If the fragment has no `.op-error`, fall back to `msg(root, "replace-failed", …)`.
    - **Anything else** — any other status, **a 200 whose body yields no `.asset-cell`**, and any
-     rejected promise → the same cleanup as 422 (remove strip, clear input, restore focus) with the
-     canned `replace-failed` message.
+     rejected promise → the same cleanup as 422 (remove strip, clear the shared input, reset
+     `pendingReplacePk`, restore focus) with the canned `replace-failed` message.
 
    That catch-all is mandatory, and the "200 with no cell" case is why it cannot be an afterthought.
    `fetch` follows redirects by default, so a POST made after the session expires — logged out in

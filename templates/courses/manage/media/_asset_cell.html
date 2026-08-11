@@ -3,18 +3,6 @@
      data-url="{{ asset.file.url }}" data-name="{{ asset.display_name }}"
      data-replace-url="{% url 'courses:manage_media_replace' slug=course.slug pk=asset.pk %}"
      data-di-uses="{{ asset.di_uses|default:0 }}">
-  {% comment %}
-    Outside .asset-foot on purpose: the confirm strip is added and removed
-    inside the cell, and an input living in a region the JS manipulates could
-    be detached while a reference to it is still held.
-
-    A comment TAG, not a hash comment: Django's lexer matches the hash form
-    without re.DOTALL, so one spanning lines never matches and renders VERBATIM
-    into the page. This comment did -- eleven lines of source text above every
-    thumbnail, in both themes -- until the Task 5 screenshots showed it.
-  {% endcomment %}
-  <input type="file" name="file" hidden data-replace-input
-         accept="{% if asset.kind == 'image' %}image/*{% else %}video/*{% endif %}">
   {% if asset.kind == "image" %}
     <img class="asset-thumb" src="{{ asset.file.url }}" alt="">
   {% else %}

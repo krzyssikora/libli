@@ -44,6 +44,13 @@
     <span class="muted" data-media-count>{{ assets|length }} {% trans "files" %}</span>
   </div>
   {% include "courses/manage/media/_asset_grid.html" %}
+  {% comment %}
+    One shared input, outside .asset-grid, so no cell swap (inline rename) and no
+    grid swap (the debounced filter) can ever detach it while the OS file dialog
+    is open. No `accept` here -- one input now serves both image and video
+    assets, so the ⇄ click handler sets it per-cell before opening the dialog.
+  {% endcomment %}
+  <input type="file" name="file" hidden data-replace-input>
 </section>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'courses/js/media_picker.js' %}" defer></script>{% endblock %}

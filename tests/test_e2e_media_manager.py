@@ -102,7 +102,17 @@ def test_replace_swaps_the_cell_and_the_rendered_image(page, live_server):
     _open_manager(page, live_server, "pa-repl-e2e", course)
     original_src = asset.file.url
 
-    page.set_input_files("[data-replace-input]", _upload_payload())
+    # The input is shared across the whole manager now -- hoisted onto
+    # .media-manager, outside .asset-grid, so a cell/grid swap can never
+    # detach it while the OS dialog is open. It therefore only knows which
+    # asset it is picking for via the pk the ⇄ click handler records. Every
+    # test below drives the real click-then-choose path rather than setting
+    # the input's files directly: a direct set_input_files with no click
+    # first would leave the pending pk unset and the change handler would
+    # find no cell to attach a strip to.
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(_upload_payload())
 
     strip = page.locator("[data-replace-strip]")
     strip.wait_for(state="visible")
@@ -147,7 +157,9 @@ def test_cancel_changes_nothing_and_sends_no_request(page, live_server):
     seen = []
     page.on("request", lambda r: seen.append(r.url) if "/replace/" in r.url else None)
 
-    page.set_input_files("[data-replace-input]", _upload_payload())
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(_upload_payload())
     strip = page.locator("[data-replace-strip]")
     strip.wait_for(state="visible")
     strip.locator("[data-replace-cancel]").click()
@@ -171,9 +183,10 @@ def test_a_422_flashes_the_validator_message(page, live_server):
     _, course, _unit, _asset = _seed("pa-repl-422", "repl-422")
     _open_manager(page, live_server, "pa-repl-422", course)
 
-    page.set_input_files(
-        "[data-replace-input]",
-        {"name": "clip.mp4", "mimeType": "video/mp4", "buffer": b"\x00" * 256},
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(
+        {"name": "clip.mp4", "mimeType": "video/mp4", "buffer": b"\x00" * 256}
     )
     page.locator("[data-replace-commit]").click()
 
@@ -198,7 +211,9 @@ def test_a_server_error_removes_the_strip_and_flashes(page, live_server):
     _open_manager(page, live_server, "pa-repl-500", course)
     page.route("**/replace/", lambda route: route.fulfill(status=500, body="boom"))
 
-    page.set_input_files("[data-replace-input]", _upload_payload())
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(_upload_payload())
     page.locator("[data-replace-commit]").click()
 
     page.wait_for_selector("[data-replace-strip]", state="detached")
@@ -214,14 +229,18 @@ def test_two_consecutive_replaces_both_succeed(page, live_server):
 
     The per-strip `done` closure: hoisted, the second replace is a silent no-op.
     The in-flight flag's LOWERING: it is read in exactly one place, the ⇄ click
-    handler -- so the second pass must go through an actual CLICK. A test that
-    only ever calls set_input_files never executes that handler, and a flag that
-    is raised and never lowered would pass every other test in this module.
+    handler -- so the second pass must go through an actual CLICK (both passes
+    do, now that the shared input requires it -- but the second is what proves
+    the flag was actually lowered: a flag raised and never lowered would make
+    THIS click return early, no chooser would be raised, and the test would
+    hang rather than fail cleanly).
     """
     _, course, _unit, _asset = _seed("pa-repl-twice", "repl-twice")
     _open_manager(page, live_server, "pa-repl-twice", course)
 
-    page.set_input_files("[data-replace-input]", _upload_payload("first.png"))
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(_upload_payload("first.png"))
     page.locator("[data-replace-commit]").click()
     # Detached-first, then .asset-fname -- see the note in the happy-path test.
     # Getting this wrong is not cosmetic here: a no-op wait would run the click
@@ -264,7 +283,9 @@ def test_a_filter_swap_mid_flight_still_updates_the_cell(page, live_server):
     held = []
     page.route("**/replace/", lambda route: held.append(route))
 
-    page.set_input_files("[data-replace-input]", _upload_payload("late.png"))
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(_upload_payload("late.png"))
     page.locator("[data-replace-commit]").click()
 
     # Prove the POST actually dispatched before touching the filter: the commit
@@ -312,7 +333,9 @@ def test_a_filter_that_hides_the_asset_mid_flight_is_a_no_op(page, live_server):
 
     held = []
     page.route("**/replace/", lambda route: held.append(route))
-    page.set_input_files("[data-replace-input]", _upload_payload("hidden.png"))
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(_upload_payload("hidden.png"))
     page.locator("[data-replace-commit]").click()
     page.wait_for_function(
         "() => { const b = document.querySelector('[data-replace-commit]');"
@@ -340,6 +363,65 @@ def test_a_filter_that_hides_the_asset_mid_flight_is_a_no_op(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_a_grid_swap_while_the_file_chooser_is_open_still_lands(page, live_server):
+    """The exact window the hoisted-input fix exists for: the OS file dialog is
+    still open -- pendingReplacePk already recorded by the ⇄ click -- when the
+    debounced filter does oldGrid.replaceWith(newGrid).
+
+    A per-cell input would be detached at that swap: its `change` would bubble
+    only inside the orphaned tree and never reach the delegated listener on
+    .media-manager, so choosing a file afterwards would be a dead click -- no
+    strip, no flash, no error. The shared input lives outside .asset-grid, so
+    the swap cannot touch it, and the change handler re-resolves the (freshly
+    re-rendered) cell from the live DOM by the recorded pk.
+    """
+    _, course, _unit, asset = _seed("pa-repl-chooser-swap", "repl-chooser-swap")
+    _open_manager(page, live_server, "pa-repl-chooser-swap", course)
+
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    page.fill("[data-filter-q]", "original")  # still matches original.png
+    page.wait_for_timeout(400)  # past the 250ms debounce, then the swap lands
+    fc.value.set_files(_upload_payload("after-swap.png"))
+
+    strip = page.locator("[data-replace-strip]")
+    strip.wait_for(state="visible")
+    strip.locator("[data-replace-commit]").click()
+
+    page.wait_for_selector("[data-replace-strip]", state="detached")
+    page.wait_for_selector('.asset-cell .asset-fname:has-text("after-swap.png")')
+    asset.refresh_from_db()
+    assert asset.original_filename == "after-swap.png"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_grid_swap_to_no_match_while_the_chooser_is_open_is_noop(page, live_server):
+    """The negative half of the same window: the filter's query matches
+    nothing, so the swapped-in grid has no cell at all and the change
+    handler's re-resolve-by-pk finds nothing. Nothing must throw and no strip
+    may appear -- without this the `if (!cell)` guard in the change handler
+    could be deleted and the positive test above would still pass.
+    """
+    _, course, _unit, asset = _seed("pa-repl-chooser-nomatch", "repl-chooser-nomatch")
+    _open_manager(page, live_server, "pa-repl-chooser-nomatch", course)
+
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    page.fill("[data-filter-q]", "zzz-matches-nothing")
+    page.wait_for_selector(".empty-state")  # the swap has landed; no cell left
+    fc.value.set_files(_upload_payload("after-swap.png"))
+    page.wait_for_timeout(200)  # a no-op has no event to sync on; short settle
+
+    assert errors == [], errors
+    assert page.locator("[data-replace-strip]").count() == 0
+    asset.refresh_from_db()
+    assert asset.original_filename == "original.png"  # unchanged
+
+
+@pytest.mark.django_db(transaction=True)
 def test_the_drag_warning_appears_only_for_a_drag_to_image_asset(page, live_server):
     from courses.models import DragToImageQuestionElement
 
@@ -355,7 +437,13 @@ def test_the_drag_warning_appears_only_for_a_drag_to_image_asset(page, live_serv
 
     for pk, expect_warning in ((dragged.pk, True), (plain.pk, False)):
         cell = page.locator(f'.asset-cell[data-asset-id="{pk}"]')
-        cell.locator("[data-replace-input]").set_input_files(_upload_payload())
+        # Click THIS cell's ⇄: with the input shared across the manager, the
+        # click is what records which asset (and its data-kind) the dialog is
+        # for -- cell.locator("[data-replace-input]") would find nothing, since
+        # the input no longer lives inside any cell.
+        with page.expect_file_chooser() as fc:
+            cell.locator("[data-replace-asset]").click()
+        fc.value.set_files(_upload_payload())
         strip = cell.locator("[data-replace-strip]")
         strip.wait_for(state="visible")
         shown = cell.locator(".asset-replace-confirm__warn").count() > 0
@@ -411,9 +499,9 @@ def test_screenshots_light_and_dark(page, live_server, tmp_path):
 
         # 4. confirm strip open, captured across the WHOLE grid so the
         #    row-height reflow onto the sibling cell is visible
-        in_use_cell.locator("[data-replace-input]").set_input_files(
-            _upload_payload("a-rather-long-replacement-name.png")
-        )
+        with page.expect_file_chooser() as fc:
+            in_use_cell.locator("[data-replace-asset]").click()
+        fc.value.set_files(_upload_payload("a-rather-long-replacement-name.png"))
         page.wait_for_selector("[data-replace-strip]")
         page.locator(".asset-grid").screenshot(
             path=str(tmp_path / f"replace-{theme}-4-strip-row.png")
