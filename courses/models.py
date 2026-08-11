@@ -1461,19 +1461,24 @@ class FillTableElement(ElementBase):
         from django.template.loader import render_to_string
 
         ctx = self._state_context(element, state, slug, node_pk)
+        nd = self.normalize_data(self.data)  # one nd: the gate check and the spread
         if ctx["mine"].get("done"):
             # Shallow-copied dict, NEVER `self.data["cells"] = ...` -- mutating
             # self.data in place would silently overwrite the student's stored
             # pipe-delimited alternatives in-memory for the rest of the request.
-            ctx["data"] = {
-                **self.normalize_data(self.data),
-                "cells": self.canonical_cells,
-            }
+            ctx["data"] = {**nd, "cells": self.canonical_cells}
+            if nd["gate"]:
+                # reveal.js::storedOpen tests `blob.open === true`, but state.py's
+                # _val_done stores only {"done": True} -- NOTHING ever writes
+                # `open`. Deriving it here is the ONLY thing that restores the
+                # cascade for a gated table. Do not remove it.
+                # COPY, never in-place: _state_context's `mine` is a reference
+                # into the caller's state blob, and mutating it would leak `open`
+                # into every other reader of that blob for this request.
+                ctx["mine"] = {**ctx["mine"], "open": True}
+                ctx["mine_json"] = json.dumps(ctx["mine"])
         else:
-            ctx["data"] = {
-                **self.normalize_data(self.data),
-                "cells": self.resolved_cells,
-            }
+            ctx["data"] = {**nd, "cells": self.resolved_cells}
         return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property
