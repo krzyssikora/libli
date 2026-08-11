@@ -28,7 +28,7 @@ mechanisms.
 |---|---|---|
 | `ImageElement` | `media` | `courses/models.py:748-750` |
 | `VideoElement` | `media` (`null=True`) | `courses/models.py:762-768` |
-| `DragToImageQuestionElement` | `media` | `courses/models.py:2683-2684` |
+| `DragToImageQuestionElement` | `media` | `courses/models.py:2683-2685` |
 
 `courses/media.py:20-24` (`_MEDIA_REF_MODELS`) lists exactly these three. It is the source of truth
 for the manager's *usage tracking* — `usage_count`, the grid's count annotations and the "where
@@ -60,17 +60,20 @@ rather than a surprise.
 
 ### What the manager already does
 
-`courses/views_media.py` implements four operations against `courses/media.py` services, all
-following one shape: `_require_manage(request, slug)` for authorisation, a `ValidationError` rendered
-as `courses/manage/_op_error.html` with status 422, a success path that re-renders a single
-`courses/manage/media/_asset_cell.html` after `media_svc.attach_usage(asset)`, and a
-`_wants_fragment(request)` check (`X-Requested-With: fetch`,
-`courses/views_manage.py:1330-1331`) that redirects to `courses:manage_media` for the no-JS path.
-Note the shape precisely: each op re-checks `_wants_fragment` **inside every branch**
-(`views_media.py:33-37`, `:48-52`, `:75-82`, `:121-128`), not once at the end.
+`courses/views_media.py` holds five views. **Upload and rename** are the two replace should imitate:
+`_require_manage(request, slug)` for authorisation, a `ValidationError` rendered as
+`courses/manage/_op_error.html` with status **422**, and a success path that re-renders a single
+`courses/manage/media/_asset_cell.html` after `media_svc.attach_usage(asset)`. **Delete diverges** —
+its error status is **409** and its success renders `_empty.html`, not a cell
+(`views_media.py:127,131`) — so "like the siblings" below always means upload/rename.
+
+What *all* the mutating ops share is the `_wants_fragment(request)` check (`X-Requested-With: fetch`,
+`courses/views_manage.py:1330-1331`), re-tested **inside every branch**
+(`views_media.py:33-37`, `:48-52`, `:75-82`, `:121-128`), never once at the end, so a no-JS POST
+redirects to `courses:manage_media` no matter which branch it lands in.
 
 `courses/static/courses/js/media_picker.js` progressively enhances three of them in `wireManager`:
-upload (`:266-278`), delete (`:302-317`) and inline rename (`:319-355`). Replace becomes the fourth,
+upload (`:266-278`), delete (`:302-317`) and inline rename (`:319-357`). Replace becomes the fourth,
 and reuses their conventions rather than inventing new ones.
 
 ### The five things that are not free
@@ -277,11 +280,13 @@ Body, following `media_upload`'s shape:
 5. On success, `media_svc.attach_usage(asset)` then render
    `courses/manage/media/_asset_cell.html`.
 
-**The error response, in both error branches**, is exactly the siblings' shape: check
+**The error response, in both error branches**, follows upload/rename: check
 `_wants_fragment(request)` *inside the branch* — if false, `redirect("courses:manage_media",
-slug=course.slug)`; if true, render `courses/manage/_op_error.html` with status 422. The success path
-does the same. There is no single trailing fragment check; every branch carries its own, because a
-no-JS POST must redirect no matter which branch it lands in.
+slug=course.slug)`; if true, render `courses/manage/_op_error.html` with status **422**. Both error
+branches use 422; replace never returns delete's 409, which signals a different condition
+(refused-because-in-use) that replace does not have. The success path carries its own fragment check
+too. There is no single trailing check, because a no-JS POST must redirect no matter which branch it
+lands in.
 
 Error message strings are plain Python literals, **not** wrapped in `gettext` — matching the sibling
 ops (`views_media.py:80`, `:126`), which ship untranslated English for the same class of message.
@@ -359,8 +364,14 @@ template for no correctness gain.
 lone SVG among them would read as a mistake. Converting all three is a cosmetic change outside this
 design's scope.
 
-**No no-JS path.** Replace is a JS-only affordance, matching the rename pencil, which is also
-JS-only. The endpoint still accepts an ordinary multipart POST, which is what the view tests drive.
+**No no-JS path, accepted with its cost.** Replace is a JS-only affordance, like the rename pencil.
+The precedent is weaker than it looks and the difference is stated rather than glossed: the pencil is
+`opacity: 0` until `.asset-cell:hover` (`editor.css:725-726`), so a no-JS author rarely meets it,
+whereas ⇄ is a permanently visible `.iconbtn` sitting beside a trash button that *does* work without
+JS. A no-JS author therefore sees one dead control next to a live one. That is accepted: hiding ⇄
+behind hover would bury a brand-new affordance for every author to protect a configuration the
+manager already does not support (filter, drag-drop upload and rename are all JS-only). The endpoint
+still accepts an ordinary multipart POST, which is what the view tests drive.
 
 ### 5. The confirm strip — DOM contract
 
@@ -369,7 +380,7 @@ by JS and appended to `.asset-cell` after `.asset-foot`:
 
 ```html
 <div class="asset-replace-confirm" data-replace-strip role="group"
-     aria-label="Confirm file replacement">
+     aria-label="…replace-aria…">
   <span class="asset-replace-confirm__label">…replace-confirm…</span>
   <span class="asset-replace-confirm__file" data-replace-filename>…filename…</span>
   <span class="asset-replace-confirm__warn">…replace-drag-warning…</span>   <!-- only when di-uses > 0 -->
@@ -380,11 +391,25 @@ by JS and appended to `.asset-cell` after `.asset-foot`:
 </div>
 ```
 
-Every text node is set with `textContent`, never `innerHTML`.
+Every text node is set with `textContent`, never `innerHTML`. The `aria-label` is **not** a literal:
+the strip is built entirely in JS, so there is no template in which `{% trans %}` could reach it, and
+it takes its text from the `replace-aria` key like every other string here. It is the one string that
+is an *attribute* rather than a text node, which is exactly why it is easy to leave hardcoded while
+`makemessages` still reports the catalog complete.
 
 ### 6. JS — `courses/static/courses/js/media_picker.js`
 
-A fourth op inside `wireManager`, delegated from `root` like the delete and rename handlers.
+A fourth op inside `wireManager`. **Two binding styles, deliberately:**
+
+- The **⇄ click** and the **input `change`** are delegated from `root`, because those elements arrive
+  and depart with server-rendered cells (`cell.replaceWith(fresh)`, and the filter's whole-grid swap).
+- The **strip's own buttons are bound directly, at build time**, inside the closure that built that
+  strip. This is not a stylistic choice: it is what makes the `done` re-entrancy flag work. The
+  rename handler's `done` is declared inside its per-click listener (`media_picker.js:330`), so it is
+  a fresh closure per interaction. A commit handler delegated from `root` has no such closure, and a
+  `done` hoisted to `wireManager` scope would be set by the *first* replace and then silently swallow
+  every replace afterwards — no error, no flash, nothing. Per-strip closures keep the rename
+  precedent exact.
 
 1. **Click** on `[data-replace-asset]` → locate any open strip with a **live DOM query**
    (`root.querySelector("[data-replace-strip]")`), never a retained reference, and close it (remove
@@ -395,8 +420,11 @@ A fourth op inside `wireManager`, delegated from `root` like the delete and rena
    be a no-op on the live DOM. A filter/grid swap is therefore an implicit cancel, with no request in
    flight and nothing to clean up.
    Then `input.click()` on this cell's `[data-replace-input]`.
-2. **`change`** on the input (a cancelled OS file dialog fires nothing, so there is no dismissal to
-   handle) → build and **append** the strip of §5 to `.asset-cell`, after `.asset-foot`. The foot is
+2. **`change`** on the input → **first, return early if `!input.files || !input.files.length`**,
+   matching the guards the file already uses at `:169` and `:270`. A cancelled OS dialog normally
+   fires nothing at all, but that is browser-dependent rationale, not a defence; without the guard an
+   empty `FileList` builds a strip whose filename reads `undefined` and whose commit posts nothing.
+   Then build and **append** the strip of §5 to `.asset-cell`, after `.asset-foot`. The foot is
    neither replaced nor emptied, so the existing "in use ×N" summary and its expandable unit list
    stay on screen while the author decides — which is what makes a non-blocking warning defensible.
    The `__warn` span is included only when the cell's `data-di-uses` is greater than zero.
@@ -405,23 +433,36 @@ A fourth op inside `wireManager`, delegated from `root` like the delete and rena
 3. **Cancel** (`[data-replace-cancel]`) → remove the strip node, set `input.value = ""` on the cell's
    persistent input so re-choosing the same file fires `change` again, and **return focus to the
    `[data-replace-asset]` button**.
-4. **Replace** (`[data-replace-commit]`) → `POST` the cell's `data-replace-url` with a `FormData`
-   carrying `file`, the `X-CSRFToken` header and `X-Requested-With: fetch`, exactly as `uploadFile`
-   does (`media_picker.js:240-249`).
+4. **Replace** (`[data-replace-commit]`) → set the closure's `done` flag and **disable both the
+   commit and the cancel button** for the duration of the request, then `POST` the cell's
+   `data-replace-url` with a `FormData` carrying `file`, the `X-CSRFToken` header and
+   `X-Requested-With: fetch`, exactly as `uploadFile` does (`media_picker.js:240-249`).
+
+   Disabling cancel is the point, not politeness: the POST is unabortable server-side, so a cancel
+   accepted mid-flight would remove the strip, tell the author nothing happened, and then land a 200
+   that swaps in the replaced file anyway.
+
+   Exactly three response branches, and the third is a catch-all:
+
    - **200** → swap the whole `.asset-cell` for the returned HTML (the rename handler's
-     `cell.replaceWith(fresh)` pattern). The strip and the input go with the old node.
-   - **422** → remove the strip, clear the input, and flash the server's message. The body is an
-     `_op_error.html` fragment, not a bare string, so it is parsed by assigning the response text to a
-     detached element's `innerHTML`, reading `querySelector(".op-error")`'s `textContent`, and passing
-     that **string** to `flash()`. `flash` sets `textContent` (`media_picker.js:6-9`), so nothing
-     server-echoed is ever inserted as markup. If the fragment has no `.op-error`, fall back to
-     `msg(root, "replace-failed", …)`.
-   - **Network failure** → same as 422 with the canned fallback message, so the cell can never wedge.
+     `cell.replaceWith(fresh)` pattern). The strip and the input go with the old node. **Move focus to
+     the fresh cell's `[data-replace-asset]` button**, since the element that had focus was just
+     destroyed.
+   - **422** → remove the strip, clear the input, **return focus to `[data-replace-asset]`**, then
+     flash the server's message. The body is an `_op_error.html` fragment, not a bare string, so it is
+     parsed by assigning the response text to a detached element's `innerHTML`, reading
+     `querySelector(".op-error")`'s `textContent`, and passing that **string** to `flash()`. `flash`
+     sets `textContent` (`media_picker.js:6-9`), so nothing server-echoed is ever inserted as markup.
+     If the fragment has no `.op-error`, fall back to `msg(root, "replace-failed", …)`.
+   - **Any other status, and any rejected promise** → the same cleanup as 422 (remove strip, clear
+     input, restore focus) with the canned `replace-failed` message. This branch is mandatory, not
+     defensive padding: a 403 from a rotated CSRF token, a 404 from an asset deleted in another tab, a
+     405, a 500 and a dropped connection are none of them 200, 422 or necessarily a thrown error, and
+     an `if/else if` pair plus a `.catch` would leave every one of them with the strip open, no
+     message, and a wedged cell. Both siblings in this file already have catch-alls
+     (`media_picker.js:314-316`, `:341`).
 
-A `done` re-entrancy flag guards the commit path, as the rename handler's does
-(`media_picker.js:330-334`).
-
-**All five JS-rendered strings** reach the script the way the existing conflict message does: as
+**All six JS-rendered strings** reach the script the way the existing conflict message does: as
 `data-msg-*` attributes rendered with `{% trans %}` on the `.media-manager` root
 (`manager.html:6-10`), read back through `msg(host, key, fallback)` (`media_picker.js:234`).
 
@@ -432,6 +473,7 @@ A `done` re-entrancy flag guards the commit path, as the rename handler's does
 | `replace-commit` | `Replace` |
 | `replace-cancel` | `Cancel` |
 | `replace-failed` | `Could not replace the file.` |
+| `replace-aria` | `Confirm file replacement` |
 
 ### 7. CSS — `courses/static/courses/css/editor.css`
 
@@ -448,6 +490,14 @@ stack rather than sit on one line, and the filename must truncate the way `.asse
 - `.asset-replace-confirm__warn` — `color: var(--text-secondary)`. Not `--text-tertiary`, which
   fails AA at body size.
 - `.asset-replace-confirm__actions` — row flex with a small gap.
+
+**The strip grows its whole grid row.** `.asset-grid` is CSS Grid with the default
+`align-items: stretch`, so appending the strip to one cell makes that grid *row* taller and stretches
+every neighbouring cell with it — a visible reflow when the strip opens and again when it closes.
+This is **accepted** rather than mitigated: the obvious fix, `align-self: start` on `.asset-cell`,
+would stop every cell in the grid stretching to equal height, changing the manager's existing look
+for all authors to smooth a transient in one cell. The screenshot check must therefore include a
+**multi-cell row with one strip open**, so the reflow is seen and judged rather than discovered later.
 
 All colours come from existing tokens, so dark mode follows automatically — but the strip is checked
 in **both** themes with screenshots, and the dark rendering is judged on its own rather than assumed
@@ -466,10 +516,14 @@ resolves the pk and serves the new bytes.
 
 **Why no stale cache, on this project's storage.** The new bytes are visible immediately because
 `FileSystemStorage.get_available_name` assigns a *different* name whenever the old file is present —
-so every rendered `asset.file.url` changes. The one branch where the name is reused is the branch
-where the old file was **absent**, meaning nothing was ever served from that URL to cache. An
-overwrite-style backend would break that reasoning and need explicit cache-busting; the project does
-not use one, and supporting it is out of scope.
+so every rendered `asset.file.url` changes. The name is reused only when the old file was **absent**,
+and of the two ways that happens (§"five things" item 2) one is entirely safe: a row that never had
+bytes at that name was never served from that URL, so there is nothing cached to go stale. The other
+— a row whose bytes existed, were served, and were later lost — can leave a browser holding a cached
+thumbnail at the reused URL until a hard refresh. That is a pathological edge (the file was already
+missing before the replace began) and is accepted, not solved. An overwrite-style backend would break
+the reasoning generally and need explicit cache-busting; the project does not use one, and supporting
+it is out of scope.
 
 **Rejected file.** Empty, wrong extension for the asset's kind, or over the size limit → the service
 raises → the transaction rolls back → 422 with the message → JS removes the strip and flashes. The
@@ -481,8 +535,9 @@ row, the old file and every consuming element are untouched.
 
 | Condition | Response |
 |---|---|
-| GET (or any non-POST) | 405 from `@require_POST`, before authentication |
-| Not a course manager | `PermissionDenied` from `_require_manage`, as every sibling op |
+| GET (or any non-POST), **anonymous or not** | 405 from `@require_POST`, before authentication |
+| Anonymous POST | 302 to the login page from `@login_required` — not a 403 |
+| Authenticated non-manager POST | `PermissionDenied` from `_require_manage`, as every sibling op |
 | `pk` belongs to another course | 404 from `get_object_or_404(..., course=course)` |
 | No `file` key in `request.FILES` | 422 `_op_error.html` (fragment) / redirect (no-JS) |
 | Zero-byte file | 422, `"The submitted file is empty."` |
@@ -538,10 +593,11 @@ e2e tests fail against correct code.
 
 ## i18n
 
-Template strings (the button's `aria-label`/`title`, the strip's `aria-label`) are wrapped in
-`{% trans %}`; the five JS strings are rendered into `data-msg-*` attributes with `{% trans %}` on
-`.media-manager`. **No string carries an interpolation placeholder** — the filename is a separate DOM
-node — so no translation, fuzzy pre-fill included, can break the strip by dropping a token.
+The ⇄ button's `aria-label`/`title` live in `_asset_cell.html` and are wrapped in `{% trans %}`. All
+**six** JS-rendered strings — including the strip's `aria-label`, which JS builds and so no template
+can reach — are rendered into `data-msg-*` attributes with `{% trans %}` on `.media-manager`. **No
+string carries an interpolation placeholder** — the filename is a separate DOM node — so no
+translation, fuzzy pre-fill included, can break the strip by dropping a token.
 
 The view's error messages are the documented exception: plain literals, untranslated, matching the
 sibling ops (see §3).
@@ -590,16 +646,33 @@ catalog recompiled, with any `#, fuzzy` pre-fill on a new entry cleared rather t
 - **Both JSON-pk resolvers:** a `GalleryElement` (`resolved_images`) **and** a `TableElement` image
   cell (`resolved_cells`) referencing the asset by pk each resolve to the new file after a replace.
   These are separate code paths; one does not cover the other.
+- **Drag-to-image survives:** a `DragToImageQuestionElement` with at least one `DragZone` keeps its
+  `media_id` and all its zone rows (count and `x/y/w/h` values) after a replace. This is the consumer
+  the design devotes a hazard section and a whole warning string to; leaving it unasserted would mean
+  the one model whose content the feature can degrade is the one model no test touches.
 - **Video:** replacing a video asset preserves `kind="video"` and `VideoElement.media_id`, and swaps
   the file.
 - **Rejections**, each asserting the re-fetched row's `file`, `original_filename` and `content_hash`
   are unchanged and the old file is still on disk: a **0-byte** file; an `.mp4` onto an image asset; a
   `.png` onto a video asset; a file over the effective size limit.
-- A missing old file on disk does not raise.
+- A missing old file on disk does not raise. Built with `make_image_asset` and then **unlinking the
+  file from `MEDIA_ROOT`** before replacing — not with a byte-less factory row, which would collide
+  with the "real bytes" rule above and silently become a second identical-name test.
 
 **View (`tests/test_media_manager.py`)**
 
-- GET → 405. Non-manager → denied. A `pk` from another course → 404.
+- **An anonymous GET returns 405, not a login redirect.** A *logged-in* GET returns 405 under either
+  decorator order, so it cannot falsify the ordering the design specifies; only the anonymous case
+  can. An anonymous POST returns a 302 to login.
+- Authenticated non-manager → denied. A `pk` from another course → 404.
+- **The ⇄ button is enabled on an in-use asset.** Render a cell for an asset with at least one
+  `ImageElement` reference and assert `[data-replace-asset]` is present and **not** disabled while the
+  delete button *is*. The two buttons live in the same `{% with uses=… %}` block, and the trash's
+  markup is `{% if uses %}disabled …{% endif %}` (`_asset_cell.html:35-36`) — copying that adjacent
+  line is the single most likely implementation slip, and it would disable replace on precisely the
+  assets the feature exists for.
+- `data-di-uses` renders the correct count on the cell for an asset backing a drag-to-image question,
+  and `0` for one that is not.
 - No `file` key posted → 422, **including** a multipart POST whose file is under a different key,
   which must be a 422 and not a 500.
 - A 0-byte upload → 422.
@@ -630,9 +703,13 @@ pass identically on a build that replaced nothing. They use a setup that redirec
   slept on: register `page.on("request")` filtered to the replace URL *before* clicking, then — after
   a condition that provably post-dates any request the handler could have made (the strip's removal
   from the DOM) — assert the recorded list is empty.
+- **Two consecutive replaces on the same cell both succeed.** This is the regression test for the
+  `done` flag's scope (§6): a flag hoisted out of the per-strip closure makes the second replace a
+  silent no-op, with no error and no flash, which every other test in this list would still pass.
 - For an asset backing a drag-to-image question the strip shows `.asset-replace-confirm__warn`; for
   one that does not, it is absent.
-- Both themes are screenshotted and the dark rendering judged on its own.
+- Both themes are screenshotted and the dark rendering judged on its own, and the shot includes a
+  multi-cell grid row with one strip open so the row-height reflow (§7) is seen.
 
 Per the repo's testing convention, each new test is falsified against a deliberately broken variant
 before being trusted — in particular the shared-filename guard and the identical-name guard (both of
