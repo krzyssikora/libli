@@ -21,7 +21,7 @@
 - **Run tests narrowly.** Start the test-DB container first (`docker compose -f docker-compose.test.yml up -d`); a down container makes the suite look hung for ~4 minutes. Never background a pytest run.
 - **Tooling is via `uv run`** — `pytest`, `ruff`, and `python` are not on PATH.
 - **Lint before each commit:** `uv run ruff check --no-cache <changed files>` and `uv run ruff format --check <changed files>` (a separate CI gate). `--no-cache` matters: a `# noqa` warning is cached away and the second run falsely reports clean. **`--check` is a gate, not a fixer** — some snippets dictated here are not `ruff format`-clean as pasted (Task 9's `_visible` helper, for one). When `--check` reports "would be reformatted", run bare `uv run ruff format <changed files>` and re-run `--check`; that is expected, not a defect in the snippet.
-- **`ruff format` will NOT save you from `E501`.** `E` is selected with no `line-length` override, so the limit is **88 columns**, and the repo is E501-clean today. `ruff format` only re-wraps *bracketed code* — it never rewraps a comment, never splits a string literal, and never parenthesises an assignment target list. Long comments, long string literals and wide unpacking targets must be wrapped **by hand**, and a `ruff check` failure on one of those is a real violation to fix, not the expected `format --check` churn described above. The dictated snippets have been wrapped for this; keep them that way when pasting, and remember that Task 9's bodies gain 4 columns once the `def` line is added.
+- **`ruff format` will NOT save you from `E501`.** `E` is selected with no `line-length` override, so the limit is **88 columns**, and the repo is E501-clean today. `ruff format` only re-wraps *bracketed code* — it never rewraps a comment, never splits a string literal, and never parenthesises an assignment target list. Long comments, long string literals and wide unpacking targets must be wrapped **by hand**, and a `ruff check` failure on one of those is a real violation to fix, not the expected `format --check` churn described above. The dictated snippets are wrapped for this **except where a trailing comment is used for emphasis** — measure before pasting rather than assuming, and remember that Task 9's bodies gain 4 columns once the `def` line is added (its nested blocks 8). The cheap check is `uv run ruff check --no-cache <file>` immediately after writing a snippet, not at the commit step.
 - **English source strings only** in Tasks 1–9; the Polish catalog and the binary `.mo` are Task 10, deliberately last.
 
 ---
@@ -580,7 +580,7 @@ def test_saved_gated_state_stores_done_only(client):
     assert stored[str(row.pk)] == {"done": True}, "`open` must not survive _val_done"
 ```
 
-*Mutant for this one: add `open` to `_val_done`'s return in `courses/state.py`* — the test must go RED, proving it reads storage rather than the response. Restore `courses/state.py` immediately afterwards; it is a Global Constraint that the file ships unchanged.
+(Its mutant is numbered 4 in Step 6 — it is not an aside, because this test is green-on-write and would otherwise never be shown able to fail.)
 
 - [ ] **Step 3: Run to verify they fail**
 
@@ -636,7 +636,7 @@ uv run pytest tests/test_filltable_restore.py tests/test_filltable_render.py -v
 
 Expected: all PASS, including both files' pre-existing tests. `test_filltable_render.py` is in the command because this step **replaces the whole of `render()`** — hoisting `normalize_data` and restructuring both branches — and that file (including the three tests Task 2 just added to it) drives `render()` through its `_render` helper. Without it the rewrite is unverified against its own render-path coverage until the branch gate.
 
-- [ ] **Step 6: Falsify all three**
+- [ ] **Step 6: Falsify all four**
 
 1. Remove the whole `if nd["gate"]:` block → `test_gated_done_renders_open_in_data_state` RED. **This is the highest-value mutant in the plan**: without this test, deleting the derivation is invisible to the entire suite and breaks restore for every gated table.
 2. Restore, then change the condition to always-true (drop `if nd["gate"]:`) → `test_ungated_done_does_not_render_open` RED.
@@ -645,6 +645,7 @@ Expected: all PASS, including both files' pre-existing tests. `test_filltable_re
    ctx["mine"]["open"] = True
    ```
    → `test_render_does_not_mutate_the_callers_state_blob` RED.
+4. Restore, then **add `open` to `_val_done`'s return in `courses/state.py`** → `test_saved_gated_state_stores_done_only` RED; the other three stay GREEN (they never round-trip through storage). This proves that test reads the stored blob rather than echoing the POST response — which is the entire claim this task's derivation rests on. **Restore `courses/state.py` immediately afterwards**: shipping it unchanged is a Global Constraint, and this is the only step in the plan that touches it. Verify with `git diff --quiet courses/state.py` before moving to Step 7.
 
 - [ ] **Step 7: Commit**
 
@@ -680,6 +681,8 @@ the caller's reference."
 
 **This is not cosmetic.** `reveal.js` is loaded only under `{% if has_reveal_gate %}` (`lesson_unit.html:89`). On a unit whose only gate is a fill-table, omitting this term means **the cascade engine never loads at all** and the gate silently does nothing.
 
+**The filter reads the STORED blob; the template reads the NORMALIZED one.** `data__gate=True` matches whatever is in the JSONField, while `{% if data.gate %}` (Task 2) sees `normalize_data`'s output. `FillTableElement.save()` runs `_sanitized_data`, **not** `normalize_data`, so the two agree only because every *production* write path normalizes first — it is a write-path property, not a query property, and Task 7's `test_every_production_write_path_stores_a_real_boolean` is what pins it. They can still diverge on a row built directly, e.g. `objects.create(data={"gate": True, "cells": [[static-only]]})`: the filter matches and arms `has_reveal_gate`, while the template suppresses the marker. That divergence is **inert** — the pre-hide CSS keys on `[data-reveal-gate]`, so with no marker nothing is hidden and the only cost is `reveal.js` loading needlessly. Do not "fix" it by normalizing at query time; that would cost a full table scan.
+
 **Use the CT-free query shape.** The obvious `FillTableElement.objects.filter(elements__unit=node, ...)` makes `GenericRelation.get_extra_restriction` call `ContentType.objects.get_for_model`, a DB SELECT on a cold cache. `views.py` rejects that pattern in two existing comments (:411-412 and :457-459), the second naming `tests/test_html_element.py`'s query-count assertion as the thing it breaks.
 
 - [ ] **Step 1: Write the failing view-flag tests**
@@ -687,7 +690,8 @@ the caller's reference."
 **Extend `tests/test_filltable_context.py`** — do not create a new file. It already carries exactly the fixtures these tests need: `unit_with_element(el)` (attaches an unsaved concrete element to a fresh unit) and `ctx_for(unit)` (mints a uniquely-named verified user and calls `build_lesson_context`). It also already holds `test_has_fill_table_flag`, `test_has_fill_table_flag_when_nested_in_tab` and `test_has_fill_table_flag_false_without_element`, so the new cases sit directly beside their `has_fill_table` counterparts.
 
 ```python
-_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]   # non-blank: Task 1's guard keeps `gate` on
+# non-blank: Task 1's guard keeps `gate` on
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]
 
 
 def test_has_filltable_gate_flag(unit_with_element, ctx_for):
@@ -951,7 +955,10 @@ Expected: both PASS immediately — the implementation landed in Step 4, so unli
 1. Drop `or has_filltable_gate` from `has_reveal_gate` → `test_has_filltable_gate_flag`, `test_has_filltable_gate_flag_when_nested_in_a_callout` **and** the prepaint A/B go RED — `reveal-armed` is emitted from **two** `{% if has_reveal_gate %}` blocks — the prepaint script (`lesson_unit.html:5-17`) and the pre-hide `<style>` in `extra_css` (`:38-48`) — so both `__fillTableBooted` and every `reveal-armed` occurrence vanish from the gated render. Cite both; `courses/tests/test_reveal_scope_agreement.py:32-39` exists because that duplication trips people up.
 2. Restore, then omit `"has_filltable_gate": has_filltable_gate,` from the return dict → **all four** new tests go RED: the three context tests raise `KeyError` reading `ctx["has_filltable_gate"]`, and the prepaint A/B fails on the missing term. The A/B still earns its place — it is the only one that proves the *template* term is driven by the flag rather than by the mere presence of a fill-table, which no context-dict assertion can show.
 3. Restore, then scope the inner query to `parent__isnull=True` → the callout test goes RED, the top-level test stays GREEN.
-4. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
+4. Restore, then **drop `data__gate=True` from the filter** (leaving `pk__in=…`) → `test_ungated_filltable_sets_neither_gate_flag` RED (an ungated table would now arm both flags), and the query-shape source test RED on its `data__gate=True` assertion. Without this mutant that test's semantic claim is reddened only by mutant 2's blanket `KeyError` — the "one combined mutant lets the others hide" failure this plan warns about in Tasks 1 and 6.
+
+   Note that the `has_fill_table and` short-circuit in front of the query is **deliberately unguarded**: it is a pure query-count optimisation, and no test can falsify it. `tests/test_html_element.py` pays the same cost in both arms of any A/B, so its delta stays 0 whether the short-circuit is present or not. Do not add a mutant for it expecting a RED.
+5. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
 
 - [ ] **Step 10: Commit**
 
@@ -1078,6 +1085,15 @@ uv run pytest courses/tests/test_filltable_gate_static.py courses/tests/test_rev
 
 Expected: all PASS.
 
+Then run the two **existing** e2e suites that drive the files this branch has now perturbed:
+
+```bash
+docker compose -f docker-compose.test.yml up -d
+uv run pytest tests/test_e2e_filltable.py tests/test_e2e_reveal_gate.py -m e2e -v
+```
+
+Expected: all PASS, both files **unmodified**. This is the first point at which every client-side change exists (Task 2's template, Task 3's `render`, and this task's `filltable.js` + `reveal.js` edits), and these two suites are the direct behavioural guard on the "an ungated fill-table behaves byte for byte as today" constraint. Deferring them to the post-Task-10 sweep would surface a regression five commits downstream with a large blast radius to bisect — this is not a repo-wide sweep, it is the two directly affected neighbours.
+
 - [ ] **Step 6: Falsify**
 
 1. Delete the `hasAttribute("data-reveal-gate") &&` clause → `test_cascade_call_is_guarded_by_the_gate_attribute` RED. (The behavioural counterpart is e2e test 27 in Task 9.)
@@ -1122,7 +1138,8 @@ payload is deliberately unchanged -- _val_done strips anything but `done`."
 Add to `tests/test_filltable_editor_partial.py`. **That file's helper is `_render(instance)`** (line 22) — it builds `FORM_FOR_TYPE["filltable"](instance=instance)` and renders the partial. `test_partial_has_case_sensitive_checkbox` in the same file is the exact precedent for both the call and the assertion shape:
 
 ```python
-_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]   # non-blank: the guard keeps `gate` on
+# non-blank: the guard keeps `gate` on
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]
 
 
 def test_partial_has_gate_checkbox_unchecked_by_default():
@@ -1257,7 +1274,15 @@ uv run pytest tests/test_filltable_editor_partial.py tests/test_filltable_form.p
 
 Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be untouched — confirm no new `function` was introduced rather than assuming it.
 
-- [ ] **Step 8: Falsify**
+- [ ] **Step 8: Look at the controls row — the only step that opens the editor**
+
+Every other check in this task is a substring assertion on rendered HTML or on JS source; none of them can see a layout regression. The new label is ~54 characters and lands in `.table-editor__controls.filltable-editor__controls`, a wrapping flex row whose next sibling is `.filltable-editor__prompt-field { flex: 1 1 16rem; min-width: 12rem; }`. Adding a wide, inflexible item to that row is precisely the basis-weighted-shrink situation that squeezes or displaces the Instruction field.
+
+Open the fill-table editor on an element with the checkbox present and capture the controls row in **light and dark**. **Pass criterion:** the Instruction field is still usable at a normal editor width — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width`. Judge dark on its own terms rather than assuming the light result carries. These captures are a throwaway review artifact, not committed.
+
+If the row does not survive, the fix belongs here (a shorter label, or letting the checkbox wrap) — do not leave it for the branch gate to discover.
+
+- [ ] **Step 9: Falsify**
 
 1. Drop `{% if d.gate %}checked{% endif %}` → `test_partial_gate_checkbox_is_checked_for_a_gated_element` RED.
 2. Restore, then hardcode `checked` on the new `<input data-gate>` (drop the `{% if %}` but keep the attribute) → `test_partial_has_gate_checkbox_unchecked_by_default` RED, and the checked-state test stays GREEN. Mutant 1 leaves this test green, so it needs its own.
@@ -1266,11 +1291,11 @@ Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be unto
 5. Restore, then delete `var gate = editor.querySelector("[data-gate]");` → the same test RED on its *first* assertion.
 6. Restore, then delete the `gate.addEventListener("change", serialize);` line → the same test RED on its *third* assertion.
 
-Mutants 4-6 are separate for the reason Task 1 Step 6 gives: that test makes three independent assertions, and one combined mutant would let two of them hide. Likewise, removing the `data-gate` attribute from the partial altogether reddens the presence clause of `test_partial_has_gate_checkbox_unchecked_by_default`, which mutant 2 leaves untouched.
+7. Restore, then **remove the `data-gate` attribute from the partial altogether** (drop the whole new `<label>`) → `test_partial_has_gate_checkbox_unchecked_by_default` RED **on its first assertion** (`"data-gate" in html`), and `test_partial_gate_checkbox_is_checked_for_a_gated_element` RED too. Mutant 2 reddens that test's *second* clause only, so without this one its presence clause is falsified solely by the pre-implementation RED — unlike every sibling assertion in this task.
 
-That third mutant is guarded by `test_editor_js_serializes_the_gate_flag`, written in Step 1.
+Mutants 4-6 are separate for the reason Task 1 Step 6 gives: that test makes three independent assertions, and one combined mutant would let two of them hide.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 uv run ruff check --no-cache courses/element_forms.py tests/test_filltable_form.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py
@@ -1302,7 +1327,8 @@ The importer needs nothing: `_build_fill_table` ends with `FillTableElement(data
 **Use the file's own idiom.** `tests/test_filltable_transfer.py` imports `SERIALIZERS`, `BUILDERS`, `VALIDATORS` and `MediaIdMap`, and calls them through the registries — the module-private `_ser_fill_table` / `_build_fill_table` are never imported. Builders return a `(obj, children)` pair. The routing-invariant test additionally needs `json` and `FillTableElementForm`, neither of which the file imports yet; add both.
 
 ```python
-_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]   # non-blank: the guard keeps `gate` on
+# non-blank: the guard keeps `gate` on
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]
 
 
 def test_export_carries_the_gate_flag():
@@ -1383,7 +1409,7 @@ uv run pytest tests/test_filltable_transfer.py -v
 - [ ] **Step 5: Falsify**
 
 1. Delete `"gate": data["gate"],` → the export and round-trip tests go RED.
-2. Restore, then **bypass the normalizer on one write path**: change `_build_fill_table`'s tail to `FillTableElement(data=data)` → `test_every_production_write_path_stores_a_real_boolean` RED on its second half, where `obj.data["gate"]` is the string `"yes"` rather than `True`. This is the mutant the spec names for that test, and it is the whole point of it: the `data__gate=True` ORM filter in Task 4 matches the JSON literal `true` only, which is exact *because* every write path normalizes.
+2. Restore, then **bypass the normalizer on one write path**: `_build_fill_table`'s tail is `_clean_save(FillTableElement(data=FillTableElement.normalize_data(data)))` — change it to `_clean_save(FillTableElement(data=data))`, **keeping `_clean_save`**. Dropping the save too would return an unsaved instance and redden the image-remap and round-trip cases that read the persisted object, muddying the prediction. Expected RED: `test_every_production_write_path_stores_a_real_boolean`, on its second half, where `obj.data["gate"]` is the string `"yes"` rather than `True`. Expected GREEN: everything else in `tests/test_filltable_transfer.py`. This is the mutant the spec names for that test, and it is the whole point of it: the `data__gate=True` ORM filter in Task 4 matches the JSON literal `true` only, which is exact *because* every write path normalizes.
 3. Restore, then delete `"gate": gate,` from `normalize_data`'s return → `test_legacy_bundle_without_gate_imports_ungated` RED with `KeyError`. (Task 1's mutant 1 covers the same line against that task's tests; this confirms the transfer test reads it too, rather than being green for an unrelated reason.)
 
 Without mutants 2 and 3, those two tests are green-on-write and never shown able to fail — the exact thing the "Falsify every test before trusting it" constraint forbids.
@@ -1428,29 +1454,36 @@ Both must change. Note that no existing gate-family section states the scope con
 
 Replace the final sentence of the `{el:filltable}` section:
 
+Wrapped to the file's own ~75-column hand-wrap; keep it that way, or the paragraph reads as unrelated churn in the diff and invites the next editor to rewrap the lot:
+
 ```markdown
-is one-way. Records no marks. Tick **Reveal the rest of this section when all
-cells are correct** to turn the table into a reveal gate: everything after it
-stays hidden until a student fills every answer cell correctly, then appears in
-one go. Like the other gates (**Show more**, **Fill in & confirm**, **Choose & confirm**),
-the reveal stops at the edge of whatever contains the table — inside a callout it
-reveals the rest of that callout and nothing beyond it. Two gated tables in a row
-chain: the first reveals the second, the second reveals what follows.
+is one-way. Records no marks. Tick
+**Reveal the rest of this section when all cells are correct** to turn the
+table into a reveal gate: everything after it stays hidden until a student
+fills every answer cell correctly, then appears in one go. Like the other
+gates (**Show more**, **Fill in & confirm**, **Choose & confirm**), the
+reveal stops at the edge of whatever contains the table — inside a callout
+it reveals the rest of that callout and nothing beyond it. Two gated tables
+in a row chain: the first reveals the second, the second reveals what
+follows.
 ```
 
 - [ ] **Step 2: Update the Polish page**
 
 Replace the final sentence of the `{el:filltable}` section:
 
+Likewise wrapped to the Polish file's own width — the switch-gate line in particular grew when the name was corrected to *zatwierdź*:
+
 ```markdown
-jednokierunkowe. Nie przyznaje punktów. Zaznacz **Odsłoń resztę tej sekcji, gdy
-wszystkie komórki są poprawne**, aby zamienić tabelę w bramkę odsłaniającą:
-wszystko, co znajduje się po niej, pozostaje ukryte, dopóki uczeń nie wypełni
-poprawnie każdej komórki z odpowiedzią, a potem pojawia się naraz. Podobnie jak
-w pozostałych bramkach (**Pokaż więcej**, **Uzupełnij i potwierdź**,
-**Wybierz i zatwierdź**) odsłanianie zatrzymuje się na granicy elementu zawierającego tabelę — wewnątrz
-ramki odsłoni resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele
-tworzą łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
+jednokierunkowe. Nie przyznaje punktów. Zaznacz **Odsłoń resztę tej sekcji,
+gdy wszystkie komórki są poprawne**, aby zamienić tabelę w bramkę
+odsłaniającą: wszystko, co znajduje się po niej, pozostaje ukryte, dopóki
+uczeń nie wypełni poprawnie każdej komórki z odpowiedzią, a potem pojawia
+się naraz. Podobnie jak w pozostałych bramkach (**Pokaż więcej**,
+**Uzupełnij i potwierdź**, **Wybierz i zatwierdź**) odsłanianie zatrzymuje
+się na granicy elementu zawierającego tabelę — wewnątrz ramki odsłoni
+resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele tworzą
+łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
 ```
 
 **Verify the three bolded gate names against the `^## ` headings of each file before pasting.** They are not symmetric across the two languages, and prose mismatches are invisible to `tests/test_help.py`. In Polish the switch-gate is **Wybierz i zatwierdź** (`interactive-elements.pl.md:36`) — *zatwierdź*, not *potwierdź*, even though the fill-gate two lines earlier is **Uzupełnij i potwierdź** (`:27`). English: **Show more** (`:16`), **Fill in & confirm** (`:24`), **Choose & confirm** (`:32`).
@@ -1731,8 +1764,9 @@ The restored input is `readonly` (server-rendered), not `disabled` — `_filltab
 
 ```python
 _student, unit = _new_unit("ftg_pretick")
+# seeded UNGATED -- see the fixture note
 (table_row, table_obj), (trailing_row, _tr) = _seed(
-    unit, _filltable(gate=False), _text("trailing")     # seeded UNGATED -- see the fixture note
+    unit, _filltable(gate=False), _text("trailing")
 )
 _login(page, live_server, "ftg_pretick")
 page.goto(_unit_url(live_server, unit))
@@ -1846,8 +1880,10 @@ assert page.evaluate(
 - [ ] **Step 8: Run the suite and falsify per item**
 
 ```bash
-uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
+uv run pytest tests/test_e2e_filltable_gate.py tests/test_e2e_filltable.py tests/test_e2e_reveal_gate.py -m e2e -v
 ```
+
+The two existing suites run again here (Task 5 ran them first): every server-side and client-side change now exists together, and they must still pass **unmodified**.
 
 **There is no single group mutant for this block, and assuming one wastes a debugging session.** Reverting Task 5's `libliRevealCascade` call reddens tests 22, 23 and 26 — but **not** 21, 24, 25 or 27 — because `reveal.js::restoreGates` calls `cascadeFrom` **directly** off `data-state` (line 249) — it never goes through `filltable.js`. The `saveFlag({done: true})` line is unchanged and Task 3 derives `open`, so every reload-based path still works. Under that mutant:
 
@@ -1885,7 +1921,7 @@ uv run pytest tests/test_e2e_filltable_gate.py -m e2e -k test_correct_answer_rev
 
 (The exact name from the table above — a substring selector like `-k correct` would also sweep in tests 21 and 27.)
 
-with `page.screenshot(path=...)` temporarily added around test 22's reveal — before the click (gated) and after `expect(_summary(page)).to_have_class(_SUCCESS)` (revealed) — writing to a scratch directory outside the repo. Then repeat with the student's `user.theme` set to dark (**the cookie alone is not enough**; set the field on the user row before `_login`).
+with `page.screenshot(path=...)` temporarily added around test 22's reveal — before the click (gated) and after `expect(_summary(page)).to_have_class(_SUCCESS)` (revealed) — writing to a scratch directory outside the repo. Then repeat with the student's `user.theme` set to dark (**the cookie alone is not enough**; set the field on the user row before `_login`). Test 22 binds `_student, unit = _new_unit("ftg_correct")`, so the capture harness has no handle on that row — rebind it to `student` (or re-fetch the user by username) before setting `theme`. This is the same `_student` → `student` rebinding test 26 needs for `_seed_state`.
 
 **Not committed, and not in Step 10's `git add`** — these are four images for the PR description and for your own judgement, not repo artifacts.
 
