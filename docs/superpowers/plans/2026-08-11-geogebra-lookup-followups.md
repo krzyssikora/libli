@@ -1,0 +1,814 @@
+# GeoGebra Lookup Follow-ups Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Bound the GeoGebra API lookup that runs inside `save_element`'s unit row lock, and clear a stored `(width, height)` pair whenever the element's URL changes.
+
+**Architecture:** Two independent changes. Component A moves the transport onto a bounded daemon thread whose body read is itself chunked against a budget, so neither the row lock nor the worker can be held indefinitely by a slow peer. Component B removes one conjunct from `IframeElementForm.clean_url`'s stale-pair guard so the pair is cleared on any URL change, not only a GeoGebra one.
+
+**Tech Stack:** Python 3.13.12, Django 5.2.15, pytest 9 + pytest-django, `urllib.request`, stdlib `threading`. No new dependencies.
+
+**Spec:** `docs/superpowers/specs/2026-08-11-geogebra-lookup-followups-design.md` — read it before starting. It exited an 8-round review with 95 catches applied; the code shapes, constants and test parameters below were arrived at by measurement or by traced falsification. **Carry them forward verbatim. Do not re-derive or paraphrase them** — several paraphrases were themselves defects the review removed.
+
+## Global Constraints
+
+- **Worktree only.** All work happens in `C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/geogebra-lookup-followups` on branch `pipeline/geogebra-lookup-followups` (off `master` at `d197a4c7`). Never edit the main repo at `C:/Users/krzys/Documents/Python/own/libli`.
+- **No migration, no `FORMAT_VERSION` bump.** `IframeElement.width`/`height` already exist.
+- **`uv run` prefix is mandatory** — `pytest`, `ruff` and `python` are not on PATH. Use `uv run pytest`, `uv run ruff`.
+- **The test-DB container must be up before any pytest run.** Verified running at plan time: `libli-test-db` (healthy, `127.0.0.1:55433`) and `bonnot-postgres` (healthy, `5432`). If a run appears to hang for ~4 minutes, the container is down — check first, don't debug the test.
+- **`.env` and this worktree.** A git worktree has **no** `.env`. Verified empirically at plan time: both `tests/test_geogebra.py` (104 passed) and a DB-backed test from `tests/test_iframe_dimensions.py` (1 passed) run fine without one, because `config/settings/base.py:80-84` defaults `DATABASE_URL` to `postgres://libli:libli@localhost:5432/libli`. **Caveat:** the main repo's `.env` sets `TEST_DATABASE_URL` at the tuned `libli-test-db` (55433), so worktree runs use a *different* server (5432) than normal runs. That is acceptable for this plan's unit-only scope. If you want parity, copy `.env` from the main repo into the worktree first.
+- **Never run two pytest processes at once** across worktrees — they contend for the same test database.
+- **Falsify, don't just run.** Every test below names a mutant. Apply the mutant, observe RED, then **edit the mutant back out by hand**. Never `git checkout` to revert a mutant — that destroys uncommitted work.
+- **Scope test runs narrowly** during tasks (the two named files). The whole-suite sweep is Task 6 only.
+- **Ruff:** `select = ["E","F","I","UP","B","S"]`. `BLE` is *not* selected, but every broad except in `geogebra.py` still carries `BLE001` in its `noqa` — match the file's convention rather than trimming it. Run `ruff` with `--no-cache`; a cached run reports "All checks passed" on a file that previously warned.
+
+---
+
+## File Structure
+
+| File | Responsibility | Change |
+|---|---|---|
+| `courses/geogebra.py` | the only place the GeoGebra API is called | Component A: `_BudgetExceeded`, `_CHUNK_BYTES`, `monotonic` import, `_fetch_body`, threaded `fetch_geogebra_dimensions`, 4 comment rewrites |
+| `courses/element_forms.py` | `IframeElementForm.clean_url` | Component B: drop one conjunct at `:196`, 2 comment rewrites |
+| `docs/development/architecture.md` | module map | one line at `:106` |
+| `tests/test_geogebra.py` | fetch/parser unit tests | hoist `_Resp`; 7 new tests |
+| `tests/test_iframe_dimensions.py` | form + render tests | 2 tests rewritten in place, 1 new |
+
+---
+
+### Task 1: Make the response double stateful and reachable
+
+The chunked loop reads repeatedly, so the existing double — which returns `body[:n]` from the start on **every** call — would re-read chunk one forever and never reach EOF. It is also defined *inside* `_patch_open`, so tests that must assert on its call count have no handle on the instance. Both are fixed before any production code changes, and the existing suite proves the change is behaviour-preserving.
+
+**Files:**
+- Modify: `tests/test_geogebra.py:264-287`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: module-level `class _Resp` with `__init__(self, body)`, `read(n=-1)`, `read1` (alias), `calls: int`, `__enter__`/`__exit__`. Tasks 2–4 construct it directly as `_Resp(body)`.
+
+- [ ] **Step 1: Read the current helper**
+
+Read `tests/test_geogebra.py:264-287`. Note that `_Resp` is nested inside `_patch_open`, closes over `body`, and that `_side_effect` returns a fresh `_Resp()` per call.
+
+- [ ] **Step 2: Replace it with the module-scope version**
+
+Hoist `_Resp` **above** `_patch_open` and rewrite `_patch_open` to construct it. Keep `_patch_open`'s signature exactly — its ~17 callers must not change.
+
+```python
+class _Resp:
+    """Stateful response double: a read offset, so a chunked loop reaches EOF.
+
+    Module scope (not nested in _patch_open) so tests that assert on `calls` can
+    hold the instance -- unittest.mock does not record return values, so a test
+    using `with _patch_open(body)` has no other handle on it.
+    """
+
+    def __init__(self, body):
+        self._body = body
+        self._pos = 0
+        self.calls = 0
+
+    def read(self, n=-1):
+        self.calls += 1
+        if n is None or n < 0:
+            chunk = self._body[self._pos :]
+        else:
+            chunk = self._body[self._pos : self._pos + n]
+        self._pos += len(chunk)
+        return chunk
+
+    read1 = read  # same offset, same counter -- read1 is what _fetch_body calls
+
+    def __enter__(self):  # the fetch uses `with _open(...) as resp`
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+
+def _patch_open(body=None, exc=None):
+    """Patch the transport seam; return the mock so tests can assert on call args.
+
+    The double MUST be a context manager: fetch_geogebra_dimensions uses
+    `with _open(...) as resp:` (needed because the read is capped, so the connection is
+    never drained and an unclosed response leaks a socket per call).
+    """
+
+    def _side_effect(request, timeout=None):
+        if exc is not None:
+            raise exc
+        return _Resp(body)
+
+    return patch("courses.geogebra._open", side_effect=_side_effect)
+```
+
+Note one deliberate semantic change: the old double treated `n == 0` as "read everything"; the new one returns `b""`, as a real file object does. No caller passes `0`.
+
+- [ ] **Step 3: Run the existing suite — it must be green with no production change**
+
+Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
+Expected: **104 passed**. This is the whole point of doing it first — if anything reddens here, the double is not behaviour-preserving and Task 2 would be debugging two changes at once.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add tests/test_geogebra.py
+git commit -m "test(geogebra): hoist the response double to module scope and give it a read offset"
+```
+
+---
+
+### Task 2: `_fetch_body` — the chunked read under its own budget
+
+Extracts the transport into a module-level helper that reads in `read1` chunks and abandons the read when its budget expires. Still synchronous — the thread arrives in Task 3 — so the existing suite stays green throughout.
+
+**Files:**
+- Modify: `courses/geogebra.py` (imports, constants block, new class + function, `fetch_geogebra_dimensions` body)
+- Test: `tests/test_geogebra.py`
+
+**Interfaces:**
+- Consumes: `_Resp` (Task 1), existing `_open`, `_TIMEOUT_SECONDS`, `_MAX_BODY_BYTES`.
+- Produces: `class _BudgetExceeded(Exception)`; `_CHUNK_BYTES = 8192`; `_DEADLINE_SECONDS = 5`; `_fetch_body(request, deadline) -> bytes`, raising `_BudgetExceeded`; module-level name `monotonic`. Task 3 wraps `_fetch_body` in a thread; Task 4 asserts on the two constants.
+
+- [ ] **Step 1: Write the failing tests (5a and 5b)**
+
+Add to `tests/test_geogebra.py`. Neither needs `@override_settings` — `_fetch_body` never reads the kill switch.
+
+```python
+def test_fetch_body_refuses_to_read_once_the_budget_is_spent():
+    # 5a: the budget is checked BEFORE each read, not only after data arrives.
+    from courses.geogebra import _BudgetExceeded
+    from courses.geogebra import _fetch_body
+    from courses.geogebra import monotonic
+
+    resp = _Resp(b"x" * 100)
+    with patch("courses.geogebra._open", return_value=resp):
+        with pytest.raises(_BudgetExceeded):
+            _fetch_body(object(), monotonic() - 1)
+    assert resp.calls == 0
+
+
+def test_fetch_body_rechecks_the_budget_on_every_iteration(monkeypatch):
+    # 5b: the check is INSIDE the loop. A fake clock, not sleep, so this is exact.
+    # itertools.count never exhausts: a finite scripted list would hard-code how
+    # many times the implementation calls monotonic() and would StopIteration out
+    # of a legal variant, failing a correct build for an unrelated reason.
+    from courses.geogebra import _BudgetExceeded
+    from courses.geogebra import _CHUNK_BYTES
+    from courses.geogebra import _fetch_body
+
+    clock = itertools.count(start=0.0, step=1.0)
+    monkeypatch.setattr("courses.geogebra.monotonic", lambda: next(clock))
+
+    # 3 chunks' worth, so reads 1 and 2 do NOT hit EOF and the loop is still
+    # running when the third budget check trips.
+    resp = _Resp(b"x" * (3 * _CHUNK_BYTES))
+    with patch("courses.geogebra._open", return_value=resp):
+        with pytest.raises(_BudgetExceeded):
+            # ticks: check1 -> 0.0 (ok), check2 -> 1.0 (ok), check3 -> 2.0 (trips)
+            _fetch_body(object(), 2.0)
+    assert resp.calls == 2
+```
+
+Add `import itertools` to the test module's imports if absent.
+
+- [ ] **Step 2: Run them to verify they fail**
+
+Run: `uv run pytest tests/test_geogebra.py -k "fetch_body" --verbosity=0`
+Expected: FAIL — `ImportError: cannot import name '_BudgetExceeded'`.
+
+- [ ] **Step 3: Add the import and the constants**
+
+In `courses/geogebra.py`, add to the import block (`:17-22`):
+
+```python
+from time import monotonic
+```
+
+Import the **bare name**, not the module. `courses.geogebra.time` *is* the stdlib module object, so patching `courses.geogebra.time.monotonic` would rebind `time.monotonic` process-wide, where `threading`, `logging`, `socket` and pytest's own internals would consume the test's scripted clock values. The bare name gives the clock the same module-local patch seam `_open` already has.
+
+Then rewrite the `_TIMEOUT_SECONDS` comment (`:46-53`) and add the two new constants:
+
+```python
+_API_PREFIX = "https://api.geogebra.org/"
+# A module constant rather than a setting, matching the pattern of
+# integrations/delivery.py :: TIMEOUT_SECONDS = 10. This bounds urllib's SOCKET
+# ops -- connect() and each individual read() -- NOT the total call. That is why
+# it is no longer sufficient on its own: _DEADLINE_SECONDS bounds the wall clock
+# the caller (and therefore save_element's row lock) can spend here, and
+# _fetch_body's chunk budget bounds the worker. Measured: a peer dribbling one
+# byte per second held a single read for 16.18s against this 3s timeout.
+_TIMEOUT_SECONDS = 3
+# Total bound on the lookup, enforced by joining the worker thread. Deliberately
+# LARGER than a single socket op so a failure in the FIRST op still surfaces as
+# itself -- the blackhole/connect path times out at a measured ~3.29s and must
+# keep reporting "lookup failed (timeout)" rather than racing this deadline.
+_DEADLINE_SECONDS = 5
+# Chunk size for the body read. Larger chunks mean fewer syscalls but coarser
+# budget-check granularity; the loop may overshoot the cap by up to one chunk
+# (peak buffer _MAX_BODY_BYTES + _CHUNK_BYTES = 73,728 bytes). Need not divide
+# _MAX_BODY_BYTES.
+_CHUNK_BYTES = 8192
+_MAX_BODY_BYTES = 65536  # ~55x the measured 1,177-byte ws response
+```
+
+- [ ] **Step 4: Add `_BudgetExceeded` and `_fetch_body`**
+
+Place both immediately below `_open` (`:251-253`), keeping the module's parsers-then-network ordering:
+
+```python
+class _BudgetExceeded(Exception):
+    """The worker's own read budget ran out. Never escapes to clean_url."""
+
+
+def _fetch_body(request, deadline):  # deadline: a monotonic() instant
+    """Read the response body in chunks, abandoning it when the budget expires.
+
+    read1, NOT read: HTTPResponse.read(n) delegates to a BufferedReader that loops
+    over recv until it has n bytes or hits EOF, so each individual recv returns
+    inside _TIMEOUT_SECONDS and the timeout never fires. Measured against a peer
+    dripping one byte per 50ms: read(8192) blocked 10.13s for the whole body,
+    read1(8192) returned in 0.05s on the first available bytes. With read, this
+    loop would not bound anything -- it would only divide the unbounded wait by
+    _MAX_BODY_BYTES / _CHUNK_BYTES.
+    """
+    with _open(request, timeout=_TIMEOUT_SECONDS) as response:
+        chunks, total = [], 0
+        while total <= _MAX_BODY_BYTES:  # loop past the cap so oversize stays detectable
+            if monotonic() >= deadline:
+                raise _BudgetExceeded
+            chunk = response.read1(_CHUNK_BYTES)
+            if not chunk:  # EOF
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+    return b"".join(chunks)
+```
+
+- [ ] **Step 5: Call it from `fetch_geogebra_dimensions` (still synchronous)**
+
+Inside the existing `try` block, replace the `with _open(...) as response: body = response.read(...)` pair with:
+
+```python
+        budget = _DEADLINE_SECONDS
+        deadline = monotonic() + budget
+        body = _fetch_body(request, deadline)
+```
+
+Leave the `Request` construction, its `# noqa: S310` comment, and both `except` handlers exactly where they are.
+
+- [ ] **Step 6: Run 5a/5b and the whole file**
+
+Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
+Expected: **106 passed** (104 existing + 5a + 5b). The existing oversize test still passes: a 65,537-byte body is delivered in 9 `read1` calls, `total` passes the cap, and `len(body) > _MAX_BODY_BYTES` still fires.
+
+- [ ] **Step 7: Falsify 5a**
+
+Delete the two `if monotonic() >= deadline: raise _BudgetExceeded` lines.
+Run: `uv run pytest tests/test_geogebra.py -k "budget_is_spent" --verbosity=0`
+Expected: FAIL — the finite body is read to EOF and returned, no exception raised.
+**Edit the lines back in by hand.** Re-run: PASS.
+
+- [ ] **Step 8: Falsify 5b**
+
+Hoist the budget check out of the loop, so it runs once before iterating:
+
+```python
+        if monotonic() >= deadline:
+            raise _BudgetExceeded
+        while total <= _MAX_BODY_BYTES:
+```
+
+Run: `uv run pytest tests/test_geogebra.py -k "every_iteration" --verbosity=0`
+Expected: FAIL — only one check happens (at t=0.0), so `read1` runs to EOF and no exception is raised. This is the mutant 5a alone cannot kill.
+**Edit it back by hand.** Re-run: PASS.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add courses/geogebra.py tests/test_geogebra.py
+git commit -m "feat(geogebra): read the body in read1 chunks under an explicit budget"
+```
+
+---
+
+### Task 3: Move the transport onto a bounded daemon thread
+
+The chunk budget cannot cover `connect()`, the TLS handshake or the header read — those all happen inside `_open`, before a single body byte exists. The thread deadline is what releases the **main** thread (and therefore the row lock) regardless of what the peer does.
+
+**Files:**
+- Modify: `courses/geogebra.py` (`fetch_geogebra_dimensions`, three comments), `docs/development/architecture.md:106`
+- Test: `tests/test_geogebra.py`
+
+**Interfaces:**
+- Consumes: `_fetch_body`, `_BudgetExceeded`, `_DEADLINE_SECONDS`, `monotonic` (Task 2); `_Resp` (Task 1).
+- Produces: `fetch_geogebra_dimensions` unchanged in signature and return contract — `(int, int) | (None, None)`, never raises.
+
+- [ ] **Step 1: Write the four failing tests**
+
+Add to `tests/test_geogebra.py`. All four carry `@override_settings(GEOGEBRA_API_LOOKUP=True)` — `config/settings/test.py:30` sets it `False`, and the kill switch returns `(None, None)` before any thread is created, which is byte-identical to what tests 1 and 2 assert. Without the decorator each test is green on the fix *and* on its mutant.
+
+`_DEADLINE_SECONDS` is patched to **0.3** against `Event.wait(3)`. Two constraints, jointly: `wait >= 10 x deadline`, and `deadline >= 0.3` as a floor against thread-start plus scheduler latency on a loaded Windows/xdist run.
+
+```python
+def _slow_resp_cls(released, entered=None):
+    """A _Resp whose read1 blocks until `released` (bounded), then returns the body.
+
+    Bounded, never unbounded: there is no pytest-timeout in this project, so a fake
+    that blocks forever makes the MUTANT run hang rather than fail -- indistinguishable
+    from the "test-DB container is down" mode.
+    """
+
+    class _SlowResp(_Resp):
+        def read1(self, n=-1):
+            if entered is not None:
+                entered.set()
+            released.wait(3)
+            return super().read1(n)
+
+    return _SlowResp
+
+
+def _geogebra_reasons(caplog):
+    return [r.message for r in caplog.records if r.name == "courses.geogebra"]
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_abandons_a_slow_body_at_the_deadline(monkeypatch, caplog):
+    # Test 1. NOTE: (None, None) alone is NOT a sufficient assertion -- it is this
+    # function's universal degradation value. Under this test's own mutant the call
+    # also returns (None, None), so the caplog reason is the SOLE discriminator.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+    resp = _slow_resp_cls(released)(_payload("wseg.json"))
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", return_value=resp):
+                assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    finally:
+        released.set()  # release in teardown; never leave a thread parked
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_abandons_slow_HEADERS_at_the_deadline(monkeypatch, caplog):
+    # Test 2. Pins that the bound wraps _open itself, not merely the read -- the
+    # leg a chunk budget alone cannot cover.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+
+    def _slow_open(request, timeout=None):
+        released.wait(3)
+        return _Resp(_payload("wseg.json"))
+
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", side_effect=_slow_open):
+                assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    finally:
+        released.set()
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_negative_caches_a_deadline(monkeypatch):
+    # Test 3. BOTH directions race here and the fixed-build one is the dangerous
+    # one: asserting call_count == 1 on a CORRECT build needs the first worker to
+    # have reached _open before the post-join assertion runs. Synchronise on an
+    # event rather than trusting the deadline floor -- and BOUND the wait, or a
+    # never-started thread hangs the suite instead of failing it.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released, entered = threading.Event(), threading.Event()
+    cls = _slow_resp_cls(released, entered)
+    try:
+        with patch("courses.geogebra._open", side_effect=lambda *a, **k: cls(b"{}")) as opener:
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+            assert entered.wait(5)
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+            assert opener.call_count == 1
+    finally:
+        released.set()
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_deadline_log_names_the_id_AND_the_reason(monkeypatch, caplog):
+    # Test 4. Asserting the id alone would be vacuous: _fail logs "geogebra %s: %s",
+    # so `lookup failed (AttributeError)` from a broken fake also names the id --
+    # green on precisely the mistake this test is designated to catch.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+    resp = _slow_resp_cls(released)(_payload("wseg.json"))
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", return_value=resp):
+                fetch_geogebra_dimensions("wgzr7tsu")
+    finally:
+        released.set()
+    messages = _geogebra_reasons(caplog)
+    assert any("wgzr7tsu" in m and "deadline" in m for m in messages)
+```
+
+Add `import logging`, `import threading` and `from django.test import override_settings` to the test module's imports if absent.
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `uv run pytest tests/test_geogebra.py -k "deadline or HEADERS" --verbosity=0`
+Expected: FAIL — the synchronous `_fetch_body` blocks for the full 3s wait and then succeeds, so the calls return `(880, 660)` rather than `(None, None)`.
+
+- [ ] **Step 3: Thread the fetch**
+
+In `fetch_geogebra_dimensions`, inside the existing `try`, replace Task 2's three synchronous lines with the threaded form. **The ordering here is load-bearing in three places** — read the inline comments before changing anything.
+
+```python
+        budget = _DEADLINE_SECONDS  # ONE read of the global, at call time
+        deadline = monotonic() + budget  # computed immediately before start()
+        box = {}
+
+        def _run():
+            try:
+                box["body"] = _fetch_body(request, deadline)
+            except _BudgetExceeded:  # MUST precede `except Exception`
+                return  # store nothing -> caller reports the deadline
+            except Exception as exc:  # noqa: BLE001 - the never-raises contract
+                box["exc"] = exc  # store FIRST
+                try:
+                    exc.close()  # then close; HTTPError only, harmless otherwise
+                except Exception:  # noqa: BLE001, S110 - closing must never mask the original
+                    pass
+
+        thread = threading.Thread(
+            target=_run, name=f"geogebra-lookup-{material_id}", daemon=True
+        )
+        thread.start()
+        thread.join(budget)  # same value as the deadline -- no clock skew
+
+        result = dict(box)  # ONE snapshot; never three `in` checks on a live dict
+        if "exc" in result:
+            raise result["exc"]  # re-raise so the handlers below run as they do today
+        if "body" not in result:
+            return _fail("deadline exceeded")
+        body = result["body"]
+        if not isinstance(body, bytes):
+            # Defensive and DELIBERATELY UNTESTED, in the style of the _API_PREFIX
+            # guard below: b"".join() returns bytes or raises on the worker (landing
+            # in box["exc"]), so this cannot be driven. Kept because len() at the
+            # oversize check sits outside this try, so being wrong would be a 500.
+            # Distinct reason string -- never "deadline exceeded", or a broken fake
+            # would be indistinguishable from a real deadline in tests 1/2/4/5c.
+            return _fail("lookup returned a non-bytes body")
+```
+
+Add `import threading` to the module's imports.
+
+Three traps, each already paid for:
+
+1. **`except _BudgetExceeded` must come first.** It subclasses `Exception`, so a broad-handler-first order puts it in `box["exc"]` and the caller reports `lookup failed (_BudgetExceeded)` instead of the deadline.
+2. **Store into `box["exc"]` before closing.** If `close()` raises on a real socket and the close came first, the error is never stored, the caller reports `deadline exceeded` instead of `HTTP 4xx`, and the exception escapes via `threading.excepthook`. (`HTTPError(..., fp=None)` never calls `addinfourl.__init__`, so `close()` genuinely can raise `AttributeError`.)
+3. **Compute `deadline` immediately before `start()`, from one read of the global.** Test 2's mutant is only reliably RED under this placement; computed before `_open`, the mutant's worker starts already expired and the test would pass on its own mutant.
+
+- [ ] **Step 4: Run the file**
+
+Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
+Expected: **110 passed**. The six existing fetch tests are Component A's real gate — they are what pins that the box round-trip preserves today's behaviour end to end (`HTTPError` fidelity, three non-`URLError` types, the parse path, oversize detection, the negative cache, and the kill switch short-circuiting before any thread is created).
+
+- [ ] **Step 5: Falsify test 1**
+
+Replace the threading block with a direct `body = _fetch_body(request, deadline)`.
+Run: `uv run pytest tests/test_geogebra.py -k "slow_body" --verbosity=0`
+Expected: FAIL — on the caplog assertion. The mutant still returns `(None, None)` (it blocks 3s, returns the payload, then trips the budget at the next loop top and logs `lookup failed (_BudgetExceeded)`), which is exactly why the reason assertion is this test's sole discriminator.
+**Edit it back by hand.** Re-run: PASS.
+
+- [ ] **Step 6: Falsify test 2**
+
+Wrap only the read: call `_open` on the main thread and hand the response into the thread.
+Run: `uv run pytest tests/test_geogebra.py -k "HEADERS" --verbosity=0`
+Expected: FAIL — `_open` blocks on the main thread for its full wait, the worker then starts with a fresh budget and its non-blocking `read1` returns at once, so the call yields `(880, 660)`.
+**Edit it back by hand.** Re-run: PASS.
+
+- [ ] **Step 7: Falsify tests 3 and 4**
+
+For test 3: replace `return _fail("deadline exceeded")` with a bare `return None, None`.
+Run: `uv run pytest tests/test_geogebra.py -k "negative_caches_a_deadline" --verbosity=0`
+Expected: FAIL — no sentinel is written, so the second call also reaches `_open` and `call_count == 2`.
+
+For test 4: pass `_fail` a generic reason string instead of the deadline one.
+Run: `uv run pytest tests/test_geogebra.py -k "names_the_id" --verbosity=0`
+Expected: FAIL — the id is still logged but the reason substring is absent.
+
+**Edit both back by hand.** Re-run: PASS.
+
+- [ ] **Step 8: Rewrite the three remaining comments**
+
+These are now false or incomplete. Leaving them is the false-mechanism failure this project treats as a defect class.
+
+1. **`fetch_geogebra_dimensions`'s docstring** (was `:332-338`): it explains the never-raises contract via "a bare `except Exception` … urlopen can raise RemoteDisconnected, ConnectionResetError, ssl.SSLError, UnicodeDecodeError and ValueError". None of those raise on this frame any more — they raise on the worker, cross back through the box, and are re-raised here. State that, and add that a deadline with neither slot set degrades via `_fail` rather than raising.
+2. **The `except urllib.error.HTTPError` comment** (was `:376-378`): it reads "A 4xx/5xx raises from INSIDE `_open`, so the `with` above is never entered". There is no `with` *above* any more — it moved into `_fetch_body`. New text: `_open` raises on the worker, the wrapper stores it in `box["exc"]`, the main thread re-raises it here, and the explicit `exc.close()` is still required because the `with` inside `_fetch_body` was never entered.
+3. **The module docstring** (`:7-14`): still true but now incomplete. Add that the GET runs on a bounded background thread under a total deadline, and the worker boundary rule — **no ORM, no cache, no logging on the worker**; it only calls `_open`, reads bytes, and stores into the box. Note this is the repository's first production background thread (`threading` appears nowhere outside `tests/`).
+
+- [ ] **Step 9: Update the architecture doc**
+
+`docs/development/architecture.md:106` currently describes `geogebra.py` as "Embed-URL canonicalization for video / GeoGebra". Add that it also performs the API dimension lookup on a bounded background thread. One line.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add courses/geogebra.py tests/test_geogebra.py docs/development/architecture.md
+git commit -m "feat(geogebra): bound the API lookup with a thread deadline
+
+The lookup runs inside save_element's @transaction.atomic while _locked_unit
+holds select_for_update() on the ContentNode row, and urllib's timeout is
+per-socket-op rather than total (measured: 16.18s against a 1 byte/s peer).
+The main thread now returns no later than _DEADLINE_SECONDS."
+```
+
+---
+
+### Task 4: Falsify the worker's failure handling, and pin the shipped constants
+
+Tasks 2–3 left two behaviours the design calls load-bearing with **no test that can fail**: 5a/5b drive `_fetch_body` in isolation and never touch `_run` or the box, and in tests 1/3 the budget trips only after the main thread has returned and its assertions have run. A build that stores `_BudgetExceeded` in `box["exc"]`, or that stores the partial body, is green in everything written so far — and pytest surfaces worker fallout only as `PytestUnhandledThreadExceptionWarning`, which `pyproject.toml:46-50` does not escalate.
+
+**Files:**
+- Test: `tests/test_geogebra.py`
+
+**Interfaces:**
+- Consumes: everything from Tasks 1–3. Produces: nothing consumed later.
+
+- [ ] **Step 1: Write test 5c and the constant-relationship test**
+
+```python
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_reports_a_worker_budget_trip_as_the_deadline(monkeypatch, caplog):
+    # 5c: the budget trips INSIDE the join window, so this is the only test that
+    # exercises _run's `except _BudgetExceeded` branch and the empty-box outcome.
+    #
+    # Clock arithmetic -- the main thread consumes the FIRST tick computing
+    # `deadline = monotonic() + budget`, so the worker's ticks are offset by one:
+    #   tick 1 (main)   -> 0.0   deadline = 0.0 + 2.0 = 2.0
+    #   tick 2 (check1) -> 1.0   < 2.0, read1 #1
+    #   tick 3 (check2) -> 2.0   >= 2.0, raise _BudgetExceeded
+    # Body is 3 chunks so read1 #1 does not hit EOF.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 2.0)
+    clock = itertools.count(start=0.0, step=1.0)
+    monkeypatch.setattr("courses.geogebra.monotonic", lambda: next(clock))
+
+    from courses.geogebra import _CHUNK_BYTES
+
+    resp = _Resp(b"x" * (3 * _CHUNK_BYTES))
+    with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+        with patch("courses.geogebra._open", return_value=resp):
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+def test_the_deadline_clears_the_measured_connect_leg_failure():
+    # Every other test patches _DEADLINE_SECONDS, so nothing else observes the
+    # SHIPPED relationship. `>` alone is satisfied by 3.5, which reintroduces the
+    # mislabelling: the measured blackhole/connect failure takes ~3.29s, so the
+    # deadline must clear the MEASURED figure, not merely the nominal constant.
+    from courses.geogebra import _DEADLINE_SECONDS
+    from courses.geogebra import _TIMEOUT_SECONDS
+
+    assert _DEADLINE_SECONDS >= _TIMEOUT_SECONDS + 1
+```
+
+- [ ] **Step 2: Run — both should PASS immediately**
+
+Run: `uv run pytest tests/test_geogebra.py -k "budget_trip or connect_leg" --verbosity=0`
+Expected: PASS. These are falsification tests for code Task 3 already wrote, not new behaviour, so RED-first does not apply. Their value is proven by the mutants in Steps 3–5, not by an initial failure.
+
+- [ ] **Step 3: Falsify 5c — mutant one (wrong handler order)**
+
+In `_run`, move `except _BudgetExceeded: return` *below* `except Exception as exc:`.
+Run: `uv run pytest tests/test_geogebra.py -k "budget_trip" --verbosity=0`
+Expected: FAIL — the logged reason becomes `lookup failed (_BudgetExceeded)`, so the `"deadline"` assertion misses.
+**Edit it back by hand.** Re-run: PASS.
+
+- [ ] **Step 4: Falsify 5c — mutant two (partial body stored)**
+
+Change `_fetch_body` to return `b"".join(chunks)` instead of raising on budget expiry.
+Run: `uv run pytest tests/test_geogebra.py -k "budget_trip" --verbosity=0`
+Expected: FAIL — the truncated body reaches the parse path and the reason becomes `unparseable payload`.
+**Edit it back by hand.** Re-run: PASS.
+
+- [ ] **Step 5: Falsify the constant test**
+
+Swap the two constants' values (`_TIMEOUT_SECONDS = 5`, `_DEADLINE_SECONDS = 3`).
+Run: `uv run pytest tests/test_geogebra.py -k "connect_leg" --verbosity=0`
+Expected: FAIL on the assertion.
+**Edit both back by hand.** Re-run: PASS.
+
+- [ ] **Step 6: Run the whole file and commit**
+
+Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
+Expected: **112 passed**.
+
+```bash
+git add tests/test_geogebra.py
+git commit -m "test(geogebra): falsify the worker's budget-trip handling and pin the constant relationship"
+```
+
+---
+
+### Task 5: Component B — clear the stale pair on any URL change
+
+`clean_url` carries `and mid` **twice**: at `:196` (the stale-pair clear) and at `:217` (the lookup guard). **Only the first is removed.** Dropping the second instead would issue a live GET to `https://api.geogebra.org/v1.0/materials/?scope=basic` with an empty id on every dimensionless non-GeoGebra paste.
+
+Note what this reverses: `tests/test_iframe_dimensions.py:498` currently pins the old behaviour with the comment *"A KNOWN, ACCEPTED gap … pinned so a future change to it is deliberate"*. This is that deliberate change.
+
+**Files:**
+- Modify: `courses/element_forms.py:189`, `:196`
+- Test: `tests/test_iframe_dimensions.py:481-508` (rewrite two in place), plus one new
+
+**Interfaces:**
+- Consumes: nothing from Tasks 1–4 (fully independent — this task may be done first if preferred).
+- Produces: no new symbols.
+
+- [ ] **Step 1: Rewrite B1 and B2 in place, and add B3**
+
+Rewrite `test_form_non_geogebra_url_change_keeps_its_dimensions` (`:481`) and `test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` (`:498`) — name, body **and comment**; their current comments argue for the behaviour being removed. Both **retain `lookup.assert_not_called()`**: that assertion is the second guard on which `and mid` survives, and it is what distinguishes "dropped the `:196` conjunct" from "dropped both".
+
+```python
+@pytest.mark.django_db
+def test_form_same_provider_url_change_clears_the_stale_pair():
+    # B2. A stored pair belongs to the URL it was captured FROM. Vimeo video A ->
+    # video B is the same staleness class as a provider swap: 640x360 described
+    # the old video, and there is no lookup for Vimeo to re-derive the new one.
+    obj = IframeElement.objects.create(
+        url=OTHER_FORM_URL, title="P", width=640, height=360
+    )
+    form = IframeElementForm(
+        data={"url": "https://player.vimeo.com/video/999", "title": "P"}, instance=obj
+    )
+    with _patch_lookup() as lookup:
+        assert form.is_valid(), form.errors
+    saved = form.save()
+    lookup.assert_not_called()  # the :217 guard still scopes the LOOKUP to GeoGebra
+    assert (saved.width, saved.height) == (None, None)
+
+
+@pytest.mark.django_db
+def test_form_geogebra_to_non_geogebra_url_change_clears_the_stale_pair():
+    # B1. Was pinned as "A KNOWN, ACCEPTED gap"; this is the deliberate change that
+    # comment invited. Keeping 880x660 rendered a 16:9 video in a 4:3 box with no
+    # badge -- the same pillarbox defect #238 removed, through a different door.
+    #
+    # frame_ratio is the load-bearing assertion. A `size_unknown is False` check
+    # would NOT discriminate: size_unknown is `is_geogebra_iframe_url(url) and ...`,
+    # and the new url is Vimeo, so it is False whether or not the pair was cleared.
+    obj = IframeElement.objects.create(url=URL, title="P", width=880, height=660)
+    form = IframeElementForm(
+        data={"url": OTHER_FORM_URL, "title": "P"}, instance=obj
+    )
+    with _patch_lookup() as lookup:
+        assert form.is_valid(), form.errors
+    saved = form.save()
+    lookup.assert_not_called()
+    assert (saved.width, saved.height) == (None, None)
+    assert saved.frame_ratio is None  # -> .embed-frame's 16:9 default
+
+
+@pytest.mark.django_db
+def test_form_non_geogebra_unchanged_url_keeps_its_pair():
+    # B3. NEW. B1 and B2 are the only two form tests using a non-GeoGebra stored
+    # pair and both now assert clearing, so without this nothing pins that such a
+    # pair survives an UNCHANGED url. That is this change's highest-risk failure
+    # mode: url_changed is `extract_embed_url(raw) != self.instance.url`, so a
+    # future non-idempotent canonicalisation for a new provider would wipe every
+    # such element's pair on every save, with no lookup to restore it and no badge.
+    obj = IframeElement.objects.create(
+        url=OTHER_FORM_URL, title="P", width=640, height=360
+    )
+    form = IframeElementForm(
+        data={"url": OTHER_FORM_URL, "title": "renamed"}, instance=obj
+    )
+    with _patch_lookup() as lookup:
+        assert form.is_valid(), form.errors
+    saved = form.save()
+    lookup.assert_not_called()
+    assert (saved.width, saved.height) == (640, 360)
+```
+
+- [ ] **Step 2: Run to verify B1 and B2 fail**
+
+Run: `uv run pytest tests/test_iframe_dimensions.py -k "clears_the_stale_pair or unchanged_url_keeps" --verbosity=0`
+Expected: B1 and B2 FAIL (the pair is still `(880, 660)` / `(640, 360)`); B3 passes already.
+
+- [ ] **Step 3: Drop the conjunct and rewrite both comments**
+
+In `courses/element_forms.py`, at `:196`:
+
+```python
+        # A stored pair describes the URL it was captured from, so any URL change
+        # invalidates it: drop it and let the new URL take the normal path. Not
+        # scoped to GeoGebra -- a provider swap (or a same-provider video swap)
+        # leaves a pair that describes an unrelated embed, which frame_ratio would
+        # render as a confident, badge-less wrong ratio. Cost, accepted: a URL edit
+        # on a hand-pasted non-GeoGebra embed loses the pair, and the textarea holds
+        # the stored canonical URL rather than the original snippet, so restoring it
+        # means re-pasting the embed code from the provider.
+        if url_changed and not usable_dimensions(width, height):
+            self.instance.width = self.instance.height = None
+```
+
+And at `:189`, the hoist comment now over-claims — only the lookup guard uses `mid`:
+
+```python
+        mid = geogebra_material_id(url)  # hoisted: used by the lookup guard below
+```
+
+- [ ] **Step 4: Run — all three green**
+
+Run: `uv run pytest tests/test_iframe_dimensions.py --verbosity=0`
+Expected: all pass. `test_form_non_geogebra_dimensionless_paste_never_looks_up` (`:376`) guards the `:217` conjunct you did **not** touch; its comment ("THE guard on the `and mid` conjunct") is now ambiguous — re-word it to name *which* guard.
+
+- [ ] **Step 5: Falsify B1 and B2**
+
+Restore `and mid` on the `:196` clear.
+Run: `uv run pytest tests/test_iframe_dimensions.py -k "clears_the_stale_pair" --verbosity=0`
+Expected: both FAIL — this is the defect itself.
+**Edit it back by hand.** Re-run: PASS.
+
+- [ ] **Step 6: Falsify B3**
+
+Apply exactly this mutant — it also clears when the URL is unchanged but the element is not GeoGebra:
+
+```python
+        if (url_changed or not mid) and not usable_dimensions(width, height):
+```
+
+Run: `uv run pytest tests/test_iframe_dimensions.py --verbosity=0`
+Expected: **only B3 fails.** B1, B2, `:293`, `:304`, `:376`, `:410`, `:425`, `:437` and `:468` all stay green — that is what makes B3 uniquely justified.
+
+**Two look-alike mutants that are NOT this one**, and why:
+- `if not usable_dimensions(...) and not mid` (drop `url_changed`, scope to non-GeoGebra) *also* reddens `:425`: `not mid` blocks the clear on a GeoGebra→GeoGebra change, the pair survives, `stored_usable` stays `True`, the `:217` guard never fires and `assert lookup.call_count == 1` fails.
+- `if url_changed and not usable_dimensions(...) and not mid` (scoping inversion alone) leaves B3 **green**, because B3's URL is unchanged so the clear is never reached — running it would wrongly suggest B3 is vacuous.
+
+**Edit the mutant back by hand.** Re-run: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add courses/element_forms.py tests/test_iframe_dimensions.py
+git commit -m "fix(iframe): clear a stored dimension pair on any URL change
+
+The clear was gated on the NEW url being a GeoGebra material, so swapping a
+GeoGebra element to a Vimeo or YouTube one kept the applet's 880x660 and
+rendered a 16:9 video in a 4:3 box with no badge. Reverses a gap #238 pinned
+as deliberate."
+```
+
+---
+
+### Task 6: Whole-branch gate
+
+The only wide sweep in this plan. Everything above ran narrowly.
+
+**Files:** none modified (fix-forward only if something reddens).
+
+- [ ] **Step 1: Confirm the test DB container is up**
+
+Run: `docker ps --format '{{.Names}}\t{{.Status}}'`
+Expected: `libli-test-db` present and healthy. If not, start it before proceeding — a down container makes the suite look hung for ~4 minutes rather than failing.
+
+- [ ] **Step 2: Full unit suite**
+
+Run: `uv run pytest --verbosity=0`
+Expected: all pass. Baseline for comparison: master was at 5851 unit tests when #238 landed; this branch adds 10 (7 in `test_geogebra.py`, 1 in `test_iframe_dimensions.py`, plus 2 rewritten in place which do not change the count).
+
+Do **not** background this run — a backgrounded pytest that is reaped mid-run orphans the test database and the next run dies with `DuplicateDatabase`.
+
+- [ ] **Step 3: Lint and format**
+
+```bash
+uv run ruff check --no-cache .
+uv run ruff format --check .
+```
+
+Expected: both clean. `--no-cache` is required: a cached run reports "All checks passed" for a file that warned on a previous run. `ruff format --check` is a separate CI gate from `ruff check`.
+
+- [ ] **Step 4: Confirm no migration was implied**
+
+Run: `uv run python manage.py makemigrations --check --dry-run`
+Expected: "No changes detected". This change touches no model field.
+
+- [ ] **Step 5: Commit any gate fixes**
+
+Only if Steps 2–4 required changes:
+
+```bash
+git add -u
+git commit -m "chore(geogebra): branch gate fixes"
+```
+
+---
+
+## Self-Review
+
+**Spec coverage.** Component A: `_CHUNK_BYTES`/`_DEADLINE_SECONDS`/`monotonic` import → Task 2 Step 3; `_BudgetExceeded` + `_fetch_body` read1 loop → Task 2 Step 4; `_run` handler order, store-then-close, deadline placement, `dict(box)` snapshot, `isinstance` guard, named daemon thread → Task 3 Step 3; four comment rewrites → Task 2 Step 3 (`:46-53`) and Task 3 Step 8 (the other three); `architecture.md` → Task 3 Step 9. Component B: conjunct + two comments → Task 5 Step 3. Tests: 1–4 → Task 3; 5a/5b → Task 2; 5c + constant relationship → Task 4; B1/B2/B3 → Task 5; existing-fetch-test regression gate → Task 3 Step 4; `_Resp` hoist → Task 1.
+
+**Deliberately not implemented, per the spec:** `daemon=True` is untested (no test can distinguish it from `daemon=False` without asserting on the `Thread` object); the `isinstance(bytes)` guard is untested (unreachable by construction). Both are recorded as such in the code comments the plan mandates, matching the file's existing `_API_PREFIX` convention. De-locking the fetch is **out of scope** — it is a named follow-up PR.
+
+**Type consistency.** `_fetch_body(request, deadline)` takes two arguments everywhere it appears (Task 2 Steps 1/4/5, Task 3 Step 3 and Step 5's mutant). `_Resp(body)` takes the body positionally in Tasks 1, 2, 3 and 4. `monotonic` is the bare module-local name in production and in every patch target.
+
+**Placeholders:** none. Every code step carries the code; every test step carries the assertion and the mutant.
