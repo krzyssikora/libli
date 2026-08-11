@@ -21,6 +21,7 @@
 - **Restore the LAST mutant too, and re-run before you stage.** Each falsify step ends on a mutant, and the commit step that follows runs only `ruff` — which does not read JS, templates or CSS at all. So an unreverted final mutant sails through a green lint gate into the commit. **Every commit step that follows a falsify step** therefore begins by re-running that task's own test command and confirming all PASS, before `git add` — that is Tasks 1-7 and 9. (Tasks 8 and 10 introduce no mutants, so their commit steps have nothing to restore.) Where a task mutates a file a Global Constraint freezes (`courses/state.py` in Task 3, `reveal.js` in Task 9), also prove it with `git diff --quiet <file>`.
 - **Run tests narrowly.** Start the test-DB container first (`docker compose -f docker-compose.test.yml up -d`); a down container makes the suite look hung for ~4 minutes. Never background a pytest run.
 - **Tooling is via `uv run`** — `pytest`, `ruff`, and `python` are not on PATH.
+- **Every fenced command block in this plan is `bash`, and some of them require it.** This machine's primary shell is Windows PowerShell 5.1, where `&&` is **not a valid operator** — it is a parser error, not a silent difference. Three of the plan's "prove the mutant is out" gates chain on it (Task 3 Step 7's `git diff --quiet courses/state.py && echo "state.py clean"`, and Task 9 Steps 8 and 10's `… && echo "all three clean"`), and those are exactly the commands most likely to be pasted ad hoc into whatever shell is open. Run them through the Bash tool. If you must use PowerShell, split them: `git diff --quiet <file>; if ($?) { echo "clean" }` — never assume the `&&` form merely printed nothing.
 - **Lint before each commit:** `uv run ruff check --no-cache <changed files>` and `uv run ruff format --check <changed files>` (a separate CI gate). `--no-cache` matters: a `# noqa` warning is cached away and the second run falsely reports clean. **`--check` is a gate, not a fixer** — some snippets dictated here are not `ruff format`-clean as pasted (Task 9's `_visible` helper, for one). When `--check` reports "would be reformatted", run bare `uv run ruff format <changed files>` and re-run `--check`; that is expected, not a defect in the snippet.
 - **`ruff format` will NOT save you from `E501`.** `E` is selected with no `line-length` override, so the limit is **88 columns**, and the repo is E501-clean today. `ruff format` only re-wraps *bracketed code* — it never rewraps a comment, never splits a string literal, and never parenthesises an assignment target list. Long comments, long string literals and wide unpacking targets must be wrapped **by hand**, and a `ruff check` failure on one of those is a real violation to fix, not the expected `format --check` churn described above. **The dictated snippets are NOT all E501-clean, and which kind of overflow you hit decides what to do.** Sort by what the offending line is:
 
@@ -889,6 +890,8 @@ Three edits in `build_lesson_context`:
 **(a)** `has_fill_table` is currently assigned at :438, *after* `has_reveal_gate` at :424. **Replace `views.py:421-430` in full** — that is the existing three-line `# Flat query (NOT scoped to parent__isnull=True)…` comment *plus* the `has_reveal_gate` assignment it introduces — with the block below, and delete the old `has_fill_table` assignment from its former position. Replacing the comment too is deliberate: the block's own trailing comment is a superset of it, and leaving the original in place would strand it above the moved `has_fill_table` (which it does not describe) with near-identical prose repeated a few lines down.
 
 ```python
+    # has_fill_table: plain CT-model filter, moved here unchanged. The block
+    # comment below belongs to has_filltable_gate, NOT to this line.
     has_fill_table = node.elements.filter(
         content_type__model="filltableelement"
     ).exists()
@@ -926,7 +929,7 @@ Three edits in `build_lesson_context`:
     )
 ```
 
-Delete the now-duplicated `has_fill_table` assignment at its old site.
+Delete the now-duplicated `has_fill_table` assignment at its old site (`:438-440`). **Step 8's `test_has_fill_table_is_assigned_exactly_once` is the check that this deletion actually happened** — a leftover duplicate is otherwise invisible to the entire suite and to ruff.
 
 **(b)** `FillTableElement` is **already imported** at `views.py:52`. Do not add a second import — `ruff` will flag it.
 
@@ -1070,6 +1073,18 @@ def test_gate_query_uses_the_object_id_shape():
 
 def test_gate_query_does_not_use_a_reverse_generic_relation():
     assert "elements__unit=" not in _gate_term(SRC)
+
+
+def test_has_fill_table_is_assigned_exactly_once():
+    # Step 4(a) MOVES has_fill_table above has_filltable_gate; a forgotten
+    # deletion at the old site leaves it assigned twice. Nothing else in the
+    # repo can see that: it is valid Python, ruff's F811 does not cover plain
+    # variable reassignment, the recomputed value is identical so every context
+    # test stays green, and test_html_element.py's len(q3) == len(q1) is a
+    # RELATIVE A/B that pays the duplicate query in both arms.
+    # `"has_fill_table": has_fill_table,` in the return dict does not match --
+    # no ` = ` -- and `has_filltable_gate = ` differs in the underscore.
+    assert SRC.count("has_fill_table = ") == 1
 ```
 
 Then **run it green before falsifying**:
@@ -1078,7 +1093,7 @@ Then **run it green before falsifying**:
 uv run pytest courses/tests/test_filltable_gate_query_shape.py -v
 ```
 
-Expected: both PASS immediately — the implementation landed in Step 4, so unlike the rest of the plan these two are green-on-write (the same situation Task 3 Step 3 flags for its three already-green tests). Running here matters precisely *because* their first execution would otherwise be under Step 9's mutant: `_gate_term`'s `src.index("has_reveal_gate = ", start)` raises `ValueError` if the block was laid out differently — a broken helper, not a working guard — and under a mutant that reads as success.
+Expected: all three PASS immediately — the implementation landed in Step 4, so unlike the rest of the plan these are green-on-write (the same situation Task 3 Step 3 flags for its three already-green tests). Running here matters precisely *because* their first execution would otherwise be under Step 9's mutant: `_gate_term`'s `src.index("has_reveal_gate = ", start)` raises `ValueError` if the block was laid out differently — a broken helper, not a working guard — and under a mutant that reads as success.
 
 - [ ] **Step 9: Falsify everything in this task**
 
@@ -1089,11 +1104,12 @@ Expected: both PASS immediately — the implementation landed in Step 4, so unli
 4. Restore, then **drop `data__gate=True` from the filter** (leaving `pk__in=…`) → **three** tests RED: `test_ungated_filltable_sets_neither_gate_flag` (an ungated table now arms both flags), the **prepaint A/B** on `assert "__fillTableBooted" not in plain_body` (its plain arm seeds an ungated fill-table, which now arms `has_reveal_gate` and emits the whole prepaint block), and the query-shape source test on its `data__gate=True` assertion. Everything else GREEN. Without this mutant that test's semantic claim is reddened only by mutant 2's blanket `KeyError` — the "one combined mutant lets the others hide" failure this plan warns about in Tasks 1 and 6.
 
    Note that the `has_fill_table and` short-circuit in front of the query is **deliberately unguarded**: it is a pure query-count optimisation, and no test can falsify it. `tests/test_html_element.py` pays the same cost in both arms of any A/B, so its delta stays 0 whether the short-circuit is present or not. Do not add a mutant for it expecting a RED.
-5. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
+5. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** query-shape source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
+6. Restore, then **re-add the old `has_fill_table` assignment at its former site** (`:438-440`), simulating the forgotten deletion in Step 4(a) → `test_has_fill_table_is_assigned_exactly_once` RED, and **everything else in the entire run GREEN** — including `tests/test_html_element.py`, whose relative `len(q3) == len(q1)` A/B pays the duplicate query in both arms. That total-silence contrast is the whole reason this assertion exists; without the mutant it is green-on-write and never shown able to fail.
 
 - [ ] **Step 10: Restore, re-run, then commit**
 
-Mutant 5 left the reverse-generic rewrite in `courses/views.py` — edit it back, then re-run. That rewrite is valid Python and ruff accepts it happily, so without this the mutated query is committed with the two source assertions RED:
+Mutant 6 left a duplicate `has_fill_table` assignment in `courses/views.py` — edit it back out, and confirm mutant 5's reverse-generic rewrite was already restored before it. Both are valid Python that ruff accepts happily, so without this re-run the mutated file is committed with source assertions RED:
 
 ```bash
 uv run pytest tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py \
@@ -1465,11 +1481,18 @@ throwaway lines in this test — everything in the snippet above and below them 
 
 Same gotcha Task 9 Step 9 calls out for the student.
 
-**Pin the viewport — the whole risk here is width-dependent, so an unnamed width judges whatever the `page` fixture happens to default to and gives a later reviewer nothing to reproduce.** Capture at two widths, set explicitly before `_goto_editor`:
+**Pin the viewport — the whole risk here is width-dependent, so an unnamed width judges whatever the `page` fixture happens to default to and gives a later reviewer nothing to reproduce.** Capture at two widths, in **one run, as two passes**: set the first width *before* `_goto_editor`, shoot, then resize and shoot again. Playwright reflows on resize, so the second shot needs no reload.
+
+⚠️ **The two `set_viewport_size` calls are a sequence, not alternatives — do not place them adjacently.** Back-to-back, the second overrides the first before the page is ever loaded, only the 1024 layout is ever observed, and the 1280 "common case" capture silently never happens while the step still reports two widths checked.
 
 ```python
-page.set_viewport_size({"width": 1280, "height": 800})   # the common case
-page.set_viewport_size({"width": 1024, "height": 800})   # near the row's wrap point
+page.set_viewport_size({"width": 1280, "height": 800})   # BEFORE _goto_editor
+_goto_editor(page, live_server, "ftbl_gate", unit)
+_open_edit(page, element.pk)
+page.locator(".filltable-editor__controls").screenshot(path=<scratch>/controls-1280.png)
+
+page.set_viewport_size({"width": 1024, "height": 800})   # then resize and re-shoot
+page.locator(".filltable-editor__controls").screenshot(path=<scratch>/controls-1024.png)
 ```
 
 **Pass criterion, checked at both widths:** the Instruction field is still usable — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width: 12rem`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed.
@@ -1755,7 +1778,11 @@ Both must change. Note that no existing gate-family section states the scope con
 
 - [ ] **Step 1: Update the English page**
 
-Replace the final sentence of the `{el:filltable}` section:
+Replace the final sentence of the `{el:filltable}` section. **The `old_string` is, verbatim** (all on `:77`, starting at column 0 — unlike the Polish twin it does not wrap):
+
+```markdown
+is one-way. Records no marks and reveals nothing.
+```
 
 Wrapped to the file's own ~75-column hand-wrap; keep it that way, or the paragraph reads as unrelated churn in the diff and invites the next editor to rewrap the lot:
 
@@ -1991,9 +2018,17 @@ uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 
 - [ ] **Step 1: Test 21 — a wrong answer keeps the content hidden**
 
-Fixture: `(table_row, _t), (trailing_row, _tr) = _seed(unit, _filltable(gate=True), _text("trailing"))`.
+**This test's complete text is the "full shape" block above** — test 21 is the one used to illustrate it, so its `_new_unit` / `_login` / `page.goto` lines are printed there rather than repeated here. Steps 2-7 each carry their own copies; this step is the only one that does not, and the body below continues directly from that block:
 
 ```python
+# (setup as in the "full shape" block above:
+#  _student, unit = _new_unit("ftg_wrong")
+#  (table_row, _t), (trailing_row, _tr) = _seed(
+#      unit, _filltable(gate=True), _text("trailing")
+#  )
+#  _login(page, live_server, "ftg_wrong")
+#  page.goto(_unit_url(live_server, unit))
+# )
 inp = page.locator(".filltable__input").first
 inp.fill("nope")
 _confirm(page).click()
@@ -2385,11 +2420,17 @@ uv run python manage.py compilemessages -l en
 
 ```bash
 grep -B 6 'msgid "Reveal the rest of this section' locale/pl/LC_MESSAGES/django.po
+# And the en catalog -- expect exactly 1. THIS is the command that fails on the
+# failure mode this task's preamble exists to prevent: a pl-only makemessages
+# run. Every other check in Task 10 reads only the Polish catalog, so if the
+# `-l en` run is skipped, mistyped or silently no-ops, Steps 4 and 5 both still
+# pass and the gap surfaces later as unexplained churn.
+grep -c 'msgid "Reveal the rest of this section' locale/en/LC_MESSAGES/django.po
 ```
 
 Keyed on the **msgid**, not the translation, and with a 6-line window: with `-B 3` on the `msgstr` the `#, fuzzy` line sits exactly at the edge of the window, so one extra `#:` reference line — or a msgid that gettext wraps once the label passes ~70 columns, which is precisely what Task 6 Step 8 contemplates — pushes the flag out of view and the check reports clean.
 
-Expected: the entry **is found** *and* has no `#, fuzzy` line above it. Check both halves — on empty output (which is what you get if the label was reworded in Task 6 Step 8 and this pattern was not updated with it) the "no fuzzy line" reading is trivially satisfied and tells you nothing. If the grep prints nothing, the msgid does not match: fix the pattern, not the catalog.
+Expected: the `pl` entry **is found** *and* has no `#, fuzzy` line above it, **and the `en` count is `1`, not `0`**. Check all three halves — on empty output (which is what you get if the label was reworded in Task 6 Step 8 and this pattern was not updated with it) the "no fuzzy line" reading is trivially satisfied and tells you nothing. If the grep prints nothing, the msgid does not match: fix the pattern, not the catalog.
 
 - [ ] **Step 5: Run the catalog health tests**
 
@@ -2437,8 +2478,11 @@ uv run ruff format --check .
 
 ```bash
 git diff --stat origin/master...HEAD
+# No new migration -- this constraint was the only one of the four with no
+# command of its own, left to the eye over the whole-branch --stat above.
+git diff --name-only origin/master...HEAD -- courses/migrations/
 git diff origin/master...HEAD -- courses/state.py courses/transfer/schema.py
 git diff origin/master...HEAD -- courses/static/courses/js/reveal.js
 ```
 
-Expected: the middle command prints nothing; the last shows only the `[data-filltablegate]` branch.
+Expected: the migration command prints **nothing**; the `state.py`/`schema.py` command prints nothing (which is also what keeps `FORMAT_VERSION` at 11); the last shows only the `[data-filltablegate]` branch.
