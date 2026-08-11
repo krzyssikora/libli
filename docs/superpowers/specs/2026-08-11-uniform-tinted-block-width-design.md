@@ -194,7 +194,7 @@ right-edge affordance, so the alignment argument does not reach them.
 
 | Entry | Covers |
 |---|---|
-| `.el--question:not(.el--dragfill) .question__stem` | the question prose (see R1 for the `:not()` chain) |
+| `.el--question .question__stem` | the question prose (R1 measured B0 — no `:not()` chain) |
 | `.question__choices` | the options list (`choicequestion.html:12`) |
 | `.question__feedback` | per-question feedback prose |
 | `textarea.question__text-input` | the extended-response answer box |
@@ -286,23 +286,25 @@ Per **S1** the `.markdone` row hover tint at `:2053-2054` stays with its contain
 every R1 branch** — B0/B1 change only the `:not()` chain *inside* the stem entry, and B2's remedy is a
 separate rule outside the sentinels (see R1). So:
 
-| Quantity | Value |
+| Quantity | Value (RESOLVED by measurement) |
 |---|---|
-| Expected prelude list (R2 assertion) | **12, always** |
-| Stem entry | `.el--question` + one `:not()` per type resolving to **B1** |
-| `examined` in `test_consumption_css.py` | **16 + (number of types resolving to B2)** |
+| Expected prelude list (R2 assertion) | **12** |
+| Stem entry | **`.el--question .question__stem`** (B0 — no `:not()`) |
+| `examined` in `test_consumption_css.py` | **16** (no type resolved to B2) |
 
 `test_consumption_css.py:212` currently asserts `examined >= 17`; it becomes **`>= 16`**. Because the
 operator is `>=`, it cannot catch B2's extra selector — R2's assertions are what pin the shape.
 
-Both fieldset types are measured independently and may land in different branches, including both in
-B1 (`.el--question:not(.el--dragfill):not(.el--fillblank) .question__stem`) or both in B2
-(`examined` = 18).
+Both fieldset types were measured independently; **both landed in B0**, so no carve-out and no
+`min-inline-size` rule are built.
 
-## Implementation ordering (load-bearing)
+## Implementation ordering — RESOLVED
 
-**R1's measurement is the first implementation step**, because its outcome changes the strings the
-tests hard-code:
+**R1 has been measured (see MEASURED OUTCOME): both types are B0.** The ordering constraint below is
+therefore already discharged, and the selector list and counts are fixed. It is retained so a reader
+understands why the numbers are what they are.
+
+R1's measurement had to precede the tests because its outcome changes the strings they hard-code:
 
 - **B0** → the stem entry becomes `.el--question .question__stem` (**not** bare `.question__stem` —
   dropping the `:not()` leaves the `.el--question` prefix in place; the two differ as strings and in
@@ -310,8 +312,8 @@ tests hard-code:
 - **B1** → the stem entry keeps/gains `:not()` per affected type.
 - **B2** → a separate scoped `min-inline-size: 0` rule is added outside the sentinels.
 
-Sequence: **measure R1 → record verdict and numbers in the plan → fix the selector list and counts →
-write the R2 assertions and the tests.**
+Sequence: **measure R1 → record verdict and numbers → fix the selector list and counts → write the
+R2 assertions and the tests.** Steps 1 and 2 are **done**; the outcome is B0/B0.
 
 ## Data flow
 
@@ -416,6 +418,50 @@ Record, per type, in the plan:
 
 Row-count growth alone is **not** harm. B2's remedy is **not** a `:not()` exclusion — if the cap
 already fails to bind, excluding the element from it changes nothing.
+
+#### MEASURED OUTCOME — both types are B0 (2026-08-11)
+
+Run per the procedure above: scratch build, JS-enabled e2e, 1280×900, collapsed, realistic
+content. **Validity satisfied** — the pool was live (not `[hidden]`, `clientWidth` 736, chips
+rendered across 2 rows), so this is a real measurement, not the silent-zero path.
+
+| Subject | width | scrollWidth | clientWidth | verdict |
+|---|---|---|---|---|
+| column (Reading recipe) | 872 | — | — | confirms the derived geometry |
+| dragfill card | 872 | 870 | 870 | uncapped, fills the column |
+| **fillblank stem** | **736** | 736 | 736 | **B0** |
+| **dragfill stem** | **736** | 736 | 736 | **B0** |
+| dragfill `.dnd__pool` | 736 | 736 | 736 | 2 rows, no overflow |
+
+Neither criterion fired: no stem exceeded 738 (so the `<fieldset>` `min-inline-size: min-content`
+floor did **not** refuse the cap), and neither overflowed. **The B1 and B2 branches are dead.**
+Consequences, now fixed rather than conditional:
+
+- The stem entry is **`.el--question .question__stem`** — no `:not()` chain.
+- **No `min-inline-size: 0` rule**, and therefore no `/* prose-cap-fieldset:begin|end */` pair and
+  no second source assertion.
+- The prelude is **12 selectors**; `examined` is **16**, so the floor becomes `>= 16` exactly.
+- Architecture stays **two** CSS regions.
+
+The B1/B2 analysis above is retained as the rationale for *why* this had to be measured — not as
+work to be done. An implementer must not build the dead branches.
+
+**Also measured on the same build** (the user-facing premise, confirmed before planning):
+
+| Element | width |
+|---|---|
+| callout, prose-only | 872 |
+| callout, with children | 872 — **equal; the reported defect is fixed** |
+| card, shorttext | 872 |
+| card, choicegrid | 872 — **equal** |
+| `.callout__body` | 736 — prose stays capped inside the widened box |
+| `.lesson-unit__head` | 872 |
+| `.lesson-unit__title` | **643.6** |
+
+The title figure confirms the three-item-head derivation: it lands well below its own 736px cap,
+so **no test may assert 736 for the title** — assert directionally or `< 738`.
+
+
 
 **B2 placement and its own pin.** The `min-inline-size: 0` declaration must be a **separate rule with
 its own single-selector prelude**, never added to the cap rule's shared declaration block (which
@@ -586,8 +632,10 @@ satisfied by the wrong state.
    collapsed-state assertion is mandatory here: the `:319-320` cap is unscoped, so the input measures
    352px in *both* states and the mutant only diverges collapsed.
 
-10. **Fieldset stems (e2e), per R1:** pin whichever branch measurement selects, for **both** drag-fill
-    and fill-blank, and record the measured numbers in the plan.
+10. **Fieldset stems (e2e) — B0 confirmed:** assert `abs(stem_width - 736) < 2` **and**
+    `scrollWidth <= clientWidth + 1` for **both** drag-fill and fill-blank. This is the pin that the
+    `<fieldset>` `min-inline-size` floor does not refuse the cap and that neither widget overflows.
+    Must sync on the pool being live before reading (see the invalidity rule).
 
 ### Falsification
 
@@ -602,9 +650,7 @@ satisfied by the wrong state.
 | 7 | re-add a **deleted** entry — e.g. `.callout:not(:has(> .callout__children))` — **without** the `html.unit-tree-collapsed` prefix, so the expanded state regains a `max-width: 46rem`. (The obvious mutant "unscope one of the *new* rules" does **not** work: the new rules are `.question__stem` / `.question__choices` / `.question__feedback` / `textarea…`, none of which is a subject of test 7.) |
 | 8 | delete the `.question__stem` entry |
 | 9 | write the new textarea entry with a bare class (`.question__text-input`), which out-specifies `:319-320` and jumps the input to 736 |
-| 10 (B0) | assert `abs(stem_width - 736) < 2` and `scrollWidth <= clientWidth + 1`; mutant = re-add the `:not(.el--dragfill)` carve-out, returning the stem to the card's inner box |
-| 10 (B1) | remove the `:not()` carve-out — the widget overflows |
-| 10 (B2) | remove `min-inline-size: 0` — the stem stays wide despite the cap |
+| 10 | add a `:not(.el--dragfill)` carve-out to the stem entry, which returns the drag-fill stem to the card's inner box (~830) and reddens `abs(w - 736) < 2` |
 
 Note the trap from this file's own history: an assertion pinned to a bare class name can be satisfied
 by `lesson_unit.html`'s inline pre-hide `<style>`, which emits `.callout__children` as a literal in
