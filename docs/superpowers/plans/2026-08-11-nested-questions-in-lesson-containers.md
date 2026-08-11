@@ -567,6 +567,19 @@ def _child_slice(body, wrapper_class):
 
 - [ ] **Step 2: Add the type-axis fixtures with their per-type discriminators**
 
+**First add the imports** — the cherry-picked file imports only
+`BeforeAfterElement, Blank, CalloutElement, Element, Enrollment,
+FillBlankQuestionElement, SpoilerElement, TabsElement, TwoColumnElement`, so all
+four models below are unbound and the block would `NameError` on first run. Ruff's
+isort is `force-single-line`, so one per line:
+
+```python
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import ShortNumericQuestionElement
+from courses.models import ShortTextQuestionElement
+```
+
 ```python
 def _choice():
     q = ChoiceQuestionElement.objects.create(stem="Pick one.", multiple=False)
@@ -685,7 +698,12 @@ def test_nested_blank_answer_shows_feedback_at_depth_2(scene, client):
 
 def test_only_the_checked_question_shows_a_verdict(scene, client):
     """Invariant A. Without this, every flipped assertion would pass just as well
-    if the fix leaked a verdict onto EVERY question on the page."""
+    if the fix leaked a verdict onto EVERY question on the page.
+
+    Create the CHECKED question FIRST (lowest order/pk) inside the callout:
+    _child_slice slices the FIRST `callout__child`, so checking the second child
+    would fail this assertion against a correct implementation.
+    """
     ...
     assert body.count(VERDICT) == 1
     assert VERDICT in _child_slice(body, "callout__child")
@@ -696,7 +714,7 @@ def test_only_the_checked_question_shows_a_verdict(scene, client):
 All in the same file:
 
 1. **Invariant B** — two nested `choice` questions, one checked: the sibling renders **zero** `question__choice-marker` and `question__choice-feedback`. Seam test 10 cannot catch this — the marker path emits no verdict block to count.
-2. **Quiz page still renders** — a quiz (built with `ContentNodeFactory`, see Global Constraints) containing a container with a nested **choice** child returns 200, with no `question__verdict` and no `question__choice-marker`. Build it with a direct `Element.objects.create` — §6 forbids authoring it, and the point is that legacy content must not 500. Plus `"selected_ids" not in build_quiz_context(...)`.
+2. **Quiz page still renders** — a quiz built with `make_quiz_unit(course=course)` (see Global Constraints) containing a container with a nested **choice** child returns 200, with no `question__verdict` and no `question__choice-marker`. Build it with a direct `Element.objects.create` — §6 forbids authoring it, and the point is that legacy content must not 500. Plus `"selected_ids" not in build_quiz_context(...)`, which needs `from courses.views import build_quiz_context`.
 3. **Restore and live routes agree** — POST a whitespace-bearing answer (live route), then GET the lesson page (`feedback_for_pk` is `None`, so restore runs); assert the verdict text and refilled value are byte-identical.
 4. **`None` and `""` refill identically** — a blank nested short-text answer and a blank top-level one produce the same empty input, pinning the `default_if_none:''` the `or None` coercion rests on.
 5. **Shadowing is impossible**, `@pytest.mark.parametrize` over **all five container models**: `render(page={"el": "HIJACKED", ...})` still renders the container's own element.
@@ -902,10 +920,10 @@ absent. Keep the docstring's note that `depth`/`max_nest_depth` must be **intege
 (a string binds and `smartif` swallows the `str < int` TypeError, silently reading
 every guard as False).
 
-For **`tests/test_tabs_transfer.py:142`**, apply Task 6 Step 5's rewrite **here**,
-since the break happens here: swap the subject to `type_="extended_response"` and add
-the positive case asserting `choice` is now accepted nested. Task 6 then only has to
-bump that file's `FORMAT_VERSION` literal.
+For **`tests/test_tabs_transfer.py:142`**, the rewrite happens **here**, since that
+is where the break happens: swap the subject to `type_="extended_response"` (still
+non-nestable) and add a positive case asserting `choice` is now accepted nested.
+Task 6 then only has to bump that file's `FORMAT_VERSION` literal.
 
 Also fix `test_spoiler_nesting.py:179-180`, which **stays green but becomes a lie** — `assert "choicequestion" not in NESTABLE_TYPE_KEYS` under the comment `# genuinely non-nestable`. Drop `choicequestion` from that tuple, or reword to "form keys never appear in the transfer-key set".
 
@@ -929,8 +947,9 @@ def test_every_nestable_question_key_is_a_serializer_key():
 
 
 def test_every_new_form_key_alias_resolves_into_nestable_type_keys():
+    aliases = builder._NESTABLE_FORM_KEY_ALIASES
     for form_key in ("choicequestion", "shorttextquestion", "shortnumericquestion"):
-        assert builder._NESTABLE_FORM_KEY_ALIASES[form_key] in builder.NESTABLE_TYPE_KEYS
+        assert aliases[form_key] in builder.NESTABLE_TYPE_KEYS
 
 
 def test_container_models_is_derived_from_the_registry():
@@ -1061,9 +1080,15 @@ Run any hit that touches `rename_node` / `manage_node_rename`. **Expected today:
 Immediately after clause 1 (the `NESTABLE_TYPE_KEYS` check at `:284-285`):
 
 ```python
-    if child_key in NESTABLE_QUESTION_KEYS and unit.unit_type == ContentNode.UnitType.QUIZ:
+    if (
+        child_key in NESTABLE_QUESTION_KEYS
+        and unit.unit_type == ContentNode.UnitType.QUIZ
+    ):
         raise NestingError("questions may not be nested in a quiz")
 ```
+
+(Pre-wrapped: the single-line form is 91 columns and `ruff check` runs at the
+default 88 with `E` selected, so pasting it verbatim fails this task's own lint gate.)
 
 Left untranslated, matching every other `NestingError` in this file (`:248, :282, :286, :298, :302, :306`) — `element_add` discards the message and returns `HttpResponseBadRequest("bad nesting")`, so a msgid here would be dead.
 
@@ -1154,6 +1179,8 @@ def test_every_paste_reason_has_a_message():
 
 - `rename_node`: flip refused, `unit_type` unchanged, quiz→quiz no-op accepted, quiz→lesson allowed, **plus the wide-predicate case** — a nested `extended_response` created with a direct `Element.objects.create` must still block the flip.
 
+  **Copy the call shape from `tests/test_manage_builder.py:96`**, the repo's only existing `builder.rename_node(...)` call site. Two traps: `token` must be a `parse_datetime`-able string matching `node.updated` **exactly** or `_check_token` (`builder.py:524-527`) raises `ConflictError` before the new guard ever runs; and `title` must be non-blank or `full_clean()` rejects it.
+
 - [ ] **Step 7: Run and falsify — three mutants**
 
 ```bash
@@ -1222,9 +1249,11 @@ FORMAT_VERSION = 12
     validate_nesting(elements, unit_types=unit_types)
 ```
 
-- [ ] **Step 3: Write the clause's own tests FIRST**
+- [ ] **Step 3: Write the clause's own tests**
 
 Create `courses/tests/test_nested_question_transfer.py`. Without these, deleting Step 1's clause entirely would leave the whole task green.
+
+**For a real RED moment, write this file BEFORE Steps 1-2 and run it first** — expect `TypeError: validate_nesting() got an unexpected keyword argument 'unit_types'`. Written after the implementation it is green on creation, which is weaker; Task 2 Steps 1-4 model the stronger order.
 
 **Copy `_els` / `_tabs_el` / `_child` from `tests/test_tabs_transfer.py:109-125` — and ADD a `"unit"` key to both dicts.** Those helpers emit `{"id", "type", "data", "parent", "tab"}` with **no `"unit"`**, because every existing caller passes no `unit_types` and the clause short-circuits on `unit_types is not None` before ever reading it. A straight paste raises `KeyError: 'unit'` the moment `unit_types` is non-`None`:
 
@@ -1270,10 +1299,10 @@ def test_a_non_nestable_type_reports_the_existing_message_first():
         )
 ```
 
-- [ ] **Step 4: Run and watch eight assertions go RED**
+- [ ] **Step 4: Run and watch seven assertions go RED**
 
 ```bash
-uv run pytest courses/tests/test_beforeafter_transfer.py courses/tests/test_image_size_transfer.py tests/test_link_transfer.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_transfer_schema.py tests/test_transfer_export.py -v
+uv run pytest courses/tests/test_nested_question_transfer.py courses/tests/test_beforeafter_transfer.py courses/tests/test_image_size_transfer.py tests/test_link_transfer.py tests/test_table_transfer.py tests/test_tabs_transfer.py tests/test_transfer_schema.py tests/test_transfer_export.py -v
 ```
 Expected: seven `assert FORMAT_VERSION == 11` (or `manifest["format_version"] == 11`) FAIL. **The tabs nesting case is NOT among them** — it broke in Task 4 and was rewritten there (Task 4 Step 5). Only that file's version literal remains.
 
@@ -1330,16 +1359,25 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Add the guard at the TOP of `build_element`**
 
-**Not at the container branches.** The loader has **two** recursive nesting sites: `if etype == "spoiler":` (`:114-163`) gates children against `LAL_SPOILER_CHILD_TYPES`, but `if etype == "tabs":` (`:201-224`) recurses with **no allowlist and no unit-type check at all** — and `choice` (`:378`), `numeric` (`:400`), `shorttext` (`:425`) and `fillblank` (`:237`) are all reachable from it. A guard at the spoiler branch closes half the hole.
+**Not at the container branches.** The loader has **two** recursive nesting sites: `if etype == "spoiler":` (`:114-163`) gates children against `LAL_SPOILER_CHILD_TYPES`, but `if etype == "tabs":` (`:201-224`) recurses with **no allowlist and no unit-type check at all** — and all six question branches are reachable from it: `choice_grid` (`:171`), `multi_grid` (`:184`), `fillblank` (`:237`), `choice` (`:378`), `numeric` (`:400`), `shorttext` (`:425`). A guard at the spoiler branch closes half the hole.
 
 Add `from courses.models import ContentNode` at module level — **`builders.py` does not import it today** (only `guards.py` and `tree.py` do), so the snippet would `NameError` without this.
 
 ```python
-# The loader's own question type keys, spelled CANONICALLY because the guard below
-# canonicalises first: _PARSER_TO_CANONICAL maps "fillblank" -> "fill_blank"
-# (builders.py:50), so a set containing the raw "fillblank" would never match and
-# the spoiler case would silently pass.
-LAL_QUESTION_TYPES = frozenset({"choice", "numeric", "shorttext", "fill_blank"})
+# EVERY question etype this loader can build -- SIX branches, not four:
+# choice_grid (:171) and multi_grid (:184) are QuestionElement subclasses too, and
+# both are reachable from the ungated tabs recursion at :201. Deliberately as wide
+# as unit_has_nested_question (which spans all ten concrete question models), NOT
+# as narrow as NESTABLE_QUESTION_KEYS: a manifest creating tabs > choice_grid in a
+# quiz would otherwise land content that no write authority refused, and that unit
+# is then permanently barred from every unit_type flip.
+#
+# Spelled CANONICALLY because the guard canonicalises first: _PARSER_TO_CANONICAL
+# maps "fillblank" -> "fill_blank" (builders.py:50), so a set holding the raw
+# "fillblank" would never match and the spoiler case would silently pass.
+LAL_QUESTION_TYPES = frozenset(
+    {"choice", "numeric", "shorttext", "fill_blank", "choice_grid", "multi_grid"}
+)
 ```
 
 At the top of `build_element`, after the `flagged` handling:
@@ -1579,6 +1617,8 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: e2e — a nested choice question with JS on**
 
 Inside a **closed** `<details>` spoiler and inside an **inactive** tab panel, it must still check and show inline feedback. `question.js` binds to `[data-question]` document-wide with no depth assumption, so no JS change is expected — the e2e proves that rather than assuming it.
+
+**Copy the scaffolding** (login, enrolment, page setup, the nest-inside-a-Tabs-panel fixture) from `tests/test_e2e_filltable.py:485` or `tests/test_e2e_switchgrid.py:288` — both already drive a `NESTABLE_TYPE_KEYS` member nested inside a Tabs panel, so only the element type and the assertions change.
 
 Two traps:
 - Playwright reports a `.visually-hidden` element as **visible** (1×1 + `clip` has a non-empty box) — assert on `bounding_box()`, not `is_visible()`.
