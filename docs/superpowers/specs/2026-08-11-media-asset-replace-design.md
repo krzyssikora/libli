@@ -966,12 +966,24 @@ Tests:
   not the student unit view, because a course owner hits enrolment/preview gating there and the
   assertion is about the rendered `src`, not about student access.
 
-**Two ways to supply a file, and which to use when.** Tests that do *not* exercise step 1 call
-`set_input_files` directly on `[data-replace-input]` — Playwright permits that on a hidden input.
-Tests that **click ⇄** must account for the file chooser step 1's `input.click()` raises:
-`with page.expect_file_chooser() as fc: page.click("[data-replace-asset]")` then
-`fc.value.set_files(...)`. Leaving it unintercepted hangs or dangles the chooser — the same class of
-Playwright trap this design cites when rejecting `window.confirm()`.
+**There is exactly one way to supply a file, and it goes through the ⇄ click.** Since the input was
+hoisted to the manager root, it no longer sits in a cell and cannot say which asset it is picking
+for — the target pk is recorded by the click handler. So `set_input_files` straight at
+`[data-replace-input]` leaves the pending pk unset, the change handler resolves no cell, and the
+test silently exercises nothing. Every test drives it the same way:
+
+```python
+with page.expect_file_chooser() as fc:
+    page.click("[data-replace-asset]")
+fc.value.set_files(_upload_payload("new.png"))
+```
+
+The `expect_file_chooser` wrapper is not optional even where the test does not care about the
+click: step 1's `input.click()` raises a chooser, and leaving it unintercepted hangs or dangles it —
+the same class of Playwright trap this design cites when rejecting `window.confirm()`. The upside is
+that every test now enters through the real user path rather than poking a hidden input, so the ⇄
+handler — including the in-flight guard, which is read nowhere else — is exercised by all of them
+rather than by one.
 - Cancel leaves the cell and the asset unchanged and issues no request. The negative is asserted, not
   slept on: register `page.on("request")` filtered to the replace URL *before* clicking, then — after
   a condition that provably post-dates any request the handler could have made (the strip's removal
