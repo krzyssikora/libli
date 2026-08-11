@@ -40,6 +40,8 @@ Skipping this makes the suite look **hung for about 4 minutes** before it errors
 
 **Line length is 88** (ruff default here). `# noqa` is parsed anywhere in a comment, and ruff **caches** its warnings — use `--no-cache` when re-checking a fix. `uv run ruff format --check` is a **separate CI gate** from `uv run ruff check`; both must pass.
 
+Per-task steps run `uv run ruff format <paths>` (which **fixes**), not `--check`. This matters: the plan's code blocks align some inline comments into columns for readability, and ruff-format collapses every one of them to a single two-space gap — pasted verbatim and *checked* rather than *formatted*, they would red the gate at four of six commit steps. Task 6's branch gate keeps `--check .`, because that is what CI runs.
+
 **Commit after every task**, with the message given in the task's final step. End every commit message with:
 
 ```
@@ -112,7 +114,6 @@ during the call, and those callbacks never fire under the plain `db` fixture.
 from io import BytesIO
 
 import pytest
-from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
@@ -360,7 +361,7 @@ These two are the tests most likely to pass for the wrong reason, so prove each 
 
 ```bash
 uv run ruff check --no-cache courses/media.py tests/test_media_replace.py
-uv run ruff format --check courses/media.py tests/test_media_replace.py
+uv run ruff format courses/media.py tests/test_media_replace.py
 git add courses/media.py tests/test_media_replace.py
 git commit -m "feat(media): replace an asset's file in place, preserving its pk
 
@@ -389,6 +390,8 @@ Pure test task — no implementation change is expected. If any test here fails,
 Append to `tests/test_media_replace.py`. Add these imports at the top of the file alongside the existing ones:
 
 ```python
+from django.core.exceptions import ValidationError
+
 from courses.models import DragToImageQuestionElement
 from courses.models import DragZone
 from courses.models import FillTableElement
@@ -396,6 +399,10 @@ from courses.models import GalleryElement
 from courses.models import TableElement
 from courses.models import VideoElement
 ```
+
+**Merge these into the existing groups in sorted order** — do not paste the block after the existing imports. `[tool.ruff.lint]` selects `I` with `force-single-line = true`, and four of the model names sort *before* the existing `ImageElement`, so an appended block reports I001. The `courses.models` group must end up as: `DragToImageQuestionElement`, `DragZone`, `FillTableElement`, `GalleryElement`, `ImageElement`, `MediaAsset`, `TableElement`, `VideoElement`.
+
+`ValidationError` belongs **here**, not in Task 1: none of Task 1's five tests reference it, so introducing it there is a live F401 that fails that task's own `ruff check`.
 
 Then:
 
@@ -610,7 +617,7 @@ def test_json_pk_consumers_resolve_to_the_new_file(
 ```bash
 uv run pytest tests/test_media_replace.py -v
 uv run ruff check --no-cache tests/test_media_replace.py
-uv run ruff format --check tests/test_media_replace.py
+uv run ruff format tests/test_media_replace.py
 ```
 
 Expected: all pass.
@@ -873,10 +880,12 @@ def test_replace_without_the_fetch_header_redirects(
 - [ ] **Step 2: Run to verify they fail**
 
 ```bash
-uv run pytest tests/test_media_manager.py -k replace -v
+uv run pytest tests/test_media_manager.py -k "replace or anonymous_post" -v
 ```
 
-Expected: FAIL with `NoReverseMatch: Reverse for 'manage_media_replace' not found`.
+Expected: **10 selected**, all FAIL with `NoReverseMatch: Reverse for 'manage_media_replace' not found`.
+
+The `or anonymous_post` is not decoration: `test_anonymous_post_redirects_to_login` contains no "replace" substring, and neither does the module name, so a bare `-k replace` selects only 9 of the 10 tests this step adds — and the one it drops would then go unrun until Task 6's full-suite gate.
 
 - [ ] **Step 3: Add the URL**
 
@@ -946,7 +955,7 @@ def media_replace(request, slug, pk):
 - [ ] **Step 5: Run to verify they pass**
 
 ```bash
-uv run pytest tests/test_media_manager.py -k replace -v
+uv run pytest tests/test_media_manager.py -k "replace or anonymous_post" -v
 ```
 
 Expected: **10 selected, 9 passed, 1 failed.**
@@ -963,7 +972,7 @@ Expected: **FAILS** with 302 instead of 405. **Edit the order back** and re-run.
 
 ```bash
 uv run ruff check --no-cache courses/views_media.py courses/urls.py tests/test_media_manager.py
-uv run ruff format --check courses/views_media.py courses/urls.py tests/test_media_manager.py
+uv run ruff format courses/views_media.py courses/urls.py tests/test_media_manager.py
 git add courses/views_media.py courses/urls.py tests/test_media_manager.py
 git commit -m "feat(media): add the media_replace view and route
 
@@ -1209,10 +1218,10 @@ Also update the existing comment above `.asset-del { display: contents; }` (edit
 - [ ] **Step 6: Run the tests**
 
 ```bash
-uv run pytest tests/test_media_manager.py -k "replace or di_uses" -v
+uv run pytest tests/test_media_manager.py -k "replace or di_uses or anonymous_post" -v
 ```
 
-Expected: **13 passed** — Task 3's ten (all green now) (including `test_replace_returns_the_rerendered_cell`, which was waiting on `data-replace-url`) plus this task's three. The `or di_uses` matters: `-k replace` alone does **not** match `test_cell_carries_di_uses_for_the_drag_warning`, so the task that adds `data-di-uses` would never confirm its own assertion green. If the count is lower, a test was silently deselected — check the selector before believing the result.
+Expected: **13 passed** — Task 3's ten (all green now) (including `test_replace_returns_the_rerendered_cell`, which was waiting on `data-replace-url`) plus this task's three. Both extra terms matter: `-k replace` alone matches neither `test_cell_carries_di_uses_for_the_drag_warning` (so the task adding `data-di-uses` would never confirm its own assertion) nor `test_anonymous_post_redirects_to_login`. If the count is lower, a test was silently deselected — check the selector before believing the result.
 
 - [ ] **Step 7: FALSIFY the enabled-when-in-use assertion**
 
@@ -1224,7 +1233,7 @@ Expected: **FAILS**. **Edit the attribute back out.**
 
 ```bash
 uv run ruff check --no-cache tests/test_media_manager.py
-uv run ruff format --check tests/test_media_manager.py
+uv run ruff format tests/test_media_manager.py
 git add templates/courses/manage/media/_asset_cell.html templates/courses/manage/media/manager.html courses/static/courses/css/editor.css tests/test_media_manager.py
 git commit -m "feat(media): add the replace control, its data contract and CSS
 
@@ -1823,8 +1832,11 @@ def test_a_filter_that_hides_the_asset_mid_flight_is_a_no_op(page, live_server):
     page.fill("[data-filter-q]", "zzz-matches-nothing")
     page.wait_for_selector(".asset-cell", state="detached")
 
-    held[0].continue_()
-    page.wait_for_timeout(300)  # let the 200 land on an empty grid
+    # Synchronise on the response, not the clock: the assertions below are only
+    # meaningful once the 200 has actually been handled.
+    with page.expect_response("**/replace/"):
+        held[0].continue_()
+    page.wait_for_timeout(100)  # a short settle for the handler, after the wait
 
     assert errors == [], errors
     assert page.locator(".asset-cell").count() == 0
@@ -1949,19 +1961,19 @@ Step 6 proved the src assertion. These three prove the tests that guard the subt
 
 1. **Hoist `done`.** Move `var done = false;` out of `buildReplaceStrip` up to `wireManager` scope. Run
    `uv run pytest -m e2e tests/test_e2e_media_manager.py -k two_consecutive -v`.
-   Expected: **FAILS** at the second `wait_for_selector('.asset-cell .asset-fname:has-text("second.png")')` — the second commit returns early at `if (done) return;`.
+   Expected: **FAILS** at the second `page.wait_for_selector("[data-replace-strip]", state="detached")` — the second commit returns early at `if (done) return;`, so the strip is never torn down. (The `.asset-fname` wait after it would fail too; the detached wait is simply reached first.)
 2. **Never lower the in-flight flag.** Restore `done`, then delete the trailing `.then(function () { replaceBusy = false; })`. Run the same test.
    Expected: **FAILS** at `page.expect_file_chooser()` — the ⇄ click returns immediately, so no chooser is ever raised. This is the test's whole reason for going through a real click.
-3. **Delete the catch-all.** Restore the flag, then remove the final `fail(...)` call so only 200 and 422 are handled. Run
+3. **Disable the catch-all only.** Restore the flag, then **move** the `fail(...)` call *inside* the `if (res.status === 422) { … }` block, so a non-200/non-422 response falls through silently. Do **not** simply delete the call: the 422 path reaches that same `fail(...)` (the `if` merely populates `text` before it), so deleting it would break the 422 test too and you would see two failures against a claim of one. Run
    `uv run pytest -m e2e tests/test_e2e_media_manager.py -v`.
-   Expected: **`test_a_server_error_removes_the_strip_and_flashes` FAILS** (the strip never detaches) **and every other test still passes** — which is the claim its docstring makes, now checked rather than asserted.
+   Expected: **`test_a_server_error_removes_the_strip_and_flashes` FAILS** (the strip never detaches) **and every other test, including the 422 one, still passes** — which is the claim its docstring makes, now checked rather than asserted.
 4. Restore, then re-run the module: 9 passed.
 
 - [ ] **Step 12: Commit**
 
 ```bash
 uv run ruff check --no-cache tests/test_e2e_media_manager.py
-uv run ruff format --check tests/test_e2e_media_manager.py
+uv run ruff format tests/test_e2e_media_manager.py
 git status --porcelain  # nothing from this task may be left unstaged
 git add courses/static/courses/js/media_picker.js tests/test_e2e_media_manager.py \
         scripts/e2e_chunks.sh courses/static/courses/css/editor.css
@@ -1986,6 +1998,8 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po` (+ the compiled `.mo`)
+- Modify: `docs/help/course-admin/media-manager.md`
+- Modify: `docs/help/course-admin/media-manager.pl.md`
 
 **Interfaces:** none.
 
@@ -2031,8 +2045,15 @@ wanted = [
 ]
 missing, untranslated, fuzzy = [], [], []
 for msg in wanted:
+    # makemessages runs msgmerge --previous, so a fuzzy entry is written as
+    # `#, fuzzy` / `#| msgid "..."` / `msgid "..."`. Those `#|` lines sit BETWEEN
+    # the flag and the msgid, so they must be allowed for -- otherwise the FUZZY
+    # branch silently never fires, and a fuzzy `Replace` (the likeliest pre-fill)
+    # reports as neither fuzzy nor untranslated, its msgstr being non-empty.
     m = re.search(
-        r'(?:(#,[^\n]*fuzzy[^\n]*)\n)?msgid "%s"\nmsgstr "([^"]*)"' % re.escape(msg), po
+        r'(?:(#,[^\n]*fuzzy[^\n]*)\n)?(?:#\|[^\n]*\n)*'
+        r'msgid "%s"\nmsgstr "([^"]*)"' % re.escape(msg),
+        po,
     )
     if not m:
         missing.append(msg)
