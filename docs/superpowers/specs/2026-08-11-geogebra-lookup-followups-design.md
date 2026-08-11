@@ -97,6 +97,12 @@ def _fetch_body(request):
 `f"geogebra-lookup-{material_id}"`, so a thread dump shows how many lookups are parked — with a
 **function-local** result box created per invocation, then `join(_DEADLINE_SECONDS)`.
 
+**Structure.** `_fetch_body(request)` stays **module-level**, so the `with _open(...)` patch seam
+stays visible where every existing test expects it. The wrapper that catches, stores and closes is a
+**nested `def _run():` inside `fetch_geogebra_dimensions`**, closing over both `request` and `box` —
+not a module-level target taking `box` through `Thread(args=...)`, which would put the per-invocation
+box in a module-level signature for no gain.
+
 **The box is discriminated by key presence, never by truthiness.** A dict with at most one of
 `box["body"]` / `box["exc"]` set. This is load-bearing: a legitimate `read()` returning `b""` is
 falsy, and a truthiness check would route a real empty response to the deadline branch instead of
@@ -104,7 +110,12 @@ today's unparseable-payload failure, silently changing the logged reason.
 
 **The outcome is decided by inspecting the box, never by `is_alive()`.** `join(timeout)` can return
 while the thread has stored its result but not yet finished unwinding, so an `is_alive()`-first
-implementation would discard a good body as a timeout. After the join, in this order:
+implementation would discard a good body as a timeout.
+
+**Take one snapshot, then branch on it.** After the join, copy once — `result = dict(box)` — and
+decide from `result`, not from three sequential `in` checks against a dict the worker may still be
+writing. Every interleaving yields a valid outcome either way, but only a single snapshot gives the
+join→read window below a single referent. Branch on the snapshot in this order:
 
 1. **`box["exc"]` set** → **re-raise on the main thread**, so the existing
    `except urllib.error.HTTPError` and bare-`except Exception` handlers run exactly as today,
@@ -128,14 +139,31 @@ is deliberately allowed, because every such outcome (a good body, an `HTTP 400`,
 is at least as informative as the deadline report it replaces. A body arriving after the read is
 discarded.
 
-**The wrapper closes an `HTTPError`'s `fp` when it stores it.** #238 added the explicit `exc.close()`
-because a 4xx/5xx raises from inside `_open`, so the `with` is never entered and the error's `fp` is
-never closed. After the deadline, nobody reads that box — so without a close in the wrapper an
-abandoned thread leaks the socket and emits a `ResourceWarning` from a non-main thread. The
-main-thread handler's own `exc.close()` stays and is harmless when already closed.
+**The wrapper closes an `HTTPError`'s `fp`, in this exact order: store first, then close.** #238
+added the explicit `exc.close()` because a 4xx/5xx raises from inside `_open`, so the `with` is never
+entered and the error's `fp` is never closed. After a deadline nobody reads that box, so without a
+close in the wrapper an abandoned thread leaks the socket and emits a `ResourceWarning` from a
+non-main thread.
 
-Ruff's `select` is `["E","F","I","UP","B","S"]`; `BLE` is not selected, so the wrapper's broad
-`except Exception` needs no `noqa`.
+The ordering is load-bearing. The natural-but-wrong reading —
+`except Exception as exc: exc.close(); box["exc"] = exc` — means that if the close itself raises on a
+real socket, `box["exc"]` is never set, the main thread reports `deadline exceeded` instead of
+`HTTP 4xx`, and an unhandled exception escapes the worker through `threading.excepthook`, violating
+the never-propagates invariant. Required shape:
+
+```python
+box["exc"] = exc          # store FIRST
+try:
+    exc.close()           # then close, guarded exactly like the main-thread one
+except Exception:         # noqa: S110 - closing must never mask the original
+    pass
+```
+
+The guard mirrors `geogebra.py:379-384` verbatim, including its rationale. Note the `noqa`: ruff's
+`select` is `["E","F","I","UP","B","S"]`, so `BLE` is **not** selected and the wrapper's broad
+`except Exception` needs no `BLE001` — but `S110` (try-except-pass) **is** selected and does fire
+here, exactly as the existing code at `:381` records. The main-thread handler's own `exc.close()`
+stays and is harmless on an already-closed error.
 
 **This is the repository's first production background thread** — `threading` appears nowhere outside
 `tests/`. The boundary rule that keeps it safe: the worker does **no ORM, no cache, and no logging**;
@@ -167,8 +195,8 @@ logged reason differs — the return value, the badge, and the negative-cache wr
 the 5s bound on lock-hold time is preferred over a 7s value that would preserve the label at the cost
 of a 40% worse worst case.
 
-**Three comments in `geogebra.py` become false and must be rewritten with the code** — the same
-false-mechanism standard Component B is held to:
+**Four comments in `geogebra.py` must be rewritten with the code** — the same false-mechanism
+standard Component B is held to. The first three are now *false*; the fourth is merely *incomplete*:
 
 1. **`:46-53`, the `_TIMEOUT_SECONDS` comment.** It states that a slow-drip peer can hold the lock
    "well past 3s" and that this is **"Accepted"** — the very claim this change refutes, and the
@@ -186,6 +214,11 @@ false-mechanism standard Component B is held to:
    they raise on the worker, cross back through the box, and are re-raised here. The contract still
    holds; the stated mechanism does not. New text must say so, and add that a deadline with neither
    slot set degrades via `_fail` rather than raising.
+4. **`:7-14`, the module docstring** (orientation, not false). It describes the module as "the single
+   place the GeoGebra API is called" whose "one network function performs a single capped GET behind
+   the `GEOGEBRA_API_LOOKUP` kill switch". Still true, but it now omits the one architectural fact a
+   reader most needs up front: that the GET runs on a background thread under a total deadline. Add
+   that, plus the no-ORM / no-cache / no-logging worker boundary rule.
 
 ### Component B — the stale-pair clear
 
@@ -238,6 +271,7 @@ main thread.
 | Thread raised `HTTPError` | re-raised on the main thread → existing handler closes `exc.fp` and calls `_fail(f"HTTP {exc.code}")` |
 | Thread raised anything else | re-raised → existing bare-`except` → `_fail(f"lookup failed ({type})")` |
 | Oversize body | unchanged — the single `read(_MAX_BODY_BYTES + 1)` still makes it detectable |
+| `thread.start()` fails (`RuntimeError: can't start new thread`) | falls into the bare `except Exception` and degrades as `lookup failed (RuntimeError)` — the correct outcome, named here rather than left to be derived. Reachable precisely because no cap is placed on concurrent lookup threads (see accepted gaps) |
 | Kill switch off | unchanged — returns before any thread is created, no cache read, no cache write |
 
 `fetch_geogebra_dimensions` keeps its never-raises contract: nothing new can escape into `clean_url`
@@ -253,6 +287,12 @@ That is the intended trade: the alternative is that every save of that element p
 **inside the row lock**, which is the cost this change exists to bound. Protecting the lock beats
 re-probing a slow API promptly. The 60s TTL is unchanged; the discarded-late-body behaviour is
 recorded in the accepted gaps.
+
+**The operator-visible symptom of this trade is silence, not repetition.** The cache-hit
+short-circuit (`geogebra.py:345-346`) returns `(None, None)` **without logging**, so an author who
+sees the badge and re-saves within the window produces no log line at all. A deadline therefore
+appears exactly **once per material per 60s** — worth stating, because the whole justification above
+rests on the deadline being diagnosable.
 
 ## Testing
 
@@ -291,33 +331,66 @@ reuse or mirror `_patch_open._Resp`'s shape, and **test 4's log assertion is wha
 mistake**, because the logged reason would read `lookup failed` rather than `deadline exceeded`.
 
 **All four tests patch `_DEADLINE_SECONDS` via `monkeypatch.setattr`** — which also exercises the
-read-at-call-time rule above. Pin the margin: a deadline on the order of **0.1s** against a fake wait
-on the order of **2-3s**, i.e. wait ≫ deadline by more than an order of magnitude. Leaving the real
-5s in place would cost 5s of wall clock per test, and too tight a margin makes test 2's mutant
-("wrap only the read") flaky, because the mutant's post-`_open` read can itself miss the join window
-and turn the mutant green.
+read-at-call-time rule above. Leaving the real 5s in place would cost 5s of wall clock per test.
 
-1. **Slow body → `(None, None)`.** The fake `read` blocks on a bounded `Event.wait(...)` the test
-   never sets, with `_DEADLINE_SECONDS` patched small. Assert the **result**, never elapsed
-   wall-clock — no timing assertion, so no flake. *Mutant:* restore the direct `_fetch_body(request)`
-   call.
-2. **Slow headers → `(None, None)`,** by patching `_open` itself to block on its own bounded event,
-   released in teardown exactly as in test 1. Pins that the bound wraps `_open` and not merely the
-   read. *Mutant:* wrap only the read.
-3. **A deadline negative-caches.** Second call short-circuits; `_open` called once.
-   *Mutant:* bare `return (None, None)` without `_fail`.
-4. **The deadline logs and names the material id,** matching every other logged failure mode in the
-   module. *Mutant:* drop the log line.
+There are **two independent constraints**, and they must not be collapsed into one number:
+
+1. **`wait / deadline ≥ 10`** — governs whether the *fixed* build deadlines at all. Satisfied by a
+   fake wait on the order of 2-3s.
+2. **`deadline ≥ 0.3-0.5s` (a floor)** — governs whether the *mutant* is reliably RED. Under test 2's
+   mutant ("wrap only the read") the un-wrapped `_open` must actually be reached before the join
+   returns; that race is against thread-start plus scheduler latency, which the fake's wait duration
+   has no bearing on. A 0.1s deadline is not defensible against scheduling latency on a loaded xdist
+   or Windows run — where it loses, the mutant returns `(None, None)` and stays **green, silently**.
+
+Pin both. The same floor is what makes test 3's mutant reliably RED (see below).
+
+**`(None, None)` alone is never a sufficient assertion.** It is this function's *universal*
+degradation value — the kill switch, a cache hit, an `HTTPError`, an unparseable body, an oversize
+body and every transport exception all return it. A test asserting only the tuple is green whenever
+the call fails **for any reason at all**, including a broken fake the wrapper reports as
+`lookup failed (TypeError)`. So tests 1 and 2 additionally assert, via `caplog` filtered on
+`courses.geogebra`, that the logged reason is the **deadline** reason — the pattern
+`test_fetch_degrades_on_http_error_and_logs_it` already uses at `:346-347`. That closes the whole
+class, not one instance of it.
+
+1. **Slow body → deadline.** The fake `read` blocks on a bounded `Event.wait(...)` the test never
+   sets, then returns a real payload. Assert `(None, None)` **and** the deadline reason in the log;
+   never elapsed wall-clock, so no timing assertion and no flake.
+   *Mutant:* restore the direct `_fetch_body(request)` call.
+2. **Slow headers → deadline,** by patching `_open` itself to block on its own bounded event,
+   released in teardown exactly as in test 1. Same two assertions. Pins that the bound wraps `_open`
+   and not merely the read. *Mutant:* wrap only the read.
+3. **A deadline negative-caches.** Reuses **test 1's blocking-`read` fake**. Second call
+   short-circuits; `_open` called once. *Mutant:* bare `return (None, None)` without `_fail` — and
+   note its RED depends on the same deadline floor pinned above, since the second invocation's worker
+   must reach `_open` before the main thread's join returns.
+4. **The deadline log names the material id AND the reason.** Asserting the id alone would be
+   vacuous: `_fail` logs `"geogebra %s: %s"`, so `lookup failed (AttributeError)` from a broken fake
+   also names the id — meaning a test asserting only the id is green on precisely the mistake this
+   test is designated to catch. Assert both the id and the reason substring (e.g. `"deadline"`).
+   *Mutants:* drop the log line; and pass `_fail` the generic reason string instead of the deadline
+   one.
 
 ### The constant relationship — one assertion, not a behaviour test
 
 Every test above patches `_DEADLINE_SECONDS` to a small value, so **nothing in the suite ever
 observes the shipped relationship** between the two constants. A future edit setting
 `_DEADLINE_SECONDS = 2` would silently invert the design argued under "Constants" — the connect-leg
-failure would start reporting `deadline exceeded` — and every test would stay green. Add a one-line
-assertion that `_DEADLINE_SECONDS > _TIMEOUT_SECONDS`, in the same spirit as the existing
-`test_fetch_sends_the_explicit_user_agent_and_the_configured_timeout`. *Mutant:* swap the two
-constants' values.
+failure would start reporting `deadline exceeded` — and every test would stay green.
+
+Assert **`_DEADLINE_SECONDS >= _TIMEOUT_SECONDS + 1`**, not merely `>`. A bare `>` is satisfied by
+`_DEADLINE_SECONDS = 3.5`, which re-introduces exactly the mislabelling the "Constants" paragraph
+forbids: the measured connect-leg failure takes **~3.29s**, so the deadline must clear the measured
+figure, not just the nominal constant. Cite the 3.29s measurement in the assertion's comment.
+*Mutant:* swap the two constants' values.
+
+**`daemon=True` is deliberately not falsified.** It is the property that stops a parked lookup from
+holding worker shutdown open, but every test in the suite is green with `daemon=False` — the bounded
+fakes all complete within seconds, so no test can distinguish them without asserting on the `Thread`
+object itself. Rather than add a mock-shaped assertion that pins construction rather than behaviour,
+this is recorded as untested, in the same style as the existing "deliberately untested: a branch that
+cannot be driven cannot be falsified to RED" note at `geogebra.py:356-359`.
 
 ### `tests/test_geogebra.py` — existing fetch tests as Component A's real gate
 
@@ -340,7 +413,14 @@ These are not additions. Both already exist and currently assert the **exact opp
 rewritten in place — name, body and comment:
 
 5. **`test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` (`:498`)** → GeoGebra →
-   Vimeo now **clears**; `frame_ratio is None`, `size_unknown` is `False`. Its comment currently
+   Vimeo now **clears**. The load-bearing assertions are `(width, height) == (None, None)` and
+   `frame_ratio is None`. A `size_unknown is False` assertion may be kept as documentation but is
+   **not** discriminating and must be labelled as such: `size_unknown` is
+   `is_geogebra_iframe_url(self.url) and not usable_dimensions(...)` (`models.py:886-888`), and the
+   new URL is a Vimeo one, so the first conjunct is `False` whether or not the pair was cleared — the
+   Defect-2 table above shows `False` in both the buggy and the fixed row. Under this test's own
+   mutant it stays green, which is exactly the assertion-that-cannot-fail class this project treats
+   as a recurring defect. Its comment currently
    reads *"A KNOWN, ACCEPTED gap … pinned so a future change to it is deliberate"* — this change is
    that deliberate future change, and the comment must be replaced with the new invariant, not
    merely deleted. Rename to
@@ -356,10 +436,25 @@ rewritten in place — name, body and comment:
 Explicit names are given because the current ones assert the literal inverse ("keeps"); a free-hand
 rename risks leaving a stale name on an inverted test.
 
-**Both rewritten tests MUST retain their existing `lookup.assert_not_called()`** (`:494` and
-`:510`). That assertion is the *second* guard on which `and mid` survives: it is what distinguishes
+**Both rewritten tests MUST retain their existing `lookup.assert_not_called()`** (`:493` and
+`:507`). That assertion is the *second* guard on which `and mid` survives: it is what distinguishes
 "dropped the `:196` conjunct" from "dropped both conjuncts". Without it, neither test would notice a
 build that also removed the `:217` lookup guard and started issuing empty-id GETs.
+
+### One NEW form test — the coverage hole the inversions open
+
+7. **A non-GeoGebra element with a stored pair keeps it when the URL is unchanged.** Create a Vimeo
+   element with `(640, 360)`, re-submit its own stored URL with a changed title, assert the pair
+   survives and `lookup.assert_not_called()`.
+
+   This is needed because `:481` and `:498` are the **only** two form tests using a non-GeoGebra
+   stored pair, and both are being inverted to assert clearing. The two "preserves" tests in the
+   regression table below (`:293`, `:410`) both use the GeoGebra `URL` constant, so after this change
+   nothing would pin that a non-GeoGebra pair survives an unchanged URL — Component B's
+   highest-risk failure mode, since `url_changed` is `extract_embed_url(raw) != self.instance.url`
+   and any future non-idempotent canonicalisation for a new provider would then wipe every such
+   element's pair on every save, with no lookup to restore it and no badge to signal it.
+   *Mutant:* drop the `url_changed` conjunct as well — which no other listed test kills.
 
 ### Existing tests — regression coverage that must stay green
 
@@ -418,9 +513,11 @@ concurrency-sensitive function in `builder.py`.
 ## Accepted gaps, to be recorded in the PR body
 
 - The lock is **still held** during the lookup, now for up to 5s. De-locking is the named follow-up.
-- An abandoned thread holds one socket until its single `read()` completes or its per-op timeout
-  fires — one thread per dimensionless GeoGebra save, suppressed 60s per material by the negative
-  cache.
+- **Thread creation and thread abandonment are different rates.** One thread is *created* per lookup
+  that reaches the network (a dimensionless GeoGebra save, suppressed 60s per material by the
+  negative cache); a thread is only *abandoned* when the deadline actually fires. An abandoned thread
+  holds one socket until its single `read()` completes or its per-op timeout fires. The common case
+  leaves nothing parked.
 - **The negative cache is per-process.** There is no `CACHES` setting outside
   `config/settings/test.py:19`, so Django's default `LocMemCache` applies and the sentinel suppresses
   retries only in the worker that failed. Recorded as a note: there is no deployment, so
