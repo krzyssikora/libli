@@ -33,8 +33,9 @@ per-instance author checkbox. An ungated fill-table keeps its current behaviour 
   **within its scope**.
 - Two gating tables in sequence chain correctly: the first reveals the second, the second reveals
   what follows it.
-- A student who solved a table *before* the author ticked the checkbox is not locked out of the
-  revealed content.
+- A student who solved a table before the author ticked the checkbox **is never permanently locked
+  out** of the revealed content. (Not the same as "never sees a stale view" — one chained case needs
+  a reload to resolve; see the Error handling table.)
 - A gated table still prints.
 - No database migration, and no `FORMAT_VERSION` bump.
 
@@ -48,6 +49,9 @@ per-instance author checkbox. An ungated fill-table keeps its current behaviour 
 - **No change to marking or the gradebook.** A fill-table records no marks, gated or not.
 - **No new cascade scope.** `scopeOf` recognises five scopes and a two-column column is not among
   them; this design does not add one (see the Error handling table).
+- **No change to `cascadeFrom`'s stop condition.** The chained pre-tick case below is left as a
+  documented, reload-healed limitation rather than fixed here — the fix would change shared cascade
+  semantics for all four families across all five scopes, which is out of proportion to this slice.
 - **No change to how `.fillgate` prints.** The print rule addressed in §3 currently also swallows a
   fill-gate's answered Q&A. That is pre-existing, arguably wrong, and deliberately left alone — this
   change narrows the rule by exactly one new attribute and regresses nothing. Worth its own issue.
@@ -109,12 +113,15 @@ This is the decision the rest of the design hangs off, and it is worth stating w
 - **Legacy rows read false.** A row stored before this change has no `gate` key; `bool(None)` is
   `False`. Ungated, as it should be.
 
+**`gate` is the first `data` key whose normalized value depends on OTHER fields' validity.** That is
+what makes §9's editor re-render a real problem rather than a formality — see there.
+
 **Normalizer-routing invariant.** `save()` calls only `_sanitized_data`, which passes unknown
 top-level keys through untouched — so nothing at the model layer coerces `data["gate"]` on its own.
 What guarantees the stored value is a real JSON boolean is that **every** write path routes through
 `normalize_data` first: `FillTableElementForm.clean_data` returns it, `_build_fill_table` constructs
 with it, and the LAL builder feeds it. A row hand-written into the database (or by a future path that
-skips the normalizer) is out of contract; §7 depends on this invariant and test 12 pins it.
+skips the normalizer) is out of contract; §7 depends on this invariant and test 10 pins it.
 
 **Also update the class docstring**, which the Purpose section above quotes as motivation and which
 this change falsifies. `courses/models.py:1271` currently ends "Checked server-side per cell; records
@@ -259,12 +266,15 @@ if (data.all_correct === true && (data.cells || []).length > 0) {
 - **The `hasAttribute` guard is load-bearing, not defensive noise.** Without it an *ungated*
   fill-table also calls `cascadeFrom`, which adds `.reveal-shown` to its following siblings and —
   since `focus` defaults to true — moves focus and scrolls the page on every correct answer in every
-  ungated table in the product. That is precisely the "byte for byte" goal being broken, so test 10
+  ungated table in the product. That is precisely the "byte for byte" goal being broken, so test 27
   pins it.
 - `hideWrapper: false` matches `fillgate.js` — the solved table stays on screen with its green cells
   rather than being consumed, which is right for a gate whose content *is* the student's work.
-- The `window.libliRevealCascade` guard covers the editor preview, where the pane may render a gating
-  table without a live cascade.
+- The `window.libliRevealCascade` guard is a **defensive load-order guard**, mirroring `fillgate.js`
+  and `switchgate.js`, which write the same check. It is *not* required by the editor preview:
+  `editor.html` loads `reveal.js` unconditionally (line 229) before `filltable.js` (line 279), so the
+  function is always defined there. Keep it anyway — the cost is nothing and it fails safe if the
+  conditional loading in `lesson_unit.html` ever drifts.
 
 `filltable.js` also gains a parse-time boot flag, mirroring `__fillGateBooted` / `__switchGateBooted`:
 
@@ -298,13 +308,15 @@ when the next gate wrapper is the *immediately following* sibling with nothing b
 Unit 322 does **not** have that shape — a "Druga funkcja: …" text element sits between its two tables
 — so this branch does not fire there, and the motivating unit is not what exercises it. It fires
 whenever an author places two gating tables back to back, which is a legal and likely arrangement.
-The e2e fixture for test 22 must therefore be built adjacent (see that item), and test 19 covers the
+The e2e fixture for test 23 must therefore be built adjacent (see that item), and test 20 covers the
 branch unconditionally as a source assertion.
 
-No other `reveal.js` change is required. `scopeOf`, `isGateWrapper` and `cascadeFrom` all key on
-`[data-reveal-gate]` generically. `restoreGates` already computes `hideWrapper` as
-`gate.matches(RESTORABLE)`, and `RESTORABLE` is `button.reveal-gate[data-reveal-gate]` — a fill-table
-is not a button, so it correctly restores with `hideWrapper: false`.
+This is the **only** `reveal.js` change. `scopeOf`, `isGateWrapper` and `cascadeFrom` all key on
+`[data-reveal-gate]` generically and are left alone — including `cascadeFrom`'s `break` at an
+already-open downstream gate, whose consequence is documented in the Error handling table.
+`restoreGates` already computes `hideWrapper` as `gate.matches(RESTORABLE)`, and `RESTORABLE` is
+`button.reveal-gate[data-reveal-gate]` — a fill-table is not a button, so it correctly restores with
+`hideWrapper: false`.
 
 ### 7. `views.py` — page-level detection, without a ContentType SELECT
 
@@ -336,18 +348,24 @@ has_reveal_gate = (
 )
 ```
 
-**Ordering.** In `build_lesson_context` today `has_reveal_gate` is assigned at `views.py:424` and
-`has_fill_table` at `views.py:438`. Pasted in place the snippet raises `NameError`, so either hoist
-`has_fill_table` above `has_reveal_gate` or append the `or has_filltable_gate` term after both are
-bound. `FillTableElement` is **already imported** at `views.py:52` — do not add a second import;
-`ruff` would flag it.
+**Three concrete edit sites in `build_lesson_context`:**
+
+1. **Ordering.** `has_reveal_gate` is assigned at `views.py:424` and `has_fill_table` at `views.py:438`.
+   Pasted in place the snippet raises `NameError`, so either hoist `has_fill_table` above
+   `has_reveal_gate` or append the `or has_filltable_gate` term after both are bound.
+2. **Import.** `FillTableElement` is **already imported** at `views.py:52` — do not add a second
+   import; `ruff` would flag it.
+3. **Context dict.** Add `"has_filltable_gate": has_filltable_gate` to the `return {...}` literal at
+   `views.py:502-529`, next to `has_reveal_gate` (`:511`) and `has_fill_table` (`:515`). Omitting it
+   makes `{% if has_filltable_gate %}` silently falsy, which drops §8's watchdog term with **no test
+   failure** unless test 13's A/B is written as specified.
 
 `data__gate=True` matches the JSON literal `true` only. That is exact rather than fragile *because* of
 §1's normalizer-routing invariant: every write path stores a real boolean, so the view predicate and
 the template's `{% if data.gate %}` (driven by `normalize_data`'s `bool(...)`) always agree. If they
 ever diverge the failure is silent in both directions — a truthy-but-not-`true` value renders the
 marker while `reveal.js` is never loaded, and a `true` value on an unsatisfiable grid arms the prepaint
-while the marker is suppressed. Test 12 pins the invariant.
+while the marker is suppressed. Test 10 pins the invariant.
 
 This is not cosmetic. `reveal.js` itself is loaded only under `{% if has_reveal_gate %}`
 (`lesson_unit.html:89`), so on a unit whose only gate is a fill-table, **omitting this term means the
@@ -356,9 +374,6 @@ cascade engine never loads at all** and the gate silently does nothing.
 The inner query is deliberately *not* scoped to `parent__isnull=True`, matching the existing comment
 on `has_reveal_gate`: a gate nested inside a tab or callout keeps its own `unit` FK and must still be
 found. Unit 322's tables are callout children, so this is exercised immediately.
-
-`has_fill_table` (which loads `filltable.js`) is unchanged and already true whenever a gating table
-exists.
 
 ### 8. `lesson_unit.html` — the prepaint watchdog
 
@@ -373,17 +388,15 @@ if (!window.__revealBooted
     {% if has_filltable_gate %} || !window.__fillTableBooted{% endif %}) {
 ```
 
-`has_filltable_gate` is added to the template context for this. The script-loading block needs no
-change: `filltable.js` already loads under `has_fill_table`, and `reveal.js` now loads because
-`has_reveal_gate` includes gating tables.
+The script-loading block needs no change: `filltable.js` already loads under `has_fill_table`, and
+`reveal.js` now loads because `has_reveal_gate` includes gating tables. Load order is already correct
+— `reveal.js` at line 89, `filltable.js` at line 93, both `defer`, so `libliRevealCascade` is defined
+before any check can resolve.
 
-Load order is already correct — `reveal.js` at line 89, `filltable.js` at line 93, both `defer`, so
-`libliRevealCascade` is defined before any check can resolve.
+### 9. Editor — one checkbox, and one form property
 
-### 9. Editor — one checkbox
-
-`case_sensitive` is the exact precedent: a `data`-borne boolean edited by a checkbox that
-`filltable_editor.js` reads and folds into the serialized blob. Four touches, same shape:
+`case_sensitive` is the precedent for the checkbox itself: a `data`-borne boolean edited by a checkbox
+that `filltable_editor.js` reads and folds into the serialized blob. Four touches, same shape:
 
 | File | Site | Change |
 |---|---|---|
@@ -392,9 +405,41 @@ Load order is already correct — `reveal.js` at line 89, `filltable.js` at line
 | `courses/static/courses/js/filltable_editor.js` | the `serialize` literal (~line 250) | `gate: !!(gate && gate.checked),` |
 | `courses/static/courses/js/filltable_editor.js` | the listener block (~line 937) | `if (gate) gate.addEventListener("change", serialize);` |
 
-`FillTableElementForm` needs **no change**: its only field is `data`, and `clean_data` returns
-`normalize_data(...)`, which now carries `gate` through. `_grid_data` already carries it on both the
-stored and bound-invalid re-render paths.
+**`FillTableElementForm.grid_data` DOES need an override — a rejected save would otherwise untick the
+box.** This is where §1's "first field whose normalized value depends on other fields' validity" bites.
+`_grid_data` (shared with `TableElementForm`) returns `model._sanitized_data(model.normalize_data(
+parsed))` on the bound-invalid path, deliberately re-rendering the *submitted* grid so the author sees
+their edit rather than the stored table. But §1's suppression forces `gate` to `False` for exactly the
+two grids that make `clean_data` raise. The rejection reason and the suppression trigger are the same
+condition — so the author ticks the box, forgets one answer, saves, gets "An answer cell is blank",
+and the checkbox comes back **unchecked** with no message about it. Their next Save then posts
+`gate: false` from the DOM, silently discarding the intent.
+
+Overlay the submitted value in `FillTableElementForm` (not in shared `_grid_data`, which
+`TableElementForm` also uses and which has no `gate`):
+
+```python
+    @property
+    def grid_data(self):
+        d = _grid_data(self)
+        # PRESERVE THE AUTHOR'S TICK across a rejected save. normalize_data (which
+        # _grid_data runs) suppresses `gate` for exactly the two grids that make
+        # clean_data raise, so the shared path would hand the template an unticked
+        # box -- the author's intent, silently dropped, with the error message
+        # pointing at the answer cell instead.
+        if self.is_bound and not self.is_valid():
+            raw = self.data.get("data")
+            if isinstance(raw, str):
+                try:
+                    submitted = json.loads(raw)
+                except ValueError:
+                    submitted = None
+                if isinstance(submitted, dict):
+                    return {**d, "gate": bool(submitted.get("gate"))}
+        return d
+```
+
+The template keeps reading `d.gate`, so no context plumbing changes. Test 18 pins it.
 
 **Label wording.** The obvious phrasing — "Reveal what follows when all cells are correct" —
 overpromises: `cascadeFrom` never leaves `scopeOf`'s scope, so a gated table inside a callout reveals
@@ -450,7 +495,8 @@ There is a maintained Polish twin, `docs/help/course-admin/interactive-elements.
 
 **Authoring.** Author ticks the checkbox → `filltable_editor.js` serializes `gate: true` into the
 posted `data` blob → `FillTableElementForm.clean_data` runs it through `normalize_data` (which keeps
-it only if the grid can actually be satisfied) → saved.
+it only if the grid can actually be satisfied) → saved. On a rejected save the tick survives the
+re-render via §9's `grid_data` override.
 
 **Page load (unattempted).** `views.lesson_unit` computes `has_filltable_gate` → true, so
 `has_reveal_gate` is true → prepaint arms `.reveal-armed`, hiding every `.callout__child` following
@@ -483,7 +529,8 @@ the callout's children.
 
 | Situation | Behaviour |
 |---|---|
-| Student solved the table before the author ticked the box | Render derives `open` from `done`; cascade restores. No lockout, no data migration. |
+| Student solved the table before the author ticked the box | Render derives `open` from `done`; cascade restores on the next load. No lockout. |
+| **Chained gates, downstream one solved before the tick** | Two gated tables in one scope; the student had solved only table 2 while both were ungated. On load `restoreGates` `break`s at table 1 (prefix-closure) and never reaches table 2. The student then solves table 1; `cascadeFrom` reveals up to table 2's wrapper and `break`s at `isGateWrapper` **without consulting table 2's own stored state**. Table 2 is server-rendered `done`, so the template emits no Check button and `initOne` early-returns — nothing on the page can fire its cascade. **Everything after table 2 stays hidden until the student reloads**, at which point both gates restore and all content appears. Accepted, reload-healed, not permanent. Fixing it means teaching `cascadeFrom` to continue past a `storedOpen` downstream gate, which changes shared semantics for all four families across all five scopes — out of scope here; see Non-goals. Test 26 pins the documented behaviour, including that the reload heals it. |
 | `reveal.js` blocked (extension, CSP, network) | `__revealBooted` falsy at `DOMContentLoaded` → watchdog disarms `.reveal-armed` → everything visible. Fail open. |
 | `filltable.js` blocked | `__fillTableBooted` falsy → same disarm. Fail open. Content visible but ungated — the correct failure direction. |
 | Check request fails | Existing `.catch` leaves the widget interactive; no cascade, no state write. |
@@ -491,11 +538,12 @@ the callout's children.
 | Drifted / unparseable `data-state` | `storedOpen`'s `try/catch` returns false → the gate stays live and re-answerable. |
 | `gate: true` with **no answer cell** | `normalize_data` forces `gate` off (§1); marker never rendered, nothing stranded. Reachable only via import or programmatic construction. |
 | `gate: true` with a **blank answer cell** | Same suppression, and for the same reason: `blank_matches` can never return true against an empty accepted list, so the gate would never open. |
-| Gating table inside a **two-column column** | `fill_table` and `two_column` are both in `builder.NESTABLE_TYPE_KEYS`, but `scopeOf` does not recognise a column wrapper, so it resolves to the enclosing `.slide`, `isGateWrapper` returns false, `restoreGates` skips the gate as mis-scoped and the pre-hide matches nothing. **Result: the table works normally and the gating silently does nothing.** Accepted, not fixed — the three existing families inherit the same limitation, and adding a sixth scope would change `test_reveal_scope_agreement.py`'s three-file contract. Fail-open, so nothing is ever trapped. |
+| Rejected save on a gated table | §9's `grid_data` override re-renders the checkbox from the submitted payload, so the author's tick survives the validation error. |
+| Gating table inside a **two-column column** | `fill_table` and `two_column` are both in `builder.NESTABLE_TYPE_KEYS`, but no two-column wrapper is a `scopeOf` scope. `scopeOf` resolves to the nearest *recognised* ancestor instead (`.slide` for a top-level two-column, `.callout__children` for one nested in a callout), and `isGateWrapper` is false at that level — so the pre-hide matches nothing and `restoreGates` skips the gate as mis-scoped. A live solve still runs `cascadeFrom`, adding `.reveal-shown` to siblings that were never hidden and moving focus, so the visible effect is a focus/scroll jump rather than a strict no-op. Fail-open; nothing is ever trapped. Accepted — the three existing families inherit the same limitation, and adding a sixth scope would change `test_reveal_scope_agreement.py`'s three-file contract. |
 | Legacy bundle imported (no `gate` key) | `normalize_data` supplies `False`. Ungated. |
 | Newer bundle imported by older libli | Unknown key ignored by the lenient validator, dropped by the old normalizer. Ungated, not an error. |
 | Gating table with nothing after it in scope | `cascadeFrom` reveals nothing and falls back to focusing the scope. Harmless. |
-| Editor preview | `data-state-url` is `""` so `saveFlag` no-ops; `libliRevealCascade` is guarded and `reveal.js` loads unconditionally in the editor anyway. |
+| Editor preview | `data-state-url` is `""` so `saveFlag` no-ops. `reveal.js` loads unconditionally in the editor, so the cascade is live there. |
 
 ## Testing
 
@@ -503,11 +551,15 @@ Every test below must be **falsified before it is trusted** — introduce the na
 RED, then remove the mutant by editing it out (never by `git checkout`, which would discard the test
 alongside it).
 
-### Unit / render
+**Where things live.** `tests/` has an `__init__.py`; `courses/tests/` does not, so a helper cannot be
+imported across the two roots — copy it. `tests/test_filltable_restore.py` already exists and is the
+right home for every restore-shaped item (4, 6, 7, 8): it carries `_seed_filltable(unit, student,
+cells, blob)`, a `_lesson_url` helper, a `data-state` regex assertion, and a module docstring
+documenting the seam these tests will otherwise trip over — **`UnitProgress.element_state` is
+str-keyed while `render()`'s `state` argument is int-keyed** (`views.py:485-494` does the conversion).
+Seed through the lesson view with str keys; call `render()` directly only with int keys.
 
-Mirror the naming of the existing `test_filltable_*` (in `tests/`) and `test_fillgate_*` (in
-`courses/tests/`) families. Note `courses/tests/` has no `__init__.py` while `tests/` does, so a helper
-cannot be imported across the two roots — copy it instead.
+### Unit / render
 
 1. **Model / normalizer** — `normalize_data` emits `gate: False` by default and `True` when set on a
    satisfiable grid. *Mutant: drop the `gate` line.*
@@ -517,54 +569,52 @@ cannot be imported across the two roots — copy it instead.
    `"|"`) plus `gate: true` normalizes to `gate: False`. *Mutant: drop the `is_blank_answer` conjunct.*
    Separate from test 2 because the two conjuncts fail independently.
 4. **Render, gated, co-located** — the node matching `[data-reveal-gate][data-filltablegate]` is the
-   **same** node carrying a non-empty `data-state`. Render with real `slug`/`node_pk` (as
-   `courses/tests/test_fillgate_restore.py` does) if the assertion also covers `data-state-url`;
-   `tests/test_filltable_render.py::_render` calls `el.render()` bare, which leaves that attribute
-   present-but-empty. *Mutant: move the attributes to the inner `.el--filltable` div* — a
-   presence-only assertion stays green under it, and the consequence is a permanent lockout.
+   **same** node carrying a non-empty `data-state`. Go through the lesson view (per the note above) so
+   `data-state-url` is real rather than the empty string a bare `el.render()` produces. *Mutant: move
+   the attributes to the inner `.el--filltable` div* — a presence-only assertion stays green under it,
+   and the consequence is a permanent lockout.
 5. **Render, ungated** — neither attribute appears, and the rendered output is otherwise unchanged.
    *Mutant: emit the attributes unconditionally.*
 6. **Restore derivation** — the highest-value test here. Element with `gate: true` and state
    `{"done": True}` renders `data-state` containing `"open": true`. *Mutant: remove the injection.*
    This is the sole restore path (§4); without this test its removal is invisible to the whole suite.
-7. **No state leak** — `render` must not mutate the caller's state blob: pass a state dict, render,
-   assert the caller's dict still lacks `open`. *Mutant: assign into `ctx["mine"]` in place.*
+7. **No state leak** — `render` must not mutate the caller's state blob: pass an int-keyed state dict,
+   render, assert the caller's dict still lacks `open`. *Mutant: assign into `ctx["mine"]` in place.*
 8. **Ungated restore unchanged** — `gate: false` + `{"done": True}` renders `data-state` **without**
    `open`. *Mutant: derive `open` unconditionally.*
 9. **Stored blob shape** — after a successful gated check, the *persisted* state is exactly
    `{"done": True}`. Pins §4's claim that `_val_done` strips everything else, and stops a later change
    from asserting against a persisted `open` that never exists. *Mutant: add `open` to `_val_done`'s
    return* — the test should go red, proving it actually reads storage.
-10. **Ungated table does not cascade** — solve an *ungated* fill-table and assert no `.reveal-shown`
-    class is added to any following sibling and `document.activeElement` is unchanged. *Mutant: delete
-    the `hasAttribute("data-reveal-gate")` guard in §5.* This is the only test defending Goal 1's
-    "byte for byte"; every other new test uses a gated fixture.
+10. **Normalizer-routing invariant** — saving through `FillTableElementForm` and importing through
+    `_build_fill_table` both store a real JSON boolean at `data["gate"]`, so `data__gate=True` and the
+    template's `{% if data.gate %}` agree. *Mutant: bypass `normalize_data` on one write path.*
 11. **View flag** — a unit whose only gate is a gating fill-table gets `has_reveal_gate=True` and
     `has_filltable_gate=True`; a unit with only an ungated fill-table gets both false. Cover a table
     nested as a **callout child**, since that is the real shape and the flat (non-`parent__isnull`)
     query is what makes it work. *Mutant: drop the `or has_filltable_gate`.*
-12. **Normalizer-routing invariant** — saving through `FillTableElementForm` and importing through
-    `_build_fill_table` both store a real JSON boolean at `data["gate"]`, so `data__gate=True` and the
-    template's `{% if data.gate %}` agree. *Mutant: bypass `normalize_data` on one write path.*
-13. **No ContentType SELECT** — assert the gating-table detection does not add a `django_content_type`
+12. **No ContentType SELECT** — assert the gating-table detection does not add a `django_content_type`
     query; `tests/test_html_element.py`'s query-count invariant must stay green **unmodified**.
     *Mutant: rewrite the query as `FillTableElement.objects.filter(elements__unit=node, …)`.*
-14. **Prepaint A/B** — render the unit page with and without a gating table and diff the prepaint
+13. **Prepaint A/B** — render the unit page with and without a gating table and diff the prepaint
     block: the `__fillTableBooted` term and the `.reveal-armed` style block appear only in the gated
     render. This must be an A/B; asserting the rule is present in the gated render alone proves
-    nothing about whether the flag drives it.
-15. **Print carve-out** — lives in `courses/tests/`, next to `test_reveal_scope_agreement.py`; copy
+    nothing about whether the flag drives it. *Mutant: omit `has_filltable_gate` from the context
+    dict* (§7 site 3) — the term vanishes and only this test notices.
+14. **Print carve-out** — lives in `courses/tests/`, next to `test_reveal_scope_agreement.py`; copy
     that file's four-line `_print_block` helper rather than importing it. Assert the gate-hiding rule
     inside `@media print` excludes `[data-filltablegate]`. *Mutant: restore the bare
-    `[data-reveal-gate]` selector.* `test_reveal_scope_agreement.py` must stay green unmodified — it
-    is the reason this third file is in scope at all.
-16. **Direct-child pin** — in rendered callout output, `.filltable[data-reveal-gate]` is a **direct**
+    `[data-reveal-gate]` selector.* `test_reveal_scope_agreement.py` must stay green unmodified.
+15. **Direct-child pin** — in rendered callout output, `.filltable[data-reveal-gate]` is a **direct**
     child of `.callout__child`. The pre-hide CSS is `:has(> [data-reveal-gate])`; one extra wrapper
     div disarms it silently. Add to `tests/test_filltable_render.py`. *Mutant: wrap the root div.*
-17. **Transfer round-trip** — export → import preserves `gate: true`; a bundle whose fill-table data
+16. **Transfer round-trip** — export → import preserves `gate: true`; a bundle whose fill-table data
     omits `gate` imports as `False`. *Mutant: drop the export line.*
-18. **Editor partial** — the checkbox renders, and renders checked for a gated element. Extend
+17. **Editor partial** — the checkbox renders, and renders checked for a gated element. Extend
     `tests/test_filltable_editor_partial.py`. *Mutant: drop the `{% if d.gate %}checked{% endif %}`.*
+18. **Rejected save keeps the tick** — POST a gated table with one blank answer cell, assert the form
+    is invalid **and** the re-rendered checkbox is still checked. *Mutant: delete §9's `grid_data`
+    override* — without it the box comes back unchecked and the author's intent is silently lost.
 
 ### Static / wiring
 
@@ -574,7 +624,7 @@ cannot be imported across the two roots — copy it instead.
     is never set makes the watchdog disarm on *every* load, quietly defeating the pre-hide.
 20. **Focus branch pinned** — extend `courses/tests/test_reveal_refactor_static.py`, whose
     `test_focus_targets_fill_gate_input` is the exact precedent, with the fill-table branch including
-    the `:not([disabled])` qualifier. *Mutant: delete the `[data-filltablegate]` branch.* Test 22's
+    the `:not([disabled])` qualifier. *Mutant: delete the `[data-filltablegate]` branch.* Test 23's
     `activeElement` assertion also covers this, but only on an adjacent-gate fixture; this static test
     covers it unconditionally.
 
@@ -588,28 +638,44 @@ Extend `tests/test_e2e_filltable.py` or add a sibling, following `tests/test_e2e
     is not visible via `checkVisibility()` (Playwright's own visibility notion reports a
     1×1-clipped node as visible, so it cannot be trusted here). *Mutant: cascade unconditionally,
     ignoring `all_correct`.*
-22. **Chain of two gates, adjacent** — the fixture must place the two gating tables as **immediately
+22. **Correct answer reveals** — fill all cells correctly, Check, assert the following element is
+    visible and the table is locked. *Mutant: remove the `libliRevealCascade` call.*
+23. **Chain of two gates, adjacent** — the fixture must place the two gating tables as **immediately
     adjacent** scope children, with nothing between them; this differs deliberately from unit 322,
     whose tables are separated by a text element (§6). Table 1 correct reveals table 2 but *not* the
     trailing content; table 2 correct reveals the trailing content. Additionally assert
     `document.activeElement` is table 2's first enabled `.filltable__input`, not its wrapper.
     *Mutant: delete `isGateWrapper`'s `break`* — the first table would reveal everything at once.
-23. **Correct answer reveals** — fill all cells correctly, Check, assert the following element is
-    visible and the table is locked. *Mutant: remove the `libliRevealCascade` call.*
 24. **Reload restores** — after success, reload; revealed content is still visible and the table is
     still locked. *Mutant: remove §4's `open` derivation.*
-25. **Pre-tick lockout** — the regression test for §4, end to end: solve an *ungated* table, then set
-    `gate: true` on it, reload, and assert the following content is visible. This is the only test
-    that exercises the seam through a real stored blob rather than a synthetic one. *Mutant: same as
-    24 — it must fail here too, or the test is not reading storage.*
-26. **Revealed iframe has a box** — the motivating content is a `loading="lazy"` GeoGebra iframe
-    revealed out of `display: none`; no enhancer listens for `libli:reveal` on iframes (only
-    `gallery.js` and `tabs.js` do). Assert a revealed iframe's `bounding_box()` height is non-zero. If
-    `.embed-frame`'s `aspect-ratio` makes this structurally impossible to fail, say so in the spec and
-    drop the item rather than shipping a test that cannot go red.
+25. **Pre-tick lockout, single gate** — solve an *ungated* table, then set `gate: true` on it, reload,
+    and assert the following content is visible. The only test that exercises §4's seam through a real
+    stored blob rather than a synthetic one. *Mutant: same as 24 — it must fail here too, or the test
+    is not reading storage.*
+26. **Pre-tick, chained** — the documented limitation from the Error handling table. Seed table 2
+    `{"done": true}` with table 1 unsolved, tick `gate` on both, load, solve table 1, and assert the
+    trailing content is **still hidden**; then reload and assert it is visible. Written to pin the
+    accepted behaviour, so it is also the test that goes red if someone later changes `cascadeFrom`'s
+    stop condition — which is the point: that change should be deliberate.
+27. **Ungated table does not cascade** — solve an *ungated* fill-table that has a following sibling in
+    scope, and assert no `.reveal-shown` class is added and `document.activeElement` is unchanged.
+    *Mutant: delete the `hasAttribute("data-reveal-gate")` guard in §5.* This is the only test
+    defending Goal 1's "byte for byte"; every other new test uses a gated fixture. It is filed here,
+    not in the render block, because `.reveal-shown` and `activeElement` exist only at runtime.
 
 Run e2e narrowly (`-m e2e` is mandatory or the suite silently deselects), start the test-DB container
 first, and do not background the run.
+
+**Deliberately not tested: the revealed iframe's box.** An earlier draft proposed asserting a revealed
+GeoGebra iframe has a non-zero `bounding_box()`, on the theory that a `loading="lazy"` iframe revealed
+out of `display: none` might come up collapsed (no enhancer listens for `libli:reveal` on iframes —
+only `gallery.js` and `tabs.js` do). The CSS settles it: `.embed-frame` is
+`width: 100%; aspect-ratio: 16 / 9` with the iframe absolutely filling it (`courses.css:113-114`), and
+`iframeelement.html` puts the per-element ratio in an inline style on that wrapper. The height is
+purely CSS-derived from container width and is non-zero the instant the node is not `display: none`,
+loaded or not. Such an assertion would pass under the group mutant only because nothing was revealed
+at all — i.e. it would duplicate test 22 while appearing to cover lazy-loading. Dropped rather than
+shipped as a test that cannot go red for its stated reason.
 
 ### Screenshots
 
@@ -624,6 +690,8 @@ than assuming the light result carries over.
 - **Chained gates change the reading experience.** In unit 322 the second table is hidden until the
   first is solved, where the original page showed both at once. Accepted deliberately — it keeps the
   feature to one checkbox per table and avoids a multi-table gate group.
+- **The chained pre-tick case needs a reload.** Documented in Error handling, pinned by test 26, and
+  explicitly out of scope to fix here.
 - **The checkbox is offered in placements where it cannot work** (a two-column column). Fail-open and
   inherited from the existing families; see the Error handling table.
 - **One extra query per lesson-unit render, and only on units that already have a fill-table** (the
