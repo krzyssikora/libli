@@ -109,6 +109,23 @@ def render_element(
                     submitted_values = r_submitted
                     mark_result = r_result
                     feedback_for_pk = element.pk
+        # No `element is not None` conjunct: `element` is a required positional and
+        # line 42 already dereferences it, so that check can never be False -- a
+        # condition that cannot fail, the pattern this repo's reviews strip out
+        # (same call made for the loader guard in Task 7).
+        if action_url is None and editor_preview:
+            # A NESTED question in the editor preview: reverse the try URL for ITS
+            # OWN pk. _preview.html passes action_url only to TOP-LEVEL elements and
+            # the container render() drops it at the barrier, so without this the
+            # render falls through to QuestionElement.render's default -- the STUDENT
+            # courses:check_answer URL, which persists practice state against the
+            # AUTHOR's own account. Forwarding the parent's action_url instead would
+            # post the child's answer to the PARENT's endpoint; the flag crosses the
+            # barrier, the URL does not.
+            action_url = reverse(
+                "courses:manage_element_try",
+                kwargs={"slug": element.unit.course.slug, "pk": element.pk},
+            )
         return mark_safe(  # noqa: S308 — templates escape user text; correctness never leaks
             obj.render(
                 element=element,

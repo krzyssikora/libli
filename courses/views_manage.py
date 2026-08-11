@@ -2375,6 +2375,16 @@ def element_try(request, slug, pk):
                     selected_ids=selected,
                     mark_result=result,
                     feedback_for_pk=el.pk,
+                    # DEFENCE IN DEPTH ONLY -- this fixes nothing observable. editor.js
+                    # reads the action off the LIVE form node and swaps only innerHTML,
+                    # so this attribute is discarded before it can route anything. Kept
+                    # because a manage-gated fragment should not ship a STUDENT endpoint
+                    # in its markup at all. `el` is already fetched with
+                    # select_related("unit__course"), so the slug costs no query.
+                    action_url=reverse(
+                        "courses:manage_element_try",
+                        kwargs={"slug": el.unit.course.slug, "pk": el.pk},
+                    ),
                 )
             )
         return render(

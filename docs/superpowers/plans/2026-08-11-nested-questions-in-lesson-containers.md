@@ -1533,7 +1533,7 @@ Add a comment naming `editor_preview` as **not** the existing `previewing` flag 
 In `render_element`'s question branch, before `obj.render(...)`:
 
 ```python
-        if action_url is None and editor_preview and element is not None:
+        if action_url is None and editor_preview:
             # A NESTED question in the preview: reverse the try URL for ITS OWN pk.
             # Forwarding the parent's action_url would post the child's answer to
             # the parent's endpoint; without this the render falls back to the
