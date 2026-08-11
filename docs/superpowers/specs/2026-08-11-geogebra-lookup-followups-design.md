@@ -180,7 +180,7 @@ loop may overshoot the cap by up to one chunk (peak buffer `_MAX_BODY_BYTES + _C
 
 `fetch_geogebra_dimensions` runs `_fetch_body` on a plain `threading.Thread(daemon=True)` — named
 `f"geogebra-lookup-{material_id}"`, so a thread dump shows how many lookups are parked — with a
-**function-local** result box created per invocation, then `join(_DEADLINE_SECONDS)`.
+**function-local** result box created per invocation, then `join(budget)` — see the pinned block below for why that value is read once rather than re-read here.
 
 **Structure.** `_fetch_body(request, deadline)` stays **module-level** for readability, to keep the
 per-invocation box out of a module-level signature, and so tests 5a/5b can drive it directly. Note
@@ -261,7 +261,7 @@ it only calls `_open`, reads bytes, and stores into the box. Nothing crosses a d
 so Django's per-thread connection handling and `close_old_connections` are not implicated. Worker-model
 interactions remain hypothetical because there is no deployment.
 
-**Only `_open` and `read` move to the thread.** The `GEOGEBRA_API_LOOKUP` check, the single cache
+**Only `_open` and the chunked `read1` loop move to the thread.** The `GEOGEBRA_API_LOOKUP` check, the single cache
 read (`:345`) and both cache writes (`:351` in `_fail`, `:404` in the no-usable-dimensions tail), and
 all logging stay on the main thread. This is load-bearing three times over: it
 keeps `_open` the universal patch seam every existing test relies on, it keeps `caplog` able to see
@@ -350,9 +350,9 @@ Two comments must be rewritten with the code, or they become false mechanism:
   on already-`None` fields.
 - **GeoGebra → GeoGebra** still clears and then re-looks-up, as today.
 
-**Fetch path, after the change.** Flag check → cache read → build `Request` → *[thread]* `_open` +
-`read` → join with deadline → parse → cache write on failure. Only the bracketed step is off the
-main thread.
+**Fetch path, after the change.** Flag check → cache read → build `Request` → compute the deadline →
+*[thread]* `_open` + the chunked `read1` loop → join on the same budget → snapshot the box → parse →
+cache write on failure. Only the bracketed step is off the main thread.
 
 ## Error handling
 
@@ -422,39 +422,63 @@ sits **outside** the `try`, so `len(None)` raises `TypeError` straight out of
 `fetch_geogebra_dimensions` and into `clean_url` — the never-raises breach this spec otherwise works
 hard to prevent. It errors; it does not return `(None, None)`. Because that hole is reachable from a
 `None` in the box, the body branch **must additionally require `isinstance(result["body"], bytes)`**,
-routing anything else to `_fail`. (Moving the `len()` inside the `try` would also work but changes
-existing oversize-handling structure for no gain.)
+routing anything else to `_fail` — with a **distinct reason string**, e.g.
+`"lookup returned a non-bytes body"`. It must not reuse `"deadline exceeded"`, or a broken fake
+becomes indistinguishable from a real deadline in every test that asserts on that substring (1, 2, 4
+and 5c). (Moving the `len()` inside the `try` would also work but changes existing
+oversize-handling structure for no gain.)
 
-Test 1's `read` therefore returns
-a real payload (`_payload("wseg.json")`, so the mutant yields `(880, 660)`), and test 2's `_open`
-returns a working response over the same payload. The only route to `(None, None)` must be the
-deadline firing.
+**Where the dimension-bearing-fake rule still bites: test 2 only.** Test 2's `_open` returns a
+working response over a real payload, so its mutant genuinely yields `(880, 660)` against an asserted
+`(None, None)` — for that test, the deadline firing really is the only route to `(None, None)`. For
+test 1 it is **not**: see test 1's re-derivation below, where the mutant also returns
+`(None, None)` and the `caplog` reason is the sole discriminator. Test 1 keeps a real payload
+(`_payload("wseg.json")`) for legibility, not for discrimination.
 
-**`_patch_open._Resp.read` must be made STATEFUL** (`tests/test_geogebra.py:273-274`). It currently
-returns `body[:n]` from the start on every call, so the chunked loop would re-read the same first
-chunk forever and never reach EOF. Give `_Resp` a read offset:
+**`_Resp` must be made STATEFUL, given a `read1`, and HOISTED TO MODULE SCOPE**
+(`tests/test_geogebra.py:272-280`).
 
-**It must also grow a `read1`,** because that is the primitive the loop calls; without it every
-existing fetch test dies with `lookup failed (AttributeError)` rather than passing unchanged. Both
-share one offset, and a `calls` counter serves tests 5a/5b:
+- *Stateful:* it currently returns `body[:n]` from the start on every call, so the chunked loop would
+  re-read the same first chunk forever and never reach EOF.
+- *`read1`:* that is the primitive the loop calls; without it every existing fetch test dies with
+  `lookup failed (AttributeError)` rather than passing unchanged.
+- *Hoisted:* `_Resp` is currently defined **inside** `_patch_open`'s body, closing over `body`, and
+  `_side_effect` returns a **fresh instance per call**. So `_patch_open._Resp` does not exist as an
+  attribute, and a test using `with _patch_open(body)` has no handle on the instance whose `calls`
+  counter it must assert — `unittest.mock` does not record return values. Tests 5a/5b are
+  unimplementable until this changes.
 
 ```python
-class _Resp:
-    def __init__(self):
+class _Resp:                       # module scope, takes body explicitly
+    def __init__(self, body):
+        self._body = body
         self._pos = 0
-        self.calls = 0            # tests 5a/5b assert on this
+        self.calls = 0             # tests 5a/5b assert on this
 
     def read(self, n=-1):
         self.calls += 1
         if n is None or n < 0:
-            chunk = body[self._pos:]
+            chunk = self._body[self._pos:]
         else:
-            chunk = body[self._pos : self._pos + n]
+            chunk = self._body[self._pos : self._pos + n]
         self._pos += len(chunk)
         return chunk
 
-    read1 = read                  # same offset, same counter
+    read1 = read                   # same offset, same counter
+
+    def __enter__(self):           # UNCHANGED - the fetch uses `with _open(...) as resp`
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
 ```
+
+`_patch_open` keeps its signature and returns `_Resp(body)` from `_side_effect`, so its ~15 callers
+are untouched. Tests 5a/5b instead build the instance themselves —
+`resp = _Resp(body); patch("courses.geogebra._open", return_value=resp)` — which is what makes
+`resp.calls` assertable. Note the `__enter__`/`__exit__` pair is carried over verbatim and is **not**
+optional: dropping it breaks every existing fetch test, and the context-manager requirement is
+restated below.
 
 **One deliberate semantic change:** the old double treated `n == 0` as "read everything"
 (`body[:n] if n and n > 0 else body`); the new one returns `b""`, which is what a real file object
@@ -524,7 +548,7 @@ class, not one instance of it.
 2. **Slow headers → deadline,** by patching `_open` itself to block on its own bounded event,
    released in teardown exactly as in test 1. Same two assertions. Pins that the bound wraps `_open`
    and not merely the read. *Mutant:* wrap only the read.
-3. **A deadline negative-caches.** Reuses **test 1's blocking-`read` fake**. Second call
+3. **A deadline negative-caches.** Reuses **test 1's blocking-`read1` fake**. Second call
    short-circuits; `_open` called once. *Mutant:* bare `return (None, None)` without `_fail`.
 
    **Both directions race, and the fixed-build direction is the dangerous one.** Asserting
@@ -532,7 +556,11 @@ class, not one instance of it.
    the main thread's post-join assertion runs; lose that and the test reads `call_count == 0` and
    turns a **correct build RED** — worse than the flaky-green case. The deadline floor alone is not
    sufficient here. Remove the race by synchronisation, not timing: the fake sets an "entered"
-   `Event` on entry, and the test waits on it before asserting `call_count`.
+   `Event` on entry, and the test waits on it before asserting `call_count`. **That wait must be
+   bounded and asserted** — `assert entered.wait(<a few seconds>)`, never a bare `entered.wait()`.
+   A plausible mutant of this very design (the thread is never started) would otherwise leave the
+   event unset and hang the suite — the failure mode the bounded-fake rule above exists to prevent.
+   That rule is written about the fakes; it applies to waits in the test body too.
 4. **The deadline log names the material id AND the reason.** Asserting the id alone would be
    vacuous: `_fail` logs `"geogebra %s: %s"`, so `lookup failed (AttributeError)` from a broken fake
    also names the id — meaning a test asserting only the id is green on precisely the mistake this
@@ -546,15 +574,24 @@ class, not one instance of it.
 **without any thread, any `join`, or any `_DEADLINE_SECONDS` patching** — no concurrency in the test
 at all. Two cases, both deterministic:
 
-Neither needs `@override_settings(GEOGEBRA_API_LOOKUP=True)`: `_fetch_body` never reads the kill
-switch. That is stated so its absence reads as deliberate rather than as an oversight of the
-emphatic "all four" rule above. Both reuse `_patch_open`'s `_Resp` (with its `calls` counter) rather
-than a hand-rolled double.
+**5a and 5b** need no `@override_settings(GEOGEBRA_API_LOOKUP=True)`: `_fetch_body` never reads the
+kill switch. That is stated so its absence reads as deliberate rather than as an oversight of the
+emphatic "all four" rule above. **5c is different and does need it** — see below. All three build
+`_Resp(body)` directly, per the hoisting above.
+
+**Body size is load-bearing for 5b and 5c.** With `_CHUNK_BYTES = 8192` and the slicing `_Resp`, a
+"few KB" body is delivered whole by the **first** `read1`; the second call returns `b""`, the loop
+breaks on EOF, and `_fetch_body` returns normally — so a correct build never raises and the test
+fails. Any test that must trip the budget mid-loop therefore needs a body **larger than
+`2 × _CHUNK_BYTES`** (≥ 16,385 bytes, i.e. at least three `read1` calls) and smaller than
+`_MAX_BODY_BYTES`, so the oversize branch does not fire first. Alternatively patch `_CHUNK_BYTES`
+down and size the body to match; state which, don't leave it to inference.
 
 5a. **Deadline already past → `_BudgetExceeded`, and `read1` is never called.** Pass
-    `deadline = monotonic() - 1`; assert the raise and `resp.calls == 0`. Pins that the budget is
-    checked *before* each read rather than only after data arrives. *Mutant:* drop the check
-    entirely — the fake's finite body is read to EOF and returned, no exception, RED.
+    `deadline = monotonic() - 1`; assert the raise and `resp.calls == 0`. Body size is irrelevant
+    here — the check trips before any read. Pins that the budget is checked *before* each read
+    rather than only after data arrives. *Mutant:* drop the check entirely — the fake's finite body
+    is read to EOF and returned, no exception, RED.
 
 5b. **Deadline expires mid-loop → `_BudgetExceeded` after exactly two reads.** Patch
     `courses.geogebra.monotonic` (the module-local name, per the import above) with a **fake clock**,
@@ -585,6 +622,17 @@ So: drive the full `fetch_geogebra_dimensions` with the 5b fake clock applied, s
 **inside** the join window, and assert the logged reason is the deadline one.
 *Mutants:* store `_BudgetExceeded` in `box["exc"]` (reason becomes `lookup failed`); and store the
 partial body (reason becomes `unparseable payload`).
+
+**5c carries `@override_settings(GEOGEBRA_API_LOOKUP=True)`** — unlike 5a/5b it drives
+`fetch_geogebra_dimensions`, which reads the kill switch at `geogebra.py:341`, and
+`config/settings/test.py:30` sets it `False`. Without the decorator the call returns `(None, None)`
+before any thread is created and before any log line, so the deadline-reason assertion would fail on
+a correct build.
+
+**5c's response fake is not inherited from 5b — only the clock is.** Specify it: an `_Resp` over a
+body larger than `2 × _CHUNK_BYTES` and smaller than `_MAX_BODY_BYTES` (the existing fixtures are far
+too small — `wseg.json` is 1,177 bytes, delivered in one `read1`), with the scripted clock arranged
+so the budget trips on an iteration **before** EOF.
 
 ### The constant relationship — the LAST new test in this file
 
@@ -675,9 +723,14 @@ B3. **A non-GeoGebra element with a stored pair keeps it when the URL is unchang
    and any future non-idempotent canonicalisation for a new provider would then wipe every such
    element's pair on every save, with no lookup to restore it and no badge to signal it.
 
-   *Mutant:* invert the scoping — clear only when the new URL is **non**-GeoGebra
-   (`if not usable_dimensions(width, height) and not mid`). `:410` and `:293` both survive it because
-   they use the GeoGebra `URL` constant; test 7's Vimeo/unchanged-URL case goes RED.
+   *Mutant — note it is a COMPOUND edit, both parts required:* **drop `url_changed` AND scope the
+   clear to non-GeoGebra** — `if not usable_dimensions(width, height) and not mid`. `:410` and `:293`
+   both survive it because they use the GeoGebra `URL` constant, which `not mid` spares; B3's
+   Vimeo/unchanged-URL case goes RED.
+
+   **The plain scoping inversion is NOT the mutant here.** Keeping `url_changed`
+   (`if url_changed and not usable_dimensions(...) and not mid`) leaves B3 green, because B3's URL is
+   unchanged so the clear is never reached — running that mutant would wrongly suggest B3 is vacuous.
 
    **Note the mutant that does *not* work here:** "drop the `url_changed` conjunct" is already killed
    by two existing tests, so it would not justify a new test. Under it the guard becomes
