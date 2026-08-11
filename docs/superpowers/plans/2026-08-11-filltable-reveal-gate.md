@@ -22,7 +22,12 @@
 - **Run tests narrowly.** Start the test-DB container first (`docker compose -f docker-compose.test.yml up -d`); a down container makes the suite look hung for ~4 minutes. Never background a pytest run.
 - **Tooling is via `uv run`** — `pytest`, `ruff`, and `python` are not on PATH.
 - **Lint before each commit:** `uv run ruff check --no-cache <changed files>` and `uv run ruff format --check <changed files>` (a separate CI gate). `--no-cache` matters: a `# noqa` warning is cached away and the second run falsely reports clean. **`--check` is a gate, not a fixer** — some snippets dictated here are not `ruff format`-clean as pasted (Task 9's `_visible` helper, for one). When `--check` reports "would be reformatted", run bare `uv run ruff format <changed files>` and re-run `--check`; that is expected, not a defect in the snippet.
-- **`ruff format` will NOT save you from `E501`.** `E` is selected with no `line-length` override, so the limit is **88 columns**, and the repo is E501-clean today. `ruff format` only re-wraps *bracketed code* — it never rewraps a comment, never splits a string literal, and never parenthesises an assignment target list. Long comments, long string literals and wide unpacking targets must be wrapped **by hand**, and a `ruff check` failure on one of those is a real violation to fix, not the expected `format --check` churn described above. The dictated snippets are wrapped for this **except where a trailing comment is used for emphasis** — measure before pasting rather than assuming, and remember that Task 9's bodies gain 4 columns once the `def` line is added (its nested blocks 8). The cheap check is `uv run ruff check --no-cache <file>` immediately after writing a snippet, not at the commit step.
+- **`ruff format` will NOT save you from `E501`.** `E` is selected with no `line-length` override, so the limit is **88 columns**, and the repo is E501-clean today. `ruff format` only re-wraps *bracketed code* — it never rewraps a comment, never splits a string literal, and never parenthesises an assignment target list. Long comments, long string literals and wide unpacking targets must be wrapped **by hand**, and a `ruff check` failure on one of those is a real violation to fix, not the expected `format --check` churn described above. **The dictated snippets are NOT all E501-clean, and which kind of overflow you hit decides what to do.** Sort by what the offending line is:
+
+- **Bracketed code, a dict/list literal, or an `assert x, "msg"` form** → `ruff format` fixes it (it parenthesises and re-wraps these, including assert messages). Expected churn: run bare `uv run ruff format <file>` and move on. Several dictated snippets land here.
+- **A comment, a string literal, or an assignment target list** → `ruff format` will **not** touch it. This is a real violation you must wrap by hand. The dictated snippets are pre-wrapped for these cases; keep them that way when pasting.
+
+Remember Task 9's bodies gain 4 columns once the `def` line is added (its nested blocks 8). The cheap check is `uv run ruff check --no-cache <file>` immediately after writing a snippet, not at the commit step.
 - **English source strings only** in Tasks 1–9; the Polish catalog and the binary `.mo` are Task 10, deliberately last.
 
 ---
@@ -575,7 +580,8 @@ def test_saved_gated_state_stores_done_only(client):
     # render-time derivation in this task exists.
     student = make_student(client, "ftbl_gate4")
     course, unit = make_course_with_unit()
-    # can_access_course is the ONLY guard on this POST -- element_state_save is
+    # element_state_save guards on get_node_or_404(viewer=...) and then
+    # can_access_course -- and NEITHER requires enrolment, so the write is
     # deliberately open to any viewer who can reach the lesson. The Enrollment is
     # here for symmetry with the GET-based tests above, which DO need it because
     # build_lesson_context populates `state` only for enrolled students.
@@ -695,7 +701,9 @@ the caller's reference."
 
 **The filter reads the STORED blob; the template reads the NORMALIZED one.** `data__gate=True` matches whatever is in the JSONField, while `{% if data.gate %}` (Task 2) sees `normalize_data`'s output. `FillTableElement.save()` runs `_sanitized_data`, **not** `normalize_data`, so the two agree only because every *production* write path normalizes first — it is a write-path property, not a query property, and Task 7's `test_every_production_write_path_stores_a_real_boolean` is what pins it. They can still diverge on a row built directly, e.g. `objects.create(data={"gate": True, "cells": [[static-only]]})`: the filter matches and arms `has_reveal_gate`, while the template suppresses the marker. That divergence is **inert** — the pre-hide CSS keys on `[data-reveal-gate]`, so with no marker nothing is hidden and the only cost is `reveal.js` loading needlessly. Do not "fix" it by normalizing at query time; that would cost a full table scan.
 
-**Use the CT-free query shape.** The obvious `FillTableElement.objects.filter(elements__unit=node, ...)` makes `GenericRelation.get_extra_restriction` call `ContentType.objects.get_for_model`, a DB SELECT on a cold cache. `views.py` rejects that pattern in two existing comments (:411-412 and :457-459), the second naming `tests/test_html_element.py`'s query-count assertion as the thing it breaks.
+**Use the CT-free query shape.** The obvious `FillTableElement.objects.filter(elements__unit=node, ...)` makes `GenericRelation.get_extra_restriction` call `ContentType.objects.get_for_model`, a DB SELECT on a cold cache. `views.py` rejects that pattern in two existing comments (:411-412 and :457-459).
+
+**But do not repeat those comments' claim that `tests/test_html_element.py` guards it — it does not, and Step 8's docstring says so.** That test's fixtures hold only `HtmlElement`s, so `has_fill_table` is `False` and this term short-circuits before the queryset exists; and its assertion is `len(q3) == len(q1)` (`tests/test_html_element.py:323`), a *relative* 1-vs-3-element A/B that absorbs any fixed cost equally in both arms. This is precisely why the shape needs a source assertion, and why Step 9's mutant 5 predicts every runtime test staying GREEN.
 
 - [ ] **Step 1: Write the failing view-flag tests**
 
@@ -815,13 +823,18 @@ Three edits in `build_lesson_context`:
     has_fill_table = node.elements.filter(
         content_type__model="filltableelement"
     ).exists()
-    # CT-free by construction (see the has_html comment above and the
-    # has_stateful_elements one below): a reverse-GenericRelation filter
-    # would resolve FillTableElement's
-    # ContentType and emit a cold-cache CT SELECT, breaking test_html_element's
-    # query-count invariant. Short-circuited on has_fill_table so a unit with no
-    # fill-table costs zero extra queries. NOT scoped to parent__isnull=True: a
-    # gate nested in a tab or callout keeps its own `unit` FK.
+    # CT-free by construction, per house convention (see the has_html comment
+    # above and the has_stateful_elements one below). A reverse-GenericRelation
+    # filter here would make get_extra_restriction resolve FillTableElement's
+    # ContentType and emit a cold-cache CT SELECT on every lesson page that
+    # HAS a fill-table. NO TEST CAN CATCH THAT -- test_html_element's fixtures
+    # hold only HtmlElements, so has_fill_table is False and this whole term
+    # short-circuits before the queryset is built; and its assertion is a
+    # RELATIVE A/B (len(q3) == len(q1)), which pays any fixed cost in both arms.
+    # That is why the shape is pinned by a source assertion instead.
+    # Short-circuited on has_fill_table so a unit with no fill-table costs zero
+    # extra queries. NOT scoped to parent__isnull=True: a gate nested in a tab
+    # or callout keeps its own `unit` FK.
     has_filltable_gate = has_fill_table and FillTableElement.objects.filter(
         pk__in=node.elements.filter(
             content_type__app_label="courses", content_type__model="filltableelement"
@@ -1159,7 +1172,7 @@ payload is deliberately unchanged -- _val_done strips anything but `done`."
 - Modify: `courses/static/courses/js/filltable_editor.js` (:174, :250, :937)
 - Modify: `courses/element_forms.py` — add `FillTableElementForm.grid_data`
 - Modify: `tests/test_editor_twin_drift.py:179-181` (reason string only)
-- Test: `tests/test_filltable_editor_partial.py`, `tests/test_filltable_form.py`
+- Test: `tests/test_filltable_editor_partial.py`, `tests/test_filltable_form.py`, and one kept e2e in `tests/test_e2e_filltable.py` (Step 8)
 
 **Interfaces:**
 - Consumes: `normalize_data`'s `gate` (Task 1).
@@ -1325,7 +1338,18 @@ get_user_model().objects.filter(username=<the username you passed>).update(theme
 
 Same gotcha Task 9 Step 9 calls out for the student.
 
-**Pass criterion:** the Instruction field is still usable at a normal editor width — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed — and **delete the scratch test before Step 10**, exactly as Task 9 Step 9 requires (`git diff tests/test_e2e_filltable.py` must print nothing).
+**Pass criterion:** the Instruction field is still usable at a normal editor width — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed.
+
+**Keep the test, drop only the screenshots.** The tick → Save → stored-flag round trip is the one seam in this feature that *no* runtime test crosses: Step 1's three source assertions pin the strings (`querySelector("[data-gate]")`, `gate: !!(gate && gate.checked)`, the `change` listener) but never execute them together, and every Task 9 e2e seeds through the ORM rather than the editor. Since this step already stands up the whole PA-authenticated fixture, keeping a behavioural version costs three lines:
+
+```python
+    page.locator("[data-gate]").check()
+    _save(page)                     # the file's existing save helper
+    obj.refresh_from_db()
+    assert obj.data["gate"] is True
+```
+
+So: remove the `page.screenshot` calls and the dark-theme `update()` before Step 10, but **keep the test itself**, named `test_editor_gate_checkbox_round_trips`, and add `tests/test_e2e_filltable.py` to Step 10's `git add` and ruff commands. That converts a throwaway harness into the only end-to-end guard on the authoring path.
 
 If the row does not survive, the fix belongs here (a shorter label, or letting the checkbox wrap) — do not leave it for the branch gate to discover.
 
@@ -1352,12 +1376,20 @@ Mutant 7 left the partial without its `<label>` — edit it back, then re-run be
 uv run pytest tests/test_filltable_editor_partial.py tests/test_filltable_form.py tests/test_editor_twin_drift.py -v
 ```
 
-Expected: all PASS. Confirm too that Step 8's scratch e2e test is gone (`git diff tests/test_e2e_filltable.py` prints nothing). Then:
+Expected: all PASS. Then confirm Step 8's kept test is green and carries **no** screenshot or theme leftovers:
 
 ```bash
-uv run ruff check --no-cache courses/element_forms.py tests/test_filltable_form.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py
-uv run ruff format --check courses/element_forms.py tests/test_filltable_form.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py
-git add templates/courses/manage/editor/_edit_filltable.html courses/static/courses/js/filltable_editor.js courses/element_forms.py tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py tests/test_filltable_form.py
+docker compose -f docker-compose.test.yml up -d
+uv run pytest tests/test_e2e_filltable.py -m e2e -k test_editor_gate_checkbox_round_trips -v
+git diff tests/test_e2e_filltable.py    # should show ONLY the new test
+```
+
+Then:
+
+```bash
+uv run ruff check --no-cache courses/element_forms.py tests/test_filltable_form.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_e2e_filltable.py
+uv run ruff format --check courses/element_forms.py tests/test_filltable_form.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_e2e_filltable.py
+git add templates/courses/manage/editor/_edit_filltable.html courses/static/courses/js/filltable_editor.js courses/element_forms.py tests/test_editor_twin_drift.py tests/test_filltable_editor_partial.py tests/test_filltable_form.py tests/test_e2e_filltable.py
 git commit -m "feat(filltable): author checkbox for the gate
 
 Includes a grid_data override: normalize_data suppresses `gate` for exactly
@@ -1815,7 +1847,7 @@ expect(page.locator(f"{_block(table2_row.pk)} .filltable__summary")).to_have_cla
 assert _visible(page, trailing_row.pk) is True
 ```
 
-*Mutant: delete `isGateWrapper`'s `break`* — table 1 would reveal everything at once.
+*Mutant: delete `cascadeFrom`'s `break` at `isGateWrapper` (`reveal.js:143`)* — table 1 would reveal everything at once. Note the `break` is in `cascadeFrom`'s reveal loop; `isGateWrapper` itself (`:77-83`) is a pure predicate and contains no `break`.
 
 - [ ] **Step 4: Test 24 — reload restores**
 
@@ -2090,7 +2122,7 @@ msgid "Reveal the rest of this section when all cells are correct"
 msgstr "Odsłoń resztę tej sekcji, gdy wszystkie komórki są poprawne"
 ```
 
-**Copy the `msgstr` verbatim from Task 8 Step 2's bolded label** — the help page tells authors to tick a checkbox by that exact name, so the two must be byte-identical. They currently agree only by transcription. If you revise the Polish wording *here*, go back and change Task 8 Step 2's snippet (and the already-edited `.pl.md` if Task 8 has run) to match; `tests/test_help.py` inspects no prose, so nothing catches the drift. This mirrors the ⚠️ warning in Task 6 Step 8, which covers the English side.
+**The `msgstr` and Task 8 Step 2's bolded label must be the same string once the markdown line break is collapsed to a single space.** The help snippet wraps the label across a newline (`…tej sekcji, gdy wszystkie` / `komórki są poprawne**`) while the `.po` holds it on one line, so a literal byte comparison of the two sources always fails — compare the rendered label, not the raw text. The canonical form is the single-line one below. They currently agree only by transcription. If you revise the Polish wording *here*, go back and change Task 8 Step 2's snippet (and the already-edited `.pl.md` if Task 8 has run) to match; `tests/test_help.py` inspects no prose, so nothing catches the drift. This mirrors the ⚠️ warning in Task 6 Step 8, which covers the English side.
 
 **Then check the churn before staging.** `makemessages` rewrites every `#:` source-reference comment in the catalog, so a one-msgid change lands as a diff spanning the whole file and a real regression hides easily in it:
 
