@@ -155,15 +155,18 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
 
     This test carries more weight than a typical source guard. It is the only
     guard that the prose-cap selectors are SCOPED to [data-unit-shell] (the
-    teacher review page renders none of the thirteen capped selectors, so no
+    teacher review page renders none of the twelve capped selectors, so no
     behavioural test there can falsify a widened one), and the only guard for the
     deletion at all (display:none removes the rail's box, so leftover rules are
     behaviourally invisible).
 
-    Note the narrower claim: Task 6 DOES give behavioural coverage that four of
-    the thirteen entries cap at 46rem. Do not delete those assertions believing
-    this test subsumes them, and do not weaken this test believing it carries
-    more than scoping.
+    Note the narrower claim: the e2e suite DOES give behavioural coverage that
+    several of the twelve entries cap at 46rem (`.lesson-unit__title` in
+    test_e2e_unit_nav.py, and `.el--text`, `.question__stem`, `.question__choices`,
+    `.question__feedback` and `textarea.question__text-input` in
+    test_e2e_uniform_block_width.py). Do not delete those assertions believing this
+    test subsumes them, and do not weaken this test believing it carries more than
+    scoping.
     """
     import re
 
@@ -187,7 +190,7 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
     # is split on `}`. A naive `split("{")[0]` yields "@media (min-width: 641px) ",
     # which contains no `html.unit-tree-collapsed`, so the check is skipped -- and
     # since the prose-cap rule is the only rule in its block, the entire
-    # thirteen-selector list would go unexamined.
+    # twelve-selector list would go unexamined.
     examined = 0
     for chunk in stripped.split("}"):
         if "{" not in chunk:
@@ -207,9 +210,71 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
 
     # Coverage floor, so a tokenisation bug fails loudly instead of passing
     # vacuously. 4 structural (rail reveal, pin reveal, margin, print) + one per
-    # allow-list entry (13) = 17. The operator is >=, so ADDING an allow-list
+    # allow-list entry (12) = 16. The operator is >=, so ADDING an allow-list
     # entry never reddens the suite; re-derive this number only on a removal.
-    assert examined >= 17, (
-        f"only {examined} collapsed-state selectors were examined, expected >= 17. "
+    assert examined >= 16, (
+        f"only {examined} collapsed-state selectors were examined, expected >= 16. "
         f"The tokenisation is broken -- a naive prelude split yields 1."
     )
+
+
+PROSE_CAP_SELECTORS = [
+    "html.unit-tree-collapsed [data-unit-shell] .el--text",
+    "html.unit-tree-collapsed [data-unit-shell] .el--question .question__stem",
+    "html.unit-tree-collapsed [data-unit-shell] .question__choices",
+    "html.unit-tree-collapsed [data-unit-shell] .question__feedback",
+    "html.unit-tree-collapsed [data-unit-shell] textarea.question__text-input",
+    "html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title",
+    "html.unit-tree-collapsed [data-unit-shell] .unit-crumbs",
+    "html.unit-tree-collapsed [data-unit-shell] .markdone",
+    "html.unit-tree-collapsed [data-unit-shell] .fillgate",
+    "html.unit-tree-collapsed [data-unit-shell] .stepper",
+    "html.unit-tree-collapsed [data-unit-shell] .switchgate",
+    "html.unit-tree-collapsed [data-unit-shell] .guessnumber",
+]
+
+
+def _prose_cap_prelude():
+    """The cap rule's selector list, sliced between the sentinels.
+
+    FOUR steps, all mandatory, in this order:
+      1. read UN-STRIPPED -- the sentinels are themselves comments;
+      2. slice between them;
+      3. strip comments from the slice;
+      4. rsplit on the final '{' to get the prelude.
+    Both sentinels sit INSIDE the @media block and wrap only the rule, so the
+    slice never contains the at-rule prelude. Were the begin sentinel placed
+    before `@media ... {`, step 4 would return the at-rule fused onto the first
+    selector -- the trap described in the "rsplit is mandatory" comment above the
+    `examined` loop in this file. (Cited by text, not line: that comment moves
+    whenever anything above it is edited.)
+    """
+    import re
+
+    css = CSS.read_text(encoding="utf-8")
+    start = css.index("/* prose-cap:begin */") + len("/* prose-cap:begin */")
+    end = css.index("/* prose-cap:end */")
+    sliced = re.sub(r"/\*.*?\*/", "", css[start:end], flags=re.S)
+    prelude = sliced.rsplit("{", 1)[0]
+    return [s.strip() for s in prelude.split(",") if s.strip()]
+
+
+def test_prose_cap_prelude_is_exactly_the_expected_twelve_selectors():
+    """The ONLY guard that catches a rule lifted out of the collapsed block.
+
+    The per-selector scoping loop above cannot: it `continue`s on any selector
+    LACKING html.unit-tree-collapsed, so a lifted rule is skipped, not caught.
+    And the `examined` floor is `>=`, so a lift paired with two additions passes.
+    Sorted comparison so a harmless reorder does not redden; separate length
+    assertion so a DUPLICATED selector still does.
+    """
+    prelude = _prose_cap_prelude()
+    assert len(prelude) == 12, f"expected 12 selectors, got {len(prelude)}: {prelude}"
+    assert sorted(prelude) == sorted(PROSE_CAP_SELECTORS), (
+        f"prose-cap prelude drifted.\n"
+        f"  unexpected: {sorted(set(prelude) - set(PROSE_CAP_SELECTORS))}\n"
+        f"  missing:    {sorted(set(PROSE_CAP_SELECTORS) - set(prelude))}"
+    )
+    for selector in prelude:
+        assert "html.unit-tree-collapsed" in selector, selector
+        assert "[data-unit-shell]" in selector, selector
