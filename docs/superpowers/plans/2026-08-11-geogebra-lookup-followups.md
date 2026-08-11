@@ -17,7 +17,15 @@
 - **`uv run` prefix is mandatory** — `pytest`, `ruff` and `python` are not on PATH. Use `uv run pytest`, `uv run ruff`.
 - **The test-DB container must be up before any pytest run.** Verified running at plan time: `libli-test-db` (healthy, `127.0.0.1:55433`) and `bonnot-postgres` (healthy, `5432`). If a run appears to hang for ~4 minutes, the container is down — check first, don't debug the test.
 - **`.env` and this worktree.** A git worktree has **no** `.env`. Verified empirically at plan time: both `tests/test_geogebra.py` (104 passed) and a DB-backed test from `tests/test_iframe_dimensions.py` (1 passed) run fine without one, because `config/settings/base.py:80-84` defaults `DATABASE_URL` to `postgres://libli:libli@localhost:5432/libli`. **Caveat:** the main repo's `.env` sets `TEST_DATABASE_URL` at the tuned `libli-test-db` (55433), so worktree runs use a *different* server (5432) than normal runs. That is acceptable for this plan's unit-only scope. If you want parity, copy `.env` from the main repo into the worktree first.
-- **Never run two pytest processes at once** across worktrees — they contend for the same test database.
+- **⚠️ PREFIX EVERY pytest RUN WITH A DEDICATED TEST DATABASE.** Discovered during Task 1: a second pipeline worktree (`uniform-tinted-block-width`) is running e2e tests concurrently. It also has no `.env`, so it defaults to the *same* `test_libli` on 5432 this worktree would — Task 1's first gate run failed with `DuplicateDatabase: database "test_libli" already exists` and then `OperationalError: ... being accessed by other users`. Use:
+
+  ```bash
+  TEST_DATABASE_URL="postgres://libli:libli@127.0.0.1:55433/libli_gg" uv run pytest ...
+  ```
+
+  This puts this worktree on `test_libli_gg` on the tuned server — a name no other consumer touches (the other worktrees use `test_libli` on 5432; the main repo's `.env` uses `test_libli` on 55433). Verified working. Note `config/settings/test.py` **refuses** a `TEST_DATABASE_URL` on the same server as `DATABASE_URL`, so renaming the DB on 5432 is not an option — the port must differ.
+
+- **If a run still collides, do NOT kill the competing pytest.** Dropping the database under live workers poisons the survivor (it produced 61 phantom `SystemExit: 2` errors in unrelated files once). Wait, or re-target as above.
 - **Falsify, don't just run.** Every test below names a mutant. Apply the mutant, observe RED, then **edit the mutant back out by hand**. Never `git checkout` to revert a mutant — that destroys uncommitted work.
 - **Scope test runs narrowly** during tasks (the two named files). The whole-suite sweep is Task 6 only.
 - **Every task has a format-and-lint step immediately before its commit** — `uv run ruff format .` plus `uv run ruff check --no-cache <the files that task touched>`. Do not skip it: `ruff format --check` is a separate CI gate from `ruff check`, `ruff format` does **not** sort imports (`I001` is only caught by `ruff check`), and the embedded code blocks here are written for readability rather than in already-formatted shape. Discovering either at Task 6 means re-touching files from five earlier commits.
@@ -986,6 +994,8 @@ The only wide sweep in this plan. Everything above ran narrowly.
 **Files:** none modified (fix-forward only if something reddens).
 
 - [ ] **Step 1: Confirm the database this worktree actually uses is up**
+
+**Superseded in part by the Global Constraints:** since Task 1 this worktree runs against `test_libli_gg` on **55433** (`libli-test-db`) via the `TEST_DATABASE_URL` prefix, not the 5432 default — because a concurrent worktree occupies `test_libli` on 5432. So verify **`libli-test-db` (55433)** is healthy, and use the prefix for this step's full-suite run. The paragraph below describes the no-prefix default and is retained for the record.
 
 With no `.env` in the worktree there is **no `TEST_DATABASE_URL`**, so the suite connects to the `base.py` default on **port 5432** — the `bonnot-postgres` container — *not* the tuned `libli-test-db` on 55433 that normal main-repo runs use. Checking the wrong container is worse than not checking: it reports "healthy", the gate says proceed, and the run hangs for ~4 minutes.
 
