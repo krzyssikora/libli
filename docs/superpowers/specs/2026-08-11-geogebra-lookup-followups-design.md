@@ -131,12 +131,23 @@ read1(8192) -> 1 bytes in 0.05s        # returned on the first available bytes
 chunked transfer-encoding via `_read1_chunked`. **Write `read` here and the design silently reverts
 to a ~2.3-hour orphan.**
 
-**Two bounds, and both are needed.** The chunk budget cannot cover `connect()` or the header read —
-those happen inside `_open`, before a single body byte exists — so the thread deadline still does
-that work. Conversely the thread deadline releases only the *main* thread. Together: the main thread
-returns **no later than** `_DEADLINE_SECONDS`, and the orphan dies at `_DEADLINE_SECONDS` plus at
-most one per-op timeout (the in-flight `recv` the budget check cannot interrupt) — ~8s worst case,
-which holds **only** because of `read1`.
+**Two bounds, and both are needed.** The chunk budget cannot cover `connect()`, the TLS handshake or
+the header read — those happen inside `_open`, before a single body byte exists. Conversely the
+thread deadline releases only the *main* thread. So the two bounds protect **different things**:
+
+- **The main thread** returns no later than `_DEADLINE_SECONDS`, unconditionally. The row lock is
+  bounded in every case, which is this change's actual goal.
+- **The orphan** is bounded at `_DEADLINE_SECONDS` plus at most one per-op timeout — ~8s — but
+  **only once response headers have been received**, and only because of `read1`.
+
+**The orphan bound is conditional, and the exception must not be glossed.** The budget is checked at
+the top of the body loop, i.e. strictly *after* `_open` returns. A peer that dribbles the handshake
+or the response **headers** never trips the 3s per-op timeout there either — `http.client` reads the
+status line and headers via `readline` on a `BufferedReader`, the same per-op behaviour Defect 1
+measured — so such a peer parks the orphan inside `_open` for as long as `http.client`'s own
+`_MAXLINE`/`_MAXHEADERS` limits allow. That is a narrower adversary than the body-drip case (it must
+control the response headers, not merely the body rate), and the main thread is released at 5s
+regardless, but "~8s worst case" is false as an unconditional claim.
 
 **Where the deadline instant is computed is load-bearing.** Read `_DEADLINE_SECONDS` from the module
 global **once**, then:
@@ -416,17 +427,23 @@ for test 1 — see test 1's mutant analysis below, where the `caplog` reason ass
 discriminator. Keep the dimension-bearing fakes anyway: they cost nothing and they keep each test's
 failure mode legible.
 
-A fake returning **`None`** is worse still, and fails differently: key presence routes
-`box["body"] = None` to the body branch, and `if len(body) > _MAX_BODY_BYTES:` (`geogebra.py:389`)
-sits **outside** the `try`, so `len(None)` raises `TypeError` straight out of
-`fetch_geogebra_dimensions` and into `clean_url` — the never-raises breach this spec otherwise works
-hard to prevent. It errors; it does not return `(None, None)`. Because that hole is reachable from a
-`None` in the box, the body branch **must additionally require `isinstance(result["body"], bytes)`**,
-routing anything else to `_fail` — with a **distinct reason string**, e.g.
-`"lookup returned a non-bytes body"`. It must not reuse `"deadline exceeded"`, or a broken fake
-becomes indistinguishable from a real deadline in every test that asserts on that substring (1, 2, 4
-and 5c). (Moving the `len()` inside the `try` would also work but changes existing
-oversize-handling structure for no gain.)
+A fake returning **`None`** behaves differently again — and under the chunked loop, harmlessly. A
+`None` chunk hits `if not chunk: break`, so the loop exits at what it treats as EOF and
+`_fetch_body` returns `b"".join(chunks)`. The observable result is an empty-or-short body reported as
+`unparseable payload`, not a crash.
+
+**`box["body"]` therefore cannot be non-`bytes` by construction.** `b"".join(...)` returns `bytes` or
+raises `TypeError` on the worker, and a worker raise lands in `box["exc"]`, never in `box["body"]`.
+So `len(body)` at `geogebra.py:389` — which does sit **outside** the `try` — can never see a
+non-sequence via this path.
+
+An `isinstance(result["body"], bytes)` guard on the body branch is therefore **defensive only and
+deliberately untested**, recorded in the same style as `geogebra.py:356-359` ("a branch that cannot
+be driven cannot be falsified to RED") and the `daemon=True` decision above. Keep it — the `len()`
+sitting outside the `try` makes the consequence of ever being wrong a 500 rather than a degraded
+render — but do **not** claim a test covers it. If kept it needs a distinct reason string, e.g.
+`"lookup returned a non-bytes body"`, never `"deadline exceeded"`, so it could not be confused with a
+real deadline in tests 1, 2, 4 and 5c should it ever fire.
 
 **Where the dimension-bearing-fake rule still bites: test 2 only.** Test 2's `_open` returns a
 working response over a real payload, so its mutant genuinely yields `(880, 660)` against an asserted
@@ -629,10 +646,26 @@ partial body (reason becomes `unparseable payload`).
 before any thread is created and before any log line, so the deadline-reason assertion would fail on
 a correct build.
 
-**5c's response fake is not inherited from 5b — only the clock is.** Specify it: an `_Resp` over a
-body larger than `2 × _CHUNK_BYTES` and smaller than `_MAX_BODY_BYTES` (the existing fixtures are far
-too small — `wseg.json` is 1,177 bytes, delivered in one `read1`), with the scripted clock arranged
-so the budget trips on an iteration **before** EOF.
+**5c's response fake is not inherited from 5b — only the clock is,** and its parameters must be
+pinned rather than inferred. The existing fixtures are far too small (`wseg.json` is **194 bytes**,
+delivered in one `read1`; the 1,177-byte figure in `geogebra.py:55` is the measured *live* response,
+not the fixture).
+
+Two facts change the clock arithmetic relative to 5b, and both must be stated:
+
+1. **The main thread consumes the clock's first tick.** Production computes
+   `deadline = monotonic() + _DEADLINE_SECONDS` before `start()`, so the worker's ticks are offset by
+   one. In 5b the test chose the deadline itself; here it does not.
+2. **5c patches `_DEADLINE_SECONDS`.** The "all four patch it" rule covers tests 1-4 and the
+   constant-relationship test is explicitly exempt, leaving 5c unstated — and left at the shipped 5s
+   with 5b's step, the trip would need more iterations than the mandated body can supply (at most 8
+   reads between `2 × _CHUNK_BYTES` and `_MAX_BODY_BYTES`), so `_fetch_body` would return normally
+   and the deadline assertion would fail on a **correct** build.
+
+Pin a concrete triple — clock step, patched `_DEADLINE_SECONDS`, body size — such that the budget
+trips on a named iteration strictly before EOF, exactly as `_DEADLINE_SECONDS = 0.3` vs
+`Event.wait(3)` is pinned for tests 1-4. Do not leave it to inference; this is the same failure class
+the 5b paragraph already legislates against.
 
 ### The constant relationship — the LAST new test in this file
 
@@ -723,14 +756,21 @@ B3. **A non-GeoGebra element with a stored pair keeps it when the URL is unchang
    and any future non-idempotent canonicalisation for a new provider would then wipe every such
    element's pair on every save, with no lookup to restore it and no badge to signal it.
 
-   *Mutant — note it is a COMPOUND edit, both parts required:* **drop `url_changed` AND scope the
-   clear to non-GeoGebra** — `if not usable_dimensions(width, height) and not mid`. `:410` and `:293`
-   both survive it because they use the GeoGebra `URL` constant, which `not mid` spares; B3's
-   Vimeo/unchanged-URL case goes RED.
+   *Mutant:* **`if (url_changed or not mid) and not usable_dimensions(width, height)`** — i.e. also
+   clear when the URL is unchanged but the element is not GeoGebra. Verified against the whole form
+   suite: B1, B2, `:293`, `:304`, `:376`, `:410`, `:425`, `:437` and `:468` all stay **green**, and
+   only B3's Vimeo/unchanged-URL case clears and goes RED. B3 is therefore uniquely justified by it.
 
-   **The plain scoping inversion is NOT the mutant here.** Keeping `url_changed`
-   (`if url_changed and not usable_dimensions(...) and not mid`) leaves B3 green, because B3's URL is
-   unchanged so the clear is never reached — running that mutant would wrongly suggest B3 is vacuous.
+   **Two mutants that look right and are not:**
+   - `if not usable_dimensions(width, height) and not mid` (drop `url_changed`, scope to
+     non-GeoGebra) *also* turns `:425` RED — with `not mid` blocking the clear on a GeoGebra→GeoGebra
+     change, the pair survives, `stored_usable` stays `True`, the `:217` guard never fires and
+     `assert lookup.call_count == 1` fails. An implementer running it would see an unexplained second
+     failure, and by this spec's own standard a mutant killed by an existing test does not justify a
+     new one.
+   - `if url_changed and not usable_dimensions(...) and not mid` (scoping inversion alone) leaves B3
+     **green**, because B3's URL is unchanged so the clear is never reached — running it would
+     wrongly suggest B3 is vacuous.
 
    **Note the mutant that does *not* work here:** "drop the `url_changed` conjunct" is already killed
    by two existing tests, so it would not justify a new test. Under it the guard becomes
@@ -810,11 +850,17 @@ concurrency-sensitive function in `builder.py`.
   that reaches the network (a dimensionless GeoGebra save, suppressed 60s per material by the
   negative cache); a thread is only *abandoned* when the deadline actually fires. The common case
   leaves nothing parked.
-- **An abandoned thread is bounded at ~8s** — `_DEADLINE_SECONDS` plus at most one per-op timeout for
-  the `recv` already in flight when the budget expires. It holds one socket and one thread stack for
-  that period. Note the per-op timeout alone would **not** bound it: a peer dribbling one byte per
-  second never trips it, which is what Defect 1's `16.18s` / `VERDICT: PER-OP` measurement proves —
-  the chunk budget, not the socket timeout, is what makes this finite.
+- **An abandoned thread is bounded at ~8s once response headers have arrived** —
+  `_DEADLINE_SECONDS` plus at most one per-op timeout for the `recv` already in flight when the
+  budget expires. It holds one socket and one thread stack for that period. Note the per-op timeout
+  alone would **not** bound it: a peer dribbling one byte per second never trips it, which is what
+  Defect 1's `16.18s` / `VERDICT: PER-OP` measurement proves — the chunk budget, not the socket
+  timeout, is what makes this finite.
+- **That bound does not cover the pre-header legs.** The budget is only checked after `_open`
+  returns, so a peer that dribbles the TLS handshake or the response headers parks the orphan inside
+  `_open`, bounded only by `http.client`'s `_MAXLINE`/`_MAXHEADERS`. The main thread is still
+  released at `_DEADLINE_SECONDS`, so the row lock is unaffected; only the orphan is exposed, and
+  only to an adversary controlling the response headers rather than merely the body rate.
 - **The negative cache is per-process.** There is no `CACHES` setting outside
   `config/settings/test.py:19`, so Django's default `LocMemCache` applies and the sentinel suppresses
   retries only in the worker that failed. Recorded as a note: there is no deployment, so
