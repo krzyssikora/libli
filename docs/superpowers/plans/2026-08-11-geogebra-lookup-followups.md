@@ -20,7 +20,7 @@
 - **Never run two pytest processes at once** across worktrees — they contend for the same test database.
 - **Falsify, don't just run.** Every test below names a mutant. Apply the mutant, observe RED, then **edit the mutant back out by hand**. Never `git checkout` to revert a mutant — that destroys uncommitted work.
 - **Scope test runs narrowly** during tasks (the two named files). The whole-suite sweep is Task 6 only.
-- **Run `uv run ruff format .` at the end of every task**, before the commit. `ruff format --check` is a separate CI gate from `ruff check`, and the embedded code blocks in this plan are written for readability, not necessarily in already-formatted shape. Discovering a reformat at Task 6 means re-touching files from five earlier commits.
+- **Every task has a format-and-lint step immediately before its commit** — `uv run ruff format .` plus `uv run ruff check --no-cache <the files that task touched>`. Do not skip it: `ruff format --check` is a separate CI gate from `ruff check`, `ruff format` does **not** sort imports (`I001` is only caught by `ruff check`), and the embedded code blocks here are written for readability rather than in already-formatted shape. Discovering either at Task 6 means re-touching files from five earlier commits.
 - **Ruff:** `select = ["E","F","I","UP","B","S"]`. `BLE` is *not* selected, but every broad except in `geogebra.py` still carries `BLE001` in its `noqa` — match the file's convention rather than trimming it. Run `ruff` with `--no-cache`; a cached run reports "All checks passed" on a file that previously warned.
 
 ---
@@ -47,6 +47,18 @@ The chunked loop reads repeatedly, so the existing double — which returns `bod
 **Interfaces:**
 - Consumes: nothing.
 - Produces: module-level `class _Resp` with `__init__(self, body)`, `read(n=-1)`, `read1` (alias), `calls: int`, `__enter__`/`__exit__`. Tasks 2–4 construct it directly as `_Resp(body)`.
+
+- [ ] **Step 0: Capture the branch-point test count — before changing anything**
+
+Task 6 compares the final suite against this figure, and **now** is the only moment it can be taken cleanly: the worktree currently differs from `d197a4c7` only by the spec and plan documents, which contribute no tests. Capturing it later would need a detached checkout of `d197a4c7`, which would **delete the plan and spec from disk** while the executing agent is reading them.
+
+```bash
+uv run pytest --collect-only --verbosity=0 | tail -1
+```
+
+Record the **left-hand number** of the `A/B` pair it prints (e.g. `5974/6886 tests collected (912 deselected)` → record **5974**). The right-hand figure includes deselected e2e tests. Write it into this step as you go, so it survives a session boundary:
+
+> Branch-point selected-collection count: `__________`
 
 - [ ] **Step 1: Read the current helper**
 
@@ -111,7 +123,16 @@ Note one deliberate semantic change: the old double treated `n == 0` as "read ev
 Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
 Expected: **104 passed**. This is the whole point of doing it first — if anything reddens here, the double is not behaviour-preserving and Task 2 would be debugging two changes at once.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Format and lint the files this task touched**
+
+```bash
+uv run ruff format .
+uv run ruff check --no-cache tests/test_geogebra.py
+```
+
+Do this **before** the commit, not at Task 6. `ruff format` does not sort imports, and `ruff format --check` is a separate CI gate — discovering either at the end means re-touching files from several earlier commits.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add tests/test_geogebra.py
@@ -172,7 +193,16 @@ def test_fetch_body_rechecks_the_budget_on_every_iteration(monkeypatch):
     assert resp.calls == 2
 ```
 
-Add `import itertools` to the test module's imports if absent.
+Add `import itertools` to the test module's imports. Placement is not free — `I` is selected and `force-single-line = true`, so it must sit in the stdlib block in sort order. Tasks 2 and 3 between them add three test imports; the resulting stdlib block is:
+
+```python
+import itertools
+import json
+import logging
+import threading
+```
+
+(plus whatever else the file already imports, in the same alphabetical run — `itertools` before `json`, `logging` and `threading` after it.) Getting this wrong surfaces as `I001`, which `ruff format` does **not** fix.
 
 - [ ] **Step 2: Run them to verify they fail**
 
@@ -204,10 +234,9 @@ _API_PREFIX = "https://api.geogebra.org/"
 # A module constant rather than a setting, matching the pattern of
 # integrations/delivery.py :: TIMEOUT_SECONDS = 10. This bounds urllib's SOCKET
 # ops -- connect() and each individual read() -- NOT the total call. That is why
-# it is no longer sufficient on its own: _DEADLINE_SECONDS bounds the wall clock
-# the caller (and therefore save_element's row lock) can spend here, and
-# _fetch_body's chunk budget bounds the worker. Measured: a peer dribbling one
-# byte per second held a single read for 16.18s against this 3s timeout.
+# it is no longer sufficient on its own: the total call is bounded separately,
+# by _DEADLINE_SECONDS. Measured: a peer dribbling one byte per second held a
+# single read for 16.18s against this 3s timeout.
 _TIMEOUT_SECONDS = 3
 # Total bound on the lookup. Deliberately LARGER than a single socket op so a
 # failure in the FIRST op still surfaces as itself -- the blackhole/connect path
@@ -296,7 +325,16 @@ Run: `uv run pytest tests/test_geogebra.py -k "every_iteration" --verbosity=0`
 Expected: FAIL — only one check happens (at t=0.0), so `read1` runs to EOF and no exception is raised. This is the mutant 5a alone cannot kill.
 **Edit it back by hand.** Re-run: PASS.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 9: Format and lint the files this task touched**
+
+```bash
+uv run ruff format .
+uv run ruff check --no-cache courses/geogebra.py tests/test_geogebra.py
+```
+
+Do this **before** the commit, not at Task 6. `ruff format` does not sort imports, and `ruff format --check` is a separate CI gate — discovering either at the end means re-touching files from several earlier commits.
+
+- [ ] **Step 10: Commit**
 
 ```bash
 git add courses/geogebra.py tests/test_geogebra.py
@@ -395,7 +433,8 @@ def test_fetch_negative_caches_a_deadline(monkeypatch):
     cls = _slow_resp_cls(released, entered)
     try:
         opener_patch = patch(
-            "courses.geogebra._open", side_effect=lambda *a, **k: cls(_payload("wseg.json"))
+            "courses.geogebra._open",
+            side_effect=lambda *a, **k: cls(_payload("wseg.json")),
         )
         with opener_patch as opener:
             assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
@@ -424,7 +463,7 @@ def test_fetch_deadline_log_names_the_id_AND_the_reason(monkeypatch, caplog):
     assert any("wgzr7tsu" in m and "deadline" in m for m in messages)
 ```
 
-Add `import logging`, `import threading` and `from django.test import override_settings` to the test module's imports if absent.
+Add `import logging` and `import threading` to the stdlib block (per Task 2 Step 1's ordering), and `from django.test import override_settings` to the third-party block alongside the file's other Django imports. `ruff format` does not sort imports — run `ruff check` (this task's format/lint step does) or the misordering surfaces only at Task 6.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -471,7 +510,7 @@ In `fetch_geogebra_dimensions`, inside the existing `try`, replace Task 2's thre
         body = result["body"]
         if not isinstance(body, bytes):
             # Defensive and DELIBERATELY UNTESTED, in the style of the _API_PREFIX
-            # guard below: b"".join() returns bytes or raises on the worker (landing
+            # guard above: b"".join() returns bytes or raises on the worker (landing
             # in box["exc"]), so this cannot be driven. Kept because len() at the
             # oversize check sits outside this try, so being wrong would be a 500.
             # Distinct reason string -- never "deadline exceeded", or a broken fake
@@ -481,7 +520,15 @@ In `fetch_geogebra_dimensions`, inside the existing `try`, replace Task 2's thre
 
 Add `import threading` to the module's imports — first in the stdlib block's sort order after `import re`, i.e. `import json / import logging / import re / import threading / import urllib.error / ...`.
 
-Also extend the `_DEADLINE_SECONDS` comment now that the mechanism it names exists: prepend "enforced by joining the worker thread" to its first line. Task 2 deliberately left that clause out, because at Task 2's commit there was no worker thread and the comment would have described machinery that had not arrived — the same false-mechanism problem this change spends four steps removing.
+Also extend the `_DEADLINE_SECONDS` comment now that the mechanism it names exists. Task 2 deliberately shipped it without the worker clause, because at that commit no worker existed and the comment would have described machinery that had not arrived. Replace the whole block with:
+
+```python
+# Total bound on the lookup, enforced by joining the worker thread. Deliberately
+# LARGER than a single socket op so a failure in the FIRST op still surfaces as
+# itself -- the blackhole/connect path times out at a measured ~3.29s and must
+# keep reporting "lookup failed (timeout)" rather than racing this deadline.
+_DEADLINE_SECONDS = 5
+```
 
 Three traps, each already paid for:
 
@@ -545,7 +592,7 @@ Expected: FAIL — `_open` blocks on the main thread for its full wait, the work
 
 - [ ] **Step 7: Falsify tests 3 and 4**
 
-For test 3: replace `return _fail("deadline exceeded")` with a bare `return None, None`.
+For test 3: replace `return _fail("deadline exceeded")` with a bare `return None, None`. This removes the only `"deadline exceeded"` log line, so tests 1, 2 and 4 (and 5c once Task 4 lands) also redden on their caplog assertions — the `-k` filter scopes the run to test 3.
 Run: `uv run pytest tests/test_geogebra.py -k "negative_caches_a_deadline" --verbosity=0`
 Expected: FAIL — no sentinel is written, so the second call also reaches `_open` and `call_count == 2`. **This is test 3's only gate** (see Step 2 — it was green before the fix), so do not skip it.
 
@@ -588,18 +635,25 @@ These are now false or incomplete. Leaving them is the false-mechanism failure t
         # unexplained ResourceWarning if the worker path ever changed.
 ```
 
-3. **The module docstring** (`:7-14`): the existing text at `:10-11` already says "the one network function performs a single capped GET behind the ``GEOGEBRA_API_LOOKUP`` kill switch". **Extend that clause in place** — do not append a paragraph restating it, which would leave the same sentence twice with the incomplete original still standing (the exact "incomplete comment" defect this rewrite exists to remove). Keep the file's ``double-backtick`` markup.
+3. **The module docstring** (`:7-14`): extend the kill-switch clause **in place**. Do not append a paragraph restating it — that would leave the clause twice with the incomplete original still standing, and would displace the `Nothing here raises` sentence, which sits in the **same paragraph** immediately after it and which item 1's docstring rewrite relies on still being stated at module level.
 
-Append to the existing sentence, then add the boundary rule:
+Replace lines 7–14 with exactly this (note the retained `Nothing here raises` sentence and the file's ``double-backtick`` markup):
 
 ```
-... behind the ``GEOGEBRA_API_LOOKUP`` kill switch, on a bounded background daemon
-thread under a total deadline (``_DEADLINE_SECONDS``), with the body read chunked
-against the same budget so an abandoned worker cannot park indefinitely.
+This module is both the single GeoGebra URL parser and the single place the GeoGebra
+API is called. Parsing functions rebuild recognized ``https`` inputs from scratch
+(host + material id, dropping any width/height/border cruft) and return everything
+else unchanged for ``validate_embed_url`` to judge; the one network function performs
+a single capped GET behind the ``GEOGEBRA_API_LOOKUP`` kill switch, on a bounded
+background daemon thread under a total deadline (``_DEADLINE_SECONDS``), with the body
+read chunked against the same budget so an abandoned worker cannot park indefinitely.
+Nothing here raises — every failure degrades to a neutral value, because these run
+inside form validation and inside page render, where an exception would 500 a save or
+a student unit page.
 
 This is the repository's only production background thread. The worker's boundary
-rule: NO ORM, NO cache, NO logging -- it only calls ``_open``, reads bytes, and
-stores into a result box. Everything else stays on the main thread.
+rule: NO ORM, NO cache, NO logging — it only calls ``_open``, reads bytes, and stores
+into a result box; everything else stays on the main thread.
 ```
 
 - [ ] **Step 9: Update the architecture doc**
@@ -616,7 +670,16 @@ So attribute the thread explicitly rather than appending to the shared cell, whi
 | `video_url.py` / `geogebra.py` | Embed-URL canonicalization for video / GeoGebra. `geogebra.py` also performs the API dimension lookup, on a bounded background thread. |
 ```
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 10: Format and lint the files this task touched**
+
+```bash
+uv run ruff format .
+uv run ruff check --no-cache courses/geogebra.py tests/test_geogebra.py
+```
+
+Do this **before** the commit, not at Task 6. `ruff format` does not sort imports, and `ruff format --check` is a separate CI gate — discovering either at the end means re-touching files from several earlier commits.
+
+- [ ] **Step 11: Commit**
 
 ```bash
 git add courses/geogebra.py tests/test_geogebra.py docs/development/architecture.md
@@ -704,10 +767,17 @@ Run: `uv run pytest tests/test_geogebra.py -k "connect_leg" --verbosity=0`
 Expected: FAIL on the assertion.
 **Edit both back by hand.** Re-run: PASS.
 
-- [ ] **Step 6: Run the whole file and commit**
+- [ ] **Step 6: Run the whole file, then format and lint**
 
 Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
 Expected: **112 passed**.
+
+```bash
+uv run ruff format .
+uv run ruff check --no-cache tests/test_geogebra.py
+```
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add tests/test_geogebra.py
@@ -828,7 +898,14 @@ And at `:189`, the hoist comment now over-claims — only the lookup guard uses 
 
 `test_form_non_geogebra_dimensionless_paste_never_looks_up` (`:376`) guards the `:217` conjunct you did **not** touch. Its comment at `tests/test_iframe_dimensions.py:377-382` opens "THE guard on the `and mid` conjunct" — which named the only such conjunct when it was written, and after this change names the wrong one. This is a spec requirement, not a nicety: an ambiguous mechanism comment is the same defect class as a false one.
 
-Re-word the opening to name the guard explicitly, e.g. "THE guard on the `and mid` conjunct **of the LOOKUP guard** (`element_forms.py:217`) — the stale-pair clear above it is deliberately provider-neutral." Leave the rest of the comment as is.
+Replace the comment's opening line with these two, verbatim (already wrapped, no Markdown emphasis — this is a Python comment):
+
+```python
+    # THE guard on the `and mid` conjunct of the LOOKUP guard (element_forms.py:217).
+    # The stale-pair clear above it is deliberately provider-neutral and has no `mid`.
+```
+
+Leave the rest of the comment as is.
 
 - [ ] **Step 4: Run — all three green**
 
@@ -878,7 +955,16 @@ Expected: **only B3 fails.** B1, B2, `:293`, `:304`, `:376`, `:410`, `:425`, `:4
 
 **Edit the mutant back by hand.** Re-run: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Format and lint the files this task touched**
+
+```bash
+uv run ruff format .
+uv run ruff check --no-cache courses/element_forms.py tests/test_iframe_dimensions.py
+```
+
+Do this **before** the commit, not at Task 6. `ruff format` does not sort imports, and `ruff format --check` is a separate CI gate — discovering either at the end means re-touching files from several earlier commits.
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add courses/element_forms.py tests/test_iframe_dimensions.py
@@ -912,15 +998,13 @@ If you would rather run against the tuned server for parity with normal runs, co
 Run: `uv run pytest --verbosity=0`
 Expected: all pass, with **9 more tests than the branch point** (8 in `test_geogebra.py`, 1 in `test_iframe_dimensions.py`; B1 and B2 are rewritten in place and do not change the count).
 
-Capture the branch-point figure here rather than trusting a remembered one. **Do not `git checkout master`** — `master` is checked out in the main repo, and git refuses it from a linked worktree (`fatal: 'master' is already checked out at ...`). Use a detached checkout of the branch point instead; everything is committed by now, so nothing is at risk:
+Compare against the figure captured in **Task 1 Step 0**. Both sides must be the same measurement — a *selected-collection* count, taken the same way:
 
 ```bash
-git checkout --detach d197a4c7
 uv run pytest --collect-only --verbosity=0 | tail -1
-git checkout pipeline/geogebra-lookup-followups
 ```
 
-Note `--verbosity=0`, **not** `-q`: `pyproject.toml:49` already sets `addopts = "-q ..."`, so a second `-q` drops verbosity to -2, which prints per-file counts and suppresses the total. `tail -1` would then silently return the last file's count.
+That prints e.g. `5974/6886 tests collected (912 deselected) in 72.76s`. **Read the LEFT-hand number** (5974): the right-hand one includes the 912 deselected e2e tests. Do **not** compare it against the `N passed` line from Step 2's run — that excludes deselected tests *and* runtime skips (`tests/test_db_quiesce.py:153` skips conditionally), so the delta would not be 9 for two independent reasons.
 
 Do **not** background this run — a backgrounded pytest that is reaped mid-run orphans the test database and the next run dies with `DuplicateDatabase`.
 
@@ -954,6 +1038,7 @@ The spec has a section headed "Accepted gaps, to be recorded in the PR body" and
 - finding 3 from the original review (the ws-level `settings` block) is **dropped as unverified** — the fixture cited as evidence pins the opposite, and `wseg.json` shows the top-level read is load-bearing
 - **thread creation and thread abandonment are different rates** — one thread is created per lookup that reaches the network, but a thread is only *abandoned* when the deadline actually fires; the common case leaves nothing parked
 - **prior design docs are left as historical record** — #238's spec and plan document the GeoGebra-scoped clear and its accepted gap; they are not annotated or amended, and this spec supersedes them
+- `docs/development/architecture.md:106` gets its one-line update (done in Task 3 Step 9) — note it here so the PR body reflects the full change surface
 
 - [ ] **Step 6: Commit any gate fixes**
 
@@ -977,4 +1062,4 @@ git commit -m "chore(geogebra): branch gate fixes and PR body"
 
 **Placeholders:** none. Every code step carries the code; every test step carries the assertion and the mutant, including the two that require restructuring rather than a one-line edit (Task 3 Step 6, Task 5 Step 5b) and the replacement text for all four comment rewrites.
 
-**PR body:** all twelve of the spec's accepted-gap bullets are delivered by Task 6 Step 5, written to a file in the worktree so they survive a session boundary. Cross-check the list against the spec's section before committing — two were missed on the first pass.
+**PR body:** the spec's **eleven** accepted-gap bullets, plus three notes cross-referenced from other spec sections (the once-per-60s silence, the deliberately-untested `daemon=True`/`isinstance` pair, and the #238-reversal framing), are delivered by Task 6 Step 5 and written to a file in the worktree so they survive a session boundary. Cross-check against the spec's section before committing — three were missed across the first two passes.
