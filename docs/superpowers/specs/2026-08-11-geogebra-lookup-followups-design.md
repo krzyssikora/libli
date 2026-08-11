@@ -85,13 +85,44 @@ non-GeoGebra paste — precisely what `test_form_non_geogebra_dimensionless_past
 
 ### Component A — a total deadline around the lookup
 
-Extract the two network-touching lines into a private helper:
+Extract the network-touching lines into a private helper that reads the body **in chunks against its
+own budget**, so the worker self-terminates rather than parking indefinitely:
 
 ```python
-def _fetch_body(request):
+class _BudgetExceeded(Exception):
+    """The worker's own read budget ran out. Never escapes to clean_url."""
+
+
+def _fetch_body(request, deadline):          # deadline: a monotonic() instant
     with _open(request, timeout=_TIMEOUT_SECONDS) as response:
-        return response.read(_MAX_BODY_BYTES + 1)  # +1 so oversize is detectable
+        chunks, total = [], 0
+        while total <= _MAX_BODY_BYTES:      # <= so the +1 oversize byte is still read
+            if time.monotonic() >= deadline:
+                raise _BudgetExceeded
+            chunk = response.read(_CHUNK_BYTES)
+            if not chunk:                    # EOF
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+    return b"".join(chunks)
 ```
+
+**Two bounds, and both are needed.** The chunk budget cannot cover `connect()` or the header read —
+those happen inside `_open`, before a single body byte is available — so the thread deadline still
+does that work. Conversely the thread deadline releases only the *main* thread; without the chunk
+budget the worker itself would keep reading. Together: the main thread returns at
+`_DEADLINE_SECONDS`, and the orphan dies at `_DEADLINE_SECONDS` **plus at most one per-op timeout**
+(the in-flight `recv` that the budget check cannot interrupt), i.e. ~8s worst case.
+
+The worker measures its budget from the **same start instant** the main thread joins against, so a
+slow-but-successful fetch that completes at 4.9s still succeeds.
+
+**`_BudgetExceeded` stores nothing.** `_run` catches it specifically and leaves the box empty, so the
+main thread's residual branch reports `deadline exceeded`. It must **not** land in `box["exc"]` —
+that would surface as `lookup failed (_BudgetExceeded)` — and a partial body must **not** be stored,
+or it would be parsed as truncated JSON and mislabelled `unparseable payload`.
+
+New constant: `_CHUNK_BYTES = 8192`.
 
 `fetch_geogebra_dimensions` runs `_fetch_body` on a plain `threading.Thread(daemon=True)` — named
 `f"geogebra-lookup-{material_id}"`, so a thread dump shows how many lookups are parked — with a
@@ -276,7 +307,8 @@ main thread.
 | Deadline reached with the thread still running | `_fail("deadline exceeded")` → logs a warning naming the material id, writes the 60s negative-cache sentinel, returns `(None, None)` |
 | Thread raised `HTTPError` | re-raised on the main thread → existing handler closes `exc.fp` and calls `_fail(f"HTTP {exc.code}")` |
 | Thread raised anything else | re-raised → existing bare-`except` → `_fail(f"lookup failed ({type})")` |
-| Oversize body | unchanged — the single `read(_MAX_BODY_BYTES + 1)` still makes it detectable |
+| Oversize body | unchanged in outcome — the chunk loop's `while total <= _MAX_BODY_BYTES` still accumulates the one byte past the cap that makes oversize detectable at `:389` |
+| Worker's chunk budget expires | `_run` catches `_BudgetExceeded`, stores **nothing**, and the main thread's residual branch reports `deadline exceeded`. Never `box["exc"]` (that would read `lookup failed`), never a partial body (that would read `unparseable payload`) |
 | `thread.start()` fails (`RuntimeError: can't start new thread`) | falls into the bare `except Exception` and degrades as `lookup failed (RuntimeError)` — the correct outcome, named here rather than left to be derived. Reachable precisely because no cap is placed on concurrent lookup threads (see accepted gaps) |
 | Kill switch off | unchanged — returns before any thread is created, no cache read, no cache write |
 
@@ -339,6 +371,27 @@ a real payload (`_payload("wseg.json")`, so the mutant yields `(880, 660)`), and
 returns a working response over the same payload. The only route to `(None, None)` must be the
 deadline firing.
 
+**`_patch_open._Resp.read` must be made STATEFUL** (`tests/test_geogebra.py:273-274`). It currently
+returns `body[:n]` from the start on every call, so the chunked loop would re-read the same first
+chunk forever and never reach EOF. Give `_Resp` a read offset:
+
+```python
+class _Resp:
+    def __init__(self):
+        self._pos = 0
+
+    def read(self, n=-1):
+        chunk = body[self._pos:] if n is None or n < 0 else body[self._pos : self._pos + n]
+        self._pos += len(chunk)
+        return chunk
+```
+
+This is a change to **one helper**, not to the ~15 tests that use it: they call `_patch_open(body)`
+and never touch `_Resp`. Single-read semantics are preserved (first call returns the same bytes as
+before, the next returns `b""` = EOF), so every existing fetch test — including the oversize test,
+which still accumulates past `_MAX_BODY_BYTES` — passes unchanged. **Verify that claim by running
+them, not by assuming it.**
+
 **The fakes must be context managers.** `_patch_open`'s docstring
 (`tests/test_geogebra.py:267-269`) records that the double *must* support `__enter__`/`__exit__`
 because the fetch uses `with _open(...) as resp:` — and that `with` survives inside `_fetch_body`. A
@@ -397,7 +450,28 @@ class, not one instance of it.
    *Mutants:* drop the log line; and pass `_fail` the generic reason string instead of the deadline
    one.
 
-### The constant relationship — a FIFTH new test in the same file
+### The chunk budget — a FIFTH new test, driving `_fetch_body` directly
+
+`_fetch_body` is module-level and takes its deadline as an argument, so the budget is tested
+**without any thread, any `join`, or any `_DEADLINE_SECONDS` patching** — no concurrency in the test
+at all. Two cases, both deterministic:
+
+5a. **Deadline already past → `_BudgetExceeded`, and `read` is never called.** Pass
+    `deadline = time.monotonic() - 1`. Pins that the budget is checked *before* each read rather
+    than only after data arrives. *Mutant:* drop the check entirely — the fake's finite body is read
+    to EOF and returned, no exception, RED.
+
+5b. **Deadline expires mid-loop → `_BudgetExceeded` after exactly N reads.** Patch
+    `courses.geogebra.time.monotonic` with a **fake clock** that returns a scripted increasing
+    sequence, chosen so the check trips on the third iteration; assert `read` was called exactly
+    twice. A fake clock, not `sleep`, is what makes this exact rather than timing-dependent.
+    *Mutant:* hoist the check out of the loop so it runs once before iterating — `read` is then
+    called to EOF, RED. This is the mutant 5a alone cannot kill.
+
+Both cases use a **finite** fake body (a few KB delivered one chunk per call), so a mutant build
+terminates and FAILS rather than hanging — the same bounded-fake rule as the deadline tests.
+
+### The constant relationship — a SIXTH new test in the same file
 
 This is a fifth new test in `tests/test_geogebra.py`, deliberately outside the numbered list above
 because the "all four" rules do **not** apply to it: it must **not** patch `_DEADLINE_SECONDS` (it
@@ -535,15 +609,14 @@ concurrency-sensitive function in `builder.py`.
 
 ## Rejected alternatives
 
-- **A chunked-read budget** so an abandoned thread self-terminates. **Re-argued honestly:** the
-  benefit is *not* theoretical and the current orphan lifetime is *not* bounded — a chunked budget is
-  exactly what converts an effectively unbounded orphan (65,537 bytes at whatever rate a hostile or
-  degraded peer supplies) into a bounded one. The rejection therefore rests **solely** on the test-side
-  cost: `tests/test_geogebra.py:273-274`'s `_patch_open._Resp.read` is **stateless** — it returns
-  `body[:n]` from the start on every call — so a loop of small reads would re-read the same first
-  chunk forever, and the shared double behind ~15 fetch tests must be made stateful before a chunked
-  read can be tested at all. The 60s negative cache limits how often a *new* orphan can be created
-  per material, but does nothing about the lifetime of one already parked.
+- **A single `read(_MAX_BODY_BYTES + 1)` with no chunk budget** — the original shape of this design,
+  now rejected. It leaves the orphan effectively unbounded: a peer dribbling one byte per second
+  never trips the 3s per-op timeout (that is exactly what Defect 1's `16.18s` / `VERDICT: PER-OP`
+  measurement proves), so the read loops until 65,537 bytes arrive — ~18 hours holding a socket and a
+  thread stack, against the same adversary this change bounds the lock against. The 60s negative
+  cache limits how often a *new* orphan is created per material but does nothing about one already
+  parked. The cost of the chunked alternative is one test-helper change (see Testing), which does not
+  justify leaving an unbounded resource behind.
 - **`ThreadPoolExecutor`.** Its context-manager form calls `shutdown(wait=True)` and would block on
   the very thread being abandoned, defeating the deadline; its workers are also non-daemon, so
   interpreter exit joins them.
@@ -562,16 +635,11 @@ concurrency-sensitive function in `builder.py`.
   that reaches the network (a dimensionless GeoGebra save, suppressed 60s per material by the
   negative cache); a thread is only *abandoned* when the deadline actually fires. The common case
   leaves nothing parked.
-- **⚠️ An abandoned thread's lifetime is effectively UNBOUNDED against the exact adversary this
-  change bounds the lock against.** It is *not* bounded by the per-op timeout, and saying so would
-  contradict this spec's own measurement. A peer dribbling one byte per second never trips the 3s
-  per-op timeout — that is precisely what the `16.18s` / `VERDICT: PER-OP` evidence in Defect 1
-  demonstrates — so the orphan's single `read(_MAX_BODY_BYTES + 1)` keeps looping until EOF or 65,537
-  bytes have arrived. At 1 B/s that is **~18 hours** holding one socket and one thread stack.
-
-  The main thread is released at 5s either way, so the *lock* is bounded as designed; what is
-  unbounded is the orphan. This is the residual cost of choosing the thread-deadline over a chunked
-  read budget — see "Rejected alternatives", where the trade is re-argued honestly.
+- **An abandoned thread is bounded at ~8s** — `_DEADLINE_SECONDS` plus at most one per-op timeout for
+  the `recv` already in flight when the budget expires. It holds one socket and one thread stack for
+  that period. Note the per-op timeout alone would **not** bound it: a peer dribbling one byte per
+  second never trips it, which is what Defect 1's `16.18s` / `VERDICT: PER-OP` measurement proves —
+  the chunk budget, not the socket timeout, is what makes this finite.
 - **The negative cache is per-process.** There is no `CACHES` setting outside
   `config/settings/test.py:19`, so Django's default `LocMemCache` applies and the sentinel suppresses
   retries only in the worker that failed. Recorded as a note: there is no deployment, so
@@ -591,11 +659,11 @@ concurrency-sensitive function in `builder.py`.
   with no ceiling and no counter. A cap would add a queue whose wait would itself be inside the row
   lock, which is the opposite of the goal.
 
-  **The ceiling is not "editor concurrency".** That bound would only hold if orphans died in seconds;
-  given the unbounded-lifetime gap above, the real ceiling is *distinct dimensionless materials
-  pasted across the whole orphan lifetime*, which grows monotonically for as long as the API
-  misbehaves. Accepted, with the note that nothing makes it observable — there is no counter, and
-  `thread.start()` failing surfaces only as `lookup failed (RuntimeError)` in the log.
+  **The ceiling is "distinct dimensionless materials pasted within one orphan lifetime"** — and
+  because the chunk budget caps that lifetime at ~8s, this reduces to instantaneous editor
+  concurrency rather than growing monotonically while the API misbehaves. Accepted, with the note
+  that nothing makes it observable: there is no counter, and `thread.start()` failing surfaces only
+  as `lookup failed (RuntimeError)` in the log.
 - **Prior design docs are left as historical record.** `docs/superpowers/specs/2026-08-10-geogebra-share-link-sizing-design.md`
   and its plan document the GeoGebra-scoped clear and its accepted gap. They are not annotated or
   amended; this spec supersedes them.
