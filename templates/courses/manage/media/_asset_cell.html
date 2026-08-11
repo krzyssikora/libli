@@ -1,6 +1,13 @@
 {% load i18n %}
 <div class="asset-cell" data-asset-id="{{ asset.pk }}" data-kind="{{ asset.kind }}"
-     data-url="{{ asset.file.url }}" data-name="{{ asset.display_name }}">
+     data-url="{{ asset.file.url }}" data-name="{{ asset.display_name }}"
+     data-replace-url="{% url 'courses:manage_media_replace' slug=course.slug pk=asset.pk %}"
+     data-di-uses="{{ asset.di_uses|default:0 }}">
+  {# Outside .asset-foot on purpose: the confirm strip is added and removed
+     inside the cell, and an input living in a region the JS manipulates could
+     be detached while a reference to it is still held. #}
+  <input type="file" name="file" hidden data-replace-input
+         accept="{% if asset.kind == 'image' %}image/*{% else %}video/*{% endif %}">
   {% if asset.kind == "image" %}
     <img class="asset-thumb" src="{{ asset.file.url }}" alt="">
   {% else %}
@@ -29,12 +36,16 @@
           </ul>
         </details>
       {% else %}<span class="muted">{% trans "unused" %}</span>{% endif %}
-      <form class="asset-del" method="post"
-            action="{% url 'courses:manage_media_delete' slug=course.slug pk=asset.pk %}" data-op="asset-delete">
-        {% csrf_token %}
-        <button type="submit" class="iconbtn iconbtn--danger"
-                {% if uses %}disabled title="{% trans 'In use — cannot delete' %}"{% else %}title="{% trans 'Delete' %}"{% endif %}>🗑</button>
-      </form>
+      <div class="asset-actions">
+        <button type="button" class="iconbtn" data-replace-asset="{{ asset.pk }}"
+                aria-label="{% trans 'Replace file' %}" title="{% trans 'Replace file' %}">⇄</button>
+        <form class="asset-del" method="post"
+              action="{% url 'courses:manage_media_delete' slug=course.slug pk=asset.pk %}" data-op="asset-delete">
+          {% csrf_token %}
+          <button type="submit" class="iconbtn iconbtn--danger"
+                  {% if uses %}disabled title="{% trans 'In use — cannot delete' %}"{% else %}title="{% trans 'Delete' %}"{% endif %}>🗑</button>
+        </form>
+      </div>
     </div>
   {% endwith %}
 </div>

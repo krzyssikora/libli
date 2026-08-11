@@ -497,3 +497,100 @@ def test_replace_without_the_fetch_header_redirects(
 
     missing = client.post(_replace_url(course, asset), {})
     assert missing.status_code == 302 and missing["Location"] == target
+
+
+@pytest.mark.django_db
+def test_replace_control_is_enabled_even_when_the_asset_is_in_use(
+    client, settings, tmp_path
+):
+    """The likeliest implementation slip: the trash button in the SAME
+    {% with uses %} block is `{% if uses %}disabled{% endif %}`, and copying
+    that line would disable replace on exactly the assets it exists for."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "pa-repl-inuse")
+    course = CourseFactory(owner=pa, slug="inuse-repl")
+    asset = make_image_asset(course, filename="x.png")
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    add_element(unit, ImageElement.objects.create(media=asset, alt="a"))
+
+    body = client.get(
+        reverse("courses:manage_media", kwargs={"slug": course.slug})
+    ).content.decode()
+
+    # Scope to the ELEMENT, not a byte window: a window would sit the delete
+    # button's `disabled` just outside it by a margin made of the course slug's
+    # length, the CSRF token and the implementer's line wrapping -- so a reformat
+    # would red a correct build.
+    import re
+
+    open_tag = re.search(r"<button[^>]*data-replace-asset[^>]*>", body)
+    assert open_tag, "the replace button is missing"
+    assert "disabled" not in open_tag.group(0)  # replace stays live...
+    assert "In use — cannot delete" in body  # ...while delete is refused
+
+
+@pytest.mark.django_db
+def test_cell_carries_di_uses_for_the_drag_warning(client, settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "pa-repl-di")
+    course = CourseFactory(owner=pa, slug="di-repl")
+    plain = make_image_asset(course, filename="plain.png")
+    dragged = make_image_asset(course, filename="dragged.png")
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    from courses.models import DragToImageQuestionElement
+
+    add_element(
+        unit,
+        DragToImageQuestionElement.objects.create(
+            media=dragged, alt="Diagram", distractors=""
+        ),
+    )
+
+    body = client.get(
+        reverse("courses:manage_media", kwargs={"slug": course.slug})
+    ).content.decode()
+
+    # Same regex-on-the-open-tag technique as the sibling test: a byte window
+    # is fragile against slug length and the implementer's line wrapping.
+    import re
+
+    for pk, expected in ((dragged.pk, "1"), (plain.pk, "0")):
+        tag = re.search(
+            rf'<div class="asset-cell"[^>]*data-asset-id="{pk}"[^>]*>', body
+        )
+        assert tag, pk
+        assert f'data-di-uses="{expected}"' in tag.group(0), pk
+
+
+@pytest.mark.django_db
+def test_manager_renders_all_six_replace_message_attributes(client, settings, tmp_path):
+    """The ONLY assertion that can fail if manager.html is never touched.
+    msg(host, key, fallback) returns the English fallback when an attribute is
+    missing, and the suite runs in English -- so every other test in this plan,
+    including the e2e ones, passes byte-identically against a manager.html that
+    was never edited, and the Polish translations would ship dead."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "pa-repl-msgs")
+    course = CourseFactory(owner=pa, slug="msgs-repl")
+    make_image_asset(course, filename="x.png")
+
+    body = client.get(
+        reverse("courses:manage_media", kwargs={"slug": course.slug})
+    ).content.decode()
+
+    for key in (
+        "replace-confirm",
+        "replace-drag-warning",
+        "replace-commit",
+        "replace-cancel",
+        "replace-failed",
+        "replace-aria",
+    ):
+        marker = f'data-msg-{key}="'
+        assert marker in body, key
+        value = body[body.index(marker) + len(marker) :]
+        assert value[: value.index('"')].strip(), f"{key} is empty"
