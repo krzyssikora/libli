@@ -1294,7 +1294,20 @@ uv run pytest tests/test_filltable_transfer.py -v
 - [ ] **Step 5: Falsify**
 
 1. Delete `"gate": data["gate"],` → the export and round-trip tests go RED.
-2. Restore, then narrow the mutation to the coercion **only** — `bool(data.get("gate"))` → `data.get("gate")`, keeping both suppression conjuncts — and run just this file (`uv run pytest tests/test_filltable_transfer.py -v`) → `test_every_production_write_path_stores_a_real_boolean` goes RED. Replacing the whole guard expression instead would also redden four of Task 1's tests, which muddies the signal.
+2. Restore, then narrow the mutation to the coercion **only** — `bool(data.get("gate"))` → `data.get("gate")`, keeping both conjuncts — and run just this file (`uv run pytest tests/test_filltable_transfer.py -v`).
+
+   **A truthy payload will NOT falsify it.** `and` returns its last operand, so `"yes" and bool(answers) and not any(...)` evaluates to `True` — a real bool — and both existing assertions stay green. The mutant is only visible on a **falsy non-`False`** payload, where the expression returns `""` rather than `False`. So extend the test with that case first:
+
+   ```python
+       # An empty string is falsy but is NOT False -- this is the only payload that
+       # distinguishes bool(data.get("gate")) from data.get("gate"), because `and`
+       # returns its last operand and a truthy value would coerce to True anyway.
+       assert FillTableElement.normalize_data(
+           {"gate": "", "cells": _GATE_CELLS}
+       )["gate"] is False
+   ```
+
+   With that line present the coercion mutant goes RED; without it the plan's only falsification for this test does not falsify anything.
 
 - [ ] **Step 6: Commit**
 
@@ -1329,8 +1342,7 @@ Replace the final sentence of the `{el:filltable}` section:
 is one-way. Records no marks. Tick **Reveal the rest of this section when all
 cells are correct** to turn the table into a reveal gate: everything after it
 stays hidden until a student fills every answer cell correctly, then appears in
-one go. Like the other gates ([Show more](interactive-elements),
-[Fill in & confirm](interactive-elements), [Choose & confirm](interactive-elements)),
+one go. Like the other gates (**Show more**, **Fill in & confirm**, **Choose & confirm**),
 the reveal stops at the edge of whatever contains the table — inside a callout it
 reveals the rest of that callout and nothing beyond it. Two gated tables in a row
 chain: the first reveals the second, the second reveals what follows.
@@ -1345,14 +1357,13 @@ jednokierunkowe. Nie przyznaje punktów. Zaznacz **Odsłoń resztę tej sekcji, 
 wszystkie komórki są poprawne**, aby zamienić tabelę w bramkę odsłaniającą:
 wszystko, co znajduje się po niej, pozostaje ukryte, dopóki uczeń nie wypełni
 poprawnie każdej komórki z odpowiedzią, a potem pojawia się naraz. Podobnie jak
-w pozostałych bramkach ([Pokaż więcej](interactive-elements),
-[Uzupełnij i potwierdź](interactive-elements), [Wybierz i potwierdź](interactive-elements))
-odsłanianie zatrzymuje się na granicy elementu zawierającego tabelę — wewnątrz
+w pozostałych bramkach (**Pokaż więcej**, **Uzupełnij i potwierdź**,
+**Wybierz i potwierdź**) odsłanianie zatrzymuje się na granicy elementu zawierającego tabelę — wewnątrz
 ramki odsłoni resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele
 tworzą łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
 ```
 
-**Drop the three `[…](interactive-elements)` cross-links from the draft above.** That page contains no intra-page links at all (grep for `](interactive-elements` returns zero hits), and the draft as written links the page to itself. Use plain bolded names — **Show more**, **Fill in & confirm**, **Choose & confirm** — matching the existing prose style.
+**Why the snippets above use plain bolded names rather than links:** that page contains no intra-page links at all (grep for `](interactive-elements` returns zero hits), so a cross-link would both invent a convention and link the page to itself. The bolded form matches the existing prose style.
 
 Note also that none of the three gate sections states the scope confinement: `{el:revealgate}` (:16-22) says only "hides the elements that follow it in the outline", and the other two are similar. So there is no sibling wording to mirror — state the confinement in one sentence of the fill-table section, and accept that it is the first section on the page to say it.
 
@@ -1399,9 +1410,21 @@ import os
 import pytest
 from playwright.sync_api import expect
 
-from courses.models import Element
 from courses.models import FillTableElement
 from tests.factories import add_element
+
+# `tests/` has an __init__.py, so these are importable rather than copy-pasted.
+# (`_allow_async_unsafe` is NOT -- it is a local autouse fixture in each file.)
+from tests.test_e2e_filltable import _INCORRECT
+from tests.test_e2e_filltable import _SUCCESS
+from tests.test_e2e_filltable import _confirm
+from tests.test_e2e_filltable import _summary
+from tests.test_e2e_reveal_gate import _gate
+from tests.test_e2e_reveal_gate import _login
+from tests.test_e2e_reveal_gate import _new_unit
+from tests.test_e2e_reveal_gate import _seed_state
+from tests.test_e2e_reveal_gate import _text
+from tests.test_e2e_reveal_gate import _unit_url
 
 pytestmark = pytest.mark.e2e
 
@@ -1414,7 +1437,21 @@ def _allow_async_unsafe():
     yield
 ```
 
-Every test in this file is decorated `@pytest.mark.django_db(transaction=True)`.
+Every test carries `@pytest.mark.django_db(transaction=True)`. Steps 1-7 show only the body; this is the full shape they all follow:
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_wrong_answer_keeps_content_hidden(page, live_server):
+    unit = _new_unit("ftg_wrong")
+    (table_row, _t), (trailing_row, _tr) = _seed(
+        unit, _filltable(gate=True), _text("trailing")
+    )
+    _login(page, live_server, "ftg_wrong")
+    page.goto(_unit_url(live_server, unit))
+    # ... step body ...
+```
+
+Each test needs its own unique username (`_new_unit` / `_login` share it), as the two reference files do.
 
 **Five traps this suite must avoid:**
 
@@ -1471,7 +1508,7 @@ def _visible(page, join_pk):
     return page.evaluate(f'document.querySelector("{_block(join_pk)}").checkVisibility()')
 ```
 
-The seven fixtures are then: **21/22** `_seed(unit, _filltable(gate=True), _text("trailing"))`; **23** `_seed(unit, _filltable(gate=True), _filltable(gate=True), _text("trailing"))` — adjacent, nothing between the two tables; **24/25** as 21/22 (25 flips `gate` mid-test via `FillTableElement.objects.filter(pk=…).update(...)` then reloads); **26** as 23, with `_seed_state(student, unit, {str(table2_row.pk): {"done": True}})` before the first load; **27** `_seed(unit, _filltable(gate=False), _text("ungated-trailing"), _gate("Show more"), _text("gated-trailing"))` — the trailing `_gate` is what makes `has_reveal_gate` true so `reveal.js` loads at all (see Step 7).
+The seven fixtures are then: **21/22** `_seed(unit, _filltable(gate=True), _text("trailing"))`; **23** `_seed(unit, _filltable(gate=True), _filltable(gate=True), _text("trailing"))` — adjacent, nothing between the two tables; **24** as 21/22; **25** deliberately **`_seed(unit, _filltable(gate=False), _text("trailing"))`** — seeded UNGATED, then flipped mid-test. Seeding it gated would make the flip a no-op, write the blob while already gated, and silently collapse test 25 into a duplicate of test 24 — losing the "ordering, not storage" distinction that is its whole reason to exist. On the first load `has_reveal_gate` is false, so there is no prepaint and the trailing element is visible; that is expected, since the assertion only runs after the flip and reload; **26** as 23, with `_seed_state(student, unit, {str(table2_row.pk): {"done": True}})` before the first load (note `_seed_state` keys by **str** — `UnitProgress.element_state` is str-keyed); **27** `_seed(unit, _filltable(gate=False), _text("ungated-trailing"), _gate("Show more"), _text("gated-trailing"))` — the trailing `_gate` is what makes `has_reveal_gate` true so `reveal.js` loads at all (see Step 7).
 
 Run with:
 ```bash
@@ -1482,14 +1519,14 @@ uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 
 - [ ] **Step 1: Test 21 — a wrong answer keeps the content hidden**
 
-Fixture: `table, trailing = _seed(unit, _filltable(gate=True), _text("trailing"))`.
+Fixture: `(table_row, _t), (trailing_row, _tr) = _seed(unit, _filltable(gate=True), _text("trailing"))`.
 
 ```python
 inp = page.locator(".filltable__input").first
 inp.fill("nope")
 _confirm(page).click()
 expect(inp).to_have_class(_INCORRECT)      # <- synchronise BEFORE reading the DOM
-assert _visible(page, trailing.pk) is False
+assert _visible(page, trailing_row.pk) is False
 ```
 
 *Mutant: cascade unconditionally, ignoring `all_correct`.*
@@ -1502,7 +1539,7 @@ inp.fill(_ANSWER)
 _confirm(page).click()
 expect(_summary(page)).to_have_class(_SUCCESS)   # <- synchronise first
 expect(inp).to_be_disabled()
-assert _visible(page, trailing.pk) is True
+assert _visible(page, trailing_row.pk) is True
 ```
 
 *Mutant: remove the `libliRevealCascade` call.*
@@ -1513,23 +1550,23 @@ assert _visible(page, trailing.pk) is True
 
 ```python
 # solve table 1 (its inputs are the only enabled ones while table 2 is hidden)
-inp1 = page.locator(f"{_block(table1.pk)} .filltable__input").first
+inp1 = page.locator(f"{_block(table1_row.pk)} .filltable__input").first
 inp1.fill(_ANSWER)
-page.locator(f"{_block(table1.pk)} .filltable__confirm").click()
-expect(page.locator(f"{_block(table1.pk)} .filltable__summary")).to_have_class(_SUCCESS)
+page.locator(f"{_block(table1_row.pk)} .filltable__confirm").click()
+expect(page.locator(f"{_block(table1_row.pk)} .filltable__summary")).to_have_class(_SUCCESS)
 
-assert _visible(page, table2.pk) is True
-assert _visible(page, trailing.pk) is False
+assert _visible(page, table2_row.pk) is True
+assert _visible(page, trailing_row.pk) is False
 # focus landed IN table 2's first enabled input, not on its wrapper div
 assert page.evaluate(
     "document.activeElement.classList.contains('filltable__input')"
 ) is True
 
-inp2 = page.locator(f"{_block(table2.pk)} .filltable__input").first
+inp2 = page.locator(f"{_block(table2_row.pk)} .filltable__input").first
 inp2.fill(_ANSWER)
-page.locator(f"{_block(table2.pk)} .filltable__confirm").click()
-expect(page.locator(f"{_block(table2.pk)} .filltable__summary")).to_have_class(_SUCCESS)
-assert _visible(page, trailing.pk) is True
+page.locator(f"{_block(table2_row.pk)} .filltable__confirm").click()
+expect(page.locator(f"{_block(table2_row.pk)} .filltable__summary")).to_have_class(_SUCCESS)
+assert _visible(page, trailing_row.pk) is True
 ```
 
 *Mutant: delete `isGateWrapper`'s `break`* — table 1 would reveal everything at once.
@@ -1547,7 +1584,7 @@ assert resp_info.value.ok
 
 page.reload()
 expect(page.locator(".filltable__input").first).to_have_js_property("readOnly", True)
-assert _visible(page, trailing.pk) is True
+assert _visible(page, trailing_row.pk) is True
 ```
 
 The restored input is `readonly` (server-rendered), not `disabled` — `_filltable_cell.html` renders the `mine.done` branch with `readonly`, while the live `lock()` path uses `disabled`. Asserting the wrong one here fails on a correct build.
@@ -1557,7 +1594,7 @@ The restored input is `readonly` (server-rendered), not `disabled` — `_filltab
 - [ ] **Step 5: Test 25 — pre-tick, single gate**
 
 ```python
-table_row, table_obj = table          # from _seed(...)
+(table_row, table_obj), (trailing_row, _tr) = table_and_trailing   # from _seed(...)
 inp = page.locator(".filltable__input").first
 inp.fill(_ANSWER)
 with page.expect_response(
@@ -1573,7 +1610,7 @@ FillTableElement.objects.filter(pk=table_obj.pk).update(
 )
 
 page.reload()
-assert _visible(page, trailing.pk) is True
+assert _visible(page, trailing_row.pk) is True
 ```
 
 Solve an **ungated** table, then set `gate: true` on it, reload, and assert the following content is visible.
@@ -1587,13 +1624,22 @@ What distinguishes this from test 24 is **ordering, not storage** — test 24 al
 Seed table 2 `{"done": true}` with table 1 unsolved, tick `gate` on both, load, solve table 1:
 
 ```python
-# Solve table 1 (synchronise on its own summary as in test 23), then:
+# Solve table 1, AWAITING the state POST (trap 1) -- this test reloads, so the
+# expect(summary) pattern used by test 23 is not sufficient here:
+inp1 = page.locator(f"{_block(table1_row.pk)} .filltable__input").first
+inp1.fill(_ANSWER)
+with page.expect_response(
+    lambda r: "/state/" in r.url and r.request.method == "POST"
+) as resp_info:
+    page.locator(f"{_block(table1_row.pk)} .filltable__confirm").click()
+assert resp_info.value.ok
+
 # restoreGates broke at table 1, so table 2's cascade never replayed; and table 2
 # is server-rendered done, so it has no Check button to fire it.
-assert _visible(page, table2.pk) is True
-assert _visible(page, trailing.pk) is False
+assert _visible(page, table2_row.pk) is True
+assert _visible(page, trailing_row.pk) is False
 page.reload()
-assert _visible(page, trailing.pk) is True
+assert _visible(page, trailing_row.pk) is True
 ```
 
 This pins **accepted** behaviour, documented in the spec's Error handling table. It is deliberately the test that goes red if someone later changes `cascadeFrom`'s stop condition — which is the point: that change should be deliberate, not incidental.
@@ -1605,19 +1651,19 @@ This pins **accepted** behaviour, documented in the spec's Error handling table.
 Solve the **ungated** table (which has a following sibling in its own scope):
 
 ```python
-inp = page.locator(f"{_block(table.pk)} .filltable__input").first
+inp = page.locator(f"{_block(table_row.pk)} .filltable__input").first
 inp.fill(_ANSWER)                       # fill() itself scrolls the input into view...
 scroll_before = page.evaluate("window.scrollY")   # ...so capture AFTER it
-page.locator(f"{_block(table.pk)} .filltable__confirm").click()
-expect(page.locator(f"{_block(table.pk)} .filltable__summary")).to_have_class(_SUCCESS)
+page.locator(f"{_block(table_row.pk)} .filltable__confirm").click()
+expect(page.locator(f"{_block(table_row.pk)} .filltable__summary")).to_have_class(_SUCCESS)
 
 assert page.evaluate(
-    f'document.querySelector("{_block(ungated_trailing.pk)}").classList.contains("reveal-shown")'
+    f'document.querySelector("{_block(ungated_trailing_row.pk)}").classList.contains("reveal-shown")'
 ) is False
 # activeElement is <body> here -- lock() hid the Check button. Assert the negative
 # that actually distinguishes the mutant:
 assert page.evaluate(
-    f'!document.querySelector("{_block(ungated_trailing.pk)}").contains(document.activeElement)'
+    f'!document.querySelector("{_block(ungated_trailing_row.pk)}").contains(document.activeElement)'
 ) is True
 assert page.evaluate("window.scrollY") == scroll_before
 ```
@@ -1630,7 +1676,7 @@ assert page.evaluate("window.scrollY") == scroll_before
 uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 ```
 
-**There is no single group mutant for this block, and assuming one wastes a debugging session.** Reverting Task 5's `libliRevealCascade` call does *not* redden tests 21–26, because `reveal.js::restoreGates` calls `cascadeFrom` **directly** off `data-state` (line 249) — it never goes through `filltable.js`. The `saveFlag({done: true})` line is unchanged and Task 3 derives `open`, so every reload-based path still works. Under that mutant:
+**There is no single group mutant for this block, and assuming one wastes a debugging session.** Reverting Task 5's `libliRevealCascade` call reddens only tests 22 and 23 — **not** 21, 24, 25, 26 or 27 — because `reveal.js::restoreGates` calls `cascadeFrom` **directly** off `data-state` (line 249) — it never goes through `filltable.js`. The `saveFlag({done: true})` line is unchanged and Task 3 derives `open`, so every reload-based path still works. Under that mutant:
 
 | Test | Under the `libliRevealCascade` mutant | Falsified instead by |
 |---|---|---|
@@ -1640,9 +1686,9 @@ uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 | 24 (reload restores) | **GREEN** — restore path intact | removing Task 3's `open` derivation |
 | 25 (pre-tick, single) | **GREEN** — same reason | removing Task 3's `open` derivation |
 | 26 (pre-tick, chained) | **GREEN** — same reason | removing Task 3's `open` derivation |
-| 27 (ungated no cascade) | **RED** | — |
+| 27 (ungated no cascade) | **GREEN** — also a negative assertion; nothing cascading is what it wants | deleting the `hasAttribute("data-reveal-gate")` guard (Step 7) |
 
-So: apply each per-item mutant named above and confirm the matching test goes red alone. Do **not** treat a green test under the `libliRevealCascade` mutant as a broken test — for 21, 24, 25 and 26 that is the correct outcome.
+So: apply each per-item mutant named above and confirm the matching test goes red alone. Do **not** treat a green test under the `libliRevealCascade` mutant as a broken test — for 21, 24, 25, 26 and 27 that is the correct outcome.
 
 - [ ] **Step 9: Screenshots**
 
