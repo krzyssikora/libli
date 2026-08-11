@@ -82,10 +82,10 @@ COURSE_SCOPED_TYPE_KEYS = ("image", "video", "gallery", "filltable", "table")
 # Members are TRANSFER keys (courses.transfer.export.SERIALIZERS), not the
 # element_add/element_save "type" strings -- an invariant test asserts
 # NESTABLE_TYPE_KEYS <= set(SERIALIZERS). Several types' form key differs from
-# their transfer key (fill_blank, fill_gate, fill_table, guess_number, mark_done,
-# reveal_gate, switch_gate, switch_grid, two_column -- see
-# _NESTABLE_FORM_KEY_ALIASES below); resolve_scope() translates the incoming form
-# key before checking membership.
+# their transfer key (before_after, choice, fill_blank, fill_gate, fill_table,
+# guess_number, mark_done, reveal_gate, short_numeric, short_text, switch_gate,
+# switch_grid, two_column -- see _NESTABLE_FORM_KEY_ALIASES below);
+# resolve_scope() translates the incoming form key before checking membership.
 NESTABLE_TYPE_KEYS = frozenset(
     {
         "text",
@@ -107,6 +107,15 @@ NESTABLE_TYPE_KEYS = frozenset(
         "stepper",
         "mark_done",
         "guess_number",
+        # The graded question keys. `fill_blank` above is nestable too and predates
+        # them (it arrived by side effect of the interactive-in-spoiler work); these
+        # three make the capability deliberate. Questions are LEAVES, so they are
+        # governed by clause 3, never clause 4. The remaining question types
+        # (extended_response, the three drag types, the two grid types) stay out on
+        # purpose -- see the design spec's non-goals.
+        "choice",
+        "short_text",
+        "short_numeric",
         # Container keys. EVERY member of this set is in
         # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS
         # holds. (Phrased about the invariant, not a count -- "Both" was already
@@ -117,15 +126,38 @@ NESTABLE_TYPE_KEYS = frozenset(
     }
 )
 
+# The nestable QUESTION keys, as transfer keys. Read by the three authorities that
+# decide whether a NEW nesting may be created: resolve_scope, paste_allowed, and
+# transfer.payloads.validate_nesting. The LAL loader keeps its own, narrower
+# allowlist.
+#
+# The two authorities that decide whether an EXISTING nesting may be PRESERVED
+# across a unit_type flip do NOT read this set -- they go through the deliberately
+# WIDER unit_has_nested_question(), which spans every QuestionElement subclass.
+NESTABLE_QUESTION_KEYS = frozenset(
+    {"choice", "short_text", "short_numeric", "fill_blank"}
+)
+
 # Form key -> transfer key, for the types where the two namespaces diverge.
+#
+# The choice entry is "choicequestion", NOT the add-menu card names
+# "choice-single"/"choice-multi": element_add (views_manage.py) reads those cards to
+# seed `multiple` and THEN collapses both to type_key="choicequestion" before
+# calling resolve_scope, and element_save passes the POSTed form key straight
+# through. Aliasing the card names instead would leave child_key == "choicequestion"
+# -- not in NESTABLE_TYPE_KEYS -- so every nested-choice add and save would 400
+# while the cards sat there inviting clicks.
 _NESTABLE_FORM_KEY_ALIASES = {
     "beforeafter": "before_after",
+    "choicequestion": "choice",
     "fillblankquestion": "fill_blank",
     "fillgate": "fill_gate",
     "filltable": "fill_table",
     "guessnumber": "guess_number",
     "markdone": "mark_done",
     "revealgate": "reveal_gate",
+    "shortnumericquestion": "short_numeric",
+    "shorttextquestion": "short_text",
     "switchgate": "switch_gate",
     "switchgrid": "switch_grid",
     "twocolumn": "two_column",

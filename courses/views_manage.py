@@ -2176,9 +2176,12 @@ def element_add(request, slug):
     # rather than at save. resolve_scope raises NestingError on any violation.
     # Note: "slidebreak" isn't in this allow-tuple at all, so a nested slidebreak 400s
     # at the "bad type" check above, before resolve_scope ever runs -- it does NOT
-    # exercise the nesting gate. "choicequestion" is the case here that reliably
-    # reaches resolve_scope and proves nesting is blocked: it is not in
+    # exercise the nesting gate. "extendedresponsequestion" is the case here that
+    # reliably reaches resolve_scope and proves nesting is blocked: it is not in
     # NESTABLE_TYPE_KEYS, so clause 1 rejects it as a nested child at any depth.
+    # "choicequestion" NO LONGER serves that purpose -- `choice` joined
+    # NESTABLE_TYPE_KEYS, and the type_key collapse above is why builder's alias is
+    # keyed on "choicequestion" rather than on the two card names.
     # "tabs" also reaches resolve_scope, but as a nestable container (depth-3 slice)
     # it is accepted or rejected depending on depth -- clauses 3/4 -- not a fixed
     # block.

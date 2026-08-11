@@ -996,9 +996,14 @@ Create `courses/tests/test_nested_question_add.py`.
 def test_nested_add_of_a_widened_question_type_opens_its_form(
     client, add_type, expect_multiple_checked
 ):
-    """These four tests are what actually catch a wrong alias -- the drift test
-    cannot, because `choice-single -> choice` is well-formed and simply never
-    consulted by resolve_scope."""
+    """These catch a wrong alias at the endpoint, where it actually bites.
+
+    Note the drift test catches a REPLACED key too (it indexes the map by
+    expected form key, so a missing "choicequestion" is a KeyError). What only
+    these tests catch is an alias ADDED ALONGSIDE the correct one: `choice-single
+    -> choice` is well-formed, satisfies the drift assertion, and is simply never
+    consulted by resolve_scope.
+    """
     course, unit = _managed(client)                       # a LESSON unit
     callout = CalloutElement.objects.create(kind="example")
     join = Element.objects.create(unit=unit, content_object=callout)

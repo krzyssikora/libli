@@ -49,8 +49,27 @@ def test_resolve_scope_accepts_a_container_child_in_two_column():
     # depth-1 parent: a container child lands at depth 2 and is legal
     parent_join, tab_id = resolve_scope(unit, str(join.pk), cid, "tabs")
     assert parent_join == join and tab_id == cid
+    # extended_response is the question type the widening deliberately left OUT, so
+    # the allowlist still refuses it. (`choicequestion` used to sit here; it is now
+    # accepted in a LESSON -- see the test below.)
     with pytest.raises(NestingError):
-        resolve_scope(unit, str(join.pk), cid, "choicequestion")  # questions can't nest
+        resolve_scope(unit, str(join.pk), cid, "extendedresponsequestion")
+
+
+@pytest.mark.django_db
+def test_resolve_scope_accepts_a_question_child_in_a_lesson_two_column():
+    """The FORM key, `choicequestion` -- the exact string element_add hands
+    resolve_scope after collapsing the choice-single/choice-multi cards. If the
+    alias were keyed on a card name instead, this would 400 while the drift test
+    stayed green. The quiz-refusal companion lands with the gate that makes it
+    pass, not here."""
+    _, unit = make_course_with_unit()  # a LESSON
+    col = TwoColumnElement(data=TwoColumnElement.default_data())
+    col.save()
+    join = Element.objects.create(unit=unit, content_object=col)
+    cid = col.data["columns"][0]["id"]
+    parent_join, tab_id = resolve_scope(unit, str(join.pk), cid, "choicequestion")
+    assert parent_join == join and tab_id == cid
 
 
 @pytest.mark.django_db

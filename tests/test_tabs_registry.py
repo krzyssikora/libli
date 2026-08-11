@@ -71,8 +71,12 @@ def test_nested_add_embeds_parent_and_tab_as_hidden_fields(client):
 @pytest.mark.parametrize(
     "post",
     [
-        {"type": "choicequestion"},  # question inside a tab
+        # `slidebreak` is NOT in element_add's allow-tuple at all, so it 400s at the
+        # "bad type" check before resolve_scope ever runs -- unconditionally, in every
+        # unit type. `choicequestion` used to sit here; it now reaches resolve_scope
+        # and is accepted in a lesson (see the test below).
         {"type": "slidebreak"},  # slide break inside a tab
+        {"type": "extendedresponsequestion"},  # a question left OUT of the widening
     ],
 )
 def test_nested_add_of_a_blocked_type_is_400(client, post):
@@ -85,6 +89,30 @@ def test_nested_add_of_a_blocked_type_is_400(client, post):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 400
+
+
+def test_nested_add_of_a_question_is_200_in_a_lesson(client):
+    """`choicequestion` into a tab on a LESSON unit. Was the [post0] case of the
+    parametrized 400 above, whose own view comment named it "the case here that
+    reliably reaches resolve_scope and proves nesting is blocked".
+
+    The quiz-400 companion lands with the gate that makes it pass, not here: today
+    the same POST against a quiz unit still returns 200.
+    """
+    course, unit = _managed(client)  # make_course_with_unit -> a LESSON
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {
+            "unit": unit.pk,
+            "parent": join.pk,
+            "tab": tabs.data["tabs"][0]["id"],
+            "type": "choicequestion",
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
 
 
 def test_nested_add_of_a_container_type_is_200(client):

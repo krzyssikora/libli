@@ -651,11 +651,19 @@ The single/multi split is resolved *inside* `element_add` (it becomes
 authority. The other three types post their form key unchanged and need no such
 note.
 
-**The drift test does not catch this**, which is why it is spelled out here: an
-alias `choice-single → choice` is perfectly well-formed and satisfies "every alias
-resolves into `NESTABLE_TYPE_KEYS`" — it is simply never consulted. §9.5's four
-`element_add` endpoint tests are what actually catch it, which is their main
-purpose.
+**How much the drift test catches depends on how the mistake is made** — corrected
+during implementation, where the mutant was actually run:
+
+- An alias that **replaces** `choicequestion` with `choice-single` IS caught: the
+  drift test indexes the map by the expected form key, so the missing key raises
+  `KeyError`.
+- An alias **added alongside** the correct one is NOT caught: `choice-single →
+  choice` is perfectly well-formed and satisfies "every alias resolves into
+  `NESTABLE_TYPE_KEYS`" — it is simply never consulted.
+
+§9.5's `element_add` endpoint tests are what catch the second case, and they are the
+reason those tests exist. (An earlier draft of this section claimed the drift test
+caught neither; that was wrong, and the two test files must not repeat it.)
 
 The prose comment above `NESTABLE_TYPE_KEYS` (`builder.py:85-88`) enumerates the
 types whose form key differs from their transfer key. It must gain the new entries,

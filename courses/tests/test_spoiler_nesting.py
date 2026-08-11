@@ -154,10 +154,14 @@ def test_resolve_scope_child_types_in_a_top_level_spoiler():
 
     _course, unit = make_course_with_unit()
     _sp, join = _spoiler_join(unit)
-    for bad in ("choicequestion",):
+    # `choicequestion` used to live in this tuple; it is now accepted in a LESSON
+    # (see the `good` loop). The question types the widening deliberately left out
+    # keep it honest.
+    for bad in ("extendedresponsequestion", "dragfillblankquestion"):
         with pytest.raises(NestingError):
             builder.resolve_scope(unit, str(join.pk), SpoilerElement.SLOT_ID, bad)
-    for good in ("tabs", "spoiler"):
+    # The widened question FORM keys, exactly as element_add hands them over.
+    for good in ("tabs", "spoiler", "choicequestion", "shorttextquestion"):
         parent_join, tab = builder.resolve_scope(
             unit, str(join.pk), SpoilerElement.SLOT_ID, good
         )
@@ -176,7 +180,14 @@ def test_nestable_type_keys_includes_interactive_leaves_and_containers():
         assert k in NESTABLE_TYPE_KEYS
     for k in ("tabs", "two_column", "spoiler"):  # containers are nestable now
         assert k in NESTABLE_TYPE_KEYS
-    for k in ("choicequestion", "slidebreak"):  # genuinely non-nestable
+    for k in ("choice", "short_text", "short_numeric"):  # the widened questions
+        assert k in NESTABLE_TYPE_KEYS
+    # `choicequestion` is a FORM key, and form keys never appear in this set --
+    # resolve_scope translates them through _NESTABLE_FORM_KEY_ALIASES first. It used
+    # to sit in the list below under the comment "genuinely non-nestable", which
+    # became a lie the moment `choice` was widened while the assertion stayed green.
+    assert "choicequestion" not in NESTABLE_TYPE_KEYS
+    for k in ("extended_response", "slidebreak"):  # genuinely non-nestable
         assert k not in NESTABLE_TYPE_KEYS
 
 
@@ -347,12 +358,19 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
         "guessnumber",
     ):
         assert f'data-add-type="{allowed}"' in block, allowed
-    # non-fillblank question cards stay hidden in every nested menu
-    for banned_question in (
+    # INVERTED by the question widening: the four cards of the three widened types
+    # (choice contributes two) are now offered in a nested menu on a LESSON unit.
+    for allowed_question in (
         "choice-single",
         "choice-multi",
         "shorttextquestion",
         "shortnumericquestion",
+        "fillblankquestion",
+    ):
+        assert f'data-add-type="{allowed_question}"' in block, allowed_question
+    # The drag and grid types plus extended_response stay hidden in every nested
+    # menu -- they are not in NESTABLE_TYPE_KEYS and a click would 400.
+    for banned_question in (
         "dragfillblankquestion",
         "matchpairquestion",
         "choicegridquestion",
@@ -384,11 +402,12 @@ def test_spoiler_add_menu_shows_allowed_interactive_cards(client):
         "stepper",
         "markdone",
         "guessnumber",
+        # INVERTED by the question widening: the nested Questions group.
+        "choice-single",
+        "shorttextquestion",
     } <= present
-    # no other question card leaks into a nested menu
-    assert present.isdisjoint(
-        {"choice-single", "shorttextquestion", "dragfillblankquestion"}
-    )
+    # no NON-widened question card leaks into a nested menu
+    assert present.isdisjoint({"dragfillblankquestion", "extendedresponsequestion"})
 
 
 def test_author_switchgate_into_spoiler_succeeds(client):
@@ -419,11 +438,12 @@ def test_author_switchgate_into_spoiler_succeeds(client):
     assert child.tab_id == SpoilerElement.SLOT_ID
 
 
-def test_tabs_add_menu_offers_fillblank_and_hides_other_questions(client):
-    # PR#126 no-regression, updated by the depth-3 slice: the tabs nested add-menu
-    # still shows the 4 gates and the Spoiler card, and still hides the general
-    # question cards -- but fill-blank is now offered in EVERY nested menu, not only
-    # in-spoiler (the `in_spoiler` flag is gone; the card's guard is `{% if nested %}`).
+def test_tabs_add_menu_offers_the_widened_questions_and_hides_the_rest(client):
+    # PR#126 no-regression, updated twice: by the depth-3 slice (fill-blank is offered
+    # in EVERY nested menu now, not only in-spoiler -- the `in_spoiler` flag is gone)
+    # and by the question widening (the nested Questions group). The tabs nested
+    # add-menu still shows the 4 gates and the Spoiler card, and still hides the
+    # question types left out of NESTABLE_TYPE_KEYS.
     from courses.models import TabsElement
 
     pa = make_pa(client, "pa")
@@ -438,12 +458,16 @@ def test_tabs_add_menu_offers_fillblank_and_hides_other_questions(client):
         "switchgate",
         "switchgrid",
         "spoiler",
-        "fillblankquestion",  # INVERTED
+        "fillblankquestion",  # INVERTED by the depth-3 slice
+        "choice-single",  # INVERTED by the question widening
+        "choice-multi",
+        "shorttextquestion",
+        "shortnumericquestion",
     ):
         assert f'data-add-type="{allowed}"' in block, allowed
     for banned_question in (
-        "choice-single",
-        "shorttextquestion",
+        "extendedresponsequestion",
+        "dragfillblankquestion",
     ):
         assert f'data-add-type="{banned_question}"' not in block, banned_question
 
@@ -460,6 +484,71 @@ def test_tabs_nested_menu_still_offers_spoiler(client):
     Element.objects.create(unit=unit, content_object=tabs)
     html = _editor_html(client, course, unit)
     assert 'data-add-type="spoiler"' in html  # still present via the tabs nested menu
+
+
+# The nested `Questions` group, card by card. Assert the STRINGS, never a count: a
+# count is blind to the choice-single/choice-multi mix-up, and emitting
+# data-add-type="choicequestion" on both cards would 200 on every click while
+# silently producing two identical single-choice elements.
+NESTED_QUESTION_CARDS = (
+    "choice-single",
+    "choice-multi",
+    "shorttextquestion",
+    "shortnumericquestion",
+    "fillblankquestion",
+)
+
+
+def _quiz_unit(course):
+    return ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
+
+
+def test_nested_add_menu_offers_the_five_question_cards_in_a_lesson(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    _sp, join = _spoiler_join(unit)
+    block = _spoiler_menu_block(_editor_html(client, course, unit), join.pk)
+    for card in NESTED_QUESTION_CARDS:
+        assert f'data-add-type="{card}"' in block, card
+
+
+def test_nested_add_menu_offers_no_question_card_in_a_quiz(client):
+    """The `not unit_is_quiz` half of the group's guard. Hiding is courtesy -- the
+    server refusal is a separate authority -- but a quiz author must not be invited
+    to click something that cannot work."""
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _sp, join = _spoiler_join(unit)
+    block = _spoiler_menu_block(_editor_html(client, course, unit), join.pk)
+    for card in NESTED_QUESTION_CARDS:
+        assert f'data-add-type="{card}"' not in block, card
+    # Not vacuous: this really is a rendered nested menu, it just has no questions.
+    assert 'data-add-type="text"' in block
+
+
+def test_the_nested_questions_group_is_a_sibling_of_the_top_level_block(client):
+    """Placement, which is load-bearing and fails SILENTLY: a `{% if nested %}` group
+    written INSIDE the existing `{% if not nested %}` block is unreachable, every
+    server gate test still passes, and the author simply never sees the cards.
+
+    Counting per CARD is what catches it -- the top-level menu emits each of these
+    strings once regardless, so a presence check on the whole page is green under the
+    unreachable placement. With one spoiler on a lesson unit there are exactly two
+    menus that may carry them: the top-level one and the spoiler's nested one.
+    """
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    _sp, _join = _spoiler_join(unit)
+    html = _editor_html(client, course, unit)
+    for card in NESTED_QUESTION_CARDS:
+        assert html.count(f'data-add-type="{card}"') == 2, card
+    # ...and the top-level group is untouched: its non-nestable cards stay exactly
+    # once, so the new group did not accidentally duplicate the whole of it.
+    for card in ("dragfillblankquestion", "extendedresponsequestion", "slidebreak"):
+        assert html.count(f'data-add-type="{card}"') == 1, card
 
 
 def test_reorder_and_delete_spoiler_child_via_generic_element_ops(client):

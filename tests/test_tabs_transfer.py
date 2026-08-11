@@ -134,12 +134,26 @@ def test_nesting_validation_accepts_tabs_in_tabs():
     validate_nesting(_els(_tabs_el(), _child(type_="tabs")))  # must not raise
 
 
+@pytest.mark.parametrize("type_", ["choice", "short_text", "short_numeric"])
+def test_nesting_validation_accepts_a_widened_question(type_):
+    """The three transfer keys the widening added. `choice` was the non-nestable
+    subject of test_nesting_validation_rejects[elements2] until this change; that
+    case now uses extended_response, which stays out of NESTABLE_TYPE_KEYS.
+
+    This call passes NO unit map, so nothing here says anything about quizzes -- the
+    archive-side quiz refusal is a separate clause with its own tests.
+    """
+    validate_nesting(_els(_tabs_el(), _child(type_=type_)))  # must not raise
+
+
 @pytest.mark.parametrize(
     "elements",
     [
         _els(_tabs_el(), _child(parent="e9")),  # unknown parent
         _els(_tabs_el(), _child(tab="tzzzzzz")),  # tab not in parent
-        _els(_tabs_el(), _child(type_="choice")),  # non-nestable child
+        # extended_response, NOT choice: `choice` became nestable with the question
+        # widening, so it no longer exercises the non-nestable clause at all.
+        _els(_tabs_el(), _child(type_="extended_response")),  # non-nestable child
         _els(
             {
                 "id": "e1",
