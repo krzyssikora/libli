@@ -810,7 +810,7 @@ Note what this reverses: `tests/test_iframe_dimensions.py:498` currently pins th
 - Consumes: nothing from Tasks 1–4 (fully independent — this task may be done first if preferred).
 - Produces: no new symbols.
 
-- [ ] **Step 1: Rewrite B1 and B2 in place, and add B3**
+- [x] **Step 1: Rewrite B1 and B2 in place, and add B3**
 
 Rewrite `test_form_non_geogebra_url_change_keeps_its_dimensions` (`:481`) and `test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` (`:498`) — name, body **and comment**; their current comments argue for the behaviour being removed. Both **retain `lookup.assert_not_called()`**: that assertion is the second guard on which `and mid` survives, and it is what distinguishes "dropped the `:196` conjunct" from "dropped both".
 
@@ -875,12 +875,12 @@ def test_form_non_geogebra_unchanged_url_keeps_its_pair():
     assert (saved.width, saved.height) == (640, 360)
 ```
 
-- [ ] **Step 2: Run to verify B1 and B2 fail**
+- [x] **Step 2: Run to verify B1 and B2 fail**
 
 Run: `uv run pytest tests/test_iframe_dimensions.py -k "same_provider or geogebra_to_non_geogebra or unchanged_url_keeps" --verbosity=0`
 Expected: B1 and B2 FAIL (the pair is still `(880, 660)` / `(640, 360)`); B3 passes already. The filter deliberately avoids the substring `clears_the_stale_pair`, which would also select the pre-existing `test_form_url_change_clears_the_stale_pair_and_looks_up_afresh` (`:425`).
 
-- [ ] **Step 3: Drop the conjunct and rewrite both comments**
+- [x] **Step 3: Drop the conjunct and rewrite both comments**
 
 In `courses/element_forms.py`, replace `:192-197` — the whole justification comment block and the guard it introduces, not just the `if` line:
 
@@ -903,7 +903,7 @@ And at `:189`, the hoist comment now over-claims — only the lookup guard uses 
         mid = geogebra_material_id(url)  # hoisted: used by the lookup guard below
 ```
 
-- [ ] **Step 3b: Re-word the now-ambiguous guard comment**
+- [x] **Step 3b: Re-word the now-ambiguous guard comment**
 
 `test_form_non_geogebra_dimensionless_paste_never_looks_up` (`:376`) guards the `:217` conjunct you did **not** touch. Its comment at `tests/test_iframe_dimensions.py:377-382` opens "THE guard on the `and mid` conjunct" — which named the only such conjunct when it was written, and after this change names the wrong one. This is a spec requirement, not a nicety: an ambiguous mechanism comment is the same defect class as a false one.
 
@@ -917,19 +917,19 @@ Replace **lines 377–378 as a unit** — not just line 377. The sentence runs o
 
 Lines 379 onwards ("`# short-circuits on a usable pair BEFORE`…") are unchanged.
 
-- [ ] **Step 4: Run — all three green**
+- [x] **Step 4: Run — all three green**
 
 Run: `uv run pytest tests/test_iframe_dimensions.py --verbosity=0`
 Expected: all pass.
 
-- [ ] **Step 5: Falsify B1 and B2**
+- [x] **Step 5: Falsify B1 and B2**
 
 Restore `and mid` on the `:196` clear.
 Run: `uv run pytest tests/test_iframe_dimensions.py -k "same_provider or geogebra_to_non_geogebra" --verbosity=0`
 Expected: both FAIL — this is the defect itself.
 **Edit it back by hand.** Re-run: PASS.
 
-- [ ] **Step 5b: Falsify B2 with its OWN mutant**
+- [x] **Step 5b: Falsify B2 with its OWN mutant**
 
 Step 5's `and mid` restore reddens B1 and B2 together, so it does not show that B2 earns its place. The spec names a different mutant for B2 — the **provider-change rule**, the alternative this design rejected. Apply it:
 
@@ -948,7 +948,7 @@ Expected: **B2 FAILS, B1 stays green.** B1 is a cross-host swap (geogebra.org �
 
 **Edit the mutant back by hand.** Re-run: PASS.
 
-- [ ] **Step 6: Falsify B3**
+- [x] **Step 6: Falsify B3**
 
 Apply exactly this mutant — it also clears when the URL is unchanged but the element is not GeoGebra:
 
@@ -965,7 +965,7 @@ Expected: **only B3 fails.** B1, B2, `:293`, `:304`, `:376`, `:410`, `:425`, `:4
 
 **Edit the mutant back by hand.** Re-run: PASS.
 
-- [ ] **Step 7: Format and lint the files this task touched**
+- [x] **Step 7: Format and lint the files this task touched**
 
 ```bash
 uv run ruff format .
@@ -974,7 +974,7 @@ uv run ruff check --no-cache courses/element_forms.py tests/test_iframe_dimensio
 
 Do this **before** the commit, not at Task 6. `ruff format` does not sort imports, and `ruff format --check` is a separate CI gate — discovering either at the end means re-touching files from several earlier commits.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add courses/element_forms.py tests/test_iframe_dimensions.py
