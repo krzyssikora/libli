@@ -419,11 +419,12 @@ both a rejection reason *and* a suppression trigger. So the author ticks the box
 saves, gets "An answer cell is blank", and the checkbox comes back **unchecked** with no message about
 it. Their next Save then posts `gate: false` from the DOM, silently discarding the intent.
 
-The overlap is one-way, not an iff: `clean_data` also raises on an over-cap grid (`_caps_ok`) and on a
-course-scope image failure, and for those `normalize_data` leaves `gate` at `True`, so the shared path
-would already re-render the box ticked. The override below is written **unconditionally** rather than
-narrowed to the two triggering shapes, which makes it a no-op on those other rejection paths and
-correct on all four.
+The overlap is one-way, not an iff: `clean_data` has three further raising paths — an out-of-range
+colspan/rowspan (`_scan_spans`, which runs *first*, before `normalize_data` can clamp it out of
+sight), an over-cap grid (`_caps_ok`), and a course-scope image failure. For all three
+`normalize_data` leaves `gate` at `True`, so the shared path would already re-render the box ticked.
+The override below is written **unconditionally** rather than narrowed to the two triggering shapes,
+which makes it a no-op on those other rejection paths and correct on all five.
 
 Overlay the submitted value in `FillTableElementForm` (not in shared `_grid_data`, which
 `TableElementForm` also uses and which has no `gate`):
@@ -680,17 +681,28 @@ Extend `tests/test_e2e_filltable.py` or add a sibling, following `tests/test_e2e
 24. **Reload restores** — after success, reload; revealed content is still visible and the table is
     still locked. *Mutant: remove §4's `open` derivation.*
 25. **Pre-tick lockout, single gate** — solve an *ungated* table, then set `gate: true` on it, reload,
-    and assert the following content is visible. The only test that exercises §4's seam through a real
-    stored blob rather than a synthetic one. *Mutant: same as 24 — it must fail here too, or the test
-    is not reading storage.*
+    and assert the following content is visible. What distinguishes this from test 24 is **ordering,
+    not storage**: test 24 also writes and re-reads a real blob (its live success `saveFlag`s through
+    `element_state_save` → `_val_done`). This is the only test where the blob is written while the
+    table is still ungated, which is the actual pre-tick sequence authors will create. Keep both.
+    *Mutant: same as 24 — it must fail here too, or the test is not reading storage.*
 26. **Pre-tick, chained** — the documented limitation from the Error handling table. Seed table 2
     `{"done": true}` with table 1 unsolved, tick `gate` on both, load, solve table 1, and assert the
     trailing content is **still hidden**; then reload and assert it is visible. Written to pin the
     accepted behaviour, so it is also the test that goes red if someone later changes `cascadeFrom`'s
     stop condition — which is the point: that change should be deliberate.
 27. **Ungated table does not cascade** — solve an *ungated* fill-table that has a following sibling in
-    its scope, and assert no `.reveal-shown` class is added there and `document.activeElement` is
-    unchanged. *Mutant: delete the `hasAttribute("data-reveal-gate")` guard in §5.*
+    its scope, and assert no `.reveal-shown` class is added there. *Mutant: delete the
+    `hasAttribute("data-reveal-gate")` guard in §5.*
+
+    **Do not assert "`document.activeElement` is unchanged" — that is red on a correct build.**
+    `lock()` sets `btn.hidden = true` on the Check button (the node a click just focused) and
+    `inp.disabled = true` on every input (the node focused on the Enter path); hiding or disabling the
+    focused element resets `activeElement` to `<body>`. So focus moves on *every* successful check,
+    cascade or not, and `<body>` is the expected baseline. Assert the negative that actually
+    distinguishes the mutant instead: `activeElement` is not the following sibling wrapper and is not
+    inside it. `window.scrollY` unchanged is a good second assertion, since the cascade's `focus()`
+    is what scrolls.
     **The fixture must also contain a second, gating element** — a `RevealGateElement`, or a gated
     fill-table in a different scope (another slide, another container) — so `has_reveal_gate` is true
     and `reveal.js` actually loads. Without one, `window.libliRevealCascade` is `undefined`, the
