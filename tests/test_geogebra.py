@@ -627,3 +627,38 @@ def test_fetch_deadline_log_names_the_id_AND_the_reason(monkeypatch, caplog):
         released.set()
     messages = _geogebra_reasons(caplog)
     assert any("wgzr7tsu" in m and "deadline" in m for m in messages)
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_reports_a_worker_budget_trip_as_the_deadline(monkeypatch, caplog):
+    # 5c: the budget trips INSIDE the join window, so this is the only test that
+    # exercises _run's `except _BudgetExceeded` branch and the empty-box outcome.
+    #
+    # Clock arithmetic -- the main thread consumes the FIRST tick computing
+    # `deadline = monotonic() + budget`, so the worker's ticks are offset by one:
+    #   tick 1 (main)   -> 0.0   deadline = 0.0 + 2.0 = 2.0
+    #   tick 2 (check1) -> 1.0   < 2.0, read1 #1
+    #   tick 3 (check2) -> 2.0   >= 2.0, raise _BudgetExceeded
+    # Body is 3 chunks so read1 #1 does not hit EOF.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 2.0)
+    clock = itertools.count(start=0.0, step=1.0)
+    monkeypatch.setattr("courses.geogebra.monotonic", lambda: next(clock))
+
+    from courses.geogebra import _CHUNK_BYTES
+
+    resp = _Resp(b"x" * (3 * _CHUNK_BYTES))
+    with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+        with patch("courses.geogebra._open", return_value=resp):
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+def test_the_deadline_clears_the_measured_connect_leg_failure():
+    # Every other test patches _DEADLINE_SECONDS, so nothing else observes the
+    # SHIPPED relationship. `>` alone is satisfied by 3.5, which reintroduces the
+    # mislabelling: the measured blackhole/connect failure takes ~3.29s, so the
+    # deadline must clear the MEASURED figure, not merely the nominal constant.
+    from courses.geogebra import _DEADLINE_SECONDS
+    from courses.geogebra import _TIMEOUT_SECONDS
+
+    assert _DEADLINE_SECONDS >= _TIMEOUT_SECONDS + 1
