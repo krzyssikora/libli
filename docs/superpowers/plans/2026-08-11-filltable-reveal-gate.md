@@ -403,8 +403,18 @@ CSS = Path("core/static/core/css/app.css").read_text(encoding="utf-8")
 COURSES_CSS = Path("courses/static/courses/css/courses.css").read_text(encoding="utf-8")
 
 
+def _strip_comments(css):
+    # Mirrors courses/tests/test_beforeafter_css.py:14-18. Step 9 adds a CSS
+    # COMMENT directly above the rule these assertions look for, and both
+    # assertions below scan raw text: a comment mentioning the carve-out
+    # selector would satisfy the positive one, and a rewrap that put
+    # `[data-reveal-gate]` at the start of a comment line would falsify the
+    # negative one on a CORRECT build. Strip comments so neither can happen.
+    return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+
 def _print_block(css):
-    m = re.search(r"@media print\s*\{(.*?)\n\}", css, re.S)
+    m = re.search(r"@media print\s*\{(.*?)\n\}", _strip_comments(css), re.S)
     assert m, "no @media print block in app.css"
     return m.group(1)
 
@@ -419,6 +429,11 @@ def test_courses_css_crossref_clause_stays_inside_its_comment():
     # terminator is invisible to a regex, so the block would still match on a
     # broken file and the assertion could not fail. courses.css also holds TEN
     # @media print blocks, so a first-match regex reads the wrong one anyway.
+    #
+    # Reads COURSES_CSS RAW, deliberately -- do NOT route it through
+    # _strip_comments(), which exists for the app.css assertions below. This
+    # test's whole subject is text INSIDE a comment; stripping them first
+    # would leave it asserting on an empty string.
     i = COURSES_CSS.index("unit-strip__edit are both hidden in print")
     terminator = COURSES_CSS.index("*/", i)
     assert "filltablegate" in COURSES_CSS[i:terminator], (
@@ -511,7 +526,7 @@ Expected: all PASS. `test_reveal_scope_agreement.py` must stay green **unmodifie
 
 - [ ] **Step 13: Restore, re-run, lint and commit**
 
-Mutant 5 left the `courses.css` clause spliced outside its comment and mutant 4 left the extra wrapper div in `filltableelement.html` — edit both back. Confirm too that mutant 1's `app.css` carve-out is restored (`[data-reveal-gate]:not([data-filltablegate])`, not the bare selector); `ruff` reads neither the template nor either CSS file, so nothing else would notice. Then re-run before staging:
+Mutant 5 — the last one — left the `courses.css` clause spliced outside its comment; edit it back. Then **confirm** (do not re-edit) that mutant 4's extra wrapper div is already out of `filltableelement.html`: Step 12 mutant 5 opens with "**Restore, then**", so it was removed before that mutant was applied. Confirm too that mutant 1's `app.css` carve-out is restored (`[data-reveal-gate]:not([data-filltablegate])`, not the bare selector); `ruff` reads neither the template nor either CSS file, so nothing else would notice. Then re-run before staging:
 
 ```bash
 uv run pytest tests/test_filltable_render.py courses/tests/test_filltable_gate_print.py -v
@@ -1376,7 +1391,9 @@ Expected, enumerated — a blanket "FAIL" would leave Step 8's mutants 4-6 with 
 
 - [ ] **Step 5: Add the `grid_data` override**
 
-In `courses/element_forms.py`, replace `FillTableElementForm`'s existing `grid_data` property:
+In `courses/element_forms.py`, replace `FillTableElementForm`'s existing `grid_data` property — **the one whose `def` is at `:1636`**:
+
+⚠️ **There are TWO byte-identical `grid_data` properties in this file** — `TableElementForm`'s (`def` at `:1551`) and `FillTableElementForm`'s (`def` at `:1636`), both exactly `return _grid_data(self)`. A bare search lands on the wrong one first. Disambiguate by position: `class FillTableElementForm(_CourseScopedMediaForm)` opens at `:1575`, so the **second** occurrence is the target. Editing `TableElementForm`'s copy instead hands the plain table a `gate` key it has no field for and leaves `test_rejected_save_keeps_the_gate_ticked` red in a way that reads like a normalizer bug.
 
 ```python
     @property
@@ -1448,7 +1465,14 @@ throwaway lines in this test — everything in the snippet above and below them 
 
 Same gotcha Task 9 Step 9 calls out for the student.
 
-**Pass criterion:** the Instruction field is still usable at a normal editor width — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed.
+**Pin the viewport — the whole risk here is width-dependent, so an unnamed width judges whatever the `page` fixture happens to default to and gives a later reviewer nothing to reproduce.** Capture at two widths, set explicitly before `_goto_editor`:
+
+```python
+page.set_viewport_size({"width": 1280, "height": 800})   # the common case
+page.set_viewport_size({"width": 1024, "height": 800})   # near the row's wrap point
+```
+
+**Pass criterion, checked at both widths:** the Instruction field is still usable — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width: 12rem`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed.
 
 **Keep the test, drop only the screenshots.** The tick → Save → stored-flag round trip is the one seam in this feature that *no* runtime test crosses: Step 1's three source assertions pin the strings (`querySelector("[data-gate]")`, `gate: !!(gate && gate.checked)`, the `change` listener) but never execute them together, and every Task 9 e2e seeds through the ORM rather than the editor. Since this step already stands up the whole PA-authenticated fixture, keeping a behavioural version costs three lines:
 
@@ -1495,7 +1519,7 @@ def test_editor_gate_checkbox_round_trips(page, live_server):
     assert obj.data["gate"] is True
 ```
 
-So: remove the `page.screenshot` calls and the dark-theme `update()` before Step 10, but **keep the test itself**, named `test_editor_gate_checkbox_round_trips`, and add `tests/test_e2e_filltable.py` to Step 10's `git add` and ruff commands. That converts a throwaway harness into the only end-to-end guard on the authoring path.
+So: remove the `page.screenshot` calls, the two `page.set_viewport_size(...)` calls and the dark-theme `update()` before Step 10, but **keep the test itself**, named `test_editor_gate_checkbox_round_trips`, and add `tests/test_e2e_filltable.py` to Step 10's `git add` and ruff commands. That converts a throwaway harness into the only end-to-end guard on the authoring path.
 
 If the row does not survive, the fix belongs here (a shorter label, or letting the checkbox wrap) — do not leave it for the branch gate to discover.
 
@@ -1505,7 +1529,7 @@ If the row does not survive, the fix belongs here (a shorter label, or letting t
 
 1. Drop `{% if d.gate %}checked{% endif %}` → `test_partial_gate_checkbox_is_checked_for_a_gated_element` RED.
 2. Restore, then hardcode `checked` on the new `<input data-gate>` (drop the `{% if %}` but keep the attribute) → `test_partial_has_gate_checkbox_unchecked_by_default` RED, and the checked-state test stays GREEN. Mutant 1 leaves this test green, so it needs its own.
-3. Restore, then **revert `grid_data`'s body to `return _grid_data(self)`** → `test_rejected_save_keeps_the_gate_ticked` RED. Revert the body, do **not** delete the property: removing `FillTableElementForm.grid_data` entirely breaks `{% with d=form.grid_data %}` in `_edit_filltable.html` and reddens the whole of `tests/test_filltable_editor_partial.py` plus `resolved_grid_cells`, which is a different failure and not the one being tested for.
+3. Restore, then **revert `grid_data`'s body to `return _grid_data(self)`** — again `FillTableElementForm`'s copy at `:1636`, **not** `TableElementForm`'s identical one at `:1551` (see Step 5's warning; mutating the wrong class reddens the plain-table tests instead and looks nothing like the failure predicted here) → `test_rejected_save_keeps_the_gate_ticked` RED. Revert the body, do **not** delete the property: removing `FillTableElementForm.grid_data` entirely breaks `{% with d=form.grid_data %}` in `_edit_filltable.html` and reddens the whole of `tests/test_filltable_editor_partial.py` plus `resolved_grid_cells`, which is a different failure and not the one being tested for.
 4. Restore, then drop `gate: !!(gate && gate.checked),` from `serialize` → `test_editor_js_serializes_the_gate_flag` RED.
 5. Restore, then delete `var gate = editor.querySelector("[data-gate]");` → the same test RED on its *first* assertion.
 6. Restore, then delete the `gate.addEventListener("change", serialize);` line → the same test RED on its *third* assertion.
@@ -1546,7 +1570,9 @@ uv run pytest tests/test_e2e_filltable.py -m e2e -k test_editor_gate_checkbox_ro
 # Expect exactly two hunks: the new test, AND the module-level
 # `from courses.models import FillTableElement` that Step 8 requires (it sorts
 # into the existing first-party block, above `from tests.factories import ...`).
-# Anything else -- a screenshot call, a theme write -- is a capture leftover.
+# Anything else -- a screenshot call, a set_viewport_size call, a theme write --
+# is a capture leftover. This file IS tracked, so git diff works here (unlike
+# Task 9's still-untracked new file, where it would be silent).
 git diff tests/test_e2e_filltable.py
 ```
 
@@ -1575,7 +1601,16 @@ unticked the author's checkbox and the next save posted gate: false."
 - Consumes: `normalize_data`'s `gate` (Task 1).
 - Produces: `gate` survives export/import round-trips.
 
-The importer needs nothing: `_build_fill_table` ends with `FillTableElement(data=FillTableElement.normalize_data(data))`, and the normalizer supplies `gate` — `False` for a legacy bundle lacking the key, and forced off for a bundle whose grid cannot satisfy it. `_val_fill_table` needs nothing either: it checks only gross structural corruption and does no exact-keys check, which is also why an **older** libli can import a newer bundle — it ignores the unknown key and degrades to an ungated table.
+The importer needs nothing. `_build_fill_table`'s real tail is a **saved instance inside a `(obj, children)` pair** (`courses/transfer/importer.py:627-630`):
+
+```python
+    return (
+        _clean_save(FillTableElement(data=FillTableElement.normalize_data(data))),
+        (),
+    )
+```
+
+Both wrappers matter downstream: the pair shape is why Step 1 unpacks `obj, _children = BUILDERS["fill_table"](...)`, and `_clean_save` is what Step 5's mutant 2 warns you to keep. The normalizer supplies `gate` — `False` for a legacy bundle lacking the key, and forced off for a bundle whose grid cannot satisfy it. `_val_fill_table` needs nothing either: it checks only gross structural corruption and does no exact-keys check, which is also why an **older** libli can import a newer bundle — it ignores the unknown key and degrades to an ungated table.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2179,7 +2214,9 @@ docker compose -f docker-compose.test.yml up -d
 uv run pytest tests/test_e2e_filltable_gate.py tests/test_e2e_filltable.py tests/test_e2e_reveal_gate.py -m e2e -v
 ```
 
-The two existing suites run again here (Task 5 ran them first): every server-side and client-side change now exists together, and they must still pass **unmodified**.
+The two existing suites run again here (Task 5 ran them first): every server-side and client-side change now exists together, and they must still pass.
+
+**But "unmodified" applies to only one of them by this point — do not "restore" the other.** `tests/test_e2e_reveal_gate.py` must be green and genuinely unmodified. `tests/test_e2e_filltable.py` must be green with **exactly Task 6's two hunks and nothing else**: `test_editor_gate_checkbox_round_trips` and the module-level `from courses.models import FillTableElement` it needs, both committed in Task 6 Step 10. Task 5 Step 5's identical "unmodified" wording was correct *at that point*, before Task 6 ran. An implementer who carries that phrasing forward, sees a diff against master here, and reverts it in the spirit of this plan's "edit the mutant back out" rule would delete the only end-to-end guard on the authoring path — and Task 6 is already committed, so nothing downstream would flag its loss.
 
 **There is no single group mutant for this block, and assuming one wastes a debugging session.** Reverting Task 5's `libliRevealCascade` call reddens tests 22, 23 and 26 — but **not** 21, 24, 25 or 27 — because `reveal.js::restoreGates` calls `cascadeFrom` **directly** off `data-state` (line 249) — it never goes through `filltable.js`. The `saveFlag({done: true})` line is unchanged and Task 3 derives `open`, so every reload-based path still works. Under that mutant:
 
