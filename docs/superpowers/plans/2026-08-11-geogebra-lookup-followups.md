@@ -463,7 +463,7 @@ def test_fetch_deadline_log_names_the_id_AND_the_reason(monkeypatch, caplog):
     assert any("wgzr7tsu" in m and "deadline" in m for m in messages)
 ```
 
-Add `import logging` and `import threading` to the stdlib block (per Task 2 Step 1's ordering), and `from django.test import override_settings` to the third-party block alongside the file's other Django imports. `ruff format` does not sort imports — run `ruff check` (this task's format/lint step does) or the misordering surfaces only at Task 6.
+Add `import logging` and `import threading` to the stdlib block (per Task 2 Step 1's ordering). **`from django.test import override_settings` is already imported at `tests/test_geogebra.py:9`** — every existing fetch test uses the decorator, so there is nothing to add; adding it again is an `F811` duplicate that this task's lint step would catch. `ruff format` does not sort imports — run `ruff check` (the format/lint step does) or a misordering surfaces only at Task 6.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -898,14 +898,15 @@ And at `:189`, the hoist comment now over-claims — only the lookup guard uses 
 
 `test_form_non_geogebra_dimensionless_paste_never_looks_up` (`:376`) guards the `:217` conjunct you did **not** touch. Its comment at `tests/test_iframe_dimensions.py:377-382` opens "THE guard on the `and mid` conjunct" — which named the only such conjunct when it was written, and after this change names the wrong one. This is a spec requirement, not a nicety: an ambiguous mechanism comment is the same defect class as a false one.
 
-Replace the comment's opening line with these two, verbatim (already wrapped, no Markdown emphasis — this is a Python comment):
+Replace **lines 377–378 as a unit** — not just line 377. The sentence runs on: line 377 ends "Every other form test either uses a" and line 378 begins "GeoGebra URL (lookup fires anyway)…", so replacing only the first line would orphan that clause into a fragment with no subject. Use this verbatim (already wrapped, no Markdown emphasis — this is a Python comment):
 
 ```python
-    # THE guard on the `and mid` conjunct of the LOOKUP guard (element_forms.py:217).
-    # The stale-pair clear above it is deliberately provider-neutral and has no `mid`.
+    # THE guard on the `and mid` conjunct of the LOOKUP guard (element_forms.py:217);
+    # the stale-pair clear above it is deliberately provider-neutral and has no `mid`.
+    # Every other form test either uses a GeoGebra URL (lookup fires anyway) or
 ```
 
-Leave the rest of the comment as is.
+Lines 379 onwards ("`# short-circuits on a usable pair BEFORE`…") are unchanged.
 
 - [ ] **Step 4: Run — all three green**
 
