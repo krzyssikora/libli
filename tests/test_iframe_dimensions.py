@@ -374,10 +374,11 @@ def test_form_share_link_paste_canonicalises_then_looks_up():
 
 @pytest.mark.django_db
 def test_form_non_geogebra_dimensionless_paste_never_looks_up():
-    # THE guard on the `and mid` conjunct. Every other form test either uses a
-    # GeoGebra URL (lookup fires anyway) or short-circuits on a usable pair BEFORE
-    # mid is consulted -- so without this test a build that DELETES `and mid` stays
-    # green while issuing a live GET to
+    # THE guard on the `and mid` conjunct of the LOOKUP guard (element_forms.py:217);
+    # the stale-pair clear above it is deliberately provider-neutral and has no `mid`.
+    # Every other form test either uses a GeoGebra URL (lookup fires anyway) or
+    # short-circuits on a usable pair BEFORE mid is consulted -- so without this test
+    # a build that DELETES `and mid` stays green while issuing a live GET to
     # https://api.geogebra.org/v1.0/materials/?scope=basic (empty id!) on every
     # dimensionless non-GeoGebra paste, inside the unit row lock.
     form = IframeElementForm(data={"url": OTHER_FORM_URL, "title": "P"})
@@ -478,9 +479,10 @@ def test_form_dimensionless_element_retries_the_lookup_on_a_later_save():
 
 
 @pytest.mark.django_db
-def test_form_non_geogebra_url_change_keeps_its_dimensions():
-    # The stale-clear is scoped to GeoGebra. Clearing provider-neutrally would wipe a
-    # Vimeo element's captured pair on ANY url edit, with no lookup to restore it.
+def test_form_same_provider_url_change_clears_the_stale_pair():
+    # B2. A stored pair belongs to the URL it was captured FROM. Vimeo video A ->
+    # video B is the same staleness class as a provider swap: 640x360 described
+    # the old video, and there is no lookup for Vimeo to re-derive the new one.
     obj = IframeElement.objects.create(
         url=OTHER_FORM_URL, title="P", width=640, height=360
     )
@@ -490,19 +492,45 @@ def test_form_non_geogebra_url_change_keeps_its_dimensions():
     with _patch_lookup() as lookup:
         assert form.is_valid(), form.errors
     saved = form.save()
-    lookup.assert_not_called()
-    assert (saved.width, saved.height) == (640, 360)
+    lookup.assert_not_called()  # the :217 guard still scopes the LOOKUP to GeoGebra
+    assert (saved.width, saved.height) == (None, None)
 
 
 @pytest.mark.django_db
-def test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair():
-    # A KNOWN, ACCEPTED gap: the conjunct tests the NEW url, so swapping a GeoGebra
-    # element to a video keeps 880x660. Not a regression (today's code never clears);
-    # pinned so a future change to it is deliberate.
+def test_form_geogebra_to_non_geogebra_url_change_clears_the_stale_pair():
+    # B1. Was pinned as "A KNOWN, ACCEPTED gap"; this is the deliberate change that
+    # comment invited. Keeping 880x660 rendered a 16:9 video in a 4:3 box with no
+    # badge -- the same pillarbox defect #238 removed, through a different door.
+    #
+    # frame_ratio is the load-bearing assertion. A `size_unknown is False` check
+    # would NOT discriminate: size_unknown is `is_geogebra_iframe_url(url) and ...`,
+    # and the new url is Vimeo, so it is False whether or not the pair was cleared.
     obj = IframeElement.objects.create(url=URL, title="P", width=880, height=660)
     form = IframeElementForm(data={"url": OTHER_FORM_URL, "title": "P"}, instance=obj)
     with _patch_lookup() as lookup:
         assert form.is_valid(), form.errors
     saved = form.save()
     lookup.assert_not_called()
-    assert (saved.width, saved.height) == (880, 660)
+    assert (saved.width, saved.height) == (None, None)
+    assert saved.frame_ratio is None  # -> .embed-frame's 16:9 default
+
+
+@pytest.mark.django_db
+def test_form_non_geogebra_unchanged_url_keeps_its_pair():
+    # B3. NEW. B1 and B2 are the only two form tests using a non-GeoGebra stored
+    # pair and both now assert clearing, so without this nothing pins that such a
+    # pair survives an UNCHANGED url. That is this change's highest-risk failure
+    # mode: url_changed is `extract_embed_url(raw) != self.instance.url`, so a
+    # future non-idempotent canonicalisation for a new provider would wipe every
+    # such element's pair on every save, with no lookup to restore it and no badge.
+    obj = IframeElement.objects.create(
+        url=OTHER_FORM_URL, title="P", width=640, height=360
+    )
+    form = IframeElementForm(
+        data={"url": OTHER_FORM_URL, "title": "renamed"}, instance=obj
+    )
+    with _patch_lookup() as lookup:
+        assert form.is_valid(), form.errors
+    saved = form.save()
+    lookup.assert_not_called()
+    assert (saved.width, saved.height) == (640, 360)
