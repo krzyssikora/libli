@@ -209,19 +209,40 @@ the importer and programmatic construction bypass the form."
 
 **The co-location invariant.** `reveal.js::storedOpen(btn)` reads `btn.dataset.state` off the node it found via `[data-reveal-gate]`. The template has a second plausible host — the inner `.el.el--filltable` div. Putting the marker there makes `storedOpen` read `undefined` → `false` → prefix-closure `break` → the revealed content is hidden **forever** for a student who already solved the table. The test asserts same-node, not mere presence, because a presence-only assertion stays green under exactly that mutation.
 
-- [ ] **Step 1: Write the failing render tests**
+- [ ] **Step 1: Add the imports and the shared grid constant**
 
-Add to `tests/test_filltable_render.py`. Follow the file's existing `_render` helper for the ungated case; the co-location test needs a lesson-view render so `data-state-url` is real rather than the empty string a bare `el.render()` produces — copy the seeding approach from `tests/test_filltable_restore.py`.
+`tests/test_filltable_render.py` currently imports only `pytest`, `FillTableElement`, `make_course`, `make_image_asset`. Add:
+
+```python
+from bs4 import BeautifulSoup
+from courses.models import CalloutElement
+from courses.models import Element
+from tests.factories import make_course_with_unit
+```
+
+and, at module level below `pytestmark`, the grid every new test uses. **It must contain a non-blank answer cell** — Task 1's guard suppresses `gate` otherwise, and every assertion below would invert:
+
+```python
+_CELLS_WITH_ANSWER = [
+    [{"kind": "static", "html": "x"}, {"kind": "answer", "answer": "4"}],
+]
+```
+
+bs4 is already a test dependency (`courses/tests/test_reveal_gate_render.py` and `tests/test_publish_tree.py` use it); only the import is missing.
+
+- [ ] **Step 2: Write the failing render tests**
+
+The file's helper is `def _render(cells, **kw)` (line 10) — **`cells` is the grid, positional; the keyword args go into `data`.** Passing a whole data dict as `cells` makes `normalize_data` fall back to a default 2×2 grid and never see `gate` at all. Call it as the existing tests do:
 
 ```python
 def test_gated_table_marks_the_root_div():
-    html = _render({"gate": True, "cells": _CELLS})
+    html = _render(_CELLS_WITH_ANSWER, gate=True)
     assert "data-reveal-gate" in html
     assert "data-filltablegate" in html
 
 
 def test_ungated_table_has_no_gate_attributes():
-    html = _render({"cells": _CELLS})
+    html = _render(_CELLS_WITH_ANSWER)
     assert "data-reveal-gate" not in html
     assert "data-filltablegate" not in html
 
@@ -231,35 +252,54 @@ def test_gate_marker_is_on_the_same_node_as_data_state():
     # [data-reveal-gate]. If the marker lands on the inner .el--filltable div
     # instead, storedOpen reads undefined -> the gate never restores and the
     # revealed content is hidden forever.
-    html = _render({"gate": True, "cells": _CELLS})
+    html = _render(_CELLS_WITH_ANSWER, gate=True)
     soup = BeautifulSoup(html, "html.parser")
     node = soup.select_one("[data-reveal-gate][data-filltablegate]")
     assert node is not None
     assert node.has_attr("data-state")
-    assert node["data-state"].strip() not in ("", "{}") or node["data-state"] == "{}"
     assert "filltable" in node.get("class", [])
 ```
 
-Note on the third assertion: an unattempted table legitimately renders `data-state="{}"`. What matters is that the attribute is *present on this node*; a marker on the wrong div would make `node["data-state"]` raise `KeyError` via `has_attr` returning False.
+`_render` calls `el.render()` bare, so `data-state-url` is the empty string here — that is fine and deliberate. **This test pins co-location of the marker with `data-state` only**; `data-state-url` is not asserted, because pinning it would require the lesson-view path and adds nothing to what this test is for. (An unattempted table also legitimately renders `data-state="{}"`, so assert presence via `has_attr`, never a non-empty value.)
 
-And the direct-child pin, which guards the pre-hide CSS rather than the cascade:
+- [ ] **Step 3: Write the direct-child pin**
+
+This guards the pre-hide CSS rather than the cascade, and needs a callout render — no helper for that exists anywhere in the repo, so write one in the same file:
 
 ```python
-def test_gated_filltable_is_a_direct_child_of_the_callout_child_wrapper(...):
+def _render_callout_with_filltable_child(gate):
+    """Render a CalloutElement whose only child is a fill-table.
+
+    resolved_children() groups by `parent` alone, so no tab_id is needed.
+    """
+    _course, unit = make_course_with_unit()
+    callout = CalloutElement.objects.create()
+    parent_row = Element.objects.create(unit=unit, content_object=callout)
+    child = FillTableElement(data={"cells": _CELLS_WITH_ANSWER, "gate": gate})
+    child.save()
+    Element.objects.create(unit=unit, content_object=child, parent=parent_row)
+    return callout.render(
+        element=parent_row, state={}, slug=unit.course.slug, node_pk=unit.pk
+    )
+
+
+def test_gated_filltable_is_a_direct_child_of_the_callout_child_wrapper():
     # The pre-hide CSS is `.callout__children > .callout__child:has(> [data-reveal-gate])`.
     # One extra wrapper div between .callout__child and .filltable disarms it
     # silently -- the gate still works on click, but nothing is hidden to begin
     # with, so the student sees the answer before earning it.
-    html = render_callout_with_filltable_child(gate=True)
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(_render_callout_with_filltable_child(gate=True), "html.parser")
     child = soup.select_one(".callout__children > .callout__child")
     assert child is not None
-    marked = child.select_one(":scope > [data-reveal-gate]")
-    assert marked is not None, "the gate marker is not a DIRECT child of .callout__child"
+    marked = soup.select_one("[data-reveal-gate]")
+    assert marked is not None
+    assert marked.parent is child, "the gate marker is not a DIRECT child of .callout__child"
     assert "filltable" in marked.get("class", [])
 ```
 
-If `soupsieve`'s `:scope` support is unavailable in this repo's version, assert instead that `marked.parent is child` after selecting `[data-reveal-gate]` within `child`.
+`marked.parent is child` rather than a `:scope >` selector — it does not depend on the installed `soupsieve` version. Copy `CalloutElement`'s required constructor arguments from `courses/models.py:464` rather than assuming the no-arg form works.
+
+**On spec test 5's "and the rendered output is otherwise unchanged" half:** that is delegated to the rest of `tests/test_filltable_render.py` staying green **unmodified** — the file already pins the ungated render's structure in detail, and a fresh snapshot assertion would duplicate it.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -319,10 +359,13 @@ def _print_block(css):
 
 def test_print_hide_rule_excludes_the_filltable_gate():
     block = _print_block(CSS)
-    assert "[data-reveal-gate]:not([data-filltablegate])" in block
-    # and the bare form is gone
-    assert not re.search(r"(?<!\)):\s*\n?\s*\[data-reveal-gate\]\s*\{", block)
     assert re.search(r"\[data-reveal-gate\]:not\(\[data-filltablegate\]\)\s*\{", block)
+    # ...and the BARE selector is gone. Boundary-anchored (^ under re.M): the rule
+    # starts its own line, so this matches the pre-change text and stops matching
+    # after. A lookbehind-on-colon form was tried and is INERT -- it matches
+    # nothing in either state, because the preceding text is
+    # "revert !important;\n  }\n\n  ", which \s* cannot span.
+    assert not re.search(r"^\s*\[data-reveal-gate\]\s*\{", block, re.M)
 ```
 
 - [ ] **Step 6: Run to verify it fails**
@@ -362,9 +405,11 @@ Expected: all PASS. `test_reveal_scope_agreement.py` must stay green **unmodifie
 1. Restore the bare `[data-reveal-gate]` selector → the print test goes RED, `test_reveal_scope_agreement.py` stays GREEN (proving it was never guarding this).
 2. Move `data-reveal-gate data-filltablegate` from the root `.filltable` div onto the inner `.el.el--filltable` div → `test_gate_marker_is_on_the_same_node_as_data_state` goes RED while `test_gated_table_marks_the_root_div` stays GREEN. That contrast is the whole point of the co-location test.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 10: Lint and commit**
 
 ```bash
+uv run ruff check --no-cache tests/test_filltable_render.py courses/tests/test_filltable_gate_print.py
+uv run ruff format --check tests/test_filltable_render.py courses/tests/test_filltable_gate_print.py
 git add templates/courses/elements/filltableelement.html core/static/core/css/app.css tests/test_filltable_render.py courses/tests/test_filltable_gate_print.py
 git commit -m "feat(filltable): stamp the gate marker, carve it out of the print hide rule
 
@@ -411,44 +456,60 @@ def _seed_filltable(unit, student, cells, blob, gate=False):
 
 - [ ] **Step 2: Write the failing tests**
 
+This file has **no `unit`/`student` fixtures** — every test creates its subjects inline in exactly three lines, and each uses a distinct student slug. Follow that shape precisely, and reuse the file's existing `_lesson_url` helper plus its `data-state` regex idiom (`re.search(r'data-state="([^"]*)"', body)` → `json.loads(html.unescape(...))`); `re`, `json`, and `html` are already imported there.
+
 ```python
-def test_gated_done_renders_open_in_data_state(client, ...):
-    # Through the LESSON VIEW: str-keyed seed.
-    row, _obj = _seed_filltable(unit, student, _CELLS, {"done": True}, gate=True)
-    html = client.get(_lesson_url(unit)).content.decode()
-    blob = json.loads(html.split('data-state="')[1].split('"')[0].replace("&quot;", '"'))
-    assert blob["done"] is True
-    assert blob["open"] is True
+def test_gated_done_renders_open_in_data_state(client):
+    student = make_student(client, "ftbl_gate1")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    _seed_filltable(unit, student, _CELLS, {"done": True}, gate=True)
+
+    body = client.get(_lesson_url(unit)).content.decode()
+
+    m = re.search(r'data-state="([^"]*)"', body)
+    assert m and json.loads(html.unescape(m.group(1))) == {"done": True, "open": True}
 
 
-def test_ungated_done_does_not_render_open(client, ...):
-    row, _obj = _seed_filltable(unit, student, _CELLS, {"done": True}, gate=False)
-    html = client.get(_lesson_url(unit)).content.decode()
-    blob = json.loads(html.split('data-state="')[1].split('"')[0].replace("&quot;", '"'))
-    assert blob["done"] is True
-    assert "open" not in blob
+def test_ungated_done_does_not_render_open(client):
+    student = make_student(client, "ftbl_gate2")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    _seed_filltable(unit, student, _CELLS, {"done": True}, gate=False)
+
+    body = client.get(_lesson_url(unit)).content.decode()
+
+    m = re.search(r'data-state="([^"]*)"', body)
+    assert m and json.loads(html.unescape(m.group(1))) == {"done": True}
 
 
-def test_render_does_not_mutate_the_callers_state_blob():
-    # render()'s own contract: INT-keyed state dict, called directly.
-    obj = FillTableElement(data={"cells": _CELLS, "gate": True})
-    obj.save()
-    row = Element.objects.create(unit=unit, content_object=obj)
+def test_render_does_not_mutate_the_callers_state_blob(client):
+    # render()'s OWN contract: an INT-keyed state dict, called directly -- not the
+    # str-keyed UnitProgress seam. See this module's docstring.
+    student = make_student(client, "ftbl_gate3")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    row, obj = _seed_filltable(unit, student, _CELLS, None, gate=True)
+
     state = {row.pk: {"done": True}}
     obj.render(element=row, state=state, slug=unit.course.slug, node_pk=unit.pk)
+
     assert state[row.pk] == {"done": True}, "render leaked `open` into the caller's blob"
 ```
 
-Use the file's existing `_lesson_url` helper and its `data-state` regex assertion as the model for extraction rather than the `split` shown above if one already exists — prefer the established helper.
+`_CELLS` (line 32 of this file) already contains a non-blank answer cell, so Task 1's guard leaves `gate` on — no new constant is needed here.
 
 And the stored-blob shape, which pins the claim this whole seam rests on:
 
 ```python
-def test_saved_gated_state_stores_done_only(client, ...):
+def test_saved_gated_state_stores_done_only(client):
     # filltable_check writes NOTHING -- it returns {"cells": …, "all_correct": …}
     # only. Persistence is a separate saveFlag POST, so drive that endpoint.
     # Sending `open` is the point: _val_done must strip it, which is WHY the
     # render-time derivation in this task exists.
+    student = make_student(client, "ftbl_gate4")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)   # the POST needs an enrolled, logged-in user
     row, _obj = _seed_filltable(unit, student, _CELLS, None, gate=True)
     client.post(
         reverse("courses:element_state_save", args=[unit.course.slug, unit.pk]),
@@ -464,10 +525,16 @@ def test_saved_gated_state_stores_done_only(client, ...):
 - [ ] **Step 3: Run to verify they fail**
 
 ```bash
-uv run pytest tests/test_filltable_restore.py -k "gate or mutate" -v
+uv run pytest tests/test_filltable_restore.py -k "renders_open or does_not_render_open or mutate or stores_done_only" -v
 ```
 
-Expected: the first FAILS with `KeyError: 'open'`; the second and third PASS already (they assert the *absence* of behaviour that does not exist yet). That asymmetry is expected — the second and third become meaningful only once Step 4 lands, which is why Step 6 falsifies them explicitly.
+Expected, all four named explicitly (a bare `-k gate` would also sweep in `test_saved_gated_state_stores_done_only` without accounting for it):
+- `test_gated_done_renders_open_in_data_state` — **FAILS**, the blob is `{"done": True}`.
+- `test_ungated_done_does_not_render_open` — PASSES already.
+- `test_render_does_not_mutate_the_callers_state_blob` — PASSES already.
+- `test_saved_gated_state_stores_done_only` — PASSES already.
+
+Three of the four assert the *absence* of behaviour that does not exist yet, so they are green before the change. That is expected, not a mistake: they become meaningful only once Step 4 lands, which is exactly why Step 6 falsifies each one against its own mutant.
 
 - [ ] **Step 4: Implement the seam**
 
@@ -540,7 +607,7 @@ the caller's reference."
 **Files:**
 - Modify: `courses/views.py` — `build_lesson_context` (:424, :438, and the return dict at :502-529)
 - Modify: `templates/courses/lesson_unit.html:11`
-- Test: new `tests/test_filltable_gate_view_flag.py`, new `courses/tests/test_filltable_gate_query_shape.py`
+- Test: extend `tests/test_filltable_context.py`; new `tests/test_filltable_gate_prepaint.py`; new `courses/tests/test_filltable_gate_query_shape.py`
 
 **Interfaces:**
 - Consumes: `data__gate` (Task 1).
@@ -552,80 +619,85 @@ the caller's reference."
 
 - [ ] **Step 1: Write the failing view-flag tests**
 
-Create `tests/test_filltable_gate_view_flag.py`:
+**Extend `tests/test_filltable_context.py`** — do not create a new file. It already carries exactly the fixtures these tests need: `unit_with_element(el)` (attaches an unsaved concrete element to a fresh unit) and `ctx_for(unit)` (mints a uniquely-named verified user and calls `build_lesson_context`). It also already holds `test_has_fill_table_flag`, `test_has_fill_table_flag_when_nested_in_tab` and `test_has_fill_table_flag_false_without_element`, so the new cases sit directly beside their `has_fill_table` counterparts.
 
 ```python
-def test_gated_filltable_sets_both_flags(...):
-    # A unit whose ONLY gate is a gating fill-table must still arm reveal.js.
-    unit = make_unit_with_filltable(gate=True)
-    ctx = build_lesson_context(unit, student)
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]   # non-blank: Task 1's guard keeps `gate` on
+
+
+def test_has_filltable_gate_flag(unit_with_element, ctx_for):
+    unit = unit_with_element(FillTableElement(data={"gate": True, "cells": _GATE_CELLS}))
+    ctx = ctx_for(unit)
     assert ctx["has_filltable_gate"] is True
+    # A unit whose ONLY gate is a gating fill-table must still arm reveal.js --
+    # reveal.js is loaded solely under has_reveal_gate.
     assert ctx["has_reveal_gate"] is True
 
 
-def test_ungated_filltable_sets_neither_flag(...):
-    unit = make_unit_with_filltable(gate=False)
-    ctx = build_lesson_context(unit, student)
+def test_ungated_filltable_sets_neither_gate_flag(unit_with_element, ctx_for):
+    unit = unit_with_element(FillTableElement(data={"cells": _GATE_CELLS}))
+    ctx = ctx_for(unit)
     assert ctx["has_filltable_gate"] is False
     assert ctx["has_reveal_gate"] is False
 
 
-def test_gated_filltable_nested_in_a_callout_is_detected(...):
-    # The real shape (mat-pp unit 322). Children keep their own `unit` FK, which
-    # is why the inner query must NOT be scoped to parent__isnull=True.
-    unit = make_unit_with_callout_child_filltable(gate=True)
-    ctx = build_lesson_context(unit, student)
+def test_has_filltable_gate_flag_when_nested_in_a_callout(ctx_for):
+    # The real shape (mat-pp unit 322). Children keep their own `unit` FK, which is
+    # why the inner query must NOT be scoped to parent__isnull=True. Mirrors the
+    # existing test_has_fill_table_flag_when_nested_in_tab directly above.
+    from courses.models import CalloutElement
+    from tests.factories import make_course_with_unit
+
+    _course, unit = make_course_with_unit()
+    callout = CalloutElement.objects.create()
+    join = Element.objects.create(unit=unit, content_object=callout)
+    ft = FillTableElement.objects.create(data={"gate": True, "cells": _GATE_CELLS})
+    Element.objects.create(unit=unit, content_object=ft, parent=join)
+    ctx = ctx_for(unit)
     assert ctx["has_filltable_gate"] is True
     assert ctx["has_reveal_gate"] is True
 ```
 
-Write the two fixture helpers at the top of the file first — they are referenced by every test here and there is no existing equivalent:
-
-```python
-def make_unit_with_filltable(gate):
-    course, unit = make_course_with_unit()
-    obj = FillTableElement.objects.create(
-        data={"gate": gate, "cells": _CELLS_WITH_ANSWER}
-    )
-    Element.objects.create(unit=unit, content_object=obj)
-    return unit
-
-
-def make_unit_with_callout_child_filltable(gate):
-    course, unit = make_course_with_unit()
-    callout = CalloutElement.objects.create()          # match the model's own required fields
-    parent_row = Element.objects.create(unit=unit, content_object=callout)
-    obj = FillTableElement.objects.create(
-        data={"gate": gate, "cells": _CELLS_WITH_ANSWER}
-    )
-    # Children keep their own `unit` FK -- that is what the flat query relies on.
-    Element.objects.create(unit=unit, content_object=obj, parent=parent_row)
-    return unit
-```
-
-`_CELLS_WITH_ANSWER` must contain at least one non-blank answer cell, or Task 1's guard suppresses `gate` and every assertion here inverts. Copy `CalloutElement`'s required constructor arguments from `courses/models.py` rather than guessing; `make_course_with_unit` is in `tests/factories.py`.
+Copy `CalloutElement`'s required constructor arguments from `courses/models.py:464` rather than assuming the no-arg form works — the tab test above is the pattern for a container that needs `default_data()`.
 
 - [ ] **Step 2: Write the failing prepaint A/B test**
 
-In the same file. This must be an **A/B** — asserting the watchdog term is present in the gated render alone proves nothing about whether the flag drives it:
+This one needs a rendered page, not a context dict, so it goes in a **new** `tests/test_filltable_gate_prepaint.py` built on the client idiom from `tests/test_filltable_restore.py` (`make_student(client, <unique slug>)`, `make_course_with_unit()`, `Enrollment.objects.create(...)`, `_lesson_url(unit)` — copy that four-line helper, since `tests/` files do not share it).
+
+It must be an **A/B** — asserting the watchdog term is present in the gated render alone proves nothing about whether the flag drives it:
 
 ```python
-def test_prepaint_watchdog_term_appears_only_when_gated(client, ...):
-    gated = client.get(_lesson_url(make_unit_with_filltable(gate=True))).content.decode()
-    plain = client.get(_lesson_url(make_unit_with_filltable(gate=False))).content.decode()
-    assert "__fillTableBooted" in gated
-    assert "__fillTableBooted" not in plain
-    assert "reveal-armed" in gated
-    assert "reveal-armed" not in plain
+def test_prepaint_watchdog_term_appears_only_when_gated(client):
+    gated_body = _render_unit_with_filltable(client, "ftbl_pp1", gate=True)
+    plain_body = _render_unit_with_filltable(client, "ftbl_pp2", gate=False)
+
+    assert "__fillTableBooted" in gated_body
+    assert "__fillTableBooted" not in plain_body
+    assert "reveal-armed" in gated_body
+    assert "reveal-armed" not in plain_body
+```
+
+with the seeding helper written out in the same file:
+
+```python
+def _render_unit_with_filltable(client, slug, gate):
+    student = make_student(client, slug)
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    ft = FillTableElement.objects.create(
+        data={"gate": gate, "cells": [[{"kind": "answer", "answer": "1"}]]}
+    )
+    Element.objects.create(unit=unit, content_object=ft)
+    return client.get(_lesson_url(unit)).content.decode()
 ```
 
 - [ ] **Step 3: Run to verify they fail**
 
 ```bash
-uv run pytest tests/test_filltable_gate_view_flag.py -v
+uv run pytest tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py -v
 ```
 
-Expected: FAIL with `KeyError: 'has_filltable_gate'`.
+Expected: the three context tests FAIL with `KeyError: 'has_filltable_gate'`; the prepaint A/B FAILS on the first `assert "__fillTableBooted" in gated_body`.
 
 - [ ] **Step 4: Implement the view change**
 
@@ -688,7 +760,7 @@ No change to the script-loading block: `filltable.js` already loads under `has_f
 - [ ] **Step 6: Run to verify they pass**
 
 ```bash
-uv run pytest tests/test_filltable_gate_view_flag.py tests/test_html_element.py -v
+uv run pytest tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py tests/test_html_element.py -v
 ```
 
 Expected: all PASS. `tests/test_html_element.py` must stay green **unmodified**.
@@ -738,14 +810,14 @@ def test_gate_query_does_not_use_a_reverse_generic_relation():
 1. Drop `or has_filltable_gate` from `has_reveal_gate` → `test_gated_filltable_sets_both_flags` and the callout test go RED.
 2. Restore, then omit `"has_filltable_gate": has_filltable_gate,` from the return dict → the prepaint A/B goes RED. Only that test notices, which is why it is written as an A/B.
 3. Restore, then scope the inner query to `parent__isnull=True` → the callout test goes RED, the top-level test stays GREEN.
-4. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → `test_gate_query_does_not_use_a_reverse_generic_relation` goes RED while every runtime test stays GREEN. That contrast is exactly why this guard is a source assertion.
+4. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
 
 - [ ] **Step 9: Commit**
 
 ```bash
-uv run ruff check --no-cache courses/views.py tests/test_filltable_gate_view_flag.py courses/tests/test_filltable_gate_query_shape.py
-uv run ruff format --check courses/views.py tests/test_filltable_gate_view_flag.py courses/tests/test_filltable_gate_query_shape.py
-git add courses/views.py templates/courses/lesson_unit.html tests/test_filltable_gate_view_flag.py courses/tests/test_filltable_gate_query_shape.py
+uv run ruff check --no-cache courses/views.py tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py courses/tests/test_filltable_gate_query_shape.py
+uv run ruff format --check courses/views.py tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py courses/tests/test_filltable_gate_query_shape.py
+git add courses/views.py templates/courses/lesson_unit.html tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py courses/tests/test_filltable_gate_query_shape.py
 git commit -m "feat(filltable): detect a gating table at the page level
 
 reveal.js loads only under has_reveal_gate, so without this term the cascade
@@ -820,7 +892,7 @@ def test_focus_targets_fill_table_input():
 uv run pytest courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py -v
 ```
 
-Expected: the four new tests FAIL.
+Expected: **three** FAIL. `test_save_flag_stays_done_only` is GREEN already — `filltable.js:59` reads `window.libliState.saveFlag(root, { done: true });` today, and this task does not change that line. It is a **pin against future drift**, not a TDD test; its mutant is "change the payload to `{ done: true, open: true }`", which belongs in Step 7.
 
 - [ ] **Step 3: Add the boot flag**
 
@@ -896,6 +968,8 @@ Expected: all PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
+uv run ruff check --no-cache courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py
+uv run ruff format --check courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py
 git add courses/static/courses/js/filltable.js courses/static/courses/js/reveal.js courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py
 git commit -m "feat(filltable): cascade on a fully-correct gated check
 
@@ -923,29 +997,30 @@ _val_done strips anything but `done`."
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `tests/test_filltable_editor_partial.py`:
+Add to `tests/test_filltable_editor_partial.py`. **That file's helper is `_render(instance)`** (line 22) — it builds `FORM_FOR_TYPE["filltable"](instance=instance)` and renders the partial. `test_partial_has_case_sensitive_checkbox` in the same file is the exact precedent for both the call and the assertion shape:
 
 ```python
-def test_gate_checkbox_renders_unchecked_by_default(...):
-    html = render_edit_partial(FillTableElement(data={"cells": _CELLS}))
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]   # non-blank: the guard keeps `gate` on
+
+
+def test_partial_has_gate_checkbox_unchecked_by_default():
+    html = _render(FillTableElement(data={"cells": _GATE_CELLS}))
     assert "data-gate" in html
-    assert 'data-gate checked' not in html
+    assert "data-gate checked" not in html
 
 
-def test_gate_checkbox_renders_checked_for_a_gated_element(...):
-    html = render_edit_partial(
-        FillTableElement(data={"cells": _CELLS_WITH_ANSWER, "gate": True})
-    )
+def test_partial_gate_checkbox_is_checked_for_a_gated_element():
+    html = _render(FillTableElement(data={"cells": _GATE_CELLS, "gate": True}))
     assert "data-gate checked" in html
 ```
 
-Add to `tests/test_filltable_form.py`:
+Add to `tests/test_filltable_form.py` (check its existing imports first — it needs `json` and `FillTableElementForm`; add whichever is missing):
 
 ```python
-def test_rejected_save_keeps_the_gate_ticked(...):
+def test_rejected_save_keeps_the_gate_ticked():
     # normalize_data suppresses `gate` for exactly the grid that makes clean_data
     # raise here, so without the grid_data override the author's tick is silently
-    # lost and their next Save posts gate: false.
+    # lost and their next Save posts gate: false from the DOM.
     payload = {
         "gate": True,
         "cells": [[{"kind": "answer", "answer": ""}]],  # blank -> rejected
@@ -1049,7 +1124,19 @@ Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be unto
 
 1. Drop `{% if d.gate %}checked{% endif %}` → `test_gate_checkbox_renders_checked_for_a_gated_element` RED.
 2. Restore, then delete the `grid_data` override → `test_rejected_save_keeps_the_gate_ticked` RED.
-3. Restore, then drop `gate: !!(gate && gate.checked),` from `serialize` → no Python test catches this; verify by hand in the editor that ticking the box and saving persists it, or rely on Task 9's e2e authoring path if one is added there.
+3. Restore, then drop `gate: !!(gate && gate.checked),` from `serialize` → `test_editor_js_serializes_the_gate_flag` RED.
+
+**That third mutant needs its own guard, added in Step 1.** The checkbox→payload wiring is the entire authoring feature, and nothing else covers it: Task 9's e2e all seed through the ORM, so no test drives the editor UI. `tests/test_filltable_editor_partial.py` already reads the editor JS as a `Path` (`FILLTABLE_JS`, line 17), so this costs three lines in a file that is already set up for it:
+
+```python
+def test_editor_js_serializes_the_gate_flag():
+    # The only link between the new checkbox and the persisted flag. Without this
+    # the whole authoring path ships with zero regression coverage.
+    src = FILLTABLE_JS.read_text(encoding="utf-8")
+    assert 'querySelector("[data-gate]")' in src
+    assert "gate: !!(gate && gate.checked)" in src
+    assert 'gate.addEventListener("change", serialize)' in src
+```
 
 - [ ] **Step 9: Commit**
 
@@ -1080,40 +1167,47 @@ The importer needs nothing: `_build_fill_table` ends with `FillTableElement(data
 
 - [ ] **Step 1: Write the failing tests**
 
+**Use the file's own idiom.** `tests/test_filltable_transfer.py` imports `SERIALIZERS`, `BUILDERS`, `VALIDATORS` and `MediaIdMap`, and calls them through the registries — the module-private `_ser_fill_table` / `_build_fill_table` are never imported. Builders return a `(obj, children)` pair. The routing-invariant test additionally needs `json` and `FillTableElementForm`, neither of which the file imports yet; add both.
+
 ```python
-def test_export_carries_the_gate_flag(...):
-    el = FillTableElement.objects.create(data={"gate": True, "cells": _CELLS_WITH_ANSWER})
-    payload = _ser_fill_table(el, _ids())
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]   # non-blank: the guard keeps `gate` on
+
+
+def test_export_carries_the_gate_flag():
+    src = FillTableElement.objects.create(data={"gate": True, "cells": _GATE_CELLS})
+    payload = SERIALIZERS["fill_table"][1](src, MediaIdMap())
     assert payload["gate"] is True
 
 
-def test_round_trip_preserves_the_gate_flag(...):
-    # export -> import -> the rebuilt element is still gated
-    el = FillTableElement.objects.create(data={"gate": True, "cells": _CELLS_WITH_ANSWER})
-    payload = _ser_fill_table(el, _ids())
-    rebuilt, _assets = _build_fill_table(payload, {})
-    assert rebuilt.normalized_data["gate"] is True
+def test_round_trip_preserves_the_gate_flag():
+    src = FillTableElement.objects.create(data={"gate": True, "cells": _GATE_CELLS})
+    payload = SERIALIZERS["fill_table"][1](src, MediaIdMap())
+    obj, _children = BUILDERS["fill_table"](payload, {})
+    assert obj.normalized_data["gate"] is True
 
 
-def test_legacy_bundle_without_gate_imports_ungated(...):
-    data = {"header_row": False, "header_col": False, "case_sensitive": False,
-            "border": "grid", "prompt": "", "cells": _CELLS_WITH_ANSWER}
-    el, _assets = _build_fill_table(data, {})
-    assert el.normalized_data["gate"] is False
+def test_legacy_bundle_without_gate_imports_ungated():
+    payload = {
+        "header_row": False, "header_col": False, "case_sensitive": False,
+        "border": "grid", "prompt": "", "cells": _GATE_CELLS,
+    }
+    obj, _children = BUILDERS["fill_table"](payload, {})
+    assert obj.normalized_data["gate"] is False
 
 
-def test_every_production_write_path_stores_a_real_boolean(...):
+def test_every_production_write_path_stores_a_real_boolean():
     # views.py's has_filltable_gate uses data__gate=True, which matches the JSON
     # literal `true` only. That is exact rather than fragile BECAUSE every write
     # path routes through normalize_data. Pin it: the form and the importer are
     # the only two production construction sites.
-    form = FillTableElementForm(data={"data": json.dumps(
-        {"gate": "yes", "cells": _CELLS_WITH_ANSWER})})
-    assert form.is_valid()
+    form = FillTableElementForm(
+        data={"data": json.dumps({"gate": "yes", "cells": _GATE_CELLS})}
+    )
+    assert form.is_valid(), form.errors
     assert form.cleaned_data["data"]["gate"] is True   # a real bool, not "yes"
 
-    el, _assets = _build_fill_table({"gate": "yes", "cells": _CELLS_WITH_ANSWER}, {})
-    assert el.data["gate"] is True
+    obj, _children = BUILDERS["fill_table"]({"gate": "yes", "cells": _GATE_CELLS}, {})
+    assert obj.data["gate"] is True
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -1157,6 +1251,7 @@ uv run pytest tests/test_filltable_transfer.py -v
 
 ```bash
 uv run ruff check --no-cache courses/transfer/export.py tests/test_filltable_transfer.py
+uv run ruff format --check courses/transfer/export.py tests/test_filltable_transfer.py
 git add courses/transfer/export.py tests/test_filltable_transfer.py
 git commit -m "feat(filltable): carry the gate flag through transfer
 
@@ -1240,9 +1335,24 @@ families describe theirs."
 
 **Read `tests/test_e2e_filltable.py` and `tests/test_e2e_reveal_gate.py` first and reuse their fixtures, page-object helpers, and login/enrolment setup verbatim.** The assertions below are the part that matters; the scaffolding should match the house style rather than being invented.
 
-**Two traps this suite must avoid:**
+**Three traps this suite must avoid:**
 - **Use `checkVisibility()`, not Playwright's own visibility notion** — Playwright reports a 1×1 clipped node as visible, so it cannot distinguish pre-hidden content.
 - **Never assert `document.activeElement` is *unchanged* after a check.** `lock()` sets `btn.hidden = true` on the Check button (the node a click just focused) and `inp.disabled = true` on every input (the node focused on the Enter path); hiding or disabling the focused element resets `activeElement` to `<body>`. Focus moves on **every** successful check, cascade or not.
+- **There are no `id` attributes on element wrappers.** `_lesson_article.html:38` renders each element as `<section data-element-id="{{ el.pk }}" class="lesson-block">`. A `document.querySelector('#trailing')` returns `null`, and `null.checkVisibility()` raises `TypeError` — the test errors out instead of asserting, which reads as a failure with a confusing message rather than a clean red.
+
+**Locator convention for every step below.** Capture each seeded join row's pk from the seeding helper and address blocks the way `tests/test_e2e_reveal_gate.py` does (lines 587, 607-610):
+
+```python
+def _block(page, join_pk):
+    return f".lesson-block[data-element-id='{join_pk}']"
+
+def _visible(page, join_pk):
+    return page.evaluate(
+        f"document.querySelector(\"{_block(page, join_pk)}\").checkVisibility()"
+    )
+```
+
+Read `_visible(page, trailing.pk)` wherever a step below says "the trailing element is visible". `page.get_by_text(...)` is the other established option in that file and is fine for uniquely-worded content.
 
 Run with:
 ```bash
@@ -1257,7 +1367,7 @@ Fixture: one gated table, then a text element, in one callout.
 
 ```python
 # fill one cell wrong, click Check
-assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is False
+assert _visible(page, trailing.pk) is False
 ```
 
 *Mutant: cascade unconditionally, ignoring `all_correct`.*
@@ -1266,7 +1376,7 @@ assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is
 
 ```python
 # fill every cell correctly, click Check
-assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is True
+assert _visible(page, trailing.pk) is True
 assert page.locator(".filltable__input").first.is_disabled()
 ```
 
@@ -1278,14 +1388,14 @@ assert page.locator(".filltable__input").first.is_disabled()
 
 ```python
 # solve table 1
-assert page.evaluate("document.querySelector('#table2').checkVisibility()") is True
-assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is False
+assert _visible(page, table2.pk) is True
+assert _visible(page, trailing.pk) is False
 # focus landed IN table 2, not on its wrapper
 assert page.evaluate(
     "document.activeElement.classList.contains('filltable__input')"
 ) is True
 # solve table 2
-assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is True
+assert _visible(page, trailing.pk) is True
 ```
 
 *Mutant: delete `isGateWrapper`'s `break`* — table 1 would reveal everything at once.
@@ -1295,7 +1405,7 @@ assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is
 ```python
 # solve, then reload
 page.reload()
-assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is True
+assert _visible(page, trailing.pk) is True
 assert page.locator(".filltable__input").first.is_editable() is False
 ```
 
@@ -1316,9 +1426,9 @@ Seed table 2 `{"done": true}` with table 1 unsolved, tick `gate` on both, load, 
 ```python
 # restoreGates broke at table 1, so table 2's cascade never replayed; and table 2
 # is server-rendered done, so it has no Check button to fire it.
-assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is False
+assert _visible(page, trailing.pk) is False
 page.reload()
-assert page.evaluate("document.querySelector('#trailing').checkVisibility()") is True
+assert _visible(page, trailing.pk) is True
 ```
 
 This pins **accepted** behaviour, documented in the spec's Error handling table. It is deliberately the test that goes red if someone later changes `cascadeFrom`'s stop condition — which is the point: that change should be deliberate, not incidental.
@@ -1333,25 +1443,37 @@ Solve the **ungated** table (which has a following sibling in its own scope):
 scroll_before = page.evaluate("window.scrollY")
 # ... solve the ungated table ...
 assert page.evaluate(
-    "document.querySelectorAll('#ungated-scope .reveal-shown').length"
+    f"document.querySelectorAll(\"{_block(page, ungated_trailing.pk)}.reveal-shown\").length"
 ) == 0
 # activeElement is <body> here -- lock() hid the Check button. Assert the negative
 # that actually distinguishes the mutant:
 assert page.evaluate(
-    "!document.querySelector('#ungated-trailing').contains(document.activeElement)"
+    f"!document.querySelector(\"{_block(page, ungated_trailing.pk)}\").contains(document.activeElement)"
 ) is True
 assert page.evaluate("window.scrollY") == scroll_before
 ```
 
 *Mutant: delete the `hasAttribute("data-reveal-gate")` guard in `filltable.js`.* This is the only test defending the "an ungated fill-table behaves byte for byte" guarantee; every other test in this file uses a gated fixture.
 
-- [ ] **Step 8: Run the suite and falsify as a group**
+- [ ] **Step 8: Run the suite and falsify per item**
 
 ```bash
 uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 ```
 
-Then revert Task 5's `libliRevealCascade` call and confirm tests 21–26 go RED as a group; restore it, then apply each per-item mutant named above and confirm the matching test goes red alone.
+**There is no single group mutant for this block, and assuming one wastes a debugging session.** Reverting Task 5's `libliRevealCascade` call does *not* redden tests 21–26, because `reveal.js::restoreGates` calls `cascadeFrom` **directly** off `data-state` (line 249) — it never goes through `filltable.js`. The `saveFlag({done: true})` line is unchanged and Task 3 derives `open`, so every reload-based path still works. Under that mutant:
+
+| Test | Under the `libliRevealCascade` mutant | Falsified instead by |
+|---|---|---|
+| 21 (wrong answer stays hidden) | **GREEN** — a negative assertion; a mutant that reveals nothing passes it trivially | cascading unconditionally, ignoring `all_correct` |
+| 22 (correct reveals) | **RED** | — |
+| 23 (chain, adjacent) | **RED** | — |
+| 24 (reload restores) | **GREEN** — restore path intact | removing Task 3's `open` derivation |
+| 25 (pre-tick, single) | **GREEN** — same reason | removing Task 3's `open` derivation |
+| 26 (pre-tick, chained) | **GREEN** — same reason | removing Task 3's `open` derivation |
+| 27 (ungated no cascade) | **RED** | — |
+
+So: apply each per-item mutant named above and confirm the matching test goes red alone. Do **not** treat a green test under the `libliRevealCascade` mutant as a broken test — for 21, 24, 25 and 26 that is the correct outcome.
 
 - [ ] **Step 9: Screenshots**
 
