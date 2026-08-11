@@ -404,6 +404,40 @@ def test_a_grid_swap_while_the_file_chooser_is_open_still_lands(page, live_serve
 
 
 @pytest.mark.django_db(transaction=True)
+def test_an_upload_after_filtering_lands_in_the_live_grid(page, live_server):
+    """wireManager used to capture `grid = root.querySelector(".asset-grid")`
+    once, at wire time. The debounced filter's oldGrid.replaceWith(newGrid)
+    (exercised above by the replace-vs-filter tests) detaches that captured
+    node, so insertCell's grid.prepend(cell) landed in an orphan -- an upload
+    performed after filtering never appeared. insertCell must re-query the
+    live grid from root on every call instead.
+    """
+    _, course, _unit, _asset = _seed("pa-upload-after-filter", "upload-after-filter")
+    _open_manager(page, live_server, "pa-upload-after-filter", course)
+
+    # Force oldGrid.replaceWith(newGrid) -- the same stamp-and-wait pattern as
+    # test_a_grid_swap_while_the_file_chooser_is_open_still_lands: a real
+    # post-swap condition, not a blind sleep.
+    page.evaluate(
+        "document.querySelector('.asset-grid').setAttribute('data-pre-swap','')"
+    )
+    page.fill("[data-filter-q]", "original")  # still matches original.png
+    page.wait_for_selector(".asset-grid:not([data-pre-swap])")  # the swap landed
+
+    page.set_input_files(
+        ".media-upload input[type='file']", _upload_payload("after-filter.png")
+    )
+    page.click(".media-upload button[type='submit']")
+
+    # Scoped to .asset-grid, the LIVE node: if insertCell had prepended into
+    # the grid captured at wire time (now detached), this selector would
+    # never resolve and the test would time out rather than fail cleanly.
+    page.wait_for_selector(
+        '.asset-grid .asset-cell .asset-fname:has-text("after-filter.png")'
+    )
+
+
+@pytest.mark.django_db(transaction=True)
 def test_a_grid_swap_to_no_match_while_the_chooser_is_open_is_noop(page, live_server):
     """The negative half of the same window: the filter's query matches
     nothing, so the swapped-in grid has no cell at all and the change
