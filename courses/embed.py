@@ -10,6 +10,7 @@ from html.parser import HTMLParser
 
 from django.core.exceptions import ValidationError
 
+from courses.geogebra import DIM_MAX
 from courses.geogebra import canonicalize_geogebra_url
 from courses.validators import validate_embed_url
 
@@ -24,11 +25,8 @@ class _IframeCollector(HTMLParser):
             self.iframes.append({k.lower(): (v or "") for k, v in attrs})
 
 
-_INT_MAX = 2147483647  # PositiveIntegerField ceiling
-
-
 def _dimension(value):
-    """A positive int (1.._INT_MAX) from an iframe width/height attribute, else None.
+    """A positive int (1..DIM_MAX) from an iframe width/height attribute, else None.
 
     Strips a trailing 'px'; rejects '', '%', negatives, zero, non-integers
     (e.g. '800.5'), and values above the DB column ceiling.
@@ -39,7 +37,7 @@ def _dimension(value):
     if not value.isdecimal():  # rejects '', '%', '-5', '800.5', any non-digit run
         return None
     n = int(value)
-    if n <= 0 or n > _INT_MAX:
+    if n <= 0 or n > DIM_MAX:
         return None
     return n
 

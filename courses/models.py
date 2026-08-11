@@ -20,6 +20,11 @@ from django.utils.translation import pgettext_lazy
 
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
+from courses.geogebra import GEOGEBRA_DEFAULT_SIZE
+from courses.geogebra import geogebra_material_id
+from courses.geogebra import geogebra_url_size
+from courses.geogebra import is_geogebra_iframe_url
+from courses.geogebra import usable_dimensions
 from courses.marking import TOO_LONG
 from courses.marking import MarkResult
 from courses.marking import blank_matches
@@ -775,8 +780,10 @@ class VideoElement(ElementBase):
 class IframeElement(ElementBase):
     url = models.URLField(validators=[validate_embed_url])
     title = models.CharField(max_length=255, blank=True)
-    # Pasted <iframe> intrinsic size; drives the render aspect ratio (16:9 fallback
-    # when null). Null = unknown (plain-URL paste). Not form fields — captured in
+    # Intrinsic applet/embed size, from a pasted <iframe> or from the GeoGebra API
+    # lookup. Null = unknown; frame_ratio's five ordered steps decide what the wrapper
+    # then claims (a canonical GeoGebra embed falls back to GeoGebra's own 800x600,
+    # everything else to .embed-frame's 16:9). Not form fields — captured in
     # IframeElementForm.clean_url.
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
@@ -790,9 +797,55 @@ class IframeElement(ElementBase):
         """Render-ready iframe src: the stored URL, plus GeoGebra display sizing
         (``/width/W/height/H``) when dimensions are known, so the applet fills the
         frame at its captured aspect ratio. Non-GeoGebra URLs pass through."""
+        # In-method purely for historical reasons; the module-level courses.geogebra
+        # imports above are equally cycle-safe (geogebra.py imports nothing from
+        # courses). Left as-is to keep this diff off a working method.
         from courses.geogebra import geogebra_sized_src
 
         return geogebra_sized_src(self.url, self.width, self.height)
+
+    @property
+    def frame_ratio(self):
+        """CSS aspect-ratio for the wrapper, or None to keep .embed-frame's 16:9.
+
+        FIVE ordered steps (0-4). The order is load-bearing in both directions: the
+        rendered frame must never claim a ratio the src does not back up, and never
+        ignore one the src does impose.
+        """
+        # 0. The URL sizes the applet itself -> match IT, not the stored columns. Must
+        #    precede step 2, or a URL-sized applet gets a disagreeing stored ratio.
+        url_width, url_height = geogebra_url_size(self.url)
+        if usable_dimensions(url_width, url_height):
+            return f"{url_width} / {url_height}"
+        # 1. A GeoGebra material in a shape geogebra_sized_src will NOT rewrite: claim
+        #    nothing, even with stored dimensions, or we frame GeoGebra's 800x600
+        #    default in a W/H box. Must precede step 2.
+        if geogebra_material_id(self.url) and not is_geogebra_iframe_url(self.url):
+            return None
+        # 2. A known size -- also the branch every non-GeoGebra provider reaches.
+        if usable_dimensions(self.width, self.height):
+            return f"{self.width} / {self.height}"
+        # 3. A canonical GeoGebra embed with no known size renders at GeoGebra's own
+        #    default, measured to leave a 0.0px gap; 16:9 leaves 161.3px.
+        if is_geogebra_iframe_url(self.url):
+            return "{} / {}".format(*GEOGEBRA_DEFAULT_SIZE)
+        # 4. Everything else keeps the CSS default.
+        return None
+
+    @property
+    def size_unknown(self):
+        """True for a GeoGebra embed in the canonical material/iframe/id shape whose
+        dimensions are not usable -- drives the editor badge.
+
+        Deliberately NARROWER than "a material embed": /m/<id> and
+        /material/show/id/<id> are excluded, because geogebra_sized_src will not size
+        them either, so a badge telling the author to paste the embed code could not
+        help. Shares usable_dimensions with frame_ratio, so badge and ratio cannot
+        disagree.
+        """
+        return is_geogebra_iframe_url(self.url) and not usable_dimensions(
+            self.width, self.height
+        )
 
 
 class MathElement(ElementBase):

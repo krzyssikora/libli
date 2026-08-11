@@ -204,4 +204,9 @@ HTMLEL_SANDBOX_ORIGIN = env(
     "DJANGO_HTMLEL_SANDBOX_ORIGIN", default="http://localhost:8000"
 )
 
+# Kill switch for the GeoGebra applet-size lookup (courses/geogebra.py). env-backed so
+# a deployment behind an egress-restricted network can disable a per-save outbound call
+# that would otherwise always time out.
+GEOGEBRA_API_LOOKUP = env.bool("LIBLI_GEOGEBRA_API_LOOKUP", default=True)
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

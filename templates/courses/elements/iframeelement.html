@@ -1,10 +1,12 @@
 {% load i18n %}
 <div class="el el--iframe">
-  <div class="embed-frame"{% if el.width and el.height %} style="aspect-ratio: {{ el.width }} / {{ el.height }}"{% endif %}>
+  {% with ratio=el.frame_ratio %}
+  <div class="embed-frame"{% if ratio %} style="aspect-ratio: {{ ratio }}"{% endif %}>
     {% comment %}referrerpolicy: send the page origin to the embed provider; Django's
     default Referrer-Policy: same-origin would otherwise strip the Referer cross-origin.{% endcomment %}
     <iframe src="{{ el.embed_src }}" loading="lazy"
             referrerpolicy="strict-origin-when-cross-origin"
             title="{{ el.title|default:_('embedded content') }}"></iframe>
   </div>
+  {% endwith %}
 </div>

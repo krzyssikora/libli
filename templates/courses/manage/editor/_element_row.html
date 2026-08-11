@@ -306,6 +306,8 @@
     <div class="el-row__body">
       <div class="el-row__top">
         <span class="el-tag">{% element_type_label el.content_type obj %}</span>
+        {% if obj.size_unknown %}<span class="el-row__flag"
+              title="{% trans 'The applet size is unknown, so it renders in a 4:3 frame and may be cropped. Paste the <iframe> embed code for exact sizing.' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ic-warn"/></svg><span class="visually-hidden">{% trans 'applet size unknown' %}</span></span>{% endif %}
         <span class="el-actions">
           <button type="button" class="iconbtn el-select el-act-edit" data-element-id="{{ el.pk }}"
                   data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"

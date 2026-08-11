@@ -25,6 +25,10 @@ TEMPLATES[0]["DIRS"] = [*TEMPLATES[0]["DIRS"], BASE_DIR / "tests" / "templates"]
 
 HTMLEL_SANDBOX_ORIGIN = "http://testserver"
 
+# The suite must never reach geogebra.org. Tests that exercise the lookup opt back in
+# with override_settings(GEOGEBRA_API_LOOKUP=True).
+GEOGEBRA_API_LOOKUP = False
+
 # --- optional: run against the disposable tuned server (docker-compose.test.yml) ---
 # Unset, everything below is a no-op and behaviour is identical to before.
 # See docs/development/testing.md.

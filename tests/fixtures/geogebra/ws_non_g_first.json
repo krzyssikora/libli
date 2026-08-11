@@ -1,0 +1,10 @@
+{
+  "id": "derived",
+  "type": "ws",
+  "elements": [
+    {"id": 1, "type": "T", "settings": {"width": 100, "height": 50}},
+    "a string, not a dict",
+    null,
+    {"id": 2, "type": "G", "settings": {"appName": "classic", "width": 880, "height": 660}}
+  ]
+}

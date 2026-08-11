@@ -1,0 +1,14 @@
+{
+  "id": "dcjktevj",
+  "title": "korelacja 1",
+  "type": "ws",
+  "visibility": "S",
+  "elements": [
+    {
+      "id": 42153397,
+      "order": 0,
+      "type": "G",
+      "settings": {"appName": "classic", "width": 880, "height": 660, "scale": 1}
+    }
+  ]
+}

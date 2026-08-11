@@ -81,6 +81,37 @@ body.editor-page .app-main { max-width: 102rem; }
   border: 1px solid var(--border-strong); border-radius: var(--radius-full);
   padding: 0 var(--space-2); color: var(--text-secondary);
 }
+/* Typography applies to this badge AND the pre-existing revealgate flag, which has
+   shipped unstyled. cursor:help is attribute-scoped because that flag has no title and
+   would otherwise promise a tooltip that never appears. */
+.el-row__flag { font-size: .7rem; color: var(--text-secondary); }
+.el-row__flag[title] { cursor: help; }
+/* The badge is an ICON, not visible text. The 1130px pane-floor e2e (Task 9) measured
+   that ANY legible text badge -- even a shortened "size unknown" -- starves
+   .el-actions: flex-shrink hands nearly all of the row's ~121-130px shrinkable budget
+   to whichever sibling has the larger flex-basis, and .el-actions's own UNWRAPPED
+   basis (~250px, see the comment above `.el-actions { flex-wrap: wrap }`) dwarfs
+   anything but a few-px-wide sibling. Text as short as "size unknown" (basis ~73px)
+   still left .el-actions ~40px short of the room it needs to keep its 2-line wrap, so
+   the badged row wrapped a 3rd/4th line and grew to 142px against the control's 70px.
+   A 14x14 fixed icon costs about what a bare "?" glyph did in that same measurement,
+   which matched the no-badge control exactly -- so .el-actions keeps its no-badge
+   width. The label text survives for screen readers as a nested .visually-hidden
+   span: NOT deleted, just taken out of layout (position: absolute), so it no longer
+   contributes to the row's flex-basis at all. Scoped to .el-row__top (both rules
+   below) so the revealgate flag (plain text, unstyled on purpose) is untouched.
+   `color: var(--warning)` overrides the inherited --text-secondary from the shared
+   rule above: with the label text gone from view, colour is now the ONLY at-a-glance
+   signal a sighted author gets before hovering for the title tooltip -- grey read as
+   "just another tag", not a warning, in review. --warning exists in both themes
+   (#B8811F light / #E8B761 dark). */
+.el-row__top > .el-row__flag {
+  flex: 0 0 auto; display: inline-flex; align-items: center;
+  color: var(--warning);
+}
+.el-row__top > .el-row__flag .ic {
+  width: 14px; height: 14px; display: block; fill: currentColor;
+}
 .el-select {
   flex: 1; text-align: left; background: none; border: 0; cursor: pointer;
   color: var(--text-primary); text-decoration: underline; padding: 0;
