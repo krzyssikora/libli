@@ -199,7 +199,15 @@ Four separate mutants; the guard has four independent failure modes and a single
 
 Remove each mutant by editing it back, never by `git checkout` — that would delete the new tests too.
 
-- [ ] **Step 7: Lint and commit**
+- [ ] **Step 7: Restore, re-run, lint and commit**
+
+Mutant 4 left the coercion dropped in `courses/models.py` — edit it back, then re-run. `data.get("gate")` is perfectly valid Python, so both ruff gates below accept the mutated file and would commit it with two RED tests:
+
+```bash
+uv run pytest tests/test_filltable_model.py -v
+```
+
+Expected: all PASS. Then:
 
 ```bash
 uv run ruff check --no-cache courses/models.py tests/test_filltable_model.py
@@ -665,7 +673,16 @@ Expected: all PASS, including both files' pre-existing tests. `test_filltable_re
    → `test_render_does_not_mutate_the_callers_state_blob` RED.
 4. Restore, then **add `open` to `_val_done`'s return in `courses/state.py`** → `test_saved_gated_state_stores_done_only` RED; the other three stay GREEN (they never round-trip through storage). This proves that test reads the stored blob rather than echoing the POST response — which is the entire claim this task's derivation rests on. **Restore `courses/state.py` immediately afterwards**: shipping it unchanged is a Global Constraint, and this is the only step in the plan that touches it. Verify with `git diff --quiet courses/state.py` before moving to Step 7.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Restore, re-run, then commit**
+
+Mutant 4 touched `courses/state.py` and mutant 3 touched `courses/models.py`. Prove both are back:
+
+```bash
+git diff --quiet courses/state.py && echo "state.py clean"
+uv run pytest tests/test_filltable_restore.py tests/test_filltable_render.py -v
+```
+
+Expected: the echo fires and all PASS. Then:
 
 ```bash
 uv run ruff check --no-cache courses/models.py tests/test_filltable_restore.py
@@ -977,7 +994,7 @@ Expected: both PASS immediately — the implementation landed in Step 4, so unli
 - [ ] **Step 9: Falsify everything in this task**
 
 0. Delete `window.__fillTableBooted = true;` from `filltable.js` → `test_boot_flag_is_assigned` RED, everything else GREEN — including the prepaint A/B, which asserts the *template term* is present in the HTML and is indifferent to whether any script assigns the flag. (Numbered 0 because it falsifies Step 5's JS change rather than the view work the other mutants target.)
-1. Drop `or has_filltable_gate` from `has_reveal_gate` → `test_has_filltable_gate_flag`, `test_has_filltable_gate_flag_when_nested_in_a_callout` **and** the prepaint A/B go RED — `reveal-armed` is emitted from **two** `{% if has_reveal_gate %}` blocks — the prepaint script (`lesson_unit.html:5-17`) and the pre-hide `<style>` in `extra_css` (`:38-48`) — so both `__fillTableBooted` and every `reveal-armed` occurrence vanish from the gated render. Cite both; `courses/tests/test_reveal_scope_agreement.py:32-39` exists because that duplication trips people up.
+1. **Restore, then** drop `or has_filltable_gate` from `has_reveal_gate` → `test_has_filltable_gate_flag`, `test_has_filltable_gate_flag_when_nested_in_a_callout` **and** the prepaint A/B go RED — `reveal-armed` is emitted from **two** `{% if has_reveal_gate %}` blocks — the prepaint script (`lesson_unit.html:5-17`) and the pre-hide `<style>` in `extra_css` (`:38-48`) — so both `__fillTableBooted` and every `reveal-armed` occurrence vanish from the gated render. Cite both; `courses/tests/test_reveal_scope_agreement.py:32-39` exists because that duplication trips people up.
 2. Restore, then omit `"has_filltable_gate": has_filltable_gate,` from the return dict → **all four** new tests go RED: the three context tests raise `KeyError` reading `ctx["has_filltable_gate"]`, and the prepaint A/B fails on the missing term. The A/B still earns its place — it is the only one that proves the *template* term is driven by the flag rather than by the mere presence of a fill-table, which no context-dict assertion can show.
 3. Restore, then scope the inner query to `parent__isnull=True` → the callout test goes RED, the top-level test stays GREEN.
 4. Restore, then **drop `data__gate=True` from the filter** (leaving `pk__in=…`) → **three** tests RED: `test_ungated_filltable_sets_neither_gate_flag` (an ungated table now arms both flags), the **prepaint A/B** on `assert "__fillTableBooted" not in plain_body` (its plain arm seeds an ungated fill-table, which now arms `has_reveal_gate` and emits the whole prepaint block), and the query-shape source test on its `data__gate=True` assertion. Everything else GREEN. Without this mutant that test's semantic claim is reddened only by mutant 2's blanket `KeyError` — the "one combined mutant lets the others hide" failure this plan warns about in Tasks 1 and 6.
@@ -985,7 +1002,15 @@ Expected: both PASS immediately — the implementation landed in Step 4, so unli
    Note that the `has_fill_table and` short-circuit in front of the query is **deliberately unguarded**: it is a pure query-count optimisation, and no test can falsify it. `tests/test_html_element.py` pays the same cost in both arms of any A/B, so its delta stays 0 whether the short-circuit is present or not. Do not add a mutant for it expecting a RED.
 5. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 10: Restore, re-run, then commit**
+
+Mutant 5 left the reverse-generic rewrite in `courses/views.py` — edit it back, then re-run. That rewrite is valid Python and ruff accepts it happily, so without this the mutated query is committed with the two source assertions RED:
+
+```bash
+uv run pytest tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py courses/tests/test_filltable_gate_static.py courses/tests/test_filltable_gate_query_shape.py tests/test_html_element.py -v
+```
+
+Expected: all PASS. Then:
 
 ```bash
 uv run ruff check --no-cache courses/views.py tests/test_filltable_context.py tests/test_filltable_gate_prepaint.py courses/tests/test_filltable_gate_query_shape.py courses/tests/test_filltable_gate_static.py
@@ -1391,7 +1416,12 @@ If the row does not survive, the fix belongs here (a shorter label, or letting t
 
 Mutants 4-6 are separate for the reason Task 1 Step 6 gives: that test makes three independent assertions, and one combined mutant would let two of them hide.
 
-**Falsify the kept e2e test too — do not skip this.** `test_editor_gate_checkbox_round_trips` (Step 8) is written after the implementation lands, so it is green from birth, and it is the *only* test crossing the tick → Save → stored-flag seam. Trusting it unfalsified is therefore the worst case here, not the safest. Mutants 4, 5 and 6 each break the tick → payload path, so it must go RED under any of them. While **one** of those mutants is still in place, run:
+**Falsify the kept e2e test too — do not skip this.** `test_editor_gate_checkbox_round_trips` (Step 8) is written after the implementation lands, so it is green from birth, and it is the *only* test crossing the tick → Save → stored-flag seam. Trusting it unfalsified is therefore the worst case here, not the safest. **Use mutant 4 specifically** — `gate: !!(gate && gate.checked)` dropped from `serialize`. It is the only one of the three that produces the failure described below:
+
+- **Mutant 6 leaves this test GREEN**, so do not use it. Deleting the `change` listener does not break the save path at all: `filltable_editor.js` registers `document.addEventListener("submit", onSubmit, true)` (:1008, capture phase, "run before the POST") and `onSubmit` calls `editor.__filltableSerialize()` (:979), which re-runs `serialize()` over the live DOM and reads `gate.checked` directly. The listener is a live-preview convenience, behaviourally redundant on submit. It is falsified by `test_editor_js_serializes_the_gate_flag`'s **third** assertion, and only there.
+- **Mutant 5 breaks serialisation outright** rather than dropping the flag — deleting `var gate = …` leaves `gate` an undeclared identifier, so `serialize` throws. The test does go red, but for the wrong reason and with a confusing failure.
+
+With mutant 4 in place, run:
 
 ```bash
 docker compose -f docker-compose.test.yml up -d
@@ -1413,7 +1443,11 @@ Expected: all PASS. Then confirm Step 8's kept test is green and carries **no** 
 ```bash
 docker compose -f docker-compose.test.yml up -d
 uv run pytest tests/test_e2e_filltable.py -m e2e -k test_editor_gate_checkbox_round_trips -v
-git diff tests/test_e2e_filltable.py    # should show ONLY the new test
+# Expect exactly two hunks: the new test, AND the module-level
+# `from courses.models import FillTableElement` that Step 8 requires (it sorts
+# into the existing first-party block, above `from tests.factories import ...`).
+# Anything else -- a screenshot call, a theme write -- is a capture leftover.
+git diff tests/test_e2e_filltable.py
 ```
 
 Then:
