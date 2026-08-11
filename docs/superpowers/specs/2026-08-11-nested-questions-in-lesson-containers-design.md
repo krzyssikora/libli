@@ -980,10 +980,31 @@ importer as a side effect of widening the editor.
 
 ### 6.4 Pre-existing content
 
-The UI has never offered a question card in a nested menu inside a quiz, so
-reaching this state requires a crafted POST, a hand-built archive, or the LAL path
-in §6.3. Existing affected content is expected to be **none**, and the plan
-verifies rather than assumes it with a read-only pre-flight:
+**CORRECTED after implementation — an earlier draft of this section was wrong.**
+It claimed reaching this state required "a crafted POST, a hand-built archive, or
+the LAL path". There was a **fourth route, entirely through the ordinary UI**: the
+**paste flow**. The add menu's Content group is not quiz-gated (so a callout goes
+into a quiz), the top-level Questions group is not either, `paste_allowed` had no
+unit-type clause, and `fill_blank` was already in `NESTABLE_TYPE_KEYS` — so
+mark-a-question-and-paste-it-into-the-callout succeeded in two clicks, and
+`paste_buttons` rendered the slot to invite it. Eight review rounds missed this;
+the finish-stage code review caught it.
+
+Two consequences follow, both handled:
+
+1. **Pre-existing content is more plausible than this section assumed.** The
+   pre-flight below still measured **0** on the real development database
+   (20,214 elements, 9,296 nested, 102 quiz units), so nothing local is affected —
+   but that is now a measurement, not a deduction from unreachability.
+2. **v11 archives may legally contain this nesting**, so §6.3 authority 4's clause
+   is gated on `format_version >= 12`. Enforcing it against older archives would
+   make a course that was legally authored *and* legally exported permanently
+   un-importable, breaking disaster recovery and environment clones for content
+   the operator cannot repair. That gate is also what makes the §6.5 version bump
+   load-bearing in **both** directions rather than only one.
+
+The plan verifies the population rather than assuming it, with a read-only
+pre-flight:
 
 ```python
 from courses.richtext import CONCRETE_QUESTION_MODELS
@@ -1025,6 +1046,14 @@ so.
 The repo has clear precedent for bumping on exactly this kind of
 nesting-capability change: the tabs carousel took it to 8 and before/after to
 10/11.
+
+**The bump is load-bearing in BOTH directions, which is why it is not merely
+cosmetic.** Outward: a new archive carrying a nested `choice` refuses cleanly on an
+old install ("exported from a newer application version") instead of failing with a
+content error that blames the author. Inward: §6.4's `format_version >= 12` gate
+keys the new quiz clause on this number, so a v11 archive — which may legally hold
+a question nested in a quiz, via the paste route §6.4 describes — still imports.
+Drop the bump and the inward half has nothing to key on.
 
 **Merge hazard.** Two branches bumping `FORMAT_VERSION` to the *same* number
 produce no git conflict — the line is identical, so it merges silently and one

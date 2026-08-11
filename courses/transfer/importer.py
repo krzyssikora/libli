@@ -394,7 +394,15 @@ def validate_archive_document(
     zf, manifest, document, media_entries, *, kind, target_course=None
 ):
     target_allowed = target_course.allowed_kinds if target_course else None
-    validate_document(document, kind=kind, target_allowed_kinds=target_allowed)
+    # The manifest's version gates the question-in-a-quiz rule: see
+    # schema.validate_document. A v11 archive may legally hold that nesting,
+    # because the paste flow allowed it before this feature shipped.
+    validate_document(
+        document,
+        kind=kind,
+        target_allowed_kinds=target_allowed,
+        format_version=manifest.get("format_version"),
+    )
     validate_media_entries(zf, document, media_entries)
 
 

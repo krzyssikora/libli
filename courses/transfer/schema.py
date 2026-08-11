@@ -105,7 +105,7 @@ def _exact_keys(obj, keys, what):
             _err(_("%(what)s contains an unknown key '%(key)s'."), what=what, key=k)
 
 
-def validate_document(doc, *, kind, target_allowed_kinds=None):
+def validate_document(doc, *, kind, target_allowed_kinds=None, format_version=None):
     from courses.models import ContentNode
     from courses.ordering import kinds_for_flags
     from courses.transfer.payloads import validate_element_data  # Task 7
@@ -362,7 +362,22 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
     unit_types = {
         nd["id"]: nd.get("unit_type") for nd in nodes if nd.get("kind") == "unit"
     }
-    validate_nesting(elements, unit_types=unit_types)
+    # The quiz clause applies to v12+ archives ONLY, and that is what makes the
+    # FORMAT_VERSION bump load-bearing in BOTH directions.
+    #
+    # A question nested in a quiz was reachable through the ORDINARY UI before this
+    # feature: the Content group is not quiz-gated (so a callout goes in a quiz),
+    # the top-level Questions group is not either, and paste_allowed had no
+    # unit-type clause while fill_blank was already in NESTABLE_TYPE_KEYS -- so
+    # mark-and-paste into the callout's slot succeeded in two clicks. Enforcing the
+    # new rule against v11 archives would therefore make a course that was legally
+    # authored, and legally exported, permanently un-importable -- breaking disaster
+    # recovery and environment clones for content the operator cannot repair.
+    #
+    # `None` (a direct caller that passes no version) ENFORCES: the strict default
+    # is the safe one, and no import path reaches here without a manifest.
+    enforce_quiz_rule = format_version is None or format_version >= 12
+    validate_nesting(elements, unit_types=unit_types if enforce_quiz_rule else None)
 
     for m in media:
         if m["id"] not in referenced_media:

@@ -23,6 +23,7 @@ import io
 
 import pytest
 
+from courses.models import SINGLE_SLOT_ID
 from courses.models import CalloutElement
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
@@ -33,6 +34,7 @@ from courses.transfer.importer import open_archive
 from courses.transfer.importer import validate_archive_document
 from courses.transfer.payloads import validate_nesting
 from courses.transfer.schema import TransferError
+from courses.transfer.schema import validate_document
 from tests.factories import add_element
 from tests.factories import make_course_with_unit
 from tests.factories import make_login
@@ -156,3 +158,110 @@ def test_a_choice_nested_in_a_lesson_callout_survives_export_and_import(client):
         (c.text, c.is_correct, c.feedback)
         for c in imported_q.choices.order_by("order", "pk")
     ] == [("right", True, "yes"), ("wrong", False, "no")]
+
+
+# --------------------------------------------------------------------------
+# The version gate, tested at validate_document -- the seam that actually owns it.
+#
+# A question nested in a QUIZ was reachable through the ORDINARY UI before this
+# feature: the add menu's Content group is not quiz-gated (so a callout goes in a
+# quiz), the top-level Questions group is not either, and paste_allowed had no
+# unit-type clause while fill_blank was already in NESTABLE_TYPE_KEYS -- so
+# mark-and-paste into the callout's slot succeeded in two clicks. Courses in that
+# shape were legally authored and legally exported, so enforcing the new rule
+# against their v11 archives would make them permanently un-importable, breaking
+# disaster recovery and environment clones for content the operator cannot repair.
+#
+# Applying it to v12+ only is ALSO what makes the FORMAT_VERSION bump load-bearing
+# in both directions: it stops an OLD install silently mis-reading a NEW archive,
+# and stops a NEW install rejecting an OLD one.
+# --------------------------------------------------------------------------
+
+
+def _quiz_unit_node(nid="n1"):
+    return {
+        "id": nid,
+        "parent": None,
+        "kind": "unit",
+        "title": "Q",
+        "unit_type": "quiz",
+        "obligatory": True,
+        "html_seed_js": "",
+    }
+
+
+def _course_doc(nodes, elements):
+    return {
+        "course": {
+            "title": "T",
+            "language": "en",
+            "overview": "",
+            "html_css": "",
+            "html_js": "",
+            "uses_parts": True,
+            "uses_chapters": True,
+            "uses_sections": True,
+            "color_bands": [],
+            "subjects": [],
+        },
+        "nodes": nodes,
+        "elements": elements,
+        "media": [],
+    }
+
+
+def _nested_question_in_a_quiz():
+    return _course_doc(
+        [_quiz_unit_node()],
+        [
+            {
+                "id": "e1",
+                "type": "callout",
+                "unit": "n1",
+                "title": "",
+                "data": {"kind": "example", "heading": "", "body": ""},
+                "parent": None,
+                "tab": "",
+            },
+            {
+                "id": "e2",
+                "type": "fill_blank",
+                "unit": "n1",
+                "title": "",
+                "data": {
+                    # U+FFFF-delimited index token, NOT {{...}}: see
+                    # fillblank.SENTINEL and payloads._TOKEN_RE, which
+                    # demands exactly 0..n-1, ascending.
+                    "stem": "Cap is ￿0￿.",
+                    "explanation": "",
+                    "marking_mode": "A",
+                    "max_attempts": 1,
+                    "max_marks": "1.00",
+                    "blanks": [{"accepted": "paris", "case_sensitive": False}],
+                },
+                "parent": "e1",
+                "tab": SINGLE_SLOT_ID,
+            },
+        ],
+    )
+
+
+def test_a_v11_archive_may_still_hold_a_question_nested_in_a_quiz():
+    """Backward compatibility: legal to author, legal to export, must stay
+    importable. Mutant: drop the `format_version >= 12` gate -> this goes RED."""
+    validate_document(
+        _nested_question_in_a_quiz(), kind="course", format_version=11
+    )  # must not raise
+
+
+def test_a_v12_archive_may_not_hold_a_question_nested_in_a_quiz():
+    with pytest.raises(TransferError):
+        validate_document(
+            _nested_question_in_a_quiz(), kind="course", format_version=12
+        )
+
+
+def test_a_caller_that_passes_no_version_enforces_the_rule():
+    """`None` is the STRICT default -- a direct caller must not get the lax path."""
+    with pytest.raises(TransferError):
+        validate_document(_nested_question_in_a_quiz(), kind="course")
