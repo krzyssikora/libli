@@ -1091,9 +1091,9 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   /* prose-cap:begin */
   html.unit-tree-collapsed [data-unit-shell] .el--text,
   html.unit-tree-collapsed [data-unit-shell] .el--question .question__stem,
-  html.unit-tree-collapsed [data-unit-shell] .question__choices,
-  html.unit-tree-collapsed [data-unit-shell] .question__feedback,
-  html.unit-tree-collapsed [data-unit-shell] textarea.question__text-input,
+  html.unit-tree-collapsed [data-unit-shell] .el--question .question__choices,
+  html.unit-tree-collapsed [data-unit-shell] .el--question .question__feedback,
+  html.unit-tree-collapsed [data-unit-shell] .el--question textarea.question__text-input,
   html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title,
   html.unit-tree-collapsed [data-unit-shell] .unit-crumbs,
   html.unit-tree-collapsed [data-unit-shell] .markdone,
