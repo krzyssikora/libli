@@ -2,8 +2,8 @@
 
 MANDATORY, not preferred: the server emits no computed style, and a CSS-cascade defect
 leaves the rendered HTML unchanged. These four tests are the ONLY pin for the combined
-spoiler rule (Task 11), the prose-cap narrowing, the heading katex reset, and the
-reveal cascade inside a callout.
+spoiler rule (Task 11), the one-width rule for both callout shapes, the heading katex
+reset, and the reveal cascade inside a callout.
 """
 
 import os
@@ -108,15 +108,20 @@ def test_spoiler_body_and_children_show_one_continuous_rule(page, live_server):
     assert abs(gap) < 1, f"vertical gap between the two rules: {gap}px"
 
 
-def test_a_table_in_a_callout_is_not_squeezed_by_the_prose_cap(page, live_server):
+def test_both_callout_shapes_render_at_one_width(page, live_server):
     """The cap is `html.unit-tree-collapsed [data-unit-shell] ...` under
     `@media screen and (min-width: 641px)`, and that class is set by the TOC-pin JS
-    from localStorage -- NEVER by the server. Without seeding it, both arms measure
-    the uncapped state and the assertion is vacuous.
+    from localStorage -- NEVER by the server. Without seeding it the page renders
+    expanded, both arms measure 648px, and the `> 736` half REDDENS -- so the seed
+    is what makes this test meaningful, not merely non-vacuous.
 
-    641px is NOT enough either: the collapsed content box is
-    min(viewport, 72rem) - 2.4rem (pin lane) - 3rem (.lesson padding), i.e. ~555px at
-    641px -- under 46rem (736px), so the cap never binds. Use 1280x900.
+    641px is NOT enough either. The collapsed content box is .app-main's 960px cap
+    less its 2x20px padding = 920; the -2.4rem shell shift at courses.css:1051
+    exactly OFFSETS the 2.4rem pin lane, so .unit-shell__main stays 920; less the
+    3rem .lesson padding = 872px at any viewport >= 1040px. At 641px it is far
+    smaller, which would put both arms under the 736px cap and make the comparison
+    vacuous. Use 1280x900. (.unit-shell's max-width: 72rem never binds: .app-main
+    caps the containing block first.)
     """
     from courses.models import CalloutElement
     from courses.models import Element
@@ -143,15 +148,19 @@ def test_a_table_in_a_callout_is_not_squeezed_by_the_prose_cap(page, live_server
     page.add_init_script("localStorage.setItem('libli_unit_tree_collapsed', '1');")
     page.goto(_lesson_url(live_server, unit))
     page.wait_for_selector("html.unit-tree-collapsed")
-    # CONTROL ARM first: proves the cap is live before the negative arm is trusted.
-    prose_box = page.locator(".callout:not(:has(> .callout__children))").bounding_box()
-    assert abs(prose_box["width"] - 736) < 2, (
-        "control: a prose-only callout must stay capped at 46rem, got "
-        f"{prose_box['width']}"
+    prose_w = page.locator(".callout:not(:has(> .callout__children))").bounding_box()[
+        "width"
+    ]
+    wide_w = page.locator(".callout:has(> .callout__children)").bounding_box()["width"]
+    # BOTH halves are required. Equality alone passes when both callouts are capped
+    # at 736 -- the squeezed-table regression this test exists to prevent -- and
+    # `> 736` alone passes when they are both uncapped but unequal.
+    assert abs(prose_w - wide_w) < 2, (
+        f"the two callout shapes must render at one width: prose {prose_w}, "
+        f"with-children {wide_w}"
     )
-    wide_box = page.locator(".callout:has(> .callout__children)").bounding_box()
-    assert wide_box["width"] > 736, (
-        f"a callout with children must not inherit the cap, got {wide_box['width']}"
+    assert prose_w > 736 and wide_w > 736, (
+        f"both callouts must exceed the old 46rem cap: {prose_w}, {wide_w}"
     )
 
 
