@@ -22,7 +22,7 @@ from the page background renders at one width.**
 
 - Changing anything in the TOC-**expanded** state. See Derived geometry: the expanded column is
   648px, *below* the 736px cap, so no cap can bind there and widths are already uniform. Pinned by
-  test 6 — which for that reason must assert computed style, not width.
+  test 7 — which for that reason must assert computed style, not width.
 - Changing the teacher review page or the quiz results page.
 - Restructuring how the cap is applied. Two alternatives were considered and **explicitly rejected by
   the user**: (a) moving to an inner prose wrapper so element roots default to full width, and
@@ -34,8 +34,7 @@ from the page background renders at one width.**
 - **Slideshow/deck mode.** A unit with ≥1 slide-break paginates (`_lesson_article.html:4`,
   `_quiz_article.html:3`) and `.slideshow-deck .slide` becomes an absolutely-positioned, separately
   padded, fixed-height scroller (`courses.css:382-390`). Per **S2** the invariant holds per containing
-  block, and in deck mode that block is the slide's padding box, not the column. Out of scope; no
-  measurement required.
+  block, and in deck mode that block is the slide's padding box, not the column. Out of scope.
 
 ## Current behaviour (verified against the worktree, not recalled)
 
@@ -64,31 +63,34 @@ prose wide."
 **The binding constraint is `.app-main`, not `.unit-shell`.** `base.html` puts `{% block content %}`
 inside `<main class="app-main">`, and `core/static/core/css/app.css:34` is
 `.app-main { max-width: 960px; margin: 0 auto; padding: var(--space-8) var(--space-5); }` with
-`--space-5: 20px` (`tokens.css:76`). So the available width is **960 − 40 = 920px**, and
-`.unit-shell`'s `max-width: 72rem` (`:654`, quoted as written — there is no `min()` in the
-stylesheet) is **inert**: 72rem = 1152px never binds.
+`--space-5: 20px` (`tokens.css:76`). Available width is **960 − 40 = 920px**, and `.unit-shell`'s
+`max-width: 72rem` (`:654`, quoted as written — there is no `min()` in the stylesheet) is **inert**:
+72rem = 1152px never binds.
 
 | State | Chain | Column |
 |---|---|---|
 | **Collapsed** | 920 available; `:1051` shifts the shell `-2.4rem` and the pin lane consumes `2.4rem`, so `.unit-shell__main` = 920; `.lesson` padding `3rem` | **872px** |
 | **Expanded** | 920 − `.unit-tree` 14rem (224) = 696; `.lesson` padding `3rem` | **648px** |
 
-Both are confirmed in-repo: `tests/test_e2e_unit_nav.py:1311` ("that stays 872px either way"),
-`:1385` ("the EXPANDED quiz column at 1440 is 648px"), `tests/test_e2e_table_cell_images.py:27`
-("a 648px content [column]"), and `docs/superpowers/plans/2026-08-04-image-size-presets.md:19-28`,
-which records this same correction against a previous spec that had omitted `.app-main`.
+Both confirmed in-repo: `tests/test_e2e_unit_nav.py:1311` ("that stays 872px either way"), `:1385`
+("the EXPANDED quiz column at 1440 is 648px"), `tests/test_e2e_table_cell_images.py:27`, and
+`docs/superpowers/plans/2026-08-04-image-size-presets.md:19-28`, which records this same correction
+against a previous spec that had omitted `.app-main`.
 
 **Because `.app-main` caps at 960px, 1280 and 1440 viewports produce identical geometry** (872
 collapsed, 648 expanded).
 
+**A card's inner box is not the column.** `.quiz .el--question` has `padding: var(--space-5)` and a
+1px border (`:295-301`), so content inside a card measures ≈872 − 40 − 2 = **~830px**, not 872.
+Callouts likewise inset by their own padding and borders (`:1834-1839`).
+
 **Which numbers may be asserted.** 46rem = **736px** is a *design token* — the single value this
 feature caps at; existing tests already assert it (`test_e2e_unit_nav.py:1380`,
-`test_e2e_callout_container.py:148`) and new tests may. The **derived** figures (920 / 872 / 648, and
-any card/callout inner width) are computed from four or more separate rules and shift when any moves;
-**no test may assert those as constants.** Where a test needs the column, it must read it (see
-"Reading the column width") or compare two elements.
+`test_e2e_callout_container.py:148`) and new tests may. The **derived** figures (920 / 872 / 648 /
+~830) are computed from four or more separate rules and shift when any moves; **no test may assert
+those as constants.** Where a test needs the column, it must read it (below) or compare two elements.
 
-### Reading the column width (one recipe, used verbatim by tests 3, 4, 6)
+### Reading the column width (one recipe, used verbatim by tests 3, 5, 7)
 
 `getBoundingClientRect()` returns the **border** box, and the article carries
 `padding: 1.25rem 1.5rem`, so reading the article's box gives 920, not the 872 its children see. The
@@ -100,15 +102,20 @@ article is `.lesson` on a lesson page but `<article class="quiz">` on a quiz pag
         return a.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight); }
 ```
 
+On a lesson page each element root is additionally wrapped in
+`<section class="lesson-block"><div class="lesson-block__body">` (`_lesson_article.html:38-39`),
+whereas a quiz uses a bare `<section data-element-id>`. **Neither wrapper adds horizontal inset** —
+`.lesson-block__body` has no width rule, and the notes panel floats over the page margin rather than
+insetting the block (`notes.css:90-101`) — so the recipe and pairwise comparisons are equally valid
+on both page types.
+
 ## The rule this change installs
 
 > **In the TOC-collapsed state, tinted element-root blocks fill the column; prose caps at 46rem
 > wherever it lives — including inside a tinted block.**
 
 This replaces the rationale comment at `:1063-1069`; the comment rewrite is part of this change, not
-incidental to it. The value is as much that a future author can apply one sentence as that two boxes
-line up: the present list cannot be extended correctly without guessing, which is how the callout and
-question splits arose.
+incidental to it.
 
 ### Two scope limits, both deliberate
 
@@ -123,15 +130,23 @@ Consequence to accept knowingly: a feedback panel renders at ≤736px inside an 
 TwoColumn, BeforeAfter and Tabs as containers, and questions are nestable inside them (PR #240).
 `.quiz .el--question` is a *descendant* selector, so a question card nested inside a callout is tinted
 too, but its available width is the callout's content box, not the column. Today both nested and
-top-level cards are capped at 736 and so happen to be equal; after this change they diverge. This is
-**accepted**: a nested box cannot exceed its parent, and a rule promising otherwise would be
-unimplementable. Nested tinted blocks are uniform *with their siblings in the same containing block*,
-which is what a reader actually compares. Deck-mode slides (see Non-goals) are the same case.
+top-level cards are capped at 736 and so happen to be equal; after this change they diverge.
+**Accepted**: a nested box cannot exceed its parent. Nested tinted blocks are uniform *with their
+siblings in the same containing block*, which is what a reader compares. Deck-mode slides are the
+same case.
 
 ## Architecture
 
-One CSS region changes: `courses.css:1063-1086` (rationale comment + rule block). Five selectors out,
-four in. No template changes, no JavaScript, no Python.
+**Two CSS regions change:**
+
+1. `courses.css:1063-1086` — the rationale comment and the cap rule. Five selectors out, four in.
+2. `courses.css:315-319` — the `input.question__text-input` rationale comment, whose text ("the
+   extended-response `textarea` (same class) keeps app.css's width:100% and fills the card column,
+   resizable up to it") becomes **false** once the textarea is capped. It must be amended to record
+   the collapsed-state cap. The spec treats a stale rationale comment as part of a change, not
+   incidental to it; that applies here as much as to region 1.
+
+No template changes, no JavaScript, no Python.
 
 ### Out — tinted element roots, which now fill the column
 
@@ -153,12 +168,11 @@ Each entry is removed **in full, including its `:not()` chain**.
 Both are transparent, so neither is tinted — they move for **alignment**: chrome that frames the
 cards must share the cards' edges.
 
-**Accepted side effect (I6):** `.lesson-unit__head .lesson-unit__title { flex: 1; min-width: 0 }`
+**Accepted side effect:** `.lesson-unit__head .lesson-unit__title { flex: 1; min-width: 0 }`
 (`:829-830`), so widening the head raises the title's flex target from ~610px to ~746px, where its
-own 736px cap clamps it. The lesson title's measure therefore **grows by ~126px and a long title
-re-wraps**. This is accepted because the new measure is exactly the 736px prose token — the value the
-whole design treats as readable — but it is a visible change and must appear in the screenshot
-checklist.
+own 736px cap clamps it. The lesson title's measure **grows by ~126px and a long title re-wraps**.
+Accepted because the new measure is exactly the 736px prose token, but it is visible and must appear
+in the screenshot checklist.
 
 This chrome decision is a judgement call slightly beyond the literal request ("blocks with a
 background"), taken because leaving it out ships a visibly misaligned separator as a direct
@@ -176,35 +190,36 @@ right-edge affordance, so the alignment argument does not reach them.
 | `.question__feedback` | per-question feedback prose |
 | `textarea.question__text-input` | the extended-response answer box |
 
-Without these a question card would widen *and* stretch its contents to 872px, contradicting the rule
-for callouts and worsening the readability the cap protects.
+Without these a question card would widen *and* stretch its contents to ~830px, contradicting the
+rule for callouts and worsening the readability the cap protects.
 
-`textarea.question__text-input` is a separate entry because the textarea is **not** a descendant of
-any other capped selector: `extendedresponsequestionelement.html:7-9` makes it a direct child of
-`.question__form`, a sibling of the stem. `:317-318` caps only `input.question__text-input` (22rem)
-and its comment says the textarea "keeps app.css's `width:100%` and fills the card column" — which
-after this change is ~830px, a ~105-character answer box. **Accepted consequence:** the same comment
-records the textarea as "resizable up to" the card column, so a student can no longer drag it past
-736px. That is consistent with the cap's purpose (protecting line length), not a regression.
+`textarea.question__text-input` needs its own entry because it is a **nephew** of the stem, not a
+descendant of any other capped selector: `extendedresponsequestionelement.html` has
+`.question__stem` at `:3` and `<form class="question__form">` at `:5`, with the textarea a child of
+that form (`:7-9`). `:317-318` caps only `input.question__text-input` (22rem). **Accepted
+consequence:** the region-2 comment records the textarea as "resizable up to" the card column, so a
+student can no longer drag it past 736px — consistent with the cap's purpose, not a regression.
 
 The submit `<button>` needs no entry (a button does not stretch to its container).
 
 `.callout__body` needs **no** entry: `calloutelement.html:7` renders it as
-`<div class="el el--text callout__body">`, and `.el--text` remains on the list. Adding a
-`.callout__body` selector would be a no-op — `courses/tests/test_callout_nesting_css.py:25` already
-records this in a comment.
+`<div class="el el--text callout__body">`, and `.el--text` remains on the list.
 
 ### Completeness obligation
 
-`.el--question` has only two children in every template (`.question__stem` and `.question__form`, or
-a no-form `{% else %}` branch), so auditing *children* proves nothing. The implementation must
-enumerate **every descendant of `.el--question` that establishes its own block box, walking through
-`.question__form`** — the bare `<fieldset>` wrappers (`choicegrid:7`, `multigrid`, `matchpair:33`,
-`dragfill:6`), `.question__choices`, `.question__feedback`, `.scroll-x` / `.dragimage__stage`, and
-both `input`/`textarea.question__text-input` — and show each is either capped or deliberately wide.
-`.question__form` is an **intentional pass-through**: it neither caps nor constrains.
+Auditing *children* of `.el--question` proves nothing: there are only one or two, and in the two
+fieldset types (`fillblankquestionelement.html:14-30`, `dragfillblankquestionelement.html:3-20`) the
+`{% if element %}` branch gives `.el--question` a **single** child, `.question__form`, with the stem
+being the fieldset *inside* it.
 
-The denominator is **ten** templates, all under `templates/courses/elements/`:
+The implementation must enumerate **every descendant of `.el--question` that establishes its own
+block box, walking through `.question__form`** — the bare `<fieldset>` wrappers (`choicegrid:7`,
+`multigrid`, `matchpair:33`, `dragfill:6`), `.question__choices`, `.question__feedback`,
+`.scroll-x` / `.dragimage__stage`, and both `input`/`textarea.question__text-input` — and show each is
+either capped or deliberately wide. `.question__form` is an **intentional pass-through**: it neither
+caps nor constrains.
+
+The denominator is **ten** templates under `templates/courses/elements/`:
 `choicegridquestionelement`, `choicequestion`, `dragfillblankquestionelement`,
 `dragtoimagequestionelement`, `extendedresponsequestionelement`, `fillblankquestionelement`,
 `matchpairquestionelement`, `multigridquestionelement`, `shortnumericquestionelement`,
@@ -214,17 +229,33 @@ The denominator is **ten** templates, all under `templates/courses/elements/`:
 
 `.el--text`; `.lesson-unit__title`; `.unit-crumbs` (`:849`); and the five gate wrappers `.markdone`,
 `.fillgate` (`app.css:1031`), `.stepper`, `.switchgate` (`app.css:1103`), `.guessnumber`
-(`app.css:1558`). Each gate wrapper either **declares margin only or has no root rule at all** —
-there is no `.markdone { … }` or `.stepper { … }` rule in either stylesheet. The conclusion holds
-(none paints a background at the root); the reason differs per selector. Per **S1** the `.markdone`
-row hover tint at `:2053-2054` is a sub-element tint and stays with its container.
+(`app.css:1558`). **No root rule in any state — base or `--done` — sets a background.** There is no
+`.markdone { … }` or `.stepper { … }` rule at all; the base rules that exist declare margin only; and
+the state modifiers `.fillgate--done` (`app.css:1095`), `.switchgate--done` (`:1204`) and
+`.guessnumber.guessnumber--done` (`:1653`) declare only `padding-left` plus a success `border-left`.
+Per **S1** the `.markdone` row hover tint at `:2053-2054` is a sub-element tint and stays with its
+container.
 
 ### Entry count
 
 13 before, 5 removed, 4 added → **12 after**. `tests/test_consumption_css.py:212` asserts
-`examined >= 17` (4 structural + one per allow-list entry); the correct value becomes **4 + 12 = 16**,
-so it **must be re-derived to `>= 16`**. Its comment already anticipates this ("re-derive this number
-only on a removal"). If R1's measurement changes the selector shape, re-derive again.
+`examined >= 17` (4 structural + one per allow-list entry); the correct value becomes **4 + 12 = 16**.
+If R1 resolves to B2, its separate rule (see R1) adds one scoped selector, making 17 — still above the
+floor. **The floor is `>=`, so it cannot catch this drift; the R2 exact-list assertion is what pins
+it, and that assertion may only be written after R1 has been measured** (see Implementation ordering).
+
+## Implementation ordering (load-bearing)
+
+**R1's measurement is the first implementation step.** Three of its outcomes change the expected
+selector list that R2's exact-count assertion hard-codes:
+
+- **B0** → drop `:not(.el--dragfill)`; the stem entry becomes bare `.question__stem`.
+- **B1** for fill-blank → add `:not(.el--fillblank)` to the stem entry.
+- **B2** → add a thirteenth scoped selector (the `min-inline-size` rule).
+
+Writing R2's assertion before measuring produces a test that must be rewritten and re-falsified.
+Sequence: **measure R1 → record the verdict and numbers in the plan → fix the selector list and entry
+count → write the R2 assertion and the tests.**
 
 ## Data flow
 
@@ -235,17 +266,12 @@ No runtime data flow; the flow is the cascade resolving a used width:
 2. Viewport ≥641px and medium `screen`? **Unchanged.**
 3. Inside `[data-unit-shell]`? This scoping keeps the rule off the teacher review page, which reuses
    `.unit-shell` but is not the student shell. **Unchanged.**
-4. Does the element match an allow-list selector? **The only step this change touches.** After:
-   tinted element roots and card chrome do not match (fill the column); prose and answer controls do
-   (736px), including prose nested inside a tinted block.
+4. Does the element match an allow-list selector? **The only step this change touches.**
 
 Prose containers are matched by **descendant** selectors, so `.el--text` or `.question__stem` nested
-at any depth still caps — which makes "prose caps wherever it lives" true without per-container
-entries.
+at any depth still caps.
 
 ## Error handling
-
-CSS has no error path; the failure modes are silent mis-rendering.
 
 ### R1 — fieldset stems: two shapes need measurement
 
@@ -254,47 +280,83 @@ Widget placement relative to `.question__stem`, across all ten templates:
 | Type | Wide widget | Position | Capping the stem |
 |---|---|---|---|
 | choicequestion | none (`.question__choices` is capped) | stem is a `<div>` (`:3`), sibling of `.question__form` | safe |
-| choicegrid | `.scroll-x` (`:9,24`) | inside a bare `<fieldset>` (`:7`) inside `.question__form` — a **nephew** of the stem, not a sibling | safe |
+| choicegrid | `.scroll-x` (`:9,24`) | inside a bare `<fieldset>` (`:7`) inside `.question__form` — a **nephew** of the stem | safe |
 | multigrid | `.scroll-x` (`:9,24`) | same nephew shape | safe |
 | dragimage | `.dragimage__stage` (`:8,31`) | sibling of stem (`:3`) | safe |
 | matchpair | pair widget | sibling of stem (`:3`) | safe |
 | shorttext / shortnumeric / extendedresponse | none | — | safe |
-| **fillblank** | inline `<input>`s in prose | `<fieldset class="question__stem">` (`:17`) | **must be measured** |
-| **dragfill** | **`.dnd__pool`** | inside the stem — `:13` (fieldset branch), `:22` (no-form branch) | **must be measured** |
+| **fillblank** | inline `<input>`s from `{% render_fill_blanks %}`, rendered directly into the stem | `<fieldset class="question__stem">` (`:17`) | **must be measured** |
+| **dragfill** | inline-block `<select>`s from `{% render_drag_selects %}`, plus `.dnd__pool` | `<fieldset class="question__stem">` (`:6`); pool at `:13` | **must be measured** |
 
 **Both fieldset stems are in scope.** Today the *card* is capped and the stem never has to shrink
 itself; after this change the stem receives the cap directly for the first time. A `<fieldset>`
 defaults to `min-inline-size: min-content`, which can refuse a `max-width` when a child has a large
-min-content contribution — the trap recorded in `fieldset-min-inline-size-defeats-scroll`. Drag-fill
-has `.dnd__pool` inside; fill-blank can have display math or a long unbreakable token. Neither inline
-`style` sets `min-inline-size` (`fillblank:18`, `dragfill:7` set border/padding/margin only).
+min-content contribution — the trap recorded in `fieldset-min-inline-size-defeats-scroll`. Neither
+inline `style` sets `min-inline-size` (`fillblank:18`, `dragfill:7` set border/padding/margin only).
 
-Two failure modes, **each with a different remedy** — which is why this is measured, not guessed:
+#### The overflow subject is the STEM, for both types
 
-| Branch | Symptom | Remedy |
+Not `.dnd__pool`. Two independent reasons, both verified:
+
+- **The pool ships hidden and empty.** `_dnd_pool.html` is
+  `<div class="dnd__pool" data-dnd-pool hidden></div>`, and `courses.css:476` is
+  `.dnd__pool[hidden] { display: none; }`. It is `dnd.js:70` (`pool.hidden = false`) that reveals and
+  fills it, guarded by an early return at `:46` when the block has no `select[name="slot"]` and by a
+  `data-dndReady` idempotence flag at `:43`.
+- **The pool wraps.** `courses.css:475` is
+  `.dnd__pool { display: flex; flex-wrap: wrap; gap: var(--space-2); … }`. A wrapping flex container
+  reflows into more rows instead of overflowing, so `scrollWidth > clientWidth` is false at any width
+  unless a single chip exceeds the pool. The pool is therefore a **row-count-only** signal, never an
+  overflow signal.
+
+The stem, by contrast, holds the inline-block `<select>`s (drag-fill) and inline `<input>`s
+(fill-blank) that `courses.css:22-26` calls out by name, and under the default `overflow: visible` its
+`scrollWidth` still reflects overflowing inline content.
+
+#### Measurement procedure
+
+Run in a **JS-enabled e2e context** at 1280×900, collapsed, on seeded drag-fill **and** fill-blank
+questions. The fill-blank fixture must contain **a long unbreakable token or display math**, or
+criterion (b) cannot fire at all and the measurement is uninformative.
+
+**Synchronise before reading.** For drag-fill, wait for the pool to be live —
+`.el--dragfill [data-dnd-pool]:not([hidden])` present, and `.dnd__chip` count > 0. Reading before
+`enhance()` runs returns `clientWidth === 0` / `scrollWidth === 0`.
+
+**Invalidity rule:** a recorded pool `clientWidth` of 0, or a pool still carrying `[hidden]`, means
+**the measurement did not happen**. It must be re-run. It must never be recorded as B0 — that is
+exactly the silent-zero path that would fabricate a "no harm" verdict on the branch this section
+exists to decide.
+
+Record, per type, in the plan:
+
+- `.question__stem` `getBoundingClientRect().width`
+- `.question__stem` `scrollWidth` and `clientWidth`
+- drag-fill only: `.dnd__pool` rendered row count and `clientWidth` (the latter solely as the
+  validity check above)
+
+#### Verdict
+
+| Branch | Criterion | Remedy |
 |---|---|---|
-| **B1** — widget squeezed | stem caps at 736, but the widget overflows horizontally | keep `:not(.el--dragfill)` (and add `:not(.el--fillblank)` if it applies) |
-| **B2** — cap does not bind | the `min-inline-size: min-content` floor wins; stem stays 872 | add `min-inline-size: 0` to the stem, then re-measure |
-| **B0** — neither | stem caps at 736, widget reflows without overflow | drop the `:not()`; no change needed |
+| **B2** — cap does not bind | stem width > 738 | add `min-inline-size: 0` to that stem, then re-measure |
+| **B1** — content overflows | stem `scrollWidth > clientWidth + 1` | keep/add the `:not()` carve-out for that type |
+| **B0** — healthy | neither | drop the `:not(.el--dragfill)`; no carve-out needed |
 
-B2's remedy is **not** a `:not()` exclusion — if the cap already fails to bind, excluding the element
-from it changes nothing.
+Row-count growth alone is **not** harm. B2's remedy is **not** a `:not()` exclusion — if the cap
+already fails to bind, excluding the element from it changes nothing.
+
+**B2 placement.** The `min-inline-size: 0` declaration must be a **separate rule with its own
+single-selector prelude, placed outside the `/* prose-cap:begin|end */` sentinels** — never added to
+the cap rule's shared declaration block, which would apply it to `.el--text`,
+`.lesson-unit__title`, `.unit-crumbs` and the five gate wrappers as well. It raises `examined` by one
+(to 17), which the `>=` floor tolerates, so only R2's exact-list assertion catches its absence.
 
 **Correct carve-out selector.** If a type must be excluded, the working form is
 `html.unit-tree-collapsed [data-unit-shell] .el--question:not(.el--dragfill) .question__stem`.
 `.el--dragfill` sits on the element **root** (`dragfillblankquestionelement.html:2`), never on the
 stem, so `.question__stem:not(.el--dragfill)` would match **every** stem including drag-fill's — a
-silent no-op that would look like the risk had been addressed. The spec's default is to ship the
-`:not(.el--dragfill)` form and remove it only if B0 is measured.
-
-**Mechanical definition of harm** (so two implementers reach the same verdict). At 1280×900
-collapsed, on seeded drag-fill **and** fill-blank questions, record and put in the plan:
-
-- `.question__stem` `getBoundingClientRect().width`
-- for drag-fill, `.dnd__pool` `scrollWidth` and `clientWidth`, and the pool's rendered row count
-
-**Harm** is exactly: (a) stem width > 738 → **B2**; or (b) `scrollWidth > clientWidth` → **B1**.
-Row-count growth alone is **not** harm.
+silent no-op that would look like the risk had been addressed.
 
 ### R2 — the change is invisible in the expanded state
 
@@ -306,96 +368,101 @@ and `continue`s on any lacking `html.unit-tree-collapsed` — a lifted rule is *
 Only the `examined >= 17` floor catches a lift, incidentally, via the count dropping; and being `>=`,
 lifting one selector while adding two scoped ones still passes.
 
-**Required:** a positive assertion that the cap block's prelude contains **exactly** the expected 12
-selectors, each containing both `html.unit-tree-collapsed` and `[data-unit-shell]`.
+**Required:** a positive assertion that the cap block's prelude contains **exactly** the expected
+selector list (12, or 13 under B2), each containing both `html.unit-tree-collapsed` and
+`[data-unit-shell]`. Write it only after R1 is measured (see Implementation ordering).
 
 **Locating the block.** `courses.css` has many `@media screen and (min-width: 641px)` blocks and many
 rules containing `html.unit-tree-collapsed`, and the line numbers cited here shift the moment the
 block is edited. The implementation must **add sentinel comments** `/* prose-cap:begin */` and
-`/* prose-cap:end */` around the rule and extract between them. Naming the anchor in the source is
-what makes the assertion reproducible rather than two implementers writing two fragile extractors.
-Note the extractor must run on the **un-stripped** source to see the sentinels, or strip comments only
-after slicing.
+`/* prose-cap:end */` around the rule and extract between them. The extractor must run on the
+**un-stripped** source to see the sentinels, or strip comments only after slicing.
 
 ### R3 — a widened tinted box with short content
 
 A text-only callout now paints tint across 872px while its body text stops at 736px, leaving **136px**
 of empty tint on the right (right only — capped elements are left-aligned). **Accepted, not a
-defect** — the user chose it explicitly over letting text fill the box. Recorded so a later reviewer
-does not "fix" it.
+defect** — the user chose it explicitly over letting text fill the box.
 
 ## Testing
 
 **Every new or changed assertion must be falsified against a named mutant**, and a CSS claim needs an
-**A/B** — a measurement taken with the rule present proves nothing
-(`css-confirmation-needs-an-ab-not-a-measurement`).
+**A/B** (`css-confirmation-needs-an-ab-not-a-measurement`).
 
-**Viewports.** Tests 1-8 run at **1280×900**, matching `test_e2e_callout_container.py` (whose
-docstring explains why 641px is too narrow: the collapsed box there is ~555px, below the cap, so it
-never binds). The existing `test_e2e_unit_nav.py` tests **stay at 1440×900** — not because the
-geometry differs (it is identical; `.app-main` caps both at 960) but to keep the diff to the
-assertions being changed. A shared width helper is therefore safe across both.
+**Viewports.** Tests run at **1280×900**, matching `test_e2e_callout_container.py`. The existing
+`test_e2e_unit_nav.py` tests **stay at 1440×900** — not because the geometry differs (it is identical;
+`.app-main` caps both at 960) but to keep the diff to the assertions being changed.
+
+**Constant discipline.** Assertions carry their weight on the **736 token** (`abs(w - 736) < 2`) and
+on **directional** comparisons. Threshold constants with tens of pixels of slack (`- 100`, `+ 50`) are
+banned as primary assertions: at the real geometry they leave 36-44px of headroom and flip red on
+correct code if `.app-main` or any padding ever narrows.
 
 ### Tests that must change
 
-1. **`courses/tests/test_callout_nesting_css.py:22`**. Its first assertion — that
-   `.callout:not(:has(> .callout__children))` **exists** — inverts: the extracted cap block must
-   contain **no `.callout` selector in any form**. Its second assertion (`:30`) is
-   `re.search(r"unit-tree-collapsed[^{]*\]\s+\.callout\s*,")`, which requires a **trailing comma** —
-   a `.callout` re-added as the *last* selector in the prelude is followed by `{` and escapes it.
-   Fold it into the inverted first assertion, or widen its terminator to `[,{]`. Rename the test.
+1. **`courses/tests/test_callout_nesting_css.py`** — `:22` is the test *name* to rename; `:29` is the
+   first assertion, `:30` the second. The `:29` assertion (that
+   `.callout:not(:has(> .callout__children))` exists) inverts: the extracted cap block must contain no
+   `.callout` selector. Assert it with a **token-boundary regex** —
+   `re.search(r"\.callout(?![\w-])", block) is None` — so `.callout__body` / `.callout__children` /
+   `.callout__heading` do not false-positive. The `:30` assertion requires a **trailing comma**
+   (`\.callout\s*,`), so a `.callout` re-added as the *last* prelude selector escapes it; fold it into
+   the inverted assertion or widen its terminator to `[,{]`.
 
 2. **`tests/test_e2e_callout_container.py:147-150`**. Currently asserts a prose-only callout is 736px.
-   Rewrite to assert the two callout widths are **equal AND both exceed 736px**. Equality alone passes
-   when *both* are capped — the squeezed-table regression this test exists to prevent.
+   Rewrite to assert the two callout widths are **equal AND both exceed 736px** — equality alone
+   passes when *both* are capped, the squeezed-table regression this test exists to prevent. Its
+   **docstring at `:117-121` must also be corrected**: it states the column as
+   "min(viewport, 72rem) - 2.4rem - 3rem", the exact pre-`.app-main` formula this spec supersedes,
+   which yields 1065.6px at the 1280px viewport the test actually uses.
 
 3. **`tests/test_e2e_unit_nav.py:1376-1398`**, `test_quiz_chrome_is_capped_across_both_page_states`.
    Four assertions go red: both loops assert `w <= 736 + 2`, and `.el--question`,
    `[data-quiz-preview-notice]` and `.quiz-finish` all leave the cap. Rewrite so
-   `.lesson-unit__title` still asserts `<= 738` while the other three equal the column (via the
-   Reading recipe). **Preserve the test's stated purpose** — proving those selectors exist at all, so
-   their deletion cannot ship green. Keep the `locator(...).count()` assertions untouched.
+   `.lesson-unit__title` still asserts `<= 738` while the other three equal the column.
+   **The rewrite must not become state-blind.** In the expanded state the column is 648: the title
+   passes `<= 738` and the other three equal the recipe's own reading of 648, so every rewritten
+   assertion would pass in the wrong TOC state. Keep an explicit, non-width-derived collapsed-state
+   check (assert `document.documentElement.classList.contains('unit-tree-collapsed')`, or assert
+   `getComputedStyle(el).maxWidth === 'none'` alongside each equality). Re-derive the docstring at
+   `:1382-1387`, whose rationale becomes stale. Keep the `locator(...).count()` existence assertions
+   untouched — the docstring states they are the only thing stopping a deletion shipping green.
 
 4. **`tests/test_consumption_css.py`** changes in exactly three ways: the `>= 17` floor becomes
-   `>= 16`; the positive 12-selector assertion of R2 is added; and the docstring at `:157-167` is
-   re-derived — it currently says "the **thirteen** capped selectors" and "four of the **thirteen**
-   entries", and after this change the count is twelve with three of those four behaviourally-covered
-   entries leaving the cap. Nothing else in it may be weakened.
+   `>= 16`; the R2 exact-list assertion is added; and the docstring at `:157-167` is re-derived — it
+   says "the **thirteen** capped selectors" and "four of the **thirteen** entries", and after this
+   change the count is twelve with three of those four leaving the cap. Nothing else may be weakened.
 
 ### Tests to add
 
 5. **Card-width agreement (e2e):** on one seeded unit, a plain question card, a `choicegrid` card, a
    text-only callout and a container callout all have equal width; and on the quiz page,
    `[data-quiz-preview-notice]` equals the question-card width (needs the owner-not-enrolled load —
-   see `test_quiz_chrome_is_capped_across_both_page_states`'s docstring). Compare pairwise, or against
-   the Reading recipe — never a derived constant.
+   see `test_quiz_chrome_is_capped_across_both_page_states`'s docstring). Compare pairwise or against
+   the Reading recipe.
 
 6. **Prose-inside-a-box (e2e):** `.callout__body` and `.question__stem` measure 736px inside their
-   widened boxes. **Mandate `abs(width - 736) < 2`.** Do *not* use `prose_width < box_width - 100` as
-   the primary assertion: at the real geometry the correct build gives 736 inside 872, only 36px of
-   slack, so any future narrowing of `.app-main` or the padding flips it red on correct code. A
-   difference form may be added as a supplementary check only. Do **not** assert merely "narrower than
-   its own box" — `.callout` and `.el--question` both have padding, so a child is *always* narrower,
-   cap or no cap, and the assertion cannot fail.
+   widened boxes. **Assert `abs(width - 736) < 2`.** Do not assert merely "narrower than its own box"
+   — both containers have padding, so a child is *always* narrower, cap or no cap, and the assertion
+   cannot fail.
 
-7. **Expanded state (e2e):** the expanded column is 648px, **below** the 736px cap, so a lifted rule
-   changes no measured width and a width-based test would pass on its own mutant. Assert
-   **computed style** instead: in the expanded state,
-   `getComputedStyle(el).maxWidth === 'none'` for the callout and both question cards. That is what
-   the mutant reddens.
+7. **Expanded state (e2e):** the expanded column is 648px, **below** the cap, so a lifted rule changes
+   no measured width and a width-based test passes on its own mutant. Assert **computed style**:
+   `getComputedStyle(el).maxWidth === 'none'` for the callout and both question cards.
 
-8. **Grid-type stems narrow (e2e):** the five grid types are excluded from the cap today, so their
-   stems fill the column; adding `.question__stem` narrows them to 736px. Intended under S1 + the
-   user's "prose stays readable" choice, but a behaviour change to types the Purpose section does not
-   mention, so pin it. Assert `abs(stem_width - 736) < 2` **and** `scroll_x_width > stem_width + 50`.
-   Do not describe `.scroll-x` as a sibling (it is a nephew) and do not expect it to equal the column
-   — it sits inside the card, so its width is the card's inner box. The fixture **must set a
-   non-empty `stem`**: `choicegridquestionelement.html:3` is `{% if el.stem %}`, so a stemless fixture
-   renders no `.question__stem` and the locator silently resolves elsewhere. Scope it
-   `.el--choicegrid .question__stem`.
+8. **Grid-type stems narrow (e2e):** the five grid types are excluded today, so their stems fill the
+   **card's inner box** (~830px — the column less the card's padding and borders, *not* 872); adding
+   `.question__stem` narrows them to 736px. Intended under S1 + the user's "prose stays readable"
+   choice, but a behaviour change to types the Purpose section does not mention, so pin it. Assert
+   `abs(stem_width - 736) < 2` — that half carries the weight — plus the directional
+   `scroll_x_width > stem_width + 2`. `.scroll-x` is a **nephew**, not a sibling, and does not equal
+   the column. The fixture **must set a non-empty `stem`**: `choicegridquestionelement.html:3` is
+   `{% if el.stem %}`, so a stemless fixture renders no `.question__stem` and the locator silently
+   resolves elsewhere. Scope it `.el--choicegrid .question__stem`.
 
 9. **Fieldset stems (e2e), per R1:** pin whichever branch measurement selects, for **both** drag-fill
-   and fill-blank, and record the measured numbers in the plan.
+   and fill-blank, and record the measured numbers in the plan. All three branches have defined
+   assertions — see the falsification table.
 
 ### Falsification
 
@@ -403,22 +470,22 @@ Each test shown RED against a named mutant, **run**, not merely cited (`falsify-
 
 | Test | Mutant |
 |---|---|
-| 1 | re-add `.callout:not(:has(> .callout__children))` |
+| 1 | re-add `.callout:not(:has(> .callout__children))`; separately, add `.callout__body` to confirm the token boundary does **not** redden |
 | 2 | re-add the callout entry (boxes diverge); and separately cap *both* callouts, to prove the `> 736` half fails too |
-| 3 | re-add `[data-quiz-preview-notice]` and `.quiz-finish` |
+| 3 | re-add `[data-quiz-preview-notice]` and `.quiz-finish`; and separately drop the collapsed-state guard and run expanded, to prove the state check still bites |
 | 4 | remove one selector from the block (count assertion); unscope one selector (positive assertion) |
 | 5 | re-add the `:not(.el--choicegrid)` exclusion |
 | 6 | delete the `.question__stem` entry (prose stretches to fill) |
 | 7 | write the new rule without the `html.unit-tree-collapsed` prefix |
 | 8 | delete the `.question__stem` entry |
-| 9 (B1) | remove the `:not()` carve-out — widget overflows |
-| 9 (B2) | remove `min-inline-size: 0` — stem stays wide despite the cap |
+| 9 (B0) | assert `abs(stem_width - 736) < 2` and `scrollWidth <= clientWidth + 1`; mutant = re-add the `:not(.el--dragfill)` carve-out, returning the stem to the card's inner box |
+| 9 (B1) | remove the `:not()` carve-out — the widget overflows |
+| 9 (B2) | remove `min-inline-size: 0` — the stem stays wide despite the cap |
 
 Note the trap from this file's own history: an assertion pinned to a bare class name can be satisfied
 by `lesson_unit.html`'s inline pre-hide `<style>`, which emits `.callout__children` as a literal in
-the page `<head>`. Source-scan assertions must be pinned to the attribute form
-(`'class="callout__children"'`), and CSS-block assertions must **extract the block before scanning**
-(now via the R2 sentinels).
+the page `<head>`. Source-scan assertions must be pinned to the attribute form, and CSS-block
+assertions must **extract the block before scanning** (via the R2 sentinels).
 
 ### Regression scope
 
@@ -431,7 +498,7 @@ the page `<head>`. Source-scan assertions must be pinned to the attribute form
 Screenshot the collapsed student unit page in **light and dark**, judged separately
 (`verify-ui-with-screenshots`), showing a text-only callout, a container callout, a plain question
 card and a grid question card together; a quiz page showing the `.quiz-finish` separator against the
-card edges; and **a long lesson title**, to see the I6 re-wrap. Dark mode is what catches a tinted box
+card edges; and **a long lesson title**, to see the re-wrap. Dark mode is what catches a tinted box
 whose widened area reads as a different surface.
 
 ### Test-run mechanics
@@ -439,6 +506,6 @@ whose widened area reads as a different surface.
 Start the test-DB container **before** any pytest run, or the suite looks hung for ~4m21s. Tooling is
 behind `uv run` (`ruff`, `pytest`, `python` are not on PATH); e2e needs `-m e2e` or it silently
 deselects (exit 5, which is **not** a pass); use `--verbosity=0`, never a second `-q`. Run narrowly
-scoped; a whole-repo sweep is a branch gate, not a task step. Two other pipeline worktrees exist on
-this machine — never run two pytest sessions at once, they contend for the same test database. A
-worktree has no `.env`, so database settings must be passed explicitly.
+scoped. Two other pipeline worktrees exist on this machine — never run two pytest sessions at once,
+they contend for the same test database. A worktree has no `.env`, so database settings must be
+passed explicitly.
