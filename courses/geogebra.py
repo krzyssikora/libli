@@ -19,6 +19,7 @@ import logging
 import re
 import urllib.error
 import urllib.request
+from time import monotonic
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -45,13 +46,21 @@ logger = logging.getLogger(__name__)
 _API_PREFIX = "https://api.geogebra.org/"
 # A module constant rather than a setting, matching the pattern of
 # integrations/delivery.py :: TIMEOUT_SECONDS = 10. This bounds urllib's SOCKET
-# ops -- connect() and each individual read(), not the total call -- so a peer
-# dribbling bytes slowly can hold the wall clock (and, since this call sits
-# inside save_element's row lock, the unit row + worker) well past 3s. Accepted:
-# hardcoded host, _NoRedirect, and delivery.py already carries this same shape
-# at 10s. The measured 3.29s timeout (blackholed address) validated only the
-# connect leg; a blackholed SYN never reaches the read stage.
+# ops -- connect() and each individual read() -- NOT the total call. That is why
+# it is no longer sufficient on its own: the total call is bounded separately,
+# by _DEADLINE_SECONDS. Measured: a peer dribbling one byte per second held a
+# single read for 16.18s against this 3s timeout.
 _TIMEOUT_SECONDS = 3
+# Total bound on the lookup. Deliberately LARGER than a single socket op so a
+# failure in the FIRST op still surfaces as itself -- the blackhole/connect path
+# times out at a measured ~3.29s and must keep reporting "lookup failed (timeout)"
+# rather than racing this deadline.
+_DEADLINE_SECONDS = 5
+# Chunk size for the body read. Larger chunks mean fewer syscalls but coarser
+# budget-check granularity; the loop may overshoot the cap by up to one chunk
+# (peak buffer _MAX_BODY_BYTES + _CHUNK_BYTES = 73,728 bytes). Need not divide
+# _MAX_BODY_BYTES.
+_CHUNK_BYTES = 8192
 _MAX_BODY_BYTES = 65536  # ~55x the measured 1,177-byte ws response
 _NEGATIVE_TTL_SECONDS = 60
 _USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"
@@ -253,6 +262,35 @@ def _open(request, timeout):
     return urllib.request.build_opener(_NoRedirect).open(request, timeout=timeout)
 
 
+class _BudgetExceeded(Exception):
+    """The worker's own read budget ran out. Never escapes to clean_url."""
+
+
+def _fetch_body(request, deadline):  # deadline: a monotonic() instant
+    """Read the response body in chunks, abandoning it when the budget expires.
+
+    read1, NOT read: HTTPResponse.read(n) delegates to a BufferedReader that loops
+    over recv until it has n bytes or hits EOF, so each individual recv returns
+    inside _TIMEOUT_SECONDS and the timeout never fires. Measured against a peer
+    dripping one byte per 50ms: read(8192) blocked 10.13s for the whole body,
+    read1(8192) returned in 0.05s on the first available bytes. With read, this
+    loop would not bound anything -- it would only divide the unbounded wait by
+    _MAX_BODY_BYTES / _CHUNK_BYTES.
+    """
+    with _open(request, timeout=_TIMEOUT_SECONDS) as response:
+        chunks, total = [], 0
+        # loop past the cap so oversize stays detectable
+        while total <= _MAX_BODY_BYTES:
+            if monotonic() >= deadline:
+                raise _BudgetExceeded
+            chunk = response.read1(_CHUNK_BYTES)
+            if not chunk:  # EOF
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+    return b"".join(chunks)
+
+
 def _settings_dimensions(node):
     """(W, H) from a node's `settings` block when usable, else (None, None).
 
@@ -370,8 +408,9 @@ def fetch_geogebra_dimensions(material_id):
         request = urllib.request.Request(  # noqa: S310
             url, headers={"User-Agent": _USER_AGENT}
         )
-        with _open(request, timeout=_TIMEOUT_SECONDS) as response:
-            body = response.read(_MAX_BODY_BYTES + 1)  # +1 so oversize is detectable
+        budget = _DEADLINE_SECONDS
+        deadline = monotonic() + budget
+        body = _fetch_body(request, deadline)
     except urllib.error.HTTPError as exc:
         # A 4xx/5xx raises from INSIDE _open, so the `with` above is never entered and
         # the error's own fp is never closed — close it explicitly or the 400 test

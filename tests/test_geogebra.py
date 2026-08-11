@@ -1,3 +1,4 @@
+import itertools
 import json
 import pathlib
 import ssl
@@ -488,3 +489,38 @@ def test_no_redirect_handler_refuses_redirects():
 
     with pytest.raises(urllib.error.HTTPError):
         _NoRedirect().redirect_request(_Req(), None, 302, "Found", {}, "http://evil")
+
+
+def test_fetch_body_refuses_to_read_once_the_budget_is_spent():
+    # 5a: the budget is checked BEFORE each read, not only after data arrives.
+    from courses.geogebra import _BudgetExceeded
+    from courses.geogebra import _fetch_body
+    from courses.geogebra import monotonic
+
+    resp = _Resp(b"x" * 100)
+    with patch("courses.geogebra._open", return_value=resp):
+        with pytest.raises(_BudgetExceeded):
+            _fetch_body(object(), monotonic() - 1)
+    assert resp.calls == 0
+
+
+def test_fetch_body_rechecks_the_budget_on_every_iteration(monkeypatch):
+    # 5b: the check is INSIDE the loop. A fake clock, not sleep, so this is exact.
+    # itertools.count never exhausts: a finite scripted list would hard-code how
+    # many times the implementation calls monotonic() and would StopIteration out
+    # of a legal variant, failing a correct build for an unrelated reason.
+    from courses.geogebra import _CHUNK_BYTES
+    from courses.geogebra import _BudgetExceeded
+    from courses.geogebra import _fetch_body
+
+    clock = itertools.count(start=0.0, step=1.0)
+    monkeypatch.setattr("courses.geogebra.monotonic", lambda: next(clock))
+
+    # 3 chunks' worth, so reads 1 and 2 do NOT hit EOF and the loop is still
+    # running when the third budget check trips.
+    resp = _Resp(b"x" * (3 * _CHUNK_BYTES))
+    with patch("courses.geogebra._open", return_value=resp):
+        with pytest.raises(_BudgetExceeded):
+            # ticks: check1 -> 0.0 (ok), check2 -> 1.0 (ok), check3 -> 2.0 (trips)
+            _fetch_body(object(), 2.0)
+    assert resp.calls == 2
