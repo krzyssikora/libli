@@ -37,10 +37,36 @@ def render_element(
     locked=False,
     attempts_left=None,
     feedback_html="",
+    editor_preview=None,
 ):
     obj = element.content_object
     if obj is None:
         return ""
+    # Page-level values a nested child needs. Six explicit statements, one per key
+    # of the `page` dict below, so every name stays greppable. At TOP LEVEL these
+    # are no-ops: _lesson_article.html passes exactly the page-context values the
+    # fallback would read, so that render stays bit-identical.
+    if feedback_for_pk is None:
+        feedback_for_pk = context.get("feedback_for_pk")
+    # `selected_ids` alone resolves by TRUTHINESS, not `is None`: its parameter
+    # default is frozenset(), so `is None` could never fire, and an empty
+    # selection renders identically to an unset one. See spec section 4.
+    if not selected_ids:
+        selected_ids = context.get("selected_ids") or frozenset()
+    if submitted_values is None:
+        submitted_values = context.get("submitted_values")
+    if mark_result is None:
+        mark_result = context.get("mark_result")
+    # `None`, NOT `False`: a False default can never satisfy `is None`, which would
+    # make this fallback dead code and silently no-op the editor-preview fix.
+    #
+    # NOT the same thing as `previewing` (views.py:1394), which means "a
+    # NON-ENROLLED STUDENT is viewing this quiz" -- the opposite audience. This one
+    # routes forms at a MANAGE-GATED endpoint and must never be set for a student.
+    if editor_preview is None:
+        editor_preview = bool(context.get("editor_preview"))
+    # Context-only, never a tag argument -- page-level by nature (Task 2).
+    feedback_ancestor_pks = context.get("feedback_ancestor_pks") or frozenset()
     if isinstance(obj, HtmlElement):
         pref = context.get("theme_pref")
         theme = context.get("data_theme") if pref in ("light", "dark") else None
@@ -83,6 +109,23 @@ def render_element(
                     submitted_values = r_submitted
                     mark_result = r_result
                     feedback_for_pk = element.pk
+        # No `element is not None` conjunct: `element` is a required positional and
+        # line 42 already dereferences it, so that check can never be False -- a
+        # condition that cannot fail, the pattern this repo's reviews strip out
+        # (same call made for the loader guard in Task 7).
+        if action_url is None and editor_preview:
+            # A NESTED question in the editor preview: reverse the try URL for ITS
+            # OWN pk. _preview.html passes action_url only to TOP-LEVEL elements and
+            # the container render() drops it at the barrier, so without this the
+            # render falls through to QuestionElement.render's default -- the STUDENT
+            # courses:check_answer URL, which persists practice state against the
+            # AUTHOR's own account. Forwarding the parent's action_url instead would
+            # post the child's answer to the PARENT's endpoint; the flag crosses the
+            # barrier, the URL does not.
+            action_url = reverse(
+                "courses:manage_element_try",
+                kwargs={"slug": element.unit.course.slug, "pk": element.pk},
+            )
         return mark_safe(  # noqa: S308 — templates escape user text; correctness never leaks
             obj.render(
                 element=element,
@@ -99,12 +142,34 @@ def render_element(
                 feedback_html=feedback_html,
             )
         )
+    # Function-local import, matching builder's own transfer-import convention:
+    # a module-level import risks a cycle.
+    from courses.builder import CONTAINER_MODELS
+
+    extra = {}
+    if type(obj) in CONTAINER_MODELS:
+        # ONLY containers accept `page`. This branch is reached by every
+        # non-question, non-HtmlElement type -- eight of the thirteen render()
+        # signatures are leaves and would TypeError on an unconditional `page=`.
+        extra["page"] = {
+            "feedback_for_pk": feedback_for_pk,
+            "selected_ids": selected_ids,
+            # `or None` on both: an unresolvable template variable arrives as ''
+            # (the quiz page's `st.mark_result` for a container row), and
+            # ChoiceQuestionElement.choice_marks does `set(mark_result.reveal or ())`
+            # before its per-choice mode branch -- ''.reveal is an AttributeError.
+            "submitted_values": submitted_values or None,
+            "mark_result": mark_result or None,
+            "editor_preview": editor_preview,
+            "feedback_ancestor_pks": feedback_ancestor_pks,
+        }
     return mark_safe(  # noqa: S308 — each element template escapes its own fields
         obj.render(
             element=element,
             state=context.get("element_state"),
             slug=context.get("slug"),
             node_pk=context.get("node_pk"),
+            **extra,
         )
     )
 

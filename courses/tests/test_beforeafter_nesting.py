@@ -6,6 +6,7 @@ from courses.models import BeforeAfterElement
 from courses.models import Element
 from courses.models import TabsElement
 from tests.factories import make_course_with_unit
+from tests.factories import make_quiz_unit
 
 
 def _ba(unit, parent=None, tab=""):
@@ -49,16 +50,64 @@ def test_before_after_nests_inside_another_container():
 
 
 @pytest.mark.django_db
-def test_a_graded_question_is_still_refused_as_a_child():
-    """The allowlist is reused unchanged; `choice` must stay out.
+def test_a_graded_question_is_accepted_as_a_child_of_a_lesson_before_after():
+    """Was `test_a_graded_question_is_still_refused_as_a_child`, whose docstring
+    named this very change as its mutant: "add "choice" to NESTABLE_TYPE_KEYS ->
+    accepted". The refusal is now conditional on unit.unit_type, and
+    make_course_with_unit() builds a LESSON. The quiz-refusal companion lands with
+    the resolve_scope clause that makes it pass, not here.
 
-    Mutant: add "choice" to NESTABLE_TYPE_KEYS -> accepted.
+    Mutant: drop "choice" from NESTABLE_TYPE_KEYS -> NestingError.
     """
+    _course, unit = make_course_with_unit()
+    join = _ba(unit)
+    parent, tab = builder.resolve_scope(
+        unit, str(join.pk), BeforeAfterElement.BEFORE_SLOT_ID, "choice"
+    )
+    assert parent == join
+    assert tab == BeforeAfterElement.BEFORE_SLOT_ID
+
+
+@pytest.mark.django_db
+def test_a_graded_question_is_refused_as_a_child_of_a_QUIZ_before_after():
+    """The quiz-refusal companion the acceptance test above deferred.
+
+    Same call, same slot, same type key -- only `unit.unit_type` differs, so this
+    isolates resolve_scope's lesson-only clause from the allowlist widening.
+    """
+    course, _lesson = make_course_with_unit()
+    quiz = make_quiz_unit(course=course)
+    join = _ba(quiz)
+    with pytest.raises(NestingError):
+        builder.resolve_scope(
+            quiz, str(join.pk), BeforeAfterElement.BEFORE_SLOT_ID, "choice"
+        )
+
+
+@pytest.mark.django_db
+def test_a_non_question_child_is_still_accepted_in_a_QUIZ_before_after():
+    """The clause is keyed on NESTABLE_QUESTION_KEYS, not on "nested in a quiz".
+    Without this the refusal above passes just as well if a quiz refused every
+    nested child."""
+    course, _lesson = make_course_with_unit()
+    quiz = make_quiz_unit(course=course)
+    join = _ba(quiz)
+    parent, tab = builder.resolve_scope(
+        quiz, str(join.pk), BeforeAfterElement.BEFORE_SLOT_ID, "text"
+    )
+    assert parent == join
+    assert tab == BeforeAfterElement.BEFORE_SLOT_ID
+
+
+@pytest.mark.django_db
+def test_a_non_widened_question_type_is_still_refused_as_a_child():
+    """The widening is THREE keys plus the pre-existing fill_blank, not "questions".
+    extended_response stays top-level-only, so the allowlist still has teeth."""
     _course, unit = make_course_with_unit()
     join = _ba(unit)
     with pytest.raises(NestingError):
         builder.resolve_scope(
-            unit, str(join.pk), BeforeAfterElement.BEFORE_SLOT_ID, "choice"
+            unit, str(join.pk), BeforeAfterElement.BEFORE_SLOT_ID, "extended_response"
         )
 
 

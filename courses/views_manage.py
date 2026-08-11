@@ -1561,6 +1561,9 @@ PASTE_REFUSAL_MESSAGES = {
     "not_a_container": gettext_lazy("That destination is not a container."),
     "unknown_slot": gettext_lazy("That slot no longer exists."),
     "type_not_nestable": gettext_lazy("This type cannot be placed inside a container."),
+    "question_in_quiz": gettext_lazy(
+        "Questions can only be placed inside a container in a lesson unit."
+    ),
     "too_deep": gettext_lazy("This element is too deep to fit there."),
     "own_slot": gettext_lazy("It is already there."),
     "parent_gone": gettext_lazy("The destination was removed while you were working."),
@@ -2176,9 +2179,12 @@ def element_add(request, slug):
     # rather than at save. resolve_scope raises NestingError on any violation.
     # Note: "slidebreak" isn't in this allow-tuple at all, so a nested slidebreak 400s
     # at the "bad type" check above, before resolve_scope ever runs -- it does NOT
-    # exercise the nesting gate. "choicequestion" is the case here that reliably
-    # reaches resolve_scope and proves nesting is blocked: it is not in
+    # exercise the nesting gate. "extendedresponsequestion" is the case here that
+    # reliably reaches resolve_scope and proves nesting is blocked: it is not in
     # NESTABLE_TYPE_KEYS, so clause 1 rejects it as a nested child at any depth.
+    # "choicequestion" NO LONGER serves that purpose -- `choice` joined
+    # NESTABLE_TYPE_KEYS, and the type_key collapse above is why builder's alias is
+    # keyed on "choicequestion" rather than on the two card names.
     # "tabs" also reaches resolve_scope, but as a nestable container (depth-3 slice)
     # it is accepted or rejected depending on depth -- clauses 3/4 -- not a fixed
     # block.
@@ -2369,6 +2375,16 @@ def element_try(request, slug, pk):
                     selected_ids=selected,
                     mark_result=result,
                     feedback_for_pk=el.pk,
+                    # DEFENCE IN DEPTH ONLY -- this fixes nothing observable. editor.js
+                    # reads the action off the LIVE form node and swaps only innerHTML,
+                    # so this attribute is discarded before it can route anything. Kept
+                    # because a manage-gated fragment should not ship a STUDENT endpoint
+                    # in its markup at all. `el` is already fetched with
+                    # select_related("unit__course"), so the slug costs no query.
+                    action_url=reverse(
+                        "courses:manage_element_try",
+                        kwargs={"slug": el.unit.course.slug, "pk": el.pk},
+                    ),
                 )
             )
         return render(

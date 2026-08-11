@@ -12,8 +12,20 @@
           fetch with the CSRF header — the form's own csrf token is empty here
           (rendered without a request), exactly as on student pages (see question.js).
         {% endcomment %}
+        {% comment %}
+          `editor_preview` is NOT `previewing` (views.py::build_quiz_context), which
+          means "a NON-ENROLLED STUDENT is viewing this quiz" -- the opposite
+          audience, and one that must never route forms at a manage-gated endpoint.
+          This flag says "an AUTHOR is looking at their own editor preview", and it
+          exists because `action_url` above reaches TOP-LEVEL elements only: a
+          container's render() is a context barrier, so a NESTED question would fall
+          back to the student check_answer URL. Forwarding `action_url` itself would
+          be worse than the bug -- try_url is reversed against the PARENT's pk, so the
+          child's answer would post to the parent's endpoint. The flag crosses the
+          barrier; render_element reverses the child's OWN try URL on the far side.
+        {% endcomment %}
         {% url 'courses:manage_element_try' slug=unit.course.slug pk=el.pk as try_url %}
-        <section class="prev-el" data-element-id="{{ el.pk }}">{% render_element el action_url=try_url %}</section>
+        <section class="prev-el" data-element-id="{{ el.pk }}">{% render_element el action_url=try_url editor_preview=True %}</section>
       {% empty %}
         <p class="empty-state">{% trans "Nothing to preview yet." %}</p>
       {% endfor %}

@@ -2,11 +2,13 @@
 
 from dataclasses import dataclass
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from courses import ordering
 from courses.models import BeforeAfterElement
@@ -82,10 +84,10 @@ COURSE_SCOPED_TYPE_KEYS = ("image", "video", "gallery", "filltable", "table")
 # Members are TRANSFER keys (courses.transfer.export.SERIALIZERS), not the
 # element_add/element_save "type" strings -- an invariant test asserts
 # NESTABLE_TYPE_KEYS <= set(SERIALIZERS). Several types' form key differs from
-# their transfer key (fill_blank, fill_gate, fill_table, guess_number, mark_done,
-# reveal_gate, switch_gate, switch_grid, two_column -- see
-# _NESTABLE_FORM_KEY_ALIASES below); resolve_scope() translates the incoming form
-# key before checking membership.
+# their transfer key (before_after, choice, fill_blank, fill_gate, fill_table,
+# guess_number, mark_done, reveal_gate, short_numeric, short_text, switch_gate,
+# switch_grid, two_column -- see _NESTABLE_FORM_KEY_ALIASES below);
+# resolve_scope() translates the incoming form key before checking membership.
 NESTABLE_TYPE_KEYS = frozenset(
     {
         "text",
@@ -107,6 +109,15 @@ NESTABLE_TYPE_KEYS = frozenset(
         "stepper",
         "mark_done",
         "guess_number",
+        # The graded question keys. `fill_blank` above is nestable too and predates
+        # them (it arrived by side effect of the interactive-in-spoiler work); these
+        # three make the capability deliberate. Questions are LEAVES, so they are
+        # governed by clause 3, never clause 4. The remaining question types
+        # (extended_response, the three drag types, the two grid types) stay out on
+        # purpose -- see the design spec's non-goals.
+        "choice",
+        "short_text",
+        "short_numeric",
         # Container keys. EVERY member of this set is in
         # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS
         # holds. (Phrased about the invariant, not a count -- "Both" was already
@@ -117,15 +128,38 @@ NESTABLE_TYPE_KEYS = frozenset(
     }
 )
 
+# The nestable QUESTION keys, as transfer keys. Read by the three authorities that
+# decide whether a NEW nesting may be created: resolve_scope, paste_allowed, and
+# transfer.payloads.validate_nesting. The LAL loader keeps its own, narrower
+# allowlist.
+#
+# The two authorities that decide whether an EXISTING nesting may be PRESERVED
+# across a unit_type flip do NOT read this set -- they go through the deliberately
+# WIDER unit_has_nested_question(), which spans every QuestionElement subclass.
+NESTABLE_QUESTION_KEYS = frozenset(
+    {"choice", "short_text", "short_numeric", "fill_blank"}
+)
+
 # Form key -> transfer key, for the types where the two namespaces diverge.
+#
+# The choice entry is "choicequestion", NOT the add-menu card names
+# "choice-single"/"choice-multi": element_add (views_manage.py) reads those cards to
+# seed `multiple` and THEN collapses both to type_key="choicequestion" before
+# calling resolve_scope, and element_save passes the POSTed form key straight
+# through. Aliasing the card names instead would leave child_key == "choicequestion"
+# -- not in NESTABLE_TYPE_KEYS -- so every nested-choice add and save would 400
+# while the cards sat there inviting clicks.
 _NESTABLE_FORM_KEY_ALIASES = {
     "beforeafter": "before_after",
+    "choicequestion": "choice",
     "fillblankquestion": "fill_blank",
     "fillgate": "fill_gate",
     "filltable": "fill_table",
     "guessnumber": "guess_number",
     "markdone": "mark_done",
     "revealgate": "reveal_gate",
+    "shortnumericquestion": "short_numeric",
+    "shorttextquestion": "short_text",
     "switchgate": "switch_gate",
     "switchgrid": "switch_grid",
     "twocolumn": "two_column",
@@ -183,6 +217,13 @@ _CONTAINER_REGISTRY = {
     ),
 }
 
+# The five container model classes, DERIVED from _CONTAINER_REGISTRY so there is
+# exactly one place that decides what a container is. Read by
+# courses_extras.render_element to decide whether a render() accepts `page=` --
+# the other eight render() signatures do not, and an unconditional `page=` would
+# TypeError on every one of them (see test_render_seam.py).
+CONTAINER_MODELS = frozenset(_CONTAINER_REGISTRY)
+
 
 def element_depth(join):
     """1 for a top-level element; +1 per parent hop.
@@ -197,6 +238,27 @@ def element_depth(join):
         depth += 1
         parent = parent.parent
     return depth
+
+
+def ancestor_pks(element):
+    """Pks of every join row above `element` (its parent, grandparent, ...).
+
+    `hops` is a SEPARATE MONOTONE COUNTER, never len(ancestors): a set stops
+    growing on a parent cycle (A->B->A saturates at 2), so a size-bounded guard
+    would stay true forever and loop with a DB fetch per iteration inside a
+    student-facing POST. element_depth and payloads.validate_nesting both count
+    hops for exactly this reason.
+
+    MAX_NEST_DEPTH is 4 and a top-level element has depth 1, so well-formed
+    content has at most three ancestors and the walk always terminates on
+    `node is None`; the guard is purely a corruption backstop.
+    """
+    ancestors, node, hops = set(), element.parent, 0
+    while node is not None and hops <= MAX_NEST_DEPTH:
+        ancestors.add(node.pk)
+        node = node.parent
+        hops += 1
+    return ancestors
 
 
 def slot_key(parent_pk, tab_id):
@@ -284,6 +346,15 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     child_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
     if child_key not in NESTABLE_TYPE_KEYS:  # clause 1
         raise NestingError(f"{type_key} may not be nested")
+
+    # Clause 1b: a question may be nested in a LESSON only. Untranslated, like every
+    # other NestingError here -- element_add discards the message and answers
+    # HttpResponseBadRequest("bad nesting"), so a msgid would be dead.
+    if (
+        child_key in NESTABLE_QUESTION_KEYS
+        and unit.unit_type == ContentNode.UnitType.QUIZ
+    ):
+        raise NestingError("questions may not be nested in a quiz")
 
     # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
     # pads/truncates and mints fresh random ids on every call, so a slot validated
@@ -386,9 +457,10 @@ def paste_allowed(
     omits them, and this function computes whatever it was not given.
 
     Reason precedence, fixed and depended on by every caller's tests: wrong_unit,
-    into_own_subtree, not_a_container, unknown_slot, type_not_nestable, too_deep,
-    own_slot. Clause 4 is tested before the container checks so that "into your own
-    child" reports that rather than "not a container" when the child is a leaf.
+    into_own_subtree, not_a_container, unknown_slot, type_not_nestable,
+    question_in_quiz, too_deep, own_slot. Clause 4 is tested before the container
+    checks so that "into your own child" reports that rather than "not a container"
+    when the child is a leaf.
     """
     if marked_join.unit_id != unit.pk:  # clause 0
         return False, "wrong_unit"
@@ -442,6 +514,21 @@ def paste_allowed(
 
         if model_to_key(type(marked_join.content_object)) not in NESTABLE_TYPE_KEYS:
             return False, "type_not_nestable"
+
+        # Clause 2b: a question may be nested in a LESSON only. INSIDE this branch
+        # deliberately -- pasting a question back to TOP LEVEL in a quiz stays legal,
+        # so the dest_parent is None branch must never see this check.
+        #
+        # It inherits clause 2's narrowness and checks the pasted subtree's ROOT
+        # only: pasting a CONTAINER that already holds a question is not re-checked.
+        # Sound rather than closed, because rename_node stops a unit becoming a quiz
+        # while such content exists and clause 0 (wrong_unit) makes cross-unit pastes
+        # impossible -- the only way in is pre-existing malformed content.
+        if (
+            model_to_key(type(marked_join.content_object)) in NESTABLE_QUESTION_KEYS
+            and unit.unit_type == ContentNode.UnitType.QUIZ
+        ):
+            return False, "question_in_quiz"
 
         if dest_depth is None:
             dest_depth = element_depth(dest_parent) + 1
@@ -585,6 +672,24 @@ def add_node(course, parent_ref, kind, title, unit_type, parent_token):
     return node
 
 
+def unit_has_nested_question(unit):
+    """True iff `unit` holds a question inside a container (parent is not null).
+
+    Scoped over ALL QuestionElement subclasses, deliberately WIDER than
+    NESTABLE_QUESTION_KEYS: a nested extended_response or drag type can exist via a
+    crafted POST or a hand-built archive, and such a unit must still be refused the
+    flip to quiz. Narrowing this to NESTABLE_QUESTION_KEYS reopens that hole.
+    """
+    # CONCRETE_QUESTION_MODELS is the SAME source the pre-flight uses -- two lists
+    # of ten would drift. Function-local, matching this module's import convention.
+    from courses.richtext import CONCRETE_QUESTION_MODELS
+
+    ct_ids = {ContentType.objects.get_for_model(m).id for m in CONCRETE_QUESTION_MODELS}
+    return Element.objects.filter(
+        unit=unit, parent__isnull=False, content_type_id__in=ct_ids
+    ).exists()
+
+
 @transaction.atomic
 def rename_node(
     course,
@@ -604,6 +709,23 @@ def rename_node(
         fields.append("title")
     if node.kind == ContentNode.Kind.UNIT:
         if unit_type is not _UNSET:
+            # BEFORE the assignment: read after it and `!= unit_type` is permanently
+            # False, making this dead code no static reading reveals. After
+            # _check_token, so a stale-token request fails on the token -- the token
+            # is the concurrency contract and must win. Quiz->lesson is always
+            # allowed (it only makes nested questions MORE correct), and a
+            # quiz->quiz no-op resubmit is accepted rather than refused.
+            if (
+                unit_type == ContentNode.UnitType.QUIZ
+                and node.unit_type != unit_type
+                and unit_has_nested_question(node)
+            ):
+                raise ValidationError(
+                    gettext_lazy(
+                        "This unit has a question inside a container. Move it out "
+                        "of the container before turning the unit into a quiz."
+                    )
+                )
             node.unit_type = unit_type
             fields.append("unit_type")
         if obligatory is not _UNSET:

@@ -319,6 +319,44 @@ def test_container_registry_carries_a_slot_cap():
     assert len(reg) == 5
 
 
+def test_nestable_question_keys_are_a_subset_of_nestable_type_keys():
+    """NESTABLE_QUESTION_KEYS names the nestable keys that are QUESTIONS, so a key it
+    holds that the wider allowlist does not is a rule split across two structures --
+    the failure mode this whole file exists to police."""
+    assert builder.NESTABLE_QUESTION_KEYS <= builder.NESTABLE_TYPE_KEYS
+
+
+def test_every_nestable_question_key_is_a_serializer_key():
+    from courses.transfer.export import SERIALIZERS
+
+    assert builder.NESTABLE_QUESTION_KEYS <= set(SERIALIZERS)
+
+
+def test_every_new_form_key_alias_resolves_into_nestable_type_keys():
+    """The alias map is the ONLY translation between the form namespace the editor
+    posts and the transfer namespace the allowlist speaks; an alias landing outside
+    NESTABLE_TYPE_KEYS 400s every click on the card that posts it.
+
+    This is a WELL-FORMEDNESS check only: it says the map's values land in the
+    allowlist, never that resolve_scope is ever reached with those keys. An entry
+    keyed on an add-menu CARD name (`choice-single -> choice`) is equally
+    well-formed and would simply never be consulted, because element_add collapses
+    both choice cards to "choicequestion" before resolve_scope runs -- so ADDING one
+    alongside leaves this green with no behaviour change either way. The element_add
+    endpoint tests in test_nested_question_add.py are what pin the collapse.
+    """
+    aliases = builder._NESTABLE_FORM_KEY_ALIASES
+    for form_key in ("choicequestion", "shorttextquestion", "shortnumericquestion"):
+        assert aliases[form_key] in builder.NESTABLE_TYPE_KEYS
+
+
+def test_container_models_is_derived_from_the_registry():
+    """The only incremental fact worth pinning: CONTAINER_MODELS is DERIVED, not a
+    hand-written second list. test_container_keys_agree_by_key_not_by_count already
+    covers the registry-vs-transfer-keys agreement."""
+    assert builder.CONTAINER_MODELS == frozenset(builder._CONTAINER_REGISTRY)
+
+
 def test_container_keys_agree_by_key_not_by_count():
     """The old assertion was `len(CONTAINER_TRANSFER_KEYS) == len(_CONTAINER_REGISTRY)`,
     which passes green when a fourth model is registered under a fourth key that is

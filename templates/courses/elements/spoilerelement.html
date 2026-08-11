@@ -1,5 +1,22 @@
 {% load i18n courses_extras %}
-<details class="spoiler">
+{% comment %}
+The no-JS check_answer path is a FULL PAGE RE-RENDER, and <details> has no `open`
+by default -- so without this a student who answers a question inside a spoiler
+gets the page back with the disclosure shut and the freshly rendered verdict
+hidden inside it. `feedback_ancestor_pks` is seeded once per page by check_answer
+(builder.ancestor_pks) and reaches this context through the container `page` dict,
+so ANCESTRY drives the open, not direct childhood: a question in a callout in a
+spoiler opens the spoiler too.
+
+The `feedback_ancestor_pks and` guard is REQUIRED, and "the default is an empty
+frozenset" is not the reason -- that default lives in render_element's fallback.
+On a direct SpoilerElement.render(...) with no `page`, the key is absent from this
+context ENTIRELY, so a bare `{% if eid in feedback_ancestor_pks %}` would evaluate
+`0 in ''` and render correctly only because Django's smartif swallows the
+TypeError. A swallowed exception is not a mechanism; the `and` short-circuits
+before the membership test ever runs.
+{% endcomment %}
+<details class="spoiler"{% if feedback_ancestor_pks and eid in feedback_ancestor_pks %} open{% endif %}>
   <summary class="spoiler__toggle">
     <span class="spoiler__label spoiler__label--show">{% if el.label %}{{ el.label }}{% else %}{% trans "Reveal" %}{% endif %}</span>
     <span class="spoiler__label spoiler__label--hide">{% trans "Hide" %}</span>

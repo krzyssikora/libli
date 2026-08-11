@@ -855,17 +855,25 @@ _CONTAINER_SLOT_KEY = {
 }
 
 
-def validate_nesting(elements):
+def validate_nesting(elements, unit_types=None):
     """Cross-element checks the per-element validators cannot see. Rejects (never
-    repairs) an unknown/ill-typed parent, an unknown tab, a non-nestable child, and a
-    parent chain deeper than MAX_NEST_DEPTH -- the transfer-side twin of
-    resolve_scope's depth clauses (see the depth walk and clauses 3/4 below), so an
-    import cannot smuggle in a tree deeper than the editor would ever let an author
-    build. (The editor's own row-template recursion is unbounded and terminates on
-    acyclicity alone -- see _element_row.html; MAX_NEST_DEPTH bounds what CAN be
-    authored, not what the template can render.)"""
+    repairs) an unknown/ill-typed parent, an unknown tab, a non-nestable child, a
+    question nested in a QUIZ unit, and a parent chain deeper than MAX_NEST_DEPTH --
+    the transfer-side twin of resolve_scope's depth clauses (see the depth walk and
+    clauses 3/4 below), so an import cannot smuggle in a tree deeper than the editor
+    would ever let an author build. (The editor's own row-template recursion is
+    unbounded and terminates on acyclicity alone -- see _element_row.html;
+    MAX_NEST_DEPTH bounds what CAN be authored, not what the template can render.)
+
+    `unit_types` maps archive-internal node id -> the raw unit_type string, for
+    nodes of kind "unit" only. It is KEYWORD-WITH-DEFAULT, never required: the
+    positional call sites across six test files pass `elements` alone and exercise
+    the other clauses. When it is None the quiz clause is skipped entirely -- which
+    is also why those files' element helpers need no "unit" key at all.
+    """
     from courses.builder import CONTAINER_TRANSFER_KEYS
     from courses.builder import MAX_NEST_DEPTH
+    from courses.builder import NESTABLE_QUESTION_KEYS
     from courses.builder import NESTABLE_TYPE_KEYS
 
     # Step 4a applies the v2 shim before _exact_keys, so both keys are present.
@@ -921,6 +929,24 @@ def validate_nesting(elements):
             )
         if el["type"] not in NESTABLE_TYPE_KEYS:
             _err(_("Element '%(el)s' may not be nested."), el=el["id"])
+        # IMMEDIATELY AFTER the NESTABLE_TYPE_KEYS clause, so "not nestable at all"
+        # still wins over "not nestable HERE".
+        #
+        # `el["unit"]` is the CHILD's own unit, deliberately -- not the parent's.
+        # validate_nesting never checks that a child and its parent share a unit, so
+        # a crafted archive can make the two disagree; el["unit"] is the unit the row
+        # is actually created in, and schema.py has already validated it points at a
+        # unit node. "quiz" is the RAW STRING: an archive's unit_type is validated
+        # against the literal pair ("lesson", "quiz") and never becomes a ContentNode.
+        if (
+            unit_types is not None
+            and el["type"] in NESTABLE_QUESTION_KEYS
+            and unit_types.get(el["unit"]) == "quiz"
+        ):
+            _err(
+                _("Element '%(el)s' is a question and may not be nested in a quiz."),
+                el=el["id"],
+            )
 
 
 VALIDATORS = {

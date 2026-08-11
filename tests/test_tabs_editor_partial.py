@@ -107,11 +107,49 @@ def test_nested_add_menu_offers_only_nestable_types():
             "max_nest_depth": 4,
         },
     )
-    for blocked in ["choice-single", "slidebreak"]:
+    for blocked in ["slidebreak", "extendedresponsequestion"]:
         assert blocked not in html
     assert 'data-add-type="tabs"' in html  # INVERTED: legal at depth 1
     assert 'data-add-type="text"' in html
     assert 'data-add-type="gallery"' in html
+    # INVERTED by the question widening. The context above passes no `unit_is_quiz`,
+    # which is falsy, so the `{% if nested and not unit_is_quiz %}` group renders.
+    assert 'data-add-type="choice-single"' in html
+
+
+def test_nested_add_menu_hides_the_questions_group_in_a_quiz():
+    """The nested Questions group is gated `nested and not unit_is_quiz`. Rendering
+    the partial twice -- once without `unit_is_quiz` (above) and once with it True --
+    is what makes the guard's SECOND half falsifiable; dropping `and not
+    unit_is_quiz` leaves the sibling test green.
+
+    depth/max_nest_depth are INTEGERS: `depth="1"` would bind a string and smartif
+    swallows the `str < int` TypeError, so every guard would silently read False.
+    """
+    course, unit = make_course_with_unit()
+    obj = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=obj)
+    html = render_to_string(
+        "courses/manage/editor/_add_menu.html",
+        {
+            "nested": True,
+            "unit_is_quiz": True,
+            "parent": join.pk,
+            "tab": obj.data["tabs"][0]["id"],
+            "depth": 1,
+            "max_nest_depth": 4,
+        },
+    )
+    # Bare substrings, so each also covers the card's `#el-*` icon href.
+    for blocked in [
+        "choice-single",
+        "choice-multi",
+        "shorttextquestion",
+        "shortnumericquestion",
+        "fillblankquestion",
+    ]:
+        assert blocked not in html, blocked
+    assert 'data-add-type="text"' in html  # the rest of the menu is untouched
 
 
 def test_tabs_editor_icons_resolve_to_sprite_symbols():

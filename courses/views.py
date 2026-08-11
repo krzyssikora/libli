@@ -388,6 +388,11 @@ def build_lesson_context(node, user):
     ]
     if markdone_els:
         prefetch_related_objects(markdone_els, "items")
+    # SECOND ACCEPTED LIMITATION, same shape: `choice_qs`/`fill_qs` are built from
+    # `elements` (parent__isnull=True), so a NESTED choice question re-queries
+    # choices.all() per render. Bounded (per-unit question counts are small) and
+    # pre-existing for nested fill_blank's `blanks`. Closing it would cost an extra
+    # flat query on EVERY lesson render, including the vast majority with no nesting.
 
     question_models = [
         ChoiceQuestionElement,
@@ -415,8 +420,9 @@ def build_lesson_context(node, user):
     ).exists()
     # Flat unit-wide (NOT scoped to parent__isnull=True) so a question nested in a
     # spoiler/tab — children keep their own `unit` FK — is still detected, arming
-    # question.js/dnd.js. Only fill_blank is nestable today, so this only newly fires
-    # for a nested fillblank; top-level behaviour is unchanged.
+    # question.js/dnd.js. Four question types are nestable (choice, short_text,
+    # short_numeric, fill_blank — builder.NESTABLE_QUESTION_KEYS), so this fires for
+    # any of them nested in a container; top-level behaviour is unchanged.
     has_questions = node.elements.filter(content_type_id__in=question_ct_ids).exists()
     # Flat query (NOT scoped to parent__isnull=True) so a gate nested inside a tab —
     # children keep their own `unit` FK — is still detected. Both gate types arm the
@@ -1085,6 +1091,8 @@ def check_answer(request, slug, node_pk, element_pk):
             question.feedback_context(result),
         )
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
+    from courses.builder import ancestor_pks
+
     ctx = full_lesson_render_context(node, request.user)
     selected = selected_ids(answer)
     submitted = None if isinstance(answer, (set, frozenset)) else answer
@@ -1093,6 +1101,10 @@ def check_answer(request, slug, node_pk, element_pk):
         selected_ids=selected,
         submitted_values=submitted,
         mark_result=result,
+        # A spoiler renders `open` when the checked element is anywhere in its
+        # subtree. Ancestry, not direct childhood, so a question inside a callout
+        # inside a spoiler opens the spoiler too.
+        feedback_ancestor_pks=ancestor_pks(element),
     )
     return render(request, "courses/lesson_unit.html", ctx)
 
