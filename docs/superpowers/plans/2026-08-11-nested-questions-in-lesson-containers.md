@@ -535,8 +535,12 @@ The cherry-picked fixture's `build(make_container)` hard-codes `_fill_blank()`. 
 Add the slice helper in the same step:
 
 ```python
-def _child_slice(body, wrapper_class):
+def _child_slice(body, wrapper_class, index=0):
     """The markup inside ONE container child wrapper, tag-depth matched.
+
+    `index` selects WHICH wrapper: 0 (the default, and the plan's original
+    behaviour) for every seam test, 1 for the invariant-B claim test, which needs
+    the UNCHECKED sibling inside the same container.
 
     The three widened types render byte-identical markup
     (`<div class="el el--question" data-question>`) -- only fill_blank has a type
@@ -581,10 +585,21 @@ from courses.models import ShortTextQuestionElement
 ```
 
 ```python
-def _choice():
+def _choice(feedback=""):
+    """`feedback` defaults to "" so this stays a zero-arg callable for TYPES.
+
+    The invariant-B claim test MUST pass a real string. choice_marks' lesson
+    branch marks only options in mark_result.annotated, and mark() annotates only
+    options that HAVE feedback -- so with feedback="" that test would assert zero
+    markers on the sibling AND zero on the checked question, i.e. vacuously.
+    """
     q = ChoiceQuestionElement.objects.create(stem="Pick one.", multiple=False)
-    right = Choice.objects.create(question=q, text="right", is_correct=True)
-    Choice.objects.create(question=q, text="wrong", is_correct=False)
+    right = Choice.objects.create(
+        question=q, text="right", is_correct=True, feedback=feedback
+    )
+    Choice.objects.create(
+        question=q, text="wrong", is_correct=False, feedback=feedback
+    )
     q._correct_pk = right.pk  # read by the type-axis discriminator below
     return q
 
@@ -713,11 +728,11 @@ def test_only_the_checked_question_shows_a_verdict(scene, client):
 
 All in the same file:
 
-1. **Invariant B** — two nested `choice` questions, one checked: the sibling renders **zero** `question__choice-marker` and `question__choice-feedback`. Seam test 10 cannot catch this — the marker path emits no verdict block to count.
+1. **Invariant B** — two nested `choice` questions **in the same container**, one checked: the sibling renders **zero** `question__choice-marker` and `question__choice-feedback`, **and the checked child renders at least one of each**. Both halves are required: without the positive half the test passes vacuously, since `mark()` annotates only options that carry feedback. Build both questions with `_choice(feedback="...")`, and reach the sibling with `_child_slice(body, "callout__child", index=1)`. Seam test 10 cannot catch this — the marker path emits no verdict block to count.
 2. **Quiz page still renders** — a quiz built with `make_quiz_unit(course=course)` (see Global Constraints) containing a container with a nested **choice** child returns 200, with no `question__verdict` and no `question__choice-marker`. Build it with a direct `Element.objects.create` — §6 forbids authoring it, and the point is that legacy content must not 500. Plus `"selected_ids" not in build_quiz_context(...)`, which needs `from courses.views import build_quiz_context`.
-3. **Restore and live routes agree** — POST a whitespace-bearing answer (live route), then GET the lesson page (`feedback_for_pk` is `None`, so restore runs); assert the verdict text and refilled value are byte-identical.
+3. **Restore and live routes agree** — POST a whitespace-bearing answer (live route), then GET the lesson page (`feedback_for_pk` is `None`, so restore runs); assert the verdict text and refilled value match. **Compare extracted values, not whole slices**: every form carries a freshly masked `{% csrf_token %}`, so two renders of the same form are never byte-identical. Add `_form_slice(body, action_url)` — keyed on the **full reversed URL**, per §9.2's bare-pk trap — plus small regex extractors for the refilled input value and the verdict block. Claim 4 uses the same helpers.
 4. **`None` and `""` refill identically** — a blank nested short-text answer and a blank top-level one produce the same empty input, pinning the `default_if_none:''` the `or None` coercion rests on.
-5. **Shadowing is impossible**, `@pytest.mark.parametrize` over **all five container models**: `render(page={"el": "HIJACKED", ...})` still renders the container's own element.
+5. **Shadowing is impossible**, `@pytest.mark.parametrize` over **all five container models**. An `el`-only hijack is NOT enough: `tabselement.html` never reads `el` at all and `twocolumnelement.html` reads it only through `columns`, so for two of the five cases it is a no-op. Poison **every container-owned key at once** — `el`, `children`, `tabs`, `columns`, `slots`, `eid`, `element_state`, `slug`, `node_pk`, `display`, `label_pos` — then assert both `"HIJACKED" not in html` **and** a per-container positive marker proving the real value won. Including `display`/`label_pos` is what exercises `TabsElement`'s second splat, the site §3.2 flags as the one an implementer copying the single-splat snippet gets wrong.
 6. **Spoiler `eid` sentinel** — `SpoilerElement.render(element=None)` returns without raising. Nothing in `test_render_seam.py` covers this: its CONCRETES loop passes a real join row, and its only `element=None` case uses `FillGateElement`.
 7. **`mode` is not forwarded**:
 
