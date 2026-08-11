@@ -406,7 +406,13 @@
       var file = input.files[0];
       var open = root.querySelector("[data-replace-strip]");
       if (open) closeStrip(open, open.closest(".asset-cell") !== cell);
-      cell.appendChild(buildReplaceStrip(cell, file));
+      var strip = cell.appendChild(buildReplaceStrip(cell, file));
+      // The file input is hidden and never takes focus, and role="group" is not
+      // a live region, so without this a keyboard/screen-reader user is left on
+      // ⇄ with no cue the strip appeared. Move focus to the strip's own commit
+      // action -- the new content that just arrived.
+      var commitBtn = strip.querySelector("[data-replace-commit]");
+      if (commitBtn) commitBtn.focus();
     });
 
     function buildReplaceStrip(cell, file) {

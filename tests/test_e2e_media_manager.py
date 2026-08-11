@@ -109,6 +109,10 @@ def test_replace_swaps_the_cell_and_the_rendered_image(page, live_server):
     assert "replacement.png" in strip.locator("[data-replace-filename]").inner_text()
     # The confirm must not destroy the context the author decides against.
     assert page.locator(".asset-uses").is_visible()
+    # Focus moves to the strip's commit action as soon as it appears: the file
+    # input is hidden and never takes focus, so without this the author is left
+    # silently on ⇄ with no cue new content arrived.
+    assert page.evaluate("document.activeElement.hasAttribute('data-replace-commit')")
 
     strip.locator("[data-replace-commit]").click()
 
@@ -120,6 +124,9 @@ def test_replace_swaps_the_cell_and_the_rendered_image(page, live_server):
     # no-op and everything after it would race the round-trip.
     page.wait_for_selector("[data-replace-strip]", state="detached")
     page.wait_for_selector('.asset-cell .asset-fname:has-text("replacement.png")')
+    # focusTrigger(fresh) moves focus to the fresh cell's own ⇄, not merely
+    # somewhere on the page.
+    assert page.evaluate("document.activeElement.hasAttribute('data-replace-asset')")
 
     editor_url = (
         f"{live_server.url}/manage/courses/{course.slug}/build/unit/{unit.pk}/edit/"
@@ -146,6 +153,8 @@ def test_cancel_changes_nothing_and_sends_no_request(page, live_server):
     strip.locator("[data-replace-cancel]").click()
     # The strip's removal provably post-dates any request the handler would make.
     page.wait_for_selector("[data-replace-strip]", state="detached")
+    # focusTrigger() (no arg -> cell) puts focus back on ⇄, not dropped to <body>.
+    assert page.evaluate("document.activeElement.hasAttribute('data-replace-asset')")
 
     assert seen == []
     # The input must be CLEARED, not merely abandoned: `change` fires only on a
@@ -347,9 +356,14 @@ def test_the_drag_warning_appears_only_for_a_drag_to_image_asset(page, live_serv
     for pk, expect_warning in ((dragged.pk, True), (plain.pk, False)):
         cell = page.locator(f'.asset-cell[data-asset-id="{pk}"]')
         cell.locator("[data-replace-input]").set_input_files(_upload_payload())
-        cell.locator("[data-replace-strip]").wait_for(state="visible")
+        strip = cell.locator("[data-replace-strip]")
+        strip.wait_for(state="visible")
         shown = cell.locator(".asset-replace-confirm__warn").count() > 0
         assert shown is expect_warning, pk
+        # Without these, msg(root, "replace-aria", ...) could be deleted
+        # entirely and every test in this module would still pass.
+        assert strip.get_attribute("role") == "group"
+        assert strip.get_attribute("aria-label")
         cell.locator("[data-replace-cancel]").click()
         page.wait_for_selector("[data-replace-strip]", state="detached")
 

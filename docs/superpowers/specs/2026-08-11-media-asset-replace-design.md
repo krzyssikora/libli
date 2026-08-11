@@ -85,14 +85,19 @@ keeps the row alive, so the old file would be orphaned unless the service delete
 That receiver also keys on `file.name` with no check for other rows using the same name, so two
 `MediaAsset` rows sharing a name share a lifetime. **Shared names are reachable in real data, not
 only in fixtures.** The three paths that *create* assets today — `create_asset`, the LAL loader and
-this design — all let storage assign the name, so none of them can collide. But
-`courses/migrations/0008_migrate_files_to_assets.py:32-37` populated `MediaAsset` by copying the
-*storage reference* off each `ImageElement.image` ("Copy the storage REFERENCE … never the bytes"),
-so any two image elements that pointed at one stored file produced two rows sharing a name on every
-database that ran 0008. Fixtures reach the same state more casually, via a literal
-`file="courses/media/x.png"` — that exact literal appears in several fixtures across the suite,
-including `courses/tests/test_image_size_render.py:13-19` and `tests/test_e2e_media_picker.py:64`.
-The replace path therefore carries the guard the signal lacks, and the guard is not dead code.
+this design — all let storage assign the name, which avoids a collision with anything the storage
+backend can see. But `Storage.get_available_name` only avoids names present **on disk**, not names
+present in the **database** (the same gap item 2 below describes for replace's own delete-after-save).
+A row whose bytes are missing from disk — a database restored without `media/`, or exactly the state
+one of our own tests constructs via a literal `file=` and no bytes — is invisible to that check, so a
+fresh upload can still land on a name a live row already holds. `courses/migrations/0008_migrate_files
+_to_assets.py:32-37` populated `MediaAsset` by copying the *storage reference* off each
+`ImageElement.image` ("Copy the storage REFERENCE … never the bytes"), so any two image elements that
+pointed at one stored file produced two rows sharing a name on every database that ran 0008. Fixtures
+reach the same state more casually, via a literal `file="courses/media/x.png"` — that exact literal
+appears in several fixtures across the suite, including `courses/tests/test_image_size_render.py:13-19`
+and `tests/test_e2e_media_picker.py:64`. The replace path therefore carries the guard the signal lacks,
+and the guard is not dead code.
 
 **2. Deleting the old file can delete the *new* one.** `Storage.get_available_name` only avoids names
 that currently exist on disk. If the old file is already **missing** from storage — a row whose bytes
