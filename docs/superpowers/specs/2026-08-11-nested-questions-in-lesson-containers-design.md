@@ -47,7 +47,7 @@ known broken path by four.
   (`choice_grid`, `multi_grid`) are wide tables that squeeze badly in a column.
   Both groups are deferrable and would each need their own e2e coverage per
   container.
-- **The quiz-mode render seam is not fixed here.** It is documented in §6.4 as the
+- **The quiz-mode render seam is not fixed here.** It is documented in §6.5 as the
   reason the lesson-only rule exists.
 
 ---
@@ -126,6 +126,10 @@ Handing the page values to nested questions is therefore filtered by a mechanism
 that is already in production and already tested — the fix adds plumbing, not a new
 correctness rule.
 
+**This filter is the design's whole safety argument, so §9.4 tests it directly**
+rather than trusting it: a test asserting exactly one verdict renders, inside the
+checked child's own wrapper, with a nested sibling question left untouched.
+
 ### 2.3 The rejected one-liner
 
 Storing the blank answer at `courses/views.py:1060` makes the symptom vanish — it is
@@ -144,7 +148,8 @@ page.
 ### 3.1 `render_element` resolves, then forwards
 
 At the top of `render_element`, each value falls back to the context when it was
-not passed explicitly:
+not passed explicitly. **Five** explicit statements — one per key in the dict
+below — rather than a loop or a helper, so each name stays greppable:
 
 ```python
 if feedback_for_pk is None:
@@ -155,10 +160,14 @@ if submitted_values is None:
     submitted_values = context.get("submitted_values")
 if mark_result is None:
     mark_result = context.get("mark_result")
+if preview is None:
+    preview = bool(context.get("preview"))
 ```
 
-Four explicit statements rather than a loop or a helper, so each name stays
-greppable.
+**`preview` defaults to `None`, not `False`.** A `False` default can never satisfy
+`is None`, which would make its fallback dead code and silently no-op the whole of
+§5. The parameter is therefore tri-state on the wire (`None` = unset) and coerced
+to a bool exactly once, at the fallback.
 
 The non-question branch then passes the **resolved** values down as one dict:
 
@@ -178,9 +187,19 @@ obj.render(
 )
 ```
 
-Passing the **resolved** values (not the raw arguments) is what makes depth-2
-nesting work: a container inside a container reads the four names from its own
-context and re-emits them unchanged.
+**`mode` is deliberately NOT in this dict, and must not be added.** Adding it would
+make a question nested in a quiz container render in quiz mode — which is exactly
+the half-built path §6.5 describes, and it would unblock that path silently, with
+no gate tripping and no test failing. §3.4's rationale for a dict ("a fifth value
+later means five more edits") invites precisely this mistake, so the exclusion is
+recorded here, in §6.5, in §11, and pinned by a test asserting `"mode" not in page`.
+
+**Why the resolved values and not the raw arguments.** At the **top level**
+`_lesson_article.html:39` does pass kwargs, so the dict must be built after the
+fallback rather than from the raw parameters. At **depth ≥ 2** the inner
+`{% render_element child %}` passes no kwargs at all, so raw and resolved coincide
+there and it is the inner container's own context fallback that supplies the
+values.
 
 ### 3.2 Containers splat it first
 
@@ -239,9 +258,29 @@ page-context values explicitly; the §3.1 fallback would read the same values fr
 the same context, so it is a no-op there. This is the property that keeps the
 existing top-level render byte-for-byte unchanged.
 
-**Quiz page (unchanged).** `_quiz_article.html:32` passes `feedback_for_pk=el.pk`
-explicitly — non-`None`, so it wins. The quiz context carries none of the four
-names, so `context.get` returns `None` for each and every fallback is inert.
+**Quiz page — a NEW forwarding path, inert by construction.** The honest statement
+is not "unchanged": `_quiz_article.html:32` passes `feedback_for_pk=el.pk`,
+`selected_ids=st.selected_ids`, `submitted_values=st.submitted_values` and
+`mark_result=st.mark_result` to **every** top-level element, containers included.
+Under §3.1 the non-question branch builds `page` from those resolved values, so a
+container in a quiz will now hand them down to its children — a data flow that does
+not exist today.
+
+It is inert for three independent reasons, and the third is the one that must not
+be relied on alone:
+
+1. `st = render_states|dictkey:el.pk` is **empty for a container row** — the
+   `render_states` loop skips every element whose `content_object` is not a
+   `QuestionElement` — so `st.selected_ids`, `st.submitted_values` and
+   `st.mark_result` all resolve to the empty string, and `feedback_for_pk` is the
+   *container's* pk.
+2. No child's `element.pk` can equal the container's own pk, so §2.2's guard
+   renders every nested child fresh regardless.
+3. After §6, a quiz container cannot legally hold a question at all.
+
+Because this is a new flow on the one page the lesson-only rule exists to protect,
+§9.4 pins it with a test that a quiz page carrying a container with a non-question
+child renders identically before and after.
 
 **Editor preview.** `_preview.html:16` renders top-level elements with an explicit
 `action_url=try_url`. See §5.
@@ -253,7 +292,7 @@ check_answer (no-JS)
   └─ lesson_unit.html → _lesson_article.html
        └─ render_element(callout_row, feedback_for_pk=42, mark_result=R, …)
             └─ CalloutElement.render(page={feedback_for_pk: 42, mark_result: R, …})
-                 └─ calloutelement.html   (context now carries the four names)
+                 └─ calloutelement.html   (context now carries the five names)
                       └─ {% render_element child %}
                            └─ fallback reads feedback_for_pk=42, mark_result=R
                                 └─ FillBlankQuestionElement.render(...)
@@ -261,11 +300,11 @@ check_answer (no-JS)
 ```
 
 **Two levels deep** works by the same path with no extra code: the spoiler's
-template context carries the four names, its `{% render_element child %}` resolves
+template context carries the five names, its `{% render_element child %}` resolves
 them from context, and the inner callout re-emits them again.
 
 **Sibling questions are unaffected**, at any depth: their `element.pk` does not
-equal `feedback_for_pk`, so §2.2's guard renders them fresh.
+equal `feedback_for_pk`, so §2.2's guard renders them fresh. §9.4 tests this.
 
 ---
 
@@ -288,19 +327,54 @@ the *parent's* pk, so a forwarded URL would post the child's answer to the paren
 endpoint. What crosses the barrier is a flag, not a URL:
 
 - `_preview.html` adds `preview=True` alongside its existing `action_url=try_url`.
-- `render_element` gains a `preview=False` parameter, resolves it from context like
-  the other values, and carries it in the `page` dict.
+- `render_element` gains a `preview=None` parameter (see §3.1 for why not `False`),
+  resolves it from context, and carries it in the `page` dict.
 - In the question branch, when `action_url` is `None` **and** `preview` is true,
   `render_element` reverses `courses:manage_element_try` for **its own** element
-  (`slug=element.unit.course.slug`, `pk=element.pk`) before calling `render()`.
+  before calling `render()`.
 
 Top-level preview elements keep their explicitly passed `try_url` and are untouched:
 the new branch fires only where `action_url` is absent, which today means exactly
 "nested". This confines the change to the currently-broken case.
 
-**Stated behaviour change:** this also fixes the live nested-`fill_blank` preview
-defect. An author who had learned to expect the preview's Check button to misbehave
-will find it working.
+### 5.1 The second Check: `element_try`'s choice branch
+
+Fixing the first render is not enough for `choice`, one of the three newly nestable
+types. `courses/views_manage.py::element_try` answers a choice question by
+re-rendering the **whole element** so inline per-option feedback lands in the
+choices list:
+
+```python
+if isinstance(question, ChoiceQuestionElement):
+    return HttpResponse(question.render(element=el, mode="lesson", ...))
+```
+
+That call passes **no `action_url`**, so the swapped-in form's action falls back to
+the student `check_answer` URL — and `editor.js` swaps that form body into the live
+DOM. The author's first Check would post correctly (§5's fix) and every subsequent
+Check would post to the student endpoint.
+
+`element_try` must therefore pass `action_url=reverse("courses:manage_element_try",
+slug=..., pk=el.pk)` on that branch. It already has `el`, and it is not a nesting-
+aware change: the same fix is correct for a top-level choice question, where the
+bug is equally live today.
+
+### 5.2 Accepted preview-only query cost
+
+`render_element`'s new branch reads `element.unit.course.slug` to reverse the try
+URL. The containers' `resolved_children()` does
+`select_related("content_type").prefetch_related("content_object")` but **not**
+`select_related("unit__course")`, so this costs up to two extra queries per nested
+question — in the **editor preview only**, never on a student page. Accepted rather
+than fixed: the preview renders one unit for one author, and widening
+`resolved_children()`'s select_related would change five methods used on the
+student path too. Recorded here so §8's enumeration of accepted costs is complete.
+
+### 5.3 Stated behaviour change
+
+This also fixes the live nested-`fill_blank` preview defect, and (via §5.1) the
+top-level choice re-render. An author who had learned to expect the preview's Check
+button to misbehave will find it working.
 
 ---
 
@@ -326,23 +400,54 @@ posts:
 `fillblankquestion` → `fill_blank` already exists. Note that `choice` takes **two**
 form keys — the single/multi distinction is a form concern, not a type concern.
 
+The prose comment above `NESTABLE_TYPE_KEYS` (`builder.py:85-88`) enumerates the
+types whose form key differs from their transfer key. It must gain the new entries,
+or it becomes an incomplete list sitting directly above the dict it describes.
+
 A new module constant is the single source of truth for "which nestable keys are
 questions":
 
 ```python
 # The nestable QUESTION keys, as transfer keys. Lesson-only: every authority that
-# can create a nesting reads this set (resolve_scope, paste_allowed, update_node,
-# transfer.payloads.validate_nesting). One home, so the four cannot drift.
+# can create or preserve such a nesting reads this set (resolve_scope,
+# paste_allowed, rename_node, transfer.payloads.validate_nesting, and the LAL
+# loader). One home, so the five cannot drift.
 NESTABLE_QUESTION_KEYS = frozenset({"choice", "short_text", "short_numeric", "fill_blank"})
 ```
 
 `NESTABLE_QUESTION_KEYS <= NESTABLE_TYPE_KEYS` is an invariant a drift test asserts.
+
+A shared predicate is the second single source of truth, used by two of the five
+authorities:
+
+```python
+def unit_has_nested_question(unit):
+    """True iff `unit` holds a question inside a container (parent is not null).
+
+    Scoped by content type over ALL QuestionElement subclasses, not just
+    NESTABLE_QUESTION_KEYS: a nested extended_response can exist only via a
+    crafted POST or a hand-built archive, and such a unit must still be refused
+    the flip to quiz rather than silently allowed through.
+    """
+```
 
 ### 6.2 Add menu
 
 `templates/courses/manage/editor/_add_menu.html` grows a nested `Questions` group
 gated `{% if nested and not unit_is_quiz %}`, holding five cards: Single choice,
 Multiple choice, Short text, Short numeric, Fill in the blanks.
+
+**Placement is load-bearing.** The existing `Questions` and `Structure` groups sit
+inside one `{% if not nested %}` block (`_add_menu.html:57-76`). The new group must
+be a **sibling** of that block, not inside it — a `{% if nested %}` group nested
+inside `{% if not nested %}` is unreachable.
+
+The new group takes **no `depth` gate**, unlike the container cards. Questions are
+leaves: added from a menu at depth `d` they land at depth `d+1`, and `resolve_scope`
+clause 3 accepts a leaf up to `MAX_NEST_DEPTH`. The container cards need
+`depth < max_nest_depth|add:-1` only because a container child must itself still
+have room for children. This reasoning goes in the template comment, matching how
+the file already documents the container gate.
 
 The lone nested fill-blank card currently at line 54 — inside the `Interactive`
 group, itself gated `{% if not unit_is_quiz %}` — **moves into** the new group. Its
@@ -356,33 +461,128 @@ group is quiz-gated.
 Hiding cards is courtesy only — the server enforces the rules below on every
 add/save/paste regardless.
 
-### 6.3 Lesson-only: four authorities
+### 6.3 Lesson-only: five authorities
 
-A question may be nested **only in a lesson unit**. Four write paths can create or
-preserve such a nesting, and all four must enforce it:
+A question may be nested **only in a lesson unit**. Five write paths can create or
+preserve such a nesting, and all five must enforce it.
 
-| Authority | Change |
-|---|---|
-| `builder.resolve_scope` (`:262`) | New clause, immediately after clause 1 (`type_not_nestable`): if `child_key in NESTABLE_QUESTION_KEYS` and `unit.unit_type == ContentNode.UnitType.QUIZ` → `NestingError("questions may not be nested in a quiz")`. `unit` is already a parameter. |
-| `builder.paste_allowed` (`:372`) | New reason key `question_in_quiz`, checked immediately after the existing `type_not_nestable` clause and inserted at that position in the documented reason precedence. `unit` is already the first parameter. |
-| `builder.update_node` | Refuse a `unit_type` change to `QUIZ` while any question sits inside a container in that unit. |
-| `transfer.payloads.validate_nesting` (`payloads.py:858`) | Reject an archive that nests a question inside a container in a quiz unit. |
+**1. `builder.resolve_scope` (`builder.py:262`).** New clause immediately after
+clause 1 — the `NESTABLE_TYPE_KEYS` membership check at `builder.py:284-285`, which
+raises `NestingError(f"{type_key} may not be nested")` and has no reason key of its
+own:
 
-**Reason precedence** in `paste_allowed` is documented in its docstring and depended
-on by tests; the new key lands as: `wrong_unit`, `into_own_subtree`,
-`not_a_container`, `unknown_slot`, `type_not_nestable`, **`question_in_quiz`**,
-`too_deep`, `own_slot`.
+```python
+if child_key in NESTABLE_QUESTION_KEYS and unit.unit_type == ContentNode.UnitType.QUIZ:
+    raise NestingError("questions may not be nested in a quiz")
+```
 
-**Known narrowness, accepted and documented.** `paste_allowed`'s clause 2 checks the
-**root** of the pasted subtree only, on the stated grounds that every descendant
-passed nestability when it was created. The new clause inherits that narrowness: a
-paste of a *container* that already holds a question would not re-check the
-descendant. This is sound given §6.3's `update_node` guard (a unit cannot become a
-quiz while such content exists) and clause 0 (`wrong_unit` — cross-unit pastes are
-impossible), so the only way to reach the hole is pre-existing malformed content.
-The narrowness is documented at the clause rather than closed.
+`unit` is already the first parameter.
 
-### 6.4 Why the lesson-only rule exists: the latent quiz-mode bug
+**2. `builder.paste_allowed` (`builder.py:372`).** New reason key
+`question_in_quiz`, checked immediately after the existing `type_not_nestable`
+clause (`builder.py:441-444`) and using the same function-local `model_to_key` hop:
+
+```python
+if (model_to_key(type(marked_join.content_object)) in NESTABLE_QUESTION_KEYS
+        and unit.unit_type == ContentNode.UnitType.QUIZ):
+    return False, "question_in_quiz"
+```
+
+The clause lives **inside the `dest_parent is not None` branch**, alongside
+`type_not_nestable`. This is load-bearing: pasting a question to **top level** in a
+quiz must stay legal, and the `dest_parent is None` branch must not see this check.
+
+Reason precedence is documented in `paste_allowed`'s docstring and depended on by
+tests; the new key lands as: `wrong_unit`, `into_own_subtree`, `not_a_container`,
+`unknown_slot`, `type_not_nestable`, **`question_in_quiz`**, `too_deep`,
+`own_slot`.
+
+**Known narrowness, accepted and documented.** Clause 2 checks the **root** of the
+pasted subtree only, on the stated grounds that every descendant passed nestability
+when it was created. The new clause inherits that narrowness: pasting a *container*
+that already holds a question would not re-check the descendant. This is sound
+given authority 3 (a unit cannot become a quiz while such content exists) and
+clause 0 (`wrong_unit` — cross-unit pastes are impossible), so the only way to
+reach the hole is pre-existing malformed content. Documented at the clause rather
+than closed.
+
+**3. `builder.rename_node` (`builder.py:589`).** This is the function that mutates
+`unit_type` — there is no `update_node` in this repo. Its `unit_type is not _UNSET`
+branch is at `builder.py:606-608`. The guard:
+
+- runs **after** `_check_token` (`:600`), so a stale-token request fails on the
+  token, not on content — the token is the concurrency contract and must win;
+- fires only when the **new** value is `QUIZ` **and** differs from the current
+  `node.unit_type`, so a no-op resubmit of `unit_type=quiz` on an already-quiz unit
+  is accepted rather than refused;
+- is unconditional in the other direction — quiz→lesson is always allowed, since it
+  only ever makes nested questions *more* correct;
+- uses `unit_has_nested_question(node)` (§6.1);
+- raises `ValidationError` naming the fix ("move the question out of the container
+  first"), matching `set_node_flag`'s existing refusal style for `obligatory` on a
+  quiz.
+
+**4. `transfer.payloads.validate_nesting` (`payloads.py:858`).** Rejects an archive
+that nests a question inside a container in a quiz unit.
+
+The new parameter is **keyword-with-default** (`unit_types=None`), and the quiz
+check is skipped when it is `None`. This is required, not a convenience: nine
+existing call sites pass `elements` positionally as the sole argument —
+`test_beforeafter_transfer.py:135,137,139,141`, `test_callout_transfer.py:80`,
+`test_spoiler_transfer.py:93,112,140,160` — and they exercise other clauses. They
+must keep working untouched.
+
+`courses/transfer/schema.py:358` supplies the map. It is buildable in the node loop
+that already validates `nd["unit_type"]`: `{node_id: unit_type}` for nodes of kind
+`unit`. `validate_nesting` looks up `el["unit"]`, which every element already
+carries and which the loop above has already validated points at a unit node.
+
+**5. The LAL loader (`courses/lal_loader/`).** This is a real, currently-invisible
+fifth authority: it builds nested `Element` rows directly, bypassing `builder`
+entirely, and it built the 793-unit imported corpus §8 cites. Two touch points:
+
+- `builders.py` creates children with
+  `Element.objects.create(unit=unit, parent=parent, tab_id=tab_id, …)` and gates
+  them against its **own** allowlist `LAL_SPOILER_CHILD_TYPES` (`:55-72`), which
+  already contains `fill_blank` and never consults `NESTABLE_TYPE_KEYS` or
+  `unit.unit_type`. It gains the same quiz refusal.
+- `tree.py::upsert_node` (`:37-40`) re-syncs an existing node's `unit_type` on
+  **every** import run — `if node.unit_type != unit_type: node.unit_type = ...;
+  node.save(...)`. That is exactly the lesson→quiz flip authority 3 blocks, reached
+  without touching `rename_node`. It gains the same `unit_has_nested_question`
+  guard.
+
+Note the loader's own allowlist is deliberately **not** merged into
+`NESTABLE_TYPE_KEYS`. It is narrower on purpose (it describes what the LAL corpus
+may contain, not what an author may build), and merging them would widen the
+importer as a side effect of widening the editor.
+
+### 6.4 Pre-existing content
+
+The UI has never offered a question card in a nested menu inside a quiz, so
+reaching this state requires a crafted POST, a hand-built archive, or the LAL path
+in §6.3. Existing affected content is expected to be **none**, and the plan
+verifies rather than assumes it with a read-only pre-flight:
+
+```python
+question_ct_ids = {ContentType.objects.get_for_model(m).id for m in QUESTION_MODELS}
+Element.objects.filter(
+    parent__isnull=False,
+    content_type_id__in=question_ct_ids,
+    unit__unit_type=ContentNode.UnitType.QUIZ,
+).count()
+```
+
+`QUESTION_MODELS` is the ten-model list already assembled in
+`courses/views.py::build_lesson_context`, not the four widened types — the point is
+to find anything at all, including a type that could only have arrived
+irregularly.
+
+Run against the **local development database** (the real mat-pp copy). A non-zero
+count halts the run and is reported; it is not auto-repaired, because the right
+remedy (un-nest, delete, or convert the unit) is an editorial decision.
+
+### 6.5 Why the lesson-only rule exists: the latent quiz-mode bug
 
 `render_element`'s `mode` parameter defaults to `"lesson"`.
 `_quiz_article.html:32` passes `mode="quiz"`, but only to **top-level** elements.
@@ -403,14 +603,9 @@ done, the lesson-only rule is what keeps the bug unreachable — and today it is
 *not* enforced: `resolve_scope` and `paste_allowed` never look at `unit.unit_type`,
 so only the UI's card-hiding stands between an author and this state.
 
-### 6.5 Pre-existing content
-
-The UI has never offered a question card in a nested menu inside a quiz, so
-reaching this state requires a crafted POST or a hand-built archive. Existing
-affected content is expected to be **none**. The plan carries a cheap read-only
-pre-flight check (count questions whose `parent` is non-null in quiz units) so the
-assumption is verified rather than assumed; a non-zero count is a halt-and-report,
-not something to auto-repair.
+**This is why `mode` must stay out of the `page` dict** (§3.1). Adding it would
+half-fix this path — correct rendering mode, still no `render_states`, still no
+marks — which is worse than leaving it visibly unsupported.
 
 ---
 
@@ -420,21 +615,32 @@ not something to auto-repair.
   which is the same value the parameters default to, so a call site that supplies
   nothing behaves exactly as today. No branch can raise.
 - **`page=None`.** `**(page or {})` handles a container `render()` called directly
-  with no `page` — the shape used by unit tests and by
-  `test_render_seam`'s CONCRETES loop, which passes no `element` either.
+  with no `page` — the shape used by unit tests and by `test_render_seam`'s
+  CONCRETES loop, which passes no `element` either.
 - **Shadowing.** Structurally impossible: the splat is first, so any collision
-  resolves in favour of the container's own key. A test pins this by passing a
-  `page` dict containing an `el` key and asserting the container still renders its
-  own element.
+  resolves in favour of the container's own key. §9.4 pins this by passing a `page`
+  dict containing an `el` key and asserting the container still renders its own
+  element.
 - **Nesting violations** raise `NestingError`, which the element add/save views
   already turn into a 400; `paste_allowed` returns `(False, reason)` which the paste
   endpoint already turns into a 422 with the reason. Both are existing machinery —
   the new clauses add a case, not a new failure mode.
-- **`update_node` refusal** raises `ValidationError` with a message naming the fix
-  ("move the question out of the callout first"), matching `set_node_flag`'s
-  existing refusal style for `obligatory` on a quiz.
+- **`rename_node` refusal** raises `ValidationError`; see §6.3 authority 3 for the
+  exact ordering and no-op semantics.
 - **Import rejection** uses `validate_nesting`'s existing `_err()` helper, so it
   reports like every other nesting violation and is translatable.
+- **LAL loader refusal** raises `LoaderError` (defined in `lal_loader/builders.py`,
+  the fail-loud convention `lal_loader/guards.py` already uses), not `NestingError`
+  — the loader reports against source files, not HTTP requests, and its messages are
+  operator-facing rather than translated.
+
+**Translations.** The `NestingError`, `ValidationError` and `_err()` messages are
+new user-facing msgids (the loader's `LoaderError` is not — see above). `makemessages` must be re-run and
+`locale/en/LC_MESSAGES/django.po` + `locale/pl/LC_MESSAGES/django.po` updated, with
+any fuzzy pre-fill cleared — `makemessages` fuzzy-fills a *wrong* Polish string
+from a similar msgid, and a fuzzy entry is not used at runtime, so it reads as
+"translation missing" in production. Recompile before the PR, and rebase-then-
+regenerate if the branch goes stale, since `.mo` is binary and conflicts badly.
 
 ---
 
@@ -453,6 +659,8 @@ prefetch block records the trade-off so it is a decision rather than an oversigh
 
 Note this is a *pre-existing* shape, not a regression: nested `fill_blank`'s
 `blanks` is un-prefetched today for the same reason.
+
+The second accepted cost is the editor preview's try-URL reversal — see §5.2.
 
 ---
 
@@ -489,60 +697,113 @@ The before/after fixture must keep nesting into the **AFTER** slot:
 bucket, so a before-slot fixture would render even with a wrong slot id and prove
 nothing.
 
-### 9.2 Coverage matrix — two axes, pinned once each
+### 9.2 The ten seam tests, enumerated
 
-Not 4 types × 5 containers = 20 cells:
+"The seam tests" is a fixed, named set — §9.3's mutant table is stated over it, so
+it cannot be left implicit. Every one submits a **blank** answer and asserts a
+verdict renders:
 
-- **5 containers × `fill_blank`** — the existing parametrization, flipped. Pins the
-  container axis.
-- **4 types × callout** — pins the type axis.
-- **1 depth-2 case** — a question inside a callout inside a spoiler. Pins that the
-  recursion re-emits rather than forwarding one level only.
+| # | Test | Axis |
+|---|---|---|
+| 1–5 | `test_nested_blank_answer_shows_feedback[callout\|spoiler\|tabs\|two_column\|before_after]` | container (fill_blank) |
+| 6–8 | `test_nested_blank_answer_shows_feedback_by_type[choice\|short_text\|short_numeric]` | type (in a callout) |
+| 9 | `test_nested_blank_answer_shows_feedback_at_depth_2` | recursion (fill_blank in callout in spoiler) |
+| 10 | `test_only_the_checked_question_shows_a_verdict` | the §2.2 filter |
 
-Ten render tests.
+**Three** new types on the type axis, not four: `fill_blank` × callout is already
+row 1, so listing it again would be a redundant cell.
+
+Six **controls** carry over unchanged and must stay **green under every mutant** in
+§9.3 — they pass on today's code and must keep passing:
+`test_top_level_blank_answer_shows_feedback` (1) and
+`test_nested_non_blank_answer_does_show_feedback[…]` (5, one per container).
+
+File total: 16 tests (11 existing + 5 new).
+
+**Per-type structural guards.** The retained `el--fillblank` count-of-2 guard is
+fill-blank-specific and does not transfer. Each type-axis case asserts its own
+wrapper class is present (`el--question` plus the type's own marker as rendered by
+its template) **and** `callout__child`, so an absent nested render cannot be
+mistaken for a passing test. The scene fixture grows a same-type top-level twin per
+type so a count-of-2 assertion stays available on that axis too.
+
+**What "blank" is on the wire**, per type — this must be exact, or `answer_is_empty`
+never fires and the test proves nothing:
+
+| Type | `build_answer` | Blank POST |
+|---|---|---|
+| `fill_blank` | `post.getlist("blank")` | `{"blank": [""]}` |
+| `choice` | `post.getlist("choice")` → set | **no `choice` key at all** |
+| `short_text` | `post.get("answer", "")` | `{"answer": ""}` |
+| `short_numeric` | `post.get("answer", "")` | `{"answer": ""}` |
 
 ### 9.3 Falsification — each test names its mutant
 
-Per the house rule, tests must be shown RED, not merely run:
+Per the house rule, tests must be shown RED, not merely run. "The ten" is §9.2's
+enumerated set; "the six" are its controls.
 
 | Mutant | Expected |
 |---|---|
-| Delete the four `context.get` fallback statements in `render_element` | All ten render tests RED |
+| Delete the five `context.get` fallback statements in `render_element` | All ten RED, all six controls green |
 | Delete `**(page or {})` from **one** container's `render()` | Only that container's case RED — proves the tests pin the mechanism per container rather than sharing one assertion five times |
 | Move the splat from first to last in one container | The shadowing test RED |
-| Drop the `page=` argument at the `render_element` call site | All ten RED |
+| Drop the `page=` argument at the `render_element` call site | All ten RED, all six controls green |
+| Default `preview` to `False` instead of `None` | The preview test RED (this is the §3.1 trap, pinned) |
 | Widen `resolve_scope`'s new clause to accept quizzes | The `resolve_scope` gate test RED |
+| Drop the `dest_parent is not None` scoping on `paste_allowed`'s clause | The top-level-paste-into-quiz test RED |
 
-The historical falsification is recorded too: mutating
-`courses/views.py:1060` (`answer_is_empty(answer)` → `False`) turned all five
-absence cases RED while the other six stayed green, which is what pinned the
-mechanism originally.
+The historical falsification is recorded too: mutating `courses/views.py:1060`
+(`answer_is_empty(answer)` → `False`) turned all five absence cases RED while the
+other six stayed green, which is what pinned the mechanism originally.
 
 **A vacuity warning worth preserving.** The first draft of the absence test asserted
 `data-question="{pk}"` and passed for the wrong reason — `data-question` is a
 **bare attribute carrying no pk**. Any new assertion on question markup must be
 checked against that trap.
 
-### 9.4 Gate tests
+### 9.4 Tests for the design's own claims
+
+Four claims this spec leans on are asserted directly rather than trusted:
+
+- **The §2.2 filter** (seam test 10): with two questions nested in the same
+  container and one checked, `body.count(VERDICT) == 1`, and the verdict falls
+  inside the checked child's own wrapper — not the sibling's, not the container's
+  body. Without this, every flipped assertion would pass just as well if the fix
+  leaked a verdict onto every question on the page.
+- **The quiz page is unaffected** (§4): a quiz containing a container with a
+  non-question child renders identically before and after the change.
+- **Shadowing is impossible** (§7): a container `render()` called with a `page`
+  dict carrying an `el` key still renders its own element.
+- **`mode` is not forwarded** (§3.1): the dict `render_element` builds has no
+  `mode` key.
+
+### 9.5 Gate tests
 
 One per authority: `resolve_scope` raises for a question into a quiz container;
-`paste_allowed` returns `question_in_quiz` **and** returns it at the right point in
-the precedence (i.e. a case that would also trip `too_deep` reports
-`question_in_quiz`); `update_node` refuses the lesson→quiz flip and leaves
-`unit_type` unchanged; `validate_nesting` rejects the archive.
+`paste_allowed` returns `question_in_quiz`, returns it at the right point in the
+precedence (a case that would also trip `too_deep` reports `question_in_quiz`), and
+still permits a **top-level** paste into a quiz; `rename_node` refuses the
+lesson→quiz flip, leaves `unit_type` unchanged, accepts the quiz→quiz no-op, and
+allows quiz→lesson; `validate_nesting` rejects the archive **and** still accepts its
+nine existing positional call sites; the LAL loader refuses both a question child in
+a quiz unit and the `upsert_node` re-sync flip.
 
 Plus a drift test extending `courses/tests/test_nesting_rule.py`:
 `NESTABLE_QUESTION_KEYS <= NESTABLE_TYPE_KEYS`, every member is in
 `transfer.export.SERIALIZERS`, and every new form-key alias resolves into
 `NESTABLE_TYPE_KEYS`.
 
-### 9.5 Preview test
+### 9.6 Preview tests
 
 A nested question's rendered form `action` is `manage_element_try` for **its own**
 pk — asserted as three distinct facts, since two of them are the actual bug: not
 `check_answer`, not the parent's pk, and equal to the child's own try URL.
 
-### 9.6 e2e
+Separately for §5.1: `element_try`'s choice re-render returns a form whose action is
+`manage_element_try`, not `check_answer` — asserted for a top-level choice question
+too, where the bug is equally live today.
+
+### 9.7 e2e
 
 A nested `choice` question inside a **closed** `<details>` spoiler and inside an
 **inactive** tab panel still checks and shows inline feedback with JS on.
@@ -557,7 +818,7 @@ Two known traps to design around:
 `question.js` binds to `[data-question]` document-wide with no depth assumption, so
 no JS change is expected; the e2e exists to prove that rather than assume it.
 
-### 9.7 Visual verification
+### 9.8 Visual verification
 
 Light **and** dark screenshots of a question inside each of the five containers,
 with dark judged on its own rather than as "light but inverted".
@@ -566,7 +827,7 @@ If any CSS turns out to be needed for nested-question spacing, it gets an **A/B*
 with the rule removed — measuring with the rule present proves nothing about
 whether the rule does anything.
 
-### 9.8 Test-run mechanics
+### 9.9 Test-run mechanics
 
 - Start the test-DB container **before** any pytest run; if it is down the suite
   looks hung for ~4m21s.
@@ -581,15 +842,21 @@ whether the rule does anything.
 
 | File | Change |
 |---|---|
-| `courses/templatetags/courses_extras.py` | `render_element`: four context fallbacks, `preview` parameter, `page` dict, nested-preview try-URL branch |
+| `courses/templatetags/courses_extras.py` | `render_element`: five context fallbacks, `preview=None` parameter, `page` dict, nested-preview try-URL branch |
 | `courses/models.py` | `page=None` + splat-first on the five container `render()`s (`:454`, `:522`, `:591`, `:1780`, `:1892`) |
-| `courses/builder.py` | `NESTABLE_TYPE_KEYS` += 3 keys; `_NESTABLE_FORM_KEY_ALIASES` += 4 aliases; new `NESTABLE_QUESTION_KEYS`; `resolve_scope` clause; `paste_allowed` clause + reason; `update_node` flip guard |
-| `courses/transfer/payloads.py` | `validate_nesting` takes unit types, rejects question-in-quiz nesting |
-| `courses/transfer/schema.py` | Passes the unit-type map to `validate_nesting` |
-| `templates/courses/manage/editor/_add_menu.html` | Nested `Questions` group; fill-blank card moved out of `Interactive` |
+| `courses/builder.py` | `NESTABLE_TYPE_KEYS` += 3 keys; alias-comment update; `_NESTABLE_FORM_KEY_ALIASES` += 4 aliases; new `NESTABLE_QUESTION_KEYS` + `unit_has_nested_question`; `resolve_scope` clause; `paste_allowed` clause + reason; `rename_node` flip guard |
+| `courses/views_manage.py` | `element_try`'s choice branch passes `action_url` (§5.1) |
+| `courses/views.py` | **Comment only** — the `has_questions` comment ("Only fill_blank is nestable today") becomes false |
+| `courses/transfer/payloads.py` | `validate_nesting` gains `unit_types=None`, rejects question-in-quiz nesting |
+| `courses/transfer/schema.py` | Builds and passes the unit-type map |
+| `courses/lal_loader/builders.py` | Question child refused in a quiz unit |
+| `courses/lal_loader/tree.py` | `upsert_node` unit_type re-sync refuses the lesson→quiz flip |
+| `templates/courses/manage/editor/_add_menu.html` | Nested `Questions` group (sibling of the `{% if not nested %}` block); fill-blank card moved out of `Interactive` |
 | `templates/courses/manage/editor/_preview.html` | `preview=True` on the `render_element` call |
-| `courses/tests/test_nested_question_nojs_feedback.py` | Cherry-picked from `06776cf4`, five assertions inverted, new cases added |
+| `courses/tests/test_nested_question_nojs_feedback.py` | Cherry-picked from `06776cf4`, five assertions inverted, five cases added |
 | `courses/tests/test_nesting_rule.py` | Drift assertions for `NESTABLE_QUESTION_KEYS` |
+| `courses/tests/test_beforeafter_transfer.py`, `test_callout_transfer.py`, `test_spoiler_transfer.py` | Should need **no** edit — verifying that is the point of the keyword-with-default in §6.3 authority 4 |
+| `locale/en/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.po` (+ `.mo`) | New msgids; fuzzy pre-fills cleared |
 
 No migration. No new model field. No JS change expected.
 
@@ -601,8 +868,17 @@ Recorded so they are not re-litigated:
 
 - **Five form-only types, not ten** — drag and grid types excluded (§1 non-goals).
 - **`extended_response` excluded**, leaving four nestable question types.
-- **Lesson-only**, enforced at four authorities rather than left to the UI.
-- **Block the lesson→quiz flip** rather than un-nesting the author's questions
-  silently or leaving the unit broken.
+- **Lesson-only**, enforced at **five** authorities rather than left to the UI —
+  including the LAL loader, which bypasses `builder` entirely.
+- **Block the lesson→quiz flip** (in `rename_node`, not the non-existent
+  `update_node`) rather than un-nesting the author's questions silently or leaving
+  the unit broken.
 - **One `page` dict**, not four kwargs and not template-level forwarding.
-- **Nested-choice prefetch N+1 accepted**, documented at the prefetch block.
+- **`mode` stays OUT of the `page` dict** — adding it would half-fix the quiz path
+  described in §6.5, which is worse than leaving it visibly unsupported.
+- **`preview` defaults to `None`, not `False`** — a `False` default makes its own
+  fallback dead code.
+- **The LAL loader's own allowlist is not merged** into `NESTABLE_TYPE_KEYS`; it is
+  deliberately narrower.
+- **Two accepted costs**: the nested-choice prefetch N+1 (§8) and the preview
+  try-URL reversal (§5.2).
