@@ -18,6 +18,7 @@
 - **`reveal.js` gets exactly one change** — the `focusTargetIn` branch in Task 5. Do not touch `scopeOf`, `isGateWrapper`, `cascadeFrom`, or `restoreGates`. **One sanctioned exception:** Task 9 Step 8's `isGateWrapper`-`break` mutant temporarily edits `cascadeFrom`. It must be edited back and the revert proved with `git diff --quiet courses/static/courses/js/reveal.js`, exactly as Task 3 Step 6 mutant 4 does for the equally-frozen `courses/state.py`.
 - **An ungated fill-table must behave byte for byte as it does today.** Every change is conditional on `gate`.
 - **Falsify every test before trusting it.** Introduce the named mutant, confirm RED, then remove the mutant *by editing it out* — never `git checkout`, which would discard the new test along with it.
+- **Restore the LAST mutant too, and re-run before you stage.** Each falsify step ends on a mutant, and the commit step that follows runs only `ruff` — which does not read JS, templates or CSS at all. So an unreverted final mutant sails through a green lint gate into the commit. Every commit step in this plan therefore begins by **re-running that task's own test command and confirming all PASS**, before `git add`. Where a task mutates a file a Global Constraint freezes (`courses/state.py` in Task 3, `reveal.js` in Task 9), also prove it with `git diff --quiet <file>`.
 - **Run tests narrowly.** Start the test-DB container first (`docker compose -f docker-compose.test.yml up -d`); a down container makes the suite look hung for ~4 minutes. Never background a pytest run.
 - **Tooling is via `uv run`** — `pytest`, `ruff`, and `python` are not on PATH.
 - **Lint before each commit:** `uv run ruff check --no-cache <changed files>` and `uv run ruff format --check <changed files>` (a separate CI gate). `--no-cache` matters: a `# noqa` warning is cached away and the second run falsely reports clean. **`--check` is a gate, not a fixer** — some snippets dictated here are not `ruff format`-clean as pasted (Task 9's `_visible` helper, for one). When `--check` reports "would be reformatted", run bare `uv run ruff format <changed files>` and re-run `--check`; that is expected, not a defect in the snippet.
@@ -189,7 +190,7 @@ Four separate mutants; the guard has four independent failure modes and a single
 1. Delete `"gate": gate,` from the returned dict → **all seven** go RED with `KeyError` (every one of them reads `nd["gate"]`). This mutant proves the key exists; mutants 2-4 are the ones that discriminate between the conjuncts and the coercion.
 2. Restore it, then change `gate = (...)` to `gate = bool(data.get("gate"))` → `test_normalize_data_gate_forced_off_without_answer_cells` **and** both blank-answer tests go RED.
 3. Restore, then drop only the `not any(is_blank_answer(...))` conjunct → the two blank-answer tests go RED, the no-answer-cell test stays GREEN.
-4. Restore, then drop the coercion only — `bool(data.get("gate"))` → `data.get("gate")`, keeping both conjuncts → **only** `test_normalize_data_gate_coerces_falsy_non_false` goes RED. `test_normalize_data_gate_coerces_non_boolean` stays GREEN despite its name, which is exactly why the `""` case has to exist: `and` returns its last operand, so a truthy `"yes"` yields the final conjunct's real `True` either way.
+4. Restore, then drop the coercion only — `bool(data.get("gate"))` → `data.get("gate")`, keeping both conjuncts → **two** RED: `test_normalize_data_gate_coerces_falsy_non_false` (the `""` payload yields `""`, not `False`) **and** `test_normalize_data_gate_defaults_false` (no `gate` key → `data.get("gate")` is `None`, `and` short-circuits and returns `None`, so `is False` fails). The other five stay GREEN. `test_normalize_data_gate_coerces_non_boolean` stays GREEN despite its name, which is exactly why the `""` case has to exist: `and` returns its last operand, so a truthy `"yes"` yields the final conjunct's real `True` either way.
 
 Remove each mutant by editing it back, never by `git checkout` — that would delete the new tests too.
 
@@ -287,7 +288,7 @@ def test_gate_marker_is_on_the_same_node_as_data_state():
 
 `_render` calls `el.render()` bare, so `data-state-url` is the empty string here — that is fine and deliberate. **This test pins co-location of the marker with `data-state` only**; `data-state-url` is not asserted, because pinning it would require the lesson-view path and adds nothing to what this test is for. (An unattempted table also legitimately renders `data-state="{}"`, so assert presence via `has_attr`, never a non-empty value.)
 
-**This is a deliberate deviation from spec test 4, recorded here so the final spec-vs-code review does not read it as a dropped requirement.** The spec asks for the lesson-view path "so `data-state-url` is real rather than the empty string a bare `el.render()` produces", and for a **non-empty** `data-state`. Both are declined: `reveal.js`'s `save()` never runs for a fill-table (persistence goes through `filltable.js`'s own `saveFlag`), so a real `data-state-url` proves nothing this test is about; and an unattempted table's `data-state` is legitimately `{}`, so a non-empty assertion would be wrong rather than merely stricter. Task 3's tests do go through the lesson view, where the value actually matters.
+**This is a deliberate deviation from spec test 4, recorded here so the final spec-vs-code review does not read it as a dropped requirement.** The spec asks for the lesson-view path "so `data-state-url` is real rather than the empty string a bare `el.render()` produces", and for a **non-empty** `data-state`. Both are declined: `reveal.js`'s `save()` never runs for a fill-table (persistence goes through `filltable.js`'s own `saveFlag`), so a real `data-state-url` proves nothing this test is about; and a value assertion adds nothing to a *co-location* test, which is all this one is for. (Note the spec's non-empty assertion would in fact have **passed** — `_state_context` sets `mine_json = json.dumps(mine)`, so an unattempted table renders the two-character string `"{}"`, not an empty attribute. It is uninformative here, not wrong.) Task 3's tests do go through the lesson view, where the value actually matters and is asserted exactly.
 
 - [ ] **Step 3: Write the direct-child pin**
 
@@ -462,7 +463,15 @@ Expected: all PASS. `test_reveal_scope_agreement.py` must stay green **unmodifie
 3. Drop the `{% if data.gate %}…{% endif %}` guard so the marker is emitted unconditionally → `test_ungated_table_has_no_gate_attributes` RED. It is green from the moment it is written, so without this it is never shown to be able to fail — and it is the only render-level guard on the "byte for byte" constraint.
 4. Wrap the root `.filltable` div in an extra `<div>` in `filltableelement.html` → the direct-child pin RED while the co-location test stays GREEN. Two tests, two distinct failure modes: co-location survives an extra ancestor, the pre-hide CSS does not.
 
-- [ ] **Step 13: Lint and commit**
+- [ ] **Step 13: Restore, re-run, lint and commit**
+
+Mutant 4 left the template with an extra wrapper div — edit it back, then re-run before staging (`ruff` reads neither the template nor the CSS):
+
+```bash
+uv run pytest tests/test_filltable_render.py courses/tests/test_filltable_gate_print.py -v
+```
+
+Expected: all PASS. Then:
 
 ```bash
 uv run ruff check --no-cache tests/test_filltable_render.py courses/tests/test_filltable_gate_print.py
@@ -1113,14 +1122,22 @@ Expected: all PASS, both files **unmodified**. This is the first point at which 
 - [ ] **Step 6: Falsify**
 
 1. Delete the `hasAttribute("data-reveal-gate") &&` clause → `test_cascade_call_is_guarded_by_the_gate_attribute` RED. (The behavioural counterpart is e2e test 27 in Task 9.)
-2. Restore, then **rewrite the call as `window.libliRevealCascade(root)`**, dropping the options object → `test_cascade_keeps_the_solved_table_on_screen` RED, and e2e test 22's `_visible(page, table_row.pk)` assertion RED (Task 9). Everything else GREEN. This is the plan's most consequential unguarded line before this mutant existed: the solved table simply vanishes from the page, and every reload-based test stays green because `restoreGates` computes `hideWrapper` for itself.
+2. Restore, then **rewrite the call as `window.libliRevealCascade(root)`**, dropping the options object → `test_cascade_keeps_the_solved_table_on_screen` RED. Everything else in *this task* GREEN. (Its behavioural counterpart is e2e test 22's `_visible(page, table_row.pk)` assertion — a **forward reference**: `tests/test_e2e_filltable_gate.py` does not exist until Task 9, so do not go looking for it here. That half is verified by the matching row in Task 9 Step 8's mutant table.) This is the plan's most consequential unguarded line before this mutant existed: the solved table simply vanishes from the page, and every reload-based test stays green because `restoreGates` computes `hideWrapper` for itself.
 3. Restore, then delete the `[data-filltablegate]` branch from `focusTargetIn` → `test_focus_targets_fill_table_input` RED.
 4. Restore, then drop `:not([disabled])` from that selector → the same test RED. This proves only that the string is pinned — there is deliberately no behavioural counterpart, because no reachable path exercises it (see Step 4).
 5. Restore, then change `filltable.js`'s save line to `saveFlag(root, { done: true, open: true })` → `test_save_flag_stays_done_only` RED. This is the drift pin promised in Step 2; without this mutant it is the one test in the task trusted without ever being shown to fail.
 
 The boot flag's mutant is **not** here — it lives with the flag, in Task 4 Step 9 mutant 0.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Restore, re-run, then commit**
+
+Mutant 5 left `filltable.js` mutated — edit it back, then re-run before staging. `ruff` does not read JS, so the lint gate below would pass on a mutated build:
+
+```bash
+uv run pytest courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py -v
+```
+
+Expected: all PASS. Then:
 
 ```bash
 uv run ruff check --no-cache courses/tests/test_filltable_gate_static.py courses/tests/test_reveal_refactor_static.py
@@ -1292,7 +1309,7 @@ Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be unto
 
 Every other check in this task is a substring assertion on rendered HTML or on JS source; none of them can see a layout regression. The new label is ~54 characters and lands in `.table-editor__controls.filltable-editor__controls`, a wrapping flex row whose next sibling is `.filltable-editor__prompt-field { flex: 1 1 16rem; min-width: 12rem; }`. Adding a wide, inflexible item to that row is precisely the basis-weighted-shrink situation that squeezes or displaces the Instruction field.
 
-**Reuse the existing editor harness rather than inventing one** — the editor needs a Platform Admin, so a plain `make_student` login will not reach it. `tests/test_e2e_filltable.py` already carries the whole fixture path: **`_editor_context(page, live_server, username, slug)`** (:346 — mints the PA user, a course and a lesson node; `_make_pa_user` at :329 creates only a user and is not enough on its own), **`_seed_filltable_for_images(unit)`** (:376 — a grid whose non-blank answer cell already satisfies the client-side submit guard), `_goto_editor` (:368) and `_open_edit` (:398). Write a scratch test in that file's shape which seeds a fill-table, opens its editor panel, and screenshots `.filltable-editor__controls` to the scratch directory:
+**Reuse the existing editor harness rather than inventing one** — the editor needs a Platform Admin, so a plain `make_student` login will not reach it. `tests/test_e2e_filltable.py` already carries the whole fixture path: **`_editor_context(page, live_server, username, slug)`** (:346 — mints the PA user, a course and a lesson node; `_make_pa_user` at :329 creates only a user and is not enough on its own), **`_seed_filltable_for_images(unit)`** (:376 — a grid whose non-blank answer cell already satisfies the client-side submit guard), `_goto_editor` (:368) and `_open_edit` (:398). Write a scratch test in that file's shape — decorated `@pytest.mark.django_db(transaction=True)` and taking `(page, live_server)`, mirroring `test_author_two_image_cells_with_distinct_alts` (`tests/test_e2e_filltable.py:405`). **The decorator is not optional:** Playwright runs in another thread and cannot see rows held in an uncommitted test transaction, so without it `_goto_editor` lands on an empty editor and you will debug a phantom layout problem. It seeds a fill-table, opens its editor panel, and screenshots `.filltable-editor__controls` to the scratch directory:
 
 ```bash
 docker compose -f docker-compose.test.yml up -d
@@ -1327,7 +1344,15 @@ If the row does not survive, the fix belongs here (a shorter label, or letting t
 
 Mutants 4-6 are separate for the reason Task 1 Step 6 gives: that test makes three independent assertions, and one combined mutant would let two of them hide.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 10: Restore, re-run, then commit**
+
+Mutant 7 left the partial without its `<label>` — edit it back, then re-run before staging (`ruff` reads neither the template nor the editor JS):
+
+```bash
+uv run pytest tests/test_filltable_editor_partial.py tests/test_filltable_form.py tests/test_editor_twin_drift.py -v
+```
+
+Expected: all PASS. Confirm too that Step 8's scratch e2e test is gone (`git diff tests/test_e2e_filltable.py` prints nothing). Then:
 
 ```bash
 uv run ruff check --no-cache courses/element_forms.py tests/test_filltable_form.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py
@@ -1388,8 +1413,11 @@ def test_legacy_bundle_without_gate_imports_ungated():
 def test_every_production_write_path_stores_a_real_boolean():
     # views.py's has_filltable_gate uses data__gate=True, which matches the JSON
     # literal `true` only. That is exact rather than fragile BECAUSE every write
-    # path routes through normalize_data. Pin it: the form and the importer are
-    # the only two production construction sites.
+    # path routes through normalize_data. There are THREE production write paths:
+    # the form, transfer's _build_fill_table, and the LAL loader
+    # (courses/lal_loader/builders.py:293 -- it already calls normalize_data).
+    # The two exercised below are the two reachable from a bundle or a POST; the
+    # LAL path is a one-off import tool and is asserted by inspection, not here.
     form = FillTableElementForm(
         data={"data": json.dumps({"gate": "yes", "cells": _GATE_CELLS})}
     )
@@ -1450,7 +1478,15 @@ Without mutants 2 and 3, those two tests are green-on-write and never shown able
 
 **No coercion mutant here.** `test_every_production_write_path_stores_a_real_boolean` asserts `is True` on a truthy `"yes"` payload, and `and` returns its last operand — so `"yes" and bool(answers) and not any(...)` evaluates to a real `True` with or without the `bool()` wrapper, and this test cannot distinguish them. The coercion is falsified where it lives, by Task 1's `test_normalize_data_gate_coerces_falsy_non_false` (mutant 4 there) — the `""` payload is the only one that discriminates. Do not add a coercion mutant to this task expecting it to redden anything.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Restore, re-run, then commit**
+
+Mutant 3 left `normalize_data`'s absent-key default flipped — edit it back, then re-run before staging:
+
+```bash
+uv run pytest tests/test_filltable_transfer.py tests/test_filltable_model.py -v
+```
+
+Expected: all PASS (`test_filltable_model.py` is included because mutant 3 reddens `test_normalize_data_gate_defaults_false` there, outside this task's usual command).
 
 ```bash
 uv run ruff check --no-cache courses/transfer/export.py tests/test_filltable_transfer.py
@@ -1589,6 +1625,12 @@ from tests.test_e2e_reveal_gate import _text
 from tests.test_e2e_reveal_gate import _unit_url
 
 pytestmark = pytest.mark.e2e
+
+# NOTE: `_confirm` and `_summary` are scoped to the FIRST .filltable on the page
+# (both are `_table(page).locator(...)`, and `_table` is
+# `page.locator(".filltable").first`). Use them ONLY in single-table fixtures --
+# tests 21, 22, 24 and 25. Tests 23, 26 and 27 have two or more tables, which is
+# exactly why they build their own `_block(...)`-scoped locators instead.
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -1941,11 +1983,16 @@ The two existing suites run again here (Task 5 ran them first): every server-sid
 | 26 (pre-tick, chained) | **RED** — its *first* assertion (`table2_row` visible) runs BEFORE any reload, and on that first load `restoreGates` broke at the unsolved table 1, so the live cascade is the only thing that can reveal table 2 | its *post-reload* assertion is reddened instead by removing Task 3's `open` derivation |
 | 27 (ungated no cascade) | **GREEN** — also a negative assertion; nothing cascading is what it wants | deleting the `hasAttribute("data-reveal-gate")` guard (Step 7) |
 
-**Two of these mutants touch frozen files** — the `isGateWrapper` `break` edits `reveal.js`, which a Global Constraint otherwise forbids. Edit each mutant back out (never `git checkout`), and before moving to Step 9 prove both frozen files are untouched:
+**These seven mutants touch three source files between them** — four edit `filltable.js` (the `all_correct` move, the cascade removal, the `hasAttribute` guard, `hideWrapper`), one edits `courses/models.py` (the `open` derivation), and the `isGateWrapper` `break` edits `reveal.js`, which a Global Constraint otherwise forbids. Edit each mutant back out (never `git checkout`), and before moving to Step 9 prove **all three** are clean and the suite is green:
 
 ```bash
-git diff --quiet courses/static/courses/js/reveal.js && echo "reveal.js clean"
+git diff --quiet courses/static/courses/js/reveal.js \
+                 courses/static/courses/js/filltable.js \
+                 courses/models.py && echo "all three clean"
+uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 ```
+
+Expected: the echo fires and all seven tests PASS. **Step 9's screenshots must not be taken from a mutated build** — test 22 still passes under both the `isGateWrapper`-break and the `open`-derivation mutants, so the PR's review artifact could otherwise be captured from a broken tree with nothing to signal it, and Step 10 stages only the test file so it would not surface until the branch gate.
 
 So: apply each mutant below one at a time and confirm the **exact** RED set. Do not expect one test per mutant — the `open`-derivation mutant reddens three, and an implementer who was told to expect one will burn a session debugging the other two:
 
