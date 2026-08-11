@@ -240,7 +240,6 @@
   function msg(host, key, fallback) { return (host && host.getAttribute("data-msg-" + key)) || fallback; }
 
   function wireManager(root) {
-    var grid = root.querySelector(".asset-grid");
     var uploadUrl = root.dataset.uploadUrl;
 
     function uploadFile(file, kind) {
@@ -259,6 +258,11 @@
     }
 
     function insertCell(html) {
+      // Re-query from root on every call, rather than capturing `grid` once at
+      // wire time: the debounced filter's oldGrid.replaceWith(newGrid) (below)
+      // detaches whatever node was captured earlier, and prepending into that
+      // orphan would silently drop an upload performed after a filter swap.
+      var grid = root.querySelector(".asset-grid");
       if (!grid) return;
       var tmp = document.createElement("div"); tmp.innerHTML = html.trim();
       var cell = tmp.querySelector(".asset-cell");

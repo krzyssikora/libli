@@ -112,6 +112,7 @@ def media_picker(request, slug):
     return render(request, "courses/manage/media/_picker.html", ctx)
 
 
+@require_POST  # above @login_required: a non-POST is a 405 regardless of auth
 @login_required
 def media_delete(request, slug, pk):
     course = _require_manage(request, slug)

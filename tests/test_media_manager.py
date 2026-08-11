@@ -97,6 +97,35 @@ def test_upload_then_delete_in_use_returns_409(client):
     assert dele.status_code == 409
 
 
+def _delete_url(course, asset):
+    return reverse(
+        "courses:manage_media_delete",
+        kwargs={"slug": course.slug, "pk": asset.pk},
+    )
+
+
+@pytest.mark.django_db
+def test_delete_rejects_get_before_authentication(client):
+    """@require_POST sits ABOVE @login_required, so a non-POST is a 405 whether
+    or not anyone is logged in. An ANONYMOUS get is the only case that can
+    falsify the ordering -- a logged-in GET is 405 under either order."""
+    course = CourseFactory()
+    asset = MediaAssetFactory(course=course, kind="image")
+    r = client.get(_delete_url(course, asset))
+    assert r.status_code == 405  # NOT a 302 to the login page
+    assert MediaAsset.objects.filter(pk=asset.pk).exists()
+
+
+@pytest.mark.django_db
+def test_delete_rejects_get_as_manager(client):
+    pa = make_pa(client, "pa-del-get")
+    course = CourseFactory(owner=pa)
+    asset = MediaAssetFactory(course=course, kind="image")
+    r = client.get(_delete_url(course, asset))
+    assert r.status_code == 405
+    assert MediaAsset.objects.filter(pk=asset.pk).exists()
+
+
 # ---------------------------------------------------------------------------
 # Rename endpoint tests (Task 4)
 # ---------------------------------------------------------------------------
