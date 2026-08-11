@@ -347,6 +347,15 @@
             if (res.status !== 200) { input.replaceWith(dname); flash(root, "Rename failed."); return; }
             var tmp = document.createElement("div"); tmp.innerHTML = res.text.trim();
             var fresh = tmp.querySelector(".asset-cell");
+            // `cell` may already be detached -- a replace's 200 for this same
+            // asset landing first swaps it out. replaceWith() on a parentless
+            // node is a spec'd silent no-op ("if parent is null, return"), so
+            // this rename is simply dropped from the grid and the pre-rename
+            // name stays on screen until the next grid render. That is the
+            // mirror of the limitation documented at length in the replace
+            // commit handler below; do NOT re-query by pk here to "fix" it
+            // without reading that note first -- the fix is not symmetric and
+            // patching one half reintroduces the other.
             if (fresh) cell.replaceWith(fresh);
           })
           .catch(function () {
@@ -536,10 +545,49 @@
                 cell.replaceWith(fresh);
                 focusTrigger(fresh);
               } else {
-                // A filter swap landed mid-flight and detached us. The replace
-                // COMMITTED, but the refetched grid was rendered pre-commit, so
-                // a no-op would leave a stale thumbnail. Query from root:
-                // wireManager's `grid` local is the node the filter replaced.
+                // A grid or cell swap landed mid-flight and detached us. The
+                // replace COMMITTED, but the refetched grid was rendered
+                // pre-commit, so a no-op would leave a stale thumbnail. Query
+                // from root: wireManager's `grid` local is the node the filter
+                // replaced.
+                //
+                // KNOWN LIMITATION -- deliberate. Do not "fix" one half of it.
+                //
+                // This branch handles the filter swap it was written for. It
+                // does NOT handle an inline rename of this same asset
+                // committing during the flight: `fresh` was rendered by the
+                // server BEFORE that rename, so this replaceWith puts the
+                // pre-rename display name back on screen. The mirror case is
+                // documented at the rename handler above -- flip the order and
+                // its cell.replaceWith() runs on a parentless node and drops
+                // the rename instead. One pair, two orderings.
+                //
+                // No client-side arbitration is correct. Both responses carry a
+                // FULL cell rendered from a different DB snapshot and neither
+                // snapshot is complete -- the replace's render can predate the
+                // rename's commit, and the rename's render can predate the
+                // replace's commit. The `seq` generation counter the filter
+                // below uses does not transfer: it orders two responses to the
+                // SAME request, not two different writes. Last-write-wins picks
+                // a loser whichever way it is pointed. A field-level merge does
+                // not separate them either, because display_name falls back to
+                // original_filename (models.py), which a replace also writes.
+                // Only a re-fetch issued after BOTH commits is authoritative,
+                // and the client cannot know that it is one.
+                //
+                // So it is left as-is, on purpose. A single-cell refresh
+                // endpoint would only narrow the window -- it is another round
+                // trip a later rename can beat -- at the cost of a new view,
+                // URL and permission surface. Closing it properly means gating
+                // the rename and delete controls on replaceBusy AND cancelling
+                // an open rename input at commit time, because clicking Replace
+                // blurs that input and fires its commit(true) before the guard
+                // is set. Neither is worth the residue: it needs ONE author
+                // renaming the very asset whose replace strip is on screen with
+                // both buttons disabled (there is no cross-session path -- this
+                // page has no polling or sockets); the row, the file and the
+                // thumbnail are all correct; and any grid re-render clears it,
+                // whether a reload or a single keystroke in the filter box.
                 var live = root.querySelector('.asset-cell[data-asset-id="' + pk + '"]');
                 if (live) live.replaceWith(fresh);
               }
