@@ -471,6 +471,10 @@ class SpoilerElement(ElementBase):
                 **(page or {}),
                 "el": self,
                 "children": self.resolved_children(),
+                # element.pk, NOT node_pk: node_pk is the UNIT's pk, the same for
+                # every element on the page. `element` is None only in direct
+                # render() calls, so the 0 sentinel cannot collide on a served page.
+                "eid": element.pk if element is not None else 0,
                 "element_state": state,
                 "slug": slug,
                 "node_pk": node_pk,

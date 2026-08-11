@@ -153,6 +153,10 @@ def test_nested_blank_answer_shows_feedback(scene, client, make_container, child
     assert body.count("el--fillblank") == 2
     assert child_class in body
     assert VERDICT in body
+    if child_class == "spoiler__child":
+        # The no-JS path re-renders the whole page; a closed <details> would hide
+        # the verdict we just asserted is present.
+        assert '<details class="spoiler" open>' in body
 
 
 @pytest.mark.parametrize(("make_container", "child_class"), CONTAINERS)

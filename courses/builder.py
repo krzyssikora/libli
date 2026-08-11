@@ -206,6 +206,27 @@ def element_depth(join):
     return depth
 
 
+def ancestor_pks(element):
+    """Pks of every join row above `element` (its parent, grandparent, ...).
+
+    `hops` is a SEPARATE MONOTONE COUNTER, never len(ancestors): a set stops
+    growing on a parent cycle (A->B->A saturates at 2), so a size-bounded guard
+    would stay true forever and loop with a DB fetch per iteration inside a
+    student-facing POST. element_depth and payloads.validate_nesting both count
+    hops for exactly this reason.
+
+    MAX_NEST_DEPTH is 4 and a top-level element has depth 1, so well-formed
+    content has at most three ancestors and the walk always terminates on
+    `node is None`; the guard is purely a corruption backstop.
+    """
+    ancestors, node, hops = set(), element.parent, 0
+    while node is not None and hops <= MAX_NEST_DEPTH:
+        ancestors.add(node.pk)
+        node = node.parent
+        hops += 1
+    return ancestors
+
+
 def slot_key(parent_pk, tab_id):
     """Flattened '<parent_pk>:<tab_id>' key for one container slot; the
     top-level slot is ':'.

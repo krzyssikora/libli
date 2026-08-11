@@ -1090,6 +1090,8 @@ def check_answer(request, slug, node_pk, element_pk):
             question.feedback_context(result),
         )
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
+    from courses.builder import ancestor_pks
+
     ctx = full_lesson_render_context(node, request.user)
     selected = selected_ids(answer)
     submitted = None if isinstance(answer, (set, frozenset)) else answer
@@ -1098,6 +1100,10 @@ def check_answer(request, slug, node_pk, element_pk):
         selected_ids=selected,
         submitted_values=submitted,
         mark_result=result,
+        # A spoiler renders `open` when the checked element is anywhere in its
+        # subtree. Ancestry, not direct childhood, so a question inside a callout
+        # inside a spoiler opens the spoiler too.
+        feedback_ancestor_pks=ancestor_pks(element),
     )
     return render(request, "courses/lesson_unit.html", ctx)
 
