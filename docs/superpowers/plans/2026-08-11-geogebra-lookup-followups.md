@@ -364,7 +364,7 @@ The chunk budget cannot cover `connect()`, the TLS handshake or the header read 
 - Consumes: `_fetch_body`, `_BudgetExceeded`, `_DEADLINE_SECONDS`, `monotonic` (Task 2); `_Resp` (Task 1).
 - Produces: `fetch_geogebra_dimensions` unchanged in signature and return contract — `(int, int) | (None, None)`, never raises.
 
-- [ ] **Step 1: Write the four failing tests**
+- [x] **Step 1: Write the four failing tests**
 
 Add to `tests/test_geogebra.py`. All four carry `@override_settings(GEOGEBRA_API_LOOKUP=True)` — `config/settings/test.py:30` sets it `False`, and the kill switch returns `(None, None)` before any thread is created, which is byte-identical to what tests 1 and 2 assert. Without the decorator each test is green on the fix *and* on its mutant.
 
@@ -474,7 +474,7 @@ def test_fetch_deadline_log_names_the_id_AND_the_reason(monkeypatch, caplog):
 
 Add `import logging` and `import threading` to the stdlib block (per Task 2 Step 1's ordering). **`from django.test import override_settings` is already imported at `tests/test_geogebra.py:9`** — every existing fetch test uses the decorator, so there is nothing to add; adding it again is an `F811` duplicate that this task's lint step would catch. `ruff format` does not sort imports — run `ruff check` (the format/lint step does) or a misordering surfaces only at Task 6.
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_geogebra.py -k "deadline or HEADERS" --verbosity=0`
 Expected: **3 failed, 1 passed** — and read this carefully, because the naive expectation is wrong.
@@ -483,7 +483,7 @@ At this point `_fetch_body(request, deadline)` is already wired up (Task 2 Step 
 
 `test_fetch_negative_caches_a_deadline` (test 3) **passes already**: `_fail` writes the sentinel either way, `entered` gets set, and `opener.call_count == 1`. It has no RED-first evidence, so **its Step 7 mutant is its only gate** — do not skip it.
 
-- [ ] **Step 3: Thread the fetch**
+- [x] **Step 3: Thread the fetch**
 
 In `fetch_geogebra_dimensions`, inside the existing `try`, replace Task 2's three synchronous lines with the threaded form. **The ordering here is load-bearing in three places** — read the inline comments before changing anything.
 
@@ -545,12 +545,12 @@ Three traps, each already paid for:
 2. **Store into `box["exc"]` before closing.** If `close()` raises on a real socket and the close came first, the error is never stored, the caller reports `deadline exceeded` instead of `HTTP 4xx`, and the exception escapes via `threading.excepthook`. (`HTTPError(..., fp=None)` never calls `addinfourl.__init__`, so `close()` genuinely can raise `AttributeError`.)
 3. **Compute `deadline` immediately before `start()`, from one read of the global.** Test 2's mutant is only reliably RED under this placement; computed before `_open`, the mutant's worker starts already expired and the test would pass on its own mutant.
 
-- [ ] **Step 4: Run the file**
+- [x] **Step 4: Run the file**
 
 Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
 Expected: **110 passed**. The six existing fetch tests are Component A's real gate — they are what pins that the box round-trip preserves today's behaviour end to end (`HTTPError` fidelity, three non-`URLError` types, the parse path, oversize detection, the negative cache, and the kill switch short-circuiting before any thread is created).
 
-- [ ] **Step 5: Falsify test 1**
+- [x] **Step 5: Falsify test 1**
 
 Replace the threading block with Task 2 Step 5's synchronous three lines — note that `budget`/`deadline` must be **kept**, since the threading block is where they are defined and a bare `body = _fetch_body(request, deadline)` would raise `NameError` rather than failing on the assertion:
 
@@ -564,7 +564,7 @@ Run: `uv run pytest tests/test_geogebra.py -k "slow_body" --verbosity=0`
 Expected: FAIL — on the caplog assertion. The mutant still returns `(None, None)` (it blocks 3s, returns the payload, then trips the budget at the next loop top and logs `lookup failed (_BudgetExceeded)`), which is exactly why the reason assertion is this test's sole discriminator.
 **Edit it back by hand.** Re-run: PASS.
 
-- [ ] **Step 6: Falsify test 2**
+- [x] **Step 6: Falsify test 2**
 
 This mutant cannot be made by editing one line — `_fetch_body` owns the `with _open(...)` block — so apply exactly this restructuring inside `fetch_geogebra_dimensions`, which wraps *only* the read:
 
@@ -599,7 +599,7 @@ Run: `uv run pytest tests/test_geogebra.py -k "HEADERS" --verbosity=0`
 Expected: FAIL — `_open` blocks on the main thread for its full wait, the worker then starts with a fresh budget and its non-blocking `read1` returns at once, so the call yields `(880, 660)`.
 **Edit it back by hand.** Re-run: PASS.
 
-- [ ] **Step 7: Falsify tests 3 and 4**
+- [x] **Step 7: Falsify tests 3 and 4**
 
 For test 3: replace `return _fail("deadline exceeded")` with a bare `return None, None`. This removes the only `"deadline exceeded"` log line, so tests 1, 2 and 4 (and 5c once Task 4 lands) also redden on their caplog assertions — the `-k` filter scopes the run to test 3.
 Run: `uv run pytest tests/test_geogebra.py -k "negative_caches_a_deadline" --verbosity=0`
@@ -613,7 +613,7 @@ The spec names a second mutant for test 4, "drop the log line". It is **delibera
 
 **Edit both back by hand.** Re-run: PASS.
 
-- [ ] **Step 8: Rewrite the three remaining comments**
+- [x] **Step 8: Rewrite the three remaining comments**
 
 These are now false or incomplete. Leaving them is the false-mechanism failure this project treats as a defect class. Use this text.
 
@@ -665,7 +665,7 @@ rule: NO ORM, NO cache, NO logging — it only calls ``_open``, reads bytes, and
 into a result box; everything else stays on the main thread.
 ```
 
-- [ ] **Step 9: Update the architecture doc**
+- [x] **Step 9: Update the architecture doc**
 
 `docs/development/architecture.md:106` is a **shared row** covering two modules:
 
@@ -679,7 +679,7 @@ So attribute the thread explicitly rather than appending to the shared cell, whi
 | `video_url.py` / `geogebra.py` | Embed-URL canonicalization for video / GeoGebra. `geogebra.py` also performs the API dimension lookup, on a bounded background thread. |
 ```
 
-- [ ] **Step 10: Format and lint the files this task touched**
+- [x] **Step 10: Format and lint the files this task touched**
 
 ```bash
 uv run ruff format .
@@ -688,7 +688,7 @@ uv run ruff check --no-cache courses/geogebra.py tests/test_geogebra.py
 
 Do this **before** the commit, not at Task 6. `ruff format` does not sort imports, and `ruff format --check` is a separate CI gate — discovering either at the end means re-touching files from several earlier commits.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add courses/geogebra.py tests/test_geogebra.py docs/development/architecture.md
