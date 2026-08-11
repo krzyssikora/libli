@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-11 02:00+0200\n"
+"POT-Creation-Date: 2026-08-11 12:15+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -557,7 +557,7 @@ msgstr "Lista musi mieć od %(lo)s do %(hi)s pozycji."
 #: .\grouping\forms.py:28 .\grouping\forms.py:50 .\institution\models.py:24
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
-#: .\templates\courses\manage\media\manager.html:21
+#: .\templates\courses\manage\media\manager.html:27
 msgid "Name"
 msgstr "Nazwa"
 
@@ -791,27 +791,31 @@ msgstr "Wpisz liczbę lub ułamek."
 msgid "Enter a non-negative number or fraction."
 msgstr "Wpisz nieujemną liczbę lub ułamek."
 
-#: .\courses\media.py:21 .\courses\models.py:694
+#: .\courses\media.py:22 .\courses\models.py:694
 #: .\courses\templatetags\courses_manage_extras.py:34
 #: .\courses\views_manage.py:1951
 #: .\templates\courses\manage\editor\_add_menu.html:30
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
-#: .\templates\courses\manage\media\manager.html:18
+#: .\templates\courses\manage\media\manager.html:24
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:22 .\courses\models.py:695
+#: .\courses\media.py:23 .\courses\models.py:695
 #: .\courses\templatetags\courses_manage_extras.py:35
 #: .\courses\views_manage.py:1952
 #: .\templates\courses\manage\editor\_add_menu.html:31
-#: .\templates\courses\manage\media\manager.html:18
+#: .\templates\courses\manage\media\manager.html:24
 msgid "Video"
 msgstr "Wideo"
 
-#: .\courses\media.py:23 .\courses\views_manage.py:1979
+#: .\courses\media.py:24 .\courses\views_manage.py:1979
 #: .\templates\courses\manage\editor\_add_menu.html:69
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
+
+#: .\courses\media.py:163
+msgid "The submitted file is empty."
+msgstr "Przesłany plik jest pusty."
 
 #: .\courses\models.py:191 .\templates\courses\_unit_footer.html:40
 msgid "Part"
@@ -3043,6 +3047,7 @@ msgstr "Zapisz"
 #: .\templates\courses\manage\import_course.html:32
 #: .\templates\courses\manage\import_course.html:34
 #: .\templates\courses\manage\import_preview.html:59
+#: .\templates\courses\manage\media\manager.html:14
 #: .\templates\courses\manage\node_confirm_delete.html:19
 #: .\templates\courses\manage\node_confirm_flag.html:31
 #: .\templates\courses\manage\subject_confirm_delete.html:9
@@ -3135,7 +3140,7 @@ msgstr "Usunąć tę notatkę?"
 #: .\tags\templates\tags\delete_confirm.html:13
 #: .\templates\courses\manage\_tree_node.html:159
 #: .\templates\courses\manage\editor\_element_row_controls.html:33
-#: .\templates\courses\manage\media\_asset_cell.html:36
+#: .\templates\courses\manage\media\_asset_cell.html:54
 #: .\templates\courses\manage\node_confirm_delete.html:18
 #: .\templates\courses\manage\subject_confirm_delete.html:8
 #: .\templates\courses\manage\subject_list.html:24
@@ -3803,7 +3808,7 @@ msgstr "Nieaktywny"
 #: .\templates\courses\manage\builder.html:30
 #: .\templates\courses\manage\course_list.html:27
 #: .\templates\courses\manage\editor\_link_dialog.html:28
-#: .\templates\courses\manage\media\manager.html:36
+#: .\templates\courses\manage\media\manager.html:42
 msgid "Filter"
 msgstr "Filtruj"
 
@@ -4887,7 +4892,7 @@ msgid "No children yet."
 msgstr "Brak elementów."
 
 #: .\templates\courses\manage\_tree_node.html:54
-#: .\templates\courses\manage\media\_asset_cell.html:12
+#: .\templates\courses\manage\media\_asset_cell.html:27
 msgid "Rename"
 msgstr "Zmień nazwę"
 
@@ -5345,7 +5350,7 @@ msgid "Button label"
 msgstr "Etykieta przycisku"
 
 #: .\templates\courses\manage\editor\_edit_callout.html:3
-#: .\templates\courses\manage\media\manager.html:17
+#: .\templates\courses\manage\media\manager.html:23
 msgid "Kind"
 msgstr "Rodzaj"
 
@@ -5913,7 +5918,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_image.html:7
 #: .\templates\courses\manage\editor\_edit_video.html:11
 #: .\templates\courses\manage\media\manager.html:3
-#: .\templates\courses\manage\media\manager.html:11
+#: .\templates\courses\manage\media\manager.html:17
 msgid "Media"
 msgstr "Media"
 
@@ -6588,19 +6593,23 @@ msgstr "Miejsce wstawienia"
 msgid "Confirm import"
 msgstr "Potwierdź import"
 
-#: .\templates\courses\manage\media\_asset_cell.html:19
+#: .\templates\courses\manage\media\_asset_cell.html:34
 msgid "in use"
 msgstr "w użyciu"
 
-#: .\templates\courses\manage\media\_asset_cell.html:27
+#: .\templates\courses\manage\media\_asset_cell.html:42
 msgid "Referenced by an element."
 msgstr "Używane przez element."
 
-#: .\templates\courses\manage\media\_asset_cell.html:31
+#: .\templates\courses\manage\media\_asset_cell.html:46
 msgid "unused"
 msgstr "nieużywane"
 
-#: .\templates\courses\manage\media\_asset_cell.html:36
+#: .\templates\courses\manage\media\_asset_cell.html:49
+msgid "Replace file"
+msgstr "Zastąp plik"
+
+#: .\templates\courses\manage\media\_asset_cell.html:54
 msgid "In use — cannot delete"
 msgstr "W użyciu — nie można usunąć"
 
@@ -6614,7 +6623,7 @@ msgid "Library"
 msgstr "Biblioteka"
 
 #: .\templates\courses\manage\media\_picker.html:7
-#: .\templates\courses\manage\media\manager.html:23
+#: .\templates\courses\manage\media\manager.html:29
 msgid "Upload"
 msgstr "Prześlij"
 
@@ -6638,39 +6647,64 @@ msgstr "Prześlij wideo — zostanie dodane i wybrane."
 msgid "or drag & drop a file here"
 msgstr "lub przeciągnij i upuść plik tutaj"
 
-#: .\templates\courses\manage\media\manager.html:20
+#: .\templates\courses\manage\media\manager.html:11
+msgid "Replace with:"
+msgstr "Zastąp plikiem:"
+
+#: .\templates\courses\manage\media\manager.html:12
+msgid ""
+"Used by a drag-to-image question. Drop zones are stored as fractions of the "
+"image, so a file with a different shape will move them."
+msgstr ""
+"Używane przez pytanie „Przeciągnij na obraz”. Strefy upuszczania są "
+"zapisywane jako ułamki wymiarów obrazu, więc plik o innym kształcie je "
+"przesunie."
+
+#: .\templates\courses\manage\media\manager.html:13
+msgid "Replace"
+msgstr "Zastąp"
+
+#: .\templates\courses\manage\media\manager.html:15
+msgid "Could not replace the file."
+msgstr "Nie udało się zastąpić pliku."
+
+#: .\templates\courses\manage\media\manager.html:16
+msgid "Confirm file replacement"
+msgstr "Potwierdź zastąpienie pliku"
+
+#: .\templates\courses\manage\media\manager.html:26
 msgid "File"
 msgstr "Plik"
 
-#: .\templates\courses\manage\media\manager.html:21
+#: .\templates\courses\manage\media\manager.html:27
 msgid "optional"
 msgstr "opcjonalne"
 
-#: .\templates\courses\manage\media\manager.html:22
+#: .\templates\courses\manage\media\manager.html:28
 msgid "defaults to filename"
 msgstr "domyślnie nazwa pliku"
 
-#: .\templates\courses\manage\media\manager.html:25
+#: .\templates\courses\manage\media\manager.html:31
 msgid "Drag & drop files here"
 msgstr "Przeciągnij i upuść pliki tutaj"
 
-#: .\templates\courses\manage\media\manager.html:30
+#: .\templates\courses\manage\media\manager.html:36
 msgid "All types"
 msgstr "Wszystkie rodzaje"
 
-#: .\templates\courses\manage\media\manager.html:31
+#: .\templates\courses\manage\media\manager.html:37
 msgid "Images"
 msgstr "Obrazy"
 
-#: .\templates\courses\manage\media\manager.html:32
+#: .\templates\courses\manage\media\manager.html:38
 msgid "Videos"
 msgstr "Filmy wideo"
 
-#: .\templates\courses\manage\media\manager.html:35
+#: .\templates\courses\manage\media\manager.html:41
 msgid "Search by name or filename…"
 msgstr "Szukaj wg nazwy lub pliku…"
 
-#: .\templates\courses\manage\media\manager.html:38
+#: .\templates\courses\manage\media\manager.html:44
 msgid "files"
 msgstr "plików"
 
