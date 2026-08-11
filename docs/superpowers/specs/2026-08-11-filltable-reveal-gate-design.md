@@ -265,9 +265,13 @@ if (data.all_correct === true && (data.cells || []).length > 0) {
   dead code: `_val_done` strips `open` before it is stored (§4).
 - **The `hasAttribute` guard is load-bearing, not defensive noise.** Without it an *ungated*
   fill-table also calls `cascadeFrom`, which adds `.reveal-shown` to its following siblings and —
-  since `focus` defaults to true — moves focus and scrolls the page on every correct answer in every
-  ungated table in the product. That is precisely the "byte for byte" goal being broken, so test 27
-  pins it.
+  since `focus` defaults to true — moves focus and scrolls the page on every correct answer. The
+  blast radius is bounded by the *other* guard in the same condition: `reveal.js` loads only under
+  `{% if has_reveal_gate %}`, so `window.libliRevealCascade` is `undefined` on a unit with no gate at
+  all and the call short-circuits regardless. The damage is therefore "every ungated fill-table on a
+  unit that also contains some gate" — narrower than the whole product, but exactly the "byte for
+  byte" goal being broken. Test 27 pins it, and for the same reason its fixture must contain a second,
+  gating element or the mutant cannot be observed.
 - `hideWrapper: false` matches `fillgate.js` — the solved table stays on screen with its green cells
   rather than being consumed, which is right for a gate whose content *is* the student's work.
 - The `window.libliRevealCascade` guard is a **defensive load-order guard**, mirroring `fillgate.js`
@@ -559,6 +563,10 @@ documenting the seam these tests will otherwise trip over — **`UnitProgress.el
 str-keyed while `render()`'s `state` argument is int-keyed** (`views.py:485-494` does the conversion).
 Seed through the lesson view with str keys; call `render()` directly only with int keys.
 
+`_seed_filltable` needs a small extension first: it hardcodes `FillTableElement(data={"cells": cells})`
+(line 38), so as written it cannot seed a gated element at all. Add a `gate=False` keyword folded into
+the constructed `data` dict; the existing callers keep the default and are untouched.
+
 ### Unit / render
 
 1. **Model / normalizer** — `normalize_data` emits `gate: False` by default and `True` when set on a
@@ -582,10 +590,14 @@ Seed through the lesson view with str keys; call `render()` directly only with i
    render, assert the caller's dict still lacks `open`. *Mutant: assign into `ctx["mine"]` in place.*
 8. **Ungated restore unchanged** — `gate: false` + `{"done": True}` renders `data-state` **without**
    `open`. *Mutant: derive `open` unconditionally.*
-9. **Stored blob shape** — after a successful gated check, the *persisted* state is exactly
-   `{"done": True}`. Pins §4's claim that `_val_done` strips everything else, and stops a later change
-   from asserting against a persisted `open` that never exists. *Mutant: add `open` to `_val_done`'s
-   return* — the test should go red, proving it actually reads storage.
+9. **Stored blob shape** — the *persisted* state after a gated success is exactly `{"done": True}`.
+   Note that `filltable_check` writes **nothing** — it only returns `{"cells": …, "all_correct": …}`;
+   persistence is a separate `saveFlag` POST. So the test must POST
+   `{"element": <pk>, "state": {"done": true, "open": true}}` to `courses:element_state_save` and then
+   read `UnitProgress.element_state`; driving `filltable_check` alone would find nothing stored.
+   Sending `open` in the payload is the point — it is what exercises `_val_done`'s stripping. Pins
+   §4's claim, and stops a later change from asserting against a persisted `open` that never exists.
+   *Mutant: add `open` to `_val_done`'s return* — the test should go red, proving it reads storage.
 10. **Normalizer-routing invariant** — saving through `FillTableElementForm` and importing through
     `_build_fill_table` both store a real JSON boolean at `data["gate"]`, so `data__gate=True` and the
     template's `{% if data.gate %}` agree. *Mutant: bypass `normalize_data` on one write path.*
@@ -593,8 +605,18 @@ Seed through the lesson view with str keys; call `render()` directly only with i
     `has_filltable_gate=True`; a unit with only an ungated fill-table gets both false. Cover a table
     nested as a **callout child**, since that is the real shape and the flat (non-`parent__isnull`)
     query is what makes it work. *Mutant: drop the `or has_filltable_gate`.*
-12. **No ContentType SELECT** — assert the gating-table detection does not add a `django_content_type`
-    query; `tests/test_html_element.py`'s query-count invariant must stay green **unmodified**.
+12. **No extra ContentType SELECT** — must be written as a **delta**, not an absolute count, and with
+    the cache cleared, or it fails both ways. `get_for_model`'s cache is process-global and is not
+    reset per test, and the fixture warms it itself (`Element.objects.create(content_object=<a
+    FillTableElement>)` resolves that ContentType before the request under test) — so with a warm cache
+    the mutant emits **zero** CT SELECTs and a naive test passes. Clear it and swing to an absolute
+    "no `django_content_type` query" assertion and the test goes red on the **correct** build, because
+    `build_lesson_context` already calls `get_for_model` unconditionally twice (`views.py:404` for the
+    question models, `:499` for `SlideBreakElement`) and the GFK prefetch resolves CTs by id.
+    So: call `ContentType.objects.clear_cache()` immediately before each capture, render a gated-table
+    unit and an otherwise-identical ungated-table unit, and assert the gated render issues **no more**
+    `django_content_type` queries than the ungated one. A nonzero absolute count is expected in both.
+    `tests/test_html_element.py`'s query-count invariant must also stay green **unmodified**.
     *Mutant: rewrite the query as `FillTableElement.objects.filter(elements__unit=node, …)`.*
 13. **Prepaint A/B** — render the unit page with and without a gating table and diff the prepaint
     block: the `__fillTableBooted` term and the `.reveal-armed` style block appear only in the gated
@@ -658,10 +680,16 @@ Extend `tests/test_e2e_filltable.py` or add a sibling, following `tests/test_e2e
     accepted behaviour, so it is also the test that goes red if someone later changes `cascadeFrom`'s
     stop condition — which is the point: that change should be deliberate.
 27. **Ungated table does not cascade** — solve an *ungated* fill-table that has a following sibling in
-    scope, and assert no `.reveal-shown` class is added and `document.activeElement` is unchanged.
-    *Mutant: delete the `hasAttribute("data-reveal-gate")` guard in §5.* This is the only test
-    defending Goal 1's "byte for byte"; every other new test uses a gated fixture. It is filed here,
-    not in the render block, because `.reveal-shown` and `activeElement` exist only at runtime.
+    its scope, and assert no `.reveal-shown` class is added there and `document.activeElement` is
+    unchanged. *Mutant: delete the `hasAttribute("data-reveal-gate")` guard in §5.*
+    **The fixture must also contain a second, gating element** — a `RevealGateElement`, or a gated
+    fill-table in a different scope (another slide, another container) — so `has_reveal_gate` is true
+    and `reveal.js` actually loads. Without one, `window.libliRevealCascade` is `undefined`, the
+    mutated line short-circuits on the *other* half of the condition, and the test is green against
+    its own mutant. Assert only on the ungated table's own scope, so the second element's gating does
+    not confound it. This is the only test defending Goal 1's "byte for byte"; every other new test
+    uses a gated fixture. It is filed here, not in the render block, because `.reveal-shown` and
+    `activeElement` exist only at runtime.
 
 Run e2e narrowly (`-m e2e` is mandatory or the suite silently deselects), start the test-DB container
 first, and do not background the run.
