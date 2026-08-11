@@ -208,9 +208,27 @@ def test_lesson_title_caps_in_a_two_item_head(page, live_server):
         "the reset link renders, so this is a three-item head and the assertion "
         "below is inert -- the fixture must seed no stateful element"
     )
+
+    # Fixture-validity guard, then a DIRECTIONAL assertion. Deliberately not
+    # `abs(title_w - 736) < 2`: the title's flex target here is only ~20px above
+    # the cap (head - 1rem gap - the pill), so a wider pill -- a bigger font, more
+    # padding, or a longer locale string such as the Polish "Oznacz jako
+    # ukonczone" -- drops the target BELOW 736. The title would then be sized by
+    # the flex remainder rather than the cap, and an exact-token assertion would
+    # go RED on correct CSS. The guard below fails first and says so, instead of
+    # letting the arm quietly stop testing anything.
+    head_w = _width(page, ".lesson-unit__head")
+    pill_w = _width(page, ".unit-done")
+    target = head_w - pill_w - 16  # gap: 1rem
+    assert target > 738, (
+        f"this fixture no longer exercises the cap: the title's flex target is "
+        f"{target}, already at or under 736, so the cap is not what holds it "
+        f"down. Widen the head or shorten the pill."
+    )
     title_w = _width(page, ".lesson-unit__title")
-    assert abs(title_w - 736) < 2, (
-        f"the title must be held at the 46rem cap, got {title_w}"
+    assert title_w < 738, (
+        f"the title must be held at the 46rem cap, got {title_w} "
+        f"(flex target was {target})"
     )
 
 

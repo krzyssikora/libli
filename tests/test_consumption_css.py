@@ -221,9 +221,10 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
 PROSE_CAP_SELECTORS = [
     "html.unit-tree-collapsed [data-unit-shell] .el--text",
     "html.unit-tree-collapsed [data-unit-shell] .el--question .question__stem",
-    "html.unit-tree-collapsed [data-unit-shell] .question__choices",
-    "html.unit-tree-collapsed [data-unit-shell] .question__feedback",
-    "html.unit-tree-collapsed [data-unit-shell] textarea.question__text-input",
+    "html.unit-tree-collapsed [data-unit-shell] .el--question .question__choices",
+    "html.unit-tree-collapsed [data-unit-shell] .el--question .question__feedback",
+    "html.unit-tree-collapsed [data-unit-shell] .el--question "
+    "textarea.question__text-input",
     "html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title",
     "html.unit-tree-collapsed [data-unit-shell] .unit-crumbs",
     "html.unit-tree-collapsed [data-unit-shell] .markdone",
