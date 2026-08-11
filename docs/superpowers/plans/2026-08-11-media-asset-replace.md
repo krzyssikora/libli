@@ -66,12 +66,13 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 | `tests/test_media_replace.py` | **create** | service-level: swap mechanics, disk hygiene, rejections, consumer survival |
 | `tests/test_media_manager.py` | modify | view-level: status codes, key guard, kind-ignored, render assertions |
 | `tests/test_e2e_media_manager.py` | **create** | browser-level: the strip, cancel, 422, catch-all, mid-flight filter, screenshots |
+| `scripts/e2e_chunks.sh` | modify | register the new e2e module in a chunk — its `verify_coverage` refuses to run at all if a collected e2e file is in no chunk |
 
 Task order follows the dependency chain: service → view → template/CSS → JS+e2e → i18n/gate.
 
 **Two deliberate exceptions to "each task is verified by its own tests":**
 
-- **Task 3 (view) ends 8/9 green on its own.** `test_replace_returns_the_rerendered_cell` asserts `data-replace-url`, which Task 4 adds. Task 3 Step 5 says so, and Task 4 Step 6 re-runs it. This is an interface contract, not a broken task.
+- **Task 3 (view) ends 8 passed / 1 failed on its own, out of 9 tests.** `test_replace_returns_the_rerendered_cell` asserts `data-replace-url`, which Task 4 adds. Task 3 Step 5 says so, and Task 4 Step 6 re-runs it. This is an interface contract, not a broken task.
 - **The JS and its e2e are one task (Task 5), not two.** Nothing server-side can fail on a JS defect — a hoisted `done`, an unlowered `replaceBusy`, a wrong selector, a broken `flash` would all leave `tests/test_media_manager.py` green. Committing the JS behind server-side tests would be a gate that cannot catch anything, so the JS lands with the browser tests that actually exercise it.
 
 ---
@@ -929,9 +930,9 @@ def media_replace(request, slug, pk):
 uv run pytest tests/test_media_manager.py -k replace -v
 ```
 
-Expected: 8 passed.
+Expected: **9 selected, 8 passed, 1 failed.**
 
-Note: `test_replace_returns_the_rerendered_cell` asserts `data-replace-url` appears in the cell, which Task 4 adds. **Until Task 4 lands this one assertion fails.** That is deliberate — it is the interface contract between the two tasks. If you are running Task 3 standalone, expect 7 passed / 1 failed on exactly that assertion, and let Task 4 turn it green. Do not delete the assertion.
+The single failure is `test_replace_returns_the_rerendered_cell`, on its `data-replace-url` assertion — that attribute is added by Task 4. This is deliberate: it is the interface contract between the two tasks, and Task 4 Step 6 turns it green. Do not delete the assertion. Any *other* failure, or a different count, is a real problem.
 
 - [ ] **Step 6: FALSIFY the decorator order**
 
@@ -1028,9 +1029,14 @@ def test_cell_carries_di_uses_for_the_drag_warning(client, settings, tmp_path):
         reverse("courses:manage_media", kwargs={"slug": course.slug})
     ).content.decode()
 
+    # Same regex-on-the-open-tag technique as the sibling test: a byte window
+    # is fragile against slug length and the implementer's line wrapping.
+    import re
+
     for pk, expected in ((dragged.pk, "1"), (plain.pk, "0")):
-        cell = body[body.index(f'data-asset-id="{pk}"') :][:400]
-        assert f'data-di-uses="{expected}"' in cell
+        tag = re.search(rf'<div class="asset-cell"[^>]*data-asset-id="{pk}"[^>]*>', body)
+        assert tag, pk
+        assert f'data-di-uses="{expected}"' in tag.group(0), pk
 
 
 @pytest.mark.django_db
@@ -1068,10 +1074,10 @@ def test_manager_renders_all_six_replace_message_attributes(
 - [ ] **Step 2: Run to verify they fail**
 
 ```bash
-uv run pytest tests/test_media_manager.py -k "in_use or di_uses or six_replace" -v
+uv run pytest tests/test_media_manager.py -k "enabled_even or di_uses or six_replace" -v
 ```
 
-Expected: 3 FAILED on the missing markers.
+Expected: **3 selected, 3 FAILED** on the missing markers. (`-k in_use` would also substring-match the pre-existing `test_upload_then_delete_in_use_returns_409`, giving 4 selected / 1 passed — an unexplained pass that invites a wrong turn.)
 
 - [ ] **Step 3: Edit `_asset_cell.html`**
 
@@ -1185,7 +1191,7 @@ Also update the existing comment above `.asset-del { display: contents; }` (edit
 uv run pytest tests/test_media_manager.py -k "replace or di_uses" -v
 ```
 
-Expected: **12 passed** — Task 3's nine (including `test_replace_returns_the_rerendered_cell`, which was waiting on `data-replace-url`) plus this task's three. The `or di_uses` matters: `-k replace` alone does **not** match `test_cell_carries_di_uses_for_the_drag_warning`, so the task that adds `data-di-uses` would never confirm its own assertion green. If the count is lower, a test was silently deselected — check the selector before believing the result.
+Expected: **12 passed** — Task 3's nine (all green now) (including `test_replace_returns_the_rerendered_cell`, which was waiting on `data-replace-url`) plus this task's three. The `or di_uses` matters: `-k replace` alone does **not** match `test_cell_carries_di_uses_for_the_drag_warning`, so the task that adds `data-di-uses` would never confirm its own assertion green. If the count is lower, a test was silently deselected — check the selector before believing the result.
 
 - [ ] **Step 7: FALSIFY the enabled-when-in-use assertion**
 
@@ -1303,10 +1309,10 @@ Inside `wireManager`, after the inline-rename handler, before the filter block:
       var file = input.files[0];
       var open = root.querySelector("[data-replace-strip]");
       if (open) closeStrip(open, open.closest(".asset-cell") !== cell);
-      cell.appendChild(buildReplaceStrip(cell, input, file));
+      cell.appendChild(buildReplaceStrip(cell, file));
     });
 
-    function buildReplaceStrip(cell, input, file) {
+    function buildReplaceStrip(cell, file) {
       var strip = document.createElement("div");
       strip.className = "asset-replace-confirm";
       strip.setAttribute("data-replace-strip", "");
@@ -1424,7 +1430,7 @@ Inside `wireManager`, after the inline-rename handler, before the filter block:
     }
 ```
 
-`input` is a parameter of `buildReplaceStrip` for symmetry with `closeStrip`'s lookup; if ruff-equivalent JS linting flags it as unused, drop the parameter and the corresponding argument rather than adding a suppression.
+Note the signature: `buildReplaceStrip(cell, file)` takes **no** `input` parameter. The `change` handler already holds `input`, and the strip's own handlers reach it through `closeStrip`'s `cell.querySelector("[data-replace-input]")` lookup, so passing it would be a dead argument. (There is no JS linter in this repo — `ruff` is Python-only — so nothing would ever flag it for you.)
 
 - [ ] **Step 3: Confirm nothing server-side regressed**
 
@@ -1468,6 +1474,12 @@ from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
 
+# Every test below also carries @pytest.mark.django_db(transaction=True),
+# matching tests/test_e2e_media_picker.py:83 and tests/test_e2e_before_after.py
+# :838. pytest-django's _live_server_helper pulls `transactional_db` in anyway,
+# so it changes nothing at runtime -- it is written out so the DB contract is
+# visible to a reader rather than implied by a fixture two layers down.
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _allow_sync_orm_under_playwright():
@@ -1484,10 +1496,14 @@ def _isolated_media(settings, tmp_path):
     autouse deliberately: a fixture defined in a test module is scoped to that
     module and cannot leak, whereas an opt-in redirect that a future test forgets
     would write into -- and, uniquely for THIS feature, DELETE from -- the
-    working tree's real media/ directory. That, not any claim about how
-    live_server serves /media/, is the reason this fixture exists. The "before
-    any asset is created" ordering is what keeps a fixture image's bytes under
-    tmp_path rather than half in each location.
+    working tree's real media/ directory -- uniquely for THIS feature, which
+    deletes files rather than only writing them.
+
+    It is also what makes the served bytes the test's bytes: live_server DOES
+    serve /media/ from MEDIA_ROOT, resolved per request (see the module
+    docstring of tests/test_e2e_imagezoom.py), which is why the redirect must
+    happen BEFORE any asset is created rather than merely before the first page
+    load -- otherwise a fixture image's bytes and the path being served diverge.
     """
     settings.MEDIA_ROOT = str(tmp_path)
     return tmp_path
@@ -1535,6 +1551,7 @@ def _open_manager(page, live_server, username, course):
     page.wait_for_selector(".asset-cell")
 
 
+@pytest.mark.django_db(transaction=True)
 def test_replace_swaps_the_cell_and_the_rendered_image(page, live_server):
     _, course, unit, asset = _seed("pa-repl-e2e", "repl-e2e")
     _open_manager(page, live_server, "pa-repl-e2e", course)
@@ -1581,6 +1598,7 @@ This is the assertion the byte-less fixture would have made unfalsifiable, so it
 - [ ] **Step 7: Add cancel, 422, catch-all and the mid-flight filter**
 
 ```python
+@pytest.mark.django_db(transaction=True)
 def test_cancel_changes_nothing_and_sends_no_request(page, live_server):
     _, course, _unit, asset = _seed("pa-repl-cancel", "repl-cancel")
     _open_manager(page, live_server, "pa-repl-cancel", course)
@@ -1601,6 +1619,7 @@ def test_cancel_changes_nothing_and_sends_no_request(page, live_server):
     assert asset.original_filename == "original.png"
 
 
+@pytest.mark.django_db(transaction=True)
 def test_a_422_flashes_the_validator_message(page, live_server):
     _, course, _unit, _asset = _seed("pa-repl-422", "repl-422")
     _open_manager(page, live_server, "pa-repl-422", course)
@@ -1624,6 +1643,7 @@ def test_a_422_flashes_the_validator_message(page, live_server):
     assert page.locator("[data-replace-strip]").count() == 0
 
 
+@pytest.mark.django_db(transaction=True)
 def test_a_server_error_removes_the_strip_and_flashes(page, live_server):
     """Every other e2e here passes with the catch-all branch deleted."""
     _, course, _unit, _asset = _seed("pa-repl-500", "repl-500")
@@ -1641,6 +1661,7 @@ def test_a_server_error_removes_the_strip_and_flashes(page, live_server):
     assert focused  # focus restored, not dropped to <body>
 
 
+@pytest.mark.django_db(transaction=True)
 def test_two_consecutive_replaces_both_succeed(page, live_server):
     """Carries two regressions at once.
 
@@ -1666,47 +1687,57 @@ def test_two_consecutive_replaces_both_succeed(page, live_server):
     page.wait_for_selector('.asset-cell:has-text("second.png")')
 
 
+@pytest.mark.django_db(transaction=True)
 def test_a_filter_swap_mid_flight_still_updates_the_cell(page, live_server):
-    """The replace POST must be genuinely SUSPENDED while the filter swaps the
-    grid, so the 200 lands on a detached strip and takes the re-query branch.
+    """The replace POST must still be in flight while the filter swaps the grid,
+    so the 200 lands on a detached strip and takes the re-query branch.
 
-    The suspension has to happen INSIDE the route handler: Playwright treats a
-    handler that returns without fulfil/continue_/abort/fallback as "continue",
-    so stashing the route object and calling continue_() later releases the
-    request immediately and then raises "Route is already handled". Blocking on
-    a threading.Event inside the handler is what actually holds it.
+    CAPTURE-AND-RELEASE, the pattern this suite already uses
+    (tests/test_e2e_builder_toggle.py:352, tests/test_e2e_inline_rename.py:326).
+    A route handler that returns without fulfil/continue_/abort leaves the
+    request PENDING -- test_two_overlapping_tree_fetches_stay_busy_until_both
+    _settle asserts TWO are simultaneously in flight before releasing them one
+    at a time, which could not happen if returning auto-continued.
+
+    Do NOT block inside the handler waiting on an Event. The comment at
+    test_e2e_builder_toggle.py:347-349 says why: "Sleeping inside a sync route
+    handler serialises the driver" -- the click would not return, the filter
+    would run only after the POST was released, and the branch under test would
+    never be exercised while the test still passed.
     """
-    import threading
-
     _, course, _unit, asset = _seed("pa-repl-filter", "repl-filter")
     _open_manager(page, live_server, "pa-repl-filter", course)
 
-    release = threading.Event()
-    arrived = threading.Event()
-
-    def hold(route):
-        arrived.set()
-        release.wait(timeout=10)
-        route.continue_()
-
-    page.route("**/replace/", hold)
+    held = []
+    page.route("**/replace/", lambda route: held.append(route))
 
     page.set_input_files("[data-replace-input]", _upload_payload("late.png"))
     page.locator("[data-replace-commit]").click()
-    assert arrived.wait(timeout=5), "the replace POST never reached the route"
 
-    # Now the POST is provably in flight. Force oldGrid.replaceWith(newGrid).
+    # Prove the POST actually dispatched before touching the filter: the commit
+    # handler disables the button synchronously, immediately before fetch().
+    page.wait_for_function(
+        "() => { const b = document.querySelector('[data-replace-commit]');"
+        "        return b && b.disabled; }"
+    )
+    for _ in range(50):  # bounded poll on a real condition, not a blind sleep
+        if held:
+            break
+        page.wait_for_timeout(100)
+    assert len(held) == 1, "the replace POST never reached the route"
+
+    # Force oldGrid.replaceWith(newGrid) while the POST is still held.
     page.fill("[data-filter-q]", "original")
-    page.wait_for_selector('.asset-cell[data-asset-id="%d"]' % asset.pk)
     page.wait_for_selector("[data-replace-strip]", state="detached")
 
-    release.set()
+    held[0].continue_()
 
     page.wait_for_selector('.asset-cell:has-text("late.png")')
     asset.refresh_from_db()
     assert asset.original_filename == "late.png"
 
 
+@pytest.mark.django_db(transaction=True)
 def test_the_drag_warning_appears_only_for_a_drag_to_image_asset(page, live_server):
     from courses.models import DragToImageQuestionElement
 
@@ -1730,13 +1761,14 @@ def test_the_drag_warning_appears_only_for_a_drag_to_image_asset(page, live_serv
         page.wait_for_selector("[data-replace-strip]", state="detached")
 ```
 
-The `page.wait_for_function("window.__held === undefined")` line in the filter test is a placeholder for "let the click's fetch actually dispatch" — replace it with whatever deterministic wait the codebase already uses for an in-flight route, or simply assert `len(held) == 1` in a short poll loop. Do **not** leave a bare `wait_for_timeout` as the only synchronisation for the POST dispatch.
+Note the two-part synchronisation in the filter test: `wait_for_function` on the commit button's `disabled` proves the handler reached `fetch`, and the bounded poll on `held` proves the route intercepted it. Neither is a blind sleep, and both must stay — dropping either turns the test into a wall-clock guess.
 
 - [ ] **Step 8: Add the screenshot test**
 
 Not a prose instruction — an executable test, mirroring `tests/test_e2e_before_after.py:838-884`. Append:
 
 ```python
+@pytest.mark.django_db(transaction=True)
 def test_screenshots_light_and_dark(page, live_server, tmp_path):
     """Four foot states at the grid's MINIMUM column width, both themes.
 
@@ -1792,7 +1824,19 @@ def test_screenshots_light_and_dark(page, live_server, tmp_path):
     print(f"REPLACE_SHOTS_DIR={tmp_path}")
 ```
 
-- [ ] **Step 9: Run the module and look at the shots**
+- [ ] **Step 9: Register the module in `scripts/e2e_chunks.sh`**
+
+The script's `verify_coverage` (line 48) diffs `pytest -m e2e --collect-only` against its `C1..C7` lists and exits 1 with `!!! CHUNK COVERAGE IS STALE -- refusing to claim a full run` on any collected file that is in no chunk. Creating the module without registering it breaks the script for this branch **and for everyone afterwards**.
+
+Append `tests/test_e2e_media_manager.py` to **`C4`** — the chunk that already holds `tests/test_e2e_media_picker.py`, so the two media modules stay together. Then:
+
+```bash
+bash scripts/e2e_chunks.sh check
+```
+
+Expected: coverage verifies clean, with no "collected but NOT in any chunk" list.
+
+- [ ] **Step 10: Run the module and look at the shots**
 
 ```bash
 uv run pytest -m e2e tests/test_e2e_media_manager.py -v -s
@@ -1800,14 +1844,32 @@ uv run pytest -m e2e tests/test_e2e_media_manager.py -v -s
 
 Expected: 8 passed. The `-s` surfaces the `REPLACE_SHOTS_DIR=` line; open those eight PNGs and **judge the dark ones on their own**, not by assuming they follow the light ones. E2e flakes under parallel load — if one test fails, re-run it alone before blaming the diff.
 
-If any state looks wrong, fix the CSS in Task 4's file and re-run Task 4's tests before continuing. Copy the shots somewhere durable (they live under a pytest `tmp_path` that later runs will reap) and attach them to the PR body when the pipeline opens it.
+If any state looks wrong, fix `courses/static/courses/css/editor.css` (Task 4's file — already committed, so this is a follow-up edit) and re-run Task 4's tests. Step 12's `git add` includes `editor.css` for exactly this reason: without it a screenshot-driven CSS correction would sit unstaged in the worktree and vanish from the branch with nothing to notice.
 
-- [ ] **Step 10: Commit**
+The shots live under a pytest `tmp_path` that later runs reap. They are **for local judgement only** and are not attached to the PR — the pipeline opens it non-interactively. If you want to keep them, copy the directory printed as `REPLACE_SHOTS_DIR=` somewhere outside the worktree before continuing; nothing downstream depends on them.
+
+- [ ] **Step 11: FALSIFY the three JS regressions this task exists to catch**
+
+Step 6 proved the src assertion. These three prove the tests that guard the subtlest defects — the ones argued for at length in §6 of the spec and trusted on argument alone until now. Each mutant is edited back out before the next.
+
+1. **Hoist `done`.** Move `var done = false;` out of `buildReplaceStrip` up to `wireManager` scope. Run
+   `uv run pytest -m e2e tests/test_e2e_media_manager.py -k two_consecutive -v`.
+   Expected: **FAILS** at the second `wait_for_selector('.asset-cell:has-text("second.png")')` — the second commit returns early at `if (done) return;`.
+2. **Never lower the in-flight flag.** Restore `done`, then delete the trailing `.then(function () { replaceBusy = false; })`. Run the same test.
+   Expected: **FAILS** at `page.expect_file_chooser()` — the ⇄ click returns immediately, so no chooser is ever raised. This is the test's whole reason for going through a real click.
+3. **Delete the catch-all.** Restore the flag, then remove the final `fail(...)` call so only 200 and 422 are handled. Run
+   `uv run pytest -m e2e tests/test_e2e_media_manager.py -v`.
+   Expected: **`test_a_server_error_removes_the_strip_and_flashes` FAILS** (the strip never detaches) **and every other test still passes** — which is the claim its docstring makes, now checked rather than asserted.
+4. Restore, then re-run the module: 8 passed.
+
+- [ ] **Step 12: Commit**
 
 ```bash
 uv run ruff check --no-cache tests/test_e2e_media_manager.py
 uv run ruff format --check tests/test_e2e_media_manager.py
-git add courses/static/courses/js/media_picker.js tests/test_e2e_media_manager.py
+git status --porcelain  # nothing from this task may be left unstaged
+git add courses/static/courses/js/media_picker.js tests/test_e2e_media_manager.py \
+        scripts/e2e_chunks.sh courses/static/courses/css/editor.css
 git commit -m "feat(media): wire the replace confirm strip, with its e2e proof
 
 ⇄ opens the file dialog; a chosen file raises an inline strip below the foot so
@@ -1855,7 +1917,44 @@ uv run python manage.py makemessages -l pl
 
 For each **new** entry, write the Polish msgstr **and delete any `#, fuzzy` line** `makemessages` pre-filled. A fuzzy entry is not used at runtime *and* carries a translation lifted from a different string — so clearing it is two separate deletions: the flag line and the wrong msgstr. `Replace` is the likeliest fuzzy pre-fill, since near-neighbours already exist.
 
-Verify no fuzzy entries survive among the new ones:
+- [ ] **Step 2b: Verify every msgid actually landed and is translated**
+
+The fuzzy grep alone is not enough: a `{% trans %}` typo, or an extractor that split a string differently, leaves the msgid simply **absent**, and nothing else in the plan would notice — Task 4's attribute test runs in English and passes against a completely untranslated catalog. Check each one mechanically:
+
+```bash
+uv run python - <<'PY'
+import io, re
+po = io.open("locale/pl/LC_MESSAGES/django.po", encoding="utf-8").read()
+wanted = [
+    "Replace file",
+    "Replace with:",
+    "Replace",
+    "Cancel",
+    "Could not replace the file.",
+    "Confirm file replacement",
+    "The submitted file is empty.",
+]
+missing, untranslated, fuzzy = [], [], []
+for msg in wanted:
+    m = re.search(
+        r'(?:(#,[^\n]*fuzzy[^\n]*)\n)?msgid "%s"\nmsgstr "([^"]*)"' % re.escape(msg), po
+    )
+    if not m:
+        missing.append(msg)
+        continue
+    if m.group(1):
+        fuzzy.append(msg)
+    if not m.group(2).strip():
+        untranslated.append(msg)
+print("MISSING:", missing)
+print("FUZZY:", fuzzy)
+print("UNTRANSLATED:", untranslated)
+PY
+```
+
+Expected: all three lists empty. The drag-to-image warning is checked separately because it is long enough to be wrapped across lines by `makemessages` — confirm by eye that its `msgstr` is non-empty and carries no `#, fuzzy`.
+
+Then the catch-all sweep for any fuzzy entry the loop above did not cover:
 
 ```bash
 grep -n -B 2 -A 4 "fuzzy" locale/pl/LC_MESSAGES/django.po
@@ -1874,10 +1973,12 @@ This is the one place a whole-repo run belongs.
 ```bash
 docker compose -p libli-test -f docker-compose.test.yml up -d --wait
 uv run pytest
-uv run pytest -m e2e
+bash scripts/e2e_chunks.sh
 ```
 
-Both must be green. `-m e2e` is mandatory for the second — without it pytest exits **5**, which is "nothing selected", not "passing".
+Both must be green.
+
+**Use the chunk script, not a bare `uv run pytest -m e2e`.** The e2e selection is ~97 browser modules; run as one foreground command it exceeds the tool's ceiling, and backgrounding it gets the run reaped mid-flight — which reads as a pass. `scripts/e2e_chunks.sh` exists for exactly this, and it runs `verify_coverage` first, so it also fails loudly if Task 5 Step 9's registration was skipped. Expect one summary line per chunk C1..C7; a missing chunk summary means the run was truncated, not that it passed.
 
 - [ ] **Step 5: The lint gate — both, they are separate CI checks**
 
@@ -1907,9 +2008,9 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ## Self-Review
 
-**Spec coverage.** Every spec section maps to a task: §Architecture 1-2 → Task 1; §3 (view + URL) → Task 3; §4 (template) and §7 (CSS) → Task 4; §5 (strip DOM contract) → Tasks 4 and 5; §6 (JS) → Task 5; §Data flow and §Error handling → asserted across Tasks 2, 3 and 6; §i18n → Tasks 4 and 7; §Testing → Tasks 1, 2, 3, 4 and 6. The spec's accepted limitations (rollback orphans, concurrent replace, the mirror filter ordering, the stale-cache edge) are deliberately **not** tasks — they are documented non-goals.
+**Spec coverage.** Every spec section maps to a task: §Architecture 1-2 → Task 1; §3 (view + URL) → Task 3; §4 (template) and §7 (CSS) → Task 4; §5 (strip DOM contract) → Tasks 4 and 5; §6 (JS) → Task 5; §Data flow and §Error handling → asserted across Tasks 2, 3 and 6; §i18n → Tasks 4 and 6; §Testing → Tasks 1, 2, 3, 4 and 6. The spec's accepted limitations (rollback orphans, concurrent replace, the mirror filter ordering, the stale-cache edge) are deliberately **not** tasks — they are documented non-goals.
 
-**Known cross-task dependency.** `test_replace_returns_the_rerendered_cell` (Task 3) asserts `data-replace-url`, which Task 4 adds. Task 3 therefore ends 7/8 green when run standalone. This is called out in Task 3 Step 5 rather than hidden, and Task 4 Step 6 re-runs it.
+**Known cross-task dependency.** `test_replace_returns_the_rerendered_cell` (Task 3) asserts `data-replace-url`, which Task 4 adds. Task 3 therefore ends 8 passed / 1 failed out of 9 when run standalone. This is called out in Task 3 Step 5 rather than hidden, and Task 4 Step 6 re-runs it.
 
 **Naming consistency.** `replace_asset` / `_delete_file_if_unshared` / `media_replace` / `manage_media_replace` / `buildReplaceStrip` / `closeStrip` / `replaceBusy` / `done` are used identically wherever they appear. DOM hooks are `data-replace-asset`, `data-replace-input`, `data-replace-url`, `data-di-uses`, `data-replace-strip`, `data-replace-filename`, `data-replace-commit`, `data-replace-cancel`. Message keys are `replace-confirm`, `replace-drag-warning`, `replace-commit`, `replace-cancel`, `replace-failed`, `replace-aria` — six, matching Task 4's assertion.
 
