@@ -1687,7 +1687,7 @@ Create `tests/capture_nested_question_screenshots.py`, modelled on the existing 
 For dark mode set **`user.theme`**, not the cookie.
 
 ```bash
-uv run python tests/capture_nested_question_screenshots.py
+uv run pytest tests/capture_nested_question_screenshots.py -m e2e
 ```
 
 **"Judged" means three specific facts per image**, checked by reading them: (a) the question's controls and verdict are inside the container's visual bounds, not overflowing; (b) vertical rhythm between the container's own body and the nested question matches a top-level question's; (c) in dark mode the verdict text and any per-option marker meet contrast against the container's background — judged on the dark image alone, not inferred from light.
