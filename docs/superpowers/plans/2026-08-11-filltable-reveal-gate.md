@@ -2106,10 +2106,15 @@ with `page.screenshot(path=...)` temporarily added around test 22's reveal — b
 
 - [ ] **REVERT THE CAPTURE EDITS BEFORE STEP 10.** This step mutates the very file Step 10 stages: it adds `page.screenshot(path=…)` calls with a machine-specific absolute path, rebinds `_student` → `student`, and writes `user.theme`. None of that may ship — a committed absolute path breaks on every other machine, and the theme write permanently darkens `ftg_correct`. Neither `ruff check` nor the whole-suite gate would catch it, because the test still passes locally. Edit all three back out (never `git checkout` — that would discard the test file itself), then confirm:
 
+**Do not use `git diff` for this check.** This file is created in Task 9 and is not `git add`ed until Step 10, so it is **untracked** at this point — and `git diff` on an untracked path prints nothing and exits 0 whether or not the capture edits are still there. That is an assertion that cannot fail, exactly what Task 2 Step 7 rejected a lookbehind regex for. Grep the file instead:
+
 ```bash
-git diff tests/test_e2e_filltable_gate.py     # must print NOTHING
+grep -n 'screenshot\|theme\|student, unit = _new_unit("ftg_correct")' \
+     tests/test_e2e_filltable_gate.py
 uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 ```
+
+Expected: the grep finds **nothing** (test 22 binds `_student`, so the `student, unit` form only appears if the capture rebinding survived), and all seven tests PASS. Alternatively run `git add -N tests/test_e2e_filltable_gate.py` at the top of this step, which makes both this check and Step 10's `git diff` compare against the index and actually work.
 
 The same "remove the mutant by editing it back" rule every falsify step in this plan uses applies here.
 
@@ -2118,7 +2123,9 @@ The same "remove the mutant by editing it back" rule every falsify step in this 
 - [ ] **Step 10: Commit**
 
 ```bash
-git diff tests/test_e2e_filltable_gate.py     # Step 9's capture edits must be GONE
+# Step 9's capture edits must be GONE. grep, NOT git diff -- this file is still
+# untracked until the `git add` below, and git diff is silent on untracked paths.
+grep -n 'screenshot\|theme' tests/test_e2e_filltable_gate.py    # expect no hits
 uv run ruff check --no-cache tests/test_e2e_filltable_gate.py
 uv run ruff format --check tests/test_e2e_filltable_gate.py
 git add tests/test_e2e_filltable_gate.py
