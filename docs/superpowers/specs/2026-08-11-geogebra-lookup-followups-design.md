@@ -74,7 +74,7 @@ on `IframeElement`.
 
 | Component | File | Change |
 |---|---|---|
-| A — total deadline | `courses/geogebra.py` | extract `_fetch_body`, run it on a daemon thread bounded by a new `_DEADLINE_SECONDS`; rewrite the now-false `_TIMEOUT_SECONDS` comment at `:46-53` |
+| A — total deadline | `courses/geogebra.py` | extract `_fetch_body`, which reads the body in `read1` chunks against its own budget; run it on a daemon thread bounded by a new `_DEADLINE_SECONDS`; add `from time import monotonic`; rewrite the now-false `_TIMEOUT_SECONDS` comment at `:46-53` |
 | B — stale-pair clear | `courses/element_forms.py` | drop the `and mid` conjunct **on the clear guard at `:196` only**; rewrite two comments |
 
 `clean_url` carries `and mid` **twice**: at `:196` (the stale-pair clear) and at `:217` (the lookup
@@ -88,6 +88,13 @@ non-GeoGebra paste — precisely what `test_form_non_geogebra_dimensionless_past
 Extract the network-touching lines into a private helper that reads the body **in chunks against its
 own budget**, so the worker self-terminates rather than parking indefinitely:
 
+Add `from time import monotonic` to `geogebra.py` — the module currently imports no `time` at all
+(`:17-22`). Importing the **bare name** is deliberate: it gives the clock the same module-local patch
+seam `_open` already has, so a test patches `courses.geogebra.monotonic`. Patching
+`courses.geogebra.time.monotonic` would rebind the attribute on the *stdlib module object*,
+process-wide, where `threading`, `logging`, `socket` and pytest's own internals would consume the
+scripted values.
+
 ```python
 class _BudgetExceeded(Exception):
     """The worker's own read budget ran out. Never escapes to clean_url."""
@@ -96,10 +103,10 @@ class _BudgetExceeded(Exception):
 def _fetch_body(request, deadline):          # deadline: a monotonic() instant
     with _open(request, timeout=_TIMEOUT_SECONDS) as response:
         chunks, total = [], 0
-        while total <= _MAX_BODY_BYTES:      # <= so the +1 oversize byte is still read
-            if time.monotonic() >= deadline:
+        while total <= _MAX_BODY_BYTES:      # loop past the cap so oversize stays detectable
+            if monotonic() >= deadline:
                 raise _BudgetExceeded
-            chunk = response.read(_CHUNK_BYTES)
+            chunk = response.read1(_CHUNK_BYTES)   # read1, NOT read -- see below
             if not chunk:                    # EOF
                 break
             chunks.append(chunk)
@@ -107,35 +114,80 @@ def _fetch_body(request, deadline):          # deadline: a monotonic() instant
     return b"".join(chunks)
 ```
 
+**`read1`, never `read` — this is the whole mechanism.** `HTTPResponse.read(n)` delegates to a
+`BufferedReader` that loops over `recv` until it has `n` bytes or hits EOF. Each individual `recv`
+returns inside the 3s per-op timeout, so the timeout never fires — the same behaviour Defect 1
+measured. Chunking with `read` would therefore not bound anything; it would merely divide the
+unbounded wait by `_MAX_BODY_BYTES / _CHUNK_BYTES` = 8. Measured against a peer dripping one byte per
+50ms:
+
+```
+read(8192)  -> 200 bytes in 10.13s     # blocked until the entire body arrived
+read1(8192) -> 1 bytes in 0.05s        # returned on the first available bytes
+```
+
+`read1` returns as soon as *any* bytes are available, so the budget is re-checked after at most one
+`recv`. It is present on `HTTPResponse` (verified on this project's CPython 3.13.12) and handles
+chunked transfer-encoding via `_read1_chunked`. **Write `read` here and the design silently reverts
+to a ~2.3-hour orphan.**
+
 **Two bounds, and both are needed.** The chunk budget cannot cover `connect()` or the header read —
-those happen inside `_open`, before a single body byte is available — so the thread deadline still
-does that work. Conversely the thread deadline releases only the *main* thread; without the chunk
-budget the worker itself would keep reading. Together: the main thread returns at
-`_DEADLINE_SECONDS`, and the orphan dies at `_DEADLINE_SECONDS` **plus at most one per-op timeout**
-(the in-flight `recv` that the budget check cannot interrupt), i.e. ~8s worst case.
+those happen inside `_open`, before a single body byte exists — so the thread deadline still does
+that work. Conversely the thread deadline releases only the *main* thread. Together: the main thread
+returns **no later than** `_DEADLINE_SECONDS`, and the orphan dies at `_DEADLINE_SECONDS` plus at
+most one per-op timeout (the in-flight `recv` the budget check cannot interrupt) — ~8s worst case,
+which holds **only** because of `read1`.
 
-The worker measures its budget from the **same start instant** the main thread joins against, so a
-slow-but-successful fetch that completes at 4.9s still succeeds.
+**Where the deadline instant is computed is load-bearing.** Read `_DEADLINE_SECONDS` from the module
+global **once**, then:
 
-**`_BudgetExceeded` stores nothing.** `_run` catches it specifically and leaves the box empty, so the
-main thread's residual branch reports `deadline exceeded`. It must **not** land in `box["exc"]` —
-that would surface as `lookup failed (_BudgetExceeded)` — and a partial body must **not** be stored,
-or it would be parsed as truncated JSON and mislabelled `unparseable payload`.
+```python
+budget = _DEADLINE_SECONDS                 # one read, at call time
+deadline = monotonic() + budget            # immediately before start()
+thread.start()
+thread.join(budget)                        # same value, no clock skew
+```
 
-New constant: `_CHUNK_BYTES = 8192`.
+`join()` takes a *duration* and the worker holds an *instant*; computing both from one read of the
+global at one point is what keeps them the same window.
+
+**`_run`'s full body, with the handler order pinned:**
+
+```python
+def _run():
+    try:
+        box["body"] = _fetch_body(request, deadline)
+    except _BudgetExceeded:                # MUST precede `except Exception`
+        return                             # store nothing -> caller reports the deadline
+    except Exception as exc:               # noqa: BLE001 - the never-raises contract
+        box["exc"] = exc                   # store FIRST
+        try:
+            exc.close()                    # HTTPError only; harmless otherwise
+        except Exception:                  # noqa: BLE001, S110 - closing must never mask
+            pass
+```
+
+`_run` closes over `request`, `deadline` and `box`. The handler ordering is a trap of exactly the
+same shape as store-then-close: `_BudgetExceeded` subclasses `Exception`, so putting the broad
+handler first puts it in `box["exc"]` and the caller reports `lookup failed (_BudgetExceeded)` —
+the outcome this design explicitly forbids. A partial body must likewise never be stored, or it
+would parse as truncated JSON and be mislabelled `unparseable payload`.
+
+**New constant `_CHUNK_BYTES = 8192`**, and like `_DEADLINE_SECONDS` it needs a source comment
+stating its trade: larger chunks mean fewer syscalls but coarser budget-check granularity, and the
+loop may overshoot the cap by up to one chunk (peak buffer `_MAX_BODY_BYTES + _CHUNK_BYTES` =
+73,728 bytes). It need not divide `_MAX_BODY_BYTES`.
 
 `fetch_geogebra_dimensions` runs `_fetch_body` on a plain `threading.Thread(daemon=True)` — named
 `f"geogebra-lookup-{material_id}"`, so a thread dump shows how many lookups are parked — with a
 **function-local** result box created per invocation, then `join(_DEADLINE_SECONDS)`.
 
-**Structure.** `_fetch_body(request)` stays **module-level** for readability and to keep the
-per-invocation box out of a module-level signature. Note this is *not* a patch-seam requirement:
-tests patch `courses.geogebra._open` by module attribute and `_open` resolves as a module global at
-call time, so nesting `_fetch_body` would not disturb the seam either. The wrapper that catches,
-stores and closes is a
-**nested `def _run():` inside `fetch_geogebra_dimensions`**, closing over both `request` and `box` —
-not a module-level target taking `box` through `Thread(args=...)`, which would put the per-invocation
-box in a module-level signature for no gain.
+**Structure.** `_fetch_body(request, deadline)` stays **module-level** for readability, to keep the
+per-invocation box out of a module-level signature, and so tests 5a/5b can drive it directly. Note
+this is *not* a patch-seam requirement: tests patch `courses.geogebra._open` by module attribute and
+`_open` resolves as a module global at call time, so nesting would not disturb the seam either. The
+wrapper that catches, stores and closes is a **nested `def _run():` inside
+`fetch_geogebra_dimensions`**, closing over `request`, `deadline` and `box`.
 
 **The box is discriminated by key presence, never by truthiness.** A dict with at most one of
 `box["body"]` / `box["exc"]` set. This is load-bearing: a legitimate `read()` returning `b""` is
@@ -155,11 +207,13 @@ join→read window below a single referent. Branch on the snapshot in this order
    `except urllib.error.HTTPError` and bare-`except Exception` handlers run exactly as today,
    including `exc.close()`.
 2. **`box["body"]` set** → the existing parse path runs unchanged.
-3. **Neither set** → `_fail("deadline exceeded")`. This is the residual case, so it also covers the
-   pathological "thread finished having set neither slot" (e.g. a `BaseException` the wrapper's
-   `except Exception` does not catch). Falling through with `body = None` would reach `len(body)`,
-   raise `TypeError` into `clean_url` and break the never-raises contract — so the fallback must be
-   `_fail`, never a fall-through.
+3. **Neither set** → `_fail("deadline exceeded")`. Two causes, both first-class: the join expired
+   with the worker still running, **or** the worker tripped `_BudgetExceeded` and deliberately stored
+   nothing (in which case `join` returns *early*, which is why the main thread returns "no later
+   than" `_DEADLINE_SECONDS` rather than "at" it). It also covers the pathological "finished having
+   set neither slot" (e.g. a `BaseException` the wrapper's `except Exception` does not catch).
+   Falling through with `body = None` would reach `len(body)`, raise `TypeError` into `clean_url` and
+   break the never-raises contract — so the fallback must be `_fail`, never a fall-through.
 
 `_DEADLINE_SECONDS` is read from the module global **at call time**, mirroring the existing
 `GEOGEBRA_API_LOOKUP` rule ("Read the flag on EVERY call — capturing it at import would make every
@@ -307,7 +361,7 @@ main thread.
 | Deadline reached with the thread still running | `_fail("deadline exceeded")` → logs a warning naming the material id, writes the 60s negative-cache sentinel, returns `(None, None)` |
 | Thread raised `HTTPError` | re-raised on the main thread → existing handler closes `exc.fp` and calls `_fail(f"HTTP {exc.code}")` |
 | Thread raised anything else | re-raised → existing bare-`except` → `_fail(f"lookup failed ({type})")` |
-| Oversize body | unchanged in outcome — the chunk loop's `while total <= _MAX_BODY_BYTES` still accumulates the one byte past the cap that makes oversize detectable at `:389` |
+| Oversize body | unchanged in outcome — the loop exits only once `total` has passed the cap, so `len(body) > _MAX_BODY_BYTES` still detects it at `:389`. Note it may overshoot by up to one chunk, not by one byte: peak buffer is `_MAX_BODY_BYTES + _CHUNK_BYTES` = 73,728 |
 | Worker's chunk budget expires | `_run` catches `_BudgetExceeded`, stores **nothing**, and the main thread's residual branch reports `deadline exceeded`. Never `box["exc"]` (that would read `lookup failed`), never a partial body (that would read `unparseable payload`) |
 | `thread.start()` fails (`RuntimeError: can't start new thread`) | falls into the bare `except Exception` and degrades as `lookup failed (RuntimeError)` — the correct outcome, named here rather than left to be derived. Reachable precisely because no cap is placed on concurrent lookup threads (see accepted gaps) |
 | Kill switch off | unchanged — returns before any thread is created, no cache read, no cache write |
@@ -336,7 +390,7 @@ rests on the deadline being diagnosable.
 
 Every test names the mutant that must turn it RED, per the project's falsify-don't-run rule.
 
-### `tests/test_geogebra.py` — the deadline (four NEW tests)
+### `tests/test_geogebra.py` — the deadline (tests 1-4)
 
 **All four MUST carry `@override_settings(GEOGEBRA_API_LOOKUP=True)`,** as every existing fetch test
 in the file does. `config/settings/test.py:30` sets the flag `False`, and the kill switch returns
@@ -357,6 +411,11 @@ the *mutant* build completes with an empty/unparseable body and `fetch_geogebra_
 `(None, None)` anyway — the same value the test asserts, so it is green on the fix **and** on its
 mutant.
 
+**Scope note:** with the chunk budget in place this rule still bites for **test 2**, but no longer
+for test 1 — see test 1's mutant analysis below, where the `caplog` reason assertion became the sole
+discriminator. Keep the dimension-bearing fakes anyway: they cost nothing and they keep each test's
+failure mode legible.
+
 A fake returning **`None`** is worse still, and fails differently: key presence routes
 `box["body"] = None` to the body branch, and `if len(body) > _MAX_BODY_BYTES:` (`geogebra.py:389`)
 sits **outside** the `try`, so `len(None)` raises `TypeError` straight out of
@@ -375,22 +434,38 @@ deadline firing.
 returns `body[:n]` from the start on every call, so the chunked loop would re-read the same first
 chunk forever and never reach EOF. Give `_Resp` a read offset:
 
+**It must also grow a `read1`,** because that is the primitive the loop calls; without it every
+existing fetch test dies with `lookup failed (AttributeError)` rather than passing unchanged. Both
+share one offset, and a `calls` counter serves tests 5a/5b:
+
 ```python
 class _Resp:
     def __init__(self):
         self._pos = 0
+        self.calls = 0            # tests 5a/5b assert on this
 
     def read(self, n=-1):
-        chunk = body[self._pos:] if n is None or n < 0 else body[self._pos : self._pos + n]
+        self.calls += 1
+        if n is None or n < 0:
+            chunk = body[self._pos:]
+        else:
+            chunk = body[self._pos : self._pos + n]
         self._pos += len(chunk)
         return chunk
+
+    read1 = read                  # same offset, same counter
 ```
 
+**One deliberate semantic change:** the old double treated `n == 0` as "read everything"
+(`body[:n] if n and n > 0 else body`); the new one returns `b""`, which is what a real file object
+does. No caller passes `0`, so nothing depends on the old behaviour — but it is a change, not a
+preservation, and is recorded here rather than glossed.
+
 This is a change to **one helper**, not to the ~15 tests that use it: they call `_patch_open(body)`
-and never touch `_Resp`. Single-read semantics are preserved (first call returns the same bytes as
-before, the next returns `b""` = EOF), so every existing fetch test — including the oversize test,
-which still accumulates past `_MAX_BODY_BYTES` — passes unchanged. **Verify that claim by running
-them, not by assuming it.**
+and never touch `_Resp`. Single-read semantics are otherwise preserved (first call returns the same
+bytes as before, the next returns `b""` = EOF), so every existing fetch test — including the oversize
+test, which still accumulates past `_MAX_BODY_BYTES` — should pass unchanged. **Verify that by
+running them, not by assuming it.**
 
 **The fakes must be context managers.** `_patch_open`'s docstring
 (`tests/test_geogebra.py:267-269`) records that the double *must* support `__enter__`/`__exit__`
@@ -413,9 +488,17 @@ endpoints from each (wait 2s, deadline 0.5s) gets a ratio of 4 and violates the 
    run.
 
 **The floor is not about test 2.** Under test 2's mutant ("wrap only the read") `_open` runs on the
-**main** thread — before any thread is started and before any `join` — so the main thread simply
-blocks in the fake for its full wait and returns `(880, 660)`. That mutant is deterministically RED
-at any deadline value; there is no race to lose. The floor is justified by test 3 alone.
+**main** thread and blocks there for its full wait. Because the deadline instant is computed
+immediately before `thread.start()` — *after* `_open` in that mutant — the worker begins with a fresh
+budget, its non-blocking `read1` returns the payload at once, `box["body"]` is set, and the call
+returns `(880, 660)` against an asserted `(None, None)`: deterministically RED at any deadline value,
+no race to lose.
+
+Note this conclusion **depends on the pinned placement**. Had the deadline been computed before
+`_open`, the mutant's worker would start already expired, trip `_BudgetExceeded`, store nothing, and
+the caller would report `deadline exceeded` — turning test 2 **green on its own mutant**. That is why
+the placement is specified as code above rather than described. The floor is justified by test 3
+alone.
 
 **`(None, None)` alone is never a sufficient assertion.** It is this function's *universal*
 degradation value — the kill switch, a cache hit, an `HTTPError`, an unparseable body, an oversize
@@ -426,11 +509,18 @@ the call fails **for any reason at all**, including a broken fake the wrapper re
 `test_fetch_degrades_on_http_error_and_logs_it` already uses at `:346-347`. That closes the whole
 class, not one instance of it.
 
-1. **Slow body → deadline.** The fake `read` blocks on a bounded `Event.wait(...)` that is never set
+1. **Slow body → deadline.** The fake `read1` blocks on a bounded `Event.wait(...)` that is never set
    *during the test body* and is released in teardown, then returns a real payload. Assert
    `(None, None)` **and** the deadline reason in the log;
    never elapsed wall-clock, so no timing assertion and no flake.
-   *Mutant:* restore the direct `_fetch_body(request)` call.
+
+   *Mutant:* restore the direct `_fetch_body(request, deadline)` call — note the arity; a
+   one-argument call raises `TypeError` and proves nothing. **Re-derived under the budget:** the
+   mutant runs on the main thread, passes its first budget check at t≈0, blocks 3s in the fake
+   `read1`, returns the payload, then trips the budget at the next loop top; `_BudgetExceeded`
+   escapes into the main `except Exception` and yields `_fail("lookup failed (_BudgetExceeded)")` →
+   `(None, None)`. The mutant therefore returns **the same tuple** the test asserts, so the `caplog`
+   deadline-reason assertion is this test's **sole** discriminator. Without it the test is vacuous.
 2. **Slow headers → deadline,** by patching `_open` itself to block on its own bounded event,
    released in teardown exactly as in test 1. Same two assertions. Pins that the bound wraps `_open`
    and not merely the read. *Mutant:* wrap only the read.
@@ -456,24 +546,50 @@ class, not one instance of it.
 **without any thread, any `join`, or any `_DEADLINE_SECONDS` patching** — no concurrency in the test
 at all. Two cases, both deterministic:
 
-5a. **Deadline already past → `_BudgetExceeded`, and `read` is never called.** Pass
-    `deadline = time.monotonic() - 1`. Pins that the budget is checked *before* each read rather
-    than only after data arrives. *Mutant:* drop the check entirely — the fake's finite body is read
-    to EOF and returned, no exception, RED.
+Neither needs `@override_settings(GEOGEBRA_API_LOOKUP=True)`: `_fetch_body` never reads the kill
+switch. That is stated so its absence reads as deliberate rather than as an oversight of the
+emphatic "all four" rule above. Both reuse `_patch_open`'s `_Resp` (with its `calls` counter) rather
+than a hand-rolled double.
 
-5b. **Deadline expires mid-loop → `_BudgetExceeded` after exactly N reads.** Patch
-    `courses.geogebra.time.monotonic` with a **fake clock** that returns a scripted increasing
-    sequence, chosen so the check trips on the third iteration; assert `read` was called exactly
-    twice. A fake clock, not `sleep`, is what makes this exact rather than timing-dependent.
-    *Mutant:* hoist the check out of the loop so it runs once before iterating — `read` is then
-    called to EOF, RED. This is the mutant 5a alone cannot kill.
+5a. **Deadline already past → `_BudgetExceeded`, and `read1` is never called.** Pass
+    `deadline = monotonic() - 1`; assert the raise and `resp.calls == 0`. Pins that the budget is
+    checked *before* each read rather than only after data arrives. *Mutant:* drop the check
+    entirely — the fake's finite body is read to EOF and returned, no exception, RED.
+
+5b. **Deadline expires mid-loop → `_BudgetExceeded` after exactly two reads.** Patch
+    `courses.geogebra.monotonic` (the module-local name, per the import above) with a **fake clock**,
+    and assert `resp.calls == 2`. A fake clock, not `sleep`, is what makes this exact rather than
+    timing-dependent. *Mutant:* hoist the check out of the loop so it runs once before iterating —
+    `read1` is then called to EOF, RED. This is the mutant 5a alone cannot kill.
+
+    **The clock must never exhaust.** A finite scripted list hard-codes how many times the
+    implementation calls `monotonic()`, so any legal variation — hoisting `now = monotonic()`,
+    stamping a start instant, an extra post-read check — raises `StopIteration` out of `_fetch_body`
+    and fails a *correct* build for an unrelated reason. Use a counter-driven callable returning
+    `base + n * step` (or a sequence whose last value repeats). The invariant being pinned is **"the
+    budget is re-checked on every iteration"**, not "exactly three `monotonic()` calls occur".
 
 Both cases use a **finite** fake body (a few KB delivered one chunk per call), so a mutant build
 terminates and FAILS rather than hanging — the same bounded-fake rule as the deadline tests.
 
-### The constant relationship — a SIXTH new test in the same file
+### 5c — the budget trip seen through the FULL path
 
-This is a fifth new test in `tests/test_geogebra.py`, deliberately outside the numbered list above
+5a/5b drive `_fetch_body` in isolation, so they never touch `_run` or the box; and in tests 1 and 3
+the budget trips only *after* the main thread has returned and its assertions have run. That leaves
+**both behaviours the Error-handling table calls load-bearing unfalsified**: a build that stores
+`_BudgetExceeded` in `box["exc"]`, or that stores the partial body, is green in every test listed so
+far. Nor would the suite notice indirectly — pytest surfaces worker fallout only as
+`PytestUnhandledThreadExceptionWarning`, and `pyproject.toml:46-50` sets no `filterwarnings = error`.
+
+So: drive the full `fetch_geogebra_dimensions` with the 5b fake clock applied, so the budget trips
+**inside** the join window, and assert the logged reason is the deadline one.
+*Mutants:* store `_BudgetExceeded` in `box["exc"]` (reason becomes `lookup failed`); and store the
+partial body (reason becomes `unparseable payload`).
+
+### The constant relationship — the LAST new test in this file
+
+This is the seventh and last new test in `tests/test_geogebra.py` (four deadline tests, 5a, 5b, 5c,
+and this one), deliberately outside the numbered list above
 because the "all four" rules do **not** apply to it: it must **not** patch `_DEADLINE_SECONDS` (it
 exists to observe the shipped value) and it needs no `@override_settings`, since it touches no
 transport at all. It is one assertion, not a behaviour test.
@@ -516,7 +632,7 @@ stay green unchanged, and each now proves something specific about the threaded 
 These are not additions. Both already exist and currently assert the **exact opposite**, so they are
 rewritten in place — name, body and comment:
 
-5. **`test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` (`:498`)** → GeoGebra →
+B1. **`test_form_geogebra_to_non_geogebra_url_change_keeps_the_geogebra_pair` (`:498`)** → GeoGebra →
    Vimeo now **clears**. The load-bearing assertions are `(width, height) == (None, None)` and
    `frame_ratio is None`. A `size_unknown is False` assertion may be kept as documentation but is
    **not** discriminating and must be labelled as such: `size_unknown` is
@@ -530,7 +646,7 @@ rewritten in place — name, body and comment:
    merely deleted. Rename to
    **`test_form_geogebra_to_non_geogebra_url_change_clears_the_stale_pair`**.
    *Mutant:* restore `and mid`. This is the defect itself.
-6. **`test_form_non_geogebra_url_change_keeps_its_dimensions` (`:481`)** → a same-provider swap
+B2. **`test_form_non_geogebra_url_change_keeps_its_dimensions` (`:481`)** → a same-provider swap
    (Vimeo A → Vimeo B) now **clears**. Its comment currently states the provider-neutral-clear
    objection verbatim and must be replaced. Rename to
    **`test_form_same_provider_url_change_clears_the_stale_pair`**.
@@ -547,7 +663,7 @@ build that also removed the `:217` lookup guard and started issuing empty-id GET
 
 ### One NEW form test — the coverage hole the inversions open
 
-7. **A non-GeoGebra element with a stored pair keeps it when the URL is unchanged.** Create a Vimeo
+B3. **A non-GeoGebra element with a stored pair keeps it when the URL is unchanged.** Create a Vimeo
    element with `(640, 360)`, re-submit its own stored URL with a changed title, assert the pair
    survives and `lookup.assert_not_called()`.
 
@@ -572,7 +688,7 @@ build that also removed the `:217` lookup guard and started issuing empty-id GET
 
 ### Existing tests — regression coverage that must stay green
 
-The earlier claim that this change touches no existing test was **wrong**; tests 5 and 6 above are
+The earlier claim that this change touches no existing test was **wrong**; tests B1 and B2 above are
 existing tests being inverted. Beyond those two, the following already cover behaviour this change
 must preserve, and are deliberately **not** duplicated by new tests:
 
@@ -615,8 +731,14 @@ concurrency-sensitive function in `builder.py`.
   measurement proves), so the read loops until 65,537 bytes arrive — ~18 hours holding a socket and a
   thread stack, against the same adversary this change bounds the lock against. The 60s negative
   cache limits how often a *new* orphan is created per material but does nothing about one already
-  parked. The cost of the chunked alternative is one test-helper change (see Testing), which does not
-  justify leaving an unbounded resource behind.
+  parked.
+
+  **The cost of the chunked design, accounted honestly:** a `_BudgetExceeded` class, a `_CHUNK_BYTES`
+  constant, a second parameter on `_fetch_body`, a `from time import monotonic` import and its patch
+  seam, a handler-ordering constraint in `_run`, `read1`/`calls` added to the `_Resp` double, and
+  three new tests (5a, 5b, 5c). That is more than the "one helper change" first claimed. It is still
+  the right trade — the alternative leaves a multi-hour parked socket reachable by the same adversary
+  the lock is being defended against — but the trade is this, not that.
 - **`ThreadPoolExecutor`.** Its context-manager form calls `shutdown(wait=True)` and would block on
   the very thread being abandoned, defeating the deadline; its workers are also non-daemon, so
   interpreter exit joins them.
