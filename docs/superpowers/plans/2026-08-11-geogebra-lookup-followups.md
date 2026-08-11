@@ -161,7 +161,7 @@ Extracts the transport into a module-level helper that reads in `read1` chunks a
 - Consumes: `_Resp` (Task 1), existing `_open`, `_TIMEOUT_SECONDS`, `_MAX_BODY_BYTES`.
 - Produces: `class _BudgetExceeded(Exception)`; `_CHUNK_BYTES = 8192`; `_DEADLINE_SECONDS = 5`; `_fetch_body(request, deadline) -> bytes`, raising `_BudgetExceeded`; module-level name `monotonic`. Task 3 wraps `_fetch_body` in a thread; Task 4 asserts on the two constants.
 
-- [ ] **Step 1: Write the failing tests (5a and 5b)**
+- [x] **Step 1: Write the failing tests (5a and 5b)**
 
 Add to `tests/test_geogebra.py`. Neither needs `@override_settings` — `_fetch_body` never reads the kill switch.
 
@@ -212,12 +212,12 @@ import threading
 
 (plus whatever else the file already imports, in the same alphabetical run — `itertools` before `json`, `logging` and `threading` after it.) Getting this wrong surfaces as `I001`, which `ruff format` does **not** fix.
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_geogebra.py -k "fetch_body" --verbosity=0`
 Expected: FAIL — `ImportError: cannot import name '_BudgetExceeded'`.
 
-- [ ] **Step 3: Add the import and the constants**
+- [x] **Step 3: Add the import and the constants**
 
 In `courses/geogebra.py`, add to the import block (`:17-22`). `pyproject.toml:43-44` sets `force-single-line = true`, and ruff's default section ordering puts `from time import ...` in the same stdlib block sorted by module name — so it goes **after `import urllib.request` and before `from urllib.parse import urlsplit`**:
 
@@ -259,7 +259,7 @@ _CHUNK_BYTES = 8192
 _MAX_BODY_BYTES = 65536  # ~55x the measured 1,177-byte ws response
 ```
 
-- [ ] **Step 4: Add `_BudgetExceeded` and `_fetch_body`**
+- [x] **Step 4: Add `_BudgetExceeded` and `_fetch_body`**
 
 Place both immediately below `_open` (`:251-253`), so `_fetch_body` sits adjacent to the transport seam it wraps:
 
@@ -293,7 +293,7 @@ def _fetch_body(request, deadline):  # deadline: a monotonic() instant
     return b"".join(chunks)
 ```
 
-- [ ] **Step 5: Call it from `fetch_geogebra_dimensions` (still synchronous)**
+- [x] **Step 5: Call it from `fetch_geogebra_dimensions` (still synchronous)**
 
 Inside the existing `try` block, replace the `with _open(...) as response: body = response.read(...)` pair with:
 
@@ -305,12 +305,12 @@ Inside the existing `try` block, replace the `with _open(...) as response: body 
 
 Leave the `Request` construction, its `# noqa: S310` comment, and both `except` handlers exactly where they are.
 
-- [ ] **Step 6: Run 5a/5b and the whole file**
+- [x] **Step 6: Run 5a/5b and the whole file**
 
 Run: `uv run pytest tests/test_geogebra.py --verbosity=0`
 Expected: **106 passed** (104 existing + 5a + 5b). The existing oversize test still passes: a 65,537-byte body is delivered in 9 `read1` calls, `total` passes the cap, and `len(body) > _MAX_BODY_BYTES` still fires.
 
-- [ ] **Step 7: Falsify 5a**
+- [x] **Step 7: Falsify 5a**
 
 Delete the two `if monotonic() >= deadline: raise _BudgetExceeded` lines.
 Run: `uv run pytest tests/test_geogebra.py -k "budget_is_spent" --verbosity=0`
@@ -319,7 +319,7 @@ Expected: FAIL — the finite body is read to EOF and returned, no exception rai
 Note this mutant reddens **both** 5a and 5b (the `-k` filter scopes the run to 5a). That is expected: 5b's distinct value is proved by Step 8's mutant, which 5a survives.
 **Edit the lines back in by hand.** Re-run: PASS.
 
-- [ ] **Step 8: Falsify 5b**
+- [x] **Step 8: Falsify 5b**
 
 Hoist the budget check out of the loop, so it runs once before iterating:
 
@@ -333,7 +333,7 @@ Run: `uv run pytest tests/test_geogebra.py -k "every_iteration" --verbosity=0`
 Expected: FAIL — only one check happens (at t=0.0), so `read1` runs to EOF and no exception is raised. This is the mutant 5a alone cannot kill.
 **Edit it back by hand.** Re-run: PASS.
 
-- [ ] **Step 9: Format and lint the files this task touched**
+- [x] **Step 9: Format and lint the files this task touched**
 
 ```bash
 uv run ruff format .
@@ -342,7 +342,7 @@ uv run ruff check --no-cache courses/geogebra.py tests/test_geogebra.py
 
 Do this **before** the commit, not at Task 6. `ruff format` does not sort imports, and `ruff format --check` is a separate CI gate — discovering either at the end means re-touching files from several earlier commits.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add courses/geogebra.py tests/test_geogebra.py
