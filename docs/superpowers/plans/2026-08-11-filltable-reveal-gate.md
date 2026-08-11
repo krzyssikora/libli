@@ -238,7 +238,7 @@ and into the existing first-party block (after the blank line), in sorted positi
 from courses.models import CalloutElement
 from courses.models import Element
 from courses.models import FillTableElement   # already there
-from tests.factories import make_course
+from tests.factories import make_course       # already there
 from tests.factories import make_course_with_unit
 from tests.factories import make_image_asset  # already there
 ```
@@ -458,7 +458,7 @@ Expected: all PASS. `test_reveal_scope_agreement.py` must stay green **unmodifie
 - [ ] **Step 12: Falsify both**
 
 1. Restore the bare `[data-reveal-gate]` selector → the print test goes RED, `test_reveal_scope_agreement.py` stays GREEN (proving it was never guarding this).
-2. Move `data-reveal-gate data-filltablegate` from the root `.filltable` div onto the inner `.el.el--filltable` div → `test_gate_marker_is_on_the_same_node_as_data_state` goes RED while `test_gated_table_marks_the_root_div` stays GREEN. That contrast is the whole point of the co-location test.
+2. Move `data-reveal-gate data-filltablegate` from the root `.filltable` div onto the inner `.el.el--filltable` div → `test_gate_marker_is_on_the_same_node_as_data_state` **and** the direct-child pin go RED (the pin fails on both its last assertions: `marked.parent` becomes the `.filltable` div rather than `.callout__child`, and the inner div's class list is `el el--filltable el--filltable--border-grid`, which contains no `"filltable"` entry), while `test_gated_table_marks_the_root_div` stays GREEN. That last contrast is the point of the co-location test — but note this mutant does **not** separate the two co-location tests from each other; only mutant 4 does.
 3. Drop the `{% if data.gate %}…{% endif %}` guard so the marker is emitted unconditionally → `test_ungated_table_has_no_gate_attributes` RED. It is green from the moment it is written, so without this it is never shown to be able to fail — and it is the only render-level guard on the "byte for byte" constraint.
 4. Wrap the root `.filltable` div in an extra `<div>` in `filltableelement.html` → the direct-child pin RED while the co-location test stays GREEN. Two tests, two distinct failure modes: co-location survives an extra ancestor, the pre-hide CSS does not.
 
@@ -955,7 +955,7 @@ Expected: both PASS immediately — the implementation landed in Step 4, so unli
 1. Drop `or has_filltable_gate` from `has_reveal_gate` → `test_has_filltable_gate_flag`, `test_has_filltable_gate_flag_when_nested_in_a_callout` **and** the prepaint A/B go RED — `reveal-armed` is emitted from **two** `{% if has_reveal_gate %}` blocks — the prepaint script (`lesson_unit.html:5-17`) and the pre-hide `<style>` in `extra_css` (`:38-48`) — so both `__fillTableBooted` and every `reveal-armed` occurrence vanish from the gated render. Cite both; `courses/tests/test_reveal_scope_agreement.py:32-39` exists because that duplication trips people up.
 2. Restore, then omit `"has_filltable_gate": has_filltable_gate,` from the return dict → **all four** new tests go RED: the three context tests raise `KeyError` reading `ctx["has_filltable_gate"]`, and the prepaint A/B fails on the missing term. The A/B still earns its place — it is the only one that proves the *template* term is driven by the flag rather than by the mere presence of a fill-table, which no context-dict assertion can show.
 3. Restore, then scope the inner query to `parent__isnull=True` → the callout test goes RED, the top-level test stays GREEN.
-4. Restore, then **drop `data__gate=True` from the filter** (leaving `pk__in=…`) → `test_ungated_filltable_sets_neither_gate_flag` RED (an ungated table would now arm both flags), and the query-shape source test RED on its `data__gate=True` assertion. Without this mutant that test's semantic claim is reddened only by mutant 2's blanket `KeyError` — the "one combined mutant lets the others hide" failure this plan warns about in Tasks 1 and 6.
+4. Restore, then **drop `data__gate=True` from the filter** (leaving `pk__in=…`) → **three** tests RED: `test_ungated_filltable_sets_neither_gate_flag` (an ungated table now arms both flags), the **prepaint A/B** on `assert "__fillTableBooted" not in plain_body` (its plain arm seeds an ungated fill-table, which now arms `has_reveal_gate` and emits the whole prepaint block), and the query-shape source test on its `data__gate=True` assertion. Everything else GREEN. Without this mutant that test's semantic claim is reddened only by mutant 2's blanket `KeyError` — the "one combined mutant lets the others hide" failure this plan warns about in Tasks 1 and 6.
 
    Note that the `has_fill_table and` short-circuit in front of the query is **deliberately unguarded**: it is a pure query-count optimisation, and no test can falsify it. `tests/test_html_element.py` pays the same cost in both arms of any A/B, so its delta stays 0 whether the short-circuit is present or not. Do not add a mutant for it expecting a RED.
 5. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
@@ -1163,18 +1163,15 @@ def test_editor_js_serializes_the_gate_flag():
     assert 'gate.addEventListener("change", serialize)' in src
 ```
 
-Add to `tests/test_filltable_form.py` (check its existing imports first — it needs `json` and `FillTableElementForm`; add whichever is missing):
+Add to `tests/test_filltable_form.py`. **Use the file's own idiom** — the same rule Task 7 applies to `test_filltable_transfer.py`. It already defines `_data(cells, **kw)` (:27) and `_bind(data_dict)` (:33), which every other test there uses, and both `json` (:1) and `FillTableElementForm` (:5) are already imported, so **no import changes are needed**:
 
 ```python
 def test_rejected_save_keeps_the_gate_ticked():
     # normalize_data suppresses `gate` for exactly the grid that makes clean_data
     # raise here, so without the grid_data override the author's tick is silently
     # lost and their next Save posts gate: false from the DOM.
-    payload = {
-        "gate": True,
-        "cells": [[{"kind": "answer", "answer": ""}]],  # blank -> rejected
-    }
-    form = FillTableElementForm(data={"data": json.dumps(payload)})
+    # blank answer -> rejected
+    form = _bind(_data([[{"kind": "answer", "answer": ""}]], gate=True))
     assert not form.is_valid()
     assert form.grid_data["gate"] is True
 ```
@@ -1278,9 +1275,20 @@ Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be unto
 
 Every other check in this task is a substring assertion on rendered HTML or on JS source; none of them can see a layout regression. The new label is ~54 characters and lands in `.table-editor__controls.filltable-editor__controls`, a wrapping flex row whose next sibling is `.filltable-editor__prompt-field { flex: 1 1 16rem; min-width: 12rem; }`. Adding a wide, inflexible item to that row is precisely the basis-weighted-shrink situation that squeezes or displaces the Instruction field.
 
-Open the fill-table editor on an element with the checkbox present and capture the controls row in **light and dark**. **Pass criterion:** the Instruction field is still usable at a normal editor width — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width`. Judge dark on its own terms rather than assuming the light result carries. These captures are a throwaway review artifact, not committed.
+**Reuse the existing editor harness rather than inventing one** — the editor needs a Platform Admin, so a plain `make_student` login will not reach it. `tests/test_e2e_filltable.py` already carries everything: `_make_pa_user` (:329), `_login` (:52), `_goto_editor` (:368) and `_open_edit` (:398). Write a scratch test in that file's shape which seeds a fill-table, opens its editor panel, and screenshots `.filltable-editor__controls` to the scratch directory:
+
+```bash
+docker compose -f docker-compose.test.yml up -d
+uv run pytest tests/test_e2e_filltable.py -m e2e -k <your_scratch_test_name> -v
+```
+
+**Dark mode needs the user row, not a cookie** — set `theme` on the **PA user** returned by `_make_pa_user` before `_login`, the same gotcha Task 9 Step 9 calls out for the student.
+
+**Pass criterion:** the Instruction field is still usable at a normal editor width — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed — and **delete the scratch test before Step 10**, exactly as Task 9 Step 9 requires (`git diff tests/test_e2e_filltable.py` must print nothing).
 
 If the row does not survive, the fix belongs here (a shorter label, or letting the checkbox wrap) — do not leave it for the branch gate to discover.
+
+⚠️ **If you shorten the label, it is the msgid, and three downstream sites hardcode it.** Update Task 8 Step 1's English snippet, Task 8 Step 2's Polish snippet, and Task 10 Steps 2 and 4 (both the `.po` entry and the `grep` pattern) to the new string *before* running them. Otherwise Task 10's grep matches nothing and its "no `#, fuzzy` in the output" expectation passes trivially on empty output.
 
 - [ ] **Step 9: Falsify**
 
@@ -1474,16 +1482,19 @@ Replace the final sentence of the `{el:filltable}` section:
 
 Likewise wrapped to the Polish file's own width — the switch-gate line in particular grew when the name was corrected to *zatwierdź*:
 
+**Mind the splice point.** Unlike the English anchor (`is one-way.`, at column 0 of `:77`), the Polish anchor `jednokierunkowe. Nie` sits at **column 51** of `:89` — `bardziej, ale zmniejszenie jej poniżej limitu jest jednokierunkowe. Nie`. So the first replacement line must be *short*, or the spliced result is a ~125-column line, which is precisely the churn this is trying to avoid. Break immediately after `Nie`:
+
 ```markdown
-jednokierunkowe. Nie przyznaje punktów. Zaznacz **Odsłoń resztę tej sekcji,
-gdy wszystkie komórki są poprawne**, aby zamienić tabelę w bramkę
-odsłaniającą: wszystko, co znajduje się po niej, pozostaje ukryte, dopóki
-uczeń nie wypełni poprawnie każdej komórki z odpowiedzią, a potem pojawia
-się naraz. Podobnie jak w pozostałych bramkach (**Pokaż więcej**,
-**Uzupełnij i potwierdź**, **Wybierz i zatwierdź**) odsłanianie zatrzymuje
-się na granicy elementu zawierającego tabelę — wewnątrz ramki odsłoni
-resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele tworzą
-łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
+jednokierunkowe. Nie
+przyznaje punktów. Zaznacz **Odsłoń resztę tej sekcji, gdy wszystkie
+komórki są poprawne**, aby zamienić tabelę w bramkę odsłaniającą: wszystko,
+co znajduje się po niej, pozostaje ukryte, dopóki uczeń nie wypełni
+poprawnie każdej komórki z odpowiedzią, a potem pojawia się naraz. Podobnie
+jak w pozostałych bramkach (**Pokaż więcej**, **Uzupełnij i potwierdź**,
+**Wybierz i zatwierdź**) odsłanianie zatrzymuje się na granicy elementu
+zawierającego tabelę — wewnątrz ramki odsłoni resztę tej ramki i nic poza
+nią. Dwie kolejne bramkowane tabele tworzą łańcuch: pierwsza odsłania
+drugą, druga odsłania to, co następuje po niej.
 ```
 
 **Verify the three bolded gate names against the `^## ` headings of each file before pasting.** They are not symmetric across the two languages, and prose mismatches are invisible to `tests/test_help.py`. In Polish the switch-gate is **Wybierz i zatwierdź** (`interactive-elements.pl.md:36`) — *zatwierdź*, not *potwierdź*, even though the fill-gate two lines earlier is **Uzupełnij i potwierdź** (`:27`). English: **Show more** (`:16`), **Fill in & confirm** (`:24`), **Choose & confirm** (`:32`).
@@ -1498,7 +1509,7 @@ Note also that none of the three gate sections states the scope confinement: `{e
 uv run pytest tests/test_help.py -v
 ```
 
-Expected: PASS. If the repo has a help-page link checker or an `{el:...}` anchor test, it runs here.
+Expected: PASS. There is **no** separate link checker — the command above is the whole gate. What it runs over `interactive-elements.md` / `.pl.md` is four parametrized guards: `test_topic_english_file_exists_and_renders`, `test_topic_polish_file_renders_if_present`, `test_polish_file_is_not_an_english_copy`, and `test_element_icon_slugs_match_sprite`, plus `test_element_topics_leak_no_literal_token` and `test_pl_icon_sequence_matches_en`. None of them inspects prose, which is exactly why the bolded gate names have to be checked by eye in Steps 1-2.
 
 - [ ] **Step 4: Commit**
 
@@ -1925,11 +1936,21 @@ with `page.screenshot(path=...)` temporarily added around test 22's reveal — b
 
 **Not committed, and not in Step 10's `git add`** — these are four images for the PR description and for your own judgement, not repo artifacts.
 
+- [ ] **REVERT THE CAPTURE EDITS BEFORE STEP 10.** This step mutates the very file Step 10 stages: it adds `page.screenshot(path=…)` calls with a machine-specific absolute path, rebinds `_student` → `student`, and writes `user.theme`. None of that may ship — a committed absolute path breaks on every other machine, and the theme write permanently darkens `ftg_correct`. Neither `ruff check` nor the whole-suite gate would catch it, because the test still passes locally. Edit all three back out (never `git checkout` — that would discard the test file itself), then confirm:
+
+```bash
+git diff tests/test_e2e_filltable_gate.py     # must print NOTHING
+uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
+```
+
+The same "remove the mutant by editing it back" rule every falsify step in this plan uses applies here.
+
 **Pass criterion, checked per image rather than assumed:** in the gated shot, no part of the trailing element is legible; in the revealed shot, the trailing text and the locked green answer cells both remain readable against their background. **Judge the dark pair on its own terms** — a light-mode pass carries no information about dark, and the green "correct" cell colour is the specific thing that has gone grey-on-grey in this repo before. If dark fails, that is a finding to raise, not a reason to alter the feature's CSS inside this task.
 
 - [ ] **Step 10: Commit**
 
 ```bash
+git diff tests/test_e2e_filltable_gate.py     # Step 9's capture edits must be GONE
 uv run ruff check --no-cache tests/test_e2e_filltable_gate.py
 uv run ruff format --check tests/test_e2e_filltable_gate.py
 git add tests/test_e2e_filltable_gate.py
@@ -1999,7 +2020,7 @@ uv run python manage.py compilemessages -l en
 grep -B 3 "Odsłoń resztę tej sekcji" locale/pl/LC_MESSAGES/django.po
 ```
 
-Expected: no `#, fuzzy` line in the output.
+Expected: the entry **is found** *and* has no `#, fuzzy` line above it. Check both halves — on empty output (which is what you get if the label was reworded in Task 6 Step 8 and this pattern was not updated with it) the "no fuzzy line" reading is trivially satisfied and tells you nothing. If the grep prints nothing, the msgid does not match: fix the pattern, not the catalog.
 
 - [ ] **Step 5: Run the catalog health tests**
 
