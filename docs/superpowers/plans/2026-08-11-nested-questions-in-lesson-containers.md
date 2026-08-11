@@ -1171,7 +1171,7 @@ Quiz→lesson stays unconditionally allowed; a quiz→quiz no-op is accepted.
 
 Create `courses/tests/test_nested_question_gates.py`:
 
-**First, the four quiz-refusal companions Task 4 deferred** — each pairs with the lesson-acceptance test written there, and each is RED until this task's Step 3 clause lands:
+**First, the five quiz-refusal companions Task 4 deferred** — each pairs with the lesson-acceptance test written there, and each is RED until this task's Step 3 clause lands:
 
 - `courses/tests/test_beforeafter_nesting.py` — `resolve_scope(quiz, …, "choice")` raises `NestingError`.
 - `tests/test_twocolumn_registry.py` — same with the form key `"choicequestion"`.
@@ -1226,7 +1226,7 @@ uv run pytest courses/tests/test_nested_question_gates.py courses/tests/test_bef
 
 | Mutant | Expected RED |
 |---|---|
-| Widen `resolve_scope`'s new clause to accept quizzes (drop the `unit_type` conjunct) | the `resolve_scope` quiz case |
+| Make `resolve_scope`'s new clause never fire (e.g. guard it with `if False and …`) | the `resolve_scope` quiz cases, plus their endpoint/registry companions — every lesson-acceptance, paste and rename case stays green. **Do NOT "drop the `unit_type` conjunct"**: that makes the clause fire for *lessons too*, reddening the acceptance tests instead, which is a different mutant with the opposite signature |
 | Drop the `dest_parent is not None` scoping on `paste_allowed`'s clause (hoist it above the branch) | the top-level-paste-into-quiz case |
 | Narrow `unit_has_nested_question` to `NESTABLE_QUESTION_KEYS` | the `extended_response` case only — the `fill_blank` case stays green, which is why the wide case must exist |
 

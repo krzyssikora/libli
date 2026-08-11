@@ -2,11 +2,13 @@
 
 from dataclasses import dataclass
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from courses import ordering
 from courses.models import BeforeAfterElement
@@ -345,6 +347,15 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     if child_key not in NESTABLE_TYPE_KEYS:  # clause 1
         raise NestingError(f"{type_key} may not be nested")
 
+    # Clause 1b: a question may be nested in a LESSON only. Untranslated, like every
+    # other NestingError here -- element_add discards the message and answers
+    # HttpResponseBadRequest("bad nesting"), so a msgid would be dead.
+    if (
+        child_key in NESTABLE_QUESTION_KEYS
+        and unit.unit_type == ContentNode.UnitType.QUIZ
+    ):
+        raise NestingError("questions may not be nested in a quiz")
+
     # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
     # pads/truncates and mints fresh random ids on every call, so a slot validated
     # against it could be an ephemeral phantom that never matches again at render
@@ -446,9 +457,10 @@ def paste_allowed(
     omits them, and this function computes whatever it was not given.
 
     Reason precedence, fixed and depended on by every caller's tests: wrong_unit,
-    into_own_subtree, not_a_container, unknown_slot, type_not_nestable, too_deep,
-    own_slot. Clause 4 is tested before the container checks so that "into your own
-    child" reports that rather than "not a container" when the child is a leaf.
+    into_own_subtree, not_a_container, unknown_slot, type_not_nestable,
+    question_in_quiz, too_deep, own_slot. Clause 4 is tested before the container
+    checks so that "into your own child" reports that rather than "not a container"
+    when the child is a leaf.
     """
     if marked_join.unit_id != unit.pk:  # clause 0
         return False, "wrong_unit"
@@ -502,6 +514,21 @@ def paste_allowed(
 
         if model_to_key(type(marked_join.content_object)) not in NESTABLE_TYPE_KEYS:
             return False, "type_not_nestable"
+
+        # Clause 2b: a question may be nested in a LESSON only. INSIDE this branch
+        # deliberately -- pasting a question back to TOP LEVEL in a quiz stays legal,
+        # so the dest_parent is None branch must never see this check.
+        #
+        # It inherits clause 2's narrowness and checks the pasted subtree's ROOT
+        # only: pasting a CONTAINER that already holds a question is not re-checked.
+        # Sound rather than closed, because rename_node stops a unit becoming a quiz
+        # while such content exists and clause 0 (wrong_unit) makes cross-unit pastes
+        # impossible -- the only way in is pre-existing malformed content.
+        if (
+            model_to_key(type(marked_join.content_object)) in NESTABLE_QUESTION_KEYS
+            and unit.unit_type == ContentNode.UnitType.QUIZ
+        ):
+            return False, "question_in_quiz"
 
         if dest_depth is None:
             dest_depth = element_depth(dest_parent) + 1
@@ -645,6 +672,24 @@ def add_node(course, parent_ref, kind, title, unit_type, parent_token):
     return node
 
 
+def unit_has_nested_question(unit):
+    """True iff `unit` holds a question inside a container (parent is not null).
+
+    Scoped over ALL QuestionElement subclasses, deliberately WIDER than
+    NESTABLE_QUESTION_KEYS: a nested extended_response or drag type can exist via a
+    crafted POST or a hand-built archive, and such a unit must still be refused the
+    flip to quiz. Narrowing this to NESTABLE_QUESTION_KEYS reopens that hole.
+    """
+    # CONCRETE_QUESTION_MODELS is the SAME source the pre-flight uses -- two lists
+    # of ten would drift. Function-local, matching this module's import convention.
+    from courses.richtext import CONCRETE_QUESTION_MODELS
+
+    ct_ids = {ContentType.objects.get_for_model(m).id for m in CONCRETE_QUESTION_MODELS}
+    return Element.objects.filter(
+        unit=unit, parent__isnull=False, content_type_id__in=ct_ids
+    ).exists()
+
+
 @transaction.atomic
 def rename_node(
     course,
@@ -664,6 +709,23 @@ def rename_node(
         fields.append("title")
     if node.kind == ContentNode.Kind.UNIT:
         if unit_type is not _UNSET:
+            # BEFORE the assignment: read after it and `!= unit_type` is permanently
+            # False, making this dead code no static reading reveals. After
+            # _check_token, so a stale-token request fails on the token -- the token
+            # is the concurrency contract and must win. Quiz->lesson is always
+            # allowed (it only makes nested questions MORE correct), and a
+            # quiz->quiz no-op resubmit is accepted rather than refused.
+            if (
+                unit_type == ContentNode.UnitType.QUIZ
+                and node.unit_type != unit_type
+                and unit_has_nested_question(node)
+            ):
+                raise ValidationError(
+                    gettext_lazy(
+                        "This unit has a question inside a container. Move it out "
+                        "of the container before turning the unit into a quiz."
+                    )
+                )
             node.unit_type = unit_type
             fields.append("unit_type")
         if obligatory is not _UNSET:

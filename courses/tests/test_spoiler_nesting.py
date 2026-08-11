@@ -14,6 +14,7 @@ from tests.factories import CourseFactory
 from tests.factories import add_element
 from tests.factories import make_course_with_unit
 from tests.factories import make_pa
+from tests.factories import make_quiz_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -164,6 +165,24 @@ def test_resolve_scope_child_types_in_a_top_level_spoiler():
     for good in ("tabs", "spoiler", "choicequestion", "shorttextquestion"):
         parent_join, tab = builder.resolve_scope(
             unit, str(join.pk), SpoilerElement.SLOT_ID, good
+        )
+        assert parent_join == join and tab == SpoilerElement.SLOT_ID
+
+
+def test_resolve_scope_child_types_in_a_top_level_spoiler_on_a_QUIZ():
+    """The quiz-refusal companion of the `good` loop above. The widened question
+    form keys move from the accepted list to the refused one purely because the
+    unit is a quiz; the container keys stay accepted, which is what stops this
+    passing under a "quiz refuses every nested child" implementation."""
+    course, _lesson = make_course_with_unit()
+    quiz = make_quiz_unit(course=course)
+    _sp, join = _spoiler_join(quiz)
+    for bad in ("choicequestion", "shorttextquestion", "shortnumericquestion"):
+        with pytest.raises(NestingError):
+            builder.resolve_scope(quiz, str(join.pk), SpoilerElement.SLOT_ID, bad)
+    for good in ("tabs", "spoiler", "text"):
+        parent_join, tab = builder.resolve_scope(
+            quiz, str(join.pk), SpoilerElement.SLOT_ID, good
         )
         assert parent_join == join and tab == SpoilerElement.SLOT_ID
 

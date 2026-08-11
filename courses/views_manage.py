@@ -1561,6 +1561,9 @@ PASTE_REFUSAL_MESSAGES = {
     "not_a_container": gettext_lazy("That destination is not a container."),
     "unknown_slot": gettext_lazy("That slot no longer exists."),
     "type_not_nestable": gettext_lazy("This type cannot be placed inside a container."),
+    "question_in_quiz": gettext_lazy(
+        "Questions can only be placed inside a container in a lesson unit."
+    ),
     "too_deep": gettext_lazy("This element is too deep to fit there."),
     "own_slot": gettext_lazy("It is already there."),
     "parent_gone": gettext_lazy("The destination was removed while you were working."),

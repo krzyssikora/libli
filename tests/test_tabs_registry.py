@@ -7,6 +7,7 @@ from courses.models import TabsElement
 from courses.templatetags.courses_manage_extras import element_summary
 from tests.factories import make_course_with_unit
 from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -96,8 +97,7 @@ def test_nested_add_of_a_question_is_200_in_a_lesson(client):
     parametrized 400 above, whose own view comment named it "the case here that
     reliably reaches resolve_scope and proves nesting is blocked".
 
-    The quiz-400 companion lands with the gate that makes it pass, not here: today
-    the same POST against a quiz unit still returns 200.
+    Its quiz-400 companion is the test below.
     """
     course, unit = _managed(client)  # make_course_with_unit -> a LESSON
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
@@ -113,6 +113,36 @@ def test_nested_add_of_a_question_is_200_in_a_lesson(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 200
+
+
+def test_nested_add_of_a_question_is_400_in_a_quiz(client):
+    """The endpoint half of the lesson-only rule: the SAME POST as the test above,
+    differing only in the unit's type. element_add turns resolve_scope's NestingError
+    into a 400, so this is the crafted-POST path the hidden add-menu group does not
+    close."""
+    course, _lesson = _managed(client)
+    quiz = make_quiz_unit(course=course)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=quiz, content_object=tabs)
+    payload = {
+        "unit": quiz.pk,
+        "parent": join.pk,
+        "tab": tabs.data["tabs"][0]["id"],
+    }
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {**payload, "type": "choicequestion"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 400
+    # Not "every nested add into a quiz 400s": a text child still opens its form, so
+    # the 400 above really is the question clause and not a broken fixture.
+    ok = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {**payload, "type": "text"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert ok.status_code == 200
 
 
 def test_nested_add_of_a_container_type_is_200(client):

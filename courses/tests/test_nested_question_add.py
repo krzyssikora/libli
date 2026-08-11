@@ -13,10 +13,11 @@ returns _render_open_form(...) -- an empty editor form fragment; the row is crea
 later by element_save. So every assertion below is on the RETURNED FRAGMENT, exactly
 as tests/test_tabs_registry.py's nested-add tests are.
 
-The quiz-400 companions are deliberately absent: element_add 400s on nesting only
-when resolve_scope raises, and `choicequestion -> choice` is now nestable, the
-callout is a registered container and the child lands at depth 2 -- so the same POST
-against a quiz unit returns 200 until the lesson-only gate lands.
+The quiz-400 companion at the bottom of this file is the same POST against a quiz
+unit. It could not be written alongside the cases above: element_add 400s on nesting
+only when resolve_scope raises, and `choicequestion -> choice` is nestable, the
+callout is a registered container and the child lands at depth 2 -- so before the
+lesson-only gate landed that POST returned 200.
 """
 
 import pytest
@@ -26,6 +27,7 @@ from courses.models import CalloutElement
 from courses.models import Element
 from tests.factories import make_course_with_unit
 from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 
 def _managed(client):
@@ -106,3 +108,52 @@ def test_nested_add_of_a_widened_question_creates_no_element_row(client):
     )
     assert resp.status_code == 200
     assert not Element.objects.filter(parent=join).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "add_type",
+    ["choice-single", "choice-multi", "shorttextquestion", "shortnumericquestion"],
+)
+def test_nested_add_of_a_widened_question_type_is_400_in_a_quiz(client, add_type):
+    """The quiz companion of the parametrized acceptance test above -- one per card,
+    because element_add rewrites `type` for the two choice cards before resolve_scope
+    ever sees it, and only a per-card POST proves each rewrite still reaches the
+    gate."""
+    course, _lesson = _managed(client)
+    quiz = make_quiz_unit(course=course)
+    callout = CalloutElement.objects.create(kind="example")
+    join = Element.objects.create(unit=quiz, content_object=callout)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {
+            "type": add_type,
+            "unit": quiz.pk,
+            "parent": join.pk,
+            "tab": CalloutElement.SLOT_ID,
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+def test_a_non_question_nested_add_still_opens_its_form_in_a_quiz(client):
+    """The control for the four 400s above. Nesting itself is untouched in a quiz --
+    only questions are refused -- so a text card must still open its form."""
+    course, _lesson = _managed(client)
+    quiz = make_quiz_unit(course=course)
+    callout = CalloutElement.objects.create(kind="example")
+    join = Element.objects.create(unit=quiz, content_object=callout)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {
+            "type": "text",
+            "unit": quiz.pk,
+            "parent": join.pk,
+            "tab": CalloutElement.SLOT_ID,
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    assert f'name="parent" value="{join.pk}"' in resp.content.decode()
