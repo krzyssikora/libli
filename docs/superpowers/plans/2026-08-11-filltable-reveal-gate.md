@@ -1434,7 +1434,7 @@ Expected: RED on `assert obj.data["gate"] is True` — the checkbox still ticks 
 
 - [ ] **Step 10: Restore, re-run, then commit**
 
-**Two mutants are outstanding at this point** — mutant 7 removed the `<label>` from the partial (restored during Step 9's e2e block), and mutant 4 dropped `gate:` from `serialize` in `filltable_editor.js` (applied for that same block). Edit **both** back, then re-run before staging; `ruff` reads neither the template nor the editor JS, so the lint gate below cannot see either:
+**Step 9 already restored both mutants** — mutant 7's `<label>` was put back before the e2e block, and mutant 4 was reverted at the end of it. **Confirm** both are actually back before staging rather than assuming: `ruff` reads neither the template nor the editor JS, so the lint gate below cannot see either, and the re-run is the only thing that would:
 
 ```bash
 uv run pytest tests/test_filltable_editor_partial.py tests/test_filltable_form.py tests/test_editor_twin_drift.py -v
