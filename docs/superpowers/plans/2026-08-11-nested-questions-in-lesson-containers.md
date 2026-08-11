@@ -340,8 +340,6 @@ for the next run. So the fixture raises once the walk reads .parent too many
 times, which is RED in milliseconds instead.
 """
 
-import pytest
-
 from courses.builder import MAX_NEST_DEPTH
 from courses.builder import ancestor_pks
 
@@ -869,28 +867,22 @@ Expected FAILs — **all expected, none a regression**:
 | `tests/test_tabs_editor_partial.py:89-114` | `test_nested_add_menu_offers_only_nestable_types` renders `_add_menu.html` directly with `nested=True` and **no `unit_is_quiz`** (falsy ⇒ the new group renders), then asserts `"choice-single" not in html`. Bare substring, so it matches the card **and** its `#el-choice-single` icon href. |
 | `tests/test_tabs_transfer.py:142` | `test_nesting_validation_rejects[elements2]` — `_child(type_="choice")` inside `pytest.raises(TransferError)`. It passes **no `unit_types`**, so the quiz clause is irrelevant: this breaks the moment `choice` joins `NESTABLE_TYPE_KEYS`, i.e. **here in Task 4**, not in Task 6. |
 
-- [ ] **Step 5: Rewrite each as quiz-conditional**
+- [ ] **Step 5: Rewrite each refusal as a LESSON-ACCEPTANCE test**
 
-Each refusal becomes: **refused in a quiz unit, accepted in a lesson**. Note the `@pytest.mark.django_db` — these files have no module-level `pytestmark`.
+⚠️ **Only the acceptance half lands here.** The quiz-refusal half depends on
+`resolve_scope`'s quiz clause, which **Task 5 Step 3 adds** — `resolve_scope` today
+reads `unit` only for `_parse_scope_ref` and inspects `unit.unit_type` nowhere. A
+quiz-refusal assertion written now would be RED at this task's commit. Task 5 Step 6
+adds each companion alongside the clause that makes it pass.
+
+Note the `@pytest.mark.django_db` — these files have no module-level `pytestmark`.
 
 ```python
 @pytest.mark.django_db
-def test_a_graded_question_is_refused_as_a_child_of_a_QUIZ_before_after():
-    """The refusal is now conditional on unit.unit_type, not on the type alone.
-
-    Mutant: drop resolve_scope's quiz clause -> accepted, this goes RED.
-    """
-    course, _lesson = make_course_with_unit()
-    quiz = make_quiz_unit(course=course)
-    join = _ba(quiz)
-    with pytest.raises(NestingError):
-        builder.resolve_scope(
-            quiz, str(join.pk), BeforeAfterElement.BEFORE_SLOT_ID, "choice"
-        )
-
-
-@pytest.mark.django_db
 def test_a_graded_question_is_accepted_as_a_child_of_a_LESSON_before_after():
+    """Was `test_a_graded_question_is_still_refused_as_a_child`, whose docstring
+    named this very change as its mutant. The refusal is now conditional on
+    unit.unit_type; its quiz companion lands in Task 5 Step 6."""
     _course, unit = make_course_with_unit()
     join = _ba(unit)
     parent, tab = builder.resolve_scope(
@@ -899,7 +891,14 @@ def test_a_graded_question_is_accepted_as_a_child_of_a_LESSON_before_after():
     assert parent == join
 ```
 
-**For `tests/test_tabs_registry.py:71-86`, only the `choicequestion` param moves.** `slidebreak` must **stay** 400 — it is rejected at the allow-tuple and never reaches `resolve_scope`. Split the parametrization rather than rewriting the function wholesale:
+The same shape for `tests/test_twocolumn_registry.py:53` (form key `"choicequestion"`)
+and `courses/tests/test_spoiler_nesting.py:157` (the `for bad in (…)` loop — drop
+`choicequestion` from that tuple and add a positive assertion).
+
+For **`tests/test_tabs_registry.py:71-86`**: split the parametrization so `slidebreak`
+keeps its unconditional 400 (it is rejected at the allow-tuple and never reaches
+`resolve_scope`), and add a **lesson-200** test for `choicequestion`. Its quiz-400
+companion also belongs to Task 5 Step 6.
 
 ```python
 @pytest.mark.parametrize("post", [{"type": "slidebreak"}])   # still always blocked
@@ -907,8 +906,9 @@ def test_nested_add_of_a_blocked_type_is_400(client, post):
     ...unchanged...
 
 
-def test_nested_add_of_a_question_is_200_in_a_lesson_and_400_in_a_quiz(client):
-    ...choicequestion: 200 against the lesson unit, 400 against a quiz unit...
+def test_nested_add_of_a_question_is_200_in_a_lesson(client):
+    ...choicequestion into a tab on the LESSON unit: 200...
+    # The quiz-400 companion lands in Task 5 Step 6.
 ```
 
 For the add-menu assertions: drag/grid/extended keys stay banned nested; the four widened keys become expected-**present** in a lesson and expected-**absent** in a quiz.
@@ -1011,7 +1011,7 @@ def test_nested_add_of_a_widened_question_type_opens_its_form(
         assert f'name="multiple" value="{expect_multiple_checked}"' in html
 ```
 
-Plus a fifth test: the same POST against a **quiz** unit returns 400.
+**The quiz-400 companion is NOT written here.** `element_add` 400s on nesting only when `resolve_scope` raises, and after this task `choicequestion → choice` is nestable, the callout is a registered container and depth is 2 — so the same POST against a quiz unit returns **200** until Task 5 Step 3 lands. It is Task 5 Step 6's.
 
 - [ ] **Step 9: Run, falsify, lint, commit**
 
@@ -1030,6 +1030,10 @@ Task 4. Three transfer keys, three form-key aliases (choicequestion, not the
 choice-single/choice-multi card names -- element_add collapses those before
 resolve_scope sees them), a nested Questions group, and the drift assertions.
 
+The lesson-only ENFORCEMENT lands in Task 5: until then the add menu hides the
+cards in a quiz but the server does not yet refuse a crafted POST. Intermediate
+branch state only -- Task 5 is the next commit and nothing ships between them.
+
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
@@ -1041,6 +1045,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Modify: `courses/builder.py` — `unit_has_nested_question`, `resolve_scope`, `paste_allowed`, `rename_node`
 - Modify: `courses/views_manage.py:1558-1567` — `PASTE_REFUSAL_MESSAGES`
 - Create: `courses/tests/test_nested_question_gates.py`
+- Modify (the quiz-refusal companions Task 4 deferred): `courses/tests/test_beforeafter_nesting.py`, `courses/tests/test_spoiler_nesting.py`, `courses/tests/test_nested_question_add.py`, `tests/test_twocolumn_registry.py`, `tests/test_tabs_registry.py`
 
 - [ ] **Step 1: Add `unit_has_nested_question`**
 
@@ -1104,7 +1109,7 @@ Immediately after the `type_not_nestable` clause (`:441-444`), **inside the `des
             return False, "question_in_quiz"
 ```
 
-Update the docstring's reason precedence to `…, type_not_nestable, question_in_quiz, too_deep, own_slot`. Then in `views_manage.PASTE_REFUSAL_MESSAGES`:
+Update the docstring's reason precedence to `…, type_not_nestable, question_in_quiz, too_deep, own_slot`, and put a short comment **at the new clause** recording its inherited narrowness (spec §6.3 requires this documented rather than closed): it checks the pasted subtree's **root only**, so pasting a *container* that already holds a question is not re-checked — sound because authority 3 stops a unit becoming a quiz while such content exists, and clause 0 (`wrong_unit`) makes cross-unit pastes impossible. Then in `views_manage.PASTE_REFUSAL_MESSAGES`:
 
 ```python
     "question_in_quiz": gettext_lazy(
@@ -1143,6 +1148,16 @@ Quiz→lesson stays unconditionally allowed; a quiz→quiz no-op is accepted.
 - [ ] **Step 6: Write the gate tests**
 
 Create `courses/tests/test_nested_question_gates.py`:
+
+**First, the four quiz-refusal companions Task 4 deferred** — each pairs with the lesson-acceptance test written there, and each is RED until this task's Step 3 clause lands:
+
+- `courses/tests/test_beforeafter_nesting.py` — `resolve_scope(quiz, …, "choice")` raises `NestingError`.
+- `tests/test_twocolumn_registry.py` — same with the form key `"choicequestion"`.
+- `courses/tests/test_spoiler_nesting.py` — same, in the loop that previously banned it.
+- `tests/test_tabs_registry.py` — `element_add` with `choicequestion` into a tab on a **quiz** unit returns 400.
+- `courses/tests/test_nested_question_add.py` — the same POST against a quiz unit returns 400.
+
+Then, in `courses/tests/test_nested_question_gates.py`:
 
 - `resolve_scope` raises for a question into a quiz container; accepts into a lesson container.
 - `paste_allowed` returns `question_in_quiz`; still permits a **top-level** paste into a quiz; and — asserted **on the paste endpoint**, not the function — surfaces its own message, not the generic fallback.
@@ -1184,7 +1199,7 @@ def test_every_paste_reason_has_a_message():
 - [ ] **Step 7: Run and falsify — three mutants**
 
 ```bash
-uv run pytest courses/tests/test_nested_question_gates.py -v
+uv run pytest courses/tests/test_nested_question_gates.py courses/tests/test_beforeafter_nesting.py courses/tests/test_spoiler_nesting.py courses/tests/test_nested_question_add.py tests/test_twocolumn_registry.py tests/test_tabs_registry.py -v
 ```
 
 | Mutant | Expected RED |
@@ -1253,7 +1268,16 @@ FORMAT_VERSION = 12
 
 Create `courses/tests/test_nested_question_transfer.py`. Without these, deleting Step 1's clause entirely would leave the whole task green.
 
-**For a real RED moment, write this file BEFORE Steps 1-2 and run it first** — expect `TypeError: validate_nesting() got an unexpected keyword argument 'unit_types'`. Written after the implementation it is green on creation, which is weaker; Task 2 Steps 1-4 model the stronger order.
+(If executing strictly TDD, write this file and run it **before** Steps 1-2 — it fails with `TypeError: validate_nesting() got an unexpected keyword argument 'unit_types'`, a real RED. Task 2 Steps 1-4 model that order. Written after, it is green on creation, which is weaker but acceptable given Step 8's mutant.)
+
+Imports first (isort is `force-single-line`; note `TransferError` lives in `schema`, **not** `payloads`):
+
+```python
+import pytest
+
+from courses.transfer.payloads import validate_nesting
+from courses.transfer.schema import TransferError
+```
 
 **Copy `_els` / `_tabs_el` / `_child` from `tests/test_tabs_transfer.py:109-125` — and ADD a `"unit"` key to both dicts.** Those helpers emit `{"id", "type", "data", "parent", "tab"}` with **no `"unit"`**, because every existing caller passes no `unit_types` and the clause short-circuits on `unit_types is not None` before ever reading it. A straight paste raises `KeyError: 'unit'` the moment `unit_types` is non-`None`:
 
@@ -1649,10 +1673,14 @@ Capture with and without the new rule. Measuring with the rule present proves no
 - [ ] **Step 4: Branch gate — the full suite, once**
 
 ```bash
-uv run pytest -q
-uv run pytest -m e2e -q
+uv run pytest --verbosity=0
+uv run pytest -m e2e --verbosity=0
 uv run ruff check --no-cache . && uv run ruff format --check .
 ```
+
+**Not `-q`.** `pyproject.toml` sets `addopts = "-q -m 'not e2e'"`, so an explicit
+`-q` doubles to `-qq` and **suppresses the run summary** — losing the pass/fail line
+on the one whole-repo verification step of the branch.
 
 `scripts/e2e_chunks.sh` is stale — it covers 84 of 97 e2e files, so "I ran the full suite" through it is off by ~20%. Run the marker directly.
 
