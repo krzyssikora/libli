@@ -929,7 +929,17 @@ Three edits in `build_lesson_context`:
     )
 ```
 
-Delete the now-duplicated `has_fill_table` assignment at its old site (`:438-440`). **Step 8's `test_has_fill_table_is_assigned_exactly_once` is the check that this deletion actually happened** — a leftover duplicate is otherwise invisible to the entire suite and to ruff.
+Delete the now-duplicated `has_fill_table` assignment at its old site.
+
+⚠️ **`:438-440` is a PRE-EDIT line number — do not delete `:438-440` after inserting the block above.** The replacement swaps 10 lines (`:421-430`) for roughly 35, so the old assignment ends up ~25 lines lower and post-edit `:438-440` lands *inside* the freshly inserted comment/`has_filltable_gate` block: following the stated order literally deletes three lines of the code you just added. This is the same hazard Task 5 flags for `filltable.js`. **Either** delete the old assignment **first** and then insert the replacement, **or** key the deletion on its content rather than its position:
+
+```python
+    has_fill_table = node.elements.filter(
+        content_type__model="filltableelement"
+    ).exists()
+```
+
+**Step 8's `test_has_fill_table_is_assigned_exactly_once` is the check that this deletion actually happened** — a leftover duplicate is otherwise invisible to the entire suite and to ruff. Note it also catches the mirror mistake: deleting the *new* copy instead of the old one leaves the count at 1 but strands `has_fill_table` below its first use, which is a `NameError` on the first lesson page and fails loudly.
 
 **(b)** `FillTableElement` is **already imported** at `views.py:52`. Do not add a second import — `ruff` will flag it.
 
@@ -1105,7 +1115,7 @@ Expected: all three PASS immediately — the implementation landed in Step 4, so
 
    Note that the `has_fill_table and` short-circuit in front of the query is **deliberately unguarded**: it is a pure query-count optimisation, and no test can falsify it. `tests/test_html_element.py` pays the same cost in both arms of any A/B, so its delta stays 0 whether the short-circuit is present or not. Do not add a mutant for it expecting a RED.
 5. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** query-shape source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
-6. Restore, then **re-add the old `has_fill_table` assignment at its former site** (`:438-440`), simulating the forgotten deletion in Step 4(a) → `test_has_fill_table_is_assigned_exactly_once` RED, and **everything else in the entire run GREEN** — including `tests/test_html_element.py`, whose relative `len(q3) == len(q1)` A/B pays the duplicate query in both arms. That total-silence contrast is the whole reason this assertion exists; without the mutant it is green-on-write and never shown able to fail.
+6. Restore, then **re-add a second `has_fill_table` assignment below the `has_reveal_gate` block** (roughly where it sat pre-edit — the `:438-440` of Step 4(a) is a *pre-edit* number and no longer points there), simulating the forgotten deletion in Step 4(a) → `test_has_fill_table_is_assigned_exactly_once` RED, and **everything else in the entire run GREEN** — including `tests/test_html_element.py`, whose relative `len(q3) == len(q1)` A/B pays the duplicate query in both arms. That total-silence contrast is the whole reason this assertion exists; without the mutant it is green-on-write and never shown able to fail.
 
 - [ ] **Step 10: Restore, re-run, then commit**
 
@@ -1459,7 +1469,9 @@ Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be unto
 
 - [ ] **Step 8: Look at the controls row — the only step that opens the editor**
 
-Every other check in this task is a substring assertion on rendered HTML or on JS source; none of them can see a layout regression. The new label is ~54 characters and lands in `.table-editor__controls.filltable-editor__controls`, a wrapping flex row whose next sibling is `.filltable-editor__prompt-field { flex: 1 1 16rem; min-width: 12rem; }`. Adding a wide, inflexible item to that row is precisely the basis-weighted-shrink situation that squeezes or displaces the Instruction field.
+Every other check in this task is a substring assertion on rendered HTML or on JS source; none of them can see a layout regression. The new label is ~54 characters and lands in `.table-editor__controls.filltable-editor__controls`, whose **next flex item** is the `.filltable-editor__prompt-field` label — both are siblings *inside* the same row (`_edit_filltable.html`), not a row and its sibling.
+
+**Get the mechanism right, or the criterion below is unfalsifiable.** This is **not** a basis-weighted-shrink squeeze. `.table-editor__controls` is `display: flex; flex-wrap: wrap` (`courses/static/courses/css/editor.css:788-789`) and `.filltable-editor__prompt-field` is `flex: 1 1 16rem; min-width: 12rem` (`courses/static/courses/css/courses.css:1323-1326`). Flex shrink **cannot** cross `min-width`, and a wrapping row wraps instead of squeezing — so "the Instruction field crushed below 12rem" is a state the CSS cannot produce, and a criterion phrased that way passes on every build, broken or not. That is the same cannot-fail defect this plan rejects at Task 2 Step 7 (the inert lookbehind) and Task 9 Step 9 (`git diff` on an untracked path). The **real** risk is the opposite: the row wraps to more lines and grows taller, pushing the grid down, or a long unbreakable label forces horizontal overflow.
 
 **Reuse the existing editor harness rather than inventing one** — the editor needs a Platform Admin, so a plain `make_student` login will not reach it. `tests/test_e2e_filltable.py` already carries the whole fixture path: **`_editor_context(page, live_server, username, slug)`** (:346 — mints the PA user, a course and a lesson node; `_make_pa_user` at :329 creates only a user and is not enough on its own), **`_seed_filltable_for_images(unit)`** (:376 — a grid whose non-blank answer cell already satisfies the client-side submit guard), `_goto_editor` (:368) and `_open_edit` (:398). Write a scratch test in that file's shape — decorated `@pytest.mark.django_db(transaction=True)` and taking `(page, live_server)`, mirroring `test_author_two_image_cells_with_distinct_alts` (`tests/test_e2e_filltable.py:405`). **The decorator is not optional:** Playwright runs in another thread and cannot see rows held in an uncommitted test transaction, so without it `_goto_editor` lands on an empty editor and you will debug a phantom layout problem. It seeds a fill-table, opens its editor panel, and screenshots `.filltable-editor__controls` to the scratch directory:
 
@@ -1495,7 +1507,25 @@ page.set_viewport_size({"width": 1024, "height": 800})   # then resize and re-sh
 page.locator(".filltable-editor__controls").screenshot(path=<scratch>/controls-1024.png)
 ```
 
-**Pass criterion, checked at both widths:** the Instruction field is still usable — either on the same row, or wrapped deliberately onto its own line, not crushed below its `min-width: 12rem`. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed.
+**Pass criterion, checked at both widths — measured, not eyeballed**, because the eyeballed version cannot fail (see above). Assert both, then look at the images for anything the numbers miss:
+
+```python
+row = page.locator(".filltable-editor__controls")
+# 1. No horizontal overflow: a long unbreakable label is the one thing that can
+#    force it, and it is invisible in a screenshot cropped to the row.
+assert page.evaluate(
+    '(() => { const n = document.querySelector(".filltable-editor__controls");'
+    " return n.scrollWidth <= n.clientWidth; })()"
+) is True
+# 2. The Instruction input is still usable, i.e. the field really did wrap onto
+#    its own line rather than ending up a sliver. Its min-width guarantees 12rem
+#    (192px) for the LABEL; this checks the INPUT inside it, which has
+#    `flex: 1; min-width: 0` (courses.css:1327) and so has NO floor of its own.
+#    That is the assertion with teeth here.
+assert row.locator("input[data-prompt]").bounding_box()["width"] >= 120
+```
+
+Wrapping onto its own line is an accepted outcome; a sliver input, or horizontal overflow, is not. Judge dark on its own terms rather than assuming the light result carries. The captures are a throwaway review artifact, not committed.
 
 **Keep the test, drop only the screenshots.** The tick → Save → stored-flag round trip is the one seam in this feature that *no* runtime test crosses: Step 1's three source assertions pin the strings (`querySelector("[data-gate]")`, `gate: !!(gate && gate.checked)`, the `change` listener) but never execute them together, and every Task 9 e2e seeds through the ORM rather than the editor. Since this step already stands up the whole PA-authenticated fixture, keeping a behavioural version costs three lines:
 
@@ -1513,10 +1543,17 @@ def test_editor_gate_checkbox_round_trips(page, live_server):
     unit, _asset_a, _asset_b = _editor_context(
         page, live_server, "ftbl_gate", "ftbl-gate"
     )
+    # Use the FILE'S OWN IDIOM: a function-local import. tests/test_e2e_filltable.py
+    # already imports FillTableElement inside four separate function bodies
+    # (:93, :300, :381, :489) and has no module-level import of it. Matching that
+    # keeps this a ONE-hunk diff and sidesteps the question of whether a new
+    # module-level import should replace the four locals (it should not -- that
+    # would be unrelated churn in a feature commit).
+    from courses.models import FillTableElement
+
     # _seed_filltable_for_images returns the Element JOIN ROW (it ends
     # `return add_element(unit, el)`), not the concrete element -- reach the
-    # FillTableElement through object_id. `FillTableElement` is imported only
-    # inside helper bodies in this file today, so add a module-level import.
+    # FillTableElement through object_id.
     element = _seed_filltable_for_images(unit)
     obj = FillTableElement.objects.get(pk=element.object_id)
 
@@ -1590,9 +1627,10 @@ Expected: all PASS. Then confirm Step 8's kept test is green and carries **no** 
 ```bash
 docker compose -f docker-compose.test.yml up -d
 uv run pytest tests/test_e2e_filltable.py -m e2e -k test_editor_gate_checkbox_round_trips -v
-# Expect exactly two hunks: the new test, AND the module-level
-# `from courses.models import FillTableElement` that Step 8 requires (it sorts
-# into the existing first-party block, above `from tests.factories import ...`).
+# Expect exactly ONE hunk: the new test, whose FillTableElement import is
+# function-local per the file's own idiom (Step 8). The four pre-existing
+# function-local imports at :93/:300/:381/:489 stay exactly as they are -- do
+# not consolidate them into a module-level import, that is unrelated churn.
 # Anything else -- a screenshot call, a set_viewport_size call, a theme write --
 # is a capture leftover. This file IS tracked, so git diff works here (unlike
 # Task 9's still-untracked new file, where it would be silent).
@@ -1786,16 +1824,18 @@ is one-way. Records no marks and reveals nothing.
 
 Wrapped to the file's own ~75-column hand-wrap; keep it that way, or the paragraph reads as unrelated churn in the diff and invites the next editor to rewrap the lot:
 
+⚠️ **Do not write "everything after it … appears in one go."** `cascadeFrom` **breaks at the next gate wrapper** (`reveal.js:143`), so a correct check reveals only up to *and including* the next gate — which is exactly what Task 9 test 23 pins by asserting `_visible(trailing_row) is False` after table 1 is solved. This section exists because "Records no marks and reveals nothing" rotted into a false claim; replacing it with a *new* false claim, in a file where `tests/test_help.py` inspects no prose, would repeat the defect rather than fix it. The wording below is qualified accordingly, and the chaining sentence then reads as the illustration of that rule rather than an exception to it.
+
 ```markdown
 is one-way. Records no marks. Tick
 **Reveal the rest of this section when all cells are correct** to turn the
-table into a reveal gate: everything after it stays hidden until a student
-fills every answer cell correctly, then appears in one go. Like the other
-gates (**Show more**, **Fill in & confirm**, **Choose & confirm**), the
-reveal stops at the edge of whatever contains the table — inside a callout
-it reveals the rest of that callout and nothing beyond it. Two gated tables
-in a row chain: the first reveals the second, the second reveals what
-follows.
+table into a reveal gate: what follows it stays hidden until a student
+fills every answer cell correctly, and then appears — up to the next gate,
+if the section holds another one. Like the other gates (**Show more**,
+**Fill in & confirm**, **Choose & confirm**), the reveal also stops at the
+edge of whatever contains the table — inside a callout it reveals the rest
+of that callout and nothing beyond it. Two gated tables in a row chain: the
+first reveals the second, the second reveals what follows.
 ```
 
 - [ ] **Step 2: Update the Polish page**
@@ -1806,18 +1846,23 @@ Likewise wrapped to the Polish file's own width — the switch-gate line in part
 
 **Mind the splice point.** Unlike the English anchor (`is one-way.`, at column 0 of `:77`), the Polish anchor `jednokierunkowe. Nie` sits at **column 51** of `:89` — `bardziej, ale zmniejszenie jej poniżej limitu jest jednokierunkowe. Nie`. So the first replacement line must be *short*, or the spliced result is a ~125-column line, which is precisely the churn this is trying to avoid. Break immediately after `Nie`:
 
+**Carry the same qualification across** — the twins must agree, and the Polish draft had the identical "pojawia się naraz" overclaim:
+
 ```markdown
 jednokierunkowe. Nie
 przyznaje punktów. Zaznacz **Odsłoń resztę tej sekcji, gdy wszystkie
-komórki są poprawne**, aby zamienić tabelę w bramkę odsłaniającą: wszystko,
-co znajduje się po niej, pozostaje ukryte, dopóki uczeń nie wypełni
-poprawnie każdej komórki z odpowiedzią, a potem pojawia się naraz. Podobnie
-jak w pozostałych bramkach (**Pokaż więcej**, **Uzupełnij i potwierdź**,
-**Wybierz i zatwierdź**) odsłanianie zatrzymuje się na granicy elementu
-zawierającego tabelę — wewnątrz ramki odsłoni resztę tej ramki i nic poza
-nią. Dwie kolejne bramkowane tabele tworzą łańcuch: pierwsza odsłania
-drugą, druga odsłania to, co następuje po niej.
+komórki są poprawne**, aby zamienić tabelę w bramkę odsłaniającą: to, co
+znajduje się po niej, pozostaje ukryte, dopóki uczeń nie wypełni poprawnie
+każdej komórki z odpowiedzią, a potem się pojawia — aż do następnej bramki,
+jeśli sekcja zawiera kolejną. Podobnie jak w pozostałych bramkach
+(**Pokaż więcej**, **Uzupełnij i potwierdź**, **Wybierz i zatwierdź**)
+odsłanianie zatrzymuje się także na granicy elementu zawierającego tabelę —
+wewnątrz ramki odsłoni resztę tej ramki i nic poza nią. Dwie kolejne
+bramkowane tabele tworzą łańcuch: pierwsza odsłania drugą, druga odsłania
+to, co następuje po niej.
 ```
+
+The bolded label is still split across the same `wszystkie` / `komórki są poprawne**` line break — Task 10 Step 2's msgid note depends on that, so keep the break where it is if you rewrap anything else.
 
 **Verify the three bolded gate names against the `^## ` headings of each file before pasting.** They are not symmetric across the two languages, and prose mismatches are invisible to `tests/test_help.py`. In Polish the switch-gate is **Wybierz i zatwierdź** (`interactive-elements.pl.md:36`) — *zatwierdź*, not *potwierdź*, even though the fill-gate two lines earlier is **Uzupełnij i potwierdź** (`:27`). English: **Show more** (`:16`), **Fill in & confirm** (`:24`), **Choose & confirm** (`:32`).
 
@@ -2251,7 +2296,7 @@ uv run pytest tests/test_e2e_filltable_gate.py tests/test_e2e_filltable.py tests
 
 The two existing suites run again here (Task 5 ran them first): every server-side and client-side change now exists together, and they must still pass.
 
-**But "unmodified" applies to only one of them by this point — do not "restore" the other.** `tests/test_e2e_reveal_gate.py` must be green and genuinely unmodified. `tests/test_e2e_filltable.py` must be green with **exactly Task 6's two hunks and nothing else**: `test_editor_gate_checkbox_round_trips` and the module-level `from courses.models import FillTableElement` it needs, both committed in Task 6 Step 10. Task 5 Step 5's identical "unmodified" wording was correct *at that point*, before Task 6 ran. An implementer who carries that phrasing forward, sees a diff against master here, and reverts it in the spirit of this plan's "edit the mutant back out" rule would delete the only end-to-end guard on the authoring path — and Task 6 is already committed, so nothing downstream would flag its loss.
+**But "unmodified" applies to only one of them by this point — do not "restore" the other.** `tests/test_e2e_reveal_gate.py` must be green and genuinely unmodified. `tests/test_e2e_filltable.py` must be green with **exactly Task 6's one hunk and nothing else**: `test_editor_gate_checkbox_round_trips`, whose `FillTableElement` import is function-local inside it, committed in Task 6 Step 10. Task 5 Step 5's identical "unmodified" wording was correct *at that point*, before Task 6 ran. An implementer who carries that phrasing forward, sees a diff against master here, and reverts it in the spirit of this plan's "edit the mutant back out" rule would delete the only end-to-end guard on the authoring path — and Task 6 is already committed, so nothing downstream would flag its loss.
 
 **There is no single group mutant for this block, and assuming one wastes a debugging session.** Reverting Task 5's `libliRevealCascade` call reddens tests 22, 23 and 26 — but **not** 21, 24, 25 or 27 — because `reveal.js::restoreGates` calls `cascadeFrom` **directly** off `data-state` (line 249) — it never goes through `filltable.js`. The `saveFlag({done: true})` line is unchanged and Task 3 derives `open`, so every reload-based path still works. Under that mutant:
 
@@ -2325,7 +2370,9 @@ Expected: the grep finds **nothing**, and all seven tests PASS. Neither `screens
 
 The same "remove the mutant by editing it back" rule every falsify step in this plan uses applies here.
 
-**Pass criterion, checked per image rather than assumed:** in the gated shot, no part of the trailing element is legible; in the revealed shot, the trailing text and the locked green answer cells both remain readable against their background. **Judge the dark pair on its own terms** — a light-mode pass carries no information about dark, and the green "correct" cell colour is the specific thing that has gone grey-on-grey in this repo before. If dark fails, that is a finding to raise, not a reason to alter the feature's CSS inside this task.
+**Pass criterion, checked per image rather than assumed.** Note what is *not* worth checking: "in the gated shot no part of the trailing element is legible" is trivially true in every build — the pre-hide CSS sets `display: none`, so the run is not merely illegible but absent — and test 21 already asserts it mechanically. Judging it by eye would be another cannot-fail criterion.
+
+What the screenshots are actually for: **in the revealed shot, the trailing text and the locked green answer cells both remain readable against their background.** Secondarily, in the gated shot, check that the hidden run leaves no residual artefact — a stray gap, rule, or margin collapse where the content will appear — since `display: none` should reserve nothing. **Judge the dark pair on its own terms** — a light-mode pass carries no information about dark, and the green "correct" cell colour is the specific thing that has gone grey-on-grey in this repo before. If dark fails, that is a finding to raise, not a reason to alter the feature's CSS inside this task.
 
 - [ ] **Step 10: Commit**
 
