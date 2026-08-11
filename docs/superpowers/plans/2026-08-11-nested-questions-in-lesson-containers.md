@@ -1428,7 +1428,10 @@ LAL_QUESTION_TYPES = frozenset(
 )
 ```
 
-At the top of `build_element`, after the `flagged` handling:
+At the top of `build_element`, after the `flagged` handling — which either raises or
+returns, so a flagged element can never reach the guard and **no `not
+el.get("flagged")` clause belongs in the condition**. Adding one would be a
+condition that cannot fail, the pattern this repo's reviews strip out:
 
 ```python
     # Nested question in a QUIZ unit: refused for every recursion site at once.
@@ -1437,7 +1440,6 @@ At the top of `build_element`, after the `flagged` handling:
     # per-branch guard would have to be remembered a third time by the next slice.
     if (
         parent is not None
-        and not el.get("flagged")
         and _PARSER_TO_CANONICAL.get(etype, etype) in LAL_QUESTION_TYPES
         and unit.unit_type == ContentNode.UnitType.QUIZ
     ):
