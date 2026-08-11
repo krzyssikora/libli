@@ -413,11 +413,17 @@ that `filltable_editor.js` reads and folds into the serialized blob. Four touche
 box.** This is where §1's "first field whose normalized value depends on other fields' validity" bites.
 `_grid_data` (shared with `TableElementForm`) returns `model._sanitized_data(model.normalize_data(
 parsed))` on the bound-invalid path, deliberately re-rendering the *submitted* grid so the author sees
-their edit rather than the stored table. But §1's suppression forces `gate` to `False` for exactly the
-two grids that make `clean_data` raise. The rejection reason and the suppression trigger are the same
-condition — so the author ticks the box, forgets one answer, saves, gets "An answer cell is blank",
-and the checkbox comes back **unchecked** with no message about it. Their next Save then posts
-`gate: false` from the DOM, silently discarding the intent.
+their edit rather than the stored table. But §1's suppression forces `gate` to `False` on a **subset
+of the conditions that make `clean_data` raise** — the no-answer-cell and blank-answer-cell rules are
+both a rejection reason *and* a suppression trigger. So the author ticks the box, forgets one answer,
+saves, gets "An answer cell is blank", and the checkbox comes back **unchecked** with no message about
+it. Their next Save then posts `gate: false` from the DOM, silently discarding the intent.
+
+The overlap is one-way, not an iff: `clean_data` also raises on an over-cap grid (`_caps_ok`) and on a
+course-scope image failure, and for those `normalize_data` leaves `gate` at `True`, so the shared path
+would already re-render the box ticked. The override below is written **unconditionally** rather than
+narrowed to the two triggering shapes, which makes it a no-op on those other rejection paths and
+correct on all four.
 
 Overlay the submitted value in `FillTableElementForm` (not in shared `_grid_data`, which
 `TableElementForm` also uses and which has no `gate`):
@@ -605,19 +611,22 @@ the constructed `data` dict; the existing callers keep the default and are untou
     `has_filltable_gate=True`; a unit with only an ungated fill-table gets both false. Cover a table
     nested as a **callout child**, since that is the real shape and the flat (non-`parent__isnull`)
     query is what makes it work. *Mutant: drop the `or has_filltable_gate`.*
-12. **No extra ContentType SELECT** — must be written as a **delta**, not an absolute count, and with
-    the cache cleared, or it fails both ways. `get_for_model`'s cache is process-global and is not
-    reset per test, and the fixture warms it itself (`Element.objects.create(content_object=<a
-    FillTableElement>)` resolves that ContentType before the request under test) — so with a warm cache
-    the mutant emits **zero** CT SELECTs and a naive test passes. Clear it and swing to an absolute
-    "no `django_content_type` query" assertion and the test goes red on the **correct** build, because
-    `build_lesson_context` already calls `get_for_model` unconditionally twice (`views.py:404` for the
-    question models, `:499` for `SlideBreakElement`) and the GFK prefetch resolves CTs by id.
-    So: call `ContentType.objects.clear_cache()` immediately before each capture, render a gated-table
-    unit and an otherwise-identical ungated-table unit, and assert the gated render issues **no more**
-    `django_content_type` queries than the ungated one. A nonzero absolute count is expected in both.
-    `tests/test_html_element.py`'s query-count invariant must also stay green **unmodified**.
-    *Mutant: rewrite the query as `FillTableElement.objects.filter(elements__unit=node, …)`.*
+12. **Query shape pinned at the source** — a **source assertion**, not a query-count test. Assert
+    `courses/views.py`'s fill-table gate term is built from `object_id` / `pk__in` and does **not**
+    contain `elements__unit=`, in the style of `courses/tests/test_reveal_refactor_static.py`; use §7's
+    rationale as the test's docstring. *Mutant: rewrite the query as
+    `FillTableElement.objects.filter(elements__unit=node, …)`.*
+
+    A runtime query-count test was considered and rejected as unfalsifiable, which is worth recording
+    so nobody re-adds one: the mutant's extra `get_for_model(FillTableElement)` is gated on
+    `has_fill_table`, not on `gate`, so an A/B between a gated and an ungated **fill-table** unit pays
+    identical cost in both arms and the delta is 0 under every configuration. `clear_cache()` before
+    the capture does not rescue it — `build_lesson_context`'s `prefetch_related("content_object")`
+    (`views.py:348-351`) re-warms the cache in-request for top-level elements, and Django's
+    `_add_to_cache` populates the `(app_label, model)` key alongside the id key. Nor does
+    `tests/test_html_element.py` guard this: its fixtures contain only `HtmlElement`s, so
+    `has_fill_table` is False and the new term short-circuits before the mutant is reached. That test
+    must still stay green unmodified, but it is not the guard here.
 13. **Prepaint A/B** — render the unit page with and without a gating table and diff the prepaint
     block: the `__fillTableBooted` term and the `.reveal-armed` style block appear only in the gated
     render. This must be an A/B; asserting the rule is present in the gated render alone proves
