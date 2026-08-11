@@ -307,7 +307,11 @@ def test_gated_filltable_is_a_direct_child_of_the_callout_child_wrapper():
 uv run pytest tests/test_filltable_render.py -k gate -v
 ```
 
-Expected: FAIL — the attributes are absent.
+Expected, enumerated (a blanket "FAIL" would hide the one that is green already):
+- `test_gated_table_marks_the_root_div` — **FAILS**, attributes absent.
+- `test_gate_marker_is_on_the_same_node_as_data_state` — **FAILS**, `select_one` returns `None`.
+- `test_gated_filltable_is_a_direct_child_of_the_callout_child_wrapper` — **FAILS**, same reason.
+- `test_ungated_table_has_no_gate_attributes` — PASSES already; it asserts an absence. Green before the change is expected, not a mistake — mutant 3 in Step 12 is what proves it can fail.
 
 - [ ] **Step 5: Add the marker to the template**
 
@@ -362,9 +366,10 @@ def test_print_hide_rule_excludes_the_filltable_gate():
     assert re.search(r"\[data-reveal-gate\]:not\(\[data-filltablegate\]\)\s*\{", block)
     # ...and the BARE selector is gone. Boundary-anchored (^ under re.M): the rule
     # starts its own line, so this matches the pre-change text and stops matching
-    # after. A lookbehind-on-colon form was tried and is INERT -- it matches
-    # nothing in either state, because the preceding text is
-    # "revert !important;\n  }\n\n  ", which \s* cannot span.
+    # after. `}` closes the revert rule on the line directly above (app.css:1021)
+    # and is not whitespace, so ^\s* cannot bridge into line 1022 from earlier.
+    # A lookbehind-on-colon form was tried and is INERT -- it matches nothing in
+    # EITHER state, so it would have been an assertion that could not fail.
     assert not re.search(r"^\s*\[data-reveal-gate\]\s*\{", block, re.M)
 ```
 
@@ -414,6 +419,8 @@ Expected: all PASS. `test_reveal_scope_agreement.py` must stay green **unmodifie
 
 1. Restore the bare `[data-reveal-gate]` selector → the print test goes RED, `test_reveal_scope_agreement.py` stays GREEN (proving it was never guarding this).
 2. Move `data-reveal-gate data-filltablegate` from the root `.filltable` div onto the inner `.el.el--filltable` div → `test_gate_marker_is_on_the_same_node_as_data_state` goes RED while `test_gated_table_marks_the_root_div` stays GREEN. That contrast is the whole point of the co-location test.
+3. Drop the `{% if data.gate %}…{% endif %}` guard so the marker is emitted unconditionally → `test_ungated_table_has_no_gate_attributes` RED. It is green from the moment it is written, so without this it is never shown to be able to fail — and it is the only render-level guard on the "byte for byte" constraint.
+4. Wrap the root `.filltable` div in an extra `<div>` in `filltableelement.html` → the direct-child pin RED while the co-location test stays GREEN. Two tests, two distinct failure modes: co-location survives an extra ancestor, the pre-hide CSS does not.
 
 - [ ] **Step 13: Lint and commit**
 
@@ -739,7 +746,7 @@ Expected: the three context tests FAIL with `KeyError: 'has_filltable_gate'`; th
 
 Three edits in `build_lesson_context`:
 
-**(a)** `has_fill_table` is currently assigned at :438, *after* `has_reveal_gate` at :424. Move the `has_fill_table` assignment (and its comment, if any) to just above the `has_reveal_gate` block, then replace the `has_reveal_gate` assignment with:
+**(a)** `has_fill_table` is currently assigned at :438, *after* `has_reveal_gate` at :424. **Replace `views.py:421-430` in full** — that is the existing three-line `# Flat query (NOT scoped to parent__isnull=True)…` comment *plus* the `has_reveal_gate` assignment it introduces — with the block below, and delete the old `has_fill_table` assignment from its former position. Replacing the comment too is deliberate: the block's own trailing comment is a superset of it, and leaving the original in place would strand it above the moved `has_fill_table` (which it does not describe) with near-identical prose repeated a few lines down.
 
 ```python
     has_fill_table = node.elements.filter(
@@ -843,8 +850,8 @@ def test_gate_query_does_not_use_a_reverse_generic_relation():
 
 - [ ] **Step 8: Falsify everything in this task**
 
-1. Drop `or has_filltable_gate` from `has_reveal_gate` → `test_has_filltable_gate_flag` and `test_has_filltable_gate_flag_when_nested_in_a_callout` go RED.
-2. Restore, then omit `"has_filltable_gate": has_filltable_gate,` from the return dict → the prepaint A/B goes RED. Only that test notices, which is why it is written as an A/B.
+1. Drop `or has_filltable_gate` from `has_reveal_gate` → `test_has_filltable_gate_flag`, `test_has_filltable_gate_flag_when_nested_in_a_callout` **and** the prepaint A/B go RED — the whole prepaint block sits inside `{% if has_reveal_gate %}` (`lesson_unit.html:5-17`), so both `__fillTableBooted` and `reveal-armed` vanish from the gated render too.
+2. Restore, then omit `"has_filltable_gate": has_filltable_gate,` from the return dict → **all four** new tests go RED: the three context tests raise `KeyError` reading `ctx["has_filltable_gate"]`, and the prepaint A/B fails on the missing term. The A/B still earns its place — it is the only one that proves the *template* term is driven by the flag rather than by the mere presence of a fill-table, which no context-dict assertion can show.
 3. Restore, then scope the inner query to `parent__isnull=True` → the callout test goes RED, the top-level test stays GREEN.
 4. Restore, then rewrite the query as `FillTableElement.objects.filter(elements__unit=node, data__gate=True)` → **both** source assertions go RED (the rewrite drops `pk__in` and `object_id` as well as adding `elements__unit=`), while **every runtime test stays GREEN**. That second half is the contrast that matters, and exactly why this guard has to be a source assertion.
 
@@ -1000,6 +1007,7 @@ Expected: all PASS.
 2. Restore, then delete the `hasAttribute("data-reveal-gate") &&` clause → `test_cascade_call_is_guarded_by_the_gate_attribute` RED. (The behavioural counterpart is e2e test 27 in Task 9.)
 3. Restore, then delete the `[data-filltablegate]` branch from `focusTargetIn` → `test_focus_targets_fill_table_input` RED.
 4. Restore, then drop `:not([disabled])` from that selector → the same test RED.
+5. Restore, then change `filltable.js`'s save line to `saveFlag(root, { done: true, open: true })` → `test_save_flag_stays_done_only` RED. This is the drift pin promised in Step 2; without this mutant it is the one test in the task trusted without ever being shown to fail.
 
 - [ ] **Step 8: Commit**
 
@@ -1169,8 +1177,9 @@ Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be unto
 - [ ] **Step 8: Falsify**
 
 1. Drop `{% if d.gate %}checked{% endif %}` → `test_partial_gate_checkbox_is_checked_for_a_gated_element` RED.
-2. Restore, then delete the `grid_data` override → `test_rejected_save_keeps_the_gate_ticked` RED.
-3. Restore, then drop `gate: !!(gate && gate.checked),` from `serialize` → `test_editor_js_serializes_the_gate_flag` RED.
+2. Restore, then hardcode `checked` on the new `<input data-gate>` (drop the `{% if %}` but keep the attribute) → `test_partial_has_gate_checkbox_unchecked_by_default` RED, and the checked-state test stays GREEN. Mutant 1 leaves this test green, so it needs its own.
+3. Restore, then delete the `grid_data` override → `test_rejected_save_keeps_the_gate_ticked` RED.
+4. Restore, then drop `gate: !!(gate && gate.checked),` from `serialize` → `test_editor_js_serializes_the_gate_flag` RED.
 
 That third mutant is guarded by `test_editor_js_serializes_the_gate_flag`, written in Step 1.
 
@@ -1285,7 +1294,7 @@ uv run pytest tests/test_filltable_transfer.py -v
 - [ ] **Step 5: Falsify**
 
 1. Delete `"gate": data["gate"],` → the export and round-trip tests go RED.
-2. Restore, then make `normalize_data` return `data.get("gate")` raw instead of the coerced `bool(...)` → `test_every_production_write_path_stores_a_real_boolean` goes RED.
+2. Restore, then narrow the mutation to the coercion **only** — `bool(data.get("gate"))` → `data.get("gate")`, keeping both suppression conjuncts — and run just this file (`uv run pytest tests/test_filltable_transfer.py -v`) → `test_every_production_write_path_stores_a_real_boolean` goes RED. Replacing the whole guard expression instead would also redden four of Task 1's tests, which muddies the signal.
 
 - [ ] **Step 6: Commit**
 
@@ -1343,7 +1352,9 @@ ramki odsłoni resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele
 tworzą łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
 ```
 
-Match the surrounding link syntax and section anchors exactly — copy the form used by the neighbouring gate sections in each file rather than the illustrative `(interactive-elements)` above, which is a placeholder for whatever that page's own cross-reference convention is. **Read the three gate sections in both files first** and mirror them.
+**Drop the three `[…](interactive-elements)` cross-links from the draft above.** That page contains no intra-page links at all (grep for `](interactive-elements` returns zero hits), and the draft as written links the page to itself. Use plain bolded names — **Show more**, **Fill in & confirm**, **Choose & confirm** — matching the existing prose style.
+
+Note also that none of the three gate sections states the scope confinement: `{el:revealgate}` (:16-22) says only "hides the elements that follow it in the outline", and the other two are similar. So there is no sibling wording to mirror — state the confinement in one sentence of the fill-table section, and accept that it is the first section on the page to say it.
 
 - [ ] **Step 3: Verify the help pages still render**
 
@@ -1375,8 +1386,48 @@ families describe theirs."
 
 **Read `tests/test_e2e_filltable.py` and `tests/test_e2e_reveal_gate.py` first.** Reuse `_login`, `_seed_student`, `_new_unit`, `_unit_url`, `_text`, `_gate` and `_seed_state` from the reveal-gate file, and the `_CORRECT` / `_INCORRECT` / `_SUCCESS` / `_RETRY` regexes plus the `_confirm` / `_summary` locators from the fill-table file. Neither file has a gated-fill-table factory, so write one (below).
 
-**Four traps this suite must avoid:**
+**Write the module preamble out first — without it the run command selects nothing.** `pyproject.toml:49` sets `addopts = "-q -m 'not e2e'"`, so an e2e file is selected *only* by an explicit marker; and every test in both reference files carries `@pytest.mark.django_db(transaction=True)` (Playwright runs in another thread and cannot see rows held in an uncommitted test transaction). The `_allow_async_unsafe` fixture is defined locally in each e2e file and does **not** transfer through an import.
 
+```python
+"""Fill-in table reveal gate, end to end.
+
+Fixtures are TOP-LEVEL (slide-scope) throughout -- see the trap list below.
+"""
+
+import os
+
+import pytest
+from playwright.sync_api import expect
+
+from courses.models import Element
+from courses.models import FillTableElement
+from tests.factories import add_element
+
+pytestmark = pytest.mark.e2e
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    # Sync Playwright + Django ORM in the same thread. Copied from
+    # tests/test_e2e_filltable.py:40-45 -- a local fixture, not importable.
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+```
+
+Every test in this file is decorated `@pytest.mark.django_db(transaction=True)`.
+
+**Five traps this suite must avoid:**
+
+- **A live solve dispatches the state POST but does not wait for it.** `libliState.saveFlag` is fire-and-forget (`state.js:20-31`, `keepalive`, errors swallowed), and `summarize()` runs *before* it in the same `.then`. So `expect(_summary(page)).to_have_class(_SUCCESS)` does **not** mean the blob was committed — reloading straight after races the server and makes tests 24, 25 and 26 intermittently red on a correct build. The repo already solved this; copy `tests/test_e2e_filltable.py:253-261`:
+  ```python
+  with page.expect_response(
+      lambda r: "/state/" in r.url and r.request.method == "POST"
+  ) as resp_info:
+      _confirm(page).click()
+  assert resp_info.value.ok
+  page.reload()
+  ```
+  Use this wherever a step reloads after solving. The plain `expect(...)` synchronisation below is sufficient only for tests that never reload (21, 22, 23, 27).
 - **All fixtures must be TOP-LEVEL (slide-scope), not callout children.** `data-element-id` is emitted only by `_lesson_article.html:38` for top-level elements; `calloutelement.html:23` renders children as bare `<div class="callout__child">{% render_element child %}</div>` — no `data-element-id`, no `.lesson-block`. A locator keyed on `.lesson-block[data-element-id=…]` therefore returns `null` for a callout child. Top-level scope also exercises the `.slide` pre-hide selector, and the callout-child *rendering* path is already pinned by Task 2's direct-child unit test, so nothing is lost.
 - **Assertions must auto-retry.** `filltable.js::submit` is `fetch(...).then(...)` — `paint`, `lock` and `libliRevealCascade` all run in the `.then`. A bare `page.evaluate` does **not** retry, so an assertion fired straight after `click()` samples the DOM before the response lands: test 21 would pass under its own mutant, and 22/23 would be red on a correct build. Synchronise on the widget's own state first, using the file's existing primitives:
   ```python
@@ -1403,12 +1454,13 @@ def _filltable(gate=False):
 
 def _seed(unit, *objs):
     """Attach each concrete element to `unit` as a TOP-LEVEL row, in order.
-    Returns the join rows so tests can address blocks by pk."""
-    rows = []
+    Returns (join_row, concrete_obj) pairs -- test 25 needs the concrete object to
+    flip its `gate` mid-test, which a join row alone cannot reach."""
+    out = []
     for obj in objs:
         obj.save()
-        rows.append(Element.objects.create(unit=unit, content_object=obj))
-    return rows
+        out.append((add_element(unit, obj), obj))   # tests.factories.add_element
+    return out
 
 
 def _block(join_pk):
@@ -1485,9 +1537,16 @@ assert _visible(page, trailing.pk) is True
 - [ ] **Step 4: Test 24 — reload restores**
 
 ```python
-# solve (synchronising as in test 22), then:
+inp = page.locator(".filltable__input").first
+inp.fill(_ANSWER)
+with page.expect_response(               # AWAIT the state POST -- see trap 1
+    lambda r: "/state/" in r.url and r.request.method == "POST"
+) as resp_info:
+    _confirm(page).click()
+assert resp_info.value.ok
+
 page.reload()
-expect(page.locator(".filltable__input").first).to_have_attribute("readonly", "")
+expect(page.locator(".filltable__input").first).to_have_js_property("readOnly", True)
 assert _visible(page, trailing.pk) is True
 ```
 
@@ -1496,6 +1555,26 @@ The restored input is `readonly` (server-rendered), not `disabled` — `_filltab
 *Mutant: remove Task 3's `open` derivation.*
 
 - [ ] **Step 5: Test 25 — pre-tick, single gate**
+
+```python
+table_row, table_obj = table          # from _seed(...)
+inp = page.locator(".filltable__input").first
+inp.fill(_ANSWER)
+with page.expect_response(
+    lambda r: "/state/" in r.url and r.request.method == "POST"
+) as resp_info:
+    _confirm(page).click()
+assert resp_info.value.ok             # the blob is now stored, table still UNGATED
+
+# Flip the flag. A JSONField cannot be .update()d key-wise, so rebuild the whole
+# dict -- dropping `cells` here would empty the grid and silently invalidate the test.
+FillTableElement.objects.filter(pk=table_obj.pk).update(
+    data={**table_obj.data, "gate": True}
+)
+
+page.reload()
+assert _visible(page, trailing.pk) is True
+```
 
 Solve an **ungated** table, then set `gate: true` on it, reload, and assert the following content is visible.
 
@@ -1526,9 +1605,9 @@ This pins **accepted** behaviour, documented in the spec's Error handling table.
 Solve the **ungated** table (which has a following sibling in its own scope):
 
 ```python
-scroll_before = page.evaluate("window.scrollY")
 inp = page.locator(f"{_block(table.pk)} .filltable__input").first
-inp.fill(_ANSWER)
+inp.fill(_ANSWER)                       # fill() itself scrolls the input into view...
+scroll_before = page.evaluate("window.scrollY")   # ...so capture AFTER it
 page.locator(f"{_block(table.pk)} .filltable__confirm").click()
 expect(page.locator(f"{_block(table.pk)} .filltable__summary")).to_have_class(_SUCCESS)
 
