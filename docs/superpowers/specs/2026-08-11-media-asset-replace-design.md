@@ -149,7 +149,13 @@ replace can silently degrade content.
   asset an element uses; replace changes what an asset *is*. Different concern, different surface.
   (`_asset_cell.html` is included only by `_asset_grid.html`, so the picker is untouched by
   construction.)
-- **Cross-kind replacement** (image ⇄ video), which the FK constraints forbid.
+- **Cross-kind replacement** (image ⇄ video). Note *what* prevents it: **not** the FKs.
+  `limit_choices_to` is a form-field queryset hint that produces no database constraint and no
+  model-level check, so nothing at the FK layer would notice an asset whose `kind` flipped. The real
+  guarantee is structural and lives in `replace_asset`: `kind` is never assigned, so
+  `MediaAsset.clean()` branches on the unchanged value and the per-kind extension validator rejects
+  the file (see §Architecture 1). Recording the false version here would invite a later refactor to
+  treat the database as the backstop and drop the one that actually works.
 - **Recomputing `content_hash`.** See "Rejected alternatives" for the accepted consequence.
 - **A per-replace audit trail.** See the `uploaded_by` / `created` decision below.
 - **Cache-busting for overwrite-style storage backends.** See the note under Data flow.
@@ -312,9 +318,11 @@ hand-rolling the view is otherwise invisible to a future refactor.
 
 Not reusing the form does mean this path diverges from upload in two places beyond `kind`. Both are
 handled explicitly: the empty-file check is re-implemented in the service (above), and the form's
-`max_length=100` check on the *stored* name is not reproduced — `models.FileField` attaches no
-`MaxLengthValidator`, so storage silently truncates instead of 422-ing. The shared authority between
-the two paths is therefore **extension and size**, not "all validation".
+`max_length=100` check on the *submitted* filename is not reproduced — `forms.FileField.to_python`
+compares `len(data.name)` on the client-supplied name and 422s, whereas `models.FileField` attaches no
+`MaxLengthValidator` and instead lets storage truncate the *stored* name (a different string, carrying
+the `courses/media/` prefix and any uniquifying suffix). The shared authority between the two paths is
+therefore **extension and size**, not "all validation".
 
 URL, appended to the media block at `courses/urls.py:271-296`:
 
@@ -416,6 +424,12 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
 
 - The **⇄ click** and the **input `change`** are delegated from `root`, because those elements arrive
   and depart with server-rendered cells (`cell.replaceWith(fresh)`, and the filter's whole-grid swap).
+  Both delegations filter on their own attribute — `e.target.closest("[data-replace-asset]")` and
+  `e.target.closest("[data-replace-input]")` — and return early when the enclosing `.asset-cell` is
+  absent. The second selector is not optional tidiness: `root` is `.media-manager`, which also
+  contains the upload form's `<input type="file" name="file">` (`manager.html:20`), and `change`
+  bubbles. A looser filter (`e.target.type === "file"`) would make choosing an *upload* file try to
+  build a confirm strip on a cell that does not exist.
 - The **strip's own buttons are bound directly, at build time**, inside the closure that built that
   strip. This is not a stylistic choice: it is what makes the `done` re-entrancy flag work. The
   rename handler's `done` is declared inside its per-click listener (`media_picker.js:330`), so it is
@@ -425,30 +439,36 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
   precedent exact.
 
 1. **Click** on `[data-replace-asset]` → **if a replace POST is in flight anywhere, return
-   immediately** (see the in-flight guard in step 4). Otherwise locate any open strip with a **live
-   DOM query** (`root.querySelector("[data-replace-strip]")`), never a retained reference, and close
-   it (remove the node; clear that cell's input). At most one strip is open at a time.
+   immediately** (see the in-flight flag in step 4). Otherwise just `input.click()` on this cell's
+   `[data-replace-input]`, and **tear nothing down yet**.
 
-   A click on a cell whose *own* strip is open is **not** ignored — it re-opens the OS dialog, and
-   choosing a different file rebuilds that cell's strip. "Wrong file, let me pick another" is the
-   obvious correction to want, and making it a dead click would be a silent one; the `change` handler
-   already removes any existing strip on the cell before appending, so this costs no extra branch.
+   Teardown of any already-open strip belongs to the `change` handler, not here. Doing it on click
+   would destroy the author's pending strip *before* the OS dialog opens, so dismissing that dialog —
+   which fires no `change` at all — would silently discard their previous selection with no way back.
+   Deferring means a dismissed dialog leaves everything exactly as it was. This is also what makes
+   re-clicking ⇄ on a cell whose *own* strip is open a sensible "wrong file, let me pick another"
+   rather than a dead click.
 
-   The live query matters because the debounced filter does
-   `oldGrid.replaceWith(newGrid)` (`media_picker.js:373-376`), destroying every cell without
-   notification — a retained reference would point at a detached node, and clearing its input would
-   be a no-op on the live DOM. A filter/grid swap is therefore an implicit cancel, with no request in
-   flight and nothing to clean up.
-   Then `input.click()` on this cell's `[data-replace-input]`.
+   At most one strip is open at a time; step 2 enforces that by removing whatever it finds with a
+   **live DOM query** (`root.querySelector("[data-replace-strip]")`), never a retained reference. The
+   live query matters because the debounced filter does `oldGrid.replaceWith(newGrid)`
+   (`media_picker.js:373-376`), destroying every cell without notification — a retained reference
+   would point at a detached node, and clearing its input would be a no-op on the live DOM. A
+   filter/grid swap before commit is therefore an implicit cancel, with no request in flight and
+   nothing to clean up. (For a swap *during* commit, see step 4's detached-strip rule.)
 2. **`change`** on the input → **first, return early if `!input.files || !input.files.length`**,
    matching the guards the file already uses at `:169` and `:270`. A cancelled OS dialog normally
    fires nothing at all, but that is browser-dependent rationale, not a defence; without the guard an
    empty `FileList` builds a strip whose filename reads `undefined` and whose commit posts nothing.
-   Then **remove any strip already on this cell** (the re-pick path of step 1) and build and
+   Then **remove whatever `root.querySelector("[data-replace-strip]")` finds** — any open strip,
+   whether on this cell or another (clearing that cell's input too) — and build and
    **append** the strip of §5 to `.asset-cell`, after `.asset-foot`. The foot is
    neither replaced nor emptied, so the existing "in use ×N" summary and its expandable unit list
    stay on screen while the author decides — which is what makes a non-blocking warning defensible.
-   The `__warn` span is included only when the cell's `data-di-uses` is greater than zero.
+   The `__warn` span is included only when
+   `Number(cell.getAttribute("data-di-uses") || 0) > 0`. Spelled out because the attribute is a
+   **string**: the tempting `if (cell.dataset.diUses)` is truthy for `"0"` and would show the
+   drag-to-image caution on every asset in the library.
    **Focus moves to `[data-replace-commit]`** so a keyboard or screen-reader user is taken to the new
    content rather than left silently behind it.
 3. **Cancel** (`[data-replace-cancel]`) → remove the strip node, set `input.value = ""` on the cell's
@@ -464,14 +484,36 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
    do, would leave the hoisting bug §6's preamble describes undetectable and its regression test
    vacuous. Disabling the buttons is the visible complement, not the mechanism.
 
+   **The two flags have deliberately different scopes, and the second must be cleared.** `done` is
+   per-strip, declared in the closure that built that strip. The **in-flight flag is the opposite**:
+   it is declared once in `wireManager` scope, because its whole job is to stop a ⇄ click on *another*
+   cell, and per-strip state cannot see across cells. The hoisting objection raised against `done`
+   does not apply to it — `done` must not be shared because sharing it swallows later replaces, while
+   this flag must be shared because that is the coordination it exists to provide.
+
+   It is **lowered in every exit**: the 200 branch, the 422 branch, the catch-all, and the rejected
+   promise — a `finally`-equivalent, not just the success path — and it is lowered even when the
+   branch's own strip is already detached and the rest of its cleanup no-ops. Raise-without-lower is
+   the one bug that would make the whole feature work exactly once per page load: step 1 would return
+   immediately for every subsequent ⇄ click, silently, anywhere in the manager.
+
    Disabling cancel is the point, not politeness: the POST is unabortable server-side, so a cancel
    accepted mid-flight would remove the strip, tell the author nothing happened, and then land a 200
    that swaps in the replaced file anyway. The in-flight flag closes the same hole from the other
    side: without it, clicking ⇄ on a *different* cell mid-flight would sail past the disabled buttons
    (the ⇄ handler is delegated and knows nothing about them), tear down the pending strip, and then
    have the arriving response yank focus out of the newly opened one. As a second line of defence,
-   **every response branch below no-ops its cleanup and focus move if its own strip is no longer
-   attached to the live DOM.**
+   **every response branch below skips its cleanup and focus move if its own strip is no longer
+   attached to the live DOM** (it still lowers the in-flight flag).
+
+   One case reaches that rule for real: the debounced **filter can fire during** an in-flight replace
+   — the in-flight flag guards ⇄ clicks, not the search box — and its grid swap detaches the strip.
+   The replace has already committed server-side, but the refetched grid was rendered from a
+   pre-commit read, so a plain no-op would leave the author looking at the old thumbnail and filename
+   with nothing to say it worked. So the **200 branch, on finding its strip detached, re-queries the
+   live grid for `.asset-cell[data-asset-id="<pk>"]` and swaps *that* node** instead, moving no focus.
+   If even that is gone (filtered out of the current view), it no-ops — the asset is not on screen to
+   be stale about.
 
    Exactly three response branches, and the third is a catch-all:
 
@@ -517,8 +559,10 @@ A fourth op inside `wireManager`. **Two binding styles, deliberately:**
 (`media_picker.js:6-9`), so on the 422 path the message appears at the top of a possibly scrolled
 grid while focus has just been returned to a ⇄ button far below it — and unlike the server's
 `_op_error.html`, the flashed div carries no `role="alert"`, so it is not announced either. Add
-`role="alert"` to that div. It is one attribute, it benefits the upload and delete flashes equally,
-and without it the replace path's careful focus management ends in silence.
+`role="alert"`, and **insert the empty div first, then set its `textContent`**: today the function
+sets the text before prepending, and a live region that arrives already populated is the case screen
+readers announce least reliably. Both changes are two lines, they benefit the upload and delete
+flashes equally, and without them the replace path's careful focus management ends in silence.
 
 ### 7. CSS — `courses/static/courses/css/editor.css`
 
@@ -526,14 +570,30 @@ The strip lands inside an `8rem`-minimum grid cell (`.asset-grid`, `editor.css:3
 stack rather than sit on one line, and the filename must truncate the way `.asset-fname` already does
 (`editor.css:721-722`). Rules go beside the other `.asset-*` rules:
 
-- `.asset-actions` — `display: flex; gap: var(--space-1);` so the foot keeps two children.
+- `.asset-actions` — `display: flex; gap: var(--space-1);` so the foot keeps two children. The
+  `display: contents` comment on `.asset-del` (`editor.css:729-732`) says the form's button "sits
+  directly in that flex row" of `.asset-foot`; after this wrapper that flex parent is
+  `.asset-actions`, so the comment is updated to say so rather than left describing a structure that
+  no longer exists.
+- **`.asset-uses-detail` — `min-width: 0`** plus the `overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap` triple `.asset-fname` already uses (`editor.css:721-722`). Without it the foot
+  overflows at the grid's minimum column: two `.iconbtn`s (`min-width: 1.9rem` ≈ 32px each, plus
+  borders) with the `.asset-actions` and `.asset-foot` gaps come to roughly 77px, against the ~110px
+  an `8rem` column leaves after `.asset-cell`'s `var(--space-2)` padding — so about 33px remains for
+  a uses summary that needs 55-60px for `in use ×1` plus its `::after` marker. As a flex item it
+  defaults to `min-width: auto` and refuses to shrink, so it pushes out of the cell instead. Today,
+  with one icon button, the same sum just fits; adding the third control is what breaks it, which is
+  why the rule belongs to this change.
 - `.asset-replace-confirm` — column flex, small gap, `margin-top`/`padding-top` plus a
   `1px solid var(--border-default)` top rule to separate it from the foot, `font-size: .78rem`,
   `text-align: left`.
 - `.asset-replace-confirm__file` — `overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`
   and a heavier weight, mirroring `.asset-fname`.
 - `.asset-replace-confirm__warn` — `color: var(--text-secondary)`. Not `--text-tertiary`, which
-  fails AA at body size.
+  fails AA at body size. Also `overflow-wrap: anywhere`: it carries the longest string in the strip
+  (a full sentence) into a ~110px column, and a long unbroken Polish compound would otherwise push
+  the cell wider rather than wrap. Expect four or more lines at the minimum column width — that is
+  the baseline the screenshot check judges against, not a defect.
 - `.asset-replace-confirm__actions` — row flex with a small gap, **plus `flex-wrap: wrap` and
   `flex: 1 1 auto` on the two buttons**. Without that they overflow: `.btn--small` is
   `padding: var(--space-1) var(--space-3); font-size: .875rem` (`core/css/app.css:50`,
@@ -735,6 +795,12 @@ catalog recompiled, with any `#, fuzzy` pre-fill on a new entry cleared rather t
   assets the feature exists for.
 - `data-di-uses` renders the correct count on the cell for an asset backing a drag-to-image question,
   and `0` for one that is not.
+- **All six `data-msg-*` attributes are present on the `.media-manager` element, with non-empty
+  values.** This assertion is not bookkeeping — it is the *only* thing that can fail if they are
+  never added. `msg(host, key, fallback)` returns the English fallback whenever an attribute is
+  missing, and the suite runs in English, so every other test in this spec — the drag-warning e2e,
+  the 422 flash, the strip's `aria-label` — passes byte-identically against a `manager.html` that was
+  never touched. The Polish translations would ship dead and nothing would notice.
 - No `file` key posted → 422, **including** a multipart POST whose file is under a different key,
   which must be a 422 and not a 500.
 - A 0-byte upload → 422.
@@ -759,10 +825,16 @@ identically on a build that replaced nothing; and without the redirect the run w
 delete from, the working tree's real `media/` directory. There is no existing e2e anywhere in
 `tests/` that visits the media manager, so the setup is new, not adapted.
 
-The new module's setup, per test (not module-`autouse`, so nothing leaks into other modules):
+The new module's setup — a module-level `@pytest.fixture(autouse=True)` taking `settings` and
+`tmp_path`, exactly mirroring `_isolated_media` in `tests/test_e2e_image_size.py:56-66`. Autouse is
+right here, not risky: a fixture defined inside a test module is scoped to that module by
+construction and cannot leak elsewhere, whereas making the redirect opt-in would let any future test
+in this module forget it and then **delete** from the working tree's real `media/` — the one hazard
+this feature uniquely creates.
 
 - redirect `settings.MEDIA_ROOT` to `tmp_path` **before any asset is created** — `live_server`'s
-  media handler reads it per request (`tests/test_e2e_image_size.py:58-65`);
+  `_MediaFilesHandler` reads it per request, so this ordering is what makes a freshly written fixture
+  image resolve at all;
 - build the asset with `make_image_asset` so it has real bytes and a storage-assigned name;
 - attach it to an `ImageElement` on a unit, so the cell reports "in use ×1" and there is a unit page
   to re-render;
@@ -786,10 +858,16 @@ Tests:
   silent no-op, with no error and no flash, which every other test in this list would still pass. It
   only bites if the flag is actually *read* — which §6 now requires.
 - **A real 422 flashes the validator's message, not raw HTML.** Drive an `.mp4` onto an image asset
-  and assert the flashed text equals the extension error, that no markup leaked into the bar, that
-  the strip is gone and the input cleared. Without this, the fragment-parsing path of §6 — the one
-  the design argues hardest for — ships entirely unexercised, and flashing `undefined` or a chunk of
-  HTML would go unnoticed.
+  and assert the flashed text **contains** the extension error, that no markup leaked into the bar,
+  that the flashed `.op-error` carries `role="alert"`, and that the strip is gone and the input
+  cleared. **Containment, not equality:** `_op_error.html` renders
+  `{% trans "Couldn't apply that change:" %} {{ message }}`, so the extracted `textContent` always
+  carries that prefix — an equality assertion would be red against a correct build, and the repo's
+  existing `.op-error` e2es (`tests/test_e2e_builder.py:148-150`,
+  `tests/test_e2e_editor.py:242-244`) already use containment. The prefix is expected; nobody should
+  "fix" it by stripping it in JS. Without this test the fragment-parsing path of §6 — the one the
+  design argues hardest for — ships entirely unexercised, and flashing `undefined` or a chunk of HTML
+  would go unnoticed.
 - **The catch-all branch fires.** Force a non-200/non-422 outcome with `page.route(...)` (abort, or
   fulfil with status 500) and assert the strip is removed, the input cleared, focus back on ⇄, and
   `replace-failed` flashed. Every other test in this list passes with the catch-all deleted.
