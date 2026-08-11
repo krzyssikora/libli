@@ -245,9 +245,11 @@ For `CalloutElement.render` and `SpoilerElement.render`:
             },
 ```
 
-- [ ] **Step 8: Record the two accepted costs as comments (spec §8)**
+- [ ] **Step 8: Record the two accepted costs as comments (spec §8) — SIX comment sites**
 
-At `courses/views.py::build_lesson_context`'s prefetch block, beneath the existing "ACCEPTED LIMITATION" note:
+Two *costs*, six *insertion points*: one in `views.py`, plus the same comment repeated at each of the five `models.py` child-queryset methods.
+
+In `courses/views.py::build_lesson_context`, beneath the whole markdone prefetch block (i.e. after `prefetch_related_objects(markdone_els, "items")`) — **not** wedged between the existing "ACCEPTED LIMITATION" note and the `markdone_els` list it describes:
 
 ```python
     # SECOND ACCEPTED LIMITATION, same shape: `choice_qs`/`fill_qs` are built from

@@ -388,6 +388,11 @@ def build_lesson_context(node, user):
     ]
     if markdone_els:
         prefetch_related_objects(markdone_els, "items")
+    # SECOND ACCEPTED LIMITATION, same shape: `choice_qs`/`fill_qs` are built from
+    # `elements` (parent__isnull=True), so a NESTED choice question re-queries
+    # choices.all() per render. Bounded (per-unit question counts are small) and
+    # pre-existing for nested fill_blank's `blanks`. Closing it would cost an extra
+    # flat query on EVERY lesson render, including the vast majority with no nesting.
 
     question_models = [
         ChoiceQuestionElement,

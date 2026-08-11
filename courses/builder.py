@@ -183,6 +183,13 @@ _CONTAINER_REGISTRY = {
     ),
 }
 
+# The five container model classes, DERIVED from _CONTAINER_REGISTRY so there is
+# exactly one place that decides what a container is. Read by
+# courses_extras.render_element to decide whether a render() accepts `page=` --
+# the other eight render() signatures do not, and an unconditional `page=` would
+# TypeError on every one of them (see test_render_seam.py).
+CONTAINER_MODELS = frozenset(_CONTAINER_REGISTRY)
+
 
 def element_depth(join):
     """1 for a top-level element; +1 per parent hop.

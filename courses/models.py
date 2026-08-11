@@ -445,18 +445,30 @@ class SpoilerElement(ElementBase):
         join = self.join_row()
         if join is None:
             return []
+        # NOTE: no select_related("unit__course") here. QuestionElement.render
+        # reverses courses:check_answer from element.unit.course.slug whenever
+        # action_url is None -- exactly the nested case -- so each nested question
+        # costs up to two extra queries ON THE STUDENT PAGE, not only in the editor
+        # preview. Pre-existing for nested fill_blank; accepted rather than fixed,
+        # because widening this select_related touches five methods on the student
+        # path and should be measured first.
         return list(
             join.children.order_by("order", "pk")
             .select_related("content_type")
             .prefetch_related("content_object")
         )
 
-    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None, page=None):
         from django.template.loader import render_to_string
 
         return render_to_string(
             "courses/elements/spoilerelement.html",
             {
+                # `page` FIRST -- it is the LOWEST-PRECEDENCE source, so this
+                # container's own keys always win and the dict can never shadow
+                # them however it later grows. Only containers take `page`: they
+                # are the only element types that recursively render children.
+                **(page or {}),
                 "el": self,
                 "children": self.resolved_children(),
                 "element_state": state,
@@ -513,18 +525,30 @@ class CalloutElement(ElementBase):
         join = self.join_row()
         if join is None:
             return []
+        # NOTE: no select_related("unit__course") here. QuestionElement.render
+        # reverses courses:check_answer from element.unit.course.slug whenever
+        # action_url is None -- exactly the nested case -- so each nested question
+        # costs up to two extra queries ON THE STUDENT PAGE, not only in the editor
+        # preview. Pre-existing for nested fill_blank; accepted rather than fixed,
+        # because widening this select_related touches five methods on the student
+        # path and should be measured first.
         return list(
             join.children.order_by("order", "pk")
             .select_related("content_type")
             .prefetch_related("content_object")
         )
 
-    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None, page=None):
         from django.template.loader import render_to_string
 
         return render_to_string(
             "courses/elements/calloutelement.html",
             {
+                # `page` FIRST -- it is the LOWEST-PRECEDENCE source, so this
+                # container's own keys always win and the dict can never shadow
+                # them however it later grows. Only containers take `page`: they
+                # are the only element types that recursively render children.
+                **(page or {}),
                 "el": self,
                 "children": self.resolved_children(),
                 # `element_state`, NOT `state`: courses_extras.render_element reads
@@ -573,6 +597,13 @@ class BeforeAfterElement(ElementBase):
         join = self.join_row()
         if join is None:
             return [(sid, []) for sid in self.SLOT_IDS]
+        # NOTE: no select_related("unit__course") here. QuestionElement.render
+        # reverses courses:check_answer from element.unit.course.slug whenever
+        # action_url is None -- exactly the nested case -- so each nested question
+        # costs up to two extra queries ON THE STUDENT PAGE, not only in the editor
+        # preview. Pre-existing for nested fill_blank; accepted rather than fixed,
+        # because widening this select_related touches five methods on the student
+        # path and should be measured first.
         rows = list(
             join.children.order_by("order", "pk")
             .select_related("content_type")
@@ -588,7 +619,7 @@ class BeforeAfterElement(ElementBase):
         by_slot[self.BEFORE_SLOT_ID].extend(strays)
         return [(sid, by_slot[sid]) for sid in self.SLOT_IDS]
 
-    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None, page=None):
         from django.template.loader import render_to_string
 
         # `element.pk`, NOT node_pk: node_pk is the UNIT's pk (views.py:491), the
@@ -600,6 +631,11 @@ class BeforeAfterElement(ElementBase):
         return render_to_string(
             "courses/elements/beforeafterelement.html",
             {
+                # `page` FIRST -- it is the LOWEST-PRECEDENCE source, so this
+                # container's own keys always win and the dict can never shadow
+                # them however it later grows. Only containers take `page`: they
+                # are the only element types that recursively render children.
+                **(page or {}),
                 "el": self,
                 "eid": element.pk if element is not None else 0,
                 "slots": self.resolved_slots(),
@@ -1768,6 +1804,13 @@ class TabsElement(ElementBase):
         if join is None:  # transient, mid-create
             return [(tab, []) for tab in tabs]
         by_tab = {}
+        # NOTE: no select_related("unit__course") here. QuestionElement.render
+        # reverses courses:check_answer from element.unit.course.slug whenever
+        # action_url is None -- exactly the nested case -- so each nested question
+        # costs up to two extra queries ON THE STUDENT PAGE, not only in the editor
+        # preview. Pre-existing for nested fill_blank; accepted rather than fixed,
+        # because widening this select_related touches five methods on the student
+        # path and should be measured first.
         children = (
             join.children.order_by("order", "pk")
             .select_related("content_type")
@@ -1777,12 +1820,18 @@ class TabsElement(ElementBase):
             by_tab.setdefault(child.tab_id, []).append(child)
         return [(tab, by_tab.get(tab["id"], [])) for tab in tabs]
 
-    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None, page=None):
         from django.template.loader import render_to_string
 
         return render_to_string(
             "courses/elements/tabselement.html",
             {
+                # `page` FIRST of ALL -- this dict has TWO splats. `page` is the
+                # LOWEST-PRECEDENCE source, so this container's own keys always win
+                # and the dict can never shadow them however it later grows;
+                # display_settings() stays LAST. Only containers take `page`: they
+                # are the only element types that recursively render children.
+                **(page or {}),
                 "el": self,
                 "tabs": self.resolved_tabs(),
                 "eid": element.pk if element is not None else 0,
@@ -1880,6 +1929,13 @@ class TwoColumnElement(ElementBase):
         if join is None:  # transient, mid-create
             return [(col, []) for col in columns]
         by_col = {}
+        # NOTE: no select_related("unit__course") here. QuestionElement.render
+        # reverses courses:check_answer from element.unit.course.slug whenever
+        # action_url is None -- exactly the nested case -- so each nested question
+        # costs up to two extra queries ON THE STUDENT PAGE, not only in the editor
+        # preview. Pre-existing for nested fill_blank; accepted rather than fixed,
+        # because widening this select_related touches five methods on the student
+        # path and should be measured first.
         children = (
             join.children.order_by("order", "pk")
             .select_related("content_type")
@@ -1889,12 +1945,17 @@ class TwoColumnElement(ElementBase):
             by_col.setdefault(child.tab_id, []).append(child)
         return [(col, by_col.get(col["id"], [])) for col in columns]
 
-    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None, page=None):
         from django.template.loader import render_to_string
 
         return render_to_string(
             "courses/elements/twocolumnelement.html",
             {
+                # `page` FIRST -- it is the LOWEST-PRECEDENCE source, so this
+                # container's own keys always win and the dict can never shadow
+                # them however it later grows. Only containers take `page`: they
+                # are the only element types that recursively render children.
+                **(page or {}),
                 "el": self,
                 "columns": self.resolved_columns(),
                 "eid": element.pk if element is not None else 0,
