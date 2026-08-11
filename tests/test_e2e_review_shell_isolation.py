@@ -7,11 +7,12 @@ a student page.
 
 This test guards exactly ONE rule family — the margin. It deliberately does not
 attempt an inner-node assertion for the prose cap: this page renders none of the
-thirteen capped selectors (it never calls render_element), so such an assertion
+twelve capped selectors (it never calls render_element), so such an assertion
 could never go red. That the prose-cap selectors are correctly SCOPED is guarded by
-the source
-assertion in tests/test_consumption_css.py instead; that four of them cap at the
-right width is guarded behaviourally in test_e2e_unit_nav.py.
+the source assertion in tests/test_consumption_css.py instead; that they cap at the
+right width is guarded behaviourally in test_e2e_uniform_block_width.py (the prose
+containers and both callout shapes) and test_e2e_unit_nav.py (.lesson-unit__title,
+plus the quiz chrome that now fills the column).
 """
 
 import os

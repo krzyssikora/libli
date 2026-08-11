@@ -9,11 +9,12 @@
   {% endif %}
   {% if children %}
     {% comment %}
-    One wrapper, for three reasons of its own (NOT the #212 continuous-rule
+    One wrapper, for two reasons of its own (NOT the #212 continuous-rule
     argument, which is about .spoiler__children's 2px left rule -- this wrapper
-    carries no rule): it is the node reveal.js `scopeOf` resolves to, the anchor for
-    `.callout__body + .callout__children`, and the subject of the
-    `:has(> .callout__children)` predicate the prose-cap narrowing keys on.
+    carries no rule): it is the node reveal.js `scopeOf` resolves to, and the anchor
+    for `.callout__body + .callout__children`. (A third reason once lived here -- a
+    prose-cap predicate keyed on this wrapper -- but it was removed when all
+    callouts were made one width. Do not go looking for it.)
     `.callout__child` must carry NO `display` declaration -- if one is ever added,
     `.callout__child[hidden]` must join the app.css [hidden] guard, or the reveal
     cascade's `gateWrap.hidden = true` stops working.
