@@ -28,7 +28,7 @@ change falsifies.
 - **Measured geometry** (1280×900, collapsed): column **872px**, cap **736px**, card inner ~830px,
   `.lesson-unit__title` **643.6px**. Expanded column is **648px**.
 - **Assertable constants:** only the tokens **736** (46rem) and **352** (22rem). Never assert 872,
-  920, 648, 830 or 643.6 — read the column via the recipe or compare two elements.
+  920, 648, 830 or 643.6 — read the column via `COLUMN_JS` or compare two elements.
 - **Every new or changed assertion must be run RED against its named mutant.** Edit the mutant back
   out by hand; never `git checkout` the file (it would destroy the task's work).
 - **Tooling:** `uv run pytest …` (pytest/ruff/python are not on PATH). e2e needs `-m e2e` or it
@@ -61,13 +61,13 @@ change falsifies.
 - Test: `tests/test_consumption_css.py` (new assertion + five stale-count sites)
 
 **Interfaces:**
-- Produces: the sentinel markers `/* prose-cap:begin */` and `/* prose-cap:end */`, and the helper
-  `_prose_cap_prelude()` in `tests/test_consumption_css.py`, both consumed by Task 2.
+- Produces: the sentinel markers `/* prose-cap:begin */` and `/* prose-cap:end */`. Task 2 re-slices
+  on those two **strings**; it does not import anything from this file.
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `tests/test_consumption_css.py` (after the existing
-`test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped`):
+Add to `tests/test_consumption_css.py`, after
+`test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped`:
 
 ```python
 PROSE_CAP_SELECTORS = [
@@ -185,15 +185,42 @@ with exactly this:
 }
 ```
 
-Then fix the five stale-count sites in `tests/test_consumption_css.py`:
+Then fix the five stale sites in `tests/test_consumption_css.py`:
 
 - `:158` — "none of the thirteen capped selectors" → "none of the twelve capped selectors"
-- `:163-164` — "four of the thirteen entries" → "one of the twelve entries" (after this change only
-  `.lesson-unit__title` of that original four is still capped)
+- `:163-164` — replace the **count** phrasing, which later tasks would falsify, with a
+  coverage-by-name phrasing: "Note the narrower claim: the e2e suite DOES give behavioural coverage
+  that several of the twelve entries cap at 46rem (`.lesson-unit__title` in
+  test_e2e_unit_nav.py, and `.el--text`, `.question__stem`, `.question__choices`,
+  `.question__feedback` and `textarea.question__text-input` in test_e2e_uniform_block_width.py). Do
+  not delete those assertions believing this test subsumes them" — naming the entries rather than a
+  number, so the docstring cannot drift as tests are added.
 - `:190` — "the entire thirteen-selector list" → "the entire twelve-selector list"
 - `:208-211` — "one per allow-list entry (13) = 17" → "one per allow-list entry (12) = 16"
 - `:212-213` — `assert examined >= 17` → `assert examined >= 16`, and the message
   "expected >= 17" → "expected >= 16"
+
+**Record the spec's completeness enumeration here** (spec §"Completeness obligation" requires it be
+recorded in the plan). Ten templates carry `.el--question`, all under
+`templates/courses/elements/`: `choicegridquestionelement`, `choicequestion`,
+`dragfillblankquestionelement`, `dragtoimagequestionelement`, `extendedresponsequestionelement`,
+`fillblankquestionelement`, `matchpairquestionelement`, `multigridquestionelement`,
+`shortnumericquestionelement`, `shorttextquestionelement`. Every block-box descendant, walking
+through `.question__form` (an intentional pass-through that neither caps nor constrains):
+
+| Descendant | Verdict |
+|---|---|
+| `.question__stem` (div form) | **capped** — new entry |
+| `.question__stem` (fieldset form: `fillblank:17`, `dragfill:6`) | **capped** — measured B0, the cap binds |
+| `.question__choices` | **capped** — new entry |
+| `.question__feedback` | **capped** — new entry; also the *barrier* behind which `_question_feedback.html`, `_quiz_question_feedback.html` and the ten `_reveal_*.html` partials render, so none of those needs its own entry |
+| `textarea.question__text-input` | **capped** — new entry |
+| `input.question__text-input` | **capped elsewhere** at 22rem by `courses.css:319-320`; pinned by Task 6 |
+| bare `<fieldset>` wrappers (`choicegrid:7`, `multigrid:7`, `matchpair:7`, `dragimage:7`) | pass-through, no width of their own |
+| `.scroll-x` (choicegrid, multigrid) | **deliberately wide** — the grid must be able to exceed the prose measure |
+| `.dragimage__stage` | **deliberately wide** |
+| `.dnd__pool` in dragimage (`:23`) and matchpair (`:14`) | **deliberately wide** — these sit inside the *bare* fieldset, not inside the stem, so the barrier rule does not cover them; harmless because `courses.css:475` is `flex-wrap: wrap`, so widening changes only chip row count, never overflow |
+| `<button type="submit">` | no entry needed — a button does not stretch to its container |
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -207,11 +234,27 @@ Run each, confirm RED, then **hand-edit the mutant back out** (never `git checko
 1. Delete `html.unit-tree-collapsed [data-unit-shell] .unit-crumbs,` from the CSS →
    expect FAIL on `expected 12 selectors, got 11`.
 2. Duplicate `html.unit-tree-collapsed [data-unit-shell] .el--text,` →
-   expect FAIL on the length assertion (the sorted comparison alone would pass).
+   expect FAIL on the **length** assertion (`got 13`). The sorted comparison alone would pass, which
+   is why the length check exists as a separate assertion.
 3. Change `html.unit-tree-collapsed [data-unit-shell] .markdone` to
-   `html.unit-tree-collapsed .markdone` → expect FAIL on the `[data-unit-shell]` assertion.
+   `html.unit-tree-collapsed .markdone` → expect FAIL on the **sorted-list comparison**
+   ("prose-cap prelude drifted"), which fires before the per-selector loop is reached. To falsify the
+   `[data-unit-shell]` loop *specifically*, apply the same unscoping **and** edit the matching entry
+   in `PROSE_CAP_SELECTORS`, so the list comparison passes and the loop is what reddens.
 
 - [ ] **Step 6: Commit**
+
+**Expected red after this task, repaired later — do not self-repair here.** This task deliberately
+leaves three test files failing, because they assert the old behaviour:
+
+| File | Assertion | Repaired by |
+|---|---|---|
+| `courses/tests/test_callout_nesting_css.py:29` | `".callout:not(:has(> .callout__children))" in css` | Task 2 |
+| `tests/test_e2e_unit_nav.py:1379`, `:1398` | `w <= 736 + 2` for `.el--question` etc. | Task 8 |
+| `tests/test_e2e_callout_container.py:148` | `abs(prose_box["width"] - 736) < 2` | Task 9 |
+
+Run only `tests/test_consumption_css.py` for this task's gate. Do **not** run the full suite here and
+do not attempt to fix the three files above — that is Tasks 2, 8 and 9.
 
 ```bash
 git add courses/static/courses/css/courses.css tests/test_consumption_css.py
@@ -223,7 +266,10 @@ the cards) and four join it (.question__stem, .question__choices,
 .question__feedback, textarea.question__text-input).
 
 Sentinels make the block machine-locatable so the new source assertion can
-pin the prelude at exactly 12 selectors; examined drops 17 -> 16."
+pin the prelude at exactly 12 selectors; examined drops 17 -> 16.
+
+Leaves test_callout_nesting_css, test_e2e_unit_nav and test_e2e_callout_container
+red on purpose; they assert the old widths and are rewritten in the next commits."
 ```
 
 ---
@@ -234,7 +280,7 @@ pin the prelude at exactly 12 selectors; examined drops 17 -> 16."
 - Modify: `courses/tests/test_callout_nesting_css.py:22-31`
 
 **Interfaces:**
-- Consumes: `/* prose-cap:begin|end */` from Task 1.
+- Consumes: the sentinel strings `/* prose-cap:begin */` / `/* prose-cap:end */` from Task 1.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -253,9 +299,14 @@ def test_prose_cap_no_longer_applies_to_any_callout():
     cap would be a legitimate no-op (it already carries .el--text) -- so the naive
     form would redden on correct code.
 
-    Slices between the sentinels for the same reason test_consumption_css does: the
-    file has many @media blocks and many html.unit-tree-collapsed rules, and line
-    numbers move the moment the block is edited.
+    Replaces the old second assertion rather than keeping it: that one was
+    `\\.callout\\s*,`, which REQUIRED a trailing comma, so a `.callout` re-added as
+    the LAST prelude selector (followed by `{`, not `,`) escaped it. This regex has
+    no such hole.
+
+    Slices between the sentinels because the file has many @media blocks and many
+    html.unit-tree-collapsed rules, and line numbers move the moment the block is
+    edited.
     """
     import re
 
@@ -268,34 +319,33 @@ def test_prose_cap_no_longer_applies_to_any_callout():
     )
 ```
 
-The old `:30` assertion (`unit-tree-collapsed[^{]*\]\s+\.callout\s*,`) is **folded in, not kept**:
-it required a trailing comma, so a `.callout` re-added as the *last* prelude selector would be
-followed by `{` and escape it. The token-boundary regex above has no such hole.
+- [ ] **Step 2: Run test to verify it fails — in the LAST position specifically**
 
-- [ ] **Step 2: Run test to verify it fails**
+The mutant must be genuinely last, or it proves nothing about the hole the old regex had. Two edits:
 
-First introduce the mutant: add `html.unit-tree-collapsed [data-unit-shell] .callout,` as the **last**
-selector in the prose-cap prelude (immediately before `.guessnumber`'s line ends with `{`).
+1. Change `  html.unit-tree-collapsed [data-unit-shell] .guessnumber {` to
+   `  html.unit-tree-collapsed [data-unit-shell] .guessnumber,`
+2. Add, on the following line: `  html.unit-tree-collapsed [data-unit-shell] .callout {`
 
 Run: `uv run pytest courses/tests/test_callout_nesting_css.py::test_prose_cap_no_longer_applies_to_any_callout --verbosity=0`
-Expected: FAIL — proving both that the assertion bites and that it catches the last-position case the
-old regex missed.
+Expected: FAIL — proving the assertion catches the last-position case the old `\.callout\s*,` regex
+would have missed (there is no trailing comma after this `.callout`).
 
 - [ ] **Step 3: Remove the mutant**
 
-Hand-edit the `.callout` line back out of the CSS.
+Hand-edit both lines back: restore `.guessnumber {` and delete the `.callout` line.
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest courses/tests/test_callout_nesting_css.py --verbosity=0`
-Expected: PASS (all four tests in the file).
+Expected: **3 passed** (this file has three test functions).
 
 - [ ] **Step 5: Confirm the token boundary does NOT false-positive**
 
-Add `html.unit-tree-collapsed [data-unit-shell] .callout__body,` to the prelude. Run the test again.
-Expected: **PASS** (it is a `.callout__*` name, not `.callout`). Note this also reddens Task 1's
-12-selector assertion, which is correct and expected. Hand-edit the line back out and re-run both
-files to confirm green.
+Add `html.unit-tree-collapsed [data-unit-shell] .callout__body,` to the prelude. Re-run this file.
+Expected: **PASS** — `.callout__body` is a `.callout__*` name, not `.callout`. (It will redden Task
+1's 12-selector assertion, which is correct.) Hand-edit the line back out and re-run both
+`courses/tests/test_callout_nesting_css.py` and `tests/test_consumption_css.py` to confirm green.
 
 - [ ] **Step 6: Commit**
 
@@ -303,7 +353,8 @@ files to confirm green.
 git add courses/tests/test_callout_nesting_css.py
 git commit -m "test(courses): assert no .callout selector survives in the prose cap
 
-Inverts the old 'the :not(:has()) predicate must exist' assertion. Uses a
+Inverts the old 'the :not(:has()) predicate must exist' assertion and folds in
+the old trailing-comma regex, which a last-position .callout escaped. Uses a
 token-boundary regex so .callout__body does not false-positive, and slices
 between the sentinels so the guard survives the block moving."
 ```
@@ -339,18 +390,23 @@ def test_text_input_comment_no_longer_claims_the_textarea_fills_the_card():
     shell, so 'fills the card column, resizable up to it' is false on the surface
     it describes. (It was already misleading: app.css:150 is
     `textarea { resize: vertical }`, so it has never been draggable sideways.)
+
+    Asserts on `app.css:150`, NOT on the string `resize: vertical` -- that string
+    already occurs at courses.css:633 in an unrelated rule, so an assertion on it
+    would pass on the unmodified file and pin nothing.
     """
     css = CSS.read_text(encoding="utf-8")
     assert "resizable up to it" not in css
-    assert "resize: vertical" in css, (
-        "the amended comment must name the real constraint, app.css:150"
+    assert "app.css:150" in css, (
+        "the amended comment must cite the rule that actually constrains the "
+        "textarea, so the next reader does not re-derive it"
     )
 
 
 def test_callout_children_comment_no_longer_cites_the_prose_cap_predicate():
-    """The wrapper's third stated reason was being the subject of
-    `:has(> .callout__children)`. This change deletes the only such predicate in
-    the codebase, so a reader finding three reasons and only two mechanisms could
+    """The wrapper's third stated reason was being the subject of a :has()
+    prose-cap predicate. This change deletes the only such predicate in the
+    codebase, so a reader finding three reasons and only two mechanisms could
     wrongly conclude the wrapper is removable.
     """
     html = CALLOUT.read_text(encoding="utf-8")
@@ -362,7 +418,8 @@ def test_callout_children_comment_no_longer_cites_the_prose_cap_predicate():
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest tests/test_stale_rationale_comments.py --verbosity=0`
-Expected: FAIL on both — `"resizable up to it"` and `":has(> .callout__children)"` are still present.
+Expected: FAIL on both — `"resizable up to it"` is still present (and `app.css:150` is not), and
+`":has(> .callout__children)"` is still present.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -380,8 +437,7 @@ untouched):
    past its container. */
 ```
 
-In `templates/courses/elements/calloutelement.html`, strike the third reason from the
-`{% comment %}` block — change:
+In `templates/courses/elements/calloutelement.html`, change:
 
 ```
     One wrapper, for three reasons of its own (NOT the #212 continuous-rule
@@ -397,20 +453,28 @@ to:
     One wrapper, for two reasons of its own (NOT the #212 continuous-rule
     argument, which is about .spoiler__children's 2px left rule -- this wrapper
     carries no rule): it is the node reveal.js `scopeOf` resolves to, and the anchor
-    for `.callout__body + .callout__children`. (It was also the subject of a
-    `:has(> .callout__children)` prose-cap predicate; that predicate was removed when
-    all callouts were made one width, so do not go looking for it.)
+    for `.callout__body + .callout__children`. (A third reason once lived here -- a
+    prose-cap predicate keyed on this wrapper -- but it was removed when all
+    callouts were made one width. Do not go looking for it.)
 ```
+
+**The replacement must not spell the predicate literally.** The test forbids the exact substring
+`:has(> .callout__children)`, so paraphrase it as above rather than quoting it.
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_stale_rationale_comments.py --verbosity=0`
 Expected: PASS (2 tests).
 
-- [ ] **Step 5: Confirm no other test scans this template**
+- [ ] **Step 5: Falsify both assertions**
 
-Run: `uv run pytest courses/tests/test_callout_nesting_css.py tests/test_consumption_css.py --verbosity=0`
-Expected: PASS. (Comment text can break regex-based source scans — this confirms it did not.)
+1. Revert the CSS comment's final sentence so `app.css:150` disappears → expect FAIL on the first
+   test. Restore.
+2. Re-add the literal `:has(> .callout__children)` to the template comment → expect FAIL on the
+   second test. Restore.
+
+Then run `uv run pytest courses/tests/test_callout_nesting_css.py tests/test_consumption_css.py --verbosity=0`
+— comment text can break regex-based source scans, and this confirms it did not.
 
 - [ ] **Step 6: Commit**
 
@@ -425,13 +489,13 @@ The callout-children comment cited a :has() predicate this change deletes."
 
 ---
 
-### Task 4: e2e — every tinted box is one width
+### Task 4: e2e — every tinted box, and the chrome, is one width
 
 **Files:**
 - Create: `tests/test_e2e_uniform_block_width.py`
 
 **Interfaces:**
-- Produces: `_make_pa_user`, `_login`, `_lesson_url`, `_seed_unit`, `COLUMN_JS`, `WIDTH_JS`,
+- Produces: `_make_pa_user`, `_login`, `_lesson_url`, `_seed_unit`, `COLUMN_JS`, `BOX_JS`,
   `_collapsed`, consumed by Tasks 5-7.
 
 - [ ] **Step 1: Write the failing test**
@@ -516,7 +580,21 @@ COLUMN_JS = """() => {
   return a.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
 }"""
 
-WIDTH_JS = "(sel) => document.querySelector(sel).getBoundingClientRect().width"
+# Takes the selector as an ARGUMENT rather than interpolating it into the source:
+# an f-string carrying JS braces has to double every one of them, and a single
+# missed pair is a SyntaxError at evaluate() time, not a failed assertion.
+BOX_JS = """(sel) => {
+  const e = document.querySelector(sel);
+  if (!e) return null;
+  return {w: e.getBoundingClientRect().width,
+          c: e.clientWidth, s: e.scrollWidth};
+}"""
+
+
+def _width(page, sel):
+    box = page.evaluate(BOX_JS, sel)
+    assert box is not None, f"{sel} is not present on the page"
+    return box["w"]
 
 
 def _collapsed(page, live_server, unit):
@@ -537,7 +615,7 @@ def _collapsed(page, live_server, unit):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_every_tinted_block_is_one_width(page, live_server):
+def test_every_tinted_block_and_its_chrome_is_one_width(page, live_server):
     from courses.models import CalloutElement
     from courses.models import ChoiceGridQuestionElement
     from courses.models import Element
@@ -558,6 +636,8 @@ def test_every_tinted_block_is_one_width(page, live_server):
         parent=wide_join,
         tab_id=CalloutElement.SLOT_ID,
     )
+    # A question element makes has_stateful_elements true, so .lesson-unit__reset
+    # renders and the head is the THREE-item row the title assertion assumes.
     add_element(
         unit, ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7")
     )
@@ -567,29 +647,39 @@ def test_every_tinted_block_is_one_width(page, live_server):
     _collapsed(page, live_server, unit)
 
     column = page.evaluate(COLUMN_JS)
-    widths = {
-        sel: page.evaluate(WIDTH_JS, sel)
-        for sel in (
-            ".callout:not(:has(> .callout__children))",
-            ".callout:has(> .callout__children)",
-            ".el--question:not(.el--choicegrid)",
-            ".el--choicegrid",
-        )
-    }
-    # Compared against the READ column, never a hard-coded 872: the derived
-    # geometry moves whenever .app-main, the pin lane or the article padding does.
-    for sel, w in widths.items():
+    for sel in (
+        ".callout:not(:has(> .callout__children))",
+        ".callout:has(> .callout__children)",
+        ".el--question:not(.el--choicegrid)",
+        ".el--choicegrid",
+        # Chrome that frames the cards. This is the one entry the spec flags as a
+        # judgement call beyond the literal request, and the ONLY test that covers
+        # it -- the quiz page has no .lesson-unit__head at all, and
+        # test_e2e_unit_head_layout.py never collapses the TOC, so neither reaches it.
+        ".lesson-unit__head",
+    ):
+        w = _width(page, sel)
+        # Compared against the READ column, never a hard-coded 872: the derived
+        # geometry moves whenever .app-main, the pin lane or the article padding does.
         assert abs(w - column) < 2, (
-            f"{sel} is {w}, column is {column}; every tinted block must fill it"
+            f"{sel} is {w}, column is {column}; it must fill the column"
         )
-    # And explicitly to each other, which is the defect as the user reported it.
-    assert (
-        abs(
-            widths[".callout:not(:has(> .callout__children))"]
-            - widths[".callout:has(> .callout__children)"]
-        )
-        < 2
-    ), f"the two callouts still differ: {widths}"
+
+    # The defect exactly as the user reported it.
+    prose_w = _width(page, ".callout:not(:has(> .callout__children))")
+    wide_w = _width(page, ".callout:has(> .callout__children)")
+    assert abs(prose_w - wide_w) < 2, (
+        f"the two callout shapes still differ: {prose_w} vs {wide_w}"
+    )
+
+    # The title stays capped while its row widens -- but it is a flex:1 child of a
+    # THREE-item row, so it lands well under its own 736 cap (measured 643.6).
+    # Directional, never abs(w - 736): a 736 assertion fails on correct code.
+    title_w = _width(page, ".lesson-unit__title")
+    assert title_w < 738, f"the title must stay within the prose cap, got {title_w}"
+    assert title_w < column - 50, (
+        f"the title must not fill the widened head: {title_w} vs column {column}"
+    )
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -600,31 +690,33 @@ back into the prose-cap prelude.
 Run: `uv run pytest tests/test_e2e_uniform_block_width.py -m e2e --verbosity=0`
 Expected: FAIL — the prose-only callout measures 736 against a column of 872.
 
-- [ ] **Step 3: Remove the mutant**
+- [ ] **Step 3: Remove the mutant, then falsify the other two arms**
 
-Hand-edit that selector back out.
+Hand-edit that selector out. Then, one at a time (restoring between each):
+
+1. Re-add the **whole** old question entry
+   `html.unit-tree-collapsed [data-unit-shell] .el--question:not(.el--choicegrid):not(.el--multigrid):not(.el--dragimage):not(.el--matchpair):not(.el--dragfill),`
+   → expect FAIL on `.el--question:not(.el--choicegrid)` (capped at 736 while `.el--choicegrid` stays
+   at the column).
+2. Re-add `html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,`
+   → expect FAIL on the `.lesson-unit__head` arm.
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_e2e_uniform_block_width.py -m e2e --verbosity=0`
-Expected: PASS. Confirm the run reports `1 passed`, **not** `no tests ran` (exit 5 means `-m e2e`
-was dropped and nothing was checked).
+Expected: PASS. Confirm the run reports `1 passed`, **not** `no tests ran` (exit 5 means `-m e2e` was
+dropped and nothing was checked).
 
-- [ ] **Step 5: Falsify the second mutant**
-
-Mutant: re-add the **whole** old question entry
-`html.unit-tree-collapsed [data-unit-shell] .el--question:not(.el--choicegrid):not(.el--multigrid):not(.el--dragimage):not(.el--matchpair):not(.el--dragfill),`.
-Expected: FAIL on `.el--question:not(.el--choicegrid)` (capped at 736 while `.el--choicegrid` stays
-at the column). Hand-edit it back out and re-run to confirm green.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add tests/test_e2e_uniform_block_width.py
-git commit -m "test(e2e): pin that every tinted block renders at one width
+git commit -m "test(e2e): pin that every tinted block and its chrome is one width
 
 The defect as reported: a callout with children was 136px wider than a callout
-with only text. Compares against the READ column, never a hard-coded 872."
+with only text. Also covers .lesson-unit__head, the judgement-call entry no
+other test can reach -- the quiz page has none and the head-layout e2e never
+collapses the TOC. Compares against the READ column, never a hard-coded 872."
 ```
 
 ---
@@ -635,7 +727,7 @@ with only text. Compares against the READ column, never a hard-coded 872."
 - Modify: `tests/test_e2e_uniform_block_width.py`
 
 **Interfaces:**
-- Consumes: `_seed_unit`, `_login`, `_collapsed`, `WIDTH_JS`, `COLUMN_JS` from Task 4.
+- Consumes: `_seed_unit`, `_login`, `_collapsed`, `_width`, `COLUMN_JS` from Task 4.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -646,18 +738,28 @@ Append to `tests/test_e2e_uniform_block_width.py`:
 def test_prose_inside_a_widened_box_stays_capped(page, live_server):
     """The other half of the design: the BOX widens, its PROSE does not.
 
-    Asserts the 736 token, not `narrower than its own box`. Both containers have
-    padding, so a child is ALWAYS strictly narrower than its parent's border box,
-    cap or no cap -- that assertion cannot fail and would read as a pin while
-    proving nothing.
+    All five newly-capped containers are measured here. Asserts the 736 token, not
+    `narrower than its own box`: both containers have padding, so a child is ALWAYS
+    strictly narrower than its parent's border box, cap or no cap -- that assertion
+    cannot fail and would read as a pin while proving nothing.
 
-    The container callout carries a non-empty body on purpose: calloutelement.html
-    renders .callout__body under `{% if el.body %}`, so a children-only callout has
-    no body element and the locator would resolve to nothing.
+    Fixture requirements, each load-bearing:
+      - the container callout carries a non-empty body, because calloutelement.html
+        renders .callout__body under `{% if el.body %}` -- a children-only callout
+        has no body element and the locator would resolve to nothing;
+      - the choice question carries real Choice rows, or .question__choices is an
+        empty <ul> with no width of its own;
+      - the short-text question is ANSWERED below, because .question__feedback is
+        empty on a plain load and courses.css:158 is
+        `.el--question .question__feedback:empty { display: none }` -- an unanswered
+        question has no feedback box to measure at all.
     """
     from courses.models import CalloutElement
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
     from courses.models import Element
     from courses.models import ExtendedResponseQuestionElement
+    from courses.models import ShortTextQuestionElement
     from courses.models import TableElement
 
     user, _course, unit = _seed_unit("pa_prose")
@@ -676,57 +778,71 @@ def test_prose_inside_a_widened_box_stays_capped(page, live_server):
         unit,
         ExtendedResponseQuestionElement.objects.create(stem="<p>Explain briefly.</p>"),
     )
+    mcq = ChoiceQuestionElement.objects.create(stem="<p>Pick one.</p>")
+    Choice.objects.create(question=mcq, text="The first option", is_correct=True)
+    Choice.objects.create(question=mcq, text="The second option", is_correct=False)
+    add_element(unit, mcq)
+    st = ShortTextQuestionElement.objects.create(
+        stem="<p>Name a prime.</p>", accepted="7"
+    )
+    add_element(unit, st)
 
     _login(page, live_server, user.username)
     _collapsed(page, live_server, unit)
+
+    # Drive a real answer so the feedback slot renders. Without this
+    # .question__feedback is :empty and display:none.
+    st_card = page.locator(".el--shorttext")
+    st_card.locator("input.question__text-input").fill("11")
+    st_card.locator("button[type='submit']").click()
+    page.wait_for_function(
+        "() => { const f = document.querySelector('.el--shorttext .question__feedback');"
+        " return f && f.textContent.trim().length > 0; }"
+    )
 
     column = page.evaluate(COLUMN_JS)
     for sel in (
         ".callout__body",
         ".el--question .question__stem",
+        ".question__choices",
+        ".el--shorttext .question__feedback",
         "textarea.question__text-input",
     ):
-        w = page.evaluate(WIDTH_JS, sel)
+        w = _width(page, sel)
         assert abs(w - 736) < 2, f"{sel} must stay capped at 46rem, got {w}"
         assert w < column - 50, (
             f"{sel} is {w} against a column of {column} -- the cap is not binding"
         )
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Falsify each arm independently**
 
-Mutant: delete `html.unit-tree-collapsed [data-unit-shell] .el--question .question__stem,` from the
-prelude.
+Five mutants, each deleting **one** entry from the prelude. Run after each, confirm the named arm
+reddens, then hand-edit the entry back before the next. A single mutant reddening the whole test
+would leave the other four unproven.
 
-Run: `uv run pytest tests/test_e2e_uniform_block_width.py::test_prose_inside_a_widened_box_stays_capped -m e2e --verbosity=0`
-Expected: FAIL — the stem stretches to the card's inner box (~830).
+| Delete from the prelude | Expected failing arm |
+|---|---|
+| `… .el--text,` | `.callout__body` (capped only via `.el--text` — this is the arm proving the body kept its cap when `.callout` left the list) |
+| `… .el--question .question__stem,` | `.el--question .question__stem` |
+| `… .question__choices,` | `.question__choices` |
+| `… .question__feedback,` | `.el--shorttext .question__feedback` |
+| `… textarea.question__text-input,` | `textarea.question__text-input` |
 
-- [ ] **Step 3: Remove the mutant, then falsify the other two arms**
-
-Hand-edit the stem selector back in. Then, one at a time (restoring between each):
-
-- Delete `html.unit-tree-collapsed [data-unit-shell] .el--text,` → expect FAIL on
-  `.callout__body` (it is capped only via `.el--text`; this is the arm proving the body did not
-  lose its cap when `.callout` left the list).
-- Delete `html.unit-tree-collapsed [data-unit-shell] textarea.question__text-input,` → expect FAIL
-  on the textarea arm.
-
-Each arm must be shown RED **independently** — a single mutant reddening the whole test would leave
-the other two unproven.
-
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 3: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_e2e_uniform_block_width.py -m e2e --verbosity=0`
 Expected: PASS (2 tests).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add tests/test_e2e_uniform_block_width.py
 git commit -m "test(e2e): pin that prose inside a widened tinted box stays at 46rem
 
-Three arms, each falsified independently: .callout__body (carried by .el--text),
-.question__stem, and textarea.question__text-input."
+All five newly-capped containers, each falsified against its own delete-one-entry
+mutant. The feedback arm drives a real answer first -- .question__feedback is
+:empty and display:none on a plain load, so it would otherwise be unmeasurable."
 ```
 
 ---
@@ -769,7 +885,7 @@ def test_expanded_state_has_no_cap_at_all(page, live_server):
 
     for sel in (".callout", ".el--question"):
         mw = page.evaluate(
-            f"() => getComputedStyle(document.querySelector({sel!r})).maxWidth"
+            "(s) => getComputedStyle(document.querySelector(s)).maxWidth", sel
         )
         assert mw == "none", f"{sel} has max-width {mw} in the expanded state"
 
@@ -797,15 +913,14 @@ def test_short_answer_input_still_caps_at_22rem(page, live_server):
     _login(page, live_server, user.username)
     _collapsed(page, live_server, unit)
 
-    w = page.evaluate(WIDTH_JS, "input.question__text-input")
+    w = _width(page, "input.question__text-input")
     assert abs(w - 352) < 2, f"the short-answer input must stay at 22rem, got {w}"
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Mutant A (expanded test): hand-add
-`[data-unit-shell] .callout { max-width: 46rem; }` **outside** any collapsed scope, immediately after
-the prose-cap `@media` block.
+Mutant A (expanded test): hand-add `[data-unit-shell] .callout { max-width: 46rem; }` **outside** any
+collapsed scope, immediately after the prose-cap `@media` block.
 Run: `uv run pytest tests/test_e2e_uniform_block_width.py::test_expanded_state_has_no_cap_at_all -m e2e --verbosity=0`
 Expected: FAIL — `.callout` has max-width `736px` in the expanded state. Hand-edit it out.
 
@@ -843,8 +958,8 @@ Append:
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_grid_and_fieldset_stems_cap_without_squeezing_their_widgets(page, live_server):
-    """Two behaviour changes that the Purpose section does not mention, pinned so
-    they are intentional rather than incidental.
+    """Two behaviour changes the Purpose section does not mention, pinned so they
+    are intentional rather than incidental.
 
     1. The five grid types were excluded from the cap entirely, so their stems
        filled the card's inner box (~830). They now cap at 736.
@@ -854,23 +969,41 @@ def test_grid_and_fieldset_stems_cap_without_squeezing_their_widgets(page, live_
        both stems bind at 736 and neither overflows (B0). This is the pin for
        that, so a future content or layout change that breaks it is caught.
 
-    The choicegrid fixture MUST set a non-empty stem: choicegridquestionelement
-    renders .question__stem under `{% if el.stem %}`, so a stemless fixture has no
-    stem at all and the locator would silently resolve to another question's.
+    The choicegrid fixture MUST have a non-empty stem AND real columns/rows:
+    choicegridquestionelement renders .question__stem under `{% if el.stem %}`, and
+    render_choice_grid iterates el.columns/el.rows -- with neither seeded the table
+    is an empty <thead><th></th></thead><tbody></tbody> and the widget-width
+    assertion could not fail.
     """
     from courses.models import Blank
     from courses.models import ChoiceGridQuestionElement
     from courses.models import DragBlank
     from courses.models import DragFillBlankQuestionElement
-    from courses.models import Element
     from courses.models import FillBlankQuestionElement
+    from courses.models import GridColumn
+    from courses.models import GridRow
 
     user, _course, unit = _seed_unit("pa_stems")
 
-    add_element(
-        unit,
-        ChoiceGridQuestionElement.objects.create(stem="Pick one per row."),
-    )
+    grid = ChoiceGridQuestionElement.objects.create(stem="Pick one per row.")
+    cols = [
+        GridColumn.objects.create(question=grid, label=label)
+        for label in (
+            "Strongly agree",
+            "Agree",
+            "Neither agree nor disagree",
+            "Disagree",
+            "Strongly disagree",
+        )
+    ]
+    for statement in (
+        "The first statement under consideration here",
+        "The second statement under consideration here",
+    ):
+        GridRow.objects.create(
+            question=grid, statement=statement, correct_column=cols[0]
+        )
+    add_element(unit, grid)
 
     gapped = (
         "The capital of France is ￿0￿, which stands on the "
@@ -880,14 +1013,14 @@ def test_grid_and_fieldset_stems_cap_without_squeezing_their_widgets(page, live_
     fb = FillBlankQuestionElement.objects.create(stem=gapped)
     for i, ans in enumerate(("Paris", "Seine", "Rome", "Tiber")):
         Blank.objects.create(question=fb, order=i, accepted=ans)
-    Element.objects.create(unit=unit, content_object=fb)
+    add_element(unit, fb)
 
     df = DragFillBlankQuestionElement.objects.create(
         stem=gapped, distractors="Madrid\nLisbon\nDanube\nVistula\nBerlin\nWarsaw"
     )
     for tok in ("Paris", "Seine", "Rome", "Tiber"):
         DragBlank.objects.create(question=df, correct_token=tok)
-    Element.objects.create(unit=unit, content_object=df)
+    add_element(unit, df)
 
     _login(page, live_server, user.username)
     _collapsed(page, live_server, unit)
@@ -899,30 +1032,26 @@ def test_grid_and_fieldset_stems_cap_without_squeezing_their_widgets(page, live_
     page.wait_for_function(
         "() => document.querySelectorAll('.el--dragfill .dnd__chip').length > 0"
     )
-    pool = page.evaluate(
-        "() => { const p = document.querySelector('.el--dragfill .dnd__pool');"
-        " return {c: p.clientWidth, s: p.scrollWidth}; }"
+    pool = page.evaluate(BOX_JS, ".el--dragfill .dnd__pool")
+    assert pool is not None and pool["c"] > 0, (
+        f"INVALID: the pool is not live, the measurement is void: {pool}"
     )
-    assert pool["c"] > 0, f"INVALID: the pool is not live, measurement is void: {pool}"
 
-    grid_stem = page.evaluate(WIDTH_JS, ".el--choicegrid .question__stem")
-    scroll_x = page.evaluate(WIDTH_JS, ".el--choicegrid .scroll-x")
+    grid_stem = _width(page, ".el--choicegrid .question__stem")
+    scroll_x = _width(page, ".el--choicegrid .scroll-x")
     assert abs(grid_stem - 736) < 2, f"grid stem must cap at 46rem, got {grid_stem}"
-    # Directional only. .scroll-x is the edge-shading wrapper (it does not itself
-    # scroll -- the inner .choicegrid-scroll does), and the bare <fieldset> around
-    # it has no min-inline-size: 0, so its width is not pinned to the card's inner
-    # box. A generous constant here would be the fragility this suite bans.
+    # Directional. .scroll-x is the edge-shading wrapper (it does not itself scroll
+    # -- the inner .choicegrid-scroll does) and the bare <fieldset> around it has no
+    # min-inline-size: 0, so its width is not pinned to the card's inner box. A
+    # generous constant here would be the fragility this suite bans.
     assert scroll_x > grid_stem + 2, (
         f"the grid widget must stay wider than the capped stem: "
         f"scroll-x {scroll_x} vs stem {grid_stem}"
     )
 
     for sel in (".el--fillblank .question__stem", ".el--dragfill .question__stem"):
-        box = page.evaluate(
-            f"() => {{ const e = document.querySelector({sel!r});"
-            " return {w: e.getBoundingClientRect().width,"
-            " c: e.clientWidth, s: e.scrollWidth}; }}"
-        )
+        box = page.evaluate(BOX_JS, sel)
+        assert box is not None, f"{sel} is not present"
         assert abs(box["w"] - 736) < 2, (
             f"{sel}: the fieldset min-inline-size floor refused the cap: {box}"
         )
@@ -937,22 +1066,32 @@ Mutant: add `:not(.el--dragfill)` to the stem entry, making it
 Run: `uv run pytest tests/test_e2e_uniform_block_width.py::test_grid_and_fieldset_stems_cap_without_squeezing_their_widgets -m e2e --verbosity=0`
 Expected: FAIL — the drag-fill stem returns to the card's inner box (~830) instead of 736.
 
-- [ ] **Step 3: Remove the mutant and re-run**
+- [ ] **Step 3: Verify the grid arm can fail**
+
+Before removing the mutant above, also confirm the `scroll_x > grid_stem + 2` assertion is live:
+temporarily delete the five `GridColumn` rows from the fixture and re-run. Expected: FAIL (an empty
+grid gives `.scroll-x` no content to exceed the stem with). Restore the columns.
+
+This step exists because an unseeded grid renders an empty table, and the assertion would otherwise
+pass whether or not any widget is wide.
+
+- [ ] **Step 4: Remove the mutant and re-run**
 
 Hand-edit the `:not(.el--dragfill)` back out.
 Run: `uv run pytest tests/test_e2e_uniform_block_width.py -m e2e --verbosity=0`
 Expected: PASS (5 tests).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add tests/test_e2e_uniform_block_width.py
 git commit -m "test(e2e): pin grid stems narrowing and both fieldset stems binding
 
 Records the measured B0 outcome: the fieldset min-inline-size floor does not
-refuse the 46rem cap on fillblank or dragfill, and neither overflows. Syncs on
-the dnd pool being live first -- it ships hidden and empty, and a pre-JS read
-returns zeros that would satisfy 'no overflow' and fabricate a pass."
+refuse the 46rem cap on fillblank or dragfill, and neither overflows. Seeds a
+real 5-column grid so the widget-width arm can actually fail, and syncs on the
+dnd pool being live -- it ships hidden and empty, and a pre-JS read returns
+zeros that would satisfy 'no overflow' and fabricate a pass."
 ```
 
 ---
@@ -962,10 +1101,16 @@ returns zeros that would satisfy 'no overflow' and fabricate a pass."
 **Files:**
 - Modify: `tests/test_e2e_unit_nav.py:1339-1400`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Confirm the existing test is red**
 
-In `test_quiz_chrome_is_capped_across_both_page_states`, rename to
-`test_quiz_chrome_tracks_the_column_across_both_page_states` and replace **both** measurement loops.
+Run: `uv run pytest tests/test_e2e_unit_nav.py::test_quiz_chrome_is_capped_across_both_page_states -m e2e --verbosity=0`
+Expected: FAIL on `[data-quiz-preview-notice] must cap at 736px, got 872.0` — Load A's loop is
+`(".lesson-unit__title", "[data-quiz-preview-notice]", ".el--question")` and the notice is the first
+of the three to leave the cap. This confirms the test was really pinning the old behaviour.
+
+- [ ] **Step 2: Apply the rewrite**
+
+Rename the test to `test_quiz_chrome_tracks_the_column_across_both_page_states`.
 
 Replace `:1375-1379` with:
 
@@ -988,55 +1133,49 @@ Replace `:1375-1379` with:
         assert abs(w - column) < 2, f"{sel} must fill the column {column}, got {w:.1f}"
 ```
 
-Replace `:1394-1398` with the same shape, swapping the loop tuple to
+Replace `:1394-1398` with the same block, swapping the loop tuple to
 `(".quiz-finish", ".el--question")`.
 
-Then replace the comment at `:1384-1388` with:
+Replace the comment at `:1384-1388` with:
 
 ```python
     # Re-assert the collapsed state AFTER the reload. This is now MORE important,
-    # not less: the title assertion is still one-sided (<= 738) and the EXPANDED
-    # quiz column at 1440 is 648px -- under 738 -- while the column-equality
-    # assertions compare against whatever column is actually rendered, so they too
-    # hold expanded. Without this guard every assertion below passes in the wrong
-    # state. Load A is safe because _collapse() waits on the class.
+    # not less: the title assertion is still one-sided (<= 738), the EXPANDED quiz
+    # column at 1440 is 648px -- under 738 -- and the column-equality assertions
+    # compare against whatever column is actually rendered, so they hold expanded
+    # too. Without this guard every assertion below passes in the wrong state.
+    # Load A is safe because _collapse() waits on the class.
 ```
 
-And update the docstring at `:1339-1351` — its first paragraph must now read:
+Replace the docstring's first paragraph (`:1339-1341`) with:
 
 ```python
     """The quiz entries (.lesson-unit__title, [data-quiz-preview-notice],
     .quiz-finish) exist only for _quiz_article.html; without this the whole suite
-    stays green if all three are deleted. The .count() assertions carry that;
-    the width assertions carry which of them cap and which fill the column.
+    stays green if all three are deleted. The .count() assertions carry that; the
+    width assertions carry which of them cap and which fill the column.
 ```
 
 Keep every `locator(...).count()` assertion untouched — the docstring states they are the only thing
 stopping a silent deletion.
 
-- [ ] **Step 2: Run test to verify it fails**
-
-First confirm the *current* file is red against the shipped change (it should already be, from Task 1):
-
-Run: `uv run pytest tests/test_e2e_unit_nav.py::test_quiz_chrome_is_capped_across_both_page_states -m e2e --verbosity=0`
-Expected: FAIL on `.el--question must cap at 736px, got 872.0` — this is the pre-existing test the
-change breaks, and confirms it was really testing the old behaviour.
-
-- [ ] **Step 3: Apply the rewrite from Step 1**
-
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 3: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_e2e_unit_nav.py::test_quiz_chrome_tracks_the_column_across_both_page_states -m e2e --verbosity=0`
 Expected: PASS.
 
-- [ ] **Step 5: Falsify — both the widths and the state guard**
+- [ ] **Step 4: Falsify — widths and the state guard**
 
 1. Re-add `html.unit-tree-collapsed [data-unit-shell] [data-quiz-preview-notice],` and
    `html.unit-tree-collapsed [data-unit-shell] .quiz-finish,` to the prelude → expect FAIL on both
    column-equality assertions. Hand-edit out.
-2. Delete the `page.wait_for_function(... 'unit-tree-collapsed' ...)` guard **and** change
-   `_collapse(page)` in Load A to a no-op, so the page renders expanded → expect FAIL (the column
-   reads 648 and `.el--question` no longer matches it, or the title assertion misleads). Restore both.
+2. Delete the `page.wait_for_function(… 'unit-tree-collapsed' …)` guard **and** comment out
+   `_collapse(page)` in Load A so the page renders expanded → expect FAIL. Restore both.
+
+- [ ] **Step 5: Run the whole file**
+
+Run: `uv run pytest tests/test_e2e_unit_nav.py -m e2e --verbosity=0`
+Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -1056,24 +1195,29 @@ one-sided assertion; the collapsed-state guard is retained and re-argued."
 **Files:**
 - Modify: `tests/test_e2e_callout_container.py:110-156`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Confirm the existing test is red**
 
-Rename `test_a_table_in_a_callout_is_not_squeezed_by_the_prose_cap` to
-`test_both_callout_shapes_render_at_one_width`, replace the docstring's second paragraph
-(`:117-120`) and both measurement arms (`:146-155`).
+Run: `uv run pytest tests/test_e2e_callout_container.py::test_a_table_in_a_callout_is_not_squeezed_by_the_prose_cap -m e2e --verbosity=0`
+Expected: FAIL on the control arm `abs(prose_box["width"] - 736) < 2` — the prose-only callout now
+measures 872.
 
-New docstring second paragraph:
+- [ ] **Step 2: Apply the rewrite**
 
-```python
-    641px is NOT enough either: the collapsed content box is
-    .app-main's 960px cap, less its 2x20px padding, less the 2.4rem pin lane and
-    the 3rem .lesson padding -- 872px at any viewport >= 1040px, and far less at
-    641px, which would put both arms under the 736px cap and make the comparison
-    vacuous. Use 1280x900. (.unit-shell's max-width: 72rem never binds: .app-main
-    caps the containing block first.)
+Rename to `test_both_callout_shapes_render_at_one_width`.
+
+Replace the docstring's second paragraph — **lines 117-119 only**; line 120 is the closing `"""` and
+must be left in place — with:
+
+```
+    641px is NOT enough either: the collapsed content box is .app-main's 960px cap,
+    less its 2x20px padding, less the 2.4rem pin lane and the 3rem .lesson padding
+    -- 872px at any viewport >= 1040px, and far less at 641px, which would put both
+    arms under the 736px cap and make the comparison vacuous. Use 1280x900.
+    (.unit-shell's max-width: 72rem never binds: .app-main caps the containing
+    block first.)
 ```
 
-New arms:
+Replace the two measurement arms (`:146-156`) with:
 
 ```python
     prose_w = page.locator(".callout:not(:has(> .callout__children))").bounding_box()[
@@ -1092,29 +1236,22 @@ New arms:
     )
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `uv run pytest tests/test_e2e_callout_container.py::test_a_table_in_a_callout_is_not_squeezed_by_the_prose_cap -m e2e --verbosity=0`
-Expected: FAIL on the old `abs(prose_box["width"] - 736) < 2` control arm — the prose-only callout
-now measures 872.
-
-- [ ] **Step 3: Apply the rewrite from Step 1**
-
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 3: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_e2e_callout_container.py -m e2e --verbosity=0`
 Expected: PASS (all tests in the file).
 
-- [ ] **Step 5: Falsify BOTH halves independently**
+- [ ] **Step 4: Falsify BOTH halves independently**
 
 1. Re-add `html.unit-tree-collapsed [data-unit-shell] .callout:not(:has(> .callout__children)),` →
    expect FAIL on the **equality** half (736 vs 872). Hand-edit out.
 2. Add `html.unit-tree-collapsed [data-unit-shell] .callout,` (capping *both* shapes) → expect FAIL
    on the **`> 736`** half, with equality still passing. Hand-edit out.
 
-Mutant 2 is the one that proves the test would have caught the regression the old test guarded.
+Mutant 2 is the one proving this test would still catch the squeezed-table regression the old test
+guarded.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add tests/test_e2e_callout_container.py
@@ -1127,9 +1264,9 @@ corrects the docstring's pre-.app-main column formula."
 
 ---
 
-### Task 10: Regression sweep and visual verification
+### Task 10: Regression sweep, visual verification, and the PR-body note
 
-**Files:** none modified (verification only, plus screenshots discarded after review)
+**Files:** none modified (verification only, plus a drafted PR-body paragraph)
 
 - [ ] **Step 1: Run the affected non-e2e tests**
 
@@ -1146,12 +1283,15 @@ Expected: all PASS.
 uv run pytest tests/test_e2e_uniform_block_width.py tests/test_e2e_callout_container.py \
   tests/test_e2e_unit_nav.py tests/test_e2e_unit_head_layout.py \
   tests/test_e2e_scroll_affordance.py tests/test_e2e_questions_2b.py \
-  tests/test_e2e_questions_2d.py -m e2e --verbosity=0
+  tests/test_e2e_questions_2d.py tests/test_e2e_choice_inline_feedback.py \
+  tests/test_e2e_choicegrid.py -m e2e --verbosity=0
 ```
-Expected: all PASS. `test_e2e_unit_head_layout.py` is included deliberately — it guards the
-three-item `.lesson-unit__head` row that this change widens.
+Expected: all PASS. `test_e2e_unit_head_layout.py` is included because it exercises the same
+`.lesson-unit__head` row — **note it runs EXPANDED** (it never seeds `libli_unit_tree_collapsed`), so
+it is a no-regression check for the untouched state, **not** coverage of this change. Task 4 is what
+covers the collapsed head.
 
-If the run reports `no tests ran` / exit 5, `-m e2e` was dropped: that is **not** a pass. Re-run.
+If any run reports `no tests ran` / exit 5, `-m e2e` was dropped: that is **not** a pass. Re-run.
 
 - [ ] **Step 3: Full branch gate**
 
@@ -1161,8 +1301,9 @@ uv run pytest -m e2e --verbosity=0
 uv run ruff check --no-cache .
 uv run ruff format --check .
 ```
-Expected: all PASS. Record the counts in the commit message. Note `ruff format --check` is a separate
-CI gate from `ruff check` — both must pass.
+Expected: all PASS. Record the counts for the commit message. `ruff format --check` is a separate CI
+gate from `ruff check` — both must pass. Use `--no-cache` on `ruff check`: a `# noqa` warning is
+cached away, so a second run reports "All checks passed" on a file that has one.
 
 - [ ] **Step 4: Screenshots, light and dark, judged separately**
 
@@ -1188,31 +1329,51 @@ Against the screenshots, confirm each is acceptable rather than a defect:
 If any reads as broken, **stop and report** rather than patching — each was an explicit design
 decision, and reversing one is the user's call.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Draft the PR-body note for the chrome decision**
+
+The spec requires the chrome decision be called out so the user can reverse it cheaply. Write this
+paragraph into the PR body (Task 11 of the pipeline, or by hand if opening the PR manually):
+
+> **One judgement call beyond the literal request.** `.quiz-finish` and `.lesson-unit__head` are not
+> tinted, so by the letter of "blocks with a background" they would have stayed capped at 736px. Both
+> are chrome drawn *around* the question cards: `.quiz-finish` is the separator rule under them, and
+> `.lesson-unit__head` holds the right-aligned "Mark as done" pill. Left capped, each would stop
+> 136px short of the card edges it frames. They were moved out of the cap so their edges align.
+> **To revert just this part:** re-add
+> `html.unit-tree-collapsed [data-unit-shell] .quiz-finish,` and
+> `html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,` to the prose-cap prelude, update
+> `PROSE_CAP_SELECTORS` in `tests/test_consumption_css.py` to 14 entries, and drop the
+> `.lesson-unit__head` arm from `test_every_tinted_block_and_its_chrome_is_one_width`.
+> Side effect if kept: the lesson title's measure grows from ~514px to ~644px, so long titles re-wrap.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git commit --allow-empty -m "chore: verification sweep for uniform tinted block width
 
 non-e2e: <N> passed. e2e: <N> passed. ruff check + format: clean.
 Screenshots reviewed light and dark; the four accepted consequences confirmed
-as intended, not defects."
+as intended, not defects. PR-body note drafted for the chrome decision."
 ```
 
 ---
 
 ## Self-Review
 
-**1. Spec coverage.** Every spec requirement maps to a task: the CSS change and R2's exact-list
-assertion → Task 1; test 1 → Task 2; Architecture's two comment regions plus the calloutelement
-comment → Task 3; tests 5/6/7/9/8/10 → Tasks 4-7; test 3 → Task 8; test 2 → Task 9; the regression
-scope, `test_consumption_css`'s five stale sites (Task 1), and the visual checklist → Task 10. The
-dead B1/B2 branches are excluded by the Global Constraints, as instructed.
+**1. Spec coverage.** The CSS change and R2's exact-list assertion → Task 1; spec test 1 → Task 2;
+Architecture's two comment regions plus the `calloutelement.html` comment → Task 3; spec tests
+5/6/7/8/9/10 → Tasks 4-7; spec test 3 → Task 8; spec test 2 → Task 9; regression scope, the five
+stale sites in `test_consumption_css` (Task 1), the visual checklist and the PR-body callout →
+Task 10. The spec's "record the enumeration in the plan" obligation is discharged in Task 1 Step 3.
+The dead B1/B2 branches are excluded by the Global Constraints.
 
-**2. Placeholder scan.** No TBDs. Every code step carries real code; every mutant is named and its
-expected failure stated; every command is runnable as written.
+**2. Placeholder scan.** No TBDs. Every code step carries runnable code; every mutant is named with
+its expected failure; every fixture whose emptiness would neuter an assertion (choicegrid rows,
+callout body, choice options, rendered feedback) carries an explicit requirement and, where the risk
+is highest, a step that proves the assertion can fail.
 
-**3. Type consistency.** `_seed_unit`, `_login`, `_collapsed`, `COLUMN_JS` and `WIDTH_JS` are defined
-once in Task 4 and used with the same signatures in Tasks 5-7. `PROSE_CAP_SELECTORS` and
-`_prose_cap_prelude()` are defined in Task 1 and the sentinel names they depend on are reused verbatim
-in Task 2. The twelve selector strings in Task 1's list are byte-identical to the twelve in the CSS
-block of the same task.
+**3. Type consistency.** `_seed_unit`, `_login`, `_collapsed`, `_width`, `COLUMN_JS` and `BOX_JS` are
+defined once in Task 4 and used with the same signatures in Tasks 5-7. `BOX_JS` returns
+`{w, c, s}` and every consumer uses those three keys. The twelve selector strings in Task 1's
+`PROSE_CAP_SELECTORS` are byte-identical to the twelve in the CSS block of the same task. Task 2
+shares only the two sentinel *strings* with Task 1, which its Interfaces block now states explicitly.
