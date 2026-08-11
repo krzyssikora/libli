@@ -261,6 +261,37 @@ def test_geogebra_url_size_never_raises_on_malformed_authority():
 # --- fetch_geogebra_dimensions: the API lookup ---
 
 
+class _Resp:
+    """Stateful response double: a read offset, so a chunked loop reaches EOF.
+
+    Module scope (not nested in _patch_open) so tests that assert on `calls` can
+    hold the instance -- unittest.mock does not record return values, so a test
+    using `with _patch_open(body)` has no other handle on it.
+    """
+
+    def __init__(self, body):
+        self._body = body
+        self._pos = 0
+        self.calls = 0
+
+    def read(self, n=-1):
+        self.calls += 1
+        if n is None or n < 0:
+            chunk = self._body[self._pos :]
+        else:
+            chunk = self._body[self._pos : self._pos + n]
+        self._pos += len(chunk)
+        return chunk
+
+    read1 = read  # same offset, same counter -- read1 is what _fetch_body calls
+
+    def __enter__(self):  # the fetch uses `with _open(...) as resp`
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+
 def _patch_open(body=None, exc=None):
     """Patch the transport seam; return the mock so tests can assert on call args.
 
@@ -269,20 +300,10 @@ def _patch_open(body=None, exc=None):
     never drained and an unclosed response leaks a socket per call).
     """
 
-    class _Resp:
-        def read(self, n=-1):
-            return body[:n] if n and n > 0 else body
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc_info):
-            return False
-
     def _side_effect(request, timeout=None):
         if exc is not None:
             raise exc
-        return _Resp()
+        return _Resp(body)
 
     return patch("courses.geogebra._open", side_effect=_side_effect)
 
