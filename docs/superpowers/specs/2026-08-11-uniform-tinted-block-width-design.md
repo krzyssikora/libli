@@ -97,9 +97,14 @@ article is `.lesson` on a lesson page but `<article class="quiz">` on a quiz pag
 
 On a lesson page each element root is wrapped in
 `<section class="lesson-block"><div class="lesson-block__body">` (`_lesson_article.html:38-39`);
-a quiz uses a bare `<section data-element-id>`. **Neither wrapper adds horizontal inset** —
+a quiz uses a bare `<section data-element-id>`. Both templates additionally emit a third wrapper,
+`<div class="slide">` (`_lesson_article.html:36`, `_quiz_article.html:27`), even for single-slide
+units. **None of the three adds horizontal inset** — `.slide` is `display: contents`
+(`courses.css:334`, becoming a bare `display: block` for a no-JS multi-slide unit at `:337`),
 `.lesson-block__body` has no width rule, and the notes panel floats over the page margin rather than
 insetting the block (`notes.css:90-101`) — so the recipe and pairwise comparisons are valid on both.
+Note `.quiz-finish` and `[data-quiz-preview-notice]` sit *outside* `.slide`, while the cards sit
+inside it.
 
 ## The rule this change installs
 
@@ -133,7 +138,7 @@ block*, which is what a reader compares.
    (the rule itself is at `:319-320`). Its text — "the extended-response `textarea` (same class)
    keeps app.css's width:100% and fills the card column, resizable up to it" — becomes **false** once
    the textarea is capped, and must be amended. The amended text must reference
-   `app.css:150 textarea { resize: vertical }` (see below), not "resizable up to it".
+   `app.css:150 textarea { resize: vertical }`, not "resizable up to it".
 
 No template changes, no JavaScript, no Python.
 
@@ -151,17 +156,25 @@ Each entry is removed **in full, including its `:not()` chain**.
 
 | Entry | Why it moves |
 |---|---|
-| `.quiz-finish` | `:322` is a `border-top: 1px solid` separator drawn *under the question cards*. Because capped elements are left-aligned, leaving it capped ends the rule **136px short of the cards' right edge**. |
-| `.lesson-unit__head` | `:824`, the flex row holding the title, the `.unit-done` pill and — when `has_stateful_elements` — `.lesson-unit__reset` (`_lesson_article.html:29`). Left capped, the right-aligned pill sits 136px left of the card edges below it. |
+| `.quiz-finish` | `:322-326` is a `border-top: 1px solid` separator (declaration at `:325`) drawn *under the question cards*. Because capped elements are left-aligned, leaving it capped ends the rule **136px short of the cards' right edge**. |
+| `.lesson-unit__head` | `:824-825`, the flex row holding the title, the `.unit-done` pill and — when `has_stateful_elements` — `.lesson-unit__reset` (`_lesson_article.html:28-33`). Left capped, the right-aligned pill sits 136px left of the card edges below it. |
 
 Both are transparent — they move for **alignment**: chrome that frames the cards must share their
 edges.
 
-**Accepted side effect:** `.lesson-unit__head .lesson-unit__title { flex: 1; min-width: 0 }`
-(`:830-831`), so widening the head raises the title's flex target from ~610px to ~746px, where its own
-736px cap clamps it. The lesson title's measure **grows by ~126px and a long title re-wraps**.
-Accepted because the new measure is exactly the 736px prose token, but it is visible and must appear
-in the screenshot checklist.
+**Accepted side effect — re-derived for the three-item head.** `.lesson-unit__head` is
+`display: flex; justify-content: space-between; gap: 1rem` with **three** children whenever
+`has_stateful_elements` is true. `courses/views.py:467-469` sets that flag for any *stateful* element,
+which includes question elements — so any fixture seeding a question card renders the reset link too.
+`tests/test_e2e_unit_head_layout.py` already exists to guard this three-item row.
+
+With head = 872 and `.lesson-unit__title { flex: 1; min-width: 0 }` (`:830-831`), the title's target
+is `872 − 2×16 gap − pill(~110) − reset(~90)` ≈ **650px**, up from ≈514px today — so it **grows by
+~136px but never reaches its own 736px cap**. The 736 figure applies only to a *two-item* head, and
+even then only when pill + gap fit within 136px, which is locale-dependent (the Polish "Oznacz jako
+ukończone" pill is materially wider than the English one). Either way a long title re-wraps, which is
+visible and must appear in the screenshot checklist. **No test may assert the title at 736** — see
+test 5.
 
 This chrome decision is a judgement call slightly beyond the literal request. **Call it out in the PR
 body** so the user can reverse it cheaply.
@@ -184,16 +197,17 @@ rule for callouts and worsening the readability the cap protects.
 **Why the `textarea` type selector is mandatory, not stylistic.** The textarea is a **nephew** of the
 stem — `extendedresponsequestionelement.html` has `.question__stem` at `:3` and
 `<form class="question__form">` at `:5`, with the textarea a child of that form (`:7-9`) — so no other
-capped selector reaches it. It must be written `textarea.question__text-input`, giving
-`html.unit-tree-collapsed [data-unit-shell] textarea.question__text-input` = **(0,3,1)**. Writing the
-class bare (`.question__text-input`, (0,3,0)) — an easy slip, since every other new entry is bare —
-would still beat `.quiz input.question__text-input` = (0,2,1) at `:319-320` and silently jump the
-short-text and short-numeric boxes from **352px to 736px**. Test 9 pins the 352px input for this
-reason.
+capped selector reaches it. It must be written `textarea.question__text-input`. Compare the **tails**
+(the shared `html.unit-tree-collapsed [data-unit-shell] ` prefix contributes equally to both
+candidates and only obscures the count): `textarea.question__text-input` is 1 class + 1 type, while a
+bare `.question__text-input` is 1 class + 0 types. Either way the full selector out-specifies
+`.quiz input.question__text-input` = (0,2,1) at `:319-320` on its class component — so writing the
+class bare, an easy slip since every other new entry is bare, would silently jump the short-text and
+short-numeric boxes from **352px to 736px**. Test 9 pins the 352px input for this reason.
 
 **Accepted consequence of capping the textarea:** the extended-response box renders at 736px instead
 of the card's inner ~830px in the collapsed state. It has **never** been horizontally draggable —
-`app.css:150` is `textarea { resize: vertical; }`, and its comment at `:146-149` records that the
+`app.css:150` is `textarea { resize: vertical; }`, and its comment at `:145-149` records that the
 browser default `resize: both` was overridden precisely so "a full-width textarea (e.g. the
 extended-response answer box)" could not be dragged past its column. Growth stays vertical-only.
 
@@ -201,9 +215,10 @@ extended-response answer box)" could not be dragged past its column. Growth stay
 and the identical content risk already exists, accepted, on `.el--text`, which has been capped at
 736px since the allow-list was written. `courses/sanitize.py` permits `pre` and `code` but not
 `table` or `img`, and explanations may carry display math — all of which can exceed 736px and
-overflow. That behaviour is **pre-existing prose behaviour**, not introduced here: the same `<pre>`
-in a text element overflows identically today. Accepted without a new measurement. (Contrast the
-fieldset stems in R1, where the cap is landing on a container that has never received one.)
+overflow. That is **pre-existing prose behaviour**, not introduced here: the same `<pre>` in a text
+element overflows identically today. Accepted without a new measurement. (Contrast the fieldset stems
+in R1, where the discriminator is not the content but the `<fieldset>` `min-inline-size: min-content`
+quirk.)
 
 The submit `<button>` needs no entry (a button does not stretch to its container).
 
@@ -217,15 +232,22 @@ fieldset types (`fillblankquestionelement.html:14-30`, `dragfillblankquestionele
 `{% if element %}` branch gives `.el--question` a **single** child, `.question__form`, with the stem
 being the fieldset *inside* it.
 
-The implementation must enumerate **every descendant of `.el--question` that establishes its own
-block box, walking through `.question__form`**, and show each is either capped or deliberately wide:
+**Stopping rule:** a descendant of an already-capped container needs no entry of its own. This is what
+bounds the enumeration — `.question__feedback` is the **barrier** behind which
+`_question_feedback.html` (`.question__verdict`, `.question__explanation`),
+`_quiz_question_feedback.html` (`.question__feedback-panel`) and the ten `_reveal_*.html` partials
+(`.question__reveal`, `courses.css:194`) all render. Those files are therefore out of the
+denominator by rule, not by oversight.
+
+Within that bound, enumerate **every descendant of `.el--question` that establishes its own block
+box, walking through `.question__form`**, and show each is either capped or deliberately wide:
 
 - **Bare (unclassed) `<fieldset>` wrappers**, which are pass-throughs: `choicegrid:7`, `multigrid:7`,
   `matchpair:7`, `dragimage:7`.
 - **Class-bearing stems handled by R1**, *not* bare wrappers: `fillblank:17`, `dragfill:6` — both
   `<fieldset class="question__stem">`.
-- `.question__choices`, `.question__feedback`, `.scroll-x` / `.dragimage__stage`, and both
-  `input`/`textarea.question__text-input`.
+- `.question__choices`, `.question__feedback` (the barrier), `.scroll-x` / `.dragimage__stage`, and
+  both `input`/`textarea.question__text-input`.
 
 `.question__form` is an **intentional pass-through**: it neither caps nor constrains.
 
@@ -257,7 +279,7 @@ separate rule outside the sentinels (see R1). So:
 | Stem entry | `.el--question` + one `:not()` per type resolving to **B1** |
 | `examined` in `test_consumption_css.py` | **16 + (number of types resolving to B2)** |
 
-`test_consumption_css.py:212` currently asserts `examined >= 17`; it becomes **`>= 16`**. Because the
+`test_consumption_css.py:211` currently asserts `examined >= 17`; it becomes **`>= 16`**. Because the
 operator is `>=`, it cannot catch B2's extra selector — R2's assertions are what pin the shape.
 
 Both fieldset types are measured independently and may land in different branches, including both in
@@ -271,7 +293,7 @@ tests hard-code:
 
 - **B0** → the stem entry becomes `.el--question .question__stem` (**not** bare `.question__stem` —
   dropping the `:not()` leaves the `.el--question` prefix in place; the two differ as strings and in
-  specificity, (0,3,0) vs (0,4,0)).
+  specificity).
 - **B1** → the stem entry keeps/gains `:not()` per affected type.
 - **B2** → a separate scoped `min-inline-size: 0` rule is added outside the sentinels.
 
@@ -332,11 +354,30 @@ The stem holds the inline-block `<select>`s (drag-fill) and inline `<input>`s (f
 `courses.css:22-26` names, and under the default `overflow: visible` its `scrollWidth` reflects
 overflowing inline content.
 
+#### Which build the measurement runs against (load-bearing)
+
+The B1/B2 criteria only mean anything with `max-width: 46rem` **already landing on the stem**.
+Measured against the *unmodified* build they are meaningless: `courses.css:1073` excludes
+`.el--dragfill` from the cap today, so its stem's `clientWidth` is the card's inner ~830px — over the
+738 threshold — and it would be classified **B2 unconditionally**, while B1 could never be observed
+at all. Fill-blank's stem sits inside a currently-capped 736px card, so its `scrollWidth`/
+`clientWidth` comparison would answer a question about ~694px, not 736px.
+
+**The measurement runs against a scratch build carrying the unconditional entry**
+`html.unit-tree-collapsed [data-unit-shell] .el--question .question__stem { max-width: 46rem }`
+(no `:not()` chain), with the five removals already applied. B0/B1/B2 are read off *that* build; only
+then is the final selector string fixed.
+
 #### Measurement procedure
 
 Run in a **JS-enabled e2e context** at 1280×900, collapsed, on seeded drag-fill **and** fill-blank
-questions. The fill-blank fixture must contain **a long unbreakable token or display math**, or
-criterion (b) cannot fire and the measurement is uninformative.
+questions.
+
+Use **realistic** fill-blank content — the inline `<input>`s that `{% render_fill_blanks %}` emits.
+Do **not** seed a long unbreakable token: one overflows a 736px box in *any* container, including
+`.el--text` today, so it would force a permanent carve-out for a content risk this spec explicitly
+accepts above. **B1 requires the widget's own layout — the inline inputs/selects — to overflow**,
+matching the accepted `.el--text` baseline.
 
 **Synchronise before reading.** For drag-fill, wait for `.el--dragfill [data-dnd-pool]:not([hidden])`
 and a `.dnd__chip` count > 0.
@@ -367,10 +408,11 @@ already fails to bind, excluding the element from it changes nothing.
 its own single-selector prelude**, never added to the cap rule's shared declaration block (which
 would apply it to `.el--text`, `.lesson-unit__title`, `.unit-crumbs` and the five gate wrappers as
 well). It is placed **outside** `/* prose-cap:begin|end */`, and is therefore invisible to R2's
-prelude assertion — so under B2 it gets **its own sentinel pair**
-`/* prose-cap-fieldset:begin */` … `/* prose-cap-fieldset:end */` and its own source assertion that
-the rule exists, is scoped `html.unit-tree-collapsed [data-unit-shell]`, and names only the affected
-stem. Without that second pin the B2 remedy would be covered by nothing.
+prelude assertion — so under B2 it gets **its own sentinel pair** `/* prose-cap-fieldset:begin */` …
+`/* prose-cap-fieldset:end */`. That pair wraps the whole B2 region and may contain **one
+single-selector rule per affected type**, each scoped `html.unit-tree-collapsed [data-unit-shell]`
+and naming only that type's stem, with **one source assertion per rule**. Without that second pin the
+B2 remedy would be covered by nothing.
 
 **Correct carve-out selector.** If a type must be excluded, the working form is
 `html.unit-tree-collapsed [data-unit-shell] .el--question:not(.el--dragfill) .question__stem`.
@@ -380,7 +422,7 @@ silent no-op that would look like the risk had been addressed.
 
 ### R2 — the change is invisible in the expanded state
 
-**The existing guard does not cover this.** `tests/test_consumption_css.py:184-206` iterates selectors
+**The existing guard does not cover this.** `tests/test_consumption_css.py:190-205` iterates selectors
 and `continue`s on any lacking `html.unit-tree-collapsed` — a lifted rule is **skipped, not caught**.
 Only the `examined` floor catches a lift, incidentally, and being `>=` it tolerates a lift paired with
 two additions.
@@ -390,16 +432,26 @@ selectors, each containing both `html.unit-tree-collapsed` and `[data-unit-shell
 `sorted(s.strip() for s in prelude.split(","))` against a sorted literal **and** assert the unsorted
 list's length is 12, so a duplicated selector still reddens while a harmless reorder does not.
 
-**Locating the block — sentinel placement is pinned.** `/* prose-cap:begin */` goes **immediately
-after the rationale comment**, so the rationale comment sits *outside* the sliced region. This is
-load-bearing: the new rationale must explain why callouts left the cap, so the literal `.callout`
-will appear in its prose, and test 1 scans the slice for exactly that token — an inside-the-sentinels
-comment would redden test 1 on correct code. The current comment also contains literal braces
-(`` `* { margin: 0 }` ``), which would desynchronise any brace split of the slice.
+**Locating the block — both sentinels are pinned INSIDE the `@media` block.**
+`/* prose-cap:begin */` goes immediately **before the rule's first selector** (i.e. just after
+`@media screen and (min-width: 641px) {`), and `/* prose-cap:end */` immediately **after the rule's
+closing brace**, still inside the `@media`. The slice is then exactly
+`prelude { max-width: 46rem; }` — no at-rule, no comment. Both placements are load-bearing:
+
+- **The rationale comment must stay outside.** The new rationale must explain why callouts left the
+  cap, so the literal `.callout` will appear in its prose, and test 1 scans the slice for exactly
+  that token — an inside-the-sentinels comment would redden test 1 on correct code. The comment also
+  contains literal braces (`* { margin: 0 }`), which would desynchronise a brace split.
+- **The `@media` prelude must stay outside.** With the begin sentinel before `@media … {`, splitting
+  the slice on the closing brace fuses the at-rule prelude onto the first selector, yielding
+  `@media screen and (min-width: 641px) { html.unit-tree-collapsed … .el--text` as "selector 1".
+  That is the exact trap `tests/test_consumption_css.py:183-189` documents. The sorted comparison
+  could never match, and the "contains `[data-unit-shell]`" check would pass vacuously on the fused
+  string.
 
 **Extraction is a four-step sequence, not a choice:** (1) read the file **un-stripped** — the
-sentinels are comments; (2) slice between them; (3) strip comments from the slice; (4) then split on
-`}` or scan for `.callout`. Steps 1 and 3 are both mandatory.
+sentinels are comments; (2) slice between them; (3) strip comments from the slice; (4) take
+`slice.rsplit("{", 1)[0]` as the prelude, then split it on `,`. Steps 1 and 3 are both mandatory.
 
 ### R3 — a widened tinted box with short content
 
@@ -421,6 +473,12 @@ assertions being changed.
 slack (`- 100`, `+ 50`) are banned as primary assertions: at the real geometry they leave 36-44px of
 headroom and flip red on correct code if `.app-main` or any padding ever narrows.
 
+**State discipline.** Expanded, the column is 648px and *every* capped element also measures 648, so
+equality-only and `<= 738`-only assertions pass in the wrong TOC state. **Tests 3, 5, 6, 8, 9 and 10
+must each assert `document.documentElement.classList.contains('unit-tree-collapsed')` explicitly**,
+and test 7 must assert the class is **absent**. This is not width-derived and therefore cannot be
+satisfied by the wrong state.
+
 ### Tests that must change
 
 1. **`courses/tests/test_callout_nesting_css.py`** — `:22` is the test *name* to rename; `:29` is the
@@ -431,45 +489,54 @@ headroom and flip red on correct code if `.app-main` or any padding ever narrows
    (`\.callout\s*,`), so a `.callout` re-added as the *last* prelude selector escapes it; fold it into
    the inverted assertion or widen its terminator to `[,{]`.
 
-2. **`tests/test_e2e_callout_container.py:147-150`**. Rewrite to assert the two callout widths are
-   **equal AND both exceed 736px** — equality alone passes when *both* are capped, the squeezed-table
-   regression this test prevents. Its **docstring at `:117-121` must also be corrected**: it states
-   the column as "min(viewport, 72rem) - 2.4rem - 3rem", the pre-`.app-main` formula this spec
-   supersedes, which yields 1065.6px at the 1280px viewport the test uses.
+2. **`tests/test_e2e_callout_container.py:146-156`** — the `prose_box` arm at `:147-151` *and* the
+   `wide_box` arm at `:152-156`; the old anchor covered only half the edit. Rewrite to assert the two
+   callout widths are **equal AND both exceed 736px** — equality alone passes when *both* are capped,
+   the squeezed-table regression this test prevents. Its **docstring at `:117-121` must also be
+   corrected**: it states the column as "min(viewport, 72rem) - 2.4rem - 3rem", the pre-`.app-main`
+   formula this spec supersedes, which yields 1065.6px at the 1280px viewport the test uses.
 
 3. **`tests/test_e2e_unit_nav.py:1376-1398`**, `test_quiz_chrome_is_capped_across_both_page_states`.
    Four assertions go red (`:1379` and `:1398` loops assert `w <= 736 + 2`). Rewrite so
    `.lesson-unit__title` still asserts `<= 738` while `.el--question`, `[data-quiz-preview-notice]`
-   and `.quiz-finish` equal the column. **The rewrite must not become state-blind:** expanded, the
-   column is 648, the title passes `<= 738`, and the other three equal the recipe's own reading of
-   648 — every rewritten assertion would pass in the wrong TOC state. Keep an explicit,
-   non-width-derived collapsed-state check (assert
-   `document.documentElement.classList.contains('unit-tree-collapsed')`). Re-derive the docstring at
-   `:1382-1387`. Keep the `locator(...).count()` existence assertions untouched.
+   and `.quiz-finish` equal the column. Apply the State discipline rule above; re-derive the
+   docstring at `:1382-1387`. Keep the `locator(...).count()` existence assertions untouched.
 
-4. **`tests/test_consumption_css.py`** changes in exactly three ways: the floor becomes `>= 16`; the
-   R2 exact-list assertion is added; and the docstring at `:157-167` is re-derived — it says "the
-   **thirteen** capped selectors" and "four of the **thirteen** entries", and after this change the
-   count is twelve with three of those four leaving the cap. Nothing else may be weakened.
+4. **`tests/test_consumption_css.py`** — **five** sites carry the old counts, plus the new assertion:
+   the floor at `:211` (`>= 17` → `>= 16`); its message at `:212-213` ("expected >= 17"); the
+   derivation comment at `:207-210` ("one per allow-list entry (13) = 17" → `4 + 12 = 16`); the
+   comment at `:189` ("the entire thirteen-selector list"); and the docstring at `:157-166`
+   ("the **thirteen** capped selectors", "four of the **thirteen** entries" — after this change the
+   count is twelve and three of those four leave the cap). Then add the R2 exact-list assertion.
+   Nothing else may be weakened. Per `comments-can-fail-tests` this repo treats such prose as
+   load-bearing, so leaving any of the five stale is a defect, not a cosmetic miss.
 
 ### Tests to add
 
 5. **Card-width agreement (e2e):** on one seeded lesson unit, a plain question card, a `choicegrid`
-   card, a text-only callout and a container callout all have equal width; **and `.lesson-unit__head`
-   equals the column while `.lesson-unit__head .lesson-unit__title` measures 736**. On the quiz page,
-   `[data-quiz-preview-notice]` equals the question-card width (needs the owner-not-enrolled load —
-   see `test_quiz_chrome_is_capped_across_both_page_states`'s docstring). The `.lesson-unit__head` arm
-   must live here, not in test 3: `_quiz_article.html` has no `.lesson-unit__head` at all (its `<h1>`
-   is a bare child of `<article class="quiz">`), so test 3 can never cover it — and it is the one
-   removed entry the spec flags as a judgement call.
+   card, a text-only callout and a container callout all have equal width, **and at least one of them
+   equals the Reading recipe's column reading** (peer-equality alone is state-blind). Also assert
+   `.lesson-unit__head` equals the column — but assert its title **directionally** (title width
+   greater than in a capped control, or simply `< 738`), **never** `abs(title - 736) < 2`: with the
+   three-item head the title lands at ~650px and a 736 assertion fails on correct code. On the quiz
+   page, `[data-quiz-preview-notice]` equals the question-card width (needs the owner-not-enrolled
+   load — see `test_quiz_chrome_is_capped_across_both_page_states`'s docstring). The
+   `.lesson-unit__head` arm must live here, not in test 3: `_quiz_article.html` has no
+   `.lesson-unit__head` at all, so test 3 can never cover it — and it is the one removed entry the
+   spec flags as a judgement call.
 
-6. **Prose-inside-a-box (e2e):** `.callout__body` and `.question__stem` measure 736px inside their
-   widened boxes. **Assert `abs(width - 736) < 2`.** Do not assert merely "narrower than its own box"
-   — both containers have padding, so a child is *always* narrower, cap or no cap.
+6. **Prose-inside-a-box (e2e):** `.callout__body`, `.question__stem`, `.question__choices`,
+   `.question__feedback` and `textarea.question__text-input` each measure 736px inside their widened
+   boxes. **Assert `abs(width - 736) < 2`.** Do not assert merely "narrower than its own box" — the
+   containers have padding, so a child is *always* narrower, cap or no cap. The container callout
+   fixture must carry a **non-empty `body`**: `calloutelement.html:7` renders `.callout__body` under
+   `{% if el.body %}`, so a children-only callout has no body element and the locator resolves to
+   nothing. Scope each locator to its own card/callout.
 
 7. **Expanded state (e2e):** the expanded column is 648px, **below** the cap, so a lifted rule changes
    no measured width and a width-based test passes on its own mutant. Assert **computed style**:
-   `getComputedStyle(el).maxWidth === 'none'` for the callout and both question cards.
+   `getComputedStyle(el).maxWidth === 'none'` for the callout and both question cards, with the
+   `unit-tree-collapsed` class asserted **absent**.
 
 8. **Grid-type stems narrow (e2e):** the five grid types are excluded today, so their stems fill the
    **card's inner box** (~830px, *not* the 872px column); adding `.question__stem` narrows them to
@@ -483,7 +550,9 @@ headroom and flip red on correct code if `.app-main` or any padding ever narrows
    `.el--choicegrid .question__stem`.
 
 9. **Short-answer input unchanged (e2e):** `input.question__text-input` still measures **352px**
-   (22rem) in the collapsed state, pinning the specificity hazard described under "In".
+   (22rem) in the collapsed state, pinning the specificity hazard described under "In". The
+   collapsed-state assertion is mandatory here: the `:319-320` cap is unscoped, so the input measures
+   352px in *both* states and the mutant only diverges collapsed.
 
 10. **Fieldset stems (e2e), per R1:** pin whichever branch measurement selects, for **both** drag-fill
     and fill-blank, and record the measured numbers in the plan.
@@ -497,7 +566,7 @@ headroom and flip red on correct code if `.app-main` or any padding ever narrows
 | 3 | re-add `[data-quiz-preview-notice]` and `.quiz-finish`; **and separately** drop the collapsed-state guard and run expanded, to prove the state check still bites |
 | 4 | remove one selector from the block (length + list assertion); duplicate one selector (length assertion); unscope one selector (positive assertion) |
 | 5 | re-add the **whole** old `.el--question:not(.el--choicegrid):not(…)` entry — this caps the plain card at 736 while the choicegrid card stays at the column, reddening the plain-vs-choicegrid and plain-vs-callout comparisons (it does **not** redden callout-vs-callout); **separately** re-add `.lesson-unit__head` to the cap for that arm |
-| 6 | delete the `.question__stem` entry (stem half); **and separately** remove `.el--text` from the block, so `.callout__body` fills the callout's ~836px box (body half). Both halves must be shown red independently |
+| 6 | one mutant **per capped container**, each deleting only that entry: `.question__stem`; `.el--text` (which carries `.callout__body`, so this is the body half); `.question__choices`; `.question__feedback`; `textarea.question__text-input`. Every arm must be shown red independently |
 | 7 | re-add a **deleted** entry — e.g. `.callout:not(:has(> .callout__children))` — **without** the `html.unit-tree-collapsed` prefix, so the expanded state regains a `max-width: 46rem`. (The obvious mutant "unscope one of the *new* rules" does **not** work: the new rules are `.question__stem` / `.question__choices` / `.question__feedback` / `textarea…`, none of which is a subject of test 7.) |
 | 8 | delete the `.question__stem` entry |
 | 9 | write the new textarea entry with a bare class (`.question__text-input`), which out-specifies `:319-320` and jumps the input to 736 |
@@ -513,6 +582,7 @@ assertions must extract the block first (via the R2 sentinels and its four-step 
 ### Regression scope
 
 - Non-e2e suite plus the e2e files touching callouts, questions, the unit shell, and consumption CSS.
+- `tests/test_e2e_unit_head_layout.py` guards the three-item head row and must stay green.
 - The teacher review page and quiz results page render none of these capped selectors inside
   `[data-unit-shell]` (only `_unit_shell.html` carries that attribute); confirm no e2e covering them
   changes.
@@ -522,8 +592,9 @@ assertions must extract the block first (via the R2 sentinels and its four-step 
 Screenshot the collapsed student unit page in **light and dark**, judged separately
 (`verify-ui-with-screenshots`), showing a text-only callout, a container callout, a plain question
 card and a grid question card together; a quiz page showing the `.quiz-finish` separator against the
-card edges; and **a long lesson title**, to see the re-wrap. Dark mode is what catches a tinted box
-whose widened area reads as a different surface.
+card edges; and **a long lesson title on a unit with a stateful element** (so the three-item head
+renders), to see the re-wrap. Dark mode is what catches a tinted box whose widened area reads as a
+different surface.
 
 ### Test-run mechanics
 
