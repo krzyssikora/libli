@@ -1180,6 +1180,10 @@ Expected: all PASS. `EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}` must be unto
 2. Restore, then hardcode `checked` on the new `<input data-gate>` (drop the `{% if %}` but keep the attribute) → `test_partial_has_gate_checkbox_unchecked_by_default` RED, and the checked-state test stays GREEN. Mutant 1 leaves this test green, so it needs its own.
 3. Restore, then delete the `grid_data` override → `test_rejected_save_keeps_the_gate_ticked` RED.
 4. Restore, then drop `gate: !!(gate && gate.checked),` from `serialize` → `test_editor_js_serializes_the_gate_flag` RED.
+5. Restore, then delete `var gate = editor.querySelector("[data-gate]");` → the same test RED on its *first* assertion.
+6. Restore, then delete the `gate.addEventListener("change", serialize);` line → the same test RED on its *third* assertion.
+
+Mutants 4-6 are separate for the reason Task 1 Step 6 gives: that test makes three independent assertions, and one combined mutant would let two of them hide. Likewise, removing the `data-gate` attribute from the partial altogether reddens the presence clause of `test_partial_has_gate_checkbox_unchecked_by_default`, which mutant 2 leaves untouched.
 
 That third mutant is guarded by `test_editor_js_serializes_the_gate_flag`, written in Step 1.
 
@@ -1395,7 +1399,7 @@ families describe theirs."
 
 **Interfaces:** consumes everything above.
 
-**Read `tests/test_e2e_filltable.py` and `tests/test_e2e_reveal_gate.py` first.** Reuse `_login`, `_seed_student`, `_new_unit`, `_unit_url`, `_text`, `_gate` and `_seed_state` from the reveal-gate file, and the `_CORRECT` / `_INCORRECT` / `_SUCCESS` / `_RETRY` regexes plus the `_confirm` / `_summary` locators from the fill-table file. Neither file has a gated-fill-table factory, so write one (below).
+**Read `tests/test_e2e_filltable.py` and `tests/test_e2e_reveal_gate.py` first.** Reuse `_login`, `_new_unit`, `_unit_url`, `_text`, `_gate` and `_seed_state` from the reveal-gate file, and the `_INCORRECT` / `_SUCCESS` regexes plus the `_confirm` / `_summary` locators from the fill-table file. **The preamble's import block below is authoritative** — it lists exactly the ten symbols the tests use. Do not also import `_seed_student` (`_new_unit` creates the student), `_CORRECT` or `_RETRY` (no test asserts a per-cell correct class or a retry summary); ruff selects `F`, so an unused import fails the branch gate. Neither file has a gated-fill-table factory, so write one (below).
 
 **Write the module preamble out first — without it the run command selects nothing.** `pyproject.toml:49` sets `addopts = "-q -m 'not e2e'"`, so an e2e file is selected *only* by an explicit marker; and every test in both reference files carries `@pytest.mark.django_db(transaction=True)` (Playwright runs in another thread and cannot see rows held in an uncommitted test transaction). The `_allow_async_unsafe` fixture is defined locally in each e2e file and does **not** transfer through an import.
 
@@ -1442,7 +1446,7 @@ Every test carries `@pytest.mark.django_db(transaction=True)`. Steps 1-7 show on
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_wrong_answer_keeps_content_hidden(page, live_server):
-    unit = _new_unit("ftg_wrong")
+    _student, unit = _new_unit("ftg_wrong")     # returns a (student, unit) PAIR
     (table_row, _t), (trailing_row, _tr) = _seed(
         unit, _filltable(gate=True), _text("trailing")
     )
@@ -1451,7 +1455,9 @@ def test_wrong_answer_keeps_content_hidden(page, live_server):
     # ... step body ...
 ```
 
-Each test needs its own unique username (`_new_unit` / `_login` share it), as the two reference files do.
+**`_new_unit` returns `(student, unit)`, not a unit** (`tests/test_e2e_reveal_gate.py:75-85`). Binding a single name makes `unit` a 2-tuple, and every test then dies at setup — `Element.objects.create(unit=<tuple>)` / `_unit_url` raising `AttributeError: 'tuple' object has no attribute 'unit_type'`. Use `_student, unit = …` (the leading underscore matches both reference files and keeps ruff quiet), except in **test 26**, which needs the real binding `student, unit = …` because its fixture calls `_seed_state(student, unit, …)`.
+
+Each test needs its own unique username (`_new_unit` and `_login` must be given the same one), as the two reference files do. Each step below opens with its own fixture lines; they are not interchangeable, because `_seed` returns `(join_row, concrete_obj)` pairs and every step unpacks a different shape.
 
 **Five traps this suite must avoid:**
 
@@ -1534,6 +1540,13 @@ assert _visible(page, trailing_row.pk) is False
 - [ ] **Step 2: Test 22 — a correct answer reveals**
 
 ```python
+_student, unit = _new_unit("ftg_correct")
+(table_row, _t), (trailing_row, _tr) = _seed(
+    unit, _filltable(gate=True), _text("trailing")
+)
+_login(page, live_server, "ftg_correct")
+page.goto(_unit_url(live_server, unit))
+
 inp = page.locator(".filltable__input").first
 inp.fill(_ANSWER)
 _confirm(page).click()
@@ -1549,6 +1562,13 @@ assert _visible(page, trailing_row.pk) is True
 **The fixture must place the two gating tables as immediately adjacent scope children, with nothing between them.** This differs deliberately from mat-pp unit 322, whose tables are separated by a text element: `cascadeFrom` calls `focusTargetIn` only when `lastRevealed === firstNew`, so with anything in between the focus branch never fires and the last assertion here cannot pass.
 
 ```python
+_student, unit = _new_unit("ftg_chain")
+(table1_row, _t1), (table2_row, _t2), (trailing_row, _tr) = _seed(
+    unit, _filltable(gate=True), _filltable(gate=True), _text("trailing")
+)   # ADJACENT: nothing between the two tables
+_login(page, live_server, "ftg_chain")
+page.goto(_unit_url(live_server, unit))
+
 # solve table 1 (its inputs are the only enabled ones while table 2 is hidden)
 inp1 = page.locator(f"{_block(table1_row.pk)} .filltable__input").first
 inp1.fill(_ANSWER)
@@ -1574,6 +1594,13 @@ assert _visible(page, trailing_row.pk) is True
 - [ ] **Step 4: Test 24 — reload restores**
 
 ```python
+_student, unit = _new_unit("ftg_reload")
+(table_row, _t), (trailing_row, _tr) = _seed(
+    unit, _filltable(gate=True), _text("trailing")
+)
+_login(page, live_server, "ftg_reload")
+page.goto(_unit_url(live_server, unit))
+
 inp = page.locator(".filltable__input").first
 inp.fill(_ANSWER)
 with page.expect_response(               # AWAIT the state POST -- see trap 1
@@ -1594,7 +1621,12 @@ The restored input is `readonly` (server-rendered), not `disabled` — `_filltab
 - [ ] **Step 5: Test 25 — pre-tick, single gate**
 
 ```python
-(table_row, table_obj), (trailing_row, _tr) = table_and_trailing   # from _seed(...)
+_student, unit = _new_unit("ftg_pretick")
+(table_row, table_obj), (trailing_row, _tr) = _seed(
+    unit, _filltable(gate=False), _text("trailing")     # seeded UNGATED -- see the fixture note
+)
+_login(page, live_server, "ftg_pretick")
+page.goto(_unit_url(live_server, unit))
 inp = page.locator(".filltable__input").first
 inp.fill(_ANSWER)
 with page.expect_response(
@@ -1624,6 +1656,16 @@ What distinguishes this from test 24 is **ordering, not storage** — test 24 al
 Seed table 2 `{"done": true}` with table 1 unsolved, tick `gate` on both, load, solve table 1:
 
 ```python
+# NOTE: `student`, not `_student` -- _seed_state needs it.
+student, unit = _new_unit("ftg_prechain")
+(table1_row, _t1), (table2_row, _t2), (trailing_row, _tr) = _seed(
+    unit, _filltable(gate=True), _filltable(gate=True), _text("trailing")
+)
+# Table 2 was solved back when both were ungated: seed its blob directly.
+_seed_state(student, unit, {str(table2_row.pk): {"done": True}})
+_login(page, live_server, "ftg_prechain")
+page.goto(_unit_url(live_server, unit))
+
 # Solve table 1, AWAITING the state POST (trap 1) -- this test reloads, so the
 # expect(summary) pattern used by test 23 is not sufficient here:
 inp1 = page.locator(f"{_block(table1_row.pk)} .filltable__input").first
@@ -1651,6 +1693,14 @@ This pins **accepted** behaviour, documented in the spec's Error handling table.
 Solve the **ungated** table (which has a following sibling in its own scope):
 
 ```python
+_student, unit = _new_unit("ftg_ungated")
+(table_row, _t), (ungated_trailing_row, _ut), (gate_row, _g), (gated_trailing_row, _gt) = _seed(
+    unit, _filltable(gate=False), _text("ungated-trailing"),
+    _gate("Show more"), _text("gated-trailing"),
+)   # the trailing _gate is what makes has_reveal_gate true so reveal.js LOADS
+_login(page, live_server, "ftg_ungated")
+page.goto(_unit_url(live_server, unit))
+
 inp = page.locator(f"{_block(table_row.pk)} .filltable__input").first
 inp.fill(_ANSWER)                       # fill() itself scrolls the input into view...
 scroll_before = page.evaluate("window.scrollY")   # ...so capture AFTER it
