@@ -186,14 +186,18 @@ class IframeElementForm(forms.ModelForm):
         raw = self.cleaned_data.get("url", "")
         url = extract_embed_url(raw)
         width, height = parse_iframe_dimensions(raw)
-        mid = geogebra_material_id(url)  # hoisted: both guards below use it
+        mid = geogebra_material_id(url)  # hoisted: used by the lookup guard below
         url_changed = url != self.instance.url
 
-        # A stored pair describes the OLD material once the URL changes, so drop it
-        # and let the new material take the normal lookup path. Scoped to GeoGebra:
-        # clearing provider-neutrally would wipe a Vimeo element's captured pair on
-        # any URL edit, with no lookup available to restore it.
-        if url_changed and not usable_dimensions(width, height) and mid:
+        # A stored pair describes the URL it was captured from, so any URL change
+        # invalidates it: drop it and let the new URL take the normal path. Not
+        # scoped to GeoGebra -- a provider swap (or a same-provider video swap)
+        # leaves a pair that describes an unrelated embed, which frame_ratio would
+        # render as a confident, badge-less wrong ratio. Cost, accepted: a URL edit
+        # on a hand-pasted non-GeoGebra embed loses the pair, and the textarea holds
+        # the stored canonical URL rather than the original snippet, so restoring it
+        # means re-pasting the embed code from the provider.
+        if url_changed and not usable_dimensions(width, height):
             self.instance.width = self.instance.height = None
 
         # INVARIANT: a *usable* stored pair is never re-derived for an unchanged
