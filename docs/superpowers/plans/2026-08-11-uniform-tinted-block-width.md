@@ -381,8 +381,11 @@ reader down a dead path), so each gets an assertion rather than a promise.
 
 from pathlib import Path
 
-CSS = Path("courses/static/courses/css/courses.css")
-CALLOUT = Path("templates/courses/elements/calloutelement.html")
+# Anchored on __file__, matching tests/test_consumption_css.py:3 -- a cwd-relative
+# path would silently depend on pytest being invoked from the repo root.
+ROOT = Path(__file__).resolve().parent.parent
+CSS = ROOT / "courses" / "static" / "courses" / "css" / "courses.css"
+CALLOUT = ROOT / "templates" / "courses" / "elements" / "calloutelement.html"
 
 
 def test_text_input_comment_no_longer_claims_the_textarea_fills_the_card():
@@ -639,7 +642,8 @@ def test_every_tinted_block_and_its_chrome_is_one_width(page, live_server):
     # A question element makes has_stateful_elements true, so .lesson-unit__reset
     # renders and the head is the THREE-item row the title assertion assumes.
     add_element(
-        unit, ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7")
+        unit,
+        ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7"),
     )
     add_element(unit, ChoiceGridQuestionElement.objects.create(stem="Grid?"))
 
@@ -743,16 +747,27 @@ def test_prose_inside_a_widened_box_stays_capped(page, live_server):
     strictly narrower than its parent's border box, cap or no cap -- that assertion
     cannot fail and would read as a pin while proving nothing.
 
-    Fixture requirements, each load-bearing:
+    Fixture and locator requirements, each load-bearing:
       - the container callout carries a non-empty body, because calloutelement.html
         renders .callout__body under `{% if el.body %}` -- a children-only callout
         has no body element and the locator would resolve to nothing;
-      - the choice question carries real Choice rows, or .question__choices is an
-        empty <ul> with no width of its own;
-      - the short-text question is ANSWERED below, because .question__feedback is
-        empty on a plain load and courses.css:158 is
-        `.el--question .question__feedback:empty { display: none }` -- an unanswered
-        question has no feedback box to measure at all.
+      - the short-text card is located STRUCTURALLY. There is no `.el--shorttext`
+        class: shorttextquestionelement.html emits a bare
+        `<div class="el el--question" data-question>`, and only the five grid-ish
+        types plus fillblank carry a type modifier. Scoping on the input is what
+        makes the locator resolve;
+      - the short-text question is ANSWERED below. Its .question__feedback div is
+        NOT :empty (the `{% if %}` sits on its own line, leaving a whitespace text
+        node), so it renders as a zero-height box with a real width -- one
+        whitespace edit away from courses.css:158
+        `.el--question .question__feedback:empty { display: none }`. Driving an
+        answer means the arm measures a box with actual content rather than that
+        whitespace shell, and the width is read via getBoundingClientRect (BOX_JS)
+        rather than bounding_box(), which is unreliable on a zero-height element.
+
+    The Choice rows are realistic content, not a width requirement: courses.css:143
+    makes .question__choices a block <ul> with no width rule, so it fills its
+    container with or without <li> children.
     """
     from courses.models import CalloutElement
     from courses.models import Choice
@@ -790,14 +805,17 @@ def test_prose_inside_a_widened_box_stays_capped(page, live_server):
     _login(page, live_server, user.username)
     _collapsed(page, live_server, unit)
 
-    # Drive a real answer so the feedback slot renders. Without this
-    # .question__feedback is :empty and display:none.
-    st_card = page.locator(".el--shorttext")
+    # Drive a real answer so the feedback slot carries content. The short-text
+    # card has no type modifier class, so scope it on the input it is the only
+    # bearer of.
+    ST = "[data-question]:has(input.question__text-input)"
+    st_card = page.locator(ST)
     st_card.locator("input.question__text-input").fill("11")
     st_card.locator("button[type='submit']").click()
     page.wait_for_function(
-        "() => { const f = document.querySelector('.el--shorttext .question__feedback');"
-        " return f && f.textContent.trim().length > 0; }"
+        "(sel) => { const f = document.querySelector(sel + ' .question__feedback');"
+        " return f && f.textContent.trim().length > 0; }",
+        ST,
     )
 
     column = page.evaluate(COLUMN_JS)
@@ -805,7 +823,7 @@ def test_prose_inside_a_widened_box_stays_capped(page, live_server):
         ".callout__body",
         ".el--question .question__stem",
         ".question__choices",
-        ".el--shorttext .question__feedback",
+        f"{ST} .question__feedback",
         "textarea.question__text-input",
     ):
         w = _width(page, sel)
@@ -826,7 +844,7 @@ would leave the other four unproven.
 | `… .el--text,` | `.callout__body` (capped only via `.el--text` — this is the arm proving the body kept its cap when `.callout` left the list) |
 | `… .el--question .question__stem,` | `.el--question .question__stem` |
 | `… .question__choices,` | `.question__choices` |
-| `… .question__feedback,` | `.el--shorttext .question__feedback` |
+| `… .question__feedback,` | the `{ST} .question__feedback` arm |
 | `… textarea.question__text-input,` | `textarea.question__text-input` |
 
 - [ ] **Step 3: Run test to verify it passes**
@@ -867,13 +885,19 @@ def test_expanded_state_has_no_cap_at_all(page, live_server):
     is what the mutant actually reddens.
     """
     from courses.models import CalloutElement
+    from courses.models import ChoiceGridQuestionElement
     from courses.models import ShortTextQuestionElement
 
     user, _course, unit = _seed_unit("pa_expanded")
     add_element(unit, CalloutElement.objects.create(kind="note", body="<p>t</p>"))
     add_element(
-        unit, ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7")
+        unit,
+        ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7"),
     )
+    # Both card shapes, per the spec. The grid card was never in the cap, so it is
+    # the arm that would catch a NEW unscoped rule reaching a previously-uncapped
+    # element -- a case the plain card cannot show.
+    add_element(unit, ChoiceGridQuestionElement.objects.create(stem="Grid?"))
 
     page.set_viewport_size({"width": 1280, "height": 900})
     _login(page, live_server, user.username)
@@ -883,7 +907,7 @@ def test_expanded_state_has_no_cap_at_all(page, live_server):
         "() => document.documentElement.classList.contains('unit-tree-collapsed')"
     ), "this test must run EXPANDED; collapsed it proves nothing"
 
-    for sel in (".callout", ".el--question"):
+    for sel in (".callout", ".el--question:not(.el--choicegrid)", ".el--choicegrid"):
         mw = page.evaluate(
             "(s) => getComputedStyle(document.querySelector(s)).maxWidth", sel
         )
@@ -907,7 +931,8 @@ def test_short_answer_input_still_caps_at_22rem(page, live_server):
 
     user, _course, unit = _seed_unit("pa_input")
     add_element(
-        unit, ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7")
+        unit,
+        ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7"),
     )
 
     _login(page, live_server, user.username)
@@ -1068,12 +1093,21 @@ Expected: FAIL — the drag-fill stem returns to the card's inner box (~830) ins
 
 - [ ] **Step 3: Verify the grid arm can fail**
 
-Before removing the mutant above, also confirm the `scroll_x > grid_stem + 2` assertion is live:
-temporarily delete the five `GridColumn` rows from the fixture and re-run. Expected: FAIL (an empty
-grid gives `.scroll-x` no content to exceed the stem with). Restore the columns.
+The `scroll_x > grid_stem + 2` assertion needs its own mutant, because the first one does not touch
+it. **Do not try to falsify it by emptying the grid.** Two reasons that would not work:
+`.scroll-x` is `position: relative` only (`app.css:1675`) with no width rule, so it is a plain block
+div filling the bare `<fieldset>` (~830px) regardless of what the table contains — the inner
+`.choicegrid-scroll` is the `overflow-x: auto` scroller (`courses.css:1373`), contributing no
+min-content — so an empty grid still measures ~830 and the assertion still passes; and deleting the
+`GridColumn` rows raises `IndexError` on `cols[0]` in the `GridRow` loop, which is a red that has
+nothing to do with the assertion.
 
-This step exists because an unseeded grid renders an empty table, and the assertion would otherwise
-pass whether or not any widget is wide.
+Use instead: temporarily delete `html.unit-tree-collapsed [data-unit-shell] .el--question
+.question__stem,` from the prelude. `grid_stem` becomes ~830, so `scroll_x > grid_stem + 2` becomes
+`830 > 832` and reddens (alongside the `abs(grid_stem - 736) < 2` half). Hand-edit it back.
+
+The `GridColumn`/`GridRow` rows stay in the fixture as realistic content — a five-column grid is what
+this widget looks like in use — but they are not what makes the assertion falsifiable.
 
 - [ ] **Step 4: Remove the mutant and re-run**
 
@@ -1125,7 +1159,9 @@ Replace `:1375-1379` with:
         "() => document.querySelector('.lesson-unit__title')"
         ".getBoundingClientRect().width"
     )
-    assert title_w <= 736 + 2, f".lesson-unit__title must cap at 736px, got {title_w:.1f}"
+    assert title_w <= 736 + 2, (
+        f".lesson-unit__title must cap at 736px, got {title_w:.1f}"
+    )
     for sel in ("[data-quiz-preview-notice]", ".el--question"):
         w = page.evaluate(
             f"() => document.querySelector({sel!r}).getBoundingClientRect().width"
@@ -1169,8 +1205,15 @@ Expected: PASS.
 1. Re-add `html.unit-tree-collapsed [data-unit-shell] [data-quiz-preview-notice],` and
    `html.unit-tree-collapsed [data-unit-shell] .quiz-finish,` to the prelude → expect FAIL on both
    column-equality assertions. Hand-edit out.
-2. Delete the `page.wait_for_function(… 'unit-tree-collapsed' …)` guard **and** comment out
-   `_collapse(page)` in Load A so the page renders expanded → expect FAIL. Restore both.
+2. Comment out **only** `_collapse(page)` in Load A, leaving the `wait_for_function` guard in place
+   → expect FAIL (the guard times out waiting for a class the page never gets). Restore it.
+
+   **Do not also delete the guard.** With both gone the page renders expanded, the column reads 648,
+   `title_w` = 648 satisfies `<= 736 + 2`, and both `abs(w - column) < 2` arms compare 648 against a
+   648 reading — the mutated run goes **green**. That is exactly what this task's own re-derived
+   comment says ("the column-equality assertions compare against whatever column is actually
+   rendered, so they hold expanded too"), and it is why the guard is a `wait_for_function` rather
+   than a width assertion: no width assertion here can detect the wrong state.
 
 - [ ] **Step 5: Run the whole file**
 
@@ -1205,8 +1248,24 @@ measures 872.
 
 Rename to `test_both_callout_shapes_render_at_one_width`.
 
-Replace the docstring's second paragraph — **lines 117-119 only**; line 120 is the closing `"""` and
-must be left in place — with:
+**Both** docstring paragraphs need rewriting, not just the second.
+
+Replace the FIRST paragraph (`:112-115`, "Without seeding it, both arms measure the uncapped state
+and the assertion is vacuous") — that sentence justified the *old* assertion (`prose == 736`
+exactly). The rewritten pair is `equal AND both > 736`, which in the un-seeded expanded state
+measures 648/648 and **fails** rather than passing vacuously, so the stale text now says the opposite
+of how the test behaves:
+
+```
+    The cap is `html.unit-tree-collapsed [data-unit-shell] ...` under
+    `@media screen and (min-width: 641px)`, and that class is set by the TOC-pin JS
+    from localStorage -- NEVER by the server. Without seeding it the page renders
+    expanded, both arms measure 648px, and the `> 736` half REDDENS -- so the seed
+    is what makes this test meaningful, not merely non-vacuous.
+```
+
+Then replace the second paragraph — **lines 117-119 only**; line 120 is the closing `"""` and must be
+left in place — with:
 
 ```
     641px is NOT enough either: the collapsed content box is .app-main's 960px cap,
@@ -1217,7 +1276,8 @@ must be left in place — with:
     block first.)
 ```
 
-Replace the two measurement arms (`:146-156`) with:
+Replace the two measurement arms (`:146-155` — `:156` is the blank separator before the next test and
+must be left alone, or `ruff format` will flag the missing line) with:
 
 ```python
     prose_w = page.locator(".callout:not(:has(> .callout__children))").bounding_box()[
@@ -1332,18 +1392,22 @@ decision, and reversing one is the user's call.
 - [ ] **Step 6: Draft the PR-body note for the chrome decision**
 
 The spec requires the chrome decision be called out so the user can reverse it cheaply. Write this
-paragraph into the PR body (Task 11 of the pipeline, or by hand if opening the PR manually):
+paragraph into the PR body at the pipeline's PR-opening step (or by hand, if opening the PR
+manually):
 
 > **One judgement call beyond the literal request.** `.quiz-finish` and `.lesson-unit__head` are not
 > tinted, so by the letter of "blocks with a background" they would have stayed capped at 736px. Both
 > are chrome drawn *around* the question cards: `.quiz-finish` is the separator rule under them, and
 > `.lesson-unit__head` holds the right-aligned "Mark as done" pill. Left capped, each would stop
 > 136px short of the card edges it frames. They were moved out of the cap so their edges align.
-> **To revert just this part:** re-add
+> **To revert just this part**, five edits — re-add
 > `html.unit-tree-collapsed [data-unit-shell] .quiz-finish,` and
-> `html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,` to the prose-cap prelude, update
-> `PROSE_CAP_SELECTORS` in `tests/test_consumption_css.py` to 14 entries, and drop the
-> `.lesson-unit__head` arm from `test_every_tinted_block_and_its_chrome_is_one_width`.
+> `html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,` to the prose-cap prelude, then in
+> `tests/test_consumption_css.py` add both to `PROSE_CAP_SELECTORS` (12 → 14 entries) and change
+> `assert len(prelude) == 12` to 14 and `assert examined >= 16` to 18; drop the `.lesson-unit__head`
+> arm from `test_every_tinted_block_and_its_chrome_is_one_width`; and move `.quiz-finish` and
+> `[data-quiz-preview-notice]` back from the column-equality loops to `<= 736 + 2` in
+> `test_e2e_unit_nav.py`.
 > Side effect if kept: the lesson title's measure grows from ~514px to ~644px, so long titles re-wrap.
 
 - [ ] **Step 7: Commit**
