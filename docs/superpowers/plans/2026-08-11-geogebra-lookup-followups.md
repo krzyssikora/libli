@@ -181,11 +181,19 @@ Expected: FAIL — `ImportError: cannot import name '_BudgetExceeded'`.
 
 - [ ] **Step 3: Add the import and the constants**
 
-In `courses/geogebra.py`, add to the import block (`:17-22`):
+In `courses/geogebra.py`, add to the import block (`:17-22`). `pyproject.toml:43-44` sets `force-single-line = true`, and ruff's default section ordering puts `from time import ...` in the same stdlib block sorted by module name — so it goes **after `import urllib.request` and before `from urllib.parse import urlsplit`**:
 
 ```python
+import json
+import logging
+import re
+import urllib.error
+import urllib.request
 from time import monotonic
+from urllib.parse import urlsplit
 ```
+
+Getting this wrong surfaces as `I001` only at Task 6's lint gate, which means re-touching files from earlier commits — so run `uv run ruff check --no-cache courses/geogebra.py` before this task's commit, not just `ruff format`.
 
 Import the **bare name**, not the module. `courses.geogebra.time` *is* the stdlib module object, so patching `courses.geogebra.time.monotonic` would rebind `time.monotonic` process-wide, where `threading`, `logging`, `socket` and pytest's own internals would consume the test's scripted clock values. The bare name gives the clock the same module-local patch seam `_open` already has.
 
@@ -201,10 +209,10 @@ _API_PREFIX = "https://api.geogebra.org/"
 # _fetch_body's chunk budget bounds the worker. Measured: a peer dribbling one
 # byte per second held a single read for 16.18s against this 3s timeout.
 _TIMEOUT_SECONDS = 3
-# Total bound on the lookup, enforced by joining the worker thread. Deliberately
-# LARGER than a single socket op so a failure in the FIRST op still surfaces as
-# itself -- the blackhole/connect path times out at a measured ~3.29s and must
-# keep reporting "lookup failed (timeout)" rather than racing this deadline.
+# Total bound on the lookup. Deliberately LARGER than a single socket op so a
+# failure in the FIRST op still surfaces as itself -- the blackhole/connect path
+# times out at a measured ~3.29s and must keep reporting "lookup failed (timeout)"
+# rather than racing this deadline.
 _DEADLINE_SECONDS = 5
 # Chunk size for the body read. Larger chunks mean fewer syscalls but coarser
 # budget-check granularity; the loop may overshoot the cap by up to one chunk
@@ -387,7 +395,7 @@ def test_fetch_negative_caches_a_deadline(monkeypatch):
     cls = _slow_resp_cls(released, entered)
     try:
         opener_patch = patch(
-            "courses.geogebra._open", side_effect=lambda *a, **k: cls(b"{}")
+            "courses.geogebra._open", side_effect=lambda *a, **k: cls(_payload("wseg.json"))
         )
         with opener_patch as opener:
             assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
@@ -445,7 +453,7 @@ In `fetch_geogebra_dimensions`, inside the existing `try`, replace Task 2's thre
                 box["exc"] = exc  # store FIRST
                 try:
                     exc.close()  # then close; HTTPError only, harmless otherwise
-                # noqa below: closing must never mask the original
+                # the guard below: closing must never mask the original
                 except Exception:  # noqa: BLE001, S110
                     pass
 
@@ -471,7 +479,9 @@ In `fetch_geogebra_dimensions`, inside the existing `try`, replace Task 2's thre
             return _fail("lookup returned a non-bytes body")
 ```
 
-Add `import threading` to the module's imports.
+Add `import threading` to the module's imports — first in the stdlib block's sort order after `import re`, i.e. `import json / import logging / import re / import threading / import urllib.error / ...`.
+
+Also extend the `_DEADLINE_SECONDS` comment now that the mechanism it names exists: prepend "enforced by joining the worker thread" to its first line. Task 2 deliberately left that clause out, because at Task 2's commit there was no worker thread and the comment would have described machinery that had not arrived — the same false-mechanism problem this change spends four steps removing.
 
 Three traps, each already paid for:
 
@@ -486,7 +496,14 @@ Expected: **110 passed**. The six existing fetch tests are Component A's real ga
 
 - [ ] **Step 5: Falsify test 1**
 
-Replace the threading block with a direct `body = _fetch_body(request, deadline)`.
+Replace the threading block with Task 2 Step 5's synchronous three lines — note that `budget`/`deadline` must be **kept**, since the threading block is where they are defined and a bare `body = _fetch_body(request, deadline)` would raise `NameError` rather than failing on the assertion:
+
+```python
+        budget = _DEADLINE_SECONDS
+        deadline = monotonic() + budget
+        body = _fetch_body(request, deadline)
+```
+
 Run: `uv run pytest tests/test_geogebra.py -k "slow_body" --verbosity=0`
 Expected: FAIL — on the caplog assertion. The mutant still returns `(None, None)` (it blocks 3s, returns the payload, then trips the budget at the next loop top and logs `lookup failed (_BudgetExceeded)`), which is exactly why the reason assertion is this test's sole discriminator.
 **Edit it back by hand.** Re-run: PASS.
@@ -532,7 +549,7 @@ For test 3: replace `return _fail("deadline exceeded")` with a bare `return None
 Run: `uv run pytest tests/test_geogebra.py -k "negative_caches_a_deadline" --verbosity=0`
 Expected: FAIL — no sentinel is written, so the second call also reaches `_open` and `call_count == 2`. **This is test 3's only gate** (see Step 2 — it was green before the fix), so do not skip it.
 
-For test 4: pass `_fail` a generic reason string instead of the deadline one.
+For test 4: pass `_fail` a generic reason string instead of the deadline one. Every deadline test asserts the `"deadline"` substring, so this reddens tests 1, 2 and 4 together — the `-k` filter scopes the run to test 4.
 Run: `uv run pytest tests/test_geogebra.py -k "names_the_id" --verbosity=0`
 Expected: FAIL — the id is still logged but the reason substring is absent.
 
@@ -571,16 +588,18 @@ These are now false or incomplete. Leaving them is the false-mechanism failure t
         # unexplained ResourceWarning if the worker path ever changed.
 ```
 
-3. **The module docstring** (`:7-14`): append this paragraph to the existing text — do not replace what is there.
+3. **The module docstring** (`:7-14`): the existing text at `:10-11` already says "the one network function performs a single capped GET behind the ``GEOGEBRA_API_LOOKUP`` kill switch". **Extend that clause in place** — do not append a paragraph restating it, which would leave the same sentence twice with the incomplete original still standing (the exact "incomplete comment" defect this rewrite exists to remove). Keep the file's ``double-backtick`` markup.
+
+Append to the existing sentence, then add the boundary rule:
 
 ```
-The one network function performs a single capped GET behind the
-GEOGEBRA_API_LOOKUP kill switch, on a bounded background daemon thread under a
-total deadline (_DEADLINE_SECONDS), with the body read chunked against the same
-budget so an abandoned worker cannot park indefinitely. This is the repository's
-only production background thread. The worker's boundary rule: NO ORM, NO cache,
-NO logging -- it only calls _open, reads bytes, and stores into a result box.
-Everything else stays on the main thread.
+... behind the ``GEOGEBRA_API_LOOKUP`` kill switch, on a bounded background daemon
+thread under a total deadline (``_DEADLINE_SECONDS``), with the body read chunked
+against the same budget so an abandoned worker cannot park indefinitely.
+
+This is the repository's only production background thread. The worker's boundary
+rule: NO ORM, NO cache, NO logging -- it only calls ``_open``, reads bytes, and
+stores into a result box. Everything else stays on the main thread.
 ```
 
 - [ ] **Step 9: Update the architecture doc**
@@ -673,7 +692,7 @@ Expected: FAIL — the logged reason becomes `lookup failed (_BudgetExceeded)`, 
 
 - [ ] **Step 4: Falsify 5c — mutant two (partial body stored)**
 
-Change `_fetch_body` to return `b"".join(chunks)` instead of raising on budget expiry.
+Change `_fetch_body` to return `b"".join(chunks)` instead of raising on budget expiry. This removes the only `raise _BudgetExceeded`, so it also reddens 5a and 5b — the `-k` filter scopes the run to 5c.
 Run: `uv run pytest tests/test_geogebra.py -k "budget_trip" --verbosity=0`
 Expected: FAIL — the truncated body reaches the parse path and the reason becomes `unparseable payload`.
 **Edit it back by hand.** Re-run: PASS.
@@ -704,7 +723,7 @@ git commit -m "test(geogebra): falsify the worker's budget-trip handling and pin
 Note what this reverses: `tests/test_iframe_dimensions.py:498` currently pins the old behaviour with the comment *"A KNOWN, ACCEPTED gap … pinned so a future change to it is deliberate"*. This is that deliberate change.
 
 **Files:**
-- Modify: `courses/element_forms.py:189`, `:196`
+- Modify: `courses/element_forms.py:189`, `:192-197` (replace the justification comment block AND the guard, not just the `if` line)
 - Modify: `tests/test_iframe_dimensions.py:377-382` (comment only — see Step 3b)
 - Test: `tests/test_iframe_dimensions.py:481-508` (rewrite two in place), plus one new
 
@@ -784,7 +803,7 @@ Expected: B1 and B2 FAIL (the pair is still `(880, 660)` / `(640, 360)`); B3 pas
 
 - [ ] **Step 3: Drop the conjunct and rewrite both comments**
 
-In `courses/element_forms.py`, at `:196`:
+In `courses/element_forms.py`, replace `:192-197` — the whole justification comment block and the guard it introduces, not just the `if` line:
 
 ```python
         # A stored pair describes the URL it was captured from, so any URL change
@@ -893,7 +912,15 @@ If you would rather run against the tuned server for parity with normal runs, co
 Run: `uv run pytest --verbosity=0`
 Expected: all pass, with **9 more tests than the branch point** (8 in `test_geogebra.py`, 1 in `test_iframe_dimensions.py`; B1 and B2 are rewritten in place and do not change the count).
 
-Capture the baseline before Task 1 rather than trusting a remembered figure: `git stash` any work, `git checkout master`, run `uv run pytest --collect-only -q | tail -1`, then return to the branch. A number from an older commit cannot be compared against this run.
+Capture the branch-point figure here rather than trusting a remembered one. **Do not `git checkout master`** — `master` is checked out in the main repo, and git refuses it from a linked worktree (`fatal: 'master' is already checked out at ...`). Use a detached checkout of the branch point instead; everything is committed by now, so nothing is at risk:
+
+```bash
+git checkout --detach d197a4c7
+uv run pytest --collect-only --verbosity=0 | tail -1
+git checkout pipeline/geogebra-lookup-followups
+```
+
+Note `--verbosity=0`, **not** `-q`: `pyproject.toml:49` already sets `addopts = "-q ..."`, so a second `-q` drops verbosity to -2, which prints per-file counts and suppresses the total. `tail -1` would then silently return the last file's count.
 
 Do **not** background this run — a backgrounded pytest that is reaped mid-run orphans the test database and the next run dies with `DuplicateDatabase`.
 
@@ -925,12 +952,15 @@ The spec has a section headed "Accepted gaps, to be recorded in the PR body" and
 - Component B **reverses a decision #238 pinned as deliberate** (`tests/test_iframe_dimensions.py:498`'s "A KNOWN, ACCEPTED gap … pinned so a future change to it is deliberate") — say so plainly rather than presenting it as a fresh bug fix
 - Component B's known cost: a URL edit on a hand-pasted non-GeoGebra embed loses the pair, with no badge and no lookup to restore it, and the textarea holds the canonical URL rather than the original snippet
 - finding 3 from the original review (the ws-level `settings` block) is **dropped as unverified** — the fixture cited as evidence pins the opposite, and `wseg.json` shows the top-level read is load-bearing
+- **thread creation and thread abandonment are different rates** — one thread is created per lookup that reaches the network, but a thread is only *abandoned* when the deadline actually fires; the common case leaves nothing parked
+- **prior design docs are left as historical record** — #238's spec and plan document the GeoGebra-scoped clear and its accepted gap; they are not annotated or amended, and this spec supersedes them
 
 - [ ] **Step 6: Commit any gate fixes**
 
-Only if Steps 2–5 required changes:
+Step 5 always produces a **new, untracked** file, so this commit is unconditional and `git add -u` alone is not enough (it stages only tracked paths):
 
 ```bash
+git add docs/superpowers/plans/pr-body-geogebra-lookup-followups.md
 git add -u
 git commit -m "chore(geogebra): branch gate fixes and PR body"
 ```
@@ -947,4 +977,4 @@ git commit -m "chore(geogebra): branch gate fixes and PR body"
 
 **Placeholders:** none. Every code step carries the code; every test step carries the assertion and the mutant, including the two that require restructuring rather than a one-line edit (Task 3 Step 6, Task 5 Step 5b) and the replacement text for all four comment rewrites.
 
-**PR body:** the spec's eleven accepted gaps are delivered by Task 6 Step 5, written to a file in the worktree so they survive a session boundary.
+**PR body:** all twelve of the spec's accepted-gap bullets are delivered by Task 6 Step 5, written to a file in the worktree so they survive a session boundary. Cross-check the list against the spec's section before committing — two were missed on the first pass.
