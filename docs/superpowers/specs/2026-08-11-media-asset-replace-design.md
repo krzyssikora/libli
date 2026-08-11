@@ -601,19 +601,33 @@ stack rather than sit on one line, and the filename must truncate the way `.asse
   cell instead. Today, with one icon button, the sum just fits; adding the third control is what
   breaks it, which is why the rule belongs to this change.
 
-  It must cover **both** branches of `_asset_cell.html:31`, not just the in-use one. When `uses` is
-  falsy the left child is a bare `<span class="muted">unused</span>` — `.85rem`
-  (`core/css/app.css:375`), and the Polish `nieużywane` is a single unbreakable ~65px word, so an
-  *unused* cell overflows exactly as an in-use one would, and unused cells are the majority. Apply
-  `min-width: 0` via a common `.asset-foot > :first-child` rule so neither branch can be missed.
+  It must cover **both** branches of `_asset_cell.html:31`. When `uses` is falsy the left child is a
+  bare `<span class="muted">unused</span>` — `.85rem` (`core/css/app.css:375`), and the Polish
+  `nieużywane` is a single unbreakable ~65px word, so an *unused* cell overflows exactly as an in-use
+  one would, and unused cells are the majority.
 
-- **The truncation triple goes on the summary, not the `<details>`.** `.asset-uses` gets
-  `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` (the trio `.asset-fname` already
-  uses, `editor.css:721-722`). Putting it on `.asset-uses-detail` instead would be a regression:
-  that is the `<details>` box, so `white-space: nowrap` inherits into every `<li>` of
-  `.asset-uses-list` while `overflow: hidden` hard-clips them at ~110px — and `text-overflow` does
-  not inherit, so there would not even be an ellipsis. That would gut the expandable unit list §6
-  step 2 explicitly leans on. Belt and braces: set `white-space: normal` on `.asset-uses-list`.
+  The rule is **`.asset-foot > :first-child:not([open]) { min-width: 0 }`**, and the `:not([open])`
+  is load-bearing in both directions. It matches the unused `<span>` (spans carry no `open`
+  attribute) and a *closed* `<details>`, which is what needs to shrink. It deliberately does **not**
+  match an **open** `<details>`: with the list expanded, max-content includes the unit titles, so an
+  unfloored item would be squeezed to whatever `.asset-actions` leaves — roughly 30px at the 8rem
+  minimum — and `.asset-uses-list` is a single-column grid (`editor.css:372-373`), so every title
+  would wrap to a few characters per line. Leaving the open state at its min-content floor keeps
+  today's behaviour: the foot overflows while expanded, and the list stays readable. Shrinking it
+  would re-create, by a different mechanism, exactly the regression the next bullet exists to prevent.
+
+- **Truncation must cover both branches too.** `overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap` (the trio `.asset-fname` already uses, `editor.css:721-722`) goes on **both**
+  `.asset-uses` — the summary — **and `.asset-foot > .muted`**. `min-width: 0` alone only lets a box
+  shrink; with overflow visible the glyphs are still painted at full width, so an unused cell would
+  render ~35px of `nieużywane` straight across the ⇄ and 🗑 buttons. Shrink without clipping is not a
+  fix, it is a worse-looking bug.
+
+  The triple must **not** go on `.asset-uses-detail`: that is the `<details>` box, so
+  `white-space: nowrap` would inherit into every `<li>` of `.asset-uses-list` while `overflow: hidden`
+  hard-clips them at ~110px — and `text-overflow` does not inherit, so there would not even be an
+  ellipsis. That would gut the expandable unit list §6 step 2 explicitly leans on. Belt and braces:
+  set `white-space: normal` on `.asset-uses-list`.
 - `.asset-replace-confirm` — column flex, small gap, `margin-top`/`padding-top` plus a
   `1px solid var(--border-default)` top rule to separate it from the foot, `font-size: .78rem`,
   `text-align: left`.
@@ -631,6 +645,11 @@ stack rather than sit on one line, and the filename must truncate the way `.asse
   content a minimum-width 8rem cell offers once `.asset-cell`'s `var(--space-2)` padding is taken
   off — and the Polish labels are no shorter. Wrapping lets them stack at the narrow end and sit on
   one line where there is room.
+
+**Three states must appear in the screenshot check at the minimum column width**, because the foot's
+geometry differs in each and only one of them involves the strip: an **unused** cell (the majority
+case, and the one the truncation rule above exists for), an in-use cell with its `<details>`
+**open**, and a cell with the confirm strip open.
 
 **The strip grows its whole grid row.** `.asset-grid` is CSS Grid with the default
 `align-items: stretch`, so appending the strip to one cell makes that grid *row* taller and stretches
@@ -694,6 +713,15 @@ row, the old file and every consuming element are untouched.
 `save()` has written the new file, that file is left on disk with no row pointing at it. This is
 exactly `create_asset`'s existing behaviour (Django commits `FileField` writes to storage outside
 transactional control), so replace inherits a known property rather than introducing one.
+
+**Accepted limitation — a filter response that lands after a replace.** §6 handles the ordering where
+the grid swap happens *during* the POST. The mirror ordering is not handled: if a filter GET is issued
+and rendered before the replace commits but its response arrives *after* the 200 has already swapped
+in the fresh cell, `oldGrid.replaceWith(newGrid)` (`media_picker.js:373-376`) reverts that cell to the
+pre-replace render. The filter's `seq` counter drops stale filter-vs-filter responses only; it knows
+nothing about replaces. The window is narrow, the row and the file on disk are both correct, and the
+display self-heals on the next keystroke or reload — so this is accepted rather than guarded, in
+preference to teaching `runFilter` about replace state.
 
 **Accepted limitation — concurrent replace.** Two managers replacing the same asset simultaneously
 resolve last-write-wins on the row. Each transaction deletes only the old name *it* observed, and the
