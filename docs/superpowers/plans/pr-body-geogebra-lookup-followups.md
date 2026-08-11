@@ -132,6 +132,11 @@ caveats of the approach rather than oversights.
   handler order logs `lookup failed (_BudgetExceeded)`, and a stored partial body logs
   `unparseable payload (JSONDecodeError)`.
 
-<!-- TO BE FILLED FROM THE ACTUAL GATE RUN — do not publish with this placeholder:
-     whole-suite result and selected-collection delta, ruff check/format, makemigrations. -->
-- Whole-branch gate: _pending_.
+- **Whole-branch gate green.** Full unit suite: `5983 passed, 912 deselected, 4097 warnings in
+  2216.18s (0:36:56)` — zero failures, zero errors. Selected-collection count **5983** against a
+  branch-point **5974**, i.e. **exactly +9**: 8 in `tests/test_geogebra.py` and 1 in
+  `tests/test_iframe_dimensions.py`, with B1 and B2 rewritten in place and so not adding to the count.
+  Both sides of that comparison are the left-hand (selected) figure, not a `passed` count — they
+  differ by deselected e2e tests and runtime skips.
+- `ruff check --no-cache .` → `All checks passed!`; `ruff format --check .` → `933 files already
+  formatted`; `manage.py makemigrations --check --dry-run` → `No changes detected`.
