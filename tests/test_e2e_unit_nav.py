@@ -1335,10 +1335,11 @@ def test_prose_is_capped_while_the_table_takes_the_full_column(browser, live_ser
 
 
 @pytest.mark.django_db(transaction=True)
-def test_quiz_chrome_is_capped_across_both_page_states(browser, live_server):
+def test_quiz_chrome_tracks_the_column_across_both_page_states(browser, live_server):
     """The quiz entries (.lesson-unit__title, [data-quiz-preview-notice],
     .quiz-finish) exist only for _quiz_article.html; without this the whole suite
-    stays green if all three are deleted.
+    stays green if all three are deleted. The .count() assertions carry that; the
+    width assertions carry which of them cap and which fill the column.
 
     TWO loads with ONE actor. previewing = not enrolled and read_only =
     quiz_submitted or not enrolled, and the finish form sits behind
@@ -1372,29 +1373,57 @@ def test_quiz_chrome_is_capped_across_both_page_states(browser, live_server):
     _collapse(page)
     assert page.locator("[data-quiz-preview-notice]").count() == 1
     assert page.locator(".quiz-finish").count() == 0
-    for sel in (".lesson-unit__title", "[data-quiz-preview-notice]", ".el--question"):
+    column = page.evaluate(
+        "() => { const a = document.querySelector('.quiz, .lesson');"
+        " const s = getComputedStyle(a);"
+        " return a.clientWidth - parseFloat(s.paddingLeft)"
+        " - parseFloat(s.paddingRight); }"
+    )
+    title_w = page.evaluate(
+        "() => document.querySelector('.lesson-unit__title')"
+        ".getBoundingClientRect().width"
+    )
+    assert title_w <= 736 + 2, (
+        f".lesson-unit__title must cap at 736px, got {title_w:.1f}"
+    )
+    for sel in ("[data-quiz-preview-notice]", ".el--question"):
         w = page.evaluate(
             f"() => document.querySelector({sel!r}).getBoundingClientRect().width"
         )
-        assert w <= 736 + 2, f"{sel} must cap at 736px, got {w:.1f}"
+        assert abs(w - column) < 2, f"{sel} must fill the column {column}, got {w:.1f}"
 
     # Load B — same session, now enrolled: finish form renders, no banner.
     EnrollmentFactory(course=course, student=actor)
     page.reload()
-    # Re-assert the collapsed state AFTER the reload. Every assertion below is
-    # one-sided (<= 738), and the EXPANDED quiz column at 1440 is 648px — also
-    # under 738 — so without this guard all six would pass while measuring the
-    # wrong state. Load A is safe because _collapse() waits on the class; Load B
-    # would otherwise rely silently on the pre-paint restore surviving reload.
+    # Re-assert the collapsed state AFTER the reload. This is now MORE important,
+    # not less: the title assertion is still one-sided (<= 738), the EXPANDED quiz
+    # column at 1440 is 648px — under 738 — and the column-equality assertions
+    # compare against whatever column is actually rendered, so they hold expanded
+    # too. Without this guard every assertion below passes in the wrong state.
+    # Load A is safe because _collapse() waits on the class; Load B would
+    # otherwise rely silently on the pre-paint restore surviving reload.
     page.wait_for_function(
         "() => document.documentElement.classList.contains('unit-tree-collapsed')"
     )
     assert page.locator("[data-quiz-preview-notice]").count() == 0
     assert page.locator(".quiz-finish").count() == 1
-    for sel in (".lesson-unit__title", ".quiz-finish", ".el--question"):
+    column = page.evaluate(
+        "() => { const a = document.querySelector('.quiz, .lesson');"
+        " const s = getComputedStyle(a);"
+        " return a.clientWidth - parseFloat(s.paddingLeft)"
+        " - parseFloat(s.paddingRight); }"
+    )
+    title_w = page.evaluate(
+        "() => document.querySelector('.lesson-unit__title')"
+        ".getBoundingClientRect().width"
+    )
+    assert title_w <= 736 + 2, (
+        f".lesson-unit__title must cap at 736px, got {title_w:.1f}"
+    )
+    for sel in (".quiz-finish", ".el--question"):
         w = page.evaluate(
             f"() => document.querySelector({sel!r}).getBoundingClientRect().width"
         )
-        assert w <= 736 + 2, f"{sel} must cap at 736px, got {w:.1f}"
+        assert abs(w - column) < 2, f"{sel} must fill the column {column}, got {w:.1f}"
 
     ctx.close()
