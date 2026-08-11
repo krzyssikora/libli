@@ -1262,8 +1262,10 @@ def test_every_production_write_path_stores_a_real_boolean():
 - [ ] **Step 2: Run to verify they fail**
 
 ```bash
-uv run pytest tests/test_filltable_transfer.py -k gate -v
+uv run pytest tests/test_filltable_transfer.py -k "gate or real_boolean" -v
 ```
+
+A bare `-k gate` would select only three of these — `test_every_production_write_path_stores_a_real_boolean` contains no "gate" — leaving the enumeration below one short of what the command runs.
 
 Expected, all four enumerated:
 - `test_export_carries_the_gate_flag` — **FAILS**, `KeyError: 'gate'`.
@@ -1336,7 +1338,16 @@ a working ungated table."
 
 **Interfaces:** none.
 
-The English section currently ends "Records no marks and reveals nothing." — which this change falsifies. The Polish twin ends "Nie przyznaje punktów i niczego nie odsłania." Both must change, and both should describe the scope confinement the way the three existing gate-family sections do.
+The English section currently ends "Records no marks and reveals nothing." (line 77, on one line). The Polish twin ends with the same claim — but **hard-wrapped across lines 89-90**:
+
+```
+bardziej, ale zmniejszenie jej poniżej limitu jest jednokierunkowe. Nie
+przyznaje punktów i niczego nie odsłania.
+```
+
+An exact-match edit keyed on the unwrapped sentence will fail there; the `old_string` must span the newline after `Nie`. The English/Polish asymmetry is easy to miss because only the Polish one wraps.
+
+Both must change. Note that no existing gate-family section states the scope confinement, so there is no sibling wording to mirror — see the note after Step 2.
 
 - [ ] **Step 1: Update the English page**
 
@@ -1726,7 +1737,7 @@ assert page.evaluate("window.scrollY") == scroll_before
 uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 ```
 
-**There is no single group mutant for this block, and assuming one wastes a debugging session.** Reverting Task 5's `libliRevealCascade` call reddens only tests 22 and 23 — **not** 21, 24, 25, 26 or 27 — because `reveal.js::restoreGates` calls `cascadeFrom` **directly** off `data-state` (line 249) — it never goes through `filltable.js`. The `saveFlag({done: true})` line is unchanged and Task 3 derives `open`, so every reload-based path still works. Under that mutant:
+**There is no single group mutant for this block, and assuming one wastes a debugging session.** Reverting Task 5's `libliRevealCascade` call reddens tests 22, 23 and 26 — but **not** 21, 24, 25 or 27 — because `reveal.js::restoreGates` calls `cascadeFrom` **directly** off `data-state` (line 249) — it never goes through `filltable.js`. The `saveFlag({done: true})` line is unchanged and Task 3 derives `open`, so every reload-based path still works. Under that mutant:
 
 | Test | Under the `libliRevealCascade` mutant | Falsified instead by |
 |---|---|---|
@@ -1735,10 +1746,10 @@ uv run pytest tests/test_e2e_filltable_gate.py -m e2e -v
 | 23 (chain, adjacent) | **RED** | — |
 | 24 (reload restores) | **GREEN** — restore path intact | removing Task 3's `open` derivation |
 | 25 (pre-tick, single) | **GREEN** — same reason | removing Task 3's `open` derivation |
-| 26 (pre-tick, chained) | **GREEN** — same reason | removing Task 3's `open` derivation |
+| 26 (pre-tick, chained) | **RED** — its *first* assertion (`table2_row` visible) runs BEFORE any reload, and on that first load `restoreGates` broke at the unsolved table 1, so the live cascade is the only thing that can reveal table 2 | its *post-reload* assertion is reddened instead by removing Task 3's `open` derivation |
 | 27 (ungated no cascade) | **GREEN** — also a negative assertion; nothing cascading is what it wants | deleting the `hasAttribute("data-reveal-gate")` guard (Step 7) |
 
-So: apply each per-item mutant named above and confirm the matching test goes red alone. Do **not** treat a green test under the `libliRevealCascade` mutant as a broken test — for 21, 24, 25, 26 and 27 that is the correct outcome.
+So: apply each per-item mutant named above and confirm the matching test goes red alone. Do **not** treat a green test under the `libliRevealCascade` mutant as a broken test — for 21, 24, 25 and 27 that is the correct outcome. Test 26 is the one mixed case: it straddles both mutants, because it asserts once before the reload (live cascade) and once after (restore).
 
 - [ ] **Step 9: Screenshots**
 
