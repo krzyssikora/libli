@@ -4,8 +4,14 @@
   function csrf() { var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/); return m ? m[1] : ""; }
 
   function flash(host, msg) {
-    var bar = document.createElement("div"); bar.className = "op-error"; bar.textContent = msg;
-    host.prepend(bar); setTimeout(function () { bar.remove(); }, 6000);
+    var bar = document.createElement("div"); bar.className = "op-error";
+    // role=alert: the server's _op_error.html has it, this one did not, so a
+    // flashed message was never announced. Insert EMPTY then fill -- a live
+    // region that arrives already populated is the case screen readers announce
+    // least reliably.
+    bar.setAttribute("role", "alert");
+    host.prepend(bar); bar.textContent = msg;
+    setTimeout(function () { bar.remove(); }, 6000);
   }
 
   // ---------------------------------------------------------------------------
@@ -355,6 +361,170 @@
       });
       input.addEventListener("blur", function () { commit(true); });
     });
+
+    // ----------------------------------------------------------------------
+    // Replace: ⇄ opens the file dialog; a chosen file raises a confirm strip.
+    // ----------------------------------------------------------------------
+    // wireManager scope, unlike the per-strip `done` below. Its whole job is to
+    // stop a ⇄ click on ANOTHER cell mid-request, which per-strip state cannot
+    // see. It MUST be lowered in every exit, or replace works exactly once per
+    // page load.
+    var replaceBusy = false;
+
+    function closeStrip(strip, clearInput) {
+      var cell = strip.closest(".asset-cell");
+      strip.remove();
+      if (clearInput && cell) {
+        var input = cell.querySelector("[data-replace-input]");
+        if (input) input.value = "";
+      }
+    }
+
+    root.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-replace-asset]");
+      if (!btn || replaceBusy) return;
+      var cell = btn.closest(".asset-cell");
+      if (!cell) return;
+      var input = cell.querySelector("[data-replace-input]");
+      // Tear NOTHING down here. The dialog may be dismissed (which fires no
+      // change at all), and destroying an open strip first would silently lose
+      // the author's pending selection. Teardown belongs to the change handler.
+      if (input) input.click();
+    });
+
+    root.addEventListener("change", function (e) {
+      // Filter on the attribute, not on input.type: root is .media-manager,
+      // which also holds the upload form's <input type="file" name="file">,
+      // and change bubbles.
+      var input = e.target.closest("[data-replace-input]");
+      if (!input || !input.files || !input.files.length) return;
+      var cell = input.closest(".asset-cell");
+      if (!cell) return;
+      // Capture BEFORE any teardown: in the re-pick flow the open strip is this
+      // cell's, and clearing this cell's input would wipe the selection we are
+      // about to show. input.files cannot be restored programmatically.
+      var file = input.files[0];
+      var open = root.querySelector("[data-replace-strip]");
+      if (open) closeStrip(open, open.closest(".asset-cell") !== cell);
+      cell.appendChild(buildReplaceStrip(cell, file));
+    });
+
+    function buildReplaceStrip(cell, file) {
+      var strip = document.createElement("div");
+      strip.className = "asset-replace-confirm";
+      strip.setAttribute("data-replace-strip", "");
+      strip.setAttribute("role", "group");
+      strip.setAttribute("aria-label", msg(root, "replace-aria", "Confirm file replacement"));
+
+      var label = document.createElement("span");
+      label.className = "asset-replace-confirm__label";
+      label.textContent = msg(root, "replace-confirm", "Replace with:");
+      strip.appendChild(label);
+
+      var fname = document.createElement("span");
+      fname.className = "asset-replace-confirm__file";
+      fname.setAttribute("data-replace-filename", "");
+      fname.textContent = file.name;  // textContent: a crafted name cannot inject
+      strip.appendChild(fname);
+
+      // getAttribute yields a STRING: `if (cell.dataset.diUses)` is truthy for
+      // "0" and would show the caution on every asset in the library.
+      if (Number(cell.getAttribute("data-di-uses") || 0) > 0) {
+        var warn = document.createElement("span");
+        warn.className = "asset-replace-confirm__warn";
+        warn.textContent = msg(root, "replace-drag-warning",
+          "Used by a drag-to-image question. Drop zones are stored as fractions of the image, so a file with a different shape will move them.");
+        strip.appendChild(warn);
+      }
+
+      var actions = document.createElement("div");
+      actions.className = "asset-replace-confirm__actions";
+      var commit = document.createElement("button");
+      commit.type = "button"; commit.className = "btn btn--small";
+      commit.setAttribute("data-replace-commit", "");
+      commit.textContent = msg(root, "replace-commit", "Replace");
+      var cancel = document.createElement("button");
+      cancel.type = "button"; cancel.className = "btn btn--small btn--ghost";
+      cancel.setAttribute("data-replace-cancel", "");
+      cancel.textContent = msg(root, "replace-cancel", "Cancel");
+      actions.appendChild(commit); actions.appendChild(cancel);
+      strip.appendChild(actions);
+
+      // Bound HERE, not delegated: `done` must be a per-strip closure, exactly
+      // like the rename handler's. Hoisted to wireManager scope it would be set
+      // by the first replace and silently swallow every one after it.
+      var done = false;
+
+      function focusTrigger(host) {
+        var btn = (host || cell).querySelector("[data-replace-asset]");
+        if (btn) btn.focus();
+      }
+
+      function fail(text) {
+        if (strip.isConnected) { closeStrip(strip, true); focusTrigger(); }
+        flash(root, text);
+      }
+
+      cancel.addEventListener("click", function () {
+        if (done) return;
+        closeStrip(strip, true);  // clear, so re-picking the same file re-fires
+        focusTrigger();
+      });
+
+      commit.addEventListener("click", function () {
+        if (done) return;  // the READ is the guard; disabling is the complement
+        done = true;
+        replaceBusy = true;
+        commit.disabled = true;
+        // Cancel is disabled too: the POST is unabortable server-side, so a
+        // mid-flight cancel would say "nothing happened" and then land a 200.
+        cancel.disabled = true;
+        var pk = cell.getAttribute("data-asset-id");
+        var fd = new FormData();
+        fd.append("file", file);
+        fetch(cell.getAttribute("data-replace-url"), {
+          method: "POST",
+          headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
+          body: fd,
+        })
+          .then(function (r) { return r.text().then(function (t) { return { status: r.status, text: t }; }); })
+          .then(function (res) {
+            var tmp = document.createElement("div"); tmp.innerHTML = res.text.trim();
+            var fresh = res.status === 200 ? tmp.querySelector(".asset-cell") : null;
+            if (fresh) {
+              if (strip.isConnected) {
+                cell.replaceWith(fresh);
+                focusTrigger(fresh);
+              } else {
+                // A filter swap landed mid-flight and detached us. The replace
+                // COMMITTED, but the refetched grid was rendered pre-commit, so
+                // a no-op would leave a stale thumbnail. Query from root:
+                // wireManager's `grid` local is the node the filter replaced.
+                var live = root.querySelector('.asset-cell[data-asset-id="' + pk + '"]');
+                if (live) live.replaceWith(fresh);
+              }
+              return;
+            }
+            // Anything else -- other statuses, a rejected promise, AND a 200
+            // whose body has no cell. fetch follows redirects, so a POST after
+            // the session expires resolves as 200 carrying the login page: not
+            // 422, not an error status, not a rejection. Without this branch
+            // the strip stays open with both buttons disabled, unrecoverable.
+            var text = "";
+            if (res.status === 422) {
+              var box = tmp.querySelector(".op-error");
+              if (box) text = (box.textContent || "").trim();
+            }
+            fail(text || msg(root, "replace-failed", "Could not replace the file."));
+          })
+          .catch(function () {
+            fail(msg(root, "replace-failed", "Could not replace the file."));
+          })
+          .then(function () { replaceBusy = false; });  // finally-equivalent
+      });
+
+      return strip;
+    }
 
     // Debounced server-side filter (kind + q), swaps the grid; drops stale responses.
     var filters = root.querySelector("[data-media-filters]");

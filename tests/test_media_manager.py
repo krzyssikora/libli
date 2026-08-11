@@ -594,3 +594,26 @@ def test_manager_renders_all_six_replace_message_attributes(client, settings, tm
         assert marker in body, key
         value = body[body.index(marker) + len(marker) :]
         assert value[: value.index('"')].strip(), f"{key} is empty"
+
+
+@pytest.mark.django_db
+def test_no_template_comment_leaks_into_the_asset_cell(client, settings, tmp_path):
+    """Django's lexer matches {#...#} WITHOUT re.DOTALL, so a hash comment that
+    spans lines never matches and its source renders verbatim into the page.
+    _asset_cell.html shipped exactly that -- eleven lines of prose above every
+    thumbnail -- and no assertion here noticed, because every replace test
+    matches on tags and attributes. Only the e2e screenshots showed it."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "pa-repl-comment")
+    course = CourseFactory(owner=pa, slug="comment-repl")
+    make_image_asset(course, filename="x.png")
+
+    body = client.get(
+        reverse("courses:manage_media", kwargs={"slug": course.slug})
+    ).content.decode()
+
+    # The delimiters themselves, not any one comment's wording: a future
+    # multi-line hash comment anywhere in the manager's templates leaks the same
+    # way, and this catches it whatever it says.
+    assert "{#" not in body and "#}" not in body
+    assert "{%" not in body and "%}" not in body
