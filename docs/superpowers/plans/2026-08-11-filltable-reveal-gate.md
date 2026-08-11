@@ -15,7 +15,7 @@
 - **No database migration.** `gate` lives in `data`; do not add a model field.
 - **No `FORMAT_VERSION` bump.** It stays at 11 (`courses/transfer/schema.py:14`).
 - **`courses/state.py` must not change.** `_val_done` stores only `{"done": True}` by design; see spec §4.
-- **`reveal.js` gets exactly one change** — the `focusTargetIn` branch in Task 5. Do not touch `scopeOf`, `isGateWrapper`, `cascadeFrom`, or `restoreGates`. **One sanctioned exception:** Task 9 Step 8's `isGateWrapper`-`break` mutant temporarily edits `cascadeFrom`. It must be edited back and the revert proved with `git diff --quiet courses/static/courses/js/reveal.js`, exactly as Task 3 Step 6 mutant 4 does for the equally-frozen `courses/state.py`.
+- **`reveal.js` gets exactly one change** — the `focusTargetIn` branch in Task 5. Do not touch `scopeOf`, `isGateWrapper`, `cascadeFrom`, or `restoreGates`. **Two sanctioned exceptions, both in Task 9 Step 8's mutant table:** the `isGateWrapper`-`break` mutant (which edits `cascadeFrom`) and the `focusTargetIn`-branch mutant. Both must be edited back and the revert proved with `git diff --quiet courses/static/courses/js/reveal.js`, exactly as Task 3 Step 6 mutant 4 does for the equally-frozen `courses/state.py`.
 - **An ungated fill-table must behave byte for byte as it does today.** Every change is conditional on `gate`.
 - **Falsify every test before trusting it.** Introduce the named mutant, confirm RED, then remove the mutant *by editing it out* — never `git checkout`, which would discard the new test along with it.
 - **Restore the LAST mutant too, and re-run before you stage.** Each falsify step ends on a mutant, and the commit step that follows runs only `ruff` — which does not read JS, templates or CSS at all. So an unreverted final mutant sails through a green lint gate into the commit. Every commit step in this plan therefore begins by **re-running that task's own test command and confirming all PASS**, before `git add`. Where a task mutates a file a Global Constraint freezes (`courses/state.py` in Task 3, `reveal.js` in Task 9), also prove it with `git diff --quiet <file>`.
@@ -695,7 +695,7 @@ the caller's reference."
 
 **The boot flag ships in THIS task, not Task 5 — the ordering is load-bearing.** The watchdog term added in Step 6 below reads `window.__fillTableBooted`, and `filltable.js` does not assign it today. If the term shipped first, then between this task's commit and Task 5's *every* lesson page carrying a gated fill-table would evaluate `!window.__fillTableBooted` as true at `DOMContentLoaded`, strip `.reveal-armed`, and disarm the pre-hide — the gated content visible from first paint, on a commit whose message claims the feature works. Task 5 consumes this flag; it must not produce it. Assign the flag (Step 5) *before* adding the term (Step 6).
 
-**The mirror-image window — this task's `has_reveal_gate` arming the pre-hide before Task 5 supplies the cascade — is real but unreachable, and that is why it is not restructured.** Between this commit and Task 5's, a gated table hides everything after it and solving it reveals nothing until a reload (which Task 3's derivation heals). The difference from the boot-flag hazard is reachability: `gate` cannot be set by any author-facing route until Task 6 adds the checkbox, so the only gated tables in existence across this window are test fixtures. Do not "fix" it by moving the cascade call earlier — that would recreate the ordering problem above.
+**The mirror-image window — the pre-hide arming before Task 5 supplies the cascade — is real but unreachable, and that is why it is not restructured.** Note it opens *earlier* than this task for some units: on a unit that already carries a Reveal/Fill/Switch gate, `has_reveal_gate` is already true, so the pre-hide arms the moment **Task 2** stamps `data-reveal-gate` on the fill-table; for a unit whose only gate is the fill-table it opens here, at Task 4. Either way, until Task 5 a gated table hides everything after it and solving it reveals nothing until a reload (which Task 3's derivation heals). The difference from the boot-flag hazard is reachability: `gate` cannot be set by any author-facing route until Task 6 adds the checkbox, so the only gated tables in existence across this window are test fixtures. Do not "fix" it by moving the cascade call earlier — that would recreate the ordering problem above.
 
 **This is not cosmetic.** `reveal.js` is loaded only under `{% if has_reveal_gate %}` (`lesson_unit.html:89`). On a unit whose only gate is a fill-table, omitting this term means **the cascade engine never loads at all** and the gate silently does nothing.
 
@@ -1343,8 +1343,31 @@ Same gotcha Task 9 Step 9 calls out for the student.
 **Keep the test, drop only the screenshots.** The tick → Save → stored-flag round trip is the one seam in this feature that *no* runtime test crosses: Step 1's three source assertions pin the strings (`querySelector("[data-gate]")`, `gate: !!(gate && gate.checked)`, the `change` listener) but never execute them together, and every Task 9 e2e seeds through the ORM rather than the editor. Since this step already stands up the whole PA-authenticated fixture, keeping a behavioural version costs three lines:
 
 ```python
-    page.locator("[data-gate]").check()
-    _save(page)                     # the file's existing save helper
+    # _seed_filltable_for_images returns the Element JOIN ROW (it ends
+    # `return add_element(unit, el)`), not the concrete element -- reach the
+    # FillTableElement through object_id. `FillTableElement` is imported only
+    # inside helper bodies in this file today, so add a module-level import.
+    element = _seed_filltable_for_images(unit)
+    obj = FillTableElement.objects.get(pk=element.object_id)
+
+    _goto_editor(page, live_server, username, unit)
+    _open_edit(page, element.pk)
+    page.locator("[data-edit-slot] [data-gate]").check()
+
+    # There is NO _save helper in this file -- the two authoring tests save
+    # inline (:436-437). Do not copy _save from test_e2e_table_editor.py or
+    # test_e2e_table_cell_images.py: both wait on [data-table-editor], the
+    # PLAIN-table selector, and would time out here on a correct build.
+    page.locator(
+        "[data-edit-slot] .editor-form__actions button[type='submit']"
+    ).click()
+    # MANDATORY before the DB read. transaction=True means both threads share a
+    # committed DB, so refresh_from_db() fired before the POST round-trips reads
+    # the PRE-save row and fails on a correct build. The detach IS the barrier.
+    page.wait_for_selector(
+        "[data-edit-slot] [data-filltable-editor]", state="detached"
+    )
+
     obj.refresh_from_db()
     assert obj.data["gate"] is True
 ```
@@ -1367,6 +1390,15 @@ If the row does not survive, the fix belongs here (a shorter label, or letting t
 7. Restore, then **remove the `data-gate` attribute from the partial altogether** (drop the whole new `<label>`) → `test_partial_has_gate_checkbox_unchecked_by_default` RED **on its first assertion** (`"data-gate" in html`), and `test_partial_gate_checkbox_is_checked_for_a_gated_element` RED too. Mutant 2 reddens that test's *second* clause only, so without this one its presence clause is falsified solely by the pre-implementation RED — unlike every sibling assertion in this task.
 
 Mutants 4-6 are separate for the reason Task 1 Step 6 gives: that test makes three independent assertions, and one combined mutant would let two of them hide.
+
+**Falsify the kept e2e test too — do not skip this.** `test_editor_gate_checkbox_round_trips` (Step 8) is written after the implementation lands, so it is green from birth, and it is the *only* test crossing the tick → Save → stored-flag seam. Trusting it unfalsified is therefore the worst case here, not the safest. Mutants 4, 5 and 6 each break the tick → payload path, so it must go RED under any of them. While **one** of those mutants is still in place, run:
+
+```bash
+docker compose -f docker-compose.test.yml up -d
+uv run pytest tests/test_e2e_filltable.py -m e2e -k test_editor_gate_checkbox_round_trips -v
+```
+
+Expected: RED on `assert obj.data["gate"] is True` — the checkbox still ticks and the form still saves, but the serialized payload never carries the flag, so the stored row keeps `gate: false`. Then revert the mutant and confirm it goes GREEN again.
 
 - [ ] **Step 10: Restore, re-run, then commit**
 
@@ -1413,7 +1445,7 @@ The importer needs nothing: `_build_fill_table` ends with `FillTableElement(data
 
 - [ ] **Step 1: Write the failing tests**
 
-**Use the file's own idiom.** `tests/test_filltable_transfer.py` imports `SERIALIZERS`, `BUILDERS`, `VALIDATORS` and `MediaIdMap`, and calls them through the registries — the module-private `_ser_fill_table` / `_build_fill_table` are never imported. Builders return a `(obj, children)` pair. The routing-invariant test additionally needs `json` and `FillTableElementForm`, neither of which the file imports yet; add both.
+**Use the file's own idiom.** `tests/test_filltable_transfer.py` imports `SERIALIZERS`, `BUILDERS`, `VALIDATORS` and `MediaIdMap`, and calls them through the registries — the module-private `_ser_fill_table` / `_build_fill_table` are never imported. Builders return a `(obj, children)` pair. The routing-invariant test additionally needs `json` and `FillTableElementForm`, neither of which the file imports yet. **Placement matters** (`I` is selected with `force-single-line`): `import json` goes on its own as the stdlib block, above the blank line preceding `import pytest`; `from courses.element_forms import FillTableElementForm` goes into the first-party block **between `courses.builder` (:5-6) and `courses.models` (:7)**. Note that block is ruff-ordered, not naively alphabetical — `SERIALIZERS` precedes `MediaIdMap` at :8-9 — so insert by module path and let `ruff check` confirm.
 
 ```python
 # non-blank: the guard keeps `gate` on
@@ -1661,8 +1693,10 @@ pytestmark = pytest.mark.e2e
 # NOTE: `_confirm` and `_summary` are scoped to the FIRST .filltable on the page
 # (both are `_table(page).locator(...)`, and `_table` is
 # `page.locator(".filltable").first`). Use them ONLY in single-table fixtures --
-# tests 21, 22, 24 and 25. Tests 23, 26 and 27 have two or more tables, which is
-# exactly why they build their own `_block(...)`-scoped locators instead.
+# tests 21, 22, 24 and 25. Tests 23 and 26 have TWO tables, so the shared
+# locators would silently drive the wrong one; that is what _block(...)-scoped
+# locators are for. Test 27 has only ONE table and could use them, but stays
+# _block-scoped for symmetry with 23 and 26 -- not out of necessity.
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -1764,7 +1798,17 @@ def _block(join_pk):
 
 
 def _visible(page, join_pk):
-    return page.evaluate(f'document.querySelector("{_block(join_pk)}").checkVisibility()')
+    # Explicit miss-check: a bare querySelector(...).checkVisibility() throws a
+    # raw JS TypeError inside Playwright when the block is absent (wrong pk, a
+    # callout-nested fixture with no data-element-id, an element that never
+    # rendered) -- the least legible form of exactly the fixture mistake the
+    # trap list warns about. Fail with a message that names the pk instead.
+    sel = _block(join_pk)
+    return page.evaluate(
+        f'(() => {{ const n = document.querySelector("{sel}");'
+        f' if (!n) throw new Error("no .lesson-block for pk {join_pk}");'
+        f" return n.checkVisibility(); }})()"
+    )
 ```
 
 The seven fixtures are then: **21/22** `_seed(unit, _filltable(gate=True), _text("trailing"))`; **23** `_seed(unit, _filltable(gate=True), _filltable(gate=True), _text("trailing"))` — adjacent, nothing between the two tables; **24** as 21/22; **25** deliberately **`_seed(unit, _filltable(gate=False), _text("trailing"))`** — seeded UNGATED, then flipped mid-test. Seeding it gated would make the flip a no-op, write the blob while already gated, and silently collapse test 25 into a duplicate of test 24 — losing the "ordering, not storage" distinction that is its whole reason to exist. On the first load `has_reveal_gate` is false, so there is no prepaint and the trailing element is visible; that is expected, since the assertion only runs after the flip and reload; **26** as 23, with `_seed_state(student, unit, {str(table2_row.pk): {"done": True}})` before the first load (note `_seed_state` keys by **str** — `UnitProgress.element_state` is str-keyed); **27** `_seed(unit, _filltable(gate=False), _text("ungated-trailing"), _gate("Show more"), _text("gated-trailing"))` — the trailing `_gate` is what makes `has_reveal_gate` true so `reveal.js` loads at all (see Step 7).
@@ -2015,7 +2059,7 @@ The two existing suites run again here (Task 5 ran them first): every server-sid
 | 26 (pre-tick, chained) | **RED** — its *first* assertion (`table2_row` visible) runs BEFORE any reload, and on that first load `restoreGates` broke at the unsolved table 1, so the live cascade is the only thing that can reveal table 2 | its *post-reload* assertion is reddened instead by removing Task 3's `open` derivation |
 | 27 (ungated no cascade) | **GREEN** — also a negative assertion; nothing cascading is what it wants | deleting the `hasAttribute("data-reveal-gate")` guard (Step 7) |
 
-**These seven mutants touch three source files between them** — four edit `filltable.js` (the `all_correct` move, the cascade removal, the `hasAttribute` guard, `hideWrapper`), one edits `courses/models.py` (the `open` derivation), and the `isGateWrapper` `break` edits `reveal.js`, which a Global Constraint otherwise forbids. Edit each mutant back out (never `git checkout`), and before moving to Step 9 prove **all three** are clean and the suite is green:
+**These seven mutants touch three source files between them** — four edit `filltable.js` (the `all_correct` move, the cascade removal, the `hasAttribute` guard, `hideWrapper`), one edits `courses/models.py` (the `open` derivation), and **two** edit `reveal.js`, which a Global Constraint otherwise forbids: the `isGateWrapper` `break` **and** the `focusTargetIn` `[data-filltablegate]` branch. Both are covered by the constraint's sanctioned-exception clause and by the single `git diff --quiet` proof below. Edit each mutant back out (never `git checkout`), and before moving to Step 9 prove **all three** are clean and the suite is green:
 
 ```bash
 git diff --quiet courses/static/courses/js/reveal.js \
