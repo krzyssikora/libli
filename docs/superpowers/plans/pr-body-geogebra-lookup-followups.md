@@ -140,3 +140,24 @@ caveats of the approach rather than oversights.
   differ by deselected e2e tests and runtime skips.
 - `ruff check --no-cache .` → `All checks passed!`; `ruff format --check .` → `933 files already
   formatted`; `manage.py makemigrations --check --dry-run` → `No changes detected`.
+
+## Deferred review finding
+
+A `high`-effort review of this diff raised two low-severity items. The first — the module docstring
+overclaiming that the chunk budget prevents an abandoned worker parking indefinitely, contradicting
+the accepted gap above — is **fixed in this PR**. The second is deferred:
+
+- **`_fetch_body`'s loop has no progress check.** It breaks on a falsy `chunk` and exits when `total`
+  passes the cap, relying otherwise on the deadline for liveness. A `read1` returning a *truthy*
+  object of length 0 therefore spins at 100% CPU for the full `_DEADLINE_SECONDS`, appending to
+  `chunks`. Unreachable with a real `HTTPResponse` — but reachable from the test suite via the idiom
+  already present at `tests/test_transfer_import.py:313` (`with patch("courses.geogebra._open") as
+  opener:` with no `side_effect`): a bare `MagicMock` is truthy, and `len(MagicMock())` is `0`, so
+  `total` never advances. That existing test is safe only because it asserts `opener.assert_not_called()`;
+  the next test written the same way that *does* reach `_open` would burn 5s of CPU and unbounded mock
+  memory rather than failing fast. Before this change the same mock failed immediately via
+  `json.loads` → `TypeError` → `unparseable payload`.
+
+  Deferred rather than patched because the fix (breaking on `len(chunk) == 0`, or asserting
+  `isinstance(chunk, bytes)`) alters the loop's EOF semantics, and that loop shape was pinned verbatim
+  through the spec review. It wants its own change with its own falsification, not a late edit here.

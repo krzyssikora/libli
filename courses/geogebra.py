@@ -10,7 +10,11 @@ API is called. Parsing functions rebuild recognized ``https`` inputs from scratc
 else unchanged for ``validate_embed_url`` to judge; the one network function performs
 a single capped GET behind the ``GEOGEBRA_API_LOOKUP`` kill switch, on a bounded
 background daemon thread under a total deadline (``_DEADLINE_SECONDS``), with the body
-read chunked against the same budget so an abandoned worker cannot park indefinitely.
+read chunked against the same budget. The MAIN thread is released unconditionally at
+that deadline, so the caller's row lock is always bounded; the WORKER is bounded only
+once response headers have arrived — the budget is first checked after ``_open``
+returns, so a peer that dribbles the handshake or the headers parks it inside ``_open``,
+limited only by ``http.client``'s ``_MAXLINE``/``_MAXHEADERS``.
 Nothing here raises — every failure degrades to a neutral value, because these run
 inside form validation and inside page render, where an exception would 500 a save or
 a student unit page.
