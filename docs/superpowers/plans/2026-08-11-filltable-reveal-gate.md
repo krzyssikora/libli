@@ -543,10 +543,10 @@ def test_saved_gated_state_stores_done_only(client):
 - [ ] **Step 3: Run to verify they fail**
 
 ```bash
-uv run pytest tests/test_filltable_restore.py -k "renders_open or does_not_render_open or mutate or stores_done_only" -v
+uv run pytest tests/test_filltable_restore.py -k "renders_open or does_not_render_open or mutate_the_callers or stores_done_only" -v
 ```
 
-Expected, all four named explicitly (a bare `-k gate` would also sweep in `test_saved_gated_state_stores_done_only` without accounting for it):
+Expected, all four named explicitly. The selector terms are deliberately narrow: a bare `-k gate` would sweep in `test_saved_gated_state_stores_done_only` unaccounted for, and a bare `mutate` term would also collect the pre-existing `test_filltable_render_does_not_mutate_self_data_on_done` (line 97) — whose name is near-identical in intent to the new one, making "1 failed, 4 passed" ambiguous to map. `mutate_the_callers` selects only the new test.
 - `test_gated_done_renders_open_in_data_state` — **FAILS**, the blob is `{"done": True}`.
 - `test_ungated_done_does_not_render_open` — PASSES already.
 - `test_render_does_not_mutate_the_callers_state_blob` — PASSES already.
