@@ -11,6 +11,7 @@ from io import BytesIO
 
 import pytest
 from PIL import Image
+from playwright.sync_api import expect
 
 from courses.models import ImageElement
 from tests.factories import TEST_PASSWORD
@@ -94,6 +95,33 @@ def _open_manager(page, live_server, username, course):
     _login(page, live_server, username)
     page.goto(f"{live_server.url}/manage/courses/{course.slug}/media/")
     page.wait_for_selector(".asset-cell")
+
+
+def _seed_assets(username, slug, *specs):
+    """Course + exactly the named assets, nothing else.
+
+    Distinct from _seed(): that one creates an `original.png` of its own, which
+    would add an unrelated cell to every grid the preview rows measure.
+
+    NOTE the grid order: courses/media.py:86 sorts by "-created", so the LAST
+    spec here renders FIRST. Resolve anchors by name, not by nth().
+    """
+    user = make_verified_user(username)
+    course = CourseFactory(owner=user, slug=slug)
+    for filename, size in specs:
+        make_image_asset(course, filename=filename, size=size)
+    return user, course
+
+
+def _anchor(page, filename):
+    """The [data-asset-preview] of the cell whose data-name is `filename`.
+
+    data-name lives on the .asset-cell ROOT (_asset_cell.html:3), not on a
+    descendant -- so this is an attribute selector on the cell itself. Do not
+    "fix" it to `.asset-cell:has([data-name=...])`: :has() takes a relative
+    selector defaulting to the descendant combinator and would match nothing.
+    """
+    return page.locator(f'.asset-cell[data-name="{filename}"] [data-asset-preview]')
 
 
 @pytest.mark.django_db(transaction=True)
@@ -640,3 +668,25 @@ def test_screenshots_light_and_dark(page, live_server, tmp_path):
         page.wait_for_selector("[data-replace-strip]", state="detached")
 
     print(f"REPLACE_SHOTS_DIR={tmp_path}")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rename_prefills_the_untruncated_name(page, live_server):
+    """The span now renders head...tail. Seeding the input from its textContent
+    and letting blur commit would write the ellipsis into the DB permanently.
+    """
+    long_name = "przykladowa_bardzo_dluga_nazwa_wersja_0_2.png"
+    user, course = _seed_assets("rename-pa", "rename-seed", (long_name, (400, 300)))
+    _open_manager(page, live_server, "rename-pa", course)
+    page.locator("[data-rename-asset]").first.click()
+    # expect() here is not decoration: ruff's F401 is live (pyproject.toml:36
+    # selects "F", and tests/** ignores only S105/S106/S107), so the import
+    # added in Step 1 must be USED in this task or `ruff check` fails at this
+    # task's commit.
+    expect(page.locator(".asset-rename-input")).to_be_visible()
+    value = page.locator(".asset-rename-input").input_value()
+    # Cancel BEFORE anything moves focus: blur commits with save=true, so on a
+    # broken build simply finishing the test would write the truncated name.
+    page.keyboard.press("Escape")
+    assert value == long_name
+    assert "…" not in value

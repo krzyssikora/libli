@@ -334,8 +334,17 @@
       var cell = pen.closest(".asset-cell");
       var dname = cell.querySelector("[data-asset-dname]");
       if (!dname || cell.querySelector(".asset-rename-input")) return;
+      // Seed from the cell's data-name, NOT from the span's textContent: the
+      // span now renders a middle-truncated name, and the blur handler below
+      // commits with save=true -- so seeding from the DOM text would write
+      // "head...tail" into MediaAsset.name permanently. No textContent
+      // fallback: data-name is unconditional in _asset_cell.html and the pencil
+      // only exists in cells rendered by it, so a null here is a broken
+      // invariant that should fail loudly rather than silently corrupt a name.
+      var seed = cell.getAttribute("data-name");
+      if (seed === null) return;
       var input = document.createElement("input");
-      input.className = "asset-rename-input input"; input.value = dname.textContent.trim();
+      input.className = "asset-rename-input input"; input.value = seed.trim();
       dname.replaceWith(input); input.focus(); input.select();
       var done = false;
       function commit(save) {
