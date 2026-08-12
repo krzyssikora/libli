@@ -73,9 +73,9 @@ architecture but with libli's own values. See the [Phase 0 spec](superpowers/spe
   --text-secondary: #BDB6A8;
   --text-tertiary:  #8A8477;
   --text-inverse:   #1E1C18;
-  --border-subtle:  #2A2620;
-  --border-default: #322E29;
-  --border-strong:  #4A4036;
+  --border-subtle:  #443B32;   /* cut against --surface-raised, not --surface-base */
+  --border-default: #584C40;
+  --border-strong:  #706152;
   --primary:        #4FB3AC;   /* teal lifted for contrast */
   --primary-hover:  #63C2BB;
   --primary-active: #7ACFC8;

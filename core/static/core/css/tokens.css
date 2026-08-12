@@ -92,7 +92,14 @@
   --scroll-edge: rgba(0,0,0,0.45);   /* deeper: dark surfaces swallow a light shade */
   --text-primary: #F2EFE9; --text-secondary: #BDB6A8; --text-tertiary: #8A8477;
   --text-inverse: #1E1C18;
-  --border-subtle: #2A2620; --border-default: #322E29; --border-strong: #4A4036;
+  /* Cut against --surface-raised, NOT --surface-base. Raised (#2C2925) is the
+     LIGHTER of the two in dark mode, so a ramp derived from the page background
+     passes straight through it: the previous --border-default (#322E29) scored
+     1.07:1 on a raised card and 1.04:1 on a callout's 6% tint, which is why a
+     table's grid lines vanished inside a callout — and the ladder inverted there,
+     "subtle" reading more strongly than "default". tests/test_border_contrast_css.py
+     measures every rung on all eight grounds a neutral hairline is drawn on. */
+  --border-subtle: #443B32; --border-default: #584C40; --border-strong: #706152;
   --success: #9FBF7B; --success-subtle: #2A3620;
   --warning: #E8B761; --warning-subtle: #3A2F18;
   --danger:  #E57373; --danger-subtle:  #3A1E1A;
