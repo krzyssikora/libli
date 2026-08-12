@@ -527,9 +527,61 @@ git commit -m "fix(media): seed the rename input from data-name, not the truncat
 
 - [ ] **Step 1: Measure first, before writing any test**
 
-Write a throwaway e2e **inside `tests/`**, named `tests/test_zz_scratch_measure.py`, that opens the manager at 360×900 and prints the measured card width, the `.asset-dname` width, and the number of text-run rects for a 32-character name.
+**Only the card width can be measured now.** The rect count and the span width cannot: this step runs before Step 4 writes the CSS, so `.asset-dname` is still a plain flex item with `min-width: auto` and no `overflow-wrap`, and every fixture name is a single unbreakable token. The range would return exactly **one** rect and the span's `bounding_box()` would be its max-content width — artefacts of the broken layout, invariant to what the fixed build does. Step 7 re-runs this file *after* the CSS lands for those two numbers.
 
-It must live in `tests/` rather than the scratchpad: pytest derives rootdir from its args, so a file outside the repo picks up neither `pyproject.toml`'s `[tool.pytest.ini_options]` (no `DJANGO_SETTINGS_MODULE`, no `e2e` marker) nor the repo's `conftest.py` — `live_server` and the settings bootstrap would both be missing and it would error before measuring anything. Step 8 deletes it.
+Write a throwaway e2e **inside `tests/`**, named `tests/test_zz_scratch_measure.py`. It must live in `tests/` rather than the scratchpad: pytest derives rootdir from its args, so a file outside the repo picks up neither `pyproject.toml`'s `[tool.pytest.ini_options]` (no `DJANGO_SETTINGS_MODULE`, no `e2e` marker) nor the repo's `conftest.py`. Step 8 deletes it.
+
+It needs its own fixtures — **neither** of the two it depends on comes from any `conftest.py`; both are module-local in every `tests/test_e2e_*.py` (see `test_e2e_media_manager.py:34-39` and `:41-53`, whose docstrings say so explicitly). Write it in full:
+
+```python
+"""SCRATCH -- delete before committing Task 4. Measures the real card geometry.
+
+Neither fixture below is in any conftest.py. Without the first, sync Playwright
+plus the sync ORM raises SynchronousOnlyOperation; without the second this file
+writes PNGs into the repo's own media/ directory.
+"""
+
+import os
+
+import pytest
+from django.urls import reverse
+
+from tests.factories import CourseFactory
+from tests.factories import make_image_asset
+from tests.factories import make_verified_user
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _isolated_media(settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_measure(page, live_server):
+    user = make_verified_user("scratch-pa")
+    course = CourseFactory(owner=user, slug="scratch")
+    make_image_asset(course, filename="przykladowa_parabola_0_2.png", size=(400, 300))
+    # Log in exactly as tests/test_e2e_media_manager.py's _login does -- copy it.
+    _login(page, live_server, "scratch-pa")
+    page.goto(
+        f"{live_server.url}{reverse('courses:manage_media', kwargs={'slug': course.slug})}"
+    )
+    page.wait_for_selector(".asset-grid .asset-cell")
+    page.set_viewport_size({"width": 360, "height": 900})
+    print("CARD:", page.locator(".asset-cell").first.bounding_box())
+    print("SPAN:", page.locator(".asset-dname").first.bounding_box())
+    print("RECTS:", page.evaluate("""() => {
+        const s = document.querySelector('.asset-dname');
+        const r = document.createRange(); r.selectNodeContents(s);
+        return r.getClientRects().length;
+    }"""))
+```
 
 ```python
 card = page.locator(".asset-cell").first
@@ -542,11 +594,11 @@ print(page.evaluate("""() => {
 }"""))
 ```
 
-Run it with `uv run pytest tests/test_zz_scratch_measure.py -s -v` — **without** `-m e2e`, since the scratch file carries no marker and would otherwise be deselected (exit 5). Record the three numbers as a comment in `tests/test_e2e_media_manager.py`. **Delete `tests/test_zz_scratch_measure.py`** before Step 8, and confirm with `git status` that it is not staged.
+Run it with `uv run pytest tests/test_zz_scratch_measure.py -s -v` — **without** `-m e2e`, since the scratch file carries no marker and would otherwise be deselected (exit 5). Record the **card width** as a comment in `tests/test_e2e_media_manager.py`; ignore the span and rect numbers for now (they are pre-CSS artefacts — see above). **Keep the file** until Step 7, which re-runs it against the finished CSS; Step 8 deletes it.
 
 Expect **two** columns at 360 px, each materially wider than 128 px — `minmax(8rem, 1fr)` makes 128 px a floor, not the rendered width. The docstring at `:594-596` claims otherwise and is wrong; Step 7 fixes it.
 
-Three later decisions depend on these numbers: whether a ≤32-character name can overflow three lines (Step 7), how long the clamp fixture must be (Step 7), and which fixture wraps to ≥2 lines for the alignment row (Step 2).
+The card width is what Step 2's fixtures are sized against. The other two decisions — whether a ≤32-character name can overflow three lines, and how long the clamp fixture must be — wait for Step 7's re-run, since neither can be answered before the wrapping rules exist. If Step 2's alignment row turns out not to wrap at the measured width, its own `assert lines >= 2` precondition fails loudly rather than silently disarming the mutants.
 
 - [ ] **Step 2: Write the failing geometry tests**
 
@@ -691,7 +743,7 @@ One at a time: edit the mutant in, re-run, confirm RED, **edit it back out by ha
 
 - [ ] **Step 7: Resolve the clamp, and fix the false docstring**
 
-Using Step 1's rect count, decide whether a ≤32-character name can overflow three lines at the measured width.
+**Re-run `tests/test_zz_scratch_measure.py` now** — this is the first moment the wrapping rules exist, so it is the first moment its span-width and rect-count numbers mean anything. Using *those* numbers (not Step 1's pre-CSS ones), decide whether a ≤32-character name can overflow three lines at the measured width.
 
 - **If yes:** add a row asserting exactly 3 text-run rects for that fixture, mutant `drop -webkit-line-clamp: 3`. First spike whether Blink removes clamped lines from the layout tree (so `getClientRects()` returns 3) or lays them out and clips the paint (so it returns 4+ on *both* builds, making the row unfalsifiable). If rects do not discriminate, probe `scrollHeight > clientHeight` instead. The fixture must also be ≤32 characters, or `middle_truncate` shortens it first and the budget decides the count on both builds — assert its rendered length equals its source length so a later budget change fails loudly.
 - **If no:** the clamp is unreachable in production too. Delete **all four** declarations — `display: -webkit-box`, `-webkit-box-orient`, `-webkit-line-clamp` **and `overflow: hidden`** — leaving `overflow-wrap: anywhere` as the sole containment rule, and collapse the first mutant above to dropping that one rule. Re-run the containment rows afterwards; removing `-webkit-box` changes the layout the probe measures.
@@ -987,13 +1039,17 @@ def test_hover_opens_the_overlay_with_the_thumbnails_source(page, live_server):
     _open_manager(page, live_server, "hov-pa", course)
     _open_preview(page, "wide_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
-    # getAttribute("src"), not currentSrc: src is set synchronously in open(),
-    # whereas currentSrc is populated by the source-selection step and can still
-    # be "" when read in the same tick -- a flake, not a deterministic red.
+    # currentSrc on BOTH sides. Comparing raw attributes does not work here:
+    # open() assigns anchor.currentSrc, which is the ABSOLUTE resolved URL, so
+    # the overlay's attribute is "http://127.0.0.1:PORT/media/..." while the
+    # thumb's is the relative "/media/..." the template wrote (MEDIA_URL is
+    # "/media/", config/settings/base.py:167, not overridden in test.py). They
+    # are never equal. The visibility wait above guarantees both are populated,
+    # which is what made the attribute form tempting in the first place.
     same = page.evaluate("""() => {
         const img = document.querySelector('[data-asset-preview-img]');
         const thumb = document.querySelector('[data-asset-preview]');
-        return img.getAttribute('src') === thumb.getAttribute('src');
+        return img.currentSrc === thumb.currentSrc;
     }""")
     assert same
     box = page.locator(".asset-preview").bounding_box()
@@ -1479,7 +1535,19 @@ def test_b_s_caption_never_appears_over_a_s_image(page, live_server):
     )
     released = {"route": None}
     page.route("**/drugi_0_2*", lambda route: released.__setitem__("route", route))
-    _open_manager(page, live_server, "inf-pa", course)
+    # NOT _open_manager: a handler that stores the route without resolving it
+    # leaves the request PENDING, and _open_manager's page.goto defaults to
+    # wait_until="load", which <img> subresources block -- so the navigation
+    # would never resolve and this row would die on a 30s timeout before
+    # reaching a single assertion. (route.abort() elsewhere is fine: it
+    # resolves the request.) Log in the same way _open_manager does, then
+    # navigate with domcontentloaded.
+    _login(page, live_server, "inf-pa")
+    page.goto(
+        f"{live_server.url}{reverse('courses:manage_media', kwargs={'slug': course.slug})}",
+        wait_until="domcontentloaded",
+    )
+    page.wait_for_selector(".asset-grid .asset-cell")
     page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "pierwszy_0_1.png")
     # BY NAME -- see the ordering note above. With nth(1) the pointer would land
@@ -1513,7 +1581,15 @@ def test_a_late_load_from_a_previous_asset_cannot_reveal_it(page, live_server):
     held = {"route": None}
     page.route("**/wolny_0_1*", lambda route: held.__setitem__("route", route))
     page.route("**/martwy_0_2*", lambda route: route.abort())
-    _open_manager(page, live_server, "late-pa", course)
+    # domcontentloaded, not _open_manager -- see the note in
+    # test_b_s_caption_never_appears_over_a_s_image: the held request would
+    # block a wait_until="load" navigation forever.
+    _login(page, live_server, "late-pa")
+    page.goto(
+        f"{live_server.url}{reverse('courses:manage_media', kwargs={'slug': course.slug})}",
+        wait_until="domcontentloaded",
+    )
+    page.wait_for_selector(".asset-grid .asset-cell")
     page.set_viewport_size({"width": 1280, "height": 900})
 
     _open_preview(page, "wolny_0_1.png")          # A: load held, image hidden
@@ -1727,7 +1803,19 @@ def test_tabbing_to_a_card_button_opens_it_and_it_stays_open(page, live_server):
     user, course = _seed_assets("tab-pa", "tab", *specs)
     _open_manager(page, live_server, "tab-pa", course)
     page.set_viewport_size({"width": 1280, "height": 900})
+    # A tall grid is not enough on its own: _tab_to_a_card_button stops at the
+    # FIRST cell's button, which is in grid row 1 and already visible -- focusing
+    # a visible element scrolls nothing, no scroll event fires, and the
+    # synchronous-binding mutant survives. Scroll to the bottom first, so the
+    # first card button is above the viewport and focusing it must scroll back.
+    page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+    scrolled_to = page.evaluate("() => window.scrollY")
+    assert scrolled_to > 0, "grid is not taller than the viewport; widen the fixture"
     _tab_to_a_card_button(page)
+    assert page.evaluate("() => window.scrollY") != scrolled_to, (
+        "focus did not scroll; this row's premise is broken and the mutant "
+        "would survive"
+    )
     expect(page.locator(".asset-preview")).to_be_visible()
     page.wait_for_timeout(400)          # outlive any deferred scroll close
     expect(page.locator(".asset-preview")).to_be_visible()
@@ -1754,6 +1842,9 @@ def test_a_replace_commit_does_not_leave_the_overlay_open(page, live_server):
     replace button after every commit. Without the :focus-visible gate that
     raises a 320px overlay unprompted, in five other tests and the screenshots.
     """
+    user, course = _seed_assets("rcm-pa", "rcm", ("wymiana_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "rcm-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     # ... drive a replace to completion, per the file's existing replace tests:
     #     click [data-replace-asset], set_files on the chooser, click
     #     [data-replace-commit], wait for [data-replace-strip] to detach.
@@ -1778,6 +1869,9 @@ def test_hovering_a_thumb_while_a_rename_input_is_open_does_not_open(page, live_
 
 @pytest.mark.django_db(transaction=True)
 def test_hovering_a_thumb_while_a_replace_strip_is_open_does_not_open(page, live_server):
+    user, course = _seed_assets("rsp-pa", "rsp", ("pasek_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "rsp-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     # ... raise the replace confirm strip (click [data-replace-asset] and choose
     #     a file), then hover that cell's thumb via _anchor()
     page.wait_for_timeout(600)
@@ -2065,17 +2159,20 @@ git commit -m "feat(media): preview close paths, keyboard path and the editing-c
 
 ```python
 @pytest.mark.django_db(transaction=True)
-def test_a_tap_does_not_open_the_overlay_on_touch(browser, playwright, ...):
+def test_a_tap_does_not_open_the_overlay_on_touch(browser, playwright, live_server):
+    user, course = _seed_assets("tch-pa", "tch", ("dotyk_0_1.png", (400, 300)))
     context = browser.new_context(**playwright.devices["Pixel 5"])
-    page = context.new_page()
-    # ... open the manager
-    assert not page.evaluate(
-        """() => matchMedia('(hover: hover) and (pointer: fine)').matches"""
-    )
-    page.locator("[data-asset-preview]").first.tap()
-    page.wait_for_timeout(600)   # negative assertions must outlive the dwell
-    expect(page.locator(".asset-preview")).to_be_hidden()
-    context.close()
+    try:
+        page = context.new_page()
+        # ... log in and goto the manager on THIS page, as _open_manager does
+        assert not page.evaluate(
+            """() => matchMedia('(hover: hover) and (pointer: fine)').matches"""
+        )
+        _anchor(page, "dotyk_0_1.png").tap()
+        page.wait_for_timeout(600)   # negative assertions must outlive the dwell
+        expect(page.locator(".asset-preview")).to_be_hidden()
+    finally:
+        context.close()   # or the context leaks when an assertion above fails
 ```
 
 Mutant: drop the `matchMedia` gate.
