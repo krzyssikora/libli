@@ -548,7 +548,8 @@ override:
 min-content contribution, which is what actually stops the overflow. Pinned by the text-overflow
 assertion in Testing.
 
-The legend keeps `.unit-kind__label` visually hidden on every surface (so the accessible name in §3
+Choosing the legend over un-hiding the row label is what keeps `.unit-kind__label` visually hidden
+on every surface (so the accessible name in §3
 is unchanged everywhere) and needs no `.unit-drawer__list .unit-kind*` rules at all. It renders
 unconditionally rather than
 being gated on "does this course contain any marked unit" — gating would need a tree scan, and a
@@ -894,7 +895,12 @@ vacuous.
 
 **Every rail/drawer selector must be scoped.** `_unit_shell.html` renders the tree **twice** per unit
 page — rail (`[data-unit-tree-list]`) and drawer (`[data-unit-drawer-list]`) — so every unit emits
-two `.unit-tree__unit` rows and two `.unit-kind` wrappers. An unscoped `select_one` silently tests
+two `.unit-tree__unit` rows and two `.unit-kind` wrappers. **With the drawer open there are two
+MORE** `.unit-kind` wrappers that belong to no unit row at all — the legend entries — so a bare
+`.unit-kind` locator in the phone arm is a strict-mode violation on a **correct** build. Scope the
+drawer maths re-check to `[data-unit-drawer-list] .unit-kind`, and the `btns` entry in
+`capture_title_math_screenshots.py` to `[data-unit-drawer] .unit-drawer__list .unit-kind`, or the
+legend gets swept into the overlap check. An unscoped `select_one` silently tests
 only the rail, a `len(...) == 1` assertion fails on a **correct** build, and a Playwright
 `.unit-kind` locator is a strict-mode violation — the hazard `_unit_shell.html:8-10` already
 documents for `[data-unit-tree-toggle]`. Test 4 targets `[data-unit-tree-list] .unit-tree__unit`.
@@ -1025,10 +1031,14 @@ Assertions at that size:
   form is right here (unlike the plain-text case above) because a `.base` span genuinely paints
   outside its parent's box. Three things must be stated, because none is obvious:
 
-  1. **Reuse the title the existing audit measured** (the Task-11 fixture named at
-     `courses.css:2339-2345`), so this is a like-for-like re-measurement at ~76px against the
-     original's ~98px. A freshly-invented formula would make the outcome a property of the fixture
-     rather than of the column width.
+  1. **Reuse the title the existing audit measured** — the drawer title in
+     `tests/capture_title_math_screenshots.py`'s title dict that drives its drawer arm (~:470); that
+     script is already being edited for the `btns` list, so the fixture is in hand. Cite
+     `courses.css:2339-2345` only for the audit's *result*: that comment records "Task 11 MEASURED
+     this at 390x780" but names no title string, so it cannot be used to find the fixture. Reusing
+     it makes this a like-for-like re-measurement at ~76px against the original's ~98px; a
+     freshly-invented formula would make the outcome a property of the fixture rather than of the
+     column width.
   2. **Expected outcome: no intersection.** But note the precedent is thinner than it looks — the
      original audit checked `.katex` against `.unit-tree__count`, `.unit-tree__groupcheck`,
      `.unit-tree__chevron` (all on **group** rows), `.unit-tree__check` (which *leads* a unit row)
@@ -1041,7 +1051,10 @@ Assertions at that size:
      already applies to tab labels) or moving the marker out of the row — decide it then, and record
      the decision in the audit comment. Do not widen the tolerance to make it pass;
 - the **unit page** head at 390 wide on a quiz or additional unit — the chip's `top >=
-  title_bottom - 1` and its `left` near the group's left edge. This is the chip-bearing half of the
+  title_bottom - 1` and `chip.left == group.left` (±1) — exact, not "near": at 390px the `<h1>`
+  keeps `flex-basis: 100%` from `courses.css:986`, the group wraps, and the chip starts a fresh flex
+  line at the group's content-box left under the default `justify-content: flex-start` (the group
+  has no padding). This is the chip-bearing half of the
   mobile rule, which `test_e2e_unit_head_layout.py` structurally cannot cover;
 - the **outline** page at 390 wide, with **two** marked rows, because the two CSS edits in §4 are
   pinned by different content:
@@ -1067,8 +1080,18 @@ Assertions at that size:
   For both rows, "stays within its box" is too loose to assert — under the two-level overflow in §4
   the anchor, the `li` and the viewport disagree, and if the anchor sizes itself at min-content and
   overflows the `li`, the *content* is still inside the *anchor* and a naive assertion passes on the
-  broken build. The discriminating assertion on **both** rows is
-  `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1`.
+  broken build. The discriminating assertions are:
+
+  - **both rows** — `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1` (pins the
+    **anchor**'s `min-width: 0`);
+  - **maths row additionally** — `chip.right <= anchor.right + 1` (equivalently the `✓`'s right).
+    This is the **only** assertion that pins the **title**'s own `min-width: 0`, and without it that
+    declaration has no mutant at all. On the plain-text row it is inert, because
+    `overflow-wrap: anywhere` already collapses the title's minimum to ~1 character. On the maths
+    row it bites: reverting it makes the title's automatic minimum the atom's full width (~250px),
+    so title 250 + chip 78 + `✓` 22 + gaps 16 ≈ 366px overflows the anchor's ~326px content box and
+    pushes the chip and tick **outside the anchor** — while the anchor's own border box is unchanged,
+    which is exactly why `anchor.right <= li.right + 1` cannot see it.
 
   **`document.documentElement.scrollWidth === clientWidth` belongs on the plain-text row only.**
   There `overflow-wrap: anywhere` genuinely prevents all overflow, so it is a true invariant. On the
@@ -1102,7 +1125,8 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
   empty-marker glyph render test goes red.
 - Rail icon rendered leading instead of trailing → the last-element-child assertion goes red.
 - The chip moved before `.outline-unit__title` → the outline next-element-sibling assertion goes red.
-- `.unit-tree__label`'s `flex: 1 1 auto` reverted → the shared-`x` gutter assertion goes red.
+- `.unit-tree__label`'s `flex: 1 1 auto` reverted → the shared-`right` gutter assertion **and** the
+  `icon.right == row.right - 8` offset both go red.
 - `gap: var(--space-1)` deleted from `.unit-kind` → the legend's glyph-to-word gap assertion goes
   red (4px → 0px). **Not** `display: inline-flex`, whose removal substitutes a ~3–4px rendered space
   that may land inside tolerance. Deleting the *whole* rule has deliberately **no rail mutant**: the
@@ -1117,6 +1141,9 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
   `scrollWidth - clientWidth` assertion goes red.
 - The title's `overflow-wrap: anywhere` weakened to `break-word` → the 390-wide outline assertion
   goes red **on the plain-text fixture** (`break-word` does not lower the min-content contribution).
+- `.outline-unit__title`'s `min-width: 0` reverted → the **maths row's** `chip.right <=
+  anchor.right + 1` assertion goes red. Only that row: on plain text `anywhere` already collapses
+  the title's minimum, so the declaration is inert there and the mutant would be green.
 - The anchor's `min-width: 0` (`app.css:544`) reverted → the 390-wide outline assertion goes red
   **only on the maths-title fixture**. It is inert on plain text, because `anywhere` already
   collapses the title's minimum to ~1 character (§4) — so falsify it against the maths row
