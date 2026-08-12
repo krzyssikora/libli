@@ -405,16 +405,10 @@ by the latest assignment while the queued event carries no snapshot of the
 generation in force when it was queued, so it always compares equal at dispatch.
 Since the reset no longer clears `src` (above), the only events either handler
 can see belong to a real source, and the expected-`src` comparison is enough to
-drop one belonging to a source the module has already moved on from. This is not defensive
-padding: per HTML's "update the image data" algorithm a *removed* `src` produces
-a null selected source exactly as an empty one does, and **queues an `error`
-task** either way. That task is dispatched asynchronously — after the open
-sequence has already assigned the new source — so without the guard the reset's
-own `error` would flip a perfectly good, just-opened overlay into the
-caption-only state, on every card of an A→B sweep. `removeAttribute` is still
-preferred over `src = ""` because it issues no bogus request for the manager
-page, but it does **not** avoid the `error`. Chromium's exact conformance here is
-one of the premises to settle by spike (see Testing).
+drop one belonging to a source the module has already moved on from. That is the
+live reason the guard exists: an in-place swap reassigns `src` while the
+previous source's `load` or `error` may still be queued, and a handler that
+acted on it would apply A's outcome to B's overlay.
 
 **Trigger, and how it survives DOM churn.** `mouseenter` / `mouseleave` do
 **not** bubble, so they cannot be delegated — and the manager replaces cells and
@@ -658,9 +652,16 @@ state on `error`).
 
 **The open sequence, in order.** Reset the singleton (§5) → **increment the
 open-generation token** → populate: assign `src`, record it in module state as
-the expected source, set the caption, `openAnchor` and `openedBy` → connect the
-`MutationObserver` → remove `hidden` with `visibility: hidden` → measure →
-position → restore `visibility` → bind the deferred scroll listener.
+the expected source, **reveal the image synchronously if it is already complete**
+(the `complete && naturalWidth > 0` check above), set the caption with
+`textContent`, set `openAnchor` and `openedBy` → connect the `MutationObserver`
+→ remove `hidden` with `visibility: hidden` → measure → position → restore
+`visibility` → bind the deferred scroll listener.
+
+The reveal's position inside `populate`, **ahead of `measure`**, is load-bearing
+and not incidental: on the synchronous path there may be no `load` event at all,
+so the measurement taken here is the only one that will ever happen and it must
+already include the image.
 
 **An in-place anchor-to-anchor swap runs this same sequence** — minus the
 `hidden` toggle on the root and minus the dwell. It is not a special path with
@@ -672,8 +673,11 @@ timer bails behave identically to a cold open.
 removed — a `display: none` element has no box and `getBoundingClientRect()`
 returns zeros, which would make every "does it fit?" test compare against width
 0 and always answer yes. Placement is recomputed on the image's `load`, because
-assigning `src` does not synchronously give a cached image its `naturalHeight`,
-so the first measurement sees a caption-only box.
+for an image that is *not* already complete, assigning `src` does not
+synchronously give it a `naturalHeight`, so the first measurement sees a
+caption-only box. On the synchronous-reveal path the opposite holds: the image
+is already laid out when `measure` runs, there may be no `load` at all, and that
+first measurement is both the only one and already correct.
 
 - **The reference box is the cell, not the thumb.** `[data-asset-preview]` sits
   on the `<img>`, which is inset from the cell by `var(--space-2)` padding and a
@@ -998,7 +1002,7 @@ was retired when the reset stopped clearing `src` at all. §5 records why.)
 | Both the overlay's box **and** its image's box are inside the viewport for a tall portrait source, and the overlay lands centred rather than beside the card | 360 px | drop the image's `min-height: 0` (it then refuses to shrink); measure before removing `hidden` |
 | An over-budget name is fully readable in the caption — probe `scrollWidth <= clientWidth` on the caption, never `inner_text()`, which reports the full string whether painted or clipped | 1280 px | drop the caption's `overflow-wrap: anywhere` |
 | The caption of an asset named `<img src=x onerror=1>.png` has that exact `textContent` and the overlay subtree contains no injected element | 1280 px | write the caption with `innerHTML` instead of `textContent` |
-| Hovering A, leaving past the grace, then hovering A again shows the **image**, not a caption-only box | 1280 px | reveal only on `load`, dropping the synchronous `complete && naturalWidth > 0` check |
+| Hovering A, leaving past the grace, then hovering A again shows the **image**, not a caption-only box, **and places the overlay against the image's height rather than a caption-only box** | 1280 px | reveal only on `load`, dropping the synchronous `complete && naturalWidth > 0` check; and separately, reveal after `measure` instead of before it |
 | With the pointer parked on thumb A and a focus-opened overlay on cell B, moving the pointer off A leaves B's overlay open past 300 ms | 1280 px | arm the hide timer on every anchor exit instead of only when the departed anchor is `openAnchor` |
 | Hovering thumb A then the neighbour the overlay covers switches the overlay to B's source | 1280 px | drop `pointer-events: none` (Playwright then reports the overlay intercepting) |
 | After the debounced filter swaps the grid, hovering a cell in the **new** grid still opens the overlay | 1280 px | bind `mouseenter` per node at load instead of delegating |
