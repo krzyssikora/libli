@@ -112,6 +112,16 @@
       if (!gate.hasAttribute("tabindex")) gate.setAttribute("tabindex", "-1");
       return gate;
     }
+    if (gate.matches("[data-filltablegate]")) {
+      // :not([disabled]) is DEFENSIVE BY CHOICE, not a fix for a reachable bug --
+      // do not justify it with a causal story. cascadeFrom calls focusTargetIn only
+      // when `lastRevealed === firstNew` (reveal.js:174), i.e. on a wrapper that was
+      // hidden until this instant, so its inputs cannot have been disabled by a live
+      // lock(); and the server-rendered restore path uses readonly, which IS
+      // focusable. The qualifier costs nothing and keeps the branch correct if a
+      // future change ever routes a locked table through here.
+      return gate.querySelector(".filltable__input:not([disabled])");
+    }
     if (gate.matches("[data-switchgate]")) {
       return gate.querySelector("[data-switchgate-cycler]");
     }
