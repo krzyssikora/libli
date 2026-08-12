@@ -1421,15 +1421,18 @@ class FillTableElement(ElementBase):
         # The form is only one write path: _build_fill_table (model-level only, and
         # _val_fill_table never inspects answers) and programmatic construction both
         # bypass it. So mirror both of the form's rules here.
-        from courses.filltable import answer_cells
-        from courses.filltable import is_blank_answer
+        # Test the flag FIRST. normalize_data runs for every fill-table on every
+        # lesson render, gated or not, so scanning the grid before knowing whether
+        # anyone asked for a gate walks every cell and splits every accepted-answer
+        # string for nothing. `and` would short-circuit, but a list comprehension
+        # on the line above it has already done the work.
+        gate = bool(data.get("gate"))
+        if gate:
+            from courses.filltable import answer_cells
+            from courses.filltable import is_blank_answer
 
-        answers = [ans for _r, _c, ans in answer_cells(cells)]
-        gate = (
-            bool(data.get("gate"))
-            and bool(answers)
-            and not any(is_blank_answer(a) for a in answers)
-        )
+            answers = [ans for _r, _c, ans in answer_cells(cells)]
+            gate = bool(answers) and not any(is_blank_answer(a) for a in answers)
         return {
             "header_row": bool(data.get("header_row")),
             "header_col": bool(data.get("header_col")),
