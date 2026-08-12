@@ -89,8 +89,8 @@ that can be single-sourced is. Do not "simplify" the `additional` branch into
 `not is_obligatory_lesson(node)` — that is precisely the mutant the tests exist to kill.
 
 **The constants do not reach the templates.** A Django template cannot import a Python constant, so
-`_unit_kind_icon.html` hardcodes `"quiz"` in its branch and both partials interpolate the raw key
-into a class name. Renaming a constant therefore requires a grep of
+`_unit_kind_glyph.html` hardcodes `"quiz"` / `"additional"` in its `{% if %}`/`{% elif %}` branches,
+and all three partials interpolate the raw key into a class name. Renaming a constant therefore requires a grep of
 `templates/courses/_unit_kind_*.html`; the render tests assert the rendered modifier class against
 the constant, so a rename that misses the templates goes red rather than silent.
 
@@ -371,11 +371,13 @@ levels**, and fixing only the inner one leaves the row broken:
   title(~1 char) + chip + `✓` + gaps + padding — comfortably inside the `li` at 390px, so on a
   plain-text fixture this declaration is inert and its mutant would be green. (Deliberately no
   pixel totals here: an earlier draft quoted two figures that could not both describe the same
-  element, and the argument needs only the ordering, not the numbers. Measure at implementation.) It is pinned instead by the **maths-title** outline fixture (see Testing), where
-  the atom genuinely cannot be broken. Note precisely what that fixture must be: **a single wide
-  `\frac`/`\sqrt` with no top-level operator**, not merely a long formula — `courses.css:1687-1698`
-  records that KaTeX breaks a multi-term formula between its `.base` spans, which would leave this
-  mutant green. `.katex` is not an atomic inline-block.
+  element, and the argument needs only the ordering, not the numbers. Measure at implementation.)
+
+  **It therefore has no mutant and no fixture at all.** See Testing's "no maths-title outline
+  fixture" paragraph: any atom robust enough to redden this declaration also collides with the chip
+  on a *correct* build, so the fixture that would pin it cannot satisfy its two constraints at once.
+  The residual unbreakable-atom edge case is documented there as a pre-existing trade rather than a
+  tested one.
 - **`anywhere` vs `break-word`: the two are indistinguishable here, and no test can separate them.**
   They differ *only* in intrinsic (min-content) sizing; both break an over-long word at line-break
   time, producing pixel-identical rendering. The min-content contribution would matter only if the
@@ -520,8 +522,8 @@ not a figure derived from the rail's 98px — and while editing, correct that co
 drawer claim, which is the error this section had to unwind.
 
 **`overflow-wrap: anywhere` on the drawer label is inert forward-defence with no mutant.** Extend the
-`:977` override with it for consistency with `.unit-tree__grouptitle` (`:736-738`), but do not claim
-a test can see it: at a ~230px column, a single unbroken token would have to exceed ~230px (roughly
+`:977` override with it for parity with `courses.css:940` — **not** with `.unit-tree__grouptitle`
+(`:736-738`), which uses `break-word`, the *other* value — but do not claim a test can see it: at a ~230px column, a single unbroken token would have to exceed ~230px (roughly
 28+ characters) to overflow, which no realistic title does — `test_e2e_unit_head_layout.py`'s
 `LONG_TITLE` token "przedziałach" is ~95px and does not come close. A mutant deleting it would be
 green, which this spec treats as a hard stop, so none is listed.
@@ -898,7 +900,9 @@ both marked, scoped to `[data-unit-tree-list]`: assert their `.unit-kind` boxes 
 within ~1px, and that `icon.right == row.right - 8` — `.unit-tree__unit`'s `padding: .3rem .5rem`
 (`courses.css:766`). Both are false when `.unit-tree__label` has no `flex-grow`.
 
-Also assert, at desktop, that `[data-unit-tree-list] .unit-kind__label` still measures a ~1px box —
+Also assert, at desktop, that `[data-unit-tree-list] .unit-kind__label` still measures
+`width <= 2 and height <= 2` — stated numerically and symmetrically with the drawer's 30×8 bound,
+mirroring `.visually-hidden`'s literal `width: 1px; height: 1px` (`app.css:1219-1220`); it is
 i.e. it is **still hidden in the rail**. Without it, a drawer un-hide rule that loses its
 `.unit-drawer__list` scope passes every other assertion here (`icon.right == row.right - 8` and the
 shared-`right` gutter both still hold) while silently consuming most of the rail's title column.
@@ -992,9 +996,15 @@ Assertions at that size:
   Playwright reports as **visible with a non-empty box**, so a `bounding_box() is not None`
   assertion cannot distinguish an un-hidden label from a still-hidden one, nor catch the partial
   revert (`position: static` only) that §4 calls the likeliest wrong implementation;
-- **the marker keeps its width**: `.unit-kind`'s `right <= row.right - 8` (the row's
-  `padding-right`) and its rendered width within ~1px of its natural ~91px, both scoped to
-  `[data-unit-drawer-list]`. This is what catches a shrinkable marker — the mutant is *adding*
+- **the marker keeps its width**, asserted **differentially** so no font metric is hardcoded:
+  `label.right <= marker.right + 1` (equivalently `marker.width >= svg.width + 4 + label.width - 1`),
+  scoped to `[data-unit-drawer-list]`. Under the mutant the children keep their own sizes while the
+  wrapper is cut, so they overflow it and this fails; on a correct build it holds for any font.
+  **Do not assert an absolute "~91px ±1"** — that figure is derived from an estimated word width and
+  would likely be red on a correct build, the very trap this spec records elsewhere ("measure it, do
+  not derive it"). `.unit-kind`'s `right <= row.right - 8` is kept only as a containment check: it
+  holds on **both** builds, since after the shrink the row still has zero free space and the marker
+  still ends at the padding edge. This is what catches a shrinkable marker — the mutant is *adding*
   `.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0 }`, which §4 warns against. Note the
   30×8 label assertion above does **not** catch it: with the marker squeezed, its children clamp at
   their own min-contents, so the label still measures ~71×19 and `label.left - svg.right` is still
@@ -1103,6 +1113,11 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
 - The chip moved before `.outline-unit__title` → the outline next-element-sibling assertion goes red.
 - `.unit-tree__label`'s `flex: 1 1 auto` reverted → the shared-`right` gutter assertion **and** the
   `icon.right == row.right - 8` offset both go red.
+- `.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0 }` **added** — the rule §4 forbids →
+  the drawer marker-width assertion goes red. This is the list's only **additive** mutant, easy to
+  skip among deletions, and it is the sole catcher: the 30×8 label assertion and the 4px gap
+  assertion both stay green under it, because the wrapper's children clamp at their own
+  min-contents.
 - `gap: var(--space-1)` deleted from `.unit-kind` → the drawer row's glyph-to-word gap assertion goes
   red (4px → 0px). **Not** `display: inline-flex`, whose removal substitutes a ~3–4px rendered space
   that may land inside tolerance. Deleting the *whole* rule has deliberately **no rail mutant**: the
@@ -1113,8 +1128,9 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
 - The `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }` reset deleted → the
   **short-title** desktop assertion goes red. NOT the cap-length one, which is pixel-identical on
   both builds.
-- `overflow-wrap: anywhere` dropped from the drawer's `.unit-tree__label` override → the 390px
-  `scrollWidth - clientWidth` assertion goes red.
+- The drawer label's `overflow-wrap: anywhere` has deliberately **no mutant**: it is inert at a
+  ~230px column (§4), so any test claiming to redden on its removal would be green on the broken
+  build.
 - The title's `overflow-wrap` **removed entirely** (→ `normal`) → the plain-text row's
   `title.scrollWidth - title.clientWidth <= 1` assertion goes red. **Not** `anywhere` → `break-word`:
   with `min-width: 0` co-applied those two are pixel-identical, so that mutant is green on every
@@ -1130,10 +1146,13 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
   `align-items: baseline` makes the two tops differ by ~10–15px on a correct build (§Testing).
 - The `.unit-drawer__list .unit-kind__label` un-hide rule deleted → the 30×8 drawer-label assertion
   goes red. Falsify **also** against (a) the partial revert (`position: static` only), the likelier
-  mistake and the one a "non-empty box" assertion would miss, and (b) **losing the
-  `.unit-drawer__list` scope** — or placing the block outside the `@media (max-width: 640px)` block —
-  which un-hides the word in the 14rem desktop rail and eats ~58px of its ~98px title column. That
-  third form is caught only by the rail assertion below.
+  mistake and the one a "non-empty box" assertion would miss, and (b) placing the block **outside** the
+  `@media (max-width: 640px)` block, which un-hides the word in the 14rem desktop rail and eats
+  ~58px of its ~98px title column — caught only by the desktop rail `.unit-kind__label` assertion in
+  §Testing. Note that merely **dropping the `.unit-drawer__list` selector while the block stays
+  inside the media query is INERT** and carries no mutant: `courses.css:950` sets
+  `.unit-tree { display: none }` in that same block, so at ≤640px there is no rail to un-hide the
+  word in, and at desktop the media query never matches.
 - `lang="{{ LANGUAGE_CODE }}"` dropped from the chip → the render tests' `lang` assertion goes red.
 
 A mutant must be removed by editing it out, never by `git checkout` of the file, which would destroy
