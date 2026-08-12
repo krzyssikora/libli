@@ -1,10 +1,18 @@
 import pytest
+from bs4 import BeautifulSoup
 
+from courses.models import CalloutElement
+from courses.models import Element
 from courses.models import FillTableElement
 from tests.factories import make_course
+from tests.factories import make_course_with_unit
 from tests.factories import make_image_asset
 
 pytestmark = pytest.mark.django_db
+
+_CELLS_WITH_ANSWER = [
+    [{"kind": "static", "html": "x"}, {"kind": "answer", "answer": "4"}],
+]
 
 
 def _render(cells, **kw):
@@ -14,6 +22,64 @@ def _render(cells, **kw):
     # render test); for a pure-render check eid=0 is acceptable — render()
     # falls back to 0.
     return el.render()
+
+
+def test_gated_table_marks_the_root_div():
+    html = _render(_CELLS_WITH_ANSWER, gate=True)
+    assert "data-reveal-gate" in html
+    assert "data-filltablegate" in html
+
+
+def test_ungated_table_has_no_gate_attributes():
+    html = _render(_CELLS_WITH_ANSWER)
+    assert "data-reveal-gate" not in html
+    assert "data-filltablegate" not in html
+
+
+def test_gate_marker_is_on_the_same_node_as_data_state():
+    # reveal.js::storedOpen reads dataset.state off the node it matched via
+    # [data-reveal-gate]. If the marker lands on the inner .el--filltable div
+    # instead, storedOpen reads undefined -> the gate never restores and the
+    # revealed content is hidden forever.
+    html = _render(_CELLS_WITH_ANSWER, gate=True)
+    soup = BeautifulSoup(html, "html.parser")
+    node = soup.select_one("[data-reveal-gate][data-filltablegate]")
+    assert node is not None
+    assert node.has_attr("data-state")
+    assert "filltable" in node.get("class", [])
+
+
+def _render_callout_with_filltable_child(gate):
+    """Render a CalloutElement whose only child is a fill-table.
+
+    resolved_children() groups by `parent` alone, so no tab_id is needed.
+    """
+    _course, unit = make_course_with_unit()
+    callout = CalloutElement.objects.create()
+    parent_row = Element.objects.create(unit=unit, content_object=callout)
+    child = FillTableElement(data={"cells": _CELLS_WITH_ANSWER, "gate": gate})
+    child.save()
+    Element.objects.create(unit=unit, content_object=child, parent=parent_row)
+    return callout.render(
+        element=parent_row, state={}, slug=unit.course.slug, node_pk=unit.pk
+    )
+
+
+def test_gated_filltable_is_a_direct_child_of_the_callout_child_wrapper():
+    # The pre-hide CSS is
+    # `.callout__children > .callout__child:has(> [data-reveal-gate])`.
+    # One extra wrapper div between .callout__child and .filltable disarms it
+    # silently -- the gate still works on click, but nothing is hidden to begin
+    # with, so the student sees the answer before earning it.
+    soup = BeautifulSoup(_render_callout_with_filltable_child(gate=True), "html.parser")
+    child = soup.select_one(".callout__children > .callout__child")
+    assert child is not None
+    marked = soup.select_one("[data-reveal-gate]")
+    assert marked is not None
+    assert marked.parent is child, (
+        "the gate marker is not a DIRECT child of .callout__child"
+    )
+    assert "filltable" in marked.get("class", [])
 
 
 def test_answer_cell_input_carries_zero_based_indices_and_no_answer():

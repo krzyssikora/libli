@@ -2048,7 +2048,9 @@ html:not(.ba-js) .ba__toggle,
    `display: revert !important` and so cannot un-hide a cascade-hidden child --
    that entry satisfies scope agreement, this one does the work.
    The toggle is meaningless ink once both panels show (house precedent:
-   [data-reveal-gate] and .unit-strip__edit are both hidden in print). */
+   [data-reveal-gate] and .unit-strip__edit are both hidden in print; a
+   fill-table gate is carved out -- see the :not([data-filltablegate])
+   rule in app.css). */
 @media print {
   .ba__panel[hidden] { display: block !important; }
   html.ba-armed .ba__panels > [data-ba-side="after"] { display: block !important; }

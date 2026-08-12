@@ -507,3 +507,42 @@ def test_filltable_nested_in_tab_restores_after_reload(page, live_server):
     inp = page.locator('.filltable__input[data-r="0"][data-c="1"]')
     expect(inp).to_have_value("4")
     expect(inp).to_have_js_property("readOnly", True)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_editor_gate_checkbox_round_trips(page, live_server):
+    # The decorator is NOT optional: Playwright runs in another thread and cannot
+    # see rows held in an uncommitted test transaction.
+    unit, _asset_a, _asset_b = _editor_context(
+        page, live_server, "ftbl_gate", "ftbl-gate"
+    )
+    # Use the FILE'S OWN IDIOM: a function-local import. tests/test_e2e_filltable.py
+    # already imports FillTableElement inside four separate function bodies
+    # (:93, :300, :381, :489) and has no module-level import of it. Matching that
+    # keeps this a ONE-hunk diff and sidesteps the question of whether a new
+    # module-level import should replace the four locals (it should not -- that
+    # would be unrelated churn in a feature commit).
+    from courses.models import FillTableElement
+
+    # _seed_filltable_for_images returns the Element JOIN ROW (it ends
+    # `return add_element(unit, el)`), not the concrete element -- reach the
+    # FillTableElement through object_id.
+    element = _seed_filltable_for_images(unit)
+    obj = FillTableElement.objects.get(pk=element.object_id)
+
+    _goto_editor(page, live_server, "ftbl_gate", unit)
+    _open_edit(page, element.pk)
+    page.locator("[data-edit-slot] [data-gate]").check()
+
+    # There is NO _save helper in this file -- the two authoring tests save
+    # inline (:436-437). Do not copy _save from test_e2e_table_editor.py or
+    # test_e2e_table_cell_images.py: both wait on [data-table-editor], the
+    # PLAIN-table selector, and would time out here on a correct build.
+    page.locator("[data-edit-slot] .editor-form__actions button[type='submit']").click()
+    # MANDATORY before the DB read. transaction=True means both threads share a
+    # committed DB, so refresh_from_db() fired before the POST round-trips reads
+    # the PRE-save row and fails on a correct build. The detach IS the barrier.
+    page.wait_for_selector("[data-edit-slot] [data-filltable-editor]", state="detached")
+
+    obj.refresh_from_db()
+    assert obj.data["gate"] is True

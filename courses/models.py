@@ -1308,7 +1308,9 @@ class TableElement(ElementBase):
 class FillTableElement(ElementBase):
     """Ungraded self-check table: a JSON grid whose cells are either static
     (rich HTML/math, sanitised at save) or answer cells (a plain accepted-answer
-    string). Checked server-side per cell; records no marks, reveals nothing."""
+    string). Checked server-side per cell; records no marks. When `data['gate']`
+    is set, a fully-correct check reveals the following siblings in scope — see
+    reveal.js and the fill-table reveal-gate design doc."""
 
     ANSWER = "answer"
     STATIC = "static"
@@ -1408,10 +1410,31 @@ class FillTableElement(ElementBase):
             ]
         border = data.get("border")
         prompt = data.get("prompt")
+        # A gate that can never be SATISFIED strands every following sibling behind
+        # an unsatisfiable check, with no author-visible symptom. TWO grid shapes do
+        # that, and FillTableElementForm.clean_data rejects BOTH:
+        #   (a) no answer cell at all -- filltable_check returns cells: [] /
+        #       all_correct: false unconditionally;
+        #   (b) an answer cell whose accepted-answer string is blank --
+        #       marking.blank_matches loops over an EMPTY accepted list and returns
+        #       False for every input.
+        # The form is only one write path: _build_fill_table (model-level only, and
+        # _val_fill_table never inspects answers) and programmatic construction both
+        # bypass it. So mirror both of the form's rules here.
+        from courses.filltable import answer_cells
+        from courses.filltable import is_blank_answer
+
+        answers = [ans for _r, _c, ans in answer_cells(cells)]
+        gate = (
+            bool(data.get("gate"))
+            and bool(answers)
+            and not any(is_blank_answer(a) for a in answers)
+        )
         return {
             "header_row": bool(data.get("header_row")),
             "header_col": bool(data.get("header_col")),
             "case_sensitive": bool(data.get("case_sensitive")),
+            "gate": gate,
             "border": border
             if border in TableElement.BORDERS
             else TableElement.DEFAULT_BORDER,
@@ -1478,19 +1501,24 @@ class FillTableElement(ElementBase):
         from django.template.loader import render_to_string
 
         ctx = self._state_context(element, state, slug, node_pk)
+        nd = self.normalize_data(self.data)  # one nd: the gate check and the spread
         if ctx["mine"].get("done"):
             # Shallow-copied dict, NEVER `self.data["cells"] = ...` -- mutating
             # self.data in place would silently overwrite the student's stored
             # pipe-delimited alternatives in-memory for the rest of the request.
-            ctx["data"] = {
-                **self.normalize_data(self.data),
-                "cells": self.canonical_cells,
-            }
+            ctx["data"] = {**nd, "cells": self.canonical_cells}
+            if nd["gate"]:
+                # reveal.js::storedOpen tests `blob.open === true`, but state.py's
+                # _val_done stores only {"done": True} -- NOTHING ever writes
+                # `open`. Deriving it here is the ONLY thing that restores the
+                # cascade for a gated table. Do not remove it.
+                # COPY, never in-place: _state_context's `mine` is a reference
+                # into the caller's state blob, and mutating it would leak `open`
+                # into every other reader of that blob for this request.
+                ctx["mine"] = {**ctx["mine"], "open": True}
+                ctx["mine_json"] = json.dumps(ctx["mine"])
         else:
-            ctx["data"] = {
-                **self.normalize_data(self.data),
-                "cells": self.resolved_cells,
-            }
+            ctx["data"] = {**nd, "cells": self.resolved_cells}
         return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property

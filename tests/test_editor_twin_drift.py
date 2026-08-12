@@ -177,8 +177,8 @@ DIVERGENT = {
     "wire": "the container itself; its nested helpers are classified "
     "individually, so comparing the two bodies would be meaningless",
     "serialize": "fill-table emits three cell kinds (static/answer/image) where "
-    "the plain table emits two (text/image), AND its payload carries two extra "
-    "document-level fields, case_sensitive and prompt",
+    "the plain table emits two (text/image), AND its payload carries three extra "
+    "document-level fields, case_sensitive, prompt and gate",
     "refreshToolbarState": "the plain table now has a kind-specific refresh; "
     "the fill table's `if (!focusCell) return` gate is gone",
     "toggleHeaderCell": "fill-table focuses the cell's answer input rather than "

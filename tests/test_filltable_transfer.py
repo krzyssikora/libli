@@ -1,9 +1,12 @@
 """Fill-in table course export/validate/import: registration + round-trip (Task 8)."""
 
+import json
+
 import pytest
 
 from courses.builder import _NESTABLE_FORM_KEY_ALIASES
 from courses.builder import NESTABLE_TYPE_KEYS
+from courses.element_forms import FillTableElementForm
 from courses.models import FillTableElement
 from courses.transfer.export import SERIALIZERS
 from courses.transfer.export import MediaIdMap
@@ -220,3 +223,51 @@ def test_ser_fill_table_carries_span_on_unresolved_image_cell():
     assert cell["kind"] == "static"
     assert cell["colspan"] == 2  # geometry preserved even though the image is gone
     assert cell["header"] is True
+
+
+# non-blank: the guard keeps `gate` on
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]
+
+
+def test_export_carries_the_gate_flag():
+    src = FillTableElement.objects.create(data={"gate": True, "cells": _GATE_CELLS})
+    payload = SERIALIZERS["fill_table"][1](src, MediaIdMap())
+    assert payload["gate"] is True
+
+
+def test_round_trip_preserves_the_gate_flag():
+    src = FillTableElement.objects.create(data={"gate": True, "cells": _GATE_CELLS})
+    payload = SERIALIZERS["fill_table"][1](src, MediaIdMap())
+    obj, _children = BUILDERS["fill_table"](payload, {})
+    assert obj.normalized_data["gate"] is True
+
+
+def test_legacy_bundle_without_gate_imports_ungated():
+    payload = {
+        "header_row": False,
+        "header_col": False,
+        "case_sensitive": False,
+        "border": "grid",
+        "prompt": "",
+        "cells": _GATE_CELLS,
+    }
+    obj, _children = BUILDERS["fill_table"](payload, {})
+    assert obj.normalized_data["gate"] is False
+
+
+def test_every_production_write_path_stores_a_real_boolean():
+    # views.py's has_filltable_gate uses data__gate=True, which matches the JSON
+    # literal `true` only. That is exact rather than fragile BECAUSE every write
+    # path routes through normalize_data. There are THREE production write paths:
+    # the form, transfer's _build_fill_table, and the LAL loader
+    # (courses/lal_loader/builders.py:293 -- it already calls normalize_data).
+    # The two exercised below are the two reachable from a bundle or a POST; the
+    # LAL path is a one-off import tool and is asserted by inspection, not here.
+    form = FillTableElementForm(
+        data={"data": json.dumps({"gate": "yes", "cells": _GATE_CELLS})}
+    )
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["data"]["gate"] is True  # a real bool, not "yes"
+
+    obj, _children = BUILDERS["fill_table"]({"gate": "yes", "cells": _GATE_CELLS}, {})
+    assert obj.data["gate"] is True

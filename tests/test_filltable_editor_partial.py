@@ -43,6 +43,28 @@ def test_partial_has_case_sensitive_checkbox():
     assert "data-case-sensitive" in html
 
 
+# non-blank: the guard keeps `gate` on
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]
+
+
+def test_partial_has_gate_checkbox_unchecked_by_default():
+    html = _render(FillTableElement(data={"cells": _GATE_CELLS}))
+    assert "data-gate" in html
+    assert "data-gate checked" not in html
+
+
+def test_partial_gate_checkbox_is_checked_for_a_gated_element():
+    html = _render(FillTableElement(data={"cells": _GATE_CELLS, "gate": True}))
+    assert "data-gate checked" in html
+
+
+def test_editor_js_serializes_the_gate_flag():
+    src = FILLTABLE_JS.read_text(encoding="utf-8")
+    assert 'querySelector("[data-gate]")' in src
+    assert "gate: !!(gate && gate.checked)" in src
+    assert 'gate.addEventListener("change", serialize)' in src
+
+
 def test_partial_has_prompt_field():
     html = _render(
         FillTableElement(

@@ -17,3 +17,13 @@ def test_click_enhancement_is_narrowed_to_plain_gate():
 def test_focus_targets_fill_gate_input():
     # Focus resolution must special-case a fill-gate (its <div> is not focusable).
     assert "data-fillgate" in SRC and 'input[name="blank"]' in SRC
+
+
+def test_focus_targets_fill_table_input():
+    # Focus resolution must special-case a fill-table gate -- its <div> is not
+    # focusable. The :not([disabled]) qualifier is defensive: a disabled input
+    # cannot take focus, and cascadeFrom only ever calls focusTargetIn on a
+    # just-revealed wrapper, so no reachable path reaches it with disabled
+    # inputs today. Pinned so the qualifier is not "cleaned up" later.
+    assert "data-filltablegate" in SRC
+    assert ".filltable__input:not([disabled])" in SRC

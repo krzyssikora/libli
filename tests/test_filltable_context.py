@@ -85,6 +85,45 @@ def test_has_fill_table_flag_false_without_element():
     assert ctx["has_fill_table"] is False
 
 
+# non-blank: Task 1's guard keeps `gate` on
+_GATE_CELLS = [[{"kind": "answer", "answer": "1"}]]
+
+
+def test_has_filltable_gate_flag(unit_with_element, ctx_for):
+    unit = unit_with_element(
+        FillTableElement(data={"gate": True, "cells": _GATE_CELLS})
+    )
+    ctx = ctx_for(unit)
+    assert ctx["has_filltable_gate"] is True
+    # A unit whose ONLY gate is a gating fill-table must still arm reveal.js --
+    # reveal.js is loaded solely under has_reveal_gate.
+    assert ctx["has_reveal_gate"] is True
+
+
+def test_ungated_filltable_sets_neither_gate_flag(unit_with_element, ctx_for):
+    unit = unit_with_element(FillTableElement(data={"cells": _GATE_CELLS}))
+    ctx = ctx_for(unit)
+    assert ctx["has_filltable_gate"] is False
+    assert ctx["has_reveal_gate"] is False
+
+
+def test_has_filltable_gate_flag_when_nested_in_a_callout(ctx_for):
+    # The real shape (mat-pp unit 322). Children keep their own `unit` FK, which is
+    # why the inner query must NOT be scoped to parent__isnull=True. Mirrors the
+    # existing test_has_fill_table_flag_when_nested_in_tab directly above.
+    from courses.models import CalloutElement
+    from tests.factories import make_course_with_unit
+
+    _course, unit = make_course_with_unit()
+    callout = CalloutElement.objects.create()
+    join = Element.objects.create(unit=unit, content_object=callout)
+    ft = FillTableElement.objects.create(data={"gate": True, "cells": _GATE_CELLS})
+    Element.objects.create(unit=unit, content_object=ft, parent=join)
+    ctx = ctx_for(unit)
+    assert ctx["has_filltable_gate"] is True
+    assert ctx["has_reveal_gate"] is True
+
+
 def test_has_math_only_when_static_cell_has_math(unit_with_element, ctx_for):
     plain = unit_with_element(
         FillTableElement(data={"cells": [[{"kind": "answer", "answer": "1"}]]})

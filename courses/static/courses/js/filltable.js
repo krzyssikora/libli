@@ -1,6 +1,11 @@
 (function () {
   "use strict";
 
+  // Parse-time boot flag, mirroring fillgate.js / switchgate.js: lesson_unit.html's
+  // prepaint watchdog disarms the pre-hide at DOMContentLoaded if this is still
+  // falsy, so a dead filltable.js cannot trap content permanently hidden.
+  window.__fillTableBooted = true;
+
   function csrf() {
     var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     return m ? m[1] : "";
@@ -56,6 +61,20 @@
         summarize(root, !!data.all_correct);
         if (data.all_correct === true && (data.cells || []).length > 0) {
           lock(root);
+          // The attribute guard is load-bearing: without it an UNGATED table also
+          // cascades, adding .reveal-shown to its siblings and -- since `focus`
+          // defaults to true -- moving focus and scrolling on every correct answer.
+          // The libliRevealCascade guard is a defensive load-order check mirroring
+          // fillgate.js/switchgate.js (reveal.js is loaded before this file, and
+          // unconditionally in the editor).
+          if (root.hasAttribute("data-reveal-gate") && window.libliRevealCascade) {
+            // hideWrapper:false -- the solved table stays on screen with its green
+            // cells; unlike a button gate, its content IS the student's work.
+            window.libliRevealCascade(root, { hideWrapper: false });
+          }
+          // UNCHANGED: state.py::_val_done stores only {"done": True}, so sending
+          // `open` here would be dead code. The restore path derives it in
+          // FillTableElement.render instead.
           window.libliState.saveFlag(root, { done: true });
         }
       })

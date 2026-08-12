@@ -1021,7 +1021,9 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   .reveal-armed .ba__panel > .ba__child:has(> [data-reveal-gate]) ~ .ba__child {
     display: revert !important;
   }
-  [data-reveal-gate] { display: none !important; }
+  /* A fill-table gate's marked node IS the student's work, not a control, so it
+     must survive printing. The other three families are buttons/forms/cyclers. */
+  [data-reveal-gate]:not([data-filltablegate]) { display: none !important; }
 }
 
 /* Fill gate — a fill-the-blank(s) question wrapped in the same reveal-gate

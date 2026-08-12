@@ -69,6 +69,16 @@ def test_form_rejects_over_cap_grid():
     assert any("cannot be made larger" in str(e).lower() for e in f.errors["data"])
 
 
+def test_rejected_save_keeps_the_gate_ticked():
+    # normalize_data suppresses `gate` for exactly the grid that makes clean_data
+    # raise here, so without the grid_data override the author's tick is silently
+    # lost and their next Save posts gate: false from the DOM.
+    # blank answer -> rejected
+    form = _bind(_data([[{"kind": "answer", "answer": ""}]], gate=True))
+    assert not form.is_valid()
+    assert form.grid_data["gate"] is True
+
+
 def test_answer_cells_iterates_positions():
     cells = [
         [{"kind": "static"}, {"kind": "answer", "answer": "x"}],

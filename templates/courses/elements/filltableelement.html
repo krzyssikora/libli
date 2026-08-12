@@ -7,7 +7,7 @@ UNLESS mine.done (restore path), when render() has already swapped data.cells fo
 FillTableElement.canonical_cells and _filltable_cell.html renders each answer
 cell readonly + locked with its canonical value. data-r/data-c are 0-based
 indices into normalize_data(data)["cells"].{% endcomment %}
-<div class="filltable" data-filltable
+<div class="filltable" data-filltable{% if data.gate %} data-reveal-gate data-filltablegate{% endif %}
      data-element-pk="{{ eid }}"
      data-check-url="{% url 'courses:filltable_check' eid %}"
      data-success-msg="{% trans 'Great!' %}"

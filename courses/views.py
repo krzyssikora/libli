@@ -424,25 +424,53 @@ def build_lesson_context(node, user):
     # short_numeric, fill_blank — builder.NESTABLE_QUESTION_KEYS), so this fires for
     # any of them nested in a container; top-level behaviour is unchanged.
     has_questions = node.elements.filter(content_type_id__in=question_ct_ids).exists()
+    # has_fill_table: plain CT-model filter, moved here unchanged. The block
+    # comment below belongs to has_filltable_gate, NOT to this line.
+    has_fill_table = node.elements.filter(
+        content_type__model="filltableelement"
+    ).exists()
+    # CT-free by construction, per house convention (see the has_html comment
+    # above and the has_stateful_elements one below). A reverse-GenericRelation
+    # filter here would make get_extra_restriction resolve FillTableElement's
+    # ContentType and emit a cold-cache CT SELECT on every lesson page that
+    # HAS a fill-table. NO TEST CAN CATCH THAT -- test_html_element's fixtures
+    # hold only HtmlElements, so has_fill_table is False and this whole term
+    # short-circuits before the queryset is built; and its assertion is a
+    # RELATIVE A/B (len(q3) == len(q1)), which pays any fixed cost in both arms.
+    # That is why the shape is pinned by a source assertion instead.
+    # Short-circuited on has_fill_table so a unit with no fill-table costs zero
+    # extra queries. NOT scoped to parent__isnull=True: a gate nested in a tab
+    # or callout keeps its own `unit` FK.
+    has_filltable_gate = (
+        has_fill_table
+        and FillTableElement.objects.filter(
+            pk__in=node.elements.filter(
+                content_type__app_label="courses",
+                content_type__model="filltableelement",
+            ).values_list("object_id", flat=True),
+            data__gate=True,
+        ).exists()
+    )
     # Flat query (NOT scoped to parent__isnull=True) so a gate nested inside a tab —
     # children keep their own `unit` FK — is still detected. Both gate types arm the
-    # pre-hide + reveal.js; only fill-gates need fillgate.js.
-    has_reveal_gate = node.elements.filter(
-        content_type__model__in=[
-            "revealgateelement",
-            "fillgateelement",
-            "switchgateelement",
-        ]
-    ).exists()
+    # pre-hide + reveal.js; only fill-gates need fillgate.js. A gating fill-table
+    # arms them too, which is what loads reveal.js on a unit with no other gate.
+    has_reveal_gate = (
+        node.elements.filter(
+            content_type__model__in=[
+                "revealgateelement",
+                "fillgateelement",
+                "switchgateelement",
+            ]
+        ).exists()
+        or has_filltable_gate
+    )
     has_fill_gate = node.elements.filter(content_type__model="fillgateelement").exists()
     has_switch_gate = node.elements.filter(
         content_type__model="switchgateelement"
     ).exists()
     has_switch_grid = node.elements.filter(
         content_type__model="switchgridelement"
-    ).exists()
-    has_fill_table = node.elements.filter(
-        content_type__model="filltableelement"
     ).exists()
     has_stepper = node.elements.filter(content_type__model="stepperelement").exists()
     has_markdone = node.elements.filter(content_type__model="markdoneelement").exists()
@@ -461,8 +489,11 @@ def build_lesson_context(node, user):
     # node.elements (NOT parent__isnull=True) so a gate or question nested in a tab,
     # column or spoiler still counts -- children keep their own `unit` FK.
     # app_label pins the join the way Element.content_type's own limit_choices_to does;
-    # get_for_model ct-ids were rejected because cold-cache CT SELECTs break
-    # tests/test_html_element.py's query-count assertion.
+    # get_for_model ct-ids were rejected to avoid cold-cache CT SELECTs. NOT
+    # because tests/test_html_element.py catches them -- it does not: its
+    # assertion is len(q3) == len(q1), a RELATIVE A/B that pays any fixed cost
+    # in both arms. See test_filltable_gate_query_shape.py for why that shape
+    # needs a source assertion instead.
     # Called through the module attribute so test 6's monkeypatch can bind.
     has_stateful_elements = node.elements.filter(
         content_type__app_label="courses",
@@ -519,6 +550,7 @@ def build_lesson_context(node, user):
         "has_switch_gate": has_switch_gate,
         "has_switch_grid": has_switch_grid,
         "has_fill_table": has_fill_table,
+        "has_filltable_gate": has_filltable_gate,
         "has_stepper": has_stepper,
         "has_markdone": has_markdone,
         "has_guess_number": has_guess_number,

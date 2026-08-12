@@ -35,8 +35,8 @@ _CELLS = [
 ]
 
 
-def _seed_filltable(unit, student, cells, blob):
-    obj = FillTableElement(data={"cells": cells})
+def _seed_filltable(unit, student, cells, blob, gate=False):
+    obj = FillTableElement(data={"cells": cells, "gate": gate})
     obj.save()
     row = Element.objects.create(unit=unit, content_object=obj)
     if blob is not None:
@@ -109,3 +109,68 @@ def test_filltable_render_does_not_mutate_self_data_on_done():
     )
 
     assert json.dumps(obj.data, sort_keys=True) == before
+
+
+def test_gated_done_renders_open_in_data_state(client):
+    student = make_student(client, "ftbl_gate1")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    _seed_filltable(unit, student, _CELLS, {"done": True}, gate=True)
+
+    body = client.get(_lesson_url(unit)).content.decode()
+
+    m = re.search(r'data-state="([^"]*)"', body)
+    assert m and json.loads(html.unescape(m.group(1))) == {"done": True, "open": True}
+
+
+def test_ungated_done_does_not_render_open(client):
+    student = make_student(client, "ftbl_gate2")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    _seed_filltable(unit, student, _CELLS, {"done": True}, gate=False)
+
+    body = client.get(_lesson_url(unit)).content.decode()
+
+    m = re.search(r'data-state="([^"]*)"', body)
+    assert m and json.loads(html.unescape(m.group(1))) == {"done": True}
+
+
+def test_render_does_not_mutate_the_callers_state_blob(client):
+    # render()'s OWN contract: an INT-keyed state dict, called directly -- not the
+    # str-keyed UnitProgress seam. See this module's docstring.
+    student = make_student(client, "ftbl_gate3")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    row, obj = _seed_filltable(unit, student, _CELLS, None, gate=True)
+
+    state = {row.pk: {"done": True}}
+    obj.render(element=row, state=state, slug=unit.course.slug, node_pk=unit.pk)
+
+    assert state[row.pk] == {"done": True}, (
+        "render leaked `open` into the caller's blob"
+    )
+
+
+def test_saved_gated_state_stores_done_only(client):
+    # filltable_check writes NOTHING -- it returns {"cells": …, "all_correct": …}
+    # only. Persistence is a separate saveFlag POST, so drive that endpoint.
+    # Sending `open` is the point: _val_done must strip it, which is WHY the
+    # render-time derivation in this task exists.
+    student = make_student(client, "ftbl_gate4")
+    course, unit = make_course_with_unit()
+    # element_state_save guards on get_node_or_404(viewer=...) and then
+    # can_access_course -- and NEITHER requires enrolment, so the write is
+    # deliberately open to any viewer who can reach the lesson. The Enrollment is
+    # here for symmetry with the GET-based tests above, which DO need it because
+    # build_lesson_context populates `state` only for enrolled students.
+    Enrollment.objects.create(student=student, course=course)
+    row, _obj = _seed_filltable(unit, student, _CELLS, None, gate=True)
+    resp = client.post(
+        reverse("courses:element_state_save", args=[unit.course.slug, unit.pk]),
+        data=json.dumps({"element": row.pk, "state": {"done": True, "open": True}}),
+        content_type="application/json",
+    )
+    # else UnitProgress.DoesNotExist masks the real cause
+    assert resp.status_code == 200, resp.content
+    stored = UnitProgress.objects.get(student=student, unit=unit).element_state
+    assert stored[str(row.pk)] == {"done": True}, "`open` must not survive _val_done"

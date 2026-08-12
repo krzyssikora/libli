@@ -39,6 +39,7 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
     <label class="filltable-editor__prompt-field">{% trans "Instruction (optional)" %}
       <input type="text" data-prompt value="{{ d.prompt }}" placeholder="{% trans 'e.g. Fill in the missing words.' %}">
     </label>
+    <label><input type="checkbox" data-gate {% if d.gate %}checked{% endif %}> {% trans "Reveal the rest of this section when solved" %}</label>
   </div>
 
   <div class="table-editor__toolbar" data-table-toolbar>

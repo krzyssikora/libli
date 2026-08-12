@@ -243,3 +243,69 @@ def test_resolved_cells_static_and_answer_pass_through():
     grid = el.resolved_cells
     assert grid[0][0]["kind"] == "static" and grid[0][0]["html"] == "s"
     assert grid[0][1]["kind"] == "answer"
+
+
+def test_normalize_data_gate_defaults_false():
+    nd = FillTableElement.normalize_data(
+        {"cells": [[{"kind": "answer", "answer": "4"}]]}
+    )
+    assert nd["gate"] is False
+
+
+def test_normalize_data_gate_true_on_satisfiable_grid():
+    nd = FillTableElement.normalize_data(
+        {"gate": True, "cells": [[{"kind": "answer", "answer": "4"}]]}
+    )
+    assert nd["gate"] is True
+
+
+def test_normalize_data_gate_coerces_non_boolean():
+    nd = FillTableElement.normalize_data(
+        {"gate": "yes", "cells": [[{"kind": "answer", "answer": "4"}]]}
+    )
+    assert nd["gate"] is True
+
+
+def test_normalize_data_gate_coerces_falsy_non_false():
+    # An empty string is the ONLY payload that can falsify the bool() wrapper.
+    # `and` returns its last operand, so with a TRUTHY value like "yes" the
+    # expression already evaluates to the real bool produced by the final
+    # conjunct -- dropping bool() leaves the test above green. With "" the
+    # unwrapped form returns "" rather than False, and `is False` catches it.
+    nd = FillTableElement.normalize_data(
+        {"gate": "", "cells": [[{"kind": "answer", "answer": "4"}]]}
+    )
+    assert nd["gate"] is False
+
+
+def test_normalize_data_gate_forced_off_without_answer_cells():
+    # A gate with no answer cell can never open: filltable_check returns
+    # cells: [] / all_correct: false unconditionally.
+    nd = FillTableElement.normalize_data(
+        {"gate": True, "cells": [[{"kind": "static", "html": "x"}]]}
+    )
+    assert nd["gate"] is False
+
+
+def test_normalize_data_gate_forced_off_with_blank_answer_cell():
+    # marking.blank_matches returns False for every input when the accepted
+    # list is empty, so this gate could never open either.
+    nd = FillTableElement.normalize_data(
+        {
+            "gate": True,
+            "cells": [
+                [
+                    {"kind": "answer", "answer": "4"},
+                    {"kind": "answer", "answer": ""},
+                ]
+            ],
+        }
+    )
+    assert nd["gate"] is False
+
+
+def test_normalize_data_gate_forced_off_with_pipe_only_answer_cell():
+    nd = FillTableElement.normalize_data(
+        {"gate": True, "cells": [[{"kind": "answer", "answer": " | "}]]}
+    )
+    assert nd["gate"] is False
