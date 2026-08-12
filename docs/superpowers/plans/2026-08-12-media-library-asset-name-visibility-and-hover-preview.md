@@ -18,7 +18,7 @@
 - **Never run two pytest sessions at once** across worktrees — they share the test database.
 - **Scope every test run narrowly** (single file or single test). Whole-repo sweeps are a branch gate, not a task step.
 - **`ruff check --no-cache` and `ruff format --check` are separate CI gates.** Run both before each commit.
-- **`MEDIA_ROOT` redirection differs by test file.** In `tests/test_media_manager.py` there is **no** autouse fixture: take `settings, tmp_path` in the signature and set `settings.MEDIA_ROOT = str(tmp_path)` as the first statement, exactly as `:628` does. `make_image_asset` writes real bytes through storage, so skipping it deposits PNGs into the repo's own `media/` directory. In `tests/test_e2e_media_manager.py` the autouse `_isolated_media` fixture (`:41-53`) already does this — new e2e rows need **neither** the parameters nor the assignment.
+- **`MEDIA_ROOT` redirection differs by test file.** In `tests/test_media_manager.py` there is **no** autouse fixture: take `settings, tmp_path` in the signature and set `settings.MEDIA_ROOT = str(tmp_path)` as the first statement, exactly as `:635` does. `make_image_asset` writes real bytes through storage, so skipping it deposits PNGs into the repo's own `media/` directory. In `tests/test_e2e_media_manager.py` the autouse `_isolated_media` fixture (`:41-53`) already does this — new e2e rows need **neither** the parameters nor the assignment.
 - **Decorators differ by test file too.** `tests/test_media_manager.py` has no module-level `pytestmark`, so every test there needs an explicit `@pytest.mark.django_db`. `tests/test_e2e_media_manager.py` sets `pytestmark = pytest.mark.e2e` at `:23`, so `@pytest.mark.e2e` on a row there is redundant; the file's convention (documented at `:25-27`) is to write `@pytest.mark.django_db(transaction=True)` on every test so the DB contract is visible.
 - **The grid renders newest-first.** `courses/media.py:86` ends `assets_with_usage` with `.order_by("-created")`, and `MediaAsset.created` is `auto_now_add`. The **last** asset seeded is rendered **first**, so `nth(0)` is not the first `make_image_asset` call. Resolve anchors by name — `page.locator('.asset-cell:has([data-name="X"]) [data-asset-preview]')` — rather than by ordinal wherever two or more assets are in play.
 - Any comment added to `templates/courses/manage/media/_asset_cell.html` must be a **single-line** `{# … #}`. `tests/test_media_manager.py:629` rejects `{#`, `#}`, `{%`, `%}` appearing in the rendered body, and Django strips single-line comments but not multi-line ones.
@@ -358,7 +358,7 @@ In `tests/test_e2e_media_manager.py`, change `.asset-fname` to `.asset-dname` at
 
 Rewrite the two comments. They record **two different things** and both must survive.
 
-`:130-134`:
+`:129-134`:
 ```python
     # Wait on the STRIP going away, then assert the filename inside
     # `.asset-dname` -- the server-rendered node. A bare
@@ -434,8 +434,14 @@ def _seed_assets(username, slug, *specs):
 
 
 def _anchor(page, filename):
-    """The [data-asset-preview] of the cell whose data-name is `filename`."""
-    return page.locator(f'.asset-cell:has([data-name="{filename}"]) [data-asset-preview]')
+    """The [data-asset-preview] of the cell whose data-name is `filename`.
+
+    data-name lives on the .asset-cell ROOT (_asset_cell.html:3), not on a
+    descendant -- so this is an attribute selector on the cell itself. Do not
+    "fix" it to `.asset-cell:has([data-name=...])`: :has() takes a relative
+    selector defaulting to the descendant combinator and would match nothing.
+    """
+    return page.locator(f'.asset-cell[data-name="{filename}"] [data-asset-preview]')
 ```
 
 Match the file's existing `_seed`/`_open_manager` signatures when wiring these — read them first.
@@ -516,7 +522,9 @@ git commit -m "fix(media): seed the rename input from data-name, not the truncat
 
 - [ ] **Step 1: Measure first, before writing any test**
 
-Write a throwaway e2e **outside `tests/`** — put it in the session scratchpad directory so it can never be committed — that opens the manager at 360×900 and prints the measured card width, the `.asset-dname` width, and the number of text-run rects for a 32-character name:
+Write a throwaway e2e **inside `tests/`**, named `tests/test_zz_scratch_measure.py`, that opens the manager at 360×900 and prints the measured card width, the `.asset-dname` width, and the number of text-run rects for a 32-character name.
+
+It must live in `tests/` rather than the scratchpad: pytest derives rootdir from its args, so a file outside the repo picks up neither `pyproject.toml`'s `[tool.pytest.ini_options]` (no `DJANGO_SETTINGS_MODULE`, no `e2e` marker) nor the repo's `conftest.py` — `live_server` and the settings bootstrap would both be missing and it would error before measuring anything. Step 8 deletes it.
 
 ```python
 card = page.locator(".asset-cell").first
@@ -529,7 +537,7 @@ print(page.evaluate("""() => {
 }"""))
 ```
 
-Run it once and record the three numbers as a comment in `tests/test_e2e_media_manager.py`. **Delete the scratch file** before Step 8.
+Run it once and record the three numbers as a comment in `tests/test_e2e_media_manager.py`. **Delete `tests/test_zz_scratch_measure.py`** before Step 8, and confirm with `git status` that it is not staged.
 
 Expect **two** columns at 360 px, each materially wider than 128 px — `minmax(8rem, 1fr)` makes 128 px a floor, not the rendered width. The docstring at `:594-596` claims otherwise and is wrong; Step 7 fixes it.
 
@@ -546,9 +554,11 @@ def test_a_long_name_stays_inside_its_card(page, live_server):
     with min-width:auto it refused to shrink below the whole string's
     min-content width and spilled under the next card, which painted over it.
     """
-    make_image_asset(course, filename="przykladowa_parabola_0_2.png", size=(400, 300))
+    user, course = _seed_assets(
+        "geo1-pa", "geo1", ("przykladowa_parabola_0_2.png", (400, 300))
+    )
+    _open_manager(page, live_server, "geo1-pa", course)
     page.set_viewport_size({"width": 360, "height": 900})
-    # ... open the manager
     rects = page.evaluate("""() => {
         const s = document.querySelector('.asset-dname');
         const r = document.createRange(); r.selectNodeContents(s);
@@ -561,14 +571,22 @@ def test_a_long_name_stays_inside_its_card(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_two_similar_names_each_paint_their_own_suffix_inside_the_card(page, ...):
+def test_two_similar_names_each_paint_their_own_suffix_inside_the_card(page, live_server):
     """`:has-text()` is NOT an acceptable probe here -- it matches the element's
     text CONTENT, which is unchanged when the text is merely clipped, so the
-    mutant would stay green. Measure the rect covering the suffix instead."""
-    make_image_asset(course, filename="przykladowa_parabola_0_1.png", size=(400, 300))
-    make_image_asset(course, filename="przykladowa_parabola_0_2.png", size=(400, 300))
+    mutant would stay green. Measure the rect covering the suffix instead.
+
+    _seed_assets, NOT the file's _seed(): this row iterates EVERY .asset-cell
+    and compares the suffix set, so _seed's own `original.png` would add a third
+    cell (suffix "inal.png") and the row would be red on a correct build.
+    """
+    user, course = _seed_assets(
+        "geo2-pa", "geo2",
+        ("przykladowa_parabola_0_1.png", (400, 300)),
+        ("przykladowa_parabola_0_2.png", (400, 300)),
+    )
+    _open_manager(page, live_server, "geo2-pa", course)
     page.set_viewport_size({"width": 360, "height": 900})
-    # ... open the manager
     painted = page.evaluate("""() => {
         return Array.from(document.querySelectorAll('.asset-cell')).map(cell => {
             const s = cell.querySelector('.asset-dname');
@@ -591,7 +609,7 @@ def test_two_similar_names_each_paint_their_own_suffix_inside_the_card(page, ...
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_pencil_button_stays_on_the_first_line(page, ...):
+def test_the_pencil_button_stays_on_the_first_line(page, live_server):
     """Flex line breaking uses each item's HYPOTHETICAL main size, so with the
     default flex-basis:auto the span's max-content width pushes the button onto
     flex line 2. align-items cannot fix that -- it aligns WITHIN a line.
@@ -600,9 +618,11 @@ def test_the_pencil_button_stays_on_the_first_line(page, ...):
     (Step 1): on a single-line name both mutants leave the button vertically
     coincident with the span and this row passes on a broken build.
     """
-    make_image_asset(course, filename="przykladowa_parabola_0_2.png", size=(400, 300))
+    user, course = _seed_assets(
+        "geo3-pa", "geo3", ("przykladowa_parabola_0_2.png", (400, 300))
+    )
+    _open_manager(page, live_server, "geo3-pa", course)
     page.set_viewport_size({"width": 360, "height": 900})
-    # ... open the manager
     lines = page.evaluate("""() => {
         const s = document.querySelector('.asset-dname');
         const r = document.createRange(); r.selectNodeContents(s);
@@ -986,7 +1006,7 @@ def test_a_non_4_3_source_shows_its_full_extent(page, ...):
     page.set_viewport_size({"width": 1280, "height": 900})
     make_image_asset(course, filename="portret_0_1.png", size=(200, 400))
     # ... open the manager
-    _open_preview(page)
+    _open_preview(page, "portret_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
     ratio = page.evaluate("""() => {
         const r = document.querySelector('[data-asset-preview-img]').getBoundingClientRect();
@@ -1002,7 +1022,7 @@ def test_a_small_source_still_previews_larger_than_the_thumb(page, ...):
     # wider than a ~115px thumb) and the row would stay green.
     make_image_asset(course, filename="s.png", size=(40, 30))
     # ... open the manager
-    _open_preview(page)
+    _open_preview(page, "s.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
     img = page.locator("[data-asset-preview-img]").bounding_box()
     thumb = page.locator("[data-asset-preview]").first.bounding_box()
@@ -1013,7 +1033,7 @@ def test_a_small_source_still_previews_larger_than_the_thumb(page, ...):
 def test_an_over_budget_name_is_readable_in_the_caption(page, ...):
     make_image_asset(course, filename="przykladowa_bardzo_dluga_nazwa_0_2.png", size=(400, 300))
     # ... open the manager
-    _open_preview(page)
+    _open_preview(page, "przykladowa_bardzo_dluga_nazwa_0_2.png")
     clipped = page.evaluate("""() => {
         const cap = document.querySelector('.asset-preview__caption');
         return cap.scrollWidth > cap.clientWidth;
@@ -1029,7 +1049,7 @@ def test_the_caption_is_written_as_text_not_markup(page, ...):
     hostile = "<img src=x onerror=1>.png"
     make_image_asset(course, filename=hostile, size=(400, 300))
     # ... open the manager
-    _open_preview(page)
+    _open_preview(page, hostile)
     assert page.locator(".asset-preview__caption").text_content() == hostile
     injected = page.evaluate(
         """() => document.querySelectorAll('.asset-preview img').length"""
@@ -1045,7 +1065,7 @@ def test_a_tall_source_is_clamped_and_lands_centred_at_360(page, ...):
     make_image_asset(course, filename="wysoki_0_1.png", size=(400, 2000))
     page.set_viewport_size({"width": 360, "height": 900})
     # ... open the manager
-    _open_preview(page)
+    _open_preview(page, "wysoki_0_1.png")
     # Without this wait the image is display:none, its rect is all zeros, and
     # `inside(i)` is trivially true -- which would let the min-height mutant pass.
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
@@ -1086,7 +1106,7 @@ def test_hovering_the_covered_neighbour_switches_the_overlay(page, ...):
             const r = c.getBoundingClientRect();
             return r.left < o.right && r.right > o.left
                 && r.top < o.bottom && r.bottom > o.top
-                && !c.contains(document.querySelector('.asset-preview'));
+                && c.getAttribute('data-name') !== 'jeden_0_1.png';
         });
         return hit ? hit.getAttribute('data-name') : null;
     }""")
@@ -1104,7 +1124,7 @@ def test_a_cell_from_a_swapped_in_grid_still_opens_the_overlay(page, ...):
     # ... open the manager, then type in the filter box and wait for the swap
     page.fill("[data-filter-q]", "filtrowany")
     page.wait_for_selector('.asset-grid .asset-dname:has-text("filtrowany_0_1.png")')
-    _open_preview(page)
+    _open_preview(page, "filtrowany_0_1.png")
     expect(page.locator(".asset-preview__caption")).to_have_text("filtrowany_0_1.png")
 
 
@@ -1250,7 +1270,7 @@ def test_sweeping_a_to_b_swaps_in_place(page, live_server):
     make_image_asset(course, filename="jeden_0_1.png", size=(400, 300))
     make_image_asset(course, filename="dwa_0_2.png", size=(400, 300))
     # ... open the manager at 1280x900
-    _open_preview(page, 0)
+    _open_preview(page, "jeden_0_1.png")
     # Correct build and mutant reach the SAME terminal state and differ only in
     # a transient, so record the transitions instead of reading after the fact.
     page.evaluate("""() => {
@@ -1259,7 +1279,9 @@ def test_sweeping_a_to_b_swaps_in_place(page, live_server):
         new MutationObserver(() => window.__hiddenLog.push(o.hidden))
             .observe(o, {attributes: true, attributeFilter: ['hidden']});
     }""")
-    b = page.locator("[data-asset-preview]").nth(1).bounding_box()
+    # BY NAME: the grid sorts "-created", so dwa_0_2 renders FIRST and nth(1)
+    # would sweep the pointer back onto jeden_0_1.
+    b = _anchor(page, "dwa_0_2.png").bounding_box()
     page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=10)
     expect(page.locator(".asset-preview__caption")).to_have_text("dwa_0_2.png")
     assert page.evaluate("() => window.__hiddenLog") == []
@@ -1273,7 +1295,7 @@ def test_a_drift_into_the_cell_padding_and_back_keeps_the_overlay(page, ...):
     padding."""
     make_image_asset(course, filename="dryf_0_1.png", size=(400, 300))
     # ... open the manager at 1280x900
-    _open_preview(page)
+    _open_preview(page, "dryf_0_1.png")
     t = page.locator("[data-asset-preview]").first.bounding_box()
     cx = t["x"] + t["width"] / 2
     page.mouse.move(cx, t["y"] - 4)            # into the cell's padding
@@ -1291,13 +1313,13 @@ def test_reopening_the_same_anchor_shows_the_image_and_sizes_to_it(page, ...):
     caption-only box."""
     make_image_asset(course, filename="powrot_0_1.png", size=(400, 300))
     # ... open the manager at 1280x900
-    _open_preview(page)
+    _open_preview(page, "powrot_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
     first_height = page.locator(".asset-preview").bounding_box()["height"]
     page.mouse.move(5, 5)
     page.wait_for_timeout(600)                 # outlive the grace
     expect(page.locator(".asset-preview")).to_be_hidden()
-    _open_preview(page)
+    _open_preview(page, "powrot_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
     assert abs(page.locator(".asset-preview").bounding_box()["height"] - first_height) <= 2
 
@@ -1336,7 +1358,7 @@ def test_a_thumbnail_that_never_loaded_shows_the_caption_only(page, ...):
     make_image_asset(course, filename="martwy_0_1.png", size=(400, 300))
     page.route("**/martwy_0_1*", lambda route: route.abort())
     # ... open the manager
-    _open_preview(page)
+    _open_preview(page, "martwy_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
     expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_1.png")
 
@@ -1349,11 +1371,11 @@ def test_a_broken_asset_then_a_good_one_restores_the_image_box(page, ...):
     make_image_asset(course, filename="zdrowy_0_2.png", size=(400, 300))
     page.route("**/martwy_0_1*", lambda route: route.abort())
     # ... open the manager
-    _open_preview(page, 0)
+    _open_preview(page, "martwy_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
     page.mouse.move(5, 5)
     page.wait_for_timeout(600)
-    _open_preview(page, 1)
+    _open_preview(page, "zdrowy_0_2.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
 
 
@@ -1367,8 +1389,11 @@ def test_b_s_caption_never_appears_over_a_s_image(page, ...):
     released = {"route": None}
     page.route("**/drugi_0_2*", lambda route: released.__setitem__("route", route))
     # ... open the manager at 1280x900
-    _open_preview(page, 0)
-    b = page.locator("[data-asset-preview]").nth(1).bounding_box()
+    _open_preview(page, "pierwszy_0_1.png")
+    # BY NAME -- see the ordering note above. With nth(1) the pointer would land
+    # on `pierwszy`, no request for drugi would ever be suspended, and
+    # released["route"] would stay None (AttributeError, not a clean failure).
+    b = _anchor(page, "drugi_0_2.png").bounding_box()
     page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=10)
     expect(page.locator(".asset-preview__caption")).to_have_text("drugi_0_2.png")
     # B's caption is up and B's image is still in flight: the <img> must be
@@ -1564,24 +1589,19 @@ def test_tabbing_to_a_card_button_opens_it_and_it_stays_open(page, live_server):
     expect(page.locator(".asset-preview")).to_be_visible()
 
 
-@pytest.mark.django_db(transaction=True)
-def test_a_same_frame_open_and_close_does_not_strand_the_scroll_listener(page, live_server):
-    """No ordinary action sequence produces a same-frame close: focus() then
-    press("Escape") are separate frames and the row would pass on the mutant.
-    Do both inside one evaluate, before yielding."""
-    specs = [(f"ramka_{i}_0.png", (400, 300)) for i in range(24)]
-    user, course = _seed_assets("frm-pa", "frm", *specs)
-    _open_manager(page, live_server, "frm-pa", course)
-    page.set_viewport_size({"width": 1280, "height": 900})
-    page.evaluate("""() => {
-        document.querySelector('.asset-cell [data-replace-asset]').focus();
-        document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
-    }""")
-    page.wait_for_timeout(100)
-    _tab_to_a_card_button(page)
-    expect(page.locator(".asset-preview")).to_be_visible()
-    page.wait_for_timeout(400)
-    expect(page.locator(".asset-preview")).to_be_visible()
+# NOTE: there is deliberately no "same-frame open and close" row.
+#
+# The obvious one -- focus a card button and synchronously dispatch Escape in
+# the same page.evaluate -- cannot discriminate: onKeydown is registered INSIDE
+# the rAF in bindOpenListeners(), so a keydown dispatched before that frame
+# reaches no handler at all and the close never happens on either build. And
+# even if it did, the rAF body already bails on `gen !== generation ||
+# !openAnchor`, and close() nulls openAnchor -- so dropping
+# cancelAnimationFrame still binds nothing.
+#
+# cancelAnimationFrame therefore stays in teardownOpenBindings() as documented
+# defence-in-depth against a future close path that does not null openAnchor,
+# explicitly NOT as a falsified line. Do not add a row that appears to test it.
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1705,7 +1725,17 @@ def test_a_filter_swap_closes_a_focus_opened_overlay(page, live_server):
     page.set_viewport_size({"width": 1280, "height": 900})
     _tab_to_a_card_button(page)
     expect(page.locator(".asset-preview")).to_be_visible()
-    page.fill("[data-filter-q]", "brak-dopasowania")
+    # Do NOT page.fill() here: filling focuses the input, which blurs the card
+    # button and fires focusout on root. openedBy() is "focus" at that moment,
+    # so the overlay would close BEFORE the debounced swap ever runs -- the row
+    # would pass with the observer never connected, and the connect-at-dwell
+    # mutant would survive. Set the value and dispatch `input` without moving
+    # focus.
+    page.evaluate("""() => {
+        const q = document.querySelector('[data-filter-q]');
+        q.value = 'brak-dopasowania';
+        q.dispatchEvent(new Event('input', {bubbles: true}));
+    }""")
     page.wait_for_selector(".asset-grid .asset-cell", state="detached")
     expect(page.locator(".asset-preview")).to_be_hidden()
 
@@ -1846,10 +1876,9 @@ The focus path, armed unconditionally (**not** behind `canHover`):
 | drop the `scroll` / `resize` binding in turn | `scroll_and_resize` |
 | drop the `openedBy() === "focus"` scoping | `focusout_does_not_close` |
 | bind the scroll listener synchronously instead of in the rAF | `tabbing_to_a_card_button` |
-| drop the `cancelAnimationFrame` from `teardownOpenBindings()` | `same_frame_open_and_close` |
 | drop the `:focus-visible` check | `replace_commit_does_not_leave` |
 | make the gate one-shot instead of standing | `rename_input_is_open`, `replace_strip_is_open` |
-| move `if (gated()) return;` to *after* `bindOpenListeners()` | `keyboard_driven_pencil_leaves_no_observer` |
+| move `if (gated()) return;` to *after* `bindOpenListeners()` | `rename_input_is_open`, `replace_strip_is_open` — **not** the pencil row: there every `open()` happens before any input exists, so the gate is not yet true and the mutant is a no-op |
 | drop the `observer.disconnect()` from `teardownOpenBindings()` | `sweep_does_not_accumulate` |
 | drop the `MutationObserver` entirely | both `filter_swap_closes_*` rows |
 | connect the observer at dwell start instead of at open | `filter_swap_closes_a_focus_opened_overlay` (the focus path has no dwell, so it would never connect) |
@@ -1983,4 +2012,6 @@ Every row in the spec's Testing table maps to a named test:
 2. Whether an overlay `<img>` assigned the thumbnail's own URL produces an interceptable request under `page.route`, given spec §5's "no new request … served from cache" (Task 6 Step 2). Both route-driven rows rest on it.
 3. Whether Playwright's `has_touch` actually flips `(hover: hover) and (pointer: fine)` (Task 8 Step 1).
 
-**Naming consistency:** `openAnchor`, `hoveredAnchor`, `expectedSrc`, `generation`, `dwellTimer`, `hideTimer`, `scrollRaf`, `onScroll`, `observer`, `gated()`, `openedBy()`, `startHide()`, `cancelHide()`, `captionOnly()`, `place()`, `open()`, `close()`, `build()`, `teardownOpenBindings()`, `bindOpenListeners()`, `onKeydown()` — used identically across Tasks 5, 6 and 7. The test helper `_open_preview(page, index=0)` is defined in Task 5 and reused by Tasks 6–8.
+**Naming consistency:** `openAnchor`, `hoveredAnchor`, `expectedSrc`, `generation`, `dwellTimer`, `hideTimer`, `scrollRaf`, `onScroll`, `observer`, `gated()`, `openedBy()`, `startHide()`, `cancelHide()`, `captionOnly()`, `place()`, `open()`, `close()`, `build()`, `teardownOpenBindings()`, `bindOpenListeners()`, `onKeydown()` — used identically across Tasks 5, 6 and 7. The test helpers `_seed_assets(username, slug, *specs)` and `_anchor(page, filename)` are defined in Task 3, `_open_preview(page, filename)` — **by name, never by ordinal** — in Task 5, and `_tab_to_a_card_button(page)` in Task 7. Each is reused by every later task.
+
+**One mutant is deliberately unmapped:** `cancelAnimationFrame` in `teardownOpenBindings()` has no falsifying row, because the only sequence that would exercise it dispatches Escape before `onKeydown` is bound and so closes nothing on either build. It is kept as stated defence-in-depth; Task 7 Step 1 records why, so nobody adds a row that appears to test it.
