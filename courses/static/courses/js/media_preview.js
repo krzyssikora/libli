@@ -92,6 +92,33 @@
 
   var GRACE_MS = 300;
   var hideTimer = null;
+  var observer = null;
+  var scrollRaf = null;
+  var onScroll = null;
+
+  function gated() {
+    // Standing gate: never open over a live editing control.
+    return !!root.querySelector(".asset-rename-input, [data-replace-strip]");
+  }
+
+  function openedBy() {
+    if (!openAnchor) return null;
+    // Derived from the state that JUSTIFIES the overlay, not from the last
+    // event. The pending-hide clause matters: mouseout clears hoveredAnchor, so
+    // without it a pointer-opened overlay would read as "focus" for the whole
+    // grace and a focusout in that window would close it early.
+    if (hoveredAnchor === openAnchor || hideTimer !== null) return "pointer";
+    return "focus";
+  }
+
+  function onKeydown(e) {
+    // Bubble phase, and NEVER preventDefault/stopPropagation:
+    // media_picker.js:371-373 handles Escape on the rename input to cancel, and
+    // swallowing the key would be a latent regression. This deliberately is not
+    // imagezoom's capture-phase arbitration -- a non-modal overlay has no claim
+    // to exclusivity.
+    if (e.key === "Escape") close();
+  }
 
   function captionOnly() {
     overlayImg.hidden = true;
@@ -117,15 +144,23 @@
 
   function teardownOpenBindings() {
     // Everything open() registers. Called from open() itself (an in-place swap
-    // re-enters without closing) and from close(). Task 7 adds the observer and
-    // the scroll/resize/keydown listeners here.
+    // re-enters without closing) and from close().
     if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
+    if (observer) { observer.disconnect(); observer = null; }
+    if (scrollRaf !== null) { cancelAnimationFrame(scrollRaf); scrollRaf = null; }
+    if (onScroll) {
+      document.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+      document.removeEventListener("keydown", onKeydown);
+      onScroll = null;
+    }
   }
 
   function open(anchor) {
     if (!overlay) build();
     var cell = anchor.closest(".asset-cell");
     if (!cell) return;
+    if (gated()) return;
     teardownOpenBindings();
     cancelHide();
     generation += 1;
@@ -143,7 +178,12 @@
       expectedSrc = src;
       if (overlayImg.getAttribute("src") === expectedSrc
           && overlayImg.complete && overlayImg.naturalWidth > 0) {
-        overlayImg.hidden = false;   // ahead of measure -- see Task 5
+        // Not a load-event workaround -- Task 6 confirmed `load` DOES re-fire
+        // on a same-URL re-assignment. This is purely a flash guard: on a warm
+        // re-open the image is already complete, and without this the caption
+        // renders one frame before the image snaps in. Below Playwright's
+        // resolution, but visible to a human.
+        overlayImg.hidden = false;
       }
     }
 
@@ -155,7 +195,26 @@
     bindOpenListeners();             // Task 7 fills this in; a no-op until then
   }
 
-  function bindOpenListeners() {}    // Task 7
+  function bindOpenListeners() {
+    observer = new MutationObserver(function () {
+      if (!openAnchor) return;                       // no-op when closed
+      if (!openAnchor.isConnected) { close(); return; }
+      if (gated()) close();
+    });
+    observer.observe(root, { childList: true, subtree: true });
+
+    var gen = generation;
+    scrollRaf = requestAnimationFrame(function () {
+      scrollRaf = null;
+      if (gen !== generation || !openAnchor) return;  // closed inside the frame
+      onScroll = function () { close(); };
+      // scroll does not bubble from element scrollers to window, so capture is
+      // the only way to see one. passive: this never preventDefaults.
+      document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+      window.addEventListener("resize", onScroll);
+      document.addEventListener("keydown", onKeydown);
+    });
+  }
 
   function close() {
     teardownOpenBindings();
@@ -211,4 +270,24 @@
       startHide();
     });
   }
+
+  root.addEventListener("focusin", function (e) {
+    var target = e.target;
+    if (target.closest(".asset-rename-input, [data-replace-strip]")) return;
+    // Programmatic focus must not open it: focusTrigger(fresh) restores focus
+    // to the fresh cell's replace button after EVERY commit. :focus-visible is
+    // false for focus restored after a pointer interaction and true for
+    // keyboard traversal -- exactly the distinction wanted. A keyboard-driven
+    // commit does open the preview, which is correct for a keyboard user.
+    if (!target.matches(":focus-visible")) return;
+    var cell = target.closest(".asset-cell");
+    if (!cell) return;
+    var anchor = cell.querySelector("[data-asset-preview]");
+    if (!anchor) return;
+    open(anchor);   // immediately, no dwell; open() cancels the pending dwell
+  });
+
+  root.addEventListener("focusout", function () {
+    if (openedBy() === "focus") close();
+  });
 })();

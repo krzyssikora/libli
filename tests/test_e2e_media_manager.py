@@ -6,11 +6,13 @@ the central assertion here -- that the rendered src actually changes -- pass on
 a build that replaced nothing.
 """
 
+import contextlib
 import os
 from io import BytesIO
 
 import pytest
 from PIL import Image
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect
 
 from courses.models import ImageElement
@@ -1322,4 +1324,428 @@ def test_a_late_load_from_a_previous_asset_cannot_reveal_it(page, live_server):
     held["route"].continue_()  # A's load lands NOW
     page.wait_for_timeout(300)
     expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
-    expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_2.png")
+
+
+def _tab_to_a_card_button(page, limit=40):
+    """Tab until focus lands inside an .asset-cell, or fail loudly.
+
+    The number of stops before the first card button depends on the header
+    link, the upload form's controls, the kind <select> and the search input --
+    do not hardcode it.
+    """
+    for _ in range(limit):
+        page.keyboard.press("Tab")
+        if page.evaluate("() => !!document.activeElement.closest('.asset-cell')"):
+            return
+    raise AssertionError("focus never reached a card button")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_escape_closes_the_overlay(page, live_server):
+    user, course = _seed_assets("esc-pa", "esc", ("escape_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "esc-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "escape_0_1.png")
+    page.keyboard.press("Escape")
+    expect(page.locator(".asset-preview")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_scroll_and_resize_each_close_the_overlay(page, live_server):
+    # Enough assets that the grid is TALLER than the viewport, or mouse.wheel
+    # produces no scroll event at all and the row passes vacuously.
+    specs = [(f"przewijany_{i}_0.png", (400, 300)) for i in range(24)]
+    user, course = _seed_assets("scr-pa", "scr", *specs)
+    _open_manager(page, live_server, "scr-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+
+    # The FIRST-RENDERED cell, i.e. the LAST one seeded (-created ordering). It
+    # sits in grid row 1 with the page at scrollY == 0, so the wheel has its full
+    # range. Hovering przewijany_0_0 instead would scroll that cell into view
+    # first -- it is the last in the grid -- leaving almost no scroll left and
+    # possibly no scroll event at all, red on a correct build.
+    _open_preview(page, "przewijany_23_0.png")
+    scroll_before = page.evaluate("() => window.scrollY")
+    # A SMALL delta, not a large one: measured, this grid's row pitch is ~209px,
+    # and a 200px wheel lands the still-stationary cursor almost exactly on the
+    # NEXT row's thumb. Chromium re-hit-tests under the cursor on scroll and
+    # synthesizes mouseout/mouseover for whatever is now there, so a 200px wheel
+    # fires a genuine mouseover on that neighbour -- our in-place-swap path
+    # (open() while openAnchor is set) re-opens on it, which tears down and
+    # re-arms the scroll listener a frame late, missing the very "scroll" event
+    # this row means to test and leaving the overlay visible-but-swapped rather
+    # than closed. A 20px delta stays well inside the still-hovered thumb, so no
+    # synthetic mouseover fires and only the real close-on-scroll path runs.
+    page.mouse.wheel(0, 20)
+    # Chromium animates a wheel-triggered scroll over several frames rather than
+    # applying it synchronously, so window.scrollY right after mouse.wheel() can
+    # still read the pre-scroll value. Poll briefly instead of reading once, or
+    # this row is flaky on a correct build.
+    with contextlib.suppress(PlaywrightTimeoutError):
+        page.wait_for_function(
+            "(before) => window.scrollY !== before", arg=scroll_before, timeout=2000
+        )
+    assert page.evaluate("() => window.scrollY") != scroll_before, (
+        "the wheel produced no scroll; this row cannot discriminate"
+    )
+    expect(page.locator(".asset-preview")).to_be_hidden()
+
+    # Move the pointer AWAY before re-opening: mouseover fires only on ENTRY, so
+    # hovering a thumb the pointer already rests on dispatches nothing and the
+    # second _open_preview would time out.
+    page.mouse.move(5, 5)
+    page.wait_for_timeout(400)
+    _open_preview(page, "przewijany_23_0.png")
+    # HEIGHT only, not width: this grid's columns are auto-fill on WIDTH
+    # (courses.css:350), so a width change reflows the column count, which
+    # shifts which cell sits under the still-stationary cursor -- Chromium
+    # re-hit-tests on reflow exactly as it does on scroll (see the wheel-delta
+    # note above), firing a real mouseout that starts the ordinary 300ms hide
+    # grace. That grace closes the overlay on ITS OWN, so a width change can't
+    # tell a working resize listener from a dropped one -- measured, dropping
+    # `window.addEventListener("resize", onScroll)` still left this row green.
+    # A height-only change still fires `resize` but touches no column, so
+    # nothing else can close the overlay -- only the resize listener can.
+    page.set_viewport_size({"width": 1280, "height": 700})
+    expect(page.locator(".asset-preview")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_focusout_does_not_close_a_pointer_opened_overlay(page, live_server):
+    """An unscoped focusout would dismiss the preview the user is actively
+    hovering whenever focus moved anywhere -- e.g. a Tab out of the filter box."""
+    user, course = _seed_assets("fo-pa", "fo", ("fokus_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "fo-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "fokus_0_1.png")
+    # Record hidden-transitions: asserting only the terminal state would let the
+    # mutant survive. Tab from the search box lands on the first cell's ✎, which
+    # is :focus-visible and re-opens the overlay in the same gesture -- so on the
+    # mutant it closes and instantly re-opens, and a terminal-state assertion
+    # sees "visible" either way.
+    page.evaluate("""() => {
+        window.__hiddenLog = [];
+        const o = document.querySelector('.asset-preview');
+        new MutationObserver(() => window.__hiddenLog.push(o.hidden))
+            .observe(o, {attributes: true, attributeFilter: ['hidden']});
+    }""")
+    page.locator("[data-filter-q]").focus()
+    page.keyboard.press("Tab")
+    page.wait_for_timeout(400)
+    expect(page.locator(".asset-preview")).to_be_visible()
+    assert page.evaluate("() => window.__hiddenLog") == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_focusout_during_the_hide_grace_does_not_close_early(page, live_server):
+    """The scenario openedBy()'s `|| hideTimer !== null` clause exists for.
+
+    mouseout clears hoveredAnchor, so once the pointer has left the anchor the
+    first clause is false; without the second, a focusout landing inside the
+    300ms grace would read the overlay as focus-opened and close it early rather
+    than letting the grace run out. Every other row keeps the pointer ON the
+    anchor throughout, where the first clause alone answers and this one is
+    unfalsifiable.
+    """
+    user, course = _seed_assets("grc-pa", "grc", ("laska_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "grc-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    # Focus must ALREADY be inside root, or the mid-grace focus() below fires no
+    # focusout at all: with document.activeElement at its default `body` there
+    # is nothing to blur, and body is an ANCESTOR of root, so a focusout could
+    # never bubble to the listener even if one fired.
+    page.locator("[data-filter-q]").focus()
+    _open_preview(page, "laska_0_1.png")
+    page.mouse.move(5, 5)  # leave the anchor: grace starts
+    page.wait_for_timeout(80)  # well inside the 300ms grace
+    page.evaluate("() => document.activeElement.blur()")  # real focusout on root
+    page.wait_for_timeout(80)
+    expect(page.locator(".asset-preview")).to_be_visible()  # grace still running
+    page.wait_for_timeout(400)  # now let the grace expire
+    expect(page.locator(".asset-preview")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tabbing_to_a_card_button_opens_it_and_it_stays_open(page, live_server):
+    """Seed enough assets that the grid is taller than the viewport, so the
+    focus-induced scroll actually fires. focus() scrolls the element into view
+    and that scroll event is dispatched AFTER the focusin handler ran -- a
+    synchronously-bound scroll listener would close the overlay it just opened.
+
+    36, not 24: at this viewport the grid renders 6 columns, so 24 assets is
+    only 4 rows -- measured, the whole grid still fits inside the scrolled-to-
+    bottom viewport and row 1's button never actually leaves view, so focusing
+    it scrolls nothing and the row cannot discriminate. 36 assets is 6 rows,
+    which measured pushes row 1 fully off-screen (bottom edge ~178px above the
+    viewport top) at max scroll.
+    """
+    specs = [(f"kafelek_{i}_0.png", (400, 300)) for i in range(36)]
+    user, course = _seed_assets("tab-pa", "tab", *specs)
+    _open_manager(page, live_server, "tab-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    # Two traps, and the second is why the obvious guard is not enough.
+    #
+    # (1) A tall grid alone does nothing: _tab_to_a_card_button stops at the
+    # FIRST cell's button, in grid row 1 and already visible, so focusing it
+    # scrolls nothing and the synchronous-binding mutant has no event to
+    # mishandle.
+    #
+    # (2) Scrolling to the bottom first and comparing against THAT position is
+    # also not enough: focus starts on body, so the first Tab lands on a header
+    # link far above the grid and Chromium scrolls back to the top long before
+    # the sequence reaches a card button. A guard bracketing the whole sequence
+    # sees "scrolled" and passes while the card button's own focus scrolled
+    # nothing.
+    #
+    # So: put focus INSIDE the page's tab order past the header first, scroll to
+    # the bottom, and sample scrollY immediately before the Tab that lands.
+    page.locator("[data-filter-q]").focus()
+    page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+    before = page.evaluate("() => window.scrollY")
+    assert before > 0, "grid is not taller than the viewport; widen the fixture"
+    _tab_to_a_card_button(page)
+    assert page.evaluate("() => window.scrollY") != before, (
+        "focusing the card button scrolled nothing; this row's premise is "
+        "broken and the rAF mutant would survive"
+    )
+    expect(page.locator(".asset-preview")).to_be_visible()
+    page.wait_for_timeout(400)  # outlive any deferred scroll close
+    expect(page.locator(".asset-preview")).to_be_visible()
+
+
+# NOTE: there is deliberately no "same-frame open and close" row.
+#
+# The obvious one -- focus a card button and synchronously dispatch Escape in
+# the same page.evaluate -- cannot discriminate: onKeydown is registered INSIDE
+# the rAF in bindOpenListeners(), so a keydown dispatched before that frame
+# reaches no handler at all and the close never happens on either build. And
+# even if it did, the rAF body already bails on `gen !== generation ||
+# !openAnchor`, and close() nulls openAnchor -- so dropping
+# cancelAnimationFrame still binds nothing.
+#
+# cancelAnimationFrame therefore stays in teardownOpenBindings() as documented
+# defence-in-depth against a future close path that does not null openAnchor,
+# explicitly NOT as a falsified line. Do not add a row that appears to test it.
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_replace_commit_does_not_leave_the_overlay_open(page, live_server):
+    """focusTrigger(fresh) at media_picker.js:550 focuses the fresh cell's own
+    replace button after every commit. Without the :focus-visible gate that
+    raises a 320px overlay unprompted, in five other tests and the screenshots.
+    """
+    user, course = _seed_assets("rcm-pa", "rcm", ("wymiana_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "rcm-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(_upload_payload())
+    strip = page.locator("[data-replace-strip]")
+    strip.wait_for(state="visible")
+    strip.locator("[data-replace-commit]").click()
+    page.wait_for_selector("[data-replace-strip]", state="detached")
+    page.wait_for_timeout(600)  # negative assertions must outlive the dwell
+    expect(page.locator(".asset-preview")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_hovering_a_thumb_while_a_rename_input_is_open_does_not_open(page, live_server):
+    """A one-shot close is defeated by moving the pointer back 300ms later.
+    The gate is a STANDING condition, re-checked at every open attempt."""
+    user, course = _seed_assets("gate-pa", "gate", ("brama_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "gate-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.locator("[data-rename-asset]").first.click()
+    expect(page.locator(".asset-rename-input")).to_be_visible()
+    _anchor(page, "brama_0_1.png").hover()
+    page.wait_for_timeout(600)
+    expect(page.locator(".asset-preview")).to_be_hidden()
+    page.keyboard.press("Escape")  # cancel the rename; never commit
+
+
+@pytest.mark.django_db(transaction=True)
+def test_hovering_a_thumb_while_a_replace_strip_is_open_does_not_open(
+    page, live_server
+):
+    user, course = _seed_assets("rsp-pa", "rsp", ("pasek_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "rsp-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    # Raise the replace confirm strip (click [data-replace-asset] and choose a
+    # file) without committing, then hover that cell's thumb via _anchor().
+    with page.expect_file_chooser() as fc:
+        page.click("[data-replace-asset]")
+    fc.value.set_files(_upload_payload())
+    page.locator("[data-replace-strip]").wait_for(state="visible")
+    _anchor(page, "pasek_0_1.png").hover()
+    page.wait_for_timeout(600)
+    expect(page.locator(".asset-preview")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_keyboard_driven_pencil_leaves_no_observer_behind(page, live_server):
+    """Two traps this row exists to avoid.
+
+    (1) Drive the pencil by KEYBOARD, not by click. media_picker.js:339 focuses
+    the rename INPUT, whose focusin the handler filters out at its own first
+    line, and the preceding click-focus on the ✎ button fails :focus-visible --
+    so a pointer-driven pencil never reaches open() and the row would be green
+    on both builds.
+
+    (2) Count LIVENESS, not constructions. bindOpenListeners() constructs one
+    observer per open either way, so a construction count is identical on both
+    builds; only a connect/disconnect balance discriminates.
+    """
+    page.add_init_script("""
+        window.__live = 0;
+        const Real = MutationObserver;
+        function Shim(cb) {
+            const o = new Real(cb);
+            const realObserve = Real.prototype.observe.bind(o);
+            const realDisconnect = Real.prototype.disconnect.bind(o);
+            let counted = false;
+            o.observe = function () {
+                if (!counted) { window.__live += 1; counted = true; }
+                return realObserve.apply(null, arguments);
+            };
+            o.disconnect = function () {
+                if (counted) { window.__live -= 1; counted = false; }
+                return realDisconnect();
+            };
+            return o;
+        }
+        Shim.prototype = Real.prototype;   // keep instanceof and the proto chain
+        window.MutationObserver = Shim;
+    """)
+    specs = [(f"olowek_{i}_0.png", (400, 300)) for i in range(24)]
+    user, course = _seed_assets("pen-pa", "pen", *specs)
+    _open_manager(page, live_server, "pen-pa", course)
+    # Baseline, not zero: Playwright's own InjectedScript
+    # (_setupGlobalListenersRemovalDetection) constructs and .observe()s a
+    # MutationObserver of its own on every page and never disconnects it, so
+    # the shim above -- which patches window.MutationObserver globally, not
+    # just for our module -- counts that one too. Assert on the DELTA our own
+    # code produces, not an absolute value the test harness itself perturbs.
+    baseline = page.evaluate("() => window.__live")
+    for _ in range(3):
+        _tab_to_a_card_button(page)  # the cell's ✎ / ⇄ / 🗑, keyboard-focused
+        page.keyboard.press("Enter")
+        page.keyboard.press("Escape")
+    assert page.evaluate("() => window.__live") == baseline
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_sweep_does_not_accumulate_observers(page, live_server):
+    """An in-place swap re-enters open() without closing; without the shared
+    teardown it would leak one live observer per card."""
+    page.add_init_script("""
+        window.__live = 0;
+        const Real = MutationObserver;
+        function Shim(cb) {
+            const o = new Real(cb);
+            const realObserve = Real.prototype.observe.bind(o);
+            const realDisconnect = Real.prototype.disconnect.bind(o);
+            let counted = false;
+            o.observe = function () {
+                if (!counted) { window.__live += 1; counted = true; }
+                return realObserve.apply(null, arguments);
+            };
+            o.disconnect = function () {
+                if (counted) { window.__live -= 1; counted = false; }
+                return realDisconnect();
+            };
+            return o;
+        }
+        Shim.prototype = Real.prototype;   // keep instanceof and the proto chain
+        window.MutationObserver = Shim;
+    """)
+    user, course = _seed_assets(
+        "swp-pa",
+        "swp",
+        ("a_0_1.png", (400, 300)),
+        ("b_0_2.png", (400, 300)),
+        ("c_0_3.png", (400, 300)),
+    )
+    _open_manager(page, live_server, "swp-pa", course)
+    # Baseline, not 1: see the note in test_a_keyboard_driven_pencil_leaves_no_
+    # observer_behind -- Playwright's own InjectedScript holds one live
+    # MutationObserver of its own for the page's lifetime, and the shim counts
+    # it too. Assert on the delta OUR code produces.
+    baseline = page.evaluate("() => window.__live")
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "a_0_1.png")
+    for name in ("b_0_2.png", "c_0_3.png"):
+        box = _anchor(page, name).bounding_box()
+        cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        page.mouse.move(cx, cy, steps=10)
+        expect(page.locator(".asset-preview__caption")).to_have_text(name)
+    assert page.evaluate("() => window.__live") == baseline + 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_filter_swap_closes_a_pointer_opened_overlay(page, live_server):
+    user, course = _seed_assets("fsp-pa", "fsp", ("znikam_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "fsp-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "znikam_0_1.png")
+    page.fill("[data-filter-q]", "brak-dopasowania")
+    page.wait_for_selector(".asset-grid .asset-cell", state="detached")
+    expect(page.locator(".asset-preview")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_filter_swap_closes_a_focus_opened_overlay(page, live_server):
+    """The focus-opened variant is what discriminates connect-at-open from
+    connect-at-dwell-start: the focus path has no dwell to connect at."""
+    specs = [(f"znikam_{i}_0.png", (400, 300)) for i in range(24)]
+    user, course = _seed_assets("fsf-pa", "fsf", *specs)
+    _open_manager(page, live_server, "fsf-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _tab_to_a_card_button(page)
+    expect(page.locator(".asset-preview")).to_be_visible()
+    # Do NOT page.fill() here: filling focuses the input, which blurs the card
+    # button and fires focusout on root. openedBy() is "focus" at that moment,
+    # so the overlay would close BEFORE the debounced swap ever runs -- the row
+    # would pass with the observer never connected, and the connect-at-dwell
+    # mutant would survive. Set the value and dispatch `input` without moving
+    # focus.
+    page.evaluate("""() => {
+        const q = document.querySelector('[data-filter-q]');
+        q.value = 'brak-dopasowania';
+        q.dispatchEvent(new Event('input', {bubbles: true}));
+    }""")
+    page.wait_for_selector(".asset-grid .asset-cell", state="detached")
+    expect(page.locator(".asset-preview")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_pointer_can_still_hold_a_focus_opened_overlay(page, live_server):
+    """The A-hovered / B-focus-opened configuration. The pointer must be RESTING
+    on A when the Tab happens -- if it has already left, no mouseout on A ever
+    fires afterwards and the mutant has no event to mishandle."""
+    # TWO assets, both above the fold. A 25-asset grid would put A (seeded
+    # first, so rendered LAST under -created) in row 5, below the 900px fold:
+    # _open_preview would scroll to reach it, the first Tab would scroll back to
+    # the top, and A would slide out from under the stationary pointer -- so no
+    # mouseout for A would fire and the mutant would survive. Seeding A first
+    # also means B renders first, so _tab_to_a_card_button lands on B, not A.
+    user, course = _seed_assets(
+        "hold-pa",
+        "hold",
+        ("a_0_1.png", (400, 300)),
+        ("b_0_2.png", (400, 300)),
+    )
+    _open_manager(page, live_server, "hold-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "a_0_1.png")  # pointer rests on A, overlay on A
+    scroll_before = page.evaluate("() => window.scrollY")
+    _tab_to_a_card_button(page)  # focus-open swaps the overlay to B
+    assert page.evaluate("() => window.scrollY") == scroll_before, (
+        "the page scrolled; A is no longer under the pointer and this row's "
+        "premise is broken"
+    )
+    caption = page.locator(".asset-preview__caption").text_content()
+    assert caption != "a_0_1.png"
+    page.mouse.move(5, 5)  # NOW leave A
+    page.wait_for_timeout(500)  # outlive the grace
+    expect(page.locator(".asset-preview")).to_be_visible()
+    assert page.locator(".asset-preview__caption").text_content() == caption
