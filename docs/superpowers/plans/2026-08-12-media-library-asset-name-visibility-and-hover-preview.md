@@ -414,7 +414,11 @@ Two pieces of scaffolding that every later e2e row in this plan depends on.
 from playwright.sync_api import expect
 ```
 
-**(b)** The file's existing `_seed(username, slug, *, with_element=True)` helper creates an asset named `original.png` of its own. Reusing it for the overlay and geometry rows would add a cell that shifts every index and an extra `.asset-dname` the geometry probes might measure. Add a helper that seeds **only** the named assets:
+**(b)** Append both helpers below **immediately after `_open_manager`** (which ends at `:96`), beside the file's other module-level helpers.
+
+Note that this shifts everything after it down by ~28 lines, so the `:588` / `:594-596` citations used later in Tasks 4 and 8 are **pre-Task-3 line numbers**. Both targets are named by content (`test_screenshots_light_and_dark` and its docstring), so locate them by name rather than by number once this step has landed.
+
+The file's existing `_seed(username, slug, *, with_element=True)` helper creates an asset named `original.png` of its own. Reusing it for the overlay and geometry rows would add a cell that shifts every index and an extra `.asset-dname` the geometry probes might measure. Add a helper that seeds **only** the named assets:
 
 ```python
 def _seed_assets(username, slug, *specs):
@@ -748,7 +752,7 @@ One at a time: edit the mutant in, re-run, confirm RED, **edit it back out by ha
 - **If yes:** add a row asserting exactly 3 text-run rects for that fixture, mutant `drop -webkit-line-clamp: 3`. First spike whether Blink removes clamped lines from the layout tree (so `getClientRects()` returns 3) or lays them out and clips the paint (so it returns 4+ on *both* builds, making the row unfalsifiable). If rects do not discriminate, probe `scrollHeight > clientHeight` instead. The fixture must also be ≤32 characters, or `middle_truncate` shortens it first and the budget decides the count on both builds — assert its rendered length equals its source length so a later budget change fails loudly.
 - **If no:** the clamp is unreachable in production too. Delete **all four** declarations — `display: -webkit-box`, `-webkit-box-orient`, `-webkit-line-clamp` **and `overflow: hidden`** — leaving `overflow-wrap: anywhere` as the sole containment rule, and collapse the first mutant above to dropping that one rule. Re-run the containment rows afterwards; removing `-webkit-box` changes the layout the probe measures.
 
-Either way, correct the docstring at `tests/test_e2e_media_manager.py:594-596`: 360 px yields two `1fr`-widened columns, **not** the 8rem floor.
+Either way, correct `test_screenshots_light_and_dark`'s docstring — **both** the summary line ("Four foot states at the grid's MINIMUM column width") and the paragraph below it. 360 px renders two `1fr`-widened ~154 px columns, **not** the 128 px `8rem` floor. Fixing only the paragraph would leave the summary contradicting it three lines above.
 
 - [ ] **Step 8: Delete the scratch file and commit**
 
