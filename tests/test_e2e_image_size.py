@@ -113,9 +113,25 @@ def _lesson_url(live_server, unit):
 
 
 def _save_open_form(page):
+    """Submit the open edit form and WAIT for the resulting fragment swap to land.
+
+    The barrier keys on node IDENTITY, not on a selector. editor.js's applyFragments
+    REPLACES both [data-scope] panes, so `wait_for_selector('figure.el--image')` is
+    satisfied by the *pre-save* node still sitting in the DOM and returns immediately
+    -- MEASURED: the pre-save figure reads isConnected === true when it resolves. The
+    swap then lands later in the test, replacing the form under a subsequent click and
+    resetting the preview figure to its server-rendered class (el--image--full), which
+    is what made test_live_preview_survives_a_save_swap flaky under load: in isolation
+    the swap arrives before the radio click, under load after it.
+
+    Both call sites have a preview figure on screen when they save.
+    """
+    fig = page.locator('[data-scope="preview"] figure.el--image').element_handle()
     page.locator(
         "[data-edit-slot] form[data-op='element-save'] button[type=submit]"
     ).first.click()
+    # arg= is KEYWORD-ONLY on wait_for_function (unlike evaluate); positional raises.
+    page.wait_for_function("el => !el.isConnected", arg=fig)
 
 
 def _await_decoded(page, locator):
@@ -497,8 +513,10 @@ def test_live_preview_survives_a_save_swap(page, live_server, geom):
     page.goto(_editor_url(live_server, course, preview_unit))
 
     _open_existing_element_form(page, preview_join)
+    # _save_open_form waits for the save's fragment swap to LAND (by node identity).
+    # A `wait_for_selector('figure.el--image')` here would not: the pre-save figure is
+    # still in the DOM, so it resolves instantly and the swap arrives mid-test.
     _save_open_form(page)
-    page.wait_for_selector('[data-scope="preview"] figure.el--image')
 
     _open_existing_element_form(page, preview_join)
     fig = page.locator('[data-scope="preview"] figure.el--image')
