@@ -90,7 +90,9 @@ that can be single-sourced is. Do not "simplify" the `additional` branch into
 
 **The constants do not reach the templates.** A Django template cannot import a Python constant, so
 `_unit_kind_glyph.html` hardcodes `"quiz"` / `"additional"` in its `{% if %}`/`{% elif %}` branches,
-and all three partials interpolate the raw key into a class name. Renaming a constant therefore requires a grep of
+two of the three partials interpolate the raw key into a class name (the chip's
+`unit-kind-chip--{{ m }}` and the icon's `unit-kind--{{ m }}`), and the glyph partial branches on
+it. Renaming a constant therefore requires a grep of
 `templates/courses/_unit_kind_*.html`; the render tests assert the rendered modifier class against
 the constant, so a rename that misses the templates goes red rather than silent.
 
@@ -349,8 +351,9 @@ Accepted, not worked around — it gives the outline the same right-hand marker 
 `.badge--done`'s `margin-left: auto` (`app.css:559`) is consequently **inert** here; the `✓`'s right
 position comes from the title's `flex: 1`.
 
-**Two required CSS changes, and they are *not* inert.** The overflow exposure is at **two nested
-levels**, and fixing only the inner one leaves the row broken:
+**Two required CSS edits, at two nested levels.** Only the title's `overflow-wrap` is testable; the
+two `min-width: 0` declarations are inert defence against unbreakable atoms. The ordering argument
+still matters, because fixing only the inner level would leave the outer exposure unaddressed:
 
 ```css
 /* app.css:521 — the title inside the anchor */
@@ -391,8 +394,11 @@ levels**, and fixing only the inner one leaves the row broken:
 
 **These alter behaviour on rows carrying no marker at all**: the `✓` is already a shrink-forcing
 sibling on every completed row, so today a long unbroken title overflows and afterwards it breaks
-instead. That is an improvement and it is accepted — but it is a real change, not a no-op, and each
-declaration has its own mutant in Falsification.
+instead. That is an improvement and it is accepted — but it is a real change, not a no-op, and the mutants split unevenly, and §Falsification is
+the authority: only the title's `overflow-wrap` is testable (its mutant is removal → `normal`).
+**Both `min-width: 0` declarations are inert forward-defence with no mutant and no fixture** — see
+Testing's "no maths-title outline fixture" paragraph for why the fixture that would pin them cannot
+exist.
 
 **Accepted colour collision:** `.badge` fills with `--surface-sunken` (`app.css:119`), and so do
 `.outline-unit:hover` (`app.css:519`) and `.outline-node:target > .outline-unit` (`app.css:533`). On
@@ -629,8 +635,16 @@ records a measured drawer audit listing the siblings a KaTeX box was checked aga
 This change adds `.unit-kind` inside `.unit-tree__unit` **and** alters `.unit-tree__label`'s flex —
 exactly that trigger. Add `.unit-kind` to the comment's list, and add it to the **same list in
 `tests/capture_title_math_screenshots.py`** (the `btns` selector at ~:483), which is the automated
-half of that audit; updating only the comment leaves the executable check testing a stale set and
-green over the new collision. While editing, **refresh every line reference in that block** — every
+half of that audit. **The selector edit alone is not enough** — that script's own fixture defeats it
+twice: its four maths-title units are default-obligatory lessons (no marker), and the one unit that
+would emit one, `quiz_b` (`:186`, `TITLES["long"]`), sits under `part_b` while the drawer arm
+navigates to `nodes["lesson_display"]` under `part_a`; `_unit_tree_node.html:22` sets `open` only on
+`contains_current`, so `part_b`'s `<details>` stays closed and `quiz_b`'s `.unit-kind` returns an
+all-zero rect that can never satisfy the script's `overlaps()` predicate. So also **place a marked
+unit carrying a maths title inside the group that is open on the drawer arm's page** (e.g. set
+`lesson_display` or `lesson_long` to `obligatory=False`), and add a **non-empty-`btns` guard** so a
+future fixture change cannot silently re-empty the set. Updating only the comment, or only the
+selector, leaves the executable check green over the new collision. While editing, **refresh every line reference in that block** — every
 row in the table below, and do not stop at the first few (naming a count invites exactly that):
 
 | Cited | Actual |
@@ -819,9 +833,13 @@ than red.
    body and the new declaration untested.
 7. **`tests/test_quiz_previewer_render.py`** — renders `_quiz_article.html` directly via
    `render_to_string(build_quiz_context(...))`; must be re-run and updated for the new
-   `.lesson-unit__head` / `.lesson-unit__heading` wrappers. `tests/test_title_math_markers.py:157`
-   documents `span.unit-tree__label (_unit_tree_node.html:15)`; add a one-line mention of the new
-   trailing `.unit-kind` sibling to that docstring's surface inventory.
+   `.lesson-unit__head` / `.lesson-unit__heading` wrappers. `tests/test_title_math_markers.py:157` sits inside an inventory of
+   "the THREE true double-interpolation sites" (`:154-162`) — places where the same **node title**
+   is interpolated twice, once as visible text and once as a `title=`. `.unit-kind`'s `title=`
+   carries the **marker word**, not the title, so it does **not** belong on that list and must not
+   be added to it (that would corrupt the list's definition and its "THREE" count). Add the mention
+   to the docstring's *exclusion* paragraph instead, modelled on the existing
+   "`h1.lesson-unit__title` is deliberately NOT in this guard" note at `:164-169`.
 
 ### Unit — `unit_marker` and `marker_label`
 
@@ -897,15 +915,29 @@ fixture yields zero elements and either a `None` bounding box or a vacuous pass.
 
 **Desktop, rail gutter.** Two units with markedly different title lengths in the same open group,
 both marked, scoped to `[data-unit-tree-list]`: assert their `.unit-kind` boxes share a **`right`**
-within ~1px, and that `icon.right == row.right - 8` — `.unit-tree__unit`'s `padding: .3rem .5rem`
-(`courses.css:766`). Both are false when `.unit-tree__label` has no `flex-grow`.
+within ~1px, and that `abs(icon.right - (row.right - 8)) <= 1` — `.unit-tree__unit`'s
+`padding: .3rem .5rem` (`courses.css:766`), with the same ±1 tolerance every other offset assertion
+in this section carries, since these are `getBoundingClientRect()` floats at a `.82rem` font over
+fractional nesting padding.
+
+Both are false when `.unit-tree__label` has no `flex-grow` — **but only if the short row actually
+leaves free space on its line**. `.unit-tree__label` already carries
+`min-width: 0; overflow: hidden; text-overflow: ellipsis` (`courses.css:789`), so on the reverted
+build a title whose max-content exceeds the row still fills it and its marker still lands flush at
+`row.right - 8`. The rail's title column is roughly 224 - 16 padding - ~9-18 nesting - ~19 marker
+≈ 170px, i.e. ~28-30 characters at `.82rem`, and "markedly different lengths" is satisfied by two
+titles that both exceed that — in which case **both assertions are green with the rule removed**.
+Require the short row's title to be measurably narrower than the row's content box, and guard it:
+assert its `.unit-tree__label` is at least ~20px under that width before asserting anything else.
 
 Also assert, at desktop, that `[data-unit-tree-list] .unit-kind__label` still measures
 `width <= 2 and height <= 2` — stated numerically and symmetrically with the drawer's 30×8 bound,
-mirroring `.visually-hidden`'s literal `width: 1px; height: 1px` (`app.css:1219-1220`); it is
-i.e. it is **still hidden in the rail**. Without it, a drawer un-hide rule that loses its
-`.unit-drawer__list` scope passes every other assertion here (`icon.right == row.right - 8` and the
-shared-`right` gutter both still hold) while silently consuming most of the rail's title column.
+mirroring `.visually-hidden`'s literal `width: 1px; height: 1px` (`app.css:1219-1220`); i.e. it is **still hidden in the rail**. Without it, an un-hide rule placed **outside** the
+`@media (max-width: 640px)` block passes every other assertion here (the offset and shared-`right`
+gutter checks both still hold) while eating ~58px of the 14rem rail's ~98px title column. Note the
+*other* form — dropping the `.unit-drawer__list` selector while the block stays inside the media
+query — is **inert** and carries no mutant (`courses.css:950` hides the rail at ≤640px), so do not
+falsify against it and expect red.
 
 **Compare `right`, not `x`.** `x` is the wrapper's *left* edge and the wrapper is one glyph wide
 (~13px at the rail's `.82rem`), so on a correct build `x` sits ~13px inside the row's right content
@@ -936,7 +968,11 @@ so a single cap-length row proves almost nothing:
 
 - **Short-title row** — the `<h1>`'s content is far below the cap. Two assertions, and **both**
   mutants below are killable only here:
-  1. **`chip.left - group.left < 200`**, on a fixture whose title content is ~100px. This kills
+  1. **`chip.left - group.left < 200`**, on a fixture whose title content is ~100px. Guard the
+     fixture first: assert the `<h1>`'s measured width is under ~150px, with a message saying the
+     fixture no longer exercises the reset. The 200px bound is red on a **correct** build once the
+     rendered heading passes ~188px — about a dozen characters at heading size — so drift must
+     announce itself rather than read as a CSS regression. This kills
      deletion of `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }`: with the reset the
      `<h1>` shrink-wraps to ~100px and the chip follows it (~112px in); without it the `<h1>` is
      `flex: 1` and grows to the full ~656px remainder, putting the chip ~556px further right.
@@ -1032,7 +1068,19 @@ Assertions at that size:
      script is already being edited for the `btns` list, so the fixture is in hand. Cite
      `courses.css:2339-2345` only for the audit's *result*: that comment records "Task 11 MEASURED
      this at 390x780" but names no title string, so it cannot be used to find the fixture. Reusing
-     it makes this a like-for-like re-measurement at the corrected **~230px** post-marker column. Do
+     **The seed must be modified first, or the check is vacuous.** Every unit in that seed is an
+     obligatory lesson — `capture_title_math_screenshots.py:132-156` builds `lesson_mixed/display/
+     long/plain` as `unit_type="lesson"` with no `obligatory` argument, and `ContentNodeFactory`
+     does not set it, so the model default `True` applies; `tests/helpers_title_math.py` hardcodes
+     `obligatory=True` at `:72`, `:81`, `:90`, `:133`. Reused literally the drawer contains **zero**
+     `.unit-kind` elements, the intersection loop iterates an empty list, and the check is green on
+     every build — the exact vacuity this bullet calls "a genuine measurement, not a formality".
+     Flip the maths-title unit to `obligatory=False` (or seed it on a quiz), and add a
+     **fixture-validity guard** asserting at least one `[data-unit-drawer-list] .unit-kind` with a
+     non-`None` box **before** the loop runs, so a future fixture change re-empties it loudly.
+
+     With that done, it makes this a like-for-like re-measurement at the corrected **~230px**
+     post-marker column. Do
      **not** frame it as "~76px against the original's ~98px": the audit's column figure was
      mis-recorded (it is the rail's, per `courses.css:730`), so the comparison is against the
      audit's *result* — no intersection — not against its number. A freshly-invented formula would
