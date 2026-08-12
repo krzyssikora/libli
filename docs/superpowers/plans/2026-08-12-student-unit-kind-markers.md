@@ -8,7 +8,13 @@
 
 **Tech Stack:** Django templates, `gettext_lazy`, plain CSS (no framework), pytest + BeautifulSoup for render tests, Playwright for e2e.
 
-**Spec:** `docs/superpowers/specs/2026-08-12-student-unit-kind-markers-design.md` — read it. This plan implements it; where they disagree, the spec wins.
+**Spec:** `docs/superpowers/specs/2026-08-12-student-unit-kind-markers-design.md` — read it. This plan
+implements it; where they disagree, the spec wins — **with one recorded, reasoned exception**, in
+Task 5 Step 7. The spec's Falsification list points the mobile-rule mutant at
+`test_e2e_unit_head_layout.py`, but that file's own fixture cannot discriminate (the spec's §Testing
+item 4 concedes as much), so the plan re-points it at the new phone unit-page arm. Following the
+spec's bullet there would run a mutant that stays green and halt the task under this plan's
+"a falsification step must go RED" rule.
 
 ## Global Constraints
 
@@ -554,7 +560,8 @@ both:
 uv run pytest tests/test_unit_marker.py -v
 ```
 
-Expected: PASS.
+Expected: PASS, plus the Task 1 xfail (`test_label_is_a_lazy_proxy_not_a_frozen_string`), which
+stays until Task 6.
 
 - [ ] **Step 6: Falsify — two mutants**
 
@@ -705,9 +712,20 @@ Do not paste over the region: `:973-976` carries the authored "Touch has no hove
 
 - [ ] **Step 5: Refresh the maths-audit comment and its executable half**
 
-In `courses/static/courses/css/courses.css`, in the block at `:2310-2350`: add `.unit-kind` to the audited sibling list, correct the drawer column claim (it says `~98px`, which is the **rail's** figure per `:730`; the drawer panel is `left:0;right:0`, giving ~325px, ~230px after the marker), and refresh **every** stale line reference in that block:
+In `courses/static/courses/css/courses.css`, in the block at `:2310-2350`: add `.unit-kind` to the audited sibling list, correct the drawer column claim (it says `~98px`, which is the **rail's** figure per `:730`). Do not
+write a *derived* figure: the spec says to record the **measured** residual, and Task 7's phone
+drawer arm already opens the drawer at 390×780 — have it report `.unit-tree__label`'s rendered width
+on a marked row and write **that** number in Task 8. (The arithmetic says ~325px bare, ~230px after
+the marker; treat it as the expected order of magnitude, not the value to commit.)
 
-| Cited | Actual |
+**The comment's line references must be refreshed too — but NOT here.** The table below is
+**pre-change**, and this very task inserts ~9 lines above `:789` while Task 5 inserts ~14 more at
+`:836`, so writing these values into the comment now produces a freshly-stale citation block — the
+exact defect the refresh exists to remove. **Do the refresh in Task 8 Step 2b**, re-deriving every
+number with `grep -n` after all CSS insertions have landed. The table records which references are
+wrong *today*, not what to write:
+
+| Cited | Actual (pre-change — re-derive in Task 8) |
 | --- | --- |
 | `.unit-tree__label (:755)` | 789 |
 | `.unit-tree__grouptitle (:702-704)` | 736-738 |
@@ -746,7 +764,7 @@ uv run ruff format --check tests/test_unit_nav_render.py tests/capture_title_mat
 
 Expected: PASS. `test_unit_tree_long_titles.py::test_drawer_lets_unit_labels_wrap` is a **source-level regex pin** on the `:977` rule — it stays green only because the rule was extended in place.
 
-- [ ] **Step 7: Falsify — two mutants**
+- [ ] **Step 7: Falsify — three mutants**
 
 | Mutant | Must redden |
 | --- | --- |
@@ -910,7 +928,7 @@ Both work today because the `<h1>`'s *flex target* (~746px) exceeds the 736px pr
   (`test_e2e_uniform_block_width.py:60-66`) takes no title and is **shared with the three-item
   test**, so add a `title=None` keyword defaulting to current behaviour rather than changing it in
   place.
-- Re-point the fixture-validity guard **at the title**: neutralise `max-width` with `page.add_style_tag`, measure the uncapped `<h1>` content width, assert **`>= 740`** (not `> 736` — the guarded assertion is `title_w < 738`, so a fixture landing in (736, 738] would pass the guard and leave the assertion green), then restore.
+- Re-point the fixture-validity guard **at the title**: neutralise `max-width` with `page.add_style_tag`, measure the `<h1>`'s rendered width with the cap neutralised — i.e. `min(max-content, flex target ≈ 746)`, the quantity that actually decides the guarded assertion (with the cap gone the `<h1>` is still `flex: 0 1 auto` in a ~746px group, so `getBoundingClientRect().width` and `scrollWidth` both report ~746; there is no separate "content width" to hunt for) — and assert **`>= 740`** (not `> 736` — the guarded assertion is `title_w < 738`, so a fixture landing in (736, 738] would pass the guard and leave the assertion green), then restore.
 - "Restore" needs a mechanism: `page.add_style_tag` returns an `ElementHandle`. Capture it and call
   `handle.evaluate("e => e.remove()")` — the override does not disappear on its own, and left in
   place it neutralises the cap for the very assertion it protects.
@@ -949,13 +967,19 @@ Its fixture must be **marked**, and this is the trap: `tests/helpers_title_math.
 `obligatory=True` at `:72`, `:81`, `:90` and `:133`, so `_lesson_body(client, maths_on="unitA", ...)`
 builds units that emit no chip and the case would be vacuous. Parameterise those sites (add an
 `obligatory=True` keyword argument defaulting to the current value) or seed the maths title on a
-quiz unit. Assert the chip renders **beside** the `<h1 data-math-title>`, not inside it, and that
-the title's KaTeX still renders.
+quiz unit. Assert the chip renders **beside** the `<h1 data-math-title>`, not inside it; that the `<h1>` still
+carries `data-math-title` (use the file's existing `_marked(html, "h1.lesson-unit__title")` helper);
+that the raw `\(…\)` delimiters survive in its visible text; and that the page's `has_math` gate is
+still set. **Do not assert "the KaTeX renders"** — that file is a Django-client render suite
+(`_lesson_body` at `:76` returns `client.get(url).content.decode()`), and KaTeX is produced by
+browser-side `math.js`, so it is unassertable there. Browser typesetting is covered by Task 7's
+drawer-maths arm.
 
 - [ ] **Step 6: Run the affected tests**
 
 ```bash
 uv run pytest tests/test_unit_marker.py tests/test_quiz_previewer_render.py tests/test_title_math_markers.py -v
+# Expected: PASS, plus the Task 1 xfail, which stays until Task 6.
 uv run pytest -m e2e tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_head_layout.py   "tests/test_e2e_unit_nav.py::test_quiz_chrome_tracks_the_column_across_both_page_states" -v
 ```
 
@@ -1071,26 +1095,35 @@ all build default-`obligatory=True` lessons, which emit no marker at all. Add:
 
 ```python
 def _seed_marked_group(username, *, slug):
-    """A course whose one chapter holds three MARKED units: a short-title and a
-    long-title additional lesson (for the differential rail-gutter comparison) and
-    a quiz. The chapter is the current unit's ancestor, so its <details> renders
-    `open` (_unit_tree_node.html sets open only on contains_current) and every row
-    is measurable. obligatory=False is explicit: the model default is True and a
-    default-factory unit would make every assertion here vacuous.
+    """A course whose one chapter holds FIVE marked units plus one completion.
+    The chapter is the current unit's ancestor, so its <details> renders `open`
+    (_unit_tree_node.html sets open only on contains_current) and every row is
+    measurable. obligatory=False is explicit everywhere: the model default is True
+    and a default-factory unit renders no marker, making every assertion vacuous.
+
+    long_unit is ALSO marked completed (UnitProgressFactory(student=user,
+    unit=long_unit, completed=True)) so `.unit-tree__check` renders for the
+    completed-row arm -- that tick is behind {% if item.completed %}
+    (_unit_tree_node.html:10) and nothing else in this seed produces one.
+    Deliberately NOT short_unit: a leading tick eats row width, and short_unit is
+    the row whose >=20px free-space guard the rail-gutter arm depends on.
     """
 ```
 
-Returns `(user, course, chapter, short_unit, long_unit, quiz_unit, maths_unit, token_unit)` — six
+Returns `(user, course, chapter, short_unit, long_unit, quiz_unit, maths_unit, token_unit)` — **five**
 marked units, because three arms need title shapes the others cannot supply:
 
 - `short_unit` — title measurably narrower than the row's content box (the rail-gutter guard, and the
   desktop unit-page short-title arm).
 - `long_unit` — a long **multi-word** title (the rail-gutter comparison's other half).
 - `quiz_unit` — for the quiz-side unit-page arms.
-- `maths_unit` — `obligatory=False`, title a maths title (reuse `tests/helpers_title_math.py`'s
-  title constant). **Required by the drawer-maths arm**: without it that arm's fixture-validity guard
-  cannot pass, and `helpers_title_math.py`'s own course builder is not used by
-  `test_e2e_unit_nav.py`, so importing the constant is the cheap route.
+- `maths_unit` — `obligatory=False`, title **`capture_title_math_screenshots.TITLES["long"]`**, the
+  long maths title the existing audit actually measured. `TITLES` is a plain module-level dict
+  (`capture_title_math_screenshots.py:57`) and is importable; it is that script's *course builder*
+  that cannot be reused here, not the titles. Do **not** substitute
+  `helpers_title_math.MATHS_TITLE` — it is a short title from a different module, may not even wrap
+  in the ~230px drawer column, and would make the re-check materially weaker than the like-for-like
+  re-measurement the spec requires.
 - `token_unit` — `obligatory=False`, title containing **one unbroken token measured wider than the
   390px outline title column**. Required by the outline arm: a multi-word long title wraps at spaces
   under `overflow-wrap: normal` too, leaving that mutant green.
@@ -1107,7 +1140,10 @@ Compare `right`, not `x`: `x` is the wrapper's *left* edge and the wrapper is ~1
 
 - [ ] **Step 2: Desktop unit page — two fixtures, non-interchangeable**
 
-Both article templates, both rail states (expanded and `html.unit-tree-collapsed`).
+Both article templates, both rail states. Use the file's existing **`_collapse(page)`**
+(`test_e2e_unit_nav.py:49`), which waits on the `html.unit-tree-collapsed` class — do not toggle the
+state another way. It is load-bearing: the 736px prose cap applies **only** in the collapsed state,
+so the cap-length assertions are meaningful only there.
 
 **Short-title row** (title content ~100px; guard first that the `<h1>` measures under ~150px, with a message saying the fixture no longer exercises the reset — the 200px bound below is red on a *correct* build once the heading passes ~188px):
 1. `chip.left - group.left < 200`. Write it as that absolute bound, **not** as `chip.left == title.right + gap`: adjacency is invariant across both builds, since without the reset the `<h1>` merely grows and the chip still sits `gap` past its right edge.
@@ -1129,7 +1165,12 @@ Both must sit on the **short-title** row: with a cap-length title the group's ba
   padding edge), so it carries **no mutant** — the differential `label.right <= marker.right + 1`
   above is the discriminating one.
 - Row shape for a completed additional unit: one flex line — `.unit-tree__check`, `.unit-tree__label` and `.unit-kind` share a top within a few px.
-- **A/B the label's wrap points**: record `.unit-tree__label`'s `getBoundingClientRect().height` for a fixed long title, re-measure with `page.add_style_tag` injecting `.unit-drawer__list .unit-tree__label { flex: 0 1 auto !important }` — the pre-change computed value, named explicitly because `add_style_tag` can only *add* a declaration and `flex: none`/`flex: 1 1 0` would change the base size and redden a correct build — and assert the two heights are equal.
+- **A/B the label's wrap points**: record `.unit-tree__label`'s `getBoundingClientRect().height` for a fixed long title, re-measure with `page.add_style_tag` injecting `.unit-drawer__list .unit-tree__label { flex: 0 1 auto !important }` — the pre-change computed value, named explicitly because `add_style_tag` can only *add* a declaration and `flex: none`/`flex: 1 1 0` would change the base size and redden a correct build — and assert the two heights are equal. **Then tear the override down**:
+  `page.add_style_tag` returns an `ElementHandle` and the `!important` rule does not disappear on its
+  own — capture the handle and call `handle.evaluate("e => e.remove()")` immediately after the second
+  measurement. It changes the drawer label's flex and therefore the marker's position, so leaving it
+  in place corrupts every later assertion on that page (notably the maths re-check). Alternatively,
+  make this the **last** assertion performed on that drawer page and say so.
 - **Unit-page head at 390 wide** (spec §Testing; this arm exists because
   `test_e2e_unit_head_layout.py` structurally cannot cover it - its fixture renders no chip). Drive
   `quiz_unit` or `short_unit`: assert `chip.top >= title_bottom - 1` **and**
@@ -1244,14 +1285,20 @@ inherits — it must not leave behind the ones it creates.
 **Discover them, do not enumerate them:**
 
 ```bash
-grep -rn "_unit_tree_node.html:" tests/ docs/ templates/
-grep -rn "_quiz_article.html:" tests/ docs/ templates/
+grep -rn "_unit_tree_node.html:" tests/ templates/ courses/
+grep -rn "_quiz_article.html:" tests/ templates/ courses/
 ```
 
-Known hits at time of writing: `tests/test_title_math_markers.py` **and**
-`tests/test_title_math_filter.py:123,131` both cite `_unit_tree_node.html:25` and `:60`. Note
-`:15` (`span.unit-tree__label`) does **not** move — inserting *after* it leaves it in place — so do
-not "fix" that citation. There is no `_unit_tree_node.html:22` citation anywhere in the repo; that
+**Refresh citations in live source and tests only.** Do **not** rewrite
+`docs/superpowers/plans/` or `docs/superpowers/specs/` — those are historical records of the state at
+their own authoring time (the grep finds eight such hits in
+`docs/superpowers/plans/2026-08-10-latex-in-unit-titles.md` alone), and "correcting" them falsifies
+the record.
+
+Known hits at time of writing, per file: `test_title_math_filter.py:123` cites `:15` and `:131`
+cites `:25`; `test_title_math_markers.py:119` cites `:60`. Note **`:15` does not move** — inserting
+*after* it leaves `span.unit-tree__label` in place — so do not "fix" that one. Rely on the grep
+rather than this list. There is no `_unit_tree_node.html:22` citation anywhere in the repo; that
 figure appears only in the spec's prose, so nothing to refresh there.
 
 - [ ] **Step 3: Branch gate — the full suite**
