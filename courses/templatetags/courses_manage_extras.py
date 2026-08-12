@@ -168,11 +168,21 @@ def element_summary(el):
         d = FillTableElement.normalize_data(el.data)
         n_ans = sum(1 for row in d["cells"] for c in row if c["kind"] == "answer")
         rows, cols = len(d["cells"]), len(d["cells"][0])
-        return _("%(rows)d×%(cols)d fill-in table, %(n)d answer(s)") % {
+        summary = _("%(rows)d×%(cols)d fill-in table, %(n)d answer(s)") % {
             "rows": rows,
             "cols": cols,
             "n": n_ans,
         }
+        if d["gate"]:
+            # The gate is otherwise an invisible setting: without this the builder
+            # tree shows the same row for a gating table as for an inert one, and
+            # the gate changes what the REST of the section does -- a larger blast
+            # radius than the carousel display marked in the TabsElement branch
+            # below. gettext (eager), NOT the lazy `_`, for the same reason given
+            # there: `_(...) % {...}` yields a __proxy__, and the eager wrap
+            # collapses it to a str.
+            summary = gettext("%(summary)s · gate") % {"summary": summary}
+        return summary
     if name == "GalleryElement":
         n = len(GalleryElement.normalize_data(el.data)["images"])
         # ngettext (not the lazy `_`) so the plural form is chosen against the
