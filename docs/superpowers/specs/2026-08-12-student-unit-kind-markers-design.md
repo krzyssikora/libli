@@ -382,17 +382,24 @@ levels**, and fixing only the inner one leaves the row broken:
   content that `overflow-wrap: anywhere` cannot break** — a KaTeX `.katex` inline-block, or any
   replaced element — not a second fix for the plain-text case. With `anywhere` in place a long
   *breakable* title collapses to roughly one character, putting the anchor's minimum at
-  title(~8px) + chip(~78) + `✓`(~22) + gaps(16) + padding(24) ≈ 150px, comfortably inside the
-  ~280–290px `li` at 390px — so on a plain-text fixture this declaration is inert and its mutant
-  would be green. It is pinned instead by the **maths-title** outline fixture (see Testing), where
+  title(~1 char) + chip + `✓` + gaps + padding — comfortably inside the `li` at 390px, so on a
+  plain-text fixture this declaration is inert and its mutant would be green. (Deliberately no
+  pixel totals here: an earlier draft quoted two figures that could not both describe the same
+  element, and the argument needs only the ordering, not the numbers. Measure at implementation.) It is pinned instead by the **maths-title** outline fixture (see Testing), where
   the atom genuinely cannot be broken. Note precisely what that fixture must be: **a single wide
   `\frac`/`\sqrt` with no top-level operator**, not merely a long formula — `courses.css:1687-1698`
   records that KaTeX breaks a multi-term formula between its `.base` spans, which would leave this
   mutant green. `.katex` is not an atomic inline-block.
-- **`anywhere`, not `break-word`.** `overflow-wrap: break-word` permits breaking at paint time but
-  **does not reduce the element's min-content contribution**, so it does not lower the flex minimum
-  that causes the overflow in the first place. `anywhere` does, which is why this repo already
-  reaches for it wherever overflow must actually be prevented (`courses.css:940`).
+- **`anywhere` vs `break-word`: the two are indistinguishable here, and no test can separate them.**
+  They differ *only* in intrinsic (min-content) sizing; both break an over-long word at line-break
+  time, producing pixel-identical rendering. The min-content contribution would matter only if the
+  flex minimum were `auto` — and this very rule sets `min-width: 0` on the title, with a second
+  `min-width: 0` on the anchor, so both minima are 0 and min-content never determines a used size.
+  `anywhere` is chosen for **defence-in-depth** (it stays correct if a future edit drops
+  `min-width: 0`) and for house consistency with `courses.css:940`, **not** because it measurably
+  differs. Do not write a mutant that flips `anywhere` → `break-word`: it is green on every build.
+  The only weakening the layout can see is removing `overflow-wrap` **entirely** (→ `normal`), and
+  that is what Falsification names.
 
 **These alter behaviour on rows carrying no marker at all**: the `✓` is already a shrink-forcing
 sibling on every completed row, so today a long unbroken title overflows and afterwards it breaks
@@ -544,8 +551,10 @@ override:
 }
 ```
 
-`anywhere` rather than `break-word` for the same reason as the outline title: it reduces the
-min-content contribution, which is what actually stops the overflow. Pinned by the text-overflow
+`anywhere` rather than `break-word` for the same reason as the outline title — defence-in-depth and
+house consistency, **not** a measurable difference. `.unit-tree__label` already carries
+`min-width: 0`, so the two keywords render identically here too; the falsifiable weakening is
+removing `overflow-wrap` altogether. Pinned by the text-overflow
 assertion in Testing.
 
 Choosing the legend over un-hiding the row label is what keeps `.unit-kind__label` visually hidden
@@ -1073,15 +1082,26 @@ Assertions at that size:
      or radical, no top-level operator to break at)" — and that is exactly the fixture required
      here. `.katex` is *not* an atomic inline-block; do not describe it as one.
 
-     Size the atom deliberately: **wider** than the space left in the `li` after chip + `✓` + gaps +
-     padding (or the mutant does not bite), and **narrower** than the distance from the title's left
-     edge to the viewport edge (or a correct build overflows the document — see below).
+     Size the atom deliberately, and **measure both bounds in the browser rather than deriving them
+     from arithmetic**: **wider** than the space left in the `li` after chip + `✓` + gaps + padding
+     (or the mutant does not bite), and **narrower** than the distance from the title's left edge to
+     the viewport edge (or a correct build overflows the document — see below). The window is real
+     but not wide, and it is the one fixture constraint in this spec that a wrong guess turns into a
+     red assertion on correct CSS.
 
   For both rows, "stays within its box" is too loose to assert — under the two-level overflow in §4
   the anchor, the `li` and the viewport disagree, and if the anchor sizes itself at min-content and
   overflows the `li`, the *content* is still inside the *anchor* and a naive assertion passes on the
   broken build. The discriminating assertions are:
 
+  - **plain-text row** — `title.scrollWidth - title.clientWidth <= 1` on `.outline-unit__title`.
+    This is the **only** assertion that can see what `overflow-wrap` prevents: the failure is *text*
+    painting outside the title box, and since the title has no `overflow: hidden`, its border box
+    never moves and neither does the chip's or the tick's — so all three box-geometry assertions
+    stay green under `overflow-wrap: normal`. It is the same mechanism, and the same lesson, that
+    `test_e2e_unit_head_layout.py`'s docstring records and that this spec already applies to the
+    drawer label. The fixture's word must be **wider than the title's rendered column** (~180px at
+    390) or even this assertion is vacuous;
   - **both rows** — `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1` (pins the
     **anchor**'s `min-width: 0`);
   - **maths row additionally** — `chip.right <= anchor.right + 1` (equivalently the `✓`'s right).
@@ -1089,17 +1109,22 @@ Assertions at that size:
     declaration has no mutant at all. On the plain-text row it is inert, because
     `overflow-wrap: anywhere` already collapses the title's minimum to ~1 character. On the maths
     row it bites: reverting it makes the title's automatic minimum the atom's full width (~250px),
-    so title 250 + chip 78 + `✓` 22 + gaps 16 ≈ 366px overflows the anchor's ~326px content box and
-    pushes the chip and tick **outside the anchor** — while the anchor's own border box is unchanged,
+    so title + chip + `✓` + gaps exceeds the anchor's content box and pushes the chip and tick
+    **outside the anchor** — while the anchor's own border box is unchanged,
     which is exactly why `anchor.right <= li.right + 1` cannot see it.
 
-  **`document.documentElement.scrollWidth === clientWidth` belongs on the plain-text row only.**
-  There `overflow-wrap: anywhere` genuinely prevents all overflow, so it is a true invariant. On the
-  maths row it is not: `min-width: 0` fixes the anchor's *box*, not the atom inside it, and at 390px
-  the title column is only ~180px — so any atom wide enough to redden the mutant still paints past
-  its box, and nothing on this page sets `overflow-x` (`.app-main`, `.outline`, `.outline-node*` all
-  leave it visible), so a sufficiently wide atom grows the document scroll width **on a correct
-  build**. Asserting it there would be red on correct CSS.
+  **`document.documentElement.scrollWidth === clientWidth` is a whole-page invariant that both rows
+  must satisfy — it cannot be scoped to one row.** Both fixtures live on the same outline page, and
+  `documentElement.scrollWidth` is a property of the document, not of a row, so there is no way to
+  assert it "for the plain-text row only".
+
+  That is exactly why the atom is bounded on **both** sides above. Nothing on this page sets
+  `overflow-x` (`.app-main`, `.outline`, `.outline-node*` all leave it visible), so an atom wider
+  than the distance from the title's left edge to the viewport edge would grow the document and
+  redden this assertion **on a correct build**. The window is satisfiable — roughly wider than the
+  anchor's remaining space so the mutant bites, and narrower than that viewport gap — and staying
+  inside it is a fixture requirement, not an optional refinement. Size the atom by measuring at
+  implementation rather than by trusting the order-of-magnitude figures quoted in §4.
 
 **Screenshots** (`tests/capture_unit_marker_screenshots.py`): both glyphs at rail size, both
 glyphs on a marked **drawer row** at 390×780, the outline row at rest / hover / `:target`, the
@@ -1139,8 +1164,10 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
   both builds.
 - `overflow-wrap: anywhere` dropped from the drawer's `.unit-tree__label` override → the 390px
   `scrollWidth - clientWidth` assertion goes red.
-- The title's `overflow-wrap: anywhere` weakened to `break-word` → the 390-wide outline assertion
-  goes red **on the plain-text fixture** (`break-word` does not lower the min-content contribution).
+- The title's `overflow-wrap` **removed entirely** (→ `normal`) → the plain-text row's
+  `title.scrollWidth - title.clientWidth <= 1` assertion goes red. **Not** `anywhere` → `break-word`:
+  with `min-width: 0` co-applied those two are pixel-identical, so that mutant is green on every
+  build (§4).
 - `.outline-unit__title`'s `min-width: 0` reverted → the **maths row's** `chip.right <=
   anchor.right + 1` assertion goes red. Only that row: on plain text `anywhere` already collapses
   the title's minimum, so the declaration is inert there and the mutant would be green.
