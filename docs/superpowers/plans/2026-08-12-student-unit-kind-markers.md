@@ -35,6 +35,12 @@
   and a doubled `-q` suppresses the summary line. Use `--verbosity=0` when you need to override.
 - **Capture scripts are not auto-collected**: `pyproject.toml:48` sets `python_files = ["test_*.py"]`,
   so any `capture_*.py` runs only when named explicitly on the command line.
+- **Every line number in this plan is PRE-CHANGE. Anchor on the SELECTOR, not the number.** Task 2
+  inserts rules at `app.css:132`, so Task 3's `:521`/`:544` have already moved by ~14 lines; Task 4's
+  own comment insertion at `:789` shifts `:973-980` before the same step warns you not to paste over
+  them; Task 5's `:834-835` and `:986` have shifted again. **Re-grep for the selector before every
+  edit** — this matters most where the instruction is "do not paste over this region", because there
+  following the stale number is what destroys authored source.
 
 ---
 
@@ -382,7 +388,11 @@ Expected: PASS (all except the xfail from Task 1).
 
 Change `{% elif m == "additional" %}` to `{% else %}` in the glyph partial. `test_glyph_partial_emits_nothing_for_an_empty_marker` must go RED. Edit it back.
 
-There is deliberately **no** mutant for `.unit-kind`, `.unit-kind-chip`'s `flex: none`, or its `white-space: nowrap` — all three are inert (see the CSS comment). Do not invent one.
+Deliberately **no** mutant for `.unit-kind`'s `flex: none` (its automatic minimum is the 1em glyph
+either way, so a glyph-width test is green on both builds), nor for `.unit-kind-chip`'s `flex: none`
+or `white-space: nowrap` (both inert for single-word labels). Do not invent one for those.
+
+`.unit-kind`'s **`gap`** is a different matter — it IS falsifiable, and Task 7 owns that mutant.
 
 - [ ] **Step 8: Commit**
 
@@ -581,7 +591,9 @@ git commit -m "feat(courses): mark quizzes and additional units on the course ou
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_unit_nav_render.py`:
+Append the test below to `tests/test_unit_nav_render.py`. **Merge
+`from courses.rollups import MARKER_ADDITIONAL` into that file's existing top-of-file import block**
+(it already imports `HIDDEN_PATH_SEP`, `build_outline` and others from `courses.rollups`), not here.
 
 ```python
 @pytest.mark.django_db
@@ -594,7 +606,10 @@ def test_rail_marks_quiz_and_additional_as_the_last_child(client):
     TWICE per unit page (rail + drawer), so an unscoped select_one silently
     tests only the rail and a `len(...) == 1` assertion fails on a CORRECT build.
     """
-    course = CourseFactory()
+    # language="pl" deliberately: CourseFactory defaults to "en", which would make
+    # the lang assertion below pass whether the partial emits LANGUAGE_CODE or
+    # simply inherits course.language.
+    course = CourseFactory(language="pl")
     student = _make_student("s_rail_kind")
     EnrollmentFactory(student=student, course=course)
     req = ContentNodeFactory(course=course, unit_type="lesson", obligatory=True,
@@ -701,15 +716,21 @@ In `courses/static/courses/css/courses.css`, in the block at `:2310-2350`: add `
 | `.unit-crumbs__label (:848)` | 882 |
 | `courses.css:903-907` | 939-941 |
 
-In `tests/capture_title_math_screenshots.py`: add `.unit-kind` to the `btns` selector list (~:483)
+In `tests/capture_title_math_screenshots.py`: add `[data-unit-drawer] .unit-drawer__list .unit-kind` to the `btns` selector list (~:483) — the
+full scoped form the spec names; a bare `.unit-kind` would also match the rail tree
 **and fix the seed**, because the selector edit alone measures nothing — all four maths-title units
 are default-obligatory lessons (no marker), and the one quiz (`quiz_b`, `:186`) sits under `part_b`
 whose `<details>` is closed on the drawer arm's page. Set `lesson_display` (the unit the drawer arm
 navigates to, `:464`) to `obligatory=False` so it emits a marker in the open group, and add a guard
 that `btns` is non-empty.
 
-**That guard must `assert`, not append.** The script's existing `overlap` result is only pushed onto
-`measurements` (~:490-505) — it asserts nothing — so a silently-empty `btns` reads as success. Also
+**That guard must `assert`, and the `page.evaluate` must be changed to make one possible.** `btns` is
+a `const` local inside the `evaluate` at `~:478-503`, which currently returns a bare boolean — there
+is no Python-side value to assert on. Change it to return a shape, e.g.
+`{overlap, kx: kx.length, btns: btns.length}`, and on the Python side assert `result["btns"] > 0`
+**and** `result["kx"] > 0` before recording the measurement. The existing `overlap` result is only
+pushed onto `measurements` (~:490-505) — it asserts nothing — so a silently-empty `btns` reads as
+success. Also
 note `tests/helpers_title_math.py` hardcodes `obligatory=True` at `:72`, `:81`, `:90` and `:133`;
 any maths-title fixture that must render a marker has to bypass or parameterise those.
 
@@ -762,14 +783,14 @@ Append to `tests/test_unit_marker.py`:
 
 ```python
 @pytest.mark.django_db
-@pytest.mark.parametrize("unit_type,url_name,word", [
-    ("lesson", "courses:lesson_unit", "Additional"),
-    ("quiz", "courses:quiz_unit", "Quiz"),
+@pytest.mark.parametrize("unit_type,url_name,word,marker", [
+    ("lesson", "courses:lesson_unit", "Additional", MARKER_ADDITIONAL),
+    ("quiz", "courses:quiz_unit", "Quiz", MARKER_QUIZ),
 ])
-def test_unit_page_chip_is_a_sibling_of_the_h1(client, unit_type, url_name, word):
+def test_unit_page_chip_is_a_sibling_of_the_h1(client, unit_type, url_name, word, marker):
     """The chip must NEVER be inside <h1 data-math-title>: math.js typesets that
     element's contents, so a chip in there would enter the maths-title scan."""
-    course = CourseFactory()
+    course = CourseFactory(language="pl")   # NOT the UI locale — see the lang assertion
     student = make_verified_user(
         username=f"s_up_{unit_type}", email=f"s_up_{unit_type}@t.example.com",
         password=TEST_PASSWORD,
@@ -787,7 +808,27 @@ def test_unit_page_chip_is_a_sibling_of_the_h1(client, unit_type, url_name, word
     assert group is not None, "both article templates gain the heading group"
     chip = group.select_one(".unit-kind-chip")
     assert chip is not None and chip.get_text(strip=True) == word
+    assert f"unit-kind-chip--{marker}" in chip["class"]   # modifier vs the constant
+    assert chip["lang"] == "en"                           # UI locale, not course.language
     assert group.select_one("h1.lesson-unit__title").select_one(".unit-kind-chip") is None
+
+
+@pytest.mark.django_db
+def test_unit_page_leaves_a_required_lesson_unmarked(client):
+    """The absence half. Without it a mutant that marks every unit is caught on
+    the unit page only indirectly, via Task 2's partial-level test."""
+    course = CourseFactory()
+    student = make_verified_user(
+        username="s_up_req", email="s_up_req@t.example.com", password=TEST_PASSWORD
+    )
+    EnrollmentFactory(student=student, course=course)
+    unit = ContentNodeFactory(course=course, unit_type="lesson", obligatory=True,
+                              title="Required unit")
+    client.force_login(student)
+    resp = client.get(reverse("courses:lesson_unit",
+                              kwargs={"slug": course.slug, "node_pk": unit.pk}))
+    soup = BeautifulSoup(resp.content.decode(), "html.parser")
+    assert soup.select_one(".lesson-unit__heading .unit-kind-chip") is None
 ```
 
 - [ ] **Step 2: Run it to make sure it fails**
@@ -808,7 +849,13 @@ In `templates/courses/_lesson_article.html`, replace the bare `<h1>` inside `.le
       <h1 class="lesson-unit__title" data-math-title>{{ unit.title }}</h1>
       {% include "courses/_unit_kind_chip.html" with node=unit only %}
     </div>
+    {% comment %}Completion is auto-tracked FOR ENROLLED STUDENTS ONLY: ...unchanged...
 ```
+
+**The closing `</div>` is load-bearing and easy to miss.** In `_lesson_article.html` the `<h1>` at
+`:7` is followed by a `{% comment %}` block (`:8-15`) and `.unit-done` (`:16-27`); the anchor line
+above shows where the group closes. Leave it open and `.unit-done` / `.lesson-unit__reset` nest
+*inside* the heading group — which the new render test would still pass.
 
 In `templates/courses/_quiz_article.html`, wrap the currently bare `<h1>` — the quiz template has no head row today. **The `{% if previewing %}` `<aside data-quiz-preview-notice>` stays a sibling AFTER the head**; pulling it inside would break `test_e2e_unit_nav.py`'s `[data-quiz-preview-notice]` column-width assertion:
 
@@ -859,8 +906,14 @@ Inside the `@media (max-width: 640px)` block, beside `:986`:
 Both work today because the `<h1>`'s *flex target* (~746px) exceeds the 736px prose cap, so `max-width` is what holds it. With `flex: 0 1 auto` the `<h1>` shrink-wraps to its content and `title_w < 738` passes **vacuously** — the pin dies without ever going red.
 
 `tests/test_e2e_uniform_block_width.py::test_lesson_title_caps_in_a_two_item_head`:
-- Seed a title whose natural content width exceeds 736px.
+- Seed a title whose natural content width exceeds 736px. `_seed_unit(username)`
+  (`test_e2e_uniform_block_width.py:60-66`) takes no title and is **shared with the three-item
+  test**, so add a `title=None` keyword defaulting to current behaviour rather than changing it in
+  place.
 - Re-point the fixture-validity guard **at the title**: neutralise `max-width` with `page.add_style_tag`, measure the uncapped `<h1>` content width, assert **`>= 740`** (not `> 736` — the guarded assertion is `title_w < 738`, so a fixture landing in (736, 738] would pass the guard and leave the assertion green), then restore.
+- "Restore" needs a mechanism: `page.add_style_tag` returns an `ElementHandle`. Capture it and call
+  `handle.evaluate("e => e.remove()")` — the override does not disappear on its own, and left in
+  place it neutralises the cap for the very assertion it protects.
 - Do **not** substitute `group_w > 738`: `.lesson-unit__heading` is `flex: 1 1 auto`, so the group always grows to `head − pill − gap ≈ 746` regardless of the title, making that a rename of the existing space-measuring guard.
 - Update **every comment in `test_lesson_title_caps_in_a_two_item_head` and in the three-item block
   above it** — not just the `~:150-183` range. The function's own docstring at `~:187-197` states the
@@ -906,7 +959,11 @@ uv run pytest tests/test_unit_marker.py tests/test_quiz_previewer_render.py test
 uv run pytest -m e2e tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_head_layout.py   "tests/test_e2e_unit_nav.py::test_quiz_chrome_tracks_the_column_across_both_page_states" -v
 ```
 
-`tests/test_e2e_unit_head_layout.py` must be **unchanged and all green** — its `MEASURE` uses `head.querySelector('.lesson-unit__title')`, which is descendant-based and still finds the `<h1>` through the wrapper, and its phone assertions (`done_top >= title_bottom - 1`, `reset_top >= title_bottom - 1`) are exactly what the group's `flex-basis: 100%` preserves. **If any of its four assertions goes red, the mobile rule is wrong — do not update the test to match.**
+`tests/test_e2e_unit_head_layout.py` must be **unchanged and all green** — its `MEASURE` uses `head.querySelector('.lesson-unit__title')`, which is descendant-based and still finds the `<h1>` through the wrapper, and its phone assertions (`done_top >= title_bottom - 1`, `reset_top >= title_bottom - 1`) are exactly what the group's `flex-basis: 100%` preserves. **If any of its eight assertions goes red, the mobile rule is wrong — do not update the test to
+match.** The file has two tests with four assertions each: the phone test
+(`done_top >= title_bottom - 1`, `reset_top >= title_bottom - 1`) is what the group's
+`flex-basis: 100%` preserves, and the desktop test (`done_top < title_bottom`,
+`reset_top < title_bottom`) is exposed by the heading-group change too.
 
 - [ ] **Step 7: Falsify — two mutants**
 
@@ -920,6 +977,8 @@ The `flex: 0 1 auto` reset and the group's `flex: 1 1 auto` are falsified by the
 - [ ] **Step 8: Commit**
 
 ```bash
+uv run ruff check --no-cache tests/test_unit_marker.py tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_nav.py tests/test_title_math_markers.py tests/helpers_title_math.py
+uv run ruff format --check tests/test_unit_marker.py tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_nav.py tests/test_title_math_markers.py tests/helpers_title_math.py
 git add templates/courses/_lesson_article.html templates/courses/_quiz_article.html courses/static/courses/css/courses.css tests/test_unit_marker.py tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_nav.py tests/test_quiz_previewer_render.py
 git commit -m "feat(courses): mark the unit kind on the unit page; repair the two cap pins"
 ```
@@ -991,6 +1050,8 @@ Change `gettext_lazy` to `gettext` in `courses/rollups.py`'s `UNIT_MARKER_LABELS
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff check --no-cache tests/test_unit_marker.py
+uv run ruff format --check tests/test_unit_marker.py
 git add locale/ tests/test_unit_marker.py
 git commit -m "i18n(courses): Polish for the Additional marker; reuse the existing Quiz msgid"
 ```
@@ -1019,8 +1080,22 @@ def _seed_marked_group(username, *, slug):
     """
 ```
 
-Returns `(user, course, chapter, short_unit, long_unit, quiz_unit)`. Every arm below names which
-of those it drives.
+Returns `(user, course, chapter, short_unit, long_unit, quiz_unit, maths_unit, token_unit)` — six
+marked units, because three arms need title shapes the others cannot supply:
+
+- `short_unit` — title measurably narrower than the row's content box (the rail-gutter guard, and the
+  desktop unit-page short-title arm).
+- `long_unit` — a long **multi-word** title (the rail-gutter comparison's other half).
+- `quiz_unit` — for the quiz-side unit-page arms.
+- `maths_unit` — `obligatory=False`, title a maths title (reuse `tests/helpers_title_math.py`'s
+  title constant). **Required by the drawer-maths arm**: without it that arm's fixture-validity guard
+  cannot pass, and `helpers_title_math.py`'s own course builder is not used by
+  `test_e2e_unit_nav.py`, so importing the constant is the cheap route.
+- `token_unit` — `obligatory=False`, title containing **one unbroken token measured wider than the
+  390px outline title column**. Required by the outline arm: a multi-word long title wraps at spaces
+  under `overflow-wrap: normal` too, leaving that mutant green.
+
+Every arm below names which of these it drives.
 
 - [ ] **Step 1: Desktop rail gutter**
 
@@ -1049,6 +1124,10 @@ Both must sit on the **short-title** row: with a cap-length title the group's ba
 - `.unit-kind__label` inside `[data-unit-drawer-list]` has `width >= 30` **and** `height >= 8`. The numeric thresholds are the point: `.visually-hidden` is 1px×1px with a zero clip rect, which Playwright reports as **visible with a non-empty box**, so `bounding_box() is not None` cannot distinguish an un-hidden label from a still-hidden one, nor catch a partial revert.
 - The marker keeps its width, **differentially** so no font metric is hardcoded: `label.right <= marker.right + 1`. Under a shrinkable-marker mutant the children keep their sizes while the wrapper is cut, so they overflow it. Do **not** assert an absolute "~91px ±1" — that figure is derived from an estimated word width and would likely be red on a correct build.
 - Glyph-to-word gap: `label.left - svg.right == 4` (±1), where both are elements with real boxes.
+- Containment: `.unit-kind`'s `right <= row.right - 8`. Kept from the spec, but note it holds on
+  **both** builds (after a shrink the row still has zero free space and the marker still ends at the
+  padding edge), so it carries **no mutant** — the differential `label.right <= marker.right + 1`
+  above is the discriminating one.
 - Row shape for a completed additional unit: one flex line — `.unit-tree__check`, `.unit-tree__label` and `.unit-kind` share a top within a few px.
 - **A/B the label's wrap points**: record `.unit-tree__label`'s `getBoundingClientRect().height` for a fixed long title, re-measure with `page.add_style_tag` injecting `.unit-drawer__list .unit-tree__label { flex: 0 1 auto !important }` — the pre-change computed value, named explicitly because `add_style_tag` can only *add* a declaration and `flex: none`/`flex: 1 1 0` would change the base size and redden a correct build — and assert the two heights are equal.
 - **Unit-page head at 390 wide** (spec §Testing; this arm exists because
@@ -1084,7 +1163,7 @@ uv run pytest -m e2e tests/test_e2e_unit_nav.py -v
 
 Windows note: a backgrounded pytest is reaped by the harness mid-run. Use `Start-Process` and poll the PID, and **grep the summary line** — a backgrounded run has reported exit 0 with `1 failed`.
 
-- [ ] **Step 5: Falsify - seven mutants, NINE runs**
+- [ ] **Step 5: Falsify - eight mutants, TEN runs**
 
 The un-hide row below is **three separate runs** (deletion, partial revert, mis-scoped). Do not read
 the row count as the run count - that is exactly how the sole additive mutant gets skipped.
@@ -1098,12 +1177,15 @@ the row count as the run count - that is exactly how the sole additive mutant ge
 | The `.unit-drawer__list .unit-kind__label` un-hide deleted — **and separately** the partial revert (`position: static` only), and separately placing the block outside the media query | the 30×8 assertion (first two); the desktop rail ≤2×2 assertion (third) |
 | `.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0 }` **added** | the marker-width assertion. This is the list's only **additive** mutant and its sole catcher — the 30×8 and gap assertions both stay green under it |
 | `overflow-wrap` **removed entirely** (→ `normal`) from `.outline-unit__title` | the outline `title.scrollWidth` assertion |
+| `gap: var(--space-1)` deleted from `.unit-kind` | the drawer row's glyph-to-word gap assertion (4px → 0px; a flex container drops whitespace-only text between items, so the delta is clean). **Not** `display: inline-flex`, whose removal substitutes a ~4px rendered space that lands inside tolerance |
 
 **Do not** falsify `anywhere` → `break-word` (pixel-identical with `min-width: 0` co-applied), the drawer `overflow-wrap` (inert at ~230px), either `min-width: 0` (inert with `anywhere` present), or dropping the `.unit-drawer__list` selector while the block stays inside the media query (inert — `courses.css:950` hides the rail at ≤640px). Each would be green on the "broken" build.
 
 - [ ] **Step 6: Commit**
 
 ```bash
+uv run ruff check --no-cache tests/test_e2e_unit_nav.py
+uv run ruff format --check tests/test_e2e_unit_nav.py
 git add tests/test_e2e_unit_nav.py
 git commit -m "test(e2e): geometry pins for the unit kind markers"
 ```
@@ -1154,14 +1236,23 @@ leaving only its 1px rim as separation).
 
 - [ ] **Step 2b: Refresh the line citations THIS change shifts**
 
-Task 4 inserts a line into `_unit_tree_node.html` after `:15`; Task 5 inserts three into
-`_quiz_article.html` before `:5`. The plan is meticulous about the six stale `courses.css` citations
-it inherits — it must not leave behind the ones it creates. Update:
-- `tests/test_title_math_markers.py`'s docstring citations of `_unit_tree_node.html:15`, `:25`, `:60`;
-- the spec's / templates' citation of `_quiz_article.html:12-15` (the `lang` house-rule comment);
-- `_unit_tree_node.html`'s own comment citing `:22` for the `open` attribute.
+Task 4 inserts a line into `_unit_tree_node.html` after `:15`; Task 5's snippet replaces one `<h1>`
+line in `_quiz_article.html` with six (net **+5**), moving the `lang` house-rule comment from
+`:12-15` to `:17-20`. The plan is meticulous about the six stale `courses.css` citations it
+inherits — it must not leave behind the ones it creates.
 
-Re-grep each file after editing rather than trusting the arithmetic.
+**Discover them, do not enumerate them:**
+
+```bash
+grep -rn "_unit_tree_node.html:" tests/ docs/ templates/
+grep -rn "_quiz_article.html:" tests/ docs/ templates/
+```
+
+Known hits at time of writing: `tests/test_title_math_markers.py` **and**
+`tests/test_title_math_filter.py:123,131` both cite `_unit_tree_node.html:25` and `:60`. Note
+`:15` (`span.unit-tree__label`) does **not** move — inserting *after* it leaves it in place — so do
+not "fix" that citation. There is no `_unit_tree_node.html:22` citation anywhere in the repo; that
+figure appears only in the spec's prose, so nothing to refresh there.
 
 - [ ] **Step 3: Branch gate — the full suite**
 
