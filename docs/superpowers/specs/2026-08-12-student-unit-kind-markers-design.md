@@ -122,8 +122,8 @@ name** and produces unbounded recursion on the first render — not an import er
 review and fails in the browser. If a decorator is preferred, follow the file's existing
 `@register.filter(name="marks") def marks_filter(...)` precedent with a distinct function name.
 
-The labels live in `rollups.py`, keyed on the **marker** rather than the node — the drawer legend in
-§4 has no node to derive one from:
+The labels live in `rollups.py`, keyed on the **marker** rather than the node, so a caller holding
+only a marker string reaches the same words as one holding a node:
 
 ```python
 UNIT_MARKER_LABELS = {
@@ -134,9 +134,8 @@ UNIT_MARKER_LABELS = {
 def marker_label(marker):
     """Marker key -> translated word; "" for MARKER_NONE or any unknown key.
 
-    Keyed on the marker, not the node, so the drawer legend — which has only a
-    literal marker string — reaches the same words as the per-row partials
-    instead of re-authoring {% trans %} in a third template.
+    Keyed on the marker, not the node: both partials already hold `m` from
+    their own {% with %}, so this avoids deriving the marker a second time.
     """
     return UNIT_MARKER_LABELS.get(marker, "")
 ```
@@ -169,8 +168,8 @@ would cover two surfaces and force a second, driftable rule for the third.
 ```
 
 **`templates/courses/_unit_kind_glyph.html`** — the glyph markup, authored **once**, keyed on a bare
-marker string `m`. Split out from the icon partial so the drawer legend (§4), which has no node, can
-reuse the identical geometry instead of copying it into a third template.
+marker string `m`. Split out from the icon partial so the geometry lives in exactly one file, and
+any future consumer holding only a marker string reuses it rather than copying the paths.
 
 ```html
 {% if m == "quiz" %}
@@ -190,7 +189,7 @@ reuse the identical geometry instead of copying it into a third template.
 **Three-way, not `{% if %}…{% else %}`.** The "renders nothing for `MARKER_NONE`" guarantee belongs
 to the chip and icon partials, which wrap their body in `{% if m %}`; this partial has no such guard
 of its own. With an `{% else %}` branch, including it with `m=""` — or with a literal typo'd in a
-future legend row — would silently emit the *additional* `+` glyph rather than nothing. Since §1
+future call site — would silently emit the *additional* `+` glyph rather than nothing. Since §1
 already records that the templates hardcode these strings and that a rename needs a manual grep, the
 `{% else %}` is precisely the branch a missed rename lands in. A render test pins it (see Testing).
 
@@ -204,36 +203,16 @@ already records that the templates hardcode these strings and that a rename need
 </span>{% endif %}{% endwith %}
 ```
 
-**`templates/courses/_unit_kind_legend_item.html`** — one legend entry: the same glyph beside its
-**visible** word. Used only by the drawer legend (§4).
-
-```html
-{% load i18n courses_extras %}{% get_current_language as LANGUAGE_CODE %}<span
-  class="unit-kind unit-kind--{{ m }}" lang="{{ LANGUAGE_CODE }}">
-  {% include "courses/_unit_kind_glyph.html" with m=m only %}
-  <span class="unit-kind__word">{% marker_label m %}</span>
-</span>
-```
-
-Note the legend entry deliberately carries **no** `title=` and **no** `.visually-hidden` — its word
-is already visible, so a tooltip would duplicate it and a hidden copy would double-announce it.
-
-**Why all three carry `lang="{{ LANGUAGE_CODE }}"`.** Every call site sits inside a subtree switched
+**Why both carry `lang="{{ LANGUAGE_CODE }}"`.** Every call site sits inside a subtree switched
 to the *course* language — `<a class="outline-unit" … lang="{{ course.language }}">`,
 `<a class="unit-tree__unit" … lang="{{ course.language }}">`, and
 `<article class="lesson"/"quiz" lang="{{ course.language }}">`. "Quiz" / "Additional" /
 "Dodatkowa" are UI strings in the **user's** locale, not the course's, and they land in `title=`, in
-a `.visually-hidden` label, in the chip text and in the legend. `_quiz_article.html:12-15` records
+a `.visually-hidden` label (visible at drawer scope) and in the chip text. `_quiz_article.html:12-15` records
 the house rule verbatim: without it "a Polish UI string is announced as English inside an English
 course". The same comment records why `LANGUAGE_CODE` must come from `{% get_current_language %}` —
 **the i18n context processor is not enabled** — and `only` on every include means the partials
 cannot inherit it from the parent context even if it were. Hence the tag inside each partial.
-
-The **legend entry** carries `lang` too, though its only call site — the drawer legend in
-`_unit_shell.html` — is a sibling of `.unit-shell__main` and sits inside no
-`lang="{{ course.language }}"` subtree at all. It is there for partial-level consistency, so all
-three partials stay safe wherever they are included. Do not "clean it up", and do not read it as
-evidence that the drawer is course-language scoped.
 
 (The existing `✓` badge's `aria-label="{% trans 'Completed' %}"` omits `lang` in both surfaces. That
 is a pre-existing inconsistency, out of scope here; the new markers do not copy it.)
@@ -266,14 +245,14 @@ the icon wrapper emits `unit-kind unit-kind--<marker>`. `.unit-kind-chip` and `.
 stable selectors; `.badge` is carried for the existing pill styling and is **not** a test selector.
 `.unit-kind-chip` **does** get a small rule in §4, but every declaration in it is inert
 forward-defence carrying no test hook — the pill itself comes entirely from `.badge`.
-`.unit-kind__word` (legend entries only) carries **no styling** and exists solely to give the
-legend's word a measurable box for the glyph-to-word gap assertion — a bare text node has none. The
+The
 `--<marker>` modifiers are **reserved test/debug
 hooks with no styling attached today**, and §5 forbids giving them any.
 
-**Accessible-name contract.** The `<svg>` is `aria-hidden`; `.unit-kind__label` is the text (visually
-hidden on **every** surface — see the drawer decision in §4); the wrapper's `title=` is the hover
-tooltip. The enclosing link's accessible name is computed **from contents**, so it depends on
+**Accessible-name contract.** The `<svg>` is `aria-hidden`; `.unit-kind__label` is the text —
+visually hidden in the rail and on the outline, and **un-hidden at drawer scope** (§4), which
+changes nothing about the accessible name since a `.visually-hidden` span is already in the
+accessibility tree; the wrapper's `title=` is the hover tooltip. The enclosing link's accessible name is computed **from contents**, so it depends on
 completion state:
 
 | Surface | Not completed | Completed |
@@ -290,7 +269,9 @@ for the truncated unit name, authored with a comment explaining why
 (`_unit_tree_node.html:11-14`). Hovering a row therefore surfaces one tooltip or the other depending
 on the exact pixel, never both. Accepted: the intended desktop path is hovering the ~19px glyph
 specifically, and the title tooltip keeps the whole rest of the row. This is also why the drawer
-needs the legend rather than the tooltip — touch has no hover for either of them.
+shows the word on the row itself rather than relying on the tooltip — touch has no hover. At drawer
+scope the `title=` is then redundant; it is left in place rather than conditionally suppressed,
+because the partial is surface-agnostic and touch has no hover for it to interfere with.
 
 ### 4. The rendered surfaces
 
@@ -311,12 +292,12 @@ child is a 1em `<svg>` has a min-content of 1em (`.unit-kind__label` is `.visual
 glyph's width on any build. Deleting the whole rule does not narrow the glyph, so there is **no
 glyph-width mutant** for it.
 
-What the rule genuinely buys is **`display: inline-flex` + `gap`**, which matter in the *legend
-entry*, where the glyph sits beside a **visible** word: without them the span is blockified as a
-flex item, `gap` (a flex/grid property) does not apply, and the word butts against the glyph with
-only collapsed whitespace between. `align-items: center` sets the glyph/word alignment there too.
+What the rule genuinely buys is **`display: inline-flex` + `gap`**, which matter on a **drawer
+row**, where the glyph sits beside a *visible* word: without them the span is blockified as a flex
+item, `gap` (a flex/grid property) does not apply, and the word butts against the glyph with only
+collapsed whitespace between. `align-items: center` sets the glyph/word alignment there too.
 `flex: none` is carried for consistency with the chip and is likewise inert. The falsifiable part is
-therefore the legend's glyph-to-word gap, not any rail measurement.
+therefore the drawer row's glyph-to-word gap, not any rail measurement.
 
 `var(--space-1)` is 4px (`core/static/core/css/tokens.css:75`); the surrounding block is
 token-driven.
@@ -445,126 +426,89 @@ chosen as the *minimal edit* to the existing rule, not because it measurably dif
 in Testing guards is a different and real question — that adding `flex-grow` **at all** does not
 move the drawer's wrap points.
 
-**Mobile drawer — icons stay icon-only; discoverability comes from a legend, not per-row words.**
+**Mobile drawer** — same template, rendered again into `.unit-drawer__list` by `_unit_shell.html`.
 
-The drawer is a **touch** surface and the template's own comment records that "Touch has no hover",
-so `title=` yields nothing there and a bare glyph would be unexplained.
+The drawer is a **touch** surface, and the template's own authored comment records that "Touch has
+no hover" — so `title=` yields nothing there. An icon alone would be a bare `+`/`?` with no text,
+no tooltip and no legend, while the outline page shows the word: two vocabularies with nothing
+connecting them.
 
-The obvious fix — un-hiding `.unit-kind__label` at drawer scope — was **considered and rejected on a
-width budget**, and that reasoning is recorded here so it is not re-attempted. `courses.css:2339`
-documents the **drawer's** title column as already squeezed to ~98px — note that `:981-984` records
-a coincidentally identical ~98px for a *different* element (`.lesson-unit__head`'s title beside the
-action buttons), so the two must not be conflated. A glyph (~16px — see the typography note below)
-plus "Dodatkowa" (~71px at 1rem) plus the gap leaves the title roughly 5–10px, which is unusable;
-and because
-`.unit-kind__label` has no `overflow-wrap`, the unbreakable word would paint outside its box and
-overlap the title. Making the row `flex-wrap: wrap` does not rescue it either: flex line-breaking
-uses each item's **hypothetical main size**, and with `flex: 1 1 auto` the label's base size is the
-max-content width of the full title, which always exceeds a 98px line — so the row would break
-*before* the label, stranding the leading `✓` (`flex: none`) alone on line 1, the title on line 2
-and the marker on line 3. That is a three-line row with an orphan tick, and since `flex-wrap` is
-unconditional it would regress **every completed unit in the drawer, including unmarked ones**.
-
-Instead, `_unit_shell.html` gains a one-line legend rendering each glyph once beside its word. **It
-is a sibling *after* `.unit-drawer__bar`, not a child of it** — between that `</div>` and
-`<ul class="unit-drawer__list">`:
-
-```html
-      </div>            <!-- .unit-drawer__bar ends -->
-      <p class="unit-drawer__legend" aria-hidden="true"> … </p>
-      <ul class="unit-tree__list unit-drawer__list" data-unit-drawer-list>
-```
-
-**`aria-hidden="true"` on the legend is a decision, not an oversight.** `.unit-kind__label` already
-gives every marked row its own spoken "Quiz" / "Additional", so a screen-reader user has the
-information per row and in context. Exposing the legend as well would announce a bare, unframed
-"Additional Quiz" paragraph on entering the drawer — the same duplication the legend *entry* avoids
-by carrying no `.visually-hidden` copy, one level up. The legend is a **visual** key for a touch
-surface that has no hover; AT does not need it. Pinned by an assertion in the 390px e2e arm.
-
-The placement is a contract, not a detail. `.unit-drawer__bar` is `display: flex;
-align-items: center` (`courses.css:967`), so a `<p>` placed **inside** it lands on the *same* flex
-line as the heading, and `.unit-drawer__close { margin-left: auto }` (`:970`) shoves the close
-button past it — the opposite of "beneath". Getting it beneath while inside would need
-`flex-wrap: wrap` on the bar plus `flex-basis: 100%` on the legend, neither of which is wanted.
-
-**The legend scrolls with the list; it is deliberately not sticky.** The bar is
-`position: sticky; top: 0` (`courses.css:967-969`) inside an `overflow-y: auto`, `max-height: 80vh`
-panel (`:963-966`), so as a sibling the legend scrolls away on the first flick while the heading
-stays pinned. That is the right trade in an 80vh panel: a legend is reference information read once
-on open, and permanently spending a line of a phone-height drawer on it would cost more than it
-returns. Do not "fix" this by extending the sticky region.
-
-```html
-<p class="unit-drawer__legend" aria-hidden="true">
-  {% include "courses/_unit_kind_legend_item.html" with m="additional" only %}
-  {% include "courses/_unit_kind_legend_item.html" with m="quiz" only %}
-</p>
-```
-
-The two literals `"additional"` / `"quiz"` are the same template-side hardcoding §1 already records
-for `_unit_kind_icon.html`, and are covered by the same rename-grep note. The legend's own CSS is
-one rule beside the other drawer rules in the `@media (max-width: 640px)` block:
+Resolution: `.unit-kind__label` carries `class="visually-hidden unit-kind__label"` and is **un-hidden
+at drawer scope**, so each marked drawer row shows its word. These rules go inside the existing
+`@media (max-width: 640px)` block in `courses.css` (:948-987), beside the
+`.unit-drawer__list .unit-tree__label` rule at `:977`:
 
 ```css
-.unit-drawer__legend { display: flex; gap: var(--space-3); margin: 0;
-  padding: 0 .9rem .6rem; font-size: .75rem; color: var(--text-secondary); }
-```
-
-This costs one line at the top of the drawer and **zero further per-row width** — "further" being
-load-bearing, since the *glyph* still renders on every marked drawer row and is not free.
-
-**Typography note, because the budget depends on it: the same glyph is a different size in the two
-surfaces.** `font-size: .82rem` is set on `.unit-tree` **alone** (`courses.css:665`), i.e. the
-`<nav>` that `_unit_tree.html` renders. The drawer is a **sibling** of that nav — `_unit_shell.html`
-puts `.unit-drawer` directly under `.unit-shell`, not inside `.unit-tree` — and no rule on the
-drawer chain (`.unit-drawer*`, `.unit-tree__list`) sets a font size, so drawer rows render at
-1rem/16px. `.icon` is `1em`, so there are **three** renderings of the same glyph: **~13px in the
-rail** (`.82rem`), **~16px on a drawer row** (1rem), and **~12px in the drawer legend**
-(`.unit-drawer__legend` is `font-size: .75rem`). Section 5's legibility acceptance must look at all
-three — the legend is the smallest, and it is the one element whose entire job is to teach the
-reader what the row glyph means.
-
-Budget it at the drawer's own size: a 16px glyph plus `.unit-tree__unit`'s `gap: .4rem` (~6.4px)
-takes **~22px** out of the ~98px title column documented at `courses.css:2339`, leaving
-**~75–76px**. That is a **~23%** narrowing of exactly the column whose narrowing is the stated
-re-check trigger for the maths audit (`courses.css:2344-2345`), so every drawer assertion in Testing
-must hold at **~75–76px**, not at 98px — and that is the residual figure the re-check comment should
-record. The rejected per-row word is rejected by a much wider margin than the glyph, not the same
-one: the comparison the "zero" claim beats is the ~71px label, not the marker as a whole.
-
-**Narrowing that column to ~75–76px requires a wrap guard the drawer label does not have.** The drawer
-override at `courses.css:977-978` gives `.unit-tree__label` `white-space: normal; overflow: visible;
-text-overflow: clip` — but, unlike `.unit-tree__grouptitle` (`:736-738`, which carries
-`overflow-wrap: break-word; hyphens: auto`), `.unit-tree__label` has **no `overflow-wrap` at all**.
-A single word wider than the column therefore paints *outside* the box, to the right — precisely
-where the new trailing `.unit-kind` now sits. The existing drawer measurement was taken clean at
-~98px, not at ~75–76px, and this repo's own phone fixture (`test_e2e_unit_head_layout.py`'s
-`LONG_TITLE`) contains "przedziałach", which is plausible at 98px and not at 76px — and the gap
-widened further once the glyph was re-measured at the drawer's 1rem rather than the rail's .82rem. So extend that
-override:
-
-```css
-.unit-drawer__list .unit-tree__label {
-  white-space: normal; overflow: visible; text-overflow: clip;
-  overflow-wrap: anywhere;
+.unit-drawer__list .unit-kind__label {
+  position: static; width: auto; height: auto;
+  overflow: visible; clip: auto; white-space: normal;
 }
+.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0; }
 ```
 
-`anywhere` rather than `break-word` for the same reason as the outline title — defence-in-depth and
-house consistency, **not** a measurable difference. `.unit-tree__label` already carries
-`min-width: 0`, so the two keywords render identically here too; the falsifiable weakening is
-removing `overflow-wrap` altogether. Pinned by the text-overflow
-assertion in Testing.
+**All six declarations are required, and this is why they are written out rather than described as
+"revert to visible".** `.visually-hidden` (`app.css:1217-1224`) is exactly six declarations —
+`position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+white-space: nowrap`. An implementer who resets only the obvious `position: static` leaves the span
+1px x 1px with `overflow: hidden` and a zero clip rect: the drawer shows a bare glyph, the central
+drawer requirement silently fails, and every render test stays green. Specificity is not a concern —
+`.unit-drawer__list .unit-kind__label` is (0,2,0) against `.visually-hidden`'s (0,1,0).
 
-Choosing the legend over un-hiding the row label is what keeps `.unit-kind__label` visually hidden
-on every surface (so the accessible name in §3
-is unchanged everywhere) and needs no `.unit-drawer__list .unit-kind*` rules at all. It renders
-unconditionally rather than
-being gated on "does this course contain any marked unit" — gating would need a tree scan, and a
-static two-item line is cheap. A course with neither quizzes nor additional units shows a legend for
-symbols it never uses; that is the accepted cost, and the first thing to revisit if it reads as
-noise.
+**The width budget — and a correction that reverses an earlier decision in this spec.** An earlier
+draft rejected the per-row word and shipped a one-line legend in `.unit-drawer__bar` instead,
+because it read the drawer's title column as ~98px. **That figure is the RAIL's, not the drawer's.**
+`courses.css:730` states it verbatim — "at the deepest level a **14rem rail** leaves the title
+98px" — and the drawer audit comment at `:2339` carries the same number over, which is an error in
+that existing comment. The drawer panel is `left: 0; right: 0` on the viewport:
+
+```
+390 (viewport)  −16 (.unit-drawer__list padding .5rem x2)  −~26 (.unit-tree__children .55rem/level,
+                 0 for a top-level unit)  −~23 (.unit-tree__unit margin .35rem + 1px border
+                 + padding .5rem x2)      ≈ 325px            (≈351px un-nested)
+```
+
+So the marker costs a 16px glyph + `.unit-tree__unit`'s `gap: .4rem` (~6.4px) + the ~71px word +
+the wrapper's own 4px gap ≈ **~97px**, leaving the title **~230px** — a ~30% narrowing of a column
+that had ~325px to give, not the ~5–10px residual the legend was justified by. The per-row word is
+comfortably affordable, so it ships and **the legend apparatus does not exist**: no
+`_unit_kind_legend_item.html`, no `.unit-drawer__legend`, no `aria-hidden` decision, no legend
+placement contract, and no `.unit-kind__word` span.
+
+**Do not add `flex-wrap: wrap` to the drawer row.** This part of the earlier analysis survives the
+correction: flex line-breaking uses each item's **hypothetical main size**, and with
+`flex: 1 1 auto` the label's base size is the max-content width of the full title, which still
+exceeds a 325px line for any realistic title. The row would break *before* the label, stranding the
+leading `✓` (`flex: none`) alone on line 1, the title on line 2 and the marker on line 3 — a
+three-line row with an orphan tick, and because `flex-wrap` is unconditional it would regress
+**every completed unit in the drawer, including unmarked ones**. `.unit-kind` is made shrinkable
+instead (`flex: 0 1 auto; min-width: 0`) so its own word wraps inside its box, exactly as the
+title's does. Expected drawer row shape for a **completed additional** unit: one flex line,
+`[✓] [title, wrapping] [⊕ Dodatkowa, wrapping]`.
+
+There is **no** `white-space: nowrap` on `.unit-kind`: it is `inline-flex`, so the `<svg>` and the
+label are flex items that cannot break between each other regardless, and the un-hide rule above
+sets `white-space: normal` on the label itself — a more specific match.
+
+**Typography note: the same glyph is a different size in the two surfaces.** `font-size: .82rem` is
+set on `.unit-tree` **alone** (`courses.css:665`), i.e. the `<nav>` that `_unit_tree.html` renders.
+The drawer is a **sibling** of that nav — `_unit_shell.html` puts `.unit-drawer` directly under
+`.unit-shell` — and no rule on the drawer chain sets a font size, so drawer rows render at
+1rem/16px. `.icon` is `1em`, so the marker is **~13px in the rail and ~16px in the drawer**, and §5's
+legibility acceptance must look at both.
+
+**The maths-audit re-check trigger still fires**, but for a smaller narrowing than the earlier draft
+claimed: `courses.css:2344-2345` says to re-check "if the drawer's title column ever narrows
+further", and ~325px → ~230px is a real narrowing. Record the **measured** residual in that comment,
+not a figure derived from the rail's 98px — and while editing, correct that comment's own ~98px
+drawer claim, which is the error this section had to unwind.
+
+**`overflow-wrap: anywhere` on the drawer label is inert forward-defence with no mutant.** Extend the
+`:977` override with it for consistency with `.unit-tree__grouptitle` (`:736-738`), but do not claim
+a test can see it: at a ~230px column, a single unbroken token would have to exceed ~230px (roughly
+28+ characters) to overflow, which no realistic title does — `test_e2e_unit_head_layout.py`'s
+`LONG_TITLE` token "przedziałach" is ~95px and does not come close. A mutant deleting it would be
+green, which this spec treats as a hard stop, so none is listed.
+
 
 **Unit page** — `templates/courses/_lesson_article.html` and `templates/courses/_quiz_article.html`.
 
@@ -904,12 +848,9 @@ vacuous.
 
 **Every rail/drawer selector must be scoped.** `_unit_shell.html` renders the tree **twice** per unit
 page — rail (`[data-unit-tree-list]`) and drawer (`[data-unit-drawer-list]`) — so every unit emits
-two `.unit-tree__unit` rows and two `.unit-kind` wrappers. **With the drawer open there are two
-MORE** `.unit-kind` wrappers that belong to no unit row at all — the legend entries — so a bare
-`.unit-kind` locator in the phone arm is a strict-mode violation on a **correct** build. Scope the
-drawer maths re-check to `[data-unit-drawer-list] .unit-kind`, and the `btns` entry in
-`capture_title_math_screenshots.py` to `[data-unit-drawer] .unit-drawer__list .unit-kind`, or the
-legend gets swept into the overlap check. An unscoped `select_one` silently tests
+two `.unit-tree__unit` rows and two `.unit-kind` wrappers. Scope the drawer maths re-check to
+`[data-unit-drawer-list] .unit-kind` and the `btns` entry in `capture_title_math_screenshots.py` to
+`[data-unit-drawer] .unit-drawer__list .unit-kind`. An unscoped `select_one` silently tests
 only the rail, a `len(...) == 1` assertion fails on a **correct** build, and a Playwright
 `.unit-kind` locator is a strict-mode violation — the hazard `_unit_shell.html:8-10` already
 documents for `[data-unit-tree-toggle]`. Test 4 targets `[data-unit-tree-list] .unit-tree__unit`.
@@ -940,16 +881,14 @@ same trap this spec polices for the pill assertion, where the offset is stated e
 than approximated. (Sharing `right` and sharing `x` happen to be equivalent here because both glyphs
 are the same width; `right` is the one that also pins the gutter position.)
 
-**Legend glyph-to-word gap.** In the open drawer, assert `word.left - svg.right == 4` (±1) on a
-legend entry, where `word` is `.unit-kind__word` and `svg` is its sibling `.icon`. **Both are
-elements with real boxes — which is the whole reason the legend word carries a span.** A bare text
-node has no `bounding_box()`, and a `Range` over it would start at the collapsed leading whitespace
-and measure the gap away, so the mechanism would decide the outcome.
+**Drawer-row glyph-to-word gap.** In the open drawer, assert
+`label.left - svg.right == 4` (±1) on a marked row, where `label` is `.unit-kind__label` (visible at
+drawer scope) and `svg` is its sibling `.icon`. Both are elements with real boxes.
 
 The mutant is **`gap: var(--space-1)` deleted from `.unit-kind`** — a clean 4px → 0px, since a flex
 container drops whitespace-only text between items. Do **not** use `display: inline-flex` as the
-mutant: blockifying the span replaces the 4px gap with a *rendered* collapsed space, ~3–4px at the
-legend's 12px font, which lands inside tolerance and may be green.
+mutant: blockifying the span replaces the 4px gap with a *rendered* collapsed space, ~4px at the
+drawer's 16px font, which lands inside tolerance and may be green.
 
 There is deliberately **no rail glyph-width assertion**: per §4 the wrapper's automatic minimum is
 the 1em glyph on any build, so such a test would be green even with the whole rule deleted.
@@ -974,7 +913,11 @@ so a single cap-length row proves almost nothing:
      the reset the `<h1>` merely grows and the chip still sits `gap` past its right edge — so an
      adjacency assertion here is the same tautology §Testing already documents for the cap-length
      row. Only distance from the group's *left* edge discriminates.
-  2. On the lesson page, the **done pill's left edge is `group.right + 16`** — the head's
+  2. On the lesson page, **`.unit-done`'s left edge is `group.right + 16`** — measure `.unit-done`,
+     the head's actual flex item (`flex: none`), **not** `.unit-done__pill`: on a not-completed
+     fixture the pill is a button inside a `<form class="unit-progress">` nested within
+     `.unit-done`, so its offset is not the one the exact-offset assertion guarantees. The existing
+     `test_e2e_uniform_block_width.py` already measures `.unit-done` for the same reason. The head's
      `gap: 1rem` (`courses.css:829`), stated as an offset rather than "within a few px", which
      would be red on a correct build. This kills deletion of the group's `flex: 1 1 auto`.
 
@@ -1014,11 +957,12 @@ trigger; wait for `[data-unit-drawer]` to lose `hidden`; then assert.
 
 Assertions at that size:
 
-- the `.unit-drawer__legend` is present with a **non-trivial** box —
-  `width >= 30` and `height >= 8` — and carries `aria-hidden="true"` (§4's decision; without the
-  assertion nothing distinguishes a deliberate exclusion from a forgotten one). The thresholds are the point: `.visually-hidden` is 1px × 1px
-  with a zero clip rect, which Playwright reports as **visible with a non-empty box**, so a
-  `bounding_box() is not None` assertion cannot distinguish a rendered legend from a hidden one;
+- `.unit-kind__label` inside `[data-unit-drawer-list]` has a **non-trivial** box —
+  `width >= 30` and `height >= 8` — i.e. the marker's **visible text**, not a bare glyph. The
+  numeric thresholds are the point: `.visually-hidden` is 1px × 1px with a zero clip rect, which
+  Playwright reports as **visible with a non-empty box**, so a `bounding_box() is not None`
+  assertion cannot distinguish an un-hidden label from a still-hidden one, nor catch the partial
+  revert (`position: static` only) that §4 calls the likeliest wrong implementation;
 - **text-overflow on the label**, not a rect comparison: with a long unbreakable Polish word in the
   title, assert `label.scrollWidth - label.clientWidth <= 1`. A rect-intersection assertion between
   `.unit-kind` and `.unit-tree__label` was **considered and rejected as vacuous** — they are sibling
@@ -1041,7 +985,11 @@ Assertions at that size:
   outside its parent's box. Three things must be stated, because none is obvious:
 
   1. **Reuse the title the existing audit measured** — the drawer title in
-     `tests/capture_title_math_screenshots.py`'s title dict that drives its drawer arm (~:470); that
+     `tests/capture_title_math_screenshots.py` — reuse the **whole `TITLES` seed** so every audited
+     title is present in the drawer at once, rather than naming one key. The drawer arm navigates
+     via `nodes["lesson_display"]` (`TITLES["display"]`) but screenshots the entire tree, which also
+     contains `TITLES["long"]` — the "long maths title" the audit comment actually describes — so
+     "the title that drives the drawer arm" would name the wrong one. That
      script is already being edited for the `btns` list, so the fixture is in hand. Cite
      `courses.css:2339-2345` only for the audit's *result*: that comment records "Task 11 MEASURED
      this at 390x780" but names no title string, so it cannot be used to find the fixture. Reusing
@@ -1100,10 +1048,24 @@ Assertions at that size:
     never moves and neither does the chip's or the tick's — so all three box-geometry assertions
     stay green under `overflow-wrap: normal`. It is the same mechanism, and the same lesson, that
     `test_e2e_unit_head_layout.py`'s docstring records and that this spec already applies to the
-    drawer label. The fixture's word must be **wider than the title's rendered column** (~180px at
-    390) or even this assertion is vacuous;
+    drawer label. The fixture's word must be **measured wider than the title's rendered column at
+    390** or even this assertion is vacuous — measure it, do not derive it; an earlier draft quoted
+    a figure here that was ~60px out, which is exactly enough to make the mutant green;
   - **both rows** — `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1` (pins the
     **anchor**'s `min-width: 0`);
+  - **maths row additionally** — a `.katex`-vs-`.unit-kind-chip` **rect intersection check**, with
+    the same treatment and the same escape hatch the drawer maths re-check gets. This change
+    *introduces* the collision: today `.outline-unit__title` is `flex: 1` with `min-width: auto`, so
+    an unbreakable atom holds the title box open and can never overlap a sibling. After the edit the
+    title's minimum is 0, the atom is **by fixture construction** wider than the resulting box, and
+    `overflow` stays visible — so on the **correct** build the atom paints rightward across the
+    `.outline-unit` gap and into the chip, and both box assertions below stay green while the text
+    overlaps. Expected outcome: no intersection at the chosen atom width. **If it does intersect,
+    that is a design change, not a test tweak** — the remedy is containment on the outline title's
+    maths (the `max-width`/`overflow` shape `courses.css:1685` already applies to tab labels) or
+    dropping the maths fixture and reclassifying the anchor's `min-width: 0` as inert. Do not widen
+    the tolerance. A maths outline row also joins the screenshot set so this is looked at, not only
+    measured.
   - **maths row additionally** — `chip.right <= anchor.right + 1` (equivalently the `✓`'s right).
     This is the **only** assertion that pins the **title**'s own `min-width: 0`, and without it that
     declaration has no mutant at all. On the plain-text row it is inert, because
@@ -1127,8 +1089,9 @@ Assertions at that size:
   implementation rather than by trusting the order-of-magnitude figures quoted in §4.
 
 **Screenshots** (`tests/capture_unit_marker_screenshots.py`): both glyphs at rail size, both
-glyphs on a marked **drawer row** at 390×780, the outline row at rest / hover / `:target`, the
-unit-page head, and the drawer legend — light **and** dark, with dark judged on its own. The drawer
+glyphs on a marked **drawer row** at 390×780, the outline row at rest / hover / `:target`, a **maths** outline row (per the collision note in the outline e2e
+arm), the
+unit-page head — light **and** dark, with dark judged on its own. The drawer
 row is not optional: per the typography note in §4 the glyph renders there at ~16px rather than the
 rail's ~13px, beside a *wrapped* multi-line label under `align-items: flex-start`
 (`courses.css:980`), so §5's legibility acceptance — argued "at the ~1em the rail renders" — would
@@ -1152,7 +1115,7 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
 - The chip moved before `.outline-unit__title` → the outline next-element-sibling assertion goes red.
 - `.unit-tree__label`'s `flex: 1 1 auto` reverted → the shared-`right` gutter assertion **and** the
   `icon.right == row.right - 8` offset both go red.
-- `gap: var(--space-1)` deleted from `.unit-kind` → the legend's glyph-to-word gap assertion goes
+- `gap: var(--space-1)` deleted from `.unit-kind` → the drawer row's glyph-to-word gap assertion goes
   red (4px → 0px). **Not** `display: inline-flex`, whose removal substitutes a ~3–4px rendered space
   that may land inside tolerance. Deleting the *whole* rule has deliberately **no rail mutant**: the
   wrapper's automatic minimum is the 1em glyph either way (§4).
@@ -1181,7 +1144,9 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
 - `flex-wrap: wrap` added to the group at **desktop** → the cap-length **not-wrapped** assertion
   (`chip.top < title_bottom - 1`) goes red. Note the assertion is deliberately *not* top-equality —
   `align-items: baseline` makes the two tops differ by ~10–15px on a correct build (§Testing).
-- The drawer legend removed → the 30×8 legend assertion goes red.
+- The `.unit-drawer__list .unit-kind__label` un-hide rule deleted → the 30×8 drawer-label assertion
+  goes red. Falsify **also** against the partial revert (`position: static` only), since that is the
+  likelier mistake and it is the case a "non-empty box" assertion would have missed.
 - `lang="{{ LANGUAGE_CODE }}"` dropped from the chip → the render tests' `lang` assertion goes red.
 
 A mutant must be removed by editing it out, never by `git checkout` of the file, which would destroy
