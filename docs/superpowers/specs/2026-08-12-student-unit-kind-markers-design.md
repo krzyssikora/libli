@@ -229,6 +229,12 @@ course". The same comment records why `LANGUAGE_CODE` must come from `{% get_cur
 **the i18n context processor is not enabled** — and `only` on every include means the partials
 cannot inherit it from the parent context even if it were. Hence the tag inside each partial.
 
+The **legend entry** carries `lang` too, though its only call site — the drawer legend in
+`_unit_shell.html` — is a sibling of `.unit-shell__main` and sits inside no
+`lang="{{ course.language }}"` subtree at all. It is there for partial-level consistency, so all
+three partials stay safe wherever they are included. Do not "clean it up", and do not read it as
+evidence that the drawer is course-language scoped.
+
 (The existing `✓` badge's `aria-label="{% trans 'Completed' %}"` omits `lang` in both surfaces. That
 is a pre-existing inconsistency, out of scope here; the new markers do not copy it.)
 
@@ -258,7 +264,9 @@ structural.
 **Class contract (test selectors).** The chip emits `badge unit-kind-chip unit-kind-chip--<marker>`;
 the icon wrapper emits `unit-kind unit-kind--<marker>`. `.unit-kind-chip` and `.unit-kind` are the
 stable selectors; `.badge` is carried for the existing pill styling and is **not** a test selector.
-`.unit-kind-chip` needs no CSS rule of its own. The `--<marker>` modifiers are **reserved test/debug
+`.unit-kind-chip` **does** get a small rule in §4, but every declaration in it is inert
+forward-defence carrying no test hook — the pill itself comes entirely from `.badge`. The
+`--<marker>` modifiers are **reserved test/debug
 hooks with no styling attached today**, and §5 forbids giving them any.
 
 **Accessible-name contract.** The `<svg>` is `aria-hidden`; `.unit-kind__label` is the text (visually
@@ -294,32 +302,47 @@ Full stylesheet paths, short-formed thereafter: `core/static/core/css/app.css` a
 .unit-kind-chip { flex: none; white-space: nowrap; }
 ```
 
-`.unit-kind` needs its own rule because **the flex item of `.unit-tree__unit` is the `.unit-kind`
-wrapper, not the `<svg class="icon">` inside it**. `.icon { flex: none }` (`app.css:109`) governs
-`.icon` only when `.icon` is itself a flex item; inside a non-flex `.unit-kind` it does nothing for
-the wrapper, which would otherwise take `flex: 0 1 auto` and squash under a `flex: 1 1 auto` label.
-`display: inline-flex` also makes `.icon`'s `flex: none` meaningful again for the glyph.
+**What `.unit-kind` is actually for — and what it is not.** The rule does **not** exist to stop the
+wrapper being squashed: by the automatic-minimum-size rule above, a bare span whose only in-flow
+child is a 1em `<svg>` has a min-content of 1em (`.unit-kind__label` is `.visually-hidden`, i.e.
+`position: absolute`, so it contributes nothing), and its automatic minimum therefore pins it at the
+glyph's width on any build. Deleting the whole rule does not narrow the glyph, so there is **no
+glyph-width mutant** for it.
+
+What the rule genuinely buys is **`display: inline-flex` + `gap`**, which matter in the *legend
+entry*, where the glyph sits beside a **visible** word: without them the span is blockified as a
+flex item, `gap` (a flex/grid property) does not apply, and the word butts against the glyph with
+only collapsed whitespace between. `align-items: center` sets the glyph/word alignment there too.
+`flex: none` is carried for consistency with the chip and is likewise inert. The falsifiable part is
+therefore the legend's glyph-to-word gap, not any rail measurement.
+
 `var(--space-1)` is 4px (`core/static/core/css/tokens.css:75`); the surrounding block is
 token-driven.
 
 **`.unit-kind-chip` needs the same treatment, and for the same reason.** `.badge` (`app.css:115`) is
 `display: inline-block` with **no `flex` and no `white-space`**, so as a flex item of
-`.lesson-unit__heading` — and of `.outline-unit` — it resolves to `flex: 0 1 auto` and shrinks. Flex
-shrink is basis-weighted, so with an ~80px deficit (`<h1>` basis 736, chip basis ~78, gap 12,
-line ~746) the chip absorbs `78/814 × 80 ≈ 8px`. That falsifies §4's "the `<h1>` shrinks instead"
-argument, which assumes the chip holds its width. **`flex: none` is the load-bearing half of this
-rule** and is pinned by a chip-width assertion in Testing.
+`.lesson-unit__heading` — and of `.outline-unit` — it resolves to `flex: 0 1 auto`.
 
-**`white-space: nowrap` is forward-defence, not a live fix — do not justify it as one.** Both
-shipping labels ("Additional", "Dodatkowa") are single words with no space, so they have no
-soft-wrap opportunity, and `.badge` sets no `overflow-wrap`/`word-break`; under `white-space: normal`
-such a word cannot wrap, it overflows. The declaration is therefore **inert for the two labels that
-actually ship**, and its min-content contribution is identical either way. It is kept for a future
-multi-word translation and for consistency with the peer chips — `.unit-done__pill
-{ white-space: nowrap }` (`courses.css:837`) and `.rollup { white-space: nowrap }`
-(`app.css:506-508`) — alongside `.unit-done { flex: none }` (`courses.css:836`), which make this the
-house pattern. Because it is inert today it has **no mutant**: any test claiming to redden on its
-removal would be green on the broken build.
+**Both declarations are inert today, and neither gets a mutant. This is the automatic-minimum-size
+rule, and it is easy to get wrong.** A flex item's automatic minimum size is its **min-content**
+size (`min-width: auto`, `overflow: visible`). Both shipping labels — "Additional", "Dodatkowa",
+"Quiz" — are single words with no soft-wrap opportunity, and `.badge` sets no
+`overflow-wrap`/`word-break`, so for the chip min-content == max-content == its full ~78px. In
+`resolve-flexible-lengths` a `flex: 0 1 auto` chip's shrink target (~70px) is therefore a **min
+violation**: it is clamped and frozen at 78, and the entire ~80px deficit lands on the `<h1>` (656px)
+— *identical* to the `flex: none` build. So:
+
+- **`flex: none`** does not change any rendered width for the labels that ship. §4's "the `<h1>`
+  shrinks instead" argument holds on both builds; it was never at risk.
+- **`white-space: nowrap`** is likewise inert: under `white-space: normal` a single unbreakable word
+  does not wrap, it overflows, and its min-content contribution is the same either way.
+
+Both are kept as **forward-defence for a future multi-word translation** and for consistency with
+the peer chips — `.unit-done { flex: none }` (`courses.css:836`), `.unit-done__pill
+{ white-space: nowrap }` (`:837`), `.rollup { white-space: nowrap }` (`app.css:506-508`) — which make
+this the house pattern. Because both are inert, **neither has a falsification mutant**: any test
+claiming to redden on their removal would be green on the broken build, which is exactly the
+green-mutant trap this spec treats as a hard stop.
 
 **Outline page** — `templates/courses/_outline_node.html`.
 
@@ -352,9 +375,15 @@ levels**, and fixing only the inner one leaves the row broken:
   min-content width and it cannot shrink below its longest word. A chip up to ~90px ("Additional" /
   "Dodatkowa") can therefore push a 390px row past its box.
 - **Outer.** `.outline-node--unit > .outline-unit` is itself `flex: 1 1 auto` (`app.css:544`) inside
-  the wrapping `li.outline-node--unit` (`app.css:541-543`), with the default `min-width: auto` — so
-  the **anchor** can equally refuse to shrink and overflow the `li`, no matter what the title does.
-  The title edit alone cannot fix that, which is why both are required.
+  the wrapping `li.outline-node--unit` (`app.css:541-543`), with the default `min-width: auto`, so
+  the **anchor**'s own automatic minimum is its min-content. This edit is **defence for title
+  content that `overflow-wrap: anywhere` cannot break** — a KaTeX `.katex` inline-block, or any
+  replaced element — not a second fix for the plain-text case. With `anywhere` in place a long
+  *breakable* title collapses to roughly one character, putting the anchor's minimum at
+  title(~8px) + chip(~78) + `✓`(~22) + gaps(16) + padding(24) ≈ 150px, comfortably inside the
+  ~280–290px `li` at 390px — so on a plain-text fixture this declaration is inert and its mutant
+  would be green. It is pinned instead by the **maths-title** outline fixture (see Testing), where
+  the inline-block genuinely cannot be broken.
 - **`anywhere`, not `break-word`.** `overflow-wrap: break-word` permits breaking at paint time but
   **does not reduce the element's min-content contribution**, so it does not lower the flex minimum
   that causes the overflow in the first place. `anywhere` does, which is why this repo already
@@ -450,7 +479,7 @@ on open, and permanently spending a line of a phone-height drawer on it would co
 returns. Do not "fix" this by extending the sticky region.
 
 ```html
-<p class="unit-drawer__legend">
+<p class="unit-drawer__legend" aria-hidden="true">
   {% include "courses/_unit_kind_legend_item.html" with m="additional" only %}
   {% include "courses/_unit_kind_legend_item.html" with m="quiz" only %}
 </p>
@@ -473,7 +502,11 @@ surfaces.** `font-size: .82rem` is set on `.unit-tree` **alone** (`courses.css:6
 `<nav>` that `_unit_tree.html` renders. The drawer is a **sibling** of that nav — `_unit_shell.html`
 puts `.unit-drawer` directly under `.unit-shell`, not inside `.unit-tree` — and no rule on the
 drawer chain (`.unit-drawer*`, `.unit-tree__list`) sets a font size, so drawer rows render at
-1rem/16px. `.icon` is `1em`, so the marker is **~13px in the rail and ~16px in the drawer**.
+1rem/16px. `.icon` is `1em`, so there are **three** renderings of the same glyph: **~13px in the
+rail** (`.82rem`), **~16px on a drawer row** (1rem), and **~12px in the drawer legend**
+(`.unit-drawer__legend` is `font-size: .75rem`). Section 5's legibility acceptance must look at all
+three — the legend is the smallest, and it is the one element whose entire job is to teach the
+reader what the row glyph means.
 
 Budget it at the drawer's own size: a 16px glyph plus `.unit-tree__unit`'s `gap: .4rem` (~6.4px)
 takes **~22px** out of the ~98px title column documented at `courses.css:2339`, leaving
@@ -750,7 +783,16 @@ than red.
    vacuously green on a short title and a guard blind to fixture drift, i.e. exactly the death this
    item exists to repair.
 2. **`tests/test_e2e_unit_nav.py::test_quiz_chrome_tracks_the_column_across_both_page_states`** —
-   defused identically and needs the same repair, applied to **both** cap assertions: the test
+   defused identically and needs the same repair, but **its fixture is a quiz, so it DOES emit a
+   chip** and the chiplessness argument in §4 does not carry it. Its repaired assertion is
+   non-vacuous through different arithmetic, stated here because it is fragile: the quiz head has no
+   done pill, so the group spans the full collapsed column (~872px), and
+   `736 + 12 + ~46 = ~794 < 872` leaves the cap — not the flex remainder — holding the title. That
+   headroom is state-dependent: in the **expanded** state the quiz column is 648px (the test's own
+   comment at `:1400`), where capped and uncapped builds both land the `<h1>` at ~582 and
+   `title_w <= 738` is vacuous either way. Both cap assertions are therefore non-vacuous **only
+   under the collapsed-state guard the test already enforces** — do not remove it. Apply the repair
+   to **both** assertions: the test
    asserts `title_w <= 736 + 2` **twice**, once per page state (`~:1387` for the
    not-enrolled/preview load and `~:1421` after `page.reload()` with enrolment flipped). Repairing
    only the first leaves the second silently vacuous in the very test whose docstring exists to stop
@@ -861,10 +903,12 @@ both marked, scoped to `[data-unit-tree-list]`: assert their `.unit-kind` boxes 
 ~1px, and that `x` is within a few px of the row's right content edge. Both are false when
 `.unit-tree__label` has no `flex-grow`.
 
-**Desktop, rail glyph size.** With a long title putting the row under shrink pressure, assert
-`.unit-kind`'s rendered width ≈ the glyph's natural 1em. This is what kills a deletion of the
-`.unit-kind` rule, which the gutter test cannot: a squashed-but-right-aligned wrapper still shares
-its `x`.
+**Legend glyph-to-word gap.** In the open drawer, assert the legend entry's word begins
+`var(--space-1)` (4px) after its glyph's right edge. This is the only falsifiable consequence of the
+`.unit-kind` rule — `gap` stops applying the moment `display: inline-flex` is dropped and the span
+is blockified. There is deliberately **no rail glyph-width assertion**: per §4 the wrapper's
+automatic minimum is the 1em glyph on any build, so such a test would be green even with the whole
+rule deleted.
 
 **Desktop, unit page.** The whole §4 heading-group resolution otherwise has **zero** executable
 coverage, since render tests 2–3 are DOM-containment checks a CSS deletion leaves green. On both
@@ -927,7 +971,11 @@ Assertions at that size:
   (scrollWidth vs clientWidth)". Do not re-introduce the rect form;
 - **A/B the label's wrap points**: record `.unit-tree__label`'s
   `getBoundingClientRect().height` for a fixed long title, re-measure with `page.add_style_tag`
-  neutralising `.unit-tree__label { flex: 1 1 auto }`, assert equal. Mechanical rather than a
+  injecting `.unit-drawer__list .unit-tree__label { flex: 0 1 auto !important }` — the pre-change
+  computed value, named explicitly because `add_style_tag` can only *add* a declaration, and
+  `flex: none` or `flex: 1 1 0` would change the base size and redden a correct build. Assert the
+  two heights are equal; they are, because a long title leaves no free space for `flex-grow` to
+  distribute. Mechanical rather than a
   remembered baseline;
 - a long `\(…\)` maths title, asserting no `.katex` box intersects `.unit-kind`'s rect — the
   re-earned audit §4 requires. Unlike the plain-text case above, the **rect** form is right here: a
@@ -970,20 +1018,24 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
 - Rail icon rendered leading instead of trailing → the last-element-child assertion goes red.
 - The chip moved before `.outline-unit__title` → the outline next-element-sibling assertion goes red.
 - `.unit-tree__label`'s `flex: 1 1 auto` reverted → the shared-`x` gutter assertion goes red.
-- The `.unit-kind` rule deleted → the rail glyph-size assertion goes red.
-- `.unit-kind-chip`'s `flex: none` dropped → the cap-length **chip-width** assertion goes red. NOT
-  the chip-position assertion: both edges move together, so adjacency stays true (see the e2e note).
-  `white-space: nowrap` has deliberately **no mutant** — it is inert for the two single-word labels
-  that ship (§4), so any test claiming to redden on its removal would be green on the broken build.
+- Only `display: inline-flex` is deleted from `.unit-kind` → the **legend**'s glyph-to-word gap
+  assertion goes red (`gap` stops applying once the span is blockified). Deleting the *whole* rule
+  has deliberately **no rail mutant**: the wrapper's automatic minimum is the 1em glyph either way,
+  so a rail glyph-width assertion would be green on both builds (§4).
+- `.unit-kind-chip`'s `flex: none` and `white-space: nowrap` have deliberately **no mutants** — by
+  the automatic-minimum-size rule in §4 both are inert for the single-word labels that ship, so any
+  test claiming to redden on their removal would be green on the broken build.
 - The `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }` reset deleted → the
   **short-title** desktop assertion goes red. NOT the cap-length one, which is pixel-identical on
   both builds.
 - `overflow-wrap: anywhere` dropped from the drawer's `.unit-tree__label` override → the 390px
   `scrollWidth - clientWidth` assertion goes red.
-- The anchor's `min-width: 0` (`app.css:544`) reverted, **or** the title's `overflow-wrap: anywhere`
-  weakened to `break-word` → the 390-wide outline `scrollWidth === clientWidth` assertion goes red.
-  Falsify these two **separately**: each alone is sufficient to break the row, so a single combined
-  mutant would not prove both declarations are load-bearing.
+- The title's `overflow-wrap: anywhere` weakened to `break-word` → the 390-wide outline assertion
+  goes red **on the plain-text fixture** (`break-word` does not lower the min-content contribution).
+- The anchor's `min-width: 0` (`app.css:544`) reverted → the 390-wide outline assertion goes red
+  **only on the maths-title fixture**. It is inert on plain text, because `anywhere` already
+  collapses the title's minimum to ~1 character (§4) — so falsify it against the maths row
+  specifically, or it reads as a green mutant.
 - `.lesson-unit__heading`'s `flex: 1 1 auto` deleted → the pill-position assertion goes red.
 - The mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` deleted →
   `test_e2e_unit_head_layout.py`'s phone assertions go red.
