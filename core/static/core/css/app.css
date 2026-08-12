@@ -136,10 +136,12 @@ label { display: block; font-weight: 500; margin-bottom: var(--space-1);
 input[type=text], input[type=email], input[type=password], input[type=url], select, textarea {
   width: 100%; padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); color: var(--text-primary);
-  /* border-strong (not -default): on a dark card the input's sunken fill and a
-     --border-default rim are near-identical (#15130F field / #322E29 rim vs the
-     #2C2925 card), so the field edge disappears. -strong gives form controls a
-     defined rim in both themes. */
+  /* border-strong (not -default): a form control needs a rim that reads against
+     BOTH its own sunken fill (#15130F) and the card behind it (#2C2925), which the
+     dark ramp's middle rung is not cut for. Since the ramp was re-cut against
+     --surface-raised, -default would now clear the card (1.74:1) — -strong is kept
+     because it also separates the field from its own fill and keeps controls a step
+     above ordinary dividers in both themes. */
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
 }
 /* Textareas fill their column (width:100% above) and may only grow VERTICALLY —
