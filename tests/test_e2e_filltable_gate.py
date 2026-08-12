@@ -335,3 +335,101 @@ def test_ungated_table_does_not_cascade(page, live_server):
         )
         is True
     )
+
+
+# ---------------------------------------------------------------------------
+# 28. Nested in a CALLOUT: the run stops at the callout's edge
+# ---------------------------------------------------------------------------
+
+# The `.callout__children > .callout__child` pair the pre-hide CSS keys on
+# (lesson_unit.html:42) and that reveal.js `scopeOf`/`ownWrapper` resolve to.
+# Callout children carry NO .lesson-block wrapper (calloutelement.html:24 emits a
+# bare .callout__child), so they have no data-element-id and _block()/_visible()
+# cannot reach them -- index into this instead.
+_CALLOUT_CHILD = ".callout__children > .callout__child"
+
+
+def _seed_callout(unit, *children):
+    """Attach one CalloutElement to `unit`, with `children` nested under it in order.
+
+    `resolved_children()` groups by `parent` alone, so no tab_id is needed (unlike
+    the tabs/two-column seeders in tests/test_e2e_reveal_gate.py) -- mirrors
+    tests/test_filltable_render.py::_render_callout_with_filltable_child. Each child
+    is save()d here for the same reason _seed() does it: _filltable() returns an
+    UNSAVED instance while _text() arrives saved.
+    """
+    from courses.models import CalloutElement
+    from courses.models import Element
+
+    callout = CalloutElement.objects.create()
+    join = Element.objects.create(unit=unit, content_object=callout)
+    for child in children:
+        child.save()
+        Element.objects.create(unit=unit, content_object=child, parent=join)
+    return join
+
+
+@pytest.mark.django_db(transaction=True)
+def test_gate_nested_in_a_callout_scopes_to_that_callout(page, live_server):
+    """The motivating real-world shape: a gated table inside a callout.
+
+    The view query, the rendered DOM and the (scope-agnostic) cascade engine each
+    have unit coverage; what only a live browser can show is that the cascade walks
+    the callout's `.callout__child` run and stops at the callout's edge.
+    """
+    _student, unit = _new_unit("ftg_callout")
+    # No trailing _gate() here, in deliberate contrast to test 27: that fixture's
+    # table is UNGATED, so it needed one to make has_reveal_gate true. A GATED
+    # table sets has_filltable_gate -- and therefore has_reveal_gate -- from
+    # anywhere in the unit, nested included (pinned by tests/test_filltable_
+    # context.py::test_has_filltable_gate_flag_when_nested_in_a_callout). The
+    # `expect(inside_after).to_be_hidden()` below is what proves it took effect:
+    # without the flag neither the pre-hide <style> nor reveal.js ships and the
+    # sibling is visible from the start.
+    _seed_callout(unit, _filltable(gate=True), _text("<p>inside after</p>"))
+    ((outside_row, _o),) = _seed(unit, _text("<p>outside after</p>"))
+    _login(page, live_server, "ftg_callout")
+    page.goto(_unit_url(live_server, unit))
+
+    inside_after = page.locator(_CALLOUT_CHILD).nth(1)  # [0] is the gated table
+    outside_sel = _block(outside_row.pk)  # bound once: inlined it runs past 88 cols
+
+    expect(inside_after).to_be_hidden()
+    assert _visible(page, outside_row.pk) is True
+
+    inp = page.locator(f"{_CALLOUT_CHILD} .filltable__input").first
+    inp.fill(_ANSWER)
+    page.locator(f"{_CALLOUT_CHILD} .filltable__confirm").click()
+    expect(page.locator(f"{_CALLOUT_CHILD} .filltable__summary")).to_have_class(
+        _SUCCESS
+    )
+
+    expect(inside_after).to_be_visible()
+
+    # --- the callout's edge -------------------------------------------------
+    # The slide-level block AFTER the whole callout is not behind this gate, so it
+    # is visible throughout. Asserted before AND after so the pair cannot pass by
+    # the block merely never appearing; it is a real tripwire on the pre-hide CSS
+    # (widening lesson_unit.html:42 to slide-level siblings would redden it), but
+    # it is NOT the scope discriminator -- a cascade that escaped the callout would
+    # only re-reveal an already-visible block. There is no visibility-based
+    # discriminator available at all: a leaked run starts at the callout's own
+    # .lesson-block and stops at the first slide-level gate wrapper, and the only
+    # slide-level blocks the pre-hide CSS hides are the ones AFTER such a wrapper.
+    assert _visible(page, outside_row.pk) is True
+    # THESE two are what discriminate. A leak leaves its fingerprints in the class
+    # the cascade stamps on every node it walks, and in where focus landed.
+    assert (
+        page.evaluate(
+            f'document.querySelector("{outside_sel}")'
+            '.classList.contains("reveal-shown")'
+        )
+        is False
+    )
+    assert (
+        page.evaluate(
+            'document.querySelector(".callout__children")'
+            ".contains(document.activeElement)"
+        )
+        is True
+    )
