@@ -501,10 +501,15 @@ Expected: FAIL — the value carries the ellipsis.
 Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k rename_prefills -v` → PASS.
 Restore `input.value = dname.textContent.trim()`, re-run, confirm RED, edit the mutant back out by hand.
 
-- [ ] **Step 6: Verify the whole rename flow**
+- [ ] **Step 6: Confirm the rename flow has no other coverage to break**
 
 Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k rename -v`
-Expected: PASS — including the pre-existing rename tests.
+Expected: PASS, **1 test** — the row added in Step 2. The manager's inline
+rename has no other e2e coverage (nothing under `tests/` references
+`data-rename-asset` or `.asset-rename-input`), so do not go looking for
+pre-existing tests. That absence is itself worth knowing: this task's single row
+is the only thing standing between a `textContent` regression and silent data
+corruption.
 
 - [ ] **Step 7: Commit**
 
@@ -1379,9 +1384,19 @@ make both the 404 row and the in-flight row unfalsifiable. In practice enabling
 unstated premise and it also suspends the very "no new request" property while
 those tests run.
 
-Verify before writing them: install a `page.on("request", …)` counter and a
-passthrough `page.route("**/*", lambda r: r.continue_())`, hover a thumb, and
-assert the overlay's URL was requested a second time.
+**This needs its own scratch file** — `tests/test_zz_scratch_route.py`. Task 4's
+`tests/test_zz_scratch_measure.py` is deleted by its own Step 8, and everything
+that file's preamble exists for applies here too: it must live in `tests/` for
+rootdir and `DJANGO_SETTINGS_MODULE`, and it must carry its own
+`_allow_sync_orm_under_playwright` and `_isolated_media` fixtures plus `_login`
+and the `TEST_PASSWORD` import, because none of those is in any `conftest.py`.
+Copy Task 4 Step 1's file verbatim and replace the body of `test_measure`. Run
+it with `uv run pytest tests/test_zz_scratch_route.py -s -v` — **without**
+`-m e2e` — and `rm` it before Step 8's commit.
+
+Its body: install a `page.on("request", …)` counter and a passthrough
+`page.route("**/*", lambda r: r.continue_())`, hover a thumb, and assert the
+overlay's URL was requested a second time.
 
 **Spike the re-assignment premise in the same pass.** Task 5's `open()` justifies its synchronous reveal with "whether re-assigning the same URL re-queues `load` on a complete image is engine behaviour we will not bet on" — but Step 7 maps a mutant to that line, which only goes red if `load` does *not* re-fire. Decide it here, in the same scratch page: open an asset, close, re-open the same anchor, and count `load` events on the overlay image.
 
@@ -1616,7 +1631,23 @@ def test_a_late_load_from_a_previous_asset_cannot_reveal_it(page, live_server):
 
 Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k "sweeping_a_to_b or drift_into or reopening_the_same or 404_source or thumbnail_that_never or broken_asset_then or b_s_caption or late_load" -v`
 
-Expected: FAIL, and **check the failure mode of each** — every one should fail on its assertion, not on a `ReferenceError` or a timeout. A module-level error here would mean Step 1's restructure is incomplete, and reading a red as success is exactly how that gets missed.
+**Only `sweeping_a_to_b` is expected RED here.** Step 1 already landed the
+caption-only branch, the shared tail and the three helpers, so seven of these
+eight rows are *green* against that intermediate build:
+`drift_into_the_cell_padding` (Task 5's immediate close is followed by a fresh
+dwell when the pointer returns, and the assertion runs 400 ms later),
+`reopening_the_same_anchor` (the synchronous reveal came from Task 5),
+`404_source`, `thumbnail_that_never_loaded` and `broken_asset_then_a_good_one`
+(Step 1's `complete && naturalWidth === 0` branch is already in),
+`b_s_caption_never_appears` (the pre-grace build closes then re-dwells, so the
+image is hidden when B's caption lands) and `late_load` (`close()` already nulls
+`expectedSrc`). Those seven are guarded by the Step 7 falsification pass, not by
+a red-first state — the same inversion Task 5 Step 5 documents.
+
+Whatever fails, **check the failure mode**: it should be an assertion, never a
+`ReferenceError` or a timeout. A module-level error would mean Step 1's
+restructure is incomplete, and reading that red as success is exactly how it
+gets missed.
 
 - [ ] **Step 5: Wire the grace into the pointer handlers**
 
@@ -1666,20 +1697,22 @@ Run the same `-k` filter as Step 4. Expected: PASS.
 | --- | --- |
 | `mouseout` closes immediately instead of arming the grace | `sweeping_a_to_b` |
 | same-anchor `mouseover` returns before `cancelHide()` | `drift_into_the_cell_padding` |
-| drop the synchronous `complete && naturalWidth > 0` reveal | `reopening_the_same_anchor` — **only if the spike below says `load` does not re-fire** |
+| drop the synchronous `complete && naturalWidth > 0` reveal | `reopening_the_same_anchor` — **only if the Step 2 spike says `load` does not re-fire** |
 | drop `expectedSrc = null` from `captionOnly()` | `a_late_load_from_a_previous_asset` |
 | drop the unconditional `overlayImg.hidden = true` reset in `open()` | `b_s_caption_never_appears` (A is *visible* when the swap happens, so without the reset A's frame stays painted under B's caption) — **not** `broken_asset_then_a_good_one`, where `captionOnly()` and `close()` have both already hidden it and the mutant changes nothing |
 
-**Two guards are deliberately unmapped.** Record them as such rather than writing rows that appear to test them:
+**Four lines are deliberately unmapped.** Record them as such rather than writing rows that appear to test them:
 
 - The **empty-`currentSrc` guard**. With it removed, `open()` still hides the image first and then assigns the aborted URL; `error` fires, `captionOnly()` hides an already-hidden image, and the synchronous reveal cannot fire because `complete` is false immediately after assignment. Both builds reach an identical terminal state. `thumbnail_that_never_loaded` still earns its place as a behaviour test — it just cannot falsify this line.
 - The **`error` listener itself**, for the same structural reason. Every row that reaches the caption-only state does so through `open()`'s own `complete && naturalWidth === 0` guard (a *thumbnail* that failed), never through the overlay image's `error`. The one shape the listener uniquely governs — thumbnail loads, overlay source then fails — cannot be built with `page.route`, because the overlay reuses the thumbnail's exact URL and a route cannot distinguish the two fetches. Its body is `captionOnly()`, whose effects are already applied by `open()`'s unconditional reset in every reachable case.
 - The **reveal-before-`place()` ordering**. `place()` writes only `overlay.style.left` / `top`; it never changes the box's size, so moving the reveal after it leaves both the height and (at every geometry the suite exercises) the chosen placement branch identical. The ordering is kept because it is correct in principle — on a warm re-open the measurement is the only one that happens — but no row can discriminate it. The related mutant that *can* is "move `place()` before `overlay.hidden = false`", which is mapped to `tall_source`.
 - `cancelAnimationFrame` in `teardownOpenBindings()`, for the reason recorded in Task 7 Step 1.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Delete the route spike and commit**
 
 ```bash
+rm tests/test_zz_scratch_route.py
+git status --porcelain          # must not list the scratch file
 git add courses/static/courses/js/media_preview.js tests/test_e2e_media_manager.py
 git commit -m "feat(media): preview image lifecycle and the anchor-to-anchor swap grace"
 ```
@@ -1732,8 +1765,17 @@ def test_scroll_and_resize_each_close_the_overlay(page, live_server):
     _open_manager(page, live_server, "scr-pa", course)
     page.set_viewport_size({"width": 1280, "height": 900})
 
-    _open_preview(page, "przewijany_0_0.png")
+    # The FIRST-RENDERED cell, i.e. the LAST one seeded (-created ordering). It
+    # sits in grid row 1 with the page at scrollY == 0, so the wheel has its full
+    # range. Hovering przewijany_0_0 instead would scroll that cell into view
+    # first -- it is the last in the grid -- leaving almost no scroll left and
+    # possibly no scroll event at all, red on a correct build.
+    _open_preview(page, "przewijany_23_0.png")
+    scroll_before = page.evaluate("() => window.scrollY")
     page.mouse.wheel(0, 200)
+    assert page.evaluate("() => window.scrollY") != scroll_before, (
+        "the wheel produced no scroll; this row cannot discriminate"
+    )
     expect(page.locator(".asset-preview")).to_be_hidden()
 
     # Move the pointer AWAY before re-opening: mouseover fires only on ENTRY, so
@@ -1741,7 +1783,7 @@ def test_scroll_and_resize_each_close_the_overlay(page, live_server):
     # second _open_preview would time out.
     page.mouse.move(5, 5)
     page.wait_for_timeout(400)
-    _open_preview(page, "przewijany_0_0.png")
+    _open_preview(page, "przewijany_23_0.png")
     page.set_viewport_size({"width": 1100, "height": 900})
     expect(page.locator(".asset-preview")).to_be_hidden()
 
@@ -2034,7 +2076,20 @@ def test_the_pointer_can_still_hold_a_focus_opened_overlay(page, live_server):
 
 Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k "escape_closes or scroll_and_resize or focusout_does_not_close or focusout_during_the_hide_grace or tabbing_to_a_card or replace_commit_does_not or rename_input_is_open or replace_strip_is_open or keyboard_driven_pencil or sweep_does_not_accumulate or filter_swap_closes or pointer_can_still_hold" -v`
 
-Expected: FAIL — Escape/scroll/resize/focusout have no handlers yet, the focus path does not exist, and the gate and observer are unimplemented. Check that each fails on its assertion rather than on a module error.
+**Expected RED** (nine rows): `escape_closes`, `scroll_and_resize`,
+`tabbing_to_a_card_button`, `rename_input_is_open`, `replace_strip_is_open`,
+`sweep_does_not_accumulate`, both `filter_swap_closes_*`, and
+`pointer_can_still_hold` — no handlers, no focus path, no gate, no observer.
+
+**Expected GREEN, vacuously** (four rows): `focusout_does_not_close`,
+`focusout_during_the_hide_grace`, `replace_commit_does_not_leave` and
+`keyboard_driven_pencil_leaves_no_observer` are all negative or liveness
+assertions, and with the feature absent nothing touches the overlay, nothing
+opens it, and no observer is ever constructed. They are carried by the Step 5
+mutants, not by a red-first state. Do **not** read those four passes as a
+mis-implementation.
+
+Check that every red fails on its assertion rather than on a module error.
 
 - [ ] **Step 3: Implement**
 
@@ -2292,4 +2347,4 @@ Every row in the spec's Testing table maps to a named test:
 
 **Naming consistency:** `openAnchor`, `hoveredAnchor`, `expectedSrc`, `generation`, `dwellTimer`, `hideTimer`, `scrollRaf`, `onScroll`, `observer`, `gated()`, `openedBy()`, `startHide()`, `cancelHide()`, `captionOnly()`, `place()`, `open()`, `close()`, `build()`, `teardownOpenBindings()`, `bindOpenListeners()`, `onKeydown()` — used identically across Tasks 5, 6 and 7. The test helpers `_seed_assets(username, slug, *specs)` and `_anchor(page, filename)` are defined in Task 3, `_open_preview(page, filename)` — **by name, never by ordinal** — in Task 5, and `_tab_to_a_card_button(page)` in Task 7. Each is reused by every later task.
 
-**One mutant is deliberately unmapped:** `cancelAnimationFrame` in `teardownOpenBindings()` has no falsifying row, because the only sequence that would exercise it dispatches Escape before `onKeydown` is bound and so closes nothing on either build. It is kept as stated defence-in-depth; Task 7 Step 1 records why, so nobody adds a row that appears to test it.
+**Four lines are deliberately unmapped**, and Task 6 Step 7 enumerates them with reasons: the empty-`currentSrc` guard, the `error` listener, the reveal-before-`place()` ordering, and `cancelAnimationFrame` in `teardownOpenBindings()`. Each is kept as stated defence-in-depth. Do not add rows that appear to test them — that is how a suite acquires assertions that cannot fail. (A fifth, the synchronous `complete && naturalWidth > 0` reveal, joins the list only if the Task 6 Step 2 spike shows `load` re-fires on a same-URL re-assignment.)
