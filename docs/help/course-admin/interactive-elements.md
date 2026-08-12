@@ -74,7 +74,15 @@ the next cell in that row to a header for students, even though the editor
 keeps showing it as a plain cell. A table can't be grown past 50 rows by 20
 columns; a table imported larger than that stays fully saveable as long as
 you don't try to make it even larger, but shrinking it back below the limit
-is one-way. Records no marks and reveals nothing.
+is one-way. Records no marks. Tick
+**Reveal the rest of this section when solved** to turn the
+table into a reveal gate: what follows it stays hidden until a student
+fills every answer cell correctly, and then appears — up to the next gate,
+if the section holds another one. Like the other gates (**Show more**,
+**Fill in & confirm**, **Choose & confirm**), the reveal also stops at the
+edge of whatever contains the table — inside a callout it reveals the rest
+of that callout and nothing beyond it. Two gated tables in a row chain: the
+first reveals the second, the second reveals what follows.
 
 ## {el:spoiler} Spoiler
 

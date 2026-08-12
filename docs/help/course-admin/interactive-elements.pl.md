@@ -87,7 +87,15 @@ edytor nadal pokazuje ją jako zwykłą komórkę. Tabeli nie można powiększy�
 ponad 50 wierszy na 20 kolumn; zaimportowana tabela większa niż ten limit
 pozostaje w pełni zapisywalna, dopóki nie spróbujesz powiększyć jej jeszcze
 bardziej, ale zmniejszenie jej poniżej limitu jest jednokierunkowe. Nie
-przyznaje punktów i niczego nie odsłania.
+przyznaje punktów. Zaznacz **Odsłoń resztę tej sekcji po rozwiązaniu**, aby
+zamienić tabelę w bramkę odsłaniającą: to, co znajduje się po niej,
+pozostaje ukryte, dopóki uczeń nie wypełni poprawnie każdej komórki z
+odpowiedzią, a potem się pojawia — aż do następnej bramki, jeśli sekcja
+zawiera kolejną. Podobnie jak w pozostałych bramkach (**Pokaż więcej**,
+**Uzupełnij i potwierdź**, **Wybierz i zatwierdź**) odsłanianie zatrzymuje
+się także na granicy elementu zawierającego tabelę — wewnątrz ramki odsłoni
+resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele tworzą
+łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
 
 ## {el:spoiler} Rozwijana treść
 
