@@ -1694,8 +1694,18 @@ def test_a_filter_swap_closes_a_pointer_opened_overlay(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_a_filter_swap_closes_a_focus_opened_overlay(page, live_server):
-    """The focus-opened variant is what discriminates connect-at-open from
-    connect-at-dwell-start: the focus path has no dwell to connect at."""
+    """A focus-opened overlay closes on a filter swap too -- but NOT because
+    of the MutationObserver. The swapped-out cell is the currently-FOCUSED
+    element, so detaching it fires a real `focusout` on root before/as part of
+    removal, and `openedBy() === "focus"` closes the overlay independently of
+    whether an observer is connected or when it connected. Measured directly:
+    this row stays green with the observer removed entirely, and green again
+    with it connected at dwell-start instead of at open. It does NOT
+    discriminate connect-at-open from connect-at-dwell-start -- that mutant
+    (10) currently has no row in this suite that can catch it. The
+    pointer-opened sibling below is what proves the observer matters (mutant
+    9); do not "fix" this row by synthesizing a mouseover to route it through
+    that path -- that would make it test something other than its name."""
     specs = [(f"znikam_{i}_0.png", (400, 300)) for i in range(24)]
     user, course = _seed_assets("fsf-pa", "fsf", *specs)
     _open_manager(page, live_server, "fsf-pa", course)
