@@ -984,14 +984,20 @@ Assertions at that size:
 - the **unit page** head at 390 wide on a quiz or additional unit — the chip's `top >=
   title_bottom - 1` and its `left` near the group's left edge. This is the chip-bearing half of the
   mobile rule, which `test_e2e_unit_head_layout.py` structurally cannot cover;
-- the **outline** page at 390 wide with a long unbroken / Polish title. "Stays within its box" is
-  too loose to assert — under the two-level overflow in §4 the anchor, the `li` and the viewport
-  disagree, and if the anchor sizes itself at min-content and overflows the `li`, the *content* is
-  still inside the *anchor* and a naive assertion passes on the broken build. Assert both:
-  `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1` **and**
-  `document.documentElement.scrollWidth === clientWidth`. These are the pins for
-  `.outline-unit__title`'s `min-width: 0` / `overflow-wrap: anywhere` **and** for the anchor's own
-  `min-width: 0`.
+- the **outline** page at 390 wide, with **two** marked rows, because the two CSS edits in §4 are
+  pinned by different content:
+  1. a long unbroken / Polish title — pins `.outline-unit__title`'s `overflow-wrap: anywhere`
+     (`break-word` would not lower the min-content contribution);
+  2. a long `\(…\)` **maths** title — pins the **anchor**'s own `min-width: 0` (`app.css:544`). This
+     row is not optional: `anywhere` already collapses a breakable title's minimum to ~1 character,
+     so on the plain-text row the anchor edit is inert and its mutant would be green. A `.katex`
+     inline-block is content `anywhere` cannot break, which is the only case that exercises it.
+
+  For both rows, "stays within its box" is too loose to assert — under the two-level overflow in §4
+  the anchor, the `li` and the viewport disagree, and if the anchor sizes itself at min-content and
+  overflows the `li`, the *content* is still inside the *anchor* and a naive assertion passes on the
+  broken build. Assert both: `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1`
+  **and** `document.documentElement.scrollWidth === clientWidth`.
 
 **Screenshots** (`tests/capture_unit_marker_screenshots.py`): both glyphs at rail size, both
 glyphs on a marked **drawer row** at 390×780, the outline row at rest / hover / `:target`, the
