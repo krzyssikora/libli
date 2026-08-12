@@ -616,14 +616,17 @@ def test_the_drag_warning_appears_only_for_a_drag_to_image_asset(page, live_serv
 
 @pytest.mark.django_db(transaction=True)
 def test_screenshots_light_and_dark(page, live_server, tmp_path):
-    """Four foot states at the grid's MINIMUM column width, both themes.
+    """Four foot states at the grid's 360px-viewport column width, both themes.
 
     Set User.theme, NOT the libli_theme cookie: an authed user's theme wins
     outright in _resolve_theme_pref, so the cookie route silently renders light.
 
-    360px viewport: .asset-grid is repeat(auto-fill, minmax(8rem, 1fr)), so a
-    narrow window is what actually pins columns at the 128px minimum where the
-    shrink and truncation rules bite. At desktop width they never engage.
+    360px viewport: .asset-grid is repeat(auto-fill, minmax(8rem, 1fr)), which
+    at this width renders two auto-fill columns WIDENED by 1fr to ~158px each
+    (measured in tests/test_zz_scratch_measure.py), not the 128px 8rem floor --
+    the floor is a minimum, not the rendered width. A narrow window is still
+    what makes the shrink and truncation rules bite; at desktop width they
+    never engage.
     """
     owner, course, unit, in_use = _seed("pa-repl-shots", "repl-shots")
     unused = make_image_asset(course, filename="nobody-uses-me.png", color="green")
@@ -690,3 +693,139 @@ def test_rename_prefills_the_untruncated_name(page, live_server):
     page.keyboard.press("Escape")
     assert value == long_name
     assert "…" not in value
+
+
+# Card width at the 360px viewport, measured via tests/test_zz_scratch_measure.py
+# (a throwaway spike, not committed): 158px. Two auto-fill 1fr columns, not the
+# minmax(8rem, 1fr) 128px floor -- see test_screenshots_light_and_dark's
+# corrected docstring below.
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_long_name_stays_inside_its_card(page, live_server):
+    """The reported bug: .asset-dname had NO truncation rule, so as a flex item
+    with min-width:auto it refused to shrink below the whole string's
+    min-content width and spilled under the next card, which painted over it.
+    """
+    user, course = _seed_assets(
+        "geo1-pa", "geo1", ("przykladowa_parabola_0_2.png", (400, 300))
+    )
+    _open_manager(page, live_server, "geo1-pa", course)
+    page.set_viewport_size({"width": 360, "height": 900})
+    rects = page.evaluate("""() => {
+        const s = document.querySelector('.asset-dname');
+        const r = document.createRange(); r.selectNodeContents(s);
+        return Array.from(r.getClientRects()).map(
+            x => ({right: x.right, bottom: x.bottom})
+        );
+    }""")
+    card = page.locator(".asset-cell").first.bounding_box()
+    assert rects, "no text runs measured"
+    for rect in rects:
+        assert rect["right"] <= card["x"] + card["width"] + 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_two_similar_names_each_paint_their_own_suffix_inside_the_card(
+    page, live_server
+):
+    """`:has-text()` is NOT an acceptable probe here -- it matches the element's
+    text CONTENT, which is unchanged when the text is merely clipped, so the
+    mutant would stay green. Measure the rect covering the suffix instead.
+
+    _seed_assets, NOT the file's _seed(): this row iterates EVERY .asset-cell
+    and compares the suffix set, so _seed's own `original.png` would add a third
+    cell (suffix "inal.png") and the row would be red on a correct build.
+    """
+    user, course = _seed_assets(
+        "geo2-pa",
+        "geo2",
+        ("przykladowa_parabola_0_1.png", (400, 300)),
+        ("przykladowa_parabola_0_2.png", (400, 300)),
+    )
+    _open_manager(page, live_server, "geo2-pa", course)
+    page.set_viewport_size({"width": 360, "height": 900})
+    painted = page.evaluate("""() => {
+        return Array.from(document.querySelectorAll('.asset-cell')).map(cell => {
+            const s = cell.querySelector('.asset-dname');
+            const text = s.textContent;
+            const start = text.length - 8;            // "_0_1.png"
+            const r = document.createRange();
+            r.setStart(s.firstChild, start);
+            r.setEnd(s.firstChild, text.length);
+            const rect = r.getBoundingClientRect();
+            const card = cell.getBoundingClientRect();
+            return {
+                suffix: text.slice(start),
+                inside: rect.width > 0 && rect.right <= card.right + 1
+                        && rect.bottom <= card.bottom + 1,
+            };
+        });
+    }""")
+    assert {p["suffix"] for p in painted} == {"_0_1.png", "_0_2.png"}
+    assert all(p["inside"] for p in painted)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_pencil_button_stays_on_the_first_line(page, live_server):
+    """Flex line breaking uses each item's HYPOTHETICAL main size, so with the
+    default flex-basis:auto the span's max-content width pushes the button onto
+    flex line 2. align-items cannot fix that -- it aligns WITHIN a line.
+
+    The fixture must wrap to at least two lines at the MEASURED card width
+    (Step 1): on a single-line name both mutants leave the button vertically
+    coincident with the span and this row passes on a broken build.
+    """
+    user, course = _seed_assets(
+        "geo3-pa", "geo3", ("przykladowa_parabola_0_2.png", (400, 300))
+    )
+    _open_manager(page, live_server, "geo3-pa", course)
+    page.set_viewport_size({"width": 360, "height": 900})
+    lines = page.evaluate("""() => {
+        const s = document.querySelector('.asset-dname');
+        const r = document.createRange(); r.selectNodeContents(s);
+        return r.getClientRects().length;
+    }""")
+    assert lines >= 2, "fixture does not wrap; the mutants cannot discriminate"
+    span = page.locator(".asset-dname").first.bounding_box()
+    # The pencil is opacity:0 until its cell is hovered (editor.css:725-726),
+    # so probe bounding_box() -- do NOT assert visibility.
+    pen = page.locator("[data-rename-asset]").first.bounding_box()
+    assert abs(pen["y"] - span["y"]) <= 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_32_char_name_clamps_to_three_lines(page, live_server):
+    """Resolves Step 7's clamp question: a <=32-char name CAN overflow three
+    lines at the measured 158px card width -- spiked in
+    tests/test_zz_scratch_measure.py (deleted, not committed) with this exact
+    32-char fixture. Without the clamp it wraps to 4 lines (scrollHeight ==
+    clientHeight == 86px); with it, the box holds at 3 (scrollHeight 86px >
+    clientHeight 65px). So the clamp is reachable in production, not just in
+    a synthetic test, and the four declarations stay.
+
+    `getClientRects()` does NOT discriminate here: the same spike measured 5
+    rects WITH the clamp and 4 WITHOUT it -- Blink lays out every wrapped line
+    and returns a rect for each regardless of `-webkit-line-clamp`, so
+    "exactly 3 rects" would be unfalsifiable. `scrollHeight > clientHeight`
+    is what actually separates a clamped box (client height pinned to 3
+    lines, scroll height taller) from an unclamped one (both grow together
+    and stay equal) -- mutant: drop `-webkit-line-clamp: 3`.
+
+    The fixture is exactly 32 characters -- middle_truncate's own budget -- so
+    the length assertion below is what would fail loudly if that budget ever
+    shrank under this test: below 32, middle_truncate would elide the middle
+    and the fixture would stop exercising the clamp for a different reason.
+    """
+    name = "mmmmmmmmmmmmmmmmmmmmmmmmmmmm.png"
+    assert len(name) == 32
+    user, course = _seed_assets("geo4-pa", "geo4", (name, (400, 300)))
+    _open_manager(page, live_server, "geo4-pa", course)
+    page.set_viewport_size({"width": 360, "height": 900})
+    rendered = page.evaluate("document.querySelector('.asset-dname').textContent")
+    assert rendered == name  # untouched by middle_truncate's budget
+    metrics = page.evaluate("""() => {
+        const s = document.querySelector('.asset-dname');
+        return {scrollHeight: s.scrollHeight, clientHeight: s.clientHeight};
+    }""")
+    assert metrics["scrollHeight"] > metrics["clientHeight"]
