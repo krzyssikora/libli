@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-11 02:00+0200\n"
+"POT-Creation-Date: 2026-08-12 11:31+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -502,53 +502,53 @@ msgstr ""
 "Komórka odpowiedzi jest pusta — wpisz akceptowaną odpowiedź lub zmień ją na "
 "zwykłą komórkę."
 
-#: .\courses\element_forms.py:1686
+#: .\courses\element_forms.py:1704
 msgid "A gallery needs a list of images."
 msgstr "Galeria musi zawierać listę obrazów."
 
-#: .\courses\element_forms.py:1690
+#: .\courses\element_forms.py:1708
 #, python-format
 msgid "A gallery needs at least %(n)d images."
 msgstr "Galeria musi zawierać co najmniej %(n)d obrazów."
 
-#: .\courses\element_forms.py:1695
+#: .\courses\element_forms.py:1713
 #, python-format
 msgid "A gallery is limited to %(n)d images."
 msgstr "Galeria jest ograniczona do %(n)d obrazów."
 
-#: .\courses\element_forms.py:1706
+#: .\courses\element_forms.py:1724
 msgid "A gallery image is not an image in this course."
 msgstr "Obraz galerii nie jest obrazem należącym do tego kursu."
 
-#: .\courses\element_forms.py:1782
+#: .\courses\element_forms.py:1800
 msgid "A tabs element needs a list of tabs."
 msgstr "Element zakładek wymaga listy zakładek."
 
-#: .\courses\element_forms.py:1785
+#: .\courses\element_forms.py:1803
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr "Element zakładek musi zawierać co najmniej %(n)d zakładek."
 
-#: .\courses\element_forms.py:1790
+#: .\courses\element_forms.py:1808
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr "Element zakładek jest ograniczony do %(n)d zakładek."
 
-#: .\courses\element_forms.py:1865
+#: .\courses\element_forms.py:1883
 #: .\templates\courses\manage\editor\_edit_twocolumn.html:8
 msgid "Number of columns"
 msgstr "Liczba kolumn"
 
-#: .\courses\element_forms.py:1918
+#: .\courses\element_forms.py:1936
 msgid "Add at least one step."
 msgstr "Dodaj co najmniej jeden krok."
 
-#: .\courses\element_forms.py:1921
+#: .\courses\element_forms.py:1939
 #, python-format
 msgid "A stepper can have at most %(n)d steps."
 msgstr "Sekwencja może mieć najwyżej %(n)d kroków."
 
-#: .\courses\element_forms.py:1975
+#: .\courses\element_forms.py:1993
 #, python-format
 msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr "Lista musi mieć od %(lo)s do %(hi)s pozycji."
@@ -876,73 +876,73 @@ msgctxt "image size"
 msgid "Full"
 msgstr "Pełny"
 
-#: .\courses\models.py:1614
+#: .\courses\models.py:1642
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr "Zakładki"
 
-#: .\courses\models.py:1615
+#: .\courses\models.py:1643
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr "Karuzela"
 
-#: .\courses\models.py:1624
+#: .\courses\models.py:1652
 msgctxt "tabs label position"
 msgid "Above"
 msgstr "Nad"
 
-#: .\courses\models.py:1625
+#: .\courses\models.py:1653
 msgctxt "tabs label position"
 msgid "Below"
 msgstr "Pod"
 
-#: .\courses\models.py:1626
+#: .\courses\models.py:1654
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr "Ukryta"
 
-#: .\courses\models.py:1930 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1958 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:1931
+#: .\courses\models.py:1959
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:1932
+#: .\courses\models.py:1960
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:2063
+#: .\courses\models.py:2091
 msgid "your answer, correct"
 msgstr "twoja odpowiedź, poprawna"
 
-#: .\courses\models.py:2064
+#: .\courses\models.py:2092
 msgid "your answer, incorrect"
 msgstr "twoja odpowiedź, niepoprawna"
 
-#: .\courses\models.py:2065
+#: .\courses\models.py:2093
 msgid "correct answer, not chosen"
 msgstr "poprawna odpowiedź, niewybrana"
 
-#: .\courses\models.py:2734
+#: .\courses\models.py:2762
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:2736
+#: .\courses\models.py:2764
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:2741
+#: .\courses\models.py:2769
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:2812
+#: .\courses\models.py:2840
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:2813
+#: .\courses\models.py:2841
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -2307,11 +2307,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:1443
+#: .\courses\views.py:1475
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1883
+#: .\courses\views.py:1915
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -5358,7 +5358,7 @@ msgid "Leave blank to use the default for this kind"
 msgstr "Pozostaw puste, aby użyć domyślnego nagłówka dla tego rodzaju"
 
 #: .\templates\courses\manage\editor\_edit_callout.html:17
-#: .\templates\courses\manage\editor\_edit_filltable.html:47
+#: .\templates\courses\manage\editor\_edit_filltable.html:48
 #: .\templates\courses\manage\editor\_edit_gallery.html:22
 #: .\templates\courses\manage\editor\_edit_spoiler.html:11
 #: .\templates\courses\manage\editor\_edit_table.html:38
@@ -5368,7 +5368,7 @@ msgid "Bold"
 msgstr "Pogrubienie"
 
 #: .\templates\courses\manage\editor\_edit_callout.html:18
-#: .\templates\courses\manage\editor\_edit_filltable.html:48
+#: .\templates\courses\manage\editor\_edit_filltable.html:49
 #: .\templates\courses\manage\editor\_edit_gallery.html:23
 #: .\templates\courses\manage\editor\_edit_spoiler.html:12
 #: .\templates\courses\manage\editor\_edit_table.html:39
@@ -5378,7 +5378,7 @@ msgid "Italic"
 msgstr "Kursywa"
 
 #: .\templates\courses\manage\editor\_edit_callout.html:19
-#: .\templates\courses\manage\editor\_edit_filltable.html:49
+#: .\templates\courses\manage\editor\_edit_filltable.html:50
 #: .\templates\courses\manage\editor\_edit_gallery.html:24
 #: .\templates\courses\manage\editor\_edit_spoiler.html:13
 #: .\templates\courses\manage\editor\_edit_table.html:40
@@ -5444,7 +5444,7 @@ msgid "Code"
 msgstr "Kod"
 
 #: .\templates\courses\manage\editor\_edit_callout.html:32
-#: .\templates\courses\manage\editor\_edit_filltable.html:53
+#: .\templates\courses\manage\editor\_edit_filltable.html:54
 #: .\templates\courses\manage\editor\_edit_spoiler.html:26
 #: .\templates\courses\manage\editor\_edit_table.html:44
 #: .\templates\courses\manage\editor\_edit_text.html:19
@@ -5452,7 +5452,7 @@ msgid "Align left"
 msgstr "Wyrównaj do lewej"
 
 #: .\templates\courses\manage\editor\_edit_callout.html:33
-#: .\templates\courses\manage\editor\_edit_filltable.html:54
+#: .\templates\courses\manage\editor\_edit_filltable.html:55
 #: .\templates\courses\manage\editor\_edit_spoiler.html:27
 #: .\templates\courses\manage\editor\_edit_table.html:45
 #: .\templates\courses\manage\editor\_edit_text.html:20
@@ -5460,7 +5460,7 @@ msgid "Align center"
 msgstr "Wyśrodkuj"
 
 #: .\templates\courses\manage\editor\_edit_callout.html:34
-#: .\templates\courses\manage\editor\_edit_filltable.html:55
+#: .\templates\courses\manage\editor\_edit_filltable.html:56
 #: .\templates\courses\manage\editor\_edit_spoiler.html:28
 #: .\templates\courses\manage\editor\_edit_table.html:46
 #: .\templates\courses\manage\editor\_edit_text.html:21
@@ -5578,7 +5578,7 @@ msgid "Why this option is wrong (shown if the student picks it)"
 msgstr "Dlaczego ta opcja jest błędna (pokazywane, jeśli uczeń ją wybierze)"
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:44
-#: .\templates\courses\manage\editor\_edit_filltable.html:50
+#: .\templates\courses\manage\editor\_edit_filltable.html:51
 #: .\templates\courses\manage\editor\_edit_gallery.html:25
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:14
 #: .\templates\courses\manage\editor\_edit_table.html:41
@@ -5707,20 +5707,20 @@ msgid "Delete column"
 msgstr "Usuń kolumnę"
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:17
-#: .\templates\courses\manage\editor\_edit_filltable.html:101
-#: .\templates\courses\manage\editor\_edit_filltable.html:107
+#: .\templates\courses\manage\editor\_edit_filltable.html:102
+#: .\templates\courses\manage\editor\_edit_filltable.html:108
 msgid "Accepted answer"
 msgstr "Zaakceptowana odpowiedź"
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:20
-#: .\templates\courses\manage\editor\_edit_filltable.html:78
+#: .\templates\courses\manage\editor\_edit_filltable.html:79
 #: .\templates\courses\manage\editor\_edit_table.html:15
 #: .\templates\courses\manage\editor\_edit_table.html:70
 msgid "Merge cells"
 msgstr "Scal komórki"
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:21
-#: .\templates\courses\manage\editor\_edit_filltable.html:82
+#: .\templates\courses\manage\editor\_edit_filltable.html:83
 #: .\templates\courses\manage\editor\_edit_table.html:16
 #: .\templates\courses\manage\editor\_edit_table.html:74
 msgid "Header cell"
@@ -5795,43 +5795,47 @@ msgstr "Instrukcja (opcjonalnie)"
 msgid "e.g. Fill in the missing words."
 msgstr "np. Uzupełnij brakujące słowa."
 
-#: .\templates\courses\manage\editor\_edit_filltable.html:58
+#: .\templates\courses\manage\editor\_edit_filltable.html:44
+msgid "Reveal the rest of this section when solved"
+msgstr "Odsłoń resztę tej sekcji po rozwiązaniu"
+
+#: .\templates\courses\manage\editor\_edit_filltable.html:59
 #: .\templates\courses\manage\editor\_edit_table.html:49
 msgid "Align top"
 msgstr "Wyrównaj do góry"
 
-#: .\templates\courses\manage\editor\_edit_filltable.html:59
+#: .\templates\courses\manage\editor\_edit_filltable.html:60
 #: .\templates\courses\manage\editor\_edit_table.html:50
 msgid "Align middle"
 msgstr "Wyśrodkuj w pionie"
 
-#: .\templates\courses\manage\editor\_edit_filltable.html:60
+#: .\templates\courses\manage\editor\_edit_filltable.html:61
 #: .\templates\courses\manage\editor\_edit_table.html:51
 msgid "Align bottom"
 msgstr "Wyrównaj do dołu"
 
-#: .\templates\courses\manage\editor\_edit_filltable.html:63
+#: .\templates\courses\manage\editor\_edit_filltable.html:64
 msgid "Answer cell"
 msgstr "Komórka z odpowiedzią"
 
-#: .\templates\courses\manage\editor\_edit_filltable.html:65
+#: .\templates\courses\manage\editor\_edit_filltable.html:66
 #: .\templates\courses\manage\editor\_edit_table.html:55
 msgid "Image cell"
 msgstr "Komórka z obrazem"
 
-#: .\templates\courses\manage\editor\_edit_filltable.html:68
 #: .\templates\courses\manage\editor\_edit_filltable.html:69
+#: .\templates\courses\manage\editor\_edit_filltable.html:70
 #: .\templates\courses\manage\editor\_edit_table.html:58
 #: .\templates\courses\manage\editor\_edit_table.html:59
 msgid "Image description (alt)"
 msgstr "Opis obrazu (tekst alternatywny)"
 
-#: .\templates\courses\manage\editor\_edit_filltable.html:71
+#: .\templates\courses\manage\editor\_edit_filltable.html:72
 #: .\templates\courses\manage\editor\_edit_table.html:61
 msgid "Image size"
 msgstr "Rozmiar obrazu"
 
-#: .\templates\courses\manage\editor\_edit_filltable.html:80
+#: .\templates\courses\manage\editor\_edit_filltable.html:81
 #: .\templates\courses\manage\editor\_edit_table.html:72
 msgid "Split cell"
 msgstr "Rozdziel komórkę"
