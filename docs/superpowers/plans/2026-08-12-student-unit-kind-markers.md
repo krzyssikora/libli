@@ -58,7 +58,8 @@ spec's bullet there would run a mutant that stays green and halt the task under 
 - Test: `tests/test_unit_marker.py` (create)
 
 **Interfaces:**
-- Consumes: `ContentNode`, `is_quiz_unit` — both already in `courses/rollups.py`.
+- Consumes: `ContentNode`, `is_quiz_unit` (`courses/rollups.py:166-171`) and `is_obligatory_lesson`
+  (`:156`) — the latter only in the docstring's reasoning and in Step 6's second mutant.
 - Produces: `courses.rollups.MARKER_NONE | MARKER_QUIZ | MARKER_ADDITIONAL` (str constants); `unit_marker(node) -> str`; `marker_label(marker: str) -> str` (a lazy proxy or `""`). Template filter `unit_marker`, simple tag `marker_label` — both used by every later task.
 
 - [ ] **Step 1: Write the failing test**
@@ -744,9 +745,13 @@ that `btns` is non-empty.
 
 **That guard must `assert`, and the `page.evaluate` must be changed to make one possible.** `btns` is
 a `const` local inside the `evaluate` at `~:478-503`, which currently returns a bare boolean — there
-is no Python-side value to assert on. Change it to return a shape, e.g.
-`{overlap, kx: kx.length, btns: btns.length}`, and on the Python side assert `result["btns"] > 0`
-**and** `result["kx"] > 0` before recording the measurement. The existing `overlap` result is only
+is no Python-side value to assert on. Change it to return a shape that counts the **new** selector separately, e.g.
+`{overlap, kx: kx.length, btns: btns.length, kinds: document.querySelectorAll('[data-unit-drawer] .unit-drawer__list .unit-kind').length}`,
+and on the Python side assert **`result["kinds"] > 0`**. Do **not** guard on `btns > 0`: `btns`
+already contains `[data-unit-drawer] .unit-drawer__close`, which `_unit_shell.html:36` renders
+unconditionally, so it is `>= 1` on every build — including one where the seed fix was forgotten and
+no `.unit-kind` rendered at all. `kx > 0` is likewise already guaranteed by the
+`page.wait_for_selector` at `:470`. The existing `overlap` result is only
 pushed onto `measurements` (~:490-505) — it asserts nothing — so a silently-empty `btns` reads as
 success. Also
 note `tests/helpers_title_math.py` hardcodes `obligatory=True` at `:72`, `:81`, `:90` and `:133`;
@@ -789,6 +794,8 @@ git commit -m "feat(courses): mark unit kinds in the contents rail and mobile dr
 - Modify: `templates/courses/_lesson_article.html`, `templates/courses/_quiz_article.html`
 - Modify: `courses/static/courses/css/courses.css` (two rules after `:834-835`; one inside the `@media` block beside `:986`)
 - Modify: `tests/test_e2e_uniform_block_width.py`, `tests/test_e2e_unit_nav.py`, `tests/test_quiz_previewer_render.py`
+- Modify (Step 5b): `tests/test_title_math_markers.py`, and `tests/helpers_title_math.py` if its
+  `obligatory=True` sites need parameterising
 - Test: `tests/test_unit_marker.py` (append)
 
 **Interfaces:**
@@ -994,7 +1001,7 @@ match.** The file has two tests with four assertions each: the phone test
 | Mutant | Must redden |
 | --- | --- |
 | Put the `{% include %}` inside the `<h1>` | the `data-math-title` sibling assertion, both templates |
-| Delete the mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` | the **new phone unit-page arm in Task 7 Step 3** (chip-bearing, short title). **NOT** `test_e2e_unit_head_layout.py`: its `_seed` uses a long `LONG_TITLE` (`:25`), so with the rule deleted the group's basis-`auto` hypothetical size still exceeds the 390px line and `.lesson-unit__head`'s pre-existing `flex-wrap` (`courses.css:985`) still drops the pill to row two — both its phone assertions stay green on the mutated build |
+| _(deferred — do not run here)_ the mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` | **Task 7 Step 5 row 9 owns this run.** The only test that can see it is the phone unit-page arm, which Task 7 Step 3 creates — it does not exist yet, so running the mutant now leaves everything green and halts the task. Not `test_e2e_unit_head_layout.py` either: its `_seed` uses a long `LONG_TITLE` (`:25`), so with the rule deleted the group's basis-`auto` hypothetical size still exceeds the 390px line and `.lesson-unit__head`'s pre-existing `flex-wrap` (`courses.css:985`) still drops the pill to row two |
 
 The `flex: 0 1 auto` reset and the group's `flex: 1 1 auto` are falsified by the Task 7 e2e (they need geometry, which DOM-containment tests cannot see).
 
@@ -1003,7 +1010,8 @@ The `flex: 0 1 auto` reset and the group's `flex: 1 1 auto` are falsified by the
 ```bash
 uv run ruff check --no-cache tests/test_unit_marker.py tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_nav.py tests/test_title_math_markers.py tests/helpers_title_math.py
 uv run ruff format --check tests/test_unit_marker.py tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_nav.py tests/test_title_math_markers.py tests/helpers_title_math.py
-git add templates/courses/_lesson_article.html templates/courses/_quiz_article.html courses/static/courses/css/courses.css tests/test_unit_marker.py tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_nav.py tests/test_quiz_previewer_render.py
+git add templates/courses/_lesson_article.html templates/courses/_quiz_article.html   courses/static/courses/css/courses.css tests/test_unit_marker.py   tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_nav.py   tests/test_title_math_markers.py tests/helpers_title_math.py
+# tests/test_quiz_previewer_render.py: add ONLY if it actually changed (expected: unchanged)
 git commit -m "feat(courses): mark the unit kind on the unit page; repair the two cap pins"
 ```
 
@@ -1115,7 +1123,10 @@ marked units, because three arms need title shapes the others cannot supply:
 
 - `short_unit` — title measurably narrower than the row's content box (the rail-gutter guard, and the
   desktop unit-page short-title arm).
-- `long_unit` — a long **multi-word** title (the rail-gutter comparison's other half).
+- `long_unit` — a long **multi-word** title, and **measured wider than 736px when rendered as an
+  `<h1>`** so it also serves Task 7 Step 2's cap-length row and the "`flex-wrap: wrap` added at
+  desktop" mutant (both depend on `736 + 12 + ~78 > ~746`). Guard it: assert the uncapped `<h1>`
+  width `>= 740`, the same bound Task 5's repair uses.
 - `quiz_unit` — for the quiz-side unit-page arms.
 - `maths_unit` — `obligatory=False`, title **`capture_title_math_screenshots.TITLES["long"]`**, the
   long maths title the existing audit actually measured. `TITLES` is a plain module-level dict
@@ -1183,10 +1194,11 @@ Both must sit on the **short-title** row: with a cap-length title the group's ba
   page renders the tree twice. Three requirements, none optional:
   1. **Fixture-validity guard first**: assert at least one `[data-unit-drawer-list] .unit-kind` has a
      non-`None` box **before** the intersection loop. Without it the loop iterates an empty list and
-     is green on every build - and that is the default outcome, because
-     `tests/helpers_title_math.py` hardcodes `obligatory=True` at `:72`, `:81`, `:90`, `:133`.
-  2. Seed a **marked** unit carrying a maths title (flip one of those sites, or seed the maths title
-     on a quiz).
+     is green on every build — and an empty list is the *default* outcome, since a
+     default-`obligatory` seed renders no marker at all.
+  2. Drive **`maths_unit`** from `_seed_marked_group` (Step 0) — `obligatory=False`, titled
+     `capture_title_math_screenshots.TITLES["long"]`. `tests/helpers_title_math.py` plays no part in
+     this file; do not edit it here (it is not in Task 7's Files list or its `git add`).
   3. **Expected outcome: no intersection.** If it *does* intersect, that is a design change, not a
      test tweak - the remedy is containment on the drawer label's maths (the `max-width`/`overflow`
      shape `courses.css:1685` applies to tab labels) or moving the marker. Do not widen the
@@ -1204,7 +1216,7 @@ uv run pytest -m e2e tests/test_e2e_unit_nav.py -v
 
 Windows note: a backgrounded pytest is reaped by the harness mid-run. Use `Start-Process` and poll the PID, and **grep the summary line** — a backgrounded run has reported exit 0 with `1 failed`.
 
-- [ ] **Step 5: Falsify - eight mutants, TEN runs**
+- [ ] **Step 5: Falsify - nine mutants, ELEVEN runs**
 
 The un-hide row below is **three separate runs** (deletion, partial revert, mis-scoped). Do not read
 the row count as the run count - that is exactly how the sole additive mutant gets skipped.
@@ -1215,9 +1227,11 @@ the row count as the run count - that is exactly how the sole additive mutant ge
 | `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }` deleted | the **short-title** chip-position assertion (not the cap-length one) |
 | `.lesson-unit__heading`'s `flex: 1 1 auto` deleted | the pill-position assertion |
 | `flex-wrap: wrap` **added** to the group at desktop | the cap-length not-wrapped assertion |
-| The `.unit-drawer__list .unit-kind__label` un-hide deleted — **and separately** the partial revert (`position: static` only), and separately placing the block outside the media query | the 30×8 assertion (first two); the desktop rail ≤2×2 assertion (third) |
+| The `.unit-drawer__list .unit-kind__label` un-hide deleted — **and separately** the partial revert (`position: static` only) | the 30×8 assertion |
+| The un-hide rule **de-scoped AND moved outside** the `@media (max-width: 640px)` block — both changes at once | the desktop rail ≤2×2 assertion. **Neither half alone works**: keeping the scope but moving the block matches nothing with a box (the rail's list is `unit-tree__list`, `_unit_tree.html:11`, and `.unit-drawer` is `display: none` at desktop, `:946`); dropping the scope but staying in the media query is inert because `:950` hides the rail at ≤640px. Running either alone leaves everything green and halts the task |
 | `.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0 }` **added** | the marker-width assertion. This is the list's only **additive** mutant and its sole catcher — the 30×8 and gap assertions both stay green under it |
 | `overflow-wrap` **removed entirely** (→ `normal`) from `.outline-unit__title` | the outline `title.scrollWidth` assertion |
+| The mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` deleted (deferred here from Task 5 Step 7, which has no test that can see it) | the **phone unit-page arm** in Step 3 |
 | `gap: var(--space-1)` deleted from `.unit-kind` | the drawer row's glyph-to-word gap assertion (4px → 0px; a flex container drops whitespace-only text between items, so the delta is clean). **Not** `display: inline-flex`, whose removal substitutes a ~4px rendered space that lands inside tolerance |
 
 **Do not** falsify `anywhere` → `break-word` (pixel-identical with `min-width: 0` co-applied), the drawer `overflow-wrap` (inert at ~230px), either `min-width: 0` (inert with `anywhere` present), or dropping the `.unit-drawer__list` selector while the block stays inside the media query (inert — `courses.css:950` hides the rail at ≤640px). Each would be green on the "broken" build.
@@ -1295,10 +1309,22 @@ their own authoring time (the grep finds eight such hits in
 `docs/superpowers/plans/2026-08-10-latex-in-unit-titles.md` alone), and "correcting" them falsifies
 the record.
 
+**Also do the two things Task 4 deferred to this step:**
+
+1. **The maths-audit citation block** (`courses.css:2310-2350`). Re-derive **every** number with
+   `grep -n` now that all CSS insertions have landed — the figures Task 4 tabulated
+   (`:755`→789, `:702-704`→736-738, `:943`→977, `:778`→812, `:848`→882, `:903-907`→939-941) were
+   pre-change and have shifted again since. Add `.unit-kind` to the audited sibling list.
+2. **The drawer column figure.** Replace the comment's `~98px` claim (the *rail's* number, per
+   `:730`) with the **measured** `.unit-tree__label` width Task 7's phone drawer arm reported on a
+   marked row — not a derived one.
+
 Known hits at time of writing, per file: `test_title_math_filter.py:123` cites `:15` and `:131`
 cites `:25`; `test_title_math_markers.py:119` cites `:60`. Note **`:15` does not move** — inserting
-*after* it leaves `span.unit-tree__label` in place — so do not "fix" that one. Rely on the grep
-rather than this list. There is no `_unit_tree_node.html:22` citation anywhere in the repo; that
+*after* it leaves `span.unit-tree__label` in place — so do not "fix" that one. Rely on the grep rather than this list — **with one exception the grep cannot
+find**: `test_title_math_markers.py:159` carries a bare `:60` back-reference ("the childless branch
+at `:60` has no title= at all") with no filename prefix, on the line after the
+`_unit_tree_node.html:25` hit. Both move (`:25`→`:26`, `:60`→`:61`). There is no `_unit_tree_node.html:22` citation anywhere in the repo; that
 figure appears only in the spec's prose, so nothing to refresh there.
 
 - [ ] **Step 3: Branch gate — the full suite**
@@ -1325,8 +1351,9 @@ Several tests in this repo regex-match raw CSS/template source (`test_unit_tree_
 - [ ] **Step 5: Commit**
 
 ```bash
-git add tests/capture_unit_marker_screenshots.py tests/test_title_math_markers.py
-git commit -m "test: unit-marker screenshots; note the marker in the maths-title exclusions"
+git add tests/capture_unit_marker_screenshots.py tests/test_title_math_markers.py \
+  tests/test_title_math_filter.py courses/static/courses/css/courses.css
+git commit -m "test: unit-marker screenshots; refresh the maths-audit citations and column figure"
 ```
 
 ---
