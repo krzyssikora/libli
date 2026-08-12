@@ -93,7 +93,7 @@ pozostaje ukryte, dopóki uczeń nie wypełni poprawnie każdej komórki z
 odpowiedzią, a potem się pojawia — aż do następnej bramki, jeśli sekcja
 zawiera kolejną. Podobnie jak w pozostałych bramkach (**Pokaż więcej**,
 **Uzupełnij i potwierdź**, **Wybierz i zatwierdź**) odsłanianie zatrzymuje
-się także na granicy elementu zawierającego tabelę — wewnątrz ramki odsłoni
+się także na granicy elementu zawierającego tabelę — wewnątrz ramki odsłania
 resztę tej ramki i nic poza nią. Dwie kolejne bramkowane tabele tworzą
 łańcuch: pierwsza odsłania drugą, druga odsłania to, co następuje po niej.
 

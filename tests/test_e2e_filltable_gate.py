@@ -1,6 +1,6 @@
 """Fill-in table reveal gate, end to end.
 
-Fixtures are TOP-LEVEL (slide-scope) throughout -- see the trap list below.
+Fixtures are TOP-LEVEL (slide-scope) throughout.
 """
 
 import os
@@ -44,6 +44,15 @@ def _allow_async_unsafe():
 
 
 _ANSWER = "4"
+# Module-level and mutable. _seed() calls obj.save(), which runs
+# FillTableElement._sanitized_data and rewrites cell dicts IN PLACE
+# (cell["html"] = sanitize_cell(...), cell["answer"] = a.strip()). Every
+# element seeded from _CELLS shares these same dicts, so this is safe only
+# because the values above are sanitiser fixed points (idempotent under that
+# rewrite). If a test ever needs unsanitised HTML or a padded/pipe-delimited
+# answer, make this a zero-arg factory (def _cells(): return [[...]]) instead
+# -- otherwise the first save() silently rewrites the fixture for every
+# later test in the file.
 _CELLS = [[{"kind": "static", "html": "x"}, {"kind": "answer", "answer": _ANSWER}]]
 
 

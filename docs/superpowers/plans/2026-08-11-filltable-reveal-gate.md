@@ -2492,6 +2492,13 @@ Find `Reveal the rest of this section when all cells are correct` in `locale/pl/
 
 If a `#, fuzzy` marker is present, clearing it takes **two** deletions — the marker line *and* the bogus `msgstr`:
 
+**⚠️ SUPERSEDED:** Task 6 shortened the label after measuring the editor
+row wrapping (authorized by its own step text). The strings that actually
+shipped are msgid `Reveal the rest of this section when solved` / msgstr
+`Odsłoń resztę tej sekcji po rozwiązaniu`. The `.po` block below is
+retained as historical plan text only — it carries the abandoned wording
+and must not be pasted.
+
 ```po
 #: templates/courses/manage/editor/_edit_filltable.html:39
 msgid "Reveal the rest of this section when all cells are correct"
