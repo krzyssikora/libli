@@ -163,11 +163,17 @@ def test_grow_add_children_shrink_and_student_view(page, live_server):
     rows = _columns_rows(page)
     assert rows.count() == 3
 
-    # --- 2. Add a distinct text child into column 1 (open by default) ... ---
-    _add_text_child(page, rows.nth(0), "Alpha text")
+    # --- 2. Add a distinct text child into column 1 ... ---
+    # EVERY column now starts collapsed -- no column is privileged -- so column 1
+    # needs the same summary click column 3 does. A closed <details> keeps its
+    # children in the DOM but content-visibility makes them unclickable, so the
+    # add-menu inside it is unreachable until it is open.
+    col1 = rows.nth(0)
+    col1.locator("summary").click()
+    _add_text_child(page, col1, "Alpha text")
     _wait_columns_state(page, [1, 0, 0])
 
-    # ... and into column 3 (closed by default -- open it first via its summary).
+    # ... and into column 3 (open it first via its summary, likewise).
     rows = _columns_rows(page)
     col3 = rows.nth(2)
     col3.locator("summary").click()

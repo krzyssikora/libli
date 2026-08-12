@@ -1997,9 +1997,17 @@ def _render_open_form(
     status=200,
     parent="",
     tab="",
+    open_slots=None,
 ):
     """Render the host <form> wrapping a per-type editor partial, then the full editor
     scope with that form embedded in the form host.
+
+    `open_slots` must be supplied by every caller whose form belongs to a NESTED
+    element. This renderer answers with the whole element pane, so the <details>
+    open-state is re-decided from scratch on each call; without the set the pane
+    falls back to its own defaults and the form that was just opened is left inside
+    a collapsed container -- the author clicks Edit and the row they were editing
+    disappears.
 
     `parent`/`tab` are only meaningful on a nested CREATE: they round-trip as hidden
     fields so scope survives the two-hop element_add -> element_save create, and
@@ -2122,6 +2130,7 @@ def _render_open_form(
         open_form=form_html,
         open_form_pk=str(element_pk),
         refresh=False,
+        open_slots=open_slots,
     )
 
 
@@ -2202,7 +2211,36 @@ def element_add(request, slug):
         initial=initial,
         parent=str(parent_join.pk) if parent_join else "",
         tab=tab_id,
+        # There is no row yet, so the open-set comes from the SCOPE the author
+        # picked. resolve_scope has already validated the pair above.
+        open_slots=builder_svc.scope_slots(parent_join, tab_id),
     )
+
+
+def _slots_for_failed_save(unit, type_key, element_ref, post_data):
+    """The open-set for re-rendering a save that did NOT complete (the 422).
+
+    Has to work from POST alone. On an UPDATE the row is still there, untouched, so
+    this answers exactly as the success path does. On a CREATE there is no row at all
+    -- @transaction.atomic rolled the whole attempt back -- so the scope is
+    re-resolved from the hidden fields the host form round-trips.
+
+    That re-resolution is guarded because it has NOT been validated in this request:
+    save_element raises ElementFormInvalid from its form check, which sits BEFORE its
+    resolve_scope call, so unlike the element_add path this pair reaches us unchecked.
+    A bad pair costs the author only the open-set (the 422 itself still renders);
+    letting NestingError escape would turn their typo into a 500.
+    """
+    if element_ref != "new":
+        el = Element.objects.filter(pk=element_ref, unit=unit).first()
+        return builder_svc.ancestor_slots(el) if el is not None else set()
+    try:
+        parent_join, tab_id = builder_svc.resolve_scope(
+            unit, post_data.get("parent"), post_data.get("tab"), type_key
+        )
+    except builder_svc.NestingError:
+        return set()
+    return builder_svc.scope_slots(parent_join, tab_id)
 
 
 @login_required
@@ -2247,7 +2285,7 @@ def element_save(request, slug):
     element_ref = request.POST.get("element", "new")
     unit_pk = request.POST.get("unit")
     try:
-        unit = builder_svc.save_element(
+        unit, join = builder_svc.save_element(
             course, unit_pk, type_key, element_ref, request.POST, request.FILES
         )
     except builder_svc.ConflictError:
@@ -2282,10 +2320,21 @@ def element_save(request, slug):
             status=422,
             parent=request.POST.get("parent", "") if is_create else "",
             tab=request.POST.get("tab", "") if is_create else "",
+            # A 422 needs the open-set as much as a 200 does: the form carrying the
+            # error message is INSIDE the container, so re-rendering on the pane's
+            # defaults collapses the only thing the author needs to read.
+            open_slots=_slots_for_failed_save(
+                unit, type_key, element_ref, request.POST
+            ),
         )
     if not _wants_fragment(request):
         return redirect(_editor_path(course, unit))
-    return _render_editor_fragments(request, unit)
+    # Keep the saved element's containers open. Without this the edit-open fix above
+    # would be undone by the author's very next Save: the column reopens on the click
+    # and shuts again the moment the form is submitted.
+    return _render_editor_fragments(
+        request, unit, open_slots=builder_svc.ancestor_slots(join)
+    )
 
 
 def _editor_path(course, unit):
@@ -2342,6 +2391,11 @@ def element_form(request, slug, pk):
         form=form,
         formset=formset,
         formset2=formset2,
+        # Hold every container ABOVE this element open. Opening a form is the one
+        # editor gesture whose whole point is a specific row, so re-rendering the
+        # pane on its container defaults is what made "click Edit in column 2 and
+        # the column shuts" the reported bug.
+        open_slots=builder_svc.ancestor_slots(el),
     )
 
 

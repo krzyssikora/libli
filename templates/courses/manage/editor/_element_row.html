@@ -129,7 +129,16 @@
   {% endcomment %}
   <div class="el-row__columns">
     {% for column, children in obj.resolved_columns %}
-      <details class="columns-rows" data-column-id="{{ column.id }}"{% if el.pk|slot_key:column.id|in_set:open_slots %} open data-force-open{% elif clip_active %} open data-force-open{% elif forloop.first %} open{% endif %}>
+      {% comment %}
+      No `forloop.first` default here, UNLIKE the tabs branch at :82. Columns are a
+      side-by-side pair (2..4 of them), not a stack with a natural front one, so
+      privileging column 1 made it permanently expanded and every other column
+      permanently shut -- the author's own column collapsed under them on every
+      op. All columns start shut and are opened by exactly three things: the
+      open-set (the slot being authored in), a pending clipboard mark, and the
+      author's stored per-column preference re-applied by editor.js.
+      {% endcomment %}
+      <details class="columns-rows" data-column-id="{{ column.id }}"{% if el.pk|slot_key:column.id|in_set:open_slots %} open data-force-open{% elif clip_active %} open data-force-open{% endif %}>
         <summary class="columns-rows__summary">{% blocktrans with n=forloop.counter %}Column {{ n }}{% endblocktrans %} <span class="columns-rows__count">{{ children|length }}</span></summary>
         <ol class="element-list element-list--nested">
           {% for child in children %}

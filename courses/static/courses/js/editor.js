@@ -25,35 +25,77 @@
   // Re-run after every fragment swap: KaTeX preview render + MathLive/RTE surface mount
   // for any open editor form. (Media picker self-wires via delegated listeners on .editor
   // in media_picker.js, so it survives swaps without re-init here.)
-  // Which editor tab <details> are open is CLIENT state the server never knows: the
-  // template always re-opens the first tab, so both a fragment rebuild AND a full page
-  // refresh would snap the author's choice back. Persist it in localStorage keyed by
-  // (element pk, tab id) -- the pk is globally unique, so no unit scoping is needed --
-  // and re-apply it after every swap and on initial load. A tab with no stored entry
-  // (never toggled, or a brand-new element) keeps the template's first-open default.
-  function tabStoreKey(details) {
-    var row = details.closest(".el-row--tabs");
+  // Which container <details> are open is CLIENT state the server never knows: the
+  // template decides the open-state fresh on every render, so both a fragment rebuild
+  // AND a full page refresh would snap the author's choice back. Persist it in
+  // localStorage keyed by (element pk, slot id) -- the pk is globally unique, so no
+  // unit scoping is needed -- and re-apply it after every swap and on initial load. A
+  // slot with no stored entry (never toggled, or a brand-new element) keeps whatever
+  // the template rendered.
+  //
+  // BOTH container kinds, tabs rows and columns rows. Columns were left out when this
+  // was written and so had no memory at all: the author expanded column 2, clicked
+  // Edit inside it, and the rebuilt pane put it straight back to shut.
+  var SLOT_DETAILS = "details.tabs-rows, details.columns-rows";
+  function slotStoreKey(details) {
+    // Nearest element row, which for either kind is the container's OWN row -- a
+    // <details> here is a child of that row and of nothing else in between. Keyed on
+    // .el-row rather than on .el-row--tabs so one function serves both branches, and
+    // so a container nested inside another container still keys on itself.
+    var row = details.closest(".el-row[data-element]");
+    // "tabopen" is now a misnomer for half the keys, and stays anyway: renaming the
+    // prefix would orphan every tab preference the authors have already stored.
     return "libli:tabopen:" + (row ? row.getAttribute("data-element") : "?") +
-      ":" + details.getAttribute("data-tab-id");
+      ":" + (details.getAttribute("data-tab-id") || details.getAttribute("data-column-id"));
   }
-  function saveTab(details) {
-    try { localStorage.setItem(tabStoreKey(details), details.open ? "1" : "0"); }
+  function saveSlot(details) {
+    try { localStorage.setItem(slotStoreKey(details), details.open ? "1" : "0"); }
     catch (e) { /* localStorage unavailable (private mode) -> in-session only */ }
   }
-  function applyStoredTabs(scope) {
-    (scope || root).querySelectorAll('[data-scope="editor"] details.tabs-rows, details.tabs-rows')
+  function applyStoredSlots(scope) {
+    (scope || root).querySelectorAll(SLOT_DETAILS)
       .forEach(function (d) {
         // A server-forced-open container ignores the stored preference. Without
-        // this, the server renders the destination tab open and we immediately
-        // re-collapse it, so a just-duplicated element is born invisible. The
-        // author's toggle is still RECORDED by saveTab and takes effect again as
+        // this, the server renders the destination slot open and we immediately
+        // re-collapse it, so a just-duplicated element is born invisible -- and the
+        // form the author just opened would be hidden by their own stale collapse.
+        // The author's toggle is still RECORDED by saveSlot and takes effect again as
         // soon as the force-open stops being rendered.
         if (d.hasAttribute("data-force-open")) return;
         var v;
-        try { v = localStorage.getItem(tabStoreKey(d)); } catch (e) { v = null; }
+        try { v = localStorage.getItem(slotStoreKey(d)); } catch (e) { v = null; }
         if (v !== null) d.open = v === "1";
       });
   }
+  // Which tab a PREVIEW tabs element is showing is client state too, but of a
+  // different kind from the editor <details> above: it is "what am I looking at right
+  // now", not a stored preference. So it is carried across the swap in memory and
+  // never written to localStorage -- a student's tabs element must still open on its
+  // first tab, and a full page refresh legitimately starts over.
+  //
+  // Needed because applyFragments REPLACES the whole preview pane, destroying the
+  // node that held tabs.js's active-tab state. Keyed on data-tabs-eid (the join row
+  // pk), so a tabs element nested inside another restores independently.
+  function captureActiveTabs() {
+    var map = {};
+    root.querySelectorAll('[data-scope="preview"] [data-tabs][data-tabs-eid]')
+      .forEach(function (c) {
+        var active = c.getAttribute("data-tabs-active");
+        if (active) map[c.getAttribute("data-tabs-eid")] = active;
+      });
+    return map;
+  }
+  function restoreActiveTabs(preview, map) {
+    preview.querySelectorAll("[data-tabs][data-tabs-eid]").forEach(function (c) {
+      var active = map[c.getAttribute("data-tabs-eid")];
+      // A stale id -- the author just deleted that tab -- is stamped anyway: tabs.js
+      // resolves the hint against its OWN sections and falls back to the first, which
+      // is the same answer as not stamping at all. Doing the existence check here
+      // instead would have to guess at instance ownership, which tabs.js already knows.
+      if (active) c.setAttribute("data-tabs-active", active);
+    });
+  }
+
   function paneBodies() { return root.querySelectorAll('[data-scope] .pane-body'); }
   function captureScroll() {
     var s = [];
@@ -87,6 +129,7 @@
 
   function applyFragments(html) {
     var scrolls = captureScroll();
+    var activeTabs = captureActiveTabs();  // BEFORE the swap destroys the old pane
     var tmp = document.createElement("div");
     tmp.innerHTML = html.trim();
     ["editor", "preview"].forEach(function (scope) {
@@ -95,13 +138,17 @@
       if (incoming && existing) existing.replaceWith(incoming);
     });
     refreshUnitTokens();  // after the swap: the pane now carries the fresh token
-    applyStoredTabs(root);
+    applyStoredSlots(root);
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
     if (preview) renderPreviewMath(preview);  // inline math in stems/choices
     if (preview && window.libliEnhanceDnd) window.libliEnhanceDnd(preview);  // re-inject drag chips/slots
     if (preview && window.libliInitGallery) window.libliInitGallery(preview);  // re-enhance galleries into carousels
     if (preview && window.libliInitImageZoom) window.libliInitImageZoom(preview);  // re-arm zoomable images
+    // MUST precede libliInitTabs: the hint is read once, when the enhancer builds the
+    // strip. Stamping it afterwards would leave the author on tab 1 with a data
+    // attribute claiming otherwise.
+    if (preview) restoreActiveTabs(preview, activeTabs);
     if (preview && window.libliInitTabs) window.libliInitTabs(preview);  // re-enhance tabs
     if (preview && window.libliInitBeforeAfter) window.libliInitBeforeAfter(preview);  // re-enhance before/after
     if (preview && window.libliInitRevealGates) window.libliInitRevealGates(preview);  // un-hide reveal-gate buttons
@@ -550,13 +597,13 @@
   bindDnD();
   bindHover();
 
-  // Persist a tab's open/closed state whenever the author toggles it. `toggle` does NOT
+  // Persist a slot's open/closed state whenever the author toggles it. `toggle` does NOT
   // bubble, so listen in the CAPTURE phase (which still sees non-bubbling descendant
   // events) rather than by delegation.
   root.addEventListener("toggle", function (e) {
-    if (e.target.matches && e.target.matches("details.tabs-rows")) saveTab(e.target);
+    if (e.target.matches && e.target.matches(SLOT_DETAILS)) saveSlot(e.target);
   }, true);
-  applyStoredTabs(root);  // restore on initial page load (a refresh loses in-memory state)
+  applyStoredSlots(root);  // restore on initial page load (a refresh loses in-memory state)
 
   // Initial inline-math pass over the preview present at page load (auto-render.min.js
   // loads deferred, so guard via the typeof check inside renderPreviewMath).

@@ -92,13 +92,22 @@ def test_every_tabs_i18n_template_carries_every_carousel_key(path):
         assert f"{key}:" in html, f"{path.name} is missing TABS_I18N.{key}"
 
 
-def test_the_carousel_gate_class_is_added_after_show_zero():
+def test_the_carousel_gate_class_is_added_after_the_first_show():
     """The gate must go on LAST. .tabs--js is applied before the branch is entered, so
-    gating on it would leave a half-initialised carousel blank rather than stacked."""
+    gating on it would leave a half-initialised carousel blank rather than stacked.
+
+    Anchored on `show(Math.max(0,` -- the opening call -- and NOT on a bare `show(`,
+    which would also match the prev/next click handlers registered on the two lines
+    above and make the ordering assertion pass no matter where the opening call moved.
+    The anchor was the literal `show(0)` until the opening slide became restorable
+    across an editor preview swap; the invariant is unchanged, only the expression is.
+    """
     js = TABS_JS.read_text(encoding="utf-8")
+    first_show = "show(Math.max(0,"
     assert 'classList.add("tabs--carousel")' in js
-    assert js.index("show(0)") < js.index('classList.add("tabs--carousel")'), (
-        "the gate class must be added after show(0) succeeds"
+    assert first_show in js, "the carousel's opening show() call was renamed or removed"
+    assert js.index(first_show) < js.index('classList.add("tabs--carousel")'), (
+        "the gate class must be added after the opening show() succeeds"
     )
 
 

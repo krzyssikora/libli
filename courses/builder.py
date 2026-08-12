@@ -292,6 +292,22 @@ def ancestor_slots(join):
     return keys
 
 
+def scope_slots(parent_join, tab_id):
+    """ancestor_slots' PRE-CREATION twin: the slots to force open for a child that
+    is about to be placed at (parent_join, tab_id) but has no row to walk from yet.
+
+    Used by the add / create-on-save paths, where the author has picked a slot and
+    the answering render must show it. Once the row exists the two agree by
+    construction -- ancestor_slots(child) recurses from exactly this pair -- so the
+    open-set does not shift between the add render and the save render.
+
+    A top-level add names no slot at all: the root list is not a <details>.
+    """
+    if parent_join is None:
+        return set()
+    return {slot_key(parent_join.pk, tab_id)} | ancestor_slots(parent_join)
+
+
 def _parse_scope_ref(unit, parent_ref, tab):
     """Parse a (parent, tab) payload pair into (parent_join | None, tab_id).
 
@@ -1195,7 +1211,14 @@ class ElementFormInvalid(Exception):
 @transaction.atomic
 def save_element(course, unit_pk, type_key, element_ref, post_data, files):
     """Create-on-first-save (element_ref == 'new') or update an existing Element.
-    Token-checked against the unit; bumps unit.updated. Returns the unit.
+    Token-checked against the unit; bumps unit.updated.
+
+    Returns (unit, join) -- the join row, not just the unit, because the view
+    derives the answering render's open-set by walking join.parent upward. Same
+    shape and same reason as duplicate_element and paste_element. On the CREATE
+    half the caller has no other handle on the row: the scope it was placed in is
+    resolved in here, from POST, and nothing outside sees the result.
+
     Raises ConflictError (409) on stale/vanished, ElementFormInvalid (422) on bad form.
     Raising inside @transaction.atomic rolls back, so a failed create leaves zero
     rows."""
@@ -1557,7 +1580,7 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         parent_join, tab_id = resolve_scope(
             unit, post_data.get("parent"), post_data.get("tab"), type_key
         )
-        Element.objects.create(
+        join = Element.objects.create(
             unit=unit,
             content_object=obj,
             title=title,
@@ -1571,7 +1594,7 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
     # inline edit form does not resubmit them; writing "absent means top-level" here
     # would silently reparent every nested child on every edit.
     unit.save(update_fields=["updated"])
-    return unit
+    return unit, join
 
 
 def _locked_unit(course, unit_pk):
