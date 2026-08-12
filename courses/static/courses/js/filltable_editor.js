@@ -172,6 +172,7 @@
     var thCol = editor.querySelector("[data-th-col]");
     var borderSel = editor.querySelector("[data-border]");
     var caseSensitive = editor.querySelector("[data-case-sensitive]");
+    var gate = editor.querySelector("[data-gate]");
     var promptField = editor.querySelector("[data-prompt]");
     var imageAlt = editor.querySelector("[data-image-alt]");
     var sizeSel = editor.querySelector("[data-image-size]");
@@ -248,6 +249,7 @@
         header_col: !!(thCol && thCol.checked),
         border: (borderSel && borderSel.value) || "grid",
         case_sensitive: !!(caseSensitive && caseSensitive.checked),
+        gate: !!(gate && gate.checked),
         prompt: (promptField && promptField.value) || "",
         cells: cells,
       });
@@ -935,6 +937,7 @@
     if (thCol) thCol.addEventListener("change", function () { serialize(); refreshToolbarState(); });
     if (borderSel) borderSel.addEventListener("change", serialize);
     if (caseSensitive) caseSensitive.addEventListener("change", serialize);
+    if (gate) gate.addEventListener("change", serialize);
     if (promptField) {
       promptField.addEventListener("input", serialize);
       promptField.addEventListener("change", serialize);

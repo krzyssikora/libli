@@ -1634,7 +1634,25 @@ class FillTableElementForm(_CourseScopedMediaForm):
 
     @property
     def grid_data(self):
-        return _grid_data(self)
+        d = _grid_data(self)
+        # PRESERVE THE AUTHOR'S TICK across a rejected save. normalize_data (which
+        # _grid_data runs) suppresses `gate` for the no-answer-cell and
+        # blank-answer-cell grids -- which are ALSO two of clean_data's five
+        # rejection reasons -- so the shared path would hand the template an
+        # unticked box, silently dropping the author's intent while the error
+        # message points at the answer cell instead. Unconditional on purpose: a
+        # no-op for the other three rejection paths (_scan_spans, _caps_ok, image
+        # scope), where normalize_data leaves `gate` alone.
+        if self.is_bound and not self.is_valid():
+            raw = self.data.get("data")
+            if isinstance(raw, str):
+                try:
+                    submitted = json.loads(raw)
+                except ValueError:
+                    submitted = None
+                if isinstance(submitted, dict):
+                    return {**d, "gate": bool(submitted.get("gate"))}
+        return d
 
     @property
     def resolved_grid_cells(self):
