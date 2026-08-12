@@ -653,6 +653,25 @@ def test_screenshots_light_and_dark(page, live_server, tmp_path):
         page.wait_for_selector(".asset-cell")
         assert page.locator("html").get_attribute("data-theme") == theme
 
+        # 0. the hover-preview overlay, both themes. It is `position: fixed` and
+        #    appended to <body>, OUTSIDE any .asset-cell -- an ELEMENT screenshot
+        #    (as every shot below takes) clips to that element's own box and can
+        #    never show it, so this is the one VIEWPORT screenshot in the test.
+        #    Widened to 1280x900 first: at 360px the overlay's own placement
+        #    logic would push it below the fold or over the grid it is meant to
+        #    sit beside.
+        page.set_viewport_size({"width": 1280, "height": 900})
+        page.locator("[data-asset-preview]").first.hover()
+        # Required: without this the capture races the 250ms dwell timer and can
+        # shoot an empty grid with no overlay in it -- the failure a screenshot
+        # review is least likely to notice.
+        expect(page.locator(".asset-preview")).to_be_visible()
+        page.screenshot(path=str(tmp_path / f"media-overlay-{theme}.png"))
+        page.mouse.move(5, 5)
+        expect(page.locator(".asset-preview")).to_be_hidden()
+        # Restore the 360px column width the four element shots below describe.
+        page.set_viewport_size({"width": 360, "height": 900})
+
         unused_cell = page.locator(f'.asset-cell[data-asset-id="{unused.pk}"]')
         in_use_cell = page.locator(f'.asset-cell[data-asset-id="{in_use.pk}"]')
 
@@ -1759,3 +1778,70 @@ def test_the_pointer_can_still_hold_a_focus_opened_overlay(page, live_server):
     page.wait_for_timeout(500)  # outlive the grace
     expect(page.locator(".asset-preview")).to_be_visible()
     assert page.locator(".asset-preview__caption").text_content() == caption
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_tap_does_not_open_the_overlay_on_touch(browser, playwright, live_server):
+    """media_preview.js reads `canHover` ONCE at load from
+    `matchMedia('(hover: hover) and (pointer: fine)')`; when it is false, the
+    module never even binds a mouseover/mouseout listener (media_preview.js:229
+    `if (canHover) { ... }`). This row's premise only holds if that query
+    genuinely fails to match in a touch context.
+
+    SPIKED (not assumed): in this Chromium build (148.0.7778.96), all three of
+    `has_touch=True` alone, `has_touch=True, is_mobile=True`, and the full
+    `playwright.devices["Pixel 5"]` descriptor evaluate the query to False --
+    the brief's stated risk (`has_touch` alone leaving it matching) did not
+    materialise here. The full device descriptor is still used, since it is the
+    portable choice (`is_mobile` is documented as Chromium-only) and matches how
+    a real touch device is actually described. The `matchMedia` assertion below
+    re-verifies this on every run rather than trusting the spike.
+
+    TWO assertions, deliberately NOT redundant -- falsifying the mutant
+    (`canHover` forced true, i.e. the `if (canHover)` gate at :229 removed)
+    proved the `.tap()` assertion alone cannot catch it:
+
+    Playwright's emulated `.tap()` on Chromium fires the FULL compat mouse-event
+    sequence on the anchor essentially synchronously: mouseover -> mouseenter ->
+    mousemove -> mousedown -> mouseup -> click -> mouseout -> mouseleave.
+    MEASURED via a live event-log probe. That synthetic mouseout cancels
+    media_preview.js's 250ms dwell timer (root's mouseout handler, :260) before
+    it ever fires -- so with the gate mutated to always-true, the dwell still
+    never completes and the overlay still never opens. The `.tap()` row below
+    therefore passes IDENTICALLY on a correct build and on that mutant; it is
+    kept only because it documents the real, user-facing outcome (a tap leaves
+    no stuck overlay), not because it discriminates anything.
+
+    Real touch devices do NOT reproduce this: the module's own comment at :23-26
+    describes a tap synthesising hover events "with no matching leave" -- the
+    opposite of what Playwright measured here. That is the actual hazard the
+    `canHover` gate defends against, and the harness cannot reproduce it with a
+    touch gesture. The `dispatch_event` below reproduces the EVENT SHAPE instead
+    (bubbling mouseover, no synthetic leave), which is what a real device's tap
+    would leave the module to react to. MEASURED: with the gate removed, this
+    dispatch reliably opens the overlay after the dwell; with the gate intact,
+    no listener is ever bound and it does not. This is the assertion that kills
+    the mutant.
+    """
+    user, course = _seed_assets("tch-pa", "tch", ("dotyk_0_1.png", (400, 300)))
+    context = browser.new_context(**playwright.devices["Pixel 5"])
+    try:
+        page = context.new_page()
+        _open_manager(page, live_server, user.username, course)
+        assert not page.evaluate(
+            """() => matchMedia('(hover: hover) and (pointer: fine)').matches"""
+        )
+        anchor = _anchor(page, "dotyk_0_1.png")
+
+        anchor.tap()
+        page.wait_for_timeout(600)  # negative assertions must outlive the dwell
+        expect(page.locator(".asset-preview")).to_be_hidden()
+
+        # The mutant-killing assertion -- see the docstring. A bare bubbling
+        # mouseover with no synthetic leave, so nothing cancels the dwell timer
+        # the way `.tap()`'s own compat mouseout does above.
+        anchor.dispatch_event("mouseover", {"bubbles": True})
+        page.wait_for_timeout(600)
+        expect(page.locator(".asset-preview")).to_be_hidden()
+    finally:
+        context.close()  # or the context leaks when an assertion above fails
