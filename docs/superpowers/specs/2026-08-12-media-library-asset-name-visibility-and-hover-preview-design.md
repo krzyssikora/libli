@@ -229,13 +229,21 @@ on `blur`. Once the span renders a middle-truncated string, clicking ✎ and the
 clicking anywhere else writes `head…tail` into `MediaAsset.name` as a permanent
 custom name, after which `display_name` returns the ellipsised string forever.
 
-The seed becomes `cell.getAttribute("data-name").trim()` — reading the
-untruncated name from the cell root (`_asset_cell.html:3`) and **keeping** the
-`.trim()` the old seed applied, so a stored name with stray whitespace still
-seeds cleanly. There is **no `textContent` fallback**: `data-name` is
-unconditional in the template and every render path goes through it, so a
-fallback would be unreachable dead code that — if it ever *were* reached —
-would reintroduce precisely this bug.
+The seed reads the untruncated name from the cell root — the existing
+`pen.closest(".asset-cell")` the handler already computes (`media_picker.js:334`)
+— via `cell.getAttribute("data-name")`, **keeping** the `.trim()` the old seed
+applied so a stored name with stray whitespace still seeds cleanly.
+
+Two details that a literal reading gets wrong. `getAttribute` returns `null`,
+not `""`, when the attribute is absent, so `.trim()` on it throws a `TypeError`
+that kills the click handler and leaves no input at all — the read must be
+null-checked. And on a null the handler **returns early**; it does **not** fall
+back to `dname.textContent`. That is not squeamishness about dead code: the
+fallback is the bug. `data-name` is unconditional in `_asset_cell.html`, and the
+✎ control exists only in cells rendered by that template (`_picker_grid.html`
+renders its own cells and has no rename affordance), so a null is a broken
+invariant that should fail loudly rather than silently seed a truncated name
+into the database.
 
 No other change to the rename flow is needed: it reinserts the **same span
 node** on cancel (`:344`), on a non-200 (`:351`), and on network failure
@@ -281,15 +289,19 @@ live bug source:
   and every placement measurement keys on *this*, never on `hoveredAnchor` —
   with the pointer resting on thumb A while the user Tabs into cell B, the
   overlay shows B and only `openAnchor` says so.
-- `openedBy` — `"pointer"` or `"focus"`, so the `focusout` close can be scoped
-  to focus-opened overlays (see Error handling). **Reassigned on an in-place
-  anchor-to-anchor swap** to whichever event caused the overlay to render its
-  current anchor: a pointer arriving on a focus-opened overlay makes it
-  `"pointer"`, so a later Tab elsewhere cannot `focusout`-kill an overlay the
+- `openedBy` — `"pointer"` or `"focus"`, scoping the `focusout` close (see Error
+  handling). It is **derived from the state that currently justifies the
+  overlay, not from whichever event fired last**: it is `"pointer"` whenever
+  `hoveredAnchor === openAnchor`, and `"focus"` otherwise. Re-evaluated on every
+  event that touches either variable — including a same-anchor `mouseover` and
+  an in-place swap. Tying it to the last event instead would leave the commonest
+  mixed case wrong: Tab to ✎ on cell A, then move the pointer onto that same
+  cell's thumb, and a later Tab elsewhere would `focusout`-kill an overlay the
   pointer is actively hovering.
-- An **open-generation token**, incremented on every open. The `load` / `error`
-  handlers and the deferred scroll binding all check it, so work scheduled by
-  one open can never act on a later one.
+- An **open-generation token**, incremented on every open — including an
+  in-place swap, which is an open in every respect but the `hidden` toggle. The
+  `load` / `error` handlers, the hide timer and the deferred scroll binding all
+  check it, so work scheduled by one open can never act on a later one.
 
 **The overlay element.** One singleton, created on first use, appended to
 `document.body` and kept there for the page's lifetime. Structure:
@@ -343,7 +355,11 @@ removal would accumulate one handler per hover for the page's lifetime, each
 re-running placement against a possibly stale anchor on every later load.
 
 Both handlers carry an **open-generation token** and ignore any event whose token
-is stale, or that arrives while the `<img>` has no `src`. This is not defensive
+is stale, or that arrives while the `<img>` has no `src`. The token is
+**stamped on the image at `src`-assignment time** and compared against the
+current one at dispatch. Stamping it at reset time instead would re-break the
+guard, since the whole point is to distinguish the reset's own queued event from
+the assignment that follows it. This is not defensive
 padding: per HTML's "update the image data" algorithm a *removed* `src` produces
 a null selected source exactly as an empty one does, and **queues an `error`
 task** either way. That task is dispatched asynchronously — after the open
@@ -386,20 +402,48 @@ only by a *teleporting* pointer — which is precisely what `page.hover(A)` then
 `page.hover(B)` produces, so the e2e rows would certify a behaviour real users
 never get.
 
-Therefore: leaving an anchor starts a **100 ms hide timer** rather than hiding
-outright. Entering another anchor within that window cancels the timer and swaps
-in place; the timer expiring closes the overlay. A pending *open* dwell is still
-cancelled immediately on leaving. Both A→B rows must drive
-`page.mouse.move()` through the inter-cell gap in small steps, never
-`hover(A)` → `hover(B)`, so they exercise the path a real pointer takes.
+Therefore: leaving an anchor starts a **hide timer** rather than hiding
+outright. Entering *any* anchor within that window cancels the timer — another
+anchor swaps in place, the **same** anchor simply resumes, which matters because
+the pointer routinely drifts into the cell's own padding and back. A `mouseover`
+resolving to the currently-open anchor is explicitly **not** a no-op: it cancels
+the pending hide and re-evaluates `openedBy`. Without that, a 34 px drift and
+return would leave the timer running, close the overlay under a pointer now
+resting on the thumb, and — per the Escape reasoning above — leave nothing able
+to reopen it. The timer expiring closes the overlay. A pending *open* dwell is
+still cancelled immediately on leaving.
 
-Two guards — an `e.relatedTarget`-contained-by-anchor check and the
-already-pending / already-open no-ops — are **defensive, not currently
+**The grace is 300 ms**, derived rather than guessed: the gap is ~34 px, and the
+interaction this design exists for is a *deliberate* comparison sweep, not a
+flick. 300 ms sets the floor at ~115 px/s, below any plausible intentional
+traversal; at the 100 ms a first draft used, the floor is ~340 px/s and a slow
+sweep silently re-pays the full 250 ms dwell — degrading to exactly the
+behaviour the grace was introduced to fix.
+
+Both A→B rows must drive `page.mouse.move()` through the inter-cell gap in a
+stated number of small steps, never `hover(A)` → `hover(B)`, so they exercise
+the path a real pointer takes. They must also assert on a **recorded transition
+list** (see Testing) rather than on wall-clock proximity, so a slow harness
+under parallel load cannot turn them red on a correct build.
+
+**Timer hygiene.** The hide timer gets the same treatment as the rAF-deferred
+scroll binding, and for the same reason: it is cancelled on every close **and**
+on every open, pointer or focus, and its callback bails unless the overlay is
+still open under the same open-generation token. Otherwise a timer armed on A
+survives a Tab that opens B and closes it 300 ms later; and in the mirror case a
+stale timer's close disconnects the observer that a fresh dwell has just
+connected, reopening the teardown hole this section spends two paragraphs
+closing.
+
+The `e.relatedTarget`-contained-by-anchor check is **defensive, not currently
 reachable**: the anchor is a replaced `<img>` with no descendants, so
-`mouseover` / `mouseout` fire exactly once per entry and exit. They are kept
+`mouseover` / `mouseout` fire exactly once per entry and exit. It is kept
 against a future non-replaced anchor. This is a deliberate exception to §4's
 rejection of unreachable code, which is rejected there because the dead branch
-would reintroduce a data-corruption bug; these two are inert.
+would reintroduce a data-corruption bug; this one is inert. The
+already-pending-dwell no-op is likewise unreachable today. The
+already-*open* same-anchor case is **not** in that category — the hide grace
+below makes it both reachable and load-bearing.
 
 **The dwell window is a teardown hole and must be guarded.** A filter, rename or
 replace swap can land *between* `mouseover` and the timer firing, while the
@@ -407,24 +451,30 @@ replace swap can land *between* `mouseover` and the timer firing, while the
 detached anchor then returns zeros, "fits on the right" trivially passes, and
 the overlay is pinned to the top-left corner with no anchor left to fire a
 `mouseout` — stranded until an unrelated scroll, resize or Escape. Two
-requirements: the timer callback must check `anchor.isConnected` before opening
-and abort if false, **and** the `MutationObserver` connects at dwell start
-rather than at open (a `MutationObserver` only reports mutations occurring after
-`observe()`, so connecting at open cannot see a swap that already happened).
+The fix is one check, not two: **the timer callback tests `anchor.isConnected`
+before opening and aborts if false.** Nothing more is needed, and it is worth
+being explicit about why, because the obvious second measure — connecting the
+`MutationObserver` at dwell start so it can witness a swap the open would
+otherwise miss — is inert. Observer records are delivered at a microtask
+checkpoint, so a swap landing during the dwell is delivered long before the
+250 ms timer fires; at that moment `openAnchor` is still null and the callback,
+which keys on `openAnchor` and never on `hoveredAnchor`, can take no action.
+Connecting early would be a redundant second mechanism for a hazard the
+`isConnected` check already closes — the same trap this spec rejects for
+`min-width: 0` and for the image `max-height` — and it would drag in three
+disconnect paths that otherwise need not exist.
 
-**The observer's connect/disconnect must be a complete pair.** "At dwell start"
-covers only the pointer path; the focus path has no dwell, so it connects at
-`focusin` — but **only after every gate has passed**, never before. That
-ordering is load-bearing: `media_picker.js:339` focuses the rename input, which
-sits inside a previewable cell and, being a text field, *always* matches
-`:focus-visible`, so a connect-then-check order would arm an observer on every
-single ✎ click that the standing gate then refuses to open, leaking one per
-click.
+**The observer therefore connects at open, on both paths, and only after every
+gate has passed** — never before. That ordering is load-bearing:
+`media_picker.js:339` focuses the rename input, which sits inside a previewable
+cell and, being a text field, *always* matches `:focus-visible`, so a
+connect-then-check order would arm an observer on every single ✎ click that the
+standing gate then refuses to open, leaking one per click. It disconnects on
+close. Since it is never connected without an open overlay, close is the only
+terminal path it has.
 
-It disconnects on **every** terminal path, not only on close. The full list: a
-cancelled dwell, an `isConnected` abort, a standing-gate refusal, a
-`:focus-visible` refusal, and close. Anything else leaves the observer connected
-with no open overlay, re-arming on every subsequent sweep across the grid.
+The callback must also **no-op when `openAnchor` is null** rather than
+dereferencing it.
 
 **Pointer gate.** The `mouseover` / `mouseout` path is armed only when
 `matchMedia("(hover: hover) and (pointer: fine)")` matches, evaluated **once at
@@ -546,14 +596,29 @@ exists to remove. The `<img>` is therefore blanked as part of the unconditional
 reset above and revealed only on its `load` (or replaced by the caption-only
 state on `error`).
 
+**The open sequence, in order.** Reset the singleton (§5) →
+**increment the open-generation token** → populate (`src` assigned here, stamped
+with the current token; caption; `openAnchor`; `openedBy`) → connect the
+`MutationObserver` → remove `hidden` with `visibility: hidden` → measure →
+position → restore `visibility` → bind the deferred scroll listener. The token
+increment sits **after** the reset's `removeAttribute("src")` and **before** the
+new assignment; that is the whole basis of the stale-event guard.
+
+**An in-place anchor-to-anchor swap runs this same sequence** — reset, token
+increment, populate, measure, place — minus the `hidden` toggle and minus the
+dwell. It is not a special path with its own rules. Saying so is not pedantry:
+if a swap skipped the token increment, the swap's own `removeAttribute("src")`
+would queue an `error` that arrives *after* B's `src` is assigned, with a token
+that is no longer stale and an `<img>` that now has a `src` — so neither guard
+would fire and B would flip to caption-only on every card of a sweep, which is
+precisely the failure the guard exists to prevent.
+
 **Placement.** All measurement happens **after** the `hidden` attribute is
 removed — a `display: none` element has no box and `getBoundingClientRect()`
 returns zeros, which would make every "does it fit?" test compare against width
-0 and always answer yes. The sequence is: reset → populate → remove `hidden`
-with `visibility: hidden` → measure → position → restore `visibility`.
-Placement is recomputed on the image's `load`, because assigning `src` does not
-synchronously give a cached image its `naturalHeight`, so the first measurement
-sees a caption-only box.
+0 and always answer yes. Placement is recomputed on the image's `load`, because
+assigning `src` does not synchronously give a cached image its `naturalHeight`,
+so the first measurement sees a caption-only box.
 
 - **The reference box is the cell, not the thumb.** `[data-asset-preview]` sits
   on the `<img>`, which is inset from the cell by `var(--space-2)` padding and a
@@ -582,9 +647,16 @@ sees a caption-only box.
   `position: fixed` box can actually occupy. Using `innerWidth` would let the
   clamp tuck the overlay's right edge under the scrollbar, and the "both boxes
   are inside the viewport" row would pass or fail purely on which quantity the
-  assertion happened to pick. The `100vw` in the `width` declaration is the
-  deliberate exception — it only ever *shrinks* the box, so erring 15 px small
-  is harmless.
+  assertion happened to pick. The `100vw` / `100vh` in the `width` and
+  `max-height` declarations are the deliberate exceptions — both only ever
+  *shrink* the box, so erring ~15 px small is harmless. Note the asymmetry:
+  `100vh` is ≥ `clientHeight` whenever a horizontal scrollbar exists, so the
+  height cap can nominally exceed the clamp's budget; the clamp is authoritative
+  and simply wins.
+- **Clamp precedence when the box exceeds an axis:** top and left win. A box
+  taller than `clientHeight - 16` is pinned to the top margin and overflows the
+  bottom, which is the tall-portrait row's exact boundary condition — assert
+  against the top edge, not the bottom.
 - Centring is `left`/`top` computed from the measured box, not `margin: auto` —
   the element is `position: fixed` with no `inset`.
 
@@ -642,13 +714,18 @@ into three places: the `title` attribute (full), the visible span body (via
 body and its `title` — only when it differs from `display_name`.
 
 **Hover.** `mouseover` on `.media-manager` → `closest("[data-asset-preview]")`
-→ set `hoveredAnchor`, connect the `MutationObserver`, start the 250 ms dwell →
-timer fires → `anchor.isConnected` and standing-gate checks → reset the
-singleton → read `currentSrc` and `data-name` → populate → set `openAnchor` /
-`openedBy` → remove `hidden` (invisible) → measure → place → reveal → reveal the
-image and re-place on its `load`. `mouseout` to outside the anchor / `focusout`
-(focus-opened only) / Escape / scroll / resize / `openAnchor` detach → restore
-`hidden` and clear `openAnchor`.
+→ set `hoveredAnchor`, cancel any pending hide → if it resolves to `openAnchor`,
+stop here (the overlay is already correct); otherwise start the 250 ms dwell →
+timer fires → `anchor.isConnected`, standing-gate and `:focus-visible` checks →
+the open sequence of §5 (reset → token increment → populate → connect the
+observer → unhide invisibly → measure → place → reveal), then reveal the image
+and re-place on its `load`.
+
+**Close.** `mouseout` to a non-anchor (or a null `relatedTarget`) → 300 ms hide
+timer → expiry restores `hidden` and clears `openAnchor`. `focusout`
+(focus-opened only), Escape, scroll, resize and an `openAnchor` detach each
+close immediately. Every close cancels the hide timer, the pending dwell and the
+deferred scroll rAF, and disconnects the observer.
 
 **Rename.** ✎ swaps `[data-asset-dname]` for an input
 (`media_picker.js:335-339`) seeded from `data-name` (§4), and reinserts the same
@@ -660,11 +737,12 @@ re-renders the whole cell from the server.
 - **Overlay outlives its anchor.** The overlay lives on `document.body`, so it
   survives the events that destroy the cell that opened it. The module observes
   these with a `MutationObserver` on the `.media-manager` root
-  (`childList: true, subtree: true`), connected at **dwell start or `focusin`,
-  whichever begins the sequence**, and disconnected on **every** terminal path —
-  close, cancelled dwell, or `isConnected` abort. Its callback closes the
-  overlay on either of two conditions: `openAnchor` (not `hoveredAnchor`) has
-  `isConnected === false`, clearing both; or a `.asset-rename-input` /
+  (`childList: true, subtree: true`). Its connect point and its
+  gates-first ordering are specified in §5 and are not restated here — code them
+  from that paragraph, not from this bullet. Its callback no-ops when
+  `openAnchor` is null, and otherwise closes the overlay on either of two
+  conditions: `openAnchor` (not `hoveredAnchor`) has `isConnected === false`,
+  clearing both; or a `.asset-rename-input` /
   `[data-replace-strip]` has appeared under the root (§5's standing gate). The
   detach check keys on the anchor **node**, never on a selector — a
   selector-keyed guard is a no-op when the event is a node replacement. This
@@ -843,7 +921,8 @@ rows.** None is knowledge this spec has:
 | Hover opens the overlay and `overlayImg.currentSrc === thumb.currentSrc`, with a box larger than the thumb | 1280 px | drop the `mouseover` binding |
 | A source whose aspect ratio is not 4:3 shows its full extent, undistorted, in the overlay | 1280 px | give the overlay image `aspect-ratio: 4/3; object-fit: cover` |
 | A source smaller than the rendered thumb still previews larger than the thumb | 1280 px | change `.asset-preview`'s definite `width` to `max-width` (the box then shrink-wraps and `width: 100%` collapses to the natural size) |
-| Sweeping A → B with `page.mouse.move()` **through the inter-cell gap** swaps in place: the overlay never returns to `[hidden]` and B needs no second dwell | 1280 px | hide immediately on `mouseout` instead of starting the 100 ms grace timer |
+| Sweeping A → B with `page.mouse.move(..., steps=10)` **through the inter-cell gap** swaps in place — install an in-page `MutationObserver` on the overlay root's `hidden` attribute *before* the sweep and assert the recorded transition list contains no visible→hidden→visible cycle, and that B's source is showing. Correct build and mutant reach the same terminal state and differ only in a transient, so a post-hoc read certifies nothing and polling for it is the trap the next row documents | 1280 px | hide immediately on `mouseout` instead of starting the 300 ms grace timer |
+| A pointer that drifts off a thumb into its own cell's padding and back within the grace leaves the overlay open | 1280 px | make a same-anchor `mouseover` a no-op instead of cancelling the pending hide |
 | While B's image is held unresolved by a `page.route` delay, the caption already reads B **and** the overlay's `<img>` is still `[hidden]` — so A's frame is never painted under B's caption. Hold the window open with the route rather than polling for it; the natural window is a cached decode, far shorter than any poll interval | 1280 px | reveal the image immediately instead of on `load` |
 | A broken-thumbnail asset previewed **before** a good one leaves the good one's image box intact | 1280 px | drop the unconditional reset at open |
 | Both the overlay's box **and** its image's box are inside the viewport for a tall portrait source, and the overlay lands centred rather than beside the card | 360 px | drop the image's `min-height: 0` (it then refuses to shrink); measure before removing `hidden` |
