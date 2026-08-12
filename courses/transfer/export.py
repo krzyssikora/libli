@@ -307,6 +307,7 @@ def _ser_fill_table(el, ids):
         "header_row": data["header_row"],
         "header_col": data["header_col"],
         "case_sensitive": data["case_sensitive"],
+        "gate": data["gate"],
         "border": data["border"],
         "prompt": data["prompt"],
         "cells": out_rows,
