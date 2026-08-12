@@ -285,7 +285,7 @@ rather than an addition to `media_picker.js` because it shares no state with the
 picker's upload / replace / rename / filter flows and `media_picker.js` is
 already the manager's largest script.
 
-**Module state.** Four pieces, kept distinct because conflating them is a live
+**Module state.** Five pieces, kept distinct because conflating them is a live
 bug source:
 
 - `hoveredAnchor` — pointer bookkeeping only. Set on `mouseover`, cleared on
@@ -310,8 +310,22 @@ bug source:
   pointer is actively hovering.
 - An **open-generation token**, incremented on every open — including an
   in-place swap, which is an open in every respect but the `hidden` toggle. The
-  `load` / `error` handlers, the hide timer and the deferred scroll binding all
-  check it, so work scheduled by one open can never act on a later one.
+  hide timer and the deferred scroll binding check it, so work scheduled by one
+  open can never act on a later one. The `load` / `error` handlers deliberately
+  do **not**: being bound once at creation they read whatever the token
+  currently is, so the comparison always passes and the check would be inert —
+  the same "second, unfalsifiable mechanism" this spec rejects for
+  `min-width: 0` and the image `max-height`. Their contract is the expected
+  source plus the open-state guard, below.
+- The **expected source** — the URL recorded at assignment time, which is what
+  the `load` / `error` handlers compare against. It is set to `null` whenever
+  the module takes the caption-only branch or closes. That reset is not
+  bookkeeping tidiness: the caption-only branch assigns no `src`, so without it
+  both `img.src` and the recorded value would still hold the *previous* asset's
+  URL and still compare equal — and a `load` still in flight for asset A,
+  landing after a swap to a broken-thumbnail asset B, would pass the
+  discriminator, un-hide the image, and paint A's frame under B's caption. That
+  is exactly the failure the reveal-on-load rule exists to prevent.
 
 **The overlay element.** One singleton, created on first use, appended to
 `document.body` and kept there for the page's lifetime. Structure:
@@ -398,8 +412,16 @@ read the current anchor from module state. Per-open `addEventListener` without
 removal would accumulate one handler per hover for the page's lifetime, each
 re-running placement against a possibly stale anchor on every later load.
 
-Both handlers act only when `img.getAttribute("src")` still equals the source
-recorded in module state at assignment time. That is the discriminator — not a
+Both handlers bail unless **the overlay is currently open with a non-null
+`openAnchor`** — the same guard the `MutationObserver` callback, the hide timer
+and the rAF scroll binding all carry, and it is needed for the same reason plus
+one sharper one: placement dereferences `openAnchor.closest('.asset-cell')`, so
+a `load` arriving after the overlay closed (open A, pointer leaves, grace
+expires, all while a slow or filter-swapped source is still in flight) would
+both reveal an image on a closed overlay and throw on null.
+
+Given that, both handlers act only when `img.getAttribute("src")` still equals
+the source recorded in module state at assignment time. That is the discriminator — not a
 generation stamp on the element, which cannot work here: a stamp is overwritten
 by the latest assignment while the queued event carries no snapshot of the
 generation in force when it was queued, so it always compares equal at dispatch.
@@ -949,9 +971,10 @@ hyphen, space, or other soft-wrap opportunity** — underscores and digits only,
 e.g. `przykladowa_parabola_0_2.png`. Both containment mutants depend on the
 fixture's min-content width being the whole string (§1); a hyphenated name has
 natural break opportunities, so it wraps and stays inside the card even with
-both rules dropped, and the rows pass on a broken build. Note that five of the
-six repointed fixtures already in the file *are* hyphenated (`after-swap.png`,
-`after-filter.png`) — do not reuse them here.
+both rules dropped, and the rows pass on a broken build. Two of the six
+repointed fixtures already in the file are hyphenated (`after-swap.png`,
+`after-filter.png`); do not reuse any of the six here regardless, since they are
+seeded for other tests.
 
 **Fixture scoping is load-bearing.** If the clamp survives measurement (§1), its
 fixture's text deliberately exceeds three lines, so its clamped-away runs lay
