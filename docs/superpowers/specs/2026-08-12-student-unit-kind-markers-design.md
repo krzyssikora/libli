@@ -385,7 +385,10 @@ levels**, and fixing only the inner one leaves the row broken:
   title(~8px) + chip(~78) + `✓`(~22) + gaps(16) + padding(24) ≈ 150px, comfortably inside the
   ~280–290px `li` at 390px — so on a plain-text fixture this declaration is inert and its mutant
   would be green. It is pinned instead by the **maths-title** outline fixture (see Testing), where
-  the inline-block genuinely cannot be broken.
+  the atom genuinely cannot be broken. Note precisely what that fixture must be: **a single wide
+  `\frac`/`\sqrt` with no top-level operator**, not merely a long formula — `courses.css:1687-1698`
+  records that KaTeX breaks a multi-term formula between its `.base` spans, which would leave this
+  mutant green. `.katex` is not an atomic inline-block.
 - **`anywhere`, not `break-word`.** `overflow-wrap: break-word` permits breaking at paint time but
   **does not reduce the element's min-content contribution**, so it does not lower the flex minimum
   that causes the overflow in the first place. `anywhere` does, which is why this repo already
@@ -780,7 +783,12 @@ than red.
    the cap still bites. The fixture-validity guard must be re-pointed **at the title**, and **the
    mechanism is prescribed** because the obvious one measures nothing (with the cap applied and text
    wrapping, `scrollWidth == clientWidth`): neutralise `max-width` with `page.add_style_tag`,
-   measure the uncapped `<h1>` content width, assert `> 736`, then restore.
+   measure the uncapped `<h1>` content width, assert **`>= 740`**, then restore. Note the threshold
+   is 740, **not** 736: the assertion being guarded is `title_w < 738`, so a fixture landing in
+   (736, 738] would satisfy a `> 736` guard while leaving that assertion green on the cap-removed
+   build — reintroducing exactly the vacuity the guard exists to prevent. With the cap neutralised
+   the measured quantity is `min(max-content, flex target ≈ 746)`, which is what actually decides
+   the assertion.
 
    **Do not substitute `group_w > 738`.** It looks equivalent and is not:
    `.lesson-unit__heading` is `flex: 1 1 auto`, so under `space-between` the group always grows to
@@ -906,9 +914,16 @@ proves nothing, so each is either a comparison between two rendered rows or a me
 fixture yields zero elements and either a `None` bounding box or a vacuous pass.
 
 **Desktop, rail gutter.** Two units with markedly different title lengths in the same open group,
-both marked, scoped to `[data-unit-tree-list]`: assert their `.unit-kind` boxes share an `x` within
-~1px, and that `x` is within a few px of the row's right content edge. Both are false when
-`.unit-tree__label` has no `flex-grow`.
+both marked, scoped to `[data-unit-tree-list]`: assert their `.unit-kind` boxes share a **`right`**
+within ~1px, and that `icon.right == row.right - 8` — `.unit-tree__unit`'s `padding: .3rem .5rem`
+(`courses.css:766`). Both are false when `.unit-tree__label` has no `flex-grow`.
+
+**Compare `right`, not `x`.** `x` is the wrapper's *left* edge and the wrapper is one glyph wide
+(~13px at the rail's `.82rem`), so on a correct build `x` sits ~13px inside the row's right content
+edge. Asserting that `x` is "within a few px" of that edge would be **red on a correct build** — the
+same trap this spec polices for the pill assertion, where the offset is stated explicitly rather
+than approximated. (Sharing `right` and sharing `x` happen to be equivalent here because both glyphs
+are the same width; `right` is the one that also pins the gutter position.)
 
 **Legend glyph-to-word gap.** In the open drawer, assert `word.left - svg.right == 4` (±1) on a
 legend entry, where `word` is `.unit-kind__word` and `svg` is its sibling `.icon`. **Both are
@@ -934,11 +949,16 @@ so a single cap-length row proves almost nothing:
 
 - **Short-title row** — the `<h1>`'s content is far below the cap. Two assertions, and **both**
   mutants below are killable only here:
-  1. `chip.left` is near the **group's left** edge (`group.left + title_content_width + gap`,
-     ~112px in), and specifically **not** near the group's right edge. This kills deletion of
-     `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }`: with the reset the `<h1>`
-     shrink-wraps to ~100px and the chip follows it; without it the `<h1>` is `flex: 1` and grows to
-     the full ~656px remainder, putting the chip ~556px further right.
+  1. **`chip.left - group.left < 200`**, on a fixture whose title content is ~100px. This kills
+     deletion of `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }`: with the reset the
+     `<h1>` shrink-wraps to ~100px and the chip follows it (~112px in); without it the `<h1>` is
+     `flex: 1` and grows to the full ~656px remainder, putting the chip ~556px further right.
+
+     **Write it as that absolute bound, not as `chip.left == title.right + gap`.** The natural
+     reading of "the chip sits `gap` past the title" is **invariant across both builds** — without
+     the reset the `<h1>` merely grows and the chip still sits `gap` past its right edge — so an
+     adjacency assertion here is the same tautology §Testing already documents for the cap-length
+     row. Only distance from the group's *left* edge discriminates.
   2. On the lesson page, the **done pill's left edge is `group.right + 16`** — the head's
      `gap: 1rem` (`courses.css:829`), stated as an offset rather than "within a few px", which
      would be red on a correct build. This kills deletion of the group's `flex: 1 1 auto`.
@@ -1001,10 +1021,25 @@ Assertions at that size:
   two heights are equal; they are, because a long title leaves no free space for `flex-grow` to
   distribute. Mechanical rather than a
   remembered baseline;
-- a long `\(…\)` maths title, asserting no `.katex` box intersects `.unit-kind`'s rect — the
-  re-earned audit §4 requires. Unlike the plain-text case above, the **rect** form is right here: a
-  `.katex` inline-block genuinely escapes its parent's box, which is the whole reason that audit
-  exists;
+- the drawer maths re-check, asserting no `.katex` box intersects `.unit-kind`'s rect. The **rect**
+  form is right here (unlike the plain-text case above) because a `.base` span genuinely paints
+  outside its parent's box. Three things must be stated, because none is obvious:
+
+  1. **Reuse the title the existing audit measured** (the Task-11 fixture named at
+     `courses.css:2339-2345`), so this is a like-for-like re-measurement at ~76px against the
+     original's ~98px. A freshly-invented formula would make the outcome a property of the fixture
+     rather than of the column width.
+  2. **Expected outcome: no intersection.** But note the precedent is thinner than it looks — the
+     original audit checked `.katex` against `.unit-tree__count`, `.unit-tree__groupcheck`,
+     `.unit-tree__chevron` (all on **group** rows), `.unit-tree__check` (which *leads* a unit row)
+     and `.unit-drawer__close` (in the sticky bar). **None of them is a right-hand neighbour of a
+     unit-row label.** `.unit-kind` is the first, only `gap: .4rem` (~6.4px) away, beside a label
+     that keeps `overflow: visible`. So "CONFIRMED clean" carries no evidence for this geometry;
+     the re-check is a genuine measurement, not a formality.
+  3. **If it does intersect, that is a design change, not a test tweak.** The remedy is containment
+     on the drawer label's maths (a `max-width`/`overflow` rule of the kind `courses.css:1685`
+     already applies to tab labels) or moving the marker out of the row — decide it then, and record
+     the decision in the audit comment. Do not widen the tolerance to make it pass;
 - the **unit page** head at 390 wide on a quiz or additional unit — the chip's `top >=
   title_bottom - 1` and its `left` near the group's left edge. This is the chip-bearing half of the
   mobile rule, which `test_e2e_unit_head_layout.py` structurally cannot cover;
@@ -1012,16 +1047,36 @@ Assertions at that size:
   pinned by different content:
   1. a long unbroken / Polish title — pins `.outline-unit__title`'s `overflow-wrap: anywhere`
      (`break-word` would not lower the min-content contribution);
-  2. a long `\(…\)` **maths** title — pins the **anchor**'s own `min-width: 0` (`app.css:544`). This
-     row is not optional: `anywhere` already collapses a breakable title's minimum to ~1 character,
-     so on the plain-text row the anchor edit is inert and its mutant would be green. A `.katex`
-     inline-block is content `anywhere` cannot break, which is the only case that exercises it.
+  2. a **single unbreakable maths atom** — one wide `\frac{…}{…}` or `\sqrt{…}` with **no top-level
+     operator or relation** — pins the **anchor**'s own `min-width: 0` (`app.css:544`).
+
+     **"A long `\(…\)` title" will NOT do, and the repo already measured why.**
+     `courses.css:1687-1698` records it: KaTeX splits a formula into several `.base` spans at
+     top-level operators and relations — each `nowrap` internally but **breakable between** — so a
+     long multi-term formula wraps, its min-content contribution collapses to the widest single
+     `.base`, the anchor's automatic minimum stays small, and reverting `min-width: 0` produces no
+     overflow. The mutant would be **green on the broken build**. That same comment names the one
+     residual case that genuinely cannot wrap — "a single unbreakable atom (one very wide fraction
+     or radical, no top-level operator to break at)" — and that is exactly the fixture required
+     here. `.katex` is *not* an atomic inline-block; do not describe it as one.
+
+     Size the atom deliberately: **wider** than the space left in the `li` after chip + `✓` + gaps +
+     padding (or the mutant does not bite), and **narrower** than the distance from the title's left
+     edge to the viewport edge (or a correct build overflows the document — see below).
 
   For both rows, "stays within its box" is too loose to assert — under the two-level overflow in §4
   the anchor, the `li` and the viewport disagree, and if the anchor sizes itself at min-content and
   overflows the `li`, the *content* is still inside the *anchor* and a naive assertion passes on the
-  broken build. Assert both: `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1`
-  **and** `document.documentElement.scrollWidth === clientWidth`.
+  broken build. The discriminating assertion on **both** rows is
+  `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1`.
+
+  **`document.documentElement.scrollWidth === clientWidth` belongs on the plain-text row only.**
+  There `overflow-wrap: anywhere` genuinely prevents all overflow, so it is a true invariant. On the
+  maths row it is not: `min-width: 0` fixes the anchor's *box*, not the atom inside it, and at 390px
+  the title column is only ~180px — so any atom wide enough to redden the mutant still paints past
+  its box, and nothing on this page sets `overflow-x` (`.app-main`, `.outline`, `.outline-node*` all
+  leave it visible), so a sufficiently wide atom grows the document scroll width **on a correct
+  build**. Asserting it there would be red on correct CSS.
 
 **Screenshots** (`tests/capture_unit_marker_screenshots.py`): both glyphs at rail size, both
 glyphs on a marked **drawer row** at 390×780, the outline row at rest / hover / `:target`, the
