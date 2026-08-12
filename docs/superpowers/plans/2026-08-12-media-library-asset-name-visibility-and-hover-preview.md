@@ -1002,7 +1002,7 @@ def test_hover_opens_the_overlay_with_the_thumbnails_source(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_non_4_3_source_shows_its_full_extent(page, ...):
+def test_a_non_4_3_source_shows_its_full_extent(page, live_server):
     """The crop comes from .asset-thumb's OWN aspect-ratio + object-fit:cover.
     The overlay image is a separate element that simply does not carry them.
 
@@ -1012,9 +1012,9 @@ def test_a_non_4_3_source_shows_its_full_extent(page, ...):
     flex:0 1 auto (which the tall-portrait row asserts), so its element box
     would no longer carry the source's ratio.
     """
+    user, course = _seed_assets("n43-pa", "n43", ("portret_0_1.png", (200, 400)))
+    _open_manager(page, live_server, "n43-pa", course)
     page.set_viewport_size({"width": 1280, "height": 900})
-    make_image_asset(course, filename="portret_0_1.png", size=(200, 400))
-    # ... open the manager
     _open_preview(page, "portret_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
     ratio = page.evaluate("""() => {
@@ -1025,12 +1025,13 @@ def test_a_non_4_3_source_shows_its_full_extent(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_small_source_still_previews_larger_than_the_thumb(page, ...):
+def test_a_small_source_still_previews_larger_than_the_thumb(page, live_server):
     # Short name + small size, both deliberate: with a normal-length name the
     # mutant's shrink-wrapped box would be sized by the caption (~160px, already
     # wider than a ~115px thumb) and the row would stay green.
-    make_image_asset(course, filename="s.png", size=(40, 30))
-    # ... open the manager
+    user, course = _seed_assets("sml-pa", "sml", ("s.png", (40, 30)))
+    _open_manager(page, live_server, "sml-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "s.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
     img = page.locator("[data-asset-preview-img]").bounding_box()
@@ -1039,10 +1040,17 @@ def test_a_small_source_still_previews_larger_than_the_thumb(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_over_budget_name_is_readable_in_the_caption(page, ...):
-    make_image_asset(course, filename="przykladowa_bardzo_dluga_nazwa_0_2.png", size=(400, 300))
-    # ... open the manager
-    _open_preview(page, "przykladowa_bardzo_dluga_nazwa_0_2.png")
+def test_an_over_budget_name_is_readable_in_the_caption(page, live_server):
+    # ~58 characters of unbroken [a-z0-9_]. The caption's content box is ~302px
+    # (320 less padding and border) and .72rem Inter is ~6px/char, so a 38-char
+    # name -- "over budget" for middle_truncate at 32 -- still fits on ONE line
+    # and the mutant would survive. No hyphens: they are soft-wrap opportunities
+    # and would let the text wrap without overflow-wrap: anywhere.
+    long_caption = "przykladowa_bardzo_dluga_nazwa_pliku_z_wykresem_funkcji_0_2.png"
+    user, course = _seed_assets("cap-pa", "cap", (long_caption, (400, 300)))
+    _open_manager(page, live_server, "cap-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, long_caption)
     clipped = page.evaluate("""() => {
         const cap = document.querySelector('.asset-preview__caption');
         return cap.scrollWidth > cap.clientWidth;
@@ -1051,13 +1059,14 @@ def test_an_over_budget_name_is_readable_in_the_caption(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_the_caption_is_written_as_text_not_markup(page, ...):
+def test_the_caption_is_written_as_text_not_markup(page, live_server):
     """getAttribute returns data-name FULLY DECODED, so the server-side escaping
     that protects the card gives the overlay no protection at all. Nothing else
     in the suite would go red if textContent became innerHTML."""
     hostile = "<img src=x onerror=1>.png"
-    make_image_asset(course, filename=hostile, size=(400, 300))
-    # ... open the manager
+    user, course = _seed_assets("xss-pa", "xss-e2e", (hostile, (400, 300)))
+    _open_manager(page, live_server, "xss-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, hostile)
     assert page.locator(".asset-preview__caption").text_content() == hostile
     injected = page.evaluate(
@@ -1067,13 +1076,13 @@ def test_the_caption_is_written_as_text_not_markup(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_tall_source_is_clamped_and_lands_centred_at_360(page, ...):
+def test_a_tall_source_is_clamped_and_lands_centred_at_360(page, live_server):
     """Centred is the LAST branch of place()'s five-way ladder and the only one
     any test reaches -- assert it was taken, or the clamp alone would satisfy
     an inside-the-viewport check from any branch."""
-    make_image_asset(course, filename="wysoki_0_1.png", size=(400, 2000))
+    user, course = _seed_assets("tll-pa", "tll", ("wysoki_0_1.png", (400, 2000)))
+    _open_manager(page, live_server, "tll-pa", course)
     page.set_viewport_size({"width": 360, "height": 900})
-    # ... open the manager
     _open_preview(page, "wysoki_0_1.png")
     # Without this wait the image is display:none, its rect is all zeros, and
     # `inside(i)` is trivially true -- which would let the min-height mutant pass.
@@ -1219,9 +1228,39 @@ Two structural problems must be fixed first, or Task 7 layers onto a broken shap
 1. **An in-place swap re-enters `open()` without an intervening `close()`.** Task 7 will register a `MutationObserver` and scroll/resize/keydown listeners inside `open()`, whose only teardown lives in `close()` — so every swap would leak one observer and one listener set, unbounded across a sweep.
 2. **The caption-only branch (Step 3 below) returns early**, so anything Task 7 appends to the tail of `open()` would never run for a broken image — leaving that overlay with no Escape, scroll or resize handler at all.
 
-Restructure so both are impossible:
+Restructure so both are impossible. **Add the grace constants and the three
+small helpers in this step too** — `open()` below calls `cancelHide()` and
+`captionOnly()`, so deferring them would leave the module throwing a
+`ReferenceError` on `open()`'s third statement for the whole of Steps 2–4, and
+the Step 2 spike would then measure a module that never runs and report a false
+"no second request":
 
 ```js
+  var GRACE_MS = 300;
+  var hideTimer = null;
+
+  function captionOnly() {
+    overlayImg.hidden = true;
+    // Null the expected source, or a load still in flight for a PREVIOUS asset
+    // would still compare equal (this branch assigns no src) and would un-hide
+    // the image, painting A's frame under B's caption.
+    expectedSrc = null;
+  }
+
+  function cancelHide() {
+    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
+  }
+
+  function startHide() {
+    cancelHide();
+    var gen = generation;
+    hideTimer = setTimeout(function () {
+      hideTimer = null;
+      if (gen !== generation) return;   // a later open superseded this timer
+      close();
+    }, GRACE_MS);
+  }
+
   function teardownOpenBindings() {
     // Everything open() registers. Called from open() itself (an in-place swap
     // re-enters without closing) and from close(). Task 7 adds the observer and
@@ -1288,9 +1327,18 @@ those tests run.
 
 Verify before writing them: install a `page.on("request", …)` counter and a
 passthrough `page.route("**/*", lambda r: r.continue_())`, hover a thumb, and
-assert the overlay's URL was requested a second time. If it is not, switch both
-rows to a fulfilled route that serves a deliberately broken body rather than
-relying on interception of a cached URL.
+assert the overlay's URL was requested a second time.
+
+**If it is not**, the two rows need different remedies — a single instruction
+does not fit both. `b_s_caption_never_appears` and
+`a_late_load_from_a_previous_asset` hold *request 1* (the thumbnail's) and work
+either way, so they stand. `404_source` does not: it needs the thumbnail's
+request to succeed and only the overlay's to fail, and with one request there is
+nothing to fail selectively — fulfilling it with a broken body breaks the
+thumbnail instead, driving `open()` into its `complete && naturalWidth === 0`
+branch and making the row a duplicate of `thumbnail_that_never_loaded`. In that
+case **drop `404_source`** and record the `error` listener as unmapped
+(the Step 7 list already anticipates this).
 
 - [ ] **Step 3: Write the failing tests**
 
@@ -1302,9 +1350,11 @@ def test_sweeping_a_to_b_swaps_in_place(page, live_server):
     moving pointer always exits to a non-anchor, so B re-pays the full dwell and
     the in-place swap is reachable only by a TELEPORTING pointer -- which is
     exactly what hover(A) then hover(B) produces. Drive the real path."""
-    make_image_asset(course, filename="jeden_0_1.png", size=(400, 300))
-    make_image_asset(course, filename="dwa_0_2.png", size=(400, 300))
-    # ... open the manager at 1280x900
+    user, course = _seed_assets(
+        "swi-pa", "swi", ("jeden_0_1.png", (400, 300)), ("dwa_0_2.png", (400, 300)),
+    )
+    _open_manager(page, live_server, "swi-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "jeden_0_1.png")
     # Correct build and mutant reach the SAME terminal state and differ only in
     # a transient, so record the transitions instead of reading after the fact.
@@ -1323,13 +1373,14 @@ def test_sweeping_a_to_b_swaps_in_place(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_drift_into_the_cell_padding_and_back_keeps_the_overlay(page, ...):
+def test_a_drift_into_the_cell_padding_and_back_keeps_the_overlay(page, live_server):
     """mouseover fires only on ENTRY, so if the grace expires under a resting
     pointer nothing can reopen the overlay. Aim just outside the thumb but
     inside its cell -- 4px above the thumb's top edge is inside the cell's 8px
     padding."""
-    make_image_asset(course, filename="dryf_0_1.png", size=(400, 300))
-    # ... open the manager at 1280x900
+    user, course = _seed_assets("drf-pa", "drf", ("dryf_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "drf-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "dryf_0_1.png")
     t = page.locator("[data-asset-preview]").first.bounding_box()
     cx = t["x"] + t["width"] / 2
@@ -1341,13 +1392,14 @@ def test_a_drift_into_the_cell_padding_and_back_keeps_the_overlay(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_reopening_the_same_anchor_shows_the_image_and_sizes_to_it(page, ...):
+def test_reopening_the_same_anchor_shows_the_image_and_sizes_to_it(page, live_server):
     """Re-assigning an identical src to a complete <img> may not re-queue
     `load`; without the synchronous reveal the image stays hidden forever. And
     the reveal must happen BEFORE measure, or the overlay is placed against a
     caption-only box."""
-    make_image_asset(course, filename="powrot_0_1.png", size=(400, 300))
-    # ... open the manager at 1280x900
+    user, course = _seed_assets("rop-pa", "rop", ("powrot_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "rop-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "powrot_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
     first_height = page.locator(".asset-preview").bounding_box()["height"]
@@ -1360,7 +1412,7 @@ def test_reopening_the_same_anchor_shows_the_image_and_sizes_to_it(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_404_source_shows_the_caption_and_no_image_box(page, ...):
+def test_a_404_source_shows_the_caption_and_no_image_box(page, live_server):
     """Abort the overlay's request but NOT the thumbnail's, so this exercises
     the `error` handler rather than the empty-currentSrc guard."""
     user, course = _seed_assets("err-pa", "err", ("zepsuty_0_1.png", (400, 300)))
@@ -1386,26 +1438,29 @@ def test_a_404_source_shows_the_caption_and_no_image_box(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_thumbnail_that_never_loaded_shows_the_caption_only(page, ...):
+def test_a_thumbnail_that_never_loaded_shows_the_caption_only(page, live_server):
     """The OTHER caption-only source: the thumb itself failed, so currentSrc is
     empty and there is nothing to copy. Abort every request for this asset,
     including the thumbnail's."""
-    make_image_asset(course, filename="martwy_0_1.png", size=(400, 300))
+    user, course = _seed_assets("nvr-pa", "nvr", ("martwy_0_1.png", (400, 300)))
     page.route("**/martwy_0_1*", lambda route: route.abort())
-    # ... open the manager
+    _open_manager(page, live_server, "nvr-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "martwy_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
     expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_1.png")
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_broken_asset_then_a_good_one_restores_the_image_box(page, ...):
+def test_a_broken_asset_then_a_good_one_restores_the_image_box(page, live_server):
     """The overlay is a SINGLETON: without an unconditional reset at open, one
     broken thumbnail leaves every later preview on the page caption-only."""
-    make_image_asset(course, filename="martwy_0_1.png", size=(400, 300))
-    make_image_asset(course, filename="zdrowy_0_2.png", size=(400, 300))
+    user, course = _seed_assets(
+        "bth-pa", "bth", ("martwy_0_1.png", (400, 300)), ("zdrowy_0_2.png", (400, 300)),
+    )
     page.route("**/martwy_0_1*", lambda route: route.abort())
-    # ... open the manager
+    _open_manager(page, live_server, "bth-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "martwy_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
     page.mouse.move(5, 5)
@@ -1415,15 +1470,17 @@ def test_a_broken_asset_then_a_good_one_restores_the_image_box(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_b_s_caption_never_appears_over_a_s_image(page, ...):
+def test_b_s_caption_never_appears_over_a_s_image(page, live_server):
     """Hold B's source unresolved with a route so the window is bounded and
     observable -- the natural window is a cached decode, far shorter than any
     poll interval, so sampling for it would be a race, not an assertion."""
-    make_image_asset(course, filename="pierwszy_0_1.png", size=(400, 300))
-    make_image_asset(course, filename="drugi_0_2.png", size=(400, 300))
+    user, course = _seed_assets(
+        "inf-pa", "inf", ("pierwszy_0_1.png", (400, 300)), ("drugi_0_2.png", (400, 300)),
+    )
     released = {"route": None}
     page.route("**/drugi_0_2*", lambda route: released.__setitem__("route", route))
-    # ... open the manager at 1280x900
+    _open_manager(page, live_server, "inf-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "pierwszy_0_1.png")
     # BY NAME -- see the ordering note above. With nth(1) the pointer would land
     # on `pierwszy`, no request for drugi would ever be suspended, and
@@ -1472,40 +1529,13 @@ def test_a_late_load_from_a_previous_asset_cannot_reveal_it(page, live_server):
 
 - [ ] **Step 4: Run them to verify they fail**
 
-- [ ] **Step 5: Add the grace and the caption-only state**
+Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k "sweeping_a_to_b or drift_into or reopening_the_same or 404_source or thumbnail_that_never or broken_asset_then or b_s_caption or late_load" -v`
 
-Add near the other constants:
+Expected: FAIL, and **check the failure mode of each** — every one should fail on its assertion, not on a `ReferenceError` or a timeout. A module-level error here would mean Step 1's restructure is incomplete, and reading a red as success is exactly how that gets missed.
 
-```js
-  var GRACE_MS = 300;
-  var hideTimer = null;
-```
+- [ ] **Step 5: Wire the grace into the pointer handlers**
 
-The `load` / `error` handlers already exist from Task 5's `build()`. Change the `error` handler's body from the bare `overlayImg.hidden = true` to `captionOnly()`, which additionally nulls `expectedSrc`. Then add:
-
-```js
-  function captionOnly() {
-    overlayImg.hidden = true;
-    // Null the expected source, or a load still in flight for a PREVIOUS asset
-    // would still compare equal (this branch assigns no src) and would un-hide
-    // the image, painting A's frame under B's caption.
-    expectedSrc = null;
-  }
-
-  function startHide() {
-    cancelHide();
-    var gen = generation;
-    hideTimer = setTimeout(function () {
-      hideTimer = null;
-      if (gen !== generation) return;   // a later open superseded this timer
-      close();
-    }, GRACE_MS);
-  }
-
-  function cancelHide() {
-    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
-  }
-```
+`GRACE_MS`, `hideTimer`, `captionOnly()`, `cancelHide()` and `startHide()` all landed in Step 1. The `load` / `error` handlers already exist from Task 5's `build()` — change the `error` handler's body from the bare `overlayImg.hidden = true` to `captionOnly()`, which additionally nulls `expectedSrc`. What remains here is the pointer wiring:
 
 Replace the `mouseover`/`mouseout` handlers:
 
@@ -1543,6 +1573,8 @@ Replace the `mouseover`/`mouseout` handlers:
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
+Run the same `-k` filter as Step 4. Expected: PASS.
+
 - [ ] **Step 7: Falsify each row**
 
 | Mutant | Row |
@@ -1550,14 +1582,14 @@ Replace the `mouseover`/`mouseout` handlers:
 | `mouseout` closes immediately instead of arming the grace | `sweeping_a_to_b` |
 | same-anchor `mouseover` returns before `cancelHide()` | `drift_into_the_cell_padding` |
 | drop the synchronous `complete && naturalWidth > 0` reveal | `reopening_the_same_anchor` |
-| reveal **after** `place()` instead of before | `reopening_the_same_anchor` (height assertion) |
 | drop `expectedSrc = null` from `captionOnly()` | `a_late_load_from_a_previous_asset` |
-| drop the `error` listener | `a_late_load_from_a_previous_asset` (B never reaches `captionOnly()`, so `expectedSrc` stays A's and A's late load reveals it) |
 | drop the unconditional `overlayImg.hidden = true` reset in `open()` | `b_s_caption_never_appears` (A is *visible* when the swap happens, so without the reset A's frame stays painted under B's caption) — **not** `broken_asset_then_a_good_one`, where `captionOnly()` and `close()` have both already hidden it and the mutant changes nothing |
 
 **Two guards are deliberately unmapped.** Record them as such rather than writing rows that appear to test them:
 
 - The **empty-`currentSrc` guard**. With it removed, `open()` still hides the image first and then assigns the aborted URL; `error` fires, `captionOnly()` hides an already-hidden image, and the synchronous reveal cannot fire because `complete` is false immediately after assignment. Both builds reach an identical terminal state. `thumbnail_that_never_loaded` still earns its place as a behaviour test — it just cannot falsify this line.
+- The **`error` listener itself**, for the same structural reason. Every row that reaches the caption-only state does so through `open()`'s own `complete && naturalWidth === 0` guard (a *thumbnail* that failed), never through the overlay image's `error`. The one shape the listener uniquely governs — thumbnail loads, overlay source then fails — cannot be built with `page.route`, because the overlay reuses the thumbnail's exact URL and a route cannot distinguish the two fetches. Its body is `captionOnly()`, whose effects are already applied by `open()`'s unconditional reset in every reachable case.
+- The **reveal-before-`place()` ordering**. `place()` writes only `overlay.style.left` / `top`; it never changes the box's size, so moving the reveal after it leaves both the height and (at every geometry the suite exercises) the chosen placement branch identical. The ordering is kept because it is correct in principle — on a warm re-open the measurement is the only one that happens — but no row can discriminate it. The related mutant that *can* is "move `place()` before `overlay.hidden = false`", which is mapped to `tall_source`.
 - `cancelAnimationFrame` in `teardownOpenBindings()`, for the reason recorded in Task 7 Step 1.
 
 - [ ] **Step 8: Commit**
@@ -1669,10 +1701,15 @@ def test_focusout_during_the_hide_grace_does_not_close_early(page, live_server):
     user, course = _seed_assets("grc-pa", "grc", ("laska_0_1.png", (400, 300)))
     _open_manager(page, live_server, "grc-pa", course)
     page.set_viewport_size({"width": 1280, "height": 900})
+    # Focus must ALREADY be inside root, or the mid-grace focus() below fires no
+    # focusout at all: with document.activeElement at its default `body` there
+    # is nothing to blur, and body is an ANCESTOR of root, so a focusout could
+    # never bubble to the listener even if one fired.
+    page.locator("[data-filter-q]").focus()
     _open_preview(page, "laska_0_1.png")
     page.mouse.move(5, 5)                   # leave the anchor: grace starts
     page.wait_for_timeout(80)               # well inside the 300ms grace
-    page.locator("[data-filter-q]").focus() # a focusout lands mid-grace
+    page.evaluate("() => document.activeElement.blur()")   # real focusout on root
     page.wait_for_timeout(80)
     expect(page.locator(".asset-preview")).to_be_visible()   # grace still running
     page.wait_for_timeout(400)              # now let the grace expire
@@ -1852,14 +1889,24 @@ def test_the_pointer_can_still_hold_a_focus_opened_overlay(page, live_server):
     """The A-hovered / B-focus-opened configuration. The pointer must be RESTING
     on A when the Tab happens -- if it has already left, no mouseout on A ever
     fires afterwards and the mutant has no event to mishandle."""
-    specs = [("a_0_1.png", (400, 300))] + [
-        (f"b_{i}_0.png", (400, 300)) for i in range(24)
-    ]
-    user, course = _seed_assets("hold-pa", "hold", *specs)
+    # TWO assets, both above the fold. A 25-asset grid would put A (seeded
+    # first, so rendered LAST under -created) in row 5, below the 900px fold:
+    # _open_preview would scroll to reach it, the first Tab would scroll back to
+    # the top, and A would slide out from under the stationary pointer -- so no
+    # mouseout for A would fire and the mutant would survive. Seeding A first
+    # also means B renders first, so _tab_to_a_card_button lands on B, not A.
+    user, course = _seed_assets(
+        "hold-pa", "hold", ("a_0_1.png", (400, 300)), ("b_0_2.png", (400, 300)),
+    )
     _open_manager(page, live_server, "hold-pa", course)
     page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "a_0_1.png")          # pointer rests on A, overlay on A
+    scroll_before = page.evaluate("() => window.scrollY")
     _tab_to_a_card_button(page)               # focus-open swaps the overlay to B
+    assert page.evaluate("() => window.scrollY") == scroll_before, (
+        "the page scrolled; A is no longer under the pointer and this row's "
+        "premise is broken"
+    )
     caption = page.locator(".asset-preview__caption").text_content()
     assert caption != "a_0_1.png"
     page.mouse.move(5, 5)                     # NOW leave A
@@ -1869,6 +1916,10 @@ def test_the_pointer_can_still_hold_a_focus_opened_overlay(page, live_server):
 ```
 
 - [ ] **Step 2: Run them to verify they fail**
+
+Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k "escape_closes or scroll_and_resize or focusout_does_not_close or focusout_during_the_hide_grace or tabbing_to_a_card or replace_commit_does_not or rename_input_is_open or replace_strip_is_open or keyboard_driven_pencil or sweep_does_not_accumulate or filter_swap_closes or pointer_can_still_hold" -v`
+
+Expected: FAIL — Escape/scroll/resize/focusout have no handlers yet, the focus path does not exist, and the gate and observer are unimplemented. Check that each fails on its assertion rather than on a module error.
 
 - [ ] **Step 3: Implement**
 
@@ -1974,6 +2025,8 @@ The focus path, armed unconditionally (**not** behind `canHover`):
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
+
+Run the same `-k` filter as Step 2. Expected: PASS.
 
 - [ ] **Step 5: Falsify each row**
 
