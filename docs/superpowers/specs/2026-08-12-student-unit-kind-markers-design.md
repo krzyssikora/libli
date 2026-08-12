@@ -158,8 +158,9 @@ would cover two surfaces and force a second, driftable rule for the third.
 **`templates/courses/_unit_kind_chip.html`**
 
 ```html
-{% load courses_extras %}{% with m=node|unit_marker %}{% if m %}<span
-  class="badge unit-kind-chip unit-kind-chip--{{ m }}">{% marker_label m %}</span>{% endif %}{% endwith %}
+{% load i18n courses_extras %}{% get_current_language as LANGUAGE_CODE %}{% with m=node|unit_marker %}{% if m %}<span
+  class="badge unit-kind-chip unit-kind-chip--{{ m }}"
+  lang="{{ LANGUAGE_CODE }}">{% marker_label m %}</span>{% endif %}{% endwith %}
 ```
 
 **`templates/courses/_unit_kind_glyph.html`** — the glyph markup, authored **once**, keyed on a bare
@@ -191,8 +192,8 @@ already records that the templates hardcode these strings and that a rename need
 **`templates/courses/_unit_kind_icon.html`**
 
 ```html
-{% load courses_extras %}{% with m=node|unit_marker %}{% if m %}<span
-  class="unit-kind unit-kind--{{ m }}" title="{% marker_label m %}">
+{% load i18n courses_extras %}{% get_current_language as LANGUAGE_CODE %}{% with m=node|unit_marker %}{% if m %}<span
+  class="unit-kind unit-kind--{{ m }}" lang="{{ LANGUAGE_CODE }}" title="{% marker_label m %}">
   {% include "courses/_unit_kind_glyph.html" with m=m only %}
   <span class="visually-hidden unit-kind__label">{% marker_label m %}</span>
 </span>{% endif %}{% endwith %}
@@ -202,14 +203,29 @@ already records that the templates hardcode these strings and that a rename need
 **visible** word. Used only by the drawer legend (§4).
 
 ```html
-{% load courses_extras %}<span class="unit-kind unit-kind--{{ m }}">
+{% load i18n courses_extras %}{% get_current_language as LANGUAGE_CODE %}<span
+  class="unit-kind unit-kind--{{ m }}" lang="{{ LANGUAGE_CODE }}">
   {% include "courses/_unit_kind_glyph.html" with m=m only %}
-  <span class="unit-kind__legendword">{% marker_label m %}</span>
+  {% marker_label m %}
 </span>
 ```
 
 Note the legend entry deliberately carries **no** `title=` and **no** `.visually-hidden` — its word
 is already visible, so a tooltip would duplicate it and a hidden copy would double-announce it.
+
+**Why all three carry `lang="{{ LANGUAGE_CODE }}"`.** Every call site sits inside a subtree switched
+to the *course* language — `<a class="outline-unit" … lang="{{ course.language }}">`,
+`<a class="unit-tree__unit" … lang="{{ course.language }}">`, and
+`<article class="lesson"/"quiz" lang="{{ course.language }}">`. "Quiz" / "Additional" /
+"Dodatkowa" are UI strings in the **user's** locale, not the course's, and they land in `title=`, in
+a `.visually-hidden` label, in the chip text and in the legend. `_quiz_article.html:12-15` records
+the house rule verbatim: without it "a Polish UI string is announced as English inside an English
+course". The same comment records why `LANGUAGE_CODE` must come from `{% get_current_language %}` —
+**the i18n context processor is not enabled** — and `only` on every include means the partials
+cannot inherit it from the parent context even if it were. Hence the tag inside each partial.
+
+(The existing `✓` badge's `aria-label="{% trans 'Completed' %}"` omits `lang` in both surfaces. That
+is a pre-existing inconsistency, out of scope here; the new markers do not copy it.)
 
 Both render **nothing at all** for `MARKER_NONE`, and both call `unit_marker` themselves, so no call
 site can pass a state the partial did not compute.
@@ -285,12 +301,20 @@ token-driven.
 `display: inline-block` with **no `flex` and no `white-space`**, so as a flex item of
 `.lesson-unit__heading` — and of `.outline-unit` — it resolves to `flex: 0 1 auto` and shrinks. Flex
 shrink is basis-weighted, so with an ~80px deficit (`<h1>` basis 736, chip basis ~78, gap 12,
-line ~746) the chip absorbs `78/814 × 80 ≈ 8px`, and without `nowrap` "Additional" / "Dodatkowa"
-wraps to two lines inside a pill sitting on `align-items: baseline`. That would falsify §4's "the
-`<h1>` shrinks instead" argument, which assumes the chip holds its width. Every peer chip in this
-codebase already carries these guards — `.unit-done { flex: none }` (`courses.css:836`),
-`.unit-done__pill { white-space: nowrap }` (`:837`), `.rollup { white-space: nowrap }`
-(`app.css:506-508`) — so this is the house pattern, not a special case.
+line ~746) the chip absorbs `78/814 × 80 ≈ 8px`. That falsifies §4's "the `<h1>` shrinks instead"
+argument, which assumes the chip holds its width. **`flex: none` is the load-bearing half of this
+rule** and is pinned by a chip-width assertion in Testing.
+
+**`white-space: nowrap` is forward-defence, not a live fix — do not justify it as one.** Both
+shipping labels ("Additional", "Dodatkowa") are single words with no space, so they have no
+soft-wrap opportunity, and `.badge` sets no `overflow-wrap`/`word-break`; under `white-space: normal`
+such a word cannot wrap, it overflows. The declaration is therefore **inert for the two labels that
+actually ship**, and its min-content contribution is identical either way. It is kept for a future
+multi-word translation and for consistency with the peer chips — `.unit-done__pill
+{ white-space: nowrap }` (`courses.css:837`) and `.rollup { white-space: nowrap }`
+(`app.css:506-508`) — alongside `.unit-done { flex: none }` (`courses.css:836`), which make this the
+house pattern. Because it is inert today it has **no mutant**: any test claiming to redden on its
+removal would be green on the broken build.
 
 **Outline page** — `templates/courses/_outline_node.html`.
 
@@ -376,8 +400,10 @@ The drawer is a **touch** surface and the template's own comment records that "T
 so `title=` yields nothing there and a bare glyph would be unexplained.
 
 The obvious fix — un-hiding `.unit-kind__label` at drawer scope — was **considered and rejected on a
-width budget**, and that reasoning is recorded here so it is not re-attempted. `courses.css:981-984`
-documents the drawer title column as already squeezed to ~98px. A glyph (~13px) plus "Dodatkowa"
+width budget**, and that reasoning is recorded here so it is not re-attempted. `courses.css:2339`
+documents the **drawer's** title column as already squeezed to ~98px — note that `:981-984` records
+a coincidentally identical ~98px for a *different* element (`.lesson-unit__head`'s title beside the
+action buttons), so the two must not be conflated. A glyph (~13px) plus "Dodatkowa"
 (~58px at `.82rem`) plus the gap leaves the title roughly 20–30px, which is unusable; and because
 `.unit-kind__label` has no `overflow-wrap`, the unbreakable word would paint outside its box and
 overlap the title. Making the row `flex-wrap: wrap` does not rescue it either: flex line-breaking
@@ -429,12 +455,33 @@ one rule beside the other drawer rules in the `@media (max-width: 640px)` block:
 This costs one line at the top of the drawer and **zero further per-row width** — "further" being
 load-bearing, since the *glyph* still renders on every marked drawer row and is not free. Budget it
 explicitly rather than waving at it: a 1em glyph at `.82rem` (~13px) plus `.unit-tree__unit`'s
-`gap: .4rem` (~6.4px) takes ~19px out of the ~98px title column documented at `courses.css:981-984`,
+`gap: .4rem` (~6.4px) takes ~19px out of the ~98px title column documented at `courses.css:2339`,
 leaving **~79px**. That is a ~20% narrowing of exactly the column whose narrowing is the stated
-re-check trigger for the maths audit (`courses.css:2347-2349`), so every drawer assertion in Testing
+re-check trigger for the maths audit (`courses.css:2344-2345`), so every drawer assertion in Testing
 must hold at ~79px, not at 98px — and the rejected per-row word is rejected by a much larger margin
 than the glyph, not by the same one. The comparison the "zero" claims beat is the ~58px label, not
 the marker as a whole.
+
+**Narrowing that column to ~79px requires a wrap guard the drawer label does not have.** The drawer
+override at `courses.css:977-978` gives `.unit-tree__label` `white-space: normal; overflow: visible;
+text-overflow: clip` — but, unlike `.unit-tree__grouptitle` (`:736-738`, which carries
+`overflow-wrap: break-word; hyphens: auto`), `.unit-tree__label` has **no `overflow-wrap` at all**.
+A single word wider than the column therefore paints *outside* the box, to the right — precisely
+where the new trailing `.unit-kind` now sits. The existing drawer measurement was taken clean at
+~98px, not at ~79px, and this repo's own phone fixture (`test_e2e_unit_head_layout.py`'s
+`LONG_TITLE`) contains "przedziałach", which is plausible at 98px and not at 79px. So extend that
+override:
+
+```css
+.unit-drawer__list .unit-tree__label {
+  white-space: normal; overflow: visible; text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+```
+
+`anywhere` rather than `break-word` for the same reason as the outline title: it reduces the
+min-content contribution, which is what actually stops the overflow. Pinned by the text-overflow
+assertion in Testing.
 
 The legend keeps `.unit-kind__label` visually hidden on every surface (so the accessible name in §3
 is unchanged everywhere) and needs no `.unit-drawer__list .unit-kind*` rules at all. It renders
@@ -467,7 +514,8 @@ and the chip:
 ```
 
 In `courses.css`, **immediately after the `.lesson-unit__head .lesson-unit__title` rule at
-`:834-835`** and therefore **before** the `@media` block at `:985-987`:
+`:834-835`** and therefore **before** the `@media (max-width: 640px)` block at `:948-987`, whose
+`.lesson-unit__head` rules sit at `:985-986`:
 
 ```css
 .lesson-unit__heading { flex: 1 1 auto; min-width: 0;
@@ -740,7 +788,11 @@ surface test can reach that branch because the chip and icon partials guard it b
 
 Each asserts the marker is **present** for an additional unit and for a quiz, **and absent for a
 required lesson**. The absence assertion is load-bearing: without it every mutant that marks every
-row stays green. Each also asserts the rendered modifier class against the constant (§1).
+row stays green. Each also asserts the rendered modifier class against the constant (§1), and that
+the marker element carries `lang="en"` (the UI locale) even though it sits inside a
+`lang="{{ course.language }}"` subtree — the §3 requirement, which is invisible to every geometric
+assertion. Seed the course with a `language` **other than** the UI locale, or the assertion is
+vacuous.
 
 1. **Course outline** (`courses:course_outline`) — `.unit-kind-chip` is present **inside** the
    `.outline-unit` anchor, is the `.outline-unit__title`'s **next element sibling**, and **precedes**
@@ -787,13 +839,40 @@ its `x`.
 
 **Desktop, unit page.** The whole §4 heading-group resolution otherwise has **zero** executable
 coverage, since render tests 2–3 are DOM-containment checks a CSS deletion leaves green. On both
-article templates, and in both rail states (expanded and `html.unit-tree-collapsed`):
+article templates, and in both rail states (expanded and `html.unit-tree-collapsed`).
 
-- the chip's left edge is within a few px of `title_right + gap`, and far short of the head's right
-  edge;
-- on the lesson page, the **done pill's left edge is within a few px of the group's right edge** —
-  this is what kills a deletion of the group's `flex: 1 1 auto`, which the chip-position assertions
-  cannot (with `flex: 0 1 auto` the chip stays glued to the title; what moves is the pill).
+**This arm needs two fixtures, and which mutant each one kills is not interchangeable.** Adjacency
+between two gapped flex siblings is invariant under *any* sizing mutant that keeps them on one line,
+so a single cap-length row proves almost nothing:
+
+- **Short-title row** — the `<h1>`'s content is far below the cap. Assert `chip.left` is near the
+  **group's left** edge (`group.left + title_content_width + gap`, ~112px in), and specifically
+  **not** near the group's right edge. This is the row that kills deletion of
+  `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }`: with the reset the `<h1>`
+  shrink-wraps to ~100px and the chip follows it; without it the `<h1>` is `flex: 1` and grows to
+  the full ~656px remainder, putting the chip ~556px further right.
+- **Cap-length row** — the `<h1>`'s content exceeds 736px. Assert the chip is on the **same line**
+  as the title (`chip.top ≈ title_top`), which is what kills adding `flex-wrap: wrap` to the group
+  at desktop. Also assert the chip's **width** ≈ its unshrunk natural width, A/B'd via
+  `page.add_style_tag` forcing `flex: 0 1 auto` on it — that is what kills dropping
+  `.unit-kind-chip { flex: none }`.
+
+  **Do not expect the cap-length row to catch the missing `flex: 0 1 auto` reset — it cannot.** With
+  the reset, the `<h1>`'s base is `min(max-content, 736)` = 736 and the chip is `flex: none`, so the
+  entire ~80px deficit lands on the `<h1>` → 656px. Without the reset the `<h1>` is `flex: 1 1 0%`
+  and *grows* into the same ~656px remainder. `chip.left` is `group.left + 668` on both builds. The
+  two are pixel-identical, which is exactly why the short-title row exists.
+
+  For the same reason, dropping `.unit-kind-chip { flex: none }` moves **both** edges together (the
+  chip absorbs ~8px of the deficit, so the `<h1>` lands at ~663.7 and the chip at ~70.3) and leaves
+  `chip.left ≈ title_right + gap` true — only the chip's *width* changes. This is the failure mode
+  §4 already reasons about for `.unit-kind`; it applies to the chip identically.
+
+- On the lesson page, the **done pill's left edge is `group.right + 16`** — the head's `gap: 1rem`
+  (`courses.css:829`), stated as an offset rather than "within a few px", which would be red on a
+  correct build. This is what kills a deletion of the group's `flex: 1 1 auto`, which no
+  chip-position assertion can (with `flex: 0 1 auto` on the group the chip stays glued to the title;
+  what moves is the pill).
 
 **Phone, 390×780 — the drawer must actually be opened.** `.unit-drawer` is `display: none` at base
 (`courses.css:946`), revealed only inside `@media (max-width: 640px)` via
@@ -807,14 +886,23 @@ Assertions at that size:
   `width >= 30` and `height >= 8`. The thresholds are the point: `.visually-hidden` is 1px × 1px
   with a zero clip rect, which Playwright reports as **visible with a non-empty box**, so a
   `bounding_box() is not None` assertion cannot distinguish a rendered legend from a hidden one;
-- each row's `.unit-kind` and `.unit-tree__label` rects **do not intersect** (plain text, not just
-  maths) — the residual-width check the drawer column's ~98px demands;
+- **text-overflow on the label**, not a rect comparison: with a long unbreakable Polish word in the
+  title, assert `label.scrollWidth - label.clientWidth <= 1`. A rect-intersection assertion between
+  `.unit-kind` and `.unit-tree__label` was **considered and rejected as vacuous** — they are sibling
+  flex items with a positive `gap: .4rem` and no negative margins, so their border boxes can never
+  overlap on any build, correct or broken. The failure being policed is *text* painting outside the
+  label box, and this repo already records that box geometry cannot see it:
+  `tests/test_e2e_unit_head_layout.py`'s module docstring says "Box geometry alone does not catch
+  this — the boxes stay 16px apart while the text overlaps — so the assertion is on TEXT overflow
+  (scrollWidth vs clientWidth)". Do not re-introduce the rect form;
 - **A/B the label's wrap points**: record `.unit-tree__label`'s
   `getBoundingClientRect().height` for a fixed long title, re-measure with `page.add_style_tag`
   neutralising `.unit-tree__label { flex: 1 1 auto }`, assert equal. Mechanical rather than a
   remembered baseline;
 - a long `\(…\)` maths title, asserting no `.katex` box intersects `.unit-kind`'s rect — the
-  re-earned audit §4 requires;
+  re-earned audit §4 requires. Unlike the plain-text case above, the **rect** form is right here: a
+  `.katex` inline-block genuinely escapes its parent's box, which is the whole reason that audit
+  exists;
 - the **unit page** head at 390 wide on a quiz or additional unit — the chip's `top >=
   title_bottom - 1` and its `left` near the group's left edge. This is the chip-bearing half of the
   mobile rule, which `test_e2e_unit_head_layout.py` structurally cannot cover;
@@ -849,21 +937,26 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
 - The chip moved before `.outline-unit__title` → the outline next-element-sibling assertion goes red.
 - `.unit-tree__label`'s `flex: 1 1 auto` reverted → the shared-`x` gutter assertion goes red.
 - The `.unit-kind` rule deleted → the rail glyph-size assertion goes red.
-- `.unit-kind-chip`'s `flex: none` dropped → the desktop chip-position assertion goes red for a
-  cap-length title; its `white-space: nowrap` dropped → the chip's rendered height exceeds one line
-  at 390px on the outline.
+- `.unit-kind-chip`'s `flex: none` dropped → the cap-length **chip-width** assertion goes red. NOT
+  the chip-position assertion: both edges move together, so adjacency stays true (see the e2e note).
+  `white-space: nowrap` has deliberately **no mutant** — it is inert for the two single-word labels
+  that ship (§4), so any test claiming to redden on its removal would be green on the broken build.
+- The `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }` reset deleted → the
+  **short-title** desktop assertion goes red. NOT the cap-length one, which is pixel-identical on
+  both builds.
+- `overflow-wrap: anywhere` dropped from the drawer's `.unit-tree__label` override → the 390px
+  `scrollWidth - clientWidth` assertion goes red.
 - The anchor's `min-width: 0` (`app.css:544`) reverted, **or** the title's `overflow-wrap: anywhere`
   weakened to `break-word` → the 390-wide outline `scrollWidth === clientWidth` assertion goes red.
   Falsify these two **separately**: each alone is sufficient to break the row, so a single combined
   mutant would not prove both declarations are load-bearing.
-- `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }` deleted → the desktop chip-position
-  assertion goes red on both templates.
 - `.lesson-unit__heading`'s `flex: 1 1 auto` deleted → the pill-position assertion goes red.
 - The mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` deleted →
   `test_e2e_unit_head_layout.py`'s phone assertions go red.
-- `flex-wrap: wrap` added to the group at **desktop** → the chip-position assertion goes red for a
-  capped-length title.
+- `flex-wrap: wrap` added to the group at **desktop** → the cap-length **same-line** assertion
+  (`chip.top ≈ title_top`) goes red.
 - The drawer legend removed → the 30×8 legend assertion goes red.
+- `lang="{{ LANGUAGE_CODE }}"` dropped from the chip → the render tests' `lang` assertion goes red.
 
 A mutant must be removed by editing it out, never by `git checkout` of the file, which would destroy
 the surrounding work.
