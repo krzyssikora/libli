@@ -39,12 +39,12 @@ image without leaving the grid.
 **Scope.** The manager grid cell
 (`templates/courses/manage/media/_asset_cell.html`), the manager-only CSS
 classes `.asset-names` / `.asset-dname` / `.asset-fname`, one seed-value fix in
-`media_picker.js`, and a new preview module. `.asset-cell`, `.asset-thumb` and
-`.asset-name` are shared with the picker; of these only `.asset-thumb` is
-touched, and only by adding a data attribute hook, so the picker's rendering is
-unchanged. Out of scope: thumbnail generation, the picker grid
-(`_picker_grid.html`), and the `cursor: pointer` on a non-clickable manager
-cell.
+`media_picker.js`, and a new preview module. The manager template's
+`<img class="asset-thumb">` gains a data attribute; `_picker_grid.html:6`
+renders its own independent `<img class="asset-thumb">` and is untouched, so no
+shared CSS class is modified and the picker's rendering is unchanged. Out of
+scope: thumbnail generation, the picker grid, and the `cursor: pointer` on a
+non-clickable manager cell.
 
 ## Architecture / components
 
@@ -53,11 +53,12 @@ Five components, each independently testable.
 ### 1. `middle_truncate` template filter
 
 New filter in `courses/templatetags/courses_manage_extras.py` (the existing home
-for manage-side filters — `register = template.Library()` at `:26`).
-
-Registered as `@register.filter` + `@stringfilter`, so a lazy or non-string
-value is coerced before `len()` is taken. The return value is **not** marked
-safe: the input is user-supplied and must stay auto-escaped.
+for manage-side filters — `register = template.Library()` at `:26`). Needs a new
+import, `from django.template.defaultfilters import stringfilter`, and the
+decorator order is load-bearing: `@register.filter` outermost, `@stringfilter`
+innermost, so a lazy or non-string value is coerced before `len()` is taken. The
+return value is **not** marked safe: the input is user-supplied and must stay
+auto-escaped.
 
 Signature: `middle_truncate(value, budget=38)` → `str`.
 
@@ -96,10 +97,10 @@ fits two columns and `1fr` distributes the remainder, so each card is
 substantially wider than 128 px. (The docstring at
 `tests/test_e2e_media_manager.py:594-596` claims 360 px "pins columns at the
 128px minimum"; that claim is wrong and is inherited here, not invented.)
-Implementation must **measure** the rendered card width at 360 px and size the
-clamp fixture (Testing) against the measured value, recording it in the test.
-The 38-character budget is deliberately conservative and does not depend on that
-measurement.
+Implementation must **measure** the rendered card width at 360 px. The
+38-character budget is deliberately conservative and does not depend on that
+measurement, but the clamp does — see "The clamp may not survive measurement"
+below.
 
 Truncation slices by **code point**, not grapheme cluster. A name whose elision
 boundary falls inside a combining sequence or an emoji ZWJ cluster may render a
@@ -112,14 +113,23 @@ and the preview caption both carry the intact name.
   identical strings. Criterion (a) is conditional on the difference lying
   outside the elision — which holds for the reported numeric-suffix case, since
   the tail is preserved.
-- **When the 3-line clamp engages, the tail is lost.** `-webkit-line-clamp`
+- **If the 3-line clamp engages, the tail is lost.** `-webkit-line-clamp`
   truncates at the end of the third line and appends its own ellipsis, removing
-  exactly the suffix `middle_truncate` reserved 14 characters to protect. So for
-  a within-budget name whose glyphs are wide enough to overflow three lines,
-  criterion (a) fails and only the `title` and the preview caption recover the
-  name. The budget is set conservatively to make this rare rather than to make
-  it impossible; bounding the card's height is judged the more important
-  guarantee.
+  exactly the suffix `middle_truncate` reserved 14 characters to protect. For
+  such a name criterion (a) fails and only the `title` and the preview caption
+  recover it.
+
+**The clamp may not survive measurement.** The clamp can only ever engage on a
+name that is *within* budget (≤ 38 characters — anything longer is shortened by
+the filter first) yet still overflows three lines at the rendered card width. At
+the measured 360 px width that margin is thin. Implementation must determine
+whether such a name exists:
+
+- If it does, the clamp stays and its test row uses that name.
+- If it does not, the clamp is **unreachable in production as well as in test**.
+  Delete the `-webkit-line-clamp: 3` declaration and its test row rather than
+  shipping an unfalsifiable rule — and keep `overflow: hidden`, which is doing
+  separate work (§3). The second accepted limitation above then drops with it.
 
 ### 2. Card markup — `_asset_cell.html`
 
@@ -139,33 +149,32 @@ and the preview caption both carry the intact name.
   (`editor.css:721`, `white-space: nowrap`), and for a renamed asset it is the
   only place the real file identity appears — without the `title` the exact
   filename would be unobtainable anywhere in the UI.
-- `:7` (`.asset-thumb`, the `<img>` branch only) gains `data-asset-preview` as
-  the preview module's hook. The `<span class="asset-thumb asset-thumb--video">`
-  branch at `:9` does not.
+- `:7` (the `<img class="asset-thumb">` branch only) gains `data-asset-preview`
+  as the preview module's hook. The
+  `<span class="asset-thumb asset-thumb--video">` branch at `:9` does not.
 
 Any commentary added to this template must be a single-line `{# … #}` that
 Django strips — see the constraint under Testing.
 
 ### 3. Card CSS — `editor.css`
 
-`.asset-dname` gains three things, and it matters which does what:
+`.asset-dname` gains three things:
 
-- `display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
-  overflow: hidden` — **this is what stops the spill.** `overflow: hidden` makes
-  the span a scroll container, and per CSS Flexbox §4.5 a scroll container's
-  automatic minimum size is **zero** rather than content-based. That is what
-  lets the flex item shrink inside the card and end the paint-over. The
-  `-webkit-line-clamp: 3` half bounds the card's height when a name's glyphs are
-  wider than the budget derivation assumes — at the cost documented in §1's
-  second accepted limitation.
-- `overflow-wrap: anywhere` — **this is what keeps the text legible.** With the
-  box now clipping, a filename with no soft-wrap opportunity would render as a
-  single line cut off after ~11 characters, losing the tail that
-  `middle_truncate` exists to preserve. `anywhere` introduces break
-  opportunities so the string wraps across all three lines. (It is also counted
-  in min-content sizing, unlike `word-break: break-word` — but that property of
-  it is redundant here, since `overflow: hidden` has already collapsed the
-  minimum.)
+- `overflow-wrap: anywhere` and `overflow: hidden` — **either one alone
+  collapses the flex automatic minimum size**, and the pair is retained because
+  each also does separate work. `overflow: hidden` makes the span a scroll
+  container, whose automatic minimum size is zero per CSS Flexbox §4.5.
+  `overflow-wrap: anywhere` introduces soft-wrap opportunities that *are*
+  counted in min-content intrinsic sizing (unlike `word-break: break-word`), so
+  it collapses the minimum too. Beyond containment: `overflow: hidden` is
+  required for `-webkit-line-clamp` to clip at all, and `overflow-wrap:
+  anywhere` is what makes the string wrap across three lines instead of
+  rendering as a single line cut off after ~11 characters, losing the tail that
+  `middle_truncate` exists to preserve. **Because either alone suffices for
+  containment, the containment test's mutant must drop both** (see Testing).
+- `display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3` —
+  bounds the card's height for a within-budget name whose glyphs are wider than
+  the derivation assumes, subject to §1's "may not survive measurement".
 - `flex: 1 1 0` — **this is what keeps the ✎ button on the first line.** Flex
   line breaking happens before shrinking and uses each item's *hypothetical*
   main size; with the default `flex-basis: auto` that is the max-content width
@@ -174,9 +183,8 @@ Django strips — see the constraint under Testing.
   the hypothetical size 0. `flex-grow: 1` is not optional alongside it — with
   basis 0 and no grow the span would be zero-width and the name invisible.
 
-`min-width: 0` is deliberately **not** added: `overflow: hidden` already
-collapses the automatic minimum, so it would change nothing observable and could
-not be independently falsified.
+`min-width: 0` is deliberately **not** added: it would change nothing observable
+alongside either rule above and could not be independently falsified.
 
 `.asset-names` changes `align-items: center` → `align-items: start`, so the ✎
 button aligns to the top of the first line rather than to the vertical middle of
@@ -191,9 +199,6 @@ above. Note that the button is `opacity: 0` until its cell is hovered
 cell — which constrains both the screenshot pass and the alignment test (see
 Testing).
 
-New `.asset-preview` overlay styles: see §5 for sizing, placement, stacking and
-the token list.
-
 **Divergence from the picker, deliberately.** `.asset-name` (`editor.css:366`,
 picker-only) uses `word-break: break-word` for the same class of problem. The
 new rule set is not converged with it — the picker is out of scope and does not
@@ -207,11 +212,13 @@ on `blur`. Once the span renders a middle-truncated string, clicking ✎ and the
 clicking anywhere else writes `head…tail` into `MediaAsset.name` as a permanent
 custom name, after which `display_name` returns the ellipsised string forever.
 
-The seed reads the cell root's `data-name` attribute (`_asset_cell.html:3`)
-directly, with **no `textContent` fallback**: `data-name` is unconditional in
-the template and every render path goes through it, so a fallback would be
-unreachable dead code that — if it ever *were* reached — would reintroduce
-precisely this bug.
+The seed becomes `cell.getAttribute("data-name").trim()` — reading the
+untruncated name from the cell root (`_asset_cell.html:3`) and **keeping** the
+`.trim()` the old seed applied, so a stored name with stray whitespace still
+seeds cleanly. There is **no `textContent` fallback**: `data-name` is
+unconditional in the template and every render path goes through it, so a
+fallback would be unreachable dead code that — if it ever *were* reached —
+would reintroduce precisely this bug.
 
 No other change to the rename flow is needed: it reinserts the **same span
 node** on cancel (`:344`), on a non-200 (`:351`), and on network failure
@@ -238,9 +245,6 @@ imagezoom's modal machinery — no `showModal`, no scroll lock, no focus trap, n
 Escape-capture arbitration. What it does carry over: reuse the already-fetched
 URL, and a deliberate `alt`.
 
-The two can coexist later if click-to-enlarge is ever wanted here; nothing in
-this design forecloses arming `[data-zoomable]` as well.
-
 **File and wiring.** `courses/static/courses/js/media_preview.js`, loaded from
 `manager.html`'s `{% block extra_js %}` (`:59`) alongside `media_picker.js` and
 with the same `defer` attribute — without `defer` the delegated listeners would
@@ -254,9 +258,16 @@ already the manager's largest script.
 `document.body` and kept there for the page's lifetime. Structure:
 `div.asset-preview[aria-hidden="true"]` containing
 `img[data-asset-preview-img]` and `div.asset-preview__caption`. **Closed state
-is the `hidden` attribute** on the root — not removal, not `display: none` on a
-class — so tests can wait on an exact `state="hidden"` / `state="visible"`
-transition and read the image's `src` through `[data-asset-preview-img]`.
+is the `hidden` attribute** on the root, so tests can wait on an exact
+`state="hidden"` / `state="visible"` transition and read the image through
+`[data-asset-preview-img]`.
+
+> `.asset-preview[hidden] { display: none; }` is **required** and must be stated
+> before the `display: flex` declaration. `[hidden] { display: none }` comes
+> from the UA stylesheet and any author `display` beats it, so without this rule
+> the overlay is permanently visible from creation. The same file already ships
+> `.math-modal[hidden] { display: none; }` (`editor.css:806`) and a
+> `.picker__panel[hidden]` twin for exactly this reason — it is not redundant.
 
 **Trigger, and how it survives DOM churn.** `mouseenter` / `mouseleave` do
 **not** bubble, so they cannot be delegated — and the manager replaces cells and
@@ -268,24 +279,28 @@ swapped-in cell. The module instead delegates the bubbling **`mouseover` /
 `e.target.closest("[data-asset-preview]")` and ignoring intra-anchor transitions
 by checking whether `e.relatedTarget` is contained by the same anchor. No arming
 pass and no per-cell listener exists, so a cell inserted at any later moment
-works identically to one rendered at load. Opening waits out a ~250 ms dwell so
-that sweeping a row does not strobe; leaving the anchor hides immediately and
-cancels a pending open. Anchoring to the thumbnail rather than the whole cell
-keeps the image preview and the name's native `title` tooltip on disjoint hover
-targets, so the two never stack.
+works identically to one rendered at load.
 
-The module tracks the currently-hovered anchor in a module-level
-`hoveredAnchor` variable, set on `mouseover` and cleared on `mouseout` **and**
-in the `MutationObserver` teardown. That variable — not `anchor.matches(":hover")`,
-which is also true for ancestors and can be stale immediately after a DOM swap —
-is what "the pointer is inside the anchor" means everywhere below.
+Opening waits out a dwell of **exactly 250 ms**, so that sweeping a row does not
+strobe. A `mouseover` on an anchor whose timer is already pending is a no-op
+(the timer is **not** restarted); a `mouseover` on the already-open anchor is
+also a no-op. Leaving the anchor hides immediately and cancels a pending open.
+Anchoring to the thumbnail rather than the whole cell keeps the image preview
+and the name's native `title` tooltip on disjoint hover targets, so the two
+never stack.
+
+The module tracks the currently-hovered anchor in a module-level `hoveredAnchor`
+variable, set on `mouseover` and cleared on `mouseout` **and** in the
+`MutationObserver` teardown — not `anchor.matches(":hover")`, which is also true
+for ancestors and can be stale immediately after a DOM swap.
 
 **Pointer gate.** The `mouseover` / `mouseout` path is armed only when
-`matchMedia("(hover: hover) and (pointer: fine)")` matches: on touch a tap
-synthesises hover events with no matching leave, which would strand the overlay
-over the grid. The **focus path is armed unconditionally** — a keyboard attached
-to a touch-first device is a real configuration, and nothing about the touch
-failure mode applies to it.
+`matchMedia("(hover: hover) and (pointer: fine)")` matches, evaluated **once at
+load** (no `change` listener — a pointing device appearing mid-session is not
+worth the complexity). On touch a tap synthesises hover events with no matching
+leave, which would strand the overlay over the grid. The **focus path is armed
+unconditionally** — a keyboard attached to a touch-first device is a real
+configuration, and nothing about the touch failure mode applies to it.
 
 **Keyboard.** The manager cell is a `div` and is not focusable, and giving each
 card a tab stop would add a fourth to the three buttons it already holds. The
@@ -295,14 +310,18 @@ extra cost — and closes on `focusout`. The focus path opens **immediately, wit
 no dwell**, and cancels any pending pointer-dwell timer. Two exclusions, both
 "do not sit over the control the user is operating":
 
-- `focusin` whose target is `.asset-rename-input` is ignored, and inserting that
-  input closes any open overlay.
-- `focusin` originating inside `[data-replace-strip]` is ignored, and inserting
-  that strip closes any open overlay. The replace flow focuses
-  `[data-replace-commit]` the moment the strip appears
+- `focusin` whose target is `.asset-rename-input` is ignored.
+- `focusin` originating inside `[data-replace-strip]` is ignored. The replace
+  flow focuses `[data-replace-commit]` the moment the strip appears
   (`media_picker.js:461`, asserted at `tests/test_e2e_media_manager.py:124`),
-  and the strip renders inside the cell — so without this every ⇄ click would
-  raise a 320 px overlay over the confirm prompt.
+  and the strip renders inside the cell (`cell.appendChild(strip)`) — so without
+  this every ⇄ click would raise the overlay over the confirm prompt.
+
+Ignoring the `focusin` is not sufficient on its own, because the ✎ / ⇄ button
+that *precedes* the insertion has already opened the overlay via its own
+`focusin`. The `MutationObserver` below therefore also closes the overlay when a
+`.asset-rename-input` or a `[data-replace-strip]` appears anywhere under
+`.media-manager`.
 
 **Escape.** Bound on `document` in the **bubble** phase, **only while the
 overlay is open**, and it must not call `preventDefault()` or
@@ -310,6 +329,12 @@ overlay is open**, and it must not call `preventDefault()` or
 rename input to cancel; swallowing the key would be a latent regression. This is
 deliberately not the capture-phase arbitration `imagezoom.js` needs, because a
 non-modal overlay has no claim to exclusivity.
+
+After an Escape the overlay stays closed until the pointer leaves the anchor and
+returns — no suppression flag is needed, and none is kept. `mouseover` fires on
+*entering* an element, so a stationary pointer inside the anchor generates no
+further events and nothing can reopen the overlay on its own. A flag guarding
+against that would be provably inert.
 
 **Content and the actual un-crop mechanism.** The crop comes from
 `.asset-thumb`'s own `aspect-ratio: 4 / 3` + `object-fit: cover`
@@ -319,40 +344,63 @@ image, is what shows the full frame. `object-fit: contain` on the overlay image
 is meaningful only in combination with the explicit box below (a replaced
 element with both dimensions constrained); it is declared for that case and is
 otherwise inert. A source smaller than the box **is** upscaled — the preview's
-job is to un-crop, not to add detail, and a "preview" that renders smaller than
-the thumbnail it previews would be absurd. The caption is `display_name` (read
-from the cell root's `data-name`) — for a renamed asset that is the custom name,
-not the file's name; the card's own `.asset-fname` line, now carrying its own
+job is to un-crop, not to add detail. The caption is `display_name` (read from
+the cell root's `data-name`) — for a renamed asset that is the custom name, not
+the file's name; the card's own `.asset-fname` line, now carrying its own
 `title`, is where the original filename is readable.
 
-**Sizing.** Two rules, because a `max-height` on the container does not bound
+**Sizing.** Three rules, because a `max-height` on the container does not bound
 its children — a portrait source at `width: 100%` of a 320 px box would
 otherwise render thousands of pixels tall and overflow:
 
-- `.asset-preview`: `max-width: min(320px, calc(100vw - 16px))`,
-  `max-height: calc(100vh - 16px)`, `overflow: hidden`, laid out as a column
-  flex container.
-- `[data-asset-preview-img]`: `max-width: 100%` and `min-height: 0` with
+- `.asset-preview`: `position: fixed`, `z-index: 60`,
+  `max-width: min(320px, calc(100vw - 16px))`,
+  `max-height: calc(100vh - 16px)`, `overflow: hidden`, `display: flex` in
+  column direction (after the `[hidden]` rule above).
+- `[data-asset-preview-img]`: `max-width: 100%`, `min-height: 0`,
   `flex: 0 1 auto`, so the image yields to the caption and the padding and can
   never exceed the container's remaining height.
+- `.asset-preview__caption`: `overflow-wrap: anywhere` and free to wrap to
+  multiple lines within the container's height budget. A filename has no
+  soft-wrap opportunities, so without this the caption renders one unbreakable
+  line and `overflow: hidden` clips the very tail the caption exists to recover.
 
-**Placement.** Tried in order: right of the card, left of the card, below it,
-above it, and finally centred in the viewport when no side fits — which is the
-operative case at the 360 px viewport, where neither side has room.
+**Placement.** All measurement happens **after** the `hidden` attribute is
+removed — a `display: none` element has no box and `getBoundingClientRect()`
+returns zeros, which would make every "does it fit?" test compare against width
+0 and always answer yes. The sequence is: populate → remove `hidden` with
+`visibility: hidden` → measure → position → restore `visibility`. Placement is
+then recomputed on the overlay image's `load` event, because assigning `src`
+does not synchronously give a cached image its `naturalHeight`, so the first
+measurement sees a caption-only box.
+
+- Gap between the overlay and the card: **8 px**.
+- "Fits on the right" means
+  `viewportWidth - cardRect.right - 8 >= overlayWidth`; "fits on the left" is
+  the mirror. Below/above use the same inequality on the vertical axis.
+- Order: right, left, below, above, then centred in the viewport when none fit
+  — the operative case at 360 px, where neither side has room.
+- On the perpendicular axis the overlay is top-aligned with the card (for
+  left/right) or left-aligned (for above/below), then **clamped** into the
+  viewport with an 8 px margin, so a card near an edge cannot push the overlay
+  off-screen.
+- Centring is `left`/`top` computed from the measured box, not `margin: auto` —
+  the element is `position: fixed` with no `inset`.
 
 **Containing block.** Appended to `document.body`, not to `.media-manager`, so
 that `position: fixed` resolves against the viewport. Any ancestor with
 `transform`, `filter`, `backdrop-filter`, `will-change` or `contain` would
 otherwise silently become the containing block.
 
-**Stacking and surface.** `z-index: 60` — above `.picker-overlay`'s 50
-(`editor.css:378`) so no positioned page chrome can bury it, and below
-`.math-modal`'s 1000 (`:807`), which is a true modal and must always win. The
-overlay is built from theme tokens so light and dark both resolve without a
-second rule set: `background: var(--surface-raised)`,
+**Surface.** Theme tokens, so light and dark both resolve without a second rule
+set: `background: var(--surface-raised)`,
 `border: 1px solid var(--border-default)`, `border-radius: var(--radius-md)`,
 `box-shadow: var(--shadow-lg)`, padding `var(--space-2)`, caption at `.72rem` in
-`var(--text-secondary)`.
+`var(--text-secondary)`. `z-index: 60` is defensive headroom above the
+codebase's existing overlay tier (`.picker-overlay` at 50, `editor.css:378`) and
+below the modal tier (`.math-modal` at 1000, `:807`); neither shares a page with
+the manager, so this is a convention choice, not an ordering against a
+coexisting surface.
 
 **`pointer-events: none`** on the overlay. It necessarily covers the
 neighbouring grid cell; without this, sweeping right would fire `mouseout` then
@@ -366,9 +414,8 @@ duplicate of a name they have already heard.
 
 **Accepted WCAG limitation.** SC 1.4.13 (Content on Hover or Focus) requires
 author-built hover content to be dismissible, hoverable and persistent. This
-overlay is dismissible (Escape) and persistent (it stays until the pointer
-leaves or the user dismisses it), but `pointer-events: none` makes it
-**not hoverable** — the pointer can never move onto it. That is a deliberate
+overlay is dismissible (Escape) and persistent, but `pointer-events: none` makes
+it **not hoverable** — the pointer can never move onto it. That is a deliberate
 trade against the strobe loop above and the fact that the overlay's content is
 inert (no links, no text worth selecting). Recorded here so it is a known,
 reasoned gap rather than an oversight.
@@ -394,11 +441,11 @@ into three places: the `title` attribute (full), the visible span body (via
 body and its `title` — only when it differs from `display_name`.
 
 **Hover.** `mouseover` on `.media-manager` → `closest("[data-asset-preview]")`
-→ `relatedTarget` containment check → set `hoveredAnchor` → dwell timer → read
-the thumbnail's `currentSrc` and the cell root's `data-name` → populate, size,
-and place the singleton overlay → remove its `hidden` attribute. `mouseout` to
-outside the anchor / `focusout` / Escape / scroll / resize / anchor-detach →
-restore `hidden`.
+→ `relatedTarget` containment check → set `hoveredAnchor` → 250 ms dwell → read
+the thumbnail's `currentSrc` and the cell root's `data-name` → populate → remove
+`hidden` (invisible) → measure → place → reveal → reposition on the image's
+`load`. `mouseout` to outside the anchor / `focusout` / Escape / scroll / resize
+/ anchor-detach / rename-input or replace-strip insertion → restore `hidden`.
 
 **Rename.** ✎ swaps `[data-asset-dname]` for an input
 (`media_picker.js:335-339`) seeded from `data-name` (§4), and reinserts the same
@@ -411,22 +458,14 @@ re-renders the whole cell from the server.
   survives the events that destroy the cell that opened it. The module observes
   these with a `MutationObserver` on the `.media-manager` root
   (`childList: true, subtree: true`), **connected only while the overlay is
-  open** and disconnected on close. On each mutation, if the stored anchor
-  node's `isConnected` is false, the overlay closes and `hoveredAnchor` is
-  cleared. The check keys on the anchor **node**, never on a selector — a
-  selector-keyed guard is a no-op when the event is a node replacement. This
-  observer is for teardown only; arming needs none, because the trigger is
-  delegated (§5). No change to `media_picker.js` is required for either.
-- **Re-arm after a dismiss — Escape only.** Escape leaves the pointer inside the
-  anchor, where no new `mouseover` will fire until it leaves and returns, so a
-  re-opening preview would ignore the user's dismissal. Escape therefore records
-  the anchor in a suppression flag, cleared on that anchor's `mouseout`, and the
-  flag gates the **pointer path only** — `focusin` always reopens. The flag is
-  set only when `hoveredAnchor` is that anchor, so an Escape pressed with the
-  pointer elsewhere cannot strand a flag on an anchor whose `mouseout` will
-  never come. `scroll`, `resize` and `focusout` close **without** suppressing:
-  they are incidental, not dismissals, and suppressing on them would kill the
-  preview of the very card the user is examining after a two-notch wheel nudge.
+  open** and disconnected on close. Its callback closes the overlay when either
+  is true: the stored anchor node's `isConnected` is false (and then also clears
+  `hoveredAnchor`), or a `.asset-rename-input` or `[data-replace-strip]` has
+  appeared anywhere under the root. The detach check keys on the anchor
+  **node**, never on a selector — a selector-keyed guard is a no-op when the
+  event is a node replacement. This observer is for teardown only; arming needs
+  none, because the trigger is delegated (§5). No change to `media_picker.js`
+  is required for either.
 - **Scroll and resize.** A `fixed`-positioned overlay anchored to a moving card
   detaches visually, and a resize also re-flows the auto-fill grid and moves
   every card. Both close the overlay. The scroll listener is
@@ -457,8 +496,10 @@ extension and the tail; over-budget value's result length equals `budget`;
 `budget = 16` (the first middle-truncating budget — expects a 1-character head,
 the ellipsis, and a 14-character tail); `budget = 15` (the last fallback budget
 — expects end-truncation); `budget = 1`; `budget = -5` (clamped, returns `""`);
-a value with no extension; a non-ASCII value; a value shorter than the tail
-length.
+a value with no extension; a non-ASCII value; and a value shorter than the tail
+length **with an explicit small budget** (e.g. `budget=5, value="ab.png"`) so it
+actually reaches the fallback branch — at the default budget that case exits at
+the first guard and exercises nothing new.
 
 **Django client — `_asset_cell.html`.** `title=` present on `.asset-dname` and
 carrying the **full** name while the visible text is truncated (assert both, on
@@ -479,43 +520,52 @@ invisible. Those rows use `document.createRange()` over the `.asset-dname` text
 node and `getClientRects()`. Note precisely what that buys: `getClientRects()`
 reports **laid-out geometry and is equally unaffected by ancestor clipping** —
 it is the right probe here because the failure modes change the rects'
-*position* (a spilling name's rects extend past the card's border box) and their
-*count*, not because it measures clipping. Nobody should later write a rect
-assertion expecting it to reflect `overflow: hidden`.
+*position* and their *count*, not because it measures clipping.
 
-**Fixture scoping is load-bearing.** The clamp fixture's text deliberately
-exceeds three lines, so its clamped-away runs lay out below the card's clipped
-bottom edge. It must therefore be seeded on its **own** page/test, never
-alongside the containment fixtures — otherwise the containment row goes red on a
-correct build. The containment rows use a name that is under budget and wraps
-within three lines.
+**Overlay assertions must be waits, never immediate reads.** The dwell is
+250 ms, so a `page.evaluate` fired straight after `hover()` reads the closed
+state. Use `expect(...).to_be_visible()` / `wait_for_selector(state=...)`.
+
+**Fixture scoping is load-bearing.** If the clamp survives measurement (§1), its
+fixture's text deliberately exceeds three lines, so its clamped-away runs lay
+out below the card's clipped bottom edge. It must be seeded on its **own**
+page/test, never alongside the containment fixtures — otherwise the containment
+row goes red on a correct build. The containment rows use a name that is under
+budget and wraps within three lines.
+
+**Two constraints on the clamp fixture,** if it exists: long enough to exceed
+three lines at the *measured* card width, and ≤ 38 characters so
+`middle_truncate` leaves it intact — otherwise the filter shortens it first and
+the rect count is decided by the budget on both builds. The test asserts the
+rendered text length equals the source length, so a later budget change fails
+loudly instead of silently defusing the row.
 
 **Unverified premise, to settle before writing the clamp row.** Whether Blink
 removes clamped lines from the layout tree (so `getClientRects()` returns 3) or
 lays them out and merely clips the paint (so it returns 4+ on *both* builds, and
 the row is unfalsifiable) is engine behaviour this spec asserts rather than
 knows. Run a one-off spike against both builds first. If rects do not
-discriminate, fall back to `scrollHeight > clientHeight` on the span, or
-`clientHeight ≈ 3 × line-height`.
+discriminate, fall back to `scrollHeight > clientHeight` on the span.
 
 | Test | Mutant that must turn it red |
 | --- | --- |
-| At 360 px, every text-run rect of `.asset-dname` lies inside its card's border box (under-budget fixture, own page) | drop `overflow: hidden` |
+| At 360 px, every text-run rect of `.asset-dname` lies inside its card's border box (under-budget fixture, own page) | drop **both** `overflow: hidden` and `overflow-wrap: anywhere` — either alone still contains the text |
 | For two assets differing only in a numeric suffix, the rendered text of each contains its own suffix **and** the rect covering that suffix is inside the card's border box | drop `overflow-wrap: anywhere` (the string then renders as one clipped line and the suffix is unpainted) |
-| The ✎ button's box top aligns with the first text-run rect's top on a 3-line name | drop `flex: 1 1 0`; and separately, revert `align-items` to `center` |
-| An all-uppercase-`W` name sized against the **measured** card width at 360 px produces exactly 3 text-run rects (own page; see the spike above) | drop `-webkit-line-clamp: 3` (it then produces 4 or more) |
+| The ✎ button's `bounding_box().y` equals the `.asset-dname` **element's** `bounding_box().y` within 1 px, on a 3-line name | drop `flex: 1 1 0`; and separately, revert `align-items` to `center` |
+| (If the clamp survives §1's measurement) the clamp fixture produces exactly 3 text-run rects | drop `-webkit-line-clamp: 3` (it then produces 4 or more) |
 | A name past the budget renders head + `…` + tail, not head alone | off-by-one in `middle_truncate` |
 | Opening the rename input on an over-budget name pre-fills the **full** name | restore the `dname.textContent` seed |
-| Hover opens the overlay (`[hidden]` removed) with the thumbnail's `src` on `[data-asset-preview-img]`, and a box larger than the thumb | drop the `mouseover` binding |
+| Hover opens the overlay (`[hidden]` removed) and `overlayImg.currentSrc === thumb.currentSrc`, with a box larger than the thumb | drop the `mouseover` binding |
 | A source whose aspect ratio is not 4:3 shows its full extent in the overlay | give the overlay image `aspect-ratio: 4/3; object-fit: cover` |
-| At 360 px both the overlay's box **and** its image's box are inside the viewport, for a tall portrait source | drop the image's `max-width`/`min-height` rules |
+| At 360 px both the overlay's box **and** its image's box are inside the viewport, for a tall portrait source, and the overlay lands centred rather than beside the card | drop the image's `max-width`/`min-height` rules; measure before removing `hidden` |
+| An over-budget name is fully readable in the caption (wraps, not clipped) | drop the caption's `overflow-wrap: anywhere` |
 | Hovering thumb A then the neighbour the overlay covers switches the overlay to B's source | drop `pointer-events: none` (Playwright then reports the overlay intercepting) |
 | After the debounced filter swaps the grid, hovering a cell in the **new** grid still opens the overlay | bind `mouseenter` per node at load instead of delegating |
 | `mouseout`, Escape, `focusout`, scroll and resize each close it | drop each handler in turn |
-| After Escape, re-hovering the same anchor without leaving it does **not** reopen; after scroll-close it **does** | make the suppression flag cover scroll too |
-| Focusing a card button opens it; Tab to a second button in the same cell reopens it; focusing the rename input does not; clicking ⇄ does not | drop the `focusin` binding; make the suppression flag gate the focus path; drop each exclusion in turn |
+| Focusing a card button opens it; Tab to a second button in the same cell reopens it; clicking ✎ and clicking ⇄ each leave it closed | drop the `focusin` binding; drop the observer's rename-input / replace-strip close |
 | Filter-swapping the grid while the overlay is open closes it | drop the `MutationObserver` teardown |
 | An overlay whose image 404s, and one whose thumbnail never loaded, both show the caption and no image box | drop the `error` handler; drop the empty-`currentSrc` guard |
+| In a context created with `has_touch=True`, tapping a thumb does **not** open the overlay | drop the `matchMedia` gate |
 
 **Fixture requirement.** `make_image_asset` defaults to `size=(1, 1)`
 (`tests/factories.py:150`), which would make "a box larger than the thumb"
@@ -528,21 +578,28 @@ then lets focus move fires a live rename POST — which on a broken build writes
 the ellipsised string into `MediaAsset.name`, the exact corruption §4 exists to
 prevent. Read `input.value`, press Escape, then finish.
 
-**Playwright context.** The pointer gate must match, or every overlay test times
-out with no clue why. `set_viewport_size` alone does not enable touch emulation,
-so the default context satisfies `(hover: hover) and (pointer: fine)`; no
-`has_touch` flag or device descriptor may be introduced for the 360 px case.
+**Playwright contexts.** The geometry and overlay tests need the pointer gate to
+match, or they time out with no clue why; `set_viewport_size` alone does not
+enable touch emulation, so the default context satisfies
+`(hover: hover) and (pointer: fine)` and no `has_touch` flag may be introduced
+for the 360 px case. The pointer-gate row above is the one deliberate exception
+and creates its **own** context with `has_touch=True`.
 
-**The ✎ button is `opacity: 0` until its cell is hovered** (`editor.css:725-726`).
-The alignment row therefore probes `bounding_box()` on a transparent element and
-must **not** assert visibility. In `test_screenshots_light_and_dark`, shot 1 (the
-unused cell) will show no pencil at all; the button's new right-edge position can
-only be evidenced on a shot whose cell is hovered or clicked first.
+**The ✎ button is `opacity: 0` until its cell is hovered**
+(`editor.css:725-726`). The alignment row therefore probes `bounding_box()` on a
+transparent element and must **not** assert visibility.
 
-`test_screenshots_light_and_dark` (`tests/test_e2e_media_manager.py:588`) is
-refreshed — card height changes — and dark mode is judged on its own rather than
-assumed to follow from light. The overlay is included in that pass, hovered
-open, in both themes.
+**Screenshots.** `test_screenshots_light_and_dark`
+(`tests/test_e2e_media_manager.py:588`) takes *element* screenshots
+(`unused_cell.screenshot(...)`), which clip to the element's own box — a
+`body`-appended, `position: fixed` overlay placed outside the card can never
+appear in one. The refresh therefore: keeps the four existing element shots
+(card height changes there), and **adds** a viewport-level `page.screenshot(...)`
+with the pointer held over a thumb for the duration of the capture, in both
+themes, for the overlay. Dark mode is judged on its own rather than assumed to
+follow from light. Note that shot 1 (the unused cell) shows no ✎ at all, so the
+button's new right-edge position can only be evidenced on a shot whose cell is
+hovered or clicked first.
 
 **Existing tests to repoint.** Suppressing the duplicate `.asset-fname` breaks
 assertions that key on it: in those fixtures the asset carries no custom `name`,
@@ -558,11 +615,16 @@ Each moves to `.asset-dname`, which always renders:
 - `test_a_grid_swap_while_the_file_chooser_is_open_still_lands` — `:401`
 - `test_an_upload_after_filtering_lands_in_the_live_grid` — `:436`
 
-The explanatory comments at `:130-135` and `:245-248` argue *why* `.asset-fname`
-rather than `.asset-cell` was chosen (`:has-text` matches descendants, and
-`[data-replace-filename]` holds exactly that name, so a `.asset-cell` selector
-would time out on a correct build). They must be rewritten alongside the
-selectors, restating that `.asset-dname` preserves the property —
+The explanatory comments at `:130-134` and `:245-248` must be rewritten
+alongside the selectors, and they record **two different things** that must stay
+distinct. `:130-134` says a bare `.asset-cell:has-text("replacement.png")` would
+be satisfied *the instant the strip appears* — because `:has-text` matches
+descendants and `[data-replace-filename]` holds exactly that name — making the
+wait a **no-op that races the round-trip**. `:245-248` records the *downstream*
+consequence in the second test: that no-op wait runs the next click while
+`replaceBusy` is still true, the handler returns early, no chooser is raised,
+and the test times out **on a correct build**. The rewrite must restate that
+`.asset-dname` preserves the property that made `.asset-fname` correct —
 `[data-replace-filename]` is not a descendant of `.asset-dname` — so a later
 reader does not "simplify" back to `.asset-cell`.
 
