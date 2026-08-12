@@ -1411,7 +1411,7 @@ def _scan_spans(cells):
     return spanning
 
 
-def _grid_data(form):
+def _grid_data(form, preserve=()):
     """Normalised grid the editor template renders from.
 
     On a bound-INVALID form this is the SUBMITTED payload, not the stored
@@ -1443,7 +1443,16 @@ def _grid_data(form):
                 # Without this, a rejected save echoes the author's raw HTML
                 # straight back through the template's |safe filter.
                 model = form._meta.model
-                return model._sanitized_data(model.normalize_data(parsed))
+                out = model._sanitized_data(model.normalize_data(parsed))
+                # `preserve` keys are read back off the RAW submission, after
+                # normalisation has had its say. normalize_data suppresses some
+                # flags for grids that cannot honour them -- and those grids are
+                # also rejection reasons -- so a suppressed flag would hand the
+                # template an unticked box, silently dropping the author's intent
+                # while the error message points somewhere else entirely.
+                if preserve:
+                    out = {**out, **{k: bool(parsed.get(k)) for k in preserve}}
+                return out
     return form.instance.normalized_data
 
 
@@ -1638,25 +1647,15 @@ class FillTableElementForm(_CourseScopedMediaForm):
 
     @property
     def grid_data(self):
-        d = _grid_data(self)
         # PRESERVE THE AUTHOR'S TICK across a rejected save. normalize_data (which
         # _grid_data runs) suppresses `gate` for the no-answer-cell and
         # blank-answer-cell grids -- which are ALSO two of clean_data's five
         # rejection reasons -- so the shared path would hand the template an
         # unticked box, silently dropping the author's intent while the error
-        # message points at the answer cell instead. Unconditional on purpose: a
-        # no-op for the other three rejection paths (_scan_spans, _caps_ok, image
-        # scope), where normalize_data leaves `gate` alone.
-        if self.is_bound and not self.is_valid():
-            raw = self.data.get("data")
-            if isinstance(raw, str):
-                try:
-                    submitted = json.loads(raw)
-                except ValueError:
-                    submitted = None
-                if isinstance(submitted, dict):
-                    return {**d, "gate": bool(submitted.get("gate"))}
-        return d
+        # message points at the answer cell instead. A no-op for the other three
+        # rejection paths (_scan_spans, _caps_ok, image scope), where
+        # normalize_data leaves `gate` alone, and for every non-rejected path.
+        return _grid_data(self, preserve=("gate",))
 
     @property
     def resolved_grid_cells(self):

@@ -79,6 +79,16 @@ def test_rejected_save_keeps_the_gate_ticked():
     assert form.grid_data["gate"] is True
 
 
+def test_rejected_save_keeps_the_gate_ticked_with_no_answer_cell():
+    # The SECOND grid normalize_data suppresses `gate` for. Both suppression
+    # triggers are also clean_data rejection reasons, and the override does not
+    # branch per reason -- but only the blank-answer case was covered, so this
+    # half of the claim was reasoned rather than tested.
+    form = _bind(_data([[{"kind": "static", "html": "x"}]], gate=True))
+    assert not form.is_valid()
+    assert form.grid_data["gate"] is True
+
+
 def test_answer_cells_iterates_positions():
     cells = [
         [{"kind": "static"}, {"kind": "answer", "answer": "x"}],
