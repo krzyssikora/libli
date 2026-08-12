@@ -211,7 +211,7 @@ already records that the templates hardcode these strings and that a rename need
 {% load i18n courses_extras %}{% get_current_language as LANGUAGE_CODE %}<span
   class="unit-kind unit-kind--{{ m }}" lang="{{ LANGUAGE_CODE }}">
   {% include "courses/_unit_kind_glyph.html" with m=m only %}
-  {% marker_label m %}
+  <span class="unit-kind__word">{% marker_label m %}</span>
 </span>
 ```
 
@@ -265,7 +265,9 @@ structural.
 the icon wrapper emits `unit-kind unit-kind--<marker>`. `.unit-kind-chip` and `.unit-kind` are the
 stable selectors; `.badge` is carried for the existing pill styling and is **not** a test selector.
 `.unit-kind-chip` **does** get a small rule in §4, but every declaration in it is inert
-forward-defence carrying no test hook — the pill itself comes entirely from `.badge`. The
+forward-defence carrying no test hook — the pill itself comes entirely from `.badge`.
+`.unit-kind__word` (legend entries only) carries **no styling** and exists solely to give the
+legend's word a measurable box for the glyph-to-word gap assertion — a bare text node has none. The
 `--<marker>` modifiers are **reserved test/debug
 hooks with no styling attached today**, and §5 forbids giving them any.
 
@@ -425,8 +427,13 @@ the row, and the marker column would be ragged. Edit that rule **in place**:
 
 `1 1 auto`, deliberately **not** `1 1 0`: basis `auto` preserves the label's current sizing, which
 matters because the drawer overrides this class to `white-space: normal` (`courses.css:977`) in a
-title column squeezed to ~98px. This runs against the general "use `flex: 1 1 0`" habit, so it is a
-deliberate exception, verified by a mechanical A/B (see Testing).
+title column squeezed to ~98px. This runs against the general "use `flex: 1 1 0`" habit — be precise
+about why, because **no test distinguishes the two and none can**: `.unit-tree__label` is the only
+flexible item on the row (`.unit-tree__check` and `.unit-kind` are both effectively rigid), so basis
+`auto` and basis `0` resolve to the **same** used width in rail and drawer alike. `1 1 auto` is
+chosen as the *minimal edit* to the existing rule, not because it measurably differs. What the A/B
+in Testing guards is a different and real question — that adding `flex-grow` **at all** does not
+move the drawer's wrap points.
 
 **Mobile drawer — icons stay icon-only; discoverability comes from a legend, not per-row words.**
 
@@ -647,8 +654,8 @@ This change adds `.unit-kind` inside `.unit-tree__unit` **and** alters `.unit-tr
 exactly that trigger. Add `.unit-kind` to the comment's list, and add it to the **same list in
 `tests/capture_title_math_screenshots.py`** (the `btns` selector at ~:483), which is the automated
 half of that audit; updating only the comment leaves the executable check testing a stale set and
-green over the new collision. While editing, **refresh every line reference in that block** — five
-are stale, not three, and naming a count invites stopping early:
+green over the new collision. While editing, **refresh every line reference in that block** — every
+row in the table below, and do not stop at the first few (naming a count invites exactly that):
 
 | Cited | Actual |
 | --- | --- |
@@ -903,12 +910,19 @@ both marked, scoped to `[data-unit-tree-list]`: assert their `.unit-kind` boxes 
 ~1px, and that `x` is within a few px of the row's right content edge. Both are false when
 `.unit-tree__label` has no `flex-grow`.
 
-**Legend glyph-to-word gap.** In the open drawer, assert the legend entry's word begins
-`var(--space-1)` (4px) after its glyph's right edge. This is the only falsifiable consequence of the
-`.unit-kind` rule — `gap` stops applying the moment `display: inline-flex` is dropped and the span
-is blockified. There is deliberately **no rail glyph-width assertion**: per §4 the wrapper's
-automatic minimum is the 1em glyph on any build, so such a test would be green even with the whole
-rule deleted.
+**Legend glyph-to-word gap.** In the open drawer, assert `word.left - svg.right == 4` (±1) on a
+legend entry, where `word` is `.unit-kind__word` and `svg` is its sibling `.icon`. **Both are
+elements with real boxes — which is the whole reason the legend word carries a span.** A bare text
+node has no `bounding_box()`, and a `Range` over it would start at the collapsed leading whitespace
+and measure the gap away, so the mechanism would decide the outcome.
+
+The mutant is **`gap: var(--space-1)` deleted from `.unit-kind`** — a clean 4px → 0px, since a flex
+container drops whitespace-only text between items. Do **not** use `display: inline-flex` as the
+mutant: blockifying the span replaces the 4px gap with a *rendered* collapsed space, ~3–4px at the
+legend's 12px font, which lands inside tolerance and may be green.
+
+There is deliberately **no rail glyph-width assertion**: per §4 the wrapper's automatic minimum is
+the 1em glyph on any build, so such a test would be green even with the whole rule deleted.
 
 **Desktop, unit page.** The whole §4 heading-group resolution otherwise has **zero** executable
 coverage, since render tests 2–3 are DOM-containment checks a CSS deletion leaves green. On both
@@ -918,34 +932,44 @@ article templates, and in both rail states (expanded and `html.unit-tree-collaps
 between two gapped flex siblings is invariant under *any* sizing mutant that keeps them on one line,
 so a single cap-length row proves almost nothing:
 
-- **Short-title row** — the `<h1>`'s content is far below the cap. Assert `chip.left` is near the
-  **group's left** edge (`group.left + title_content_width + gap`, ~112px in), and specifically
-  **not** near the group's right edge. This is the row that kills deletion of
-  `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }`: with the reset the `<h1>`
-  shrink-wraps to ~100px and the chip follows it; without it the `<h1>` is `flex: 1` and grows to
-  the full ~656px remainder, putting the chip ~556px further right.
-- **Cap-length row** — the `<h1>`'s content exceeds 736px. Assert the chip is on the **same line**
-  as the title (`chip.top ≈ title_top`), which is what kills adding `flex-wrap: wrap` to the group
-  at desktop. Also assert the chip's **width** ≈ its unshrunk natural width, A/B'd via
-  `page.add_style_tag` forcing `flex: 0 1 auto` on it — that is what kills dropping
-  `.unit-kind-chip { flex: none }`.
+- **Short-title row** — the `<h1>`'s content is far below the cap. Two assertions, and **both**
+  mutants below are killable only here:
+  1. `chip.left` is near the **group's left** edge (`group.left + title_content_width + gap`,
+     ~112px in), and specifically **not** near the group's right edge. This kills deletion of
+     `.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto }`: with the reset the `<h1>`
+     shrink-wraps to ~100px and the chip follows it; without it the `<h1>` is `flex: 1` and grows to
+     the full ~656px remainder, putting the chip ~556px further right.
+  2. On the lesson page, the **done pill's left edge is `group.right + 16`** — the head's
+     `gap: 1rem` (`courses.css:829`), stated as an offset rather than "within a few px", which
+     would be red on a correct build. This kills deletion of the group's `flex: 1 1 auto`.
 
-  **Do not expect the cap-length row to catch the missing `flex: 0 1 auto` reset — it cannot.** With
-  the reset, the `<h1>`'s base is `min(max-content, 736)` = 736 and the chip is `flex: none`, so the
-  entire ~80px deficit lands on the `<h1>` → 656px. Without the reset the `<h1>` is `flex: 1 1 0%`
-  and *grows* into the same ~656px remainder. `chip.left` is `group.left + 668` on both builds. The
-  two are pixel-identical, which is exactly why the short-title row exists.
+  **Both must sit on the short-title row, not the cap-length one.** With the group mutated to
+  `flex: 0 1 auto` *and* a cap-length title, the group's base (736 + 12 + 78 = 826) already exceeds
+  the ~746px line, so it shrinks to fill it exactly, free space is zero, `space-between` degenerates
+  to flex-start, and `pill.left == group.right + 16` holds on the **broken** build too. Only the
+  short-title row leaves the ~556px of free space that `space-between` would spread.
 
-  For the same reason, dropping `.unit-kind-chip { flex: none }` moves **both** edges together (the
-  chip absorbs ~8px of the deficit, so the `<h1>` lands at ~663.7 and the chip at ~70.3) and leaves
-  `chip.left ≈ title_right + gap` true — only the chip's *width* changes. This is the failure mode
-  §4 already reasons about for `.unit-kind`; it applies to the chip identically.
+- **Cap-length row** — the `<h1>`'s content exceeds 736px. **One** assertion: the chip has **not
+  wrapped below the title** — `chip.top < title_bottom - 1`, or equivalently the chip's and the
+  `<h1>`'s rects overlap vertically. That is what kills adding `flex-wrap: wrap` to the group at
+  desktop.
 
-- On the lesson page, the **done pill's left edge is `group.right + 16`** — the head's `gap: 1rem`
-  (`courses.css:829`), stated as an offset rather than "within a few px", which would be red on a
-  correct build. This is what kills a deletion of the group's `flex: 1 1 auto`, which no
-  chip-position assertion can (with `flex: 0 1 auto` on the group the chip stays glued to the title;
-  what moves is the pill).
+  **Do not assert `chip.top ≈ title_top`.** §4 mandates `align-items: baseline` precisely so the
+  chip does *not* top-align: the `<h1>` renders at heading size and the chip at `.badge` size, so
+  their border-box tops differ by ~10–15px on a **correct** build. A top-equality assertion at this
+  spec's usual ~1px tolerance would be red on correct CSS, and a tolerance loose enough to pass
+  (~15px) would be undefined and meaningless.
+
+  **This row cannot catch the missing `flex: 0 1 auto` reset, and it has no chip-width assertion.**
+  With the reset the `<h1>`'s base is `min(max-content, 736)` = 736 and the chip is `flex: none`, so
+  the entire ~80px deficit lands on the `<h1>` → 656px; without the reset the `<h1>` is `flex: 1 1 0%`
+  and *grows* into the same ~656px remainder. `chip.left` is `group.left + 668` on both builds —
+  pixel-identical, which is why assertion 1 lives on the short-title row. And per §4's
+  automatic-minimum-size analysis, a `flex: 0 1 auto` chip's shrink target is a **min violation**
+  (min-content == max-content == ~78px for every single-word label that ships), so it is clamped and
+  frozen at 78 and the deficit again lands entirely on the `<h1>`. An A/B forcing `flex: 0 1 auto`
+  on the chip would therefore measure 78px in **both** arms — the green-mutant trap this spec treats
+  as a hard stop. `.unit-kind-chip`'s declarations are inert forward-defence with no mutant.
 
 **Phone, 390×780 — the drawer must actually be opened.** `.unit-drawer` is `display: none` at base
 (`courses.css:946`), revealed only inside `@media (max-width: 640px)` via
@@ -1024,10 +1048,10 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
 - Rail icon rendered leading instead of trailing → the last-element-child assertion goes red.
 - The chip moved before `.outline-unit__title` → the outline next-element-sibling assertion goes red.
 - `.unit-tree__label`'s `flex: 1 1 auto` reverted → the shared-`x` gutter assertion goes red.
-- Only `display: inline-flex` is deleted from `.unit-kind` → the **legend**'s glyph-to-word gap
-  assertion goes red (`gap` stops applying once the span is blockified). Deleting the *whole* rule
-  has deliberately **no rail mutant**: the wrapper's automatic minimum is the 1em glyph either way,
-  so a rail glyph-width assertion would be green on both builds (§4).
+- `gap: var(--space-1)` deleted from `.unit-kind` → the legend's glyph-to-word gap assertion goes
+  red (4px → 0px). **Not** `display: inline-flex`, whose removal substitutes a ~3–4px rendered space
+  that may land inside tolerance. Deleting the *whole* rule has deliberately **no rail mutant**: the
+  wrapper's automatic minimum is the 1em glyph either way (§4).
 - `.unit-kind-chip`'s `flex: none` and `white-space: nowrap` have deliberately **no mutants** — by
   the automatic-minimum-size rule in §4 both are inert for the single-word labels that ship, so any
   test claiming to redden on their removal would be green on the broken build.
@@ -1045,8 +1069,9 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
 - `.lesson-unit__heading`'s `flex: 1 1 auto` deleted → the pill-position assertion goes red.
 - The mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` deleted →
   `test_e2e_unit_head_layout.py`'s phone assertions go red.
-- `flex-wrap: wrap` added to the group at **desktop** → the cap-length **same-line** assertion
-  (`chip.top ≈ title_top`) goes red.
+- `flex-wrap: wrap` added to the group at **desktop** → the cap-length **not-wrapped** assertion
+  (`chip.top < title_bottom - 1`) goes red. Note the assertion is deliberately *not* top-equality —
+  `align-items: baseline` makes the two tops differ by ~10–15px on a correct build (§Testing).
 - The drawer legend removed → the 30×8 legend assertion goes red.
 - `lang="{{ LANGUAGE_CODE }}"` dropped from the chip → the render tests' `lang` assertion goes red.
 
