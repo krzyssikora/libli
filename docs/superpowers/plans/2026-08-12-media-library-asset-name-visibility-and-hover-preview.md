@@ -544,8 +544,8 @@ writes PNGs into the repo's own media/ directory.
 import os
 
 import pytest
-from django.urls import reverse
 
+from tests.factories import TEST_PASSWORD
 from tests.factories import CourseFactory
 from tests.factories import make_image_asset
 from tests.factories import make_verified_user
@@ -562,17 +562,23 @@ def _isolated_media(settings, tmp_path):
     settings.MEDIA_ROOT = str(tmp_path)
 
 
+def _login(page, live_server, username):
+    # Verbatim from tests/test_e2e_media_manager.py:69-74.
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+
 @pytest.mark.django_db(transaction=True)
 def test_measure(page, live_server):
     user = make_verified_user("scratch-pa")
     course = CourseFactory(owner=user, slug="scratch")
     make_image_asset(course, filename="przykladowa_parabola_0_2.png", size=(400, 300))
-    # Log in exactly as tests/test_e2e_media_manager.py's _login does -- copy it.
     _login(page, live_server, "scratch-pa")
-    page.goto(
-        f"{live_server.url}{reverse('courses:manage_media', kwargs={'slug': course.slug})}"
-    )
-    page.wait_for_selector(".asset-grid .asset-cell")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/media/")
+    page.wait_for_selector(".asset-cell")
     page.set_viewport_size({"width": 360, "height": 900})
     print("CARD:", page.locator(".asset-cell").first.bounding_box())
     print("SPAN:", page.locator(".asset-dname").first.bounding_box())
@@ -581,17 +587,6 @@ def test_measure(page, live_server):
         const r = document.createRange(); r.selectNodeContents(s);
         return r.getClientRects().length;
     }"""))
-```
-
-```python
-card = page.locator(".asset-cell").first
-span = page.locator(".asset-dname").first
-print(card.bounding_box(), span.bounding_box())
-print(page.evaluate("""() => {
-    const s = document.querySelector('.asset-dname');
-    const r = document.createRange(); r.selectNodeContents(s);
-    return r.getClientRects().length;
-}"""))
 ```
 
 Run it with `uv run pytest tests/test_zz_scratch_measure.py -s -v` — **without** `-m e2e`, since the scratch file carries no marker and would otherwise be deselected (exit 5). Record the **card width** as a comment in `tests/test_e2e_media_manager.py`; ignore the span and rect numbers for now (they are pre-CSS artefacts — see above). **Keep the file** until Step 7, which re-runs it against the finished CSS; Step 8 deletes it.
@@ -1242,7 +1237,10 @@ def test_an_anchor_detached_during_the_dwell_opens_nothing(page, live_server):
 
 - [ ] **Step 5: Run, then falsify each row**
 
-Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k "hover_opens or non_4_3 or small_source or readable_in_the_caption or caption_is_written or tall_source or covered_neighbour or swapped_in_grid or during_the_dwell" -v`
+Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k "hover_opens or non_4_3 or small_source or readable_in_the_caption or caption_is_written or tall_source or covered_neighbour or swapped_in_grid or detached_during_the_dwell" -v`
+Expected: PASS, 9 tests.
+
+Note the inversion: this task writes the CSS and JS before the tests, unlike every other task. That is deliberate — none of these rows can even express itself against a page with no overlay element, so there is no meaningful red-first state. The falsification pass below is what carries the burden of proof here, so do not skip or batch it.
 
 | Mutant | Row |
 | --- | --- |
@@ -1385,7 +1383,12 @@ Verify before writing them: install a `page.on("request", …)` counter and a
 passthrough `page.route("**/*", lambda r: r.continue_())`, hover a thumb, and
 assert the overlay's URL was requested a second time.
 
-**If it is not**, the two rows need different remedies — a single instruction
+**Spike the re-assignment premise in the same pass.** Task 5's `open()` justifies its synchronous reveal with "whether re-assigning the same URL re-queues `load` on a complete image is engine behaviour we will not bet on" — but Step 7 maps a mutant to that line, which only goes red if `load` does *not* re-fire. Decide it here, in the same scratch page: open an asset, close, re-open the same anchor, and count `load` events on the overlay image.
+
+- **`load` does not re-fire** → the synchronous reveal is load-bearing; keep the Step 7 mutant mapping.
+- **`load` does re-fire** → the image would reveal either way. Keep the reveal (it is still correct, and it is what makes a warm re-open measure the right height), but move it to the deliberately-unmapped list alongside the `error` listener and the empty-`currentSrc` guard, and drop that mutant.
+
+**If the overlay's URL is not re-requested**, the two route rows need different remedies — a single instruction
 does not fit both. `b_s_caption_never_appears` and
 `a_late_load_from_a_previous_asset` hold *request 1* (the thumbnail's) and work
 either way, so they stand. `404_source` does not: it needs the thumbnail's
@@ -1543,11 +1546,14 @@ def test_b_s_caption_never_appears_over_a_s_image(page, live_server):
     # resolves the request.) Log in the same way _open_manager does, then
     # navigate with domcontentloaded.
     _login(page, live_server, "inf-pa")
+    # The file's own literal URL form (see _open_manager at :93-96). Do NOT use
+    # reverse() -- tests/test_e2e_media_manager.py never imports it and every
+    # navigation in it is a literal f-string.
     page.goto(
-        f"{live_server.url}{reverse('courses:manage_media', kwargs={'slug': course.slug})}",
+        f"{live_server.url}/manage/courses/{course.slug}/media/",
         wait_until="domcontentloaded",
     )
-    page.wait_for_selector(".asset-grid .asset-cell")
+    page.wait_for_selector(".asset-cell")
     page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "pierwszy_0_1.png")
     # BY NAME -- see the ordering note above. With nth(1) the pointer would land
@@ -1585,11 +1591,14 @@ def test_a_late_load_from_a_previous_asset_cannot_reveal_it(page, live_server):
     # test_b_s_caption_never_appears_over_a_s_image: the held request would
     # block a wait_until="load" navigation forever.
     _login(page, live_server, "late-pa")
+    # The file's own literal URL form (see _open_manager at :93-96). Do NOT use
+    # reverse() -- tests/test_e2e_media_manager.py never imports it and every
+    # navigation in it is a literal f-string.
     page.goto(
-        f"{live_server.url}{reverse('courses:manage_media', kwargs={'slug': course.slug})}",
+        f"{live_server.url}/manage/courses/{course.slug}/media/",
         wait_until="domcontentloaded",
     )
-    page.wait_for_selector(".asset-grid .asset-cell")
+    page.wait_for_selector(".asset-cell")
     page.set_viewport_size({"width": 1280, "height": 900})
 
     _open_preview(page, "wolny_0_1.png")          # A: load held, image hidden
@@ -1657,7 +1666,7 @@ Run the same `-k` filter as Step 4. Expected: PASS.
 | --- | --- |
 | `mouseout` closes immediately instead of arming the grace | `sweeping_a_to_b` |
 | same-anchor `mouseover` returns before `cancelHide()` | `drift_into_the_cell_padding` |
-| drop the synchronous `complete && naturalWidth > 0` reveal | `reopening_the_same_anchor` |
+| drop the synchronous `complete && naturalWidth > 0` reveal | `reopening_the_same_anchor` — **only if the spike below says `load` does not re-fire** |
 | drop `expectedSrc = null` from `captionOnly()` | `a_late_load_from_a_previous_asset` |
 | drop the unconditional `overlayImg.hidden = true` reset in `open()` | `b_s_caption_never_appears` (A is *visible* when the swap happens, so without the reset A's frame stays painted under B's caption) — **not** `broken_asset_then_a_good_one`, where `captionOnly()` and `close()` have both already hidden it and the mutant changes nothing |
 
@@ -1803,18 +1812,30 @@ def test_tabbing_to_a_card_button_opens_it_and_it_stays_open(page, live_server):
     user, course = _seed_assets("tab-pa", "tab", *specs)
     _open_manager(page, live_server, "tab-pa", course)
     page.set_viewport_size({"width": 1280, "height": 900})
-    # A tall grid is not enough on its own: _tab_to_a_card_button stops at the
-    # FIRST cell's button, which is in grid row 1 and already visible -- focusing
-    # a visible element scrolls nothing, no scroll event fires, and the
-    # synchronous-binding mutant survives. Scroll to the bottom first, so the
-    # first card button is above the viewport and focusing it must scroll back.
+    # Two traps, and the second is why the obvious guard is not enough.
+    #
+    # (1) A tall grid alone does nothing: _tab_to_a_card_button stops at the
+    # FIRST cell's button, in grid row 1 and already visible, so focusing it
+    # scrolls nothing and the synchronous-binding mutant has no event to
+    # mishandle.
+    #
+    # (2) Scrolling to the bottom first and comparing against THAT position is
+    # also not enough: focus starts on body, so the first Tab lands on a header
+    # link far above the grid and Chromium scrolls back to the top long before
+    # the sequence reaches a card button. A guard bracketing the whole sequence
+    # sees "scrolled" and passes while the card button's own focus scrolled
+    # nothing.
+    #
+    # So: put focus INSIDE the page's tab order past the header first, scroll to
+    # the bottom, and sample scrollY immediately before the Tab that lands.
+    page.locator("[data-filter-q]").focus()
     page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
-    scrolled_to = page.evaluate("() => window.scrollY")
-    assert scrolled_to > 0, "grid is not taller than the viewport; widen the fixture"
+    before = page.evaluate("() => window.scrollY")
+    assert before > 0, "grid is not taller than the viewport; widen the fixture"
     _tab_to_a_card_button(page)
-    assert page.evaluate("() => window.scrollY") != scrolled_to, (
-        "focus did not scroll; this row's premise is broken and the mutant "
-        "would survive"
+    assert page.evaluate("() => window.scrollY") != before, (
+        "focusing the card button scrolled nothing; this row's premise is "
+        "broken and the rAF mutant would survive"
     )
     expect(page.locator(".asset-preview")).to_be_visible()
     page.wait_for_timeout(400)          # outlive any deferred scroll close
@@ -2194,7 +2215,7 @@ Per theme, in this exact order:
 1. `page.set_viewport_size({"width": 1280, "height": 900})`
 2. `page.locator("[data-asset-preview]").first.hover()`
 3. `expect(page.locator(".asset-preview")).to_be_visible()` — **required**; without it the capture races the 250 ms dwell and can shoot an empty grid, which is the failure a screenshot review is least likely to notice
-4. `page.screenshot(path=f"…/media-overlay-{theme}.png")`
+4. `page.screenshot(path=str(tmp_path / f"media-overlay-{theme}.png"))` — `tmp_path`, matching every existing shot in that test, so the trailing `print(f"REPLACE_SHOTS_DIR={tmp_path}")` actually surfaces these two as well
 5. `page.mouse.move(5, 5)` and wait for the overlay to hide
 6. `page.set_viewport_size({"width": 360, "height": 900})`
 7. the four existing element shots, unchanged
