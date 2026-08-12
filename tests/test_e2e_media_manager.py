@@ -1100,3 +1100,226 @@ def test_an_anchor_detached_during_the_dwell_opens_nothing(page, live_server):
     page.evaluate("() => document.querySelector('.asset-cell').remove()")
     page.wait_for_timeout(600)  # outlive the dwell
     expect(page.locator(".asset-preview")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_sweeping_a_to_b_swaps_in_place(page, live_server):
+    """The thumbs are not adjacent: 8+1+12+1+8 = 30px of non-anchor space sits
+    between them (padding, border, grid gap). Without a close grace a physically
+    moving pointer always exits to a non-anchor, so B re-pays the full dwell and
+    the in-place swap is reachable only by a TELEPORTING pointer -- which is
+    exactly what hover(A) then hover(B) produces. Drive the real path."""
+    user, course = _seed_assets(
+        "swi-pa",
+        "swi",
+        ("jeden_0_1.png", (400, 300)),
+        ("dwa_0_2.png", (400, 300)),
+    )
+    _open_manager(page, live_server, "swi-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "jeden_0_1.png")
+    # Correct build and mutant reach the SAME terminal state and differ only in
+    # a transient, so record the transitions instead of reading after the fact.
+    page.evaluate("""() => {
+        window.__hiddenLog = [];
+        const o = document.querySelector('.asset-preview');
+        new MutationObserver(() => window.__hiddenLog.push(o.hidden))
+            .observe(o, {attributes: true, attributeFilter: ['hidden']});
+    }""")
+    # BY NAME: the grid sorts "-created", so dwa_0_2 renders FIRST and nth(1)
+    # would sweep the pointer back onto jeden_0_1.
+    b = _anchor(page, "dwa_0_2.png").bounding_box()
+    page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=10)
+    expect(page.locator(".asset-preview__caption")).to_have_text("dwa_0_2.png")
+    assert page.evaluate("() => window.__hiddenLog") == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_drift_into_the_cell_padding_and_back_keeps_the_overlay(page, live_server):
+    """mouseover fires only on ENTRY, so if the grace expires under a resting
+    pointer nothing can reopen the overlay. Aim just outside the thumb but
+    inside its cell -- 4px above the thumb's top edge is inside the cell's 8px
+    padding."""
+    user, course = _seed_assets("drf-pa", "drf", ("dryf_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "drf-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "dryf_0_1.png")
+    t = page.locator("[data-asset-preview]").first.bounding_box()
+    cx = t["x"] + t["width"] / 2
+    page.mouse.move(cx, t["y"] - 4)  # into the cell's padding
+    page.wait_for_timeout(100)  # well inside the 300ms grace
+    page.mouse.move(cx, t["y"] + t["height"] / 2)  # back onto the thumb
+    page.wait_for_timeout(400)  # outlive the grace
+    expect(page.locator(".asset-preview")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reopening_the_same_anchor_shows_the_image_and_sizes_to_it(page, live_server):
+    """Re-assigning an identical src to a complete <img> may not re-queue
+    `load`; without the synchronous reveal the image stays hidden forever. And
+    the reveal must happen BEFORE measure, or the overlay is placed against a
+    caption-only box."""
+    user, course = _seed_assets("rop-pa", "rop", ("powrot_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "rop-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "powrot_0_1.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+    first_height = page.locator(".asset-preview").bounding_box()["height"]
+    page.mouse.move(5, 5)
+    page.wait_for_timeout(600)  # outlive the grace
+    expect(page.locator(".asset-preview")).to_be_hidden()
+    _open_preview(page, "powrot_0_1.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+    assert (
+        abs(page.locator(".asset-preview").bounding_box()["height"] - first_height) <= 2
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_404_source_shows_the_caption_and_no_image_box(page, live_server):
+    """Abort the overlay's request but NOT the thumbnail's, so this exercises
+    the `error` handler rather than the empty-currentSrc guard."""
+    user, course = _seed_assets("err-pa", "err", ("zepsuty_0_1.png", (400, 300)))
+    seen = {"n": 0}
+
+    def block_second_fetch(route):
+        # Request 1 is the THUMBNAIL's, request 2 is the overlay's. The route
+        # must be installed BEFORE the manager loads, or the thumbnail's fetch
+        # happens un-intercepted and the overlay's becomes request 1 -- which
+        # this handler would then continue, and the row would be red on a
+        # correct build.
+        seen["n"] += 1
+        if seen["n"] > 1:
+            route.abort()
+        else:
+            route.continue_()
+
+    page.route("**/zepsuty_0_1*", block_second_fetch)
+    _open_manager(page, live_server, "err-pa", course)
+    _open_preview(page, "zepsuty_0_1.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
+    expect(page.locator(".asset-preview__caption")).to_have_text("zepsuty_0_1.png")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_thumbnail_that_never_loaded_shows_the_caption_only(page, live_server):
+    """The OTHER caption-only source: the thumb itself failed, so currentSrc is
+    empty and there is nothing to copy. Abort every request for this asset,
+    including the thumbnail's."""
+    user, course = _seed_assets("nvr-pa", "nvr", ("martwy_0_1.png", (400, 300)))
+    page.route("**/martwy_0_1*", lambda route: route.abort())
+    _open_manager(page, live_server, "nvr-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "martwy_0_1.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
+    expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_1.png")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_broken_asset_then_a_good_one_restores_the_image_box(page, live_server):
+    """The overlay is a SINGLETON: without an unconditional reset at open, one
+    broken thumbnail leaves every later preview on the page caption-only."""
+    user, course = _seed_assets(
+        "bth-pa",
+        "bth",
+        ("martwy_0_1.png", (400, 300)),
+        ("zdrowy_0_2.png", (400, 300)),
+    )
+    page.route("**/martwy_0_1*", lambda route: route.abort())
+    _open_manager(page, live_server, "bth-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "martwy_0_1.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
+    page.mouse.move(5, 5)
+    page.wait_for_timeout(600)
+    _open_preview(page, "zdrowy_0_2.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_b_s_caption_never_appears_over_a_s_image(page, live_server):
+    """Hold B's source unresolved with a route so the window is bounded and
+    observable -- the natural window is a cached decode, far shorter than any
+    poll interval, so sampling for it would be a race, not an assertion."""
+    user, course = _seed_assets(
+        "inf-pa",
+        "inf",
+        ("pierwszy_0_1.png", (400, 300)),
+        ("drugi_0_2.png", (400, 300)),
+    )
+    released = {"route": None}
+    page.route("**/drugi_0_2*", lambda route: released.__setitem__("route", route))
+    # NOT _open_manager: a handler that stores the route without resolving it
+    # leaves the request PENDING, and _open_manager's page.goto defaults to
+    # wait_until="load", which <img> subresources block -- so the navigation
+    # would never resolve and this row would die on a 30s timeout before
+    # reaching a single assertion. (route.abort() elsewhere is fine: it
+    # resolves the request.) Log in the same way _open_manager does, then
+    # navigate with domcontentloaded.
+    _login(page, live_server, "inf-pa")
+    # The file's own literal URL form (see _open_manager at :93-96). Do NOT use
+    # reverse() -- tests/test_e2e_media_manager.py never imports it and every
+    # navigation in it is a literal f-string.
+    page.goto(
+        f"{live_server.url}/manage/courses/{course.slug}/media/",
+        wait_until="domcontentloaded",
+    )
+    page.wait_for_selector(".asset-cell")
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "pierwszy_0_1.png")
+    # BY NAME -- see the ordering note above. With nth(1) the pointer would land
+    # on `pierwszy`, no request for drugi would ever be suspended, and
+    # released["route"] would stay None (AttributeError, not a clean failure).
+    b = _anchor(page, "drugi_0_2.png").bounding_box()
+    page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=10)
+    expect(page.locator(".asset-preview__caption")).to_have_text("drugi_0_2.png")
+    # B's caption is up and B's image is still in flight: the <img> must be
+    # hidden, NOT still painting A's frame.
+    expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
+    released["route"].continue_()
+    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_late_load_from_a_previous_asset_cannot_reveal_it(page, live_server):
+    """The scenario captionOnly()'s `expectedSrc = null` exists for, and the
+    only one that can falsify it.
+
+    Shape matters: A's load must still be IN FLIGHT when the pointer swaps to an
+    asset whose own thumbnail FAILED. That second open takes the caption-only
+    branch, which assigns no src -- so without the null, both img.src and the
+    recorded expectedSrc still hold A's URL, still compare equal, and A's late
+    load un-hides the image and paints A's frame under B's caption.
+    """
+    user, course = _seed_assets(
+        "late-pa",
+        "late",
+        ("wolny_0_1.png", (400, 300)),
+        ("martwy_0_2.png", (400, 300)),
+    )
+    held = {"route": None}
+    page.route("**/wolny_0_1*", lambda route: held.__setitem__("route", route))
+    page.route("**/martwy_0_2*", lambda route: route.abort())
+    # domcontentloaded, not _open_manager -- see the note in
+    # test_b_s_caption_never_appears_over_a_s_image: the held request would
+    # block a wait_until="load" navigation forever.
+    _login(page, live_server, "late-pa")
+    # The file's own literal URL form (see _open_manager at :93-96). Do NOT use
+    # reverse() -- tests/test_e2e_media_manager.py never imports it and every
+    # navigation in it is a literal f-string.
+    page.goto(
+        f"{live_server.url}/manage/courses/{course.slug}/media/",
+        wait_until="domcontentloaded",
+    )
+    page.wait_for_selector(".asset-cell")
+    page.set_viewport_size({"width": 1280, "height": 900})
+
+    _open_preview(page, "wolny_0_1.png")  # A: load held, image hidden
+    b = _anchor(page, "martwy_0_2.png").bounding_box()
+    page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=10)
+    expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_2.png")
+
+    held["route"].continue_()  # A's load lands NOW
+    page.wait_for_timeout(300)
+    expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
+    expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_2.png")

@@ -54,7 +54,7 @@
     overlayImg.addEventListener("error", function () {
       if (!openAnchor) return;
       if (overlayImg.getAttribute("src") !== expectedSrc) return;
-      overlayImg.hidden = true;
+      captionOnly();
     });
 
     // document.body, NOT .media-manager: position:fixed resolves against the
@@ -90,43 +90,76 @@
     overlay.style.top = top + "px";
   }
 
+  var GRACE_MS = 300;
+  var hideTimer = null;
+
+  function captionOnly() {
+    overlayImg.hidden = true;
+    // Null the expected source, or a load still in flight for a PREVIOUS asset
+    // would still compare equal (this branch assigns no src) and would un-hide
+    // the image, painting A's frame under B's caption.
+    expectedSrc = null;
+  }
+
+  function cancelHide() {
+    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
+  }
+
+  function startHide() {
+    cancelHide();
+    var gen = generation;
+    hideTimer = setTimeout(function () {
+      hideTimer = null;
+      if (gen !== generation) return;   // a later open superseded this timer
+      close();
+    }, GRACE_MS);
+  }
+
+  function teardownOpenBindings() {
+    // Everything open() registers. Called from open() itself (an in-place swap
+    // re-enters without closing) and from close(). Task 7 adds the observer and
+    // the scroll/resize/keydown listeners here.
+    if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
+  }
+
   function open(anchor) {
     if (!overlay) build();
     var cell = anchor.closest(".asset-cell");
     if (!cell) return;
+    teardownOpenBindings();
+    cancelHide();
     generation += 1;
-    // Reset the singleton. Does NOT clear src: both src="" and
-    // removeAttribute("src") yield a null selected source and QUEUE AN ERROR
-    // that lands after the new source is assigned, flipping a good overlay to
-    // caption-only. Assigning over the old source queues nothing.
     overlayImg.hidden = true;
-    var src = anchor.currentSrc || anchor.getAttribute("src") || "";
-    overlayImg.src = src;
-    expectedSrc = src;
-    // textContent, NEVER innerHTML: getAttribute returns display_name FULLY
-    // DECODED, and it falls back to an attacker-controlled uploaded filename.
     overlayCaption.textContent = cell.getAttribute("data-name") || "";
     openAnchor = anchor;
-    // Reveal synchronously when the image is already complete. Re-opening the
-    // SAME anchor assigns an identical src, and whether that re-queues `load`
-    // on a complete image is engine behaviour we will not bet on -- without
-    // this the image would stay hidden forever on the commonest repeat action.
-    // Position matters: ahead of measure, because on this path there may be no
-    // `load` at all and the measurement below is the only one.
-    if (overlayImg.getAttribute("src") === expectedSrc
-        && overlayImg.complete && overlayImg.naturalWidth > 0) {
-      overlayImg.hidden = false;
+
+    var src = anchor.currentSrc || anchor.getAttribute("src") || "";
+    if (!src || (anchor.complete && anchor.naturalWidth === 0)) {
+      // The thumbnail itself failed, so there is nothing to copy. Assigning ""
+      // does not reliably fire error and can leave the previous image showing.
+      captionOnly();
+    } else {
+      overlayImg.src = src;
+      expectedSrc = src;
+      if (overlayImg.getAttribute("src") === expectedSrc
+          && overlayImg.complete && overlayImg.naturalWidth > 0) {
+        overlayImg.hidden = false;   // ahead of measure -- see Task 5
+      }
     }
-    // Measure only after unhiding: a display:none element has no box, so every
-    // "does it fit?" test would compare against width 0 and answer yes.
+
+    // ONE shared tail, reached by both branches.
     overlay.style.visibility = "hidden";
     overlay.hidden = false;
     place();
     overlay.style.visibility = "";
+    bindOpenListeners();             // Task 7 fills this in; a no-op until then
   }
 
+  function bindOpenListeners() {}    // Task 7
+
   function close() {
-    if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
+    teardownOpenBindings();
+    cancelHide();
     if (!overlay) return;
     overlay.hidden = true;
     overlayImg.hidden = true;
@@ -149,7 +182,9 @@
       // future non-replaced anchor.
       if (e.relatedTarget && anchor.contains(e.relatedTarget)) return;
       hoveredAnchor = anchor;
-      if (anchor === openAnchor) return;
+      cancelHide();          // ANY anchor entry cancels a pending hide
+      if (anchor === openAnchor) return;   // same anchor: the cancel above IS
+                                           // the work -- not a bare no-op
       if (openAnchor) { open(anchor); return; }   // in-place swap, no dwell
       if (dwellTimer !== null) return;
       dwellTimer = setTimeout(function () {
@@ -169,7 +204,11 @@
       if (e.relatedTarget && anchor.contains(e.relatedTarget)) return;
       if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
       hoveredAnchor = null;
-      if (anchor === openAnchor) close();
+      // Arm ONLY for the open anchor. Otherwise the A-hovered/B-open case tears
+      // itself down: pointer on A, user Tabs into cell B, pointer drifts off A,
+      // and 300ms later a mouse twitch kills a keyboard user's overlay.
+      if (anchor !== openAnchor) return;
+      startHide();
     });
   }
 })();
