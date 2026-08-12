@@ -145,8 +145,13 @@ def marker_label(marker):
 locale is active, and a non-lazy call there would freeze the first-seen language into the process.
 
 Putting the words in Python is what makes each string authored once, and it is what lets the icon
-partial put the word in a `title=` attribute — `{% include %}` cannot be used inside an attribute
-value, so a label-partial could not serve both consumers.
+partial put the word in a `title=` attribute cleanly. Note the precise reason a *label partial*
+could not serve both consumers: it is **not** that `{% include %}` is illegal inside an attribute —
+Django templates are plain text substitution with no HTML awareness, so `title="{% include … %}"`
+compiles and renders. It is that an include's output is inserted **unescaped** (a quote or `&` in a
+translated string would break out of the attribute) and it drags the partial's surrounding
+whitespace and newlines into the attribute value. A simple tag returning a lazy string has neither
+problem.
 
 **Filters on the node, not a key on the `build_outline` item dict.** `_outline_node.html` and
 `_unit_tree_node.html` render a `build_outline` dict and could read a key, but
@@ -403,8 +408,9 @@ The obvious fix — un-hiding `.unit-kind__label` at drawer scope — was **cons
 width budget**, and that reasoning is recorded here so it is not re-attempted. `courses.css:2339`
 documents the **drawer's** title column as already squeezed to ~98px — note that `:981-984` records
 a coincidentally identical ~98px for a *different* element (`.lesson-unit__head`'s title beside the
-action buttons), so the two must not be conflated. A glyph (~13px) plus "Dodatkowa"
-(~58px at `.82rem`) plus the gap leaves the title roughly 20–30px, which is unusable; and because
+action buttons), so the two must not be conflated. A glyph (~16px — see the typography note below)
+plus "Dodatkowa" (~71px at 1rem) plus the gap leaves the title roughly 5–10px, which is unusable;
+and because
 `.unit-kind__label` has no `overflow-wrap`, the unbreakable word would paint outside its box and
 overlap the title. Making the row `flex-wrap: wrap` does not rescue it either: flex line-breaking
 uses each item's **hypothetical main size**, and with `flex: 1 1 auto` the label's base size is the
@@ -419,9 +425,16 @@ is a sibling *after* `.unit-drawer__bar`, not a child of it** — between that `
 
 ```html
       </div>            <!-- .unit-drawer__bar ends -->
-      <p class="unit-drawer__legend"> … </p>
+      <p class="unit-drawer__legend" aria-hidden="true"> … </p>
       <ul class="unit-tree__list unit-drawer__list" data-unit-drawer-list>
 ```
+
+**`aria-hidden="true"` on the legend is a decision, not an oversight.** `.unit-kind__label` already
+gives every marked row its own spoken "Quiz" / "Additional", so a screen-reader user has the
+information per row and in context. Exposing the legend as well would announce a bare, unframed
+"Additional Quiz" paragraph on entering the drawer — the same duplication the legend *entry* avoids
+by carrying no `.visually-hidden` copy, one level up. The legend is a **visual** key for a touch
+surface that has no hover; AT does not need it. Pinned by an assertion in the 390px e2e arm.
 
 The placement is a contract, not a detail. `.unit-drawer__bar` is `display: flex;
 align-items: center` (`courses.css:967`), so a `<p>` placed **inside** it lands on the *same* flex
@@ -453,23 +466,32 @@ one rule beside the other drawer rules in the `@media (max-width: 640px)` block:
 ```
 
 This costs one line at the top of the drawer and **zero further per-row width** — "further" being
-load-bearing, since the *glyph* still renders on every marked drawer row and is not free. Budget it
-explicitly rather than waving at it: a 1em glyph at `.82rem` (~13px) plus `.unit-tree__unit`'s
-`gap: .4rem` (~6.4px) takes ~19px out of the ~98px title column documented at `courses.css:2339`,
-leaving **~79px**. That is a ~20% narrowing of exactly the column whose narrowing is the stated
-re-check trigger for the maths audit (`courses.css:2344-2345`), so every drawer assertion in Testing
-must hold at ~79px, not at 98px — and the rejected per-row word is rejected by a much larger margin
-than the glyph, not by the same one. The comparison the "zero" claims beat is the ~58px label, not
-the marker as a whole.
+load-bearing, since the *glyph* still renders on every marked drawer row and is not free.
 
-**Narrowing that column to ~79px requires a wrap guard the drawer label does not have.** The drawer
+**Typography note, because the budget depends on it: the same glyph is a different size in the two
+surfaces.** `font-size: .82rem` is set on `.unit-tree` **alone** (`courses.css:665`), i.e. the
+`<nav>` that `_unit_tree.html` renders. The drawer is a **sibling** of that nav — `_unit_shell.html`
+puts `.unit-drawer` directly under `.unit-shell`, not inside `.unit-tree` — and no rule on the
+drawer chain (`.unit-drawer*`, `.unit-tree__list`) sets a font size, so drawer rows render at
+1rem/16px. `.icon` is `1em`, so the marker is **~13px in the rail and ~16px in the drawer**.
+
+Budget it at the drawer's own size: a 16px glyph plus `.unit-tree__unit`'s `gap: .4rem` (~6.4px)
+takes **~22px** out of the ~98px title column documented at `courses.css:2339`, leaving
+**~75–76px**. That is a **~23%** narrowing of exactly the column whose narrowing is the stated
+re-check trigger for the maths audit (`courses.css:2344-2345`), so every drawer assertion in Testing
+must hold at **~75–76px**, not at 98px — and that is the residual figure the re-check comment should
+record. The rejected per-row word is rejected by a much wider margin than the glyph, not the same
+one: the comparison the "zero" claim beats is the ~71px label, not the marker as a whole.
+
+**Narrowing that column to ~75–76px requires a wrap guard the drawer label does not have.** The drawer
 override at `courses.css:977-978` gives `.unit-tree__label` `white-space: normal; overflow: visible;
 text-overflow: clip` — but, unlike `.unit-tree__grouptitle` (`:736-738`, which carries
 `overflow-wrap: break-word; hyphens: auto`), `.unit-tree__label` has **no `overflow-wrap` at all**.
 A single word wider than the column therefore paints *outside* the box, to the right — precisely
 where the new trailing `.unit-kind` now sits. The existing drawer measurement was taken clean at
-~98px, not at ~79px, and this repo's own phone fixture (`test_e2e_unit_head_layout.py`'s
-`LONG_TITLE`) contains "przedziałach", which is plausible at 98px and not at 79px. So extend that
+~98px, not at ~75–76px, and this repo's own phone fixture (`test_e2e_unit_head_layout.py`'s
+`LONG_TITLE`) contains "przedziałach", which is plausible at 98px and not at 76px — and the gap
+widened further once the glyph was re-measured at the drawer's 1rem rather than the rail's .82rem. So extend that
 override:
 
 ```css
@@ -681,8 +703,15 @@ measurement justifies splitting the rule.
 
 ## Error handling
 
-- **Non-unit node** (part / chapter / section) — `MARKER_NONE`; group rows and `<summary>` rows get
-  nothing. Reachable: both templates recurse over containers.
+- **Non-unit node** (part / chapter / section) — `MARKER_NONE`. **Defensive, and currently
+  unreachable from the four shipped call sites**: §4 places the chip inside
+  `<a class="outline-unit">` and the icon inside `.unit-tree__unit`, both of which live in the
+  `{% if item.is_unit %}` branch, while containers render through `.outline-node__head` and
+  `<summary class="unit-tree__head">` — neither of which includes a marker partial. The recursion
+  over containers is real, but no container node is ever passed to `unit_marker`. Guarded anyway,
+  because a future include placed on a container row would otherwise mark a whole group. (Stated
+  this way deliberately: this repo has already seen a reachability claim flip when a new flow
+  appeared, so an over-claim in *either* direction is worth correcting.)
 - **Unit with `unit_type` unset** — `clean()` forbids it, but the field is `null=True, blank=True` at
   the database level, so a hand-edited or imported row can carry `None`. Returns `MARKER_NONE` (fail
   quiet), never raises: a 500 on the course outline is far worse than an unmarked row.
@@ -883,7 +912,8 @@ trigger; wait for `[data-unit-drawer]` to lose `hidden`; then assert.
 Assertions at that size:
 
 - the `.unit-drawer__legend` is present with a **non-trivial** box —
-  `width >= 30` and `height >= 8`. The thresholds are the point: `.visually-hidden` is 1px × 1px
+  `width >= 30` and `height >= 8` — and carries `aria-hidden="true"` (§4's decision; without the
+  assertion nothing distinguishes a deliberate exclusion from a forgotten one). The thresholds are the point: `.visually-hidden` is 1px × 1px
   with a zero clip rect, which Playwright reports as **visible with a non-empty box**, so a
   `bounding_box() is not None` assertion cannot distinguish a rendered legend from a hidden one;
 - **text-overflow on the label**, not a rect comparison: with a long unbreakable Polish word in the
@@ -915,9 +945,13 @@ Assertions at that size:
   `.outline-unit__title`'s `min-width: 0` / `overflow-wrap: anywhere` **and** for the anchor's own
   `min-width: 0`.
 
-**Screenshots** (`tests/capture_unit_marker_screenshots.py`): both glyphs at rail size, the outline
-row at rest / hover / `:target`, the unit-page head, and the drawer legend — light **and** dark,
-with dark judged on its own. This is where §3's glyph-legibility acceptance step and §4's
+**Screenshots** (`tests/capture_unit_marker_screenshots.py`): both glyphs at rail size, both
+glyphs on a marked **drawer row** at 390×780, the outline row at rest / hover / `:target`, the
+unit-page head, and the drawer legend — light **and** dark, with dark judged on its own. The drawer
+row is not optional: per the typography note in §4 the glyph renders there at ~16px rather than the
+rail's ~13px, beside a *wrapped* multi-line label under `align-items: flex-start`
+(`courses.css:980`), so §5's legibility acceptance — argued "at the ~1em the rail renders" — would
+otherwise never look at the larger of the two renderings it governs. This is where §3's glyph-legibility acceptance step and §4's
 `--surface-sunken` collision are actually looked at.
 
 ### Falsification
