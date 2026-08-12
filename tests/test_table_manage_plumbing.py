@@ -3,6 +3,7 @@ from django.template.loader import render_to_string
 from django.test import Client
 from django.urls import reverse
 
+from courses.models import FillTableElement
 from courses.models import TableElement
 from courses.templatetags.courses_manage_extras import element_summary
 from tests.factories import ContentNodeFactory
@@ -17,6 +18,44 @@ def test_element_summary_reports_dimensions():
         data=TableElement.normalize_data({"cells": [[{}, {}, {}], [{}, {}, {}]]})
     )
     assert element_summary(el) == "2×3 table"
+
+
+def _filltable(gate):
+    # One answer cell, non-blank: normalize_data suppresses `gate` on a grid that
+    # cannot satisfy it, so a static-only grid would silently test nothing.
+    return FillTableElement(
+        data=FillTableElement.normalize_data(
+            {"cells": [[{"kind": "answer", "answer": "4"}]], "gate": gate}
+        )
+    )
+
+
+def test_ungated_filltable_summary_is_byte_identical_to_todays():
+    """The marker must not disturb the row every existing fill-table renders."""
+    assert element_summary(_filltable(False)) == "1×1 fill-in table, 1 answer(s)"
+
+
+def test_a_gated_filltable_summary_names_the_gate():
+    # Without this the builder tree shows the same "1×1 fill-in table, 1 answer(s)"
+    # for a gating table as for an inert one, and the gate changes what the REST
+    # of the section does -- a larger blast radius than tabs' carousel display,
+    # which already carries a marker for exactly this reason.
+    gated = element_summary(_filltable(True))
+    assert gated != element_summary(_filltable(False))
+    assert "gate" in gated.lower()
+
+
+def test_the_gate_marker_translates():
+    from django.utils import translation
+
+    with translation.override("pl"):
+        gated = element_summary(_filltable(True))
+        # "bramka" is the term the help pages already use for the reveal-gate
+        # families (interactive-elements.pl.md), not a new coinage.
+        assert "bramka" in gated.lower()
+        # The base summary must still resolve under pl -- the marker wraps a lazy
+        # proxy, and a broken wrap would swallow the dimensions.
+        assert "1×1" in gated
 
 
 def test_add_menu_exposes_table_card():

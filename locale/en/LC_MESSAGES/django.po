@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-12 12:36+0200\n"
+"POT-Creation-Date: 2026-08-12 13:23+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -461,81 +461,81 @@ msgstr ""
 msgid "A merged cell may not span more than %(n)d rows."
 msgstr ""
 
-#: .\courses\element_forms.py:1454
+#: .\courses\element_forms.py:1463
 #, python-format
 msgid "A table cannot be made larger than %(r)d rows by %(c)d columns."
 msgstr ""
 
-#: .\courses\element_forms.py:1515 .\courses\element_forms.py:1522
+#: .\courses\element_forms.py:1524 .\courses\element_forms.py:1531
 msgid "A table needs at least one cell."
 msgstr ""
 
-#: .\courses\element_forms.py:1528
+#: .\courses\element_forms.py:1537
 msgid "All table rows must have the same number of cells."
 msgstr ""
 
-#: .\courses\element_forms.py:1550 .\courses\element_forms.py:1635
+#: .\courses\element_forms.py:1559 .\courses\element_forms.py:1644
 msgid "A table image is not an image in this course."
 msgstr ""
 
-#: .\courses\element_forms.py:1615
+#: .\courses\element_forms.py:1624
 #: .\templates\courses\manage\editor\_edit_filltable.html:19
 msgid "Mark at least one answer cell (use the “Answer cell” button)."
 msgstr ""
 
-#: .\courses\element_forms.py:1620
+#: .\courses\element_forms.py:1629
 #: .\templates\courses\manage\editor\_edit_filltable.html:18
 msgid ""
 "An answer cell is blank — type its accepted answer, or make it a normal cell."
 msgstr ""
 
-#: .\courses\element_forms.py:1708
+#: .\courses\element_forms.py:1707
 msgid "A gallery needs a list of images."
 msgstr ""
 
-#: .\courses\element_forms.py:1712
+#: .\courses\element_forms.py:1711
 #, python-format
 msgid "A gallery needs at least %(n)d images."
 msgstr ""
 
-#: .\courses\element_forms.py:1717
+#: .\courses\element_forms.py:1716
 #, python-format
 msgid "A gallery is limited to %(n)d images."
 msgstr ""
 
-#: .\courses\element_forms.py:1728
+#: .\courses\element_forms.py:1727
 msgid "A gallery image is not an image in this course."
 msgstr ""
 
-#: .\courses\element_forms.py:1804
+#: .\courses\element_forms.py:1803
 msgid "A tabs element needs a list of tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1807
+#: .\courses\element_forms.py:1806
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1812
+#: .\courses\element_forms.py:1811
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1887
+#: .\courses\element_forms.py:1886
 #: .\templates\courses\manage\editor\_edit_twocolumn.html:8
 msgid "Number of columns"
 msgstr ""
 
-#: .\courses\element_forms.py:1940
+#: .\courses\element_forms.py:1939
 msgid "Add at least one step."
 msgstr ""
 
-#: .\courses\element_forms.py:1943
+#: .\courses\element_forms.py:1942
 #, python-format
 msgid "A stepper can have at most %(n)d steps."
 msgstr ""
 
-#: .\courses\element_forms.py:1997
+#: .\courses\element_forms.py:1996
 #, python-format
 msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr ""
@@ -849,73 +849,73 @@ msgctxt "image size"
 msgid "Full"
 msgstr ""
 
-#: .\courses\models.py:1682
+#: .\courses\models.py:1685
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr ""
 
-#: .\courses\models.py:1683
+#: .\courses\models.py:1686
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr ""
 
-#: .\courses\models.py:1692
+#: .\courses\models.py:1695
 msgctxt "tabs label position"
 msgid "Above"
 msgstr ""
 
-#: .\courses\models.py:1693
+#: .\courses\models.py:1696
 msgctxt "tabs label position"
 msgid "Below"
 msgstr ""
 
-#: .\courses\models.py:1694
+#: .\courses\models.py:1697
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr ""
 
-#: .\courses\models.py:2023 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:2026 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:2024
+#: .\courses\models.py:2027
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:2025
+#: .\courses\models.py:2028
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:2156
+#: .\courses\models.py:2159
 msgid "your answer, correct"
 msgstr ""
 
-#: .\courses\models.py:2157
+#: .\courses\models.py:2160
 msgid "your answer, incorrect"
 msgstr ""
 
-#: .\courses\models.py:2158
+#: .\courses\models.py:2161
 msgid "correct answer, not chosen"
 msgstr ""
 
-#: .\courses\models.py:2827
+#: .\courses\models.py:2830
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:2829
+#: .\courses\models.py:2832
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:2834
+#: .\courses\models.py:2837
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:2905
+#: .\courses\models.py:2908
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:2906
+#: .\courses\models.py:2909
 msgid "Submitted"
 msgstr ""
 
@@ -1139,7 +1139,7 @@ msgid "Steps"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:63
-#: .\courses\templatetags\courses_manage_extras.py:215
+#: .\courses\templatetags\courses_manage_extras.py:225
 #: .\courses\views_manage.py:1973
 #: .\templates\courses\manage\editor\_add_menu.html:52
 msgid "Checklist"
@@ -1171,33 +1171,38 @@ msgstr ""
 msgid "%(rows)d×%(cols)d fill-in table, %(n)d answer(s)"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:180
+#: .\courses\templatetags\courses_manage_extras.py:184
+#, python-format
+msgid "%(summary)s · gate"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:190
 #, python-format
 msgid "%(n)d image"
 msgid_plural "%(n)d images"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\courses\templatetags\courses_manage_extras.py:186
+#: .\courses\templatetags\courses_manage_extras.py:196
 #, python-format
 msgid "%(n)d tab"
 msgid_plural "%(n)d tabs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\courses\templatetags\courses_manage_extras.py:194
+#: .\courses\templatetags\courses_manage_extras.py:204
 #, python-format
 msgid "%(summary)s · carousel"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:200
+#: .\courses\templatetags\courses_manage_extras.py:210
 #, python-format
 msgid "%(n)d column"
 msgid_plural "%(n)d columns"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\courses\templatetags\courses_manage_extras.py:210
+#: .\courses\templatetags\courses_manage_extras.py:220
 #: .\courses\views_manage.py:1972
 #: .\templates\courses\manage\editor\_add_menu.html:51
 msgid "Step-by-step"
