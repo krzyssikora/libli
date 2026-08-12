@@ -116,7 +116,8 @@ name** and produces unbounded recursion on the first render — not an import er
 review and fails in the browser. If a decorator is preferred, follow the file's existing
 `@register.filter(name="marks") def marks_filter(...)` precedent with a distinct function name.
 
-`unit_marker_label` lives in `rollups.py`:
+The labels live in `rollups.py`, reachable **both** from a node and from a bare marker key — the
+legend in §4 has no node to derive one from:
 
 ```python
 UNIT_MARKER_LABELS = {
@@ -124,9 +125,23 @@ UNIT_MARKER_LABELS = {
     MARKER_ADDITIONAL: gettext_lazy("Additional"),
 }
 
+def marker_label(marker):
+    """Marker key -> translated word. The single lookup; the legend's entry point."""
+    return UNIT_MARKER_LABELS.get(marker, "")
+
+
 def unit_marker_label(node):
-    return UNIT_MARKER_LABELS.get(unit_marker(node), "")
+    return marker_label(unit_marker(node))
 ```
+
+`marker_label` is exposed as a **simple tag**, not a filter, because the legend passes a literal:
+
+```python
+register.simple_tag(rollups.marker_label, name="marker_label")
+```
+
+Without this the legend would have to re-author `{% trans "Quiz" %}` / `{% trans "Additional" %}`
+in a third template, which is exactly the duplication putting the words in Python removed.
 
 `gettext_lazy`, **not** `gettext`: a module-level dict is evaluated at import, before the request's
 locale is active, and a non-lazy call there would freeze the first-seen language into the process.
@@ -149,26 +164,47 @@ would cover two surfaces and force a second, driftable rule for the third.
   class="badge unit-kind-chip unit-kind-chip--{{ m }}">{{ node|unit_marker_label }}</span>{% endif %}{% endwith %}
 ```
 
+**`templates/courses/_unit_kind_glyph.html`** — the glyph markup, authored **once**, keyed on a bare
+marker string `m`. Split out from the icon partial so the drawer legend (§4), which has no node, can
+reuse the identical geometry instead of copying it into a third template.
+
+```html
+{% if m == "quiz" %}
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M9.4 9.3a2.7 2.7 0 0 1 5.2.9c0 1.8-2.6 2.4-2.6 2.4"/>
+    <circle cx="12" cy="16.6" r=".95" fill="currentColor" stroke="none"/>
+  </svg>
+{% else %}
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 8.2v7.6M8.2 12h7.6"/>
+  </svg>
+{% endif %}
+```
+
 **`templates/courses/_unit_kind_icon.html`**
 
 ```html
 {% load courses_extras %}{% with m=node|unit_marker %}{% if m %}<span
   class="unit-kind unit-kind--{{ m }}" title="{{ node|unit_marker_label }}">
-  {% if m == "quiz" %}
-    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <circle cx="12" cy="12" r="9"/>
-      <path d="M9.4 9.3a2.7 2.7 0 0 1 5.2.9c0 1.8-2.6 2.4-2.6 2.4"/>
-      <circle cx="12" cy="16.6" r=".95" fill="currentColor" stroke="none"/>
-    </svg>
-  {% else %}
-    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <circle cx="12" cy="12" r="9"/>
-      <path d="M12 8.2v7.6M8.2 12h7.6"/>
-    </svg>
-  {% endif %}
+  {% include "courses/_unit_kind_glyph.html" with m=m only %}
   <span class="visually-hidden unit-kind__label">{{ node|unit_marker_label }}</span>
 </span>{% endif %}{% endwith %}
 ```
+
+**`templates/courses/_unit_kind_legend_item.html`** — one legend entry: the same glyph beside its
+**visible** word. Used only by the drawer legend (§4).
+
+```html
+{% load courses_extras %}<span class="unit-kind unit-kind--{{ m }}">
+  {% include "courses/_unit_kind_glyph.html" with m=m only %}
+  <span class="unit-kind__legendword">{% marker_label m %}</span>
+</span>
+```
+
+Note the legend entry deliberately carries **no** `title=` and **no** `.visually-hidden` — its word
+is already visible, so a tooltip would duplicate it and a hidden copy would double-announce it.
 
 Both render **nothing at all** for `MARKER_NONE`, and both call `unit_marker` themselves, so no call
 site can pass a state the partial did not compute.
@@ -319,9 +355,18 @@ one-line legend beneath it, rendering each glyph once beside its word:
 
 ```html
 <p class="unit-drawer__legend">
-  {% include "courses/_unit_kind_legend_item.html" with marker="additional" %}
-  {% include "courses/_unit_kind_legend_item.html" with marker="quiz" %}
+  {% include "courses/_unit_kind_legend_item.html" with m="additional" only %}
+  {% include "courses/_unit_kind_legend_item.html" with m="quiz" only %}
 </p>
+```
+
+The two literals `"additional"` / `"quiz"` are the same template-side hardcoding §1 already records
+for `_unit_kind_icon.html`, and are covered by the same rename-grep note. The legend's own CSS is
+one rule beside the other drawer rules in the `@media (max-width: 640px)` block:
+
+```css
+.unit-drawer__legend { display: flex; gap: var(--space-3); margin: 0;
+  padding: 0 .9rem .6rem; font-size: .75rem; color: var(--text-secondary); }
 ```
 
 This costs one line at the top of the drawer and **zero per-row width**, keeps `.unit-kind__label`
