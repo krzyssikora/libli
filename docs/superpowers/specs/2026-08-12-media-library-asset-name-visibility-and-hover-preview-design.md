@@ -456,7 +456,7 @@ sweep" rationale this whole design rests on.
 
 The trap is that the thumbs are not adjacent. Between them lies cell A's
 `var(--space-2)` padding and 1 px border, `.asset-grid`'s `gap: var(--space-3)`,
-then B's border and padding — roughly 34 px of **non-anchor** space. A
+then B's border and padding — 8+1+12+1+8 = **30 px** of non-anchor space. A
 physically moving pointer therefore always fires `mouseout` with `relatedTarget`
 pointing at the cell or the grid, so an immediate hide would close the overlay
 and force B to re-pay the full dwell. The in-place swap would then be reachable
@@ -469,18 +469,18 @@ outright. Entering *any* anchor within that window cancels the timer — another
 anchor swaps in place, the **same** anchor simply resumes, which matters because
 the pointer routinely drifts into the cell's own padding and back. A `mouseover`
 resolving to the currently-open anchor is explicitly **not** a no-op: it cancels
-the pending hide and re-evaluates `openedBy`. Without that, a 34 px drift and
+the pending hide and re-evaluates `openedBy`. Without that, a 30 px drift and
 return would leave the timer running, close the overlay under a pointer now
 resting on the thumb, and — per the Escape reasoning above — leave nothing able
 to reopen it. The timer expiring closes the overlay. A pending *open* dwell is
 still cancelled immediately on leaving.
 
-**The grace is 300 ms**, derived rather than guessed: the gap is ~34 px, and the
+**The grace is 300 ms**, derived rather than guessed: the gap is 30 px, and the
 interaction this design exists for is a *deliberate* comparison sweep, not a
-flick. 300 ms sets the floor at ~115 px/s, below any plausible intentional
-traversal; at the 100 ms a first draft used, the floor is ~340 px/s and a slow
-sweep silently re-pays the full 250 ms dwell — degrading to exactly the
-behaviour the grace was introduced to fix.
+flick. 300 ms sets the floor at ~100 px/s, below any plausible intentional traversal;
+at the 100 ms a first draft used, the floor is ~300 px/s and a slow sweep
+silently re-pays the full 250 ms dwell — degrading to exactly the behaviour the
+grace was introduced to fix.
 
 Both A→B rows must drive `page.mouse.move()` through the inter-cell gap in a
 stated number of small steps, never `hover(A)` → `hover(B)`, so they exercise
