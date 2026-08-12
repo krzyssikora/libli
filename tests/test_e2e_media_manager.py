@@ -127,13 +127,15 @@ def test_replace_swaps_the_cell_and_the_rendered_image(page, live_server):
     strip.locator("[data-replace-commit]").click()
 
     # Wait on the STRIP going away, then assert the filename inside
-    # `.asset-fname` -- the server-rendered node. A bare
+    # `.asset-dname` -- the server-rendered node. A bare
     # `.asset-cell:has-text("replacement.png")` would be satisfied the instant
     # the strip appears, because :has-text matches DESCENDANTS and
     # [data-replace-filename] holds exactly that name. The wait would then be a
-    # no-op and everything after it would race the round-trip.
+    # no-op and everything after it would race the round-trip. `.asset-dname`
+    # preserves that property -- [data-replace-filename] is not a descendant of
+    # it -- so do NOT "simplify" this back to `.asset-cell`.
     page.wait_for_selector("[data-replace-strip]", state="detached")
-    page.wait_for_selector('.asset-cell .asset-fname:has-text("replacement.png")')
+    page.wait_for_selector('.asset-cell .asset-dname:has-text("replacement.png")')
     # focusTrigger(fresh) moves focus to the fresh cell's own ⇄, not merely
     # somewhere on the page.
     assert page.evaluate("document.activeElement.hasAttribute('data-replace-asset')")
@@ -242,12 +244,12 @@ def test_two_consecutive_replaces_both_succeed(page, live_server):
         page.click("[data-replace-asset]")
     fc.value.set_files(_upload_payload("first.png"))
     page.locator("[data-replace-commit]").click()
-    # Detached-first, then .asset-fname -- see the note in the happy-path test.
+    # Detached-first, then .asset-dname -- see the note in the happy-path test.
     # Getting this wrong is not cosmetic here: a no-op wait would run the click
     # below while replaceBusy is still true, the handler would return early, no
     # chooser would be raised, and the test would time out ON A CORRECT BUILD.
     page.wait_for_selector("[data-replace-strip]", state="detached")
-    page.wait_for_selector('.asset-cell .asset-fname:has-text("first.png")')
+    page.wait_for_selector('.asset-cell .asset-dname:has-text("first.png")')
 
     # Second pass THROUGH the button. input.click() raises a file chooser that
     # must be intercepted, or it hangs.
@@ -256,7 +258,7 @@ def test_two_consecutive_replaces_both_succeed(page, live_server):
     fc.value.set_files(_upload_payload("second.png"))
     page.locator("[data-replace-commit]").click()
     page.wait_for_selector("[data-replace-strip]", state="detached")
-    page.wait_for_selector('.asset-cell .asset-fname:has-text("second.png")')
+    page.wait_for_selector('.asset-cell .asset-dname:has-text("second.png")')
 
 
 @pytest.mark.django_db(transaction=True)
@@ -306,7 +308,7 @@ def test_a_filter_swap_mid_flight_still_updates_the_cell(page, live_server):
 
     held[0].continue_()
 
-    page.wait_for_selector('.asset-cell .asset-fname:has-text("late.png")')
+    page.wait_for_selector('.asset-cell .asset-dname:has-text("late.png")')
     asset.refresh_from_db()
     assert asset.original_filename == "late.png"
     # The re-query branch moves NO focus: the element that had it is long gone
@@ -398,7 +400,7 @@ def test_a_grid_swap_while_the_file_chooser_is_open_still_lands(page, live_serve
     strip.locator("[data-replace-commit]").click()
 
     page.wait_for_selector("[data-replace-strip]", state="detached")
-    page.wait_for_selector('.asset-cell .asset-fname:has-text("after-swap.png")')
+    page.wait_for_selector('.asset-cell .asset-dname:has-text("after-swap.png")')
     asset.refresh_from_db()
     assert asset.original_filename == "after-swap.png"
 
@@ -433,7 +435,7 @@ def test_an_upload_after_filtering_lands_in_the_live_grid(page, live_server):
     # the grid captured at wire time (now detached), this selector would
     # never resolve and the test would time out rather than fail cleanly.
     page.wait_for_selector(
-        '.asset-grid .asset-cell .asset-fname:has-text("after-filter.png")'
+        '.asset-grid .asset-cell .asset-dname:has-text("after-filter.png")'
     )
 
 
