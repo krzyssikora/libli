@@ -8,17 +8,29 @@ This module is both the single GeoGebra URL parser and the single place the GeoG
 API is called. Parsing functions rebuild recognized ``https`` inputs from scratch
 (host + material id, dropping any width/height/border cruft) and return everything
 else unchanged for ``validate_embed_url`` to judge; the one network function performs
-a single capped GET behind the ``GEOGEBRA_API_LOOKUP`` kill switch. Nothing here
-raises — every failure degrades to a neutral value, because these run inside form
-validation and inside page render, where an exception would 500 a save or a student
-unit page.
+a single capped GET behind the ``GEOGEBRA_API_LOOKUP`` kill switch, on a bounded
+background daemon thread under a total deadline (``_DEADLINE_SECONDS``), with the body
+read chunked against the same budget. The MAIN thread is released unconditionally at
+that deadline, so the caller's row lock is always bounded; the WORKER is bounded only
+once response headers have arrived — the budget is first checked after ``_open``
+returns, so a peer that dribbles the handshake or the headers parks it inside ``_open``,
+limited only by ``http.client``'s ``_MAXLINE``/``_MAXHEADERS``.
+Nothing here raises — every failure degrades to a neutral value, because these run
+inside form validation and inside page render, where an exception would 500 a save or
+a student unit page.
+
+This is the repository's only production background thread. The worker's boundary
+rule: NO ORM, NO cache, NO logging — it only calls ``_open``, reads bytes, and stores
+into a result box; everything else stays on the main thread.
 """
 
 import json
 import logging
 import re
+import threading
 import urllib.error
 import urllib.request
+from time import monotonic
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -45,13 +57,21 @@ logger = logging.getLogger(__name__)
 _API_PREFIX = "https://api.geogebra.org/"
 # A module constant rather than a setting, matching the pattern of
 # integrations/delivery.py :: TIMEOUT_SECONDS = 10. This bounds urllib's SOCKET
-# ops -- connect() and each individual read(), not the total call -- so a peer
-# dribbling bytes slowly can hold the wall clock (and, since this call sits
-# inside save_element's row lock, the unit row + worker) well past 3s. Accepted:
-# hardcoded host, _NoRedirect, and delivery.py already carries this same shape
-# at 10s. The measured 3.29s timeout (blackholed address) validated only the
-# connect leg; a blackholed SYN never reaches the read stage.
+# ops -- connect() and each individual read() -- NOT the total call. That is why
+# it is no longer sufficient on its own: the total call is bounded separately,
+# by _DEADLINE_SECONDS. Measured: a peer dribbling one byte per second held a
+# single read for 16.18s against this 3s timeout.
 _TIMEOUT_SECONDS = 3
+# Total bound on the lookup, enforced by joining the worker thread. Deliberately
+# LARGER than a single socket op so a failure in the FIRST op still surfaces as
+# itself -- the blackhole/connect path times out at a measured ~3.29s and must
+# keep reporting "lookup failed (timeout)" rather than racing this deadline.
+_DEADLINE_SECONDS = 5
+# Chunk size for the body read. Larger chunks mean fewer syscalls but coarser
+# budget-check granularity; the loop may overshoot the cap by up to one chunk
+# (peak buffer _MAX_BODY_BYTES + _CHUNK_BYTES = 73,728 bytes). Need not divide
+# _MAX_BODY_BYTES.
+_CHUNK_BYTES = 8192
 _MAX_BODY_BYTES = 65536  # ~55x the measured 1,177-byte ws response
 _NEGATIVE_TTL_SECONDS = 60
 _USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"
@@ -253,6 +273,35 @@ def _open(request, timeout):
     return urllib.request.build_opener(_NoRedirect).open(request, timeout=timeout)
 
 
+class _BudgetExceeded(Exception):
+    """The worker's own read budget ran out. Never escapes to clean_url."""
+
+
+def _fetch_body(request, deadline):  # deadline: a monotonic() instant
+    """Read the response body in chunks, abandoning it when the budget expires.
+
+    read1, NOT read: HTTPResponse.read(n) delegates to a BufferedReader that loops
+    over recv until it has n bytes or hits EOF, so each individual recv returns
+    inside _TIMEOUT_SECONDS and the timeout never fires. Measured against a peer
+    dripping one byte per 50ms: read(8192) blocked 10.13s for the whole body,
+    read1(8192) returned in 0.05s on the first available bytes. With read, this
+    loop would not bound anything -- it would only divide the unbounded wait by
+    _MAX_BODY_BYTES / _CHUNK_BYTES.
+    """
+    with _open(request, timeout=_TIMEOUT_SECONDS) as response:
+        chunks, total = [], 0
+        # loop past the cap so oversize stays detectable
+        while total <= _MAX_BODY_BYTES:
+            if monotonic() >= deadline:
+                raise _BudgetExceeded
+            chunk = response.read1(_CHUNK_BYTES)
+            if not chunk:  # EOF
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+    return b"".join(chunks)
+
+
 def _settings_dimensions(node):
     """(W, H) from a node's `settings` block when usable, else (None, None).
 
@@ -331,10 +380,13 @@ def _dimensions_from_payload(payload, material_id):
 def fetch_geogebra_dimensions(material_id):
     """The material's authored (width, height), or (None, None). All-or-nothing.
 
-    Never raises — a bare `except Exception`, matching courses/embed.py's precedent:
-    urlopen can raise RemoteDisconnected, ConnectionResetError, ssl.SSLError,
-    UnicodeDecodeError and ValueError, none of which are URLError subclasses, and
-    anything escaping into clean_url would 500 the save.
+    Never raises. The transport now runs on a bounded worker thread, so the
+    exceptions urlopen can produce -- RemoteDisconnected, ConnectionResetError,
+    ssl.SSLError, UnicodeDecodeError, ValueError, none of them URLError
+    subclasses -- no longer raise on THIS frame. The worker catches them, stores
+    them in the result box, and they are re-raised here for the handlers below to
+    degrade. A deadline (neither box slot set) degrades via _fail rather than
+    raising. Anything escaping into clean_url would 500 the save.
     """
     # Read the flag on EVERY call — capturing it at import would make every
     # override_settings a silent no-op and let the invalid-input tests pass vacuously.
@@ -370,12 +422,50 @@ def fetch_geogebra_dimensions(material_id):
         request = urllib.request.Request(  # noqa: S310
             url, headers={"User-Agent": _USER_AGENT}
         )
-        with _open(request, timeout=_TIMEOUT_SECONDS) as response:
-            body = response.read(_MAX_BODY_BYTES + 1)  # +1 so oversize is detectable
+        budget = _DEADLINE_SECONDS  # ONE read of the global, at call time
+        deadline = monotonic() + budget  # computed immediately before start()
+        box = {}
+
+        def _run():
+            try:
+                box["body"] = _fetch_body(request, deadline)
+            except _BudgetExceeded:  # MUST precede `except Exception`
+                return  # store nothing -> caller reports the deadline
+            except Exception as exc:  # noqa: BLE001 - the never-raises contract
+                box["exc"] = exc  # store FIRST
+                try:
+                    exc.close()  # then close; HTTPError only, harmless otherwise
+                # the guard below: closing must never mask the original
+                except Exception:  # noqa: BLE001, S110
+                    pass
+
+        thread = threading.Thread(
+            target=_run, name=f"geogebra-lookup-{material_id}", daemon=True
+        )
+        thread.start()
+        thread.join(budget)  # same value as the deadline -- no clock skew
+
+        result = dict(box)  # ONE snapshot; never three `in` checks on a live dict
+        if "exc" in result:
+            raise result["exc"]  # re-raise so the handlers below run as they do today
+        if "body" not in result:
+            return _fail("deadline exceeded")
+        body = result["body"]
+        if not isinstance(body, bytes):
+            # Defensive and DELIBERATELY UNTESTED, in the style of the _API_PREFIX
+            # guard above: b"".join() returns bytes or raises on the worker (landing
+            # in box["exc"]), so this cannot be driven. Kept because len() at the
+            # oversize check sits outside this try, so being wrong would be a 500.
+            # Distinct reason string -- never "deadline exceeded", or a broken fake
+            # would be indistinguishable from a real deadline in tests 1/2/4/5c.
+            return _fail("lookup returned a non-bytes body")
     except urllib.error.HTTPError as exc:
-        # A 4xx/5xx raises from INSIDE _open, so the `with` above is never entered and
-        # the error's own fp is never closed — close it explicitly or the 400 test
-        # surfaces an unexplained ResourceWarning.
+        # A 4xx/5xx raises from inside _open ON THE WORKER, so the `with` inside
+        # _fetch_body is never entered and the error's own fp is never closed. The
+        # worker closes it when it stores the error (store first, then close), and
+        # the main thread re-raises it here. This close stays: it is harmless on an
+        # already-closed error, and without it the 400 test would surface an
+        # unexplained ResourceWarning if the worker path ever changed.
         try:
             exc.close()
         # S110 (try-except-pass) IS enabled and DOES fire here; BLE001 is not.

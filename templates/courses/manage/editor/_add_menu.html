@@ -51,7 +51,38 @@ that guard lives on the include in _element_row.html, not here.
       <button type="button" class="typecard" data-add-type="stepper"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-stepper"/></svg>{% trans "Step-by-step" %}</button>
       <button type="button" class="typecard" data-add-type="markdone"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-markdone"/></svg>{% trans "Checklist" %}</button>
       <button type="button" class="typecard" data-add-type="guessnumber"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-guessnumber"/></svg>{% trans "Guess the number" %}</button>
-      {% if nested %}<button type="button" class="typecard" data-add-type="fillblankquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-fillblank"/></svg>{% trans "Fill in the blanks" %}</button>{% endif %}
+    </div>
+    {% endif %}
+    {% if nested and not unit_is_quiz %}
+    {% comment %}
+    Questions nested in a container -- LESSON UNITS ONLY. The server enforces this at
+    five authorities regardless; hiding the group is courtesy. A SIBLING of the
+    `{% if not nested %}` block below, never inside it: a `{% if nested %}` group
+    nested inside `{% if not nested %}` is unreachable, and that failure is silent --
+    every server gate test still passes and the author simply never sees the cards.
+
+    NO depth gate, unlike the container cards: questions are LEAVES, so from a menu at
+    depth d they land at d+1, which builder clause 3 accepts up to MAX_NEST_DEPTH.
+    Containers need `depth < max_nest_depth|add:-1` only because a container child
+    must itself still have room for children.
+
+    data-add-type carries the CARD names -- element_add reads choice-single /
+    choice-multi to seed `multiple`, THEN collapses both to "choicequestion" for the
+    nesting check, which is why builder's alias is keyed on "choicequestion" and not
+    on these. Emitting "choicequestion" here would NOT error (it is in element_add's
+    allow-tuple) -- both cards would 200 and silently produce single-choice.
+
+    The Fill-in-the-blanks card moved here from the Interactive group above, where it
+    sat as the one graded type among ungrouped widgets; its availability is unchanged
+    (nested, lessons only).
+    {% endcomment %}
+    <p class="typemenu__group-label">{% trans "Questions" %}</p>
+    <div class="typemenu__group">
+      <button type="button" class="typecard" data-add-type="choice-single"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-choice-single"/></svg>{% trans "Single choice" %}</button>
+      <button type="button" class="typecard" data-add-type="choice-multi"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-choice-multi"/></svg>{% trans "Multiple choice" %}</button>
+      <button type="button" class="typecard" data-add-type="shorttextquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-shorttext"/></svg>{% trans "Short text" %}</button>
+      <button type="button" class="typecard" data-add-type="shortnumericquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-shortnumeric"/></svg>{% trans "Short numeric" %}</button>
+      <button type="button" class="typecard" data-add-type="fillblankquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-fillblank"/></svg>{% trans "Fill in the blanks" %}</button>
     </div>
     {% endif %}
     {% if not nested %}

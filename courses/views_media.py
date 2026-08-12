@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.views.decorators.http import require_POST
 
 from courses import media as media_svc
 from courses.element_forms import MediaAssetForm
@@ -111,6 +112,7 @@ def media_picker(request, slug):
     return render(request, "courses/manage/media/_picker.html", ctx)
 
 
+@require_POST  # above @login_required: a non-POST is a 405 regardless of auth
 @login_required
 def media_delete(request, slug, pk):
     course = _require_manage(request, slug)
@@ -129,3 +131,41 @@ def media_delete(request, slug, pk):
     if not _wants_fragment(request):
         return redirect("courses:manage_media", slug=course.slug)
     return render(request, "courses/manage/_empty.html", {})  # JS removes the cell
+
+
+@require_POST  # above @login_required: a non-POST is a 405 regardless of auth
+@login_required
+def media_replace(request, slug, pk):
+    course = _require_manage(request, slug)
+    asset = get_object_or_404(MediaAsset, pk=pk, course=course)
+    # The KEY, not request.FILES emptiness: a multipart POST under another
+    # field name would pass an emptiness check and then 500 on the access.
+    if "file" not in request.FILES:
+        if not _wants_fragment(request):
+            return redirect("courses:manage_media", slug=course.slug)
+        return render(
+            request,
+            "courses/manage/_op_error.html",
+            {"message": "No file was submitted."},
+            status=422,
+        )
+    try:
+        # MediaAssetForm is deliberately NOT reused: its fields are
+        # ["kind", "file"], and `kind` is exactly what a replace must not
+        # accept from the client.
+        media_svc.replace_asset(asset, request.FILES["file"])
+    except ValidationError as e:
+        msg = "; ".join(e.messages)
+        if not _wants_fragment(request):
+            return redirect("courses:manage_media", slug=course.slug)
+        return render(
+            request, "courses/manage/_op_error.html", {"message": msg}, status=422
+        )
+    if not _wants_fragment(request):
+        return redirect("courses:manage_media", slug=course.slug)
+    media_svc.attach_usage(asset)
+    return render(
+        request,
+        "courses/manage/media/_asset_cell.html",
+        {"course": course, "asset": asset},
+    )

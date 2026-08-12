@@ -31,11 +31,19 @@ Z poziomu komórki pliku możesz:
 
 - **Zmienić nazwę** na miejscu — zmienia to tylko nazwę wyświetlaną w
   bibliotece i selektorach, nie sam plik.
+- **Zastąpić** jego plik — podmienia plik stojący za zasobem na miejscu,
+  a każdy element, który z niego korzysta, nadal wskazuje na ten sam
+  zasób, więc nic nie trzeba podłączać ponownie. Jest to dostępne nawet
+  wtedy, gdy zasób jest w użyciu, a stary plik zostaje usunięty z dysku.
+  Jeśli zasób jest wykorzystywany przez pytanie Przeciąganie na obraz,
+  zachowaj ostrożność: jego strefy upuszczania są zapisywane jako ułamki
+  wymiarów obrazu, więc zastąpienie go plikiem o innym kształcie je
+  przesunie.
 - **Usunąć** plik — dostępne tylko wtedy, gdy jest on oznaczony jako
   **nieużywane**. Dopóki jakikolwiek element wciąż się do niego odwołuje,
   przycisk usuwania jest nieaktywny (*W użyciu — nie można usunąć*);
-  najpierw usuń go z każdego elementu (lub zastąp go tam innym plikiem), a
-  dopiero potem usuń go tutaj.
+  najpierw usuń go z każdego elementu (lub wskaż w tych elementach inny
+  plik), a dopiero potem usuń go tutaj.
 
 Ponieważ pliki są współdzielone, przesłanie tego samego zdjęcia lub klipu
 dwukrotnie tylko zaśmieca bibliotekę. Najpierw go wyszukaj — być może ktoś

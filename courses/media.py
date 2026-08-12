@@ -2,6 +2,7 @@
 
 import os
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count
 from django.db.models import ProtectedError
@@ -121,6 +122,65 @@ def rename_asset(asset, name):
     255-cap is enforced by the caller (view) before this is reached."""
     asset.name = (name or "").strip()
     asset.save(update_fields=["name"])
+    return asset
+
+
+def _delete_file_if_unshared(name, storage):
+    """Drop a superseded file from storage, unless another MediaAsset row still
+    points at the same name.
+
+    courses/signals.py's post_delete receiver has no such guard: it keys on
+    file.name alone, so two rows sharing a name share a lifetime. Migration
+    0008 copied storage references verbatim, so shared names exist in real data.
+    Deferred via on_commit for the same reason the signal defers -- a
+    rolled-back replace must not strand a live row whose file is already gone.
+    """
+    if not name:
+        return
+    if MediaAsset.objects.filter(file=name).exists():
+        return
+
+    def _remove():
+        if storage.exists(name):
+            storage.delete(name)
+
+    transaction.on_commit(_remove)
+
+
+@transaction.atomic
+def replace_asset(asset, uploaded_file):
+    """Swap the bytes behind an existing asset, preserving pk, kind and name so
+    every element referencing it is untouched. The superseded file is removed.
+
+    `uploaded_file` MUST be an uncommitted upload (an InMemory/TemporaryUploaded
+    File). _validate_file short-circuits on a committed FieldFile, so passing
+    one would skip BOTH the extension and the size check.
+    """
+    if not uploaded_file.size:
+        # MediaAsset.clean() has no LOWER size bound -- only the upload FORM
+        # rejects an empty file. Without this a 0-byte upload would validate,
+        # commit, and destroy the old bytes with no undo.
+        raise ValidationError(_("The submitted file is empty."))
+    old_name = asset.file.name
+    old_storage = asset.file.storage
+    asset.file = uploaded_file
+    asset.original_filename = truncate_filename(uploaded_file.name)
+    asset.content_hash = ""  # a STALE hash would mis-dedup a later LAL import
+    # Validate exactly what this writes. `uploaded_by` is the load-bearing
+    # exclusion: null=True WITHOUT blank=True, so clean_fields() raises "This
+    # field cannot be blank." for every LAL-imported / migrated / seeded row.
+    # course/kind/name would pass anyway and are listed to express the rule.
+    # `created` is deliberately NOT listed: auto_now_add makes it
+    # editable=False, so Field.validate() early-returns and excluding it would
+    # be a no-op that reads as load-bearing. clean() runs regardless of
+    # `exclude` and still branches on the untouched self.kind, which is where
+    # the per-kind extension/size validation lives.
+    asset.full_clean(exclude=["course", "kind", "name", "uploaded_by"])
+    asset.save(update_fields=["file", "original_filename", "content_hash"])
+    # Storage hands back the SAME name when the old file was already missing,
+    # in which case the "old" file is the one just written.
+    if asset.file.name != old_name:
+        _delete_file_if_unshared(old_name, old_storage)
     return asset
 
 

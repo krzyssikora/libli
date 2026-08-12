@@ -726,8 +726,57 @@ button.asset-cell:hover { border-color: var(--primary); }
 .asset-cell:hover .iconbtn--pen { opacity: 1; }
 .picker .search { display: block; margin-bottom: var(--space-4); }
 .picker .search .input { width: 100%; }
+
+/* Replace: the ⇄ button shares a row with the delete form, so the foot keeps
+   exactly two flex children and its space-between still holds. The form's
+   display:contents (below) now resolves against .asset-actions, not .asset-foot. */
+.asset-actions { display: flex; gap: var(--space-1); }
+
+/* A third control leaves ~33px for the foot's left-hand label at the grid's 8rem
+   minimum. Flex items default to min-width:auto and refuse to shrink, so without
+   this they push out of the cell. :not([open]) is load-bearing in BOTH
+   directions: it matches the unused <span> and a CLOSED <details> (which should
+   shrink), and deliberately not an OPEN one -- an unfloored open details would be
+   squeezed to ~30px and wrap every unit title to a few characters per line. */
+.asset-foot > :first-child:not([open]) { min-width: 0; }
+
+/* Shrink without clipping is a worse-looking bug: with overflow visible the
+   glyphs are still painted at full width, straight across the buttons. Both
+   branches of the foot need it -- NOT .asset-uses-detail, which is the <details>
+   box, where nowrap would inherit into every <li> and overflow:hidden would clip
+   the expanded list (text-overflow does not inherit, so not even an ellipsis).
+   Do NOT add a `.asset-uses-list { white-space: normal }` counterweight: the list
+   is a SIBLING of .asset-uses inside <details>, not a descendant, so it never
+   inherits the nowrap and the reset would be inert -- exactly the dead-CSS class
+   the branch preceding this work existed to delete. */
+.asset-uses, .asset-foot > .muted {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.asset-replace-confirm {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  margin-top: var(--space-1); padding-top: var(--space-1);
+  border-top: 1px solid var(--border-default);
+  font-size: .78rem; text-align: left;
+}
+.asset-replace-confirm__file {
+  font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* --text-secondary, not --text-tertiary, which fails AA at body size.
+   overflow-wrap because this is the longest string in the strip and a long
+   unbreakable Polish compound would otherwise push the cell wider. */
+.asset-replace-confirm__warn {
+  color: var(--text-secondary); overflow-wrap: anywhere;
+}
+/* "Replace" + "Cancel" need ~160px against the ~112px an 8rem column offers, and
+   the Polish labels are no shorter -- so they wrap at the narrow end and sit on
+   one line where there is room. */
+.asset-replace-confirm__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.asset-replace-confirm__actions .btn { flex: 1 1 auto; }
+
 /* Media manager polish (batch 5). The delete <form> wraps an icon button inside
-   the flex .asset-foot — display:contents lets the button sit directly in that
+   the flex .asset-actions — display:contents lets the button sit directly in that
    flex row instead of the form introducing a block-level gap. */
 .asset-del { display: contents; }
 .picker__file { font-size: .85rem; color: var(--text-secondary); }

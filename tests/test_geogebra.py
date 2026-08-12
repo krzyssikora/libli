@@ -1,6 +1,9 @@
+import itertools
 import json
+import logging
 import pathlib
 import ssl
+import threading
 import urllib.error
 from unittest.mock import patch
 
@@ -261,6 +264,37 @@ def test_geogebra_url_size_never_raises_on_malformed_authority():
 # --- fetch_geogebra_dimensions: the API lookup ---
 
 
+class _Resp:
+    """Stateful response double: a read offset, so a chunked loop reaches EOF.
+
+    Module scope (not nested in _patch_open) so tests that assert on `calls` can
+    hold the instance -- unittest.mock does not record return values, so a test
+    using `with _patch_open(body)` has no other handle on it.
+    """
+
+    def __init__(self, body):
+        self._body = body
+        self._pos = 0
+        self.calls = 0
+
+    def read(self, n=-1):
+        self.calls += 1
+        if n is None or n < 0:
+            chunk = self._body[self._pos :]
+        else:
+            chunk = self._body[self._pos : self._pos + n]
+        self._pos += len(chunk)
+        return chunk
+
+    read1 = read  # same offset, same counter -- read1 is what _fetch_body calls
+
+    def __enter__(self):  # the fetch uses `with _open(...) as resp`
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+
 def _patch_open(body=None, exc=None):
     """Patch the transport seam; return the mock so tests can assert on call args.
 
@@ -269,20 +303,10 @@ def _patch_open(body=None, exc=None):
     never drained and an unclosed response leaks a socket per call).
     """
 
-    class _Resp:
-        def read(self, n=-1):
-            return body[:n] if n and n > 0 else body
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc_info):
-            return False
-
     def _side_effect(request, timeout=None):
         if exc is not None:
             raise exc
-        return _Resp()
+        return _Resp(body)
 
     return patch("courses.geogebra._open", side_effect=_side_effect)
 
@@ -467,3 +491,174 @@ def test_no_redirect_handler_refuses_redirects():
 
     with pytest.raises(urllib.error.HTTPError):
         _NoRedirect().redirect_request(_Req(), None, 302, "Found", {}, "http://evil")
+
+
+def test_fetch_body_refuses_to_read_once_the_budget_is_spent():
+    # 5a: the budget is checked BEFORE each read, not only after data arrives.
+    from courses.geogebra import _BudgetExceeded
+    from courses.geogebra import _fetch_body
+    from courses.geogebra import monotonic
+
+    resp = _Resp(b"x" * 100)
+    with patch("courses.geogebra._open", return_value=resp):
+        with pytest.raises(_BudgetExceeded):
+            _fetch_body(object(), monotonic() - 1)
+    assert resp.calls == 0
+
+
+def test_fetch_body_rechecks_the_budget_on_every_iteration(monkeypatch):
+    # 5b: the check is INSIDE the loop. A fake clock, not sleep, so this is exact.
+    # itertools.count never exhausts: a finite scripted list would hard-code how
+    # many times the implementation calls monotonic() and would StopIteration out
+    # of a legal variant, failing a correct build for an unrelated reason.
+    from courses.geogebra import _CHUNK_BYTES
+    from courses.geogebra import _BudgetExceeded
+    from courses.geogebra import _fetch_body
+
+    clock = itertools.count(start=0.0, step=1.0)
+    monkeypatch.setattr("courses.geogebra.monotonic", lambda: next(clock))
+
+    # 3 chunks' worth, so reads 1 and 2 do NOT hit EOF and the loop is still
+    # running when the third budget check trips.
+    resp = _Resp(b"x" * (3 * _CHUNK_BYTES))
+    with patch("courses.geogebra._open", return_value=resp):
+        with pytest.raises(_BudgetExceeded):
+            # ticks: check1 -> 0.0 (ok), check2 -> 1.0 (ok), check3 -> 2.0 (trips)
+            _fetch_body(object(), 2.0)
+    assert resp.calls == 2
+
+
+def _slow_resp_cls(released, entered=None):
+    """A _Resp whose read1 blocks until `released` (bounded), then returns the body.
+
+    Bounded, never unbounded: there is no pytest-timeout in this project, so a fake
+    that blocks forever makes the MUTANT run hang rather than fail -- indistinguishable
+    from the "test-DB container is down" mode.
+    """
+
+    class _SlowResp(_Resp):
+        def read1(self, n=-1):
+            if entered is not None:
+                entered.set()
+            released.wait(3)
+            return super().read1(n)
+
+    return _SlowResp
+
+
+def _geogebra_reasons(caplog):
+    return [r.message for r in caplog.records if r.name == "courses.geogebra"]
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_abandons_a_slow_body_at_the_deadline(monkeypatch, caplog):
+    # Test 1. NOTE: (None, None) alone is NOT a sufficient assertion -- it is this
+    # function's universal degradation value. Under this test's own mutant the call
+    # also returns (None, None), so the caplog reason is the SOLE discriminator.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+    resp = _slow_resp_cls(released)(_payload("wseg.json"))
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", return_value=resp):
+                assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    finally:
+        released.set()  # release in teardown; never leave a thread parked
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_abandons_slow_HEADERS_at_the_deadline(monkeypatch, caplog):
+    # Test 2. Pins that the bound wraps _open itself, not merely the read -- the
+    # leg a chunk budget alone cannot cover.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+
+    def _slow_open(request, timeout=None):
+        released.wait(3)
+        return _Resp(_payload("wseg.json"))
+
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", side_effect=_slow_open):
+                assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    finally:
+        released.set()
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_negative_caches_a_deadline(monkeypatch):
+    # Test 3. BOTH directions race here and the fixed-build one is the dangerous
+    # one: asserting call_count == 1 on a CORRECT build needs the first worker to
+    # have reached _open before the post-join assertion runs. Synchronise on an
+    # event rather than trusting the deadline floor -- and BOUND the wait, or a
+    # never-started thread hangs the suite instead of failing it.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released, entered = threading.Event(), threading.Event()
+    cls = _slow_resp_cls(released, entered)
+    try:
+        opener_patch = patch(
+            "courses.geogebra._open",
+            side_effect=lambda *a, **k: cls(_payload("wseg.json")),
+        )
+        with opener_patch as opener:
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+            assert entered.wait(5)
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+            assert opener.call_count == 1
+    finally:
+        released.set()
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_deadline_log_names_the_id_AND_the_reason(monkeypatch, caplog):
+    # Test 4. Asserting the id alone would be vacuous: _fail logs "geogebra %s: %s",
+    # so `lookup failed (AttributeError)` from a broken fake also names the id --
+    # green on precisely the mistake this test is designated to catch.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 0.3)
+    released = threading.Event()
+    resp = _slow_resp_cls(released)(_payload("wseg.json"))
+    try:
+        with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+            with patch("courses.geogebra._open", return_value=resp):
+                fetch_geogebra_dimensions("wgzr7tsu")
+    finally:
+        released.set()
+    messages = _geogebra_reasons(caplog)
+    assert any("wgzr7tsu" in m and "deadline" in m for m in messages)
+
+
+@override_settings(GEOGEBRA_API_LOOKUP=True)
+def test_fetch_reports_a_worker_budget_trip_as_the_deadline(monkeypatch, caplog):
+    # 5c: the budget trips INSIDE the join window, so this is the only test that
+    # exercises _run's `except _BudgetExceeded` branch and the empty-box outcome.
+    #
+    # Clock arithmetic -- the main thread consumes the FIRST tick computing
+    # `deadline = monotonic() + budget`, so the worker's ticks are offset by one:
+    #   tick 1 (main)   -> 0.0   deadline = 0.0 + 2.0 = 2.0
+    #   tick 2 (check1) -> 1.0   < 2.0, read1 #1
+    #   tick 3 (check2) -> 2.0   >= 2.0, raise _BudgetExceeded
+    # Body is 3 chunks so read1 #1 does not hit EOF.
+    monkeypatch.setattr("courses.geogebra._DEADLINE_SECONDS", 2.0)
+    clock = itertools.count(start=0.0, step=1.0)
+    monkeypatch.setattr("courses.geogebra.monotonic", lambda: next(clock))
+
+    from courses.geogebra import _CHUNK_BYTES
+
+    resp = _Resp(b"x" * (3 * _CHUNK_BYTES))
+    with caplog.at_level(logging.WARNING, logger="courses.geogebra"):
+        with patch("courses.geogebra._open", return_value=resp):
+            assert fetch_geogebra_dimensions("dcjktevj") == (None, None)
+    assert any("deadline" in m for m in _geogebra_reasons(caplog))
+
+
+def test_the_deadline_clears_the_measured_connect_leg_failure():
+    # Every other test patches _DEADLINE_SECONDS, so nothing else observes the
+    # SHIPPED relationship. `>` alone is satisfied by 3.5, which reintroduces the
+    # mislabelling: the measured blackhole/connect failure takes ~3.29s, so the
+    # deadline must clear the MEASURED figure, not merely the nominal constant.
+    from courses.geogebra import _DEADLINE_SECONDS
+    from courses.geogebra import _TIMEOUT_SECONDS
+
+    assert _DEADLINE_SECONDS >= _TIMEOUT_SECONDS + 1

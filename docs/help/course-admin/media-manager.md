@@ -30,10 +30,17 @@ From an asset's cell you can:
 
 - **Rename** it in place — this only changes the display name shown in the
   library and pickers, not the underlying file.
+- **Replace** its file — swaps the file behind the asset in place while
+  every element that uses it keeps pointing at the same asset, so nothing
+  needs to be re-attached. It's available even while the asset is in use,
+  and the old file is removed from disk. If the asset is used by a
+  drag-to-image question, be careful: its drop zones are stored as
+  fractions of the image, so replacing it with a differently shaped file
+  will move them.
 - **Delete** it — only available once it's labeled **unused**. While any
   element still references it, the delete button is disabled
-  (*In use — cannot delete*); remove it from every element first (or replace
-  it there), then delete it here.
+  (*In use — cannot delete*); remove it from every element first (or point
+  those elements at a different asset), then delete it here.
 
 Because assets are shared, uploading the same picture or clip twice just
 clutters the library. Search for it first — someone (maybe you, in an

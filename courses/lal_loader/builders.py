@@ -13,6 +13,7 @@ from courses.models import Blank
 from courses.models import Choice
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
+from courses.models import ContentNode
 from courses.models import Element
 from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
@@ -71,6 +72,21 @@ LAL_SPOILER_CHILD_TYPES = frozenset(
     }
 )
 
+# EVERY question etype this loader can build -- SIX branches, not four:
+# choice_grid and multi_grid are QuestionElement subclasses too, and both are
+# reachable from the ungated tabs recursion below. Deliberately as wide
+# as unit_has_nested_question (which spans all ten concrete question models), NOT
+# as narrow as NESTABLE_QUESTION_KEYS: a manifest creating tabs > choice_grid in a
+# quiz would otherwise land content that no write authority refused, and that unit
+# is then permanently barred from every unit_type flip.
+#
+# Spelled CANONICALLY because the guard canonicalises first: _PARSER_TO_CANONICAL
+# maps "fillblank" -> "fill_blank" (above), so a set holding the raw "fillblank"
+# would never match and the spoiler case would silently pass.
+LAL_QUESTION_TYPES = frozenset(
+    {"choice", "numeric", "shorttext", "fill_blank", "choice_grid", "multi_grid"}
+)
+
 
 def _record_missing(missing, unit, kind, media_src):
     """Note a skipped element whose source media file was absent, so the caller
@@ -106,6 +122,29 @@ def build_element(
             )
         obj = HtmlElement.objects.create(html=el.get("raw", ""))
         return _attach(unit, obj)
+
+    # Nested question in a QUIZ unit: refused for every recursion site at once.
+    # `parent is not None` means "this call is creating a nested row". Placed here,
+    # not at the container branches: the loader nests under BOTH spoiler (gated by
+    # LAL_SPOILER_CHILD_TYPES) and tabs (which recurses with no
+    # allowlist and no unit-type check at all), so a per-branch guard would close
+    # half the hole and would have to be remembered a third time by the next slice.
+    # The tabs recursion's missing TYPE allowlist is a pre-existing bypass this
+    # guard neither widens nor closes.
+    #
+    # No `flagged` test here: the branch above always returns or raises, so a
+    # flagged child -- which can only ever produce an HtmlElement, never a question
+    # -- never reaches this line.
+    if (
+        parent is not None
+        and _PARSER_TO_CANONICAL.get(etype, etype) in LAL_QUESTION_TYPES
+        and unit.unit_type == ContentNode.UnitType.QUIZ
+    ):
+        # Operator-facing, deliberately NOT translated.
+        raise LoaderError(
+            f"a question ({etype}) may not be nested in quiz unit {unit.pk}; "
+            "questions nest in lesson units only"
+        )
 
     if etype == "text":
         return _attach(unit, TextElement.objects.create(body=el["body"]))

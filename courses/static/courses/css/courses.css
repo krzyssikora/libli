@@ -313,9 +313,13 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
   font-weight: 700;
 }
 /* A short-text / numeric answer never needs the full column width. Scoped to
-   `input` so it caps only the single-line short-text/short-numeric answers — the
-   extended-response `textarea` (same class) keeps app.css's width:100% and fills
-   the card column, resizable up to it. */
+   `input` so it caps only the single-line short-text/short-numeric answers. The
+   extended-response `textarea` (same class) keeps app.css's width:100%, but is
+   itself capped at 46rem in the collapsed shell by the prose-cap block below, so
+   it no longer fills the card column. Growth is vertical only regardless —
+   app.css:150 is `textarea { resize: vertical }`, which overrides the browser
+   default `resize: both` precisely so a full-width textarea cannot be dragged
+   past its container. */
 .quiz input.question__text-input,
 .lesson input.question__text-input { max-width: 22rem; }
 /* Set the irreversible "Finish quiz" action apart from the last question. */
@@ -1059,22 +1063,38 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   html.unit-tree-collapsed [data-unit-shell] > .unit-toc-pin { display: none; }
 }
 
-/* Prose cap. 46rem is the value in the shared `.quiz, .lesson` rule near the top
-   of this file, reintroduced at element level in the collapsed
-   state only. An allow-list, NOT cap-by-default: element root classes are
-   heterogeneous, and a missed opt-out BREAKS layout (a squeezed table) whereas a
-   missed allow-list entry only leaves prose wide. Left alignment needs no
-   declaration — the global `* { margin: 0 }` leaves no auto margins to centre.
-   `screen and` because printed output must not depend on a per-browser collapse
-   preference. */
+/* Prose cap. THE RULE: in the collapsed state, tinted element-root blocks fill the
+   column; prose caps at 46rem wherever it lives, including inside a tinted block.
+   46rem is the value in the shared `.quiz, .lesson` rule near the top of this file,
+   reintroduced at element level in the collapsed state only.
+
+   Still an allow-list, not cap-by-default: element root classes are heterogeneous,
+   and a missed opt-out BREAKS layout (a squeezed table) whereas a missed entry only
+   leaves prose wide. What changed is WHICH things are on it -- the tinted roots
+   (callout, question card, the quiz preview alert) came OFF so they agree with each
+   other, and the prose INSIDE a card went ON so widening the box does not stretch
+   its text. `.quiz-finish` and `.lesson-unit__head` came off too: both are chrome
+   drawn around the cards, and a separator that stops 136px short of the card edge
+   reads as broken. `.lesson-unit__title` stays capped, so the heading keeps its
+   measure while its row widens.
+
+   `.callout__body` needs no entry -- it carries `.el--text`, already listed.
+   Left alignment needs no declaration -- the global `* { margin: 0 }` leaves no auto
+   margins to centre. `screen and` because printed output must not depend on a
+   per-browser collapse preference.
+
+   The sentinels below are load-bearing: tests/test_consumption_css.py slices between
+   them to assert this prelude exactly. Keep them INSIDE the @media and wrapping only
+   the rule -- moving the begin sentinel above `@media` fuses the at-rule onto the
+   first selector when the slice is split on a brace. */
 @media screen and (min-width: 641px) {
+  /* prose-cap:begin */
   html.unit-tree-collapsed [data-unit-shell] .el--text,
-  html.unit-tree-collapsed [data-unit-shell] .callout:not(:has(> .callout__children)),
-  html.unit-tree-collapsed [data-unit-shell] .el--question:not(.el--choicegrid):not(.el--multigrid):not(.el--dragimage):not(.el--matchpair):not(.el--dragfill),
-  html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,
+  html.unit-tree-collapsed [data-unit-shell] .el--question .question__stem,
+  html.unit-tree-collapsed [data-unit-shell] .el--question .question__choices,
+  html.unit-tree-collapsed [data-unit-shell] .el--question .question__feedback,
+  html.unit-tree-collapsed [data-unit-shell] .el--question textarea.question__text-input,
   html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title,
-  html.unit-tree-collapsed [data-unit-shell] [data-quiz-preview-notice],
-  html.unit-tree-collapsed [data-unit-shell] .quiz-finish,
   html.unit-tree-collapsed [data-unit-shell] .unit-crumbs,
   html.unit-tree-collapsed [data-unit-shell] .markdone,
   html.unit-tree-collapsed [data-unit-shell] .fillgate,
@@ -1083,6 +1103,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   html.unit-tree-collapsed [data-unit-shell] .guessnumber {
     max-width: 46rem;
   }
+  /* prose-cap:end */
 }
 
 /* ── Quiz-review roster (batch 3) ───────────────────────────────────────────────
@@ -1180,6 +1201,41 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .va-top { vertical-align: top; }
 .va-middle { vertical-align: middle; }
 .va-bottom { vertical-align: bottom; }
+
+/* DISPLAY MATHS MUST HONOUR THE CELL'S `.ta-*`. `\[…\]` typesets into KaTeX's own
+   wrapper, and the vendored `.katex-display{…;text-align:center}` plus
+   `.katex-display>.katex{display:block;text-align:center}` BOTH outrank the
+   cell's text-align — so an author who right-aligns `\[y=2(x\]` to hug the answer
+   input beside it still gets a centred formula. A/B MEASURED with these two
+   rules commented out: ta-left, ta-center and ta-right rendered IDENTICALLY,
+   45.4px of slack on both sides of the formula in all three — halign had no
+   effect whatever. Same defect class as `.cell-img` below — a display:block child
+   ignores the cell's text-align — and the same fix shape as
+   `[data-math-title] .katex-display` in app.css.
+
+   SPECIFICITY, NOT SOURCE ORDER, does the work: courses.css and
+   _katex_css.html are both emitted into base.html's extra_css block, and the
+   KaTeX link comes AFTER courses.css on every page that renders a table, so at
+   equal specificity the vendor wins. `.el--table .katex-display` is (0,2,0) >
+   the vendor's (0,1,0); the child rule is (0,3,0) > the vendor's (0,2,0).
+
+   BOTH RULES ARE LOAD-BEARING — each was FALSIFIED SEPARATELY (invalidate one
+   declaration, the e2e goes red at 21.1/21.1px, i.e. centred again). text-align
+   inherits, but the vendor sets it EXPLICITLY at each of the two levels: drop
+   the child rule and `.katex` (a display:block box filling the cell) re-centres
+   its own inline `.base` runs; drop the wrapper rule and the child's `inherit`
+   simply reads the wrapper's surviving `center`. `inherit` hands the formula
+   back to whichever `.ta-*` the cell carries: `center` keeps centring, and
+   left/right start working.
+
+   The vendor's `white-space: nowrap` and `margin: 1em 0` are DELIBERATELY left
+   alone — a formula must not break mid-formula, and the block spacing is a
+   separate concern from alignment. */
+.el--table .katex-display,
+.el--filltable .katex-display { text-align: inherit; }
+.el--table .katex-display > .katex,
+.el--filltable .katex-display > .katex { text-align: inherit; }
+
 .tc-red { color: var(--tc-red); }
 .tc-blue { color: var(--tc-blue); }
 .tc-green { color: var(--tc-green); }
