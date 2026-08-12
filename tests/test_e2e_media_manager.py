@@ -986,29 +986,77 @@ def test_hovering_the_covered_neighbour_switches_the_overlay(page, live_server):
     and minmax(8rem, 1fr) yields SIX columns of ~143px. With two cells the
     320px overlay lands in empty grid area, the probe below returns null, and
     this row's own guard assertion fails on a correct build.
+
+    Open "sasiad_7_0.png" specifically -- the FIRST cell of the grid (the
+    grid sorts "-created", so the last-seeded spec renders first). place()'s
+    right-of-cell branch keeps `top = c.top`, so opening a row-1, column-1
+    cell puts the overlay's y-range flush with the REST OF ROW 1, guaranteeing
+    it covers a same-row neighbour's actual thumb. Opening the grid's LAST
+    cell (row 2, its own final column) was tried first and measured: the
+    overlay's right-ward sweep there lands in the empty grid track past
+    row 2's last real cell, only grazing a row-1 neighbour's padding/name
+    strip -- never its anchor -- so no anchor-level intersection existed to
+    probe at all.
     """
     specs = [(f"sasiad_{i}_0.png", (400, 300)) for i in range(8)]
     user, course = _seed_assets("cov-pa", "cov", *specs)
     _open_manager(page, live_server, "cov-pa", course)
     page.set_viewport_size({"width": 1280, "height": 900})
-    _open_preview(page, "sasiad_0_0.png")
-    # Identify the covered neighbour from the MEASURED overlay box rather than
-    # assuming which cell it lands on -- and return its NAME, not an ordinal:
-    # a cell index and a [data-asset-preview] index only align while every
-    # asset is an image.
-    covered = page.evaluate("""() => {
+    _open_preview(page, "sasiad_7_0.png")
+    # Find a neighbour whose ANCHOR (not just its cell -- the cell also holds
+    # the name/actions strip, which the overlay may cover without covering
+    # the interactive thumb at all) intersects the overlay, and a point
+    # INSIDE that intersection, expressed relative to the ANCHOR's own box
+    # (what Locator.hover(position=...) expects). NOT the anchor's own
+    # centre: that is what a bare .hover() targets by default, and measured
+    # on the row-2 fixture tried first it landed entirely outside the
+    # overlap, so a dropped pointer-events: none went undetected -- the
+    # actionability check never had a reason to probe the covered point.
+    probe = page.evaluate(
+        """(openName) => {
         const o = document.querySelector('.asset-preview').getBoundingClientRect();
-        const hit = Array.from(document.querySelectorAll('.asset-cell')).find(c => {
-            const r = c.getBoundingClientRect();
-            return r.left < o.right && r.right > o.left
-                && r.top < o.bottom && r.bottom > o.top
-                && c.getAttribute('data-name') !== 'sasiad_0_0.png';
-        });
-        return hit ? hit.getAttribute('data-name') : null;
-    }""")
-    assert covered, "the overlay covers no neighbour; widen the fixture row"
-    _open_preview(page, covered)
-    expect(page.locator(".asset-preview__caption")).to_have_text(covered)
+        const cells = Array.from(document.querySelectorAll('.asset-cell'));
+        for (const c of cells) {
+            const name = c.getAttribute('data-name');
+            if (name === openName) continue;
+            const anchor = c.querySelector('[data-asset-preview]');
+            if (!anchor) continue;
+            const r = anchor.getBoundingClientRect();
+            const left = Math.max(o.left, r.left);
+            const right = Math.min(o.right, r.right);
+            const top = Math.max(o.top, r.top);
+            const bottom = Math.min(o.bottom, r.bottom);
+            if (left < right && top < bottom) {
+                return {
+                    name: name,
+                    x: (left + right) / 2 - r.left,
+                    y: (top + bottom) / 2 - r.top,
+                };
+            }
+        }
+        return null;
+    }""",
+        "sasiad_7_0.png",
+    )
+    assert probe, "the overlay covers no neighbour's anchor; widen the fixture row"
+    # Locator.hover(position=...), NOT page.mouse.move(): a raw mouse move
+    # fires the event at whatever is topmost and returns, so under the
+    # mutant the overlay intercepts, the delegated listener never runs, and
+    # nothing distinguishes that from the browser's own hover-target
+    # recompute (triggered when the overlay hides itself moments later)
+    # eventually opening the SAME neighbour anyway -- both paths converge on
+    # the same final caption, so a bare mouse.move proved nothing either
+    # way. hover(position=...) instead runs Playwright's own actionability
+    # check AT the computed point before dispatching anything: under the
+    # correct build pointer-events: none makes the anchor the hit-test
+    # result and the hover proceeds; under the mutant the overlay is what
+    # receives hit-testing there, so Playwright times out reporting
+    # interception -- a real, load-bearing failure.
+    covered_anchor = page.locator(
+        f'.asset-cell[data-name="{probe["name"]}"] [data-asset-preview]'
+    )
+    covered_anchor.hover(position={"x": probe["x"], "y": probe["y"]}, timeout=3000)
+    expect(page.locator(".asset-preview__caption")).to_have_text(probe["name"])
 
 
 @pytest.mark.django_db(transaction=True)
