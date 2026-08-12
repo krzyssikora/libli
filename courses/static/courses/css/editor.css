@@ -1361,3 +1361,41 @@ button.asset-cell:hover { border-color: var(--primary); }
   border-inline-start: 3px solid var(--border-strong);
   color: var(--text-secondary);
 }
+
+/* --- Media manager hover preview (spec §5) --- */
+/* [hidden] must be declared: `[hidden]{display:none}` is a UA rule and ANY
+   author `display` beats it, so without this the overlay is permanently visible
+   from creation. Same reason .math-modal[hidden] exists at :806. */
+.asset-preview[hidden] { display: none; }
+.asset-preview {
+  position: fixed; z-index: 60;
+  /* A DEFINITE width, not max-width: a fixed-positioned box with only a
+     max-width is shrink-to-fit, and a percentage width on a flex child resolves
+     against that indefinite box -- so width:100% on the image would collapse
+     back to its natural size and the box would end up sized by the caption. */
+  width: min(320px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  /* The overlay necessarily covers the neighbouring cell; without this,
+     sweeping right fires mouseout then mouseover on the same anchor in a
+     strobe loop and the covered neighbour can never be hovered. */
+  pointer-events: none;
+}
+[data-asset-preview-img][hidden] { display: none; }
+[data-asset-preview-img] {
+  width: 100%; height: auto; min-height: 0; flex: 0 1 auto;
+  object-fit: contain;
+}
+/* A filename has no soft-wrap opportunities, so without this the caption is one
+   unbreakable line and overflow:hidden clips the tail it exists to recover.
+   No flex override: its automatic minimum size is its content height, so it
+   cannot shrink below its text anyway and the image absorbs all shrinkage. */
+.asset-preview__caption {
+  overflow-wrap: anywhere; font-size: .72rem; color: var(--text-secondary);
+}

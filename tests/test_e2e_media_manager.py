@@ -124,6 +124,16 @@ def _anchor(page, filename):
     return page.locator(f'.asset-cell[data-name="{filename}"] [data-asset-preview]')
 
 
+def _open_preview(page, filename):
+    """Hover the named thumb and wait past the dwell. Every overlay test uses it.
+
+    By NAME, never by nth(): the grid sorts "-created" (courses/media.py:86), so
+    the last asset seeded renders first.
+    """
+    _anchor(page, filename).hover()
+    expect(page.locator(".asset-preview")).to_be_visible()
+
+
 @pytest.mark.django_db(transaction=True)
 def test_replace_swaps_the_cell_and_the_rendered_image(page, live_server):
     _, course, unit, asset = _seed("pa-repl-e2e", "repl-e2e")
@@ -829,3 +839,216 @@ def test_a_32_char_name_clamps_to_three_lines(page, live_server):
         return {scrollHeight: s.scrollHeight, clientHeight: s.clientHeight};
     }""")
     assert metrics["scrollHeight"] > metrics["clientHeight"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_hover_opens_the_overlay_with_the_thumbnails_source(page, live_server):
+    # size= is mandatory: make_image_asset defaults to (1,1) (factories.py:150),
+    # which makes "larger than the thumb" unachievable or true for the wrong
+    # reason.
+    user, course = _seed_assets("hov-pa", "hov", ("wide_0_1.png", (800, 200)))
+    _open_manager(page, live_server, "hov-pa", course)
+    _open_preview(page, "wide_0_1.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+    # currentSrc on BOTH sides. Comparing raw attributes does not work here:
+    # open() assigns anchor.currentSrc, which is the ABSOLUTE resolved URL, so
+    # the overlay's attribute is "http://127.0.0.1:PORT/media/..." while the
+    # thumb's is the relative "/media/..." the template wrote (MEDIA_URL is
+    # "/media/", config/settings/base.py:167, not overridden in test.py). They
+    # are never equal. The visibility wait above guarantees both are populated,
+    # which is what made the attribute form tempting in the first place.
+    same = page.evaluate("""() => {
+        const img = document.querySelector('[data-asset-preview-img]');
+        const thumb = document.querySelector('[data-asset-preview]');
+        return img.currentSrc === thumb.currentSrc;
+    }""")
+    assert same
+    box = page.locator(".asset-preview").bounding_box()
+    thumb = _anchor(page, "wide_0_1.png").bounding_box()
+    assert box["width"] > thumb["width"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_non_4_3_source_shows_its_full_extent(page, live_server):
+    """The crop comes from .asset-thumb's OWN aspect-ratio + object-fit:cover.
+    The overlay image is a separate element that simply does not carry them.
+
+    Fixture and viewport are chosen so the image does NOT hit the container's
+    max-height: at 1280x900 the budget is ~884px and a 200x400 source in a
+    ~302px content box wants ~604px. A taller source would be SHRUNK by
+    flex:0 1 auto (which the tall-portrait row asserts), so its element box
+    would no longer carry the source's ratio.
+    """
+    user, course = _seed_assets("n43-pa", "n43", ("portret_0_1.png", (200, 400)))
+    _open_manager(page, live_server, "n43-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "portret_0_1.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+    ratio = page.evaluate("""() => {
+        const el = document.querySelector('[data-asset-preview-img]');
+        const r = el.getBoundingClientRect();
+        return r.width / r.height;
+    }""")
+    assert abs(ratio - 200 / 400) < 0.05
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_small_source_still_previews_larger_than_the_thumb(page, live_server):
+    # Short name + small size, both deliberate: with a normal-length name the
+    # mutant's shrink-wrapped box would be sized by the caption (~160px, already
+    # wider than a ~115px thumb) and the row would stay green.
+    user, course = _seed_assets("sml-pa", "sml", ("s.png", (40, 30)))
+    _open_manager(page, live_server, "sml-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "s.png")
+    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+    img = page.locator("[data-asset-preview-img]").bounding_box()
+    thumb = page.locator("[data-asset-preview]").first.bounding_box()
+    assert img["width"] > thumb["width"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_over_budget_name_is_readable_in_the_caption(page, live_server):
+    # ~58 characters of unbroken [a-z0-9_]. The caption's content box is ~302px
+    # (320 less padding and border) and .72rem Inter is ~6px/char, so a 38-char
+    # name -- "over budget" for middle_truncate at 32 -- still fits on ONE line
+    # and the mutant would survive. No hyphens: they are soft-wrap opportunities
+    # and would let the text wrap without overflow-wrap: anywhere.
+    long_caption = "przykladowa_bardzo_dluga_nazwa_pliku_z_wykresem_funkcji_0_2.png"
+    user, course = _seed_assets("cap-pa", "cap", (long_caption, (400, 300)))
+    _open_manager(page, live_server, "cap-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, long_caption)
+    clipped = page.evaluate("""() => {
+        const cap = document.querySelector('.asset-preview__caption');
+        return cap.scrollWidth > cap.clientWidth;
+    }""")
+    assert not clipped
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_caption_is_written_as_text_not_markup(page, live_server):
+    """getAttribute returns data-name FULLY DECODED, so the server-side escaping
+    that protects the card gives the overlay no protection at all. Nothing else
+    in the suite would go red if textContent became innerHTML."""
+    hostile = "<img src=x onerror=1>.png"
+    user, course = _seed_assets("xss-pa", "xss-e2e", (hostile, (400, 300)))
+    _open_manager(page, live_server, "xss-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, hostile)
+    assert page.locator(".asset-preview__caption").text_content() == hostile
+    injected = page.evaluate(
+        """() => document.querySelectorAll('.asset-preview img').length"""
+    )
+    assert injected == 1  # only [data-asset-preview-img]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_tall_source_is_clamped_and_lands_centred_at_360(page, live_server):
+    """Centred is the LAST branch of place()'s five-way ladder and the only one
+    any test reaches -- assert it was taken, or the clamp alone would satisfy
+    an inside-the-viewport check from any branch."""
+    user, course = _seed_assets("tll-pa", "tll", ("wysoki_0_1.png", (400, 2000)))
+    _open_manager(page, live_server, "tll-pa", course)
+    page.set_viewport_size({"width": 360, "height": 900})
+    _open_preview(page, "wysoki_0_1.png")
+    # Without this wait the image is display:none, its rect is all zeros, and
+    # `inside(i)` is trivially true -- which would let the min-height mutant pass.
+    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+    result = page.evaluate("""() => {
+        const vw = document.documentElement.clientWidth;
+        const vh = document.documentElement.clientHeight;
+        const o = document.querySelector('.asset-preview').getBoundingClientRect();
+        const imgEl = document.querySelector('[data-asset-preview-img]');
+        const i = imgEl.getBoundingClientRect();
+        const inside = b =>
+            b.left >= 0 && b.top >= 0 && b.right <= vw && b.bottom <= vh;
+        return {
+            fits: inside(o) && inside(i),
+            imgHeight: i.height,
+            dx: Math.abs((o.left + o.width / 2) - vw / 2),
+            dy: Math.abs((o.top + o.height / 2) - vh / 2),
+        };
+    }""")
+    assert result["imgHeight"] > 0, "a zero rect would satisfy `fits` vacuously"
+    assert result["fits"]
+    assert result["dx"] <= 2 and result["dy"] <= 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_hovering_the_covered_neighbour_switches_the_overlay(page, live_server):
+    """pointer-events:none is load-bearing: the overlay necessarily covers the
+    neighbouring cell, and without it Playwright reports the overlay
+    intercepting and the neighbour can never be hovered.
+
+    Seed a FULL ROW, not two assets. `.app-main` caps at 960px
+    (core/static/core/css/app.css:34), so at 1280x900 the grid is ~920px wide
+    and minmax(8rem, 1fr) yields SIX columns of ~143px. With two cells the
+    320px overlay lands in empty grid area, the probe below returns null, and
+    this row's own guard assertion fails on a correct build.
+    """
+    specs = [(f"sasiad_{i}_0.png", (400, 300)) for i in range(8)]
+    user, course = _seed_assets("cov-pa", "cov", *specs)
+    _open_manager(page, live_server, "cov-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "sasiad_0_0.png")
+    # Identify the covered neighbour from the MEASURED overlay box rather than
+    # assuming which cell it lands on -- and return its NAME, not an ordinal:
+    # a cell index and a [data-asset-preview] index only align while every
+    # asset is an image.
+    covered = page.evaluate("""() => {
+        const o = document.querySelector('.asset-preview').getBoundingClientRect();
+        const hit = Array.from(document.querySelectorAll('.asset-cell')).find(c => {
+            const r = c.getBoundingClientRect();
+            return r.left < o.right && r.right > o.left
+                && r.top < o.bottom && r.bottom > o.top
+                && c.getAttribute('data-name') !== 'sasiad_0_0.png';
+        });
+        return hit ? hit.getAttribute('data-name') : null;
+    }""")
+    assert covered, "the overlay covers no neighbour; widen the fixture row"
+    _open_preview(page, covered)
+    expect(page.locator(".asset-preview__caption")).to_have_text(covered)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_cell_from_a_swapped_in_grid_still_opens_the_overlay(page, live_server):
+    """The whole justification for delegating mouseover/mouseout: the debounced
+    filter replaces the entire .asset-grid, and per-node listeners bound at load
+    would go silently dead on every swapped-in cell.
+
+    The anchor must provably be a NEW node. Filtering straight to a name that is
+    already in the initial grid only narrows it -- the wait matches the
+    PRE-swap node instantly, the wait is a no-op, and the row would open on the
+    old cell (green for the wrong reason, since the load-time listener the
+    mutant installs is on exactly that node). Filter it OUT first, wait for the
+    detach, then filter it back in.
+    """
+    user, course = _seed_assets("swg-pa", "swg", ("filtrowany_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "swg-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.fill("[data-filter-q]", "brak-dopasowania")
+    page.wait_for_selector(".asset-grid .asset-cell", state="detached")
+    page.fill("[data-filter-q]", "filtrowany")
+    page.wait_for_selector('.asset-grid .asset-cell[data-name="filtrowany_0_1.png"]')
+    _open_preview(page, "filtrowany_0_1.png")
+    expect(page.locator(".asset-preview__caption")).to_have_text("filtrowany_0_1.png")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_anchor_detached_during_the_dwell_opens_nothing(page, live_server):
+    """A detached anchor measures as zeros, so "fits on the right" trivially
+    passes and the overlay pins to the corner with no anchor left to close it.
+
+    Do NOT drive this with the filter: media_picker.js:651 debounces at
+    setTimeout(runFilter, 250) -- exactly DWELL_MS -- and then waits on a fetch,
+    so the swap always lands AFTER the dwell has already opened. Detach the node
+    directly instead, which is deterministic and needs no timing argument.
+    """
+    user, course = _seed_assets("dwl-pa", "dwl", ("znikajacy_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "dwl-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _anchor(page, "znikajacy_0_1.png").hover()  # start the dwell
+    page.evaluate("() => document.querySelector('.asset-cell').remove()")
+    page.wait_for_timeout(600)  # outlive the dwell
+    expect(page.locator(".asset-preview")).to_be_hidden()
