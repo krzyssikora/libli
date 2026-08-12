@@ -250,7 +250,9 @@ The
 hooks with no styling attached today**, and §5 forbids giving them any.
 
 **Accessible-name contract.** The `<svg>` is `aria-hidden`; `.unit-kind__label` is the text —
-visually hidden in the rail and on the outline, and **un-hidden at drawer scope** (§4), which
+visually hidden in the rail and **un-hidden at drawer scope** (§4); on the outline and the unit page
+there is no such span at all, because those surfaces use the **chip**, whose text is plainly
+visible. Un-hiding
 changes nothing about the accessible name since a `.visually-hidden` span is already in the
 accessibility tree; the wrapper's `title=` is the hover tooltip. The enclosing link's accessible name is computed **from contents**, so it depends on
 completion state:
@@ -270,8 +272,11 @@ for the truncated unit name, authored with a comment explaining why
 on the exact pixel, never both. Accepted: the intended desktop path is hovering the ~19px glyph
 specifically, and the title tooltip keeps the whole rest of the row. This is also why the drawer
 shows the word on the row itself rather than relying on the tooltip — touch has no hover. At drawer
-scope the `title=` is then redundant; it is left in place rather than conditionally suppressed,
-because the partial is surface-agnostic and touch has no hover for it to interfere with.
+scope the `title=` is then redundant. It is left in place rather than conditionally suppressed,
+because the partial is surface-agnostic — but be precise about the residual cost: `title` on a
+generic element is commonly surfaced as a *description*, so a screen-reader user in the drawer may
+hear the marker word twice. That path does not depend on hover, so "touch has no hover" does not
+cover it. Accepted in exchange for keeping the partial surface-agnostic.
 
 ### 4. The rendered surfaces
 
@@ -418,10 +423,12 @@ the row, and the marker column would be ragged. Edit that rule **in place**:
 
 `1 1 auto`, deliberately **not** `1 1 0`: basis `auto` preserves the label's current sizing, which
 matters because the drawer overrides this class to `white-space: normal` (`courses.css:977`) in a
-title column squeezed to ~98px. This runs against the general "use `flex: 1 1 0`" habit — be precise
+column that the marker narrows to ~230px (see the drawer budget below). This runs against the general "use `flex: 1 1 0`" habit — be precise
 about why, because **no test distinguishes the two and none can**: `.unit-tree__label` is the only
-flexible item on the row (`.unit-tree__check` and `.unit-kind` are both effectively rigid), so basis
-`auto` and basis `0` resolve to the **same** used width in rail and drawer alike. `1 1 auto` is
+flexible item on the row — `.unit-tree__check` and `.unit-kind` are both `flex: none`, **in the
+drawer as well as the rail**, which is exactly why §4 forbids adding a shrinkable
+`.unit-drawer__list .unit-kind` rule. Given that, basis `auto` and basis `0` resolve to the **same**
+used width on both surfaces. `1 1 auto` is
 chosen as the *minimal edit* to the existing rule, not because it measurably differs. What the A/B
 in Testing guards is a different and real question — that adding `flex-grow` **at all** does not
 move the drawer's wrap points.
@@ -443,8 +450,16 @@ at drawer scope**, so each marked drawer row shows its word. These rules go insi
   position: static; width: auto; height: auto;
   overflow: visible; clip: auto; white-space: normal;
 }
-.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0; }
 ```
+
+**That is the only drawer rule. Do NOT add `.unit-drawer__list .unit-kind { flex: 0 1 auto;
+min-width: 0 }`** — an earlier draft did, and it defeats the budget below. `.unit-kind` is already
+`flex: none` from `app.css`, and it must stay rigid: `.unit-tree__label` is `flex: 1 1 auto`, so its
+base size is the title's max-content (several hundred px) and the row runs a large deficit. Flex
+shrink is basis-weighted, so a shrinkable marker would be cut to well under its ~91px min-content —
+and `min-width: 0` would suppress the very min violation that should freeze it there, leaving the
+word painting outside its own box. A rigid marker is exactly what the `~97px` / `~230px` split
+assumes.
 
 **All six declarations are required, and this is why they are written out rather than described as
 "revert to visible".** `.visually-hidden` (`app.css:1217-1224`) is exactly six declarations —
@@ -480,10 +495,12 @@ correction: flex line-breaking uses each item's **hypothetical main size**, and 
 exceeds a 325px line for any realistic title. The row would break *before* the label, stranding the
 leading `✓` (`flex: none`) alone on line 1, the title on line 2 and the marker on line 3 — a
 three-line row with an orphan tick, and because `flex-wrap` is unconditional it would regress
-**every completed unit in the drawer, including unmarked ones**. `.unit-kind` is made shrinkable
-instead (`flex: 0 1 auto; min-width: 0`) so its own word wraps inside its box, exactly as the
-title's does. Expected drawer row shape for a **completed additional** unit: one flex line,
-`[✓] [title, wrapping] [⊕ Dodatkowa, wrapping]`.
+**every completed unit in the drawer, including unmarked ones**. The **label** absorbs the deficit instead: it is
+`flex: 1 1 auto; min-width: 0` and `white-space: normal` at drawer scope, so the title wraps while
+the marker holds its width. Expected drawer row shape for a **completed additional** unit: one flex
+line, `[✓] [title, wrapping] [⊕ Dodatkowa]` — the marker on a single line, never wrapped. It could
+not wrap anyway: `.unit-kind` is `inline-flex`, so the `<svg>` and the label are flex items with no
+break between them, and every shipping label is a single unbreakable word.
 
 There is **no** `white-space: nowrap` on `.unit-kind`: it is `inline-flex`, so the `<svg>` and the
 label are flex items that cannot break between each other regardless, and the un-hide rule above
@@ -726,7 +743,7 @@ measurement justifies splitting the rule.
 
 ### Existing tests and sites this change touches
 
-Six existing locations. Naming them is part of the deliverable — most go **silently** wrong rather
+Seven existing locations. Naming them is part of the deliverable — most go **silently** wrong rather
 than red.
 
 1. **`tests/test_e2e_uniform_block_width.py::test_lesson_title_caps_in_a_two_item_head`** — must be
@@ -791,7 +808,14 @@ than red.
    chip wrapping beneath the title at 390px — needs its own assertion in the new e2e (see below).
 5. **`tests/capture_title_math_screenshots.py` (~:483)** — its `btns` selector list is the
    executable half of the drawer maths audit and must gain `.unit-kind` (see §4).
-6. **`tests/test_quiz_previewer_render.py`** — renders `_quiz_article.html` directly via
+6. **`tests/test_unit_tree_long_titles.py::test_drawer_lets_unit_labels_wrap`** — a **source-level**
+   pin on the very rule §4 extends: it regex-matches
+   `\.unit-drawer__list\s+\.unit-tree__label\s*\{([^}]*)\}` against `courses.css` and asserts
+   `white-space: normal` and `text-overflow: clip` inside that body. **Expected outcome: unchanged,
+   green** — but only if `:977` is extended **in place**. Adding a second
+   `.unit-drawer__list .unit-tree__label` rule elsewhere would leave the regex reading the original
+   body and the new declaration untested.
+7. **`tests/test_quiz_previewer_render.py`** — renders `_quiz_article.html` directly via
    `render_to_string(build_quiz_context(...))`; must be re-run and updated for the new
    `.lesson-unit__head` / `.lesson-unit__heading` wrappers. `tests/test_title_math_markers.py:157`
    documents `span.unit-tree__label (_unit_tree_node.html:15)`; add a one-line mention of the new
@@ -873,6 +897,11 @@ fixture yields zero elements and either a `None` bounding box or a vacuous pass.
 both marked, scoped to `[data-unit-tree-list]`: assert their `.unit-kind` boxes share a **`right`**
 within ~1px, and that `icon.right == row.right - 8` — `.unit-tree__unit`'s `padding: .3rem .5rem`
 (`courses.css:766`). Both are false when `.unit-tree__label` has no `flex-grow`.
+
+Also assert, at desktop, that `[data-unit-tree-list] .unit-kind__label` still measures a ~1px box —
+i.e. it is **still hidden in the rail**. Without it, a drawer un-hide rule that loses its
+`.unit-drawer__list` scope passes every other assertion here (`icon.right == row.right - 8` and the
+shared-`right` gutter both still hold) while silently consuming most of the rail's title column.
 
 **Compare `right`, not `x`.** `x` is the wrapper's *left* edge and the wrapper is one glyph wide
 (~13px at the rail's `.82rem`), so on a correct build `x` sits ~13px inside the row's right content
@@ -963,15 +992,15 @@ Assertions at that size:
   Playwright reports as **visible with a non-empty box**, so a `bounding_box() is not None`
   assertion cannot distinguish an un-hidden label from a still-hidden one, nor catch the partial
   revert (`position: static` only) that §4 calls the likeliest wrong implementation;
-- **text-overflow on the label**, not a rect comparison: with a long unbreakable Polish word in the
-  title, assert `label.scrollWidth - label.clientWidth <= 1`. A rect-intersection assertion between
-  `.unit-kind` and `.unit-tree__label` was **considered and rejected as vacuous** — they are sibling
-  flex items with a positive `gap: .4rem` and no negative margins, so their border boxes can never
-  overlap on any build, correct or broken. The failure being policed is *text* painting outside the
-  label box, and this repo already records that box geometry cannot see it:
-  `tests/test_e2e_unit_head_layout.py`'s module docstring says "Box geometry alone does not catch
-  this — the boxes stay 16px apart while the text overlaps — so the assertion is on TEXT overflow
-  (scrollWidth vs clientWidth)". Do not re-introduce the rect form;
+- **the marker keeps its width**: `.unit-kind`'s `right <= row.right - 8` (the row's
+  `padding-right`) and its rendered width within ~1px of its natural ~91px, both scoped to
+  `[data-unit-drawer-list]`. This is what catches a shrinkable marker — the mutant is *adding*
+  `.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0 }`, which §4 warns against. Note the
+  30×8 label assertion above does **not** catch it: with the marker squeezed, its children clamp at
+  their own min-contents, so the label still measures ~71×19 and `label.left - svg.right` is still
+  exactly 4. There is deliberately **no** `label.scrollWidth - label.clientWidth` assertion: per §4
+  the drawer's `overflow-wrap: anywhere` is inert at a ~230px column (a token would need 28+
+  characters to overflow), so such an assertion would be green on the broken build;
 - **A/B the label's wrap points**: record `.unit-tree__label`'s
   `getBoundingClientRect().height` for a fixed long title, re-measure with `page.add_style_tag`
   injecting `.unit-drawer__list .unit-tree__label { flex: 0 1 auto !important }` — the pre-change
@@ -993,9 +1022,11 @@ Assertions at that size:
      script is already being edited for the `btns` list, so the fixture is in hand. Cite
      `courses.css:2339-2345` only for the audit's *result*: that comment records "Task 11 MEASURED
      this at 390x780" but names no title string, so it cannot be used to find the fixture. Reusing
-     it makes this a like-for-like re-measurement at ~76px against the original's ~98px; a
-     freshly-invented formula would make the outcome a property of the fixture rather than of the
-     column width.
+     it makes this a like-for-like re-measurement at the corrected **~230px** post-marker column. Do
+     **not** frame it as "~76px against the original's ~98px": the audit's column figure was
+     mis-recorded (it is the rail's, per `courses.css:730`), so the comparison is against the
+     audit's *result* — no intersection — not against its number. A freshly-invented formula would
+     make the outcome a property of the fixture rather than of the column width.
   2. **Expected outcome: no intersection.** But note the precedent is thinner than it looks — the
      original audit checked `.katex` against `.unit-tree__count`, `.unit-tree__groupcheck`,
      `.unit-tree__chevron` (all on **group** rows), `.unit-tree__check` (which *leads* a unit row)
@@ -1013,80 +1044,37 @@ Assertions at that size:
   line at the group's content-box left under the default `justify-content: flex-start` (the group
   has no padding). This is the chip-bearing half of the
   mobile rule, which `test_e2e_unit_head_layout.py` structurally cannot cover;
-- the **outline** page at 390 wide, with **two** marked rows, because the two CSS edits in §4 are
-  pinned by different content:
-  1. a long unbroken / Polish title — pins `.outline-unit__title`'s `overflow-wrap: anywhere`
-     (`break-word` would not lower the min-content contribution);
-  2. a **single unbreakable maths atom** — one wide `\frac{…}{…}` or `\sqrt{…}` with **no top-level
-     operator or relation** — pins the **anchor**'s own `min-width: 0` (`app.css:544`).
+- the **outline** page at 390 wide with a long unbroken / Polish title. The word must be **measured
+  wider than the title's rendered column at 390** or the assertion is vacuous — measure it, do not
+  derive it; an earlier draft quoted a figure here that was ~60px out, which is exactly enough to
+  make the mutant green. Assert:
+  1. `title.scrollWidth - title.clientWidth <= 1` on `.outline-unit__title`. This is the **only**
+     assertion that can see what `overflow-wrap` prevents: the failure is *text* painting outside
+     the title box, and since the title has no `overflow: hidden` its border box never moves and
+     neither does the chip's or the tick's — so box-geometry assertions stay green under
+     `overflow-wrap: normal`. Same mechanism, same lesson, that
+     `tests/test_e2e_unit_head_layout.py`'s docstring records.
+  2. `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1`, and
+     `document.documentElement.scrollWidth === clientWidth`. Both are whole-page invariants.
 
-     **"A long `\(…\)` title" will NOT do, and the repo already measured why.**
-     `courses.css:1687-1698` records it: KaTeX splits a formula into several `.base` spans at
-     top-level operators and relations — each `nowrap` internally but **breakable between** — so a
-     long multi-term formula wraps, its min-content contribution collapses to the widest single
-     `.base`, the anchor's automatic minimum stays small, and reverting `min-width: 0` produces no
-     overflow. The mutant would be **green on the broken build**. That same comment names the one
-     residual case that genuinely cannot wrap — "a single unbreakable atom (one very wide fraction
-     or radical, no top-level operator to break at)" — and that is exactly the fixture required
-     here. `.katex` is *not* an atomic inline-block; do not describe it as one.
+  **There is deliberately no maths-title outline fixture, and both `min-width: 0` declarations are
+  therefore inert forward-defence with no mutant.** An earlier draft added one to pin them, and the
+  arithmetic does not permit it: the atom must exceed the title's rendered width for the mutant to
+  bite, but it intersects `.unit-kind-chip` as soon as it exceeds that same width by more than
+  `.outline-unit`'s `gap: var(--space-2)` = **8px**. Every atom robust enough to redden the mutant
+  therefore also collides with the chip on a **correct** build, except inside a ~7px window —
+  narrower than the measurement error this spec elsewhere insists on. A fixture that can only be
+  right by luck is not a pin.
 
-     Size the atom deliberately, and **measure both bounds in the browser rather than deriving them
-     from arithmetic**: **wider** than the space left in the `li` after chip + `✓` + gaps + padding
-     (or the mutant does not bite), and **narrower** than the distance from the title's left edge to
-     the viewport edge (or a correct build overflows the document — see below). The window is real
-     but not wide, and it is the one fixture constraint in this spec that a wrong guess turns into a
-     red assertion on correct CSS.
-
-  For both rows, "stays within its box" is too loose to assert — under the two-level overflow in §4
-  the anchor, the `li` and the viewport disagree, and if the anchor sizes itself at min-content and
-  overflows the `li`, the *content* is still inside the *anchor* and a naive assertion passes on the
-  broken build. The discriminating assertions are:
-
-  - **plain-text row** — `title.scrollWidth - title.clientWidth <= 1` on `.outline-unit__title`.
-    This is the **only** assertion that can see what `overflow-wrap` prevents: the failure is *text*
-    painting outside the title box, and since the title has no `overflow: hidden`, its border box
-    never moves and neither does the chip's or the tick's — so all three box-geometry assertions
-    stay green under `overflow-wrap: normal`. It is the same mechanism, and the same lesson, that
-    `test_e2e_unit_head_layout.py`'s docstring records and that this spec already applies to the
-    drawer label. The fixture's word must be **measured wider than the title's rendered column at
-    390** or even this assertion is vacuous — measure it, do not derive it; an earlier draft quoted
-    a figure here that was ~60px out, which is exactly enough to make the mutant green;
-  - **both rows** — `.outline-unit`'s `getBoundingClientRect().right <= li.right + 1` (pins the
-    **anchor**'s `min-width: 0`);
-  - **maths row additionally** — a `.katex`-vs-`.unit-kind-chip` **rect intersection check**, with
-    the same treatment and the same escape hatch the drawer maths re-check gets. This change
-    *introduces* the collision: today `.outline-unit__title` is `flex: 1` with `min-width: auto`, so
-    an unbreakable atom holds the title box open and can never overlap a sibling. After the edit the
-    title's minimum is 0, the atom is **by fixture construction** wider than the resulting box, and
-    `overflow` stays visible — so on the **correct** build the atom paints rightward across the
-    `.outline-unit` gap and into the chip, and both box assertions below stay green while the text
-    overlaps. Expected outcome: no intersection at the chosen atom width. **If it does intersect,
-    that is a design change, not a test tweak** — the remedy is containment on the outline title's
-    maths (the `max-width`/`overflow` shape `courses.css:1685` already applies to tab labels) or
-    dropping the maths fixture and reclassifying the anchor's `min-width: 0` as inert. Do not widen
-    the tolerance. A maths outline row also joins the screenshot set so this is looked at, not only
-    measured.
-  - **maths row additionally** — `chip.right <= anchor.right + 1` (equivalently the `✓`'s right).
-    This is the **only** assertion that pins the **title**'s own `min-width: 0`, and without it that
-    declaration has no mutant at all. On the plain-text row it is inert, because
-    `overflow-wrap: anywhere` already collapses the title's minimum to ~1 character. On the maths
-    row it bites: reverting it makes the title's automatic minimum the atom's full width (~250px),
-    so title + chip + `✓` + gaps exceeds the anchor's content box and pushes the chip and tick
-    **outside the anchor** — while the anchor's own border box is unchanged,
-    which is exactly why `anchor.right <= li.right + 1` cannot see it.
-
-  **`document.documentElement.scrollWidth === clientWidth` is a whole-page invariant that both rows
-  must satisfy — it cannot be scoped to one row.** Both fixtures live on the same outline page, and
-  `documentElement.scrollWidth` is a property of the document, not of a row, so there is no way to
-  assert it "for the plain-text row only".
-
-  That is exactly why the atom is bounded on **both** sides above. Nothing on this page sets
-  `overflow-x` (`.app-main`, `.outline`, `.outline-node*` all leave it visible), so an atom wider
-  than the distance from the title's left edge to the viewport edge would grow the document and
-  redden this assertion **on a correct build**. The window is satisfiable — roughly wider than the
-  anchor's remaining space so the mutant bites, and narrower than that viewport gap — and staying
-  inside it is a fixture requirement, not an optional refinement. Size the atom by measuring at
-  implementation rather than by trusting the order-of-magnitude figures quoted in §4.
+  **The residual edge case is stated rather than tested.** A single unbreakable atom (one wide
+  `rac`/`\sqrt` with no top-level operator — `courses.css:1687-1698` records that KaTeX breaks a
+  *multi-term* formula between its `.base` spans, so only this shape qualifies) wider than the
+  outline title column at 390px renders badly either way: **today** it holds the title box open and
+  pushes the anchor past its `li`; **after** this change it paints across the 8px gap into the chip.
+  Both are broken, differently; the change neither introduces nor fixes the case. It is rare, it is
+  pre-existing, and buying a fix would mean shipping a containment rule (the `max-width`/`overflow`
+  shape `courses.css:1685` already applies to tab labels) that is out of scope here. Recorded so the
+  next person meets a documented trade rather than a surprise.
 
 **Screenshots** (`tests/capture_unit_marker_screenshots.py`): both glyphs at rail size, both
 glyphs on a marked **drawer row** at 390×780, the outline row at rest / hover / `:target`, a **maths** outline row (per the collision note in the outline e2e
@@ -1131,13 +1119,9 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
   `title.scrollWidth - title.clientWidth <= 1` assertion goes red. **Not** `anywhere` → `break-word`:
   with `min-width: 0` co-applied those two are pixel-identical, so that mutant is green on every
   build (§4).
-- `.outline-unit__title`'s `min-width: 0` reverted → the **maths row's** `chip.right <=
-  anchor.right + 1` assertion goes red. Only that row: on plain text `anywhere` already collapses
-  the title's minimum, so the declaration is inert there and the mutant would be green.
-- The anchor's `min-width: 0` (`app.css:544`) reverted → the 390-wide outline assertion goes red
-  **only on the maths-title fixture**. It is inert on plain text, because `anywhere` already
-  collapses the title's minimum to ~1 character (§4) — so falsify it against the maths row
-  specifically, or it reads as a green mutant.
+- Both `min-width: 0` declarations (title and anchor) have deliberately **no mutant** — with
+  `overflow-wrap: anywhere` in place they are inert, and the only fixture that could exercise them
+  cannot satisfy its two constraints at once (§Testing).
 - `.lesson-unit__heading`'s `flex: 1 1 auto` deleted → the pill-position assertion goes red.
 - The mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` deleted →
   `test_e2e_unit_head_layout.py`'s phone assertions go red.
@@ -1145,8 +1129,11 @@ Each test is falsified against a mutant from its own failure mode, not merely ru
   (`chip.top < title_bottom - 1`) goes red. Note the assertion is deliberately *not* top-equality —
   `align-items: baseline` makes the two tops differ by ~10–15px on a correct build (§Testing).
 - The `.unit-drawer__list .unit-kind__label` un-hide rule deleted → the 30×8 drawer-label assertion
-  goes red. Falsify **also** against the partial revert (`position: static` only), since that is the
-  likelier mistake and it is the case a "non-empty box" assertion would have missed.
+  goes red. Falsify **also** against (a) the partial revert (`position: static` only), the likelier
+  mistake and the one a "non-empty box" assertion would miss, and (b) **losing the
+  `.unit-drawer__list` scope** — or placing the block outside the `@media (max-width: 640px)` block —
+  which un-hides the word in the 14rem desktop rail and eats ~58px of its ~98px title column. That
+  third form is caught only by the rail assertion below.
 - `lang="{{ LANGUAGE_CODE }}"` dropped from the chip → the render tests' `lang` assertion goes red.
 
 A mutant must be removed by editing it out, never by `git checkout` of the file, which would destroy
