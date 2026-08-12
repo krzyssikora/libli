@@ -2,10 +2,10 @@
 template test cannot cover.
 
 The server renders the destination <details> open, and then editor.js's
-applyStoredTabs immediately re-applies the author's stored preference over the
+applyStoredSlots immediately re-applies the author's stored preference over the
 top. For any tab the author has ever collapsed, a just-duplicated element is
 therefore born invisible. The defect lives entirely in the browser: a template
-test renders server HTML, never runs applyStoredTabs, and passes whether or not
+test renders server HTML, never runs applyStoredSlots, and passes whether or not
 the skip exists.
 """
 
@@ -94,10 +94,10 @@ def test_a_stored_collapse_does_not_hide_a_just_duplicated_element(page, live_se
     expect(tab2).to_have_attribute("open", "")
 
     # Now plant the stored preference the skip must override. Opening the tab
-    # just wrote "1" via saveTab, so setting it directly is what reproduces "the
+    # just wrote "1" via saveSlot, so setting it directly is what reproduces "the
     # author collapsed this tab earlier"; clicking summary twice more would only
     # write "1" again by the time we click duplicate. The key shape is
-    # editor.js's tabStoreKey: "libli:tabopen:" + <tabs row pk> + ":" + <tab id>.
+    # editor.js's slotStoreKey: "libli:tabopen:" + <tabs row pk> + ":" + <tab id>.
     page.evaluate(
         "key => localStorage.setItem(key, '0')",
         f"libli:tabopen:{tabs_join.pk}:{t2}",
@@ -109,7 +109,7 @@ def test_a_stored_collapse_does_not_hide_a_just_duplicated_element(page, live_se
 
     tab2_after = page.locator(f"details.tabs-rows[data-tab-id='{t2}']")
     expect(tab2_after).to_have_attribute("data-force-open", "")
-    # THIS is the assertion the defect breaks: applyStoredTabs has just re-applied
+    # THIS is the assertion the defect breaks: applyStoredSlots has just re-applied
     # the stored "0" over the server's `open`.
     expect(tab2_after).to_have_attribute("open", "")
     # And this one proves the copy landed in the right slot. Note it does NOT

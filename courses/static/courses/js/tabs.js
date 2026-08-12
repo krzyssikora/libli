@@ -111,6 +111,7 @@
 
     var tabs = [];
     var panels = [];
+    var ids = [];
 
     sections.forEach(function (section, k) {
       var label = ownPart(section, "[data-tab-label]");
@@ -150,6 +151,7 @@
       btn.addEventListener("click", function () { select(k); });
       tabs.push(btn);
       panels.push(panel);
+      ids.push(tid);
     });
 
     if (!tabs.length) return;
@@ -159,6 +161,12 @@
       var i = Math.max(0, Math.min(tabs.length - 1, n));
       if (i === active) return;
       active = i;
+      // Publish the active tab onto the container. `active` itself is closure state
+      // on a node the editor preview REPLACES wholesale after every save/add/reorder,
+      // so it cannot survive a swap -- the author picked tab 3, made a one-character
+      // edit, and the rebuilt preview came back on tab 1 every single time. The
+      // attribute is what editor.js carries across the swap and stamps back on.
+      container.setAttribute("data-tabs-active", ids[i]);
       tabs.forEach(function (t, k) {
         var on = k === i;
         t.setAttribute("aria-selected", on ? "true" : "false");
@@ -208,7 +216,11 @@
     prev.addEventListener("click", function () { scroller.scrollLeft -= scroller.clientWidth * 0.7; });
     next.addEventListener("click", function () { scroller.scrollLeft += scroller.clientWidth * 0.7; });
 
-    select(0);
+    // Open on the requested tab if the markup names one and it still exists, else the
+    // first. indexOf resolves against THIS instance's own ids, so a stale hint (the
+    // author deleted that tab between the two renders) and a hint meant for another
+    // instance both land on the first tab rather than on a wrong panel.
+    select(Math.max(0, ids.indexOf(container.getAttribute("data-tabs-active"))));
     updateOverflow();
   }
 
@@ -245,6 +257,13 @@
     // fade, and a carousel may legally contain a carousel.
     var idx = -1, dead = false, pending = null;
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+    // Slide ids, for the same restore-across-a-preview-swap reason the tab strip
+    // needs them. Read off each section's own panel via ownPart, never a bare query:
+    // a nested instance's panel would otherwise be mistaken for this section's.
+    var ids = sections.map(function (s) {
+      var p = ownPart(s, "[data-tab-panel]");
+      return p ? p.getAttribute("data-tab-id") : "";
+    });
 
     function clamp(n) { return Math.max(0, Math.min(sections.length - 1, n)); }
 
@@ -286,6 +305,7 @@
       var out = sections[idx];       // undefined on the first call, because idx === -1
       idx = target;
       var inn = sections[idx];
+      container.setAttribute("data-tabs-active", ids[idx]);   // see the strip's copy
       updateIndicator();
       prev.disabled = idx === 0;
       prev.setAttribute("aria-disabled", idx === 0 ? "true" : "false");
@@ -496,7 +516,10 @@
       container.appendChild(nav);
       prev.addEventListener("click", function () { show(idx - 1); });
       next.addEventListener("click", function () { show(idx + 1); });
-      show(0);
+      // Restored slide, or the first. Math.max is not strictly needed here (show()
+      // clamps, and clamp(-1) is 0) but is kept so the intent does not depend on
+      // reading clamp -- and so a future unclamped show() cannot silently regress it.
+      show(Math.max(0, ids.indexOf(container.getAttribute("data-tabs-active"))));
       container.classList.add("tabs--carousel");   // LAST: the gate
       measure();
     } catch (e) {

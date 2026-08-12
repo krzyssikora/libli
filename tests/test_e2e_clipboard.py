@@ -104,9 +104,9 @@ def test_a_populated_container_moves_into_a_spoiler_and_reaches_the_student(
     # Plant a stored collapse on tab 1 BEFORE marking. Without the force-open
     # stamp the mark's re-render would re-collapse it client-side, and this is the
     # only way to prove the stamp is honoured -- a template test never runs
-    # applyStoredTabs. The key shape is editor.js's tabStoreKey.
+    # applyStoredSlots. The key shape is editor.js's slotStoreKey.
     tab1 = page.locator(f"details.tabs-rows[data-tab-id='{t1}']")
-    tab1.locator("summary").click()  # toggle -> saveTab writes an entry
+    tab1.locator("summary").click()  # toggle -> saveSlot writes an entry
     page.evaluate(
         "key => localStorage.setItem(key, '0')",
         f"libli:tabopen:{tabs_join.pk}:{t1}",
