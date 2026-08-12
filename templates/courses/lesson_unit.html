@@ -8,7 +8,7 @@
     "use strict";
     document.documentElement.classList.add("reveal-armed");
     document.addEventListener("DOMContentLoaded", function () {
-      if (!window.__revealBooted{% if has_fill_gate %} || !window.__fillGateBooted{% endif %}{% if has_switch_gate %} || !window.__switchGateBooted{% endif %}) {
+      if (!window.__revealBooted{% if has_fill_gate %} || !window.__fillGateBooted{% endif %}{% if has_switch_gate %} || !window.__switchGateBooted{% endif %}{% if has_filltable_gate %} || !window.__fillTableBooted{% endif %}) {
         document.documentElement.classList.remove("reveal-armed");
       }
     });

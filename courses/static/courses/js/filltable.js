@@ -1,6 +1,11 @@
 (function () {
   "use strict";
 
+  // Parse-time boot flag, mirroring fillgate.js / switchgate.js: lesson_unit.html's
+  // prepaint watchdog disarms the pre-hide at DOMContentLoaded if this is still
+  // falsy, so a dead filltable.js cannot trap content permanently hidden.
+  window.__fillTableBooted = true;
+
   function csrf() {
     var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     return m ? m[1] : "";
