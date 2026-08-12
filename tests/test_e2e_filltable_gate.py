@@ -1,0 +1,328 @@
+"""Fill-in table reveal gate, end to end.
+
+Fixtures are TOP-LEVEL (slide-scope) throughout -- see the trap list below.
+"""
+
+import os
+
+import pytest
+from playwright.sync_api import expect
+
+from courses.models import FillTableElement
+from tests.factories import add_element
+
+# `tests/` has an __init__.py, so these are importable rather than copy-pasted.
+# (`_allow_async_unsafe` is NOT -- it is a local autouse fixture in each file.)
+from tests.test_e2e_filltable import _INCORRECT
+from tests.test_e2e_filltable import _SUCCESS
+from tests.test_e2e_filltable import _confirm
+from tests.test_e2e_filltable import _summary
+from tests.test_e2e_reveal_gate import _gate
+from tests.test_e2e_reveal_gate import _login
+from tests.test_e2e_reveal_gate import _new_unit
+from tests.test_e2e_reveal_gate import _seed_state
+from tests.test_e2e_reveal_gate import _text
+from tests.test_e2e_reveal_gate import _unit_url
+
+pytestmark = pytest.mark.e2e
+
+# NOTE: `_confirm` and `_summary` are scoped to the FIRST .filltable on the page
+# (both are `_table(page).locator(...)`, and `_table` is
+# `page.locator(".filltable").first`). Use them ONLY in single-table fixtures --
+# tests 21, 22, 24 and 25. Tests 23 and 26 have TWO tables, so the shared
+# locators would silently drive the wrong one; that is what _block(...)-scoped
+# locators are for. Test 27 has only ONE table and could use them, but stays
+# _block-scoped for symmetry with 23 and 26 -- not out of necessity.
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    # Sync Playwright + Django ORM in the same thread. Copied from
+    # tests/test_e2e_filltable.py:40-45 -- a local fixture, not importable.
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+_ANSWER = "4"
+_CELLS = [[{"kind": "static", "html": "x"}, {"kind": "answer", "answer": _ANSWER}]]
+
+
+def _filltable(gate=False):
+    """An unsaved gated/ungated fill-table with exactly one answer cell."""
+    return FillTableElement(data={"cells": _CELLS, "gate": gate})
+
+
+def _seed(unit, *objs):
+    """Attach each concrete element to `unit` as a TOP-LEVEL row, in order.
+
+    Accepts BOTH saved and unsaved concrete elements: _text() and _gate() use
+    .objects.create() and arrive saved (the save() below is then a harmless
+    no-op UPDATE), while _filltable() returns an unsaved instance that needs
+    it. Do not "tidy" the save() away.
+
+    Returns (join_row, concrete_obj) pairs -- test 25 needs the concrete object
+    to flip its `gate` mid-test, which a join row alone cannot reach.
+    """
+    out = []
+    for obj in objs:
+        obj.save()
+        out.append((add_element(unit, obj), obj))  # tests.factories.add_element
+    return out
+
+
+def _block(join_pk):
+    return f".lesson-block[data-element-id='{join_pk}']"
+
+
+def _visible(page, join_pk):
+    # Explicit miss-check: a bare querySelector(...).checkVisibility() throws a
+    # raw JS TypeError inside Playwright when the block is absent (wrong pk, a
+    # callout-nested fixture with no data-element-id, an element that never
+    # rendered) -- the least legible form of exactly the fixture mistake the
+    # trap list warns about. Fail with a message that names the pk instead.
+    sel = _block(join_pk)
+    return page.evaluate(
+        f'(() => {{ const n = document.querySelector("{sel}");'
+        f' if (!n) throw new Error("no .lesson-block for pk {join_pk}");'
+        f" return n.checkVisibility(); }})()"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 21. A wrong answer keeps the following content hidden
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_wrong_answer_keeps_content_hidden(page, live_server):
+    _student, unit = _new_unit("ftg_wrong")  # returns a (student, unit) PAIR
+    (table_row, _t), (trailing_row, _tr) = _seed(
+        unit, _filltable(gate=True), _text("trailing")
+    )
+    _login(page, live_server, "ftg_wrong")
+    page.goto(_unit_url(live_server, unit))
+
+    inp = page.locator(".filltable__input").first
+    inp.fill("nope")
+    _confirm(page).click()
+    expect(inp).to_have_class(_INCORRECT)  # <- synchronise BEFORE reading the DOM
+    assert _visible(page, trailing_row.pk) is False
+
+
+# ---------------------------------------------------------------------------
+# 22. A correct answer reveals -- and the solved table stays on screen
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_correct_answer_reveals(page, live_server):
+    _student, unit = _new_unit("ftg_correct")
+    (table_row, _t), (trailing_row, _tr) = _seed(
+        unit, _filltable(gate=True), _text("trailing")
+    )
+    _login(page, live_server, "ftg_correct")
+    page.goto(_unit_url(live_server, unit))
+
+    inp = page.locator(".filltable__input").first
+    inp.fill(_ANSWER)
+    _confirm(page).click()
+    expect(_summary(page)).to_have_class(_SUCCESS)  # <- synchronise first
+    expect(inp).to_be_disabled()
+    assert _visible(page, trailing_row.pk) is True
+    # The solved table must STAY on screen -- hideWrapper:false. Without it
+    # cascadeFrom sets gateWrap.hidden, and app.css:1010 removes the table and its
+    # notes entirely. Both Playwright assertions above are visibility-agnostic, so
+    # this line is the only behavioural guard on that option.
+    assert _visible(page, table_row.pk) is True
+
+
+# ---------------------------------------------------------------------------
+# 23. A chain of two ADJACENT gating tables
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_chained_gates_reveal_in_sequence(page, live_server):
+    _student, unit = _new_unit("ftg_chain")
+    (table1_row, _t1), (table2_row, _t2), (trailing_row, _tr) = _seed(
+        unit, _filltable(gate=True), _filltable(gate=True), _text("trailing")
+    )  # ADJACENT: nothing between the two tables
+    _login(page, live_server, "ftg_chain")
+    page.goto(_unit_url(live_server, unit))
+
+    # solve table 1 (its inputs are the only enabled ones while table 2 is hidden)
+    inp1 = page.locator(f"{_block(table1_row.pk)} .filltable__input").first
+    inp1.fill(_ANSWER)
+    page.locator(f"{_block(table1_row.pk)} .filltable__confirm").click()
+    expect(page.locator(f"{_block(table1_row.pk)} .filltable__summary")).to_have_class(
+        _SUCCESS
+    )
+
+    assert _visible(page, table2_row.pk) is True
+    assert _visible(page, trailing_row.pk) is False
+    # focus landed IN table 2's first enabled input, not on its wrapper div
+    assert (
+        page.evaluate("document.activeElement.classList.contains('filltable__input')")
+        is True
+    )
+
+    inp2 = page.locator(f"{_block(table2_row.pk)} .filltable__input").first
+    inp2.fill(_ANSWER)
+    page.locator(f"{_block(table2_row.pk)} .filltable__confirm").click()
+    expect(page.locator(f"{_block(table2_row.pk)} .filltable__summary")).to_have_class(
+        _SUCCESS
+    )
+    assert _visible(page, trailing_row.pk) is True
+
+
+# ---------------------------------------------------------------------------
+# 24. Reload restores the revealed state
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reload_restores_the_revealed_state(page, live_server):
+    _student, unit = _new_unit("ftg_reload")
+    (table_row, _t), (trailing_row, _tr) = _seed(
+        unit, _filltable(gate=True), _text("trailing")
+    )
+    _login(page, live_server, "ftg_reload")
+    page.goto(_unit_url(live_server, unit))
+
+    inp = page.locator(".filltable__input").first
+    inp.fill(_ANSWER)
+    with page.expect_response(  # AWAIT the state POST -- see trap 1
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ) as resp_info:
+        _confirm(page).click()
+    assert resp_info.value.ok
+
+    page.reload()
+    # The restored input is `readonly` (server-rendered), not `disabled` --
+    # _filltable_cell.html renders the mine.done branch with readonly, while the
+    # live lock() path uses disabled.
+    expect(page.locator(".filltable__input").first).to_have_js_property(
+        "readOnly", True
+    )
+    assert _visible(page, trailing_row.pk) is True
+
+
+# ---------------------------------------------------------------------------
+# 25. Pre-tick, single gate: solve UNGATED, then tick `gate`, then reload
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_gate_ticked_after_solving_reveals_on_reload(page, live_server):
+    _student, unit = _new_unit("ftg_pretick")
+    # seeded UNGATED -- see the fixture note
+    (table_row, table_obj), (trailing_row, _tr) = _seed(
+        unit, _filltable(gate=False), _text("trailing")
+    )
+    _login(page, live_server, "ftg_pretick")
+    page.goto(_unit_url(live_server, unit))
+    inp = page.locator(".filltable__input").first
+    inp.fill(_ANSWER)
+    with page.expect_response(
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ) as resp_info:
+        _confirm(page).click()
+    assert resp_info.value.ok  # the blob is now stored, table still UNGATED
+
+    # Flip the flag. A JSONField cannot be .update()d key-wise, so rebuild the whole
+    # dict -- dropping `cells` here would empty the grid and silently invalidate
+    # the test.
+    FillTableElement.objects.filter(pk=table_obj.pk).update(
+        data={**table_obj.data, "gate": True}
+    )
+
+    page.reload()
+    assert _visible(page, trailing_row.pk) is True
+
+
+# ---------------------------------------------------------------------------
+# 26. Pre-tick, chained -- the DOCUMENTED limitation (accepted, reload-healed)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_chained_pretick_heals_only_on_reload(page, live_server):
+    # NOTE: `student`, not `_student` -- _seed_state needs it.
+    student, unit = _new_unit("ftg_prechain")
+    (table1_row, _t1), (table2_row, _t2), (trailing_row, _tr) = _seed(
+        unit, _filltable(gate=True), _filltable(gate=True), _text("trailing")
+    )
+    # Table 2 was solved back when both were ungated: seed its blob directly.
+    _seed_state(student, unit, {str(table2_row.pk): {"done": True}})
+    _login(page, live_server, "ftg_prechain")
+    page.goto(_unit_url(live_server, unit))
+
+    # Solve table 1, AWAITING the state POST (trap 1) -- this test reloads, so the
+    # expect(summary) pattern used by test 23 is not sufficient here:
+    inp1 = page.locator(f"{_block(table1_row.pk)} .filltable__input").first
+    inp1.fill(_ANSWER)
+    with page.expect_response(
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ) as resp_info:
+        page.locator(f"{_block(table1_row.pk)} .filltable__confirm").click()
+    assert resp_info.value.ok
+
+    # restoreGates broke at table 1, so table 2's cascade never replayed; and
+    # table 2 is server-rendered done, so it has no Check button to fire it.
+    assert _visible(page, table2_row.pk) is True
+    assert _visible(page, trailing_row.pk) is False
+    page.reload()
+    assert _visible(page, trailing_row.pk) is True
+
+
+# ---------------------------------------------------------------------------
+# 27. An UNGATED table does not cascade
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_ungated_table_does_not_cascade(page, live_server):
+    _student, unit = _new_unit("ftg_ungated")
+    # the trailing _gate is what makes has_reveal_gate true so reveal.js LOADS.
+    # Unpacked in two statements: a single four-pair target list is 99 columns
+    # with the def-line indent, and ruff format does NOT parenthesise an
+    # assignment target list, so E501 would stand.
+    rows = _seed(
+        unit,
+        _filltable(gate=False),
+        _text("ungated-trailing"),
+        _gate("Show more"),
+        _text("gated-trailing"),
+    )
+    # Only the first two rows are asserted on -- the _gate and its trailing text
+    # exist solely to make has_reveal_gate true. Do not bind them.
+    (table_row, _t), (ungated_trailing_row, _ut) = rows[0], rows[1]
+    _login(page, live_server, "ftg_ungated")
+    page.goto(_unit_url(live_server, unit))
+
+    inp = page.locator(f"{_block(table_row.pk)} .filltable__input").first
+    inp.fill(_ANSWER)
+    page.locator(f"{_block(table_row.pk)} .filltable__confirm").click()
+    expect(page.locator(f"{_block(table_row.pk)} .filltable__summary")).to_have_class(
+        _SUCCESS
+    )
+
+    # Bind the selector once: inlining _block(...) into the f-string pushes both
+    # calls to ~105 columns, and ruff format cannot split a string literal.
+    sel = _block(ungated_trailing_row.pk)
+
+    # THIS is the assertion that discriminates the mutant.
+    assert (
+        page.evaluate(
+            f'document.querySelector("{sel}").classList.contains("reveal-shown")'
+        )
+        is False
+    )
+    # activeElement is <body> here -- lock() hid the Check button. Assert the
+    # negative that actually distinguishes the mutant:
+    assert (
+        page.evaluate(
+            f'!document.querySelector("{sel}").contains(document.activeElement)'
+        )
+        is True
+    )
