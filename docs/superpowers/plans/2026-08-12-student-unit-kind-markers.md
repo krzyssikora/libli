@@ -22,13 +22,26 @@
 - **Student-facing word for non-obligatory is "Additional"**, never "Optional". Polish `msgstr` is `"Dodatkowa"`.
 - **`obligatory` defaults to `True`** (`courses/models.py:212`) and `ContentNodeFactory` does not set it. Every fixture that must render a marker has to pass `obligatory=False` or use a quiz unit — otherwise the assertion is vacuous.
 - **Run only affected tests per task.** A whole-repo sweep is a branch gate (Task 8), never a task step.
+- **Every task ends with a lint pass**, not just Task 1:
+  `uv run ruff check --no-cache <files>` and `uv run ruff format --check <files>`.
+  `pyproject.toml:36` selects `["E","F","I","UP","B","S"]` with `force-single-line` isort.
+- **"Append to `<test file>`" NEVER means "append the imports too."** Every import in an appended
+  block is merged into that file's existing top-of-file import section, alphabetised, one name per
+  line, and never duplicated. A mid-file import is **E402**; an unsorted one is **I001**; a
+  re-import is **F811**. All three fail the gate.
+- **i18n has a house convention document**: `docs/development/conventions.md:45-73`. Read it before
+  Task 6. It is authoritative over this plan.
+- **Do not pass a bare `-q` to pytest**: `pyproject.toml:49` already sets `addopts = "-q -m 'not e2e'"`,
+  and a doubled `-q` suppresses the summary line. Use `--verbosity=0` when you need to override.
+- **Capture scripts are not auto-collected**: `pyproject.toml:48` sets `python_files = ["test_*.py"]`,
+  so any `capture_*.py` runs only when named explicitly on the command line.
 
 ---
 
 ### Task 1: The marker rule and its template exposure
 
 **Files:**
-- Modify: `courses/rollups.py` (add import + constants + two functions beside `is_quiz_unit`, ~line 172)
+- Modify: `courses/rollups.py` (add import + constants + two functions between `is_quiz_unit`, which ends at `:171`, and `quiz_units_in_order`, which starts at `:174`)
 - Modify: `courses/templatetags/courses_extras.py` (imports + two registrations)
 - Test: `tests/test_unit_marker.py` (create)
 
@@ -100,6 +113,7 @@ def test_labels_under_default_locale():
     assert marker_label("nonsense") == ""
 
 
+@pytest.mark.xfail(reason="PL msgstr lands in Task 6", strict=True)
 @pytest.mark.django_db
 def test_label_is_a_lazy_proxy_not_a_frozen_string():
     """Pins the §6 catalog entry end-to-end AND proves gettext_lazy: a plain
@@ -126,7 +140,7 @@ In `courses/rollups.py`, add to the import block (it is one name per line):
 from django.utils.translation import gettext_lazy
 ```
 
-Then, immediately after `is_quiz_unit` (~line 172):
+Then, between `is_quiz_unit` (`:166-171`) and `quiz_units_in_order` (`:174`):
 
 ```python
 MARKER_NONE = ""
@@ -201,7 +215,9 @@ register.simple_tag(rollups.marker_label, name="marker_label")
 uv run pytest tests/test_unit_marker.py -v
 ```
 
-Expected: PASS (5 tests). `test_label_is_a_lazy_proxy_not_a_frozen_string` will FAIL until Task 6 adds the Polish catalog entry — that is expected here; mark it `@pytest.mark.xfail(reason="PL msgstr lands in Task 6", strict=True)` now and **remove the marker in Task 6**.
+Expected: **3 passed, 1 xfailed**. The xfail is `test_label_is_a_lazy_proxy_not_a_frozen_string` —
+it needs the Polish catalog entry that Task 6 adds. `strict=True` means it will fail loudly if it
+starts passing early. **Task 6 removes the marker.**
 
 - [ ] **Step 6: Falsify — three mutants, each must go RED**
 
@@ -210,7 +226,7 @@ Edit each mutant in by hand, run, confirm RED, then edit it back out (never `git
 | Mutant | Must redden |
 | --- | --- |
 | `return MARKER_ADDITIONAL` in the `is_quiz_unit` branch | the quiz pair in `test_marker_table` |
-| `additional` branch → `if not is_obligatory_lesson(node):` | the chapter + untyped rows |
+| `additional` branch → `if not is_obligatory_lesson(node):` | the **untyped** row. NOT the chapter row — the `getattr` guard returns before that branch is reached, so the chapter row is green under this mutant and is covered by the guard mutant below instead |
 | `getattr(node, "kind", None)` → `node.kind` | `test_marker_is_quiet_for_non_nodes` |
 
 - [ ] **Step 7: Lint and commit**
@@ -237,14 +253,12 @@ git commit -m "feat(courses): unit_marker + marker_label, the student-facing kin
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_unit_marker.py`:
+Append the test functions below to `tests/test_unit_marker.py`. **Add
+`from django.template.loader import render_to_string` to the file's existing top-of-file import
+block** (alphabetised, one per line) — not here. `MARKER_QUIZ` is already imported by Task 1; do not
+re-import it (F811).
 
 ```python
-from django.template.loader import render_to_string
-
-from courses.rollups import MARKER_QUIZ
-
-
 @pytest.mark.django_db
 def test_chip_partial_renders_only_when_marked():
     course = CourseFactory()
@@ -266,6 +280,7 @@ def test_icon_partial_carries_a_hidden_label_and_a_title():
     html = render_to_string("courses/_unit_kind_icon.html", {"node": add})
     assert 'class="unit-kind unit-kind--additional"' in html
     assert 'title="Additional"' in html
+    assert 'lang="en"' in html                   # UI locale, not the course's
     assert 'aria-hidden="true"' in html          # on the <svg>
     assert "visually-hidden unit-kind__label" in html
     assert "Additional</span>" in html
@@ -284,7 +299,8 @@ def test_glyph_partial_emits_nothing_for_an_empty_marker():
 uv run pytest tests/test_unit_marker.py -k "partial or glyph" -v
 ```
 
-Expected: FAIL — `TemplateDoesNotExist: courses/_unit_kind_glyph.html`.
+Expected: FAIL — `TemplateDoesNotExist`. `-k` collects the chip test first, so the first error names
+`courses/_unit_kind_chip.html`; all three templates are missing at this point.
 
 - [ ] **Step 3: Create the glyph partial**
 
@@ -371,6 +387,8 @@ There is deliberately **no** mutant for `.unit-kind`, `.unit-kind-chip`'s `flex:
 - [ ] **Step 8: Commit**
 
 ```bash
+uv run ruff check --no-cache tests/test_unit_marker.py
+uv run ruff format --check tests/test_unit_marker.py
 git add templates/courses/_unit_kind_glyph.html templates/courses/_unit_kind_chip.html templates/courses/_unit_kind_icon.html core/static/core/css/app.css tests/test_unit_marker.py
 git commit -m "feat(courses): unit kind marker partials + shared CSS"
 ```
@@ -390,17 +408,13 @@ git commit -m "feat(courses): unit kind marker partials + shared CSS"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_unit_marker.py`:
+Append the helper and tests below. **Merge these into the file's existing top-of-file import block**
+(alphabetised, one per line), not into the body: `from bs4 import BeautifulSoup`,
+`from django.urls import reverse`, `from tests.factories import EnrollmentFactory`,
+`from tests.factories import TEST_PASSWORD`, `from tests.factories import UnitProgressFactory`,
+`from tests.factories import make_verified_user`.
 
 ```python
-from bs4 import BeautifulSoup
-from django.urls import reverse
-
-from tests.factories import EnrollmentFactory
-from tests.factories import TEST_PASSWORD
-from tests.factories import make_verified_user
-
-
 def _outline_soup(client, course):
     resp = client.get(reverse("courses:course_outline", kwargs={"slug": course.slug}))
     assert resp.status_code == 200
@@ -445,14 +459,19 @@ def test_outline_chip_follows_the_title_and_precedes_the_tick(client):
     )
     EnrollmentFactory(student=student, course=course)
     quiz = ContentNodeFactory(course=course, unit_type="quiz", title="Ordered")
+    # COMPLETED, so .badge--done actually renders — otherwise the "precedes the
+    # tick" half of this test asserts nothing and moving the chip after the tick
+    # stays green.
+    UnitProgressFactory(student=student, unit=quiz, completed=True)
     client.force_login(student)
     anchor = _outline_soup(client, course).select_one(f'li#node-{quiz.pk} a.outline-unit')
 
-    kids = [c for c in anchor.find_all(recursive=False)]
-    classes = [" ".join(c.get("class", [])) for c in kids]
+    classes = [" ".join(c.get("class", [])) for c in anchor.find_all(recursive=False)]
     title_i = next(i for i, c in enumerate(classes) if "outline-unit__title" in c)
     chip_i = next(i for i, c in enumerate(classes) if "unit-kind-chip" in c)
+    done_i = next(i for i, c in enumerate(classes) if "badge--done" in c)
     assert chip_i == title_i + 1, f"chip must directly follow the title, got {classes}"
+    assert chip_i < done_i, f"chip must precede the tick, got {classes}"
 
 
 @pytest.mark.django_db
@@ -503,7 +522,10 @@ In `templates/courses/_outline_node.html`, inside the `<a class="outline-unit">`
 .outline-node--unit > .outline-unit { flex: 1 1 auto; min-width: 0; }
 ```
 
-Add above them:
+Place the comment block below **above the `:521` rule only**, and put a one-line cross-reference
+above `:544` (`/* min-width: 0 here for the same reason as .outline-unit__title — see :521. */`).
+The two rules are ~23 lines apart with unrelated rules between them, so one block cannot sit above
+both:
 
 ```css
 /* The chip can add ~90px to a 390px row. `flex: 1` is `1 1 0%` with no
@@ -536,6 +558,8 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff check --no-cache tests/test_unit_marker.py
+uv run ruff format --check tests/test_unit_marker.py
 git add templates/courses/_outline_node.html core/static/core/css/app.css tests/test_unit_marker.py
 git commit -m "feat(courses): mark quizzes and additional units on the course outline"
 ```
@@ -591,6 +615,8 @@ def test_rail_marks_quiz_and_additional_as_the_last_child(client):
     assert kind is not None
     assert "Additional" in kind.get_text()            # substring, not full-name equality:
     # the ✓ leads in the rail and trails in the outline, so the two orders differ.
+    assert f"unit-kind--{MARKER_ADDITIONAL}" in kind["class"]   # modifier vs the constant
+    assert kind["lang"] == "en"                       # UI locale inside lang="{{ course.language }}"
     assert marked.find_all(recursive=False)[-1] is kind, "the icon must be the LAST child"
 
     assert row(req).select_one(".unit-kind") is None  # required stays unmarked
@@ -636,7 +662,14 @@ Add above it:
    test distinguishes them. */
 ```
 
-Inside the existing `@media (max-width: 640px)` block, beside the `.unit-drawer__list .unit-tree__label` rule at `:977`, **extend that rule in place** (do not add a second one — `tests/test_unit_tree_long_titles.py` regex-matches its body) and add the un-hide:
+Inside the existing `@media (max-width: 640px)` block: **extend the declaration list of the
+`.unit-drawer__list .unit-tree__label` rule at `:977-978` in place** (do not add a second rule —
+`tests/test_unit_tree_long_titles.py` regex-matches that rule's body), then **append** the new
+`.unit-kind__label` rule after the existing `.unit-drawer__list .unit-tree__unit` rule at `:979-980`.
+
+Do not paste over the region: `:973-976` carries the authored "Touch has no hover" comment and
+`:979-980` carries `align-items: flex-start`, which is load-bearing for Task 7's
+"one flex line" drawer row assertion. Both must survive.
 
 ```css
   .unit-drawer__list .unit-tree__label {
@@ -668,12 +701,26 @@ In `courses/static/courses/css/courses.css`, in the block at `:2310-2350`: add `
 | `.unit-crumbs__label (:848)` | 882 |
 | `courses.css:903-907` | 939-941 |
 
-In `tests/capture_title_math_screenshots.py`: add `.unit-kind` to the `btns` selector list (~:483) **and fix the seed**, because the selector edit alone measures nothing — all four maths-title units are default-obligatory lessons (no marker), and the one quiz (`quiz_b`, `:186`) sits under `part_b` whose `<details>` is closed on the drawer arm's page. Set `lesson_display` (the unit the drawer arm navigates to, `:464`) to `obligatory=False` so it emits a marker in the open group, and add a guard that `btns` is non-empty before the overlap loop.
+In `tests/capture_title_math_screenshots.py`: add `.unit-kind` to the `btns` selector list (~:483)
+**and fix the seed**, because the selector edit alone measures nothing — all four maths-title units
+are default-obligatory lessons (no marker), and the one quiz (`quiz_b`, `:186`) sits under `part_b`
+whose `<details>` is closed on the drawer arm's page. Set `lesson_display` (the unit the drawer arm
+navigates to, `:464`) to `obligatory=False` so it emits a marker in the open group, and add a guard
+that `btns` is non-empty.
+
+**That guard must `assert`, not append.** The script's existing `overlap` result is only pushed onto
+`measurements` (~:490-505) — it asserts nothing — so a silently-empty `btns` reads as success. Also
+note `tests/helpers_title_math.py` hardcodes `obligatory=True` at `:72`, `:81`, `:90` and `:133`;
+any maths-title fixture that must render a marker has to bypass or parameterise those.
 
 - [ ] **Step 6: Run the affected tests**
 
 ```bash
 uv run pytest tests/test_unit_nav_render.py tests/test_unit_tree_long_titles.py tests/test_unit_marker.py -v
+# The capture script is NOT auto-collected (python_files = ["test_*.py"]), so name it explicitly:
+uv run pytest tests/capture_title_math_screenshots.py -m e2e
+uv run ruff check --no-cache tests/test_unit_nav_render.py tests/capture_title_math_screenshots.py
+uv run ruff format --check tests/test_unit_nav_render.py tests/capture_title_math_screenshots.py
 ```
 
 Expected: PASS. `test_unit_tree_long_titles.py::test_drawer_lets_unit_labels_wrap` is a **source-level regex pin** on the `:977` rule — it stays green only because the rule was extended in place.
@@ -684,6 +731,7 @@ Expected: PASS. `test_unit_tree_long_titles.py::test_drawer_lets_unit_labels_wra
 | --- | --- |
 | Move the `{% include %}` before `.unit-tree__label` | the last-child assertion |
 | Render the icon for a required lesson (drop `{% if m %}` in `_unit_kind_icon.html`) | the `row(req)` absence assertion |
+| Drop `lang="{{ LANGUAGE_CODE }}"` from `_unit_kind_icon.html` | the rail test's `lang == "en"` assertion |
 
 The `.unit-tree__label` flex change, the un-hide rule and the drawer `overflow-wrap` are all covered by e2e mutants in Task 7 — not here. The drawer `overflow-wrap: anywhere` carries **no** mutant at all: at a ~230px column a token would need 28+ characters to overflow.
 
@@ -814,18 +862,48 @@ Both work today because the `<h1>`'s *flex target* (~746px) exceeds the 736px pr
 - Seed a title whose natural content width exceeds 736px.
 - Re-point the fixture-validity guard **at the title**: neutralise `max-width` with `page.add_style_tag`, measure the uncapped `<h1>` content width, assert **`>= 740`** (not `> 736` — the guarded assertion is `title_w < 738`, so a fixture landing in (736, 738] would pass the guard and leave the assertion green), then restore.
 - Do **not** substitute `group_w > 738`: `.lesson-unit__heading` is `flex: 1 1 auto`, so the group always grows to `head − pill − gap ≈ 746` regardless of the title, making that a rename of the existing space-measuring guard.
-- Update the block's three stale inline comments at `~:150-183`: "the quiz page has no `.lesson-unit__head` at all" (it will have one), "an uncapped title would measure ~746" (the mechanism is now a >736px *content* width), and the "~643.6 … NO prose-cap mutation reddens either assertion" note at `~:170-179` (the `<h1>` now shrink-wraps, so both the figure and the mechanism are wrong).
+- Update **every comment in `test_lesson_title_caps_in_a_two_item_head` and in the three-item block
+  above it** — not just the `~:150-183` range. The function's own docstring at `~:187-197` states the
+  falsified mechanism verbatim ("The title's flex target is then ~872 - 16 gap - ~110 pill = ~746,
+  ABOVE the 736 cap -- so the cap is what holds it down"), and the fixture-guard comment at
+  `~:211-220` repeats it ("the title's flex target here is only ~20px above the cap"). Leaving either
+  is false mechanism inside the very test being repaired. The three in `~:150-183` are: "the quiz page has no `.lesson-unit__head` at all" (it will have one), "an uncapped title would measure ~746" (the mechanism is now a >736px *content* width), and the "~643.6 … NO prose-cap mutation reddens either assertion" note at `~:170-179` (the `<h1>` now shrink-wraps, so both the figure and the mechanism are wrong).
 
 `tests/test_e2e_unit_nav.py::test_quiz_chrome_tracks_the_column_across_both_page_states`:
-- Same repair, applied to **both** cap assertions — the test asserts `title_w <= 736 + 2` twice, once per page state (`~:1386` and `~:1420`). Its fixture is a **quiz**, so it *does* emit a chip; the assertion stays non-vacuous through different arithmetic (no done pill, so the group spans the full ~872px collapsed column and `736 + 12 + ~46 < 872` leaves the cap holding). That headroom exists only in the collapsed state — keep the test's existing collapsed-state guard.
+- Its fixture is `make_quiz_unit(course=course)`, whose title comes from `ContentNodeFactory`'s
+  `Sequence` ("Node N") — nowhere near 736px — and it currently has **no** fixture-validity guard at
+  all. So this is not literally "the same repair": **seed the quiz node with a title whose content
+  exceeds 736px**, and **add** the cap-neutralising `>= 740` guard (there is none to re-point).
+- The guard is added **before each** of the two `title_w <= 736 + 2` assertions (`~:1386` and
+  `~:1420`), and `max-width` must be **restored after each** — the second assertion runs after a
+  `page.reload()` with the enrolment flipped, and a guard left in place would neutralise the cap for
+  the very assertion it protects.
+- Applied to **both** cap assertions — the test asserts `title_w <= 736 + 2` twice, once per page state (`~:1386` and `~:1420`). Its fixture is a **quiz**, so it *does* emit a chip; the assertion stays non-vacuous through different arithmetic (no done pill, so the group spans the full ~872px collapsed column and `736 + 12 + ~46 < 872` leaves the cap holding). That headroom exists only in the collapsed state — keep the test's existing collapsed-state guard.
 
-`tests/test_quiz_previewer_render.py` renders `_quiz_article.html` directly via `render_to_string(build_quiz_context(...))`; re-run and update it for the new wrappers.
+`tests/test_quiz_previewer_render.py` renders `_quiz_article.html` directly via
+`render_to_string(build_quiz_context(...))`. **Re-run it; expected unchanged and green** — its
+assertions are about the preview banner, the finish form and input liveness, none of which touch the
+head structure. Update it only if an assertion turns out to depend on that structure, and only then
+add it to the commit.
+
+- [ ] **Step 5b: Add the maths-title render case (spec §Render)**
+
+The spec requires that one of the two unit-page render cases uses a **maths** title, asserting it
+still typesets with the chip as a sibling. It joins `tests/test_title_math_markers.py` rather than
+re-creating that suite's machinery.
+
+Its fixture must be **marked**, and this is the trap: `tests/helpers_title_math.py` hardcodes
+`obligatory=True` at `:72`, `:81`, `:90` and `:133`, so `_lesson_body(client, maths_on="unitA", ...)`
+builds units that emit no chip and the case would be vacuous. Parameterise those sites (add an
+`obligatory=True` keyword argument defaulting to the current value) or seed the maths title on a
+quiz unit. Assert the chip renders **beside** the `<h1 data-math-title>`, not inside it, and that
+the title's KaTeX still renders.
 
 - [ ] **Step 6: Run the affected tests**
 
 ```bash
-uv run pytest tests/test_unit_marker.py tests/test_quiz_previewer_render.py -v
-uv run pytest -m e2e tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_head_layout.py -v
+uv run pytest tests/test_unit_marker.py tests/test_quiz_previewer_render.py tests/test_title_math_markers.py -v
+uv run pytest -m e2e tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_head_layout.py   "tests/test_e2e_unit_nav.py::test_quiz_chrome_tracks_the_column_across_both_page_states" -v
 ```
 
 `tests/test_e2e_unit_head_layout.py` must be **unchanged and all green** — its `MEASURE` uses `head.querySelector('.lesson-unit__title')`, which is descendant-based and still finds the `<h1>` through the wrapper, and its phone assertions (`done_top >= title_bottom - 1`, `reset_top >= title_bottom - 1`) are exactly what the group's `flex-basis: 100%` preserves. **If any of its four assertions goes red, the mobile rule is wrong — do not update the test to match.**
@@ -835,7 +913,7 @@ uv run pytest -m e2e tests/test_e2e_uniform_block_width.py tests/test_e2e_unit_h
 | Mutant | Must redden |
 | --- | --- |
 | Put the `{% include %}` inside the `<h1>` | the `data-math-title` sibling assertion, both templates |
-| Delete the mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` | `test_e2e_unit_head_layout.py`'s phone assertions |
+| Delete the mobile `.lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap }` | the **new phone unit-page arm in Task 7 Step 3** (chip-bearing, short title). **NOT** `test_e2e_unit_head_layout.py`: its `_seed` uses a long `LONG_TITLE` (`:25`), so with the rule deleted the group's basis-`auto` hypothetical size still exceeds the 390px line and `.lesson-unit__head`'s pre-existing `flex-wrap` (`courses.css:985`) still drops the pill to row two — both its phone assertions stay green on the mutated build |
 
 The `flex: 0 1 auto` reset and the group's `flex: 1 1 auto` are falsified by the Task 7 e2e (they need geometry, which DOM-containment tests cannot see).
 
@@ -857,10 +935,15 @@ git commit -m "feat(courses): mark the unit kind on the unit page; repair the tw
 - [ ] **Step 1: Regenerate both catalogs**
 
 ```bash
-uv run python manage.py makemessages -l pl -l en
+uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
-Both are regenerated: `pl` is translated, `en` is the source catalog with empty msgstrs.
+`--no-obsolete` is **mandatory**, not optional: `docs/development/conventions.md:45-73` gives this as
+the house command and records that "the project forbids obsolete `#~` entries in the catalog; a test
+asserts the catalog is clean" (`tests/test_i18n_po_health.py`). Omitting it writes `#~` entries for
+any drifted msgid, reddening that test at the Task 8 gate with a large unintended diff in both
+catalogs. Both locales, every time: `pl` is translated, `en` is the source catalog with empty
+msgstrs, and running `-l pl` alone leaves English stale.
 
 - [ ] **Step 2: Verify `Quiz` was reused, not duplicated**
 
@@ -876,7 +959,12 @@ Expected: exactly one, already `msgstr "Quiz"`, with `courses/rollups.py` now ad
 grep -n -B 3 'msgid "Additional"' locale/pl/LC_MESSAGES/django.po
 ```
 
-Set `msgstr "Dodatkowa"`. If `makemessages` fuzzy-prefilled it from a near neighbour (the existing `additional` → `"dodatkowe"` is the obvious candidate), that is **two deletions** — the `#, fuzzy` line *and* the wrong `msgstr`. Never accept a fuzzy entry as-is. Do **not** revisit the existing `additional` → `"dodatkowe"` entry: it is the form that agrees with its own count phrase, and forcing one surface form would make one of the two ungrammatical.
+Set `msgstr "Dodatkowa"`. If `makemessages` fuzzy-prefilled it from a near neighbour (the existing
+`additional` → `"dodatkowe"` is the obvious candidate), clearing it is **two deletions, and the
+second is not the msgstr**: per `docs/development/conventions.md:62-65`, Django runs
+`msgmerge --previous`, which writes a `#| msgid "<old string>"` comment above the entry. Delete the
+`#, fuzzy` line **and** that `#| msgid` line — the msgstr is overwritten, not deleted. Leaving the
+`#| msgid` means a grep for a retired string still finds it. Never accept a fuzzy entry as-is. Do **not** revisit the existing `additional` → `"dodatkowe"` entry: it is the form that agrees with its own count phrase, and forcing one surface form would make one of the two ungrammatical.
 
 - [ ] **Step 4: Compile and drop the xfail**
 
@@ -889,10 +977,12 @@ Remove the `@pytest.mark.xfail` from `test_label_is_a_lazy_proxy_not_a_frozen_st
 - [ ] **Step 5: Run the tests**
 
 ```bash
-uv run pytest tests/test_unit_marker.py -v
+uv run pytest tests/test_unit_marker.py tests/test_i18n_po_health.py tests/test_i18n_auth.py   tests/test_i18n_notes.py tests/test_i18n_error_pages.py -v
 ```
 
-Expected: PASS, including the `translation.override("pl")` row with no xfail.
+Expected: PASS, including the `translation.override("pl")` row with no xfail. The catalog-health
+tests are run **here**, not at the Task 8 gate: regenerating both `.po` files can redden them, and
+run late the failure gets attributed to the wrong task.
 
 - [ ] **Step 6: Falsify — one mutant**
 
@@ -913,6 +1003,24 @@ git commit -m "i18n(courses): Polish for the Additional marker; reuse the existi
 - Modify: `tests/test_e2e_unit_nav.py` (append)
 
 Every geometric claim is **differential** — measuring a position with the rule present proves nothing, so each is either a comparison between two rendered rows or a mechanical A/B via `page.add_style_tag`. Every fixture must be marked (`obligatory=False` or a quiz) or the assertion is vacuous.
+
+**Step 0 - add the seed helper. None of the file's existing seeds can be reused.**
+`_seed_traversal_course`, `_seed_nav_course`, `_seed_grouped_course` and `_seed_text_and_table_unit`
+all build default-`obligatory=True` lessons, which emit no marker at all. Add:
+
+```python
+def _seed_marked_group(username, *, slug):
+    """A course whose one chapter holds three MARKED units: a short-title and a
+    long-title additional lesson (for the differential rail-gutter comparison) and
+    a quiz. The chapter is the current unit's ancestor, so its <details> renders
+    `open` (_unit_tree_node.html sets open only on contains_current) and every row
+    is measurable. obligatory=False is explicit: the model default is True and a
+    default-factory unit would make every assertion here vacuous.
+    """
+```
+
+Returns `(user, course, chapter, short_unit, long_unit, quiz_unit)`. Every arm below names which
+of those it drives.
 
 - [ ] **Step 1: Desktop rail gutter**
 
@@ -943,6 +1051,28 @@ Both must sit on the **short-title** row: with a cap-length title the group's ba
 - Glyph-to-word gap: `label.left - svg.right == 4` (±1), where both are elements with real boxes.
 - Row shape for a completed additional unit: one flex line — `.unit-tree__check`, `.unit-tree__label` and `.unit-kind` share a top within a few px.
 - **A/B the label's wrap points**: record `.unit-tree__label`'s `getBoundingClientRect().height` for a fixed long title, re-measure with `page.add_style_tag` injecting `.unit-drawer__list .unit-tree__label { flex: 0 1 auto !important }` — the pre-change computed value, named explicitly because `add_style_tag` can only *add* a declaration and `flex: none`/`flex: 1 1 0` would change the base size and redden a correct build — and assert the two heights are equal.
+- **Unit-page head at 390 wide** (spec §Testing; this arm exists because
+  `test_e2e_unit_head_layout.py` structurally cannot cover it - its fixture renders no chip). Drive
+  `quiz_unit` or `short_unit`: assert `chip.top >= title_bottom - 1` **and**
+  `chip.left == group.left` (+/-1) - exact, not "near": at 390px the `<h1>` keeps `flex-basis: 100%`
+  from `courses.css:986`, the group wraps, and the chip starts a fresh flex line at the group's
+  content-box left under the default `justify-content: flex-start` (the group has no padding). This
+  is the **sole** pin for the mobile `.lesson-unit__heading` rule (see Task 5's mutant table).
+- **Drawer maths re-check** (spec §Testing): assert no `.katex` box intersects `.unit-kind`'s rect,
+  scoped to `[data-unit-drawer-list] .unit-kind` - unscoped is a strict-mode violation, since the
+  page renders the tree twice. Three requirements, none optional:
+  1. **Fixture-validity guard first**: assert at least one `[data-unit-drawer-list] .unit-kind` has a
+     non-`None` box **before** the intersection loop. Without it the loop iterates an empty list and
+     is green on every build - and that is the default outcome, because
+     `tests/helpers_title_math.py` hardcodes `obligatory=True` at `:72`, `:81`, `:90`, `:133`.
+  2. Seed a **marked** unit carrying a maths title (flip one of those sites, or seed the maths title
+     on a quiz).
+  3. **Expected outcome: no intersection.** If it *does* intersect, that is a design change, not a
+     test tweak - the remedy is containment on the drawer label's maths (the `max-width`/`overflow`
+     shape `courses.css:1685` applies to tab labels) or moving the marker. Do not widen the
+     tolerance. The original audit measured `.katex` only against controls that **lead** a unit row
+     or live on group rows, so it carries no evidence for a right-hand neighbour: this is a genuine
+     measurement, not a formality.
 - Desktop, in the same file: `[data-unit-tree-list] .unit-kind__label` measures `width <= 2 and height <= 2` — i.e. still hidden in the rail. Without it, an un-hide rule placed **outside** the media query passes every other assertion while eating ~58px of the rail's ~98px title column.
 - **Outline** at 390 wide, long unbroken / Polish title (measured wider than the rendered title column — measure it, do not derive it): `title.scrollWidth - title.clientWidth <= 1` on `.outline-unit__title`, plus `.outline-unit.right <= li.right + 1` and `document.documentElement.scrollWidth === clientWidth`.
 
@@ -954,7 +1084,10 @@ uv run pytest -m e2e tests/test_e2e_unit_nav.py -v
 
 Windows note: a backgrounded pytest is reaped by the harness mid-run. Use `Start-Process` and poll the PID, and **grep the summary line** — a backgrounded run has reported exit 0 with `1 failed`.
 
-- [ ] **Step 5: Falsify — six mutants**
+- [ ] **Step 5: Falsify - seven mutants, NINE runs**
+
+The un-hide row below is **three separate runs** (deletion, partial revert, mis-scoped). Do not read
+the row count as the run count - that is exactly how the sole additive mutant gets skipped.
 
 | Mutant | Must redden |
 | --- | --- |
@@ -985,23 +1118,65 @@ git commit -m "test(e2e): geometry pins for the unit kind markers"
 
 - [ ] **Step 1: Capture screenshots, light and dark**
 
-Cover: both glyphs at rail size (~13px), both on a **drawer row** at 390×780 (~16px — the glyph renders larger there because `font-size: .82rem` is on `.unit-tree` alone and the drawer is its sibling), the outline row at rest / hover / `:target`, and the unit-page head. Judge dark on its own rather than inferring it from light. Note `<dialog>`-style theming gotchas do not apply here, but an e2e dark run needs `user.theme`, not the cookie.
+**Mirror `tests/capture_title_math_screenshots.py`** — same harness (`_allow_async_unsafe`,
+`pytestmark = pytest.mark.e2e`, `_login`, the gitignored shot directory) and the same conventions.
+Dark mode is set via **`User.theme`, not a cookie**.
 
-This is where two deferred acceptance steps actually happen: the **glyph legibility** argument in §5 (a circled `?` is a compound stroke path that reads as a blob if drawn naively at small sizes) and the accepted `--surface-sunken` collision on the outline (the chip's fill matches `.outline-unit:hover` and `.outline-node:target`, leaving only its 1px rim as separation).
+**Seed** — every unit must be marked or it renders nothing (`obligatory` defaults to `True`): one
+`obligatory=False` lesson, one quiz, one required lesson as the unmarked control, and one
+`obligatory=False` lesson whose title is a single wide `\frac{…}{…}` for the maths outline row.
+
+**Shots**, each in light **and** dark:
+1. rail rows, both glyphs (~13px);
+2. a **drawer row** at 390×780, both glyphs (~16px — larger there because `font-size: .82rem` sits on
+   `.unit-tree` alone and the drawer is its sibling);
+3. outline row at rest, `:hover`, and `:target`;
+4. **a maths outline row** — the only acceptance for the spec's documented-but-untested residual (an
+   unbreakable KaTeX atom painting across the 8px gap into the chip);
+5. the unit-page head.
+
+**Invocation** — the file is `capture_*`, so `python_files = ["test_*.py"]` never auto-collects it
+and neither pytest run in Step 3 would execute it:
+
+```bash
+uv run pytest tests/capture_unit_marker_screenshots.py -m e2e
+```
+
+Judge dark on its own rather than inferring it from light. This is where two deferred acceptance
+steps actually happen: the **glyph legibility** argument in §5 (a circled `?` is a compound stroke
+path that reads as a blob if drawn naively at small sizes) and the accepted `--surface-sunken`
+collision on the outline (the chip's fill matches `.outline-unit:hover` and `.outline-node:target`,
+leaving only its 1px rim as separation).
 
 - [ ] **Step 2: Update the maths-marker docstring**
 
 `tests/test_title_math_markers.py:157` sits inside an inventory of "the THREE true double-interpolation sites" — places where the same **node title** is interpolated twice. `.unit-kind`'s `title=` carries the **marker word**, not the title, so it does **not** belong on that list and must not be added to it. Add the mention to the docstring's *exclusion* paragraph instead, modelled on the existing "`h1.lesson-unit__title` is deliberately NOT in this guard" note at `:164-169`.
 
+- [ ] **Step 2b: Refresh the line citations THIS change shifts**
+
+Task 4 inserts a line into `_unit_tree_node.html` after `:15`; Task 5 inserts three into
+`_quiz_article.html` before `:5`. The plan is meticulous about the six stale `courses.css` citations
+it inherits — it must not leave behind the ones it creates. Update:
+- `tests/test_title_math_markers.py`'s docstring citations of `_unit_tree_node.html:15`, `:25`, `:60`;
+- the spec's / templates' citation of `_quiz_article.html:12-15` (the `lang` house-rule comment);
+- `_unit_tree_node.html`'s own comment citing `:22` for the `open` attribute.
+
+Re-grep each file after editing rather than trusting the arithmetic.
+
 - [ ] **Step 3: Branch gate — the full suite**
 
 ```bash
 docker ps | grep libli-test-db          # must be up first
-uv run pytest -q
-uv run pytest -q -m e2e
+uv run pytest --verbosity=0
+uv run pytest --verbosity=0 -m e2e
+uv run pytest tests/capture_title_math_screenshots.py tests/capture_unit_marker_screenshots.py -m e2e
 uv run ruff check --no-cache .
 uv run ruff format --check .
 ```
+
+`--verbosity=0`, not `-q`: `addopts` already carries one `-q`, and a **doubled** `-q` suppresses the
+summary line this step tells you to grep. The two `capture_*` files are named explicitly because
+`python_files` never collects them.
 
 Grep the summary line of each run — do not trust the exit code alone. `ruff`'s `# noqa` warning is **cached away**, so a second run says "All checks passed"; `--no-cache` is mandatory. `ruff format --check` is a separate CI gate from `ruff check`.
 
