@@ -458,6 +458,11 @@ def test_rename_prefills_the_untruncated_name(page, live_server):
     user, course = _seed_assets("rename-pa", "rename-seed", (long_name, (400, 300)))
     _open_manager(page, live_server, "rename-pa", course)
     page.locator("[data-rename-asset]").first.click()
+    # expect() here is not decoration: ruff's F401 is live (pyproject.toml:36
+    # selects "F", and tests/** ignores only S105/S106/S107), so the import
+    # added in Step 1 must be USED in this task or `ruff check` fails at this
+    # task's commit.
+    expect(page.locator(".asset-rename-input")).to_be_visible()
     value = page.locator(".asset-rename-input").input_value()
     # Cancel BEFORE anything moves focus: blur commits with save=true, so on a
     # broken build simply finishing the test would write the truncated name.
@@ -537,7 +542,7 @@ print(page.evaluate("""() => {
 }"""))
 ```
 
-Run it once and record the three numbers as a comment in `tests/test_e2e_media_manager.py`. **Delete `tests/test_zz_scratch_measure.py`** before Step 8, and confirm with `git status` that it is not staged.
+Run it with `uv run pytest tests/test_zz_scratch_measure.py -s -v` — **without** `-m e2e`, since the scratch file carries no marker and would otherwise be deselected (exit 5). Record the three numbers as a comment in `tests/test_e2e_media_manager.py`. **Delete `tests/test_zz_scratch_measure.py`** before Step 8, and confirm with `git status` that it is not staged.
 
 Expect **two** columns at 360 px, each materially wider than 128 px — `minmax(8rem, 1fr)` makes 128 px a floor, not the rendered width. The docstring at `:594-596` claims otherwise and is wrong; Step 7 fixes it.
 
@@ -696,6 +701,8 @@ Either way, correct the docstring at `tests/test_e2e_media_manager.py:594-596`: 
 - [ ] **Step 8: Delete the scratch file and commit**
 
 ```bash
+rm tests/test_zz_scratch_measure.py
+git status --porcelain          # must not list the scratch file
 git add courses/static/courses/css/editor.css tests/test_e2e_media_manager.py
 git commit -m "fix(media): contain the asset name in its card and keep the pencil on line 1"
 ```
@@ -958,6 +965,8 @@ Create `courses/static/courses/js/media_preview.js`:
 
 Every one of these opens with hover + an explicit visibility wait. The dwell is 250 ms, so a `page.evaluate` or `bounding_box()` fired straight after `hover()` reads the **closed** state — and `bounding_box()` on a `display: none` element returns `None`, so the failure is a `TypeError` rather than a clean assertion.
 
+**Convention for every row below and in Tasks 6–7 whose setup is elided as `# ... open the manager`:** the opening is always, in this order — `user, course = _seed_assets("<3-letter>-pa", "<slug>", *specs)`, any `page.route(...)` the row needs, `_open_manager(page, live_server, "<3-letter>-pa", course)`, then `page.set_viewport_size(...)`. Always `_seed_assets`, **never** the file's existing `_seed()`, whose own `original.png` adds a cell that perturbs every count and `.first`-based probe. Each row needs its own username and slug.
+
 ```python
 def _open_preview(page, filename):
     """Hover the named thumb and wait past the dwell. Every overlay test uses it.
@@ -1088,14 +1097,22 @@ def test_a_tall_source_is_clamped_and_lands_centred_at_360(page, ...):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_hovering_the_covered_neighbour_switches_the_overlay(page, ...):
+def test_hovering_the_covered_neighbour_switches_the_overlay(page, live_server):
     """pointer-events:none is load-bearing: the overlay necessarily covers the
     neighbouring cell, and without it Playwright reports the overlay
-    intercepting and the neighbour can never be hovered."""
-    make_image_asset(course, filename="jeden_0_1.png", size=(400, 300))
-    make_image_asset(course, filename="dwa_0_2.png", size=(400, 300))
-    # ... open the manager at 1280x900
-    _open_preview(page, "jeden_0_1.png")
+    intercepting and the neighbour can never be hovered.
+
+    Seed a FULL ROW, not two assets. `.app-main` caps at 960px
+    (core/static/core/css/app.css:34), so at 1280x900 the grid is ~920px wide
+    and minmax(8rem, 1fr) yields SIX columns of ~143px. With two cells the
+    320px overlay lands in empty grid area, the probe below returns null, and
+    this row's own guard assertion fails on a correct build.
+    """
+    specs = [(f"sasiad_{i}_0.png", (400, 300)) for i in range(8)]
+    user, course = _seed_assets("cov-pa", "cov", *specs)
+    _open_manager(page, live_server, "cov-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "sasiad_0_0.png")
     # Identify the covered neighbour from the MEASURED overlay box rather than
     # assuming which cell it lands on -- and return its NAME, not an ordinal:
     # a cell index and a [data-asset-preview] index only align while every
@@ -1106,36 +1123,54 @@ def test_hovering_the_covered_neighbour_switches_the_overlay(page, ...):
             const r = c.getBoundingClientRect();
             return r.left < o.right && r.right > o.left
                 && r.top < o.bottom && r.bottom > o.top
-                && c.getAttribute('data-name') !== 'jeden_0_1.png';
+                && c.getAttribute('data-name') !== 'sasiad_0_0.png';
         });
         return hit ? hit.getAttribute('data-name') : null;
     }""")
-    assert covered and covered != "jeden_0_1.png", "the overlay covers no neighbour"
+    assert covered, "the overlay covers no neighbour; widen the fixture row"
     _open_preview(page, covered)
     expect(page.locator(".asset-preview__caption")).to_have_text(covered)
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_cell_from_a_swapped_in_grid_still_opens_the_overlay(page, ...):
+def test_a_cell_from_a_swapped_in_grid_still_opens_the_overlay(page, live_server):
     """The whole justification for delegating mouseover/mouseout: the debounced
     filter replaces the entire .asset-grid, and per-node listeners bound at load
-    would go silently dead on every swapped-in cell."""
-    make_image_asset(course, filename="filtrowany_0_1.png", size=(400, 300))
-    # ... open the manager, then type in the filter box and wait for the swap
+    would go silently dead on every swapped-in cell.
+
+    The anchor must provably be a NEW node. Filtering straight to a name that is
+    already in the initial grid only narrows it -- the wait matches the
+    PRE-swap node instantly, the wait is a no-op, and the row would open on the
+    old cell (green for the wrong reason, since the load-time listener the
+    mutant installs is on exactly that node). Filter it OUT first, wait for the
+    detach, then filter it back in.
+    """
+    user, course = _seed_assets("swg-pa", "swg", ("filtrowany_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "swg-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.fill("[data-filter-q]", "brak-dopasowania")
+    page.wait_for_selector(".asset-grid .asset-cell", state="detached")
     page.fill("[data-filter-q]", "filtrowany")
-    page.wait_for_selector('.asset-grid .asset-dname:has-text("filtrowany_0_1.png")')
+    page.wait_for_selector('.asset-grid .asset-cell[data-name="filtrowany_0_1.png"]')
     _open_preview(page, "filtrowany_0_1.png")
     expect(page.locator(".asset-preview__caption")).to_have_text("filtrowany_0_1.png")
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_grid_swap_during_the_dwell_opens_nothing(page, ...):
+def test_an_anchor_detached_during_the_dwell_opens_nothing(page, live_server):
     """A detached anchor measures as zeros, so "fits on the right" trivially
-    passes and the overlay pins to the corner with no anchor left to close it."""
-    make_image_asset(course, filename="znikajacy_0_1.png", size=(400, 300))
-    # ... open the manager
-    page.locator("[data-asset-preview]").first.hover()      # start the dwell
-    page.fill("[data-filter-q]", "brak-dopasowania")        # swap mid-dwell
+    passes and the overlay pins to the corner with no anchor left to close it.
+
+    Do NOT drive this with the filter: media_picker.js:651 debounces at
+    setTimeout(runFilter, 250) -- exactly DWELL_MS -- and then waits on a fetch,
+    so the swap always lands AFTER the dwell has already opened. Detach the node
+    directly instead, which is deterministic and needs no timing argument.
+    """
+    user, course = _seed_assets("dwl-pa", "dwl", ("znikajacy_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "dwl-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _anchor(page, "znikajacy_0_1.png").hover()              # start the dwell
+    page.evaluate("() => document.querySelector('.asset-cell').remove()")
     page.wait_for_timeout(600)                              # outlive the dwell
     expect(page.locator(".asset-preview")).to_be_hidden()
 ```
@@ -1156,7 +1191,7 @@ Run: `uv run pytest tests/test_e2e_media_manager.py -m e2e -k "hover_opens or no
 | move `place()` before `overlay.hidden = false` | `tall_source` (measures zeros) |
 | drop `pointer-events: none` | `covered_neighbour` (Playwright reports interception) |
 | bind `mouseenter` per node at load instead of delegating | `swapped_in_grid` |
-| drop the `isConnected` check in the dwell timer | `during_the_dwell` |
+| drop the `isConnected` check in the dwell timer | `an_anchor_detached_during_the_dwell` |
 
 - [ ] **Step 6: Commit**
 
@@ -1401,6 +1436,38 @@ def test_b_s_caption_never_appears_over_a_s_image(page, ...):
     expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
     released["route"].continue_()
     expect(page.locator("[data-asset-preview-img]")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_late_load_from_a_previous_asset_cannot_reveal_it(page, live_server):
+    """The scenario captionOnly()'s `expectedSrc = null` exists for, and the
+    only one that can falsify it.
+
+    Shape matters: A's load must still be IN FLIGHT when the pointer swaps to an
+    asset whose own thumbnail FAILED. That second open takes the caption-only
+    branch, which assigns no src -- so without the null, both img.src and the
+    recorded expectedSrc still hold A's URL, still compare equal, and A's late
+    load un-hides the image and paints A's frame under B's caption.
+    """
+    user, course = _seed_assets(
+        "late-pa", "late",
+        ("wolny_0_1.png", (400, 300)), ("martwy_0_2.png", (400, 300)),
+    )
+    held = {"route": None}
+    page.route("**/wolny_0_1*", lambda route: held.__setitem__("route", route))
+    page.route("**/martwy_0_2*", lambda route: route.abort())
+    _open_manager(page, live_server, "late-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+
+    _open_preview(page, "wolny_0_1.png")          # A: load held, image hidden
+    b = _anchor(page, "martwy_0_2.png").bounding_box()
+    page.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2, steps=10)
+    expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_2.png")
+
+    held["route"].continue_()                     # A's load lands NOW
+    page.wait_for_timeout(300)
+    expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
+    expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_2.png")
 ```
 
 - [ ] **Step 4: Run them to verify they fail**
@@ -1484,10 +1551,14 @@ Replace the `mouseover`/`mouseout` handlers:
 | same-anchor `mouseover` returns before `cancelHide()` | `drift_into_the_cell_padding` |
 | drop the synchronous `complete && naturalWidth > 0` reveal | `reopening_the_same_anchor` |
 | reveal **after** `place()` instead of before | `reopening_the_same_anchor` (height assertion) |
-| drop the `error` listener | `404_source` |
-| drop the empty-`currentSrc` guard | `thumbnail_that_never_loaded` |
-| drop the unconditional `overlayImg.hidden = true` reset in `open()` | `broken_asset_then_a_good_one` |
-| drop `expectedSrc = null` from `captionOnly()` | `b_s_caption_never_appears` |
+| drop `expectedSrc = null` from `captionOnly()` | `a_late_load_from_a_previous_asset` |
+| drop the `error` listener | `a_late_load_from_a_previous_asset` (B never reaches `captionOnly()`, so `expectedSrc` stays A's and A's late load reveals it) |
+| drop the unconditional `overlayImg.hidden = true` reset in `open()` | `b_s_caption_never_appears` (A is *visible* when the swap happens, so without the reset A's frame stays painted under B's caption) — **not** `broken_asset_then_a_good_one`, where `captionOnly()` and `close()` have both already hidden it and the mutant changes nothing |
+
+**Two guards are deliberately unmapped.** Record them as such rather than writing rows that appear to test them:
+
+- The **empty-`currentSrc` guard**. With it removed, `open()` still hides the image first and then assigns the aborted URL; `error` fires, `captionOnly()` hides an already-hidden image, and the synchronous reveal cannot fire because `complete` is false immediately after assignment. Both builds reach an identical terminal state. `thumbnail_that_never_loaded` still earns its place as a behaviour test — it just cannot falsify this line.
+- `cancelAnimationFrame` in `teardownOpenBindings()`, for the reason recorded in Task 7 Step 1.
 
 - [ ] **Step 8: Commit**
 
@@ -1566,10 +1637,46 @@ def test_focusout_does_not_close_a_pointer_opened_overlay(page, live_server):
     _open_manager(page, live_server, "fo-pa", course)
     page.set_viewport_size({"width": 1280, "height": 900})
     _open_preview(page, "fokus_0_1.png")
+    # Record hidden-transitions: asserting only the terminal state would let the
+    # mutant survive. Tab from the search box lands on the first cell's ✎, which
+    # is :focus-visible and re-opens the overlay in the same gesture -- so on the
+    # mutant it closes and instantly re-opens, and a terminal-state assertion
+    # sees "visible" either way.
+    page.evaluate("""() => {
+        window.__hiddenLog = [];
+        const o = document.querySelector('.asset-preview');
+        new MutationObserver(() => window.__hiddenLog.push(o.hidden))
+            .observe(o, {attributes: true, attributeFilter: ['hidden']});
+    }""")
     page.locator("[data-filter-q]").focus()
     page.keyboard.press("Tab")
     page.wait_for_timeout(400)
     expect(page.locator(".asset-preview")).to_be_visible()
+    assert page.evaluate("() => window.__hiddenLog") == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_focusout_during_the_hide_grace_does_not_close_early(page, live_server):
+    """The scenario openedBy()'s `|| hideTimer !== null` clause exists for.
+
+    mouseout clears hoveredAnchor, so once the pointer has left the anchor the
+    first clause is false; without the second, a focusout landing inside the
+    300ms grace would read the overlay as focus-opened and close it early rather
+    than letting the grace run out. Every other row keeps the pointer ON the
+    anchor throughout, where the first clause alone answers and this one is
+    unfalsifiable.
+    """
+    user, course = _seed_assets("grc-pa", "grc", ("laska_0_1.png", (400, 300)))
+    _open_manager(page, live_server, "grc-pa", course)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    _open_preview(page, "laska_0_1.png")
+    page.mouse.move(5, 5)                   # leave the anchor: grace starts
+    page.wait_for_timeout(80)               # well inside the 300ms grace
+    page.locator("[data-filter-q]").focus() # a focusout lands mid-grace
+    page.wait_for_timeout(80)
+    expect(page.locator(".asset-preview")).to_be_visible()   # grace still running
+    page.wait_for_timeout(400)              # now let the grace expire
+    expect(page.locator(".asset-preview")).to_be_hidden()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1883,7 +1990,7 @@ The focus path, armed unconditionally (**not** behind `canHover`):
 | drop the `MutationObserver` entirely | both `filter_swap_closes_*` rows |
 | connect the observer at dwell start instead of at open | `filter_swap_closes_a_focus_opened_overlay` (the focus path has no dwell, so it would never connect) |
 | arm the hide timer on every anchor exit, not just `openAnchor`'s | `pointer_can_still_hold` |
-| drop `\|\| hideTimer !== null` from `openedBy()` | `focusout_does_not_close` (during the grace) |
+| drop `\|\| hideTimer !== null` from `openedBy()` | `focusout_during_the_hide_grace` — **not** `focusout_does_not_close`, where the pointer never leaves the anchor so the first clause alone answers |
 
 - [ ] **Step 6: Commit**
 
