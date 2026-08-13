@@ -64,7 +64,6 @@ def test_labels_under_default_locale():
     assert marker_label("nonsense") == ""
 
 
-@pytest.mark.xfail(reason="PL msgstr lands in Task 6", strict=True)
 @pytest.mark.django_db
 def test_label_is_a_lazy_proxy_not_a_frozen_string():
     """Pins the §6 catalog entry end-to-end AND proves gettext_lazy: a plain

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-12 13:23+0200\n"
+"POT-Creation-Date: 2026-08-13 04:19+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -277,7 +277,7 @@ msgstr "Powiadomienia"
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
-#: .\courses\builder.py:725
+#: .\courses\builder.py:741
 msgid ""
 "This unit has a question inside a container. Move it out of the container "
 "before turning the unit into a quiz."
@@ -285,7 +285,7 @@ msgstr ""
 "Ta jednostka zawiera pytanie wewnątrz kontenera. Przenieś je poza kontener, "
 "zanim zmienisz typ jednostki na quiz."
 
-#: .\courses\builder.py:957 .\courses\builder.py:1066
+#: .\courses\builder.py:973 .\courses\builder.py:1082
 msgid "This element is damaged and cannot be copied."
 msgstr "Ten element jest uszkodzony i nie można go skopiować."
 
@@ -846,7 +846,8 @@ msgstr "Jednostka"
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:198 .\templates\courses\manage\_add_affordance.html:26
+#: .\courses\models.py:198 .\courses\rollups.py:180
+#: .\templates\courses\manage\_add_affordance.html:26
 #: .\templates\courses\manage\editor\editor.html:97
 msgid "Quiz"
 msgstr "Quiz"
@@ -958,32 +959,36 @@ msgstr "W toku"
 msgid "Submitted"
 msgstr "Przesłano"
 
-#: .\courses\templatetags\courses_extras.py:370
+#: .\courses\rollups.py:181
+msgid "Additional"
+msgstr "Dodatkowa"
+
+#: .\courses\templatetags\courses_extras.py:378
 #: .\templates\courses\elements\fillgateelement.html:13
 msgid "Confirm"
 msgstr "Potwierdź"
 
-#: .\courses\templatetags\courses_extras.py:385
+#: .\courses\templatetags\courses_extras.py:393
 msgid "Choose ▾"
 msgstr "Wybierz ▾"
 
-#: .\courses\templatetags\courses_extras.py:387
+#: .\courses\templatetags\courses_extras.py:395
 msgid "Choose an option"
 msgstr "Wybierz opcję"
 
-#: .\courses\templatetags\courses_extras.py:389
-#: .\courses\templatetags\courses_extras.py:560
+#: .\courses\templatetags\courses_extras.py:397
+#: .\courses\templatetags\courses_extras.py:568
 #: .\templates\courses\elements\filltableelement.html:15
 msgid "Try again"
 msgstr "Spróbuj ponownie"
 
-#: .\courses\templatetags\courses_extras.py:428
-#: .\courses\templatetags\courses_extras.py:435
+#: .\courses\templatetags\courses_extras.py:436
+#: .\courses\templatetags\courses_extras.py:443
 msgid "Your answer"
 msgstr "Twoja odpowiedź"
 
-#: .\courses\templatetags\courses_extras.py:436
-#: .\courses\templatetags\courses_extras.py:536
+#: .\courses\templatetags\courses_extras.py:444
+#: .\courses\templatetags\courses_extras.py:544
 #: .\templates\courses\elements\choicegridquestionelement.html:18
 #: .\templates\courses\elements\choicequestion.html:51
 #: .\templates\courses\elements\dragfillblankquestionelement.html:16
@@ -997,24 +1002,24 @@ msgstr "Twoja odpowiedź"
 msgid "Check"
 msgstr "Sprawdź"
 
-#: .\courses\templatetags\courses_extras.py:441
+#: .\courses\templatetags\courses_extras.py:449
 msgid "Correct!"
 msgstr "Dobrze!"
 
-#: .\courses\templatetags\courses_extras.py:454
+#: .\courses\templatetags\courses_extras.py:462
 msgid "The number is too big, try again."
 msgstr "Liczba jest za duża, spróbuj ponownie."
 
-#: .\courses\templatetags\courses_extras.py:455
+#: .\courses\templatetags\courses_extras.py:463
 msgid "The number is too small, try again."
 msgstr "Liczba jest za mała, spróbuj ponownie."
 
-#: .\courses\templatetags\courses_extras.py:513
+#: .\courses\templatetags\courses_extras.py:521
 msgid "Cycle options"
 msgstr "Przełącz opcje"
 
-#: .\courses\templatetags\courses_extras.py:541
-#: .\courses\templatetags\courses_extras.py:559
+#: .\courses\templatetags\courses_extras.py:549
+#: .\courses\templatetags\courses_extras.py:567
 #: .\templates\courses\elements\filltableelement.html:14
 #: .\templates\courses\elements\filltableelement.html:43
 msgid "Great!"
@@ -2527,13 +2532,13 @@ msgstr "Pytanie macierzowe"
 msgid "Extended response"
 msgstr "Rozszerzona odpowiedź"
 
-#: .\courses\views_manage.py:2081
+#: .\courses\views_manage.py:2089
 #: .\templates\courses\manage\editor\_add_menu.html:83
 #: .\templates\courses\manage\editor\_add_menu.html:93
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:2081
+#: .\courses\views_manage.py:2089
 #: .\templates\courses\manage\editor\_add_menu.html:82
 #: .\templates\courses\manage\editor\_add_menu.html:92
 msgid "Single choice"
@@ -3062,10 +3067,10 @@ msgstr "Zapisz"
 #: .\templates\courses\manage\editor\_element_row.html:37
 #: .\templates\courses\manage\editor\_element_row.html:58
 #: .\templates\courses\manage\editor\_element_row.html:111
-#: .\templates\courses\manage\editor\_element_row.html:162
-#: .\templates\courses\manage\editor\_element_row.html:215
-#: .\templates\courses\manage\editor\_element_row.html:269
-#: .\templates\courses\manage\editor\_element_row.html:321
+#: .\templates\courses\manage\editor\_element_row.html:172
+#: .\templates\courses\manage\editor\_element_row.html:225
+#: .\templates\courses\manage\editor\_element_row.html:279
+#: .\templates\courses\manage\editor\_element_row.html:331
 #: .\templates\courses\manage\editor\_host_form.html:26
 #: .\templates\courses\manage\editor\_link_dialog.html:86
 #: .\templates\courses\manage\editor\editor.html:28
@@ -3487,8 +3492,8 @@ msgid "You haven't created any tags yet. Open a lesson or quiz and add one."
 msgstr "Nie masz jeszcze żadnych tagów. Otwórz lekcję lub quiz i dodaj tag."
 
 #: .\tags\templates\tags\panel_page.html:6
-#: .\templates\courses\_outline_node.html:12
-#: .\templates\courses\_outline_node.html:15
+#: .\templates\courses\_outline_node.html:13
+#: .\templates\courses\_outline_node.html:16
 msgid "Tags"
 msgstr "Tagi"
 
@@ -3855,10 +3860,10 @@ msgstr "Nigdy"
 #: .\templates\courses\manage\editor\_element_row.html:35
 #: .\templates\courses\manage\editor\_element_row.html:56
 #: .\templates\courses\manage\editor\_element_row.html:109
-#: .\templates\courses\manage\editor\_element_row.html:160
-#: .\templates\courses\manage\editor\_element_row.html:213
-#: .\templates\courses\manage\editor\_element_row.html:267
-#: .\templates\courses\manage\editor\_element_row.html:319
+#: .\templates\courses\manage\editor\_element_row.html:170
+#: .\templates\courses\manage\editor\_element_row.html:223
+#: .\templates\courses\manage\editor\_element_row.html:277
+#: .\templates\courses\manage\editor\_element_row.html:329
 #: .\templates\courses\manage\subject_list.html:23
 #: .\templates\grouping\cohort_list.html:12
 #: .\templates\grouping\collection_detail.html:8
@@ -4173,51 +4178,51 @@ msgstr "Wersja robocza — niewidoczna dla uczniów"
 msgid "Publish"
 msgstr "Opublikuj"
 
-#: .\templates\courses\_lesson_article.html:18
-#: .\templates\courses\_lesson_article.html:20
-#: .\templates\courses\_outline_node.html:8
+#: .\templates\courses\_lesson_article.html:21
+#: .\templates\courses\_lesson_article.html:23
+#: .\templates\courses\_outline_node.html:9
 #: .\templates\courses\_unit_tree_node.html:11
 #: .\templates\courses\manage\_breakdown_node.html:25
 msgid "Completed"
 msgstr "Ukończono"
 
-#: .\templates\courses\_lesson_article.html:25
+#: .\templates\courses\_lesson_article.html:28
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
-#: .\templates\courses\_lesson_article.html:32
-#: .\templates\courses\_outline_node.html:24
+#: .\templates\courses\_lesson_article.html:35
 #: .\templates\courses\_outline_node.html:25
+#: .\templates\courses\_outline_node.html:26
 #: .\templates\courses\outline.html:11
 #: .\templates\courses\progress_reset_confirm.html:3
 #: .\templates\courses\progress_reset_confirm.html:20
 msgid "Start fresh"
 msgstr "Zacznij od nowa"
 
-#: .\templates\courses\_outline_node.html:12
-#: .\templates\courses\_outline_node.html:15
+#: .\templates\courses\_outline_node.html:13
+#: .\templates\courses\_outline_node.html:16
 msgid "Edit tags"
 msgstr "Edytuj tagi"
 
-#: .\templates\courses\_outline_node.html:22
+#: .\templates\courses\_outline_node.html:23
 #: .\templates\courses\manage\_breakdown_node.html:31
 msgid "required"
 msgstr "wymagane"
 
-#: .\templates\courses\_outline_node.html:23
+#: .\templates\courses\_outline_node.html:24
 msgid "additional"
 msgstr "dodatkowe"
 
-#: .\templates\courses\_quiz_article.html:22
+#: .\templates\courses\_quiz_article.html:27
 msgid "Preview notice"
 msgstr "Informacja o podglądzie"
 
-#: .\templates\courses\_quiz_article.html:23
+#: .\templates\courses\_quiz_article.html:28
 #: .\templates\courses\manage\editor\editor.html:143
 msgid "Preview"
 msgstr "Podgląd"
 
-#: .\templates\courses\_quiz_article.html:24
+#: .\templates\courses\_quiz_article.html:29
 msgid ""
 "you are not enrolled in this course, so your answers are not recorded and "
 "the quiz cannot be finished."
@@ -4225,11 +4230,11 @@ msgstr ""
 "nie jesteś zapisany/a na ten kurs, więc Twoje odpowiedzi nie są zapisywane, "
 "a quizu nie można zakończyć."
 
-#: .\templates\courses\_quiz_article.html:41
+#: .\templates\courses\_quiz_article.html:46
 msgid "Finish the quiz? You can't change your answers afterwards."
 msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
 
-#: .\templates\courses\_quiz_article.html:47
+#: .\templates\courses\_quiz_article.html:52
 msgid "Finish quiz"
 msgstr "Zakończ quiz"
 
@@ -4295,7 +4300,7 @@ msgstr "Zwiń spis treści"
 msgid "Expand contents"
 msgstr "Rozwiń spis treści"
 
-#: .\templates\courses\_unit_tree_node.html:39
+#: .\templates\courses\_unit_tree_node.html:40
 #, python-format
 msgid "%(done)s of %(total)s required units completed"
 msgstr "Ukończono %(done)s z %(total)s jednostek obowiązkowych"
@@ -4475,12 +4480,12 @@ msgid "Switch content"
 msgstr "Zmień treść"
 
 #: .\templates\courses\elements\beforeafterelement.html:27
-#: .\templates\courses\manage\editor\_element_row.html:241
+#: .\templates\courses\manage\editor\_element_row.html:251
 msgid "Before"
 msgstr "Przed"
 
 #: .\templates\courses\elements\beforeafterelement.html:27
-#: .\templates\courses\manage\editor\_element_row.html:241
+#: .\templates\courses\manage\editor\_element_row.html:251
 msgid "After"
 msgstr "Po"
 
@@ -6244,10 +6249,10 @@ msgstr "Nowy"
 #: .\templates\courses\manage\editor\_element_row.html:23
 #: .\templates\courses\manage\editor\_element_row.html:49
 #: .\templates\courses\manage\editor\_element_row.html:102
-#: .\templates\courses\manage\editor\_element_row.html:153
-#: .\templates\courses\manage\editor\_element_row.html:206
-#: .\templates\courses\manage\editor\_element_row.html:260
-#: .\templates\courses\manage\editor\_element_row.html:310
+#: .\templates\courses\manage\editor\_element_row.html:163
+#: .\templates\courses\manage\editor\_element_row.html:216
+#: .\templates\courses\manage\editor\_element_row.html:270
+#: .\templates\courses\manage\editor\_element_row.html:320
 msgid "Drag to reorder"
 msgstr "Przeciągnij, aby zmienić kolejność"
 
@@ -6263,31 +6268,31 @@ msgstr "nieaktywne w quizach"
 msgid "This tab is empty."
 msgstr "Ta zakładka jest pusta."
 
-#: .\templates\courses\manage\editor\_element_row.html:135
+#: .\templates\courses\manage\editor\_element_row.html:145
 #, python-format
 msgid "Column %(n)s"
 msgstr "Kolumna %(n)s"
 
-#: .\templates\courses\manage\editor\_element_row.html:140
+#: .\templates\courses\manage\editor\_element_row.html:150
 msgid "This column is empty."
 msgstr "Ta kolumna jest pusta."
 
-#: .\templates\courses\manage\editor\_element_row.html:192
+#: .\templates\courses\manage\editor\_element_row.html:202
 msgid ""
 "This spoiler shows its text above. Add an element below to nest more content."
 msgstr ""
 "Ta rozwijana treść pokazuje tekst powyżej. Dodaj element poniżej, aby "
 "zagnieździć więcej treści."
 
-#: .\templates\courses\manage\editor\_element_row.html:194
+#: .\templates\courses\manage\editor\_element_row.html:204
 msgid "This spoiler is empty."
 msgstr "Ta rozwijana treść jest pusta."
 
-#: .\templates\courses\manage\editor\_element_row.html:247
+#: .\templates\courses\manage\editor\_element_row.html:257
 msgid "This slot is empty."
 msgstr "Ten slot jest pusty."
 
-#: .\templates\courses\manage\editor\_element_row.html:296
+#: .\templates\courses\manage\editor\_element_row.html:306
 msgid ""
 "This callout shows its text above. Add an element below to nest content "
 "inside it."
@@ -6295,11 +6300,11 @@ msgstr ""
 "Ta ramka pokazuje tekst powyżej. Dodaj element poniżej, aby zagnieździć w "
 "niej treść."
 
-#: .\templates\courses\manage\editor\_element_row.html:298
+#: .\templates\courses\manage\editor\_element_row.html:308
 msgid "This callout is empty."
 msgstr "Ta ramka jest pusta."
 
-#: .\templates\courses\manage\editor\_element_row.html:315
+#: .\templates\courses\manage\editor\_element_row.html:325
 msgid ""
 "The applet size is unknown, so it renders in a 4:3 frame and may be cropped. "
 "Paste the <iframe> embed code for exact sizing."
@@ -6307,7 +6312,7 @@ msgstr ""
 "Nieznany rozmiar apletu, więc jest wyświetlany w ramce 4:3 i może zostać "
 "przycięty. Wklej kod osadzania <iframe>, aby uzyskać dokładny rozmiar."
 
-#: .\templates\courses\manage\editor\_element_row.html:315
+#: .\templates\courses\manage\editor\_element_row.html:325
 msgid "applet size unknown"
 msgstr "nieznany rozmiar apletu"
 
