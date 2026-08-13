@@ -754,6 +754,7 @@ def test_a_long_name_stays_inside_its_card(page, live_server):
     assert rects, "no text runs measured"
     for rect in rects:
         assert rect["right"] <= card["x"] + card["width"] + 1
+        assert rect["bottom"] <= card["y"] + card["height"] + 1
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1238,8 +1239,14 @@ def test_a_thumbnail_that_never_loaded_shows_the_caption_only(page, live_server)
 
 @pytest.mark.django_db(transaction=True)
 def test_a_broken_asset_then_a_good_one_restores_the_image_box(page, live_server):
-    """The overlay is a SINGLETON: without an unconditional reset at open, one
-    broken thumbnail leaves every later preview on the page caption-only."""
+    """A broken thumbnail must not poison later previews on the same singleton
+    overlay: after a caption-only preview, a subsequent good asset still shows
+    its image. This does NOT exercise the `open()` reset mutant -- step 1 ends
+    in captionOnly() (hidden = true), step 2's close() sets hidden = true
+    again, and step 3's good src + load reveals it, identical with or without
+    the unconditional reset. The row that kills that mutant is
+    test_b_s_caption_never_appears_over_a_s_image, where A is still visible at
+    the moment of the swap."""
     user, course = _seed_assets(
         "bth-pa",
         "bth",
