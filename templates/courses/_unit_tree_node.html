@@ -13,6 +13,7 @@
          only at the end, which renders them indistinguishable. Touch has no hover,
          so the drawer wraps these labels instead (courses.css).{% endcomment %}
       <span class="unit-tree__label" title="{{ item.node.title|strip_math_delimiters }}" data-math-title>{{ item.node.title }}</span>
+      {% include "courses/_unit_kind_icon.html" with node=item.node only %}
     </a>
   {% else %}
     {% if item.children %}

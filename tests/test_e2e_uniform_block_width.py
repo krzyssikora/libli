@@ -57,11 +57,26 @@ def _lesson_url(live_server, unit):
     return f"{live_server.url}{path}"
 
 
-def _seed_unit(username):
+# A title whose max-content width runs well past the 736px prose cap. Since the
+# <h1> sits in .lesson-unit__heading at `flex: 0 1 auto` it shrink-wraps to its own
+# content, so only a title this wide is held by the cap at all; with the factory's
+# short "Node N" the cap assertion below would pass no matter what the CSS says.
+WIDE_TITLE = (
+    "Przedzialy liczbowe i dzialania na przedzialach oraz ich zastosowania w zadaniach"
+)
+
+
+def _seed_unit(username, title=None):
+    """`title=None` keeps ContentNodeFactory's short sequence title ("Node N").
+
+    Shared with the three-item test, which must keep that default -- only the
+    two-item cap test needs a title wider than the prose cap.
+    """
     user = _make_pa_user(username)
     course = CourseFactory(owner=user)
+    kw = {} if title is None else {"title": title}
     unit = ContentNodeFactory(
-        course=course, parent=None, kind="unit", unit_type="lesson"
+        course=course, parent=None, kind="unit", unit_type="lesson", **kw
     )
     return user, course, unit
 
@@ -90,6 +105,33 @@ def _width(page, sel):
     box = page.evaluate(BOX_JS, sel)
     assert box is not None, f"{sel} is not present on the page"
     return box["w"]
+
+
+def _uncapped_title_width(page):
+    """The <h1>'s rendered width with the 46rem prose cap NEUTRALISED, restored after.
+
+    This is the quantity that decides whether the cap is what holds the title down:
+    min(the title's max-content width, the heading group's own line). There is no
+    separate "content width" to read instead -- with the cap gone the <h1> is still
+    `flex: 0 1 auto` inside .lesson-unit__heading, so getBoundingClientRect().width
+    and scrollWidth both report that same minimum.
+
+    page.add_style_tag returns an ElementHandle and the injected rule does NOT
+    expire on its own; left in place it would neutralise the cap for the very
+    assertion the guard protects. Hence the explicit remove() in `finally`.
+
+    `!important` is required, not defensive: the cap selector is
+    `html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title`, specificity
+    (0,3,1), which a bare `.lesson-unit__title` override at (0,1,0) loses to
+    however late it is injected.
+    """
+    style = page.add_style_tag(
+        content=".lesson-unit__title { max-width: none !important; }"
+    )
+    try:
+        return _width(page, ".lesson-unit__title")
+    finally:
+        style.evaluate("e => e.remove()")
 
 
 def _collapsed(page, live_server, unit):
@@ -133,6 +175,8 @@ def test_every_tinted_block_and_its_chrome_is_one_width(page, live_server):
     )
     # A question element makes has_stateful_elements true, so .lesson-unit__reset
     # renders and the head is the THREE-item row the title comment below assumes.
+    # This unit keeps _seed_unit's default short title on purpose -- see that
+    # comment for why the two title assertions below are inert either way.
     add_element(
         unit,
         ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7"),
@@ -150,7 +194,8 @@ def test_every_tinted_block_and_its_chrome_is_one_width(page, live_server):
         ".el--choicegrid",
         # Chrome that frames the cards. This is the one entry the spec flags as a
         # judgement call beyond the literal request, and the ONLY test that covers
-        # it -- the quiz page has no .lesson-unit__head at all, and
+        # it -- the quiz page now has a .lesson-unit__head too (it gained one with
+        # the heading group), but nothing measures it there, and
         # test_e2e_unit_head_layout.py never collapses the TOC.
         ".lesson-unit__head",
     ):
@@ -170,12 +215,14 @@ def test_every_tinted_block_and_its_chrome_is_one_width(page, live_server):
 
     # INERT BY CONSTRUCTION -- read this before trusting it as coverage. This unit
     # has a question element, so has_stateful_elements is true and the head is a
-    # THREE-item flex row (title | pill | reset). The title is flex:1, so it lands
-    # at ~643.6 whether or not .lesson-unit__title is in the cap: NO prose-cap
-    # mutation reddens either assertion. They are a regression guard on the head
-    # keeping its pill and reset, nothing more. The real pin on the title's cap is
-    # test_lesson_title_caps_in_a_two_item_head below, where an uncapped title
-    # would measure ~746 and the < 738 assertion does bite.
+    # THREE-item flex row (heading group | pill | reset), and it keeps the factory's
+    # short "Node N" title. Inside .lesson-unit__heading the <h1> is `flex: 0 1 auto`,
+    # so it shrink-wraps to that title's own content -- a few dozen pixels, an order
+    # of magnitude below either bound: NO prose-cap mutation reddens either
+    # assertion. They are a regression guard on the head keeping its pill and reset,
+    # nothing more. The real pin on the title's cap is
+    # test_lesson_title_caps_in_a_two_item_head below, which seeds a title whose
+    # content is wider than the cap and guards that that is still true.
     title_w = _width(page, ".lesson-unit__title")
     assert title_w < 738, f"the title must stay within the prose cap, got {title_w}"
     assert title_w < column - 50, (
@@ -189,13 +236,20 @@ def test_lesson_title_caps_in_a_two_item_head(page, live_server):
 
     Seeds NO stateful element, so has_stateful_elements is false,
     .lesson-unit__reset does not render, and the head is a TWO-item row
-    (title | pill). The title's flex target is then ~872 - 16 gap - ~110 pill =
-    ~746, ABOVE the 736 cap -- so the cap is what holds it down and deleting the
-    entry moves the number.
+    (heading group | pill). The group is `flex: 1 1 auto`, so it takes the whole
+    remainder -- the head's ~872 less its 16px gap and the completion pill, which
+    this arm MEASURED at ~756 (the uncapped <h1> reads 756.25px, so the pill is
+    ~100 wide, not the ~110 an earlier version of this docstring assumed). Inside
+    the group the <h1> is `flex: 0 1 auto` and shrink-wraps to its own content.
+    WIDE_TITLE is therefore load-bearing: its max-content runs well past 756, so
+    the <h1> is pressed against BOTH bounds and the smaller of them -- the 736 cap
+    -- is what holds it down. Drop .lesson-unit__title from the prose-cap
+    allow-list and the title springs to the group's ~756, reddening the assertion
+    below.
     """
     from courses.models import CalloutElement
 
-    user, _course, unit = _seed_unit("pa_title")
+    user, _course, unit = _seed_unit("pa_title", title=WIDE_TITLE)
     add_element(
         unit,
         CalloutElement.objects.create(kind="note", body="<p>no stateful element</p>"),
@@ -205,30 +259,40 @@ def test_lesson_title_caps_in_a_two_item_head(page, live_server):
     _collapsed(page, live_server, unit)
 
     assert page.locator(".lesson-unit__reset").count() == 0, (
-        "the reset link renders, so this is a three-item head and the assertion "
-        "below is inert -- the fixture must seed no stateful element"
+        "the reset link renders, so this is a three-item head; the heading group "
+        "would then be ~640 wide, under the cap, and the assertion below would be "
+        "inert -- the fixture must seed no stateful element"
     )
 
-    # Fixture-validity guard, then a DIRECTIONAL assertion. Deliberately not
-    # `abs(title_w - 736) < 2`: the title's flex target here is only ~20px above
-    # the cap (head - 1rem gap - the pill), so a wider pill -- a bigger font, more
-    # padding, or a longer locale string such as the Polish "Oznacz jako
-    # ukonczone" -- drops the target BELOW 736. The title would then be sized by
-    # the flex remainder rather than the cap, and an exact-token assertion would
-    # go RED on correct CSS. The guard below fails first and says so, instead of
-    # letting the arm quietly stop testing anything.
-    head_w = _width(page, ".lesson-unit__head")
-    pill_w = _width(page, ".unit-done")
-    target = head_w - pill_w - 16  # gap: 1rem
-    assert target > 738, (
-        f"this fixture no longer exercises the cap: the title's flex target is "
-        f"{target}, already at or under 736, so the cap is not what holds it "
-        f"down. Widen the head or shorten the pill."
+    # Fixture-validity guard, then a DIRECTIONAL assertion. The guard is pointed
+    # AT THE TITLE, not at the head's leftover space: since the <h1> shrink-wraps
+    # inside the heading group, the space left beside the pill no longer says
+    # anything about how wide the title wants to be, and a short-title fixture
+    # would sail under 736 with the cap deleted. What decides the assertion below
+    # is the width the <h1> takes with max-width neutralised, i.e.
+    # min(its max-content, the group's ~756 line) -- so that is what is measured.
+    #
+    # The bound is `>= 740`, not `> 736`: the guarded assertion is `title_w < 738`,
+    # so a fixture landing in (736, 738] would clear a `> 736` guard and still
+    # leave that assertion green no matter what the cap does.
+    #
+    # Still deliberately not `abs(title_w - 736) < 2`: a wider pill -- a bigger
+    # font, more padding, or a longer locale string such as the Polish "Oznacz jako
+    # ukonczone" -- shrinks the group below 736, at which point the title is sized
+    # by the group rather than the cap and an exact-token assertion would go RED on
+    # correct CSS. The guard fails first and says so, instead of letting the arm
+    # quietly stop testing anything.
+    uncapped_w = _uncapped_title_width(page)
+    assert uncapped_w >= 740, (
+        f"this fixture no longer exercises the cap: with max-width neutralised the "
+        f"title measures {uncapped_w}, at or under 736 plus the assertion's own "
+        f"2px slack, so the cap is not what holds it down. Lengthen WIDE_TITLE, "
+        f"widen the head, or shorten the pill."
     )
     title_w = _width(page, ".lesson-unit__title")
     assert title_w < 738, (
         f"the title must be held at the 46rem cap, got {title_w} "
-        f"(flex target was {target})"
+        f"(uncapped it measures {uncapped_w})"
     )
 
 

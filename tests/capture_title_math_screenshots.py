@@ -140,6 +140,7 @@ def _build_course():
         unit_type="lesson",
         parent=chapter_a1,
         order=1,
+        obligatory=False,
         title=TITLES["display"],
     )
     lesson_long = ContentNodeFactory(
@@ -475,34 +476,71 @@ def test_capture(browser, live_server):
             # (every .unit-tree__unit / .unit-tree__group wraps its own
             # label) -- a descendant's rect always intersects its ancestor's,
             # so including it would make this trivially true on every build.
-            overlap = page.evaluate(
+            result = page.evaluate(
                 """() => {
                     const kx = [...document.querySelectorAll(
                         '[data-unit-drawer] .unit-tree__label .katex'
                     )];
+                    // checkVisibility()-filtered for the SAME reason `kinds` is
+                    // (see the measurement note below): an element inside a
+                    // closed <details> still reports a non-zero rect, so an
+                    // unfiltered list makes the printed `overlap` line able to
+                    // report a collision between two phantom boxes. It is
+                    // printed, never asserted, so this misleads rather than
+                    // false-passes -- but filtering here also disposes of
+                    // overlaps() returning true for two all-zero rects.
                     const btns = [...document.querySelectorAll(
                         '[data-unit-drawer] .unit-drawer__close, '
                         + '[data-unit-drawer] .unit-tree__count, '
                         + '[data-unit-drawer] .unit-tree__groupcheck, '
                         + '[data-unit-drawer] .unit-tree__check, '
-                        + '[data-unit-drawer] .unit-tree__chevron'
-                    )];
+                        + '[data-unit-drawer] .unit-tree__chevron, '
+                        + '[data-unit-drawer] .unit-drawer__list .unit-kind'
+                    )].filter(el => el.checkVisibility());
+                    // MEASURED (a debug probe on this exact page): a closed
+                    // <details>'s .unit-kind child (quiz_b / quiz_c, both quizzes,
+                    // always marked regardless of `obligatory`, both in CLOSED
+                    // groups on this page) reports a NON-ZERO getBoundingClientRect
+                    // (52.4x22) while el.checkVisibility() correctly reports false
+                    // for it -- so a rect-based filter would NOT exclude it, but
+                    // checkVisibility() (default options; contentVisibilityAuto
+                    // only gates `content-visibility: auto`, not the `hidden` value
+                    // closed <details> uses) does.
+                    const kinds = [...document.querySelectorAll(
+                        '[data-unit-drawer] .unit-drawer__list .unit-kind'
+                    )].filter(el => el.checkVisibility());
                     const overlaps = (a, b) => !(
                         a.right < b.left || a.left > b.right ||
                         a.bottom < b.top || a.top > b.bottom
                     );
+                    let overlap = false;
                     for (const k of kx) {
                         const kb = k.getBoundingClientRect();
                         for (const b of btns) {
                             const bb = b.getBoundingClientRect();
-                            if (overlaps(kb, bb)) return true;
+                            if (overlaps(kb, bb)) { overlap = true; break; }
                         }
+                        if (overlap) break;
                     }
-                    return false;
+                    return {overlap, kx: kx.length, btns: btns.length,
+                        kinds: kinds.length};
                 }"""
             )
+            # Pinned to exactly 1, not merely > 0: quiz_b / quiz_c are ALSO always
+            # marked, but MEASURED as invisible (checkVisibility() False) because
+            # their groups are closed on this page -- lesson_display's marker is
+            # the only VISIBLE one, so `> 0` would coincide with the seed fix only
+            # because it happens to be the sole marked unit in an open group.
+            # Verified in both directions: reverting the lesson_display seed fix
+            # (obligatory=False) drops this to 0; restoring it brings it back to 1.
+            assert result["kinds"] == 1, (
+                f"expected exactly 1 visible drawer marker (lesson_display's), "
+                f"got {result['kinds']} -- either the lesson_display seed fix "
+                f"(obligatory=False) was reverted, or a second unit in an open "
+                f"group is now marked too"
+            )
             measurements.append(
-                f"row7 [{theme}] katex overlaps a drawer button: {overlap}"
+                f"row7 [{theme}] katex overlaps a drawer button: {result['overlap']}"
             )
     finally:
         ctx.close()

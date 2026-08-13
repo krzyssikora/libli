@@ -130,6 +130,20 @@
   border-color: color-mix(in srgb, var(--primary) 40%, var(--border-default));
 }
 
+/* Unit kind markers (spec 2026-08-12). The flex item of a rail row is the
+   .unit-kind WRAPPER, not the <svg class="icon"> inside it — .icon { flex: none }
+   governs .icon only when .icon is itself a flex item. inline-flex + gap are what
+   this rule genuinely buys: they space glyph from word where the word is visible
+   (the drawer). Deleting the whole rule does NOT narrow the glyph — the wrapper's
+   automatic minimum is its 1em min-content either way — so there is no
+   glyph-width mutant for it.
+   .unit-kind-chip's declarations are inert forward-defence for a future
+   multi-word translation: both shipping labels are single unbreakable words, so
+   a flex: 0 1 auto chip's shrink target is a min violation and it is frozen at
+   its full width regardless. Neither carries a mutant. */
+.unit-kind { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; }
+.unit-kind-chip { flex: none; white-space: nowrap; }
+
 form p, .form-row { margin-bottom: var(--space-4); }
 label { display: block; font-weight: 500; margin-bottom: var(--space-1);
   color: var(--text-secondary); }
@@ -518,7 +532,15 @@ input[type=number] {
 }
 .outline-unit:hover { background: var(--surface-sunken); }
 .outline-unit:hover .outline-unit__title { text-decoration: underline; }
-.outline-unit__title { flex: 1; }
+/* The chip can add ~90px to a 390px row. `flex: 1` is `1 1 0%` with no
+   min-width: 0, so the title's automatic minimum is its min-content and it
+   cannot shrink below its longest word; the anchor has the same exposure one
+   level up. `anywhere` (not `break-word`) for house consistency with
+   .unit-crumbs__label's @media print rule in courses.css — with min-width: 0 co-applied the two are indistinguishable
+   and no test can separate them, so do NOT write an anywhere→break-word mutant.
+   Both min-width: 0 declarations are inert forward-defence against unbreakable
+   atoms and carry no mutant (see the plan's Task 3 falsification note). */
+.outline-unit__title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 /* completion is signalled by the ✓ badge alone; done rows read a touch quieter */
 .outline-unit--done .outline-unit__title { color: var(--text-secondary); }
 
@@ -541,7 +563,8 @@ input[type=number] {
 .outline-node--unit {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
 }
-.outline-node--unit > .outline-unit { flex: 1 1 auto; }
+/* min-width: 0 here for the same reason as .outline-unit__title above. */
+.outline-node--unit > .outline-unit { flex: 1 1 auto; min-width: 0; }
 /* The [hidden] attr (UA display:none) must beat .outline-node--unit's display:flex —
    the tag filter hides non-matching unit rows via [hidden]; without this they'd stay
    visible (only empty containers collapsed). Same gotcha as .btn[hidden]/.dnd__rows[hidden]. */

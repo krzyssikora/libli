@@ -128,7 +128,7 @@ def test_tree_unit_label_tooltip_is_stripped(client):
     assert all("\\(" not in t for t in titles)
 
 
-# --- (2) _unit_tree_node.html:25 -- the tree GROUP title tooltip --------------
+# --- (2) _unit_tree_node.html:26 -- the tree GROUP title tooltip --------------
 def test_tree_group_title_tooltip_is_stripped(client):
     body, *_ = _lesson_body(client, maths_on="group")
     titles = _attr_values(body, "span.unit-tree__grouptitle", "title")

@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count
+from django.utils.translation import gettext_lazy
 
 from courses.htmlsandbox import titles_have_math
 from courses.models import ChoiceQuestionElement
@@ -169,6 +170,53 @@ def is_quiz_unit(node):
         node.kind == ContentNode.Kind.UNIT
         and node.unit_type == ContentNode.UnitType.QUIZ
     )
+
+
+MARKER_NONE = ""
+MARKER_QUIZ = "quiz"
+MARKER_ADDITIONAL = "additional"
+
+UNIT_MARKER_LABELS = {
+    MARKER_QUIZ: gettext_lazy("Quiz"),
+    MARKER_ADDITIONAL: gettext_lazy("Additional"),
+}
+
+
+def unit_marker(node):
+    """MARKER_QUIZ | MARKER_ADDITIONAL | MARKER_NONE — the ONE student-facing kind rule.
+
+    MARKER_NONE for a required lesson (the unmarked default), for any non-unit
+    node, for a unit whose unit_type is unset, AND for anything that is not a
+    node at all. A quiz is never 'additional': is_obligatory_lesson already
+    excludes quizzes from required_total, so `obligatory` on a quiz node has no
+    student meaning.
+
+    The `additional` branch is written out rather than composed from the two
+    existing predicates: is_quiz_unit and is_obligatory_lesson BOTH return False
+    for an additional lesson, a non-unit node, and an unset unit_type, so a
+    function built only from those two cannot tell the three apart. Do not
+    "simplify" it to `not is_obligatory_lesson(node)`.
+    """
+    # getattr, not node.kind: a template that includes a marker partial without
+    # `with node=...` resolves the variable to string_if_invalid (default ''),
+    # and a bare attribute access — or handing '' straight to is_quiz_unit —
+    # raises AttributeError and 500s the course outline. Fail quiet instead.
+    if getattr(node, "kind", None) != ContentNode.Kind.UNIT:
+        return MARKER_NONE
+    if is_quiz_unit(node):
+        return MARKER_QUIZ
+    if node.unit_type == ContentNode.UnitType.LESSON and not node.obligatory:
+        return MARKER_ADDITIONAL
+    return MARKER_NONE
+
+
+def marker_label(marker):
+    """Marker key -> translated word; "" for MARKER_NONE or any unknown key.
+
+    Keyed on the marker, not the node: both partials already hold `m` from their
+    own {% with %}, so this avoids deriving the marker a second time.
+    """
+    return UNIT_MARKER_LABELS.get(marker, "")
 
 
 def quiz_units_in_order(course, *, drafts="keep", with_data=None):

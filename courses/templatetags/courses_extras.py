@@ -12,6 +12,7 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 
 from courses import guessnumber
+from courses import rollups
 from courses import switchgate as _switchgate
 from courses.models import HtmlElement
 from courses.models import QuestionElement
@@ -20,6 +21,13 @@ from courses.sanitize import sanitize_html
 logger = logging.getLogger(__name__)
 
 register = template.Library()
+
+# Registered by passing the function, NOT by decorating a same-named wrapper.
+# `from courses.rollups import unit_marker` + `@register.filter def unit_marker(...)`
+# rebinds the module-level name and produces unbounded recursion on the first
+# render — not an import error, so it passes review and fails in the browser.
+register.filter("unit_marker", rollups.unit_marker)
+register.simple_tag(rollups.marker_label, name="marker_label")
 
 
 @register.simple_tag(takes_context=True)

@@ -73,8 +73,10 @@ def test_math_js_selector_includes_the_marker():
 
 
 # --- the lesson page: heading, nav buttons, tree (x2), crumb ------------------
-def _lesson_body(client, *, maths_on="far", node="unitA", username="student"):
-    course, unit, nodes = make_title_course(maths_on=maths_on)
+def _lesson_body(
+    client, *, maths_on="far", node="unitA", username="student", obligatory=True
+):
+    course, unit, nodes = make_title_course(maths_on=maths_on, obligatory=obligatory)
     login_student(client, course, username=username)
     url = reverse(
         "courses:lesson_unit",
@@ -85,6 +87,47 @@ def _lesson_body(client, *, maths_on="far", node="unitA", username="student"):
 
 def test_lesson_heading_is_marked(client):
     assert _marked(_lesson_body(client, maths_on="unitA"), "h1.lesson-unit__title")
+
+
+def test_lesson_maths_heading_keeps_the_kind_chip_outside_the_marked_h1(client):
+    """A MATHS title on a MARKED unit: the kind chip must sit beside the <h1>.
+
+    `obligatory=False` is load-bearing -- ContentNodeFactory leaves `obligatory`
+    at its True default, and an unmarked unit emits no chip at all, so every
+    assertion below would be vacuous on the fixture the rest of this file uses.
+
+    Deliberately NOT an assertion that "the KaTeX renders": _lesson_body is a
+    Django-client render (`client.get(url).content.decode()`), and KaTeX output is
+    produced by browser-side math.js. What is assertable here is that the marked
+    <h1> still carries its raw delimiters (KaTeX needs them in the TEXT), that the
+    chip is a SIBLING rather than a child of the scanned element, and that the
+    page's has_math gate still ships the typesetting bundle. Browser typesetting
+    is covered by the drawer-maths e2e arm.
+    """
+    body = _lesson_body(
+        client,
+        maths_on="unitA",
+        node="unitA",
+        username="student_kind",
+        obligatory=False,
+    )
+    soup = BeautifulSoup(body, "html.parser")
+
+    heading = soup.select_one(".lesson-unit__heading")
+    assert heading is not None, "the unit page lost its heading group"
+    chip = heading.select_one(".unit-kind-chip")
+    assert chip is not None and chip.get_text(strip=True) == "Additional"
+
+    h1 = _marked(body, "h1.lesson-unit__title")
+    assert h1, "the maths heading lost data-math-title"
+    assert h1[0].select_one(".unit-kind-chip") is None, (
+        "the chip is INSIDE the marked <h1>, so math.js would typeset it"
+    )
+    assert "\\(" in h1[0].get_text(), (
+        "the visible maths title lost its delimiters, so KaTeX cannot typeset it"
+    )
+    # The has_math gate: _katex_js.html ships only behind `{% if has_math %}`.
+    assert "katex.min.js" in body, "the maths bundle stopped shipping for this page"
 
 
 def test_nav_button_titles_are_marked(client):
@@ -116,7 +159,7 @@ def test_breadcrumb_labels_are_marked(client):
 
 
 def test_the_childless_container_branch_is_marked():
-    """_unit_tree_node.html:60 is unreachable through any view: build_outline
+    """_unit_tree_node.html:61 is unreachable through any view: build_outline
     prunes every zero-child container under BOTH "hide" and "keep", pinned by
     test_unit_nav_render.py::test_a_genuinely_empty_group_is_pruned_not_rendered.
     Covered by a bare render only."""
@@ -155,8 +198,8 @@ def test_the_visible_title_keeps_its_raw_delimiters(client):
     interpolated twice in one tag/subtree, once as visible text and once as a
     title= tooltip, which is exactly where the mistake is made:
       - span.unit-tree__label       (_unit_tree_node.html:15)
-      - span.unit-tree__grouptitle  (_unit_tree_node.html:25 -- the branch WITH
-        children; the childless branch at :60 has no title= at all, so it is
+      - span.unit-tree__grouptitle  (_unit_tree_node.html:26 -- the branch WITH
+        children; the childless branch at :61 has no title= at all, so it is
         not a double-interpolation site)
       - the crumb pair in _unit_crumbs.html: the ancestor <li title=…> (:34)
         and its child span.unit-crumbs__label (:36)
@@ -167,6 +210,16 @@ def test_the_visible_title_keeps_its_raw_delimiters(client):
     piping strip_math_delimiters into that lone site would be a distinct
     (and already-impossible, since the attribute doesn't exist) mistake, not
     the one this test is built to catch.
+
+    span.unit-kind (the rail/drawer kind marker, _unit_kind_icon.html) is excluded
+    for a DIFFERENT reason, and must not be appended to the list above. It DOES
+    carry a title=, and it does interpolate the same value twice -- but that value
+    is the MARKER WORD from {% marker_label %} ("Quiz" / "Additional"), not the
+    node title. A marker word is a translated UI string that can never contain
+    \\(...\\), so there is nothing for strip_math_delimiters to strip and no
+    over-application to catch; adding it would also make the inventory above wrong
+    about what "the same node TITLE, twice" means. The kind CHIP
+    (_unit_kind_chip.html) carries no title= at all.
     """
     body = _lesson_body(client, maths_on="unitA", node="unitA")
     soup = BeautifulSoup(body, "html.parser")
