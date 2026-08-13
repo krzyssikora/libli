@@ -1,0 +1,5 @@
+{% load i18n courses_extras %}{% get_current_language as LANGUAGE_CODE %}{% with m=node|unit_marker %}{% if m %}<span
+  class="unit-kind unit-kind--{{ m }}" lang="{{ LANGUAGE_CODE }}" title="{% marker_label m %}">
+  {% include "courses/_unit_kind_glyph.html" with m=m only %}
+  <span class="visually-hidden unit-kind__label">{% marker_label m %}</span>
+</span>{% endif %}{% endwith %}

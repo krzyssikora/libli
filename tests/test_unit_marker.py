@@ -1,6 +1,7 @@
 """unit_marker / marker_label: the single student-facing kind rule."""
 
 import pytest
+from django.template.loader import render_to_string
 from django.utils import translation
 
 from courses.rollups import MARKER_ADDITIONAL
@@ -66,3 +67,37 @@ def test_label_is_a_lazy_proxy_not_a_frozen_string():
     add = ContentNodeFactory(course=course, unit_type="lesson", obligatory=False)
     with translation.override("pl"):
         assert str(marker_label(unit_marker(add))) == "Dodatkowa"
+
+
+@pytest.mark.django_db
+def test_chip_partial_renders_only_when_marked():
+    course = CourseFactory()
+    quiz = ContentNodeFactory(course=course, unit_type="quiz")
+    req = ContentNodeFactory(course=course, unit_type="lesson", obligatory=True)
+
+    marked = render_to_string("courses/_unit_kind_chip.html", {"node": quiz})
+    assert "unit-kind-chip" in marked
+    assert f"unit-kind-chip--{MARKER_QUIZ}" in marked
+    assert "Quiz" in marked
+
+    assert render_to_string("courses/_unit_kind_chip.html", {"node": req}).strip() == ""
+
+
+@pytest.mark.django_db
+def test_icon_partial_carries_a_hidden_label_and_a_title():
+    course = CourseFactory()
+    add = ContentNodeFactory(course=course, unit_type="lesson", obligatory=False)
+    html = render_to_string("courses/_unit_kind_icon.html", {"node": add})
+    assert 'class="unit-kind unit-kind--additional"' in html
+    assert 'title="Additional"' in html
+    assert 'lang="en"' in html  # UI locale, not the course's
+    assert 'aria-hidden="true"' in html  # on the <svg>
+    assert "visually-hidden unit-kind__label" in html
+    assert "Additional</span>" in html
+
+
+def test_glyph_partial_emits_nothing_for_an_empty_marker():
+    """The three-way {% elif %} pin. With an {% else %} branch this would emit
+    the *additional* '+' glyph. No surface test can reach it, because the chip
+    and icon partials guard the include behind {% if m %}."""
+    assert "<svg" not in render_to_string("courses/_unit_kind_glyph.html", {"m": ""})

@@ -130,6 +130,20 @@
   border-color: color-mix(in srgb, var(--primary) 40%, var(--border-default));
 }
 
+/* Unit kind markers (spec 2026-08-12). The flex item of a rail row is the
+   .unit-kind WRAPPER, not the <svg class="icon"> inside it — .icon { flex: none }
+   governs .icon only when .icon is itself a flex item. inline-flex + gap are what
+   this rule genuinely buys: they space glyph from word where the word is visible
+   (the drawer). Deleting the whole rule does NOT narrow the glyph — the wrapper's
+   automatic minimum is its 1em min-content either way — so there is no
+   glyph-width mutant for it.
+   .unit-kind-chip's declarations are inert forward-defence for a future
+   multi-word translation: both shipping labels are single unbreakable words, so
+   a flex: 0 1 auto chip's shrink target is a min violation and it is frozen at
+   its full width regardless. Neither carries a mutant. */
+.unit-kind { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; }
+.unit-kind-chip { flex: none; white-space: nowrap; }
+
 form p, .form-row { margin-bottom: var(--space-4); }
 label { display: block; font-weight: 500; margin-bottom: var(--space-1);
   color: var(--text-secondary); }
