@@ -481,6 +481,14 @@ def test_capture(browser, live_server):
                     const kx = [...document.querySelectorAll(
                         '[data-unit-drawer] .unit-tree__label .katex'
                     )];
+                    // checkVisibility()-filtered for the SAME reason `kinds` is
+                    // (see the measurement note below): an element inside a
+                    // closed <details> still reports a non-zero rect, so an
+                    // unfiltered list makes the printed `overlap` line able to
+                    // report a collision between two phantom boxes. It is
+                    // printed, never asserted, so this misleads rather than
+                    // false-passes -- but filtering here also disposes of
+                    // overlaps() returning true for two all-zero rects.
                     const btns = [...document.querySelectorAll(
                         '[data-unit-drawer] .unit-drawer__close, '
                         + '[data-unit-drawer] .unit-tree__count, '
@@ -488,7 +496,7 @@ def test_capture(browser, live_server):
                         + '[data-unit-drawer] .unit-tree__check, '
                         + '[data-unit-drawer] .unit-tree__chevron, '
                         + '[data-unit-drawer] .unit-drawer__list .unit-kind'
-                    )];
+                    )].filter(el => el.checkVisibility());
                     // MEASURED (a debug probe on this exact page): a closed
                     // <details>'s .unit-kind child (quiz_b / quiz_c, both quizzes,
                     // always marked regardless of `obligatory`, both in CLOSED

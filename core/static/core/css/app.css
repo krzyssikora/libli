@@ -536,7 +536,7 @@ input[type=number] {
    min-width: 0, so the title's automatic minimum is its min-content and it
    cannot shrink below its longest word; the anchor has the same exposure one
    level up. `anywhere` (not `break-word`) for house consistency with
-   courses.css:940 — with min-width: 0 co-applied the two are indistinguishable
+   .unit-crumbs__label's @media print rule in courses.css — with min-width: 0 co-applied the two are indistinguishable
    and no test can separate them, so do NOT write an anywhere→break-word mutant.
    Both min-width: 0 declarations are inert forward-defence against unbreakable
    atoms and carry no mutant (see the plan's Task 3 falsification note). */
@@ -563,7 +563,7 @@ input[type=number] {
 .outline-node--unit {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
 }
-/* min-width: 0 here for the same reason as .outline-unit__title — see :521. */
+/* min-width: 0 here for the same reason as .outline-unit__title above. */
 .outline-node--unit > .outline-unit { flex: 1 1 auto; min-width: 0; }
 /* The [hidden] attr (UA display:none) must beat .outline-node--unit's display:flex —
    the tag filter hides non-matching unit rows via [hidden]; without this they'd stay

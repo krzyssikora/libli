@@ -2234,9 +2234,14 @@ def test_outline_marked_row_does_not_overflow_at_phone_width(browser, live_serve
             f"the unit row escapes its <li>: {edges['unit']:.1f} vs {edges['li']:.1f}"
         )
 
-        # STANDING TRIPWIRE — carries no mutant, for the same reason: the title's
-        # own overflow is clipped by its box, so removing `overflow-wrap` reddens
-        # the scrollWidth assertion above without ever reaching the document. This
+        # STANDING TRIPWIRE — carries no mutant, for the same reason. NOT because
+        # the title clips: .outline-unit__title carries no `overflow` declaration,
+        # so an atom too wide for the title column is PAINTED OVER its neighbour
+        # rather than truncated — that is exactly the 25.1px residual recorded in
+        # the maths-audit comment in courses.css (the .outline-unit__title /
+        # .unit-kind-chip "fifth surface"). It stays inside the row's own box, so
+        # removing `overflow-wrap` reddens the scrollWidth assertion above without
+        # ever reaching the document edge. This
         # is here for the wider class of regression (any marked row pushing the
         # page into horizontal scroll at phone width), not for the rule under test.
         page_overflow = page.evaluate(

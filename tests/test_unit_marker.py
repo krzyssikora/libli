@@ -96,9 +96,17 @@ def test_icon_partial_carries_a_hidden_label_and_a_title():
     assert 'class="unit-kind unit-kind--additional"' in html
     assert 'title="Additional"' in html
     assert 'lang="en"' in html  # UI locale, not the course's
-    assert 'aria-hidden="true"' in html  # on the <svg>
     assert "visually-hidden unit-kind__label" in html
     assert "Additional</span>" in html
+
+    # PARSED, not a substring over the whole partial: aria-hidden must be on the
+    # <svg> and NOT on the .unit-kind wrapper. Hoisting it to the wrapper would
+    # strip the whole marker -- glyph AND its visually-hidden label -- from the
+    # accessibility tree on the rail and drawer, and a substring test stays green
+    # through exactly that move. Nothing else in the branch pins its location.
+    soup = BeautifulSoup(html, "html.parser")
+    assert soup.select_one("svg")["aria-hidden"] == "true"
+    assert soup.select_one(".unit-kind").get("aria-hidden") is None
 
 
 def test_glyph_partial_emits_nothing_for_an_empty_marker():
@@ -245,5 +253,10 @@ def test_unit_page_leaves_a_required_lesson_unmarked(client):
     resp = client.get(
         reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
     )
+    assert resp.status_code == 200
     soup = BeautifulSoup(resp.content.decode(), "html.parser")
+    # POSITIVE ANCHOR before the absence check: a 302 to login, a 404 or an empty
+    # body would all satisfy the bare `is None` below. This test was the outlier
+    # in this file -- _outline_soup and the sibling unit-page test both anchor.
+    assert soup.select_one(".lesson-unit__heading h1.lesson-unit__title") is not None
     assert soup.select_one(".lesson-unit__heading .unit-kind-chip") is None

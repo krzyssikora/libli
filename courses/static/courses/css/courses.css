@@ -2422,4 +2422,13 @@ dialog.imgzoom:not([open]) { display: none; }
    themes. The spec documents and accepts this residual; it needs a title
    carrying a single atom wider than the whole phone column to reach, which no
    realistic title does. Recorded so a future reader finds the measurement rather
-   than re-deriving it. */
+   than re-deriving it.
+   Do NOT "fix" this by adding title= to _unit_kind_chip.html. The residual is a
+   390px phenomenon: it needs an atom wider than the 232.3px title column
+   measured above, and that column only grows with the viewport, so at desktop
+   widths it is strictly harder to reach (a derivation from the figures above,
+   not a second measurement). But title= is hover-only and touch has no hover —
+   the tooltip would sit exactly where it cannot be used (phone) and never where
+   it can (desktop), all to duplicate a word the chip already renders in full.
+   The rail/drawer icon carries title= for the opposite reason: there the word is
+   not visible at all. */
