@@ -646,3 +646,77 @@ def test_no_template_comment_leaks_into_the_asset_cell(client, settings, tmp_pat
     # way, and this catches it whatever it says.
     assert "{#" not in body and "#}" not in body
     assert "{%" not in body and "%}" not in body
+
+
+@pytest.mark.django_db
+def test_asset_cell_title_carries_the_untruncated_name(client, settings, tmp_path):
+    """The visible name is truncated; the tooltip must be a SUPERSET of it."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "title-pa")
+    course = CourseFactory(owner=pa, slug="cell-title")
+    long_name = "przykladowa_bardzo_dluga_nazwa_wersja_0_2.png"
+    make_image_asset(course, filename=long_name)
+    resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))
+    body = resp.content.decode()
+    assert f'title="{long_name}"' in body  # full, in the attribute
+    assert f">{long_name}<" not in body  # truncated, in the body
+    assert "…" in body
+
+
+@pytest.mark.django_db
+def test_asset_fname_is_suppressed_when_it_equals_the_display_name(
+    client, settings, tmp_path
+):
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "fname-off-pa")
+    course = CourseFactory(owner=pa, slug="cell-fname-off")
+    make_image_asset(course, filename="plain.png")  # no custom name
+    resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))
+    assert 'class="asset-fname"' not in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_asset_fname_renders_with_its_own_title_when_it_differs(
+    client, settings, tmp_path
+):
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "fname-on-pa")
+    course = CourseFactory(owner=pa, slug="cell-fname-on")
+    asset = make_image_asset(course, filename="original.png")
+    asset.name = "Custom name"
+    asset.save()
+    resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))
+    body = resp.content.decode()
+    assert 'class="asset-fname"' in body
+    assert 'title="original.png"' in body
+
+
+@pytest.mark.django_db
+def test_preview_hook_is_on_image_thumbs_only(client, settings, tmp_path):
+    """Seeding BOTH kinds is the point: with only an image asset, `count == 1`
+    would be true whether or not the video branch carried the hook."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "hook-pa")
+    course = CourseFactory(owner=pa, slug="cell-hook")
+    make_image_asset(course, filename="pic.png")
+    MediaAsset.objects.create(
+        course=course, kind="video", original_filename="clip.mp4", file="clip.mp4"
+    )
+    resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))
+    body = resp.content.decode()
+    assert "asset-thumb--video" in body  # the video cell DID render
+    assert body.count("data-asset-preview") == 1  # ...and carries no hook
+
+
+@pytest.mark.django_db
+def test_a_markup_bearing_name_is_escaped_in_body_and_title(client, settings, tmp_path):
+    """original_filename comes from an uploaded file name. If middle_truncate is
+    ever mark_safe()d, this is the test that goes red instead of shipping XSS."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "xss-pa")
+    course = CourseFactory(owner=pa, slug="cell-xss")
+    make_image_asset(course, filename="<img src=x onerror=1>.png")
+    resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))
+    body = resp.content.decode()
+    assert "<img src=x onerror=1>" not in body
+    assert "&lt;img src=x onerror=1&gt;" in body

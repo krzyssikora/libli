@@ -5,6 +5,7 @@ from html import unescape
 from urllib.parse import urlsplit
 
 from django import template
+from django.template.defaultfilters import stringfilter
 from django.utils.html import strip_tags
 from django.utils.http import urlencode
 from django.utils.text import Truncator
@@ -297,6 +298,38 @@ def slot_key(parent_pk, tab_id):
     definition.
     """
     return builder.slot_key(parent_pk, tab_id)
+
+
+@register.filter
+@stringfilter
+def middle_truncate(value, budget=32):
+    """Cap `value` at `budget` characters, eliding the MIDDLE so the tail lives.
+
+    The tail is the point: asset names differ in a numeric suffix
+    (`..._0_1.png` vs `..._0_2.png`), so an end-truncating filter would cut off
+    exactly what tells them apart.
+
+    Budget 32 is derived in spec §1 against the grid's 128px column FLOOR, not
+    against the width the tests measure -- `.asset-dname` is a single flex item
+    sharing line 1 with the pencil button, so all three of its wrapped lines are
+    ~76px wide and capacity is ~33 characters, not the ~41 a per-line derivation
+    suggests.
+
+    Decorator order matters: @register.filter outermost, @stringfilter innermost,
+    so a lazy or non-str value is coerced before len() is taken. The result is
+    deliberately NOT marked safe -- the input is user-supplied.
+    """
+    budget = max(int(budget), 0)
+    if len(value) <= budget:
+        return value
+    tail = 14
+    head = budget - 1 - tail
+    if head >= 1:
+        return value[:head] + "…" + value[-tail:]
+    # budget <= 15: a middle truncation cannot preserve both ends.
+    if budget >= 2:
+        return value[: budget - 1] + "…"
+    return value[:budget]
 
 
 @register.simple_tag(takes_context=True)
