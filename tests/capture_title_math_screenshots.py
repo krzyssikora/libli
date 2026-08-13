@@ -140,6 +140,7 @@ def _build_course():
         unit_type="lesson",
         parent=chapter_a1,
         order=1,
+        obligatory=False,
         title=TITLES["display"],
     )
     lesson_long = ContentNodeFactory(
@@ -475,7 +476,7 @@ def test_capture(browser, live_server):
             # (every .unit-tree__unit / .unit-tree__group wraps its own
             # label) -- a descendant's rect always intersects its ancestor's,
             # so including it would make this trivially true on every build.
-            overlap = page.evaluate(
+            result = page.evaluate(
                 """() => {
                     const kx = [...document.querySelectorAll(
                         '[data-unit-drawer] .unit-tree__label .katex'
@@ -485,24 +486,43 @@ def test_capture(browser, live_server):
                         + '[data-unit-drawer] .unit-tree__count, '
                         + '[data-unit-drawer] .unit-tree__groupcheck, '
                         + '[data-unit-drawer] .unit-tree__check, '
-                        + '[data-unit-drawer] .unit-tree__chevron'
+                        + '[data-unit-drawer] .unit-tree__chevron, '
+                        + '[data-unit-drawer] .unit-drawer__list .unit-kind'
                     )];
+                    // Closed <details> hide their content via content-visibility,
+                    // NOT display:none, so a CLOSED group's children keep a non-zero
+                    // getBoundingClientRect -- quiz_b / quiz_c (both quizzes, always
+                    // marked regardless of `obligatory`, both in CLOSED groups on
+                    // this page) would satisfy a bare count OR a rect-based filter
+                    // even with the seed fix reverted. checkVisibility() is the API
+                    // that actually accounts for content-visibility.
+                    const kinds = [...document.querySelectorAll(
+                        '[data-unit-drawer] .unit-drawer__list .unit-kind'
+                    )].filter(el => el.checkVisibility());
                     const overlaps = (a, b) => !(
                         a.right < b.left || a.left > b.right ||
                         a.bottom < b.top || a.top > b.bottom
                     );
+                    let overlap = false;
                     for (const k of kx) {
                         const kb = k.getBoundingClientRect();
                         for (const b of btns) {
                             const bb = b.getBoundingClientRect();
-                            if (overlaps(kb, bb)) return true;
+                            if (overlaps(kb, bb)) { overlap = true; break; }
                         }
+                        if (overlap) break;
                     }
-                    return false;
+                    return {overlap, kx: kx.length, btns: btns.length,
+                        kinds: kinds.length};
                 }"""
             )
+            assert result["kinds"] > 0, (
+                "no .unit-kind rendered VISIBLY in the drawer -- either the "
+                "lesson_display seed fix (obligatory=False) was reverted, or "
+                "checkVisibility() stopped excluding closed-<details> content"
+            )
             measurements.append(
-                f"row7 [{theme}] katex overlaps a drawer button: {overlap}"
+                f"row7 [{theme}] katex overlaps a drawer button: {result['overlap']}"
             )
     finally:
         ctx.close()

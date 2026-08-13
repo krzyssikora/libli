@@ -786,7 +786,16 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
    right-aligned rollup chips. In the tree it's a LEADING icon, so reset that or it
    pushes itself + the label to the right edge (completed rows misalign). */
 .unit-tree__check { font-size: .72rem; margin-left: 0; }
-.unit-tree__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* flex-grow makes the trailing kind marker land in the same right-hand gutter
+   .unit-tree__count occupies on group rows (which right-align only because
+   .unit-tree__grouptitle is flex: 1, :736). Without it a short title does not
+   fill the row and the marker column is ragged.
+   `1 1 auto`, not `1 1 0`: basis auto is the minimal edit, and since this label
+   is the only flexible item on the row (.unit-tree__check and .unit-kind are
+   both flex: none) the two bases resolve to the same used width anyway — no
+   test distinguishes them. */
+.unit-tree__label { flex: 1 1 auto; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
 
 /* Footer — sticky to the viewport bottom so Prev/Next stays reachable on long units
    (it settles at the column end). Opaque + soft top shadow so it floats over content. */
@@ -975,9 +984,21 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
      Let the label wrap to its full length instead — the same treatment
      .unit-tree__grouptitle already gets, and the drawer scrolls anyway. */
   .unit-drawer__list .unit-tree__label {
-    white-space: normal; overflow: visible; text-overflow: clip; }
+    white-space: normal; overflow: visible; text-overflow: clip;
+    overflow-wrap: anywhere; }
   /* The row centres a one-line label; once it can wrap, hang the ✓ from the top. */
   .unit-drawer__list .unit-tree__unit { align-items: flex-start; }
+  /* Touch has no hover, so title= yields nothing in the drawer — show the word
+     on the row. All SIX .visually-hidden declarations must be reset
+     (app.css:1217-1224): resetting only `position` leaves a 1px×1px clipped
+     span, the drawer shows a bare glyph, and every render test stays green.
+     Do NOT add `.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0 }`:
+     the label's base size is the title's max-content, so the row runs a large
+     deficit and a shrinkable marker would be cut below its min-content with the
+     min violation suppressed, painting its word outside its own box. */
+  .unit-drawer__list .unit-kind__label {
+    position: static; width: auto; height: auto;
+    overflow: visible; clip: auto; white-space: normal; }
   /* Long titles collide with the action buttons on a phone: the title column is
      flex:1;min-width:0, so it is squeezed to ~98px while the buttons keep their
      size, and a word wider than that column overflows and paints UNDER them.
@@ -2336,13 +2357,16 @@ dialog.imgzoom:not([open]) { display: none; }
      line it lands on.
    - The MOBILE DRAWER is a fourth case, not covered here: courses.css:943
      overrides .unit-drawer__list .unit-tree__label to white-space:normal, so at
-     <=640px titles WRAP rather than clip, in a title column squeezed to ~98px.
+     <=640px titles WRAP rather than clip, in a title column squeezed to
+     [TASK 8: substitute Task 7's MEASURED .unit-tree__label width on a marked
+     drawer row (390x780) here -- ~98px is the RAIL's figure per :730, not the
+     drawer's; do not derive it, record what was measured].
      Task 11 MEASURED this at 390x780 (a long maths title, both themes): the
      wrap absorbs it and no .katex box intersected a sibling control's
      (.unit-tree__count / .unit-tree__groupcheck / .unit-tree__check /
-     .unit-tree__chevron / .unit-drawer__close) rect. CONFIRMED clean -- no
-     rule needed here. Re-check if the drawer's title column ever narrows
-     further, since the risk scales with how little width the wrap gets.
+     .unit-tree__chevron / .unit-drawer__close / .unit-kind) rect. CONFIRMED
+     clean -- no rule needed here. Re-check if the drawer's title column ever
+     narrows further, since the risk scales with how little width the wrap gets.
 
    Also unaddressed on purpose: courses.css:903-907 re-opens .unit-crumbs__label
    under @media print with overflow-wrap:anywhere, which cannot break a KaTeX

@@ -9,6 +9,7 @@ from courses.models import Choice
 from courses.models import ChoiceQuestionElement
 from courses.models import QuizSubmission
 from courses.rollups import HIDDEN_PATH_SEP
+from courses.rollups import MARKER_ADDITIONAL
 from courses.rollups import _current_ancestors
 from courses.rollups import _stamp_current_chain
 from courses.rollups import build_outline
@@ -924,3 +925,51 @@ def test_toc_pin_renders_on_lesson_and_quiz_with_a_unique_aria_controls_target(c
 
         pins = soup.select("[data-unit-tree-pin]")
         assert len(pins) == 1, "the pin must not share a selector with the rail toggle"
+
+
+@pytest.mark.django_db
+def test_rail_marks_quiz_and_additional_as_the_last_child(client):
+    """The icon TRAILS the label. The ✓ already leads (courses.css:788 resets
+    .badge--done's margin-left:auto for exactly that), so a second leading glyph
+    would make every completed additional unit begin with two marks.
+
+    Scoped to [data-unit-tree-list]: _unit_shell.html renders the whole tree
+    TWICE per unit page (rail + drawer), so an unscoped select_one silently
+    tests only the rail and a `len(...) == 1` assertion fails on a CORRECT build.
+    """
+    # language="pl" deliberately: CourseFactory defaults to "en", which would make
+    # the lang assertion below pass whether the partial emits LANGUAGE_CODE or
+    # simply inherits course.language.
+    course = CourseFactory(language="pl")
+    student = _make_student("s_rail_kind")
+    EnrollmentFactory(student=student, course=course)
+    req = ContentNodeFactory(
+        course=course, unit_type="lesson", obligatory=True, title="Required"
+    )
+    add = ContentNodeFactory(
+        course=course, unit_type="lesson", obligatory=False, title="Additional one"
+    )
+    client.force_login(student)
+    resp = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": req.pk})
+    )
+    soup = BeautifulSoup(resp.content.decode(), "html.parser")
+    rail = soup.select_one("[data-unit-tree-list]")
+
+    def row(node):
+        return rail.select_one(f'a.unit-tree__unit[href$="/{node.pk}/"]')
+
+    marked = row(add)
+    kind = marked.select_one(".unit-kind")
+    assert kind is not None
+    assert "Additional" in kind.get_text()  # substring, not full-name equality:
+    # the ✓ leads in the rail and trails in the outline, so the two orders differ.
+    assert (
+        f"unit-kind--{MARKER_ADDITIONAL}" in kind["class"]
+    )  # modifier vs the constant
+    assert kind["lang"] == "en"  # UI locale inside lang="{{ course.language }}"
+    assert marked.find_all(recursive=False)[-1] is kind, (
+        "the icon must be the LAST child"
+    )
+
+    assert row(req).select_one(".unit-kind") is None  # required stays unmarked
