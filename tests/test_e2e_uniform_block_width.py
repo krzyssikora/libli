@@ -237,12 +237,15 @@ def test_lesson_title_caps_in_a_two_item_head(page, live_server):
     Seeds NO stateful element, so has_stateful_elements is false,
     .lesson-unit__reset does not render, and the head is a TWO-item row
     (heading group | pill). The group is `flex: 1 1 auto`, so it takes the whole
-    remainder, ~872 - 16 gap - ~110 pill = ~746; inside it the <h1> is
-    `flex: 0 1 auto` and shrink-wraps to its own content. WIDE_TITLE is therefore
-    load-bearing: its max-content runs well past 746, so the <h1> is pressed
-    against BOTH bounds and the smaller of them -- the 736 cap -- is what holds it
-    down. Drop .lesson-unit__title from the prose-cap allow-list and the title
-    springs to the group's ~746, reddening the assertion below.
+    remainder -- the head's ~872 less its 16px gap and the completion pill, which
+    this arm MEASURED at ~756 (the uncapped <h1> reads 756.25px, so the pill is
+    ~100 wide, not the ~110 an earlier version of this docstring assumed). Inside
+    the group the <h1> is `flex: 0 1 auto` and shrink-wraps to its own content.
+    WIDE_TITLE is therefore load-bearing: its max-content runs well past 756, so
+    the <h1> is pressed against BOTH bounds and the smaller of them -- the 736 cap
+    -- is what holds it down. Drop .lesson-unit__title from the prose-cap
+    allow-list and the title springs to the group's ~756, reddening the assertion
+    below.
     """
     from courses.models import CalloutElement
 
@@ -267,7 +270,7 @@ def test_lesson_title_caps_in_a_two_item_head(page, live_server):
     # anything about how wide the title wants to be, and a short-title fixture
     # would sail under 736 with the cap deleted. What decides the assertion below
     # is the width the <h1> takes with max-width neutralised, i.e.
-    # min(its max-content, the group's ~746 line) -- so that is what is measured.
+    # min(its max-content, the group's ~756 line) -- so that is what is measured.
     #
     # The bound is `>= 740`, not `> 736`: the guarded assertion is `title_w < 738`,
     # so a fixture landing in (736, 738] would clear a `> 736` guard and still

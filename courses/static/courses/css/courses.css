@@ -843,15 +843,23 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
 .lesson-unit__head .lesson-unit__title { margin: 0; flex: 1; min-width: 0;
   overflow-wrap: break-word; }
 /* The reset is MANDATORY and its source position is load-bearing.
-   `.lesson-unit__head .lesson-unit__title` (:834) is a DESCENDANT selector, so it
-   still matches the <h1> through this wrapper and would make it flex: 1 1 0%
-   *inside the group* — absorbing every pixel and pushing the chip to the far
-   right, reproducing the exact failures the group exists to fix. Both selectors
-   are (0,2,0), so only source order decides: this must come after :834.
+   `.lesson-unit__head .lesson-unit__title` — the rule DIRECTLY ABOVE — is a
+   DESCENDANT selector, so it still matches the <h1> through this wrapper and
+   would make it flex: 1 1 0% *inside the group*, absorbing every pixel and
+   pushing the chip to the far right: the exact failures the group exists to fix.
+   Both selectors are (0,2,0), so only source order decides: this must come AFTER
+   that rule. Named by SELECTOR rather than by line number on purpose — this is a
+   source-order claim, the selector states it exactly, and a numeral rots on the
+   next insertion above (the numeral this comment used to carry, :834, was nine
+   lines stale by the time it was caught).
    No flex-wrap here — at desktop it would push the chip onto its own line for
-   any title reaching the 736px cap (736 + 12 + ~78 > the ~746px group line).
-   The <h1> shrinks instead; it keeps min-width: 0 and overflow-wrap from :834-835
-   because this rule overrides only `flex`. */
+   any title reaching the 736px cap (736 + 12 + ~78 > the ~756px group line).
+   ~756 is MEASURED, not derived: Task 5's A/B read the uncapped <h1> at 756.25px
+   in the two-item head, which is the head's remainder beside the completion pill.
+   (An earlier draft of this comment wrote ~746 from an assumed ~110px pill; the
+   pill is ~100. The mechanism was right, only the arithmetic was stale.)
+   The <h1> shrinks instead; it keeps min-width: 0 and overflow-wrap from that
+   same rule above, because this one overrides only `flex`. */
 .lesson-unit__heading { flex: 1 1 auto; min-width: 0;
   display: flex; align-items: baseline; gap: var(--space-3); }
 .lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto; }
@@ -1019,10 +1027,12 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
      Give the title its own full-width row and let the actions follow beneath. */
   .lesson-unit__head { flex-wrap: wrap; justify-content: flex-start; row-gap: .6rem; }
   .lesson-unit__head .lesson-unit__title { flex-basis: 100%; }
-  /* :986 gives .lesson-unit__title flex-basis: 100%, which today resolves against
-     .lesson-unit__head and is what drops .unit-done / .lesson-unit__reset to a
-     second row. After the wrapper it would resolve against .lesson-unit__heading
-     instead, so give the GROUP basis 100% to restore that by construction.
+  /* `.lesson-unit__head .lesson-unit__title` — the rule DIRECTLY ABOVE — gives the
+     <h1> flex-basis: 100%, which today resolves against .lesson-unit__head and is
+     what drops .unit-done / .lesson-unit__reset to a second row. After the wrapper
+     it would resolve against .lesson-unit__heading instead, so give the GROUP
+     basis 100% to restore that by construction. (Named by selector, not by line:
+     the numeral this comment used to carry, :986, was 35 lines stale.)
      flex-wrap is added here (and only here) so the chip wraps under the title. */
   .lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap; }
 }
@@ -2364,31 +2374,49 @@ dialog.imgzoom:not([open]) { display: none; }
    what a reader needs:
 
    THE FOUR SURFACES BEHAVE DIFFERENTLY AND MUST NOT BE CONFLATED:
-   - .unit-foot__navtitle (:778), .unit-tree__label (:755) and
-     .unit-crumbs__label (:848) are single-line clips
+   (Every line number below was re-derived by grep on 2026-08-13, after the unit
+   kind markers landed; all six were stale by 34-63 lines. Treat the SELECTOR as
+   the identifier and the numeral as a convenience only.)
+   - .unit-foot__navtitle (:821), .unit-tree__label (:797) and
+     .unit-crumbs__label (:911) are single-line clips
      (overflow:hidden;text-overflow:ellipsis;white-space:nowrap). A long maths
      title HARD-CLIPS rather than showing an ellipsis -- text-overflow applies to
      inline text, not to KaTeX's inline-block box. Accepted; it is why the
      title= tooltips are kept useful by strip_math_delimiters.
-   - .unit-tree__grouptitle (:702-704) is NOT a single-line clip: it is
+   - .unit-tree__grouptitle (:736-738) is NOT a single-line clip: it is
      -webkit-box with -webkit-line-clamp:5 plus overflow-wrap:break-word and
      hyphens:auto. Intended behaviour is that the surrounding prose keeps
      wrapping and clamping as today while the formula stays intact on whichever
      line it lands on.
-   - The MOBILE DRAWER is a fourth case, not covered here: courses.css:943
+   - The MOBILE DRAWER is a fourth case, not covered here: courses.css:1006-1008
      overrides .unit-drawer__list .unit-tree__label to white-space:normal, so at
-     <=640px titles WRAP rather than clip, in a title column squeezed to
-     [TASK 8: substitute Task 7's MEASURED .unit-tree__label width on a marked
-     drawer row (390x780) here -- ~98px is the RAIL's figure per :730, not the
-     drawer's; do not derive it, record what was measured].
-     Task 11 MEASURED this at 390x780 (a long maths title, both themes): the
-     wrap absorbs it and no .katex box intersected a sibling control's
-     (.unit-tree__count / .unit-tree__groupcheck / .unit-tree__check /
+     <=640px titles WRAP rather than clip, in a title column MEASURED at 209.7px
+     (tests/test_e2e_unit_nav.py's phone drawer arm, 390x780, on a SQUEEZED
+     marked row: long title + completion tick + kind marker; 238.5px on a short
+     marked row). Recorded as measured, NOT derived. This comment previously said
+     ~98px, which is the RAIL's figure (see :730) -- the drawer panel is
+     left:0;right:0, so the drawer's column is more than twice as wide and every
+     conclusion drawn from ~98px here was drawn about the wrong element.
+     Task 11 MEASURED the maths case at 390x780 (a long maths title, both
+     themes): the wrap absorbs it and no .katex box intersected a sibling
+     control's (.unit-tree__count / .unit-tree__groupcheck / .unit-tree__check /
      .unit-tree__chevron / .unit-drawer__close / .unit-kind) rect. CONFIRMED
      clean -- no rule needed here. Re-check if the drawer's title column ever
      narrows further, since the risk scales with how little width the wrap gets.
 
-   Also unaddressed on purpose: courses.css:903-907 re-opens .unit-crumbs__label
+   Also unaddressed on purpose: courses.css:966-971 re-opens .unit-crumbs__label
    under @media print with overflow-wrap:anywhere, which cannot break a KaTeX
    inline-block, so a long maths crumb can still overflow in print. Accepted --
-   printing a breadcrumb is marginal and the text is not lost, only over-wide. */
+   printing a breadcrumb is marginal and the text is not lost, only over-wide.
+
+   A FIFTH surface joined this list on 2026-08-12 and is NOT clean: the OUTLINE
+   row (.outline-unit__title, app.css:543, overflow-wrap:anywhere) now sits
+   beside a .unit-kind-chip. overflow-wrap cannot break a KaTeX inline-block, so
+   an atom wider than the title column overflows it and paints across the 8px
+   flex gap into the chip. MEASURED by
+   tests/capture_unit_marker_screenshots.py at 390x780: a 14-term \frac renders
+   265.3px against a 232.3px column and crosses 25.1px INTO the chip, in both
+   themes. The spec documents and accepts this residual; it needs a title
+   carrying a single atom wider than the whole phone column to reach, which no
+   realistic title does. Recorded so a future reader finds the measurement rather
+   than re-deriving it. */

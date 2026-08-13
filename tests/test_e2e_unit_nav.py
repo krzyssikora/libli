@@ -1578,7 +1578,7 @@ def _seed_marked_group(username, *, slug):
                        <h1> under ~150px on the desktop unit page.
       * long_unit   -- WIDE_TITLE: multi-word and already proven to measure >= 740
                        as an uncapped <h1> (see test_quiz_chrome_...), which is
-                       what makes 736 + 12 + ~78 > the ~746px group line and lets
+                       what makes 736 + 12 + ~78 > the ~756px group line and lets
                        the cap-length row see a `flex-wrap: wrap` mutant.
       * quiz_unit   -- the quiz-side unit-page arms.
       * maths_unit  -- capture_title_math_screenshots.TITLES["long"], the long
@@ -1653,8 +1653,8 @@ def _row(page, scope, pk):
 def _open_drawer(page):
     """Click the footer Contents trigger and wait for [hidden] to come off.
 
-    .unit-drawer is display:none at base (courses.css:968) and is revealed only
-    inside @media (max-width: 640px) via .unit-drawer:not([hidden]) (:983) -- it
+    .unit-drawer is display:none at base (courses.css:975) and is revealed only
+    inside @media (max-width: 640px) via .unit-drawer:not([hidden]) (:990) -- it
     carries a literal `hidden` attribute until unit_nav.js responds to the
     trigger, so nothing inside it has a box before this runs.
     """
@@ -1762,7 +1762,7 @@ def test_desktop_lesson_head_keeps_the_chip_and_the_pill_in_place(
     flex, on the SHORT-title row.
 
     Both must sit on the short-title row: with a cap-length title the group's base
-    (736 + 12 + ~78 = 826) already exceeds the ~746px line, free space is zero,
+    (736 + 12 + ~78 = 826) already exceeds the ~756px line, free space is zero,
     space-between degenerates to flex-start, and the pill assertion holds on the
     broken build too.
     """
@@ -1923,7 +1923,7 @@ def test_desktop_cap_length_title_keeps_the_chip_on_the_title_line(
         assert b["chip"]["top"] < b["title"]["bottom"] - 1, (
             f"the chip wrapped below the title (chip top {b['chip']['top']:.1f}, "
             f"title bottom {b['title']['bottom']:.1f}) -- .lesson-unit__heading must "
-            f"NOT wrap at desktop: 736 + 12 + ~78 exceeds the ~746px group line"
+            f"NOT wrap at desktop: 736 + 12 + ~78 exceeds the ~756px group line"
         )
     finally:
         ctx.close()
@@ -2011,10 +2011,24 @@ def test_drawer_marker_shows_its_word_and_keeps_its_box(browser, live_server):
 
         # gap: var(--space-1) on .unit-kind. A flex container drops whitespace-only
         # text between items, so deleting the gap takes this cleanly to 0.
+        #
+        # THE CORRECT-BUILD VALUE IS 3.0, NOT 4.0, and the band's lower edge is
+        # therefore where a correct build SITS -- it is not slack. `.visually-hidden`
+        # is declared THREE times: app.css defines the six declarations the drawer
+        # un-hide resets, but notes/static/notes/css/notes.css:4 and
+        # tags/static/tags/css/tags.css:6 redeclare it with `margin: -1px`, and both
+        # load AFTER courses.css, so the -1px left margin survives the un-hide and
+        # eats 1px of the gap. MEASURED, not reasoned: Task 7's gap mutant (delete
+        # `gap` from .unit-kind) read label.left - svg.right = -1.0, not 0.
+        # The band still discriminates: correct 3.0 vs mutant -1.0 is a clean 4px
+        # delta, and 3.0 clears `abs(g - 4) <= 1` exactly at its lower edge. Left
+        # as-is deliberately -- this comment exists so that edge is read as the
+        # correct build's own value and not as slack to be spent. Do NOT widen it.
         glyph_gap = parts["label"]["left"] - parts["svg"]["right"]
         assert abs(glyph_gap - 4) <= 1, (
-            f"glyph-to-word gap is {glyph_gap:.1f}px, expected the 4px --space-1 "
-            f"gap on .unit-kind"
+            f"glyph-to-word gap is {glyph_gap:.1f}px, expected --space-1 (4px) on "
+            f".unit-kind less the 1px left margin notes.css/tags.css leave on "
+            f".visually-hidden, i.e. ~3.0px"
         )
 
         # Containment. Holds on BOTH builds (after a shrink the row still has zero
@@ -2025,26 +2039,22 @@ def test_drawer_marker_shows_its_word_and_keeps_its_box(browser, live_server):
             f"{parts['kind']['right']:.1f} vs {parts['row']['right'] - 8:.1f}"
         )
 
-        # TASK 8 needs this number: the drawer's title column on a MARKED row. The
-        # stale comment in courses.css quotes ~98px, which is the RAIL's figure; the
-        # drawer panel is left:0;right:0, so it is far wider. Both shapes are
-        # recorded -- the long row is the SQUEEZED figure the comment is about (a
-        # wrapping title with a leading tick), the short row is the same column with
-        # nothing else on it.
+        # STANDING TRIPWIRE — carries no mutant. It guards a FIGURE, not a rule:
+        # courses.css's maths-surface note records the drawer's title column as
+        # 209.7px, measured here (390x780, a squeezed row: long title + completion
+        # tick + marker; 238.5px on a short marked row). Before that it wrongly
+        # quoted the RAIL's ~98px, and the drawer panel is left:0;right:0, so the
+        # two differ by more than 2x.
+        #
+        # 120 is not arbitrary and is not a layout requirement: it sits roughly
+        # midway between the rail's 98 and the measured 209.7, so it fires only if
+        # the drawer column ever regresses toward rail width -- i.e. exactly when
+        # the recorded figure would have gone wrong again. No CSS change under test
+        # moves this number, which is why it carries no mutant.
         squeezed_w = parts["title"]["width"]
-        roomy_w = (
-            _row(page, scope, short_unit.pk)
-            .locator(".unit-tree__label")
-            .evaluate("el => el.getBoundingClientRect().width")
-        )
-        print(
-            f"\n[TASK 8] .unit-tree__label at 390x780 on a marked drawer row: "
-            f"{squeezed_w:.1f}px squeezed (long title + tick + marker), "
-            f"{roomy_w:.1f}px on a short marked row (marker only)"
-        )
         assert squeezed_w > 120, (
             f"the drawer title column measured {squeezed_w:.1f}px -- if it really "
-            f"has narrowed to the rail's ~98px, courses.css's maths note needs "
+            f"has narrowed toward the rail's ~98px, courses.css's maths note needs "
             f"re-measuring, not this bound relaxing"
         )
 
@@ -2135,7 +2145,7 @@ def test_phone_unit_head_drops_the_chip_under_the_title(browser, live_server):
 
     test_e2e_unit_head_layout.py structurally cannot cover it -- its fixture
     renders no chip at all. At 390px the <h1> keeps flex-basis: 100%
-    (courses.css:1021), the group wraps, and the chip starts a fresh flex line at
+    (courses.css:1028), the group wraps, and the chip starts a fresh flex line at
     the group's content-box left under the default justify-content: flex-start
     (the group has no padding). Both assertions are exact, not "near".
     """
@@ -2212,10 +2222,19 @@ def test_outline_marked_row_does_not_overflow_at_phone_width(browser, live_serve
             " }",
             token_unit.pk,
         )
+        # STANDING TRIPWIRE — carries no mutant. The <li> is the row's own flex
+        # container, so the row cannot exceed it under either build; this exists to
+        # catch a future change that lets it, not to discriminate this one. The
+        # scrollWidth assertion above is the discriminating check.
         assert edges["unit"] <= edges["li"] + 1, (
             f"the unit row escapes its <li>: {edges['unit']:.1f} vs {edges['li']:.1f}"
         )
 
+        # STANDING TRIPWIRE — carries no mutant, for the same reason: the title's
+        # own overflow is clipped by its box, so removing `overflow-wrap` reddens
+        # the scrollWidth assertion above without ever reaching the document. This
+        # is here for the wider class of regression (any marked row pushing the
+        # page into horizontal scroll at phone width), not for the rule under test.
         page_overflow = page.evaluate(
             "() => document.documentElement.scrollWidth"
             " - document.documentElement.clientWidth"

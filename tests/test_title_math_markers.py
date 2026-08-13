@@ -159,7 +159,7 @@ def test_breadcrumb_labels_are_marked(client):
 
 
 def test_the_childless_container_branch_is_marked():
-    """_unit_tree_node.html:60 is unreachable through any view: build_outline
+    """_unit_tree_node.html:61 is unreachable through any view: build_outline
     prunes every zero-child container under BOTH "hide" and "keep", pinned by
     test_unit_nav_render.py::test_a_genuinely_empty_group_is_pruned_not_rendered.
     Covered by a bare render only."""
@@ -198,8 +198,8 @@ def test_the_visible_title_keeps_its_raw_delimiters(client):
     interpolated twice in one tag/subtree, once as visible text and once as a
     title= tooltip, which is exactly where the mistake is made:
       - span.unit-tree__label       (_unit_tree_node.html:15)
-      - span.unit-tree__grouptitle  (_unit_tree_node.html:25 -- the branch WITH
-        children; the childless branch at :60 has no title= at all, so it is
+      - span.unit-tree__grouptitle  (_unit_tree_node.html:26 -- the branch WITH
+        children; the childless branch at :61 has no title= at all, so it is
         not a double-interpolation site)
       - the crumb pair in _unit_crumbs.html: the ancestor <li title=…> (:34)
         and its child span.unit-crumbs__label (:36)
@@ -210,6 +210,16 @@ def test_the_visible_title_keeps_its_raw_delimiters(client):
     piping strip_math_delimiters into that lone site would be a distinct
     (and already-impossible, since the attribute doesn't exist) mistake, not
     the one this test is built to catch.
+
+    span.unit-kind (the rail/drawer kind marker, _unit_kind_icon.html) is excluded
+    for a DIFFERENT reason, and must not be appended to the list above. It DOES
+    carry a title=, and it does interpolate the same value twice -- but that value
+    is the MARKER WORD from {% marker_label %} ("Quiz" / "Additional"), not the
+    node title. A marker word is a translated UI string that can never contain
+    \\(...\\), so there is nothing for strip_math_delimiters to strip and no
+    over-application to catch; adding it would also make the inventory above wrong
+    about what "the same node TITLE, twice" means. The kind CHIP
+    (_unit_kind_chip.html) carries no title= at all.
     """
     body = _lesson_body(client, maths_on="unitA", node="unitA")
     soup = BeautifulSoup(body, "html.parser")
