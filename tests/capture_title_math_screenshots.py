@@ -489,13 +489,15 @@ def test_capture(browser, live_server):
                         + '[data-unit-drawer] .unit-tree__chevron, '
                         + '[data-unit-drawer] .unit-drawer__list .unit-kind'
                     )];
-                    // Closed <details> hide their content via content-visibility,
-                    // NOT display:none, so a CLOSED group's children keep a non-zero
-                    // getBoundingClientRect -- quiz_b / quiz_c (both quizzes, always
-                    // marked regardless of `obligatory`, both in CLOSED groups on
-                    // this page) would satisfy a bare count OR a rect-based filter
-                    // even with the seed fix reverted. checkVisibility() is the API
-                    // that actually accounts for content-visibility.
+                    // MEASURED (a debug probe on this exact page): a closed
+                    // <details>'s .unit-kind child (quiz_b / quiz_c, both quizzes,
+                    // always marked regardless of `obligatory`, both in CLOSED
+                    // groups on this page) reports a NON-ZERO getBoundingClientRect
+                    // (52.4x22) while el.checkVisibility() correctly reports false
+                    // for it -- so a rect-based filter would NOT exclude it, but
+                    // checkVisibility() (default options; contentVisibilityAuto
+                    // only gates `content-visibility: auto`, not the `hidden` value
+                    // closed <details> uses) does.
                     const kinds = [...document.querySelectorAll(
                         '[data-unit-drawer] .unit-drawer__list .unit-kind'
                     )].filter(el => el.checkVisibility());
@@ -516,10 +518,18 @@ def test_capture(browser, live_server):
                         kinds: kinds.length};
                 }"""
             )
-            assert result["kinds"] > 0, (
-                "no .unit-kind rendered VISIBLY in the drawer -- either the "
-                "lesson_display seed fix (obligatory=False) was reverted, or "
-                "checkVisibility() stopped excluding closed-<details> content"
+            # Pinned to exactly 1, not merely > 0: quiz_b / quiz_c are ALSO always
+            # marked, but MEASURED as invisible (checkVisibility() False) because
+            # their groups are closed on this page -- lesson_display's marker is
+            # the only VISIBLE one, so `> 0` would coincide with the seed fix only
+            # because it happens to be the sole marked unit in an open group.
+            # Verified in both directions: reverting the lesson_display seed fix
+            # (obligatory=False) drops this to 0; restoring it brings it back to 1.
+            assert result["kinds"] == 1, (
+                f"expected exactly 1 visible drawer marker (lesson_display's), "
+                f"got {result['kinds']} -- either the lesson_display seed fix "
+                f"(obligatory=False) was reverted, or a second unit in an open "
+                f"group is now marked too"
             )
             measurements.append(
                 f"row7 [{theme}] katex overlaps a drawer button: {result['overlap']}"

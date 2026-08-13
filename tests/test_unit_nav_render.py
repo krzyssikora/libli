@@ -10,6 +10,7 @@ from courses.models import ChoiceQuestionElement
 from courses.models import QuizSubmission
 from courses.rollups import HIDDEN_PATH_SEP
 from courses.rollups import MARKER_ADDITIONAL
+from courses.rollups import MARKER_QUIZ
 from courses.rollups import _current_ancestors
 from courses.rollups import _stamp_current_chain
 from courses.rollups import build_outline
@@ -949,6 +950,11 @@ def test_rail_marks_quiz_and_additional_as_the_last_child(client):
     add = ContentNodeFactory(
         course=course, unit_type="lesson", obligatory=False, title="Additional one"
     )
+    # A quiz is marked regardless of `obligatory` (test_unit_marker.py::
+    # test_marker_table pins this at the unit_marker() layer, as a pair with an
+    # obligatory quiz) -- without this node nothing in THIS test would fail if
+    # the rail dropped the quiz marker at the RENDER layer entirely.
+    quiz = ContentNodeFactory(course=course, unit_type="quiz", title="A quiz")
     client.force_login(student)
     resp = client.get(
         reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": req.pk})
@@ -971,5 +977,9 @@ def test_rail_marks_quiz_and_additional_as_the_last_child(client):
     assert marked.find_all(recursive=False)[-1] is kind, (
         "the icon must be the LAST child"
     )
+
+    quiz_kind = row(quiz).select_one(".unit-kind")
+    assert quiz_kind is not None  # quiz marked at the RENDER layer too
+    assert f"unit-kind--{MARKER_QUIZ}" in quiz_kind["class"]
 
     assert row(req).select_one(".unit-kind") is None  # required stays unmarked

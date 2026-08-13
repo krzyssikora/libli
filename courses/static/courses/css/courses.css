@@ -990,8 +990,9 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   .unit-drawer__list .unit-tree__unit { align-items: flex-start; }
   /* Touch has no hover, so title= yields nothing in the drawer — show the word
      on the row. All SIX .visually-hidden declarations must be reset
-     (app.css:1217-1224): resetting only `position` leaves a 1px×1px clipped
-     span, the drawer shows a bare glyph, and every render test stays green.
+     (core/static/core/css/app.css:1240-1247): resetting only `position` leaves
+     a 1px×1px clipped span, the drawer shows a bare glyph, and every render
+     test stays green.
      Do NOT add `.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0 }`:
      the label's base size is the title's max-content, so the row runs a large
      deficit and a shrinkable marker would be cut below its min-content with the
