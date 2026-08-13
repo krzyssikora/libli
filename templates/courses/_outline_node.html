@@ -5,6 +5,7 @@
     <a class="outline-unit{% if item.completed %} outline-unit--done{% endif %}" lang="{{ course.language }}"
        href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}">
       <span class="outline-unit__title" data-math-title>{{ item.node.title }}</span>
+      {% include "courses/_unit_kind_chip.html" with node=item.node only %}
       {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
     </a>
     {% for t in item.tags %}<span class="tag-chip tag-chip--{{ t.color }}">{{ t.name }}</span>{% endfor %}

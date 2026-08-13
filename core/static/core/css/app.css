@@ -532,7 +532,15 @@ input[type=number] {
 }
 .outline-unit:hover { background: var(--surface-sunken); }
 .outline-unit:hover .outline-unit__title { text-decoration: underline; }
-.outline-unit__title { flex: 1; }
+/* The chip can add ~90px to a 390px row. `flex: 1` is `1 1 0%` with no
+   min-width: 0, so the title's automatic minimum is its min-content and it
+   cannot shrink below its longest word; the anchor has the same exposure one
+   level up. `anywhere` (not `break-word`) for house consistency with
+   courses.css:940 — with min-width: 0 co-applied the two are indistinguishable
+   and no test can separate them, so do NOT write an anywhere→break-word mutant.
+   Both min-width: 0 declarations are inert forward-defence against unbreakable
+   atoms and carry no mutant (see the plan's Task 3 falsification note). */
+.outline-unit__title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 /* completion is signalled by the ✓ badge alone; done rows read a touch quieter */
 .outline-unit--done .outline-unit__title { color: var(--text-secondary); }
 
@@ -555,7 +563,8 @@ input[type=number] {
 .outline-node--unit {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
 }
-.outline-node--unit > .outline-unit { flex: 1 1 auto; }
+/* min-width: 0 here for the same reason as .outline-unit__title — see :521. */
+.outline-node--unit > .outline-unit { flex: 1 1 auto; min-width: 0; }
 /* The [hidden] attr (UA display:none) must beat .outline-node--unit's display:flex —
    the tag filter hides non-matching unit rows via [hidden]; without this they'd stay
    visible (only empty containers collapsed). Same gotcha as .btn[hidden]/.dnd__rows[hidden]. */
