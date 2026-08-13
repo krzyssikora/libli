@@ -2374,11 +2374,14 @@ dialog.imgzoom:not([open]) { display: none; }
    what a reader needs:
 
    THE FOUR SURFACES BEHAVE DIFFERENTLY AND MUST NOT BE CONFLATED:
-   (Every line number below was re-derived by grep on 2026-08-13, after the unit
-   kind markers landed; all six were stale by 34-63 lines. Treat the SELECTOR as
-   the identifier and the numeral as a convenience only.)
+   (Every line number below was re-derived on 2026-08-13, after the unit kind
+   markers landed; all six were stale by 34-64 lines. Treat the SELECTOR as the
+   identifier and the numeral as a convenience only -- and DERIVE the numeral by
+   printing the line, never by adding an insertion count to the old one: the
+   first pass at this refresh did the latter and landed three of them one line
+   early, on the rule's leading COMMENT rather than the rule.)
    - .unit-foot__navtitle (:821), .unit-tree__label (:797) and
-     .unit-crumbs__label (:911) are single-line clips
+     .unit-crumbs__label (:912) are single-line clips
      (overflow:hidden;text-overflow:ellipsis;white-space:nowrap). A long maths
      title HARD-CLIPS rather than showing an ellipsis -- text-overflow applies to
      inline text, not to KaTeX's inline-block box. Accepted; it is why the
@@ -2388,7 +2391,7 @@ dialog.imgzoom:not([open]) { display: none; }
      hyphens:auto. Intended behaviour is that the surrounding prose keeps
      wrapping and clamping as today while the formula stays intact on whichever
      line it lands on.
-   - The MOBILE DRAWER is a fourth case, not covered here: courses.css:1006-1008
+   - The MOBILE DRAWER is a fourth case, not covered here: courses.css:1007-1009
      overrides .unit-drawer__list .unit-tree__label to white-space:normal, so at
      <=640px titles WRAP rather than clip, in a title column MEASURED at 209.7px
      (tests/test_e2e_unit_nav.py's phone drawer arm, 390x780, on a SQUEEZED
@@ -2404,7 +2407,7 @@ dialog.imgzoom:not([open]) { display: none; }
      clean -- no rule needed here. Re-check if the drawer's title column ever
      narrows further, since the risk scales with how little width the wrap gets.
 
-   Also unaddressed on purpose: courses.css:966-971 re-opens .unit-crumbs__label
+   Also unaddressed on purpose: courses.css:967-972 re-opens .unit-crumbs__label
    under @media print with overflow-wrap:anywhere, which cannot break a KaTeX
    inline-block, so a long maths crumb can still overflow in print. Accepted --
    printing a breadcrumb is marginal and the text is not lost, only over-wide.

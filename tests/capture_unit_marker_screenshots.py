@@ -19,7 +19,7 @@ geometry assertion, only by looking at a real render.
   2. THE `--surface-sunken` COLLISION. `.unit-kind-chip` is a `.badge`, whose
      fill is `var(--surface-sunken)` (app.css:119) — the SAME token
      `.outline-unit:hover` (app.css:533) and `.outline-node:target`
-     (app.css:556) paint the row with. Under either state the chip's fill
+     (app.css:554-556) paint the row with. Under either state the chip's fill
      equals its background and only its 1px `--border-default` rim separates
      it. The spec accepts this; the outline rest/hover/target triple below is
      what that acceptance is judged from.
@@ -293,7 +293,13 @@ def test_capture(browser, live_server):
             # Hover: the ACCEPTED collision. `.outline-unit:hover` paints
             # --surface-sunken, which is the chip's own fill.
             add_li.locator(".outline-unit").hover()
-            page.wait_for_timeout(120)  # no transition on this rule; settle paint
+            # A paint settle, NOT a synchronisation: `.outline-unit:hover` has no
+            # transition, so there is no condition to wait ON -- hover() has
+            # already dispatched and the style is applied. This only lets the
+            # compositor land the repaint before the screenshot. Nothing below
+            # asserts on it; the collision numbers come from getComputedStyle,
+            # which does not need the paint at all.
+            page.wait_for_timeout(120)
             shoot(f"unit-kind-3b-outline-hover-{theme}", add_li)
             collision = page.evaluate(
                 """(pk) => {
@@ -394,6 +400,12 @@ def test_capture(browser, live_server):
         for theme in ("light", "dark"):
             set_theme(student, theme)
             page.goto(unit_url(nodes["req_unit"]))
+            # Asserted in EVERY context, not just the first: set_theme writes to
+            # the DB, and each context has its own cookie jar and session. A
+            # context whose login silently landed anonymous would render the
+            # light default and the "dark" shot would come back light -- which
+            # looks like a correct light shot, not like a failure.
+            assert page.locator("html").get_attribute("data-theme") == theme
             page.wait_for_selector(".unit-tree .unit-kind")
             shoot(f"unit-kind-1-rail-detail4x-{theme}", page.locator(".unit-tree"))
     finally:
@@ -421,6 +433,7 @@ def test_capture(browser, live_server):
             # residual is a squeeze, so it has to be judged where the column is
             # squeezed.
             page.goto(f"{outline_url}")
+            assert page.locator("html").get_attribute("data-theme") == theme
             page.wait_for_selector(".outline-unit__title .katex")
             shoot(
                 f"unit-kind-4b-outline-maths-phone-{theme}",
@@ -503,4 +516,11 @@ def test_capture(browser, live_server):
     print(f"SCREENSHOTS ({len(shots)}): {OUT_DIR}")
     for line in measurements:
         print(f"[measure] {line}")
-    assert len(shots) > 0
+    # An EXACT count, not `> 0`: every shot below the first one is taken inside a
+    # loop or a later context, so `> 0` stays green if a whole context raises
+    # nothing but silently stops shooting -- and this script's whole output is the
+    # shots. 22 = 2 themes x (8 desktop + 1 detail-4x + 2 mobile).
+    assert len(shots) == 22, (
+        f"expected 22 shots (2 themes x 11), got {len(shots)}: "
+        f"{sorted(p.name for p in shots)}"
+    )

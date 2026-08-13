@@ -1653,9 +1653,11 @@ def _row(page, scope, pk):
 def _open_drawer(page):
     """Click the footer Contents trigger and wait for [hidden] to come off.
 
-    .unit-drawer is display:none at base (courses.css:975) and is revealed only
-    inside @media (max-width: 640px) via .unit-drawer:not([hidden]) (:990) -- it
-    carries a literal `hidden` attribute until unit_nav.js responds to the
+    courses.css gives .unit-drawer display:none at base and reveals it only inside
+    @media (max-width: 640px), via .unit-drawer:not([hidden]). Both are named by
+    selector rather than by line: they sit below every marker insertion this
+    branch made, so a numeral here rots on the next one (it already did, twice).
+    It carries a literal `hidden` attribute until unit_nav.js responds to the
     trigger, so nothing inside it has a box before this runs.
     """
     page.locator("[data-unit-drawer-open]").click()
@@ -2144,10 +2146,12 @@ def test_phone_unit_head_drops_the_chip_under_the_title(browser, live_server):
     """The SOLE pin for the mobile .lesson-unit__heading rule.
 
     test_e2e_unit_head_layout.py structurally cannot cover it -- its fixture
-    renders no chip at all. At 390px the <h1> keeps flex-basis: 100%
-    (courses.css:1028), the group wraps, and the chip starts a fresh flex line at
-    the group's content-box left under the default justify-content: flex-start
-    (the group has no padding). Both assertions are exact, not "near".
+    renders no chip at all. At 390px the <h1> keeps flex-basis: 100% -- from
+    `.lesson-unit__head .lesson-unit__title` inside courses.css's 640px query,
+    named by selector because a numeral there rots on every insertion above it --
+    the group wraps, and the chip starts a fresh flex line at the group's
+    content-box left under the default justify-content: flex-start (the group has
+    no padding). Both assertions are exact, not "near".
     """
     _make_student("e2e_kind_phead")
     _u, course, _ch, short_unit, _l, _q, _m, _t = _seed_marked_group(
