@@ -2,7 +2,12 @@
 <article class="quiz{% if slides|length > 1 %} quiz--slideshow{% endif %}" lang="{{ course.language }}"
          {% if slides|length > 1 %}data-slideshow{% endif %}>
   {% include "courses/_unit_crumbs.html" %}
-  <h1 class="lesson-unit__title" data-math-title>{{ unit.title }}</h1>
+  <div class="lesson-unit__head">
+    <div class="lesson-unit__heading">
+      <h1 class="lesson-unit__title" data-math-title>{{ unit.title }}</h1>
+      {% include "courses/_unit_kind_chip.html" with node=unit only %}
+    </div>
+  </div>
   {% if previewing %}
     {% get_current_language as LANGUAGE_CODE %}
     {% comment %}Rendered ONCE, outside the {% for slide %} loop: slideshow.js shows

@@ -4,7 +4,10 @@
          {% if slides|length > 1 %}data-slideshow{% endif %}>
   {% include "courses/_unit_crumbs.html" %}
   <div class="lesson-unit__head">
-    <h1 class="lesson-unit__title" data-math-title>{{ unit.title }}</h1>
+    <div class="lesson-unit__heading">
+      <h1 class="lesson-unit__title" data-math-title>{{ unit.title }}</h1>
+      {% include "courses/_unit_kind_chip.html" with node=unit only %}
+    </div>
     {% comment %}Completion is auto-tracked FOR ENROLLED STUDENTS ONLY: progress.js
        auto-completes the unit once every element has been seen (Phase-1a). For a
        non-enrolled viewer who can access the course, seen-tracking is never recorded,

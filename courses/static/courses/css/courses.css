@@ -842,6 +842,19 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
    every width; the mobile query below additionally gives the title its own row. */
 .lesson-unit__head .lesson-unit__title { margin: 0; flex: 1; min-width: 0;
   overflow-wrap: break-word; }
+/* The reset is MANDATORY and its source position is load-bearing.
+   `.lesson-unit__head .lesson-unit__title` (:834) is a DESCENDANT selector, so it
+   still matches the <h1> through this wrapper and would make it flex: 1 1 0%
+   *inside the group* — absorbing every pixel and pushing the chip to the far
+   right, reproducing the exact failures the group exists to fix. Both selectors
+   are (0,2,0), so only source order decides: this must come after :834.
+   No flex-wrap here — at desktop it would push the chip onto its own line for
+   any title reaching the 736px cap (736 + 12 + ~78 > the ~746px group line).
+   The <h1> shrinks instead; it keeps min-width: 0 and overflow-wrap from :834-835
+   because this rule overrides only `flex`. */
+.lesson-unit__heading { flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: baseline; gap: var(--space-3); }
+.lesson-unit__heading > .lesson-unit__title { flex: 0 1 auto; }
 .unit-done { flex: none; }
 .unit-done__pill { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
   font-size: .72rem; font-weight: 600; padding: .3rem .7rem; border-radius: 9999px;
@@ -1006,6 +1019,12 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
      Give the title its own full-width row and let the actions follow beneath. */
   .lesson-unit__head { flex-wrap: wrap; justify-content: flex-start; row-gap: .6rem; }
   .lesson-unit__head .lesson-unit__title { flex-basis: 100%; }
+  /* :986 gives .lesson-unit__title flex-basis: 100%, which today resolves against
+     .lesson-unit__head and is what drops .unit-done / .lesson-unit__reset to a
+     second row. After the wrapper it would resolve against .lesson-unit__heading
+     instead, so give the GROUP basis 100% to restore that by construction.
+     flex-wrap is added here (and only here) so the chip wraps under the title. */
+  .lesson-unit__heading { flex-basis: 100%; flex-wrap: wrap; }
 }
 
 /* Base: the TOC pin is inert until the collapsed state reveals it (Task 2).

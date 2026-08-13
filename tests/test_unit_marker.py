@@ -187,3 +187,64 @@ def test_outline_chip_is_tagged_with_the_ui_language_not_the_course_language(cli
     client.force_login(student)
     chip = _outline_soup(client, course).select_one(".unit-kind-chip")
     assert chip["lang"] == "en"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "unit_type,url_name,word,marker",
+    [
+        ("lesson", "courses:lesson_unit", "Additional", MARKER_ADDITIONAL),
+        ("quiz", "courses:quiz_unit", "Quiz", MARKER_QUIZ),
+    ],
+)
+def test_unit_page_chip_is_a_sibling_of_the_h1(
+    client, unit_type, url_name, word, marker
+):
+    """The chip must NEVER be inside <h1 data-math-title>: math.js typesets that
+    element's contents, so a chip in there would enter the maths-title scan."""
+    course = CourseFactory(language="pl")  # NOT the UI locale — see the lang assertion
+    student = make_verified_user(
+        username=f"s_up_{unit_type}",
+        email=f"s_up_{unit_type}@t.example.com",
+        password=TEST_PASSWORD,
+    )
+    EnrollmentFactory(student=student, course=course)
+    kw = {"unit_type": unit_type, "title": "Marked unit"}
+    if unit_type == "lesson":
+        kw["obligatory"] = False
+    unit = ContentNodeFactory(course=course, **kw)
+    client.force_login(student)
+    resp = client.get(
+        reverse(url_name, kwargs={"slug": course.slug, "node_pk": unit.pk})
+    )
+    soup = BeautifulSoup(resp.content.decode(), "html.parser")
+
+    group = soup.select_one(".lesson-unit__heading")
+    assert group is not None, "both article templates gain the heading group"
+    chip = group.select_one(".unit-kind-chip")
+    assert chip is not None and chip.get_text(strip=True) == word
+    assert f"unit-kind-chip--{marker}" in chip["class"]  # modifier vs the constant
+    assert chip["lang"] == "en"  # UI locale, not course.language
+    assert (
+        group.select_one("h1.lesson-unit__title").select_one(".unit-kind-chip") is None
+    )
+
+
+@pytest.mark.django_db
+def test_unit_page_leaves_a_required_lesson_unmarked(client):
+    """The absence half. Without it a mutant that marks every unit is caught on
+    the unit page only indirectly, via Task 2's partial-level test."""
+    course = CourseFactory()
+    student = make_verified_user(
+        username="s_up_req", email="s_up_req@t.example.com", password=TEST_PASSWORD
+    )
+    EnrollmentFactory(student=student, course=course)
+    unit = ContentNodeFactory(
+        course=course, unit_type="lesson", obligatory=True, title="Required unit"
+    )
+    client.force_login(student)
+    resp = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    )
+    soup = BeautifulSoup(resp.content.decode(), "html.parser")
+    assert soup.select_one(".lesson-unit__heading .unit-kind-chip") is None

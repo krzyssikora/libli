@@ -22,7 +22,7 @@ def login_student(client, course, username="student"):
     return user
 
 
-def make_title_course(*, maths_on="none"):
+def make_title_course(*, maths_on="none", obligatory=True):
     """A two-part course. Returns (course, viewed_unit, nodes) where `nodes` maps
     a name to its ContentNode.
 
@@ -45,6 +45,11 @@ def make_title_course(*, maths_on="none"):
       "group"  -- on part2 only (a GROUP title, not a leaf) -- the analytics
                   expanded-group case, where a scan over matrix["columns"]
                   would silently miss it.
+
+    `obligatory` applies to all three units and DEFAULTS TO THE PREVIOUS
+    HARD-CODED VALUE, so every existing caller is unchanged. Pass False to get
+    units that carry the "Additional" kind marker -- with the default, a marker
+    assertion over this fixture is vacuous.
     """
     course = CourseFactory()
     part1 = ContentNodeFactory(
@@ -69,7 +74,7 @@ def make_title_course(*, maths_on="none"):
         unit_type="lesson",
         parent=part1,
         order=0,
-        obligatory=True,
+        obligatory=obligatory,
         title=MATHS_TITLE if maths_on == "unitA" else "Lekcja pierwsza",
     )
     unit_b = ContentNodeFactory(
@@ -78,7 +83,7 @@ def make_title_course(*, maths_on="none"):
         unit_type="lesson",
         parent=part1,
         order=1,
-        obligatory=True,
+        obligatory=obligatory,
         title=MATHS_TITLE if maths_on == "unitB" else "Lekcja druga",
     )
     unit_c = ContentNodeFactory(
@@ -87,7 +92,7 @@ def make_title_course(*, maths_on="none"):
         unit_type="lesson",
         parent=part2,
         order=0,
-        obligatory=True,
+        obligatory=obligatory,
         title=MATHS_TITLE if maths_on == "far" else "Lekcja trzecia",
     )
     return (
@@ -103,12 +108,14 @@ def make_title_course(*, maths_on="none"):
     )
 
 
-def make_large_title_course(*, parts=20, units_per_part=40):
+def make_large_title_course(*, parts=20, units_per_part=40, obligatory=True):
     """A ~800-unit course with ONE maths title, for the render-cost measurement.
 
     Mirrors this repo's matematyka course (21 parts / 793 units). Only the first
     part's title carries maths, so the gate arms exactly once and every other
     title is a realistic maths-free string.
+
+    `obligatory` defaults to the previous hard-coded value (see make_title_course).
 
     Returns (course, first_unit) -- the unit whose page the measurement opens.
     """
@@ -130,7 +137,7 @@ def make_large_title_course(*, parts=20, units_per_part=40):
                 unit_type="lesson",
                 parent=part,
                 order=u,
-                obligatory=True,
+                obligatory=obligatory,
                 title=f"Lekcja {p + 1}.{u + 1}",
             )
             if first_unit is None:

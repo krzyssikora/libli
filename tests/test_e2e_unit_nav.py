@@ -54,6 +54,47 @@ def _collapse(page):
     )
 
 
+# A title whose max-content width runs well past the 736px prose cap. The <h1>
+# sits in .lesson-unit__heading at `flex: 0 1 auto` and shrink-wraps to its own
+# content, so ContentNodeFactory's short "Node N" sequence title would leave the
+# cap assertions in the quiz-chrome test below passing no matter what the CSS says.
+WIDE_TITLE = (
+    "Przedzialy liczbowe i dzialania na przedzialach oraz ich zastosowania w zadaniach"
+)
+
+TITLE_W_JS = (
+    "() => document.querySelector('.lesson-unit__title').getBoundingClientRect().width"
+)
+
+
+def _uncapped_title_width(page):
+    """The <h1>'s rendered width with the 46rem prose cap NEUTRALISED, restored after.
+
+    The fixture-validity guard for the cap assertions: it measures the quantity
+    that actually decides them -- min(the title's max-content, the heading group's
+    own line) -- rather than the head's leftover space, which since the heading
+    group exists says nothing about how wide the title wants to be.
+
+    page.add_style_tag returns an ElementHandle and the injected rule does NOT
+    expire on its own; left in place it would neutralise the cap for the very
+    assertion the guard protects, which is why the removal below is in `finally`
+    and why this is called separately before EACH of the two assertions rather
+    than once for the whole test.
+
+    `!important` is required, not defensive: the cap selector is
+    `html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title`, specificity
+    (0,3,1), which a bare `.lesson-unit__title` override at (0,1,0) loses to
+    however late it is injected.
+    """
+    style = page.add_style_tag(
+        content=".lesson-unit__title { max-width: none !important; }"
+    )
+    try:
+        return page.evaluate(TITLE_W_JS)
+    finally:
+        style.evaluate("e => e.remove()")
+
+
 # ---------------------------------------------------------------------------
 # Seeding
 # ---------------------------------------------------------------------------
@@ -1358,7 +1399,10 @@ def test_quiz_chrome_tracks_the_column_across_both_page_states(browser, live_ser
 
     actor = _make_student("e2e_pin_quiz")
     course = CourseFactory(slug="e2e-pin-quiz", owner=actor)
-    unit = make_quiz_unit(course=course)
+    # WIDE_TITLE, not the factory's "Node N": the <h1> shrink-wraps inside
+    # .lesson-unit__heading, so only a title wider than the cap is held BY the cap,
+    # and both title assertions below would otherwise pass vacuously.
+    unit = make_quiz_unit(course=course, title=WIDE_TITLE)
     q = ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7")
     add_element(unit, q)
 
@@ -1379,12 +1423,23 @@ def test_quiz_chrome_tracks_the_column_across_both_page_states(browser, live_ser
         " return a.clientWidth - parseFloat(s.paddingLeft)"
         " - parseFloat(s.paddingRight); }"
     )
-    title_w = page.evaluate(
-        "() => document.querySelector('.lesson-unit__title')"
-        ".getBoundingClientRect().width"
+    # Fixture-validity guard for the cap assertion that follows. `>= 740`, not
+    # `> 736`: the assertion is `<= 738`, so a fixture landing in (736, 738] would
+    # clear a `> 736` guard and still leave the assertion green whatever the cap
+    # does. The quiz head has no done pill, so the heading group spans the whole
+    # ~872 collapsed column and 736 + 12 gap + ~46 chip is comfortably inside it --
+    # i.e. the cap, not the group, is the smaller bound. That headroom exists only
+    # in the COLLAPSED state, which the assertions above have already established.
+    uncapped_w = _uncapped_title_width(page)
+    assert uncapped_w >= 740, (
+        f"this fixture no longer exercises the cap: with max-width neutralised the "
+        f"title measures {uncapped_w:.1f}, at or under 736 plus the assertion's own "
+        f"2px slack. Lengthen WIDE_TITLE."
     )
+    title_w = page.evaluate(TITLE_W_JS)
     assert title_w <= 736 + 2, (
-        f".lesson-unit__title must cap at 736px, got {title_w:.1f}"
+        f".lesson-unit__title must cap at 736px, got {title_w:.1f} "
+        f"(uncapped it measures {uncapped_w:.1f})"
     )
     for sel in ("[data-quiz-preview-notice]", ".el--question"):
         w = page.evaluate(
@@ -1395,12 +1450,14 @@ def test_quiz_chrome_tracks_the_column_across_both_page_states(browser, live_ser
     # Load B — same session, now enrolled: finish form renders, no banner.
     EnrollmentFactory(course=course, student=actor)
     page.reload()
-    # Re-assert the collapsed state AFTER the reload. This is now MORE important,
-    # not less: the title assertion is still one-sided (<= 738), the EXPANDED quiz
-    # column at 1440 is 648px — under 738 — and the column-equality assertions
-    # compare against whatever column is actually rendered, so they hold expanded
-    # too. Without this guard every assertion below passes in the wrong state.
-    # Load A is safe because _collapse() waits on the class; Load B would
+    # Re-assert the collapsed state AFTER the reload, explicitly. The title
+    # assertion is still one-sided (<= 738), the EXPANDED quiz column at 1440 is
+    # 648px — under 738 — and the column-equality assertions compare against
+    # whatever column is actually rendered, so they hold expanded too. The
+    # uncapped-width guard would now catch an expanded run as collateral (at 648
+    # the group leaves the title ~590, under 740), but it would report it as a
+    # stale fixture rather than as the wrong page state; this wait says what it
+    # means. Load A is safe because _collapse() waits on the class; Load B would
     # otherwise rely silently on the pre-paint restore surviving reload.
     page.wait_for_function(
         "() => document.documentElement.classList.contains('unit-tree-collapsed')"
@@ -1413,12 +1470,18 @@ def test_quiz_chrome_tracks_the_column_across_both_page_states(browser, live_ser
         " return a.clientWidth - parseFloat(s.paddingLeft)"
         " - parseFloat(s.paddingRight); }"
     )
-    title_w = page.evaluate(
-        "() => document.querySelector('.lesson-unit__title')"
-        ".getBoundingClientRect().width"
+    # The guard again, AFTER the reload -- the injected override was removed with
+    # the first measurement, and this page state is a fresh document anyway.
+    uncapped_w = _uncapped_title_width(page)
+    assert uncapped_w >= 740, (
+        f"this fixture no longer exercises the cap in the enrolled state: with "
+        f"max-width neutralised the title measures {uncapped_w:.1f}. "
+        f"Lengthen WIDE_TITLE."
     )
+    title_w = page.evaluate(TITLE_W_JS)
     assert title_w <= 736 + 2, (
-        f".lesson-unit__title must cap at 736px, got {title_w:.1f}"
+        f".lesson-unit__title must cap at 736px, got {title_w:.1f} "
+        f"(uncapped it measures {uncapped_w:.1f})"
     )
     for sel in (".quiz-finish", ".el--question"):
         w = page.evaluate(
