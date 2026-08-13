@@ -1490,3 +1490,738 @@ def test_quiz_chrome_tracks_the_column_across_both_page_states(browser, live_ser
         assert abs(w - column) < 2, f"{sel} must fill the column {column}, got {w:.1f}"
 
     ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# Unit kind markers (spec 2026-08-12) — geometry
+#
+# Every claim below is DIFFERENTIAL: a position measured with the rule present
+# proves nothing, so each assertion is either a comparison between two rendered
+# rows or a mechanical A/B via page.add_style_tag.
+# ---------------------------------------------------------------------------
+
+# Deliberately tiny: the rail-gutter guard needs the label's max-content to sit
+# well under the row's content width (a long title fills the row through the
+# ellipsis clip and the marker lands flush on the reverted build too), and the
+# desktop short-title arm needs the <h1> under ~150px.
+SHORT_TITLE = "Wstep"
+QUIZ_TITLE = "Test A"
+# ONE unbroken token, measured (not derived) wider than the 390px outline title
+# column. A multi-word long title wraps at spaces under `overflow-wrap: normal`
+# too, which would leave the outline mutant green.
+UNBROKEN_TITLE = "Nieprzyporzadkowywalnosciowoscioniezmiennikowosciowoscia"
+
+# Max-content width of an element's TEXT, measured with an off-screen nowrap
+# probe carrying the element's own font metrics. Used only by fixture-validity
+# guards, and only on plain-text titles: a KaTeX title would not measure this
+# way. It reads the quantity the guards actually care about -- how wide the text
+# WANTS to be -- which neither getBoundingClientRect (already flexed) nor
+# scrollWidth (clamped to clientWidth whenever the box is the wider of the two)
+# can report.
+MAX_CONTENT_JS = """
+(el) => {
+  const cs = getComputedStyle(el);
+  const p = document.createElement('span');
+  p.textContent = el.textContent;
+  p.style.position = 'absolute';
+  p.style.left = '-9999px';
+  p.style.top = '0';
+  p.style.whiteSpace = 'pre';
+  p.style.fontFamily = cs.fontFamily;
+  p.style.fontSize = cs.fontSize;
+  p.style.fontWeight = cs.fontWeight;
+  p.style.fontStyle = cs.fontStyle;
+  p.style.letterSpacing = cs.letterSpacing;
+  document.body.appendChild(p);
+  const w = p.getBoundingClientRect().width;
+  p.remove();
+  return w;
+}
+"""
+
+# The heading group, its <h1>, its chip and the head's completion pill, as plain
+# rects. `.unit-done` is the head's actual flex item -- NOT `.unit-done__pill`,
+# which on a not-completed fixture is a <button> wrapped in a <form>.
+HEAD_BOXES_JS = """
+() => {
+  const r = e => e ? e.getBoundingClientRect().toJSON() : null;
+  const g = document.querySelector('.lesson-unit__heading');
+  return {
+    group: r(g),
+    title: r(g && g.querySelector('.lesson-unit__title')),
+    chip: r(g && g.querySelector('.unit-kind-chip')),
+    done: r(document.querySelector('.unit-done')),
+  };
+}
+"""
+
+
+def _seed_marked_group(username, *, slug):
+    """A course whose one chapter holds FIVE marked units plus one completion.
+
+    The chapter is the current unit's ancestor, so its <details> renders `open`
+    (_unit_tree_node.html sets open only on contains_current) and every row is
+    measurable. obligatory=False is explicit everywhere: the model default is True
+    and a default-factory unit renders no marker, making every assertion vacuous.
+
+    long_unit is ALSO marked completed (UnitProgressFactory(student=user,
+    unit=long_unit, completed=True)) so `.unit-tree__check` renders for the
+    completed-row arm -- that tick is behind {% if item.completed %}
+    (_unit_tree_node.html:10) and nothing else in this seed produces one.
+    Deliberately NOT short_unit: a leading tick eats row width, and short_unit is
+    the row whose >=20px free-space guard the rail-gutter arm depends on.
+
+    Returns (user, course, chapter, short_unit, long_unit, quiz_unit, maths_unit,
+    token_unit) -- five marked units, because three arms need title shapes the
+    others cannot supply:
+      * short_unit  -- measurably narrower than the rail row's content box, and an
+                       <h1> under ~150px on the desktop unit page.
+      * long_unit   -- WIDE_TITLE: multi-word and already proven to measure >= 740
+                       as an uncapped <h1> (see test_quiz_chrome_...), which is
+                       what makes 736 + 12 + ~78 > the ~746px group line and lets
+                       the cap-length row see a `flex-wrap: wrap` mutant.
+      * quiz_unit   -- the quiz-side unit-page arms.
+      * maths_unit  -- capture_title_math_screenshots.TITLES["long"], the long
+                       maths title the existing audit actually measured. NOT
+                       helpers_title_math.MATHS_TITLE, which is short, comes from
+                       a different module, and may not even wrap in the drawer
+                       column.
+      * token_unit  -- one unbroken token wider than the 390px outline title
+                       column.
+
+    None of this file's other seeds can stand in: _seed_traversal_course,
+    _seed_nav_course, _seed_grouped_course and _seed_text_and_table_unit all build
+    default-obligatory lessons, which emit no marker at all.
+    """
+    from django.contrib.auth import get_user_model
+
+    from tests.capture_title_math_screenshots import TITLES
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import UnitProgressFactory
+
+    user = get_user_model().objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=user)
+    EnrollmentFactory(student=user, course=course)
+    chapter = ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        parent=None,
+        unit_type=None,
+        title="Marked chapter",
+    )
+
+    def _unit(title, **kw):
+        kw.setdefault("unit_type", "lesson")
+        # Explicit, never inherited: ContentNode.obligatory defaults to True and
+        # ContentNodeFactory does not set it, so an omitted kwarg silently renders
+        # an UNMARKED row and every assertion in this section goes vacuous.
+        kw.setdefault("obligatory", False)
+        return ContentNodeFactory(
+            course=course, kind="unit", parent=chapter, title=title, **kw
+        )
+
+    short_unit = _unit(SHORT_TITLE)
+    long_unit = _unit(WIDE_TITLE)
+    quiz_unit = _unit(QUIZ_TITLE, unit_type="quiz")
+    maths_unit = _unit(TITLES["long"])
+    token_unit = _unit(UNBROKEN_TITLE)
+
+    UnitProgressFactory(student=user, unit=long_unit, completed=True)
+
+    return (
+        user,
+        course,
+        chapter,
+        short_unit,
+        long_unit,
+        quiz_unit,
+        maths_unit,
+        token_unit,
+    )
+
+
+def _row(page, scope, pk):
+    """The tree row for `pk` inside `scope` ([data-unit-tree-list] or
+    [data-unit-drawer-list]). The page renders the tree TWICE -- rail and drawer --
+    so an unscoped `.unit-tree__unit` locator is a Playwright strict-mode
+    violation, not merely ambiguous."""
+    return page.locator(f"{scope} a.unit-tree__unit[href$='/u/{pk}/']")
+
+
+def _open_drawer(page):
+    """Click the footer Contents trigger and wait for [hidden] to come off.
+
+    .unit-drawer is display:none at base (courses.css:968) and is revealed only
+    inside @media (max-width: 640px) via .unit-drawer:not([hidden]) (:983) -- it
+    carries a literal `hidden` attribute until unit_nav.js responds to the
+    trigger, so nothing inside it has a box before this runs.
+    """
+    page.locator("[data-unit-drawer-open]").click()
+    page.wait_for_selector("[data-unit-drawer]:not([hidden])")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rail_kind_markers_share_the_right_hand_gutter(browser, live_server):
+    """.unit-tree__label's flex-grow is what puts every marker in one gutter.
+
+    Compare `right`, NOT `x`: x is the wrapper's LEFT edge and the wrapper is only
+    ~13px wide at the rail's .82rem, so "x is near the row's right content edge"
+    is red on a correct build.
+    """
+    _make_student("e2e_kind_rail")
+    _u, course, _ch, short_unit, long_unit, _q, _m, _t = _seed_marked_group(
+        "e2e_kind_rail", slug="e2e-kind-rail"
+    )
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2e_kind_rail")
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{short_unit.pk}/")
+
+        short_row = _row(page, "[data-unit-tree-list]", short_unit.pk)
+        long_row = _row(page, "[data-unit-tree-list]", long_unit.pk)
+
+        # Fixture-validity guard, FIRST. .unit-tree__label already carries
+        # overflow:hidden + text-overflow:ellipsis, so a title whose max-content
+        # exceeds the row still fills it on the REVERTED build and its marker still
+        # lands flush -- with two long titles both assertions below stay green with
+        # flex-grow removed. The short row must have real slack.
+        content_w = short_row.evaluate(
+            "el => { const cs = getComputedStyle(el);"
+            " return el.clientWidth - parseFloat(cs.paddingLeft)"
+            "        - parseFloat(cs.paddingRight); }"
+        )
+        natural_w = short_row.locator(".unit-tree__label").evaluate(MAX_CONTENT_JS)
+        assert content_w - natural_w >= 20, (
+            f"the short row has only {content_w - natural_w:.1f}px of slack "
+            f"(label wants {natural_w:.1f}, row content is {content_w:.1f}) -- with a "
+            f"title this wide the ellipsis clip fills the row on the reverted build "
+            f"too and neither assertion below can go red. Shorten SHORT_TITLE."
+        )
+
+        short_kind = short_row.locator(".unit-kind").bounding_box()
+        long_kind = long_row.locator(".unit-kind").bounding_box()
+        short_box = short_row.bounding_box()
+        assert short_kind and long_kind and short_box, (
+            "both marked rows must render a .unit-kind -- an unmarked seed makes "
+            "every assertion here vacuous"
+        )
+        short_right = short_kind["x"] + short_kind["width"]
+        long_right = long_kind["x"] + long_kind["width"]
+        row_right = short_box["x"] + short_box["width"]
+
+        assert abs(short_right - long_right) <= 1, (
+            f"markers on a short and a long row do not share a gutter: "
+            f"{short_right:.1f} vs {long_right:.1f} -- .unit-tree__label must keep "
+            f"flex-grow so a short title still fills the row"
+        )
+        # .unit-tree__unit's padding is .3rem .5rem (courses.css:766) and it has no
+        # right border, so the content edge is exactly right - 8.
+        assert abs(short_right - (row_right - 8)) <= 1, (
+            f"the marker does not sit in the row's right-hand gutter: marker right "
+            f"{short_right:.1f}, row content edge {row_right - 8:.1f}"
+        )
+
+        # Still HIDDEN in the rail. Without this an un-hide rule placed OUTSIDE the
+        # @media (max-width: 640px) block passes every other assertion in this file
+        # while eating ~58px of the rail's ~98px title column. The numeric bound is
+        # the point: .visually-hidden renders 1px x 1px with a zero clip rect, which
+        # Playwright reports as VISIBLE with a non-empty box.
+        sizes = page.eval_on_selector_all(
+            "[data-unit-tree-list] .unit-kind__label",
+            "els => els.map(e => { const r = e.getBoundingClientRect();"
+            " return [r.width, r.height]; })",
+        )
+        assert sizes, (
+            "no .unit-kind__label in the rail -- the seed rendered no markers and "
+            "this assertion is vacuous"
+        )
+        # Each dimension independently, NOT the largest area: a 60x0 box has zero
+        # area and would win no area comparison while still proving the label is
+        # laid out.
+        widest = max(w for w, _h in sizes)
+        tallest = max(h for _w, h in sizes)
+        assert widest <= 2 and tallest <= 2, (
+            f"a rail marker's word is rendered (worst {widest:.1f} wide, "
+            f"{tallest:.1f} tall) -- the un-hide rule must stay scoped to "
+            f".unit-drawer__list AND inside the <=640px media query"
+        )
+    finally:
+        ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("collapsed", [False, True], ids=["expanded", "collapsed"])
+def test_desktop_lesson_head_keeps_the_chip_and_the_pill_in_place(
+    browser, live_server, collapsed
+):
+    """The .lesson-unit__heading > .lesson-unit__title reset and the group's own
+    flex, on the SHORT-title row.
+
+    Both must sit on the short-title row: with a cap-length title the group's base
+    (736 + 12 + ~78 = 826) already exceeds the ~746px line, free space is zero,
+    space-between degenerates to flex-start, and the pill assertion holds on the
+    broken build too.
+    """
+    user = f"e2e_kind_head_{int(collapsed)}"
+    _make_student(user)
+    _u, course, _ch, short_unit, _l, _q, _m, _t = _seed_marked_group(
+        user, slug=f"e2e-kind-head-{int(collapsed)}"
+    )
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, user)
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{short_unit.pk}/")
+        if collapsed:
+            _collapse(page)
+
+        b = page.evaluate(HEAD_BOXES_JS)
+        assert b["chip"] is not None, "the marked unit rendered no chip"
+        assert b["done"] is not None, "the lesson head must render .unit-done"
+
+        # Fixture-validity guard, FIRST. The 200px bound below is red on a CORRECT
+        # build once the heading passes ~188px, so the fixture has to stay short.
+        # MAX-CONTENT, not the rendered width: on the reverted build the <h1> grows
+        # to absorb the group, so a rendered-width guard fires FIRST and reports the
+        # missing reset as "shorten SHORT_TITLE" -- it would swallow the assertion
+        # this arm exists for. Max-content is the fixture property and is identical
+        # on both builds.
+        title_w = page.locator(".lesson-unit__title").evaluate(MAX_CONTENT_JS)
+        assert title_w < 150, (
+            f"the <h1>'s own text measures {title_w:.1f}px -- this fixture no longer "
+            f"exercises the reset; the 200px bound below would be red on a correct "
+            f"build. Shorten SHORT_TITLE."
+        )
+
+        # Written as an absolute bound, NOT as `chip.left == title.right + gap`:
+        # adjacency is invariant across both builds, since without the reset the
+        # <h1> merely grows and the chip still sits one gap past its right edge.
+        offset = b["chip"]["left"] - b["group"]["left"]
+        assert offset < 200, (
+            f"the chip sits {offset:.1f}px into the heading group -- without "
+            f"`.lesson-unit__heading > .lesson-unit__title {{ flex: 0 1 auto }}` the "
+            f"<h1> inherits flex:1 1 0% from .lesson-unit__head and absorbs the group"
+        )
+
+        # The head's gap is 1rem (courses.css:837). With the group at flex:1 1 auto
+        # there is no free space, so space-between puts the pill exactly one gap past
+        # the group; with the group shrink-wrapped it flies to the column's far right.
+        gap = b["done"]["left"] - b["group"]["right"]
+        assert abs(gap - 16) <= 1, (
+            f"the completion pill sits {gap:.1f}px past the heading group, expected "
+            f"the head's 1rem gap -- .lesson-unit__heading must keep flex: 1 1 auto"
+        )
+    finally:
+        ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("collapsed", [False, True], ids=["expanded", "collapsed"])
+def test_desktop_quiz_head_keeps_the_chip_beside_the_title(
+    browser, live_server, collapsed
+):
+    """The same reset on the OTHER article template. _quiz_article.html has no
+    .unit-done, so the heading group spans the whole column and a missing reset is
+    even more visible -- but nothing else in the suite renders this template with a
+    chip."""
+    user = f"e2e_kind_qhead_{int(collapsed)}"
+    _make_student(user)
+    _u, course, _ch, _s, _l, quiz_unit, _m, _t = _seed_marked_group(
+        user, slug=f"e2e-kind-qhead-{int(collapsed)}"
+    )
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, user)
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{quiz_unit.pk}/quiz/")
+        if collapsed:
+            _collapse(page)
+
+        b = page.evaluate(HEAD_BOXES_JS)
+        assert b["chip"] is not None, "the quiz unit rendered no chip"
+        assert b["done"] is None, (
+            "the quiz head is not supposed to carry .unit-done; if it now does, the "
+            "group's line changes and this arm's bound needs re-deriving"
+        )
+        # MAX-CONTENT, not the rendered width -- see the lesson arm's note: a
+        # rendered-width guard fires first on the reverted build and swallows the
+        # assertion below.
+        title_w = page.locator(".lesson-unit__title").evaluate(MAX_CONTENT_JS)
+        assert title_w < 150, (
+            f"the <h1>'s own text measures {title_w:.1f}px -- this fixture no longer "
+            f"exercises the reset. Shorten QUIZ_TITLE."
+        )
+        offset = b["chip"]["left"] - b["group"]["left"]
+        assert offset < 200, (
+            f"the chip sits {offset:.1f}px into the heading group -- the <h1> is "
+            f"absorbing the group, so the reset is missing on the quiz template"
+        )
+    finally:
+        ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_desktop_cap_length_title_keeps_the_chip_on_the_title_line(
+    browser, live_server
+):
+    """A title at the 736px prose cap must NOT push the chip onto its own line.
+
+    Collapsed only, via the file's _collapse(): the 736px cap applies ONLY in that
+    state, so a cap-length assertion is meaningless anywhere else.
+
+    Deliberately NOT `chip.top ~= title.top`: align-items: baseline makes the two
+    tops differ by ~10-15px on a correct build. And this row gets no chip-position
+    or chip-width assertion -- both builds put chip.left at group.left + 668, and a
+    flex: 0 1 auto chip's shrink target is a min violation so it freezes at its
+    full width either way.
+    """
+    _make_student("e2e_kind_cap")
+    _u, course, _ch, _s, long_unit, _q, _m, _t = _seed_marked_group(
+        "e2e_kind_cap", slug="e2e-kind-cap"
+    )
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2e_kind_cap")
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{long_unit.pk}/")
+        _collapse(page)
+
+        # Fixture-validity guard, FIRST. Deliberately NOT _uncapped_title_width():
+        # that helper neutralises only `max-width`, so on the LESSON head the <h1>
+        # is still a flex item shrinking against the completion pill and it reports
+        # min(max-content, the group's line) -- ~667px here. That is the quantity
+        # the quiz-chrome test wants (a quiz head has no pill, so its group spans
+        # the whole column and the cap really is the smaller bound); it is not the
+        # quantity this arm needs. Measure the <h1>'s true max-content instead.
+        # >= 740, not > 736, is the same bound Task 5's repair uses.
+        max_content = page.locator(".lesson-unit__title").evaluate(MAX_CONTENT_JS)
+        assert max_content >= 740, (
+            f"this fixture no longer reaches the cap: the <h1>'s max-content is "
+            f"{max_content:.1f}px, at or under 736 plus slack. Lengthen WIDE_TITLE."
+        )
+
+        b = page.evaluate(HEAD_BOXES_JS)
+        assert b["chip"] is not None, "the marked unit rendered no chip"
+        # The second half of the guard, and the precondition the `flex-wrap: wrap`
+        # mutant needs: the <h1>'s flex BASE (max-content clamped by the 736px cap)
+        # plus the 12px --space-3 gap plus the chip must overflow the group's line.
+        # If they fitted, adding flex-wrap would change nothing and this assertion
+        # could never go red.
+        base_line = min(max_content, 736) + 12 + b["chip"]["width"]
+        assert base_line > b["group"]["width"] + 1, (
+            f"the heading group's line ({b['group']['width']:.1f}px) still fits the "
+            f"capped title plus gap plus chip ({base_line:.1f}px) — a wrap mutant "
+            f"would be invisible here"
+        )
+        assert b["chip"]["top"] < b["title"]["bottom"] - 1, (
+            f"the chip wrapped below the title (chip top {b['chip']['top']:.1f}, "
+            f"title bottom {b['title']['bottom']:.1f}) -- .lesson-unit__heading must "
+            f"NOT wrap at desktop: 736 + 12 + ~78 exceeds the ~746px group line"
+        )
+    finally:
+        ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_drawer_marker_shows_its_word_and_keeps_its_box(browser, live_server):
+    """The mobile drawer: the marker's word is revealed, the wrapper keeps its box,
+    the glyph-to-word gap survives, and a long maths title never reaches it.
+
+    NOTE ON TEARDOWN: the only page.add_style_tag in this test is the LAST
+    measurement performed, and its handle is removed in a `finally` regardless --
+    the injected `!important` rule does not expire on its own and it moves the
+    marker, so leaving it would corrupt every earlier assertion if the order ever
+    changed.
+    """
+    _make_student("e2e_kind_drawer")
+    _u, course, _ch, short_unit, long_unit, _q, _m, _t = _seed_marked_group(
+        "e2e_kind_drawer", slug="e2e-kind-drawer"
+    )
+
+    ctx = browser.new_context(viewport={"width": 390, "height": 780})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2e_kind_drawer")
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{short_unit.pk}/")
+        _open_drawer(page)
+
+        scope = "[data-unit-drawer-list]"
+        # Every marker assertion below runs on the LONG-title row, not the short
+        # one. The drawer label is `flex: 1 1 auto` with a max-content basis, so a
+        # short title leaves the row in SURPLUS: the label simply grows, nothing
+        # shrinks, and a `.unit-drawer__list .unit-kind { flex: 0 1 auto;
+        # min-width: 0 }` mutant is invisible. Only a title whose max-content runs
+        # the row into a large deficit makes the marker's flex: none load-bearing.
+        row = _row(page, scope, long_unit.pk)
+        parts = row.evaluate(
+            "el => { const r = e => e ? e.getBoundingClientRect().toJSON() : null;"
+            " const k = el.querySelector('.unit-kind');"
+            " return {row: r(el), kind: r(k), label: r(el.querySelector("
+            "'.unit-kind__label')), svg: r(k && k.querySelector('svg.icon')),"
+            " title: r(el.querySelector('.unit-tree__label')),"
+            " check: r(el.querySelector('.unit-tree__check'))}; }"
+        )
+        assert parts["kind"] and parts["label"] and parts["svg"], (
+            "the drawer row rendered no marker -- an unmarked seed makes every "
+            "assertion in this test vacuous"
+        )
+        # Fixture-validity guard for the differential assertion below: the row must
+        # really be in deficit, i.e. the title's max-content must exceed the space
+        # the row can give it. Without this the marker is never asked to shrink.
+        row_content = row.evaluate(
+            "el => { const cs = getComputedStyle(el);"
+            " return el.clientWidth - parseFloat(cs.paddingLeft)"
+            "        - parseFloat(cs.paddingRight); }"
+        )
+        title_max = row.locator(".unit-tree__label").evaluate(MAX_CONTENT_JS)
+        assert title_max > row_content, (
+            f"the drawer row is not in deficit (title max-content {title_max:.1f} vs "
+            f"{row_content:.1f}px of row) — nothing shrinks, so a shrinkable-marker "
+            f"mutant would be invisible. Lengthen WIDE_TITLE."
+        )
+
+        # The word is REALLY shown. The numeric thresholds are the point:
+        # .visually-hidden is 1px x 1px with a zero clip rect, which Playwright
+        # reports as visible with a non-empty box -- so `bounding_box() is not None`
+        # can distinguish neither a still-hidden label nor a PARTIAL revert
+        # (position: static alone leaves a 1x1 clipped span).
+        assert parts["label"]["width"] >= 30 and parts["label"]["height"] >= 8, (
+            f"the drawer marker's word measures "
+            f"{parts['label']['width']:.1f}x{parts['label']['height']:.1f} -- all six "
+            f"of .visually-hidden's declarations must be reset, not just `position`"
+        )
+
+        # Differential, so no font metric is hardcoded: under a shrinkable-marker
+        # mutant the children keep their sizes while the wrapper is cut below its
+        # min-content, so they spill out of it. An absolute "~91px +/- 1" would be
+        # a guess at a word width and would likely be red on a correct build.
+        assert parts["label"]["right"] <= parts["kind"]["right"] + 1, (
+            f"the marker's word overflows its own wrapper (label right "
+            f"{parts['label']['right']:.1f} vs marker right "
+            f"{parts['kind']['right']:.1f}) -- .unit-drawer__list .unit-kind must not "
+            f"be made shrinkable"
+        )
+
+        # gap: var(--space-1) on .unit-kind. A flex container drops whitespace-only
+        # text between items, so deleting the gap takes this cleanly to 0.
+        glyph_gap = parts["label"]["left"] - parts["svg"]["right"]
+        assert abs(glyph_gap - 4) <= 1, (
+            f"glyph-to-word gap is {glyph_gap:.1f}px, expected the 4px --space-1 "
+            f"gap on .unit-kind"
+        )
+
+        # Containment. Holds on BOTH builds (after a shrink the row still has zero
+        # free space and the marker still ends at the padding edge), so it carries no
+        # mutant -- the differential assertion above is the discriminating one.
+        assert parts["kind"]["right"] <= parts["row"]["right"] - 8 + 1, (
+            f"the marker escapes the row's .5rem padding edge: "
+            f"{parts['kind']['right']:.1f} vs {parts['row']['right'] - 8:.1f}"
+        )
+
+        # TASK 8 needs this number: the drawer's title column on a MARKED row. The
+        # stale comment in courses.css quotes ~98px, which is the RAIL's figure; the
+        # drawer panel is left:0;right:0, so it is far wider. Both shapes are
+        # recorded -- the long row is the SQUEEZED figure the comment is about (a
+        # wrapping title with a leading tick), the short row is the same column with
+        # nothing else on it.
+        squeezed_w = parts["title"]["width"]
+        roomy_w = (
+            _row(page, scope, short_unit.pk)
+            .locator(".unit-tree__label")
+            .evaluate("el => el.getBoundingClientRect().width")
+        )
+        print(
+            f"\n[TASK 8] .unit-tree__label at 390x780 on a marked drawer row: "
+            f"{squeezed_w:.1f}px squeezed (long title + tick + marker), "
+            f"{roomy_w:.1f}px on a short marked row (marker only)"
+        )
+        assert squeezed_w > 120, (
+            f"the drawer title column measured {squeezed_w:.1f}px -- if it really "
+            f"has narrowed to the rail's ~98px, courses.css's maths note needs "
+            f"re-measuring, not this bound relaxing"
+        )
+
+        # Row shape for this same COMPLETED additional unit: one flex line, tick +
+        # label + marker sharing a top (.unit-drawer__list .unit-tree__unit is
+        # align-items: flex-start, so a wrapped label hangs them all from the top).
+        tops = {
+            "check": parts["check"] and parts["check"]["top"],
+            "label": parts["title"] and parts["title"]["top"],
+            "kind": parts["kind"]["top"],
+        }
+        assert None not in tops.values(), (
+            f"the completed additional row is missing a part: {tops} -- the seed must "
+            f"mark long_unit completed AND obligatory=False"
+        )
+        spread = max(tops.values()) - min(tops.values())
+        assert spread <= 6, (
+            f"the completed additional row is not one flex line: tops {tops} spread "
+            f"over {spread:.1f}px"
+        )
+
+        # Maths re-check. The original audit measured .katex only against controls
+        # that LEAD a unit row or live on group rows, so it carries no evidence for a
+        # right-hand neighbour. Expected outcome: NO intersection. If it DOES
+        # intersect that is a design change (containment on the drawer label's maths,
+        # or moving the marker) -- do not widen the tolerance.
+        page.wait_for_selector(f"{scope} .katex", state="attached")
+        assert page.locator(f"{scope} .unit-kind").first.bounding_box() is not None, (
+            "no drawer marker has a box -- the intersection loop below would be "
+            "vacuous, and an empty list is the DEFAULT outcome for an unmarked seed"
+        )
+        maths = page.evaluate(
+            """(sel) => {
+                 const s = document.querySelector(sel);
+                 const box = e => e.getBoundingClientRect();
+                 const marks = [...s.querySelectorAll('.unit-kind')].map(box)
+                   .filter(r => r.width > 0 && r.height > 0);
+                 const katex = [...s.querySelectorAll('.katex')].map(box)
+                   .filter(r => r.width > 0 && r.height > 0);
+                 const hits = [];
+                 for (const m of katex) for (const k of marks) {
+                   if (m.left < k.right && m.right > k.left &&
+                       m.top < k.bottom && m.bottom > k.top) {
+                     hits.push([m.left, m.top, m.right, m.bottom,
+                                k.left, k.top, k.right, k.bottom]);
+                   }
+                 }
+                 return {marks: marks.length, katex: katex.length, hits: hits};
+               }""",
+            scope,
+        )
+        assert maths["marks"] > 0, "no laid-out .unit-kind in the drawer"
+        assert maths["katex"] > 0, (
+            "no laid-out .katex in the drawer -- maths_unit's title did not typeset "
+            "and the intersection loop is vacuous"
+        )
+        assert maths["hits"] == [], (
+            f"a .katex box in a drawer title overlaps a .unit-kind marker: "
+            f"{maths['hits']} -- this is a DESIGN change, not a tolerance to widen"
+        )
+
+        # LAST assertion on this page, and the only add_style_tag here. A/B the
+        # drawer label's wrap points against the PRE-CHANGE computed value. It has to
+        # be named explicitly: add_style_tag can only ADD a declaration, and
+        # `flex: none` / `flex: 1 1 0` would change the label's base size and redden
+        # a correct build.
+        label = _row(page, scope, long_unit.pk).locator(".unit-tree__label")
+        before = label.evaluate("el => el.getBoundingClientRect().height")
+        style = page.add_style_tag(
+            content=".unit-drawer__list .unit-tree__label"
+            " { flex: 0 1 auto !important; }"
+        )
+        try:
+            after = label.evaluate("el => el.getBoundingClientRect().height")
+        finally:
+            style.evaluate("e => e.remove()")
+        assert abs(after - before) <= 1, (
+            f"giving the drawer label flex-grow moved its wrap points: "
+            f"{before:.1f} -> {after:.1f}px tall"
+        )
+    finally:
+        ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_phone_unit_head_drops_the_chip_under_the_title(browser, live_server):
+    """The SOLE pin for the mobile .lesson-unit__heading rule.
+
+    test_e2e_unit_head_layout.py structurally cannot cover it -- its fixture
+    renders no chip at all. At 390px the <h1> keeps flex-basis: 100%
+    (courses.css:1021), the group wraps, and the chip starts a fresh flex line at
+    the group's content-box left under the default justify-content: flex-start
+    (the group has no padding). Both assertions are exact, not "near".
+    """
+    _make_student("e2e_kind_phead")
+    _u, course, _ch, short_unit, _l, _q, _m, _t = _seed_marked_group(
+        "e2e_kind_phead", slug="e2e-kind-phead"
+    )
+
+    ctx = browser.new_context(viewport={"width": 390, "height": 780})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2e_kind_phead")
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{short_unit.pk}/")
+
+        b = page.evaluate(HEAD_BOXES_JS)
+        assert b["chip"] is not None, "the marked unit rendered no chip"
+        assert b["chip"]["top"] >= b["title"]["bottom"] - 1, (
+            f"the chip stayed on the title's line at 390px (chip top "
+            f"{b['chip']['top']:.1f}, title bottom {b['title']['bottom']:.1f}) -- "
+            f"the mobile `.lesson-unit__heading {{ flex-basis: 100%; "
+            f"flex-wrap: wrap }}` rule is missing"
+        )
+        assert abs(b["chip"]["left"] - b["group"]["left"]) <= 1, (
+            f"the chip does not start a fresh flex line at the group's left edge: "
+            f"chip {b['chip']['left']:.1f} vs group {b['group']['left']:.1f}"
+        )
+    finally:
+        ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_outline_marked_row_does_not_overflow_at_phone_width(browser, live_server):
+    """The chip can add ~90px to a 390px outline row, so the title column must be
+    able to break an unbreakable token. A multi-word long title wraps at spaces
+    under `overflow-wrap: normal` too, which is why this drives token_unit."""
+    _make_student("e2e_kind_outline")
+    _u, course, _ch, _s, _l, _q, _m, token_unit = _seed_marked_group(
+        "e2e_kind_outline", slug="e2e-kind-outline"
+    )
+
+    ctx = browser.new_context(viewport={"width": 390, "height": 780})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2e_kind_outline")
+        page.goto(f"{live_server.url}/courses/{course.slug}/")
+
+        li = page.locator(f"#node-{token_unit.pk}")
+        title = li.locator(".outline-unit__title")
+        assert li.locator(".unit-kind-chip").count() == 1, (
+            "the outline row rendered no kind chip -- the seed is unmarked and the "
+            "squeeze this arm measures does not exist"
+        )
+
+        # Fixture-validity guard, FIRST: the token is MEASURED wider than the
+        # rendered title column, not derived from a character count.
+        column = title.evaluate("el => el.clientWidth")
+        token = title.evaluate(MAX_CONTENT_JS)
+        assert token > column + 20, (
+            f"the title's single token measures {token:.1f}px against a "
+            f"{column:.1f}px column -- it no longer overflows, so `overflow-wrap` "
+            f"has nothing to break. Lengthen UNBROKEN_TITLE."
+        )
+
+        overflow = title.evaluate("el => el.scrollWidth - el.clientWidth")
+        assert overflow <= 1, (
+            f".outline-unit__title overflows its own box by {overflow:.1f}px -- "
+            f"`overflow-wrap: anywhere` must stay on it"
+        )
+
+        edges = page.evaluate(
+            "(pk) => { const li = document.getElementById('node-' + pk);"
+            " return {li: li.getBoundingClientRect().right,"
+            " unit: li.querySelector('.outline-unit').getBoundingClientRect().right};"
+            " }",
+            token_unit.pk,
+        )
+        assert edges["unit"] <= edges["li"] + 1, (
+            f"the unit row escapes its <li>: {edges['unit']:.1f} vs {edges['li']:.1f}"
+        )
+
+        page_overflow = page.evaluate(
+            "() => document.documentElement.scrollWidth"
+            " - document.documentElement.clientWidth"
+        )
+        assert page_overflow <= 0, (
+            f"the outline page scrolls horizontally by {page_overflow}px at 390 wide"
+        )
+    finally:
+        ctx.close()
