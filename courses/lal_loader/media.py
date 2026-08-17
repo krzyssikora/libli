@@ -43,5 +43,14 @@ def get_or_create_asset(course, kind, path):
         course=course, kind=kind, original_filename=path.name, content_hash=digest
     )
     asset.file.save(path.name, ContentFile(data), save=False)
-    asset.save()
+    # Generate BEFORE the save below. Safe here -- and only here -- because the
+    # line above already wrote the bytes to storage and set _committed=True, so
+    # asset.file is a committed FieldFile. replace_asset differs: its file is
+    # still an uncommitted UploadedFile until its own step 3, which is why
+    # generate-before-save is forbidden there. The rule is "generate only
+    # against a committed file", not "generate after Model.save()".
+    from courses.derivatives import generate_derivatives
+
+    generate_derivatives(asset)
+    asset.save()  # full save, no update_fields -- persists everything
     return asset

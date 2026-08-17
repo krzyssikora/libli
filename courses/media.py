@@ -103,7 +103,15 @@ def truncate_filename(name, limit=255):
     return base[:limit]
 
 
-def create_asset(course, kind, uploaded_file, user, name=""):
+def create_asset(course, kind, uploaded_file, user, name="", generate=True):
+    """Create a MediaAsset and, by default, generate its image derivatives.
+
+    `generate=False` is for bulk paths (the transfer importer) that must not
+    pay per-asset generation cost inside a request-held transaction; those
+    rows stay pending until the backfill command runs. generate_derivatives
+    never raises -- a failed generation records DerivativesState.FAILED and
+    leaves thumb/web blank, it never breaks the asset creation itself.
+    """
     asset = MediaAsset(
         course=course,
         kind=kind,
@@ -114,6 +122,13 @@ def create_asset(course, kind, uploaded_file, user, name=""):
     )
     asset.full_clean()  # per-kind extension + size validators (ValidationError -> 422)
     asset.save()
+    if generate:
+        from courses.derivatives import generate_derivatives
+
+        generate_derivatives(asset)
+        asset.save(
+            update_fields=["width", "height", "thumb", "web", "derivatives_state"]
+        )
     return asset
 
 

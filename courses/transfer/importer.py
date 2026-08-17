@@ -884,7 +884,16 @@ def _create_media(zf, document, media_entries, course, user, created_files):
         spool = extract_entry_to_tempfile(zf, info)
         try:
             wrapped = File(spool, name=truncate_filename(m["original_filename"]))
-            asset = create_asset(course, m["kind"], wrapped, user, name=m["name"])
+            # generate=False: _create_media loops over up to
+            # TRANSFER_MAX_MEDIA_ENTRIES (1000) entries inside _run_import's
+            # transaction.atomic(). At tens of ms per image that is 20-60s of
+            # CPU added to one request holding an open write transaction.
+            # Imported assets serve originals until the operator runs
+            # `backfill_media_derivatives --course <slug>`, which blank-is-safe
+            # makes correct rather than broken.
+            asset = create_asset(
+                course, m["kind"], wrapped, user, name=m["name"], generate=False
+            )
         finally:
             spool.close()  # up to 1000 entries — don't accumulate open handles
         created_files.append(asset.file.name)
