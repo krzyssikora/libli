@@ -99,7 +99,7 @@ def _open_manager(page, live_server, username, course):
     page.wait_for_selector(".asset-cell")
 
 
-def _seed_assets(username, slug, *specs):
+def _seed_assets(username, slug, *specs, derivatives=False):
     """Course + exactly the named assets, nothing else.
 
     Distinct from _seed(): that one creates an `original.png` of its own, which
@@ -107,11 +107,18 @@ def _seed_assets(username, slug, *specs):
 
     NOTE the grid order: courses/media.py:86 sorts by "-created", so the LAST
     spec here renders FIRST. Resolve anchors by name, not by nth().
+
+    `derivatives` is an explicit keyword-only parameter, NOT part of `*specs`:
+    passing it positionally would land in specs and raise a TypeError trying
+    to unpack it as (filename, size). `derivatives=True` runs
+    generate_derivatives + persists on every seeded asset -- required for any
+    assertion that depends on a thumb existing, since size alone generates
+    nothing (see make_image_asset's docstring in tests/factories.py).
     """
     user = make_verified_user(username)
     course = CourseFactory(owner=user, slug=slug)
     for filename, size in specs:
-        make_image_asset(course, filename=filename, size=size)
+        make_image_asset(course, filename=filename, size=size, derivatives=derivatives)
     return user, course
 
 
@@ -864,30 +871,29 @@ def test_a_32_char_name_clamps_to_three_lines(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_hover_opens_the_overlay_with_the_thumbnails_source(page, live_server):
+def test_hover_opens_the_overlay_with_the_full_resolution_source(page, live_server):
+    """Renamed and inverted deliberately: the old name encoded the contract this
+    change reverses. Lands HERE, in the template-conversion commit, not in the
+    JS commit -- through the JS commit the thumb's src is still the original, so
+    the old assertion stayed green there and the ordering rule could not
+    surface it."""
     # size= is mandatory: make_image_asset defaults to (1,1) (factories.py:150),
     # which makes "larger than the thumb" unachievable or true for the wrong
-    # reason.
-    user, course = _seed_assets("hov-pa", "hov", ("wide_0_1.png", (800, 200)))
+    # reason. derivatives=True: width alone generates nothing (see
+    # _seed_assets's docstring).
+    user, course = _seed_assets(
+        "hov-pa", "hov", ("wide_0_1.png", (800, 200)), derivatives=True
+    )
     _open_manager(page, live_server, "hov-pa", course)
+    # Use the file's OWN helper, not a raw hover: _open_preview waits past the
+    # module's dwell timer and resolves the cell by data-name rather than by
+    # position, which is what its docstring exists to guarantee.
     _open_preview(page, "wide_0_1.png")
-    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
-    # currentSrc on BOTH sides. Comparing raw attributes does not work here:
-    # open() assigns anchor.currentSrc, which is the ABSOLUTE resolved URL, so
-    # the overlay's attribute is "http://127.0.0.1:PORT/media/..." while the
-    # thumb's is the relative "/media/..." the template wrote (MEDIA_URL is
-    # "/media/", config/settings/base.py:167, not overridden in test.py). They
-    # are never equal. The visibility wait above guarantees both are populated,
-    # which is what made the attribute form tempting in the first place.
-    same = page.evaluate("""() => {
-        const img = document.querySelector('[data-asset-preview-img]');
-        const thumb = document.querySelector('[data-asset-preview]');
-        return img.currentSrc === thumb.currentSrc;
-    }""")
-    assert same
-    box = page.locator(".asset-preview").bounding_box()
-    thumb = _anchor(page, "wide_0_1.png").bounding_box()
-    assert box["width"] > thumb["width"]
+    overlay = page.locator("[data-asset-preview-img]").evaluate("e => e.currentSrc")
+    thumb = page.locator("[data-asset-preview]").evaluate("e => e.currentSrc")
+    cell_url = page.locator(".asset-cell").get_attribute("data-url")
+    assert overlay.endswith(cell_url)
+    assert overlay != thumb
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1200,7 +1206,20 @@ def test_reopening_the_same_anchor_shows_the_image_and_sizes_to_it(page, live_se
 @pytest.mark.django_db(transaction=True)
 def test_a_404_source_shows_the_caption_and_no_image_box(page, live_server):
     """Abort the overlay's request but NOT the thumbnail's, so this exercises
-    the `error` handler rather than the empty-currentSrc guard."""
+    the `error` handler rather than the empty-src guard.
+
+    Merged with the former `test_a_thumbnail_that_never_loaded_shows_the_
+    caption_only` (which aborted every request for the asset, including the
+    thumbnail's): before Task 9's repoint those were two distinct code paths
+    -- a live thumb whose own overlay fetch 404s went through `error`, while a
+    thumb that never loaded at all short-circuited via `anchor.currentSrc`
+    being empty. After the repoint, `open()` reads `data-url` off the cell,
+    which `_asset_cell.html:3` always populates from `asset.file.url` and is
+    never empty -- so a dead thumbnail no longer takes a different branch,
+    and both scenarios now exercise this same `error` handler. Keeping both
+    tests would have asserted the identical branch twice under different
+    setup.
+    """
     user, course = _seed_assets("err-pa", "err", ("zepsuty_0_1.png", (400, 300)))
     seen = {"n": 0}
 
@@ -1221,20 +1240,6 @@ def test_a_404_source_shows_the_caption_and_no_image_box(page, live_server):
     _open_preview(page, "zepsuty_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
     expect(page.locator(".asset-preview__caption")).to_have_text("zepsuty_0_1.png")
-
-
-@pytest.mark.django_db(transaction=True)
-def test_a_thumbnail_that_never_loaded_shows_the_caption_only(page, live_server):
-    """The OTHER caption-only source: the thumb itself failed, so currentSrc is
-    empty and there is nothing to copy. Abort every request for this asset,
-    including the thumbnail's."""
-    user, course = _seed_assets("nvr-pa", "nvr", ("martwy_0_1.png", (400, 300)))
-    page.route("**/martwy_0_1*", lambda route: route.abort())
-    _open_manager(page, live_server, "nvr-pa", course)
-    page.set_viewport_size({"width": 1280, "height": 900})
-    _open_preview(page, "martwy_0_1.png")
-    expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
-    expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_1.png")
 
 
 @pytest.mark.django_db(transaction=True)

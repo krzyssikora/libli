@@ -181,6 +181,23 @@ def _handle_upload(request, *, slot, expected_kind, target_course=None):
     )
 
 
+def _notify_pending_derivatives(request, course, document):
+    """Imported media is created with generate=False (§ importer._create_media)
+    -- it serves originals until the operator runs the backfill command. Only
+    shown when the archive actually carried media; a text-only import has
+    nothing to backfill."""
+    if not document["media"]:
+        return
+    messages.info(
+        request,
+        _(
+            "Run `backfill_media_derivatives --course %(slug)s` to generate image "
+            "derivatives for the imported media."
+        )
+        % {"slug": course.slug},
+    )
+
+
 def _warn_flattened(request, report):
     """Second message, so the two existing success msgids are untouched.
 
@@ -242,6 +259,7 @@ def _handle_confirm(request, *, slot, expected_kind, target_course=None):
                     _("Course “%(title)s” imported.") % {"title": new_course.title},
                 )
                 _warn_flattened(request, report)
+                _notify_pending_derivatives(request, new_course, document)
                 return redirect("courses:manage_builder", slug=new_course.slug)
             insertion = None
             raw = request.POST.get("insertion", "")
@@ -275,6 +293,7 @@ def _handle_confirm(request, *, slot, expected_kind, target_course=None):
             )
             messages.success(request, _("Content imported."))
             _warn_flattened(request, report)
+            _notify_pending_derivatives(request, target_course, document)
             return redirect("courses:manage_builder", slug=target_course.slug)
     except TransferError as exc:
         return _render_upload(

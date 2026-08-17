@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
+from courses.derivatives import delete_derivative_files
 from courses.models import MediaAsset
 
 
@@ -25,8 +26,15 @@ def _delete_mediaasset_file(sender, instance, **kwargs):
     name = file.name
     storage = file.storage
 
+    # Derivative fields carry their OWN storage (a different field's storage
+    # from instance.file.storage, even though both currently resolve to the
+    # default backend). Available on a blank FieldFile, so reading it is safe.
+    derivative_names = [instance.thumb.name, instance.web.name]
+    derivative_storage = instance.thumb.storage
+
     def _remove():
         if name and storage.exists(name):
             storage.delete(name)
+        delete_derivative_files(derivative_names, derivative_storage)
 
     transaction.on_commit(_remove)

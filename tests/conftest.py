@@ -387,6 +387,14 @@ def course_with_image(db, tmp_path, settings):
     return course, make_image_asset(course, filename="graph.png", size=(1586, 612))
 
 
+@pytest.fixture
+def course_with_image_media_root(db, tmp_path, settings):
+    """Redirect MEDIA_ROOT per test: make_image_asset writes real files, and the
+    derivative tests assert on storage contents."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    return settings.MEDIA_ROOT
+
+
 @pytest.fixture(autouse=True)
 def _enable_db_access(db):
     """Give every test DB access (small project; convenient default).

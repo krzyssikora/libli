@@ -520,3 +520,59 @@ def test_unexpected_exception_wrapped_as_transfer_error_and_cleaned_up(
     assert MediaAsset.objects.count() == 0
     media_dir = tmp_path / "courses" / "media"
     assert not media_dir.exists() or not any(media_dir.rglob("*"))
+
+
+def test_a_failed_import_leaves_no_orphaned_files(monkeypatch, tmp_path):
+    """The spec's orphan invariant: _create_media appends only asset.file.name
+    to created_files, and _run_import calls _cleanup_files on EVERY failure
+    path. Closed by construction today because the importer passes
+    generate=False -- but if a later change re-enables generation inside
+    _run_import's transaction.atomic(), up to TRANSFER_MAX_MEDIA_ENTRIES
+    derivative files would be written and cleaned up by nothing, since
+    _cleanup_files only knows about created_files.
+
+    Unlike test_unexpected_exception_wrapped_as_transfer_error_and_cleaned_up
+    above (which reuses this same failure mechanism with garbage bytes), this
+    test's media entry is a REAL decodable PNG wide enough to produce both
+    derivatives. Garbage bytes would make generate_derivatives fail closed
+    (FAILED, no files written) even if generation were mistakenly re-enabled,
+    which would make the guard pass for the wrong reason.
+    """
+    import io
+
+    from PIL import Image
+
+    buf_png = io.BytesIO()
+    Image.new("RGB", (2000, 1500), "green").save(buf_png, "PNG")
+
+    img = {
+        "id": "m1",
+        "kind": "image",
+        "name": "",
+        "original_filename": "a.png",
+        "file": "media/m1.png",
+    }
+    doc = base_course_doc(
+        nodes=[node("n1")],
+        elements=[image_el("e1", "n1", "m1")],
+        media=[img],
+    )
+    buf = make_zip(document=doc, entries=[("media/m1.png", buf_png.getvalue())])
+    importer = UserFactory()
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    # _create_nodes is the step _run_import's work() calls right after
+    # _create_media -- see courses/transfer/importer.py:import_course.work().
+    monkeypatch.setattr("courses.transfer.importer._create_nodes", _boom)
+
+    with open_archive(buf, expected_kind="course") as (zf, mani, document, media):
+        validate_archive_document(zf, mani, document, media, kind="course")
+        with pytest.raises(TransferError):
+            import_course(zf, mani, document, media, importer)
+
+    assert Course.objects.count() == 0
+    assert MediaAsset.objects.count() == 0
+    media_dir = tmp_path / "courses" / "media"
+    assert not media_dir.exists() or not any(media_dir.rglob("*"))

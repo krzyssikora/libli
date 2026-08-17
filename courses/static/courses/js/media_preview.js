@@ -168,26 +168,32 @@
     overlayCaption.textContent = cell.getAttribute("data-name") || "";
     openAnchor = anchor;
 
-    var src = anchor.currentSrc || anchor.getAttribute("src") || "";
-    if (!src || (anchor.complete && anchor.naturalWidth === 0)) {
-      // The thumbnail itself failed, so there is nothing to copy. Assigning ""
-      // does not reliably fire error and can leave the previous image showing.
+    // data-url off the CELL, not the thumb's own src: once the grid serves a
+    // derivative, the thumb's src is no longer the full-resolution image.
+    var src = cell.getAttribute("data-url") || "";   // `cell` is bound at :161
+    // Only the !src half of the old guard survives here. Its own comment
+    // explains why it cannot be delegated: assigning "" does not reliably fire
+    // error and can leave the PREVIOUS image showing. The
+    // `complete && naturalWidth === 0` half moves to the overlay's own error
+    // handler (:54-58) -- after the repoint it would be interrogating the thumb
+    // while a different URL loads.
+    if (!src) {
       captionOnly();
-    } else {
-      overlayImg.src = src;
-      expectedSrc = src;
-      if (overlayImg.getAttribute("src") === expectedSrc
-          && overlayImg.complete && overlayImg.naturalWidth > 0) {
-        // Not a load-event workaround -- Task 6 confirmed `load` DOES re-fire
-        // on a same-URL re-assignment. This is purely a flash guard: on a warm
-        // re-open the image is already complete, and without this the caption
-        // renders one frame before the image snaps in. Below Playwright's
-        // resolution, but visible to a human.
-        overlayImg.hidden = false;
-      }
+      return;
+    }
+    overlayImg.src = src;
+    expectedSrc = src;
+    if (overlayImg.getAttribute("src") === expectedSrc
+        && overlayImg.complete && overlayImg.naturalWidth > 0) {
+      // Not a load-event workaround -- Task 6 confirmed `load` DOES re-fire
+      // on a same-URL re-assignment. This is purely a flash guard: on a warm
+      // re-open the image is already complete, and without this the caption
+      // renders one frame before the image snaps in. Below Playwright's
+      // resolution, but visible to a human.
+      overlayImg.hidden = false;
     }
 
-    // ONE shared tail, reached by both branches.
+    // Reached only when src is non-empty; the !src branch above returns early.
     overlay.style.visibility = "hidden";
     overlay.hidden = false;
     place();

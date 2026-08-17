@@ -147,28 +147,76 @@ def make_course_with_unit(owner=None, **kw):
     return course, unit
 
 
-def make_image_asset(course, filename="x.png", size=(1, 1), color="black", **kw):
+def make_image_asset(
+    course,
+    filename="x.png",
+    size=(1, 1),
+    color="black",
+    raw=None,
+    noise=False,
+    derivatives=False,
+    **kw,
+):
     """A MediaAsset(kind="image") backed by a real in-memory PNG, so any
     file-content/extension validation would pass if invoked. Mirrors the PNG
     built in test_image_file_extension_allowlist (tests/test_courses_elements.py).
 
-    `size` and `color` are explicit named parameters, NOT part of **kw: kw is splatted
-    into MediaAsset.objects.create() and an unknown key would raise on a model field.
-    Defaults reproduce the previous behaviour (1x1 black) exactly, so existing callers
-    are unaffected. A non-default `color` matters for the zoom e2e: the default black
-    is indistinguishable from the near-black overlay scrim, which would let an
+    `size`, `color`, `raw`, `noise` and `derivatives` are explicit named
+    parameters, NOT part of **kw: kw is splatted into MediaAsset.objects.create()
+    and an unknown key would raise on a model field. Defaults reproduce the
+    previous behaviour (1x1 black) exactly, so existing callers are unaffected.
+    A non-default `color` matters for the zoom e2e: the default black is
+    indistinguishable from the near-black overlay scrim, which would let an
     occlusion assertion pass for the wrong reason.
+
+    `raw` supplies exact bytes (corrupt files, palette/animated GIFs, EXIF),
+    bypassing the generated PNG entirely. `noise` fills with random pixels so the
+    encoded size is realistic.
+
+    `derivatives=True` runs generate_derivatives + persists -- REQUIRED for any
+    assertion that depends on a derivative existing, because this factory calls
+    MediaAsset.objects.create() directly and never routes through create_asset,
+    so width/size alone generates nothing.
     """
     from io import BytesIO
 
     from django.core.files.uploadedfile import SimpleUploadedFile
     from PIL import Image
 
-    buf = BytesIO()
-    Image.new("RGB", size, color).save(buf, "PNG")
+    if raw is None:
+        buf = BytesIO()
+        img = Image.new("RGB", size, color)
+        if noise:
+            import os
+
+            img = Image.frombytes("RGB", size, os.urandom(size[0] * size[1] * 3))
+        img.save(buf, "PNG")
+        raw = buf.getvalue()
     kw.setdefault("kind", "image")
     kw.setdefault("original_filename", filename)
-    kw.setdefault("file", SimpleUploadedFile(filename, buf.getvalue()))
+    kw.setdefault("file", SimpleUploadedFile(filename, raw))
+    asset = MediaAsset.objects.create(course=course, **kw)
+    if derivatives:
+        from courses.derivatives import generate_derivatives
+
+        generate_derivatives(asset)
+        asset.save(
+            update_fields=["width", "height", "thumb", "web", "derivatives_state"]
+        )
+    return asset
+
+
+def make_video_asset(course, filename="v.mp4", **kw):
+    """A MediaAsset(kind="video") backed by a minimal placeholder payload.
+
+    Not a real, decodable video: nothing in this codebase's video path opens
+    the bytes, only checks kind/extension, so a fixed byte string is enough.
+    """
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    kw.setdefault("kind", "video")
+    kw.setdefault("original_filename", filename)
+    kw.setdefault("file", SimpleUploadedFile(filename, b"\x00" * 32))
     return MediaAsset.objects.create(course=course, **kw)
 
 

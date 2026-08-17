@@ -727,6 +727,21 @@ class MarkDoneItem(models.Model):
         super().save(*args, **kwargs)
 
 
+class DerivativesState(models.TextChoices):
+    """Terminal outcomes of a derivative-generation attempt.
+
+    Blank ("") is deliberately NOT a member: it is the "never attempted"
+    sentinel the backfill uses to pick a row up, and making it a choice would
+    invite writing it as a terminal value. Lives here rather than in
+    courses/derivatives.py because models.py needs it at module scope for
+    `choices=`; the import runs models -> derivatives, never the reverse.
+    """
+
+    OK = "ok", _("Generated")
+    SKIPPED = "skipped", _("Skipped")
+    FAILED = "failed", _("Failed")
+
+
 class MediaAsset(models.Model):
     """Per-course reusable uploaded file (image or video), referenced by elements."""
 
@@ -744,6 +759,21 @@ class MediaAsset(models.Model):
     # (course, content_hash) dedup. Blank on assets created before/without hashing.
     content_hash = models.CharField(
         max_length=64, blank=True, default="", db_index=True
+    )
+    # Intrinsic pixel size of the ORIGINAL. `file` stays a FileField rather than
+    # becoming an ImageField with width_field/height_field: the same column
+    # carries the 232 video assets, which ImageField validation would reject.
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    # max_length=200, not the default 100 -- see the migration's docstring.
+    thumb = models.FileField(
+        upload_to="courses/media/derivatives/", max_length=200, blank=True
+    )
+    web = models.FileField(
+        upload_to="courses/media/derivatives/", max_length=200, blank=True
+    )
+    derivatives_state = models.CharField(
+        max_length=10, choices=DerivativesState.choices, blank=True, default=""
     )
     name = models.CharField(max_length=255, blank=True, default="")
     uploaded_by = models.ForeignKey(
