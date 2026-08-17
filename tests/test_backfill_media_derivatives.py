@@ -163,6 +163,82 @@ def test_one_corrupt_asset_does_not_abort_the_run(course_with_image_media_root):
 
 
 @pytest.mark.django_db
+def test_final_tally_line_matches_actual_per_state_outcomes(
+    course_with_image_media_root, capsys
+):
+    """Deferred Minor from Task 7's review: neither the final `"done: X
+    generated, Y skipped, Z failed"` line nor the --dry-run `by_state`
+    breakdown (companion test below) was asserted by any test, so a mutant
+    that swaps which counter increments for which state -- or interpolates
+    the right counters into the wrong slots of the message -- would go
+    uncaught. This is the exact line an operator reads to judge whether the
+    real ~953-image mat-pp run went well.
+
+    Counts are deliberately DISTINCT per state (2 ok, 1 skipped, 3 failed),
+    not symmetric: a mutant that swaps two counters produces an IDENTICAL
+    string when the counts it swaps happen to be equal, so equal counts
+    would let that mutant hide.
+    """
+    course = CourseFactory()
+    make_image_asset(course, "ok_a.png", size=(2000, 1500))
+    make_image_asset(course, "ok_b.png", size=(2000, 1500))
+    make_image_asset(course, "tiny.png", size=(300, 200))
+    make_image_asset(course, "bad_a.png", raw=b"nope")
+    make_image_asset(course, "bad_b.png", raw=b"nope")
+    make_image_asset(course, "bad_c.png", raw=b"nope")
+
+    call_command("backfill_media_derivatives", course=course.slug)
+
+    out = capsys.readouterr().out
+    assert "done: 2 generated, 1 skipped, 3 failed" in out, out
+
+
+@pytest.mark.django_db
+def test_dry_run_by_state_breakdown_matches_actual_states(
+    course_with_image_media_root, capsys
+):
+    """Companion to the tally test above, for --dry-run's `by_state` report.
+
+    --force is required to see this: without it, the command's own `qs =
+    qs.filter(derivatives_state__in=_PENDING)` guard (applied before the
+    dry-run branch) restricts the report to blank/failed rows only, so ok/
+    skipped would read 0 regardless of what a mislabeling mutant did to
+    them -- this is the realistic "what would --force touch" scenario an
+    operator runs before actually passing --force.
+
+    Real per-state rows are produced by an actual (non-dry) run first;
+    PENDING rows are added afterwards so all four buckets are non-empty.
+    Counts are distinct per state (3 pending, 2 ok, 1 skipped, 4 failed) for
+    the same reason as the tally test above.
+    """
+    course = CourseFactory()
+    make_image_asset(course, "ok_a.png", size=(2000, 1500))
+    make_image_asset(course, "ok_b.png", size=(2000, 1500))
+    make_image_asset(course, "tiny.png", size=(300, 200))
+    make_image_asset(course, "bad_a.png", raw=b"nope")
+    make_image_asset(course, "bad_b.png", raw=b"nope")
+    make_image_asset(course, "bad_c.png", raw=b"nope")
+    make_image_asset(course, "bad_d.png", raw=b"nope")
+    call_command("backfill_media_derivatives", course=course.slug)
+    capsys.readouterr()  # discard the first (non-dry) run's own output
+
+    make_image_asset(course, "pending_a.png", size=(2000, 1500))
+    make_image_asset(course, "pending_b.png", size=(2000, 1500))
+    make_image_asset(course, "pending_c.png", size=(2000, 1500))
+
+    call_command(
+        "backfill_media_derivatives", course=course.slug, dry_run=True, force=True
+    )
+
+    out = capsys.readouterr().out
+    assert "would process 10 asset(s)" in out, out
+    assert "'(pending)': 3" in out, out
+    assert "DerivativesState.OK: 2" in out, out
+    assert "DerivativesState.SKIPPED: 1" in out, out
+    assert "DerivativesState.FAILED: 4" in out, out
+
+
+@pytest.mark.django_db
 def test_course_scoping_leaves_other_courses_pending(course_with_image_media_root):
     """None of the sibling tests create a second course, so a dropped
     `--course` filter would still pass every other assertion in this file --
