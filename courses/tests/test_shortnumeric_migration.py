@@ -14,10 +14,19 @@ near this file.
 from decimal import Decimal
 
 import pytest
+from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
 BEFORE = [("courses", "0057_contentnode_published")]
+# Used with loader.project_state(AFTER) to get the historical model as of 0058 —
+# NOT as the restore target. The restore must land on the migration graph HEAD,
+# not on this pinned name: once a later migration (e.g. 0059) lands, migrating
+# back to this exact node is a BACKWARDS plan that drops every column added
+# since, corrupting the schema for every transactional test that runs after this
+# file (pytest-django orders them last). See the three `finally` blocks below,
+# which restore via `call_command("migrate", "courses", ...)` with no target —
+# that always resolves to head, however many migrations get added later.
 AFTER = [("courses", "0058_shortnumeric_text_value")]
 
 
@@ -52,7 +61,7 @@ def test_0058_strips_trailing_zeros_and_empties_zero_tolerance():
         assert (got.value, got.tolerance) == ("40401", "")
         assert New.objects.get(pk=tiny.pk).tolerance == "0.00000001"
     finally:
-        _migrate(AFTER)
+        call_command("migrate", "courses", verbosity=0)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -79,7 +88,7 @@ def test_0058_aborts_with_a_named_error_on_a_negative_tolerance():
             .apps.get_model("courses", "ShortNumericQuestionElement")
         )
         Element.objects.all().delete()
-        _migrate(AFTER)
+        call_command("migrate", "courses", verbosity=0)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -108,4 +117,4 @@ def test_0058_reverse_fails_when_rows_are_present():
             .apps.get_model("courses", "ShortNumericQuestionElement")
         )
         New.objects.all().delete()
-        _migrate(AFTER)
+        call_command("migrate", "courses", verbosity=0)

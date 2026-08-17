@@ -172,6 +172,14 @@ def test_thumb_and_web_widths_are_imported_not_hardcoded(monkeypatch):
         assert reloaded.THUMB_WIDTH == 4096
         assert reloaded.WEB_WIDTH == 8192
     finally:
+        # monkeypatch.undo() BEFORE the reload, not after: pytest's own
+        # monkeypatch teardown runs after this test body returns, so a reload
+        # here would re-import while THUMB_WIDTH/WEB_WIDTH are still patched to
+        # 4096/8192, leaving the module holding those bogus values for the rest
+        # of the process (they're unreachable in this PR, but PR 2's FLUID
+        # branch reads them and would fail in a way that's miserable to trace
+        # back here).
+        monkeypatch.undo()
         importlib.reload(courses_media_extras)
 
 

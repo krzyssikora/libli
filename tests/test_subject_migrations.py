@@ -1,4 +1,5 @@
 import pytest
+from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
@@ -41,4 +42,7 @@ def test_fk_subject_lands_in_m2m():
     pks = list(NewCourse.objects.get(pk=c.pk).subjects.values_list("pk", flat=True))
     assert pks == [s.pk]
 
-    _migrate("0025_course_subjects_m2m")
+    # Restore to the migration graph HEAD, not a pinned name: once later
+    # migrations land, migrating back to this exact node would be a backwards
+    # plan that drops every column added since — see test_shortnumeric_migration.py.
+    call_command("migrate", "courses", verbosity=0)

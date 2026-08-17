@@ -90,10 +90,14 @@ def test_broken_original_shows_caption_only_via_the_error_handler(page, live_ser
         "document.querySelector('.asset-cell')"
         ".setAttribute('data-url', '/media/broken-original.png')"
     )
-    page.hover(".asset-cell [data-asset-preview]")
+    # Condition, not a sleep: wait for the aborted request itself to fail
+    # rather than an arbitrary 300ms. This is tied to the exact event the
+    # error handler reacts to, so it can't under- or over-wait it.
+    with page.expect_event(
+        "requestfailed", lambda request: "broken-original.png" in request.url
+    ):
+        page.hover(".asset-cell [data-asset-preview]")
     page.wait_for_selector(".asset-preview")
-    # Give the aborted request a moment to resolve and the error handler to run.
-    page.wait_for_timeout(300)
     assert page.eval_on_selector("[data-asset-preview-img]", "el => el.hidden") is True
     assert page.locator(".asset-preview__caption").is_visible()
 

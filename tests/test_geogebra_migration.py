@@ -1,4 +1,5 @@
 import pytest
+from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
@@ -46,4 +47,7 @@ def test_backfill_canonicalizes_existing_geogebra_rows():
         "https://player.vimeo.com/video/123"
     )
 
-    _migrate(AFTER)  # leave the DB migrated forward for the rest of the suite
+    # Restore to the migration graph HEAD, not a pinned name: once later
+    # migrations land, migrating back to AFTER's exact node would be a backwards
+    # plan that drops every column added since — see test_shortnumeric_migration.py.
+    call_command("migrate", "courses", verbosity=0)
