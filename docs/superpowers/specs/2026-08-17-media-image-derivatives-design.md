@@ -81,9 +81,23 @@ The **gallery** needs a Python change as well as a template change.
 documents the shape as `{url, alt, desc}` and **must be updated** with it.
 
 Each of the seven templates needs its own `{% load courses_media_extras %}`. Django does
-**not** inherit `{% load %}` across `{% include %}`, and today `imageelement.html`,
-`galleryelement.html` and `_table_cell.html` load nothing at all, while
-`_filltable_cell.html` and `_picker_grid.html` load only `i18n`.
+**not** inherit `{% load %}` across `{% include %}`. Current state of all seven:
+
+| Template | Today | Change |
+| --- | --- | --- |
+| `imageelement.html` | *(no load tag)* | new line |
+| `galleryelement.html` | *(no load tag)* | new line |
+| `_table_cell.html` | *(no load tag)* | **inline** on line 1 |
+| `_filltable_cell.html` | `{% load i18n %}` | **inline**, append to line 1 |
+| `_picker_grid.html` | `{% load i18n %}` | append |
+| `_asset_cell.html` | `{% load i18n courses_manage_extras %}` | append |
+| `dragtoimagequestionelement.html` | `{% load i18n l10n courses_extras %}` | append |
+
+**`_table_cell.html` and `_filltable_cell.html` are deliberately newline-free** — each is a
+single line with no trailing newline, and `_filltable_cell.html` already writes
+`{% load i18n %}{% if … %}` with no separator, so the repo treats their output whitespace as
+load-bearing (they render into table cells). The load tag goes **inline on the existing
+first line** for those two, never on a line of its own.
 
 ### Out of scope — stated, with reasons
 
@@ -215,7 +229,17 @@ the decode budget.
 ```
 generate_derivatives(asset) -> str       # assigns asset.derivatives_state AND returns it
 delete_derivative_files(names, storage)  # deletes IMMEDIATELY; deferral is the caller's job
+                                         # skips falsy names and already-missing files
 ```
+
+**The falsy-name guard belongs to the function, not to its call sites.** Every caller can
+pass blanks, and `post_delete` does so routinely: it passes
+`[instance.thumb.name, instance.web.name]`, both blank for every video (232 in `mat-pp`)
+and for every `skipped` or `failed` row. `FileSystemStorage.delete("")` raises
+`ValueError("The name must be given to delete().")`, and `storage.exists("")` is *truthy*
+because it stats `MEDIA_ROOT` — so an implementation that guards at only one call site
+breaks ordinary video deletion. A test covers deleting a video asset with both derivative
+fields blank.
 
 `generate_derivatives` **assigns `asset.derivatives_state` on the instance** in addition to
 returning it. Callers list that field in `update_fields`, so a version that only returned
@@ -238,9 +262,12 @@ wrong way — and the two call classes need opposite behaviour:
 
 `generate_derivatives` is **best-effort and never raises**. Rules, in order:
 
-0. **Reset first.** Clear `thumb`/`web` field values (the *fields*, not the files — the
-   caller owns file deletion), null `width`/`height`, and reset `derivatives_state`, before
-   any branch can return. Without this, every early-return path leaves the **previous**
+0. **Reset first.** Clear `thumb`/`web` field values to `""` (the *fields*, not the files —
+   the caller owns file deletion), set `width`/`height` to `None`, and set
+   `derivatives_state` to `""`, before any branch can return. The `""` matters: it is the
+   sentinel the backfill uses to pick a row up, so steps 1–9 must each assign a terminal
+   value (`ok` / `skipped` / `failed`) before returning — a path that returned with `""`
+   still set would leave the row permanently re-processable. Without this, every early-return path leaves the **previous**
    image's values in place: on a replace where the new original is 500px wide, step 6 skips
    `web`, and `asset.web` would still point at the old picture's `-896.webp`. The same
    applies to stale `width`/`height` and to the non-image, animated and failed paths.
@@ -281,8 +308,13 @@ wrong way — and the two call classes need opposite behaviour:
    because step 6 then compares the now-blank name against `old_thumb_name`, deletes the old
    file, and the orphan survives forever.
 
-Derivative filenames are `<original-stem>-512.webp` / `-896.webp`, written through
-`FieldFile.save(...)` so Django's storage applies its own collision suffix. **Each row
+Derivative filenames are `<original-stem>-512.webp` / `-896.webp`, where the stem is
+**`os.path.splitext(os.path.basename(asset.file.name))[0]`**. The basename matters:
+`asset.file.name` is a storage-relative *path* (`courses/media/foo_AbC.png`), and passing its
+full stem to `FieldFile.save` would nest it under `upload_to`, producing
+`courses/media/derivatives/courses/media/foo_AbC-512.webp` — plausible-looking, and it
+silently eats the `max_length=200` budget. Written through `FieldFile.save(...)` so Django's
+storage applies its own collision suffix. **Each row
 therefore owns its derivative files outright.** Load-bearing: migration `0008` copied
 storage references verbatim, so two `MediaAsset` rows can share one `file.name` — the
 hazard `_delete_file_if_unshared` exists to guard. Derivatives are generated per row and
@@ -291,6 +323,11 @@ never shared, so their deletion needs no such guard and must not borrow one.
 ### Render path: one template tag
 
 A single tag in `courses/templatetags/courses_media_extras.py` owns this for all eight sites.
+**The module is new** — the package currently holds only `courses_extras.py` and
+`courses_manage_extras.py`. A third library rather than an addition to either existing one,
+because the tag is shared by manage-side templates (`_asset_cell`, `_picker_grid`) and
+student-side templates alike, so neither `courses_extras` nor `courses_manage_extras` is the
+right home.
 
 **A `simple_tag` returning `format_html(...)`, not an `inclusion_tag`.** An
 `inclusion_tag` performs a full template load-and-render per invocation — ~950 nested
@@ -378,6 +415,18 @@ wording would fail and then be weakened.)
 The `el-*` pixel values are 25/50/75/100% of the widest measured column and must be
 recomputed once measurements (1)–(3) are taken; the values shown assume 896.
 
+**The `srcset` candidate list, literally.** For `w`-descriptor (fluid) presets:
+
+```
+srcset="{thumb.url} 512w, {web.url} 896w, {file.url} {asset.width}w"
+```
+
+Each derivative appears only when its field is non-blank; the original appears only when
+`asset.width` is known. Order is ascending by width. Note that a non-blank `web` implies a
+non-blank `thumb` (896 > 512, so anything wide enough for `web` is wide enough for
+`thumb`), which is why "`src` = thumb, falling back to the original" is exhaustive for
+fixed-box presets — there is no state with `web` present and `thumb` absent.
+
 **`srcset` and `sizes` are omitted entirely whenever no derivative exists** — i.e. whenever
 the only available candidate would be the original. This covers the animated GIF, the
 `failed` row, and every original narrower than both targets. It is not merely tidiness:
@@ -428,8 +477,17 @@ upscale where today it renders at 200px. Two rules prevent it, and both are requ
 1. **`srcset`/`sizes` are omitted whenever no derivative exists** (above), which covers
    exactly the narrow originals most at risk.
 2. **`width`/`height` are emitted on every preset whenever `asset.width` is known.** The
-   presentational hint pins the used width to the resource's own intrinsic size. This — not
-   reflow — is the reason they exist.
+   presentational hint pins the used width to a definite value instead of letting `sizes`
+   supply it. This — not reflow — is the reason they exist.
+
+**The attributes always carry `asset.width` / `asset.height` — the *original's* dimensions
+— on every preset, including the fixed-box ones where the loaded resource is the 512px
+thumb.** No derivative dimensions are stored, and none need to be. This is safe because
+every fixed box carries a binding `max-width` or `aspect-ratio` that overrides the hint, and
+because the rounded derivative ratio differs from the original's only in the fourth decimal
+(1100x841 → 896x685 is 1.3080 vs 1.3079), inside the ±1 px geometry tolerance. Stated
+explicitly so no implementer concludes the thumb's own dimensions are required and goes
+looking for a field that does not exist.
 
 The reflow benefit, separately, is real only on `.el--image`, `.cell-img*` and
 `.dragimage__img`. It does **not** apply to the grid: `.asset-thumb` already declares
@@ -515,10 +573,14 @@ Both must read an **explicit full-resolution URL**:
 
 Three second-order consequences, handled in the same commit:
 
-- `media_preview.js:172` guards with `anchor.complete && anchor.naturalWidth === 0` →
-  caption-only. After the repoint that guard interrogates the *thumb* while a different URL
-  is loading, so a broken original would yield a silently empty overlay. The guard moves to
-  the overlay image's own `error` handler, which **does** already exist (`:54-58`).
+- `media_preview.js:172` is `if (!src || (anchor.complete && anchor.naturalWidth === 0))` —
+  **two conditions, and only the second moves.** The `complete && naturalWidth === 0` branch
+  interrogates the *thumb* after the repoint, while a different URL is loading, so a broken
+  original would yield a silently empty overlay; that branch moves to the overlay image's
+  own `error` handler, which **does** already exist (`:54-58`). The `!src` branch is
+  **retained**, now testing the `data-url` read, because its own in-file comment states why
+  it cannot be delegated: assigning `""` does not reliably fire `error` and can leave the
+  *previous* asset's image showing in the overlay.
 - **The hover preview becomes a real fetch.** Today the overlay copies the grid `<img>`'s
   already-loaded original and paints instantly; after the repoint it fetches an uncached
   original on every hover. Verified in `open()`: `overlayImg.hidden = true` until `load`, so
@@ -535,6 +597,29 @@ Three second-order consequences, handled in the same commit:
   (`:49-58`); show the dialog in a loading state until `load` fires; on `error`, keep the
   dialog open with a message rather than closing, so a broken original is visible rather than
   a dialog that flickers shut. A test pins the loading state and the `error` path.
+
+  **This new UI has three constraints the spec must carry, because it is the only
+  deliberate visual departure from the Goal:**
+
+  1. **i18n.** `imagezoom.js` holds no inline strings; every user-visible string goes through
+     `label(key, fallback)` off `window.IMAGEZOOM_I18N` (`imagezoom.js:17`), and that blob is
+     declared **three times** — `templates/courses/lesson_unit.html:84`,
+     `templates/courses/manage/editor/editor.html:206`,
+     `templates/courses/quiz_unit.html:38` — each as
+     `{ enlarge: "{% trans … %}", dialog: "{% trans … %}" }`, with
+     `tests/test_imagezoom_render.py:147` asserting the blob is present on every arming
+     page. The loading label and the error message therefore need **new keys added to all
+     three declarations**, read via the existing `label()` helper, plus `{% trans %}` markup
+     and regenerated `.po`/`.mo` Polish entries. A hardcoded English string on a Polish
+     product is the failure mode being prevented.
+  2. **CSS scoping.** `tests/test_imagezoom_render.py:117-123` pins
+     `dialog.imgzoom:not([open]) { display: none; }`, requires box rules to be
+     `.imgzoom[open]`-scoped, and asserts that **no unscoped `^\.imgzoom\s*\{` rule exists**
+     in `courses.css`. Any new rule must be `[open]`-scoped or carry a new class, or that
+     source-level invariant breaks.
+  3. **Named markup.** The plan states the added element and class names (a child of
+     `dialog.imgzoom`, not a reuse of `dialogImg.alt`), so the CSS and the test have a fixed
+     target.
 
 **Ordering is a requirement, not a preference:** this JS change lands and is verified
 *before* any template emits a derivative `src` or `srcset`. Done in that order there is
@@ -574,6 +659,15 @@ to run `backfill_media_derivatives --course <slug>`.
   `asset.save()` — a full save with no `update_fields`, so it persists the new fields
   without further change. Only this newly-created branch generates; the `content_hash` dedup
   early-return at `:39-41` must **not** regenerate.
+
+  **Why generate-before-save is safe here but forbidden in `replace_asset`.** The real
+  constraint is *"generate only against a committed file"*, not *"generate after
+  `Model.save()`"*. At `courses/lal_loader/media.py:45` the line
+  `asset.file.save(path.name, ContentFile(data), save=False)` has already written the bytes
+  to storage and set `_committed = True`, so by line 46 `asset.file` is a committed
+  `FieldFile` and Pillow reading it cannot disturb a pending write. `replace_asset` differs
+  because its file is still an uncommitted `UploadedFile` until its own step 3. Stated
+  explicitly because the two orderings otherwise read as a contradiction.
 
   Reached only from the `import_lal_content` management command, never from a request, so
   there is no worker timeout to trip and no user awaiting a response; `courses/lal_loader/`
@@ -629,6 +723,15 @@ The handler deletes only names read from `asset.thumb.name`/`asset.web.name` *af
 — the same `!=` guard as step 6 — then re-raises. It calls `delete_derivative_files`
 directly (immediate, not deferred).
 
+**It also deletes the newly written original.** Because `generate_derivatives` never raises,
+the only real raiser inside the `try` is **step 5's `asset.save(update_fields=[…])` — a DB
+write this change introduces**; today's `replace_asset` has no DB write after step 3. When
+step 5 raises, `@transaction.atomic` rolls the row back to the old file, but the *new*
+original's bytes were already written to storage at step 3 and nothing references them. The
+handler must therefore also delete `asset.file.name` when it differs from the captured
+`old_name` — the same guard again. Without this, the section's exhaustiveness claim is false
+for the one window this change creates.
+
 **Position of the other three creation sites**, so this section is exhaustive rather than
 apparently so:
 
@@ -672,8 +775,14 @@ serialization change is required — only the `created_files` invariant test.
   `update_fields=["width","height","thumb","web","derivatives_state"]`** — the same
   five-field list every other call site uses, so the highest-volume writer cannot be the one
   that silently drops them.
-- `--dry-run` reports what it would do and **writes nothing to storage or the database** —
-  it must not call `generate_derivatives`, which writes files.
+- `--dry-run` **writes nothing to storage or the database** — it must not call
+  `generate_derivatives`, which writes files. Its report is therefore **counts of rows per
+  `derivatives_state` that would be processed, plus the total, with no per-row decode**.
+  This limit is stated because "what it would do" cannot mean more: whether a given row
+  would produce derivatives, be skipped as animated or narrow, or fail, is only knowable by
+  decoding it. An implementer chasing a richer report would re-introduce exactly the decode
+  and storage writes this flag exists to avoid. The test asserts the counts, not only the
+  absence of writes.
 - `--start-at <pk>` for resuming; `--course <slug>` to scope it.
 - `--force` regenerates existing derivatives — needed if a target width, the encoder kwargs,
   or the resampling behaviour changes (the mode-normalisation rule in particular requires
@@ -777,11 +886,18 @@ unusable for these tests.
 
 ### Service layer
 
-- `create_asset` populates all five fields; `generate=False` leaves them at `""`.
+- `create_asset` populates all five fields; with `generate=False`, `derivatives_state`,
+  `thumb` and `web` are blank (`""`) and `width`/`height` are **`None`** — they are
+  `PositiveIntegerField(null=True)`, so a test written as "all five stay `''`" asserts the
+  wrong thing for two of them.
+- `delete_derivative_files` is a no-op for a video asset with both derivative fields blank,
+  and does not raise (`FileSystemStorage.delete("")` would).
 - `replace_asset` regenerates **and** deletes superseded derivative files; asserts the new
   field values persist (the `update_fields` trap); asserts that when the old derivative name
   is reused the file is **not** deleted (the `!=` guard); a raise *before* step 4 leaves the
-  old derivatives intact; a raise *at* step 4 deletes only what that call wrote.
+  old derivatives intact; a raise *at* step 4 deletes only what that call wrote; **a raise
+  at step 5 (forced by patching `save`) leaves neither the new derivatives nor the new
+  original's bytes behind** — the window this change introduces.
 - `get_or_create_asset` generates on the create branch and **not** on the `content_hash`
   dedup hit.
 - `post_delete` removes both derivative files.
@@ -807,8 +923,14 @@ unusable for these tests.
   manager cell and *not* on the picker cell.
 - `extra` rejects a non-allow-listed name and rejects a valued attribute.
 - Emits `loading="lazy"` on `grid` **and not** on the student element presets.
-- Emits `width`/`height` on every preset **except `gallery`**, and `data-zoom-src` pointing
-  at the original.
+- Emits `width`/`height` on every preset **except `gallery`**, always carrying the
+  *original's* dimensions.
+- Emits `data-zoom-src` **only where the tag also emits `data-zoomable`** (i.e. driven by
+  `extra`), with a negative assertion that the `grid` preset does **not** carry it.
+  `data-zoom-src` is consumed only by `imagezoom.js`, which is armed off `[data-zoomable]`
+  — a preset the zoom never touches has no use for it, and emitting one full media URL into
+  each of ~950 grid cells would inflate exactly the 2.1 MB HTML figure this change makes a
+  required before/after measurement and the basis for deferring pagination.
 - Every preset's CSS declares `height: auto`, an explicit `aspect-ratio`, or an ancestor
   `aspect-ratio` plus `object-fit` — asserted against the stylesheet, with the gallery
   exercising the third case.
@@ -822,6 +944,15 @@ untouched would pass every other test: the tag unit tests pass, the geometry tes
 trivially, and the acceptance check only touches the manager grid. A forgotten template must
 be RED, not invisible.
 
+**Existing assertions must be audited, not just new ones added.** `tests/test_table_render.py:94`
+asserts `f'src="{asset.file.url}" in html'`, which directly contradicts the new `cell-*` rule
+(`src` = thumb) — and worse, it will **keep passing** if its fixture is narrow enough that no
+thumb exists, so the conversion would look verified while the assertion silently measures the
+fallback path. The plan sweeps the existing assertions over all eight sites —
+`tests/test_table_render.py`, `test_gallery_render.py`, `test_imagezoom_render.py`,
+`test_media_manager.py`, and the e2e image/media files — and states, per assertion, which is
+updated to expect a derivative and which is deliberately left on the fallback path.
+
 ### Backfill command
 
 Populates a course's assets; `--dry-run` writes nothing to storage or the DB; a second run
@@ -831,11 +962,26 @@ are; one corrupt asset does not abort the run.
 
 ### Rendering and layout
 
+**Fixture discipline applies here too, and its absence would make this whole section
+vacuous.** `make_image_asset` defaults to a 1x1 PNG; with a narrow fixture no derivative
+exists, so `srcset`/`sizes` are omitted, `src` falls back to the original, and the geometry
+test measures a page byte-identical to today's — unable to detect a `sizes`-driven upscale,
+a wrong `w` descriptor, or the gallery's ~14 px box shift, which is the one thing this
+section is named as catching. **Every asset in a geometry assertion has an original wider
+than 896 px with both derivatives generated**, so the measured page actually carries
+`srcset`, `sizes` and `width`/`height`.
+
+**The baseline is measured, not remembered.** "Unchanged" is relative to something, and a
+test that measures the post-change page and compares it to itself is unfalsifiable. The
+reference geometry is captured **on the pre-change build**, at both named viewports, and
+recorded as explicit per-template, per-axis constants in the plan — so the assertion is a
+real A/B against prior geometry.
+
 - Every touched template renders unchanged **layout**, asserted on measured box geometry
-  (`bounding_box()`) **with a ±1 px tolerance per axis**. The tolerance is required, not
-  slack: a derivative's height is a rounded proportional scale of the original's, so their
-  intrinsic ratios differ slightly (1100x841 → 896x685 is 1.3080 vs 1.3079), and where a
-  height cap binds the used width can shift sub-pixel.
+  (`bounding_box()`) against those recorded constants **with a ±1 px tolerance per axis**.
+  The tolerance is required, not slack: a derivative's height is a rounded proportional
+  scale of the original's, so their intrinsic ratios differ slightly (1100x841 → 896x685 is
+  1.3080 vs 1.3079), and where a height cap binds the used width can shift sub-pixel.
 - The gallery is included in this assertion, which is what would catch the ~14px box shift
   if `width`/`height` were ever added to that preset.
 - Screenshots of the media manager, the picker, and a student unit in light and dark, judged
