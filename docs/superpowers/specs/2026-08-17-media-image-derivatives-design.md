@@ -161,11 +161,13 @@ blank is the stored shape of all three.
 
 - `""` — never attempted. Backfill processes it.
 - `ok` — derivatives generated (one or both).
-- `skipped` — deliberately declined, by any of **four** routes: not an image, animated,
-  narrower than both targets, or every candidate encoded no smaller than the source
-  (rule 7). Backfill leaves it alone unless `--force`. The fourth route matters
-  operationally: this definition is what an operator reads to decide whether `--force` is
-  needed after an encoder-kwargs change.
+- `skipped` — deliberately declined, by any of **five** routes: not an image, animated,
+  narrower than both targets, every candidate encoded no smaller than the source (rule 7),
+  or every candidate structurally impossible (derived height would be 0, or would exceed
+  WebP's 16383 px cap — rule 6). Backfill leaves it alone unless `--force`. The last two
+  routes matter operationally: this definition is what an operator reads to decide whether
+  `--force` is needed after an encoder-kwargs change, and routing the impossible cases here
+  rather than to `failed` is what stops the backfill retrying them on every run forever.
 - `failed` — generation raised. Backfill retries it.
 
 **Both derivative fields share one storage backend** (same `upload_to`, default storage),
@@ -226,14 +228,20 @@ values are recomputed from those measurements.
 **Widths:**
 
 - **`thumb` = 512px.** `.asset-grid` is `repeat(auto-fill, minmax(8rem, 1fr))` with
-  `gap: var(--space-3)` = **12px** (`editor.css:349-351`, `core/css/tokens.css:75`) and no
-  container `max-width`. With `auto-fill` and a gap `g`, the track count is
+  `gap: var(--space-3)` = **12px** (`editor.css:349-351`, `core/css/tokens.css:75`).
+  `.asset-grid` sets no `max-width` itself, but its container does — `.app-main` is capped at
+  **960px** (`core/static/core/css/app.css:34`; the editor page raises it to `102rem`,
+  `editor.css:36`) — which strengthens rather than weakens the conclusion below, since the
+  track never approaches the bound on the manager. With `auto-fill` and a gap `g`, the track
+  count is
   `floor((container + g) / (128 + g))`, so `n = 1` persists up to `container < 256 + g = 268`
   and the track is then the full container — **under 268 CSS px**, not 256. (The gap is
   easy to drop from this derivation and changes the answer, so it is spelled out.) That needs
   536 device px at DPR 2, marginally above `THUMB_WIDTH`: in the ~12px-wide window of
   container widths where `n = 1` and the track exceeds 256, the thumb is 1.91x rather than
-  2x — a ~4.5% shortfall, **accepted**. Everywhere else one thumb covers every fixed-box
+  2x — a ~4.5% shortfall, **accepted**. In practice it costs nothing: reaching that window
+  needs a container under 268 px, i.e. a viewport under roughly 300 px, which is below the
+  360 px smallest measurement viewport and below any device this product targets. Everywhere else one thumb covers every fixed-box
   preset at DPR ≤ 2 — the grid, the picker,
   and the 240px table cell (480 ≤ 512). 320px was rejected: it covers DPR 1 but leaves the
   grid 1.25x soft at DPR 2 on exactly the retina hardware the complaint came from, and
@@ -346,7 +354,22 @@ wrong way — and the two call classes need opposite behaviour:
    Measured prevalence is low — 19 of 953 are mode `P`, 18 of them animated and excluded at
    step 4, leaving one — so this is a correctness fix against future PNG-8 uploads and the
    spec's own single-frame-GIF case.
-6. For each target width, skip if `img.width <= target`.
+6. For each target width, skip if `img.width <= target`. The derived height is
+   **`max(1, round(img.height * target / img.width))`**, and additionally the target is
+   skipped if that height exceeds **16383**.
+
+   Both bounds are real, verified against the project's Pillow 12.2.0, and both would
+   otherwise land in `failed` — which the backfill **retries on every run**, forever, for a
+   structurally impossible image:
+   - a 3000x1 or 1200x1 source rounds to height 0 → `ValueError: height and width must be > 0`
+     (wide 1–2 px rules and spacers are ordinary in imported content);
+   - a 600x20000 source scales to (512, 17067) → `ValueError: encoding error 5: Image size
+     exceeds WebP limit of 16383 pixels`.
+
+   With the clamp and the cap these become ordinary `skipped` outcomes — a **fifth** skipped
+   route — rather than permanent retry-forever failures. Note the 1200x1 case also shows why
+   the per-target decision matters: `(896, 1)` encodes fine at 38 bytes, so a single guard
+   around both targets would have discarded a working derivative along with the impossible one.
 7. **Encode to an in-memory buffer first.** The target size is
    `(target, round(img.height * target / img.width))` — Python's banker's rounding, matching
    the 1100x841 → 896x685 worked example that the ±1 px geometry tolerance is derived from.
@@ -460,10 +483,24 @@ including the two decorative empty-alt grids.
 
 #### Presets composed from data
 
-- `imageelement.html` — `{% media_img el.media preset="el-"|add:el.size ... %}`.
-  `ImageElement.size` is a `TextChoices` field, always populated.
+All three composed sites use the **same inline `{% with %}` + `|default:` shape**, for
+symmetry and because the failure mode below is identical:
+
+- `imageelement.html` — `{% with sz=el.size|default:"full" %}{% media_img el.media preset="el-"|add:sz ... %}{% endwith %}`
 - `_table_cell.html` and `_filltable_cell.html` —
-  `{% media_img cell.media preset="cell-"|add:cell.size ... %}`.
+  `{% with sz=cell.size|default:"full" %}{% media_img cell.media preset="cell-"|add:sz ... %}{% endwith %}`
+
+**The failure mode for a missing `size` is `VariableDoesNotExist`, not the tag's
+unknown-preset raise.** Verified against the project's Django: a missing lookup in a filter
+**argument** position is not substituted with `string_if_invalid` — `FilterExpression`
+catches `VariableDoesNotExist` only for the *head* variable — so
+`preset="el-"|add:el.size` on an `el` without `size` raises
+`VariableDoesNotExist: Failed lookup for key [size]` and never reaches the tag. The composed
+`"el-"` string is never produced. The `{% with %}` form is safe for the opposite reason:
+there `el.size` *is* the head variable, so `|default:` fires (verified: renders `cell-full`
+on a `size`-less context). Without this, `imageelement.html` would be the one conversion that
+hard-errors on a `size`-less context — which is exactly the shape
+`tests/test_imagezoom_render.py:52` uses.
 
 **The existing `|default:'full'` is RETAINED, and must be applied *before* the prefix.**
 `TableElement._cell` (`models.py:1148-1152`) documents that `size` is always written for
@@ -475,9 +512,13 @@ with `{"cell": {"kind": "image", "media": asset, "alt": ""}}` — **no `size` ke
 asserts `cell-img--full`. Its docstring states outright that the filter cannot be falsified
 through `el.render()` and that the partial-level context is the only place it is live.
 
-Dropping it would turn that test from a failed assertion into a hard **error**: the preset
-would compose to `"cell-"`, which is unknown, which raises. The correct form uses a
-`{% with %}` so the default lands on the size before concatenation:
+Dropping it would turn that test from a failed assertion into a hard **error** — though not
+the one it first appears. The render raises `VariableDoesNotExist: Failed lookup for key
+[size]` from the filter-argument position, *before* the tag is called, so the composed
+`"cell-"` preset is never produced and the tag's unknown-preset raise never fires. A test
+written to expect the latter would assert the wrong exception. The correct form uses a
+`{% with %}` so the default lands on the size before concatenation, where it is the head
+variable and `|default:` can fire:
 
 ```
 {% with sz=cell.size|default:"full" %}{% media_img cell.media preset="cell-"|add:sz css_class="cell-img cell-img--"|add:sz ... %}{% endwith %}
@@ -515,11 +556,11 @@ wording would fail and then be weakened.)
 
 | Preset | CSS box | Strategy |
 | --- | --- | --- |
-| `grid` | `.asset-thumb` (analytically < 256px) | `src` = thumb, no `srcset` |
+| `grid` | `.asset-thumb` (analytically < 268px — see Derivative widths) | `src` = thumb, no `srcset` |
 | `cell-small` | `.cell-img--small` (80px both axes) | `src` = thumb, no `srcset` |
 | `cell-medium` | `.cell-img--medium` (160px both axes) | `src` = thumb, no `srcset` |
 | `cell-large` | `.cell-img--large` (240px both axes) | `src` = thumb, no `srcset` |
-| `cell-full` | `.cell-img--full` (100% of its `<td>`, `max-height: 60dvh`) | `w` + `sizes` derived from measurement (6) — see below |
+| `cell-full` | `.cell-img--full` (100% of its `<td>`, `max-height: 60dvh`) | **`src` = original, no `srcset`** — auto-layout table, see below |
 | `el-small` | `.el--image--small` (25%, `max-height: 30dvh`) | `w` + `sizes="(max-width: 640px) 25vw, 224px"` |
 | `el-medium` | `.el--image--medium` (50%, `max-height: 45dvh`) | `w` + `sizes="(max-width: 640px) 50vw, 448px"` |
 | `el-large` | `.el--image--large` (75%, `max-height: 60dvh`) | `w` + `sizes="(max-width: 640px) 75vw, 672px"` |
@@ -554,33 +595,42 @@ falling back to the original" is exhaustive for fixed-box presets — there is n
 **`srcset` and `sizes` are omitted entirely whenever no derivative exists** — i.e. whenever
 the only available candidate would be the original. This covers the animated GIF, the
 `failed` row, and every original narrower than both targets. It is not merely tidiness:
-see the `width`/`height` invariant below.
+see the `sizes` upscale rule below.
 
-**`cell-full` cannot be a single measured constant, and must not be a `vw` guess either.**
-`.cell-img--full` is `max-width: 100%` of its `<td>` in an auto-layout table, so the used
-width varies with column count, per-column content and viewport.
+**`cell-full` gets NO derivative at all: `src` = the original, no `srcset`, no `sizes`.**
 
-A `vw` figure is the wrong basis: the cell is a fraction of the **content column**, not of
-the viewport. At 1920x1080, `45vw` = 864 px — at or above the entire content column (648
-expanded / 872 collapsed) *before* dividing by column count, whereas a 3-column cell is
-nearer 17vw. Declaring 45vw would over-declare by 3–5x and guarantee every `cell-full` image
-fetches `web` rather than `thumb` at DPR 1 — destroying exactly the economy the 512 px thumb
-exists to deliver.
+This is the one preset where the change cannot be made without moving layout, and it was
+settled by measurement rather than argument. `.cell-img--full` sits in an **auto-layout**
+table, so the `<td>`'s width is derived from the image's max-content contribution — i.e.
+from its intrinsic width. Anything that changes the intrinsic width moves the column.
+Measured, a 1100x841 image in a 3-column table at 1280x720:
 
-**The value is derived from measurement (6), not chosen:** `measured_td_width / 3` (the mid
-column count), recorded in the plan together with the resulting candidate selection at 2, 3
-and 4 columns and the maximum over- and under-declaration across them. This is a width-axis
-error and is explicitly *not* covered by the height-axis acceptance below.
+| Strategy | Image box | `<td>` width |
+| --- | --- | --- |
+| today (plain `src` = original) | 565.03 x 432 | 580.28 |
+| `w` `srcset` + `sizes="213px"` | 212.98 x 162.84 | **498.72** |
+| `src` = 512px thumb | 512 x 391 | **574.25** |
 
-**All three measurement-derived presets (`cell-full`, `gallery`, `dragimage`) carry a
-`(max-width: 640px) NNvw` clause, exactly as the `el-*` rows do** — they are not bare px
-values. A bare px `sizes` of ~872 over-declares a gallery frame on a 360 px phone by ~2.5x,
-so the browser demands 872 device px and selects `web` (or the original) for **every**
-carousel figure, on the surface where bandwidth matters most and where the gallery renders N
-images at once. That is verbatim the argument used above to reject `45vw` for `cell-full`,
-and it applies to this spec's own prescription at phone widths. **Measurements (6), (7) and
-(8) are therefore taken at three viewports — 360x800, 1280x720 and 1920x1080** — and the
-mobile clause is derived from the first.
+Both alternatives move the column, in opposite directions. Note this is the **shrink**
+direction — the spec's whole upscale analysis is about `sizes` being *larger* than the
+content, and `cell-full` fails the other way, so neither the omission rule nor anything else
+here protects it.
+
+The cost is explicit: full-width table-cell images keep serving originals. It is bounded —
+`cell-small/medium/large` (80/160/240px) are the common table sizes and they do get the
+thumb — and the alternative is a measured table-layout change on every existing table, which
+the Goal forbids. Recorded as a follow-up: fixing this properly needs `table-layout: fixed`
+or explicit column widths, which is a separate change with its own review.
+
+Measurement (6) is retained for the record but no longer feeds a `sizes` value.
+
+**The two remaining measurement-derived presets (`gallery`, `dragimage`) carry a
+`(max-width: 640px) NNvw` clause, exactly as the `el-*` rows do** — not bare px values. A
+bare px `sizes` of ~872 over-declares a gallery frame on a 360 px phone by ~2.5x, so the
+browser demands 872 device px and selects `web` (or the original) for **every** carousel
+figure, on the surface where bandwidth matters most and where the gallery renders N images at
+once. **Measurements (7) and (8) are therefore taken at three viewports — 360x800, 1280x720
+and 1920x1080** — and the mobile clause is derived from the first.
 
 **Known height-axis over-fetch, accepted.** Every preset is a two-axis bounding box, but
 `sizes` describes width only. The full list of height caps:
@@ -615,7 +665,7 @@ guard's tests must therefore target an element template.
 
 ### Layout invariants
 
-#### `width`/`height` are load-bearing against `sizes`, not a reflow nicety
+#### The `sizes` upscale, and the single rule that prevents it
 
 With `w` descriptors, an `<img>` whose CSS `width` is `auto` takes its **density-corrected
 intrinsic size**, which equals the declared `sizes` width — *not* the selected resource's
@@ -625,98 +675,103 @@ on the **figure**; `.el--image--full` has no cap; `.cell-img--full` is `max-widt
 `.dragimage__stage` is `display: inline-block` shrink-wrapping the image.
 
 So a 200px-wide original carrying `sizes="…896px"` would render at 896 CSS px — a 4.5x
-upscale where today it renders at 200px. Two rules prevent it, and both are required:
+upscale where today it renders at 200px.
 
-1. **`srcset`/`sizes` are omitted whenever no derivative exists** (above), which covers
-   exactly the narrow originals most at risk.
-2. **`width`/`height` are emitted only on presets whose CSS declares `height: auto`.** The
-   presentational hint pins the used width to a definite value instead of letting `sizes`
-   supply it. This — not reflow — is the reason they exist.
+**One rule prevents it: `srcset`/`sizes` are omitted whenever `asset.width` is at most the
+preset's declared desktop `sizes` width.** (That subsumes the earlier "omitted whenever no
+derivative exists" case, since an original narrower than both targets is necessarily narrower
+than any `sizes` width; both statements are kept because the no-derivative case is also
+reached by animated and `failed` rows.) There is no second protection — the `width`/`height`
+attributes that used to be the second one are gone, for the reasons measured below.
 
-#### Which presets get the attributes, and why `aspect-ratio` does not save you
+#### No `width`/`height` attributes are emitted, anywhere
 
-**An author `aspect-ratio` is discarded once both axes are definite.** It applies only when
-one axis is `auto`. A `height` attribute is a presentational hint that supplies a definite
-height, so on any element without an author `height: auto` (or an author `height`) the hint
-**wins and the `aspect-ratio` is ignored**.
+This was tried and **measured to be unsafe on every preset**. Two independent failures:
 
-Measured in Chromium against the real rules (`.asset-grid` + `.asset-thumb` + the
-`img { display: block; max-width: 100% }` reset), a 700px grid container:
+**(a) `aspect-ratio` is discarded once both axes are definite.** It applies only while one
+axis is `auto`; a `height` attribute supplies a definite height. Measured in Chromium
+against the real rules (`.asset-grid` + `.asset-thumb` + the reset), 700px container:
 
-| | Box |
+| `.asset-thumb` | Box |
 | --- | --- |
-| `.asset-thumb` **with** `width="1100" height="841"` | 130.4 x **841.0** |
-| `.asset-thumb` **without** them | 130.4 x 97.8 |
+| **with** `width="1100" height="841"` | 130.4 x **841.0** |
+| **without** | 130.4 x 97.8 |
 
-That is 8.6x taller, on ~950 cells across the manager grid and the picker — the single
-largest possible violation of the Goal, and it would have been prescribed by this spec's own
-rule. So:
+8.6x taller, on ~950 cells across the manager and picker.
 
-| Preset | Attributes | Why |
+**(b) `height: auto` does not save the other presets either — nothing neutralises the
+*width* hint.** With a definite width, a binding `max-height` clamps height *independently*
+and the ratio breaks. This is invisible on landscape sources, which is why it survived
+several rounds of reasoning; it appears on **portrait** ones. Measured at 1280x720 against
+the real CSS:
+
+| Preset, source | No attributes | With attributes |
 | --- | --- | --- |
-| `cell-*` | **emitted** | `.cell-img` declares `height: auto` (`courses.css:1325`) |
-| `el-*` | **emitted** | `.el--image img` declares it (`:46`) |
-| `dragimage` | **emitted** | `.dragimage__img` declares it (`:538`) |
-| `grid` | **omitted** | `.asset-thumb` has `aspect-ratio: 4/3` but **no** `height: auto`; the box is already fully reserved by that ratio, so the attributes add nothing and cost everything |
-| `gallery` | **omitted** | independent `max-*` clamping moves the box ~14px (below) |
+| `el-full` 508x1486 (a real `mat-pp` asset) | 246.12 x 720 | **508 x 720** |
+| `el-large` 400x1200 | 144 x 432 | **400 x 432** |
+| `el-small` 400x1200 | 72 x 216 | **162 x 216** |
+| `cell-small` 400x1200 | 26.66 x 80 | **80 x 80** |
+| `cell-large` 400x1200 | 80 x 240 | **240 x 240** |
+| `el-full` 1100x841 (landscape) | 567.98 x 434.25 | 567.98 x 434.25 |
 
-Neither omission loses a protection: `grid` emits no `srcset`, so there is no `sizes` to
-upscale from; `gallery` has its own omission rule.
+Every `el-*` and `cell-*` preset carries a `max-height` (30/45/60/100dvh, 80/160/240px,
+60dvh), so every one of them is affected. These are 100–260 px violations of a ±1 px Goal on
+the primary student surface, and they fire on the **fallback path too** — the attributes need
+only `asset.width`, so they would land on every image the moment the backfill records
+dimensions, derivative or not.
 
-**Where emitted, the attributes always carry `asset.width` / `asset.height` — the
-*original's* dimensions — even on fixed-box presets where the loaded resource is the 512px
-thumb.** No derivative dimensions are stored, and none need to be: the rounded derivative
-ratio differs from the original's only in the fourth decimal (1100x841 → 896x685 is 1.3080
-vs 1.3079), inside the ±1 px geometry tolerance. Stated explicitly so no implementer
-concludes the thumb's own dimensions are required and goes looking for a field that does not
-exist.
+**The replacement is the omission rule alone, and it is measured to move nothing.** Density
+correction scales *both* axes, so with both axes `auto` the intrinsic **ratio** is invariant;
+the only box that can move is one where neither clamp binds, which is exactly what the
+omission rule excludes. A/B measured, today (plain `src`) vs proposed (`w`-descriptor
+`srcset` + `sizes`, no attributes), across landscape and portrait at every preset —
+`el-full` 1100x841 and 508x1486, `el-large` 1100x841 and 400x1200, `el-small` 1100x841 and
+2000x900, `cell-small` 1100x841: **zero boxes moved**.
+
+Consequences to carry: no `width`/`height` means no reflow reservation, which the spec never
+claimed on the grid (`.asset-thumb`'s `aspect-ratio` already reserves it) and now claims
+nowhere; and the `height: auto` audit below becomes descriptive only, since no rule depends
+on it.
 
 The reflow benefit, separately, is real only on `.el--image`, `.cell-img*` and
 `.dragimage__img`. It does **not** apply to the grid: `.asset-thumb` already declares
 `width: 100%; aspect-ratio: 4 / 3; object-fit: cover` (`editor.css:360-365`), so its box is
 fully determined before any image loads.
 
-#### The gallery preset omits `width`/`height`
+#### The gallery
 
 `.el--gallery .gallery__frame img` (`courses.css:1647`) is
-`max-width: 100%; max-height: 100%; object-fit: contain` with **no `height: auto`**, sized
-by its frame's `aspect-ratio: 4/3`.
+`max-width: 100%; max-height: 100%; object-fit: contain` with **no `height: auto`**, sized by
+its frame's `aspect-ratio: 4/3`. It was the first preset where the attribute hazard was
+found — the two `max-*` clamps stop being ratio-preserving once dimension hints make both
+axes definite, moving the element box ~14px in a 736px frame — and it turned out to
+generalise to every preset (above).
 
-Today, with no dimension attributes, CSS's replaced-element min/max algorithm applies both
-clamps *ratio-preserving*. Once `width`/`height` hints are present they compute to lengths
-and `max-width`/`max-height` clamp **independently**. Worked example in a 736px frame
-(4/3 → 552px tall) with an 1100x841 original: today the element box is ~722x552; with the
-attributes it becomes 736x552. `object-fit: contain` keeps the *painted* image identical, so
-nothing looks different — but the element box moves ~14px, far outside the ±1 px geometry
-tolerance below.
+Since no preset emits `width`/`height`, the gallery needs no special case beyond the general
+omission rule. It is still the preset where that rule's *test* matters most, because
+`.gallery__frame` is `aspect-ratio: 4/3` with `max-height: 70vh` — a shape that hides the
+defect unless the fixture is chosen deliberately.
 
-**Therefore the `gallery` preset emits no `width`/`height`.** The reflow benefit is not
-claimed there anyway (the frame's `aspect-ratio` already reserves the space), and the
-alternative — adding `height: auto` to that CSS rule — would be an unmeasured layout change
-the Goal forbids.
+**The omission rule is general, not gallery-only** (it began as a gallery special case and
+was generalised once `width`/`height` were dropped): on **every fluid preset**, `srcset` and
+`sizes` are omitted whenever `asset.width` is at most the preset's declared `sizes` width,
+falling back to a plain `src` on the original. This is the sole upscale protection.
 
-**That leaves the gallery with only one of the two upscale protections, and the general
-omission rule does not fully cover it.** Rule 1 fires only when the original is narrower
-than *both* targets (≤ 512 px). An original of, say, 560 px does get a `thumb`, so it gets
-`srcset="…512w, …560w"` plus a `sizes` of the measured frame width — and with `width`/
-`height` withheld, the density-corrected intrinsic size becomes that `sizes` width. The box
-grows from 560 px to the frame width and paints upscaled. The 1100x841 worked example above
-is exactly the case where this does *not* bite, so it must not be read as clearing the
-preset.
-
-**Additional rule, `gallery` only: `srcset` and `sizes` are omitted whenever `asset.width`
-is less than the preset's declared `sizes` width**, falling back to a plain `src` on the
-original. Every other fluid preset carries `width`/`height` and needs no such rule.
-
-Because the gallery's `sizes` is a media-query list (see above), "the declared `sizes` width"
-is ambiguous unless pinned: it means **the largest width any `sizes` clause can resolve to at
-the named measurement viewports** — i.e. the desktop px value, not the mobile `vw` clause.
-The two readings give different behaviour for the same fixture, and the mandated 513–895 band
-test is precisely where they diverge.
+"The declared `sizes` width" means **the largest width any `sizes` clause can resolve to at
+the named measurement viewports** — the desktop px value, not the mobile `vw` clause. The two
+readings give different behaviour for the same fixture, and the mandated gallery band test is
+precisely where they diverge.
 
 The geometry suite must include a gallery asset with an original **in the 513–895 px band**
 — an explicit, named exception to the "> 896 px fixture" rule below, which would otherwise
-structurally exclude the only band where this defect is observable.
+structurally exclude the band where this defect is observable.
+
+**The fixture's shape is pinned too, not just its width.** The box only moves when the
+density-corrected intrinsic size fits inside the frame in **both** axes, so a 4:3 asset — the
+natural choice for a 4:3 frame — produces an unfalsifiable test. Measured at 1280x720
+(frame 736x504): a **700x525** band asset renders 672x504 both with and without the omission
+rule, i.e. green on the broken build; a **560x300** band asset moves 560x300 → 735.98x394.27,
+i.e. red. The fixture must be smaller than the measured frame in both axes — use 560x300.
 
 #### `height: auto` audit
 
@@ -726,13 +781,11 @@ CSS is changed. The invariant, stated to match reality: *every preset's CSS decl
 `height: auto`, an explicit `aspect-ratio`, or an ancestor `aspect-ratio` together with
 `object-fit`.*
 
-**The three buckets are not equivalent for the attributes.** Only the first —
-an author `height: auto` — neutralises the `height` presentational hint. The other two
-reserve the box against *reflow* but are overridden by the hint (measured above), which is
-exactly why `grid` and `gallery` omit `width`/`height` while the `height: auto` presets emit
-them. A test that checks only "one of the three buckets applies" would not catch a preset
-emitting attributes it should not; the attribute-emission table above is the assertion that
-does.
+**This invariant is now descriptive, not load-bearing.** It described which presets could
+safely take dimension attributes, and no preset takes them. It is retained because it
+documents a real property of the stylesheet worth not breaking, but nothing in this design
+depends on it — the assertion that matters is that **no `<img>` the tag emits carries
+`width` or `height`**, which is a single unconditional test.
 
 ### Lazy loading — grid and picker only
 
@@ -1112,7 +1165,7 @@ handler just deleted).
 | Derivative encodes no smaller than the source | Buffer discarded before any storage write |
 | `asset is None` or blank `file.name` | Tag renders nothing (never `asset.file.url`, which raises `ValueError`) |
 | `width`/`height` unknown (null) | Tag omits `srcset` and emits a plain `src` |
-| No derivative exists | `srcset` and `sizes` omitted entirely — required, not tidiness (see the `width`/`height` invariant) |
+| No derivative exists | `srcset` and `sizes` omitted entirely — required, not tidiness (see the `sizes` upscale rule) |
 | Unknown preset | Raises at render time; unreachable from stored data by the per-value rule |
 | Backfill hits a bad row | Logged, counted, run continues |
 | Replace raises before step 4 | `try` has not begun; old derivatives untouched |
@@ -1225,8 +1278,10 @@ unusable for these tests.
   manager cell and *not* on the picker cell.
 - `extra` rejects a non-allow-listed name and rejects a valued attribute.
 - Emits `loading="lazy"` on `grid` **and not** on the student element presets.
-- Emits `width`/`height` on every preset **except `gallery`**, always carrying the
-  *original's* dimensions.
+- **Emits no `width` or `height` attribute on any preset** — one unconditional assertion
+  over every preset, since the measured distortion appears only on portrait sources and a
+  per-preset spot check would miss it.
+- `cell-full` emits `src` = the original with **no** `srcset` (the auto-layout table case).
 - Emits `data-zoom-src` **only where the tag also emits `data-zoomable`** (i.e. driven by
   `extra`), with a negative assertion that the `grid` preset does **not** carry it.
   `data-zoom-src` is consumed only by `imagezoom.js`, which is armed off `[data-zoomable]`
@@ -1301,7 +1356,7 @@ because the tag requires a real `MediaAsset`:
 
 | Test | Fixture problem |
 | --- | --- |
-| `test_imagezoom_render.py:52-55` | `SimpleNamespace(media=_media(), alt=…, figcaption="")` — `_media()` (`:25`) is `SimpleNamespace(file=SimpleNamespace(url=…))`, and `el` has **no `size`**, so the preset composes to `"el-"` and raises |
+| `test_imagezoom_render.py:52-55` | `SimpleNamespace(media=_media(), alt=…, figcaption="")` — `_media()` (`:25`) is `SimpleNamespace(file=SimpleNamespace(url=…))`. The missing `size` is survivable once `imageelement.html` adopts `{% with %}`+`|default:` (above); the duck-typed `media` is not |
 | `test_imagezoom_render.py:58-67` | hand-built `figures` list of `{url, alt, desc}` — the new shape is `{asset, alt, desc}` |
 | `test_imagezoom_render.py:69-74` | `_media()` duck-type passed as `cell.media` |
 | `test_table_render.py:99-119` | renders the partial with no `size` key — kept working by retaining `|default:'full'` (above), but its fixture must still be a real asset |
@@ -1358,8 +1413,11 @@ real A/B against prior geometry.
   The tolerance is required, not slack: a derivative's height is a rounded proportional
   scale of the original's, so their intrinsic ratios differ slightly (1100x841 → 896x685 is
   1.3080 vs 1.3079), and where a height cap binds the used width can shift sub-pixel.
-- The gallery is included in this assertion, which is what would catch the ~14px box shift
-  if `width`/`height` were ever added to that preset.
+- **Portrait fixtures are mandatory, not optional.** The attribute distortion that this
+  design exists to avoid is invisible on landscape sources — measured, `el-full` 1100x841 is
+  identical with and without attributes while 508x1486 moves 246→508 px. Every preset is
+  therefore asserted against **both** a landscape and a portrait fixture; a landscape-only
+  suite would have passed the design this spec had to reverse.
 - Screenshots of the media manager, the picker, and a student unit in light and dark, judged
   separately.
 
