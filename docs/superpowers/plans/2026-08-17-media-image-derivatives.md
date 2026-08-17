@@ -101,15 +101,33 @@ BOXES = [
 ]
 
 
-def main(base, slug, unit):
+def login(page, base, username, password):
+    """Every measured box is behind auth: courses/views.py:790 is
+    @login_required, and all /manage/ URLs are staff-gated. Without this the
+    script lands on the login redirect and the hard-fail assertion trips on the
+    first box."""
+    page.goto(base + "/accounts/login/")
+    page.fill("input[name='login']", username)
+    page.fill("input[name='password']", password)
+    page.click("button[type='submit']")
+    page.wait_for_url(lambda u: "/accounts/login" not in u, timeout=10000)
+
+
+def main(base, slug, unit, username, password):
     rows = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        for vw, vh in VIEWPORTS:
+        # THUMB_VIEWPORTS, not VIEWPORTS: the two .asset-thumb rows need the narrow
+        # ~268px single-track case, which is the sample the DPR-3 raise condition
+        # turns on and which desktop widths cannot produce.
+        for vw, vh in THUMB_VIEWPORTS:
             page = browser.new_page(viewport={"width": vw, "height": vh},
                                     device_scale_factor=1)
+            login(page, base, username, password)
             # Confirm overlay scrollbars: clientWidth must equal the viewport width.
             for label, path, sel, collapsed, wait_for in BOXES:
+                if vw == 300 and "asset-thumb" not in label:
+                    continue          # the narrow pass covers only the thumb boxes
                 url = base + path.format(slug=slug, unit=unit)
                 page.goto(url)
                 # The scrollbar precondition must hold on THE PAGE BEING MEASURED, not
@@ -121,11 +139,16 @@ def main(base, slug, unit):
                 )
                 if collapsed:
                     page.evaluate("document.documentElement.classList.add('unit-tree-collapsed')")
-                if wait_for:
-                    page.wait_for_selector(wait_for, timeout=5000)
                 if wait_for == "OPEN_PICKER":
-                    page.locator("[data-open-picker]").first.click()
+                    # The picker is armed off [data-pick-media] (media_picker.js:97),
+                    # and those buttons exist only inside an OPEN element edit
+                    # form -- so open one first.
+                    page.locator("[data-edit-element]").first.click()
+                    page.wait_for_selector("[data-pick-media]", timeout=5000)
+                    page.locator("[data-pick-media]").first.click()
                     page.wait_for_selector(".picker .asset-thumb", timeout=5000)
+                elif wait_for:
+                    page.wait_for_selector(wait_for, timeout=5000)
                 loc = page.locator(sel).first
                 # HARD FAIL, not a recorded gap: every sizes value, _DECLARED_MAX
                 # entry and band fixture downstream is derived from this table, so
@@ -145,7 +168,7 @@ def main(base, slug, unit):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], sys.argv[3])
+    main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
 ```
 
 - [ ] **Step 2: Seed a course with the shapes the script needs**
@@ -167,10 +190,10 @@ The script hard-fails on any selector that matches nothing, so a missing shape i
 
 ```bash
 uv run python manage.py runserver 8009 &
-uv run python scripts/measure_boxes.py http://127.0.0.1:8009 measure-tmp 1
+uv run python scripts/measure_boxes.py http://127.0.0.1:8009 measure-tmp 1 <staff-user> <password>
 ```
 
-Expected: a markdown table with 11 rows x 6 viewport columns, no `-` cells for the in-scope boxes.
+Expected: a markdown table with 12 rows (the two thumb rows also carrying a 300px column), no `-` cells for the in-scope boxes.
 
 - [ ] **Step 4: Record the table and derive every value**
 
@@ -277,7 +300,26 @@ uv run pytest tests/test_media_derivatives_model.py -v
 
 Expected: FAIL — `ImportError: cannot import name 'DerivativesState'`.
 
-- [ ] **Step 3: Add the TextChoices and the fields**
+- [ ] **Step 3: Add the `course_with_image_media_root` fixture**
+
+Two of the tests above use it, so it must exist **before** Task 2's commit — Task 3 is too
+late, and Task 2 would otherwise ship a test file that cannot run. In `tests/conftest.py`,
+mirroring the existing `course_with_image`:
+
+```python
+@pytest.fixture
+def course_with_image_media_root(db, tmp_path, settings):
+    """Redirect MEDIA_ROOT per test: make_image_asset writes real files, and the
+    derivative tests assert on storage contents."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    return settings.MEDIA_ROOT
+```
+
+Also extend `make_image_asset` with the `raw=` and `noise=` named parameters here (the
+`derivatives=` parameter and `make_video_asset` arrive in Task 3, which is where they are
+first needed).
+
+- [ ] **Step 4: Add the TextChoices and the fields**
 
 In `courses/models.py`, above `class MediaAsset`:
 
@@ -317,7 +359,7 @@ Inside `MediaAsset`, after `content_hash`:
     )
 ```
 
-- [ ] **Step 4: Generate and inspect the migration**
+- [ ] **Step 5: Generate and inspect the migration**
 
 ```bash
 uv run python manage.py makemigrations courses --name mediaasset_derivatives
@@ -335,7 +377,7 @@ irreversible in practice. Fully reversible as written.
 """
 ```
 
-- [ ] **Step 5: Run the tests**
+- [ ] **Step 6: Run the tests**
 
 ```bash
 uv run pytest tests/test_media_derivatives_model.py -v
@@ -343,7 +385,7 @@ uv run pytest tests/test_media_derivatives_model.py -v
 
 Expected: 3 passed.
 
-- [ ] **Step 6: Verify the migration is reversible**
+- [ ] **Step 7: Verify the migration is reversible**
 
 ```bash
 uv run python manage.py migrate courses 0059
@@ -353,7 +395,7 @@ uv run python manage.py migrate courses 0059
 
 Expected: all three succeed. (A migration that cannot unapply is a known trap in this repo.)
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add courses/models.py courses/migrations/0059_mediaasset_derivatives.py tests/test_media_derivatives_model.py
@@ -881,7 +923,7 @@ def generate_derivatives(asset):
 uv run pytest tests/test_derivatives_generate.py -v
 ```
 
-Expected: 13 passed.
+Expected: 14 passed.
 
 - [ ] **Step 6: Falsify — run the four named mutants**
 
@@ -890,7 +932,7 @@ Apply each mutant **by hand** (never `git checkout` to revert — that destroys 
 | Mutant | Must turn red |
 | --- | --- |
 | Move the `is_animated` probe to after `exif_transpose` | `test_animated_gif_is_skipped_and_produces_no_derivative` |
-| Delete the `img.convert(...)` before resize | `test_palette_source_produces_a_non_palette_derivative` |
+| Delete the `img.convert(...)` before resize | `test_palette_source_is_resampled_not_nearest_neighboured` |
 | Delete the rule-0 reset block | `test_rule_zero_clears_stale_fields` |
 | Delete the re-blank in the `except` handler | `test_storage_failure_leaves_no_file_and_no_field` |
 
@@ -1735,6 +1777,37 @@ git commit -m "feat(media): add backfill_media_derivatives command"
 - Consumes: nothing.
 - Produces: the `data-zoom-src` contract that Task 10's tag emits.
 
+- [ ] **Step 0: Add the two e2e fixtures these tests need**
+
+`unit_with_image` and `media_manager_url` **do not exist** — a repo-wide grep returns
+nothing. Without them all seven e2e tests in Tasks 8 and 9 error at setup with
+`fixture not found`, the "Expected: FAIL" step never exercises its assertion, and the
+ordering gate is unenforced.
+
+Add to `tests/conftest.py`, reusing the existing helpers in
+`tests/test_e2e_media_manager.py` (`_seed_assets` at `:102`, `_open_manager` at `:96`)
+rather than inventing new seeding:
+
+```python
+@pytest.fixture
+def unit_with_image(db, tmp_path, settings, client):
+    """A student unit URL carrying at least one <img data-zoomable>."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    # ... seed a course + unit with one ImageElement, log the client in,
+    # and return the /courses/<slug>/u/<node_pk>/ path.
+
+
+@pytest.fixture
+def media_manager_url(db, tmp_path, settings):
+    """A media-manager URL with at least one image cell."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    # ... seed a course + one image asset; return
+    # /manage/courses/<slug>/media/.
+```
+
+Both must handle authentication — `lesson_unit` is `@login_required`
+(`courses/views.py:790`) and the manager is staff-gated.
+
 - [ ] **Step 1: Write the failing e2e test**
 
 **Synthetic markup, not a converted template.** The ordering rule puts this commit *before* any template emits a derivative, so until then the rendered `src` **is** the original and "the dialog opens the original" passes identically on the un-repointed JS — the required A/B cannot go red.
@@ -2017,13 +2090,15 @@ Expected: FAIL — the overlay loads `THUMB.png`.
 
 - [ ] **Step 3: Repoint, and split the guard**
 
-Replace line 171-172:
+Replace **lines 171-176** — through the `} else {` — and drop the `else` wrapper.
+Replacing only 171-172 leaves `captionOnly(); } else { …` orphaned, a `SyntaxError`
+that takes the whole module down. Reuse the `cell` already bound at line 161 rather than
+re-declaring it (line 162's `if (!cell) return;` also makes a `(cell && …)` guard dead):
 
 ```javascript
     // data-url off the CELL, not the thumb's own src: once the grid serves a
     // derivative, the thumb's src is no longer the full-resolution image.
-    var cell = anchor.closest(".asset-cell");
-    var src = (cell && cell.getAttribute("data-url")) || "";
+    var src = cell.getAttribute("data-url") || "";   // `cell` is bound at :161
     // Only the !src half of the old guard survives here. Its own comment
     // explains why it cannot be delegated: assigning "" does not reliably fire
     // error and can leave the PREVIOUS image showing. The
@@ -2431,15 +2506,15 @@ Replace every `<<FROM MEASUREMENTS DOC: …>>` with the value derived in Task 1,
 uv run pytest tests/test_media_img_tag.py -v
 ```
 
-Expected: 15 passed.
+Expected: 16 passed.
 
-- [ ] **Step 6: Falsify the two omission mutants**
+- [ ] **Step 6: Falsify the three tag mutants**
 
 | Mutant | Must turn red |
 | --- | --- |
 | Delete the `declared is not None and asset.width <= declared` comparison | `test_omission_rule_fires_when_the_asset_is_narrower_than_the_declared_sizes` |
 | Delete the `bool(candidates)` check | `test_omission_rule_fires_when_no_derivative_exists` |
-| Delete `sizes_attr` | `test_sizes_is_present_on_every_w_descriptor_preset` |
+| Delete `attrs["sizes"] = sizes` | `test_sizes_is_present_on_every_w_descriptor_preset` |
 
 - [ ] **Step 7: Commit**
 
@@ -2554,7 +2629,7 @@ def test_hover_opens_the_overlay_with_the_full_resolution_source(page, live_serv
     assert overlay != thumb
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add templates/courses/manage/media/_asset_cell.html templates/courses/manage/media/_picker_grid.html tests/test_media_manager.py tests/test_e2e_media_manager.py
@@ -2696,7 +2771,8 @@ Record every hit and its disposition in the commit message. Known:
 | --- | --- |
 | `tests/test_table_render.py:94` | **Fixture must change first.** It runs on `course_with_image` (`tests/conftest.py:376-387`), whose asset is `make_image_asset(course, "graph.png", size=(1586, 612))` with **no `derivatives=True`** — so no thumb exists, the `cell-medium` branch falls back to the original, and line 94 **keeps passing while silently measuring the fallback path**. Give this test its own `derivatives=True` asset (or add `derivatives=True` to `course_with_image` and audit its other consumers), *then* update the assertion to expect the thumb. |
 | `tests/test_table_render.py:99-119` | Keeps working via the retained `|default:'full'`; fixture must be a real asset |
-| `tests/test_imagezoom_render.py:52,58,69` | **Fixtures break** — duck-typed `SimpleNamespace(file=SimpleNamespace(url=…))` is no longer viable. Replace `_media()` with a DB-backed factory asset, add `@pytest.mark.django_db` and a course fixture (these are currently deliberate DB-free template unit tests). Assets stay **narrow** (no `derivatives=True`) — they assert only that the `data-zoomable` hook is present, so the fallback path is the right one and a wide fixture adds cost without discrimination. |
+| `tests/test_imagezoom_render.py:58` | **A different break from the other two.** `test_gallery_figure_renders_the_hook` does **not** call `_media()` — it hand-builds `{"figures": [{"url": …, "alt": …, "desc": …}]}`. After Step 3 changes `render()` to emit `asset` and the template reads `f.asset`, that key is missing, `string_if_invalid` substitutes `""`, and the tag raises `AttributeError: 'str' object has no attribute 'file'`. Change the dict key from `url` to `asset` with a real `MediaAsset` value. |
+| `tests/test_imagezoom_render.py:52,69` | **Fixtures break** — duck-typed `SimpleNamespace(file=SimpleNamespace(url=…))` is no longer viable. Replace `_media()` with a DB-backed factory asset, add `@pytest.mark.django_db` and a course fixture (these are currently deliberate DB-free template unit tests). Assets stay **narrow** (no `derivatives=True`) — they assert only that the `data-zoomable` hook is present, so the fallback path is the right one and a wide fixture adds cost without discrimination. |
 | `tests/test_e2e_image_size.py`, `test_e2e_imagezoom.py`, `test_e2e_table_cell_images.py` | **Unchanged, still green** — their fixtures use plain `make_image_asset` with `derivatives` defaulting to `False`, so no derivative exists, `srcset`/`sizes` are omitted, `src` falls back to the original and `naturalWidth` is unchanged. Do **not** "fix" them by substituting `el.width`/`el.height` for `naturalWidth`: those return the **rendered** size (measured: 130 vs `getAttribute('width')` 1100), which collapses the 16-combination box matrix into a tautology. |
 
 - [ ] **Step 7: Commit**
