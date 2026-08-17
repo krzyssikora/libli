@@ -1200,7 +1200,20 @@ def test_reopening_the_same_anchor_shows_the_image_and_sizes_to_it(page, live_se
 @pytest.mark.django_db(transaction=True)
 def test_a_404_source_shows_the_caption_and_no_image_box(page, live_server):
     """Abort the overlay's request but NOT the thumbnail's, so this exercises
-    the `error` handler rather than the empty-currentSrc guard."""
+    the `error` handler rather than the empty-src guard.
+
+    Merged with the former `test_a_thumbnail_that_never_loaded_shows_the_
+    caption_only` (which aborted every request for the asset, including the
+    thumbnail's): before Task 9's repoint those were two distinct code paths
+    -- a live thumb whose own overlay fetch 404s went through `error`, while a
+    thumb that never loaded at all short-circuited via `anchor.currentSrc`
+    being empty. After the repoint, `open()` reads `data-url` off the cell,
+    which `_asset_cell.html:3` always populates from `asset.file.url` and is
+    never empty -- so a dead thumbnail no longer takes a different branch,
+    and both scenarios now exercise this same `error` handler. Keeping both
+    tests would have asserted the identical branch twice under different
+    setup.
+    """
     user, course = _seed_assets("err-pa", "err", ("zepsuty_0_1.png", (400, 300)))
     seen = {"n": 0}
 
@@ -1221,20 +1234,6 @@ def test_a_404_source_shows_the_caption_and_no_image_box(page, live_server):
     _open_preview(page, "zepsuty_0_1.png")
     expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
     expect(page.locator(".asset-preview__caption")).to_have_text("zepsuty_0_1.png")
-
-
-@pytest.mark.django_db(transaction=True)
-def test_a_thumbnail_that_never_loaded_shows_the_caption_only(page, live_server):
-    """The OTHER caption-only source: the thumb itself failed, so currentSrc is
-    empty and there is nothing to copy. Abort every request for this asset,
-    including the thumbnail's."""
-    user, course = _seed_assets("nvr-pa", "nvr", ("martwy_0_1.png", (400, 300)))
-    page.route("**/martwy_0_1*", lambda route: route.abort())
-    _open_manager(page, live_server, "nvr-pa", course)
-    page.set_viewport_size({"width": 1280, "height": 900})
-    _open_preview(page, "martwy_0_1.png")
-    expect(page.locator("[data-asset-preview-img]")).to_be_hidden()
-    expect(page.locator(".asset-preview__caption")).to_have_text("martwy_0_1.png")
 
 
 @pytest.mark.django_db(transaction=True)
