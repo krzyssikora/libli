@@ -212,11 +212,12 @@ harness figures for `.el--image` boxes are 80 px narrower than the real ones —
   threshold. Those come only from measurements taken on the real surface, per the protocol
   below.
 
-The real expanded-TOC column, derived from the stylesheet rather than the harness:
-`.app-main` 960 − 2x20 padding = 920; minus `.unit-tree` `flex: 0 0 14rem` (224) + 1px
-border = 225; minus `.unit-shell__main > .lesson` padding `1.25rem 1.5rem` (2x24) = 48 →
-**647 px**. That matches this repo's own prior figure of 648 and is the number the `el-*`
-values must be re-derived from once measured — **not** 896, and not the harness's 568.
+For orientation only — **not as an input to anything** — the expanded-TOC column works out at
+`.app-main` 960 − 2x20 = 920, minus `.unit-tree`'s `flex: 0 0 14rem` = 224 (the 1px border is
+*inside* that basis, since `reset.css:2` sets `box-sizing: border-box`), minus
+`.unit-shell__main > .lesson` padding 2x24 = 48 → **648 px**, matching this repo's prior
+figure. It is quoted to show that the harness's 568 was an artifact, and for no other purpose:
+every `sizes` value comes from the protocol below.
 
 **Required measurement.** Implementation must measure and record in the plan, **naming the
 surface and DOM state for each**, since a box measured on the wrong surface is the failure
@@ -230,21 +231,50 @@ this section exists to prevent:
 | 4 | `.asset-thumb` width | media manager grid |
 | 5 | `.asset-thumb` width | editor image-picker grid |
 | 6 | `<td>` **content width** (not the image's) | student lesson unit page, 2-, 3- and 4-column tables |
-| 7 | `.gallery__frame` width | student lesson unit page, inside `.unit-shell__main`, **both** TOC states |
+| 7 | `.gallery__frame` width | student lesson unit page, inside `.unit-shell__main`, **both** TOC states, **after `gallery.js` has enhanced** — assert `.el--gallery.gallery--js` and the injected `.gallery__stage` are present before reading the box |
 | 8 | `.dragimage__stage` width | student lesson unit page, inside `.unit-shell__main`, **both** TOC states |
+
+Row 7's enhancement clause is load-bearing: `gallery.js:28,35-36` adds `gallery--js` and
+**injects a `.gallery__stage` wrapper that does not exist in `galleryelement.html`**, after
+which `.el--gallery.gallery--js .gallery__item` becomes `position: absolute; width: 100%`
+(`courses.css:1657-1658`). Server-rendered and enhanced are structurally different DOMs for
+the box being measured, and the geometry baseline capture can otherwise race the enhancement
+and silently record whichever state won.
 
 Naming the surface is not bookkeeping. A `.lesson` rendered *outside* `.unit-shell__main`
 keeps its standalone `max-width: 46rem` (`courses.css:292`) = 736 px, while inside the shell
 that cap is removed (`:660-661`) and the column is ~647; measuring the wrong one silently
 seeds every `el-*` and `gallery` value with a number from a surface no student sees.
 
-**Viewports.** For (1)–(3), (6) and (7)–(8): **640x800, 641x800, 1280x720**. 1920x1080 is
-**deliberately not** in that list — `.app-main`'s `max-width: 960px` (`app.css:34`) caps the
-whole lesson surface, so those boxes are provably *identical* at 1280 and 1920 and the second
-viewport can never produce a different number. The viewports that matter are the two either
-side of the `641px` media-query boundary, where `.unit-tree` is hidden (`courses.css:980`)
-and the lesson padding changes — a **discontinuity**, not a scaling. (The earlier claim that
-"every box scales with window width" was simply false and is the reason 1920 was chosen.)
+**Viewports.** For (1)–(3), (6) and (7)–(8): **640x800, 641x800, 900x800, 1039x800,
+1040x800, 1280x720**. For (4) and (5): **the desktop case (1280x720, under `.app-main`'s
+960px cap) and one narrow case near the 268px single-track supremum**.
+
+1920x1080 is **deliberately absent** — `.app-main`'s `max-width: 960px` (`app.css:34`) caps
+the lesson surface, so those boxes are provably identical at 1280 and 1920 and the second
+viewport can never produce a different number. (The earlier claim that "every box scales with
+window width" was false, and was the reason 1920 was chosen.)
+
+The viewports that matter are the ones bracketing **three discontinuities**, not a scaling:
+
+- **640/641** — `.unit-tree` is hidden below 641 (`courses.css:980`) and the lesson padding
+  changes.
+- **1039/1040** — this one is easy to miss: `.unit-toc-pin { flex: 0 0 2.4rem }` is revealed
+  at `min-width: 641px` (`courses.css:1092-1096`), while the compensating
+  `html.unit-tree-collapsed [data-unit-shell] { margin-inline-start: -2.4rem }` applies only
+  at `min-width: 1040px` (`:1106`). Between 641 and 1039 those two 38.4px terms do **not**
+  cancel, so the collapsed column steps at 1040. The commonly-quoted "~872" collapsed figure
+  is the *cancelled* result and holds only above 1040; it is **not** derived in this spec and
+  must not be assumed — measurement (2) produces it.
+- **~900** — the column does not reach its cap until ~1040, so a mid-band sample is needed
+  for the `sizes` middle clause below.
+
+**Measurement conditions.** Playwright headless Chromium at DPR 1, which uses overlay
+scrollbars (`document.documentElement.clientWidth` equals the viewport width). A real browser
+window on Windows reserves ~15px for a classic scrollbar, which would move a 641px probe onto
+the mobile side of the media query while `100vw` stayed at 641 — so the boundary probes
+assume no layout-consuming scrollbar, and that assumption is recorded rather than left
+implicit.
 
 **(6) and (8) need a pinned fixture; the others do not.** Boxes (1)–(5) and (7) are
 container-determined, but `.cell-img--full` is `max-width: 100%` (`courses.css:1329`), so its
@@ -260,6 +290,13 @@ value** — that is (1), (2), (3), (7) or (8), and *only* those — exceeds `WEB
 any named viewport, then `WEB_WIDTH` is **raised to cover it and the byte-cost table is
 re-measured**.
 
+**(4) and (5) get the symmetric rule, not a free pass.** They are excluded from the
+`WEB_WIDTH` condition but they are not decorative: if either measures such that
+`box x DPR 2 > THUMB_WIDTH` (i.e. above ~256 CSS px), the analytic "~250px supremum" argument
+is **falsified**, and the action is the same shape — raise `THUMB_WIDTH`, re-measure the
+byte-cost table, or record and accept with the magnitude stated. A mandated measurement whose
+only permitted outcome is "confirms the argument" is not a check.
+
 **(6) is explicitly excluded**, because `cell-full` consumes no derivative at all and (6) is
 mandated to be taken with an original ≥ 2000 px wide; `courses.css:1305-1318` documents that
 `.cell-img--full`'s `max-width: 100%` collapses out of intrinsic sizing so the image
@@ -267,7 +304,7 @@ contributes its full intrinsic width to the column, meaning (6) would report ~20
 rule as previously worded would mandate `WEB_WIDTH = 2000` and a far larger derivative set to
 serve a preset that uses none. **(4) and (5) are also excluded**: they bound `THUMB_WIDTH`
 under the separate, already-satisfied argument above — the ~36 MB figure and the `el-*` `sizes` values
-(224/448/672/896, defined as 25/50/75/100% of the widest measured column) are all computed
+(defined as 25/50/75/100% of the widest measured column) are all computed
 from it, so they are recomputed together. The alternative — knowingly under-declaring
 `sizes` — is permitted only if the author explicitly accepts it with the magnitude recorded.
 Silently choosing either is what this sentence exists to prevent.
@@ -656,15 +693,21 @@ DPR 1 **and** 3, landscape and portrait (1100x841, 400x1200, 508x1486): **no box
 | `cell-medium` | `.cell-img--medium` (160px both axes) | `src` = thumb, no `srcset` |
 | `cell-large` | `.cell-img--large` (240px both axes) | `w` + `sizes="240px"` — DPR-3 coverage, see above |
 | `cell-full` | `.cell-img--full` (100% of its `<td>`, `max-height: 60dvh`) | **`src` = original, no `srcset`** — auto-layout table, see below |
-| `el-small` | `.el--image--small` (25%, `max-height: 30dvh`) | `w` + `sizes="(max-width: 640px) 25vw, 224px"` |
-| `el-medium` | `.el--image--medium` (50%, `max-height: 45dvh`) | `w` + `sizes="(max-width: 640px) 50vw, 448px"` |
-| `el-large` | `.el--image--large` (75%, `max-height: 60dvh`) | `w` + `sizes="(max-width: 640px) 75vw, 672px"` |
-| `el-full` | `.el--image--full` (`max-height: 100dvh`) | `w` + `sizes="(max-width: 640px) 100vw, 896px"` |
+| `el-small` | `.el--image--small` (25%, `max-height: 30dvh`) | `w` + three-clause `sizes`, all from measurement |
+| `el-medium` | `.el--image--medium` (50%, `max-height: 45dvh`) | `w` + three-clause `sizes`, all from measurement |
+| `el-large` | `.el--image--large` (75%, `max-height: 60dvh`) | `w` + three-clause `sizes`, all from measurement |
+| `el-full` | `.el--image--full` (`max-height: 100dvh`) | `w` + three-clause `sizes`, all from measurement |
 | `gallery` | `.gallery__frame` (100%, `aspect-ratio: 4/3`, `max-height: 70vh`) | `w` + `sizes` from measurement (7) |
 | `dragimage` | `.dragimage__img` (`.dragimage__stage` is inline-block) | `w` + `sizes` from measurement (8) |
 
-The `el-*` pixel values are 25/50/75/100% of the widest measured column — the
-**collapsed-TOC** one, measurement (2), not the expanded ~647 — and must be
+**Single source for the `el-*` values, stated once here and nowhere else:** each is
+`25/50/75/100%` of **`max(measurement 1, measurement 2, measurement 3)`, rounded up** — the
+widest the box reaches across every named surface, DOM state and viewport. (`.el--image--small
+/medium/large` really are `max-width: 25/50/75%` of the lesson content box,
+`courses.css:61-63`, so the percentage derivation is exact.) Taking the expanded column alone
+would under-declare by ~225 px for every user with the persisted collapsed-TOC toggle on, and
+acceptance criterion 2 cannot catch it — both 648 and 872 select the `web` derivative at
+DPR 1. The values must be
 recomputed once measurements (1)–(3) are taken; the values shown assume 896.
 
 **The `srcset` candidate list, literally.** For `w`-descriptor (fluid) presets:
@@ -727,18 +770,48 @@ browser demands 872 device px and selects `web` (or the original) for **every** 
 figure, on the surface where bandwidth matters most and where the gallery renders N images at
 once.
 
-**The mobile clause is derived from the 640px end of its own range, never the 360px end.**
-Below 640 the container is `viewport − 72` (`.app-main`'s 2x20 plus the mobile lesson's
-2x16), so the box-to-viewport ratio **increases** with viewport width across the range. A
-clause fitted at 360 gives ~`80vw`, which at a 640px viewport resolves to 512 while the real
-frame is ~568 — an under-declaration, and under-declaration is precisely the direction the
-omission rule cannot detect. It moves the box: a 1100x841 gallery original renders ~557x426
-today (height-bound in a 568x426 frame) but 512x391 with `sizes` at 512 — a ~45x35 px
-violation of the Goal. The spec's own "erring high is always safe, erring low opens a band"
-rule was being applied to the desktop value and not to the `vw` clause.
+**The mobile clause is derived from the 640px end of its own range, never the 360px end**,
+and it comes from a **measurement**, not a formula. Below 640 the container is
+`viewport − (constant)`, so the box-to-viewport ratio *increases* with viewport width across
+the range; a clause fitted at 360 under-declares at 640, and under-declaration is precisely
+the direction the omission rule cannot detect.
 
-Equivalently and preferably, express it as **`calc(100vw - 72px)`**, which is exact across
-the whole range rather than fitted at one end.
+**No `calc()` formula is prescribed here, deliberately.** An earlier draft prescribed
+`calc(100vw - 72px)` and called it exact. It was wrong by 34 px on the gallery, because the
+hand-derivation missed two rules: `.app-main`'s padding is overridden to
+`var(--space-5) var(--space-4)` — 16 px horizontal, not 20 — inside
+`@media (max-width: 640px)` (`app.css:262`), and `.gallery__item` adds
+`padding: var(--space-5)` plus a 1 px border (`courses.css:1628-1633`). That is the same
+failure as the harness figures: a derivation that misses one rule, stated as surface truth,
+in the one place telling the implementer to trust arithmetic over the protocol.
+
+**So the mobile clause is read off measurements (7) and (8) taken at 640x800**, rounded up,
+exactly like every other `sizes` value. If a `calc()` form is preferred for exactness across
+the range, it must be *fitted to those measurements* and cite every rule it is composed
+from — never derived from the stylesheet by inspection.
+
+#### A middle clause is required for 641–1039px
+
+A two-clause `sizes` applies the desktop value at every viewport above 640, but the column
+does not reach its cap until ~1040 (the `.unit-toc-pin` / negative-margin discontinuity
+above). In that band the real box is a fraction of what the desktop clause declares — the
+over-declaration there is *larger* than the ~2.5x this spec calls unacceptable on phones, and
+it covers the entire small-laptop and tablet range, so every fluid-preset image in it fetches
+`web` or the original.
+
+**Every fluid preset therefore carries three clauses**, the middle one derived from the
+900x800 measurement:
+
+```
+sizes="(max-width: 640px) <from 640 measurement>,
+       (max-width: 1039px) <from 900 measurement>,
+       <from the widest measurement>"
+```
+
+The alternative — accepting the band's over-fetch — is **not** taken, because the bandwidth
+argument used to reject a bare px mobile clause applies here with a larger magnitude. If
+implementation finds the middle clause impractical, the over-fetch must be recorded with its
+measured magnitude rather than discovered later and improvised around.
 
 **Known height-axis over-fetch, accepted.** Every preset is a two-axis bounding box, but
 `sizes` describes width only. The full list of height caps:
@@ -877,9 +950,18 @@ was generalised once `width`/`height` were dropped): on **every fluid preset**, 
 falling back to a plain `src` on the original. This is the sole upscale protection.
 
 "The declared `sizes` width" means **the largest width any `sizes` clause can resolve to at
-the named measurement viewports** — the desktop px value, not the mobile `vw` clause. The two
-readings give different behaviour for the same fixture, and the mandated gallery band test is
-precisely where they diverge.
+the named measurement viewports** — the widest desktop px value, not the mobile or middle
+clause. The two readings give different behaviour for the same fixture, and the mandated
+gallery band test is precisely where they diverge.
+
+**Consequence for where the band tests run:** because the threshold is pinned to the widest
+case, the omission rule is *inert by construction* at narrow viewports — at 641px an `el-full`
+box is a fraction of the declared width, so every band asset keeps its `srcset` there and the
+density-corrected width is clamped back down by `max-width: 100%`. Layout-safe, but it means
+a band test written at 641px is **green on the width-comparison mutant**. The band fixtures
+and that mutant are therefore asserted at **the viewport and DOM state where the preset's box
+is widest** — 1280x720 with `html.unit-tree-collapsed` for the `el-*` presets — and the plan
+states that viewport explicitly per fixture.
 
 The geometry suite must include a gallery asset with an original **in the 513–895 px band**
 — an explicit, named exception to the "> 896 px fixture" rule below, which would otherwise
@@ -1462,7 +1544,7 @@ renders an in-scope template, by any route": the seven paths, **plus** `ImageEle
 `GalleryElement`, `TableElement`/`resolved_cells`, `naturalWidth`, `data-zoomable` and
 `asset-thumb`.
 
-**Three e2e suites are named explicitly, because they assert precisely what this change
+**Four e2e suites are named explicitly, because they assert precisely what this change
 alters and none of them contains a template path:**
 
 | Suite | What it pins | Disposition |
