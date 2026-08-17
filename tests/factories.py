@@ -147,28 +147,42 @@ def make_course_with_unit(owner=None, **kw):
     return course, unit
 
 
-def make_image_asset(course, filename="x.png", size=(1, 1), color="black", **kw):
+def make_image_asset(
+    course, filename="x.png", size=(1, 1), color="black", raw=None, noise=False, **kw
+):
     """A MediaAsset(kind="image") backed by a real in-memory PNG, so any
     file-content/extension validation would pass if invoked. Mirrors the PNG
     built in test_image_file_extension_allowlist (tests/test_courses_elements.py).
 
-    `size` and `color` are explicit named parameters, NOT part of **kw: kw is splatted
-    into MediaAsset.objects.create() and an unknown key would raise on a model field.
-    Defaults reproduce the previous behaviour (1x1 black) exactly, so existing callers
-    are unaffected. A non-default `color` matters for the zoom e2e: the default black
-    is indistinguishable from the near-black overlay scrim, which would let an
-    occlusion assertion pass for the wrong reason.
+    `size`, `color`, `raw` and `noise` are explicit named parameters, NOT part of
+    **kw: kw is splatted into MediaAsset.objects.create() and an unknown key would
+    raise on a model field. Defaults reproduce the previous behaviour (1x1 black)
+    exactly, so existing callers are unaffected. A non-default `color` matters for
+    the zoom e2e: the default black is indistinguishable from the near-black
+    overlay scrim, which would let an occlusion assertion pass for the wrong
+    reason.
+
+    `raw` supplies exact bytes (corrupt files, palette/animated GIFs, EXIF),
+    bypassing the generated PNG entirely. `noise` fills with random pixels so the
+    encoded size is realistic.
     """
     from io import BytesIO
 
     from django.core.files.uploadedfile import SimpleUploadedFile
     from PIL import Image
 
-    buf = BytesIO()
-    Image.new("RGB", size, color).save(buf, "PNG")
+    if raw is None:
+        buf = BytesIO()
+        img = Image.new("RGB", size, color)
+        if noise:
+            import os
+
+            img = Image.frombytes("RGB", size, os.urandom(size[0] * size[1] * 3))
+        img.save(buf, "PNG")
+        raw = buf.getvalue()
     kw.setdefault("kind", "image")
     kw.setdefault("original_filename", filename)
-    kw.setdefault("file", SimpleUploadedFile(filename, buf.getvalue()))
+    kw.setdefault("file", SimpleUploadedFile(filename, raw))
     return MediaAsset.objects.create(course=course, **kw)
 
 
