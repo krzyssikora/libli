@@ -28,9 +28,10 @@ logger = logging.getLogger(__name__)
 # accept the shortfall rather than raise the constant. Magnitude: 512/720 =
 # 0.711x, i.e. effective DPR 2.13 instead of 3.0. Reachability (Section 6):
 # only at viewports <=308px, below every mainstream phone's narrowest common
-# CSS width (320px), and only on the staff-only media picker. See Section 4
-# of the measurements doc for the full reasoning and the cheaper remedy
-# (a fluid srcset preset, PR 2, zero regeneration cost).
+# CSS width (320px), and only on the two staff-only media surfaces (picker up
+# to 308px, manager up to 280px -- Section 6.2). See Section 4 of the
+# measurements doc for the full reasoning and the cheaper remedy (a fluid
+# srcset preset, PR 2, zero regeneration cost).
 THUMB_WIDTH = 512
 WEB_WIDTH = 896
 
@@ -144,14 +145,14 @@ def generate_derivatives(asset):
             for target, field in ((THUMB_WIDTH, "thumb"), (WEB_WIDTH, "web")):
                 if img.width <= target:
                     continue
-                # --- Rule 6: clamp the scaled dimension to >= 1 -------------
+                # --- Rule 6: clamp the scaled dimension to >= 1, and skip a
+                # target whose derived height exceeds the WebP dimension cap.
                 # An extremely wide/flat source (e.g. 3000x1) rounds the
                 # scaled height to 0, which Pillow's resize() rejects with
                 # ValueError("height and width must be > 0"). Measured:
                 # without this clamp a 3000x1 source lands in FAILED instead
                 # of encoding a degenerate-but-valid (512, 1) / (896, 1) pair.
                 height = max(1, round(img.height * target / img.width))
-                # --- Rule 7: skip targets that exceed the WebP dimension cap
                 # A tall source (e.g. 600x20000) scales to (512, 17067) and
                 # Pillow's WebP encoder raises ValueError("encoding error 5:
                 # Image size exceeds WebP limit of 16383 pixels"). That is a
@@ -161,9 +162,21 @@ def generate_derivatives(asset):
                 # succeed.
                 if height > _WEBP_MAX_DIMENSION:
                     continue
+                # --- Rule 7: encode to a buffer first, discard if not smaller
                 payload = _encode(img.resize((target, height), Image.LANCZOS))
                 if len(payload) >= source_size:
-                    continue  # a lossless WebP can exceed a JPEG source
+                    # A lossless WebP can exceed a JPEG source. `break`, not
+                    # `continue`: thumb runs before web, and rule 7's own
+                    # monotonicity note (a 512px lossless WebP is never
+                    # larger than the 896px one of the same source) means the
+                    # web candidate would be discarded too. If that
+                    # monotonicity is ever violated, `break`'s worst case is
+                    # a missed `web` write (falls back to the original --
+                    # a performance loss, never a wrong image); `continue`'s
+                    # worst case is a `web`-without-`thumb` row, which
+                    # violates the invariant the render path assumes is
+                    # impossible.
+                    break
                 name = f"{stem}-{target}.webp"
                 getattr(asset, field).save(name, ContentFile(payload), save=False)
                 written.append(getattr(asset, field).name)
@@ -171,6 +184,16 @@ def generate_derivatives(asset):
         asset.derivatives_state = (
             DerivativesState.OK if written else DerivativesState.SKIPPED
         )
+        return asset.derivatives_state
+
+    except Image.DecompressionBombError:
+        # NOT one of the spec's enumerated rules -- added by review. Pillow
+        # raises this at Image.open() above 2x MAX_IMAGE_PIXELS (~178.9 MP at
+        # the default). Same category as rule 6's WebP dimension cap: a
+        # structurally impossible image, not a transient failure. Left as
+        # FAILED, the backfill would retry it every run, forever, paying the
+        # full decode cost each time to fail identically.
+        asset.derivatives_state = DerivativesState.SKIPPED
         return asset.derivatives_state
 
     except Exception:  # noqa: BLE001 - the contract is "never raises"

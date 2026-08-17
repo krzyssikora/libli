@@ -1,4 +1,5 @@
 import io
+import os
 
 import pytest
 from PIL import Image
@@ -31,6 +32,12 @@ def test_generates_both_derivatives_at_exact_widths(course_with_image_media_root
     assert _open(asset.thumb).size[0] == THUMB_WIDTH
     assert _open(asset.web).size[0] == WEB_WIDTH
     assert _open(asset.thumb).format == "WEBP"
+    # The naming scheme itself: <stem>-<target>.webp under upload_to. The only
+    # other test that names a file (test_storage_failure_leaves_no_file_and_no_field)
+    # asserts NON-existence, so it would pass vacuously if the two derivatives
+    # collided and storage appended a random suffix instead.
+    assert asset.thumb.name == f"courses/media/derivatives/wide-{THUMB_WIDTH}.webp"
+    assert asset.web.name == f"courses/media/derivatives/wide-{WEB_WIDTH}.webp"
 
 
 @pytest.mark.django_db
@@ -138,7 +145,8 @@ def test_an_extremely_wide_source_survives_the_height_clamp(
     """
     course = CourseFactory()
     flat = make_image_asset(course, "flat.png", size=(3000, 1))
-    assert generate_derivatives(flat) != DerivativesState.FAILED
+    assert generate_derivatives(flat) == DerivativesState.OK
+    assert flat.thumb.name and flat.web.name
 
 
 @pytest.mark.django_db
@@ -234,9 +242,12 @@ def test_derivative_no_smaller_than_source_is_discarded_without_writing(
     from django.core.files.storage import default_storage
 
     course = CourseFactory()
+    # noise=True isn't load-bearing here (_encode is monkeypatched below, so
+    # the actual pixel content never reaches the encoder) -- kept only so this
+    # fixture matches the realistic-size convention used elsewhere in this file.
     asset = make_image_asset(course, "noise.png", size=(2000, 1500), noise=True)
-    # Force the discard branch by making the source appear enormous... instead,
-    # assert the branch directly:
+    # Force the discard branch directly, rather than via a pathological
+    # fixture: monkeypatch _encode to return a payload guaranteed >= source_size.
     monkeypatch.setattr("courses.derivatives._encode", lambda *a, **k: b"x" * 10**7)
 
     written = []
@@ -277,5 +288,178 @@ def test_exif_orientation_is_applied(course_with_image_media_root):
     im.save(buf, "JPEG", exif=exif)
     asset = make_image_asset(course, "rot.jpg", raw=buf.getvalue())
 
-    generate_derivatives(asset)
+    assert generate_derivatives(asset) == DerivativesState.OK
     assert asset.width == 1000 and asset.height == 2000
+
+
+@pytest.mark.django_db
+def test_lossless_encoding_is_pixel_identical_to_the_resize(
+    course_with_image_media_root,
+):
+    """The pinned encoder kwargs (lossless=True, method=4, exact=True) had zero
+    coverage: setting lossless=False, method=0, and dropping exact=True in one
+    edit leaves the other 14 tests green. That breakage is not cosmetic --
+    lossy WebP also silently defeats the rule-7 discard, because a lossy 896px
+    derivative essentially always beats a JPEG source, changing which library
+    rows end up `ok` vs `skipped` and therefore Task 7 backfill's work set.
+
+    Asserted on EVIDENCE, not by restating the literal kwargs back at
+    themselves: decode the thumb derivative and compare it pixel-for-pixel
+    against Image.resize(...) run directly on the (already RGB, un-rotated,
+    alpha-free) source. Pixel identity is exactly what lossless means -- a
+    lossy build introduces compression artifacts and fails this.
+
+    MUTANT: set lossless=False, method=0, remove exact=True. Must go red.
+    """
+    course = CourseFactory()
+    w, h = 2000, 1500
+    src = Image.frombytes("RGB", (w, h), os.urandom(w * h * 3))
+    buf = io.BytesIO()
+    src.save(buf, "PNG")
+    png_bytes = buf.getvalue()
+    asset = make_image_asset(course, "noise.png", raw=png_bytes)
+
+    assert generate_derivatives(asset) == DerivativesState.OK
+
+    source = Image.open(io.BytesIO(png_bytes)).convert("RGB")
+    target_height = round(source.height * THUMB_WIDTH / source.width)
+    expected = source.resize((THUMB_WIDTH, target_height), Image.LANCZOS)
+
+    got = _open(asset.thumb).convert("RGB")
+    assert got.get_flattened_data() == expected.get_flattened_data()
+
+
+@pytest.mark.django_db
+def test_alpha_is_preserved_for_rgba_sources(course_with_image_media_root):
+    """Replacing the mode-P conditional (`img.convert("RGBA" if has_alpha else
+    "RGB")`) with an unconditional `img.convert("RGB")` leaves all 14 original
+    tests green, yet flattens transparency on every PNG diagram in the library.
+
+    Noise, not a flat fill: a flat RGBA source compresses so well as PNG that
+    the lossless WebP derivative can fail the rule-7 discard check and never
+    get written at all, making the state assertion below fail for the wrong
+    reason.
+
+    MUTANT: replace the has_alpha-conditional convert with an unconditional
+    img.convert("RGB"). Must go red.
+    """
+    course = CourseFactory()
+    w, h = 2000, 1500
+    im = Image.frombytes("RGBA", (w, h), os.urandom(w * h * 4))
+    buf = io.BytesIO()
+    im.save(buf, "PNG")
+    asset = make_image_asset(course, "alpha.png", raw=buf.getvalue())
+
+    assert generate_derivatives(asset) == DerivativesState.OK
+    assert _open(asset.thumb).mode == "RGBA"
+
+
+@pytest.mark.django_db
+def test_decompression_bomb_is_skipped_not_failed(
+    course_with_image_media_root, monkeypatch
+):
+    """Pillow raises Image.DecompressionBombError at Image.open() above 2x
+    MAX_IMAGE_PIXELS (~178.9 MP at the default). Not one of the spec's
+    enumerated rules -- added by review: this is the same category as rule 6's
+    WebP dimension cap, a structurally impossible image rather than a
+    transient failure, so it must land in SKIPPED, not FAILED (the backfill
+    retries FAILED forever, paying the full decode cost each time).
+
+    Lowering MAX_IMAGE_PIXELS reaches the branch without needing an actual
+    179 MP fixture -- the reviewer confirmed this is a legitimate way to reach
+    it.
+
+    MUTANT: drop the `except Image.DecompressionBombError` clause (or fold it
+    into the general except, which returns FAILED). Must go red.
+    """
+    course = CourseFactory()
+    asset = make_image_asset(course, "wide.png", size=(2000, 1500))
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 100)
+
+    assert generate_derivatives(asset) == DerivativesState.SKIPPED
+
+
+@pytest.mark.django_db
+def test_delete_derivative_files_skips_blank_names_without_touching_storage(
+    course_with_image_media_root, monkeypatch
+):
+    """The blank-name guard has no direct coverage at all -- it is exercised
+    only incidentally, via the failure handler, always with a non-blank name.
+    post_delete passes blank names for every video and every skipped/failed
+    row, and FileSystemStorage.delete("") raises ValueError while
+    storage.exists("") is TRUTHY (it stats MEDIA_ROOT) -- but that ValueError
+    would land inside this function's own try/except and be swallowed either
+    way, so "does not raise" cannot discriminate the mutant. Assert instead
+    that storage is never even touched for a blank name.
+
+    MUTANT: delete the `if not name: continue` guard. Must go red.
+    """
+    from django.core.files.storage import default_storage
+
+    from courses.derivatives import delete_derivative_files
+
+    calls = []
+
+    def spy_exists(name):
+        calls.append(name)
+        return False
+
+    monkeypatch.setattr(default_storage, "exists", spy_exists)
+
+    delete_derivative_files(["", None, ""], default_storage)
+
+    assert calls == []
+
+
+@pytest.mark.django_db
+def test_delete_derivative_files_deletes_a_real_file(course_with_image_media_root):
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    from courses.derivatives import delete_derivative_files
+
+    name = default_storage.save(
+        "courses/media/derivatives/probe.webp", ContentFile(b"x")
+    )
+    assert default_storage.exists(name)
+
+    delete_derivative_files([name], default_storage)
+
+    assert not default_storage.exists(name)
+
+
+@pytest.mark.django_db
+def test_delete_derivative_files_missing_name_is_harmless(
+    course_with_image_media_root,
+):
+    from django.core.files.storage import default_storage
+
+    from courses.derivatives import delete_derivative_files
+
+    delete_derivative_files(
+        ["courses/media/derivatives/never-existed.webp"], default_storage
+    )  # must not raise
+
+
+@pytest.mark.django_db
+def test_delete_derivative_files_swallows_storage_errors(
+    course_with_image_media_root, monkeypatch
+):
+    """The except Exception around storage.exists/.delete must swallow, not
+    propagate, a storage error -- callers invoke this function from within
+    their OWN exception handlers (generate_derivatives' FAILED path,
+    replace_asset's failure handler), and a secondary exception escaping here
+    would mask the caller's real error rather than merely failing to clean up.
+
+    MUTANT: remove the try/except around storage.exists/.delete. Must go red.
+    """
+    from django.core.files.storage import default_storage
+
+    from courses.derivatives import delete_derivative_files
+
+    def boom(name):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(default_storage, "exists", boom)
+
+    delete_derivative_files(["some-name.webp"], default_storage)  # must not raise

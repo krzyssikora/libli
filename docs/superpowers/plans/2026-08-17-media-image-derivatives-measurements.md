@@ -95,11 +95,11 @@ override.
 **Decision: accepted, not raised.** The spec permits either raising `THUMB_WIDTH` or recording and
 accepting the shortfall; the project owner chose the latter for `courses/derivatives.py` (Task 3,
 `pipeline/media-image-derivatives`). Raising to 720 would multiply every thumbnail's area by
-1.98x (the library's thumb set ~15 MB → ~30 MB, worst-case decode memory ~750 MB → ~1.5 GB across
-~950 assets) — working against the very symptom this feature fixes — while Section 6 below found
-the shortfall is reachable only at viewports **≤308px**, below every mainstream phone's narrowest
-common CSS width (320px), and only on the staff-only media picker, which at that width already
-shows one thumbnail per row.
+1.98x (the library's thumb set ~15 MB → ~30 MB) — working against the very symptom this feature
+fixes — while Section 6 below found the shortfall is reachable only at viewports **≤308px**, below
+every mainstream phone's narrowest common CSS width (320px), and only on the two staff-only media
+surfaces (picker up to 308px, manager up to 280px — see Section 6.2), both of which already show
+one thumbnail per row at those widths.
 
 **Magnitude of the accepted shortfall:** 512/720 = 0.711x, i.e. effective DPR 2.13 delivered
 against a DPR-3 requirement, not the full 3.0.
