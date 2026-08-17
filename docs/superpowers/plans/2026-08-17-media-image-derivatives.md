@@ -74,20 +74,30 @@ import sys
 from playwright.sync_api import sync_playwright
 
 VIEWPORTS = [(640, 800), (641, 800), (900, 800), (1039, 800), (1040, 800), (1280, 720)]
+# The two .asset-thumb boxes additionally need a NARROW case near the 268px
+# single-track supremum: the spec's DPR-3 raise condition is "not settled
+# analytically", and at ~250 CSS px thumb_box x 3 = 750 > THUMB_WIDTH, so the
+# condition would fire and must actually be sampled.
+THUMB_VIEWPORTS = VIEWPORTS + [(300, 800)]
 
 # (label, url_path, selector, needs_collapsed_toc, wait_for)
 BOXES = [
-    ("el-full expanded",   "/courses/{slug}/unit/{unit}/", ".el--image--full img", False, None),
-    ("el-full collapsed",  "/courses/{slug}/unit/{unit}/", ".el--image--full img", True,  None),
-    ("editor preview",     "/manage/courses/{slug}/editor/{unit}/", ".prev-inner .el--image--full img", False, None),
-    ("gallery frame",      "/courses/{slug}/unit/{unit}/", ".el--gallery .gallery__frame", False, ".el--gallery.gallery--js .gallery__stage"),
-    ("gallery collapsed",  "/courses/{slug}/unit/{unit}/", ".el--gallery .gallery__frame", True,  ".el--gallery.gallery--js .gallery__stage"),
-    ("dragimage stage",    "/courses/{slug}/unit/{unit}/", ".dragimage__stage", False, None),
-    ("td 2col",            "/courses/{slug}/unit/{unit}/", "table.t2 td:first-child", False, None),
-    ("td 3col",            "/courses/{slug}/unit/{unit}/", "table.t3 td:first-child", False, None),
-    ("td 4col",            "/courses/{slug}/unit/{unit}/", "table.t4 td:first-child", False, None),
+    ("el-full expanded",   "/courses/{slug}/u/{unit}/", ".el--image--full img", False, None),
+    ("el-full collapsed",  "/courses/{slug}/u/{unit}/", ".el--image--full img", True,  None),
+    ("editor preview",     "/manage/courses/{slug}/build/unit/{unit}/edit/", ".prev-inner .el--image--full img", False, None),
+    ("gallery frame",      "/courses/{slug}/u/{unit}/", ".el--gallery .gallery__frame", False, ".el--gallery.gallery--js .gallery__stage"),
+    ("gallery collapsed",  "/courses/{slug}/u/{unit}/", ".el--gallery .gallery__frame", True,  ".el--gallery.gallery--js .gallery__stage"),
+    ("dragimage stage",    "/courses/{slug}/u/{unit}/", ".dragimage__stage", False, None),
+    ("dragimage collapsed", "/courses/{slug}/u/{unit}/", ".dragimage__stage", True,  None),
+    # tableelement.html renders a BARE <table> with no t2/t3/t4 class, so the
+    # tables are addressed by their order on the seeded page instead.
+    ("td 2col",            "/courses/{slug}/u/{unit}/", ".el--table:nth-of-type(1) td:first-child", False, None),
+    ("td 3col",            "/courses/{slug}/u/{unit}/", ".el--table:nth-of-type(2) td:first-child", False, None),
+    ("td 4col",            "/courses/{slug}/u/{unit}/", ".el--table:nth-of-type(3) td:first-child", False, None),
     ("asset-thumb manager", "/manage/courses/{slug}/media/", ".asset-thumb", False, None),
-    ("asset-thumb picker",  "/manage/courses/{slug}/editor/{unit}/", ".picker .asset-thumb", False, None),
+    # The picker grid is fetched on demand via data-picker-url, so it must be
+    # OPENED before .asset-thumb exists. `opens_picker` drives that.
+    ("asset-thumb picker",  "/manage/courses/{slug}/build/unit/{unit}/edit/", ".picker .asset-thumb", False, "OPEN_PICKER"),
 ]
 
 
@@ -99,21 +109,28 @@ def main(base, slug, unit):
             page = browser.new_page(viewport={"width": vw, "height": vh},
                                     device_scale_factor=1)
             # Confirm overlay scrollbars: clientWidth must equal the viewport width.
-            page.goto(base + "/")
-            assert page.evaluate("document.documentElement.clientWidth") == vw, (
-                f"scrollbar consumes layout at {vw}px; measurements would be off"
-            )
             for label, path, sel, collapsed, wait_for in BOXES:
                 url = base + path.format(slug=slug, unit=unit)
                 page.goto(url)
+                # The scrollbar precondition must hold on THE PAGE BEING MEASURED, not
+                # on a short root page that has no scrollbar: if scrollbars consume
+                # layout, every content-heavy page is ~15px narrower and the 641px
+                # probe crosses the media query while 100vw stays at 641.
+                assert page.evaluate("document.documentElement.clientWidth") == vw, (
+                    f"scrollbar consumes layout on {url} at {vw}px"
+                )
                 if collapsed:
                     page.evaluate("document.documentElement.classList.add('unit-tree-collapsed')")
                 if wait_for:
                     page.wait_for_selector(wait_for, timeout=5000)
+                if wait_for == "OPEN_PICKER":
+                    page.locator("[data-open-picker]").first.click()
+                    page.wait_for_selector(".picker .asset-thumb", timeout=5000)
                 loc = page.locator(sel).first
-                if loc.count() == 0:
-                    rows.append((vw, label, None))
-                    continue
+                # HARD FAIL, not a recorded gap: every sizes value, _DECLARED_MAX
+                # entry and band fixture downstream is derived from this table, so
+                # a silent "-" row becomes an invented number.
+                assert loc.count() > 0, f"no match for {label!r} ({sel}) at {url}"
                 box = loc.bounding_box()
                 rows.append((vw, label, round(box["width"], 2) if box else None))
             page.close()
@@ -133,13 +150,18 @@ if __name__ == "__main__":
 
 - [ ] **Step 2: Seed a course with the shapes the script needs**
 
-The measurement page must contain: an `el-full` image, a gallery, a drag-to-image element, and 2-/3-/4-column tables with `cell-full` images. Use the existing `seed_demo_course` command as a base and add what is missing:
+`seed_demo_course` is **not** usable as-is: it defines no `add_arguments`, so `--slug` is a `CommandError` and the slug is hardcoded `demo-course`; and its only image (`seed_assets/demo.png`) is **1200x800**.
 
-```bash
-uv run python manage.py seed_demo_course --slug measure-tmp
-```
+Write a short throwaway seeding script instead. It must produce, in one unit:
 
-If the seeded course lacks a gallery or drag-to-image element, add them through the editor UI or a short shell script — the script asserts `loc.count() == 0` produces a `-` row, so any missing box shows up as a gap rather than a wrong number.
+- an `el-full` image element,
+- a gallery element,
+- a drag-to-image element,
+- **three tables, of 2, 3 and 4 columns**, each with a `cell-full` image in the first cell.
+
+**Every image asset is ≥ 2000 px wide.** This is a spec condition, not a nicety: `.cell-img--full` is `max-width: 100%` and `.dragimage__stage` is `display: inline-block`, so a narrow asset makes both boxes report **the image** rather than the container, and measurements (6) and (8) would be derived from the fixture instead of the layout.
+
+The script hard-fails on any selector that matches nothing, so a missing shape is an error rather than a silently-omitted row.
 
 - [ ] **Step 3: Run the measurements**
 
@@ -163,7 +185,13 @@ Create `docs/superpowers/plans/2026-08-17-media-image-derivatives-measurements.m
    - `gallery` and `dragimage` = same three-clause treatment from their own rows.
 3. **Raise-condition check:** does any of `el-full`, gallery, dragimage exceed `WEB_WIDTH` (896) at any viewport? If yes, raise `WEB_WIDTH`, re-run the byte-cost measurement, and record both.
 4. **Thumb check:** `asset-thumb manager` and `asset-thumb picker` — does `box x 3 > 512` at either viewport? If yes, raise `THUMB_WIDTH` and record.
-5. **Band-fixture widths per preset:** wider than 512, narrower than that preset's measured box at the widest viewport. State the chosen width per preset.
+5. **Band-fixture dimensions per preset — width AND height.** Wider than 512 (so a thumb
+   exists) and **smaller than that preset's measured box in BOTH axes** at the widest
+   viewport. The height half is not optional: the box only moves when the density-corrected
+   intrinsic size fits inside the frame in both axes, so a 4:3 asset in a 4:3 gallery frame
+   produces an unfalsifiable test (measured: 700x525 green on the broken build, 560x300 red).
+   Since the width-comparison mutant is the one the spec calls most important and is red only
+   against these fixtures, record each fixture's height against the measured frame height too.
 
 - [ ] **Step 5: Commit**
 
@@ -199,7 +227,7 @@ from tests.factories import CourseFactory, make_image_asset
 
 
 @pytest.mark.django_db
-def test_new_fields_default_to_the_pending_state():
+def test_new_fields_default_to_the_pending_state(course_with_image_media_root):
     """Blank-is-safe: a freshly created asset carries no derivative claims.
 
     width/height are PositiveIntegerField(null=True) so their untouched value is
@@ -226,7 +254,7 @@ def test_derivatives_state_choices_are_the_three_terminal_values():
 
 
 @pytest.mark.django_db
-def test_derivative_fields_accept_a_long_name():
+def test_derivative_fields_accept_a_long_name(course_with_image_media_root):
     """max_length=200, not Django's default 100: the derivatives/ prefix is 12
     chars longer than courses/media/, plus a -896.webp suffix and any storage
     collision suffix. At 100, get_available_name silently truncates stems for the
@@ -383,21 +411,40 @@ def test_generates_both_derivatives_at_exact_widths(course_with_image_media_root
 
 
 @pytest.mark.django_db
-def test_palette_source_produces_a_non_palette_derivative(course_with_image_media_root):
+def test_palette_source_is_resampled_not_nearest_neighboured(course_with_image_media_root):
     """THE mode-P test. Image.resize downgrades resample to NEAREST for modes
-    "1" and "P", silently ignoring LANCZOS -- verified against Pillow 12.2.0,
-    where Image.new("P",(1000,800)).resize((320,256), LANCZOS) returns mode P,
-    nearest-neighbour aliased, i.e. WORSE than the browser's own downscale.
+    "1" and "P", silently ignoring LANCZOS -- verified against Pillow 12.2.0.
 
-    MUTANT: remove the convert() before resize. This test must go red.
+    ASSERTING ON THE DERIVATIVE'S MODE DOES NOT WORK, and the obvious version of
+    this test is vacuous. WebP has no palette mode, so Pillow converts on save
+    and the derivative decodes as RGB *whether or not* the convert() ran --
+    measured: mutant RGB, correct RGB. A flat Image.new("P", ...) fixture is
+    vacuous a second time over, having no structure for resampling to affect.
+
+    So: a fixture with a real palette and a per-column index ramp, and an
+    assertion on resampling EVIDENCE. The bound is principled rather than
+    magic -- a NEAREST resample of a palette image can only emit colours already
+    present in the 256-entry palette, while LANCZOS averages neighbours and
+    creates new ones. Measured on this exact fixture: mutant 255 distinct
+    colours, correct 506.
+
+    MUTANT: remove the img.convert(...) before resize. Must go red.
     """
     course = CourseFactory()
+    w, h = 2000, 1500
+    src = Image.new("P", (w, h))
+    src.putpalette([v for i in range(256) for v in (i, 255 - i, (i * 7) % 256)])
+    src.putdata([(x * 255) // w for _y in range(h) for x in range(w)])
     buf = io.BytesIO()
-    Image.new("P", (2000, 1500)).save(buf, "PNG")
+    src.save(buf, "PNG")
     asset = make_image_asset(course, "pal.png", raw=buf.getvalue())
 
     assert generate_derivatives(asset) == DerivativesState.OK
-    assert _open(asset.thumb).mode != "P"
+    distinct = len(_open(asset.thumb).convert("RGB").getcolors(maxcolors=1 << 20))
+    assert distinct > 256, (
+        f"only {distinct} distinct colours: a NEAREST resample cannot exceed the "
+        f"256-entry palette, so LANCZOS was silently downgraded"
+    )
 
 
 @pytest.mark.django_db
@@ -451,17 +498,33 @@ def test_original_narrower_than_both_targets_is_skipped(course_with_image_media_
 
 
 @pytest.mark.django_db
-def test_zero_height_and_webp_cap_are_skipped_not_failed(course_with_image_media_root):
-    """Verified against Pillow 12.2.0: a 3000x1 source rounds to height 0 ->
-    ValueError("height and width must be > 0"); a 600x20000 source scales to
-    (512, 17067) -> ValueError("encoding error 5: Image size exceeds WebP limit
-    of 16383 pixels"). Both must land in `skipped`, not `failed`, because the
-    backfill retries `failed` on EVERY run -- forever, for a structurally
-    impossible image."""
+def test_an_extremely_wide_source_survives_the_height_clamp(course_with_image_media_root):
+    """A 3000x1 source rounds to height 0, which Pillow rejects with
+    ValueError("height and width must be > 0"). The max(1, ...) clamp in rule 6
+    is what prevents that -- so with the clamp in place this source succeeds
+    (measured: (512,1) and (896,1) both encode, 34 bytes each) rather than being
+    skipped. Asserting SKIPPED here would contradict the clamp.
+
+    MUTANT: remove the max(1, ...). This goes red with FAILED.
+    """
     course = CourseFactory()
     flat = make_image_asset(course, "flat.png", size=(3000, 1))
-    assert generate_derivatives(flat) == DerivativesState.SKIPPED
+    assert generate_derivatives(flat) != DerivativesState.FAILED
 
+
+@pytest.mark.django_db
+def test_a_source_exceeding_the_webp_dimension_cap_is_skipped_not_failed(
+    course_with_image_media_root,
+):
+    """A 600x20000 source scales to (512, 17067) -> ValueError("encoding error 5:
+    Image size exceeds WebP limit of 16383 pixels"). It must land in `skipped`,
+    not `failed`, because the backfill retries `failed` on EVERY run -- forever,
+    for a structurally impossible image.
+
+    MUTANT: remove the `height > _WEBP_MAX_DIMENSION` check. Goes red with
+    FAILED.
+    """
+    course = CourseFactory()
     tall = make_image_asset(course, "tall.png", size=(600, 20000))
     assert generate_derivatives(tall) == DerivativesState.SKIPPED
 
@@ -524,6 +587,7 @@ def test_storage_failure_leaves_no_file_and_no_field(course_with_image_media_roo
     assert generate_derivatives(asset) == DerivativesState.FAILED
     assert asset.thumb.name in ("", None)
     assert asset.web.name in ("", None)
+    assert asset.width is None and asset.height is None
     assert not default_storage.exists(f"courses/media/derivatives/wide-{THUMB_WIDTH}.webp")
 
 
@@ -540,7 +604,7 @@ def test_derivative_no_smaller_than_source_is_discarded_without_writing(
     asset = make_image_asset(course, "noise.png", size=(2000, 1500), noise=True)
     # Force the discard branch by making the source appear enormous... instead,
     # assert the branch directly:
-    monkeypatch.setattr("courses.derivatives._encode", lambda *a, **k: b"x" * 10**9)
+    monkeypatch.setattr("courses.derivatives._encode", lambda *a, **k: b"x" * 10**7)
 
     written = []
     real_save = default_storage.save
@@ -801,6 +865,12 @@ def generate_derivatives(asset):
         # successful thumb write re-populated the field after rule 0 cleared it.
         asset.thumb = ""
         asset.web = ""
+        # width/height too: rule 0 nulled them, but the assignment at rule 3 runs
+        # BEFORE any storage write, so a failed row would otherwise persist
+        # dimensions -- and "width populated with both derivatives blank" is
+        # exactly the ambiguous shape derivatives_state exists to disambiguate.
+        asset.width = None
+        asset.height = None
         asset.derivatives_state = DerivativesState.FAILED
         return asset.derivatives_state
 ```
@@ -913,7 +983,13 @@ Expected: FAIL on the first test — derivative files survive.
 
 - [ ] **Step 3: Extend the receiver**
 
-In `courses/signals.py`, inside `_delete_mediaasset_file`, after the existing `storage = file.storage`:
+Add the import at module scope in `courses/signals.py`:
+
+```python
+from courses.derivatives import delete_derivative_files
+```
+
+Then, inside `_delete_mediaasset_file`, after the existing `storage = file.storage`:
 
 ```python
     # Derivative fields carry their OWN storage (a different field's storage
@@ -1114,7 +1190,51 @@ Find where the import view builds its completion message and append:
           "derivatives for the imported media.") % {"slug": course.slug}
 ```
 
-- [ ] **Step 7: Run the tests**
+- [ ] **Step 7: Add the failed-import orphan invariant test**
+
+The spec requires this explicitly, and it is the one guard that would catch a later change re-enabling generation inside `_run_import`'s `transaction.atomic()`. Running the existing transfer suite does not provide it.
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_a_failed_import_leaves_no_orphaned_files(course_with_image_media_root, monkeypatch):
+    """_create_media appends only asset.file.name to created_files, and
+    _run_import calls _cleanup_files on EVERY failure path. Closed by
+    construction today because the importer passes generate=False -- but if a
+    later change re-enables generation there, up to 2,000 derivative files would
+    be written inside the atomic block and cleaned up by nothing."""
+    from django.core.files.storage import default_storage
+
+    before = set(default_storage.listdir("courses/media")[1])
+    # Force a failure after _create_media has run.
+    monkeypatch.setattr(
+        "courses.transfer.importer._materialise_nodes",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    with pytest.raises(RuntimeError):
+        ...  # drive an import of a valid archive
+
+    after = set(default_storage.listdir("courses/media")[1])
+    assert after == before
+    derivatives = default_storage.listdir("courses/media/derivatives")[1] \
+        if default_storage.exists("courses/media/derivatives") else []
+    assert derivatives == []
+```
+
+Adjust the monkeypatched target to whichever `_run_import` step actually follows `_create_media` in this codebase.
+
+- [ ] **Step 8: Regenerate catalogs for the new import message**
+
+Step 6 adds a user-visible string. Without this it ships untranslated on a Polish product — the same failure Task 8 goes to lengths to prevent.
+
+```bash
+uv run python manage.py makemessages -l pl -l en
+```
+
+Review for **fuzzy** entries (a fuzzy pre-fill silently ships a wrong translation; clearing one means deleting both the `#, fuzzy` marker and the wrong `msgstr`), fill the Polish string, then `uv run python manage.py compilemessages`.
+
+Note whether the surrounding module uses `gettext` or `gettext_lazy` — `%` formatting on a lazy proxy behaves differently from a plain `str` at the call site.
+
+- [ ] **Step 9: Run the tests**
 
 ```bash
 uv run pytest tests/test_derivatives_creation.py tests/test_transfer_import.py -v
@@ -1122,10 +1242,10 @@ uv run pytest tests/test_derivatives_creation.py tests/test_transfer_import.py -
 
 Expected: all pass.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add courses/media.py courses/lal_loader/media.py courses/transfer/importer.py tests/test_derivatives_creation.py
+git add courses/media.py courses/lal_loader/media.py courses/transfer/importer.py tests/test_derivatives_creation.py tests/test_transfer_import.py locale
 git commit -m "feat(media): generate derivatives at create_asset and the LAL loader"
 ```
 
@@ -1303,7 +1423,7 @@ def replace_asset(asset, uploaded_file):
     # asset.thumb.name still holds the OLD, LIVE name, and a handler reading it
     # off the instance would destroy the surviving row's derivatives.
     try:
-        from courses.derivatives import generate_derivatives
+        from courses.derivatives import delete_derivative_files, generate_derivatives
 
         generate_derivatives(asset)      # reads a COMMITTED FieldFile
         asset.save(
@@ -1429,7 +1549,9 @@ def test_second_run_is_a_no_op(course_with_image_media_root):
 
 
 @pytest.mark.django_db
-def test_skipped_rows_are_not_retried_but_failed_rows_are(course_with_image_media_root):
+def test_skipped_rows_are_not_retried_but_failed_rows_are(
+    course_with_image_media_root, monkeypatch
+):
     course = CourseFactory()
     skipped = make_image_asset(course, "tiny.png", size=(300, 200))
     failed = make_image_asset(course, "bad.png", raw=b"nope")
@@ -1438,10 +1560,19 @@ def test_skipped_rows_are_not_retried_but_failed_rows_are(course_with_image_medi
     assert skipped.derivatives_state == DerivativesState.SKIPPED
     assert failed.derivatives_state == DerivativesState.FAILED
 
-    # A second pass must reconsider `failed` and leave `skipped` alone.
-    processed = call_command("backfill_media_derivatives", course=course.slug)
-    skipped.refresh_from_db()
-    assert skipped.derivatives_state == DerivativesState.SKIPPED
+    # A second pass must RECONSIDER `failed` and LEAVE `skipped` alone. Asserting
+    # the state again would pass either way -- re-running over a 300x200 asset
+    # produces SKIPPED regardless of whether the filter excluded it. Count the
+    # generate_derivatives calls instead, which is the observable that
+    # discriminates.
+    seen = []
+    import courses.management.commands.backfill_media_derivatives as cmd
+    real = cmd.generate_derivatives
+    monkeypatch.setattr(cmd, "generate_derivatives",
+                        lambda a: (seen.append(a.pk), real(a))[1])
+    call_command("backfill_media_derivatives", course=course.slug)
+    assert skipped.pk not in seen, "skipped rows must not be retried"
+    assert failed.pk in seen, "failed rows must be reconsidered"
 
 
 @pytest.mark.django_db
@@ -1456,8 +1587,12 @@ def test_force_regenerates_and_leaves_no_orphans(course_with_image_media_root):
     call_command("backfill_media_derivatives", course=course.slug, force=True)
 
     a.refresh_from_db()
-    if a.thumb.name != old_thumb:
-        assert not default_storage.exists(old_thumb)
+    # Unconditional: storage collision-suffixes because the old file still
+    # exists, so the name MUST change. Guarding the assertion behind that
+    # condition would let a build that stopped deleting superseded derivatives
+    # pass silently.
+    assert a.thumb.name != old_thumb
+    assert not default_storage.exists(old_thumb)
 
 
 @pytest.mark.django_db
@@ -1690,7 +1825,25 @@ Expected: FAIL — the dialog opens `SMALL.png`.
 
 - [ ] **Step 3: Repoint the source and add the handlers**
 
-In `imagezoom.js`, replace line 74 and add handlers next to the dialog's existing listeners:
+`imagezoom.js` opens with `"use strict"` and declares only `dialog`, `dialogImg`, `trigger`
+(lines 25–27). Two new names are needed, and the error element must actually be created —
+spec constraint 3 ("named markup, a child of `dialog.imgzoom`") is otherwise only half met.
+Add alongside the existing module-level vars:
+
+```javascript
+  var expectedSrc = null;   // stale-source guard, mirroring media_preview.js:49-58
+  var errorEl = null;
+```
+
+and inside `build()` (lines 29–68), after `dialog.appendChild(dialogImg)`:
+
+```javascript
+    errorEl = document.createElement("div");
+    errorEl.className = "imgzoom__error";
+    dialog.appendChild(errorEl);
+```
+
+Then replace line 74 and add handlers next to the dialog's existing listeners:
 
 ```javascript
   // data-zoom-src, NOT currentSrc: once a srcset is present currentSrc resolves
@@ -1961,7 +2114,7 @@ def test_fluid_presets_emit_srcset_sizes_and_an_original_src(course_with_image_m
     asset = make_image_asset(course, "w.png", size=(2000, 1500), derivatives=True)
     html = render(asset=asset, preset="el-full")
     assert f'src="{asset.file.url}"' in html
-    assert "srcset=" in html and "sizes=" in html
+    assert 'srcset="' in html and 'sizes="' in html
     assert f"{asset.thumb.url} 512w" in html
     assert f"{asset.web.url} 896w" in html
     assert f"{asset.file.url} 2000w" in html
@@ -1976,7 +2129,7 @@ def test_sizes_is_present_on_every_w_descriptor_preset(course_with_image_media_r
     asset = make_image_asset(course, "w.png", size=(2000, 1500), derivatives=True)
     for preset in ("el-small", "el-medium", "el-large", "el-full",
                    "cell-large", "gallery", "dragimage"):
-        assert "sizes=" in render(asset=asset, preset=preset), preset
+        assert 'sizes="' in render(asset=asset, preset=preset), preset
 
 
 @pytest.mark.django_db
@@ -2033,6 +2186,21 @@ def test_omission_rule_fires_when_no_derivative_exists(course_with_image_media_r
     tiny = make_image_asset(course, "t.png", size=(400, 300), derivatives=True)
     html = render(asset=tiny, preset="cell-large")
     assert "srcset" not in html
+
+
+@pytest.mark.django_db
+def test_null_dimensions_suppress_srcset(course_with_image_media_root):
+    """A w descriptor without a real pixel width is a lie the browser acts on.
+    Covers the spec's rule that a null HEIGHT beside a non-null width behaves the
+    same as a null width -- without this the whole clause could be deleted with
+    every other test still green."""
+    course = CourseFactory()
+    for field in ("width", "height"):
+        asset = make_image_asset(course, f"{field}.png", size=(2000, 1500),
+                                 derivatives=True)
+        setattr(asset, field, None)
+        html = render(asset=asset, preset="el-full")
+        assert 'srcset="' not in html and 'sizes="' not in html, field
 
 
 @pytest.mark.django_db
@@ -2198,10 +2366,10 @@ def media_img(asset, preset, alt="", css_class="", extra=""):
 
     if strategy == FIXED:
         src = thumb or original
-        srcset = sizes_attr = ""
+        srcset_value = ""
     elif strategy == ORIGINAL:
         src = original
-        srcset = sizes_attr = ""
+        srcset_value = ""
     else:
         src = original
         candidates = []
@@ -2219,33 +2387,39 @@ def media_img(asset, preset, alt="", css_class="", extra=""):
             emit = False
         if emit:
             candidates.append(f"{original} {asset.width}w")
-            srcset = " ".join(['srcset="' + ", ".join(candidates) + '"'])
-            sizes_attr = f'sizes="{sizes}"'
+            srcset_value = ", ".join(candidates)
         else:
-            srcset = sizes_attr = ""
+            srcset_value = ""
 
-    bits = [f'src="{src}"']
-    if srcset:
-        bits.append(srcset)
-    if sizes_attr:
-        bits.append(sizes_attr)
+    attrs = {"class": css_class, "alt": alt, "src": src}
+    if srcset_value:
+        attrs["srcset"] = srcset_value
+        attrs["sizes"] = sizes
     if preset == "grid":
-        bits.append('loading="lazy"')
+        attrs["loading"] = "lazy"
     if "data-zoomable" in names:
-        bits.append(f'data-zoom-src="{original}"')
-    bits.extend(names)
+        attrs["data-zoom-src"] = original
+    for name in names:
+        attrs[name] = True          # flatatt renders True as a bare attribute
 
-    return format_html(
-        '<img class="{}" alt="{}" {}>',
-        css_class, alt, format_html(" ".join("{}" for _ in bits), *bits),
-    )
+    # flatatt, NOT a nested format_html over pre-formatted `name="value"`
+    # strings: format_html conditional_escapes every argument, so those strings
+    # come out as src=&quot;/media/…&quot; and NO image gets a usable src. flatatt
+    # escapes the VALUES and leaves the attribute structure intact, which is the
+    # contract needed here.
+    return format_html("<img{}>", flatatt(attrs))
 ```
 
-> **Note for the implementer:** the `format_html` composition above must escape
-> `css_class` and `alt` while leaving the attribute fragments intact. If the
-> nested-`format_html` form proves awkward, use
-> `django.forms.utils.flatatt` over a dict instead — but the escaping contract
-> (values escaped, attribute names allow-listed) is not negotiable.
+Imports for the module: `from django.forms.utils import flatatt` alongside `format_html`.
+
+> **Why this matters more than it looks.** The nested-`format_html` form was
+> executed and produces
+> `<img class="cell-img" alt="x" src=&quot;/media/a.png&quot; srcset=&quot;…&quot;>` —
+> every attribute after `alt` collapses into one escaped text token, so no image
+> on any of the eight sites renders. It is not a subtle bug, but four of the
+> tests below would still have passed on it, because `"srcset=" in html` is true
+> of the escaped string. Hence the assertion form in Step 1: **always assert on
+> `'srcset="'` with the quote**, never on the bare attribute name.
 
 - [ ] **Step 4: Fill the `SIZES` and `_DECLARED_MAX` placeholders**
 
@@ -2344,7 +2518,17 @@ uv run pytest tests/test_e2e_media_manager.py -m e2e -v
 
 Expected: pass, **except** `test_hover_opens_the_overlay_with_the_thumbnails_source` (`:866`), which asserts `img.currentSrc === thumb.currentSrc` and is now false **by construction**.
 
-- [ ] **Step 6: Invert the hover test**
+- [ ] **Step 6: Extend `_seed_assets` to forward `derivatives`**
+
+`tests/test_e2e_media_manager.py:102` is `def _seed_assets(username, slug, *specs)` and its body calls `make_image_asset(course, filename=filename, size=size)`. Passing `derivatives=True` would land in `*specs` as a `TypeError`, so the helper must take it explicitly:
+
+```python
+def _seed_assets(username, slug, *specs, derivatives=False):
+    ...
+    make_image_asset(course, filename=filename, size=size, derivatives=derivatives)
+```
+
+- [ ] **Step 7: Invert the hover test**
 
 Its fixture must be recreated with `derivatives=True` — width alone generates nothing. Rename and invert:
 
@@ -2359,8 +2543,10 @@ def test_hover_opens_the_overlay_with_the_full_resolution_source(page, live_serv
     user, course = _seed_assets("hov-pa", "hov", ("wide_0_1.png", (800, 200)),
                                 derivatives=True)
     _open_manager(page, live_server, "hov-pa", course)
-    page.hover(".asset-cell [data-asset-preview]")
-    page.wait_for_selector("[data-asset-preview-img]")
+    # Use the file's OWN helper, not a raw hover: _open_preview waits past the
+    # module's dwell timer and resolves the cell by data-name rather than by
+    # position, which is what its docstring exists to guarantee.
+    _open_preview(page, "wide_0_1.png")
     overlay = page.locator("[data-asset-preview-img]").evaluate("e => e.currentSrc")
     thumb = page.locator("[data-asset-preview]").evaluate("e => e.currentSrc")
     cell_url = page.locator(".asset-cell").get_attribute("data-url")
@@ -2396,16 +2582,22 @@ git commit -m "feat(media): serve thumbnails in the manager and picker grids"
 
 For the two cell partials, assert against a **`small`/`medium`/`large`** cell — `full` emits neither a derivative nor a `srcset`, so a generic assertion would fail on a *correct* build and get weakened.
 
+**Every assertion below also round-trips `alt`.** The spec makes this explicit, and the failure is silent twice over: a conversion that omits `alt=` blanks author-supplied alt text, *and* `imagezoom.js:92` then falls back to a generic aria-label, turning a described image into an unlabelled "Enlarge image" button. The tag's own `alt` test cannot catch a template that forgot to pass it.
+
+Fixtures for these assertions use `derivatives=True` and `size=(2000, 1500)` — width alone generates nothing.
+
 ```python
 @pytest.mark.django_db
 def test_image_element_renders_a_srcset(course_with_image_media_root):
     ...
-    assert "srcset=" in html and asset.web.url in html
+    assert 'srcset="' in html and asset.web.url in html
+    assert 'alt="A labelled diagram"' in html
 
 @pytest.mark.django_db
 def test_table_cell_medium_renders_the_thumb(course_with_image_media_root):
     ...
     assert asset.thumb.url in html
+    assert 'alt="A labelled diagram"' in html
 
 @pytest.mark.django_db
 def test_table_cell_full_renders_the_original_and_no_srcset(course_with_image_media_root):
@@ -2455,8 +2647,18 @@ At `courses/models.py:1649-1651`:
 
 `_table_cell.html` and `_filltable_cell.html` — the load tag and the whole `{% with %}…{% endwith %}` go **inline on the existing first line**, with no newline or indentation between tags. `tableelement.html` wraps its includes in `{% spaceless %}`, but `filltableelement.html` has **none** (stated at `tableelement.html:19-21`), so an expanded form would change bytes for every fill-table image cell, and the existing byte-guard (`test_table_render.py:122`) covers only a *text* cell.
 
+**They take different snippets** — the fill-table cell keeps its own `filltable__img` class, per the spec's per-site table. Dropping it breaks `tests/test_filltable_render.py:135` (`assert "filltable__img" in html`) and `tests/test_e2e_imagezoom.py:907` (which locates `.filltable__img`), neither of which a shared snippet would surface.
+
+`_table_cell.html` (no `i18n` — it has no load tag today and needs only the new library):
+
 ```html
-{% load i18n courses_media_extras %}{% if cell.kind == "image" %}{% with sz=cell.size|default:"full" %}{% media_img cell.media preset="cell-"|add:sz alt=cell.alt css_class="cell-img cell-img--"|add:sz extra="data-zoomable" %}{% endwith %}{% else %}…
+{% load courses_media_extras %}{% if cell.kind == "image" %}{% with sz=cell.size|default:"full" %}{% media_img cell.media preset="cell-"|add:sz alt=cell.alt css_class="cell-img cell-img--"|add:sz extra="data-zoomable" %}{% endwith %}{% else %}…
+```
+
+`_filltable_cell.html` (keeps its existing `i18n`, keeps `filltable__img`):
+
+```html
+{% load i18n courses_media_extras %}{% if cell.kind == "answer" %}…{% elif cell.kind == "image" %}{% with sz=cell.size|default:"full" %}{% media_img cell.media preset="cell-"|add:sz alt=cell.alt css_class="filltable__img cell-img cell-img--"|add:sz extra="data-zoomable" %}{% endwith %}{% else %}…
 ```
 
 `dragtoimagequestionelement.html` — line 1 appends to the existing `{% load i18n l10n courses_extras %}`. Both `<img>` (`:9`, `:32`) become:
@@ -2474,10 +2676,10 @@ At `courses/models.py:1649-1651`:
 - [ ] **Step 5: Run the tests**
 
 ```bash
-uv run pytest tests/test_table_render.py tests/test_gallery_render.py tests/test_imagezoom_render.py courses/tests/test_image_size_render.py tests/test_table_cell_images.py -v
+uv run pytest tests/test_table_render.py tests/test_filltable_render.py tests/test_gallery_render.py tests/test_imagezoom_render.py courses/tests/test_image_size_render.py tests/test_table_cell_images.py -v
 ```
 
-Expected: the six new assertions pass; `test_table_render.py:94` fails (it asserts `src="{asset.file.url}"`, which contradicts the new `cell-*` rule).
+Expected: the six new assertions pass. **`test_table_render.py:94` also passes — for the wrong reason**, because its fixture has no derivative and the tag falls back to the original. That is the hazard, not the absence of one: fix its fixture per the audit table below, and only then does it discriminate.
 
 - [ ] **Step 6: Audit the existing assertions**
 
@@ -2492,7 +2694,7 @@ Record every hit and its disposition in the commit message. Known:
 
 | Test | Disposition |
 | --- | --- |
-| `tests/test_table_render.py:94` | Update to expect the thumb |
+| `tests/test_table_render.py:94` | **Fixture must change first.** It runs on `course_with_image` (`tests/conftest.py:376-387`), whose asset is `make_image_asset(course, "graph.png", size=(1586, 612))` with **no `derivatives=True`** — so no thumb exists, the `cell-medium` branch falls back to the original, and line 94 **keeps passing while silently measuring the fallback path**. Give this test its own `derivatives=True` asset (or add `derivatives=True` to `course_with_image` and audit its other consumers), *then* update the assertion to expect the thumb. |
 | `tests/test_table_render.py:99-119` | Keeps working via the retained `|default:'full'`; fixture must be a real asset |
 | `tests/test_imagezoom_render.py:52,58,69` | **Fixtures break** — duck-typed `SimpleNamespace(file=SimpleNamespace(url=…))` is no longer viable. Replace `_media()` with a DB-backed factory asset, add `@pytest.mark.django_db` and a course fixture (these are currently deliberate DB-free template unit tests). Assets stay **narrow** (no `derivatives=True`) — they assert only that the `data-zoomable` hook is present, so the fallback path is the right one and a wide fixture adds cost without discrimination. |
 | `tests/test_e2e_image_size.py`, `test_e2e_imagezoom.py`, `test_e2e_table_cell_images.py` | **Unchanged, still green** — their fixtures use plain `make_image_asset` with `derivatives` defaulting to `False`, so no derivative exists, `srcset`/`sizes` are omitted, `src` falls back to the original and `naturalWidth` is unchanged. Do **not** "fix" them by substituting `el.width`/`el.height` for `naturalWidth`: those return the **rendered** size (measured: 130 vs `getAttribute('width')` 1100), which collapses the 16-combination box matrix into a tautology. |
@@ -2518,11 +2720,36 @@ git commit -m "feat(media): serve derivatives on the student surfaces"
 
 - [ ] **Step 1: Capture the pre-change baseline**
 
-Check out `origin/master` in a scratch worktree, run the geometry probe, and record per-template, per-axis constants at **both TOC states** and at **640, 641, 1280**. "Unchanged" is relative to something: a test that measures the post-change page and compares it to itself is unfalsifiable.
+**Write a standalone probe that runs on master.** The geometry suite in Step 2 cannot serve
+as its own baseline: it is created by Step 2, and on `origin/master` `make_image_asset` has
+no `derivatives` parameter, so the suite cannot even import there.
+
+The probe is a plain Playwright script using **master-compatible fixtures** (plain
+`make_image_asset`, no `derivatives=`). It drives a live server in a scratch `origin/master`
+worktree and writes
+`tests/data/media_derivatives_geometry_baseline.json`, keyed
+`"{template}|{shape}|{collapsed}|{viewport}"` -> `[width, height]`, covering **both TOC
+states** at **640, 641, 1280**.
+
+Commit that JSON. Step 2 reads it through a fixture:
+
+```python
+@pytest.fixture(scope="session")
+def baseline():
+    import json
+    from pathlib import Path
+
+    path = Path("tests/data/media_derivatives_geometry_baseline.json")
+    assert path.exists(), "run the master-side probe from Task 13 Step 1 first"
+    return json.loads(path.read_text())
+```
+
+"Unchanged" is relative to something: a test that measures the post-change page and compares
+it to itself is unfalsifiable, and constants typed from memory are a guess.
 
 - [ ] **Step 2: Write the geometry suite**
 
-Every asset uses `derivatives=True` and `size=` wider than 896 — **except** the omission-rule band fixtures, which must be wider than 512 and *narrower than that preset's measured box*, and are asserted at the viewport and DOM state where the box is widest (1280 + collapsed TOC for `el-*`). At 641px the rule is inert by construction, so a band test written there is green on the mutant.
+Every asset uses `derivatives=True` and `size=` wider than 896 — **except** the omission-rule band fixtures, which must be wider than 512 and **smaller than that preset's measured box in BOTH axes** (a 4:3 asset in the 4:3 gallery frame is unfalsifiable — measured 700x525 green on the broken build vs 560x300 red), and are asserted at the viewport and DOM state where the box is widest (1280 + collapsed TOC for `el-*`). At 641px the rule is inert by construction, so a band test written there is green on the mutant.
 
 Both a **landscape and a portrait** fixture per preset — the attribute distortion this design avoids is invisible on landscape sources.
 
@@ -2533,7 +2760,7 @@ Both a **landscape and a portrait** fixture per preset — the attribute distort
 def test_layout_is_unchanged(page, live_server, shape, collapsed, viewport, baseline):
     ...
     box = page.locator(".el--image--full img").bounding_box()
-    want = baseline[(shape, collapsed, viewport)]
+    want = baseline[f"el-full|{shape}|{collapsed}|{viewport}"]
     assert abs(box["width"] - want[0]) <= 1
     assert abs(box["height"] - want[1]) <= 1
 ```
