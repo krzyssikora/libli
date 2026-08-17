@@ -5,6 +5,7 @@ from pathlib import Path
 
 from django.core.files.base import ContentFile
 
+from courses.derivatives import generate_derivatives
 from courses.models import MediaAsset
 
 
@@ -49,8 +50,6 @@ def get_or_create_asset(course, kind, path):
     # still an uncommitted UploadedFile until its own step 3, which is why
     # generate-before-save is forbidden there. The rule is "generate only
     # against a committed file", not "generate after Model.save()".
-    from courses.derivatives import generate_derivatives
-
     generate_derivatives(asset)
     asset.save()  # full save, no update_fields -- persists everything
     return asset

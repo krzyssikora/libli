@@ -9,6 +9,8 @@ from django.db.models import ProtectedError
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+from courses.derivatives import delete_derivative_files
+from courses.derivatives import generate_derivatives
 from courses.models import DragToImageQuestionElement
 from courses.models import ImageElement
 from courses.models import MediaAsset
@@ -123,8 +125,6 @@ def create_asset(course, kind, uploaded_file, user, name="", generate=True):
     asset.full_clean()  # per-kind extension + size validators (ValidationError -> 422)
     asset.save()
     if generate:
-        from courses.derivatives import generate_derivatives
-
         generate_derivatives(asset)
         asset.save(
             update_fields=["width", "height", "thumb", "web", "derivatives_state"]
@@ -165,19 +165,33 @@ def _delete_file_if_unshared(name, storage):
 @transaction.atomic
 def replace_asset(asset, uploaded_file):
     """Swap the bytes behind an existing asset, preserving pk, kind and name so
-    every element referencing it is untouched. The superseded file is removed.
+    every element referencing it is untouched. The superseded original and
+    (for images) its derivatives are removed.
 
     `uploaded_file` MUST be an uncommitted upload (an InMemory/TemporaryUploaded
     File). _validate_file short-circuits on a committed FieldFile, so passing
     one would skip BOTH the extension and the size check.
+
+    ORDERING IS PINNED. Generating derivatives AFTER the step-3 save without
+    extending update_fields silently drops the five new fields. Generating them
+    BEFORE it reads asset.file while it is still an uncommitted UploadedFile:
+    Pillow advances the stream and Django then writes to storage from the
+    current position, truncating the stored original.
     """
     if not uploaded_file.size:
         # MediaAsset.clean() has no LOWER size bound -- only the upload FORM
         # rejects an empty file. Without this a 0-byte upload would validate,
         # commit, and destroy the old bytes with no undo.
         raise ValidationError(_("The submitted file is empty."))
+
+    # --- Step 1: capture, before any reassignment --------------------------
     old_name = asset.file.name
     old_storage = asset.file.storage
+    old_thumb_name = asset.thumb.name
+    old_web_name = asset.web.name
+    derivative_storage = asset.thumb.storage
+
+    # --- Step 2 + 3: assign, validate, commit the original -----------------
     asset.file = uploaded_file
     asset.original_filename = truncate_filename(uploaded_file.name)
     asset.content_hash = ""  # a STALE hash would mis-dedup a later LAL import
@@ -192,6 +206,50 @@ def replace_asset(asset, uploaded_file):
     # the per-kind extension/size validation lives.
     asset.full_clean(exclude=["course", "kind", "name", "uploaded_by"])
     asset.save(update_fields=["file", "original_filename", "content_hash"])
+
+    # --- Steps 4 + 5, guarded ----------------------------------------------
+    # The try begins HERE, not at the top: everything above can raise while
+    # asset.thumb.name still holds the OLD, LIVE name, and a handler reading it
+    # off the instance would destroy the surviving row's derivatives.
+    try:
+        generate_derivatives(asset)  # reads a COMMITTED FieldFile
+        asset.save(
+            update_fields=["width", "height", "thumb", "web", "derivatives_state"]
+        )
+    except Exception:
+        # Django 5.2 has transaction.on_commit but NO on_rollback, and the
+        # rollback happens at the @atomic decorator boundary after control has
+        # left this function -- so cleanup must be immediate and inline.
+        new_derivatives = [
+            n
+            for n in (asset.thumb.name, asset.web.name)
+            if n and n not in (old_thumb_name, old_web_name)
+        ]
+        delete_derivative_files(new_derivatives, derivative_storage)
+        # The new ORIGINAL goes through a share check that EXCLUDES this row --
+        # _delete_file_if_unshared would be a no-op here, because it defers via
+        # on_commit and because filter(file=name).exists() sees this row's own
+        # uncommitted step-3 write and early-returns.
+        if asset.file.name and asset.file.name != old_name:
+            shared = (
+                MediaAsset.objects.filter(file=asset.file.name)
+                .exclude(pk=asset.pk)
+                .exists()
+            )
+            if not shared and old_storage.exists(asset.file.name):
+                old_storage.delete(asset.file.name)
+        raise
+
+    # --- Step 6: retire the superseded files, deferred ---------------------
+    def _retire():
+        stale = []
+        if asset.thumb.name != old_thumb_name:
+            stale.append(old_thumb_name)
+        if asset.web.name != old_web_name:
+            stale.append(old_web_name)
+        delete_derivative_files(stale, derivative_storage)
+
+    transaction.on_commit(_retire)
     # Storage hands back the SAME name when the old file was already missing,
     # in which case the "old" file is the one just written.
     if asset.file.name != old_name:
