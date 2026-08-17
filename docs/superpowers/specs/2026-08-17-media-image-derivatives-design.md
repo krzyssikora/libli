@@ -243,7 +243,7 @@ and silently record whichever state won.
 
 Naming the surface is not bookkeeping. A `.lesson` rendered *outside* `.unit-shell__main`
 keeps its standalone `max-width: 46rem` (`courses.css:292`) = 736 px, while inside the shell
-that cap is removed (`:660-661`) and the column is ~647; measuring the wrong one silently
+that cap is removed (`:660-661`) and the column is materially narrower; measuring the wrong one silently
 seeds every `el-*` and `gallery` value with a number from a surface no student sees.
 
 **Viewports.** For (1)–(3), (6) and (7)–(8): **640x800, 641x800, 900x800, 1039x800,
@@ -292,8 +292,9 @@ re-measured**.
 
 **(4) and (5) get the symmetric rule, not a free pass.** They are excluded from the
 `WEB_WIDTH` condition but they are not decorative: if either measures such that
-`box x DPR 2 > THUMB_WIDTH` (i.e. above ~256 CSS px), the analytic "~250px supremum" argument
-is **falsified**, and the action is the same shape — raise `THUMB_WIDTH`, re-measure the
+**`thumb_box x 3 > THUMB_WIDTH`** — DPR 3, not merely DPR 2, since DPR 3 is the common phone
+density and is the case the analytic argument does *not* settle — the argument is
+**falsified**, and the action is the same shape: raise `THUMB_WIDTH`, re-measure the
 byte-cost table, or record and accept with the magnitude stated. A mandated measurement whose
 only permitted outcome is "confirms the argument" is not a check.
 
@@ -348,8 +349,17 @@ values are recomputed from those measurements.
   (`editor.css:353-357`), so the thumb is `track − 18` px: at the 268px supremum it never
   exceeds **~250 CSS px**, i.e. 500 device px at DPR 2, comfortably under `THUMB_WIDTH`.
   **DPR-2 coverage of the grid is therefore complete at every container width**, and the
-  shortfall an earlier draft accepted here does not exist. (At DPR 3 the realistic ~148px
-  track under `.app-main`'s 960px cap needs 444 device px, also covered.) Everywhere else one thumb covers every fixed-box
+  shortfall an earlier draft accepted here does not exist.
+
+  **DPR 3 is not settled analytically and must come from measurement.** An earlier draft
+  asserted a "~148px realistic track → 444 device px, also covered"; that figure had no
+  provenance, conflated the *track* with the *thumb*, and does not reproduce from the CSS
+  constants (at the 920px container, `n = floor(932/140) = 6` gives a 143.3px track and a
+  125.3px thumb). It also sat against this spec's own measured "~180x135" thumbnail display
+  size, at which DPR 3 needs 540 device px and the "covered" conclusion would be false.
+  Measurements (4) and (5) settle it, and **their raise condition covers DPR 3, not only
+  DPR 2**: if `thumb_box x 3 > THUMB_WIDTH` at either measured viewport, raise `THUMB_WIDTH`
+  and re-measure the byte-cost table, or record and accept with the magnitude stated. Everywhere else one thumb covers every fixed-box
   preset at DPR ≤ 2 — the grid, the picker,
   `cell-small` and `cell-medium` (480 ≤ 512). **`cell-large` is not in that list** — it is a
   fluid preset under the three-strategy taxonomy, precisely because 240px at DPR 3 needs 720
@@ -705,7 +715,7 @@ DPR 1 **and** 3, landscape and portrait (1100x841, 400x1200, 508x1486): **no box
 widest the box reaches across every named surface, DOM state and viewport. (`.el--image--small
 /medium/large` really are `max-width: 25/50/75%` of the lesson content box,
 `courses.css:61-63`, so the percentage derivation is exact.) Taking the expanded column alone
-would under-declare by ~225 px for every user with the persisted collapsed-TOC toggle on, and
+would under-declare by the full expanded-to-collapsed delta for every user with the persisted collapsed-TOC toggle on, and
 acceptance criterion 2 cannot catch it — both 648 and 872 select the `web` derivative at
 DPR 1. The values must be
 recomputed once measurements (1)–(3) are taken; the values shown assume 896.
@@ -765,7 +775,7 @@ Measurement (6) is retained for the record but no longer feeds a `sizes` value.
 
 **The two remaining measurement-derived presets (`gallery`, `dragimage`) carry a
 `(max-width: 640px) NNvw` clause, exactly as the `el-*` rows do** — not bare px values. A
-bare px `sizes` of ~872 over-declares a gallery frame on a 360 px phone by ~2.5x, so the
+bare px `sizes` at the widest desktop column over-declares a gallery frame on a 360 px phone by roughly 2.5x, so the
 browser demands 872 device px and selects `web` (or the original) for **every** carousel
 figure, on the surface where bandwidth matters most and where the gallery renders N images at
 once.
@@ -799,19 +809,35 @@ over-declaration there is *larger* than the ~2.5x this spec calls unacceptable o
 it covers the entire small-laptop and tablet range, so every fluid-preset image in it fetches
 `web` or the original.
 
-**Every fluid preset therefore carries three clauses**, the middle one derived from the
-900x800 measurement:
+**Every fluid preset therefore carries three clauses:**
 
 ```
-sizes="(max-width: 640px) <from 640 measurement>,
-       (max-width: 1039px) <from 900 measurement>,
+sizes="(max-width: 640px) <from the 640 measurement>,
+       (max-width: 1039px) <see below — NOT the 900 measurement alone>,
        <from the widest measurement>"
 ```
 
-The alternative — accepting the band's over-fetch — is **not** taken, because the bandwidth
-argument used to reject a bare px mobile clause applies here with a larger magnitude. If
-implementation finds the middle clause impractical, the over-fetch must be recorded with its
-measured magnitude rather than discovered later and improvised around.
+**The middle clause must not be a bare px value taken from the 900px measurement**, for two
+reasons that pull in opposite directions and together force a `vw`/`calc()` form:
+
+- **Sourcing it at 900 under-declares.** The clause covers 641–1039, and the box is widest at
+  the *top* of that band. `.app-main`'s inner width is `min(vw, 960) − 40`, so the expanded
+  column is `860 − 224 − 48 = 588` at vw=900 but `920 − 224 − 48 = 648` at vw=1039
+  (collapsed: 773.6 → 833.6). A clause fitted at 900 under-declares by ~60px — the direction
+  this spec says nothing can detect, and a direct violation of "every derived `sizes` value is
+  the measured maximum rounded up". **The 1039 measurement is what the upper end of this
+  clause is fitted to**; it is not there merely to bracket the discontinuity.
+- **A bare px value at 1039 then over-declares at the bottom.** The expanded column at vw=641
+  is `601 − 224 − 48 = 329`, so declaring 833.6 across the band is a **2.53x**
+  over-declaration — indistinguishable from the ~2.5x that this spec cites as the reason a
+  bare px *mobile* clause is unacceptable. It would defeat the purpose the clause was added
+  for across the lower half of its own range.
+
+**So the middle clause is a `vw` or `calc()` form fitted to BOTH the 641 and 1039
+measurements**, citing every rule it composes — the same requirement already placed on the
+mobile clause. If implementation finds that impractical and falls back to a bare px value,
+the residual over-fetch at 641 must be recorded with its measured magnitude rather than
+discovered later and improvised around.
 
 **Known height-axis over-fetch, accepted.** Every preset is a two-axis bounding box, but
 `sizes` describes width only. The full list of height caps:
@@ -1125,8 +1151,14 @@ Three second-order consequences, handled in the same commit:
 `tests/test_e2e_media_manager.py:866-890`,
 `test_hover_opens_the_overlay_with_the_thumbnails_source`, evaluates
 `img.currentSrc === thumb.currentSrc` over `[data-asset-preview-img]` and
-`[data-asset-preview]` and asserts it. Its fixture is `("wide_0_1.png", (800, 200))` — 800 px,
-so a 512 thumb *is* generated once the fixture rule below applies. After `_asset_cell.html`
+`[data-asset-preview]` and asserts it. Its fixture is `("wide_0_1.png", (800, 200))`, and it **must be
+re-created with `derivatives=True`** — width alone generates nothing, since
+`make_image_asset` never routes through `create_asset`. That is the same dimensional
+inference this spec declares false elsewhere, and it matters here more than usually: if the
+fixture stays on the fallback path, the *inverted* assertion ("overlay `currentSrc` differs
+from the thumb's") is **false on a correct build** — a test that is red on green. The
+mechanical `derivatives=True` rule below is stated for four assertion classes; it extends to
+**any assertion that depends on a derivative existing**, of which this is one. After `_asset_cell.html`
 converts, the thumb's `currentSrc` is the derivative and the overlay's is the original, so
 the assertion is false **by construction**; the test's name encodes the contract being
 deliberately reversed.
@@ -1369,7 +1401,7 @@ handler just deleted).
 | Palette (`P`) / `1` mode source | Converted to `RGB`/`RGBA` before resize, so `LANCZOS` is honoured |
 | Original narrower than a target width | That derivative skipped |
 | Derivative encodes no smaller than the source | Buffer discarded before any storage write |
-| `asset is None` or blank `file.name` | Tag renders nothing (never `asset.file.url`, which raises `ValueError`) |
+| `asset is None`, blank `file.name`, or `kind != "image"` | Tag renders nothing — all **three** guards (never `asset.file.url`, which raises `ValueError`) |
 | `width`/`height` unknown (null) | Tag omits `srcset` and emits a plain `src` |
 | No derivative exists | `srcset` and `sizes` omitted entirely — required, not tidiness (see the `sizes` upscale rule) |
 | Unknown preset | Raises at render time; unreachable from stored data by the per-value rule |
@@ -1625,8 +1657,10 @@ fallback path and be exactly as vacuous as the 1x1 case it was added to prevent 
 even on a build where the tag emits no `srcset` at all.
 
 **The rule is therefore mechanical, not dimensional.** `make_image_asset` gains a
-`derivatives=False` keyword; passing `derivatives=True` calls `generate_derivatives(asset)`
-and persists the five fields. **Every asset in a geometry, tag, per-template or acceptance
+`derivatives=False` parameter — **an explicit named parameter alongside `size` and `color`,
+never via `**kw`**, because the factory's own docstring records that `**kw` is splatted
+straight into `MediaAsset.objects.create()` and an unknown key raises on a model field.
+Passing `derivatives=True` calls `generate_derivatives(asset)` and persists the five fields. **Every asset in a geometry, tag, per-template or acceptance
 assertion is created with `derivatives=True`**, and — with one named exception below — with
 `size=` wider than 896 px.
 
@@ -1642,9 +1676,11 @@ branch is not what is being exercised) and **narrower than the preset's measured
 test viewport** — note *measured box*, not declared `sizes` width. The distinction is not
 pedantic: in the harness `el-full` came out at 567.98 px, so an 800 px fixture would sit
 inside the 513–895 band and *still* exceed the box, both builds clamping identically — green
-on the broken build. On the real surface the column is ~647 expanded and ~872 collapsed, so
-the usable band differs per preset and per TOC state; each fixture is chosen from that
-preset's own measurement, never from the band's nominal 513–895. The gallery case is worked through concretely below (560x300, not 700x525);
+on the broken build. **The usable band differs per preset and per TOC state, and is taken
+from that preset's own measurement — never from the band's nominal 513–895, and never from a
+column figure quoted elsewhere in this document.** No numbers are given here deliberately:
+this is the paragraph that seeds fixture thresholds, so quoting a convenient column width
+here is exactly how an un-measured number becomes a test threshold. The gallery case is worked through concretely below (560x300, not 700x525);
 every other fluid preset needs its own fixture chosen the same way from its own measurement.
 
 **The baseline is measured, not remembered.** "Unchanged" is relative to something, and a
@@ -1657,7 +1693,7 @@ geometry.
 against the defects it exists to catch:
 
 - **`html.unit-tree-collapsed` must be one of the captured states.** Measurement (2) exists
-  because the collapsed TOC widens the column from ~647 to ~872, and that is exactly where a
+  because the collapsed TOC materially widens the column (measurement (2) against (1)), and that is exactly where a
   `sizes` set too low shrinks the rendered box. With only the default expanded TOC, a `sizes`
   wrongly derived at 647 produces a box identical to today's while every `el-full` image is
   ~225 px narrower for every user who has that persisted global toggle on.
