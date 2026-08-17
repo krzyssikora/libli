@@ -98,9 +98,11 @@ Each of the seven templates needs its own `{% load courses_media_extras %}`. Dja
 | `_asset_cell.html` | `{% load i18n courses_manage_extras %}` | append |
 | `dragtoimagequestionelement.html` | `{% load i18n l10n courses_extras %}` | append |
 
-**`_table_cell.html` and `_filltable_cell.html` are deliberately newline-free** — each is a
-single line with no trailing newline, and `_filltable_cell.html` already writes
-`{% load i18n %}{% if … %}` with no separator, so the repo treats their output whitespace as
+**Neither `_table_cell.html` nor `_filltable_cell.html` may gain a *leading* newline.** (The
+load-bearing property is leading whitespace, not trailing: measured, `_table_cell.html` is
+200 bytes ending `{% endif %}` with no terminator, while `_filltable_cell.html` is 890 bytes
+ending `{% endif %}\r\n` — that trailing byte is already part of today's output.) Both write
+`{% load … %}{% if … %}` with no separator, so the repo treats their output whitespace as
 load-bearing (they render into table cells). The load tag goes **inline on the existing
 first line** for those two, never on a line of its own.
 
@@ -150,7 +152,10 @@ than `courses/media/`, plus a `-896.webp` suffix and any storage collision suffi
 produced, and can raise `SuspiciousFileOperation`.
 
 `derivatives_state` is a **`TextChoices` class** (`DerivativesState`), and the backfill
-filters against it. It exists because the other four fields cannot express the difference
+filters against it. **It lives in `courses/models.py`**, next to `MediaAsset.Kind`, and
+`courses/derivatives.py` imports it from there — not the reverse. The direction matters:
+`models.py` needs it at module scope for `choices=`, so defining it in `derivatives.py`
+would set up a circular import the moment `derivatives.py` needs anything from `models`. It exists because the other four fields cannot express the difference
 between *declined*, *interrupted*, and *failed*: `width` populated with both derivatives
 blank is the stored shape of all three.
 
@@ -189,9 +194,19 @@ window width:
 3. the same in the editor preview,
 4. `.asset-thumb`'s rendered width in the manager grid,
 5. the same in the picker grid,
-6. `.cell-img--full`'s rendered width in a 2-, 3- and 4-column table,
+6. the `<td>`'s **content width** in a 2-, 3- and 4-column table (not the image's rendered
+   width — see below),
 7. `.gallery__frame`'s rendered width,
-8. `.dragimage__img` / `.dragimage__stage`'s rendered width.
+8. `.dragimage__stage`'s rendered width.
+
+**(6) and (8) need a pinned fixture; the others do not.** Boxes (1)–(5) and (7) are
+container-determined, but `.cell-img--full` is `max-width: 100%` (`courses.css:1329`), so its
+used width is `min(original width, td width)`, and `.dragimage__stage` is
+`display: inline-block` shrink-wrapping its image. Measure those two with a narrow asset and
+the derived `sizes` under-declares for every wide one; measure with a wide asset and it
+reports the container. **Both are measured with an original ≥ 2000 px wide**, so the box
+reports its container-imposed cap — and (6) is read off the `<td>`, which is
+container-determined, rather than off the image.
 
 **The raise condition, stated so it cannot fork silently:** if a measured box exceeds
 `WEB_WIDTH` (896) at either named viewport, then `WEB_WIDTH` is **raised to cover it and the
@@ -297,12 +312,26 @@ wrong way — and the two call classes need opposite behaviour:
    `web`, and `asset.web` would still point at the old picture's `-896.webp`. The same
    applies to stale `width`/`height` and to the non-image, animated and failed paths.
 1. `asset.kind != "image"` → return `skipped`.
-2. Open with Pillow; apply `ImageOps.exif_transpose`.
+2. Open with Pillow. **Probe `is_animated` on the handle as opened, BEFORE any transpose**,
+   and keep it in a local. Only then apply `ImageOps.exif_transpose`, binding the result to
+   a *second* name.
+
+   **This ordering is load-bearing and the obvious ordering is silently broken.**
+   `ImageOps.exif_transpose` returns a new **base `Image`** (via `transpose()` or `copy()`),
+   not the format subclass — so `is_animated` is not merely `False` on the result, it is
+   **absent entirely**, and `getattr(transposed, "is_animated", False)` is unconditionally
+   `False`. Verified against the project's Pillow 12.2.0 on a real `mat-pp` asset:
+   `fibonacci_spiral.gif` opens as `GifImageFile` with `is_animated=True, n_frames=22`;
+   after `exif_transpose` it is class `Image` with the attribute gone. Probing after the
+   transpose would therefore flatten **every one of the 18 animated GIFs** into a static
+   WebP that the grid, and student surfaces at DPR 1, would then serve — exactly the harm
+   rule 4 exists to prevent. This note stays in the code, or someone will "tidy" the two
+   names back into one.
 3. Record `width`/`height` from the transposed image.
-4. `getattr(img, "is_animated", False)` → record dimensions, generate no derivatives,
-   return `skipped`. Downscaling an animated GIF flattens it to one frame; the 18 animated
-   images in `mat-pp` must keep animating. The check is on the animation flag, not the
-   extension, so a single-frame GIF still gets derivatives.
+4. If the probe from step 2 is true → record dimensions, generate no derivatives, return
+   `skipped`. Downscaling an animated GIF flattens it to one frame; the 18 animated images
+   in `mat-pp` must keep animating. The check is on the animation flag, not the extension,
+   so a single-frame GIF still gets derivatives.
 5. **Normalise the mode before resizing.** Convert to `RGBA` when the source has alpha
    (`mode in ("RGBA", "LA", "PA")` or `"transparency" in img.info`), otherwise `RGB`.
    Load-bearing and non-obvious: `Image.resize` downgrades `resample` to `NEAREST` for
@@ -499,11 +528,20 @@ nearer 17vw. Declaring 45vw would over-declare by 3–5x and guarantee every `ce
 fetches `web` rather than `thumb` at DPR 1 — destroying exactly the economy the 512 px thumb
 exists to deliver.
 
-**The value is derived from measurement (6), not chosen:** a bare px `sizes` computed as
-`measured_column / 3` (the mid column count), recorded in the plan together with the
-resulting candidate selection at 2, 3 and 4 columns and the maximum over- and
-under-declaration across them. This is a width-axis error and is explicitly *not* covered by
-the height-axis acceptance below.
+**The value is derived from measurement (6), not chosen:** `measured_td_width / 3` (the mid
+column count), recorded in the plan together with the resulting candidate selection at 2, 3
+and 4 columns and the maximum over- and under-declaration across them. This is a width-axis
+error and is explicitly *not* covered by the height-axis acceptance below.
+
+**All three measurement-derived presets (`cell-full`, `gallery`, `dragimage`) carry a
+`(max-width: 640px) NNvw` clause, exactly as the `el-*` rows do** — they are not bare px
+values. A bare px `sizes` of ~872 over-declares a gallery frame on a 360 px phone by ~2.5x,
+so the browser demands 872 device px and selects `web` (or the original) for **every**
+carousel figure, on the surface where bandwidth matters most and where the gallery renders N
+images at once. That is verbatim the argument used above to reject `45vw` for `cell-full`,
+and it applies to this spec's own prescription at phone widths. **Measurements (6), (7) and
+(8) are therefore taken at three viewports — 360x800, 1280x720 and 1920x1080** — and the
+mobile clause is derived from the first.
 
 **Known height-axis over-fetch, accepted.** Every preset is a two-axis bounding box, but
 `sizes` describes width only. The full list of height caps:
@@ -517,6 +555,12 @@ worst case is fetching `web` instead of `thumb`, still far below the original.
 
 - `asset is None` → render nothing.
 - `not asset.file.name` → render nothing.
+- **`asset.kind != "image"` → render nothing.** Stated because `.kind` is in the tag's read
+  set and would otherwise have no rule: without it, one implementer renders nothing and
+  another emits `<img src="…mp4">`. It is a live question rather than hypothetical —
+  `_asset_cell.html:7` guards with `{% if asset.kind == "image" %}` in the template, while
+  `imageelement.html` and `galleryelement.html` rely on the model's `limit_choices_to`, so
+  where the guard lives differs per site. A test covers it.
 - `asset.width is None` → emit a plain `src` with **no** `srcset`. **This rule dominates**
   the candidate-list clause above, which says the original appears "only when `asset.width`
   is known" and could be read as permitting a derivatives-only `srcset` here. It cannot: no
@@ -596,6 +640,12 @@ preset.
 is less than the preset's declared `sizes` width**, falling back to a plain `src` on the
 original. Every other fluid preset carries `width`/`height` and needs no such rule.
 
+Because the gallery's `sizes` is a media-query list (see above), "the declared `sizes` width"
+is ambiguous unless pinned: it means **the largest width any `sizes` clause can resolve to at
+the named measurement viewports** — i.e. the desktop px value, not the mobile `vw` clause.
+The two readings give different behaviour for the same fixture, and the mandated 513–895 band
+test is precisely where they diverge.
+
 The geometry suite must include a gallery asset with an original **in the 513–895 px band**
 — an explicit, named exception to the "> 896 px fixture" rule below, which would otherwise
 structurally exclude the only band where this defect is observable.
@@ -667,6 +717,18 @@ Three second-order consequences, handled in the same commit:
   **retained**, now testing the `data-url` read, because its own in-file comment states why
   it cannot be delegated: assigning `""` does not reliably fire `error` and can leave the
   *previous* asset's image showing in the overlay.
+
+  **It is retained as defence only** — after the repoint `src` comes from
+  `_asset_cell.html:3`'s `data-url` (`{{ asset.file.url }}`), which is never empty, since a
+  blank-file asset 500s that page before the `<img>` is reached. Consequence for the existing
+  suite: `tests/test_e2e_media_manager.py:1226-1237`,
+  `test_a_thumbnail_that_never_loaded_shows_the_caption_only`, keeps passing **for a
+  different reason** — its `page.route(…, abort)` also kills the overlay's own fetch, so it
+  now exercises the `error` handler and duplicates
+  `test_a_404_source_shows_the_caption_and_no_image_box` (`:1200`). That is the same
+  "passes while silently measuring another path" hazard flagged for `test_table_render.py:94`.
+  The plan either rewrites it to drive the genuinely-empty case (stripping `data-url` by page
+  evaluation) or merges it into the 404 test with the reason recorded.
 - **The hover preview becomes a real fetch.** Today the overlay copies the grid `<img>`'s
   already-loaded original and paints instantly; after the repoint it fetches an uncached
   original on every hover. Verified in `open()`: `overlayImg.hidden = true` until `load`, so
@@ -706,12 +768,37 @@ Three second-order consequences, handled in the same commit:
   3. **Named markup.** The plan states the added element and class names (a child of
      `dialog.imgzoom`, not a reuse of `dialogImg.alt`), so the CSS and the test have a fixed
      target.
+  4. **Reset on close.** The existing `close` handler (`imagezoom.js:54-65`) resets exactly
+     three things: `dialogImg.removeAttribute("src")`, focus restore, and the
+     `imgzoom-open` class. The new loading indicator, error element and `expectedSrc` guard
+     are additional visible state that nothing currently clears — so opening a broken image,
+     closing, then opening a good one would leave the previous error message painted until
+     (or unless) `load` fires. The `close` handler, or the top of `openOverlay`, must reset
+     all of it to a defined initial value, with a test that a failed open followed by a
+     successful one shows no residual error.
 
   A **third** source-level invariant applies alongside the two above:
   `test_overlay_image_can_only_shrink` (same file) slices `courses.css` from the first
   occurrence of `.imgzoom-trigger` **to end of file** and asserts `"100vw" not in block`.
   Any loading- or error-state rule added after that anchor must therefore avoid `100vw` — a
   natural choice for a full-bleed overlay or spinner, and so a likely accident.
+
+**An existing e2e asserts the exact equality this repoint must break.**
+`tests/test_e2e_media_manager.py:866-890`,
+`test_hover_opens_the_overlay_with_the_thumbnails_source`, evaluates
+`img.currentSrc === thumb.currentSrc` over `[data-asset-preview-img]` and
+`[data-asset-preview]` and asserts it. Its fixture is `("wide_0_1.png", (800, 200))` — 800 px,
+so a 512 thumb *is* generated once the fixture rule below applies. After `_asset_cell.html`
+converts, the thumb's `currentSrc` is the derivative and the overlay's is the original, so
+the assertion is false **by construction**; the test's name encodes the contract being
+deliberately reversed.
+
+It must be inverted: renamed, and asserting that the overlay's `currentSrc` equals the cell's
+`data-url` and **differs** from the thumb's `currentSrc`. **The inverted assertion lands in
+the template-conversion commit, not the JS commit** — through the JS commit the thumb `src`
+is still the original, so the old assertion stays green there and the ordering rule below
+does not surface it. Called out here so it is a planned step rather than a mid-task surprise
+in a commit whose diff contains no JavaScript.
 
 **Ordering is a requirement, not a preference:** this JS change lands and is verified
 *before* any template emits a derivative `src` or `srcset`. Done in that order there is
@@ -824,22 +911,36 @@ rolls the row back to the old file, but the *new* original's bytes were already 
 storage at step 3 and nothing references them.
 
 The handler must therefore also delete `asset.file.name` when it differs from the captured
-`old_name`. **This delete goes through `_delete_file_if_unshared`, not
-`delete_derivative_files`** — the two are not interchangeable here. `delete_derivative_files`
-is documented as needing no share guard precisely because derivatives are per-row and never
-shared; the *original* is the one object that can be shared between rows (the
-migration-`0008` shape), which is why `_delete_file_if_unshared` exists at all. Routing the
-original's name into the derivative helper would bypass that guard and could delete a file
-another live row still points at. Without this whole paragraph the section's exhaustiveness
-claim is false for the one window this change creates.
+`old_name`. **It must NOT reuse `_delete_file_if_unshared` for this**, which would be a
+guaranteed no-op for two independent reasons, both readable at `courses/media.py:128-147`:
+
+1. It ends in `transaction.on_commit(_remove)`. The deferral table above says of this exact
+   caller: *immediate* — a callback registered on a transaction that is about to roll back
+   never runs.
+2. Even ignoring deferral, it early-returns on
+   `if MediaAsset.objects.filter(file=name).exists()`. By handler time, step 3 has already
+   written `file=<new name>` on this row inside the still-open transaction, so that query
+   sees the row's **own uncommitted write**, returns `True`, and the helper returns before
+   scheduling anything.
+
+The share concern is still real — the original is the one object that *can* be shared
+between rows (the migration-`0008` shape), unlike derivatives. So the handler performs an
+**immediate, un-deferred delete with a share check that excludes the failing row**:
+`MediaAsset.objects.filter(file=new_name).exclude(pk=asset.pk).exists()` → if false,
+`storage.delete(new_name)` inline. Excluding `asset.pk` is what makes the guard answer the
+question actually being asked — "does any *other* live row point at these bytes?" — rather
+than being answered by the row being rolled back.
 
 **Position of the other three creation sites**, so this section is exhaustive rather than
 apparently so:
 
 - **`create_asset` under `media_upload`** — `create_asset` is not itself
   `@transaction.atomic`; the view is not wrapped either, and `ATOMIC_REQUESTS` is not
-  enabled. A failure after the derivative write leaves the row too, so there is no
-  orphan-without-row case. No cleanup prescribed.
+  enabled. If the five-field save raises after `generate_derivatives` wrote both files, the
+  **bytes are orphaned but the row survives** with `thumb`/`web` blank (rule 0 cleared them,
+  the save never landed) — the row's existence does not make the bytes reachable. No
+  automatic cleanup is prescribed because the surviving row makes them recoverable with
+  `backfill_media_derivatives --force`, which is the existing remedy.
 - **`create_asset` under the transfer importer** — passes `generate=False` and writes no
   derivatives. `_create_media` (`:880-892`) appends only `asset.file.name` to
   `created_files`, and `_run_import` (`:1036`) calls `_cleanup_files` on every failure path
@@ -975,7 +1076,11 @@ unusable for these tests.
 - **Rule 0 clears stale fields**: an asset with existing `thumb`/`web`/`width` regenerated
   from a *narrower* source ends with `web` blank, not pointing at the old file.
 - Declines for `kind="video"` (`skipped`).
-- Animated GIF: dimensions recorded, `skipped`, source still animated afterwards.
+- Animated GIF: dimensions recorded, `skipped`, **and both derivative fields blank**.
+  "Source still animated afterwards" is **not** a sufficient assertion — the source file on
+  disk is never rewritten, so that clause passes on the broken build too. The assertion that
+  discriminates is that no derivative was produced. The mutant is moving the `is_animated`
+  probe to after `exif_transpose`.
 - Skips the derivative when the original is narrower than the target.
 - Discards a derivative that encodes no smaller than its source **without writing it to
   storage** (asserted on the storage backend, not just the field).
@@ -1053,14 +1158,31 @@ asserts `f'src="{asset.file.url}" in html'`, which directly contradicts the new 
 thumb exists, so the conversion would look verified while the assertion silently measures the
 fallback path.
 
-**The audit is enumerated by template, not by a hand-listed set of files.** The plan greps
-each of the seven in-scope template paths across **both** `tests/` and `courses/tests/` and
-records every hit. A hand-listed set is what missed `courses/tests/test_image_size_render.py`
-(renders `imageelement.html` across all four sizes plus a nested-container path) and
-`tests/test_table_cell_images.py` (renders `_table_cell.html`) — and `courses/tests/` as a
-whole sits outside the obvious set. Since this audit is the mechanism that keeps a forgotten
-template from being invisible, its completeness is load-bearing. For each hit the plan states
-whether it is updated to expect a derivative or deliberately left on the fallback path.
+**The audit cannot be keyed on template paths alone.** Grepping the seven template paths
+across `tests/` and `courses/tests/` is necessary — it is what catches
+`courses/tests/test_image_size_render.py` and `tests/test_table_cell_images.py`, both outside
+the obvious set — but it is **not sufficient**, because the e2e suites render these templates
+through the real UI without ever naming them. The audit key is therefore "any test that
+renders an in-scope template, by any route": the seven paths, **plus** `ImageElement`,
+`GalleryElement`, `TableElement`/`resolved_cells`, `naturalWidth`, `data-zoomable` and
+`asset-thumb`.
+
+**Three e2e suites are named explicitly, because they assert precisely what this change
+alters and none of them contains a template path:**
+
+| Suite | What it pins | Disposition |
+| --- | --- | --- |
+| `tests/test_e2e_image_size.py` | `wide` = 948x719, `tall` = 297x719 (`:162-163`); `_assert_harness` (`:214`) asserts `(naturalWidth, naturalHeight) == (948, 719)`; `_check_preset` (`:199`) and `_check_nested_small` (`:609`) derive the whole 16-combination expected-box matrix from `nw/nh`, including the never-upscale cap `min(hcap, wcap/ratio, nh)`. Also renders `_table_cell.html` (`:871`) and `galleryelement.html` (`:560`) with 800x600 assets | Once a candidate is selected, `naturalWidth` reports the **derivative's** width, not the original's, and the entire matrix goes red. Rewrite the harness against the `width`/`height` **attributes** (`el.width`/`el.height`, which by design still carry the original's dimensions) rather than `naturalWidth` |
+| `tests/test_e2e_imagezoom.py` | `BIG = (1400, 900)` (`:44`); `assert _natural_width(trigger) == 1400` (`:223`, `:249`) on the inline `imageelement.html` image | Same rewrite, or pin those two fixtures below 512 px so no candidate exists — stated per assertion |
+| `tests/test_e2e_media_manager.py` | see the JS section below | Inverted |
+
+**C3 and this section are coupled**: with `make_image_asset` unchanged these suites stay
+green *and* every new test is vacuous; once `derivatives=True` exists they break. There is no
+configuration in which the pre-round-7 spec was consistent, which is why both are pinned
+here together.
+
+For each hit the plan states whether it is updated to expect a derivative or deliberately
+left on the fallback path.
 
 #### Existing test fixtures
 
@@ -1075,9 +1197,16 @@ because the tag requires a real `MediaAsset`:
 | `test_table_render.py:111-129` | renders the partial with no `size` key — kept working by retaining `|default:'full'` (above), but its fixture must still be a real asset |
 
 The plan replaces `_media()` with a DB-backed factory asset and gives `el` an explicit
-`size`. These are enumerated here because "which assertion is updated" does not describe
-this class of breakage, and an implementer who discovers it mid-task is likely to weaken the
-tests rather than migrate them.
+`size`. **This also changes what those tests are:** all three (`:52`, `:58`, `:69`) are
+currently deliberate DB-free template unit tests — no `@pytest.mark.django_db`, no module
+`pytestmark`. Each therefore gains the marker and a course fixture. Their assets are
+deliberately **narrow** (no `derivatives=True`): they assert only that the `data-zoomable`
+hook is present, so the fallback path is the right one to exercise and a wide fixture would
+add cost without adding discrimination.
+
+These are enumerated here because "which assertion is updated" does not describe this class
+of breakage, and an implementer who discovers it mid-task is likely to weaken the tests
+rather than migrate them.
 
 ### Backfill command
 
@@ -1092,10 +1221,21 @@ are; one corrupt asset does not abort the run.
 vacuous.** `make_image_asset` defaults to a 1x1 PNG; with a narrow fixture no derivative
 exists, so `srcset`/`sizes` are omitted, `src` falls back to the original, and the geometry
 test measures a page byte-identical to today's — unable to detect a `sizes`-driven upscale,
-a wrong `w` descriptor, or the gallery's ~14 px box shift, which is the one thing this
-section is named as catching. **Every asset in a geometry assertion has an original wider
-than 896 px with both derivatives generated**, so the measured page actually carries
-`srcset`, `sizes` and `width`/`height`.
+a wrong `w` descriptor, or the gallery's ~14 px box shift.
+
+**Width alone is NOT sufficient, and this is the trap.** `make_image_asset`
+(`tests/factories.py:150-173`) ends in `MediaAsset.objects.create(course=course, **kw)` — it
+does **not** route through `create_asset`, so `generate_derivatives` is never called no
+matter how wide `size=` is. "Wider than 896 px ⇒ a thumb exists" is therefore false for the
+only factory this spec sanctions, and a whole suite written to that rule would render the
+fallback path and be exactly as vacuous as the 1x1 case it was added to prevent — passing
+even on a build where the tag emits no `srcset` at all.
+
+**The rule is therefore mechanical, not dimensional.** `make_image_asset` gains a
+`derivatives=False` keyword; passing `derivatives=True` calls `generate_derivatives(asset)`
+and persists the five fields. **Every asset in a geometry, tag, per-template or acceptance
+assertion is created with `size=` wider than 896 px AND `derivatives=True`**, and the plan
+states this once as a rule rather than per test.
 
 **The baseline is measured, not remembered.** "Unchanged" is relative to something, and a
 test that measures the post-change page and compares it to itself is unfalsifiable. The
