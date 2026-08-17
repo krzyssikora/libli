@@ -720,3 +720,54 @@ def test_a_markup_bearing_name_is_escaped_in_body_and_title(client, settings, tm
     body = resp.content.decode()
     assert "<img src=x onerror=1>" not in body
     assert "&lt;img src=x onerror=1&gt;" in body
+
+
+@pytest.mark.django_db
+def test_manager_grid_renders_the_thumb_and_keeps_its_hooks(client, settings, tmp_path):
+    """A forgotten template must be RED, not invisible: the tag's own unit
+    tests (tests/test_media_img_tag.py) and any geometry test pass trivially
+    if a template was never converted to call media_img -- they never render
+    _asset_cell.html at all. This test is the one that actually renders the
+    manager page and inspects the served markup.
+
+    Also guards the hover-preview ordering constraint: media_preview.js
+    (Task 9) reads data-url off the CELL, not the thumb's own src, so that
+    hover keeps previewing the full-resolution original once the cell's own
+    <img> starts pointing at the (smaller) thumb.
+    """
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "grid-pa")
+    course = CourseFactory(owner=pa, slug="grid-course")
+    asset = make_image_asset(
+        course, filename="w.png", size=(2000, 1500), derivatives=True
+    )
+    resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))
+    html = resp.content.decode()
+    assert asset.thumb.url in html
+    assert 'class="asset-thumb"' in html
+    assert "data-asset-preview" in html  # media_preview.js is armed off this
+    assert 'loading="lazy"' in html
+    # The hover-preview hook: data-url on the CELL must still be the original,
+    # even though the <img> itself now serves the thumb.
+    assert f'data-url="{asset.file.url}"' in html
+
+
+@pytest.mark.django_db
+def test_picker_grid_renders_the_thumb_and_does_not_arm_the_preview(
+    client, settings, tmp_path
+):
+    settings.MEDIA_ROOT = str(tmp_path)
+    pa = make_pa(client, "pick-grid-pa")
+    course = CourseFactory(owner=pa, slug="pick-grid-course")
+    asset = make_image_asset(
+        course, filename="w.png", size=(2000, 1500), derivatives=True
+    )
+    url = reverse("courses:manage_media_picker", kwargs={"slug": course.slug})
+    resp = client.get(url + "?kind=image&grid=1", HTTP_X_REQUESTED_WITH="fetch")
+    html = resp.content.decode()
+    assert asset.thumb.url in html
+    assert 'class="asset-thumb"' in html
+    assert "data-asset-preview" not in html
+    # The picker's own hover-preview hook: data-url on the button must still
+    # be the original.
+    assert f'data-url="{asset.file.url}"' in html

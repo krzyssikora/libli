@@ -99,7 +99,7 @@ def _open_manager(page, live_server, username, course):
     page.wait_for_selector(".asset-cell")
 
 
-def _seed_assets(username, slug, *specs):
+def _seed_assets(username, slug, *specs, derivatives=False):
     """Course + exactly the named assets, nothing else.
 
     Distinct from _seed(): that one creates an `original.png` of its own, which
@@ -107,11 +107,18 @@ def _seed_assets(username, slug, *specs):
 
     NOTE the grid order: courses/media.py:86 sorts by "-created", so the LAST
     spec here renders FIRST. Resolve anchors by name, not by nth().
+
+    `derivatives` is an explicit keyword-only parameter, NOT part of `*specs`:
+    passing it positionally would land in specs and raise a TypeError trying
+    to unpack it as (filename, size). `derivatives=True` runs
+    generate_derivatives + persists on every seeded asset -- required for any
+    assertion that depends on a thumb existing, since size alone generates
+    nothing (see make_image_asset's docstring in tests/factories.py).
     """
     user = make_verified_user(username)
     course = CourseFactory(owner=user, slug=slug)
     for filename, size in specs:
-        make_image_asset(course, filename=filename, size=size)
+        make_image_asset(course, filename=filename, size=size, derivatives=derivatives)
     return user, course
 
 
@@ -864,30 +871,29 @@ def test_a_32_char_name_clamps_to_three_lines(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_hover_opens_the_overlay_with_the_thumbnails_source(page, live_server):
+def test_hover_opens_the_overlay_with_the_full_resolution_source(page, live_server):
+    """Renamed and inverted deliberately: the old name encoded the contract this
+    change reverses. Lands HERE, in the template-conversion commit, not in the
+    JS commit -- through the JS commit the thumb's src is still the original, so
+    the old assertion stayed green there and the ordering rule could not
+    surface it."""
     # size= is mandatory: make_image_asset defaults to (1,1) (factories.py:150),
     # which makes "larger than the thumb" unachievable or true for the wrong
-    # reason.
-    user, course = _seed_assets("hov-pa", "hov", ("wide_0_1.png", (800, 200)))
+    # reason. derivatives=True: width alone generates nothing (see
+    # _seed_assets's docstring).
+    user, course = _seed_assets(
+        "hov-pa", "hov", ("wide_0_1.png", (800, 200)), derivatives=True
+    )
     _open_manager(page, live_server, "hov-pa", course)
+    # Use the file's OWN helper, not a raw hover: _open_preview waits past the
+    # module's dwell timer and resolves the cell by data-name rather than by
+    # position, which is what its docstring exists to guarantee.
     _open_preview(page, "wide_0_1.png")
-    expect(page.locator("[data-asset-preview-img]")).to_be_visible()
-    # currentSrc on BOTH sides. Comparing raw attributes does not work here:
-    # open() assigns anchor.currentSrc, which is the ABSOLUTE resolved URL, so
-    # the overlay's attribute is "http://127.0.0.1:PORT/media/..." while the
-    # thumb's is the relative "/media/..." the template wrote (MEDIA_URL is
-    # "/media/", config/settings/base.py:167, not overridden in test.py). They
-    # are never equal. The visibility wait above guarantees both are populated,
-    # which is what made the attribute form tempting in the first place.
-    same = page.evaluate("""() => {
-        const img = document.querySelector('[data-asset-preview-img]');
-        const thumb = document.querySelector('[data-asset-preview]');
-        return img.currentSrc === thumb.currentSrc;
-    }""")
-    assert same
-    box = page.locator(".asset-preview").bounding_box()
-    thumb = _anchor(page, "wide_0_1.png").bounding_box()
-    assert box["width"] > thumb["width"]
+    overlay = page.locator("[data-asset-preview-img]").evaluate("e => e.currentSrc")
+    thumb = page.locator("[data-asset-preview]").evaluate("e => e.currentSrc")
+    cell_url = page.locator(".asset-cell").get_attribute("data-url")
+    assert overlay.endswith(cell_url)
+    assert overlay != thumb
 
 
 @pytest.mark.django_db(transaction=True)

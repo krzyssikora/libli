@@ -52,6 +52,8 @@ def media_img(asset, preset, alt="", css_class="", extra=""):
     if preset not in PRESETS:
         raise ValueError(f"unknown media_img preset: {preset!r}")
     strategy, sizes = PRESETS[preset]
+    if strategy == FLUID and sizes is None:
+        raise ValueError(f"media_img preset {preset!r} is FLUID but declares no sizes")
 
     if asset is None or not asset.file.name or asset.kind != "image":
         return ""

@@ -88,6 +88,27 @@ def test_unknown_preset_raises(course_with_image_media_root):
 
 
 @pytest.mark.django_db
+def test_fluid_preset_with_no_sizes_raises(course_with_image_media_root, monkeypatch):
+    """MUTANT: drop the `strategy == FLUID and sizes is None` guard. flatatt
+    silently drops a None-valued attribute (Django, verified), so a FLUID
+    preset that forgets `sizes` -- e.g. copy-pasted from `"grid": (FIXED,
+    None)`, or a placeholder never filled in -- would otherwise render
+    `srcset` with no `sizes`: a silent no-op, not a crash, and exactly the
+    failure mode `sizes` exists to prevent. No FLUID preset ships in this PR
+    (PRESETS has only `grid`), so a throwaway one is monkeypatched in to
+    reach the branch; PR 2's real FLUID presets will exercise it for real."""
+    course = CourseFactory()
+    asset = make_image_asset(course, "w.png", size=(2000, 1500), derivatives=True)
+    monkeypatch.setitem(
+        courses_media_extras.PRESETS,
+        "test-fluid-no-sizes",
+        (courses_media_extras.FLUID, None),
+    )
+    with pytest.raises(ValueError):
+        render(asset=asset, preset="test-fluid-no-sizes")
+
+
+@pytest.mark.django_db
 def test_loading_lazy_is_grid_only(course_with_image_media_root):
     """`grid` renders ~950 cells on the manager page, so it alone gets
     loading="lazy". (The brief's negative loop over el-full/cell-small/
