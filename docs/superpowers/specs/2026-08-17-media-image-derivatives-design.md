@@ -225,11 +225,16 @@ values are recomputed from those measurements.
 
 **Widths:**
 
-- **`thumb` = 512px.** `.asset-grid` is `repeat(auto-fill, minmax(8rem, 1fr))`
-  (`editor.css:349`) with no container `max-width`. With `auto-fill` the track count is
-  `floor(container / 128)`, so a track is `container / n < 128(n+1)/n`, maximised at
-  `n = 1` → **under 256 CSS px**. A fixed box under 256 CSS px needs at most 512 device px
-  at DPR 2, so one thumb covers every fixed-box preset at DPR ≤ 2 — the grid, the picker,
+- **`thumb` = 512px.** `.asset-grid` is `repeat(auto-fill, minmax(8rem, 1fr))` with
+  `gap: var(--space-3)` = **12px** (`editor.css:349-351`, `core/css/tokens.css:75`) and no
+  container `max-width`. With `auto-fill` and a gap `g`, the track count is
+  `floor((container + g) / (128 + g))`, so `n = 1` persists up to `container < 256 + g = 268`
+  and the track is then the full container — **under 268 CSS px**, not 256. (The gap is
+  easy to drop from this derivation and changes the answer, so it is spelled out.) That needs
+  536 device px at DPR 2, marginally above `THUMB_WIDTH`: in the ~12px-wide window of
+  container widths where `n = 1` and the track exceeds 256, the thumb is 1.91x rather than
+  2x — a ~4.5% shortfall, **accepted**. Everywhere else one thumb covers every fixed-box
+  preset at DPR ≤ 2 — the grid, the picker,
   and the 240px table cell (480 ≤ 512). 320px was rejected: it covers DPR 1 but leaves the
   grid 1.25x soft at DPR 2 on exactly the retina hardware the complaint came from, and
   forcing a second candidate there would make the grid fetch the 896px `web` derivative
@@ -346,10 +351,17 @@ wrong way — and the two call classes need opposite behaviour:
    `(target, round(img.height * target / img.width))` — Python's banker's rounding, matching
    the 1100x841 → 896x685 worked example that the ±1 px geometry tolerance is derived from.
    Resample with `Image.LANCZOS`, save into a
-   `BytesIO` with the pinned kwargs, then compare `buffer.tell()` against
-   **`asset.file.size`** (the original's bytes on disk, not the decoded bitmap). Only if
-   the buffer is smaller does a `FieldFile.save(name, ContentFile(buffer), save=False)`
-   happen. Encoding straight to storage and "discarding" by blanking the field would leave
+   `BytesIO` with the pinned kwargs, then compare **`len(buffer.getvalue())`** against
+   **`asset.file.size`** (the original's bytes on disk, not the decoded bitmap). Only if the
+   buffer is smaller does a **`FieldFile.save(name, ContentFile(buffer.getvalue()), save=False)`**
+   happen.
+
+   Both `getvalue()` calls are deliberate. `ContentFile(buffer)` — passing the `BytesIO`
+   itself — **raises `TypeError: a bytes-like object is required, not '_io.BytesIO'`**,
+   verified against the project's Django; since this is the only place a derivative is
+   written, that form would fail on every call. And sizing via `len(getvalue())` rather than
+   `buffer.tell()` removes the ordering trap where an intervening `seek(0)` makes `tell()`
+   return 0 and every derivative look infinitely small. Encoding straight to storage and "discarding" by blanking the field would leave
    orphaned bytes and burn a collision-suffix slot against the `max_length=200` budget for
    every discarded derivative — expected among the 25 JPEG/GIF/WebP originals, where a
    lossless-WebP derivative can exceed a photographic JPEG's size.
@@ -359,11 +371,20 @@ wrong way — and the two call classes need opposite behaviour:
    of Pillow exceptions: the riskiest step is `FieldFile.save(...)`, a storage write that
    can raise `SuspiciousFileOperation`, permission or quota errors, or backend-specific
    exceptions. **The handler must delete any derivative file it already wrote during this
-   call** — track written names locally — before returning `failed`. Otherwise a successful
-   `thumb` write followed by a raising `web` write leaves the thumb bytes on disk with
-   rule 0 having cleared the field that referenced them; in `replace_asset` this compounds,
-   because step 6 then compares the now-blank name against `old_thumb_name`, deletes the old
-   file, and the orphan survives forever.
+   call — tracking written names locally — AND then re-blank `asset.thumb` / `asset.web`
+   and null `width`/`height` itself.**
+
+   **It cannot rely on rule 0 for that, and this is the subtle part.** Rule 0 runs before
+   step 7, and `FieldFile.save(name, content, save=False)` ends by writing the name back
+   onto the instance (`setattr(self.instance, self.field.attname, name)`), so a successful
+   `thumb` write **re-populates** `asset.thumb` after rule 0 cleared it. Without an explicit
+   re-blank, a successful `thumb` followed by a raising `web` leaves the field non-blank
+   while the handler has just deleted the bytes — and the caller then persists that field
+   through `update_fields`. That is the "non-blank field pointing at absent bytes" state the
+   Error-handling section names as its one honest limit, reached from a **fourth** path. In
+   `replace_asset` it compounds in the opposite direction to the naive reading: step 6
+   compares the *populated* new name against `old_thumb_name`, finds them different, and
+   deletes the surviving old file too.
 
 Derivative filenames are `<original-stem>-512.webp` / `-896.webp`, where the stem is
 **`os.path.splitext(os.path.basename(asset.file.name))[0]`**. The basename matters:
@@ -396,10 +417,13 @@ renders on the manager grid where there are currently zero.
 
 **Argument contract:**
 
-- `asset` — a **real `MediaAsset`** (or `None`). The tag reads `.file.name`, `.kind`,
-  `.width`, `.thumb` and `.web`, so **duck-typed fixtures are no longer viable**. This is a
-  breaking change for existing tests, not an assertion update — see "Existing test fixtures"
-  below.
+- `asset` — a **real `MediaAsset`** (or `None`). This list is the fixture spec, so it is
+  exhaustive: the tag reads `.file.name`, `.file.url`, `.kind`, `.width`, `.height`,
+  `.thumb` + `.thumb.url`, and `.web` + `.web.url`. **Duck-typed fixtures are therefore no
+  longer viable** — a breaking change for existing tests, not an assertion update; see
+  "Existing test fixtures" below. `.height` null while `.width` is not is treated the same
+  as `.width is None` (plain `src`, no `srcset`, no attributes): the two are written together
+  by rule 3 and a half-populated pair means the row predates or failed generation.
 - `preset` — a key from the table below; unknown raises.
 - `alt` — defaults to `""`; escaped normally by `format_html`.
 - `css_class` — a string; escaped normally.
@@ -445,7 +469,7 @@ including the two decorative empty-alt grids.
 `TableElement._cell` (`models.py:1148-1152`) documents that `size` is always written for
 elements rendered through `render()`, which makes the default look vestigial — but it is
 **live at the partial level**, and a deliberate existing test pins it:
-`tests/test_table_render.py:111-129`
+`tests/test_table_render.py:99-119`
 (`test_partial_defaults_size_when_the_key_is_absent`) renders `_table_cell.html` directly
 with `{"cell": {"kind": "image", "media": asset, "alt": ""}}` — **no `size` key** — and
 asserts `cell-img--full`. Its docstring states outright that the filter cannot be falsified
@@ -456,10 +480,16 @@ would compose to `"cell-"`, which is unknown, which raises. The correct form use
 `{% with %}` so the default lands on the size before concatenation:
 
 ```
-{% with sz=cell.size|default:"full" %}
-  {% media_img cell.media preset="cell-"|add:sz css_class="cell-img cell-img--"|add:sz ... %}
-{% endwith %}
+{% with sz=cell.size|default:"full" %}{% media_img cell.media preset="cell-"|add:sz css_class="cell-img cell-img--"|add:sz ... %}{% endwith %}
 ```
+
+**Written entirely inline, with no newline or indentation between the tags** — the expanded
+three-line form would inject `\n  ` before the `<img>` and `\n` after it, *inside the
+`<td>`*. `tableelement.html:25-40` wraps its includes in `{% spaceless %}` so
+`_table_cell.html` would survive, but `filltableelement.html` has **no `{% spaceless %}` at
+all** — a fact `tableelement.html:19-21` states outright — so every fill-table image cell
+would change bytes. The existing byte-guard (`test_table_render.py:122`) covers only a *text*
+cell, so nothing would catch it.
 
 What must **not** happen is the naive carry-across `"cell-"|add:cell.size|default:"full"`,
 which applies `default` to the already-concatenated string — non-empty, so it never fires —
@@ -507,10 +537,19 @@ srcset="{thumb.url} 512w, {web.url} 896w, {file.url} {asset.width}w"
 ```
 
 Each derivative appears only when its field is non-blank; the original appears only when
-`asset.width` is known. Order is ascending by width. Note that a non-blank `web` implies a
-non-blank `thumb` (896 > 512, so anything wide enough for `web` is wide enough for
-`thumb`), which is why "`src` = thumb, falling back to the original" is exhaustive for
-fixed-box presets — there is no state with `web` present and `thumb` absent.
+`asset.width` is known. Order is ascending by width.
+
+**Invariant: a non-blank `web` implies a non-blank `thumb`**, which is why "`src` = thumb,
+falling back to the original" is exhaustive for fixed-box presets — there is no state with
+`web` present and `thumb` absent. Three rules could break it and none does:
+
+- **Rule 6** (width skip): 896 > 512, so anything wide enough for `web` is wide enough for
+  `thumb`.
+- **Rule 7** (discard-if-not-smaller): a 512px lossless WebP is never larger than the 896px
+  one of the same source, so if the thumb was discarded for exceeding `asset.file.size`, the
+  web candidate was too. This monotonicity is the load-bearing half and is stated because it
+  is not obvious.
+- **Rule 9** (failure handler): it re-blanks **both** fields, never one — see rule 9.
 
 **`srcset` and `sizes` are omitted entirely whenever no derivative exists** — i.e. whenever
 the only available candidate would be the original. This covers the animated GIF, the
@@ -590,18 +629,47 @@ upscale where today it renders at 200px. Two rules prevent it, and both are requ
 
 1. **`srcset`/`sizes` are omitted whenever no derivative exists** (above), which covers
    exactly the narrow originals most at risk.
-2. **`width`/`height` are emitted on every preset whenever `asset.width` is known.** The
+2. **`width`/`height` are emitted only on presets whose CSS declares `height: auto`.** The
    presentational hint pins the used width to a definite value instead of letting `sizes`
    supply it. This — not reflow — is the reason they exist.
 
-**The attributes always carry `asset.width` / `asset.height` — the *original's* dimensions
-— on every preset, including the fixed-box ones where the loaded resource is the 512px
-thumb.** No derivative dimensions are stored, and none need to be. This is safe because
-every fixed box carries a binding `max-width` or `aspect-ratio` that overrides the hint, and
-because the rounded derivative ratio differs from the original's only in the fourth decimal
-(1100x841 → 896x685 is 1.3080 vs 1.3079), inside the ±1 px geometry tolerance. Stated
-explicitly so no implementer concludes the thumb's own dimensions are required and goes
-looking for a field that does not exist.
+#### Which presets get the attributes, and why `aspect-ratio` does not save you
+
+**An author `aspect-ratio` is discarded once both axes are definite.** It applies only when
+one axis is `auto`. A `height` attribute is a presentational hint that supplies a definite
+height, so on any element without an author `height: auto` (or an author `height`) the hint
+**wins and the `aspect-ratio` is ignored**.
+
+Measured in Chromium against the real rules (`.asset-grid` + `.asset-thumb` + the
+`img { display: block; max-width: 100% }` reset), a 700px grid container:
+
+| | Box |
+| --- | --- |
+| `.asset-thumb` **with** `width="1100" height="841"` | 130.4 x **841.0** |
+| `.asset-thumb` **without** them | 130.4 x 97.8 |
+
+That is 8.6x taller, on ~950 cells across the manager grid and the picker — the single
+largest possible violation of the Goal, and it would have been prescribed by this spec's own
+rule. So:
+
+| Preset | Attributes | Why |
+| --- | --- | --- |
+| `cell-*` | **emitted** | `.cell-img` declares `height: auto` (`courses.css:1325`) |
+| `el-*` | **emitted** | `.el--image img` declares it (`:46`) |
+| `dragimage` | **emitted** | `.dragimage__img` declares it (`:538`) |
+| `grid` | **omitted** | `.asset-thumb` has `aspect-ratio: 4/3` but **no** `height: auto`; the box is already fully reserved by that ratio, so the attributes add nothing and cost everything |
+| `gallery` | **omitted** | independent `max-*` clamping moves the box ~14px (below) |
+
+Neither omission loses a protection: `grid` emits no `srcset`, so there is no `sizes` to
+upscale from; `gallery` has its own omission rule.
+
+**Where emitted, the attributes always carry `asset.width` / `asset.height` — the
+*original's* dimensions — even on fixed-box presets where the loaded resource is the 512px
+thumb.** No derivative dimensions are stored, and none need to be: the rounded derivative
+ratio differs from the original's only in the fourth decimal (1100x841 → 896x685 is 1.3080
+vs 1.3079), inside the ±1 px geometry tolerance. Stated explicitly so no implementer
+concludes the thumb's own dimensions are required and goes looking for a field that does not
+exist.
 
 The reflow benefit, separately, is real only on `.el--image`, `.cell-img*` and
 `.dragimage__img`. It does **not** apply to the grid: `.asset-thumb` already declares
@@ -658,6 +726,14 @@ CSS is changed. The invariant, stated to match reality: *every preset's CSS decl
 `height: auto`, an explicit `aspect-ratio`, or an ancestor `aspect-ratio` together with
 `object-fit`.*
 
+**The three buckets are not equivalent for the attributes.** Only the first —
+an author `height: auto` — neutralises the `height` presentational hint. The other two
+reserve the box against *reflow* but are overridden by the hint (measured above), which is
+exactly why `grid` and `gallery` omit `width`/`height` while the `height: auto` presets emit
+them. A test that checks only "one of the three buckets applies" would not catch a preset
+emitting attributes it should not; the attribute-emission table above is the assertion that
+does.
+
 ### Lazy loading — grid and picker only
 
 The derivative bounds cost **per image**; `loading="lazy"` bounds **how many** decode.
@@ -704,8 +780,11 @@ Both must read an **explicit full-resolution URL**:
 
 - `media_preview.js` reads `data-url` from the closest `.asset-cell`
   (`_asset_cell.html:3` already carries it).
-- `imagezoom.js` reads a new `data-zoom-src` emitted by the tag, falling back to
-  `currentSrc || src` when absent so non-tag `<img data-zoomable>` markup keeps working.
+- `imagezoom.js` reads a new **`data-zoom-src="{{ asset.file.url }}"`** emitted by the tag,
+  falling back to `currentSrc || src` when absent so non-tag `<img data-zoomable>` markup
+  keeps working. On fluid presets this is deliberately the same URL as `src` — the attribute
+  is not redundant there, because once `srcset` is present `currentSrc` diverges from `src`,
+  and `currentSrc` is what the old code read.
 
 Three second-order consequences, handled in the same commit:
 
@@ -866,7 +945,9 @@ sensitive to when the file is touched for the same reason.)
 Required order:
 
 1. Capture `old_name` (the original's, already a local in the current function),
-   `old_thumb_name`, `old_web_name`, and the storages, **before** reassigning.
+   `old_thumb_name`, `old_web_name`, and **two storages** — the original's
+   (`asset.file.storage`, also already a local) and the shared derivative storage
+   (`asset.thumb.storage`) — **before** reassigning.
 2. Assign the new file; `full_clean(...)` as today.
 3. `asset.save(update_fields=["file", "original_filename", "content_hash"])`.
 4. `generate_derivatives(asset)` — reads the **committed** `FieldFile`, so no stream position
@@ -954,9 +1035,17 @@ apparently so:
 ### Asset deletion
 
 `courses/signals.py:_delete_mediaasset_file` currently removes `instance.file`. It gains
-`delete_derivative_files([instance.thumb.name, instance.web.name], storage)`, wrapped by the
-caller in the same `transaction.on_commit` and guarded the same way (blank or already-missing
-is a no-op). `post_delete` — rather than `Model.delete()` — remains correct: a cascade delete
+`delete_derivative_files([instance.thumb.name, instance.web.name], instance.thumb.storage)`,
+wrapped by the caller in the same `transaction.on_commit`.
+
+**Two details the placement depends on.** The receiver's first two statements are
+`file = instance.file` / `if not file: return` (`courses/signals.py:22-24`), so an asset with
+a blank `file` returns before any derivative cleanup could run. That early return is
+**deliberately kept**: a derivative cannot exist without an original, since generation reads
+`asset.file`, so there is nothing to clean up on that path. And the storage passed is
+`instance.thumb.storage` — the *derivative* fields' storage, which is a different field's
+storage from `instance.file.storage` even though both currently resolve to the default
+backend. It is available on a blank `FieldFile`, so reading it is safe regardless. `post_delete` — rather than `Model.delete()` — remains correct: a cascade delete
 (removing a Course) bulk-deletes rows and never calls `Model.delete()`.
 
 ### Transfer export / import
@@ -1008,9 +1097,11 @@ render path falls back to the original.
 not a fallback. The tag's only signal is field truthiness, which reflects the database, not
 the filesystem; detecting absent bytes would need a `storage.exists()` per derivative —
 ~1900 stat calls on the manager grid. Browsers do not retry another `srcset` candidate on a
-404. What prevents that state is the `!=` guard, applied in `replace_asset` step 6, the
-`replace_asset` failure handler, and backfill `--force` — the only code paths that could
-delete a live row's current derivative.
+404. Four code paths could delete a live row's current derivative, and each is guarded:
+`replace_asset` step 6, the `replace_asset` failure handler, and backfill `--force` by the
+`!=` comparison; and **`generate_derivatives`' own rule-9 handler by its explicit re-blank**
+(without which `FieldFile.save`'s write-back would leave the field pointing at bytes the
+handler just deleted).
 
 | Condition | Behaviour |
 | --- | --- |
@@ -1085,8 +1176,11 @@ unusable for these tests.
 - Discards a derivative that encodes no smaller than its source **without writing it to
   storage** (asserted on the storage backend, not just the field).
 - Returns `failed` without raising on a corrupt file **and** on a storage write failure
-  (forced by patching the backend) — and in the latter case **leaves no file behind** when
-  the first write succeeded and the second raised.
+  (forced by patching the backend) — and in the latter case, when the first write succeeded
+  and the second raised, **leaves no file behind AND leaves both fields blank**. The field
+  half is not optional: `FieldFile.save` writes the name back onto the instance, so a test
+  asserting only "no file behind" passes on a build that persists a field pointing at the
+  bytes it just deleted.
 - Applies EXIF orientation.
 - Assigns `asset.derivatives_state` on the instance, not only as a return value.
 
@@ -1172,14 +1266,30 @@ alters and none of them contains a template path:**
 
 | Suite | What it pins | Disposition |
 | --- | --- | --- |
-| `tests/test_e2e_image_size.py` | `wide` = 948x719, `tall` = 297x719 (`:162-163`); `_assert_harness` (`:214`) asserts `(naturalWidth, naturalHeight) == (948, 719)`; `_check_preset` (`:199`) and `_check_nested_small` (`:609`) derive the whole 16-combination expected-box matrix from `nw/nh`, including the never-upscale cap `min(hcap, wcap/ratio, nh)`. Also renders `_table_cell.html` (`:871`) and `galleryelement.html` (`:560`) with 800x600 assets | Once a candidate is selected, `naturalWidth` reports the **derivative's** width, not the original's, and the entire matrix goes red. Rewrite the harness against the `width`/`height` **attributes** (`el.width`/`el.height`, which by design still carry the original's dimensions) rather than `naturalWidth` |
-| `tests/test_e2e_imagezoom.py` | `BIG = (1400, 900)` (`:44`); `assert _natural_width(trigger) == 1400` (`:223`, `:249`) on the inline `imageelement.html` image | Same rewrite, or pin those two fixtures below 512 px so no candidate exists — stated per assertion |
-| `tests/test_e2e_media_manager.py` | see the JS section below | Inverted |
+| `tests/test_e2e_image_size.py` | `wide` = 948x719, `tall` = 297x719 (`:162-163`); `_assert_harness` (`:214`) asserts `(naturalWidth, naturalHeight) == (948, 719)`; `_check_preset` (`:199`) and `_check_nested_small` (`:609`) derive the whole 16-combination expected-box matrix from `nw/nh`. Also renders `_table_cell.html` (`:871`) and `galleryelement.html` (`:560`) | **Unchanged, still green** — fixtures stay on the fallback path |
+| `tests/test_e2e_imagezoom.py` | `BIG = (1400, 900)` (`:44`); `assert _natural_width(trigger) == 1400` (`:223`, `:249`) | **Unchanged, still green** — same reason |
+| `tests/test_e2e_table_cell_images.py` | `_rendered_box` (`:186-196`) reads `naturalWidth`/`naturalHeight` and derives boxes from `min(cap, cap*ratio, natural)` across ~15 fixtures (`:153, 225, 331, 379, 523, 578, 635, 727, 760`). The **only** e2e for `cell-small/medium/large` — the presets whose `src` changes most (original → thumb, no `srcset`) | **Unchanged, still green** — same reason |
+| `tests/test_e2e_media_manager.py:866` | overlay/thumb `currentSrc` equality | **Inverted**, in the template-conversion commit (see the JS section) |
 
-**C3 and this section are coupled**: with `make_image_asset` unchanged these suites stay
-green *and* every new test is vacuous; once `derivatives=True` exists they break. There is no
-configuration in which the pre-round-7 spec was consistent, which is why both are pinned
-here together.
+**Why "unchanged" is the right disposition, and what it costs.** These suites build fixtures
+with plain `make_image_asset(...)`, and `derivatives` defaults to `False` — so their assets
+have no `thumb`/`web`, `srcset`/`sizes` are omitted, `src` falls back to the original, and
+`naturalWidth` still reads 948 / 1400 / the fixture width. They do not go red and need no
+rewrite. Rewriting them was considered and **rejected**: the natural formulation
+(substituting `el.width`/`el.height` for `nw`/`nh`) is tautological, because
+`HTMLImageElement.width` returns the **rendered** width, not the attribute — measured, an
+`<img width="948">` in `.el--image--small` reports `el.width = 130` while
+`getAttribute('width')` reports `1100`. Under that substitution `ratio = rw/rh`, the cap
+`min(hcap, wcap/ratio, nh)` collapses to `rh`, and the 16-combination matrix becomes
+unfalsifiable — trading real coverage for the appearance of it. (Any future rewrite must use
+`getAttribute("width")` parsed to a number, and keep a separate `naturalWidth > 0` liveness
+check, since `_assert_harness` exists to distinguish "wrong preset" from "fixture never
+loaded" and attributes report fine for an image that never loaded.)
+
+**The cost is stated, not hidden:** leaving them on the fallback path means these suites give
+no e2e coverage of the *derivative* path on the student surfaces. That gap is closed
+deliberately elsewhere — by the new geometry suite (which uses `derivatives=True` fixtures)
+and by acceptance criterion 2, which asserts `web` is actually selected on a student unit.
 
 For each hit the plan states whether it is updated to expect a derivative or deliberately
 left on the fallback path.
@@ -1193,8 +1303,8 @@ because the tag requires a real `MediaAsset`:
 | --- | --- |
 | `test_imagezoom_render.py:52-55` | `SimpleNamespace(media=_media(), alt=…, figcaption="")` — `_media()` (`:25`) is `SimpleNamespace(file=SimpleNamespace(url=…))`, and `el` has **no `size`**, so the preset composes to `"el-"` and raises |
 | `test_imagezoom_render.py:58-67` | hand-built `figures` list of `{url, alt, desc}` — the new shape is `{asset, alt, desc}` |
-| `test_imagezoom_render.py:70-75` | `_media()` duck-type passed as `cell.media` |
-| `test_table_render.py:111-129` | renders the partial with no `size` key — kept working by retaining `|default:'full'` (above), but its fixture must still be a real asset |
+| `test_imagezoom_render.py:69-74` | `_media()` duck-type passed as `cell.media` |
+| `test_table_render.py:99-119` | renders the partial with no `size` key — kept working by retaining `|default:'full'` (above), but its fixture must still be a real asset |
 
 The plan replaces `_media()` with a DB-backed factory asset and gives `el` an explicit
 `size`. **This also changes what those tests are:** all three (`:52`, `:58`, `:69`) are
