@@ -92,13 +92,24 @@ one that exercises the picker's single-track state, which only happens when the 
 is narrow enough to force `.picker-card` to `width: 100%` under the `@media (max-width: 720px)`
 override.
 
-**Raised value: `THUMB_WIDTH` should be raised from 512 to at least 720** (per the spec's
-"rounding is upward, always" convention — 720 is already an integer, so no further rounding is
-needed). This value, and the consequent re-run of the byte-cost measurement it triggers per the
-spec ("their raise condition covers DPR 3 … raise `THUMB_WIDTH` and re-measure the byte-cost
-table"), is recorded here as PR 1's finding but the re-measurement itself is deferred to whichever
-PR implements `courses/derivatives.py`'s constants (out of this PR's scope — no `THUMB_WIDTH`
-code exists yet on this branch).
+**Decision: accepted, not raised.** The spec permits either raising `THUMB_WIDTH` or recording and
+accepting the shortfall; the project owner chose the latter for `courses/derivatives.py` (Task 3,
+`pipeline/media-image-derivatives`). Raising to 720 would multiply every thumbnail's area by
+1.98x (the library's thumb set ~15 MB → ~30 MB, worst-case decode memory ~750 MB → ~1.5 GB across
+~950 assets) — working against the very symptom this feature fixes — while Section 6 below found
+the shortfall is reachable only at viewports **≤308px**, below every mainstream phone's narrowest
+common CSS width (320px), and only on the staff-only media picker, which at that width already
+shows one thumbnail per row.
+
+**Magnitude of the accepted shortfall:** 512/720 = 0.711x, i.e. effective DPR 2.13 delivered
+against a DPR-3 requirement, not the full 3.0.
+
+**Cheaper remedy left open for PR 2:** give the picker a fluid `srcset` preset at zero
+regeneration cost — the same treatment the spec already applies to `cell-large`'s identically
+undershooting 240px box — rather than paying the doubled storage/decode cost across the whole
+library to cover a sub-320px window.
+
+`THUMB_WIDTH` itself, and this reasoning, live in `courses/derivatives.py` next to the constant.
 
 ## 6. Addendum: DPR-3 shortfall reachability window (controller-commissioned)
 
