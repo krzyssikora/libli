@@ -99,3 +99,98 @@ spec ("their raise condition covers DPR 3 … raise `THUMB_WIDTH` and re-measure
 table"), is recorded here as PR 1's finding but the re-measurement itself is deferred to whichever
 PR implements `courses/derivatives.py`'s constants (out of this PR's scope — no `THUMB_WIDTH`
 code exists yet on this branch).
+
+## 6. Addendum: DPR-3 shortfall reachability window (controller-commissioned)
+
+**Why this addendum exists.** Section 4 found the raise condition fires for `asset-thumb picker`
+at the single 300px narrow sample. Raising `THUMB_WIDTH` to 720 roughly doubles every
+thumbnail's bytes across the whole library (~15 MB → ~30 MB), working against the very symptom
+this feature fixes — so the choice between raising `THUMB_WIDTH` and accepting the shortfall
+(recording its magnitude) hinges on how narrow a viewport must be before the shortfall is
+reachable at all. That threshold is not derivable by inspection (this plan's standing rule: no
+geometry number may be hand-derived — two prior attempts to derive numbers in this feature by
+inspection were wrong), so it is measured directly here with a dense viewport sweep.
+
+**Method.** Same measurement conditions as the rest of this document (headless Chromium,
+`device_scale_factor=1`, driven against a real `runserver` dev instance at
+`http://127.0.0.1:8009`, asserting `document.documentElement.clientWidth` equals the viewport
+width on every page load) and the same seed shape (one throwaway course, one unit, one
+`ImageElement`, three 2000×1500px `MediaAsset`s — comfortably larger than any measured box in
+both axes; the measured-width-vs-`naturalWidth` guard held at every sample, confirming CSS still
+decides the box). The sweep covers 14 viewports chosen to bracket both boxes' `auto-fill`
+track-count boundaries densely: 240, 260, 280, 300, 305, 307, 308, 310, 320, 340, 360, 375, 390,
+414px. Reproduced twice (two independent script runs against the same seeded server); both runs
+produced byte-identical numbers.
+
+### 6.1 Sweep table
+
+| Viewport | manager width | manager ×3 | manager >512? | picker width | picker ×3 | picker >512? |
+| --- | --- | --- | --- | --- | --- | --- |
+| 240px | 190 | 570 | Yes | 180 | 540 | Yes |
+| 260px | 210 | 630 | Yes | 200 | 600 | Yes |
+| 280px | 230 | 690 | Yes | 220 | 660 | Yes |
+| 300px | 110 | 330 | No | 240 | 720 | Yes |
+| 305px | 112.5 | 337.5 | No | 245 | 735 | Yes |
+| 307px | 113.5 | 340.5 | No | 247 | 741 | Yes |
+| 308px | 114 | 342 | No | 248 | 744 | Yes |
+| 310px | 115 | 345 | No | 110 | 330 | No |
+| 320px | 120 | 360 | No | 115 | 345 | No |
+| 340px | 130 | 390 | No | 125 | 375 | No |
+| 360px | 140 | 420 | No | 135 | 405 | No |
+| 375px | 147.5 | 442.5 | No | 142.5 | 427.5 | No |
+| 390px | 155 | 465 | No | 150 | 450 | No |
+| 414px | 167 | 501 | No | 162 | 486 | No |
+
+Both boxes show the expected sharp discontinuity rather than a smooth curve — `.asset-grid` is
+`repeat(auto-fill, minmax(8rem, 1fr))`, so each box jumps upward the moment its container's track
+count drops from 2 to 1, then shrinks smoothly again as the viewport widens within the new
+track count.
+
+### 6.2 Measured cliffs (largest viewport at which `box × 3 > 512`)
+
+- **`asset-thumb picker`: cliff = 308px.** The shortfall is reachable at every sampled width from
+  240px up to and including 308px, and stops being reachable at 310px (110px box, 2-track). The
+  single-track/2-track boundary for the picker's grid (inside `.picker-card`, which itself flips
+  to `width: 100%` under the `@media (max-width: 720px)` overlay rule) sits strictly between
+  308px and 310px.
+- **`asset-thumb manager`: cliff = 280px.** The shortfall is reachable at 240–280px and stops at
+  300px (110px box, already 2-track). The manager's single-track/2-track boundary sits strictly
+  between 280px and 300px.
+
+**Measured fact, for the raise-vs-accept decision.** Both cliffs sit below 310px: the picker's
+shortfall is reachable up to 308px (not at 310px or above), and the manager's up to 280px (not at
+300px or above). At the sampled granularity, neither box's shortfall reaches the 310–414px band
+this sweep also covers (which brackets mainstream current phone CSS-viewport widths, e.g. 320,
+360, 375, 390, 414px — all measured "No" for both boxes above). The sweep does not sample between
+308px and 310px, or between 280px and 300px, so it does not pin the boundary to sub-pixel
+precision — only that each cliff falls in that gap.
+
+### 6.3 Disclosure — the manager's 300px conclusion is knife-edge, not comfortable
+
+Section 4's narrative (manager stays "comfortably under the threshold" while picker fires only at
+300px) is directionally right but understates how close the manager comes to firing at exactly
+the sample it was previously measured at. This sweep shows the manager has its **own** cliff, at
+280px — only 20px below the single 300px sample Section 4 relied on. At 300px the manager's grid
+container computes to almost exactly the 2-track/1-track `auto-fill` boundary: one step narrower
+(280px) and the manager box jumps from 110px to 230px, immediately tripping the same `× 3 > 512`
+condition the picker trips. The 300px measurement in Section 1/4 is therefore not a robust
+"comfortably clear" data point — it is close enough to the manager's own track-count boundary that
+a future padding change to `.asset-cell`, `.app-main`, or the manager grid's container width could
+flip it without any change to `THUMB_WIDTH` itself. This does not change Section 4's verdict (the
+raise condition still fires only via the picker at the widths that were sampled there), but the
+margin is narrower than "comfortably under the threshold" suggests.
+
+### 6.4 Provenance note — a third brief-script bug, not previously recorded
+
+Task 1's report (`.superpowers/sdd/2026-08-17-media-image-derivatives/task-1-report.md`) recorded
+two brief-script bugs it fixed (the dead `[data-edit-element]` selector, and the bare
+`button[type='submit']` login selector that hit the language-switch button first). It omitted a
+third, present in the same brief script: the brief's `main()` printed rows only for `label in
+[r for r in rows if r[0] == VIEWPORTS[0][0]]`, and its header/body loop iterated only
+`VIEWPORTS` (the six wide viewports), never `THUMB_VIEWPORTS`. Since 300px is appended only to
+`THUMB_VIEWPORTS` and is not a member of `VIEWPORTS`, the brief's print loop would have silently
+produced a table with no 300px column at all — dropping exactly the sample that trips the raise
+condition, even though the measurement loop itself did sample it. This is recorded here for
+completeness of the provenance record of what was changed from the brief; it did not affect
+Section 1's committed table, which builds its columns explicitly rather than reusing the brief's
+print loop.
