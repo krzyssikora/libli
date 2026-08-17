@@ -207,6 +207,24 @@ def replace_asset(asset, uploaded_file):
     asset.full_clean(exclude=["course", "kind", "name", "uploaded_by"])
     asset.save(update_fields=["file", "original_filename", "content_hash"])
 
+    # Computed HERE, not inside the except block below. asset.file.name is
+    # already committed and nothing between here and the except block ever
+    # reassigns it, so this is safe to compute unconditionally now. It must
+    # NOT be computed after a failure: Django 5.2's save_base wraps its write
+    # in transaction.mark_for_rollback_on_error, which marks the enclosing
+    # atomic block for rollback on ANY exception raised inside it -- so a
+    # genuine DB error from step 5's save below poisons this transaction, and
+    # an ORM query issued from the except block would itself raise
+    # TransactionManagementError, demoting the real error to __context__ and
+    # skipping the storage cleanup that was supposed to run after it.
+    # _delete_file_if_unshared itself would be a no-op in the except block for
+    # the same reason it always was here -- it defers via on_commit (never
+    # runs on a rolling-back transaction) and its own exists() check would see
+    # this row's own step-3 write -- so this inlines just the share check.
+    new_original_is_shared = asset.file.name != old_name and (
+        MediaAsset.objects.filter(file=asset.file.name).exclude(pk=asset.pk).exists()
+    )
+
     # --- Steps 4 + 5, guarded ----------------------------------------------
     # The try begins HERE, not at the top: everything above can raise while
     # asset.thumb.name still holds the OLD, LIVE name, and a handler reading it
@@ -219,28 +237,44 @@ def replace_asset(asset, uploaded_file):
     except Exception:
         # Django 5.2 has transaction.on_commit but NO on_rollback, and the
         # rollback happens at the @atomic decorator boundary after control has
-        # left this function -- so cleanup must be immediate and inline.
+        # left this function -- so cleanup must be immediate and inline. The
+        # transaction may already be poisoned by the exception being handled
+        # (see the new_original_is_shared comment above), so this block is
+        # STORAGE-ONLY -- no ORM access after a failure has occurred.
+        #
+        # A regenerated derivative that happens to reuse an OLD name (only
+        # possible when both the old derivative and the old original's bytes
+        # were already missing before this call) is deliberately excluded
+        # here and left on disk: it is the name step 6 would otherwise retire
+        # for a row that is about to roll back to it, so deleting it now
+        # would strand the rolled-back row pointing at nothing. The
+        # alternative -- treating it as "new" and deleting it -- is strictly
+        # worse, so the rolled-back row keeps a stale-but-present file
+        # instead of a missing one.
         new_derivatives = [
             n
             for n in (asset.thumb.name, asset.web.name)
             if n and n not in (old_thumb_name, old_web_name)
         ]
         delete_derivative_files(new_derivatives, derivative_storage)
-        # The new ORIGINAL goes through a share check that EXCLUDES this row --
-        # _delete_file_if_unshared would be a no-op here, because it defers via
-        # on_commit and because filter(file=name).exists() sees this row's own
-        # uncommitted step-3 write and early-returns.
-        if asset.file.name and asset.file.name != old_name:
-            shared = (
-                MediaAsset.objects.filter(file=asset.file.name)
-                .exclude(pk=asset.pk)
-                .exists()
-            )
-            if not shared and old_storage.exists(asset.file.name):
-                old_storage.delete(asset.file.name)
+        if (
+            asset.file.name
+            and asset.file.name != old_name
+            and not new_original_is_shared
+            and old_storage.exists(asset.file.name)
+        ):
+            old_storage.delete(asset.file.name)
         raise
 
     # --- Step 6: retire the superseded files, deferred ---------------------
+    # Safe to delete old_thumb_name/old_web_name by NAME alone, with no
+    # sibling check, only because every current write path that can ever
+    # populate thumb/web goes through FieldFile.save() (collision-suffixed by
+    # storage) or blanks the field to "" -- unlike `file`, no code path
+    # assigns a derivative name verbatim the way migration 0008 did for
+    # `file`. A future feature that ever copies `.thumb`/`.web` names
+    # verbatim between rows (e.g. a "copy course media" bulk action) would
+    # silently break this.
     def _retire():
         stale = []
         if asset.thumb.name != old_thumb_name:

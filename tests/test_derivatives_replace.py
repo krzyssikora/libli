@@ -43,6 +43,12 @@ def test_replace_regenerates_and_deletes_the_superseded_files(
     assert not default_storage.exists(old_web)
     asset.refresh_from_db()
     assert asset.width == 2400, "the five new fields must survive update_fields"
+    # thumb/web specifically: dropping them from the second save's
+    # update_fields would commit width/height/derivatives_state as "ok" while
+    # the DB row still names the OLD (now-deleted-by-_retire) derivative
+    # files, orphaning the newly-written ones under a name nothing points at.
+    assert asset.thumb.name != old_thumb
+    assert default_storage.exists(asset.thumb.name)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -112,6 +118,58 @@ def test_a_raise_at_the_persist_step_leaves_no_new_bytes(
     monkeypatch.setattr(Model, "save", flaky)
 
     with pytest.raises(RuntimeError):
+        replace_asset(asset, _upload())
+
+    asset.refresh_from_db()
+    assert asset.file.name == old_file
+    orphans = [n for n in default_storage.listdir("courses/media")[1] if "new" in n]
+    assert orphans == [], f"new original orphaned: {orphans}"
+    # Derivatives live in the SEPARATE "derivatives/" subdirectory -- a probe
+    # of "courses/media" alone never sees them, so a broken cleanup of the
+    # new thumb/web files (replacing delete_derivative_files with a no-op in
+    # the except block) would pass silently without this second listdir.
+    derivative_orphans = [
+        n for n in default_storage.listdir("courses/media/derivatives")[1] if "new" in n
+    ]
+    assert derivative_orphans == [], f"new derivatives orphaned: {derivative_orphans}"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_genuine_db_error_at_the_persist_step_does_not_orphan_the_new_original(
+    course_with_image_media_root, monkeypatch
+):
+    """The sibling test above patches `Model.save` itself, which intercepts
+    BEFORE `save_base` ever reaches the database -- the one failure shape that
+    leaves the transaction perfectly usable afterwards. It can never catch a
+    bug in code that runs an ORM query from inside the except block, because
+    that shape of failure never poisons the transaction in the first place.
+
+    A REAL database error -- here, a derivatives_state value too long for its
+    varchar(10) column -- reaches save_base, which Django 5.2 wraps in
+    transaction.mark_for_rollback_on_error (django/db/models/base.py:999).
+    That marks the ENCLOSING atomic block broken for any subsequent ORM
+    access, not just a retry of the same write, so the except block's cleanup
+    must be storage-only to survive this.
+    """
+    from django.db import DataError
+
+    import courses.media as media_svc
+
+    course = CourseFactory()
+    asset = make_image_asset(course, "old.png", size=(2000, 1500), derivatives=True)
+    old_file = asset.file.name
+
+    def poisoned(asset_arg):
+        asset_arg.thumb = ""
+        asset_arg.web = ""
+        asset_arg.width = 1
+        asset_arg.height = 1
+        asset_arg.derivatives_state = "x" * 11  # column is varchar(10)
+        return asset_arg.derivatives_state
+
+    monkeypatch.setattr(media_svc, "generate_derivatives", poisoned)
+
+    with pytest.raises(DataError):
         replace_asset(asset, _upload())
 
     asset.refresh_from_db()
