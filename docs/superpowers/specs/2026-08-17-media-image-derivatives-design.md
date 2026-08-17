@@ -33,14 +33,14 @@ single rendered layout, and without a commit at which any surface is degraded.
 
 ### Measured cost of the change
 
-Derivatives for all 953 images, measured by generating each width over a random 60-image
-sample and projecting:
+Projected over all 953 images from a random 60-image sample, net of the animated and
+narrower-than-target skips:
 
 | | Bytes |
 | --- | --- |
 | Originals on disk today | 58.6 MB |
-| `thumb` set (512px, all 953) | ~15 MB |
-| `web` set (896px, all 953) | ~21 MB |
+| `thumb` set (512px) | ~15 MB |
+| `web` set (896px) | ~21 MB |
 | **Added disk** | **~36 MB** |
 
 Alternatives measured and rejected: `thumb` at 320px costs ~9 MB but does not cover a
@@ -50,7 +50,7 @@ dominated the 648 set — while under-serving the collapsed-TOC column.
 
 ## Scope
 
-### In scope — nine `<img>` sites across seven templates
+### In scope — eight `<img>` sites across seven templates
 
 Verified inventory (confirmed exhaustive by grepping every `<img` under `templates/`):
 
@@ -64,6 +64,8 @@ Verified inventory (confirmed exhaustive by grepping every `<img` under `templat
 | `templates/courses/elements/dragtoimagequestionelement.html` | 9 (interactive `{% if element %}` branch) | Student drag-to-image | `dragimage` |
 | `templates/courses/elements/dragtoimagequestionelement.html` | 32 (`{% else %}` fallback branch) | Student drag-to-image | `dragimage` |
 | `templates/courses/elements/galleryelement.html` | 14 | Student gallery | `gallery` |
+
+Eight tags, seven templates — drag-to-image contributes two.
 
 The **picker grid** is not a secondary surface: it renders the same
 `assets_with_usage(course)` result set through the same `.asset-grid` / `.asset-thumb`
@@ -81,21 +83,20 @@ documents the shape as `{url, alt, desc}` and **must be updated** with it.
 Each of the seven templates needs its own `{% load courses_media_extras %}`. Django does
 **not** inherit `{% load %}` across `{% include %}`, and today `imageelement.html`,
 `galleryelement.html` and `_table_cell.html` load nothing at all, while
-`_filltable_cell.html` and `_picker_grid.html` load only `i18n`. A missed load is a
-`TemplateSyntaxError` at render.
+`_filltable_cell.html` and `_picker_grid.html` load only `i18n`.
 
 ### Out of scope — stated, with reasons
 
 - **Editor preview twins**: `_edit_table.html:93,100`, `_edit_filltable.html:114,121`,
-  `_edit_gallery.html:30`. Deferred **deliberately**, because four JavaScript modules
-  rebuild that markup client-side from the picker's `data-url` — `table_editor.js:302-305`,
+  `_edit_gallery.html:30,44` (`:44` is the empty-`src` template row `gallery_editor.js:115`
+  clones). Deferred **deliberately**, because four JavaScript modules rebuild that markup
+  client-side from the picker's `data-url` — `table_editor.js:302-305`,
   `filltable_editor.js:475-483`, `gallery_editor.js:115`, `zone-editor.js:74-75`.
   Changing the server-rendered half without the JS half is exactly the editor twin-drift
   this repo has been bitten by before. Leaving **both** halves untouched keeps them
   consistent. Recorded as a follow-up.
 - **Video poster frames** — would add ffmpeg as a system dependency for 232 videos.
-- **Grid pagination** — see "Server cost" below, which quantifies what this change does to
-  the 2.2 s TTFB so the deferral is made on real numbers.
+- **Grid pagination** — see "Server cost" below.
 
 ## Architecture
 
@@ -119,109 +120,121 @@ Five new fields on `MediaAsset`, all optional:
 stored names already sit close to it; `courses/media/derivatives/` is 12 characters longer
 than `courses/media/`, plus a `-896.webp` suffix and any storage collision suffix. At 100,
 `get_available_name` would silently truncate stems for the long-named assets the LAL import
-produced — raising collision pressure — and can raise `SuspiciousFileOperation` outright.
+produced, and can raise `SuspiciousFileOperation`.
 
-`derivatives_state` is a **`TextChoices` class** (`DerivativesState`), not bare string
-literals, and the backfill filters against it. It exists because the other four fields
-cannot express the difference between *declined*, *interrupted*, and *failed*: `width`
-populated with both derivatives blank is the stored shape of all three.
+`derivatives_state` is a **`TextChoices` class** (`DerivativesState`), and the backfill
+filters against it. It exists because the other four fields cannot express the difference
+between *declined*, *interrupted*, and *failed*: `width` populated with both derivatives
+blank is the stored shape of all three.
 
 - `""` — never attempted. Backfill processes it.
 - `ok` — derivatives generated (one or both).
 - `skipped` — deliberately declined: not an image, animated, or narrower than both targets.
-  Backfill leaves it alone unless `--force`.
 - `failed` — generation raised. Backfill retries it.
 
 **Both derivative fields share one storage backend** (same `upload_to`, default storage),
-which is why `delete_derivative_files` below takes a single `storage`.
+which is why `delete_derivative_files` takes a single `storage`.
 
 **Migration `0059`** — schema-only, five `AddField` operations, no data migration, fully
 reversible.
 
 ### Derivative widths
 
-**The content column is not a single number, and the spec must not pretend it is.**
-`.el--image` is deliberately **absent** from the collapsed-TOC prose-cap allow-list
-(`courses.css:1141-1157`, which lists `.el--text`, the question parts,
-`.lesson-unit__title`, `.unit-crumbs`, `.markdone`, `.fillgate`, `.stepper`,
-`.switchgate`, `.guessnumber` — no image root). So `html.unit-tree-collapsed` — a
-persisted global toggle — widens the box an image fills well beyond 46rem. Separately,
+**The content column is not a single number.** `.el--image` is deliberately **absent** from
+the collapsed-TOC prose-cap allow-list (`courses.css:1141-1157`, which lists `.el--text`,
+the question parts, `.lesson-unit__title`, `.unit-crumbs`, `.markdone`, `.fillgate`,
+`.stepper`, `.switchgate`, `.guessnumber` — no image root). So `html.unit-tree-collapsed` —
+a persisted global toggle — widens the box an image fills well beyond 46rem. Separately,
 `.lesson { max-width: 46rem }` (`courses.css:292`) is 736px wherever a lesson renders
 outside the unit shell, including the editor preview whose `.prev-inner` is also
 `max-width: 46rem` (`editor.css:66`).
 
 **Required measurement.** Implementation must measure and record in the plan, **at two
-named viewports — the e2e default (1280x720) and one wide case (1920x1080)** — since every
-box below scales with window width:
+named viewports — 1280x720 (the e2e default) and 1920x1080** — since every box scales with
+window width:
 
 1. `.el--image--full`'s rendered width with the TOC expanded,
 2. the same with `html.unit-tree-collapsed`,
 3. the same in the editor preview,
 4. `.asset-thumb`'s rendered width in the manager grid,
 5. the same in the picker grid,
-6. `.cell-img--full`'s rendered width in a 2-, 3- and 4-column table.
+6. `.cell-img--full`'s rendered width in a 2-, 3- and 4-column table,
+7. `.gallery__frame`'s rendered width,
+8. `.dragimage__img` / `.dragimage__stage`'s rendered width.
 
-The raise condition is "exceeds at either named viewport".
-
-**`.asset-grid` is analytically bounded below 256px.** It is
-`repeat(auto-fill, minmax(8rem, 1fr))` (`editor.css:349`) with no container `max-width`.
-With `auto-fill`, the track count is `floor(container / 128)`, so a track is
-`container / n < 128(n+1)/n`, maximised at `n = 1` → **under 256 CSS px**. Measurements
-(4) and (5) confirm the real value rather than discover the bound.
+The raise condition is "exceeds at either named viewport". (7) and (8) are listed because
+`gallery` and `dragimage` are currently assigned 896px **by analogy** with the image
+element, and neither is the same box: `.dragimage__stage` is `display: inline-block;
+max-width: 100%`, so its used width is the image's own contribution rather than the column,
+and `.gallery__frame` is `width: 100%` of whatever the gallery's ancestor is. Their `sizes`
+values are recomputed from those measurements.
 
 **Widths:**
 
-- **`thumb` = 512px.** A fixed box under 256 CSS px needs at most 512 device px at DPR 2,
-  so one thumb covers every fixed-box preset at DPR ≤ 2 — the grid, the picker, and the
-  240px table cell (480 ≤ 512). This is why 320px was rejected: it covers DPR 1 but leaves
-  the grid 1.25x soft at DPR 2 on exactly the retina hardware the complaint came from, and
+- **`thumb` = 512px.** `.asset-grid` is `repeat(auto-fill, minmax(8rem, 1fr))`
+  (`editor.css:349`) with no container `max-width`. With `auto-fill` the track count is
+  `floor(container / 128)`, so a track is `container / n < 128(n+1)/n`, maximised at
+  `n = 1` → **under 256 CSS px**. A fixed box under 256 CSS px needs at most 512 device px
+  at DPR 2, so one thumb covers every fixed-box preset at DPR ≤ 2 — the grid, the picker,
+  and the 240px table cell (480 ≤ 512). 320px was rejected: it covers DPR 1 but leaves the
+  grid 1.25x soft at DPR 2 on exactly the retina hardware the complaint came from, and
   forcing a second candidate there would make the grid fetch the 896px `web` derivative
   into a ~180px box — a 5x linear oversample, ~950 times.
-- **`web` = 896px.** Chosen to cover the widest measured box rather than the narrowest. A
-  `web` of 648px would under-declare by up to 35% in the collapsed-TOC state and the
-  browser would upscale into a wider box — a visible-blur regression on the primary
-  student surface, in a state the user can toggle globally.
+- **`web` = 896px.** Chosen to cover the widest measured box. A `web` of 648px would
+  under-declare by up to 35% in the collapsed-TOC state and the browser would upscale into
+  a wider box — a visible-blur regression on the primary student surface.
+
+**`web`'s benefit is DPR-1-only, and that is accepted.** With `sizes` topping out at 896px,
+a DPR-2 client needs ~1792 device px, finds no candidate that large, and selects the widest
+available — the original (~1100px median). So on retina hardware the student surfaces fetch
+what they do today. This is correct rather than regrettable: at a 1100px original and an
+896px box, the original *is* the appropriate resource, and downscaling it further would
+lose real detail. The consequence to state plainly is that the 21 MB `web` set is justified
+by DPR-1 clients alone; the 15 MB `thumb` set carries the grid at both densities.
 
 Both widths live as **module-level constants in `courses/derivatives.py`**
-(`THUMB_WIDTH`, `WEB_WIDTH`), imported by the template tag. They appear in the generator,
-the filenames, and the `w` descriptors, so a future change must not be able to drift the
-tag away from the bytes on disk.
+(`THUMB_WIDTH`, `WEB_WIDTH`), imported by the template tag, so a future width change cannot
+drift the tag away from the bytes on disk.
 
 Both derivatives are **lossless WebP**, saved with pinned encoder kwargs:
-`format="WEBP", lossless=True, method=4, exact=True`. `method` (0–6) swings lossless
-encode time several-fold and matters because generation runs synchronously inside an
-upload request and in a management-command loop over 953 images; `exact=True` preserves
-RGB values under fully-transparent pixels. The content is maths diagrams — thin strokes,
-small labels, subscripts — where lossy ringing is precisely the artifact that would hurt
-legibility.
-
-**A derivative that is not smaller than its source is discarded** (field left blank).
-25 of the 953 images are JPEG/GIF/WebP, and a lossless-WebP derivative of a photographic
-JPEG can exceed the JPEG original's bytes.
+`format="WEBP", lossless=True, method=4, exact=True`. `method` (0–6) swings lossless encode
+time several-fold and matters because generation runs synchronously inside an upload request
+and in a management-command loop over 953 images; `exact=True` preserves RGB values under
+fully-transparent pixels. The content is maths diagrams — thin strokes, small labels,
+subscripts — where lossy ringing is precisely the artifact that would hurt legibility.
 
 **The skip rule is width-only, and that is justified by measurement.** Decode cost is
 width x height, so a tall narrow image escapes a width-only predicate. Measured in
 `mat-pp`: only **7 of 953** images are at most 512px wide yet exceed 250k px (the largest
 508x1486), and images at most 512px wide hold **0.8% of total pixels**. A height- or
 area-aware predicate would complicate the derivative's dimensions for under one percent of
-the decode budget, so the width-only rule stands and this measurement is the reason.
+the decode budget.
 
 ### Generation module: `courses/derivatives.py`
 
 ```
 generate_derivatives(asset) -> str       # assigns asset.derivatives_state AND returns it
-delete_derivative_files(names, storage)  # names: iterable of storage names, may be blank
+delete_derivative_files(names, storage)  # deletes IMMEDIATELY; deferral is the caller's job
 ```
 
 `generate_derivatives` **assigns `asset.derivatives_state` on the instance** in addition to
 returning it. Callers list that field in `update_fields`, so a version that only returned
 the value would persist the stale one while the correct one was discarded as an unused
-return — precisely the class of silent bug the `update_fields` trap below exists to prevent.
+return.
 
 `delete_derivative_files` takes **names, not an asset**, because its callers all need to
-delete files that are no longer the asset's: `replace_asset` and backfill `--force` delete
-*superseded* names captured before regeneration, and `post_delete` runs when the row is
-already gone. It does not touch model fields.
+delete files that are no longer the asset's. **It deletes immediately and does not defer
+internally.** This is stated explicitly because the neighbouring `_delete_file_if_unshared`
+in the same module *does* call `transaction.on_commit` itself, so local precedent points the
+wrong way — and the two call classes need opposite behaviour:
+
+| Caller | Deferral |
+| --- | --- |
+| `post_delete` signal | Caller wraps in `transaction.on_commit` |
+| `replace_asset` step 6 | Caller wraps in `transaction.on_commit` |
+| `replace_asset` failure handler | **Immediate** — an `on_commit` callback registered on a transaction that is about to roll back never runs |
+| Backfill `--force` | Immediate (no enclosing transaction) |
+| `generate_derivatives`' own failure handler | Immediate |
 
 `generate_derivatives` is **best-effort and never raises**. Rules, in order:
 
@@ -229,10 +242,8 @@ already gone. It does not touch model fields.
    caller owns file deletion), null `width`/`height`, and reset `derivatives_state`, before
    any branch can return. Without this, every early-return path leaves the **previous**
    image's values in place: on a replace where the new original is 500px wide, step 6 skips
-   `web`, and `asset.web` would still point at the old picture's `-896.webp` — the tag would
-   emit the previous image as a candidate for the new asset. The same applies to stale
-   `width`/`height` (wrong attributes → distorted box) and to the non-image, animated and
-   failed paths.
+   `web`, and `asset.web` would still point at the old picture's `-896.webp`. The same
+   applies to stale `width`/`height` and to the non-image, animated and failed paths.
 1. `asset.kind != "image"` → return `skipped`.
 2. Open with Pillow; apply `ImageOps.exif_transpose`.
 3. Record `width`/`height` from the transposed image.
@@ -246,37 +257,44 @@ already gone. It does not touch model fields.
    modes `"1"` and `"P"`, silently ignoring `LANCZOS`. Verified against the project's
    Pillow 12.2.0 — `Image.new("P",(1000,800)).resize((320,256), Image.LANCZOS)` returns
    mode `P`, nearest-neighbour aliased, i.e. *worse* than the browser's own downscale.
-   Measured prevalence is low — 19 of 953 are mode `P`, and 18 of those are animated and
-   excluded at step 4, leaving one — so this is a correctness fix against future PNG-8
-   uploads and the spec's own single-frame-GIF case, not a fix for a widespread defect.
+   Measured prevalence is low — 19 of 953 are mode `P`, 18 of them animated and excluded at
+   step 4, leaving one — so this is a correctness fix against future PNG-8 uploads and the
+   spec's own single-frame-GIF case.
 6. For each target width, skip if `img.width <= target`.
-7. Resample with `Image.LANCZOS`, save with the pinned encoder kwargs; discard the result
-   if it is not smaller than the source file.
+7. **Encode to an in-memory buffer first.** Resample with `Image.LANCZOS`, save into a
+   `BytesIO` with the pinned kwargs, then compare `buffer.tell()` against
+   **`asset.file.size`** (the original's bytes on disk, not the decoded bitmap). Only if
+   the buffer is smaller does a `FieldFile.save(name, ContentFile(buffer), save=False)`
+   happen. Encoding straight to storage and "discarding" by blanking the field would leave
+   orphaned bytes and burn a collision-suffix slot against the `max_length=200` budget for
+   every discarded derivative — expected among the 25 JPEG/GIF/WebP originals, where a
+   lossless-WebP derivative can exceed a photographic JPEG's size.
 8. Return `ok` if anything was written, `skipped` if steps 6–7 declined both.
 9. **The entire body — decode, resize, encode, and both storage writes — sits inside one
    guard catching broad `Exception`, logging, and returning `failed`.** Not a fixed tuple
-   of Pillow exceptions: the riskiest step is `FieldFile.save(name, content, save=False)`,
-   a storage write that can raise `SuspiciousFileOperation`, permission or quota errors, or
-   backend-specific exceptions. A narrow catch would let a storage failure propagate out of
-   an upload request.
+   of Pillow exceptions: the riskiest step is `FieldFile.save(...)`, a storage write that
+   can raise `SuspiciousFileOperation`, permission or quota errors, or backend-specific
+   exceptions. **The handler must delete any derivative file it already wrote during this
+   call** — track written names locally — before returning `failed`. Otherwise a successful
+   `thumb` write followed by a raising `web` write leaves the thumb bytes on disk with
+   rule 0 having cleared the field that referenced them; in `replace_asset` this compounds,
+   because step 6 then compares the now-blank name against `old_thumb_name`, deletes the old
+   file, and the orphan survives forever.
 
 Derivative filenames are `<original-stem>-512.webp` / `-896.webp`, written through
-`FieldFile.save(name, content, save=False)` so Django's storage applies its own collision
-suffix. **Each row therefore owns its derivative files outright.** Load-bearing: migration
-`0008` copied storage references verbatim, so two `MediaAsset` rows can share one
-`file.name` — the hazard `_delete_file_if_unshared` exists to guard. Derivatives are
-generated per row and never shared, so their deletion needs no such guard and must not
-borrow one.
+`FieldFile.save(...)` so Django's storage applies its own collision suffix. **Each row
+therefore owns its derivative files outright.** Load-bearing: migration `0008` copied
+storage references verbatim, so two `MediaAsset` rows can share one `file.name` — the
+hazard `_delete_file_if_unshared` exists to guard. Derivatives are generated per row and
+never shared, so their deletion needs no such guard and must not borrow one.
 
 ### Render path: one template tag
 
-Nine call sites need this logic. A single tag in
-`courses/templatetags/courses_media_extras.py` owns it.
+A single tag in `courses/templatetags/courses_media_extras.py` owns this for all eight sites.
 
 **A `simple_tag` returning `format_html(...)`, not an `inclusion_tag`.** An
 `inclusion_tag` performs a full template load-and-render per invocation — ~950 nested
-renders on the manager grid where there are currently zero, plausibly adding hundreds of
-milliseconds to the very TTFB metric against which pagination is being deferred.
+renders on the manager grid where there are currently zero.
 
 ```
 {% media_img asset preset="el-full" alt=el.alt css_class="cell-img cell-img--full" extra="data-zoomable" %}
@@ -285,21 +303,21 @@ milliseconds to the very TTFB metric against which pagination is being deferred.
 **Argument contract:**
 
 - `asset` — a `MediaAsset` or `None`.
-- `preset` — a key from the table below; unknown raises (see below).
+- `preset` — a key from the table below; unknown raises.
 - `alt` — defaults to `""`; escaped normally by `format_html`.
 - `css_class` — a string; escaped normally.
 - `extra` — a whitespace-separated list of **boolean attribute names only**, validated
-  against an allow-list (`data-asset-preview`, `data-zoomable`), which covers all four real
-  uses. This is not a raw-HTML sink: `format_html` escapes interpolated arguments, so a
-  valued attribute like `data-x="1"` would be escaped into visible text, and marking the
-  argument safe would make the tag an injection point. Names outside the allow-list raise.
+  against an allow-list (`data-asset-preview`, `data-zoomable`), which covers all five real
+  uses. Not a raw-HTML sink: `format_html` escapes interpolated arguments, so a valued
+  attribute like `data-x="1"` would be escaped into visible text, and marking the argument
+  safe would make the tag an injection point. Names outside the allow-list raise.
   `loading`, `width`, `height`, `src`, `srcset`, `sizes` and `data-zoom-src` are owned by
   the tag and cannot be passed through `extra`.
 
 #### Per-site classes and attributes
 
-Every layout invariant in this spec depends on these classes surviving, and
-`media_preview.js` is armed off `[data-asset-preview]`:
+Every layout invariant depends on these classes surviving, and `media_preview.js` is armed
+off `[data-asset-preview]`:
 
 | Site | `css_class` | `extra` |
 | --- | --- | --- |
@@ -313,39 +331,35 @@ Every layout invariant in this spec depends on these classes surviving, and
 
 #### Presets composed from data
 
-Five sites derive the preset at render time. The exact expressions:
-
 - `imageelement.html` — `{% media_img el.media preset="el-"|add:el.size ... %}`.
   `ImageElement.size` is a `TextChoices` field, always populated.
 - `_table_cell.html` and `_filltable_cell.html` —
   `{% media_img cell.media preset="cell-"|add:cell.size ... %}`.
 
 **The existing `|default:'full'` is dropped, not relocated.** `TableElement._cell`
-(`models.py:1148-1152`) documents that `size` is *always* written ("unlike kind/header/spans,
-which are present-only-when-set, so every reader of normalized cells may subscript
-cell['size']"), and `FillTableElement._cell` (`:1343-1353`) mirrors it — so the default is
-vestigial. It must not be naively carried across: `"cell-"|add:cell.size|default:"full"`
-applies `default` to the already-concatenated string, which is non-empty (`"cell-"`) and so
-never fires, producing an unknown preset that **raises on a student lesson page**.
+(`models.py:1148-1152`) documents that `size` is *always* written, and
+`FillTableElement._cell` (`:1343-1353`) mirrors it, so the default is vestigial. It must
+not be naively carried across: `"cell-"|add:cell.size|default:"full"` applies `default` to
+the already-concatenated string, which is non-empty and so never fires, producing an unknown
+preset that **raises on a student lesson page**.
 
-**An unknown preset raises at render time** — degrading silently to a plain `src` would be
-the exact silent no-op this design exists to prevent. That raise is unreachable from stored
-data, and a test pins it: **for every `v` in `ImageElement.Size.values`, `f"el-{v}"` is a
-preset key; for every `v` in `TableElement.CellImageSize.values`, `f"cell-{v}"` is a preset
-key.** (Stated this way deliberately — the preset keys are prefixed, so the raw key set is
-*not* literally a superset of `{"small","medium","large","full"}`, and a test written from
-that looser wording would fail and then be weakened.)
+**An unknown preset raises at render time**, and a test pins that this is unreachable from
+stored data: **for every `v` in `ImageElement.Size.values`, `f"el-{v}"` is a preset key; for
+every `v` in `TableElement.CellImageSize.values`, `f"cell-{v}"` is a preset key.** (Stated
+per-value deliberately — the preset keys are prefixed, so the raw key set is *not* literally
+a superset of `{"small","medium","large","full"}`, and a test written from that looser
+wording would fail and then be weakened.)
 
-#### `src`, and two descriptor strategies
+#### `src`, `srcset`, and the two strategies
 
-**`src` is always emitted, and its value depends on the strategy:**
+**`src` is always emitted:**
 
 - **Fixed-box presets:** `src` = **`thumb`**, falling back to the original when `thumb` is
   blank. No `srcset` at all. One 512px thumb covers every fixed box at DPR ≤ 2, so there is
   no second candidate to offer, and this guarantees the derivative is what actually loads.
-- **Fluid presets:** `src` = **the original** — a pure fallback. When `srcset` uses `w`
-  descriptors the browser ignores `src` for selection entirely, so this only serves a client
-  that does not understand `srcset`, which should get full quality.
+- **Fluid presets:** `src` = **the original**. When `srcset` uses `w` descriptors the
+  browser ignores `src` for selection, so this only serves a client that does not understand
+  `srcset`, which should get full quality.
 
 | Preset | CSS box | Strategy |
 | --- | --- | --- |
@@ -353,51 +367,37 @@ that looser wording would fail and then be weakened.)
 | `cell-small` | `.cell-img--small` (80px both axes) | `src` = thumb, no `srcset` |
 | `cell-medium` | `.cell-img--medium` (160px both axes) | `src` = thumb, no `srcset` |
 | `cell-large` | `.cell-img--large` (240px both axes) | `src` = thumb, no `srcset` |
-| `cell-full` | `.cell-img--full` (100% of its `<td>`, `max-height: 60dvh`) | `w` + `sizes` — see below |
+| `cell-full` | `.cell-img--full` (100% of its `<td>`, `max-height: 60dvh`) | `w` + `sizes="(max-width: 640px) 100vw, 45vw"` |
 | `el-small` | `.el--image--small` (25%, `max-height: 30dvh`) | `w` + `sizes="(max-width: 640px) 25vw, 224px"` |
 | `el-medium` | `.el--image--medium` (50%, `max-height: 45dvh`) | `w` + `sizes="(max-width: 640px) 50vw, 448px"` |
 | `el-large` | `.el--image--large` (75%, `max-height: 60dvh`) | `w` + `sizes="(max-width: 640px) 75vw, 672px"` |
 | `el-full` | `.el--image--full` (`max-height: 100dvh`) | `w` + `sizes="(max-width: 640px) 100vw, 896px"` |
-| `gallery` | `.gallery__frame` (100%, `aspect-ratio: 4/3`, `max-height: 70vh`) | `w` + `sizes="(max-width: 640px) 100vw, 896px"` |
-| `dragimage` | `.dragimage__img` (column) | `w` + `sizes="(max-width: 640px) 100vw, 896px"` |
+| `gallery` | `.gallery__frame` (100%, `aspect-ratio: 4/3`, `max-height: 70vh`) | `w` + `sizes` from measurement (7) |
+| `dragimage` | `.dragimage__img` (`.dragimage__stage` is inline-block) | `w` + `sizes` from measurement (8) |
 
-Collapsing every fixed box to a single candidate is what removes the DPR branch from the
-grid: there is no descriptor arithmetic left to get wrong, and the acceptance criterion can
-assert the same thumb at both DPR 1 and DPR 2. The `el-*` pixel values are 25/50/75/100% of
-the widest measured column and must be recomputed once measurement (1)–(3) is taken; the
-values shown assume 896.
+The `el-*` pixel values are 25/50/75/100% of the widest measured column and must be
+recomputed once measurements (1)–(3) are taken; the values shown assume 896.
 
-For `w` presets the candidate list is `thumb 512w, web 896w, original {asset.width}w`,
-omitting any derivative that is blank. **`srcset` and `sizes` are omitted entirely only
-when the list would be empty** — i.e. when no derivative exists at all (an animated GIF).
-A single-candidate list is still emitted, because for fluid presets that candidate is the
-original and `sizes` still tells the browser the box.
-
-**640px, not 700px.** The dominant breakpoint is `max-width: 640px` (13 occurrences across
-`core/css/app.css` and `courses.css:609,978,1231`), with a `min-width: 641px` complement;
-`720px` governs only `editor.css:397,666` and `builder.css:2,21`. No `700px` breakpoint
-exists anywhere in the project's CSS.
-
-The preset table and the CSS are a **deliberate coupling**; the tag module carries a comment
-saying so and naming the selectors.
+**`srcset` and `sizes` are omitted entirely whenever no derivative exists** — i.e. whenever
+the only available candidate would be the original. This covers the animated GIF, the
+`failed` row, and every original narrower than both targets. It is not merely tidiness:
+see the `width`/`height` invariant below.
 
 **`cell-full` cannot be a single measured constant.** `.cell-img--full` is `max-width: 100%`
-of its `<td>` in an auto-layout table, so the used width varies with column count, per-column
-content and viewport. Its `sizes` is therefore **viewport-relative**:
-`sizes="(max-width: 640px) 100vw, 45vw"` — 45vw approximating a mid-range column count at
-the measured viewports. Measurement (6) records the real used widths at 2, 3 and 4 columns,
-and the plan states the maximum over- and under-declaration accepted across them. This is a
-width-axis error and is explicitly *not* covered by the height-axis acceptance below.
+of its `<td>` in an auto-layout table, so the used width varies with column count,
+per-column content and viewport. Its `sizes` is therefore viewport-relative (`45vw`
+approximating a mid-range column count). Measurement (6) records the real used widths at 2,
+3 and 4 columns, and the plan states the maximum over- and under-declaration accepted across
+them. This is a width-axis error and is explicitly *not* covered by the height-axis
+acceptance below.
 
 **Known height-axis over-fetch, accepted.** Every preset is a two-axis bounding box, but
-`sizes` describes width only. The full list of height caps: `.el--image--small/medium/large/full`
-at `30/45/60/100dvh` (`courses.css:90-93`), `.cell-img--small/medium/large` at 80/160/240px
-in both axes (`:1326-1328`), **`.cell-img--full` at `60dvh` (`:1329`)**, and
-**`.gallery__frame` at `70vh` with `object-fit: contain` (`:1640-1647`)** — the gallery is
-the largest of these, since a portrait image inside a 4/3 contain-fitted frame renders far
-narrower than the frame while `sizes` declares the full 896px. Accepted: the worst case is
-fetching `web` instead of `thumb`, still far below the original, and a height-aware rule
-cannot be expressed in `sizes`.
+`sizes` describes width only. The full list of height caps:
+`.el--image--small/medium/large/full` at `30/45/60/100dvh` (`courses.css:90-93`),
+`.cell-img--small/medium/large` at 80/160/240px in both axes (`:1326-1328`),
+`.cell-img--full` at `60dvh` (`:1329`), and `.gallery__frame` at `70vh` with
+`object-fit: contain` (`:1640-1647`) — the gallery is the largest of these. Accepted: the
+worst case is fetching `web` instead of `thumb`, still far below the original.
 
 **Degenerate inputs.** `asset.file.url` raises `ValueError` on a blank `FileField`:
 
@@ -405,35 +405,64 @@ cannot be expressed in `sizes`.
 - `not asset.file.name` → render nothing.
 - `asset.width is None` → emit a plain `src` with **no** `srcset`.
 
-These guards are only reachable on the seven element-template sites. `_asset_cell.html:3`
-and `_picker_grid.html:5` both emit `data-url="{{ asset.file.url }}"` on the wrapper
-*before* the `<img>`, so a blank-file asset 500s those pages before the tag is reached.
-Those two `data-url` attributes are left as they are — pre-existing behaviour, out of scope
-— and the guard's tests must therefore target an element template.
+These guards are only reachable on the six element-template sites. `_asset_cell.html:3` and
+`_picker_grid.html:5` both emit `data-url="{{ asset.file.url }}"` on the wrapper *before*
+the `<img>`, so a blank-file asset 500s those pages before the tag is reached. Those two
+`data-url` attributes are left as they are — pre-existing behaviour, out of scope — and the
+guard's tests must therefore target an element template.
 
 ### Layout invariants
 
-**`height: auto` is not globally provided.** `core/static/core/css/reset.css:11` is
-`img, picture, svg { display: block; max-width: 100%; }` — no `height: auto`. Where a
-binding `max-width`/`max-height` meets `width`/`height` attributes without `height: auto`,
-the image distorts.
+#### `width`/`height` are load-bearing against `sizes`, not a reflow nicety
 
-Audit: `.el--image img` (`courses.css:46`), `.cell-img` (`:1325`) and `.dragimage__img`
-(`:538`) declare `height: auto`. **`.gallery__frame img` (`:1647`) does not** — it is
-`max-width: 100%; max-height: 100%; object-fit: contain`, sized by its frame's
-`aspect-ratio: 4/3`.
+With `w` descriptors, an `<img>` whose CSS `width` is `auto` takes its **density-corrected
+intrinsic size**, which equals the declared `sizes` width — *not* the selected resource's
+pixel width. Every fluid-preset box has no author width: `.el--image img` is only
+`max-width: 100%; height: auto`; `.el--image--small/medium/large` put `width: fit-content`
+on the **figure**; `.el--image--full` has no cap; `.cell-img--full` is `max-width: 100%`;
+`.dragimage__stage` is `display: inline-block` shrink-wrapping the image.
 
-**No CSS is changed to satisfy this.** Adding `height: auto` to the gallery rule would be an
-unmeasured layout change, which the Goal forbids. The invariant is therefore stated to
-match reality, and the test encodes all three cases: *every preset's CSS declares
-`height: auto`, an explicit `aspect-ratio`, **or** an ancestor `aspect-ratio` together with
-`object-fit`.*
+So a 200px-wide original carrying `sizes="…896px"` would render at 896 CSS px — a 4.5x
+upscale where today it renders at 200px. Two rules prevent it, and both are required:
 
-**The reflow benefit does not apply to the grid.** `.asset-thumb` already declares
+1. **`srcset`/`sizes` are omitted whenever no derivative exists** (above), which covers
+   exactly the narrow originals most at risk.
+2. **`width`/`height` are emitted on every preset whenever `asset.width` is known.** The
+   presentational hint pins the used width to the resource's own intrinsic size. This — not
+   reflow — is the reason they exist.
+
+The reflow benefit, separately, is real only on `.el--image`, `.cell-img*` and
+`.dragimage__img`. It does **not** apply to the grid: `.asset-thumb` already declares
 `width: 100%; aspect-ratio: 4 / 3; object-fit: cover` (`editor.css:360-365`), so its box is
-fully determined before any image loads and the CSS `aspect-ratio` overrides the
-attribute-derived ratio. The grid does not reflow today. The `width`/`height` benefit is
-real only on `.el--image`, `.cell-img*` and `.dragimage__img`, and is claimed only there.
+fully determined before any image loads.
+
+#### The gallery preset omits `width`/`height`
+
+`.el--gallery .gallery__frame img` (`courses.css:1647`) is
+`max-width: 100%; max-height: 100%; object-fit: contain` with **no `height: auto`**, sized
+by its frame's `aspect-ratio: 4/3`.
+
+Today, with no dimension attributes, CSS's replaced-element min/max algorithm applies both
+clamps *ratio-preserving*. Once `width`/`height` hints are present they compute to lengths
+and `max-width`/`max-height` clamp **independently**. Worked example in a 736px frame
+(4/3 → 552px tall) with an 1100x841 original: today the element box is ~722x552; with the
+attributes it becomes 736x552. `object-fit: contain` keeps the *painted* image identical, so
+nothing looks different — but the element box moves ~14px, far outside the ±1 px geometry
+tolerance below.
+
+**Therefore the `gallery` preset emits no `width`/`height`.** The reflow benefit is not
+claimed there anyway (the frame's `aspect-ratio` already reserves the space), and the
+alternative — adding `height: auto` to that CSS rule — would be an unmeasured layout change
+the Goal forbids. The `srcset`-omission rule alone protects the gallery from the `sizes`
+upscale, since a gallery image with no derivative gets no `sizes` at all.
+
+#### `height: auto` audit
+
+`.el--image img` (`courses.css:46`), `.cell-img` (`:1325`) and `.dragimage__img` (`:538`)
+declare `height: auto`. `.gallery__frame img` (`:1647`) does not, and is handled above. No
+CSS is changed. The invariant, stated to match reality: *every preset's CSS declares
+`height: auto`, an explicit `aspect-ratio`, or an ancestor `aspect-ratio` together with
+`object-fit`.*
 
 ### Lazy loading — grid and picker only
 
@@ -442,31 +471,28 @@ The derivative bounds cost **per image**; `loading="lazy"` bounds **how many** d
 ~24 on screen decode, about 19 MB.
 
 **`loading="lazy"` is emitted on the `grid` preset only.** The student element templates do
-**not** get it, for two reasons: a unit page carries tens of images rather than ~950, so the
-derivative alone is sufficient there; and `courses.css:103-108` and `:1349-1351` are
-hand-tuned `@media print` blocks capping images at 45/75/110/170 mm, so a printed lesson is
-an intended surface — and a printed document is by definition below the fold. Rather than
-depend on per-browser force-load-before-print behaviour, the risk is removed by not
-deferring those images at all. The grid and picker are never printed.
+**not** get it: a unit page carries tens of images rather than ~950, so the derivative alone
+suffices there; and `courses.css:103-108` and `:1349-1351` are hand-tuned `@media print`
+blocks capping images at 45/75/110/170 mm, so a printed lesson is an intended surface — and
+a printed document is by definition below the fold. Rather than depend on per-browser
+force-load-before-print behaviour, the risk is removed by not deferring those images. The
+grid and picker are never printed.
 
 ### Print
 
 A browser prints whichever candidate is already loaded, so a `full` image printed at 170 mm
-comes from the `web` derivative rather than the original. **Accepted, with the reason
-stated:** `sizes` accepts a `<media-condition>`, which does not admit media *types*, so
-`sizes="print 170mm, …"` is not valid and there is no `sizes`-level fix. At 896px across
-170 mm the effective density is ~134 dpi, above the ~96 dpi a browser assumes for
-CSS-px-to-physical mapping, so the printed result is not upscaled relative to the layout.
+comes from the `web` derivative at DPR 1 (and from the original at DPR 2, per the widths
+section). **Accepted, with the reason stated:** `sizes` accepts a `<media-condition>`, which
+does not admit media *types*, so `sizes="print 170mm, …"` is not valid and there is no
+`sizes`-level fix. At 896px across 170 mm the effective density is ~134 dpi, above the
+~96 dpi a browser assumes for CSS-px-to-physical mapping.
 
 ### Server cost
 
-Two before/after measurements are required, because this change pushes on the metric
-against which pagination is being deferred:
-
-- **HTML size** of `/manage/courses/mat-pp/media/`, currently 2.1 MB.
-- **Server render time** of the same URL, currently 2.2 s.
-
-Both recorded in the PR.
+Two before/after measurements are required, because this change pushes on the metric against
+which pagination is being deferred: **HTML size** of `/manage/courses/mat-pp/media/`
+(currently 2.1 MB) and **server render time** of the same URL (currently 2.2 s). Both
+recorded in the PR.
 
 ### Client-side audit — the silent regressions
 
@@ -492,16 +518,23 @@ Three second-order consequences, handled in the same commit:
 - `media_preview.js:172` guards with `anchor.complete && anchor.naturalWidth === 0` →
   caption-only. After the repoint that guard interrogates the *thumb* while a different URL
   is loading, so a broken original would yield a silently empty overlay. The guard moves to
-  the overlay image's own `error` handler, which already exists (`:54-58`).
+  the overlay image's own `error` handler, which **does** already exist (`:54-58`).
 - **The hover preview becomes a real fetch.** Today the overlay copies the grid `<img>`'s
   already-loaded original and paints instantly; after the repoint it fetches an uncached
-  original on every hover. Verified in `open()`: `overlayImg.hidden = true` until `load`,
-  so it degrades to caption-first-then-image rather than breaking. **Accepted and stated**
-  — that is the existing cold-open path, not a new state — and a test pins caption-first.
-- `imagezoom.js:74` carries the comment `// already fetched: served from cache`,
-  load-bearing documentation of why there is no loading state. Pointing at `data-zoom-src`
-  makes it a genuine network fetch. The comment must be corrected and the dialog given a
-  loading state (the `load`/`error` handlers already exist).
+  original on every hover. Verified in `open()`: `overlayImg.hidden = true` until `load`, so
+  it degrades to caption-first-then-image rather than breaking. **Accepted and stated** —
+  that is the existing cold-open path, not a new state — and a test pins caption-first.
+- **`imagezoom.js` has no `load`/`error` handlers and must gain them.** Verified by reading
+  the module end to end: it registers exactly a `dialog` `click`, a `dialog` `close`, a
+  document `click`, a document `keydown`, and the capture-phase Escape — nothing on
+  `dialogImg`. (The handlers that "already exist" are `media_preview.js`'s; the fact does not
+  transfer.) The comment at `:74`, `// already fetched: served from cache`, is load-bearing
+  documentation of why there is no loading state, and pointing at `data-zoom-src` makes it a
+  genuine network fetch. Required: correct the comment; add `load` and `error` handlers on
+  `dialogImg` with a stale-source guard mirroring `media_preview.js`'s `expectedSrc` pattern
+  (`:49-58`); show the dialog in a loading state until `load` fires; on `error`, keep the
+  dialog open with a message rather than closing, so a broken original is visible rather than
+  a dialog that flickers shut. A test pins the loading state and the `error` path.
 
 **Ordering is a requirement, not a preference:** this JS change lands and is verified
 *before* any template emits a derivative `src` or `srcset`. Done in that order there is
@@ -527,9 +560,8 @@ for two downscales would be disproportionate.
 20–60 s of CPU added to one HTTP request holding an open write transaction — a plausible
 worker timeout and a real lock-contention risk. So `create_asset` gains a `generate=True`
 keyword, the importer passes `generate=False`, imported assets land with
-`derivatives_state=""` and serve originals (blank-is-safe makes that correct rather than
-broken), and the import completion message tells the user to run
-`backfill_media_derivatives --course <slug>`.
+`derivatives_state=""` and serve originals, and the import completion message tells the user
+to run `backfill_media_derivatives --course <slug>`.
 
 **Implementation per site:**
 
@@ -539,21 +571,20 @@ broken), and the import completion message tells the user to run
 - **`get_or_create_asset`** — this path **does not call `create_asset`**; it constructs
   `MediaAsset(...)` directly (`courses/lal_loader/media.py:42-46`), so the `generate`
   keyword never reaches it. Call `generate_derivatives(asset)` *before* the existing
-  `asset.save()` — that save is a full save with no `update_fields`, so it persists the new
-  fields without further change. Only this newly-created branch generates; the
-  `content_hash` dedup early-return at `:39-41` must **not** regenerate.
+  `asset.save()` — a full save with no `update_fields`, so it persists the new fields
+  without further change. Only this newly-created branch generates; the `content_hash` dedup
+  early-return at `:39-41` must **not** regenerate.
 
-  It is reached only from the `import_lal_content` management command, never from a
-  request, so there is no worker timeout to trip and no user awaiting a response;
-  `courses/lal_loader/` opens no `transaction.atomic` around the loop, so no write
-  transaction is held open. Generating inline there is safe and saves a backfill pass.
+  Reached only from the `import_lal_content` management command, never from a request, so
+  there is no worker timeout to trip and no user awaiting a response; `courses/lal_loader/`
+  opens no `transaction.atomic` around the loop, so no write transaction is held open.
 
 ### `replace_asset` — the exact sequence
 
 The existing function (`courses/media.py:150-184`) ends with
 `asset.save(update_fields=["file", "original_filename", "content_hash"])`. Generating
-derivatives *after* that save without extending `update_fields` would silently drop the
-five new fields. Generating them *before* it would read `asset.file` while it is still an
+derivatives *after* that save without extending `update_fields` would silently drop the five
+new fields. Generating them *before* it would read `asset.file` while it is still an
 uncommitted `UploadedFile`: Pillow advances the stream, and Django then writes to storage
 from the current position, truncating the stored original. (`_validate_file`'s
 `getattr(file, "_committed", False)` short-circuit, `courses/validators.py:83-95`, is
@@ -563,10 +594,9 @@ Required order:
 
 1. Capture `old_thumb_name`, `old_web_name` and the shared storage, **before** reassigning.
 2. Assign the new file; `full_clean(...)` as today.
-3. `asset.save(update_fields=["file", "original_filename", "content_hash"])` — the original
-   is now committed to storage.
-4. `generate_derivatives(asset)` — reads the **committed** `FieldFile`, so no stream
-   position is shared with a pending write. Any read must `seek(0)` regardless.
+3. `asset.save(update_fields=["file", "original_filename", "content_hash"])`.
+4. `generate_derivatives(asset)` — reads the **committed** `FieldFile`, so no stream position
+   is shared with a pending write. Any read must `seek(0)` regardless.
 5. `asset.save(update_fields=["width","height","thumb","web","derivatives_state"])`.
 6. `transaction.on_commit(...)` deleting each captured old derivative name **only if it
    differs from the newly written one** — `if asset.thumb.name != old_thumb_name`, likewise
@@ -574,36 +604,55 @@ Required order:
    `courses/media.py:180-183` ("Storage hands back the SAME name when the old file was
    already missing, in which case the 'old' file is the one just written"). Without the
    comparison, a replace whose old derivative was absent from storage would delete the file
-   step 4 just wrote, leaving a non-blank field pointing at nothing. Plus the existing
-   `_delete_file_if_unshared` call for the old original.
+   step 4 just wrote. Plus the existing `_delete_file_if_unshared` call for the old original.
 
-### Orphaned bytes on rollback
+### Orphaned bytes on failure
 
 `generate_derivatives` writes to storage *inside* the atomic block, so a rollback discards
-the field values but leaves the bytes on disk, unreferenced.
+the field values but leaves the bytes on disk.
 
 **Django 5.2 provides `transaction.on_commit` but no `on_rollback`** — and because
 `replace_asset` is decorated `@transaction.atomic`, the rollback happens at the decorator
 boundary, after control has already left the function body, so there would be nowhere for
 such a callback to run even if one existed. Do not go looking for that API.
 
-The mechanism is therefore explicit: **wrap the body of `replace_asset` in `try/except`,
-delete the newly-written derivative names in the handler, and re-raise.**
+The mechanism is an explicit `try/except` that **begins at step 4, not at the top of the
+function**. This scoping is required: `replace_asset` raises before step 4 on at least two
+paths — the empty-file `ValidationError` and `full_clean(exclude=[...])` — and at that point
+`asset.thumb.name` / `asset.web.name` still hold the **old, live** names. A handler wrapping
+the whole body and "deleting the newly-written derivative names" off the instance would
+destroy the surviving row's derivatives, producing exactly the non-blank-field-pointing-at-
+absent-bytes state named as the one honest limit below.
 
-For **the importer**, `_create_media` (`:880-892`) appends only `asset.file.name` to
-`created_files`, and `_run_import` (`:1036`) calls `_cleanup_files(created_files)` on every
-failure path (lines `1042/1045/1052/1062`). Because the importer passes `generate=False` it
-writes no derivatives, so this is closed by construction — but the invariant is stated and
-tested, so a later change re-enabling generation there cannot silently reintroduce up to
-2,000 orphaned files.
+The handler deletes only names read from `asset.thumb.name`/`asset.web.name` *after*
+`generate_derivatives` returned, and only where they differ from the captured `old_*` names
+— the same `!=` guard as step 6 — then re-raises. It calls `delete_derivative_files`
+directly (immediate, not deferred).
+
+**Position of the other three creation sites**, so this section is exhaustive rather than
+apparently so:
+
+- **`create_asset` under `media_upload`** — `create_asset` is not itself
+  `@transaction.atomic`; the view is not wrapped either, and `ATOMIC_REQUESTS` is not
+  enabled. A failure after the derivative write leaves the row too, so there is no
+  orphan-without-row case. No cleanup prescribed.
+- **`create_asset` under the transfer importer** — passes `generate=False` and writes no
+  derivatives. `_create_media` (`:880-892`) appends only `asset.file.name` to
+  `created_files`, and `_run_import` (`:1036`) calls `_cleanup_files` on every failure path
+  (lines `1042/1045/1052/1062`). Closed by construction, but the invariant is stated and
+  tested so a later change re-enabling generation there cannot silently reintroduce up to
+  2,000 orphaned files.
+- **`get_or_create_asset`** — runs in a management command with no enclosing atomic block;
+  a raise aborts the import and the operator re-runs it. The orphan is accepted here, on the
+  same footing as the original file's orphan today.
 
 ### Asset deletion
 
 `courses/signals.py:_delete_mediaasset_file` currently removes `instance.file`. It gains
-`delete_derivative_files([instance.thumb.name, instance.web.name], storage)`, deferred
-through the same `transaction.on_commit` and guarded the same way (blank or already-missing
-is a no-op). `post_delete` — rather than `Model.delete()` — remains correct: a cascade
-delete (removing a Course) bulk-deletes rows and never calls `Model.delete()`.
+`delete_derivative_files([instance.thumb.name, instance.web.name], storage)`, wrapped by the
+caller in the same `transaction.on_commit` and guarded the same way (blank or already-missing
+is a no-op). `post_delete` — rather than `Model.delete()` — remains correct: a cascade delete
+(removing a Course) bulk-deletes rows and never calls `Model.delete()`.
 
 ### Transfer export / import
 
@@ -619,17 +668,21 @@ serialization change is required — only the `created_files` invariant test.
 
 - Processes rows by `derivatives_state`, filtering against `DerivativesState`: `""` and
   `failed` are processed; `ok` and `skipped` are left alone unless `--force`.
-- `--dry-run` reports what it would do and writes nothing.
+- **Persists each row individually, immediately after `generate_derivatives`, with
+  `update_fields=["width","height","thumb","web","derivatives_state"]`** — the same
+  five-field list every other call site uses, so the highest-volume writer cannot be the one
+  that silently drops them.
+- `--dry-run` reports what it would do and **writes nothing to storage or the database** —
+  it must not call `generate_derivatives`, which writes files.
 - `--start-at <pk>` for resuming; `--course <slug>` to scope it.
-- `--force` regenerates existing derivatives — needed if a target width, the encoder
-  kwargs, or the resampling behaviour changes (the mode-normalisation rule in particular
-  requires regenerating any palette-sourced derivative already on disk).
+- `--force` regenerates existing derivatives — needed if a target width, the encoder kwargs,
+  or the resampling behaviour changes (the mode-normalisation rule in particular requires
+  regenerating any palette-sourced derivative already on disk).
 - **`--force` must capture the old `thumb`/`web` names and call `delete_derivative_files`
   with the same `!=` guard as `replace_asset` step 6.** Because derivatives are written via
-  `FieldFile.save(...)`, storage hands back a collision-suffixed name
-  (`x-512_AbC.webp`), the field repoints, and the previous file would be orphaned — with
-  repeated `--force` runs multiplying orphans and lengthening names against the
-  `max_length=200` budget.
+  `FieldFile.save(...)`, storage hands back a collision-suffixed name (`x-512_AbC.webp`),
+  the field repoints, and the previous file would be orphaned — with repeated `--force` runs
+  multiplying orphans and lengthening names against the `max_length=200` budget.
 - Reports a running count and a final tally of generated / skipped / failed.
 - A failure on one asset logs and continues.
 
@@ -644,22 +697,24 @@ render path falls back to the original.
 not a fallback. The tag's only signal is field truthiness, which reflects the database, not
 the filesystem; detecting absent bytes would need a `storage.exists()` per derivative —
 ~1900 stat calls on the manager grid. Browsers do not retry another `srcset` candidate on a
-404. What prevents that state is the `!=` guard, applied in both `replace_asset` step 6 and
-backfill `--force` — the only code paths that could delete a live row's current derivative.
+404. What prevents that state is the `!=` guard, applied in `replace_asset` step 6, the
+`replace_asset` failure handler, and backfill `--force` — the only code paths that could
+delete a live row's current derivative.
 
 | Condition | Behaviour |
 | --- | --- |
-| Pillow or storage raises anywhere in generation | Log; fields **cleared** by rule 0; state `failed`; original served |
+| Pillow or storage raises anywhere in generation | Log; fields cleared by rule 0; **any file already written this call is deleted**; state `failed`; original served |
 | Not an image / animated | Fields cleared, dimensions recorded where known, state `skipped`; original served, animation intact |
 | Palette (`P`) / `1` mode source | Converted to `RGB`/`RGBA` before resize, so `LANCZOS` is honoured |
 | Original narrower than a target width | That derivative skipped |
-| Derivative encodes no smaller than the source | Discarded; field left blank |
+| Derivative encodes no smaller than the source | Buffer discarded before any storage write |
 | `asset is None` or blank `file.name` | Tag renders nothing (never `asset.file.url`, which raises `ValueError`) |
 | `width`/`height` unknown (null) | Tag omits `srcset` and emits a plain `src` |
-| Zero `srcset` candidates | `srcset` and `sizes` omitted entirely |
+| No derivative exists | `srcset` and `sizes` omitted entirely — required, not tidiness (see the `width`/`height` invariant) |
 | Unknown preset | Raises at render time; unreachable from stored data by the per-value rule |
 | Backfill hits a bad row | Logged, counted, run continues |
-| Replace raises | `try/except` deletes newly-written derivatives and re-raises; old files survive |
+| Replace raises before step 4 | `try` has not begun; old derivatives untouched |
+| Replace raises at or after step 4 | Handler deletes only names written this call and differing from the old ones; re-raises |
 
 Generation never propagates an exception into an upload request.
 
@@ -669,10 +724,17 @@ Ordered so the client audit is verified before anything can regress.
 
 ### JS repointing (lands and is verified first)
 
-- Playwright: with a derivative present, the media-manager hover preview loads the
-  **original** URL. Assert on the overlay image's resolved `src` — the overlay opens either
-  way.
-- Playwright: click-to-enlarge on a student image with a `srcset` opens the **original**,
+**These tests use synthetic markup, not converted production templates.** The ordering rule
+puts this commit *before* any template emits a derivative `src` or `srcset`, which makes the
+obvious formulation impossible: until `_asset_cell.html` is converted the thumb `src` *is*
+the original, so "the overlay loads the original" passes identically on the un-repointed JS
+and the required A/B cannot be red. Each test therefore builds the
+`srcset` / `data-zoom-src` / derivative-`src` markup by page evaluation (or a test-only
+fixture template) before acting.
+
+- Hover preview loads the **original** URL when the grid `<img>`'s `src` is a thumb. Assert
+  on the overlay image's resolved `src` — the overlay opens either way.
+- Click-to-enlarge on an image with a `srcset` and `data-zoom-src` opens the **original**,
   not the `web` candidate.
 - Both are **A/B tests**: shown failing against the un-repointed JS.
 - No test asserts a *visible* blur. `.asset-preview` is
@@ -683,12 +745,14 @@ Ordered so the client audit is verified before anything can regress.
   `error` handler rather than the thumb's `naturalWidth`.
 - Hover preview paints the caption before the image arrives (the accepted cold-fetch
   behaviour).
+- The zoom dialog shows its loading state until `load` fires, and on `error` stays open with
+  a message rather than closing.
 
 ### `courses/derivatives.py`
 
 Fixture discipline: `make_image_asset(course, filename="x.png", size=(1, 1), ...)`
-(`tests/factories.py:150`) defaults to a **1x1** PNG, which is narrower than both targets,
-so generation returns `skipped` with blank fields — indistinguishable from
+(`tests/factories.py:150`) defaults to a **1x1** PNG, narrower than both targets, so
+generation returns `skipped` with blank fields — indistinguishable from
 `failed`-with-blank-fields. A test asserting only "no crash" would pass on a completely
 broken generator. **Every derivative test passes an explicit `size=` wider than 896px**,
 except one deliberate narrow case asserting `skipped` *specifically*. `MediaAssetFactory`
@@ -703,9 +767,11 @@ unusable for these tests.
 - Declines for `kind="video"` (`skipped`).
 - Animated GIF: dimensions recorded, `skipped`, source still animated afterwards.
 - Skips the derivative when the original is narrower than the target.
-- Discards a derivative that encodes no smaller than its source.
+- Discards a derivative that encodes no smaller than its source **without writing it to
+  storage** (asserted on the storage backend, not just the field).
 - Returns `failed` without raising on a corrupt file **and** on a storage write failure
-  (forced by patching the storage backend).
+  (forced by patching the backend) — and in the latter case **leaves no file behind** when
+  the first write succeeded and the second raised.
 - Applies EXIF orientation.
 - Assigns `asset.derivatives_state` on the instance, not only as a return value.
 
@@ -714,8 +780,8 @@ unusable for these tests.
 - `create_asset` populates all five fields; `generate=False` leaves them at `""`.
 - `replace_asset` regenerates **and** deletes superseded derivative files; asserts the new
   field values persist (the `update_fields` trap); asserts that when the old derivative name
-  is reused the file is **not** deleted (the `!=` guard); a raising replace deletes the
-  newly-written derivatives and leaves the old files in place.
+  is reused the file is **not** deleted (the `!=` guard); a raise *before* step 4 leaves the
+  old derivatives intact; a raise *at* step 4 deletes only what that call wrote.
 - `get_or_create_asset` generates on the create branch and **not** on the `content_hash`
   dedup hit.
 - `post_delete` removes both derivative files.
@@ -730,17 +796,19 @@ unusable for these tests.
 - **A test pins what an 80px `cell-small` actually loads** (the thumb, not the original) —
   the single-candidate presets are where a broken implementation would otherwise be
   invisible.
-- Omits `srcset`/`sizes` only with zero candidates; emits a single-candidate `srcset` for
-  fluid presets.
-- Omits `srcset` when `width` is null; renders nothing for `asset=None` and blank
-  `file.name` (tested on an element template, the only place those guards are reachable).
+- **A sub-`sizes`-width original renders at its own intrinsic width** in `el-full`,
+  `cell-full` and `dragimage` — the `sizes`-upscale guard, asserted on measured geometry.
+- Omits `srcset`/`sizes` whenever no derivative exists; omits `srcset` when `width` is null;
+  renders nothing for `asset=None` and blank `file.name` (tested on an element template, the
+  only place those guards are reachable).
 - Raises on an unknown preset; **per-value key test** for `ImageElement.Size.values` and
   `TableElement.CellImageSize.values`.
 - Emits the exact per-site class and attribute set, including `data-asset-preview` on the
   manager cell and *not* on the picker cell.
 - `extra` rejects a non-allow-listed name and rejects a valued attribute.
 - Emits `loading="lazy"` on `grid` **and not** on the student element presets.
-- Emits `width`/`height` and `data-zoom-src` pointing at the original.
+- Emits `width`/`height` on every preset **except `gallery`**, and `data-zoom-src` pointing
+  at the original.
 - Every preset's CSS declares `height: auto`, an explicit `aspect-ratio`, or an ancestor
   `aspect-ratio` plus `object-fit` — asserted against the stylesheet, with the gallery
   exercising the third case.
@@ -751,15 +819,15 @@ unusable for these tests.
 derivative (or at minimum a `srcset`). Without these, a build that left
 `imageelement.html`, both table cells, the gallery and both drag-to-image `<img>` tags
 untouched would pass every other test: the tag unit tests pass, the geometry tests pass
-trivially, and the acceptance check only touches the manager grid. A forgotten template
-must be RED, not invisible.
+trivially, and the acceptance check only touches the manager grid. A forgotten template must
+be RED, not invisible.
 
 ### Backfill command
 
-Populates a course's assets; `--dry-run` writes nothing; a second run is a no-op;
-`--start-at` skips lower pks; `--force` regenerates `ok` rows **and leaves no orphaned
-derivative files**; `skipped` rows are not retried without `--force`; `failed` rows are;
-one corrupt asset does not abort the run.
+Populates a course's assets; `--dry-run` writes nothing to storage or the DB; a second run
+is a no-op; `--start-at` skips lower pks; `--force` regenerates `ok` rows **and leaves no
+orphaned derivative files**; `skipped` rows are not retried without `--force`; `failed` rows
+are; one corrupt asset does not abort the run.
 
 ### Rendering and layout
 
@@ -768,10 +836,16 @@ one corrupt asset does not abort the run.
   slack: a derivative's height is a rounded proportional scale of the original's, so their
   intrinsic ratios differ slightly (1100x841 → 896x685 is 1.3080 vs 1.3079), and where a
   height cap binds the used width can shift sub-pixel.
-- Screenshots of the media manager, the picker, and a student unit in light and dark,
-  judged separately.
+- The gallery is included in this assertion, which is what would catch the ~14px box shift
+  if `width`/`height` were ever added to that preset.
+- Screenshots of the media manager, the picker, and a student unit in light and dark, judged
+  separately.
 
 ### Acceptance — tied to the measured symptom
+
+**Fixture discipline extends here:** every grid asset used by an acceptance assertion has an
+original wider than 896px. Otherwise no thumb exists, `src` falls back to the original, and
+the assertion either has to be written against the original or stops discriminating.
 
 1. **Candidate selection.** On the media-manager grid the URL the browser actually selects
    (`img.currentSrc`) is the **512px thumb at both DPR 1 and DPR 2**, the latter pinned with
@@ -790,5 +864,6 @@ one corrupt asset does not abort the run.
 
 Every test is written to fail first. Mutants are chosen from the failure mode each test
 claims to defend: the `sizes` removal, the mode-`P` conversion removal, the rule-0 reset
-removal, the `update_fields` truncation, and the `!=` guard removal — each of which
-produces a build that looks correct and measures wrong.
+removal, the `update_fields` truncation, the `!=` guard removal, and the
+`srcset`-omission-when-no-derivative removal — each of which produces a build that looks
+correct and measures wrong.
