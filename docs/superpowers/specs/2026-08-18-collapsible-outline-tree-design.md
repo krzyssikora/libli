@@ -273,10 +273,12 @@ student had left open. The rail avoids this by server-rendering `open`
 (`_unit_tree_node.html`'s comment names it exactly: "a JS pass would flash the folded
 tree"), but D2's client-only persistence rules that fix out by design — the server does not
 know the student's fold state. This is accepted, not a defect to report. **One mitigation
-is required:** the tree carries a `outline-tree--booting` class until step 3 completes, and
-the chevron `transition` (§6.2) is suppressed under it, so the restore is an instant state
-change rather than a wave of animating chevrons. Include the first paint in the §10
-screenshot/verification notes so a reviewer knows the flash is expected.
+is required:** the nav ships the `outline-tree--booting` class server-side (§3a) and step 5
+removes it; while it is present the chevron `transition` is suppressed (§6.2), so the
+restore is an instant state change rather than a wave of animating chevrons. Its lifetime
+is defined by step 5 above and nowhere else — do not re-derive it from which steps ran.
+Include the first paint in the §10 screenshot gate so a reviewer knows the flash is
+expected.
 
 ### 4.1 Storage
 
@@ -921,7 +923,10 @@ is not evidence.
   `capture: true`. T9 alone cannot catch this — an implementation that updates the label
   inline in the button handler passes T9 with no listener at all.
 - **T15** — §4.1's partition, four cases over one fixture holding **two depth-0 roots** and a
-  depth-1 chapter under the first. (a) Collapse a depth-0 root, reload, assert it is still closed; mutant:
+  depth-1 chapter under the first. **Every container in the fixture must hold at least one
+  visible unit**, or `build_outline`'s pruning (§1) drops it before it ever reaches the
+  template and the cases below locate no `<details>` at all — the same fixture precondition
+  already pinned for T5 and T13(c). (a) Collapse a depth-0 root, reload, assert it is still closed; mutant:
   union the stored set with the server default. (b) Seed a partition that **omits the second depth-0 root**
   entirely (a container authored since the last visit), reload, assert it renders **open**
   per `data-depth` — the only outcome that discriminates "new node falls back to its
@@ -965,9 +970,18 @@ test-DB container before any pytest run.
 settled by reasoning rather than by a test: the chevron's optical fit *and colour* against
 both the 1.35rem part title and the .75rem uppercase section title; the summary hover fill
 against the `.rollup` chip; the *Start fresh* link's baseline against a part title; the
-disabled toggle-all button; the header row's two-group layout; a `:target`ed row, whose
-highlight band must still span the full row; and the first paint of a returning student's page,
-where the D1 default is expected to show before the stored state applies (§4.0).
+disabled toggle-all button **at rest and under `:hover`** (the ghost fill survives
+`:disabled`, and a rest-only capture would miss it); the header row's two-group layout; a
+`:target`ed row, whose highlight band must still span the full row; a **long-title
+container row at mobile width**, the only check on `minmax(0, 1fr)` against a container
+title that carries no `overflow-wrap`; **the same long-title row with the `pl` catalog
+active**, the only visual confirmation that the measured `padding-inline-end` clears
+`Zacznij od nowa` in this project's primary locale; and the first paint of a returning
+student's page, where the D1 default is expected to show before the stored state applies
+(§4.0).
+
+Every "add this to the screenshot gate" instruction elsewhere in the spec must appear in
+this list — it is the single place the gate is enumerated.
 
 ## 11. Out of scope
 
