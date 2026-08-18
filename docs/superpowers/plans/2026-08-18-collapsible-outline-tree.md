@@ -401,18 +401,33 @@ the app running (`uv run python manage.py runserver`), in the browser console on
 document.querySelector(".outline-node__reset").getBoundingClientRect().width
 ```
 
-Record the larger of the en/pl widths, add `var(--space-4)` of clearance, round **up** to the next `.5rem`, and write it with the measurement in the comment:
+Resolve the clearance token to px first —
+`getComputedStyle(document.documentElement).getPropertyValue('--space-4')` — then take the
+larger of the en/pl widths, add it, convert to rem at 16px, round **up** to the next
+`.5rem`, and record all three numbers in the comment. Do not write
+`calc(Npx + var(--space-4))`: that would defeat the rounding.
+
+Fold it into Step 7's existing `summary.outline-node__head` block rather than emitting a
+second rule for the same selector — Step 7 forbids exactly that duplication for
+`.outline-node__reset`:
 
 ```css
-/* MEASURED <YYYY-MM-DD>: "Zacznij od nowa" renders <N>px at .8rem (en
-   "Start fresh" <M>px). Rounded up with clearance. Re-measure if either
-   translation changes. */
-summary.outline-node__head { padding-inline-end: <value>rem; }
+/* padding-inline-end MEASURED <YYYY-MM-DD>: "Zacznij od nowa" renders <N>px at
+   .8rem (en "Start fresh" <M>px), plus <space-4>px clearance, rounded up.
+   Re-measure if either translation changes. */
+summary.outline-node__head {
+  cursor: pointer; list-style: none;
+  padding-inline-end: <value>rem;
+}
 ```
 
 - [ ] **Step 9: Update `tests/test_outline_anchors.py`**
 
-The existing `test_target_highlight_is_scoped_to_the_row_not_the_li` asserts the literal old selector, which Step 6 kept — so it still passes and proves nothing about real containers. Add the twin assertion, which is the load-bearing half:
+The existing `test_target_highlight_is_scoped_to_the_row_not_the_li` asserts the literal old selector, which Step 6 kept — so it still passes and proves nothing about real containers. **Replace** the two existing assertions (`test_outline_anchors.py:43-44`) with the block
+below — read as "append", it duplicates them. Leave the
+`assert "
+.outline-node:target {" not in css` line that follows untouched; it still
+guards against the highlight being moved onto the `<li>`:
 
 ```python
     assert ".outline-node:target > .outline-node__head" in css
@@ -676,6 +691,12 @@ git commit -m "feat(outline): add expand/collapse-all control and fold-state wir
 **Interfaces:**
 - Consumes: the DOM contract from Tasks 2 and 4.
 - Produces: `localStorage["libli_outline_open:<slug>"]` holding `{"v":1,"open":["12"],"closed":["88"]}`; a `libli:tagfilter` **listener** on `document` (Task 6 adds the dispatcher).
+
+**This is the one task in the plan that is implementation-first, deliberately.** Every
+behaviour in this file is specified by spec §4.0-§4.4 and falsified by a named mutant in
+Tasks 7-10 (T8's timing, T10's two, T11's restore rule, T12's seeding, T13's ancestors and
+its `count===0` guard, T14's capture phase, T15's partition). Do not stop to invent a
+unit-test harness for it — the red-first evidence is the e2e suite that follows.
 
 - [ ] **Step 1: Write the file**
 
@@ -1419,11 +1440,17 @@ def test_deep_link_opens_the_target_and_its_ancestors(page, live_server):
     )
     assert bg not in ("rgba(0, 0, 0, 0)", "transparent")
 
-    # (b) a unit-pk hash must scroll and must not throw
+    # (b) a unit-pk hash owns no <details> — it must not throw. The visibility
+    # line is a liveness check (root_unit is depth 0 and visible either way), NOT
+    # the discriminator; `errors == []` is.
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/#node-{f['root_unit'].pk}")
     expect(page.locator(f"#node-{f['root_unit'].pk}")).to_be_visible()
+    # Wait for the effect the mutant produces rather than reading immediately: a
+    # fragment navigation fires no load event, so nothing above synchronises with
+    # the handler at all.
+    page.wait_for_timeout(200)
     assert errors == [], f"deep link to a unit row threw: {errors}"
 
 
@@ -1748,8 +1775,11 @@ def test_folding_and_filtering_work_with_js_off(browser, live_server):
     in tests/test_e2e_before_after.py: log in with JS on, capture storage_state,
     then open the no-JS context with it.
 
-    Every state read here uses _has_open_attr, NOT _is_open: page.evaluate does
-    not work in a JS-disabled context.
+    Every state read here uses _has_open_attr, NOT _is_open — as a choice, not a
+    constraint: page.evaluate DOES still work with java_script_enabled=False
+    (Playwright's injected script runs in a utility world), but an attribute read
+    is the honest probe here. It reads what the browser itself updated, so the
+    assertion cannot be satisfied by anything outline_tree.js did.
 
     Two mutants: emit a bare `open` in the template (the default half reddens);
     drop the D8 `or active_tag_ids and not item.tag_hidden` arm (the filtered
