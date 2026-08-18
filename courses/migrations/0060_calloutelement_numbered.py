@@ -3,6 +3,20 @@
 from django.db import migrations, models
 
 
+def _unnumber_note_and_tip(apps, schema_editor):
+    """Kinds whose per-kind default is False (spec D2/D5).
+
+    The list is a FROZEN LITERAL copied from courses.models.KIND_DEFAULT_NUMBERED,
+    deliberately NOT an import: a migration that reads a live module constant
+    silently changes meaning the day that constant is edited.
+
+    Historical model + bulk update: the live CalloutElement.save() re-sanitises
+    `body`, and .update() never touches it.
+    """
+    Callout = apps.get_model("courses", "CalloutElement")
+    Callout.objects.filter(kind__in=["note", "tip"]).update(numbered=False)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -15,4 +29,5 @@ class Migration(migrations.Migration):
             name='numbered',
             field=models.BooleanField(default=True),
         ),
+        migrations.RunPython(_unnumber_note_and_tip, migrations.RunPython.noop),
     ]
