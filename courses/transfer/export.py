@@ -124,6 +124,7 @@ def _ser_callout(concrete, media_ids):
         "kind": concrete.kind,
         "heading": concrete.heading,
         "body": concrete.body,
+        "numbered": concrete.numbered,
     }
 
 

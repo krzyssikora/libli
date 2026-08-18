@@ -32,7 +32,12 @@ def test_round_trip_preserves_fields():
             return None
 
     data = ser(el, _Ids())
-    assert data == {"kind": "warning", "heading": "Careful", "body": "<p>hi</p>"}
+    assert data == {
+        "kind": "warning",
+        "heading": "Careful",
+        "body": "<p>hi</p>",
+        "numbered": True,
+    }
     # validator accepts it
     VALIDATORS["callout"](data, "e1", set())
     # builder reconstructs
@@ -190,3 +195,84 @@ def test_round_trip_preserves_the_task_kind():
     VALIDATORS["callout"](data, "e1", set())
     rebuilt, _refs = BUILDERS["callout"](data, {})
     assert rebuilt.kind == "task"
+
+
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
+def test_the_serializer_emits_numbered():
+    el = CalloutElement.objects.create(
+        kind="warning", heading="Careful", numbered=False, body="<p>hi</p>"
+    )
+    _model, ser = SERIALIZERS["callout"]
+
+    class _Ids:
+        def register(self, *a, **k):
+            return None
+
+    assert ser(el, _Ids())["numbered"] is False
+
+
+def test_a_pre_v13_payload_imports_with_the_per_kind_default():
+    """Legacy archives have no `numbered` key. The validator seeds it from the kind,
+    matching the backfill migration exactly, so an archive exported before this
+    feature and a database migrated by it agree.
+
+    Mutant: drop the setdefault -> _exact_keys raises TransferError.
+    """
+    for kind, expected in (("example", True), ("note", False), ("tip", False)):
+        data = {"kind": kind, "heading": "", "body": "<p>x</p>"}
+        VALIDATORS["callout"](data, "e1", set())
+        assert data["numbered"] is expected
+
+
+def test_a_payload_with_no_kind_still_fails_cleanly():
+    """The setdefault runs BEFORE _exact_keys, so it may see an absent or non-string
+    `kind`. It must be total: a missing kind must still produce the validator's
+    TransferError, never a KeyError; a list kind must not raise TypeError:
+    unhashable.
+    """
+    from courses.transfer.schema import TransferError
+
+    with pytest.raises(TransferError):
+        VALIDATORS["callout"]({"heading": "", "body": "<p>x</p>"}, "e1", set())
+    with pytest.raises(TransferError):
+        VALIDATORS["callout"]({"kind": [], "heading": "", "body": ""}, "e1", set())
+
+
+def test_numbered_must_be_a_bool():
+    from courses.transfer.schema import TransferError
+
+    with pytest.raises(TransferError):
+        VALIDATORS["callout"](
+            {"kind": "example", "heading": "", "body": "", "numbered": "yes"},
+            "e1",
+            set(),
+        )
+
+
+@pytest.mark.django_db  # _clean_save writes to the DB
+def test_the_builder_round_trips_numbered_false():
+    """Mutant: drop `numbered=` from _build_callout -> comes back True."""
+    data = {"kind": "example", "heading": "", "body": "<p>x</p>", "numbered": False}
+    VALIDATORS["callout"](data, "e1", set())
+    concrete, _media = BUILDERS["callout"](data, {})
+    assert concrete.numbered is False
+
+
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
+def test_duplicating_an_unnumbered_callout_keeps_it_unnumbered():
+    """Duplicate and paste round-trip through build_element_export -> graft_elements,
+    which runs NO validator. Mutant: drop `numbered=` from _build_callout -> the copy
+    comes back numbered. This is the consequence a user hits first."""
+    from courses import builder
+    from tests.factories import add_element
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = CalloutElement.objects.create(kind="example", numbered=False, body="<p>x</p>")
+    join = add_element(unit, el)
+    unit.refresh_from_db()
+
+    _unit, new_join = builder.duplicate_element(
+        course, join.pk, unit.updated.isoformat()
+    )
+    assert new_join.content_object.numbered is False

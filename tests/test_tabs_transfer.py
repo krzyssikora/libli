@@ -59,7 +59,7 @@ def _nested_course():
 
 
 def test_format_version_is_current():
-    assert FORMAT_VERSION == 12
+    assert FORMAT_VERSION == 13
 
 
 def test_export_emits_parent_before_child_with_parent_and_tab_refs(tmp_path):

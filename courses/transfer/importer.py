@@ -558,6 +558,13 @@ def _build_callout(data, assets):
         kind=data.get("kind", "example"),
         heading=data.get("heading", ""),
         body=data["body"],
+        # Subscript, not .get(): TWO independent guarantees, one per caller family.
+        # Archive import runs validate_document, so _val_callout's setdefault has
+        # seeded the key on this same dict. Duplicate/paste run NO validator
+        # (graft_elements -> _run_import -> _create_elements), so there the key exists
+        # only because _ser_callout writes it -- which is why the exporter change must
+        # land first.
+        numbered=data["numbered"],
     )
     return _clean_save(el), ()
 
