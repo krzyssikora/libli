@@ -263,6 +263,14 @@ def build_outline(course, user, *, drafts="hide", with_data=None):
             "additional_done": 0,
             "is_unit": is_unit,
             "completed": is_unit and node.pk in completed,
+            # Additive only: build_outline also feeds build_unit_nav (the rail),
+            # build_student_breakdown (the teacher tree) and outline_with_tags,
+            # all of which ignore this key. Pre-order guarantees the parent dict
+            # exists; pruning runs after the fold and never re-parents, so a depth
+            # assigned here stays correct.
+            "depth": 0
+            if node.parent_id is None
+            else by_pk[node.parent_id]["depth"] + 1,
         }
         by_pk[node.pk] = d
         if node.parent_id is None:
