@@ -156,8 +156,15 @@ Only the **container-with-children** branch changes. Unit rows are untouched.
   positioning, which would overlap a wrapped title.
 - The chevron is the rail's, reused verbatim (`_unit_tree_node.html`), rotated by CSS on
   `[open]` and explicitly sized (§6.2).
-- **The childless-container branch keeps today's plain `<div class="outline-node__head">`
-  with the reset link inside it, unchanged.** An empty disclosure is a dead control. This
+- **The container branch is *split* on `{% if item.children %}`; the childless arm does not
+  exist yet.** Today `_outline_node.html` has a single container branch — one head `<div>`
+  followed by `{% if item.children %}<ul>…</ul>{% endif %}` — so this work must introduce
+  the `{% if item.children %} … {% else %} … {% endif %}` split, with the `<details>` shape
+  above in the true arm and today's plain `<div class="outline-node__head">` (reset link
+  still inside it) in the `{% else %}` arm. Taking "unchanged" literally and emitting the
+  `<details>` unconditionally would never be contradicted by a test or screenshot, because
+  pruning makes empty containers unreachable.
+  **The childless arm carries today's markup verbatim.** An empty disclosure is a dead control. This
   mirrors the rail's own childless branch and its reasoning; like the rail's, it is
   unreachable on this path because `build_outline` prunes zero-child containers under
   both `hide` and `keep`. It is kept as a correct fallback, not as a live shape, and no
@@ -541,6 +548,14 @@ outline rule this spec elsewhere insists on naming.
   `summary.outline-node__head` needs `padding-inline-end` of at least the link's width plus
   a gap, or a long wrapped title runs underneath it — the same collision that ruled out
   `position: absolute`. Reserve the space on the summary, not with a spacer element.
+- **Size that padding against the Polish label, not the English one.** *Start fresh* is
+  `Zacznij od nowa` in pl (`locale/pl/LC_MESSAGES/django.po:4221`) — half again as long —
+  and pl is this project's primary UI locale, so a constant tuned on English reproduces the
+  exact wrapped-title collision the padding exists to prevent, in the locale most users
+  see. **Measure the rendered link in both locales at its actual size, take the larger,
+  round up to the next `.5rem`, and record the measured px in a CSS comment** so the next
+  reader can re-derive it. Do not guess. Add a **pl-locale row** to the §10 screenshot gate
+  beside the long-title mobile row.
 - **`align-items: baseline` goes on the grid *container*, and that is the load-bearing
   half.** Today the reset link is a flex child of `.outline-node__head`, which is
   `align-items: baseline`, so the `.8rem` link sits on the same text baseline as a
@@ -553,12 +568,15 @@ outline rule this spec elsewhere insists on naming.
   `align-items: baseline` on the container puts both children in the group; the per-item
   `align-self` is then reinforcement, not the mechanism. Its position against a part title
   is a named item in the §10 screenshot gate.
-- **`minmax(0, 1fr)`, not `1fr`.** A bare `1fr` is `minmax(auto, 1fr)`, so column 1 cannot
-  shrink below the `<details>`'s min-content — and `.outline-node__title` carries neither
-  the `min-width: 0` nor the `overflow-wrap: anywhere` that `.outline-unit__title` has. One
-  long unbreakable word in a container title would then push the row wider than the `<li>`
-  instead of wrapping, where today's flex row simply wraps the reset link to a second line.
-  Include a long-title row at mobile width in the screenshot gate.
+- **`minmax(0, 1fr)`, not `1fr`.** With the `<details>` spanning both tracks it is no
+  longer a single-track item, so column 1 does not size to its min-content directly; the
+  definite `0` minimum is what stops track 1 inheriting an intrinsic minimum from the
+  spanning item. That matters because `.outline-node__title` carries neither the
+  `min-width: 0` nor the `overflow-wrap: anywhere` that `.outline-unit__title` has, so one
+  long unbreakable word in a container title could otherwise push the row wider than the
+  `<li>`. Cheap forward-defence rather than a visible difference today — marked as such the
+  way `.outline-unit__title`'s own inert `min-width: 0` is. Include a long-title row at
+  mobile width in the screenshot gate.
 - **The grid rule's specificity is capped at (0,1,0), and that is load-bearing.** `[hidden]`'s
   UA `display: none` loses to any author `display` declaration; the codebase already carries
   the guard `.outline-node[hidden] { display: none; }` (0,2,0) with a comment naming this
@@ -585,7 +603,13 @@ outline rule this spec elsewhere insists on naming.
   (`--success-subtle` fill, `--success` border) for a locked-correct answer, which on a
   disabled *Collapse all* would read as "something succeeded". Take only `cursor: default`
   from it and state the rest directly: `opacity: .5; cursor: default;` scoped to
-  `.outline__toggle-all`, not widened to `.btn` generally, which is out of scope. Named in the §10 screenshot gate.
+  `.outline__toggle-all`, not widened to `.btn` generally, which is out of scope.
+  **Neutralise the hover fill too:** `.btn--ghost:hover { background: var(--surface-sunken); }`
+  (`app.css:47`) carries no `:not(:disabled)` guard and `:hover` still matches a disabled
+  button, so without `.outline__toggle-all:disabled:hover { background: transparent; }` the
+  filtered-out control still lights up under the pointer — partly reproducing the "visibly
+  does nothing" affordance §5 chose `disabled` to avoid. Named in the §10 screenshot gate,
+  **including its hover state**, which a static capture would otherwise miss.
 - `summary.outline-node__head { cursor: pointer; list-style: none; }` plus
   `summary.outline-node__head::-webkit-details-marker { display: none; }`, mirroring
   `courses.css:716-717`. **Note for test authors:** `.outline-node__head` already carries
@@ -663,12 +687,15 @@ outline rule this spec elsewhere insists on naming.
   — `outline` is unset by every competing rule. A `<summary>` is natively focusable;
   today's `.outline-node__head` `<div>` never was, so this focus style is new behaviour,
   not a port.
-- **Accepted: the `:target` highlight now spans grid column 1 only.** Today the head
-  `<div>` is the `<li>`'s only block-level child and the fill plus its 2px `--primary` ring
-  cover the whole row including *Start fresh*; under the grid the `<details>` occupies
-  column 1, so the band stops short of the reset link. Nothing fails —
-  `tests/test_e2e_link_dialog.py` only reads `backgroundColor` — it simply looks narrower.
-  Moving the highlight onto the `<li>` to span both columns is explicitly **not** the fix:
+- **The `:target` highlight band is unchanged — full-row.** Because the `<details>` spans
+  `1 / -1` and stretches, `summary.outline-node__head` is a block-level flex container
+  filling the whole `<li>`, so the fill and its 2px `--primary` ring cover the entire row
+  exactly as today; the reset link has no background of its own and simply paints on top.
+  The only difference is which element carries the highlight — the `<summary>` rather than
+  the head `<div>`. **If you ever see the band stop short of the reset link, the
+  `<details>` has been confined to column 1** and the compounding-width regression above is
+  live. Moving the highlight onto the `<li>` to span both columns is explicitly **not** a
+  fix for anything:
   `app.css`'s own comment there explains that a `li:target` fill would tint the entire
   descendant subtree, which is why the highlight was scoped to the row in the first place.
   Named in the §10 screenshot gate.
@@ -816,7 +843,14 @@ is not evidence.
   and the nav carries `data-course-slug="{{ course.slug }}"`. Mutant: drop the nav
   attribute.
 - **T5** — D8. Fixture: two depth-0 roots, each with a depth-1 chapter, with the only
-  tag match under one of them at depth 2. `GET ?tags=N` renders that match's ancestor
+  tag match under one of them at depth 2. **The tag must be authored by the enrolled
+  student issuing the `GET`** — `course_outline` filters `active_tag_ids` down to the ids
+  from `tags_for_outline(request.user, course)`, which is `tag__author`-scoped, so a tag
+  owned by the course author or a factory default leaves `active_tag_ids` empty, the D8
+  arm never evaluates true, and T5's *positive* assertion fails on a **correct** build
+  while its negative one passes. That half-red signal points an implementer straight at the
+  template's `open` condition, which is not the bug. T5 is the only render-tier `?tags=`
+  test and the sole guard for the no-JS regression, so this precondition is not optional. `GET ?tags=N` renders that match's ancestor
   chain `open`, and the **depth-1** chapter with no match does **not** render `open`. The
   negative assertion must target depth ≥ 1: depth-0 containers render `open`
   unconditionally under D1's arm, so a depth-0 negative would fail on a correct build.
@@ -932,7 +966,7 @@ settled by reasoning rather than by a test: the chevron's optical fit *and colou
 both the 1.35rem part title and the .75rem uppercase section title; the summary hover fill
 against the `.rollup` chip; the *Start fresh* link's baseline against a part title; the
 disabled toggle-all button; the header row's two-group layout; a `:target`ed row, whose
-highlight band now spans column 1 only; and the first paint of a returning student's page,
+highlight band must still span the full row; and the first paint of a returning student's page,
 where the D1 default is expected to show before the stored state applies (§4.0).
 
 ## 11. Out of scope
