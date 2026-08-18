@@ -790,7 +790,14 @@ Create `courses/static/courses/js/outline_tree.js`:
   // one-frame stale label.
   syncLabel();
 
-  // 5. Unconditionally, however the branches above went. Conditioning this on
+  // 5. Force a style recalculation BEFORE dropping the class. Whether a
+  //    transition starts is decided from the after-change style, and the
+  //    mutations above plus this removal happen in one synchronous task — so
+  //    without the forced read the chevrons would have both the new rotation and
+  //    a live transition at the next recalc, and the wave animates anyway. The
+  //    class would be silently inert.
+  void tree.offsetHeight;
+  // Unconditionally, however the branches above went. Conditioning this on
   //    step 3 would leave the transition dead for the whole session on a
   //    filtered or first-time load.
   tree.classList.remove("outline-tree--booting");
@@ -819,7 +826,10 @@ Create `courses/static/courses/js/outline_tree.js`:
       var expand = groups.some(function (g) { return !g.open; });
       groups.forEach(function (g) { g.open = expand; });
       write();
-      syncLabel();
+      // Deliberately NOT syncLabel() — spec §4.3 forbids the click handler
+      // setting the label itself, because then the capture listener below could
+      // be missing entirely and T9 would still pass. The programmatic `g.open`
+      // mutations above fire `toggle`, which the listener handles.
     });
   }
 
@@ -850,7 +860,8 @@ Create `courses/static/courses/js/outline_tree.js`:
       // is left with a fully force-opened tree.)
       applyPartition(read());
     }
-    syncLabel();
+    // No syncLabel() here either: the force-open / restore mutations above fire
+    // `toggle`, and the capture listener owns the label. See §4.3.
   });
 })();
 ```
@@ -965,6 +976,7 @@ fails. to_be_hidden() IS correct for the tag filter's [hidden] rows, which are
 display:none, and is used for exactly those.
 """
 
+import json
 import os
 import re
 
@@ -1129,12 +1141,15 @@ def test_fold_state_survives_a_round_trip(page, live_server):
     expect(page.locator(f"#node-{f['unit_a'].pk}")).to_be_visible()
     _wait_for_write(page)
 
-    # Assert on the STORED VALUE, which is what the mutant corrupts. The round
+    # Assert on the "open" ARRAY, not on the raw JSON string: under the mutant
+    # chap_a's pk lands in "closed", so its digits are still in the blob and a
+    # substring test passes. (It is pk-fragile too — "4" is in '["14"]'.)
+    # The round
     # trip below can be served from Chromium's back/forward cache — nothing in
     # this project sends Cache-Control: no-store — which restores the live DOM
     # WITHOUT re-running outline_tree.js, leaving the chapter open regardless of
     # what was persisted and turning the mutant green.
-    assert str(f["chap_a"].pk) in _stored(page)
+    assert str(f["chap_a"].pk) in json.loads(_stored(page))["open"]
 
     page.locator(f"#node-{f['unit_a'].pk} a.outline-unit").click()
     page.wait_for_url(f"**/u/{f['unit_a'].pk}/")
@@ -1183,8 +1198,8 @@ Expected: PASS.
 - [ ] **Step 3: Falsify each**
 
 - T7: by hand, make the template emit a bare `open`. `test_first_visit_opens_depth0_only` must FAIL. Remove by hand.
-- T8: by hand, in `outline_tree.js`, replace `setTimeout(write, 0)` with `write()`. `test_fold_state_survives_a_round_trip` must FAIL on the `_stored` assertion. Remove by hand.
-- T9: by hand, make the toggle-all handler skip its `write()`. The reload assertion must FAIL. Remove by hand.
+- T8: by hand, in `outline_tree.js`, replace `setTimeout(write, 0)` with `write()`. `test_fold_state_survives_a_round_trip` must FAIL on the `json.loads(...)["open"]` assertion. Remove by hand.
+- T9: by hand, make the toggle-all handler skip its `write()`. The test must fail in `_wait_for_write` — the key is never written at all, so it times out there rather than at the reload assertion. That is the same evidence. Remove by hand.
 
 - [ ] **Step 4: Commit**
 
@@ -1287,10 +1302,16 @@ def test_a_filtered_deep_link_load_never_writes_storage(page, live_server):
     libli:tagfilter event — that event arrives after the deep-link handler has
     already run and written.
 
-    Two mutants: (1) seed filterActive only from the event — the storage
-    assertion reddens; (2) drop `button.disabled = filterActive` from init step 2
-    — the disabled assertion reddens. §4.0 step 2 and §5's count>0 branch are two
-    different assignment sites, so T10's chip-click path does not cover this one.
+    Mutant: seed filterActive only from the libli:tagfilter event instead of at
+    init — the storage assertion reddens.
+
+    NOT a mutant: dropping `button.disabled = filterActive` from init step 2. On
+    a ?tags=N load tags.js's setupFilter ends with an unconditional
+    applyFilter(active), dispatching count:1, and §5's count>0 branch sets
+    disabled anyway — so the end state is identical and to_be_disabled() (which
+    retries) can never see the difference. The init assignment is
+    defence-in-depth with no independent e2e observable; do not go looking for
+    one.
     """
     f = _course_with_two_chapters("t12")
     tag = _tag_a_unit(f["user"], f["unit_b"])
@@ -1310,30 +1331,51 @@ def test_deep_link_opens_the_target_and_its_ancestors(page, live_server):
     """T13 cases (a) and (b). Case (c) lives in its own test below, because its
     precondition is an EMPTY store that these cases would have populated.
 
-    (a) Three mutants, each must redden: drop the ancestor loop; open the
+    (a) THREE container levels deep, which the fixture must be extended to
+        provide. With only part > chapter, the target's sole ancestor is the
+        depth-0 part that D1 already renders open — so "drop the ancestor loop"
+        leaves every assertion green. The section below is server-FOLDED, so
+        opening it is evidence the loop ran.
+        Three mutants, each must redden: drop the ancestor loop; open the
         ancestors but not the target itself; drop the `:target` twin from app.css.
     (b) A #node-<unit-pk> owns no <details> — id="node-N" is on EVERY <li>.
         Mutant: unconditional li.querySelector(":scope > details").open = true.
+
+    Scroll-into-view is deliberately NOT asserted: this fixture renders ~6 rows
+    in a 1280x720 viewport, so nothing scrolls and a getBoundingClientRect check
+    would pass whether or not scrollIntoView ran. §4.4's scroll is covered by the
+    screenshot gate instead.
     """
+    from tests.factories import ContentNodeFactory
+
     f = _course_with_two_chapters("t13")
+    section = ContentNodeFactory(
+        course=f["course"],
+        kind="section",
+        unit_type=None,
+        parent=f["chap_b"],
+        title="Deep Section",
+    )
+    ContentNodeFactory(
+        course=f["course"],
+        kind="unit",
+        unit_type="lesson",
+        parent=section,
+        title="Deep Unit",
+    )
     _login(page, live_server, "t13")
 
-    page.goto(f"{live_server.url}/courses/{f['course'].slug}/#node-{f['chap_b'].pk}")
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/#node-{section.pk}")
     assert _is_open(page, f["part"].pk) is True
-    assert _is_open(page, f["chap_b"].pk) is True, "the target's OWN details opens"
-
-    # Within the viewport, not centred: KaTeX typesets titles above the target
-    # after this runs and changes their heights.
-    assert page.evaluate(
-        "pk => { const r = document.getElementById('node-'+pk).getBoundingClientRect();"
-        "        return r.top >= 0 && r.top <= window.innerHeight; }",
-        str(f["chap_b"].pk),
-    )
+    # chap_b is depth 1, so the server rendered it FOLDED. Only the ancestor loop
+    # can have opened it — this is the assertion the loop's mutant reddens.
+    assert _is_open(page, f["chap_b"].pk) is True, "a folded ancestor was opened"
+    assert _is_open(page, section.pk) is True, "the target's OWN details opens"
 
     # The :target highlight must land on a container reached through
     # outline_tree.js's own deep-link path — the string assertion in
     # test_outline_anchors.py cannot prove that. Mirrors test_e2e_link_dialog.py.
-    bg = page.locator(f"[data-node='{f['chap_b'].pk}'] > summary").evaluate(
+    bg = page.locator(f"[data-node='{section.pk}'] > summary").evaluate(
         "el => getComputedStyle(el).backgroundColor"
     )
     assert bg not in ("rgba(0, 0, 0, 0)", "transparent")
@@ -1461,6 +1503,7 @@ def test_storage_partition_semantics(page, live_server):
         "{v: 1, open: [], closed: [String(pk)]}))",
         [key, f["part"].pk],
     )
+    # Mutant: treat an id in neither array as closed.
     page.reload()
     assert _is_open(page, root_b.pk) is True, "omitted depth-0 root uses data-depth"
 
@@ -1476,6 +1519,7 @@ def test_storage_partition_semantics(page, live_server):
     assert _is_open(page, f["chap_a"].pk) is True, "numeric ids normalise via String()"
 
     # (d) unparseable -> treat as absent, render the server default, never throw.
+    # Mutant: drop the try/catch around JSON.parse in read().
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.evaluate("k => localStorage.setItem(k, 'not json')", key)
@@ -1627,7 +1671,10 @@ def test_nested_type_scale_and_guide_rule_survive_the_details_nesting(
 @pytest.mark.django_db(transaction=True)
 def test_toggle_all_stays_hidden_when_there_are_no_groups(page, live_server):
     """T18. "Every group is open" is vacuously true on a container-free course, so
-    an un-hidden button would read Collapse all and do nothing."""
+    an un-hidden button would read Collapse all and do nothing.
+
+    Mutant: drop the `&& groups.length` guard from init step 2 so the button is
+    un-hidden unconditionally."""
     from courses.models import Enrollment
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
@@ -1662,6 +1709,10 @@ def test_folding_and_filtering_work_with_js_off(browser, live_server):
 
     Every state read here uses _has_open_attr, NOT _is_open: page.evaluate does
     not work in a JS-disabled context.
+
+    Two mutants: emit a bare `open` in the template (the default half reddens);
+    drop the D8 `or active_tag_ids and not item.tag_hidden` arm (the filtered
+    half reddens).
     """
     f = _course_with_two_chapters("t19")
     tag = _tag_a_unit(f["user"], f["unit_b"])
@@ -1669,6 +1720,11 @@ def test_folding_and_filtering_work_with_js_off(browser, live_server):
     ctx = browser.new_context()
     page = ctx.new_page()
     _login(page, live_server, "t19")
+    # _login's submit click does not await the navigation, and storage_state()
+    # does not serialise against it — every other test happens to, via its next
+    # goto(). Without this the no-JS context can start cookie-less and land on
+    # the login page, failing for the wrong reason, intermittently.
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
     storage_state = ctx.storage_state()
     ctx.close()
 
