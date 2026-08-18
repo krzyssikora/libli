@@ -965,7 +965,15 @@ def test_an_unnumbered_callout_renders_exactly_as_before():
         kind="example", heading="Suma ciagu", numbered=False, body=""
     )
     join = Element.objects.create(unit=unit, content_object=el)
-    html = _rendered(el, join, {join.pk: 3})
+    # An EMPTY map — that is what the walk actually produces for an unnumbered
+    # callout (courses/numbering.py never adds one, and the map is rebuilt from live
+    # DB state on every render, so it cannot go stale either). An earlier draft
+    # passed `{join.pk: 3}` here, a state the walk cannot produce, which forced
+    # `render` to re-check `self.numbered` and so duplicated the numbering rule in
+    # two places. The rule lives in the walk alone; render only looks up its own pk.
+    # The named mutant still kills this test: an unconditional numbered branch
+    # renders `{{ number }}` as the string "None", so `callout__number` appears.
+    html = _rendered(el, join, {})
     assert UNNUMBERED_CUSTOM_HEADING in html
     assert "callout__number" not in html
 
