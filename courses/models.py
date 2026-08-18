@@ -500,6 +500,12 @@ class CalloutElement(ElementBase):
     SLOT_ID = SINGLE_SLOT_ID  # the single implicit child slot; child Element.tab_id
 
     kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.EXAMPLE)
+    # A FLAT default, deliberately not per-kind: a field default cannot vary by kind,
+    # and the per-kind map (KIND_DEFAULT_NUMBERED, below the class) is consulted only
+    # by the backfill migration and by the importer's pre-v13 fallback. No `blank=True`
+    # -- models.BooleanField.formfield hard-codes required=False, because an unchecked
+    # checkbox transmits nothing.
+    numbered = models.BooleanField(default=True)
     heading = models.CharField(max_length=120, blank=True)
     body = models.TextField(blank=True)
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
@@ -511,12 +517,20 @@ class CalloutElement(ElementBase):
         super().save(*args, **kwargs)
 
     @property
-    def display_heading(self):
+    def kind_label(self):
+        # NOTE: unrelated to the `kind_label` simple_tag in
+        # courses/templatetags/courses_manage_extras.py:266, which labels NODE kinds
+        # (course/chapter/section). Same name, different concept -- a grep hits both.
+        #
         # String fallback key ("example"), NOT bare `Kind.EXAMPLE` — `Kind` is a nested
         # class and would resolve against module globals (undefined -> NameError).
-        return self.heading or KIND_DEFAULT_HEADING.get(
-            self.kind, KIND_DEFAULT_HEADING["example"]
-        )
+        return KIND_DEFAULT_HEADING.get(self.kind, KIND_DEFAULT_HEADING["example"])
+
+    @property
+    def display_heading(self):
+        # The fallback lives in kind_label alone -- two copies of the string-key
+        # subtlety above would drift.
+        return self.heading or self.kind_label
 
     def join_row(self):
         """This concrete's single Element join row (the GFK is effectively 1:1)."""
@@ -567,6 +581,21 @@ class CalloutElement(ElementBase):
 # Defined AFTER the class so it can read the choice labels; keyed by value string.
 # `.label` is the lazy translation string, so this stays translation-safe.
 KIND_DEFAULT_HEADING = {k.value: k.label for k in CalloutElement.Kind}
+
+# Per-kind numbering defaults. Built after the class body for the same reason as
+# KIND_DEFAULT_HEADING: it reads the enum. Exactly ONE runtime caller -- the
+# importer's default for pre-v13 archives (courses/transfer/payloads.py). The
+# backfill migration encodes the same decision as a frozen literal, never an import.
+# NOT read by CalloutElementForm: a new callout is always created as `example`,
+# whose default equals the flat model default, so a form initial would be
+# unobservable and untestable.
+KIND_DEFAULT_NUMBERED = {
+    CalloutElement.Kind.EXAMPLE.value: True,
+    CalloutElement.Kind.TASK.value: True,
+    CalloutElement.Kind.WARNING.value: True,
+    CalloutElement.Kind.NOTE.value: False,
+    CalloutElement.Kind.TIP.value: False,
+}
 
 
 class BeforeAfterElement(ElementBase):
