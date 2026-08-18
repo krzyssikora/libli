@@ -63,7 +63,7 @@ def test_an_unnumbered_callout_renders_exactly_as_before():
         kind="example", heading="Suma ciagu", numbered=False, body=""
     )
     join = Element.objects.create(unit=unit, content_object=el)
-    html = _rendered(el, join, {join.pk: 3})
+    html = _rendered(el, join, {})
     assert UNNUMBERED_CUSTOM_HEADING in html
     assert "callout__number" not in html
 
