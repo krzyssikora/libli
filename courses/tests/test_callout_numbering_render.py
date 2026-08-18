@@ -156,11 +156,17 @@ def test_the_seeded_demo_tip_callout_is_not_numbered():
     A seeded Tip arriving numbered contradicts D2 in the very course the help
     screenshots are taken against.
 
+    Behavioural, not a source-scan: invokes the real seed helper against a real
+    unit and inspects the persisted row, so it can't be satisfied by a kwarg that
+    is merely present in the source (commented out, in a docstring, or never
+    reaching _upsert).
+
     Mutant: drop `numbered=False` from seed_demo_course._callout -> this fails.
     """
-    import inspect
-
     from courses.management.commands import seed_demo_course
 
-    src = inspect.getsource(seed_demo_course.Command._callout)
-    assert "numbered=False" in src
+    _course, unit = make_course_with_unit()
+    seed_demo_course.Command()._callout(unit)
+
+    join = Element.objects.get(unit=unit, content_type__model="calloutelement")
+    assert join.content_object.numbered is False
