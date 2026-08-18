@@ -145,7 +145,7 @@ def display_heading(self):
     return self.heading or self.kind_label
 ```
 
-The existing two-line comment at `courses/models.py:514-515` explaining the string
+The existing two-line comment at `courses/models.py:515-516` explaining the string
 fallback key moves onto `kind_label` with the body it documents. Do not leave a second
 copy of that fallback expression in `display_heading` — two copies of that subtlety will
 drift. `display_heading` keeps its current behaviour and its current caller
@@ -154,7 +154,11 @@ per D6).
 
 ## 2. Migration
 
-One migration file, two operations, in this order:
+One migration file, two operations, in this order. The next free number at the time of
+writing is `0060` (`0059_mediaasset_derivatives` is the latest), but **do not pin that
+here** — `dependencies` must point at whatever is graph head when the migration is actually
+written, which is the same rule the graph-head re-check below enforces. Name it for what it
+does, e.g. `0060_calloutelement_numbered`.
 
 1. `AddField` for `numbered` (`default=True`).
 2. `RunPython` backfill, through the historical model
@@ -201,17 +205,35 @@ visited (their children still count) but do not consume a number.
 - **Early-out on units with no callouts.** The call is unconditional at all four sites, so
   without this a callout-free unit containing three tabs containers pays the full descent
   on every student and editor render — and most units have no callout at all (167 of them
-  do). The function therefore begins with one indexed existence check on
-  `node.elements.filter(content_type=<CalloutElement ct>)` and returns `{}` when it is
-  empty. Note `node.elements` is unit-wide, **not** `parent__isnull=True`, so a unit whose
-  only callout is nested is correctly *not* short-circuited.
+  do). The function therefore begins with one indexed existence check and returns `{}` when
+  it is empty. **This is the normative form** (§3's Query-cost section refers back to it
+  rather than restating an alternative):
+
+  ```python
+  if not Element.objects.filter(
+      unit=node,
+      content_type__app_label="courses",
+      content_type__model="calloutelement",
+  ).exists():
+      return {}
+  ```
+
+  Two properties are deliberate. It filters on `content_type__model` rather than resolving
+  a `ContentType` object, so it never consults the process-wide `ContentType` cache and the
+  pinned query count cannot depend on cache warmth (see Query cost). And it carries
+  `app_label`: `Element.content_type`'s `limit_choices_to` is a form/admin constraint, not
+  a database one, so a bare `model="calloutelement"` would match another app's row of the
+  same name.
+
+  The filter is unit-wide, **not** `parent__isnull=True`, so a unit whose only callout is
+  nested is correctly *not* short-circuited.
 - **The descent carries a `seen` set of visited `Element.pk`s.** An earlier draft argued no
   guard was needed, on the grounds that the walk descends from `parent__isnull=True` roots
   and `Element.parent` is single-valued, so a node in a `parent` cycle is never a root.
   **That argument is wrong**, because the walk does not descend via `parent`: it goes
   `row → row.content_object → concrete.join_row() → join.children`, and `join_row()`
   returns the **lowest-pk** join row for that concrete, which need not be the row it
-  arrived on. The GFK is only *effectively* 1:1 (`courses/models.py:520-521`); nothing
+  arrived on. The GFK is only *effectively* 1:1 (`courses/models.py:522`); nothing
   enforces it, and this spec already treats GFK integrity as unreliable (the dangling
   `content_object` clause above). So `R1(root)→C_a`, `R2(parent=R1)→C_b`,
   `R3(parent=R2)→C_a` loops forever on a perfectly acyclic `parent` tree.
@@ -304,9 +326,12 @@ node.elements.filter(parent__isnull=True)
     .prefetch_related("content_object")
 ```
 
-The `select_related`/`prefetch_related` are not optional: without them the walk issues one
-query per top-level element merely to learn its type — a per-render N+1 on the student
-path, which is precisely the cost R3 claims to bound.
+The `prefetch_related("content_object")` is not optional: without it the walk issues one
+query per top-level element to fetch the **concrete row** — a per-render N+1 on the student
+path, which is precisely the cost R3 claims to bound. (The element's *type* comes from
+`ContentType.objects.get_for_id`, i.e. the process-wide cache discussed below, not a
+per-element query; `select_related("content_type")` is belt-and-braces consistency with
+what the accessors themselves do.)
 
 ### Query cost
 
@@ -353,20 +378,18 @@ be measured on the §8 fixture and recorded there once observed. An implementer 
 an `assertNumQueries` constant from prose arithmetic will get a red test they cannot
 explain.
 
-**The count must not depend on the `ContentType` cache.** Resolving
-`ContentType.objects.get_for_model(CalloutElement)` costs a query on a cold
-`ContentTypeManager` cache and none on a warm one; the GFK prefetches hit `get_for_id` for
-the same reason. That cache is per-process and survives `--reuse-db`, so a count pinned
-without care becomes a function of test ordering and of which worker ran what — an
-intermittent failure under `-n auto` with nothing in the test explaining it. Prefer the
-form that never touches the cache:
+**The count must not depend on the `ContentType` cache.** `ContentTypeManager` caches
+per process and survives `--reuse-db`, so anything resolving a ContentType costs a query
+cold and none warm — turning a pinned count into a function of test ordering and of which
+xdist worker touched what, an intermittent failure with nothing in the test explaining it.
 
-```python
-Element.objects.filter(unit=node, content_type__model="calloutelement").exists()
-```
-
-If a `get_for_model` form is used instead, the §8 test must warm the cache *before*
-entering `assertNumQueries`, with a comment saying why.
+The early-out avoids the cache by construction (see Contract), but that is **not
+sufficient on its own**: every `prefetch_related("content_object")` inside the accessors
+calls `get_for_id` per distinct child type, so the walk consults the cache regardless of
+which early-out form is used. The §8 query test must therefore **warm the ContentType
+cache unconditionally before entering `assertNumQueries`**, with a comment saying why.
+(Fixture construction assigns `content_object` and so warms most types incidentally —
+"incidentally" is exactly what makes it unreliable to depend on.)
 
 ## 4. Render
 
@@ -583,11 +606,23 @@ optional-key pattern already used for `size` (`:139`) and width/height (`:170`):
    check, which would produce a differently-worded error.
 4. **Build it.** `_build_callout` (`courses/transfer/importer.py:556`) constructs
    `CalloutElement(kind=..., heading=..., body=...)` and must gain
-   **`numbered=data["numbered"]`** — the subscript form, not `.get(...)`. It is safe
-   because `_val_callout` seeds the key on the *same dict object* via `setdefault` before
-   the builder ever runs, which is exactly the `size` / `width` precedent. The existing
+   **`numbered=data["numbered"]`** — the subscript form, not `.get(...)`. The existing
    function mixes `data.get("kind", "example")` and `data["body"]`, so this would otherwise
    be a genuinely open choice.
+
+   The subscript is safe because of **two independent guarantees, one per caller family** —
+   and it is unsafe if either is missing:
+   - **Archive import** runs `validate_document` first, so `_val_callout`'s `setdefault`
+     has seeded the key on the same dict object (the `size` / `width` precedent).
+   - **Duplicate and paste** do **not**. `graft_elements` → `_run_import` →
+     `_create_elements` calls the builders with no validation at all; `importer.py:999-1003`
+     documents exactly this for `link_nodes` (*"its `document` comes straight from
+     build_export in the same process, which emits … unconditionally"*). On that path the
+     key exists **only because step 5 makes the exporter write it**.
+
+   Therefore **step 5 must land before or together with step 4.** Following the numbering
+   literally — builder first, exporter second — ships a build where every duplicate and
+   paste raises `KeyError`, surfaced to the author as `TransferError("Duplicate failed.")`.
    Without this step the field is validated on the way in and written on the way out but
    **discarded at construction**, so every import silently resets it to the model default.
 5. The exporter writes `numbered`: `_ser_callout` (`courses/transfer/export.py:122`),
@@ -652,8 +687,14 @@ ordered by what they would actually catch:
    multiple children per tab.
 
    Specify: two tabs holding two numbered callouts each, with per-group `order` restarting
-   at 0 (tab0: A=0, B=1; tab1: C=0, D=1), plus the top-level callout before them. The
+   at 0 (tab0: A=0, B=1; tab1: C=0, D=1), plus the top-level callout before them. **Pin the
+   fixture's creation order as A, B, C, D, and pin that A and B live in
+   `data["tabs"][0]`** — the flat walk sorts by `("order", "pk")`, so within each
+   order-group the tiebreak is pk, i.e. creation order; building tab 1's pair first would
+   make the mutant yield `C, A, D, B` instead. With those two things pinned the
    discriminating assertion is **correct = A, B, C, D** versus **flat = A, C, B, D**.
+   (Equivalently, and independent of pk allocation: the correct walk keeps each tab's pair
+   adjacent, the flat walk interleaves them.)
    **Extend the fixture with a numbered callout nested inside a numbered callout**,
    asserting outer-then-inner: the tabs-only fixture scores identically under pre- and
    post-order, so on its own it leaves §3's pre-order rule unpinned. Second mutant:
@@ -661,6 +702,15 @@ ordered by what they would actually catch:
 2. **Unnumbered consuming a slot** — increment the counter before the `numbered` check.
    The fixture is the acceptance criterion from the Purpose: example, task, note, warning,
    task → `1, 2, –, 3, 4`.
+
+   **Every fixture row must set `numbered` explicitly.** Kind does *not* determine
+   `numbered` at creation: the model default is a flat `True` and
+   `KIND_DEFAULT_NUMBERED` has exactly one runtime caller, the importer (§1). So
+   `CalloutElement.objects.create(kind="note")` yields `numbered=True`, and a fixture that
+   infers the flag from the kind scores `1, 2, 3, 4, 5` on a **correct** build — red on
+   correct, with the tempting "fix" being to add per-kind defaults to the model or form,
+   contradicting §1 and §6. This applies to every test in this section: outside the
+   migration and the importer, nothing derives `numbered` from `kind`.
 3. **The `page`-dict barrier.** Note that `CalloutElement` is itself in
    `CONTAINER_MODELS`, so `render_element` builds `page` for **top-level** callouts too —
    deleting the key from `extra["page"]` therefore strips numbers at *every* depth and is
@@ -682,11 +732,13 @@ ordered by what they would actually catch:
    outcomes on its own fixture. Copy the pattern from one of the repo's four existing
    migration tests — `courses/tests/test_publish_migration.py` is the closest fit.
 6. **Transfer, three mutants** — (a) drop the `setdefault`: a pre-v13 archive raises
-   `TransferError` on `_exact_keys`; (b) drop `numbered` from the exporter: a v13
-   round-trip of `numbered=False` returns `True`; (c) drop `numbered=` from
-   `_build_callout`: **duplicating** an unnumbered callout in the editor produces a
-   numbered copy. (c) is the one a reader is most likely to skip and the one users would
-   hit first.
+   `TransferError` on `_exact_keys`; (b) drop `numbered` from the exporter — **the symptom
+   differs by path**: an archive round-trip of `numbered=False` comes back `True` (the
+   validator re-seeds the missing key from the kind default), while **duplicate/paste
+   raises `KeyError` → `TransferError`**, because that path runs no validator to re-seed
+   it; (c) drop `numbered=` from `_build_callout`: **duplicating** an unnumbered callout in
+   the editor produces a numbered copy. (c) is the one a reader is most likely to skip and
+   the one users would hit first.
 7. **Unnumbered render is unchanged** — pinned assertion on a `numbered=False` callout
    *with* a custom heading, so the header rewrite cannot quietly alter today's output.
    Falsified by making the numbered branch unconditional. Because §4 mandates a
@@ -733,10 +785,40 @@ ordered by what they would actually catch:
     `CONTAINER_MODELS | {TextElement}` and put a text element in the fixture. (The
     alternative — delete an accessor-map entry and put a spoiler in the fixture — also
     reaches the raise but does not exercise the module-attribute read at all.)
-11. **The form and its widget** — assert `"numbered" in CalloutElementForm.Meta.fields`,
+
+    **The fixture must also contain a `CalloutElement` row**, or the §3 early-out returns
+    `{}` before any descent happens and the test is vacuous again for a third reason.
+    This holds for *every* test in this section that exercises the walk: a callout-free
+    fixture short-circuits, so it can only ever test the early-out itself.
+
+    Assert the **exception type and message**, not a bare `Exception`. A bare
+    `ACCESSORS[type(obj)]` would raise `KeyError`; specify an explicit
+    `raise RuntimeError(f"no accessor for container {type(obj).__name__}")` and have the
+    test assert `RuntimeError` plus the class name as a message substring — otherwise
+    `pytest.raises(Exception)` passes on an accidental `AttributeError` from an unrelated
+    bug.
+11. **The cycle guard** — drop the `seen` set. §3 chose recursion over an iterative
+    worklist *specifically* so this mutant is assertable (a worklist would spin forever and
+    could never be verified RED), so leaving it unwritten wastes the choice. Fixture: the
+    exact shape §3 describes — two join rows on one concrete with an acyclic `parent` tree
+    (`R1` root → `C_a`, `R2` parent=`R1` → `C_b`, `R3` parent=`R2` → `C_a`). Mutant raises
+    `RecursionError`; the correct build terminates.
+12. **The early-out actually short-circuits** — a second `assertNumQueries` case on a
+    **callout-free** unit that still contains a container, asserting exactly one query and
+    a `{}` return. Falsified by deleting the early-out, or by moving the existence check
+    after the roots query. Without this only the hit path is measured, and R3's claim rests
+    entirely on the miss path.
+13. **The form and its widget** — assert `"numbered" in CalloutElementForm.Meta.fields`,
     and that `_edit_callout.html` renders `<input type="checkbox" name="numbered">`.
     Both are two-line tests guarding the defect R2 describes, which is otherwise reachable
     only through the slowest instrument in the suite.
+14. **D6 holds: the editor row list shows no number** — assert `element_summary`
+    (`courses/templatetags/courses_manage_extras.py:158`) for a *numbered* callout equals
+    its `display_heading` and contains no digit. §1 rewrites `display_heading` as
+    `self.heading or self.kind_label`, and folding the number into `display_heading` is by
+    far the most plausible drift — it would satisfy mutants 7 and 8 (which assert on the
+    element template) while silently violating D6. Falsified by making `display_heading`
+    include the number.
 
 Assertions on rendered markup are pinned to the attribute form
 (`class="callout__number"`), never the bare class name. The rationale is forward-looking
@@ -776,9 +858,19 @@ none, never as an absolute.
 
 ## 9. i18n and help documentation
 
-One new author-facing string: the checkbox label in `_edit_callout.html` (§6). Polish
-translation required, `.po` and `.mo` both committed. The widget itself is new markup, not
-a re-label of something existing.
+One new author-facing string: the checkbox label in `_edit_callout.html` (§6). The widget
+itself is new markup, not a re-label of something existing.
+
+```
+msgid "Number this callout"
+msgstr "Numeruj tę ramkę"
+```
+
+The msgstr is given here rather than left to the implementer, because §9's own
+fuzzy-prefill warning makes an unreviewed guess the likely outcome. **"Ramka"** is the
+established Polish term for a callout in this catalogue (`locale/pl/LC_MESSAGES/django.po`,
+`msgid "Callout"`), matching the sibling labels `Rodzaj` / `Nagłówek` on the same form.
+`.po` and `.mo` both committed.
 
 **The author help pages describe this form and go stale.**
 `docs/help/course-admin/content-editors.md:115-121` enumerates the callout editor's
