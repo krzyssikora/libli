@@ -131,6 +131,10 @@ Only the **container-with-children** branch changes. Unit rows are untouched.
 </li>
 ```
 
+- **The sketch elides everything that moves across verbatim.** The reset link keeps its
+  `title`, `aria-label` and `?next=` query; both rollup spans keep their
+  `{% if item.required_total %}` / `{% if item.additional_done %}` guards. Nothing about
+  those changes — do not transcribe the sketch literally.
 - The `<li>` wrapper, its `outline-node--{{kind}}` modifier and the `hidden` attribute
   are unchanged. The `<details>` goes *inside* it. This keeps `id="node-N"` as the scroll
   target and keeps `tags.js`'s `li[data-unit]` / `li.outline-node` queries working
@@ -206,8 +210,10 @@ Rules:
   units all sit at depth 0 — `demo-course` proves such shapes exist), `outline_tree.js`
   leaves the button `hidden`. "Every group is open" is vacuously true there, so an
   un-hidden button would read *Collapse all* and do nothing. T18.
-- Both labels are `{% trans %}`-wrapped and must land in `locale/` (`makemessages`
-  regenerates; see the fuzzy-prefill hazard in §9).
+- Both labels are `{% trans %}`-wrapped and **must be spelled exactly as
+  `templates/courses/manage/builder.html` spells them** — those msgids already exist,
+  translated, in the catalogs, so reusing them verbatim means no new translation work and
+  any rewording forks an untranslated string. See R5.
 
 ## 4. Client — new `courses/static/courses/js/outline_tree.js`
 
@@ -224,8 +230,9 @@ from getting it wrong.
    `!!document.querySelector("[data-tags-filter] a.tag-chip.is-active")`. It must **not**
    wait for the first `libli:tagfilter` event, because that event arrives after steps 2–4
    have already run and possibly written.
-2. Un-hide the toggle-all button and `syncLabel()` (§3b, §4.3), unless there are zero
-   groups.
+2. Un-hide the toggle-all button, call `syncLabel()` (§3b, §4.3), **and set its `disabled`
+   property iff `filterActive`** — a `?tags=…` load must not arrive with a live
+   *Collapse all*. Skip this step entirely when there are zero groups.
 3. **Apply stored state (§4.1) — but skip this entirely when `filterActive` is true.**
    Under a filter the server's D8 render is already correct, and re-applying the stored
    partition would fold matches shut only for §5 to force them open again a moment later.
@@ -250,8 +257,11 @@ storage in the writer's own representation. The client therefore normalises with
 `String(...)` on **both** read and write, so a hand-seeded numeric array still applies.
 T15 seeds numbers deliberately to prove the normalisation exists.
 
-Every `<details>` present at write time appears in exactly one array. This shape is
-load-bearing. With an open-only list, "not listed" is ambiguous between *the student
+Every `<details>` present at write time appears in exactly one array, and **each write is
+a full replacement, never a merge** — so ids of containers deleted since the last visit
+drop out on the next gesture. No pruning pass, no TTL, no cleanup step: do not invent one.
+
+This shape is load-bearing. With an open-only list, "not listed" is ambiguous between *the student
 closed this* and *this container did not exist last visit*, and the two need opposite
 treatments:
 
@@ -343,9 +353,16 @@ which is why T14 exists.
 `app.css` carries a `:target` highlight for it. Inside a folded group both are useless.
 
 On load (§4.0 step 4), and on `hashchange`: if `location.hash` matches `^#node-\d+$`,
-find that `<li>`, open **every ancestor `<details>`**, then
-`scrollIntoView({block: "center"})` it. Per D6 this **does** write storage — except under
-§4.2's exception 2, which covers the `?tags=…#node-…` case.
+find that `<li>`, open **the target's own `<details>` and every ancestor `<details>`**,
+then `scrollIntoView({block: "center"})` it. Per D6 this **does** write storage — except
+under §4.2's exception 2, which covers the `?tags=…#node-…` case.
+
+**The target's own group is included, not just its ancestors.** `courses/views.py:838-842`
+sends a permalink to `outline#node-<pk>` **only** for non-unit nodes (units redirect to
+`lesson_unit`/`quiz_unit`), so every `#node-N` target is a container that owns a
+`<details>`. Opening ancestors alone would land the student on a highlighted "Chapter 4"
+head with its contents still folded — the exact failure this section exists to fix. T13
+asserts the target group's own `open` state so an ancestors-only implementation reddens.
 
 Two ordering hazards:
 
@@ -397,8 +414,11 @@ non-matching `li[data-unit]` and bubbles visibility up, with no reload — so th
   Nothing else in `tags.js` changes. The event is on `document` so the two files stay
   decoupled, and `tags.js` keeps working unchanged on pages with no outline.
 - `outline_tree.js` listens:
-  - **`count > 0`** → set `filterActive`, then force open every group that still contains
-    a non-hidden unit (`li[data-unit]:not([hidden])`).
+  - **`count > 0`** → set `filterActive`, **disable the toggle-all button**, then force
+    open every group that still contains a non-hidden unit
+    (`li[data-unit]:not([hidden])`). The disable belongs in this branch, not only in the
+    prose rule below — stated only as prose, an implementer working the branches ships a
+    live *Collapse all* under a filter.
   - **`count === 0`** → **no-op unless `filterActive` is currently true** (see §4.4's first
     hazard). On a real filtered→unfiltered transition: clear the flag, re-enable the
     toggle-all button, and drive every group from the §4.1 partition — treating an absent
@@ -455,6 +475,19 @@ outline rule this spec elsewhere insists on naming.
   `<details>` in column 1 and `.outline-node__reset { grid-column: 2; grid-row: 1; align-self: start; }`.
   Grid, not `position: absolute` — an absolutely positioned link overlaps a title that
   wraps to two lines, and outline titles do wrap.
+- **The grid rule's specificity is capped at (0,1,0), and that is load-bearing.** `[hidden]`'s
+  UA `display: none` loses to any author `display` declaration; the codebase already carries
+  the guard `.outline-node[hidden] { display: none; }` (0,2,0) with a comment naming this
+  exact gotcha, and `tests/test_e2e_tags.py` calls that guard "the assertion that actually
+  proves the filter works". A bare `.outline-node--part` selector is (0,1,0) and loses to
+  the guard, which is correct. **Do not scope the grid more specifically** (e.g.
+  `.outline-tree .outline-node--part`, which ties at (0,2,0) and lets source order decide):
+  a filtered-out container would stop hiding. T10 asserts a `tag_hidden` **container** row
+  computes hidden, which today's e2e checks only for a unit row.
+- The grid also lands on the unreachable childless-container branch (the modifiers are on
+  the `<li>`, not the `<details>`), where column 2 holds the reset link and column 1 the
+  plain head `<div>`. Harmless, and unreachable in practice because of pruning — noted so
+  no test author mistakes it for live behaviour.
 - `summary.outline-node__head { cursor: pointer; list-style: none; }` plus
   `summary.outline-node__head::-webkit-details-marker { display: none; }`, mirroring
   `courses.css:716-717`. **Note for test authors:** `.outline-node__head` already carries
@@ -467,9 +500,23 @@ outline rule this spec elsewhere insists on naming.
   — the **full direct-child chain**, as the rail's comment at `courses.css:749-751`
   requires: with a descendant combinator, a closed section inside an open chapter is
   painted open.
-  `@media (prefers-reduced-motion: reduce) { .outline-node__chevron { transition: none; } }`.
   Do **not** redeclare `flex: none` — `.icon` already sets it (`app.css:109`), so it is
   inert here and carries no possible mutant.
+- **The reduced-motion override must match the transition's specificity:**
+  `@media (prefers-reduced-motion: reduce) { .outline-node__head > .outline-node__chevron { transition: none; } }`.
+  A media query adds no specificity, so the rail's form
+  (`.unit-tree__chevron`, (0,1,0)) loses to its own transition rule (0,2,0) and never takes
+  effect — the chevron animates for reduced-motion users. **The rail carries that latent
+  defect at `courses.css:746-753`; fixing it is out of scope here (D7), but do not
+  "harmonise" this rule back to the broken form.**
+- **The chevron needs an explicit colour, and the rail's `currentColor` reasoning does not
+  transfer.** `courses.css:743-745` documents that the rail's chevron takes the tertiary
+  micro-type at chapter/section level because the rail's micro-type rule targets
+  `.unit-tree__head` **itself**. The outline's micro-type targets `.outline-node__title`,
+  so a `currentColor` chevron inherits the head's default `--text-primary` and renders at
+  full weight beside a `.75rem` tertiary uppercase section title — the disclosure shouting
+  louder than the title it belongs to, exactly what the rail's comment exists to prevent.
+  Set `color: var(--text-tertiary)` on the chevron.
 - **The explicit chevron size is required.** The type scale lives on
   `.outline-node__title`, not on `.outline-node__head`, so the head's font-size is `1rem`
   at every level and `.icon`'s `1em` would render an identical 16px chevron next to a
@@ -481,13 +528,22 @@ outline rule this spec elsewhere insists on naming.
   rail's head is `flex-start`, so the chevron cannot simply be reused unaltered). A
   replaced element's baseline is its bottom margin edge, so a baseline-aligned chevron
   sits with its bottom on the text baseline — visibly high.
-- Hover and focus: `summary.outline-node__head:hover { background: var(--surface-sunken); }`
-  — the same token as `.outline-unit:hover`, so a group head and a unit row read
-  identically on this page. **Accepted collision:** the `:target` rule sets
+- Hover and focus: `summary.outline-node__head:hover { background: var(--surface-raised); }`
+  — **not** `--surface-sunken`, despite that being `.outline-unit:hover`'s token. The
+  `.rollup` chip already fills with `--surface-sunken` (plus a `--border-default`
+  hairline), so a sunken head would make the `n/m required` pill vanish into its own
+  background and read as a floating outline. A unit row has no rollup chip, which is why
+  its token cannot simply be reused; `--surface-raised` is also what the rail's summary
+  hover uses (`courses.css:723`). Both the hover fill and the chevron colour are named
+  items in the §10 screenshot gate.
+  **Accepted collision:** the `:target` rule sets
   `background: var(--surface-sunken)` at (0,3,0) and beats this (0,2,1) rule, so a
-  permalink-targeted row keeps its target background instead of a hover change. Since both
-  resolve to the same token the visible result is identical, so this is accepted rather
-  than fought. (The rail's precedent comment at `courses.css:719-723` is about `color`, and
+  permalink-targeted row keeps its `--surface-sunken` target fill and shows no hover
+  change at all. Accepted rather than fought: the `:target` state is transient (one
+  permalink arrival), it already signals itself with a 2px `--primary` ring, and raising
+  the hover rule's specificity to beat it would mean a hover that erases the arrival
+  highlight the student just followed a link to see. (The rail's precedent comment at
+  `courses.css:719-723` is about `color`, and
   the outline's type-scale rules target the *title span*, not the head, so neither competes
   here — do not carry that reasoning across.)
   `summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }`
@@ -511,7 +567,8 @@ outline rule this spec elsewhere insists on naming.
   name and nested a focusable link inside a focusable control. No `aria-hidden` on the
   rollup spans and no separate visually-hidden sentence: unlike the rail's bare `n/m`
   ratio, the outline's rollup already reads as text with a visible `{% trans "required" %}`.
-  This keeps R5's new-string count at exactly two. T6 asserts the computed name.
+  T6 asserts the computed name — from the e2e tier, since an accessible name is an
+  accessibility-tree computation no Django render test can perform.
 - Titles inside a folded `<details>` still carry `data-math-title` and are typeset by
   `math.js` exactly as the rail's folded titles already are. No new handling.
 
@@ -538,10 +595,15 @@ outline rule this spec elsewhere insists on naming.
   comment in an otherwise-untouched file. Re-check and update — or convert to
   selector-name citations — every `app.css:<n>` reference in `tests/` and in `app.css`'s
   own comments that the insertion displaces.
-- **`tests/test_e2e_tags.py::test_tag_filter_untag_delete_via_ui`** builds units under a
-  single depth-0 `part`, so they sit at depth 1 and stay visible under D1. It should pass
-  unchanged — **verify, do not pre-emptively edit**. If it needs a change, that is a signal
-  the default is wrong, not that the test is wrong.
+- **Two e2e tests drive outline rows and survive D1 only because of their fixture depth.
+  Verify both; do not pre-emptively edit.** If either needs a change, that is a signal the
+  default is wrong, not that the test is wrong.
+  `tests/test_e2e_tags.py::test_tag_filter_untag_delete_via_ui` builds units under a
+  single depth-0 `part`, so they sit at depth 1 and stay visible.
+  `tests/test_e2e_publish_toggle.py::test_e2e3_draft_unit_outline_visibility_and_author_open`
+  clicks `[data-unit="…"] a.outline-unit` on the outline page with the same single-part
+  shape — a Playwright `click()` on a folded row would time out, so this one is not
+  optional to check.
 - `tests/test_publish_outline.py`, `tests/test_tags_outline.py`,
   `tests/test_courses_rollups.py`, `tests/test_unit_nav_render.py` all touch
   `build_outline` or the outline HTML. `depth` is additive, so they should pass unchanged;
@@ -567,10 +629,14 @@ outline rule this spec elsewhere insists on naming.
   `getBoundingClientRect()` or `offsetParent` passes on a broken build. Use
   `checkVisibility()`; Playwright's `to_be_hidden()` uses computed visibility and is also
   acceptable.
-- **R5 — i18n fuzzy pre-fill.** Exactly two new strings (*Expand all*, *Collapse all*) go
-  through `makemessages`, which pre-fills a *wrong* translation marked fuzzy; clearing it
-  is two deletions (the `#, fuzzy` line and the bogus `msgstr`). Both `.po` and the
-  regenerated `.mo` must land in the branch.
+- **R5 — i18n: there are no new msgids.** Both labels already exist in the catalogs with
+  real translations, sourced from `templates/courses/manage/builder.html`
+  (`locale/pl/LC_MESSAGES/django.po:5277` — *Rozwiń wszystko* — and `:5281` — *Zwiń
+  wszystko*; `locale/en/…:5081/5085`). `makemessages` will only append a `#:` reference
+  line to the existing entries: **no fuzzy pre-fill, nothing to clear**, and the `.mo`
+  regeneration carries no translation change. The real (small) risk is the opposite one —
+  rewording either label here would silently fork a new untranslated msgid, so reuse the
+  strings exactly as the builder spells them.
 - **R6 — silent CSS regressions (§6.1).** The type-scale flattening and the lost nested
   guide rule both leave a correct DOM and a worse page, with nothing red. T17.
 - **R7 — `depth` shipped to consumers that ignore it.** Low: additive keys on a plain
@@ -609,10 +675,14 @@ is not evidence.
   unconditionally under D1's arm, so a depth-0 negative would fail on a correct build.
   Mutant: drop the second `open` arm. This is the no-JS regression guard and must live at
   the render tier, not e2e.
-- **T6** — the `<summary>`'s computed accessible name is the title plus its rollup text,
-  and does **not** contain "Start fresh" (§7). Mutant: the T3 mutant.
-
 **e2e** (`tests/test_e2e_outline_tree.py`, new; `-m e2e`):
+
+- **T6** — the `<summary>`'s computed accessible name is the title plus its rollup text,
+  and does **not** contain "Start fresh" (§7). **This is an e2e test, not a render test:**
+  an accessible name is an accessibility-tree computation, so it needs a real browser —
+  `page.get_by_role("button", name=…)` against the summary, or an AOM snapshot. A
+  string-concatenation assertion over rendered HTML is not an accname assertion and would
+  merely duplicate T3. Mutant: the T3 mutant (link back inside the summary).
 
 - **T7** — first visit to a 3-level course: depth-1 container heads visible, depth-2 units
   not (`checkVisibility()` / `to_be_hidden()`, per R4), **and** the depth-1 `<details>` has
@@ -630,6 +700,11 @@ is not evidence.
   expanded; *Collapse all* → depth-0 groups fold too.
 - **T10** — R1. Fold chapter A, filter by a tag matching a unit inside a *different*,
   folded chapter B → that unit becomes visible, and the toggle-all button is `disabled`.
+  Cover the `?tags=N` **fresh load** as well as the chip click: §4.0 step 2 and §5's
+  `count > 0` branch are two different assignment sites for that `disabled` state, and a
+  chip-click-only test leaves the load path unguarded. Assert too that a `tag_hidden`
+  **container** `<li>` computes hidden — that is the guard against §6.2's grid rule
+  out-specifying `.outline-node[hidden]`, and today's e2e proves it only for a unit row.
   Clear the filter → the tree returns to exactly the pre-filter fold state. **Mutant must
   be two-part**: persist inside a `toggle` handler *and* remove the `filterActive` write
   guard. Moving persistence onto `toggle` alone does **not** redden this test — the
@@ -643,23 +718,33 @@ is not evidence.
   Mutant: seed `filterActive` only from the `libli:tagfilter` event instead of at init
   (§4.0 step 1) — the deep-link write then persists the server's force-opened tree.
 - **T13** — `#node-N` deep link three levels down: the row is **within the viewport** (not
-  "centred" — see §4.4's KaTeX hazard) and carries the `:target` highlight. Mutant: drop
-  the ancestor-opening loop. Second case, same file: **the fixture must create a tag on a
-  unit in the course** so `filter_chips` is non-empty and `_tags_filter_bar.html` actually
-  renders — `tags.js` runs `setupFilter` only `if (bar)`, so without the bar no
-  `libli:tagfilter` event fires and the case is vacuous. With the bar present, stub
+  "centred" — see §4.4's KaTeX hazard), carries the `:target` highlight, **and the target's
+  own `<details>` is `open`** (§4.4). Two mutants, both must redden: drop the
+  ancestor-opening loop; open the ancestors but not the target itself. Second case, same
+  file: **the fixture must create a tag whose `author` is the logged-in enrolled student**,
+  on a unit in the course. `tags/services.py :: tags_for_outline` filters on
+  `tag__author=author` with `author = request.user`, so a tag created by the course owner
+  or a factory default leaves `filter_chips` empty, `{% if filter_chips %}` false and the
+  bar unrendered — `tags.js` runs `setupFilter` only `if (bar)`, so no `libli:tagfilter`
+  event fires and the case is exactly as vacuous as this note exists to prevent. The same
+  authorship requirement applies to T10's and T11's filter fixtures. With the bar present, stub
   `localStorage.setItem` to throw and store no key: the deep-linked row must still be
   visible. Mutant: remove the `count === 0` no-op guard.
 - **T14** — R3. With every group open (label *Collapse all*), click one summary closed and
   assert the label becomes *Expand all*. Mutant: register the `toggle` listener without
   `capture: true`. T9 alone cannot catch this — an implementation that updates the label
   inline in the button handler passes T9 with no listener at all.
-- **T15** — §4.1's partition. (a) Collapse a depth-0 root, reload, assert it is still
-  closed; mutant: union the stored set with the server default. (b) Seed a partition that
-  omits a depth-0 group entirely (a container authored since the last visit), reload,
-  assert it renders **open** per `data-depth`; seed the ids as **numbers**, not strings, so
-  the case also falsifies a missing `String()` normalisation. (c) Seed `"not json"`,
-  reload, assert the server default renders and nothing throws.
+- **T15** — §4.1's partition, three cases over one fixture holding a depth-0 root and a
+  depth-1 chapter. (a) Collapse a depth-0 root, reload, assert it is still closed; mutant:
+  union the stored set with the server default. (b) Seed a partition that **omits** a
+  second depth-0 group entirely (a container authored since the last visit), reload, assert
+  it renders **open** per `data-depth`. (c) In the same seed, put the **depth-1** chapter's
+  pk in `open` **as a number, not a string**, and assert that chapter renders open. The
+  numeric id must name a group whose stored state *contradicts* its `data-depth` default,
+  or the case is vacuous: a depth-1 pk in `closed` falls back to closed either way, so a
+  build with no `String()` normalisation stays green. Mutant: drop `String()` on the read
+  side only. (d) Seed `"not json"`, reload, assert the server default renders and nothing
+  throws.
 - **T16** — click a container's *Start fresh*, land on the reset-confirm page, navigate
   back, and assert the stored partition is byte-identical to before; and that the link is
   keyboard-reachable and activatable. Mutant: the T3 mutant (link inside the summary).
