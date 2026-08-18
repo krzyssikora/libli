@@ -126,6 +126,13 @@ decision here.
 `display_heading` is refactored so the per-kind fallback exists exactly once, and a new
 `kind_label` property exposes the label without the custom-heading fallback:
 
+The name collides with an unrelated existing symbol: `kind_label` is already a registered
+`simple_tag` for **node** kinds (course/chapter/section) at
+`courses/templatetags/courses_manage_extras.py:266`, used by `_add_affordance.html:29` and
+`_structure_legend.html:4`. There is no functional clash — a model property and a template
+tag resolve differently — but a grep now returns two unrelated concepts, so carry a
+one-line comment on the property saying so.
+
 ```python
 @property
 def kind_label(self):
@@ -191,6 +198,22 @@ visited (their children still count) but do not consume a number.
 - `node` is a **unit** `ContentNode`. Every call site passes one.
 - A node with no elements — a section or chapter node, or an empty unit — returns `{}`.
   This falls out of `node.elements` being empty and needs no type check.
+- **Early-out on units with no callouts.** The call is unconditional at all four sites, so
+  without this a callout-free unit containing three tabs containers pays the full descent
+  on every student and editor render — and most units have no callout at all (167 of them
+  do). The function therefore begins with one indexed existence check on
+  `node.elements.filter(content_type=<CalloutElement ct>)` and returns `{}` when it is
+  empty. Note `node.elements` is unit-wide, **not** `parent__isnull=True`, so a unit whose
+  only callout is nested is correctly *not* short-circuited.
+- **The descent needs no cycle or depth bound, and must not add one.** The walk starts at
+  `parent__isnull=True` roots and descends via `parent`; `Element.parent` is
+  single-valued, so every node inside a corrupt parent cycle has a non-null parent and is
+  therefore never a root — the reachable subgraph is acyclic by construction and cannot
+  recurse forever. This is the same argument the editor's own unbounded recursion already
+  relies on, stated in `templates/courses/manage/editor/_element_row.html` ("the reachable
+  subgraph is acyclic by construction… The child-row recursion is deliberately
+  UNBOUNDED"). `builder.element_depth`'s `MAX_NEST_DEPTH` bound is not a counter-example:
+  it walks *upward* through `parent`, the one direction where a cycle is reachable.
 - The function **re-queries its own roots**; it does not accept a pre-materialised element
   list, even though all four call sites have just built one. The cost is one duplicate
   roots query per render, and the benefit is that the pinned query count (§8) is a
@@ -229,16 +252,30 @@ therefore descends through the accessors the templates themselves consume:
 | `BeforeAfterElement` | `resolved_slots()` | `[(slot_id, [Element])]` |
 
 Dispatch is on membership in `builder.CONTAINER_MODELS` (itself derived from
-`_CONTAINER_REGISTRY`). The accessor per type is a module-level mapping keyed by model
+`_CONTAINER_REGISTRY`), read as a **module attribute** — `from courses import builder`
+then `builder.CONTAINER_MODELS` at call time, never
+`from courses.builder import CONTAINER_MODELS`. A from-import freezes the value at import
+time, so §8.10's raise test (which patches the attribute with a sixth class) would fail
+against a *correct* implementation. This repo has been bitten by exactly this and
+documents it at `courses/views_manage.py:1858-1861` for `MAX_NEST_DEPTH`.
+
+The accessor per type is a module-level mapping keyed by model
 class; a container class in `CONTAINER_MODELS` but absent from the mapping **raises**,
 so a sixth container type cannot be added without a decision here rather than silently
 having its children skipped. That raise path is unreachable with today's five types and
 is therefore pinned by its own test (§8.10), not left to chance.
 
-Inheriting the accessors also inherits their quirks, which is the point: `resolved_columns`
-uses the destructive read-side `normalize_data` with its 2..4 render clamp, so a fifth
-column's children are dropped from *both* the render and the numbering, and cannot
-disagree.
+Inheriting the accessors also inherits their quirks, which is the point — each of the
+three decides which callouts get numbered, and in every case the render and the numbering
+cannot disagree because they consume the same function:
+
+- `resolved_tabs` **skips** a child whose `tab_id` resolves to no tab
+  (`courses/models.py:1865`), so such a callout is invisible and unnumbered alike.
+- `resolved_slots` **appends** an unknown-`tab_id` child to the *before* bucket rather than
+  dropping it (`courses/models.py:597-599`), so an orphaned child is rendered — and
+  therefore numbered — in the before slot.
+- `resolved_columns` uses the destructive read-side `normalize_data` with its 2..4 render
+  clamp, so a fifth column's children are dropped from both.
 
 Roots are:
 
@@ -261,12 +298,15 @@ Per non-empty container: `join_row()` + `children` + **one prefetch query per di
 query per distinct content type in the result set — so the floor is three, not two, and a
 tab holding a text, a math and a callout costs five.
 
-Two of those are avoidable in principle and neither is avoided. `join_row()`
+Two costs are avoidable in principle and neither is avoided. `join_row()`
 (`self.elements.order_by("pk").first()`) re-fetches the very join row the walk is already
-descending from; and the walk needs only each child's *type*, never its `content_object`,
-so the GFK prefetch is pure waste for its purposes. Avoiding either means bypassing the
-accessors, which is the one thing this design refuses to do (see above). Both are accepted
-explicitly as the price of ordering agreement.
+descending from. And the GFK prefetch is wasted **only on leaf non-callout children** —
+the walk genuinely needs the concrete instance for every container (to call its accessor)
+and for every callout (to read `obj.numbered`), so "the walk only needs types" is false
+and must not be used as a reason to drop `prefetch_related("content_object")` from the
+roots query; doing so reintroduces exactly the per-element N+1 forbidden above. Avoiding
+either cost means bypassing the accessors, which is the one thing this design refuses to
+do (see above). Both are accepted explicitly as the price of ordering agreement.
 
 The roots query is accounted the same way: one query plus one per distinct top-level
 content type.
@@ -285,15 +325,18 @@ a plain integer (or `None`) in its template context:
 
 ```python
 numbers = (page or {}).get("callout_numbers") or {}
-"number": numbers.get(element.pk),
+"number": numbers.get(element.pk) if element is not None else None,
 ```
 
-No `element is not None` guard. `CalloutElement.render` is reached only through
-`render_element` (`courses/templatetags/courses_extras.py:175`), which always passes
-`element=element` and has already returned early on `obj is None` — so the guard is a
-condition that cannot fail, the pattern this repo's reviews strip out. It would also
-misdirect: what makes a single-element fragment carry no number is the absent context key,
-which `(page or {}).get(...) or {}` already handles, not a `None` element.
+**The `element is not None` guard is load-bearing, not defensive noise.**
+`CalloutElement.render`'s signature is `render(self, *, element=None, ...)`, and a bare
+`element=None` render is a real, tested call shape:
+`courses/tests/test_callout_render.py` calls `CalloutElement(...).render()` with no
+element at **eight** sites (lines 17, 24, 32, 33, 42, 56, 61, 80), and
+`courses/tests/test_render_seam.py:72` exists specifically to pin that such a render must
+not raise. Without the guard, `element.pk` raises
+`AttributeError: 'NoneType' object has no attribute 'pk'` and those tests go red. A
+join-row-less callout has no unit-wide position, so `None` is the correct number for it.
 
 The lookup happens in Python because a Django template cannot index a dict by a variable
 key without a filter.
@@ -419,11 +462,19 @@ class name; there is exactly one precedent and this is it.
 value on an unbound one, so a failed validation round-trip preserves what the author
 ticked.
 
-**Existing form test.** `courses/tests/test_callout_form.py::test_valid_full_save` posts
-`{"kind", "heading", "body"}` with no `numbered` key. Because an unchecked checkbox
-transmits nothing, that POST is indistinguishable from a deliberate untick and the saved
-row comes back `numbered=False` — silently, without failing. Update that test to assert
-the resulting `numbered` explicitly, so the behaviour is pinned rather than incidental.
+**Two existing tests post without the key**, and both silently start producing
+`numbered=False` rows the moment §6 lands. Because an unchecked checkbox transmits
+nothing, such a POST is indistinguishable from a deliberate untick. Update both to assert
+the resulting `numbered` explicitly, so the behaviour is pinned rather than incidental:
+
+- `courses/tests/test_callout_form.py::test_valid_full_save` — form level, posts
+  `{"kind", "heading", "body"}`.
+- `courses/tests/test_callout_authoring.py::test_save_round_trips_kind_heading_body`
+  (lines 50-68) — **the real `manage_element_save` endpoint** with `element: "new"`. This
+  is the stronger evidence for R2 and the closer analogue of what a browser does: it is
+  the production create path, and after this change it creates unnumbered callouts while
+  staying green. State the expected value for the create-from-endpoint case explicitly.
+
 See R2.
 
 ## 7. Transfer
@@ -498,6 +549,15 @@ reverting the bump:
 | `tests/test_transfer_schema.py` | 57 | `FORMAT_VERSION == 12` |
 | `tests/test_transfer_export.py` | 222 | `manifest["format_version"] == 12` |
 
+**An eighth assertion breaks on step 5 rather than on the bump.**
+`courses/tests/test_callout_transfer.py:34` asserts
+`data == {"kind": "warning", "heading": "Careful", "body": "<p>hi</p>"}` — a full dict
+equality on `_ser_callout`'s output. Adding `numbered` to the serializer turns it red, and
+the tempting "fix" is to drop `numbered` from the serializer — which is precisely mutant
+6b, the defect §8.6b exists to catch. Update the expected dict to include `numbered`, and
+**keep it a full dict equality**; relaxing it to a key-subset check would destroy the
+only assertion that pins the exact export payload.
+
 **Do not** touch `courses/tests/test_nested_question_transfer.py:260`, which passes
 `format_version=12` as a *legacy archive fixture*. That 12 is the point of the test.
 
@@ -550,10 +610,13 @@ ordered by what they would actually catch:
 7. **Unnumbered render is unchanged** — pinned assertion on a `numbered=False` callout
    *with* a custom heading, so the header rewrite cannot quietly alter today's output.
    Falsified by making the numbered branch unconditional. Because §4 mandates a
-   single-line template expression, this can be a byte-level comparison against the
-   current output; if the implementation ends up multi-line, the test must be restated as
-   an assertion on `.callout__heading`'s text content and §4's byte-identity claim
-   withdrawn.
+   single-line template expression, the assertion is a **hardcoded expected literal** —
+   `<span class="callout__heading">Suma ciągu</span>` — transcribed from a real render
+   *before* the template is edited. (A test cannot compare against "the current output":
+   the pre-change build does not exist at test time, and there is no golden-file
+   mechanism in this repo to build one.) If the implementation ends up multi-line, restate
+   the test as an assertion on `.callout__heading`'s text content and withdraw §4's
+   byte-identity claim.
 8. **Numbered with a custom heading** — the one row in §4's table that D4 actually
    changes, and the only branch with zero real rows exercising it. Note that
    `Przykład 3. Suma ciągu` is **not** a contiguous substring of the markup — §4 renders
@@ -611,19 +674,29 @@ a later change to the walk shows up as an explained delta. If a whole-page figur
 wanted, express it as the *delta* between a unit with callouts and the same unit with
 none, never as an absolute.
 
-## 9. i18n
+## 9. i18n and help documentation
 
 One new author-facing string: the checkbox label in `_edit_callout.html` (§6). Polish
 translation required, `.po` and `.mo` both committed. The widget itself is new markup, not
 a re-label of something existing.
+
+**The author help pages describe this form and go stale.**
+`docs/help/course-admin/content-editors.md:115-121` enumerates the callout editor's
+controls in prose — *"Choose a **Kind** …, an optional **Heading** …, and rich-text body
+content"* — and `docs/help/course-admin/content-editors.pl.md` is its Polish twin. Extend
+that sentence with the numbering checkbox and the per-kind default, **in both files in the
+same commit**. Nothing in the test suite catches twin-file drift here.
 
 Two known traps apply. `makemessages` fuzzy-prefills a wrong translation from a similar
 msgid, and clearing that requires deleting both the `#, fuzzy` marker and the wrong
 `msgstr`. And a long-lived branch produces a binary `.mo` conflict on rebase — rebase and
 regenerate before opening the PR, never merge the binary.
 
-No student-facing string is added: the number is a bare integer appended to an already
-translated label.
+No student-facing *string* is added: the number is a bare integer appended to an already
+translated label. But note that §4's template hardcodes both the ordering (label, number,
+`. `, heading) and the separator punctuation in markup, so neither varies by locale. That
+is deliberate and fine for pl/en; a future locale wanting `3. Przykład` needs a template
+change, not a translation.
 
 ## 10. Risks
 
@@ -652,8 +725,11 @@ The root causes are the field being absent from `Meta.fields` or
 the checkbox being absent from the hand-written template; both are pinned by cheap unit
 tests (§8.11), with the e2e as the round-trip check rather than the only guard.
 
-**R3 — query cost.** One roots query plus two queries per container, on every render of
-every unit containing a callout. That includes the editor: two of the four sites are
+**R3 — query cost.** The shape is given in §3 and deliberately not restated as arithmetic
+here: roots plus, per container, `join_row` + `children` + one prefetch per distinct child
+content type. It is paid on every render of every unit that has at least one callout
+anywhere in it; units with none pay a single existence check thanks to the §3 early-out.
+That includes the editor: two of the four sites are
 `_editor_page` and `_render_editor_fragments`, so the walk runs on every add / save / move
 / delete / paste round-trip, inside the transaction that holds the unit lock. Small at the
 measured scale (167 units, max 9 callouts, shallow nesting), but it is a per-render cost on
@@ -674,6 +750,15 @@ sites, in descending order of exposure:
   opening the spoiler resolves the gap — but it is a gap by default.
 - **Before/after (0 callouts today).** The two slots are alternative views of the same
   content, so one of the two numbers is always hidden.
+- **Slideshow units — and this one reaches the other 90%.** `build_lesson_context` returns
+  `"slides": partition_into_slides(elements)` and `templates/courses/_lesson_article.html`
+  switches the article to `lesson--slideshow` whenever `slides|length > 1`, so only one
+  slide is on screen. A student can land on a slide showing `Przykład 4` with 1–3 on
+  earlier slides. Unlike the three cases above this needs no nesting, so it applies to
+  **top-level** callouts — 90% of the corpus. It needs no wiring change (same lesson
+  context, same map), and it is the one case the checkbox remedy does not really address:
+  unticking removes the number rather than fixing the gap. Accepted on the same grounds as
+  the rest — the sequence is a property of the unit, and a slideshow is still one unit.
 
 All three are **accepted**, not solved. D3's one-rule-no-exceptions is the decision, and
 the checkbox is the remedy: an author who dislikes the gap unticks the nested callouts. No
