@@ -67,6 +67,33 @@ def _callout(unit, kind="example", numbered=True, parent=None, tab_id="", order=
     )
 
 
+EXPECTED_QUERIES = 21  # observed; see test_query_count_on_a_real_shaped_unit
+# Breakdown against the shape (existence check + roots + per container (join_row +
+# children + one prefetch per distinct child content type)), for the fixture built
+# there: 1 top callout, 1 tabs container (3 callout children), 1 spoiler container
+# (1 callout child) -- and every CalloutElement, including leaf ones, is ITSELF a
+# container in ACCESSORS, so it pays join_row + children even with no children of
+# its own (no children -> no prefetch query, since prefetch on an empty result set
+# is skipped):
+#   1 existence check
+# + 4 roots (1 list query + 1 prefetch per distinct root type: callout/tabs/spoiler)
+# + 2 top callout            (join_row + children, no children -> no prefetch)
+# + 3 tabs container         (join_row + children + 1 prefetch: callout)
+# + 2 * 3 tab-child callouts (join_row + children each, no children -> no prefetch)
+# + 3 spoiler container      (join_row + children + 1 prefetch: callout)
+# + 2 spoiler-child callout  (join_row + children, no children -> no prefetch)
+# = 1 + 4 + 2 + 3 + 6 + 3 + 2 = 21
+
+
+def _warm_content_type_cache():
+    """Populate ContentTypeManager's per-process cache for every type the fixtures
+    use, so an assertNumQueries below measures the walk and not cache warmth."""
+    from django.contrib.contenttypes.models import ContentType
+
+    for model in (CalloutElement, TabsElement, SpoilerElement, TextElement, Element):
+        ContentType.objects.get_for_model(model)
+
+
 def test_numbers_run_in_document_order_at_top_level():
     _course, unit = make_course_with_unit()
     a = _callout(unit, "example", numbered=True, order=0)
@@ -168,3 +195,159 @@ def test_non_callout_leaves_are_walked_past_without_consuming_numbers():
     add_element(unit, TextElement.objects.create(body="<p>x</p>"))
     a = _callout(unit, "example", numbered=True, order=1)
     assert callout_numbers(unit) == {a.pk: 1}
+
+
+def test_a_unit_with_no_callouts_short_circuits(django_assert_num_queries):
+    """The early-out. Most units have no callout at all, and without this a
+    callout-free unit with containers pays the full descent on every student and
+    editor render.
+
+    Mutant: delete the early-out -> the container is descended and the count exceeds 1.
+    """
+    _course, unit = make_course_with_unit()
+    tabs = TabsElement.objects.create(
+        data={"tabs": [{"id": "t000000", "label": "One"}]}
+    )
+    tabs_join = Element.objects.create(unit=unit, content_object=tabs, order=0)
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="<p>x</p>"),
+        parent=tabs_join,
+        tab_id="t000000",
+        order=0,
+    )
+    _warm_content_type_cache()
+    with django_assert_num_queries(1):
+        assert callout_numbers(unit) == {}
+
+
+def test_a_nested_only_callout_is_not_short_circuited():
+    """The existence check is unit-wide, NOT parent__isnull=True.
+    Mutant: add `parent__isnull=True` to the early-out filter -> {} is returned."""
+    _course, unit = make_course_with_unit()
+    sp = SpoilerElement.objects.create(label="s")
+    sp_join = Element.objects.create(unit=unit, content_object=sp, order=0)
+    inner = _callout(
+        unit, "task", numbered=True, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
+    )
+    assert callout_numbers(unit) == {inner.pk: 1}
+
+
+def test_a_dangling_content_object_is_skipped_not_raised_on():
+    """A row whose concrete is gone must not 500 the student page.
+    Mutant: drop the `obj is None` guard -> AttributeError.
+
+    DO NOT build this by deleting the concrete. `TextElement.elements` is a
+    GenericRelation whose own comment reads "cascade: deleting this removes its
+    join-row" (courses/models.py:404), so `.delete()` takes the join row with it and
+    there is never a dangling row -- the assertions below would both pass trivially
+    and the mutant would stay GREEN. Repoint `object_id` at a nonexistent row
+    instead; idiom copied from tests/test_builder_duplicate_unit.py:174-177.
+    """
+    _course, unit = make_course_with_unit()
+    orphan = add_element(unit, TextElement.objects.create(body="<p>x</p>"))
+    Element.objects.filter(pk=orphan.pk).update(object_id=orphan.object_id + 10_000_000)
+    a = _callout(unit, "example", numbered=True, order=1)
+
+    numbers = callout_numbers(unit)
+    assert numbers == {a.pk: 1}
+    assert orphan.pk not in numbers
+
+
+def test_the_walk_terminates_on_a_join_row_cycle():
+    """`join_row()` returns the LOWEST-PK join row for a concrete, not the row the
+    walk arrived on. Two join rows on one concrete therefore make a cycle in the
+    walk's graph even though the `parent` tree is perfectly acyclic:
+
+        R1 (root)      -> C_a
+        R2 (parent=R1) -> C_b
+        R3 (parent=R2) -> C_a      # join_row(C_a) is R1 -> back to the start
+
+    C_a must be a CALLOUT: its accessor groups by parent alone (so the cycle forms
+    at all), and its presence defeats the early-out. A spoiler satisfies only the
+    first; a tabs container satisfies neither, because an unmatched tab_id makes
+    resolved_tabs drop the child and dissolve the cycle.
+
+    Mutant: drop the `seen` set -> RecursionError.
+    """
+    _course, unit = make_course_with_unit()
+    c_a = CalloutElement.objects.create(kind="example", numbered=True, body="")
+    c_b = CalloutElement.objects.create(kind="task", numbered=True, body="")
+    r1 = Element.objects.create(unit=unit, content_object=c_a, order=0)
+    r2 = Element.objects.create(
+        unit=unit, content_object=c_b, parent=r1, tab_id=SINGLE_SLOT_ID, order=0
+    )
+    Element.objects.create(
+        unit=unit, content_object=c_a, parent=r2, tab_id=SINGLE_SLOT_ID, order=0
+    )
+
+    numbers = callout_numbers(unit)  # must terminate
+    assert numbers[r1.pk] == 1
+    assert numbers[r2.pk] == 2
+
+
+def test_accessors_cover_every_container():
+    """Mutant: delete one ACCESSORS entry -> a real container's children are silently
+    never numbered."""
+    from courses import builder
+    from courses.numbering import ACCESSORS
+
+    assert set(ACCESSORS) == builder.CONTAINER_MODELS
+
+
+def test_an_unmapped_container_raises_with_a_named_type(monkeypatch):
+    """CONTAINER_MODELS is read as a MODULE ATTRIBUTE so this patch reaches the walk;
+    a module-level from-import would freeze it and this test would fail against a
+    CORRECT implementation (the MAX_NEST_DEPTH precedent, views_manage.py:1858-1861).
+
+    TextElement, not an invented class: no Element.content_object is ever an instance
+    of an invented class, so the walk would never dispatch and the test would pass
+    vacuously on both builds. The fixture also needs a CALLOUT, or the early-out
+    returns {} before any descent -- vacuous a second way.
+    """
+    from courses import builder
+
+    _course, unit = make_course_with_unit()
+    _callout(unit, "example", numbered=True, order=0)
+    add_element(unit, TextElement.objects.create(body="<p>x</p>"))
+    monkeypatch.setattr(
+        builder, "CONTAINER_MODELS", builder.CONTAINER_MODELS | {TextElement}
+    )
+
+    with pytest.raises(RuntimeError, match="TextElement"):
+        callout_numbers(unit)
+
+
+def test_query_count_on_a_real_shaped_unit(django_assert_num_queries):
+    """Shape (spec section 3):
+        existence check + roots + per container (join_row + children + one prefetch
+        per distinct child content type)
+
+    The ContentType cache is warmed FIRST and deliberately: ContentTypeManager caches
+    per process and survives --reuse-db, so an unwarmed count depends on test ordering
+    and on which xdist worker ran what -- an intermittent failure with nothing in the
+    test explaining it.
+
+    EXPECTED_QUERIES is transcribed from an observed run, not derived from prose
+    arithmetic. If it changes, reconcile the delta against the shape above before
+    editing the number.
+    """
+    _course, unit = make_course_with_unit()
+    _callout(unit, "example", numbered=True, order=0)
+    tabs = TabsElement.objects.create(
+        data={"tabs": [{"id": f"t00000{i}", "label": str(i)} for i in range(3)]}
+    )
+    tabs_join = Element.objects.create(unit=unit, content_object=tabs, order=1)
+    for i in range(3):
+        _callout(
+            unit, "task", numbered=True, parent=tabs_join, tab_id=f"t00000{i}", order=0
+        )
+    sp = SpoilerElement.objects.create(label="s")
+    sp_join = Element.objects.create(unit=unit, content_object=sp, order=2)
+    _callout(
+        unit, "example", numbered=True, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
+    )
+
+    _warm_content_type_cache()
+    with django_assert_num_queries(EXPECTED_QUERIES):
+        callout_numbers(unit)

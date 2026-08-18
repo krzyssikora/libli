@@ -9,6 +9,7 @@ See docs/superpowers/specs/2026-08-18-callout-numbering-design.md section 3.
 
 from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
+from courses.models import Element
 from courses.models import SpoilerElement
 from courses.models import TabsElement
 from courses.models import TwoColumnElement
@@ -57,6 +58,20 @@ def callout_numbers(node):
     `node` is a unit ContentNode. A node with no callouts returns {}.
     """
     from courses import builder  # module attribute, never a module-level from-import
+
+    # Early-out: most units have no callout at all, and the call is unconditional at
+    # all four context sites. Filters on content_type__model rather than resolving a
+    # ContentType object, so it never consults the process-wide ContentType cache and
+    # the pinned query count cannot depend on cache warmth. `app_label` is required:
+    # Element.content_type's limit_choices_to is a form/admin constraint, not a
+    # database one. Unit-wide, NOT parent__isnull=True -- a unit whose only callout is
+    # nested must NOT be short-circuited.
+    if not Element.objects.filter(
+        unit=node,
+        content_type__app_label="courses",
+        content_type__model="calloutelement",
+    ).exists():
+        return {}
 
     counter = 0
     numbers = {}
