@@ -659,6 +659,14 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 }
 .outline-node__reset:hover { color: var(--danger); }
 
+/* Disabled while a tag filter is active (§5): Collapse all would hide every
+   match. .btn sets cursor:pointer and .btn--ghost:hover sets a fill, neither
+   reset by the UA and neither guarded with :not(:disabled) — without these two
+   rules the disabled control looks and behaves like a live one, which is the
+   "visibly does nothing" affordance the disable was chosen to avoid. */
+.outline__toggle-all:disabled { opacity: .5; cursor: default; }
+.outline__toggle-all:disabled:hover { background: transparent; }
+
 @media (max-width: 640px) {
   .outline__results { margin-left: 0; }
 }

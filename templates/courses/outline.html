@@ -6,17 +6,23 @@
 <section class="outline" lang="{{ course.language }}">
   <div class="outline__head">
     <h1 class="outline__title">{{ course.title }}</h1>
+    <button type="button" class="btn btn--ghost btn--small outline__toggle-all" hidden
+            data-outline-toggle-all
+            data-label-expand="{% trans 'Expand all' %}"
+            data-label-collapse="{% trans 'Collapse all' %}"></button>
     <a class="btn btn--ghost btn--small outline__results" href="{% url 'courses:course_results' slug=course.slug %}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="12" width="4" height="7" rx="1"/><rect x="10" y="6" width="4" height="13" rx="1"/><rect x="16" y="9" width="4" height="10" rx="1"/></svg> {% trans "My results" %}</a>
     <a class="btn btn--ghost btn--small outline__notes" href="{% url 'notes:course_notes' slug=course.slug %}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h6"/></svg> {% trans "My notes" %}</a>
     <a class="btn btn--ghost btn--small outline__reset" href="{% url 'courses:progress_reset_course' slug=course.slug %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>
   </div>
   {% include "courses/_tags_filter_bar.html" %}
-  <nav class="outline-tree" aria-label="{% trans 'Course outline' %}">
+  <nav class="outline-tree outline-tree--booting" data-course-slug="{{ course.slug }}"
+       aria-label="{% trans 'Course outline' %}">
     <ul>
       {% for item in outline %}{% include "courses/_outline_node.html" with item=item course=course note_counts=note_counts %}{% endfor %}
     </ul>
   </nav>
 </section>
+<script src="{% static 'courses/js/outline_tree.js' %}" defer></script>
 <script src="{% static 'tags/js/tags.js' %}" defer></script>
 {% endblock %}
 {% block extra_js %}{% if has_math %}{% include "courses/_katex_js.html" %}{% endif %}{% endblock %}

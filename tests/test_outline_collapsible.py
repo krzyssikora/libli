@@ -121,3 +121,28 @@ def test_filter_opens_the_ancestors_of_a_match(client):
     # Negative side must target depth >= 1: depth-0 containers render open
     # unconditionally under D1's arm, so a depth-0 negative fails on a correct build.
     assert "open" not in chap_b_tag, "a depth-1 container with no match stays folded"
+
+
+def test_header_button_and_nav_attributes(client):
+    """T4. Mutant: drop data-course-slug from the nav — without it the storage key
+    becomes `libli_outline_open:undefined`, i.e. one fold state shared across every
+    course, which nothing else would notice."""
+    course, part, chapter, unit = _three_level_course()
+    html = _outline_html(client, course, "t4")
+
+    assert f'data-course-slug="{course.slug}"' in html
+    assert "outline-tree--booting" in html, (
+        "server-rendered: a JS-added class arrives after the first paint, which is "
+        "the very paint it exists to cover"
+    )
+    button = html.split("data-outline-toggle-all")[0].rsplit("<button", 1)[1]
+    assert "hidden" in button, "ships hidden; JS reveals it (dead control with JS off)"
+    assert 'data-label-expand="Expand all"' in html
+    assert 'data-label-collapse="Collapse all"' in html
+    # Spec §4.5: outline_tree.js must register its libli:tagfilter listener
+    # before tags.js runs its initial applyFilter(). Both are `defer`, so
+    # document order IS execution order — and nothing else in the suite notices
+    # a swap. Same shape as
+    # test_title_math_assets.py::test_js_partial_keeps_the_load_bearing_script_order.
+    # Mutant: swap the two <script> lines.
+    assert html.index("outline_tree.js") < html.index("tags/js/tags.js")
