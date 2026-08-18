@@ -16,6 +16,9 @@
 - **Test DB:** the `libli-test-db` container must be running before any pytest invocation, or the run looks hung for ~4 minutes.
 - **Tooling:** ruff/pytest/python are not on PATH — always `uv run <tool>`. e2e tests are deselected by default; `-m e2e` is mandatory for them.
 - **Never run two pytest processes at once** (shared test DB), and never background a pytest run.
+- **All embedded Python must be `ruff format`-clean before it is pasted in** (88-col
+  limit; no f-strings without placeholders). Task 5 and Task 11 both run the lint gate,
+  and a plan snippet that fails it wastes a cycle.
 - **Falsification is mandatory.** Every test in this plan names a mutant. Apply the mutant, watch the test go RED, then remove the mutant **by hand** — never `git checkout`, which discards surrounding work. A test that cannot be shown RED is not evidence.
 - **Storage ids are strings.** `String()` normalisation on both read and write (`details.dataset.node` yields a string; `[12].includes("12")` is `false`).
 - **`checkVisibility()` is the only sanctioned probe for folded content.** `to_be_hidden()` is a bounding-box test and a closed `<details>` keeps a stale non-zero rect. `to_be_hidden()` remains correct for the tag filter's `[hidden]` → `display: none` rows.
@@ -36,7 +39,10 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Create `tests/test_outline_collapsible.py`:
+Create `tests/test_outline_collapsible.py`. Three of the imports (`reverse`,
+`Enrollment`, `make_login`) are used by the `_outline_html` helper that Task 2 Step 1
+appends — they are placed here so the file's import block is written once. A local
+`ruff check` at this point will flag them F401 until Task 2 lands:
 
 ```python
 """Render-tier tests for the collapsible course outline (spec T1-T5)."""
@@ -172,8 +178,8 @@ def test_depth0_open_deeper_closed(client):
     html = _outline_html(client, course, "t1")
 
     assert f'data-node="{part.pk}"' in html
-    assert f'data-depth="0"' in html
-    assert f'data-depth="1"' in html
+    assert 'data-depth="0"' in html
+    assert 'data-depth="1"' in html
 
     part_tag = html.split(f'data-node="{part.pk}"')[1].split(">")[0]
     chapter_tag = html.split(f'data-node="{chapter.pk}"')[1].split(">")[0]
@@ -384,7 +390,15 @@ Extend the existing `.outline-node__reset` rule (do not duplicate it) so it beco
 
 The reset link now *overlays* row 1 rather than reserving a track, so a long wrapped title would run underneath it. Size the reservation against the **Polish** label — `Start fresh` → `Zacznij od nowa` — because pl is this project's primary UI locale and an English-tuned constant reproduces the collision where most users would see it.
 
-Measure with the app running (see the `run` skill or `uv run python manage.py runserver`), in the browser console on a course outline page:
+Render the outline in **both** locales. The project resolves the active language from
+the user's profile/session — set it through the app's own language control (Settings), or
+for a throwaway measurement force it in a shell:
+
+```
+uv run python manage.py shell -c "from django.utils import translation; translation.activate('pl'); from django.template.loader import render_to_string; print(len('Zacznij od nowa'))"
+```
+
+then measure the rendered element with the app running (`uv run python manage.py runserver`), in the browser console on a course outline page, once per locale:
 
 ```js
 document.querySelector(".outline-node__reset").getBoundingClientRect().width
@@ -452,7 +466,8 @@ git commit -m "feat(outline): render container nodes as collapsible details grou
 - Consumes: the `open` condition's second arm, already written in Task 2.
 - Produces: nothing new — this task exists to pin the arm with a test, because it is the *only* thing keeping the tag filter working with JS off and nothing else covers it.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the guard test** (it passes immediately — Task 2 already wrote
+the arm; Step 3's mutant is what proves it is not vacuous)
 
 Append to `tests/test_outline_collapsible.py`:
 
@@ -471,9 +486,15 @@ def test_filter_opens_the_ancestors_of_a_match(client):
     course = CourseFactory()
     root_a = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
     root_b = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
-    chap_a = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=root_a)
-    chap_b = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=root_b)
-    hit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=chap_a)
+    chap_a = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=root_a
+    )
+    chap_b = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=root_b
+    )
+    hit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chap_a
+    )
     ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=chap_b)
 
     user = make_login(client, "t5")
@@ -761,6 +782,12 @@ Create `courses/static/courses/js/outline_tree.js`:
   openHashTarget();
   window.addEventListener("hashchange", openHashTarget);
 
+  // Spec §4.0 puts syncLabel() in step 2; it is called here instead, AFTER the
+  // stored state and the deep link have changed the tree, so the very first label
+  // describes the tree the student actually sees. Deliberate deviation from a
+  // section the spec marks normative — the end state is identical because the
+  // capture-phase listener below would correct it anyway, but this avoids a
+  // one-frame stale label.
   syncLabel();
 
   // 5. Unconditionally, however the branches above went. Conditioning this on
@@ -920,7 +947,7 @@ git commit -m "feat(tags): announce filter changes so the outline can unfold mat
 
 **Interfaces:**
 - Consumes: everything from Tasks 2-6.
-- Produces: `_login`, `_three_level_course` and `_folded` helpers reused by Tasks 8-10.
+- Produces: `_login`, `_course_with_two_chapters`, `_title_sel`, `_visible`, `_is_open`, `_has_open_attr`, `_stored` and `_wait_for_write` helpers, reused by Tasks 8-10.
 
 - [ ] **Step 1: Write the file with T6-T9**
 
@@ -934,10 +961,12 @@ visibility contract is "non-empty bounding box and not visibility:hidden", and a
 closed <details> keeps a STALE non-zero rect — this repo measured exactly that in
 tests/test_e2e_unit_nav.py. Worse, it is state-dependent: content never laid out
 may report 0x0 and pass, while the same assertion after a real fold gesture
-fails. to_be_hidden() IS correct for the tag filter's [hidden] rows.
+fails. to_be_hidden() IS correct for the tag filter's [hidden] rows, which are
+display:none, and is used for exactly those.
 """
 
 import os
+import re
 
 import pytest
 from playwright.sync_api import expect
@@ -965,9 +994,10 @@ def _login(page, live_server, username):
 def _course_with_two_chapters(username="outliner"):
     """part > (chapter A > unit A1) + (chapter B > unit B1), plus a depth-0 unit.
 
-    Every container holds a visible unit — build_outline prunes childless ones.
-    The depth-0 unit pins the mixed shape: units and containers coexist at the
-    same depth, so "top level open" cannot mean "show only containers".
+    Every container holds a visible unit, or build_outline's pruning drops it
+    before the template ever sees it. The depth-0 unit pins the mixed shape:
+    units and containers coexist at the same depth, so "top level open" cannot
+    mean "show only containers".
     """
     from courses.models import Enrollment
     from tests.factories import ContentNodeFactory
@@ -1008,6 +1038,17 @@ def _course_with_two_chapters(username="outliner"):
     }
 
 
+def _title_sel(node_pk):
+    """The clickable title span of ONE group.
+
+    `[data-node='N'] .outline-node__title` is a descendant selector, and a
+    container's <details> contains every descendant group's title too — on a part
+    it resolves to three spans and .click() raises a strict-mode violation.
+    Scoping through `> summary` keeps it to exactly one, at any depth.
+    """
+    return f"[data-node='{node_pk}'] > summary .outline-node__title"
+
+
 def _visible(page, selector):
     """checkVisibility() — see the module docstring for why not to_be_hidden()."""
     return page.evaluate(
@@ -1023,9 +1064,32 @@ def _is_open(page, node_pk):
     )
 
 
+def _has_open_attr(page, node_pk):
+    """Attribute read, for contexts where page.evaluate is unavailable (JS off)."""
+    return page.locator(f"[data-node='{node_pk}']").get_attribute("open") is not None
+
+
+def _stored(page):
+    return page.evaluate(
+        "() => { const k = Object.keys(localStorage)"
+        ".find(x => x.startsWith('libli_outline_open:'));"
+        "        return k ? localStorage.getItem(k) : null; }"
+    )
+
+
+def _wait_for_write(page):
+    """Persistence runs inside setTimeout(write, 0) because <summary> activation
+    is post-dispatch. Any reload that races it fails intermittently on a CORRECT
+    build — the worst thing to debug a mutant against."""
+    page.wait_for_function(
+        "() => Object.keys(localStorage).some("
+        "  k => k.startsWith('libli_outline_open:'))"
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 def test_first_visit_opens_depth0_only(page, live_server):
-    """T6/T7. Mutant: render every <details> open."""
+    """T6 + T7. Mutant: render every <details> open."""
     f = _course_with_two_chapters("t7")
     _login(page, live_server, "t7")
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
@@ -1040,12 +1104,14 @@ def test_first_visit_opens_depth0_only(page, live_server):
     # Mixed shape: a depth-0 unit row is an ordinary row, always visible.
     assert _visible(page, f"#node-{f['root_unit'].pk}")
 
-    # T6: the summary is one button-role control, and its accessible name must
-    # not have "Start fresh" folded into it (D9). An accessible name is an
-    # accessibility-tree computation, which is why this is an e2e assertion.
-    name = page.get_by_role("button", name="Chapter A").first
-    expect(name).to_be_visible()
-    assert "Start fresh" not in name.inner_text()
+    # T6: the computed ACCESSIBLE NAME, not DOM text — a text assertion would
+    # merely duplicate the render-tier T3. Do NOT use get_by_role("button", ...):
+    # <summary> has no entry in Playwright's implicit-role table, so that locator
+    # resolves to ZERO elements and fails on a correct build. Nor
+    # page.accessibility.snapshot(), which no longer exists in this version.
+    summary = page.locator(f"[data-node='{f['chap_a'].pk}'] > summary")
+    expect(summary).to_have_accessible_name(re.compile(r"^Chapter A"))
+    expect(summary).not_to_have_accessible_name(re.compile("Start fresh"))
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1059,12 +1125,21 @@ def test_fold_state_survives_a_round_trip(page, live_server):
 
     # Click the TITLE SPAN, not the summary's padding: that click target is what
     # falsifies an e.target.matches() implementation.
-    page.locator(f"[data-node='{f['chap_a'].pk}'] .outline-node__title").click()
+    page.locator(_title_sel(f["chap_a"].pk)).click()
     expect(page.locator(f"#node-{f['unit_a'].pk}")).to_be_visible()
+    _wait_for_write(page)
+
+    # Assert on the STORED VALUE, which is what the mutant corrupts. The round
+    # trip below can be served from Chromium's back/forward cache — nothing in
+    # this project sends Cache-Control: no-store — which restores the live DOM
+    # WITHOUT re-running outline_tree.js, leaving the chapter open regardless of
+    # what was persisted and turning the mutant green.
+    assert str(f["chap_a"].pk) in _stored(page)
 
     page.locator(f"#node-{f['unit_a'].pk} a.outline-unit").click()
     page.wait_for_url(f"**/u/{f['unit_a'].pk}/")
     page.go_back()
+    page.reload()  # defeats bfcache: forces a real re-run of the restore path
 
     assert _is_open(page, f["chap_a"].pk) is True
     assert _is_open(page, f["chap_b"].pk) is False
@@ -1072,8 +1147,9 @@ def test_fold_state_survives_a_round_trip(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_expand_all_then_collapse_all(page, live_server):
-    """T9. Mutant: have the button's click handler set the label itself instead
-    of letting syncLabel run — caught by T14, not here."""
+    """T9. Mutant: make write() a no-op in the toggle-all click handler — the
+    reload assertion below goes red. (The separate "label set inline in the click
+    handler instead of via syncLabel" mutant belongs to T14, not here.)"""
     f = _course_with_two_chapters("t9")
     _login(page, live_server, "t9")
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
@@ -1087,6 +1163,7 @@ def test_expand_all_then_collapse_all(page, live_server):
     expect(page.locator(f"#node-{f['unit_b'].pk}")).to_be_visible()
     expect(button).to_have_text("Collapse all")
 
+    _wait_for_write(page)
     page.reload()
     assert _is_open(page, f["chap_a"].pk) is True
 
@@ -1106,8 +1183,8 @@ Expected: PASS.
 - [ ] **Step 3: Falsify each**
 
 - T7: by hand, make the template emit a bare `open`. `test_first_visit_opens_depth0_only` must FAIL. Remove by hand.
-- T8: by hand, in `outline_tree.js`, replace `setTimeout(write, 0)` with `write()`. `test_fold_state_survives_a_round_trip` must FAIL. Remove by hand.
-- T9: by hand, delete the `page.reload()` assertion's backing — i.e. make `write()` a no-op in the button handler. The test must FAIL. Remove by hand.
+- T8: by hand, in `outline_tree.js`, replace `setTimeout(write, 0)` with `write()`. `test_fold_state_survives_a_round_trip` must FAIL on the `_stored` assertion. Remove by hand.
+- T9: by hand, make the toggle-all handler skip its `write()`. The reload assertion must FAIL. Remove by hand.
 
 - [ ] **Step 4: Commit**
 
@@ -1125,9 +1202,9 @@ git commit -m "test(outline): e2e for the fold default, persistence and expand-a
 
 **Interfaces:**
 - Consumes: Task 7's helpers.
-- Produces: nothing.
+- Produces: `_tag_a_unit`, used by Task 10's T19.
 
-- [ ] **Step 1: Add a tag helper and T10-T13**
+- [ ] **Step 1: Add the tag helper and T10-T13**
 
 ```python
 def _tag_a_unit(user, unit, name="exam"):
@@ -1141,13 +1218,6 @@ def _tag_a_unit(user, unit, name="exam"):
     tag = Tag.objects.create(author=user, name=name)
     UnitTag.objects.create(tag=tag, unit=unit)
     return tag
-
-
-def _stored(page):
-    return page.evaluate(
-        "() => localStorage.getItem(Object.keys(localStorage)"
-        ".find(k => k.startsWith('libli_outline_open:')) || '')"
-    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1167,14 +1237,20 @@ def test_filter_unfolds_matches_and_clearing_restores_the_fold_state(page, live_
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
 
     # Open chapter A, leave B folded — this is the state that must survive.
-    page.locator(f"[data-node='{f['chap_a'].pk}'] .outline-node__title").click()
+    page.locator(_title_sel(f["chap_a"].pk)).click()
     expect(page.locator(f"#node-{f['unit_a'].pk}")).to_be_visible()
+    _wait_for_write(page)
     before = _stored(page)
 
     page.locator(f"a.tag-chip[data-tag-id='{tag.pk}']").click()
     # The match lives inside folded chapter B: it must become visible.
     expect(page.locator(f"#node-{f['unit_b'].pk}")).to_be_visible()
     expect(page.locator("[data-outline-toggle-all]")).to_be_disabled()
+    # A tag_hidden CONTAINER row must compute hidden. This is the guard against
+    # §6.2's `display: grid` out-specifying `.outline-node[hidden] {display:none}`
+    # (0,2,0) — today's e2e proves that only for a unit row. to_be_hidden() is
+    # correct here: these rows are display:none, not folded content.
+    expect(page.locator(f"#node-{f['chap_a'].pk}")).to_be_hidden()
 
     page.locator(f"a.tag-chip[data-tag-id='{tag.pk}']").click()
     assert _is_open(page, f["chap_a"].pk) is True
@@ -1211,7 +1287,11 @@ def test_a_filtered_deep_link_load_never_writes_storage(page, live_server):
     libli:tagfilter event — that event arrives after the deep-link handler has
     already run and written.
 
-    Mutant: seed filterActive only from the event."""
+    Two mutants: (1) seed filterActive only from the event — the storage
+    assertion reddens; (2) drop `button.disabled = filterActive` from init step 2
+    — the disabled assertion reddens. §4.0 step 2 and §5's count>0 branch are two
+    different assignment sites, so T10's chip-click path does not cover this one.
+    """
     f = _course_with_two_chapters("t12")
     tag = _tag_a_unit(f["user"], f["unit_b"])
     _login(page, live_server, "t12")
@@ -1221,28 +1301,27 @@ def test_a_filtered_deep_link_load_never_writes_storage(page, live_server):
     )
 
     expect(page.locator(f"#node-{f['unit_b'].pk}")).to_be_visible()
+    expect(page.locator("[data-outline-toggle-all]")).to_be_disabled()
     assert _stored(page) is None, "the server's force-opened tree must not persist"
 
 
 @pytest.mark.django_db(transaction=True)
 def test_deep_link_opens_the_target_and_its_ancestors(page, live_server):
-    """T13. Three cases.
+    """T13 cases (a) and (b). Case (c) lives in its own test below, because its
+    precondition is an EMPTY store that these cases would have populated.
 
-    (a) Two mutants, both must redden: drop the ancestor loop; open the ancestors
-        but not the target itself.
+    (a) Three mutants, each must redden: drop the ancestor loop; open the
+        ancestors but not the target itself; drop the `:target` twin from app.css.
     (b) A #node-<unit-pk> owns no <details> — id="node-N" is on EVERY <li>.
         Mutant: unconditional li.querySelector(":scope > details").open = true.
-    (c) The count===0 guard. Mutant: remove the no-op guard.
     """
     f = _course_with_two_chapters("t13")
     _login(page, live_server, "t13")
 
-    # (a) the target's own group AND its ancestors open
-    page.goto(
-        f"{live_server.url}/courses/{f['course'].slug}/#node-{f['chap_b'].pk}"
-    )
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/#node-{f['chap_b'].pk}")
     assert _is_open(page, f["part"].pk) is True
     assert _is_open(page, f["chap_b"].pk) is True, "the target's OWN details opens"
+
     # Within the viewport, not centred: KaTeX typesets titles above the target
     # after this runs and changes their heights.
     assert page.evaluate(
@@ -1251,24 +1330,45 @@ def test_deep_link_opens_the_target_and_its_ancestors(page, live_server):
         str(f["chap_b"].pk),
     )
 
+    # The :target highlight must land on a container reached through
+    # outline_tree.js's own deep-link path — the string assertion in
+    # test_outline_anchors.py cannot prove that. Mirrors test_e2e_link_dialog.py.
+    bg = page.locator(f"[data-node='{f['chap_b'].pk}'] > summary").evaluate(
+        "el => getComputedStyle(el).backgroundColor"
+    )
+    assert bg not in ("rgba(0, 0, 0, 0)", "transparent")
+
     # (b) a unit-pk hash must scroll and must not throw
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
-    page.goto(
-        f"{live_server.url}/courses/{f['course'].slug}/#node-{f['root_unit'].pk}"
-    )
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/#node-{f['root_unit'].pk}")
     expect(page.locator(f"#node-{f['root_unit'].pk}")).to_be_visible()
     assert errors == [], f"deep link to a unit row threw: {errors}"
 
-    # (c) the count===0 guard, with storage writes failing
-    _tag_a_unit(f["user"], f["unit_b"], name="rev")  # renders the filter bar
+
+@pytest.mark.django_db(transaction=True)
+def test_deep_link_survives_a_failing_storage_write(page, live_server):
+    """T13(c) — the count===0 guard, in its OWN test because the spec's
+    precondition is "no stored key". Run inside the test above, cases (a)/(b)
+    would already have written a partition; with the guard removed the handler
+    would then re-open the target FROM STORAGE and pass on the broken build.
+    Stubbing setItem blocks new writes but does not clear an existing key, so
+    getItem is stubbed too.
+
+    Mutant: remove the `if (!filterActive) return;` guard in the count===0 branch.
+    """
+    f = _course_with_two_chapters("t13c")
+    # Renders the filter bar, without which tags.js never calls setupFilter and
+    # no libli:tagfilter event fires at all — the case would be vacuous.
+    _tag_a_unit(f["user"], f["unit_b"], name="rev")
+    _login(page, live_server, "t13c")
     page.add_init_script(
         "Object.defineProperty(Storage.prototype, 'setItem', "
-        "{ value: () => { throw new Error('denied'); } });"
+        "{value: () => { throw new Error('denied'); }});"
+        "Object.defineProperty(Storage.prototype, 'getItem', {value: () => null});"
     )
-    page.goto(
-        f"{live_server.url}/courses/{f['course'].slug}/#node-{f['chap_b'].pk}"
-    )
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/#node-{f['chap_b'].pk}")
+
     assert _is_open(page, f["chap_b"].pk) is True, (
         "tags.js dispatches count:0 on every unfiltered load that renders a filter "
         "bar; without the guard it slams the just-opened ancestors shut"
@@ -1285,7 +1385,7 @@ Expected: PASS.
 
 - [ ] **Step 3: Falsify each**
 
-Apply each mutant named in the docstrings by hand, one at a time, confirm the matching test goes RED, and remove it by hand. For T10 apply **both** halves of the two-part mutant together, and confirm that the one-part version leaves the test green — that is the point of the note.
+Apply each mutant named in the docstrings by hand, one at a time, confirm the matching test goes RED, and remove it by hand. For T10 apply **both** halves of the two-part mutant together, and confirm the one-part version leaves the test green — that is the point of the note.
 
 - [ ] **Step 4: Commit**
 
@@ -1325,17 +1425,17 @@ def test_label_tracks_a_single_summary_toggle(page, live_server):
     expect(button).to_have_text("Collapse all")
 
     # A single summary gesture, not the button, is what exercises the listener.
-    page.locator(f"[data-node='{f['chap_a'].pk}'] .outline-node__title").click()
+    page.locator(_title_sel(f["chap_a"].pk)).click()
     expect(button).to_have_text("Expand all")
 
 
 @pytest.mark.django_db(transaction=True)
 def test_storage_partition_semantics(page, live_server):
     """T15, four cases."""
-    f = _course_with_two_chapters("t15")
-    # A second depth-0 root, holding a visible unit so pruning keeps it.
     from tests.factories import ContentNodeFactory
 
+    f = _course_with_two_chapters("t15")
+    # A second depth-0 root, holding a visible unit so pruning keeps it.
     root_b = ContentNodeFactory(
         course=f["course"], kind="part", unit_type=None, parent=None, title="Part Two"
     )
@@ -1349,7 +1449,8 @@ def test_storage_partition_semantics(page, live_server):
     # (a) a deliberately collapsed depth-0 root stays collapsed.
     # Mutant: union the stored set with the server default.
     page.goto(url)
-    page.locator(f"[data-node='{f['part'].pk}'] .outline-node__title").click()
+    page.locator(_title_sel(f["part"].pk)).click()
+    _wait_for_write(page)  # the write is deferred; reloading before it races it
     page.reload()
     assert _is_open(page, f["part"].pk) is False
 
@@ -1363,8 +1464,9 @@ def test_storage_partition_semantics(page, live_server):
     page.reload()
     assert _is_open(page, root_b.pk) is True, "omitted depth-0 root uses data-depth"
 
-    # (c) numeric ids must still apply — the seed contradicts the default, or the
-    # case is vacuous. Mutant: drop String() on the read side only.
+    # (c) numeric ids must still apply. The seed CONTRADICTS the default (a
+    # depth-1 chapter stored open, default closed), or the case is vacuous.
+    # Mutant: drop String() on the read side only.
     page.evaluate(
         "([k, pk]) => localStorage.setItem(k, JSON.stringify("
         "{v: 1, open: [Number(pk)], closed: []}))",
@@ -1373,7 +1475,7 @@ def test_storage_partition_semantics(page, live_server):
     page.reload()
     assert _is_open(page, f["chap_a"].pk) is True, "numeric ids normalise via String()"
 
-    # (d) unparseable → treat as absent, render the server default, never throw.
+    # (d) unparseable -> treat as absent, render the server default, never throw.
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.evaluate("k => localStorage.setItem(k, 'not json')", key)
@@ -1388,28 +1490,46 @@ def test_start_fresh_link_does_not_disturb_the_fold_state(page, live_server):
     that, "before" and "after" are both None and the assertion compares absence
     to absence.
 
-    Mutant (deterministic, not raced against navigation): put the link back
-    inside the <summary>; with the navigation blocked, activating it then toggles
-    the group and schedules a write, which D9's markup does neither of."""
+    The reset navigation is ABORTED by a route handler rather than followed. That
+    is what makes the mutant deterministic: §4.2's write is scheduled in
+    setTimeout(..., 0) and would otherwise race the browser committing the <a
+    href>, so a navigating version reddens only intermittently. With the
+    navigation blocked, the mutant (link back inside the <summary>) toggles the
+    group and schedules a write on the same page — both observable here.
+    """
     f = _course_with_two_chapters("t16")
     _login(page, live_server, "t16")
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
 
-    page.locator(f"[data-node='{f['chap_a'].pk}'] .outline-node__title").click()
-    page.wait_for_function("() => localStorage.length > 0")
+    page.locator(_title_sel(f["chap_a"].pk)).click()
+    _wait_for_write(page)
     before = _stored(page)
     assert before is not None
 
-    link = page.locator(f"#node-{f['chap_a'].pk} > a.outline-node__reset")
+    page.route("**/reset/**", lambda route: route.abort())
+    # NOT `> a.outline-node__reset`: under the mutant the link moves inside the
+    # <summary> and a direct-child locator would fail to resolve, reddening this
+    # test on T3's structural point instead of on the storage invariant it exists
+    # to prove.
+    link = page.locator(f"#node-{f['chap_a'].pk} a.outline-node__reset")
     expect(link).to_be_visible()
     link.click()
-    page.wait_for_url("**/progress/reset/**")
-    page.go_back()
 
-    assert _stored(page) == before
+    page.wait_for_timeout(200)  # let any scheduled write land before asserting
+    assert _is_open(page, f["chap_a"].pk) is True, "the group must not have toggled"
+    assert _stored(page) == before, "and nothing must have been persisted"
+    page.unroute("**/reset/**")
 
-    # Keyboard reachability: the link is a sibling of the disclosure (D9), so it
-    # is an ordinary tabbable link rather than a control nested in a control.
+    # The link really does navigate (the route abort is a test device, not the
+    # product behaviour). courses/urls.py registers progress_reset at
+    # courses/<slug>/reset/<node_pk>/ — there is no "progress/" segment.
+    reset_url = f"/courses/{f['course'].slug}/reset/{f['chap_a'].pk}/"
+    expect(link).to_have_attribute("href", re.compile(re.escape(reset_url)))
+
+    # Keyboard reachability. Collapse chapter A first: with the group OPEN the
+    # next tab stop after the summary is the unit link INSIDE the disclosure, not
+    # the sibling reset link — D9 puts that link after </details> in DOM order.
+    page.locator(_title_sel(f["chap_a"].pk)).click()
     page.locator(f"[data-node='{f['chap_a'].pk}'] > summary").focus()
     page.keyboard.press("Tab")
     assert page.evaluate(
@@ -1423,11 +1543,11 @@ def test_start_fresh_link_does_not_disturb_the_fold_state(page, live_server):
 uv run pytest tests/test_e2e_outline_tree.py -m e2e -q
 ```
 
-Expected: PASS. If T16's `wait_for_url` pattern does not match, check the real reset-confirm URL with `reverse("courses:progress_reset", ...)` and adjust the glob — do not weaken the assertion.
+Expected: PASS.
 
 - [ ] **Step 3: Falsify each**
 
-Apply each named mutant by hand, confirm RED, remove by hand.
+Apply each named mutant by hand, confirm RED, remove by hand. For T16 the mutant is "move the reset link back inside the `<summary>`", and it must redden on the fold-state or stored-value assertion — **not** on `expect(link).to_be_visible()`, which would only re-prove T3's structure. The locator is deliberately a descendant selector so the mutant reaches the real assertions.
 
 - [ ] **Step 4: Commit**
 
@@ -1444,7 +1564,7 @@ git commit -m "test(outline): e2e for label sync, storage partition and the rese
 - Modify: `tests/test_e2e_outline_tree.py` (append)
 
 **Interfaces:**
-- Consumes: Task 7's helpers.
+- Consumes: Task 7's helpers **and Task 8's `_tag_a_unit`** (T19 filters). If these tasks are ever reordered or split across agents, Task 10 does not run without Task 8.
 - Produces: nothing.
 
 - [ ] **Step 1: Add T17-T19**
@@ -1457,8 +1577,8 @@ def test_nested_type_scale_and_guide_rule_survive_the_details_nesting(
     """T17 — the R6 guard. Both halves are pure-CSS regressions that leave a
     correct DOM and a worse page, with nothing red.
 
-    Mutants: (1) omit the `> .outline-node__group >` type-scale twins;
-             (2) leave `.outline-node > ul` un-re-pointed.
+    Mutants, applied separately: (1) omit the `> .outline-node__group >`
+    type-scale twins; (2) leave `.outline-node > ul` un-re-pointed.
     """
     from tests.factories import ContentNodeFactory
 
@@ -1479,14 +1599,14 @@ def test_nested_type_scale_and_guide_rule_survive_the_details_nesting(
 
     chapter_size = page.evaluate(
         "pk => getComputedStyle(document.querySelector("
-        "`[data-node='${pk}'] .outline-node__title`)).fontSize",
+        "`[data-node='${pk}'] > summary .outline-node__title`)).fontSize",
         str(f["chap_a"].pk),
     )
     assert chapter_size == "17.6px", "1.1rem — the nested chapter type scale"
 
     section_style = page.evaluate(
         "pk => { const el = document.querySelector("
-        "  `[data-node='${pk}'] .outline-node__title`);"
+        "  `[data-node='${pk}'] > summary .outline-node__title`);"
         "  const s = getComputedStyle(el);"
         "  return {size: s.fontSize, transform: s.textTransform}; }",
         str(section.pk),
@@ -1523,7 +1643,11 @@ def test_toggle_all_stays_hidden_when_there_are_no_groups(page, live_server):
     _login(page, live_server, "t18")
     page.goto(f"{live_server.url}/courses/{course.slug}/")
 
-    expect(page.locator("[data-outline-toggle-all]")).to_be_hidden()
+    button = page.locator("[data-outline-toggle-all]")
+    # to_be_hidden() is satisfied by ZERO matching elements, so a build that
+    # stopped rendering the button entirely would pass without this count check.
+    expect(button).to_have_count(1)
+    expect(button).to_be_hidden()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1534,7 +1658,11 @@ def test_folding_and_filtering_work_with_js_off(browser, live_server):
     new_context(java_script_enabled=False) lands on the login page and the
     assertions pass or fail for the wrong reason. Follow the existing precedent
     in tests/test_e2e_before_after.py: log in with JS on, capture storage_state,
-    then open the no-JS context with it."""
+    then open the no-JS context with it.
+
+    Every state read here uses _has_open_attr, NOT _is_open: page.evaluate does
+    not work in a JS-disabled context.
+    """
     f = _course_with_two_chapters("t19")
     tag = _tag_a_unit(f["user"], f["unit_b"])
 
@@ -1544,36 +1672,24 @@ def test_folding_and_filtering_work_with_js_off(browser, live_server):
     storage_state = ctx.storage_state()
     ctx.close()
 
-    nojs = browser.new_context(
-        java_script_enabled=False, storage_state=storage_state
-    )
+    nojs = browser.new_context(java_script_enabled=False, storage_state=storage_state)
     page = nojs.new_page()
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
 
-    assert _is_open(page, f["part"].pk) is True
-    assert _is_open(page, f["chap_a"].pk) is False
+    assert _has_open_attr(page, f["part"].pk) is True
+    assert _has_open_attr(page, f["chap_a"].pk) is False
 
     # Native <details> still folds with no JS at all.
     page.locator(f"[data-node='{f['chap_a'].pk}'] > summary").click()
-    assert _is_open(page, f["chap_a"].pk) is True
+    assert _has_open_attr(page, f["chap_a"].pk) is True
 
     # D8: the server opens the ancestors of a match, so a no-JS filtered outline
     # is not empty.
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/?tags={tag.pk}")
-    assert _is_open(page, f["chap_b"].pk) is True
+    assert _has_open_attr(page, f["chap_b"].pk) is True
     expect(page.locator(f"#node-{f['unit_b'].pk}")).to_be_visible()
     nojs.close()
 ```
-
-Note: `_is_open` uses `page.evaluate`, which is unavailable with JS disabled. In T19, replace those three calls with attribute reads instead:
-
-```python
-def _has_open_attr(page, node_pk):
-    """Attribute read, not page.evaluate — works with JS disabled."""
-    return page.locator(f"[data-node='{node_pk}']").get_attribute("open") is not None
-```
-
-Use `_has_open_attr` throughout T19 and add it beside `_is_open`.
 
 - [ ] **Step 2: Run the whole e2e file**
 
@@ -1611,10 +1727,27 @@ git commit -m "test(outline): e2e for the CSS regressions, empty tree and no-JS 
 Inserting rules into `app.css`'s `.outline-*` block shifts every line below it, and these citations live in files this branch otherwise never touches — no per-task review can see them. Grep each named file in full rather than trusting the list:
 
 ```bash
-grep -rn "app\.css:[0-9]" tests/ core/static/core/css/app.css
+grep -rn "app\.css:[0-9]" --include=*.py --include=*.css . | grep -v "\.venv"
+grep -rn "_outline_node\.html:[0-9]" --include=*.py . | grep -v "\.venv"
 ```
 
-Fix, preferring **selector-name citations over line numbers** so they cannot rot again:
+**The second grep matters and the first must not be narrowed.** Scoping the sweep to
+`tests/` misses the second test root and both sibling stylesheets entirely — verified
+hits below the insertion point live in `courses/tests/test_beforeafter_css.py`,
+`courses/tests/test_filltable_gate_print.py`,
+`courses/tests/test_filltable_gate_static.py`,
+`courses/tests/test_reveal_scope_agreement.py`,
+`courses/static/courses/css/courses.css` (7 citations) and
+`courses/static/courses/css/builder.css` (7 citations). And
+`tests/test_title_math_assets.py` cites `_outline_node.html:21` — the head `<div>` line
+that Task 2 rewrites — which no `app.css:` pattern can find.
+
+Convert `_outline_node.html:21` to a selector-name reference ("the
+`.outline-node__head` branch"); `tests/test_courses_progress.py` cites `:3`/`:5`, above
+the change and safe.
+
+Fix the `app.css` hits, preferring **selector-name citations over line numbers** so they
+cannot rot again:
 - `tests/capture_unit_marker_screenshots.py` — cites `app.css:533` (`.outline-unit:hover`) and `:554-556` (`.outline-node:target`), both inside the edited block.
 - `tests/test_editor_row_css_guards.py` — cites `:546, :1009, :1192` and `:1452-1478`; all but `:546` sit below the insertion.
 - `tests/test_e2e_filltable_gate.py` — cites `:1010`.
@@ -1632,7 +1765,16 @@ git diff --stat locale/
 
 Expected: **reference-comment churn only**. There are no new msgids — *Expand all*, *Collapse all* and *Start fresh* all already exist with Polish translations. If you see a new `#, fuzzy` entry or an empty `msgstr` for any of the three, a label was misspelled: fix the template rather than the catalog.
 
-- [ ] **Step 3: Run the lint gates**
+- [ ] **Step 3: Guard against an unfilled measurement**
+
+```bash
+grep -n "<value>\|<N>\|<M>px\|<YYYY-MM-DD>" core/static/core/css/app.css
+```
+
+Expected: **no output**. Task 2 Step 8's placeholders are invalid CSS; if any survived,
+the padding was never measured.
+
+- [ ] **Step 4: Run the lint gates**
 
 ```
 uv run ruff check --no-cache .
@@ -1641,7 +1783,7 @@ uv run ruff format --check .
 
 Expected: clean. `--no-cache` matters: the noqa/unused warnings are cached away otherwise, and `ruff format --check` is a separate gate from `ruff check`.
 
-- [ ] **Step 4: Run the non-e2e suite**
+- [ ] **Step 5: Run the non-e2e suite**
 
 ```
 uv run pytest -q
@@ -1649,7 +1791,7 @@ uv run pytest -q
 
 Expected: pass. **Grep the summary line** rather than trusting the exit code.
 
-- [ ] **Step 5: Run the e2e suite**
+- [ ] **Step 6: Run the e2e suite**
 
 ```
 uv run pytest -m e2e -q -n 2
@@ -1657,7 +1799,7 @@ uv run pytest -m e2e -q -n 2
 
 Expected: pass. If something fails, A/B it against `master` before blaming this branch — e2e flakes under parallel load.
 
-- [ ] **Step 6: Walk the screenshot gate**
+- [ ] **Step 7: Walk the screenshot gate**
 
 Capture light **and** dark, judging dark separately rather than assuming it follows. Every item below was settled by reasoning rather than by a test, which is why it is here:
 
@@ -1671,10 +1813,14 @@ Capture light **and** dark, judging dark separately rather than assuming it foll
 8. The same long-title row with the **`pl`** catalog active, confirming the measured `padding-inline-end` clears *Zacznij od nowa*.
 9. The first paint of a returning student's page: the D1 default is **expected** to show briefly before the stored state applies — that flash is accepted (D2 rules out the server-side fix), not a defect to report.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
+
+Stage the sweep's actual output, not a fixed path list — the citations live in
+`courses/` as well as `tests/`, and a `tests/ locale/` add would silently drop them:
 
 ```bash
-git add -- tests/ locale/
+git add -u
+git status --short   # confirm ONLY citation comments and locale files are staged
 git commit -m "chore(outline): refresh rotted css citations and message catalogs"
 ```
 
