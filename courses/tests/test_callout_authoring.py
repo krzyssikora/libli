@@ -72,6 +72,10 @@ def test_save_round_trips_kind_heading_body(client):
     assert isinstance(el.content_object, CalloutElement)
     assert el.content_object.kind == "warning"
     assert el.content_object.heading == "Careful"
+    # No `numbered` key was posted: an unchecked checkbox transmits nothing, so
+    # this is indistinguishable from a deliberate untick. Pin the deliberate
+    # False, don't let it drift silently.
+    assert el.content_object.numbered is False
 
 
 def test_edit_form_preselects_stored_kind(client):
@@ -137,3 +141,8 @@ def test_save_round_trips_the_task_kind(client):
     assert resp.status_code == 200
     el = Element.objects.get(unit=unit)
     assert el.content_object.kind == "task"
+    # No `numbered` key was posted: an unchecked checkbox transmits nothing, so
+    # this is indistinguishable from a deliberate untick. `task` is the
+    # highest-volume kind (177 rows) and defaults to numbered -- the strongest
+    # evidence in the repo that this outcome must be deliberate, not silent.
+    assert el.content_object.numbered is False

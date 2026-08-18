@@ -209,12 +209,24 @@ def _val_spoiler(data, elid, media_kinds):
 
 
 def _val_callout(data, elid, media_kinds):
+    from courses.models import KIND_DEFAULT_NUMBERED
     from courses.models import CalloutElement
 
-    _exact_keys(data, ["kind", "heading", "body"], _("callout data"))
+    # `numbered` is optional for pre-v13 archives (the size/width pattern). This MUST
+    # run before _exact_keys, which is the only reason `kind` is not yet validated
+    # here -- so the lookup has to be TOTAL: `kind` may be absent (a bare data["kind"]
+    # would raise KeyError where the contract is a translated TransferError) or a list
+    # or dict (which would make .get() raise TypeError: unhashable type).
+    _kind = data.get("kind")
+    data.setdefault(
+        "numbered",
+        KIND_DEFAULT_NUMBERED.get(_kind, True) if isinstance(_kind, str) else True,
+    )
+    _exact_keys(data, ["kind", "heading", "body", "numbered"], _("callout data"))
     check_str(data["kind"], _("kind"))
     check_str(data["heading"], _("heading"), max_length=120)
     check_str(data["body"], _("body"))
+    check_bool(data["numbered"], "numbered")
     if data["kind"] not in CalloutElement.Kind.values:
         _err(_("Element '%(el)s' has an unknown callout kind."), el=elid)
     return set()

@@ -115,10 +115,12 @@ controls. **Description position** places each caption **Below image** or
 {el:callout} **Callout** — a framed, always-visible aside for a note that should stand out
 from the surrounding text. Choose a **Kind** (Example, Note, Tip, Important, or Task —
 each with its own accent colour and icon), an optional **Heading** (falls back
-to a default per kind when left blank), and rich-text body content. A callout
-is also a container: it can hold nested elements added below the body from
-its own **Add element** menu — see "Containers and nesting" below for what
-can go inside.
+to a default per kind when left blank), a **Number this callout** checkbox (on
+by default; callouts numbered this way share one running sequence per unit,
+and Notes and Tips in existing content start unnumbered), and rich-text body
+content. A callout is also a container: it can hold nested elements added
+below the body from its own **Add element** menu — see "Containers and
+nesting" below for what can go inside.
 
 {el:tabs} **Tabs** — a container that splits its content into labelled tabs a student
 switches between; add, remove, reorder, and label tabs from the editor's row

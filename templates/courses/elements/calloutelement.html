@@ -2,7 +2,7 @@
 <aside class="callout callout--{{ el.kind }}">
   <div class="callout__header">
     {% include "courses/elements/_callout_icon.html" %}
-    <span class="callout__heading">{{ el.display_heading }}</span>
+    <span class="callout__heading">{% if number %}{{ el.kind_label }} <span class="callout__number">{{ number }}</span>{% if el.heading %}. {{ el.heading }}{% endif %}{% else %}{{ el.display_heading }}{% endif %}</span>
   </div>
   {% if el.body %}
     <div class="el el--text callout__body">{{ el.body|sanitize }}</div>

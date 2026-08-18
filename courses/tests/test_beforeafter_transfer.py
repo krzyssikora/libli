@@ -166,4 +166,4 @@ def test_format_version_is_pinned():
     """
     from courses.transfer.schema import FORMAT_VERSION
 
-    assert FORMAT_VERSION == 12
+    assert FORMAT_VERSION == 13

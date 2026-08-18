@@ -7,6 +7,10 @@
       {% endfor %}
     </select>
   </label>
+  <label class="el-editor__check">
+    <input type="checkbox" name="numbered" {% if form.numbered.value %}checked{% endif %}>
+    {% trans "Number this callout" %}
+  </label>
   <label>{% trans "Heading" %}
     <input type="text" name="heading" maxlength="120"
            value="{{ form.heading.value|default:'' }}"

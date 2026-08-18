@@ -248,6 +248,10 @@ class Command(BaseCommand):
             unit,
             CalloutElement,
             kind="tip",
+            # Explicit: the model default is a flat True, and only the migration and
+            # the importer consult the per-kind map. Every production construction
+            # site must pass this.
+            numbered=False,
             heading="Remember",
             body="<p>Order of operations matters.</p>",
         )
