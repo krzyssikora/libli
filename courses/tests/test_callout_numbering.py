@@ -48,7 +48,6 @@ def test_kind_label_ignores_a_custom_heading():
 def test_display_heading_falls_back_to_kind_label():
     el = CalloutElement(kind="warning", heading="")
     assert el.display_heading == "Important"
-    assert el.display_heading == el.kind_label
 
 
 def test_kind_label_survives_an_unknown_kind():

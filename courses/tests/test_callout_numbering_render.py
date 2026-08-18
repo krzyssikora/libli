@@ -40,8 +40,13 @@ def test_a_numbered_callout_with_a_custom_heading_reads_label_number_period_head
     only branch with zero real rows exercising it (0 of 369 callouts have a heading).
 
     Mutant A: swap the label/heading order.
-    Mutant B: emit `display_heading` instead of `heading` in the numbered branch,
-              which renders the custom text twice or drops the label.
+    Mutant B: emit `display_heading` in the LABEL position instead of `heading`
+              in the text position -- i.e. `{{ el.display_heading }}
+              <span class="callout__number">...` -- caught by the exact-fragment
+              assertion below. (`display_heading` is `heading or kind_label`, so
+              swapping it for `heading` in the TEXT position is byte-identical
+              whenever `el.heading` is truthy, and that sub-mutant is not
+              killable here.)
     """
     _course, unit = make_course_with_unit()
     el = CalloutElement.objects.create(
@@ -122,11 +127,21 @@ def test_the_editor_partial_renders_the_checkbox(client):
 
 
 def test_an_unnumbered_instance_renders_the_box_unchecked():
+    """The absent half of test_the_editor_partial_renders_the_checkbox's present
+    half. Asserting on BoundField.value() would be insensitive to the template:
+    Mutant: replace `{% if form.numbered.value %}checked{% endif %}` at
+    _edit_callout.html:11 with a bare `checked` -> form["numbered"].value() is
+    still False and this stays GREEN, destroying the R2 round trip (spec 8.13).
+    Rendering the real partial is what catches it.
+    """
+    from django.template.loader import render_to_string
+
     from courses.element_forms import CalloutElementForm
 
-    el = CalloutElement(kind="tip", numbered=False)
-    form = CalloutElementForm(instance=el)
-    assert form["numbered"].value() is False
+    form = CalloutElementForm(instance=CalloutElement(kind="tip", numbered=False))
+    body = render_to_string("courses/manage/editor/_edit_callout.html", {"form": form})
+    assert 'name="numbered"' in body
+    assert 'name="numbered" checked' not in body
 
 
 def test_element_summary_never_shows_a_number(client):

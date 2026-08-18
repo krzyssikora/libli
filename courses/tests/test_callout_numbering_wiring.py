@@ -40,7 +40,7 @@ def _unit_with_a_nested_callout(unit):
 @pytest.fixture
 def student_user():
     """Both context builders REQUIRE a real user; neither tolerates None.
-    build_lesson_context reaches `elif user.is_authenticated` (courses/views.py:513)
+    build_lesson_context reaches `elif user.is_authenticated` (courses/views.py:514)
     whenever the viewer is not enrolled -- and is_enrolled(None, course) is a plain
     .filter(student=None).exists(), so that branch always runs and None.is_authenticated
     raises. build_quiz_context crashes further down instead, via
@@ -85,6 +85,25 @@ def test_the_student_lesson_page_numbers_a_NESTED_callout(client):
     _unit_with_a_nested_callout(unit)
     resp = client.get(
         reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    assert NUMBER_SPAN in resp.content.decode()
+
+
+def test_the_quiz_page_numbers_a_NESTED_callout(client):
+    """The barrier end-to-end for the quiz surface, mirroring
+    test_the_student_lesson_page_numbers_a_NESTED_callout above.
+    test_quiz_context_carries_the_map only pins the context dict, leaving the
+    quiz page's own render path unguarded; this drives a real page render, as
+    the lesson and both editor surfaces already do."""
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type=ContentNode.UnitType.QUIZ
+    )
+    _unit_with_a_nested_callout(unit)
+    resp = client.get(
+        reverse("courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
     )
     assert resp.status_code == 200
     assert NUMBER_SPAN in resp.content.decode()
