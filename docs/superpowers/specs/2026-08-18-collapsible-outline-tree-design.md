@@ -170,10 +170,16 @@ Two changes in this file, plus the script tags §4.5 requires.
 **(a) The nav gains the storage key's source.** `outline.html:14` becomes:
 
 ```
-<nav class="outline-tree" data-course-slug="{{ course.slug }}" aria-label="…">
+<nav class="outline-tree outline-tree--booting"
+     data-course-slug="{{ course.slug }}" aria-label="…">
 ```
 
-This attribute has an owner precisely because it is easy to drop: without it §4.1's key
+**Both** additions are server-rendered here, and `outline-tree--booting` must be: §4.0's
+accepted consequence is that the browser paints *before* the deferred script runs, so a
+JS-added class would arrive too late to suppress the transition during the very paint it
+exists to cover. Its removal is §4.0 step 5.
+
+The `data-course-slug` attribute has an owner precisely because it is easy to drop: without it §4.1's key
 degrades to `libli_outline_open:undefined`, i.e. one fold state shared across every
 course, which no test would notice unless one asserts the attribute. T4 does.
 
@@ -245,6 +251,13 @@ from getting it wrong.
    Under a filter the server's D8 render is already correct, and re-applying the stored
    partition would fold matches shut only for §5 to force them open again a moment later.
 4. Run the deep-link handler (§4.4).
+5. **Remove `outline-tree--booting` from the nav — unconditionally**, as the last act of
+   initialisation, however the earlier steps branched. "Until step 3 completes" would be a
+   trap: step 3 is skipped entirely under a filter and does nothing when the key is absent,
+   so a removal conditioned on it would leave the chevron transition dead for the rest of
+   the session — including after the student clears the filter. With JS off the class
+   persists forever by design, which is why §6.2's suppression may only ever disable a
+   transition and must never hide or reposition anything.
 
 **Accepted consequence: a returning student sees the D1 default paint before their stored
 state applies.** `outline_tree.js` is `defer`red, so on a 1006-node course the browser will
@@ -506,17 +519,29 @@ outline rule this spec elsewhere insists on naming.
 
 - **The `<li>` becomes a two-column grid** so D9's *Start fresh* sibling still sits on the
   head row: `.outline-node--part, .outline-node--chapter, .outline-node--section` (the
-  container branches) get `display: grid; grid-template-columns: 1fr auto;` with the
+  container branches) get
+  `display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline;` with the
   `<details>` in column 1 and `.outline-node__reset { grid-column: 2; grid-row: 1; align-self: baseline; }`.
   Grid, not `position: absolute` — an absolutely positioned link overlaps a title that
   wraps to two lines, and outline titles do wrap.
-- **`align-self: baseline`, not `start`, and for the same reason the chevron gets
-  `center`.** Today the reset link is a flex child of `.outline-node__head`, which is
+- **`align-items: baseline` goes on the grid *container*, and that is the load-bearing
+  half.** Today the reset link is a flex child of `.outline-node__head`, which is
   `align-items: baseline`, so the `.8rem` link sits on the same text baseline as a
-  `1.35rem` part title. As a grid item, `start` would align it to the top of the
-  `<details>` box — above the title's cap height and visibly high, worst at part level
-  where the type-size gap is largest. `baseline` is the direct grid equivalent of today's
-  behaviour. Its position against a part title is a named item in the §10 screenshot gate.
+  `1.35rem` part title; as a grid item aligned to `start` it would sit at the top of the
+  `<details>` box, above the title's cap height and visibly high, worst at part level.
+  **`align-self: baseline` on the link alone does not fix this:** baseline self-alignment
+  aligns an item against the others in its baseline-sharing group, and with the `<details>`
+  left at the default `stretch` the link is the group's only member — a single-member group
+  falls back to `start`, i.e. the exact placement it was meant to avoid. Putting
+  `align-items: baseline` on the container puts both children in the group; the per-item
+  `align-self` is then reinforcement, not the mechanism. Its position against a part title
+  is a named item in the §10 screenshot gate.
+- **`minmax(0, 1fr)`, not `1fr`.** A bare `1fr` is `minmax(auto, 1fr)`, so column 1 cannot
+  shrink below the `<details>`'s min-content — and `.outline-node__title` carries neither
+  the `min-width: 0` nor the `overflow-wrap: anywhere` that `.outline-unit__title` has. One
+  long unbreakable word in a container title would then push the row wider than the `<li>`
+  instead of wrapping, where today's flex row simply wraps the reset link to a second line.
+  Include a long-title row at mobile width in the screenshot gate.
 - **The grid rule's specificity is capped at (0,1,0), and that is load-bearing.** `[hidden]`'s
   UA `display: none` loses to any author `display` declaration; the codebase already carries
   the guard `.outline-node[hidden] { display: none; }` (0,2,0) with a comment naming this
@@ -537,10 +562,13 @@ outline rule this spec elsewhere insists on naming.
   `--border-strong` border, neither reset by the UA — so §5's disabled toggle-all would
   render identically to the enabled one, pointer cursor included, producing exactly the
   "visibly does nothing" affordance §5 says it was chosen to avoid. Only the AT-announcement
-  half of that rationale holds without this rule. Follow the house precedent at
-  `app.css:1180-1187` (`.switchgate__cycler:disabled`): reduced opacity plus
-  `cursor: default`, scoped to `.outline__toggle-all` rather than widened to `.btn`
-  generally, which is out of scope. Named in the §10 screenshot gate.
+  half of that rationale holds without this rule. **There is no reduced-opacity disabled
+  precedent in this codebase to copy** — the only `:disabled` rules are the two cycler ones,
+  and `app.css:1180-1187` (`.switchgate__cycler:disabled`) is a *success tint*
+  (`--success-subtle` fill, `--success` border) for a locked-correct answer, which on a
+  disabled *Collapse all* would read as "something succeeded". Take only `cursor: default`
+  from it and state the rest directly: `opacity: .5; cursor: default;` scoped to
+  `.outline__toggle-all`, not widened to `.btn` generally, which is out of scope. Named in the §10 screenshot gate.
 - `summary.outline-node__head { cursor: pointer; list-style: none; }` plus
   `summary.outline-node__head::-webkit-details-marker { display: none; }`, mirroring
   `courses.css:716-717`. **Note for test authors:** `.outline-node__head` already carries
@@ -548,13 +576,23 @@ outline rule this spec elsewhere insists on naming.
   neither declaration is independently falsifiable. Do not write a test against them; they
   are defence against a future `display` change, exactly as in the rail.
 - Chevron, mirroring `courses.css:746-752`:
-  `.outline-node__head > .outline-node__chevron { width: .8rem; height: .8rem; align-self: center; transition: transform 120ms ease; }`
+  `.outline-node__head > .outline-node__chevron { width: .8rem; height: .8rem; align-self: center; color: var(--text-tertiary); }`
+  — **no `transition` in the base rule**; it appears only in the reduced-motion block below,
+  which is the single normative spelling
   and `.outline-node__group[open] > .outline-node__head > .outline-node__chevron { transform: rotate(90deg); }`
   — the **full direct-child chain**, as the rail's comment at `courses.css:749-751`
   requires: with a descendant combinator, a closed section inside an open chapter is
   painted open.
   Do **not** redeclare `flex: none` — `.icon` already sets it (`app.css:109`), so it is
   inert here and carries no possible mutant.
+- **The booting suppression rule (§4.0's mitigation), written to win outright:**
+  `.outline-tree--booting .outline-node__head > .outline-node__chevron { transition: none; }`
+  at (0,3,0). The obvious shorter form,
+  `.outline-tree--booting .outline-node__chevron`, is (0,2,0) and merely *ties* the base
+  chevron rule — the winner would fall to source order, the same un-testable ordering
+  dependency the next bullet forbids. This rule is the only thing the booting class does;
+  it must never hide or reposition anything, because with JS off the class is never
+  removed.
 - **Reduced motion: gate the transition, do not try to override it.** Declare
   `transition: transform 120ms ease` **inside**
   `@media (prefers-reduced-motion: no-preference) { … }` rather than declaring it
@@ -661,8 +699,9 @@ outline rule this spec elsewhere insists on naming.
   shifts every line below it. The concrete sweep list, rather than a general instruction:
   - `tests/capture_unit_marker_screenshots.py` — cites `app.css:533` (`.outline-unit:hover`)
     and `app.css:554-556` (`.outline-node:target`), both **inside** the block being edited;
-  - `tests/test_editor_row_css_guards.py` — cites `app.css:546, :1009, :1192`, the latter
-    two below the insertion;
+  - `tests/test_editor_row_css_guards.py` — cites `app.css:546, :1009, :1192` **and
+    `:1452-1478` at its line 64**, all but `:546` below the insertion. Per-file line lists
+    here are a starting point, not a guarantee: grep each named file for `app.css:` in full;
   - `tests/test_e2e_filltable_gate.py` — cites `app.css:1010`, below the insertion;
   - `tests/test_outline_anchors.py` — cites `app.css:488`, which is **already stale**: the
     rule it names (`.outline-tree > ul > .outline-node {`) sits at line 504 today. Do not
@@ -807,22 +846,24 @@ is not evidence.
 - **T12** — C2's case. Load `?tags=N#node-M` and assert `localStorage` is untouched.
   Mutant: seed `filterActive` only from the `libli:tagfilter` event instead of at init
   (§4.0 step 1) — the deep-link write then persists the server's force-opened tree.
-- **T13** — `#node-N` deep link three levels down: the row is **within the viewport** (not
-  "centred" — see §4.4's KaTeX hazard), carries the `:target` highlight, **and the target's
-  own `<details>` is `open`** (§4.4). Two mutants, both must redden: drop the
-  ancestor-opening loop; open the ancestors but not the target itself. Third case: a
-  `#node-<unit-pk>` hash (a bookmarked or hand-typed link to a **unit** row, which owns no
-  `<details>` — `id="node-N"` is on every `<li>`). It must scroll to the row and **must not
-  throw**; mutant: unconditional `li.querySelector(":scope > details").open = true`. Second case, same
-  file: **the fixture must create a tag whose `author` is the logged-in enrolled student**,
-  on a unit in the course. `tags/services.py :: tags_for_outline` filters on
-  `tag__author=author` with `author = request.user`, so a tag created by the course owner
-  or a factory default leaves `filter_chips` empty, `{% if filter_chips %}` false and the
-  bar unrendered — `tags.js` runs `setupFilter` only `if (bar)`, so no `libli:tagfilter`
-  event fires and the case is exactly as vacuous as this note exists to prevent. The same
-  authorship requirement applies to T10's and T11's filter fixtures. With the bar present, stub
-  `localStorage.setItem` to throw and store no key: the deep-linked row must still be
-  visible. Mutant: remove the `count === 0` no-op guard.
+- **T13** — three labelled cases; implement all three.
+  **(a) Deep link, three levels down.** The row is **within the viewport** (not "centred" —
+  see §4.4's KaTeX hazard), carries the `:target` highlight, and the target's own
+  `<details>` is `open` (§4.4). Two mutants, both must redden: drop the ancestor-opening
+  loop; open the ancestors but not the target itself.
+  **(b) Unit-pk hash.** A `#node-<unit-pk>` (a bookmarked or hand-typed link to a **unit**
+  row, which owns no `<details>` — `id="node-N"` is on every `<li>`) must scroll to the row
+  and **must not throw**. Mutant: unconditional
+  `li.querySelector(":scope > details").open = true`.
+  **(c) The `count === 0` guard.** With no stored key and `localStorage.setItem` stubbed to
+  throw, a deep-linked row must still be visible. Mutant: remove the `count === 0` no-op
+  guard. *Fixture precondition, or this case is vacuous:* it must create a tag whose
+  `author` is the logged-in enrolled student, on a unit in the course.
+  `tags/services.py :: tags_for_outline` filters on `tag__author=author` with
+  `author = request.user`, so a tag created by the course owner or a factory default leaves
+  `filter_chips` empty, `{% if filter_chips %}` false and the bar unrendered — and
+  `tags.js` runs `setupFilter` only `if (bar)`, so no `libli:tagfilter` event ever fires.
+  The same authorship requirement applies to T10's and T11's filter fixtures.
 - **T14** — R3. With every group open (label *Collapse all*), click one summary closed and
   assert the label becomes *Expand all*. Mutant: register the `toggle` listener without
   `capture: true`. T9 alone cannot catch this — an implementation that updates the label
