@@ -76,3 +76,48 @@ def test_reset_link_is_a_sibling_of_details_not_inside_the_summary(client):
     assert "outline-node__title" in summary
     assert "outline-node__reset" not in summary, "D9: the reset link is a sibling"
     assert "outline-node__reset" in html, "...but it is still rendered"
+
+
+def test_filter_opens_the_ancestors_of_a_match(client):
+    """T5 / D8. The tag filter is NOT JS-only: _tags_filter_bar.html renders real
+    <a href="?tags=N"> links and outline_with_tags sets tag_hidden server-side.
+    Without the second `open` arm, a no-JS student clicking a filter chip sees an
+    outline of nothing — a regression on a currently-working path.
+
+    Mutant: drop the `or active_tag_ids and not item.tag_hidden` arm.
+    """
+    from tags.models import Tag
+    from tags.models import UnitTag
+
+    course = CourseFactory()
+    root_a = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
+    root_b = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
+    chap_a = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=root_a
+    )
+    chap_b = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=root_b
+    )
+    hit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chap_a
+    )
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=chap_b)
+
+    user = make_login(client, "t5")
+    Enrollment.objects.create(student=user, course=course)
+    # The tag MUST be authored by the student issuing the GET: course_outline
+    # filters active_tag_ids down to tags_for_outline(request.user, course), which
+    # is tag__author-scoped. A tag owned by anyone else leaves active_tag_ids
+    # empty, the D8 arm never fires, and this test fails on a CORRECT build.
+    tag = Tag.objects.create(author=user, name="exam")
+    UnitTag.objects.create(tag=tag, unit=hit)
+
+    url = reverse("courses:course_outline", kwargs={"slug": course.slug})
+    html = client.get(f"{url}?tags={tag.pk}").content.decode()
+
+    chap_a_tag = html.split(f'data-node="{chap_a.pk}"')[1].split(">")[0]
+    chap_b_tag = html.split(f'data-node="{chap_b.pk}"')[1].split(">")[0]
+    assert "open" in chap_a_tag, "the match's depth-1 ancestor is opened"
+    # Negative side must target depth >= 1: depth-0 containers render open
+    # unconditionally under D1's arm, so a depth-0 negative fails on a correct build.
+    assert "open" not in chap_b_tag, "a depth-1 container with no match stays folded"
