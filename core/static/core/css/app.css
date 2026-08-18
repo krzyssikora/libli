@@ -667,6 +667,12 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .outline__toggle-all:disabled { opacity: .5; cursor: default; }
 .outline__toggle-all:disabled:hover { background: transparent; }
 
+/* Suppresses the chevron animation until outline_tree.js finishes restoring the
+   stored fold state, so the restore is an instant state change rather than a
+   wave of animating chevrons. This rule is the ONLY thing the class does: with
+   JS off it is never removed, so it must never hide or reposition anything. */
+.outline-tree--booting .outline-node__head > .outline-node__chevron { transition: none; }
+
 @media (max-width: 640px) {
   .outline__results { margin-left: 0; }
 }
