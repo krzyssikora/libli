@@ -12,11 +12,11 @@
 
 ## Global Constraints
 
-- **`FORMAT_VERSION` goes 12 → 13** (`courses/transfer/schema.py:14`). Eight existing assertions pin the old value and must be updated; one must NOT be (Task 7).
+- **`FORMAT_VERSION` goes 12 → 13** (`courses/transfer/schema.py:14`). **Seven** existing assertions pin the old value and must be updated; an eighth assertion breaks on the serializer change rather than on the bump; and one `format_version=12` must NOT be touched at all, because it is a legacy-archive fixture. All three groups are itemised in Task 8.
 - **No trailing period after a bare number.** `Przykład 3`, never `Przykład 3.` The period appears only as the separator before a custom heading.
 - **Assert in English.** `LANGUAGE_CODE = "en"` and `conftest.py`'s autouse `_reset_active_language` activates it around every test. Kind labels render as `Example` / `Task` / `Note` / `Tip` / `Important`. The Polish forms in the spec are exposition only.
 - **Every test fixture must set `numbered` explicitly.** Kind never implies `numbered` at creation: the model default is a flat `True`, and `KIND_DEFAULT_NUMBERED` is consulted only by the migration and the importer.
-- **Every production site that constructs a `CalloutElement` must pass `numbered` explicitly.** Today that is `_build_callout` (Task 7) and `seed_demo_course._callout` (Task 8).
+- **Every production site that constructs a `CalloutElement` must pass `numbered` explicitly.** Today that is `_build_callout` (Task 8) and `seed_demo_course._callout` (Task 9).
 - **Start the test-DB container before any pytest run**, or the first run looks hung for ~4 minutes:
   `docker compose -f docker-compose.test.yml up -d`
 - **Tooling is behind uv.** `pytest`/`ruff` are not on PATH — always `uv run pytest ...`, `uv run ruff ...`.
@@ -661,11 +661,20 @@ def test_a_nested_only_callout_is_not_short_circuited():
 
 def test_a_dangling_content_object_is_skipped_not_raised_on():
     """A row whose concrete is gone must not 500 the student page.
-    Mutant: drop the `obj is None` guard -> AttributeError."""
+    Mutant: drop the `obj is None` guard -> AttributeError.
+
+    DO NOT build this by deleting the concrete. `TextElement.elements` is a
+    GenericRelation whose own comment reads "cascade: deleting this removes its
+    join-row" (courses/models.py:404), so `.delete()` takes the join row with it and
+    there is never a dangling row -- the assertions below would both pass trivially
+    and the mutant would stay GREEN. Repoint `object_id` at a nonexistent row
+    instead; idiom copied from tests/test_builder_duplicate_unit.py:174-177.
+    """
     _course, unit = make_course_with_unit()
-    orphan_target = TextElement.objects.create(body="<p>x</p>")
-    orphan = add_element(unit, orphan_target)
-    orphan_target.delete()
+    orphan = add_element(unit, TextElement.objects.create(body="<p>x</p>"))
+    Element.objects.filter(pk=orphan.pk).update(
+        object_id=orphan.object_id + 10_000_000
+    )
     a = _callout(unit, "example", numbered=True, order=1)
 
     numbers = callout_numbers(unit)
@@ -1076,16 +1085,31 @@ def _unit_with_a_nested_callout(unit):
     return _numbered_callout(unit, "task", parent=tabs_join, tab_id="t000000")
 
 
-def test_lesson_context_carries_the_map():
+@pytest.fixture
+def student_user():
+    """Both context builders REQUIRE a real user; neither tolerates None.
+    build_lesson_context reaches `elif user.is_authenticated` (courses/views.py:513)
+    whenever the viewer is not enrolled -- and is_enrolled(None, course) is a plain
+    .filter(student=None).exists(), so that branch always runs and None.is_authenticated
+    raises. build_quiz_context crashes further down instead, via
+    unit_edit_context -> can_manage_course -> `course.owner_id == user.id`
+    (courses/access.py:41). Matches the fixture in courses/tests/test_callout_has_math.py.
+    """
+    from tests.factories import make_verified_user
+
+    return make_verified_user(username="callout_numbering_ctx")
+
+
+def test_lesson_context_carries_the_map(student_user):
     from courses.views import build_lesson_context
 
     _course, unit = make_course_with_unit()
     _unit_with_a_nested_callout(unit)
-    ctx = build_lesson_context(unit, user=None)
+    ctx = build_lesson_context(unit, student_user)
     assert len(ctx["callout_numbers"]) == 2
 
 
-def test_quiz_context_carries_the_map():
+def test_quiz_context_carries_the_map(student_user):
     from courses.views import build_quiz_context
 
     course = CourseFactory()
@@ -1093,7 +1117,7 @@ def test_quiz_context_carries_the_map():
         course=course, parent=None, kind="unit", unit_type=ContentNode.UnitType.QUIZ
     )
     _unit_with_a_nested_callout(unit)
-    ctx = build_quiz_context(unit, user=None)
+    ctx = build_quiz_context(unit, student_user)
     assert len(ctx["callout_numbers"]) == 2
 
 
@@ -1420,9 +1444,10 @@ git commit -m "feat(callout): add the numbering checkbox to the element editor"
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `courses/tests/test_callout_transfer.py`:
+Append to `courses/tests/test_callout_transfer.py`. **That module marks per-test — there is NO module-level `pytestmark`**, and it says so inline at `:83` and `:179`. Every appended test that touches the DB needs `@pytest.mark.django_db` of its own, or it raises `RuntimeError: Database access not allowed`, which Step 2's "Expected: FAIL" would misread as the intended red. The three validator-only tests below are correctly marker-free.
 
 ```python
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
 def test_the_serializer_emits_numbered():
     el = CalloutElement.objects.create(
         kind="warning", heading="Careful", numbered=False, body="<p>hi</p>"
@@ -1474,6 +1499,7 @@ def test_numbered_must_be_a_bool():
         )
 
 
+@pytest.mark.django_db  # _clean_save writes to the DB
 def test_the_builder_round_trips_numbered_false():
     """Mutant: drop `numbered=` from _build_callout -> comes back True."""
     data = {"kind": "example", "heading": "", "body": "<p>x</p>", "numbered": False}
@@ -1508,7 +1534,7 @@ def _ser_callout(concrete, media_ids):
 
 - [ ] **Step 4: Update the validator**
 
-`courses/transfer/payloads.py`, in `_val_callout`. Join the new constant onto the existing function-local import (that import is local to avoid a cycle; a module-level one would reintroduce it), and seed the key before `_exact_keys`:
+`courses/transfer/payloads.py`, in `_val_callout`. Join the new constant onto the existing function-local import — **for consistency with the line already there, not to avoid an import cycle**: `payloads.py` already imports `courses.models` at module level five times (`:20-24`), so there is no cycle to reintroduce. Do not write a cycle rationale into the source comment. Seed the key before `_exact_keys`:
 
 ```python
 def _val_callout(data, elid, media_kinds):
@@ -1571,9 +1597,9 @@ Mechanical, expected churn — not regressions:
 | `tests/test_tabs_transfer.py` | 62 | `== 12` → `== 13` |
 | `tests/test_transfer_schema.py` | 57 | `== 12` → `== 13` |
 | `tests/test_transfer_export.py` | 222 | `manifest["format_version"] == 12` → `13` |
-| `courses/tests/test_callout_transfer.py` | 34 | add `"numbered": False` to the expected dict |
+| `courses/tests/test_callout_transfer.py` | 34 | add `"numbered": True` to the expected dict |
 
-For the last one: the assertion is a full dict equality on `_ser_callout`'s output, and it breaks on Step 3 rather than on the bump. **Keep it a full dict equality** — relaxing it to a key-subset check would destroy the only assertion pinning the exact export payload, and dropping `numbered` from the serializer to "fix" it is precisely the defect Step 1's first test exists to catch. Set the expected value to whatever the fixture's callout carries.
+For the last one: the assertion is a full dict equality on `_ser_callout`'s output inside `test_round_trip_preserves_fields`, and it breaks on Step 3 rather than on the bump. The expected value is **`True`**, not `False`: that test's fixture is `CalloutElement.objects.create(kind="warning", heading="Careful", body="<p>hi</p>")` with no `numbered`, so the flat model default applies. **Keep it a full dict equality** — relaxing it to a key-subset check would destroy the only assertion pinning the exact export payload, and dropping `numbered` from the serializer to "fix" it is precisely the defect Step 1's first test exists to catch.
 
 **Do NOT touch `courses/tests/test_nested_question_transfer.py:260`**, which passes `format_version=12` as a *legacy archive fixture*. That 12 is the point of the test.
 
@@ -1590,6 +1616,7 @@ Expected: all pass.
 Append to `courses/tests/test_callout_transfer.py`:
 
 ```python
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
 def test_duplicating_an_unnumbered_callout_keeps_it_unnumbered():
     """Duplicate and paste round-trip through build_element_export -> graft_elements,
     which runs NO validator. Mutant: drop `numbered=` from _build_callout -> the copy

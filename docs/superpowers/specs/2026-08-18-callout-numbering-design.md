@@ -569,7 +569,12 @@ incidental:
   (line 117) — the same endpoint with `kind: "task"`. This is the **strongest** R2
   evidence in the repo: `task` defaults to numbered *and* is the highest-volume kind (177
   rows), so this test would start creating unnumbered task callouts and stay green. Assert
-  `numbered is True`.
+  **`numbered is False`** — the row really does come back `False`, because
+  `forms.BooleanField(required=False).to_python(None)` returns `False` for an absent key.
+  Asserting `True` would be red on a correct build and would contradict R2's own premise.
+  The point of the assertion is to make that outcome *deliberate and visible*, not to
+  change it: production is unaffected, because the real editor form always posts the
+  checkbox when it is ticked.
 
 For completeness: `courses/tests/test_callout_form.py::test_blank_heading_and_body_are_valid`
 (line 23) also posts without the key, but with `kind="tip"`, whose default is already
@@ -612,10 +617,12 @@ optional-key pattern already used for `size` (`:139`) and width/height (`:170`):
    covers an archive whose callout payload omits `kind` entirely, asserting it still fails
    with the `TransferError` from `_exact_keys` and not a `KeyError`.
 
-   `KIND_DEFAULT_NUMBERED` is imported on the **existing function-local** line
-   `from courses.models import CalloutElement` (`payloads.py:212`). That import is local
-   on purpose, to avoid an import cycle; a module-level import of the new constant would
-   reintroduce exactly the cycle it avoids.
+   `KIND_DEFAULT_NUMBERED` joins the **existing function-local** line
+   `from courses.models import CalloutElement` (`payloads.py:212`) — for consistency with
+   the import already there, **not** because of an import cycle. `payloads.py` imports
+   `courses.models` at module level five times already (`:20-24`: `SINGLE_SLOT_ID`,
+   `BeforeAfterElement`, `DragZone`, `ImageElement`, `TableElement`), so there is no cycle
+   here to avoid. Do not carry a cycle rationale into a source comment.
 2. Add `"numbered"` to the `_exact_keys` list.
 3. Validate it with the file's existing helper: `check_bool(data["numbered"], "numbered")`
    (used at `payloads.py:368`, `:410`, `:483`, `:621`). Not a hand-rolled `isinstance`
