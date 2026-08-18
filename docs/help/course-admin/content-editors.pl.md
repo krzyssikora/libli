@@ -125,10 +125,12 @@ umieszcza podpis **Pod obrazem** lub **Nad obrazem**.
 wyróżnić na tle otaczającego tekstu. Wybierz **Rodzaj** (Przykład, Notatka,
 Wskazówka, Ważne lub Zadanie — każdy z własnym kolorem akcentu i ikoną), opcjonalny
 **Nagłówek** (jeśli pozostawiony pusty, używany jest domyślny nagłówek dla
-danego rodzaju) oraz treść w tekście sformatowanym. Ramka jest też
-kontenerem: może zawierać zagnieżdżone elementy dodawane poniżej treści z
-jej własnego menu **Dodaj element** — zobacz „Kontenery i zagnieżdżanie”
-poniżej, co można w niej umieścić.
+danego rodzaju), pole wyboru **Numeruj tę ramkę** (domyślnie zaznaczone; ramki
+numerowane w ten sposób mają wspólną numerację w obrębie jednostki, a Notatki
+i Wskazówki w istniejącej treści pozostają nienumerowane) oraz treść w tekście
+sformatowanym. Ramka jest też kontenerem: może zawierać zagnieżdżone elementy
+dodawane poniżej treści z jej własnego menu **Dodaj element** — zobacz
+„Kontenery i zagnieżdżanie” poniżej, co można w niej umieścić.
 
 {el:tabs} **Zakładki** — kontener dzielący swoją zawartość na nazwane zakładki, między
 którymi przełącza się uczeń; dodawaj, usuwaj, zmieniaj kolejność i nazywaj

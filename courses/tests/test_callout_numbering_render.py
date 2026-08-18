@@ -149,3 +149,18 @@ def test_element_summary_never_shows_a_number(client):
     summary = element_summary(el)
     assert summary == "Example"
     assert not any(ch.isdigit() for ch in summary)
+
+
+def test_the_seeded_demo_tip_callout_is_not_numbered():
+    """The only production CalloutElement construction site outside _build_callout.
+    A seeded Tip arriving numbered contradicts D2 in the very course the help
+    screenshots are taken against.
+
+    Mutant: drop `numbered=False` from seed_demo_course._callout -> this fails.
+    """
+    import inspect
+
+    from courses.management.commands import seed_demo_course
+
+    src = inspect.getsource(seed_demo_course.Command._callout)
+    assert "numbered=False" in src
