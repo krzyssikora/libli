@@ -198,9 +198,8 @@ def test_reset_link_is_a_sibling_of_details_not_inside_the_summary(client):
     course, part, chapter, unit = _three_level_course()
     html = _outline_html(client, course, "t3")
 
-    summary = html.split('<summary class="outline-node__head">')[1].split(
-        "</summary>"
-    )[0]
+    _, _, rest = html.partition('<summary class="outline-node__head">')
+    summary, _, _ = rest.partition("</summary>")
     assert "outline-node__chevron" in summary
     assert "outline-node__title" in summary
     assert "outline-node__reset" not in summary, "D9: the reset link is a sibling"
@@ -371,7 +370,9 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 }
 ```
 
-Extend the existing `.outline-node__reset` rule (do not duplicate it) so it becomes a grid item in the disclosure arm. In the childless arm it is a flex child inside the head and these two properties are inert:
+Extend the existing `.outline-node__reset` rule (do not duplicate it) so it becomes a grid item in the disclosure arm. In the childless arm it is a flex child inside the head, where all four grid/alignment
+properties are inert — `align-self: baseline` merely restates the `align-items: baseline`
+its flex parent already sets:
 
 ```css
 .outline-node__reset {
@@ -390,15 +391,11 @@ Extend the existing `.outline-node__reset` rule (do not duplicate it) so it beco
 
 The reset link now *overlays* row 1 rather than reserving a track, so a long wrapped title would run underneath it. Size the reservation against the **Polish** label — `Start fresh` → `Zacznij od nowa` — because pl is this project's primary UI locale and an English-tuned constant reproduces the collision where most users would see it.
 
-Render the outline in **both** locales. The project resolves the active language from
-the user's profile/session — set it through the app's own language control (Settings), or
-for a throwaway measurement force it in a shell:
-
-```
-uv run python manage.py shell -c "from django.utils import translation; translation.activate('pl'); from django.template.loader import render_to_string; print(len('Zacznij od nowa'))"
-```
-
-then measure the rendered element with the app running (`uv run python manage.py runserver`), in the browser console on a course outline page, once per locale:
+Measure it **in the browser, in both locales** — the number needed is a rendered pixel
+width, which no shell command produces. The active language is session-backed
+(`core/middleware.py :: SessionLocaleMiddleware`), so switch it through the app's own
+language control in Settings, then reload the outline. Measure the rendered element with
+the app running (`uv run python manage.py runserver`), in the browser console on a course outline page, once per locale:
 
 ```js
 document.querySelector(".outline-node__reset").getBoundingClientRect().width
@@ -440,9 +437,16 @@ Its `#node-{chapter.pk} > .outline-node__head` now resolves to nothing (the head
 ```
 uv run pytest tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_link_styling.py -q
 uv run pytest tests/test_e2e_link_dialog.py -m e2e -q
+uv run pytest "tests/test_e2e_unit_nav.py::test_outline_marked_row_does_not_overflow_at_phone_width" -m e2e -q
 ```
 
-Expected: all pass.
+Expected: all pass. The third is not optional: it drives the outline at a 390x780
+viewport and asserts the document does not overflow horizontally, which makes it the one
+existing test that measures exactly what this task's `display: grid`,
+`minmax(0, 1fr) auto` and `padding-inline-end` could regress. Its fixture's chapter is
+`parent=None`, so its rows stay visible under D1 — the exposure is layout, not folding.
+Catching it here rather than at Task 11's screenshot gate is the difference between a
+one-line CSS fix and unpicking nine commits.
 
 - [ ] **Step 12: Falsify the CSS re-points**
 
@@ -570,6 +574,13 @@ def test_header_button_and_nav_attributes(client):
     assert "hidden" in button, "ships hidden; JS reveals it (dead control with JS off)"
     assert 'data-label-expand="Expand all"' in html
     assert 'data-label-collapse="Collapse all"' in html
+    # Spec §4.5: outline_tree.js must register its libli:tagfilter listener
+    # before tags.js runs its initial applyFilter(). Both are `defer`, so
+    # document order IS execution order — and nothing else in the suite notices
+    # a swap. Same shape as
+    # test_title_math_assets.py::test_js_partial_keeps_the_load_bearing_script_order.
+    # Mutant: swap the two <script> lines.
+    assert html.index("outline_tree.js") < html.index("tags/js/tags.js")
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -600,7 +611,12 @@ Change the nav (line 14):
        aria-label="{% trans 'Course outline' %}">
 ```
 
-Add the script **immediately before** `tags.js` (line 20). Both `defer`, and `defer` preserves document order — so `outline_tree.js` has registered its `libli:tagfilter` listener before `tags.js` runs its initial `applyFilter()`:
+Add the script **immediately before** `tags.js` (line 20). Both `defer`, and `defer`
+preserves document order — so `outline_tree.js` has registered its `libli:tagfilter`
+listener before `tags.js` runs its initial `applyFilter()`. **The file does not exist
+until Task 5**, so the outline page 404s on this script between the two commits. That is
+deliberate and harmless: no render test fetches it, and `config/settings/test.py` uses
+plain `StaticFilesStorage`, so `{% static %}` never checks existence:
 
 ```django
 <script src="{% static 'courses/js/outline_tree.js' %}" defer></script>
@@ -609,7 +625,9 @@ Add the script **immediately before** `tags.js` (line 20). Both `defer`, and `de
 
 - [ ] **Step 4: Add the disabled-button CSS**
 
-Append to `app.css`. There is **no** reduced-opacity `:disabled` precedent in this codebase to copy — the only `:disabled` rules are the two cyclers, and `.switchgate__cycler:disabled` is a *success tint* which on a disabled *Collapse all* would read as "something succeeded":
+Append **at the end of the `.outline-*` block** (immediately before its
+`@media (max-width: 640px)` query), not at end-of-file — Task 11's citation-sweep model
+assumes one insertion point, and the outline's rules should stay together. There is **no** reduced-opacity `:disabled` precedent in this codebase to copy — the only `:disabled` rules are the two cyclers, and `.switchgate__cycler:disabled` is a *success tint* which on a disabled *Collapse all* would read as "something succeeded":
 
 ```css
 /* Disabled while a tag filter is active (§5): Collapse all would hide every
@@ -868,7 +886,8 @@ Create `courses/static/courses/js/outline_tree.js`:
 
 - [ ] **Step 2: Add the booting suppression rule**
 
-Append to `app.css`. Written at (0,3,0) so it wins outright — the shorter `.outline-tree--booting .outline-node__chevron` is (0,2,0) and merely ties the base chevron rule, leaving source order to decide:
+Append **at the end of the `.outline-*` block**, beside Task 4's `:disabled` rules — not
+at end-of-file. Written at (0,3,0) so it wins outright — the shorter `.outline-tree--booting .outline-node__chevron` is (0,2,0) and merely ties the base chevron rule, leaving source order to decide:
 
 ```css
 /* Suppresses the chevron animation until outline_tree.js finishes restoring the
@@ -1801,6 +1820,12 @@ that Task 2 rewrites — which no `app.css:` pattern can find.
 Convert `_outline_node.html:21` to a selector-name reference ("the
 `.outline-node__head` branch"); `tests/test_courses_progress.py` cites `:3`/`:5`, above
 the change and safe.
+
+**Fix only citations that point BELOW the insertion point.** One grep hit is a trap:
+`courses/static/courses/css/courses.css` cites `app.css:150`, and
+`tests/test_stale_rationale_comments.py` asserts that literal string is present *in
+courses.css*. It is above the insertion point, so it does not rot — converting it to a
+selector name would redden that test for no reason. Leave it verbatim.
 
 Fix the `app.css` hits, preferring **selector-name citations over line numbers** so they
 cannot rot again:
