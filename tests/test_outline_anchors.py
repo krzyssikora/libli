@@ -41,6 +41,11 @@ def test_target_highlight_is_scoped_to_the_row_not_the_li():
     # on the <li> (it is the scroll target); the highlight goes on the row inside it.
     css = APP_CSS.read_text(encoding="utf-8")
     assert ".outline-node:target > .outline-node__head" in css
+    # After the collapsible change the selector above is inert cover for the
+    # unreachable childless branch; every REAL container renders its head as the
+    # <summary> of a <details>, so this twin is the live rule. Without it the
+    # permalink highlight silently never lands.
+    assert ".outline-node:target > .outline-node__group > .outline-node__head" in css
     assert ".outline-node:target > .outline-unit" in css
     assert "\n.outline-node:target {" not in css, "highlight must not target the <li>"
 

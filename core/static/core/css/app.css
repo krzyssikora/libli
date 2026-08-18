@@ -502,16 +502,22 @@ input[type=number] {
 
 .outline-tree ul { list-style: none; margin: 0; padding: 0; }
 .outline-tree > ul > .outline-node { margin-bottom: var(--space-6); }
-/* nested levels get a hairline guide rule */
-.outline-node > ul { margin-top: var(--space-2); padding-left: var(--space-4);
+/* nested levels get a hairline guide rule. Re-pointed, not doubled: the <ul>
+   now lives inside the <details>, and neither surviving branch renders a <ul>
+   as a child of the <li> (the childless arm has no children by definition, and
+   a unit row has no nested list), so the old form would be dead. */
+.outline-node__group > ul { margin-top: var(--space-2); padding-left: var(--space-4);
   border-left: 1px solid var(--border-subtle); }
 
 /* structural headings, by depth */
 .outline-node__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
 .outline-node__title { color: var(--text-primary); font-weight: 600; }
-.outline-node--part > .outline-node__head .outline-node__title { font-size: 1.35rem; }
-.outline-node--chapter > .outline-node__head .outline-node__title { font-size: 1.1rem; }
-.outline-node--section > .outline-node__head .outline-node__title {
+.outline-node--part > .outline-node__head .outline-node__title,
+.outline-node--part > .outline-node__group > .outline-node__head .outline-node__title { font-size: 1.35rem; }
+.outline-node--chapter > .outline-node__head .outline-node__title,
+.outline-node--chapter > .outline-node__group > .outline-node__head .outline-node__title { font-size: 1.1rem; }
+.outline-node--section > .outline-node__head .outline-node__title,
+.outline-node--section > .outline-node__group > .outline-node__head .outline-node__title {
   font-size: .75rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -552,10 +558,66 @@ input[type=number] {
    position: relative and .outline sits in the normal .app-main flow. */
 .outline-node { scroll-margin-top: var(--space-4); }
 .outline-node:target > .outline-node__head,
+.outline-node:target > .outline-node__group > .outline-node__head,
 .outline-node:target > .outline-unit {
   background: var(--surface-sunken);
   border-radius: var(--radius-sm);
   box-shadow: 0 0 0 2px var(--primary);
+}
+
+/* Container rows become a two-column grid so D9's reset link sits back on the
+   head row. The <details> MUST span 1 / -1: it contains the entire descendant
+   subtree, so confining it to column 1 would narrow every nested row and the
+   loss would COMPOUND per level (~220px at depth 3 on mat-pp). Grid, not
+   position: absolute — an absolutely positioned link overlaps a wrapped title.
+   Specificity is capped at (0,1,0) on purpose: `.outline-node[hidden]` is
+   (0,2,0) and MUST keep winning, or a filtered-out container stops hiding.
+   Do not scope these selectors more tightly. */
+.outline-node--part,
+.outline-node--chapter,
+.outline-node--section {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline;
+}
+.outline-node__group { grid-column: 1 / -1; grid-row: 1; }
+
+/* Group summary. display:flex (inherited from .outline-node__head) already drops
+   the list-item box, so list-style + ::-webkit-details-marker are belt-and-braces
+   against a future display change — neither is independently falsifiable, so do
+   NOT write a test against them. padding-inline-end reserves the overlaid reset
+   link's space; see the measured value recorded at the declaration. */
+/* padding-inline-end MEASURED 2026-08-19: "Zacznij od nowa" renders 98.15625px at
+   .8rem (en "Start fresh" 64.375px), plus 16px (--space-4) clearance, rounded up.
+   Re-measure if either translation changes. */
+summary.outline-node__head {
+  cursor: pointer; list-style: none;
+  padding-inline-end: 7.5rem;
+}
+summary.outline-node__head::-webkit-details-marker { display: none; }
+summary.outline-node__head:hover { background: var(--surface-raised); }
+summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* Explicit size: the type scale lives on .outline-node__title, not on the head,
+   so the head is 1rem at every level and .icon's 1em would render an identical
+   16px chevron beside a .75rem uppercase section title. Constant across levels
+   by choice — the disclosure is chrome. align-self: center because the head is
+   align-items: baseline and a replaced element's baseline is its bottom margin
+   edge, which would sit the chevron visibly high. Explicit colour because the
+   rail's currentColor reasoning does NOT transfer: the rail's micro-type rule
+   targets its head, ours targets the title span. */
+.outline-node__head > .outline-node__chevron {
+  width: .8rem; height: .8rem; align-self: center; color: var(--text-tertiary);
+}
+/* Full direct-child chain, NOT `[open] .outline-node__chevron`: the tree is
+   recursive, so a CLOSED section sits inside an OPEN chapter and a descendant
+   selector would paint it open too. */
+.outline-node__group[open] > .outline-node__head > .outline-node__chevron { transform: rotate(90deg); }
+/* Gated, not cancelled. A media query adds no specificity, so a `reduce` override
+   at the same selector merely TIES and source order decides; at a lower
+   specificity it loses outright — which is why the rail's chevron
+   (courses.css:746-753) animates for reduced-motion users today. Do not
+   "harmonise" back to that form. */
+@media (prefers-reduced-motion: no-preference) {
+  .outline-node__head > .outline-node__chevron { transition: transform 120ms ease; }
 }
 
 /* a unit row lays its title link + tag chips + tag affordance + notes badge out
@@ -586,6 +648,10 @@ input[type=number] {
 .lesson-unit__reset,
 .outline__reset { flex: none; }
 .outline-node__reset {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  align-self: baseline;
   margin-left: var(--space-2);
   font-size: .8rem;
   color: var(--text-secondary);

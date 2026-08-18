@@ -159,7 +159,9 @@ def test_insert_internal_link_then_follow_it(page, live_server):
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
     page.click(f".el a[href='/courses/n/{chapter.pk}/']")
     page.wait_for_url(f"**#node-{chapter.pk}")
-    row = page.locator(f"#node-{chapter.pk} > .outline-node__head")
+    row = page.locator(
+        f"#node-{chapter.pk} > .outline-node__group > .outline-node__head"
+    )
     bg = row.evaluate("el => getComputedStyle(el).backgroundColor")
     # "Highlighted" is not otherwise assertable: a :target rule mis-scoped to the <li>,
     # or written into a stylesheet the outline page never loads, passes a weaker check.
