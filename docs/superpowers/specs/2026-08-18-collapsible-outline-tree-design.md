@@ -177,7 +177,15 @@ This attribute has an owner precisely because it is easy to drop: without it §4
 degrades to `libli_outline_open:undefined`, i.e. one fold state shared across every
 course, which no test would notice unless one asserts the attribute. T4 does.
 
-**(b) One button in `.outline__head`, before the *My results* link:**
+**(b) One button in `.outline__head`, before the *My results* link — which places it in the
+left group, beside the `<h1>`.** That is deliberate, not incidental: `.outline__head` is a
+flex row and `.outline__results` carries `margin-left: auto`, so everything from *My
+results* onward is pushed right. Putting the toggle before it reads as
+`Algebra 1  [Expand all]        [My results] [My notes] [Start fresh]` — the tree control
+sits with the thing it controls, and the three page actions stay grouped. It therefore
+needs no CSS of its own for placement. The header row is a named item in the §10
+screenshot gate, because this layout is produced by a pre-existing rule rather than by
+anything in this change.
 
 ```
 <button type="button" class="btn btn--ghost btn--small outline__toggle-all" hidden
@@ -238,6 +246,18 @@ from getting it wrong.
    partition would fold matches shut only for §5 to force them open again a moment later.
 4. Run the deep-link handler (§4.4).
 
+**Accepted consequence: a returning student sees the D1 default paint before their stored
+state applies.** `outline_tree.js` is `defer`red, so on a 1006-node course the browser will
+usually have painted the depth-0-open tree before step 3 opens the five chapters the
+student had left open. The rail avoids this by server-rendering `open`
+(`_unit_tree_node.html`'s comment names it exactly: "a JS pass would flash the folded
+tree"), but D2's client-only persistence rules that fix out by design — the server does not
+know the student's fold state. This is accepted, not a defect to report. **One mitigation
+is required:** the tree carries a `outline-tree--booting` class until step 3 completes, and
+the chevron `transition` (§6.2) is suppressed under it, so the restore is an instant state
+change rather than a wave of animating chevrons. Include the first paint in the §10
+screenshot/verification notes so a reviewer knows the flash is expected.
+
 ### 4.1 Storage
 
 Key `libli_outline_open:<slug>`, with `<slug>` read from the nav's `data-course-slug`
@@ -260,6 +280,10 @@ T15 seeds numbers deliberately to prove the normalisation exists.
 Every `<details>` present at write time appears in exactly one array, and **each write is
 a full replacement, never a merge** — so ids of containers deleted since the last visit
 drop out on the next gesture. No pruning pass, no TTL, no cleanup step: do not invent one.
+Full replacement also means **last-write-wins across tabs**: with the same course open
+twice, a gesture in either tab overwrites the other's whole partition, including groups it
+never touched. Accepted for a cosmetic preference — **do not add a `storage`-event
+listener** to sync them.
 
 This shape is load-bearing. With an open-only list, "not listed" is ambiguous between *the student
 closed this* and *this container did not exist last visit*, and the two need opposite
@@ -357,12 +381,23 @@ find that `<li>`, open **the target's own `<details>` and every ancestor `<detai
 then `scrollIntoView({block: "center"})` it. Per D6 this **does** write storage — except
 under §4.2's exception 2, which covers the `?tags=…#node-…` case.
 
-**The target's own group is included, not just its ancestors.** `courses/views.py:838-842`
-sends a permalink to `outline#node-<pk>` **only** for non-unit nodes (units redirect to
-`lesson_unit`/`quiz_unit`), so every `#node-N` target is a container that owns a
-`<details>`. Opening ancestors alone would land the student on a highlighted "Chapter 4"
-head with its contents still folded — the exact failure this section exists to fix. T13
-asserts the target group's own `open` state so an ancestors-only implementation reddens.
+**The target's own group is included, not just its ancestors** — *if it has one*.
+`courses/views.py:838-842` sends a permalink to `outline#node-<pk>` **only** for non-unit
+nodes (units redirect to `lesson_unit`/`quiz_unit`), so every *generated* permalink names a
+container that owns a `<details>`. Opening ancestors alone would land the student on a
+highlighted "Chapter 4" head with its contents still folded — the exact failure this
+section exists to fix. T13 asserts the target group's own `open` state so an
+ancestors-only implementation reddens.
+
+**But that is motivation, not a guarantee the code may rely on.** `_outline_node.html`
+puts `id="node-{{ item.node.pk }}"` on **every** `<li>`, unit rows included — and
+`tests/test_outline_anchors.py` asserts exactly that. A bookmarked, hand-typed or stale
+`#node-<unit-pk>` therefore resolves to an `<li>` that *is* in the DOM and owns no
+`<details>`, so a literal `li.querySelector(":scope > details").open = true` throws. The
+throw would also kill the `hashchange` registration if that is wired afterwards. The
+normative shape is: open the target's own `<details>` **if it has one**, always open every
+ancestor `<details>`, then scroll. T13 covers a unit-pk hash: it must scroll and must not
+throw.
 
 Two ordering hazards:
 
@@ -472,9 +507,16 @@ outline rule this spec elsewhere insists on naming.
 - **The `<li>` becomes a two-column grid** so D9's *Start fresh* sibling still sits on the
   head row: `.outline-node--part, .outline-node--chapter, .outline-node--section` (the
   container branches) get `display: grid; grid-template-columns: 1fr auto;` with the
-  `<details>` in column 1 and `.outline-node__reset { grid-column: 2; grid-row: 1; align-self: start; }`.
+  `<details>` in column 1 and `.outline-node__reset { grid-column: 2; grid-row: 1; align-self: baseline; }`.
   Grid, not `position: absolute` — an absolutely positioned link overlaps a title that
   wraps to two lines, and outline titles do wrap.
+- **`align-self: baseline`, not `start`, and for the same reason the chevron gets
+  `center`.** Today the reset link is a flex child of `.outline-node__head`, which is
+  `align-items: baseline`, so the `.8rem` link sits on the same text baseline as a
+  `1.35rem` part title. As a grid item, `start` would align it to the top of the
+  `<details>` box — above the title's cap height and visibly high, worst at part level
+  where the type-size gap is largest. `baseline` is the direct grid equivalent of today's
+  behaviour. Its position against a part title is a named item in the §10 screenshot gate.
 - **The grid rule's specificity is capped at (0,1,0), and that is load-bearing.** `[hidden]`'s
   UA `display: none` loses to any author `display` declaration; the codebase already carries
   the guard `.outline-node[hidden] { display: none; }` (0,2,0) with a comment naming this
@@ -485,9 +527,20 @@ outline rule this spec elsewhere insists on naming.
   a filtered-out container would stop hiding. T10 asserts a `tag_hidden` **container** row
   computes hidden, which today's e2e checks only for a unit row.
 - The grid also lands on the unreachable childless-container branch (the modifiers are on
-  the `<li>`, not the `<details>`), where column 2 holds the reset link and column 1 the
-  plain head `<div>`. Harmless, and unreachable in practice because of pruning — noted so
-  no test author mistakes it for live behaviour.
+  the `<li>`, not the `<details>`). There the `<li>` has a **single** grid item — the plain
+  head `<div>`, with the reset link still inside it as a flex child per §2 — so column 2 is
+  simply unused and `grid-column: 2` never applies to anything. Harmless, and unreachable
+  in practice because of pruning. Noted precisely so nobody "fixes" the childless branch by
+  hoisting its link out to match the disclosure branch, which §2 forbids.
+- **A `:disabled` style is required and does not exist yet.** `app.css` has no
+  `.btn:disabled` rule at all — `.btn` sets `cursor: pointer` and `.btn--ghost` a
+  `--border-strong` border, neither reset by the UA — so §5's disabled toggle-all would
+  render identically to the enabled one, pointer cursor included, producing exactly the
+  "visibly does nothing" affordance §5 says it was chosen to avoid. Only the AT-announcement
+  half of that rationale holds without this rule. Follow the house precedent at
+  `app.css:1180-1187` (`.switchgate__cycler:disabled`): reduced opacity plus
+  `cursor: default`, scoped to `.outline__toggle-all` rather than widened to `.btn`
+  generally, which is out of scope. Named in the §10 screenshot gate.
 - `summary.outline-node__head { cursor: pointer; list-style: none; }` plus
   `summary.outline-node__head::-webkit-details-marker { display: none; }`, mirroring
   `courses.css:716-717`. **Note for test authors:** `.outline-node__head` already carries
@@ -502,13 +555,16 @@ outline rule this spec elsewhere insists on naming.
   painted open.
   Do **not** redeclare `flex: none` — `.icon` already sets it (`app.css:109`), so it is
   inert here and carries no possible mutant.
-- **The reduced-motion override must match the transition's specificity:**
-  `@media (prefers-reduced-motion: reduce) { .outline-node__head > .outline-node__chevron { transition: none; } }`.
-  A media query adds no specificity, so the rail's form
-  (`.unit-tree__chevron`, (0,1,0)) loses to its own transition rule (0,2,0) and never takes
-  effect — the chevron animates for reduced-motion users. **The rail carries that latent
-  defect at `courses.css:746-753`; fixing it is out of scope here (D7), but do not
-  "harmonise" this rule back to the broken form.**
+- **Reduced motion: gate the transition, do not try to override it.** Declare
+  `transition: transform 120ms ease` **inside**
+  `@media (prefers-reduced-motion: no-preference) { … }` rather than declaring it
+  unconditionally and cancelling it in a `reduce` block. A media query contributes no
+  specificity, so a `reduce` override written at the same selector merely *ties* the
+  transition rule and the winner falls to source order — an ordering dependency nothing
+  states and no test can see. Writing it at a lower specificity (the rail's form,
+  `.unit-tree__chevron` at (0,1,0) against its own (0,2,0) transition) loses outright, so
+  **the rail's chevron animates for reduced-motion users today**. Fixing the rail is out of
+  scope (D7), but do not "harmonise" this rule back to the broken form.
 - **The chevron needs an explicit colour, and the rail's `currentColor` reasoning does not
   transfer.** `courses.css:743-745` documents that the rail's chevron takes the tertiary
   micro-type at chapter/section level because the rail's micro-type rule targets
@@ -536,8 +592,10 @@ outline rule this spec elsewhere insists on naming.
   its token cannot simply be reused; `--surface-raised` is also what the rail's summary
   hover uses (`courses.css:723`). Both the hover fill and the chevron colour are named
   items in the §10 screenshot gate.
-  **Accepted collision:** the `:target` rule sets
-  `background: var(--surface-sunken)` at (0,3,0) and beats this (0,2,1) rule, so a
+  **Accepted collision:** the live `:target` rule on a real container is the new twin
+  `.outline-node:target > .outline-node__group > .outline-node__head` at **(0,4,0)** (the
+  inert (0,3,0) form covers only the unreachable childless branch, and also beats the hover
+  rule). It sets `background: var(--surface-sunken)` and beats this (0,2,1) rule, so a
   permalink-targeted row keeps its `--surface-sunken` target fill and shows no hover
   change at all. Accepted rather than fought: the `:target` state is transient (one
   permalink arrival), it already signals itself with a 2px `--primary` ring, and raising
@@ -550,6 +608,15 @@ outline rule this spec elsewhere insists on naming.
   — `outline` is unset by every competing rule. A `<summary>` is natively focusable;
   today's `.outline-node__head` `<div>` never was, so this focus style is new behaviour,
   not a port.
+- **Accepted: the `:target` highlight now spans grid column 1 only.** Today the head
+  `<div>` is the `<li>`'s only block-level child and the fill plus its 2px `--primary` ring
+  cover the whole row including *Start fresh*; under the grid the `<details>` occupies
+  column 1, so the band stops short of the reset link. Nothing fails —
+  `tests/test_e2e_link_dialog.py` only reads `backgroundColor` — it simply looks narrower.
+  Moving the highlight onto the `<li>` to span both columns is explicitly **not** the fix:
+  `app.css`'s own comment there explains that a `li:target` fill would tint the entire
+  descendant subtree, which is why the highlight was scoped to the row in the first place.
+  Named in the §10 screenshot gate.
 
 ## 7. No-JS and accessibility
 
@@ -589,12 +656,22 @@ outline rule this spec elsewhere insists on naming.
   change the *old* selector is inert cover for the unreachable childless branch, and the
   **new** twin is the live one, so the added assertion is the load-bearing half. The
   sibling assertion `"\n.outline-node:target {" not in css` is unaffected.
-- **Line-number citations rot.** Inserting rules into `app.css`'s `.outline-*` block shifts
-  every line below it, and `tests/test_outline_anchors.py` carries a comment citing
-  "app.css:488" to explain a load-bearing anchoring trick. No per-task review sees a
-  comment in an otherwise-untouched file. Re-check and update — or convert to
-  selector-name citations — every `app.css:<n>` reference in `tests/` and in `app.css`'s
-  own comments that the insertion displaces.
+- **Line-number citations rot, and a per-task review cannot see it** — the comments live in
+  files this change never touches. Inserting rules into `app.css`'s `.outline-*` block
+  shifts every line below it. The concrete sweep list, rather than a general instruction:
+  - `tests/capture_unit_marker_screenshots.py` — cites `app.css:533` (`.outline-unit:hover`)
+    and `app.css:554-556` (`.outline-node:target`), both **inside** the block being edited;
+  - `tests/test_editor_row_css_guards.py` — cites `app.css:546, :1009, :1192`, the latter
+    two below the insertion;
+  - `tests/test_e2e_filltable_gate.py` — cites `app.css:1010`, below the insertion;
+  - `tests/test_outline_anchors.py` — cites `app.css:488`, which is **already stale**: the
+    rule it names (`.outline-tree > ul > .outline-node {`) sits at line 504 today. Do not
+    assume the current numbers are right before shifting them.
+
+  Unaffected, listed so they are not chased: `tests/test_e2e_media_manager.py` (`app.css:34`),
+  `tests/test_builder_styles.py` (`:136`) and `tests/test_stale_rationale_comments.py`
+  (which asserts on the *string* `app.css:150`) all sit above the insertion point.
+  Prefer converting each to a selector-name citation over re-numbering it.
 - **Two e2e tests drive outline rows and survive D1 only because of their fixture depth.
   Verify both; do not pre-emptively edit.** If either needs a change, that is a signal the
   default is wrong, not that the test is wrong.
@@ -605,7 +682,9 @@ outline rule this spec elsewhere insists on naming.
   shape — a Playwright `click()` on a folded row would time out, so this one is not
   optional to check.
 - `tests/test_publish_outline.py`, `tests/test_tags_outline.py`,
-  `tests/test_courses_rollups.py`, `tests/test_unit_nav_render.py` all touch
+  `tests/test_courses_rollups.py`, `tests/test_unit_nav_render.py` and
+  `tests/test_analytics_rollups.py` (whose `test_progress_overall_parity_with_build_outline`
+  calls `build_outline` directly) all touch
   `build_outline` or the outline HTML. `depth` is additive, so they should pass unchanged;
   run them as a regression gate.
 - `tests/capture_title_math_screenshots.py` and `tests/capture_unit_marker_screenshots.py`
@@ -626,9 +705,20 @@ outline rule this spec elsewhere insists on naming.
   `capture: true` never fires; the header label silently stops updating (§4.3). T14.
 - **R4 — `querySelectorAll` sees straight through a closed `<details>`**, and elements
   inside one keep non-zero client rects. Any test asserting "folded" via `querySelector`,
-  `getBoundingClientRect()` or `offsetParent` passes on a broken build. Use
-  `checkVisibility()`; Playwright's `to_be_hidden()` uses computed visibility and is also
-  acceptable.
+  `getBoundingClientRect()` or `offsetParent` passes on a broken build.
+  **`checkVisibility()` is the only sanctioned probe for folded content, and
+  `to_be_hidden()` is explicitly NOT acceptable for it.** Playwright's visibility contract
+  is "non-empty bounding box and not `visibility: hidden`" — a bounding-box test, i.e. one
+  of the three techniques this risk bans. `tests/test_e2e_unit_nav.py` records the
+  measurement made in this repo: after folding, the active link "keeps a truthy
+  `offsetParent` and a stale non-zero rect — only `checkVisibility()` sees it hidden", and
+  that test consequently drives `checkVisibility()` through `page.wait_for_function`.
+  Worse, the failure is state-dependent: content never laid out (a first-visit fold) may
+  report 0×0 and pass, while the same assertion after a real fold gesture reports a stale
+  rect and fails — so a `to_be_hidden()` test is green today and red the moment someone
+  adds a click. **`to_be_hidden()` remains correct for the filter's `[hidden]` →
+  `display: none` rows** (all `tests/test_e2e_tags.py` uses it for). The two cases are not
+  interchangeable; every "folded" assertion in T7, T13 and T19 uses `checkVisibility()`.
 - **R5 — i18n: there are no new msgids.** Both labels already exist in the catalogs with
   real translations, sourced from `templates/courses/manage/builder.html`
   (`locale/pl/LC_MESSAGES/django.po:5277` — *Rozwiń wszystko* — and `:5281` — *Zwiń
@@ -720,7 +810,10 @@ is not evidence.
 - **T13** — `#node-N` deep link three levels down: the row is **within the viewport** (not
   "centred" — see §4.4's KaTeX hazard), carries the `:target` highlight, **and the target's
   own `<details>` is `open`** (§4.4). Two mutants, both must redden: drop the
-  ancestor-opening loop; open the ancestors but not the target itself. Second case, same
+  ancestor-opening loop; open the ancestors but not the target itself. Third case: a
+  `#node-<unit-pk>` hash (a bookmarked or hand-typed link to a **unit** row, which owns no
+  `<details>` — `id="node-N"` is on every `<li>`). It must scroll to the row and **must not
+  throw**; mutant: unconditional `li.querySelector(":scope > details").open = true`. Second case, same
   file: **the fixture must create a tag whose `author` is the logged-in enrolled student**,
   on a unit in the course. `tags/services.py :: tags_for_outline` filters on
   `tag__author=author` with `author = request.user`, so a tag created by the course owner
@@ -734,20 +827,29 @@ is not evidence.
   assert the label becomes *Expand all*. Mutant: register the `toggle` listener without
   `capture: true`. T9 alone cannot catch this — an implementation that updates the label
   inline in the button handler passes T9 with no listener at all.
-- **T15** — §4.1's partition, three cases over one fixture holding a depth-0 root and a
-  depth-1 chapter. (a) Collapse a depth-0 root, reload, assert it is still closed; mutant:
-  union the stored set with the server default. (b) Seed a partition that **omits** a
-  second depth-0 group entirely (a container authored since the last visit), reload, assert
-  it renders **open** per `data-depth`. (c) In the same seed, put the **depth-1** chapter's
+- **T15** — §4.1's partition, four cases over one fixture holding **two depth-0 roots** and a
+  depth-1 chapter under the first. (a) Collapse a depth-0 root, reload, assert it is still closed; mutant:
+  union the stored set with the server default. (b) Seed a partition that **omits the second depth-0 root**
+  entirely (a container authored since the last visit), reload, assert it renders **open**
+  per `data-depth` — the only outcome that discriminates "new node falls back to its
+  default" from "not listed means closed". (c) In the same seed, put the **depth-1** chapter's
   pk in `open` **as a number, not a string**, and assert that chapter renders open. The
   numeric id must name a group whose stored state *contradicts* its `data-depth` default,
   or the case is vacuous: a depth-1 pk in `closed` falls back to closed either way, so a
   build with no `String()` normalisation stays green. Mutant: drop `String()` on the read
   side only. (d) Seed `"not json"`, reload, assert the server default renders and nothing
   throws.
-- **T16** — click a container's *Start fresh*, land on the reset-confirm page, navigate
-  back, and assert the stored partition is byte-identical to before; and that the link is
-  keyboard-reachable and activatable. Mutant: the T3 mutant (link inside the summary).
+- **T16** — **first fold a group**, so a known non-empty partition exists and is read as
+  the baseline; then click a container's *Start fresh*, land on the reset-confirm page,
+  navigate back, and assert the stored string is byte-identical to that baseline. Without
+  the initial fold, "before" and "after" are both `null` on a fresh context and the
+  assertion compares absence to absence. Also assert the link is keyboard-reachable and
+  activatable. **Mutant, deterministically:** do not rely on the T3 mutant racing a
+  navigation — §4.2's `setTimeout(…, 0)` write may or may not land before the browser
+  commits the `<a href>`, so that mutant reddens intermittently and would be wrongly
+  recorded as unfalsifiable. Instead block the navigation with a Playwright route handler
+  and assert on the same-page outcome: with the link inside the summary, activating it
+  toggles the group and schedules a write; with D9's markup it does neither.
 - **T17** — R6, both halves. A nested (depth-1) chapter's title computes `font-size: 1.1rem`
   and a nested section's computes `.75rem`/uppercase; **and** a nested `<ul>` computes a
   non-zero `border-left-width` with the expected `padding-left`. Mutants: omit the
@@ -764,9 +866,15 @@ is not evidence.
 
 **Gates before the PR:** `ruff check --no-cache` and `ruff format --check`, the affected
 test set, then the outline/rollups/tags/unit-nav regression files named in §8. Start the
-test-DB container before any pytest run. Light and dark screenshots of the outline page,
-judged separately, and specifically checking the chevron's optical fit against both the
-1.35rem part title and the .75rem section title (§6.2).
+test-DB container before any pytest run.
+
+**Screenshot gate** — light and dark, judged separately, covering every item this spec
+settled by reasoning rather than by a test: the chevron's optical fit *and colour* against
+both the 1.35rem part title and the .75rem uppercase section title; the summary hover fill
+against the `.rollup` chip; the *Start fresh* link's baseline against a part title; the
+disabled toggle-all button; the header row's two-group layout; a `:target`ed row, whose
+highlight band now spans column 1 only; and the first paint of a returning student's page,
+where the D1 default is expected to show before the stored state applies (§4.0).
 
 ## 11. Out of scope
 
