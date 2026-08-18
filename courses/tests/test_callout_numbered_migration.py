@@ -2,8 +2,9 @@ import pytest
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
-BEFORE = ("courses", "0059_mediaasset_derivatives")   # <-- the new migration's dependency
-AFTER = ("courses", "0060_calloutelement_numbered")   # <-- the new migration
+# <-- the new migration's dependency
+BEFORE = ("courses", "0059_mediaasset_derivatives")
+AFTER = ("courses", "0060_calloutelement_numbered")  # <-- the new migration
 
 
 @pytest.mark.django_db(transaction=True)

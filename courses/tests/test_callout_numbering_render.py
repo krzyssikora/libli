@@ -100,8 +100,8 @@ def test_the_editor_partial_renders_the_checkbox(client):
     """
     from django.urls import reverse
 
-    from tests.factories import CourseFactory
     from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
     from tests.factories import make_pa
 
     pa = make_pa(client, "pa")
