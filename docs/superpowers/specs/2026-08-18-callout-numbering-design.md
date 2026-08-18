@@ -138,7 +138,7 @@ def display_heading(self):
     return self.heading or self.kind_label
 ```
 
-The existing five-line comment at `courses/models.py:514-516` explaining the string
+The existing two-line comment at `courses/models.py:514-515` explaining the string
 fallback key moves onto `kind_label` with the body it documents. Do not leave a second
 copy of that fallback expression in `display_heading` — two copies of that subtlety will
 drift. `display_heading` keeps its current behaviour and its current caller
@@ -196,6 +196,11 @@ visited (their children still count) but do not consume a number.
   roots query per render, and the benefit is that the pinned query count (§8) is a
   property of the function rather than of each caller — otherwise two implementers make
   different choices and the number is not reproducible.
+- **Pre-order.** A container takes its own number *before* its children are walked. This
+  matters because `CalloutElement` is itself a container (`courses/builder.py:204`), so a
+  numbered callout may contain a numbered callout, and the outer heading precedes the
+  inner one in the render. Pinned by a fixture, not left to "document order implies it"
+  (§8.1).
 - A row whose `content_object` is `None` (a dangling GFK — a real, handled condition in
   this repo) is **skipped**: not counted, not descended into, and *not* an error. This
   matches `render_element`, which returns `""` for such a row
@@ -250,17 +255,28 @@ path, which is precisely the cost R3 claims to bound.
 
 ### Query cost
 
-**Two queries per container encountered**, not one: every accessor first calls
-`join_row()` (`self.elements.order_by("pk").first()`) and then queries `join.children`.
-The walk already holds the join row it is descending from, so the `join_row()` call is
-redundant — but avoiding it means bypassing the accessors, which is the one thing this
-design refuses to do. The redundant query is accepted explicitly as the price of
-ordering agreement.
+Per non-empty container: `join_row()` + `children` + **one prefetch query per distinct
+`content_type` among those children**. Every accessor ends in
+`.prefetch_related("content_object")`, and prefetching a `GenericForeignKey` costs one
+query per distinct content type in the result set — so the floor is three, not two, and a
+tab holding a text, a math and a callout costs five.
 
-Plus one roots query per call. The worst real unit is 9 callouts with a 5-tab container:
-roughly a dozen extra queries per render. This is the deliberate trade — correctness of
-ordering over query count, at a scale where the count does not matter — and it is pinned
-with `assertNumQueries` rather than assumed (§8, R3).
+Two of those are avoidable in principle and neither is avoided. `join_row()`
+(`self.elements.order_by("pk").first()`) re-fetches the very join row the walk is already
+descending from; and the walk needs only each child's *type*, never its `content_object`,
+so the GFK prefetch is pure waste for its purposes. Avoiding either means bypassing the
+accessors, which is the one thing this design refuses to do (see above). Both are accepted
+explicitly as the price of ordering agreement.
+
+The roots query is accounted the same way: one query plus one per distinct top-level
+content type.
+
+Because the total is a function of *type diversity*, not just container count, no
+arithmetic in this spec should be treated as the expected number. The invariant is the
+**shape** — roots + (`join_row` + `children` + per-type prefetch) per container — and the
+value is to be measured on the §8 fixture and recorded there once observed. An implementer
+who derives an `assertNumQueries` constant from prose arithmetic will get a red test they
+cannot explain.
 
 ## 4. Render
 
@@ -269,8 +285,15 @@ a plain integer (or `None`) in its template context:
 
 ```python
 numbers = (page or {}).get("callout_numbers") or {}
-"number": numbers.get(element.pk) if element is not None else None,
+"number": numbers.get(element.pk),
 ```
+
+No `element is not None` guard. `CalloutElement.render` is reached only through
+`render_element` (`courses/templatetags/courses_extras.py:175`), which always passes
+`element=element` and has already returned early on `obj is None` — so the guard is a
+condition that cannot fail, the pattern this repo's reviews strip out. It would also
+misdirect: what makes a single-element fragment carry no number is the absent context key,
+which `(page or {}).get(...) or {}` already handles, not a `None` element.
 
 The lookup happens in Python because a Django template cannot index a dict by a variable
 key without a filter.
@@ -315,8 +338,11 @@ No new CSS is required; a style hook existing without a rule is intentional.
 | Editor, fragment swap | `_render_editor_fragments` | `courses/views_manage.py` (~`:1853`) |
 | Editor, full page load | `_editor_page` | `courses/views_manage.py` (~`:1915`) |
 
-Each adds `"callout_numbers": callout_numbers(node)` to the context it returns. There is no
-single choke point that covers all four; see R1.
+Each adds `"callout_numbers": callout_numbers(...)` to the context it **builds**. Only the
+two `views.py` builders return a context dict; `_render_editor_fragments` and
+`_editor_page` call `render(request, template, {...})` with an inline dict and return an
+`HttpResponse`, and their parameter is named `unit`, not `node` — so the editor sites read
+`callout_numbers(unit)`. There is no single choke point that covers all four; see R1.
 
 The two editor sites are **different paths, not a builder and a duplicate**:
 `_editor_page` renders the whole editor on first load, `_render_editor_fragments` renders
@@ -346,7 +372,7 @@ without further plumbing.
 
 Two edits ride along with this one:
 
-- `courses/templatetags/courses_extras.py:49-51` reads *"Six explicit statements, one per
+- `courses/templatetags/courses_extras.py:53-56` reads *"Six explicit statements, one per
   key of the `page` dict below, so every name stays greppable."* That count becomes seven.
   The comment is deliberately invariant and this repo has tests that regex raw source, so
   leaving it stale is a live hazard, not cosmetics.
@@ -377,11 +403,17 @@ placed immediately after the Kind `<label>` and before Heading, because it quali
 kind:
 
 ```django
-<label class="check">
+<label class="el-editor__check">
   <input type="checkbox" name="numbered" {% if form.numbered.value %}checked{% endif %}>
   {% trans "Number this callout" %}
 </label>
 ```
+
+The class is `el-editor__check` (`courses/static/courses/css/editor.css:153` —
+`inline-flex`, centred, `gap: var(--space-2)`), copied from
+`templates/courses/manage/editor/_edit_shorttextquestion.html:19-22`, which is the same
+case: a model-backed boolean on a hand-written element-editor partial. Do not invent a
+class name; there is exactly one precedent and this is it.
 
 `form.numbered.value` resolves to the posted value on a bound form and to the instance
 value on an unbound one, so a failed validation round-trip preserves what the author
@@ -401,17 +433,47 @@ See R2.
 so a new key is a hard break for every existing archive unless it is introduced with the
 optional-key pattern already used for `size` (`:139`) and width/height (`:170`):
 
-1. `data.setdefault("numbered", KIND_DEFAULT_NUMBERED.get(kind, True))` **before**
-   `_exact_keys`, so a pre-v13 archive imports with per-kind defaults — matching the
-   backfill migration exactly, so an archive exported before this feature and a database
-   migrated by it agree.
+1. Seed the key **before** `_exact_keys`, so a pre-v13 archive imports with per-kind
+   defaults — matching the backfill migration exactly, so an archive exported before this
+   feature and a database migrated by it agree.
+
+   The seeding must not read `kind` naively. `_exact_keys` runs first in the current body
+   (`payloads.py:214`) precisely so that `check_str(data["kind"], ...)` at `:215` can
+   assume the key exists and is a string. Seeding ahead of it inverts that: at this point
+   `kind` may be **absent** (today a clean `TransferError` from `_exact_keys`; a bare
+   `data["kind"]` would raise `KeyError` first) or a **non-string** — and a list or dict
+   key makes `KIND_DEFAULT_NUMBERED.get(...)` raise `TypeError: unhashable type`, an
+   unwrapped exception where this file's contract is a translated `TransferError`. The
+   two cited precedents do not have this property: `setdefault("size", "full")` and
+   `setdefault("width", None)` depend on no other key, so this step is **not** simply
+   "the existing pattern". Required form:
+
+   ```python
+   _kind = data.get("kind")
+   data.setdefault(
+       "numbered",
+       KIND_DEFAULT_NUMBERED.get(_kind, True) if isinstance(_kind, str) else True,
+   )
+   ```
+
+   The lookup must be total and must not raise for any JSON value. A validation test
+   covers an archive whose callout payload omits `kind` entirely, asserting it still fails
+   with the `TransferError` from `_exact_keys` and not a `KeyError`.
+
+   `KIND_DEFAULT_NUMBERED` is imported on the **existing function-local** line
+   `from courses.models import CalloutElement` (`payloads.py:212`). That import is local
+   on purpose, to avoid an import cycle; a module-level import of the new constant would
+   reintroduce exactly the cycle it avoids.
 2. Add `"numbered"` to the `_exact_keys` list.
-3. Validate it is a `bool` and `_err` otherwise, following the file's convention.
+3. Validate it with the file's existing helper: `check_bool(data["numbered"], "numbered")`
+   (used at `payloads.py:368`, `:410`, `:483`, `:621`). Not a hand-rolled `isinstance`
+   check, which would produce a differently-worded error.
 4. **Build it.** `_build_callout` (`courses/transfer/importer.py:556`) constructs
    `CalloutElement(kind=..., heading=..., body=...)` and must gain `numbered=...`.
    Without this step the field is validated on the way in and written on the way out but
    **discarded at construction**, so every import silently resets it to the model default.
-5. The exporter writes `numbered`.
+5. The exporter writes `numbered`: `_ser_callout` (`courses/transfer/export.py:122`),
+   registered as `"callout": (CalloutElement, _ser_callout)` at `:482`.
 
 **Duplicate and paste ride on this.** `duplicate_element` and `paste_element` are not
 separate copy paths: both round-trip the subtree through
@@ -452,6 +514,10 @@ ordered by what they would actually catch:
    flat `order_by("order", "pk")` over all children. This is the entire justification for
    the design in §3. Fixture is unit 349's real shape: 3 tabs, one task callout in each,
    plus a top-level callout before them, asserting `1, 2, 3, 4` and not a permutation.
+   **Extend the fixture with a numbered callout nested inside a numbered callout**,
+   asserting outer-then-inner: the tabs-only fixture scores identically under pre- and
+   post-order, so on its own it leaves §3's pre-order rule unpinned. Second mutant:
+   assign the container's number after walking its children.
 2. **Unnumbered consuming a slot** — increment the counter before the `numbered` check.
    The fixture is the acceptance criterion from the Purpose: example, task, note, warning,
    task → `1, 2, –, 3, 4`.
@@ -489,10 +555,16 @@ ordered by what they would actually catch:
    an assertion on `.callout__heading`'s text content and §4's byte-identity claim
    withdrawn.
 8. **Numbered with a custom heading** — the one row in §4's table that D4 actually
-   changes, and the only branch with zero real rows exercising it. Pin the exact
-   `Przykład 3. Suma ciągu` shape: label, space, number, period, space, heading. Falsified
-   two ways — swap the label/heading order, and emit `display_heading` instead of `heading`
-   in the numbered branch (which would render `Suma ciągu` twice or drop the label).
+   changes, and the only branch with zero real rows exercising it. Note that
+   `Przykład 3. Suma ciągu` is **not** a contiguous substring of the markup — §4 renders
+   it as `Przykład <span class="callout__number">3</span>. Suma ciągu` — so the assertion
+   must be one of two explicit forms, and the spec picks the first: assert the exact HTML
+   fragment including the span, which keeps it under the attribute-form rule below. A
+   normalised `.callout__heading` text-content assertion is the acceptable alternative,
+   but it is a text assertion and therefore exempt from that rule; say which one the test
+   is. Falsified two ways — swap the label/heading order, and emit `display_heading`
+   instead of `heading` in the numbered branch (which would render `Suma ciągu` twice or
+   drop the label).
 9. **`KIND_DEFAULT_NUMBERED` covers every kind** — falsified by deleting one entry.
 10. **The accessor map covers every container** — assert
     `set(ACCESSORS) == builder.CONTAINER_MODELS`, falsified by deleting one entry; plus a
@@ -514,14 +586,30 @@ announce it.
 
 **e2e.** One test covering the R2 round trip: open a numbered callout's editor form,
 change only the heading, save, and assert the callout is still numbered. The checkbox must
-not be touched during the run — that is the whole point of the test. This complements, and
-does not replace, the unit tests in mutant 11.
+not be touched during the run — that is the whole point of the test.
 
-**Query count.** `assertNumQueries` on a fixture shaped like a real unit (a top-level
-callout, a 3-tab container each holding a callout, a spoiler holding a callout), so the
-per-container cost is a pinned number rather than an assumption. Pin it on the student
-lesson render; the editor paths run the same function and are covered by R3's note rather
-than a second pinned count.
+**The instrument must be the re-opened form's checkbox state**, not the number visible in
+the preview. A visible-number assertion also goes red for a missing context site (mutant
+4) and for a dropped barrier key (mutant 3), so its failure would not identify R2 — and
+e2e tests in this repo assert on rendered UI by default, so leaving the instrument
+unstated invites exactly that. Re-reading the DB row is an acceptable addition; the
+checkbox state is what the round trip is actually about. This complements, and does not
+replace, the unit tests in mutant 11.
+
+**Query count.** `assertNumQueries` around a **direct call to `callout_numbers(node)`**
+with a fixture shaped like a real unit (a top-level callout, a 3-tab container each
+holding a callout, a spoiler holding a callout). Not around a whole lesson render: that
+total already includes progress, unit nav, notes, tags, the edit-unit link and per-question
+prefetches (`courses/views.py:346-375`, `:594-632`), so it is brittle against unrelated
+changes and attributes none of its number to the numbering pass — it would fail for
+reasons having nothing to do with this feature, and pass without proving anything about
+the per-container cost. The self-contained contract in §3 exists so this test can sit
+directly on the function.
+
+Record the observed number in the test with a comment breaking it down by the §3 shape, so
+a later change to the walk shows up as an explained delta. If a whole-page figure is also
+wanted, express it as the *delta* between a unit with callouts and the same unit with
+none, never as an absolute.
 
 ## 9. i18n
 
@@ -549,7 +637,18 @@ sites to know where to look.
 **R2 — the unchecked-checkbox POST.** An unchecked checkbox sends nothing, so any save
 path that posts the callout form without the field sets `numbered=False` silently. This is
 the same failure shape as the existing `el_title` trap, where a POST missing that key
-blanks the element title. The root causes are the field being absent from `Meta.fields` or
+blanks the element title.
+
+**Why this is new rather than routine.** The repo has exactly one other model-backed
+boolean on an element form — `ShortTextQuestionElement.case_sensitive`
+(`courses/models.py:2357`) — and it defaults to **False**. There, a POST missing the key
+reproduces the field's own default, so the hazard has never had a visible consequence and
+nothing guards it. `numbered` defaults to **True**, which inverts that: a missing key
+silently *loses* author intent instead of restoring the default. That asymmetry is the
+whole reason R2 needs its own tests, and an implementer who spots the `case_sensitive`
+precedent would otherwise reasonably conclude this risk is theoretical.
+
+The root causes are the field being absent from `Meta.fields` or
 the checkbox being absent from the hand-written template; both are pinned by cheap unit
 tests (§8.11), with the e2e as the round-trip check rather than the only guard.
 
