@@ -255,9 +255,15 @@ def test_filter_unfolds_matches_and_clearing_restores_the_fold_state(page, live_
 
     (2) The §6.2 specificity mutant, for the `to_be_hidden()` assertion below:
     change `.outline-node--part, .outline-node--chapter, .outline-node--section
-    { display: grid; ... }` to `.outline-tree .outline-node--part, ...`. That ties
-    `.outline-node[hidden]` at (0,2,0) and wins on source order, so filtered-out
-    containers stop hiding. Nothing else in the suite catches it.
+    { display: grid; ... }` to `.outline-tree .outline-node.outline-node--part,
+    ...` (three simple selectors, (0,3,0)). A merely (0,2,0) variant — e.g.
+    `.outline-tree .outline-node--part, ...` — does NOT redden this: it ties
+    `.outline-node[hidden]`'s (0,2,0) exactly, and a CSS specificity tie is
+    broken by source order, not left unresolved — `.outline-node[hidden]` is
+    declared later in app.css (line ~633 vs. the grid rule at ~576), so it
+    keeps winning and containers stay hidden. The real guard is two-part: do
+    not out-specify (0,2,0) for this rule, AND do not move it below the
+    `[hidden]` guard in the file. Nothing else in the suite catches this.
     """
     f = _course_with_two_chapters("t10")
     tag = _tag_a_unit(f["user"], f["unit_b"])
@@ -277,7 +283,10 @@ def test_filter_unfolds_matches_and_clearing_restores_the_fold_state(page, live_
     # A tag_hidden CONTAINER row must compute hidden. This is the guard against
     # §6.2's `display: grid` out-specifying `.outline-node[hidden] {display:none}`
     # (0,2,0) — today's e2e proves that only for a unit row. to_be_hidden() is
-    # correct here: these rows are display:none, not folded content.
+    # correct here: these rows are display:none, not folded content. See the
+    # class docstring: the mutant that reddens this must clear (0,2,0) outright
+    # (e.g. (0,3,0)) — a merely-tied (0,2,0) variant loses on source order to
+    # the later-declared `.outline-node[hidden]` and this assertion stays green.
     expect(page.locator(f"#node-{f['chap_a'].pk}")).to_be_hidden()
 
     page.locator(f"a.tag-chip[data-tag-id='{tag.pk}']").click()
@@ -348,9 +357,19 @@ def test_deep_link_opens_the_target_and_its_ancestors(page, live_server):
         provide. With only part > chapter, the target's sole ancestor is the
         depth-0 part that D1 already renders open — so "drop the ancestor loop"
         leaves every assertion green. The section below is server-FOLDED, so
-        opening it is evidence the loop ran.
-        Three mutants, each must redden: drop the ancestor loop; open the
-        ancestors but not the target itself; drop the `:target` twin from app.css.
+        opening it is evidence the loop ran — EXCEPT for the ancestor-loop
+        mutant itself, which does NOT redden here: Chromium natively expands
+        an ancestor `<details>` to reveal a fragment-navigation target, so
+        `chap_b` ends up open with the JS loop removed entirely. That is a
+        known, confirmed limitation of this Chromium-only e2e — do not delete
+        the loop on the strength of this test: spec §4.4 requires it for
+        engines without that native behaviour, and it is what makes the write
+        at the end of openHashTarget() correct. The two mutants below DO
+        redden and are the real evidence the handler runs: open the ancestors
+        but not the target's own `<details>` (this is what `assert
+        _is_open(page, section.pk) is True` guards, plus T13(c) separately
+        covers the count===0 restore guard); and dropping the `:target` twin
+        from app.css.
     (b) A #node-<unit-pk> owns no <details> — id="node-N" is on EVERY <li>.
         Mutant: unconditional li.querySelector(":scope > details").open = true.
 
@@ -380,8 +399,9 @@ def test_deep_link_opens_the_target_and_its_ancestors(page, live_server):
 
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/#node-{section.pk}")
     assert _is_open(page, f["part"].pk) is True
-    # chap_b is depth 1, so the server rendered it FOLDED. Only the ancestor loop
-    # can have opened it — this is the assertion the loop's mutant reddens.
+    # chap_b is depth 1, so the server rendered it FOLDED. In THIS browser that
+    # is Chromium's own native fragment-navigation reveal, not proof the JS
+    # ancestor loop ran — see the class docstring's confirmed limitation.
     assert _is_open(page, f["chap_b"].pk) is True, "a folded ancestor was opened"
     assert _is_open(page, section.pk) is True, "the target's OWN details opens"
 
