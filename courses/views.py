@@ -68,6 +68,7 @@ from courses.models import SwitchGateElement
 from courses.models import SwitchGridElement
 from courses.models import TextElement
 from courses.models import UnitProgress
+from courses.numbering import callout_numbers
 from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
@@ -563,6 +564,7 @@ def build_lesson_context(node, user):
         "progress": progress,
         "element_count": len(current_ids),
         "seen_count": seen_count,
+        "callout_numbers": callout_numbers(node),
     }
 
 
@@ -1441,6 +1443,7 @@ def build_quiz_context(node, user):
         "has_html": has_html,
         "has_before_after": has_before_after,
         "has_questions": True,
+        "callout_numbers": callout_numbers(node),
     }
     from tags.rendering import unit_tags_context
 

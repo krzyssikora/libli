@@ -50,7 +50,7 @@ def render_element(
     obj = element.content_object
     if obj is None:
         return ""
-    # Page-level values a nested child needs. Six explicit statements, one per key
+    # Page-level values a nested child needs. Seven explicit statements, one per key
     # of the `page` dict below, so every name stays greppable. At TOP LEVEL these
     # are no-ops: _lesson_article.html passes exactly the page-context values the
     # fallback would read, so that render stays bit-identical.
@@ -75,6 +75,8 @@ def render_element(
         editor_preview = bool(context.get("editor_preview"))
     # Context-only, never a tag argument -- page-level by nature (Task 2).
     feedback_ancestor_pks = context.get("feedback_ancestor_pks") or frozenset()
+    # Context-only, never a tag argument -- page-level by nature (Task 6).
+    callout_numbers_map = context.get("callout_numbers") or {}
     if isinstance(obj, HtmlElement):
         pref = context.get("theme_pref")
         theme = context.get("data_theme") if pref in ("light", "dark") else None
@@ -170,6 +172,7 @@ def render_element(
             "mark_result": mark_result or None,
             "editor_preview": editor_preview,
             "feedback_ancestor_pks": feedback_ancestor_pks,
+            "callout_numbers": callout_numbers_map,
         }
     return mark_safe(  # noqa: S308 — each element template escapes its own fields
         obj.render(

@@ -645,4 +645,5 @@ def test_mode_is_not_forwarded_to_a_nested_child(monkeypatch, scene, client):
         "mark_result",
         "editor_preview",
         "feedback_ancestor_pks",
+        "callout_numbers",
     }

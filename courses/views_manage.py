@@ -40,6 +40,7 @@ from courses.models import QuestionElement
 from courses.models import QuizSubmission
 from courses.models import Subject
 from courses.models import UnitProgress
+from courses.numbering import callout_numbers
 from courses.richtext import count_inbound_links
 from courses.templatetags.courses_manage_extras import element_summary
 from courses.transfer.schema import TransferError
@@ -1851,6 +1852,10 @@ def _render_editor_fragments(
             "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
+            # Both builders, deliberately: _editor_page renders the first load and
+            # _render_editor_fragments every later swap. A key on only one of them
+            # makes the other silently drop every number.
+            "callout_numbers": callout_numbers(unit),
             # gates the add-menu's "Interactive" (revealgate) group — quiz units
             # don't offer it. _add_menu.html is included without `only`, so this
             # flows straight through the same context to the nested add-menu too.
@@ -1913,6 +1918,10 @@ def _editor_page(
             "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
+            # Both builders, deliberately: _editor_page renders the first load and
+            # _render_editor_fragments every later swap. A key on only one of them
+            # makes the other silently drop every number.
+            "callout_numbers": callout_numbers(unit),
             "changed": changed,
             "error": error,
             "open_slots": open_slots or set(),
