@@ -59,7 +59,11 @@ These were settled during brainstorming. Do not re-litigate them.
 - **D1 — one shared sequence per unit, across all kinds.** Not one counter per kind.
   `Przykład 1, Zadanie 2, Ważne 3` is a single run.
 - **D2 — per-kind defaults.** Example, Task and Important default to numbered; Note and
-  Tip default to unnumbered. A per-callout checkbox overrides either way.
+  Tip default to unnumbered. A per-callout checkbox overrides either way. **Scope
+  qualifier:** this per-kind rule fires at *backfill* and at *legacy-archive import* only.
+  A callout an author creates from now on is born with the flat model default (`True`)
+  regardless of kind, and the author unticks — see §1 and Deferred. Do not implement a
+  per-kind form initial; §1 explains why it would be unobservable.
 - **D3 — every numbered callout counts, wherever it sits.** Depth and container type are
   irrelevant to the walk. Nesting affects nothing except reading order.
 - **D4 — the number attaches to the kind label; a custom heading follows it.** This
@@ -170,6 +174,16 @@ does, e.g. `0060_calloutelement_numbered`.
 Expected effect on the local DB: 33 rows set to `False` (12 note + 21 tip), 336 left
 `True`.
 
+**Sweep the one production construction site too.** `courses/management/commands/
+seed_demo_course.py:246-253` (`_callout`) creates `CalloutElement(kind="tip", ...)` with no
+`numbered`, so every freshly seeded demo course would produce a **numbered Tip** — the
+exact combination D2 forbids and the migration exists to prevent, in the course the help
+screenshots are taken against. Pass `numbered=False` there. The general rule, because the
+model default is a flat `True` and only the migration and the importer consult the per-kind
+map: **every production site that constructs a `CalloutElement` must pass `numbered`
+explicitly.** Today that is `_build_callout` (§7) and this seed command; a sweep at
+implementation time must confirm there is no third.
+
 The backfill **must not import `KIND_DEFAULT_NUMBERED` from `courses.models`** — a
 migration that reads a live module constant silently changes meaning when that constant
 is later edited. The false-kind list is inlined as a literal (`["note", "tip"]`) with a
@@ -201,7 +215,9 @@ visited (their children still count) but do not consume a number.
 
 - `node` is a **unit** `ContentNode`. Every call site passes one.
 - A node with no elements — a section or chapter node, or an empty unit — returns `{}`.
-  This falls out of `node.elements` being empty and needs no type check.
+  In practice the early-out below is what fires (no elements implies no callouts), so this
+  is a guarantee rather than a separate mechanism; the empty-`node.elements` fall-through
+  stays correct as a second line of defence should the early-out ever move.
 - **Early-out on units with no callouts.** The call is unconditional at all four sites, so
   without this a callout-free unit containing three tabs containers pays the full descent
   on every student and editor render — and most units have no callout at all (167 of them
@@ -809,7 +825,17 @@ ordered by what they would actually catch:
     after the roots query. Without this only the hit path is measured, and R3's claim rests
     entirely on the miss path.
 13. **The form and its widget** — assert `"numbered" in CalloutElementForm.Meta.fields`,
-    and that `_edit_callout.html` renders `<input type="checkbox" name="numbered">`.
+    and that `_edit_callout.html` renders the checkbox. **Assert attribute substrings, not
+    a whole tag**: §6's markup carries `{% if form.numbered.value %}checked{% endif %}`, so
+    the rendered output is `<input type="checkbox" name="numbered" checked>` for a numbered
+    instance and `<input type="checkbox" name="numbered" >` (note the space the `{% if %}`
+    leaves) for an unnumbered one — the literal `<input type="checkbox" name="numbered">` is
+    a substring of *neither*, and transcribing it gives a red test on a correct build whose
+    tempting "fix" is deleting the `{% if %}` and destroying the R2 round trip. Assert
+    `'type="checkbox"'` and `'name="numbered"'` separately, following
+    `tests/test_filltable_editor_partial.py:38-42`. Because the ticked default *is* R2,
+    additionally assert `'name="numbered" checked'` present for a `numbered=True` instance
+    and absent for a `numbered=False` one.
     Both are two-line tests guarding the defect R2 describes, which is otherwise reachable
     only through the slowest instrument in the suite.
 14. **D6 holds: the editor row list shows no number** — assert `element_summary`
@@ -953,7 +979,19 @@ sites, in descending order of exposure:
   unticking removes the number rather than fixing the gap. Accepted on the same grounds as
   the rest — the sequence is a property of the unit, and a slideshow is still one unit.
 
-All three are **accepted**, not solved. D3's one-rule-no-exceptions is the decision, and
+- **A gate inside a container (1 callout, measured).** The gate family — `Show more`,
+  `Fill in & confirm`, `Choose & confirm`, and the fill-table reveal — hides its *following
+  siblings* and stops at the edge of whatever contains it
+  (`docs/help/course-admin/interactive-elements.md:80-85`). At top level that only
+  truncates the tail, which produces no gap: 15 callouts sit after a top-level gate today
+  and every one of them is hidden along with everything after it. Inside a container it is
+  different — the gate hides the rest of that container while everything *after* the
+  container stays visible, so `callout 1 [gate, callout 2]` followed by top-level
+  `callout 3` renders `1` then `3`. Measured across the corpus: **exactly one** callout
+  sits after a gate inside a container (unit 1095, element 21105). Unlike the slideshow
+  case, the checkbox remedy works here — unticking the gated callout closes the gap.
+
+All of these are **accepted**, not solved. D3's one-rule-no-exceptions is the decision, and
 the checkbox is the remedy: an author who dislikes the gap unticks the nested callouts. No
 code special-cases any container type. Recorded here so the behaviour is a known
 consequence rather than a bug report after release.
