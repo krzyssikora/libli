@@ -819,6 +819,13 @@ ordered by what they would actually catch:
     exact shape §3 describes — two join rows on one concrete with an acyclic `parent` tree
     (`R1` root → `C_a`, `R2` parent=`R1` → `C_b`, `R3` parent=`R2` → `C_a`). Mutant raises
     `RecursionError`; the correct build terminates.
+
+    **`C_a` must be a `CalloutElement`**, which satisfies both constraints at once: its
+    accessor groups by `parent` alone (so the cycle actually forms), and its presence
+    defeats the §3 early-out (which would otherwise return `{}` before any descent and make
+    the mutant green). A spoiler satisfies only the first and leaves the fixture vacuous; a
+    tabs container satisfies neither — an unmatched `tab_id` makes `resolved_tabs` drop the
+    child and dissolves the cycle.
 12. **The early-out actually short-circuits** — a second `assertNumQueries` case on a
     **callout-free** unit that still contains a container, asserting exactly one query and
     a `{}` return. Falsified by deleting the early-out, or by moving the existence check
@@ -839,8 +846,13 @@ ordered by what they would actually catch:
     Both are two-line tests guarding the defect R2 describes, which is otherwise reachable
     only through the slowest instrument in the suite.
 14. **D6 holds: the editor row list shows no number** — assert `element_summary`
-    (`courses/templatetags/courses_manage_extras.py:158`) for a *numbered* callout equals
-    its `display_heading` and contains no digit. §1 rewrites `display_heading` as
+    (`courses/templatetags/courses_manage_extras.py:158`) for a *numbered* callout against
+    a **hardcoded expected literal** (`"Example"` for a headingless example callout).
+    Do **not** rely on `element_summary(el) == el.display_heading`: that branch is
+    literally `return el.display_heading`, so both sides move together under the mutant and
+    the assertion is a tautology — green against every possible mutation. If the equality
+    is kept at all, keep it as a shape check and note that the discriminating assertions
+    are the literal and the no-digit check. §1 rewrites `display_heading` as
     `self.heading or self.kind_label`, and folding the number into `display_heading` is by
     far the most plausible drift — it would satisfy mutants 7 and 8 (which assert on the
     element template) while silently violating D6. Falsified by making `display_heading`
@@ -865,7 +877,7 @@ the preview. A visible-number assertion also goes red for a missing context site
 e2e tests in this repo assert on rendered UI by default, so leaving the instrument
 unstated invites exactly that. Re-reading the DB row is an acceptable addition; the
 checkbox state is what the round trip is actually about. This complements, and does not
-replace, the unit tests in mutant 11.
+replace, the **form/widget mutant (§8.13)**.
 
 **Query count.** `assertNumQueries` around a **direct call to `callout_numbers(node)`**
 with a fixture shaped like a real unit (a top-level callout, a 3-tab container each
@@ -941,7 +953,8 @@ precedent would otherwise reasonably conclude this risk is theoretical.
 
 The root causes are the field being absent from `Meta.fields` or
 the checkbox being absent from the hand-written template; both are pinned by cheap unit
-tests (§8.11), with the e2e as the round-trip check rather than the only guard.
+tests — **the form/widget mutant (§8.13)**, not by index alone, since §8's list has been
+renumbered — with the e2e as the round-trip check rather than the only guard.
 
 **R3 — query cost.** The shape is given in §3 and deliberately not restated as arithmetic
 here: roots plus, per container, `join_row` + `children` + one prefetch per distinct child
