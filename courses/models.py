@@ -559,6 +559,16 @@ class CalloutElement(ElementBase):
     def render(self, *, element=None, state=None, slug=None, node_pk=None, page=None):
         from django.template.loader import render_to_string
 
+        # The lookup happens here, not in the template: a Django template cannot index
+        # a dict by a variable key without a filter. The `element is not None` guard is
+        # LOAD-BEARING -- eight sites in test_callout_render.py call .render() bare, and
+        # test_render_seam.py pins that shape for the leaf case. A join-row-less callout
+        # has no unit-wide position, so None is the right number for it. `self.numbered`
+        # is checked too, even though numbering.py's walk never puts an unnumbered
+        # callout's pk in the map: render() must not trust the map blindly, since a
+        # stale or hand-built `page` dict could still carry one.
+        numbers = (page or {}).get("callout_numbers") or {}
+
         return render_to_string(
             "courses/elements/calloutelement.html",
             {
@@ -569,6 +579,11 @@ class CalloutElement(ElementBase):
                 **(page or {}),
                 "el": self,
                 "children": self.resolved_children(),
+                "number": (
+                    numbers.get(element.pk)
+                    if element is not None and self.numbered
+                    else None
+                ),
                 # `element_state`, NOT `state`: courses_extras.render_element reads
                 # context.get("element_state") for the recursive child render.
                 "element_state": state,
