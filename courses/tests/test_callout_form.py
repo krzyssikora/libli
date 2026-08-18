@@ -18,6 +18,10 @@ def test_valid_full_save():
     el = form.save()
     assert el.kind == "warning"
     assert el.heading == "Careful"
+    # No `numbered` key was posted: an unchecked checkbox transmits nothing, so
+    # this is indistinguishable from a deliberate untick. Pin the deliberate
+    # False, don't let it drift silently.
+    assert el.numbered is False
 
 
 def test_blank_heading_and_body_are_valid():

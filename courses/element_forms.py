@@ -263,7 +263,7 @@ class SpoilerElementForm(forms.ModelForm):
 class CalloutElementForm(forms.ModelForm):
     class Meta:
         model = CalloutElement
-        fields = ["kind", "heading", "body"]
+        fields = ["kind", "numbered", "heading", "body"]
 
 
 class BeforeAfterElementForm(forms.ModelForm):

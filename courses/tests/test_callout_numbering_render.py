@@ -83,3 +83,69 @@ def test_render_without_an_element_does_not_raise():
     `element is not None` guard -> AttributeError on NoneType.pk."""
     html = CalloutElement(kind="example", numbered=True, body="").render()
     assert "callout__number" not in html
+
+
+def test_the_form_exposes_numbered():
+    from courses.element_forms import CalloutElementForm
+
+    assert "numbered" in CalloutElementForm.Meta.fields
+
+
+def test_the_editor_partial_renders_the_checkbox(client):
+    """Assert ATTRIBUTE SUBSTRINGS, not a whole tag: the markup carries
+    `{% if form.numbered.value %}checked{% endif %}`, so the rendered output is
+    `... name="numbered" checked>` or `... name="numbered" >` -- the literal
+    `<input type="checkbox" name="numbered">` is a substring of NEITHER, and
+    asserting it would be red on a correct build.
+    """
+    from django.urls import reverse
+
+    from tests.factories import CourseFactory
+    from tests.factories import ContentNodeFactory
+    from tests.factories import make_pa
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "callout", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    body = resp.content.decode()
+    assert 'type="checkbox"' in body
+    assert 'name="numbered"' in body
+    # The ticked default IS R2: a new callout must arrive checked.
+    assert 'name="numbered" checked' in body
+
+
+def test_an_unnumbered_instance_renders_the_box_unchecked():
+    from courses.element_forms import CalloutElementForm
+
+    el = CalloutElement(kind="tip", numbered=False)
+    form = CalloutElementForm(instance=el)
+    assert form["numbered"].value() is False
+
+
+def test_element_summary_never_shows_a_number(client):
+    """D6: the collapsed editor row list is deliberately unchanged.
+
+    Do NOT assert `element_summary(el) == el.display_heading`: that branch is
+    literally `return el.display_heading`, so both sides move together under the
+    mutant and the assertion is a tautology. The discriminating assertions are the
+    hardcoded literal and the no-digit check.
+
+    Mutant: fold the number into display_heading -> this fails, while the template
+    mutants in this file would all still pass.
+    """
+    # A registered @register.filter (courses_manage_extras.py:129-130); the callout
+    # branch at :157-158 is `return el.display_heading`. Callable directly as a plain
+    # function.
+    from courses.templatetags.courses_manage_extras import element_summary
+
+    el = CalloutElement(kind="example", numbered=True, heading="")
+    summary = element_summary(el)
+    assert summary == "Example"
+    assert not any(ch.isdigit() for ch in summary)
