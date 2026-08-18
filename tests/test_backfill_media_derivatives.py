@@ -261,3 +261,115 @@ def test_course_scoping_leaves_other_courses_pending(course_with_image_media_roo
     assert b.derivatives_state == "", (
         "an asset in an unscoped course must be left alone"
     )
+
+
+# --- --verify: repair rows whose derivative FILES went missing ---------------
+# A blank derivative is safe (the tag falls back to the original), but a name
+# that is SET while its file is absent renders a broken image -- and the default
+# work set can never repair it, because such rows read `ok`. --verify closes
+# that hole. Seen live: a worktree removal deleted 1532 derivative files while
+# the shared dev DB kept referencing them.
+
+
+@pytest.mark.django_db
+def test_verify_regenerates_a_row_whose_thumb_file_vanished(
+    course_with_image_media_root, capsys
+):
+    """MUTANT: drop the verify pre-pass. The row stays `ok` with a missing file,
+    because `ok` is excluded from the default work set -- exactly the state that
+    is unrepairable without --force today."""
+    course = CourseFactory()
+    a = make_image_asset(course, "a.png", size=(2000, 1500), derivatives=True)
+    assert a.derivatives_state == DerivativesState.OK
+    default_storage.delete(a.thumb.name)
+    assert not default_storage.exists(a.thumb.name)
+
+    call_command("backfill_media_derivatives", course=course.slug, verify=True)
+
+    a.refresh_from_db()
+    assert a.derivatives_state == DerivativesState.OK
+    assert a.thumb.name and default_storage.exists(a.thumb.name)
+    assert a.web.name and default_storage.exists(a.web.name)
+
+
+@pytest.mark.django_db
+def test_verify_retires_the_surviving_sibling_so_nothing_is_orphaned(
+    course_with_image_media_root, capsys
+):
+    """MUTANT: reset the fields without deleting the surviving sibling. The old
+    `web` file is then referenced by nothing and never collected -- the same
+    orphan class replace_asset's retire step exists to prevent.
+
+    Asserted as "every file on disk is referenced by the row", NOT as "the name
+    changed". Deleting the sibling first frees its name, so regeneration
+    legitimately REUSES it -- a name-comparison here would pass only on the
+    broken build, where the surviving file forces a collision suffix."""
+    course = CourseFactory()
+    a = make_image_asset(course, "a.png", size=(2000, 1500), derivatives=True)
+    default_storage.delete(a.thumb.name)
+
+    call_command("backfill_media_derivatives", course=course.slug, verify=True)
+
+    a.refresh_from_db()
+    referenced = {n for n in (a.thumb.name, a.web.name) if n}
+    assert len(referenced) == 2, "the row must end up with both derivatives"
+    _dirs, files = default_storage.listdir("courses/media/derivatives")
+    on_disk = {f"courses/media/derivatives/{f}" for f in files}
+    assert on_disk == referenced, f"orphaned: {sorted(on_disk - referenced)}"
+
+
+@pytest.mark.django_db
+def test_verify_leaves_an_intact_row_untouched(course_with_image_media_root, capsys):
+    """MUTANT: reset unconditionally instead of only when a file is missing.
+    A healthy library would then be fully re-encoded on every --verify run."""
+    course = CourseFactory()
+    a = make_image_asset(course, "a.png", size=(2000, 1500), derivatives=True)
+    before_thumb, before_web = a.thumb.name, a.web.name
+
+    call_command("backfill_media_derivatives", course=course.slug, verify=True)
+
+    a.refresh_from_db()
+    assert a.thumb.name == before_thumb, "an intact row must not be re-encoded"
+    assert a.web.name == before_web
+    assert "0 repaired" in capsys.readouterr().out
+
+
+@pytest.mark.django_db
+def test_verify_ignores_rows_with_no_derivatives(course_with_image_media_root, capsys):
+    """Blank is the legal terminal state for skipped/failed rows, so treating it
+    as 'missing' would reset them on every run, forever.
+
+    MUTANT (needs BOTH sites -- blank is guarded twice, and either layer alone
+    holds): drop `.exclude(thumb="", web="")` AND change the filtered `names` to
+    the raw pair with an `n and ...` guard. Verified: mutating either site alone
+    leaves this GREEN; mutating both turns it RED on the "0 repaired" assertion,
+    which is the load-bearing one here -- the state assertion survives, because a
+    reset blank row is simply regenerated back to SKIPPED."""
+    course = CourseFactory()
+    a = make_image_asset(course, "small.png", size=(400, 300), derivatives=True)
+    assert a.derivatives_state == DerivativesState.SKIPPED
+    assert not a.thumb.name
+
+    call_command("backfill_media_derivatives", course=course.slug, verify=True)
+
+    a.refresh_from_db()
+    assert a.derivatives_state == DerivativesState.SKIPPED
+    assert "0 repaired" in capsys.readouterr().out
+
+
+@pytest.mark.django_db
+def test_verify_dry_run_reports_without_writing(course_with_image_media_root, capsys):
+    course = CourseFactory()
+    a = make_image_asset(course, "a.png", size=(2000, 1500), derivatives=True)
+    broken_thumb = a.thumb.name
+    default_storage.delete(broken_thumb)
+
+    call_command(
+        "backfill_media_derivatives", course=course.slug, verify=True, dry_run=True
+    )
+
+    out = capsys.readouterr().out
+    assert "1 row(s) reference a missing derivative file" in out
+    a.refresh_from_db()
+    assert a.thumb.name == broken_thumb, "--dry-run must not blank the field"
+    assert a.derivatives_state == DerivativesState.OK

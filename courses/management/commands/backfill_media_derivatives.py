@@ -27,6 +27,47 @@ class Command(BaseCommand):
         parser.add_argument("--start-at", dest="start_at", type=int, default=None)
         parser.add_argument("--dry-run", dest="dry_run", action="store_true")
         parser.add_argument("--force", dest="force", action="store_true")
+        parser.add_argument("--verify", dest="verify", action="store_true")
+
+    def _verify(self, qs, dry_run):
+        """Reset rows whose derivative FILES are gone, so the next pass regenerates.
+
+        A blank derivative is safe -- the tag falls back to the original. A name
+        that is SET while its file is absent is not: it renders a broken image,
+        and the default work set can never repair it, because such rows read
+        `ok`. Without this, recovery means --force over the whole library.
+
+        Rows with both names blank are excluded: blank is the legal terminal
+        state for skipped/failed rows, not a missing file.
+
+        This costs one storage stat per referenced name, which is why it is an
+        opt-in flag rather than the default -- on a remote backend that is a
+        network round trip per derivative.
+        """
+        repaired = []
+        for asset in qs.exclude(thumb="", web="").iterator():
+            storage = asset.thumb.storage
+            names = [n for n in (asset.thumb.name, asset.web.name) if n]
+            # Blank is guarded twice on purpose: the queryset excludes
+            # both-blank rows, and this filter drops a single blank name so it
+            # can never be probed as "missing". Either layer alone suffices.
+            if all(storage.exists(n) for n in names):
+                continue
+            repaired.append(asset.pk)
+            if dry_run:
+                continue
+            # Retire the SURVIVING sibling too. Blanking both fields without
+            # this would strand it: nothing would reference it and post_delete
+            # could never find it. delete_derivative_files tolerates the name
+            # that is already gone.
+            delete_derivative_files(names, storage)
+            asset.thumb = ""
+            asset.web = ""
+            asset.width = None
+            asset.height = None
+            asset.derivatives_state = ""
+            asset.save(update_fields=_FIELDS)
+        return repaired
 
     def handle(self, *args, **opts):
         qs = MediaAsset.objects.filter(kind="image").order_by("pk")
@@ -34,6 +75,20 @@ class Command(BaseCommand):
             qs = qs.filter(course__slug=opts["course"])
         if opts["start_at"]:
             qs = qs.filter(pk__gte=opts["start_at"])
+
+        if opts["verify"]:
+            # Runs BEFORE the work-set filter, and deliberately unfiltered by
+            # state: the rows this repairs are `ok`, so the filter below would
+            # hide them. Resetting them to "" is what puts them back in scope.
+            repaired = self._verify(qs, opts["dry_run"])
+            if opts["dry_run"]:
+                self.stdout.write(
+                    f"verify: {len(repaired)} row(s) reference a missing "
+                    f"derivative file"
+                )
+            else:
+                self.stdout.write(f"verify: {len(repaired)} repaired")
+
         if not opts["force"]:
             qs = qs.filter(derivatives_state__in=_PENDING)
 
