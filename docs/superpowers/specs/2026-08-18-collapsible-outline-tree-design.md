@@ -775,7 +775,7 @@ is not evidence.
   merely duplicate T3. Mutant: the T3 mutant (link back inside the summary).
 
 - **T7** — first visit to a 3-level course: depth-1 container heads visible, depth-2 units
-  not (`checkVisibility()` / `to_be_hidden()`, per R4), **and** the depth-1 `<details>` has
+  not (`checkVisibility()` only, per R4 — never `to_be_hidden()`), **and** the depth-1 `<details>` has
   no `open` attribute while the depth-0 one does. The attribute half is what actually pins
   D1; a visibility-only pair also passes under a stray `display: none`. Same test covers
   the mixed shape the Purpose section calls out: a course with a depth-0 **unit** beside a
