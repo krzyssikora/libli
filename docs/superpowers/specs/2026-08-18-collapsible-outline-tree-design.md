@@ -520,10 +520,27 @@ outline rule this spec elsewhere insists on naming.
 - **The `<li>` becomes a two-column grid** so D9's *Start fresh* sibling still sits on the
   head row: `.outline-node--part, .outline-node--chapter, .outline-node--section` (the
   container branches) get
-  `display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline;` with the
-  `<details>` in column 1 and `.outline-node__reset { grid-column: 2; grid-row: 1; align-self: baseline; }`.
+  `display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline;`.
+  **The `<details>` spans both columns** — `grid-column: 1 / -1; grid-row: 1;` — and the
+  reset link overlays row 1's second column:
+  `.outline-node__reset { grid-column: 2; grid-row: 1; justify-self: end; align-self: baseline; }`.
   Grid, not `position: absolute` — an absolutely positioned link overlaps a title that
   wraps to two lines, and outline titles do wrap.
+- **The `<details>` must span `1 / -1`, not sit in column 1, and this is the single most
+  consequential line in §6.2.** The children `<ul>` lives *inside* the `<details>` (§2), so
+  confining it to column 1 would confine **every descendant row** to
+  `width − column 2`. Column 2 is an `auto` track sized to the reset link's max-content
+  (~70–80px in English, more in Polish), and because every container `<li>` repeats the
+  grid, **the loss compounds with depth**: on `mat-pp`'s part→chapter→section→unit shape a
+  unit row would lose ~220px on top of the existing 16px-per-level `padding-left`, leaving
+  roughly 120–160px of content at a 390px viewport. Today the `<ul>` is a direct child of
+  the `<li>` and spans its full width, so that would be a **regression on every nested
+  row** — on exactly the content this feature exists to make navigable. Spanning both
+  columns keeps the subtree full-width and confines the two-column geometry to the head row.
+- Because the link now *overlays* row 1 rather than reserving a track from the head,
+  `summary.outline-node__head` needs `padding-inline-end` of at least the link's width plus
+  a gap, or a long wrapped title runs underneath it — the same collision that ruled out
+  `position: absolute`. Reserve the space on the summary, not with a spacer element.
 - **`align-items: baseline` goes on the grid *container*, and that is the load-bearing
   half.** Today the reset link is a flex child of `.outline-node__head`, which is
   `align-items: baseline`, so the `.8rem` link sits on the same text baseline as a
@@ -758,8 +775,9 @@ outline rule this spec elsewhere insists on naming.
   adds a click. **`to_be_hidden()` remains correct for the filter's `[hidden]` →
   `display: none` rows** (all `tests/test_e2e_tags.py` uses it for). The two cases are not
   interchangeable; every "folded" assertion in T7, T13 and T19 uses `checkVisibility()`.
-- **R5 — i18n: there are no new msgids.** Both labels already exist in the catalogs with
-  real translations, sourced from `templates/courses/manage/builder.html`
+- **R5 — i18n: there are no new msgids.** Both labels already exist in the catalogs,
+  translated in `pl` (the `en` catalog carries the usual empty `msgstr` of a
+  source-language catalog), sourced from `templates/courses/manage/builder.html`
   (`locale/pl/LC_MESSAGES/django.po:5277` — *Rozwiń wszystko* — and `:5281` — *Zwiń
   wszystko*; `locale/en/…:5081/5085`). `makemessages` will only append a `#:` reference
   line to the existing entries: **no fuzzy pre-fill, nothing to clear**, and the `.mo`
