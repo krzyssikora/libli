@@ -649,7 +649,14 @@ Expected: all pass.
 
 - [ ] **Step 6: Falsify it**
 
-By hand, remove `data-course-slug="{{ course.slug }}"` from the nav. Re-run — `test_header_button_and_nav_attributes` must FAIL. Remove the mutant by hand.
+Two independent mutants for this one test, applied one at a time:
+
+1. Remove `data-course-slug="{{ course.slug }}"` from the nav. Re-run —
+   `test_header_button_and_nav_attributes` must FAIL. Restore by hand.
+2. Swap the `outline_tree.js` and `tags.js` `<script>` lines. The same test must FAIL on
+   the `html.index(...)` assertion. Restore the order by hand. Spec §4.5 calls this
+   ordering load-bearing and this render assertion is the **only** thing in the suite
+   that pins it — every e2e still passes with the order reversed.
 
 - [ ] **Step 7: Commit**
 
@@ -1140,6 +1147,10 @@ def test_first_visit_opens_depth0_only(page, live_server):
     # <summary> has no entry in Playwright's implicit-role table, so that locator
     # resolves to ZERO elements and fails on a correct build. Nor
     # page.accessibility.snapshot(), which no longer exists in this version.
+    # Only the negative assertion discriminates: under the T6 mutant the name
+    # becomes "Chapter A 0/1 required Start fresh", which still matches
+    # ^Chapter A. The positive one is a liveness check that the locator resolves
+    # and the name is computed at all.
     summary = page.locator(f"[data-node='{f['chap_a'].pk}'] > summary")
     expect(summary).to_have_accessible_name(re.compile(r"^Chapter A"))
     expect(summary).not_to_have_accessible_name(re.compile("Start fresh"))
@@ -1219,6 +1230,7 @@ Expected: PASS.
 - T7: by hand, make the template emit a bare `open`. `test_first_visit_opens_depth0_only` must FAIL. Remove by hand.
 - T8: by hand, in `outline_tree.js`, replace `setTimeout(write, 0)` with `write()`. `test_fold_state_survives_a_round_trip` must FAIL on the `json.loads(...)["open"]` assertion. Remove by hand.
 - T9: by hand, make the toggle-all handler skip its `write()`. The test must fail in `_wait_for_write` — the key is never written at all, so it times out there rather than at the reload assertion. That is the same evidence. Remove by hand.
+- T6: by hand, move `<a class="outline-node__reset">` back inside the `</summary>` in `_outline_node.html`. `test_first_visit_opens_depth0_only` must FAIL on the **`not_to_have_accessible_name`** assertion — not on the `open`-attribute ones. This is the only e2e evidence for spec §7's accessible-name rule, so it must be shown RED. Remove by hand.
 
 - [ ] **Step 4: Commit**
 
@@ -1260,10 +1272,18 @@ def test_filter_unfolds_matches_and_clearing_restores_the_fold_state(page, live_
     wrong: a student's fold state silently destroyed by using the tag filter, with
     the damage only visible after they clear it.
 
-    MUTANT MUST BE TWO-PART: persist inside a `toggle` handler AND remove the
-    filterActive write guard. Moving persistence onto `toggle` alone does NOT
+    TWO SEPARATE MUTANTS, because this test guards two different failures.
+
+    (1) The persistence mutant MUST BE TWO-PART: persist inside a `toggle` handler
+    AND remove the filterActive write guard. Moving persistence onto `toggle` alone does NOT
     redden this — the suppression still blocks writes during the filtered phase,
     and the post-clear programmatic toggles merely re-write the restored state.
+
+    (2) The §6.2 specificity mutant, for the `to_be_hidden()` assertion below:
+    change `.outline-node--part, .outline-node--chapter, .outline-node--section
+    { display: grid; ... }` to `.outline-tree .outline-node--part, ...`. That ties
+    `.outline-node[hidden]` at (0,2,0) and wins on source order, so filtered-out
+    containers stop hiding. Nothing else in the suite catches it.
     """
     f = _course_with_two_chapters("t10")
     tag = _tag_a_unit(f["user"], f["unit_b"])
@@ -1446,7 +1466,9 @@ Expected: PASS.
 
 - [ ] **Step 3: Falsify each**
 
-Apply each mutant named in the docstrings by hand, one at a time, confirm the matching test goes RED, and remove it by hand. For T10 apply **both** halves of the two-part mutant together, and confirm the one-part version leaves the test green — that is the point of the note.
+Apply each mutant named in the docstrings by hand, one at a time, confirm the matching test goes RED, and remove it by hand.
+
+T10 carries two: apply **both** halves of the persistence mutant together (and confirm the one-part version leaves the test green — that is the point of the note), then separately apply the specificity mutant and confirm T10 reddens on `to_be_hidden()`.
 
 - [ ] **Step 4: Commit**
 
