@@ -56,7 +56,16 @@
 **Files:**
 - Modify: `courses/models.py:485-520` (the `CalloutElement` class body and `display_heading`)
 - Modify: `courses/models.py:569` (beside `KIND_DEFAULT_HEADING`)
+- Create: `courses/migrations/00NN_calloutelement_numbered.py` — **`AddField` only**
 - Test: `courses/tests/test_callout_numbering.py` (new file)
+
+**Migration boundary (corrected during execution).** An earlier draft of this plan put
+the whole migration in Task 2, leaving Task 1 with a model field and no column — which
+breaks 9 existing tests that INSERT a `CalloutElement` (`column "numbered" ... does not
+exist`) and makes Task 1's own Step 7 unsatisfiable. A field and its schema migration
+must land in the same commit. So Task 1 generates the migration with **only** the
+`AddField`; Task 2 appends the `RunPython` backfill to that **same file**, which is what
+keeps the spec's "one migration file, two operations" true at the end.
 
 **Interfaces:**
 - Consumes: nothing.
@@ -219,20 +228,26 @@ git commit -m "feat(callout): add numbered field, per-kind defaults, kind_label"
 ### Task 2: The migration
 
 **Files:**
-- Create: `courses/migrations/00NN_calloutelement_numbered.py`
+- Modify: `courses/migrations/00NN_calloutelement_numbered.py` — **created by Task 1**; this task appends the `RunPython`
 - Test: `courses/tests/test_callout_numbered_migration.py` (new file)
 
 **Interfaces:**
-- Consumes: `CalloutElement.numbered` from Task 1.
-- Produces: a schema column and a backfilled corpus. Nothing later imports from this file.
+- Consumes: `CalloutElement.numbered` and the `AddField` migration, both from Task 1.
+- Produces: a backfilled corpus. Nothing later imports from this file.
 
-- [ ] **Step 1: Generate the schema migration**
+- [ ] **Step 1: Locate the migration Task 1 created**
 
-```bash
-uv run python manage.py makemigrations courses --name calloutelement_numbered
-```
+Task 1 generated `courses/migrations/00NN_calloutelement_numbered.py` containing only the
+`AddField` — a field and its schema migration must land in the same commit, or every test
+that INSERTs a `CalloutElement` fails on the missing column. **Do not run
+`makemigrations`; it will correctly report no changes.**
 
-Note the number it assigns (the head at the time of writing is `0059_mediaasset_derivatives`, so expect `0060`). **Do not hand-pick a number or a dependency** — whatever `makemigrations` produces against the current graph head is correct.
+Read that file and note two things for Step 2's test constants:
+- its own filename → the test's `AFTER`
+- its `dependencies` entry → the test's `BEFORE`
+
+The controller's dispatch carries both values from Task 1's report; if they disagree with
+what you read in the file, trust the file and say so in your report.
 
 - [ ] **Step 2: Write the failing migration test**
 
@@ -296,7 +311,8 @@ Expected: FAIL — every kind arrives `True`, because only the `AddField` exists
 
 - [ ] **Step 4: Add the backfill operation**
 
-Edit the generated migration. Add above `class Migration`:
+Edit the migration Task 1 created — do not create a second migration file; the spec
+requires one file carrying both operations. Add above `class Migration`:
 
 ```python
 def _unnumber_note_and_tip(apps, schema_editor):
