@@ -584,10 +584,17 @@ outline rule this spec elsewhere insists on naming.
   the guard `.outline-node[hidden] { display: none; }` (0,2,0) with a comment naming this
   exact gotcha, and `tests/test_e2e_tags.py` calls that guard "the assertion that actually
   proves the filter works". A bare `.outline-node--part` selector is (0,1,0) and loses to
-  the guard, which is correct. **Do not scope the grid more specifically** (e.g.
-  `.outline-tree .outline-node--part`, which ties at (0,2,0) and lets source order decide):
-  a filtered-out container would stop hiding. T10 asserts a `tag_hidden` **container** row
-  computes hidden, which today's e2e checks only for a unit row.
+  the guard, which is correct. **The real guard is two-part, not just a specificity cap:**
+  the grid rule must not exceed (0,2,0), AND it must not be moved below the
+  `.outline-node[hidden]` declaration in `app.css`. A merely-tied (0,2,0) selector (e.g.
+  `.outline-tree .outline-node--part`) is harmless **only because** `.outline-node[hidden]`
+  is declared later in the file (app.css:633 vs. the grid rule at ~576) — a CSS specificity
+  tie is broken by source order, and the later rule wins, so `[hidden]` keeps winning and
+  hiding still works. Only a selector that clears (0,2,0) outright (e.g. (0,3,0), such as
+  `.outline-tree .outline-node.outline-node--part`), or a reordering that moves the grid
+  rule below `[hidden]`, would break it — MEASURED via e2e mutation testing (Task 8). T10
+  asserts a `tag_hidden` **container** row computes hidden, which today's e2e checks only
+  for a unit row.
 - The grid also lands on the unreachable childless-container branch (the modifiers are on
   the `<li>`, not the `<details>`). There the `<li>` has a **single** grid item — the plain
   head `<div>`, with the reset link still inside it as a flex child per §2 — so column 2 is
@@ -903,8 +910,14 @@ is not evidence.
 - **T13** — three labelled cases; implement all three.
   **(a) Deep link, three levels down.** The row is **within the viewport** (not "centred" —
   see §4.4's KaTeX hazard), carries the `:target` highlight, and the target's own
-  `<details>` is `open` (§4.4). Two mutants, both must redden: drop the ancestor-opening
-  loop; open the ancestors but not the target itself.
+  `<details>` is `open` (§4.4). **Dropping the ancestor-opening loop does NOT redden in
+  Chromium** — MEASURED (Task 8, Chromium 148.0.7778.96 via Playwright 1.60.0): the browser
+  natively re-opens an ancestor `<details>` to reveal a fragment-navigation target, so the
+  loop's effect is unobservable in this engine and this e2e cannot prove it ran. Retain the
+  loop anyway — it is required by this section for engines without that native behaviour,
+  and it is what makes the write at the end of `openHashTarget()` correct. The mutant that
+  does redden, and is the real evidence the handler runs, is: open the ancestors but not the
+  target's own `<details>`.
   **(b) Unit-pk hash.** A `#node-<unit-pk>` (a bookmarked or hand-typed link to a **unit**
   row, which owns no `<details>` — `id="node-N"` is on every `<li>`) must scroll to the row
   and **must not throw**. Mutant: unconditional

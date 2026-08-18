@@ -572,7 +572,14 @@ input[type=number] {
    position: absolute — an absolutely positioned link overlaps a wrapped title.
    Specificity is capped at (0,1,0) on purpose: `.outline-node[hidden]` is
    (0,2,0) and MUST keep winning, or a filtered-out container stops hiding.
-   Do not scope these selectors more tightly. */
+   Do not scope these selectors more tightly — AND this block
+   must stay declared ABOVE `.outline-node[hidden]` (line ~633 below). If
+   this selector's specificity ever ties (0,2,0), it is source order — the
+   later rule wins a tie, not specificity alone — that keeps `[hidden]`
+   winning. Move this block below `[hidden]`, or raise it past (0,2,0),
+   and a filtered-out container stops hiding. MEASURED (Task 8): a
+   (0,2,0) variant left in its current position does NOT break hiding;
+   only clearing (0,2,0) outright or reordering does. */
 .outline-node--part,
 .outline-node--chapter,
 .outline-node--section {
@@ -629,7 +636,10 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .outline-node--unit > .outline-unit { flex: 1 1 auto; min-width: 0; }
 /* The [hidden] attr (UA display:none) must beat .outline-node--unit's display:flex —
    the tag filter hides non-matching unit rows via [hidden]; without this they'd stay
-   visible (only empty containers collapsed). Same gotcha as .btn[hidden]/.dnd__rows[hidden]. */
+   visible (only empty containers collapsed). Same gotcha as .btn[hidden]/.dnd__rows[hidden].
+   Must stay declared BELOW the .outline-node--part/--chapter/--section grid rule
+   (~line 576 above): if that rule's specificity ever ties this one's (0,2,0), it is
+   THIS rule being later in source order that keeps it winning. */
 .outline-node[hidden] { display: none; }
 /* quiet per-row tag affordance, brightening on hover/focus */
 .outline-unit__edit-tags {

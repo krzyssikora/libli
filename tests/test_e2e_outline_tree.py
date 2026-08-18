@@ -353,23 +353,27 @@ def test_deep_link_opens_the_target_and_its_ancestors(page, live_server):
     """T13 cases (a) and (b). Case (c) lives in its own test below, because its
     precondition is an EMPTY store that these cases would have populated.
 
-    (a) THREE container levels deep, which the fixture must be extended to
-        provide. With only part > chapter, the target's sole ancestor is the
-        depth-0 part that D1 already renders open — so "drop the ancestor loop"
-        leaves every assertion green. The section below is server-FOLDED, so
-        opening it is evidence the loop ran — EXCEPT for the ancestor-loop
-        mutant itself, which does NOT redden here: Chromium natively expands
-        an ancestor `<details>` to reveal a fragment-navigation target, so
-        `chap_b` ends up open with the JS loop removed entirely. That is a
-        known, confirmed limitation of this Chromium-only e2e — do not delete
-        the loop on the strength of this test: spec §4.4 requires it for
-        engines without that native behaviour, and it is what makes the write
-        at the end of openHashTarget() correct. The two mutants below DO
-        redden and are the real evidence the handler runs: open the ancestors
-        but not the target's own `<details>` (this is what `assert
-        _is_open(page, section.pk) is True` guards, plus T13(c) separately
-        covers the count===0 restore guard); and dropping the `:target` twin
-        from app.css.
+    (a) Dropping the ancestor-opening loop does NOT redden in Chromium —
+        MEASURED (Chromium 148.0.7778.96 via Playwright 1.60.0): the browser
+        natively re-opens a folded ancestor `<details>` to reveal a
+        fragment-navigation target, so `chap_b` ends up open with the JS loop
+        removed entirely, regardless of fixture depth. Do NOT delete the loop
+        on the strength of this test — spec §4.4 requires it for engines
+        without that native behaviour, and it is what makes the write at the
+        end of openHashTarget() correct.
+
+        THREE container levels deep is kept by ruling (spec §4.4), not
+        because it rescues the ancestor-loop mutant — it doesn't, for the
+        reason above, independent of depth. What the extra level actually
+        buys: a target (`section`) that is itself a NESTED container, so
+        "the target's own `<details>` opens" and the `:target` highlight are
+        exercised on a container reached through a real intermediate
+        ancestor (`chap_b`, server-FOLDED), not just a depth-0 part. The two
+        mutants below DO redden and are the real evidence the handler runs:
+        open the ancestors but not the target's own `<details>` (this is
+        what `assert _is_open(page, section.pk) is True` guards, plus T13(c)
+        separately covers the count===0 restore guard); and dropping the
+        `:target` twin from app.css.
     (b) A #node-<unit-pk> owns no <details> — id="node-N" is on EVERY <li>.
         Mutant: unconditional li.querySelector(":scope > details").open = true.
 
