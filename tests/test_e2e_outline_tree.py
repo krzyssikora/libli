@@ -544,21 +544,41 @@ def test_start_fresh_link_does_not_disturb_the_fold_state(page, live_server):
     that, "before" and "after" are both None and the assertion compares absence
     to absence.
 
-    The reset navigation is ABORTED by a route handler rather than followed. That
-    is what makes the mutant deterministic: §4.2's write is scheduled in
-    setTimeout(..., 0) and would otherwise race the browser committing the <a
-    href>, so a navigating version reddens only intermittently. With the
-    navigation blocked, the mutant (link back inside the <summary>) toggles the
-    group and schedules a write on the same page — both observable here.
-
-    MEASURED: route.abort() with the default error code ("failed", net::ERR_
-    FAILED) does not leave this page intact — Chromium commits a
+    The reset navigation is ABORTED by a route handler rather than followed, so
+    the assertions below can read the live page instead of racing a real
+    navigation. A bare route.abort() is NOT equivalent: MEASURED (Chromium
+    148.0.7778.96 via Playwright 1.60.0) — the default error code ("failed",
+    net::ERR_FAILED) does not leave this page intact. Chromium commits a
     chrome-error://chromewebdata/ document over the live DOM once the aborted
     top-level navigation fails, and every assertion below throws on a null
-    querySelector, on BOTH builds. errorCode="aborted" (net::ERR_ABORTED) is the
-    one Chromium treats as a cancelled navigation rather than a failed load, so
-    it leaves the current document in place — this is what makes the technique
-    viable at all, not just deterministic.
+    querySelector, on a correct build as much as a broken one. errorCode=
+    "aborted" (net::ERR_ABORTED) is the one Chromium treats as a cancelled
+    navigation rather than a failed load, so it leaves the current document in
+    place — this argument is load-bearing, not decoration; do not "simplify" it
+    back to a bare abort().
+
+    This test's named mutant (move the reset link back inside the <summary>)
+    CANNOT REDDEN IN CHROMIUM — MEASURED (same versions as above, via a
+    temporary capture-phase `toggle` counter): clicking the nested link fires
+    ZERO toggle events. A click target that is itself an interactive element
+    with its own defined activation behaviour (an <a href>) suppresses the
+    ancestor <summary>'s native disclosure-toggle activation — only the anchor's
+    navigation activates. So under the mutant the group never toggles, the
+    scheduled write() re-persists the SAME unchanged partition (stored value
+    still equals `before`), and the nested link stays reachable by the very
+    next Tab press regardless of open/closed state, since a <summary>'s own
+    content is always visible independent of its <details>. Fold-state,
+    stored-value and keyboard assertions all stay green on both builds.
+
+    What this test IS, then, is a regression pin, not a falsifiable mutant
+    guard: the reset link renders as a sibling of the <details> (not nested in
+    the <summary>), carries the correct href, is keyboard-reachable, and
+    clicking it never corrupts the stored partition. Its falsifiable coverage —
+    the actual proof that the link is NOT nested inside the summary — lives in
+    `test_reset_link_is_a_sibling_of_details_not_inside_the_summary` (T3, DOM
+    structure) and in `test_first_visit_opens_depth0_only` (T6, the
+    `not_to_have_accessible_name(re.compile("Start fresh"))` assertion, which
+    DOES redden under this exact mutant).
     """
     f = _course_with_two_chapters("t16")
     _login(page, live_server, "t16")

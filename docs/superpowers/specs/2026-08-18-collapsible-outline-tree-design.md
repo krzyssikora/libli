@@ -951,16 +951,26 @@ is not evidence.
   side only. (d) Seed `"not json"`, reload, assert the server default renders and nothing
   throws.
 - **T16** — **first fold a group**, so a known non-empty partition exists and is read as
-  the baseline; then click a container's *Start fresh*, land on the reset-confirm page,
-  navigate back, and assert the stored string is byte-identical to that baseline. Without
-  the initial fold, "before" and "after" are both `null` on a fresh context and the
-  assertion compares absence to absence. Also assert the link is keyboard-reachable and
-  activatable. **Mutant, deterministically:** do not rely on the T3 mutant racing a
-  navigation — §4.2's `setTimeout(…, 0)` write may or may not land before the browser
-  commits the `<a href>`, so that mutant reddens intermittently and would be wrongly
-  recorded as unfalsifiable. Instead block the navigation with a Playwright route handler
-  and assert on the same-page outcome: with the link inside the summary, activating it
-  toggles the group and schedules a write; with D9's markup it does neither.
+  the baseline; then click a container's *Start fresh* and assert the stored string is
+  byte-identical to that baseline. Without the initial fold, "before" and "after" are both
+  `null` on a fresh context and the assertion compares absence to absence. Also assert the
+  link is keyboard-reachable and activatable. **Mutant, deterministically:** do not rely on
+  the T3 mutant racing a navigation — §4.2's `setTimeout(…, 0)` write may or may not land
+  before the browser commits the `<a href>`, so that mutant reddens intermittently and
+  would be wrongly recorded as unfalsifiable. Instead block the navigation with a
+  Playwright route handler and assert on the same-page outcome. **Corrected by
+  measurement** (Chromium 148.0.7778.96 via Playwright 1.60.0): the "activating it toggles
+  the group and schedules a write" hazard this paragraph originally assumed for the
+  link-inside-summary mutant does **not** occur. Clicking a nested `<a href>` fires zero
+  `toggle` events — an interactive descendant with its own defined activation behaviour
+  suppresses the ancestor `<summary>`'s native disclosure toggle — so fold-state and
+  stored-value both stay unchanged on that build too, and the mutant cannot redden through
+  this route. **This does not weaken D9**, which stands on its other two grounds: the
+  accessible-name concatenation (empirically confirmed — T6's mutant produces the name
+  "Chapter A 0/1 required Start fresh") and the nested-focusable-control exposure. T16
+  itself is now a regression pin (sibling placement, correct href, keyboard reachability,
+  no storage corruption on click), not a falsifiable guard against this mutant; that
+  falsifiable coverage lives in T3 (DOM structure) and T6 (accessible name).
 - **T17** — R6, both halves. A nested (depth-1) chapter's title computes `font-size: 1.1rem`
   and a nested section's computes `.75rem`/uppercase; **and** a nested `<ul>` computes a
   non-zero `border-left-width` with the expected `padding-left`. Mutants: omit the
