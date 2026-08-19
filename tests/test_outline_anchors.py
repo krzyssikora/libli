@@ -55,7 +55,7 @@ def test_outline_li_has_scroll_margin():
     # on any unrelated occurrence in a 3000-line stylesheet -- including before this
     # change was made at all.
     # Anchored on a NEWLINE: the bare substring ".outline-node {" already matches the
-    # pre-existing `.outline-tree > ul > .outline-node {` rule (app.css:488), so an
+    # pre-existing `.outline-tree > ul > .outline-node {` rule (app.css:504), so an
     # unanchored split lands on that block and the assertion fails even after the work
     # is done correctly. Measured: "\n.outline-node {" is absent today and appears only
     # once the new standalone rule is added -- so this still falsifies.

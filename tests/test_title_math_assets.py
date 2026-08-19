@@ -371,9 +371,9 @@ def test_course_outline_loads_katex_for_a_maths_title(client):
 
 
 def test_course_outline_loads_katex_for_a_maths_group_title(client):
-    """The outline renders group titles too (_outline_node.html:21), and
-    build_outline's tree is what the scan walks -- so a GROUP-only maths title
-    must arm the gate."""
+    """The outline renders group titles too (the `.outline-node__head` branch of
+    _outline_node.html), and build_outline's tree is what the scan walks -- so a
+    GROUP-only maths title must arm the gate."""
     course, _unit, _n = make_title_course(maths_on="group")
     login_student(client, course)
     url = reverse("courses:course_outline", kwargs={"slug": course.slug})

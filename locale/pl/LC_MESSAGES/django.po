@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-18 17:55+0200\n"
+"POT-Creation-Date: 2026-08-19 02:56+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -4212,9 +4212,11 @@ msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
 #: .\templates\courses\_lesson_article.html:35
-#: .\templates\courses\_outline_node.html:25
-#: .\templates\courses\_outline_node.html:26
-#: .\templates\courses\outline.html:11
+#: .\templates\courses\_outline_node.html:50
+#: .\templates\courses\_outline_node.html:51
+#: .\templates\courses\_outline_node.html:57
+#: .\templates\courses\_outline_node.html:58
+#: .\templates\courses\outline.html:15
 #: .\templates\courses\progress_reset_confirm.html:3
 #: .\templates\courses\progress_reset_confirm.html:20
 msgid "Start fresh"
@@ -4225,12 +4227,14 @@ msgstr "Zacznij od nowa"
 msgid "Edit tags"
 msgstr "Edytuj tagi"
 
-#: .\templates\courses\_outline_node.html:23
+#: .\templates\courses\_outline_node.html:40
+#: .\templates\courses\_outline_node.html:55
 #: .\templates\courses\manage\_breakdown_node.html:31
 msgid "required"
 msgstr "wymagane"
 
-#: .\templates\courses\_outline_node.html:24
+#: .\templates\courses\_outline_node.html:41
+#: .\templates\courses\_outline_node.html:56
 msgid "additional"
 msgstr "dodatkowe"
 
@@ -4362,7 +4366,7 @@ msgstr "Powrót do katalogu"
 
 #: .\templates\courses\course_results.html:3
 #: .\templates\courses\course_results.html:7
-#: .\templates\courses\my_courses.html:13 .\templates\courses\outline.html:9
+#: .\templates\courses\my_courses.html:13 .\templates\courses\outline.html:13
 msgid "My results"
 msgstr "Moje wyniki"
 
@@ -5274,10 +5278,12 @@ msgstr "Ten kurs jest zbyt duży, aby rozwinąć go naraz."
 
 #: .\templates\courses\manage\builder.html:37
 #: .\templates\courses\manage\builder.html:40
+#: .\templates\courses\outline.html:11
 msgid "Expand all"
 msgstr "Rozwiń wszystko"
 
 #: .\templates\courses\manage\builder.html:43
+#: .\templates\courses\outline.html:12
 msgid "Collapse all"
 msgstr "Zwiń wszystko"
 
@@ -6917,11 +6923,11 @@ msgstr "Moje kursy"
 msgid "You are not enrolled in any courses yet."
 msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 
-#: .\templates\courses\outline.html:10
+#: .\templates\courses\outline.html:14
 msgid "My notes"
 msgstr "Moje notatki"
 
-#: .\templates\courses\outline.html:14
+#: .\templates\courses\outline.html:19
 msgid "Course outline"
 msgstr "Plan kursu"
 

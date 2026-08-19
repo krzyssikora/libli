@@ -57,8 +57,8 @@ def test_print_hide_rule_excludes_the_filltable_gate():
     assert re.search(r"\[data-reveal-gate\]:not\(\[data-filltablegate\]\)\s*\{", block)
     # ...and the BARE selector is gone. Boundary-anchored (^ under re.M): the rule
     # starts its own line, so this matches the pre-change text and stops matching
-    # after. `}` closes the revert rule on the line directly above (app.css:1021)
-    # and is not whitespace, so ^\s* cannot bridge into line 1022 from earlier.
+    # after. `}` closes the revert rule on the line directly above (app.css:1136)
+    # and is not whitespace, so ^\s* cannot bridge into line 1137 from earlier.
     # A lookbehind-on-colon form was tried and is INERT -- it matches nothing in
     # EITHER state, so it would have been an assertion that could not fail.
     assert not re.search(r"^\s*\[data-reveal-gate\]\s*\{", block, re.M)
