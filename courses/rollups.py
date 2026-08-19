@@ -1036,3 +1036,80 @@ def build_unit_nav(course, user, current_node, *, drafts="hide", with_data=None)
         "ancestors": ancestors,
         "hidden_path": HIDDEN_PATH_SEP.join(a.title for a in ancestors[:-1]),
     }
+
+
+def build_resume(course, user, tree):
+    """The outline resume card's target, or None when there is nothing to resume.
+
+    Consumes the caller's ALREADY-BUILT build_outline tree -- never rebuilds it, so
+    the card costs no extra tree queries. Returns
+    {"node": ContentNode, "state": str, "ancestors": [ContentNode]} or None.
+
+    `node` is the ContentNode (leaf["node"]), NEVER the build_outline leaf dict:
+    a dict reaches {% url ... node_pk=resume.node.pk %} as "" against urls.py's
+    <int:node_pk> and raises NoReverseMatch, 500-ing the whole outline.
+
+    The 6 steps are ordered and their precedence is load-bearing; see the spec's
+    "Definition of the target".
+    """
+    leaves = _flatten_unit_leaves(tree)
+    open_leaves = [d for d in leaves if not d["completed"]]
+    # STEP 1, first so no later step can index an empty candidate set. Covers both
+    # "course has no visible units" and "student completed everything".
+    if not open_leaves:
+        return None
+
+    open_pks = [d["node"].pk for d in open_leaves]
+    leaf_pks = [d["node"].pk for d in leaves]
+
+    # Both names are read unconditionally by steps 3 and 4 below, so any edit that
+    # REPLACES rather than extends either line raises UnboundLocalError on every
+    # cold path.
+    flight, ts_f = None, None
+    done, ts_d = None, None
+
+    # STEP 3. Both names are already bound, so this runs correctly in every task.
+    # The ts comparison is ESSENTIAL: views.py::build_lesson_context mints a
+    # UnitProgress row on EVERY enrolled lesson GET, so without it one stray click
+    # a year ago pins the card to that unit forever. >= (not >) keeps an in-flight
+    # unit winning a tie -- the friendlier reading of "where you left off".
+    if flight is not None and (done is None or ts_f >= ts_d):
+        return {"node": flight, "state": "resume", "ancestors": []}
+
+    # STEP 4. `done` is a pk; its POSITION in the outline is what matters. Dead
+    # until source D assigns `done`; laid down here so the control flow is final.
+    if done is not None:
+        idx = next(i for i, leaf in enumerate(leaves) if leaf["node"].pk == done)
+        # No default on next(): source D filters unit_id__in=leaf_pks, so a missing
+        # index is an invariant break and should raise StopIteration loudly rather
+        # than degrade into a TypeError four lines later. Same house style as
+        # _current_ancestors raising KeyError on an unstamped tree.
+        forward = next(
+            (
+                leaf
+                for i, leaf in enumerate(leaves)
+                if i > idx and not leaf["completed"]
+            ),
+            None,
+        )
+        if forward is not None:
+            return {"node": forward["node"], "state": "next", "ancestors": []}
+        # The wrap-around: they finished the last unit but skipped something. A card
+        # that vanishes while unfinished units remain is worse than one pointing
+        # back. Its own state, because "Up next" is false about an EARLIER unit.
+        return {"node": open_leaves[0]["node"], "state": "gap", "ancestors": []}
+
+    # STEP 5: the student has history, but all of it is on units that are no longer
+    # visible. Deliberately UNFILTERED by open/leaves and by status -- that is the
+    # whole point: these two probes are the only thing that can see such rows, and
+    # they are what stops step 6 lying to the student. Lazy: only reached when
+    # steps 3-4 both fail. `or` short-circuits, so this costs 1 query or 2.
+    has_history = (
+        UnitProgress.objects.filter(student=user, unit__course=course).exists()
+        or QuizSubmission.objects.filter(student=user, unit__course=course).exists()
+    )
+    if has_history:
+        return {"node": open_leaves[0]["node"], "state": "next", "ancestors": []}
+
+    # STEP 6: genuinely nothing.
+    return {"node": open_leaves[0]["node"], "state": "start", "ancestors": []}
