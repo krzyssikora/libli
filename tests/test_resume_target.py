@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pytest
+from django.template.loader import render_to_string
 from django.utils import timezone
 from freezegun import freeze_time
 
@@ -9,6 +10,7 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
+from courses.rollups import _stamp_current_chain
 from courses.rollups import build_outline
 from courses.rollups import build_resume
 from tests.factories import ContentNodeFactory
@@ -507,3 +509,81 @@ def test_submitted_quiz_without_progress_can_surface_as_next():
     r = _resume(course, user)
     assert r["state"] == "next"
     assert r["node"].pk == quiz.pk
+
+
+@pytest.mark.django_db
+def test_ancestors_are_the_root_to_parent_chain_excluding_the_unit():
+    course = CourseFactory()
+    part = ContentNodeFactory(course=course, kind="part", unit_type=None, order=0)
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, order=0
+    )
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter, order=0
+    )
+    user = make_verified_user(username="n1", email="n1@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    r = _resume(course, user)
+    assert [a.pk for a in r["ancestors"]] == [part.pk, chapter.pk]
+    assert unit.pk not in [a.pk for a in r["ancestors"]]
+
+
+@pytest.mark.django_db
+def test_root_level_unit_has_no_ancestors():
+    """_current_ancestors legitimately returns [] for a depth-1 unit."""
+    course, units = _course_with_units(2)
+    user = make_verified_user(username="n2", email="n2@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    assert _resume(course, user)["ancestors"] == []
+
+
+@pytest.mark.django_db
+def test_stamping_the_tree_does_not_change_the_outline_html():
+    """build_resume mutates the tree the outline template then renders, adding
+    contains_current to every dict. That key is read ONLY by _unit_tree_node.html
+    (the unit-page rail); _outline_node.html never reads it.
+
+    TREE SHAPE IS LOAD-BEARING: ` open` lives in the container arm, which renders
+    only for a non-unit node WITH children. Stamp a root-level unit and no stamped
+    dict reaches that branch, so the mutant produces identical output and the test
+    is GREEN on a broken build. Hence the unit is nested under a surviving chapter.
+
+    Mutant: add `{% if item.contains_current %} open{% endif %}` to the <details>
+    in _outline_node.html.
+    """
+    course = CourseFactory()
+    # THREE levels, not two. A depth-0 container already renders ` open` from the
+    # existing {% if item.depth == 0 %}, so stamping a unit under a root chapter
+    # makes the mutant emit `<details ... open open>` -- the strings still differ, so
+    # the test is not vacuous, but it proves the point via a duplicated attribute
+    # rather than the branch the guard is about. Nesting deeper makes the chapter's
+    # ` open` appear ONLY under the mutant.
+    part = ContentNodeFactory(course=course, kind="part", unit_type=None, order=0)
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, order=0
+    )
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter, order=0
+    )
+    user = make_verified_user(username="n3", email="n3@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+
+    def _render(tree):
+        return "".join(
+            render_to_string(
+                "courses/_outline_node.html",
+                {
+                    "item": item,
+                    "course": course,
+                    "note_counts": {},
+                    "active_tag_ids": [],
+                },
+            )
+            for item in tree
+        )
+
+    tree = _tree(course, user)
+    before = _render(tree)
+    _stamp_current_chain(tree, unit.pk)
+    after = _render(tree)
+    assert before == after

@@ -1163,13 +1163,23 @@ def build_resume(course, user, tree):
     if d_row is not None:
         done, ts_d = d_row
 
+    def _with_ancestors(node, state):
+        # Pure dict traversal over the already-materialised tree -- NO queries. Reuses
+        # the unit-page breadcrumb machinery rather than adding a third ancestor walk:
+        # views_manage.py::_unit_ancestors is already a documented deliberate twin of
+        # _current_ancestors, and a third copy would be one too many.
+        # _current_ancestors reads contains_current directly and raises KeyError on an
+        # unstamped tree by design, so the stamp call must immediately precede it.
+        _stamp_current_chain(tree, node.pk)
+        return {"node": node, "state": state, "ancestors": _current_ancestors(tree)}
+
     # STEP 3. Both names are already bound, so this runs correctly in every task.
     # The ts comparison is ESSENTIAL: views.py::build_lesson_context mints a
     # UnitProgress row on EVERY enrolled lesson GET, so without it one stray click
     # a year ago pins the card to that unit forever. >= (not >) keeps an in-flight
     # unit winning a tie -- the friendlier reading of "where you left off".
     if flight is not None and (done is None or ts_f >= ts_d):
-        return {"node": flight, "state": "resume", "ancestors": []}
+        return _with_ancestors(flight, "resume")
 
     # STEP 4. `done` is a pk; its POSITION in the outline is what matters. Dead
     # until source D assigns `done`; laid down here so the control flow is final.
@@ -1188,11 +1198,11 @@ def build_resume(course, user, tree):
             None,
         )
         if forward is not None:
-            return {"node": forward["node"], "state": "next", "ancestors": []}
+            return _with_ancestors(forward["node"], "next")
         # The wrap-around: they finished the last unit but skipped something. A card
         # that vanishes while unfinished units remain is worse than one pointing
         # back. Its own state, because "Up next" is false about an EARLIER unit.
-        return {"node": open_leaves[0]["node"], "state": "gap", "ancestors": []}
+        return _with_ancestors(open_leaves[0]["node"], "gap")
 
     # STEP 5: the student has history, but all of it is on units that are no longer
     # visible. Deliberately UNFILTERED by open/leaves and by status -- that is the
@@ -1204,7 +1214,7 @@ def build_resume(course, user, tree):
         or QuizSubmission.objects.filter(student=user, unit__course=course).exists()
     )
     if has_history:
-        return {"node": open_leaves[0]["node"], "state": "next", "ancestors": []}
+        return _with_ancestors(open_leaves[0]["node"], "next")
 
     # STEP 6: genuinely nothing.
-    return {"node": open_leaves[0]["node"], "state": "start", "ancestors": []}
+    return _with_ancestors(open_leaves[0]["node"], "start")
