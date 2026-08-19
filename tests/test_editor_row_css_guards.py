@@ -1,6 +1,6 @@
 """The [hidden] attribute is inert against any class that sets `display` at equal
 specificity, and this repo has shipped that bug at least five times (see the guards
-at core/static/core/css/app.css:42, :185, :546, :1009, :1192). Every rule below is
+at core/static/core/css/app.css:42, :201, :645, :1124, :1309). Every rule below is
 load-bearing for the editor's instant add/remove; deleting one is a silent visual
 regression, so each is asserted individually."""
 
@@ -61,7 +61,7 @@ def test_wrapper_is_display_contents():
 
 
 def test_switchgate_remove_style_twin():
-    """.el-editor__remove is entirely switchgrid-scoped (app.css:1452-1478), so a
+    """.el-editor__remove is entirely switchgrid-scoped (app.css:1569-1595), so a
     bare class in a switchgate row inherits nothing and renders a raw UA button."""
     css = APP_CSS.read_text(encoding="utf-8")
     match = re.search(

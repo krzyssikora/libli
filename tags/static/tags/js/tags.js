@@ -47,6 +47,14 @@
       if (active.size === 0) { li.hidden = false; return; }
       li.hidden = !li.querySelector("li[data-unit]:not([hidden])");
     });
+    // The outline's fold controller (outline_tree.js) needs to force-open groups
+    // holding a visible match — a matching unit inside a folded <details> is
+    // invisible, so filtering would appear to find nothing. Dispatched on
+    // `document` so the two files stay decoupled and tags.js keeps working
+    // unchanged on pages with no outline.
+    document.dispatchEvent(
+      new CustomEvent("libli:tagfilter", { detail: { count: active.size } })
+    );
   }
 
   function syncChips(chips, active) {

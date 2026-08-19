@@ -1,7 +1,7 @@
 """The five cascade scopes must agree across THREE files.
 
 This test must EXTRACT each block before scanning, or it is green under its own
-mutant: `.spoiler__children` also occurs at app.css:987 (the shared rule) OUTSIDE
+mutant: `.spoiler__children` also occurs at app.css:1102 (the shared rule) OUTSIDE
 the print block, so a file-wide scan stays green when it is missing from the print
 revert -- which is the state that file is in today.
 """

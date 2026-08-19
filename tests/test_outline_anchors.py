@@ -41,6 +41,11 @@ def test_target_highlight_is_scoped_to_the_row_not_the_li():
     # on the <li> (it is the scroll target); the highlight goes on the row inside it.
     css = APP_CSS.read_text(encoding="utf-8")
     assert ".outline-node:target > .outline-node__head" in css
+    # After the collapsible change the selector above is inert cover for the
+    # unreachable childless branch; every REAL container renders its head as the
+    # <summary> of a <details>, so this twin is the live rule. Without it the
+    # permalink highlight silently never lands.
+    assert ".outline-node:target > .outline-node__group > .outline-node__head" in css
     assert ".outline-node:target > .outline-unit" in css
     assert "\n.outline-node:target {" not in css, "highlight must not target the <li>"
 
@@ -50,7 +55,7 @@ def test_outline_li_has_scroll_margin():
     # on any unrelated occurrence in a 3000-line stylesheet -- including before this
     # change was made at all.
     # Anchored on a NEWLINE: the bare substring ".outline-node {" already matches the
-    # pre-existing `.outline-tree > ul > .outline-node {` rule (app.css:488), so an
+    # pre-existing `.outline-tree > ul > .outline-node {` rule (app.css:504), so an
     # unanchored split lands on that block and the assertion fails even after the work
     # is done correctly. Measured: "\n.outline-node {" is absent today and appears only
     # once the new standalone rule is added -- so this still falsifies.
