@@ -1066,6 +1066,79 @@ def build_resume(course, user, tree):
     # REPLACES rather than extends either line raises UnboundLocalError on every
     # cold path.
     flight, ts_f = None, None
+
+    # SOURCES A/B/C -- the in-flight candidate. Membership is a filter INSIDE each
+    # query (unit_id__in=open_pks), never a post-check on the LIMIT 1 result: each
+    # source returns one row, so one row for a since-unpublished unit at the head of
+    # the ordering would discard every older still-valid candidate behind it. It
+    # also removes the join to ContentNode -- open_pks is already course-scoped and
+    # visibility-filtered.
+    #
+    # Each ordering carries a deterministic secondary key. For A/B the (student,
+    # unit) unique constraint makes -unit_id pin the row; for C it pins the UNIT,
+    # which is all the algorithm needs.
+    #
+    # A -- lesson work. updated_at is auto_now: the first open in
+    # views.py::build_lesson_context, every `seen` batch, every practice-state write.
+    # NOTE: completed=False here is DELIBERATE REDUNDANCY and is NOT falsifiable --
+    # open_pks is derived from exactly this filter (build_outline's completed set,
+    # rollups.py:244-250, leaf key at :265), so no mutant of it can go RED. It
+    # states the intent locally; do not spend a falsification round on it.
+    a = (
+        UnitProgress.objects.filter(student=user, unit_id__in=open_pks, completed=False)
+        .order_by("-updated_at", "-unit_id")
+        .values_list("unit_id", "updated_at")
+        .first()
+    )
+    # B -- WHEN THE QUIZ WAS OPENED, and nothing more. QuizSubmission.updated is
+    # auto_now (models.py:3008) and the answer path (views.py::quiz_answer) saves the
+    # QuestionResponse and creates an Attempt but NEVER saves the submission, so for
+    # an IN_PROGRESS row updated == created in practice.
+    # status=IN_PROGRESS here IS load-bearing and IS tested: closing a submission
+    # normally writes UnitProgress.completed, but seed_demo_course.py:346/414
+    # finalizes without any UnitProgress row, so a SUBMITTED submission's unit can
+    # still be in open_pks.
+    b = (
+        QuizSubmission.objects.filter(
+            student=user,
+            unit_id__in=open_pks,
+            status=QuizSubmission.Status.IN_PROGRESS,
+        )
+        .order_by("-updated", "-unit_id")
+        .values_list("unit_id", "updated")
+        .first()
+    )
+    # C -- ACTUAL quiz answering, and the only source that can see it. The
+    # values_list projection is NORMATIVE: C's unit_id lives on the joined
+    # QuizSubmission, so `.first()` then `row.submission.unit_id` would cost a
+    # SECOND query and silently break the 4-query budget.
+    # last_attempt_at__isnull=False is required: Postgres sorts NULLs FIRST under
+    # DESC, so without it a null row wins the LIMIT 1 and the step-3 comparison
+    # raises TypeError against None.
+    c = (
+        QuestionResponse.objects.filter(
+            submission__student=user,
+            submission__unit_id__in=open_pks,
+            submission__status=QuizSubmission.Status.IN_PROGRESS,
+            last_attempt_at__isnull=False,
+        )
+        .order_by("-last_attempt_at", "-submission__unit_id")
+        .values_list("submission__unit_id", "last_attempt_at")
+        .first()
+    )
+
+    # Assembly order A, B, C is NORMATIVE. max() returns the FIRST maximal element,
+    # so with source_rank dropped an A-then-C order yields A while the correct build
+    # yields C -- that ordering is what makes the rank mutant killable. Assembling
+    # [C, B, A] would make the mutant coincidentally right.
+    by_pk = {d["node"].pk: d["node"] for d in open_leaves}
+    candidates = [
+        (row[1], rank, row[0]) for rank, row in enumerate((a, b, c)) if row is not None
+    ]
+    if candidates:
+        ts_f, _rank, flight_pk = max(candidates, key=lambda t: (t[0], t[1]))
+        flight = by_pk[flight_pk]
+
     done, ts_d = None, None
 
     # STEP 3. Both names are already bound, so this runs correctly in every task.
