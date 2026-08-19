@@ -77,10 +77,18 @@ than one pointing back at the earliest gap. It gets its **own** state because "U
 statement about a unit *earlier* in the course.
 
 **Step 5 exists so `start` never lies.** The example must be one where *every* progress row sits
-on a now-invisible unit — e.g. the course was restructured and the student's whole history is on
-units since deleted or unpublished. Such a student has plenty of history, but sources A–D (all
+on a now-invisible unit — concretely, a course restructure that **unpublished** (or drafted) every
+unit the student had touched. Such a student has plenty of history, but sources A–D (all
 restricted to visible pks) return nothing, so without step 5 they would be told to "Start the
 course". `start` fires only when the student genuinely has no progress rows at all.
+
+**Deletion is NOT a route to step 5.** `UnitProgress.unit` and `QuizSubmission.unit` are both
+`ForeignKey(ContentNode, on_delete=models.CASCADE)` (`models.py:2934-2939`, `2983-2988`) and
+`ContentNode` has no soft-delete column, so deleting a unit destroys its progress rows — a
+delete-only history leaves **zero** rows and lands on step 6 (`start`), correctly. Re-parenting a
+unit into another course is likewise not a route: source E filters `unit__course=course`.
+**Unpublishing/drafting is the only mechanism that reaches step 5**, which is why the cold-path
+test fixture has to use an unpublished unit.
 
 (A student who completed units 1–29 and lost only unit 30 to unpublishing does **not** reach step
 5: units 1–29 are visible and completed, so source D returns unit 29 and step 4 fires. That case
@@ -167,6 +175,11 @@ winner.
 `UnitProgress.filter(student, unit_id__in=leaf_pks, completed=True, completed_at__isnull=False)
 .order_by("-completed_at", "-unit_id")`.
 
+**`completed_at__isnull=False` is not noise.** Postgres sorts NULLs **first** under `DESC`, so
+without the guard a `completed_at IS NULL` row would win the `LIMIT 1` and step 3's `ts_f >= ts_d`
+would compare a datetime against `None` and raise `TypeError`. The same reasoning is why source C
+carries `last_attempt_at__isnull=False`. Neither clause may be dropped as redundant.
+
 **`completed_at`, never `updated_at`.** `completed_at` is stamped exactly once, in
 `UnitProgress.save()`, when `completed` first flips, and is never re-stamped. `updated_at` is not
 stable for a completed unit: `courses/views.py::seen` calls `progress.save()` **unconditionally**
@@ -202,12 +215,26 @@ is a `UnitProgress` row pays **one** (cold path, `build_resume` only: 5). A stud
 Any cold-path query-count assertion must therefore name its fixture rather than quoting a single
 number.
 
-### Why teacher writes cannot move the target
+### Which teacher writes can move the target, and which cannot
 
-- Grading (`review.py::review_response`) saves the `QuizSubmission` — but only for a **submitted**
-  quiz, whose unit is never in `open_pks` (see below).
-- Force-submit (`review.py::force_submit_quiz`) sets `completed=True` and saves `UnitProgress` —
-  A filters to `completed=False`, and D orders by the write-once `completed_at`.
+The earlier absolute claim ("teacher writes cannot move the target") was **false**. The accurate
+statement is narrower:
+
+- **Grading (`review.py::review_response`) cannot move it.** It saves the `QuizSubmission`,
+  bumping `updated` — but only ever for a **SUBMITTED** submission, and B and C both filter to
+  `status=IN_PROGRESS`. (The protection is that status filter, **not** `open_pks` membership: as
+  the accepted limitation below records, a submitted quiz's unit *can* remain in `open_pks`.)
+  Grading also writes `reviewed_at`, never `last_attempt_at`, so C's ordering is untouched.
+- **Force-submit (`review.py::force_submit_quiz`) CAN move it, legitimately.** Its write is
+  guarded by `if not progress.completed`, so it cannot re-date an already-completed row — but for
+  a row that was *not* yet complete, `save()` stamps `completed_at = timezone.now()` at the
+  **teacher's** clock. That unit then becomes source D's newest completion, and step 4 re-points
+  the card at the first open unit after it. A teacher force-submitting an old forgotten quiz
+  therefore rewinds the student's card.
+
+  This is **accepted**: force-submit *is* a completion, and the anchor moving to the most recent
+  completion is precisely the rule. Write-once `completed_at` protects the case that matters —
+  a teacher touching an already-finished unit — which `updated_at` would not.
 
 **`status=IN_PROGRESS` on B and C is load-bearing and IS tested.** The tempting argument against
 testing it goes: both *production* submission-closing paths — `views.py` quiz submit
@@ -223,11 +250,21 @@ row at all, so its unit stays in `open_pks`, and dropping the status filter woul
 return that submitted quiz as the freshest in-flight candidate. The mutant is killable with a
 fixture shaped exactly like the repo's own seeder.
 
-The other load-bearing guards — A's `completed=False` and D's `completed_at` ordering — are tested
-too.
+**Source A's `completed=False` is the opposite case: deliberate redundancy, NOT falsifiable.**
+`open_pks` is derived from `build_outline`'s `completed` set, which is *exactly*
+`UnitProgress.objects.filter(student=user, unit__course=course, completed=True)`
+(`rollups.py:244-250`, consumed at the leaf key `"completed": is_unit and node.pk in completed`,
+`:265`). Any row with `completed=True` has already had its unit removed from `open_pks`, so A's
+filter can never change a result and **no mutant of it can go RED**. It stays because it states
+the intent locally and costs nothing — but do **not** spend a falsification round on it, and do
+not add a test row for it. (The contrast with B/C is the whole point: `open` is derived from
+`UnitProgress.completed`, so it subsumes A's filter, while it knows nothing whatever about
+`QuizSubmission.status`, so it does not subsume B/C's.)
+
+D's `completed_at` ordering **is** load-bearing and **is** tested.
 
 **Consequence for `open` (accepted, not fixed here).** `build_outline`'s `completed` flag derives
-solely from `UnitProgress.completed=True` (`rollups.py:243-247`); it knows nothing about
+solely from `UnitProgress.completed=True` (`rollups.py:244-250`, leaf key at `:265`); it knows nothing about
 `QuizSubmission.status`. So a SUBMITTED submission whose unit lacks a completed `UnitProgress` row
 stays in `open` indefinitely, and step 4's `forward` (or `open[0]`) can point at a quiz the student
 already submitted, under the eyebrow "Up next". The invariant this violates is *"a SUBMITTED
@@ -463,14 +500,16 @@ exactly that reason.)
 
 - **No visible leaves, or all completed** → step 1 returns `None`; the template renders nothing.
   No empty card, no placeholder.
-- **A stored pk that is not a visible leaf** (deleted, unpublished, moved out of the course) →
+- **A stored pk that is not a visible leaf** (unpublished or drafted — *not* deleted, whose rows
+  cascade away; see step 5) →
   invisible to A–D by construction, because membership is a filter *inside* each query rather than
   a post-check on a `LIMIT 1` result. Older still-valid candidates are therefore never discarded.
   Such rows are detected only by source E, which is what makes step 5 reachable.
 - **Not enrolled** → the view never calls `build_resume`; `resume` is `None`.
 - **Anonymous user** → unreachable because `course_outline` is `@login_required`, and that is the
   **only** guard. `is_enrolled` would **raise**, not return False, on an `AnonymousUser`:
-  `Enrollment.student` is an FK to `AUTH_USER_MODEL` (`access.py:12-13`). Do not treat
+  `access.py:12-13` calls `Enrollment.objects.filter(student=user, …)`, and `Enrollment.student` is
+  declared an FK to `AUTH_USER_MODEL` in `courses/models.py`. Do not treat
   `is_enrolled` as a second safety net, and do not remove the decorator.
 - **Unstamped-tree contract.** `_current_ancestors` reads `contains_current` directly and raises
   `KeyError` on an unstamped tree by design. `build_resume` always calls `_stamp_current_chain`
@@ -498,20 +537,20 @@ own failure mode — a test that cannot go RED on the broken build does not ship
 | **unit 30 unpublished, student actively mid-unit-5, and unit 30's `updated_at` strictly NEWER than unit 5's** → `resume`, unit 5 (**not** unit 1) | moving the membership test outside the query, so one invisible head row discards source A. The strictly-newer requirement is load-bearing: if unit 5's row sorts first the mutant never reaches unit 30's and stays GREEN. |
 | finished the final unit, unit 3 still open → `gap`, unit 3 | dropping the wrap-around, returning `None` |
 | **quiz answered but not submitted is the target** — a `QuestionResponse.last_attempt_at` newer than a later-opened lesson | **dropping source C**; source B alone passes a naive version of this test |
-| quiz opened, nothing answered, most recent → still the target | dropping source B |
+| quiz opened, nothing answered, most recent — **plus an older in-flight `UnitProgress` on a different open unit** → the quiz is the target AND `state == "resume"` | dropping source B. Without the rival the mutant falls through to step 5 and returns `open[0]`, which may be the same node; asserting the state as well as the node closes the remaining gap. |
 | completed quiz counts as done — **fixture: the completed quiz is the LAST REMAINING unit**, correct build → `None` | treating `unit_type == quiz` as never-complete → mutant returns `gap` on the quiz. The obvious "quiz mid-course, assert we advance past it" fixture is **vacuous**: under that mutant the quiz re-enters `open` but A still excludes it (`completed=False`) and B/C still exclude it (SUBMITTED), so `flight` stays `None`, `done` is the quiz, and `forward` is the same unit the correct build returns. |
-| **SUBMITTED `QuizSubmission` with NO `UnitProgress` row** (the `seed_demo_course.py` shape) is **not** the target | dropping `status=IN_PROGRESS` from source B → the submitted quiz becomes the freshest in-flight candidate |
+| **SUBMITTED `QuizSubmission` with NO `UnitProgress` row** (the `seed_demo_course.py` shape), **PLUS an in-flight lesson `UnitProgress` whose `updated_at` is strictly OLDER than the submission's `updated`, AND a `QuestionResponse` on that submission with `last_attempt_at` set and newer than the lesson's** → target is the **lesson**, state `resume` | dropping `status=IN_PROGRESS` from source **B** (quiz becomes freshest in-flight); and, separately, dropping `submission__status=IN_PROGRESS` from source **C**. Both mutants need the competing older lesson: without it the correct build reaches step 5 and returns `open[0]` — possibly the quiz itself — so "is not the target" would fail on a correct build. The `QuestionResponse` is what makes C's filter killable at all. |
 | the same seeder-shaped submitted quiz **can** surface as a `next` target — documenting the accepted `open`-derivation limitation | silently "fixing" it with an extra query, which this design rejects as out of scope |
 | **complete unit 3, complete unit 5, then `seen` unit 3 again** → `next`, unit 6 | **ordering source D by `updated_at` instead of `completed_at`** → mutant returns unit 4. (This is the *only* scenario that separates the two columns; a force-submit scenario cannot — see the note under "Completion anchor".) |
 | all *required* lessons done, one additional lesson open → card still points at the additional lesson | filtering `open` to obligatory lessons |
-| **units 1–5 completed (anchor = 5, target = 6, `next`) PLUS a stale uncompleted `UnitProgress` row on a later unit**; `progress_reset` the course → target stays unit 6 | making the reset write through `save()` → the mutant re-dates the stale row, flipping the answer to that unit with state `resume`. The naive one-in-flight-unit fixture is **vacuous**: the mutant re-dates the row that was already the target. |
+| **units 1–5 completed (anchor = 5, target = 6, `next`) PLUS a stale uncompleted `UnitProgress` row on a later unit whose `updated_at` is STRICTLY OLDER than unit 5's `completed_at`**; `progress_reset` the course → target stays unit 6. Backdating needs `freeze_time` or a queryset `.update(updated_at=…)` — a plain `save()` cannot do it, and creating the row last (the natural fixture order) makes it the *newest*, so the correct build already answers `resume` on it and the test fails before the mutant is applied | making the reset write through `save()` → the mutant re-dates the stale row, flipping the answer to that unit with state `resume`. The naive one-in-flight-unit fixture is **vacuous**: the mutant re-dates the row that was already the target. |
 | exact cross-source tie between A and C, **built with `freeze_time`** and asserted equal before the act → C wins | dropping the `source_rank` tie-break |
 | within-source tie between two A rows, **built with `freeze_time`**, inserting the **lower** `unit_id` first | dropping the `-unit_id` key → Postgres's unspecified order among equal sort keys follows scan order in practice, so the mutant returns the first-inserted row; inserting the lower id first guarantees it differs from the correct highest-`unit_id` answer. Inserting the higher first would make the mutant coincidentally right. |
 | `ancestors` is the root→parent chain, unit excluded | off-by-one including the unit itself |
 | root-level unit in a flat course → `ancestors == []`, no crash | assuming a non-empty chain |
 | returned `node` is a `ContentNode`, not a leaf dict | returning `leaf` instead of `leaf["node"]` |
 | exactly **4** queries for a direct warm-path `build_resume(...)` call. **Fixture: the student must have BOTH a live `UnitProgress` row AND an `IN_PROGRESS` `QuizSubmission` on an open quiz unit carrying a `QuestionResponse` with `last_attempt_at` set** — so source C actually returns a row | **making source E eager** (→ 5 or 6); **dereferencing `row.submission` in source C** instead of the `values_list` projection; rebuilding the tree; an N+1 over leaves. The lone-`UnitProgress` fixture is **vacuous for the source-C mutant**: C's `.first()` returns `None`, so nothing is dereferenced and the count stays 4. |
-| cold path, **fixture: no rows at all** (both E probes run) → exactly **6** | dropping the `QuizSubmission` arm of source E, or collapsing the two probes into one `Q(...) \| Q(...)` (→ 5) |
+| cold path, **fixture: no rows at all** (both E probes run) → exactly **6** | dropping the `QuizSubmission` arm of source E (→ 5). (A `Q(...) \| Q(...)` collapse is **not** a constructible mutant — the two probes hit two different models — so do not attempt to falsify against it.) |
 | cold path, **fixture: history only on a since-unpublished unit's `UnitProgress`** (E short-circuits after one probe) → exactly **5** | making the `or` eager rather than short-circuiting |
 
 ### Render tests — `tests/test_courses_views.py` (outline render/permission home)
@@ -535,24 +574,33 @@ own failure mode — a test that cannot go RED on the broken build does not ship
   go **RED on a correct build**. Use the established pattern: `session["_language"] = "pl";
   session.save()` plus `HTTP_ACCEPT_LANGUAGE="pl"`. Precedents: `tests/test_i18n_catalog.py:11-13`,
   `tests/test_editor_count_i18n.py:31-33`, `tests/test_builder_lazy_scopes.py:658-660`;
-- **the view-level query delta, measured as a SAME-USER A/B.** A bare
-  `django_assert_num_queries(N)` on `course_outline` cannot demonstrate a *delta*: its baseline
-  (notes counts, tags, branding/context processors) is fixture-dependent and invisible from this
-  spec. But the two arms must differ **only** by enrollment — using two different users does not
-  work, because `can_see_drafts`/`can_manage_course` short-circuits on ownership,
-  `accessible_courses` takes the `is_staff` branch for staff, `core/help.py::user_has_any_help`
-  varies by permission set, and `drafts` flips `keep` vs `hide`; none of that cancels.
+**There is deliberately NO view-level query-count test.** This is a recorded decision, not an
+omission. Three successive attempts to specify one each failed on a different hazard, and the
+residual value was nil:
 
-  So: **one user who both owns and is enrolled in the course.** Request the outline, delete the
-  `Enrollment`, request again, and assert the difference is exactly **four**.
+1. An **absolute** `django_assert_num_queries(N)` cannot demonstrate a *delta* — the baseline
+   (notes counts, tags, branding/context processors) is fixture-dependent.
+2. A **two-user A/B** does not cancel: `can_see_drafts`/`can_manage_course` short-circuits on
+   ownership, `accessible_courses` takes the `is_staff` branch for staff,
+   `core/help.py::user_has_any_help` varies by permission set, and `drafts` flips `keep`/`hide`.
+3. A **same-user A/B** (own + enrol, request, delete the `Enrollment`, request again) cancels the
+   user differences but still breaks two ways: `tests/conftest.py`'s autouse `_clear_site_cache`
+   calls `cache.clear()` around every test, and `institution_branding`/`ui_prefs` both call
+   `core/services.py::get_site_config()` — so **arm 1 pays the cache-warm queries and arm 2 does
+   not**, and the measured delta exceeds four on a *correct* build.
 
-  **Scope the mutants honestly.** A same-request delta cancels anything common to both arms, so it
-  can only detect code in the **enrolled-only branch** — a duplicated `is_enrolled` (+1 on each
-  arm) or an in-view tree rebuild (+2 on each arm) leave the delta at four and would be GREEN. Its
-  real mutants are therefore the same family the `build_resume`-level count covers, plus wiring:
-  calling `build_resume` unconditionally rather than behind the gate. To pin the `is_enrolled`
-  query itself, assert with `CaptureQueriesContext` that the non-enrolled arm issues exactly one
-  query against the `Enrollment` table.
+And even a working version could only ever see code in the **enrolled-only branch**, since a delta
+cancels everything common to both arms — which is exactly what the `build_resume`-level counts
+(4 / 5 / 6) already pin. The one thing it might have added, *wiring* (calling `build_resume`
+unconditionally instead of behind the gate), is pinned more robustly and more legibly by the
+"non-enrolled viewer gets **no** card" render test above.
+
+A related trap, recorded so nobody re-derives it: asserting "the non-enrolled arm issues exactly
+one query against the `Enrollment` table" is **false**. `course_outline` calls `can_access_course`
+→ `accessible_courses`, which for a non-staff user compiles
+`Q(pk__in=Enrollment.objects.filter(student=user).values("course_id")) | …` — Django inlines that
+as `IN (SELECT … FROM "courses_enrollment" …)`, so a table-name match over `captured_queries`
+counts **two**, not one.
 
 ### Inert-stamping guard — `tests/test_resume_target.py`
 
@@ -563,6 +611,12 @@ so the A/B must be constructed directly.
 
 **Mutant:** adding a `{% if item.contains_current %} open{% endif %}` read to
 `_outline_node.html` (i.e. the outline starting to depend on the key the card's stamping writes).
+
+**The tree shape is load-bearing for that mutant.** ` open` belongs to the container arm, which
+renders only for a non-unit node **with children** (`{% if item.children %}`). So the stamped pk
+must be a unit nested under **at least one container that survives pruning** — stamp a root-level
+unit and no dict with `contains_current == True` ever reaches that branch, the two renders are
+byte-identical on both builds, and the test is GREEN on the mutant.
 
 **Setup the test must supply**, because a `build_outline` tree is a *list* of roots and the
 partial is per-node: loop the roots and `render_to_string("courses/_outline_node.html", ...)` for
