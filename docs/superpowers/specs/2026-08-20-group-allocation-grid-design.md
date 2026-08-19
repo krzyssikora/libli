@@ -111,9 +111,15 @@ courses, a student legitimately sitting in a maths group and a physics group wou
 a conflict, and the grid's central signal would be noise. Enforcement is at three Python
 points:
 
-* `Group.save()` raises `ValidationError` when `allocation_id` is set and
-  `allocation.course_id != self.course_id`. `Group.save()` already freezes `course` after
-  creation, so a group can never drift out of its allocation's course afterwards.
+* `Group.save()` raises `ValidationError` when `allocation_id` is set and the allocation's
+  course differs from `self.course_id`. It reads that course id **without dereferencing the
+  FK** —
+  `Allocation.objects.filter(pk=self.allocation_id).values_list("course_id", flat=True).first()`
+  — mirroring the `old_course_id` lookup shape already at `grouping/models.py:98-102`.
+  Touching `self.allocation` instead would fetch the whole row on *every* `Group.save()`,
+  including `services.set_group_archived`'s `save(update_fields=["archived"])`.
+  `Group.save()` already freezes `course` after creation, so a group can never drift out of
+  its allocation's course afterwards.
 * `Allocation.save()` raises `ValidationError` when `course_id` changes while any group is
   attached — the mirror-image drift, and the reason the form's `disabled` widget is not
   sufficient on its own. This mirrors `Collection.save()`'s existing guard.
@@ -317,10 +323,13 @@ under the mutant the POST is *rejected*, so an assertion that only checks "the v
 unchanged" passes vacuously. Both tests must additionally assert that the save **succeeded**.
 
 **`GroupForm`** gains an allocation control that satisfies "pick an existing value, or type
-a new one", and `allocation` joins `Meta.fields` (today
-`["name", "course", "teachers", "external_id"]`) — a declared-but-unlisted field is not
-written to the instance by `construct_instance`, so omitting this silently discards every
-allocation choice. `new_allocation` stays a declared non-model field, outside `Meta.fields`.
+a new one". `allocation` joins `Meta.fields` (today
+`["name", "course", "teachers", "external_id"]`) so the model field is form-managed and
+rendered at all, and its queryset and `empty_label` are then tuned in `__init__`, exactly as
+`teachers`' queryset already is. It is *not* `Meta.fields` that writes the value — `save()`
+assigns `group.allocation` explicitly below — so removing it from `Meta.fields` is not a
+targeted mutant but a crash: `self.fields["allocation"]` would `KeyError` in `__init__`.
+`new_allocation` stays a declared non-model field, outside `Meta.fields`.
 
 `GroupForm` also gains a **keyword-only `user=None`** parameter. It must default to `None`,
 and a falsy `user` must yield `Allocation.objects.none()` for the choices (mirroring
@@ -418,8 +427,9 @@ resolve block would then compute an `Allocation` and do nothing with it, discard
 `new_allocation` the admin types. And seeding `allocation` from `cleaned_data["allocation"]`
 is equally load-bearing: `clean()` stashes `_resolved_allocation` **only** on the
 `new_allocation` path, so without that fallback the picked-existing path leaves `allocation`
-as `None` and the assignment *overwrites* the value `construct_instance` already wrote from
-`Meta.fields`. Each path is therefore killed by a different mutant, and needs its own test.
+as `None` and the assignment *overwrites* the value `construct_instance` wrote — nulling the
+group's allocation on every plain save. Each path is killed by a different mutant, and needs
+its own test.
 
 The "no silent detach" guarantee lives in the **queryset**, not here: the
 `pk=self.instance.allocation_id` arm keeps the current allocation selectable, so the browser
@@ -435,10 +445,23 @@ and per-student savepoints. (This is the boundary the corresponding test patches
 `Group.save` to raise across.)
 
 **Rendering the allocation select.** `ModelChoiceField` emits a flat `<option>` list, so
-grouping by course is built explicitly: a custom `ModelChoiceIterator` subclass yields
-`(course.title, [(pk, name), ...])` tuples, which Django's `Select` widget renders as
-`<optgroup>`s. Each `<option>` also carries `data-course="<course_pk>"`, which is what the
-client-side filter keys on.
+grouping by course is built explicitly, and it takes **two** cooperating pieces — a choices
+tuple carries only a value and a label, so the iterator alone cannot produce the attribute
+the filter needs:
+
+* a `ModelChoiceIterator` subclass yielding `(course.title, [(value, name), ...])` tuples,
+  which Django's `Select` renders as `<optgroup>`s. It **must yield the empty choice
+  `("", empty_label)` first, outside any optgroup** — the base
+  `ModelChoiceIterator.__iter__` is what normally emits it, so a subclass that yields only
+  optgroups silently drops "— none —" and leaves no way to detach a group from its
+  allocation. The yielded value should be a `ModelChoiceIteratorValue` so the widget can
+  recover the instance.
+* a `forms.Select` subclass overriding **`create_option`** to add
+  `data-course="<course_pk>"` to each `<option>`'s attrs (reading the course id from the
+  iterator value, or from a pk→course_id map the widget holds). Per-option attributes are
+  only reachable here. Without this the options render without `data-course`, and
+  `initAllocationFilter()` — filtering by course *and* resetting a stale selection — is
+  silently inert.
 
 On the **create** form the course is chosen in the same submission, so the (already
 user-scoped) allocations are rendered and filtered client-side to the selected course; the
@@ -581,8 +604,15 @@ row reads as unassigned and the membership shows in the "also in" note.
 The union **must be built by pk membership**, not `qs_a | qs_b`:
 
 ```python
-User.objects.filter(Q(pk__in=by_cohort.values("pk")) | Q(pk__in=assigned.values("pk")))
+(User.objects
+ .filter(Q(pk__in=by_cohort.values("pk")) | Q(pk__in=assigned.values("pk")))
+ .select_related("cohort_membership__cohort"))
 ```
+
+The `select_related` matches `_student_choices` at `grouping/views.py:163`, which does the
+same thing for the roster picker. Without it every row's heading and `data-cohort` slug cost
+a query or two — roughly 170 extra queries on an 84-student grid — on the one screen this
+design otherwise polices for N+1s throughout.
 
 `services.student_users()` ends in `.distinct()`, and OR-ing a distinct queryset with a
 non-distinct one raises "Cannot combine a unique query with a non-unique query."
@@ -590,7 +620,22 @@ non-distinct one raises "Cannot combine a unique query with a non-unique query."
 and this workaround; follow it.
 
 Rows are grouped under a heading per attached cohort, ordered `-is_default, name`, with a
-final "outside these cohorts" heading for the second arm's leftovers. A cohort with no
+final "outside these cohorts" heading for the second arm's leftovers.
+
+**A student may have no cohort at all, and reading it naively is a 500.**
+`CohortMembership.user` is a `OneToOneField(related_name="cohort_membership")`
+(`grouping/models.py:62-66`), so `user.cohort_membership` raises
+`RelatedObjectDoesNotExist` in Python when the row is absent — it does not return `None`.
+The obvious precedent is misleading: `group_form.html:40` dereferences it safely only
+because Django's template engine silences `ObjectDoesNotExist`, and this bucketing happens
+in Python. Such users are reachable — `student_users()` is defined by exclusion (every
+non-staff user qualifies), the Default-cohort `post_save` receiver does not fire for
+`bulk_create`, and it is documented as a no-op when no Default exists yet; "a fixture, an
+import" is the second union arm's own stated justification. So the cohort bucket is built
+from an explicit map,
+`dict(CohortMembership.objects.filter(user_id__in=row_ids).values_list("user_id", "cohort_id"))`
+(or `getattr(u, "cohort_membership", None)`), and a student missing from it renders under
+"outside these cohorts" with `data-cohort=""`. A cohort with no
 students renders its heading with an "(no students)" note rather than vanishing, so an
 admin can see the cohort *is* attached; a heading whose rows are all hidden by a filter is
 itself hidden by `allocation_grid.js`. Within a heading, students sort by
@@ -651,7 +696,11 @@ since `disabled` inputs are dropped from the POST and the filter would then sile
 what the form submits. Each row carries `data-cohort="<cohort slug>"` and
 the select's `<option value>` is that same slug — parity with `roster_filter.js`, which
 already keys on `student.cohort_membership.cohort.slug`; a row in the "outside these
-cohorts" section carries `data-cohort=""` and matches only the "All cohorts" option.
+cohorts" section carries `data-cohort=""`. The select lists "All cohorts", then the
+allocation's **attached** cohorts in `-is_default, name` order, then an explicit "Outside
+these cohorts" option matching `data-cohort=""` — without that last option the one group an
+admin most often wants to inspect alone (the students who arrived from somewhere else) could
+not be isolated.
 
 Row-state classes follow the **same pending-selection rule as the summary**: when a radio
 changes, the row's state class and its non-colour marker are recomputed from the checked
@@ -750,7 +799,10 @@ states, and no filters.
    the browser posts nothing for that name), so a conflict persists and stays flagged until
    an admin picks a column.
 4. A posted value that is neither `""` nor the id of one of the current columns is ignored
-   for that row — tolerant parsing, matching `_student_ids_from_post`.
+   for that row — tolerant parsing, matching `_student_ids_from_post`. "Ignored" means
+   **omitted from `assignments` entirely**, exactly as an absent key is; it must *not* be
+   entered with a `None` target, which would silently unassign the student on forged or
+   stale input — the same data loss the omission-versus-`None` rule exists to prevent.
 5. Rows are then applied by `services.set_allocation_assignments`, which **owns the
    optimistic guard end to end** (the view only forwards the posted tokens). The three rules
    below are evaluated **in this order**, and the first that matches wins:
@@ -897,12 +949,12 @@ been seen to fail.
 | 8 | `GroupForm` reuses the existing allocation row for a case-different new name (asserting the pk, not just the count) | drop the stashed instance and let `save()` call `get_or_create(name=...)` |
 | 8a | `AllocationForm` rejects a case-different duplicate name on the same course **on the create path** (where `instance.course_id` is `None`), and allows it on a different course | compare exactly instead of `iexact`; **and** move the check to `clean_name()`, where `course` is not yet cleaned — the create-path assertion is what makes the second mutant red |
 | 8c | both entry points reject a name held by an **archived** allocation on that course, with no `IntegrityError` reaching the response | scope either dedup lookup to `archived=False` |
-| 8b | **picked-existing path**: selecting an existing allocation writes it onto the group | drop `allocation` from `Meta.fields` (kills only this path — `construct_instance` stops writing) |
-| 8b-ii | **typed-new path**: a `new_allocation` name writes the created/stashed row onto the group | drop the `group.allocation = allocation` assignment (kills only this path — on the picked path `construct_instance` already wrote the value) |
-| 8b-iii | picked-existing path again, asserting the allocation is **not** nulled | drop the `or self.cleaned_data.get("allocation")` fallback, so `save()` overwrites `construct_instance`'s value with `None` |
+| 8b | **picked-existing path**: selecting an existing allocation writes it onto the group and does not null it | drop the `or self.cleaned_data.get("allocation")` fallback, so `save()` overwrites `construct_instance`'s value with `None`. (Dropping `allocation` from `Meta.fields` is *not* a usable mutant here — it `KeyError`s in `__init__` and reddens half the form suite) |
+| 8b-ii | **typed-new path**: a `new_allocation` name writes the created/stashed row onto the group | drop the `group.allocation = allocation` assignment (kills only this path — on the picked path the fallback still carries the value) |
 | 9 | `new_allocation` over 200 characters is a field error, not a 500 | omit `max_length` |
 | 10 | with `Group.save` patched to raise inside the view's atomic block, a submitted new allocation name leaves no `Allocation` row | remove the view-level `transaction.atomic()` |
-| 11 | `GroupForm`'s allocation choices exclude allocations on courses the user cannot manage | drop the `course__in=manageable_courses(user)` arm |
+| 11 | `GroupForm`'s allocation choices exclude allocations on courses the user cannot manage. **Setup is load-bearing:** construct as `GroupForm(user=ca)` with **no `instance`** — that arm lives in the `elif user:` branch, so a test built on an existing group takes the `if self.instance.pk:` branch, which the mutant leaves intact | drop the `course__in=manageable_courses(user)` arm |
+| 11d | `("", "— none —")` is among `form.fields["allocation"].choices`, and posting an empty `allocation` on an attached group sets `group.allocation` to `None` | have the custom iterator yield only optgroup tuples, dropping the empty choice |
 | 11a | `GroupForm()` with no `user` kwarg still constructs (the four existing call sites) and offers no allocation choices | make `user` required, or let a falsy user reach `manageable_courses` |
 | 11b | a CA's `AllocationForm.fields["course"].queryset` excludes a course they do not own | drop the `manageable_courses(user)` restriction |
 | 11c | posting a group whose allocation is on another course yields `form.is_valid() is False` with the error on `allocation`. **Setup is load-bearing:** the *create* path, as a Platform Admin (or a CA owning both courses), so the foreign allocation is genuinely inside the field queryset and only `clean()` can reject it — on the edit path, or for a single-course CA, `invalid_choice` rejects it anyway and the mutant survives | remove the course-equality check from `GroupForm.clean()` |
@@ -915,6 +967,7 @@ been seen to fail.
 | 16b | moving a student between two columns keeps their `Enrollment` pk and creates no second `ENROLLED` notification | swap the add and remove calls |
 | 17 | a `student-<pk>` posted with a missing `-was` is skipped, not written. **Setup is load-bearing:** the student must currently be in *no* column group (current token `""`), and the post must target a real column — otherwise the mutant's `""` coincidentally mismatches the real token and skips too, leaving the test green | forward a missing `-was` as `""` instead of `None` |
 | 17a | a row omitted from the POST entirely (conflict row) is not confused with `— none —`: its memberships survive | normalise both `request.POST.get` outcomes (`None` and `""`) to a `None` target when building `assignments` |
+| 17c | a row whose posted value is neither `""` nor a current column id (forged or stale) keeps its membership — it is omitted from `assignments`, not unassigned | map an out-of-range posted value to a `None` target |
 | 17b | a membership created through the grid records `added_by` = the posting admin | drop `added_by=request.user` from the view's service call (and, separately, drop the forward to `add_students_to_group`) |
 | 18 | a save whose posted `columns` differs from the current columns writes nothing, re-renders from fresh state, and reports the distinct message | drop the column-set check |
 | 19 | a forged `student-<pk>` for a student outside the row set is ignored. **The forgery must carry a `student-<pk>-was` equal to that student's true current token** (typically `""`) — otherwise `was_token` is `None`, the guard skips the row even under the mutant, and nothing is written either way | build the row set from the POST keys instead of recomputing it |
@@ -925,6 +978,8 @@ been seen to fail.
 | 23 | `allocation_delete` redirects and leaves memberships intact, through the view | make the view cascade-delete the groups |
 | 24 | rows = cohort union ∪ already-assigned outsiders | drop the outsider union |
 | 25 | a student outside the attached cohorts whose only membership is in an **archived** group of the allocation still gets a row | restrict the second union arm to `archived=False` |
+| 25a | a placed student with **no `CohortMembership` row** renders under "outside these cohorts" with `data-cohort=""`, and the page returns 200 | read `user.cohort_membership.cohort` directly in Python instead of via the id map — `RelatedObjectDoesNotExist` 500s the page |
+| 25b | rendering the grid issues a bounded number of queries (`assertNumQueries`), independent of the row count | drop `select_related("cohort_membership__cohort")` from the union queryset |
 | 26 | the conflict row renders unchecked and flagged | classify a two-membership row as assigned |
 | 27 | the "also in" note covers all three cases (other allocation, no allocation, archived column) | narrow it to `allocation__isnull=True` |
 | 28 | on a plain GET the summary counts describe the whole allocation. **Fixture is load-bearing:** at least two attached cohorts *plus* one placed out-of-cohort student, asserting total = cohort A + cohort B + leftovers — with a single cohort, "the first heading" is every row and the mutant produces identical numbers | count only the rows under the first cohort heading |
