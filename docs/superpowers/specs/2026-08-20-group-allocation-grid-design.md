@@ -377,14 +377,26 @@ passing untouched. The four in-view construction sites (`grouping/views.py:192`,
 
 * supplying both `allocation` and `new_allocation` is an error ("choose an existing
   allocation or type a new name, not both"), attached to `new_allocation` — but **only when
-  the select was actually changed**. On the edit form of a group that already has an
-  allocation, `allocation` is a `Meta.fields` model field whose initial is that allocation,
-  so the browser *always* posts it back; a naive "both are non-empty" test would then make
-  the natural way to move a group into a new allocation — type the new name — fail every
-  time, blaming the admin for a selection they never touched. The rule is therefore: a
-  non-empty `new_allocation` conflicts only with an `allocation` value **different from
-  `self.instance.allocation_id`**; where they are equal, `new_allocation` wins and the
-  select's echoed value is ignored;
+  the admin actually picked a different existing allocation**. On the edit form of a group
+  that already has an allocation, `allocation` is a `Meta.fields` model field whose initial
+  is that allocation, so the browser *always* posts it back; a naive "both are non-empty"
+  test would make the natural way to move a group into a new allocation — type the new name
+  — fail every time, blaming the admin for a selection they never touched. Stated exactly,
+  with `new_allocation` non-empty:
+
+  | posted `allocation` | outcome |
+  |---|---|
+  | empty / `None` (the select was explicitly cleared) | no conflict; the new name wins |
+  | equal to `self.instance.allocation_id` (the untouched echo) | no conflict; the new name wins |
+  | non-empty and different from `self.instance.allocation_id` | **conflict** — the error above |
+
+  In *both* non-conflict cases `clean()` must then **set `cleaned_data["allocation"] = None`**.
+  This is the mechanism, not a detail: without it `construct_instance` writes the echoed
+  allocation and `save()`'s `self._resolved_allocation or self.cleaned_data.get("allocation")`
+  fallback evaluates to the old allocation, so `if allocation is None and name:` never fires,
+  the new allocation is never created, and the group silently stays where it was — behind a
+  success redirect. (Equivalently, `save()` may resolve/create from `name` *before* consulting
+  the fallback; pick one and be explicit.);
 * the chosen or created allocation's course must equal the group's course — a field error
   on `allocation` ("this allocation belongs to a different course"), *not* a non-field
   error, because `group_form.html` renders errors per field explicitly and a non-field
@@ -984,7 +996,8 @@ been seen to fail.
 | 11 | `GroupForm`'s allocation choices exclude allocations on courses the user cannot manage. **Setup is load-bearing:** construct as `GroupForm(user=ca)` with **no `instance`** — that arm lives in the `elif user:` branch, so a test built on an existing group takes the `if self.instance.pk:` branch, which the mutant leaves intact | drop the `course__in=manageable_courses(user)` arm |
 | 11d | `("", "— none —")` is among `form.fields["allocation"].choices`, and posting an empty `allocation` on an attached group sets `group.allocation` to `None` | have the custom iterator yield only optgroup tuples, dropping the empty choice |
 | 11e | each rendered `<option>` carries `data-course` equal to its allocation's course pk, and options are nested in per-course `<optgroup>`s | drop the `create_option` override (kills the attribute half); drop the iterator's grouping (kills the optgroup half) |
-| 11f | typing a `new_allocation` on the **edit** form of a group that already has an allocation succeeds and moves the group, rather than erroring "not both" | test both non-empty values as a conflict, ignoring whether the select actually changed |
+| 11f | typing a `new_allocation` on the **edit** form of a group that already has an allocation, **leaving the select at its echoed value**, succeeds and moves the group to a newly created allocation | test both non-empty values as a conflict regardless of the echo (kills the precedence rule); **and, separately,** omit `cleaned_data["allocation"] = None`, so the fallback resolves to the old allocation, the create branch never fires, and the group silently stays put behind a success redirect |
+| 11g | the same, but with the select explicitly **cleared** to "— none —": also succeeds and moves the group | treat an empty `allocation` as "different from `instance.allocation_id`", making the clearest possible gesture a conflict error |
 | 11a | `GroupForm()` with no `user` kwarg still constructs (the four existing call sites) and offers no allocation choices | make `user` required, or let a falsy user reach `manageable_courses` |
 | 11b | a CA's `AllocationForm.fields["course"].queryset` excludes a course they do not own | drop the `manageable_courses(user)` restriction |
 | 11c | posting a group whose allocation is on another course yields `form.is_valid() is False` with the error on `allocation`. **Setup is load-bearing:** the *create* path, as a Platform Admin (or a CA owning both courses), so the foreign allocation is genuinely inside the field queryset and only `clean()` can reject it — on the edit path, or for a single-course CA, `invalid_choice` rejects it anyway and the mutant survives | remove the course-equality check from `GroupForm.clean()` |
