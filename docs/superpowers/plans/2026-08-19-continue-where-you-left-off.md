@@ -209,8 +209,8 @@ def build_resume(course, user, tree):
     open_pks = [d["node"].pk for d in open_leaves]
     leaf_pks = [d["node"].pk for d in leaves]
 
-    # Tasks 2 and 3 INSERT their query blocks immediately below these two lines and
-    # leave the lines themselves in place. The initialisations are load-bearing:
+    # Task 2 inserts its block immediately below the `flight` line; Task 3 immediately
+    # below the `done` line. Leave BOTH initialisation lines in place. The initialisations are load-bearing:
     # both names are read unconditionally by steps 3 and 4 below, so a task that
     # replaces (rather than extends) either line makes build_resume raise
     # UnboundLocalError on every cold path.
@@ -308,6 +308,7 @@ Append to `tests/test_resume_target.py`:
 from datetime import timedelta
 
 from django.utils import timezone
+from freezegun import freeze_time
 
 from courses.models import Element
 from courses.models import QuestionResponse
@@ -512,7 +513,9 @@ def test_within_source_tie_prefers_the_higher_unit_id():
 uv run pytest tests/test_resume_target.py -v -k "in_flight or answered_quiz or opened_but or submitted_quiz or invisible_newer or cross_source_tie or within_source_tie"
 ```
 
-Expected: all 5 FAIL — `flight` is hardcoded `None`, so every one lands on `start`/`next`.
+Expected: all **7** FAIL. `flight` is hardcoded `None`, so each lands on `start`/`next`. The two
+tie tests fail on the *node* assertion specifically — Task 1 returns `open_leaves[0]`, which is the
+lesson in the cross-source fixture and `lo` in the within-source one.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -606,7 +609,7 @@ Insert after `flight, ts_f = None, None` and before `done, ts_d = None, None`:
 uv run pytest tests/test_resume_target.py -v
 ```
 
-Expected: 10 passed.
+Expected: **12** passed (Task 1's 5 + this task's 7).
 
 - [ ] **Step 5: Falsify — three mutants, by hand**
 
@@ -615,7 +618,13 @@ Expected: 10 passed.
 3. Restore B; drop `status=IN_PROGRESS` from **B**, then (separately) from **C**. Expected: `test_submitted_quiz_with_no_progress_row_is_not_the_target` FAILS both times.
 4. Restore; change source A's filter to `unit__course=course` and add a post-`.first()` membership check. Expected: `test_invisible_newer_row_does_not_discard_the_visible_candidate` FAILS.
 5. Restore; drop `t[1]` from the `max` key (i.e. `key=lambda t: t[0]`). Expected: `test_exact_cross_source_tie_prefers_the_answered_quiz` FAILS (answers the lesson).
-6. Restore; drop `-unit_id` from source A's `order_by`. Expected: `test_within_source_tie_prefers_the_higher_unit_id` FAILS. If it does NOT fail, check the fixture inserted the lower pk first — inserting the higher first makes the mutant coincidentally correct.
+6. Restore; drop `-unit_id` from source A's `order_by`. Expected: `test_within_source_tie_prefers_the_higher_unit_id` FAILS.
+
+   If it does **not** fail, do not just re-check the insertion order — with `ORDER BY updated_at
+   DESC LIMIT 1` Postgres uses a top-N heapsort whose order among equal keys is genuinely
+   unspecified, so the mutant may return `hi` by chance. Force the issue instead: add a third tied
+   row, or assert directly on
+   `UnitProgress.objects.filter(student=user).order_by("-updated_at").values_list("unit_id", flat=True)[0]`.
 
 Restore each by hand and re-run to green.
 
@@ -640,12 +649,9 @@ git commit -m "feat(resume): in-flight sources A/B/C and the step-3 comparison"
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_resume_target.py`:
+Append to `tests/test_resume_target.py` (`freeze_time` is already imported from Task 2):
 
 ```python
-from freezegun import freeze_time
-
-
 def _complete(unit, user, days_ago):
     """A completed UnitProgress whose completed_at is `days_ago` days back.
 
@@ -808,6 +814,24 @@ def test_additional_lesson_still_counts_as_a_target():
 
 ```python
 @pytest.mark.django_db
+def test_in_flight_strictly_newer_than_a_real_completion_resumes():
+    """The plain `ts_f > ts_d` arm, which nothing else covers: the existing tests
+    exercise `done is None` (no completion at all), `==` (the tie test) and `<`
+    (stray_visit). Kills a mutant that reversed the comparison to `ts_d >= ts_f`,
+    and one that made step 3 fire only when `done is None`.
+    """
+    course, units = _course_with_units(4)
+    user = make_verified_user(username="d10", email="d10@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(units[0], user, 30)
+    UnitProgressFactory(student=user, unit=units[2])
+    _backdate_progress(units[2], user, timezone.now() - timedelta(days=10))
+    r = _resume(course, user)
+    assert r["state"] == "resume"
+    assert r["node"].pk == units[2].pk
+
+
+@pytest.mark.django_db
 def test_submitted_quiz_without_progress_can_surface_as_next():
     """DOCUMENTS AN ACCEPTED LIMITATION, deliberately -- this is not a bug report.
 
@@ -837,15 +861,15 @@ def test_submitted_quiz_without_progress_can_surface_as_next():
     assert r["node"].pk == quiz.pk
 ```
 
-- [ ] **Step 2: Run the tests — three must fail, the rest are guards**
+- [ ] **Step 2: Run the tests — FOUR must fail, the rest are guards**
 
 ```bash
-uv run pytest tests/test_resume_target.py -v -k "most_recent or stray_visit or exact_tie or reseeing or wraps_back or all_units or completed_quiz_that or additional_lesson or without_progress_can_surface"
+uv run pytest tests/test_resume_target.py -v -k "most_recent or stray_visit or exact_tie or reseeing or wraps_back or all_units or completed_quiz_that or additional_lesson or without_progress_can_surface or strictly_newer"
 ```
 
-Expected: exactly **three** RED — `test_most_recent_unit_completed_advances_to_the_next_open_unit`,
-`test_stray_visit_does_not_pin_the_card_forever`, `test_reseeing_a_finished_unit_does_not_rewind_the_anchor`
-and `test_finished_the_last_unit_wraps_back_to_the_earliest_gap` (four, counting the wrap).
+Expected: exactly **four** RED — `test_most_recent_unit_completed_advances_to_the_next_open_unit`,
+`test_stray_visit_does_not_pin_the_card_forever`, `test_reseeing_a_finished_unit_does_not_rewind_the_anchor`,
+and `test_finished_the_last_unit_wraps_back_to_the_earliest_gap`.
 
 The others PASS on the Task-2 build and that is CORRECT, not a broken task: `test_exact_tie...`
 already returns `resume` via step 3 with `done is None`; `test_all_units_completed_returns_none` and
@@ -892,7 +916,7 @@ by contrast, is a **node**. Do not mix them.
 uv run pytest tests/test_resume_target.py -v
 ```
 
-Expected: 18 passed.
+Expected: **22** passed (12 + this task's 10).
 
 - [ ] **Step 5: Falsify — by hand**
 
@@ -1049,7 +1073,7 @@ Then rewrite the five returns as `return _with_ancestors(flight, "resume")`, `re
 uv run pytest tests/test_resume_target.py -v
 ```
 
-Expected: 21 passed.
+Expected: **25** passed (22 + this task's 3).
 
 - [ ] **Step 5: Falsify**
 
@@ -1073,7 +1097,11 @@ git commit -m "feat(resume): ancestor chain, with the inert-stamping guard"
 **Interfaces:**
 - Consumes: `build_resume` as completed in Task 4. No production change unless a count is wrong.
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Write the query-budget guards**
+
+These are the documented exception to the failing-first rule — budget guards written after the
+implementation exists, so they pass immediately. They earn their place through Step 3's
+falsification, not by going RED first.
 
 Append to `tests/test_resume_target.py`:
 
@@ -1139,7 +1167,21 @@ Expected: PASS. If any fails, the count is genuinely wrong — fix `build_resume
 
 - [ ] **Step 3: Falsify**
 
-1. In source C, replace the `values_list(...)` projection with `.first()` + `row.submission.unit_id`. Expected: `test_warm_path_costs_exactly_four_queries` FAILS with 5.
+1. In source C, replace the projection with a **shape-preserving** dereference — otherwise the
+   mutant dies on a `TypeError` before it can issue the extra query, and proves nothing about the
+   budget. Write it as:
+
+   ```python
+   _row = (
+       QuestionResponse.objects.filter(...)
+       .order_by("-last_attempt_at", "-submission__unit_id")
+       .first()
+   )
+   c = (_row.submission.unit_id, _row.last_attempt_at) if _row else None
+   ```
+
+   Expected: `test_warm_path_costs_exactly_four_queries` FAILS with **5** — the extra query is the
+   lazy load of `_row.submission`.
 2. Restore; make source E eager (assign both `.exists()` calls to locals before the `or`). Expected: **`test_cold_path_short_circuits_after_the_first_probe` FAILS with 6**, not 5. The warm path CANNOT catch this: source E sits *after* the step-3 and step-4 returns, so on a warm fixture it never executes at all and the count stays 4 on both builds. Do not chase a warm-path failure here — seeing one would mean E had been wrongly hoisted above the returns.
 3. Restore; drop the `QuizSubmission` arm of source E. Expected: `test_cold_path_with_no_rows_costs_six_queries` FAILS with 5.
 
@@ -1286,7 +1328,8 @@ And add to the `render(...)` context dict — **this second edit is the one that
 uv run pytest tests/test_courses_views.py -v -k "resume_target"
 ```
 
-Expected: 2 passed.
+Expected: **3** passed. `-k` is a substring match, so this also selects
+`test_tag_filter_does_not_move_the_resume_target` — all three of this task's tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1458,7 +1501,14 @@ def test_resume_card_title_and_crumbs_are_marked(client):
 uv run pytest tests/test_courses_views.py tests/test_title_math_markers.py -v -k "resume or eyebrow or card_links or tag_filter"
 ```
 
-Expected: FAIL — `a.resume` does not exist, so `card` is `None` (`TypeError`/`AttributeError`).
+Expected RED: the **four** parametrized eyebrow cases, both `card_links` tests, the `lang` test,
+and `test_resume_card_title_and_crumbs_are_marked` — `a.resume` does not exist yet, so `card` is
+`None` (`TypeError`/`AttributeError`).
+
+Expected GREEN, and that is correct: Task 6's three tests, which this `-k` also selects.
+`test_outline_offers_no_resume_target_to_a_non_enrolled_viewer` in particular passes **trivially**
+right now — its `select_one("a.resume") is None` assertion cannot fail while no template exists.
+It only becomes meaningful after Step 3, which is why Step 5 re-runs the whole file.
 
 - [ ] **Step 3: Create the template**
 
@@ -1577,7 +1627,7 @@ that does not — never invent one**.
 - [ ] **Step 2: Verify the tokens resolve**
 
 ```bash
-grep -nE -- "--(radius-md|border-strong|primary|text-secondary|text-primary|surface-raised)[[:space:]]*:" core/static/core/css/tokens.css
+grep -nE -- "--(radius-md|border-subtle|border-strong|primary|text-secondary|text-primary|surface-raised|space-1|space-3|space-4|space-5)[[:space:]]*:" core/static/core/css/tokens.css
 ```
 
 Tokens are **declared in `tokens.css`**, not `app.css` — `app.css` only consumes them, so grepping
@@ -1605,7 +1655,7 @@ git commit -m "style(resume): card surface, hover and focus-visible treatment"
 - [ ] **Step 1: Extract**
 
 ```bash
-uv run python manage.py makemessages -l en -l pl
+uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
 - [ ] **Step 2: Translate**
@@ -1623,7 +1673,16 @@ Fill in the four msgids in `locale/pl/LC_MESSAGES/django.po`:
 | `Still to do` | `Do zrobienia` |
 | `Start the course` | `Rozpocznij kurs` |
 
-Check each for a `#, fuzzy` flag — `makemessages` pre-fills fuzzy entries with a **wrong** translation, and clearing one means deleting **both** the flag line and the bogus `msgstr`.
+`--no-obsolete` is **mandatory**: `docs/development/conventions.md:51` pins the invocation and
+line 71 records that the project forbids obsolete `#~` entries —
+`tests/test_i18n_po_health.py::test_no_obsolete_entries` enforces it, so omitting the flag turns
+Task 11's sweep red with no diagnosis.
+
+Check each entry for a `#, fuzzy` flag — `makemessages` pre-fills fuzzy entries with a **wrong**
+translation. Clearing one means **three** edits, not two: delete the `#, fuzzy` flag line, delete
+the `#| msgid "<old string>"` previous-msgid line that `msgmerge --previous` writes (it holds the
+retired msgid verbatim, so anything grepping for an old string still finds it), and replace the
+bogus `msgstr` with the real translation.
 
 - [ ] **Step 3: Compile**
 
@@ -1631,9 +1690,10 @@ Check each for a `#, fuzzy` flag — `makemessages` pre-fills fuzzy entries with
 uv run python manage.py compilemessages
 ```
 
-- [ ] **Step 4: Verify the eyebrow test still passes**
+- [ ] **Step 4: Verify catalog health and the eyebrow test**
 
 ```bash
+uv run pytest tests/test_i18n_po_health.py -q
 uv run pytest tests/test_courses_views.py -v -k "eyebrow"
 ```
 
@@ -1666,16 +1726,14 @@ The comment currently says reset is safe partly because *"nothing reads updated_
 ```python
         # .update() deliberately bypasses save(): it fires neither auto_now on
         # updated_at nor the completed => completed_at invariant. Both are fine --
-        # reset does not touch `completed`, and leaving updated_at alone keeps the
-        # resume card (rollups.build_resume, source A) pointing where the student
-        # was. IDOR-safe against other STUDENTS by construction
-        # (student=request.user); the cross-COURSE hole is closed by
-        # get_node_or_404 above, not by this filter.
+        # reset does not touch `completed`, and leaving updated_at alone keeps
+        # build_resume's source A pointing where the student was. IDOR-safe against
+        # other STUDENTS by construction (student=request.user); the cross-COURSE
+        # hole is closed by get_node_or_404 above, not by this filter.
 ```
 
-The original clause spans **seven** lines (`# .update() deliberately bypasses save():` through
-`# get_node_or_404 above, not by this filter.`) and so does the replacement. Count both before
-committing — a net +1 is exactly the citation rot this rule exists to prevent.
+The original clause is `courses/views.py` lines **761-766** — **six** lines — and the replacement is
+six. Count both before committing; a net +1 is exactly the citation rot this rule exists to prevent.
 
 - [ ] **Step 3: Add the behavioural test that the comment now describes**
 
@@ -1739,9 +1797,15 @@ git commit -m "docs(resume): correct progress_reset's now-false updated_at comme
 - [ ] **Step 1: Lint and format**
 
 ```bash
+uv run ruff format .
 uv run ruff check --no-cache .
 uv run ruff format --check .
 ```
+
+Run the **formatter** before the check gate: this plan's snippets illustrate structure, not final
+formatting, and several would be collapsed onto one line by `ruff format` (e.g. the
+`UnitProgress.objects.filter(...)` call in source A fits within the line limit). `--check` alone
+would report a diff the plan never tells you to resolve.
 
 Both must be clean. `--no-cache` matters: the `noqa` warning is otherwise cached away, and `format --check` is a separate gate from `check`.
 
