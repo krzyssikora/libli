@@ -587,3 +587,54 @@ def test_stamping_the_tree_does_not_change_the_outline_html():
     _stamp_current_chain(tree, unit.pk)
     after = _render(tree)
     assert before == after
+
+
+@pytest.mark.django_db
+def test_warm_path_costs_exactly_four_queries(django_assert_num_queries):
+    """FIXTURE IS LOAD-BEARING. The student needs a live UnitProgress AND an
+    IN_PROGRESS QuizSubmission on an open quiz carrying a QuestionResponse with
+    last_attempt_at set -- so source C actually returns a row. With a lone
+    UnitProgress, C's .first() returns None, the `row.submission.unit_id`
+    dereference mutant never fires, and the count stays 4 on a broken build.
+    """
+    course = CourseFactory()
+    lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=1)
+    user = make_verified_user(username="q1", email="q1@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    UnitProgressFactory(student=user, unit=lesson)
+    sub = QuizSubmissionFactory(
+        student=user, unit=quiz, status=QuizSubmission.Status.IN_PROGRESS
+    )
+    _answered_question(quiz, sub, timezone.now())
+
+    tree = _tree(course, user)  # built OUTSIDE the assertion
+    with django_assert_num_queries(4):
+        build_resume(course, user, tree)
+
+
+@pytest.mark.django_db
+def test_cold_path_with_no_rows_costs_six_queries(django_assert_num_queries):
+    """Both source-E probes run. (A `Q(...) | Q(...)` collapse is NOT a
+    constructible mutant -- the probes hit two different models.)"""
+    course, units = _course_with_units(2)
+    user = make_verified_user(username="q2", email="q2@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    tree = _tree(course, user)
+    with django_assert_num_queries(6):
+        build_resume(course, user, tree)
+
+
+@pytest.mark.django_db
+def test_cold_path_short_circuits_after_the_first_probe(django_assert_num_queries):
+    """source E's `or` short-circuits: history on a UnitProgress costs ONE probe."""
+    course, units = _course_with_units(2)
+    ghost = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", order=9, published=False
+    )
+    user = make_verified_user(username="q3", email="q3@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    UnitProgressFactory(student=user, unit=ghost)
+    tree = _tree(course, user)
+    with django_assert_num_queries(5):
+        build_resume(course, user, tree)
