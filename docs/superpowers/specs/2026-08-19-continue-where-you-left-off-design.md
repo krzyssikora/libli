@@ -105,8 +105,10 @@ all *required* work still sees a card pointing at an additional lesson — is in
 ## Recency sources
 
 "Most recent activity" needs several queries, because **no single timestamp in the schema means
-"the student was last working here"**. Each source below earns its place; each is filtered so that
-**teacher-driven writes cannot move a student's resume target**.
+"the student was last working here"**. Each source below earns its place, and each is filtered so
+that **a teacher's grading writes cannot move a student's resume target** — see "Which teacher
+writes can move the target, and which cannot" below for the one case (force-submit) that
+legitimately can.
 
 ### Membership is enforced *inside* each query
 
