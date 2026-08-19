@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from courses.models import Element
@@ -57,6 +59,14 @@ def test_nested_image_carries_the_hook_through_its_container():
 
     `data-preview-el` is the IMAGE ELEMENT's pk at every depth (the same pk Task 2's
     `data-for-element` emits), never the Element join row's — assert both halves.
+
+    Read the attribute's VALUE SET rather than asserting `f'...="{join.pk}"' not in
+    html`. `ImageElement` and `Element` are independent pk sequences, so that negative
+    substring is byte-identical to the positive one whenever the two happen to align —
+    it then fails on correct code. The alignment is not hypothetical: it depends on how
+    many rows earlier tests in the same xdist worker created, so an unrelated branch can
+    turn it red just by adding fixtures. The filler below forces the pks APART so the
+    assertion actually discriminates.
     """
     course, unit = make_course_with_unit()
     sp = SpoilerElement.objects.create(label="s")
@@ -65,10 +75,21 @@ def test_nested_image_carries_the_hook_through_its_container():
     join = Element.objects.create(
         unit=unit, content_object=el, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
     )
+    if join.pk == el.pk:
+        # The two sequences coincided. Burn this pk and retake one: sequences never
+        # reissue, so the retry is guaranteed distinct. Offsetting by a fixed number
+        # of filler rows would NOT be -- sequences are not rolled back between tests,
+        # so the starting offset depends on what ran before in this worker.
+        join.delete()
+        join = Element.objects.create(
+            unit=unit, content_object=el, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
+        )
+    assert el.pk != join.pk, "fixture must keep the two pk namespaces distinct"
+
     html = sp.render(element=sp_join)
     assert "el--image--large" in html  # the child really rendered
-    assert f'data-preview-el="{el.pk}"' in html  # ImageElement pk ...
-    assert f'data-preview-el="{join.pk}"' not in html  # ... not the join pk
+    emitted = set(re.findall(r'data-preview-el="(\d+)"', html))
+    assert emitted == {str(el.pk)}  # the ImageElement pk, and nothing else
 
 
 def test_a_nested_image_join_row_is_not_a_seen_id():
