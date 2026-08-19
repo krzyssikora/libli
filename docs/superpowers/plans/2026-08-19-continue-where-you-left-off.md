@@ -27,6 +27,12 @@
 - **Every test is written failing-first and falsified** against the mutant named in its task. A test that cannot go RED does not ship. Where a task says a fixture detail is load-bearing, it is because the obvious fixture makes the test vacuous.
 - **`translation.override` must NOT be used** for client-render language tests — `core/middleware.py::SessionLocaleMiddleware.process_request` re-activates per request and discards it. Use `session["_language"] = "pl"; session.save()` plus `HTTP_ACCEPT_LANGUAGE="pl"`.
 - **Ties need `freeze_time`.** `updated_at`, `updated`, `last_attempt_at` and `completed_at` are all stamped Python-side; writes in one transaction differ by microseconds and produce no tie.
+- **Cite `courses/views.py` by FUNCTION, never by line number.** Task 6 inserts ~14 lines into
+  that file (an import, the `resume = (...)` block, and the context key), so any numeric
+  `views.py:NNN` written into `rollups.py` or a test docstring is wrong the moment this branch
+  lands — self-inflicted citation rot, on the very branch that writes it. `models.py`,
+  `rollups.py` and `seed_demo_course.py` citations are untouched by this change and may stay
+  numeric.
 - **Test DB:** the worktree `.env` already points `TEST_DATABASE_URL` at `libli_resume`. Start the test-DB container before any pytest run. Run pytest via `uv run`.
 - **Imports go at the TOP of the file, never beside the test that needs them.** Several tasks say
   "append to `tests/test_resume_target.py`" and show new imports — those imports must be **hoisted
@@ -226,7 +232,7 @@ def build_resume(course, user, tree):
     done, ts_d = None, None
 
     # STEP 3. Both names are already bound, so this runs correctly in every task.
-    # The ts comparison is ESSENTIAL: views.py:511 mints a UnitProgress row on EVERY
+    # The ts comparison is ESSENTIAL: views.py::build_lesson_context mints a UnitProgress row on EVERY
     # enrolled lesson GET, so without it one stray click a year ago pins the card to
     # that unit forever. >= (not >) keeps an in-flight unit winning a tie -- the
     # friendlier reading of "where you left off".
@@ -349,7 +355,7 @@ def test_in_flight_lesson_is_the_resume_target():
 @pytest.mark.django_db
 def test_answered_quiz_beats_a_later_opened_lesson():
     """SOURCE C EXISTS FOR THIS TEST. QuizSubmission.updated is auto_now and the
-    answer path (views.py:1614-1665) never saves the submission -- so B measures
+    answer path (views.py::quiz_answer) never saves the submission -- so B measures
     "opened", not "worked". Drop C and this student is resumed to the lesson they
     glanced at afterwards instead of the quiz they spent an hour on.
     """
@@ -544,7 +550,7 @@ Insert after `flight, ts_f = None, None` and before `done, ts_d = None, None`:
     # unit) unique constraint makes -unit_id pin the row; for C it pins the UNIT,
     # which is all the algorithm needs.
     #
-    # A -- lesson work. updated_at is auto_now: first open (views.py:511), every
+    # A -- lesson work. updated_at is auto_now: first open (views.py::build_lesson_context), every
     # `seen` batch, every practice-state write.
     # NOTE: completed=False here is DELIBERATE REDUNDANCY and is NOT falsifiable --
     # open_pks is derived from exactly this filter (build_outline's completed set,
@@ -559,7 +565,7 @@ Insert after `flight, ts_f = None, None` and before `done, ts_d = None, None`:
         .first()
     )
     # B -- WHEN THE QUIZ WAS OPENED, and nothing more. QuizSubmission.updated is
-    # auto_now (models.py:3008) and the answer path (views.py:1614-1665) saves the
+    # auto_now (models.py:3008) and the answer path (views.py::quiz_answer) saves the
     # QuestionResponse and creates an Attempt but NEVER saves the submission, so for
     # an IN_PROGRESS row updated == created in practice.
     # status=IN_PROGRESS here IS load-bearing and IS tested: closing a submission
@@ -691,7 +697,7 @@ def test_most_recent_unit_completed_advances_to_the_next_open_unit():
 @pytest.mark.django_db
 def test_stray_visit_does_not_pin_the_card_forever():
     """THE bug the ts_f >= ts_d comparison exists to stop. Opening unit 0 once
-    leaves a permanent completed=False row (views.py:511 get_or_create on every
+    leaves a permanent completed=False row (views.py::build_lesson_context get_or_create on every
     enrolled lesson GET). Without the comparison it outranks every completion
     made since and the card says "Pick up where you left off - unit 0" forever.
     """
@@ -732,7 +738,7 @@ def test_exact_tie_between_in_flight_and_completion_resumes():
 @pytest.mark.django_db
 def test_reseeing_a_finished_unit_does_not_rewind_the_anchor():
     """THE ONLY scenario that separates completed_at from updated_at. views.py::seen
-    calls progress.save() UNCONDITIONALLY (line 924), including for an already
+    calls progress.save() UNCONDITIONALLY, including for an already
     completed unit -- so re-reading unit 0 re-dates its updated_at while
     completed_at stays put. Anchor on updated_at and the mutant answers units[1].
 
@@ -894,7 +900,7 @@ control flow, only the query that makes step 4 reachable.
     # SOURCE D -- the completion anchor. completed_at, NEVER updated_at:
     # completed_at is stamped exactly once in UnitProgress.save() when `completed`
     # first flips and is never re-stamped, whereas views.py::seen calls
-    # progress.save() UNCONDITIONALLY on every batch (line 924) including for an
+    # progress.save() UNCONDITIONALLY on every batch including for an
     # already-completed unit -- so simply re-reading a finished unit re-dates
     # updated_at. Ordering on updated_at would rewind the student to just after
     # whichever old unit they last skimmed.
@@ -1642,15 +1648,16 @@ The card renders the target unit's *title* in `span.resume__title` above the tre
 `assert "<title>" in body` over the outline page is now satisfied by the card and would stay
 green even if `_outline_node.html` stopped rendering unit rows entirely. Two live cases:
 
-- `tests/test_courses_views.py:49` — `assert "Lesson A" in resp.content.decode()`. One enrolled
+- `tests/test_courses_views.py::test_outline_renders_for_enrolled` — `assert "Lesson A" in
+  resp.content.decode()`. One enrolled
   student, one lesson, so the card is `state="start"` on "Lesson A".
-- `tests/test_tags_outline.py:52` — `assert "Photosynthesis" in html` in
+- `tests/test_tags_outline.py::test_filter_hides_non_matching_unit` — `assert "Photosynthesis" in html` in
   `test_filter_hides_non_matching_unit`. u1 is `open[0]`, so that title is the card's.
   (The sibling `assert "Membranes" in html` on line 54 is unaffected — the card renders one
   title, and it is not that one.)
 
 Re-scope both to the outline row rather than the page. **`tests/test_courses_views.py` needs two
-edits, same as the chip site above**: its node is created unbound at line 45, so a scoped selector
+edits, same as the chip site above**: its node is created unbound at line 46, so a scoped selector
 has nothing to reference. (`tests/test_tags_outline.py` is fine — `u1` is already bound.) Neither
 file imports `bs4`; add it to each top-of-file import block per the Global Constraint on hoisting
 imports.
@@ -1659,18 +1666,19 @@ imports.
 # tests/test_courses_views.py -- top-of-file imports
 from bs4 import BeautifulSoup
 
-# line 45 -- add the binding
+# line 46 -- add the binding
 unit = ContentNodeFactory(
     course=course, kind="unit", unit_type="lesson", title="Lesson A"
 )
 
-# line 49 -- scope the assertion to the outline ROW, not the page
+# the assertion -- scope it to the outline ROW, not the page
+# (its line number shifts when the binding above is added; anchor on the assert)
 soup = BeautifulSoup(resp.content.decode(), "html.parser")
 row = soup.select_one(f'li[data-unit="{unit.pk}"] span.outline-unit__title')
 assert row is not None and "Lesson A" in row.get_text(strip=True)
 ```
 
-Apply the same shape to `tests/test_tags_outline.py:52`, scoping on `u1.pk`.
+Apply the same shape to `test_filter_hides_non_matching_unit`, scoping on `u1.pk`.
 
 Verify each re-scope is real: on the current build the assertion must still pass, and it must
 **fail** if you point the selector at a unit pk that is not in the outline — that is what proves it
@@ -1683,9 +1691,14 @@ assertions over the outline body, and run them:
 uv run pytest tests/test_unit_marker.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py tests/test_courses_views.py -v
 ```
 
-All must pass. Verify the re-scope is real, not cosmetic: temporarily point the selector at
-`a.resume .unit-kind-chip` and confirm the assertion still passes there too — that is what proves
-the original unscoped form was ambiguous.
+All must pass.
+
+For the **chip** assertion only, one extra probe proves the original form was genuinely
+ambiguous: temporarily point it at `a.resume .unit-kind-chip` and confirm `chip["lang"] == "en"`
+passes there too. Do **not** apply that probe to the two substring re-scopes — they assert
+`row is not None`, so pointing them at the chip yields `None` and fails, which would read as a
+broken re-scope. Their check is the per-site one above: point at a unit pk that is not in the
+outline and confirm the assertion fails.
 
 - [ ] **Step 8: Commit**
 
@@ -1850,8 +1863,10 @@ The comment currently says reset is safe partly because *"nothing reads updated_
         # hole is closed by get_node_or_404 above, not by this filter.
 ```
 
-The original clause is `courses/views.py` lines **761-766** — **six** lines — and the replacement is
-six. Count both before committing; a net +1 is exactly the citation rot this rule exists to prevent.
+The clause is the **six-line** comment paragraph Step 1's grep locates, and the replacement is also
+six. Count both before committing; a net +1 is exactly the citation rot this rule exists to
+prevent. (Do not go looking for it at a fixed line number — it is at 761-766 on master, but
+Task 6 has already inserted ~14 lines above it by the time this task runs.)
 
 - [ ] **Step 3: Add the behavioural test that the comment now describes**
 
