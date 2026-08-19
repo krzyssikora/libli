@@ -81,6 +81,7 @@ from courses.quiz import selected_ids
 from courses.rendering import unit_edit_context
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
+from courses.rollups import build_resume
 from courses.rollups import build_unit_nav
 from courses.rollups import tree_titles_have_math
 from courses.rollups import units_in_order
@@ -661,6 +662,18 @@ def course_outline(request, slug):
     base = reverse("courses:course_outline", kwargs={"slug": course.slug})
     # The whole outline is in the DOM, so scan the whole tree.
     has_math = tree_titles_have_math(outline)
+    # Enrolled-only: can_access_course also admits authors, teachers and staff
+    # previewing a course they are not taking, and a "Start the course" CTA would be
+    # noise for them. Mirrors the `seen` write route, which is enrolled-only by
+    # design. Runs AFTER outline_with_tags, but the target is deliberately
+    # INDEPENDENT of the active tag filter: outline_with_tags annotates without
+    # pruning, and the filter hides rows rather than restricting scope, so filtering
+    # to one tag must not change where "Continue" sends you.
+    resume = (
+        build_resume(course, request.user, outline)
+        if is_enrolled(request.user, course)
+        else None
+    )
     return render(
         request,
         "courses/outline.html",
@@ -673,6 +686,7 @@ def course_outline(request, slug):
                 base, course_tags, active_tag_ids
             ),
             "has_math": has_math,
+            "resume": resume,
         },
     )
 

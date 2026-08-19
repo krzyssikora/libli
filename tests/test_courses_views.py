@@ -326,3 +326,80 @@ def test_check_answer_nojs_rerender_includes_unit_nav(client):
     # Shell HTML assertions (C1 pin — no-JS re-render must include the shell).
     html = resp.content.decode()
     assert "unit-shell" in html and "unit-tree" in html and "unit-foot__row" in html
+
+
+@pytest.mark.django_db
+def test_outline_passes_a_resume_target_for_an_enrolled_student(client):
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "res1")
+    course = CourseFactory(slug="res-course")
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    EnrollmentFactory(student=user, course=course)
+    r = client.get(reverse("courses:course_outline", kwargs={"slug": "res-course"}))
+    assert r.status_code == 200
+    assert r.context["resume"]["node"].pk == unit.pk
+
+
+@pytest.mark.django_db
+def test_outline_offers_no_resume_target_to_a_non_enrolled_viewer(client):
+    """can_access_course also admits authors/teachers/staff previewing a course they
+    are not taking; a "Start the course" CTA would be noise for them. This is also
+    the guard that pins the WIRING -- calling build_resume unconditionally.
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "res2")
+    course = CourseFactory(slug="res-course-2", owner=user)
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    r = client.get(reverse("courses:course_outline", kwargs={"slug": "res-course-2"}))
+    assert r.status_code == 200
+    assert r.context["resume"] is None
+    # The context assertion alone would still pass if the template later grew a
+    # fallback card, and it never exercises the {% if resume %} guard. This test is
+    # what pins the WIRING (it replaces the abandoned view-level query test), so it
+    # must assert on the rendered DOM as well.
+    from bs4 import BeautifulSoup
+
+    assert BeautifulSoup(r.content, "html.parser").select_one("a.resume") is None
+
+
+@pytest.mark.django_db
+def test_tag_filter_does_not_move_the_resume_target(client):
+    """The target is computed independently of the active tag filter. Mutant:
+    filtering `leaves` on tag_hidden. The failure would be INVISIBLE -- the card
+    still renders, just pointing somewhere else.
+
+    Tag has `author` (not owner), NO course field at all (course scoping runs
+    through UnitTag -> ContentNode), and `color` must come from TAG_PALETTE
+    (teal/amber/indigo/rose/green/violet/slate/cyan -- "blue" is not a member).
+    Use the shipped factories rather than Tag.objects.create.
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import TagFactory
+    from tests.factories import UnitTagFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "tf")
+    course = CourseFactory(slug="tf")
+    target = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    other = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=1)
+    EnrollmentFactory(student=user, course=course)
+    tag = TagFactory(author=user, name="t", color="teal")
+    UnitTagFactory(tag=tag, unit=other)
+
+    r = client.get(
+        reverse("courses:course_outline", kwargs={"slug": "tf"}), {"tags": tag.pk}
+    )
+    # Guard the guard: course_outline drops any ?tags= pk not in course_tag_ids, so
+    # if the tag did not reach tags_for_outline the filter is silently inert and the
+    # test would pass for the wrong reason.
+    assert r.context["active_tag_ids"] == [tag.pk]
+    assert r.context["resume"]["node"].pk == target.pk
