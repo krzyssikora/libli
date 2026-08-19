@@ -458,3 +458,143 @@ def test_deep_link_survives_a_failing_storage_write(page, live_server):
         "tags.js dispatches count:0 on every unfiltered load that renders a filter "
         "bar; without the guard it slams the just-opened ancestors shut"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_label_tracks_a_single_summary_toggle(page, live_server):
+    """T14 — the R3 guard. Mutant: register the toggle listener without
+    capture:true. `toggle` does not bubble, so a plain delegated listener never
+    fires and the label silently stops updating.
+
+    T9 alone cannot catch this: an implementation that sets the label inline in
+    the button handler passes T9 with no toggle listener at all."""
+    f = _course_with_two_chapters("t14")
+    _login(page, live_server, "t14")
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
+
+    button = page.locator("[data-outline-toggle-all]")
+    button.click()  # expand all
+    expect(button).to_have_text("Collapse all")
+
+    # A single summary gesture, not the button, is what exercises the listener.
+    page.locator(_title_sel(f["chap_a"].pk)).click()
+    expect(button).to_have_text("Expand all")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_storage_partition_semantics(page, live_server):
+    """T15, four cases."""
+    from tests.factories import ContentNodeFactory
+
+    f = _course_with_two_chapters("t15")
+    # A second depth-0 root, holding a visible unit so pruning keeps it.
+    root_b = ContentNodeFactory(
+        course=f["course"], kind="part", unit_type=None, parent=None, title="Part Two"
+    )
+    ContentNodeFactory(
+        course=f["course"], kind="unit", unit_type="lesson", parent=root_b, title="P2U"
+    )
+    _login(page, live_server, "t15")
+    url = f"{live_server.url}/courses/{f['course'].slug}/"
+    key = f"libli_outline_open:{f['course'].slug}"
+
+    # (a) a deliberately collapsed depth-0 root stays collapsed.
+    # Mutant: union the stored set with the server default.
+    page.goto(url)
+    page.locator(_title_sel(f["part"].pk)).click()
+    _wait_for_write(page)  # the write is deferred; reloading before it races it
+    page.reload()
+    assert _is_open(page, f["part"].pk) is False
+
+    # (b) a group in NEITHER array is new since the last write: it falls back to
+    # its data-depth default rather than to "closed".
+    page.evaluate(
+        "([k, pk]) => localStorage.setItem(k, JSON.stringify("
+        "{v: 1, open: [], closed: [String(pk)]}))",
+        [key, f["part"].pk],
+    )
+    # Mutant: treat an id in neither array as closed.
+    page.reload()
+    assert _is_open(page, root_b.pk) is True, "omitted depth-0 root uses data-depth"
+
+    # (c) numeric ids must still apply. The seed CONTRADICTS the default (a
+    # depth-1 chapter stored open, default closed), or the case is vacuous.
+    # Mutant: drop String() on the read side only.
+    page.evaluate(
+        "([k, pk]) => localStorage.setItem(k, JSON.stringify("
+        "{v: 1, open: [Number(pk)], closed: []}))",
+        [key, f["chap_a"].pk],
+    )
+    page.reload()
+    assert _is_open(page, f["chap_a"].pk) is True, "numeric ids normalise via String()"
+
+    # (d) unparseable -> treat as absent, render the server default, never throw.
+    # Mutant: drop the try/catch around JSON.parse in read().
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.evaluate("k => localStorage.setItem(k, 'not json')", key)
+    page.reload()
+    assert _is_open(page, f["part"].pk) is True
+    assert errors == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_start_fresh_link_does_not_disturb_the_fold_state(page, live_server):
+    """T16. Fold first, so the baseline is a real non-empty partition — without
+    that, "before" and "after" are both None and the assertion compares absence
+    to absence.
+
+    The reset navigation is ABORTED by a route handler rather than followed. That
+    is what makes the mutant deterministic: §4.2's write is scheduled in
+    setTimeout(..., 0) and would otherwise race the browser committing the <a
+    href>, so a navigating version reddens only intermittently. With the
+    navigation blocked, the mutant (link back inside the <summary>) toggles the
+    group and schedules a write on the same page — both observable here.
+
+    MEASURED: route.abort() with the default error code ("failed", net::ERR_
+    FAILED) does not leave this page intact — Chromium commits a
+    chrome-error://chromewebdata/ document over the live DOM once the aborted
+    top-level navigation fails, and every assertion below throws on a null
+    querySelector, on BOTH builds. errorCode="aborted" (net::ERR_ABORTED) is the
+    one Chromium treats as a cancelled navigation rather than a failed load, so
+    it leaves the current document in place — this is what makes the technique
+    viable at all, not just deterministic.
+    """
+    f = _course_with_two_chapters("t16")
+    _login(page, live_server, "t16")
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
+
+    page.locator(_title_sel(f["chap_a"].pk)).click()
+    _wait_for_write(page)
+    before = _stored(page)
+    assert before is not None
+
+    page.route("**/reset/**", lambda route: route.abort("aborted"))
+    # NOT `> a.outline-node__reset`: under the mutant the link moves inside the
+    # <summary> and a direct-child locator would fail to resolve, reddening this
+    # test on T3's structural point instead of on the storage invariant it exists
+    # to prove.
+    link = page.locator(f"#node-{f['chap_a'].pk} a.outline-node__reset")
+    expect(link).to_be_visible()
+    link.click()
+
+    page.wait_for_timeout(200)  # let any scheduled write land before asserting
+    assert _is_open(page, f["chap_a"].pk) is True, "the group must not have toggled"
+    assert _stored(page) == before, "and nothing must have been persisted"
+    page.unroute("**/reset/**")
+
+    # The link really does navigate (the route abort is a test device, not the
+    # product behaviour). courses/urls.py registers progress_reset at
+    # courses/<slug>/reset/<node_pk>/ — there is no "progress/" segment.
+    reset_url = f"/courses/{f['course'].slug}/reset/{f['chap_a'].pk}/"
+    expect(link).to_have_attribute("href", re.compile(re.escape(reset_url)))
+
+    # Keyboard reachability. Collapse chapter A first: with the group OPEN the
+    # next tab stop after the summary is the unit link INSIDE the disclosure, not
+    # the sibling reset link — D9 puts that link after </details> in DOM order.
+    page.locator(_title_sel(f["chap_a"].pk)).click()
+    page.locator(f"[data-node='{f['chap_a'].pk}'] > summary").focus()
+    page.keyboard.press("Tab")
+    assert page.evaluate(
+        "() => document.activeElement.classList.contains('outline-node__reset')"
+    )
