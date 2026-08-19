@@ -14,6 +14,7 @@
     <a class="btn btn--ghost btn--small outline__notes" href="{% url 'notes:course_notes' slug=course.slug %}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h6"/></svg> {% trans "My notes" %}</a>
     <a class="btn btn--ghost btn--small outline__reset" href="{% url 'courses:progress_reset_course' slug=course.slug %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>
   </div>
+  {% if resume %}{% include "courses/_resume_card.html" with resume=resume course=course only %}{% endif %}
   {% include "courses/_tags_filter_bar.html" %}
   <nav class="outline-tree outline-tree--booting" data-course-slug="{{ course.slug }}"
        aria-label="{% trans 'Course outline' %}">

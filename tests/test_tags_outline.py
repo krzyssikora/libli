@@ -1,4 +1,5 @@
 import pytest
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
 from courses.models import Enrollment
@@ -49,7 +50,9 @@ def test_filter_hides_non_matching_unit(client):
     )
     html = resp.content.decode()
     # the matching unit's row is visible; the non-matching one carries hidden
-    assert "Photosynthesis" in html
+    soup = BeautifulSoup(html, "html.parser")
+    row = soup.select_one(f'li[data-unit="{u1.pk}"] span.outline-unit__title')
+    assert row is not None and "Photosynthesis" in row.get_text(strip=True)
     # crude check: the membranes row's <li> has the hidden attribute
     assert "Membranes" in html  # still in DOM (hidden, not omitted)
 

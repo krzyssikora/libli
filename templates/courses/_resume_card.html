@@ -1,0 +1,28 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}
+{% comment %}The outline's resume card. `courses_extras` is deliberately NOT loaded:
+this card uses no filter from it (unit_marker/marker_label are consumed inside
+_unit_kind_chip.html, which loads the library itself) and no author title lands in an
+attribute here, so strip_math_delimiters has no site. A future tooltip would need both.
+
+{% get_current_language %} is MANDATORY: django.template.context_processors.i18n is not
+in settings, so without it LANGUAGE_CODE resolves to "" and the eyebrow ships lang="" --
+valid HTML meaning "undetermined", so the failure is silent.
+
+lang is split the way _unit_crumbs.html splits it: the eyebrow is UI text and takes the
+UI language, while the title and crumbs are author content and keep the course language
+inherited from <section class="outline">.{% endcomment %}
+<a class="resume" href="{% if resume.node.unit_type == 'quiz' %}{% url 'courses:quiz_unit' slug=course.slug node_pk=resume.node.pk %}{% else %}{% url 'courses:lesson_unit' slug=course.slug node_pk=resume.node.pk %}{% endif %}">
+  <span class="resume__eyebrow" lang="{{ LANGUAGE_CODE }}">
+    {% if resume.state == "resume" %}{% trans "Pick up where you left off" %}
+    {% elif resume.state == "next" %}{% trans "Up next" %}
+    {% elif resume.state == "gap" %}{% trans "Still to do" %}
+    {% else %}{% trans "Start the course" %}{% endif %}
+  </span>
+  {% if resume.ancestors %}
+    <span class="resume__path">
+      {% for a in resume.ancestors %}{% if not forloop.first %}<span class="resume__sep" aria-hidden="true">›</span>{% endif %}<span class="resume__crumb" data-math-title>{{ a.title }}</span>{% endfor %}
+    </span>
+  {% endif %}
+  <span class="resume__title" data-math-title>{{ resume.node.title }}</span>
+  {% include "courses/_unit_kind_chip.html" with node=resume.node only %}
+</a>
