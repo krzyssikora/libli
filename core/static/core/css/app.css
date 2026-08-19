@@ -500,6 +500,29 @@ input[type=number] {
 .outline__title { margin: 0; }
 .outline__results { margin-left: auto; }
 
+/* Resume card: the one thing a returning student should be able to hit without
+   reading the tree. Ground it on --surface-raised and cut the border against THAT,
+   never against the page base. Width comes from .outline (max-width: 52rem). */
+.resume {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-4); margin-bottom: var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  text-decoration: none; color: inherit;
+}
+.resume__eyebrow {
+  flex-basis: 100%; font-size: .8125rem; font-weight: 600;
+  letter-spacing: .02em; text-transform: uppercase; color: var(--text-secondary);
+}
+.resume__path { font-size: .875rem; color: var(--text-secondary); }
+.resume__crumb { color: inherit; }  /* in the DOM contract; inherits __path's scale */
+.resume__sep { margin: 0 var(--space-1); }
+.resume__title { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); }
+.resume:hover { border-color: var(--border-strong); }
+.resume:hover .resume__title { text-decoration: underline; }
+.resume:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
 .outline-tree ul { list-style: none; margin: 0; padding: 0; }
 .outline-tree > ul > .outline-node { margin-bottom: var(--space-6); }
 /* nested levels get a hairline guide rule. Re-pointed, not doubled: the <ul>
