@@ -34,6 +34,7 @@ from courses.models import SpoilerElement
 from courses.models import Subject
 from courses.models import TableElement
 from courses.models import TextElement
+from courses.models import UnitProgress
 from courses.models import VideoElement
 from courses.quiz import finalize_submission
 from courses.scoring import earned_marks
@@ -326,24 +327,57 @@ class Command(BaseCommand):
             },
         )
 
+    def _complete_unit(self, student, unit):
+        """Record the unit completion that goes with a finalized submission.
+
+        finalize_submission() deliberately does not touch UnitProgress, so writing it
+        is the CALLER's half of the invariant "a SUBMITTED submission always has a
+        completed UnitProgress". Both production close paths do exactly this
+        (views.py::quiz_finish, review.py::force_submit_quiz); this command is the
+        only other caller, and skipping it left demo data in a state no production
+        path can produce.
+
+        Why it matters here: build_outline's `completed` flag derives solely from
+        UnitProgress.completed and knows nothing about QuizSubmission.status, so a
+        seeded submitted quiz with no progress row stays in the outline's `open` set
+        and build_resume can offer it under "Up next".
+
+        Guarded on `completed` like production so the seeder's idempotent re-runs
+        never re-stamp completed_at (UnitProgress.save() sets it once, on the
+        False -> True transition).
+        """
+        progress, _ = UnitProgress.objects.get_or_create(student=student, unit=unit)
+        if not progress.completed:
+            progress.completed = True
+            progress.save()
+
     def _graded_submission(self, quiz, student, short_answer, choice_answer):
-        submission, _ = QuizSubmission.objects.get_or_create(
+        # select_for_update: finalize_submission's docstring requires the caller to
+        # hold the row lock, and both production callers do (views.py::quiz_finish,
+        # review.py::force_submit_quiz). handle() is @transaction.atomic, so the
+        # whole seed run is the enclosing transaction the lock needs.
+        submission, _ = QuizSubmission.objects.select_for_update().get_or_create(
             student=student,
             unit=quiz,
             defaults={"status": QuizSubmission.Status.IN_PROGRESS},
         )
-        if submission.status == QuizSubmission.Status.SUBMITTED:
-            return  # already graded on a prior run — idempotent
-        self._respond(submission, self.q_short, short_answer)
-        correct_ids = set(
-            self.q_choice.content_object.choices.filter(is_correct=True).values_list(
-                "pk", flat=True
+        # Already graded on a prior run -> skip the answering/finalize work, but still
+        # fall through to _complete_unit: a course seeded before that write existed
+        # has no progress row, and only an unconditional write converges it.
+        if submission.status != QuizSubmission.Status.SUBMITTED:
+            self._respond(submission, self.q_short, short_answer)
+            correct_ids = set(
+                self.q_choice.content_object.choices.filter(
+                    is_correct=True
+                ).values_list("pk", flat=True)
             )
-        )
-        # choice_answer: "full" -> all correct, "partial" -> one correct only
-        picks = correct_ids if choice_answer == "full" else set(list(correct_ids)[:1])
-        self._respond(submission, self.q_choice, picks)
-        finalize_submission(quiz, submission)  # freezes score/max_score, SUBMITTED
+            # choice_answer: "full" -> all correct, "partial" -> one correct only
+            picks = (
+                correct_ids if choice_answer == "full" else set(list(correct_ids)[:1])
+            )
+            self._respond(submission, self.q_choice, picks)
+            finalize_submission(quiz, submission)  # freezes score/max_score, SUBMITTED
+        self._complete_unit(student, quiz)
 
     def _group(self, quiz):
         group, _ = Group.objects.get_or_create(name="Demo Group", course=self.course)
@@ -396,22 +430,25 @@ class Command(BaseCommand):
 
     def _review_flow(self, quiz, student):
         review_el = self._review_question(quiz)
-        submission, _ = QuizSubmission.objects.get_or_create(
+        # See _graded_submission for why the row is locked.
+        submission, _ = QuizSubmission.objects.select_for_update().get_or_create(
             student=student,
             unit=quiz,
             defaults={"status": QuizSubmission.Status.IN_PROGRESS},
         )
-        if submission.status == QuizSubmission.Status.SUBMITTED:
-            return  # already finalized on a prior run — idempotent
-        QuestionResponse.objects.get_or_create(
-            submission=submission,
-            element=review_el,
-            defaults={
-                "latest_answer": "Because the discriminant is positive.",
-                "attempt_count": 1,
-            },  # reviewed_at stays None -> lands in the review queue
-        )
-        finalize_submission(quiz, submission)
+        # See _graded_submission: the finalize work is skipped on a re-run, the
+        # _complete_unit write is not.
+        if submission.status != QuizSubmission.Status.SUBMITTED:
+            QuestionResponse.objects.get_or_create(
+                submission=submission,
+                element=review_el,
+                defaults={
+                    "latest_answer": "Because the discriminant is positive.",
+                    "attempt_count": 1,
+                },  # reviewed_at stays None -> lands in the review queue
+            )
+            finalize_submission(quiz, submission)
+        self._complete_unit(student, quiz)
 
     def _sso_config(self):
         save_sso_config(

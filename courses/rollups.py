@@ -1094,10 +1094,10 @@ def build_resume(course, user, tree):
     # auto_now (models.py:3008) and the answer path (views.py::quiz_answer) saves the
     # QuestionResponse and creates an Attempt but NEVER saves the submission, so for
     # an IN_PROGRESS row updated == created in practice.
-    # status=IN_PROGRESS here IS load-bearing and IS tested: closing a submission
-    # normally writes UnitProgress.completed, but seed_demo_course.py:346/414
-    # finalizes without any UnitProgress row, so a SUBMITTED submission's unit can
-    # still be in open_pks.
+    # status=IN_PROGRESS here IS load-bearing and IS tested: nothing else in this
+    # source excludes a SUBMITTED row, so dropping it would let a submitted quiz
+    # still sitting in open_pks become the resume target. Guarded by
+    # test_submitted_quiz_with_no_progress_row_is_not_the_target.
     b = (
         QuizSubmission.objects.filter(
             student=user,

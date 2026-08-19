@@ -188,9 +188,11 @@ def test_opened_but_unanswered_quiz_is_the_target():
 
 @pytest.mark.django_db
 def test_submitted_quiz_with_no_progress_row_is_not_the_target():
-    """THE seed_demo_course.py SHAPE. That command calls finalize_submission at
-    lines 346 and 414 and has ZERO UnitProgress references, so a SUBMITTED
-    submission whose unit is still in open_pks is a state this repo really ships.
+    """A SUBMITTED submission whose unit is still in open_pks must never be the
+    target. No path in this repo produces that state any more -- seed_demo_course
+    used to (it finalized without any UnitProgress row) and was fixed to write the
+    completion, so this is now a pure guard on source B's status=IN_PROGRESS
+    filter: drop that filter and this goes RED.
 
     The competing OLDER lesson is load-bearing: without it the correct build
     reaches step 5 and returns open[0] -- possibly the quiz itself -- so the
@@ -479,23 +481,34 @@ def test_in_flight_strictly_newer_than_a_real_completion_resumes():
 
 @pytest.mark.django_db
 def test_submitted_quiz_without_progress_can_surface_as_next():
-    """DOCUMENTS AN ACCEPTED LIMITATION, deliberately -- this is not a bug report.
+    """DECISION RECORD, deliberately -- this is not a bug report.
 
-    build_outline's `completed` flag derives solely from UnitProgress.completed
-    (rollups.py:244-250, leaf key at :265) and knows nothing about
-    QuizSubmission.status, so a SUBMITTED submission whose unit lacks a completed
-    UnitProgress row -- the seed_demo_course.py shape -- stays in `open` and can be
-    offered under "Up next".
+    build_outline's `completed` flag derives solely from UnitProgress.completed --
+    the `completed` pk set it builds, and the leaf key that set feeds -- and knows
+    nothing about QuizSubmission.status, so a SUBMITTED submission whose unit lacks
+    a completed UnitProgress row stays in `open` and can be offered under "Up next".
 
     The violated invariant is "a SUBMITTED submission always has a completed
-    UnitProgress", which every production path upholds and only the demo seeder
-    breaks. The repair belongs in the seeder, NOT in this card: adding a fifth query
-    to compensate for a fixture-only state was explicitly rejected. This test exists
-    so that decision is recorded and cannot evaporate silently.
+    UnitProgress". #259 recorded that seed_demo_course.py broke it -- it finalized
+    submissions with zero UnitProgress writes -- and that the repair belonged in the
+    seeder, NOT in this card: adding a fifth query to compensate was explicitly
+    rejected during spec review. THE SEEDER HAS SINCE BEEN FIXED
+    (Command._complete_unit, called from both _graded_submission and _review_flow),
+    so no path in this repo now produces the state below; it is constructed here by
+    hand.
 
-    EXEMPT FROM FALSIFICATION, like the query-budget guards: its only "mutant" is a
-    design change this spec explicitly rejected (adding a fifth query to exclude
-    submitted quizzes from `open`). Do not hunt for one.
+    Kept rather than deleted or inverted, on purpose:
+      * DELETING it would let the rejected fifth query be added later with nothing
+        going RED -- this is the only test pinning build_resume's non-compensation,
+        and it does not depend on the seeder to set the state up.
+      * INVERTING it (asserting the quiz is NOT offered) would require exactly the
+        fifth query that was rejected, i.e. implementing the rejected design.
+    Its role has changed from "documents a shipped limitation" to "guards a design
+    decision": if this ever goes RED, someone has added the compensation, and that
+    is a decision to re-take consciously rather than a bug to fix here.
+
+    EXEMPT FROM FALSIFICATION, like the query-budget guards: its only "mutant" is
+    that same rejected design change. Do not hunt for one.
     """
     course = CourseFactory()
     lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)

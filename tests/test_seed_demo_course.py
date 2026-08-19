@@ -240,3 +240,69 @@ def test_seed_is_idempotent_second_run():
     assert WebhookDelivery.objects.filter(dedupe_key="demo-1").count() == 1
     assert Invitation.objects.filter(email="invitee@demo.example").count() == 1
     assert get_user_model().objects.filter(username="demo_admin").count() == 1
+
+
+@pytest.mark.django_db
+def test_seed_submitted_quizzes_have_completed_progress():
+    """The invariant "a SUBMITTED submission always has a completed UnitProgress".
+
+    Every production close path upholds it by pairing finalize_submission() with a
+    completed UnitProgress write (views.py::quiz_finish, review.py::force_submit_quiz);
+    finalize_submission itself deliberately does not touch UnitProgress, so it is the
+    CALLER's contract. The seeder is the only caller, so this covers both of its
+    finalize sites: _graded_submission (three group students on "Demo quiz") and
+    _review_flow (demo_student on "Practice quiz").
+
+    Without it, build_outline's `completed` flag -- which derives solely from
+    UnitProgress.completed -- leaves a seeded submitted quiz in `open`, and the
+    outline's resume card can offer it under "Up next".
+    """
+    from courses.models import QuizSubmission
+    from courses.models import UnitProgress
+
+    call_command("seed_demo_course")
+
+    submitted = list(
+        QuizSubmission.objects.filter(
+            status=QuizSubmission.Status.SUBMITTED
+        ).values_list("student_id", "unit_id")
+    )
+    # Guard the guard: if the seeder ever stops finalizing, an empty set would make
+    # the loop below vacuously pass.
+    assert len(submitted) == 4, f"expected 4 seeded submissions, got {len(submitted)}"
+
+    completed = set(
+        UnitProgress.objects.filter(completed=True).values_list("student_id", "unit_id")
+    )
+    missing = [pair for pair in submitted if pair not in completed]
+    assert not missing, f"SUBMITTED rows with no completed UnitProgress: {missing}"
+
+
+@pytest.mark.django_db
+def test_seed_repairs_progress_missing_from_an_earlier_seed():
+    """A DB seeded before the invariant was enforced must converge on a re-run.
+
+    Both seeder finalize sites early-return when the submission is already SUBMITTED,
+    so a progress write placed only on the finalize branch would never reach a course
+    seeded by the old code. Deleting the rows reproduces that pre-existing DB; the
+    re-run must restore them.
+    """
+    from courses.models import QuizSubmission
+    from courses.models import UnitProgress
+
+    call_command("seed_demo_course")
+    UnitProgress.objects.all().delete()
+
+    call_command("seed_demo_course")  # rerun must repair, not skip
+
+    submitted = list(
+        QuizSubmission.objects.filter(
+            status=QuizSubmission.Status.SUBMITTED
+        ).values_list("student_id", "unit_id")
+    )
+    assert len(submitted) == 4
+    completed = set(
+        UnitProgress.objects.filter(completed=True).values_list("student_id", "unit_id")
+    )
+    missing = [pair for pair in submitted if pair not in completed]
+    assert not missing, f"rerun left submissions without progress: {missing}"
