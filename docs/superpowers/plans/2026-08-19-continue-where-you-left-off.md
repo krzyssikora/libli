@@ -30,8 +30,9 @@
 - **Test DB:** the worktree `.env` already points `TEST_DATABASE_URL` at `libli_resume`. Start the test-DB container before any pytest run. Run pytest via `uv run`.
 - **Imports go at the TOP of the file, never beside the test that needs them.** Several tasks say
   "append to `tests/test_resume_target.py`" and show new imports — those imports must be **hoisted
-  into the single top-of-file block**, sorted, one per line. `pyproject.toml` selects `E`, `F`, `I`
-  with `force-single-line = true`, so an import sitting after a function definition fails Task 11's
+  into the single top-of-file block**, sorted, one per line. `pyproject.toml` selects `["E", "F", "I", "UP", "B", "S"]`
+  (ignoring `S101`, with `S105`/`S106`/`S107` per-file-ignored under `tests/**`) and sets
+  `force-single-line = true`, so an import sitting after a function definition fails Task 11's
   `ruff check` with E402 **and** I001. The same applies to the `from tests.factories import ...`
   lines shown inside the `tests/test_courses_views.py` tests: match that file's existing convention
   rather than the illustrative inline form. Ruff is not run until Task 11, so these accumulate
@@ -182,7 +183,16 @@ Expected: FAIL — `ImportError: cannot import name 'build_resume' from 'courses
 
 - [ ] **Step 3: Write the minimal implementation**
 
-Append to `courses/rollups.py`, after `build_unit_nav`:
+Append to `courses/rollups.py`, after `build_unit_nav`.
+
+**Executor notes — these belong to the plan, NOT to the source file.** Do not paste them as
+comments; `rollups.py` must not ship referring to "Task 2" or "Task 11".
+
+- Task 2 inserts its query block immediately **below** the `flight, ts_f = None, None` line;
+  Task 3 immediately **below** the `done, ts_d = None, None` line. Leave both lines in place.
+- `open_pks` and `leaf_pks` are unused until Tasks 2-3, so ruff would flag F841 if run now. That
+  is why lint is deferred to Task 11. Do not delete them — and note the warning is gone by the
+  end of the change, since both become used.
 
 ```python
 def build_resume(course, user, tree):
@@ -209,15 +219,11 @@ def build_resume(course, user, tree):
     open_pks = [d["node"].pk for d in open_leaves]
     leaf_pks = [d["node"].pk for d in leaves]
 
-    # Task 2 inserts its block immediately below the `flight` line; Task 3 immediately
-    # below the `done` line. Leave BOTH initialisation lines in place. The initialisations are load-bearing:
-    # both names are read unconditionally by steps 3 and 4 below, so a task that
-    # replaces (rather than extends) either line makes build_resume raise
-    # UnboundLocalError on every cold path.
-    # (`open_pks` and `leaf_pks` are unused until Tasks 2-3; ruff would flag F841 if
-    # run now, which is why lint is deferred to Task 11. Do not delete them.)
-    flight, ts_f = None, None  # Task 2 assigns these (sources A/B/C)
-    done, ts_d = None, None  # Task 3 assigns these (source D)
+    # Both names are read unconditionally by steps 3 and 4 below, so any edit that
+    # REPLACES rather than extends either line raises UnboundLocalError on every
+    # cold path.
+    flight, ts_f = None, None
+    done, ts_d = None, None
 
     # STEP 3. Both names are already bound, so this runs correctly in every task.
     # The ts comparison is ESSENTIAL: views.py:511 mints a UnitProgress row on EVERY
@@ -874,8 +880,10 @@ and `test_finished_the_last_unit_wraps_back_to_the_earliest_gap`.
 The others PASS on the Task-2 build and that is CORRECT, not a broken task: `test_exact_tie...`
 already returns `resume` via step 3 with `done is None`; `test_all_units_completed_returns_none` and
 `test_completed_quiz_that_is_the_last_open_unit_yields_none` are step-1 cases; `test_additional_lesson...`
-and `test_submitted_quiz_without_progress_can_surface_as_next` reach step 5. They are **guards**, and
-their value is proven by the Step-5 falsification, not by failing first.
+and `test_submitted_quiz_without_progress_can_surface_as_next` reach step 5; and
+`test_in_flight_strictly_newer_than_a_real_completion_resumes` returns `resume` via step 3 with
+`done is None`. That is **six** green. They are **guards**, and their value is proven by the
+Step-5 falsification, not by failing first.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -925,6 +933,8 @@ Expected: **22** passed (12 + this task's 10).
 3. Restore; drop the `done is None or ts_f >= ts_d` condition entirely (i.e. `if flight is not None:`). Expected: `test_stray_visit_does_not_pin_the_card_forever` FAILS.
 4. Restore; replace the `gap` return with `return None`. Expected: `test_finished_the_last_unit_wraps_back_to_the_earliest_gap` FAILS.
 5. Restore; delete step 1's `if not open_leaves: return None`. Expected: `test_all_units_completed_returns_none` and `test_no_visible_units_returns_none` FAIL with `IndexError`.
+6. Restore; **reverse the step-3 comparison** to `done is None or ts_d >= ts_f`. Expected: `test_in_flight_strictly_newer_than_a_real_completion_resumes` FAILS. This is the mutant that test exists for — none of mutants 1-5 can kill it (2 and 3 leave it green, because its timestamps are strictly ordered), so without this step it ships unfalsified, violating the Global Constraint.
+7. Restore; **narrow step 3** to `if flight is not None and done is None:`. Expected: the same test FAILS again, returning `next`/`units[1]`.
 
 Restore each by hand; re-run to green.
 
@@ -1051,7 +1061,16 @@ falsification, not by failing first.
 
 - [ ] **Step 3: Write the implementation**
 
-Replace each of the five `"ancestors": []` literals with a single helper call. Add this just before the first `return` that yields a node:
+Replace each of the five `"ancestors": []` literals with a single helper call.
+
+**Anchor, stated the way Tasks 2 and 3 state theirs:** define `_with_ancestors` at **function-body
+indent (4 spaces)**, immediately **after** Task 3's `if d_row is not None: done, ts_d = d_row`
+block and immediately **before** the `# STEP 3` comment.
+
+Do **not** put it "just before the first return that yields a node" — that return is nested inside
+the step-3 `if`, so defining the helper there lands it at 8-space indent inside that branch and the
+four later call sites (`next`, `gap`, step-5 `next`, step-6 `start`) raise `UnboundLocalError`. No
+later edit may move it inside a branch.
 
 ```python
     def _with_ancestors(node, state):
@@ -1077,7 +1096,7 @@ Expected: **25** passed (22 + this task's 3).
 
 - [ ] **Step 5: Falsify**
 
-1. Change `_with_ancestors` to append the node itself (`_current_ancestors(tree) + [node]`). Expected: `test_ancestors_are_the_root_to_parent_chain_excluding_the_unit` FAILS.
+1. Change `_with_ancestors` to append the node itself (`_current_ancestors(tree) + [node]`). Expected: **both** `test_ancestors_are_the_root_to_parent_chain_excluding_the_unit` **and** `test_root_level_unit_has_no_ancestors` FAIL — the latter returns `[unit]` instead of `[]`. This is the mutant that earns the root-level test its place, since it cannot fail first.
 2. Restore; **temporarily** add `{% if item.contains_current %} open{% endif %}` to the `<details class="outline-node__group"` tag in `templates/courses/_outline_node.html`. Expected: `test_stamping_the_tree_does_not_change_the_outline_html` FAILS. Remove it by hand.
 
 - [ ] **Step 6: Commit**
@@ -1173,7 +1192,12 @@ Expected: PASS. If any fails, the count is genuinely wrong — fix `build_resume
 
    ```python
    _row = (
-       QuestionResponse.objects.filter(...)
+       QuestionResponse.objects.filter(
+           submission__student=user,
+           submission__unit_id__in=open_pks,
+           submission__status=QuizSubmission.Status.IN_PROGRESS,
+           last_attempt_at__isnull=False,
+       )
        .order_by("-last_attempt_at", "-submission__unit_id")
        .first()
    )
@@ -1572,10 +1596,49 @@ Expected: all pass.
 
 Restore each by hand.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Re-scope the outline assertions the card now shadows**
+
+The card injects a second `.unit-kind-chip`, a second `<a>`, and two more `[data-math-title]`
+elements **ahead of** every existing outline selector in the DOM, so any unscoped `select_one`
+on the outline page now hits the card first.
+
+`tests/test_unit_marker.py:195` is the live case:
+
+```python
+chip = _outline_soup(client, course).select_one(".unit-kind-chip")
+assert chip["lang"] == "en"
+```
+
+Its fixture is exactly one enrolled student and one quiz unit, so `build_resume` targets that
+quiz (`state == "start"`) and the card's chip precedes the outline row's. The assertion **still
+passes** — the card's chip also emits `lang="{{ LANGUAGE_CODE }}"` — so the test goes green while
+no longer asserting anything about the outline row it exists to guard. **No per-task review can
+see this, because the diff touches no test file.**
+
+Re-scope it:
+
+```python
+chip = _outline_soup(client, course).select_one(
+    f"li#node-{quiz.pk} a.outline-unit .unit-kind-chip"
+)
+```
+
+(`test_unit_marker.py:173` is already scoped as `li#node-{quiz.pk} a.outline-unit` — leave it.)
+
+Then sweep the other outline-rendering suites for unscoped selectors and run them:
 
 ```bash
-git add templates/courses/_resume_card.html templates/courses/outline.html tests/test_courses_views.py tests/test_title_math_markers.py
+uv run pytest tests/test_unit_marker.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py -v
+```
+
+All must pass. Verify the re-scope is real, not cosmetic: temporarily point the selector at
+`a.resume .unit-kind-chip` and confirm the assertion still passes there too — that is what proves
+the original unscoped form was ambiguous.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add templates/courses/_resume_card.html templates/courses/outline.html tests/test_courses_views.py tests/test_title_math_markers.py tests/test_unit_marker.py
 git commit -m "feat(resume): the card partial, its include, and render coverage"
 ```
 
@@ -1609,6 +1672,7 @@ Insert after `.outline__results { margin-left: auto; }`:
   letter-spacing: .02em; text-transform: uppercase; color: var(--text-secondary);
 }
 .resume__path { font-size: .875rem; color: var(--text-secondary); }
+.resume__crumb { color: inherit; }  /* in the DOM contract; inherits __path's scale */
 .resume__sep { margin: 0 var(--space-1); }
 .resume__title { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); }
 .resume:hover { border-color: var(--border-strong); }
@@ -1616,8 +1680,10 @@ Insert after `.outline__results { margin-left: auto; }`:
 .resume:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 ```
 
-`var(--primary)` for the focus ring is not a free choice — it is what all nine existing
-`:focus-visible` rules in `app.css` use (606, 1037, 1069, 1177, 1270, 1306, 1405, 1454, 1739).
+`var(--primary)` for the focus ring is not a free choice — it is what every `:focus-visible` rule
+in `app.css` that paints a ring uses (606, 1037, 1069, 1177, 1270, 1306, 1405, 1454, 1707, 1739).
+The only exceptions are the two destructive-control rings at 1594 and 1627, which use
+`var(--danger)`, and two link rules (361, 401) that paint no outline at all.
 There is **no** `--focus-ring` token in this repo, and an unresolvable `var()` invalidates the
 whole `outline` shorthand, shipping the card with no ring at all.
 
@@ -1763,10 +1829,21 @@ def test_start_fresh_does_not_move_the_resume_target(client):
     UnitProgressFactory(student=user, unit=units[6])
     _backdate_progress(units[6], user, timezone.now() - timedelta(days=90))
 
+    # Guard the guard: a POST that 302s to login or 403s would leave the correct
+    # build passing and the Step-4 mutant "not firing", sending you to debug the
+    # mutant instead of the fixture. Prove the reset actually wrote.
+    row = UnitProgress.objects.get(student=user, unit=units[6])
+    row.element_state = {"1": {"open": True}}
+    row.save()
+    _backdate_progress(units[6], user, timezone.now() - timedelta(days=90))
+
     before = _resume(course, user)
     assert before["state"] == "next" and before["node"].pk == units[5].pk
 
-    client.post(reverse("courses:progress_reset_course", kwargs={"slug": "sf"}))
+    resp = client.post(reverse("courses:progress_reset_course", kwargs={"slug": "sf"}))
+    assert resp.status_code == 302
+    row.refresh_from_db()
+    assert row.element_state == {}
 
     after = _resume(course, user)
     assert after["state"] == "next"
@@ -1821,8 +1898,11 @@ uv run python manage.py check
 - [ ] **Step 3: Targeted suite**
 
 ```bash
-uv run pytest tests/test_resume_target.py tests/test_courses_views.py tests/test_title_math_markers.py tests/test_courses_progress.py -v
+uv run pytest tests/test_resume_target.py tests/test_courses_views.py tests/test_title_math_markers.py tests/test_courses_progress.py tests/test_unit_marker.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py courses/tests/test_progress_reset.py -v
 ```
+
+The outline-rendering suites are in this list because the card inserts a new element at the top
+of `.outline`; `courses/tests/test_progress_reset.py` because Task 10 edits `progress_reset`.
 
 - [ ] **Step 4: Courses non-e2e sweep**
 
