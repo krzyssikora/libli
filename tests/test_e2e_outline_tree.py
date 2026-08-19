@@ -641,3 +641,139 @@ def test_start_fresh_link_does_not_disturb_the_fold_state(page, live_server):
     assert page.evaluate(
         "() => document.activeElement.classList.contains('outline-node__reset')"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_nested_type_scale_and_guide_rule_survive_the_details_nesting(
+    page, live_server
+):
+    """T17 — the R6 guard. Both halves are pure-CSS regressions that leave a
+    correct DOM and a worse page, with nothing red.
+
+    Mutants, applied separately: (1) omit the `> .outline-node__group >`
+    type-scale twins; (2) leave `.outline-node > ul` un-re-pointed.
+    """
+    from tests.factories import ContentNodeFactory
+
+    f = _course_with_two_chapters("t17")
+    section = ContentNodeFactory(
+        course=f["course"],
+        kind="section",
+        unit_type=None,
+        parent=f["chap_a"],
+        title="A Section",
+    )
+    ContentNodeFactory(
+        course=f["course"], kind="unit", unit_type="lesson", parent=section, title="SU"
+    )
+    _login(page, live_server, "t17")
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
+    page.locator("[data-outline-toggle-all]").click()  # expand all
+
+    chapter_size = page.evaluate(
+        "pk => getComputedStyle(document.querySelector("
+        "`[data-node='${pk}'] > summary .outline-node__title`)).fontSize",
+        str(f["chap_a"].pk),
+    )
+    assert chapter_size == "17.6px", "1.1rem — the nested chapter type scale"
+
+    section_style = page.evaluate(
+        "pk => { const el = document.querySelector("
+        "  `[data-node='${pk}'] > summary .outline-node__title`);"
+        "  const s = getComputedStyle(el);"
+        "  return {size: s.fontSize, transform: s.textTransform}; }",
+        str(section.pk),
+    )
+    assert section_style["size"] == "12px", ".75rem — the section micro-type"
+    assert section_style["transform"] == "uppercase"
+
+    guide = page.evaluate(
+        "pk => { const ul = document.querySelector(`[data-node='${pk}'] > ul`);"
+        "  const s = getComputedStyle(ul);"
+        "  return {border: s.borderLeftWidth, pad: s.paddingLeft}; }",
+        str(f["chap_a"].pk),
+    )
+    assert guide["border"] == "1px", "the nested hairline guide rule still applies"
+    assert guide["pad"] != "0px"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_toggle_all_stays_hidden_when_there_are_no_groups(page, live_server):
+    """T18. "Every group is open" is vacuously true on a container-free course, so
+    an un-hidden button would read Collapse all and do nothing.
+
+    Mutant: drop the `&& groups.length` guard from init step 2 so the button is
+    un-hidden unconditionally."""
+    from courses.models import Enrollment
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_verified_user(
+        username="t18", email="t18@test.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(title="Flat")
+    Enrollment.objects.create(student=user, course=course)
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Only"
+    )
+    _login(page, live_server, "t18")
+    page.goto(f"{live_server.url}/courses/{course.slug}/")
+
+    button = page.locator("[data-outline-toggle-all]")
+    # to_be_hidden() is satisfied by ZERO matching elements, so a build that
+    # stopped rendering the button entirely would pass without this count check.
+    expect(button).to_have_count(1)
+    expect(button).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_folding_and_filtering_work_with_js_off(browser, live_server):
+    """T19 — guards D3 and D8 together.
+
+    The outline view is @login_required, so a bare
+    new_context(java_script_enabled=False) lands on the login page and the
+    assertions pass or fail for the wrong reason. Follow the existing precedent
+    in tests/test_e2e_before_after.py: log in with JS on, capture storage_state,
+    then open the no-JS context with it.
+
+    Every state read here uses _has_open_attr, NOT _is_open — as a choice, not a
+    constraint: page.evaluate DOES still work with java_script_enabled=False
+    (Playwright's injected script runs in a utility world), but an attribute read
+    is the honest probe here. It reads what the browser itself updated, so the
+    assertion cannot be satisfied by anything outline_tree.js did.
+
+    Two mutants: emit a bare `open` in the template (the default half reddens);
+    drop the D8 `or active_tag_ids and not item.tag_hidden` arm (the filtered
+    half reddens).
+    """
+    f = _course_with_two_chapters("t19")
+    tag = _tag_a_unit(f["user"], f["unit_b"])
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "t19")
+    # _login's submit click does not await the navigation, and storage_state()
+    # does not serialise against it — every other test happens to, via its next
+    # goto(). Without this the no-JS context can start cookie-less and land on
+    # the login page, failing for the wrong reason, intermittently.
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
+    storage_state = ctx.storage_state()
+    ctx.close()
+
+    nojs = browser.new_context(java_script_enabled=False, storage_state=storage_state)
+    page = nojs.new_page()
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
+
+    assert _has_open_attr(page, f["part"].pk) is True
+    assert _has_open_attr(page, f["chap_a"].pk) is False
+
+    # Native <details> still folds with no JS at all.
+    page.locator(f"[data-node='{f['chap_a'].pk}'] > summary").click()
+    assert _has_open_attr(page, f["chap_a"].pk) is True
+
+    # D8: the server opens the ancestors of a match, so a no-JS filtered outline
+    # is not empty.
+    page.goto(f"{live_server.url}/courses/{f['course'].slug}/?tags={tag.pk}")
+    assert _has_open_attr(page, f["chap_b"].pk) is True
+    expect(page.locator(f"#node-{f['unit_b'].pk}")).to_be_visible()
+    nojs.close()
