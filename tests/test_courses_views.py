@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
 from courses.models import Element
@@ -43,10 +44,14 @@ def test_outline_renders_for_enrolled(client):
     user = make_login(client, "stu2")
     course = CourseFactory(slug="c2")
     EnrollmentFactory(student=user, course=course)
-    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", title="Lesson A")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", title="Lesson A"
+    )
     resp = client.get(reverse("courses:course_outline", kwargs={"slug": "c2"}))
     assert resp.status_code == 200
-    assert "Lesson A" in resp.content.decode()
+    soup = BeautifulSoup(resp.content.decode(), "html.parser")
+    row = soup.select_one(f'li[data-unit="{unit.pk}"] span.outline-unit__title')
+    assert row is not None and "Lesson A" in row.get_text(strip=True)
 
 
 @pytest.mark.django_db
@@ -326,3 +331,219 @@ def test_check_answer_nojs_rerender_includes_unit_nav(client):
     # Shell HTML assertions (C1 pin — no-JS re-render must include the shell).
     html = resp.content.decode()
     assert "unit-shell" in html and "unit-tree" in html and "unit-foot__row" in html
+
+
+@pytest.mark.django_db
+def test_outline_passes_a_resume_target_for_an_enrolled_student(client):
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "res1")
+    course = CourseFactory(slug="res-course")
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    EnrollmentFactory(student=user, course=course)
+    r = client.get(reverse("courses:course_outline", kwargs={"slug": "res-course"}))
+    assert r.status_code == 200
+    assert r.context["resume"]["node"].pk == unit.pk
+
+
+@pytest.mark.django_db
+def test_outline_offers_no_resume_target_to_a_non_enrolled_viewer(client):
+    """can_access_course also admits authors/teachers/staff previewing a course they
+    are not taking; a "Start the course" CTA would be noise for them. This is also
+    the guard that pins the WIRING -- calling build_resume unconditionally.
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "res2")
+    course = CourseFactory(slug="res-course-2", owner=user)
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    r = client.get(reverse("courses:course_outline", kwargs={"slug": "res-course-2"}))
+    assert r.status_code == 200
+    assert r.context["resume"] is None
+    # The context assertion alone would still pass if the template later grew a
+    # fallback card, and it never exercises the {% if resume %} guard. This test is
+    # what pins the WIRING (it replaces the abandoned view-level query test), so it
+    # must assert on the rendered DOM as well.
+    from bs4 import BeautifulSoup
+
+    assert BeautifulSoup(r.content, "html.parser").select_one("a.resume") is None
+
+
+@pytest.mark.django_db
+def test_tag_filter_does_not_move_the_resume_target(client):
+    """The target is computed independently of the active tag filter. Mutant:
+    filtering `leaves` on tag_hidden. The failure would be INVISIBLE -- the card
+    still renders, just pointing somewhere else.
+
+    Tag has `author` (not owner), NO course field at all (course scoping runs
+    through UnitTag -> ContentNode), and `color` must come from TAG_PALETTE
+    (teal/amber/indigo/rose/green/violet/slate/cyan -- "blue" is not a member).
+    Use the shipped factories rather than Tag.objects.create.
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import TagFactory
+    from tests.factories import UnitTagFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "tf")
+    course = CourseFactory(slug="tf")
+    target = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    other = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=1)
+    EnrollmentFactory(student=user, course=course)
+    tag = TagFactory(author=user, name="t", color="teal")
+    UnitTagFactory(tag=tag, unit=other)
+
+    r = client.get(
+        reverse("courses:course_outline", kwargs={"slug": "tf"}), {"tags": tag.pk}
+    )
+    # Guard the guard: course_outline drops any ?tags= pk not in course_tag_ids, so
+    # if the tag did not reach tags_for_outline the filter is silently inert and the
+    # test would pass for the wrong reason.
+    assert r.context["active_tag_ids"] == [tag.pk]
+    assert r.context["resume"]["node"].pk == target.pk
+
+
+def _resume_soup(client, slug):
+    from bs4 import BeautifulSoup
+
+    r = client.get(reverse("courses:course_outline", kwargs={"slug": slug}))
+    return BeautifulSoup(r.content, "html.parser").select_one("a.resume")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "state,expected",
+    [
+        ("resume", "Pick up where you left off"),
+        ("next", "Up next"),
+        ("gap", "Still to do"),
+        ("start", "Start the course"),
+    ],
+)
+def test_each_state_renders_its_own_eyebrow(client, state, expected, monkeypatch):
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, f"eb-{state}")
+    course = CourseFactory(slug=f"eb-{state}")
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    EnrollmentFactory(student=user, course=course)
+    monkeypatch.setattr(
+        "courses.views.build_resume",
+        lambda c, u, t: {"node": unit, "state": state, "ancestors": []},
+    )
+    card = _resume_soup(client, f"eb-{state}")
+    assert card.select_one("span.resume__eyebrow").get_text(strip=True) == expected
+
+
+@pytest.mark.django_db
+def test_card_links_to_quiz_unit_for_a_quiz_target(client):
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "lq")
+    course = CourseFactory(slug="lq")
+    quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=0)
+    EnrollmentFactory(student=user, course=course)
+    card = _resume_soup(client, "lq")
+    assert card["href"] == reverse(
+        "courses:quiz_unit", kwargs={"slug": "lq", "node_pk": quiz.pk}
+    )
+
+
+@pytest.mark.django_db
+def test_card_links_to_lesson_unit_for_a_lesson_target(client):
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "ll")
+    course = CourseFactory(slug="ll")
+    lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    EnrollmentFactory(student=user, course=course)
+    card = _resume_soup(client, "ll")
+    assert card["href"] == reverse(
+        "courses:lesson_unit", kwargs={"slug": "ll", "node_pk": lesson.pk}
+    )
+
+
+@pytest.mark.django_db
+def test_eyebrow_carries_the_active_ui_language(client):
+    """MUST use the session pattern, NOT translation.override: SessionLocaleMiddleware
+    calls translation.activate() on every request and discards an outer override, so
+    an override test would render lang="en" and go RED on a CORRECT build. Precedents:
+    tests/test_i18n_catalog.py, tests/test_editor_count_i18n.py.
+
+    Read lang off the eyebrow, never off the page -- outline.html already emits
+    lang="{{ course.language }}" on <section class="outline">.
+    Mutant: dropping {% get_current_language %}, which yields lang="".
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "lang1")
+    course = CourseFactory(slug="lang1", language="en")
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    EnrollmentFactory(student=user, course=course)
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    r = client.get(
+        reverse("courses:course_outline", kwargs={"slug": "lang1"}),
+        HTTP_ACCEPT_LANGUAGE="pl",
+    )
+    from bs4 import BeautifulSoup
+
+    card = BeautifulSoup(r.content, "html.parser").select_one("a.resume")
+    assert card.select_one("span.resume__eyebrow")["lang"] == "pl"
+
+
+@pytest.mark.django_db
+def test_resume_card_renders_its_path_separator_and_affordance(client):
+    """The DOM contract's decorative members were previously assert-free: deleting the
+    `›` separator, the `.resume__path` wrapper, or the chevron left the whole suite
+    green. The chevron in particular is the card's ONLY click affordance -- without it
+    the card reads as a passive info panel rather than the page's primary control.
+
+    Needs a nested unit so `ancestors` is non-empty; a root-level unit omits the path
+    entirely by design.
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "rcard")
+    course = CourseFactory(slug="rcard")
+    part = ContentNodeFactory(course=course, kind="part", unit_type=None, order=0)
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, order=0
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter, order=0
+    )
+    EnrollmentFactory(student=user, course=course)
+
+    card = _resume_soup(client, "rcard")
+    assert card.select_one("span.resume__path") is not None
+    # Two ancestors => exactly one separator between them.
+    seps = card.select("span.resume__sep")
+    assert len(seps) == 1
+    assert seps[0].get("aria-hidden") == "true"
+    arrow = card.select_one("svg.resume__arrow")
+    assert arrow is not None
+    assert arrow.get("aria-hidden") == "true"

@@ -1036,3 +1036,185 @@ def build_unit_nav(course, user, current_node, *, drafts="hide", with_data=None)
         "ancestors": ancestors,
         "hidden_path": HIDDEN_PATH_SEP.join(a.title for a in ancestors[:-1]),
     }
+
+
+def build_resume(course, user, tree):
+    """The outline resume card's target, or None when there is nothing to resume.
+
+    Consumes the caller's ALREADY-BUILT build_outline tree -- never rebuilds it, so
+    the card costs no extra tree queries. Returns
+    {"node": ContentNode, "state": str, "ancestors": [ContentNode]} or None.
+
+    `node` is the ContentNode (leaf["node"]), NEVER the build_outline leaf dict:
+    a dict reaches {% url ... node_pk=resume.node.pk %} as "" against urls.py's
+    <int:node_pk> and raises NoReverseMatch, 500-ing the whole outline.
+
+    The 6 steps are ordered and their precedence is load-bearing; see the spec's
+    "Definition of the target".
+    """
+    leaves = _flatten_unit_leaves(tree)
+    open_leaves = [d for d in leaves if not d["completed"]]
+    # STEP 1, first so no later step can index an empty candidate set. Covers both
+    # "course has no visible units" and "student completed everything".
+    if not open_leaves:
+        return None
+
+    open_pks = [d["node"].pk for d in open_leaves]
+    leaf_pks = [d["node"].pk for d in leaves]
+
+    # Both names are read unconditionally by steps 3 and 4 below, so any edit that
+    # REPLACES rather than extends either line raises UnboundLocalError on every
+    # cold path.
+    flight, ts_f = None, None
+
+    # SOURCES A/B/C -- the in-flight candidate. Membership is a filter INSIDE each
+    # query (unit_id__in=open_pks), never a post-check on the LIMIT 1 result: each
+    # source returns one row, so one row for a since-unpublished unit at the head of
+    # the ordering would discard every older still-valid candidate behind it. It
+    # also removes the join to ContentNode -- open_pks is already course-scoped and
+    # visibility-filtered.
+    #
+    # Each ordering carries a deterministic secondary key. For A/B the (student,
+    # unit) unique constraint makes -unit_id pin the row; for C it pins the UNIT,
+    # which is all the algorithm needs.
+    #
+    # A -- lesson work. updated_at is auto_now: the first open in
+    # views.py::build_lesson_context, every `seen` batch, every practice-state write.
+    # NOTE: completed=False here is DELIBERATE REDUNDANCY and is NOT falsifiable --
+    # open_pks is derived from exactly this filter (build_outline's completed set,
+    # rollups.py:244-250, leaf key at :265), so no mutant of it can go RED. It
+    # states the intent locally; do not spend a falsification round on it.
+    a = (
+        UnitProgress.objects.filter(student=user, unit_id__in=open_pks, completed=False)
+        .order_by("-updated_at", "-unit_id")
+        .values_list("unit_id", "updated_at")
+        .first()
+    )
+    # B -- WHEN THE QUIZ WAS OPENED, and nothing more. QuizSubmission.updated is
+    # auto_now (models.py:3008) and the answer path (views.py::quiz_answer) saves the
+    # QuestionResponse and creates an Attempt but NEVER saves the submission, so for
+    # an IN_PROGRESS row updated == created in practice.
+    # status=IN_PROGRESS here IS load-bearing and IS tested: closing a submission
+    # normally writes UnitProgress.completed, but seed_demo_course.py:346/414
+    # finalizes without any UnitProgress row, so a SUBMITTED submission's unit can
+    # still be in open_pks.
+    b = (
+        QuizSubmission.objects.filter(
+            student=user,
+            unit_id__in=open_pks,
+            status=QuizSubmission.Status.IN_PROGRESS,
+        )
+        .order_by("-updated", "-unit_id")
+        .values_list("unit_id", "updated")
+        .first()
+    )
+    # C -- ACTUAL quiz answering, and the only source that can see it. The
+    # values_list projection is NORMATIVE: C's unit_id lives on the joined
+    # QuizSubmission, so `.first()` then `row.submission.unit_id` would cost a
+    # SECOND query and silently break the 4-query budget.
+    # last_attempt_at__isnull=False is required: Postgres sorts NULLs FIRST under
+    # DESC, so without it a null row wins the LIMIT 1 and the step-3 comparison
+    # raises TypeError against None.
+    c = (
+        QuestionResponse.objects.filter(
+            submission__student=user,
+            submission__unit_id__in=open_pks,
+            submission__status=QuizSubmission.Status.IN_PROGRESS,
+            last_attempt_at__isnull=False,
+        )
+        .order_by("-last_attempt_at", "-submission__unit_id")
+        .values_list("submission__unit_id", "last_attempt_at")
+        .first()
+    )
+
+    # Assembly order A, B, C is NORMATIVE. max() returns the FIRST maximal element,
+    # so with source_rank dropped an A-then-C order yields A while the correct build
+    # yields C -- that ordering is what makes the rank mutant killable. Assembling
+    # [C, B, A] would make the mutant coincidentally right.
+    by_pk = {d["node"].pk: d["node"] for d in open_leaves}
+    candidates = [
+        (row[1], rank, row[0]) for rank, row in enumerate((a, b, c)) if row is not None
+    ]
+    if candidates:
+        ts_f, _rank, flight_pk = max(candidates, key=lambda t: (t[0], t[1]))
+        flight = by_pk[flight_pk]
+
+    done, ts_d = None, None
+
+    # SOURCE D -- the completion anchor. completed_at, NEVER updated_at:
+    # completed_at is stamped exactly once in UnitProgress.save() when `completed`
+    # first flips and is never re-stamped, whereas views.py::seen calls
+    # progress.save() UNCONDITIONALLY on every batch including for an
+    # already-completed unit -- so simply re-reading a finished unit re-dates
+    # updated_at. Ordering on updated_at would rewind the student to just after
+    # whichever old unit they last skimmed.
+    # completed_at__isnull=False guards the NULLs-first DESC ordering (see source C).
+    d_row = (
+        UnitProgress.objects.filter(
+            student=user,
+            unit_id__in=leaf_pks,
+            completed=True,
+            completed_at__isnull=False,
+        )
+        .order_by("-completed_at", "-unit_id")
+        .values_list("unit_id", "completed_at")
+        .first()
+    )
+    if d_row is not None:
+        done, ts_d = d_row
+
+    def _with_ancestors(node, state):
+        # Pure dict traversal over the already-materialised tree -- NO queries. Reuses
+        # the unit-page breadcrumb machinery rather than adding a third ancestor walk:
+        # views_manage.py::_unit_ancestors is already a documented deliberate twin of
+        # _current_ancestors, and a third copy would be one too many.
+        # _current_ancestors reads contains_current directly and raises KeyError on an
+        # unstamped tree by design, so the stamp call must immediately precede it.
+        _stamp_current_chain(tree, node.pk)
+        return {"node": node, "state": state, "ancestors": _current_ancestors(tree)}
+
+    # STEP 3. Both names are already bound, so this runs correctly in every task.
+    # The ts comparison is ESSENTIAL: views.py::build_lesson_context mints a
+    # UnitProgress row on EVERY enrolled lesson GET, so without it one stray click
+    # a year ago pins the card to that unit forever. >= (not >) keeps an in-flight
+    # unit winning a tie -- the friendlier reading of "where you left off".
+    if flight is not None and (done is None or ts_f >= ts_d):
+        return _with_ancestors(flight, "resume")
+
+    # STEP 4. `done` is a pk; its POSITION in the outline is what matters. Dead
+    # until source D assigns `done`; laid down here so the control flow is final.
+    if done is not None:
+        idx = next(i for i, leaf in enumerate(leaves) if leaf["node"].pk == done)
+        # No default on next(): source D filters unit_id__in=leaf_pks, so a missing
+        # index is an invariant break and should raise StopIteration loudly rather
+        # than degrade into a TypeError four lines later. Same house style as
+        # _current_ancestors raising KeyError on an unstamped tree.
+        forward = next(
+            (
+                leaf
+                for i, leaf in enumerate(leaves)
+                if i > idx and not leaf["completed"]
+            ),
+            None,
+        )
+        if forward is not None:
+            return _with_ancestors(forward["node"], "next")
+        # The wrap-around: they finished the last unit but skipped something. A card
+        # that vanishes while unfinished units remain is worse than one pointing
+        # back. Its own state, because "Up next" is false about an EARLIER unit.
+        return _with_ancestors(open_leaves[0]["node"], "gap")
+
+    # STEP 5: the student has history, but all of it is on units that are no longer
+    # visible. Deliberately UNFILTERED by open/leaves and by status -- that is the
+    # whole point: these two probes are the only thing that can see such rows, and
+    # they are what stops step 6 lying to the student. Lazy: only reached when
+    # steps 3-4 both fail. `or` short-circuits, so this costs 1 query or 2.
+    has_history = (
+        UnitProgress.objects.filter(student=user, unit__course=course).exists()
+        or QuizSubmission.objects.filter(student=user, unit__course=course).exists()
+    )
+    if has_history:
+        return _with_ancestors(open_leaves[0]["node"], "next")
+
+    # STEP 6: genuinely nothing.
+    return _with_ancestors(open_leaves[0]["node"], "start")

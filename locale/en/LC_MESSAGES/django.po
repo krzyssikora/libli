@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-19 02:56+0200\n"
+"POT-Creation-Date: 2026-08-19 16:57+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -2240,11 +2240,11 @@ msgid ""
 "it — paste the link to one video."
 msgstr ""
 
-#: .\courses\views.py:1490
+#: .\courses\views.py:1504
 msgid "This quiz has already been submitted."
 msgstr ""
 
-#: .\courses\views.py:1930
+#: .\courses\views.py:1944
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr ""
@@ -4095,6 +4095,22 @@ msgstr ""
 
 #: .\templates\courses\_quiz_article.html:52
 msgid "Finish quiz"
+msgstr ""
+
+#: .\templates\courses\_resume_card.html:17
+msgid "Pick up where you left off"
+msgstr ""
+
+#: .\templates\courses\_resume_card.html:18
+msgid "Up next"
+msgstr ""
+
+#: .\templates\courses\_resume_card.html:19
+msgid "Still to do"
+msgstr ""
+
+#: .\templates\courses\_resume_card.html:20
+msgid "Start the course"
 msgstr ""
 
 #: .\templates\courses\_tags_filter_bar.html:3
@@ -6643,7 +6659,7 @@ msgstr ""
 msgid "My notes"
 msgstr ""
 
-#: .\templates\courses\outline.html:19
+#: .\templates\courses\outline.html:20
 msgid "Course outline"
 msgstr ""
 

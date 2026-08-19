@@ -291,6 +291,36 @@ def test_outline_unit_and_group_titles_are_marked(client):
     assert _marked(body, "span.outline-node__title")
 
 
+@pytest.mark.django_db
+def test_resume_card_title_and_crumbs_are_marked(client):
+    """math.js typesets [data-math-title] and nothing else, so an ancestor titled
+    with LaTeX would otherwise render its delimiters literally."""
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "mm")
+    course = CourseFactory(slug="mm")
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, order=0, title=r"Rozdz \(x^2\)"
+    )
+    ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=chapter,
+        order=0,
+        title=r"Unit \(y\)",
+    )
+    EnrollmentFactory(student=user, course=course)
+    body = client.get(
+        reverse("courses:course_outline", kwargs={"slug": "mm"})
+    ).content.decode()
+    assert _marked(body, "span.resume__title")
+    assert _marked(body, "span.resume__crumb")
+
+
 # --- quiz results: the TITLE-ALONE rule --------------------------------------
 def test_quiz_results_heading_marks_the_title_alone(client):
     """`{{ unit.title }} — {% trans "results" %}`: marking the shared <h1> would

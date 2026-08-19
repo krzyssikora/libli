@@ -81,6 +81,7 @@ from courses.quiz import selected_ids
 from courses.rendering import unit_edit_context
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
+from courses.rollups import build_resume
 from courses.rollups import build_unit_nav
 from courses.rollups import tree_titles_have_math
 from courses.rollups import units_in_order
@@ -661,6 +662,18 @@ def course_outline(request, slug):
     base = reverse("courses:course_outline", kwargs={"slug": course.slug})
     # The whole outline is in the DOM, so scan the whole tree.
     has_math = tree_titles_have_math(outline)
+    # Enrolled-only: can_access_course also admits authors, teachers and staff
+    # previewing a course they are not taking, and a "Start the course" CTA would be
+    # noise for them. Mirrors the `seen` write route, which is enrolled-only by
+    # design. Runs AFTER outline_with_tags, but the target is deliberately
+    # INDEPENDENT of the active tag filter: outline_with_tags annotates without
+    # pruning, and the filter hides rows rather than restricting scope, so filtering
+    # to one tag must not change where "Continue" sends you.
+    resume = (
+        build_resume(course, request.user, outline)
+        if is_enrolled(request.user, course)
+        else None
+    )
     return render(
         request,
         "courses/outline.html",
@@ -673,6 +686,7 @@ def course_outline(request, slug):
                 base, course_tags, active_tag_ids
             ),
             "has_math": has_math,
+            "resume": resume,
         },
     )
 
@@ -760,10 +774,10 @@ def progress_reset(request, slug, node_pk=None):
     if request.method == "POST":
         # .update() deliberately bypasses save(): it fires neither auto_now on
         # updated_at nor the completed => completed_at invariant. Both are fine --
-        # reset does not touch `completed`, and nothing reads updated_at for
-        # practice state. IDOR-safe against other STUDENTS by construction
-        # (student=request.user); the cross-COURSE hole is closed by
-        # get_node_or_404 above, not by this filter.
+        # reset does not touch `completed`, and leaving updated_at alone keeps
+        # build_resume's source A pointing where the student was. IDOR-safe against
+        # other STUDENTS by construction (student=request.user); the cross-COURSE
+        # hole is closed by get_node_or_404 above, not by this filter.
         # A DIRECT write, bypassing save_element_state -- the house style, and the
         # reason the lockstep contract lives on the field itself (see models.py).
         rows.update(element_state={})

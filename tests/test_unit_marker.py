@@ -190,9 +190,11 @@ def test_outline_chip_is_tagged_with_the_ui_language_not_the_course_language(cli
         username="s_lang", email="s_lang@t.example.com", password=TEST_PASSWORD
     )
     EnrollmentFactory(student=student, course=course)
-    ContentNodeFactory(course=course, unit_type="quiz", title="Lang")
+    quiz = ContentNodeFactory(course=course, unit_type="quiz", title="Lang")
     client.force_login(student)
-    chip = _outline_soup(client, course).select_one(".unit-kind-chip")
+    chip = _outline_soup(client, course).select_one(
+        f"li#node-{quiz.pk} a.outline-unit .unit-kind-chip"
+    )
     assert chip["lang"] == "en"
 
 

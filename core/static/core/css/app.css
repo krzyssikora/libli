@@ -500,6 +500,51 @@ input[type=number] {
 .outline__title { margin: 0; }
 .outline__results { margin-left: auto; }
 
+/* Resume card: the one thing a returning student should be able to hit without
+   reading the tree. Ground it on --surface-raised and cut the border against THAT,
+   never against the page base. Width comes from .outline (max-width: 52rem). */
+.resume {
+  position: relative;
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  /* Right padding clears the absolutely-positioned chevron so a long title never
+     runs under it. */
+  padding: var(--space-4); padding-right: var(--space-10);
+  margin-bottom: var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  /* The signature, and the page's own vocabulary turned up: the outline tree marks
+     nesting with a left hairline rule (.outline-node__group > ul). A thicker, primary
+     one reads as a bookmark clipped INTO that tree rather than a banner floating above
+     it -- and it gives the card a visible edge in dark mode, where --border-subtle
+     against --surface-raised is nearly imperceptible. */
+  border-left: 3px solid var(--primary);
+  text-decoration: none; color: inherit;
+}
+.resume__eyebrow {
+  flex-basis: 100%; font-size: .8125rem; font-weight: 600;
+  letter-spacing: .02em; text-transform: uppercase; color: var(--text-secondary);
+}
+/* Own line: on a shared baseline the path read as a prefix to the title
+   ("Part One > Chapter One  Getting started with fractions" as one run-on line). */
+.resume__path { flex-basis: 100%; font-size: .875rem; color: var(--text-secondary); }
+.resume__sep { margin: 0 var(--space-1); }
+/* Steps above the outline's part headings (1.35rem/600) so the page's primary control
+   is not out-shouted by the section headings beneath it; still below the h1. */
+.resume__title { font-size: 1.35rem; font-weight: 700; color: var(--text-primary); }
+.resume__arrow {
+  position: absolute; right: var(--space-4); top: 50%;
+  transform: translateY(-50%); color: var(--text-secondary);
+}
+.resume:hover { border-color: var(--border-strong); border-left-color: var(--primary); }
+.resume:hover .resume__title { text-decoration: underline; }
+.resume:hover .resume__arrow { color: var(--primary); }
+@media (prefers-reduced-motion: no-preference) {
+  .resume__arrow { transition: transform .15s ease, color .15s ease; }
+  .resume:hover .resume__arrow { transform: translateY(-50%) translateX(3px); }
+}
+.resume:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
 .outline-tree ul { list-style: none; margin: 0; padding: 0; }
 .outline-tree > ul > .outline-node { margin-bottom: var(--space-6); }
 /* nested levels get a hairline guide rule. Re-pointed, not doubled: the <ul>

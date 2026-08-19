@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-19 02:56+0200\n"
+"POT-Creation-Date: 2026-08-19 16:57+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -2346,11 +2346,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:1490
+#: .\courses\views.py:1504
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1930
+#: .\courses\views.py:1944
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -4262,6 +4262,22 @@ msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
 #: .\templates\courses\_quiz_article.html:52
 msgid "Finish quiz"
 msgstr "Zakończ quiz"
+
+#: .\templates\courses\_resume_card.html:17
+msgid "Pick up where you left off"
+msgstr "Wróć tam, gdzie skończyłeś"
+
+#: .\templates\courses\_resume_card.html:18
+msgid "Up next"
+msgstr "Następnie"
+
+#: .\templates\courses\_resume_card.html:19
+msgid "Still to do"
+msgstr "Do zrobienia"
+
+#: .\templates\courses\_resume_card.html:20
+msgid "Start the course"
+msgstr "Rozpocznij kurs"
 
 #: .\templates\courses\_tags_filter_bar.html:3
 msgid "Filter by tag"
@@ -6927,7 +6943,7 @@ msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 msgid "My notes"
 msgstr "Moje notatki"
 
-#: .\templates\courses\outline.html:19
+#: .\templates\courses\outline.html:20
 msgid "Course outline"
 msgstr "Plan kursu"
 
