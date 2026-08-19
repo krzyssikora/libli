@@ -1649,13 +1649,32 @@ green even if `_outline_node.html` stopped rendering unit rows entirely. Two liv
   (The sibling `assert "Membranes" in html` on line 54 is unaffected — the card renders one
   title, and it is not that one.)
 
-Re-scope both to the outline row rather than the page, e.g.:
+Re-scope both to the outline row rather than the page. **`tests/test_courses_views.py` needs two
+edits, same as the chip site above**: its node is created unbound at line 45, so a scoped selector
+has nothing to reference. (`tests/test_tags_outline.py` is fine — `u1` is already bound.) Neither
+file imports `bs4`; add it to each top-of-file import block per the Global Constraint on hoisting
+imports.
 
 ```python
+# tests/test_courses_views.py -- top-of-file imports
+from bs4 import BeautifulSoup
+
+# line 45 -- add the binding
+unit = ContentNodeFactory(
+    course=course, kind="unit", unit_type="lesson", title="Lesson A"
+)
+
+# line 49 -- scope the assertion to the outline ROW, not the page
 soup = BeautifulSoup(resp.content.decode(), "html.parser")
 row = soup.select_one(f'li[data-unit="{unit.pk}"] span.outline-unit__title')
 assert row is not None and "Lesson A" in row.get_text(strip=True)
 ```
+
+Apply the same shape to `tests/test_tags_outline.py:52`, scoping on `u1.pk`.
+
+Verify each re-scope is real: on the current build the assertion must still pass, and it must
+**fail** if you point the selector at a unit pk that is not in the outline — that is what proves it
+now reads the row rather than the whole page.
 
 Then sweep the other outline-rendering suites for **both** unscoped selectors and bare substring
 assertions over the outline body, and run them:
@@ -1985,4 +2004,4 @@ opposite case — the status filter keeping a submitted quiz out of the in-fligh
 
 **Type consistency.** `build_resume(course, user, tree)` returns `{"node": ContentNode, "state": str, "ancestors": list}` in every task; `done` is a **pk** in Task 3 (the code resolves its index) while `flight` is a **node** — called out in Task 3 Step 3 so an implementer does not mix them; template reads `resume.node`, `resume.state`, `resume.ancestors`, matching Task 1's contract.
 
-**One deliberate deviation from the spec's test list:** the spec prescribed within-source and cross-source tie tests with a pinned insertion order. Task 2's assembly-order comment makes the `source_rank` mutant killable, and Task 3 covers the `>=` boundary tie. If the executing agent finds the cross-source tie under-covered after Task 3, add it there rather than deferring.
+**No deviation from the spec's test list.** Both tie tests the spec prescribes ship in Task 2 — `test_exact_cross_source_tie_prefers_the_answered_quiz` and `test_within_source_tie_prefers_the_higher_unit_id`, the latter with the spec's pinned lower-pk-first insertion order — and Task 3 covers the `>=` boundary tie. Do **not** add a duplicate cross-source tie test in Task 3.
