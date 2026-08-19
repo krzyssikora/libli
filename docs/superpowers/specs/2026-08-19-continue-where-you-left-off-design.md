@@ -470,9 +470,10 @@ work and no visible completion — adds one or two more for source E, for **six 
 level**.
 
 **What is actually pinned by tests:** the `build_resume`-level counts **4** (warm), **5** and **6**
-(cold), and a **same-user view-level delta of 4**. The view-level absolute totals (5 warm, 6-or-7
-cold) are **not** pinned — no test asserts the `is_enrolled` query on its own except the
-`CaptureQueriesContext` check described under Testing.
+(cold) — and nothing else. The view-level numbers on this page (5 warm, 6-or-7 cold) are **not**
+pinned by any test, and the `is_enrolled` query is not asserted anywhere. That is a deliberate
+decision with three recorded hazards behind it — see **"There is deliberately NO view-level
+query-count test"** under Testing before writing one.
 
 None of the three queried models declares `Meta.indexes`; the only declared constraints are
 `UniqueConstraint(student, unit)` on `UnitProgress`/`QuizSubmission` and `(submission, element)` on
@@ -508,8 +509,11 @@ exactly that reason.)
   a post-check on a `LIMIT 1` result. Older still-valid candidates are therefore never discarded.
   Such rows are detected only by source E, which is what makes step 5 reachable.
 - **Not enrolled** → the view never calls `build_resume`; `resume` is `None`.
-- **Anonymous user** → unreachable because `course_outline` is `@login_required`, and that is the
-  **only** guard. `is_enrolled` would **raise**, not return False, on an `AnonymousUser`:
+- **Anonymous user** → unreachable twice over: `course_outline` is `@login_required`, and
+  `can_access_course` → `accessible_courses` opens with `if not user.is_authenticated: return
+  Course.objects.none()` (`access.py:19-20`), raising `PermissionDenied` before any resume code
+  runs. What is **not** a safety net is `is_enrolled`: it would **raise**, not return False, on an
+  `AnonymousUser`:
   `access.py:12-13` calls `Enrollment.objects.filter(student=user, …)`, and `Enrollment.student` is
   declared an FK to `AUTH_USER_MODEL` in `courses/models.py`. Do not treat
   `is_enrolled` as a second safety net, and do not remove the decorator.
