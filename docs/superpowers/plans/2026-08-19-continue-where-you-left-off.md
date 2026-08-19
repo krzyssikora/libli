@@ -23,10 +23,19 @@
   | ancestor path container | `span.resume__path` |
   | one ancestor label | `span.resume__crumb` |
   | unit title | `span.resume__title` |
+  | separator between crumbs | `span.resume__sep` (`aria-hidden="true"`) |
 - **Every test is written failing-first and falsified** against the mutant named in its task. A test that cannot go RED does not ship. Where a task says a fixture detail is load-bearing, it is because the obvious fixture makes the test vacuous.
 - **`translation.override` must NOT be used** for client-render language tests — `core/middleware.py::SessionLocaleMiddleware.process_request` re-activates per request and discards it. Use `session["_language"] = "pl"; session.save()` plus `HTTP_ACCEPT_LANGUAGE="pl"`.
 - **Ties need `freeze_time`.** `updated_at`, `updated`, `last_attempt_at` and `completed_at` are all stamped Python-side; writes in one transaction differ by microseconds and produce no tie.
 - **Test DB:** the worktree `.env` already points `TEST_DATABASE_URL` at `libli_resume`. Start the test-DB container before any pytest run. Run pytest via `uv run`.
+- **Imports go at the TOP of the file, never beside the test that needs them.** Several tasks say
+  "append to `tests/test_resume_target.py`" and show new imports — those imports must be **hoisted
+  into the single top-of-file block**, sorted, one per line. `pyproject.toml` selects `E`, `F`, `I`
+  with `force-single-line = true`, so an import sitting after a function definition fails Task 11's
+  `ruff check` with E402 **and** I001. The same applies to the `from tests.factories import ...`
+  lines shown inside the `tests/test_courses_views.py` tests: match that file's existing convention
+  rather than the illustrative inline form. Ruff is not run until Task 11, so these accumulate
+  silently — hoist as you go.
 
 ---
 
@@ -200,8 +209,47 @@ def build_resume(course, user, tree):
     open_pks = [d["node"].pk for d in open_leaves]
     leaf_pks = [d["node"].pk for d in leaves]
 
-    flight, ts_f = None, None  # Task 2 fills these in (sources A/B/C)
-    done, ts_d = None, None  # Task 3 fills these in (source D)
+    # Tasks 2 and 3 INSERT their query blocks immediately below these two lines and
+    # leave the lines themselves in place. The initialisations are load-bearing:
+    # both names are read unconditionally by steps 3 and 4 below, so a task that
+    # replaces (rather than extends) either line makes build_resume raise
+    # UnboundLocalError on every cold path.
+    # (`open_pks` and `leaf_pks` are unused until Tasks 2-3; ruff would flag F841 if
+    # run now, which is why lint is deferred to Task 11. Do not delete them.)
+    flight, ts_f = None, None  # Task 2 assigns these (sources A/B/C)
+    done, ts_d = None, None  # Task 3 assigns these (source D)
+
+    # STEP 3. Both names are already bound, so this runs correctly in every task.
+    # The ts comparison is ESSENTIAL: views.py:511 mints a UnitProgress row on EVERY
+    # enrolled lesson GET, so without it one stray click a year ago pins the card to
+    # that unit forever. >= (not >) keeps an in-flight unit winning a tie -- the
+    # friendlier reading of "where you left off".
+    if flight is not None and (done is None or ts_f >= ts_d):
+        return {"node": flight, "state": "resume", "ancestors": []}
+
+    # STEP 4. `done` is a pk; its POSITION in the outline is what matters. Dead until
+    # Task 3 assigns `done` -- deliberately laid down here so the control flow is
+    # final and no later task has to reorder it.
+    if done is not None:
+        idx = next(i for i, leaf in enumerate(leaves) if leaf["node"].pk == done)
+        # No default on next(): source D filters unit_id__in=leaf_pks, so a missing
+        # index is an invariant break and should raise StopIteration loudly rather
+        # than degrade into a TypeError four lines later. Same house style as
+        # _current_ancestors raising KeyError on an unstamped tree.
+        forward = next(
+            (
+                leaf
+                for i, leaf in enumerate(leaves)
+                if i > idx and not leaf["completed"]
+            ),
+            None,
+        )
+        if forward is not None:
+            return {"node": forward["node"], "state": "next", "ancestors": []}
+        # The wrap-around: they finished the last unit but skipped something. A card
+        # that vanishes while unfinished units remain is worse than one pointing
+        # back. Its own state, because "Up next" is false about an EARLIER unit.
+        return {"node": open_leaves[0]["node"], "state": "gap", "ancestors": []}
 
     # STEP 5: the student has history, but all of it is on units that are no longer
     # visible. Deliberately UNFILTERED by open/leaves and by status -- that is the
@@ -274,7 +322,7 @@ def _backdate_progress(unit, user, when):
 
 def _answered_question(unit, submission, when):
     """A QuestionResponse with last_attempt_at set -- source C's only input."""
-    q = ShortTextQuestionElement.objects.create(stem="q", accepted_answers="a")
+    q = ShortTextQuestionElement.objects.create(stem="q", accepted="a")
     el = Element.objects.create(unit=unit, content_object=q)
     return QuestionResponse.objects.create(
         submission=submission, element=el, last_attempt_at=when
@@ -401,17 +449,80 @@ def test_invisible_newer_row_does_not_discard_the_visible_candidate():
     assert r["node"].pk == units[2].pk
 ```
 
+```python
+@pytest.mark.django_db
+def test_exact_cross_source_tie_prefers_the_answered_quiz():
+    """The source_rank tie-break (C=2 > B=1 > A=0). With rank dropped, max() over an
+    untied key returns the FIRST maximal element, and the assembly order is A,B,C --
+    so the mutant answers the LESSON. Assembling [C, B, A] would make the mutant
+    coincidentally right, which is why the order is normative.
+
+    The tie must be FORCED: all four timestamps are stamped Python-side, so two
+    writes in one transaction differ by microseconds and produce no tie at all.
+    """
+    course = CourseFactory()
+    lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=1)
+    user = make_verified_user(username="t1", email="t1@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+
+    moment = timezone.now() - timedelta(days=5)
+    with freeze_time(moment):
+        UnitProgressFactory(student=user, unit=lesson)
+        sub = QuizSubmissionFactory(
+            student=user, unit=quiz, status=QuizSubmission.Status.IN_PROGRESS
+        )
+        _answered_question(quiz, sub, timezone.now())
+
+    a_ts = UnitProgress.objects.get(student=user, unit=lesson).updated_at
+    c_ts = QuestionResponse.objects.get(submission=sub).last_attempt_at
+    assert a_ts == c_ts  # the tie is real, not assumed
+
+    r = _resume(course, user)
+    assert r["node"].pk == quiz.pk
+
+
+@pytest.mark.django_db
+def test_within_source_tie_prefers_the_higher_unit_id():
+    """Source A's -unit_id secondary key. INSERTION ORDER IS LOAD-BEARING: create the
+    LOWER-pk unit's row FIRST. Postgres's order among equal sort keys is unspecified
+    but follows scan order in practice, so the mutant (no -unit_id) returns the
+    first-inserted row. Insert the higher pk first and the mutant is coincidentally
+    right and the test is GREEN on a broken build.
+    """
+    course, units = _course_with_units(3)
+    user = make_verified_user(username="t2", email="t2@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    lo, hi = sorted((units[0], units[1]), key=lambda u: u.pk)
+
+    moment = timezone.now() - timedelta(days=5)
+    with freeze_time(moment):
+        UnitProgressFactory(student=user, unit=lo)  # lower pk FIRST
+        UnitProgressFactory(student=user, unit=hi)
+
+    rows = UnitProgress.objects.filter(student=user, unit__in=(lo, hi))
+    assert len({r.updated_at for r in rows}) == 1  # the tie is real
+
+    assert _resume(course, user)["node"].pk == hi.pk
+```
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-uv run pytest tests/test_resume_target.py -v -k "in_flight or answered_quiz or opened_but or submitted_quiz or invisible_newer"
+uv run pytest tests/test_resume_target.py -v -k "in_flight or answered_quiz or opened_but or submitted_quiz or invisible_newer or cross_source_tie or within_source_tie"
 ```
 
 Expected: all 5 FAIL — `flight` is hardcoded `None`, so every one lands on `start`/`next`.
 
 - [ ] **Step 3: Write the implementation**
 
-In `build_resume`, replace the `flight, ts_f = None, None` placeholder with:
+**Do NOT replace the `flight, ts_f = None, None` line — insert immediately BELOW it**, and leave
+both it and the `done, ts_d = None, None` line untouched. The block below only *reassigns* `flight`
+and `ts_f` when a candidate exists; deleting the initialisation makes every cold path raise
+`UnboundLocalError`, and moving anything above the `done` line makes step 3 read `done` before it
+is bound. Step 3 and step 4 are already in place from Task 1; this task adds no control flow.
+
+Insert after `flight, ts_f = None, None` and before `done, ts_d = None, None`:
 
 ```python
     # SOURCES A/B/C -- the in-flight candidate. Membership is a filter INSIDE each
@@ -489,17 +600,6 @@ In `build_resume`, replace the `flight, ts_f = None, None` placeholder with:
         flight = by_pk[flight_pk]
 ```
 
-Also add the step-3 return, immediately after that block:
-
-```python
-    # STEP 3. The ts comparison is ESSENTIAL: views.py:511 mints a UnitProgress row
-    # on EVERY enrolled lesson GET, so without it one stray click a year ago pins
-    # the card to that unit forever. >= (not >) keeps an in-flight unit winning a
-    # tie -- the friendlier reading of "where you left off".
-    if flight is not None and (done is None or ts_f >= ts_d):
-        return {"node": flight, "state": "resume", "ancestors": []}
-```
-
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
@@ -514,6 +614,8 @@ Expected: 10 passed.
 2. Restore C; delete source **B**. Expected: `test_opened_but_unanswered_quiz_is_the_target` FAILS.
 3. Restore B; drop `status=IN_PROGRESS` from **B**, then (separately) from **C**. Expected: `test_submitted_quiz_with_no_progress_row_is_not_the_target` FAILS both times.
 4. Restore; change source A's filter to `unit__course=course` and add a post-`.first()` membership check. Expected: `test_invisible_newer_row_does_not_discard_the_visible_candidate` FAILS.
+5. Restore; drop `t[1]` from the `max` key (i.e. `key=lambda t: t[0]`). Expected: `test_exact_cross_source_tie_prefers_the_answered_quiz` FAILS (answers the lesson).
+6. Restore; drop `-unit_id` from source A's `order_by`. Expected: `test_within_source_tie_prefers_the_higher_unit_id` FAILS. If it does NOT fail, check the fixture inserted the lower pk first — inserting the higher first makes the mutant coincidentally correct.
 
 Restore each by hand and re-run to green.
 
@@ -544,23 +646,35 @@ Append to `tests/test_resume_target.py`:
 from freezegun import freeze_time
 
 
-def _complete(unit, user, when):
-    """A completed UnitProgress with completed_at pinned. save() stamps
-    completed_at itself, so freeze the clock rather than trying to backdate."""
-    with freeze_time(when):
+def _complete(unit, user, days_ago):
+    """A completed UnitProgress whose completed_at is `days_ago` days back.
+
+    save() stamps completed_at itself, so freeze the clock rather than backdating.
+
+    RELATIVE, never a hard-coded calendar date: mixing literal dates with
+    `timezone.now() - timedelta(...)` in one fixture makes the ordering
+    clock-dependent, and such a test silently INVERTS once the wall clock passes
+    those dates. Larger days_ago == older.
+    """
+    with freeze_time(timezone.now() - timedelta(days=days_ago)):
         UnitProgressFactory(student=user, unit=unit, completed=True)
 
 
 @pytest.mark.django_db
 def test_most_recent_unit_completed_advances_to_the_next_open_unit():
+    """FIXTURE IS LOAD-BEARING: units[0] stays OPEN so open_leaves[0] is units[0]
+    while forward is units[3]. Complete 0 and 1 instead and both step 4 and step 5
+    answer units[2] -- deleting step 4 entirely would leave the test green via
+    step 5, which also returns state "next".
+    """
     course, units = _course_with_units(4)
     user = make_verified_user(username="d1", email="d1@test.example.com")
     EnrollmentFactory(student=user, course=course)
-    _complete(units[0], user, "2026-08-01 10:00:00")
-    _complete(units[1], user, "2026-08-02 10:00:00")
+    _complete(units[1], user, 30)
+    _complete(units[2], user, 20)
     r = _resume(course, user)
     assert r["state"] == "next"
-    assert r["node"].pk == units[2].pk
+    assert r["node"].pk == units[3].pk
 
 
 @pytest.mark.django_db
@@ -574,9 +688,9 @@ def test_stray_visit_does_not_pin_the_card_forever():
     user = make_verified_user(username="d2", email="d2@test.example.com")
     EnrollmentFactory(student=user, course=course)
     UnitProgressFactory(student=user, unit=units[0])
-    _backdate_progress(units[0], user, timezone.now() - timedelta(days=365))
-    _complete(units[1], user, "2026-08-02 10:00:00")
-    _complete(units[2], user, "2026-08-03 10:00:00")
+    _backdate_progress(units[0], user, timezone.now() - timedelta(days=90))
+    _complete(units[1], user, 20)
+    _complete(units[2], user, 10)
     r = _resume(course, user)
     assert r["state"] == "next"
     assert r["node"].pk == units[3].pk
@@ -590,9 +704,9 @@ def test_exact_tie_between_in_flight_and_completion_resumes():
     course, units = _course_with_units(4)
     user = make_verified_user(username="d3", email="d3@test.example.com")
     EnrollmentFactory(student=user, course=course)
-    moment = "2026-08-05 12:00:00"
-    _complete(units[0], user, moment)
+    moment = timezone.now() - timedelta(days=5)
     with freeze_time(moment):
+        UnitProgressFactory(student=user, unit=units[0], completed=True)
         UnitProgressFactory(student=user, unit=units[2])
 
     row_f = UnitProgress.objects.get(student=user, unit=units[2])
@@ -618,8 +732,8 @@ def test_reseeing_a_finished_unit_does_not_rewind_the_anchor():
     course, units = _course_with_units(4)
     user = make_verified_user(username="d4", email="d4@test.example.com")
     EnrollmentFactory(student=user, course=course)
-    _complete(units[0], user, "2026-08-01 10:00:00")
-    _complete(units[2], user, "2026-08-02 10:00:00")
+    _complete(units[0], user, 30)
+    _complete(units[2], user, 20)
     # Re-read unit 0 today: seen's unconditional save bumps updated_at only.
     UnitProgress.objects.filter(student=user, unit=units[0]).update(
         updated_at=timezone.now()
@@ -634,9 +748,9 @@ def test_finished_the_last_unit_wraps_back_to_the_earliest_gap():
     course, units = _course_with_units(4)
     user = make_verified_user(username="d5", email="d5@test.example.com")
     EnrollmentFactory(student=user, course=course)
-    _complete(units[0], user, "2026-08-01 10:00:00")
-    _complete(units[2], user, "2026-08-02 10:00:00")
-    _complete(units[3], user, "2026-08-03 10:00:00")
+    _complete(units[0], user, 30)
+    _complete(units[2], user, 20)
+    _complete(units[3], user, 10)
     r = _resume(course, user)
     assert r["state"] == "gap"
     assert r["node"].pk == units[1].pk
@@ -650,8 +764,8 @@ def test_all_units_completed_returns_none():
     course, units = _course_with_units(2)
     user = make_verified_user(username="d6", email="d6@test.example.com")
     EnrollmentFactory(student=user, course=course)
-    _complete(units[0], user, "2026-08-01 10:00:00")
-    _complete(units[1], user, "2026-08-02 10:00:00")
+    _complete(units[0], user, 30)
+    _complete(units[1], user, 20)
     assert _resume(course, user) is None
 
 
@@ -669,8 +783,8 @@ def test_completed_quiz_that_is_the_last_open_unit_yields_none():
     quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=1)
     user = make_verified_user(username="d7", email="d7@test.example.com")
     EnrollmentFactory(student=user, course=course)
-    _complete(lesson, user, "2026-08-01 10:00:00")
-    _complete(quiz, user, "2026-08-02 10:00:00")
+    _complete(lesson, user, 30)
+    _complete(quiz, user, 20)
     assert _resume(course, user) is None
 
 
@@ -687,22 +801,63 @@ def test_additional_lesson_still_counts_as_a_target():
     )
     user = make_verified_user(username="d8", email="d8@test.example.com")
     EnrollmentFactory(student=user, course=course)
-    _complete(required, user, "2026-08-01 10:00:00")
+    _complete(required, user, 30)
     r = _resume(course, user)
     assert r["node"].pk == extra.pk
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+```python
+@pytest.mark.django_db
+def test_submitted_quiz_without_progress_can_surface_as_next():
+    """DOCUMENTS AN ACCEPTED LIMITATION, deliberately -- this is not a bug report.
 
-```bash
-uv run pytest tests/test_resume_target.py -v -k "most_recent or stray_visit or exact_tie or reseeing or wraps_back or all_units or completed_quiz_that or additional_lesson"
+    build_outline's `completed` flag derives solely from UnitProgress.completed
+    (rollups.py:244-250, leaf key at :265) and knows nothing about
+    QuizSubmission.status, so a SUBMITTED submission whose unit lacks a completed
+    UnitProgress row -- the seed_demo_course.py shape -- stays in `open` and can be
+    offered under "Up next".
+
+    The violated invariant is "a SUBMITTED submission always has a completed
+    UnitProgress", which every production path upholds and only the demo seeder
+    breaks. The repair belongs in the seeder, NOT in this card: adding a fifth query
+    to compensate for a fixture-only state was explicitly rejected. This test exists
+    so that decision is recorded and cannot evaporate silently.
+    """
+    course = CourseFactory()
+    lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=1)
+    user = make_verified_user(username="d9", email="d9@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(lesson, user, 30)
+    QuizSubmissionFactory(
+        student=user, unit=quiz, status=QuizSubmission.Status.SUBMITTED
+    )
+    r = _resume(course, user)
+    assert r["state"] == "next"
+    assert r["node"].pk == quiz.pk
 ```
 
-Expected: FAIL — `done` is still hardcoded `None`, so these land on `start`/`resume`.
+- [ ] **Step 2: Run the tests — three must fail, the rest are guards**
+
+```bash
+uv run pytest tests/test_resume_target.py -v -k "most_recent or stray_visit or exact_tie or reseeing or wraps_back or all_units or completed_quiz_that or additional_lesson or without_progress_can_surface"
+```
+
+Expected: exactly **three** RED — `test_most_recent_unit_completed_advances_to_the_next_open_unit`,
+`test_stray_visit_does_not_pin_the_card_forever`, `test_reseeing_a_finished_unit_does_not_rewind_the_anchor`
+and `test_finished_the_last_unit_wraps_back_to_the_earliest_gap` (four, counting the wrap).
+
+The others PASS on the Task-2 build and that is CORRECT, not a broken task: `test_exact_tie...`
+already returns `resume` via step 3 with `done is None`; `test_all_units_completed_returns_none` and
+`test_completed_quiz_that_is_the_last_open_unit_yields_none` are step-1 cases; `test_additional_lesson...`
+and `test_submitted_quiz_without_progress_can_surface_as_next` reach step 5. They are **guards**, and
+their value is proven by the Step-5 falsification, not by failing first.
 
 - [ ] **Step 3: Write the implementation**
 
-Replace the `done, ts_d = None, None` placeholder with source D (it must be computed **before** the step-3 comparison):
+**Do NOT replace the `done, ts_d = None, None` line — insert immediately BELOW it**, above the
+step-3 `if flight is not None ...`. Step 3 and step 4 already exist from Task 1; this task adds no
+control flow, only the query that makes step 4 reachable.
 
 ```python
     # SOURCE D -- the completion anchor. completed_at, NEVER updated_at:
@@ -728,29 +883,8 @@ Replace the `done, ts_d = None, None` placeholder with source D (it must be comp
         done, ts_d = d_row
 ```
 
-Note `done` here is a **pk**, not a node — step 4 needs its outline position. After the step-3 return, add step 4:
-
-```python
-    # STEP 4. `done` is a pk; its POSITION in the outline is what matters.
-    if done is not None:
-        idx = next(
-            (i for i, leaf in enumerate(leaves) if leaf["node"].pk == done), None
-        )
-        forward = next(
-            (
-                leaf
-                for i, leaf in enumerate(leaves)
-                if i > idx and not leaf["completed"]
-            ),
-            None,
-        )
-        if forward is not None:
-            return {"node": forward["node"], "state": "next", "ancestors": []}
-        # The wrap-around: they finished the last unit but skipped something. A card
-        # that vanishes while unfinished units remain is worse than one pointing
-        # back. Its own state, because "Up next" is false about an EARLIER unit.
-        return {"node": open_leaves[0]["node"], "state": "gap", "ancestors": []}
-```
+Note `done` is a **pk**, not a node — Task 1's step 4 already resolves its outline index. `flight`,
+by contrast, is a **node**. Do not mix them.
 
 - [ ] **Step 4: Run the full file**
 
@@ -840,7 +974,16 @@ def test_stamping_the_tree_does_not_change_the_outline_html():
     in _outline_node.html.
     """
     course = CourseFactory()
-    chapter = ContentNodeFactory(course=course, kind="chapter", unit_type=None, order=0)
+    # THREE levels, not two. A depth-0 container already renders ` open` from the
+    # existing {% if item.depth == 0 %}, so stamping a unit under a root chapter
+    # makes the mutant emit `<details ... open open>` -- the strings still differ, so
+    # the test is not vacuous, but it proves the point via a duplicated attribute
+    # rather than the branch the guard is about. Nesting deeper makes the chapter's
+    # ` open` appear ONLY under the mutant.
+    part = ContentNodeFactory(course=course, kind="part", unit_type=None, order=0)
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, order=0
+    )
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=chapter, order=0
     )
@@ -874,7 +1017,13 @@ def test_stamping_the_tree_does_not_change_the_outline_html():
 uv run pytest tests/test_resume_target.py -v -k "ancestors or root_level or stamping"
 ```
 
-Expected: the two ancestor tests FAIL (`[] != [part.pk, chapter.pk]`). `test_stamping_...` should already PASS — that is expected; it is a **regression guard**, and its falsification in Step 5 is what proves it works.
+Expected: **one** RED — `test_ancestors_are_the_root_to_parent_chain_excluding_the_unit`
+(`[] != [part.pk, chapter.pk]`).
+
+`test_root_level_unit_has_no_ancestors` asserts `ancestors == []`, which is exactly what Tasks 1-3
+hardcode, so it is green before any Task-4 code exists. It is a **no-crash guard**, as is
+`test_stamping_the_tree_does_not_change_the_outline_html`. Both earn their place through the Step-5
+falsification, not by failing first.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -991,7 +1140,7 @@ Expected: PASS. If any fails, the count is genuinely wrong — fix `build_resume
 - [ ] **Step 3: Falsify**
 
 1. In source C, replace the `values_list(...)` projection with `.first()` + `row.submission.unit_id`. Expected: `test_warm_path_costs_exactly_four_queries` FAILS with 5.
-2. Restore; make source E eager (assign both `.exists()` calls to locals before the `or`). Expected: **`test_warm_path...` FAILS with 6** — the eager mutant is caught on the *warm* path, not the cold one, where an eager E costs the same 2 probes either way.
+2. Restore; make source E eager (assign both `.exists()` calls to locals before the `or`). Expected: **`test_cold_path_short_circuits_after_the_first_probe` FAILS with 6**, not 5. The warm path CANNOT catch this: source E sits *after* the step-3 and step-4 returns, so on a warm fixture it never executes at all and the count stays 4 on both builds. Do not chase a warm-path failure here — seeing one would mean E had been wrongly hoisted above the returns.
 3. Restore; drop the `QuizSubmission` arm of source E. Expected: `test_cold_path_with_no_rows_costs_six_queries` FAILS with 5.
 
 Restore each by hand.
@@ -1052,15 +1201,59 @@ def test_outline_offers_no_resume_target_to_a_non_enrolled_viewer(client):
     r = client.get(reverse("courses:course_outline", kwargs={"slug": "res-course-2"}))
     assert r.status_code == 200
     assert r.context["resume"] is None
+    # The context assertion alone would still pass if the template later grew a
+    # fallback card, and it never exercises the {% if resume %} guard. This test is
+    # what pins the WIRING (it replaces the abandoned view-level query test), so it
+    # must assert on the rendered DOM as well. Re-run it after Task 7.
+    from bs4 import BeautifulSoup
+
+    assert BeautifulSoup(r.content, "html.parser").select_one("a.resume") is None
+```
+
+```python
+@pytest.mark.django_db
+def test_tag_filter_does_not_move_the_resume_target(client):
+    """The target is computed independently of the active tag filter. Mutant:
+    filtering `leaves` on tag_hidden. The failure would be INVISIBLE -- the card
+    still renders, just pointing somewhere else.
+
+    Tag has `author` (not owner), NO course field at all (course scoping runs
+    through UnitTag -> ContentNode), and `color` must come from TAG_PALETTE
+    (teal/amber/indigo/rose/green/violet/slate/cyan -- "blue" is not a member).
+    Use the shipped factories rather than Tag.objects.create.
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import TagFactory
+    from tests.factories import UnitTagFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "tf")
+    course = CourseFactory(slug="tf")
+    target = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    other = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=1)
+    EnrollmentFactory(student=user, course=course)
+    tag = TagFactory(author=user, name="t", color="teal")
+    UnitTagFactory(tag=tag, unit=other)
+
+    r = client.get(
+        reverse("courses:course_outline", kwargs={"slug": "tf"}), {"tags": tag.pk}
+    )
+    # Guard the guard: course_outline drops any ?tags= pk not in course_tag_ids, so
+    # if the tag did not reach tags_for_outline the filter is silently inert and the
+    # test would pass for the wrong reason.
+    assert r.context["active_tag_ids"] == [tag.pk]
+    assert r.context["resume"]["node"].pk == target.pk
 ```
 
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_courses_views.py -v -k "resume_target"
+uv run pytest tests/test_courses_views.py -v -k "resume_target or tag_filter"
 ```
 
-Expected: FAIL — `KeyError: 'resume'`.
+Expected: all three FAIL — `KeyError: 'resume'`.
 
 - [ ] **Step 3: Implement**
 
@@ -1191,31 +1384,6 @@ def test_card_links_to_lesson_unit_for_a_lesson_target(client):
     assert card["href"] == reverse(
         "courses:lesson_unit", kwargs={"slug": "ll", "node_pk": lesson.pk}
     )
-
-
-@pytest.mark.django_db
-def test_tag_filter_does_not_move_the_resume_target(client):
-    """The target is computed independently of the active tag filter. Mutant:
-    filtering `leaves` on tag_hidden. The failure would be invisible -- the card
-    still renders, just pointing somewhere else."""
-    from tags.models import Tag
-    from tests.factories import ContentNodeFactory
-    from tests.factories import CourseFactory
-    from tests.factories import EnrollmentFactory
-    from tests.factories import make_login
-
-    user = make_login(client, "tf")
-    course = CourseFactory(slug="tf")
-    target = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
-    other = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=1)
-    EnrollmentFactory(student=user, course=course)
-    tag = Tag.objects.create(owner=user, course=course, name="t", color="blue")
-    tag.units.add(other)
-
-    r = client.get(
-        reverse("courses:course_outline", kwargs={"slug": "tf"}), {"tags": tag.pk}
-    )
-    assert r.context["resume"]["node"].pk == target.pk
 
 
 @pytest.mark.django_db
@@ -1395,18 +1563,26 @@ Insert after `.outline__results { margin-left: auto; }`:
 .resume__title { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); }
 .resume:hover { border-color: var(--border-strong); }
 .resume:hover .resume__title { text-decoration: underline; }
-.resume:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.resume:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 ```
 
-Before writing, `grep` `app.css` for the exact token names in use (`--radius-md`, `--border-strong`, `--focus-ring`, `--text-secondary`) and substitute the repo's actual names — **do not invent tokens**.
+`var(--primary)` for the focus ring is not a free choice — it is what all nine existing
+`:focus-visible` rules in `app.css` use (606, 1037, 1069, 1177, 1270, 1306, 1405, 1454, 1739).
+There is **no** `--focus-ring` token in this repo, and an unresolvable `var()` invalidates the
+whole `outline` shorthand, shipping the card with no ring at all.
+
+Before writing, confirm every other token resolves and **substitute the repo's real name for any
+that does not — never invent one**.
 
 - [ ] **Step 2: Verify the tokens resolve**
 
 ```bash
-grep -nE "^\s*--(radius-md|border-strong|focus-ring|text-secondary|surface-raised)\b" core/static/core/css/app.css
+grep -nE -- "--(radius-md|border-strong|primary|text-secondary|text-primary|surface-raised)[[:space:]]*:" core/static/core/css/tokens.css
 ```
 
-Expected: every token used above appears. Fix any that do not.
+Tokens are **declared in `tokens.css`**, not `app.css` — `app.css` only consumes them, so grepping
+`app.css` for declarations returns nothing and proves nothing. Every token used above must appear
+here; substitute the repo's real name for any that does not.
 
 - [ ] **Step 3: Visual check**
 
@@ -1429,10 +1605,14 @@ git commit -m "style(resume): card surface, hover and focus-visible treatment"
 - [ ] **Step 1: Extract**
 
 ```bash
-uv run python manage.py makemessages -l pl
+uv run python manage.py makemessages -l en -l pl
 ```
 
 - [ ] **Step 2: Translate**
+
+This repo maintains **both** `locale/en` and `locale/pl` in lockstep — the most recent locale
+commit (`555525f4`) touched all four `.po`/`.mo` files. Extracting only `pl` leaves the English
+source catalog missing the new msgids, which is exactly the drift that commit repaired.
 
 Fill in the four msgids in `locale/pl/LC_MESSAGES/django.po`:
 
@@ -1486,14 +1666,16 @@ The comment currently says reset is safe partly because *"nothing reads updated_
 ```python
         # .update() deliberately bypasses save(): it fires neither auto_now on
         # updated_at nor the completed => completed_at invariant. Both are fine --
-        # reset does not touch `completed`, and leaving updated_at alone is what
-        # keeps the outline resume card (rollups.build_resume, source A) pointing
-        # where the student actually was. IDOR-safe against other STUDENTS by
-        # construction (student=request.user); the cross-COURSE hole is closed by
+        # reset does not touch `completed`, and leaving updated_at alone keeps the
+        # resume card (rollups.build_resume, source A) pointing where the student
+        # was. IDOR-safe against other STUDENTS by construction
+        # (student=request.user); the cross-COURSE hole is closed by
         # get_node_or_404 above, not by this filter.
 ```
 
-Confirm the replacement has the **same line count** as the original before committing.
+The original clause spans **seven** lines (`# .update() deliberately bypasses save():` through
+`# get_node_or_404 above, not by this filter.`) and so does the replacement. Count both before
+committing — a net +1 is exactly the citation rot this rule exists to prevent.
 
 - [ ] **Step 3: Add the behavioural test that the comment now describes**
 
@@ -1519,9 +1701,9 @@ def test_start_fresh_does_not_move_the_resume_target(client):
     course, units = _course_with_units(8, slug="sf")
     EnrollmentFactory(student=user, course=course)
     for i in range(5):
-        _complete(units[i], user, f"2026-08-0{i + 1} 10:00:00")
+        _complete(units[i], user, 40 - i)
     UnitProgressFactory(student=user, unit=units[6])
-    _backdate_progress(units[6], user, timezone.now() - timedelta(days=400))
+    _backdate_progress(units[6], user, timezone.now() - timedelta(days=90))
 
     before = _resume(course, user)
     assert before["state"] == "next" and before["node"].pk == units[5].pk
