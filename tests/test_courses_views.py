@@ -510,3 +510,40 @@ def test_eyebrow_carries_the_active_ui_language(client):
 
     card = BeautifulSoup(r.content, "html.parser").select_one("a.resume")
     assert card.select_one("span.resume__eyebrow")["lang"] == "pl"
+
+
+@pytest.mark.django_db
+def test_resume_card_renders_its_path_separator_and_affordance(client):
+    """The DOM contract's decorative members were previously assert-free: deleting the
+    `›` separator, the `.resume__path` wrapper, or the chevron left the whole suite
+    green. The chevron in particular is the card's ONLY click affordance -- without it
+    the card reads as a passive info panel rather than the page's primary control.
+
+    Needs a nested unit so `ancestors` is non-empty; a root-level unit omits the path
+    entirely by design.
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_login
+
+    user = make_login(client, "rcard")
+    course = CourseFactory(slug="rcard")
+    part = ContentNodeFactory(course=course, kind="part", unit_type=None, order=0)
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, order=0
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter, order=0
+    )
+    EnrollmentFactory(student=user, course=course)
+
+    card = _resume_soup(client, "rcard")
+    assert card.select_one("span.resume__path") is not None
+    # Two ancestors => exactly one separator between them.
+    seps = card.select("span.resume__sep")
+    assert len(seps) == 1
+    assert seps[0].get("aria-hidden") == "true"
+    arrow = card.select_one("svg.resume__arrow")
+    assert arrow is not None
+    assert arrow.get("aria-hidden") == "true"

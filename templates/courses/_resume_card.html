@@ -25,4 +25,8 @@ inherited from <section class="outline">.{% endcomment %}
   {% endif %}
   <span class="resume__title" data-math-title>{{ resume.node.title }}</span>
   {% include "courses/_unit_kind_chip.html" with node=resume.node only %}
+  {% comment %}The chevron is the card's only affordance: without it the card reads as a
+  passive info panel rather than the page's primary control. aria-hidden because the link
+  already has an accessible name (eyebrow + path + title); the glyph adds nothing to it.{% endcomment %}
+  <svg class="resume__arrow icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
 </a>
