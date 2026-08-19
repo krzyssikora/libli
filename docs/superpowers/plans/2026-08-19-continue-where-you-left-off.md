@@ -233,9 +233,8 @@ def build_resume(course, user, tree):
     if flight is not None and (done is None or ts_f >= ts_d):
         return {"node": flight, "state": "resume", "ancestors": []}
 
-    # STEP 4. `done` is a pk; its POSITION in the outline is what matters. Dead until
-    # Task 3 assigns `done` -- deliberately laid down here so the control flow is
-    # final and no later task has to reorder it.
+    # STEP 4. `done` is a pk; its POSITION in the outline is what matters. Dead
+    # until source D assigns `done`; laid down here so the control flow is final.
     if done is not None:
         idx = next(i for i, leaf in enumerate(leaves) if leaf["node"].pk == done)
         # No default on next(): source D filters unit_id__in=leaf_pks, so a missing
@@ -617,7 +616,7 @@ uv run pytest tests/test_resume_target.py -v
 
 Expected: **12** passed (Task 1's 5 + this task's 7).
 
-- [ ] **Step 5: Falsify — three mutants, by hand**
+- [ ] **Step 5: Falsify — six mutants (seven applications), by hand**
 
 1. Delete source **C** from the `candidates` tuple. Expected: `test_answered_quiz_beats_a_later_opened_lesson` FAILS.
 2. Restore C; delete source **B**. Expected: `test_opened_but_unanswered_quiz_is_the_target` FAILS.
@@ -1122,6 +1121,13 @@ These are the documented exception to the failing-first rule — budget guards w
 implementation exists, so they pass immediately. They earn their place through Step 3's
 falsification, not by going RED first.
 
+**Do not add a view-level query-count test.** Only the `build_resume`-level counts are pinned;
+the view-level numbers (5 warm, 6-or-7 cold) are deliberately unpinned. The spec records the
+decision and the three hazards that killed three separate attempts — a fixture-dependent
+baseline, two-user arms that do not cancel, and `conftest.py`'s autouse `_clear_site_cache`
+making a same-user A/B exceed the delta on a *correct* build. See **"There is deliberately NO
+view-level query-count test"** in the spec before writing one.
+
 Append to `tests/test_resume_target.py`:
 
 ```python
@@ -1270,7 +1276,7 @@ def test_outline_offers_no_resume_target_to_a_non_enrolled_viewer(client):
     # The context assertion alone would still pass if the template later grew a
     # fallback card, and it never exercises the {% if resume %} guard. This test is
     # what pins the WIRING (it replaces the abandoned view-level query test), so it
-    # must assert on the rendered DOM as well. Re-run it after Task 7.
+    # must assert on the rendered DOM as well.
     from bs4 import BeautifulSoup
 
     assert BeautifulSoup(r.content, "html.parser").select_one("a.resume") is None
@@ -1615,9 +1621,15 @@ passes** — the card's chip also emits `lang="{{ LANGUAGE_CODE }}"` — so the 
 no longer asserting anything about the outline row it exists to guard. **No per-task review can
 see this, because the diff touches no test file.**
 
-Re-scope it:
+Re-scope it — **two edits in that test, not one**. Its fixture never binds the node to a name
+(`ContentNodeFactory(course=course, unit_type="quiz", title="Lang")` at line 193), so the
+scoped selector needs a variable first or you get `NameError: name 'quiz' is not defined`:
 
 ```python
+# line 193 -- add the binding
+quiz = ContentNodeFactory(course=course, unit_type="quiz", title="Lang")
+
+# line 195 -- scope the selector
 chip = _outline_soup(client, course).select_one(
     f"li#node-{quiz.pk} a.outline-unit .unit-kind-chip"
 )
@@ -1625,10 +1637,31 @@ chip = _outline_soup(client, course).select_one(
 
 (`test_unit_marker.py:173` is already scoped as `li#node-{quiz.pk} a.outline-unit` — leave it.)
 
-Then sweep the other outline-rendering suites for unscoped selectors and run them:
+**The same shadowing applies to bare substring assertions, which no selector sweep can find.**
+The card renders the target unit's *title* in `span.resume__title` above the tree, so any
+`assert "<title>" in body` over the outline page is now satisfied by the card and would stay
+green even if `_outline_node.html` stopped rendering unit rows entirely. Two live cases:
+
+- `tests/test_courses_views.py:49` — `assert "Lesson A" in resp.content.decode()`. One enrolled
+  student, one lesson, so the card is `state="start"` on "Lesson A".
+- `tests/test_tags_outline.py:52` — `assert "Photosynthesis" in html` in
+  `test_filter_hides_non_matching_unit`. u1 is `open[0]`, so that title is the card's.
+  (The sibling `assert "Membranes" in html` on line 54 is unaffected — the card renders one
+  title, and it is not that one.)
+
+Re-scope both to the outline row rather than the page, e.g.:
+
+```python
+soup = BeautifulSoup(resp.content.decode(), "html.parser")
+row = soup.select_one(f'li[data-unit="{unit.pk}"] span.outline-unit__title')
+assert row is not None and "Lesson A" in row.get_text(strip=True)
+```
+
+Then sweep the other outline-rendering suites for **both** unscoped selectors and bare substring
+assertions over the outline body, and run them:
 
 ```bash
-uv run pytest tests/test_unit_marker.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py -v
+uv run pytest tests/test_unit_marker.py tests/test_outline_collapsible.py tests/test_outline_anchors.py tests/test_tags_outline.py tests/test_courses_views.py -v
 ```
 
 All must pass. Verify the re-scope is real, not cosmetic: temporarily point the selector at
@@ -1638,7 +1671,7 @@ the original unscoped form was ambiguous.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add templates/courses/_resume_card.html templates/courses/outline.html tests/test_courses_views.py tests/test_title_math_markers.py tests/test_unit_marker.py
+git add templates/courses/_resume_card.html templates/courses/outline.html tests/test_courses_views.py tests/test_title_math_markers.py tests/test_unit_marker.py tests/test_tags_outline.py
 git commit -m "feat(resume): the card partial, its include, and render coverage"
 ```
 
@@ -1759,7 +1792,7 @@ uv run python manage.py compilemessages
 - [ ] **Step 4: Verify catalog health and the eyebrow test**
 
 ```bash
-uv run pytest tests/test_i18n_po_health.py -q
+uv run pytest tests/test_i18n_po_health.py
 uv run pytest tests/test_courses_views.py -v -k "eyebrow"
 ```
 
@@ -1907,12 +1940,33 @@ of `.outline`; `courses/tests/test_progress_reset.py` because Task 10 edits `pro
 - [ ] **Step 4: Courses non-e2e sweep**
 
 ```bash
-uv run pytest tests/ courses/tests/ -m "not e2e" -q
+uv run pytest tests/ courses/tests/ -m "not e2e" -ra
 ```
 
-Grep the summary line for `failed` — the exit code alone has lied before on a backgrounded run.
+**No `-q`.** `pyproject.toml:49` already sets `addopts = "-q -m 'not e2e'"`, so passing another
+makes it `-qq`, which suppresses the short test summary — the very thing the next sentence tells
+you to read. Grep the summary line for `failed`: the exit code alone has lied before on a
+backgrounded run.
 
-- [ ] **Step 5: Commit any fixes**
+- [ ] **Step 5: Rebase onto master and REGENERATE the `.mo` files**
+
+The spec requires this and nothing else in the plan covers it. Both `locale/en` and `locale/pl`
+ship compiled `.mo` binaries; a `.mo` conflict **cannot be text-merged**, and the most recent
+locale commit on master (`555525f4`) touched all four catalog files, so concurrent locale work
+collides.
+
+```bash
+git fetch origin
+git rebase origin/master
+uv run python manage.py compilemessages
+git add locale
+git commit -m "i18n(resume): regenerate catalogs after rebase"
+```
+
+**Regenerate, never hand-resolve.** If the rebase reports a conflict in a `.mo`, take either
+side, finish the rebase, and let `compilemessages` rebuild it from the merged `.po`.
+
+- [ ] **Step 6: Commit any fixes**
 
 ```bash
 git add -A
@@ -1923,7 +1977,9 @@ git commit -m "chore(resume): definition-of-done fixes"
 
 ## Self-Review
 
-**Spec coverage.** Walked each spec section against the tasks: steps 1–6 → Tasks 1/2/3; sources A–E → Tasks 1/2/3; cross-source tie-break and assembly order → Task 2; `completed_at` anchoring → Task 3; ancestors and inert stamping → Task 4; query budgets → Task 5; enrolled gate and context key → Task 6; DOM contract, four eyebrows, link branching, `lang`, tag independence, marker coverage → Task 7; hover/focus/screenshots → Task 8; four strings → Task 9; **change site 7** → Task 10; DoD → Task 11. All seven enumerated change sites have a task. The spec's non-falsifiable item (source A's `completed=False`) is carried as a comment in Task 2 with an explicit instruction not to falsify it, and the spec's accepted limitation (a submitted quiz with no `UnitProgress` can surface as `next`) is documented in Task 2's `test_submitted_quiz_with_no_progress_row_is_not_the_target` docstring.
+**Spec coverage.** Walked each spec section against the tasks: steps 1–6 → Tasks 1/2/3; sources A–E → Tasks 1/2/3; cross-source tie-break and assembly order → Task 2; `completed_at` anchoring → Task 3; ancestors and inert stamping → Task 4; query budgets → Task 5; enrolled gate and context key → Task 6; DOM contract, four eyebrows, link branching, `lang`, tag independence, marker coverage → Task 7; hover/focus/screenshots → Task 8; four strings → Task 9; **change site 7** → Task 10; DoD → Task 11. All seven enumerated change sites have a task. The spec's non-falsifiable item (source A's `completed=False`) is carried as a comment in Task 2 with an explicit instruction not to falsify it, and the spec's accepted limitation (a submitted quiz with no `UnitProgress` can surface as `next`) is pinned by **Task 3's** `test_submitted_quiz_without_progress_can_surface_as_next` (not Task 2's
+similarly-named `test_submitted_quiz_with_no_progress_row_is_not_the_target`, which documents the
+opposite case — the status filter keeping a submitted quiz out of the in-flight sources).
 
 **Placeholder scan.** No TBD/TODO, no "add error handling", no "similar to Task N" — each task repeats the code it needs.
 
