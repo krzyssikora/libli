@@ -311,10 +311,22 @@ body.editor-page .app-main { max-width: 102rem; }
 }
 
 .rte-sep { width: 1px; align-self: stretch; background: var(--border-default); margin: 2px 3px; }
+/* `anywhere`, NOT `break-word`: the two wrap identically, but only `anywhere`
+   affects min-content intrinsic sizing -- and intrinsic sizing is the whole
+   point here. .el-editor is a grid whose single implicit track is `auto`, so
+   the track is sized to the LARGEST min-content contribution among its items.
+   Authored maths is one long token with no space in it
+   (`\(x^2+3x+1=0\quad\quad\Rightarrow\quad`), which without a wrap opportunity
+   gives this surface a ~342px min-content; inside a before/after slot (or any
+   nested column) the container is ~282px, so the track was pushed to 342 and
+   EVERY item stretched to it -- the toolbar spilling past the slot, past
+   .pane-body and off the viewport edge. tests/test_e2e_before_after.py::
+   test_open_edit_form_stays_inside_its_slot measures both edges. */
 .rte-surface {
   min-height: 8rem; padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); color: var(--text-primary);
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
 }
 .rte-surface:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
 

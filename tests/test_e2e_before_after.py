@@ -882,3 +882,73 @@ def test_screenshots_light_and_dark(page, live_server, browser, tmp_path):
     no_js_context.close()
 
     print(f"BEFOREAFTER_SHOTS_DIR={tmp_path}")
+
+
+# ---------------------------------------------------------------------------
+# 15. Editor: an open edit form stays inside its narrow slot
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_open_edit_form_stays_inside_its_slot(page, live_server):
+    r"""A slot is half a nested column, so the edit form opened INSIDE one is the
+    narrowest place .el-editor is ever laid out -- and .el-editor is a grid whose
+    single implicit track is `auto`, i.e. sized to the LARGEST min-content
+    contribution among its items. Authored maths is one long token with no space in
+    it (`\(x^2+3x+1=0\quad\quad\Rightarrow\quad`), so without a wrap opportunity
+    the .rte-surface's min-content is ~342px, the track is pushed to 342 against a
+    282px container, and every grid item -- the toolbar included -- is stretched to
+    that track and spills past the slot, past the pane and off the viewport edge.
+    MEASURED on the broken build at this viewport: surface/toolbar right edge
+    793.5 vs the slot's 754, and .pane-body scrolling 11px horizontally.
+
+    Mutant: drop `overflow-wrap: anywhere` from .rte-surface (editor.css) -> RED on
+    both assertions. `break-word` is NOT a fix and is RED too: it wraps the same way
+    but is defined NOT to affect min-content intrinsic sizes, which is the only
+    thing the auto track reads.
+    """
+    long_maths = (
+        r"<p>(16) \(x^2+3x+1=0\quad\quad\Rightarrow\quad "
+        r"x=rac{-3-\sqrt{5}}{2}, x=rac{-3+\sqrt{5}}{2}\)</p>"
+    )
+    # The fixture only exercises the bug if it really contains an unbreakable run
+    # wider than the slot; a body that happens to wrap on spaces would pass under
+    # the mutant too.
+    assert max(len(w) for w in long_maths.split()) >= 30
+
+    pa = _make_pa_user("ba_formfit")
+    course, unit = _seed_unit(pa, "ba-formfit")
+    _seed_before_after(unit, long_maths, long_maths)
+    page.set_viewport_size({"width": 1600, "height": 900})
+    _login(page, live_server, "ba_formfit")
+    page.goto(_editor_url(live_server, course, unit))
+
+    after_slot = _ba_rows(page).nth(1)
+    after_slot.wait_for(state="visible")
+    child = after_slot.locator(".element-list--nested .el-row").first
+    child.hover()
+    child.locator(".el-act-edit").click()
+    surface = page.locator("[data-edit-slot] form[data-op='element-save'] .rte-surface")
+    surface.wait_for(state="visible")
+
+    slot_box = after_slot.bounding_box()
+    surface_box = surface.bounding_box()
+    toolbar_box = page.locator(
+        "[data-edit-slot] form[data-op='element-save'] .rte-toolbar"
+    ).bounding_box()
+    # Guard against a vacuous pass on a collapsed/zero-width box.
+    assert surface_box["width"] > 100
+    assert toolbar_box["width"] > 100
+    for name, box in (("surface", surface_box), ("toolbar", toolbar_box)):
+        right = box["x"] + box["width"]
+        assert right <= slot_box["x"] + slot_box["width"] + 0.5, (
+            f"{name} right edge {right} escapes the slot "
+            f"{slot_box['x'] + slot_box['width']}"
+        )
+
+    # ...and nothing it contains makes the editor pane scroll sideways.
+    pane_overflow = page.evaluate(
+        """() => { const b = document.querySelector('.editor-pane .pane-body');
+                   return b.scrollWidth - b.clientWidth; }"""
+    )
+    assert pane_overflow == 0, f"editor pane scrolls {pane_overflow}px horizontally"
