@@ -774,10 +774,10 @@ def progress_reset(request, slug, node_pk=None):
     if request.method == "POST":
         # .update() deliberately bypasses save(): it fires neither auto_now on
         # updated_at nor the completed => completed_at invariant. Both are fine --
-        # reset does not touch `completed`, and nothing reads updated_at for
-        # practice state. IDOR-safe against other STUDENTS by construction
-        # (student=request.user); the cross-COURSE hole is closed by
-        # get_node_or_404 above, not by this filter.
+        # reset does not touch `completed`, and leaving updated_at alone keeps
+        # build_resume's source A pointing where the student was. IDOR-safe against
+        # other STUDENTS by construction (student=request.user); the cross-COURSE
+        # hole is closed by get_node_or_404 above, not by this filter.
         # A DIRECT write, bypassing save_element_state -- the house style, and the
         # reason the lockstep contract lives on the field itself (see models.py).
         rows.update(element_state={})

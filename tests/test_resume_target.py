@@ -638,3 +638,47 @@ def test_cold_path_short_circuits_after_the_first_probe(django_assert_num_querie
     tree = _tree(course, user)
     with django_assert_num_queries(5):
         build_resume(course, user, tree)
+
+
+@pytest.mark.django_db
+def test_start_fresh_does_not_move_the_resume_target(client):
+    """progress_reset writes with rows.update(...), and a queryset .update() does not
+    fire auto_now -- so clearing scratch work must not send the student back.
+
+    FIXTURE IS LOAD-BEARING. The stale uncompleted row must be STRICTLY OLDER than
+    unit 5's completed_at, and only .update()/freeze_time can backdate it (save()
+    cannot). Create it last in the natural order and it becomes the NEWEST row, so
+    the correct build already answers `resume` on it and the test fails before the
+    mutant is even applied.
+    """
+    from django.urls import reverse
+
+    from tests.factories import make_login
+
+    user = make_login(client, "sf")
+    course, units = _course_with_units(8, slug="sf")
+    EnrollmentFactory(student=user, course=course)
+    for i in range(5):
+        _complete(units[i], user, 40 - i)
+    UnitProgressFactory(student=user, unit=units[6])
+    _backdate_progress(units[6], user, timezone.now() - timedelta(days=90))
+
+    # Guard the guard: a POST that 302s to login or 403s would leave the correct
+    # build passing and the Step-4 mutant "not firing", sending you to debug the
+    # mutant instead of the fixture. Prove the reset actually wrote.
+    row = UnitProgress.objects.get(student=user, unit=units[6])
+    row.element_state = {"1": {"open": True}}
+    row.save()
+    _backdate_progress(units[6], user, timezone.now() - timedelta(days=90))
+
+    before = _resume(course, user)
+    assert before["state"] == "next" and before["node"].pk == units[5].pk
+
+    resp = client.post(reverse("courses:progress_reset_course", kwargs={"slug": "sf"}))
+    assert resp.status_code == 302
+    row.refresh_from_db()
+    assert row.element_state == {}
+
+    after = _resume(course, user)
+    assert after["state"] == "next"
+    assert after["node"].pk == units[5].pk
