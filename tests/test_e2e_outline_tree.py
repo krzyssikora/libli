@@ -467,18 +467,41 @@ def test_label_tracks_a_single_summary_toggle(page, live_server):
     fires and the label silently stops updating.
 
     T9 alone cannot catch this: an implementation that sets the label inline in
-    the button handler passes T9 with no toggle listener at all."""
+    the button handler passes T9 with no toggle listener at all.
+
+    NOT the toggle-all button, even for setup — MEASURED: a
+    button.click()-then-close-one-summary design (the original shape here)
+    cannot discriminate this mutant. syncLabel's output is a boolean ("any group
+    closed?"), so "expand all, then close one via a summary click" is a round
+    trip back to the SAME "Expand all" text the page starts with. Under the
+    mutant the label never updates at all (confirmed: it reads "Expand all"
+    both immediately after the button click and after the summary click), and
+    under a correct build two genuine updates land and cancel out to the exact
+    same string — both builds show identical final text, so a final-state-only
+    assertion passes on both. Two summary gestures instead, opening
+    (not closing), so the transition is monotonic and cannot cancel out: open
+    chap_b first (setup, synced on unit_b's visibility, not on the label — this
+    step's expected label is unchanged either way and would prove nothing), then
+    open chap_a (the discriminator) — the only remaining closed group, so this
+    is the first and only gesture that can flip the label to "Collapse all".
+    Under the mutant the label is stuck at "Expand all" and this assertion
+    reddens cleanly; under a correct build it is the summary listener, and only
+    the summary listener, that gets it to "Collapse all"."""
     f = _course_with_two_chapters("t14")
     _login(page, live_server, "t14")
     page.goto(f"{live_server.url}/courses/{f['course'].slug}/")
 
     button = page.locator("[data-outline-toggle-all]")
-    button.click()  # expand all
-    expect(button).to_have_text("Collapse all")
 
-    # A single summary gesture, not the button, is what exercises the listener.
+    # Setup: open chap_b directly via its summary — not the discriminator, so
+    # synced on structure (unit_b becoming visible), not on the label.
+    page.locator(_title_sel(f["chap_b"].pk)).click()
+    expect(page.locator(f"#node-{f['unit_b'].pk}")).to_be_visible()
+
+    # The discriminator: opening chap_a is the ONLY remaining closed group, so
+    # this single summary gesture is what flips the label to "Collapse all".
     page.locator(_title_sel(f["chap_a"].pk)).click()
-    expect(button).to_have_text("Expand all")
+    expect(button).to_have_text("Collapse all")
 
 
 @pytest.mark.django_db(transaction=True)
