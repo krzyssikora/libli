@@ -424,16 +424,6 @@ course language.
 off, <Chapter>, <Unit title>" rather than a bare title. `›` separators are `aria-hidden`,
 following `_unit_crumbs.html`.
 
-### 7. `courses/views.py::progress_reset` — the stale comment
-
-The `.update() deliberately bypasses save()` comment above `rows.update(element_state={})`
-currently asserts *"nothing reads updated_at for practice state"*. This feature falsifies it:
-source A reads `updated_at`. **Correct that clause**, keeping the edit **line-count neutral** so it
-does not rot line-number citations in surrounding untouched code.
-
-No test can catch this — it is prose. It is a numbered change site precisely so the plan carries it
-as an explicit task rather than inheriting it from a parenthetical in another section.
-
 ### 4. `templates/courses/outline.html`
 
 Exactly one line, between `.outline__head` and `_tags_filter_bar.html`:
@@ -464,6 +454,16 @@ screenshots below do not capture focus state, so add a **keyboard-focus screensh
 ### 6. `locale/**/django.po` + regenerated `.mo`
 
 Four new strings (the eyebrows). See the i18n subsection under Testing.
+
+### 7. `courses/views.py::progress_reset` — the stale comment
+
+The `.update() deliberately bypasses save()` comment above `rows.update(element_state={})`
+currently asserts *"nothing reads updated_at for practice state"*. This feature falsifies it:
+source A reads `updated_at`. **Correct that clause**, keeping the edit **line-count neutral** so it
+does not rot line-number citations in surrounding untouched code.
+
+No test can catch this — it is prose. It is a numbered change site precisely so the plan carries it
+as an explicit task rather than inheriting it from a parenthetical in another section.
 
 ## Data flow
 
@@ -534,7 +534,7 @@ exactly that reason.)
 - **Not enrolled** → the view never calls `build_resume`; `resume` is `None`.
 - **Anonymous user** → unreachable twice over: `course_outline` is `@login_required`, and
   `can_access_course` → `accessible_courses` opens with `if not user.is_authenticated: return
-  Course.objects.none()` (`access.py:19-20`), raising `PermissionDenied` before any resume code
+  Course.objects.none()` (`access.py:20-21`), raising `PermissionDenied` before any resume code
   runs. What is **not** a safety net is `is_enrolled`: it would **raise**, not return False, on an
   `AnonymousUser`:
   `access.py:12-13` calls `Enrollment.objects.filter(student=user, …)`, and `Enrollment.student` is
