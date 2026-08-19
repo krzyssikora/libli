@@ -277,7 +277,18 @@ behaviour so it is a recorded choice rather than an accident.
 
 ## Architecture / components
 
-Six change sites. No model, no migration, no new endpoint, no JavaScript.
+**Seven** change sites, enumerated here so a plan built from this list alone cannot drop one. No
+model, no migration, no new endpoint, no JavaScript.
+
+1. `courses/rollups.py` — new `build_resume`
+2. `courses/views.py::course_outline` — one call **and** one context key
+3. `templates/courses/_resume_card.html` — new
+4. `templates/courses/outline.html` — the `{% include %}` line
+5. `core/static/core/css/app.css` — a `.resume` block
+6. `locale/**/django.po` + regenerated `.mo` — four new strings
+7. **`courses/views.py::progress_reset`** — a comment correction, in a *different function* from
+   site 2, and the one most easily dropped: it is motivated over in the Data flow section, so a
+   reader enumerating only this list would otherwise miss it entirely.
 
 ### 1. `courses/rollups.py` — `build_resume(course, user, tree)`
 
@@ -330,6 +341,8 @@ and the key must be added to the existing `render(...)` context dict:
 
 Without the second, `{% if resume %}` reads a missing variable, which is falsy, and the card simply
 never appears — no error, no failing template.
+
+(A **third** `views.py` edit exists, in `progress_reset` rather than here — change site 7.)
 
 **Enrolled-only.** `can_access_course` also admits authors, teachers and staff previewing a course
 they are not taking; a "Start the course" call to action would be noise for them. This matches the
@@ -410,6 +423,16 @@ course language.
 **Accessibility.** The eyebrow is the link's leading text, so it reads as "Pick up where you left
 off, <Chapter>, <Unit title>" rather than a bare title. `›` separators are `aria-hidden`,
 following `_unit_crumbs.html`.
+
+### 7. `courses/views.py::progress_reset` — the stale comment
+
+The `.update() deliberately bypasses save()` comment above `rows.update(element_state={})`
+currently asserts *"nothing reads updated_at for practice state"*. This feature falsifies it:
+source A reads `updated_at`. **Correct that clause**, keeping the edit **line-count neutral** so it
+does not rot line-number citations in surrounding untouched code.
+
+No test can catch this — it is prose. It is a numbered change site precisely so the plan carries it
+as an explicit task rather than inheriting it from a parenthetical in another section.
 
 ### 4. `templates/courses/outline.html`
 
