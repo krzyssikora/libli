@@ -232,10 +232,10 @@ def build_resume(course, user, tree):
     done, ts_d = None, None
 
     # STEP 3. Both names are already bound, so this runs correctly in every task.
-    # The ts comparison is ESSENTIAL: views.py::build_lesson_context mints a UnitProgress row on EVERY
-    # enrolled lesson GET, so without it one stray click a year ago pins the card to
-    # that unit forever. >= (not >) keeps an in-flight unit winning a tie -- the
-    # friendlier reading of "where you left off".
+    # The ts comparison is ESSENTIAL: views.py::build_lesson_context mints a
+    # UnitProgress row on EVERY enrolled lesson GET, so without it one stray click
+    # a year ago pins the card to that unit forever. >= (not >) keeps an in-flight
+    # unit winning a tie -- the friendlier reading of "where you left off".
     if flight is not None and (done is None or ts_f >= ts_d):
         return {"node": flight, "state": "resume", "ancestors": []}
 
@@ -550,8 +550,8 @@ Insert after `flight, ts_f = None, None` and before `done, ts_d = None, None`:
     # unit) unique constraint makes -unit_id pin the row; for C it pins the UNIT,
     # which is all the algorithm needs.
     #
-    # A -- lesson work. updated_at is auto_now: first open (views.py::build_lesson_context), every
-    # `seen` batch, every practice-state write.
+    # A -- lesson work. updated_at is auto_now: the first open in
+    # views.py::build_lesson_context, every `seen` batch, every practice-state write.
     # NOTE: completed=False here is DELIBERATE REDUNDANCY and is NOT falsifiable --
     # open_pks is derived from exactly this filter (build_outline's completed set,
     # rollups.py:244-250, leaf key at :265), so no mutant of it can go RED. It
@@ -697,9 +697,10 @@ def test_most_recent_unit_completed_advances_to_the_next_open_unit():
 @pytest.mark.django_db
 def test_stray_visit_does_not_pin_the_card_forever():
     """THE bug the ts_f >= ts_d comparison exists to stop. Opening unit 0 once
-    leaves a permanent completed=False row (views.py::build_lesson_context get_or_create on every
-    enrolled lesson GET). Without the comparison it outranks every completion
-    made since and the card says "Pick up where you left off - unit 0" forever.
+    leaves a permanent completed=False row -- views.py::build_lesson_context does a
+    get_or_create on every enrolled lesson GET. Without the comparison it outranks
+    every completion made since and the card says "Pick up where you left off -
+    unit 0" forever.
     """
     course, units = _course_with_units(4)
     user = make_verified_user(username="d2", email="d2@test.example.com")
@@ -857,6 +858,10 @@ def test_submitted_quiz_without_progress_can_surface_as_next():
     breaks. The repair belongs in the seeder, NOT in this card: adding a fifth query
     to compensate for a fixture-only state was explicitly rejected. This test exists
     so that decision is recorded and cannot evaporate silently.
+
+    EXEMPT FROM FALSIFICATION, like the query-budget guards: its only "mutant" is a
+    design change this spec explicitly rejected (adding a fifth query to exclude
+    submitted quizzes from `open`). Do not hunt for one.
     """
     course = CourseFactory()
     lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
@@ -887,8 +892,10 @@ already returns `resume` via step 3 with `done is None`; `test_all_units_complet
 `test_completed_quiz_that_is_the_last_open_unit_yields_none` are step-1 cases; `test_additional_lesson...`
 and `test_submitted_quiz_without_progress_can_surface_as_next` reach step 5; and
 `test_in_flight_strictly_newer_than_a_real_completion_resumes` returns `resume` via step 3 with
-`done is None`. That is **six** green. They are **guards**, and their value is proven by the
-Step-5 falsification, not by failing first.
+`done is None`. That is **six** green. Five are **guards** whose value is proven by the Step-5
+falsification rather than by failing first; the sixth,
+`test_submitted_quiz_without_progress_can_surface_as_next`, is a **decision record** and is
+exempt from falsification (see its docstring).
 
 - [ ] **Step 3: Write the implementation**
 
@@ -937,9 +944,10 @@ Expected: **22** passed (12 + this task's 10).
 2. Restore; change step 3's `ts_f >= ts_d` to `ts_f > ts_d`. Expected: `test_exact_tie_between_in_flight_and_completion_resumes` FAILS.
 3. Restore; drop the `done is None or ts_f >= ts_d` condition entirely (i.e. `if flight is not None:`). Expected: `test_stray_visit_does_not_pin_the_card_forever` FAILS.
 4. Restore; replace the `gap` return with `return None`. Expected: `test_finished_the_last_unit_wraps_back_to_the_earliest_gap` FAILS.
-5. Restore; delete step 1's `if not open_leaves: return None`. Expected: `test_all_units_completed_returns_none` and `test_no_visible_units_returns_none` FAIL with `IndexError`.
+5. Restore; delete step 1's `if not open_leaves: return None`. Expected: **three** tests FAIL with `IndexError` — `test_all_units_completed_returns_none`, `test_no_visible_units_returns_none`, and `test_completed_quiz_that_is_the_last_open_unit_yields_none` (same shape: both units completed, `open_leaves` empty, `done` set, `forward` `None`, then `open_leaves[0]`). This mutant is also what earns the completed-quiz test its place; its docstring's own "quiz never completes" mutant is not applied anywhere.
 6. Restore; **reverse the step-3 comparison** to `done is None or ts_d >= ts_f`. Expected: `test_in_flight_strictly_newer_than_a_real_completion_resumes` FAILS. This is the mutant that test exists for — none of mutants 1-5 can kill it (2 and 3 leave it green, because its timestamps are strictly ordered), so without this step it ships unfalsified, violating the Global Constraint.
 7. Restore; **narrow step 3** to `if flight is not None and done is None:`. Expected: the same test FAILS again, returning `next`/`units[1]`.
+8. Restore; **narrow `open_leaves` to obligatory lessons** — `[d for d in leaves if not d["completed"] and is_obligatory_lesson(d["node"])]`. Expected: `test_additional_lesson_still_counts_as_a_target` FAILS (`open_leaves` is empty, step 1 returns `None`, and `r["node"]` raises `TypeError`). This is the ONLY mutant that reddens that test — mutants 1-7 all leave it green — so without this step the flat-leaf rule ships untested.
 
 Restore each by hand; re-run to green.
 
@@ -1844,10 +1852,10 @@ This is a **separate function** from Task 6's edit and is the change most easily
 **Files:**
 - Modify: `courses/views.py` (`progress_reset`, the `.update() deliberately bypasses save()` comment)
 
-- [ ] **Step 1: Read the current comment**
+- [ ] **Step 1: Read the current comment — the whole paragraph**
 
 ```bash
-grep -n "nothing reads updated_at" -B 4 -A 2 courses/views.py
+grep -n "nothing reads updated_at" -B 2 -A 3 courses/views.py
 ```
 
 - [ ] **Step 2: Correct the false clause, line-count neutral**
