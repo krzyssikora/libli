@@ -1,6 +1,6 @@
 """The [hidden] attribute is inert against any class that sets `display` at equal
 specificity, and this repo has shipped that bug at least five times (see the guards
-at core/static/core/css/app.css:42, :185, :546, :1124, :1309). Every rule below is
+at core/static/core/css/app.css:42, :201, :645, :1124, :1309). Every rule below is
 load-bearing for the editor's instant add/remove; deleting one is a silent visual
 regression, so each is asserted individually."""
 

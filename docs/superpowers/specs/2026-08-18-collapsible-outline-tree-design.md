@@ -588,7 +588,7 @@ outline rule this spec elsewhere insists on naming.
   the grid rule must not exceed (0,2,0), AND it must not be moved below the
   `.outline-node[hidden]` declaration in `app.css`. A merely-tied (0,2,0) selector (e.g.
   `.outline-tree .outline-node--part`) is harmless **only because** `.outline-node[hidden]`
-  is declared later in the file (app.css:633 vs. the grid rule at ~576) — a CSS specificity
+  is declared later in the file (app.css:645 vs. the grid rule at ~583) — a CSS specificity
   tie is broken by source order, and the later rule wins, so `[hidden]` keeps winning and
   hiding still works. Only a selector that clears (0,2,0) outright (e.g. (0,3,0), such as
   `.outline-tree .outline-node.outline-node--part`), or a reordering that moves the grid

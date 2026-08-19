@@ -573,7 +573,7 @@ input[type=number] {
    Specificity is capped at (0,1,0) on purpose: `.outline-node[hidden]` is
    (0,2,0) and MUST keep winning, or a filtered-out container stops hiding.
    Do not scope these selectors more tightly — AND this block
-   must stay declared ABOVE `.outline-node[hidden]` (line ~633 below). If
+   must stay declared ABOVE `.outline-node[hidden]` (line ~645 below). If
    this selector's specificity ever ties (0,2,0), it is source order — the
    later rule wins a tie, not specificity alone — that keeps `[hidden]`
    winning. Move this block below `[hidden]`, or raise it past (0,2,0),
@@ -592,8 +592,10 @@ input[type=number] {
    against a future display change — neither is independently falsifiable, so do
    NOT write a test against them. padding-inline-end reserves the overlaid reset
    link's space; see the measured value recorded at the declaration. */
-/* padding-inline-end MEASURED 2026-08-19: "Zacznij od nowa" renders 98.15625px at
-   .8rem (en "Start fresh" 64.375px), plus 16px (--space-4) clearance, rounded up.
+/* padding-inline-end MEASURED 2026-08-19 against Inter (document.fonts.check
+   ('12.8px Inter') === true, not a fallback face): "Zacznij od nowa" renders
+   98.578125px at .8rem (en "Start fresh" 63.59375px), plus the reset link's
+   own margin-left: var(--space-2) clearance (~13.4px), rounded up.
    Re-measure if either translation changes. */
 summary.outline-node__head {
   cursor: pointer; list-style: none;
@@ -638,7 +640,7 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
    the tag filter hides non-matching unit rows via [hidden]; without this they'd stay
    visible (only empty containers collapsed). Same gotcha as .btn[hidden]/.dnd__rows[hidden].
    Must stay declared BELOW the .outline-node--part/--chapter/--section grid rule
-   (~line 576 above): if that rule's specificity ever ties this one's (0,2,0), it is
+   (~line 583 above): if that rule's specificity ever ties this one's (0,2,0), it is
    THIS rule being later in source order that keeps it winning. */
 .outline-node[hidden] { display: none; }
 /* quiet per-row tag affordance, brightening on hover/focus */

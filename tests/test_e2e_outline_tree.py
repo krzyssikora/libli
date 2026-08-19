@@ -260,7 +260,7 @@ def test_filter_unfolds_matches_and_clearing_restores_the_fold_state(page, live_
     `.outline-tree .outline-node--part, ...` — does NOT redden this: it ties
     `.outline-node[hidden]`'s (0,2,0) exactly, and a CSS specificity tie is
     broken by source order, not left unresolved — `.outline-node[hidden]` is
-    declared later in app.css (line ~633 vs. the grid rule at ~576), so it
+    declared later in app.css (line ~645 vs. the grid rule at ~583), so it
     keeps winning and containers stay hidden. The real guard is two-part: do
     not out-specify (0,2,0) for this rule, AND do not move it below the
     `[hidden]` guard in the file. Nothing else in the suite catches this.
