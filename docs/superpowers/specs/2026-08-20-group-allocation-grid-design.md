@@ -234,7 +234,8 @@ allocation name (linking to its grid), the course, the attached cohort names, an
 count of non-archived groups; row actions are Edit, Archive/Un-archive, Delete. Those three
 per-row lookups are an N+1 unless the queryset carries `select_related("course")`,
 `prefetch_related("cohorts")`, and a `Count("groups", filter=Q(groups__archived=False))`
-annotation — the same discipline applied to `group_list` and to the grid. It sets
+annotation — the same discipline this change also introduces on `group_list` (which has no
+`select_related` today and is already an N+1 on `group.course`) and on the grid. It sets
 `hub_tab = "allocations"` and includes `_groups_tabs.html`.
 
 A successful `allocation_create` redirects to `allocation_edit` (matching `group_create`,
@@ -261,12 +262,33 @@ exactly the semantics wanted (PA unfiltered via the model-level `courses.change_
 permission, CA filtered to owned courses), so the create-time `PermissionDenied` check
 above is a backstop rather than the only gate.
 
-`clean_name()` enforces the case-insensitive rule that the data model deliberately does not:
-a name matching an existing allocation on that course `iexact` (excluding `self.instance.pk`
-on edit) is a field error on `name` — "an allocation with this name already exists on this
-course". Without it the primary UI can create "Klasy" and then "klasy" side by side, because
+**`clean()`** — *not* `clean_name()` — enforces the case-insensitive rule that the data model
+deliberately does not. It must be the cross-field hook: `BaseForm._clean_fields` iterates
+`self.fields` in declaration order and `fields_for_model` preserves `Meta.fields` order, so a
+`clean_name()` would run **before** `course` is cleaned, seeing `cleaned_data["course"]` as
+`None` and (on a create) `self.instance.course_id` as `None` too — with no course to scope
+the lookup to. `CollectionForm.clean()` already does its cross-field course check the same
+way. The rule: a name matching an existing allocation on that course `iexact` (excluding
+`self.instance.pk` on edit) raises `self.add_error("name", …)` — "an allocation with this
+name already exists on this course" — keeping the error on the field the template renders.
+Without it the primary UI can create "Klasy" and then "klasy" side by side, because
 `uniq_allocation_course_name` is case-sensitive and would not object. This is the same rule
 `GroupForm` applies to `new_allocation`, at the other entry point.
+
+**Both dedup lookups span archived rows.** `uniq_allocation_course_name` carries no
+`archived` condition, so an archived allocation still occupies its `(course, name)` slot.
+Every *other* allocation queryset in this design is scoped `archived=False`, which makes
+scoping these two the same way the obvious mistake — and an expensive one: `AllocationForm`
+would accept a name an archived row already holds and hit the constraint in `save()`, where
+there is no savepoint and no `except IntegrityError`, i.e. a 500. So:
+
+* `AllocationForm.clean()` searches archived rows too, and reports "an archived allocation
+  with this name already exists on this course — un-archive it to reuse the name" (the
+  allocation list's `?archived=1` view is where that is done).
+* `GroupForm.clean()` likewise searches archived rows, and a `new_allocation` matching one is
+  a **field error on `new_allocation`** with the same message — never a silent resolve. The
+  picker deliberately hides archived allocations, so silently attaching a group to one would
+  leave the admin unable to see where the group went.
 
 The `cohorts` queryset is `Cohort.objects.filter(Q(archived=False) |
 Q(pk__in=self.instance.cohorts.values("pk")))` when editing, `archived=False` when
@@ -325,11 +347,12 @@ passing untouched. The four in-view construction sites (`grouping/views.py:192`,
   error would be invisible. This is the form-level counterpart of `Group.save()`'s
   `ValidationError`, and it is what stops that exception escaping `form.save()` as a 500;
 * a `new_allocation` name is stripped and looked up `iexact` among that course's
-  allocations. **If a match is found, `clean()` stashes that `Allocation` instance on the
-  form** (e.g. `self._resolved_allocation`) — it does not merely note that a match exists.
-  This is what actually prevents the fork: `uniq_allocation_course_name` is case-sensitive,
-  so a later `get_or_create(name="klasy")` beside an existing "Klasy" would create a second
-  row without ever raising `IntegrityError`.
+  allocations, **archived rows included** (see above). A match on a non-archived row means
+  `clean()` stashes that `Allocation` instance on the form (e.g. `self._resolved_allocation`)
+  — it does not merely note that a match exists. This is what actually prevents the fork:
+  `uniq_allocation_course_name` is case-sensitive, so a later `get_or_create(name="klasy")`
+  beside an existing "Klasy" would create a second row without ever raising
+  `IntegrityError`. A match on an archived row is a field error, as above.
 
 `save()` uses the stashed instance when `clean()` found one. Only when it found none does
 it create, and only there does the savepoint-and-retry idiom (as in
@@ -346,15 +369,24 @@ if allocation is None and name:
         allocation = Allocation.objects.get(course=course, name=name)
 
 group = super().save(commit=False)
-if name or self.cleaned_data.get("allocation") is not None:
-    group.allocation = allocation      # the resolved row, whichever path produced it
+group.allocation = allocation      # the resolved row, whichever path produced it
 group.save()
 self.save_m2m()
 return group
 ```
 
 Assigning `group.allocation` is the step it is easiest to leave out: the resolve block above
-computes an `Allocation` and, without this, does nothing with it.
+computes an `Allocation` and, without this, does nothing with it — so every
+`new_allocation` the admin types is silently discarded. Note that because `allocation` is in
+`Meta.fields`, `construct_instance` inside `super().save(commit=False)` has *already* written
+the picked value; this line is what carries the **`new_allocation`** path's freshly-created
+or stashed row, and it is a harmless re-assert on the picked path.
+
+The "no silent detach" guarantee lives in the **queryset**, not here: the
+`pk=self.instance.allocation_id` arm keeps the current allocation selectable, so the browser
+always posts it back. A group whose `allocation` field is omitted from the POST entirely is
+detached by `construct_instance` regardless — there is no `save()`-side preservation to test
+for.
 
 **Transaction boundary.** That inner `atomic()` is a savepoint around the allocation create
 only. So that a failing group save cannot leave an orphan allocation behind, `group_create`
@@ -375,6 +407,10 @@ server re-validates the course match regardless, so the filter is convenience, n
 gate. That filter is a small `initAllocationFilter()` function appended to
 `grouping/static/grouping/js/roster_filter.js` (already loaded by `group_form.html`'s
 `{% block extra_js %}`), keyed on `[data-allocation-select]` and the course select's value.
+It is **invoked once from inside that file's IIFE, independently of `initRoster`** — the
+file's only current entry point is `document.querySelectorAll("[data-roster]") → initRoster`,
+and the allocation select sits outside every `[data-roster]` fieldset, so a function merely
+appended to the file would never run.
 On the **edit** form `course` is already disabled, so the list is filtered server-side to
 that one course and the script is inert.
 
@@ -388,7 +424,11 @@ an allocation, a link to that allocation's grid. `templates/grouping/group_list.
 gains a muted allocation name per row, and `group_list`'s queryset gains
 `select_related("course", "allocation")` so the extra column is not an N+1.
 
-**Entry points.** Two, both gated on `grouping.change_allocation`:
+**Entry points.** Two, both gated on **`grouping.view_allocation`** — the same permission
+`allocation_list` itself requires, so a visible link always leads somewhere the user can go.
+(The seeded roles grant all four allocation permissions together, so this is equivalent
+today; it is stated because gating a link on a *stronger* permission than its target is the
+kind of silent mismatch the `cohort_list` / `view_cohort` split already had to explain.)
 
 * a third tab in `templates/_groups_tabs.html` ("Allocations"), **nested inside** the
   strip's existing `{% if perms.grouping.view_group %}` wrapper — a Teacher holds
@@ -398,7 +438,7 @@ gains a muted allocation name per row, and `group_list`'s queryset gains
   menu's outer `{% if %}` (at `templates/base.html:91`) currently tests four
   platform-admin-only permissions — `courses.change_subject`, `grouping.change_cohort`,
   `accounts.view_user`, `institution.change_institution` — none of which a Course Admin
-  holds, so the menu renders for PA only. `or perms.grouping.change_allocation` must be
+  holds, so the menu renders for PA only. `or perms.grouping.view_allocation` must be
   added to that outer condition as well, or a Course Admin would hold the permission and
   still never see the menu. This edit has its own test.
 
@@ -408,6 +448,12 @@ New static files:
   (`templates/base.html:49`) — sticky header row, sticky name column, and the row-state
   treatments. Colours come from the existing surface/border tokens in
   `core/static/core/css/tokens.css`, with explicit dark-mode definitions; no raw hex.
+  If the sticky first column is achieved by giving rows any explicit `display` (a grid or
+  flex row layout being the usual way), that author rule outranks the UA's
+  `[hidden] { display: none }` and filtered rows stay visible — so any such rule must be
+  paired with an explicit `[hidden] { display: none !important }`. The filter e2e asserts
+  `bounding_box()` is `None`, not merely that the attribute is present, so this cannot pass
+  unnoticed.
 * `grouping/static/grouping/js/allocation_grid.js`, loaded via `{% block extra_js %}` —
   live summary counts, row-state classes, and the row filters.
 
@@ -416,8 +462,9 @@ allocation-select filter.
 
 ### The add-all checkbox
 
-A checkbox rendered inside each roster fieldset's filter bar (`[data-roster-filter]`),
-labelled "Select all shown", carrying **no `name` attribute** — like the existing filter
+A checkbox rendered inside each roster fieldset's filter bar (`[data-roster-filter]`) and
+found by its own hook `[data-roster-all]` rather than by position, labelled "Select all
+shown", carrying **no `name` attribute** — like the existing filter
 inputs, it must never post. Its wrapping `<label>` is rendered `hidden` and unhidden by the
 script **unconditionally on init**, so with JS off it is invisible and the roster submits
 exactly as it does today.
@@ -521,7 +568,14 @@ covers all three cases.
 
 **Summary.** A header line — "84 students · 72 assigned · 11 unassigned · 1 conflict" —
 rendered server-side from the computed row states and updated live by
-`allocation_grid.js`. Three rules pin it down:
+`allocation_grid.js`. Its shape is deliberately **count-invariant** — rendered as
+"Students: 84 · Assigned: 72 · Unassigned: 11 · Conflicts: 1", labels first, numbers last —
+because Polish has three plural forms for cardinals (1 / 2–4 / 5+, with the teens
+exception) and no amount of number substitution into a fixed noun fragment can be right for
+all of them. `roster_filter.js`'s `data-saved-label="{% trans 'saved' %}"` precedent works
+only because "saved" is count-invariant; this shape makes the same trick safe here.
+
+Three further rules pin it down:
 
 * It **always describes the whole allocation**, never the filtered subset: "who is still
   unplaced" is the number the admin came for, and a filter-sensitive count would hide
@@ -530,14 +584,15 @@ rendered server-side from the computed row states and updated live by
   as assigned, `— none —` as unassigned, and a row with nothing checked as a conflict. So
   picking a column on a conflict row moves it out of the conflict count immediately, before
   any save.
-* Its **translated fragments are rendered by the template as `data-*` attributes** on the
+* Its **translated labels are rendered by the template as `data-*` attributes** on the
   summary element, and the script only substitutes numbers. A string composed in JavaScript
-  cannot be wrapped in `{% trans %}` and would render English over the Polish page;
-  `roster_filter.js`'s `data-saved-label="{% trans 'saved' %}"` is the precedent to follow.
+  cannot be wrapped in `{% trans %}` and would render English over the Polish page.
 
 **Filters.** A name search and a cohort select that only *hide* rows (`hidden` attribute).
 Every input stays in the DOM, mirroring the roster picker's rule, so a hidden row still
-posts and is never silently rewritten. Each row carries `data-cohort="<cohort slug>"` and
+posts and is never silently rewritten — filtered-out rows must be hidden, never `disabled`,
+since `disabled` inputs are dropped from the POST and the filter would then silently change
+what the form submits. Each row carries `data-cohort="<cohort slug>"` and
 the select's `<option value>` is that same slug — parity with `roster_filter.js`, which
 already keys on `student.cohort_membership.cohort.slug`; a row in the "outside these
 cohorts" section carries `data-cohort=""` and matches only the "All cohorts" option.
@@ -568,7 +623,14 @@ states, and no filters.
 ### Rendering
 
 1. Resolve the allocation through `allocations_manageable_by`.
-2. `columns` = `allocation.groups.filter(archived=False).order_by("name")`.
+2. `columns` = `allocation.groups.filter(course=allocation.course, archived=False)
+   .order_by("name")`, resolved **once** and threaded through everything below. The
+   redundant-looking `course=` filter is defence, not a fourth enforcement point: the
+   course-scoping invariant is deliberately not enforced against bulk-write paths, and if it
+   is ever violated the membership query below (which *is* course-filtered) would not fetch
+   a foreign-course column's memberships — so every affected row would read as unassigned
+   and every save would re-add. Deriving both sets the same way makes that incoherence
+   impossible.
 3. `rows` = the pk-membership union described above, each annotated with: the set of column
    group ids the student belongs to, the derived state, the "also in" group names, and a
    **state token**. The membership rows for all of this come from the single bucketed query
@@ -579,10 +641,21 @@ states, and no filters.
    one place (its sibling `allocation_columns_token(columns)` takes the same input): for
    each student, the ids of the column groups they belong to,
    **as ints, sorted numerically ascending, joined with `,`** — `""` for none, `"12"` for
-   one, `"12,15"` for a conflict. Numeric ordering is specified because lexical ordering
-   would sort `["9", "10"]` differently and desynchronise the two ends. The optional
-   `memberships` argument accepts the already-bucketed map so the render path does not
-   re-query what step 3 just fetched; the save path omits it and lets the helper query.
+   one, `"12,15"` for a conflict. Numeric (not lexical) ordering is chosen so the token is
+   stable and human-readable in the DOM — `"9,10"`, never `"10,9"`; what actually keeps the
+   two ends in step is that both go through this one helper.
+
+   The optional `memberships` argument is `{student_id: set[int]}` — the student's
+   `GroupMembership.group_id`s across **the whole course**, exactly as step 3 bucketed them
+   — and the helper intersects it against `columns` itself. Passing it lets the render path
+   avoid re-querying what step 3 just fetched; the save path omits it and lets the helper
+   query. The shape matters because getting it wrong is a silent mis-token, not a crash:
+   every row would read as unassigned and every save would be a guard mismatch.
+
+   Both token strings obey one grammar: `^$|^\d+(,\d+)*$`, digits strictly ascending. That
+   is what "non-conforming" means for the `columns` field below. For `-was` the malformed
+   and merely-mismatched cases converge on the same outcome, so only the absent-versus-`""`
+   distinction needs care there.
 5. Each row renders a hidden `<input name="student-<pk>-was" value="<token>">` next to its
    radios. The form also renders one hidden `<input name="columns" value="...">` built by
    `services.allocation_columns_token(columns)` — the same canonical form (ints, numerically
@@ -665,10 +738,28 @@ states, and no filters.
    "2 rows were changed by someone else and were not overwritten: Kowalski, Nowak."
 
 ```python
-def set_allocation_assignments(allocation, assignments, *, added_by=None):
-    """assignments: {student_id: (target_group_id_or_None, was_token_or_None)}.
-    Applies the rectangle-scoped delta and returns the list of skipped student ids."""
+def set_allocation_assignments(columns, assignments, *, added_by=None):
+    """columns: the resolved column Group sequence, threaded in from the view.
+    assignments: {student_id: (target_group_id_or_None, was_token_or_None)}.
+    A row absent from the POST is OMITTED FROM THIS DICT ENTIRELY; within it,
+    a target of None means "— none —". Applies the rectangle-scoped delta and
+    returns the list of skipped student ids."""
 ```
+
+The service takes the **resolved `columns`**, not the allocation — the view evaluates the
+column set exactly once and threads that same sequence through the token check, step 4's
+value validation, and this call. Handing it the `Allocation` instead would make it recompute
+`allocation.groups.filter(archived=False)` independently, so a group archived between the
+view's evaluation and the service's would have every affected row's `current_token` computed
+over a column set the step-1 check never approved — reproducing exactly the phantom
+"someone else changed this" storm that check exists to prevent.
+
+**Omission versus `None` is the contract's sharpest edge.** `request.POST.get("student-7")`
+returns `None` when the field is absent (an unresolved conflict row) and `""` when the
+`— none —` radio is checked. Those must not be normalised together: build `assignments` over
+the recomputed row set, **skip** any student whose key is absent, and map a posted `""` to a
+target of `None`. Collapsing both to `None` mass-unassigns every conflict row on every save
+— the precise data loss step 3 exists to prevent.
 
 The service takes ids but **resolves them to instances once, up front** —
 `User.objects.filter(pk__in=assignments)` into a dict, and the target group ids against the
@@ -701,7 +792,9 @@ render.
 | Allocation edited whose cohort is archived | the archived cohort stays attached |
 | Both `allocation` and `new_allocation` supplied | form error, "choose an existing allocation or type a new name, not both" |
 | `new_allocation` duplicates an existing name on that course (any case) | `clean()` stashes and reuses that row; no second row, no `IntegrityError` |
-| `AllocationForm` name duplicates an existing name on that course (any case) | field error on `name` from `clean_name()`; no row created |
+| `AllocationForm` name duplicates an existing name on that course (any case) | field error on `name` from `clean()`; no row created |
+| `AllocationForm` name duplicates an **archived** allocation's name on that course | field error naming the archived row and pointing at un-archiving; no 500 from the constraint |
+| `new_allocation` matches an **archived** allocation on that course | field error on `new_allocation`; never a silent attach to a hidden allocation |
 | `new_allocation` longer than 200 characters | field error from `max_length`; no row created |
 | Two concurrent saves creating the same new allocation name | savepoint + `IntegrityError` catch re-fetches the winner's row; no 500 |
 | Group save fails after a new allocation was created | the view's `transaction.atomic()` rolls both back; no orphan allocation |
@@ -723,7 +816,7 @@ render.
 | Two saves racing the same row | advisory guard only; last writer may win (see "Saving") |
 | Conflict row saved without a choice | untouched, still flagged |
 | Grid larger than `DATA_UPLOAD_MAX_NUMBER_FIELDS` | avoided by raising the setting to 5000 in `config/settings/base.py`; beyond that, Django's `TooManyFieldsSent` 400 stands |
-| Concurrent identical add | `add_students_to_group`'s per-student savepoint already absorbs the unique violation |
+| Concurrent identical add | absorbed by `QuerySet.get_or_create`'s own internal `IntegrityError` retry inside `add_students_to_group`; the enclosing per-student savepoint's job is batch resilience, not swallowing — do not generalise it to other constraints |
 
 ## Testing
 
@@ -741,7 +834,8 @@ been seen to fail.
 | 6 | editing a group whose allocation is archived (changing only the name) leaves `allocation_id` unchanged | filter the `allocation` queryset on `archived=False` alone |
 | 7 | editing an allocation whose attached cohort is archived keeps the cohort in the M2M | filter the `cohorts` queryset on `archived=False` alone |
 | 8 | `GroupForm` reuses the existing allocation row for a case-different new name (asserting the pk, not just the count) | drop the stashed instance and let `save()` call `get_or_create(name=...)` |
-| 8a | `AllocationForm` rejects a case-different duplicate name on the same course, and allows it on a different course | compare exactly instead of `iexact` |
+| 8a | `AllocationForm` rejects a case-different duplicate name on the same course **on the create path** (where `instance.course_id` is `None`), and allows it on a different course | compare exactly instead of `iexact`; **and** move the check to `clean_name()`, where `course` is not yet cleaned — the create-path assertion is what makes the second mutant red |
+| 8c | both entry points reject a name held by an **archived** allocation on that course, with no `IntegrityError` reaching the response | scope either dedup lookup to `archived=False` |
 | 8b | `GroupForm.save()` actually writes the chosen allocation onto the group | drop the `group.allocation = allocation` assignment (and, separately, drop `allocation` from `Meta.fields`) |
 | 9 | `new_allocation` over 200 characters is a field error, not a 500 | omit `max_length` |
 | 10 | with `Group.save` patched to raise inside the view's atomic block, a submitted new allocation name leaves no `Allocation` row | remove the view-level `transaction.atomic()` |
@@ -756,10 +850,13 @@ been seen to fail.
 | 16 | a row whose stored state moved but whose posted value already matches it is neither written nor reported | report on token mismatch alone |
 | 16a | a conflict row (`{12,15}`) posted with target 12 removes 15 and clears the conflict | treat `target_id in current_ids` as a no-op instead of comparing whole tokens |
 | 16b | moving a student between two columns keeps their `Enrollment` pk and creates no second `ENROLLED` notification | swap the add and remove calls |
-| 17 | a `student-<pk>` posted with a missing `-was` is skipped, not written | forward a missing `-was` as `""` instead of `None` |
+| 17 | a `student-<pk>` posted with a missing `-was` is skipped, not written. **Setup is load-bearing:** the student must currently be in *no* column group (current token `""`), and the post must target a real column — otherwise the mutant's `""` coincidentally mismatches the real token and skips too, leaving the test green | forward a missing `-was` as `""` instead of `None` |
+| 17a | a row omitted from the POST entirely (conflict row) is not confused with `— none —`: its memberships survive | normalise both `request.POST.get` outcomes (`None` and `""`) to a `None` target when building `assignments` |
+| 17b | a membership created through the grid records `added_by` = the posting admin | drop `added_by=request.user` from the view's service call (and, separately, drop the forward to `add_students_to_group`) |
 | 18 | a save whose posted `columns` differs from the current columns writes nothing, re-renders from fresh state, and reports the distinct message | drop the column-set check |
 | 19 | a forged `student-<pk>` for a student outside the row set is ignored | build the row set from the POST keys instead of recomputing it |
-| 20 | `allocation_assign` returns 404 for a CA on a course they do not own, 404 for a `change_group`-only holder, 403 for a teacher | scope with `Allocation.objects.all()` |
+| 20 | `allocation_assign` returns 404 for a CA on a course they do not own and 404 for a `change_group`-only holder | scope with `Allocation.objects.all()` |
+| 20a | `allocation_assign` returns 403 — not a 302 to login — for a teacher | drop `raise_exception=True` |
 | 21 | `allocation_create` refuses (403, no row) when a CA posts a course they do not own | drop the `PermissionDenied` check |
 | 22 | `allocation_list` shows only allocations from `allocations_manageable_by`, and `?archived=1` flips the set | scope with `Allocation.objects.all()` |
 | 23 | `allocation_delete` redirects and leaves memberships intact, through the view | make the view cascade-delete the groups |
@@ -767,15 +864,18 @@ been seen to fail.
 | 25 | a student outside the attached cohorts whose only membership is in an **archived** group of the allocation still gets a row | restrict the second union arm to `archived=False` |
 | 26 | the conflict row renders unchecked and flagged | classify a two-membership row as assigned |
 | 27 | the "also in" note covers all three cases (other allocation, no allocation, archived column) | narrow it to `allocation__isnull=True` |
-| 28 | on a plain GET the summary counts describe the whole allocation | count only the rows under the first cohort heading |
-| 29 | a Course Admin's `base.html` renders the Admin menu containing the Allocations link | leave `base.html`'s outer `{% if %}` condition unchanged |
-| 30 | the tabs strip renders for a Teacher **without** the Allocations tab, and with it for a CA | hoist the tab outside the per-permission gate |
+| 28 | on a plain GET the summary counts describe the whole allocation. **Fixture is load-bearing:** at least two attached cohorts *plus* one placed out-of-cohort student, asserting total = cohort A + cohort B + leftovers — with a single cohort, "the first heading" is every row and the mutant produces identical numbers | count only the rows under the first cohort heading |
+| 29 | a Course Admin's `base.html` renders the Admin menu containing the Allocations link, asserted **inside the `.app-nav__admin` `[data-menu-panel]` markup** | leave `base.html`'s outer `{% if %}` condition unchanged |
+| 30 | the tabs strip renders for a Teacher **without** the Allocations tab, asserted **inside the `nav.tnhub__tabs` markup** | hoist the tab outside the per-permission gate |
+| 30b | the tabs strip renders **with** the Allocations tab for a CA, likewise scoped to `nav.tnhub__tabs` | omit the tab from `_groups_tabs.html` entirely |
 | 30a | e2e: add-all is visible on a freshly loaded group form with **no filter applied** | unhide it from `applyFilter()` (the `[data-roster-count]` treatment) instead of unconditionally on init |
 | 31 | e2e: with a cohort filter active, add-all ticks only the filtered students | make add-all iterate all items instead of visible ones |
 | 32 | e2e: with a cohort filter active, **unchecking** add-all clears only the filtered students | clear all items regardless of `hidden` |
 | 33 | e2e: add-all is `indeterminate` when one visible student is unticked, and **unchecked and disabled** when nothing is visible | derive its state from the whole list (kills the first half); skip the zero-visible early return so the vacuous "all ticked" leaves it checked (kills the second) |
 | 34 | e2e: after ticking add-all under a cohort filter, the "Added" counter shows the new live total | remove the explicit `updateSelected()` call from the add-all handler |
-| 35 | e2e: applying the grid's cohort filter leaves the summary counts unchanged | recompute the summary from non-hidden rows |
+| 35 | e2e: applying the grid's cohort filter leaves the summary counts unchanged, and a filtered-out row's `bounding_box()` is `None` (not merely `hidden` present) | recompute the summary from non-hidden rows; separately, declare a `display` on rows without the `[hidden] { display: none !important }` pair |
+| 35a | e2e: with a cohort filter active, saving leaves every hidden row's membership byte-identical, and the POST still carries their `student-<pk>` and `-was` fields | set `disabled` on filtered-out rows' inputs instead of only hiding the row |
+| 35b | e2e (Polish locale): the live summary's labels stay Polish and grammatical after a radio change | compose the summary string from JavaScript literals instead of the `data-*` labels |
 | 36 | e2e: picking a column on a conflict row moves it out of the conflict count **and clears the row's own red treatment and warning marker** before saving | update the summary only on load (kills the count half); leave the row's state class untouched on change (kills the marker half) |
 | 37 | e2e: assign two students to different groups in the grid, save, and see both rosters change | make `set_allocation_assignments` add to the target group but skip the removals, leaving a student in both rosters |
 
