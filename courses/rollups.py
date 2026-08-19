@@ -1141,6 +1141,28 @@ def build_resume(course, user, tree):
 
     done, ts_d = None, None
 
+    # SOURCE D -- the completion anchor. completed_at, NEVER updated_at:
+    # completed_at is stamped exactly once in UnitProgress.save() when `completed`
+    # first flips and is never re-stamped, whereas views.py::seen calls
+    # progress.save() UNCONDITIONALLY on every batch including for an
+    # already-completed unit -- so simply re-reading a finished unit re-dates
+    # updated_at. Ordering on updated_at would rewind the student to just after
+    # whichever old unit they last skimmed.
+    # completed_at__isnull=False guards the NULLs-first DESC ordering (see source C).
+    d_row = (
+        UnitProgress.objects.filter(
+            student=user,
+            unit_id__in=leaf_pks,
+            completed=True,
+            completed_at__isnull=False,
+        )
+        .order_by("-completed_at", "-unit_id")
+        .values_list("unit_id", "completed_at")
+        .first()
+    )
+    if d_row is not None:
+        done, ts_d = d_row
+
     # STEP 3. Both names are already bound, so this runs correctly in every task.
     # The ts comparison is ESSENTIAL: views.py::build_lesson_context mints a
     # UnitProgress row on EVERY enrolled lesson GET, so without it one stray click

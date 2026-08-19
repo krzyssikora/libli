@@ -294,3 +294,216 @@ def test_within_source_tie_prefers_the_higher_unit_id():
     assert len({r.updated_at for r in rows}) == 1  # the tie is real
 
     assert _resume(course, user)["node"].pk == hi.pk
+
+
+def _complete(unit, user, days_ago):
+    """A completed UnitProgress whose completed_at is `days_ago` days back.
+
+    save() stamps completed_at itself, so freeze the clock rather than backdating.
+
+    RELATIVE, never a hard-coded calendar date: mixing literal dates with
+    `timezone.now() - timedelta(...)` in one fixture makes the ordering
+    clock-dependent, and such a test silently INVERTS once the wall clock passes
+    those dates. Larger days_ago == older.
+    """
+    with freeze_time(timezone.now() - timedelta(days=days_ago)):
+        UnitProgressFactory(student=user, unit=unit, completed=True)
+
+
+@pytest.mark.django_db
+def test_most_recent_unit_completed_advances_to_the_next_open_unit():
+    """FIXTURE IS LOAD-BEARING: units[0] stays OPEN so open_leaves[0] is units[0]
+    while forward is units[3]. Complete 0 and 1 instead and both step 4 and step 5
+    answer units[2] -- deleting step 4 entirely would leave the test green via
+    step 5, which also returns state "next".
+    """
+    course, units = _course_with_units(4)
+    user = make_verified_user(username="d1", email="d1@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(units[1], user, 30)
+    _complete(units[2], user, 20)
+    r = _resume(course, user)
+    assert r["state"] == "next"
+    assert r["node"].pk == units[3].pk
+
+
+@pytest.mark.django_db
+def test_stray_visit_does_not_pin_the_card_forever():
+    """THE bug the ts_f >= ts_d comparison exists to stop. Opening unit 0 once
+    leaves a permanent completed=False row -- views.py::build_lesson_context does a
+    get_or_create on every enrolled lesson GET. Without the comparison it outranks
+    every completion made since and the card says "Pick up where you left off -
+    unit 0" forever.
+    """
+    course, units = _course_with_units(4)
+    user = make_verified_user(username="d2", email="d2@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    UnitProgressFactory(student=user, unit=units[0])
+    _backdate_progress(units[0], user, timezone.now() - timedelta(days=90))
+    _complete(units[1], user, 20)
+    _complete(units[2], user, 10)
+    r = _resume(course, user)
+    assert r["state"] == "next"
+    assert r["node"].pk == units[3].pk
+
+
+@pytest.mark.django_db
+def test_exact_tie_between_in_flight_and_completion_resumes():
+    """The >= arm. Without a FORCED tie this test is vacuous: ts_f > ts_d passes on
+    BOTH builds and ts_f < ts_d fails on the correct one. All four timestamps are
+    stamped Python-side, so only freeze_time (or .update) can make them equal."""
+    course, units = _course_with_units(4)
+    user = make_verified_user(username="d3", email="d3@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    moment = timezone.now() - timedelta(days=5)
+    with freeze_time(moment):
+        UnitProgressFactory(student=user, unit=units[0], completed=True)
+        UnitProgressFactory(student=user, unit=units[2])
+
+    row_f = UnitProgress.objects.get(student=user, unit=units[2])
+    row_d = UnitProgress.objects.get(student=user, unit=units[0])
+    assert row_f.updated_at == row_d.completed_at  # the tie is real
+
+    r = _resume(course, user)
+    assert r["state"] == "resume"
+    assert r["node"].pk == units[2].pk
+
+
+@pytest.mark.django_db
+def test_reseeing_a_finished_unit_does_not_rewind_the_anchor():
+    """THE ONLY scenario that separates completed_at from updated_at. views.py::seen
+    calls progress.save() UNCONDITIONALLY, including for an already
+    completed unit -- so re-reading unit 0 re-dates its updated_at while
+    completed_at stays put. Anchor on updated_at and the mutant answers units[1].
+
+    Do NOT try to build this with force_submit_quiz: it is guarded by
+    `if not progress.completed`, so it can never re-date a completed row, and on
+    the path where it does save, save() stamps completed_at in the same instant.
+    """
+    course, units = _course_with_units(4)
+    user = make_verified_user(username="d4", email="d4@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(units[0], user, 30)
+    _complete(units[2], user, 20)
+    # Re-read unit 0 today: seen's unconditional save bumps updated_at only.
+    UnitProgress.objects.filter(student=user, unit=units[0]).update(
+        updated_at=timezone.now()
+    )
+    r = _resume(course, user)
+    assert r["state"] == "next"
+    assert r["node"].pk == units[3].pk
+
+
+@pytest.mark.django_db
+def test_finished_the_last_unit_wraps_back_to_the_earliest_gap():
+    course, units = _course_with_units(4)
+    user = make_verified_user(username="d5", email="d5@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(units[0], user, 30)
+    _complete(units[2], user, 20)
+    _complete(units[3], user, 10)
+    r = _resume(course, user)
+    assert r["state"] == "gap"
+    assert r["node"].pk == units[1].pk
+
+
+@pytest.mark.django_db
+def test_all_units_completed_returns_none():
+    """Step 1. Deleting it does NOT "return the last unit" -- flight is None, done
+    is the last completed leaf, forward is None, and step 4 indexes an empty list,
+    so the symptom is the same IndexError as the no-visible-units case."""
+    course, units = _course_with_units(2)
+    user = make_verified_user(username="d6", email="d6@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(units[0], user, 30)
+    _complete(units[1], user, 20)
+    assert _resume(course, user) is None
+
+
+@pytest.mark.django_db
+def test_completed_quiz_that_is_the_last_open_unit_yields_none():
+    """Mutant: treating unit_type == quiz as never-complete -> `gap` on the quiz.
+    The fixture MUST make the quiz the last remaining unit. The obvious
+    "quiz mid-course, assert we advance past it" fixture is VACUOUS: under that
+    mutant the quiz re-enters `open`, but A still excludes it (completed=False) and
+    B/C still exclude it (SUBMITTED), so flight stays None, done is the quiz, and
+    forward is the same unit the correct build returns.
+    """
+    course = CourseFactory()
+    lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=1)
+    user = make_verified_user(username="d7", email="d7@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(lesson, user, 30)
+    _complete(quiz, user, 20)
+    assert _resume(course, user) is None
+
+
+@pytest.mark.django_db
+def test_additional_lesson_still_counts_as_a_target():
+    """`open` is every uncompleted VISIBLE unit -- the rule deliberately does not
+    inherit build_outline's required/additional distinction."""
+    course = CourseFactory()
+    required = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", order=0, obligatory=True
+    )
+    extra = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", order=1, obligatory=False
+    )
+    user = make_verified_user(username="d8", email="d8@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(required, user, 30)
+    r = _resume(course, user)
+    assert r["node"].pk == extra.pk
+
+
+@pytest.mark.django_db
+def test_in_flight_strictly_newer_than_a_real_completion_resumes():
+    """The plain `ts_f > ts_d` arm, which nothing else covers: the existing tests
+    exercise `done is None` (no completion at all), `==` (the tie test) and `<`
+    (stray_visit). Kills a mutant that reversed the comparison to `ts_d >= ts_f`,
+    and one that made step 3 fire only when `done is None`.
+    """
+    course, units = _course_with_units(4)
+    user = make_verified_user(username="d10", email="d10@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(units[0], user, 30)
+    UnitProgressFactory(student=user, unit=units[2])
+    _backdate_progress(units[2], user, timezone.now() - timedelta(days=10))
+    r = _resume(course, user)
+    assert r["state"] == "resume"
+    assert r["node"].pk == units[2].pk
+
+
+@pytest.mark.django_db
+def test_submitted_quiz_without_progress_can_surface_as_next():
+    """DOCUMENTS AN ACCEPTED LIMITATION, deliberately -- this is not a bug report.
+
+    build_outline's `completed` flag derives solely from UnitProgress.completed
+    (rollups.py:244-250, leaf key at :265) and knows nothing about
+    QuizSubmission.status, so a SUBMITTED submission whose unit lacks a completed
+    UnitProgress row -- the seed_demo_course.py shape -- stays in `open` and can be
+    offered under "Up next".
+
+    The violated invariant is "a SUBMITTED submission always has a completed
+    UnitProgress", which every production path upholds and only the demo seeder
+    breaks. The repair belongs in the seeder, NOT in this card: adding a fifth query
+    to compensate for a fixture-only state was explicitly rejected. This test exists
+    so that decision is recorded and cannot evaporate silently.
+
+    EXEMPT FROM FALSIFICATION, like the query-budget guards: its only "mutant" is a
+    design change this spec explicitly rejected (adding a fifth query to exclude
+    submitted quizzes from `open`). Do not hunt for one.
+    """
+    course = CourseFactory()
+    lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", order=0)
+    quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", order=1)
+    user = make_verified_user(username="d9", email="d9@test.example.com")
+    EnrollmentFactory(student=user, course=course)
+    _complete(lesson, user, 30)
+    QuizSubmissionFactory(
+        student=user, unit=quiz, status=QuizSubmission.Status.SUBMITTED
+    )
+    r = _resume(course, user)
+    assert r["state"] == "next"
+    assert r["node"].pk == quiz.pk
