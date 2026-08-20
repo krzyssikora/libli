@@ -1,4 +1,6 @@
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from grouping import services
@@ -244,16 +246,20 @@ def test_empty_cohort_section_renders_with_no_students_note(client):
 # --- Bounded query count ---------------------------------------------------
 
 
-def test_grid_render_is_query_bounded(client, django_assert_num_queries):
-    pa = make_pa(client)
+def _query_bounded_fixture(pa, student_count):
+    """One allocation with a fixed SHAPE (two columns, one non-column group, two
+    attached cohorts) and a varying ROW COUNT — so two fixtures differ in nothing
+    but the number of students, and any query-count difference between them is
+    per-row work by definition. The first two students carry the "also in" and
+    the conflict states, so both sizes exercise every branch of build_row."""
     a = AllocationFactory(course=CourseFactory(owner=pa))
     col1 = GroupFactory(course=a.course, allocation=a, name="Col A")
     col2 = GroupFactory(course=a.course, allocation=a, name="Col B")
     other_group = GroupFactory(course=a.course, name="Other")
-    cohort_a = CohortFactory(name="A")
-    cohort_b = CohortFactory(name="B")
+    cohort_a = CohortFactory()
+    cohort_b = CohortFactory()
     a.cohorts.add(cohort_a, cohort_b)
-    for i in range(6):
+    for i in range(student_count):
         student = UserFactory()
         CohortMembershipFactory(user=student, cohort=cohort_a if i % 2 else cohort_b)
         if i == 0:
@@ -262,10 +268,34 @@ def test_grid_render_is_query_bounded(client, django_assert_num_queries):
         elif i == 1:
             services.add_students_to_group(col1, [student])
             services.add_students_to_group(col2, [student])
-    url = reverse("grouping:allocation_assign", args=[a.pk])
+    return a
+
+
+def _grid_query_count(client, allocation):
+    url = reverse("grouping:allocation_assign", args=[allocation.pk])
     client.get(url)  # warm session/auth caching
-    with django_assert_num_queries(14):
-        client.get(url)
+    with CaptureQueriesContext(connection) as captured:
+        assert client.get(url).status_code == 200
+    return len(captured)
+
+
+def test_grid_render_is_row_count_independent(client):
+    """The property is "no per-row query in the render path", so it is measured
+    directly: the same render at two row counts, asserted EQUAL. A fixed count
+    at one size only proves that by proxy, and moves whenever the fixture does.
+
+    Both assertions are load-bearing and catch different regressions:
+      - equality catches per-row work (fetching each row's "also in" memberships
+        inside build_row costs one query per student, so the two sizes diverge);
+      - the absolute count catches a CONSTANT extra query, which equality cannot
+        see — dropping the `memberships=` argument at the allocation_state_tokens
+        call site re-queries in bulk, adding exactly one query at BOTH sizes.
+    """
+    pa = make_pa(client)
+    small = _grid_query_count(client, _query_bounded_fixture(pa, 3))
+    large = _grid_query_count(client, _query_bounded_fixture(pa, 24))
+    assert small == large, f"render cost grew with row count: {small} -> {large}"
+    assert small == 14
 
 
 # --- POST path: the sharpest edges (given verbatim) ------------------------
@@ -339,6 +369,33 @@ def test_a_missing_was_field_is_skipped_not_written(client):
     )
     assert resp.status_code == 302
     assert not GroupMembership.objects.filter(group=col, student=student).exists()
+
+
+def test_a_non_integer_target_is_omitted_not_unassigned(client):
+    """Covers the live arm of the int() coercion's `except ValueError` (the
+    TypeError arm is unreachable — `raw` is a str once the `key not in
+    request.POST` guard has passed). Load-bearing: the student must ALREADY be in
+    a column and post the matching -was, so "omit the row" and "read it as the
+    none-radio" have different outcomes — from an unassigned student both leave
+    no membership and the test could not tell them apart."""
+    pa = make_pa(client)
+    a = AllocationFactory(course=CourseFactory(owner=pa))
+    col = GroupFactory(course=a.course, allocation=a)
+    cohort = CohortFactory()
+    a.cohorts.add(cohort)
+    student = UserFactory()
+    CohortMembershipFactory(user=student, cohort=cohort)
+    services.add_students_to_group(col, [student])
+    resp = client.post(
+        reverse("grouping:allocation_assign", args=[a.pk]),
+        {
+            "columns": services.allocation_columns_token([col]),
+            f"student-{student.pk}": "not-an-int",
+            f"student-{student.pk}-was": str(col.pk),
+        },
+    )
+    assert resp.status_code == 302  # not a 500 from an escaping ValueError
+    assert GroupMembership.objects.filter(group=col, student=student).exists()
 
 
 def test_added_by_is_recorded_through_the_view(client):

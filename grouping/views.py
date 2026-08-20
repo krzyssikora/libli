@@ -538,14 +538,14 @@ def _allocation_assign_post(request, allocation):
             key = f"student-{student.pk}"
             if key not in request.POST:
                 continue  # absent -> omit entirely
-            raw = request.POST.get(key)
+            raw = request.POST.get(key)  # a str: the guard above proves presence
             was = request.POST.get(f"{key}-was")  # missing -> None -> mismatch
             if raw == "":
                 target_id = None  # the "— none —" radio
             else:
                 try:
                     target_id = int(raw)  # column_by_id is keyed on int pks
-                except (TypeError, ValueError):
+                except ValueError:
                     continue  # non-integer -> omit, not unassign
             assignments[student.pk] = (target_id, was)
 
