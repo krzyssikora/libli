@@ -65,7 +65,9 @@ Known consumers and why each survives:
 - `tests/test_e2e_filltable_gate.py:344-349` — a comment asserting callout children have no `data-element-id`; **student** page, so still true. Read it and confirm it is a comment, not an assertion.
 - `tests/test_e2e_depth3.py:281/427/501` and `tests/capture_nested_question_screenshots.py:78-85` — class-list locators; unaffected.
 
-**Rule for anything else:** any hit **not on this list** must be evaluated and its outcome recorded before proceeding. A hit that contradicts the pinned shape → **stop and report**; do not adjust the shape.
+**All remaining hits** — roughly forty across ~20 files, including `tests/test_filltable_render.py:70-80`, `tests/test_e2e_nested_question.py:230,284`, `tests/test_e2e_spoiler_rule.py:90`, `tests/test_e2e_callout_container.py`, `courses/tests/test_reveal_gate_render.py:217/220/242`, `tests/test_e2e_reveal_gate.py:636`, `tests/test_e2e_depth3.py:274/528`, `courses/tests/test_beforeafter_css.py`, `courses/tests/test_render_seam.py:257-263` — are **class-list locators, CSS-file assertions, or comments**. None is an exact `class="…"` literal on an editor render, so all survive. Do not adjudicate them one by one.
+
+**Rule for anything else:** any hit that is neither on the named list nor in that category must be evaluated and its outcome recorded before proceeding. A hit that contradicts the pinned shape → **stop and report**; do not adjust the shape.
 
 - [ ] **Step 1b: Confirm the gate's safety argument — the three unscoped consumers are not loaded by the editor**
 
@@ -138,6 +140,28 @@ def _text(body="x"):
     return TextElement.objects.create(body=f"<p>{body}</p>")
 
 
+def _fixed_tabs_data():
+    """default_data() mints ids with secrets.token_hex(3) (models.py:1785), which are
+    rendered into data-tab-id, id="tabs-{eid}-{tid}-panel", the matching -label id and
+    aria-labelledby. Two renders of the SAME tree would therefore differ every time,
+    which would make Task 11's master-vs-master control diff impossible to satisfy.
+    Overwrite the ids with fixed literals; the shape is taken from default_data() so
+    this stays correct if the shape changes."""
+    d = TabsElement.default_data()
+    for i, t in enumerate(d["tabs"], start=1):
+        t["id"] = f"t{i:06d}"
+    return d
+
+
+def _fixed_columns_data():
+    """Same, for TwoColumnElement -- ids are minted with secrets.token_hex(3)
+    (models.py:1971) and rendered into data-column-id."""
+    d = TwoColumnElement.default_data()
+    for i, c in enumerate(d["columns"], start=1):
+        c["id"] = f"c{i:06d}"
+    return d
+
+
 def _containers(unit):
     """One of each of the five containers at top level, each holding one text child.
 
@@ -150,14 +174,14 @@ def _containers(unit):
     """
     out = {}
 
-    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    tabs = TabsElement.objects.create(data=_fixed_tabs_data())
     tabs_join = Element.objects.create(unit=unit, content_object=tabs, parent=None)
     tab_id = tabs.data["tabs"][0]["id"]
     out["tabs__child"] = Element.objects.create(
         unit=unit, content_object=_text("in-tab"), parent=tabs_join, tab_id=tab_id
     ).pk
 
-    two = TwoColumnElement.objects.create(data=TwoColumnElement.default_data())
+    two = TwoColumnElement.objects.create(data=_fixed_columns_data())
     two_join = Element.objects.create(unit=unit, content_object=two, parent=None)
     col_id = two.data["columns"][0]["id"]
     out["twocolumn__child"] = Element.objects.create(
@@ -222,7 +246,7 @@ def test_editor_preview_marks_a_depth_3_child(client):
     )
     sp = SpoilerElement.objects.create(label="s")
     sp_join = Element.objects.create(unit=unit, content_object=sp, parent=None)
-    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    tabs = TabsElement.objects.create(data=_fixed_tabs_data())
     tabs_join = Element.objects.create(
         unit=unit, content_object=tabs, parent=sp_join,
         tab_id=SpoilerElement.SLOT_ID,
@@ -501,6 +525,7 @@ from tests.test_e2e_tabs import _editor_url
 from tests.test_e2e_tabs import _login
 from tests.test_e2e_tabs import _make_pa_user
 from tests.test_e2e_tabs import _seed_tabs_element
+from tests.test_e2e_tabs import _seed_unit
 
 # MANDATORY. There is no auto-marking hook -- neither conftest.py nor
 # tests/conftest.py defines pytest_collection_modifyitems, and all 106 e2e modules
@@ -518,9 +543,58 @@ def _allow_sync_orm_under_playwright():
     yield
 ```
 
-**Helpers: import, do not copy.** `tests/test_e2e_tabs.py` already provides `_make_pa_user` (`:55`), `_login` (`:69`), `_editor_url` (`:88`), `_lesson_url` (`:92`) and `_seed_tabs_element(unit, tabs, children, display=…, parent=…, tab_id=…)` (`:101`) — the last already supports nesting via `parent=`/`tab_id=`, which Tasks 4, 6, 9 and 10 all need.
+**Helpers: import, do not copy.** `tests/test_e2e_tabs.py` provides `_make_pa_user` (`:55`), `_login` (`:69`), **`_seed_unit(owner, slug)` (`:77`)** — returns `(course, unit)`; give each case a **distinct slug** — `_editor_url(live_server, course, unit)` (`:88`), `_lesson_url` (`:92`) and `_seed_tabs_element(unit, tabs, children, display=…, parent=…, tab_id=…)` (`:101`), the last already supporting nesting via `parent=`/`tab_id=`, which Tasks 4, 6, 9 and 10 need.
 
 ⚠️ **Do NOT model the carousel fixtures on `_seed_carousel` (`:717`)** — it seeds a **student lesson page**, not the editor. Carousel *editor* fixtures must go through `_seed_tabs_element(..., display="carousel")` plus `_editor_url`.
+
+- [ ] **Step 1b: Define this module's shared seed helpers — the other tasks call them by name**
+
+`test_e2e_tabs.py` seeds **tabs only**. Nothing there seeds a spoiler, callout, before/after, plain text, or a filler run — and Tasks 5, 7, 8, 9 and 10 all need them. Because execution is subagent-driven (each task is a separate context), leaving this to "conventions" means five tasks each inventing an incompatible ad-hoc seeder in the same file. Define them **once, here**:
+
+```python
+def _seed_container(unit, obj, children, parent=None, tab_id=""):
+    """Create the container's join row, then one join row per child.
+
+    `children` is a list of (content_object, slot_id). Mirrors the shape of
+    courses/tests/test_preview_nested_markers.py::_containers -- direct
+    Element(parent=...) rows, NOT builder.resolve_scope.
+
+    Returns (container_join, [child_join, ...]).
+    """
+    from courses.models import Element
+
+    join = Element.objects.create(
+        unit=unit, content_object=obj, parent=parent, tab_id=tab_id
+    )
+    kids = [
+        Element.objects.create(
+            unit=unit, content_object=child, parent=join, tab_id=slot
+        )
+        for child, slot in children
+    ]
+    return join, kids
+
+
+def _seed_text(body="x"):
+    from courses.models import TextElement
+
+    return TextElement.objects.create(body=f"<p>{body}</p>")
+
+
+def _seed_filler(unit, n):
+    """n top-level text elements, each tall enough to push the pane well past a
+    viewport. Used by Tasks 7 and 9 to make a scroll observable."""
+    from courses.models import Element
+
+    for i in range(n):
+        Element.objects.create(
+            unit=unit,
+            content_object=_seed_text(("filler %d<br>" % i) * 40),
+            parent=None,
+        )
+```
+
+Tasks 5–10 must call these rather than writing their own.
 
 Write case 1 (strip tabs, `.el-select` path) and case 3 (spoiler, row-body path):
 
@@ -916,7 +990,15 @@ Seed with `_seed_tabs_element(unit, outer_tabs, …)` then `_seed_tabs_element(u
     outer_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{outer_join.pk}"]'
     inner_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{inner_join.pk}"]'
 
-    page.click(f'details.tabs-rows[data-tab-id="{outer_tab2_id}"] > summary')
+    # Scope BOTH <details> clicks to their owning .el-row. `_seed_tabs_element`'s
+    # docstring notes two elements may deliberately SHARE tab ids, and the inner
+    # <details> is in the DOM (merely hidden) from load -- so an unscoped selector can
+    # match two nodes and Playwright's strict mode raises. The fixture should also use
+    # DISJOINT tab-id lists for outer and inner.
+    page.click(
+        f'.el-row[data-element="{outer_join.pk}"] '
+        f'details.tabs-rows[data-tab-id="{outer_tab2_id}"] > summary'
+    )
     page.click(
         f'.el-row[data-element="{inner_join.pk}"] '
         f'details.tabs-rows[data-tab-id="{inner_late_tab_id}"] > summary'
@@ -959,7 +1041,16 @@ uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q -
 Run each with `-k "stacked"` so the RED being claimed is the pinned one.
 
 - **(e)** reverse the reveal loop in `revealAncestors` to `for (var k = 0; k < chain.length; k++)` → RED on `scrollLeft > 0`.
-- **(f)** in the tabs branch of `revealAncestors`, replace the `owningNode(...)` call with `target.closest(".tabs__section")` (and index that against `t.all`) → RED.
+- **(f)** in the tabs branch of `revealAncestors`, resolve `s` with `closest()` from the target instead of the ownership filter. Written concretely (the naive "replace the `owningNode(...)` call" leaves `t.all` referencing a dead binding and will not run):
+
+  ```js
+  } else if (node.hasAttribute("data-tabs")) {
+    var all = ownNodes(node, ".tabs__section", "[data-tabs]");
+    chain.push({ kind: "tabs", c: node, s: target.closest(".tabs__section"), all: all });
+  }
+  ```
+
+  → RED: the **outer** container now resolves the **inner** section, so its `data-tabs-active` never advances.
 
 Restore each by hand.
 
@@ -985,7 +1076,19 @@ Falsified: e RED, f RED (both scoped -k stacked)."
 
 **Fixture — pin the container.** The target must sit in an **always-visible** nested position: a **callout child** (as Task 8 uses). It must **not** be in a tab, a carousel slide, a closed spoiler or an After panel — those give a zero or degenerate pre-click rect, so the pre-click `delta` comes out as roughly `-(paneTop + pad)`, i.e. negative, and the `> 400` probe fails **on a correct build**. This is the same trap Task 9 documents; case 6 must avoid it rather than handle it.
 
-**Position-observability constraints:** the target must sit **well below the pane fold** (several viewport heights of preceding content — seed a run of filler text elements before the callout) **and** carry enough content after it that `.pane-body` can actually scroll it to the top (seed filler after it too). Without the first, both builds read "already at the top" and (g) survives; without the second, the target can never reach the top even on a correct build and the case goes falsely red.
+**Position-observability constraints:** the target must sit **well below the pane fold** **and** carry enough content after it that `.pane-body` can actually scroll it to the top. Without the first, both builds read "already at the top" and (g) survives; without the second, the target can never reach the top even on a correct build and the case goes falsely red.
+
+Concretely: `_seed_filler(unit, 8)` **before** the callout and `_seed_filler(unit, 8)` **after** it (Task 3's helper — each filler element is ~40 lines tall, so 8 comfortably exceeds a viewport). The pre-click `> 400` probe self-checks the leading run; **add this assertion for the trailing run**, or a too-short tail makes the `|delta| <= 4` poll time out with a message that reads like a product bug rather than a fixture bug:
+
+```python
+    scrollable = page.evaluate(
+        '() => { const b = document.querySelector(\'[data-scope="preview"] .pane-body\');'
+        "  return b.scrollHeight - b.clientHeight; }"
+    )
+    assert scrollable > page.evaluate(delta, target_sel), (
+        "trailing filler too short -- the target can never reach the pane top"
+    )
+```
 
 **"The pane's content top"** is `.pane-body`'s rect top **plus its computed `padding-top`** — `alignTopInPane`'s own arithmetic. The bare bounding-box top is off by the padding, which can exceed the 4 px tolerance.
 
@@ -1042,11 +1145,13 @@ Falsified: g RED (scoped -k position). Settle time recorded for the PR body."
 **Files:**
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
-**No click path — this is the HOVER path** (`mouseenter` on `.el-row[data-element]`). No collapsed-`<details>` precondition: callout and two-column rows are always-open divs.
+**No click path — this is the HOVER path** (`mouseenter` on `.el-row[data-element]`).
+
+**Pin the target to a CALLOUT child.** Callout child rows render in an always-open `<div class="el-row__callout">`, so no `<details>` precondition applies. **Do not use two-column here:** `_element_row.html:141` wraps column children in `<details class="columns-rows">` whose only `open` clauses are `open_slots` and `clip_active` — **no `forloop.first`** — so in a fresh Playwright context *both* column slots start collapsed and `page.hover()` would time out on a not-visible locator. (The spec says this verbatim; an earlier draft of this task wrongly called two-column rows always-open.)
+
+The child must also be **always visible in the preview**, which a callout child is: hover deliberately does **not** trigger the walk, so a hidden target would be outlined invisibly and the case would prove nothing.
 
 Hover is fixed by Task 1 alone (`setHighlight` needs no change — the same selector now matches). But **a render test cannot prove `setHighlight` reaches a nested node**, which is why this case exists.
-
-Use an **always-visible** nested child (callout or two-column). Hover deliberately does **not** trigger the walk, so a hidden target would be outlined invisibly and the case would prove nothing.
 
 - [ ] **Step 1: Write the case**
 
@@ -1092,9 +1197,12 @@ Falsified: h RED."
 
 **Fixture: a bailed carousel nested inside a closed spoiler.**
 
-Force the bail with a bad `window.TABS_I18N` key — the same **accessor** injection `tests/test_e2e_tabs.py:1706-1740` uses. A plain global write is overwritten by the inline script that assigns `TABS_I18N` wholesale before the deferred `tabs.js`, so the carousel would initialise normally and the case would fail against a **correct** build:
+Force the bail with a bad `window.TABS_I18N` key — the same **accessor** injection `tests/test_e2e_tabs.py:1706-1740` uses. A plain global write is overwritten by the inline script that assigns `TABS_I18N` wholesale (`editor.html:212`) before the deferred `tabs.js`, so the carousel would initialise normally and the case would fail against a **correct** build.
+
+⚠️ **`add_init_script` only affects navigations that happen AFTER it**, and `_login` itself calls `page.goto`. Place it before the editor navigation, exactly as below — putting it after `page.goto(editor_url)` leaves the carousel healthy, dots present, `dot.click()` never throwing, and **mutant (i) unfalsifiable while the case stays green**:
 
 ```python
+    _login(page, live_server, "pa")
     page.add_init_script(
         """
       Object.defineProperty(window, "TABS_I18N", {
@@ -1104,6 +1212,21 @@ Force the bail with a bad `window.TABS_I18N` key — the same **accessor** injec
       });
     """
     )
+    page.goto(editor_url)          # AFTER the injection
+
+    # PRE-FLIGHT: prove the bail actually took. If the injection ever stops biting
+    # (a renamed i18n key, a t() that tolerates a non-string), the carousel
+    # initialises, the walk clicks a real dot, this case passes -- and mutant (i)
+    # can never go red because `dot` is never undefined.
+    car = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{carousel_join.pk}"]'
+    page.wait_for_function(
+        """(sel) => { const c = document.querySelector(sel);
+             return !!c && c.dataset.tabsReady === "1"
+                    && !c.classList.contains("tabs--carousel")
+                    && !c.classList.contains("tabs--js"); }""",
+        arg=car,
+    )
+    assert page.locator(f"{car} .tabs__dot").count() == 0, "carousel did not bail"
 ```
 
 The injection is **global**, which is why the outer ancestor must be a **spoiler, not tabs** — it would bail an outer tabs instance too.
@@ -1173,9 +1296,11 @@ Falsified: i RED (scoped -k degraded)."
 **Files:**
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
+⚠️ **Every `editor.js` line number below is pre-Task-3.** Task 3 inserts ~90 lines above `scrollPreviewTo`, so by the time this task runs each of these has shifted down by roughly that much. **Anchor on the code, never the number** — `applyFragments(res.text)` inside the `form[data-op]` submit handler, the `.el-select` handler, the row-body handler. (The same caution applies to Task 8's `setHighlight` mutant, which escapes only by sitting *above* the insertion point.)
+
 There are **three** `scrollPreviewTo` call sites, and the walk lives inside it, so all three inherit it: `editor.js:367` (after **any** `form[data-op]` submit — save, move, duplicate, delete, incl. the 409/422 branches), `:451` (`.el-select`), `:463` (row body). **The post-op reveal is intended**: after saving or moving a nested element, revealing its own tab is the useful behaviour and matches the scroll that site already performs. `restoreActiveTabs` re-stamps the author's previous tab and the walk then overrides it, so after an op the visible tab is the **operated element's**. This is a deliberate behaviour change on every element op.
 
-**Both cases need the collapsed-`<details>` precondition** (the target lives in a non-first tab): open `details.tabs-rows[data-tab-id="<tab>"] > summary` first.
+**The collapsed-`<details>` precondition applies to e2e 10 ONLY** — its target lives in a non-first tab, so open `details.tabs-rows[data-tab-id="<tab>"] > summary` first. **e2e 11 has no such precondition:** its target is inside a spoiler, and spoiler child rows render in an always-open `<div class="el-row__spoiler">` (`_element_row.html:192`) — there is no `details.tabs-rows` in that row at all, so adding the click would select zero nodes and fail on a correct build.
 
 - [ ] **Step 1: Write e2e 10 — pins the behaviour change**
 
@@ -1212,7 +1337,7 @@ The mutant is "the walk runs against the pre-swap DOM on the op path". `revealAn
    ```js
    if (!window.__mutantK) revealAncestors(target);
    ```
-   and set `window.__mutantK = true;` at the top of the op handler. (Any equivalent guard is fine; the point is that the walk runs **once**, against the **pre-swap** DOM, on this path only.)
+   and set `window.__mutantK = true;` at the top of the op handler, **clearing it (`window.__mutantK = false;`) in the same `.then` after `applyFragments` returns**. Without the reset the latch is page-lifetime: every later `scrollPreviewTo` on that page — including the `.el-select` and row-body paths — would also skip the walk. It happens not to matter (each case performs one op), but an uncleared latch does not do what this step claims. Any equivalent guard is fine; the point is that the walk runs **once**, against the **pre-swap** DOM, on this path only.
 
 Do **not** simply delete the `scrollPreviewTo` call: that also reddens e2e 1, 3, 5 and 8, and the "e2e 11 RED, e2e 10 still green" asymmetry — which is the whole point of the two cases — stops being readable.
 
@@ -1266,7 +1391,9 @@ The diff **must be normalized first or it can never come out clean**: `templates
 
 **The mechanism, concretely** (the plan owes this — "diff master against the branch" is not executable on its own):
 
-**Step 2a — write the render script.** Create `scripts/render_student_page.py` (untracked; delete it before the final commit). It renders a student lesson page holding all five container types and writes it to a path given on the command line, with the CSRF tokens normalized:
+**Step 2a — write the render script.** Create `scripts/render_student_page.py` (untracked; delete it before the final commit). It renders a student lesson page holding all five container types and writes it to a path given in `RENDER_OUT`, with the CSRF tokens normalized.
+
+This works **only because Task 1's `_containers` mints fixed slot ids** (`_fixed_tabs_data` / `_fixed_columns_data`). With `default_data()`'s `secrets.token_hex(3)` ids the control diff below could never come out empty, and the "fix" would be regexing out the very attributes near the wrappers under test.
 
 ```python
 """Throwaway: render a student lesson page to a file, CSRF-normalized.
@@ -1294,12 +1421,14 @@ def test_render(client):
     unit = ContentNodeFactory(
         course=course, parent=None, kind="unit", unit_type="lesson"
     )
-    _containers(unit)
+    _containers(unit)   # fixed slot ids -- see _fixed_tabs_data/_fixed_columns_data
     html = client.get(
         reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
     ).content.decode()
-    # The ONLY known per-render nondeterminism. If the control diff below is not
-    # empty, add whatever else it turns up here rather than trusting the result.
+    # CSRF is re-masked with a fresh salt on every render. Slot ids are already fixed
+    # by the fixture. If the control diff below is not empty, add whatever else it
+    # turns up here rather than trusting the result -- do NOT normalize away
+    # data-element-id or the child class attributes, which are what is under test.
     html = re.sub(
         r'name="csrfmiddlewaretoken" value="[^"]*"',
         'name="csrfmiddlewaretoken" value="NORMALIZED"',
@@ -1323,10 +1452,15 @@ cp "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-eleme
 
 **Step 2c — the control diff MUST come out empty first.** Two renders of the *same* tree. This is what proves the normalization sufficient; without it a clean branch diff means nothing and a dirty one is uninterpretable.
 
+⚠️ **No `cd`** (the Global Constraints forbid it — the harness resets cwd between commands, and `uv run` resolves its project from cwd, so a failed `cd` would silently render the *branch* tree twice and make the control diff meaningless). Use `uv run --directory`.
+
+⚠️ **No `/tmp`.** `RENDER_OUT` is consumed by CPython **for Windows**, where `/tmp/x.html` is drive-relative and resolves to `C:\tmp\x.html` (usually nonexistent → `FileNotFoundError`), while Git Bash's `diff` reads the MSYS `/tmp` mount — a different directory. Use absolute scratchpad paths.
+
 ```bash
-cd "$BASE" && RENDER_OUT=/tmp/master_a.html uv run pytest scripts/render_student_page.py -p no:randomly -q
-cd "$BASE" && RENDER_OUT=/tmp/master_b.html uv run pytest scripts/render_student_page.py -p no:randomly -q
-diff /tmp/master_a.html /tmp/master_b.html && echo "CONTROL DIFF EMPTY -- normalization sufficient"
+OUT="C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/c028a1f9-227d-465d-9183-8748c462317a/scratchpad"
+RENDER_OUT="$OUT/master_a.html" uv run --directory "$BASE" pytest scripts/render_student_page.py -p no:randomly -q
+RENDER_OUT="$OUT/master_b.html" uv run --directory "$BASE" pytest scripts/render_student_page.py -p no:randomly -q
+diff "$OUT/master_a.html" "$OUT/master_b.html" && echo "CONTROL DIFF EMPTY -- normalization sufficient"
 ```
 
 If it is **not** empty, add the offending pattern to the normalizer and repeat. Do not proceed until it is empty.
@@ -1335,8 +1469,8 @@ If it is **not** empty, add the offending pattern to the normalizer and repeat. 
 
 ```bash
 WT="C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate"
-cd "$WT" && RENDER_OUT=/tmp/branch.html uv run pytest scripts/render_student_page.py -p no:randomly -q
-diff /tmp/master_a.html /tmp/branch.html && echo "BYTE-IDENTICAL"
+RENDER_OUT="$OUT/branch.html" uv run --directory "$WT" pytest scripts/render_student_page.py -p no:randomly -q
+diff "$OUT/master_a.html" "$OUT/branch.html" && echo "BYTE-IDENTICAL"
 ```
 
 Expected: empty. **Record the outcome — control diff empty, branch diff empty — in the PR body.**
@@ -1350,6 +1484,8 @@ Expected: empty. **Record the outcome — control diff empty, branch diff empty 
 Take **light and dark** screenshots of a hovered nested child in at least a **two-column** and a **callout**. Judge the dark one on its own terms, not by assuming it follows the light one. For dark, drive it via `user.theme`, **not** the cookie.
 
 **Model it on `tests/capture_nested_question_screenshots.py`**, which already enumerates the exact selectors needed (`.callout__children > .callout__child` and `.twocolumn__column:first-child > .twocolumn__child`, lines 78-85) and handles login + theming. Adapt it to: navigate to the **editor**, `page.hover()` the nested `.el-row`, then `page.screenshot()` while the hover is held (the hover persists until the pointer moves, so capture directly after — do not click anything in between).
+
+⚠️ **The two-column shot needs an extra step the model does not have.** `capture_nested_question_screenshots.py` drives the **student** page, where no `<details>` exists. On the **editor** page the two-column child's row sits inside a closed `<details class="columns-rows">` (no `forloop.first` clause), so `page.hover()` times out before any screenshot is taken. Click `details.columns-rows[data-column-id="<id>"] > summary` first. The **callout** shot needs no such step (always-open div row).
 
 Four expected files, written to the scratchpad directory (not the repo):
 `hover-callout-light.png`, `hover-callout-dark.png`, `hover-twocolumn-light.png`, `hover-twocolumn-dark.png`.
@@ -1379,12 +1515,25 @@ Confirm `git status --short` shows **no `locale/` changes**.
 
 - [ ] **Step 6: Commit**
 
-```bash
-git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" add courses/static/courses/js/tabs.js
-git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" commit -m "docs(tabs): editor.js's reveal-walk is a third libli:reveal dispatcher
+⚠️ **Stage every path `ruff format .` may have touched**, not just `tabs.js`. Tasks 1–10 committed three test modules *before* Step 4 ran, so any reflow ruff applied to them is sitting unstaged in the working tree — and would leave the branch tip failing the very `ruff format --check .` gate Step 4 just ran.
 
-Line-count neutral, per the citation-rot convention."
+```bash
+WT="C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate"
+git -C "$WT" add courses/static/courses/js/tabs.js courses/static/courses/js/editor.js \
+  courses/tests/test_preview_nested_markers.py courses/tests/test_preview_marker_css.py \
+  tests/test_e2e_preview_nested_locate.py
+git -C "$WT" commit -m "docs(tabs): editor.js's reveal-walk is a third libli:reveal dispatcher
+
+Line-count neutral, per the citation-rot convention. Includes any ruff
+format reflow of the test modules committed in earlier tasks."
 ```
+
+- [ ] **Step 7: Confirm the tree is clean**
+
+```bash
+git -C "$WT" status --short
+```
+Expected: **empty**. A non-empty tree here means either a ruff reflow was missed above, or `scripts/render_student_page.py` was not deleted in Step 2e. Neither may be left behind.
 
 ---
 
@@ -1412,12 +1561,30 @@ Line-count neutral, per the citation-rot convention."
 
 **Deliberately uncovered — do not invent tests:** the `[data-scope="preview"]` climb bound (nothing collectible sits above it on today's page); the synchronous-cascade ordering (identical settled state, only the transient differs); un-scoping `ownToggle`; un-scoping `ownPanels`.
 
-**Falsification runs are `-k`-scoped** wherever a mutant reddens more than its pinned case — (e), (f), (g), (i), (k) all do. An unscoped run reports several reds and it stops being obvious which one is the falsification. Each task names the scope.
+**Falsification runs are `-k`-scoped** wherever a mutant reddens more than its pinned case — (e), (f), (g), (i), (k) all do. An unscoped run reports several reds and it stops being obvious which one is the falsification.
+
+⚠️ **A `-k` filter is inert unless the test's NAME contains its token.** If a case is named something that misses the token, `-k` selects nothing and pytest reports exit 5 / "no tests ran" — the same false-green this plan warns about for the missing `e2e` marker. **These names are mandatory**, not suggestions:
+
+| e2e | Mandated test function name | `-k` token |
+|---|---|---|
+| 1 | `test_click_reveals_a_child_in_a_non_first_strip_tab` | `strip_tab` |
+| 2 | `test_click_reveals_a_child_in_a_non_first_carousel_slide` | `carousel` |
+| 3 | `test_click_opens_a_closed_spoiler_around_the_child` | `spoiler` |
+| 4 | `test_click_flips_before_after_to_the_panel_holding_the_child` | `before_after` |
+| 5 | `test_stacked_tabs_reveal_outermost_first` | `stacked` |
+| 6 | `test_position_aligns_the_nested_target_to_the_pane_top` | `position` |
+| 7 | `test_hover_outlines_a_nested_child` | `hover` |
+| 8 | `test_degraded_carousel_is_skipped_not_thrown_on` | `degraded` |
+| 9 | `test_nested_carousel_reveals_the_outer_instance` | `nested_carousel` |
+| 10 | `test_post_op_reveal_wins_over_the_restored_tab` | `post_op` |
+| 11 | `test_post_op_reveal_through_a_spoiler` | `post_op` |
+
+Note e2e 2 and e2e 9 both contain `carousel`, so Task 4's `-k "carousel"` selects both — which is what that task wants. Mutant (d) is scoped with `-k "nested_carousel"` to isolate e2e 9.
 
 **Records owed to the PR body** (collected across tasks, assembled in Task 11): the Task 1 sweep outcome and the four Step-1c confirmations; the observed settle time from Task 7 (and, if it exceeds the 500 ms backstop, the `libli:reveal`-bound re-align as the **only** permitted remedy — never a longer timeout); the byte-identity control-diff-empty + branch-diff-empty result; and the four hover screenshots' verdict.
 
 ## Self-review notes
 
-- **Spec coverage:** Part 1 → Task 1. CSS guard → Task 2. Part 2's four reveal branches → Tasks 3–5. Ordering/resolution → Task 6. Position → Task 7. Hover → Task 8. Degraded → Task 9. Post-op → Task 10. Comment/byte-identity/screenshots/format → Task 11. All 11 e2e cases, both render tests, the CSS guard and all 16 mutant rows are assigned.
+- **Spec coverage:** Part 1 → Task 1. CSS guard → Task 2. Part 2's four reveal branches → Tasks 3–5. Ordering/resolution → Task 6. Position → Task 7. Hover → Task 8. Degraded → Task 9. Post-op → Task 10. Comment/byte-identity/screenshots/format → Task 11. All 11 e2e cases, both render tests, the CSS guard and all 17 ledger rows are assigned (the spec's 16 mutants, with (l) split into l1/l2).
 - **Naming consistency:** `ownNodes(container, selector, ownerSelector)`, `owningNode(container, selector, ownerSelector, target)`, `revealAncestors(target)`, `revealOne(hit)` — used identically in Tasks 3, 4, 5, 6, 9 and in the mutant table.
 - **`hit.all`** is set only on the `tabs` branch and read only by the carousel step; the strip step uses `hit.s` alone.
