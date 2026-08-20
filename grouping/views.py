@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -189,7 +190,7 @@ def group_list(request):
 @permission_required("grouping.add_group", raise_exception=True)
 def group_create(request):
     if request.method == "POST":
-        form = GroupForm(request.POST)
+        form = GroupForm(request.POST, user=request.user)
         if form.is_valid():
             course = form.cleaned_data["course"]
             # A CA may only create groups on courses they own; PA may use any.
@@ -198,13 +199,14 @@ def group_create(request):
                 or course.owner_id == request.user.id
             ):
                 raise PermissionDenied
-            group = form.save()
+            with transaction.atomic():
+                group = form.save()
             services.set_group_members(
                 group, _student_ids_from_post(request), added_by=request.user
             )
             return redirect("grouping:group_edit", pk=group.pk)
     else:
-        form = GroupForm()
+        form = GroupForm(user=request.user)
     return render(
         request,
         "grouping/group_form.html",
@@ -224,15 +226,16 @@ def group_create(request):
 def group_edit(request, pk):
     group = get_object_or_404(scoping.groups_manageable_by(request.user), pk=pk)
     if request.method == "POST":
-        form = GroupForm(request.POST, instance=group)
+        form = GroupForm(request.POST, instance=group, user=request.user)
         if form.is_valid():
-            group = form.save()
+            with transaction.atomic():
+                group = form.save()
             services.set_group_members(
                 group, _student_ids_from_post(request), added_by=request.user
             )
             return redirect("grouping:group_edit", pk=group.pk)
     else:
-        form = GroupForm(instance=group)
+        form = GroupForm(instance=group, user=request.user)
     current_ids = set(group.memberships.values_list("student_id", flat=True))
     return render(
         request,
