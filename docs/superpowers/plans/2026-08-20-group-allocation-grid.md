@@ -255,10 +255,17 @@ and add `from grouping.models import Allocation` to the imports at the top.
 - [ ] **Step 5: Generate the migration**
 
 ```
-uv run python manage.py makemigrations grouping
+uv run python manage.py makemigrations grouping --name allocation
 ```
 
-Expected: creates `grouping/migrations/0005_allocation.py` with `CreateModel` for `Allocation`, the M2M table, the `UniqueConstraint`, and `AddField` for `group.allocation`. Read the generated file and confirm it contains no unrelated operations.
+`--name` is not cosmetic: Django derives an auto-name by concatenating each operation's
+`migration_name_fragment` (`Migration.suggest_name`), and this migration carries three
+operations — `CreateModel`, `AddField(group.allocation)`, and a separate `AddConstraint` —
+so the auto-name would be something like `0005_allocation_group_allocation_and_more.py`,
+not `0005_allocation.py`. Every later reference in this plan (Step 8's `git add`, mutants 4
+and 5) uses the fixed name, so pin it here.
+
+Expected: creates `grouping/migrations/0005_allocation.py` with `CreateModel` for `Allocation`, the M2M table, the `AddConstraint` for `uniq_allocation_course_name`, and `AddField` for `group.allocation`. Read the generated file and confirm it contains no unrelated operations. If the number is not `0005`, use whatever the graph head produced and substitute it everywhere below.
 
 - [ ] **Step 6: Run the tests and watch them pass**
 
@@ -425,7 +432,12 @@ Expected: 7 passed.
 
 - [ ] **Step 6: Falsify**
 
-Replace the CA branch's `Allocation.objects.filter(course__owner=user)` with `Allocation.objects.all()`. Re-run → `test_course_admin_sees_only_allocations_on_owned_courses` and `test_course_admin_does_not_see_owner_less_courses` must FAIL. Restore by hand.
+1. Replace the CA branch's `Allocation.objects.filter(course__owner=user)` with `Allocation.objects.all()` → `test_course_admin_sees_only_allocations_on_owned_courses` and `test_course_admin_does_not_see_owner_less_courses` must FAIL.
+2. Remove the four `grouping.*_allocation` entries from `GROUPING_COURSE_ADMIN_PERMS` → `test_course_admin_role_holds_the_allocation_permissions` **and** `test_course_admin_sees_only_allocations_on_owned_courses` must FAIL (the CA branch tests `change_allocation`, so losing the perm empties the queryset too).
+3. Add the four entries to `GROUPING_TEACHER_PERMS` → `test_teacher_role_holds_no_allocation_permissions` and `test_teacher_sees_none` must FAIL.
+4. Scope the helper's PA branch with `.filter(archived=False)` → `test_archived_allocations_are_included` must FAIL.
+
+Restore each by hand. Step 3's permission-list edit is this task's main deliverable — without mutants 2 and 3 it would ship never having been seen to fail.
 
 - [ ] **Step 7: Commit**
 
@@ -719,7 +731,7 @@ do not add them a second time there, or `ruff` flags F811 four commits later.)
 uv run pytest tests/test_grouping_allocation_forms.py -v
 ```
 
-Expected: 12 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Falsify**
 
@@ -1719,7 +1731,9 @@ Expected: all pass.
 1c. Make `allocation_delete` cascade-delete the allocation's groups → `test_delete_view_nulls_the_fk_and_keeps_memberships` must FAIL.
 2. Drop `raise_exception=True` from `allocation_list` → `test_teacher_gets_403` must FAIL (302, not 403).
 3. Make `allocation_archive` set `archived = True` unconditionally → `test_archive_toggles_both_ways` must FAIL.
-4. Leave `base.html`'s outer `{% if %}` unchanged → `test_ca_sees_the_admin_menu_allocations_link` must FAIL. Separately, hoist the tab outside its `{% if perms.grouping.view_allocation %}` → `test_tabs_hide_allocations_from_a_teacher` must FAIL.
+4. Leave `base.html`'s outer `{% if %}` unchanged → `test_ca_sees_the_admin_menu_allocations_link` must FAIL.
+5. Hoist the tab outside its `{% if perms.grouping.view_allocation %}` → `test_tabs_hide_allocations_from_a_teacher` must FAIL.
+6. Delete the new `<a class="tnhub__tab">` block from `_groups_tabs.html` entirely → `test_tabs_show_allocations_for_a_course_admin` must FAIL. (Mutant 5 makes the tab *more* visible, so it leaves the positive half green — spec row 30b needs its own mutant.)
 
 Restore each by hand.
 
@@ -1945,7 +1959,7 @@ def test_moving_between_columns_keeps_the_enrollment_and_fires_no_new_notificati
     assert Notification.objects.filter(recipient=student).count() == before
 
 
-def test_an_out_of_range_target_keeps_the_membership(client=None):
+def test_an_out_of_range_target_keeps_the_membership():
     """Spec row 17c. Load-bearing: the -was must MATCH the current token, or the
     guard skips the row and the mutant survives."""
     a, cols = _alloc_with_columns(1)
@@ -2111,21 +2125,31 @@ import `Allocation` — an unused import is an F401 to unpick at Task 10's lint 
 uv run pytest tests/test_grouping_allocation_service.py -v
 ```
 
-Expected: 13 passed.
+Expected: 14 passed.
 
 - [ ] **Step 5: Falsify**
 
-1. Replace `for column in columns:` in the removal loop with a loop over `Group.objects.filter(course=columns[0].course)` (adding a temporary `Group` import) → `test_writes_only_inside_the_rectangle_and_the_write_lands` must FAIL. (The service never receives an `allocation`, so the mutant has to be phrased against `columns`.)
+1. Widen the **membership source**, not the iteration — replace the whole `for column in columns:` removal block with:
+   ```python
+   for m in GroupMembership.objects.filter(
+       student=student, group__course=columns[0].course
+   ).exclude(group=target):
+       remove_students_from_group(m.group, [student])
+   ```
+   → `test_writes_only_inside_the_rectangle_and_the_write_lands` must FAIL. (Merely iterating more groups is **inert**: each removal is guarded by `if str(column.pk) in now.split(",")`, and `now` is computed over `columns` only, so an extra column is never removed. The rectangle guarantee lives in the token, so the mutant has to attack the token.)
 2. Replace `add_students_to_group` / `remove_students_from_group` with direct `GroupMembership` writes → `test_none_target_removes_membership_and_drops_group_sourced_enrollment` must FAIL.
-3. Make the loop iterate a rebuilt `{sid: (None, ...)}` for every student in `current` rather than over `assignments.items()` → `test_a_row_absent_from_assignments_is_untouched` must FAIL. (The *view*-side version of this bug — collapsing `request.POST.get`'s `None` and `""` — cannot be reached from here, because this function receives the dict already built. Its test lives in Task 7 as `test_an_absent_row_key_is_not_read_as_none`.)
+3. Rebuild the loop over **every student holding a membership in any column** (which the service *can* derive) rather than over `assignments.items()`, defaulting each to a `None` target → `test_a_row_absent_from_assignments_is_untouched` must FAIL. (Rebuilding from `current` instead would be **inert**: `current` is keyed off `assignments`, which the test passes as `{}`, so the rebuilt loop iterates nothing. The view-side form of this bug — collapsing `request.POST.get`'s `None` and `""` — is unreachable from here and is falsified by Task 7's `test_an_absent_row_key_is_not_read_as_none`.)
 4. Change rule 1 to `if target is not None and str(target.pk) in now.split(","):` → `test_conflict_row_resolves_when_a_column_is_picked` must FAIL.
-5. Drop the `was_token is None` clause from rule 2 → `test_a_none_was_token_is_a_mismatch_not_an_unguarded_write` must FAIL.
+5. Delete **rule 2 entirely** (fall straight from the no-op check into the write) → `test_guard_skips_a_moved_row_and_reports_it` **and** `test_a_none_was_token_is_a_mismatch_not_an_unguarded_write` must FAIL. This is spec row 15's "ignore the `-was` field", and it is the only mutant that falsifies the guard itself. (Dropping just the `was_token is None` clause is **inert** — `now` is always a `str`, so `now != None` is unconditionally true and the clause is pure documentation. Row 17's live mutant is at the view level, in Task 7.)
 6. Move rule 2 above rule 1 → `test_a_no_op_row_is_neither_written_nor_reported_even_when_the_token_moved` must FAIL.
 7. Swap the add and the remove in rule 3 → `test_moving_between_columns_keeps_the_enrollment_and_fires_no_new_notification` must FAIL.
 
 8. Sort the token lexically (`sorted(str(pk) for pk in group_ids)`) → `test_columns_token_sorts_numerically_not_lexically` must FAIL.
 9. Restrict `allocation_row_students`' arm 2 to `archived=False` → `test_row_students_union_includes_out_of_cohort_and_archived_column_members` must FAIL.
 10. Replace the out-of-range `continue` with `target = None` → `test_an_out_of_range_target_keeps_the_membership` must FAIL.
+11. Drop `added_by=added_by` from the `add_students_to_group` call inside the service → `test_added_by_is_recorded` must FAIL. (Spec row 17b names *two* mutants; Task 7 carries the view-side one. Dropping only the service forward leaves `added_by = NULL` on every grid-created membership while the view still passes the argument.)
+12. Replace `student_users()` with `User.objects` in `allocation_row_students`' arm 2 → `test_row_students_excludes_staff` must FAIL.
+13. Drop the `& column_ids` intersection in `allocation_state_tokens` → `test_state_token_shapes` must FAIL, once its fixture also gives one student a membership in a **non-column** group of the same course (add that to the fixture; without it the intersection is a no-op).
 
 Restore each by hand.
 
@@ -2154,7 +2178,7 @@ Read spec §"The assignment grid" and §"Data flow" in full before starting.
 
 - [ ] **Step 1: Write the failing grid tests**
 
-Create `tests/test_grouping_allocation_grid.py` covering: the 404/403 matrix; the row union including a cohort-less student; the three row states and the "also in" note; the whole-allocation summary with two cohorts plus an outsider; the forged-student rejection; the column-set abort; and a bounded query count. Follow the assertion discipline the spec's test table specifies.
+Create `tests/test_grouping_allocation_grid.py` covering: the 404/403 matrix; the row union including a cohort-less student; the three row states and the "also in" note; the whole-allocation summary with two cohorts plus an outsider; the forged-student rejection; the column-set abort (including one POST with **no `columns` key at all**, against an allocation whose current token is `""` — the only fixture where coercing an absent field to `""` is visible); an attached cohort with zero students still rendering its heading with the "(no students)" note; and a bounded query count. Follow the assertion discipline the spec's test table specifies.
 
 The file opens with:
 
@@ -2229,6 +2253,29 @@ def test_an_absent_row_key_is_not_read_as_none(client):
     )
     assert resp.status_code == 302
     assert GroupMembership.objects.filter(student=student).count() == 2
+
+
+def test_a_missing_was_field_is_skipped_not_written(client):
+    """Spec row 17's LIVE mutant is here, not in the service: the service can only
+    see the None it was handed, so the `.get(key, "")` slip has to be caught at
+    the layer that reads the POST. Load-bearing: the student must be in NO column
+    (true token ""), or the mutant's "" coincidentally mismatches and skips too."""
+    pa = make_pa(client)
+    a = AllocationFactory(course=CourseFactory(owner=pa))
+    col = GroupFactory(course=a.course, allocation=a)
+    cohort = CohortFactory()
+    a.cohorts.add(cohort)
+    student = UserFactory()
+    CohortMembershipFactory(user=student, cohort=cohort)
+    resp = client.post(
+        reverse("grouping:allocation_assign", args=[a.pk]),
+        {
+            "columns": services.allocation_columns_token([col]),
+            f"student-{student.pk}": str(col.pk),   # no -was field at all
+        },
+    )
+    assert resp.status_code == 302
+    assert not GroupMembership.objects.filter(group=col, student=student).exists()
 
 
 def test_added_by_is_recorded_through_the_view(client):
@@ -2388,7 +2435,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
     ),
 ```
 
-Add these imports to `grouping/views.py` — none is present today: `from django.contrib import messages`, `from django.utils.translation import ngettext` (not the `_lazy` variant; the message is formatted immediately), `from grouping.models import CohortMembership`, `from grouping.models import GroupMembership`. (`transaction` was added in Task 4.)
+Add these imports to `grouping/views.py` — none is present today: **`import re`** (stdlib, so it goes in its own group above the `django.*` block per the repo's isort profile — the module-level `COLUMNS_TOKEN_RE` below would otherwise `NameError` at import and take down *every* grouping view, not just the grid), `from django.contrib import messages`, `from django.utils.translation import ngettext` (not the `_lazy` variant; the message is formatted immediately), `from grouping.models import CohortMembership`, `from grouping.models import GroupMembership`. (`transaction` was added in Task 4.)
 
 The view is gated on `grouping.change_group` (it writes `GroupMembership`, not `Allocation`) and scoped through `allocations_manageable_by`. Build the context in one place so GET and the POST re-render share it:
 
@@ -2465,7 +2512,10 @@ The summary element carries its translated labels as
 `data-label-total`, `data-label-assigned`, `data-label-unassigned`, `data-label-conflict`;
 the script substitutes numbers only. Rows carry `data-grid-row`, the summary carries
 `data-grid-summary`, and the two filter inputs carry `data-grid-search` and
-`data-grid-cohort`.
+`data-grid-cohort`. The cohort select's options are: "All cohorts" with `value=""`, then one
+per attached cohort with `value="<slug>"`, then "Outside these cohorts" with
+**`value="__none__"`** — that sentinel is load-bearing markup (spec row 35c's mutant is
+"give that option `value=""`", which would make it a duplicate of "All cohorts").
 
 The POST path is **wrapped in a single `transaction.atomic()`** (spec §Saving's opening line —
 `set_allocation_assignments` has its own decorator, but the column-set check and the row-set
@@ -2549,7 +2599,7 @@ Both are listed in this task's Files and neither happens by itself:
 uv run pytest tests/test_grouping_allocation_grid.py tests/test_grouping_allocation_views.py -v
 ```
 
-Mutants (each must go RED): scope with `Allocation.objects.all()`; drop `raise_exception=True`; drop the outsider union arm; build the row set from the POST keys; drop the column-set check; **treat an absent `columns` field as `""`** (→ the no-`columns` test against a groups-less allocation must FAIL); classify a two-membership row as assigned; narrow "also in" to `allocation__isnull=True`; count the summary from the first section only; read `user.cohort_membership.cohort` directly; **drop the `memberships=` argument at the `allocation_state_tokens` call site**, and separately **fetch each row's "also in" memberships individually** (→ the `assertNumQueries` test must FAIL under each — without these two the implementer simply writes down whatever number the green run reports); **drop the `int()` coercion when building `assignments`** (→ `test_a_posted_assignment_lands_through_the_view` must FAIL); **collapse `request.POST.get`'s `None` and `""` to a `None` target** (→ `test_an_absent_row_key_is_not_read_as_none` must FAIL); **drop `added_by=request.user`** (→ `test_added_by_is_recorded_through_the_view` must FAIL); **filter empty sections out of `sections`** (→ the "(no students)" heading test must FAIL).
+Mutants (each must go RED): scope with `Allocation.objects.all()`; drop `raise_exception=True`; drop the outsider union arm; build the row set from the POST keys; drop the column-set check; **treat an absent `columns` field as `""`** (→ the no-`columns` test against a groups-less allocation must FAIL); classify a two-membership row as assigned; narrow "also in" to `allocation__isnull=True`; count the summary from the first section only; read `user.cohort_membership.cohort` directly; **drop the `memberships=` argument at the `allocation_state_tokens` call site**, and separately **fetch each row's "also in" memberships individually** (→ the `assertNumQueries` test must FAIL under each — without these two the implementer simply writes down whatever number the green run reports); **drop the `int()` coercion when building `assignments`** (→ `test_a_posted_assignment_lands_through_the_view` must FAIL); **collapse `request.POST.get`'s `None` and `""` to a `None` target** (→ `test_an_absent_row_key_is_not_read_as_none` must FAIL); **read the token as `request.POST.get(f"{key}-was", "")`** (→ `test_a_missing_was_field_is_skipped_not_written` must FAIL); **drop `added_by=request.user`** (→ `test_added_by_is_recorded_through_the_view` must FAIL); **filter empty sections out of `sections`** (→ the "(no students)" heading test must FAIL).
 
 ```bash
 git add grouping/urls.py grouping/views.py config/settings/base.py templates/grouping/ tests/test_grouping_allocation_grid.py tests/test_grouping_allocation_views.py
@@ -2607,7 +2657,8 @@ Read spec §"The add-all checkbox" and the last paragraph of §"Rendering the al
 - [ ] **Step 3: Implement the add-all control**
 
 Template: a `<label hidden data-roster-all-wrap>` inside each `[data-roster-filter]`, holding
-an unnamed `<input type="checkbox" data-roster-all>`. Give the wrapper a class with **no**
+an unnamed `<input type="checkbox" data-roster-all>` and the translated text
+**"Select all shown"** (the e2e locates the control by that label). Give the wrapper a class with **no**
 author `display` (or pair it with `[hidden] { display: none }`) — `.roster-filter__field` is
 `display: flex` at `app.css:210`, which outranks the UA `[hidden]` rule and would leave the
 control visible with JS off.
