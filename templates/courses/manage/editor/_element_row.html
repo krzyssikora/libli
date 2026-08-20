@@ -195,7 +195,7 @@
         {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
       {% empty %}
         {% if obj.body %}
-          <li class="empty-state">{% trans "This spoiler shows its text above. Add an element below to nest more content." %}</li>
+          <li class="empty-state">{% trans "This spoiler has text, but nothing nested inside it yet. Add an element to nest content inside it." %}</li>
         {% else %}
           <li class="empty-state">{% trans "This spoiler is empty." %}</li>
         {% endif %}
@@ -297,7 +297,7 @@
         {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
       {% empty %}
         {% if obj.body %}
-          <li class="empty-state">{% trans "This callout shows its text above. Add an element below to nest content inside it." %}</li>
+          <li class="empty-state">{% trans "This callout has text, but nothing nested inside it yet. Add an element to nest content inside it." %}</li>
         {% else %}
           <li class="empty-state">{% trans "This callout is empty." %}</li>
         {% endif %}

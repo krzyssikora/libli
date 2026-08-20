@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-20 12:54+0200\n"
+"POT-Creation-Date: 2026-08-20 21:41+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -252,7 +252,7 @@ msgstr "Logowanie SSO (OIDC)"
 msgid "Subjects"
 msgstr "Przedmioty"
 
-#: .\core\help.py:318 .\grouping\forms.py:258 .\templates\base.html:103
+#: .\core\help.py:318 .\grouping\forms.py:257 .\templates\base.html:103
 #: .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
@@ -562,7 +562,7 @@ msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr "Lista musi mieć od %(lo)s do %(hi)s pozycji."
 
 #: .\courses\exporters.py:62 .\courses\exporters.py:122 .\grouping\forms.py:20
-#: .\grouping\forms.py:79 .\grouping\forms.py:218 .\grouping\forms.py:256
+#: .\grouping\forms.py:79 .\grouping\forms.py:217 .\grouping\forms.py:255
 #: .\institution\models.py:24 .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
 #: .\templates\courses\manage\media\manager.html:27
@@ -685,8 +685,8 @@ msgstr "Przypisany — zapis tylko przez nauczyciela/administratora lub grupę"
 msgid "Open — students can self-enroll via the catalog"
 msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
-#: .\courses\forms.py:157 .\grouping\forms.py:80 .\grouping\forms.py:218
-#: .\grouping\forms.py:257 .\notifications\models.py:15
+#: .\courses\forms.py:157 .\grouping\forms.py:80 .\grouping\forms.py:217
+#: .\grouping\forms.py:256 .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
 msgid "Course"
 msgstr "Kurs"
@@ -2658,19 +2658,20 @@ msgstr "Kod klasy w Twoim rejestrze zewnętrznym."
 msgid "…or create a new allocation"
 msgstr "…lub utwórz nowy przydział"
 
-#: .\grouping\forms.py:106 .\templates\grouping\allocation_assign.html:60
+#: .\grouping\forms.py:105 .\templates\grouping\allocation_assign.html:56
 msgid "— none —"
 msgstr "— brak —"
 
-#: .\grouping\forms.py:136 .\grouping\forms.py:297
+#: .\grouping\forms.py:135 .\grouping\forms.py:295
 msgid "archived"
 msgstr "zarchiwizowano"
 
-#: .\grouping\forms.py:161
+#: .\grouping\forms.py:160
 msgid "Choose an existing allocation or type a new name, not both."
-msgstr "Wybierz istniejący przydział albo wpisz nową nazwę — nie jedno i drugie."
+msgstr ""
+"Wybierz istniejący przydział albo wpisz nową nazwę — nie jedno i drugie."
 
-#: .\grouping\forms.py:176 .\grouping\forms.py:325
+#: .\grouping\forms.py:175 .\grouping\forms.py:323
 msgid ""
 "An archived allocation with this name already exists on this course — un-"
 "archive it to reuse the name."
@@ -2678,25 +2679,25 @@ msgstr ""
 "Zarchiwizowany przydział o tej nazwie już istnieje w tym kursie — przywróć "
 "go z archiwum, aby ponownie użyć tej nazwy."
 
-#: .\grouping\forms.py:187
+#: .\grouping\forms.py:186
 msgid "This allocation belongs to a different course."
 msgstr "Ten przydział należy do innego kursu."
 
-#: .\grouping\forms.py:218 .\templates\base.html:83
+#: .\grouping\forms.py:217 .\templates\base.html:83
 #: .\templates\grouping\group_list.html:5
 #: .\templates\grouping\my_groups.html:10
 msgid "Groups"
 msgstr "Grupy"
 
-#: .\grouping\forms.py:236
+#: .\grouping\forms.py:235
 msgid "Every group must belong to the collection's course."
 msgstr "Każda grupa musi należeć do kursu tej kolekcji."
 
-#: .\grouping\forms.py:261
+#: .\grouping\forms.py:260
 msgid "Students in these cohorts appear as rows in the grid."
 msgstr "Uczniowie z tych kohort pojawiają się jako wiersze w siatce."
 
-#: .\grouping\forms.py:332
+#: .\grouping\forms.py:330
 msgid "An allocation with this name already exists on this course."
 msgstr "Przydział o tej nazwie już istnieje w tym kursie."
 
@@ -2714,7 +2715,8 @@ msgstr "Przydział musi należeć do tego samego kursu co grupa."
 
 #: .\grouping\models.py:201
 msgid "An allocation's course cannot be changed once groups are attached."
-msgstr "Nie można zmienić kursu przydziału, gdy są już do niego przypisane grupy."
+msgstr ""
+"Nie można zmienić kursu przydziału, gdy są już do niego przypisane grupy."
 
 #: .\grouping\models.py:242
 msgid "A collection's course cannot be changed once groups are attached."
@@ -2728,7 +2730,7 @@ msgstr "Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domy�
 msgid "All groups in a collection must belong to the collection's course."
 msgstr "Wszystkie grupy w kolekcji muszą należeć do kursu tej kolekcji."
 
-#: .\grouping\views.py:498
+#: .\grouping\views.py:510
 msgid ""
 "The allocation's groups changed while you were editing, so nothing was saved "
 "— please redo your changes."
@@ -2736,7 +2738,7 @@ msgstr ""
 "Grupy tego przydziału zmieniły się podczas edycji, więc nic nie zostało "
 "zapisane — wprowadź zmiany ponownie."
 
-#: .\grouping\views.py:554
+#: .\grouping\views.py:566
 #, python-format
 msgid ""
 "%(count)d row was changed by someone else and was not overwritten: %(names)s."
@@ -2744,8 +2746,8 @@ msgid_plural ""
 "%(count)d rows were changed by someone else and were not overwritten: "
 "%(names)s."
 msgstr[0] ""
-"%(count)d wiersz został zmieniony przez kogoś innego i nie został "
-"nadpisany: %(names)s."
+"%(count)d wiersz został zmieniony przez kogoś innego i nie został nadpisany: "
+"%(names)s."
 msgstr[1] ""
 "%(count)d wiersze zostały zmienione przez kogoś innego i nie zostały "
 "nadpisane: %(names)s."
@@ -2953,7 +2955,7 @@ msgstr ""
 
 #: .\institution\roles.py:19
 #: .\templates\courses\manage\analytics_matrix.html:110
-#: .\templates\grouping\allocation_assign.html:59
+#: .\templates\grouping\allocation_assign.html:55
 msgid "Student"
 msgstr "Uczeń"
 
@@ -3143,7 +3145,7 @@ msgstr "Napisz notatkę"
 #: .\templates\courses\manage\editor\_host_form.html:25
 #: .\templates\courses\manage\review_submission.html:109
 #: .\templates\courses\manage\subject_form.html:8
-#: .\templates\grouping\allocation_assign.html:106
+#: .\templates\grouping\allocation_assign.html:103
 #: .\templates\grouping\allocation_form.html:15
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
@@ -5231,7 +5233,6 @@ msgstr "Drukuj"
 
 #: .\templates\courses\manage\analytics_matrix.html:55
 #: .\templates\grouping\allocation_assign.html:27
-#: .\templates\grouping\allocation_assign.html:31
 #: .\templates\grouping\group_form.html:28
 msgid "Students"
 msgstr "Uczniowie"
@@ -6414,10 +6415,11 @@ msgstr "Ta kolumna jest pusta."
 
 #: .\templates\courses\manage\editor\_element_row.html:202
 msgid ""
-"This spoiler shows its text above. Add an element below to nest more content."
+"This spoiler has text, but nothing nested inside it yet. Add an element to "
+"nest content inside it."
 msgstr ""
-"Ta rozwijana treść pokazuje tekst powyżej. Dodaj element poniżej, aby "
-"zagnieździć więcej treści."
+"Ta rozwijana treść ma tekst, ale nie ma jeszcze nic zagnieżdżonego. Dodaj "
+"element, aby zagnieździć w niej treść."
 
 #: .\templates\courses\manage\editor\_element_row.html:204
 msgid "This spoiler is empty."
@@ -6429,11 +6431,11 @@ msgstr "Ten slot jest pusty."
 
 #: .\templates\courses\manage\editor\_element_row.html:306
 msgid ""
-"This callout shows its text above. Add an element below to nest content "
-"inside it."
+"This callout has text, but nothing nested inside it yet. Add an element to "
+"nest content inside it."
 msgstr ""
-"Ta ramka pokazuje tekst powyżej. Dodaj element poniżej, aby zagnieździć w "
-"niej treść."
+"Ta ramka ma tekst, ale nie ma jeszcze nic zagnieżdżonego. Dodaj element, aby "
+"zagnieździć w niej treść."
 
 #: .\templates\courses\manage\editor\_element_row.html:308
 msgid "This callout is empty."
@@ -7127,70 +7129,67 @@ msgid "No students in the attached cohorts yet."
 msgstr "Brak uczniów w przypisanych kohortach."
 
 #: .\templates\grouping\allocation_assign.html:28
-#: .\templates\grouping\allocation_assign.html:32
 msgid "Assigned"
 msgstr "Przypisani"
 
 #: .\templates\grouping\allocation_assign.html:29
-#: .\templates\grouping\allocation_assign.html:33
 msgid "Unassigned"
 msgstr "Nieprzypisani"
 
 #: .\templates\grouping\allocation_assign.html:30
-#: .\templates\grouping\allocation_assign.html:34
 msgid "Conflicts"
 msgstr "Konflikty"
 
-#: .\templates\grouping\allocation_assign.html:39
+#: .\templates\grouping\allocation_assign.html:35
 #: .\templates\grouping\group_form.html:15
 #: .\templates\grouping\group_form.html:38
 msgid "Search by name"
 msgstr "Szukaj wg nazwiska"
 
-#: .\templates\grouping\allocation_assign.html:40
+#: .\templates\grouping\allocation_assign.html:36
 #: .\templates\grouping\group_form.html:16
 #: .\templates\grouping\group_form.html:39
 msgid "Type part of a name…"
 msgstr "Wpisz część nazwiska…"
 
-#: .\templates\grouping\allocation_assign.html:43
+#: .\templates\grouping\allocation_assign.html:39
 #: .\templates\grouping\group_form.html:31
 msgid "Cohort"
 msgstr "Kohorta"
 
-#: .\templates\grouping\allocation_assign.html:45
+#: .\templates\grouping\allocation_assign.html:41
 #: .\templates\grouping\group_form.html:33
 msgid "All cohorts"
 msgstr "Wszystkie kohorty"
 
-#: .\templates\grouping\allocation_assign.html:47
-#: .\templates\grouping\allocation_assign.html:68
+#: .\templates\grouping\allocation_assign.html:42
+#: .\templates\grouping\allocation_assign.html:64
 msgid "Outside these cohorts"
 msgstr "Poza tymi kohortami"
 
-#: .\templates\grouping\allocation_assign.html:69
+#: .\templates\grouping\allocation_assign.html:65
 msgid "(no students)"
 msgstr "(brak uczniów)"
 
-#: .\templates\grouping\allocation_assign.html:83
+#: .\templates\grouping\allocation_assign.html:79
 msgid "not placed"
 msgstr "nieprzypisany"
 
-#: .\templates\grouping\allocation_assign.html:84
+#: .\templates\grouping\allocation_assign.html:80
 msgid "conflict"
 msgstr "konflikt"
 
-#: .\templates\grouping\allocation_assign.html:85
+#: .\templates\grouping\allocation_assign.html:81
 #, python-format
 msgid "also in: %(names)s"
 msgstr "także w: %(names)s"
 
-#: .\templates\grouping\allocation_assign.html:91
+#: .\templates\grouping\allocation_assign.html:87
 #, python-format
 msgid "%(name)s → none"
 msgstr "%(name)s → brak"
 
-#: .\templates\grouping\allocation_assign.html:97
+#: .\templates\grouping\allocation_assign.html:93
 #, python-format
 msgid "%(name)s → %(group)s"
 msgstr "%(name)s → %(group)s"
