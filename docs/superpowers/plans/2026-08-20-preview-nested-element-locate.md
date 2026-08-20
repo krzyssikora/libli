@@ -295,8 +295,9 @@ def test_student_page_carries_neither_marker_half(client):
     # selector would be: an empty selection satisfies every "is absent" assertion.
     assert wrappers, "no child wrappers rendered -- fixture or URL is wrong"
     for n in wrappers:
-        assert not n.has_attr("data-element-id"), f"leaked attribute on {n.get('class')}"
-        assert "prev-el" not in (n.get("class") or []), f"leaked class on {n.get('class')}"
+        cls_ = n.get("class")
+        assert not n.has_attr("data-element-id"), f"leaked attr on {cls_}"
+        assert "prev-el" not in (cls_ or []), f"leaked class on {cls_}"
 ```
 
 Also add this assertion to `test_editor_preview_marks_every_nested_child`, tying the marker to the **join-row** pk (not the content-object pk — the confusion the spec's `data-preview-el` section warns about):
@@ -953,7 +954,7 @@ def test_click_flips_before_after_to_the_panel_holding_the_child(page, live_serv
     # ... seed a BeforeAfterElement with a TEXT child in the AFTER slot
     #     (BeforeAfterElement.SLOT_IDS[1]) ...
     page.goto(editor_url)
-    ba = f'[data-scope="preview"] [data-beforeafter]'
+    ba = '[data-scope="preview"] [data-beforeafter]'
     after = f'{ba} .ba__panel[data-ba-side="after"]'
     before = f'{ba} .ba__panel:not([data-ba-side="after"])'
     page.wait_for_selector(f"{after}[hidden]")          # starts on Before
@@ -994,6 +995,8 @@ Falsified: b4 RED."
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
 **Click path:** `.el-row__label` (`.el-select`).
+
+**Mandated test name:** `test_stacked_tabs_reveal_outermost_first` — `-k "stacked"` is inert unless the name contains that token, and a `-k` that selects nothing exits 5, which reads like a green run.
 
 **The fixture is tightly constrained; a looser one leaves both mutants alive.** All required:
 
@@ -1111,6 +1114,8 @@ Falsified: e RED, f RED (both scoped -k stacked)."
 
 **Click path:** `.el-row__label` (`.el-select`).
 
+**Mandated test name:** `test_position_aligns_the_nested_target_to_the_pane_top` — `-k "position"` is inert unless the name contains that token.
+
 **Fixture — pin the container.** The target must sit in an **always-visible** nested position: a **callout child** (as Task 8 uses). It must **not** be in a tab, a carousel slide, a closed spoiler or an After panel — those give a zero or degenerate pre-click rect, so the pre-click `delta` comes out as roughly `-(paneTop + pad)`, i.e. negative, and the `> 400` probe fails **on a correct build**. This is the same trap Task 9 documents; case 6 must avoid it rather than handle it.
 
 **Position-observability constraints:** the target must sit **well below the pane fold** **and** carry enough content after it that `.pane-body` can actually scroll it to the top. Without the first, both builds read "already at the top" and (g) survives; without the second, the target can never reach the top even on a correct build and the case goes falsely red.
@@ -1119,7 +1124,8 @@ Concretely: `_seed_filler(unit, 8)` **before** the callout and `_seed_filler(uni
 
 ```python
     scrollable = page.evaluate(
-        '() => { const b = document.querySelector(\'[data-scope="preview"] .pane-body\');'
+        '() => { const b = document.querySelector('
+        '\'[data-scope="preview"] .pane-body\');'
         "  return b.scrollHeight - b.clientHeight; }"
     )
     assert scrollable > page.evaluate(delta, target_sel), (
@@ -1147,7 +1153,8 @@ Concretely: `_seed_filler(unit, 8)` **before** the callout and `_seed_filler(uni
     # against the PRE-click delta, so after the click it would be ~0 and vacuous.
     assert page.evaluate(delta, target_sel) > 400   # leading run: far from the top
     scrollable = page.evaluate(
-        '() => { const b = document.querySelector(\'[data-scope="preview"] .pane-body\');'
+        '() => { const b = document.querySelector('
+        '\'[data-scope="preview"] .pane-body\');'
         "  return b.scrollHeight - b.clientHeight; }"
     )
     assert scrollable > page.evaluate(delta, target_sel), (
@@ -1240,7 +1247,18 @@ Falsified: h RED."
 **Files:**
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
-**Click path:** `.el-row__label` (`.el-select`). The target is inside a spoiler (always-open div row), so no `<details class="tabs-rows">` precondition applies.
+**Click path:** `.el-row__label` (`.el-select`).
+
+**Mandated test name:** `test_degraded_carousel_is_skipped_not_thrown_on` — `-k "degraded"` is inert unless the name contains that token, and a `-k` that selects nothing exits 5, which reads like a green run.
+
+⚠️ **A collapsed-`<details>` precondition DOES apply here.** The target must sit inside the **bailed carousel** (otherwise the walk never reaches the missing-control branch and mutant (i) is unfalsifiable) — and a carousel is a `TabsElement`, so `_element_row.html:82` groups its child rows in `<details class="tabs-rows">`, `open` only for `open_slots` / `clip_active` / `forloop.first`. Only the **spoiler's own** row is an always-open div (`:192`).
+
+Choose one and do it deliberately:
+- **seed the target in the carousel's FIRST slide**, whose row group is `open` via `forloop.first` — sufficient here, because this case tests the *skip*, not slide selection; or
+- seed it in a non-first slide and open the group first:
+  `page.click(f'.el-row[data-element="{carousel_join.pk}"] details.tabs-rows[data-tab-id="{slide_id}"] > summary')`.
+
+Doing neither hangs on a not-visible locator **on a correct build**.
 
 **Fixture: a bailed carousel nested inside a closed spoiler.**
 
@@ -1290,7 +1308,8 @@ The injection is **global**, which is why the outer ancestor must be a **spoiler
 ```python
     assert page.evaluate(delta, spoiler_sel) > 400          # leading run
     scrollable = page.evaluate(
-        '() => { const b = document.querySelector(\'[data-scope="preview"] .pane-body\');'
+        '() => { const b = document.querySelector('
+        '\'[data-scope="preview"] .pane-body\');'
         "  return b.scrollHeight - b.clientHeight; }"
     )
     assert scrollable > page.evaluate(delta, spoiler_sel), (
@@ -1361,6 +1380,8 @@ Falsified: i RED (scoped -k degraded)."
 **Files:**
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
+**Mandated test names:** `test_post_op_reveal_wins_over_the_restored_tab` (e2e 10) and `test_post_op_reveal_through_a_spoiler` (e2e 11) — both must contain `post_op`, or the `-k` runs below select nothing and exit 5, which reads like a green run.
+
 ⚠️ **Every `editor.js` line number below is pre-Task-3.** Task 3 inserts ~90 lines above `scrollPreviewTo`, so by the time this task runs each of these has shifted down by roughly that much. **Anchor on the code, never the number** — `applyFragments(res.text)` inside the `form[data-op]` submit handler, the `.el-select` handler, the row-body handler. (The same caution applies to Task 8's `setHighlight` mutant, which escapes only by sitting *above* the insertion point.)
 
 There are **three** `scrollPreviewTo` call sites, and the walk lives inside it, so all three inherit it: `editor.js:367` (after **any** `form[data-op]` submit — save, move, duplicate, delete, incl. the 409/422 branches), `:451` (`.el-select`), `:463` (row body). **The post-op reveal is intended**: after saving or moving a nested element, revealing its own tab is the useful behaviour and matches the scroll that site already performs. `restoreActiveTabs` re-stamps the author's previous tab and the walk then overrides it, so after an op the visible tab is the **operated element's**. This is a deliberate behaviour change on every element op.
@@ -1404,7 +1425,11 @@ The mutant is "the walk runs against the pre-swap DOM on the op path". `revealAn
    ```js
    if (!window.__mutantK) revealAncestors(target);
    ```
-   and set `window.__mutantK = true;` at the top of the op handler, **clearing it (`window.__mutantK = false;`) in the same `.then` after `applyFragments` returns**. Without the reset the latch is page-lifetime: every later `scrollPreviewTo` on that page — including the `.el-select` and row-body paths — would also skip the walk. It happens not to matter (each case performs one op), but an uncleared latch does not do what this step claims. Any equivalent guard is fine; the point is that the walk runs **once**, against the **pre-swap** DOM, on this path only.
+   and set `window.__mutantK = true;` at the top of the op handler, **clearing it (`window.__mutantK = false;`) as the LAST statement of the `.then` body — after the whole `if (keepId) { alignTopInPane(...); scrollPreviewTo(keepId); }` block, not merely after `applyFragments` returns.**
+
+   ⚠️ **The reset's position is the difference between a working mutant and one that cannot fail.** The `.then` body is `applyFragments(res.text)` → a 409 flash → `if (keepId) { alignTopInPane(…); scrollPreviewTo(keepId); }`. Clearing the latch "after `applyFragments`" puts it *before* `scrollPreviewTo(keepId)`, so the guarded `if (!window.__mutantK) revealAncestors(target);` fires anyway on the **post-swap** DOM — which is the *correct* behaviour, leaving e2e 11 GREEN and the falsification impossible.
+
+   Without any reset the latch is page-lifetime and every later `scrollPreviewTo` on that page also skips the walk; it happens not to matter (each case performs one op), but it would not do what this step claims. Any equivalent guard is fine; the point is that the walk runs **once**, against the **pre-swap** DOM, on this path only.
 
 Do **not** simply delete the `scrollPreviewTo` call: that also reddens e2e 1, 3, 5 and 8, and the "e2e 11 RED, e2e 10 still green" asymmetry — which is the whole point of the two cases — stops being readable.
 
@@ -1563,6 +1588,8 @@ Expected: empty. **Record the outcome — control diff empty, branch diff empty 
 
 Take **light and dark** screenshots of a hovered nested child in at least a **two-column** and a **callout**. Judge the dark one on its own terms, not by assuming it follows the light one. For dark, drive it via `user.theme`, **not** the cookie.
 
+⚠️ **`tests/capture_nested_question_screenshots.py` is a TRACKED file — do not edit it.** "Adapt it" means **copy** it to a throwaway: `scripts/capture_preview_hover.py`, untracked, **deleted before Step 6** exactly like `scripts/render_student_page.py`. Editing the tracked file leaves an unintended committed change; leaving the copy behind leaves an untracked file — either way Step 7's clean-tree gate fails for a reason it does not enumerate.
+
 **Model it on `tests/capture_nested_question_screenshots.py`**, which already enumerates the exact selectors needed (`.callout__children > .callout__child` and `.twocolumn__column:first-child > .twocolumn__child`, lines 78-85) and handles login + theming. Adapt it to: navigate to the **editor**, `page.hover()` the nested `.el-row`, then `page.screenshot()` while the hover is held (the hover persists until the pointer moves, so capture directly after — do not click anything in between).
 
 ⚠️ **The two-column shot needs an extra step the model does not have.** `capture_nested_question_screenshots.py` drives the **student** page, where no `<details>` exists. On the **editor** page the two-column child's row sits inside a closed `<details class="columns-rows">` (no `forloop.first` clause), so `page.hover()` times out before any screenshot is taken. Click `details.columns-rows[data-column-id="<id>"] > summary` first. The **callout** shot needs no such step (always-open div row).
@@ -1613,7 +1640,10 @@ format reflow of the test modules committed in earlier tasks."
 ```bash
 git -C "$WT" status --short
 ```
-Expected: **empty**. A non-empty tree here means either a ruff reflow was missed above, or `scripts/render_student_page.py` was not deleted in Step 2e. Neither may be left behind.
+Expected: **empty**. A non-empty tree here means one of exactly three things, all of which must be resolved:
+1. a `ruff format` reflow was missed in Step 6's staging list;
+2. `scripts/render_student_page.py` was not deleted in Step 2e;
+3. `scripts/capture_preview_hover.py` was not deleted after Step 3 (or `tests/capture_nested_question_screenshots.py` was edited in place instead of copied — restore it with `git -C "$WT" checkout -- tests/capture_nested_question_screenshots.py`).
 
 ---
 
