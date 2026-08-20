@@ -597,6 +597,21 @@ def _seed_filler(unit, n):
         )
 
 
+def _child_join(container_join, slot_id):
+    """The child Element join row inside `container_join`'s `slot_id`.
+
+    REQUIRED after _seed_tabs_element: that helper (test_e2e_tabs.py:101-143) creates
+    its child rows inside its own loop but returns only `(obj, join)` for the
+    CONTAINER -- the child Element rows are discarded. Every snippet below keys on
+    `child_join.pk`, so tabs and carousel fixtures obtain it through here. (The
+    non-tabs containers use _seed_container, which returns its children directly, but
+    _seed_container cannot build a display="carousel" blob.)
+    """
+    from courses.models import Element
+
+    return Element.objects.get(parent=container_join, tab_id=slot_id)
+
+
 def _open_slots(page, pairs):
     """Open editor row-groups WITHOUT clicking their <summary>. Call BEFORE goto.
 
@@ -622,6 +637,8 @@ def _open_slots(page, pairs):
 ```
 
 Tasks 5–10 must call these rather than writing their own.
+
+**How every snippet below gets `child_join`:** after `_seed_tabs_element(...)` (tabs and carousel fixtures), call `_child_join(container_join, slot_id)`. After `_seed_container(...)` (spoiler, callout, before/after), take it from the returned `[child_join, ...]` list directly. Do **not** invent a per-task lookup — that is exactly what this section exists to prevent.
 
 Write case 1 (strip tabs, `.el-select` path) and case 3 (spoiler, row-body path):
 
@@ -1414,7 +1431,7 @@ Falsified: i RED (scoped -k degraded)."
 
 There are **three** `scrollPreviewTo` call sites, and the walk lives inside it, so all three inherit it: `editor.js:367` (after **any** `form[data-op]` submit — save, move, duplicate, delete, incl. the 409/422 branches), `:451` (`.el-select`), `:463` (row body). **The post-op reveal is intended**: after saving or moving a nested element, revealing its own tab is the useful behaviour and matches the scroll that site already performs. `restoreActiveTabs` re-stamps the author's previous tab and the walk then overrides it, so after an op the visible tab is the **operated element's**. This is a deliberate behaviour change on every element op.
 
-**The collapsed-`<details>` precondition applies to e2e 10 ONLY** — its target lives in a non-first tab, so open `details.tabs-rows[data-tab-id="<tab>"] > summary` first. **e2e 11 has no such precondition:** its target is inside a spoiler, and spoiler child rows render in an always-open `<div class="el-row__spoiler">` (`_element_row.html:192`) — there is no `details.tabs-rows` in that row at all, so adding the click would select zero nodes and fail on a correct build.
+**The collapsed-`<details>` precondition applies to e2e 10 only; e2e 11 needs none.** e2e 10's target lives in a non-first tab, so open its row group with **`_open_slots(page, [(tabs_join.pk, tab_a_id)])` before `page.goto`** — never by clicking the `<summary>`, which is not in the row-body handler's exclusion list and would fire `scrollPreviewTo(<the tabs container's pk>)` and run the reveal walk. (It happens to be harmless *only* while this fixture keeps the tabs element top-level, so the walk finds no hiding ancestor — but nothing requires that, and a nested variant would silently pre-reveal. The `_open_slots` docstring in this very file states the rule in capitals.) **e2e 11 has no such precondition:** its target is inside a spoiler, and spoiler child rows render in an always-open `<div class="el-row__spoiler">` (`_element_row.html:192`) — there is no `details.tabs-rows` in that row at all, so adding the click would select zero nodes and fail on a correct build.
 
 - [ ] **Step 1: Write e2e 10 — pins the behaviour change**
 
