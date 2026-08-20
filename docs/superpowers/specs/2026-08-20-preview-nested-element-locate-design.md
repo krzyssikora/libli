@@ -679,9 +679,17 @@ padding, which can exceed the 4 px tolerance and turn a correct build red.
    **The scroll assertion is the discriminator, not the spoiler-open one.** Reveal runs
    outermost-first and the spoiler is the outer ancestor, so on the throwing (mutant i) build the
    spoiler has **already opened** before the inner carousel throws — that half passes on the
-   broken build. So this case must satisfy the **position-observability constraints** above
-   exactly as case 6 does; on a small fixture it reads "already at the top" on both builds and
-   (i) survives.
+   broken build. So this case must satisfy the **fixture-size half** of the
+   position-observability constraints above — a tall fixture, with enough trailing content to
+   scroll the target to the top; on a small fixture it reads "already at the top" on both builds
+   and (i) survives.
+
+   **The pre-click probe differs here, though.** Case 6 asserts the target's own pre-click `y` is
+   far from the content top, which is not performable in this case: the target starts inside a
+   **closed `<details>`**, whose subtree is `content-visibility`-skipped, so its rect is stale or
+   degenerate rather than a meaningful distance. Probe something observable while the spoiler is
+   still closed instead — assert `.pane-body.scrollTop === 0` **and** that the **spoiler
+   container's own** rect sits several viewport heights below the pane content top.
    **Building the bail.** Both obvious mechanisms are dead ends and must not be substituted:
    `killOne` does `removeAttribute("hidden")` on **every** owned panel, so afterwards no
    `.ba__panel` carries `hidden`, the collection predicate never fires, and the walk never reaches
@@ -699,11 +707,27 @@ padding, which can exceed the 4 px tolerance and turn a correct build red.
    `tabs-<eid>-<tid>-panel` DOM id used by the strip lookup. On the un-scoped build the
    `.tabs__dot` query returns the **inner** nav's dots first — the outer's `nav` is appended after
    `.tabs__stage` — so the outer never advances.
-10. **Post-op reveal** (the `editor.js:367` path) — with the author looking at a *different* tab,
-    save a nested element that lives in a non-first tab; assert the post-op `data-tabs-active` is
-    the **operated element's** tab, not the author's previous one. This **pins the deliberate
+10. **Post-op reveal** (the `editor.js:367` path) — assert the post-op `data-tabs-active` is the
+    **operated element's** tab (A), not the author's previous one (B). This **pins the deliberate
     behaviour change** — the most user-visible side effect in the design — but note it is *not*
     what kills mutant (k); see below.
+
+    **The fixture ordering is load-bearing, and the naive one is self-contaminating.** Saving a
+    nested element requires first *opening* its edit form — which is the `.el-select` path
+    (`editor.js:444-451`), which itself calls `scrollPreviewTo` and therefore runs the walk,
+    stamping tab A onto the preview. `applyFragments` then opens with `captureActiveTabs()`, so
+    the submit carries A forward through `restoreActiveTabs` **even with the post-op walk deleted
+    entirely**. A fixture that puts the author on tab B *before* opening the form therefore reads
+    A on both builds — the same laundering documented for mutant (k) below, here applied to this
+    case's own setup. So either:
+
+    - establish B **after** the edit form is open and before the submit (click a preview tab
+      button, then submit); or
+    - use a `form[data-op]` op that needs no form-open at all — move or duplicate from the row
+      actions, which reach the same `editor.js:367` site.
+
+    Either way, **capture the pre-submit `data-tabs-active` and assert it is B**, so the case
+    proves its own setup took rather than assuming it.
 11. **Post-op reveal through a non-persistent ancestor** — the fixture for mutant (k): same
     `editor.js:367` path, but the nested element sits inside a **closed spoiler** (or a
     before/after flipped to After). Assert the ancestor is revealed **after** the op.
