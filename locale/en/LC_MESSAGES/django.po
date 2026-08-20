@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-19 16:57+0200\n"
+"POT-Creation-Date: 2026-08-20 21:41+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -246,7 +246,7 @@ msgstr ""
 msgid "Subjects"
 msgstr ""
 
-#: .\core\help.py:318 .\templates\base.html:103
+#: .\core\help.py:318 .\grouping\forms.py:257 .\templates\base.html:103
 #: .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr ""
@@ -262,7 +262,7 @@ msgstr ""
 #: .\core\help.py:339
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
-#: .\templates\base.html:121 .\templates\base.html:125
+#: .\templates\base.html:124 .\templates\base.html:128
 #: .\templates\institution\manage\_tabs.html:12
 msgid "Notifications"
 msgstr ""
@@ -540,9 +540,9 @@ msgstr ""
 msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr ""
 
-#: .\courses\exporters.py:62 .\courses\exporters.py:122 .\grouping\forms.py:13
-#: .\grouping\forms.py:28 .\grouping\forms.py:50 .\institution\models.py:24
-#: .\templates\accounts\manage\people.html:41
+#: .\courses\exporters.py:62 .\courses\exporters.py:122 .\grouping\forms.py:20
+#: .\grouping\forms.py:79 .\grouping\forms.py:217 .\grouping\forms.py:255
+#: .\institution\models.py:24 .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
 #: .\templates\courses\manage\media\manager.html:27
 msgid "Name"
@@ -651,8 +651,8 @@ msgstr ""
 msgid "Open — students can self-enroll via the catalog"
 msgstr ""
 
-#: .\courses\forms.py:157 .\grouping\forms.py:29 .\grouping\forms.py:50
-#: .\notifications\models.py:15
+#: .\courses\forms.py:157 .\grouping\forms.py:80 .\grouping\forms.py:217
+#: .\grouping\forms.py:256 .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
 msgid "Course"
 msgstr ""
@@ -2257,7 +2257,7 @@ msgstr ""
 msgid "Colours saved."
 msgstr ""
 
-#: .\courses\views_export.py:26 .\grouping\scoping.py:117
+#: .\courses\views_export.py:26 .\grouping\scoping.py:131
 msgid "All my students"
 msgstr ""
 
@@ -2520,37 +2520,83 @@ msgstr ""
 msgid "Import cancelled."
 msgstr ""
 
-#: .\grouping\forms.py:30 .\templates\grouping\group_detail.html:20
+#: .\grouping\forms.py:81 .\templates\grouping\group_detail.html:20
 msgid "Teachers"
 msgstr ""
 
-#: .\grouping\forms.py:31
+#: .\grouping\forms.py:82
 msgid "Register class code"
 msgstr ""
 
-#: .\grouping\forms.py:33
+#: .\grouping\forms.py:83
+msgid "Allocation"
+msgstr ""
+
+#: .\grouping\forms.py:85
 msgid "Class code in your external register."
 msgstr ""
 
-#: .\grouping\forms.py:50 .\templates\base.html:83
+#: .\grouping\forms.py:90
+msgid "…or create a new allocation"
+msgstr ""
+
+#: .\grouping\forms.py:105 .\templates\grouping\allocation_assign.html:56
+msgid "— none —"
+msgstr ""
+
+#: .\grouping\forms.py:135 .\grouping\forms.py:295
+msgid "archived"
+msgstr ""
+
+#: .\grouping\forms.py:160
+msgid "Choose an existing allocation or type a new name, not both."
+msgstr ""
+
+#: .\grouping\forms.py:175 .\grouping\forms.py:323
+msgid ""
+"An archived allocation with this name already exists on this course — un-"
+"archive it to reuse the name."
+msgstr ""
+
+#: .\grouping\forms.py:186
+msgid "This allocation belongs to a different course."
+msgstr ""
+
+#: .\grouping\forms.py:217 .\templates\base.html:83
 #: .\templates\grouping\group_list.html:5
 #: .\templates\grouping\my_groups.html:10
 msgid "Groups"
 msgstr ""
 
-#: .\grouping\forms.py:68
+#: .\grouping\forms.py:235
 msgid "Every group must belong to the collection's course."
+msgstr ""
+
+#: .\grouping\forms.py:260
+msgid "Students in these cohorts appear as rows in the grid."
+msgstr ""
+
+#: .\grouping\forms.py:330
+msgid "An allocation with this name already exists on this course."
 msgstr ""
 
 #: .\grouping\models.py:54
 msgid "default"
 msgstr ""
 
-#: .\grouping\models.py:105
+#: .\grouping\models.py:112
 msgid "A group's course cannot be changed after creation."
 msgstr ""
 
-#: .\grouping\models.py:173
+#: .\grouping\models.py:126
+msgid "The allocation must belong to the same course as the group."
+msgstr ""
+
+#: .\grouping\models.py:201
+msgid "An allocation's course cannot be changed once groups are attached."
+msgstr ""
+
+#: .\grouping\models.py:242
 msgid "A collection's course cannot be changed once groups are attached."
 msgstr ""
 
@@ -2561,6 +2607,22 @@ msgstr ""
 #: .\grouping\signals.py:65
 msgid "All groups in a collection must belong to the collection's course."
 msgstr ""
+
+#: .\grouping\views.py:510
+msgid ""
+"The allocation's groups changed while you were editing, so nothing was saved "
+"— please redo your changes."
+msgstr ""
+
+#: .\grouping\views.py:566
+#, python-format
+msgid ""
+"%(count)d row was changed by someone else and was not overwritten: %(names)s."
+msgid_plural ""
+"%(count)d rows were changed by someone else and were not overwritten: "
+"%(names)s."
+msgstr[0] ""
+msgstr[1] ""
 
 #: .\institution\forms.py:53
 msgid "Current logo"
@@ -2752,6 +2814,7 @@ msgstr ""
 
 #: .\institution\roles.py:19
 #: .\templates\courses\manage\analytics_matrix.html:110
+#: .\templates\grouping\allocation_assign.html:55
 msgid "Student"
 msgstr ""
 
@@ -2934,9 +2997,11 @@ msgstr ""
 #: .\templates\courses\manage\editor\_host_form.html:25
 #: .\templates\courses\manage\review_submission.html:109
 #: .\templates\courses\manage\subject_form.html:8
+#: .\templates\grouping\allocation_assign.html:103
+#: .\templates\grouping\allocation_form.html:15
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
-#: .\templates\grouping\group_form.html:44
+#: .\templates\grouping\group_form.html:53
 msgid "Save"
 msgstr ""
 
@@ -2970,11 +3035,13 @@ msgstr ""
 #: .\templates\courses\manage\subject_confirm_delete.html:9
 #: .\templates\courses\manage\subject_form.html:9
 #: .\templates\courses\progress_reset_confirm.html:21
+#: .\templates\grouping\allocation_confirm_delete.html:9
+#: .\templates\grouping\allocation_form.html:16
 #: .\templates\grouping\cohort_confirm_delete.html:10
 #: .\templates\grouping\cohort_form.html:9
 #: .\templates\grouping\collection_form.html:15
 #: .\templates\grouping\group_confirm_delete.html:9
-#: .\templates\grouping\group_form.html:45
+#: .\templates\grouping\group_form.html:54
 msgid "Cancel"
 msgstr ""
 
@@ -3059,11 +3126,13 @@ msgstr ""
 #: .\templates\courses\manage\node_confirm_delete.html:18
 #: .\templates\courses\manage\subject_confirm_delete.html:8
 #: .\templates\courses\manage\subject_list.html:24
+#: .\templates\grouping\allocation_confirm_delete.html:8
+#: .\templates\grouping\allocation_list.html:23
 #: .\templates\grouping\cohort_confirm_delete.html:9
 #: .\templates\grouping\cohort_list.html:22
 #: .\templates\grouping\collection_detail.html:12
 #: .\templates\grouping\group_confirm_delete.html:8
-#: .\templates\grouping\group_list.html:20
+#: .\templates\grouping\group_list.html:21
 msgid "Delete"
 msgstr ""
 
@@ -3409,7 +3478,7 @@ msgstr ""
 msgid "Back to main page"
 msgstr ""
 
-#: .\templates\403.html:25 .\templates\base.html:143
+#: .\templates\403.html:25 .\templates\base.html:146
 #: .\templates\core\landing.html:12
 msgid "Log in"
 msgstr ""
@@ -3448,6 +3517,11 @@ msgstr ""
 
 #: .\templates\_groups_tabs.html:7
 msgid "Manage"
+msgstr ""
+
+#: .\templates\_groups_tabs.html:10 .\templates\base.html:106
+#: .\templates\grouping\allocation_list.html:5
+msgid "Allocations"
 msgstr ""
 
 #: .\templates\_tags_notes_tabs.html:2
@@ -3611,7 +3685,7 @@ msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:106
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:109
 msgid "People"
 msgstr ""
 
@@ -3732,6 +3806,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_element_row.html:277
 #: .\templates\courses\manage\editor\_element_row.html:329
 #: .\templates\courses\manage\subject_list.html:23
+#: .\templates\grouping\allocation_list.html:18
 #: .\templates\grouping\cohort_list.html:12
 #: .\templates\grouping\collection_detail.html:8
 msgid "Edit"
@@ -3798,27 +3873,27 @@ msgstr ""
 msgid "Admin"
 msgstr ""
 
-#: .\templates\base.html:110 .\templates\core\home.html:67
+#: .\templates\base.html:113 .\templates\core\home.html:67
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr ""
 
-#: .\templates\base.html:111
+#: .\templates\base.html:114
 msgid "Setup wizard"
 msgstr ""
 
-#: .\templates\base.html:112
+#: .\templates\base.html:115
 msgid "SIS webhook guide"
 msgstr ""
 
-#: .\templates\base.html:135 .\templates\core\home.html:65
+#: .\templates\base.html:138 .\templates\core\home.html:65
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr ""
 
-#: .\templates\base.html:138
+#: .\templates\base.html:141
 msgid "Log out"
 msgstr ""
 
@@ -4955,7 +5030,8 @@ msgid "Print"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_matrix.html:55
-#: .\templates\grouping\group_form.html:23
+#: .\templates\grouping\allocation_assign.html:27
+#: .\templates\grouping\group_form.html:28
 msgid "Students"
 msgstr ""
 
@@ -6086,7 +6162,8 @@ msgstr ""
 
 #: .\templates\courses\manage\editor\_element_row.html:202
 msgid ""
-"This spoiler shows its text above. Add an element below to nest more content."
+"This spoiler has text, but nothing nested inside it yet. Add an element to "
+"nest content inside it."
 msgstr ""
 
 #: .\templates\courses\manage\editor\_element_row.html:204
@@ -6099,8 +6176,8 @@ msgstr ""
 
 #: .\templates\courses\manage\editor\_element_row.html:306
 msgid ""
-"This callout shows its text above. Add an element below to nest content "
-"inside it."
+"This callout has text, but nothing nested inside it yet. Add an element to "
+"nest content inside it."
 msgstr ""
 
 #: .\templates\courses\manage\editor\_element_row.html:308
@@ -6721,6 +6798,159 @@ msgstr ""
 msgid "up to %(m)s marks"
 msgstr ""
 
+#: .\templates\grouping\allocation_assign.html:10
+msgid "Back to allocations"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:11
+#: .\templates\grouping\allocation_form.html:4
+msgid "Edit allocation"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:17
+msgid "No groups belong to this allocation yet."
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:17
+msgid "Manage groups"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:20
+msgid "This allocation has no cohorts attached."
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:20
+msgid "Attach a cohort"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:22
+msgid "No students in the attached cohorts yet."
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:28
+msgid "Assigned"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:29
+msgid "Unassigned"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:30
+msgid "Conflicts"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:35
+#: .\templates\grouping\group_form.html:15
+#: .\templates\grouping\group_form.html:38
+msgid "Search by name"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:36
+#: .\templates\grouping\group_form.html:16
+#: .\templates\grouping\group_form.html:39
+msgid "Type part of a name…"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:39
+#: .\templates\grouping\group_form.html:31
+msgid "Cohort"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:41
+#: .\templates\grouping\group_form.html:33
+msgid "All cohorts"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:42
+#: .\templates\grouping\allocation_assign.html:64
+msgid "Outside these cohorts"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:65
+msgid "(no students)"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:79
+msgid "not placed"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:80
+msgid "conflict"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:81
+#, python-format
+msgid "also in: %(names)s"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:87
+#, python-format
+msgid "%(name)s → none"
+msgstr ""
+
+#: .\templates\grouping\allocation_assign.html:93
+#, python-format
+msgid "%(name)s → %(group)s"
+msgstr ""
+
+#: .\templates\grouping\allocation_confirm_delete.html:4
+#, python-format
+msgid "Delete allocation \"%(name)s\"?"
+msgstr ""
+
+#: .\templates\grouping\allocation_confirm_delete.html:5
+#, python-format
+msgid ""
+"%(counter)s group will keep its students and teachers, but will lose this "
+"allocation label."
+msgid_plural ""
+"%(counter)s groups will keep their students and teachers, but will lose this "
+"allocation label."
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\grouping\allocation_form.html:4
+#: .\templates\grouping\allocation_list.html:6
+msgid "New allocation"
+msgstr ""
+
+#: .\templates\grouping\allocation_list.html:8
+#: .\templates\grouping\group_list.html:8
+msgid "Show active"
+msgstr ""
+
+#: .\templates\grouping\allocation_list.html:8
+#: .\templates\grouping\group_list.html:8
+msgid "Show archived"
+msgstr ""
+
+#: .\templates\grouping\allocation_list.html:15
+msgid "No cohorts."
+msgstr ""
+
+#: .\templates\grouping\allocation_list.html:16
+#, python-format
+msgid "%(counter)s group"
+msgid_plural "%(counter)s groups"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\grouping\allocation_list.html:21
+#: .\templates\grouping\cohort_list.html:20
+#: .\templates\grouping\group_list.html:19
+msgid "Un-archive"
+msgstr ""
+
+#: .\templates\grouping\allocation_list.html:21
+#: .\templates\grouping\cohort_list.html:20
+#: .\templates\grouping\group_list.html:19
+msgid "Archive"
+msgstr ""
+
+#: .\templates\grouping\allocation_list.html:27
+msgid "No allocations yet."
+msgstr ""
+
 #: .\templates\grouping\cohort_confirm_delete.html:4
 #, python-format
 msgid "Delete cohort \"%(name)s\"?"
@@ -6766,16 +6996,6 @@ msgstr ""
 
 #: .\templates\grouping\cohort_list.html:16
 msgid "Make default"
-msgstr ""
-
-#: .\templates\grouping\cohort_list.html:20
-#: .\templates\grouping\group_list.html:18
-msgid "Un-archive"
-msgstr ""
-
-#: .\templates\grouping\cohort_list.html:20
-#: .\templates\grouping\group_list.html:18
-msgid "Archive"
 msgstr ""
 
 #: .\templates\grouping\collection_detail.html:18
@@ -6824,43 +7044,26 @@ msgstr ""
 msgid "Edit group"
 msgstr ""
 
-#: .\templates\grouping\group_form.html:11
-#: .\templates\grouping\group_form.html:23
+#: .\templates\grouping\group_form.html:10
+msgid "Open the assignment grid"
+msgstr ""
+
+#: .\templates\grouping\group_form.html:12
+#: .\templates\grouping\group_form.html:28
 msgid "Added"
 msgstr ""
 
-#: .\templates\grouping\group_form.html:11
-#: .\templates\grouping\group_form.html:23
+#: .\templates\grouping\group_form.html:12
+#: .\templates\grouping\group_form.html:28
 msgid "saved"
 msgstr ""
 
-#: .\templates\grouping\group_form.html:14
-#: .\templates\grouping\group_form.html:33
-msgid "Search by name"
+#: .\templates\grouping\group_form.html:20
+#: .\templates\grouping\group_form.html:43
+msgid "Select all shown"
 msgstr ""
 
-#: .\templates\grouping\group_form.html:15
-#: .\templates\grouping\group_form.html:34
-msgid "Type part of a name…"
-msgstr ""
-
-#: .\templates\grouping\group_form.html:26
-msgid "Cohort"
-msgstr ""
-
-#: .\templates\grouping\group_form.html:28
-msgid "All cohorts"
-msgstr ""
-
-#: .\templates\grouping\group_list.html:8
-msgid "Show active"
-msgstr ""
-
-#: .\templates\grouping\group_list.html:8
-msgid "Show archived"
-msgstr ""
-
-#: .\templates\grouping\group_list.html:24
+#: .\templates\grouping\group_list.html:25
 msgid "No groups yet."
 msgstr ""
 
