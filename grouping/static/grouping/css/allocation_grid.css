@@ -1,0 +1,164 @@
+/* Allocation assignment grid (allocation_assign.html): summary line, filter
+   bar, and a sticky-header/sticky-name-column table. Tokens only
+   (core/static/core/css/tokens.css) — no raw hex anywhere in this file.
+
+   Dark mode: every var referenced below (--surface-raised, --border-default,
+   --warning[-subtle], --danger[-subtle], --text-*) already carries a distinct
+   [data-theme="dark"] definition in tokens.css, so this file needs no dark
+   block of its own UNLESS it mints a new custom property. It mints exactly
+   one, --alloc-sticky-edge, and that one IS built purely from --border-default
+   (already dual-toned), so its value is correct in both themes without a
+   redefinition either — recorded here so the absence reads as a decision,
+   not an oversight. */
+
+:root {
+  --alloc-sticky-edge: 1px 0 0 var(--border-default);
+}
+
+.alloc-grid__summary {
+  margin: 0 0 var(--space-3);
+  font-size: .9rem;
+  color: var(--text-secondary);
+}
+.alloc-grid__summary span {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.alloc-grid__filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.alloc-grid__filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+.alloc-grid__filter-field > span {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+.alloc-grid__filter-field input,
+.alloc-grid__filter-field select {
+  min-width: 14rem;
+}
+
+.alloc-grid__scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.alloc-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.alloc-grid th,
+.alloc-grid td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.alloc-grid th:last-child,
+.alloc-grid td:last-child {
+  border-right: none;
+}
+
+/* Sticky header row. z-index 2 so it rides above ordinary body cells; the
+   name column's corner cell needs to beat this AND the sticky body column
+   when both axes are scrolled, so it is bumped to 3 below. */
+.alloc-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* Sticky name column. A box-shadow, not a border: a border on the cell is
+   painted UNDER the row's own state background (see is-unassigned /
+   is-conflict below) and is invisible on those rows; the shadow paints over
+   it. */
+.alloc-grid__namehead,
+.alloc-grid__namecell {
+  position: sticky;
+  left: 0;
+  background: var(--surface-raised);
+  box-shadow: var(--alloc-sticky-edge);
+}
+.alloc-grid__namehead {
+  z-index: 3;
+}
+.alloc-grid__namecell {
+  z-index: 1;
+  white-space: normal;
+}
+
+/* Row states — the pending-selection rule (allocation_grid.js) rewrites this
+   class on every radio change, so the row's own paint always tracks it. Text
+   wraps normally here even though other cells don't, so a long "also in: …"
+   note never forces the column wider than the layout can afford. */
+.alloc-grid__row.is-unassigned {
+  background: var(--warning-subtle);
+}
+.alloc-grid__row.is-unassigned .alloc-grid__namecell {
+  background: var(--warning-subtle);
+}
+.alloc-grid__row.is-conflict {
+  background: var(--danger-subtle);
+}
+.alloc-grid__row.is-conflict .alloc-grid__namecell {
+  background: var(--danger-subtle);
+}
+
+.alloc-grid__also-in {
+  display: block;
+  margin-top: 2px;
+}
+
+/* Row markers. .badge is defined in core/css/app.css; these two variants are
+   new (the codebase's only existing --danger badge lives in a different app's
+   stylesheet that this page never loads). Same recipe as .badge--done. */
+.badge--warn {
+  background: var(--warning-subtle);
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border-default));
+}
+.badge--danger {
+  background: var(--danger-subtle);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-default));
+}
+
+/* allocation_grid.js toggles `hidden` on whichever marker doesn't match the
+   row's current state. .badge (core/css/app.css) declares an AUTHOR
+   `display: inline-block` at the same (0,1,0) specificity as the UA
+   `[hidden]{display:none}` rule — and origin is compared BEFORE specificity
+   in the cascade, so the author rule wins regardless of source order and the
+   "hidden" marker stays laid out. This is exactly the row-display trap named
+   above, just surfacing on the badge instead of the <tr> — paired here
+   explicitly rather than relying on the UA default a second time. */
+.alloc-grid__namecell .badge[hidden] {
+  display: none !important;
+}
+
+/* Filtering only ever sets [hidden] on a row (allocation_grid.js) and relies
+   on the UA default `[hidden] { display: none }`. Nothing in this file gives
+   .alloc-grid__row (or its <tr>/<tbody> ancestors) an author `display` — an
+   author rule of equal-or-higher specificity than the UA [hidden] rule would
+   outrank it in the cascade and the row would stay visibly laid out despite
+   the attribute. If a future change needs one, it MUST be paired here:
+     [hidden] { display: none !important; }
+   Left undeclared, on purpose, rather than pre-added defensively for a rule
+   that would otherwise never fire — see the task-8 report for the mutant that
+   confirms this the hard way. */

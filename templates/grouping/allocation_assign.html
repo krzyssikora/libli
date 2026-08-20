@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'grouping/css/allocation_grid.css' %}">{% endblock %}
 {% block content %}
 {% include "_groups_tabs.html" %}
 <section class="manage">
@@ -51,7 +52,7 @@
   <form method="post">
     {% csrf_token %}
     <input type="hidden" name="columns" value="{{ columns_token }}">
-    <div class="alloc-grid__scroll scroll-x">
+    <div class="alloc-grid__scroll scroll-x" data-scroll-x>
       <table class="alloc-grid">
         <thead>
           <tr>
@@ -72,7 +73,14 @@
           <tr data-grid-row data-name="{{ row.data_name }}" data-cohort="{{ row.data_cohort }}" class="alloc-grid__row is-{{ row.state }}">
             <td class="alloc-grid__namecell">
               {{ row.student.list_display_name }}
-              {% if row.state == "unassigned" %}<span class="badge badge--warn">{% trans "not placed" %}</span>{% elif row.state == "conflict" %}<span class="badge badge--danger">{% trans "conflict" %}</span>{% endif %}
+              {% comment %}
+                Both markers are always rendered (one hidden) so allocation_grid.js can
+                toggle an EXISTING, already-translated element on any radio change — never
+                compose "not placed"/"conflict" text in JS. With JS off, [hidden] keeps
+                exactly one visible, matching the previous single-span markup byte for byte.
+              {% endcomment %}
+              <span class="badge badge--warn"{% if row.state != "unassigned" %} hidden{% endif %}>{% trans "not placed" %}</span>
+              <span class="badge badge--danger"{% if row.state != "conflict" %} hidden{% endif %}>{% trans "conflict" %}</span>
               {% if row.also_in %}<span class="muted alloc-grid__also-in">{% blocktrans with names=row.also_in|join:", " %}also in: {{ names }}{% endblocktrans %}</span>{% endif %}
               <input type="hidden" name="student-{{ row.student.pk }}-was" value="{{ row.token }}">
             </td>
@@ -99,3 +107,4 @@
   {% endif %}
 </section>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'grouping/js/allocation_grid.js' %}" defer></script>{% endblock %}
