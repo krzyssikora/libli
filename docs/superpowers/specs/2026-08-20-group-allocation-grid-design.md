@@ -533,6 +533,12 @@ appended to the file would never run. When the course select changes, the filter
 `data-course` no longer matches**, and hides whole `<optgroup>`s alongside their options —
 otherwise a hidden-but-still-selected option posts a mismatched allocation and returns the
 very field error the filter exists to prevent.
+
+It also **runs its pass once on init**, not only on `change`; otherwise the create form
+renders every manageable course's allocations until the admin happens to touch the course
+select. With no course selected yet (the create form's initial state) it hides **all**
+optgroups, leaving "— none —" as the only selectable option. The empty option is never
+hidden — it is how a group is detached.
 On the **edit** form `course` is already disabled, so the list is filtered server-side to
 that one course and the script is inert.
 
@@ -616,8 +622,14 @@ assertion in the test table.
      return. (Stated as a precedence rule because "all visible items are ticked" is
      *vacuously true* of an empty set, so the tri-state rule alone would leave the box
      checked.)
-  2. otherwise `disabled = false`, and: unchecked when no visible item is ticked, checked
-     when all visible items are, `indeterminate` in between.
+  2. otherwise `disabled = false`, and: unchecked when no visible item is ticked; checked
+     when all visible items are; **`indeterminate = true` *and* `checked = false`** in
+     between. Pinning `checked` in that third branch is not tidiness: `indeterminate` has no
+     effect on what a click does — the browser simply flips whatever `checked` currently
+     holds — so leaving it stale makes a click from a partial selection *clear* the visible
+     students on one build and tick them on another. Forcing `checked = false` means a click
+     from indeterminate always **adds**, which is the safe direction (the clearing direction
+     is the one that silently removes students).
 
 **Wiring (the part that does not happen by itself).** Setting `input.checked` from script
 fires **no** `change` event, and `roster_filter.js` currently updates its counter only via
@@ -839,8 +851,12 @@ states, and no filters.
    The optional `memberships` argument is `{student_id: set[int]}` — the student's
    `GroupMembership.group_id`s across **the whole course**, exactly as step 3 bucketed them
    — and the helper intersects it against `columns` itself. Passing it lets the render path
-   avoid re-querying what step 3 just fetched; the save path omits it and lets the helper
-   query. The shape matters because getting it wrong is a silent mis-token, not a crash:
+   avoid re-querying what step 3 just fetched; the save path omits it, and the
+   `memberships=None` fallback then issues **exactly one bulk query**
+   (`GroupMembership.objects.filter(student_id__in=student_ids, group__in=columns)`) —
+   never one per student, which would put a real N+1 on the save path, where the helper is
+   always called without the map and over every posted row.
+   The shape matters because getting it wrong is a silent mis-token, not a crash:
    every row would read as unassigned and every save would be a guard mismatch. **A student
    id absent from the map means the empty set** (token `""`) — never a `KeyError`, never a
    fallback re-query. This is the grid's headline case, the unplaced student, who has no
@@ -1040,8 +1056,9 @@ been seen to fail.
 | 9 | `new_allocation` over 200 characters is a field error, not a 500 | omit `max_length` |
 | 10 | with `Group.save` patched to raise inside the view's atomic block, a submitted new allocation name leaves no `Allocation` row | remove the view-level `transaction.atomic()` |
 | 11 | `GroupForm`'s allocation choices exclude allocations on courses the user cannot manage. **Setup is load-bearing:** construct as `GroupForm(user=ca)` with **no `instance`** — that arm lives in the `elif user:` branch, so a test built on an existing group takes the `if self.instance.pk:` branch, which the mutant leaves intact | drop the `course__in=manageable_courses(user)` arm |
+| 11j | on the **edit** form of a group on course A, `form.fields["allocation"].queryset` contains no allocation belonging to course B | drop `Q(course=self.instance.course)` from the `if self.instance.pk:` branch — the same disclosure test 11 covers for the create branch, on the form admins actually spend their time in |
 | 11d | `("", "— none —")` is among `form.fields["allocation"].choices`, and posting an empty `allocation` on an attached group sets `group.allocation` to `None` | have the custom iterator yield only optgroup tuples, dropping the empty choice |
-| 11e | each rendered `<option>` carries `data-course` equal to its allocation's course pk, and options are nested in per-course `<optgroup>`s. **Assert against the rendered widget HTML, not `field.choices`** — a late-assigned iterator leaves `choices` correct while the widget renders flat | drop the `create_option` override (kills the attribute half); assign `field.iterator` *after* `field.queryset`, so the widget keeps the base iterator (kills the optgroup half) |
+| 11e | every `<option>` with a **non-empty** `value` carries `data-course` equal to its allocation's course pk (the empty "— none —" option carries none, by the `create_option` skip), and options are nested in per-course `<optgroup>`s. **Assert against the rendered widget HTML, not `field.choices`** — a late-assigned iterator leaves `choices` correct while the widget renders flat | drop the `create_option` override (kills the attribute half); assign `field.iterator` *after* `field.queryset`, so the widget keeps the base iterator (kills the optgroup half) |
 | 11h | rendering the group form with an allocation select does not raise: `create_option` skips the empty choice | drop the `if not value:` guard, so the bare `""` empty choice hits `value.instance.course_id` and `AttributeError`s |
 | 11i | the attached **archived** allocation's rendered `<option>` label carries the "(archived)" suffix, and the archived cohort's checkbox label likewise | yield `obj.name` from the custom iterator instead of `self.field.label_from_instance(obj)` (kills the allocation half); drop the `label_from_instance` override (kills both) |
 | 11f | typing a `new_allocation` on the **edit** form of a group that already has an allocation, **leaving the select at its echoed value**, succeeds and moves the group to a newly created allocation | test both non-empty values as a conflict regardless of the echo (kills the precedence rule); **and, separately,** omit `cleaned_data["allocation"] = None`, so the fallback resolves to the old allocation, the create branch never fires, and the group silently stays put behind a success redirect |
@@ -1070,7 +1087,7 @@ been seen to fail.
 | 24 | rows = cohort union ∪ already-assigned outsiders | drop the outsider union |
 | 25 | a student outside the attached cohorts whose only membership is in an **archived** group of the allocation still gets a row | restrict the second union arm to `archived=False` |
 | 25a | a placed student with **no `CohortMembership` row** renders under "outside these cohorts" with `data-cohort=""`, and the page returns 200. **Setup is load-bearing:** `signals.ensure_cohort_membership` fires `post_save` on every user create and inserts a Default-cohort row whenever a Default exists, so the fixture must *explicitly delete* the membership and assert `CohortMembership.objects.filter(user=s).exists() is False` before the GET. Without that, the student has a membership to a merely-unattached cohort — which also renders under "outside these cohorts" with `data-cohort=""` — so every assertion holds and the mutant's direct relation read never raises | read `user.cohort_membership.cohort` directly in Python instead of via the id map — `RelatedObjectDoesNotExist` 500s the page |
-| 25b | rendering the grid issues a bounded number of queries (`assertNumQueries`), independent of the row count | drop the `memberships=` argument at the `allocation_state_tokens` call site, so the helper re-queries per student (and, separately, fetch each row's "also in" memberships individually instead of from the one bucketed query) |
+| 25b | rendering the grid issues a bounded number of queries (`assertNumQueries`), independent of the row count | drop the `memberships=` argument at the `allocation_state_tokens` call site, adding an avoidable second membership query to the render path (and, separately, fetch each row's "also in" memberships individually instead of from the one bucketed query) |
 | 25c | a student who is on the grid **only** through an archived allocation group can be assigned to a real column and the membership is written | scope the save path's second row-set arm to `archived=False`, so `allocation_row_students` disagrees between render and save and the post is silently dropped |
 | 26 | the conflict row renders unchecked and flagged | classify a two-membership row as assigned |
 | 27 | the "also in" note covers all three cases (other allocation, no allocation, archived column) | narrow it to `allocation__isnull=True` |
@@ -1083,6 +1100,7 @@ been seen to fail.
 | 31 | e2e: with a cohort filter active, add-all ticks only the filtered students | make add-all iterate all items instead of visible ones |
 | 32 | e2e: with a cohort filter active, **unchecking** add-all clears only the filtered students | clear all items regardless of `hidden` |
 | 33 | e2e: add-all is `indeterminate` when one visible student is unticked, and **unchecked and disabled** when nothing is visible | derive its state from the whole list (kills the first half); skip the zero-visible early return so the vacuous "all ticked" leaves it checked (kills the second) |
+| 33a | e2e: with a filter active and **one** visible student already ticked, clicking add-all ticks the remaining visible students (it never clears them) | leave `checked` untouched in the indeterminate branch, so the browser's flip clears the visible selection instead of extending it |
 | 34 | e2e: after ticking add-all under a cohort filter, the "Added" counter shows the new live total | remove the explicit `updateSelected()` call from the add-all handler |
 | 35 | e2e: applying the grid's cohort filter leaves the summary counts unchanged, and a filtered-out row's `bounding_box()` is `None` (not merely `hidden` present) | recompute the summary from non-hidden rows; separately, declare a `display` on rows without the `[hidden] { display: none !important }` pair |
 | 35a | e2e: with a cohort filter active, saving leaves every hidden row's membership byte-identical, and the POST still carries their `student-<pk>` and `-was` fields | set `disabled` on filtered-out rows' inputs instead of only hiding the row |
@@ -1091,7 +1109,7 @@ been seen to fail.
 | 35b | e2e (Polish locale): the live summary's labels stay Polish and grammatical after a radio change | compose the summary string from JavaScript literals instead of the `data-*` labels |
 | 36 | e2e: picking a column on a conflict row moves it out of the conflict count **and clears the row's own red treatment and warning marker** before saving | update the summary only on load (kills the count half); leave the row's state class untouched on change (kills the marker half) |
 | 37 | e2e: assign two students to different groups in the grid, save, and see both rosters change. **Fixture is load-bearing:** at least one student must already be in a *different* column group at render time, and the test must assert the old group **lost** them — starting from two unassigned students, the removal-skipping mutant produces an identical outcome and stays green | make `set_allocation_assignments` add to the target group but skip the removals, leaving a student in both rosters |
-| 37a | e2e on the **create** group form: changing the course select hides the non-matching `<optgroup>`s and resets a now-stale allocation selection to "— none —" | omit the reset (a hidden-but-selected option then posts a mismatched allocation); separately, append `initAllocationFilter` to the file without invoking it from the IIFE, so it never runs |
+| 37a | e2e on the **create** group form: changing the course select hides the non-matching `<optgroup>`s (assert `bounding_box() is None`) and resets a now-stale allocation selection to `""`. **Setup is load-bearing:** act as a PA (or a CA owning both courses) with **two** courses, each carrying a non-archived allocation — select course A, pick one of A's allocations, then switch to course B. On a single-course fixture there is no non-matching optgroup to hide and no way to make a selection stale, so *both* mutants survive | omit the reset (a hidden-but-selected option then posts a mismatched allocation); separately, append `initAllocationFilter` to the file without invoking it from the IIFE, so it never runs |
 
 Test files follow the existing grouping layout (`tests/test_grouping_*.py`):
 `tests/test_grouping_allocation_models.py`, `_forms.py`, `_service.py`, `_views.py`, plus
