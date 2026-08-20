@@ -469,8 +469,16 @@ grouping by course is built explicitly, and it takes **two** cooperating pieces 
 tuple carries only a value and a label, so the iterator alone cannot produce the attribute
 the filter needs:
 
-* a `ModelChoiceIterator` subclass yielding `(course.title, [(value, name), ...])` tuples,
-  which Django's `Select` renders as `<optgroup>`s. It **must yield the empty choice
+* a `ModelChoiceIterator` subclass yielding
+  `(course.title, [(value, self.field.label_from_instance(obj)), ...])` tuples, which
+  Django's `Select` renders as `<optgroup>`s. Routing the label through
+  `label_from_instance` is not incidental: that is the hook the "(archived)" suffix lives
+  in, for **both** this field and `cohorts`. Yielding a bare `obj.name` would silently
+  defeat the override — and defeat it asymmetrically, since `cohorts` keeps the stock
+  iterator and would still show its suffix, so the implementer sees the mechanism working
+  on one field while it is quietly absent on the other. The suffix is the whole point of
+  keeping the archived row selectable: unmarked, it reads as an ordinary pickable
+  allocation on a list that otherwise hides archived rows on purpose. It **must yield the empty choice
   `("", empty_label)` first, outside any optgroup** — the base
   `ModelChoiceIterator.__iter__` is what normally emits it, so a subclass that yields only
   optgroups silently drops "— none —" and leaves no way to detach a group from its
@@ -1023,6 +1031,7 @@ been seen to fail.
 | 11d | `("", "— none —")` is among `form.fields["allocation"].choices`, and posting an empty `allocation` on an attached group sets `group.allocation` to `None` | have the custom iterator yield only optgroup tuples, dropping the empty choice |
 | 11e | each rendered `<option>` carries `data-course` equal to its allocation's course pk, and options are nested in per-course `<optgroup>`s. **Assert against the rendered widget HTML, not `field.choices`** — a late-assigned iterator leaves `choices` correct while the widget renders flat | drop the `create_option` override (kills the attribute half); assign `field.iterator` *after* `field.queryset`, so the widget keeps the base iterator (kills the optgroup half) |
 | 11h | rendering the group form with an allocation select does not raise: `create_option` skips the empty choice | drop the `if not value:` guard, so the bare `""` empty choice hits `value.instance.course_id` and `AttributeError`s |
+| 11i | the attached **archived** allocation's rendered `<option>` label carries the "(archived)" suffix, and the archived cohort's checkbox label likewise | yield `obj.name` from the custom iterator instead of `self.field.label_from_instance(obj)` (kills the allocation half); drop the `label_from_instance` override (kills both) |
 | 11f | typing a `new_allocation` on the **edit** form of a group that already has an allocation, **leaving the select at its echoed value**, succeeds and moves the group to a newly created allocation | test both non-empty values as a conflict regardless of the echo (kills the precedence rule); **and, separately,** omit `cleaned_data["allocation"] = None`, so the fallback resolves to the old allocation, the create branch never fires, and the group silently stays put behind a success redirect |
 | 11g | the same, but with the select explicitly **cleared** to "— none —": also succeeds and moves the group | treat an empty `allocation` as "different from `instance.allocation_id`", making the clearest possible gesture a conflict error |
 | 11a | `GroupForm()` with no `user` kwarg still constructs (the four existing call sites) and offers no allocation choices | make `user` required, or let a falsy user reach `manageable_courses` |
