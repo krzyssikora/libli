@@ -259,13 +259,18 @@ uv run python manage.py makemigrations grouping --name allocation
 ```
 
 `--name` is not cosmetic: Django derives an auto-name by concatenating each operation's
-`migration_name_fragment` (`Migration.suggest_name`), and this migration carries three
-operations — `CreateModel`, `AddField(group.allocation)`, and a separate `AddConstraint` —
-so the auto-name would be something like `0005_allocation_group_allocation_and_more.py`,
+`migration_name_fragment` (`Migration.suggest_name`), and this migration carries several
+operations — the autodetector splits every relational field out of `CreateModel` —
+so the auto-name would be something like `0005_allocation_allocation_course_and_more.py`,
 not `0005_allocation.py`. Every later reference in this plan (Step 8's `git add`, mutants 4
 and 5) uses the fixed name, so pin it here.
 
-Expected: creates `grouping/migrations/0005_allocation.py` with `CreateModel` for `Allocation`, the M2M table, the `AddConstraint` for `uniq_allocation_course_name`, and `AddField` for `group.allocation`. Read the generated file and confirm it contains no unrelated operations. If the number is not `0005`, use whatever the graph head produced and substitute it everywhere below.
+Expected: creates `grouping/migrations/0005_allocation.py`. It will carry roughly five
+operations — `CreateModel(Allocation)`, `AddField(allocation.course)`,
+`AddField(allocation.cohorts)`, `AddField(group.allocation)`, and
+`AddConstraint(uniq_allocation_course_name)` — because the autodetector splits relational
+fields out of `CreateModel`. That is correct; check only that there are no operations
+touching *other* models. If the number is not `0005`, use whatever the graph head produced and substitute it everywhere below.
 
 - [ ] **Step 6: Run the tests and watch them pass**
 
@@ -362,7 +367,11 @@ def test_course_admin_does_not_see_owner_less_courses():
 
 def test_teacher_sees_none():
     teacher = _role_user(TEACHER, "t_scope")
-    AllocationFactory()
+    # The allocation must be on a course the TEACHER owns, or this test is blind
+    # to the "Teacher accidentally granted change_allocation" mutant: that mutant
+    # sends them down the CA branch (course__owner=user), which returns nothing
+    # for a bare AllocationFactory() whose course has owner=None.
+    AllocationFactory(course=CourseFactory(owner=teacher))
     assert list(scoping.allocations_manageable_by(teacher)) == []
 
 
@@ -2138,7 +2147,7 @@ Expected: 14 passed.
    ```
    → `test_writes_only_inside_the_rectangle_and_the_write_lands` must FAIL. (Merely iterating more groups is **inert**: each removal is guarded by `if str(column.pk) in now.split(",")`, and `now` is computed over `columns` only, so an extra column is never removed. The rectangle guarantee lives in the token, so the mutant has to attack the token.)
 2. Replace `add_students_to_group` / `remove_students_from_group` with direct `GroupMembership` writes → `test_none_target_removes_membership_and_drops_group_sourced_enrollment` must FAIL.
-3. Rebuild the loop over **every student holding a membership in any column** (which the service *can* derive) rather than over `assignments.items()`, defaulting each to a `None` target → `test_a_row_absent_from_assignments_is_untouched` must FAIL. (Rebuilding from `current` instead would be **inert**: `current` is keyed off `assignments`, which the test passes as `{}`, so the rebuilt loop iterates nothing. The view-side form of this bug — collapsing `request.POST.get`'s `None` and `""` — is unreachable from here and is falsified by Task 7's `test_an_absent_row_key_is_not_read_as_none`.)
+3. **No service-level mutant exists for `test_a_row_absent_from_assignments_is_untouched`, and that is a deliberate, stated exception** rather than an omission. Two plausible mutants are both *inert*: rebuilding from `current` iterates nothing (it is keyed off the `{}` the test passes), and rebuilding from column memberships supplies no `was_token`, so rule 2 skips the row and nothing is written either way. Making it bite would require the mutant to *also* synthesise `was_token` from a recomputed `current` — a three-part change that no plausible implementer slip resembles. Treat this test as a consistency check; its live falsification is Task 7's `test_an_absent_row_key_is_not_read_as_none`, at the layer where the omission-versus-`""` decision is actually made.
 4. Change rule 1 to `if target is not None and str(target.pk) in now.split(","):` → `test_conflict_row_resolves_when_a_column_is_picked` must FAIL.
 5. Delete **rule 2 entirely** (fall straight from the no-op check into the write) → `test_guard_skips_a_moved_row_and_reports_it` **and** `test_a_none_was_token_is_a_mismatch_not_an_unguarded_write` must FAIL. This is spec row 15's "ignore the `-was` field", and it is the only mutant that falsifies the guard itself. (Dropping just the `was_token is None` clause is **inert** — `now` is always a `str`, so `now != None` is unconditionally true and the clause is pure documentation. Row 17's live mutant is at the view level, in Task 7.)
 6. Move rule 2 above rule 1 → `test_a_no_op_row_is_neither_written_nor_reported_even_when_the_token_moved` must FAIL.
@@ -2149,7 +2158,21 @@ Expected: 14 passed.
 10. Replace the out-of-range `continue` with `target = None` → `test_an_out_of_range_target_keeps_the_membership` must FAIL.
 11. Drop `added_by=added_by` from the `add_students_to_group` call inside the service → `test_added_by_is_recorded` must FAIL. (Spec row 17b names *two* mutants; Task 7 carries the view-side one. Dropping only the service forward leaves `added_by = NULL` on every grid-created membership while the view still passes the argument.)
 12. Replace `student_users()` with `User.objects` in `allocation_row_students`' arm 2 → `test_row_students_excludes_staff` must FAIL.
-13. Drop the `& column_ids` intersection in `allocation_state_tokens` → `test_state_token_shapes` must FAIL, once its fixture also gives one student a membership in a **non-column** group of the same course (add that to the fixture; without it the intersection is a no-op).
+13. Drop the `& column_ids` intersection in `allocation_state_tokens` → a new
+    `test_state_token_intersects_a_passed_membership_map` must FAIL. That test must call the
+    helper **with an explicit map**, because the `memberships is None` branch already filters
+    on `group__in=columns`, so the intersection is only live for a caller-supplied
+    (course-wide) map — a DB-fixture change cannot reach it:
+    ```python
+    def test_state_token_intersects_a_passed_membership_map():
+        a, cols = _alloc_with_columns(1)
+        outside = GroupFactory(course=a.course)      # same course, not a column
+        s = UserFactory()
+        tokens = services.allocation_state_tokens(
+            cols, [s.pk], memberships={s.pk: {cols[0].pk, outside.pk}}
+        )
+        assert tokens[s.pk] == str(cols[0].pk)
+    ```
 
 Restore each by hand.
 
@@ -2501,6 +2524,7 @@ and each entry in a section's `rows` is:
         "student": student,
         "state": "assigned" | "unassigned" | "conflict",
         "selected_id": <column pk or None>,   # None for unassigned AND for conflict
+        "check_none": <bool>,                 # True ONLY when state == "unassigned"
         "token": tokens[student.pk],          # the hidden -was value
         "also_in": also_in.get(student.pk, []),
         "data_name": student.sort_name.lower(),
@@ -2520,8 +2544,11 @@ per attached cohort with `value="<slug>"`, then "Outside these cohorts" with
 The POST path is **wrapped in a single `transaction.atomic()`** (spec §Saving's opening line —
 `set_allocation_assignments` has its own decorator, but the column-set check and the row-set
 recompute must be inside the same transaction, since that window is exactly what the
-column-set check exists to close). Inside it, in order: the column-set check, then rebuild the
-row set server-side, then build `assignments`, then call the service with
+column-set check exists to close). Resolve `columns = services.allocation_columns(allocation)`
+and `row_students = services.allocation_row_students(allocation)` **once** at the top and
+thread the same objects through the token comparison, the `assignments` build, and the
+service call. Inside the transaction, in order: the column-set check, the server-side row set,
+the `assignments` build, then the service call with
 `added_by=request.user`, then `messages.warning` through `ngettext` for any skipped rows,
 naming them in `polish_sort_key` order.
 
@@ -2571,6 +2598,17 @@ assignment would be dropped behind a success redirect.
 
 - [ ] **Step 5: Write the template**
 
+**Which radio is checked is load-bearing, and `selected_id` alone does not say.** Both
+`unassigned` and `conflict` carry `selected_id = None`, but the spec requires `— none —`
+**checked** on unassigned rows and **no radio checked at all** on conflict rows. Hence the
+separate `check_none` flag: the template writes `checked` on the `— none —` radio only when
+`row.check_none` is true. Keying the template off `selected_id` being falsy would check it on
+conflict rows too — and a checked `— none —` posts `student-<pk>=""`, which the view maps to a
+`None` target and the service turns into *removal of both memberships*. That is the exact
+mass-unassign of every conflict row that the omission-versus-`""` contract exists to prevent,
+and no forged-POST test would catch it, because the bug is in what the browser sends.
+Assert it: a rendered conflict row's radio group contains no `checked` attribute.
+
 **Empty sections are rendered, not filtered out.** A section whose `rows` is empty still
 appears, with a translated "(no students)" note beside its heading — the spec requires it so
 an admin can see the cohort *is* attached rather than wondering whether they attached it.
@@ -2599,7 +2637,7 @@ Both are listed in this task's Files and neither happens by itself:
 uv run pytest tests/test_grouping_allocation_grid.py tests/test_grouping_allocation_views.py -v
 ```
 
-Mutants (each must go RED): scope with `Allocation.objects.all()`; drop `raise_exception=True`; drop the outsider union arm; build the row set from the POST keys; drop the column-set check; **treat an absent `columns` field as `""`** (→ the no-`columns` test against a groups-less allocation must FAIL); classify a two-membership row as assigned; narrow "also in" to `allocation__isnull=True`; count the summary from the first section only; read `user.cohort_membership.cohort` directly; **drop the `memberships=` argument at the `allocation_state_tokens` call site**, and separately **fetch each row's "also in" memberships individually** (→ the `assertNumQueries` test must FAIL under each — without these two the implementer simply writes down whatever number the green run reports); **drop the `int()` coercion when building `assignments`** (→ `test_a_posted_assignment_lands_through_the_view` must FAIL); **collapse `request.POST.get`'s `None` and `""` to a `None` target** (→ `test_an_absent_row_key_is_not_read_as_none` must FAIL); **read the token as `request.POST.get(f"{key}-was", "")`** (→ `test_a_missing_was_field_is_skipped_not_written` must FAIL); **drop `added_by=request.user`** (→ `test_added_by_is_recorded_through_the_view` must FAIL); **filter empty sections out of `sections`** (→ the "(no students)" heading test must FAIL).
+Mutants (each must go RED): scope with `Allocation.objects.all()`; drop `raise_exception=True`; drop the outsider union arm; build the row set from the POST keys; drop the column-set check; **treat an absent `columns` field as `""`** (→ the no-`columns` test against a groups-less allocation must FAIL); classify a two-membership row as assigned; narrow "also in" to `allocation__isnull=True`; count the summary from the first section only; read `user.cohort_membership.cohort` directly; **drop the `memberships=` argument at the `allocation_state_tokens` call site**, and separately **fetch each row's "also in" memberships individually** (→ the `assertNumQueries` test must FAIL under each — without these two the implementer simply writes down whatever number the green run reports); **drop the `int()` coercion when building `assignments`** (→ `test_a_posted_assignment_lands_through_the_view` must FAIL); **collapse `request.POST.get`'s `None` and `""` to a `None` target** (→ `test_an_absent_row_key_is_not_read_as_none` must FAIL); **read the token as `request.POST.get(f"{key}-was", "")`** (→ `test_a_missing_was_field_is_skipped_not_written` must FAIL); **drop `added_by=request.user`** (→ `test_added_by_is_recorded_through_the_view` must FAIL); **filter empty sections out of `sections`** (→ the "(no students)" heading test must FAIL); **key the `— none —` radio's `checked` off `not row.selected_id` instead of `row.check_none`** (→ the conflict-row rendering assertion must FAIL).
 
 ```bash
 git add grouping/urls.py grouping/views.py config/settings/base.py templates/grouping/ tests/test_grouping_allocation_grid.py tests/test_grouping_allocation_views.py
@@ -2621,7 +2659,7 @@ git commit -m "feat(grouping): the allocation assignment grid"
 
 - [ ] **Step 1: Write the failing e2e tests** (`pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]`)
 
-Cover: the cohort filter leaves the summary unchanged and a filtered-out row's `bounding_box()` is `None`; saving under a filter leaves hidden rows byte-identical and still posts their fields; the "Outside these cohorts" sentinel isolates only outsider rows; the name search matches `data-name` and not an "also in" note; picking a column on a conflict row clears both the conflict count and the row's own red treatment; **the live summary's labels stay Polish and grammatical after a radio change** (spec row 35b — run the page under the Polish locale); and a full assign-two-students-and-save round trip where **one student starts in a different column** and the old group must lose them.
+Cover: the cohort filter leaves the summary unchanged and a filtered-out row's `bounding_box()` is `None`; saving under a filter leaves hidden rows byte-identical and still posts their fields; the "Outside these cohorts" sentinel isolates only outsider rows; the name search matches `data-name` and not an "also in" note; picking a column on a conflict row clears both the conflict count and the row's own red treatment; **the live summary's labels stay Polish and grammatical after a radio change** (spec row 35b). **The mechanism matters:** the active language is *session*-based here — `core.signals.seed_language_on_login` writes `user.language` into `session[LANGUAGE_SESSION_KEY]` on every login and `core.middleware.SessionLocaleMiddleware` prefers that key over the cookie and `Accept-Language`. So a Playwright context created with `locale="pl-PL"` renders the login page in Polish and then flips to English the moment the test logs in. Set **`user.language = "pl"` and save it before driving the login form** (the same shape the dark-mode e2e uses for `user.theme`); `"pl"` is already in `get_site_config()["enabled_languages"]`, so no institution change is needed. Assert on **literal Polish text**, never on a comparison with the page's own `data-*` values — that comparison is locale-independent and passes under the mutant; and a full assign-two-students-and-save round trip where **one student starts in a different column** and the old group must lose them.
 
 - [ ] **Step 2: Run and watch them fail** — `uv run pytest tests/test_e2e_allocation_grid.py -m e2e -v`
 
@@ -2651,6 +2689,14 @@ git commit -m "feat(grouping): allocation grid styling and live client behaviour
 Read spec §"The add-all checkbox" and the last paragraph of §"Rendering the allocation select".
 
 - [ ] **Step 1: Write the failing e2e tests** covering: visible on a freshly loaded form with no filter (the `[data-roster-count]` precedent is unhidden only *while filtering* — copying it would hide add-all until a filter is applied); with JS disabled its `bounding_box()` is `None`; ticking under a cohort filter ticks only the filtered students; **unticking** clears only the filtered students; the tri-state including unchecked-and-disabled at zero visible; the click-from-indeterminate direction (tick all, untick one, click again → the rest end up ticked, never cleared); the "Added" counter updating after a sweep; the allocation select filtering on course change and resetting a stale selection; and the init pass hiding every optgroup on a freshly loaded create form.
+
+**The last two need spec row 37a's fixture and assertion technique, which do not appear in the sections named above — read that row.** Fixture: act as a **PA with two courses**, each carrying one non-archived allocation; select course A, pick one of A's allocations, then switch the course select to B. A single-course fixture leaves no non-matching optgroup to hide and no way to make a selection stale, so *both* mutants survive. Assertion: **never `bounding_box()`** — the options and optgroups of a collapsed `size=1` select are not laid out in the page (their popup is browser UI), so it returns `None` for hidden and visible alike. Evaluate instead:
+
+```js
+[...select.querySelectorAll('optgroup')].filter(g => !g.hidden).map(g => g.label)
+```
+
+and assert it equals exactly course B's label. (`bounding_box()` stays correct for the `<label>` and `<tr>` assertions in rows 30c and 35.)
 
 - [ ] **Step 2: Run and watch them fail** — `uv run pytest tests/test_e2e_roster_add_all.py -m e2e -v`
 
@@ -2730,15 +2776,27 @@ Both must pass. `--no-cache` matters: a stale cache hides the warning.
 
 ```
 docker compose -f docker-compose.test.yml up -d
-uv run pytest tests/ integrations/ -q
-uv run pytest tests/ -m e2e -q -n 2
+uv run pytest tests/ integrations/
+uv run pytest tests/ -m e2e -n 2
 ```
+
+**Do not add `-q`.** `pyproject.toml` already sets `addopts = "-q -m 'not e2e'"`; a second
+`-q` stacks to quiet level −2, which suppresses the final `N passed / N failed` summary
+altogether — so the grep below would have nothing to find and a long run would read as a
+hang.
 
 `integrations/` is in the gate deliberately: `integrations/tests/test_form_fields.py:40`
 constructs `GroupForm()` and calls `form.save()`, both of which Task 4 rewrites, and the
 `tests/`-only invocation would never run it.
 
-**Grep the summary line** — a backgrounded pytest has reported exit 0 with failures in this repo. Both runs must show zero failures.
+**Grep the summary line** — a backgrounded pytest has reported exit 0 with failures in this
+repo, so the exit code alone is not evidence:
+
+```
+grep -E "^=+ .*(passed|failed|error)|^FAILED|^ERROR"
+```
+
+Both runs must show zero failures.
 
 - [ ] **Step 4: Commit**
 
