@@ -83,6 +83,10 @@ GROUPING_COURSE_ADMIN_PERMS = [
     "grouping.change_collection",
     "grouping.delete_collection",
     "grouping.view_collection",
+    "grouping.add_allocation",
+    "grouping.change_allocation",
+    "grouping.delete_allocation",
+    "grouping.view_allocation",
 ]
 
 GROUPING_PLATFORM_ADMIN_PERMS = [
@@ -98,6 +102,10 @@ GROUPING_PLATFORM_ADMIN_PERMS = [
     "grouping.change_collection",
     "grouping.delete_collection",
     "grouping.view_collection",
+    "grouping.add_allocation",
+    "grouping.change_allocation",
+    "grouping.delete_allocation",
+    "grouping.view_allocation",
 ]
 
 
