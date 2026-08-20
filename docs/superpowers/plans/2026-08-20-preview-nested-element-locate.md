@@ -519,6 +519,7 @@ STANDING TRAPS (the spec's "Assertion traps that make a test vacuous"):
     node before scrollPreviewTo runs. Only the hover case (e2e 7) asserts it.
 """
 
+import json
 import os
 
 import pytest
@@ -594,6 +595,30 @@ def _seed_filler(unit, n):
             content_object=_seed_text(("filler %d<br>" % i) * 40),
             parent=None,
         )
+
+
+def _open_slots(page, pairs):
+    """Open editor row-groups WITHOUT clicking their <summary>. Call BEFORE goto.
+
+    NEVER click a <summary> to open a nested row group. `<summary>` is NOT in the
+    row-body handler's exclusion list (editor.js:463 excludes button, a, input,
+    textarea, select, label, form, [draggable], [data-edit-slot] -- not summary), so
+    the click reaches scrollPreviewTo(<the CONTAINER row's pk>) and runs the reveal
+    walk. After Task 1 that container is itself a .prev-el, so the walk reveals ITS
+    ancestors -- pre-revealing exactly the state a fixture is trying to keep hidden,
+    and silently disarming mutants (e), (f) and (i).
+
+    Seed the stored preference instead: editor.js's applyStoredSlots (called at load,
+    :606) reads "libli:tabopen:<row data-element>:<data-tab-id|data-column-id>".
+
+    `pairs` is [(container_row_pk, slot_id), ...].
+    """
+    keys = [f"libli:tabopen:{pk}:{slot}" for pk, slot in pairs]
+    page.add_init_script(
+        "(() => { const ks = %s;"
+        " try { ks.forEach(k => localStorage.setItem(k, '1')); } catch (e) {} })()"
+        % json.dumps(keys)
+    )
 ```
 
 Tasks 5–10 must call these rather than writing their own.
@@ -617,7 +642,8 @@ def test_click_reveals_a_child_in_a_non_first_strip_tab(page, live_server):
     assert before == tab1_id
 
     # MANDATORY: the nested row lives in a collapsed <details class="tabs-rows">.
-    page.click(f'details.tabs-rows[data-tab-id="{tab2_id}"] > summary')
+    # Opened by _open_slots(page, [(tabs_join.pk, tab2_id)]) BEFORE page.goto -- never
+    # by clicking the <summary>, which would fire scrollPreviewTo on the tabs row.
     page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
 
     page.wait_for_function(
@@ -835,8 +861,10 @@ Falsified: b1, b3 each RED."
 
 ⚠️ **MANDATORY collapsed-`<details>` precondition.** `_element_row.html:82` renders a **carousel** element's editor rows exactly like a strip element's — one `<details class="tabs-rows">` per slot, `open` only for `open_slots` / `clip_active` / `forloop.first` — so a non-first slide's child row starts **collapsed** and clicking it hangs on a not-visible locator.
 
-- Case 2 needs one: `page.click(f'.el-row[data-element="{tabs_join.pk}"] details.tabs-rows[data-tab-id="{slide2_id}"] > summary')`
-- Case 9 needs **two, outer first** (the inner element sits in the outer's non-first slide, and the target in the inner's non-first slide), each scoped to its owning `.el-row[data-element="…"]` — the same shape Task 6 uses. Use **disjoint** slide-id lists for outer and inner, or a shared id makes the selector match two nodes and Playwright's strict mode raises.
+**Open them with `_open_slots(page, [...])` before `page.goto` — never by clicking a `<summary>`** (a summary click is not excluded by the row-body handler, so it fires `scrollPreviewTo` on the container row and pre-reveals its ancestors):
+
+- Case 2: `_open_slots(page, [(tabs_join.pk, slide2_id)])`
+- Case 9: `_open_slots(page, [(outer_join.pk, outer_slide2_id), (inner_join.pk, inner_slide_id)])`. Use **disjoint** slide-id lists for outer and inner.
 
 Case 2 — child in a non-first slide of a `display: "carousel"` tabs element. **Assert positively, on the target's own section only:**
 
@@ -1016,6 +1044,12 @@ Falsified: b4 RED."
 
 Seed with `_seed_tabs_element(unit, outer_tabs, …)` then `_seed_tabs_element(unit, inner_tabs, …, parent=outer_join, tab_id=<outer non-first tab id>)`.
 
+Then, **before `page.goto`**:
+
+```python
+    _open_slots(page, [(outer_join.pk, outer_tab2_id), (inner_join.pk, inner_late_tab_id)])
+```
+
 - [ ] **Step 1: Write the case**
 
 ⚠️ **TWO nested `<details class="tabs-rows">` must be opened, outer first.** Constraint 2 puts the inner element in a non-first tab of the outer, so the outer's row group for that tab starts closed (`_element_row.html:82` opens only `open_slots` / `clip_active` / `forloop.first`); and the target in a late non-first tab of the inner means the inner's row group is closed too. Each is only reachable once the previous opens.
@@ -1030,19 +1064,12 @@ Seed with `_seed_tabs_element(unit, outer_tabs, …)` then `_seed_tabs_element(u
     outer_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{outer_join.pk}"]'
     inner_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{inner_join.pk}"]'
 
-    # Scope BOTH <details> clicks to their owning .el-row. `_seed_tabs_element`'s
-    # docstring notes two elements may deliberately SHARE tab ids, and the inner
-    # <details> is in the DOM (merely hidden) from load -- so an unscoped selector can
-    # match two nodes and Playwright's strict mode raises. The fixture should also use
-    # DISJOINT tab-id lists for outer and inner.
-    page.click(
-        f'.el-row[data-element="{outer_join.pk}"] '
-        f'details.tabs-rows[data-tab-id="{outer_tab2_id}"] > summary'
-    )
-    page.click(
-        f'.el-row[data-element="{inner_join.pk}"] '
-        f'details.tabs-rows[data-tab-id="{inner_late_tab_id}"] > summary'
-    )
+    # Both row groups are opened by _open_slots BEFORE page.goto -- see below. Do NOT
+    # click their <summary>: that click is not excluded by the row-body handler, so it
+    # reaches scrollPreviewTo(<the tabs element's own pk>) and the walk PRE-REVEALS the
+    # outer ancestor. From then on the inner strip is visible and measurable on BOTH
+    # builds, which is precisely the "outer conceals nothing" state constraint 2 forbids
+    # -- (e) and (f) would both survive. Use DISJOINT tab-id lists for outer and inner.
     page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
 
     # BOTH ancestors revealed
@@ -1255,10 +1282,11 @@ Falsified: h RED."
 
 Choose one and do it deliberately:
 - **seed the target in the carousel's FIRST slide**, whose row group is `open` via `forloop.first` — sufficient here, because this case tests the *skip*, not slide selection; or
-- seed it in a non-first slide and open the group first:
-  `page.click(f'.el-row[data-element="{carousel_join.pk}"] details.tabs-rows[data-tab-id="{slide_id}"] > summary')`.
+- seed it in a non-first slide and open the group with **`_open_slots(page, [(carousel_join.pk, slide_id)])` before `page.goto`**.
 
 Doing neither hangs on a not-visible locator **on a correct build**.
+
+⚠️ **Do NOT open it by clicking the `<summary>`.** That click is not excluded by the row-body handler, so it reaches `scrollPreviewTo(carousel_join.pk)`; the carousel's own wrapper is a `.spoiler__child.prev-el`, so the walk **opens the spoiler and scrolls the pane** — and this case's two pre-click guards (`scrollTop == 0`, `delta(spoiler_sel) > 400`) then both fail **on a correct build**.
 
 **Fixture: a bailed carousel nested inside a closed spoiler.**
 
@@ -1592,7 +1620,15 @@ Take **light and dark** screenshots of a hovered nested child in at least a **tw
 
 **Model it on `tests/capture_nested_question_screenshots.py`**, which already enumerates the exact selectors needed (`.callout__children > .callout__child` and `.twocolumn__column:first-child > .twocolumn__child`, lines 78-85) and handles login + theming. Adapt it to: navigate to the **editor**, `page.hover()` the nested `.el-row`, then `page.screenshot()` while the hover is held (the hover persists until the pointer moves, so capture directly after — do not click anything in between).
 
-⚠️ **The two-column shot needs an extra step the model does not have.** `capture_nested_question_screenshots.py` drives the **student** page, where no `<details>` exists. On the **editor** page the two-column child's row sits inside a closed `<details class="columns-rows">` (no `forloop.first` clause), so `page.hover()` times out before any screenshot is taken. Click `details.columns-rows[data-column-id="<id>"] > summary` first. The **callout** shot needs no such step (always-open div row).
+⚠️ **The two-column shot needs an extra step the model does not have.** `capture_nested_question_screenshots.py` drives the **student** page, where no `<details>` exists. On the **editor** page the two-column child's row sits inside a closed `<details class="columns-rows">` (no `forloop.first` clause), so `page.hover()` times out before any screenshot is taken. Open it with **`_open_slots(page, [(twocolumn_join.pk, column_id)])` before `page.goto`** — the storage key falls back to `data-column-id` for column groups. Do **not** click the `<summary>`. The **callout** shot needs no such step (always-open div row).
+
+⚠️ **Set `SHOT_DIR`, and pass `-m e2e`.** The model file computes
+`OUT_DIR = Path(os.environ.get("SHOT_DIR", <BASE_DIR>/"docs"/"superpowers"/"screenshots"))`, and `docs/superpowers/screenshots/` is **tracked and not gitignored** — so an unset `SHOT_DIR` writes four untracked PNGs into the repo and fails Step 7's clean-tree gate. The model is also `pytest.mark.e2e`, so omitting the marker silently deselects and exits 5.
+
+```bash
+SHOT_DIR="C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/c028a1f9-227d-465d-9183-8748c462317a/scratchpad" \
+  uv run --directory "$WT" pytest scripts/capture_preview_hover.py -m e2e -p no:randomly
+```
 
 Four expected files, written to the scratchpad directory (not the repo):
 `hover-callout-light.png`, `hover-callout-dark.png`, `hover-twocolumn-light.png`, `hover-twocolumn-dark.png`.
@@ -1640,10 +1676,11 @@ format reflow of the test modules committed in earlier tasks."
 ```bash
 git -C "$WT" status --short
 ```
-Expected: **empty**. A non-empty tree here means one of exactly three things, all of which must be resolved:
+Expected: **empty**. A non-empty tree here means one of exactly four things, all of which must be resolved:
 1. a `ruff format` reflow was missed in Step 6's staging list;
 2. `scripts/render_student_page.py` was not deleted in Step 2e;
-3. `scripts/capture_preview_hover.py` was not deleted after Step 3 (or `tests/capture_nested_question_screenshots.py` was edited in place instead of copied — restore it with `git -C "$WT" checkout -- tests/capture_nested_question_screenshots.py`).
+3. `scripts/capture_preview_hover.py` was not deleted after Step 3 (or `tests/capture_nested_question_screenshots.py` was edited in place instead of copied — restore it with `git -C "$WT" checkout -- tests/capture_nested_question_screenshots.py`);
+4. stray screenshots were written into `docs/superpowers/screenshots/` because `SHOT_DIR` was unset in Step 3 — delete them; that directory is tracked and not gitignored.
 
 ---
 
