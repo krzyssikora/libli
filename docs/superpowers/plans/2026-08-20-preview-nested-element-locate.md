@@ -59,9 +59,35 @@ Known consumers and why each survives:
 - `tests/test_manage_element_ops.py:320` — asserts `b'class="prev-el"'` on an **editor** response; the top-level `<section class="prev-el">` in `_preview.html` is untouched, so it still matches.
 - `tests/test_e2e_media_manager.py:195` — `.prev-el img`; unaffected (top-level image).
 - `courses/tests/test_spoiler_render.py:33,36` — counts `class="spoiler__child"` on a **bare `.render()`** (no `editor_preview`), so the gate collapses and the literal is exact.
-- `courses/tests/test_nested_question_nojs_feedback.py` — slices on child-class names; the class attribute still *starts* with the same literal.
+- `courses/tests/test_nested_question_nojs_feedback.py` — `_child_slice` (line 184) builds `open_tag = f'<div class="{wrapper_class}">'` and calls `body.index(open_tag)`: an **exact literal match including the closing `>`**, *not* a prefix match. It survives only because every caller renders a **student** URL (`courses:check_answer` / `courses:lesson_unit`), where the gate collapses and the literal is exact. It would raise `ValueError` on any editor-page render.
+- `courses/tests/test_reveal_gate_render.py:84` — `re.findall(r'class="[^"]*\btabs__child\b[^"]*"[^>]*>', html)`; a `\b`-delimited match inside the class list, so the added ` prev-el` is tolerated. Student render.
+- `tests/test_e2e_reveal_gate.py:765` — `preview.locator(".tabs__child", …)`, an **editor-preview** locator; a class-list locator, unaffected by an added class.
+- `tests/test_e2e_filltable_gate.py:344-349` — a comment asserting callout children have no `data-element-id`; **student** page, so still true. Read it and confirm it is a comment, not an assertion.
+- `tests/test_e2e_depth3.py:281/427/501` and `tests/capture_nested_question_screenshots.py:78-85` — class-list locators; unaffected.
 
-Record the outcome in the commit message. If any hit contradicts the above, **stop and report** — do not adjust the pinned shape.
+**Rule for anything else:** any hit **not on this list** must be evaluated and its outcome recorded before proceeding. A hit that contradicts the pinned shape → **stop and report**; do not adjust the shape.
+
+- [ ] **Step 1b: Confirm the gate's safety argument — the three unscoped consumers are not loaded by the editor**
+
+This is the entire reason it is safe to put `[data-element-id]` on nested nodes inside the editor page, and the spec explicitly refuses to be taken on trust here. Three scripts query `[data-element-id]` **unscoped**: `courses/static/courses/js/progress.js`, `courses/static/courses/js/slideshow.js`, `notes/static/notes/js/notes.js`. There is a standing invariant test at `courses/tests/test_image_size_render.py:41-49`.
+
+```bash
+grep -n "progress.js\|slideshow.js\|notes.js" templates/courses/manage/editor/editor.html
+grep -n "{% extends" templates/courses/manage/editor/editor.html   # then grep the base too
+```
+
+Expected: **no hits** in the editor template or its base. Record the result in the commit message. If any of the three *is* loaded, **stop and report** — the gate is not sufficient and the design needs revisiting.
+
+- [ ] **Step 1c: Confirm the propagation chain and the pk identity (read-only)**
+
+The spec requires these be confirmed rather than assumed. Read and record:
+
+1. `courses/templatetags/courses_extras.py:160-176` — `render_element` builds the `page` dict for `CONTAINER_MODELS` only; `editor_preview` is one of its seven keys.
+2. `courses/models.py:471, 576, 679, 1936, 2060` — all five container `render()` methods spread `**(page or {})` into the child context, `page` first.
+3. `courses/templatetags/courses_extras.py:74-75` — the recursive child render re-reads `editor_preview` from context when not passed explicitly, defaulting on **`is None`**, not `False`. This is the load-bearing line: a `False` default could never satisfy `is None`, which would make the fallback dead code and silently no-op the whole feature.
+4. `alignTopInPane` (`courses/static/courses/js/editor.js:214-221`) does `el.closest(".pane-body")` — confirm that still resolves for a deeply nested target. Its failure mode is a **silent `return`** (no scroll at all), which no test distinguishes from "already at the top", so this is a read-and-record check, not a test.
+
+Record all four findings in the commit message.
 
 - [ ] **Step 2: Write the two failing render tests**
 
@@ -231,8 +257,11 @@ def test_student_page_carries_neither_marker_half(client):
     )
     _containers(unit)
 
+    # The student lesson route is `courses:lesson_unit` (courses/urls.py:27) and its
+    # kwarg is `node_pk`, NOT `pk` (views.py:807 `def lesson_unit(request, slug,
+    # node_pk)`). This is the shape tests/test_e2e_tabs.py::_lesson_url already uses.
     html = client.get(
-        reverse("courses:unit_detail", kwargs={"slug": course.slug, "pk": unit.pk})
+        reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
     ).content.decode()
     soup = BeautifulSoup(html, "html.parser")
 
@@ -245,9 +274,14 @@ def test_student_page_carries_neither_marker_half(client):
         assert "prev-el" not in (n.get("class") or []), f"leaked class on {n.get('class')}"
 ```
 
-> **If `courses:unit_detail` is not the student URL name**, find it with
-> `grep -rn "name=\"unit_detail\"\|def unit_detail" courses/urls.py courses/views.py`
-> and use the real one. Do not invent a URL.
+Also add this assertion to `test_editor_preview_marks_every_nested_child`, tying the marker to the **join-row** pk (not the content-object pk — the confusion the spec's `data-preview-el` section warns about):
+
+```python
+    # child.pk is the Element JOIN ROW pk -- the same identity the editor rows carry
+    # as data-element, and the same one setHighlight/scrollPreviewTo are called with.
+    row = soup.select_one(f'.el-row[data-element="{pks["callout__child"]}"]')
+    assert row is not None, "the marker pk is not the editor row's data-element pk"
+```
 
 - [ ] **Step 2b: Run the tests to verify they FAIL**
 
@@ -255,7 +289,7 @@ def test_student_page_carries_neither_marker_half(client):
 docker ps --filter name=libli-test-db --format "{{.Names}} {{.Status}}"
 uv run pytest courses/tests/test_preview_nested_markers.py -p no:randomly -q
 ```
-Expected: the three editor/depth tests FAIL (no `.prev-el` on child wrappers); the student test PASSES already (nothing is emitted yet — that is correct and expected; it becomes meaningful only once Step 3 lands, and its mutants are falsified in Step 5).
+Expected: **2 failed, 1 passed** — the two editor/depth tests FAIL (no `.prev-el` on child wrappers); the student test PASSES already, because nothing is emitted yet. That pass is correct and expected: the student test only becomes meaningful once Step 3 lands, which is why its mutants (c1, c2) are falsified in Step 5 rather than relied on here.
 
 - [ ] **Step 3: Apply the pinned shape to all five templates**
 
@@ -291,7 +325,7 @@ Each is a one-line edit. Preserve the surrounding indentation exactly.
 ```bash
 uv run pytest courses/tests/test_preview_nested_markers.py -p no:randomly -q
 ```
-Expected: 4 passed.
+Expected: **3 passed** (the module defines exactly three tests).
 
 Also run the sweep's at-risk tests, narrowly:
 ```bash
@@ -458,7 +492,35 @@ STANDING TRAPS (the spec's "Assertion traps that make a test vacuous"):
     on mouseenter; on the .el-select path applyFragments destroys the highlighted
     node before scrollPreviewTo runs. Only the hover case (e2e 7) asserts it.
 """
+
+import os
+
+import pytest
+
+from tests.test_e2e_tabs import _editor_url
+from tests.test_e2e_tabs import _login
+from tests.test_e2e_tabs import _make_pa_user
+from tests.test_e2e_tabs import _seed_tabs_element
+
+# MANDATORY. There is no auto-marking hook -- neither conftest.py nor
+# tests/conftest.py defines pytest_collection_modifyitems, and all 106 e2e modules
+# declare this by hand. Without it `-m e2e` DESELECTS every case and pytest exits 5,
+# which reads as "no failures" and would let a red step look green.
+pytestmark = pytest.mark.e2e
+
+
+# Per-module, NOT in a shared conftest -- every sibling e2e module defines its own
+# (tests/test_e2e_tabs.py:44-48). Without it sync-ORM calls under Playwright can fail
+# depending on collection order.
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
 ```
+
+**Helpers: import, do not copy.** `tests/test_e2e_tabs.py` already provides `_make_pa_user` (`:55`), `_login` (`:69`), `_editor_url` (`:88`), `_lesson_url` (`:92`) and `_seed_tabs_element(unit, tabs, children, display=…, parent=…, tab_id=…)` (`:101`) — the last already supports nesting via `parent=`/`tab_id=`, which Tasks 4, 6, 9 and 10 all need.
+
+⚠️ **Do NOT model the carousel fixtures on `_seed_carousel` (`:717`)** — it seeds a **student lesson page**, not the editor. Carousel *editor* fixtures must go through `_seed_tabs_element(..., display="carousel")` plus `_editor_url`.
 
 Write case 1 (strip tabs, `.el-select` path) and case 3 (spoiler, row-body path):
 
@@ -497,22 +559,37 @@ def test_click_reveals_a_child_in_a_non_first_strip_tab(page, live_server):
 def test_click_opens_a_closed_spoiler_around_the_child(page, live_server):
     """e2e 3. Mutant (b3): drop the spoiler `open = true` step -> RED.
 
-    Click path: the ROW BODY (no fragment swap), so this case covers the second
-    path. Target a non-button region of the row, per the module docstring.
+    CLICK PATH: the ROW BODY (editor.js:463, NO fragment swap) -- this is the case
+    that covers the second path, so the target must not be a button.
+
+    Target `.el-tag` (a <span>), NOT `.el-row__top`: that is a display:flex row
+    (editor.css:580) whose `.el-actions` carries margin-left:auto over ~250px of icon
+    buttons (editor.css:606), so Playwright's centre-of-box click lands INSIDE
+    .el-actions on a narrow nested row and routes to .el-select instead. A spoiler
+    opens on either path, so the mis-route would be silent.
     """
     page.goto(editor_url)
-    det = f'[data-scope="preview"] details.spoiler'
+    det = '[data-scope="preview"] details.spoiler'
     assert page.get_attribute(det, "open") is None      # closed to begin with
-    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__top')
+
+    # Prove NO fragment swap occurred: hold a handle on a preview node and assert it
+    # is still connected afterwards. applyFragments replaces the whole pane, so a
+    # swapped-in build detaches it.
+    handle = page.query_selector('[data-scope="preview"]')
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-tag')
     page.wait_for_selector(f"{det}[open]")
+    assert page.evaluate("(n) => n.isConnected", handle), "unexpected fragment swap"
 ```
 
 - [ ] **Step 2: Run to verify they FAIL**
 
 ```bash
+docker ps --filter name=libli-test-db
 uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q
 ```
-Expected: both FAIL — the tab never changes, the `<details>` never opens.
+Expected: **2 failed** — case 1 times out waiting for `data-tabs-active` to become `tab2_id`; case 3 times out waiting for `details.spoiler[open]`.
+
+⚠️ **`2 deselected` / exit 5 is NOT a pass.** If you see that, `pytestmark = pytest.mark.e2e` is missing from the module — fix it before reading anything into the result. This is why the expectation above names the *failure text* rather than just "FAIL".
 
 - [ ] **Step 3: Implement the walk**
 
@@ -614,7 +691,7 @@ In `courses/static/courses/js/editor.js`, immediately **above** `function scroll
   }
 ```
 
-Then change `scrollPreviewTo`'s guard (line 236-237) from:
+Then change `scrollPreviewTo`'s absent-target guard — the two lines quoted below, currently `editor.js:237-238` (`:235` is the `function` line and `:236` is `if (!id) return;`). Anchor on the snippet, not the numbers:
 
 ```js
     var sel = '.prev-el[data-element-id="' + id + '"]';
@@ -750,24 +827,62 @@ Falsified: b2 RED on e2e 2; d RED on e2e 9 (and green on e2e 2)."
 ### Task 5: The before/after branch (e2e 4)
 
 **Files:**
-- Modify: `courses/static/courses/js/editor.js` — no change needed if Task 3's `ba` branch is complete; **verify** it is
 - Modify: `tests/test_e2e_preview_nested_locate.py`
+- Verify (no edit expected): `courses/static/courses/js/editor.js` — Task 3 already wrote the `ba` branch
 
-- [ ] **Step 1: Write the failing e2e case 4** — child in the **After** panel; assert the toggle flipped (the After panel loses `hidden`, the Before panel gains it).
+**Interfaces:**
+- Consumes: Task 3's `revealOne` / `ownNodes`.
+- Produces: nothing.
 
-- [ ] **Step 2: Run to verify it FAILS** — temporarily comment out the `ba` branch body in `revealOne` by hand to confirm the case is discriminating, then restore. (The branch already exists from Task 3, so this step is a *verification that the test can fail*, not a red-to-green.)
+**Click path:** `.el-row__label` (the `.el-select` path). **No collapsed-`<details>` precondition** — before/after rows are always-open divs (`_element_row.html:233`), unlike tabs and two-column.
+
+- [ ] **Step 1: Write the case**
+
+Child in the **After** panel. Assert the toggle flipped: the After panel loses `hidden` and the Before panel gains it.
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_click_flips_before_after_to_the_panel_holding_the_child(page, live_server):
+    """e2e 4. Mutant (b4): drop the before/after toggle click -> RED.
+
+    Click path: .el-row__label (.el-select). No <details> precondition -- ba rows are
+    always-open divs.
+    """
+    # ... seed a BeforeAfterElement with a TEXT child in the AFTER slot
+    #     (BeforeAfterElement.SLOT_IDS[1]) ...
+    page.goto(editor_url)
+    ba = f'[data-scope="preview"] [data-beforeafter]'
+    after = f'{ba} .ba__panel[data-ba-side="after"]'
+    before = f'{ba} .ba__panel:not([data-ba-side="after"])'
+    page.wait_for_selector(f"{after}[hidden]")          # starts on Before
+
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    page.wait_for_selector(f"{after}:not([hidden])")
+    page.wait_for_selector(f"{before}[hidden]")
+```
+
+- [ ] **Step 2: Run to confirm it PASSES against the branch Task 3 already wrote**
 
 ```bash
 uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q -k "before_after"
 ```
+Expected: 1 passed. (This is not a red-to-green step — the branch exists. Its value is the falsification below.)
 
-- [ ] **Step 3: Confirm it PASSES with the branch restored**
+- [ ] **Step 3: Falsify — mutant (b4)**
 
-- [ ] **Step 4: Falsify — mutant (b4)** — delete the `toggle.click()` line → case 4 RED.
+By hand, delete `if (toggle) toggle.click();` from `revealOne`'s `ba` branch. Run the command above → **RED**. Restore by hand → GREEN. Do not also comment out the whole branch — that is the same falsification with a wider blast radius, and every extra hand-edit/restore cycle is a chance to lose work.
 
-**Do NOT add a mutant for un-scoping `ownToggle` or `ownPanels`.** Both are provably unobservable (the container's own toggle precedes any nested one in document order; any nested `.ba__panel` containing the target is necessarily a descendant of one of `C`'s own panels, so document order returns the right node either way). An earlier spec draft carried a mutant (j) and a nested-before/after e2e for this; both were **deleted**. Do not reinstate them. Keep the ownership filter in the code regardless — it makes the result unique by construction rather than by relying on document order.
+**Do NOT add a mutant for un-scoping `ownToggle` or `ownPanels`.** Both are provably unobservable: the container's own `.ba__toggle` precedes any nested one in document order, and any nested `.ba__panel` containing the target is necessarily a *descendant* of one of `C`'s own panels, so document order returns the right node either way. An earlier spec draft carried a mutant (j) and a nested-before/after e2e for this; **both were deleted**. Do not reinstate them. Keep the ownership filter in the code regardless — it makes the result unique by construction rather than by relying on document order.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
+
+```bash
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" add tests/test_e2e_preview_nested_locate.py
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" commit -m "test(editor): e2e for revealing a before/after panel holding the target
+
+Falsified: b4 RED."
+```
 
 ---
 
@@ -776,45 +891,88 @@ uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q -
 **Files:**
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
-**The fixture is tightly constrained; a looser one leaves both mutants alive.** All of the following are required:
+**Click path:** `.el-row__label` (`.el-select`).
 
-1. **Two nested strip-mode tabs elements** — not a spoiler + tabs. With only one tabs ancestor, `target.closest(".tabs__section")` returns precisely the correct section and **(f) survives**.
+**The fixture is tightly constrained; a looser one leaves both mutants alive.** All required:
+
+1. **Two nested strip-mode tabs elements** — not spoiler + tabs. With one tabs ancestor, `target.closest(".tabs__section")` returns precisely the correct section and **(f) survives**.
 2. **The inner tabs element must itself sit in a non-first tab of the outer.** `initOne` opens on tab 0, so if it sat in the outer's first tab the outer conceals nothing: the inner strip is already visible and measurable, `scrollIntoStrip` sets `scrollLeft > 0` even on the innermost-first build, and **(e) survives**.
 3. **The outer must be strip mode**, not carousel — (e) depends on the outer *zeroing* the inner strip's geometry, which `display:none` does and a carousel does **not** (inactive slides keep intact rects at `opacity: 0`).
-4. **The target in a late, non-first tab of the inner**, and **the inner strip overflowing** (`scroller.scrollWidth > scroller.clientWidth`) — enough tabs, or long enough labels, against the preview pane's width. The only geometry `select()` writes is `scroller.scrollLeft`; on the broken build every term is 0, but on the **correct** build it also stays 0 unless the strip overflows *and* the target tab lies outside the visible range.
+4. **The target in a late, non-first tab of the inner**, and **the inner strip overflowing** — enough tabs, or long enough labels, against the preview pane's width. `select()` early-returns on `i === active`, so a first-tab target proves nothing.
 
-- [ ] **Step 1: Write the case with a pre-flight overflow assertion**
+Seed with `_seed_tabs_element(unit, outer_tabs, …)` then `_seed_tabs_element(unit, inner_tabs, …, parent=outer_join, tab_id=<outer non-first tab id>)`.
+
+- [ ] **Step 1: Write the case**
+
+⚠️ **TWO nested `<details class="tabs-rows">` must be opened, outer first.** Constraint 2 puts the inner element in a non-first tab of the outer, so the outer's row group for that tab starts closed (`_element_row.html:82` opens only `open_slots` / `clip_active` / `forloop.first`); and the target in a late non-first tab of the inner means the inner's row group is closed too. Each is only reachable once the previous opens.
+
+⚠️ **The overflow pre-flight must run AFTER the click, not before.** Constraint 2 means the inner subtree is `display:none` at load (strip mode puts `hidden` on the inactive `.tabs__panel`), so `scrollWidth` and `clientWidth` are both `0`, `0 > 0` is false, and a pre-click `wait_for_function` would time out **on a correct build**. Post-click both builds reveal both ancestors — only the *order* differs — so the overflow check still catches "the fixture stopped overflowing".
 
 ```python
-    inner = (
+    inner_scroller = (
         f'[data-scope="preview"] [data-tabs][data-tabs-eid="{inner_join.pk}"] '
         f'> .tabs__bar .tabs__scroller'
     )
-    # PRE-FLIGHT: if the strip stops overflowing, this test must go RED rather than
-    # silently vacuous.
-    page.wait_for_function(
-        "(sel) => { const s = document.querySelector(sel);"
-        "  return s && s.scrollWidth > s.clientWidth; }",
-        arg=inner,
+    outer_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{outer_join.pk}"]'
+    inner_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{inner_join.pk}"]'
+
+    page.click(f'details.tabs-rows[data-tab-id="{outer_tab2_id}"] > summary')
+    page.click(
+        f'.el-row[data-element="{inner_join.pk}"] '
+        f'details.tabs-rows[data-tab-id="{inner_late_tab_id}"] > summary'
     )
-    # ... open the nested <details>, click the row ...
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    # BOTH ancestors revealed
     page.wait_for_function(
-        "(sel) => document.querySelector(sel).scrollLeft > 0", arg=inner
+        """([sel, want]) => document.querySelector(sel)
+              ?.getAttribute("data-tabs-active") === want""",
+        arg=[outer_sel, outer_tab2_id],
+    )
+    page.wait_for_function(
+        """([sel, want]) => document.querySelector(sel)
+              ?.getAttribute("data-tabs-active") === want""",
+        arg=[inner_sel, inner_late_tab_id],
+    )
+    # POST-CLICK pre-flight: if the strip stops overflowing this goes RED rather than
+    # silently vacuous.
+    assert page.evaluate(
+        "(sel) => { const s = document.querySelector(sel);"
+        "  return s.scrollWidth > s.clientWidth; }",
+        inner_scroller,
+    ), "fixture no longer overflows -- mutant (e) would be unfalsifiable"
+    page.wait_for_function(
+        "(sel) => document.querySelector(sel).scrollLeft > 0", arg=inner_scroller
     )
 ```
 
 **Scope the scroller selector to the inner instance.** `scroller` is closure-local in `tabs.js`, so the test queries `.tabs__scroller`; and `initOne` does `container.insertBefore(bar, container.firstChild)`, so the **outer** instance's scroller comes **first** in DOM order — an unscoped `.first` reads the outer strip, whose `scrollLeft` is 0 on both builds. This is the **reverse** of the dot ordering (the carousel's `nav` is *appended*, so unscoped dots return the *inner* instance first); reasoning by analogy from one to the other gets it backwards.
 
-Also assert **both** ancestors revealed (outer `data-tabs-active` and inner `data-tabs-active`).
+- [ ] **Step 2: Run to verify it PASSES**
 
-- [ ] **Step 2: Run to verify it PASSES** on the current (correct) build.
+```bash
+uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q -k "stacked"
+```
 
 - [ ] **Step 3: Falsify — mutants (e) and (f)**
 
-(e) reverse the reveal loop to `for (var k = 0; k < chain.length; k++)` (innermost-first) → RED on the `scrollLeft > 0` assertion.
-(f) replace `owningNode(...)` for the tabs branch with `target.closest(".tabs__section")` → RED.
+Run each with `-k "stacked"` so the RED being claimed is the pinned one.
+
+- **(e)** reverse the reveal loop in `revealAncestors` to `for (var k = 0; k < chain.length; k++)` → RED on `scrollLeft > 0`.
+- **(f)** in the tabs branch of `revealAncestors`, replace the `owningNode(...)` call with `target.closest(".tabs__section")` (and index that against `t.all`) → RED.
+
+Restore each by hand.
 
 - [ ] **Step 4: Commit**
+
+```bash
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" add tests/test_e2e_preview_nested_locate.py
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" commit -m "test(editor): e2e for a stacked tabs-in-tabs reveal chain
+
+Pins outermost-first ordering and per-ancestor node resolution.
+
+Falsified: e RED, f RED (both scoped -k stacked)."
+```
 
 ---
 
@@ -823,11 +981,15 @@ Also assert **both** ancestors revealed (outer `data-tabs-active` and inner `dat
 **Files:**
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
-**Fixture constraints (position-observability):** the target must sit **well below the pane fold** (several viewport heights of preceding content) **and** carry enough content after it that `.pane-body` can actually scroll it to the top. Assert **pre-click** that `y` is far from the content top. Without the first, both builds read "already at the top" and (g) survives; without the second, the target can never reach the top even on a correct build and the case goes falsely red.
+**Click path:** `.el-row__label` (`.el-select`).
+
+**Fixture — pin the container.** The target must sit in an **always-visible** nested position: a **callout child** (as Task 8 uses). It must **not** be in a tab, a carousel slide, a closed spoiler or an After panel — those give a zero or degenerate pre-click rect, so the pre-click `delta` comes out as roughly `-(paneTop + pad)`, i.e. negative, and the `> 400` probe fails **on a correct build**. This is the same trap Task 9 documents; case 6 must avoid it rather than handle it.
+
+**Position-observability constraints:** the target must sit **well below the pane fold** (several viewport heights of preceding content — seed a run of filler text elements before the callout) **and** carry enough content after it that `.pane-body` can actually scroll it to the top (seed filler after it too). Without the first, both builds read "already at the top" and (g) survives; without the second, the target can never reach the top even on a correct build and the case goes falsely red.
 
 **"The pane's content top"** is `.pane-body`'s rect top **plus its computed `padding-top`** — `alignTopInPane`'s own arithmetic. The bare bounding-box top is off by the padding, which can exceed the 4 px tolerance.
 
-**Settling:** name the mechanism. Either poll the computed delta (`expect.poll`-shaped) with a timeout comfortably past the 500 ms backstop, **or** run under `prefers-reduced-motion: reduce`. State which; do not mix silently. Fixed sleeps are forbidden.
+**Settling: this case polls.** It uses `wait_for_function` on the computed delta with a timeout comfortably past the 500 ms backstop. It does **not** use `prefers-reduced-motion`. Do not mix the two silently.
 
 - [ ] **Step 1: Write the case**
 
@@ -838,14 +1000,40 @@ Also assert **both** ancestors revealed (outer `data-tabs-active` and inner `dat
       const pad = parseFloat(getComputedStyle(b).paddingTop) || 0;
       return t.getBoundingClientRect().top - b.getBoundingClientRect().top - pad;
     }"""
+    target_sel = (
+        f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
+    )
     assert page.evaluate(delta, target_sel) > 400   # pre-click: far from the top
-    # ... click ...
-    page.wait_for_function(f"(sel) => Math.abs(({delta})(sel)) <= 4", arg=target_sel)
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+    page.wait_for_function(
+        f"(sel) => Math.abs(({delta})(sel)) <= 4", arg=target_sel, timeout=5000
+    )
 ```
 
-- [ ] **Step 2: Run to verify it PASSES.**
-- [ ] **Step 3: Falsify — mutant (g):** make `scrollPreviewTo` return immediately after `revealAncestors(target)` (reveal only, no scroll) → RED.
-- [ ] **Step 4: Commit**
+- [ ] **Step 2: Run to verify it PASSES**
+
+```bash
+uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q -k "position"
+```
+
+- [ ] **Step 3: Falsify — mutant (g), scoped**
+
+By hand, make `scrollPreviewTo` `return;` immediately after `revealAncestors(target)` (reveal only, no scroll). Run with **`-k "position"`** → RED.
+
+Scoping matters: this mutant also reddens e2e 8's scroll assertion and any other position assertion, so an unscoped run reports several reds and it is not obvious which one is the falsification.
+
+- [ ] **Step 4: Record the settle time**
+
+While the case is green, note how long the delta takes to settle (add a temporary timing read, or observe the `wait_for_function` duration). **Record it in the PR body.** If it exceeds the 500 ms backstop for the nested-carousel case in Task 4/9, the **only permitted remedy** is an additional re-align bound to `libli:reveal` — never a longer or extra timeout. Remove any temporary timing code before committing.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" add tests/test_e2e_preview_nested_locate.py
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" commit -m "test(editor): e2e pinning the scroll position after a nested reveal
+
+Falsified: g RED (scoped -k position). Settle time recorded for the PR body."
+```
 
 ---
 
@@ -854,14 +1042,44 @@ Also assert **both** ancestors revealed (outer `data-tabs-active` and inner `dat
 **Files:**
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
-Hover is fixed by Task 1 alone (`setHighlight` needs no change — the same selector now matches). But **a render test cannot prove `setHighlight` reaches a nested node**, so this case exists.
+**No click path — this is the HOVER path** (`mouseenter` on `.el-row[data-element]`). No collapsed-`<details>` precondition: callout and two-column rows are always-open divs.
 
-Use an **always-visible** nested child (callout or two-column, which need no reveal) — hover deliberately does **not** trigger the walk, so a hidden target would be outlined invisibly.
+Hover is fixed by Task 1 alone (`setHighlight` needs no change — the same selector now matches). But **a render test cannot prove `setHighlight` reaches a nested node**, which is why this case exists.
 
-- [ ] **Step 1: Write the case** — hover the nested editor row, assert `prev-el--hl` lands on the **nested** preview node.
-- [ ] **Step 2: Run to verify it PASSES.**
-- [ ] **Step 3: Falsify — mutant (h):** change `setHighlight`'s selector to `'.prev-inner > .prev-el[data-element-id="' + id + '"]'` (top-level only) → RED.
+Use an **always-visible** nested child (callout or two-column). Hover deliberately does **not** trigger the walk, so a hidden target would be outlined invisibly and the case would prove nothing.
+
+- [ ] **Step 1: Write the case**
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_hover_outlines_a_nested_child(page, live_server):
+    """e2e 7. Mutant (h): scope setHighlight to `.prev-inner > .prev-el` -> RED."""
+    page.goto(editor_url)
+    target = f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
+    page.hover(f'.el-row[data-element="{child_join.pk}"]')
+    page.wait_for_selector(f"{target}.prev-el--hl")
+```
+
+- [ ] **Step 2: Run to verify it PASSES**
+
+```bash
+uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q -k "hover"
+```
+
+- [ ] **Step 3: Falsify — mutant (h)**
+
+By hand, change `setHighlight`'s selector from `'.prev-el[data-element-id="' + id + '"]'` to `'.prev-inner > .prev-el[data-element-id="' + id + '"]'` (top-level only). Run with `-k "hover"` → RED. Restore by hand.
+
 - [ ] **Step 4: Commit**
+
+```bash
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" add tests/test_e2e_preview_nested_locate.py
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" commit -m "test(editor): e2e for hover-outlining a nested child
+
+A render test cannot prove setHighlight reaches a nested node.
+
+Falsified: h RED."
+```
 
 ---
 
@@ -870,9 +1088,11 @@ Use an **always-visible** nested child (callout or two-column, which need no rev
 **Files:**
 - Modify: `tests/test_e2e_preview_nested_locate.py`
 
+**Click path:** `.el-row__label` (`.el-select`). The target is inside a spoiler (always-open div row), so no `<details class="tabs-rows">` precondition applies.
+
 **Fixture: a bailed carousel nested inside a closed spoiler.**
 
-Force the bail with a bad `window.TABS_I18N` key — the same **accessor** injection `tests/test_e2e_tabs.py:1706-1740` uses (a plain global write is overwritten by the inline script that assigns `TABS_I18N` wholesale before the deferred `tabs.js`, so the carousel would initialise normally and the case would fail against a **correct** build):
+Force the bail with a bad `window.TABS_I18N` key — the same **accessor** injection `tests/test_e2e_tabs.py:1706-1740` uses. A plain global write is overwritten by the inline script that assigns `TABS_I18N` wholesale before the deferred `tabs.js`, so the carousel would initialise normally and the case would fail against a **correct** build:
 
 ```python
     page.add_init_script(
@@ -890,14 +1110,61 @@ The injection is **global**, which is why the outer ancestor must be a **spoiler
 
 **Both other candidate fixtures are dead ends; do not substitute them.** `killOne` does `removeAttribute("hidden")` on **every** owned panel, so afterwards no `.ba__panel` carries `hidden`, the collection predicate never fires and the walk never reaches the missing-control branch. A single-slide carousel is **unreachable from data** (`TabsElement.MIN_TABS == 2`, `TabsElementForm.clean_data` rejects fewer, `normalize_data` pads to 2 on read).
 
-**The scroll assertion is the discriminator, not the spoiler-open one.** Reveal runs outermost-first, so on the throwing build the spoiler has **already opened** before the inner carousel throws — that half passes on the broken build. This case must therefore satisfy the **fixture-size half** of Task 7's constraints (tall fixture, trailing content).
+**The scroll assertion is the discriminator, not the spoiler-open one.** Reveal runs outermost-first, so on the throwing build the spoiler has **already opened** before the inner carousel throws — that half passes on the broken build. So this case needs the **fixture-size half** of Task 7's constraints: filler content before the spoiler (several viewport heights) and after it.
 
-**The pre-click probe differs from case 6.** The target starts inside a closed `<details>`, whose subtree is `content-visibility`-skipped, so its rect is stale or degenerate. Probe instead: assert `.pane-body.scrollTop === 0` **and** that the **spoiler container's own** rect sits several viewport heights below the pane content top.
+**The pre-click probe differs from case 6.** The target starts inside a closed `<details>`, whose subtree is `content-visibility`-skipped, so its rect is stale or degenerate. Probe the **spoiler container** instead — and scope `.pane-body` to the preview, because the editor page has **two** (`_editor_scope.html:40` and `_preview.html:4`) and an unscoped `document.querySelector(".pane-body")` returns the editor scope's.
 
-- [ ] **Step 1: Write the case.**
-- [ ] **Step 2: Run to verify it PASSES.**
-- [ ] **Step 3: Falsify — mutant (i):** in `revealOne`'s carousel branch, replace `if (dot) dot.click();` with `dot.click();` (throws on the missing dot) → RED on the scroll assertion.
+**Settling: this case polls**, exactly as Task 7 does. Same `delta` helper, same 4 px tolerance, same "do not mix with `prefers-reduced-motion`" rule.
+
+- [ ] **Step 1: Write the case**
+
+```python
+    delta = """(sel) => {
+      const t = document.querySelector(sel);
+      const b = t.closest(".pane-body");
+      const pad = parseFloat(getComputedStyle(b).paddingTop) || 0;
+      return t.getBoundingClientRect().top - b.getBoundingClientRect().top - pad;
+    }"""
+    spoiler_sel = '[data-scope="preview"] details.spoiler'
+    target_sel = f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
+
+    # PRE-CLICK probe: the target's own rect is unusable (closed <details>), so probe
+    # the spoiler container, and scope .pane-body to the PREVIEW pane.
+    assert page.evaluate(
+        '() => document.querySelector(\'[data-scope="preview"] .pane-body\').scrollTop'
+    ) == 0
+    assert page.evaluate(delta, spoiler_sel) > 400
+
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    page.wait_for_selector(f"{spoiler_sel}[open]")   # passes on BOTH builds
+    # THE DISCRIMINATOR:
+    page.wait_for_function(
+        f"(sel) => Math.abs(({delta})(sel)) <= 4", arg=target_sel, timeout=5000
+    )
+```
+
+- [ ] **Step 2: Run to verify it PASSES**
+
+```bash
+uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q -k "degraded"
+```
+
+- [ ] **Step 3: Falsify — mutant (i), scoped**
+
+By hand, in `revealOne`'s carousel branch replace `if (dot) dot.click();` with `dot.click();` (throws on the missing dot — `bail()` has removed the whole `nav`). Run with `-k "degraded"` → **RED on the scroll assertion** (the `[open]` wait still passes). Restore by hand.
+
 - [ ] **Step 4: Commit**
+
+```bash
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" add tests/test_e2e_preview_nested_locate.py
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" commit -m "test(editor): e2e for a bailed carousel inside a closed spoiler
+
+The walk must SKIP a control-less ancestor, not throw. The scroll assertion
+is the discriminator -- the spoiler-open half passes on the broken build.
+
+Falsified: i RED (scoped -k degraded)."
+```
 
 ---
 
@@ -908,22 +1175,61 @@ The injection is **global**, which is why the outer ancestor must be a **spoiler
 
 There are **three** `scrollPreviewTo` call sites, and the walk lives inside it, so all three inherit it: `editor.js:367` (after **any** `form[data-op]` submit — save, move, duplicate, delete, incl. the 409/422 branches), `:451` (`.el-select`), `:463` (row body). **The post-op reveal is intended**: after saving or moving a nested element, revealing its own tab is the useful behaviour and matches the scroll that site already performs. `restoreActiveTabs` re-stamps the author's previous tab and the walk then overrides it, so after an op the visible tab is the **operated element's**. This is a deliberate behaviour change on every element op.
 
-**e2e 10 — pins the behaviour change.** Assert the post-op `data-tabs-active` is the operated element's tab (A), not the author's previous one (B).
+**Both cases need the collapsed-`<details>` precondition** (the target lives in a non-first tab): open `details.tabs-rows[data-tab-id="<tab>"] > summary` first.
 
-**The fixture ordering is load-bearing; the naive one is self-contaminating.** Saving a nested element requires first *opening* its edit form — which is the `.el-select` path, which itself runs the walk and stamps A. `applyFragments` then opens with `captureActiveTabs()`, so the submit carries A forward **even with the post-op walk deleted entirely**. So either:
-- establish B **after** the edit form is open and before the submit (click a preview tab button — verified not to re-enter `scrollPreviewTo`, since `.tabs__tab` has neither `.el-select` nor `.el-row[data-element]` ancestry), or
-- use a `form[data-op]` op needing no form-open — **move or duplicate** from the row actions, which reach the same `editor.js:367` site.
+- [ ] **Step 1: Write e2e 10 — pins the behaviour change**
 
-Either way **capture the pre-submit `data-tabs-active` and assert it is B**, so the case proves its own setup took.
+Assert the post-op `data-tabs-active` is the operated element's tab (A), not the author's previous one (B).
 
-**e2e 11 — the fixture for mutant (k).** Same `editor.js:367` path, but the nested element sits inside a **closed spoiler**. Assert the ancestor is revealed **after** the op.
+**The fixture ordering is load-bearing; the naive one is self-contaminating.** Saving a nested element requires first *opening* its edit form — which is the `.el-select` path, which itself runs the walk and stamps A. `applyFragments` then opens with `captureActiveTabs()`, so the submit carries A forward **even with the post-op walk deleted entirely**. Use **one** of:
+
+- **(preferred) a move/duplicate `form[data-op]` from the row actions**, which reaches `editor.js:367` with **no form-open at all**, so nothing stamps A beforehand; or
+- establish B **after** the edit form is open and before the submit, by clicking a preview `.tabs__tab`. That is verified not to re-enter `scrollPreviewTo`: the handlers at `editor.js:444` and `:462` require `.el-select` / `.el-row[data-element]` ancestry, which a preview tab button does not have.
+
+Either way, **capture the pre-submit `data-tabs-active` and assert it is B**, so the case proves its own setup took rather than assuming it.
+
+- [ ] **Step 2: Write e2e 11 — the fixture for mutant (k)**
+
+Same `editor.js:367` path, but the nested element sits inside a **closed spoiler**. Assert the ancestor is revealed **after** the op (`details.spoiler[open]`).
 
 **A tabs ancestor cannot kill (k)**: on the mutated build the walk runs against the *old* preview and `select()` stamps A there; `applyFragments` opens with `captureActiveTabs()`, reading that just-mutated pane, so `restoreActiveTabs` puts A on the rebuilt preview and `initOne` opens it — `data-tabs-active` and `aria-selected` end up byte-identical on both builds. A spoiler has no such carry (persistence is tabs-only, by decision), so a reveal done on the pre-swap DOM is discarded and the mutant goes red.
 
-- [ ] **Step 1: Write both cases.**
-- [ ] **Step 2: Run to verify they PASS.**
-- [ ] **Step 3: Falsify — mutant (k):** move the `revealAncestors(target)` call in `scrollPreviewTo` to fire before `applyFragments` on the `:367` path (i.e. call it against the pre-swap DOM) → **e2e 11 RED, e2e 10 still green** (that asymmetry is the point).
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Run to verify both PASS**
+
+```bash
+uv run pytest tests/test_e2e_preview_nested_locate.py -m e2e -p no:randomly -q -k "post_op"
+```
+
+- [ ] **Step 4: Falsify — mutant (k), written concretely**
+
+The mutant is "the walk runs against the pre-swap DOM on the op path". `revealAncestors` is called from inside `scrollPreviewTo`, and `applyFragments(res.text)` is at `editor.js:363` in the submit handler — so it cannot simply be "moved" without deciding the fate of the in-`scrollPreviewTo` call. **Apply it exactly like this**, by hand:
+
+1. In the `form[data-op]` submit handler, **immediately before** `applyFragments(res.text)` (`editor.js:363`), insert:
+   ```js
+   revealAncestors(root.querySelector('.prev-el[data-element-id="' + keepId + '"]'));
+   ```
+2. In `scrollPreviewTo`, guard the existing call so it does **not** run twice:
+   ```js
+   if (!window.__mutantK) revealAncestors(target);
+   ```
+   and set `window.__mutantK = true;` at the top of the op handler. (Any equivalent guard is fine; the point is that the walk runs **once**, against the **pre-swap** DOM, on this path only.)
+
+Do **not** simply delete the `scrollPreviewTo` call: that also reddens e2e 1, 3, 5 and 8, and the "e2e 11 RED, e2e 10 still green" asymmetry — which is the whole point of the two cases — stops being readable.
+
+Run with **`-k "post_op"`** → **e2e 11 RED, e2e 10 still GREEN**. Restore both edits by hand.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" add tests/test_e2e_preview_nested_locate.py
+git -C "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate" commit -m "test(editor): e2e for the post-op reveal and its pre-swap mutant
+
+e2e 10 pins the deliberate behaviour change (the operated element's tab wins
+over the author's previous one). e2e 11 uses a SPOILER because a tabs
+ancestor cannot kill mutant (k) -- captureActiveTabs launders it.
+
+Falsified: k RED on e2e 11, GREEN on e2e 10 (scoped -k post_op)."
+```
 
 ---
 
@@ -958,17 +1264,97 @@ This repo already carries one stale-comment trap (`courses.css:1982-1985`, which
 
 The diff **must be normalized first or it can never come out clean**: `templates/base.html:62` and `:139` each emit `{% csrf_token %}`, and `_lesson_article.html:26` a third, and Django re-masks the token with a fresh salt on **every** render.
 
-1. Normalize: replace every `name="csrfmiddlewaretoken" value="…"` with a constant, plus anything else the control diff turns up.
-2. **Run a control diff of master against master first and require it to be empty.** This is what proves the normalization sufficient; without it a clean branch diff means nothing.
-3. Only then diff master against the branch, on a student lesson page containing all five container types.
+**The mechanism, concretely** (the plan owes this — "diff master against the branch" is not executable on its own):
 
-Record the result in the PR body.
+**Step 2a — write the render script.** Create `scripts/render_student_page.py` (untracked; delete it before the final commit). It renders a student lesson page holding all five container types and writes it to a path given on the command line, with the CSRF tokens normalized:
+
+```python
+"""Throwaway: render a student lesson page to a file, CSRF-normalized.
+Usage: uv run pytest scripts/render_student_page.py -p no:randomly -q -s
+Writes to the path in env RENDER_OUT.
+"""
+import os
+import re
+
+import pytest
+from django.urls import reverse
+
+# reuse the fixture builder from the render tests
+from courses.tests.test_preview_nested_markers import _containers
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_pa
+
+pytestmark = pytest.mark.django_db
+
+
+def test_render(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    _containers(unit)
+    html = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    ).content.decode()
+    # The ONLY known per-render nondeterminism. If the control diff below is not
+    # empty, add whatever else it turns up here rather than trusting the result.
+    html = re.sub(
+        r'name="csrfmiddlewaretoken" value="[^"]*"',
+        'name="csrfmiddlewaretoken" value="NORMALIZED"',
+        html,
+    )
+    open(os.environ["RENDER_OUT"], "w", encoding="utf-8").write(html)
+```
+
+**Step 2b — get a master-side render.** A second worktree, detached at `origin/master`. ⚠️ **A fresh worktree has no `.env`** — copy it in, or the render dies on settings. Run every git command from the **main repo**, never from inside a worktree (master-side git is refused from a worktree session):
+
+```bash
+MAIN="C:/Users/krzys/Documents/Python/own/libli"
+BASE="C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/byteid-master"
+git -C "$MAIN" worktree add --detach "$BASE" origin/master
+cp "$MAIN/.env" "$BASE/.env"
+cp "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate/scripts/render_student_page.py" "$BASE/scripts/"
+cp "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate/courses/tests/test_preview_nested_markers.py" "$BASE/courses/tests/"
+```
+
+(The test module is copied because master has no `_containers` helper. It only builds fixtures; it does not affect the render.)
+
+**Step 2c — the control diff MUST come out empty first.** Two renders of the *same* tree. This is what proves the normalization sufficient; without it a clean branch diff means nothing and a dirty one is uninterpretable.
+
+```bash
+cd "$BASE" && RENDER_OUT=/tmp/master_a.html uv run pytest scripts/render_student_page.py -p no:randomly -q
+cd "$BASE" && RENDER_OUT=/tmp/master_b.html uv run pytest scripts/render_student_page.py -p no:randomly -q
+diff /tmp/master_a.html /tmp/master_b.html && echo "CONTROL DIFF EMPTY -- normalization sufficient"
+```
+
+If it is **not** empty, add the offending pattern to the normalizer and repeat. Do not proceed until it is empty.
+
+**Step 2d — the real diff.**
+
+```bash
+WT="C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/preview-nested-element-locate"
+cd "$WT" && RENDER_OUT=/tmp/branch.html uv run pytest scripts/render_student_page.py -p no:randomly -q
+diff /tmp/master_a.html /tmp/branch.html && echo "BYTE-IDENTICAL"
+```
+
+Expected: empty. **Record the outcome — control diff empty, branch diff empty — in the PR body.**
+
+**Step 2e — clean up.** `git -C "$MAIN" worktree remove --force "$BASE"`, and delete `scripts/render_student_page.py` from the branch worktree. Confirm `git status --short` does not list it.
 
 - [ ] **Step 3: Light + dark screenshots of the highlight ring**
 
 `.prev-el--hl` is an outset double ring (`0 0 0 3px` + `0 0 0 5px`) that has only ever been drawn on top-level `<section class="prev-el">` nodes owning the full prose column. It will now be drawn on tightly-packed `.tabs__child` / `.twocolumn__child` / `.callout__child` boxes, where an outset ring can collide with a neighbour or its container's edge.
 
-Take **light and dark** screenshots of a hovered nested child in at least a **two-column** and a **callout**. Judge the dark one on its own terms, not by assuming it follows the light one. For dark, drive it via `user.theme`, not the cookie. Record in the PR body.
+Take **light and dark** screenshots of a hovered nested child in at least a **two-column** and a **callout**. Judge the dark one on its own terms, not by assuming it follows the light one. For dark, drive it via `user.theme`, **not** the cookie.
+
+**Model it on `tests/capture_nested_question_screenshots.py`**, which already enumerates the exact selectors needed (`.callout__children > .callout__child` and `.twocolumn__column:first-child > .twocolumn__child`, lines 78-85) and handles login + theming. Adapt it to: navigate to the **editor**, `page.hover()` the nested `.el-row`, then `page.screenshot()` while the hover is held (the hover persists until the pointer moves, so capture directly after — do not click anything in between).
+
+Four expected files, written to the scratchpad directory (not the repo):
+`hover-callout-light.png`, `hover-callout-dark.png`, `hover-twocolumn-light.png`, `hover-twocolumn-dark.png`.
+
+Look at all four. What to judge: the outset ring (`0 0 0 3px` + `0 0 0 5px`) has only ever been drawn on top-level nodes owning the full prose column; on a tightly-packed child it can collide with a neighbour or the container's edge. Record the verdict in the PR body.
 
 - [ ] **Step 4: Format and lint**
 
@@ -1010,7 +1396,8 @@ Line-count neutral, per the citation-rot convention."
 | a2 | emit `data-element-id` without the `prev-el` class | render test 1 | 1 |
 | c1 | drop the `{% if editor_preview %}` gate | render test 2 (student) | 1 |
 | c2 | gate the attribute but not the class | render test 2 (student) | 1 |
-| l | add `display: block` to `.prev-el` | CSS guard test | 2 |
+| l1 | add `display: block` to `.prev-el` | `test_prev_el_declares_no_display` | 2 |
+| l2 | add `display: block` to `.prev-el--hl` | `test_prev_el_hl_declares_no_display` | 2 |
 | b1 | drop the strip reveal step | e2e 1 | 3 |
 | b3 | drop the spoiler `open = true` step | e2e 3 | 3 |
 | b2 | delete the carousel branch (strip-only impl) | e2e 2 | 4 |
@@ -1024,6 +1411,10 @@ Line-count neutral, per the citation-rot convention."
 | k | run the walk before `applyFragments` | e2e 11 (**not** e2e 10) | 10 |
 
 **Deliberately uncovered — do not invent tests:** the `[data-scope="preview"]` climb bound (nothing collectible sits above it on today's page); the synchronous-cascade ordering (identical settled state, only the transient differs); un-scoping `ownToggle`; un-scoping `ownPanels`.
+
+**Falsification runs are `-k`-scoped** wherever a mutant reddens more than its pinned case — (e), (f), (g), (i), (k) all do. An unscoped run reports several reds and it stops being obvious which one is the falsification. Each task names the scope.
+
+**Records owed to the PR body** (collected across tasks, assembled in Task 11): the Task 1 sweep outcome and the four Step-1c confirmations; the observed settle time from Task 7 (and, if it exceeds the 500 ms backstop, the `libli:reveal`-bound re-align as the **only** permitted remedy — never a longer timeout); the byte-identity control-diff-empty + branch-diff-empty result; and the four hover screenshots' verdict.
 
 ## Self-review notes
 
