@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Count
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -12,6 +14,7 @@ from accounts.models import User
 from core.collation import polish_sort_key
 from grouping import scoping
 from grouping import services
+from grouping.forms import AllocationForm
 from grouping.forms import CohortForm
 from grouping.forms import CollectionForm
 from grouping.forms import GroupForm
@@ -174,7 +177,11 @@ def _cohort_choices():
 @permission_required("grouping.view_group", raise_exception=True)
 def group_list(request):
     show_archived = request.GET.get("archived") == "1"
-    groups = scoping.groups_manageable_by(request.user).filter(archived=show_archived)
+    groups = (
+        scoping.groups_manageable_by(request.user)
+        .filter(archived=show_archived)
+        .select_related("course", "allocation")
+    )
     return render(
         request,
         "grouping/group_list.html",
@@ -272,6 +279,97 @@ def group_delete(request, pk):
         request,
         "grouping/group_confirm_delete.html",
         {"group": group, "member_count": group.memberships.count()},
+    )
+
+
+@login_required
+@permission_required("grouping.view_allocation", raise_exception=True)
+def allocation_list(request):
+    show_archived = request.GET.get("archived") == "1"
+    allocations = (
+        scoping.allocations_manageable_by(request.user)
+        .filter(archived=show_archived)
+        .select_related("course")
+        .prefetch_related("cohorts")
+        .annotate(group_count=Count("groups", filter=Q(groups__archived=False)))
+        .order_by("course__title", "name")
+    )
+    return render(
+        request,
+        "grouping/allocation_list.html",
+        {
+            "allocations": allocations,
+            "show_archived": show_archived,
+            "hub_tab": "allocations",
+        },
+    )
+
+
+@login_required
+@permission_required("grouping.add_allocation", raise_exception=True)
+def allocation_create(request):
+    # NOTE: no PermissionDenied check here — AllocationForm restricts `course` to
+    # manageable_courses(user), so an unowned pk fails invalid_choice and any
+    # check placed after is_valid() would be unreachable dead code.
+    if request.method == "POST":
+        form = AllocationForm(request.POST, user=request.user)
+        if form.is_valid():
+            allocation = form.save()
+            return redirect("grouping:allocation_edit", pk=allocation.pk)
+    else:
+        form = AllocationForm(user=request.user)
+    return render(
+        request, "grouping/allocation_form.html", {"form": form, "creating": True}
+    )
+
+
+@login_required
+@permission_required("grouping.change_allocation", raise_exception=True)
+def allocation_edit(request, pk):
+    allocation = get_object_or_404(
+        scoping.allocations_manageable_by(request.user), pk=pk
+    )
+    if request.method == "POST":
+        form = AllocationForm(request.POST, instance=allocation, user=request.user)
+        if form.is_valid():
+            form.save()
+            return redirect("grouping:allocation_list")
+    else:
+        form = AllocationForm(instance=allocation, user=request.user)
+    return render(
+        request,
+        "grouping/allocation_form.html",
+        {"form": form, "creating": False, "allocation": allocation},
+    )
+
+
+@login_required
+@permission_required("grouping.change_allocation", raise_exception=True)
+@require_POST
+def allocation_archive(request, pk):
+    """Toggles, exactly as group_archive does. Archiving leaves groups and
+    memberships untouched — deliberately unlike archive_cohort."""
+    allocation = get_object_or_404(
+        scoping.allocations_manageable_by(request.user), pk=pk
+    )
+    allocation.archived = not allocation.archived
+    allocation.save(update_fields=["archived"])
+    return redirect("grouping:allocation_list")
+
+
+@login_required
+@permission_required("grouping.delete_allocation", raise_exception=True)
+def allocation_delete(request, pk):
+    allocation = get_object_or_404(
+        scoping.allocations_manageable_by(request.user), pk=pk
+    )
+    if request.method == "POST":
+        allocation.delete()  # SET_NULL on Group.allocation; memberships untouched
+        return redirect("grouping:allocation_list")
+    return render(
+        request,
+        "grouping/allocation_confirm_delete.html",
+        {"allocation": allocation, "group_count": allocation.groups.count()},
     )
 
 

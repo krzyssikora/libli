@@ -33,6 +33,23 @@ urlpatterns = [
     path("manage/groups/<int:pk>/edit/", views.group_edit, name="group_edit"),
     path("manage/groups/<int:pk>/archive/", views.group_archive, name="group_archive"),
     path("manage/groups/<int:pk>/delete/", views.group_delete, name="group_delete"),
+    path("manage/allocations/", views.allocation_list, name="allocation_list"),
+    path("manage/allocations/new/", views.allocation_create, name="allocation_create"),
+    path(
+        "manage/allocations/<int:pk>/edit/",
+        views.allocation_edit,
+        name="allocation_edit",
+    ),
+    path(
+        "manage/allocations/<int:pk>/archive/",
+        views.allocation_archive,
+        name="allocation_archive",
+    ),
+    path(
+        "manage/allocations/<int:pk>/delete/",
+        views.allocation_delete,
+        name="allocation_delete",
+    ),
     path("groups/mine/", views.my_groups, name="my_groups"),
     path("groups/<int:pk>/", views.group_detail, name="group_detail"),
     path("collections/new/", views.collection_create, name="collection_create"),
