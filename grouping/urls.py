@@ -50,6 +50,11 @@ urlpatterns = [
         views.allocation_delete,
         name="allocation_delete",
     ),
+    path(
+        "manage/allocations/<int:pk>/assign/",
+        views.allocation_assign,
+        name="allocation_assign",
+    ),
     path("groups/mine/", views.my_groups, name="my_groups"),
     path("groups/<int:pk>/", views.group_detail, name="group_detail"),
     path("collections/new/", views.collection_create, name="collection_create"),

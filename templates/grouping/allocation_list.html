@@ -10,7 +10,7 @@
 <ul class="card-list">
   {% for a in allocations %}
   <li>
-    <a href="{% url 'grouping:allocation_edit' a.pk %}">{{ a.name }}</a>
+    <a href="{% url 'grouping:allocation_assign' a.pk %}">{{ a.name }}</a>
     <span class="muted"><a class="subtle-link" href="{% url 'courses:course_outline' slug=a.course.slug %}">{{ a.course.title }}</a></span>
     <span class="muted">{% for cohort in a.cohorts.all %}{{ cohort.display_name }}{% if not forloop.last %}, {% endif %}{% empty %}{% trans "No cohorts." %}{% endfor %}</span>
     <span class="muted">{% blocktrans count counter=a.group_count %}{{ counter }} group{% plural %}{{ counter }} groups{% endblocktrans %}</span>

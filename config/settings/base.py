@@ -209,4 +209,10 @@ HTMLEL_SANDBOX_ORIGIN = env(
 # that would otherwise always time out.
 GEOGEBRA_API_LOOKUP = env.bool("LIBLI_GEOGEBRA_API_LOOKUP", default=True)
 
+# The allocation grid posts two fields per student row (the radio's single value
+# plus its hidden state token) plus a small fixed overhead, so Django's default
+# of 1000 would 400 with TooManyFieldsSent past roughly 500 students — losing
+# every pending edit on the one screen built for a whole year group.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

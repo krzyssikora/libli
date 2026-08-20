@@ -31,6 +31,7 @@ def test_list_is_scoped_and_honours_the_archived_toggle(client):
     assert "Old" not in rows
     assert "Theirs" not in rows
     assert reverse("grouping:allocation_edit", args=[mine.pk]) in rows
+    assert reverse("grouping:allocation_assign", args=[mine.pk]) in rows
     rows = _card_list(
         client.get(reverse("grouping:allocation_list") + "?archived=1").content.decode()
     )

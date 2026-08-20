@@ -1,3 +1,6 @@
+import re
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
@@ -8,6 +11,8 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
@@ -19,6 +24,8 @@ from grouping.forms import CohortForm
 from grouping.forms import CollectionForm
 from grouping.forms import GroupForm
 from grouping.models import Cohort
+from grouping.models import CohortMembership
+from grouping.models import GroupMembership
 
 
 # Cohort management is PA-only. The list is gated on `change_cohort` (a PA-only
@@ -370,6 +377,208 @@ def allocation_delete(request, pk):
         request,
         "grouping/allocation_confirm_delete.html",
         {"allocation": allocation, "group_count": allocation.groups.count()},
+    )
+
+
+# Both token strings (the `columns` field and each row's `-was`) obey one
+# grammar: empty, or digits strictly ascending, comma-joined. An absent or
+# non-conforming `columns` value must abort the save unconditionally — it is
+# never coerced to "", which would compare equal to a groups-less allocation's
+# token.
+COLUMNS_TOKEN_RE = re.compile(r"^$|^\d+(,\d+)*$")
+
+
+def _allocation_grid_context(allocation):
+    """Built in one place so the GET render and the POST's stale-column
+    re-render can never silently disagree on shape."""
+    columns = list(services.allocation_columns(allocation))
+    students = list(services.allocation_row_students(allocation).order_by("username"))
+    student_ids = [s.pk for s in students]
+    # ONE bucketed membership query for row states AND the "also in" notes.
+    memberships = {}
+    also_in = {}
+    column_ids = {c.pk for c in columns}
+    membership_rows = GroupMembership.objects.filter(
+        student_id__in=student_ids, group__course=allocation.course
+    ).select_related("group")
+    for m in membership_rows:
+        memberships.setdefault(m.student_id, set()).add(m.group_id)
+        if m.group_id not in column_ids:
+            also_in.setdefault(m.student_id, []).append(m.group.name)
+    tokens = services.allocation_state_tokens(columns, student_ids, memberships)
+    # The cohort bucket comes from an explicit id map: user.cohort_membership
+    # raises RelatedObjectDoesNotExist in Python when absent (templates silence
+    # it, which is why group_form.html's dereference looks safe).
+    cohort_of = dict(
+        CohortMembership.objects.filter(user_id__in=student_ids).values_list(
+            "user_id", "cohort_id"
+        )
+    )
+    # id -> Cohort for the ATTACHED cohorts only, already in display order. A
+    # student whose cohort id is absent from cohort_of (no membership at all)
+    # OR present but not attached to this allocation both go to "outside these
+    # cohorts" with data_cohort="".
+    attached = {
+        c.pk: c for c in allocation.cohorts.all().order_by("-is_default", "name")
+    }
+    buckets = {cohort_pk: [] for cohort_pk in attached}
+    outside = []
+    for student in students:
+        cohort_id = cohort_of.get(student.pk)
+        if cohort_id in attached:
+            buckets[cohort_id].append(student)
+        else:
+            outside.append(student)
+
+    def sort_key(student):
+        return (polish_sort_key(student.sort_name), student.username)
+
+    def build_row(student, cohort_slug):
+        ids = memberships.get(student.pk, set()) & column_ids
+        if len(ids) == 1:
+            state, selected_id = "assigned", next(iter(ids))
+        elif not ids:
+            state, selected_id = "unassigned", None
+        else:
+            state, selected_id = "conflict", None
+        return {
+            "student": student,
+            "state": state,
+            "selected_id": selected_id,
+            "check_none": state == "unassigned",
+            "token": tokens[student.pk],
+            "also_in": also_in.get(student.pk, []),
+            "data_name": student.sort_name.lower(),
+            "data_cohort": cohort_slug,
+        }
+
+    sections = [
+        {
+            "label": cohort.display_name,
+            "cohort_slug": cohort.slug,
+            "rows": [
+                build_row(s, cohort.slug)
+                for s in sorted(buckets[cohort.pk], key=sort_key)
+            ],
+        }
+        for cohort in attached.values()
+    ]
+    sections.append(
+        {
+            "label": None,  # template renders "Outside these cohorts"
+            "cohort_slug": "",
+            "rows": [build_row(s, "") for s in sorted(outside, key=sort_key)],
+        }
+    )
+
+    # Whole-allocation counts, computed over every row above — never a
+    # filtered subset, since "who is still unplaced" is the number the admin
+    # came for.
+    summary = {"total": len(students), "assigned": 0, "unassigned": 0, "conflict": 0}
+    for section in sections:
+        for row in section["rows"]:
+            summary[row["state"]] += 1
+
+    return {
+        "allocation": allocation,
+        "columns": columns,
+        "columns_token": services.allocation_columns_token(columns),
+        "sections": sections,
+        "summary": summary,
+        "hub_tab": "allocations",
+    }
+
+
+def _abort_stale(request, allocation):
+    """Re-renders from FRESH server state, discarding the posted choices —
+    every -was in them is stale against a column set that no longer exists."""
+    messages.error(
+        request,
+        _(
+            "The allocation's groups changed while you were editing, so "
+            "nothing was saved — please redo your changes."
+        ),
+    )
+    return render(
+        request, "grouping/allocation_assign.html", _allocation_grid_context(allocation)
+    )
+
+
+def _allocation_assign_post(request, allocation):
+    with transaction.atomic():
+        # 1. Column-set check first, inside the transaction: this is exactly
+        # the window the check exists to close.
+        columns = list(services.allocation_columns(allocation))
+        raw_columns = request.POST.get("columns")  # None when absent
+        if raw_columns is None or not COLUMNS_TOKEN_RE.match(raw_columns):
+            return _abort_stale(request, allocation)
+        if raw_columns != services.allocation_columns_token(columns):
+            return _abort_stale(request, allocation)
+
+        # 2. The server's own row set — the request body is never trusted to
+        # define which students are editable.
+        row_students = list(services.allocation_row_students(allocation))
+
+        # 3. Build assignments. `request.POST.get` returns None for an absent
+        # field and "" for the none-radio — those must not collapse.
+        assignments = {}
+        for student in row_students:
+            key = f"student-{student.pk}"
+            if key not in request.POST:
+                continue  # absent -> omit entirely
+            raw = request.POST.get(key)
+            was = request.POST.get(f"{key}-was")  # missing -> None -> mismatch
+            if raw == "":
+                target_id = None  # the "— none —" radio
+            else:
+                try:
+                    target_id = int(raw)  # column_by_id is keyed on int pks
+                except (TypeError, ValueError):
+                    continue  # non-integer -> omit, not unassign
+            assignments[student.pk] = (target_id, was)
+
+        # 4. The service owns the optimistic guard end to end.
+        skipped = services.set_allocation_assignments(
+            columns, assignments, added_by=request.user
+        )
+
+        # 5. Report any guard mismatches, named in polish_sort_key order.
+        if skipped:
+            names = sorted(
+                User.objects.filter(pk__in=skipped),
+                key=lambda u: (polish_sort_key(u.sort_name), u.username),
+            )
+            messages.warning(
+                request,
+                ngettext(
+                    "%(count)d row was changed by someone else and was not "
+                    "overwritten: %(names)s.",
+                    "%(count)d rows were changed by someone else and were "
+                    "not overwritten: %(names)s.",
+                    len(names),
+                )
+                % {
+                    "count": len(names),
+                    "names": ", ".join(u.list_display_name for u in names),
+                },
+            )
+    return redirect("grouping:allocation_assign", pk=allocation.pk)
+
+
+@login_required
+@permission_required("grouping.change_group", raise_exception=True)
+def allocation_assign(request, pk):
+    """The assignment grid. Gated on change_group — it writes GroupMembership,
+    not Allocation — and scoped through allocations_manageable_by, so a
+    change_group-only holder (no change_allocation) 404s from the scoped
+    lookup rather than 403ing from the decorator."""
+    allocation = get_object_or_404(
+        scoping.allocations_manageable_by(request.user), pk=pk
+    )
+    if request.method == "POST":
+        return _allocation_assign_post(request, allocation)
+    return render(
+        request, "grouping/allocation_assign.html", _allocation_grid_context(allocation)
     )
 
 

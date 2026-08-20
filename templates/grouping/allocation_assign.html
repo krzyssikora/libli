@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+{% include "_groups_tabs.html" %}
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{{ allocation.name }}</h1>
+    <div class="row-actions">
+      <a class="btn btn--ghost btn--small" href="{% url 'grouping:allocation_list' %}">{% trans "Back to allocations" %}</a>
+      <a class="btn btn--ghost btn--small" href="{% url 'grouping:allocation_edit' allocation.pk %}">{% trans "Edit allocation" %}</a>
+    </div>
+  </header>
+  <p class="muted"><a class="subtle-link" href="{% url 'courses:course_outline' slug=allocation.course.slug %}">{{ allocation.course.title }}</a></p>
+
+  {% if not columns %}
+  <p class="empty-state">{% trans "No groups belong to this allocation yet." %} <a href="{% url 'grouping:group_list' %}">{% trans "Manage groups" %}</a></p>
+  {% elif summary.total == 0 %}
+    {% if not allocation.cohorts.exists %}
+    <p class="empty-state">{% trans "This allocation has no cohorts attached." %} <a href="{% url 'grouping:allocation_edit' allocation.pk %}">{% trans "Attach a cohort" %}</a></p>
+    {% else %}
+    <p class="empty-state">{% trans "No students in the attached cohorts yet." %}</p>
+    {% endif %}
+  {% else %}
+
+  <p class="alloc-grid__summary" data-grid-summary
+     data-label-total="{% trans 'Students' %}"
+     data-label-assigned="{% trans 'Assigned' %}"
+     data-label-unassigned="{% trans 'Unassigned' %}"
+     data-label-conflict="{% trans 'Conflicts' %}">
+    {% trans "Students" %}: <span data-grid-total>{{ summary.total }}</span>
+    · {% trans "Assigned" %}: <span data-grid-assigned>{{ summary.assigned }}</span>
+    · {% trans "Unassigned" %}: <span data-grid-unassigned>{{ summary.unassigned }}</span>
+    · {% trans "Conflicts" %}: <span data-grid-conflict>{{ summary.conflict }}</span>
+  </p>
+
+  <div class="alloc-grid__filter-bar">
+    <label class="alloc-grid__filter-field">
+      <span>{% trans "Search by name" %}</span>
+      <input type="search" data-grid-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
+    </label>
+    <label class="alloc-grid__filter-field">
+      <span>{% trans "Cohort" %}</span>
+      <select data-grid-cohort>
+        <option value="">{% trans "All cohorts" %}</option>
+        {% for section in sections %}{% if section.cohort_slug %}<option value="{{ section.cohort_slug }}">{{ section.label }}</option>{% endif %}{% endfor %}
+        <option value="__none__">{% trans "Outside these cohorts" %}</option>
+      </select>
+    </label>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="columns" value="{{ columns_token }}">
+    <div class="alloc-grid__scroll scroll-x">
+      <table class="alloc-grid">
+        <thead>
+          <tr>
+            <th class="alloc-grid__namehead">{% trans "Student" %}</th>
+            <th>{% trans "— none —" %}</th>
+            {% for column in columns %}<th>{{ column.name }}</th>{% endfor %}
+          </tr>
+        </thead>
+        {% for section in sections %}
+        <tbody data-grid-section="{{ section.cohort_slug }}">
+          <tr data-grid-section-heading>
+            <td colspan="{{ columns|length|add:2 }}">
+              {% if section.label %}{{ section.label }}{% else %}{% trans "Outside these cohorts" %}{% endif %}
+              {% if not section.rows %}<span class="muted">{% trans "(no students)" %}</span>{% endif %}
+            </td>
+          </tr>
+          {% for row in section.rows %}
+          <tr data-grid-row data-name="{{ row.data_name }}" data-cohort="{{ row.data_cohort }}" class="alloc-grid__row is-{{ row.state }}">
+            <td class="alloc-grid__namecell">
+              {{ row.student.list_display_name }}
+              {% if row.state == "unassigned" %}<span class="badge badge--warn">{% trans "not placed" %}</span>{% elif row.state == "conflict" %}<span class="badge badge--danger">{% trans "conflict" %}</span>{% endif %}
+              {% if row.also_in %}<span class="muted alloc-grid__also-in">{% blocktrans with names=row.also_in|join:", " %}also in: {{ names }}{% endblocktrans %}</span>{% endif %}
+              <input type="hidden" name="student-{{ row.student.pk }}-was" value="{{ row.token }}">
+            </td>
+            <td>
+              <input type="radio" name="student-{{ row.student.pk }}" value=""
+                     {% if row.check_none %}checked{% endif %}
+                     aria-label="{% blocktrans with name=row.student.list_display_name %}{{ name }} → none{% endblocktrans %}">
+            </td>
+            {% for column in columns %}
+            <td>
+              <input type="radio" name="student-{{ row.student.pk }}" value="{{ column.pk }}"
+                     {% if row.selected_id == column.pk %}checked{% endif %}
+                     aria-label="{% blocktrans with name=row.student.list_display_name group=column.name %}{{ name }} → {{ group }}{% endblocktrans %}">
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% endfor %}
+      </table>
+    </div>
+    <button class="btn" type="submit">{% trans "Save" %}</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}
