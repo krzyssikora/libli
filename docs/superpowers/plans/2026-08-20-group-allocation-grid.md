@@ -2536,7 +2536,10 @@ The summary element carries its translated labels as
 `data-label-total`, `data-label-assigned`, `data-label-unassigned`, `data-label-conflict`;
 the script substitutes numbers only. Rows carry `data-grid-row`, the summary carries
 `data-grid-summary`, and the two filter inputs carry `data-grid-search` and
-`data-grid-cohort`. The cohort select's options are: "All cohorts" with `value=""`, then one
+`data-grid-cohort`. **Each section is a `<tbody data-grid-section="<cohort_slug or ''>">`
+whose first row is its heading, marked `data-grid-section-heading`** — Task 8 has to hide a
+heading when every row under it is filtered out, and without these two hooks it has no
+defined way to find a heading or the rows belonging to it. The cohort select's options are: "All cohorts" with `value=""`, then one
 per attached cohort with `value="<slug>"`, then "Outside these cohorts" with
 **`value="__none__"`** — that sentinel is load-bearing markup (spec row 35c's mutant is
 "give that option `value=""`", which would make it a duplicate of "All cohorts").
@@ -2650,11 +2653,12 @@ git commit -m "feat(grouping): the allocation assignment grid"
 
 **Files:**
 - Create: `grouping/static/grouping/css/allocation_grid.css`, `grouping/static/grouping/js/allocation_grid.js`
-- Modify: `templates/grouping/allocation_assign.html` (load both)
+- Modify: `templates/grouping/allocation_assign.html` (load both files, and add the
+  `data-grid-*` hooks listed under Consumes if Task 7 left any unrendered)
 - Test: `tests/test_e2e_allocation_grid.py`
 
 **Interfaces:**
-- Consumes: the markup contract from Task 7 (`data-name`, `data-cohort`, `[data-grid-row]`, `[data-grid-summary]`, `[data-grid-search]`, `[data-grid-cohort]`).
+- Consumes: the markup contract from Task 7 — `data-name`, `data-cohort`, `[data-grid-row]`, `[data-grid-summary]`, `[data-grid-search]`, `[data-grid-cohort]`, `[data-grid-section]`, `[data-grid-section-heading]`, and the summary's `data-label-*` attributes. The cohort filter's values map as: `""` shows every row; `"__none__"` matches rows whose `data-cohort` is `""` (the outside section — note the sentinel and the attribute value are deliberately *different*, so a straight port of `roster_filter.js`'s `getAttribute("data-cohort") === cohort` rule would match nothing and hide everything); any other value matches rows whose `data-cohort` equals it.
 - Produces: no Python interface.
 
 - [ ] **Step 1: Write the failing e2e tests** (`pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]`)
@@ -2704,7 +2708,16 @@ and assert it equals exactly course B's label. (`bounding_box()` stays correct f
 
 Template: a `<label hidden data-roster-all-wrap>` inside each `[data-roster-filter]`, holding
 an unnamed `<input type="checkbox" data-roster-all>` and the translated text
-**"Select all shown"** (the e2e locates the control by that label). Give the wrapper a class with **no**
+**"Select all shown"**.
+
+**Locate it in the e2e by fieldset, never by that label.** `group_form.html` has *two*
+`[data-roster-filter]` blocks — teachers (line 12) and students (line 24) — and the spec
+deliberately gives both an add-all, so the label text matches two elements and a
+`get_by_label("Select all shown")` is a Playwright strict-mode violation on every one of
+the seven add-all cases. Every add-all e2e drives the **students** roster: anchor on the
+`[data-roster]` fieldset that contains `[data-roster-cohort]` (only the students one does)
+and find `[data-roster-all]` within it. The cohort-filter cases only make sense there
+anyway. Give the wrapper a class with **no**
 author `display` (or pair it with `[hidden] { display: none }`) — `.roster-filter__field` is
 `display: flex` at `app.css:210`, which outranks the UA `[hidden]` rule and would leave the
 control visible with JS off.
