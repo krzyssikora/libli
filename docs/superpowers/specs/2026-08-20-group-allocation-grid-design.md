@@ -476,12 +476,28 @@ the filter needs:
   optgroups silently drops "— none —" and leaves no way to detach a group from its
   allocation. The yielded value should be a `ModelChoiceIteratorValue` so the widget can
   recover the instance.
+
+  **The iterator must be in place *before* the queryset is assigned.** `_set_queryset` ends
+  with `self.widget.choices = self.choices`, and `self.choices` is `self.iterator(self)` —
+  so the widget captures whichever iterator exists at assignment time. The natural `__init__`
+  order (assign `queryset`, then set `field.iterator`) leaves the *widget* holding the base
+  iterator: the rendered select is a flat option list with no `<optgroup>`s, while
+  `form.fields["allocation"].choices` still looks correct because reading it re-invokes the
+  new iterator. Declare the iterator as a class attribute on a `ModelChoiceField` subclass,
+  or set `field.iterator = …` before `field.queryset = qs`.
 * a `forms.Select` subclass overriding **`create_option`** to add
   `data-course="<course_pk>"` to each `<option>`'s attrs (reading the course id from the
   iterator value, or from a pk→course_id map the widget holds). Per-option attributes are
   only reachable here. Without this the options render without `data-course`, and
   `initAllocationFilter()` — filtering by course *and* resetting a stale selection — is
   silently inert.
+
+  It must **skip the empty choice**: `Select.optgroups` calls `create_option` for that one
+  too, passing a bare `""` rather than a `ModelChoiceIteratorValue`, so an unguarded
+  `value.instance.course_id` raises `AttributeError` on every group-form render. Guard with
+  `if not value:` (or `getattr(value, "instance", None) is None`) and emit no `data-course`
+  for it — and the JS filter must never hide the empty option, since it is how a group is
+  detached.
 
 On the **create** form the course is chosen in the same submission, so the (already
 user-scoped) allocations are rendered and filtered client-side to the selected course; the
@@ -730,17 +746,27 @@ Three further rules pin it down:
   cannot be wrapped in `{% trans %}` and would render English over the Polish page.
 
 **Filters.** A name search and a cohort select that only *hide* rows (`hidden` attribute).
+Each row carries `data-name` holding the lowercased display name used for its heading, and
+the name filter matches **only that attribute** — never the row's `textContent`, which is
+`roster_filter.js`'s fallback and here would also contain the "not placed" marker and the
+"also in: 2B" note, so searching "2B" would match rows that merely mention 2B.
 Every input stays in the DOM, mirroring the roster picker's rule, so a hidden row still
 posts and is never silently rewritten — filtered-out rows must be hidden, never `disabled`,
 since `disabled` inputs are dropped from the POST and the filter would then silently change
 what the form submits. Each row carries `data-cohort="<cohort slug>"` and
 the select's `<option value>` is that same slug — parity with `roster_filter.js`, which
 already keys on `student.cohort_membership.cohort.slug`; a row in the "outside these
-cohorts" section carries `data-cohort=""`. The select lists "All cohorts", then the
-allocation's **attached** cohorts in `-is_default, name` order, then an explicit "Outside
-these cohorts" option matching `data-cohort=""` — without that last option the one group an
-admin most often wants to inspect alone (the students who arrived from somewhere else) could
-not be isolated.
+cohorts" section carries `data-cohort=""`. The select lists "All cohorts" (`value=""`), then
+the allocation's **attached** cohorts in `-is_default, name` order (`value` = the cohort
+slug), then an explicit "Outside these cohorts" option — without that last option the one
+group an admin most often wants to inspect alone (the students who arrived from somewhere
+else) could not be isolated.
+
+That last option needs a **distinct non-empty sentinel**, `value="__none__"`, and its own
+branch in the filter (`sentinel → row.dataset.cohort === ""`). Giving it `value=""` — the
+literal reading of "matches `data-cohort=\"\"`" — would make it identical to "All cohorts"
+under the `roster_filter.js`-style predicate `!cohort || row.dataset.cohort === cohort`, so
+selecting it would show every row instead of isolating the outsiders.
 
 Row-state classes follow the **same pending-selection rule as the summary**: when a radio
 changes, the row's state class and its non-colour marker are recomputed from the checked
@@ -995,7 +1021,8 @@ been seen to fail.
 | 10 | with `Group.save` patched to raise inside the view's atomic block, a submitted new allocation name leaves no `Allocation` row | remove the view-level `transaction.atomic()` |
 | 11 | `GroupForm`'s allocation choices exclude allocations on courses the user cannot manage. **Setup is load-bearing:** construct as `GroupForm(user=ca)` with **no `instance`** — that arm lives in the `elif user:` branch, so a test built on an existing group takes the `if self.instance.pk:` branch, which the mutant leaves intact | drop the `course__in=manageable_courses(user)` arm |
 | 11d | `("", "— none —")` is among `form.fields["allocation"].choices`, and posting an empty `allocation` on an attached group sets `group.allocation` to `None` | have the custom iterator yield only optgroup tuples, dropping the empty choice |
-| 11e | each rendered `<option>` carries `data-course` equal to its allocation's course pk, and options are nested in per-course `<optgroup>`s | drop the `create_option` override (kills the attribute half); drop the iterator's grouping (kills the optgroup half) |
+| 11e | each rendered `<option>` carries `data-course` equal to its allocation's course pk, and options are nested in per-course `<optgroup>`s. **Assert against the rendered widget HTML, not `field.choices`** — a late-assigned iterator leaves `choices` correct while the widget renders flat | drop the `create_option` override (kills the attribute half); assign `field.iterator` *after* `field.queryset`, so the widget keeps the base iterator (kills the optgroup half) |
+| 11h | rendering the group form with an allocation select does not raise: `create_option` skips the empty choice | drop the `if not value:` guard, so the bare `""` empty choice hits `value.instance.course_id` and `AttributeError`s |
 | 11f | typing a `new_allocation` on the **edit** form of a group that already has an allocation, **leaving the select at its echoed value**, succeeds and moves the group to a newly created allocation | test both non-empty values as a conflict regardless of the echo (kills the precedence rule); **and, separately,** omit `cleaned_data["allocation"] = None`, so the fallback resolves to the old allocation, the create branch never fires, and the group silently stays put behind a success redirect |
 | 11g | the same, but with the select explicitly **cleared** to "— none —": also succeeds and moves the group | treat an empty `allocation` as "different from `instance.allocation_id`", making the clearest possible gesture a conflict error |
 | 11a | `GroupForm()` with no `user` kwarg still constructs (the four existing call sites) and offers no allocation choices | make `user` required, or let a falsy user reach `manageable_courses` |
@@ -1038,6 +1065,8 @@ been seen to fail.
 | 34 | e2e: after ticking add-all under a cohort filter, the "Added" counter shows the new live total | remove the explicit `updateSelected()` call from the add-all handler |
 | 35 | e2e: applying the grid's cohort filter leaves the summary counts unchanged, and a filtered-out row's `bounding_box()` is `None` (not merely `hidden` present) | recompute the summary from non-hidden rows; separately, declare a `display` on rows without the `[hidden] { display: none !important }` pair |
 | 35a | e2e: with a cohort filter active, saving leaves every hidden row's membership byte-identical, and the POST still carries their `student-<pk>` and `-was` fields | set `disabled` on filtered-out rows' inputs instead of only hiding the row |
+| 35c | e2e: selecting "Outside these cohorts" hides every cohort-bucketed row and shows only the outside-section rows | give that option `value=""`, making it a duplicate of "All cohorts" that shows everything |
+| 35d | e2e: the name search matches a student whose name contains the term, and does **not** match a row that merely carries that text in its "also in" note | match on the row's `textContent` instead of `data-name` |
 | 35b | e2e (Polish locale): the live summary's labels stay Polish and grammatical after a radio change | compose the summary string from JavaScript literals instead of the `data-*` labels |
 | 36 | e2e: picking a column on a conflict row moves it out of the conflict count **and clears the row's own red treatment and warning marker** before saving | update the summary only on load (kills the count half); leave the row's state class untouched on change (kills the marker half) |
 | 37 | e2e: assign two students to different groups in the grid, save, and see both rosters change. **Fixture is load-bearing:** at least one student must already be in a *different* column group at render time, and the test must assert the old group **lost** them — starting from two unassigned students, the removal-skipping mutant produces an identical outcome and stays green | make `set_allocation_assignments` add to the target group but skip the removals, leaving a student in both rosters |
