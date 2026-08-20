@@ -295,7 +295,8 @@ dedup lookup entirely when nothing resolves — a field error is already present
 nothing useful to add. `CollectionForm.clean()`'s `course = cleaned.get("course")` /
 `if course and groups:` is the shape to copy. **The same guard applies to `GroupForm.clean()`**,
 whose course-equality check and `new_allocation` lookup read the same key.
-Without it the primary UI can create "Klasy" and then "klasy" side by side, because
+Without that `iexact` dedup rule the primary UI can create "Klasy" and then "klasy" side by
+side, because
 `uniq_allocation_course_name` is case-sensitive and would not object. This is the same rule
 `GroupForm` applies to `new_allocation`, at the other entry point.
 
