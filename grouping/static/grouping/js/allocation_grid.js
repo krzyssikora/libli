@@ -18,6 +18,12 @@
     document.querySelectorAll("[data-grid-section]")
   );
 
+  // Same treatment as the roster's add-all control (roster_filter.js): with
+  // JS off the search/cohort filter bar does nothing, so it stays hidden —
+  // unconditional, not "only while filtering", or it would never appear.
+  var filterBar = document.querySelector("[data-grid-filter-bar]");
+  if (filterBar) filterBar.hidden = false;
+
   var assignedEl = summary && summary.querySelector("[data-grid-assigned]");
   var unassignedEl = summary && summary.querySelector("[data-grid-unassigned]");
   var conflictEl = summary && summary.querySelector("[data-grid-conflict]");
@@ -78,9 +84,11 @@
     refreshSummary();
   }
 
-  rows.forEach(function (row) {
-    row.addEventListener("change", onGridChange);
-  });
+  // ONE delegated listener, not one per row: `change` bubbles, and this
+  // screen is designed for hundreds of rows. onGridChange already derives
+  // the row from evt.target via closest(), so delegating costs it nothing.
+  var table = document.querySelector(".alloc-grid");
+  if (table) table.addEventListener("change", onGridChange);
 
   // --- Filters: hide only, never disable; match data-name/data-cohort only. ---
 

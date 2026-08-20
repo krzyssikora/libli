@@ -23,18 +23,14 @@
     {% endif %}
   {% else %}
 
-  <p class="alloc-grid__summary" data-grid-summary
-     data-label-total="{% trans 'Students' %}"
-     data-label-assigned="{% trans 'Assigned' %}"
-     data-label-unassigned="{% trans 'Unassigned' %}"
-     data-label-conflict="{% trans 'Conflicts' %}">
+  <p class="alloc-grid__summary" data-grid-summary>
     {% trans "Students" %}: <span data-grid-total>{{ summary.total }}</span>
     · {% trans "Assigned" %}: <span data-grid-assigned>{{ summary.assigned }}</span>
     · {% trans "Unassigned" %}: <span data-grid-unassigned>{{ summary.unassigned }}</span>
     · {% trans "Conflicts" %}: <span data-grid-conflict>{{ summary.conflict }}</span>
   </p>
 
-  <div class="alloc-grid__filter-bar">
+  <div class="alloc-grid__filter-bar" hidden data-grid-filter-bar>
     <label class="alloc-grid__filter-field">
       <span>{% trans "Search by name" %}</span>
       <input type="search" data-grid-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
@@ -43,8 +39,7 @@
       <span>{% trans "Cohort" %}</span>
       <select data-grid-cohort>
         <option value="">{% trans "All cohorts" %}</option>
-        {% for section in sections %}{% if section.cohort_slug %}<option value="{{ section.cohort_slug }}">{{ section.label }}</option>{% endif %}{% endfor %}
-        <option value="__none__">{% trans "Outside these cohorts" %}</option>
+        {% for section in sections %}{% if section.cohort_slug %}<option value="{{ section.cohort_slug }}">{{ section.label }}</option>{% else %}<option value="__none__">{% trans "Outside these cohorts" %}</option>{% endif %}{% endfor %}
       </select>
     </label>
   </div>
@@ -53,6 +48,7 @@
     {% csrf_token %}
     <input type="hidden" name="columns" value="{{ columns_token }}">
     <div class="alloc-grid__scroll scroll-x" data-scroll-x>
+      <div class="alloc-grid__scroll-inner">
       <table class="alloc-grid">
         <thead>
           <tr>
@@ -101,6 +97,7 @@
         </tbody>
         {% endfor %}
       </table>
+      </div>
     </div>
     <button class="btn" type="submit">{% trans "Save" %}</button>
   </form>

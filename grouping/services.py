@@ -270,8 +270,10 @@ def allocation_columns(allocation):
     point: course scoping is deliberately not enforced against bulk-write paths,
     and the membership query below IS course-filtered — so a foreign-course
     column would render every affected row as unassigned and re-add on save."""
-    return allocation.groups.filter(course=allocation.course, archived=False).order_by(
-        "name"
+    return (
+        allocation.groups.filter(course=allocation.course, archived=False)
+        .select_related("course")
+        .order_by("name")
     )
 
 

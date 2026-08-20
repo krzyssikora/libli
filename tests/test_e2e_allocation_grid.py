@@ -223,7 +223,17 @@ def test_name_search_matches_data_name_not_the_also_in_note(page, live_server):
     cohort = CohortFactory(name="Cohort A")
     allocation.cohorts.add(cohort)
 
-    target = UserFactory(username="row35d_target", display_name="Zenobia Target")
+    # Structured first_name/last_name (an SSO user's shape) so sort_name
+    # ("Target Zenobia", last-first) and list_display_name ("Zenobia Target",
+    # first-last) genuinely differ in WORD ORDER -- display_name="" so
+    # list_display_name's "(nickname)" suffix logic never fires and muddy the
+    # comparison.
+    target = UserFactory(
+        username="row35d_target",
+        first_name="Zenobia",
+        last_name="Target",
+        display_name="",
+    )
     CohortMembershipFactory(user=target, cohort=cohort)
 
     noted = UserFactory(username="row35d_noted", display_name="Wanda Noted")
@@ -235,10 +245,13 @@ def test_name_search_matches_data_name_not_the_also_in_note(page, live_server):
     page.goto(_grid_url(live_server, allocation))
 
     target_row = page.locator(
-        f'[data-grid-row][data-name="{target.sort_name.lower()}"]'
+        f'[data-grid-row][data-name="{target.list_display_name.lower()}"]'
     )
-    noted_row = page.locator(f'[data-grid-row][data-name="{noted.sort_name.lower()}"]')
+    noted_row = page.locator(
+        f'[data-grid-row][data-name="{noted.list_display_name.lower()}"]'
+    )
     assert "also in: 2B" in noted_row.text_content()
+    assert target.sort_name.lower() != target.list_display_name.lower()
 
     # "2b" is present in noted_row's rendered TEXT (the note) but not in its
     # data-name -- searching it must hide noted_row and never match on text.
@@ -249,6 +262,16 @@ def test_name_search_matches_data_name_not_the_also_in_note(page, live_server):
     page.locator("[data-grid-search]").fill("zenobia")
     assert target_row.bounding_box() is not None
     assert noted_row.bounding_box() is None
+
+    # The user reads "Zenobia Target" on screen (list_display_name) -- typing
+    # that exact, displayed word order must find the row.
+    page.locator("[data-grid-search]").fill("zenobia target")
+    assert target_row.bounding_box() is not None
+
+    # sort_name's word order ("Target Zenobia") is what the user NEVER sees.
+    # Matching on it would mean data-name regressed to the sort key.
+    page.locator("[data-grid-search]").fill("target zenobia")
+    assert target_row.bounding_box() is None
 
 
 # --- Row 36: picking a column on a conflict row resolves it live -----------

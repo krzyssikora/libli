@@ -448,7 +448,12 @@ def _allocation_grid_context(allocation):
             "check_none": state == "unassigned",
             "token": tokens[student.pk],
             "also_in": also_in.get(student.pk, []),
-            "data_name": student.sort_name.lower(),
+            # The displayed name, not the sort key: the cell renders
+            # list_display_name, and for any structured-name user ("Jan
+            # Kowalski") that differs in WORD ORDER from sort_name ("Kowalski
+            # Jan") — a search for the name as shown on screen must match it.
+            # Sorting (sort_key above) stays on sort_name; this is unrelated.
+            "data_name": student.list_display_name.lower(),
             "data_cohort": cohort_slug,
         }
 
@@ -463,13 +468,20 @@ def _allocation_grid_context(allocation):
         }
         for cohort in attached.values()
     ]
-    sections.append(
-        {
-            "label": None,  # template renders "Outside these cohorts"
-            "cohort_slug": "",
-            "rows": [build_row(s, "") for s in sorted(outside, key=sort_key)],
-        }
-    )
+    if outside:
+        # Unlike an empty ATTACHED cohort (whose "(no students)" note proves
+        # the cohort really is attached), this leftovers pseudo-section has
+        # nothing to prove when it's empty — every student already landed in
+        # an attached cohort — so it renders only when it has rows. The
+        # template's `__none__` filter option follows the same rule (loops
+        # `sections` rather than being hardcoded), so it disappears too.
+        sections.append(
+            {
+                "label": None,  # template renders "Outside these cohorts"
+                "cohort_slug": "",
+                "rows": [build_row(s, "") for s in sorted(outside, key=sort_key)],
+            }
+        )
 
     # Whole-allocation counts, computed over every row above — never a
     # filtered subset, since "who is still unplaced" is the number the admin

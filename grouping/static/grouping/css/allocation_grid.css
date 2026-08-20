@@ -25,6 +25,16 @@
   color: var(--text-primary);
 }
 
+/* Rendered [hidden] and unhidden by allocation_grid.js on init, matching
+   the add-all control's treatment (roster_filter.js /
+   core/css/app.css .roster-filter__all) — a no-JS user is never shown a
+   search/filter bar that does nothing. Its own `display: flex` below is the
+   SAME (0,1,0) specificity as the UA `[hidden] { display: none }` rule, and
+   origin is compared before specificity, so the author rule would win and
+   the bar would stay visible with JS off without this explicit override. */
+.alloc-grid__filter-bar[hidden] {
+  display: none;
+}
 .alloc-grid__filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -47,10 +57,26 @@
   min-width: 14rem;
 }
 
+/* The non-scrolling wrapper required by core/js/scroll_affordance.js's
+   markup contract (`.scroll-x[data-scroll-x]` around the element that
+   actually scrolls) — this box never gets overflow-x/y itself, only the
+   frame and the clip that keeps the inner scroller's content inside the
+   rounded corners. */
 .alloc-grid__scroll {
-  overflow-x: auto;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* The real scroller. Both axes: horizontal for the wide grid, vertical so a
+   long grid caps at a fixed viewport height instead of pushing the Save
+   button off-screen — which is also what gives `.alloc-grid thead th`'s
+   `position: sticky; top: 0` (below) a scrollport to stick within. Without a
+   bounded, vertically-scrolling ancestor here, that sticky rule never
+   engages. */
+.alloc-grid__scroll-inner {
+  overflow: auto;
+  max-height: 72vh;
 }
 
 .alloc-grid {

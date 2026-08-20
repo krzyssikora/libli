@@ -93,7 +93,6 @@ class GroupForm(forms.ModelForm):
     _resolved_allocation = None  # class default: save() must not AttributeError
 
     def __init__(self, *args, user=None, **kwargs):
-        self._user = user
         super().__init__(*args, **kwargs)
         if self.instance.pk is not None:
             # Course is immutable after creation; lock the widget.
@@ -266,7 +265,6 @@ class AllocationForm(forms.ModelForm):
     # the form.
 
     def __init__(self, *args, user=None, **kwargs):
-        self._user = user
         super().__init__(*args, **kwargs)
         # The course queryset IS the create-time permission gate (see spec):
         # a CA posting an unowned course pk fails invalid_choice, so a

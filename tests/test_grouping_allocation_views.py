@@ -69,6 +69,26 @@ def test_archive_toggles_both_ways(client):
     assert a.archived is False
 
 
+def test_archive_rejects_a_get(client):
+    """@require_POST — a refactor that dropped it would let a plain link (or a
+    prefetch) archive an allocation with no confirmation."""
+    pa = make_pa(client)
+    a = AllocationFactory(course=CourseFactory(owner=pa))
+    resp = client.get(reverse("grouping:allocation_archive", args=[a.pk]))
+    assert resp.status_code == 405
+    a.refresh_from_db()
+    assert a.archived is False
+
+
+def test_edit_404s_for_a_ca_on_an_unowned_course(client):
+    """Shares scoping.allocations_manageable_by with the already-tested
+    allocation_list scoping -- the one line a refactor would drop."""
+    make_ca(client)
+    theirs = AllocationFactory()  # course owned by nobody in this test
+    resp = client.get(reverse("grouping:allocation_edit", args=[theirs.pk]))
+    assert resp.status_code == 404
+
+
 def test_delete_view_nulls_the_fk_and_keeps_memberships(client):
     pa = make_pa(client)
     a = AllocationFactory(course=CourseFactory(owner=pa))
