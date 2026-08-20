@@ -98,11 +98,19 @@ def test_allocation_course_editable_while_no_groups_attached():
     assert a.course_id == other.pk
 
 
-def test_allocation_name_unique_per_course_case_sensitively():
+def test_allocation_name_unique_per_course():
     a = AllocationFactory(name="Klasy")
     with pytest.raises(IntegrityError):
         with transaction.atomic():
             Allocation.objects.create(course=a.course, name="Klasy")
+
+
+def test_the_constraint_is_case_sensitive_so_the_form_must_dedup():
+    """Pins WHY AllocationForm.clean() does an iexact lookup: the DB constraint
+    does not catch "klasy" beside "Klasy"."""
+    a = AllocationFactory(name="Klasy")
+    other = Allocation.objects.create(course=a.course, name="klasy")
+    assert other.pk != a.pk
 
 
 def test_allocation_name_may_repeat_across_courses():
@@ -185,7 +193,10 @@ class Allocation(models.Model):
                 and self.groups.exists()
             ):
                 raise ValidationError(
-                    _("An allocation's course cannot be changed once groups are attached.")
+                    _(
+                        "An allocation's course cannot be changed"
+                        " once groups are attached."
+                    )
                 )
         super().save(*args, **kwargs)
 
@@ -255,9 +266,9 @@ Expected: creates `grouping/migrations/0005_allocation.py` with `CreateModel` fo
 uv run pytest tests/test_grouping_allocation_models.py -v
 ```
 
-Expected: 9 passed.
+Expected: 10 passed.
 
-- [ ] **Step 7: Falsify — three mutants, each must go RED**
+- [ ] **Step 7: Falsify — each mutant must go RED**
 
 **Never run `makemigrations` while falsifying** — it would not rewrite `0005`, it would emit
 `0006`, then `0007` on restore, leaving junk migrations on the branch and tripping the repo's
@@ -268,6 +279,7 @@ by hand instead.
 2. Delete the entire `if self.pk is not None:` guard block from `Allocation.save` → `test_allocation_course_frozen_once_groups_attached` must FAIL.
 3. Drop **only** the `and self.groups.exists()` clause (making the guard stricter) → `test_allocation_course_editable_while_no_groups_attached` must FAIL. Note this reddens a *different* test than mutant 2 — the two clauses guard opposite directions.
 4. Change `on_delete=models.SET_NULL` to `models.CASCADE` in **both** `grouping/models.py` and `grouping/migrations/0005_allocation.py` → `test_deleting_allocation_nulls_the_fk_and_keeps_memberships` must FAIL. Hand-revert both files and re-run to confirm green.
+5. Remove `uniq_allocation_course_name` from **both** the model `Meta.constraints` and the migration's `AddConstraint` → `test_allocation_name_unique_per_course` must FAIL. Hand-revert both. (This is the only mutant that proves the constraint reached the migration, not just the model.)
 
 - [ ] **Step 8: Commit**
 
@@ -707,12 +719,14 @@ do not add them a second time there, or `ruff` flags F811 four commits later.)
 uv run pytest tests/test_grouping_allocation_forms.py -v
 ```
 
-Expected: 10 passed.
+Expected: 12 passed.
 
-- [ ] **Step 5: Falsify — four mutants**
+- [ ] **Step 5: Falsify**
 
 1. Drop the `manageable_courses(user)` restriction (use `Course.objects.all()`) → `test_course_queryset_excludes_courses_the_ca_does_not_own` and `test_posting_an_unowned_course_is_a_field_error_and_creates_nothing` must FAIL.
 2. Compare `name=name` instead of `name__iexact=name` → `test_rejects_case_different_duplicate_name_on_the_same_course_at_create` must FAIL.
+2b. Move the whole dedup block from `clean()` into a `clean_name()` → the same test must FAIL, because on the create path `cleaned_data["course"]` is not yet populated when `clean_name()` runs and `self.instance.course_id` is `None`. This is the mutant that demonstrates *why* the rule lives in `clean()`.
+2c. Drop the `label_from_instance` override for `cohorts` → `test_attached_archived_cohort_renders_with_a_suffix` must FAIL.
 3. Add `archived=False` to the `clash` filter → `test_rejects_a_name_held_by_an_archived_allocation` must FAIL.
 4. Drop the `attached` arm from the `cohorts` queryset → `test_cohorts_queryset_keeps_an_already_attached_archived_cohort` **and** `test_editing_an_allocation_keeps_its_archived_cohort_in_the_m2m` must FAIL (the second one fails on `form.is_valid()`, which is exactly why that assertion is there).
 
@@ -776,8 +790,9 @@ def _role_user(role_name, username):
 
 
 def test_constructs_without_a_user_and_offers_no_allocations():
-    """Four existing call sites construct GroupForm() with no kwargs, one of them
-    in another app (integrations/tests/test_form_fields.py:40)."""
+    """Four existing call sites construct GroupForm WITHOUT a `user` kwarg (two
+    with no kwargs at all), one of them in another app
+    (integrations/tests/test_form_fields.py:40)."""
     AllocationFactory()
     form = GroupForm()
     assert list(form.fields["allocation"].queryset) == []
@@ -1124,9 +1139,7 @@ class AllocationChoiceIterator(forms.models.ModelChoiceIterator):
         by_course = {}
         for obj in self.queryset:
             title, options = by_course.setdefault(obj.course_id, (obj.course.title, []))
-            options.append(
-                (self.choice(obj)[0], self.field.label_from_instance(obj))
-            )
+            options.append((self.choice(obj)[0], self.field.label_from_instance(obj)))
         for title, options in by_course.values():
             yield (title, options)
 
@@ -1138,9 +1151,7 @@ class AllocationSelect(forms.Select):
     only."""
 
     def create_option(self, name, value, label, selected, index, **kwargs):
-        option = super().create_option(
-            name, value, label, selected, index, **kwargs
-        )
+        option = super().create_option(name, value, label, selected, index, **kwargs)
         # Select.optgroups calls this for the empty choice too, passing a bare
         # "" rather than a ModelChoiceIteratorValue — an unguarded
         # value.instance would AttributeError on every render.
@@ -1318,7 +1329,8 @@ create/edit regression one commit before detecting it.
 
 - [ ] **Step 8: Wire the views**
 
-In `grouping/views.py`, pass `user=request.user` at all four `GroupForm(...)` construction sites (lines ~192, 207, 227, 235), and wrap **only** the `form.save()` call in `group_create` and `group_edit`:
+In `grouping/views.py`, **add `from django.db import transaction` to the imports** (it is not
+there today — the wrapper below would be a `NameError`), pass `user=request.user` at all four `GroupForm(...)` construction sites (lines ~192, 207, 227, 235), and wrap **only** the `form.save()` call in `group_create` and `group_edit`:
 
 ```python
             with transaction.atomic():
@@ -1364,17 +1376,30 @@ def test_a_failing_group_save_leaves_no_orphan_allocation(client, monkeypatch):
 Re-run `uv run pytest tests/test_grouping_allocation_group_form.py -v` after Step 8, then
 Step 7's command again, before committing.
 
-- [ ] **Step 9: Falsify — seven mutants**
+- [ ] **Step 9: Falsify — every test, paired with its mutant**
 
-1. Make `user` a required positional parameter → `test_constructs_without_a_user_and_offers_no_allocations` must FAIL (and the Step-7 files too).
-2. Drop `Q(course__in=manageable_courses(user))`, use `Q()` → `test_create_form_excludes_allocations_on_unmanageable_courses` must FAIL.
-3. Drop `Q(course=self.instance.course)` from the edit branch → `test_edit_form_scopes_allocations_to_the_groups_own_course` must FAIL.
-4. Drop `| Q(pk=self.instance.allocation_id)` → `test_edit_form_keeps_its_own_archived_allocation_selectable` and `test_renaming_a_group_does_not_detach_its_archived_allocation` must FAIL.
-5. Move `field.iterator = ...` to **after** `field.queryset = ...` → `test_rendered_options_carry_data_course_and_optgroups` must FAIL on the `<optgroup` assertion.
-6. Remove the `instance is not None` guard in `create_option` → every render test must ERROR with `AttributeError`.
-7. Drop `cleaned["allocation"] = None` → `test_typing_a_new_name_on_an_already_allocated_group_moves_it` must FAIL. Separately, drop `or self.cleaned_data.get("allocation")` from `save()` → `test_picking_an_existing_allocation_writes_it` must FAIL.
-8. Remove the view-level `with transaction.atomic():` from `group_create` → `test_a_failing_group_save_leaves_no_orphan_allocation` must FAIL.
-9. Construct the widget as `AllocationSelect()` with no `attrs` → assert the rendered `str(form["allocation"])` no longer contains `data-allocation-select`; add that assertion to `test_rendered_options_carry_data_course_and_optgroups` so this mutant has a home.
+| Test | Mutant that must redden it |
+|---|---|
+| `test_constructs_without_a_user_and_offers_no_allocations` | make `user` a required positional parameter (Step 7's files go red too) |
+| `test_create_form_excludes_allocations_on_unmanageable_courses` | drop `Q(course__in=manageable_courses(user))`, use `Q()` |
+| `test_edit_form_scopes_allocations_to_the_groups_own_course` | drop `Q(course=self.instance.course)` from the edit branch |
+| `test_edit_form_keeps_its_own_archived_allocation_selectable` | drop `\| Q(pk=self.instance.allocation_id)` |
+| `test_renaming_a_group_does_not_detach_its_archived_allocation` | the same `pk=` arm (this is the test that proves the save *succeeds*) |
+| `test_empty_choice_is_offered_and_detaches` | have the iterator yield only optgroup tuples, dropping `("", empty_label)` |
+| `test_rendered_options_carry_data_course_and_optgroups` | (a) drop the `create_option` override → the `data-course` assertion; (b) assign `field.iterator` **after** `field.queryset` → the `<optgroup` assertion; (c) construct `AllocationSelect()` with no `attrs` → the `data-allocation-select` assertion |
+| `test_archived_allocation_option_is_labelled` | yield `obj.name` instead of `self.field.label_from_instance(obj)` |
+| `test_picking_an_existing_allocation_writes_it` | drop `or self.cleaned_data.get("allocation")` from `save()` |
+| `test_typing_a_new_allocation_creates_and_attaches_it` | drop the `group.allocation = allocation` assignment (kills only this path) |
+| `test_new_name_reuses_an_existing_row_case_insensitively` | drop the stashed `_resolved_allocation` and let `save()` create unconditionally |
+| `test_new_name_matching_an_archived_row_is_a_field_error` | drop the `clash.archived` branch |
+| `test_new_allocation_longer_than_200_chars_is_a_field_error` | omit `max_length=200` |
+| `test_typing_a_new_name_on_an_already_allocated_group_moves_it` | drop `cleaned["allocation"] = None` |
+| `test_clearing_the_select_and_typing_a_new_name_also_moves_it` | treat an empty `allocation` as "different from `instance.allocation_id`" (making the clearest gesture a conflict) |
+| `test_picking_a_different_existing_allocation_and_typing_is_a_conflict` | drop the conflict branch entirely |
+| `test_allocation_on_another_course_is_a_field_error_on_the_create_path` | remove the course-equality check from `clean()` |
+| `test_a_failing_group_save_leaves_no_orphan_allocation` | remove the view-level `with transaction.atomic():` from `group_create` |
+
+Separately, removing the `instance is not None` guard in `create_option` must make every render test **ERROR** with `AttributeError` — that is spec row 11h, and an error is an acceptable red.
 
 Restore each by hand.
 
@@ -1420,20 +1445,28 @@ from tests.factories import make_teacher
 pytestmark = pytest.mark.django_db
 
 
+def _card_list(body):
+    """Scope assertions to the list itself — the page also carries the nav, the
+    tabs strip and the archived toggle, and a bare substring against the whole
+    body is the shadowing shape this repo has been bitten by before."""
+    return body.split('class="card-list"')[1].split("</ul>")[0]
+
+
 def test_list_is_scoped_and_honours_the_archived_toggle(client):
     ca = make_ca(client)
     mine = AllocationFactory(course=CourseFactory(owner=ca), name="Mine")
-    archived = AllocationFactory(
-        course=CourseFactory(owner=ca), name="Old", archived=True
+    AllocationFactory(course=CourseFactory(owner=ca), name="Old", archived=True)
+    AllocationFactory(name="Theirs")
+    rows = _card_list(client.get(reverse("grouping:allocation_list")).content.decode())
+    assert "Mine" in rows
+    assert "Old" not in rows
+    assert "Theirs" not in rows
+    assert reverse("grouping:allocation_edit", args=[mine.pk]) in rows
+    rows = _card_list(
+        client.get(reverse("grouping:allocation_list") + "?archived=1").content.decode()
     )
-    theirs = AllocationFactory(name="Theirs")
-    body = client.get(reverse("grouping:allocation_list")).content.decode()
-    assert "Mine" in body
-    assert "Old" not in body
-    assert "Theirs" not in body
-    body = client.get(reverse("grouping:allocation_list") + "?archived=1").content.decode()
-    assert "Old" in body
-    assert "Mine" not in body
+    assert "Old" in rows
+    assert "Mine" not in rows
 
 
 def test_teacher_gets_403(client):
@@ -1480,13 +1513,16 @@ def test_delete_view_nulls_the_fk_and_keeps_memberships(client):
 def test_ca_sees_the_admin_menu_allocations_link(client):
     """Scoped to the admin menu panel — /manage/allocations/ also appears in the
     tabs strip, and a bare substring assertion would be satisfied by either."""
-    ca = make_ca(client)
+    make_ca(client)
     body = client.get(reverse("grouping:group_list")).content.decode()
     panel = body.split('data-menu-panel')[1].split("</div>")[0]
     assert reverse("grouping:allocation_list") in panel
 ```
 
-Add to `tests/test_groups_tabs.py`:
+Add to `tests/test_groups_tabs.py` — that file imports only `make_login` and `make_pa` today,
+so **add `from tests.factories import make_ca` and `from tests.factories import make_teacher`**
+to its import block (force-single-line, alphabetical within the group: `make_ca`,
+`make_login`, `make_pa`, `make_teacher`):
 
 ```python
 def test_tabs_show_allocations_for_a_course_admin(client):
@@ -1676,9 +1712,11 @@ uv run pytest tests/test_grouping_allocation_views.py tests/test_groups_tabs.py 
 
 Expected: all pass.
 
-- [ ] **Step 9: Falsify — four mutants**
+- [ ] **Step 9: Falsify**
 
 1. Scope `allocation_list` with `Allocation.objects.all()` → `test_list_is_scoped_and_honours_the_archived_toggle` must FAIL.
+1b. Drop the `manageable_courses(user)` restriction on `AllocationForm.course` → `test_ca_cannot_create_on_an_unowned_course` must FAIL (the row is created). This asserts the POST *outcome*; Task 3's mutant 1 asserts the queryset contents — they are different tests of the same gate.
+1c. Make `allocation_delete` cascade-delete the allocation's groups → `test_delete_view_nulls_the_fk_and_keeps_memberships` must FAIL.
 2. Drop `raise_exception=True` from `allocation_list` → `test_teacher_gets_403` must FAIL (302, not 403).
 3. Make `allocation_archive` set `archived = True` unconditionally → `test_archive_toggles_both_ways` must FAIL.
 4. Leave `base.html`'s outer `{% if %}` unchanged → `test_ca_sees_the_admin_menu_allocations_link` must FAIL. Separately, hoist the tab outside its `{% if perms.grouping.view_allocation %}` → `test_tabs_hide_allocations_from_a_teacher` must FAIL.
@@ -1907,6 +1945,19 @@ def test_moving_between_columns_keeps_the_enrollment_and_fires_no_new_notificati
     assert Notification.objects.filter(recipient=student).count() == before
 
 
+def test_an_out_of_range_target_keeps_the_membership(client=None):
+    """Spec row 17c. Load-bearing: the -was must MATCH the current token, or the
+    guard skips the row and the mutant survives."""
+    a, cols = _alloc_with_columns(1)
+    student = UserFactory()
+    services.add_students_to_group(cols[0], [student])
+    skipped = services.set_allocation_assignments(
+        cols, {student.pk: (9999, str(cols[0].pk))}
+    )
+    assert skipped == []
+    assert GroupMembership.objects.filter(group=cols[0], student=student).exists()
+
+
 def test_added_by_is_recorded():
     a, cols = _alloc_with_columns(1)
     actor = UserFactory(is_staff=True)
@@ -2062,9 +2113,9 @@ uv run pytest tests/test_grouping_allocation_service.py -v
 
 Expected: 13 passed.
 
-- [ ] **Step 5: Falsify — seven mutants**
+- [ ] **Step 5: Falsify**
 
-1. Widen the removal loop to every group on `allocation.course` → `test_writes_only_inside_the_rectangle_and_the_write_lands` must FAIL.
+1. Replace `for column in columns:` in the removal loop with a loop over `Group.objects.filter(course=columns[0].course)` (adding a temporary `Group` import) → `test_writes_only_inside_the_rectangle_and_the_write_lands` must FAIL. (The service never receives an `allocation`, so the mutant has to be phrased against `columns`.)
 2. Replace `add_students_to_group` / `remove_students_from_group` with direct `GroupMembership` writes → `test_none_target_removes_membership_and_drops_group_sourced_enrollment` must FAIL.
 3. Make the loop iterate a rebuilt `{sid: (None, ...)}` for every student in `current` rather than over `assignments.items()` → `test_a_row_absent_from_assignments_is_untouched` must FAIL. (The *view*-side version of this bug — collapsing `request.POST.get`'s `None` and `""` — cannot be reached from here, because this function receives the dict already built. Its test lives in Task 7 as `test_an_absent_row_key_is_not_read_as_none`.)
 4. Change rule 1 to `if target is not None and str(target.pk) in now.split(","):` → `test_conflict_row_resolves_when_a_column_is_picked` must FAIL.
@@ -2073,8 +2124,10 @@ Expected: 13 passed.
 7. Swap the add and the remove in rule 3 → `test_moving_between_columns_keeps_the_enrollment_and_fires_no_new_notification` must FAIL.
 
 8. Sort the token lexically (`sorted(str(pk) for pk in group_ids)`) → `test_columns_token_sorts_numerically_not_lexically` must FAIL.
+9. Restrict `allocation_row_students`' arm 2 to `archived=False` → `test_row_students_union_includes_out_of_cohort_and_archived_column_members` must FAIL.
+10. Replace the out-of-range `continue` with `target = None` → `test_an_out_of_range_target_keeps_the_membership` must FAIL.
 
-Also: restrict `allocation_row_students`' arm 2 to `archived=False` → `test_row_students_union_includes_out_of_cohort_and_archived_column_members` must FAIL. Restore each by hand.
+Restore each by hand.
 
 - [ ] **Step 6: Commit**
 
@@ -2119,6 +2172,7 @@ from tests.factories import CourseFactory
 from tests.factories import GroupFactory
 from tests.factories import UserFactory
 from tests.factories import make_ca
+from tests.factories import make_login
 from tests.factories import make_pa
 from tests.factories import make_teacher
 
@@ -2218,6 +2272,28 @@ def test_a_student_on_the_grid_only_via_an_archived_column_can_be_assigned(clien
     assert GroupMembership.objects.filter(group=live, student=student).exists()
 ```
 
+The 404/403 matrix needs one fixture neither factory can supply. After Task 2, `make_ca`
+grants **all four** allocation permissions alongside `change_group`, and `make_teacher`
+grants none — so spec row 20's "holder of `change_group` without `change_allocation`" (which
+must 404 from the scoped lookup, not 403 from the decorator) has to be built by hand, using
+the recipe `tests/test_groups_tabs.py::test_my_groups_no_strip_for_view_collection_only_user`
+already demonstrates:
+
+```python
+def test_change_group_without_change_allocation_gets_404(client):
+    from django.contrib.auth.models import Permission
+
+    user = make_login(client, "grid_partial")
+    user.user_permissions.add(
+        Permission.objects.get(codename="change_group", content_type__app_label="grouping")
+    )
+    for attr in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+        user.__dict__.pop(attr, None)
+    a = AllocationFactory()
+    resp = client.get(reverse("grouping:allocation_assign", args=[a.pk]))
+    assert resp.status_code == 404      # NOT 403 — the decorator passes, scoping does not
+```
+
 and these two, whose fixtures are load-bearing in the other direction:
 
 ```python
@@ -2312,6 +2388,8 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
     ),
 ```
 
+Add these imports to `grouping/views.py` — none is present today: `from django.contrib import messages`, `from django.utils.translation import ngettext` (not the `_lazy` variant; the message is formatted immediately), `from grouping.models import CohortMembership`, `from grouping.models import GroupMembership`. (`transaction` was added in Task 4.)
+
 The view is gated on `grouping.change_group` (it writes `GroupMembership`, not `Allocation`) and scoped through `allocations_manageable_by`. Build the context in one place so GET and the POST re-render share it:
 
 ```python
@@ -2341,6 +2419,12 @@ def _allocation_grid_context(allocation):
             "user_id", "cohort_id"
         )
     )
+    # id -> slug for the ATTACHED cohorts only. A student whose cohort id is
+    # absent from cohort_of (no membership at all) OR present but not attached to
+    # this allocation both go to "outside these cohorts" with data_cohort="" —
+    # the second case is easy to miss and would otherwise produce a stray section
+    # or a KeyError.
+    attached = {c.pk: c for c in allocation.cohorts.all().order_by("-is_default", "name")}
     ...
     return {...}
 ```
@@ -2386,11 +2470,28 @@ the script substitutes numbers only. Rows carry `data-grid-row`, the summary car
 The POST path is **wrapped in a single `transaction.atomic()`** (spec §Saving's opening line —
 `set_allocation_assignments` has its own decorator, but the column-set check and the row-set
 recompute must be inside the same transaction, since that window is exactly what the
-column-set check exists to close). Inside it, in order: the column-set check (absent or
-non-conforming `columns` aborts unconditionally — never coerced to `""`), then rebuild the
+column-set check exists to close). Inside it, in order: the column-set check, then rebuild the
 row set server-side, then build `assignments`, then call the service with
 `added_by=request.user`, then `messages.warning` through `ngettext` for any skipped rows,
 naming them in `polish_sort_key` order.
+
+The column-set check is not just a comparison — the **absent** and **malformed** cases must
+abort too, and coercing either to `""` would compare *equal* to the token of an allocation
+with no non-archived groups:
+
+```python
+    COLUMNS_TOKEN_RE = re.compile(r"^$|^\d+(,\d+)*$")   # module level
+
+    raw_columns = request.POST.get("columns")           # None when absent
+    if raw_columns is None or not COLUMNS_TOKEN_RE.match(raw_columns):
+        return _abort_stale(request, allocation)        # same path as a mismatch
+    if raw_columns != services.allocation_columns_token(columns):
+        return _abort_stale(request, allocation)
+```
+
+where `_abort_stale` re-renders from **fresh** server state (fresh columns, fresh tokens, a
+fresh `columns` field), discards the posted choices, and shows "the allocation's groups
+changed while you were editing, so nothing was saved — please redo your changes."
 
 Building `assignments` is where the two sharpest edges of the contract live — write it
 exactly like this:
@@ -2420,6 +2521,12 @@ assignment would be dropped behind a success redirect.
 
 - [ ] **Step 5: Write the template**
 
+**Empty sections are rendered, not filtered out.** A section whose `rows` is empty still
+appears, with a translated "(no students)" note beside its heading — the spec requires it so
+an admin can see the cohort *is* attached rather than wondering whether they attached it.
+Keep such sections in the `sections` list; do not drop them when building the context. This
+is separate from the three grid-level empty states below.
+
 `templates/grouping/allocation_assign.html`: the tabs strip with `hub_tab="allocations"`, back/edit links, the summary line with its labels in `data-*` attributes (count-invariant shape: "Students: 84 · Assigned: 72 · Unassigned: 11 · Conflicts: 1"), the filter bar, then a `<table>` with a sticky header row and sticky name column. Each row carries `data-name`, `data-cohort`, and a state class; each radio carries an `aria-label` of "<student> → <group>"; each row renders its hidden `student-<pk>-was`; and the form renders one hidden `columns` field. Empty states for no-cohorts / no-students / no-columns.
 
 - [ ] **Step 6: Wire the grid's two entry points**
@@ -2439,13 +2546,13 @@ Both are listed in this task's Files and neither happens by itself:
 - [ ] **Step 7: Run, falsify, commit**
 
 ```
-uv run pytest tests/test_grouping_allocation_grid.py -v
+uv run pytest tests/test_grouping_allocation_grid.py tests/test_grouping_allocation_views.py -v
 ```
 
-Mutants (each must go RED): scope with `Allocation.objects.all()`; drop `raise_exception=True`; drop the outsider union arm; build the row set from the POST keys; drop the column-set check; classify a two-membership row as assigned; narrow "also in" to `allocation__isnull=True`; count the summary from the first section only; read `user.cohort_membership.cohort` directly; **drop the `int()` coercion when building `assignments`** (→ `test_a_posted_assignment_lands_through_the_view` must FAIL); **collapse `request.POST.get`'s `None` and `""` to a `None` target** (→ `test_an_absent_row_key_is_not_read_as_none` must FAIL); **drop `added_by=request.user`** (→ `test_added_by_is_recorded_through_the_view` must FAIL).
+Mutants (each must go RED): scope with `Allocation.objects.all()`; drop `raise_exception=True`; drop the outsider union arm; build the row set from the POST keys; drop the column-set check; **treat an absent `columns` field as `""`** (→ the no-`columns` test against a groups-less allocation must FAIL); classify a two-membership row as assigned; narrow "also in" to `allocation__isnull=True`; count the summary from the first section only; read `user.cohort_membership.cohort` directly; **drop the `memberships=` argument at the `allocation_state_tokens` call site**, and separately **fetch each row's "also in" memberships individually** (→ the `assertNumQueries` test must FAIL under each — without these two the implementer simply writes down whatever number the green run reports); **drop the `int()` coercion when building `assignments`** (→ `test_a_posted_assignment_lands_through_the_view` must FAIL); **collapse `request.POST.get`'s `None` and `""` to a `None` target** (→ `test_an_absent_row_key_is_not_read_as_none` must FAIL); **drop `added_by=request.user`** (→ `test_added_by_is_recorded_through_the_view` must FAIL); **filter empty sections out of `sections`** (→ the "(no students)" heading test must FAIL).
 
 ```bash
-git add grouping/urls.py grouping/views.py config/settings/base.py templates/grouping/ tests/test_grouping_allocation_grid.py
+git add grouping/urls.py grouping/views.py config/settings/base.py templates/grouping/ tests/test_grouping_allocation_grid.py tests/test_grouping_allocation_views.py
 git commit -m "feat(grouping): the allocation assignment grid"
 ```
 
@@ -2588,6 +2695,22 @@ constructs `GroupForm()` and calls `form.save()`, both of which Task 4 rewrites,
 git add locale/
 git commit -m "chore(i18n): Polish catalogue for the allocation grid"
 ```
+
+- [ ] **Step 5: Write the deployment notes into the PR body**
+
+Two changes in this branch are invisible to every test and must be stated where a human will
+read them before deploying:
+
+1. **`python manage.py setup_roles` must be run after `migrate`.** The four new
+   `grouping.*_allocation` permissions are assigned by `institution.roles.seed_roles()`,
+   which runs only from that management command — editing the constants grants nothing on an
+   already-migrated database. `tests/factories.py` calls `seed_roles()`, so the whole test
+   suite passes either way; this is the one requirement in the change with no code and no
+   test behind it.
+2. **`DATA_UPLOAD_MAX_NUMBER_FIELDS` was raised to 5000** in `config/settings/base.py`, for
+   the grid's two-fields-per-row POST.
+
+Both belong in the PR description, not only in a commit message.
 
 ---
 
