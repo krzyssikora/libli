@@ -259,3 +259,120 @@ def set_collection_groups(collection, group_ids):
     """Replace the collection's group set. The m2m_changed receiver enforces the
     single-course rule; wrapping in atomic() lets its ValidationError roll back."""
     collection.groups.set(group_ids)
+
+
+def allocation_columns(allocation):
+    """The grid's columns: the allocation's non-archived groups, resolved ONCE
+    per request and threaded through the token check, the value validation, and
+    set_allocation_assignments.
+
+    The redundant-looking `course=` filter is defence, not a fourth enforcement
+    point: course scoping is deliberately not enforced against bulk-write paths,
+    and the membership query below IS course-filtered — so a foreign-course
+    column would render every affected row as unassigned and re-add on save."""
+    return (
+        allocation.groups.filter(course=allocation.course, archived=False)
+        .select_related("course")
+        .order_by("name")
+    )
+
+
+def _token(group_ids):
+    return ",".join(str(pk) for pk in sorted(int(pk) for pk in group_ids))
+
+
+def allocation_columns_token(columns):
+    return _token(c.pk for c in columns)
+
+
+def allocation_state_tokens(columns, student_ids, memberships=None):
+    """{student_id: token} over `columns`. `memberships` is {student_id: set[int]}
+    of the student's group ids across the whole course, as the render path already
+    bucketed them; a student ABSENT from it means the empty set (never a KeyError,
+    never a re-query). Omitting it costs exactly ONE bulk query, never one per
+    student."""
+    column_ids = {c.pk for c in columns}
+    if memberships is None:
+        memberships = {}
+        rows = GroupMembership.objects.filter(
+            student_id__in=student_ids, group__in=columns
+        ).values_list("student_id", "group_id")
+        for student_id, group_id in rows:
+            memberships.setdefault(student_id, set()).add(group_id)
+    return {
+        sid: _token(memberships.get(sid, set()) & column_ids) for sid in student_ids
+    }
+
+
+def allocation_row_students(allocation):
+    """The grid's row set — called by BOTH the render path and the save path, so
+    the two cannot drift. Arm 2 deliberately ignores `archived`: restricting it
+    would make a student who is on the grid only through an archived column
+    invisible while their membership survives."""
+    by_cohort = student_users().filter(
+        cohort_membership__cohort__in=allocation.cohorts.all()
+    )
+    assigned = student_users().filter(
+        group_memberships__group__in=allocation.groups.filter(course=allocation.course)
+    )
+    # pk-membership OR, never `qs_a | qs_b`: student_users() ends in .distinct()
+    # and OR-ing a distinct queryset with a non-distinct one raises "Cannot
+    # combine a unique query with a non-unique query" (see
+    # scoping.collections_visible_to's comment).
+    return User.objects.filter(
+        Q(pk__in=by_cohort.values("pk")) | Q(pk__in=assigned.values("pk"))
+    )
+
+
+@transaction.atomic
+def set_allocation_assignments(columns, assignments, *, added_by=None):
+    """assignments: {student_id: (target_group_id_or_None, was_token_or_None)},
+    where the target is an **int pk** or None — NEVER the raw posted string. The
+    caller coerces; `column_by_id`'s keys are ints, so a str "12" would miss the
+    dict and the row would be silently omitted.
+
+    A row absent from the POST is OMITTED FROM THIS DICT ENTIRELY; within it, a
+    target of None means "— none —". Returns the skipped student ids.
+
+    Three rules, first match wins:
+      1. no-op   — current_token == token_of(target); never written, never
+                   reported, EVEN IF the current token differs from `-was`.
+      2. mismatch — current_token != was_token (was_token None counts) → skip
+                   and report.
+      3. write   — add to the target FIRST, then remove from the other columns.
+    """
+    column_by_id = {c.pk: c for c in columns}
+    student_ids = list(assignments)
+    students = {u.pk: u for u in User.objects.filter(pk__in=student_ids)}
+    current = allocation_state_tokens(columns, student_ids)
+    skipped = []
+    for student_id, (target_id, was_token) in assignments.items():
+        student = students.get(student_id)
+        if student is None:
+            continue
+        target = column_by_id.get(target_id) if target_id is not None else None
+        if target_id is not None and target is None:
+            continue  # out-of-range: omitted, NOT unassigned
+        now = current.get(student_id, "")
+        # Rule 1 — whole-token comparison. "already in the target group" must not
+        # read as a no-op, or a conflict row ("12,15" posted with 12) never resolves.
+        wanted = str(target.pk) if target is not None else ""
+        if now == wanted:
+            continue
+        # Rule 2
+        if was_token is None or now != was_token:
+            skipped.append(student_id)
+            continue
+        # Rule 3 — ADD BEFORE REMOVE. Removing first makes recompute_enrollment
+        # see the student as unreachable and DELETE their group-sourced
+        # Enrollment; the following add re-creates it and re-fires
+        # notify_enrolled, so every ordinary move would emit a spurious
+        # "you were enrolled" notification.
+        if target is not None:
+            add_students_to_group(target, [student], added_by=added_by)
+        for column in columns:
+            if target is not None and column.pk == target.pk:
+                continue
+            if str(column.pk) in now.split(","):
+                remove_students_from_group(column, [student])
+    return skipped

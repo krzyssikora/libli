@@ -88,7 +88,7 @@
           {% comment %} Platform-admin tools, grouped to keep the bar short. On mobile
           the .app-nav__admin wrapper flattens (display:contents) so these items render
           inline in the hamburger panel; the trigger is hidden there. {% endcomment %}
-          {% if perms.courses.change_subject or perms.grouping.change_cohort or perms.accounts.view_user or perms.institution.change_institution %}
+          {% if perms.courses.change_subject or perms.grouping.change_cohort or perms.accounts.view_user or perms.institution.change_institution or perms.grouping.view_allocation %}
           <div class="menu app-nav__admin" data-admin-menu>
             <button class="app-nav__link app-nav__admin-trigger" type="button"
               data-menu-trigger aria-haspopup="true" aria-expanded="false">
@@ -100,6 +100,9 @@
               {% endif %}
               {% if perms.grouping.change_cohort %}
               <a class="menu__item" href="{% url 'grouping:cohort_list' %}">{% trans "Cohorts" %}</a>
+              {% endif %}
+              {% if perms.grouping.view_allocation %}
+              <a class="menu__item" href="{% url 'grouping:allocation_list' %}">{% trans "Allocations" %}</a>
               {% endif %}
               {% if perms.accounts.view_user %}
               <a class="menu__item" href="{% url 'accounts:people' %}">{% trans "People" %}</a>

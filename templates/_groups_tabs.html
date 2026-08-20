@@ -5,5 +5,9 @@
      href="{% url 'grouping:my_groups' %}">{% trans "My groups" %}</a>
   <a class="tnhub__tab{% if hub_tab == 'manage' %} is-on{% endif %}"
      href="{% url 'grouping:group_list' %}">{% trans "Manage" %}</a>
+  {% if perms.grouping.view_allocation %}
+  <a class="tnhub__tab{% if hub_tab == 'allocations' %} is-on{% endif %}"
+     href="{% url 'grouping:allocation_list' %}">{% trans "Allocations" %}</a>
+  {% endif %}
 </nav>
 {% endif %}

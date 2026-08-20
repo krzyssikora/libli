@@ -89,6 +89,13 @@ class Group(models.Model):
     teachers = models.ManyToManyField(
         settings.AUTH_USER_MODEL, blank=True, related_name="taught_groups"
     )
+    allocation = models.ForeignKey(
+        "Allocation",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="groups",
+    )
     archived = models.BooleanField(default=False)
     created = models.DateTimeField(auto_now_add=True)
 
@@ -103,6 +110,20 @@ class Group(models.Model):
             if old_course_id is not None and old_course_id != self.course_id:
                 raise ValidationError(
                     _("A group's course cannot be changed after creation.")
+                )
+        # The allocation must be on this group's own course (spec: course
+        # scoping). Read the course id WITHOUT dereferencing the FK — touching
+        # self.allocation would fetch the row on every Group.save(), including
+        # services.set_group_archived's save(update_fields=["archived"]).
+        if self.allocation_id is not None:
+            alloc_course_id = (
+                Allocation.objects.filter(pk=self.allocation_id)
+                .values_list("course_id", flat=True)
+                .first()
+            )
+            if alloc_course_id is not None and alloc_course_id != self.course_id:
+                raise ValidationError(
+                    _("The allocation must belong to the same course as the group.")
                 )
         super().save(*args, **kwargs)
 
@@ -137,6 +158,54 @@ class GroupMembership(models.Model):
 
     def __str__(self):
         return f"{self.student_id} in group {self.group_id}"
+
+
+class Allocation(models.Model):
+    """A named grouping of one course's groups that together are meant to
+    partition one or more cohorts — e.g. "matematyka, starting 2026". See
+    docs/superpowers/specs/2026-08-20-group-allocation-grid-design.md."""
+
+    name = models.CharField(max_length=200)
+    course = models.ForeignKey(
+        "courses.Course", on_delete=models.CASCADE, related_name="allocations"
+    )
+    cohorts = models.ManyToManyField(Cohort, blank=True, related_name="allocations")
+    archived = models.BooleanField(default=False)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["course", "name"], name="uniq_allocation_course_name"
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        # Mirror-image of Group.save's guard: an allocation's course may not
+        # change once groups are attached, or those groups would silently sit
+        # in an allocation on a different course. The form's `disabled` widget
+        # is not enough — it is not a model-layer guarantee.
+        if self.pk is not None:
+            old_course_id = (
+                Allocation.objects.filter(pk=self.pk)
+                .values_list("course_id", flat=True)
+                .first()
+            )
+            if (
+                old_course_id is not None
+                and old_course_id != self.course_id
+                and self.groups.exists()
+            ):
+                raise ValidationError(
+                    _(
+                        "An allocation's course cannot be changed"
+                        " once groups are attached."
+                    )
+                )
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
 
 
 class Collection(models.Model):

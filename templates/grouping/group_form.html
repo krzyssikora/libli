@@ -7,12 +7,17 @@
   <div class="form-row"><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div>
   <div class="form-row"><label for="{{ form.course.id_for_label }}">{{ form.course.label }}</label>{{ form.course }}{{ form.course.errors }}</div>
   <div class="form-row"><label for="{{ form.external_id.id_for_label }}">{{ form.external_id.label }}</label>{{ form.external_id }}{% if form.external_id.help_text %}<span class="helptext">{{ form.external_id.help_text|safe }}</span>{% endif %}{{ form.external_id.errors }}</div>
+  <div class="form-row"><label for="{{ form.allocation.id_for_label }}">{{ form.allocation.label }}</label>{{ form.allocation }}{{ form.allocation.errors }}<label for="{{ form.new_allocation.id_for_label }}">{{ form.new_allocation.label }}</label>{{ form.new_allocation }}{{ form.new_allocation.errors }}{% if not creating and group.allocation_id and perms.grouping.view_allocation %} <a class="subtle-link" href="{% url 'grouping:allocation_assign' group.allocation_id %}">{% trans "Open the assignment grid" %}</a>{% endif %}</div>
   <fieldset class="roster" data-roster>
     <legend>{{ form.teachers.label }} <span class="roster__selected">{% trans "Added" %}: <span data-roster-selected data-roster-saved="{{ current_teacher_ids|length }}" data-saved-label="{% trans 'saved' %}">{{ current_teacher_ids|length }}</span></span></legend>
     <div class="roster-filter" data-roster-filter>
       <label class="roster-filter__field">
         <span>{% trans "Search by name" %}</span>
         <input type="search" data-roster-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
+      </label>
+      <label class="roster-filter__all" hidden data-roster-all-wrap>
+        <input type="checkbox" data-roster-all>
+        <span>{% trans "Select all shown" %}</span>
       </label>
       <p class="roster-filter__count" data-roster-count aria-live="polite" hidden></p>
     </div>
@@ -32,6 +37,10 @@
       <label class="roster-filter__field">
         <span>{% trans "Search by name" %}</span>
         <input type="search" data-roster-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
+      </label>
+      <label class="roster-filter__all" hidden data-roster-all-wrap>
+        <input type="checkbox" data-roster-all>
+        <span>{% trans "Select all shown" %}</span>
       </label>
       <p class="roster-filter__count" data-roster-count aria-live="polite" hidden></p>
     </div>

@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 
 from courses.models import Enrollment
+from grouping.models import Allocation
 from grouping.models import Collection
 from grouping.models import Group
 from grouping.models import GroupMembership
@@ -39,6 +40,19 @@ def groups_visible_to(user):
     manageable = groups_manageable_by(user)
     taught = Group.objects.filter(teachers=user)
     return (manageable | taught).distinct()
+
+
+def allocations_manageable_by(user):
+    """Allocations a user may create/edit/delete. Mirrors groups_manageable_by:
+    PA -> all; CA -> allocations on courses they own; else none. Owner-less
+    courses (Course.owner is nullable) are PA-manageable only, by design.
+
+    Includes archived rows; list views apply the active/archived filter on top."""
+    if _is_platform_admin(user):
+        return Allocation.objects.all()
+    if user.has_perm("grouping.change_allocation"):  # Course Admin
+        return Allocation.objects.filter(course__owner=user)
+    return Allocation.objects.none()
 
 
 def collections_manageable_by(user):
