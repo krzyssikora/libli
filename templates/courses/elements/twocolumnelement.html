@@ -11,7 +11,7 @@ stack on narrow screens (flex-wrap + per-column min-inline-size). An empty colum
   {% for column, children in columns %}
     <div class="twocolumn__column" data-column-id="{{ column.id }}"{% if not children %} data-empty{% endif %}>
       {% for child in children %}
-        <div class="twocolumn__child">{% render_element child %}</div>
+        <div class="twocolumn__child{% if editor_preview %} prev-el{% endif %}"{% if editor_preview %} data-element-id="{{ child.pk }}"{% endif %}>{% render_element child %}</div>
       {% endfor %}
     </div>
   {% endfor %}

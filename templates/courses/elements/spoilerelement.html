@@ -45,7 +45,7 @@ before the membership test ever runs.
     {% endcomment %}
     <div class="spoiler__children">
       {% for child in children %}
-        <div class="spoiler__child">{% render_element child %}</div>
+        <div class="spoiler__child{% if editor_preview %} prev-el{% endif %}"{% if editor_preview %} data-element-id="{{ child.pk }}"{% endif %}>{% render_element child %}</div>
       {% endfor %}
     </div>
   {% endif %}
