@@ -254,6 +254,11 @@ chain. The outer container would then compute an index against a section it does
 > `s` = the single node in `C`'s **owned** node list for which `s.contains(target)` —
 > `ownSections(C)` for a tabs container, `ownPanels(C)` for a before/after.
 
+**Timing note:** for tabs the collection is unconditional, so `s` can be resolved after
+collection. For before/after the collection decision **is** this lookup (the predicate asks
+whether the owned panel containing the target carries `hidden`), so `s` is resolved during
+collection and carried forward — resolve it once, not twice.
+
 It is emphatically **not** "the child of `C` the climb passed through": the real DOM is
 `[data-tabs] > .tabs__stage > .tabs__section > .tabs__panel > .tabs__child` and
 `[data-beforeafter] > .ba__panels > .ba__panel > .ba__child`, so that child is `.tabs__stage` /
@@ -289,10 +294,15 @@ the inner's panel satisfy `s.contains(target)`, and only `closest("[data-beforea
 disambiguates them. There is no first-match/last-match tie-break to fall back on — a multi-match
 is a bug in the filter, not a case to resolve.
 
-**Own-scoping observability, before/after edition** (the tabs analysis is above): un-scoping
-`ownToggle` is **unobservable** — the container's own `.ba__toggle` precedes any nested one in
-document order, so a descendant query returns it anyway. Un-scoping `ownPanels` **is**
-observable, via the multi-match above. Mutant (j) covers it.
+**Own-scoping observability, before/after edition** (the tabs analysis is above): **neither**
+before/after lookup is observable, so neither gets a mutant. Un-scoping `ownToggle` is
+unobservable because the container's own `.ba__toggle` precedes any nested one in document order,
+so a descendant query returns it anyway. Un-scoping `ownPanels` is unobservable for the same
+reason, and more strongly: any nested `.ba__panel` containing the target is necessarily a
+*descendant* of one of `C`'s own panels, so in document order the **first** `.ba__panel` under `C`
+satisfying `s.contains(target)` is provably `C`'s own. Keep the ownership filter anyway — it is
+what makes the result unique by construction rather than by relying on document order — but do
+not manufacture a test for it.
 
 **The carousel step depends on an undocumented coupling:** `dots` is positionally 1:1 with
 `ownSections(container)` (`initCarousel` builds it as `sections.map(...)`), and unlike the strip
@@ -427,6 +437,15 @@ it was opened — the fallback would have no event to bind to.
 and then dispatches a bubbling `libli:reveal` from `C`. That closes the gap for the fallback and
 independently gives a nested carousel's `scheduleMeasure` the signal it otherwise misses.
 
+**This makes an in-tree comment false — amend it.** The comment above `tabs.js`'s
+`container.addEventListener("libli:reveal", scheduleMeasure)` states that reveal-gates and outer
+tab panels "are the only two dispatchers in the codebase" and that "a `<details>`-based spoiler
+dispatches nothing". After this change `editor.js`'s walk is a third dispatcher and a spoiler
+*does* dispatch, in the editor preview. The plan must update that comment (naming the walk,
+editor-preview-only) and keep the edit **line-count neutral**, per this repo's citation-rot
+convention. This spec already flags `courses.css:1982-1985` as a stale-comment trap; do not
+create a second one.
+
 The plan must record the measured outcome in the PR body either way.
 
 The plan should also confirm `alignTopInPane`'s `el.closest(".pane-body")` still resolves for a
@@ -522,24 +541,35 @@ appear to survive, but the sweep is what proves it.
    Asserting the attribute alone leaves a class-dropping mutant green, and for callout and
    two-column there is no e2e to catch it.
 
-   **Coverage matrix:** all **five** containers at depth 2, plus **one named container-in-container
-   pair** at depth 3 (the depth-3 case proves the recursion carries `editor_preview`; repeating it
-   for all 25 nesting pairs proves nothing further). **Build fixtures with direct
-   `Element(parent=…)` rows**, as `courses/tests/test_image_size_render.py` does — not through
-   `builder.resolve_scope`, whose clause 3/4 depth rules would couple this test to the nesting
-   policy it is not testing.
+   **Coverage matrix:** all **five** containers at depth 2, plus **tabs-inside-a-spoiler** at
+   depth 3 (the depth-3 case proves the recursion carries `editor_preview` across two
+   `CONTAINER_MODELS` barriers; repeating it for all 25 nesting pairs proves nothing further).
+   That pair is named rather than left to choice because the pairs differ in risk — a
+   callout-in-callout is the mildest case — and because it mirrors the shape e2e 5 exercises.
+   **Build fixtures with direct `Element(parent=…)` rows**, as
+   `courses/tests/test_image_size_render.py` does — not through `builder.resolve_scope`, whose
+   clause 3/4 depth rules would couple this test to the nesting policy it is not testing.
 2. On the **student** page, nested children carry **neither** half: no `data-element-id` **and**
    no `prev-el` class on the child wrappers. Both halves are separately gated, so a build that
    drops only the class-gate leaks `prev-el` into every student page while an attribute-only
    assertion stays green — and the one-off byte diff below, by definition, never runs again.
 
-**Scoping is mandatory and load-bearing.** The editor pane *also* uses `data-element-id` — on the
+**Scoping is mandatory and load-bearing — but the two tests scope differently.**
+
+*Render test 1 (editor page).* The editor pane *also* uses `data-element-id` — on the
 `el-act-edit` buttons in `_element_row.html` — so a bare substring assertion against the whole
 page passes vacuously on a broken build, exactly the "a card above a list shadows its assertions"
-trap this codebase has hit before. Do the scoping by **parsing the document once and rooting the
-selector at `[data-scope="preview"]`** (e.g. `[data-scope="preview"] .tabs__child.prev-el[...]`),
-not by slicing the response body — a string slice followed by a select on the fragment re-parses
-partial HTML.
+trap this codebase has hit before. Parse the document **once** and root the selector at
+`[data-scope="preview"]` (e.g. `[data-scope="preview"] .tabs__child.prev-el[...]`), rather than
+slicing the response body — a string slice followed by a select on the fragment re-parses partial
+HTML.
+
+*Render test 2 (student page).* **Do not apply that rule here.** A student lesson page has **no**
+`[data-scope="preview"]` node — it exists only in the editor's `_preview.html` — so a selector
+rooted there matches zero nodes and "neither half is present" is trivially true, leaving mutants
+(c1) and (c2) both alive. Instead select the five `.<container>__child` wrappers on the student
+page, **assert that selection is non-empty first** (otherwise the test is vacuous for the same
+reason), then assert neither marker half appears on them.
 
 ### Byte-identity: a pre-merge verification step, not a test
 
@@ -652,31 +682,39 @@ padding, which can exceed the 4 px tolerance and turn a correct build red.
    broken build. So this case must satisfy the **position-observability constraints** above
    exactly as case 6 does; on a small fixture it reads "already at the top" on both builds and
    (i) survives.
+   **Building the bail.** Both obvious mechanisms are dead ends and must not be substituted:
+   `killOne` does `removeAttribute("hidden")` on **every** owned panel, so afterwards no
+   `.ba__panel` carries `hidden`, the collection predicate never fires, and the walk never reaches
+   the missing-control branch; and a single-slide carousel is **unreachable from data**
+   (`TabsElement.MIN_TABS == 2`, `TabsElementForm.clean_data` rejects fewer, and `normalize_data`
+   pads to 2 on the read side). Force the bail with a bad `window.TABS_I18N` key — the same
+   injection `tabs.js`'s own error-bail e2e uses. The outer ancestor must be a **spoiler, not
+   tabs**, because that injection is global and would bail an outer tabs instance too.
 9. **Nested carousel** — the fixture for mutant (d), which no other case can kill: an **outer
    carousel** with the target in a **non-first slide**, containing an **inner carousel** in that
    slide with at least as many slides as the outer's target index (so a wrong-instance click
    lands somewhere rather than no-oping). Assert the **outer** container's `data-tabs-active`
-   (scoped by its own `data-tabs-eid`) equals the target's slide id. On the un-scoped build the
+   (scoped by its own `data-tabs-eid`) equals **the `data-tab-id` of the target section's own
+   `[data-tab-panel]`** — that is what `show()` stamps (`ids[idx]`), a model-level tab id, not the
+   `tabs-<eid>-<tid>-panel` DOM id used by the strip lookup. On the un-scoped build the
    `.tabs__dot` query returns the **inner** nav's dots first — the outer's `nav` is appended after
    `.tabs__stage` — so the outer never advances.
-10. **Nested before/after** — the fixture for mutant (j): a before/after inside another, target in
-    the inner one's After panel. On the un-scoped build both the outer's and the inner's panel
-    satisfy `s.contains(target)`, so the walk drives the wrong container. Assert the **inner**
-    instance's panel is the one that flipped.
-11. **Post-op reveal** (the `editor.js:367` path) — pins the deliberate behaviour change: with the
-    author looking at a *different* tab, save a nested element that lives in a non-first tab;
-    assert the post-op `data-tabs-active` is the **operated element's** tab, not the author's
-    previous one. This is the most user-visible side effect in the design and nothing else
-    distinguishes "intended override" from an accident of `applyFragments` ordering.
+10. **Post-op reveal** (the `editor.js:367` path) — with the author looking at a *different* tab,
+    save a nested element that lives in a non-first tab; assert the post-op `data-tabs-active` is
+    the **operated element's** tab, not the author's previous one. This **pins the deliberate
+    behaviour change** — the most user-visible side effect in the design — but note it is *not*
+    what kills mutant (k); see below.
+11. **Post-op reveal through a non-persistent ancestor** — the fixture for mutant (k): same
+    `editor.js:367` path, but the nested element sits inside a **closed spoiler** (or a
+    before/after flipped to After). Assert the ancestor is revealed **after** the op.
 
-   Both other candidate fixtures are dead ends and must not be substituted: `killOne` does
-   `removeAttribute("hidden")` on **every** owned panel, so afterwards no `.ba__panel` carries
-   `hidden`, the collection predicate never fires, and the walk never reaches the missing-control
-   branch; and a single-slide carousel is **unreachable from data** (`TabsElement.MIN_TABS == 2`,
-   `TabsElementForm.clean_data` rejects fewer, and `normalize_data` pads to 2 on the read side).
-   Force the bail with a bad `window.TABS_I18N` key — the same injection `tabs.js`'s own
-   error-bail e2e uses. The outer ancestor must be a **spoiler, not tabs**, because that
-   injection is global and would bail an outer tabs instance too.
+    A tabs ancestor cannot kill (k), because the tabs-persistence machinery launders the
+    mutation: on the mutated build the walk runs against the *old* preview and `select()` stamps
+    the target's tab there, and `applyFragments` **opens** with `captureActiveTabs()` — reading
+    that just-mutated old pane — so `restoreActiveTabs` puts the target's tab on the rebuilt
+    preview and `initOne` opens it. `data-tabs-active` and `aria-selected` end up byte-identical
+    on both builds. A spoiler has no such carry (persistence is tabs-only, by decision), so a
+    reveal performed on the pre-swap DOM is simply discarded and the mutant goes red.
 
 #### Assertion traps that make a test vacuous
 
@@ -723,16 +761,19 @@ destroying the highlighted node — and `bindHover` re-binds to fresh rows that 
 | g | Skip the scroll (reveal only) | e2e 6 |
 | h | Scope `setHighlight` to top-level (`.prev-inner > .prev-el`) | e2e 7 |
 | i | Throw instead of skip on a missing control | e2e 8 (the **scroll** assertion) |
-| j | Un-scope `ownPanels` in the before/after branch | e2e 10 |
-| k | Run the walk **before** `applyFragments` on the post-op path | e2e 11 |
+| k | Run the walk **before** `applyFragments` on the post-op path | e2e **11** (the spoiler case — **not** e2e 10) |
 | l | Add `display: block` to `.prev-el` | the CSS guard test |
 
-Two requirements are deliberately **left uncovered** because they are unobservable, and are
-labelled as such where they are stated, so no task is spent trying to falsify them: the
-`[data-scope="preview"]` **climb bound** (nothing collectible sits above it on today's page) and
-the **synchronous-cascade ordering** (identical settled state; only the transient differs).
-Un-scoping `ownToggle` is likewise unobservable — the container's own toggle wins any descendant
-query — so it gets no mutant either.
+Four requirements are deliberately **left uncovered** because they are unobservable, and are
+labelled as such where they are stated, so no task is spent trying to falsify them:
+
+- the `[data-scope="preview"]` **climb bound** — nothing collectible sits above it on today's page;
+- the **synchronous-cascade ordering** — identical settled state, only the transient differs;
+- un-scoping **`ownToggle`** — the container's own toggle wins any descendant query;
+- un-scoping **`ownPanels`** — document order provably returns `C`'s own panel first (see
+  "Own-scoping observability, before/after edition"). An earlier draft carried a mutant (j) and a
+  nested-before/after e2e for this; both were **removed** once the document-order argument showed
+  the mutant could not go red. Do not reinstate them.
 
 Four of these need their rationale recorded, or the plan will substitute a cheaper fixture that
 cannot kill them:
