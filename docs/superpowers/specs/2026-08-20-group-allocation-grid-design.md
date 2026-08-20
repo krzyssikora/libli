@@ -283,6 +283,18 @@ the lookup to. `CollectionForm.clean()` already does its cross-field course chec
 way. The rule: a name matching an existing allocation on that course `iexact` (excluding
 `self.instance.pk` on edit) raises `self.add_error("name", …)` — "an allocation with this
 name already exists on this course" — keeping the error on the field the template renders.
+
+**`clean()` must resolve the course defensively and bail when it cannot.** Django runs
+`_clean_form()` even after a field has already failed, and `add_error` *deletes* the
+offending key from `cleaned_data` — so in precisely the scenario this design nominates as
+the create-time gate (a CA posting an unowned course pk, which fails
+`ModelChoiceField.to_python` with `invalid_choice`) there is **no `"course"` key at all**. A
+literal `cleaned_data["course"]` raises `KeyError` and turns the specified 200 re-render into
+a 500. Resolve it as `cleaned_data.get("course") or self.instance.course_id`, and skip the
+dedup lookup entirely when nothing resolves — a field error is already present, so there is
+nothing useful to add. `CollectionForm.clean()`'s `course = cleaned.get("course")` /
+`if course and groups:` is the shape to copy. **The same guard applies to `GroupForm.clean()`**,
+whose course-equality check and `new_allocation` lookup read the same key.
 Without it the primary UI can create "Klasy" and then "klasy" side by side, because
 `uniq_allocation_course_name` is case-sensitive and would not object. This is the same rule
 `GroupForm` applies to `new_allocation`, at the other entry point.
@@ -1038,7 +1050,7 @@ been seen to fail.
 | 11b | a CA's `AllocationForm.fields["course"].queryset` excludes a course they do not own | drop the `manageable_courses(user)` restriction |
 | 11c | posting a group whose allocation is on another course yields `form.is_valid() is False` with the error on `allocation`. **Setup is load-bearing:** the *create* path, as a Platform Admin (or a CA owning both courses), so the foreign allocation is genuinely inside the field queryset and only `clean()` can reject it — on the edit path, or for a single-course CA, `invalid_choice` rejects it anyway and the mutant survives | remove the course-equality check from `GroupForm.clean()` |
 | 12 | `set_allocation_assignments` writes only inside (rows × columns): a membership in a non-column group of the same course survives, **and the intended in-rectangle write landed** (target column membership created, source column membership removed). **Setup is load-bearing:** the passed `was_token` must equal the student's current token, or the row is skipped, no removal of any kind runs, and the purely negative assertion holds under the mutant as well | widen the removal to `group__course=allocation.course` |
-| 13 | `— none —` removes the membership and drops the group-sourced `Enrollment` | bypass `recompute_enrollment` (call `GroupMembership.delete()` directly) |
+| 13 | `— none —` removes the membership and drops the group-sourced `Enrollment`. **Setup is load-bearing** (same trap as 16b): the starting membership must be created through `services.add_students_to_group`, or the `Enrollment` created explicitly with `source="group"` — `GroupMembershipFactory` creates no `Enrollment` at all, and `Enrollment.source` otherwise defaults to `"manual"`, which `recompute_enrollment` never deletes. Assert positively that the group-sourced `Enrollment` **exists before** the POST, or the "gone" assertion is true on every build | bypass `recompute_enrollment` (call `GroupMembership.delete()` directly) |
 | 14 | a student absent from the POST is untouched (the conflict case). **Setup is load-bearing:** the POST must carry that row's `-was` equal to its true current token (`"12,15"`), or `was_token is None` skips the row and the mutant survives | treat a missing key as `— none —` |
 | 15 | the guard skips a row whose stored state moved since render, applies the others, and reports the skipped one | ignore the `-was` field |
 | 16 | a row whose stored state moved but whose posted value already matches it is neither written nor reported | report on token mismatch alone |
@@ -1057,7 +1069,7 @@ been seen to fail.
 | 23 | `allocation_delete` redirects and leaves memberships intact, through the view | make the view cascade-delete the groups |
 | 24 | rows = cohort union ∪ already-assigned outsiders | drop the outsider union |
 | 25 | a student outside the attached cohorts whose only membership is in an **archived** group of the allocation still gets a row | restrict the second union arm to `archived=False` |
-| 25a | a placed student with **no `CohortMembership` row** renders under "outside these cohorts" with `data-cohort=""`, and the page returns 200 | read `user.cohort_membership.cohort` directly in Python instead of via the id map — `RelatedObjectDoesNotExist` 500s the page |
+| 25a | a placed student with **no `CohortMembership` row** renders under "outside these cohorts" with `data-cohort=""`, and the page returns 200. **Setup is load-bearing:** `signals.ensure_cohort_membership` fires `post_save` on every user create and inserts a Default-cohort row whenever a Default exists, so the fixture must *explicitly delete* the membership and assert `CohortMembership.objects.filter(user=s).exists() is False` before the GET. Without that, the student has a membership to a merely-unattached cohort — which also renders under "outside these cohorts" with `data-cohort=""` — so every assertion holds and the mutant's direct relation read never raises | read `user.cohort_membership.cohort` directly in Python instead of via the id map — `RelatedObjectDoesNotExist` 500s the page |
 | 25b | rendering the grid issues a bounded number of queries (`assertNumQueries`), independent of the row count | drop the `memberships=` argument at the `allocation_state_tokens` call site, so the helper re-queries per student (and, separately, fetch each row's "also in" memberships individually instead of from the one bucketed query) |
 | 25c | a student who is on the grid **only** through an archived allocation group can be assigned to a real column and the membership is written | scope the save path's second row-set arm to `archived=False`, so `allocation_row_students` disagrees between render and save and the post is silently dropped |
 | 26 | the conflict row renders unchecked and flagged | classify a two-membership row as assigned |
