@@ -26,6 +26,7 @@ from courses.models import ShortTextQuestionElement
 from courses.models import Subject
 from courses.models import TextElement
 from courses.models import UnitProgress
+from grouping.models import Allocation
 from grouping.models import Cohort
 from grouping.models import CohortMembership
 from grouping.models import Collection
@@ -480,6 +481,14 @@ class GroupFactory(factory.django.DjangoModelFactory):
         model = Group
 
     name = factory.Sequence(lambda n: f"Group {n}")
+    course = factory.SubFactory(CourseFactory)
+
+
+class AllocationFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Allocation
+
+    name = factory.Sequence(lambda n: f"Allocation {n}")
     course = factory.SubFactory(CourseFactory)
 
 
