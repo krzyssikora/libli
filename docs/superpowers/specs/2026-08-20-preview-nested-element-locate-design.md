@@ -14,6 +14,10 @@ This design makes the click → preview sync work for elements at **every** nest
 because three of the five containers keep some of their children out of sight — makes the
 preview **reveal** the container state needed to actually show the target.
 
+**Citation policy for this spec.** Line numbers in this repo have rotted before. Where a symbol
+name exists, the symbol is the anchor and any line number is a convenience only; the plan should
+re-locate by symbol, not by line.
+
 ### Root cause (verified, not inferred)
 
 `templates/courses/manage/editor/_preview.html:28` is the only site that emits the
@@ -26,19 +30,16 @@ preview **reveal** the container state needed to actually show the target.
 ```
 
 `preview_elements` holds the unit's **top-level** join rows only. The filter that makes it
-top-level lives once, in **`_editor_rows`** (`courses/views_manage.py`, `unit.elements.filter(
-parent__isnull=True)`) — cite the function by name, not the line, which has rotted before; the
-two context-key assignments that pass it to the template (`views_manage.py:1854` and `:1920`)
-are only consumers.
+top-level lives once, in **`_editor_rows`** (`courses/views_manage.py`,
+`unit.elements.filter(parent__isnull=True)`); the two context-key assignments that pass it to the
+template (`views_manage.py:1854`, `:1920`) are only consumers.
 
 Nested children are rendered *inside* `{% render_element %}`, by each container's own student
 template, which wraps each child in a plain `<div class="<container>__child">` carrying **no
 `data-element-id`**.
 
-Both JS entry points look up that one marker:
-
-- `courses/static/courses/js/editor.js:197` — `setHighlight(id, on)`, the hover outline
-- `courses/static/courses/js/editor.js:237` — `scrollPreviewTo(id)`, the click scroll
+Both JS entry points look up that one marker — `setHighlight(id, on)` (the hover outline) and
+`scrollPreviewTo(id)` (the click scroll), both in `courses/static/courses/js/editor.js`:
 
 ```js
 var sel = '.prev-el[data-element-id="' + id + '"]';
@@ -51,10 +52,10 @@ preview DOM, and `scrollPreviewTo`'s explicit "absent -> no-op" early return swa
 #### Prior art: `data-preview-el` is a different marker, deliberately
 
 `templates/courses/elements/imageelement.html:1` emits `data-preview-el="{{ el.pk }}"` on every
-image at every nesting depth, **ungated**, and `editor.js:576` consumes it for the image-size
-live preview. It exists precisely *because* `data-element-id` had to stay top-level-only.
+image at every nesting depth, **ungated**, and `editor.js` consumes it for the image-size live
+preview. It exists precisely *because* `data-element-id` had to stay top-level-only.
 
-It is not the seam for this work, for three reasons, and the plan must not conflate them:
+It is not the seam for this work, and the plan must not conflate them:
 
 - it carries the **content-object pk**, not the join-row pk (pinned by
   `courses/tests/test_image_size_render.py:88,98`) — a different identity namespace from the one
@@ -62,8 +63,7 @@ It is not the seam for this work, for three reasons, and the plan must not confl
 - it is ungated, so it cannot carry an editor-only marker;
 - it is image-only.
 
-The two markers must remain distinguishable by name and by selector; nothing in this design
-reads or writes `data-preview-el`.
+Nothing in this design reads or writes `data-preview-el`.
 
 ### Reproduction (already run against master)
 
@@ -84,7 +84,7 @@ identity. That is the whole bug.
 ### Out of scope
 
 - **Reveal gates** (`RevealGateElement`) as a general concern — see Error handling for the one
-  interaction that does touch this design, and the explicit decision taken there.
+  interaction that touches this design, and the explicit decision taken there.
 - **No change to the student-page render.** Every marker added here is gated so student HTML
   stays byte-identical.
 
@@ -110,9 +110,8 @@ The marker goes on **those existing divs**.
 
 #### The exact emitted shape (pinned)
 
-"Byte-identical student HTML" is a hard requirement, and whitespace is part of it, so the form
-is specified rather than left to the implementer. Use exactly this shape, adapted per class
-name:
+"Byte-identical student HTML" is a hard requirement and whitespace is part of it, so the form is
+specified rather than left to the implementer. Use exactly this shape, adapted per class name:
 
 ```html
 <div class="tabs__child{% if editor_preview %} prev-el{% endif %}"{% if editor_preview %} data-element-id="{{ child.pk }}"{% endif %}>
@@ -120,9 +119,13 @@ name:
 
 Two inline `{% if %}`s, both on one line, the class-gate **inside** the quoted attribute value
 and the attribute-gate contributing its own leading space. `beforeafterelement.html:28` is a
-single-line `{% for %}` loop; a block-form `{% if %}` there would introduce newlines into
-student output. The byte-identity claim is verified by **diffing a student render before and
-after**, not by eye.
+single-line `{% for %}` loop; a block-form `{% if %}` there would introduce newlines into student
+output.
+
+**Both halves are load-bearing.** The consumer selector is
+`.prev-el[data-element-id="<id>"]` — the class is as necessary as the attribute, and a build that
+emits one without the other is broken. Tests must assert the **pair on the same node** (see
+Testing, mutant (a2)).
 
 #### Why this seam
 
@@ -134,43 +137,42 @@ after**, not by eye.
    An inserted wrapper would break every one of them. Adding attributes to the existing div
    breaks none.
 
-2. **`.prev-el` is layout-neutral, and that is load-bearing.**
-   `courses/static/courses/css/editor.css:826` declares only `border-radius` and a `box-shadow`
-   transition; `.prev-el--hl` (`:827`) adds only a `box-shadow`. Neither declares `display`.
-   That matters because the `[hidden]` guard is
+2. **`.prev-el` is layout-neutral, and that is load-bearing.** `courses/static/courses/css/editor.css`
+   declares on `.prev-el` only `border-radius` and a `box-shadow` transition; `.prev-el--hl` adds
+   only a `box-shadow`. Neither declares `display`. That matters because the `[hidden]` guard is
    **`core/static/core/css/app.css:1179`** — `.lesson-block[hidden], .tabs__child[hidden],
    .ba__child[hidden] { display: none !important; }` — which lists **three** selectors and does
-   **not** include `.callout__child` or `.spoiler__child`; those rely on the UA `[hidden]` rule,
-   which only works while they carry no author `display`. Verify against
+   **not** include `.callout__child`, `.spoiler__child` **or** `.twocolumn__child`. Those three
+   rely on the UA `[hidden]` rule, which works only while they carry no author `display`, so the
+   constraint applies to each of them identically once they gain `prev-el`. Verify against
    **`app.css:1179` itself**, not the `courses.css:1982-1985` comment, which is stale (it names
-   only two of the three selectors).
+   only two of the three guarded selectors).
 
 3. **Reusing the `prev-el` class means part 1 needs zero JS and zero CSS change.** The existing
-   `.prev-el[data-element-id="<id>"]` selector starts matching nested elements at every depth
-   automatically, for both the hover and the click path.
+   selector starts matching nested elements at every depth automatically, for both the hover and
+   the click path.
 
 #### Why the `editor_preview` gate is sufficient — and what it protects
 
 Three consumers query `[data-element-id]` **unscoped** and would misbehave if nested elements
 carried it on a student page:
 
-- `courses/static/courses/js/progress.js:52` — `document.querySelectorAll("[data-element-id]")`,
+- `courses/static/courses/js/progress.js` — `document.querySelectorAll("[data-element-id]")`,
   observing every match;
-- `courses/static/courses/js/slideshow.js:119` — maps a slide's matches to ints;
-- `notes/static/notes/js/notes.js:427` — anchors on `.lesson-block[data-element-id]`.
+- `courses/static/courses/js/slideshow.js` — maps a slide's matches to ints;
+- `notes/static/notes/js/notes.js` — anchors on `.lesson-block[data-element-id]`.
 
-There is already a standing invariant test for this:
+There is already a standing invariant test:
 `courses/tests/test_image_size_render.py:41-49` ("[data-element-id] is queried unscoped on
 student pages and must stay top-level-only").
 
 The design is safe because **none of those three scripts is loaded by
 `templates/courses/manage/editor/editor.html`**, and the gate keeps them off the student page
-entirely. The plan must **confirm** that non-loading as part of proving the gate sufficient,
-rather than taking this paragraph's word for it.
+entirely. The plan must **confirm** that non-loading rather than taking this paragraph's word.
 
 #### Why `editor_preview` is available inside a container's children
 
-The flag already propagates; this design adds no plumbing for it. The chain, which the plan must
+The flag already propagates; this design adds no plumbing. The chain, which the plan must
 **confirm rather than assume**:
 
 - `courses/templatetags/courses_extras.py:160-176` — `render_element` builds a `page` dict and
@@ -182,12 +184,11 @@ The flag already propagates; this design adds no plumbing for it. The chain, whi
   `is None` default (not `False`) is load-bearing and is commented as such at that site.
 
 This is the same mechanism that already gets a **nested question's** "Try it" URL right, as
-`_preview.html:15-26` documents at length. It therefore reaches arbitrary depth, not just
-depth 2.
+`_preview.html:15-26` documents at length. It reaches arbitrary depth, not just depth 2.
 
-`child` in those five templates is the **`Element` join row**, so `child.pk` is the same
-identity the editor rows carry as `data-element="{{ el.pk }}"` in `_element_row.html`, and the
-same identity `setHighlight`/`scrollPreviewTo` are called with. The plan must confirm this too.
+`child` in those five templates is the **`Element` join row**, so `child.pk` is the same identity
+the editor rows carry as `data-element="{{ el.pk }}"`, and the same identity
+`setHighlight`/`scrollPreviewTo` are called with. The plan must confirm this too.
 
 ### Part 2 — reveal hidden ancestors before scrolling
 
@@ -197,37 +198,77 @@ both the implementation and what a test may assert:**
 
 | Ancestor | How it conceals a child | Consequence for the target's rect |
 |---|---|---|
-| Tabs, **strip** mode | inactive panel gets the `hidden` attribute (`display:none` via `app.css:1179` / UA) | **zero rect** — `alignTopInPane` measures nothing |
-| Tabs, **carousel** mode | `courses.css:1788-1789`: every `.tabs__section` is `position:absolute; top:0; left:0; width:100%; opacity:0; pointer-events:none`, `.is-active` restores `opacity:1`; JS adds `inert` + `aria-hidden` | **rect is intact and already correct** — only `opacity` hides it |
+| Tabs, **strip** mode | inactive panel gets the `hidden` attribute (`display:none` via `app.css:1179` / UA) | **zero rect** |
+| Tabs, **carousel** mode | `.el--tabs.tabs--carousel[data-display="carousel"] > .tabs__stage > .tabs__section` is `position:absolute; top:0; left:0; width:100%; opacity:0; pointer-events:none`; `.is-active` restores `opacity:1`. JS also sets `inert` + `aria-hidden` | **rect intact and already correct** — only `opacity` hides it |
 | Spoiler | `<details>` closed | zero rect |
 | Before/after | `.ba__panel[hidden]` | zero rect |
 
-The carousel row has a sharp consequence the tests must respect: a target inside an inactive
-slide **already has a correct rect**, so `alignTopInPane` scrolls to the right place with no
-walk at all, and **Playwright treats `opacity: 0` as visible**. Any carousel assertion keyed on
-visibility or geometry therefore passes on a build with no carousel reveal whatsoever. See
-Testing.
+Two consequences the tests must respect. First, a carousel target **already has a correct rect**,
+so `alignTopInPane` scrolls to the right place with no walk at all, and **Playwright treats
+`opacity: 0` as visible** — any carousel assertion keyed on visibility or geometry passes on a
+build with no carousel reveal whatsoever. Second, the carousel row's selector is gated on
+`.tabs--carousel`, which `initCarousel` adds **last**, only after a successful `show(0)`; it also
+returns early (stripping `tabs--js`) when there are fewer than two sections, and `bail()` removes
+the class on a throw. So a `data-display="carousel"` element is **not necessarily concealing
+anything** — a bailed or single-slide carousel shows all sections statically and has no dots, and
+correctly degrades to the "missing control → skip" rule below.
+
+#### What counts as a hiding ancestor (the collection predicate)
+
+The walk needs a membership rule, not just a per-type action. **"Hidden" is not decidable by the
+`hidden` attribute alone** — a carousel conceals purely by class/opacity/`inert`, so an
+implementer who generalises the before/after rule to "collect nodes carrying `[hidden]`" will
+never collect a carousel ancestor, reproducing the exact silent-skip failure this design warns
+about. Collect node-by-node, per type:
+
+| Ancestor type | Collected when |
+|---|---|
+| `<details>` (spoiler) | `details:not([open])` |
+| `[data-tabs]` container | **unconditionally**, whenever an owned section/panel is an ancestor of the target — rely on `select()`/`show()`'s own `i === active` early return rather than pre-checking |
+| `.ba__panel` | it carries the `hidden` attribute |
+
+#### Per-ancestor node resolution — never `closest()` from the target
+
+For a stacked chain (carousel-in-carousel, tabs-in-tabs — which e2e 5 and mutant (d) require),
+`target.closest(".tabs__section")` returns the **innermost** section for *every* ancestor in the
+chain. The outer container would then compute an index against a section it does not own
+(`indexOf` → -1) and reveal the wrong slide, or nothing. The same defect applies to
+`closest("[data-tab-panel]")`, `closest("details")` and `closest(".ba__panel")`.
+
+**Rule: for each hiding ancestor `C` collected on the climb, the relevant node is the one the
+climb entered `C` through** — equivalently, the owned section/panel `s` of `C` for which
+`s.contains(target)`, i.e. the last such node crossed before reaching `C`. Never a `closest()`
+call rooted at the target. All four reveal steps below are expressed in those terms.
 
 #### The reveal steps
 
+Given a collected ancestor `C` and the entered node `s` (per the rule above):
+
 | Ancestor | Reveal |
 |---|---|
-| Spoiler | `details.open = true` |
-| Tabs, strip mode | from `closest("[data-tab-panel]")` read its `id`, then click `[aria-controls="<id>"]` |
-| Tabs, carousel mode | index of `closest(".tabs__section")` among its own container's sections, then click the matching own `.tabs__dot` |
-| Before/after | if `closest(".ba__panel")` has the `hidden` attribute, click the container's own toggle |
+| Spoiler | `C.open = true` |
+| Tabs, strip mode | read `s`'s (the owned `[data-tab-panel]`'s) `id`, then click `[aria-controls="<id>"]` |
+| Tabs, carousel mode | index of `s` among `ownSections(C)`, then click the dot at that index in `C`'s **own** dot list |
+| Before/after | click `C`'s own toggle (`s` carries `hidden`, per the predicate) |
+
+**The carousel step depends on an undocumented coupling:** `dots` is positionally 1:1 with
+`ownSections(container)` (`initCarousel` builds it as `sections.map(...)`), and unlike the strip
+branch there is no id to key on. Nothing in `tabs.js` names or pins that invariant, and a future
+change that filtered or reordered dots would break the walk silently. Record the dependency, and
+derive the dot list with the **same ownership filter** used for sections rather than a separate
+query.
 
 #### Mode selection is by `data-display`, never by `[data-tab-panel]`
 
 `tabselement.html` emits `data-tab-panel` in **both** display modes; only the strip branch ever
-builds `[aria-controls]` buttons (`tabs.js:83` returns **early** into `initCarousel` when
-`data-display === "carousel"`). An implementation that keys the strip branch on "the target has
-a `[data-tab-panel]` ancestor" will match a carousel target, find no button, hit the
-"missing control → skip" rule below, and **silently never reach the carousel branch** — while
-looking like correct defensive code.
+builds `[aria-controls]` buttons (`tabs.js` returns **early** into `initCarousel` when
+`data-display === "carousel"`). An implementation that keys the strip branch on "the target has a
+`[data-tab-panel]` ancestor" will match a carousel target, find no button, hit the
+"missing control → skip" rule, and **silently never reach the carousel branch** — while looking
+like correct defensive code.
 
 So: select the branch by reading the **owning container's `data-display`**, with an exact
-`"carousel"` match, mirroring `tabs.js:83` (whose comment records that `null`, `""`, a stale
+`"carousel"` match, mirroring `tabs.js` (whose comment records that `null`, `""`, a stale
 fragment, and any future third mode all fall through to the strip). `[data-tab-panel]` may be
 used only to locate the panel *within* the already-chosen strip branch.
 
@@ -239,64 +280,81 @@ which reads `tab.offsetLeft`, `tab.offsetWidth`, `scroller.scrollLeft` and
 `scroller.clientWidth` — all zero while an outer ancestor is still `display:none`, leaving an
 inner tab strip permanently mis-scrolled. The carousel's `measure()` reads geometry the same way.
 
-The climb is **bounded at `[data-scope="preview"]`** (falling back to `.pane-body`). Without a
-stop node it would continue into the editor pane. If that ancestor is absent, return quietly.
+The climb is **bounded at `[data-scope="preview"]`. If that ancestor is absent, do not walk at
+all.** (No `.pane-body` fallback: any target in the preview is already inside the preview's own
+`.pane-body`, so it could never rescue a missing `[data-scope="preview"]` in a way that differs
+from it.) Without a stop node the climb would continue into the editor pane.
 
 #### Drive the real control, and reimplement the ownership predicate
 
 `tabs.js`'s `select(n)` / `show(n)` are closure-local; the file's only export is
-`window.libliInitTabs`, and `ownSections()` / `ownPart()` (`tabs.js:44-62`) are **not
-exported**. `editor.js` therefore implements its **own** `closest("[data-tabs]") === container`
-predicate — the plan should not budget a refactor of `tabs.js`'s exports.
+`window.libliInitTabs`, and `ownSections()` / `ownPart()` are **not exported**. `editor.js`
+therefore implements its **own** `closest("[data-tabs]") === container` predicate — the plan
+should not budget a refactor of `tabs.js`'s exports.
 
 **Every container the walk drives needs that predicate, not just tabs.** A tabs element may
-legally contain another tabs element (the depth-3 lift; `tabs.js:33-43` documents the failure at
-length: an unscoped lookup from the outer container grabs the *inner* instance's controls, and
-activating one hides the outer panel that contains it — the element goes blank). A before/after
-may likewise contain another; `beforeafter.js:13-31` already implements `ownPanels()` /
-`ownToggle()` with `closest("[data-beforeafter]") === container` for exactly this reason, and is
-the shape to mirror.
+legally contain another (the depth-3 lift; `tabs.js`'s scoping comment documents the failure: an
+unscoped lookup from the outer container grabs the *inner* instance's controls, and activating one
+hides the outer panel that contains it — the element goes blank). A before/after may likewise
+contain another; `beforeafter.js`'s `ownPanels()` / `ownToggle()` use
+`closest("[data-beforeafter]") === container` for exactly this reason and are the shape to mirror.
 
-**Where own-scoping is actually observable** (this decides a mutant, see Testing): strip-mode
-panel ids are namespaced by the join-row pk — `tabselement.html` emits
-`id="tabs-{{ eid }}-{{ tab.id }}-panel"` and `tabs.js:141` re-stamps the same value — so
-`[aria-controls="tabs-<eid>-<tid>-panel"]` is **globally unique** and removing own-scoping from
-the strip lookup changes nothing. Own-scoping is observable only in the **carousel** branch,
-whose `.tabs__dot`s are index-keyed with no id at all; and DOM order makes it concrete, since
-the outer instance's `nav` is appended after `.tabs__stage`, so an unscoped `.tabs__dot` query
-returns the **inner** carousel's dots first.
+**Where own-scoping is actually observable** (this decides a mutant): strip-mode panel ids are
+namespaced by the join-row pk — `tabselement.html` emits `id="tabs-{{ eid }}-{{ tab.id }}-panel"`
+and `initOne` re-stamps the same value onto `panel.id` — so `[aria-controls="tabs-<eid>-<tid>-panel"]`
+is **globally unique** and removing own-scoping from the strip lookup changes nothing. Own-scoping
+is observable only in the **carousel** branch, whose dots are index-keyed with no id at all; and
+DOM order makes it concrete, since the outer instance's `nav` is appended after `.tabs__stage`, so
+an unscoped `.tabs__dot` query returns the **inner** carousel's dots first.
 
 #### Persistence is tabs-only
 
-Clicking the real control earns persistence **for tabs**: `select()` stamps `data-tabs-active`
-on the container (`tabs.js:167`), and `editor.js:79-96`'s `captureActiveTabs` /
-`restoreActiveTabs` carry it across fragment swaps — keyed on `[data-tabs][data-tabs-eid]`.
+Clicking the real control earns persistence **for tabs**: `select()` stamps `data-tabs-active` on
+the container, and `editor.js`'s `captureActiveTabs` / `restoreActiveTabs` carry it across
+fragment swaps, keyed on `[data-tabs][data-tabs-eid]`.
 
 That carry is **tabs-only**. A spoiler opened by the walk re-closes on the next save, and a
 flipped before/after toggle resets to the Before panel — throwing the author back out of the
-position this feature just found for them. **Decision: accepted as a follow-up, not handled
-here.** The plan must not silently extend the capture/restore mechanism to cover them; if that
-is wanted it is a separate change.
+position this feature just found. **Decision: accepted as a follow-up, not handled here.** The
+plan must not silently extend capture/restore to cover them.
+
+#### All three `scrollPreviewTo` call sites inherit the walk
+
+There are **three**, not two, and the walk lives inside `scrollPreviewTo`, so all three get it:
+
+| Call site | Path | Fragment swap? |
+|---|---|---|
+| `editor.js:367` | after **any** `form[data-op]` submit — save, move, duplicate, delete, including the 409 and 422 branches | yes (`applyFragments` runs `restoreActiveTabs` first) |
+| `editor.js:451` | the `.el-select` path (opens the edit form) | yes |
+| `editor.js:463` | a click on the row body (no editor opened) | no |
+
+**Decision: the reveal on the post-op path is intended.** After saving or moving a nested
+element, revealing that element's own tab is the useful behaviour, and it is consistent with the
+scroll that site already performs. Note the interaction: `restoreActiveTabs` re-stamps the
+author's previous tab onto the rebuilt preview, and then the walk overrides it — so after an op
+the visible tab is the **operated element's** tab, not the author's previous one. This is a
+behaviour change on every element op and is deliberate.
 
 #### What settles late (and why no new timer is needed)
 
 The carousel's 320 ms fade is pure `opacity` on absolutely-positioned slides that all sit at the
-stage's top, so **it never moves the target** — there is nothing for a re-align to catch, and
-"confirm the 500 ms re-align covers the 320 ms fade" would be a confident confirmation of a
-non-issue.
+stage's top, so **it never moves the target** — there is nothing for a re-align to catch.
 
-What actually settles late is **`stage.style.minHeight`**, written by `measure()` behind a
-`ResizeObserver` + `requestAnimationFrame` (`tabs.js`'s `scheduleMeasure`), which reflows
-everything *below* the carousel. `scrollPreviewTo` already re-aligns on a
-`requestAnimationFrame`, on every `img`/`iframe` load, and once more at 500 ms
-(`editor.js:249`). The plan must confirm that existing 500 ms re-align survives **a stage
-`min-height` change landing one or more frames after the click** — that is the risk, not the
-fade.
+What settles late is **`stage.style.minHeight`**, written by `measure()` behind a
+`ResizeObserver` + `requestAnimationFrame` (`scheduleMeasure`), which reflows everything *below*
+the carousel; a nested carousel can schedule its measure after the outer reveal.
+`scrollPreviewTo` already re-aligns on a `requestAnimationFrame`, on every `img`/`iframe` load,
+and once more at 500 ms.
 
-The walk should also confirm `alignTopInPane`'s `el.closest(".pane-body")` (`editor.js:215`)
-still resolves for a deeply nested target — it should, since `.pane-body` is a preview-pane
-ancestor of everything in the preview, but it is one line to check and a silent `return` if
-wrong.
+**Acceptance criterion:** after settling, the target's top is within **4 px** of the pane's
+content top (consistent with `alignTopInPane`'s own `< 1px` no-op threshold plus sub-pixel
+layout). **If the 500 ms backstop proves insufficient** for a nested carousel, the specified
+fallback is an additional re-align bound to the `libli:reveal` event the reveal cascade already
+dispatches — not an arbitrarily longer timeout. The plan must record the measured outcome in the
+PR body either way.
+
+The plan should also confirm `alignTopInPane`'s `el.closest(".pane-body")` still resolves for a
+deeply nested target — it should, but it is one line to check and a silent `return` if wrong.
 
 ## Data flow
 
@@ -306,23 +364,25 @@ wrapping each in `.prev-el[data-element-id]` and calling
 `page` dict for containers → the container's `render()` spreads `page` into its child template
 context → the container template emits
 `<div class="<c>__child prev-el" data-element-id="<child.pk>">` and calls
-`{% render_element child %}` → that call re-reads `editor_preview` from context, so the
-recursion carries the flag down arbitrarily far.
+`{% render_element child %}` → that call re-reads `editor_preview` from context, so the recursion
+carries the flag down arbitrarily far.
 
-On the **student** page `editor_preview` is falsy, every `{% if editor_preview %}` is skipped,
-and the emitted HTML is byte-identical to today's.
+On the **student** page `editor_preview` is falsy, every `{% if editor_preview %}` is skipped, and
+the emitted HTML is byte-identical to today's.
 
-**Client (part 2).** Author clicks an editor row → `scrollPreviewTo(id)` → the selector now
-matches a nested child → the walk collects hiding ancestors up to `[data-scope="preview"]` and
-reveals them outermost-first → `alignTopInPane` scrolls only `.pane-body` → the existing
-re-aligns settle the position as async content and the stage re-measure land.
+**Client (part 2).** Any of the three call sites above invokes `scrollPreviewTo(id)` → the
+selector now matches a nested child → the walk collects hiding ancestors up to
+`[data-scope="preview"]` and reveals them outermost-first → `alignTopInPane` scrolls only
+`.pane-body` → the existing re-aligns settle the position as async content and the stage
+re-measure land.
 
-**Hover is deliberately not part of part 2.** `setHighlight` needs no change — the same selector
-now matches, so it *does* apply `prev-el--hl` to nested elements. But hover **does not reveal**:
-in strip mode the inactive panel is `display:none`, so the outline is drawn on a node with no
-box and the author still sees nothing; in a carousel it is drawn at `opacity: 0`. This is the
-accepted behaviour — the hover outline is observable only when the ancestor already shows the
-child. The **server render test**, not an e2e, is what covers the hover path.
+**Hover reveals nothing, by decision.** `setHighlight` needs no change — the same selector now
+matches, so it *does* apply `prev-el--hl` to nested elements, which is the whole hover fix. But
+hover does **not** trigger the walk: in strip mode the outline is then drawn on a `display:none`
+node and in a carousel at `opacity: 0`, so it is observable only when the ancestor already shows
+the child. That is accepted; the hover path is covered by a dedicated e2e over an
+always-visible nested child (see Testing), because a server render test cannot prove
+`setHighlight` reaches a nested node.
 
 ## Error handling
 
@@ -332,30 +392,29 @@ child. The **server render test**, not an e2e, is what covers the hover path.
   the preview's initial state, so part 1 alone suffices there.
 - **Missing control**: if a tab button, dot, or before/after toggle cannot be found, skip that
   ancestor and continue up rather than throw — a throw would abort the whole click handler and
-  lose the scroll part 1 already earned. (Note this rule is *also* the trap described under
-  "Mode selection" — it must never be what a carousel target silently falls into.)
+  lose the scroll part 1 already earned. This is the correct behaviour for a bailed carousel,
+  a single-slide carousel, and a `killOne`'d before/after. (It is *also* the trap described under
+  "Mode selection" — it must never be what a healthy carousel target silently falls into.)
 - **Already-revealed ancestor**: clicking the already-active tab is harmless — `select()` returns
-  early on `i === active` (`tabs.js:163`). The before/after step **must** check for the `hidden`
-  attribute before clicking, or it would toggle a visible panel *away*.
+  early on `i === active`. The before/after step is gated by the collection predicate, so it
+  never toggles a visible panel *away*.
 - **No-JS / failed enhancement**: `tabs.js` has a `bail()` path that strips enhancement on a
-  throw; `beforeafter.js`'s `killOne` (`:34-40`) is the per-instance analogue — it removes
-  `hidden` from both panels and adds `.ba--dead`. In both degraded states the content is already
-  visible, the walk finds no control, and skipping is correct.
+  throw; `beforeafter.js`'s `killOne` is the per-instance analogue — it removes `hidden` from both
+  panels and adds `.ba--dead`. In both degraded states the content is already visible, the walk
+  finds no control, and skipping is correct.
 
 ### The one reveal-gate interaction
 
-The general reveal-gate concern is out of scope, but one case touches these exact divs and must
-be stated correctly rather than hand-waved:
+The general reveal-gate concern is out of scope, but one case touches these exact divs:
 
 - The preview's **initial** state has every gated sibling **visible**. The pre-hide CSS is
   `.reveal-armed`-gated and lives only in `lesson_unit.html:40-44`, which the editor does not
   render — so the preview does *not* start with gated siblings hidden.
-- The one case that does bite: when an author **clicks a gate in the preview**, `reveal.js`
-  consumes it with `gateWrap.classList.remove("reveal-shown"); gateWrap.hidden = true;`
-  (`reveal.js:155-161`), and `ownWrapper` (`:61-65`) resolves `gateWrap` to the direct child of
-  the scope — i.e. exactly the `.tabs__child` / `.spoiler__child` / `.callout__child` /
-  `.ba__child` div this design labels. Clicking that gate element's editor row then measures a
-  zero node.
+- The case that does bite: when an author **clicks a gate in the preview**, `reveal.js` consumes
+  it with `gateWrap.classList.remove("reveal-shown"); gateWrap.hidden = true;`, and `ownWrapper`
+  resolves `gateWrap` to the direct child of the scope — i.e. exactly the `.tabs__child` /
+  `.spoiler__child` / `.callout__child` / `.ba__child` div this design labels. Clicking that gate
+  element's editor row then measures a zero node.
 
 **Decision: out of scope.** That wrapper is the **target's own** wrapper, not an ancestor, so the
 walk as specified can never see it; handling it would be a different mechanism (un-hiding the
@@ -369,79 +428,124 @@ it kills.
 
 ### Server-side render tests
 
-1. Nested children carry `data-element-id` in the **editor preview** at depth 2 **and** depth 3,
-   across **all five** containers.
-2. Nested children carry **no** `data-element-id` on the **student** page — this is what proves
-   the `editor_preview` gate, and the only assertion that can catch the gate being dropped.
-3. The student render is **byte-identical** before and after (diff-based, per Part 1).
+1. Nested children carry **both halves of the marker on the same node** in the **editor
+   preview** — assert a `.<container>__child.prev-el[data-element-id="<child.pk>"]` node exists —
+   at depth 2 **and** depth 3, across **all five** containers. Asserting the attribute alone
+   leaves a class-dropping mutant green, and for callout and two-column there is no e2e to catch
+   it.
+2. Nested children carry **no** `data-element-id` on the **student** page — this proves the
+   `editor_preview` gate, and is the only assertion that can catch the gate being dropped.
 
 **Scoping is mandatory and load-bearing.** The editor pane *also* uses `data-element-id` — on the
 `el-act-edit` buttons in `_element_row.html` — so a bare substring assertion against the whole
 page passes vacuously on a broken build. Every assertion must be scoped to the preview pane
-(slice from `data-scope="preview"`), exactly the "a card above a list shadows its assertions"
-trap this codebase has hit before.
+(slice from `data-scope="preview"`), exactly the "a card above a list shadows its assertions" trap
+this codebase has hit before.
+
+### Byte-identity: a pre-merge verification step, not a test
+
+This is **not** an automated test — a suite running on the post-change tree has no "before" render
+to diff against, and left in the test list it would be quietly downgraded to test #2 (which does
+not cover whitespace at all).
+
+It is a **one-off pre-merge verification**: render a student lesson page containing all five
+container types on `origin/master` and on the branch, and diff the two outputs byte-for-byte. The
+result must be recorded in the PR body. No golden fixture is committed.
 
 ### e2e
 
-All e2e cases drive real UI. The click target must be **named**, because the two click paths
-behave differently (see the `prev-el--hl` note below).
+All e2e cases drive real UI.
 
-1. **Strip tabs** — seed a child into a **non-first** tab; click its editor row; assert the
-   preview switched tabs and the child is genuinely visible (non-zero box).
-2. **Carousel tabs** — seed a child into a non-first slide of a `display: "carousel"` tabs
-   element; click its editor row; assert the reveal via a **discriminating signal**.
+**Mandatory precondition — nested editor rows start collapsed.** `_element_row.html:82` wraps each
+tab's child rows in `<details class="tabs-rows">` that is `open` only when the slot is in
+`open_slots`, or `clip_active`, or **`forloop.first`** — so a child in a **non-first** tab starts
+collapsed. `_element_row.html:141` (`<details class="columns-rows">`) has **no** `forloop.first`
+clause, so *both* two-column slots start collapsed. In a fresh Playwright context nothing is
+restored, so "click its editor row" would hang on a not-visible locator. Every tabs and
+two-column case must first open the owning `<details>` (or seed `open_slots`). Spoiler, callout
+and before/after rows are always-open divs and need no such step.
+
+1. **Strip tabs** — child in a **non-first** tab; open the owning `<details>`; click the row;
+   assert the preview switched tabs and the child is genuinely visible (non-zero box).
+2. **Carousel tabs** — child in a non-first slide of a `display: "carousel"` tabs element; assert
+   the reveal via a discriminating signal (below).
 3. **Spoiler** — child inside a closed `<details>`; assert it opens.
 4. **Before/after** — child in the After panel; assert the toggle flipped.
 5. **Stacked ancestors** — a child in an inactive tab of a tabs element that itself sits inside a
-   closed spoiler (or an inactive tab of an outer tabs element): assert **both** are revealed,
-   and that the inner control's post-reveal state is sane — specifically that the inner tab strip
-   is not left scrolled to a wrong offset, which is the failure outermost-first ordering prevents.
+   closed spoiler (or an inactive tab of an outer tabs element): assert **both** are revealed and
+   the inner strip's scroll state is correct (see mutant (e) for the fixture requirements).
+6. **Position** — at least one case must assert the headline user value: the target's
+   `bounding_box().y` is within **4 px** of the preview `.pane-body`'s content top. Without this,
+   a build that reveals correctly but never scrolls passes everything.
+7. **Hover** — over an **always-visible** nested child (callout or two-column, which need no
+   reveal): hover the nested editor row and assert `prev-el--hl` lands on the nested preview node.
+8. **Degraded ancestor** — a before/after driven into `killOne` / `.ba--dead`, or a single-slide
+   carousel where `initCarousel` returns early: assert the outer reveal and the scroll still
+   happen, i.e. the walk skipped rather than threw.
 
-#### Two assertion traps that make a test vacuous
+#### Assertion traps that make a test vacuous
 
 - **Never key the carousel assertion on visibility or geometry.** Inactive slides have intact
-  rects and `opacity: 0`, which Playwright calls visible — so "in view" / `bounding_box()` passes
-  with no carousel reveal at all. Key on `.tabs__section.is-active`, the absence of
-  `inert` / `aria-hidden`, or `data-tabs-active`.
+  rects and `opacity: 0`, which Playwright calls visible.
+- **Assert the carousel positively, on the target only.** `show()` adds `is-active` to the
+  incoming slide synchronously and sets `inert`/`aria-hidden` on the outgoing slide
+  synchronously, but calls `settleHidden(out)` — which removes the outgoing `is-active` — only
+  after `FADE_MS` (320 ms). So "exactly one `.is-active`" or "the previous slide lost
+  `is-active`" is **flaky for 320 ms**. Assert instead that the **target's own**
+  `.tabs__section` gains `is-active` and loses `inert`/`aria-hidden`, or read `data-tabs-active`
+  on the owning `[data-tabs-eid]`. Any assertion about the outgoing slide's class during the fade
+  is forbidden.
 - **"The tab changed" needs a named observable, read at the right moment.** The durable signal is
-  `data-tabs-active` on `[data-tabs][data-tabs-eid]` (scope by `data-tabs-eid` to the right
+  `data-tabs-active` on `[data-tabs][data-tabs-eid]` (scoped by `data-tabs-eid` to the right
   instance); the strip-only signal is `aria-selected` on `.tabs__tab`. Capture the "before" value
-  **before the click** — `applyFragments`' `captureActiveTabs`/`restoreActiveTabs`
-  (`editor.js:79-96`) re-stamp the pre-click tab onto the rebuilt preview, so it cannot be
-  inferred from the post-swap DOM.
+  **before the click** — `captureActiveTabs`/`restoreActiveTabs` re-stamp the pre-click tab onto
+  the rebuilt preview, so it cannot be inferred from the post-swap DOM.
 
 #### `prev-el--hl` is not a click-path assertion
 
-Do **not** assert `prev-el--hl` after a click. That class is toggled only by `setHighlight`,
-bound to `mouseenter`/`mouseleave` on `.el-row[data-element]` (`editor.js:196-207`). On the
-`.el-select` path (`editor.js:444-455`) `applyFragments` replaces **both** panes before
-`scrollPreviewTo(selId)` runs — destroying the highlighted node — and `bindHover` re-binds to
-fresh rows that receive no new `mouseenter` without pointer movement, so the class is absent. On
-the other path (a click on the row body, `editor.js:460-464`) there is no swap and a prior
-hover's class survives. The e2e asserts **reveal + position only**; making the outline follow a
-click would be a **new requirement** on `scrollPreviewTo` and is not part of this design.
+Do **not** assert `prev-el--hl` after a click. That class is toggled only by `setHighlight`, bound
+to `mouseenter`/`mouseleave` on `.el-row[data-element]`. On the `.el-select` path
+(`editor.js:451`) `applyFragments` replaces **both** panes before `scrollPreviewTo` runs —
+destroying the highlighted node — and `bindHover` re-binds to fresh rows that receive no new
+`mouseenter` without pointer movement, so the class is absent. On the row-body path
+(`editor.js:463`) there is no swap and a prior hover's class survives. Click cases assert reveal
++ position only; the hover class is asserted only by e2e 7, on the hover path.
 
 ### Named mutants that must go RED
 
 | # | Mutant | Test that must fail |
 |---|---|---|
-| a | Drop the marker from **one** container template | render test (hence: assert all five, not a sample) |
+| a1 | Drop the marker from **one** container template | render test 1 (hence: assert all five, not a sample) |
+| a2 | Emit `data-element-id` but **not** the `prev-el` class | render test 1 (hence: assert the pair on one node) |
 | b1 | Drop the **strip** reveal step | e2e 1 |
 | b2 | Drop the **carousel** branch entirely (strip-mode-only implementation) | e2e 2 |
-| b3 | Drop the spoiler `details.open = true` step | e2e 3 |
+| b3 | Drop the spoiler `open = true` step | e2e 3 |
 | b4 | Drop the before/after toggle step | e2e 4 |
-| c | Drop the `{% if editor_preview %}` gate | student-page test |
+| c | Drop the `{% if editor_preview %}` gate | render test 2 |
 | d | Un-scope the tabs control lookup | a nested **carousel** test |
-| e | Reveal innermost-first instead of outermost-first | e2e 5 (inner strip left mis-scrolled) |
+| e | Reveal innermost-first instead of outermost-first | e2e 5 |
+| f | Resolve each ancestor's node with `closest()` from the target | e2e 5 |
+| g | Skip the scroll (reveal only) | e2e 6 |
+| h | Scope `setHighlight` to top-level (`.prev-inner > .prev-el`) | e2e 7 |
+| i | Throw instead of skip on a missing control | e2e 8 |
 
-Two of these need their rationale recorded, or the plan will substitute a cheaper fixture that
+Three of these need their rationale recorded, or the plan will substitute a cheaper fixture that
 cannot kill them:
 
 - **(d) must be pinned to a nested _carousel_** — carousel-in-carousel, or a carousel containing
-  the target. A nested **strip** fixture stays green on the mutated build, because strip panel
-  ids are globally unique (see "Where own-scoping is actually observable"), so the unscoped
-  lookup finds the same button. Own-scoping is unobservable in strip mode.
-- **(b2) exists because mutant (b) as a single row was all-or-nothing.** A strip-only
-  implementation kills no all-or-nothing mutant and ships green — the exact silent failure this
-  design identified in prose. Splitting (b) per branch is what makes each of the four reveal
-  steps individually tested.
+  the target. A nested **strip** fixture stays green on the mutated build, because strip panel ids
+  are globally unique (see "Where own-scoping is actually observable"), so the unscoped lookup
+  finds the same button. Own-scoping is unobservable in strip mode.
+- **(e) needs an overflowing inner strip.** The only geometry `select()` writes is
+  `scroller.scrollLeft`, via `scrollIntoStrip`. On the broken (innermost-first) build every term
+  is 0 and `scrollLeft` stays 0 — but on the **correct** build `scrollLeft` also stays 0 unless
+  the strip actually overflows *and* the target tab lies outside the visible range. With a default
+  two- or three-short-label fixture both builds read `scrollLeft === 0` and the mutant survives.
+  So: the inner tabs element must carry enough tabs (or long enough labels, against the preview
+  pane's width) that `scroller.scrollWidth > scroller.clientWidth`, and the target must sit in a
+  **late, non-first** tab (also required because `select()` early-returns on `i === active`).
+  Assert `scroller.scrollLeft > 0`, **preceded by a pre-flight assertion that the strip really
+  overflows** — so a fixture that stops overflowing turns the test red instead of vacuous.
+- **(b) was split into b1–b4** because a single all-or-nothing row let a strip-only implementation
+  ship green — the exact silent failure this design identified in prose. One mutant per reveal
+  step is what makes each individually tested.
