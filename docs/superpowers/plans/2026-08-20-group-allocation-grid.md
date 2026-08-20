@@ -2721,11 +2721,32 @@ explicitly after mutating checkboxes (a scripted `.checked` fires no `change`), 
 `initAllocationFilter()`, invoked once from inside the IIFE (not from `initRoster` — the
 select sits outside every `[data-roster]`), reading `[data-allocation-select]` and
 `form.querySelector('[name="course"]')`. Return immediately if either is missing or the
-course select is `disabled` (the edit form). Run the pass on init **and** on `change`; with
-no course selected, hide every `<optgroup>`; never hide the empty option; and reset the
-select to `""` when the selected option's `data-course` no longer matches.
+course select is `disabled` (the edit form). Then, on init **and** on every `change`:
 
-- [ ] **Step 5: Run, falsify, commit** — the nine mutants, each named with the test it must redden:
+* **the primary rule** — hide each `<optgroup>` and its `<option>`s whose `data-course` does
+  not equal the course select's current value, and show the matching ones;
+* with **no** course selected, hide every `<optgroup>`;
+* never hide the empty `— none —` option (it is how a group is detached);
+* reset the select to `""` when the currently-selected option's `data-course` no longer
+  matches.
+
+- [ ] **Step 5: Re-run the existing roster e2e before committing**
+
+```
+uv run pytest tests/test_e2e_grouping.py -m e2e -v
+```
+
+Must pass unchanged. `tests/test_e2e_grouping.py` already covers this exact file —
+`test_roster_search_filters_and_added_count_is_live`,
+`test_added_count_shows_saved_baseline_on_unsaved_changes`,
+`test_teacher_picker_search_filters_rows`, `test_create_group_and_add_student_via_ui` — and
+this task restructures the IIFE. Any throw inside it (an `initAllocationFilter()` reaching a
+null course select on the edit form, say) kills `initRoster` for the whole page and reddens
+all four. Without this step the regression first surfaces at Task 10's whole-suite gate,
+several commits later, where an e2e failure is expensive to attribute. Same rule as Task 4
+Step 7: **if it fails, fix the JS, not the test.**
+
+- [ ] **Step 6: Run, falsify, commit** — the nine mutants, each named with the test it must redden:
 
 | Spec row | Mutant | Test that must go RED |
 |---|---|---|
