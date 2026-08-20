@@ -212,6 +212,13 @@ input[type=number] {
 .roster-filter__field select, .roster-filter__field input { width: auto; }
 .roster-filter__count { margin: 0 0 0 auto; color: var(--text-tertiary);
   font-size: .875rem; align-self: center; }
+/* The add-all control. Its own class, NOT .roster-filter__field: that class's
+   author display:flex would outrank the UA [hidden] rule the same way
+   .checkbox-list label's does above, so with JS off the control would render
+   visible and post nothing. Re-assert [hidden] explicitly, same pattern. */
+.roster-filter__all { display: flex; align-items: center; gap: var(--space-1);
+  font-weight: 500; color: var(--text-secondary); font-size: .875rem; }
+.roster-filter__all[hidden] { display: none; }
 @media (max-width: 640px) {
   .roster-filter__field { width: 100%; }
   .roster-filter__field select, .roster-filter__field input { width: 100%; }

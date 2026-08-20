@@ -15,6 +15,10 @@
         <span>{% trans "Search by name" %}</span>
         <input type="search" data-roster-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
       </label>
+      <label class="roster-filter__all" hidden data-roster-all-wrap>
+        <input type="checkbox" data-roster-all>
+        <span>{% trans "Select all shown" %}</span>
+      </label>
       <p class="roster-filter__count" data-roster-count aria-live="polite" hidden></p>
     </div>
     <div class="checkbox-list" data-roster-list>{{ form.teachers }}</div>
@@ -33,6 +37,10 @@
       <label class="roster-filter__field">
         <span>{% trans "Search by name" %}</span>
         <input type="search" data-roster-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
+      </label>
+      <label class="roster-filter__all" hidden data-roster-all-wrap>
+        <input type="checkbox" data-roster-all>
+        <span>{% trans "Select all shown" %}</span>
       </label>
       <p class="roster-filter__count" data-roster-count aria-live="polite" hidden></p>
     </div>
