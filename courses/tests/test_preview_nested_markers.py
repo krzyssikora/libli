@@ -17,6 +17,7 @@ import pytest
 from bs4 import BeautifulSoup
 from django.urls import reverse
 
+from courses.builder import CONTAINER_MODELS
 from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import Element
@@ -210,8 +211,26 @@ def test_student_page_carries_neither_marker_half(client):
     wrappers = [n for cls in CHILD_CLASSES for n in soup.select(f".{cls}")]
     # Without this the whole test is vacuous for the same reason the preview-rooted
     # selector would be: an empty selection satisfies every "is absent" assertion.
-    assert wrappers, "no child wrappers rendered -- fixture or URL is wrong"
+    # Per class, not just non-empty overall -- otherwise one container silently
+    # failing to render still leaves the flattened list non-empty via the other four,
+    # and that container drops out of mutant (c1)/(c2) coverage while this stays green.
+    for cls in CHILD_CLASSES:
+        assert soup.select(f".{cls}"), f"{cls} did not render -- fixture or template broke"
     for n in wrappers:
         cls_ = n.get("class")
         assert not n.has_attr("data-element-id"), f"leaked attr on {cls_}"
         assert "prev-el" not in (cls_ or []), f"leaked class on {cls_}"
+
+
+def test_child_classes_covers_every_registered_container():
+    """CHILD_CLASSES is hand-maintained; courses.builder.CONTAINER_MODELS is the
+    single source of truth for "what is a container" (see builder.py:220-225). If a
+    sixth container were registered there without also adding its `__child` wrapper
+    class here, its nested children would ship un-locatable and no test above would
+    fail -- the loops in this module only ever iterate CHILD_CLASSES itself."""
+    assert len(CHILD_CLASSES) == len(CONTAINER_MODELS), (
+        "CHILD_CLASSES and courses.builder.CONTAINER_MODELS have drifted apart -- "
+        "a container was added to or removed from the registry. Mark its "
+        "`.<container>__child` wrapper in the template and add that class to "
+        "CHILD_CLASSES above."
+    )

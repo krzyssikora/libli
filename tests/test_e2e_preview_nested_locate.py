@@ -126,7 +126,7 @@ def _open_slots(page, pairs):
     """Open editor row-groups WITHOUT clicking their <summary>. Call BEFORE goto.
 
     NEVER click a <summary> to open a nested row group. `<summary>` is NOT in the
-    row-body handler's exclusion list (editor.js:463 excludes button, a, input,
+    row-body handler's exclusion list (editor.js:569 excludes button, a, input,
     textarea, select, label, form, [draggable], [data-edit-slot] -- not summary), so
     the click reaches scrollPreviewTo(<the CONTAINER row's pk>) and runs the reveal
     walk. After Task 1 that container is itself a .prev-el, so the walk reveals ITS
@@ -325,7 +325,7 @@ def test_nested_carousel_reveals_the_outer_instance(page, live_server):
 def test_click_opens_a_closed_spoiler_around_the_child(page, live_server):
     """e2e 3. Mutant (b3): drop the spoiler `open = true` step -> RED.
 
-    CLICK PATH: the ROW BODY (editor.js:463, NO fragment swap) -- this is the case
+    CLICK PATH: the ROW BODY (editor.js:568-570, NO fragment swap) -- this is the case
     that covers the second path, so the target must not be a button.
 
     Target `.el-tag` (a <span>), NOT `.el-row__top`: that is a display:flex row

@@ -281,7 +281,7 @@
       } else if (node.hasAttribute("data-beforeafter")) {
         var b = owningNode(node, ".ba__panel", "[data-beforeafter]", target);
         if (b && b.node.hasAttribute("hidden")) {
-          chain.push({ kind: "ba", c: node, s: b.node });
+          chain.push({ kind: "ba", c: node });
         }
       }
       node = node.parentElement;
