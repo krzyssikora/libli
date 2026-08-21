@@ -2,13 +2,21 @@
 <article class="note-card" id="note-{{ note.pk }}"
          {% if note.element_id %}data-anchor-element="{{ note.element_id }}"
          data-colour="{% note_colour note.element_id %}"{% endif %}>
+  <p class="note-card__print-label" aria-hidden="true">{% trans "My note" %}</p>
   {% if note.element_id %}
     {% element_label note.element as blk %}
     <p class="note-card__on visually-hidden">{% blocktrans %}on: {{ blk }}{% endblocktrans %}</p>
   {% endif %}
   <p class="note-card__body">{{ note.body|linebreaksbr }}</p>
   <p class="note-card__meta">
-    {% if note|note_edited %}{% blocktrans with when=note.updated|timesince %}edited {{ when }} ago{% endblocktrans %}{% else %}{% blocktrans with when=note.updated|timesince %}added {{ when }} ago{% endblocktrans %}{% endif %}
+    <span class="note-card__meta-rel">{% if note|note_edited %}{% blocktrans with when=note.updated|timesince %}edited {{ when }} ago{% endblocktrans %}{% else %}{% blocktrans with when=note.updated|timesince %}added {{ when }} ago{% endblocktrans %}{% endif %}</span>
+    <span class="note-card__print-date">{% if note|note_edited %}
+      {# Translators: %(date)s is a short date, e.g. 21.08.2026 #}
+      {% blocktrans with date=note.updated|date:"SHORT_DATE_FORMAT" %}edited {{ date }}{% endblocktrans %}
+    {% else %}
+      {# Translators: %(date)s is a short date, e.g. 21.08.2026 #}
+      {% blocktrans with date=note.updated|date:"SHORT_DATE_FORMAT" %}added {{ date }}{% endblocktrans %}
+    {% endif %}</span>
   </p>
   <div class="note-card__actions">
     <a class="note-action note-action--edit"
