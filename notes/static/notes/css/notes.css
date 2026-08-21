@@ -544,6 +544,13 @@
      like borders, survive the strip-backgrounds default. Both are (0,2,0). */
   .lesson .lesson-block.is-dimmed { opacity: 1; }
   .lesson .lesson-block.is-highlighted { background: none; outline: none; }
+  /* applyHighlight (notes.js:445-449) stamps is-highlighted on the matching
+     .note-card TOO, and notes.css:292 gives that a 6px accent rail -- borders
+     survive the strip-backgrounds default, so the focused card would print
+     with a fatter rail than every sibling. (0,3,0) to beat that (0,2,0) rule. */
+  .lesson .note-card.is-highlighted {
+    border-left-width: 4px; background: var(--surface-raised);
+  }
 
   /* Keep the per-block accent rail -- borders paint even when backgrounds are
      stripped -- and never split a note across a page boundary. */

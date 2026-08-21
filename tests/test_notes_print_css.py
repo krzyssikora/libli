@@ -42,6 +42,8 @@ REQUIRED = (
     # focus-highlight reset, both (0,2,0)
     ".lesson-block.is-dimmed",
     ".lesson-block.is-highlighted",
+    # the SAME gesture stamps a third class, on the card itself
+    ".note-card.is-highlighted",
     # print-only card elements
     ".note-card__print-label",
     ".note-card__print-date",

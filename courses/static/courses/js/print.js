@@ -16,7 +16,12 @@
   "use strict";
 
   var opened = new Set();   // panels WE opened -- never ones the student opened
-  var stamped = new Set();  // textareas WE gave an inline height
+  /* textarea -> its inline style.height BEFORE we touched it. A Map, not a Set:
+     `textarea { resize: vertical }` (app.css:166) means a student's own
+     drag-resize lives in that same inline property, so blanking it on the
+     leave path would silently undo their resize. Restore exactly what was
+     there -- usually "", sometimes their height. */
+  var stamped = new Map();
 
   /* A textarea's value is not layout, so it reads correctly through a closed
      <details>. This is the only way to find a draft the student typed and then
@@ -95,8 +100,8 @@
         }
       }
       if (h) {
+        if (!stamped.has(ta)) stamped.set(ta, ta.style.height);
         ta.style.height = h + "px";
-        stamped.add(ta);
       }
     }
   }
@@ -137,8 +142,8 @@
     });
     opened.clear();
 
-    stamped.forEach(function (ta) {
-      ta.style.height = "";
+    stamped.forEach(function (previous, ta) {
+      ta.style.height = previous;
     });
     stamped.clear();
 
