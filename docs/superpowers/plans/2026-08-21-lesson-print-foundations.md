@@ -262,8 +262,7 @@ Expected: PASS. The per-value `SLOTS.get(normalise_colour(value)) == slot` asser
 
 Run:
 ```
-C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_text_colour_css.py \
-  tests/test_border_contrast_css.py tests/test_imagezoom_render.py tests/test_htmlsandbox.py
+C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_text_colour_css.py tests/test_border_contrast_css.py tests/test_imagezoom_render.py tests/test_htmlsandbox.py
 ```
 Expected: all pass. They locate blocks with first-match `re.search`, so a block appended at the end is invisible to them. If any fails, stop — the append point is wrong.
 
@@ -327,7 +326,7 @@ def test_print_restates_every_dark_callout_accent_with_the_light_value():
     tokens.css's print block cannot reach it. Without its own print block a
     dark-theme lesson with callouts prints #7db0f7 headings on white (2.23:1)."""
     # Whitespace-exact by necessity, and unique in courses.css today (checked
-    # against all 9 existing @media print blocks). If a reformat ever breaks it,
+    # against all 8 existing @media print blocks). If a reformat ever breaks it,
     # the failure reads "no @media print block" rather than "wrong value" -- so
     # check the marker before believing that message.
     marker = '@media print {\n  [data-theme="dark"]'
@@ -431,9 +430,13 @@ Append at the **end** of `courses/static/courses/css/courses.css`:
 Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
 Expected: **5 passed** (3 from Task 1, plus the callout parity check and the sweep).
 
-Run: `C:/Users/krzys/.local/bin/uv.exe run ruff format tests/ && \
-  C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/ && \
-  C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/`
+Run each on its own line — `&&` is a parser error in Windows PowerShell 5.1:
+
+```bash
+C:/Users/krzys/.local/bin/uv.exe run ruff format tests/
+C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/
+C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/
+```
 Expected: clean.
 
 - [ ] **Step 5: Run the other tests that read `courses.css`, and check CRLF**
@@ -586,9 +589,13 @@ Append at the **end** of `courses/static/courses/css/courses.css`, after Task 2'
 Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
 Expected: **7 passed**.
 
-Run: `C:/Users/krzys/.local/bin/uv.exe run ruff format tests/ && \
-  C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/ && \
-  C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/`
+Run each on its own line — `&&` is a parser error in Windows PowerShell 5.1:
+
+```bash
+C:/Users/krzys/.local/bin/uv.exe run ruff format tests/
+C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/
+C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/
+```
 Expected: clean.
 
 Run: `git diff --stat -- courses/static/courses/css/courses.css`
