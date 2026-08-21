@@ -53,6 +53,20 @@ Omitting `--tc-*` leaves a lesson with coloured text still printing near-white-o
 `--scrim-solid` is **not** in the set: declared only in `:root` (`tokens.css:49`), never in the dark
 block, and an existing source-level test enforces that absence.
 
+**Restating `--tc-*` breaks an existing test, which must be updated in the same commit.**
+`tests/test_colour_map_drift.py:50–58` scans the **whole file** with
+`re.findall(rf"--tc-{slot}:\s*(#[0-9A-Fa-f]{{6}})", tokens)` across the four slots and then asserts
+`seen == 8` ("4 slots x 2 themes"). A print block restating the four tokens makes that **12**, so a
+*correct* implementation fails an existing test. This is not optional to notice: `tokens.css` is in
+`is_global_path`'s member list (`tests/test_affected_tests.py:133`), so this branch selects the whole
+suite and the failure will fire.
+
+The fix is one line — change the expected count to `12` with a comment naming the print block as the
+third occurrence set. The per-value `SLOTS.get(normalise_colour(value)) == slot` assertion inside the
+loop still passes, because the print block restates `:root`'s values, which already map correctly. Do
+**not** narrow the regex to dodge the count: scanning every occurrence is what makes the test catch a
+drifted value anywhere in the file, including in the new block.
+
 ### 2. Dark theme, part two — `--callout-accent` in `courses.css`
 
 `tokens.css` is not the only file with dark-only declarations. `courses.css:2010–2014` declares a
@@ -168,7 +182,7 @@ Fixtures follow `tests/test_e2e_notes.py`: allauth `input[name='login']`, `TEST_
 | 2 | A dark-theme lesson using an author text colour prints `--tc-red` at **≥ 4.5:1**. Correct: `:root` value ≈6.4:1. Mutant: `#EA8A82`, ≈2.6:1 | omit the `--tc-*` group from the override set |
 | 3 | A dark-theme lesson with a **callout** prints its heading at **≥ 4.5:1**. Correct: `#2563c9` ≈5.7:1. Mutant: `#7db0f7` ≈2.2:1 | delete the `courses.css` `--callout-accent` print block |
 | 4 | **Every slide** of a multi-slide lesson prints **stacked in flow** — the slides' `bounding_box()["y"]` values are **strictly increasing** — and `.slideshow-bar` is not visible. Must `wait_for_selector(".slideshow-deck", state="attached")` first | delete the block; keep only `display: block` without the `position`/`height`/`overflow` resets; omit the `.slideshow-bar` hide |
-| 5 | A slide in the **mid-fade state** prints at full opacity. The fixture **injects** the state via `page.evaluate` — take a non-active slide, remove its `hidden`, set `style.opacity = "0"` — then reads once, non-polling | delete `opacity: 1 !important`; **separately**, delete `transition: none !important` |
+| 5 | A slide in the **mid-fade state** prints at full opacity. **Order is load-bearing:** inject the state via `page.evaluate` on the *screen* cascade — take a non-active slide, remove its `hidden`, set `style.opacity = "0"` — **then** `emulate_media(media="print")`, then a single non-polling read. Injecting *after* entering print means the inline `0` loses to `opacity: 1 !important` immediately, the computed value never changes, no transition is ever started, and the `transition: none` mutant reads a solid `1` and stays GREEN | delete `opacity: 1 !important`; **separately**, delete `transition: none !important` |
 
 Two things make these rows falsifiable, and both are easy to lose:
 
@@ -202,8 +216,11 @@ makes the `--primary*` / `--accent*` family checkable. `--scrim-solid` is exclud
 **The extraction contract is itself load-bearing.** Do **not** reuse `test_text_colour_css.py:68`'s
 `_block()` helper — `re.search(re.escape(selector) + r"\s*\{(.*?)\n\}")` takes the *first* match, so
 with two `[data-theme="dark"]` blocks in the file it compares the screen block against itself and
-passes vacuously. Locate the print block by its `@media print` wrapper and the screen block by its
-position before line 79.
+passes vacuously. Locate the two **structurally**, not by line number: the screen block is the
+`[data-theme="dark"] {` at **column 0** (`tokens.css:79–111`), the print block is the indented one
+inside `@media print`. `tests/test_imagezoom_render.py:112` already does exactly this with
+`re.search(r'^\[data-theme="dark"\]\s*\{', source, re.MULTILINE)` — reuse that shape. (A
+"before line 79" locator would select nothing, since the screen block *begins* at 79.)
 
 **Scope is repo-wide.** Every `[data-theme="dark"]` declaration in a shipped stylesheet needs a print
 counterpart or a recorded exclusion; the test fails if a new one appears unclassified. The sweep finds
