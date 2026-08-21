@@ -77,18 +77,18 @@ SCREEN, _sep, PRINT = CSS.partition("@media print")
 def _decls(body):
     """{token-name: value} for one declaration block body.
 
-    THE NEWLINE EXCLUSION IN THE VALUE CLASS IS WHAT MATTERS. tokens.css:44-48 is
-    prose containing "--surface-overlay:", and a naive [^;]+ (which matches
-    newlines) swallows from there to the next semicolon: --surface-overlay comes
-    back as "nothing of the page may\n show through. */\n --scrim-solid: ..." and
-    --scrim-solid never gets a key at all, making this test RED on a CORRECT build.
-    Measured against the real file, [^;{}\n]+ alone gives the right answer.
+    The newline exclusion in the value class is the whole mechanism, and it is
+    deliberately the ONLY one. tokens.css:44-48 is prose containing
+    "--surface-overlay:", and a naive [^;]+ (which matches newlines) swallows from
+    there to the next semicolon: --surface-overlay comes back as "nothing of the
+    page may\n show through. */\n --scrim-solid: ..." and --scrim-solid never gets
+    a key at all, making this test RED on a CORRECT build.
 
-    The comment strip below is belt-and-braces for a future comment that fits a
-    whole "--x: y;" on one line; today it changes nothing. Do not mistake it for
-    the load-bearing part -- battery row 14 mutates the value class, not this.
+    An earlier draft ALSO stripped comments first. Measured, each guard alone
+    fixes the file and each is therefore individually unfalsifiable -- two
+    redundant defences mean no mutant can redden either. One mechanism, one
+    mutant (battery row 13). Do not re-add the strip without retiring that row.
     """
-    body = re.sub(r"/\*.*?\*/", "", body, flags=re.DOTALL)
     return {
         name: " ".join(value.split())
         for name, value in re.findall(r"(--[a-z0-9-]+)\s*:\s*([^;{}\n]+);", body)
@@ -146,7 +146,8 @@ C:/Users/krzys/.local/bin/uv.exe run python -c "import tests.test_print_tokens_c
 ```
 (One line — the repo's primary shell is PowerShell, where `\` is not a line continuation.)
 Expected: `'rgba(30,28,24,0.45)'` and `True`. If `--surface-overlay` comes back as prose, the
-comment-stripping pass is missing and every later assertion is meaningless.
+value class is matching newlines — check it reads `[^;{}\n]+`, not `[^;]+`. Every later assertion
+in this file is meaningless until this prints correctly.
 
 - [ ] **Step 3: Run the test and watch it fail**
 
@@ -802,9 +803,12 @@ def _slideshow_lesson(slug):
     """A unit with two slides: text, slide break, text.
 
     Uses tests.factories.seed_slideshow_unit, which already builds a unit from a
-    "t"/"brk"/"q" layout -- do not hand-roll the element creation. It goes through
-    ContentNodeFactory, whose `published` default is False (migration 0057), so the
-    flag must be set explicitly or the student cannot reach the unit.
+    "t"/"brk"/"q" layout -- do not hand-roll the element creation.
+
+    The explicit publish below is belt-and-braces, not a fix: ContentNodeFactory
+    already sets published=True (factories.py:104). It is the MODEL default that
+    is False. Kept so the fixture states what it depends on rather than inheriting
+    it silently.
     """
     from django.contrib.auth.models import Group as AuthGroup
 
