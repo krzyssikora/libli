@@ -117,8 +117,10 @@ Responsibilities — the ordering of 3→5 is load-bearing:
 5. **Then — strictly after 3–4 — re-derive draft marks and stamp textarea heights.** A textarea inside
    a still-closed `<details>` is under `content-visibility: hidden`, so its layout is skipped and
    `scrollHeight` reads `0`; stamping before opening writes `height: 0px`.
-6. **Restore on the leave path** — remove `open` from the recorded nodes, clear the Set, undo the
-   `setupClamp` residue (§2c), clear stamps and marks. Every step must be a **no-op when the thing it
+6. **Restore on the leave path**, in this order: remove `open` from the recorded nodes; undo the
+   `setupClamp` residue **inside those nodes** (§2c); clear stamps and marks; **then** clear both
+   Sets. The order matters — §2c scopes the residue cleanup to the panels `print.js` opened, so
+   clearing the Set first leaves that step nothing to iterate and row 19 turns RED. Every step must be a **no-op when the thing it
    removes is absent**, never an error.
 7. **Two dispatchers, no mode flag.** Safari fires `beforeprint`/`afterprint` unreliably, so
    `matchMedia("print")` change events drive the same handlers, routed on `e.matches`.
@@ -149,7 +151,7 @@ class at the top of every run (`notes.js:518–519`) and re-runs on open and res
 
 - **Edit** — `card.replaceWith(form)` (`:316`) builds `form.note-composer.note-composer--edit` holding
   the note's text; restored by `form.replaceWith(card)` on cancel (`:309`).
-- **Delete** — `card.replaceWith(confirm)` (`:336`) builds `div.note-delete-confirm` with a prompt and
+- **Delete** — `card.replaceWith(confirm)` (`:385`) builds `div.note-delete-confirm` (`:336`) with a prompt and
   Yes/No. **It does not contain the note body.**
 
 The sweep admits both, so sibling notes still print. §3 must not blanket-hide `.note-composer`, or a
@@ -456,7 +458,7 @@ Consequences:
 - Reads after `emulate_media` are **polling** (`expect(...).to_pass()`), since the listener is async.
 
 Markers: *(event)* — killed by deleting the `beforeprint`/`afterprint` registration: rows **1, 7d, 9,
-9b, 9d, 16c, 18, 19, 20, 20b**. *(media)* — row **2** only. *(shared)* — rows **10** and **17** depend
+9b, 9d, 16c, 18, 19, 20, 20b**. *(media)* — row **2** only. *(shared)* — rows **10**, **16** and **17** depend
 on sweep/restore logic, not on which listener ran. *(CSS)* — depend only on the stylesheet.
 
 ### The suite is Chromium-only, which shapes three rows
