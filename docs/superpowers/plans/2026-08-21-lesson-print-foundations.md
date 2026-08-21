@@ -137,11 +137,10 @@ def test_scrim_solid_is_not_in_the_print_override():
 
 Before trusting the test, check the two tokens that a naive regex mangles:
 
+```bash
+C:/Users/krzys/.local/bin/uv.exe run python -c "import tests.test_print_tokens_css as t; r = t._block(t.SCREEN, r'^:root'); print(repr(r['--surface-overlay'])); print('--scrim-solid' in r)"
 ```
-C:/Users/krzys/.local/bin/uv.exe run python -c "import tests.test_print_tokens_css as t; \
-  r = t._block(t.SCREEN, r'^:root'); \
-  print(repr(r['--surface-overlay'])); print('--scrim-solid' in r)"
-```
+(One line — the repo's primary shell is PowerShell, where `\` is not a line continuation.)
 Expected: `'rgba(30,28,24,0.45)'` and `True`. If `--surface-overlay` comes back as prose, the
 comment-stripping pass is missing and every later assertion is meaningless.
 
@@ -209,9 +208,17 @@ Append to the **end** of `core/static/core/css/tokens.css` (after the closing `}
 Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
 Expected: 3 passed.
 
-Run: `C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/test_print_tokens_css.py`
-Expected: clean. Lint the test now rather than deferring it — an E501 found three tasks later
-means re-opening a committed file.
+Format and lint the new test now, rather than deferring — an E501 found three tasks later means
+re-opening a committed file, and **`ruff format --check` is a CI gate** (`.github/workflows/ci.yml:21`)
+that no other step here runs:
+
+```
+C:/Users/krzys/.local/bin/uv.exe run ruff format tests/test_print_tokens_css.py
+C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/test_print_tokens_css.py
+C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/test_print_tokens_css.py
+```
+Run `ruff format` (no flag) **first** so it fixes wrapping, then `--check` to confirm. Hand-wrapped
+code that merely fits in 88 columns is not necessarily what ruff format produces.
 
 - [ ] **Step 6: Run the test that this change breaks, and confirm it breaks**
 
@@ -412,7 +419,9 @@ Append at the **end** of `courses/static/courses/css/courses.css`:
 Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
 Expected: **5 passed** (3 from Task 1, plus the callout parity check and the sweep).
 
-Run: `C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/test_print_tokens_css.py`
+Run: `C:/Users/krzys/.local/bin/uv.exe run ruff format tests/ && \
+  C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/ && \
+  C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/`
 Expected: clean.
 
 - [ ] **Step 5: Run the other tests that read `courses.css`, and check CRLF**
@@ -440,9 +449,10 @@ lesson with callouts printed its headings at 2.23:1 on white."
 
 **Files:**
 - Modify: `courses/static/courses/css/courses.css` (append at end, after Task 2's block)
+- Modify: `tests/test_print_tokens_css.py` (adds the two Step-2 checks)
 
 **Interfaces:**
-- Consumes: nothing from Tasks 1–2.
+- Consumes: `COURSES_CSS`, defined in Task 2's Step 1 additions to the same test file.
 - Produces: an `@media print` block revealing every `.slideshow-deck .slide`. Task 4's e2e rows 4 and 5 exercise it.
 
 - [ ] **Step 1: Read the runtime DOM this block targets — do not skip**
@@ -456,7 +466,54 @@ lesson with callouts printed its headings at 2.23:1 on white."
 
 So the three server-side rules that hide slides — `courses.css:348`, the FOUC pre-hide at `:355` (0,5,1), and the `hidden` attribute — **stop matching once the deck is built**. `courses.css:361–363` says so in its own comment. **Any print rule written against `[data-slideshow] > .slide` is inert, and so is any mutant of it.** Write against `.slideshow-deck`.
 
-- [ ] **Step 2: Append the block to `courses.css`**
+- [ ] **Step 2: Add a source-level check for this block, and run it RED — before appending**
+
+Without this, Task 3 would commit ~30 lines of CSS with no verification until Task 4; a typo'd
+selector would surface two tasks later. This step comes **before** the append so the red phase is
+real. Add to `tests/test_print_tokens_css.py`:
+
+```python
+SLIDESHOW_PRINT_REQUIRED = (
+    ".slideshow-deck .slide[hidden]",
+    "position: static !important",
+    "opacity: 1 !important",
+    "transition: none !important",
+    ".slideshow-bar",
+)
+
+
+def test_slideshow_print_block_declares_the_load_bearing_rules():
+    """Cheap tripwire, not a cascade proof: a rule can be present and still inert,
+    which only the e2e A/B in Task 4 can catch. This exists so a typo or a dropped
+    declaration fails in Task 3 rather than two tasks later."""
+    marker = ".slideshow-deck {\n    overflow: visible"
+    _screen, sep, printed = COURSES_CSS.partition(marker)
+    assert sep, "courses.css must have a print block for the slideshow deck"
+    block = sep + printed
+    for needle in SLIDESHOW_PRINT_REQUIRED:
+        assert needle in block, f"slideshow print block is missing {needle!r}"
+
+
+def test_courses_css_braces_balance():
+    """Green BEFORE the append too — courses.css already balances (559/559). This
+    is a regression tripwire for a malformed hand-edit, not part of the red phase,
+    and battery row 14 is what proves it can go red at all."""
+    text = re.sub(r"/\*.*?\*/", "", COURSES_CSS, flags=re.DOTALL)
+    assert text.count("{") == text.count("}"), (
+        "unbalanced braces in courses.css — an appended block is malformed"
+    )
+```
+
+Run it now — **before** the append in Step 3:
+
+```
+C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v
+```
+Expected: `test_slideshow_print_block_declares_the_load_bearing_rules` **FAILS** with
+"courses.css must have a print block for the slideshow deck". The brace-balance test passes
+already — see the note in its docstring.
+
+- [ ] **Step 3: Append the block to `courses.css`**
 
 Append at the **end** of `courses/static/courses/css/courses.css`, after Task 2's block:
 
@@ -512,49 +569,14 @@ Append at the **end** of `courses/static/courses/css/courses.css`, after Task 2'
 }
 ```
 
-- [ ] **Step 3: Add a source-level check for this block — written failing-first**
-
-Steps 1–2 as written commit ~30 lines of CSS with no verification until Task 4. A typo'd selector
-or an unbalanced brace would ship and surface two tasks later. Add to
-`tests/test_print_tokens_css.py`:
-
-```python
-SLIDESHOW_PRINT_REQUIRED = (
-    ".slideshow-deck .slide[hidden]",
-    "position: static !important",
-    "opacity: 1 !important",
-    "transition: none !important",
-    ".slideshow-bar",
-)
-
-
-def test_slideshow_print_block_declares_the_load_bearing_rules():
-    """Cheap tripwire, not a cascade proof: a rule can be present and still inert,
-    which only the e2e A/B in Task 4 can catch. This exists so a typo or a dropped
-    declaration fails in Task 3 rather than two tasks later."""
-    marker = ".slideshow-deck {\n    overflow: visible"
-    _screen, sep, printed = COURSES_CSS.partition(marker)
-    assert sep, "courses.css must have a print block for the slideshow deck"
-    block = sep + printed
-    for needle in SLIDESHOW_PRINT_REQUIRED:
-        assert needle in block, f"slideshow print block is missing {needle!r}"
-
-
-def test_courses_css_braces_balance():
-    text = re.sub(r"/\*.*?\*/", "", COURSES_CSS, flags=re.DOTALL)
-    assert text.count("{") == text.count("}"), (
-        "unbalanced braces in courses.css — an appended block is malformed"
-    )
-```
-
-Run it **before** Step 2's append and confirm it FAILS; then append and confirm it passes.
-
 - [ ] **Step 4: Run the checks**
 
 Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
 Expected: **7 passed**.
 
-Run: `C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/`
+Run: `C:/Users/krzys/.local/bin/uv.exe run ruff format tests/ && \
+  C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/ && \
+  C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/`
 Expected: clean.
 
 Run: `git diff --stat -- courses/static/courses/css/courses.css`
@@ -563,7 +585,7 @@ Expected: a small insertion count, not a whole-file rewrite (CRLF preserved).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/static/courses/css/courses.css
+git add courses/static/courses/css/courses.css tests/test_print_tokens_css.py
 git commit -m "fix(print): print every slideshow slide, not just the active one
 
 slideshow.js moves slides into a JS-built .slideshow-deck > .slideshow-stage,
@@ -860,6 +882,10 @@ def test_mid_fade_slide_prints_opaque(page, live_server):
              const slide = document.querySelector('.slideshow-deck .slide[hidden]');
              slide.removeAttribute('hidden');
              slide.style.opacity = '0';
+             // Tag the exact node, so the read below cannot drift to a different
+             // slide if the fixture ever grows one -- a non-mutated slide carries
+             // no inline opacity and would read a solid 1 on BOTH mutants.
+             slide.setAttribute('data-probe', '1');
              void slide.offsetWidth;          // establish 0 as the before-change style
            })()"""
     )
@@ -873,9 +899,7 @@ def test_mid_fade_slide_prints_opaque(page, live_server):
     )
 
     opacity = page.evaluate(
-        """getComputedStyle(
-             document.querySelector('.slideshow-deck .slide:not(.is-active)')
-           ).opacity"""
+        "getComputedStyle(document.querySelector('[data-probe]')).opacity"
     )
     assert float(opacity) == 1.0, (
         f"a mid-fade slide prints at opacity {opacity}; either opacity:1 !important "
@@ -897,16 +921,35 @@ C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_e2e_print_foundations.py 
 ```
 Expected: 5 passed. `-m e2e` is mandatory; without it every test deselects and pytest exits 5.
 
-Then lint: `C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/`
-Expected: clean.
+Then format and lint:
+```
+C:/Users/krzys/.local/bin/uv.exe run ruff format tests/
+C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/
+C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/
+```
+Expected: clean. `ruff format --check` is a CI gate (`.github/workflows/ci.yml:21`).
 
 **Grep the summary line.** pytest can exit 0 with failures present.
 
 - [ ] **Step 4: Falsify every assertion — this is the real gate**
 
-For each mutant below: apply it **by hand-editing the file**, run the named test, confirm **RED**, then **edit the mutant back out by hand**. Never `git checkout` to revert — this repo has lost work to that three times; see the project notes.
+For each mutant below: apply it **by hand-editing the file**, run the named test, confirm **RED**,
+then **edit the mutant back out by hand**. Never `git checkout` to revert — this repo has lost work
+to that three times; see the project notes.
 
-Read `git diff` after the battery and confirm it is empty before moving on.
+**Use these exact commands.** Rows 1–10 target e2e tests, rows 11–15 target non-e2e tests:
+
+```
+C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_e2e_print_foundations.py::<name> -m e2e -v
+C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py::<name> -v
+```
+
+**`no tests ran` / exit 5 is NOT red.** Omitting `-m e2e` deselects every e2e test and exits 5 with
+no failure, which reads exactly like a passing run. If a mutant produces that, the command was
+wrong — re-run it, do not record the mutant as green or as red.
+
+Read `git diff` after the battery and confirm it shows **only** the work you meant to keep — Task 3's
+tests and Task 4's e2e file, both already committed by this point, so the diff should be empty.
 
 | # | Mutant | Must turn RED |
 |---|---|---|
@@ -919,11 +962,12 @@ Read `git diff` after the battery and confirm it is empty before moving on.
 | 7 | Delete `opacity: 1 !important` from the slide reveal | `test_mid_fade_slide_prints_opaque` |
 | 8 | Delete `transition: none !important` from the slide reveal | `test_mid_fade_slide_prints_opaque` |
 | 9 | Rewrite the slide reveal against `[data-slideshow] > .slide` instead of `.slideshow-deck .slide` | `test_every_slide_prints_stacked_in_flow` (proves the selector is not inert) |
-| 9b | Delete the **entire** slideshow `@media print` block | `test_every_slide_prints_stacked_in_flow` **and** `test_slideshow_print_block_declares_the_load_bearing_rules` |
-| 10 | Change one value in the `tokens.css` print block | `test_print_override_restates_every_dark_token_with_the_root_value` |
-| 11 | Delete the `--primary*` group from the print block | same |
-| 12 | Replace `_block(PRINT, …)` with `_block(CSS, …)` — a first-match search over the whole file — **then apply mutant 10 as well**. Mutant 10 must still turn the test RED. *Note: simply dropping the `partition` is not a usable mutant: both locators then resolve to the screen dark block and the test fails unconditionally, so it distinguishes nothing* | `test_print_override_restates_every_dark_token_with_the_root_value` |
-| 13 | Delete the comment-stripping line from `_decls` | `test_print_override_restates_every_dark_token_with_the_root_value` — it must go RED on `--surface-overlay`, proving the helper is not silently mangling the file |
+| 10 | Delete the **entire** slideshow `@media print` block | `test_every_slide_prints_stacked_in_flow` **and** `test_slideshow_print_block_declares_the_load_bearing_rules` |
+| 11 | Change one value in the `tokens.css` print block | `test_print_override_restates_every_dark_token_with_the_root_value` |
+| 12 | Delete the `--primary*` group from the print block | same |
+| 13 | Replace `_block(PRINT, …)` with `_block(CSS, …)` — a first-match search over the whole file — **then apply mutant 10 as well**. Mutant 10 must still turn the test RED. *Note: simply dropping the `partition` is not a usable mutant: both locators then resolve to the screen dark block and the test fails unconditionally, so it distinguishes nothing* | `test_print_override_restates_every_dark_token_with_the_root_value` |
+| 14 | Delete the comment-stripping line from `_decls` | `test_print_override_restates_every_dark_token_with_the_root_value` — it must go RED on `--surface-overlay`, proving the helper is not silently mangling the file |
+| 15 | Delete one closing `}` from the appended slideshow block | `test_courses_css_braces_balance` — the only row that proves this tripwire can go red |
 
 If any mutant leaves its test GREEN, the assertion is not measuring what it claims. Fix the assertion, not the mutant.
 
@@ -965,12 +1009,12 @@ every slide is visible with a non-zero box at the IDENTICAL rect."
 | Spec section | Task |
 |---|---|
 | §1 dark theme override, placement, full token set, color-mix rule, `--scrim-solid` exclusion | Task 1 |
-| §1 `test_colour_map_drift` collision | Task 1, Steps 5–7 |
+| §1 `test_colour_map_drift` collision | Task 1, Steps 6–8 |
 | §2 `--callout-accent`, light-declaration-of-same-selector contract | Task 2 |
 | §3 slideshow post-enhancement DOM, geometry reset, `opacity`, `transition`, `.slideshow-bar` | Task 3 |
 | Testing rows 1–5 | Task 4, Step 1 |
 | Token-parity test + structural extraction contract | Task 1 Step 1, Task 2 Step 1 |
-| Repo-wide `[data-theme="dark"]` sweep dispositions | **Gap — see below** |
+| Repo-wide `[data-theme="dark"]` sweep dispositions | Task 2, Step 1 |
 | Manual print-preview check | Task 4, Step 6 |
 | Falsification battery | Task 4, Step 4 |
 
