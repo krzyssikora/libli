@@ -526,9 +526,15 @@ and each iteration's `HTTPError` needs that close.
 
 **Transport failures.** Both the request *and the read loop* are wrapped in
 `except (TimeoutError, urllib.error.URLError, OSError)` — the set
-`integrations/delivery.py:67` uses, widened to `OSError` for mid-read socket failures —
-and converted to a `ValidationError` reading "Could not reach the image host." This clause
-comes **after** the `HTTPError` clause (see step 5). Wrapping only the `open()` call is not
+`integrations/delivery.py:144` uses, with **`HTTPError` deliberately omitted** and `OSError`
+added for mid-read socket failures — and converted to a `ValidationError` reading "Could not
+reach the image host." This clause comes **after** the `HTTPError` clause (see step 5).
+
+Note the omission is the whole point, and the neighbouring `integrations/delivery.py:67`
+tuple is **not** the one to copy: it reads
+`except (TimeoutError, urllib.error.HTTPError, urllib.error.URLError)`, and including
+`HTTPError` here would swallow every redirect and status error exactly as step 5's
+clause-order argument warns. Wrapping only the `open()` call is not
 enough: a DNS failure raises there, but a truncated body raises from inside the read loop,
 after the `with` block has been entered.
 
@@ -606,8 +612,18 @@ and a substantial share of real-world web JPEGs.
    accept. If no candidate is allowed → "That image type is not allowed."
 4. **The stem is sanitized, and the order of operations matters.** URL-unquote the path
    *first*, then take the basename, **then drop a trailing extension when (case-folded) it
-   is one of the known image extensions**, then strip path separators, `..` segments,
-   control characters and leading dots; if nothing usable survives, use the literal `image`.
+   appears in `SAFE_IMAGE_EXTENSIONS`** (`courses/validators.py:34`), then strip path
+   separators, `..` segments, control characters and leading dots; if nothing usable
+   survives, use the literal `image`.
+
+   **The strip tests against the fixed safe universe, NOT `effective_image_extensions()`** —
+   which step 3 read into a local a few lines earlier, making it the tempting choice.
+   `effective_image_extensions()` is a strict *subset*, intersected with the admin's
+   configuration (`validators.py:62`), so under the very narrowing this spec tests
+   (`["jpeg"]`) a `…/Foo.jpg` URL serving JPEG would pick extension `jpeg`, fail to find
+   `jpg` in the effective list, leave the existing suffix in place, and store
+   **`Foo.jpg.jpeg`** — reintroducing the exact double-extension defect this step exists to
+   prevent, and passing `full_clean()` silently because only the final `jpeg` is validated.
 
    Dropping the existing extension is not optional and is easy to lose: without it the
    spec's own headline example, `…/Foo.jpg`, yields the stem `Foo.jpg` and stores
@@ -627,9 +643,11 @@ and a substantial share of real-world web JPEGs.
 
 Two comparisons are case-folded, and neither is a path-extension match (the path no longer
 decides the extension at all): the `img.format` map lookup, and the membership test of each
-candidate against `effective_image_extensions()`, which returns lowercase
-(`courses/validators.py:60`). The trailing-extension strip in step 4 is likewise
-case-folded, so a `…/Foo.JPG` path yields the stem `Foo`.
+candidate against `effective_image_extensions()`, which returns lowercase because
+`validators.py:62` yields elements of the `safe` tuple rather than of the admin-supplied
+list, and that tuple is lowercase by construction (`validators.py:34`). The
+trailing-extension strip in step 4 is likewise case-folded, so a `…/Foo.JPG` path yields the
+stem `Foo`.
 
 ### 4. `media_fetch` view + route
 
@@ -1075,7 +1093,9 @@ as exactly `Foo.gif`** — an *exact filename equality*, not an "ends with `.gif
 which would also pass for the `Foo.png.gif` double-extension bug; **a `…/Foo.jpg` URL stores
 exactly `Foo.jpg`, never `Foo.jpg.jpg`**; a `…/Foo.JPG` URL stores `Foo.jpg`; the extension
 is chosen from `effective_image_extensions()` rather than a
-literal, including when narrowed to `["jpeg"]`; `image/jpg` is accepted; a `Content-Type`
+literal — and **when narrowed to `["jpeg"]`, a `…/Foo.jpg` URL stores exactly `Foo.jpeg`,
+never `Foo.jpg.jpeg`**, which is what pins the trailing-extension strip to the safe universe
+rather than the effective list; `image/jpg` is accepted; a `Content-Type`
 with parameters is accepted; a zero-byte body is rejected; the cap trips when
 `Content-Length` under-reports; a declared over-cap `Content-Length` rejects before the body
 is read; an absent or malformed `Content-Length` is ignored; a connect failure and a
