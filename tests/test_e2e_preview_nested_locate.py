@@ -350,3 +350,43 @@ def test_click_opens_a_closed_spoiler_around_the_child(page, live_server):
     page.click(f'.el-row[data-element="{child_join.pk}"] .el-tag')
     page.wait_for_selector(f"{det}[open]")
     assert page.evaluate("(n) => n.isConnected", handle), "unexpected fragment swap"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_click_flips_before_after_to_the_panel_holding_the_child(page, live_server):
+    """e2e 4. Mutant (b4): drop the before/after toggle click -> RED.
+
+    Click path: .el-row__label (.el-select). No <details> precondition -- ba rows are
+    always-open divs (templates/courses/manage/editor/_element_row.html:243).
+    """
+    from courses.models import BeforeAfterElement
+
+    pa = _make_pa_user("locate_c4")
+    course, unit = _seed_unit(pa, "locate-c4")
+
+    child = _seed_text("nested in the after panel")
+    ba_obj = BeforeAfterElement.objects.create()
+    _container_join, kids = _seed_container(
+        unit, ba_obj, [(child, BeforeAfterElement.SLOT_IDS[1])]
+    )
+    child_join = kids[0]
+
+    _login(page, live_server, "locate_c4")
+    # Before/after rows are always-open divs (no nested <details> to collapse), so no
+    # _open_slots call is needed here -- unlike tabs and two-column.
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    ba = '[data-scope="preview"] [data-beforeafter]'
+    after = f'{ba} .ba__panel[data-ba-side="after"]'
+    before = f'{ba} .ba__panel:not([data-ba-side="after"])'
+    # state="hidden"/"visible", NOT a `[hidden]`-in-selector + default "visible"
+    # wait: the `hidden` attribute maps to `display: none` in the UA stylesheet, so
+    # a locator whose OWN selector requires `[hidden]` can never satisfy Playwright's
+    # default "visible" wait -- it would time out on a correct build too.
+    page.wait_for_selector(after, state="hidden")  # starts on Before
+
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    page.wait_for_selector(after, state="visible")
+    page.wait_for_selector(before, state="hidden")
