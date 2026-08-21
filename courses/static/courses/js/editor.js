@@ -313,7 +313,15 @@
     // target, find no button, hit the skip above, and silently never reach the
     // carousel branch -- while looking like correct defensive code.
     if (hit.c.getAttribute("data-display") === "carousel") {
-      return;  // Task 4
+      // Dots are index-keyed with NO id, and are positionally 1:1 with
+      // ownSections(container) (initCarousel builds them as sections.map(...)).
+      // Nothing in tabs.js names or pins that invariant, so this depends on it
+      // explicitly -- and derives the dot list with the SAME ownership filter used
+      // for the sections, never a separate query.
+      var dots = ownNodes(hit.c, ".tabs__dot", "[data-tabs]");
+      var dot = dots[hit.all.indexOf(hit.s)];
+      if (dot) dot.click();
+      return;
     }
     // .tabs__section carries no id; the id [aria-controls] needs is on its panel.
     var panel = ownNodes(hit.s, "[data-tab-panel]", ".tabs__section")[0];

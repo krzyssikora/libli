@@ -185,6 +185,131 @@ def test_click_reveals_a_child_in_a_non_first_strip_tab(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_click_reveals_a_child_in_a_non_first_carousel_slide(page, live_server):
+    """e2e 2. Mutant (b2): delete the whole `data-display === "carousel"` block so
+    the code falls through to the strip lookup -- which finds no [aria-controls]
+    button in carousel mode and silently no-ops -> RED.
+
+    Click path: .el-select (the .el-row__label button), which rebuilds both panes.
+
+    Assert on the TARGET's OWN section only (is-active gained, inert/aria-hidden
+    lost) -- never via visibility/geometry: an inactive carousel slide is
+    position:absolute; opacity:0 with an INTACT rect, and Playwright calls
+    opacity:0 visible.
+    """
+    pa = _make_pa_user("locate_c2")
+    course, unit = _seed_unit(pa, "locate-c2")
+
+    # display="carousel"; child TEXT in slide 2 (NOT slide 1 -- show() early-returns
+    # on target === idx, and a first-slide target is revealed by initOne anyway).
+    slide1_id, slide2_id = "t000001", "t000002"
+    child = _seed_text("nested in slide two")
+    tabs_obj, tabs_join = _seed_tabs_element(
+        unit,
+        [(slide1_id, "Slide One"), (slide2_id, "Slide Two")],
+        {slide2_id: [child]},
+        display="carousel",
+    )
+    child_join = _child_join(tabs_join, slide2_id)
+
+    _login(page, live_server, "locate_c2")
+    # MANDATORY: the nested row lives in a collapsed <details class="tabs-rows">.
+    # Opened via _open_slots BEFORE page.goto -- never by clicking the <summary>,
+    # which would fire scrollPreviewTo on the tabs row itself and pre-reveal it.
+    _open_slots(page, [(tabs_join.pk, slide2_id)])
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    eid = str(tabs_join.pk)
+    idx = 1  # slide two is ownSections()[1], 0-based
+
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    # Explicit child chain, NOT a descendant combinator: a bare descendant matches a
+    # nested instance's sections too. Safe for this single carousel, but it is
+    # copy-paste bait for case 9 and contradicts the spec's ownership rule -- and it
+    # would trip Playwright strict mode the moment the fixture grows an inner
+    # instance. Mirrors initCarousel's own `:scope > .tabs__stage`.
+    sect_sel = (
+        f'[data-scope="preview"] [data-tabs][data-tabs-eid="{eid}"] '
+        f'> .tabs__stage > .tabs__section:nth-of-type({idx + 1})'
+    )
+    page.wait_for_selector(f"{sect_sel}.is-active")
+    assert page.get_attribute(sect_sel, "inert") is None
+    assert page.get_attribute(sect_sel, "aria-hidden") is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_nested_carousel_reveals_the_outer_instance(page, live_server):
+    """e2e 9. The fixture for mutant (d), which no other case can kill.
+
+    Mutant (d): change `ownNodes(hit.c, ".tabs__dot", "[data-tabs]")` to
+    `hit.c.querySelectorAll(".tabs__dot")`. On an unscoped build the OUTER
+    container's dot query returns the INNER carousel's dots first -- they sit
+    inside .tabs__stage, appended by tabs.js BEFORE the outer's own <nav> (which
+    initCarousel appends LAST to `container`) -- so indexing by the outer's own
+    slide position grabs one of the inner's dots instead, and the outer carousel
+    never advances -> case 9 RED. Case 2 (a single carousel, no inner dots to
+    steal) stays GREEN under the same mutant, which is exactly why this fixture
+    exists -- no other case can tell the two apart.
+
+    Outer carousel: target's slide is non-first (index 1). That slide holds an
+    INNER carousel with >= 2 slides of its own (index 1 must exist among the
+    inner's dots too, so an unscoped dots[1] resolves to a real -- wrong -- inner
+    dot rather than silently no-oping). The target text lives in the inner
+    carousel's own non-first slide. Slide-id sets are disjoint between the two
+    instances.
+    """
+    pa = _make_pa_user("locate_c9")
+    course, unit = _seed_unit(pa, "locate-c9")
+
+    outer1_id, outer2_id = "t000001", "t000002"
+    inner1_id, inner2_id = "t000011", "t000012"  # disjoint from the outer's ids
+
+    child = _seed_text("nested two carousels deep")
+    outer_obj, outer_join = _seed_tabs_element(
+        unit,
+        [(outer1_id, "Outer One"), (outer2_id, "Outer Two")],
+        display="carousel",
+    )
+    inner_obj, inner_join = _seed_tabs_element(
+        unit,
+        [(inner1_id, "Inner One"), (inner2_id, "Inner Two")],
+        {inner2_id: [child]},
+        display="carousel",
+        parent=outer_join,
+        tab_id=outer2_id,
+    )
+    child_join = _child_join(inner_join, inner2_id)
+
+    _login(page, live_server, "locate_c9")
+    # TWO levels of collapsed <details class="tabs-rows"> to open: the outer's
+    # slide-2 group (which holds the inner carousel's own row) and the inner's
+    # own slide-2 group (which holds the target's row). Both BEFORE goto -- never
+    # via a <summary> click, which would fire scrollPreviewTo on a container row
+    # and pre-reveal its ancestors, silently disarming this mutant.
+    _open_slots(
+        page,
+        [(outer_join.pk, outer2_id), (inner_join.pk, inner2_id)],
+    )
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    # The OUTER container's data-tabs-active must equal the data-tab-id of the
+    # target section's own [data-tab-panel] -- that is what show() stamps
+    # (ids[idx]), a model-level tab id, NOT the tabs-<eid>-<tid>-panel DOM id the
+    # strip lookup uses.
+    outer_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{outer_join.pk}"]'
+    page.wait_for_function(
+        """([sel, want]) => document.querySelector(sel)
+              ?.getAttribute("data-tabs-active") === want""",
+        arg=[outer_sel, outer2_id],
+    )
+
+
+@pytest.mark.django_db(transaction=True)
 def test_click_opens_a_closed_spoiler_around_the_child(page, live_server):
     """e2e 3. Mutant (b3): drop the spoiler `open = true` step -> RED.
 
