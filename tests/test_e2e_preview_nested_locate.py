@@ -588,3 +588,43 @@ def test_position_aligns_the_nested_target_to_the_pane_top(page, live_server):
         arg=target_sel,
         timeout=5000,
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_hover_outlines_a_nested_child(page, live_server):
+    """e2e 7. Mutant (h): scope setHighlight to `.prev-inner > .prev-el` -> RED.
+
+    Hover path: mouseenter on the nested .el-row[data-element], which calls
+    setHighlight to add prev-el--hl to the preview node. A render test cannot
+    prove setHighlight reaches a nested node, which is why this e2e case exists.
+
+    Fixture: a callout child, always visible in the preview (unlike a tab,
+    carousel slide, closed spoiler or After panel). No scroll needed -- hover
+    does NOT trigger the reveal walk, so a hidden target would be outlined
+    invisibly and the case would prove nothing.
+
+    Hover is fixed by Task 1 alone (setHighlight needs no change -- the same
+    selector now matches nested nodes after the marker is placed on them).
+    """
+    from courses.models import CalloutElement
+
+    pa = _make_pa_user("locate_c7")
+    course, unit = _seed_unit(pa, "locate-c7")
+
+    child = _seed_text("nested in the callout")
+    callout = CalloutElement.objects.create(kind="example")
+    _container_join, kids = _seed_container(
+        unit, callout, [(child, CalloutElement.SLOT_ID)]
+    )
+    child_join = kids[0]
+
+    _login(page, live_server, "locate_c7")
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    target_sel = (
+        f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
+    )
+
+    page.hover(f'.el-row[data-element="{child_join.pk}"]')
+    page.wait_for_selector(f"{target_sel}.prev-el--hl")
