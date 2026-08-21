@@ -16,8 +16,19 @@
 - **`@media print` adds no specificity.** Where a print rule ties its screen counterpart, it wins only by source order — which appending guarantees. Where it must beat a higher weight, it carries `!important`.
 - **The `tokens.css` print block must sit AFTER the `[data-theme="dark"]` block** (which is `tokens.css:79–111`). `:root` and `[data-theme="dark"]` are both (0,1,0); an override above line 79 is silently inert.
 - **`tokens.css` is a global path** (`tests/test_affected_tests.py:133`), so this branch selects the **whole suite**. Budget for a full run, not a scoped one.
-- Run tests with `uv run pytest`; `uv` is not on PATH — invoke it as configured for this repo. `-m e2e` is **mandatory** for e2e tests or they deselect and the run exits 5.
+- **`uv` is not on PATH.** Every command below uses the resolved absolute path:
+  `C:/Users/krzys/.local/bin/uv.exe`. Copy the commands verbatim; a bare `uv` will not resolve.
+- **Never pass `-q` on the command line.** `pyproject.toml:49` sets
+  `addopts = "-q -m 'not e2e'"`, so a CLI `-q` makes it `-qq`, which suppresses the short test
+  summary — disabling the very safeguard the next bullet depends on.
 - **pytest can exit 0 with failures.** Grep the summary line; never trust the exit code alone.
+- `-m e2e` is **mandatory** for e2e tests, or they all deselect and the run exits 5.
+- **Ruff:** `pyproject.toml:36` selects `["E", "F", "I", "UP", "B", "S"]` with no `line-length`
+  override, so the **88-character default applies** and unused imports are errors. Every code block
+  below is already within 88 columns — keep it that way when editing.
+- **Both CSS files are CRLF on disk.** Append with an editor or a tool that preserves CRLF, not a
+  heredoc, or the file ends up mixed. Verify with `git diff --stat` after each append: a whole-file
+  rewrite in the stat means the line endings flipped.
 - The test-DB container must be running before any DB test. Check with `docker ps | grep libli-test-db`.
 - **Never run two pytest processes at once** across worktrees — they share the test database.
 
@@ -27,7 +38,7 @@
 
 **Files:**
 - Modify: `core/static/core/css/tokens.css` (append at end, after line 111)
-- Modify: `tests/test_colour_map_drift.py:58` (one line)
+- Modify: `tests/test_colour_map_drift.py` (final assertion at `:58`, replaced by 3 lines)
 - Create: `tests/test_print_tokens_css.py`
 
 **Interfaces:**
@@ -64,10 +75,19 @@ SCREEN, _sep, PRINT = CSS.partition("@media print")
 
 
 def _decls(body):
-    """{token-name: value} for one declaration block body."""
+    """{token-name: value} for one declaration block body.
+
+    Comments are stripped FIRST and the value class excludes newlines. Both are
+    load-bearing: tokens.css:44-48 is prose containing "--surface-overlay:", and a
+    naive [^;]+ swallows from there to the next semicolon, so --surface-overlay
+    resolves to "nothing of the page may show through. */ --scrim-solid: ..." and
+    --scrim-solid never gets a key at all. That makes this test RED on a CORRECT
+    build -- verified by running it against the real file.
+    """
+    body = re.sub(r"/\*.*?\*/", "", body, flags=re.DOTALL)
     return {
         name: " ".join(value.split())
-        for name, value in re.findall(r"(--[a-z0-9-]+)\s*:\s*([^;]+);", body)
+        for name, value in re.findall(r"(--[a-z0-9-]+)\s*:\s*([^;{}\n]+);", body)
     }
 
 
@@ -79,8 +99,15 @@ def _block(source, pattern):
 
 def test_print_block_exists_and_is_after_the_dark_block():
     assert _sep, "tokens.css must have an @media print block"
-    assert '[data-theme="dark"]' in SCREEN, "the screen dark block must precede @media print"
-    assert '[data-theme="dark"]' in PRINT, "@media print must scope its override to [data-theme=dark]"
+    # Structural, not a substring check: the print block's own header COMMENT
+    # mentions [data-theme="dark"] and travels with it, so `in SCREEN` stays true
+    # even when the block is moved above line 79 -- the exact mutant this guards.
+    assert re.search(r'^\[data-theme="dark"\]\s*\{', SCREEN, re.M), (
+        "the screen dark block must precede @media print"
+    )
+    assert '[data-theme="dark"]' in PRINT, (
+        "@media print must scope its override to [data-theme=dark]"
+    )
 
 
 def test_print_override_restates_every_dark_token_with_the_root_value():
@@ -90,12 +117,13 @@ def test_print_override_restates_every_dark_token_with_the_root_value():
 
     missing = sorted(set(dark) - set(printed))
     assert not missing, (
-        f"@media print omits {len(missing)} token(s) the dark block declares: {missing}. "
+        f"@media print omits {len(missing)} token(s) the dark "
+        f"block declares: {missing}. "
         "Every one must be restated or a dark-theme printout keeps that dark value."
     )
     for name in sorted(dark):
         assert printed[name] == root[name], (
-            f"--{name} prints as {printed[name]!r} but :root declares {root[name]!r}; "
+            f"{name} prints as {printed[name]!r} but :root declares {root[name]!r}; "
             "the print block must copy :root verbatim (color-mix formulas included)"
         )
 
@@ -105,12 +133,24 @@ def test_scrim_solid_is_not_in_the_print_override():
     assert "--scrim-solid" not in _block(PRINT, r'\[data-theme="dark"\]')
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [ ] **Step 2: Prove the helper parses the real file correctly**
 
-Run: `uv run pytest tests/test_print_tokens_css.py -v`
+Before trusting the test, check the two tokens that a naive regex mangles:
+
+```
+C:/Users/krzys/.local/bin/uv.exe run python -c "import tests.test_print_tokens_css as t; \
+  r = t._block(t.SCREEN, r'^:root'); \
+  print(repr(r['--surface-overlay'])); print('--scrim-solid' in r)"
+```
+Expected: `'rgba(30,28,24,0.45)'` and `True`. If `--surface-overlay` comes back as prose, the
+comment-stripping pass is missing and every later assertion is meaningless.
+
+- [ ] **Step 3: Run the test and watch it fail**
+
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
 Expected: FAIL — `tokens.css must have an @media print block` (the file has none yet).
 
-- [ ] **Step 3: Append the print block to `tokens.css`**
+- [ ] **Step 4: Append the print block to `tokens.css`**
 
 Append to the **end** of `core/static/core/css/tokens.css` (after the closing `}` of the dark block at line 111). Every value is `:root`'s, copied verbatim:
 
@@ -164,19 +204,23 @@ Append to the **end** of `core/static/core/css/tokens.css` (after the closing `}
 }
 ```
 
-- [ ] **Step 4: Run the parity test — it must now pass**
+- [ ] **Step 5: Run the parity test and lint — both must pass**
 
-Run: `uv run pytest tests/test_print_tokens_css.py -v`
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
 Expected: 3 passed.
 
-- [ ] **Step 5: Run the test that this change breaks, and confirm it breaks**
+Run: `C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/test_print_tokens_css.py`
+Expected: clean. Lint the test now rather than deferring it — an E501 found three tasks later
+means re-opening a committed file.
 
-Run: `uv run pytest tests/test_colour_map_drift.py -v`
+- [ ] **Step 6: Run the test that this change breaks, and confirm it breaks**
+
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_colour_map_drift.py -v`
 Expected: FAIL — `expected 4 slots x 2 themes in tokens.css, found 12`.
 
 This is not a regression. `test_colour_map_drift.py:50–58` scans the **whole file** for `--tc-{slot}` and asserts `seen == 8`; the print block legitimately adds a third occurrence set.
 
-- [ ] **Step 6: Update the count in `tests/test_colour_map_drift.py`**
+- [ ] **Step 7: Update the count in `tests/test_colour_map_drift.py`**
 
 Change the final assertion (line 58) from:
 
@@ -194,20 +238,25 @@ to:
 
 Do **not** narrow the regex to dodge the count. Scanning every occurrence is what makes this test catch a drifted value anywhere in the file — including in the new block, whose values must map to the same slots.
 
-- [ ] **Step 7: Run it and confirm green**
+- [ ] **Step 8: Run it and confirm green**
 
-Run: `uv run pytest tests/test_colour_map_drift.py -v`
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_colour_map_drift.py -v`
 Expected: PASS. The per-value `SLOTS.get(normalise_colour(value)) == slot` assertion inside the loop passes untouched, because the print block restates `:root`'s values, which already map correctly.
 
-- [ ] **Step 8: Run the other tests that read `tokens.css`, to prove appending is safe**
+- [ ] **Step 9: Run the other tests that read `tokens.css`, to prove appending is safe**
 
 Run:
 ```
-uv run pytest tests/test_text_colour_css.py tests/test_border_contrast_css.py tests/test_imagezoom_render.py tests/test_htmlsandbox.py -q
+C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_text_colour_css.py \
+  tests/test_border_contrast_css.py tests/test_imagezoom_render.py tests/test_htmlsandbox.py
 ```
 Expected: all pass. They locate blocks with first-match `re.search`, so a block appended at the end is invisible to them. If any fails, stop — the append point is wrong.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Verify the append kept CRLF, then commit**
+
+Run: `git diff --stat -- core/static/core/css/tokens.css`
+Expected: a small insertion count. If the stat shows the whole file rewritten, the append flipped
+the line endings — restore and re-append preserving CRLF.
 
 ```bash
 git add core/static/core/css/tokens.css tests/test_print_tokens_css.py tests/test_colour_map_drift.py
@@ -229,7 +278,8 @@ occurrence is what makes it catch a drifted value in the new block too."
 
 **Files:**
 - Modify: `courses/static/courses/css/courses.css` (append at end)
-- Modify: `tests/test_print_tokens_css.py` (add one test)
+- Modify: `tests/test_print_tokens_css.py` (add **two** tests: the callout parity check and the
+  repo-wide sweep the spec requires)
 
 **Interfaces:**
 - Consumes: Task 1's `tokens.css` print block (independent, but the same defect class).
@@ -261,8 +311,11 @@ def test_print_restates_every_dark_callout_accent_with_the_light_value():
     """--callout-accent is declared in courses.css, a LATER sheet at (0,2,0), so
     tokens.css's print block cannot reach it. Without its own print block a
     dark-theme lesson with callouts prints #7db0f7 headings on white (2.23:1)."""
-    screen, sep, printed = COURSES_CSS.partition("@media print {\n  [data-theme=\"dark\"]")
-    assert sep, "courses.css must have an @media print block scoped to [data-theme=dark]"
+    marker = '@media print {\n  [data-theme="dark"]'
+    screen, sep, printed = COURSES_CSS.partition(marker)
+    assert sep, (
+        "courses.css must have an @media print block scoped to [data-theme=dark]"
+    )
 
     # Light values live on the bare modifier classes; dark ones on the
     # [data-theme="dark"] .callout--KIND rules. Split the screen half on the
@@ -283,10 +336,52 @@ def test_print_restates_every_dark_callout_accent_with_the_light_value():
         )
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+Also append the repo-wide sweep, which the spec requires so a **new** unclassified dark rule
+cannot appear unnoticed:
 
-Run: `uv run pytest tests/test_print_tokens_css.py -k callout -v`
-Expected: FAIL — `courses.css must have an @media print block scoped to [data-theme=dark]`.
+```python
+def test_every_dark_rule_in_a_shipped_stylesheet_is_classified():
+    """A new [data-theme="dark"] rule must not slip in unnoticed: it either needs a
+    print counterpart or a recorded reason it does not.
+
+    Deliberately limited to COLUMN-0 rules. error.css:50's dark rule is indented
+    inside a media query and is not matched; that is accepted, because dropping the
+    anchor would also match the prose mentions in notes.css:17 and tags.css:2.
+    """
+    root = Path(__file__).resolve().parent.parent
+    covered = {  # has a print counterpart
+        "core/static/core/css/tokens.css",
+        "courses/static/courses/css/courses.css",
+    }
+    excluded = {  # deliberately no print counterpart, reason recorded
+        # Editor chrome; never on a page this feature prints.
+        "courses/static/courses/css/editor.css",
+        # tags.css IS loaded by lesson_unit.html:36, but .tag-delete-confirm is
+        # built only by wireDeleteConfirm() (tags.js:103,108) from
+        # .tag-section__manage delete links, which exist only in
+        # _tag_section.html -> my_tags.html. The element never reaches a lesson.
+        "tags/static/tags/css/tags.css",
+    }
+    found = set()
+    for css in root.glob("*/static/**/*.css"):
+        if ".venv" in css.parts or "staticfiles" in css.parts:
+            continue
+        text = css.read_text(encoding="utf-8")
+        if re.search(r'^\[data-theme="dark"\]', text, re.M):
+            found.add(css.relative_to(root).as_posix())
+    unclassified = found - covered - excluded
+    assert not unclassified, (
+        f"unclassified [data-theme=\"dark\"] rule(s): {sorted(unclassified)}. "
+        "Add a print counterpart, or record why one is not needed."
+    )
+```
+
+- [ ] **Step 2: Run both and watch them fail**
+
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
+Expected: the callout test FAILS with `courses.css must have an @media print block scoped to
+[data-theme=dark]`. The sweep test should already PASS (all four found files are classified) —
+it is a tripwire for future rules, not for this change.
 
 - [ ] **Step 3: Append the block to `courses.css`**
 
@@ -312,15 +407,21 @@ Append at the **end** of `courses/static/courses/css/courses.css`:
 }
 ```
 
-- [ ] **Step 4: Run the test — it must pass**
+- [ ] **Step 4: Run the tests — all must pass**
 
-Run: `uv run pytest tests/test_print_tokens_css.py -v`
-Expected: 4 passed.
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
+Expected: **5 passed** (3 from Task 1, plus the callout parity check and the sweep).
 
-- [ ] **Step 5: Run the other tests that read `courses.css`**
+Run: `C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/test_print_tokens_css.py`
+Expected: clean.
 
-Run: `uv run pytest tests/test_tabs_partial.py tests/test_table_css.py -q`
+- [ ] **Step 5: Run the other tests that read `courses.css`, and check CRLF**
+
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_tabs_partial.py tests/test_table_css.py`
 Expected: all pass.
+
+Run: `git diff --stat -- courses/static/courses/css/courses.css`
+Expected: a small insertion count, not a whole-file rewrite.
 
 - [ ] **Step 6: Commit**
 
@@ -383,6 +484,11 @@ Append at the **end** of `courses/static/courses/css/courses.css`, after Task 2'
   /* The stage also carries .scroll-y (app.css:1886, position:relative), which is
      why the position reset is needed at all. */
   .slideshow-stage { position: static !important; height: auto !important; }
+  /* The stage's .scroll-y ::before/::after are position:absolute (app.css:1886-1892).
+     Removing the stage's position:relative reparents them to the next positioned
+     ancestor, so their boxes can land anywhere on the sheet. They are gradient
+     shading for a scroller paper does not have -- drop them outright. */
+  .slideshow-stage::before, .slideshow-stage::after { display: none !important; }
   .slideshow-deck .slide,
   .slideshow-deck .slide[hidden] {
     display: block !important; position: static !important;
@@ -406,12 +512,55 @@ Append at the **end** of `courses/static/courses/css/courses.css`, after Task 2'
 }
 ```
 
-- [ ] **Step 3: Verify the CSS parses and the file still lints**
+- [ ] **Step 3: Add a source-level check for this block — written failing-first**
 
-Run: `uv run ruff format --check .` and `uv run ruff check --no-cache .`
-Expected: both clean (neither touches CSS, but the branch gate runs them; catching a stray edit now is cheaper than at the end).
+Steps 1–2 as written commit ~30 lines of CSS with no verification until Task 4. A typo'd selector
+or an unbalanced brace would ship and surface two tasks later. Add to
+`tests/test_print_tokens_css.py`:
 
-- [ ] **Step 4: Commit**
+```python
+SLIDESHOW_PRINT_REQUIRED = (
+    ".slideshow-deck .slide[hidden]",
+    "position: static !important",
+    "opacity: 1 !important",
+    "transition: none !important",
+    ".slideshow-bar",
+)
+
+
+def test_slideshow_print_block_declares_the_load_bearing_rules():
+    """Cheap tripwire, not a cascade proof: a rule can be present and still inert,
+    which only the e2e A/B in Task 4 can catch. This exists so a typo or a dropped
+    declaration fails in Task 3 rather than two tasks later."""
+    marker = ".slideshow-deck {\n    overflow: visible"
+    _screen, sep, printed = COURSES_CSS.partition(marker)
+    assert sep, "courses.css must have a print block for the slideshow deck"
+    block = sep + printed
+    for needle in SLIDESHOW_PRINT_REQUIRED:
+        assert needle in block, f"slideshow print block is missing {needle!r}"
+
+
+def test_courses_css_braces_balance():
+    text = re.sub(r"/\*.*?\*/", "", COURSES_CSS, flags=re.DOTALL)
+    assert text.count("{") == text.count("}"), (
+        "unbalanced braces in courses.css — an appended block is malformed"
+    )
+```
+
+Run it **before** Step 2's append and confirm it FAILS; then append and confirm it passes.
+
+- [ ] **Step 4: Run the checks**
+
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
+Expected: **7 passed**.
+
+Run: `C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/`
+Expected: clean.
+
+Run: `git diff --stat -- courses/static/courses/css/courses.css`
+Expected: a small insertion count, not a whole-file rewrite (CRLF preserved).
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add courses/static/courses/css/courses.css
@@ -491,14 +640,16 @@ def _contrast_on_white(css_colour):
     return 1.05 / (lum + 0.05)
 
 
-def _dark_lesson(slug):
-    """A published unit in a course, owned by a student whose stored theme is dark.
+def _dark_lesson(slug, body_html=None):
+    """A published lesson unit owned by a student whose STORED THEME is dark.
 
-    The USER'S STORED THEME is what matters, never the libli_theme cookie:
+    The user's stored theme is what matters, never the libli_theme cookie:
     base.html:17-26 consults the cookie only when data-theme-pref is absent, so a
-    cookie-based fixture silently does nothing and the assertion would measure a
-    LIGHT page -- passing on a build with the override deleted.
+    cookie-based fixture silently does nothing and every assertion below would
+    measure a LIGHT page -- passing on a build with the override deleted.
     """
+    from django.contrib.auth.models import Group as AuthGroup
+
     from courses.models import ContentNode
     from courses.models import Enrollment
     from courses.models import TextElement
@@ -511,107 +662,113 @@ def _dark_lesson(slug):
     seed_roles()
     course = CourseFactory(slug=slug)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", title="Printable", published=True
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="Printable",
+        published=True,
     )
-    student = make_verified_user(username=f"{slug}-student", role=STUDENT)
+    if body_html:
+        add_element(unit, TextElement.objects.create(body=body_html))
+    # Explicit per-slug email: User.email is unique=True and the factory default
+    # is shared, so two fixtures using the default would collide.
+    student = make_verified_user(
+        username=f"{slug}-student", email=f"{slug}@test.example.com"
+    )
+    student.groups.add(AuthGroup.objects.get(name=STUDENT))
     student.theme = "dark"
     student.save(update_fields=["theme"])
-    Enrollment.objects.create(course=course, student=student)
+    Enrollment.objects.create(student=student, course=course, source="manual")
     return course, unit, student
+
+
+def _open_lesson(page, live_server, course, unit, student, wait_for):
+    _login(page, live_server, student.username)
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    page.wait_for_selector(wait_for, state="attached")
+    # A mis-wired fixture must fail loudly rather than measure a light page.
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
 
 
 @pytest.mark.django_db(transaction=True)
 def test_dark_theme_body_text_prints_dark(page, live_server):
     """Row 1. Correct: --text-primary #1E1C18, 17.0:1. Mutant: #F2EFE9, 1.06:1."""
-    from courses.models import TextElement
-    from tests.factories import add_element
-
-    course, unit, student = _dark_lesson("e2e-print-dark")
-    add_element(unit, TextElement.objects.create(body="<p>Body text on paper.</p>"))
-
-    _login(page, live_server, student.username)
-    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
-    page.wait_for_selector(".lesson", state="attached")
-
-    # A mis-wired fixture must fail loudly rather than measure a light page.
-    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    course, unit, student = _dark_lesson(
+        "e2e-print-dark", "<p>Body text on paper.</p>"
+    )
+    _open_lesson(page, live_server, course, unit, student, ".el--text p")
 
     page.emulate_media(media="print")
     colour = page.evaluate(
-        "getComputedStyle(document.querySelector('.lesson-block__body p')).color"
+        "getComputedStyle(document.querySelector('.el--text p')).color"
     )
-    assert _contrast_on_white(colour) >= 4.5, (
-        f"printed body text is {colour} = {_contrast_on_white(colour):.2f}:1 on white; "
-        "the tokens.css @media print override is missing or sits above the dark block"
+    ratio = _contrast_on_white(colour)
+    assert ratio >= 4.5, (
+        f"printed body text is {colour} = {ratio:.2f}:1 on white; the tokens.css "
+        "@media print override is missing or sits above the dark block"
     )
 
 
 @pytest.mark.django_db(transaction=True)
 def test_dark_theme_author_text_colour_prints_dark(page, live_server):
-    """Row 2. Correct: --tc-red #B2372A, 6.05:1. Mutant: #EA8A82, 2.48:1."""
-    course, unit, student = _dark_lesson("e2e-print-tc")
+    """Row 2. Correct: --tc-red #B2372A, 6.05:1. Mutant: #EA8A82, 2.48:1.
 
-    _login(page, live_server, student.username)
-    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
-    page.wait_for_selector(".lesson", state="attached")
-    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    Measures the REAL painted element. `.tc-red { color: var(--tc-red) }`
+    (courses.css:1290) is the rule that paints author-coloured text, and
+    sanitize_html preserves the class (courses/tests/test_sanitize_colour.py).
+    Reading the token off <html> with a synthetic probe would leave that render
+    path untested.
+    """
+    course, unit, student = _dark_lesson(
+        "e2e-print-tc", '<p>Warning: <span class="tc-red">do not divide</span>.</p>'
+    )
+    _open_lesson(page, live_server, course, unit, student, ".tc-red")
 
     page.emulate_media(media="print")
     colour = page.evaluate(
-        "getComputedStyle(document.documentElement).getPropertyValue('--tc-red').trim()"
+        "getComputedStyle(document.querySelector('.tc-red')).color"
     )
-    # A custom property resolves to its literal, so convert via a probe element.
-    probe = page.evaluate(
-        """(() => {
-             const el = document.createElement('span');
-             el.style.color = getComputedStyle(document.documentElement)
-                                .getPropertyValue('--tc-red').trim();
-             document.body.appendChild(el);
-             const c = getComputedStyle(el).color;
-             el.remove();
-             return c;
-           })()"""
-    )
-    assert _contrast_on_white(probe) >= 4.5, (
-        f"--tc-red prints as {colour} = {_contrast_on_white(probe):.2f}:1 on white; "
-        "the --tc-* group is missing from the print override"
+    ratio = _contrast_on_white(colour)
+    assert ratio >= 4.5, (
+        f"author-coloured text prints {colour} = {ratio:.2f}:1 on white; the "
+        "--tc-* group is missing from the print override"
     )
 
 
 @pytest.mark.django_db(transaction=True)
 def test_dark_theme_callout_heading_prints_dark(page, live_server):
-    """Row 3. Correct: #2563c9, 5.67:1. Mutant: #7db0f7, 2.23:1."""
+    """Row 3. Correct: #2563c9, 5.67:1. Mutant: #7db0f7, 2.23:1.
+
+    `.callout__heading` carries `color: var(--callout-accent)` (courses.css:1966),
+    so this reads the painted heading directly.
+    """
     from courses.models import CalloutElement
     from tests.factories import add_element
 
     course, unit, student = _dark_lesson("e2e-print-callout")
-    add_element(unit, CalloutElement.objects.create(kind="example", heading="Worked"))
-
-    _login(page, live_server, student.username)
-    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
-    page.wait_for_selector(".callout--example", state="attached")
-    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    add_element(
+        unit,
+        CalloutElement.objects.create(
+            kind="example", heading="Worked", body="<p>x</p>"
+        ),
+    )
+    _open_lesson(page, live_server, course, unit, student, ".callout__heading")
 
     page.emulate_media(media="print")
-    accent = page.evaluate(
-        """(() => {
-             const el = document.createElement('span');
-             el.style.color = getComputedStyle(document.querySelector('.callout--example'))
-                                .getPropertyValue('--callout-accent').trim();
-             document.body.appendChild(el);
-             const c = getComputedStyle(el).color;
-             el.remove();
-             return c;
-           })()"""
+    colour = page.evaluate(
+        "getComputedStyle(document.querySelector('.callout__heading')).color"
     )
-    assert _contrast_on_white(accent) >= 4.5, (
-        f"callout accent prints at {_contrast_on_white(accent):.2f}:1 on white; "
-        "the courses.css --callout-accent print block is missing"
+    ratio = _contrast_on_white(colour)
+    assert ratio >= 4.5, (
+        f"callout heading prints {colour} = {ratio:.2f}:1 on white; the courses.css "
+        "--callout-accent print block is missing"
     )
 
 
 def _slideshow_lesson(slug):
     """A unit with two slides: text, slide break, text."""
+    from django.contrib.auth.models import Group as AuthGroup
+
     from courses.models import ContentNode
     from courses.models import Enrollment
     from courses.models import SlideBreakElement
@@ -625,13 +782,20 @@ def _slideshow_lesson(slug):
     seed_roles()
     course = CourseFactory(slug=slug)
     unit = ContentNode.objects.create(
-        course=course, kind="unit", title="Deck", published=True
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="Deck",
+        published=True,
     )
     add_element(unit, TextElement.objects.create(body="<p>Slide one body.</p>"))
     add_element(unit, SlideBreakElement.objects.create())
     add_element(unit, TextElement.objects.create(body="<p>Slide two body.</p>"))
-    student = make_verified_user(username=f"{slug}-student", role=STUDENT)
-    Enrollment.objects.create(course=course, student=student)
+    student = make_verified_user(
+        username=f"{slug}-student", email=f"{slug}@test.example.com"
+    )
+    student.groups.add(AuthGroup.objects.get(name=STUDENT))
+    Enrollment.objects.create(student=student, course=course, source="manual")
     return course, unit, student
 
 
@@ -668,7 +832,9 @@ def test_every_slide_prints_stacked_in_flow(page, live_server):
         """(() => { const b = document.querySelector('.slideshow-bar');
                     return b ? b.checkVisibility() : false; })()"""
     )
-    assert not bar_visible, "Prev/Next navigation printed; .slideshow-bar hide is missing"
+    assert not bar_visible, (
+        "Prev/Next navigation printed; the .slideshow-bar hide is missing"
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -698,6 +864,13 @@ def test_mid_fade_slide_prints_opaque(page, live_server):
            })()"""
     )
     page.emulate_media(media="print")
+    # A transition triggered by the media switch starts at the NEXT style/animation
+    # frame. Reading before that frame can legitimately return the after-change
+    # value 1, which would leave the `transition: none` mutant GREEN for a timing
+    # reason. Wait two frames so a started transition is observably mid-flight.
+    page.evaluate(
+        "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+    )
 
     opacity = page.evaluate(
         """getComputedStyle(
@@ -718,8 +891,14 @@ Expected: `libli-test-db`. If absent, `docker compose -f docker-compose.test.yml
 
 - [ ] **Step 3: Run the e2e suite**
 
-Run: `uv run pytest tests/test_e2e_print_foundations.py -m e2e -v`
+Run:
+```
+C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_e2e_print_foundations.py -m e2e -v
+```
 Expected: 5 passed. `-m e2e` is mandatory; without it every test deselects and pytest exits 5.
+
+Then lint: `C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/`
+Expected: clean.
 
 **Grep the summary line.** pytest can exit 0 with failures present.
 
@@ -740,9 +919,11 @@ Read `git diff` after the battery and confirm it is empty before moving on.
 | 7 | Delete `opacity: 1 !important` from the slide reveal | `test_mid_fade_slide_prints_opaque` |
 | 8 | Delete `transition: none !important` from the slide reveal | `test_mid_fade_slide_prints_opaque` |
 | 9 | Rewrite the slide reveal against `[data-slideshow] > .slide` instead of `.slideshow-deck .slide` | `test_every_slide_prints_stacked_in_flow` (proves the selector is not inert) |
+| 9b | Delete the **entire** slideshow `@media print` block | `test_every_slide_prints_stacked_in_flow` **and** `test_slideshow_print_block_declares_the_load_bearing_rules` |
 | 10 | Change one value in the `tokens.css` print block | `test_print_override_restates_every_dark_token_with_the_root_value` |
 | 11 | Delete the `--primary*` group from the print block | same |
-| 12 | Make the parity test's screen and print locators resolve to the same block (e.g. drop the `partition`) | the parity test must still fail on mutant 10 — if it passes, the locator is vacuous |
+| 12 | Replace `_block(PRINT, …)` with `_block(CSS, …)` — a first-match search over the whole file — **then apply mutant 10 as well**. Mutant 10 must still turn the test RED. *Note: simply dropping the `partition` is not a usable mutant: both locators then resolve to the screen dark block and the test fails unconditionally, so it distinguishes nothing* | `test_print_override_restates_every_dark_token_with_the_root_value` |
+| 13 | Delete the comment-stripping line from `_decls` | `test_print_override_restates_every_dark_token_with_the_root_value` — it must go RED on `--surface-overlay`, proving the helper is not silently mangling the file |
 
 If any mutant leaves its test GREEN, the assertion is not measuring what it claims. Fix the assertion, not the mutant.
 
@@ -750,8 +931,13 @@ If any mutant leaves its test GREEN, the assertion is not measuring what it clai
 
 `tokens.css` is a global path, so the affected-tests selection is the whole suite. Run it:
 
-Run: `uv run pytest -q` (then separately `uv run pytest -m e2e -q`)
-Expected: green. Grep both summary lines.
+Run:
+```
+C:/Users/krzys/.local/bin/uv.exe run pytest
+C:/Users/krzys/.local/bin/uv.exe run pytest -m e2e
+```
+Expected: green. **Grep both summary lines** — no `-q` here, deliberately: `addopts` already
+supplies one, and a second would suppress the summary this step exists to read.
 
 - [ ] **Step 6: Manual print-preview check**
 
