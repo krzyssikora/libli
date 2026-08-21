@@ -974,40 +974,11 @@ every slide is visible with a non-zero box at the IDENTICAL rect."
 | Manual print-preview check | Task 4, Step 6 |
 | Falsification battery | Task 4, Step 4 |
 
-**Gap found and closed:** the spec requires the parity test to record the repo-wide sweep so a *new* unclassified `[data-theme="dark"]` rule fails. Add this to `tests/test_print_tokens_css.py` in **Task 2, Step 1**:
-
-```python
-def test_every_dark_rule_in_a_shipped_stylesheet_is_classified():
-    """A new [data-theme="dark"] rule must not appear unnoticed: it either needs a
-    print counterpart or a recorded reason it does not."""
-    from pathlib import Path
-
-    root = Path(__file__).resolve().parent.parent
-    covered = {  # has a print counterpart
-        "core/static/core/css/tokens.css",
-        "courses/static/courses/css/courses.css",
-    }
-    excluded = {  # reason recorded, deliberately no print counterpart
-        "core/static/core/css/error.css": "not on a page this feature prints",
-        "courses/static/courses/css/editor.css": "not on a page this feature prints",
-        # tags.css IS loaded by lesson_unit.html:36, but .tag-delete-confirm is
-        # built only by wireDeleteConfirm() (tags.js:103,108) from
-        # .tag-section__manage delete links, which exist only in _tag_section.html
-        # -> my_tags.html. The element never reaches a printed lesson.
-        "tags/static/tags/css/tags.css": "element never rendered on a lesson page",
-    }
-    found = set()
-    for css in root.glob("*/static/**/*.css"):
-        if ".venv" in css.parts or "staticfiles" in css.parts:
-            continue
-        if re.search(r'^\[data-theme="dark"\]', css.read_text(encoding="utf-8"), re.M):
-            found.add(css.relative_to(root).as_posix())
-    unclassified = found - covered - set(excluded)
-    assert not unclassified, (
-        f"unclassified [data-theme=\"dark\"] rule(s): {sorted(unclassified)}. "
-        "Either add a print counterpart or record why one is not needed."
-    )
-```
+**Gap found and closed:** the spec requires the repo-wide `[data-theme="dark"]` sweep so a
+*new* unclassified rule fails the suite. It is implemented as
+`test_every_dark_rule_in_a_shipped_stylesheet_is_classified` in **Task 2, Step 1** — the source
+lives there and only there, so an implementer working task-by-task cannot miss it and cannot
+copy a stale second version from this appendix.
 
 **Placeholder scan:** none — every step carries the literal file content or command.
 
