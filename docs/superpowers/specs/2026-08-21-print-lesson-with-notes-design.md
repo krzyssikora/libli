@@ -306,9 +306,12 @@ with the remaining ~4900 characters scrolled out of view — silently defeating 
   opens and stamp `height: 0px` across the lesson. Belt and braces: **skip the stamp when
   `scrollHeight` is `0`.**
 
-  That skip alone would lose every composer on a **non-active slide** — `_lesson_article.html:38–47`
-  renders `_block_notes.html` inside each `.slide`, and non-active deck slides are `[hidden]` →
-  `display: none` at `beforeprint`. So when a surviving textarea measures `0` and has a `[hidden]`
+  That skip alone would lose every composer on a **non-active slide**. Briefly, since the full
+  analysis lives in the prerequisite spec's §3: `slideshow.js` moves slides into a JS-built
+  `.slideshow-deck > .slideshow-stage`, non-active ones carry `[hidden]` → `display: none`
+  (`courses.css:396`), and `settleHidden` re-adds that attribute after the 320 ms fade.
+  `_lesson_article.html:38–47` renders `_block_notes.html` **inside** each `.slide`, so a composer
+  there is unmeasurable at `beforeprint`. So when a surviving textarea measures `0` and has a `[hidden]`
   `.slide` ancestor, the enter path **temporarily clears that ancestor's `hidden`, re-measures, and
   restores it synchronously within the same task.**
 
@@ -504,6 +507,7 @@ Fixtures follow `tests/test_e2e_notes.py`: allauth `input[name='login']`, `TEST_
 | 13 | The notes **hub** prints long notes un-truncated. *The date half is deliberately absent: the hub has no `.note-card__meta-rel`, so that scope's mutant is dead (§3)* | `emulate_media` on the hub *(CSS)* | add a `.lesson` scope to the un-clamp rule |
 | 14 | After focusing a note card, in print: other blocks are not dimmed **and** the focused block's `outline-style` is `none` | focus a card, then `emulate_media` *(CSS)* | delete the `.is-dimmed` reset; **separately**, write the `.is-highlighted` reset at (0,1,0) |
 | 15 | The Print button is visible on screen and **not** in print | screen, then `emulate_media` *(CSS)* | write the print rule at (0,1,0) so its own gate wins; **or** move the gate below it |
+| 16 | **A note on a non-active slide prints**: after the enter path plus `emulate_media`, a `.note-card__body` on slide 2 passes `checkVisibility()` with a non-zero height. *This is the one place the two PRs interact — the sweep must find `.block-notes__panel` inside a `[hidden]` slide, and the foundations PR's slide reveal must reveal it — and it is exactly what a split loses, because each half looks covered on its own* | multi-slide fixture, await `.slideshow-deck`, `beforeprint`, `emulate_media` *(shared)* | drop the slide reveal from the foundations block; **or** drop the panel from the sweep |
 | 16c | A mid-edit note on a **non-active slide** carries a non-empty inline `style.height`. *Asserted on the stamp: with the un-hide deleted the CSS alone still renders full height on Chromium, so a rendered-height assertion would be green on its own mutant. Slide 2 must be `[hidden]` at `beforeprint` — navigating to reach Edit makes it active, so navigate back and wait for `settleHidden`, or inject* | await `.slideshow-deck`, reach the state, `beforeprint` *(event)* | delete the temporary-un-hide step |
 | 17 | A hand-opened panel is **still open** after the leave path | `beforeprint`, `afterprint` *(shared)* | make leave close all panels |
 | 18 | Panels opened by print **are closed** after leave | `beforeprint`, `afterprint` *(event)* | skip the removal loop |
