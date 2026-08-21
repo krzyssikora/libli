@@ -751,3 +751,114 @@ def test_degraded_carousel_is_skipped_not_thrown_on(page, live_server):
         arg=target_sel,
         timeout=5000,
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_post_op_reveal_wins_over_the_restored_tab(page, live_server):
+    """e2e 10. Pins the deliberate post-op behaviour change: after an element op,
+    the operated element's own tab (A) wins over the author's previous tab (B) --
+    scrollPreviewTo's reveal walk runs AFTER restoreActiveTabs re-stamps B onto the
+    rebuilt preview, and overrides it.
+
+    Click path: the duplicate `form[data-op="element-duplicate"]` in the row's
+    .el-actions. NOT .el-select: opening the edit form runs the SAME reveal walk
+    (via scrollPreviewTo in the .el-select handler) and stamps A before the submit
+    even happens, so captureActiveTabs would carry A forward with the post-op walk
+    deleted entirely and this case would pass on a broken build. The duplicate
+    control needs no form-open at all, so nothing stamps A beforehand.
+    """
+    pa = _make_pa_user("locate_c10")
+    course, unit = _seed_unit(pa, "locate-c10")
+
+    # Tab 1 is the default active tab (initOne calls select(0)), so the author is
+    # already on B = tab one with zero interaction -- and the target child lives in
+    # tab two = A, so nothing has stamped A before the click below.
+    tab1_id, tab2_id = "t000001", "t000002"
+    child = _seed_text("nested in tab two, to be duplicated")
+    tabs_obj, tabs_join = _seed_tabs_element(
+        unit,
+        [(tab1_id, "Tab One"), (tab2_id, "Tab Two")],
+        {tab2_id: [child]},
+    )
+    child_join = _child_join(tabs_join, tab2_id)
+
+    _login(page, live_server, "locate_c10")
+    # MANDATORY: the nested row lives in a collapsed <details class="tabs-rows">.
+    # Opened via _open_slots BEFORE page.goto -- never a <summary> click, which
+    # would fire scrollPreviewTo on the tabs row itself and pre-reveal it.
+    _open_slots(page, [(tabs_join.pk, tab2_id)])
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    eid = str(tabs_join.pk)
+    tabs_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{eid}"]'
+    # Capture BEFORE the submit and assert it is B -- proves the fixture's own
+    # setup took rather than assuming it (applyFragments' captureActiveTabs /
+    # restoreActiveTabs re-stamp the pre-click tab onto the rebuilt preview, so B
+    # cannot be inferred from the post-swap DOM).
+    before = page.get_attribute(tabs_sel, "data-tabs-active")
+    assert before == tab1_id, "fixture did not start on B (tab one)"
+
+    page.click(
+        f'.el-row[data-element="{child_join.pk}"] .el-actions '
+        f'form[data-op="element-duplicate"] button'
+    )
+
+    page.wait_for_function(
+        """([sel, want]) => document.querySelector(sel)
+              ?.getAttribute("data-tabs-active") === want""",
+        arg=[tabs_sel, tab2_id],
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_post_op_reveal_through_a_spoiler(page, live_server):
+    """e2e 11. The fixture for mutant (k): the post-op reveal must run against the
+    REBUILT (post-swap) preview, not a stale one captured before applyFragments
+    swaps the whole pane.
+
+    A tabs ancestor CANNOT kill this mutant: on a mutated build the walk runs
+    against the pre-swap DOM and select() stamps A there; applyFragments then opens
+    with captureActiveTabs(), which reads that just-mutated pane, so
+    restoreActiveTabs puts A on the REBUILT preview and initOne opens it --
+    data-tabs-active ends up byte-identical on both builds. A spoiler has no such
+    carry (persistence is tabs-only, by decision): a reveal performed against the
+    pre-swap DOM's <details> is simply discarded when the pane is replaced, so a
+    stale-DOM walk leaves the rebuilt spoiler closed.
+
+    Op pinned to element-duplicate: element-delete removes the row, so keepId no
+    longer resolves and scrollPreviewTo's absent-target guard returns before the
+    walk (red on a CORRECT build, not just the mutant); element-move can relocate
+    the child out of the spoiler slot and is a no-op for a single-child spoiler.
+    After a duplicate, keepId remains the ORIGINAL child's pk, which is what the
+    assertion targets.
+
+    No _open_slots call here -- spoiler child rows render in an always-open
+    <div class="el-row__spoiler"> (_element_row.html:192), unlike tabs and
+    two-column, so there is no <details> to pre-open.
+    """
+    from courses.models import SpoilerElement
+
+    pa = _make_pa_user("locate_c11")
+    course, unit = _seed_unit(pa, "locate-c11")
+
+    child = _seed_text("nested in the spoiler, to be duplicated")
+    spoiler = SpoilerElement.objects.create(label="Reveal me", body="")
+    _container_join, kids = _seed_container(
+        unit, spoiler, [(child, SpoilerElement.SLOT_ID)]
+    )
+    child_join = kids[0]
+
+    _login(page, live_server, "locate_c11")
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    det = '[data-scope="preview"] details.spoiler'
+    assert page.get_attribute(det, "open") is None      # closed to begin with
+
+    page.click(
+        f'.el-row[data-element="{child_join.pk}"] .el-actions '
+        f'form[data-op="element-duplicate"] button'
+    )
+
+    page.wait_for_selector(f"{det}[open]")
