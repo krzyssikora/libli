@@ -331,7 +331,13 @@ the deadline instant is its own stopping rule.
    keeps every individual read inside the timeout and parks the worker indefinitely, which
    `geogebra.py:57-63` measured at 16.18 s against a 3 s timeout. This makes the repo's
    **second** production background thread — a deliberate choice, taken because the
-   alternative is an unbounded worker.
+   alternative is an unbounded worker. The worker observes the same boundary rule
+   `geogebra.py:22-24` states: no ORM, no cache, no logging (see Logging below).
+
+   One accepted consequence: `geogebra.py`'s docstring calls itself "the repository's only
+   production background thread", which this feature makes stale. It is left uncorrected
+   because §0 commits to editing no existing module, and the clause has no behavioural
+   effect — recorded here so it is a known inaccuracy rather than a discovered one.
 
 *Steps 4–8 run on the worker.*
 
@@ -538,15 +544,36 @@ clause-order argument warns. Wrapping only the `open()` call is not
 enough: a DNS failure raises there, but a truncated body raises from inside the read loop,
 after the `with` block has been entered.
 
-**Logging.** Every rejection point **inside `media_fetch.py`** emits a `logger.warning`
-naming the host, the status or Content-Type, and a reason token — never the response body —
-on `logging.getLogger(__name__)` in that module, matching `geogebra.py:55`.
+**Logging — and it all happens on the request thread.** The author-facing message is
+deliberately detail-free, so without logging an operator diagnosing "an allow-listed host
+started 403-ing our User-Agent" would have nothing to work from. But six of the rejection
+points (invalid or absent `Location`, redirect off the allow-list, hop budget, non-200
+status, the Content-Type gate, the byte cap) live in steps 4–8, which run on the **worker**
+— and `courses/geogebra.py:22-24`, the module this design copies throughout, states the
+boundary rule verbatim: *"The worker's boundary rule: NO ORM, NO cache, NO logging — it only
+calls `_open`, reads bytes, and stores into a result box; everything else stays on the main
+thread."*
+
+That rule is kept, not diverged from. Concretely:
+
+- Worker-side rejections **carry a reason token on the `ValidationError` itself** (its
+  `code`, e.g. `"redirect-off-allowlist"`, `"status"`, `"content-type"`, `"too-large"`),
+  along with any interpolation `params` (§1). They log nothing.
+- The **request thread logs once**, where the box's exception is re-raised: a single
+  `logger.warning` on `logging.getLogger(__name__)` in `media_fetch.py` (matching
+  `geogebra.py:55`), naming the host, the status or Content-Type, and that reason token —
+  never the response body.
+- Request-thread rejections (steps 9–13) log at their own site, on the same logger.
+
+Beyond respecting the documented rule, this avoids two real hazards the thread-boundary
+section already flags: the daemon thread keeps running after the join returns, so a
+worker-emitted warning could fire *after* the response was sent, or from a daemon thread
+during interpreter shutdown.
+
 **`validate_fetch_url` does not log**: it lives in `courses/validators.py`, is a pure
-validator that other callers may reuse, and its five rejections are all decided from the
-submitted string before any network access, so they carry no diagnostic value an operator
-could not read off the request itself. The author-facing message is deliberately
-detail-free, so without the `media_fetch` logging an operator diagnosing "an allow-listed
-host started 403-ing our User-Agent" would have nothing to work from.
+validator other callers may reuse, and its five rejections are decided from the submitted
+string before any network access, so they carry no diagnostic value an operator could not
+read off the request itself.
 
 **`S310`** (bandit, `urllib.request` audit) is satisfied the way both sibling modules do it:
 a **`# noqa: S310` on the `Request(...)` line, with a written justification comment above
