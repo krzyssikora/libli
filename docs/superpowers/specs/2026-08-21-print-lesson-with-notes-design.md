@@ -351,7 +351,8 @@ neutralising the stage's positioning and height, and §2d mirrors it in full:
   .slideshow-deck .slide,
   .slideshow-deck .slide[hidden] {
     display: block !important; position: static !important;
-    overflow: visible !important; opacity: 1 !important;
+    overflow: visible !important;
+    opacity: 1 !important; transition: none !important;
   }
   .slideshow-bar { display: none !important; }
 }
@@ -364,7 +365,17 @@ snapshot can ever observe `inn` transparent. The declaration that actually persi
 `out.style.opacity = "0"` at **`:187`**, held for the full `FADE_MS = 320` window until
 `settleHidden(out)` runs at `:191`. During those 320 ms the outgoing slide is **not yet `[hidden]`**,
 so once §2d makes every slide `display: block` it prints as a blank page. A student who clicks Next
-and immediately presses `Ctrl+P` lands inside that window. Only `!important` beats an inline style — the same rule §3 states
+and immediately presses `Ctrl+P` lands inside that window.
+
+**`transition: none !important` is required alongside it, and winning the cascade is not enough
+without it.** `courses.css:393` puts `transition: opacity 320ms ease` on the *same*
+`.slideshow-deck .slide` rule this block overrides. Changing a transitioned property's computed value
+starts an animation rather than applying it, so `opacity: 1 !important` on its own makes the outgoing
+slide *animate* from ~0 toward 1 over a further 320 ms — and the print snapshot (and any test
+measurement) samples at the instant print styles apply, i.e. mid-animation, at a fraction. The
+declaration wins and still does not produce an opaque slide. `courses.css:399–401`'s
+`@media (prefers-reduced-motion: reduce) { .slideshow-deck .slide { transition: none } }` is the
+existing precedent for exactly this shape. Only `!important` beats an inline style — the same rule §3 states
 for `positionPop`'s inline `top` — and the carousel precedent carries the identical declaration at
 `courses.css:1869`.
 
@@ -954,6 +965,11 @@ Two consequences, both load-bearing for the table below:
 Reads after `emulate_media` should still be **polling** reads (`expect(...).to_pass()` style) rather
 than a bare `evaluate`, since the listener runs asynchronously.
 
+**Row 16b is the one exemption**, and deliberately so: it measures a state that a correct build
+*ends* (an opaque slide is the pass condition, and on the mutant build the slide becomes opaque a
+moment later of its own accord). Polling there would convert a real failure into a pass. Its state is
+injected rather than raced, so a single non-polling read is both sufficient and deterministic.
+
 ### How print state is entered in a test — pin this first
 
 `page.emulate_media(media="print")` **only** re-evaluates CSS media queries. It does **not** dispatch
@@ -1030,7 +1046,7 @@ Fixtures follow the pattern already proven in `tests/test_e2e_notes.py`: allauth
 | 14 | After a note card is focused, in print: other blocks are **not** dimmed, **and** the focused block's computed `outline-style` is `none`. *The outline half matters on paper — outlines, like borders, survive the browser's strip-background-graphics default, so a focused block would print visibly ringed. Both rules are (0,2,0) (`notes.css:278`, `:284`), so a (0,1,0) neutralisation is inert* | focus a card, then `emulate_media` *(CSS)* | delete the `.is-dimmed` reset; **separately**, write the `.is-highlighted` reset at (0,1,0) |
 | 15 | The Print button is **visible on screen** on the lesson page and **not** in print | screen, then `emulate_media` *(CSS)* | write the print rule at (0,1,0) so its own gate wins; **or** move the gate below the print rule in source order |
 | 16 | **Every slide** of a multi-slide lesson prints, a note on slide 2 is visible, and `.slideshow-bar` is not. *The test must first `wait_for_selector(".slideshow-deck", state="attached")`: §2d's rules target only the post-enhancement DOM, so entering print before deferred `slideshow.js` has built the deck leaves `courses.css:355`'s FOUC pre-hide in charge and the row goes RED on a correct build* | await `.slideshow-deck`, `beforeprint`, then `emulate_media` *(CSS)* | delete the §2d block; or keep only `display: block` without the `position`/`height`/`overflow` resets; or omit the `.slideshow-bar` hide |
-| 16b | Clicking **Next** and entering print **inside the 320 ms fade** still prints the outgoing slide at full opacity. *The only row that falsifies `opacity: 1 !important`. The window is real: `slideshow.js:187` sets `out.style.opacity = "0"` and it is held until `settleHidden(out)` at `:191`, during which the outgoing slide is not yet `[hidden]` and so is revealed by §2d* | click Next, then immediately `beforeprint` + `emulate_media` *(CSS)* | delete `opacity: 1 !important` from the slide reveal |
+| 16b | A slide in the **mid-fade state** prints at full opacity. The fixture **injects** that state via `page.evaluate` — take a non-active slide, remove its `hidden`, set `style.opacity = "0"` — rather than racing the real 320 ms fade, exactly as rows 5b/5c/19 inject their states. *Racing it cannot work in either direction: a polling read passes on the mutant, because `settleHidden` clears the inline opacity at `slideshow.js:147` and the slide falls back to `.slideshow-deck .slide { opacity: 1 }`; and a single immediate read would land mid-transition on the correct build. Injection removes the clock from the test entirely* | inject the state, then `beforeprint` + `emulate_media`, single non-polling read *(CSS)* | delete `opacity: 1 !important`; **separately**, delete `transition: none !important` (which alone leaves the correct build reading a fraction) |
 | 16c | A mid-edit note on a **non-active slide** prints its text in full. *Covers the measure-through-`[hidden]` step in §3: without it the textarea measures `scrollHeight === 0` at `beforeprint`, the stamp is skipped, and on Firefox/WebKit — where `field-sizing` does not apply — the note prints clipped at three rows* | multi-slide fixture, edit a note on slide 2, await `.slideshow-deck`, `beforeprint`, `emulate_media` *(CSS + stamp)* | delete the temporary-un-hide step, leaving only the skip-when-zero invariant |
 | 17 | A panel the student opened by hand is **still open** after the leave path | `beforeprint`, then `afterprint` *(shared)* | make the leave path close all panels rather than only the recorded ones |
 | 18 | Panels opened by print **are closed** after the leave path | `beforeprint`, then `afterprint` *(event)* | skip the removal loop |
