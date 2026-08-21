@@ -579,7 +579,8 @@ keeps each reveal beside the hide it pairs with.
 - **Hide a pop with nothing in it** — and get its exemption list right, because this rule is the one
   most able to silently undo the three carve-outs above. The §2 filter governs only panels `print.js`
   opens; a note-less panel the *student* opened by hand stays open by design, and with its add-label
-  and composer hidden it prints as an empty box. The rule is:
+  and composer hidden it contributes a stray empty `.block-notes__pop` box to the print tree. The
+  rule is:
 
   ```css
   .lesson .block-notes__pop:not(:has(
@@ -598,8 +599,19 @@ keeps each reveal beside the hide it pairs with.
     rescued by JS, since `print.js` never runs on the route that produces it.
   - **`.note-delete-confirm` is deliberately *not* in it.** §2b says a mid-delete note "is omitted
     cleanly rather than printing a stray Delete? Yes / No strip". Exempting the pop would instead
-    print a bordered, padded, entirely empty box for a block whose only note is mid-delete. Leaving
-    it out makes the pop vanish, which is what "cleanly" means.
+    leave an empty pop box for a block whose only note is mid-delete. Leaving it out makes the pop
+    vanish, which is what "cleanly" means.
+
+  **What the empty pop actually looks like — and therefore how to assert it.** Not a bordered, padded
+  card: `.block-notes__pop`'s border, padding, background, radius and shadow come **only** from the
+  `@media (min-width: 1200px)` block (`notes.css:92–107`), and the pop-to-flow reset above zeroes
+  every one of them in print anyway. Measured in Chromium, the residual box on the mutant build is
+  **zero-height** — `bounding_box()` returns `{… "height": 0}` and `checkVisibility()` returns
+  `true` — against `bounding_box() is None` / `checkVisibility() false` on the correct build. So rows
+  8a and 9c **must assert `checkVisibility()`**, never a `bounding_box()["height"] == 0` threshold:
+  the height predicate is satisfied on *both* builds and the row would be dead. This is the `display:
+  none` case row 6a already distinguishes, and the exact inverse of the `visibility: hidden` case in
+  rows 6a2/10b — which is why the measurement-traps list below states both directions.
   - **The `.lesson` scope** is per the scoping rule ("scope a hide"). It is inert — `.block-notes__pop`
     exists only in lessons — but the rule is applied uniformly so no reader has to wonder whether an
     unscoped hide was a decision or an oversight.
@@ -995,8 +1007,8 @@ screen, so this is a valid observation, and only the `beforeprint` listener can 
 
 The markers therefore mean something narrower than an earlier draft claimed:
 
-- *(event)* — killed by deleting the `beforeprint`/`afterprint` registration: rows **1, 9, 9b, 9d,
-  18, 19, 20, 20b**. These either avoid `emulate_media` entirely or assert DOM state.
+- *(event)* — killed by deleting the `beforeprint`/`afterprint` registration: rows **1, 7d, 9, 9b,
+  9d, 16c, 18, 19, 20, 20b**. These either avoid `emulate_media` entirely or assert DOM state.
 - *(media)* — killed by deleting the `matchMedia` registration: row **2** only.
 - *(shared)* — rows **10** and **17** depend on the sweep/restore *logic*, not on which listener ran;
   their mutants target that logic. Marked `(shared)` rather than `(event)` because deleting the
@@ -1020,8 +1032,10 @@ On Chromium the two are **mutually rescuing**: delete either one and the other s
 textarea at full height. So *no rendered-height assertion can falsify either mechanism on its own*,
 and rows that claim to must not pretend otherwise. The resolution:
 
-- Rendered-height assertions (rows 7, 7b, 7b2) keep their behavioural value but list a **combined**
-  mutant — delete the stamp **and** the CSS group — since either alone is rescued.
+- **Row 7** is the only rendered-height assertion, and it lists a **combined** mutant — delete the
+  stamp **and** the CSS group — since either alone is rescued. (Rows 7b and 7b2 look adjacent but are
+  not affected: their mutants target the hide rule and the empty-pop `:has()` list, for which plain
+  visibility is the right discriminator and no height threshold is needed.)
 - The stamp itself is falsified **by asserting the mechanism**: the textarea carries a non-empty
   inline `style.height` after the enter path. That is a deliberate step down from behaviour to
   implementation, taken because the behavioural difference is only observable on Firefox/WebKit,
@@ -1067,7 +1081,7 @@ Fixtures follow the pattern already proven in `tests/test_e2e_notes.py`: allauth
 | 15 | The Print button is **visible on screen** on the lesson page and **not** in print | screen, then `emulate_media` *(CSS)* | write the print rule at (0,1,0) so its own gate wins; **or** move the gate below the print rule in source order |
 | 16 | **Every slide** of a multi-slide lesson prints **stacked in the flow** — the slides' `bounding_box()["y"]` values are strictly increasing — a note on slide 2 is visible, and `.slideshow-bar` is not. *The geometric check is the discriminator, not `checkVisibility()`: under the "keep only `display: block`" mutant every slide stays `position: absolute; inset: 0` inside the stage's `clamp()` height, so all of them are `display: block`, `opacity: 1`, visible, and occupying the **identical** non-zero rect. Visibility and box-presence predicates all pass on that mutant; only the y-ordering separates them*. *The test must first `wait_for_selector(".slideshow-deck", state="attached")`: §2d's rules target only the post-enhancement DOM, so entering print before deferred `slideshow.js` has built the deck leaves `courses.css:355`'s FOUC pre-hide in charge and the row goes RED on a correct build* | await `.slideshow-deck`, `beforeprint`, then `emulate_media` *(CSS)* | delete the §2d block; or keep only `display: block` without the `position`/`height`/`overflow` resets; or omit the `.slideshow-bar` hide |
 | 16b | A slide in the **mid-fade state** prints at full opacity. The fixture **injects** that state via `page.evaluate` — take a non-active slide, remove its `hidden`, set `style.opacity = "0"` — rather than racing the real 320 ms fade, exactly as rows 5b/5c/19 inject their states. *Racing it cannot work in either direction: a polling read passes on the mutant, because `settleHidden` clears the inline opacity at `slideshow.js:147` and the slide falls back to `.slideshow-deck .slide { opacity: 1 }`; and a single immediate read would land mid-transition on the correct build. Injection removes the clock from the test entirely* | inject the state, then `beforeprint` + `emulate_media`, single non-polling read *(CSS)* | delete `opacity: 1 !important`; **separately**, delete `transition: none !important` (which alone leaves the correct build reading a fraction) |
-| 16c | A mid-edit note on a **non-active slide** carries a **non-empty inline `style.height`** after the enter path. *Asserted on the stamp, not on rendered height: with the un-hide step deleted the stamp is skipped and the CSS group alone still renders the textarea full-height on Chromium — so a rendered-height assertion here would be green on its own mutant, and would in fact be asserting exactly what row 7c asserts on a correct build. The user-visible loss this step prevents is Firefox/WebKit-only and therefore not observable in this suite* | multi-slide fixture, edit a note on slide 2, await `.slideshow-deck`, `beforeprint` *(event)* | delete the temporary-un-hide step, leaving only the skip-when-zero invariant |
+| 16c | A mid-edit note on a **non-active slide** carries a **non-empty inline `style.height`** after the enter path. *The trigger's shape is what makes this falsifiable, and driving it naively breaks it: reaching a note's Edit control on slide 2 requires navigating there, which makes slide 2 **active and not `[hidden]`** — `scrollHeight > 0`, the un-hide branch never runs, the stamp lands anyway, and the row goes green on its own mutant. Slide 2 must be `[hidden]` at `beforeprint`. Asserted on the stamp, not on rendered height: with the un-hide step deleted the stamp is skipped and the CSS group alone still renders the textarea full-height on Chromium — so a rendered-height assertion here would be green on its own mutant, and would in fact be asserting exactly what row 7c asserts on a correct build. The user-visible loss this step prevents is Firefox/WebKit-only and therefore not observable in this suite* | multi-slide fixture; await `.slideshow-deck` **first**, then click Next to slide 2, open the note's inline edit, click Prev back to slide 1 and wait for `settleHidden` to re-add `[hidden]` to slide 2 (or inject the edit form on slide 2 via `page.evaluate`), then `beforeprint` *(event)* | delete the temporary-un-hide step, leaving only the skip-when-zero invariant |
 | 17 | A panel the student opened by hand is **still open** after the leave path | `beforeprint`, then `afterprint` *(shared)* | make the leave path close all panels rather than only the recorded ones |
 | 18 | Panels opened by print **are closed** after the leave path | `beforeprint`, then `afterprint` *(event)* | skip the removal loop |
 | 19 | Clamp residue is removed from the panels print opened. The fixture **injects** `.note-card__body--clamp` and a `.note-card__more` via `page.evaluate` after the enter path, rather than waiting for `setupClamp` — §2e forbids depending on the async toggle, and an absence assertion would otherwise pass vacuously | `beforeprint`, inject, `afterprint` *(event)* | skip the de-clamp cleanup |
