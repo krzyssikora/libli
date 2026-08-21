@@ -19,6 +19,7 @@
 - **All new user-facing strings are translated:** `{% trans %}` in templates, `gettext_lazy` in Python. Worker-thread errors use `ValidationError(msg, code=..., params={...})` — **never** `%`-format on the worker (gettext is thread-local).
 - **Every test must be falsified against a named mutant** that proves it goes RED. Pick the mutant from the failure mode the test claims to detect. A test that passes on the broken build proves nothing.
 - **Ruff:** `select = ["E","F","I","UP","B","S"]`, `force-single-line` imports. `S310` needs `# noqa: S310` on the `Request(...)` line **plus** a justification comment above it — and that comment must not *begin* with the directive text (ruff would parse it as a second suppression).
+- **88-column limit** (`E501`, active via `select = ["E"]`). No production file in this repo exceeds it. Note that `ruff format` normalises inline-comment spacing but will **not** split a line whose overflow comes from a trailing comment — several snippets in this plan carry explanatory trailing comments that push past 88; move those comments onto their own line as you type them in.
 - **Run `uv run ruff format .` LAST**, after every other edit; `ruff format --check` is a separate CI gate.
 
 ### Test-run mechanics (this repo, this worktree)
@@ -202,10 +203,11 @@ def validate_fetch_url(url):
     if not url:
         raise ValidationError(_("Enter an image URL."), code="empty")
     if len(url) > MAX_FETCH_URL_LENGTH:
+        # Literal 500, matching the spec's pinned error text exactly -- the spec's
+        # error table is the single source for the implementation, the view tests AND
+        # the .po entries, so parameterising it here would fork the msgid.
         raise ValidationError(
-            _("That URL is too long (maximum %(n)d characters)."),
-            code="too-long",
-            params={"n": MAX_FETCH_URL_LENGTH},
+            _("That URL is too long (maximum 500 characters)."), code="too-long"
         )
     try:
         URLValidator()(url)
@@ -272,7 +274,10 @@ def test_base_settings_default_allow_http_is_false(monkeypatch):
     finally:
         os.environ.clear()
         os.environ.update(saved)
-        importlib.reload(importlib.import_module("config.settings.base"))
+        # Deliberately NO second reload here: it would run while read_env is still
+        # monkeypatched (undo happens at teardown, after this body), leaving `base`
+        # cached WITHOUT its .env values. django.conf.settings is unaffected either
+        # way, so restoring os.environ is the whole job.
 ```
 
 - [ ] **Step 8: Run, falsify, commit**
@@ -400,14 +405,21 @@ git commit -m "feat(media): MediaAsset.source_url + source_host property"
 
 - [ ] **Step 1: Write the failing tests**
 
+⚠️ **Merge these imports into the file's existing top-of-file block** — do not append them
+mid-file. Module-level imports after the first `def` trip `E402` (in the selected `E` set)
+and `I001` (unsorted, in `I`); the `**/tests/**` per-file-ignores cover only `S105/S106/S107`.
+The failure would surface in Task 14's branch-wide `ruff check`, far from its cause. The repo
+uses `force-single-line`, so each `from … import …` gets its own line.
+
 ```python
-# courses/tests/test_media_source_url.py (append)
+# courses/tests/test_media_source_url.py -- ADD to the existing import block at the top
 import hashlib
 
 from django.core.files.base import ContentFile
 
 from courses import media as media_svc
-from tests.factories import CourseFactory, UserFactory  # match the repo's existing factories
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
 
 
 def _png_bytes():
@@ -623,6 +635,22 @@ def test_create_asset_runs_on_the_request_thread(monkeypatch):
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_a_padded_url_is_stored_stripped(monkeypatch):
+    """The spec's weakest-natural-coverage invariant, called out twice there.
+
+    validate_fetch_url RETURNS the stripped url and step 1 must ASSIGN it. Every other
+    test in this suite passes an already-clean url, so the bare-call mutant -- dropping
+    the assignment -- stays GREEN across the whole suite except here. T1 does NOT cover
+    this: it tests the validator's return value, not that fetch_image_asset uses it.
+    """
+    monkeypatch.setattr(media_fetch, "_open", lambda req, t: FakeResponse(png_bytes()))
+    asset = media_fetch.fetch_image_asset(
+        CourseFactory(), "  " + URL + "\n", UserFactory()
+    )
+    assert asset.source_url == URL          # no leading/trailing whitespace
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_user_agent_and_accept_are_sent(monkeypatch):
     captured = {}
 
@@ -679,6 +707,9 @@ from courses.validators import effective_max_image_bytes
 from courses.validators import validate_fetch_url
 
 logger = logging.getLogger(__name__)
+
+# Params that only feed the author-facing message text -- never logged as diagnostics.
+_MESSAGE_ONLY_PARAMS = {"mib"}
 
 MAX_REDIRECT_HOPS = 3
 TIMEOUT_SECONDS = 8          # per socket op -- does NOT bound the call
@@ -810,7 +841,9 @@ def _log_worker_failure(submitted_url, exc):
         "image fetch: host=%s reason=%s %s",
         urlsplit(submitted_url).hostname,
         code,
-        {k: v for k, v in params.items() if k != "mib"},
+        # Omit keys already rendered in the author-facing message (they are not
+        # extra diagnostics); keep the rest -- status, target_host, content_type, exc.
+        {k: v for k, v in params.items() if k not in _MESSAGE_ONLY_PARAMS},
     )
 
 
@@ -837,12 +870,20 @@ def _build_asset(course, user, name, submitted_url, current_url, data, allowed_e
 |---|---|
 | Move the `create_asset` call inside `_run` | `test_create_asset_runs_on_the_request_thread` |
 | Drop the `Accept` header | `test_user_agent_and_accept_are_sent` |
-| `validate_fetch_url(submitted_url)` as a bare call (drop the assignment) | (covered in T1; re-check `source_url` here) |
+| `validate_fetch_url(submitted_url)` as a **bare call** (drop the assignment) | `test_a_padded_url_is_stored_stripped` |
 
 - [ ] **Step 6: Lint**
 
 Run: `uv run ruff check --no-cache courses/media_fetch.py`
-Expected: clean. If `S310` fires, the `noqa` is misplaced — it belongs on the `Request(` line.
+
+Expected: **four `F401` unused-import errors** — `BytesIO`, `unquote`, `urljoin` and
+`truncate_filename` are imported here but not consumed until Tasks 5 and 7. That is fine at
+this checkpoint; they clear once Task 7 lands. What must be **absent** is `S310`: if it
+fires, the `noqa` is misplaced — it belongs on the `Request(` line, not the function.
+
+(If you prefer a clean gate per task, move those four imports into the tasks that first use
+them instead. Either way, do not let the false expectation "clean" send you hunting the
+`noqa` placement.)
 
 - [ ] **Step 7: Commit**
 
@@ -909,7 +950,12 @@ def test_exactly_three_redirects_succeed(monkeypatch):
         FakeResponse(png_bytes()),
     ))
     asset = media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
-    assert asset.source_url == URL          # the SUBMITTED url, not the final hop
+    # The spec's PAIRED invariant -- assert BOTH halves. source_url is the submitted
+    # url; the filename stem comes from the FINAL hop. Asserting only the first half
+    # leaves the Special:FilePath degradation (passing submitted_url to
+    # _derive_filename) undetectable.
+    assert asset.source_url == URL
+    assert asset.original_filename == "c.png"
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
@@ -973,7 +1019,78 @@ def test_connection_failure_is_a_422_not_a_500(monkeypatch):
     with pytest.raises(ValidationError) as exc:
         media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
     assert "Could not reach" in "; ".join(exc.value.messages)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_mid_read_failure_is_also_a_422(monkeypatch):
+    """The reason OSError is in the tuple and the try SPANS the read loop.
+
+    A DNS failure raises from open(); a truncated body raises from inside the loop,
+    AFTER the `with` has been entered. Narrowing the try to the open() call alone
+    would keep test_connection_failure GREEN -- only this one goes RED.
+    """
+    class Truncating(FakeResponse):
+        def __init__(self):
+            super().__init__(png_bytes())
+            self._calls = 0
+
+        def read1(self, n=-1):
+            self._calls += 1
+            if self._calls > 1:
+                raise OSError("connection reset mid-body")
+            return super().read1(8)
+
+    monkeypatch.setattr(media_fetch, "_open", lambda req, t: Truncating())
+    with pytest.raises(ValidationError) as exc:
+        media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
+    assert "Could not reach" in "; ".join(exc.value.messages)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_headers_are_sent_on_every_redirect_hop(monkeypatch):
+    """Wikimedia 403s a generic UA, so a hop that drops the header silently breaks the
+    feature against its own default allow-list. Capturing only the first call (as the
+    Task-4 test does) would miss a refactor that reuses a bare url on the redirect path.
+    """
+    seen = []
+
+    def fake_open(req, timeout):
+        seen.append((req.get_header("User-agent"), req.get_header("Accept")))
+        if len(seen) <= 3:
+            raise redirect(302, f"https://upload.wikimedia.org/{len(seen)}.png")
+        return FakeResponse(png_bytes())
+
+    monkeypatch.setattr(media_fetch, "_open", fake_open)
+    media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
+    assert len(seen) == 4
+    assert all("libli" in ua and accept == "image/*" for ua, accept in seen)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_worker_message_renders_in_the_active_language(monkeypatch):
+    """Proves the params= deferral. gettext is THREAD-LOCAL and the daemon thread has
+    no activation, so a message %-formatted on the worker resolves to English there and
+    this assertion goes RED. Every other test asserts English fragments, so this is the
+    only guard on the rule.
+    """
+    from django.utils import translation
+
+    monkeypatch.setattr(media_fetch, "_open", sequence(
+        urllib.error.HTTPError(URL, 404, "nope", {}, None)
+    ))
+    with translation.override("pl"):
+        with pytest.raises(ValidationError) as exc:
+            media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
+        rendered = "; ".join(exc.value.messages)
+    assert "Serwer obrazów zwrócił błąd" in rendered
+    assert "404" in rendered
 ```
+
+⚠️ This last test depends on Task 12's Polish catalog existing. If Tasks are executed in
+order it will fail until Task 12 lands — so **either move it to Task 12**, or mark it
+`@pytest.mark.xfail(reason="needs the pl catalog from Task 12", strict=False)` here and
+flip it to a hard assertion in Task 12. Do not skip it: it is the only coverage of the
+`params=` rule.
 
 - [ ] **Step 2: Run to verify it fails.** Expected: most fail — `_fetch` follows no redirects yet.
 
@@ -1072,7 +1189,11 @@ def _check_content_type(resp):
 | Drop the `resp.status != 200` check | `test_returned_206_is_rejected` |
 | Change `range(MAX_REDIRECT_HOPS + 1)` to `range(MAX_REDIRECT_HOPS)` | `test_exactly_three_redirects_succeed` |
 | Let the inner `ValidationError` propagate instead of replacing it | the http-downgrade case |
-| Set `source_url=current_url` in `_build_asset` | `test_exactly_three_redirects_succeed` |
+| Set `source_url=current_url` in `_build_asset` | `test_exactly_three_redirects_succeed` (first assertion) |
+| Pass `submitted_url` to `_derive_filename` instead of `current_url` | `test_exactly_three_redirects_succeed` (second assertion) |
+| Narrow the `try` to the `open()` call only | `test_mid_read_failure_is_also_a_422` |
+| Build hops without `_build_request` (drop the headers) | `test_headers_are_sent_on_every_redirect_hop` |
+| `%`-format the status message on the worker | `test_worker_message_renders_in_the_active_language` |
 
 - [ ] **Step 6: Commit**
 
@@ -1121,7 +1242,7 @@ def run(monkeypatch, **kw):
     "ctype,fragment",
     [
         ("text/html", "did not return an image"),   # the commons.wikimedia.org case
-        ("", "did not return an image"),            # header absent entirely
+        ("", "did not return an image"),            # header present but EMPTY
         ("image/svg+xml", "image type is not allowed"),  # honest message, not the above
     ],
 )
@@ -1132,18 +1253,55 @@ def test_content_type_gate(monkeypatch, ctype, fragment):
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_absent_content_type_header_is_rejected(monkeypatch):
+    """The header MISSING ENTIRELY, distinct from the empty-string case above -- the
+    spec requires both, and an implementer could plausibly treat absent as "unknown,
+    let Pillow decide", which drops an enumerated message."""
+    with pytest.raises(ValidationError) as exc:
+        run(monkeypatch, data=b"<html>nope</html>", headers={})
+    assert "did not return an image" in "; ".join(exc.value.messages)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
 @pytest.mark.parametrize("ctype", ["image/png", "image/PNG", "image/png; charset=binary"])
 def test_content_type_accepted_forms(monkeypatch, ctype):
     assert run(monkeypatch, data=png_bytes(), headers={"Content-Type": ctype})
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
-def test_cap_trips_mid_stream_when_content_length_lies(monkeypatch, settings):
-    big = png_bytes() + b"\0" * (6 * 1024 * 1024)
+def test_cap_trips_mid_stream_when_content_length_lies(monkeypatch):
+    big = png_bytes() + b"\0" * (6 * 1024 * 1024)   # over the 5 MiB ceiling
     with pytest.raises(ValidationError) as exc:
         run(monkeypatch, data=big,
             headers={"Content-Type": "image/png", "Content-Length": "10"})
     assert "too large" in "; ".join(exc.value.messages)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_over_cap_content_length_rejects_before_reading_the_body(monkeypatch):
+    """The early-exit half. Without this, deleting the whole Content-Length block from
+    _read_capped breaks NO test -- the malformed and lying cases both pass without it.
+    Assert zero read1 calls, which is the only thing that distinguishes "rejected early"
+    from "rejected after streaming 6 MiB".
+    """
+    class NeverRead(FakeResponse):
+        def __init__(self):
+            super().__init__(b"", headers={
+                "Content-Type": "image/png",
+                "Content-Length": str(50 * 1024 * 1024),
+            })
+            self.reads = 0
+
+        def read1(self, n=-1):
+            self.reads += 1
+            raise AssertionError("body must not be read when Content-Length is over cap")
+
+    resp = NeverRead()
+    monkeypatch.setattr(media_fetch, "_open", lambda req, t: resp)
+    with pytest.raises(ValidationError) as exc:
+        media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
+    assert "too large" in "; ".join(exc.value.messages)
+    assert resp.reads == 0
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
@@ -1235,6 +1393,8 @@ And in `_build_asset`, before anything else:
 | Drop `.split(";")` | the `charset=binary` case |
 | Move the cap check outside the read loop (check only at the end) | `test_cap_trips_mid_stream_when_content_length_lies` |
 | Make a malformed `Content-Length` raise | `test_malformed_content_length_is_ignored_not_rejected` |
+| Delete the `Content-Length` early-exit block entirely | `test_over_cap_content_length_rejects_before_reading_the_body` |
+| Treat an absent `Content-Type` as "let Pillow decide" | `test_absent_content_type_header_is_rejected` |
 | Drop the `if not data` guard | `test_empty_body_is_rejected` |
 
 - [ ] **Step 6: Commit**
@@ -1346,12 +1506,78 @@ def test_unknown_pillow_format_is_a_422_not_a_keyerror(monkeypatch):
 def test_pixel_bound_rejects_between_max_pixels_and_pillows_limit(monkeypatch):
     """Target the band THIS code owns: MAX_PIXELS (50M) < declared < 2x Pillow's
     89,478,485. Above 2x, Pillow refuses unaided and the test would pass on a build
-    with no pixel check at all."""
+    with no pixel check at all.
+
+    NOTE this does NOT pin the check's ORDER relative to verify() -- a genuine 50x50
+    PNG passes verify(), so moving the size check after it produces the identical
+    error. See test_pixel_check_runs_before_verify for the ordering.
+    """
     monkeypatch.setattr(media_fetch, "MAX_PIXELS", 100)
     with pytest.raises(ValidationError) as exc:
         run(monkeypatch, "https://upload.wikimedia.org/Foo.png",
             img_bytes("PNG", size=(50, 50)), "image/png")
     assert "dimensions are too large" in "; ".join(exc.value.messages)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_pixel_check_runs_before_verify(monkeypatch):
+    """The ordering the spec argues for, with the fixture that actually pins it.
+
+    A PNG whose IHDR declares huge dimensions over a TRUNCATED body: Image.open reads
+    the header and reports the size, but PngImageFile.verify() walks the remaining
+    chunks and checks CRCs, so it would reject this as "not a usable image". Only when
+    the pixel check runs FIRST does it report the dimensions message.
+    """
+    good = img_bytes("PNG", size=(8, 8))
+    # Rewrite the IHDR width/height to 9000x9000 and truncate the body.
+    import struct
+
+    ihdr = good.index(b"IHDR")
+    doctored = bytearray(good)
+    doctored[ihdr + 4:ihdr + 12] = struct.pack(">II", 9000, 9000)
+    truncated = bytes(doctored[: ihdr + 40])
+
+    monkeypatch.setattr(media_fetch, "MAX_PIXELS", 1000)
+    with pytest.raises(ValidationError) as exc:
+        run(monkeypatch, "https://upload.wikimedia.org/Foo.png", truncated, "image/png")
+    assert "dimensions are too large" in "; ".join(exc.value.messages)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_decompression_bomb_reports_the_same_dimensions_message(monkeypatch):
+    """The FAR side of the boundary. Above 2x Image.MAX_IMAGE_PIXELS, Pillow raises
+    DecompressionBombError from Image.open -- BEFORE the explicit size check can run --
+    so without the dedicated except clause it falls into the broad one and the author
+    is told the file is "not a usable image", disagreeing with the smaller case.
+    """
+    from PIL import Image
+
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 16)   # 2x -> 32 px
+    with pytest.raises(ValidationError) as exc:
+        run(monkeypatch, "https://upload.wikimedia.org/Foo.png",
+            img_bytes("PNG", size=(50, 50)), "image/png")
+    assert "dimensions are too large" in "; ".join(exc.value.messages)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_mpo_format_is_accepted_as_jpg(monkeypatch):
+    """MPO is the NORMAL Pillow format for multi-picture JPEGs -- what most phone
+    cameras produce. Omitting it from the map rejects a large share of real photos.
+
+    Pillow will not save(format="MPO") from a plain Image.new, so build a two-frame
+    JPEG (which Pillow opens as MPO) via append_images.
+    """
+    from PIL import Image
+
+    buf = io.BytesIO()
+    a = Image.new("RGB", (4, 4), "red")
+    b = Image.new("RGB", (4, 4), "blue")
+    a.save(buf, format="JPEG", save_all=True, append_images=[b])
+    data = buf.getvalue()
+    assert Image.open(io.BytesIO(data)).format == "MPO"   # guard the fixture itself
+
+    asset = run(monkeypatch, "https://upload.wikimedia.org/Foo.jpg", data, "image/jpeg")
+    assert asset.original_filename == "Foo.jpg"
 ```
 
 - [ ] **Step 2: Run to verify it fails.** Expected: FAIL — filename is the hardcoded `image.png`.
@@ -1439,13 +1665,28 @@ Wire both into `_build_asset`:
 
 ```python
 def _build_asset(course, user, name, submitted_url, current_url, data, allowed_exts):
-    if not data:
-        raise ValidationError(_("The fetched file is empty."), code="empty-body")
-    fmt = _verify_payload(data)
-    filename = _derive_filename(current_url, fmt, allowed_exts)
+    # Steps 9-13 run HERE, on the request thread, so they log at their own sites --
+    # the spec's fourth logging bullet. Without these, four enumerated conditions
+    # (empty body, not-a-usable-image, too-many-pixels, unknown format) leave no
+    # operator-visible trace at all.
+    host = urlsplit(submitted_url).hostname
+    try:
+        if not data:
+            raise ValidationError(_("The fetched file is empty."), code="empty-body")
+        fmt = _verify_payload(data)
+        filename = _derive_filename(current_url, fmt, allowed_exts)
+    except ValidationError as exc:
+        logger.warning(
+            "image fetch: host=%s reason=%s", host, getattr(exc, "code", None)
+        )
+        raise
     digest = hashlib.sha256(data).hexdigest()
     return create_asset(...)   # unchanged
 ```
+
+Note `_verify_payload` and `_derive_filename` themselves stay log-free — one wrapper at the
+call site covers all four request-thread rejections without scattering `logger` calls
+through the helpers.
 
 - [ ] **Step 4: Run to verify it passes.** Expected: PASS.
 
@@ -1457,10 +1698,11 @@ def _build_asset(course, user, name, submitted_url, current_url, data, allowed_e
 | Drop the trailing-extension strip entirely | the `Foo.png` → `Foo.png.png` case |
 | Derive the extension from the Content-Type instead of `fmt` | the GIF-served-as-png case |
 | `PILLOW_FORMAT_MAP[fmt]` (bare subscript) | `test_unknown_pillow_format_is_a_422_not_a_keyerror` |
-| Move the pixel check after `img.verify()` | `test_pixel_bound_rejects_...` |
+| Move the pixel check after `img.verify()` | `test_pixel_check_runs_before_verify` (**not** the constant-patch test — a real 50×50 PNG passes `verify()`, so that one stays GREEN) |
+| Delete the `except Image.DecompressionBombError` clause | `test_decompression_bomb_reports_the_same_dimensions_message` |
 | `except UnidentifiedImageError` only | `test_html_under_an_image_content_type_is_rejected` |
 | Basename before unquote | `test_traversal_in_path_cannot_escape` |
-| Remove `MPO` from the map | add a fixture MPO and confirm |
+| Remove `MPO` from the map | `test_mpo_format_is_accepted_as_jpg` |
 
 - [ ] **Step 6: Commit**
 
@@ -1551,20 +1793,43 @@ def test_drip_header_hits_the_deadline(monkeypatch):
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_budget_is_checked_between_redirect_hops(monkeypatch):
+    """Assert on the WORKER, not on the user-facing message.
+
+    The message is the wrong probe: the joiner emits "took too long" unconditionally
+    whenever join() times out with an empty box, whether or not the worker ever checked
+    its budget. So with the top-of-loop _remaining() removed the worker keeps issuing
+    hops on the daemon thread while the joiner still reports the deadline -- and a
+    message-only assertion stays GREEN on the mutant it claims to catch.
+
+    This is the spec's headline safety property: (MAX_REDIRECT_HOPS + 1) x
+    TIMEOUT_SECONDS = 32s exceeds DEADLINE_SECONDS = 20s, and the per-iteration check
+    is the only thing holding the bound. Count the calls instead.
+    """
     import urllib.error
 
     monkeypatch.setattr(media_fetch, "DEADLINE_SECONDS", 0.3)
+    started = []
 
     def slow_redirect(req, timeout):
+        started.append(time.monotonic())
         time.sleep(0.2)
         raise urllib.error.HTTPError(
             URL, 302, "r", {"Location": "https://upload.wikimedia.org/next.png"}, None
         )
 
     monkeypatch.setattr(media_fetch, "_open", slow_redirect)
+    t0 = time.monotonic()
     with pytest.raises(ValidationError) as exc:
         media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
     assert "took too long" in "; ".join(exc.value.messages)
+
+    # Give the daemon thread a moment to make any further (forbidden) calls.
+    time.sleep(0.5)
+    assert started, "the worker never issued a request"
+    # No hop may START after the deadline instant. Without the top-of-loop check the
+    # worker fires all four hops and this fails.
+    assert max(started) < t0 + 0.3, f"a hop started past the deadline: {started}"
+    assert len(started) <= 2
 ```
 
 - [ ] **Step 2: Run.** Expected: PASS (production code from T4–T5 already implements this).
@@ -1603,77 +1868,138 @@ git commit -m "test(media-fetch): drip body, drip header, inter-hop budget"
 
 - [ ] **Step 1: Write the failing tests**
 
+⚠️ **This repo has no `course` / `manager_user` / `other_user` fixtures.** `tests/conftest.py`
+defines only `course_with_image` and `course_with_image_media_root`. The convention in
+`tests/test_media_manager.py` and `tests/test_media_picker.py` is factories plus a
+locally-built privileged user. Build them in-module, as below — do **not** request fixtures
+by those names or every test errors at collection with "fixture not found".
+
+⚠️ **Every success-path test needs `@override_settings`.** Task 1 makes
+`config/settings/test.py` *replace* `ALLOWED_IMAGE_FETCH_DOMAINS` with
+`["localhost", "127.0.0.1"]` for the whole suite, so a bare
+`https://upload.wikimedia.org/...` post returns 422 "not on the allow-list" and the test
+fails for a reason that has nothing to do with the view.
+
 ```python
 # tests/test_media_fetch_view.py
 import pytest
+from django.test import override_settings
 from django.urls import reverse
 
 from courses import media_fetch
 from courses.models import MediaAsset
+from courses.tests.test_media_fetch_transport import FakeResponse
+from courses.tests.test_media_fetch_transport import png_bytes
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
+
+WIKI = ["upload.wikimedia.org"]
+URL = "https://upload.wikimedia.org/Foo.png"
+
+
+@pytest.fixture
+def course_and_manager():
+    """Mirrors how tests/test_media_manager.py builds a manageable course.
+
+    Course access in this repo is is_staff, NOT a teaching relation -- check
+    _require_manage before changing this.
+    """
+    manager = UserFactory(is_staff=True)
+    return CourseFactory(owner=manager), manager
 
 
 def url_for(course):
     return reverse("courses:manage_media_fetch", kwargs={"slug": course.slug})
 
 
-def test_success_returns_the_asset_cell(client, manager_user, course, monkeypatch):
-    monkeypatch.setattr(media_fetch, "_open", ...)   # reuse the FakeResponse helper
-    client.force_login(manager_user)
-    resp = client.post(url_for(course), {"url": "https://upload.wikimedia.org/Foo.png"},
-                       HTTP_X_REQUESTED_WITH="fetch")
+def patch_transport(monkeypatch):
+    monkeypatch.setattr(
+        media_fetch, "_open", lambda req, t: FakeResponse(png_bytes())
+    )
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_success_returns_the_asset_cell(client, course_and_manager, monkeypatch):
+    course, manager = course_and_manager
+    patch_transport(monkeypatch)
+    client.force_login(manager)
+    resp = client.post(
+        url_for(course), {"url": URL}, HTTP_X_REQUESTED_WITH="fetch"
+    )
     assert resp.status_code == 200
     assert b"asset-cell" in resp.content
     assert MediaAsset.objects.filter(course=course).count() == 1
 
 
-def test_rejection_is_422_with_the_message(client, manager_user, course):
-    client.force_login(manager_user)
-    resp = client.post(url_for(course), {"url": "https://evil.com/x.png"},
-                       HTTP_X_REQUESTED_WITH="fetch")
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_rejection_is_422_with_the_message(client, course_and_manager):
+    course, manager = course_and_manager
+    client.force_login(manager)
+    resp = client.post(
+        url_for(course),
+        {"url": "https://evil.com/x.png"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
     assert resp.status_code == 422
     assert b"allow-list" in resp.content
 
 
-def test_missing_url_key_is_422_not_500(client, manager_user, course):
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_missing_url_key_is_422_not_500(client, course_and_manager):
     """Bracket access on request.POST would raise MultiValueDictKeyError, which the
-    view does not catch -- a 500, and it would make the error table's first row
-    unreachable."""
-    client.force_login(manager_user)
+    view does not catch -- a 500 -- and it would make the error table's first row
+    unreachable through any client."""
+    course, manager = course_and_manager
+    client.force_login(manager)
     resp = client.post(url_for(course), {}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 422
     assert b"Enter an image URL" in resp.content
 
 
-def test_missing_name_key_succeeds(client, manager_user, course, monkeypatch):
-    """The picker's shape: it sends no `name` at all."""
-    monkeypatch.setattr(media_fetch, "_open", ...)
-    client.force_login(manager_user)
-    resp = client.post(url_for(course), {"url": "https://upload.wikimedia.org/Foo.png"},
-                       HTTP_X_REQUESTED_WITH="fetch")
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_missing_name_key_succeeds(client, course_and_manager, monkeypatch):
+    """The picker's shape: it sends no `name` key at all."""
+    course, manager = course_and_manager
+    patch_transport(monkeypatch)
+    client.force_login(manager)
+    resp = client.post(
+        url_for(course), {"url": URL}, HTTP_X_REQUESTED_WITH="fetch"
+    )
     assert resp.status_code == 200
 
 
-def test_no_js_failure_redirects_with_a_message(client, manager_user, course):
-    client.force_login(manager_user)
-    resp = client.post(url_for(course), {"url": "https://evil.com/x.png"})
-    assert resp.status_code == 302
-    assert any("allow-list" in str(m) for m in resp.wsgi_request._messages)
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_no_js_failure_redirects_with_a_message(client, course_and_manager):
+    course, manager = course_and_manager
+    client.force_login(manager)
+    resp = client.post(url_for(course), {"url": "https://evil.com/x.png"}, follow=True)
+    assert resp.redirect_chain
+    assert any("allow-list" in str(m) for m in resp.context["messages"])
 
 
-def test_authenticated_get_is_405(client, manager_user, course):
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_authenticated_get_is_405(client, course_and_manager):
     """@require_POST must sit ABOVE @login_required, or this is a login redirect."""
-    client.force_login(manager_user)
+    course, manager = course_and_manager
+    client.force_login(manager)
     assert client.get(url_for(course)).status_code == 405
 
 
-def test_non_manager_is_refused(client, other_user, course):
-    client.force_login(other_user)
-    assert client.post(url_for(course), {"url": "https://upload.wikimedia.org/x.png"}).status_code in (403, 404)
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_non_manager_is_refused(client, course_and_manager):
+    course, _ = course_and_manager
+    client.force_login(UserFactory(is_staff=False))
+    resp = client.post(url_for(course), {"url": URL})
+    assert resp.status_code in (403, 404)
 ```
 
-Reuse the repo's existing manager/course fixtures — match how `tests/test_media_manager.py` builds them.
+**On the cross-package import:** `courses/tests/` has no `__init__.py`, so
+`from courses.tests.test_media_fetch_transport import FakeResponse` resolves as a PEP 420
+namespace subpackage. It works, but pytest then holds two copies of that module. If that
+causes trouble, move `FakeResponse`/`png_bytes` into `courses/tests/conftest.py` and import
+them as fixtures instead — decide once, at this task, and keep it consistent for Tasks 5–8.
 
 - [ ] **Step 2: Run to verify it fails.** Expected: `NoReverseMatch`.
 
@@ -1753,57 +2079,103 @@ git commit -m "feat(media-fetch): manage_media_fetch view and route"
 
 - [ ] **Step 1: Write the failing tests**
 
+⚠️ Same fixture warning as Task 9: build course/manager/assets in-module from factories.
+The malformed-authority asset must be written with `.save()` / `update()` — `full_clean()`
+would reject `https://[bad-ipv6/x.png` as a URLField, and the point of the test is a row
+that already exists in that state.
+
 ```python
 # tests/test_media_fetch_templates.py
+import re
+
 import pytest
 from django.template.loader import render_to_string
 from django.urls import reverse
 
+from courses.models import MediaAsset
+from tests.factories import CourseFactory
+from tests.factories import MediaAssetFactory
+from tests.factories import UserFactory
+
 pytestmark = pytest.mark.django_db
 
 
-def test_video_picker_has_two_tabs_and_no_fetch_panel(course):
+@pytest.fixture
+def course_and_manager():
+    manager = UserFactory(is_staff=True)
+    return CourseFactory(owner=manager), manager
+
+
+def _fetched(course, source_url):
+    asset = MediaAssetFactory(course=course, kind="image")
+    # .update(), not .save(): a malformed authority would not survive full_clean(),
+    # and the point is a row that is ALREADY in that state.
+    MediaAsset.objects.filter(pk=asset.pk).update(source_url=source_url)
+    asset.refresh_from_db()
+    # attach_usage sets the img_uses/vid_uses/di_uses the cell template reads
+    from courses import media as media_svc
+
+    return media_svc.attach_usage(asset)
+
+
+def test_video_picker_has_two_tabs_and_no_fetch_panel(course_and_manager):
+    course, _ = course_and_manager
     html = render_to_string("courses/manage/media/_picker.html",
                             {"course": course, "kind": "video", "assets": []})
     assert html.count('class="picker__tab') == 2
     assert "data-picker-url" not in html
 
 
-def test_image_picker_has_three_tabs_and_a_hidden_fetch_panel(course):
+def test_image_picker_has_three_tabs_and_a_hidden_fetch_panel(course_and_manager):
+    course, _ = course_and_manager
     html = render_to_string("courses/manage/media/_picker.html",
                             {"course": course, "kind": "image", "assets": []})
     assert html.count('class="picker__tab') == 3
     assert "data-picker-url" in html
-    assert 'data-panel="fetch"' in html and 'data-tab="fetch"' in html
-    # every tab's data-tab must have a matching data-panel, or the delegated handler
-    # hides EVERY panel on the first click
-    import re
-    tabs = set(re.findall(r'data-tab="([^"]+)"', html))
-    panels = set(re.findall(r'data-panel="([^"]+)"', html))
-    assert tabs == panels
     assert "data-msg-fetch-failed" in html
+    # Every tab's data-tab must have a matching data-panel, or the delegated handler
+    # (p.hidden = data-panel !== data-tab) hides EVERY panel on the first click.
+    assert set(re.findall(r'data-tab="([^"]+)"', html)) == set(
+        re.findall(r'data-panel="([^"]+)"', html)
+    )
+    # The panel MUST ship hidden -- without it it stacks on top of the library panel
+    # until the first tab click, a visible layout break no other assertion catches.
+    assert re.search(r'data-panel="fetch"[^>]*\shidden', html)
+    # ...and its tab must NOT be is-on: exactly one tab is, the library one.
+    assert html.count("is-on") == 1
+    assert re.search(r'data-tab="library"[^>]*is-on|is-on[^>]*data-tab="library"', html)
 
 
-def test_manager_form_posts_to_the_fetch_route(course, manager_user, client):
-    client.force_login(manager_user)
-    html = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug})).content.decode()
+def test_manager_form_posts_to_the_fetch_route(client, course_and_manager):
+    course, manager = course_and_manager
+    client.force_login(manager)
+    html = client.get(
+        reverse("courses:manage_media", kwargs={"slug": course.slug})
+    ).content.decode()
     assert reverse("courses:manage_media_fetch", kwargs={"slug": course.slug}) in html
     assert 'class="media-fetch"' in html
+    assert 'method="post"' in html
     assert "csrfmiddlewaretoken" in html
     assert "data-fetch-url" in html and "data-msg-fetch-failed" in html
 
 
-def test_cell_renders_a_source_link_for_a_fetched_asset(course, fetched_asset):
+def test_cell_renders_a_source_link_for_a_fetched_asset(course_and_manager):
+    course, _ = course_and_manager
+    url = "https://upload.wikimedia.org/Foo.png"
+    asset = _fetched(course, url)
     html = render_to_string("courses/manage/media/_asset_cell.html",
-                            {"course": course, "asset": fetched_asset})
+                            {"course": course, "asset": asset})
     assert 'rel="noopener noreferrer"' in html
-    assert ">upload.wikimedia.org<" in html          # hostname is the LABEL
-    assert fetched_asset.source_url in html          # full URL in title
+    assert 'target="_blank"' in html
+    assert ">upload.wikimedia.org<" in html   # hostname is the LABEL
+    assert url in html                        # full URL in title
 
 
-def test_cell_renders_no_link_for_a_malformed_source(course, asset_with_bad_source):
+def test_cell_renders_no_link_for_a_malformed_source(course_and_manager):
+    course, _ = course_and_manager
+    asset = _fetched(course, "https://[bad-ipv6/x.png")
     html = render_to_string("courses/manage/media/_asset_cell.html",
-                            {"course": course, "asset": asset_with_bad_source})
+                            {"course": course, "asset": asset})
     assert "asset-source" not in html
 ```
 
@@ -1834,7 +2206,10 @@ data-msg-fetch-failed="{% trans 'Could not fetch that image.' %}"
 
 - [ ] **Step 4: Implement the picker panel**
 
-In `_picker.html`, add `data-fetch-url` and `data-msg-fetch-failed` to `.picker`, then:
+In `_picker.html`, add `data-fetch-url` and `data-msg-fetch-failed` to `.picker`, then —
+**immediately after the Upload tab button and still inside `<div class="picker__tabs">`**
+(pasted outside that wrapper the tab still counts in the template test but renders in the
+wrong place):
 
 ```html
 {% if kind == "image" %}
@@ -1856,7 +2231,13 @@ and, after the upload panel:
 
 - [ ] **Step 5: Implement the cell link**
 
-In `_asset_cell.html`, inside `.asset-foot`:
+In `_asset_cell.html`, inside `.asset-foot`, **between the uses indicator and
+`.asset-actions`** — the position is load-bearing, not free choice. `editor.css:752` makes
+`.asset-foot` a `justify-content: space-between` flex row over exactly **two** children
+today, and `editor.css:769` targets `.asset-foot > :first-child:not([open])` to give the
+uses label `min-width: 0`. Inserting the link **first** would silently retarget that rule
+away from the uses indicator; appending it **last** would push `.asset-actions` out of its
+right-hand position. Middle insertion preserves both.
 
 ```html
 {% if asset.source_host %}
@@ -2046,7 +2427,7 @@ Suggested strings — match the repo's existing register:
 | msgid | pl |
 |---|---|
 | Enter an image URL. | Podaj adres URL obrazu. |
-| That URL is too long (maximum %(n)d characters). | Ten adres URL jest za długi (maksymalnie %(n)d znaków). |
+| That URL is too long (maximum 500 characters). | Ten adres URL jest za długi (maksymalnie 500 znaków). |
 | That does not look like a valid URL. | To nie wygląda na poprawny adres URL. |
 | Image URLs must use https. | Adresy URL obrazów muszą używać https. |
 | That image host is not on the allow-list. | Ten serwer obrazów nie znajduje się na liście dozwolonych. |
@@ -2095,11 +2476,45 @@ git commit -m "i18n(media-fetch): Polish translations for the URL fetch strings"
 
 - [ ] **Step 1: Write the four scenarios**
 
+⚠️ **Two module-local fixtures are mandatory and are NOT in any conftest.py.** Copy both
+from `tests/test_e2e_media_manager.py:34-60`:
+
+- `_allow_sync_orm_under_playwright` (session, autouse) sets `DJANGO_ALLOW_ASYNC_UNSAFE`.
+  Without it, ORM-touching e2e setup raises `SynchronousOnlyOperation`.
+- `_isolated_media` (autouse) redirects `MEDIA_ROOT` to `tmp_path` **before any asset
+  exists**. This matters more for this feature than for any other: it *writes* fetched
+  images, so without the redirect every e2e run drops real files into the working tree's
+  `media/` directory.
+
+Each test also carries `@pytest.mark.django_db(transaction=True)`, matching the sibling
+e2e modules.
+
 ```python
 # tests/test_e2e_media_fetch.py
+import os
+
 import pytest
 
-pytestmark = [pytest.mark.e2e, pytest.mark.django_db]
+pytestmark = pytest.mark.e2e
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    # Sync Playwright + Django ORM in the same thread. Module-local in every
+    # tests/test_e2e_*.py -- it is NOT in any conftest.py.
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _isolated_media(settings, tmp_path):
+    """Redirect MEDIA_ROOT before any asset exists.
+
+    THIS feature writes fetched image files, so without the redirect each run leaves
+    real bytes in the working tree's media/ directory.
+    """
+    settings.MEDIA_ROOT = str(tmp_path)
+    return tmp_path
 
 # The ACCEPTED fixture: an existing 17,883-byte PNG served by live_server's staticfiles
 # handler, so the fetch is genuinely end-to-end over a real socket while staying
@@ -2141,28 +2556,72 @@ def test_rejected_url_shows_the_server_reason_in_the_picker_flash(page, live_ser
     assert "allow-list" in flash.inner_text()
 
 
+@pytest.mark.django_db(transaction=True)
 def test_second_activation_while_in_flight_issues_no_second_request(page, live_server, ...):
     """Hold the window open deliberately -- the loopback fixture completes in single-
     digit ms, so a plain double-click observes one request either way and passes GREEN
-    with no guard at all."""
-    calls = []
+    with no guard at all.
 
-    def slow(route):
+    The hold must NOT be `page.wait_for_timeout` inside the route handler: with the sync
+    API, handlers are dispatched on the SAME thread that runs the test, so sleeping there
+    blocks the dispatcher and the ordering of the assertions below relative to the hold
+    is not guaranteed -- `len(calls) == 1` would then pass vacuously. Arm the route and
+    release it explicitly instead.
+    """
+    import threading
+
+    calls = []
+    release = threading.Event()
+
+    def hold(route):
         calls.append(route.request.url)
-        page.wait_for_timeout(1500)
+        release.wait(10)          # blocks the REQUEST, not the test thread's own work
         route.continue_()
 
-    page.route("**/media/fetch/", slow)
+    page.route("**/media/fetch/", hold)
     page.fill("[data-picker-url]", fixture_url(live_server))
     page.click("[data-picker-fetch]")
+
     btn = page.locator("[data-picker-fetch]")
-    assert btn.is_disabled()
-    # force=True: Playwright's actionability check includes ENABLED, so a plain
-    # click() would block until timeout on a CORRECT build -- inverting the assertion.
+    btn.wait_for(state="attached")
+    assert btn.is_disabled()                       # the guard's visible expression
+    # force=True: Playwright's actionability check includes ENABLED, so a plain click()
+    # would block until timeout on a CORRECT build -- inverting the assertion.
     btn.click(force=True)
-    page.locator("[data-picker-url]").press("Enter")   # the second activation route
-    page.wait_for_timeout(2000)
+    page.locator("[data-picker-url]").press("Enter")   # the SECOND activation route,
+                                                       # which bypasses the button
     assert len(calls) == 1
+    release.set()
+    page.wait_for_selector(".asset-cell, .picker-card .op-error")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_manager_second_submit_while_in_flight_issues_no_second_request(page, live_server, ...):
+    """The manager half. Task 11 gives it a SEPARATE mgrInFlight flag on a SEPARATE
+    listener, so the picker test above does not cover it -- removing the manager guard
+    (and with it form.reset()'s duplicate protection) would otherwise pass everything.
+    """
+    import threading
+
+    calls = []
+    release = threading.Event()
+
+    def hold(route):
+        calls.append(route.request.url)
+        release.wait(10)
+        route.continue_()
+
+    _open_manager(page, live_server, ...)
+    page.route("**/media/fetch/", hold)
+    page.fill(".media-fetch input[name=url]", fixture_url(live_server))
+    page.click("[data-fetch-submit]")
+    assert page.locator("[data-fetch-submit]").is_disabled()
+    page.locator("[data-fetch-submit]").click(force=True)
+    assert len(calls) == 1
+    release.set()
+    page.wait_for_selector(".asset-cell")
+    # form.reset() ran, so a further submit cannot silently duplicate the asset
+    assert page.input_value(".media-fetch input[name=url]") == ""
 ```
 
 Reuse the existing e2e openers in `tests/conftest.py` (`opener(page, live_server, **kwargs)`).
@@ -2181,9 +2640,13 @@ looks like success. Grep the summary line.
 | Mutant | RED test |
 |---|---|
 | Remove `localhost` from `test.py`'s allow-list | scenarios (a), (b), (d) |
-| Remove the in-flight flag | scenario (d) |
+| Remove the **picker** in-flight flag | scenario (d), picker test |
+| Remove the **manager** `mgrInFlight` flag | scenario (d), manager test |
+| Drop `form.reset()` | the manager test's final `input_value` assertion |
 | Flash into `.picker` instead of `.picker-card` | scenario (c) |
-| Drop the Enter handler | scenario (d)'s `press("Enter")` half |
+| Drop the Enter handler | the picker test's `press("Enter")` half |
+| Guard only via `disabled` (no JS flag) | the picker test's `press("Enter")` half |
+| Drop `_isolated_media` | no test — verify by hand that `media/` stays clean after a run |
 
 - [ ] **Step 4: Commit**
 
@@ -2202,19 +2665,58 @@ git commit -m "test(media-fetch): e2e for manager, picker, rejection and in-flig
 
 ```python
 # courses/tests/test_media_fetch_lal.py
-def test_lal_import_reuses_a_byte_identical_fetched_asset(...):
+import pytest
+from django.test import override_settings
+
+from courses import media_fetch
+from courses.lal_loader.media import get_or_create_asset
+from courses.models import MediaAsset
+from courses.tests.test_media_fetch_transport import FakeResponse
+from courses.tests.test_media_fetch_transport import png_bytes
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
+
+pytestmark = pytest.mark.django_db
+WIKI = ["upload.wikimedia.org"]
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_lal_import_reuses_a_byte_identical_fetched_asset(monkeypatch, tmp_path):
     """Populating content_hash is NOT behaviour-neutral: lal_loader/media.py:40 already
     dedups on (course, content_hash), so a later LAL import of identical bytes now
     reuses the fetched row, inheriting its name and source_url. Intended -- but a real
-    change, so it is pinned here rather than discovered later.
+    behaviour change, so it is pinned here rather than discovered later.
 
     Exactly ONE fetched asset: .first() runs on an UNORDERED queryset, so with two
-    identical-hash rows this would silently assert on DB order. And the LAL side goes
-    through the REAL loader, not a shared digest helper -- otherwise both sides compute
-    the hash the same way by construction and the test would pass even if the digest
-    form diverged from lal_loader/media.py:33.
+    identical-hash rows this would silently assert on DB order.
+
+    The LAL side goes through the REAL loader, not a shared digest helper -- otherwise
+    both sides compute the hash the same way by construction and the test would still
+    pass if the digest form diverged from lal_loader/media.py:33.
     """
+    course = CourseFactory()
+    data = png_bytes()
+    monkeypatch.setattr(media_fetch, "_open", lambda req, t: FakeResponse(data))
+
+    fetched = media_fetch.fetch_image_asset(
+        course, "https://upload.wikimedia.org/Foo.png", UserFactory(), name="My picture"
+    )
+
+    # get_or_create_asset reads bytes from a FILESYSTEM PATH, not a file object --
+    # write the identical bytes out and drive the real loader.
+    path = tmp_path / "Foo.png"
+    path.write_bytes(data)
+    reused = get_or_create_asset(course, "image", path)
+
+    assert reused.pk == fetched.pk
+    assert MediaAsset.objects.filter(course=course).count() == 1
+    assert reused.name == "My picture"        # inherited, as documented
+    assert reused.source_url == "https://upload.wikimedia.org/Foo.png"
 ```
+
+⚠️ Check `get_or_create_asset`'s real signature at `courses/lal_loader/media.py:36` before
+writing this — if it takes `(course, kind, path)` in a different order, match the source,
+not this snippet.
 
 - [ ] **Step 2: Run and falsify**
 
