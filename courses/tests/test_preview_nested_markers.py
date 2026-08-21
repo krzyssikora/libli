@@ -215,7 +215,9 @@ def test_student_page_carries_neither_marker_half(client):
     # failing to render still leaves the flattened list non-empty via the other four,
     # and that container drops out of mutant (c1)/(c2) coverage while this stays green.
     for cls in CHILD_CLASSES:
-        assert soup.select(f".{cls}"), f"{cls} did not render -- fixture or template broke"
+        assert soup.select(f".{cls}"), (
+            f"{cls} did not render -- fixture or template broke"
+        )
     for n in wrappers:
         cls_ = n.get("class")
         assert not n.has_attr("data-element-id"), f"leaked attr on {cls_}"
