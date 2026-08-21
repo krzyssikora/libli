@@ -528,8 +528,8 @@ keeps each reveal beside the hide it pairs with.
     carrying `.note-composer--edit`, `.note-composer--has-draft`, or a `.note-composer__error`
     descendant. It is emphatically **not** `document.querySelectorAll(".note-composer__input")` — that
     reaches the composers inside note-less panels **without a typed draft**, which responsibility 3
-    deliberately never opens (one *with* a draft it does open, via the `hasTypedDraft` arm), so those are
-    they are still under `::details-content { content-visibility: hidden }`, `scrollHeight` reads `0`,
+    deliberately never opens (one *with* a draft it does open, via the `hasTypedDraft` arm), so they
+    are still under `::details-content { content-visibility: hidden }`, `scrollHeight` reads `0`,
     and the enter path would write `height: 0px` onto every note-less block's composer. If the leave
     path then never fires (a case Error handling calls harmless), the student is left with unusable
     zero-height composers across the whole lesson.
@@ -800,10 +800,17 @@ excluded, each for its own stated reason — the parity test names them so a fut
 "checked and excluded" from "missed":
 
 - `error.css:50` and `editor.css:924` are on pages this feature does not print.
-- `tags.css:329` **is** on the printed page — `lesson_unit.html:36` loads `tags.css`, and
-  `_unit_strip.html` includes the tag panel — so "not on this page" would be a false rationale. It is
-  excluded on the narrower and true ground that `.tag-delete-confirm` is a JS-built transient inside
-  a `<details>` that is closed unless `tags_panel_open`, and is author-only.
+- `tags.css:329` needs care, because the plausible rationale and the true one are easy to swap. The
+  **sheet** is on the printed page — `lesson_unit.html:36` loads `tags.css` and `_unit_strip.html`
+  includes the tag panel — but the **element it targets never is**. `.tag-delete-confirm` is built
+  only by `wireDeleteConfirm()` (`tags/static/tags/js/tags.js:103,108`), which queries
+  `.tag-section__manage a[href*='/delete/']`; that markup exists only in
+  `tags/templates/tags/_tag_section.html`, included only by `tags/my_tags.html`, and
+  `_unit_tag_panel.html` emits no delete link at all. Excluded on that ground — **not** on
+  "author-only" (`tags/views.py:115–117` guards `my_tags` with `@login_required` alone, and
+  `course_notes.html:9` links students straight to it) and **not** on "inside a closed `<details>`"
+  (it is never inside the unit-strip panel, so `tags_panel_open` is irrelevant). The parity test
+  records this reason, so a false classification is not baked into it.
 
 The cost is that the light values are stated twice. That is pinned by a parity test (see Testing),
 whose **extraction contract is itself load-bearing**: the repo's existing helper
@@ -1071,7 +1078,8 @@ Fixtures follow the pattern already proven in `tests/test_e2e_notes.py`: allauth
 | 9b | A panel put into **delete-confirm** state on a **single-note** block and then **closed** is re-opened by the sweep. *Both constraints are load-bearing. The edit state is **not** usable here: `notes.js:286–290` gives the edit textarea `.note-composer__input` and the note's own text, so `hasTypedDraft` matches it and dropping `.note-composer--edit` is a dead mutant. And with a sibling note present a surviving `.note-card` satisfies the filter, killing the delete-confirm mutant too* | `beforeprint` *(event)* | drop `.note-delete-confirm` from the filter |
 | 8b | A **rejected no-JS draft** on a **note-less** block prints its text. *Drives the real no-JS create-failure path (`note_error`), which server-renders the panel open with the student's text; `print.js` cannot rescue this one, so only the empty-pop rule's `:has()` list protects it* | post an invalid note with JS disabled, then `emulate_media` *(CSS)* | drop `.note-composer__error` from the empty-pop rule's `:has()` list |
 | 9d | A typed draft in a **note-less** panel that the student then **closed** is re-opened by the sweep and prints its text. *Neither `.note-card` nor any marker class is present — the native `<details>` toggle does not clear the textarea (only the Cancel path does, `notes.js:230`) — so only the `hasTypedDraft` arm of the filter finds it* | type in a note-less panel, close it, then enter *(event)* | drop the `hasTypedDraft` arm from the sweep filter |
-| 9c | A **note-less** panel the *student* opened by hand prints **no** `.block-notes__pop` box. *The only row covering the empty-pop rule, and the reason `.block-notes__add-label` needs no row of its own: it is rendered only on note-less blocks, which the sweep never opens, so a direct assertion on it would be `false` on the mutant too* | hand-open a note-less panel, then enter *(CSS)* | delete the `:not(:has(…))` empty-pop rule |
+| 9c | A **note-less** panel the *student* opened by hand prints **no** `.block-notes__pop` box. *The only row covering the empty-pop rule. Note it does **not** also cover `.block-notes__add-label`: on this row's draft-less fixture the whole pop is hidden, so an add-label assertion would be `false` on the mutant too — it needs the draft-bearing fixture of row 9e* | hand-open a note-less panel, then enter *(CSS)* | delete the `:not(:has(…))` empty-pop rule |
+| 9e | `.block-notes__add-label` is **not** visible in print on a note-less block whose pop **survives** the empty-pop rule. *The hide is genuinely falsifiable, contrary to an earlier draft: the label carries no screen `display: none` (`notes.css:170–175`), and the sweep does open note-less panels — the `hasTypedDraft` arm exists for exactly that. Reuse row 7b2's fixture, where `.note-composer--has-draft` keeps the pop alive and `_block_notes.html:27`'s label is therefore in the print tree* | type in a note-less panel, then enter *(CSS)* | delete `.block-notes__add-label` from the control-hiding rule |
 | 10b | The `.unanchored-notes__handle` summary has `bounding_box()["height"] == 0` in print. *Row 10 only asserts the section prints, which is satisfied with the ⚠ handle still showing; measured, not `checkVisibility()`, per the trap above* | `beforeprint` then `emulate_media` *(CSS)* | delete the summary suppression |
 | 10c | `.block-notes` does not overlap the block above it in print: its computed `margin-top` is positive. *Covers §3's negative-margin reset, which would otherwise print the note card over the element it annotates with nothing to catch it* | `beforeprint` then `emulate_media` *(CSS)* | delete the `.block-notes` margin reset |
 | 10 | The **unanchored** notes section prints (fixture: a note whose element was deleted) | `beforeprint` then `emulate_media` *(shared)* | drop `.unanchored-notes > details` from the sweep |
