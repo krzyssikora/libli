@@ -807,8 +807,8 @@ excluded, each for its own stated reason — the parity test names them so a fut
   `.tag-section__manage a[href*='/delete/']`; that markup exists only in
   `tags/templates/tags/_tag_section.html`, included only by `tags/my_tags.html`, and
   `_unit_tag_panel.html` emits no delete link at all. Excluded on that ground — **not** on
-  "author-only" (`tags/views.py:115–117` guards `my_tags` with `@login_required` alone, and
-  `course_notes.html:9` links students straight to it) and **not** on "inside a closed `<details>`"
+  "author-only" (`tags/views.py:115–117` guards `my_tags` with `@login_required` alone — it is a
+  per-user page, reachable by any student via the tags-and-notes hub's `_tags_notes_tabs.html:6`) and **not** on "inside a closed `<details>`"
   (it is never inside the unit-strip panel, so `tags_panel_open` is irrelevant). The parity test
   records this reason, so a false classification is not baked into it.
 
