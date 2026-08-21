@@ -22,13 +22,31 @@
 - **88-column limit** (`E501`, active via `select = ["E"]`). No production file in this repo exceeds it. Note that `ruff format` normalises inline-comment spacing but will **not** split a line whose overflow comes from a trailing comment — several snippets in this plan carry explanatory trailing comments that push past 88; move those comments onto their own line as you type them in.
 - **Run `uv run ruff format .` LAST**, after every other edit; `ruff format --check` is a separate CI gate.
 
+- **Every new test module that writes bytes needs its own `MEDIA_ROOT` redirect.**
+  `MEDIA_ROOT = BASE_DIR / "media"` and the root `conftest.py` has **no** autouse
+  isolation (it carries only `_reset_active_language`), so `create_asset` /
+  `fetch_image_asset` write the original *plus* `thumb`/`web` derivatives straight into
+  the working tree. Every sibling module that writes bytes redirects explicitly
+  (`tests/conftest.py:379-395`, `test_e2e_image_size.py:58`,
+  `test_e2e_media_manager.py:41`). Add this to **Tasks 3, 4, 6, 7, 13 and 14**:
+
+  ```python
+  @pytest.fixture(autouse=True)
+  def _isolated_media(settings, tmp_path):
+      settings.MEDIA_ROOT = str(tmp_path)
+      return tmp_path
+  ```
+
+  Task 5 inherits it through the shared helpers only if its module defines it too — so
+  add it there as well.
+
 ### Test-run mechanics (this repo, this worktree)
 
 - `uv` is not on PATH; invoke as `uv run pytest ...` from the worktree root.
 - **Start the test-DB container first** or the suite looks hung for ~4m21s.
 - **This worktree shares a machine with other active worktrees.** Isolate the test DB by prefixing the command — never by editing `.env`:
   ```
-  TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest <paths> -q
+  TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest <paths>
   ```
 - **Never run two pytest processes at once**; killing a competing run poisons the survivor with phantom `SystemExit: 2`.
 - e2e needs `-m e2e` or every e2e test is silently deselected (exit 5).
@@ -95,6 +113,12 @@ OK = ["upload.wikimedia.org"]
         ("https://", "valid URL"),
         ("http://upload.wikimedia.org/x.png", "https"),
         ("https://evil.com/x.png", "allow-list"),
+        # The host that DISTINGUISHES the mutant: "notupload.wikimedia.org" DOES
+        # endswith("upload.wikimedia.org"), so endswith(d) accepts it while the
+        # correct endswith("." + d) rejects it. MEASURED.
+        ("https://notupload.wikimedia.org/x.png", "allow-list"),
+        # A suffix case that both forms reject (endswith(d) is False here) -- kept
+        # for coverage, but it does NOT falsify the mutant on its own.
         ("https://notupload.wikimedia.org.evil.com/x.png", "allow-list"),
     ],
 )
@@ -240,10 +264,11 @@ Run: same command as Step 2. Expected: PASS.
 
 | Mutant | Test that must go RED |
 |---|---|
-| Drop `url = (url or "").strip()` | `test_returns_stripped_value`, both whitespace rejections |
+| Drop `url = (url or "").strip()` | `test_returns_stripped_value` and the `"   
+ "` row only — the `""` row still passes, since `if not url` fires on it either way |
 | `return None` instead of `return url` | `test_accepts`, `test_returns_stripped_value` |
 | Drop `.lower()` on the allow-list set | `test_allow_list_entry_is_case_folded` |
-| Change `host.endswith("." + d)` to `host.endswith(d)` | the `notupload.wikimedia.org.evil.com` case |
+| Change `host.endswith("." + d)` to `host.endswith(d)` | the **`notupload.wikimedia.org`** row (the `.evil.com` row stays GREEN on this mutant — `endswith(d)` is False for it) |
 
 - [ ] **Step 7: Add the settings-default test**
 
@@ -563,7 +588,9 @@ import pytest
 from django.test import override_settings
 
 from courses import media_fetch
-from tests.factories import CourseFactory, UserFactory
+from courses.models import DerivativesState
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -610,6 +637,11 @@ def test_happy_path_creates_a_normal_asset(monkeypatch):
     assert asset.source_url == URL
     assert asset.content_hash  # populated
     assert asset.file.size == len(data)
+    # The spec's "a normal MediaAsset with derivatives generated" -- without this a
+    # mutant passing generate=False to create_asset is invisible, and the whole
+    # "the asset pipeline needs no change" premise rests on derivatives running.
+    assert asset.derivatives_state == DerivativesState.OK
+    assert asset.thumb and asset.width
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
@@ -708,7 +740,9 @@ from courses.validators import validate_fetch_url
 
 logger = logging.getLogger(__name__)
 
-# Params that only feed the author-facing message text -- never logged as diagnostics.
+# Params whose value adds nothing beyond the already-rendered message. NOTE `status`
+# is interpolated into its message too but is deliberately NOT here: the log line
+# carries no other field that identifies which status fired.
 _MESSAGE_ONLY_PARAMS = {"mib"}
 
 MAX_REDIRECT_HOPS = 3
@@ -870,6 +904,7 @@ def _build_asset(course, user, name, submitted_url, current_url, data, allowed_e
 |---|---|
 | Move the `create_asset` call inside `_run` | `test_create_asset_runs_on_the_request_thread` |
 | Drop the `Accept` header | `test_user_agent_and_accept_are_sent` |
+| `create_asset(..., generate=False)` | `test_happy_path_creates_a_normal_asset` (the derivatives assertions) |
 | `validate_fetch_url(submitted_url)` as a **bare call** (drop the assignment) | `test_a_padded_url_is_stored_stripped` |
 
 - [ ] **Step 6: Lint**
@@ -950,12 +985,12 @@ def test_exactly_three_redirects_succeed(monkeypatch):
         FakeResponse(png_bytes()),
     ))
     asset = media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
-    # The spec's PAIRED invariant -- assert BOTH halves. source_url is the submitted
-    # url; the filename stem comes from the FINAL hop. Asserting only the first half
-    # leaves the Special:FilePath degradation (passing submitted_url to
-    # _derive_filename) undetectable.
     assert asset.source_url == URL
-    assert asset.original_filename == "c.png"
+    # NOTE: the other half of the spec's paired invariant -- that the filename stem
+    # comes from the FINAL hop -- is asserted in TASK 7, not here. _derive_filename
+    # does not exist yet at this task, and Task 4's _build_asset hardcodes
+    # filename="image.png", so an assertion on original_filename would be RED for a
+    # reason that has nothing to do with redirects.
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
@@ -1108,10 +1143,15 @@ def _fetch(submitted_url, deadline, max_bytes):
     """
     current_url = submitted_url
     for hop in range(MAX_REDIRECT_HOPS + 1):   # one initial GET + at most 3 redirects
-        _remaining(deadline)                    # budget check BEFORE issuing each hop
+        # EXACTLY ONE budget check per iteration. It is deliberately fused into the
+        # timeout computation rather than written as a separate bare call above: two
+        # checks would make the first redundant (the argument is evaluated before
+        # _open runs, and _BudgetExceeded escapes both except clauses either way), and
+        # a "drop the top-of-loop check" mutant would then be a no-op that no test
+        # could catch. One check, one mutant, one RED test.
+        hop_timeout = min(TIMEOUT_SECONDS, _remaining(deadline))
         try:
-            with _open(_build_request(current_url),
-                       min(TIMEOUT_SECONDS, _remaining(deadline))) as resp:
+            with _open(_build_request(current_url), hop_timeout) as resp:
                 # HTTPErrorProcessor raises only OUTSIDE 200-299, so a 204/206 lands
                 # here as a normal response and needs an explicit check.
                 if getattr(resp, "status", 200) != 200:
@@ -1167,6 +1207,10 @@ def _fetch(submitted_url, deadline, max_bytes):
                 code="transport",
                 params={"exc": type(exc).__name__},
             ) from exc
+    # Deliberately undrivable, kept as a guard in the style of geogebra.py:405-412: the
+    # `hop == MAX_REDIRECT_HOPS` branch already raises on the last iteration and every
+    # other path returns or raises, so the loop cannot fall through. Do NOT write a test
+    # for this line -- no input reaches it.
     raise ValidationError(
         _("That URL redirects too many times."), code="redirect-too-many"
     )
@@ -1189,8 +1233,7 @@ def _check_content_type(resp):
 | Drop the `resp.status != 200` check | `test_returned_206_is_rejected` |
 | Change `range(MAX_REDIRECT_HOPS + 1)` to `range(MAX_REDIRECT_HOPS)` | `test_exactly_three_redirects_succeed` |
 | Let the inner `ValidationError` propagate instead of replacing it | the http-downgrade case |
-| Set `source_url=current_url` in `_build_asset` | `test_exactly_three_redirects_succeed` (first assertion) |
-| Pass `submitted_url` to `_derive_filename` instead of `current_url` | `test_exactly_three_redirects_succeed` (second assertion) |
+| Set `source_url=current_url` in `_build_asset` | `test_exactly_three_redirects_succeed` |
 | Narrow the `try` to the `open()` call only | `test_mid_read_failure_is_also_a_422` |
 | Build hops without `_build_request` (drop the headers) | `test_headers_are_sent_on_every_redirect_hop` |
 | `%`-format the status message on the worker | `test_worker_message_renders_in_the_active_language` |
@@ -1207,7 +1250,7 @@ git commit -m "feat(media-fetch): manual redirect following and status handling"
 ### Task 6: Content-Type gate and the byte cap
 
 **Files:**
-- Modify: `courses/media_fetch.py` (`_check_content_type`, `_read_capped`)
+- Modify: `courses/media_fetch.py` (`_check_content_type`, `_read_capped`, **and `_build_asset`** — the empty-body guard). Task 7 rewrites `_build_asset` wholesale, so that guard must survive the rewrite, moving inside its new try/log wrapper.
 - Test: `courses/tests/test_media_fetch_body.py` *(new)*
 
 **Interfaces:**
@@ -1269,12 +1312,51 @@ def test_content_type_accepted_forms(monkeypatch, ctype):
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_nonstandard_image_jpg_media_type_is_accepted(monkeypatch):
+    """image/jpg is non-standard but widely emitted. Both documents justify the map
+    entry explicitly, and without this test it could be deleted with nothing going
+    RED."""
+    import io as _io
+
+    from PIL import Image
+
+    buf = _io.BytesIO()
+    Image.new("RGB", (4, 4), "red").save(buf, format="JPEG")
+    assert run(monkeypatch, data=buf.getvalue(), headers={"Content-Type": "image/jpg"})
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_cap_trips_mid_stream_when_content_length_lies(monkeypatch):
-    big = png_bytes() + b"\0" * (6 * 1024 * 1024)   # over the 5 MiB ceiling
+    """Assert the body was ABANDONED, not merely that the message appeared.
+
+    A message-only assertion passes on the very mutant it is named for: with the cap
+    check moved after the loop, the whole 11 MiB is still read and `total > max_bytes`
+    raises the identical "too large". Counting read1 calls is what distinguishes
+    "abandoned early" from "streamed it all, then complained".
+    """
+    cap = 5 * 1024 * 1024                              # the effective ceiling
+    big = png_bytes() + b"\0" * (6 * 1024 * 1024)      # comfortably over it
+
+    class Counting(FakeResponse):
+        def __init__(self):
+            super().__init__(big, headers={
+                "Content-Type": "image/png",
+                "Content-Length": "10",                # a lie, deliberately
+            })
+            self.reads = 0
+
+        def read1(self, n=-1):
+            self.reads += 1
+            return super().read1(n)
+
+    resp = Counting()
+    monkeypatch.setattr(media_fetch, "_open", lambda req, t: resp)
     with pytest.raises(ValidationError) as exc:
-        run(monkeypatch, data=big,
-            headers={"Content-Type": "image/png", "Content-Length": "10"})
+        media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
     assert "too large" in "; ".join(exc.value.messages)
+    # The loop reads ONE chunk past the cap, then stops. Reading the whole body would
+    # take ~2x as many chunks.
+    assert resp.reads <= (cap // media_fetch.CHUNK_BYTES) + 2
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
@@ -1395,6 +1477,7 @@ And in `_build_asset`, before anything else:
 | Make a malformed `Content-Length` raise | `test_malformed_content_length_is_ignored_not_rejected` |
 | Delete the `Content-Length` early-exit block entirely | `test_over_cap_content_length_rejects_before_reading_the_body` |
 | Treat an absent `Content-Type` as "let Pillow decide" | `test_absent_content_type_header_is_rejected` |
+| Remove the `image/jpg` entry from `MEDIA_TYPE_MAP` | `test_nonstandard_image_jpg_media_type_is_accepted` |
 | Drop the `if not data` guard | `test_empty_body_is_rejected` |
 
 - [ ] **Step 6: Commit**
@@ -1468,7 +1551,36 @@ def test_filename(monkeypatch, url, data_fmt, ctype, expected):
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
-def test_narrowed_extensions_do_not_double_up(monkeypatch, settings):
+def test_stem_comes_from_the_final_hop(monkeypatch):
+    """The other half of the spec's paired invariant (Task 5 asserts source_url).
+
+    commons.wikimedia.org/wiki/Special:FilePath/Foo.jpg redirects to an
+    upload.wikimedia.org path whose basename is the useful one; the submitted path's
+    basename is "Special:FilePath". Deferred to THIS task because _derive_filename
+    does not exist until now.
+    """
+    import urllib.error
+
+    calls = []
+
+    def fake_open(req, timeout):
+        calls.append(req.full_url)
+        if len(calls) == 1:
+            raise urllib.error.HTTPError(
+                req.full_url, 302, "r",
+                {"Location": "https://upload.wikimedia.org/Real.png"}, None,
+            )
+        return FakeResponse(img_bytes("PNG"), headers={"Content-Type": "image/png"})
+
+    monkeypatch.setattr(media_fetch, "_open", fake_open)
+    submitted = "https://upload.wikimedia.org/Special:FilePath"
+    asset = media_fetch.fetch_image_asset(CourseFactory(), submitted, UserFactory())
+    assert asset.source_url == submitted          # submitted url is STORED
+    assert asset.original_filename == "Real.png"  # stem comes from the FINAL hop
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_narrowed_extensions_do_not_double_up(monkeypatch):
     """With the allowed set narrowed to ["jpeg"], a .jpg URL must store Foo.jpeg --
     never Foo.jpg.jpeg. This is what pins the trailing-extension strip to
     SAFE_IMAGE_EXTENSIONS rather than effective_image_extensions()."""
@@ -1529,18 +1641,44 @@ def test_pixel_check_runs_before_verify(monkeypatch):
     the pixel check runs FIRST does it report the dimensions message.
     """
     good = img_bytes("PNG", size=(8, 8))
-    # Rewrite the IHDR width/height to 9000x9000 and truncate the body.
+    # Rewrite IHDR width/height to 9000x9000, RECOMPUTE THE CHUNK CRC, then truncate.
+    # Without the CRC recompute the chunk is corrupt and Image.open raises
+    # UnidentifiedImageError -- the broad clause fires, the message is "not a usable
+    # image", and this test is RED on a CORRECT build. MEASURED on Pillow 12.2:
+    #   no CRC fix  -> UnidentifiedImageError
+    #   CRC fixed   -> Image.open reports (9000, 9000); verify() raises OSError
     import struct
+    import zlib
 
     ihdr = good.index(b"IHDR")
-    doctored = bytearray(good)
-    doctored[ihdr + 4:ihdr + 12] = struct.pack(">II", 9000, 9000)
-    truncated = bytes(doctored[: ihdr + 40])
+    d = bytearray(good)
+    d[ihdr + 4:ihdr + 12] = struct.pack(">II", 9000, 9000)
+    d[ihdr + 17:ihdr + 21] = struct.pack(
+        ">I", zlib.crc32(bytes(d[ihdr:ihdr + 17])) & 0xFFFFFFFF
+    )
+    truncated = bytes(d[: ihdr + 40])
 
     monkeypatch.setattr(media_fetch, "MAX_PIXELS", 1000)
     with pytest.raises(ValidationError) as exc:
         run(monkeypatch, "https://upload.wikimedia.org/Foo.png", truncated, "image/png")
     assert "dimensions are too large" in "; ".join(exc.value.messages)
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_truncated_png_is_rejected_by_the_broad_clause(monkeypatch):
+    """What actually falsifies `except UnidentifiedImageError` only.
+
+    MEASURED: HTML bytes raise precisely UnidentifiedImageError, so the narrowed
+    clause catches them and test_html_under_an_image_content_type_is_rejected passes
+    on that mutant. A truncated-but-valid PNG is the discriminator: Image.open
+    SUCCEEDS and verify() raises OSError("Truncated File Read"), which only the broad
+    clause converts -- the narrow one lets it escape as a 500.
+    """
+    good = img_bytes("PNG", size=(64, 64))
+    truncated = good[: len(good) // 2]
+    with pytest.raises(ValidationError) as exc:
+        run(monkeypatch, "https://upload.wikimedia.org/Foo.png", truncated, "image/png")
+    assert "usable image" in "; ".join(exc.value.messages)
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
@@ -1572,7 +1710,9 @@ def test_mpo_format_is_accepted_as_jpg(monkeypatch):
     buf = io.BytesIO()
     a = Image.new("RGB", (4, 4), "red")
     b = Image.new("RGB", (4, 4), "blue")
-    a.save(buf, format="JPEG", save_all=True, append_images=[b])
+    # format="MPO", NOT "JPEG": Image.SAVE_ALL has no "JPEG" entry, so save_all with
+    # format="JPEG" raises KeyError('JPEG') before the guard below runs. MEASURED.
+    a.save(buf, format="MPO", save_all=True, append_images=[b])
     data = buf.getvalue()
     assert Image.open(io.BytesIO(data)).format == "MPO"   # guard the fixture itself
 
@@ -1700,9 +1840,10 @@ through the helpers.
 | `PILLOW_FORMAT_MAP[fmt]` (bare subscript) | `test_unknown_pillow_format_is_a_422_not_a_keyerror` |
 | Move the pixel check after `img.verify()` | `test_pixel_check_runs_before_verify` (**not** the constant-patch test — a real 50×50 PNG passes `verify()`, so that one stays GREEN) |
 | Delete the `except Image.DecompressionBombError` clause | `test_decompression_bomb_reports_the_same_dimensions_message` |
-| `except UnidentifiedImageError` only | `test_html_under_an_image_content_type_is_rejected` |
-| Basename before unquote | `test_traversal_in_path_cannot_escape` |
+| `except UnidentifiedImageError` only | `test_truncated_png_is_rejected_by_the_broad_clause` (**not** the HTML test — MEASURED, HTML bytes raise exactly `UnidentifiedImageError`, so the narrow clause handles them identically) |
+| Basename before unquote | **no test — the two orders converge.** Correct: unquote → `/a/../../x.png` → basename `x.png`. Mutant: basename `..%2F..%2Fx.png` → unquote `../../x.png` → the sanitizer strips `/` and `..` → `x.png`. Identical. The test pins the SANITIZER, not the ordering; keep the ordering as defence-in-depth and do not claim a falsification it cannot deliver. |
 | Remove `MPO` from the map | `test_mpo_format_is_accepted_as_jpg` |
+| Pass `submitted_url` to `_derive_filename` instead of `current_url` | `test_stem_comes_from_the_final_hop` |
 
 - [ ] **Step 6: Commit**
 
@@ -1839,7 +1980,7 @@ def test_budget_is_checked_between_redirect_hops(monkeypatch):
 | Mutant | RED test |
 |---|---|
 | `resp.read(CHUNK_BYTES)` instead of `read1` | `test_drip_body_hits_the_deadline` (this is the whole point of `DripBody`) |
-| Drop `_remaining(deadline)` from the top of the redirect loop | `test_budget_is_checked_between_redirect_hops` |
+| Replace `min(TIMEOUT_SECONDS, _remaining(deadline))` with a bare `TIMEOUT_SECONDS` | `test_budget_is_checked_between_redirect_hops` — this is the **only** per-iteration budget check (see the comment in `_fetch`), so removing it really does let the worker keep issuing hops past the deadline |
 | Replace `thread.join(DEADLINE_SECONDS)` with `thread.join()` | `test_drip_header_hits_the_deadline` |
 
 - [ ] **Step 4: Confirm the suite is still fast**
@@ -1891,7 +2032,8 @@ from courses.models import MediaAsset
 from courses.tests.test_media_fetch_transport import FakeResponse
 from courses.tests.test_media_fetch_transport import png_bytes
 from tests.factories import CourseFactory
-from tests.factories import UserFactory
+from tests.factories import make_pa
+from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.django_db
 
@@ -1900,14 +2042,22 @@ URL = "https://upload.wikimedia.org/Foo.png"
 
 
 @pytest.fixture
-def course_and_manager():
-    """Mirrors how tests/test_media_manager.py builds a manageable course.
+def course_and_manager(client):
+    """A logged-in course manager, via the repo's make_pa helper.
 
-    Course access in this repo is is_staff, NOT a teaching relation -- check
-    _require_manage before changing this.
+    Do NOT build this as UserFactory(...) + client.force_login(). UserFactory sets
+    skip_postgeneration_save = True with password as a PostGenerationMethodCall, so
+    set_password is NEVER PERSISTED -- the row's password stays "" while force_login
+    stores the session hash of the in-memory hash. The next request's
+    session-auth-hash check fails, the client is anonymous, and every test 302s to
+    /accounts/login/. tests/test_notes_views.py:24-28 documents this exact trap.
+
+    Access is owner-or-`courses.change_course` (courses/access.py:37-43, which says
+    verbatim it does NOT key on is_staff), and make_pa supplies the Platform Admin
+    group that carries the perm.
     """
-    manager = UserFactory(is_staff=True)
-    return CourseFactory(owner=manager), manager
+    pa = make_pa(client, "pa")
+    return CourseFactory(owner=pa), pa
 
 
 def url_for(course):
@@ -1922,9 +2072,8 @@ def patch_transport(monkeypatch):
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_success_returns_the_asset_cell(client, course_and_manager, monkeypatch):
-    course, manager = course_and_manager
+    course, _ = course_and_manager
     patch_transport(monkeypatch)
-    client.force_login(manager)
     resp = client.post(
         url_for(course), {"url": URL}, HTTP_X_REQUESTED_WITH="fetch"
     )
@@ -1935,15 +2084,18 @@ def test_success_returns_the_asset_cell(client, course_and_manager, monkeypatch)
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_rejection_is_422_with_the_message(client, course_and_manager):
-    course, manager = course_and_manager
-    client.force_login(manager)
+    course, _ = course_and_manager
     resp = client.post(
         url_for(course),
         {"url": "https://evil.com/x.png"},
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 422
-    assert b"allow-list" in resp.content
+    assert b"That image host is not on the allow-list." in resp.content
+    # str(ValidationError(...)) renders "['That image host is not...']" -- the list
+    # repr also contains "allow-list", so a substring-only assertion passes on the
+    # str(e) mutant. Pin the absence of the repr markers.
+    assert b"[&#x27;" not in resp.content
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
@@ -1951,8 +2103,7 @@ def test_missing_url_key_is_422_not_500(client, course_and_manager):
     """Bracket access on request.POST would raise MultiValueDictKeyError, which the
     view does not catch -- a 500 -- and it would make the error table's first row
     unreachable through any client."""
-    course, manager = course_and_manager
-    client.force_login(manager)
+    course, _ = course_and_manager
     resp = client.post(url_for(course), {}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 422
     assert b"Enter an image URL" in resp.content
@@ -1961,9 +2112,8 @@ def test_missing_url_key_is_422_not_500(client, course_and_manager):
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_missing_name_key_succeeds(client, course_and_manager, monkeypatch):
     """The picker's shape: it sends no `name` key at all."""
-    course, manager = course_and_manager
+    course, _ = course_and_manager
     patch_transport(monkeypatch)
-    client.force_login(manager)
     resp = client.post(
         url_for(course), {"url": URL}, HTTP_X_REQUESTED_WITH="fetch"
     )
@@ -1972,8 +2122,7 @@ def test_missing_name_key_succeeds(client, course_and_manager, monkeypatch):
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_no_js_failure_redirects_with_a_message(client, course_and_manager):
-    course, manager = course_and_manager
-    client.force_login(manager)
+    course, _ = course_and_manager
     resp = client.post(url_for(course), {"url": "https://evil.com/x.png"}, follow=True)
     assert resp.redirect_chain
     assert any("allow-list" in str(m) for m in resp.context["messages"])
@@ -1982,16 +2131,19 @@ def test_no_js_failure_redirects_with_a_message(client, course_and_manager):
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_authenticated_get_is_405(client, course_and_manager):
     """@require_POST must sit ABOVE @login_required, or this is a login redirect."""
-    course, manager = course_and_manager
-    client.force_login(manager)
+    course, _ = course_and_manager
     assert client.get(url_for(course)).status_code == 405
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
-def test_non_manager_is_refused(client, course_and_manager):
+def test_non_manager_is_refused(client, course_and_manager, django_user_model):
     course, _ = course_and_manager
-    client.force_login(UserFactory(is_staff=False))
-    resp = client.post(url_for(course), {"url": URL})
+    # A SECOND client: `client` is already logged in as the PA by the fixture.
+    from django.test import Client
+
+    other = Client()
+    make_verified_user(other, "nobody")   # logs `other` in as a plain user
+    resp = other.post(url_for(course), {"url": URL})
     assert resp.status_code in (403, 404)
 ```
 
@@ -2095,15 +2247,16 @@ from django.urls import reverse
 from courses.models import MediaAsset
 from tests.factories import CourseFactory
 from tests.factories import MediaAssetFactory
-from tests.factories import UserFactory
+from tests.factories import make_pa
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def course_and_manager():
-    manager = UserFactory(is_staff=True)
-    return CourseFactory(owner=manager), manager
+def course_and_manager(client):
+    # make_pa, NOT UserFactory + force_login -- see the note in Task 9's fixture.
+    pa = make_pa(client, "pa")
+    return CourseFactory(owner=pa), pa
 
 
 def _fetched(course, source_url):
@@ -2147,15 +2300,23 @@ def test_image_picker_has_three_tabs_and_a_hidden_fetch_panel(course_and_manager
 
 
 def test_manager_form_posts_to_the_fetch_route(client, course_and_manager):
-    course, manager = course_and_manager
-    client.force_login(manager)
+    course, _ = course_and_manager
     html = client.get(
         reverse("courses:manage_media", kwargs={"slug": course.slug})
     ).content.decode()
-    assert reverse("courses:manage_media_fetch", kwargs={"slug": course.slug}) in html
-    assert 'class="media-fetch"' in html
-    assert 'method="post"' in html
-    assert "csrfmiddlewaretoken" in html
+    fetch_url = reverse("courses:manage_media_fetch", kwargs={"slug": course.slug})
+    # Scope to the NEW form. Bare substring checks all pass WITHOUT it: manager.html:20's
+    # .media-upload already carries method="post", every .asset-del form in the included
+    # grid carries method="post" + csrf_token, and the fetch URL appears in the
+    # data-fetch-url attribute regardless.
+    form = re.search(r'<form[^>]*class="media-fetch"[^>]*>.*?</form>', html, re.S)
+    assert form, "no .media-fetch form rendered"
+    markup = form.group(0)
+    assert 'method="post"' in markup
+    assert f'action="{fetch_url}"' in markup
+    assert "csrfmiddlewaretoken" in markup
+    assert 'name="url"' in markup and "data-fetch-submit" in markup
+    # These two live on the .media-manager root, OUTSIDE the form
     assert "data-fetch-url" in html and "data-msg-fetch-failed" in html
 
 
@@ -2251,9 +2412,27 @@ Gate on `source_host`, **not** `source_url`: a malformed authority yields a trut
 
 - [ ] **Step 6: CSS**
 
-In `editor.css`, beside `.media-upload` (`:343`), add `.media-fetch` matching its layout,
-styling for the picker panel's input + button, and `.asset-source` (small, muted, truncating).
-Use existing tokens — no new colours.
+In `editor.css`, beside `.media-upload` (`:343`), add `.media-fetch` matching its layout
+and styling for the picker panel's input + button. Use existing tokens — no new colours.
+
+`.asset-source` needs its declarations **pinned**, because `.asset-foot` (`:752`) is
+`display:flex; justify-content: space-between` and its comments at `:758-770` state it is
+designed around exactly **two** children. A third child makes `space-between` push the link
+to the centre, and flex items default to `min-width:auto` — the very failure the
+`:first-child:not([open])` rule at `:769` exists to fix, and which by design does not match
+the new middle child, so "truncating" alone will not truncate:
+
+```css
+.asset-source {
+  min-width: 0; flex: 0 1 auto;
+  margin-inline-start: auto;   /* keeps .asset-actions hard right */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-sm); color: var(--text-secondary);
+}
+```
+
+`margin-inline-start: auto` preserves the existing two-child visual balance without changing
+`.asset-foot`'s own `justify-content`, which every other cell still depends on.
 
 - [ ] **Step 7: Run to verify it passes; falsify**
 
@@ -2315,9 +2494,14 @@ git commit -m "feat(media-fetch): manager form, picker tab, provenance link, sty
             // passing the raw body shows tags, and innerHTML would nest a second
             // role="alert" inside the flash's own.
             var err = tmp.querySelector(".op-error");
-            var card = overlay.querySelector(".picker-card");   // NOT .picker
-            flash(card, (err && err.textContent.trim()) ||
-                        msg(picker, "fetch-failed", "Could not fetch that image."));
+            var card = overlay && overlay.querySelector(".picker-card");  // NOT .picker
+            // Guard like the model does (media_picker.js:161-162): the author can close
+            // the picker during a 20s fetch, leaving overlay null, and flash() would then
+            // throw on host.prepend() -- inside the promise chain, before .finally.
+            if (card) {
+              flash(card, (err && err.textContent.trim()) ||
+                          msg(picker, "fetch-failed", "Could not fetch that image."));
+            }
             return;
           }
           var cell = tmp.querySelector("[data-asset-id]");
@@ -2328,8 +2512,8 @@ git commit -m "feat(media-fetch): manager form, picker tab, provenance link, sty
         .catch(function () {
           // The THIRD outcome. uploadPickerFile has no .catch at all, so without this
           // a network drop leaves the button disabled for the life of the page.
-          var card = overlay.querySelector(".picker-card");
-          flash(card, msg(picker, "fetch-failed", "Could not fetch that image."));
+          var card = overlay && overlay.querySelector(".picker-card");
+          if (card) flash(card, msg(picker, "fetch-failed", "Could not fetch that image."));
         })
         .finally(done);
     }
@@ -2401,7 +2585,23 @@ not generic (it early-returns unless a file input has files):
     }
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Verify both surfaces by hand before committing**
+
+Every other task has a run-and-falsify loop; this one is only exercised two tasks later by
+the e2e, so a syntax error or a wrong selector would be committed and surface far from its
+cause. Run the dev server, then:
+
+1. Media manager -> paste an allow-listed image URL -> the cell appears **without a
+   reload** and the URL box clears (`form.reset()`).
+2. Unit editor -> add an Image element -> open the picker -> **From URL** tab -> paste the
+   same URL -> the asset is selected into the element.
+3. Paste an off-allow-list URL on both surfaces -> the **server's** message text appears in
+   the flash, not the generic fallback.
+4. Browser console clean on both.
+
+(For 1-3, temporarily add your test host to `LIBLI_ALLOWED_IMAGE_FETCH_DOMAINS` in `.env`.)
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add courses/static/courses/js/media_picker.js
@@ -2448,7 +2648,20 @@ Suggested strings — match the repo's existing register:
 | Paste an image URL — fetched, added and selected. | Wklej adres URL obrazu — zostanie pobrany, dodany i wybrany. |
 | Could not fetch that image. | Nie udało się pobrać tego obrazu. |
 
-- [ ] **Step 3: Check for fuzzies**
+- [ ] **Step 3: Flip the parked xfail**
+
+If `test_worker_message_renders_in_the_active_language` was marked `xfail` in Task 5
+(because the Polish catalog did not exist yet), **remove the marker now** and re-run:
+
+```
+TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest courses/tests/test_media_fetch_redirects.py
+```
+
+`strict=False` means a passing xfail reports XPASS, not a failure — so a forgotten marker is
+permanently invisible, and this is the **only** coverage of the `params=` deferral rule the
+spec calls mandatory. Do not skip this step.
+
+- [ ] **Step 4: Check for fuzzies**
 
 `makemessages` pre-fills a **wrong** translation as fuzzy for a similar msgid; clearing it
 means deleting **both** the `#, fuzzy` line and the bogus `msgstr`. Verify **0 fuzzy**:
@@ -2457,7 +2670,7 @@ means deleting **both** the `#, fuzzy` line and the bogus `msgstr`. Verify **0 f
 grep -c "#, fuzzy" locale/pl/LC_MESSAGES/django.po   # expect 0
 ```
 
-- [ ] **Step 4: Compile and commit**
+- [ ] **Step 5: Compile and commit**
 
 ```bash
 uv run python manage.py compilemessages
@@ -2573,18 +2786,28 @@ def test_second_activation_while_in_flight_issues_no_second_request(page, live_s
     calls = []
     release = threading.Event()
 
-    def hold(route):
-        calls.append(route.request.url)
-        release.wait(10)          # blocks the REQUEST, not the test thread's own work
-        route.continue_()
+    # Hold the window open SERVER-SIDE, not in a route handler. playwright-python's
+    # sync API is greenlet-based on a SINGLE OS thread, so a blocking wait inside a
+    # route handler freezes the dispatcher: the test greenlet never resumes,
+    # release.set() can never run, and the handler only unblocks at its timeout -- by
+    # which point the button is re-enabled and `assert is_disabled()` fails on a
+    # CORRECT build. live_server runs in-process, so blocking Django's worker thread
+    # instead leaves Playwright fully responsive.
+    real_open = media_fetch._open
 
-    page.route("**/media/fetch/", hold)
+    def blocking_open(req, timeout):
+        release.wait(10)
+        return real_open(req, timeout)
+
+    monkeypatch.setattr(media_fetch, "_open", blocking_open)
+    # Count requests with a NON-blocking route handler.
+    page.route("**/media/fetch/", lambda r: (calls.append(r.request.url), r.continue_()))
+
     page.fill("[data-picker-url]", fixture_url(live_server))
     page.click("[data-picker-fetch]")
 
     btn = page.locator("[data-picker-fetch]")
-    btn.wait_for(state="attached")
-    assert btn.is_disabled()                       # the guard's visible expression
+    expect(btn).to_be_disabled()                   # the guard's visible expression
     # force=True: Playwright's actionability check includes ENABLED, so a plain click()
     # would block until timeout on a CORRECT build -- inverting the assertion.
     btn.click(force=True)
@@ -2592,7 +2815,10 @@ def test_second_activation_while_in_flight_issues_no_second_request(page, live_s
                                                        # which bypasses the button
     assert len(calls) == 1
     release.set()
-    page.wait_for_selector(".asset-cell, .picker-card .op-error")
+    # The picker's real success signal: selectAsset closes the modal. There is no
+    # .asset-cell on the editor page (the grid left with the overlay) and no
+    # .picker-card either, so waiting on those would hang to timeout.
+    page.wait_for_selector(".picker-overlay", state="detached")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2605,31 +2831,51 @@ def test_manager_second_submit_while_in_flight_issues_no_second_request(page, li
 
     calls = []
     release = threading.Event()
+    real_open = media_fetch._open
 
-    def hold(route):
-        calls.append(route.request.url)
+    def blocking_open(req, timeout):
         release.wait(10)
-        route.continue_()
+        return real_open(req, timeout)
 
-    _open_manager(page, live_server, ...)
-    page.route("**/media/fetch/", hold)
+    _open_manager(page, live_server, "pa-fetch", course)
+    monkeypatch.setattr(media_fetch, "_open", blocking_open)   # server-side hold, per above
+    page.route("**/media/fetch/", lambda r: (calls.append(r.request.url), r.continue_()))
+
     page.fill(".media-fetch input[name=url]", fixture_url(live_server))
     page.click("[data-fetch-submit]")
-    assert page.locator("[data-fetch-submit]").is_disabled()
+    expect(page.locator("[data-fetch-submit]")).to_be_disabled()
     page.locator("[data-fetch-submit]").click(force=True)
     assert len(calls) == 1
     release.set()
     page.wait_for_selector(".asset-cell")
     # form.reset() ran, so a further submit cannot silently duplicate the asset
     assert page.input_value(".media-fetch input[name=url]") == ""
+    # form.reset() ran, so a further submit cannot silently duplicate the asset
+    assert page.input_value(".media-fetch input[name=url]") == ""
 ```
 
-Reuse the existing e2e openers in `tests/conftest.py` (`opener(page, live_server, **kwargs)`).
+⚠️ **`_open_manager` is not in `tests/conftest.py`** — that file holds only element-editor
+openers (matchpair, stepper, markdone, choice, switchgate, `open_element_editor`). The
+helpers this module needs are **module-local in the two sibling e2e files** and must be
+copied from them:
+
+- `tests/test_e2e_media_manager.py` — `_login` (`:72`), `_seed` (`:80`), `_open_manager`
+  (`:96`), `_seed_assets` (`:102`).
+- `tests/test_e2e_media_picker.py` — `_login`, `_setup`, `_add_and_pick` for the editor
+  picker flow.
+
+Copy the pair you need verbatim (they use `make_verified_user` plus the real allauth login
+form, then `goto(manage_media)` or `[data-pick-media]`). **Scenarios (b) and (c) also need
+that setup written out** — as sketched above they begin mid-flow on a page that was never
+navigated and a picker that was never opened.
+
+Import `expect` from `playwright.sync_api` for the disabled-state assertions (the sibling
+e2e modules do the same), and take `monkeypatch` as a fixture in the two in-flight tests.
 
 - [ ] **Step 2: Run**
 
 ```
-TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest tests/test_e2e_media_fetch.py -m e2e -q
+TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest tests/test_e2e_media_fetch.py -m e2e
 ```
 
 Without `-m e2e` every test is deselected and you get exit 5 with no failures — which
@@ -2730,8 +2976,8 @@ Only now, as a branch gate rather than a per-task step:
 uv run ruff format .                      # LAST, after every other edit
 uv run ruff check --no-cache .
 uv run python manage.py makemigrations --check --dry-run
-TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest -q
-TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest -m e2e -q
+TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest
+TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli_aifu" uv run pytest -m e2e
 ```
 
 Grep both summary lines. `ruff format --check` is a separate CI gate from `ruff check`.
