@@ -78,8 +78,11 @@ importing geogebra's private ones — following the reason `geogebra.py:252-259`
 for duplicating `_NoRedirect` instead of importing delivery's. Tests therefore patch
 `courses.media_fetch._open`.
 
-**No existing module is edited by this feature.** `integrations/delivery.py` and
-`geogebra.py` are untouched, including their User-Agent constant (§2).
+**No existing outbound-HTTP module is edited by this feature.** `integrations/delivery.py`
+and `geogebra.py` are untouched, including their User-Agent constant (§2). (The feature does
+of course edit plenty of other files — `courses/validators.py`, both settings modules,
+`views_media.py`, `urls.py`, `media.py`, `models.py`, `media_picker.js` and four templates;
+the commitment here is specifically that the two existing HTTP callers are left alone.)
 
 ### 1. `validate_fetch_url()` — `courses/validators.py`
 
@@ -308,7 +311,7 @@ both directions:
 
 Without this, every `ValidationError` raised on the worker (redirect off the allow-list, bad
 `Location`, hop budget, non-200, Content-Type gate, byte cap) is lost — an exception on a
-`threading.Thread` target does not propagate to the joiner — and all six conditions would
+`threading.Thread` target does not propagate to the joiner — and all seven conditions would
 report the deadline message instead.
 
 **The worker's deadline instant** is `monotonic() + DEADLINE_SECONDS`, computed
@@ -336,8 +339,9 @@ the deadline instant is its own stopping rule.
 
    One accepted consequence: `geogebra.py`'s docstring calls itself "the repository's only
    production background thread", which this feature makes stale. It is left uncorrected
-   because §0 commits to editing no existing module, and the clause has no behavioural
-   effect — recorded here so it is a known inaccuracy rather than a discovered one.
+   because §0 commits to leaving the two existing outbound-HTTP modules untouched, and the
+   clause has no behavioural effect — recorded here so it is a known inaccuracy rather than
+   a discovered one.
 
 *Steps 4–8 run on the worker.*
 
@@ -546,9 +550,10 @@ after the `with` block has been entered.
 
 **Logging — and it all happens on the request thread.** The author-facing message is
 deliberately detail-free, so without logging an operator diagnosing "an allow-listed host
-started 403-ing our User-Agent" would have nothing to work from. But six of the rejection
+started 403-ing our User-Agent" would have nothing to work from. But seven of the rejection
 points (invalid or absent `Location`, redirect off the allow-list, hop budget, non-200
-status, the Content-Type gate, the byte cap) live in steps 4–8, which run on the **worker**
+status, the Content-Type gate, the byte cap, and the transport-failure conversion) live in
+steps 4–8, which run on the **worker**
 — and `courses/geogebra.py:22-24`, the module this design copies throughout, states the
 boundary rule verbatim: *"The worker's boundary rule: NO ORM, NO cache, NO logging — it only
 calls `_open`, reads bytes, and stores into a result box; everything else stays on the main
@@ -557,12 +562,40 @@ thread."*
 That rule is kept, not diverged from. Concretely:
 
 - Worker-side rejections **carry a reason token on the `ValidationError` itself** (its
-  `code`, e.g. `"redirect-off-allowlist"`, `"status"`, `"content-type"`, `"too-large"`),
-  along with any interpolation `params` (§1). They log nothing.
+  `code`) and **their diagnostic values as `params` keys**. They log nothing.
+
+  There are **seven** such rejections, and the enumeration is exhaustive because each one
+  needs its token: `"redirect-invalid"` (missing/empty `Location`), `"redirect-off-allowlist"`,
+  `"redirect-too-many"`, `"status"`, `"content-type"`, `"too-large"`, and — easy to miss,
+  because it is a conversion rather than a raise — `"transport"`, from the
+  `except (TimeoutError, URLError, OSError)` handler that wraps both the `open()` call and
+  the read loop.
+
+  **`params` may carry keys the message does not interpolate.** This is the mechanism that
+  makes request-thread logging possible at all, and it is harmless: `%`-dict formatting
+  ignores unused keys. It is required, not optional, because the two values most worth
+  logging are worker-local and otherwise unreachable — the **redirect target's host** (which
+  lives on `current_url`; the request thread has only `submitted_url`) and the **raw
+  `Content-Type`** (whose message, "That URL did not return an image.", interpolates
+  nothing). Attach both as `params`.
+
 - The **request thread logs once**, where the box's exception is re-raised: a single
   `logger.warning` on `logging.getLogger(__name__)` in `media_fetch.py` (matching
-  `geogebra.py:55`), naming the host, the status or Content-Type, and that reason token —
-  never the response body.
+  `geogebra.py:55`), naming the host, the reason token, and whichever diagnostic `params`
+  the token implies — never the response body.
+
+  **It reads the token defensively.** The box may hold a non-`ValidationError` (a genuine
+  worker bug, re-raised unchanged as a 500) or a `ValidationError` carrying an
+  `error_list`/`error_dict`, neither of which has a usable `.code`. So: log only when the box
+  holds a `ValidationError`, read the token as `getattr(exc, "code", None)`, and re-raise
+  anything else untouched. A bare `exc.code` would raise *inside the log call* and turn an
+  intended clean 500 into a different, misleading one.
+
+- The **deadline branch logs too** — the empty-box case is neither a re-raised exception nor
+  one of steps 9–13, so it would otherwise fall through both bullets unlogged, despite being
+  one of the outcomes an operator most wants to see. Same logger, host plus a `"deadline"`
+  token.
+
 - Request-thread rejections (steps 9–13) log at their own site, on the same logger.
 
 Beyond respecting the documented rule, this avoids two real hazards the thread-boundary
