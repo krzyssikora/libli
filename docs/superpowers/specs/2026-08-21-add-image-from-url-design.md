@@ -86,12 +86,21 @@ for duplicating `_NoRedirect` instead of importing delivery's. Tests therefore p
 A deliberate twin of the existing `validate_embed_url` (`courses/validators.py:118`),
 which guards video/iframe embeds.
 
-**`validate_fetch_url` strips its own input**, and `fetch_image_asset` uses the stripped
-value as `submitted_url` — so the stripped form is what is validated, fetched, and stored in
-`source_url`. Stripping belongs to the validation authority, not the view: the view's own
-`.strip()` is redundant convenience at most, and if the view were the only place it happened
-the validator could never see whitespace, making the two whitespace unit tests below
-unwritable and leaving `source_url` holding the unstripped value.
+**`validate_fetch_url` strips its own input and RETURNS the stripped URL**; callers must use
+the returned value. The signature is therefore
+`validate_fetch_url(url) -> str`, and `fetch_image_asset`'s step 1 is an **assignment**:
+
+```
+submitted_url = validate_fetch_url(submitted_url)
+```
+
+The return value is the whole mechanism, and discarding it is the failure mode to guard
+against. Stripping belongs to the validation authority, not the view — the view's `.strip()`
+is redundant convenience at most — but that only holds if the stripped string actually
+propagates. A bare `validate_fetch_url(submitted_url)` call whose result is dropped would
+leave `submitted_url` unstripped, store `"\nhttps://…"` in `source_url`, and still pass every
+other test in this spec, because they all use clean URLs. Hence the explicit assignment
+here, and the direct `fetch_image_asset` test named in Testing.
 
 This is load-bearing rather than tidy-mindedness: a pasted URL routinely carries a leading
 space or newline, and `urlsplit(" https://…")` yields an empty scheme, so an unstripped
@@ -292,8 +301,10 @@ both directions:
   so the caller's "no result" branch reports the deadline. Its `except` clause must precede
   the broad one, or a budget exception is captured as a generic failure.
 - After `thread.join(DEADLINE_SECONDS)` the main thread takes **one** snapshot of the box.
-  A stored `ValidationError` is re-raised **unchanged**; a box with neither result nor
-  exception yields "Fetching the image took too long."
+  A stored exception is re-raised **unchanged, whatever its type** — so a `ValidationError`
+  surfaces as its own 422, and a genuine worker-side bug (an `AttributeError`, say) surfaces
+  as a 500 rather than being laundered into a transport or deadline message. A box with
+  neither result nor exception yields "Fetching the image took too long."
 
 Without this, every `ValidationError` raised on the worker (redirect off the allow-list, bad
 `Location`, hop budget, non-200, Content-Type gate, byte cap) is lost — an exception on a
@@ -308,7 +319,8 @@ the deadline instant is its own stopping rule.
 
 #### Steps
 
-1. `validate_fetch_url(submitted_url)`.
+1. `submitted_url = validate_fetch_url(submitted_url)` — an assignment, not a bare call; the
+   validator returns the stripped URL and that is what steps 12–13 store (§1).
 2. Read `effective_max_image_bytes()` and `effective_image_extensions()` **once** into
    locals. Both go through `_site_config()` → `get_site_config()` (a cache read, and a DB
    read on a miss); calling them inside the chunk loop or per candidate extension would
@@ -485,7 +497,7 @@ the deadline instant is its own stopping rule.
 
 11. Derive a filename (see below), using `img.format` and `current_url`.
 12. Compute the digest as **`hashlib.sha256(data).hexdigest()`** — byte-for-byte the same
-    expression as `courses/lal_loader/media.py:31`, lowercase hex over the raw file bytes.
+    expression as `courses/lal_loader/media.py:33`, lowercase hex over the raw file bytes.
     The exact form is load-bearing, not incidental: any other encoding (uppercase, base64,
     `digest()`, or hashing the `ContentFile` after a read) produces a value that can never
     collide with a LAL digest, which would silently make the whole "Interaction with the
@@ -507,7 +519,7 @@ the deadline instant is its own stopping rule.
 returned and bound by `with _open(...) as resp:`. Every 3xx and non-2xx arrives as an
 `HTTPError`, which never enters that `with` block, so **its `fp` must be closed explicitly
 in the handler** — `exc.close()`, guarded so a close failure never masks the original.
-`geogebra.py:453-458` documents precisely this: "A 4xx/5xx raises from inside `_open` ON THE
+`geogebra.py:463-468` documents precisely this: "A 4xx/5xx raises from inside `_open` ON THE
 WORKER, so the `with` inside `_fetch_body` is never entered and the error's own fp is never
 closed." The redirect loop is one code site executed up to `MAX_REDIRECT_HOPS + 1` times,
 and each iteration's `HTTPError` needs that close.
@@ -530,10 +542,16 @@ could not read off the request itself. The author-facing message is deliberately
 detail-free, so without the `media_fetch` logging an operator diagnosing "an allow-listed
 host started 403-ing our User-Agent" would have nothing to work from.
 
-**`S310` (bandit, `urllib.request` audit) is satisfied with a written justification
-comment**, in the same form `geogebra.py` and `integrations/delivery.py` already use — the
-scheme is constrained to http/https by `validate_fetch_url` before any request is built.
-It is never silenced with a bare `noqa`.
+**`S310`** (bandit, `urllib.request` audit) is satisfied the way both sibling modules do it:
+a **`# noqa: S310` on the `Request(...)` line, with a written justification comment above
+it** (`courses/geogebra.py:421`) — never a bare `noqa` without justification. The
+justification is that the scheme is constrained to http/https by `validate_fetch_url` before
+any request is built, and `_NoRedirect` stops the opener following one elsewhere.
+
+One trap, which `geogebra.py:418-421` documents from experience: **the justification comment
+must not begin with the directive text.** A comment line whose text starts with a `noqa`
+directive naming S310 is parsed by ruff as a suppression on a line carrying no diagnostic —
+inert today, but a duplicate the moment `RUF100` is selected.
 
 #### Filename derivation
 
@@ -668,25 +686,32 @@ The route is registered as `manage_media_fetch` at
   <form class="media-fetch" method="post"
         action="{% url 'courses:manage_media_fetch' slug=course.slug %}">
     {% csrf_token %}
-    <input type="url" name="url" required placeholder="https://…">
-    <input type="text" name="name">
-    <button type="submit" data-fetch-submit>…</button>
+    <label class="field">{% trans "Image URL" %}
+      <input type="url" name="url" required placeholder="https://…"></label>
+    <label class="field">{% trans "Name" %} <span class="muted">({% trans "optional" %})</span>
+      <input type="text" name="name"></label>
+    <button class="btn" type="submit" data-fetch-submit>{% trans "Fetch" %}</button>
   </form>
   ```
 
   Without `method="post"` and `action`, the form issues a GET to `manage_media` and the
   no-JS path never reaches the view at all — the same class of silent break as a missing
   `{% csrf_token %}`. `name="name"` is pinned so the no-JS form submits under the key the
-  view reads; the view itself uses `(request.POST.get("name") or "").strip()`, as
-  `media_upload` does — **never bracket access**, which would raise
-  `MultiValueDictKeyError` (uncaught, hence a 500) on every picker fetch, since the picker
-  deliberately sends no name at all. `[data-fetch-submit]` is pinned because §6's in-flight
+  view reads.
+
+  **Both POST keys are read with `.get`, never bracket access** — `url` as
+  `(request.POST.get("url") or "")` and `name` as `(request.POST.get("name") or "").strip()`,
+  as `media_upload` does. Bracket access raises `MultiValueDictKeyError`, which the view does
+  not catch, so it is a 500: for `name` on every picker fetch (the picker deliberately sends
+  no name at all), and for `url` on any client that omits it — which would also make the
+  error table's very first row, a missing `url` yielding "Enter an image URL." at 422,
+  unreachable. Both have a mirror view test. `[data-fetch-submit]` is pinned because §6's in-flight
   guard and e2e scenario (d) need a stable selector. A template assertion checks the form's
   `action` resolves to the fetch route.
 
-  Both inputs are wrapped in the same `<label class="field">` convention the adjacent
-  `.media-upload` form uses for all three of its controls — `{% trans "Image URL" %}` and
-  `{% trans "Name" %} <span class="muted">({% trans "optional" %})</span>`. Without them the
+  The `<label class="field">` wrappers in that block are the convention the adjacent
+  `.media-upload` form uses for all three of its controls, and are part of the pinned markup
+  rather than an afterthought. Without them the
   new form ships two unlabelled controls directly beside three labelled ones: an
   accessibility regression and a visible inconsistency, in a repo whose standing rule is
   that every view ships styled. The labels are part of what the light/dark screenshot
@@ -792,7 +817,7 @@ early-returns unless a `input[type='file']` has files, and calls `uploadFile()` 
 fragment-parse-then-flash treatment specified for the picker below.
 
 `form.reset()` matters for the same reason the in-flight guard does: the upload path it
-mirrors resets on success (`media_picker.js:281`), and without it the URL stays in the box
+mirrors resets on success (`media_picker.js:284`), and without it the URL stays in the box
 after the cell appears, so one more click creates a duplicate asset — URL-level dedup being
 an explicit non-goal.
 
@@ -955,8 +980,9 @@ shows these strings verbatim.
 | Connection failure, timeout, or mid-read error | "Could not reach the image host." | `URLError`/`OSError`, after the `HTTPError` clause |
 | Wall-clock deadline exceeded | "Fetching the image took too long." | thread join, empty box |
 | Status is not 200 | "The image host returned an error (status %(status)s)." | `HTTPError` for non-2xx; an explicit `resp.status != 200` check for a returned 204/206 |
-| `Content-Type` absent, empty, or not a known image type | "That URL did not return an image." | media-type gate |
-| `img.format` unknown, or no allowed extension for it | "That image type is not allowed." | filename derivation |
+| `Content-Type` absent, empty, or not a known image type (other than `image/svg+xml`) | "That URL did not return an image." | media-type gate |
+| `Content-Type` is `image/svg+xml` | "That image type is not allowed." | media-type gate, explicit case |
+| `img.format` unknown, or no allowed extension for it | "That image type is not allowed." | filename derivation (same message as the SVG row, deliberately) |
 | Body exceeds the cap (authoritative) | "Image file too large (max %(mib)d MiB)." | `read1` accumulator |
 | Body is empty (zero bytes) | "The fetched file is empty." | empty-body guard |
 | Bytes are not a decodable image | "That URL did not return a usable image." | Pillow, broad catch |
@@ -987,7 +1013,10 @@ same; a whitespace-padded valid URL accepted, and the stripped value used; over-
 rejected; malformed rejected by `URLValidator`; an http URL rejected when
 `ALLOW_HTTP_IMAGE_FETCH` is false; an allow-listed host accepted; a subdomain accepted; a
 look-alike host that merely *ends with* the allowed string rejected; a mixed-case allow-list
-entry still matches.
+entry still matches; and — called out separately because it is the invariant with the
+weakest natural coverage — **`fetch_image_asset` called directly with a whitespace-padded
+URL persists the *stripped* form in `source_url`**, which is what stops the validator's
+return value being discarded.
 
 **`override_settings` covers both new settings, not just the host list.** `test.py` replaces
 `ALLOWED_IMAGE_FETCH_DOMAINS` (§2), so hosts must be named per test — and it also sets
@@ -996,13 +1025,23 @@ http-downgrade-redirect test must each set it `False` explicitly**. Without that
 downgrade test takes the *accepted* path and passes for entirely the wrong reason.
 
 **Unit — settings default:** `config/settings/base.py` leaves `ALLOW_HTTP_IMAGE_FETCH`
-false. **The mechanism must be environment-independent**, and the spec pins it rather than
-leaving it open: the suite runs under `config.settings.test`, which sets the flag `True`, so
-the test has to reach `base` some other way — and any plain import re-reads
-`env.bool("LIBLI_ALLOW_HTTP_IMAGE_FETCH", default=False)`, failing for any developer who has
-that variable exported or in `.env`. So: `monkeypatch.delenv("LIBLI_ALLOW_HTTP_IMAGE_FETCH",
-raising=False)`, then reload `config.settings.base` and assert the resulting value, so the
-test asserts the *declared default* rather than the ambient environment.
+false. **The requirement is that the test asserts the *declared default*, never the ambient
+environment**; the exact mechanism is implementation judgement, but two specific traps make
+the obvious approach wrong and must be avoided.
+
+The suite runs under `config.settings.test`, which sets the flag `True`, so the test must
+reach `base` some other way. A plain reload is **not** sufficient:
+
+- `config/settings/base.py:7-10` calls `env.read_env(...)` at module scope, and
+  django-environ's `read_env` writes with `os.environ.setdefault`. Reloading `base`
+  therefore re-executes `read_env` and re-inserts any `.env` value *before* `env.bool(...)`
+  is evaluated — so clearing the exported variable alone leaves the `.env` half live.
+- `monkeypatch.delenv(..., raising=False)` records nothing to undo when the variable was
+  absent from `os.environ` to begin with, so that re-inserted `.env` value **survives
+  teardown** and leaks into every later test in the process.
+
+Whatever mechanism is chosen must therefore suppress the `.env` read as well (e.g. patching
+`read_env`/`Env.ENVIRON` for the duration) and restore `os.environ` afterwards.
 
 **Unit — the language of worker-raised messages:** under `activate("pl")`, an interpolated
 message raised on the worker (the status message) renders **translated**, proving the
@@ -1029,7 +1068,7 @@ a redirect with no `Location` is rejected; the hop budget reports "too many redi
 only the explicit `resp.status != 200` check catches it); a `text/html` response at a `.jpg`
 path is rejected; an **absent** `Content-Type` is
 rejected; an `image/svg+xml` response reports "That image type is not allowed.", not the
-not-an-image message; HTML bytes under an `image/png` Content-Type are rejected by Pillow;
+not-an-image message (the Wikimedia case an author will hit for real); HTML bytes under an `image/png` Content-Type are rejected by Pillow;
 **an `MPO`-format JPEG is accepted** (not rejected as unknown); **an unknown `img.format`
 (e.g. `BMP`) is a 422, not a `KeyError`/500**; **GIF bytes served as `image/png` are stored
 as exactly `Foo.gif`** — an *exact filename equality*, not an "ends with `.gif`" check,
@@ -1075,7 +1114,7 @@ reuses the fetched row rather than creating a second one. The fixture creates ex
 fetched asset (see the `.first()` caveat under Data), and drives the LAL side through the
 **real loader path** rather than a shared digest helper — otherwise both sides compute the
 hash the same way by construction and the test would still pass even if the digest form
-diverged from `courses/lal_loader/media.py:31`.
+diverged from `courses/lal_loader/media.py:33`.
 
 **Unit — `source_host`:** returns the hostname for a normal URL, `""` for blank, and `""`
 rather than raising for a malformed authority.
@@ -1085,7 +1124,9 @@ rendered message is the `"; ".join(e.messages)` form, not a Python repr; a no-JS
 gets a `messages.error` plus a redirect; success returns the asset cell at 200; a
 non-manager user is refused by `_require_manage`; an **authenticated** GET is refused with
 405 by `@require_POST`; **a POST carrying no `name` key at all succeeds** — the picker's
-shape — which is what stops bracket access on `request.POST` surviving as a 500.
+shape — and **a POST carrying no `url` key at all returns 422 with "Enter an image URL.",
+not a 500**. The pair is what stops bracket access on `request.POST` surviving for either
+key.
 
 **Template:** the picker rendered with `kind="video"` has exactly two tabs and no From URL
 panel; with `kind="image"`, three, and the new panel is `hidden` with its tab not `is-on`.
