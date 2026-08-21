@@ -2449,3 +2449,52 @@ dialog.imgzoom:not([open]) { display: none; }
   [data-theme="dark"] .callout--warning { --callout-accent: #b06f0f; }
   [data-theme="dark"] .callout--task    { --callout-accent: #a8318f; }
 }
+
+/* ── Print: reveal every slideshow slide ───────────────────────────────────
+   A multi-slide lesson printed only the ACTIVE slide. The carousel block at
+   :1852 already carries this lesson in its own comment ("printing a carousel
+   silently loses every slide but the current one"); the identical defect in
+   slideshows was never fixed.
+
+   Written against the POST-ENHANCEMENT DOM. slideshow.js moves slides into
+   .slideshow-deck > .slideshow-stage, so [data-slideshow] > .slide matches
+   nothing at runtime and a rule written that way would be inert.
+
+   display:block alone is not enough: the slides are position:absolute inset:0
+   inside a fixed-height clipping stage, so revealing them would just stack them
+   invisibly on one spot. Mirrors the carousel precedent at :1868-1870 in full. */
+@media print {
+  .slideshow-deck {
+    overflow: visible !important;
+    /* Screen chrome for a widget paper does not have. */
+    border: 0; border-radius: 0; box-shadow: none; background: none; margin-block: 0;
+  }
+  /* The stage also carries .scroll-y (app.css:1886, position:relative), which is
+     why the position reset is needed at all. */
+  .slideshow-stage { position: static !important; height: auto !important; }
+  /* The stage's .scroll-y ::before/::after are position:absolute (app.css:1886-1892).
+     Removing the stage's position:relative reparents them to the next positioned
+     ancestor, so their boxes can land anywhere on the sheet. They are gradient
+     shading for a scroller paper does not have -- drop them outright. */
+  .slideshow-stage::before, .slideshow-stage::after { display: none !important; }
+  .slideshow-deck .slide,
+  .slideshow-deck .slide[hidden] {
+    display: block !important; position: static !important;
+    overflow: visible !important;
+    /* opacity beats an INLINE style: slideshow.js:187 sets the OUTGOING slide to
+       opacity 0 and holds it for FADE_MS=320 until settleHidden() at :191, during
+       which that slide is not yet [hidden] and so is revealed by the rules above.
+       (:180 sets the incoming slide to 0 too, but :186 restores it synchronously
+       three statements later, so it is never observably transparent.)
+
+       transition:none is required ALONGSIDE it, and winning the cascade is not
+       enough without it: :393 puts `transition: opacity 320ms ease` on this very
+       rule, so changing the computed value starts an ANIMATION rather than
+       applying it, and the print snapshot samples mid-fade. The
+       prefers-reduced-motion block at :398-400 is the precedent for this shape. */
+    opacity: 1 !important; transition: none !important;
+  }
+  /* Prev/Next is meaningless ink once every slide prints -- same principle the
+     carousel block applies to .tabs__cbar / .tabs__status at :1870. */
+  .slideshow-bar { display: none !important; }
+}

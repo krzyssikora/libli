@@ -169,3 +169,34 @@ def test_every_dark_rule_in_a_shipped_stylesheet_is_classified():
         f'unclassified [data-theme="dark"] rule(s): {sorted(unclassified)}. '
         "Add a print counterpart, or record why one is not needed."
     )
+
+
+SLIDESHOW_PRINT_REQUIRED = (
+    ".slideshow-deck .slide[hidden]",
+    "position: static !important",
+    "opacity: 1 !important",
+    "transition: none !important",
+    ".slideshow-bar",
+)
+
+
+def test_slideshow_print_block_declares_the_load_bearing_rules():
+    """Cheap tripwire, not a cascade proof: a rule can be present and still inert,
+    which only the e2e A/B in Task 4 can catch. This exists so a typo or a dropped
+    declaration fails in Task 3 rather than two tasks later."""
+    marker = ".slideshow-deck {\n    overflow: visible"
+    _screen, sep, printed = COURSES_CSS.partition(marker)
+    assert sep, "courses.css must have a print block for the slideshow deck"
+    block = sep + printed
+    for needle in SLIDESHOW_PRINT_REQUIRED:
+        assert needle in block, f"slideshow print block is missing {needle!r}"
+
+
+def test_courses_css_braces_balance():
+    """Green BEFORE the append too -- courses.css already balances (559/559). This
+    is a regression tripwire for a malformed hand-edit, not part of the red phase,
+    and battery row 14 is what proves it can go red at all."""
+    text = re.sub(r"/\*.*?\*/", "", COURSES_CSS, flags=re.DOTALL)
+    assert text.count("{") == text.count("}"), (
+        "unbalanced braces in courses.css -- an appended block is malformed"
+    )
