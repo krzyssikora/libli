@@ -504,10 +504,20 @@ Second, replace the `.note-card__meta` paragraph. The relative text is currently
 ```html
   <p class="note-card__meta">
     <span class="note-card__meta-rel">{% if note|note_edited %}{% blocktrans with when=note.updated|timesince %}edited {{ when }} ago{% endblocktrans %}{% else %}{% blocktrans with when=note.updated|timesince %}added {{ when }} ago{% endblocktrans %}{% endif %}</span>
-    {# Translators: %(date)s is a short date, e.g. 21.08.2026 #}
-    <span class="note-card__print-date">{% if note|note_edited %}{% blocktrans with date=note.updated|date:"SHORT_DATE_FORMAT" %}edited {{ date }}{% endblocktrans %}{% else %}{% blocktrans with date=note.updated|date:"SHORT_DATE_FORMAT" %}added {{ date }}{% endblocktrans %}{% endif %}</span>
+    <span class="note-card__print-date">{% if note|note_edited %}
+      {# Translators: %(date)s is a short date, e.g. 21.08.2026 #}
+      {% blocktrans with date=note.updated|date:"SHORT_DATE_FORMAT" %}edited {{ date }}{% endblocktrans %}
+    {% else %}
+      {# Translators: %(date)s is a short date, e.g. 21.08.2026 #}
+      {% blocktrans with date=note.updated|date:"SHORT_DATE_FORMAT" %}added {{ date }}{% endblocktrans %}
+    {% endif %}</span>
   </p>
 ```
+
+Each `blocktrans` gets **its own** `{# Translators: #}` line. xgettext attaches an extracted
+comment to the *immediately following* msgid only, so a single comment above a line holding both
+blocks would reach one of them and leave the other — one of the two maximum-fuzzy-hazard strings —
+with no guidance at all.
 
 The verb is kept: hiding `.note-card__meta-rel` would otherwise leave a naked `21.08.2026` with no indication whether it is a creation or last-edit date. Both phrasings already read `note.updated` — `note.created` is never rendered.
 
@@ -1134,8 +1144,14 @@ Commands:
 ```bash
 C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_e2e_print_lesson_notes.py::<name> -m e2e -v
 C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_notes_print_css.py::<name> -v
+C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_button_template.py::<name> -v
 ```
-**`no tests ran` / exit 5 is NOT red.**
+Pick the command by the **test file each row names**: rows naming
+`test_e2e_print_lesson_notes.py` need `-m e2e`; rows naming `test_notes_print_css.py` or
+`test_print_button_template.py` must **not** use it.
+
+**`no tests ran` / exit 5 is NOT red.** Passing `-m e2e` to a non-e2e test deselects it and exits 5
+with no failure, which reads exactly like a pass. If a mutant produces that, the command was wrong.
 
 | # | Mutant | Must turn RED |
 |---|---|---|
@@ -1156,8 +1172,11 @@ C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_notes_print_css.py::<name
 | 15 | Add an `entered` boolean that makes `enter()` return early | `test_two_enters_with_no_leave_then_one_leave` |
 | 16 | Add `.lesson` to the un-clamp rule | `test_un_clamp_is_not_lesson_scoped` (non-e2e) |
 | 17 | Drop `.note-composer--has-draft` from the empty-pop `:has()` list | `test_print_block_declares_every_load_bearing_rule` (non-e2e) |
+| 18 | Remove the `{% if show_print %}` / `{% endif %}` wrapper in `_unit_strip.html`, so the button renders unconditionally | `test_print_button_template.py::test_button_is_absent_without_the_flag` (non-e2e). *This is the only demonstration that the quiz-template guard can fail: in Task 1's red phase that assertion passes vacuously, because the button does not exist yet* |
 
-After the battery, run `git diff` and confirm it shows **only** the work you meant to keep.
+After the battery, run **`git status --short`** as well as `git diff`. `git diff` alone cannot see
+an untracked file, so it would not notice a new test that was never staged — only a leftover mutant
+in a tracked file.
 
 - [ ] **Step 5: Full-suite gate**
 
@@ -1176,10 +1195,15 @@ Grep both summary lines.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add tests/test_e2e_print_lesson_notes.py locale/pl/LC_MESSAGES/django.po \
-  locale/pl/LC_MESSAGES/django.mo
+git add tests/test_e2e_print_lesson_notes.py tests/test_i18n_print_notes.py \
+  locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo
+git status --short
 git commit -m "test(print): e2e coverage for printing a lesson with notes"
 ```
+
+`git status --short` **before** the commit, not `git diff`: a newly created file that was never
+`git add`ed is **untracked**, so it does not appear in `git diff` at all. That is exactly how a test
+file gets written, run, and then silently left out of the branch.
 
 ---
 
