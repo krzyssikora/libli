@@ -76,9 +76,10 @@ inherits a proven transport seam for tests, and keeps one convention in the code
 **`media_fetch.py` defines its own module-level `_NoRedirect` and `_open`** rather than
 importing geogebra's private ones — following the reason `geogebra.py:252-259` already gives
 for duplicating `_NoRedirect` instead of importing delivery's. Tests therefore patch
-`courses.media_fetch._open`. The behaviour of `integrations/delivery.py` and
-`geogebra.py` is otherwise unchanged by this feature; the one exception is the shared
-User-Agent constant (§2), which is a pure move with no behavioural effect.
+`courses.media_fetch._open`.
+
+**No existing module is edited by this feature.** `integrations/delivery.py` and
+`geogebra.py` are untouched, including their User-Agent constant (§2).
 
 ### 1. `validate_fetch_url()` — `courses/validators.py`
 
@@ -183,19 +184,18 @@ than reusing it: the two lists authorise different things (an iframe the browser
 a host this server will connect to), and silently granting server-side fetch to every
 embed host would be a privilege widening nobody asked for.
 
-**The User-Agent is a shared module constant, not a setting.** `courses/geogebra.py:77`
-already defines `_USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"` and
-argues explicitly for a constant over a setting ("matching the pattern of
-`integrations/delivery.py`"). Rather than duplicate that literal or contradict that
-precedent, lift it to **`core/http.py` as `USER_AGENT`**, and have both `geogebra.py` and
-`media_fetch.py` import it from there.
+**The User-Agent is a module constant, not a setting, and it is reused rather than moved.**
+`courses/geogebra.py:77` already defines
+`_USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"` and argues explicitly
+for a constant over a setting ("matching the pattern of `integrations/delivery.py`").
+`media_fetch.py` therefore does **`from courses.geogebra import _USER_AGENT`**.
 
-**`courses.geogebra._USER_AGENT` must remain a resolvable name**: `tests/test_geogebra.py:437`
-does `from courses.geogebra import _USER_AGENT`, so the move must leave a module-level alias
-(`_USER_AGENT = USER_AGENT`) behind, or that test breaks for reasons unrelated to this
-feature. (A zero-move alternative is acceptable if preferred: `media_fetch.py` simply does
-`from courses.geogebra import _USER_AGENT`. Pick one and be consistent — the point is that
-the literal exists once.)
+This is the decision, not one of two options. Lifting the literal into a new shared module
+was considered and rejected: it would create a second new module, edit a file this feature
+otherwise never touches, and require leaving a `_USER_AGENT` alias behind because
+`tests/test_geogebra.py:437` imports that exact name. Importing a private name across
+modules is the lesser cost, and the import direction is safe — `geogebra.py` imports nothing
+from `courses`, so there is no cycle.
 
 The header is **not optional**: Wikimedia's User-Agent policy requires a descriptive,
 contactable UA and returns 403 to generic library user-agents, and Wikimedia is the entire
@@ -253,12 +253,21 @@ accept).
 `DEADLINE_SECONDS` must satisfy the relationship recorded under "Redirect handling" below;
 changing any one without re-checking it silently breaks the wall-clock bound.
 
-**Naming.** The spec uses two distinct names throughout, and the implementation must too:
-`submitted_url` (the stripped value the author pasted) and `current_url` (the hop being
-requested). Collapsing them into one `url` variable is the natural way to write the
-redirect loop and it silently breaks the Data section's guarantee that `source_url` stores
-the submitted URL, because `url = urljoin(url, location)` would leave the final target in
-scope at `create_asset` time.
+**Every constant is read as a module global at call time** — never captured as a default
+argument (`def fetch_image_asset(..., deadline=DEADLINE_SECONDS)`) and never re-exported via
+`from courses.media_fetch import DEADLINE_SECONDS` in a helper. Both bind at import and
+would silently defeat the deadline tests, which monkeypatch the module attribute: those
+tests would then either run for the full 20 s or pass without exercising the path at all.
+`geogebra.py` pins the same rule ("ONE read of the global, at call time").
+
+**Naming (a warning, not a mandate).** Two values must stay distinct: the stripped value the
+author pasted, and the hop currently being requested. Collapsing them into one `url`
+variable is the natural way to write the redirect loop and it silently breaks the Data
+section's guarantee that `source_url` stores the submitted URL, because
+`url = urljoin(url, location)` would leave the final target in scope at `create_asset` time.
+The spec calls them `submitted_url` and `current_url` for readability; the enforcement is
+the named unit test asserting a redirected fetch persists the submitted URL, not the choice
+of identifier.
 
 #### Thread boundary — what runs where
 
@@ -356,6 +365,15 @@ the deadline instant is its own stopping rule.
    - `exc.code in REDIRECT_STATUSES` → redirect handling (below);
    - anything else → "The image host returned an error (status %(status)s)."
 
+   **A returned 2xx is not automatically a 200, and the difference must be checked
+   explicitly.** `HTTPErrorProcessor.http_response` raises only when
+   `not (200 <= code < 300)`, so **204 and 206 return normally through the `with` block**.
+   The returned response is therefore rejected with the same status message unless
+   `resp.status == 200`. Without that check a 206 would be accepted as a complete image
+   (partial bytes, plausible header, and `verify()` passes for JPEG), and a 204 would fall
+   through to the empty-body guard and report the wrong reason. A named unit test covers
+   206.
+
 6. **Redirect handling.** For a redirect `HTTPError`:
    - a missing or empty `Location` header → "The image host returned an invalid redirect.";
    - `Location` is resolved against `current_url` with `urljoin`, then re-validated;
@@ -415,9 +433,22 @@ the deadline instant is its own stopping rule.
    with `Content-Length: 0` creates a real asset with zero bytes, failed derivatives, and a
    200 response.
 
-10. **Verify the payload really is an image; capture its format and size.** Open the bytes
-    with Pillow, keep `img.format` and `img.size`, then `verify()`. On failure reject with
-    "That URL did not return a usable image."
+10. **Verify the payload really is an image; capture its format and size.** The order is
+    pinned: `Image.open(BytesIO(data))` → keep `img.format` and `img.size` → **pixel-count
+    check** → `verify()`. On failure reject with "That URL did not return a usable image."
+
+    The pixel check runs **before** `verify()`, not after. `PngImageFile.verify()` walks the
+    remaining chunks and checks CRCs, so the natural fixture for the pixel test — a PNG
+    whose IHDR declares huge dimensions over a short synthetic body — would be rejected as
+    "not a usable image" and the named test would fail on a *correct* build. Checking first
+    also avoids doing verify work on a bomb.
+
+    **What `Image.open`/`verify()` do and do not catch.** `Image.open`'s header sniff is the
+    real format authority; `Image.verify()` is a no-op on the base class and is overridden by
+    only a few plugins, notably PNG. A **truncated** JPEG/MPO/GIF/WEBP therefore passes both,
+    is stored, and fails later inside `generate_derivatives`, which swallows the failure and
+    records `DerivativesState.FAILED`. That is knowingly accepted — do not write a
+    truncation-rejection test, because there is no truncation rejection.
 
     **`DecompressionBombError` is caught in its own clause, placed before the broad one**,
     and mapped to the *dimensions* message, not the not-a-usable-image one. Pillow raises it
@@ -464,8 +495,10 @@ the deadline instant is its own stopping rule.
     `create_asset(course, "image", content_file, user, name=name,
     source_url=submitted_url, content_hash=digest)`. The derived filename must be the
     wrapper's `.name`, not a separate argument: `create_asset` reads
-    `truncate_filename(uploaded_file.name)` for both `original_filename` and the storage
-    path, so a nameless `ContentFile` yields an empty `original_filename`. The wrapper must
+    `truncate_filename(uploaded_file.name)` for `original_filename` **only** — the storage
+    path is built by Django from the raw `ContentFile.name`, which is exactly why Filename
+    derivation step 6 truncates *before* wrapping rather than relying on `create_asset` to
+    do it. A nameless `ContentFile` yields an empty `original_filename`. The wrapper must
     also be an **uncommitted** file object — a committed `FieldFile` makes `_validate_file`
     short-circuit and skip both the extension and the size check, the trap `replace_asset`'s
     docstring already documents.
@@ -643,9 +676,21 @@ The route is registered as `manage_media_fetch` at
 
   Without `method="post"` and `action`, the form issues a GET to `manage_media` and the
   no-JS path never reaches the view at all — the same class of silent break as a missing
-  `{% csrf_token %}`. `name="name"` is pinned because the view reads `request.POST["name"]`,
-  and `[data-fetch-submit]` because §6's in-flight guard and e2e scenario (d) need a stable
-  selector. A template assertion checks the form's `action` resolves to the fetch route.
+  `{% csrf_token %}`. `name="name"` is pinned so the no-JS form submits under the key the
+  view reads; the view itself uses `(request.POST.get("name") or "").strip()`, as
+  `media_upload` does — **never bracket access**, which would raise
+  `MultiValueDictKeyError` (uncaught, hence a 500) on every picker fetch, since the picker
+  deliberately sends no name at all. `[data-fetch-submit]` is pinned because §6's in-flight
+  guard and e2e scenario (d) need a stable selector. A template assertion checks the form's
+  `action` resolves to the fetch route.
+
+  Both inputs are wrapped in the same `<label class="field">` convention the adjacent
+  `.media-upload` form uses for all three of its controls — `{% trans "Image URL" %}` and
+  `{% trans "Name" %} <span class="muted">({% trans "optional" %})</span>`. Without them the
+  new form ships two unlabelled controls directly beside three labelled ones: an
+  accessibility regression and a visible inconsistency, in a repo whose standing rule is
+  that every view ships styled. The labels are part of what the light/dark screenshot
+  verification checks.
 
   `type="url"` + `required` is the deliberate choice: the browser blocks an empty or
   obviously malformed submit, saving a round trip. The server-side empty check is **not**
@@ -669,7 +714,11 @@ The route is registered as `manage_media_fetch` at
   **The new panel carries `hidden` and its tab does not carry `is-on`**, matching the
   existing panels (`_picker.html:6-20`, where only the library tab is `is-on` and every
   other panel is `hidden`). A panel rendered without `hidden` stacks on top of the library
-  panel until the first tab click.
+  panel until the first tab click. **The `data-tab`/`data-panel` pair must match** — pin
+  both to `"fetch"`. The delegated handler switches panels via
+  `p.hidden = p.getAttribute("data-panel") !== tab.getAttribute("data-tab")`, so a mismatched
+  or omitted pair hides *every* panel on the first tab click; the template test asserts each
+  tab's `data-tab` has a corresponding `data-panel`.
 
   **Panel contents and activation, stated explicitly** because the picker is not a form
   context: the overlay is appended to `document.body` (`media_picker.js:92`), so it has no
@@ -689,8 +738,9 @@ The route is registered as `manage_media_fetch` at
   `data-search-url`), so this is a new class of attribute here, not an addition to an
   existing block.
 
-- **`templates/courses/manage/media/_asset_cell.html`** — when `asset.source_url` is set,
-  show a small source link in the **`.asset-foot`** region (beside the usage details),
+- **`templates/courses/manage/media/_asset_cell.html`** — when **`asset.source_host`** is
+  truthy (not `source_url` — see below), show a small source link in the **`.asset-foot`**
+  region (beside the usage details),
   with a new `.asset-source` class: `target="_blank" rel="noopener noreferrer"`, the
   **hostname only** as the visible label, and the full URL in `title`. A raw 500-character
   URL rendered inline would blow out the cell layout, which is why the cell already uses
@@ -706,6 +756,12 @@ The route is registered as `manage_media_fetch` at
   every asset in the manager grid, so one bad row would otherwise 500 the whole page.
   `courses/geogebra.py`'s `geogebra_material_id` wraps the same call in
   `try/except (ValueError, TypeError, IndexError)` for this reason.
+
+  **Gating on `source_host` rather than `source_url` is what makes that fallback coherent:**
+  a row whose `source_url` is set but whose authority is malformed has a truthy `source_url`
+  and an empty `source_host`, so gating on the former would render an anchor with no visible
+  label — a zero-width, unlabelled link. A template test asserts such a row renders no link
+  at all.
 
 All new user-facing template strings go through `{% trans %}`; the Python-side messages use
 `gettext_lazy` (§1). Both are covered by one `makemessages` pass with Polish translations
@@ -746,8 +802,18 @@ so an author who clicks twice — the near-certain response to a dead-looking bu
 two POSTs, and since URL-level dedup is an explicit non-goal, both succeed and two identical
 assets are created (in the picker, the second `selectAsset` also overwrites the first). The
 upload path is not a precedent: a file-picker dialog interposes a natural gate that a
-paste-and-click does not. So: disable `[data-picker-fetch]` (and the manager's
-`[data-fetch-submit]`) on dispatch and set `aria-busy`.
+paste-and-click does not.
+
+**The guard is a JS in-flight flag consulted inside `fetchPickerUrl`, not merely a
+`disabled` button.** Disabling the control is the *visible* expression of the flag, not the
+mechanism. This matters because §5 deliberately gives the picker a **second** activation
+route — Enter on `[data-picker-url]` — which never goes through the button at all, so a
+DOM-state-only guard lets two Enter presses issue two POSTs and create two duplicate assets,
+exactly the harm this paragraph exists to prevent. One flag checked at the top of
+`fetchPickerUrl` gates both routes. (The manager form is unaffected either way: HTML
+implicit submission fires a click at the default button, and a disabled default button
+suppresses it — but it uses the same flag for consistency.) So: set the flag, disable
+`[data-picker-fetch]` / the manager's `[data-fetch-submit]`, and set `aria-busy`.
 
 **Re-enable on all *three* outcomes.** Success and failure are the two arms inside
 `.then()`, and the model — `uploadPickerFile` (`media_picker.js:158-168`) — has no
@@ -786,7 +852,9 @@ asserted by a test.
 (`media_picker.js:161`) — neither `.picker` nor `root` — and the fetch path must use that
 same host, or e2e scenario (c) finds the bar somewhere the existing UI never puts it. So:
 flash host `overlay.querySelector(".picker-card")`, `msg()` host
-`overlay.querySelector(".picker")`.
+`overlay.querySelector(".picker")`. **On the manager the two coincide** — both are
+`.media-manager`, matching the existing `flash(root, …)` at `media_picker.js:285` — which is
+stated rather than left to be inferred from the coincidence.
 
 ## Data
 
@@ -886,7 +954,7 @@ shows these strings verbatim.
 | More than 3 redirect hops | "That URL redirects too many times." | hop budget |
 | Connection failure, timeout, or mid-read error | "Could not reach the image host." | `URLError`/`OSError`, after the `HTTPError` clause |
 | Wall-clock deadline exceeded | "Fetching the image took too long." | thread join, empty box |
-| Final status is not 200 | "The image host returned an error (status %(status)s)." | `HTTPError`, non-redirect status |
+| Status is not 200 | "The image host returned an error (status %(status)s)." | `HTTPError` for non-2xx; an explicit `resp.status != 200` check for a returned 204/206 |
 | `Content-Type` absent, empty, or not a known image type | "That URL did not return an image." | media-type gate |
 | `img.format` unknown, or no allowed extension for it | "That image type is not allowed." | filename derivation |
 | Body exceeds the cap (authoritative) | "Image file too large (max %(mib)d MiB)." | `read1` accumulator |
@@ -957,7 +1025,9 @@ records `threading.current_thread()` and assert it is the calling thread. Mutant
 **Unit — `fetch_image_asset`, with `_open` patched:** a redirect leaving the allow-list is
 rejected; an **http-downgrade** redirect reports the redirect message, not "must use https";
 a redirect with no `Location` is rejected; the hop budget reports "too many redirects";
-a `text/html` response at a `.jpg` path is rejected; an **absent** `Content-Type` is
+**a returned 206 is rejected with the status message** (it never becomes an `HTTPError`, so
+only the explicit `resp.status != 200` check catches it); a `text/html` response at a `.jpg`
+path is rejected; an **absent** `Content-Type` is
 rejected; an `image/svg+xml` response reports "That image type is not allowed.", not the
 not-an-image message; HTML bytes under an `image/png` Content-Type are rejected by Pillow;
 **an `MPO`-format JPEG is accepted** (not rejected as unknown); **an unknown `img.format`
@@ -1014,7 +1084,8 @@ rather than raising for a malformed authority.
 rendered message is the `"; ".join(e.messages)` form, not a Python repr; a no-JS request
 gets a `messages.error` plus a redirect; success returns the asset cell at 200; a
 non-manager user is refused by `_require_manage`; an **authenticated** GET is refused with
-405 by `@require_POST`.
+405 by `@require_POST`; **a POST carrying no `name` key at all succeeds** — the picker's
+shape — which is what stops bracket access on `request.POST` surviving as a 500.
 
 **Template:** the picker rendered with `kind="video"` has exactly two tabs and no From URL
 panel; with `kind="image"`, three, and the new panel is `hidden` with its tab not `is-on`.
@@ -1027,12 +1098,20 @@ picker's From URL tab fetches and selects the asset into an image element; (c) a
 URL shows the server's reason text in the picker flash; (d) a second click while a fetch is
 in flight issues no second request, on **both** the picker and the manager.
 
-**Scenario (d) needs the in-flight window held open deliberately.** The accepted fixture is
-a loopback read of a 17,883-byte static file and completes in single-digit milliseconds, so
-a plain double-click test observes one request either way and passes GREEN on a build with
-no guard at all. Use a Playwright `page.route` that **delays** the response to the fetch
-endpoint, count requests through that handler, and assert the control's `disabled`/
-`aria-busy` state synchronously after the first click.
+**Scenario (d) needs the in-flight window held open deliberately, and the second
+interaction must be forced.** The accepted fixture is a loopback read of a 17,883-byte
+static file and completes in single-digit milliseconds, so a plain double-click test
+observes one request either way and passes GREEN on a build with no guard at all. Use a
+Playwright `page.route` that **delays** the response to the fetch endpoint, count requests
+through that handler, and assert the control's `disabled`/`aria-busy` state synchronously
+after the first click.
+
+The second interaction cannot be a plain `click()`: Playwright's actionability checks
+include *enabled*, so on a **correct** build (button disabled) the call blocks until timeout
+and the test fails, while on a broken build it succeeds — the assertion is inverted. Use
+`click(force=True)` or `dispatch_event("click")`, and — per the in-flight-flag requirement
+in §6 — also assert a second `press("Enter")` in the picker issues no request, since Enter
+bypasses the button entirely.
 
 **Two distinct e2e fixtures, not one.** Scenarios (a), (b) and (d) use the *accepted* URL
 `{live_server.url}/static/core/img/learner.png` — an existing 17.9 KB PNG served by the live
