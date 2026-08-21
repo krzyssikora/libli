@@ -229,13 +229,112 @@
   // TypeError that would swallow their validation.
   window.libliAlignTopInPane = alignTopInPane;
 
+  // --- Reveal a nested target's hiding ancestors ---------------------------------
+  // Collection runs OUTWARD (target -> [data-scope="preview"]); reveal runs INWARD
+  // (outermost first). Order is load-bearing, not cosmetic: select() calls
+  // scrollIntoStrip(), which reads offsetLeft/offsetWidth/scrollLeft/clientWidth --
+  // all zero while an outer ancestor is still display:none, leaving an inner strip
+  // permanently mis-scrolled. The carousel's measure() reads geometry the same way.
+  //
+  // tabs.js's ownSections()/ownPart() and beforeafter.js's ownPanels()/ownToggle()
+  // are closure-local and NOT exported, so this reimplements the predicate rather
+  // than refactoring their exports. Ownership, not containment: a tabs element may
+  // legally contain another (the depth-3 lift), and a descendant-wide lookup from
+  // the outer container grabs the INNER instance's controls -- activating one hides
+  // the outer panel that contains it and the element goes blank (tabs.js:33-43).
+  function ownNodes(container, selector, ownerSelector) {
+    var out = [];
+    var all = container.querySelectorAll(selector);
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].closest(ownerSelector) === container) out.push(all[i]);
+    }
+    return out;
+  }
+
+  // `s` is a FILTER over C's OWNED nodes -- never closest() from the target (which
+  // returns the INNERMOST section for every ancestor in a stacked chain, so an outer
+  // container indexes a section it does not own and reveals the wrong slide), and
+  // never the child the climb passed through (that is .tabs__stage / .ba__panels --
+  // neither a section nor a panel, no id, indexOf -> -1).
+  function owningNode(container, selector, ownerSelector, target) {
+    var owned = ownNodes(container, selector, ownerSelector);
+    for (var i = 0; i < owned.length; i++) {
+      if (owned[i].contains(target)) return { node: owned[i], all: owned };
+    }
+    return null;
+  }
+
+  function revealAncestors(target) {
+    var stop = target.closest('[data-scope="preview"]');
+    if (!stop) return;  // defensive; unobservable on today's page (see the spec)
+    var chain = [];
+    var node = target.parentElement;
+    while (node && node !== stop) {
+      if (node.tagName === "DETAILS") {
+        if (!node.open) chain.push({ kind: "details", c: node });
+      } else if (node.hasAttribute("data-tabs")) {
+        // Collected UNCONDITIONALLY: select()/show() early-return on i === active,
+        // so pre-checking would only risk skipping. "Hidden" is NOT decidable by the
+        // [hidden] attribute here -- a carousel conceals by class/opacity/inert.
+        var t = owningNode(node, ".tabs__section", "[data-tabs]", target);
+        if (t) chain.push({ kind: "tabs", c: node, s: t.node, all: t.all });
+      } else if (node.hasAttribute("data-beforeafter")) {
+        var b = owningNode(node, ".ba__panel", "[data-beforeafter]", target);
+        if (b && b.node.hasAttribute("hidden")) {
+          chain.push({ kind: "ba", c: node, s: b.node });
+        }
+      }
+      node = node.parentElement;
+    }
+    for (var k = chain.length - 1; k >= 0; k--) revealOne(chain[k]);  // outermost first
+  }
+
+  // Each step calls the element's own .click() -- a real DOM click, dispatching the
+  // listener SYNCHRONOUSLY, so the step completes before the next ancestor inward is
+  // measured. A missing control is SKIPPED, never thrown on: a throw would abort the
+  // whole click handler and lose the scroll part 1 already earned.
+  function revealOne(hit) {
+    if (hit.kind === "details") {
+      hit.c.open = true;
+      // A <details> dispatches nothing of its own -- tabs.js's ResizeObserver is the
+      // only other rescue. Dispatching here gives a nested carousel's scheduleMeasure
+      // the signal it would otherwise miss.
+      hit.c.dispatchEvent(new CustomEvent("libli:reveal", { bubbles: true }));
+      return;
+    }
+    if (hit.kind === "ba") {
+      var toggle = ownNodes(hit.c, ".ba__toggle", "[data-beforeafter]")[0];
+      if (toggle) toggle.click();
+      return;
+    }
+    // Branch on the CONTAINER's data-display, exact "carousel" match, mirroring
+    // tabs.js:83 (null / "" / a stale fragment / a future third mode all fall through
+    // to the strip). Keying on [data-tab-panel] instead would match a carousel
+    // target, find no button, hit the skip above, and silently never reach the
+    // carousel branch -- while looking like correct defensive code.
+    if (hit.c.getAttribute("data-display") === "carousel") {
+      return;  // Task 4
+    }
+    // .tabs__section carries no id; the id [aria-controls] needs is on its panel.
+    var panel = ownNodes(hit.s, "[data-tab-panel]", ".tabs__section")[0];
+    if (!panel || !panel.id) return;
+    // Document-rooted is safe: panel ids are namespaced by the join-row pk.
+    var btn = document.querySelector('[aria-controls="' + panel.id + '"]');
+    if (btn) btn.click();
+  }
+
   // Align the selected element to the top of the preview. The rebuilt preview grows AFTER
   // layout (sandboxed HTML iframes, images, KaTeX), so align now for feedback, then re-align
   // as that async content loads and once more shortly after.
   function scrollPreviewTo(id) {
     if (!id) return;
     var sel = '.prev-el[data-element-id="' + id + '"]';
-    if (!root.querySelector(sel)) return;  // absent (failed/empty swap or deleted) -> no-op
+    var target = root.querySelector(sel);
+    if (!target) return;  // absent (failed/empty swap or deleted) -> no-op
+    // SYNCHRONOUS, after the absent-target guard and BEFORE the rAF below: revealing
+    // inside that callback would measure the pre-reveal layout on the first pass and
+    // leave the smooth scroll animating toward a stale position.
+    revealAncestors(target);
     var smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     function toTop(behavior) { alignTopInPane(root.querySelector(sel), behavior); }
     requestAnimationFrame(function () { toTop(smooth ? "smooth" : "auto"); });
