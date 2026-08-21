@@ -343,9 +343,9 @@ def test_ungated_table_does_not_cascade(page, live_server):
 
 # The `.callout__children > .callout__child` pair the pre-hide CSS keys on
 # (lesson_unit.html:42) and that reveal.js `scopeOf`/`ownWrapper` resolve to.
-# Callout children carry NO .lesson-block wrapper (calloutelement.html:24 emits a
-# bare .callout__child), so they have no data-element-id and _block()/_visible()
-# cannot reach them -- index into this instead.
+# Callout children carry NO .lesson-block wrapper (calloutelement.html:24 marks
+# .callout__child only when editor_preview), so on the student page they have no
+# data-element-id and _block()/_visible() cannot reach them -- index into this instead.
 _CALLOUT_CHILD = ".callout__children > .callout__child"
 
 

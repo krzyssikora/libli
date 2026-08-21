@@ -38,7 +38,7 @@ namespaces are deliberately NOT harmonised.
         <div class="tabs__panel" data-tab-panel data-tab-id="{{ tab.id }}"
              id="tabs-{{ eid }}-{{ tab.id }}-panel">
           {% for child in children %}
-            <div class="tabs__child">{% render_element child %}</div>
+            <div class="tabs__child{% if editor_preview %} prev-el{% endif %}"{% if editor_preview %} data-element-id="{{ child.pk }}"{% endif %}>{% render_element child %}</div>
           {% endfor %}
         </div>
       </section>

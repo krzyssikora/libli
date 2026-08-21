@@ -21,7 +21,7 @@
     {% endcomment %}
     <div class="callout__children">
       {% for child in children %}
-        <div class="callout__child">{% render_element child %}</div>
+        <div class="callout__child{% if editor_preview %} prev-el{% endif %}"{% if editor_preview %} data-element-id="{{ child.pk }}"{% endif %}>{% render_element child %}</div>
       {% endfor %}
     </div>
   {% endif %}

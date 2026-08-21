@@ -25,7 +25,7 @@ Task 5's browser verification). `{% comment %}` supports multiple lines.
       <p class="ba__side-heading visually-hidden">
         {% if forloop.first %}{% trans "Before" %}{% else %}{% trans "After" %}{% endif %}
       </p>
-      {% for child in children %}<div class="ba__child">{% render_element child %}</div>{% endfor %}
+      {% for child in children %}<div class="ba__child{% if editor_preview %} prev-el{% endif %}"{% if editor_preview %} data-element-id="{{ child.pk }}"{% endif %}>{% render_element child %}</div>{% endfor %}
     </section>
     {% endfor %}
   </div>
