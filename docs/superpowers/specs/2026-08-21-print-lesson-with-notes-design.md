@@ -82,6 +82,13 @@ writable without guesswork:
 `currentColor`, never an emoji, per the project icon convention. The visible label is the accessible
 name; no extra `aria-label` is needed.
 
+**The tag panel beside it is left alone, knowingly.** `_unit_strip.html`'s only other content is
+`tags/_unit_tag_panel.html`, whose `<summary class="unit-tags__summary">` opens with a literal `🏷`
+— a bare emoji against the project's monochrome-SVG convention, printing on every lesson right where
+the new button sits, and `tags.css` has no `@media print` block at all. This is a pre-existing
+blemish on a sibling element, not something this feature introduces or worsens, so it is named here
+and left out of scope rather than quietly swept in — the same treatment §Scope gives the no-JS route.
+
 `_unit_strip.html` is included by **three** templates — `lesson_unit.html`, `quiz_unit.html` and
 `quiz_results.html` — and only the first renders notes at all (`_block_notes.html` is reached from
 `_lesson_article.html`). Quiz print has never had a design pass, and printing a quiz mid-attempt is
@@ -156,7 +163,12 @@ Responsibilities:
    must print, or the printout silently loses them).
 4. **Record what it opened** in a module-local **`Set` of nodes**, so a panel the student had
    already opened is never closed behind their back.
-5. **Mark typed drafts, and fit every surviving textarea.** A student who clicked *Add another note*
+5. **Then — strictly after step 3–4 — mark typed drafts and fit every surviving textarea.** The
+   ordering is load-bearing, not incidental: a textarea inside a still-closed `<details>` sits under
+   `::details-content { content-visibility: hidden }`, so its layout is skipped and `scrollHeight`
+   reads `0` or a stale value. Stamping before opening writes `height: 0px` onto the mid-edit
+   textarea — precisely the failure this step exists to prevent. The enter path therefore **opens and
+   records every panel first, and only then walks the surviving textareas**. A student who clicked *Add another note*
    and typed has an unsaved draft in a plain `.note-composer` — no `--edit` class, no error node.
    **CSS cannot detect it**: typing changes the textarea's `value`, not its DOM children, so
    `:empty` / `:has()` are blind to it. `print.js` therefore adds `.note-composer--has-draft` on the
@@ -167,6 +179,15 @@ Responsibilities:
 6. **Restore on the leave path** — remove `open` from precisely the recorded nodes, clear the Set,
    and undo the `setupClamp` residue (§2c). Every step must be a **no-op when the thing it removes
    is absent** (§2e), never an error.
+
+   **Two different scopes, deliberately.** The clamp cleanup is Set-scoped ("no wider", §2c) because
+   a panel the student opened by hand was clamped by their own gesture. The **height stamps and
+   `.note-composer--has-draft` marks are not**: `print.js` writes them to every surviving textarea,
+   including composers in panels the student had already opened and which the leave path therefore
+   never closes. Mirroring the clamp's scoping here would freeze those textareas at their print
+   height in the live DOM forever — the same class of residue §2c exists to prevent. So the enter
+   path records the textareas it stamped in a **second module-local Set**, and the leave path clears
+   from that, independently of which panels were opened.
 7. **Two dispatchers, no mode flag.** Safari fires `beforeprint`/`afterprint` unreliably, so
    `matchMedia("print")` change events drive the same enter/leave handlers, routed on `e.matches`
    (`true` → enter, `false` → leave).
@@ -298,7 +319,8 @@ neutralising the stage's positioning and height, and §2d mirrors it in full:
 @media print {
   .slideshow-deck {
     overflow: visible !important;
-    border: 0; border-radius: 0; box-shadow: none;   /* screen chrome for a widget paper has not */
+    border: 0; border-radius: 0; box-shadow: none; background: none;  /* screen chrome */
+    margin-block: 0;
   }
   .slideshow-stage { position: static !important; height: auto !important; }
   .slideshow-deck .slide,
@@ -412,8 +434,13 @@ keeps each reveal beside the hide it pairs with.
 
 #### The block must
 
-- **Return the pop to flow.** Reset every property the (0,4,0) rule sets, not just the positioning
-  ones: `position`, `top` (`!important`, per the inline style), `left`, `right`, `width`,
+- **Return the pop to flow**, written **verbatim as
+  `.notes-js .block-notes__panel[open] .block-notes__pop`** — unscoped, matching the original
+  selector's (0,4,0) exactly and winning by end-of-file source order. This is the one rule where the
+  scoping rule must *not* be applied mechanically: the obvious `.lesson`-scoped write,
+  `.lesson .block-notes__panel[open] .block-notes__pop`, is **(0,3,1)** — inert against (0,4,0), and
+  not the (0,1,0) shape the naive mutant assumes, so it would slip past a reviewer looking only for
+  under-weighting. Reset every property the original rule sets, not just the positioning ones: `position`, `top` (`!important`, per the inline style), `left`, `right`, `width`,
   `margin-top`, `padding`, `background`, `border`, `max-height`, `overflow-y`, `z-index`, `border-radius` and
   `box-shadow`. `right` is named explicitly because `.block-notes__pop--clamped` sets
   `left: auto; right: 0`: resetting `left` alone leaves `right: 0` applied. A partial reset leaves the
@@ -454,8 +481,14 @@ keeps each reveal beside the hide it pairs with.
     still be `width: 15rem` (`notes.css:92–106`). The printed pop is returned to flow at full column
     width, which is **wider** — the same text needs *fewer* lines, so the stamped height is
     **over-tall, never short**. Over-tall prints trailing whitespace; short would clip the student's
-    words. Over-tall is the acceptable failure direction, which is why no re-measurement after the
-    print cascade is required.
+    words. Over-tall is the acceptable failure direction, which is why no re-measurement after
+    the print cascade is required.
+
+    One caveat that makes a "decorative" reset load-bearing: `.note-composer__input` is
+    `box-sizing: border-box` (`notes.css:209`) and inherits `input[type]` border and padding from
+    `app.css`, so `ta.style.height = ta.scrollHeight + "px"` sets a *border-box* height from a
+    *padding-box* measurement — short by the border width. The print block's `border: 0` is what
+    recovers it. Do not delete that declaration as chrome.
   - **CSS** supplies `field-sizing: content; height: auto; max-height: none; overflow: visible;
     border: 0; resize: none;`. `field-sizing` is Chromium-only today, so it is progressive
     enhancement, not the mechanism — but it keeps the printout correct if the enter path never ran.
@@ -469,10 +502,33 @@ keeps each reveal beside the hide it pairs with.
   `border-left: 4px solid var(--note-accent, …)` with eight stable per-block hues bound via
   `data-colour`. Print keeps that rail — borders are painted even when the browser's "background
   graphics" option strips backgrounds — and adds `break-inside: avoid`.
-- **Hide a pop with nothing in it.** The §2 filter governs only panels `print.js` opens; a note-less
-  panel the *student* opened by hand stays open by design, and with its add-label and composer hidden
-  it prints as an empty box. `.block-notes__pop:not(:has(.note-card, .note-composer--edit,
-  .note-delete-confirm))` is hidden, closing that gap for both paths.
+- **Hide a pop with nothing in it** — and get its exemption list right, because this rule is the one
+  most able to silently undo the three carve-outs above. The §2 filter governs only panels `print.js`
+  opens; a note-less panel the *student* opened by hand stays open by design, and with its add-label
+  and composer hidden it prints as an empty box. The rule is:
+
+  ```css
+  .lesson .block-notes__pop:not(:has(
+      .note-card, .note-composer--edit, .note-composer--has-draft, .note-composer__error)) {
+    display: none;
+  }
+  ```
+
+  Three things about that `:has()` list are deliberate:
+
+  - **`.note-composer--has-draft` and `.note-composer__error` must be in it.** `_block_notes.html`
+    renders a composer for **every** block, note-less ones included, and re-opens the panel with a
+    rejected `note_error` draft on note-less blocks too. Without these two entries the empty-pop rule
+    hides the whole pop and the draft is lost anyway — the marking in §2 responsibility 5 and the
+    no-JS carve-out in the hide list would both buy exactly nothing. The `--error` case cannot be
+    rescued by JS, since `print.js` never runs on the route that produces it.
+  - **`.note-delete-confirm` is deliberately *not* in it.** §2b says a mid-delete note "is omitted
+    cleanly rather than printing a stray Delete? Yes / No strip". Exempting the pop would instead
+    print a bordered, padded, entirely empty box for a block whose only note is mid-delete. Leaving
+    it out makes the pop vanish, which is what "cleanly" means.
+  - **The `.lesson` scope** is per the scoping rule ("scope a hide"). It is inert — `.block-notes__pop`
+    exists only in lessons — but the rule is applied uniformly so no reader has to wonder whether an
+    unscoped hide was a decision or an oversight.
 - **Style the unanchored section.** `.unanchored-notes` carries a dashed border and raised
   background, and its `<summary class="unanchored-notes__handle">` renders a literal `⚠` glyph plus
   "N notes whose block was removed" — screen chrome, and a bare glyph against the project's
@@ -488,8 +544,10 @@ keeps each reveal beside the hide it pairs with.
 
   `.block-notes` itself carries `margin-top: -.85rem; margin-bottom: .35rem` (`notes.css:45`), tuned
   to pull the screen affordance up against its element. With the handle gone, that negative margin
-  drags the note card up over the block it annotates, so print resets it to a small positive
-  `margin-top` — the note must read as belonging to the block **above** it.
+  drags the note card up over the block it annotates. Print resets it to
+  **`margin-top: .35rem; margin-bottom: .75rem`** — a small positive lead-in so the note reads as
+  belonging to the block **above** it, and slightly more trailing space so it does not crowd the next
+  block. Both values are stated rather than left to taste, so the rule is reviewable.
 
   **Both `<summary>` elements take this visibility-based treatment** — `.unanchored-notes__handle`
   and `.block-notes__handle` alike. Neither appears in the `display: none` list above, deliberately:
@@ -574,7 +632,8 @@ near-white text on white paper — a blank page.
 **The mechanism is richer than "an attribute from `user.theme`."** `base.html:4–5` renders both
 `data-theme` and `data-theme-pref`; a prepaint script (`base.html:17–26`) overwrites `data-theme`
 from `matchMedia("(prefers-color-scheme: dark)")` when the pref is `auto`, falling back to a
-`libli_theme` cookie when the attribute is absent, and `ui.js` rewrites both on toggle. What is true
+`libli_theme` cookie when **`data-theme-pref`** (not `data-theme`) is absent, and `ui.js` rewrites
+both on toggle. What is true
 is that `tokens.css` itself contains no `prefers-color-scheme` query — the resolved theme always
 arrives as the `data-theme` attribute.
 
@@ -629,13 +688,27 @@ the `border-left: 3px solid` rail (`:1944`). These live in a **later-loaded shee
 `#7db0f7` (≈2.2:1) or `#e8b761` (≈1.9:1) headings on white — the exact legibility failure §4 exists
 to prevent, on the exact page this button ships on.
 
-So a **matching `@media print { [data-theme="dark"] .callout--* { --callout-accent: <:root value> } }`
-block is appended to `courses.css`** alongside §1's and §2d's rules. And the rule for the parity test
+So a **matching `@media print { [data-theme="dark"] .callout--* { … } }` block is appended to
+`courses.css`** alongside §1's and §2d's rules.
+
+**The value source is not `:root` here.** `--callout-accent` is never declared on `:root`; its
+light values live on the modifier classes themselves (`courses.css:2004–2008`:
+`.callout--example { --callout-accent: #2563c9 }` … `.callout--task { --callout-accent: #a8318f }`),
+and `.callout` carries only the fallback `--callout-accent: var(--primary)` at `:1942`. So the
+general contract is: **the print counterpart restates the value from the light-theme declaration of
+the same selector**, which is `:root` for the `tokens.css` set and `courses.css:2004–2008` for the
+callout set. Stated as "copy `:root`'s value" it would be unwritable for callouts. And the rule for the parity test
 becomes a repo-wide one: *every* `[data-theme="dark"]` declaration in a shipped stylesheet needs a
 print counterpart, not just `tokens.css`'s. A sweep at implementation time found exactly two sets
-that matter for a printed lesson — `tokens.css:79` and `courses.css:2010–2014`. (`error.css:50`,
-`editor.css:924` and `tags.css:329` are on pages this feature does not print; the parity test names
-them as known, deliberate exclusions so a future reader can tell "checked" from "missed".)
+that matter for a printed lesson — `tokens.css:79` and `courses.css:2010–2014`. Three other dark rules are
+excluded, each for its own stated reason — the parity test names them so a future reader can tell
+"checked and excluded" from "missed":
+
+- `error.css:50` and `editor.css:924` are on pages this feature does not print.
+- `tags.css:329` **is** on the printed page — `lesson_unit.html:36` loads `tags.css`, and
+  `_unit_strip.html` includes the tag panel — so "not on this page" would be a false rationale. It is
+  excluded on the narrower and true ground that `.tag-delete-confirm` is a JS-built transient inside
+  a `<details>` that is closed unless `tags_panel_open`, and is author-only.
 
 The cost is that the light values are stated twice. That is pinned by a parity test (see Testing),
 whose **extraction contract is itself load-bearing**: the repo's existing helper
@@ -853,17 +926,24 @@ Fixtures follow the pattern already proven in `tests/test_e2e_notes.py`: allauth
 | 2 | A note body is **genuinely visible** | `emulate_media` only, polling read *(media)* | delete the `matchMedia` listener registration |
 | 3 | Clicking the **real button** calls `window.print()` (stubbed via `add_init_script` to set a flag) | real click, no `page.evaluate` shortcut | delete the click listener |
 | 4 | A note body longer than 6 lines prints **in full**. The fixture **injects** `.note-card__body--clamp` via `page.evaluate` after the enter path and then asserts the rendered height exceeds six lines — it must **not** wait for `setupClamp`. §2e forbids depending on the async toggle; worse, `setupClamp` measures *after* adding the class (`notes.js:104`), so with the un-clamp rule live it detects no overflow and removes the class again, leaving the row green on its own mutant | `beforeprint`, inject, `emulate_media` *(CSS)* | delete the un-clamp rule |
-| 5a | `.block-notes__pop` is `position: static` in print at a ≥1200px viewport | `beforeprint` then `emulate_media` *(CSS)* | delete the `position` reset, **or** re-write it at (0,1,0) |
+| 5a | `.block-notes__pop` is `position: static` in print at a ≥1200px viewport | `beforeprint` then `emulate_media` *(CSS)* | delete the `position` reset; re-write it at (0,1,0); **or** re-write it as the plausible `.lesson`-scoped `.lesson .block-notes__panel[open] .block-notes__pop`, which is (0,3,1) and equally inert against (0,4,0) |
 | 5b | An inline `top` set by the fixture is overridden | fixture sets `pop.style.top` via `page.evaluate`, then enter *(CSS)* | drop `!important` from the `top` reset |
 | 5c | `right: 0` from `--clamped` is overridden | fixture adds `block-notes__pop--clamped`, then enter *(CSS)* | delete the `right` reset |
-| 6a | `.block-notes__handle`, `.note-card__actions` and `.block-notes__add-more` are **not** visible. *All three are genuinely visible pre-print, so the row discriminates* | `beforeprint` then `emulate_media` *(CSS)* | delete the control-hiding rule; **separately**, write the add-more hide at (0,2,0) |
+| 6a | `.note-card__actions` and `.block-notes__add-more` are **not** visible, asserted with `checkVisibility()`. *These two are `display: none` in print, which `checkVisibility()` does detect* | `beforeprint` then `emulate_media` *(CSS)* | delete the control-hiding rule; **separately**, write the add-more hide at (0,2,0) |
+| 6a2 | `.block-notes__handle` has `bounding_box()["height"] == 0`. *It must **not** be asserted with bare `checkVisibility()`: §3 suppresses it with `visibility: hidden`, and `checkVisibility()`'s default `visibilityProperty: false` means it returns **`true`** for such an element — the row would be RED on a correct build. Either measure the box or pass `{visibilityProperty: true}`* | `beforeprint` then `emulate_media` *(CSS)* | delete the summary suppression |
 | 6b | A composer made visible by clicking *Add another note* (`.is-adding`) and left **empty** is not visible in print. *Driven through `.is-adding` deliberately: on a has-notes pop the composer is already hidden on screen by `notes.css:181–182` at (0,5,0), so asserting it without that state passes on the mutant too* | click *Add another note*, then enter *(CSS)* | delete the composer hide |
-| 7 | A note **mid-edit** prints its text **in full**: the fixture note needs more than three rows, and the textarea's `bounding_box()["height"]` must exceed a stated three-row threshold. *Without the height check the row passes on a three-row box with the rest scrolled out — the very failure §3 says `height: auto` causes, leaving the stamp untested* | open inline edit, then enter *(CSS + stamp)* | drop `:not(.note-composer--edit)` from the hide rule; **delete the `ta.style.height` stamp**; delete the CSS `height`/`field-sizing` group |
-| 7b | A **typed but unsaved** new-note draft prints its text | click *Add another note*, type, then enter *(CSS + stamp)* | delete the `.note-composer--has-draft` marking, or the `:not(.note-composer--has-draft)` carve-out |
+| 7 | A note **mid-edit** prints its text **in full**: the fixture note needs more than three rows, and the textarea's `bounding_box()["height"]` must exceed a stated three-row threshold. *Without the height check the row passes on a three-row box with the rest scrolled out — the very failure §3 says `height: auto` causes, leaving the stamp untested* | open inline edit, then enter *(CSS + stamp)* | drop `:not(.note-composer--edit)` from the hide rule; **delete the `ta.style.height` stamp**. *Deleting the CSS `height`/`field-sizing` group alone is a **dead mutant** here: the inline stamp beats it, and `.note-composer__input` has no `max-height` to reset, so the rendered height is unchanged. It is covered by row 7c instead* |
+| 7c | With the enter path never run (CSS-only entry, no `beforeprint`, no stamp), a mid-edit textarea still prints more than three rows. *This is the row that gives the `field-sizing` fallback a falsifying mutant — it is the no-JS / stamp-never-ran path §3 calls progressive enhancement* | open inline edit, then `emulate_media` **only** *(CSS)* | delete the CSS `height`/`field-sizing` group |
+| 7b | A **typed but unsaved** new-note draft prints its text, on a block that **already has notes** | click *Add another note*, type, then enter *(CSS + stamp)* | delete the `.note-composer--has-draft` marking, or the `:not(.note-composer--has-draft)` carve-out |
+| 7b2 | Same, on a **note-less** block. *Row 7b cannot cover this: *Add another note* only exists on `.block-notes__pop--has-notes`, so its pop satisfies `:has(.note-card)` and the empty-pop rule never fires. Only a note-less block exercises the interaction between the draft carve-out and the empty-pop hide* | hand-open a note-less panel, type in its composer, then enter *(CSS + stamp)* | drop `.note-composer--has-draft` from the **empty-pop** rule's `:has()` list |
 | 8 | A note **mid-delete**: the confirm strip does not print, and sibling notes in the same panel do | start a delete, then enter *(CSS)* | omit `.note-delete-confirm` from the hide list |
+| 8a | A block whose **only** note is mid-delete prints **no pop at all** — not an empty bordered box. *Pins §3's decision to keep `.note-delete-confirm` **out** of the empty-pop `:has()` list; row 8's fixture has siblings, so it cannot see this* | start a delete on a single-note block, then enter *(CSS)* | add `.note-delete-confirm` to the empty-pop rule's `:has()` list |
 | 9 | A **note-less** block does **not** carry the `open` attribute after the enter path. *Asserted on DOM state, not on paint: §3 hides the add-label and composer anyway, so a paint-based assertion would pass on the mutant* | `beforeprint` *(event)* | drop the filter from the sweep (open every panel) |
 | 9b | A panel put into edit (or delete-confirm) state and then **closed** is re-opened by the sweep. *Rows 7 and 8 act on panels that are already open, so neither traverses the filter; without this row the natural simplification — narrowing the filter to `.note-card` — is killed by nothing, and the real case it breaks (edit, close the panel, `Ctrl+P`) loses the note* | `beforeprint` *(event)* | drop `.note-composer--edit, .note-delete-confirm` from the filter |
+| 8b | A **rejected no-JS draft** on a **note-less** block prints its text. *Drives the real no-JS create-failure path (`note_error`), which server-renders the panel open with the student's text; `print.js` cannot rescue this one, so only the empty-pop rule's `:has()` list protects it* | post an invalid note with JS disabled, then `emulate_media` *(CSS)* | drop `.note-composer__error` from the empty-pop rule's `:has()` list |
 | 9c | A **note-less** panel the *student* opened by hand prints **no** `.block-notes__pop` box. *The only row covering the empty-pop rule, and the reason `.block-notes__add-label` needs no row of its own: it is rendered only on note-less blocks, which the sweep never opens, so a direct assertion on it would be `false` on the mutant too* | hand-open a note-less panel, then enter *(CSS)* | delete the `:not(:has(…))` empty-pop rule |
+| 10b | The `.unanchored-notes__handle` summary has `bounding_box()["height"] == 0` in print. *Row 10 only asserts the section prints, which is satisfied with the ⚠ handle still showing; measured, not `checkVisibility()`, per the trap above* | `beforeprint` then `emulate_media` *(CSS)* | delete the summary suppression |
+| 10c | `.block-notes` does not overlap the block above it in print: its computed `margin-top` is positive. *Covers §3's negative-margin reset, which would otherwise print the note card over the element it annotates with nothing to catch it* | `beforeprint` then `emulate_media` *(CSS)* | delete the `.block-notes` margin reset |
 | 10 | The **unanchored** notes section prints (fixture: a note whose element was deleted) | `beforeprint` then `emulate_media` *(shared)* | drop `.unanchored-notes > details` from the sweep |
 | 11 | The `My note` label is visible in print and **absent on screen** | screen, then enter *(CSS)* | delete the label reveal rule, **or** the base-block `display: none` |
 | 12 | The absolute date is visible in print and **absent on screen**; `.note-card__meta-rel` is not visible in print | screen, then enter *(CSS)* | delete the base-block hide for `.note-card__print-date`, **or** the relative-hide rule |
@@ -886,8 +966,8 @@ thresholds above are the discriminator, in the same spirit as row 11's height th
 
 **Dark-theme fixture (rows 21–22).** Set the **user's stored theme** to `dark` before login, so the
 server renders `data-theme-pref="dark"` and `data-theme="dark"`. Do **not** reach for the
-`libli_theme` cookie: the prepaint script consults it only when the attribute is *absent*, so a
-cookie-based fixture silently does nothing and the assertion measures a light page — passing on a
+`libli_theme` cookie: the prepaint script consults it only when **`data-theme-pref`** is absent, so a
+cookie-based fixture on a server-rendered page silently does nothing and the assertion measures a light page — passing on a
 build with the override deleted. Each row additionally asserts `data-theme` resolves to `dark` on the
 loaded page, so a mis-wired fixture fails loudly instead of quietly.
 
@@ -903,6 +983,12 @@ respected or the tests will pass on a broken build:
   bounding box is non-empty). `expect(...).to_be_visible()` on `.note-card__on` therefore cannot
   fail, and `.note-card__on` must never stand in for the note body. Rows 1, 2 and 11 use
   `checkVisibility()` **plus** a numeric `bounding_box()["height"]` threshold, never bare presence.
+- **`checkVisibility()` with no options returns `true` for `visibility: hidden`.** Its defaults are
+  `contentVisibilityAuto: false, opacityProperty: false, visibilityProperty: false` — it is the right
+  discriminator for `content-visibility` (the closed-`<details>` case above) and the wrong one for
+  the two `<summary>` elements §3 suppresses with `visibility`. Rows 6a2 and 10b therefore measure
+  `bounding_box()["height"]` instead. Using one method for both is how a row ends up RED on a correct
+  build.
 - **`wait_for_selector(sel)` defaults to `state="visible"`** and will hang on a clipped-but-present
   element; use `state="attached"`.
 
