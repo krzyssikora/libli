@@ -71,21 +71,31 @@ implementation would have to re-learn both in a second dialect:
   drip body.
 
 Using `urllib.request` therefore costs no new dependency (`pyproject.toml` is untouched),
-inherits a proven transport seam for tests, and keeps one convention in the codebase. The
-existing `geogebra.py` and `integrations/delivery.py` callers are left exactly as they are;
-this feature simply joins them.
+inherits a proven transport seam for tests, and keeps one convention in the codebase.
+
+**`media_fetch.py` defines its own module-level `_NoRedirect` and `_open`** rather than
+importing geogebra's private ones — following the reason `geogebra.py:252-259` already gives
+for duplicating `_NoRedirect` instead of importing delivery's. Tests therefore patch
+`courses.media_fetch._open`. The behaviour of `integrations/delivery.py` and
+`geogebra.py` is otherwise unchanged by this feature; the one exception is the shared
+User-Agent constant (§2), which is a pure move with no behavioural effect.
 
 ### 1. `validate_fetch_url()` — `courses/validators.py`
 
 A deliberate twin of the existing `validate_embed_url` (`courses/validators.py:118`),
 which guards video/iframe embeds.
 
-**The value is stripped first.** The view passes `request.POST.get("url", "").strip()`,
-and the stripped string is what is validated, fetched, and stored in `source_url`. This is
-load-bearing rather than tidy-mindedness: a pasted URL routinely carries a leading space or
-newline, and `urlsplit(" https://…")` yields an empty scheme, so an unstripped value fails
-the scheme rule with "must use https" — exactly the misleading message rule 1 below exists
-to prevent. Whitespace-only input must therefore test as empty.
+**`validate_fetch_url` strips its own input**, and `fetch_image_asset` uses the stripped
+value as `submitted_url` — so the stripped form is what is validated, fetched, and stored in
+`source_url`. Stripping belongs to the validation authority, not the view: the view's own
+`.strip()` is redundant convenience at most, and if the view were the only place it happened
+the validator could never see whitespace, making the two whitespace unit tests below
+unwritable and leaving `source_url` holding the unstripped value.
+
+This is load-bearing rather than tidy-mindedness: a pasted URL routinely carries a leading
+space or newline, and `urlsplit(" https://…")` yields an empty scheme, so an unstripped
+value fails the scheme rule with "must use https" — exactly the misleading message rule 1
+below exists to prevent. Whitespace-only input therefore tests as empty.
 
 Rules, checked in this order:
 
@@ -113,6 +123,17 @@ Raises `ValidationError` on rejection. **All messages in this module and in
 which raises bare English literals: §6 goes to real lengths to display these strings
 verbatim to the author, so an untranslated literal would ship English into a Polish UI.
 They are included in the `makemessages` pass.
+
+**Interpolated messages raised on the worker thread must pass `params=`, never `%`.**
+Django's active language is thread-local and `core.middleware.SessionLocaleMiddleware`
+(`config/settings/base.py:48`) activates it on the *request* thread only, so the daemon
+thread has no activation and falls back to `LANGUAGE_CODE = "en"`. The natural
+`_("… %(mib)d …") % {...}` idiom — which `courses/validators.py:104` already uses — resolves
+the lazy string *at raise time*, on the worker, in English. Worker-raised errors must
+therefore be `ValidationError(lazy_msg, params={...})`, deferring interpolation until
+`"; ".join(e.messages)` runs on the request thread under the author's language. This applies
+to both interpolated worker messages: the status message and the "too large" message. A test
+asserts a worker-side interpolated message renders translated under `activate("pl")`.
 
 **Why an allow-list rather than an open fetch with SSRF guards.** Pinning the host to a
 known-good set *before any packet leaves the process* eliminates the entire SSRF class:
@@ -162,14 +183,23 @@ than reusing it: the two lists authorise different things (an iframe the browser
 a host this server will connect to), and silently granting server-side fetch to every
 embed host would be a privilege widening nobody asked for.
 
-**The User-Agent is a shared module constant, not a setting.** `courses/geogebra.py:78`
+**The User-Agent is a shared module constant, not a setting.** `courses/geogebra.py:77`
 already defines `_USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"` and
 argues explicitly for a constant over a setting ("matching the pattern of
 `integrations/delivery.py`"). Rather than duplicate that literal or contradict that
-precedent, lift it to a single shared constant that both callers import, and have
-`geogebra.py` import it too. It is **not optional**: Wikimedia's User-Agent policy requires
-a descriptive, contactable UA and returns 403 to generic library user-agents, and Wikimedia
-is the entire default allow-list.
+precedent, lift it to **`core/http.py` as `USER_AGENT`**, and have both `geogebra.py` and
+`media_fetch.py` import it from there.
+
+**`courses.geogebra._USER_AGENT` must remain a resolvable name**: `tests/test_geogebra.py:437`
+does `from courses.geogebra import _USER_AGENT`, so the move must leave a module-level alias
+(`_USER_AGENT = USER_AGENT`) behind, or that test breaks for reasons unrelated to this
+feature. (A zero-move alternative is acceptable if preferred: `media_fetch.py` simply does
+`from courses.geogebra import _USER_AGENT`. Pick one and be consistent — the point is that
+the literal exists once.)
+
+The header is **not optional**: Wikimedia's User-Agent policy requires a descriptive,
+contactable UA and returns 403 to generic library user-agents, and Wikimedia is the entire
+default allow-list.
 
 `.env.example` gains commented lines for both settings, beside the existing
 `LIBLI_ALLOWED_EMBED_DOMAINS` example at `.env.example:21`, with the
@@ -193,13 +223,35 @@ allow-listed.
 One public entry point:
 
 ```
-fetch_image_asset(course, url, user, name="") -> MediaAsset
+fetch_image_asset(course, submitted_url, user, name="") -> MediaAsset
 ```
 
-Module constants, mirroring `geogebra.py`'s set: `MAX_REDIRECT_HOPS = 3`,
-`TIMEOUT_SECONDS = 8` (per socket op), `DEADLINE_SECONDS = 20` (total),
-`CHUNK_BYTES = 64 * 1024`, `MAX_PIXELS` (see step 10),
-`REDIRECT_STATUSES = {301, 302, 303, 307, 308}`.
+The parameter is named `submitted_url`, not `url`, for the reason the Naming paragraph
+below gives.
+
+Module constants, mirroring `geogebra.py`'s set:
+
+```
+MAX_REDIRECT_HOPS  = 3
+TIMEOUT_SECONDS    = 8               # per socket op
+DEADLINE_SECONDS   = 20              # total wall clock
+CHUNK_BYTES        = 64 * 1024
+MAX_PIXELS         = 50_000_000      # ~50 MP; see below
+REDIRECT_STATUSES  = {301, 302, 303, 307, 308}
+```
+
+**`MAX_PIXELS = 50_000_000` is a real number with a rationale, not a placeholder.** It sits
+*below* Pillow's own `Image.MAX_IMAGE_PIXELS` default (89,478,485), which is what makes the
+check meaningful: Pillow only *raises* above 2 × its limit, so everything from `MAX_PIXELS`
+up to 178 M would otherwise reach `generate_derivatives` and be decoded in full. 50 MP is
+roughly 200 MB decoded at 4 bytes/pixel — already far beyond any legitimate teaching
+illustration, and comfortably above the largest real photographs authors paste (a 100 MP
+camera image is ~11,600 × 8,700 = 101 MP and is *not* something this feature needs to
+accept).
+
+**The constants are not independent.** `MAX_REDIRECT_HOPS`, `TIMEOUT_SECONDS` and
+`DEADLINE_SECONDS` must satisfy the relationship recorded under "Redirect handling" below;
+changing any one without re-checking it silently breaks the wall-clock bound.
 
 **Naming.** The spec uses two distinct names throughout, and the implementation must too:
 `submitted_url` (the stripped value the author pasted) and `current_url` (the hop being
@@ -281,13 +333,19 @@ the deadline instant is its own stopping rule.
 
    ```
    try:
-       with opener.open(req, timeout=TIMEOUT_SECONDS) as resp:
-           ...            # 2xx only: steps 6-8
+       with _open(req, TIMEOUT_SECONDS) as resp:
+           ...            # 2xx only: steps 7-8
    except urllib.error.HTTPError as exc:
-       ...                # 3xx and non-2xx: inspect exc.status / exc.headers, then exc.close()
+       ...                # 3xx and non-2xx: inspect exc.code / exc.headers, then exc.close()
    except (TimeoutError, urllib.error.URLError, OSError):
        ...                # genuine transport failure
    ```
+
+   The call goes through the module's own `_open` seam (§0), never a locally built opener —
+   that seam is what every unit test patches, so an inline `opener.open(...)` would make the
+   entire unit suite unrunnable. Status is read as **`exc.code`**, matching both sibling
+   modules (`geogebra.py:475`, `integrations/delivery.py:143`); `.status` is equivalent on
+   3.13 but a lightweight test double written from those examples sets only `.code`.
 
    **The clause order is mandatory, not stylistic:** `HTTPError` is a subclass of
    `URLError`, so a `URLError` clause placed first swallows every redirect and every status
@@ -295,7 +353,7 @@ the deadline instant is its own stopping rule.
    feature would report "Could not reach the image host." for a 404.
 
    Inside the `HTTPError` handler:
-   - `exc.status in REDIRECT_STATUSES` → redirect handling (below);
+   - `exc.code in REDIRECT_STATUSES` → redirect handling (below);
    - anything else → "The image host returned an error (status %(status)s)."
 
 6. **Redirect handling.** For a redirect `HTTPError`:
@@ -303,8 +361,22 @@ the deadline instant is its own stopping rule.
    - `Location` is resolved against `current_url` with `urljoin`, then re-validated;
    - every hop re-issues `GET` with the same headers and timeout, regardless of whether the
      status was 303 or 307/308;
-   - at most `MAX_REDIRECT_HOPS` hops → "That URL redirects too many times." A redirect
-     status arriving when the budget is exhausted reports *that*, never the not-200 message.
+   - **the budget is checked at the top of every iteration**, before the next hop is issued:
+     `monotonic() >= deadline` raises `_BudgetExceeded`. Without this the deadline is only
+     consulted inside the byte-read loop, and four requests (one initial plus three hops)
+     each allowed `TIMEOUT_SECONDS` on connect alone can burn
+     `(MAX_REDIRECT_HOPS + 1) × TIMEOUT_SECONDS` = **32 s** against a 20 s budget — with the
+     daemon thread still opening sockets to a hostile host long after the author has been
+     told it took too long. This is the constant relationship referred to above: whenever
+     `(MAX_REDIRECT_HOPS + 1) × TIMEOUT_SECONDS > DEADLINE_SECONDS`, the per-iteration check
+     is the only thing holding the bound.
+
+   **The hop boundary is exact: one initial GET plus at most `MAX_REDIRECT_HOPS` followed
+   redirects — four requests in total.** A chain of exactly three redirects therefore
+   *succeeds*; a fourth redirect status raises "That URL redirects too many times." A
+   redirect status arriving when the budget is exhausted reports *that*, never the not-200
+   message. The unit test asserts **both** sides of that boundary, so the off-by-one cannot
+   be settled by whichever way the implementation happened to go.
 
    **The re-validation's own messages are caught and replaced.** `validate_fetch_url` has
    five rules, and a redirect target can trip any of them: a downgrade to `http://` would
@@ -347,22 +419,33 @@ the deadline instant is its own stopping rule.
     with Pillow, keep `img.format` and `img.size`, then `verify()`. On failure reject with
     "That URL did not return a usable image."
 
-    The handler is a **broad `except Exception`**, in the style of `geogebra.py`'s
-    documented broad catches, and `PIL.Image.DecompressionBombError` is explicitly inside
-    that set. A narrow `except UnidentifiedImageError` is a real 500: `Image.open` also
-    raises `OSError`, `ValueError`, `SyntaxError` from individual plugins, and
-    `DecompressionBombError` at open time. Since the view catches only `ValidationError`
-    (`courses/views_media.py:47`), anything not converted here is a 500, not a 422.
+    **`DecompressionBombError` is caught in its own clause, placed before the broad one**,
+    and mapped to the *dimensions* message, not the not-a-usable-image one. Pillow raises it
+    from `Image.open` above 2 × `Image.MAX_IMAGE_PIXELS`, i.e. before the explicit `img.size`
+    check below can run — so without a dedicated clause an enormous image is told it is "not
+    a usable image" while a merely large one is correctly told its dimensions are too large,
+    and the two sides of that boundary disagree about what went wrong. The clause must
+    precede the broad one for the same reason `_BudgetExceeded`'s does.
+
+    Everything else is a **broad `except Exception`**, in the style of `geogebra.py`'s
+    documented broad catches. A narrow `except UnidentifiedImageError` is a real 500:
+    `Image.open` also raises `OSError`, `ValueError` and `SyntaxError` from individual
+    plugins. Since the view catches only `ValidationError` (`courses/views_media.py:47`),
+    anything not converted here is a 500, not a 422.
 
     **An explicit pixel bound is required, because Pillow's is not enough.** Pillow raises
-    `DecompressionBombError` only above **2 ×** `MAX_IMAGE_PIXELS`; between 1× and 2× it
-    merely warns and proceeds, and `verify()` does not decode pixel data. An image in that
-    band would pass here, be stored, and then be fully decoded by `generate_derivatives`,
-    which allocates the whole canvas. The byte cap does not bound pixel count — that is the
-    entire point of a decompression bomb. So: check `img.size` against `MAX_PIXELS` here and
-    reject with its own message, "That image's dimensions are too large." The bomb unit test
-    must target **this** band, not the >2× case Pillow already refuses on its own, or it
-    passes on a build with no pixel bound at all.
+    `DecompressionBombError` only above **2 ×** `Image.MAX_IMAGE_PIXELS` (2 × 89,478,485);
+    below that it merely warns and proceeds, and `verify()` does not decode pixel data. An
+    image in that gap would pass here, be stored, and then be fully decoded by
+    `generate_derivatives`, which allocates the whole canvas. The byte cap does not bound
+    pixel count — that is the entire point of a decompression bomb. So: check
+    `img.size[0] * img.size[1]` against `MAX_PIXELS` here and reject with its own message,
+    "That image's dimensions are too large."
+
+    The bomb unit test must target the band **this new code is responsible for** —
+    `MAX_PIXELS` (50 M) < declared pixels < 2 × `Image.MAX_IMAGE_PIXELS` (178.9 M) — not the
+    >2× case, which Pillow refuses unaided and which would therefore pass on a build with no
+    pixel bound at all.
 
     Step 7's own argument compels the whole of this step: *nothing downstream ever looks at
     the bytes* — `_validate_file` checks extension and size only, and `generate_derivatives`
@@ -370,7 +453,13 @@ the deadline instant is its own stopping rule.
     broken-asset outcome step 7 exists to prevent.
 
 11. Derive a filename (see below), using `img.format` and `current_url`.
-12. Compute the SHA-256 of the bytes.
+12. Compute the digest as **`hashlib.sha256(data).hexdigest()`** — byte-for-byte the same
+    expression as `courses/lal_loader/media.py:31`, lowercase hex over the raw file bytes.
+    The exact form is load-bearing, not incidental: any other encoding (uppercase, base64,
+    `digest()`, or hashing the `ContentFile` after a read) produces a value that can never
+    collide with a LAL digest, which would silently make the whole "Interaction with the
+    existing LAL dedup" section dead — and a test that builds both sides through one shared
+    helper would still pass.
 13. Wrap as `ContentFile(data, name=filename)` and call
     `create_asset(course, "image", content_file, user, name=name,
     source_url=submitted_url, content_hash=digest)`. The derived filename must be the
@@ -382,7 +471,7 @@ the deadline instant is its own stopping rule.
     docstring already documents.
 
 **Response lifetime — two acquisition paths, not four sites.** Only a 2xx response is ever
-returned and bound by `with opener.open(...) as resp:`. Every 3xx and non-2xx arrives as an
+returned and bound by `with _open(...) as resp:`. Every 3xx and non-2xx arrives as an
 `HTTPError`, which never enters that `with` block, so **its `fp` must be closed explicitly
 in the handler** — `exc.close()`, guarded so a close failure never masks the original.
 `geogebra.py:453-458` documents precisely this: "A 4xx/5xx raises from inside `_open` ON THE
@@ -398,11 +487,15 @@ comes **after** the `HTTPError` clause (see step 5). Wrapping only the `open()` 
 enough: a DNS failure raises there, but a truncated body raises from inside the read loop,
 after the `with` block has been entered.
 
-**Logging.** Every rejection point emits a `logger.warning` naming the host, the status or
-Content-Type, and a reason token — never the response body. The author-facing message is
-deliberately detail-free, so without this an operator diagnosing "an allow-listed host
-started 403-ing our User-Agent" has nothing to work from. `geogebra.py` treats logging as
-part of the contract for exactly this reason.
+**Logging.** Every rejection point **inside `media_fetch.py`** emits a `logger.warning`
+naming the host, the status or Content-Type, and a reason token — never the response body —
+on `logging.getLogger(__name__)` in that module, matching `geogebra.py:55`.
+**`validate_fetch_url` does not log**: it lives in `courses/validators.py`, is a pure
+validator that other callers may reuse, and its five rejections are all decided from the
+submitted string before any network access, so they carry no diagnostic value an operator
+could not read off the request itself. The author-facing message is deliberately
+detail-free, so without the `media_fetch` logging an operator diagnosing "an allow-listed
+host started 403-ing our User-Agent" would have nothing to work from.
 
 **`S310` (bandit, `urllib.request` audit) is satisfied with a written justification
 comment**, in the same form `geogebra.py` and `integrations/delivery.py` already use — the
@@ -423,6 +516,14 @@ image/jpg  → ("jpg", "jpeg")      # non-standard but widely emitted
 image/gif  → ("gif",)
 image/webp → ("webp",)
 ```
+
+**SVG is deliberately excluded, and says so.** `image/svg+xml` is not in the map because
+`SAFE_IMAGE_EXTENSIONS` does not include `svg` — SVG is an active-content format the upload
+path refuses too. But Wikimedia serves a large share of its illustrations as SVG and is the
+entire default allow-list, so an author *will* paste one, and telling them the URL "did not
+return an image" is both false and points them at the wrong thing. `image/svg+xml`
+therefore gets an explicit case in the gate that raises **"That image type is not
+allowed."** — the honest message — rather than falling through to the not-an-image branch.
 
 Pillow-format map, `img.format` → the same candidate lists:
 
@@ -453,8 +554,14 @@ and a substantial share of real-world web JPEGs.
    build a filename `full_clean()` then rejects for an image the server was configured to
    accept. If no candidate is allowed → "That image type is not allowed."
 4. **The stem is sanitized, and the order of operations matters.** URL-unquote the path
-   *first*, then take the basename, then strip path separators, `..` segments, control
-   characters and leading dots; if nothing usable survives, use the literal `image`.
+   *first*, then take the basename, **then drop a trailing extension when (case-folded) it
+   is one of the known image extensions**, then strip path separators, `..` segments,
+   control characters and leading dots; if nothing usable survives, use the literal `image`.
+
+   Dropping the existing extension is not optional and is easy to lose: without it the
+   spec's own headline example, `…/Foo.jpg`, yields the stem `Foo.jpg` and stores
+   `Foo.jpg.jpg`. No loose "ends with `.gif`" assertion can detect that, which is why the
+   format tests below assert **exact filename equality**.
    Unquoting *after* the basename is a real defect, not a style point: a path ending
    `..%2F..%2Fx.png` has the basename `..%2F..%2Fx.png`, which unquotes to `../../x.png`,
    lands in `ContentFile.name`, and makes Django's `Storage.generate_filename` raise
@@ -467,8 +574,11 @@ and a substantial share of real-world web JPEGs.
 6. The filename is `<stem>.<extension>`, passed through the existing `truncate_filename`
    (`courses/media.py:96`), which truncates while preserving the extension.
 
-Extension comparisons are case-folded throughout: `effective_image_extensions()` returns
-lowercase (`courses/validators.py:60`), so an uppercase path extension must not mismatch.
+Two comparisons are case-folded, and neither is a path-extension match (the path no longer
+decides the extension at all): the `img.format` map lookup, and the membership test of each
+candidate against `effective_image_extensions()`, which returns lowercase
+(`courses/validators.py:60`). The trailing-extension strip in step 4 is likewise
+case-folded, so a `…/Foo.JPG` path yields the stem `Foo`.
 
 ### 4. `media_fetch` view + route
 
@@ -490,7 +600,11 @@ view share the name `media_fetch`, so `from courses import media_fetch` followed
 
 The view is gated by the existing `_require_manage(request, slug)` exactly as every other
 media view is. It reads `url` (stripped, per §1) and optional `name` from `request.POST`,
-calls `fetch_image_asset`, and mirrors `media_upload`'s response contract:
+calls `fetch_image_asset`. Its **fragment** behaviour mirrors `media_upload` exactly; its
+**non-fragment failure** path deliberately *improves* on it. `media_upload` redirects
+silently with no message at all, so an implementer "matching the sibling" would drop the
+`messages.error` call — the divergence is intentional, and its precedent is
+`courses/views_transfer.py:49`.
 
 - **fragment request, success** → render `courses/manage/media/_asset_cell.html` after
   `media_svc.attach_usage(asset)`, status 200;
@@ -513,12 +627,25 @@ The route is registered as `manage_media_fetch` at
 ### 5. Templates
 
 - **`templates/courses/manage/media/manager.html`** — a second small form next to the
-  existing upload form, with `{% csrf_token %}`, an optional name input, a submit button,
-  and a URL input pinned as
-  `<input type="url" name="url" required placeholder="https://…">`. The `{% csrf_token %}`
-  is called out because omitting it breaks *only* the no-JS path, which nothing else would
-  catch: Django's test client does not enforce CSRF by default, and the e2e drives the JS
-  path, which sends the header instead.
+  existing upload form, pinned in full because every attribute here is load-bearing on the
+  no-JS path and nothing else would catch a missing one (Django's test client does not
+  enforce CSRF by default, and the e2e drives the JS path):
+
+  ```
+  <form class="media-fetch" method="post"
+        action="{% url 'courses:manage_media_fetch' slug=course.slug %}">
+    {% csrf_token %}
+    <input type="url" name="url" required placeholder="https://…">
+    <input type="text" name="name">
+    <button type="submit" data-fetch-submit>…</button>
+  </form>
+  ```
+
+  Without `method="post"` and `action`, the form issues a GET to `manage_media` and the
+  no-JS path never reaches the view at all — the same class of silent break as a missing
+  `{% csrf_token %}`. `name="name"` is pinned because the view reads `request.POST["name"]`,
+  and `[data-fetch-submit]` because §6's in-flight guard and e2e scenario (d) need a stable
+  selector. A template assertion checks the form's `action` resolves to the fetch route.
 
   `type="url"` + `required` is the deliberate choice: the browser blocks an empty or
   obviously malformed submit, saving a round trip. The server-side empty check is **not**
@@ -527,7 +654,9 @@ The route is registered as `manage_media_fetch` at
   lives.
 
   The endpoint is exposed to JS as `data-fetch-url` on the `.media-manager` root, mirroring
-  the existing `data-upload-url` (`root.dataset.uploadUrl`).
+  the existing `data-upload-url` (`root.dataset.uploadUrl`). **`.media-manager` also gains
+  `data-msg-fetch-failed="{% trans '…' %}"`**, the translatable fallback §6 requires, with a
+  Polish string supplied.
 
 - **`templates/courses/manage/media/_picker.html`** — a third tab and panel, "From URL",
   **rendered only under `{% if kind == "image" %}`**. This condition is required, not
@@ -555,6 +684,10 @@ The route is registered as `manage_media_fetch` at
   Without (b), Enter in that input is silently dead.
 
   The endpoint is exposed as `data-fetch-url` on `.picker`, mirroring `data-upload-url`.
+  **`.picker` also gains `data-msg-fetch-failed="{% trans '…' %}"`.** Note this template
+  currently carries *no* `data-msg-*` attribute at all (only `data-upload-url` and
+  `data-search-url`), so this is a new class of attribute here, not an addition to an
+  existing block.
 
 - **`templates/courses/manage/media/_asset_cell.html`** — when `asset.source_url` is set,
   show a small source link in the **`.asset-foot`** region (beside the usage details),
@@ -599,8 +732,13 @@ early-returns unless a `input[type='file']` has files, and calls `uploadFile()` 
 `FormData` carrying `file` and `kind` — none of which applies here. Instead, add a **second
 `submit` listener on `.media-fetch`** that always `preventDefault()`s, POSTs `url` and
 `name` to `root.dataset.fetchUrl` with the standard headers, reuses the existing
-`insertCell()` on 200, and on a non-200 applies the **same** fragment-parse-then-flash
-treatment specified for the picker below.
+`insertCell()` on 200 **and calls `form.reset()`**, and on a non-200 applies the **same**
+fragment-parse-then-flash treatment specified for the picker below.
+
+`form.reset()` matters for the same reason the in-flight guard does: the upload path it
+mirrors resets on success (`media_picker.js:281`), and without it the URL stays in the box
+after the cell appears, so one more click creates a duplicate asset — URL-level dedup being
+an explicit non-goal.
 
 **In-flight state is required, not a nicety.** The fetch can legitimately take up to
 `DEADLINE_SECONDS` (20 s) with no visual change. The delegated click handler has no guard,
@@ -608,8 +746,8 @@ so an author who clicks twice — the near-certain response to a dead-looking bu
 two POSTs, and since URL-level dedup is an explicit non-goal, both succeed and two identical
 assets are created (in the picker, the second `selectAsset` also overwrites the first). The
 upload path is not a precedent: a file-picker dialog interposes a natural gate that a
-paste-and-click does not. So: disable `[data-picker-fetch]` (and the manager submit button)
-on dispatch and set `aria-busy`.
+paste-and-click does not. So: disable `[data-picker-fetch]` (and the manager's
+`[data-fetch-submit]`) on dispatch and set `aria-busy`.
 
 **Re-enable on all *three* outcomes.** Success and failure are the two arms inside
 `.then()`, and the model — `uploadPickerFile` (`media_picker.js:158-168`) — has no
@@ -642,6 +780,13 @@ existing `data-msg-*` attribute lives); in the picker, `msg()` must be called ag
 `document.querySelector(".editor")` (`media_picker.js:20`) and carries no such attributes.
 Getting this wrong is invisible at runtime, which is why the attribute's presence is
 asserted by a test.
+
+**The flash host is a third element again, and deliberately differs from the `msg()` host.**
+`uploadPickerFile` flashes into `overlay.querySelector(".picker-card")`
+(`media_picker.js:161`) — neither `.picker` nor `root` — and the fetch path must use that
+same host, or e2e scenario (c) finds the bar somewhere the existing UI never puts it. So:
+flash host `overlay.querySelector(".picker-card")`, `msg()` host
+`overlay.querySelector(".picker")`.
 
 ## Data
 
@@ -774,27 +919,53 @@ same; a whitespace-padded valid URL accepted, and the stripped value used; over-
 rejected; malformed rejected by `URLValidator`; an http URL rejected when
 `ALLOW_HTTP_IMAGE_FETCH` is false; an allow-listed host accepted; a subdomain accepted; a
 look-alike host that merely *ends with* the allowed string rejected; a mixed-case allow-list
-entry still matches. Hosts come from `override_settings`, since `test.py` replaces the
-production list (§2).
+entry still matches.
+
+**`override_settings` covers both new settings, not just the host list.** `test.py` replaces
+`ALLOWED_IMAGE_FETCH_DOMAINS` (§2), so hosts must be named per test — and it also sets
+`ALLOW_HTTP_IMAGE_FETCH = True` for the whole suite, so the **http-rejection test and the
+http-downgrade-redirect test must each set it `False` explicitly**. Without that the
+downgrade test takes the *accepted* path and passes for entirely the wrong reason.
 
 **Unit — settings default:** `config/settings/base.py` leaves `ALLOW_HTTP_IMAGE_FETCH`
-false.
+false. **The mechanism must be environment-independent**, and the spec pins it rather than
+leaving it open: the suite runs under `config.settings.test`, which sets the flag `True`, so
+the test has to reach `base` some other way — and any plain import re-reads
+`env.bool("LIBLI_ALLOW_HTTP_IMAGE_FETCH", default=False)`, failing for any developer who has
+that variable exported or in `.env`. So: `monkeypatch.delenv("LIBLI_ALLOW_HTTP_IMAGE_FETCH",
+raising=False)`, then reload `config.settings.base` and assert the resulting value, so the
+test asserts the *declared default* rather than the ambient environment.
+
+**Unit — the language of worker-raised messages:** under `activate("pl")`, an interpolated
+message raised on the worker (the status message) renders **translated**, proving the
+`params=` deferral. Mutant: `%`-format it on the worker.
 
 **Unit — control flow (the round-4 defects):** a 404 reports "The image host returned an
 error", **not** "Could not reach the image host" — the assertion that proves the `HTTPError`
 clause precedes the `URLError` one; a worker-side `ValidationError` (e.g. the Content-Type
 gate) surfaces as **its own message**, not as the deadline message — the assertion that
-proves the exception box works; `create_asset` runs on the request thread (assert via a
-`django_db`-visible write, which a background-thread implementation would not produce).
+proves the exception box works.
+
+**Unit — `create_asset` runs on the request thread.** The mechanism matters: asserting via a
+"`django_db`-visible write" would be an assertion that *cannot fail*, because a background
+thread opens its own connection and really commits, so the test's connection sees the row on
+its next statement under READ COMMITTED — and worse, that row survives the test's rollback
+and leaks into the next test. Instead patch `media_fetch.create_asset` with a wrapper that
+records `threading.current_thread()` and assert it is the calling thread. Mutant: move the
+`create_asset` call inside `_run`.
 
 **Unit — `fetch_image_asset`, with `_open` patched:** a redirect leaving the allow-list is
 rejected; an **http-downgrade** redirect reports the redirect message, not "must use https";
 a redirect with no `Location` is rejected; the hop budget reports "too many redirects";
 a `text/html` response at a `.jpg` path is rejected; an **absent** `Content-Type` is
-rejected; HTML bytes under an `image/png` Content-Type are rejected by Pillow; **an
-`MPO`-format JPEG is accepted** (not rejected as unknown); **an unknown `img.format` (e.g.
-`BMP`) is a 422, not a `KeyError`/500**; **GIF bytes served as `image/png` are stored with a
-`.gif` name**; the extension is chosen from `effective_image_extensions()` rather than a
+rejected; an `image/svg+xml` response reports "That image type is not allowed.", not the
+not-an-image message; HTML bytes under an `image/png` Content-Type are rejected by Pillow;
+**an `MPO`-format JPEG is accepted** (not rejected as unknown); **an unknown `img.format`
+(e.g. `BMP`) is a 422, not a `KeyError`/500**; **GIF bytes served as `image/png` are stored
+as exactly `Foo.gif`** — an *exact filename equality*, not an "ends with `.gif`" check,
+which would also pass for the `Foo.png.gif` double-extension bug; **a `…/Foo.jpg` URL stores
+exactly `Foo.jpg`, never `Foo.jpg.jpg`**; a `…/Foo.JPG` URL stores `Foo.jpg`; the extension
+is chosen from `effective_image_extensions()` rather than a
 literal, including when narrowed to `["jpeg"]`; `image/jpg` is accepted; a `Content-Type`
 with parameters is accepted; a zero-byte body is rejected; the cap trips when
 `Content-Length` under-reports; a declared over-cap `Content-Length` rejects before the body
@@ -805,10 +976,12 @@ taking its stem from the final hop; the shared User-Agent and `Accept: image/*` 
 the initial request **and every redirect hop**; `source_url` and `content_hash` are both
 persisted; the created asset is a normal `MediaAsset` with derivatives generated.
 
-**Unit — the pixel bound:** an image whose declared canvas sits **between 1× and 2×**
-`MAX_IMAGE_PIXELS` is rejected with "That image's dimensions are too large." Targeting the
->2× band instead would pass on a build with no pixel check at all, since Pillow refuses
-those unaided.
+**Unit — the pixel bound:** an image declaring **more than `MAX_PIXELS` (50 M) but fewer
+than 2 × `Image.MAX_IMAGE_PIXELS` (178.9 M)** is rejected with "That image's dimensions are
+too large." Targeting the >2× band instead would pass on a build with no pixel check at all,
+since Pillow refuses those unaided. A second case covers the far side of that boundary: an
+image **above** 2 × `Image.MAX_IMAGE_PIXELS` reports the *same* dimensions message, proving
+`DecompressionBombError` is mapped rather than falling into the broad clause.
 
 **Unit — the deadline, deliberately not a generator double.** The drip tests must use a
 fake whose `read1` returns *partial* data slowly (a raw-file-like double or a real socket),
@@ -816,14 +989,23 @@ never a generator that yields on demand: a generator-based fake returns instantl
 test passes GREEN on a build that reads with `read` instead of `read1` — the exact
 "assertion that cannot fail" this repo has shipped before. Cover both a drip **body** and a
 drip **header** (the latter is what the thread-join budget, not the socket timeout, is
-there for).
+there for), plus the **budget check between redirect hops**.
+
+**These tests monkeypatch the constants down.** At the shipped values each would block for
+`DEADLINE_SECONDS` (20 s), adding roughly a minute to a suite this repo otherwise runs in
+~30 s for affected tests. Patch `media_fetch.DEADLINE_SECONDS` and `TIMEOUT_SECONDS` to
+sub-second values and express the drip double's rate *relative to the patched value*, so the
+tests stay meaningful if the constants ever change.
 
 **Unit — `replace_asset`:** replacing a fetched asset's bytes clears `source_url` as well
 as `content_hash`.
 
 **Unit — LAL interaction:** a LAL import of bytes identical to a previously fetched asset
 reuses the fetched row rather than creating a second one. The fixture creates exactly one
-fetched asset (see the `.first()` caveat under Data).
+fetched asset (see the `.first()` caveat under Data), and drives the LAL side through the
+**real loader path** rather than a shared digest helper — otherwise both sides compute the
+hash the same way by construction and the test would still pass even if the digest form
+diverged from `courses/lal_loader/media.py:31`.
 
 **Unit — `source_host`:** returns the hostname for a normal URL, `""` for blank, and `""`
 rather than raising for a malformed authority.
@@ -889,3 +1071,11 @@ gunicorn/uwsgi/Procfile configuration exists in this repo today** — the only t
 compose files is a 3 s healthcheck — so that figure is a target for a future deployment, not
 a measured constraint of the current one. Recorded here so nobody later mistakes it for a
 verified fact.
+
+**Concurrency is deliberately unbounded, and that decision is recorded rather than
+overlooked.** Each in-flight fetch holds a daemon thread, a socket, and up to
+`effective_max_image_bytes()` (5 MiB by default) of accumulated body for up to 20 s, so N
+simultaneous fetches cost N × 5 MiB of resident memory and N threads. No limiter is being
+added, because the endpoint is `_require_manage`-gated — only course managers can reach it,
+which is a small, trusted, authenticated population. If this ever becomes reachable by a
+wider role, revisit it.
