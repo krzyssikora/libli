@@ -1,5 +1,6 @@
 """Nested elements must be locatable in the EDITOR PREVIEW and invisible on the
-STUDENT page. See docs/superpowers/specs/2026-08-20-preview-nested-element-locate-design.md.
+STUDENT page. See
+docs/superpowers/specs/2026-08-20-preview-nested-element-locate-design.md.
 
 SCOPING IS LOAD-BEARING AND DIFFERS PER TEST:
   * Editor page: the EDITOR pane also carries [data-element-id] (on the el-act-edit
@@ -93,21 +94,27 @@ def _containers(unit):
     sp = SpoilerElement.objects.create(label="s")
     sp_join = Element.objects.create(unit=unit, content_object=sp, parent=None)
     out["spoiler__child"] = Element.objects.create(
-        unit=unit, content_object=_text("in-spoiler"), parent=sp_join,
+        unit=unit,
+        content_object=_text("in-spoiler"),
+        parent=sp_join,
         tab_id=SpoilerElement.SLOT_ID,
     ).pk
 
     co = CalloutElement.objects.create(heading="C")
     co_join = Element.objects.create(unit=unit, content_object=co, parent=None)
     out["callout__child"] = Element.objects.create(
-        unit=unit, content_object=_text("in-callout"), parent=co_join,
+        unit=unit,
+        content_object=_text("in-callout"),
+        parent=co_join,
         tab_id=CalloutElement.SLOT_ID,
     ).pk
 
     ba = BeforeAfterElement.objects.create()
     ba_join = Element.objects.create(unit=unit, content_object=ba, parent=None)
     out["ba__child"] = Element.objects.create(
-        unit=unit, content_object=_text("in-ba"), parent=ba_join,
+        unit=unit,
+        content_object=_text("in-ba"),
+        parent=ba_join,
         tab_id=BeforeAfterElement.SLOT_IDS[0],
     ).pk
 
@@ -155,11 +162,15 @@ def test_editor_preview_marks_a_depth_3_child(client):
     sp_join = Element.objects.create(unit=unit, content_object=sp, parent=None)
     tabs = TabsElement.objects.create(data=_fixed_tabs_data())
     tabs_join = Element.objects.create(
-        unit=unit, content_object=tabs, parent=sp_join,
+        unit=unit,
+        content_object=tabs,
+        parent=sp_join,
         tab_id=SpoilerElement.SLOT_ID,
     )
     deep = Element.objects.create(
-        unit=unit, content_object=_text("deep"), parent=tabs_join,
+        unit=unit,
+        content_object=_text("deep"),
+        parent=tabs_join,
         tab_id=tabs.data["tabs"][0]["id"],
     )
 

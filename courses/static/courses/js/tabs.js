@@ -446,9 +446,9 @@
     }
     if (ro) sections.forEach(function (s) { ro.observe(s); });
     window.addEventListener("resize", scheduleMeasure);
-    // Reveal-gates and outer tab panels are the only two dispatchers in the codebase.
-    // A <details>-based spoiler dispatches nothing — there the ResizeObserver is what
-    // rescues the measurement when the subtree stops being skipped.
+    // Reveal-gates, outer tab panels, and editor.js's preview reveal-walk dispatch.
+    // A <details>-based spoiler dispatches nothing of its own on a student page —
+    // there the ResizeObserver rescues the measurement when the subtree unskips.
     container.addEventListener("libli:reveal", scheduleMeasure);
     document.addEventListener("libli:reveal", onDocReveal);
 

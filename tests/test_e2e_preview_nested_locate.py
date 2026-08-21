@@ -102,7 +102,7 @@ def _seed_filler(unit, n):
     for i in range(n):
         Element.objects.create(
             unit=unit,
-            content_object=_seed_text(("filler %d<br>" % i) * 40),
+            content_object=_seed_text(f"filler {i}<br>" * 40),
             parent=None,
         )
 
@@ -140,9 +140,8 @@ def _open_slots(page, pairs):
     """
     keys = [f"libli:tabopen:{pk}:{slot}" for pk, slot in pairs]
     page.add_init_script(
-        "(() => { const ks = %s;"
+        f"(() => {{ const ks = {json.dumps(keys)};"
         " try { ks.forEach(k => localStorage.setItem(k, '1')); } catch (e) {} })()"
-        % json.dumps(keys)
     )
 
 
@@ -181,7 +180,7 @@ def test_click_reveals_a_child_in_a_non_first_strip_tab(page, live_server):
 
     eid = str(tabs_join.pk)
     tabs_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{eid}"]'
-    before = page.get_attribute(tabs_sel, "data-tabs-active")   # BEFORE the click
+    before = page.get_attribute(tabs_sel, "data-tabs-active")  # BEFORE the click
     assert before == tab1_id
 
     page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
@@ -245,7 +244,7 @@ def test_click_reveals_a_child_in_a_non_first_carousel_slide(page, live_server):
     # instance. Mirrors initCarousel's own `:scope > .tabs__stage`.
     sect_sel = (
         f'[data-scope="preview"] [data-tabs][data-tabs-eid="{eid}"] '
-        f'> .tabs__stage > .tabs__section:nth-of-type({idx + 1})'
+        f"> .tabs__stage > .tabs__section:nth-of-type({idx + 1})"
     )
     page.wait_for_selector(f"{sect_sel}.is-active")
     assert page.get_attribute(sect_sel, "inert") is None
@@ -354,7 +353,7 @@ def test_click_opens_a_closed_spoiler_around_the_child(page, live_server):
     page.wait_for_selector('[data-scope="editor"]')
 
     det = '[data-scope="preview"] details.spoiler'
-    assert page.get_attribute(det, "open") is None      # closed to begin with
+    assert page.get_attribute(det, "open") is None  # closed to begin with
 
     # Prove NO fragment swap occurred: hold a handle on a preview node and assert it
     # is still connected afterwards. applyFragments replaces the whole pane, so a
@@ -447,9 +446,9 @@ def test_stacked_tabs_reveal_outermost_first(page, live_server):
 
     def _long_label(n):
         label = (
-            "Inner strip tab number %02d carries an unusually long "
+            f"Inner strip tab number {n:02d} carries an unusually long "
             "descriptive label so the tab strip overflows the preview "
-            "pane width" % n
+            "pane width"
         )
         return label[:80]
 
@@ -487,14 +486,17 @@ def test_stacked_tabs_reveal_outermost_first(page, live_server):
     # destructive MAX_TABS truncation. If this fails the fixture is broken,
     # not the product -- catch it here rather than as a mysterious "child
     # row not found" failure below.
-    assert page.locator(
-        f'[data-tabs][data-tabs-eid="{inner_join.pk}"] '
-        f'[data-tab-panel][data-tab-id="{inner_late_tab_id}"]'
-    ).count() == 1, "target tab was truncated by normalize_data (MAX_TABS)"
+    assert (
+        page.locator(
+            f'[data-tabs][data-tabs-eid="{inner_join.pk}"] '
+            f'[data-tab-panel][data-tab-id="{inner_late_tab_id}"]'
+        ).count()
+        == 1
+    ), "target tab was truncated by normalize_data (MAX_TABS)"
 
     inner_scroller = (
         f'[data-scope="preview"] [data-tabs][data-tabs-eid="{inner_join.pk}"] '
-        f'> .tabs__bar .tabs__scroller'
+        f"> .tabs__bar .tabs__scroller"
     )
     outer_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{outer_join.pk}"]'
     inner_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{inner_join.pk}"]'
@@ -562,17 +564,15 @@ def test_position_aligns_the_nested_target_to_the_pane_top(page, live_server):
     page.goto(_editor_url(live_server, course, unit))
     page.wait_for_selector('[data-scope="editor"]')
 
-    target_sel = (
-        f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
-    )
+    target_sel = f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
 
     # BOTH pre-click guards go HERE, before the click. The trailing-run check
     # compares against the PRE-click delta, so after the click it would compare
     # against ~0 and be vacuous.
     assert page.evaluate(_PANE_DELTA_JS, target_sel) > 400  # far below the fold
     scrollable = page.evaluate(
-        '() => { const b = document.querySelector('
-        '\'[data-scope="preview"] .pane-body\');'
+        "() => { const b = document.querySelector("
+        "'[data-scope=\"preview\"] .pane-body');"
         "  return b.scrollHeight - b.clientHeight; }"
     )
     assert scrollable > page.evaluate(_PANE_DELTA_JS, target_sel), (
@@ -622,9 +622,7 @@ def test_hover_outlines_a_nested_child(page, live_server):
     page.goto(_editor_url(live_server, course, unit))
     page.wait_for_selector('[data-scope="editor"]')
 
-    target_sel = (
-        f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
-    )
+    target_sel = f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
 
     page.hover(f'.el-row[data-element="{child_join.pk}"]')
     page.wait_for_selector(f"{target_sel}.prev-el--hl")
@@ -714,9 +712,7 @@ def test_degraded_carousel_is_skipped_not_thrown_on(page, live_server):
     assert page.locator(f"{car} .tabs__dot").count() == 0, "carousel did not bail"
 
     spoiler_sel = '[data-scope="preview"] details.spoiler'
-    target_sel = (
-        f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
-    )
+    target_sel = f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
 
     # PRE-CLICK probe: the target's own rect is unusable -- it starts inside a
     # CLOSED <details>, whose subtree is content-visibility-skipped, so its rect is
@@ -724,15 +720,15 @@ def test_degraded_carousel_is_skipped_not_thrown_on(page, live_server):
     # the PREVIEW pane -- the editor page has two (editor scope and preview scope).
     assert (
         page.evaluate(
-            '() => document.querySelector('
-            '\'[data-scope="preview"] .pane-body\').scrollTop'
+            "() => document.querySelector("
+            "'[data-scope=\"preview\"] .pane-body').scrollTop"
         )
         == 0
     )
     assert page.evaluate(_PANE_DELTA_JS, spoiler_sel) > 400  # leading run
     scrollable = page.evaluate(
-        '() => { const b = document.querySelector('
-        '\'[data-scope="preview"] .pane-body\');'
+        "() => { const b = document.querySelector("
+        "'[data-scope=\"preview\"] .pane-body');"
         "  return b.scrollHeight - b.clientHeight; }"
     )
     assert scrollable > page.evaluate(_PANE_DELTA_JS, spoiler_sel), (
@@ -741,7 +737,7 @@ def test_degraded_carousel_is_skipped_not_thrown_on(page, live_server):
 
     page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
 
-    page.wait_for_selector(f"{spoiler_sel}[open]")   # passes on BOTH builds
+    page.wait_for_selector(f"{spoiler_sel}[open]")  # passes on BOTH builds
     # THE DISCRIMINATOR: reveal runs outermost-first, so the spoiler above has
     # already opened by the time the throw would happen inside the carousel branch
     # -- only the scroll, which depends on revealAncestors running to completion,
@@ -854,7 +850,7 @@ def test_post_op_reveal_through_a_spoiler(page, live_server):
     page.wait_for_selector('[data-scope="editor"]')
 
     det = '[data-scope="preview"] details.spoiler'
-    assert page.get_attribute(det, "open") is None      # closed to begin with
+    assert page.get_attribute(det, "open") is None  # closed to begin with
 
     page.click(
         f'.el-row[data-element="{child_join.pk}"] .el-actions '
