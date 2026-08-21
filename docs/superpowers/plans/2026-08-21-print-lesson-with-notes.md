@@ -50,10 +50,19 @@ design pass, so the button is gated on an explicit include flag rather than on
 the strip itself.
 """
 
+from types import SimpleNamespace
+
 from django.template.loader import render_to_string
 
 
 def _strip(**ctx):
+    """_unit_strip.html's FIRST line includes tags/_unit_tag_panel.html, which
+    renders `{% url 'tags:tag_add' slug=course.slug node_pk=unit.pk %}`
+    unconditionally. With an empty context both resolve to '' and {% url %}
+    (no `as var`) raises NoReverseMatch -- so the stub below is required for the
+    template to render at all, on any build."""
+    ctx.setdefault("course", SimpleNamespace(slug="stub-course"))
+    ctx.setdefault("unit", SimpleNamespace(pk=1))
     return render_to_string("courses/_unit_strip.html", ctx)
 
 
@@ -87,7 +96,9 @@ def test_lesson_template_passes_the_flag_and_the_quiz_templates_do_not():
 - [ ] **Step 2: Run it and watch it fail**
 
 Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_button_template.py -v`
-Expected: **3 failed** — the button does not exist and no template passes the flag.
+Expected: **2 failed, 1 passed**. `test_button_is_absent_without_the_flag` asserts an *absence*,
+which is trivially true before the change — it passes vacuously now and becomes meaningful once the
+button exists. Do not chase a phantom third failure.
 
 - [ ] **Step 3: Add the button to `_unit_strip.html`**
 
@@ -371,7 +382,10 @@ git add courses/static/courses/js/print.js templates/courses/lesson_unit.html
 git commit -m "feat(print): open note panels on the print lifecycle"
 ```
 
-No test here — `print.js` has no observable effect until Task 3's CSS exists. Task 4 covers both together, which is why this task and the next are small.
+No test here — but not because `print.js` is unobservable. Dispatching `beforeprint` opens the
+panel and makes `.note-card__body` visible **on screen**, with zero print CSS; that is exactly what
+Task 4's row 1 asserts, deliberately without `emulate_media`. What needs Task 3 is every
+print-*rendering* assertion, so all e2e lands together in Task 4.
 
 ---
 
@@ -405,7 +419,13 @@ CSS = (
     Path(__file__).resolve().parent.parent / "notes/static/notes/css/notes.css"
 ).read_text(encoding="utf-8")
 
-SCREEN, _sep, PRINT = CSS.partition("@media print")
+# Partition on the BRACE, not the bare words. The print block's own header
+# comment contains the literal "@media print" (explaining that it adds no
+# specificity) and quotes several of the selectors below verbatim -- so
+# partitioning on "@media print" would put the comment inside PRINT, and every
+# needle it happens to mention would be satisfied by prose even after the RULE
+# was deleted. That is a tripwire that silently stops tripping.
+SCREEN, _sep, PRINT = CSS.partition("@media print {")
 
 REQUIRED = (
     # returns the pop to flow; must match the (0,4,0) screen rule verbatim
@@ -420,8 +440,12 @@ REQUIRED = (
     ":not(.note-composer--edit)",
     ":not(.note-composer--has-draft)",
     ".note-composer__error",
-    # empty-pop hide
-    ".block-notes__pop:not(:has(",
+    # empty-pop hide -- the full :has() list, not just its opening. The three
+    # carve-out classes must appear INSIDE it: _block_notes.html renders a
+    # composer for every block, so without them this rule hides the pop and the
+    # draft/error carve-outs buy nothing.
+    ":has(.note-card, .note-composer--edit, .note-composer--has-draft, "
+    ".note-composer__error)",
     # focus-highlight reset, both (0,2,0)
     ".lesson-block.is-dimmed",
     ".lesson-block.is-highlighted",
@@ -505,7 +529,7 @@ Append at the **end** of `notes/static/notes/css/notes.css`:
    screen rule it undoes. The weights that matter:
      (0,5,0) .notes-js .block-notes__pop--has-notes:not(.is-adding)
              .note-composer:not(.note-composer--edit)          -- notes.css:181
-     (0,4,0) .notes-js .block-notes__panel[open] .block-notes__pop  -- :90
+     (0,4,0) .notes-js .block-notes__panel[open] .block-notes__pop  -- :92
      (0,3,0) .notes-js .block-notes__pop--has-notes .block-notes__add-more -- :177
      (0,2,0) .lesson-block.is-highlighted / .is-dimmed         -- :278, :284
      (0,1,1) .unanchored-notes summary                         -- :270
@@ -585,7 +609,7 @@ Append at the **end** of `notes/static/notes/css/notes.css`:
     overflow: hidden;
   }
 
-  /* notes.css:44 pulls the affordance up against its element with a negative
+  /* notes.css:45 pulls the affordance up against its element with a negative
      margin. With the handle gone that drags the card over the block it
      annotates. */
   .lesson .block-notes { margin-top: .35rem; margin-bottom: .75rem; }
@@ -654,6 +678,7 @@ git commit -m "feat(print): print styling for personal notes"
 
 **Files:**
 - Create: `tests/test_e2e_print_lesson_notes.py`
+- Create: `tests/test_i18n_print_notes.py`
 - Modify: `locale/pl/LC_MESSAGES/django.po` (+ regenerate `.mo`)
 
 **Interfaces:**
@@ -700,8 +725,17 @@ def _login(page, live_server, username):
     form.locator("button[type='submit']").click()
 
 
-def _lesson_with_note(slug, body="a note the student wrote"):
-    """A published lesson with one element and one note by the enrolled student."""
+def _lesson_with_note(slug, body="a note the student wrote", elements=1):
+    """A published lesson with `elements` blocks, each carrying one note.
+
+    Two blocks are the minimum for several rows, and the reason is not cosmetic:
+    applyHighlight (notes.js:434) dims only blocks OTHER than the target, so with
+    a single block nothing is ever .is-dimmed and an opacity assertion cannot
+    fail. The restore rows likewise need one panel the student opens by hand and
+    a DIFFERENT one for the sweep to open.
+
+    Returns (course, unit, student, [notes...]).
+    """
     from django.contrib.auth.models import Group as AuthGroup
 
     from courses.models import ContentNode
@@ -723,14 +757,20 @@ def _lesson_with_note(slug, body="a note the student wrote"):
         title="Printable",
         published=True,
     )
-    el = add_element(unit, TextElement.objects.create(body="<p>Lesson body.</p>"))
+    els = [
+        add_element(unit, TextElement.objects.create(body=f"<p>Block {i}.</p>"))
+        for i in range(elements)
+    ]
     student = make_verified_user(
         username=f"{slug}-student", email=f"{slug}@test.example.com"
     )
     student.groups.add(AuthGroup.objects.get(name=STUDENT))
     Enrollment.objects.create(student=student, course=course, source="manual")
-    note = Note.objects.create(author=student, unit=unit, element=el, body=body)
-    return course, unit, student, note
+    notes = [
+        Note.objects.create(author=student, unit=unit, element=el, body=body)
+        for el in els
+    ]
+    return course, unit, student, notes
 
 
 def _open(page, live_server, course, unit, student):
@@ -785,11 +825,14 @@ def test_note_body_visible_after_the_media_route(page, live_server):
 def test_the_real_button_calls_window_print(page, live_server):
     """Row 3. Drives the actual control, not a page.evaluate shortcut."""
     course, unit, student, _ = _lesson_with_note("e2e-pn-button")
-    page.add_init_script("window.__printed = 0; window.print = () => { window.__printed++; };")
+    stub = "window.__printed = 0; window.print = () => { window.__printed++; };"
+    page.add_init_script(stub)
     _open(page, live_server, course, unit, student)
 
     page.locator("[data-print-lesson]").click()
-    assert page.evaluate("window.__printed") == 1, "the Print button did not call print()"
+    assert page.evaluate("window.__printed") == 1, (
+        "the Print button did not call window.print()"
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -823,7 +866,11 @@ def test_long_note_prints_in_full(page, live_server):
     )
     page.emulate_media(media="print")
     box = page.locator(".note-card__body").bounding_box()
-    assert box["height"] > 100, (
+    # .note-card__body is font-size .9rem (14.4px); -webkit-line-clamp: 6 means a
+    # clamped body measures ~121-138px at any plausible line-height. A 100px
+    # threshold sits BELOW that, so the un-clamp mutant would still pass. The
+    # 20-line body prints at ~400px unclamped, so 300 separates the two regimes.
+    assert box["height"] > 300, (
         f"clamped note prints {box['height']}px -- the un-clamp rule is missing "
         "or lost on specificity"
     )
@@ -883,20 +930,30 @@ def test_label_and_date_print_and_are_absent_on_screen(page, live_server):
 def test_blocks_are_not_dimmed_or_ringed_in_print(page, live_server):
     """Row 14. Outlines survive the strip-backgrounds default, so a focused block
     would print visibly ringed. Both rules are (0,2,0)."""
-    course, unit, student, _ = _lesson_with_note("e2e-pn-dim")
+    # TWO blocks: applyHighlight (notes.js:434) dims only blocks OTHER than the
+    # target, so a single-block fixture is never .is-dimmed and the opacity
+    # assertion could not fail.
+    course, unit, student, _ = _lesson_with_note("e2e-pn-dim", elements=2)
     _open(page, live_server, course, unit, student)
 
     page.evaluate("window.dispatchEvent(new Event('beforeprint'))")
-    page.evaluate("document.querySelector('.note-card').focus()")
-    page.emulate_media(media="print")
-
-    state = page.evaluate(
-        "() => { const b = document.querySelector('.lesson-block');"
-        "        const s = getComputedStyle(b);"
-        "        return { opacity: s.opacity, outline: s.outlineStyle }; }"
+    # A real gesture, not .focus() on a card. (notes.js:64-71 does give cards a
+    # tabindex, so focus() would fire the delegate -- but hovering the handle is
+    # the gesture a student actually makes, and it needs no synthetic focus.)
+    page.locator(".block-notes__handle").first.hover()
+    page.wait_for_function(
+        "() => document.querySelector('.lesson-block.is-dimmed') !== null"
     )
-    assert float(state["opacity"]) == 1.0, f"block printed dimmed: {state}"
-    assert state["outline"] == "none", f"block printed ringed: {state}"
+
+    page.emulate_media(media="print")
+    state = page.evaluate(
+        "() => { const dim = document.querySelector('.lesson-block.is-dimmed');"
+        "        const hi = document.querySelector('.lesson-block.is-highlighted');"
+        "        return { dimOpacity: getComputedStyle(dim).opacity,"
+        "                 hiOutline: getComputedStyle(hi).outlineStyle }; }"
+    )
+    assert float(state["dimOpacity"]) == 1.0, f"other block printed dimmed: {state}"
+    assert state["hiOutline"] == "none", f"focused block printed ringed: {state}"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -907,28 +964,40 @@ def test_panels_print_opened_are_closed_again_and_hand_opened_ones_are_not(
 
     The residue is INJECTED rather than waited for: the toggle is async, so an
     absence assertion would pass vacuously on a build with the cleanup deleted."""
-    course, unit, student, _ = _lesson_with_note("e2e-pn-restore")
+    # TWO blocks, and the distinction is the whole point: panel A is opened by
+    # the STUDENT (so enter() never sees it -- it queries :not([open]) -- and
+    # leave() must not touch it), panel B is opened by the sweep. With one block
+    # the sweep opens nothing, `opened` stays empty, and the residue assertion is
+    # RED on a correct build.
+    course, unit, student, _ = _lesson_with_note("e2e-pn-restore", elements=2)
     _open(page, live_server, course, unit, student)
 
-    # The student opens this one by hand; print must leave it alone.
     page.locator(".block-notes__handle").first.click()
     page.wait_for_function(
-        "() => document.querySelector('.block-notes__panel').open"
+        "() => document.querySelectorAll('.block-notes__panel[open]').length === 1"
     )
 
     page.evaluate("window.dispatchEvent(new Event('beforeprint'))")
+    page.wait_for_function(
+        "() => document.querySelectorAll('.block-notes__panel[open]').length === 2"
+    )
+    # Inject the residue into the panel the SWEEP opened (the second one).
     page.evaluate(
-        "document.querySelector('.note-card__body')"
-        ".classList.add('note-card__body--clamp')"
+        "() => { const p = document.querySelectorAll('.block-notes__panel')[1];"
+        "        p.querySelector('.note-card__body')"
+        "         .classList.add('note-card__body--clamp'); }"
     )
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")
 
-    assert page.evaluate(
-        "document.querySelector('.block-notes__panel').open"
-    ), "the leave path closed a panel the STUDENT opened"
-    assert page.evaluate(
-        "!document.querySelector('.note-card__body--clamp')"
-    ), "clamp residue survived the leave path"
+    state = page.evaluate(
+        "() => { const ps = document.querySelectorAll('.block-notes__panel');"
+        "        return { handOpen: ps[0].open, sweptOpen: ps[1].open,"
+        "                 residue: !!document.querySelector"
+        "                            ('.note-card__body--clamp') }; }"
+    )
+    assert state["handOpen"], "the leave path closed a panel the STUDENT opened"
+    assert not state["sweptOpen"], "the leave path left a swept panel open"
+    assert not state["residue"], "clamp residue survived the leave path"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -936,7 +1005,7 @@ def test_two_enters_with_no_leave_then_one_leave(page, live_server):
     """Row 20b. The re-close between the enters is what makes this falsifiable:
     without it the first enter has already opened everything and a reintroduced
     mode flag's early return would be invisible."""
-    course, unit, student, _ = _lesson_with_note("e2e-pn-idempotent")
+    course, unit, student, _ = _lesson_with_note("e2e-pn-idempotent", elements=2)
     _open(page, live_server, course, unit, student)
 
     page.evaluate("window.dispatchEvent(new Event('beforeprint'))")
@@ -957,6 +1026,16 @@ C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_e2e_print_lesson_notes.py
 ```
 Expected: 11 passed. `-m e2e` is mandatory.
 
+Then format and lint — `ruff format --check` is a CI gate (`ci.yml:21`) and no other step in this
+task runs it:
+
+```bash
+C:/Users/krzys/.local/bin/uv.exe run ruff format tests/
+C:/Users/krzys/.local/bin/uv.exe run ruff format --check tests/
+C:/Users/krzys/.local/bin/uv.exe run ruff check --no-cache tests/
+```
+Expected: clean.
+
 - [ ] **Step 3: Regenerate the `pl` catalogue**
 
 ```bash
@@ -976,6 +1055,76 @@ Then edit `locale/pl/LC_MESSAGES/django.po`:
 **Check every new entry for a `#, fuzzy` marker.** The hazard is at its maximum here: the catalogue already carries `added %(when)s ago` (`:3210`) and `edited %(when)s ago` (`:3204`), so `makemessages` will very likely pre-fill the new entries with those wrong translations. Clearing one requires deleting **both** the `#, fuzzy` line and the bogus `msgstr`.
 
 Then: `C:/Users/krzys/.local/bin/uv.exe run python manage.py compilemessages -l pl`
+
+- [ ] **Step 3b: Pin the catalogue with a test — prose warnings do not fail a build**
+
+The fuzzy hazard above is exactly the kind of thing that gets missed under time pressure, and a
+`#, fuzzy` entry ships a *wrong* Polish string silently. Create `tests/test_i18n_print_notes.py`:
+
+```python
+"""The three new msgids must land translated, non-empty and non-fuzzy.
+
+makemessages will very likely pre-fill `added %(date)s` / `edited %(date)s` from
+the near-identical `added %(when)s ago` (django.po:3210) and
+`edited %(when)s ago` (:3204) -- and a fuzzy entry ships the WRONG string with no
+error. Clearing one means deleting BOTH the `#, fuzzy` line and the bogus msgstr.
+"""
+
+import re
+from pathlib import Path
+
+PO = (
+    Path(__file__).resolve().parent.parent / "locale/pl/LC_MESSAGES/django.po"
+).read_text(encoding="utf-8")
+
+EXPECTED = {
+    "My note": "Moja notatka",
+    "added %(date)s": "dodano %(date)s",
+    "edited %(date)s": "edytowano %(date)s",
+}
+
+
+def _entry(msgid):
+    """The full entry block for one msgid, comment lines included."""
+    pattern = (
+        r"((?:^#.*\n)*)"                      # leading comments, incl. #, fuzzy
+        r'^msgid "' + re.escape(msgid) + r'"\n'
+        r'^msgstr "([^"]*)"'
+    )
+    return re.search(pattern, PO, re.M)
+
+
+def test_the_three_new_msgids_are_translated_and_not_fuzzy():
+    for msgid, expected in EXPECTED.items():
+        m = _entry(msgid)
+        assert m, f"msgid {msgid!r} is missing from the pl catalogue"
+        comments, msgstr = m.group(1), m.group(2)
+        assert "#, fuzzy" not in comments, (
+            f"{msgid!r} is marked fuzzy -- makemessages pre-filled it from a "
+            "near-identical entry. Delete BOTH the marker and the bogus msgstr."
+        )
+        assert msgstr == expected, (
+            f"{msgid!r} translates to {msgstr!r}, expected {expected!r}"
+        )
+
+
+def test_print_is_reused_not_redefined():
+    """`Print` already exists (django.po:5231, "Drukuj"). makemessages should add
+    a source reference to that entry, not a second definition."""
+    assert PO.count('msgid "Print"\n') == 1, (
+        "msgid \"Print\" is defined more than once -- the template should reuse "
+        "the existing entry"
+    )
+    m = _entry("Print")
+    assert m and m.group(2) == "Drukuj"
+    assert "_unit_strip.html" in m.group(1), (
+        "the new {% trans \"Print\" %} did not add a source reference to the "
+        "existing entry -- did makemessages run?"
+    )
+```
+
+Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_i18n_print_notes.py -v`
+Expected: 2 passed.
 
 - [ ] **Step 4: The falsification battery**
 
@@ -1050,7 +1199,7 @@ git commit -m "test(print): e2e coverage for printing a lesson with notes"
 | §3 template edits (label, date, `meta-rel` span) | Task 3 |
 | §4 no-JS degradation | Task 1 (gate) — `?notes=1` needs no new work |
 | §5 i18n, three msgids, fuzzy hazard | Task 4, Step 3 |
-| Testing rows 1–20b | Task 4, Step 1 |
+| Testing rows 1, 2, 3, 4, 6a, 6a2, 11, 12, 14, 15, 17, 18, 19, 20b | Task 4, Step 1 |
 | Measurement traps | Task 4 (`_visible` helper; row 6a2 measures the box) |
 | Manual check | Task 4, Step 6 |
 
@@ -1058,4 +1207,26 @@ git commit -m "test(print): e2e coverage for printing a lesson with notes"
 
 **Type consistency:** `_login`, `_lesson_with_note`, `_open`, `_visible` are each defined once and used with matching signatures. `hasTypedDraft`, `carriesNoteContent`, `survivingInputs`, `markDrafts`, `stampHeights`, `enter`, `leave` are each defined once in `print.js`; `enter`/`leave` are the only ones referenced by the listeners.
 
-**Known gap, stated rather than hidden:** the spec's rows 7/7b/7b2/7c/7d (the mid-edit and typed-draft textarea cases) and rows 8/8a/8b (mid-delete, no-JS rejected draft) are **not** in Task 4's suite. They need fixtures that drive `notes.js`'s inline-edit and delete paths through real gestures, which is a substantial addition. The CSS carve-outs for them are pinned by `test_notes_print_css.py`'s `REQUIRED` list (mutant 17), so a deleted carve-out fails — but the *rendered* behaviour is unverified. Decide at review time whether to add them before merge or file them as a follow-up.
+**Known gap — the full list, stated rather than hidden.** Task 4 defines 11 e2e tests against
+roughly 30 spec rows. These spec rows have **no e2e coverage**:
+
+| Spec rows | What is uncovered | Mitigation |
+|---|---|---|
+| 5a, 5b, 5c | the pop-to-flow reset — `top: auto !important`, the `right` reset, the (0,4,0) weight | `test_notes_print_css.py` pins the selector and `top: auto !important` as source text, so deletion fails; a rule present but *inert* would not be caught |
+| 6b | the `.is-adding` composer | same |
+| 7, 7b, 7b2, 7c, 7d | mid-edit and typed-draft textareas, incl. the `scrollHeight` stamp | the three `:not()` carve-outs are pinned as source text |
+| 8, 8a, 8b | mid-delete, solitary mid-delete, no-JS rejected draft | `.note-delete-confirm` and the empty-pop `:has()` list are pinned |
+| 9, 9b, 9c, 9d, 9e | the sweep filter's arms and the empty-pop rule | `hasTypedDraft` has **no** coverage of any kind |
+| 10, 10b, 10c | the unanchored section, its handle, the `.block-notes` margin reset | `.unanchored-notes > details` in the sweep has **no** coverage |
+| 13 | the notes hub printing un-truncated | `test_un_clamp_is_not_lesson_scoped` covers the scoping, not the rendering |
+| 16, 16c | a note on a non-active slide | the `.slide[hidden]` measure-through branch has **no** coverage |
+| 20 | the empty-residue leave path | — |
+
+**Two `print.js` branches are entirely unverified**: the `hasTypedDraft` filter arm and the
+`.slide[hidden]` temporary-un-hide in `stampHeights`. Rows **10** (unanchored sweep) and **16**
+(note on a non-active slide) are the minimum worth adding before merge, since row 16 is the one
+place this PR and PR #267 interact and neither PR covers it. The rest are defensible as a follow-up:
+they are transient two-click states whose CSS is pinned as source text.
+
+This is a real reduction against the spec. It is recorded here so the decision is explicit at review
+time rather than discovered by its absence.
