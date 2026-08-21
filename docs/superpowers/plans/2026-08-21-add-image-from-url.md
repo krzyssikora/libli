@@ -28,7 +28,9 @@
   `fetch_image_asset` write the original *plus* `thumb`/`web` derivatives straight into
   the working tree. Every sibling module that writes bytes redirects explicitly
   (`tests/conftest.py:379-395`, `test_e2e_image_size.py:58`,
-  `test_e2e_media_manager.py:41`). Add this to **Tasks 3, 4, 6, 7, 13 and 14**:
+  `test_e2e_media_manager.py:41`). Add this to **Tasks 3, 4, 6, 7, 9, 13 and 14**.
+  (Task 10 is genuinely exempt: `MediaAssetFactory` sets `file` to a bare path string and
+  writes nothing.)
 
   ```python
   @pytest.fixture(autouse=True)
@@ -606,6 +608,25 @@ def png_bytes():
     return buf.getvalue()
 
 
+def big_png_bytes():
+    """A source WIDER than THUMB_WIDTH, for the derivatives assertion only.
+
+    generate_derivatives skips a target when `img.width <= target`
+    (THUMB_WIDTH = 512, WEB_WIDTH = 896, courses/derivatives.py:145-146), and
+    derivatives_state is `OK if written else SKIPPED`. MEASURED: a 4x4 source writes
+    nothing -> SKIPPED with thumb == "", so asserting OK on png_bytes() would be RED
+    on a CORRECT build. 600x600 gives src=2336 B, thumb webp=52 B -> OK.
+
+    Kept separate rather than widening png_bytes(): Task 6's cap test appends 6 MiB to
+    that fixture and does not need a bigger base.
+    """
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (600, 600), "blue").save(buf, format="PNG")
+    return buf.getvalue()
+
+
 class FakeResponse(io.BytesIO):
     """Stands in for an http.client.HTTPResponse.
 
@@ -630,7 +651,7 @@ class FakeResponse(io.BytesIO):
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_happy_path_creates_a_normal_asset(monkeypatch):
-    data = png_bytes()
+    data = big_png_bytes()   # NOT png_bytes(): 4x4 would skip both derivative targets
     monkeypatch.setattr(media_fetch, "_open", lambda req, t: FakeResponse(data))
     asset = media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
     assert asset.kind == "image"
@@ -912,9 +933,12 @@ def _build_asset(course, user, name, submitted_url, current_url, data, allowed_e
 Run: `uv run ruff check --no-cache courses/media_fetch.py`
 
 Expected: **four `F401` unused-import errors** — `BytesIO`, `unquote`, `urljoin` and
-`truncate_filename` are imported here but not consumed until Tasks 5 and 7. That is fine at
-this checkpoint; they clear once Task 7 lands. What must be **absent** is `S310`: if it
-fires, the `noqa` is misplaced — it belongs on the `Request(` line, not the function.
+`truncate_filename` are imported here but not consumed until Tasks 5 and 7 — **plus some
+`E501`**, because `ruff format` has not run yet and several lines in the skeleton above
+exceed the 88-column limit (measured: the `with _open(...)` line at 96 chars, the deadline
+`logger.warning` at 96, the `_build_asset` return at 91). Both clear later. What must be
+**absent** is `S310`: if it fires, the `noqa` is misplaced — it belongs on the `Request(`
+line, not the function.
 
 (If you prefer a clean gate per task, move those four imports into the tasks that first use
 them instead. Either way, do not let the false expectation "clean" send you hunting the
@@ -1948,12 +1972,16 @@ def test_budget_is_checked_between_redirect_hops(monkeypatch):
     """
     import urllib.error
 
-    monkeypatch.setattr(media_fetch, "DEADLINE_SECONDS", 0.3)
+    # Ratio chosen so a SECOND hop cannot start before the deadline even under xdist
+    # load: one hop consumes 0.4s against a 0.5s budget, leaving no room for another.
+    # A 0.2s-per-hop / 0.3s-budget pair leaves only ~0.1s of headroom, which Windows
+    # sleep granularity can eat -- reddening a correct build intermittently.
+    monkeypatch.setattr(media_fetch, "DEADLINE_SECONDS", 0.5)
     started = []
 
     def slow_redirect(req, timeout):
         started.append(time.monotonic())
-        time.sleep(0.2)
+        time.sleep(0.4)
         raise urllib.error.HTTPError(
             URL, 302, "r", {"Location": "https://upload.wikimedia.org/next.png"}, None
         )
@@ -1969,7 +1997,7 @@ def test_budget_is_checked_between_redirect_hops(monkeypatch):
     assert started, "the worker never issued a request"
     # No hop may START after the deadline instant. Without the top-of-loop check the
     # worker fires all four hops and this fails.
-    assert max(started) < t0 + 0.3, f"a hop started past the deadline: {started}"
+    assert max(started) < t0 + 0.5, f"a hop started past the deadline: {started}"
     assert len(started) <= 2
 ```
 
@@ -2033,12 +2061,20 @@ from courses.tests.test_media_fetch_transport import FakeResponse
 from courses.tests.test_media_fetch_transport import png_bytes
 from tests.factories import CourseFactory
 from tests.factories import make_pa
-from tests.factories import make_verified_user
+from tests.factories import make_login
 
 pytestmark = pytest.mark.django_db
 
 WIKI = ["upload.wikimedia.org"]
 URL = "https://upload.wikimedia.org/Foo.png"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_media(settings, tmp_path):
+    # This module drives the REAL fetch_image_asset -> create_asset, which writes the
+    # original plus derivatives. Without this they land in the working tree's media/.
+    settings.MEDIA_ROOT = str(tmp_path)
+    return tmp_path
 
 
 @pytest.fixture
@@ -2136,13 +2172,19 @@ def test_authenticated_get_is_405(client, course_and_manager):
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
-def test_non_manager_is_refused(client, course_and_manager, django_user_model):
+def test_non_manager_is_refused(client, course_and_manager):
     course, _ = course_and_manager
     # A SECOND client: `client` is already logged in as the PA by the fixture.
+    # make_login(client, username) is the helper that creates a verified user AND
+    # force_logins the given client (tests/factories.py:229). make_verified_user takes
+    # (username, email, password) and NO client -- passing a Client as `username`
+    # reaches create_user() and dies in normalize_username with a TypeError, and the
+    # request would then be anonymous, giving a 302 to /accounts/login/ rather than
+    # the 403 that _require_manage raises for an authenticated non-manager.
     from django.test import Client
 
     other = Client()
-    make_verified_user(other, "nobody")   # logs `other` in as a plain user
+    make_login(other, "nobody")
     resp = other.post(url_for(course), {"url": URL})
     assert resp.status_code in (403, 404)
 ```
@@ -2427,7 +2469,11 @@ the new middle child, so "truncating" alone will not truncate:
   min-width: 0; flex: 0 1 auto;
   margin-inline-start: auto;   /* keeps .asset-actions hard right */
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: var(--text-sm); color: var(--text-secondary);
+  /* a literal, matching .asset-fname's own font-size: there is NO --text-sm token
+     in this repo (tokens.css defines --text-primary/secondary/tertiary only), and
+     an undefined custom property is invalid at computed-value time -- the link
+     would silently inherit full body size. */
+  font-size: .72rem; color: var(--text-secondary);
 }
 ```
 
@@ -2765,7 +2811,11 @@ def test_picker_from_url_selects_into_an_image_element(page, live_server, ...):
 def test_rejected_url_shows_the_server_reason_in_the_picker_flash(page, live_server, ...):
     page.fill("[data-picker-url]", REJECT_URL)
     page.click("[data-picker-fetch]")
-    flash = page.wait_for_selector(".picker-card .op-error")
+    # DIRECT-CHILD combinator, not descendant: openModal sets card.className =
+    # "picker-card" and injects a <div class="picker"> INSIDE it, so an .op-error
+    # prepended into .picker would still match ".picker-card .op-error" and the
+    # wrong-host mutant would stay GREEN.
+    flash = page.wait_for_selector(".picker-card > .op-error")
     assert "allow-list" in flash.inner_text()
 
 
@@ -2813,12 +2863,16 @@ def test_second_activation_while_in_flight_issues_no_second_request(page, live_s
     btn.click(force=True)
     page.locator("[data-picker-url]").press("Enter")   # the SECOND activation route,
                                                        # which bypasses the button
-    assert len(calls) == 1
     release.set()
     # The picker's real success signal: selectAsset closes the modal. There is no
     # .asset-cell on the editor page (the grid left with the overlay) and no
     # .picker-card either, so waiting on those would hang to timeout.
     page.wait_for_selector(".picker-overlay", state="detached")
+    # Count AFTER a yielding barrier. playwright-python's sync API dispatches route
+    # handlers only when the test greenlet yields inside an API call, so a bare assert
+    # placed before this line runs while a mutant build's second request is still
+    # parked at the browser, unintercepted and uncounted -- 1 on both builds.
+    assert len(calls) == 1
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2844,12 +2898,12 @@ def test_manager_second_submit_while_in_flight_issues_no_second_request(page, li
     page.fill(".media-fetch input[name=url]", fixture_url(live_server))
     page.click("[data-fetch-submit]")
     expect(page.locator("[data-fetch-submit]")).to_be_disabled()
-    page.locator("[data-fetch-submit]").click(force=True)
-    assert len(calls) == 1
+    # A forced click on a DISABLED button dispatches nothing, so that alone cannot
+    # falsify the mgrInFlight flag. Bypass the button entirely:
+    page.eval_on_selector(".media-fetch", "f => f.requestSubmit()")
     release.set()
     page.wait_for_selector(".asset-cell")
-    # form.reset() ran, so a further submit cannot silently duplicate the asset
-    assert page.input_value(".media-fetch input[name=url]") == ""
+    assert len(calls) == 1          # counted after a yielding barrier -- see above
     # form.reset() ran, so a further submit cannot silently duplicate the asset
     assert page.input_value(".media-fetch input[name=url]") == ""
 ```
@@ -2865,12 +2919,26 @@ copied from them:
   picker flow.
 
 Copy the pair you need verbatim (they use `make_verified_user` plus the real allauth login
-form, then `goto(manage_media)` or `[data-pick-media]`). **Scenarios (b) and (c) also need
-that setup written out** — as sketched above they begin mid-flow on a page that was never
-navigated and a picker that was never opened.
+form, then `goto(manage_media)` or `[data-pick-media]`).
 
-Import `expect` from `playwright.sync_api` for the disabled-state assertions (the sibling
-e2e modules do the same), and take `monkeypatch` as a fixture in the two in-flight tests.
+⚠️ `_open_manager` (`test_e2e_media_manager.py:96`) **ends with
+`page.wait_for_selector(".asset-cell")`** — adapt it before reuse. Scenario (a) seeds a
+course with **no** assets, so as copied it blocks until timeout; and if you seed one to get
+past that, the post-fetch `wait_for_selector(".asset-cell")` matches the *pre-existing*
+cell and proves nothing about the fetch. Wait for `.asset-grid` instead (`_asset_grid.html`
+always renders it), seed no assets, and assert on the new cell specifically —
+`expect(page.locator(".asset-cell")).to_have_count(1)` plus its `.asset-source` label.
+
+**Scenarios (b), (c) and the picker in-flight test also need
+that setup written out** — as sketched above they begin mid-flow on a page that was never
+navigated and a picker that was never opened. Each also needs
+`page.click('[data-tab="fetch"]')` before the panel's controls are reachable: the panel
+ships `hidden` by design.
+
+Imports the module header needs beyond `os`/`pytest`: `from courses import media_fetch`
+(both in-flight tests patch `media_fetch._open`) and `from playwright.sync_api import expect`
+for the disabled-state assertions, as the sibling e2e modules do. Both in-flight tests also
+take `monkeypatch` as a fixture.
 
 - [ ] **Step 2: Run**
 
@@ -2887,11 +2955,11 @@ looks like success. Grep the summary line.
 |---|---|
 | Remove `localhost` from `test.py`'s allow-list | scenarios (a), (b), (d) |
 | Remove the **picker** in-flight flag | scenario (d), picker test |
-| Remove the **manager** `mgrInFlight` flag | scenario (d), manager test |
+| Remove the **manager** `mgrInFlight` flag | the manager test — falsifiable only because it drives `f.requestSubmit()`; a forced click on a `disabled` button dispatches no event at all |
 | Drop `form.reset()` | the manager test's final `input_value` assertion |
 | Flash into `.picker` instead of `.picker-card` | scenario (c) |
-| Drop the Enter handler | the picker test's `press("Enter")` half |
-| Guard only via `disabled` (no JS flag) | the picker test's `press("Enter")` half |
+| Drop the Enter handler | `test_picker_enter_key_fetches` (the POSITIVE scenario below). **Not** the in-flight test: there, dropping the handler makes Enter a no-op, `calls` stays at 1, and the assertion passes. |
+| Guard only via `disabled` (no JS flag) | the picker in-flight test — Enter bypasses the button, so a DOM-state-only guard lets a second request through |
 | Drop `_isolated_media` | no test — verify by hand that `media/` stays clean after a run |
 
 - [ ] **Step 4: Commit**
@@ -2985,8 +3053,12 @@ Grep both summary lines. `ruff format --check` is a separate CI gate from `ruff 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add -A courses/tests/test_media_fetch_lal.py
-git commit -m "test(media-fetch): LAL content-hash reuse interaction"
+# -A with NO pathspec: `ruff format .` in Step 3 rewrites files from Tasks 1-13
+# (several snippets in this plan exceed 88 columns and ruff DOES split them), and a
+# pathspec-scoped add would leave those edits unstaged -- failing the separate
+# `ruff format --check` CI gate on the PR.
+git add -A
+git commit -m "test(media-fetch): LAL reuse + branch-wide format/lint gate"
 ```
 
 ---
