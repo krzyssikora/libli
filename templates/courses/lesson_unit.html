@@ -58,7 +58,7 @@
   {% endif %}
 {% endblock %}
 {% block content %}
-  {% include "courses/_unit_strip.html" %}
+  {% include "courses/_unit_strip.html" with show_print=True %}
   {% if is_author and not unit.published %}
     {% include "courses/_draft_banner.html" with banner_ctx="unit" %}
   {% endif %}
