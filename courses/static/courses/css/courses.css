@@ -2432,3 +2432,20 @@ dialog.imgzoom:not([open]) { display: none; }
    it can (desktop), all to duplicate a word the chip already renders in full.
    The rail/drawer icon carries title= for the opposite reason: there the word is
    not visible at all. */
+
+/* ── Print: callout accents ────────────────────────────────────────────────
+   courses.css:2010-2014 declares dark-only --callout-accent values, in a sheet
+   loaded AFTER tokens.css and at (0,2,0), so tokens.css's print override cannot
+   reach them. Without this a dark-theme lesson prints its callout headings and
+   rails at #7db0f7 (2.23:1) or #e8b761 on white.
+
+   The value source is the LIGHT declaration of the same selector
+   (courses.css:2004-2008), not :root -- --callout-accent is never declared on
+   :root at all. tests/test_print_tokens_css.py pins each pair. */
+@media print {
+  [data-theme="dark"] .callout--example { --callout-accent: #2563c9; }
+  [data-theme="dark"] .callout--note    { --callout-accent: #55606b; }
+  [data-theme="dark"] .callout--tip     { --callout-accent: #1f8a52; }
+  [data-theme="dark"] .callout--warning { --callout-accent: #b06f0f; }
+  [data-theme="dark"] .callout--task    { --callout-accent: #a8318f; }
+}

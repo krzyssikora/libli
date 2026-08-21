@@ -83,3 +83,89 @@ def test_print_override_restates_every_dark_token_with_the_root_value():
 def test_scrim_solid_is_not_in_the_print_override():
     # Declared only in :root, never in the dark block, so it has nothing to undo.
     assert "--scrim-solid" not in _block(PRINT, r'\[data-theme="dark"\]')
+
+
+COURSES_CSS = (
+    Path(__file__).resolve().parent.parent / "courses/static/courses/css/courses.css"
+).read_text(encoding="utf-8")
+
+CALLOUT_KINDS = ("example", "note", "tip", "warning", "task")
+
+
+def _callout_accents(source):
+    """{kind: value} for every .callout--KIND { --callout-accent: ... } in `source`."""
+    return {
+        kind: value.strip()
+        for kind, value in re.findall(
+            r"\.callout--([a-z]+)\s*\{\s*--callout-accent:\s*([^;]+);", source
+        )
+    }
+
+
+def test_print_restates_every_dark_callout_accent_with_the_light_value():
+    """--callout-accent is declared in courses.css, a LATER sheet at (0,2,0), so
+    tokens.css's print block cannot reach it. Without its own print block a
+    dark-theme lesson with callouts prints #7db0f7 headings on white (2.23:1)."""
+    # Whitespace-exact by necessity, and unique in courses.css today (checked
+    # against all 8 existing @media print blocks). If a reformat ever breaks it,
+    # the failure reads "no @media print block" rather than "wrong value" -- so
+    # check the marker before believing that message.
+    marker = '@media print {\n  [data-theme="dark"]'
+    screen, sep, printed = COURSES_CSS.partition(marker)
+    assert sep, (
+        "courses.css must have an @media print block scoped to [data-theme=dark]"
+    )
+
+    # Light values live on the bare modifier classes; dark ones on the
+    # [data-theme="dark"] .callout--KIND rules. Split the screen half on the
+    # dark selector so the two are never confused.
+    light_half, _d, dark_half = screen.partition('[data-theme="dark"] .callout--')
+    light = _callout_accents(light_half)
+    print_side = _callout_accents(printed)
+
+    for kind in CALLOUT_KINDS:
+        assert kind in print_side, (
+            f".callout--{kind} has a dark accent but no print override; a dark-theme "
+            "printout keeps the light-on-white tint"
+        )
+        assert print_side[kind] == light[kind], (
+            f"print .callout--{kind} is {print_side[kind]!r} but the light rule "
+            f"declares {light[kind]!r}; the source is the light-theme declaration of "
+            "the same selector, NOT :root (--callout-accent is never declared there)"
+        )
+
+
+def test_every_dark_rule_in_a_shipped_stylesheet_is_classified():
+    """A new [data-theme="dark"] rule must not slip in unnoticed: it either needs a
+    print counterpart or a recorded reason it does not.
+
+    Deliberately limited to COLUMN-0 rules. error.css:50's dark rule is indented
+    inside a media query and is not matched; that is accepted, because dropping the
+    anchor would also match the prose mentions in notes.css:17 and tags.css:2.
+    """
+    root = Path(__file__).resolve().parent.parent
+    covered = {  # has a print counterpart
+        "core/static/core/css/tokens.css",
+        "courses/static/courses/css/courses.css",
+    }
+    excluded = {  # deliberately no print counterpart, reason recorded
+        # Editor chrome; never on a page this feature prints.
+        "courses/static/courses/css/editor.css",
+        # tags.css IS loaded by lesson_unit.html:36, but .tag-delete-confirm is
+        # built only by wireDeleteConfirm() (tags.js:103,108) from
+        # .tag-section__manage delete links, which exist only in
+        # _tag_section.html -> my_tags.html. The element never reaches a lesson.
+        "tags/static/tags/css/tags.css",
+    }
+    found = set()
+    for css in root.glob("*/static/**/*.css"):
+        if ".venv" in css.parts or "staticfiles" in css.parts:
+            continue
+        text = css.read_text(encoding="utf-8")
+        if re.search(r'^\[data-theme="dark"\]', text, re.M):
+            found.add(css.relative_to(root).as_posix())
+    unclassified = found - covered - excluded
+    assert not unclassified, (
+        f'unclassified [data-theme="dark"] rule(s): {sorted(unclassified)}. '
+        "Add a print counterpart, or record why one is not needed."
+    )
