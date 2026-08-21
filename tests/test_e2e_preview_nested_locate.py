@@ -47,6 +47,19 @@ def _allow_sync_orm_under_playwright():
     yield
 
 
+# Byte-equivalent to alignTopInPane's own arithmetic (editor.js): the pane's
+# CONTENT top is the .pane-body rect top PLUS its computed padding-top, not the
+# bare rect top -- that would be off by the padding, which can exceed the 4px
+# poll tolerance and turn a correct build red. Defined ONCE at module level so
+# Task 9 reuses it rather than duplicating the logic block.
+_PANE_DELTA_JS = """(sel) => {
+  const t = document.querySelector(sel);
+  const b = t.closest(".pane-body");
+  const pad = parseFloat(getComputedStyle(b).paddingTop) || 0;
+  return t.getBoundingClientRect().top - b.getBoundingClientRect().top - pad;
+}"""
+
+
 # ---------------------------------------------------------------------------
 # Shared seed helpers -- Tasks 4-10 call these by name; do not rename or reshape.
 # ---------------------------------------------------------------------------
@@ -513,4 +526,65 @@ def test_stacked_tabs_reveal_outermost_first(page, live_server):
 
     page.wait_for_function(
         "(sel) => document.querySelector(sel).scrollLeft > 0", arg=inner_scroller
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_position_aligns_the_nested_target_to_the_pane_top(page, live_server):
+    """e2e 6. Mutant (g): scrollPreviewTo returns right after revealAncestors(target)
+    -- reveal happens, but the pane never scrolls -> RED.
+
+    Fixture: a callout child, ALWAYS visible in the preview (unlike a tab, carousel
+    slide, closed spoiler or After panel, which give a zero/degenerate pre-click rect
+    and make the `> 400` probe fail on a correct build -- see the spec's assertion
+    traps). 8 filler elements before the callout push its pre-click position well
+    below the pane fold; 8 filler elements after it give `.pane-body` enough scroll
+    room to actually bring it to the top.
+
+    Click path: .el-row__label. Callout editor rows are always-open divs -- no
+    _open_slots, no <summary> click.
+    """
+    from courses.models import CalloutElement
+
+    pa = _make_pa_user("locate_c6")
+    course, unit = _seed_unit(pa, "locate-c6")
+
+    _seed_filler(unit, 8)  # leading run: pushes the callout well below the fold
+    child = _seed_text("nested in the callout")
+    callout = CalloutElement.objects.create(kind="example")
+    _container_join, kids = _seed_container(
+        unit, callout, [(child, CalloutElement.SLOT_ID)]
+    )
+    child_join = kids[0]
+    _seed_filler(unit, 8)  # trailing run: gives .pane-body room to scroll it to top
+
+    _login(page, live_server, "locate_c6")
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    target_sel = (
+        f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
+    )
+
+    # BOTH pre-click guards go HERE, before the click. The trailing-run check
+    # compares against the PRE-click delta, so after the click it would compare
+    # against ~0 and be vacuous.
+    assert page.evaluate(_PANE_DELTA_JS, target_sel) > 400  # far below the fold
+    scrollable = page.evaluate(
+        '() => { const b = document.querySelector('
+        '\'[data-scope="preview"] .pane-body\');'
+        "  return b.scrollHeight - b.clientHeight; }"
+    )
+    assert scrollable > page.evaluate(_PANE_DELTA_JS, target_sel), (
+        "trailing filler too short -- the target can never reach the pane top"
+    )
+
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    # This case POLLS (no prefers-reduced-motion emulation here): the timeout sits
+    # comfortably past scrollPreviewTo's 500ms setTimeout backstop.
+    page.wait_for_function(
+        f"(sel) => Math.abs(({_PANE_DELTA_JS})(sel)) <= 4",
+        arg=target_sel,
+        timeout=5000,
     )
