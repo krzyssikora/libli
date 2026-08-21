@@ -390,3 +390,127 @@ def test_click_flips_before_after_to_the_panel_holding_the_child(page, live_serv
 
     page.wait_for_selector(after, state="visible")
     page.wait_for_selector(before, state="hidden")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_stacked_tabs_reveal_outermost_first(page, live_server):
+    """e2e 5. Two nested strip-mode tabs elements. Mutants (e) and (f).
+
+    Click path: .el-row__label (.el-select).
+
+    (e) reverses the reveal loop in revealAncestors to innermost-first: the
+    inner tabs element sits in the outer's NON-FIRST tab, so at load the outer
+    conceals it (display:none), zeroing offsetLeft/offsetWidth/scrollLeft/
+    clientWidth. Revealing the inner strip before the outer measures that
+    zeroed geometry and leaves scrollLeft stuck at 0 -- RED on the final
+    assertion. The outer must be STRIP mode (not carousel): a carousel keeps
+    an inactive slide's rect intact at opacity:0, so it would not zero
+    anything and (e) would be unfalsifiable.
+
+    (f) resolves `s` via closest() from the target instead of the ownership
+    filter (owningNode). closest() returns the INNERMOST section for every
+    ancestor in the chain, so the OUTER container ends up indexing the
+    INNER's own section -- its data-tabs-active never advances to the tab
+    that actually holds the inner instance. Two nested tabs elements are
+    required to observe this: with only one tabs ancestor, closest() and the
+    ownership filter agree.
+
+    The target also sits in a LATE, NON-FIRST tab of the INNER instance, and
+    the inner strip must OVERFLOW the preview pane -- select() early-returns
+    on i === active, so a first-tab target proves nothing, and scrollLeft
+    can only move if there is somewhere to scroll TO.
+    """
+    pa = _make_pa_user("locate_c5")
+    course, unit = _seed_unit(pa, "locate-c5")
+
+    # Disjoint tab-id sets. Outer: 2 tabs, inner instance lives in the
+    # non-first one. Inner: 10 tabs (<= TabsElement.MAX_TABS) with long
+    # (<= LABEL_MAX=80) labels -- long labels, not many tabs, drive the strip
+    # past its max-width(18rem) cap into real horizontal overflow, without
+    # tripping normalize_data's destructive MAX_TABS truncation.
+    outer1_id, outer2_id = "t000001", "t000002"
+    inner_ids = [f"t1{i:05d}" for i in range(1, 11)]  # t100001 .. t100010
+    inner_late_tab_id = inner_ids[-1]
+
+    def _long_label(n):
+        label = (
+            "Inner strip tab number %02d carries an unusually long "
+            "descriptive label so the tab strip overflows the preview "
+            "pane width" % n
+        )
+        return label[:80]
+
+    inner_tabs = [(tid, _long_label(i)) for i, tid in enumerate(inner_ids, start=1)]
+
+    child = _seed_text("nested two tabs deep, late tab of the inner strip")
+
+    outer_obj, outer_join = _seed_tabs_element(
+        unit, [(outer1_id, "Outer One"), (outer2_id, "Outer Two")]
+    )
+    inner_obj, inner_join = _seed_tabs_element(
+        unit,
+        inner_tabs,
+        {inner_late_tab_id: [child]},
+        parent=outer_join,
+        tab_id=outer2_id,
+    )
+    child_join = _child_join(inner_join, inner_late_tab_id)
+
+    _login(page, live_server, "locate_c5")
+    # TWO nested collapsed <details class="tabs-rows"> to open: the outer's
+    # tab-two row group (holds the inner tabs element's own row) and the
+    # inner's late-tab row group (holds the target's row). Both BEFORE
+    # goto, via the stored-preference mechanism -- never a <summary> click,
+    # which would fire scrollPreviewTo on a container row and pre-reveal its
+    # ancestors, disarming both mutants (see _open_slots' docstring).
+    _open_slots(
+        page,
+        [(outer_join.pk, outer2_id), (inner_join.pk, inner_late_tab_id)],
+    )
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    # Pre-flight: the target's tab actually survived normalize_data's
+    # destructive MAX_TABS truncation. If this fails the fixture is broken,
+    # not the product -- catch it here rather than as a mysterious "child
+    # row not found" failure below.
+    assert page.locator(
+        f'[data-tabs][data-tabs-eid="{inner_join.pk}"] '
+        f'[data-tab-panel][data-tab-id="{inner_late_tab_id}"]'
+    ).count() == 1, "target tab was truncated by normalize_data (MAX_TABS)"
+
+    inner_scroller = (
+        f'[data-scope="preview"] [data-tabs][data-tabs-eid="{inner_join.pk}"] '
+        f'> .tabs__bar .tabs__scroller'
+    )
+    outer_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{outer_join.pk}"]'
+    inner_sel = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{inner_join.pk}"]'
+
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    # BOTH ancestors revealed.
+    page.wait_for_function(
+        """([sel, want]) => document.querySelector(sel)
+              ?.getAttribute("data-tabs-active") === want""",
+        arg=[outer_sel, outer2_id],
+    )
+    page.wait_for_function(
+        """([sel, want]) => document.querySelector(sel)
+              ?.getAttribute("data-tabs-active") === want""",
+        arg=[inner_sel, inner_late_tab_id],
+    )
+
+    # POST-CLICK pre-flight, not pre-click: the inner subtree is
+    # display:none at load (constraint 2), so scrollWidth/clientWidth are
+    # both 0 there and a pre-click wait would time out on a CORRECT build.
+    # If the strip stops overflowing this goes RED rather than silently
+    # vacuous.
+    assert page.evaluate(
+        "(sel) => { const s = document.querySelector(sel);"
+        "  return s.scrollWidth > s.clientWidth; }",
+        inner_scroller,
+    ), "fixture no longer overflows -- mutant (e) would be unfalsifiable"
+
+    page.wait_for_function(
+        "(sel) => document.querySelector(sel).scrollLeft > 0", arg=inner_scroller
+    )
