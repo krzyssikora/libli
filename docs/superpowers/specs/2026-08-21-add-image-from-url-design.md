@@ -564,10 +564,14 @@ That rule is kept, not diverged from. Concretely:
 - Worker-side rejections **carry a reason token on the `ValidationError` itself** (its
   `code`) and **their diagnostic values as `params` keys**. They log nothing.
 
-  There are **seven** such rejections, and the enumeration is exhaustive because each one
-  needs its token: `"redirect-invalid"` (missing/empty `Location`), `"redirect-off-allowlist"`,
-  `"redirect-too-many"`, `"status"`, `"content-type"`, `"too-large"`, and — easy to miss,
-  because it is a conversion rather than a raise — `"transport"`, from the
+  There are **seven tokens** — note that is a count of tokens, not of raise sites, because
+  some tokens legitimately cover more than one branch: `"redirect-invalid"` (missing/empty
+  `Location`), `"redirect-off-allowlist"`, `"redirect-too-many"`, `"status"` (covering
+  *both* the non-2xx `HTTPError` and the explicit `resp.status != 200` check for a returned
+  204/206), `"content-type"` (covering *both* the not-an-image branch and the
+  `image/svg+xml` branch, which raise different messages but share the token and are
+  distinguished in the log by the raw-Content-Type param), `"too-large"`, and — easy to
+  miss, because it is a conversion rather than a raise — `"transport"`, from the
   `except (TimeoutError, URLError, OSError)` handler that wraps both the `open()` call and
   the read loop.
 
@@ -577,19 +581,25 @@ That rule is kept, not diverged from. Concretely:
   logging are worker-local and otherwise unreachable — the **redirect target's host** (which
   lives on `current_url`; the request thread has only `submitted_url`) and the **raw
   `Content-Type`** (whose message, "That URL did not return an image.", interpolates
-  nothing). Attach both as `params`.
+  nothing). Attach both as `params` — plus, for the `"transport"` token, the **underlying
+  exception's class name** (`type(exc).__name__`, never its message, per the
+  no-response-body rule), since DNS failure vs. connection refused vs. mid-read reset is
+  equally worker-local, equally unreachable from the joiner, and is the commonest real
+  failure. `geogebra.py` logs exactly that shape: `f"lookup failed ({type(exc).__name__})"`.
 
 - The **request thread logs once**, where the box's exception is re-raised: a single
   `logger.warning` on `logging.getLogger(__name__)` in `media_fetch.py` (matching
   `geogebra.py:55`), naming the host, the reason token, and whichever diagnostic `params`
   the token implies — never the response body.
 
-  **It reads the token defensively.** The box may hold a non-`ValidationError` (a genuine
-  worker bug, re-raised unchanged as a 500) or a `ValidationError` carrying an
-  `error_list`/`error_dict`, neither of which has a usable `.code`. So: log only when the box
-  holds a `ValidationError`, read the token as `getattr(exc, "code", None)`, and re-raise
-  anything else untouched. A bare `exc.code` would raise *inside the log call* and turn an
-  intended clean 500 into a different, misleading one.
+  **It reads the token and the diagnostics defensively.** The box may hold a
+  non-`ValidationError` (a genuine worker bug, re-raised unchanged as a 500) or a
+  `ValidationError` carrying an `error_list`/`error_dict`, which has **neither `.code` nor
+  `.params`**. So: log only when the box holds a `ValidationError`, read the token as
+  `getattr(exc, "code", None)` and the diagnostics as `getattr(exc, "params", None) or {}`,
+  and re-raise anything else untouched. A bare `exc.code` — or a bare `exc.params` — would
+  raise *inside the log call* and turn an intended clean 500 into a different, misleading
+  one. Both halves need the guard, not just the token.
 
 - The **deadline branch logs too** — the empty-box case is neither a re-raised exception nor
   one of steps 9–13, so it would otherwise fall through both bullets unlogged, despite being
