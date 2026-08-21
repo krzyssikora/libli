@@ -128,10 +128,12 @@ would separate the print rule from the gate whose source order it depends on. Th
 
 A small IIFE in the established style of the other lesson scripts, loaded `defer` from
 `lesson_unit.html` **after `notes.js` (line 79) and `slideshow.js` (line 81)**, unconditionally — not
-behind a `has_*` flag like its neighbours, because `Ctrl+P` must work on every lesson. Deferred
-scripts execute in document order, and the position matters twice: `print.js` opening a panel relies
-on `notes.js`'s capture-phase `toggle` listener already being registered, and §2d's rules assume
-`slideshow.js` has built the deck. It lives under `courses/` rather than `notes/` because it is a **lesson-page**
+behind a `has_*` flag like its neighbours, because `Ctrl+P` must work on every lesson.
+
+The placement is **convention, not a dependency**, and the spec says so rather than inventing a
+mechanism: `notes.js` registers its capture-phase `toggle` listener at IIFE top level
+(`notes.js:530`), so it is bound whatever the order, and §2d is pure CSS that `print.js` never
+touches. Sitting with the other `courses/js/*.js` lesson scripts is the whole reason. It lives under `courses/` rather than `notes/` because it is a **lesson-page**
 concern — it owns the unit-strip button and the print lifecycle for the whole page — and is loaded
 beside the other `courses/js/*.js` lesson scripts. The notes DOM it touches is incidental to that
 role.
@@ -154,9 +156,20 @@ Responsibilities:
 
    ```js
    panels = [...document.querySelectorAll(".block-notes__panel:not([open])")]
-              .filter(p => p.querySelector(
-                ".note-card, .note-composer--edit, .note-delete-confirm"));
+              .filter(p => p.querySelector(".note-card, .note-composer--edit, .note-delete-confirm")
+                        || hasTypedDraft(p));
+
+   // A textarea's value is not layout, so it reads correctly through a closed <details>.
+   const hasTypedDraft = p => [...p.querySelectorAll(".note-composer__input")]
+                                .some(ta => ta.value.trim() !== "");
    ```
+
+   The `hasTypedDraft` arm is not redundant with `.note-composer--has-draft`: that class is applied
+   *by* the enter path, so it cannot be a filter input. It covers the case of a student who opens a
+   **note-less** block's panel, types, and closes the panel by clicking the handle — the native
+   `<details>` toggle does **not** clear the textarea (only the Cancel/dismiss path does,
+   `notes.js:230`), so the text is still there and would otherwise print as nothing. That is the same
+   "enter a state, close the panel, `Ctrl+P`" shape row 9b covers for edit and delete.
 
    plus the `.unanchored-notes > details` when it exists and is closed (it is rendered only when
    `unanchored_notes` is non-empty, and its notes are exactly the ones whose block was deleted — they
@@ -343,8 +356,10 @@ The other `!important`s are right too, but not all for the same reason, and the 
 actual competitor rather than a blanket one — a false mechanism is exactly the kind of thing that
 survives review:
 
-- `.slideshow-deck .slide` / `.slide[hidden]` beat two- and three-class selectors (`courses.css:386`,
-  `:396`), where `@media print` adds no specificity, so `!important` is genuinely required.
+- `.slideshow-deck .slide` / `.slide[hidden]` tie their screen counterparts (`courses.css:386` at
+  (0,2,0), `:396` at (0,3,0)) and would win on source order alone, since the print block is appended
+  to the end of the same file. `!important` here is order-proof insurance, not a weight requirement —
+  the same honest phrasing as the stage bullet below.
 - `.slideshow-stage` beats only **single**-class rules — its own at `courses.css:380` and
   **`.scroll-y { position: relative }` at `app.css:1886`**, which `slideshow.js` adds to the stage
   alongside `.slideshow-stage`. Source order alone would win, since the print block is appended to a
@@ -383,6 +398,7 @@ The rules being undone are not weak:
 |---|---|---|
 | pop floats into the margin (`notes.css:90–107`) | `.notes-js .block-notes__panel[open] .block-notes__pop` | (0,4,0) |
 | pop clamped to the right (`notes.css:109–112`) | `.notes-js .block-notes__panel[open] .block-notes__pop--clamped` | (0,4,0) |
+| unanchored summary padding (`notes.css:270`) | `.unanchored-notes summary` | (0,1,1) |
 | add-composer hide in read-first mode (`notes.css:181–182`) | `.notes-js .block-notes__pop--has-notes:not(.is-adding) .note-composer:not(.note-composer--edit)` | (0,5,0) |
 | "Add another note" reveal (`notes.css:177`) | `.notes-js .block-notes__pop--has-notes .block-notes__add-more` | (0,3,0) |
 | Print button's no-JS gate (§1) | `html.js .unit-strip__print` | (0,2,1) |
@@ -436,11 +452,14 @@ keeps each reveal beside the hide it pairs with.
 
 - **Return the pop to flow**, written **verbatim as
   `.notes-js .block-notes__panel[open] .block-notes__pop`** — unscoped, matching the original
-  selector's (0,4,0) exactly and winning by end-of-file source order. This is the one rule where the
-  scoping rule must *not* be applied mechanically: the obvious `.lesson`-scoped write,
-  `.lesson .block-notes__panel[open] .block-notes__pop`, is **(0,3,1)** — inert against (0,4,0), and
-  not the (0,1,0) shape the naive mutant assumes, so it would slip past a reviewer looking only for
-  under-weighting. Reset every property the original rule sets, not just the positioning ones: `position`, `top` (`!important`, per the inline style), `left`, `right`, `width`,
+  selector's (0,4,0) exactly and winning by end-of-file source order. Writing it verbatim is chosen
+  because it cannot be got wrong by miscounting: it does not depend on `.lesson` being an ancestor,
+  and it ties the rule it must beat by construction. (The `.lesson`-scoped write
+  `.lesson .block-notes__panel[open] .block-notes__pop` is **also (0,4,0)** — `.lesson`,
+  `.block-notes__panel`, `[open]` and `.block-notes__pop` all count in the class column — so it would
+  work too; what does *not* work is any form that drops a class-column term, e.g.
+  `.lesson details[open] .block-notes__pop` at (0,3,1).) Reset every property the original rule sets,
+  not just the positioning ones: `position`, `top` (`!important`, per the inline style), `left`, `right`, `width`,
   `margin-top`, `padding`, `background`, `border`, `max-height`, `overflow-y`, `z-index`, `border-radius` and
   `box-shadow`. `right` is named explicitly because `.block-notes__pop--clamped` sets
   `left: auto; right: 0`: resetting `left` alone leaves `right: 0` applied. A partial reset leaves the
@@ -472,9 +491,22 @@ keeps each reveal beside the hide it pairs with.
   scrolled out of view — silently defeating §2b's promise that the note is not lost. Two mechanisms,
   both required:
 
-  - **`print.js` stamps the measured height** on the enter path for each surviving
-    `.note-composer__input` — `ta.style.height = ta.scrollHeight + "px"` — cleared on the leave path.
-    This is the mechanism that works on every engine.
+  - **`print.js` stamps the measured height** on the enter path — `ta.style.height =
+    ta.scrollHeight + "px"` — cleared on the leave path. This is the mechanism that works on every
+    engine.
+
+    **"Surviving" must be defined operationally, because it is otherwise a property of the print
+    cascade that JS cannot evaluate.** The set is exactly the composers §3's hide spares: those
+    carrying `.note-composer--edit`, `.note-composer--has-draft`, or a `.note-composer__error`
+    descendant. It is emphatically **not** `document.querySelectorAll(".note-composer__input")` — that
+    reaches the composers inside note-less panels, which responsibility 3 deliberately never opens, so
+    they are still under `::details-content { content-visibility: hidden }`, `scrollHeight` reads `0`,
+    and the enter path would write `height: 0px` onto every note-less block's composer. If the leave
+    path then never fires (a case Error handling calls harmless), the student is left with unusable
+    zero-height composers across the whole lesson.
+
+    Belt and braces: **the stamp is skipped whenever `scrollHeight` is `0`**, so no build can write a
+    zero height even if the selector is later widened.
 
     **The measurement context is the screen cascade, and the error direction is stated.** At
     `beforeprint` the print geometry may not be resolved, so `scrollHeight` is read while the pop may
@@ -550,7 +582,15 @@ keeps each reveal beside the hide it pairs with.
   block. Both values are stated rather than left to taste, so the rule is reviewable.
 
   **Both `<summary>` elements take this visibility-based treatment** — `.unanchored-notes__handle`
-  and `.block-notes__handle` alike. Neither appears in the `display: none` list above, deliberately:
+  and `.block-notes__handle` alike — but they have **different competitors**, and only one of the two
+  scopes is inert. `.block-notes__handle`'s padding comes from its own (0,1,0) rule (`notes.css:59`).
+  `.unanchored-notes__handle` has **no rule of its own in `notes.css` at all**; its padding comes from
+  `.unanchored-notes summary { padding: .25rem 0 }` at `notes.css:270`, which is **(0,1,1)**. So a
+  suppression written `.unanchored-notes__handle { … padding: 0 … }` at (0,1,0) **loses the padding
+  declaration**, and with the global `box-sizing: border-box` (`reset.css:2`) a `height: 0` box still
+  measures 8px — which would make row 10b RED on an otherwise-correct build. The `.lesson` scope on
+  this particular suppression is therefore **load-bearing**, not defensive: `.lesson
+  .unanchored-notes__handle` is (0,2,0) and beats it. Neither appears in the `display: none` list above, deliberately:
   the choice of mechanism is load-bearing rather than cosmetic, and naming the handle in both places
   would leave an implementer to pick.
 
@@ -855,26 +895,26 @@ student presses Ctrl+P ─┘        │
 The house rule applies: **falsify the tests, do not merely run them.** Each assertion below is paired
 with the mutant that must turn it RED, chosen from the failure mode it is meant to catch.
 
-### Prerequisite spike — does `emulate_media` fire a `matchMedia("print")` change?
+### Settled: `emulate_media` **does** fire a `matchMedia("print")` change
 
-The two-dispatcher design (§2 responsibility 7) means the test plan depends on a fact this spec
-asserts but has not established: whether Chromium's `Emulation.setEmulatedMedia`, as driven by
-`page.emulate_media(media="print")`, delivers a `change` event to a `matchMedia("print")` list, and
-whether it does so before `emulate_media` resolves.
+This was an open question in earlier drafts; it has since been **measured in this repo's Chromium**
+and the answer is recorded here so no plan writer re-derives it: `page.emulate_media(media="print")`
+**does** deliver a `change` event with `matches === true` to a `matchMedia("print")` listener, and it
+is observable on the very next `evaluate`.
 
-**Run this spike before writing any of the assertions below, and record the answer in the plan.** If
-the event does not fire, or fires late, row 2 is RED on a correct build — the repo's own worst
-failure mode (cf. the `wait_for_selector('X[hidden]')` precedent, which could never pass). If it
-fires, every read after `emulate_media` must still be a **polling** read (`expect(...).to_pass()`
-style), never a bare `evaluate` immediately after, because the listener runs asynchronously.
+Two consequences, both load-bearing for the table below:
 
-**Contingency, if the spike shows no event (or a late one).** Row 2 drives the media listener with a
-constructed `new MediaQueryListEvent("change", {media: "print", matches: true})` dispatched on
-`window.matchMedia("print")`. The blanket prohibition below is on **`new Event("change")`
-specifically** — its defect is that it carries no `matches` property, so a handler routing on
-`e.matches` reads `undefined` and takes the *leave* path, going red on a correct build.
-`MediaQueryListEvent` carries `matches` and routes correctly, so it is a sanctioned fallback rather
-than a shortcut. Record which path was taken in the plan; row 2 must not simply be deleted.
+1. Row 2's trigger is simply `emulate_media` with no dispatch — no synthetic event is needed. (Had it
+   not fired, the sanctioned fallback would have been a constructed
+   `new MediaQueryListEvent("change", {media: "print", matches: true})`. A bare `new Event("change")`
+   is never acceptable: it carries no `matches`, so a handler routing on `e.matches` reads `undefined`
+   and takes the *leave* path, going red on a correct build.)
+2. **`emulate_media` runs the enter path.** Any row that means to observe behaviour *without* the
+   enter path having run must therefore prevent `print.js` from loading at all, not merely withhold a
+   `beforeprint` dispatch. Row 7c does this with `page.route("**/print.js", lambda r: r.abort())`.
+
+Reads after `emulate_media` should still be **polling** reads (`expect(...).to_pass()` style) rather
+than a bare `evaluate`, since the listener runs asynchronously.
 
 ### How print state is entered in a test — pin this first
 
@@ -933,7 +973,7 @@ Fixtures follow the pattern already proven in `tests/test_e2e_notes.py`: allauth
 | 6a2 | `.block-notes__handle` has `bounding_box()["height"] == 0`. *It must **not** be asserted with bare `checkVisibility()`: §3 suppresses it with `visibility: hidden`, and `checkVisibility()`'s default `visibilityProperty: false` means it returns **`true`** for such an element — the row would be RED on a correct build. Either measure the box or pass `{visibilityProperty: true}`* | `beforeprint` then `emulate_media` *(CSS)* | delete the summary suppression |
 | 6b | A composer made visible by clicking *Add another note* (`.is-adding`) and left **empty** is not visible in print. *Driven through `.is-adding` deliberately: on a has-notes pop the composer is already hidden on screen by `notes.css:181–182` at (0,5,0), so asserting it without that state passes on the mutant too* | click *Add another note*, then enter *(CSS)* | delete the composer hide |
 | 7 | A note **mid-edit** prints its text **in full**: the fixture note needs more than three rows, and the textarea's `bounding_box()["height"]` must exceed a stated three-row threshold. *Without the height check the row passes on a three-row box with the rest scrolled out — the very failure §3 says `height: auto` causes, leaving the stamp untested* | open inline edit, then enter *(CSS + stamp)* | drop `:not(.note-composer--edit)` from the hide rule; **delete the `ta.style.height` stamp**. *Deleting the CSS `height`/`field-sizing` group alone is a **dead mutant** here: the inline stamp beats it, and `.note-composer__input` has no `max-height` to reset, so the rendered height is unchanged. It is covered by row 7c instead* |
-| 7c | With the enter path never run (CSS-only entry, no `beforeprint`, no stamp), a mid-edit textarea still prints more than three rows. *This is the row that gives the `field-sizing` fallback a falsifying mutant — it is the no-JS / stamp-never-ran path §3 calls progressive enhancement* | open inline edit, then `emulate_media` **only** *(CSS)* | delete the CSS `height`/`field-sizing` group |
+| 7c | With `print.js` **blocked from loading** (`page.route("**/print.js", lambda r: r.abort())` before navigation, so `notes.js` still builds the inline-edit form but no listener and no stamp exist), a mid-edit textarea still prints more than three rows. *Withholding the `beforeprint` dispatch is **not** enough: `emulate_media` fires the media listener and the stamp rescues the mutant, which is what made an earlier version of this row dead. This is the row that gives the `field-sizing`/`height` fallback its only falsifying mutant* | block `print.js`, open inline edit, then `emulate_media` *(CSS)* | delete the CSS `height`/`field-sizing` group |
 | 7b | A **typed but unsaved** new-note draft prints its text, on a block that **already has notes** | click *Add another note*, type, then enter *(CSS + stamp)* | delete the `.note-composer--has-draft` marking, or the `:not(.note-composer--has-draft)` carve-out |
 | 7b2 | Same, on a **note-less** block. *Row 7b cannot cover this: *Add another note* only exists on `.block-notes__pop--has-notes`, so its pop satisfies `:has(.note-card)` and the empty-pop rule never fires. Only a note-less block exercises the interaction between the draft carve-out and the empty-pop hide* | hand-open a note-less panel, type in its composer, then enter *(CSS + stamp)* | drop `.note-composer--has-draft` from the **empty-pop** rule's `:has()` list |
 | 8 | A note **mid-delete**: the confirm strip does not print, and sibling notes in the same panel do | start a delete, then enter *(CSS)* | omit `.note-delete-confirm` from the hide list |
@@ -941,6 +981,7 @@ Fixtures follow the pattern already proven in `tests/test_e2e_notes.py`: allauth
 | 9 | A **note-less** block does **not** carry the `open` attribute after the enter path. *Asserted on DOM state, not on paint: §3 hides the add-label and composer anyway, so a paint-based assertion would pass on the mutant* | `beforeprint` *(event)* | drop the filter from the sweep (open every panel) |
 | 9b | A panel put into edit (or delete-confirm) state and then **closed** is re-opened by the sweep. *Rows 7 and 8 act on panels that are already open, so neither traverses the filter; without this row the natural simplification — narrowing the filter to `.note-card` — is killed by nothing, and the real case it breaks (edit, close the panel, `Ctrl+P`) loses the note* | `beforeprint` *(event)* | drop `.note-composer--edit, .note-delete-confirm` from the filter |
 | 8b | A **rejected no-JS draft** on a **note-less** block prints its text. *Drives the real no-JS create-failure path (`note_error`), which server-renders the panel open with the student's text; `print.js` cannot rescue this one, so only the empty-pop rule's `:has()` list protects it* | post an invalid note with JS disabled, then `emulate_media` *(CSS)* | drop `.note-composer__error` from the empty-pop rule's `:has()` list |
+| 9d | A typed draft in a **note-less** panel that the student then **closed** is re-opened by the sweep and prints its text. *Neither `.note-card` nor any marker class is present — the native `<details>` toggle does not clear the textarea (only the Cancel path does, `notes.js:230`) — so only the `hasTypedDraft` arm of the filter finds it* | type in a note-less panel, close it, then enter *(event)* | drop the `hasTypedDraft` arm from the sweep filter |
 | 9c | A **note-less** panel the *student* opened by hand prints **no** `.block-notes__pop` box. *The only row covering the empty-pop rule, and the reason `.block-notes__add-label` needs no row of its own: it is rendered only on note-less blocks, which the sweep never opens, so a direct assertion on it would be `false` on the mutant too* | hand-open a note-less panel, then enter *(CSS)* | delete the `:not(:has(…))` empty-pop rule |
 | 10b | The `.unanchored-notes__handle` summary has `bounding_box()["height"] == 0` in print. *Row 10 only asserts the section prints, which is satisfied with the ⚠ handle still showing; measured, not `checkVisibility()`, per the trap above* | `beforeprint` then `emulate_media` *(CSS)* | delete the summary suppression |
 | 10c | `.block-notes` does not overlap the block above it in print: its computed `margin-top` is positive. *Covers §3's negative-margin reset, which would otherwise print the note card over the element it annotates with nothing to catch it* | `beforeprint` then `emulate_media` *(CSS)* | delete the `.block-notes` margin reset |
@@ -957,7 +998,7 @@ Fixtures follow the pattern already proven in `tests/test_e2e_notes.py`: allauth
 | 20 | A full enter/leave cycle with **no residue present** leaves the page usable: a **second** enter/leave cycle still opens and closes the panels. *This is the only row exercising the empty-cleanup branch; a leave path that throws on it would abort mid-restore and leave panels open* | two `beforeprint`/`afterprint` cycles *(event)* | make the cleanup throw when the class or button is absent |
 | 20b | After the first enter the fixture **re-closes one swept panel** via `page.evaluate`; a **second** enter re-opens it, and one leave then closes exactly the recorded set. *The re-close is what makes this falsifiable: without it the first enter has already opened everything, a mode flag's early return is invisible, and both builds pass. Pins §2 responsibility 7* | `beforeprint`, re-close one panel, `beforeprint`, `afterprint` *(event)* | add an `entered` boolean that makes enter return early |
 | 21 | For a dark-theme student, the computed `color` of lesson body text has a **contrast ratio ≥ 4.5:1 against `#FFFFFF`**. Correct build: `--text-primary` resolves to the light value (`#1E1C18`-family, ≈ 15:1). Mutant: `#F2EFE9`, ≈ 1.1:1 | `emulate_media` *(CSS)* | delete the `tokens.css` print override, **or** move it above the dark block at line 79 |
-| 21b | A dark-theme lesson containing a **callout** prints its heading at a contrast ratio **≥ 4.5:1 against `#FFFFFF`**. Correct build: the `:root` accent. Mutant: `#7db0f7`, ≈2.2:1 | `emulate_media`, dark theme *(CSS)* | delete the `courses.css` `--callout-accent` print block |
+| 21b | A dark-theme lesson containing a **callout** prints its heading at a contrast ratio **≥ 4.5:1 against `#FFFFFF`**. Correct build: the light `.callout--*` value (`#2563c9` for `--example`, ≈5.7:1). Mutant: `#7db0f7`, ≈2.2:1 | `emulate_media`, dark theme *(CSS)* | delete the `courses.css` `--callout-accent` print block |
 | 22 | A lesson using an author text colour prints `--tc-red` at a **contrast ratio ≥ 4.5:1 against `#FFFFFF`**. Correct build: the `:root` value, ≈ 6.4:1. Mutant: `#EA8A82`, ≈ 2.6:1 | `emulate_media`, dark theme *(CSS)* | omit the `--tc-*` group from the override set |
 
 Rows 21–22 assert a **computed contrast ratio**, not "the colour changed" or "it is not white": on
