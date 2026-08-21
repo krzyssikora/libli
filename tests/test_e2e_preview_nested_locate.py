@@ -628,3 +628,126 @@ def test_hover_outlines_a_nested_child(page, live_server):
 
     page.hover(f'.el-row[data-element="{child_join.pk}"]')
     page.wait_for_selector(f"{target_sel}.prev-el--hl")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_degraded_carousel_is_skipped_not_thrown_on(page, live_server):
+    """e2e 8. Mutant (i): `if (dot) dot.click();` -> `dot.click();` in revealOne's
+    carousel branch. A bailed carousel's <nav> (and its dots) has been removed
+    entirely, so `dot` is undefined -- the guard's job is to SKIP that ancestor,
+    never throw. A throw would abort the whole click handler and lose the scroll
+    revealAncestors already earned for the outer ancestors.
+
+    Fixture: a closed spoiler (the OUTER ancestor) around a carousel FORCED TO BAIL
+    via a global window.TABS_I18N accessor injection -- the same technique
+    tests/test_e2e_tabs.py:1706-1740 uses (a plain global write is simply
+    overwritten by editor.html's own inline TABS_I18N assignment before the
+    deferred tabs.js runs, so the carousel would initialise normally and this case
+    would fail against a CORRECT build).
+
+    Reveal runs outermost-first, so on mutant (i) the spoiler has ALREADY opened
+    before the inner (bailed) carousel throws -- the `[open]` wait alone cannot
+    tell the two builds apart. The SCROLL assertion is the discriminator: the throw
+    aborts revealAncestors before scrollPreviewTo's alignment runs.
+
+    Target sits in the carousel's FIRST slide (row group `open` via forloop.first)
+    -- this case tests the *skip*, not slide selection, so no _open_slots call is
+    needed. The spoiler's own editor row is an always-open div (case e2e 3), so no
+    _open_slots there either.
+
+    Click path: .el-row__label (.el-select).
+    """
+    from courses.models import SpoilerElement
+
+    pa = _make_pa_user("locate_c8")
+    course, unit = _seed_unit(pa, "locate-c8")
+
+    _seed_filler(unit, 8)  # leading run: pushes the spoiler well below the fold
+
+    spoiler = SpoilerElement.objects.create(label="Reveal me", body="")
+    spoiler_join, _no_kids = _seed_container(unit, spoiler, [])
+
+    slide1_id, slide2_id = "t000001", "t000002"
+    child = _seed_text("nested in a bailed carousel inside a closed spoiler")
+    carousel_obj, carousel_join = _seed_tabs_element(
+        unit,
+        [(slide1_id, "Slide One"), (slide2_id, "Slide Two")],
+        {slide1_id: [child]},
+        display="carousel",
+        parent=spoiler_join,
+        tab_id=SpoilerElement.SLOT_ID,
+    )
+    child_join = _child_join(carousel_join, slide1_id)
+
+    _seed_filler(unit, 8)  # trailing run: gives .pane-body room to scroll it to top
+
+    _login(page, live_server, "locate_c8")
+    # ACCESSOR injection, not a plain global write: editor.html:212 assigns
+    # window.TABS_I18N wholesale in an inline script before the deferred tabs.js, so
+    # a document-start plain write would simply be overwritten and the carousel
+    # would initialise normally. MUST sit AFTER _login (which itself navigates) and
+    # BEFORE the editor goto -- add_init_script only affects navigations after it.
+    page.add_init_script(
+        """
+      Object.defineProperty(window, "TABS_I18N", {
+        configurable: true,
+        get() { return this.__t; },
+        set(v) { this.__t = Object.assign({}, v, {slidePos: 42}); },
+      });
+    """
+    )
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    # PRE-FLIGHT: prove the bail actually took. If the injection ever stops biting
+    # (a renamed i18n key, a t() that tolerates a non-string), the carousel
+    # initialises, the walk clicks a real dot, this case passes -- and mutant (i)
+    # can never go red because `dot` is never undefined.
+    car = f'[data-scope="preview"] [data-tabs][data-tabs-eid="{carousel_join.pk}"]'
+    page.wait_for_function(
+        """(sel) => { const c = document.querySelector(sel);
+             return !!c && c.dataset.tabsReady === "1"
+                    && !c.classList.contains("tabs--carousel")
+                    && !c.classList.contains("tabs--js"); }""",
+        arg=car,
+    )
+    assert page.locator(f"{car} .tabs__dot").count() == 0, "carousel did not bail"
+
+    spoiler_sel = '[data-scope="preview"] details.spoiler'
+    target_sel = (
+        f'[data-scope="preview"] .prev-el[data-element-id="{child_join.pk}"]'
+    )
+
+    # PRE-CLICK probe: the target's own rect is unusable -- it starts inside a
+    # CLOSED <details>, whose subtree is content-visibility-skipped, so its rect is
+    # stale/degenerate. Probe the spoiler CONTAINER instead, and scope .pane-body to
+    # the PREVIEW pane -- the editor page has two (editor scope and preview scope).
+    assert (
+        page.evaluate(
+            '() => document.querySelector('
+            '\'[data-scope="preview"] .pane-body\').scrollTop'
+        )
+        == 0
+    )
+    assert page.evaluate(_PANE_DELTA_JS, spoiler_sel) > 400  # leading run
+    scrollable = page.evaluate(
+        '() => { const b = document.querySelector('
+        '\'[data-scope="preview"] .pane-body\');'
+        "  return b.scrollHeight - b.clientHeight; }"
+    )
+    assert scrollable > page.evaluate(_PANE_DELTA_JS, spoiler_sel), (
+        "trailing filler too short -- the target can never reach the pane top"
+    )
+
+    page.click(f'.el-row[data-element="{child_join.pk}"] .el-row__label')
+
+    page.wait_for_selector(f"{spoiler_sel}[open]")   # passes on BOTH builds
+    # THE DISCRIMINATOR: reveal runs outermost-first, so the spoiler above has
+    # already opened by the time the throw would happen inside the carousel branch
+    # -- only the scroll, which depends on revealAncestors running to completion,
+    # tells the two builds apart.
+    page.wait_for_function(
+        f"(sel) => Math.abs(({_PANE_DELTA_JS})(sel)) <= 4",
+        arg=target_sel,
+        timeout=5000,
+    )
