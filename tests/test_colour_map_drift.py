@@ -55,4 +55,6 @@ def test_css_tokens_are_in_the_python_slot_table():
                 f"to {slot!r} — update _PALETTE and text_colour.js MAP together"
             )
             seen += 1
-    assert seen == 8, f"expected 4 slots x 2 themes in tokens.css, found {seen}"
+    # 4 slots x 3 occurrence sets: :root, [data-theme="dark"], and the
+    # @media print override that restates the light values for printing.
+    assert seen == 12, f"expected 4 slots x 3 blocks in tokens.css, found {seen}"

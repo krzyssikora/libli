@@ -109,3 +109,63 @@
   --shadow-md: 0 6px 16px rgba(0,0,0,.5);
   --shadow-lg: 0 16px 40px rgba(0,0,0,.55);
 }
+
+/* ── Print: restore the light palette ──────────────────────────────────────
+   A dark-theme student printing any page gets near-white text on white paper:
+   browsers strip backgrounds by default, and --text-primary is #F2EFE9. This
+   block restates EVERY token the [data-theme="dark"] block declares, using
+   :root's declaration for each -- color-mix() formulas included, because dark
+   mixes toward white and light toward black, so the formulas genuinely differ.
+
+   Placement is load-bearing: :root and [data-theme="dark"] are both (0,1,0) and
+   both match <html>, so this wins only by source order. Anywhere above the dark
+   block (tokens.css:79) it is silently inert. Keep it last in the file.
+   tests/test_print_tokens_css.py pins both the placement and every value. */
+@media print {
+  /* Light theme prints this element invisibly too -- see the --text-inverse note
+     below. Fixing only the dark path would leave the same blank Next button on
+     every light-theme printout. */
+  :root { --text-inverse: #1E1C18; }
+
+  [data-theme="dark"] {
+    /* brand lift — :root mixes toward black, the dark block toward white */
+    --primary:        var(--brand-primary);
+    --primary-hover:  color-mix(in srgb, var(--brand-primary) 88%, black);
+    --primary-active: color-mix(in srgb, var(--brand-primary) 78%, black);
+    --primary-subtle: color-mix(in srgb, var(--brand-primary) 16%, var(--surface-raised));
+    --accent:         var(--brand-accent);
+    --accent-hover:   color-mix(in srgb, var(--brand-accent) 88%, black);
+    --accent-subtle:  color-mix(in srgb, var(--brand-accent) 18%, var(--surface-raised));
+
+    /* surfaces / text / borders */
+    --surface-base: #F4F1EA; --surface-raised: #FFFFFF; --surface-sunken: #FAF8F3;
+    --surface-overlay: rgba(30,28,24,0.45);
+    --scroll-edge: rgba(30,28,24,0.16);
+    --text-primary: #1E1C18; --text-secondary: #5A544A; --text-tertiary: #8A8477;
+    /* The ONE deliberate divergence from :root. --text-inverse is only ever
+       `color:` on a `background: var(--primary)` (app.css:39,53; the unit-footer
+       Next link at courses.css:814). Print strips backgrounds, so the paint that
+       justifies an "inverse" colour is gone: :root's #FBF9F4 would print at
+       1.05:1 on white -- the exact defect this whole block exists to fix, and the
+       dark theme's own #1E1C18 (17.01:1) was accidentally the safe one. Both
+       themes get dark ink; the :root override below covers the light theme, which
+       has been printing this element invisibly all along. */
+    --text-inverse: #1E1C18;
+    --border-subtle: #EDE8DE; --border-default: #E7E1D6; --border-strong: #D6CFC1;
+
+    /* semantic */
+    --success: #5A7D3C; --success-subtle: #E3ECD7;
+    --warning: #B8811F; --warning-subtle: #F4E8CD;
+    --danger:  #A8392E; --danger-subtle:  #F2D9D5;
+
+    /* Author-selectable body-text colours. Easy to miss and the most visible
+       omission: without these a lesson using coloured text still prints
+       near-white-on-white, which is the exact defect this block exists to fix. */
+    --tc-red: #B2372A; --tc-blue: #1F61AD; --tc-green: #3F6B24; --tc-orange: #8A5514;
+
+    --shadow-xs: 0 1px 2px rgba(30,28,24,.06);
+    --shadow-sm: 0 2px 6px rgba(30,28,24,.08);
+    --shadow-md: 0 6px 16px rgba(30,28,24,.10);
+    --shadow-lg: 0 16px 40px rgba(30,28,24,.14);
+  }
+}
