@@ -527,7 +527,8 @@ keeps each reveal beside the hide it pairs with.
     cascade that JS cannot evaluate.** The set is exactly the composers §3's hide spares: those
     carrying `.note-composer--edit`, `.note-composer--has-draft`, or a `.note-composer__error`
     descendant. It is emphatically **not** `document.querySelectorAll(".note-composer__input")` — that
-    reaches the composers inside note-less panels, which responsibility 3 deliberately never opens, so
+    reaches the composers inside note-less panels **without a typed draft**, which responsibility 3
+    deliberately never opens (one *with* a draft it does open, via the `hasTypedDraft` arm), so those are
     they are still under `::details-content { content-visibility: hidden }`, `scrollHeight` reads `0`,
     and the enter path would write `height: 0px` onto every note-less block's composer. If the leave
     path then never fires (a case Error handling calls harmless), the student is left with unusable
