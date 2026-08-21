@@ -224,8 +224,13 @@ inside `@media print`. `tests/test_imagezoom_render.py:112` already does exactly
 `re.search(r'^\[data-theme="dark"\]\s*\{', source, re.MULTILINE)` — reuse that shape. (A
 "before line 79" locator would select nothing, since the screen block *begins* at 79.)
 
-**Scope is repo-wide.** Every `[data-theme="dark"]` declaration in a shipped stylesheet needs a print
-counterpart or a recorded exclusion; the test fails if a new one appears unclassified. The sweep finds
+**Scope is repo-wide, and deliberately limited to column-0 rules.** Every
+`[data-theme="dark"]` declaration at the start of a line in a shipped stylesheet needs a
+print counterpart or a recorded exclusion; the test fails if a new one appears unclassified.
+An **indented** dark rule -- one nested inside a media query, as `error.css:50` is -- is not
+matched and not required to be classified. That is a stated trade-off, not an oversight:
+dropping the anchor would also match the prose mentions in `notes.css:17` and `tags.css:2`,
+and a sweep that cries wolf on comments gets disabled. The sweep finds
 five sets:
 
 | Rule | Disposition |

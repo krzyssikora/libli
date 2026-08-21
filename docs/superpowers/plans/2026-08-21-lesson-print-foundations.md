@@ -77,12 +77,16 @@ SCREEN, _sep, PRINT = CSS.partition("@media print")
 def _decls(body):
     """{token-name: value} for one declaration block body.
 
-    Comments are stripped FIRST and the value class excludes newlines. Both are
-    load-bearing: tokens.css:44-48 is prose containing "--surface-overlay:", and a
-    naive [^;]+ swallows from there to the next semicolon, so --surface-overlay
-    resolves to "nothing of the page may show through. */ --scrim-solid: ..." and
-    --scrim-solid never gets a key at all. That makes this test RED on a CORRECT
-    build -- verified by running it against the real file.
+    THE NEWLINE EXCLUSION IN THE VALUE CLASS IS WHAT MATTERS. tokens.css:44-48 is
+    prose containing "--surface-overlay:", and a naive [^;]+ (which matches
+    newlines) swallows from there to the next semicolon: --surface-overlay comes
+    back as "nothing of the page may\n show through. */\n --scrim-solid: ..." and
+    --scrim-solid never gets a key at all, making this test RED on a CORRECT build.
+    Measured against the real file, [^;{}\n]+ alone gives the right answer.
+
+    The comment strip below is belt-and-braces for a future comment that fits a
+    whole "--x: y;" on one line; today it changes nothing. Do not mistake it for
+    the load-bearing part -- battery row 14 mutates the value class, not this.
     """
     body = re.sub(r"/\*.*?\*/", "", body, flags=re.DOTALL)
     return {
@@ -147,7 +151,10 @@ comment-stripping pass is missing and every later assertion is meaningless.
 - [ ] **Step 3: Run the test and watch it fail**
 
 Run: `C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py -v`
-Expected: FAIL — `tokens.css must have an @media print block` (the file has none yet).
+Expected: **3 failed** - all three, not one. With no `@media print` in the file, `PRINT` is
+the empty string, so `test_print_block_exists_...` fails on its own message while the other
+two fail inside `_block(PRINT, ...)` with `no block matching`. Three failures here is the
+correct red phase, not a sign the new file is broken.
 
 - [ ] **Step 4: Append the print block to `tokens.css`**
 
@@ -318,6 +325,10 @@ def test_print_restates_every_dark_callout_accent_with_the_light_value():
     """--callout-accent is declared in courses.css, a LATER sheet at (0,2,0), so
     tokens.css's print block cannot reach it. Without its own print block a
     dark-theme lesson with callouts prints #7db0f7 headings on white (2.23:1)."""
+    # Whitespace-exact by necessity, and unique in courses.css today (checked
+    # against all 9 existing @media print blocks). If a reformat ever breaks it,
+    # the failure reads "no @media print block" rather than "wrong value" -- so
+    # check the marker before believing that message.
     marker = '@media print {\n  [data-theme="dark"]'
     screen, sep, printed = COURSES_CSS.partition(marker)
     assert sep, (
@@ -788,31 +799,27 @@ def test_dark_theme_callout_heading_prints_dark(page, live_server):
 
 
 def _slideshow_lesson(slug):
-    """A unit with two slides: text, slide break, text."""
+    """A unit with two slides: text, slide break, text.
+
+    Uses tests.factories.seed_slideshow_unit, which already builds a unit from a
+    "t"/"brk"/"q" layout -- do not hand-roll the element creation. It goes through
+    ContentNodeFactory, whose `published` default is False (migration 0057), so the
+    flag must be set explicitly or the student cannot reach the unit.
+    """
     from django.contrib.auth.models import Group as AuthGroup
 
-    from courses.models import ContentNode
     from courses.models import Enrollment
-    from courses.models import SlideBreakElement
-    from courses.models import TextElement
     from institution.roles import STUDENT
     from institution.roles import seed_roles
     from tests.factories import CourseFactory
-    from tests.factories import add_element
     from tests.factories import make_verified_user
+    from tests.factories import seed_slideshow_unit
 
     seed_roles()
     course = CourseFactory(slug=slug)
-    unit = ContentNode.objects.create(
-        course=course,
-        kind=ContentNode.Kind.UNIT,
-        unit_type=ContentNode.UnitType.LESSON,
-        title="Deck",
-        published=True,
-    )
-    add_element(unit, TextElement.objects.create(body="<p>Slide one body.</p>"))
-    add_element(unit, SlideBreakElement.objects.create())
-    add_element(unit, TextElement.objects.create(body="<p>Slide two body.</p>"))
+    unit = seed_slideshow_unit(course, layout=["t", "brk", "t"])
+    unit.published = True
+    unit.save(update_fields=["published"])
     student = make_verified_user(
         username=f"{slug}-student", email=f"{slug}@test.example.com"
     )
@@ -937,7 +944,14 @@ For each mutant below: apply it **by hand-editing the file**, run the named test
 then **edit the mutant back out by hand**. Never `git checkout` to revert — this repo has lost work
 to that three times; see the project notes.
 
-**Use these exact commands.** Rows 1–10 target e2e tests, rows 11–15 target non-e2e tests:
+**There is deliberately no mutant for "the print locator silently resolves to the screen
+block."** That failure is structurally impossible: `CSS.partition("@media print")` puts the
+two blocks in **disjoint strings**, so `_block(PRINT, ...)` cannot reach the screen block by
+any edit short of rewriting the partition itself -- at which point the test fails
+unconditionally and distinguishes nothing. A mutant that always reddens proves as little as
+one that never does.
+
+**Use these exact commands.** Rows 1-9 and 10a target e2e tests; 10b and 11-14 target non-e2e:
 
 ```
 C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_e2e_print_foundations.py::<name> -m e2e -v
@@ -948,8 +962,11 @@ C:/Users/krzys/.local/bin/uv.exe run pytest tests/test_print_tokens_css.py::<nam
 no failure, which reads exactly like a passing run. If a mutant produces that, the command was
 wrong — re-run it, do not record the mutant as green or as red.
 
-Read `git diff` after the battery and confirm it shows **only** the work you meant to keep — Task 3's
-tests and Task 4's e2e file, both already committed by this point, so the diff should be empty.
+Read `git diff` after the battery and confirm it is **empty**. Note *why*: Tasks 1-3 are
+committed by now, and `tests/test_e2e_print_foundations.py` is still **untracked** at this
+point (it is committed in Step 7), so it never appears in `git diff` at all. An empty diff
+therefore means "every mutant was reverted", which is what this check is for. Also run
+`git status` and confirm the only untracked file is that e2e test.
 
 | # | Mutant | Must turn RED |
 |---|---|---|
@@ -962,12 +979,12 @@ tests and Task 4's e2e file, both already committed by this point, so the diff s
 | 7 | Delete `opacity: 1 !important` from the slide reveal | `test_mid_fade_slide_prints_opaque` |
 | 8 | Delete `transition: none !important` from the slide reveal | `test_mid_fade_slide_prints_opaque` |
 | 9 | Rewrite the slide reveal against `[data-slideshow] > .slide` instead of `.slideshow-deck .slide` | `test_every_slide_prints_stacked_in_flow` (proves the selector is not inert) |
-| 10 | Delete the **entire** slideshow `@media print` block | `test_every_slide_prints_stacked_in_flow` **and** `test_slideshow_print_block_declares_the_load_bearing_rules` |
+| 10a | Delete the **entire** slideshow `@media print` block - *e2e command* | `test_every_slide_prints_stacked_in_flow` |
+| 10b | The same mutant - *non-e2e command* | `test_slideshow_print_block_declares_the_load_bearing_rules` |
 | 11 | Change one value in the `tokens.css` print block | `test_print_override_restates_every_dark_token_with_the_root_value` |
 | 12 | Delete the `--primary*` group from the print block | same |
-| 13 | Replace `_block(PRINT, …)` with `_block(CSS, …)` — a first-match search over the whole file — **then apply mutant 10 as well**. Mutant 10 must still turn the test RED. *Note: simply dropping the `partition` is not a usable mutant: both locators then resolve to the screen dark block and the test fails unconditionally, so it distinguishes nothing* | `test_print_override_restates_every_dark_token_with_the_root_value` |
-| 14 | Delete the comment-stripping line from `_decls` | `test_print_override_restates_every_dark_token_with_the_root_value` — it must go RED on `--surface-overlay`, proving the helper is not silently mangling the file |
-| 15 | Delete one closing `}` from the appended slideshow block | `test_courses_css_braces_balance` — the only row that proves this tripwire can go red |
+| 13 | Widen `_decls`'s value class from `[^;{}\n]+` to `[^;]+` (i.e. let it match newlines) | `test_print_override_restates_every_dark_token_with_the_root_value` — RED on `--surface-overlay`, which the regex then scrapes out of the `:root` comment at `tokens.css:44-48`. *Deleting the comment-strip line instead is a **dead** mutant: measured, it changes nothing, because the newline exclusion already does the whole job* |
+| 14 | Delete one closing `}` from the appended slideshow block | `test_courses_css_braces_balance` — the only row that proves this tripwire can go red |
 
 If any mutant leaves its test GREEN, the assertion is not measuring what it claims. Fix the assertion, not the mutant.
 
@@ -1026,4 +1043,4 @@ copy a stale second version from this appendix.
 
 **Placeholder scan:** none — every step carries the literal file content or command.
 
-**Type consistency:** `_decls`, `_block`, `_callout_accents`, `_contrast_on_white`, `_dark_lesson`, `_slideshow_lesson`, `_login` are each defined once and used with matching signatures. `CALLOUT_KINDS` matches `CalloutElement.Kind` values (`example`, `note`, `tip`, `warning`, `task` — note `warning`'s label is "Important" but its stored value is `warning`).
+**Type consistency:** `_decls`, `_block`, `_callout_accents`, `_contrast_on_white`, `_dark_lesson`, `_open_lesson`, `_slideshow_lesson`, `_login` are each defined once and used with matching signatures. `CALLOUT_KINDS` matches `CalloutElement.Kind` values (`example`, `note`, `tip`, `warning`, `task` — note `warning`'s label is "Important" but its stored value is `warning`).
