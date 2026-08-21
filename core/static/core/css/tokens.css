@@ -122,6 +122,11 @@
    block (tokens.css:79) it is silently inert. Keep it last in the file.
    tests/test_print_tokens_css.py pins both the placement and every value. */
 @media print {
+  /* Light theme prints this element invisibly too -- see the --text-inverse note
+     below. Fixing only the dark path would leave the same blank Next button on
+     every light-theme printout. */
+  :root { --text-inverse: #1E1C18; }
+
   [data-theme="dark"] {
     /* brand lift — :root mixes toward black, the dark block toward white */
     --primary:        var(--brand-primary);
@@ -137,7 +142,15 @@
     --surface-overlay: rgba(30,28,24,0.45);
     --scroll-edge: rgba(30,28,24,0.16);
     --text-primary: #1E1C18; --text-secondary: #5A544A; --text-tertiary: #8A8477;
-    --text-inverse: #FBF9F4;
+    /* The ONE deliberate divergence from :root. --text-inverse is only ever
+       `color:` on a `background: var(--primary)` (app.css:39,53; the unit-footer
+       Next link at courses.css:814). Print strips backgrounds, so the paint that
+       justifies an "inverse" colour is gone: :root's #FBF9F4 would print at
+       1.05:1 on white -- the exact defect this whole block exists to fix, and the
+       dark theme's own #1E1C18 (17.01:1) was accidentally the safe one. Both
+       themes get dark ink; the :root override below covers the light theme, which
+       has been printing this element invisibly all along. */
+    --text-inverse: #1E1C18;
     --border-subtle: #EDE8DE; --border-default: #E7E1D6; --border-strong: #D6CFC1;
 
     /* semantic */

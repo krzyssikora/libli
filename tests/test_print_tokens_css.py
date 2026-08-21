@@ -21,6 +21,15 @@ CSS = (
 
 SCREEN, _sep, PRINT = CSS.partition("@media print")
 
+# The ONE token the print block deliberately does NOT copy from :root.
+# --text-inverse is only ever `color:` on a `background: var(--primary)`
+# (app.css:39,53; the unit-footer Next link at courses.css:814). Print strips
+# backgrounds, so the paint that justifies an "inverse" colour is gone --
+# :root's #FBF9F4 prints at 1.05:1 on white, which is the exact defect this
+# block exists to fix. The dark theme's own #1E1C18 (17.01:1) was accidentally
+# the safe value. Both themes are forced to dark ink instead.
+PRINT_OVERRIDES = {"--text-inverse": "#1E1C18"}
+
 
 def _decls(body):
     """{token-name: value} for one declaration block body.
@@ -74,10 +83,32 @@ def test_print_override_restates_every_dark_token_with_the_root_value():
         "Every one must be restated or a dark-theme printout keeps that dark value."
     )
     for name in sorted(dark):
-        assert printed[name] == root[name], (
-            f"{name} prints as {printed[name]!r} but :root declares {root[name]!r}; "
-            "the print block must copy :root verbatim (color-mix formulas included)"
+        expected = PRINT_OVERRIDES.get(name, root[name])
+        assert printed[name] == expected, (
+            f"{name} prints as {printed[name]!r} but should be {expected!r}; "
+            "the print block copies :root verbatim (color-mix formulas included) "
+            "except for the documented PRINT_OVERRIDES"
         )
+
+
+def test_text_inverse_prints_as_dark_ink_in_both_themes():
+    """The one PRINT_OVERRIDES entry, pinned in both directions.
+
+    Restating :root's #FBF9F4 here would print the unit-footer Next link at
+    1.05:1 on white for a dark-theme student -- taking it FROM 17.01:1, since the
+    dark value was the print-safe one. The :root override fixes the light theme,
+    which has been printing that element invisibly all along.
+    """
+    printed_dark = _block(PRINT, r'\[data-theme="dark"\]')
+    assert printed_dark["--text-inverse"] == PRINT_OVERRIDES["--text-inverse"], (
+        "the dark print block must force --text-inverse to dark ink, not copy "
+        ":root's near-white value"
+    )
+    printed_root = _block(PRINT, r"^\s*:root")
+    assert printed_root["--text-inverse"] == PRINT_OVERRIDES["--text-inverse"], (
+        "@media print must also override --text-inverse on :root, or every "
+        "light-theme printout keeps the invisible Next link"
+    )
 
 
 def test_scrim_solid_is_not_in_the_print_override():

@@ -2472,11 +2472,9 @@ dialog.imgzoom:not([open]) { display: none; }
   /* The stage also carries .scroll-y (app.css:1886, position:relative), which is
      why the position reset is needed at all. */
   .slideshow-stage { position: static !important; height: auto !important; }
-  /* The stage's .scroll-y ::before/::after are position:absolute (app.css:1886-1892).
-     Removing the stage's position:relative reparents them to the next positioned
-     ancestor, so their boxes can land anywhere on the sheet. They are gradient
-     shading for a scroller paper does not have -- drop them outright. */
-  .slideshow-stage::before, .slideshow-stage::after { display: none !important; }
+  /* No pseudo-element hide needed here: slideshow.js:49 gives the stage
+     `.scroll-y`, and app.css:1913 already drops .scroll-y::before/::after in
+     print. Duplicating it would be dead weight. */
   .slideshow-deck .slide,
   .slideshow-deck .slide[hidden] {
     display: block !important; position: static !important;
