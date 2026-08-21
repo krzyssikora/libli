@@ -639,7 +639,11 @@ class FakeResponse(io.BytesIO):
     def __init__(self, data=b"", status=200, headers=None):
         super().__init__(data)
         self.status = status
-        self.headers = headers or {"Content-Type": "image/png"}
+        # `is None`, NOT `or`: an explicit headers={} is FALSY, so `headers or {...}`
+        # would substitute the default and silently give a header-less response an
+        # image/png Content-Type -- making the absent-header test RED on a correct
+        # build. MEASURED.
+        self.headers = {"Content-Type": "image/png"} if headers is None else headers
 
     def __enter__(self):
         return self
@@ -765,6 +769,13 @@ logger = logging.getLogger(__name__)
 # is interpolated into its message too but is deliberately NOT here: the log line
 # carries no other field that identifies which status fired.
 _MESSAGE_ONLY_PARAMS = {"mib"}
+
+# Hoisted to module level deliberately: raised from four levels of nesting inside
+# _fetch's redirect handler this string lands at 89 columns, and `ruff format` reflows
+# it to a shape that is STILL 89 -- an E501 no formatter can fix. MEASURED.
+_REDIRECT_OFF_ALLOWLIST = _(
+    "That URL redirects to a host that is not on the allow-list."
+)
 
 MAX_REDIRECT_HOPS = 3
 TIMEOUT_SECONDS = 8          # per socket op -- does NOT bound the call
@@ -935,8 +946,9 @@ Run: `uv run ruff check --no-cache courses/media_fetch.py`
 Expected: **four `F401` unused-import errors** — `BytesIO`, `unquote`, `urljoin` and
 `truncate_filename` are imported here but not consumed until Tasks 5 and 7 — **plus some
 `E501`**, because `ruff format` has not run yet and several lines in the skeleton above
-exceed the 88-column limit (measured: the `with _open(...)` line at 96 chars, the deadline
-`logger.warning` at 96, the `_build_asset` return at 91). Both clear later. What must be
+exceed the 88-column limit (measured: **four** — the `with _open(...)` line at 96 chars,
+the deadline `logger.warning` at 96, the `_build_asset` return at 91, and
+`_NoRedirect.redirect_request`'s `raise` at 89). All four clear after `ruff format`. What must be
 **absent** is `S310`: if it fires, the `noqa` is misplaced — it belongs on the `Request(`
 line, not the function.
 
@@ -976,7 +988,8 @@ from django.test import override_settings
 from courses import media_fetch
 from courses.tests.test_media_fetch_transport import FakeResponse
 from courses.tests.test_media_fetch_transport import png_bytes
-from tests.factories import CourseFactory, UserFactory
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 OK = ["upload.wikimedia.org"]
@@ -1213,7 +1226,7 @@ def _fetch(submitted_url, deadline, max_bytes):
                     # URL "must use https" when it was the REDIRECT that downgraded is
                     # a false statement about what they typed.
                     raise ValidationError(
-                        _("That URL redirects to a host that is not on the allow-list."),
+                        _REDIRECT_OFF_ALLOWLIST,
                         code="redirect-off-allowlist",
                         params={"target_host": urlsplit(target).hostname or ""},
                     ) from inner
@@ -1292,7 +1305,8 @@ from django.test import override_settings
 from courses import media_fetch
 from courses.tests.test_media_fetch_transport import FakeResponse
 from courses.tests.test_media_fetch_transport import png_bytes
-from tests.factories import CourseFactory, UserFactory
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 OK = ["upload.wikimedia.org"]
@@ -1535,7 +1549,8 @@ from django.test import override_settings
 
 from courses import media_fetch
 from courses.tests.test_media_fetch_transport import FakeResponse
-from tests.factories import CourseFactory, UserFactory
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 OK = ["upload.wikimedia.org"]
@@ -1845,7 +1860,17 @@ def _build_asset(course, user, name, submitted_url, current_url, data, allowed_e
         )
         raise
     digest = hashlib.sha256(data).hexdigest()
-    return create_asset(...)   # unchanged
+    # Written out in full rather than elided: `name=name` in particular is easy to drop
+    # on a re-type, and no test in Tasks 4-8 asserts it.
+    return create_asset(
+        course,
+        "image",
+        ContentFile(data, name=filename),
+        user,
+        name=name,
+        source_url=submitted_url,
+        content_hash=digest,
+    )
 ```
 
 Note `_verify_payload` and `_derive_filename` themselves stay log-free — one wrapper at the
@@ -1897,7 +1922,8 @@ from django.core.exceptions import ValidationError
 from django.test import override_settings
 
 from courses import media_fetch
-from tests.factories import CourseFactory, UserFactory
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 OK = ["upload.wikimedia.org"]
@@ -2060,8 +2086,8 @@ from courses.models import MediaAsset
 from courses.tests.test_media_fetch_transport import FakeResponse
 from courses.tests.test_media_fetch_transport import png_bytes
 from tests.factories import CourseFactory
-from tests.factories import make_pa
 from tests.factories import make_login
+from tests.factories import make_pa
 
 pytestmark = pytest.mark.django_db
 
@@ -2166,9 +2192,28 @@ def test_no_js_failure_redirects_with_a_message(client, course_and_manager):
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_authenticated_get_is_405(client, course_and_manager):
-    """@require_POST must sit ABOVE @login_required, or this is a login redirect."""
+    """Falsifies "drop @require_POST entirely" -- NOT the decorator ORDER.
+
+    With the order swapped, an authenticated GET still passes login_required and is
+    then rejected by require_POST with 405, so this assertion holds on both builds.
+    Only an anonymous GET distinguishes them; see the next test.
+    """
     course, _ = course_and_manager
     assert client.get(url_for(course)).status_code == 405
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_anonymous_get_is_405_not_a_login_redirect(course_and_manager):
+    """THIS is what pins @require_POST above @login_required.
+
+    Correct order -> require_POST runs first -> 405 regardless of auth.
+    Swapped      -> login_required runs first -> 302 to /accounts/login/.
+    A fresh Client(), because the fixture logged the shared one in.
+    """
+    from django.test import Client
+
+    course, _ = course_and_manager
+    assert Client().get(url_for(course)).status_code == 405
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
@@ -2247,7 +2292,8 @@ Add `from django.contrib import messages` if absent. Route in `courses/urls.py`:
 
 | Mutant | RED test |
 |---|---|
-| Swap the decorator order | `test_authenticated_get_is_405` |
+| Drop `@require_POST` entirely | `test_authenticated_get_is_405` |
+| **Swap** the decorator order | `test_anonymous_get_is_405_not_a_login_redirect` (the authenticated test stays GREEN on this mutant — `login_required` passes, then `require_POST` still 405s) |
 | `request.POST["url"]` | `test_missing_url_key_is_422_not_500` |
 | `request.POST["name"]` | `test_missing_name_key_succeeds` |
 | `str(e)` instead of `"; ".join(e.messages)` | `test_rejection_is_422_with_the_message` |
@@ -2808,6 +2854,25 @@ def test_picker_from_url_selects_into_an_image_element(page, live_server, ...):
     ...
 
 
+def test_picker_enter_key_fetches(page, live_server, ...):
+    """The POSITIVE Enter scenario -- what actually falsifies "drop the Enter handler".
+
+    The in-flight test cannot: dropping the handler makes Enter a no-op there, `calls`
+    stays at 1, and its assertion passes. The panel has no <form> ancestor (the overlay
+    is appended to document.body), so there is no implicit submission to fall back on --
+    without the keydown handler Enter is silently dead, which is exactly what the spec
+    calls out.
+    """
+    # ... picker setup, then:
+    page.click('[data-tab="fetch"]')
+    page.fill("[data-picker-url]", fixture_url(live_server))
+    page.locator("[data-picker-url]").press("Enter")      # NO button click
+    page.wait_for_selector(".picker-overlay", state="detached")
+    # selectAsset ran: the element's media select now carries the fetched asset
+    assert page.locator("select[name=media] option:checked").count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
 def test_rejected_url_shows_the_server_reason_in_the_picker_flash(page, live_server, ...):
     page.fill("[data-picker-url]", REJECT_URL)
     page.click("[data-picker-fetch]")
