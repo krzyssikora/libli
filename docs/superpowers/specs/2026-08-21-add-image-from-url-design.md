@@ -23,8 +23,11 @@ change, and it was considered and rejected for four reasons:
   would only ever work in `ImageElement`, never in table cells, fill-table cells,
   drag-to-image or gallery, all of which key on the `MediaAsset` FK.
 
-Because the fetched image becomes an ordinary `MediaAsset`, every one of those surfaces
-gets the feature at once, and nothing downstream of asset creation needs to change.
+Because the fetched image becomes an ordinary `MediaAsset`, the **asset pipeline** —
+derivative generation, validation, and every consuming element — needs no change at all,
+and all of those surfaces gain the feature at once. Two deliberate exceptions exist
+downstream, both covered below: `_asset_cell.html` shows a provenance link, and
+`replace_asset` must clear that provenance.
 
 ### Non-goals
 
@@ -100,6 +103,10 @@ Rules, checked in this order:
    case `http` is also accepted → "Image URLs must use https."
 5. The host must equal, or be a subdomain of, an entry in
    `settings.ALLOWED_IMAGE_FETCH_DOMAINS` → "That image host is not on the allow-list."
+   **Both sides are lower-cased before comparison** — the parsed hostname and every
+   allow-list entry — exactly as `validate_embed_url` does
+   (`host = (parts.hostname or "").lower()`, `{d.lower() for d in …}`). Without it an
+   operator writing `Upload.Wikimedia.org` in `.env` gets a silently unreachable entry.
 
 Raises `ValidationError` on rejection. **All messages in this module and in
 `media_fetch.py` use `gettext_lazy`**, deliberately diverging from `validate_embed_url`,
@@ -116,13 +123,12 @@ re-checking after every redirect — materially more code, more risk, and a much
 review surface.
 
 **The allow-list is the only defence, so widening it is not risk-free.** There is no
-IP-level guard behind it, and the match rule inherited from `validate_embed_url`
-(`host == d or host.endswith("." + d)`) accepts **every** subdomain. An operator who adds a
-host whose subdomain tree is third-party controlled — `s3.amazonaws.com`, `github.io`,
-`blogspot.com`, most CDNs — hands an attacker a hostname whose DNS they control, pointing
-anywhere they like, including loopback and cloud metadata endpoints. Entries must therefore
-be hosts whose **entire subdomain tree** is trusted. This warning belongs both here and as
-a comment beside the `.env.example` line.
+IP-level guard behind it, and the match rule inherited from `validate_embed_url` accepts
+**every** subdomain. An operator who adds a host whose subdomain tree is third-party
+controlled — `s3.amazonaws.com`, `github.io`, `blogspot.com`, most CDNs — hands an attacker
+a hostname whose DNS they control, pointing anywhere they like, including loopback and cloud
+metadata endpoints. Entries must therefore be hosts whose **entire subdomain tree** is
+trusted. This warning belongs both here and as a comment beside the `.env.example` line.
 
 **The port is deliberately unconstrained.** `urlsplit().hostname` drops the port, so
 `https://upload.wikimedia.org:9999/x.png` is accepted and the server will connect to that
@@ -160,11 +166,10 @@ embed host would be a privilege widening nobody asked for.
 already defines `_USER_AGENT = "libli/1.0 (+https://github.com/krzyssikora/libli)"` and
 argues explicitly for a constant over a setting ("matching the pattern of
 `integrations/delivery.py`"). Rather than duplicate that literal or contradict that
-precedent, lift it to a single shared constant that both callers import — `core`-level or a
-small `courses/http_ua.py` — and have `geogebra.py` import it too. It is **not optional**:
-Wikimedia's User-Agent policy requires a descriptive, contactable UA and returns 403 to
-generic library user-agents, and Wikimedia is the entire default allow-list, so the feature
-would fail against the only hosts it is configured to reach out of the box.
+precedent, lift it to a single shared constant that both callers import, and have
+`geogebra.py` import it too. It is **not optional**: Wikimedia's User-Agent policy requires
+a descriptive, contactable UA and returns 403 to generic library user-agents, and Wikimedia
+is the entire default allow-list.
 
 `.env.example` gains commented lines for both settings, beside the existing
 `LIBLI_ALLOWED_EMBED_DOMAINS` example at `.env.example:21`, with the
@@ -191,15 +196,10 @@ One public entry point:
 fetch_image_asset(course, url, user, name="") -> MediaAsset
 ```
 
-It validates, downloads under a cap and a wall-clock budget, verifies the payload, and
-hands the bytes to the **existing** `create_asset()` (`courses/media.py:108`), so per-kind
-extension/size validation (`full_clean()`), derivative generation, and the rest of the
-asset pipeline run exactly as they do for an upload. Nothing downstream of `create_asset`
-is aware a URL was involved.
-
 Module constants, mirroring `geogebra.py`'s set: `MAX_REDIRECT_HOPS = 3`,
 `TIMEOUT_SECONDS = 8` (per socket op), `DEADLINE_SECONDS = 20` (total),
-`CHUNK_BYTES = 64 * 1024`.
+`CHUNK_BYTES = 64 * 1024`, `MAX_PIXELS` (see step 10),
+`REDIRECT_STATUSES = {301, 302, 303, 307, 308}`.
 
 **Naming.** The spec uses two distinct names throughout, and the implementation must too:
 `submitted_url` (the stripped value the author pasted) and `current_url` (the hop being
@@ -208,85 +208,168 @@ redirect loop and it silently breaks the Data section's guarantee that `source_u
 the submitted URL, because `url = urljoin(url, location)` would leave the final target in
 scope at `create_asset` time.
 
-Internal steps:
+#### Thread boundary — what runs where
+
+**The daemon thread performs steps 4–8 only, and returns `(data, current_url)`.** Steps
+9–13 — the empty-body guard, the Pillow verification, filename derivation, the digest, and
+`create_asset` — run on the **request thread**, after the join. This split is mandatory in
+both directions:
+
+- `create_asset` performs a DB write and a storage write. On a background thread that is a
+  second, never-closed connection outside the request's transaction, invisible to
+  `pytest.mark.django_db` isolation and un-rolled-back on failure.
+- `current_url` is worker-local, and filename derivation needs it (step 5 of Filename
+  derivation). `geogebra.py`'s worker returns only `box["body"]`; copying that shape
+  verbatim would lose the final hop and silently degrade the stem to `Special:FilePath` —
+  the exact case that rule exists for.
+
+**The result box contract**, following `geogebra.py:436-452`:
+
+- The worker stores `box["exc"] = exc` **first**, then `exc.close()` (guarded, so a close
+  failure can never mask the original).
+- A private `_BudgetExceeded` signals worker-side budget exhaustion and **stores nothing**,
+  so the caller's "no result" branch reports the deadline. Its `except` clause must precede
+  the broad one, or a budget exception is captured as a generic failure.
+- After `thread.join(DEADLINE_SECONDS)` the main thread takes **one** snapshot of the box.
+  A stored `ValidationError` is re-raised **unchanged**; a box with neither result nor
+  exception yields "Fetching the image took too long."
+
+Without this, every `ValidationError` raised on the worker (redirect off the allow-list, bad
+`Location`, hop budget, non-200, Content-Type gate, byte cap) is lost — an exception on a
+`threading.Thread` target does not propagate to the joiner — and all six conditions would
+report the deadline message instead.
+
+**The worker's deadline instant** is `monotonic() + DEADLINE_SECONDS`, computed
+**immediately before `start()`** and passed into the read loop, with `thread.join()` given
+the same `DEADLINE_SECONDS` value so there is no clock skew — `geogebra.py:426-450` pins
+this exactly. This matters because the daemon thread keeps running after the join returns;
+the deadline instant is its own stopping rule.
+
+#### Steps
 
 1. `validate_fetch_url(submitted_url)`.
 2. Read `effective_max_image_bytes()` and `effective_image_extensions()` **once** into
    locals. Both go through `_site_config()` → `get_site_config()` (a cache read, and a DB
    read on a miss); calling them inside the chunk loop or per candidate extension would
    re-evaluate them needlessly.
-3. **The whole transport runs on a daemon thread joined with a budget**, exactly as
-   `geogebra.py:442-452` does: start the thread, `thread.join(DEADLINE_SECONDS)`, snapshot
-   the result box once, and treat a missing result as "deadline exceeded". This is the
-   *only* mechanism that actually bounds wall clock. A per-socket `timeout=` — whether
-   urllib's or `requests`' — bounds each `connect`/`recv`, never the total call: a peer
-   emitting one header byte every few seconds keeps every individual read inside the
-   timeout and parks the worker indefinitely, which `geogebra.py:57-63` measured at 16.18 s
-   against a 3 s timeout. Note this makes the repo's **second** production background
-   thread; that is a deliberate choice, taken because the alternative is an unbounded
-   worker.
-4. On the worker thread, issue a `GET` via a `_NoRedirect` opener (the handler pattern in
-   both `geogebra.py:272` and `integrations/delivery.py:23`), with `timeout=TIMEOUT_SECONDS`
-   and headers `User-Agent: <shared constant>` and `Accept: image/*`. The `Accept` header
-   costs nothing and improves the odds a content-negotiating host returns the image rather
-   than an HTML page — the `commons.wikimedia.org` case below is exactly a
-   negotiation-shaped failure.
-5. **Redirects are followed manually.** The redirect status set is exactly
-   `{301, 302, 303, 307, 308}`. For each such response:
-   - a missing or empty `Location` header is a rejection → "The image host returned an
-     invalid redirect.";
-   - `Location` is resolved against `current_url` with `urljoin`, then passed through
-     `validate_fetch_url` again before being requested → "That URL redirects to a host that
-     is not on the allow-list." This is the load-bearing guard: an allow-listed host that
-     redirects off the allow-list must not be followed, and an auto-following client would
-     silently do exactly that;
+3. Start the daemon thread with the deadline instant above; join with `DEADLINE_SECONDS`.
+   This is the *only* mechanism that bounds wall clock. A per-socket `timeout=` bounds each
+   `connect`/`recv`, never the total call: a peer emitting one header byte every few seconds
+   keeps every individual read inside the timeout and parks the worker indefinitely, which
+   `geogebra.py:57-63` measured at 16.18 s against a 3 s timeout. This makes the repo's
+   **second** production background thread — a deliberate choice, taken because the
+   alternative is an unbounded worker.
+
+*Steps 4–8 run on the worker.*
+
+4. Issue a `GET` via a `_NoRedirect` opener (the class at `courses/geogebra.py:251` and
+   `integrations/delivery.py:23`; `_open` at `geogebra.py:272` is the seam), with
+   `timeout=TIMEOUT_SECONDS` and headers `User-Agent: <shared constant>` and
+   `Accept: image/*`. The `Accept` header costs nothing and improves the odds a
+   content-negotiating host returns the image rather than an HTML page — the
+   `commons.wikimedia.org` case below is exactly a negotiation-shaped failure.
+
+5. **Redirects and non-200s arrive as raised `HTTPError`, not as returned responses.**
+   This is the single most important control-flow fact in this module and it is easy to get
+   wrong. `build_opener` keeps `HTTPErrorProcessor`, so 4xx/5xx raise
+   (`integrations/delivery.py:29-31` says so verbatim), and both existing `_NoRedirect`
+   handlers **raise** `HTTPError` rather than returning `None`
+   (`geogebra.py:262-267`: "it RAISES, it does not return None"). `opener.open()` therefore
+   returns **only** a 2xx response.
+
+   The handler shape is consequently:
+
+   ```
+   try:
+       with opener.open(req, timeout=TIMEOUT_SECONDS) as resp:
+           ...            # 2xx only: steps 6-8
+   except urllib.error.HTTPError as exc:
+       ...                # 3xx and non-2xx: inspect exc.status / exc.headers, then exc.close()
+   except (TimeoutError, urllib.error.URLError, OSError):
+       ...                # genuine transport failure
+   ```
+
+   **The clause order is mandatory, not stylistic:** `HTTPError` is a subclass of
+   `URLError`, so a `URLError` clause placed first swallows every redirect and every status
+   error, and the five enumerated redirect/status messages become unreachable — the whole
+   feature would report "Could not reach the image host." for a 404.
+
+   Inside the `HTTPError` handler:
+   - `exc.status in REDIRECT_STATUSES` → redirect handling (below);
+   - anything else → "The image host returned an error (status %(status)s)."
+
+6. **Redirect handling.** For a redirect `HTTPError`:
+   - a missing or empty `Location` header → "The image host returned an invalid redirect.";
+   - `Location` is resolved against `current_url` with `urljoin`, then re-validated;
    - every hop re-issues `GET` with the same headers and timeout, regardless of whether the
      status was 303 or 307/308;
    - at most `MAX_REDIRECT_HOPS` hops → "That URL redirects too many times." A redirect
-     status arriving when the budget is exhausted reports *that*, never the not-200 message,
-     so the two error rows stay distinct.
-6. Reject any final (non-redirect) response whose status is not 200 → "The image host
-   returned an error (status %(status)s)."
+     status arriving when the budget is exhausted reports *that*, never the not-200 message.
+
+   **The re-validation's own messages are caught and replaced.** `validate_fetch_url` has
+   five rules, and a redirect target can trip any of them: a downgrade to `http://` would
+   otherwise tell the author "Image URLs must use https.", an over-long `Location` "That URL
+   is too long", a malformed one "That does not look like a valid URL" — each of which is a
+   false statement about the URL the author actually typed. So the redirect path catches
+   `ValidationError` from the re-validation and re-raises the single redirect-specific
+   message, "That URL redirects to a host that is not on the allow-list." The
+   http-downgrade redirect is a named unit test.
+
 7. **Content-Type is a cheap pre-read gate.** Take the response's `Content-Type`, strip
    parameters at the first `;`, trim, case-fold, and reject anything that is not a key of
-   the media-type map → "That URL did not return an image." This is checked *before* the
-   body is read so an HTML page is abandoned early. It is a gate, not the authority on the
-   extension — see step 11.
-8. **Byte cap, read with `read1`.** Loop `response.read1(CHUNK_BYTES)`, accumulating, and
-   reject as soon as the total exceeds the cap from step 2 → the existing "Image file too
-   large (max %(mib)d MiB)." wording. `read1`, not `read`, is mandatory and is the reason
-   the deadline check inside this loop can fire at all: `read(n)` loops over `recv` until it
-   has n bytes, so on a drip body it never returns and a per-chunk check never runs. A
+   the media-type map → "That URL did not return an image." An **absent or empty**
+   `Content-Type` takes this same branch (it is not a key), and is rejected rather than
+   deferred to Pillow — stated explicitly so nobody implements "unknown, let Pillow decide".
+   This is checked before the body is read so an HTML page is abandoned early. It is a gate,
+   not the authority on the extension — see step 11.
+
+8. **Byte cap, read with `read1`.** Loop `resp.read1(CHUNK_BYTES)`, accumulating, checking
+   the deadline instant once per chunk, and reject as soon as the total exceeds the cap from
+   step 2 → the existing "Image file too large (max %(mib)d MiB)." wording. `read1`, not
+   `read`, is mandatory and is the reason the per-chunk deadline check can fire at all:
+   `read(n)` loops over `recv` until it has n bytes, so on a drip body it never returns. A
    declared `Content-Length` above the cap is an early reject purely to avoid pointless
    transfer — **advisory only**: absent, non-numeric, negative or duplicated headers are
    ignored, never a rejection and never a reason to relax the streaming check. The loop
    deliberately reads one chunk *past* the cap so oversize stays detectable, per
-   `geogebra.py`'s comment on the same loop.
+   `geogebra.py`'s comment on the same loop. The worker returns `(data, current_url)`.
+
+*Steps 9–13 run on the request thread, after the join.*
+
 9. **Reject an empty body** → "The fetched file is empty.", mirroring `replace_asset`'s
    existing check (`courses/media.py:185`). Nothing downstream covers this: `media_upload`
    inherits its empty-file rejection from `MediaAssetForm`'s `forms.FileField`, which this
    path bypasses, and `MediaAsset.clean()` has no lower size bound. Without the guard a 200
    with `Content-Length: 0` creates a real asset with zero bytes, failed derivatives, and a
    200 response.
-10. **Verify the payload really is an image, and capture its true format.** Open the
-    buffered bytes with Pillow, keep `img.format`, then `verify()`. On failure reject with
+
+10. **Verify the payload really is an image; capture its format and size.** Open the bytes
+    with Pillow, keep `img.format` and `img.size`, then `verify()`. On failure reject with
     "That URL did not return a usable image."
 
     The handler is a **broad `except Exception`**, in the style of `geogebra.py`'s
     documented broad catches, and `PIL.Image.DecompressionBombError` is explicitly inside
     that set. A narrow `except UnidentifiedImageError` is a real 500: `Image.open` also
     raises `OSError`, `ValueError`, `SyntaxError` from individual plugins, and
-    `DecompressionBombError` from `_decompression_bomb_check` at open time when the declared
-    canvas exceeds 2 × `MAX_IMAGE_PIXELS` — reachable with a crafted few-hundred-KB PNG well
-    inside the 5 MiB cap. Since the view catches only `ValidationError`
-    (`courses/views_media.py:47`), anything not converted here is a 500, not the specified
-    422. This is the same hole the spec closes for `urllib.error` in the transport section.
+    `DecompressionBombError` at open time. Since the view catches only `ValidationError`
+    (`courses/views_media.py:47`), anything not converted here is a 500, not a 422.
 
-    Step 7's own argument compels this step: *nothing downstream ever looks at the bytes* —
-    `_validate_file` checks extension and size only, and `generate_derivatives` swallows its
-    failure — so an allow-listed host that mislabels its payload would otherwise produce
-    exactly the silent broken-asset outcome step 7 exists to prevent.
-11. Derive a filename (see below), using `img.format` from step 10.
+    **An explicit pixel bound is required, because Pillow's is not enough.** Pillow raises
+    `DecompressionBombError` only above **2 ×** `MAX_IMAGE_PIXELS`; between 1× and 2× it
+    merely warns and proceeds, and `verify()` does not decode pixel data. An image in that
+    band would pass here, be stored, and then be fully decoded by `generate_derivatives`,
+    which allocates the whole canvas. The byte cap does not bound pixel count — that is the
+    entire point of a decompression bomb. So: check `img.size` against `MAX_PIXELS` here and
+    reject with its own message, "That image's dimensions are too large." The bomb unit test
+    must target **this** band, not the >2× case Pillow already refuses on its own, or it
+    passes on a build with no pixel bound at all.
+
+    Step 7's own argument compels the whole of this step: *nothing downstream ever looks at
+    the bytes* — `_validate_file` checks extension and size only, and `generate_derivatives`
+    swallows its failure — so a mislabelling host would otherwise produce exactly the silent
+    broken-asset outcome step 7 exists to prevent.
+
+11. Derive a filename (see below), using `img.format` and `current_url`.
 12. Compute the SHA-256 of the bytes.
 13. Wrap as `ContentFile(data, name=filename)` and call
     `create_asset(course, "image", content_file, user, name=name,
@@ -298,17 +381,22 @@ Internal steps:
     short-circuit and skip both the extension and the size check, the trap `replace_asset`'s
     docstring already documents.
 
-**Response lifetime.** Every response — the initial request, *each discarded redirect hop*,
-the non-200 rejection, and the abandoned mid-stream cap trip — is acquired via
-`with opener.open(...) as resp:`. Dropping a response without closing it returns an
-un-drained connection. There are four such sites and all four need it.
+**Response lifetime — two acquisition paths, not four sites.** Only a 2xx response is ever
+returned and bound by `with opener.open(...) as resp:`. Every 3xx and non-2xx arrives as an
+`HTTPError`, which never enters that `with` block, so **its `fp` must be closed explicitly
+in the handler** — `exc.close()`, guarded so a close failure never masks the original.
+`geogebra.py:453-458` documents precisely this: "A 4xx/5xx raises from inside `_open` ON THE
+WORKER, so the `with` inside `_fetch_body` is never entered and the error's own fp is never
+closed." The redirect loop is one code site executed up to `MAX_REDIRECT_HOPS + 1` times,
+and each iteration's `HTTPError` needs that close.
 
 **Transport failures.** Both the request *and the read loop* are wrapped in
-`except (TimeoutError, urllib.error.HTTPError, urllib.error.URLError, OSError)` — the set
-`integrations/delivery.py:67` already uses, widened to `OSError` for mid-read socket
-failures — and converted to a `ValidationError` reading "Could not reach the image host."
-Wrapping only the `open()` call is not enough: a DNS failure raises there, but a truncated
-body raises from inside the read loop, after the `with` block has been entered.
+`except (TimeoutError, urllib.error.URLError, OSError)` — the set
+`integrations/delivery.py:67` uses, widened to `OSError` for mid-read socket failures —
+and converted to a `ValidationError` reading "Could not reach the image host." This clause
+comes **after** the `HTTPError` clause (see step 5). Wrapping only the `open()` call is not
+enough: a DNS failure raises there, but a truncated body raises from inside the read loop,
+after the `with` block has been entered.
 
 **Logging.** Every rejection point emits a `logger.warning` naming the host, the status or
 Content-Type, and a reason token — never the response body. The author-facing message is
@@ -326,7 +414,7 @@ It is never silenced with a bare `noqa`.
 The **sniffed format decides the extension**; the URL path contributes only a
 human-friendly stem.
 
-Media-type map, media type → candidate extensions in preference order:
+Media-type map (the step 7 gate), media type → candidate extensions in preference order:
 
 ```
 image/png  → ("png",)
@@ -336,7 +424,16 @@ image/gif  → ("gif",)
 image/webp → ("webp",)
 ```
 
-Pillow-format map, `img.format` → the same candidate lists: `PNG`, `JPEG`, `GIF`, `WEBP`.
+Pillow-format map, `img.format` → the same candidate lists:
+
+```
+PNG → ("png",)      JPEG → ("jpg", "jpeg")      MPO → ("jpg", "jpeg")
+GIF → ("gif",)      WEBP → ("webp",)
+```
+
+`MPO` is listed because it is a **normal** outcome for an accepted `image/jpeg`: Pillow
+reports `MPO`, not `JPEG`, for multi-picture JPEGs, which is what most phone cameras produce
+and a substantial share of real-world web JPEGs.
 
 1. **The extension is chosen from `img.format` (step 10), not from `Content-Type`.** The
    header is only the pre-read gate. This is step 7's own argument applied one level
@@ -345,27 +442,30 @@ Pillow-format map, `img.format` → the same candidate lists: `PNG`, `JPEG`, `GI
    containing a GIF, which `full_clean()` (extension only) would never notice. `img.format`
    is populated before `verify()` and survives it, is free, and is strictly more
    trustworthy than a remote header.
-2. The extension is the **first candidate for that format present in
+2. **An `img.format` absent from the Pillow map is a `ValidationError`, never a `KeyError`.**
+   `BMP`, `TIFF`, `ICO` and others are reachable whenever a host mislabels its payload —
+   the very scenario step 1 exists to catch — and a bare `MAP[img.format]` lookup would be
+   a 500, since the view catches only `ValidationError`. The message is "That image type is
+   not allowed.", and the unknown-format branch is a named unit test.
+3. The extension is the **first candidate for that format present in
    `effective_image_extensions()`** (read once at step 2). Never a hardcoded literal: an
    admin may narrow the allowed set to `["jpeg"]` alone, in which case a fixed `jpg` would
    build a filename `full_clean()` then rejects for an image the server was configured to
    accept. If no candidate is allowed → "That image type is not allowed."
-3. **The stem is sanitized, and the order of operations matters.** URL-unquote the path
+4. **The stem is sanitized, and the order of operations matters.** URL-unquote the path
    *first*, then take the basename, then strip path separators, `..` segments, control
    characters and leading dots; if nothing usable survives, use the literal `image`.
    Unquoting *after* the basename is a real defect, not a style point: a path ending
    `..%2F..%2Fx.png` has the basename `..%2F..%2Fx.png`, which unquotes to `../../x.png`,
    lands in `ContentFile.name`, and makes Django's `Storage.generate_filename` raise
-   `SuspiciousFileOperation` — a 500, since only `ValidationError` is caught. Short of
-   traversal, an unquoted stem can carry `/`, `\`, NUL or leading dots straight into
-   `original_filename`, which has no validator.
-4. The filename is `<stem>.<extension>`, passed through the existing `truncate_filename`
-   (`courses/media.py:96`), which truncates while preserving the extension.
+   `SuspiciousFileOperation` — a 500, since only `ValidationError` is caught.
 5. **The stem comes from `current_url`** — the final hop — not `submitted_url`. This is the
    one place the final target is the better source:
    `https://commons.wikimedia.org/wiki/Special:FilePath/Foo.jpg` redirects to an
    `upload.wikimedia.org` path whose basename is the useful one, while the submitted path's
    basename is `Special:FilePath`. `source_url` still stores `submitted_url` (Data).
+6. The filename is `<stem>.<extension>`, passed through the existing `truncate_filename`
+   (`courses/media.py:96`), which truncates while preserving the extension.
 
 Extension comparisons are case-folded throughout: `effective_image_extensions()` returns
 lowercase (`courses/validators.py:60`), so an uppercase path extension must not mismatch.
@@ -386,8 +486,7 @@ reversed, an anonymous GET would redirect to the login page instead of returning
 **Import form:** `from courses.media_fetch import fetch_image_asset`. The module and the
 view share the name `media_fetch`, so `from courses import media_fetch` followed by
 `def media_fetch(...)` would rebind the name at module load and fail later with an
-`AttributeError` at call time rather than at import. (The file's existing
-`from courses import media as media_svc` alias exists for exactly this reason.)
+`AttributeError` at call time rather than at import.
 
 The view is gated by the existing `_require_manage(request, slug)` exactly as every other
 media view is. It reads `url` (stripped, per §1) and optional `name` from `request.POST`,
@@ -400,11 +499,12 @@ calls `fetch_image_asset`, and mirrors `media_upload`'s response contract:
 - **non-fragment request** (no JS) → `messages.error(request, <message>)` on failure, then
   `redirect("courses:manage_media", slug=course.slug)` in both cases. The messages
   framework is installed and already used this way in `courses/views_transfer.py:49`.
-  Without the `messages.error` call a no-JS author pasting a rejected URL would get a bare
-  302 back to the manager with no indication of what went wrong.
 
-Matching the fragment contract exactly is what lets the existing client code in
-`media_picker.js` handle the success response without modification.
+**The message is `"; ".join(e.messages)`**, not `str(e)` — the convention every sibling view
+already uses (`courses/views_media.py`, `views_manage.py:799`). `create_asset`'s
+`full_clean()` raises a `ValidationError` carrying an `error_dict`, so `str(e)` would put a
+Python repr of a list or dict on the page — and §6 now displays that string verbatim in the
+picker flash, making the defect user-visible rather than cosmetic.
 
 The route is registered as `manage_media_fetch` at
 `manage/courses/<slug:slug>/media/fetch/`, beside `manage_media_upload`
@@ -437,16 +537,22 @@ The route is registered as `manage_media_fetch` at
   `_CourseScopedMediaForm` filters the queryset to `kind="video"` and rejects it — after
   the asset has already been created.
 
+  **The new panel carries `hidden` and its tab does not carry `is-on`**, matching the
+  existing panels (`_picker.html:6-20`, where only the library tab is `is-on` and every
+  other panel is `hidden`). A panel rendered without `hidden` stacks on top of the library
+  panel until the first tab click.
+
   **Panel contents and activation, stated explicitly** because the picker is not a form
-  context: the overlay is appended to `document.body` (`media_picker.js:91`), so it has no
+  context: the overlay is appended to `document.body` (`media_picker.js:92`), so it has no
   `<form>` ancestor, no implicit submission exists, and every in-panel control is driven by
   the delegated `document` click handler at `media_picker.js:126`. The panel contains a
-  single URL input `[data-picker-url]` and a button `[data-picker-fetch]` — **no name
-  field**; `fetchPickerUrl(url)` is always called without a name, and an author who wants
-  one renames the asset in the manager. Activation is (a) a new branch in the existing
-  delegated `document` click handler keyed on `[data-picker-fetch]`, and (b) an explicit
-  `keydown`/Enter handler on `[data-picker-url]`, mirroring how `[data-picker-search]` is
-  wired for input events. Without (b), Enter in that input is silently dead.
+  single `<input type="url" data-picker-url>` (no `required` — there is no form to validate
+  it) and a button `[data-picker-fetch]` — **no name field**; `fetchPickerUrl(url)` is
+  always called without a name, and an author who wants one renames the asset in the
+  manager. Activation is (a) a new branch in the existing delegated `document` click handler
+  keyed on `[data-picker-fetch]`, and (b) an explicit `keydown`/Enter handler on
+  `[data-picker-url]`, mirroring how `[data-picker-search]` is wired for input events.
+  Without (b), Enter in that input is silently dead.
 
   The endpoint is exposed as `data-fetch-url` on `.picker`, mirroring `data-upload-url`.
 
@@ -463,30 +569,38 @@ The route is registered as `manage_media_fetch` at
   cell is rendered from five places — the grid include, upload, rename, replace, and the
   new fetch view — so a hostname passed through context would be missing in most of them
   and the label would silently render blank. **The property must swallow `ValueError` and
-  return `""`**: `urlsplit(...).hostname` raises on a malformed authority (a bracketed IPv6
-  remnant, an out-of-range port), and this runs for every asset in the manager grid, so one
-  bad row would otherwise 500 the whole page. `courses/geogebra.py`'s `geogebra_material_id`
-  wraps the same call in `try/except (ValueError, TypeError, IndexError)` for this reason.
+  return `""`**: `urlsplit(...).hostname` raises on a malformed authority, and this runs for
+  every asset in the manager grid, so one bad row would otherwise 500 the whole page.
+  `courses/geogebra.py`'s `geogebra_material_id` wraps the same call in
+  `try/except (ValueError, TypeError, IndexError)` for this reason.
 
 All new user-facing template strings go through `{% trans %}`; the Python-side messages use
 `gettext_lazy` (§1). Both are covered by one `makemessages` pass with Polish translations
-supplied. Expect the extraction to also sweep in msgids left unextracted by earlier work;
-that is normal and not a defect of this change.
+supplied. Expect the extraction to also sweep in msgids left unextracted by earlier work.
 
 **Styling.** New CSS goes in `courses/static/courses/css/editor.css`, which already
 carries `.media-upload` (`editor.css:343`) and the `.picker__*` family. The manager form
 gets a `.media-fetch` class styled consistently with its `.media-upload` sibling; the new
-picker panel reuses `.picker__panel` with styling for its text input and button; the cell
-link gets `.asset-source`. This repo's standing rule is that every view ships styled, so all
-three surfaces require light **and** dark screenshot verification, judged separately.
+picker panel reuses `.picker__panel`; the cell link gets `.asset-source`. This repo's
+standing rule is that every view ships styled, so all three surfaces require light **and**
+dark screenshot verification, judged separately.
 
 ### 6. Client — `courses/static/courses/js/media_picker.js`
 
-One new function, `fetchPickerUrl(url)`, mirroring the existing `uploadPickerFile`
+**Picker.** One new function, `fetchPickerUrl(url)`, mirroring `uploadPickerFile`
 (`media_picker.js:148`): POST to `data-fetch-url` with `X-CSRFToken: csrf()` and
 `X-Requested-With: fetch` like every other POST in this file, and on a 200 parse the
 returned cell fragment and call the existing `selectAsset` with its
 `data-asset-id`/`data-name`/`data-url`. `selectAsset` itself is unchanged.
+
+**Manager.** The existing form-interception path is **not** generic and cannot simply be
+"extended": `media_picker.js:276-288` binds one listener to `root.querySelector(".media-upload")`,
+early-returns unless a `input[type='file']` has files, and calls `uploadFile()` with a
+`FormData` carrying `file` and `kind` — none of which applies here. Instead, add a **second
+`submit` listener on `.media-fetch`** that always `preventDefault()`s, POSTs `url` and
+`name` to `root.dataset.fetchUrl` with the standard headers, reuses the existing
+`insertCell()` on 200, and on a non-200 applies the **same** fragment-parse-then-flash
+treatment specified for the picker below.
 
 **In-flight state is required, not a nicety.** The fetch can legitimately take up to
 `DEADLINE_SECONDS` (20 s) with no visual change. The delegated click handler has no guard,
@@ -495,23 +609,29 @@ two POSTs, and since URL-level dedup is an explicit non-goal, both succeed and t
 assets are created (in the picker, the second `selectAsset` also overwrites the first). The
 upload path is not a precedent: a file-picker dialog interposes a natural gate that a
 paste-and-click does not. So: disable `[data-picker-fetch]` (and the manager submit button)
-on dispatch, set `aria-busy`, and re-enable in **both** the success and failure branches.
+on dispatch and set `aria-busy`.
+
+**Re-enable on all *three* outcomes.** Success and failure are the two arms inside
+`.then()`, and the model — `uploadPickerFile` (`media_picker.js:158-168`) — has no
+`.catch()` at all. A network drop, a page-level abort, or an unparseable response rejects
+the promise, neither arm runs, and the control stays disabled and `aria-busy` for the life
+of the page with no message shown. That is the likeliest real-world path for a 20-second
+request. A `.catch()` (or `finally`-equivalent) must both re-enable the control and flash
+the `data-msg-fetch-failed` fallback.
 
 **On a non-200 the server's reason is shown, not discarded.** `uploadPickerFile` currently
 calls `flash(card, "Upload failed.")` (`media_picker.js:162`) — a hardcoded English literal
-that throws the response body away. Mirroring that exactly would make every rejection reason
-this spec enumerates invisible in the picker, one of the two entry points being shipped.
+that throws the response body away, which would make every rejection reason this spec
+enumerates invisible.
 
 The mechanism must be precise, because the response is markup, not a string:
 `_op_error.html` renders `<div class="op-error" role="alert">Couldn't apply that change:
 {{ message }}</div>`, while `flash(host, msg)` sets `bar.textContent = msg`
-(`media_picker.js:6`). Passing the raw response text to `flash()` would display the tags
-literally; passing it as `innerHTML` would nest an `.op-error` with a second `role="alert"`
-inside the flash's own. So: **parse the returned fragment** (as `uploadPickerFile` already
-does for the cell), read the `.op-error` element's `textContent`, and pass that string to
-`flash()`. The "Couldn't apply that change:" prefix is kept verbatim — it is what the
-manager surface already shows for every other operation, and stripping it would need
-special-casing.
+(`media_picker.js:6`). Passing the raw text to `flash()` would display the tags literally;
+passing it as `innerHTML` would nest an `.op-error` with a second `role="alert"` inside the
+flash's own. So: **parse the returned fragment**, read the `.op-error` element's
+`textContent`, and pass that string to `flash()`. The "Couldn't apply that change:" prefix
+is kept verbatim — it is what the manager surface already shows for every other operation.
 
 The fallback string, used only when the body is empty or unparseable, comes from a
 `data-msg-fetch-failed` attribute read via the existing `msg(host, key, fallback)` helper
@@ -520,12 +640,8 @@ differs per surface and must be named:** on the manager it is `.media-manager` (
 existing `data-msg-*` attribute lives); in the picker, `msg()` must be called against the
 `.picker` element, **not** the picker path's `root`, which is
 `document.querySelector(".editor")` (`media_picker.js:20`) and carries no such attributes.
-Getting this wrong is invisible at runtime — `msg()` silently returns the untranslated
-fallback — which is why the attribute's presence is asserted by a test.
-
-The manager page's existing form-interception path is extended the same way, so a
-successful fetch prepends the new cell to the grid without a reload, and a rejection
-flashes the server's message.
+Getting this wrong is invisible at runtime, which is why the attribute's presence is
+asserted by a test.
 
 ## Data
 
@@ -564,9 +680,14 @@ intended rather than incidental. `courses/lal_loader/media.py:40` already does
 `MediaAsset.objects.filter(course=course, content_hash=digest).first()` and reuses the row
 it finds. Once fetched assets carry a hash, a later LAL import of byte-identical content
 will reuse the fetched asset — inheriting its author-set `name` and its `source_url` —
-instead of creating a second copy of the same bytes. That is the correct outcome (identical
-bytes should be one asset, which is the point of the field), but it is a real behaviour
-change and must be covered by a test rather than discovered later.
+instead of creating a second copy of the same bytes. That is the correct outcome, but it is
+a real behaviour change and must be covered by a test rather than discovered later.
+
+**One caveat on that queryset:** `.first()` runs on an unordered queryset, and because
+URL-level dedup is a non-goal, the same URL fetched twice produces two rows with identical
+`content_hash` in one course — in which case *which* row a later import inherits `name` and
+`source_url` from is DB-order-dependent. The test must therefore construct exactly **one**
+fetched asset, so it is not silently asserting on an unordered `.first()`.
 
 `create_asset` does not currently set `content_hash` at all — only the LAL loader does —
 so computing it here is nearly free, because the bytes are already in hand.
@@ -585,27 +706,28 @@ this reason, and `source_url` follows that precedent.
 
 ## Data flow
 
-**Happy path.** Author pastes a URL in the manager (or the picker's From URL tab) → POST
-to `manage_media_fetch` → `_require_manage` authorises → `validate_fetch_url` accepts the
-stripped URL → a daemon thread joined with a 20 s budget runs the transport: GET with the
-shared User-Agent and `Accept: image/*`, ≤3 validated redirect hops, Content-Type gate,
-body read with `read1` under the byte cap → payload verified by Pillow and its true format
-captured → filename derived from that format, SHA-256 computed → `create_asset` runs
-`full_clean()` (extension + size) and generates derivatives → `attach_usage` →
-`_asset_cell.html` at 200 → the client inserts the cell in the manager, or selects the asset
-in the picker.
+**Happy path.** Author pastes a URL → POST to `manage_media_fetch` → `_require_manage`
+authorises → `validate_fetch_url` accepts the stripped URL → a daemon thread joined with a
+20 s budget runs the transport: GET with the shared User-Agent and `Accept: image/*`, ≤3
+validated redirect hops (each arriving as an `HTTPError`), Content-Type gate, body read with
+`read1` under the byte cap; it returns `(data, current_url)` → on the request thread the
+body is checked non-empty, verified by Pillow with its format and pixel count captured, a
+filename derived from that format, and a digest computed → `create_asset` runs `full_clean()`
+and generates derivatives → `attach_usage` → `_asset_cell.html` at 200 → the client inserts
+the cell in the manager, or selects the asset in the picker.
 
-**Rejection path.** Any failure below raises `ValidationError`. On a fragment request the
-view converts it to `_op_error.html` at 422 — identical to how `media_upload` surfaces a
-rejected upload. On a non-fragment request it becomes a `messages.error` plus a redirect.
+**Rejection path.** Any failure raises `ValidationError`; worker-side ones travel back via
+`box["exc"]` and are re-raised unchanged. On a fragment request the view converts it to
+`_op_error.html` at 422; on a non-fragment request it becomes a `messages.error` plus a
+redirect.
 
 ## Error handling
 
 Every condition is a `ValidationError` carrying the message below (all `gettext_lazy`).
 **On a fragment request each returns 422**; on a no-JS request each becomes a
-`messages.error` followed by a redirect to the manager (§4). Pinning the exact text here
-makes this the single source for the implementation, the view tests, and the `.po` entries —
-the picker now shows these strings verbatim.
+`messages.error` followed by a redirect (§4). Pinning the exact text here makes this the
+single source for the implementation, the view tests, and the `.po` entries — the picker
+shows these strings verbatim.
 
 | Condition | Message | Detected by |
 |---|---|---|
@@ -615,28 +737,24 @@ the picker now shows these strings verbatim.
 | Scheme not https (and http not permitted) | "Image URLs must use https." | `validate_fetch_url` |
 | Host not on the allow-list | "That image host is not on the allow-list." | `validate_fetch_url` |
 | Redirect with missing/empty `Location` | "The image host returned an invalid redirect." | redirect handling |
-| Redirect target leaves the allow-list | "That URL redirects to a host that is not on the allow-list." | per-hop re-validation |
+| Redirect target fails re-validation, for any of the five rules | "That URL redirects to a host that is not on the allow-list." | redirect handling (underlying message replaced) |
 | More than 3 redirect hops | "That URL redirects too many times." | hop budget |
-| Connection failure, timeout, or mid-read error | "Could not reach the image host." | `urllib.error`/`OSError`, converted |
-| Wall-clock deadline exceeded | "Fetching the image took too long." | thread join budget |
-| Final status is not 200 | "The image host returned an error (status %(status)s)." | status check |
-| `Content-Type` is not a known image media type | "That URL did not return an image." | media-type gate |
-| No allowed extension for the sniffed format | "That image type is not allowed." | filename derivation |
+| Connection failure, timeout, or mid-read error | "Could not reach the image host." | `URLError`/`OSError`, after the `HTTPError` clause |
+| Wall-clock deadline exceeded | "Fetching the image took too long." | thread join, empty box |
+| Final status is not 200 | "The image host returned an error (status %(status)s)." | `HTTPError`, non-redirect status |
+| `Content-Type` absent, empty, or not a known image type | "That URL did not return an image." | media-type gate |
+| `img.format` unknown, or no allowed extension for it | "That image type is not allowed." | filename derivation |
 | Body exceeds the cap (authoritative) | "Image file too large (max %(mib)d MiB)." | `read1` accumulator |
 | Body is empty (zero bytes) | "The fetched file is empty." | empty-body guard |
 | Bytes are not a decodable image | "That URL did not return a usable image." | Pillow, broad catch |
+| Pixel count exceeds `MAX_PIXELS` | "That image's dimensions are too large." | `img.size` check |
 | Extension or size rejected | (existing validator messages) | `create_asset`'s `full_clean()` |
 
 A declared over-cap `Content-Length` uses the same "too large" message as the streaming
 check; it is an early exit, not a distinct condition.
 
 **The remote response body must never reach the user-facing message.** Error text is
-composed by this application; a remote server's bytes are never echoed into a rendered
-page. Diagnostic detail goes to the log (§3), never to the author.
-
-A `ValidationError` from any stage leaves no partial asset behind: `create_asset` is
-reached only after the bytes are fully in hand, verified as an image, and validated as far
-as this layer can.
+composed by this application. Diagnostic detail goes to the log (§3), never to the author.
 
 ## Testing
 
@@ -647,35 +765,50 @@ proves nothing, and this codebase has repeatedly shipped assertions that could n
 
 **The transport seam is `_open(request, timeout)`**, mirroring `geogebra.py:272` ("The
 transport seam. Patched by tests; the only place the network is touched"). Unit tests patch
-it; no unit test touches a real socket.
+it; no unit test touches a real socket. **Doubles must raise `HTTPError` for 3xx and non-2xx
+statuses**, not return a response object — a double that returns them tests a control flow
+the real opener never produces.
 
-**Unit — `validate_fetch_url`:** empty URL rejected with its own message; whitespace-only
-rejected the same way; a whitespace-padded valid URL accepted, and the stripped value is
-what is used; over-length rejected; malformed rejected by `URLValidator`; an http URL
-rejected when `ALLOW_HTTP_IMAGE_FETCH` is false; an allow-listed host accepted; a subdomain
-accepted; a look-alike host that merely *ends with* the allowed string rejected. Hosts come
-from `override_settings`, since `test.py` replaces the production list (§2).
+**Unit — `validate_fetch_url`:** empty rejected with its own message; whitespace-only the
+same; a whitespace-padded valid URL accepted, and the stripped value used; over-length
+rejected; malformed rejected by `URLValidator`; an http URL rejected when
+`ALLOW_HTTP_IMAGE_FETCH` is false; an allow-listed host accepted; a subdomain accepted; a
+look-alike host that merely *ends with* the allowed string rejected; a mixed-case allow-list
+entry still matches. Hosts come from `override_settings`, since `test.py` replaces the
+production list (§2).
 
 **Unit — settings default:** `config/settings/base.py` leaves `ALLOW_HTTP_IMAGE_FETCH`
-false. The escape hatch's default-off state is a tested property.
+false.
+
+**Unit — control flow (the round-4 defects):** a 404 reports "The image host returned an
+error", **not** "Could not reach the image host" — the assertion that proves the `HTTPError`
+clause precedes the `URLError` one; a worker-side `ValidationError` (e.g. the Content-Type
+gate) surfaces as **its own message**, not as the deadline message — the assertion that
+proves the exception box works; `create_asset` runs on the request thread (assert via a
+`django_db`-visible write, which a background-thread implementation would not produce).
 
 **Unit — `fetch_image_asset`, with `_open` patched:** a redirect leaving the allow-list is
-rejected; a redirect with no `Location` is rejected; the hop budget reports "too many
-redirects", not a not-200 error; a `text/html` response at a `.jpg` path is rejected (the
-`commons.wikimedia.org` case); HTML bytes under an `image/png` Content-Type are rejected by
-Pillow; **a decompression-bomb PNG is rejected as a 422, not raised as a 500**; **GIF bytes
-served as `image/png` are stored with a `.gif` name** (the sniffed format wins over the
-header); the extension is chosen from `effective_image_extensions()` rather than a literal,
-including when the allowed set is narrowed to `["jpeg"]`; a `Content-Type` with parameters
-(`image/jpeg; charset=binary`) is accepted; `image/jpg` is accepted; a zero-byte body is
-rejected; the cap trips when `Content-Length` under-reports; a declared over-cap
-`Content-Length` rejects before the body is read; an absent or malformed `Content-Length` is
-ignored; a connect failure and a **mid-read** failure both surface as `ValidationError`
-rather than 500; a `%2F`-bearing path cannot escape the media directory and falls back
-safely; a **redirected** fetch persists `submitted_url` in `source_url` while taking its
-stem from the final hop; the shared User-Agent and `Accept: image/*` are sent on the initial
-request **and every redirect hop**; `source_url` and `content_hash` are both persisted; the
-created asset is a normal `MediaAsset` with derivatives generated.
+rejected; an **http-downgrade** redirect reports the redirect message, not "must use https";
+a redirect with no `Location` is rejected; the hop budget reports "too many redirects";
+a `text/html` response at a `.jpg` path is rejected; an **absent** `Content-Type` is
+rejected; HTML bytes under an `image/png` Content-Type are rejected by Pillow; **an
+`MPO`-format JPEG is accepted** (not rejected as unknown); **an unknown `img.format` (e.g.
+`BMP`) is a 422, not a `KeyError`/500**; **GIF bytes served as `image/png` are stored with a
+`.gif` name**; the extension is chosen from `effective_image_extensions()` rather than a
+literal, including when narrowed to `["jpeg"]`; `image/jpg` is accepted; a `Content-Type`
+with parameters is accepted; a zero-byte body is rejected; the cap trips when
+`Content-Length` under-reports; a declared over-cap `Content-Length` rejects before the body
+is read; an absent or malformed `Content-Length` is ignored; a connect failure and a
+**mid-read** failure both surface as `ValidationError`; a `%2F`-bearing path cannot escape
+the media directory; a **redirected** fetch persists `submitted_url` in `source_url` while
+taking its stem from the final hop; the shared User-Agent and `Accept: image/*` are sent on
+the initial request **and every redirect hop**; `source_url` and `content_hash` are both
+persisted; the created asset is a normal `MediaAsset` with derivatives generated.
+
+**Unit — the pixel bound:** an image whose declared canvas sits **between 1× and 2×**
+`MAX_IMAGE_PIXELS` is rejected with "That image's dimensions are too large." Targeting the
+>2× band instead would pass on a build with no pixel check at all, since Pillow refuses
+those unaided.
 
 **Unit — the deadline, deliberately not a generator double.** The drip tests must use a
 fake whose `read1` returns *partial* data slowly (a raw-file-like double or a real socket),
@@ -689,29 +822,35 @@ there for).
 as `content_hash`.
 
 **Unit — LAL interaction:** a LAL import of bytes identical to a previously fetched asset
-reuses the fetched row rather than creating a second one.
+reuses the fetched row rather than creating a second one. The fixture creates exactly one
+fetched asset (see the `.first()` caveat under Data).
 
 **Unit — `source_host`:** returns the hostname for a normal URL, `""` for blank, and `""`
 rather than raising for a malformed authority.
 
-**View:** each error shape reaches `_op_error.html` at 422 on a fragment request; a no-JS
-request gets a `messages.error` plus a redirect; success returns the asset cell at 200; a
+**View:** each error shape reaches `_op_error.html` at 422 on a fragment request; the
+rendered message is the `"; ".join(e.messages)` form, not a Python repr; a no-JS request
+gets a `messages.error` plus a redirect; success returns the asset cell at 200; a
 non-manager user is refused by `_require_manage`; an **authenticated** GET is refused with
-405 by `@require_POST` (stated explicitly, because the decorator order is what makes this a
-405 rather than a login redirect).
+405 by `@require_POST`.
 
 **Template:** the picker rendered with `kind="video"` has exactly two tabs and no From URL
-panel; with `kind="image"`, three. A fetched asset's `_asset_cell.html` renders the source
-link in `.asset-foot` with the hostname as its label, the full URL in `title`, and
-`rel="noopener noreferrer"`. The `data-msg-fetch-failed` attribute is present on
-`.media-manager` and on `.picker` — asserted because a missing attribute is invisible at
-runtime, `msg()` silently falling back to the untranslated literal.
+panel; with `kind="image"`, three, and the new panel is `hidden` with its tab not `is-on`.
+A fetched asset's `_asset_cell.html` renders the source link in `.asset-foot` with the
+hostname as its label, the full URL in `title`, and `rel="noopener noreferrer"`. The
+`data-msg-fetch-failed` attribute is present on `.media-manager` and on `.picker`.
 
 **E2E:** (a) pasting a URL in the media manager makes the asset appear in the grid; (b) the
 picker's From URL tab fetches and selects the asset into an image element; (c) a rejected
-URL shows the server's reason text in the picker flash — the one client behaviour §6 argues
-hardest for, and otherwise untested; (d) a second click while a fetch is in flight issues no
-second request.
+URL shows the server's reason text in the picker flash; (d) a second click while a fetch is
+in flight issues no second request, on **both** the picker and the manager.
+
+**Scenario (d) needs the in-flight window held open deliberately.** The accepted fixture is
+a loopback read of a 17,883-byte static file and completes in single-digit milliseconds, so
+a plain double-click test observes one request either way and passes GREEN on a build with
+no guard at all. Use a Playwright `page.route` that **delays** the response to the fetch
+endpoint, count requests through that handler, and assert the control's `disabled`/
+`aria-busy` state synchronously after the first click.
 
 **Two distinct e2e fixtures, not one.** Scenarios (a), (b) and (d) use the *accepted* URL
 `{live_server.url}/static/core/img/learner.png` — an existing 17.9 KB PNG served by the live
@@ -719,7 +858,7 @@ server's staticfiles handler, so the fetch is genuinely end-to-end over a real s
 remaining hermetic. Scenario (c) needs a URL the server *rejects*, which cannot be the same
 one; it must be an **off-allow-list host** (e.g. `https://example.com/x.png`) so
 `validate_fetch_url` fires before any socket opens. That requirement is the point: a
-rejection fixture that needed a live round trip could reach the real network.
+rejection fixture needing a live round trip could reach the real network.
 
 **`localhost` is the spelling that matters, and it is not obvious.** pytest-django resolves
 the live-server address as
