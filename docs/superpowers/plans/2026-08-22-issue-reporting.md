@@ -16,6 +16,7 @@
 - **Grep the pytest summary, do not trust the exit code** — this suite can exit 0 while reporting `1 failed`.
 - **Scope test runs narrowly.** Run only the files a task touches. Whole-repo sweeps are a branch gate, not a task step.
 - **Lint gates are separate:** `uv run ruff check --no-cache` and `uv run ruff format --check` both must pass. `--no-cache` is required.
+- **The code blocks in this plan are illustrative, not pre-formatted.** Before each task's `ruff format --check` gate, run `uv run ruff format <the files that task touched>`. Ruff selects `["E", "F", "I", "UP", "B", "S"]` with a line length of 88 and `force-single-line` imports, so transcribed blocks will need line wrapping, and any import you end up not using must be deleted (`F401`) rather than left for symmetry.
 - **Never use `UserFactory` + `force_login` for permission tests** — that user carries no role Group and reads as silently unprivileged. Use `make_pa` / `make_ca` / `make_teacher` / `make_student` from `tests/factories.py`, which call `seed_roles()` and attach the Group.
 - **All user-facing strings** use `gettext_lazy as _` in models/forms/templates. The email module uses **eager `gettext`** inside its `translation.override(...)` block.
 - **Icons are monochrome inline SVG using `currentColor`.** Never emoji.
@@ -53,6 +54,8 @@ class SupportConfig(AppConfig):
     def ready(self):
         from support import signals  # noqa: F401  (receivers register on import)
 ```
+
+**Create `support/signals.py` and `support/models.py` as empty files in this step**, even though their contents come in Steps 5–6. `ready()` runs during app-registry population, so with `"support"` in `INSTALLED_APPS` and no `support/signals.py` on disk, **the entire test suite fails to start** — not just this task's file — with `ModuleNotFoundError: No module named 'support.signals'`. Creating them empty keeps the repo bootable between steps.
 
 `support/constants.py`:
 
@@ -187,6 +190,32 @@ def test_reporter_label_is_truncated_not_overflowed():
     assert len(report.reporter_label) <= REPORTER_LABEL_MAX_LENGTH
 
 
+def test_reporter_roles_truncates_on_a_comma_boundary():
+    """Mutant: use a blind slice — it stores a trailing fragment like
+    "Course Adm", which role_labels() then renders as a role nobody held."""
+    long_name = "R" * 90
+    roles = ",".join([long_name, long_name, long_name])  # 272 chars
+    report = IssueReport.objects.create(reporter_roles=roles, description="hi")
+    report.refresh_from_db()
+    assert report.reporter_roles == f"{long_name},{long_name}"
+    assert all(part == long_name for part in report.reporter_roles.split(","))
+
+
+def test_a_screenshot_still_validates_after_narrowing_institution_extensions():
+    """The whole reason support/validators.py exists rather than reusing
+    courses.validators.validate_image_file. Mutant: use validate_image_file."""
+    from django.core.cache import cache
+
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.allowed_image_extensions = ["jpg"]
+    inst.save()
+    cache.clear()  # the site-config bundle feeds validate_image_file
+    upload = SimpleUploadedFile("shot.png", _png_bytes(), content_type="image/png")
+    validate_screenshot_file(upload)  # must still not raise
+
+
 def test_deleting_a_report_deletes_its_screenshot(tmp_path):
     with override_settings(SUPPORT_SCREENSHOT_DIR=tmp_path):
         report = IssueReport.objects.create(description="hi")
@@ -204,7 +233,7 @@ Note `test_reporter_label_is_truncated_not_overflowed` asserts the **model** tru
 - [ ] **Step 3: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_support_models.py -v`
-Expected: collection error — `ModuleNotFoundError: No module named 'support.models'`.
+Expected: collection error — `ImportError: cannot import name 'SupportSettings' from 'support.models'` (the module exists but is empty, per Step 1). If instead you see `ModuleNotFoundError: No module named 'support.signals'`, Step 1's empty-file creation was skipped and **every** test file is now failing to collect, not just this one.
 
 - [ ] **Step 4: Write storage and validators**
 
@@ -321,6 +350,27 @@ from support.validators import validate_screenshot_file
 DEFAULT_SCREENSHOT_EXT = "png"
 
 
+def truncate_roles(value):
+    """Truncate a comma-joined role snapshot ON A COMMA BOUNDARY.
+
+    A blind slice could store "Course Adm", which role_labels()'s
+    raw-name fallback would then faithfully render as a role the user never
+    held. The four current roles cannot overflow 200 chars; the cap exists for
+    future or renamed Groups, which is exactly the case where a mid-token cut
+    would lie.
+    """
+    if len(value) <= REPORTER_ROLES_MAX_LENGTH:
+        return value
+    names = value.split(",")
+    kept = []
+    for name in names:
+        candidate = ",".join(kept + [name])
+        if len(candidate) > REPORTER_ROLES_MAX_LENGTH:
+            break
+        kept.append(name)
+    return ",".join(kept)
+
+
 def screenshot_upload_to(instance, filename):
     """screenshots/<YYYY>/<MM>/<uuid4>.<ext> — never any part of the client name.
 
@@ -426,7 +476,7 @@ class IssueReport(models.Model):
         # username 150 + email 254) and Postgres raises DataError on overflow,
         # which would 500 the submission and lose the report.
         self.reporter_label = self.reporter_label[:REPORTER_LABEL_MAX_LENGTH]
-        self.reporter_roles = self.reporter_roles[:REPORTER_ROLES_MAX_LENGTH]
+        self.reporter_roles = truncate_roles(self.reporter_roles)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -636,12 +686,15 @@ def test_with_no_settings_row_nothing_explodes_and_students_cannot_report():
     assert can_report(_user_with_role(STUDENT)) is False
 
 
-def test_a_warm_cache_costs_no_settings_queries(client):
+def test_a_warm_cache_costs_no_settings_queries_on_a_render(client):
+    """Exercises the RENDER path, not can_report() alone: a context processor
+    that bypassed get_support_config() would otherwise go unnoticed. The filter
+    also catches the through table, whose name contains this substring."""
     _set_audience(Audience.ALL)
-    student = _user_with_role(STUDENT)
-    can_report(student)  # warm
+    make_student(client)
+    client.get(reverse("home"))  # warm the bundle
     with CaptureQueriesContext(connection) as ctx:
-        can_report(student)
+        client.get(reverse("home"))
     settings_queries = [
         q for q in ctx.captured_queries if "support_supportsettings" in q["sql"]
     ]
@@ -691,6 +744,18 @@ def _backdate(reports, *, minutes):
 def test_role_labels_falls_back_to_the_raw_name():
     assert role_labels("Teacher,Retired Role") == ["Teacher", "Retired Role"]
     assert role_labels("") == []
+
+
+def test_role_snapshot_is_canonically_ordered():
+    """Mutant: join the frozenset directly. ROLE_NAMES order is
+    [Student, Teacher, Course Admin, Platform Admin], so a set-iteration join
+    would produce either ordering depending on the hash seed — making assertions
+    flaky and the comma-boundary truncation drop a different role run to run."""
+    assert role_snapshot(frozenset({COURSE_ADMIN, TEACHER})) == "Teacher,Course Admin"
+
+
+def test_role_snapshot_sorts_non_standard_groups_after_the_known_ones():
+    assert role_snapshot(frozenset({"Zebra", TEACHER, "Alpha"})) == "Teacher,Alpha,Zebra"
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -712,7 +777,6 @@ from institution.roles import COURSE_ADMIN
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import ROLE_LABELS
 from institution.roles import ROLE_NAMES
-from institution.roles import STUDENT
 from institution.roles import TEACHER
 from support.constants import SUPPORT_CONFIG_CACHE_KEY
 from support.constants import SUPPORT_CONFIG_TTL
@@ -831,11 +895,17 @@ def role_labels(reporter_roles):
     ]
 ```
 
-`STUDENT` is imported for symmetry with the other role constants and is used by `AUDIENCE_GROUPS`'s `all` entry via `ROLE_NAMES`; if ruff flags it as unused, remove the import.
+Note there is deliberately **no `STUDENT` import**: `AUDIENCE_GROUPS`'s `all` entry uses `ROLE_NAMES`, so importing `STUDENT` "for symmetry" would fire `F401` and cost a lint round.
 
 - [ ] **Step 4: Connect the cache-invalidation receivers**
 
-Append to `support/signals.py`:
+**Merge the four imports into the existing import block at the top of
+`support/signals.py`**, then append only the two `connect(...)` calls. Appending
+imports below the existing receiver would fire `E402` (module-level import not at
+top) and `I001` (isort, `force-single-line`), so this task's own lint gate would
+fail.
+
+Imports to merge in:
 
 ```python
 from django.db.models.signals import m2m_changed
@@ -843,7 +913,11 @@ from django.db.models.signals import post_save
 
 from support.models import SupportSettings
 from support.policy import invalidate_support_config
+```
 
+Calls to append:
+
+```python
 post_save.connect(invalidate_support_config, sender=SupportSettings)
 # The m2m receiver is the easy one to omit, and omitting it means a newly-granted
 # teacher cannot report until the cache TTL expires — a bug that looks like
@@ -1321,8 +1395,10 @@ def test_server_assigned_columns_cannot_be_set_from_the_payload(client):
     """Mutant: widen IssueReportForm to fields = "__all__"."""
     _set_audience(Audience.ALL)
     student = make_student(client)
-    other = make_pa(client, username="pa2")
-    make_student(client)  # log the student back in
+    # UserFactory, NOT make_pa: make_* logs the new user in, and calling
+    # make_student twice would try to create a second user named "student" and
+    # raise IntegrityError. The test only needs another user's pk.
+    other = UserFactory(username="someone-else")
     client.post(
         reverse(URL_NAME),
         _payload(
@@ -1363,22 +1439,58 @@ def test_a_screenshot_is_actually_stored(client, tmp_path):
 
 def test_a_failure_inside_save_leaves_no_orphaned_file(client, tmp_path, monkeypatch):
     """The DB row rolls back but the file write does not — without the cleanup the
-    screenshot stays on disk forever, with no row and so no post_delete."""
+    screenshot stays on disk forever, with no row and so no post_delete.
+
+    _boom performs the REAL save first and only then fails. Stubbing _persist out
+    entirely would mean FileField.pre_save never runs, no file is ever written,
+    and the assertion passes vacuously — green even with the whole except/delete
+    block removed.
+    """
     import support.views as views
+
+    real_persist = views._persist
+    written = {}
 
     with override_settings(SUPPORT_SCREENSHOT_DIR=tmp_path):
         _set_audience(Audience.ALL)
         make_student(client)
 
-        def _boom(self, *args, **kwargs):
-            IssueReport.objects.filter(pk=None)  # touch the DB, then fail
+        def _boom(report):
+            real_persist(report)  # writes the file, inserts the row
+            written["path"] = report.screenshot.path
             raise RuntimeError("db is unhappy")
 
         monkeypatch.setattr(views, "_persist", _boom)
         upload = SimpleUploadedFile("shot.png", _png_bytes(), content_type="image/png")
         with pytest.raises(RuntimeError):
             client.post(reverse(URL_NAME), _payload(screenshot=upload))
-        assert list(tmp_path.rglob("*.png")) == []
+
+    # The file really did land on disk mid-transaction...
+    assert written["path"]
+    # ...and the cleanup removed it, and the row rolled back.
+    assert list(tmp_path.rglob("*.png")) == []
+    assert IssueReport.objects.count() == 0
+
+
+def test_a_successful_post_queues_the_email(client, django_capture_on_commit_callbacks):
+    """Mutant: delete the transaction.on_commit(...) line — every other test in
+    this file and the email file still passes, because those call
+    send_issue_report_email directly."""
+    from django.contrib.auth.models import Group as AuthGroup
+    from django.core import mail
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    admin = UserFactory(username="mailbox", email="pa@school.example")
+    admin.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
+
+    _set_audience(Audience.ALL)
+    make_student(client)
+    with django_capture_on_commit_callbacks(execute=True):
+        assert client.post(reverse(URL_NAME), _payload()).status_code == 201
+    assert len(mail.outbox) == 1
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1599,393 +1711,7 @@ git commit -m "feat(support): report_create endpoint with JSON contract and roll
 
 ---
 
-### Task 5: Email delivery
-
-**Files:**
-- Modify: `support/emails.py`
-- Create: `support/templates/support/email/issue_report.txt`, `support/templates/support/email/issue_report.html`
-- Test: `tests/test_support_emails.py`
-
-**Interfaces:**
-- Consumes: `support.telemetry.telemetry_rows/safe_page_link`, `support.policy.role_labels`, `core.services.get_site_config`
-- Produces: `support.emails.send_issue_report_email(report)`, `support.emails.resolve_recipients() -> list[str]`, `support.emails._absolute_url(path) -> str`
-
-- [ ] **Step 1: Write the failing tests**
-
-Create `tests/test_support_emails.py`:
-
-```python
-"""Recipient resolution, envelope shape and delivery bookkeeping."""
-
-import pytest
-from django.conf import settings as dj_settings
-from django.contrib.auth.models import Group as AuthGroup
-from django.core import mail
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import override_settings
-from django.urls import reverse
-
-from institution.models import Institution
-from institution.roles import PLATFORM_ADMIN
-from institution.roles import seed_roles
-from support.emails import send_issue_report_email
-from support.models import IssueReport
-from support.models import SupportSettings
-from tests.factories import UserFactory
-from tests.test_support_models import _png_bytes
-
-pytestmark = pytest.mark.django_db
-
-
-def _pa(email="pa@school.example", **kwargs):
-    seed_roles()
-    user = UserFactory(email=email, **kwargs)
-    user.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
-    return user
-
-
-def _report(**kwargs):
-    kwargs.setdefault("description", "It broke")
-    kwargs.setdefault("reporter_label", "Ada (ada) <ada@school.example>")
-    return IssueReport.objects.create(**kwargs)
-
-
-def test_recipients_union_pas_and_extra_addresses_in_bcc():
-    _pa(email="pa@school.example")
-    row = SupportSettings.load()
-    row.extra_emails = ["helpdesk@school.example"]
-    row.save()
-    send_issue_report_email(_report())
-    message = mail.outbox[0]
-    assert set(message.bcc) == {"pa@school.example", "helpdesk@school.example"}
-    assert message.to == [dj_settings.DEFAULT_FROM_EMAIL]
-
-
-def test_recipients_are_deduplicated_case_insensitively():
-    _pa(email="pa@school.example")
-    row = SupportSettings.load()
-    row.extra_emails = ["PA@School.Example"]
-    row.save()
-    send_issue_report_email(_report())
-    assert len(mail.outbox[0].bcc) == 1
-
-
-def test_an_inactive_pa_and_an_emailless_pa_are_not_recipients():
-    _pa(email="active@school.example")
-    _pa(email="inactive@school.example", is_active=False)
-    _pa(email="")
-    send_issue_report_email(_report())
-    assert mail.outbox[0].bcc == ["active@school.example"]
-
-
-def test_no_recipients_means_no_message_and_no_emailed_at():
-    """to=[DEFAULT_FROM_EMAIL] makes an empty bcc a perfectly valid message, so
-    without the short-circuit send() would return 1 and emailed_at would lie."""
-    report = _report()
-    send_issue_report_email(report)
-    report.refresh_from_db()
-    assert mail.outbox == []
-    assert report.emailed_at is None
-
-
-def test_a_newline_in_the_display_name_cannot_split_the_subject():
-    _pa()
-    report = _report(reporter_label="Ada\r\nBcc: evil@x.test")
-    send_issue_report_email(report)
-    assert "\n" not in mail.outbox[0].subject
-    assert "\r" not in mail.outbox[0].subject
-
-
-def test_the_subject_carries_the_report_id():
-    """Without it every report from one reporter shares a byte-identical subject
-    and mail clients thread them into an undifferentiated pile."""
-    _pa()
-    report = _report()
-    send_issue_report_email(report)
-    assert str(report.pk) in mail.outbox[0].subject
-
-
-def test_the_body_links_to_the_report_detail_page():
-    _pa()
-    report = _report()
-    send_issue_report_email(report)
-    path = reverse("support:report_detail", args=[report.pk])
-    assert path in mail.outbox[0].body
-
-
-def test_the_screenshot_is_attached(tmp_path):
-    with override_settings(SUPPORT_SCREENSHOT_DIR=tmp_path):
-        _pa()
-        report = _report()
-        report.screenshot.save(
-            "shot.png", SimpleUploadedFile("shot.png", _png_bytes()), save=True
-        )
-        send_issue_report_email(report)
-        assert len(mail.outbox[0].attachments) == 1
-
-
-def test_emailed_at_is_stamped_without_clobbering_a_concurrent_status_change():
-    _pa()
-    report = _report()
-    IssueReport.objects.filter(pk=report.pk).update(
-        status=IssueReport.Status.RESOLVED
-    )
-    send_issue_report_email(report)  # `report` still holds status=open in memory
-    report.refresh_from_db()
-    assert report.emailed_at is not None
-    assert report.status == IssueReport.Status.RESOLVED
-
-
-def test_a_send_that_raises_still_leaves_the_report(monkeypatch):
-    _pa()
-    report = _report()
-
-    def _boom(self, *args, **kwargs):
-        raise RuntimeError("smtp down")
-
-    monkeypatch.setattr(
-        "django.core.mail.EmailMultiAlternatives.send", _boom, raising=True
-    )
-    send_issue_report_email(report)  # must NOT raise
-    report.refresh_from_db()
-    assert report.emailed_at is None
-    assert IssueReport.objects.count() == 1
-
-
-def test_the_message_uses_the_institution_language_not_the_reporters():
-    inst = Institution.load()
-    inst.default_language = "en"
-    inst.save()
-    _pa()
-    send_issue_report_email(_report())
-    # An English institution default must produce an English subject even for a
-    # Polish-speaking reporter; the message goes to everyone, so it has one language.
-    assert "Issue report" in mail.outbox[0].subject
-
-
-def test_a_javascript_page_url_is_never_an_href_in_the_email():
-    _pa()
-    send_issue_report_email(_report(page_url="javascript:alert(1)"))
-    html = mail.outbox[0].alternatives[0][0]
-    assert 'href="javascript:' not in html
-```
-
-- [ ] **Step 2: Run to verify failure**
-
-Run: `uv run pytest tests/test_support_emails.py -v`
-Expected: failures — the stub sends nothing.
-
-- [ ] **Step 3: Write the email module**
-
-Replace `support/emails.py`:
-
-```python
-"""Report notification email.
-
-Built like notifications/emails.py (EmailMultiAlternatives + render_to_string +
-translation.override with EAGER gettext so interpolation resolves inside the
-block), with two deliberate divergences, noted here so a later reviewer does not
-"restore consistency" and undo them:
-
-  * ONE bcc'd message rather than one message per recipient — the audience is a
-    fixed admin list, not a per-user fan-out.
-  * The language is the institution default, not the recipient's: a single
-    message can only have one language.
-"""
-
-import logging
-
-from allauth.account import app_settings as account_settings
-from django.conf import settings as dj_settings
-from django.contrib.auth import get_user_model
-from django.contrib.sites.models import Site
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
-from django.urls import reverse
-from django.utils import timezone
-from django.utils import translation
-from django.utils.translation import gettext as _
-
-from core.services import get_site_config
-from institution.roles import PLATFORM_ADMIN
-from support.models import SupportSettings
-from support.policy import role_labels
-from support.telemetry import safe_page_link
-from support.telemetry import telemetry_rows
-
-logger = logging.getLogger(__name__)
-User = get_user_model()
-
-
-def _absolute_url(path):
-    """Absolute URL from the current Site (never a request Host header, so an
-    emailed link cannot be host-spoofed). Local rather than importing
-    notifications.emails._absolute_url, which is a private name in another app."""
-    domain = Site.objects.get_current().domain
-    scheme = account_settings.DEFAULT_HTTP_PROTOCOL
-    return f"{scheme}://{domain}{path}"
-
-
-def resolve_recipients():
-    """Active PA-Group members with an email, unioned with extra_emails,
-    de-duplicated case-insensitively. Superusers outside the Group are NOT
-    included, matching accounts.services.is_last_active_platform_admin."""
-    addresses = list(
-        User.objects.filter(is_active=True, groups__name=PLATFORM_ADMIN)
-        .exclude(email__isnull=True)
-        .exclude(email="")
-        .values_list("email", flat=True)
-    )
-    row = SupportSettings.objects.filter(pk=1).first()
-    if row is not None:
-        addresses += [a for a in (row.extra_emails or []) if a]
-    seen, unique = set(), []
-    for address in addresses:
-        key = address.lower()
-        if key not in seen:
-            seen.add(key)
-            unique.append(address)
-    return unique
-
-
-def send_issue_report_email(report):
-    """Never raises. See the module note in Task 4's stub: an exception escaping
-    here would reach report_create's rollback `except` — which cannot tell a
-    rollback from a post-commit failure — and delete a COMMITTED report's
-    screenshot while 500ing a reporter whose report was in fact saved."""
-    try:
-        recipients = resolve_recipients()
-        if not recipients:
-            logger.warning(
-                "issue report %s has no resolvable recipients; not sending",
-                report.pk,
-            )
-            return
-        cfg = get_site_config()
-        with translation.override(cfg["default_language"]):
-            reporter = " ".join((report.reporter_label or "").split())
-            institution = " ".join((cfg["name"] or "").split())
-            subject = _("[%(institution)s] Issue report #%(pk)s from %(who)s") % {
-                "institution": institution,
-                "pk": report.pk,
-                "who": reporter,
-            }
-            ctx = {
-                "report": report,
-                "detail_url": _absolute_url(
-                    reverse("support:report_detail", args=[report.pk])
-                ),
-                "roles": role_labels(report.reporter_roles),
-                "telemetry": telemetry_rows(report.telemetry),
-                "page_link": safe_page_link(report.page_url),
-                "site": cfg,
-            }
-            text = render_to_string("support/email/issue_report.txt", ctx)
-            html = render_to_string("support/email/issue_report.html", ctx)
-        reply_to = [report.reporter.email] if (
-            report.reporter and report.reporter.email
-        ) else None
-        message = EmailMultiAlternatives(
-            subject,
-            text,
-            None,
-            # Recipients go in bcc: putting them in `to` would disclose each PA's
-            # personal address to a helpdesk alias and to every other recipient.
-            to=[dj_settings.DEFAULT_FROM_EMAIL],
-            bcc=recipients,
-            reply_to=reply_to,
-        )
-        message.attach_alternative(html, "text/html")
-        if report.screenshot:
-            report.screenshot.open("rb")
-            try:
-                message.attach(
-                    report.screenshot.name.rsplit("/", 1)[-1],
-                    report.screenshot.read(),
-                )
-            finally:
-                report.screenshot.close()
-        message.send()
-        report.emailed_at = timezone.now()
-        # update_fields: a bare save() from a post-commit callback would rewrite
-        # every field of a row a PA may have resolved in the meantime.
-        report.save(update_fields=["emailed_at"])
-    except Exception:  # noqa: BLE001 — must never escape the on_commit hook
-        logger.exception("issue report email delivery failed (report %s)", report.pk)
-```
-
-- [ ] **Step 4: Write the email templates**
-
-`support/templates/support/email/issue_report.txt`:
-
-```django
-{% load i18n %}{% trans "A new issue report was submitted." %}
-
-{% trans "View it here" %}: {{ detail_url }}
-
-{% trans "Reported by" %}: {{ report.reporter_label }}{% if roles %} ({{ roles|join:", " }}){% endif %}
-{% trans "Page" %}: {{ report.page_title }}
-{% trans "URL" %}: {{ report.page_url }}
-
-{% trans "Description" %}:
-{{ report.description }}
-
-{% for key, label, value in telemetry %}{{ label }}: {{ value }}
-{% endfor %}
-```
-
-`support/templates/support/email/issue_report.html`:
-
-```django
-{% load i18n %}
-<p>{% trans "A new issue report was submitted." %}</p>
-<p><a href="{{ detail_url }}">{% trans "View it here" %}</a></p>
-<p>
-  <strong>{% trans "Reported by" %}:</strong> {{ report.reporter_label }}
-  {% if roles %}({{ roles|join:", " }}){% endif %}
-</p>
-<p>
-  <strong>{% trans "Page" %}:</strong> {{ report.page_title }}<br>
-  {% comment %}safe_page_link returns None for a javascript: or foreign-host URL,
-  so a hostile page_url renders as inert escaped text. This is the one output
-  that travels outside the login wall.{% endcomment %}
-  {% if page_link %}<a href="{{ page_link }}">{{ report.page_url }}</a>
-  {% else %}{{ report.page_url }}{% endif %}
-</p>
-<p><strong>{% trans "Description" %}:</strong></p>
-<p>{{ report.description|linebreaksbr }}</p>
-<table>
-  {% for key, label, value in telemetry %}
-  <tr><th align="left">{{ label }}</th><td>{{ value }}</td></tr>
-  {% endfor %}
-</table>
-```
-
-These templates reference `support:report_detail`, which Task 6 defines. Run Task 6 before this task's tests can pass, **or** temporarily add a placeholder path — the plan orders Task 5 first because the email module is the harder unit; if `reverse` fails, jump to Task 6 Step 4, add the URL entries, and come back.
-
-- [ ] **Step 5: Run to verify pass**
-
-Run: `uv run pytest tests/test_support_emails.py -v`
-Expected: all pass.
-
-- [ ] **Step 6: Falsify three**
-
-1. Move `bcc=recipients` to `to=recipients` (dropping the `to=[DEFAULT_FROM_EMAIL]`) → `test_recipients_union_pas_and_extra_addresses_in_bcc` must FAIL. Restore by hand.
-2. Delete the `if not recipients:` short-circuit → `test_no_recipients_means_no_message_and_no_emailed_at` must FAIL. Restore by hand.
-3. Change `report.save(update_fields=["emailed_at"])` to `report.save()` → `test_emailed_at_is_stamped_without_clobbering_a_concurrent_status_change` must FAIL. Restore by hand.
-
-- [ ] **Step 7: Lint and commit**
-
-```bash
-uv run ruff check --no-cache support tests/test_support_emails.py
-uv run ruff format --check support tests/test_support_emails.py
-git add support tests/test_support_emails.py
-git commit -m "feat(support): email delivery to Platform Admins and extra addresses"
-```
-
----
-
-### Task 6: Triage views, templates and permissions
+### Task 5: Triage views, templates and permissions
 
 **Files:**
 - Create: `support/views_manage.py`, `support/templates/support/manage/report_list.html`, `support/templates/support/manage/report_detail.html`
@@ -2122,10 +1848,24 @@ def test_a_pa_can_delete_a_report_and_its_file(client, tmp_path):
         report.screenshot.save(
             "shot.png", SimpleUploadedFile("shot.png", _png_bytes()), save=True
         )
-        response = client.post(reverse("support:report_delete", args=[report.pk]))
+        response = client.post(
+            reverse("support:report_delete", args=[report.pk]), {"status": "all"}
+        )
         assert response.status_code == 302
+        # The filter must survive the round-trip; dropping the hidden input and
+        # its validation would otherwise leave this test green.
+        assert response["Location"].endswith("?status=all")
         assert IssueReport.objects.count() == 0
         assert list(tmp_path.rglob("*.png")) == []
+
+
+def test_a_bogus_delete_filter_falls_back_to_the_default(client):
+    make_pa(client)
+    report = _report()
+    response = client.post(
+        reverse("support:report_delete", args=[report.pk]), {"status": "../evil"}
+    )
+    assert response["Location"].endswith("?status=open")
 
 
 def test_a_teacher_cannot_delete_and_get_does_not_delete(client):
@@ -2489,8 +2229,15 @@ urlpatterns = [
   {% endif %}
 </form>
 
+{% comment %}The confirmation text goes in a data- attribute, NOT inline in an
+onsubmit JS string literal: Task 12 supplies Polish, and a translation containing
+an apostrophe would terminate the literal and break the page. Django escapes the
+attribute for you. A small handler in support.js reads [data-confirm] and calls
+confirm(). Note for any future e2e: Playwright AUTO-DISMISSES confirm() unless the
+test registers page.on("dialog", ...), so a delete e2e without that listener
+silently does nothing and still passes.{% endcomment %}
 <form method="post" action="{% url 'support:report_delete' report.pk %}"
-      onsubmit="return confirm('{% trans "Delete this report and its screenshot?" %}')">
+      data-confirm="{% trans 'Delete this report and its screenshot?' %}">
   {% csrf_token %}
   <input type="hidden" name="status" value="{{ status }}">
   <button type="submit" class="btn--danger">{% trans "Delete" %}</button>
@@ -2512,8 +2259,8 @@ Leave the outer `.app-nav__admin` condition unchanged: `view_issuereport` is PA-
 
 - [ ] **Step 7: Run to verify pass**
 
-Run: `uv run pytest tests/test_support_triage.py tests/test_support_emails.py -v`
-Expected: all pass (the email tests now resolve `support:report_detail`).
+Run: `uv run pytest tests/test_support_triage.py -v`
+Expected: all pass. (`tests/test_support_emails.py` does not exist yet — Task 6 adds it, and relies on the `support:report_detail` name this task just registered.)
 
 - [ ] **Step 8: Falsify two**
 
@@ -2531,12 +2278,708 @@ git commit -m "feat(support): PA triage list, detail, status, delete and private
 
 ---
 
-### Task 7: The Support settings tab
+### Task 6: Email delivery
 
 **Files:**
-- Modify: `support/forms.py`, `institution/views_manage.py`, `institution/urls.py`
-- Create: `templates/institution/manage/_support_panel.html`
+- Modify: `support/emails.py`
+- Create: `support/templates/support/email/issue_report.txt`, `support/templates/support/email/issue_report.html`
+- Test: `tests/test_support_emails.py`
+
+**Interfaces:**
+- Consumes: `support.telemetry.telemetry_rows/safe_page_link`, `support.policy.role_labels`, `core.services.get_site_config`
+- Produces: `support.emails.send_issue_report_email(report)`, `support.emails.resolve_recipients() -> list[str]`, `support.emails._absolute_url(path) -> str`
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `tests/test_support_emails.py`:
+
+```python
+"""Recipient resolution, envelope shape and delivery bookkeeping."""
+
+import pytest
+from django.conf import settings as dj_settings
+from django.contrib.auth.models import Group as AuthGroup
+from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from django.urls import reverse
+
+from institution.models import Institution
+from institution.roles import PLATFORM_ADMIN
+from institution.roles import seed_roles
+from support.emails import send_issue_report_email
+from support.models import IssueReport
+from support.models import SupportSettings
+from tests.factories import UserFactory
+from tests.test_support_models import _png_bytes
+
+pytestmark = pytest.mark.django_db
+
+
+def _pa(email="pa@school.example", **kwargs):
+    seed_roles()
+    user = UserFactory(email=email, **kwargs)
+    user.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+def _report(**kwargs):
+    kwargs.setdefault("description", "It broke")
+    kwargs.setdefault("reporter_label", "Ada (ada) <ada@school.example>")
+    return IssueReport.objects.create(**kwargs)
+
+
+def test_recipients_union_pas_and_extra_addresses_in_bcc():
+    _pa(email="pa@school.example")
+    row = SupportSettings.load()
+    row.extra_emails = ["helpdesk@school.example"]
+    row.save()
+    send_issue_report_email(_report())
+    message = mail.outbox[0]
+    assert set(message.bcc) == {"pa@school.example", "helpdesk@school.example"}
+    assert message.to == [dj_settings.DEFAULT_FROM_EMAIL]
+
+
+def test_recipients_are_deduplicated_case_insensitively():
+    _pa(email="pa@school.example")
+    row = SupportSettings.load()
+    row.extra_emails = ["PA@School.Example"]
+    row.save()
+    send_issue_report_email(_report())
+    assert len(mail.outbox[0].bcc) == 1
+
+
+def test_an_inactive_pa_and_an_emailless_pa_are_not_recipients():
+    _pa(email="active@school.example")
+    _pa(email="inactive@school.example", is_active=False)
+    _pa(email="")
+    send_issue_report_email(_report())
+    assert mail.outbox[0].bcc == ["active@school.example"]
+
+
+def test_no_recipients_means_no_message_and_no_emailed_at():
+    """to=[DEFAULT_FROM_EMAIL] makes an empty bcc a perfectly valid message, so
+    without the short-circuit send() would return 1 and emailed_at would lie."""
+    report = _report()
+    send_issue_report_email(report)
+    report.refresh_from_db()
+    assert mail.outbox == []
+    assert report.emailed_at is None
+
+
+def test_a_newline_in_the_display_name_cannot_split_the_subject():
+    _pa()
+    report = _report(reporter_label="Ada\r\nBcc: evil@x.test")
+    send_issue_report_email(report)
+    assert "\n" not in mail.outbox[0].subject
+    assert "\r" not in mail.outbox[0].subject
+
+
+def test_the_subject_carries_the_report_id():
+    """Without it every report from one reporter shares a byte-identical subject
+    and mail clients thread them into an undifferentiated pile."""
+    _pa()
+    report = _report()
+    send_issue_report_email(report)
+    assert str(report.pk) in mail.outbox[0].subject
+
+
+def test_the_body_links_to_the_report_detail_page():
+    _pa()
+    report = _report()
+    send_issue_report_email(report)
+    path = reverse("support:report_detail", args=[report.pk])
+    assert path in mail.outbox[0].body
+
+
+def test_the_screenshot_is_attached(tmp_path):
+    with override_settings(SUPPORT_SCREENSHOT_DIR=tmp_path):
+        _pa()
+        report = _report()
+        report.screenshot.save(
+            "shot.png", SimpleUploadedFile("shot.png", _png_bytes()), save=True
+        )
+        send_issue_report_email(report)
+        assert len(mail.outbox[0].attachments) == 1
+
+
+def test_emailed_at_is_stamped_without_clobbering_a_concurrent_status_change():
+    _pa()
+    report = _report()
+    IssueReport.objects.filter(pk=report.pk).update(
+        status=IssueReport.Status.RESOLVED
+    )
+    send_issue_report_email(report)  # `report` still holds status=open in memory
+    report.refresh_from_db()
+    assert report.emailed_at is not None
+    assert report.status == IssueReport.Status.RESOLVED
+
+
+def test_a_send_that_raises_still_leaves_the_report(monkeypatch):
+    _pa()
+    report = _report()
+
+    def _boom(self, *args, **kwargs):
+        raise RuntimeError("smtp down")
+
+    monkeypatch.setattr(
+        "django.core.mail.EmailMultiAlternatives.send", _boom, raising=True
+    )
+    send_issue_report_email(report)  # must NOT raise
+    report.refresh_from_db()
+    assert report.emailed_at is None
+    assert IssueReport.objects.count() == 1
+
+
+def test_the_message_uses_the_institution_language_not_the_reporters():
+    """An A/B, because a single English check proves nothing: English is both the
+    institution default AND the untranslated msgid, so the mutant ("override to
+    the reporter's language") would produce an identical subject.
+
+    Run this AFTER Task 12 supplies the Polish catalog. Assert on the observed
+    active language rather than catalog text so it does not re-break whenever the
+    Polish wording is edited.
+    """
+    from django.utils import translation
+
+    from core.services import invalidate_site_config
+
+    observed = {}
+    real_render = support.emails.render_to_string
+
+    def _spy(template, ctx):
+        observed["language"] = translation.get_language()
+        return real_render(template, ctx)
+
+    inst = Institution.load()
+    inst.default_language = "pl"
+    inst.save()
+    invalidate_site_config()
+
+    reporter = UserFactory(username="polly", email="polly@school.example")
+    _pa()
+    with translation.override("en"):  # the REPORTER's language, deliberately not pl
+        with mock.patch.object(support.emails, "render_to_string", _spy):
+            send_issue_report_email(_report(reporter=reporter))
+    assert observed["language"] == "pl"
+
+
+def test_a_javascript_page_url_is_never_an_href_in_the_email():
+    _pa()
+    send_issue_report_email(_report(page_url="javascript:alert(1)"))
+    html = mail.outbox[0].alternatives[0][0]
+    assert 'href="javascript:' not in html
+```
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `uv run pytest tests/test_support_emails.py -v`
+Expected: failures — the stub sends nothing.
+
+- [ ] **Step 3: Write the email module**
+
+Replace `support/emails.py`:
+
+```python
+"""Report notification email.
+
+Built like notifications/emails.py (EmailMultiAlternatives + render_to_string +
+translation.override with EAGER gettext so interpolation resolves inside the
+block), with two deliberate divergences, noted here so a later reviewer does not
+"restore consistency" and undo them:
+
+  * ONE bcc'd message rather than one message per recipient — the audience is a
+    fixed admin list, not a per-user fan-out.
+  * The language is the institution default, not the recipient's: a single
+    message can only have one language.
+"""
+
+import logging
+
+from allauth.account import app_settings as account_settings
+from django.conf import settings as dj_settings
+from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.utils import timezone
+from django.utils import translation
+from django.utils.translation import gettext as _
+
+from core.services import get_site_config
+from institution.roles import PLATFORM_ADMIN
+from support.models import SupportSettings
+from support.policy import role_labels
+from support.telemetry import safe_page_link
+from support.telemetry import telemetry_rows
+
+logger = logging.getLogger(__name__)
+User = get_user_model()
+
+
+def _absolute_url(path):
+    """Absolute URL from the current Site (never a request Host header, so an
+    emailed link cannot be host-spoofed). Local rather than importing
+    notifications.emails._absolute_url, which is a private name in another app."""
+    domain = Site.objects.get_current().domain
+    scheme = account_settings.DEFAULT_HTTP_PROTOCOL
+    return f"{scheme}://{domain}{path}"
+
+
+def resolve_recipients():
+    """Active PA-Group members with an email, unioned with extra_emails,
+    de-duplicated case-insensitively. Superusers outside the Group are NOT
+    included, matching accounts.services.is_last_active_platform_admin."""
+    addresses = list(
+        User.objects.filter(is_active=True, groups__name=PLATFORM_ADMIN)
+        .exclude(email__isnull=True)
+        .exclude(email="")
+        .values_list("email", flat=True)
+    )
+    row = SupportSettings.objects.filter(pk=1).first()
+    if row is not None:
+        addresses += [a for a in (row.extra_emails or []) if a]
+    seen, unique = set(), []
+    for address in addresses:
+        key = address.lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(address)
+    return unique
+
+
+def send_issue_report_email(report):
+    """Never raises. See the module note in Task 4's stub: an exception escaping
+    here would reach report_create's rollback `except` — which cannot tell a
+    rollback from a post-commit failure — and delete a COMMITTED report's
+    screenshot while 500ing a reporter whose report was in fact saved."""
+    try:
+        recipients = resolve_recipients()
+        if not recipients:
+            logger.warning(
+                "issue report %s has no resolvable recipients; not sending",
+                report.pk,
+            )
+            return
+        cfg = get_site_config()
+        with translation.override(cfg["default_language"]):
+            reporter = " ".join((report.reporter_label or "").split())
+            institution = " ".join((cfg["name"] or "").split())
+            subject = _("[%(institution)s] Issue report #%(pk)s from %(who)s") % {
+                "institution": institution,
+                "pk": report.pk,
+                "who": reporter,
+            }
+            ctx = {
+                "report": report,
+                "detail_url": _absolute_url(
+                    reverse("support:report_detail", args=[report.pk])
+                ),
+                "roles": role_labels(report.reporter_roles),
+                "telemetry": telemetry_rows(report.telemetry),
+                "page_link": safe_page_link(report.page_url),
+                "site": cfg,
+            }
+            text = render_to_string("support/email/issue_report.txt", ctx)
+            html = render_to_string("support/email/issue_report.html", ctx)
+        reply_to = [report.reporter.email] if (
+            report.reporter and report.reporter.email
+        ) else None
+        message = EmailMultiAlternatives(
+            subject,
+            text,
+            None,
+            # Recipients go in bcc: putting them in `to` would disclose each PA's
+            # personal address to a helpdesk alias and to every other recipient.
+            to=[dj_settings.DEFAULT_FROM_EMAIL],
+            bcc=recipients,
+            reply_to=reply_to,
+        )
+        message.attach_alternative(html, "text/html")
+        if report.screenshot:
+            report.screenshot.open("rb")
+            try:
+                message.attach(
+                    report.screenshot.name.rsplit("/", 1)[-1],
+                    report.screenshot.read(),
+                )
+            finally:
+                report.screenshot.close()
+        message.send()
+        report.emailed_at = timezone.now()
+        # update_fields: a bare save() from a post-commit callback would rewrite
+        # every field of a row a PA may have resolved in the meantime.
+        report.save(update_fields=["emailed_at"])
+    except Exception:  # noqa: BLE001 — must never escape the on_commit hook
+        logger.exception("issue report email delivery failed (report %s)", report.pk)
+```
+
+- [ ] **Step 4: Write the email templates**
+
+`support/templates/support/email/issue_report.txt`:
+
+```django
+{% load i18n %}{% trans "A new issue report was submitted." %}
+
+{% trans "View it here" %}: {{ detail_url }}
+
+{% trans "Reported by" %}: {{ report.reporter_label }}{% if roles %} ({{ roles|join:", " }}){% endif %}
+{% trans "Page" %}: {{ report.page_title }}
+{% trans "URL" %}: {{ report.page_url }}
+
+{% trans "Description" %}:
+{{ report.description }}
+
+{% for key, label, value in telemetry %}{{ label }}: {{ value }}
+{% endfor %}
+```
+
+`support/templates/support/email/issue_report.html`:
+
+```django
+{% load i18n %}
+<p>{% trans "A new issue report was submitted." %}</p>
+<p><a href="{{ detail_url }}">{% trans "View it here" %}</a></p>
+<p>
+  <strong>{% trans "Reported by" %}:</strong> {{ report.reporter_label }}
+  {% if roles %}({{ roles|join:", " }}){% endif %}
+</p>
+<p>
+  <strong>{% trans "Page" %}:</strong> {{ report.page_title }}<br>
+  {% comment %}safe_page_link returns None for a javascript: or foreign-host URL,
+  so a hostile page_url renders as inert escaped text. This is the one output
+  that travels outside the login wall.{% endcomment %}
+  {% if page_link %}<a href="{{ page_link }}">{{ report.page_url }}</a>
+  {% else %}{{ report.page_url }}{% endif %}
+</p>
+<p><strong>{% trans "Description" %}:</strong></p>
+<p>{{ report.description|linebreaksbr }}</p>
+<table>
+  {% for key, label, value in telemetry %}
+  <tr><th align="left">{{ label }}</th><td>{{ value }}</td></tr>
+  {% endfor %}
+</table>
+```
+
+These templates reference `support:report_detail`, registered by Task 5. That is why triage comes first: `send_issue_report_email` calls `reverse` at runtime, so every one of this task's tests would raise `NoReverseMatch` without it.
+
+- [ ] **Step 5: Run to verify pass**
+
+Run: `uv run pytest tests/test_support_emails.py -v`
+Expected: all pass.
+
+- [ ] **Step 6: Falsify three**
+
+1. Move `bcc=recipients` to `to=recipients` (dropping the `to=[DEFAULT_FROM_EMAIL]`) → `test_recipients_union_pas_and_extra_addresses_in_bcc` must FAIL. Restore by hand.
+2. Delete the `if not recipients:` short-circuit → `test_no_recipients_means_no_message_and_no_emailed_at` must FAIL. Restore by hand.
+3. Change `report.save(update_fields=["emailed_at"])` to `report.save()` → `test_emailed_at_is_stamped_without_clobbering_a_concurrent_status_change` must FAIL. Restore by hand.
+
+- [ ] **Step 7: Lint and commit**
+
+```bash
+uv run ruff check --no-cache support tests/test_support_emails.py
+uv run ruff format --check support tests/test_support_emails.py
+git add support tests/test_support_emails.py
+git commit -m "feat(support): email delivery to Platform Admins and extra addresses"
+```
+
+---
+
+### Task 7: The Allowed reporters page
+
+**Files:**
+- Modify: `support/forms.py`, `support/views_manage.py`, `support/urls.py`
+- Create: `support/templates/support/manage/reporters.html`
+- Test: `tests/test_support_reporters_page.py`
+
+**Interfaces:**
+- Produces: `support.forms.ReporterPickerForm`, URL name `support:reporters`
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `tests/test_support_reporters_page.py`:
+
+```python
+"""The dedicated roster page for individually-granted reporters."""
+
+import pytest
+from django.contrib.auth.models import Group as AuthGroup
+from django.core.cache import cache
+from django.urls import reverse
+
+from institution.roles import PLATFORM_ADMIN
+from institution.roles import TEACHER
+from institution.roles import seed_roles
+from support.models import SupportSettings
+from support.policy import can_report
+from tests.factories import UserFactory
+from tests.factories import make_pa
+from tests.factories import make_teacher
+
+pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    cache.clear()
+    yield
+    cache.clear()
+
+
+def _teacher(username):
+    seed_roles()
+    user = UserFactory(username=username)
+    user.groups.add(AuthGroup.objects.get(name=TEACHER))
+    return user
+
+
+def test_the_first_ever_save_creates_the_row_and_grants_immediately(client):
+    make_pa(client)
+    teacher = _teacher("grantme")
+    assert SupportSettings.objects.count() == 0
+    assert can_report(teacher) is False
+    response = client.post(
+        reverse("support:reporters"), {"extra_reporters": [teacher.pk]}
+    )
+    assert response.status_code == 302
+    assert SupportSettings.objects.count() == 1
+    assert can_report(teacher) is True
+
+
+def test_an_inactive_existing_grant_survives_a_save_that_adds_someone_else(client):
+    """Mutant: scope the roster queryset to active non-PA users alone — the
+    absent user is then dropped by save_m2m and the grant is silently revoked."""
+    make_pa(client)
+    keep = _teacher("keepme")
+    row = SupportSettings.load()
+    row.extra_reporters.add(keep)
+    keep.is_active = False
+    keep.save()
+    newcomer = _teacher("newcomer")
+    client.post(
+        reverse("support:reporters"),
+        {"extra_reporters": [keep.pk, newcomer.pk]},
+    )
+    assert set(
+        SupportSettings.load().extra_reporters.values_list("pk", flat=True)
+    ) == {keep.pk, newcomer.pk}
+
+
+def test_an_already_selected_user_outside_the_base_roster_is_still_rendered(client):
+    make_pa(client)
+    promoted = _teacher("promoted")
+    SupportSettings.load().extra_reporters.add(promoted)
+    promoted.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
+    body = client.get(reverse("support:reporters")).content.decode()
+    # Assert on the pk, not the username: UserFactory sets display_name from
+    # Faker and User.__str__ returns display_name or username, so
+    # CheckboxSelectMultiple renders the Faker name and the username never
+    # appears — the test would fail on a correct build.
+    assert f'value="{promoted.pk}"' in body
+
+
+def test_an_out_of_roster_grant_is_marked_for_the_muted_note(client):
+    """The spec requires these to render "checked, with a muted note explaining
+    why they are listed". Mutant: drop the create_option override — the grant
+    still renders, but indistinguishable from an ordinary roster member."""
+    make_pa(client)
+    ordinary = _teacher("ordinary")
+    stale_grant = _teacher("deactivated")
+    row = SupportSettings.load()
+    row.extra_reporters.add(ordinary, stale_grant)
+    stale_grant.is_active = False
+    stale_grant.save()
+    body = client.get(reverse("support:reporters")).content.decode()
+    assert body.count("data-out-of-roster") == 1
+
+
+def test_a_teacher_cannot_open_or_save_the_page(client):
+    make_teacher(client)
+    assert client.get(reverse("support:reporters")).status_code == 403
+    assert client.post(reverse("support:reporters"), {}).status_code == 403
+```
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `uv run pytest tests/test_support_reporters_page.py -v`
+Expected: `NoReverseMatch: 'reporters'`.
+
+- [ ] **Step 3: Write the form**
+
+Append to `support/forms.py`:
+
+```python
+class ReporterPickerForm(forms.ModelForm):
+    """The roster of individually-granted reporters.
+
+    The queryset is active non-PA users UNIONED with whoever is currently
+    selected. Scoped to active non-PA users alone, an already-granted user who
+    has since been deactivated or promoted to PA would be absent from the
+    rendered list, and the next save_m2m() would silently REVOKE them — a PA
+    opening the page to add one person would drop an unrelated grant.
+    """
+
+    class Meta:
+        model = SupportSettings
+        fields = ["extra_reporters"]
+        widgets = {"extra_reporters": forms.CheckboxSelectMultiple}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        User = get_user_model()
+        selected = list(self.instance.extra_reporters.values_list("pk", flat=True))
+        base = User.objects.filter(is_active=True).exclude(
+            groups__name=PLATFORM_ADMIN
+        )
+        self.fields["extra_reporters"].queryset = (
+            User.objects.filter(Q(pk__in=base.values("pk")) | Q(pk__in=selected))
+            .distinct()
+            .order_by("display_name", "username")
+        )
+        self.fields["extra_reporters"].required = False
+        self.out_of_roster = set(selected) - set(
+            base.values_list("pk", flat=True)
+        )
+
+    def create_option(self, name, value, *args, **kwargs):
+        """Mark grants that survive only because of the union.
+
+        The spec requires already-selected users outside the base roster to render
+        "checked, with a muted note explaining why they are listed", and a plain
+        CheckboxSelectMultiple cannot express a per-option note. This tags them so
+        the template can. Django passes `value` as a ModelChoiceIteratorValue, so
+        compare its .value.
+        """
+        option = super().create_option(name, value, *args, **kwargs)
+        pk = getattr(value, "value", value)
+        if pk in self.out_of_roster:
+            option["attrs"]["data-out-of-roster"] = "1"
+        return option
+```
+
+`create_option` belongs on the **widget**, not the form, so either subclass
+`CheckboxSelectMultiple` and give it an `out_of_roster` attribute set from the
+form's `__init__`, or render the note from a separate list in the template. Pick
+one and keep the styling muted; the paired test asserts the marker is present for
+a deactivated grant and absent for an ordinary one.
+
+Add to `support/forms.py` imports:
+
+```python
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+
+from institution.roles import PLATFORM_ADMIN
+```
+
+- [ ] **Step 4: Write the view and URL**
+
+Append to `support/views_manage.py`:
+
+```python
+@login_required
+@permission_required("support.change_supportsettings", raise_exception=True)
+def reporters(request):
+    # load() on BOTH methods, which is a deliberate exception to the spec's
+    # "read paths use filter(pk=1).first()" rule — state it rather than let it
+    # look like an oversight. ReporterPickerForm.__init__ reads
+    # instance.extra_reporters to build the roster union, and an M2M access on an
+    # unsaved instance raises ValueError. The page is PA-only and reached
+    # deliberately, so materialising pk=1 here costs one row on first visit and
+    # never happens on a student render.
+    row = SupportSettings.load()
+    if request.method == "POST":
+        form = ReporterPickerForm(request.POST, instance=row)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("Allowed reporters updated."))
+            return redirect(f"{reverse('institution:settings')}?tab=support")
+    else:
+        form = ReporterPickerForm(instance=row)
+    return render(request, "support/manage/reporters.html", {"form": form})
+```
+
+with the corresponding imports (`messages`, `reverse`, `gettext as _`, `ReporterPickerForm`, `SupportSettings`).
+
+Add to `support/urls.py`:
+
+```python
+    path("manage/settings/support/reporters/", views_manage.reporters, name="reporters"),
+```
+
+- [ ] **Step 5: Write the template**
+
+`support/templates/support/manage/reporters.html`:
+
+```django
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Allowed reporters" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Allowed reporters" %}</h1>
+<p>{% trans "These people can report an issue regardless of the audience setting." %}</p>
+<form method="post">
+  {% csrf_token %}
+  {% comment %}The attribute set is load-bearing, not decorative. roster_filter.js
+  iterates [data-roster] and RETURNS IMMEDIATELY unless the root contains
+  [data-roster-list] — so a plain class="roster" with a bare search input leaves
+  the box completely inert. This mirrors templates/grouping/group_form.html.
+  [data-roster-count] and [data-roster-selected] are optional.{% endcomment %}
+  <fieldset class="roster" data-roster>
+    <legend>{% trans "Allowed reporters" %}</legend>
+    <div class="roster-filter" data-roster-filter>
+      <input type="search" data-roster-search
+             placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
+      <p class="roster-filter__count" data-roster-count aria-live="polite" hidden></p>
+    </div>
+    <div class="checkbox-list" data-roster-list>{{ form.extra_reporters }}</div>
+  </fieldset>
+  {{ form.extra_reporters.errors }}
+  <button type="submit">{% trans "Save" %}</button>
+  <a href="{% url 'institution:settings' %}?tab=support">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}
+```
+
+The `data-roster-search` hook is bound by the existing `grouping/static/grouping/js/roster_filter.js`. Reuse it rather than writing a second filter — add to this template:
+
+```django
+{% block extra_js %}
+<script src="{% static 'grouping/js/roster_filter.js' %}" defer></script>
+{% endblock %}
+```
+
+with `{% load static %}` at the top alongside `{% load i18n %}`.
+
+- [ ] **Step 6: Run to verify pass**
+
+Run: `uv run pytest tests/test_support_reporters_page.py -v`
+Expected: all pass.
+
+- [ ] **Step 7: Falsify one**
+
+Change the queryset to the base one only (drop the `| Q(pk__in=selected)`) → `test_an_inactive_existing_grant_survives_a_save_that_adds_someone_else` must FAIL. Restore by hand.
+
+- [ ] **Step 8: Lint and commit**
+
+```bash
+uv run ruff check --no-cache support tests/test_support_reporters_page.py
+uv run ruff format --check support tests/test_support_reporters_page.py
+git add support tests/test_support_reporters_page.py
+git commit -m "feat(support): Allowed reporters roster page"
+```
+
+---
+
+### Task 8: The Support settings tab
+
+**Files:**
+- Modify: `support/forms.py`, `institution/views_manage.py`, `institution/urls.py`, `templates/institution/manage/settings.html`, `templates/institution/manage/_tabs.html`
+- Create: `templates/institution/manage/_support_tab.html`
 - Test: `tests/test_support_settings_tab.py`
+
+**Neither settings template iterates `TABS`.** `settings.html` hard-codes six `<div data-tab=…>` panels and `_tabs.html` hard-codes six `<a>` links. Adding `"support"` to the `TABS` tuple only makes `?tab=support` a *valid* value — without editing both templates the panel is never rendered and no tab link ever appears, so a PA has no route to it at all.
 
 **Interfaces:**
 - Consumes: `support.models.SupportSettings`, `support.constants.EXTRA_EMAILS_MAX`
@@ -2595,6 +3038,9 @@ def test_addresses_round_trip_one_per_line(client):
 
 
 def test_a_malformed_address_is_rejected(client):
+    """count() == 0 is the assertion, not a detail: binding to load() would
+    get_or_create the singleton BEFORE is_valid() runs, so an invalid POST would
+    silently materialise the row."""
     make_pa(client)
     response = client.post(
         reverse("institution:settings_support"),
@@ -2612,6 +3058,31 @@ def test_too_many_addresses_are_rejected(client):
         {"audience": "admins", "extra_emails": addresses},
     )
     assert SupportSettings.objects.count() == 0
+
+
+def test_a_get_redirects_and_writes_no_row(client):
+    """Mutant: drop the GET guard — the view then binds an empty QueryDict and
+    re-renders the settings page covered in validation errors."""
+    make_pa(client)
+    response = client.get(reverse("institution:settings_support"))
+    assert response.status_code == 302
+    assert SupportSettings.objects.count() == 0
+
+
+def test_the_support_tab_link_is_rendered(client):
+    """Mutant: add "support" to TABS but leave _tabs.html alone — ?tab=support
+    becomes valid while no link to it ever appears."""
+    make_pa(client)
+    body = client.get(reverse("institution:settings")).content.decode()
+    assert "?tab=support" in body
+
+
+def test_the_panel_names_the_platform_admins_who_receive_reports(client):
+    pa = make_pa(client)
+    pa.email = "chief@school.example"
+    pa.save()
+    body = client.get(reverse("institution:settings")).content.decode()
+    assert "chief@school.example" in body
 
 
 def test_a_teacher_cannot_save_the_support_tab(client):
@@ -2711,9 +3182,46 @@ In `institution/views_manage.py`:
     extra_reporter_count = SupportSettings.extra_reporters.through.objects.filter(
         supportsettings_id=1
     ).count()
+    # Named, not merely counted: the panel must show WHICH addresses receive
+    # reports automatically. Reuses the one resolver so the panel and the mailer
+    # can never disagree about who "the Platform Admins" are.
+    from support.emails import resolve_pa_recipients
+
+    auto_recipients = resolve_pa_recipients()
 ```
 
-adding `"support": support or SupportSettingsForm(instance=support_row)` and `"extra_reporter_count": extra_reporter_count` to the context dict.
+adding `"support": support or SupportSettingsForm(instance=support_row)`, `"extra_reporter_count": extra_reporter_count` and `"auto_recipients": auto_recipients` to the context dict.
+
+Split `support/emails.py`'s `resolve_recipients()` into two, so the panel can name the automatic half without pulling in `extra_emails`:
+
+```python
+def resolve_pa_recipients():
+    """Active PA-Group members with an email. The automatic half."""
+    return list(
+        User.objects.filter(is_active=True, groups__name=PLATFORM_ADMIN)
+        .exclude(email__isnull=True)
+        .exclude(email="")
+        .values_list("email", flat=True)
+    )
+
+
+def resolve_recipients():
+    """resolve_pa_recipients() unioned with extra_emails, de-duplicated
+    case-insensitively."""
+    addresses = resolve_pa_recipients()
+    row = SupportSettings.objects.filter(pk=1).first()
+    if row is not None:
+        addresses += [a for a in (row.extra_emails or []) if a]
+    seen, unique = set(), []
+    for address in addresses:
+        key = address.lower()
+        if key not in seen:
+            seen.add(key)
+            unique.append(address)
+    return unique
+```
+
+replacing the single `resolve_recipients` shown in Task 6.
 
 - add the view:
 
@@ -2721,20 +3229,32 @@ adding `"support": support or SupportSettingsForm(instance=support_row)` and `"e
 @login_required
 @permission_required("support.change_supportsettings", raise_exception=True)
 def settings_support(request):
-    # load() on the WRITE path (matching settings_integrations): the singleton is
-    # materialised first so pk=1 always exists. Read paths still use filter().
-    row = SupportSettings.load()
+    # GET guard first, matching settings_integrations: without it a GET binds an
+    # empty QueryDict and re-renders the settings page covered in validation
+    # errors.
+    if request.method == "GET":
+        return redirect(_index_url("support"))
+    # Bind to a READ-ONLY instance, not load(). load() is get_or_create, which
+    # writes pk=1 before is_valid() is ever called — so an invalid POST would
+    # materialise the singleton, and the two rejection tests below (which assert
+    # count() == 0) would fail against this very view. SupportSettingsForm holds
+    # no M2M, so an unsaved instance is safe here, and save() forces pk=1.
+    row = SupportSettings.objects.filter(pk=1).first() or SupportSettings()
     form = SupportSettingsForm(request.POST, instance=row)
     if form.is_valid():
         form.save()
         messages.success(request, _("Support settings saved."))
-        return redirect(f"{reverse('institution:settings')}?tab=support")
+        return redirect(_index_url("support"))
     return render(
         request,
         "institution/manage/settings.html",
         _settings_context(request, Institution.load(), "support", support=form),
     )
 ```
+
+Reuse the module's existing `_index_url` helper rather than an inline f-string, as the other tab views do.
+
+Also update `_settings_context`'s docstring: it currently says "Assemble the **six**-form context" and "settings.html renders all **six** panels". Both become seven.
 
 In `institution/urls.py`, add:
 
@@ -2746,9 +3266,24 @@ In `institution/urls.py`, add:
     ),
 ```
 
-- [ ] **Step 5: Write the panel template**
+- [ ] **Step 5: Write the panel template and wire it into both settings templates**
 
-`templates/institution/manage/_support_panel.html`, included from `settings.html` alongside the other panels (follow how the integrations panel is included and hidden):
+Add the seventh panel to `templates/institution/manage/settings.html`, after the integrations `<div>`:
+
+```django
+  <div data-tab="support" {% if active_tab != "support" %}hidden{% endif %}>
+    {% include "institution/manage/_support_tab.html" %}
+  </div>
+```
+
+Add the seventh link to `templates/institution/manage/_tabs.html`, after the Integrations anchor:
+
+```django
+  <a class="settings__tab{% if active_tab == 'support' %} is-on{% endif %}"
+     href="{% url 'institution:settings' %}?tab=support">{% trans "Support" %}</a>
+```
+
+Then create `templates/institution/manage/_support_tab.html` — note the `_<tab>_tab.html` name, matching all six siblings:
 
 ```django
 {% load i18n %}
@@ -2760,8 +3295,11 @@ In `institution/urls.py`, add:
     {{ support.audience.errors }}
   </fieldset>
 
+  {% comment %}The spec requires this line to NAME the Platform Admins who will be
+  mailed automatically, so "who gets this" is never a guess — a generic sentence
+  does not satisfy it.{% endcomment %}
   <p class="field-note">
-    {% trans "Platform Admins are always able to report, and always receive reports." %}
+    {% blocktrans with names=auto_recipients|join:", " %}Platform Admins can always report, and always receive reports: {{ names }}{% endblocktrans %}
   </p>
 
   <label for="{{ support.extra_emails.id_for_label }}">{{ support.extra_emails.label }}</label>
@@ -2778,7 +3316,7 @@ In `institution/urls.py`, add:
 </form>
 ```
 
-This references `support:reporters`, added in Task 8 — add that URL first if the template fails to resolve.
+This references `support:reporters`, registered by Task 7. That ordering is required, not incidental: once this panel is included in `settings.html`, **every** settings render evaluates `{% url 'support:reporters' %}`, so an unregistered name would `NoReverseMatch` and 500 the whole settings page — not just this tab.
 
 - [ ] **Step 6: Run to verify pass**
 
@@ -2797,232 +3335,6 @@ uv run ruff check --no-cache support institution tests/test_support_settings_tab
 uv run ruff format --check support institution tests/test_support_settings_tab.py
 git add support institution templates/institution tests/test_support_settings_tab.py
 git commit -m "feat(support): Support settings tab (audience + recipient addresses)"
-```
-
----
-
-### Task 8: The Allowed reporters page
-
-**Files:**
-- Modify: `support/forms.py`, `support/views_manage.py`, `support/urls.py`
-- Create: `support/templates/support/manage/reporters.html`
-- Test: `tests/test_support_reporters_page.py`
-
-**Interfaces:**
-- Produces: `support.forms.ReporterPickerForm`, URL name `support:reporters`
-
-- [ ] **Step 1: Write the failing tests**
-
-Create `tests/test_support_reporters_page.py`:
-
-```python
-"""The dedicated roster page for individually-granted reporters."""
-
-import pytest
-from django.contrib.auth.models import Group as AuthGroup
-from django.core.cache import cache
-from django.urls import reverse
-
-from institution.roles import PLATFORM_ADMIN
-from institution.roles import TEACHER
-from institution.roles import seed_roles
-from support.models import SupportSettings
-from support.policy import can_report
-from tests.factories import UserFactory
-from tests.factories import make_pa
-from tests.factories import make_teacher
-
-pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture(autouse=True)
-def _clear_cache():
-    cache.clear()
-    yield
-    cache.clear()
-
-
-def _teacher(username):
-    seed_roles()
-    user = UserFactory(username=username)
-    user.groups.add(AuthGroup.objects.get(name=TEACHER))
-    return user
-
-
-def test_the_first_ever_save_creates_the_row_and_grants_immediately(client):
-    make_pa(client)
-    teacher = _teacher("grantme")
-    assert SupportSettings.objects.count() == 0
-    assert can_report(teacher) is False
-    response = client.post(
-        reverse("support:reporters"), {"extra_reporters": [teacher.pk]}
-    )
-    assert response.status_code == 302
-    assert SupportSettings.objects.count() == 1
-    assert can_report(teacher) is True
-
-
-def test_an_inactive_existing_grant_survives_a_save_that_adds_someone_else(client):
-    """Mutant: scope the roster queryset to active non-PA users alone — the
-    absent user is then dropped by save_m2m and the grant is silently revoked."""
-    make_pa(client)
-    keep = _teacher("keepme")
-    row = SupportSettings.load()
-    row.extra_reporters.add(keep)
-    keep.is_active = False
-    keep.save()
-    newcomer = _teacher("newcomer")
-    client.post(
-        reverse("support:reporters"),
-        {"extra_reporters": [keep.pk, newcomer.pk]},
-    )
-    assert set(
-        SupportSettings.load().extra_reporters.values_list("pk", flat=True)
-    ) == {keep.pk, newcomer.pk}
-
-
-def test_an_already_selected_user_outside_the_base_roster_is_still_rendered(client):
-    make_pa(client)
-    promoted = _teacher("promoted")
-    SupportSettings.load().extra_reporters.add(promoted)
-    promoted.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
-    body = client.get(reverse("support:reporters")).content.decode()
-    assert "promoted" in body
-
-
-def test_a_teacher_cannot_open_or_save_the_page(client):
-    make_teacher(client)
-    assert client.get(reverse("support:reporters")).status_code == 403
-    assert client.post(reverse("support:reporters"), {}).status_code == 403
-```
-
-- [ ] **Step 2: Run to verify failure**
-
-Run: `uv run pytest tests/test_support_reporters_page.py -v`
-Expected: `NoReverseMatch: 'reporters'`.
-
-- [ ] **Step 3: Write the form**
-
-Append to `support/forms.py`:
-
-```python
-class ReporterPickerForm(forms.ModelForm):
-    """The roster of individually-granted reporters.
-
-    The queryset is active non-PA users UNIONED with whoever is currently
-    selected. Scoped to active non-PA users alone, an already-granted user who
-    has since been deactivated or promoted to PA would be absent from the
-    rendered list, and the next save_m2m() would silently REVOKE them — a PA
-    opening the page to add one person would drop an unrelated grant.
-    """
-
-    class Meta:
-        model = SupportSettings
-        fields = ["extra_reporters"]
-        widgets = {"extra_reporters": forms.CheckboxSelectMultiple}
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        User = get_user_model()
-        selected = list(self.instance.extra_reporters.values_list("pk", flat=True))
-        base = User.objects.filter(is_active=True).exclude(
-            groups__name=PLATFORM_ADMIN
-        )
-        self.fields["extra_reporters"].queryset = (
-            User.objects.filter(Q(pk__in=base.values("pk")) | Q(pk__in=selected))
-            .distinct()
-            .order_by("display_name", "username")
-        )
-        self.fields["extra_reporters"].required = False
-```
-
-Add to `support/forms.py` imports:
-
-```python
-from django.contrib.auth import get_user_model
-from django.db.models import Q
-
-from institution.roles import PLATFORM_ADMIN
-```
-
-- [ ] **Step 4: Write the view and URL**
-
-Append to `support/views_manage.py`:
-
-```python
-@login_required
-@permission_required("support.change_supportsettings", raise_exception=True)
-def reporters(request):
-    # load() on this write path so save_m2m() always runs against a row with
-    # pk=1 — save_m2m on an unsaved instance is impossible.
-    row = SupportSettings.load()
-    if request.method == "POST":
-        form = ReporterPickerForm(request.POST, instance=row)
-        if form.is_valid():
-            form.save()
-            messages.success(request, _("Allowed reporters updated."))
-            return redirect(f"{reverse('institution:settings')}?tab=support")
-    else:
-        form = ReporterPickerForm(instance=row)
-    return render(request, "support/manage/reporters.html", {"form": form})
-```
-
-with the corresponding imports (`messages`, `reverse`, `gettext as _`, `ReporterPickerForm`, `SupportSettings`).
-
-Add to `support/urls.py`:
-
-```python
-    path("manage/settings/support/reporters/", views_manage.reporters, name="reporters"),
-```
-
-- [ ] **Step 5: Write the template**
-
-`support/templates/support/manage/reporters.html`:
-
-```django
-{% extends "base.html" %}
-{% load i18n %}
-{% block head_title %}{% trans "Allowed reporters" %}{% endblock %}
-{% block content %}
-<h1>{% trans "Allowed reporters" %}</h1>
-<p>{% trans "These people can report an issue regardless of the audience setting." %}</p>
-<form method="post">
-  {% csrf_token %}
-  <input type="search" data-roster-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
-  <div class="roster">{{ form.extra_reporters }}</div>
-  {{ form.extra_reporters.errors }}
-  <button type="submit">{% trans "Save" %}</button>
-  <a href="{% url 'institution:settings' %}?tab=support">{% trans "Cancel" %}</a>
-</form>
-{% endblock %}
-```
-
-The `data-roster-search` hook is bound by the existing `grouping/static/grouping/js/roster_filter.js`. Reuse it rather than writing a second filter — add to this template:
-
-```django
-{% block extra_js %}
-<script src="{% static 'grouping/js/roster_filter.js' %}" defer></script>
-{% endblock %}
-```
-
-with `{% load static %}` at the top alongside `{% load i18n %}`.
-
-- [ ] **Step 6: Run to verify pass**
-
-Run: `uv run pytest tests/test_support_reporters_page.py -v`
-Expected: all pass.
-
-- [ ] **Step 7: Falsify one**
-
-Change the queryset to the base one only (drop the `| Q(pk__in=selected)`) → `test_an_inactive_existing_grant_survives_a_save_that_adds_someone_else` must FAIL. Restore by hand.
-
-- [ ] **Step 8: Lint and commit**
-
-```bash
-uv run ruff check --no-cache support tests/test_support_reporters_page.py
-uv run ruff format --check support tests/test_support_reporters_page.py
-git add support tests/test_support_reporters_page.py
-git commit -m "feat(support): Allowed reporters roster page"
 ```
 
 ---
@@ -3101,13 +3413,28 @@ def test_the_dialog_is_not_inside_a_hidden_menu_panel(client):
 
 def test_the_dialog_assets_are_outside_the_overridable_blocks(client):
     """Child templates override extra_css/extra_js; assets placed there would be
-    dropped on most pages, giving an inert dialog on some routes only."""
+    dropped on most pages, giving an inert dialog on some routes only.
+
+    Before running this, confirm the page chosen for the JS half really does
+    override {% block extra_js %}; if it does not, pick one that does — an
+    assertion on a page with no such block cannot fail.
+    """
     _set_audience(SupportSettings.Audience.ALL)
+    # core/user_settings.html overrides extra_css ONLY — it has no extra_js block,
+    # so asserting the script here would pass even with the <script> moved inside
+    # {% block extra_js %}, which is the mutant this test exists for.
     make_student(client)
-    # A page whose template overrides both blocks must still ship the assets.
-    body = client.get(reverse("core:user_settings")).content.decode()
-    assert "support/js/report_dialog.js" in body
-    assert "support/css/support.css" in body
+    css_page = client.get(reverse("core:user_settings")).content.decode()
+    assert "support/css/support.css" in css_page
+
+
+def test_the_dialog_script_survives_a_template_that_overrides_extra_js(client):
+    """The JS half of the pair above, on a page that really does override
+    {% block extra_js %}. institution:settings is PA-only, hence the PA login."""
+    _set_audience(SupportSettings.Audience.ALL)
+    make_pa(client)
+    js_page = client.get(reverse("institution:settings")).content.decode()
+    assert "support/js/report_dialog.js" in js_page
 ```
 
 - [ ] **Step 2: Run to verify failure**
