@@ -203,6 +203,14 @@ renamed Groups, which is precisely the case where a mid-token cut would lie.
 deletes and keeps no orphan audit rows; a report whose provenance evaporates with the
 account tells the PA nothing. `reporter` remains a FK so a live account still links.
 
+The snapshot is built in a **canonical order** — `[n for n in ROLE_NAMES if n in
+role_names]`, then any remaining non-standard Group names sorted. `role_names_for`
+returns a `frozenset`, and joining a set directly yields a hash-seed-dependent order:
+the same user would store `Teacher,Course Admin` in one process and `Course
+Admin,Teacher` in another, making assertions flaky, making the comma-boundary
+truncation drop a *different* role run to run, and making the triage role column
+unstable between two reports from the same person.
+
 Roles are stored as Group **names**, not `ROLE_LABELS` values: `institution/roles.py` is
 explicit that the Group name is the storage key and `ROLE_LABELS` is display-only. The
 triage template renders each stored name through `ROLE_LABELS`, **falling back to the
@@ -280,6 +288,17 @@ naive `rsplit(".")[-1]` does not). The stored name therefore never derives from
 user-supplied text — no original basename, no path separators, no traversal. The
 content-type lookup in the screenshot view is likewise case-insensitive.
 
+The extension is additionally **clamped against `SAFE_IMAGE_EXTENSIONS`**, falling back
+to `png` when the name carries no extension or an unlisted one. `upload_to` runs from
+`FileField.pre_save` on *every* save, while `validate_screenshot_file` is a field
+validator that only fires under `full_clean()` / a ModelForm — so the stored name must
+be safe independently of whether validation ran. Two boundaries this closes: a filename
+with no dot at all (a naive `rsplit(".")[-1]` returns the whole basename, storing
+`<uuid>.myscreenshot` and reintroducing exactly the user-supplied-text-in-the-name
+property this paragraph exists to eliminate), and any future construction path that
+bypasses the form — a fixture, a management command — where a `.php` or `.svg` suffix
+would otherwise be written verbatim into the private directory.
+
 The idiomatic `upload_to="screenshots/%Y/%m/"` is **wrong here** and is the thing an
 implementer will reach for: it preserves the client-supplied basename. This is a
 security property, so it carries its own test row and mutant.
@@ -292,6 +311,13 @@ paste, since clipboard images are PNG on Windows. `validate_screenshot_file` the
 validates against the permanent `SAFE_IMAGE_EXTENSIONS` ceiling and
 `MAX_IMAGE_MIB_CEILING` (5 MiB) from `courses.validators`, decoupling bug reporting
 from an unrelated setting.
+
+It **delegates to `courses.validators._validate_file`** rather than re-implementing the
+checks, so it inherits that helper's `if getattr(file, "_committed", False): return`
+guard. That skip is not incidental: without it, reading `.size` on an already-stored
+file raises `FileNotFoundError` whenever the file is absent from storage — a restored
+database against a fresh volume, which is the very scenario the screenshot view's 404
+rule anticipates — and any later `full_clean()` of an existing report would blow up.
 
 `post_delete` on `IssueReport` deletes the file. Django does not do this on its own, and
 orphaned screenshots of student data accumulating on disk is exactly the failure mode to
@@ -310,21 +336,41 @@ The cleanup has an exact shape, because the obvious one is broken:
 saved_name = None
 try:
     with transaction.atomic():
-        report = form.save()
+        report = form.save(commit=False)
+        report.reporter = request.user
+        report.reporter_label = build_label(request.user)
+        report.reporter_roles = build_roles(role_names)
+        report.telemetry = sanitise(request)
+        report.save()                       # <- the file is written HERE
         saved_name = report.screenshot.name or None
-        ...
+        transaction.on_commit(lambda: send_issue_report_email(report))
 except Exception:
     if saved_name:
         ScreenshotStorage().delete(saved_name)
     raise
 ```
 
-`saved_name` is initialised **before** the `try`. The likeliest failure is a database
-error raised *by* `form.save()` itself, after the field's `pre_save` has already written
-the file to disk; an `except` block that reads `report.screenshot.name` would then raise
-`NameError` on an unbound name, masking the real exception *and* still orphaning the
-file. The paired test must therefore simulate a failure **inside** `form.save()`, not
-after it.
+Two details are load-bearing:
+
+- **`commit=False`, then assign, then `report.save()`.** `reporter`, `reporter_label`,
+  `reporter_roles` and `telemetry` are all server-assigned and are deliberately *not*
+  form fields (see `IssueReportForm` below), so a plain `form.save()` would write the
+  row before the view could attach any of them — leaving either a report with no
+  provenance or a redundant second `UPDATE`.
+- **`saved_name` is initialised before the `try` and captured after `report.save()`**,
+  which under `commit=False` is where the field's `pre_save` actually writes the file.
+  The likeliest failure is a database error raised *by* `report.save()` itself, after
+  that write; an `except` block that read `report.screenshot.name` would then raise
+  `NameError` on an unbound name, masking the real exception *and* still orphaning the
+  file. The paired test simulates a failure **inside** `report.save()`.
+
+**`IssueReportForm.Meta.fields` is exactly
+`["description", "page_url", "page_title", "screenshot"]`.** Never `"__all__"`, which is
+the natural thing to reach for given the form is otherwise described only as "the
+ModelForm". Widening it would let any permitted reporter POST `status=resolved`,
+`reporter=<someone else's pk>`, `emailed_at`, `resolved_by` or a hand-built `telemetry`
+blob — defeating both the sanitiser (which deliberately routes around the form) and the
+triage audit trail. Every other column is assigned by the view.
 
 ### Audience policy (`support/policy.py`)
 
@@ -337,9 +383,12 @@ order:
    consulting Groups at all**.
 4. Membership of the `Platform Admin` Group -> `True`, unconditionally, whatever the
    ladder says.
-5. The user's role Group names intersect the rung's admitted set -> `True`.
-   (`admins` admits nothing extra; `course_admins` adds Course Admin; `teachers` adds
-   Teacher and Course Admin.)
+5. The user's role Group names intersect the rung's admitted set -> `True`. That set is
+   a **named constant**, `AUDIENCE_GROUPS: dict[str, frozenset[str]]` in
+   `support/policy.py`, built from the `institution.roles` name constants: `admins`
+   admits nothing extra, `course_admins` adds Course Admin, `teachers` adds Teacher and
+   Course Admin. The 4x4 matrix test parametrises off `AUDIENCE_GROUPS` rather than
+   re-stating the ladder, so the two cannot drift.
 6. `user.id` is in the extras set -> `True`.
 7. Otherwise `False`.
 
@@ -411,6 +460,10 @@ A seventh tab, **Support**, on the existing settings page:
   `SupportSettings.objects.filter(pk=1).first() or SupportSettings()` — never `load()` —
   exactly as the integrations panel already does.
 - `institution/urls.py`: `manage/settings/support/` -> `institution:settings_support`.
+- `_settings_context` gains a keyword-only `support=None` argument, used exactly as
+  `integrations=` is today, so `settings_support` can re-render a **bound** form on
+  invalid input. Without it a rejected save silently discards the addresses the PA just
+  typed along with the validation errors explaining why.
 - `SupportSettingsForm` lives in `support/forms.py` and is imported by the institution
   view, the same direction as `IntegrationsForm` today.
 
@@ -512,7 +565,13 @@ permission 403 below.
 **Paste to attach.** A `paste` listener on the dialog reads an image out of
 `event.clipboardData.items`, **re-wraps it as `new File([blob], "screenshot.<ext>",
 {type: blob.type})`** with the extension derived from the blob's MIME type, and assigns
-it to the file input via a `DataTransfer`. The re-wrap is required, not cosmetic:
+it to the file input via a `DataTransfer`. The MIME mapping is an **explicit small map**
+— `image/png -> png`, `image/jpeg -> jpg`, `image/gif -> gif`, `image/webp -> webp` —
+and an unmapped type is not attached at all, with a client-side message instead of a
+server round-trip. The obvious `blob.type.split("/")[1]` yields `svg+xml` and `x-icon`,
+filenames that fail `FileExtensionValidator` with the very "extension not allowed" error
+the re-wrap exists to prevent; `image/jpeg` only appears to work because `jpeg` happens
+to be in `SAFE_IMAGE_EXTENSIONS`. The re-wrap is required, not cosmetic:
 `getAsFile()` returns a browser-dependent name that is often extensionless or `blob`,
 and `FileExtensionValidator` parses the filename — so the headline flow (`Win+Shift+S`,
 `Ctrl+V`, send) would otherwise fail with a confusing "extension not allowed". The
@@ -521,13 +580,13 @@ attached.
 
 ### Triage surface
 
-`support/views_manage.py`, every view decorated
-`@permission_required("support.<perm>_issuereport", raise_exception=True)`. The flag is
-mandatory, not decoration: `permission_required` defaults to `raise_exception=False`,
-which **redirects to `LOGIN_URL` (302)** instead of raising `PermissionDenied`, and
-every 403 asserted in this spec would then be a 302. The repo is uniform on this —
-`accounts/views_manage.py:40`, `courses/views_manage.py:85`, `grouping/views.py:35` and
-`core/views.py:198` all pass it.
+`support/views_manage.py`, every view decorated `@login_required` then
+`@permission_required(<codename>, raise_exception=True)` — codenames in the table
+below. The `raise_exception` flag is mandatory, not decoration: `permission_required`
+defaults to `raise_exception=False`, which **redirects to `LOGIN_URL` (302)** instead of
+raising `PermissionDenied`, and every 403 asserted in this spec would then be a 302. The
+repo is uniform on this — `accounts/views_manage.py:40`, `courses/views_manage.py:85`,
+`grouping/views.py:35` and `core/views.py:198` all pass it.
 
 - `report_list` — paginated at `LIST_PAGE_SIZE` (`Paginator`, as in
   `accounts/views_manage.py`), newest first. Columns: created, reporter, role, first
@@ -567,9 +626,30 @@ Reached from an **Issue reports** item in the Admin menu in `base.html`, wrapped
 every PA already satisfies that chain via `perms.institution.change_institution`, so
 adding a disjunct would be dead.
 
-Access is a real permission, not a role-name check: `support.view_issuereport`,
-`support.change_issuereport` and `support.delete_issuereport` are appended to
-`PLATFORM_ADMIN_PERMS` in `institution/roles.py`.
+Access is a real permission, not a role-name check. **Five** codenames are appended to
+`PLATFORM_ADMIN_PERMS` in `institution/roles.py`:
+
+| Codename | Guards |
+|---|---|
+| `support.view_issuereport` | `report_list`, `report_detail`, `screenshot` |
+| `support.change_issuereport` | `report_set_status` |
+| `support.delete_issuereport` | `report_delete` |
+| `support.view_supportsettings` | — (granted for symmetry) |
+| `support.change_supportsettings` | `institution:settings_support`, `support:reporters` |
+
+The last two matter more than they look. The two settings views edit `SupportSettings`,
+not `IssueReport`, so guarding them with an `issuereport` codename would conflate "may
+triage reports" with "may decide who is allowed to report". But reaching for the
+semantically correct `support.change_supportsettings` **without adding it to
+`PLATFORM_ADMIN_PERMS`** gives a permission Django auto-creates and `setup_roles`
+attaches to nobody — so every PA 403s on the Support tab, with the deployment note below
+as the only clue. Both halves are required.
+
+Every view stacks `@login_required` **above**
+`@permission_required(..., raise_exception=True)`, matching all three cited precedents,
+which are two-decorator stacks. Without it, an anonymous visitor following a stale
+bookmark — or the `report_detail` link this design puts in every email, opened after the
+session expired — gets a bare 403 instead of log-in-then-return.
 
 ## Data flow
 
@@ -603,7 +683,7 @@ Both sides are written against this table; nothing here is left to the implement
 
 | Outcome | HTTP | Body | Dialog behaviour |
 |---|---|---|---|
-| Success | `201` | `{"ok": true, "message": "<thank-you text>"}` | Show `message`, **reset the form**, close |
+| Success | `201` | `{"ok": true, "message": "<thank-you text>"}` | Show `message` in the banner, hold briefly, then **reset the form** and close |
 | Not a POST | `405` | non-JSON | Generic banner (the `Content-Type` check routes it there) |
 | Field errors | `400` | `{"ok": false, "message": null, "errors": {"<field>": ["<msg>", ...]}}` | Render each list under its field |
 | Throttled | `429` | `{"ok": false, "message": "<polite text>", "errors": {}}` | Show `message` as a banner; keep the typed text |
@@ -637,6 +717,19 @@ branch. In every one of these cases the description the user typed is preserved.
 `errors` is built from `form.errors.get_json_data()`, reduced to `{field: [message,
 ...]}`. The client distinguishes the cases by HTTP status, never by inspecting text.
 Every response the view itself produces carries `Content-Type: application/json`.
+
+`get_json_data()` puts non-field errors under `__all__`, which has no field to render
+beneath. The dialog renders `__all__` — and any key it does not recognise as a field —
+in its **banner area**. Otherwise a `Form.clean()`-level error, added now or by a later
+change, would be returned by the server and silently dropped by the client, leaving the
+user staring at a form that refuses to submit and says nothing.
+
+**Where the confirmation appears.** On `201` the dialog renders `message` in its banner
+area, stays open for a short interval, then closes and resets. Closing immediately would
+hide the confirmation inside the element being hidden — the user would see the dialog
+vanish and never learn whether the report was sent. A page-level toast is not an option:
+this codebase's `messages` are server-rendered by `base.html` and the page never
+navigates. The e2e asserts the confirmation is observable before the dialog closes.
 
 ### Telemetry assembly and sanitisation (`support/telemetry.py`)
 
@@ -685,6 +778,14 @@ everywhere, and in the triage template is turned into a link **only if** its sch
 `request.get_host()`, not `ALLOWED_HOSTS` — is the source of truth, matching
 `notifications/emails._absolute_url`, which uses it precisely so a link can never be
 host-spoofed. A `javascript:` value must never reach an `href`.
+
+This rule has **exactly one home**: `support/telemetry.py::safe_page_link(url) -> str |
+None`, returning the URL only when it passes both checks and `None` otherwise. Django
+templates cannot call `urlparse` or `.split(":")`, so without a named helper the logic
+lands in whichever view happens to need it — and the **email** renders `page_url` too.
+A rule living only in the triage view would let the HTML alternative emit a
+`javascript:` or foreign-host `href` into the one output that travels outside the login
+wall. The triage template and both email templates all go through `safe_page_link`.
 
 The comparison is `urlparse(url).hostname` (already port-stripped and lower-cased)
 against `Site.domain.split(":")[0].lower()`. Comparing `netloc` to `Site.domain`
@@ -855,11 +956,20 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | A screenshot is written under `SUPPORT_SCREENSHOT_DIR`, not `MEDIA_ROOT` — resolving the path under **two different** `override_settings` values in one process | Override only `base_location`, leaving `location` a `cached_property` (a single-override test passes anyway) |
 | A file named `../../evil name.png` is stored as `screenshots/<YYYY>/<MM>/<uuid4>.png`, with no trace of the original basename | `upload_to="screenshots/%Y/%m/"` |
 | An upload named `Photo.PNG` stores a lower-cased extension and serves the right content type | Append the extension verbatim |
-| A failure raised **inside** `form.save()` leaves no file on disk, and the original exception propagates (not a `NameError`) | Read `report.screenshot.name` in the `except` instead of a pre-initialised `saved_name` |
+| A failure raised **inside** `report.save()` leaves no file on disk, and the original exception propagates (not a `NameError`) | Read `report.screenshot.name` in the `except` instead of a pre-initialised `saved_name` |
+| A POST carrying `status=resolved`, `reporter=<other pk>` and `emailed_at` creates a row with `status=open`, `reporter=request.user`, `emailed_at=None` | Widen the form to `fields = "__all__"` |
+| A POST carrying `user_agent=forged` / `accept_language=forged` stores the values from `HTTP_USER_AGENT` / `HTTP_ACCEPT_LANGUAGE` | Read the two server keys from `request.POST` |
+| A warm cache means a second authenticated render issues **zero** statements against `support_supportsettings` or its through table | Call `filter(pk=1).first()` directly from `can_report` instead of `get_support_config()` |
+| An **anonymous** GET of `report_detail` redirects to `LOGIN_URL`, while an authenticated Teacher gets 403 | Drop `@login_required` from the triage views |
+| A PA whose permissions came from `setup_roles` gets 200 on the Support tab and the Allowed reporters page | Guard them with a permission not seeded to any group |
+| A `javascript:` `page_url` is inert in the **email** body and HTML alternative, not just the triage page | Guard only the triage template |
+| An uploaded file with **no extension at all** stores as `<uuid>.png`, not `<uuid>.<basename>` | Use a naive `rsplit(".")[-1]` |
+| `reporter_roles` is stored in canonical `ROLE_NAMES` order regardless of set iteration | Join the frozenset directly |
+| A `Form.clean()`-level (`__all__`) error renders in the dialog's banner | Render only per-field keys |
 | **With no `SupportSettings` row**, an authenticated render succeeds and `can_report` is False for a Student | Read the extras ids off an unsaved `SupportSettings()` fallback |
 | **With no `SupportSettings` row**, a GET of every settings tab renders 200 with "0 also allowed" | Call `.extra_reporters.count()` on the unsaved fallback |
 | With no PA email and empty `extra_emails`, `mail.outbox` is empty and `emailed_at` is null | Send anyway, since `to` is non-empty |
-| 5 reports timestamped 61 minutes ago -> the 6th succeeds; 5 timestamped 59 minutes ago -> throttled | Anchor the window on the current clock hour instead of `now() - THROTTLE_WINDOW` |
+| 5 reports timestamped 61 minutes ago -> the 6th succeeds; 5 timestamped 59 minutes ago -> throttled. **Backdate with `objects.filter(...).update(created_at=...)`**, since `auto_now_add` ignores any value assigned before `save()` and would otherwise stamp all five as *now* | Anchor the window on the current clock hour instead of `now() - THROTTLE_WINDOW` |
 | A reporter whose language is `pl` with an institution default of `en` produces an **English** subject and body | Override to the reporter's language |
 | An inactive or since-promoted existing extra **survives** a save that only adds someone else | Scope the roster queryset to active non-PA users alone |
 | The dialog works on a page whose template overrides `{% block extra_css %}` / `{% block extra_js %}` | Put the dialog's assets inside those blocks |
@@ -921,3 +1031,8 @@ is a deployment-ordering property, and it belongs in the release checklist.
 
 `SUPPORT_SCREENSHOT_DIR` must exist and be writable by the application user, and — like
 `transfer_staging` — must **not** be exposed by the web server.
+
+`.gitignore` gains `support_screenshots/`, beside the existing `transfer_staging/`
+(line 16) and `/media/` (line 8). The directory sits in `BASE_DIR`, and any local run or
+non-overridden test writes screenshots — possibly containing student data — into the
+working tree as untracked files that are easy to commit by accident.
