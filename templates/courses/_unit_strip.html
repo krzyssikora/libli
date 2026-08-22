@@ -1,6 +1,14 @@
 {% load i18n %}
 <div class="unit-strip">
   {% include "tags/_unit_tag_panel.html" %}
+  {% if show_print %}
+    <button type="button" class="btn btn--ghost btn--small unit-strip__print" data-print-lesson>
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 9V3h12v6"/><path d="M6 18H4v-6h16v6h-2"/><path d="M6 14h12v7H6z"/>
+      </svg>
+      {% trans "Print" %}
+    </button>
+  {% endif %}
   {% if can_edit_unit %}
     <a class="btn btn--ghost btn--small unit-strip__edit"
        href="{{ unit_editor_url }}" target="_blank" rel="noopener">

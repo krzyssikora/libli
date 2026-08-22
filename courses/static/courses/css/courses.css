@@ -2496,3 +2496,17 @@ dialog.imgzoom:not([open]) { display: none; }
      carousel block applies to .tabs__cbar / .tabs__status at :1870. */
   .slideshow-bar { display: none !important; }
 }
+
+/* ── Print affordance ──────────────────────────────────────────────────────
+   The button's only behaviour is window.print(), so with JS off it is a dead
+   control -- hide it rather than render it inert. base.html:15 already adds
+   `js` to documentElement in its prepaint script.
+
+   The print rule must ALSO be html.js-qualified. The gate is (0,2,1); a print
+   rule at (0,1,0) would lose to it and the button would print on paper. The
+   .unit-strip__edit precedent at :2308 gets away with (0,1,0) only because
+   nothing gates .unit-strip__edit. Equal weights mean source order decides, so
+   the print rule must FOLLOW the gate -- which appending guarantees. */
+.unit-strip__print { display: none; }
+html.js .unit-strip__print { display: inline-flex; }
+@media print { html.js .unit-strip__print { display: none; } }

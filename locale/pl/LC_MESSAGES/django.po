@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-20 21:41+0200\n"
+"POT-Creation-Date: 2026-08-21 18:44+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -1066,7 +1066,7 @@ msgid "Table"
 msgstr "Tabela"
 
 #: .\courses\templatetags\courses_manage_extras.py:41
-#: .\courses\views_manage.py:1969 .\templates\courses\lesson_unit.html:82
+#: .\courses\views_manage.py:1969 .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\_add_menu.html:36
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
@@ -1074,7 +1074,7 @@ msgid "Gallery"
 msgstr "Galeria"
 
 #: .\courses\templatetags\courses_manage_extras.py:42
-#: .\courses\views_manage.py:1970 .\templates\courses\lesson_unit.html:86
+#: .\courses\views_manage.py:1970 .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\_add_menu.html:38
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
@@ -3193,29 +3193,45 @@ msgstr "Zapisz"
 msgid "Cancel"
 msgstr "Anuluj"
 
-#: .\notes\templates\notes\_note_card.html:7
+#: .\notes\templates\notes\_note_card.html:5
+msgid "My note"
+msgstr "Moja notatka"
+
+#: .\notes\templates\notes\_note_card.html:8
 #, python-format
 msgid "on: %(blk)s"
 msgstr "na: %(blk)s"
 
-#: .\notes\templates\notes\_note_card.html:11
+#: .\notes\templates\notes\_note_card.html:12
 #: .\notes\templates\notes\_readonly_note_card.html:5
 #, python-format
 msgid "edited %(when)s ago"
 msgstr "edytowano %(when)s temu"
 
-#: .\notes\templates\notes\_note_card.html:11
+#: .\notes\templates\notes\_note_card.html:12
 #: .\notes\templates\notes\_readonly_note_card.html:5
 #, python-format
 msgid "added %(when)s ago"
 msgstr "dodano %(when)s temu"
 
-#: .\notes\templates\notes\_note_card.html:16
+#. Translators: %(date)s is a short date, e.g. 21.08.2026
+#: .\notes\templates\notes\_note_card.html:15
+#, python-format
+msgid "edited %(date)s"
+msgstr "edytowano %(date)s"
+
+#. Translators: %(date)s is a short date, e.g. 21.08.2026
+#: .\notes\templates\notes\_note_card.html:18
+#, python-format
+msgid "added %(date)s"
+msgstr "dodano %(date)s"
+
+#: .\notes\templates\notes\_note_card.html:24
 #: .\notes\templates\notes\edit_page.html:5
 msgid "Edit note"
 msgstr "Edytuj notatkę"
 
-#: .\notes\templates\notes\_note_card.html:26
+#: .\notes\templates\notes\_note_card.html:34
 msgid "Delete note"
 msgstr "Usuń notatkę"
 
@@ -4413,11 +4429,17 @@ msgstr "Spis treści kursu"
 msgid "Close"
 msgstr "Zamknij"
 
-#: .\templates\courses\_unit_strip.html:10
+#: .\templates\courses\_unit_strip.html:9
+#: .\templates\courses\manage\analytics_matrix.html:37
+#: .\templates\courses\manage\gradebook_print.html:48
+msgid "Print"
+msgstr "Drukuj"
+
+#: .\templates\courses\_unit_strip.html:18
 msgid "Edit unit"
 msgstr "Edytuj jednostkę"
 
-#: .\templates\courses\_unit_strip.html:10
+#: .\templates\courses\_unit_strip.html:18
 msgid "(opens in a new tab)"
 msgstr "(otwiera się w nowej karcie)"
 
@@ -4643,14 +4665,14 @@ msgid "Show next"
 msgstr "Pokaż dalej"
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 msgid "Previous slide"
 msgstr "Poprzedni slajd"
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 msgid "Next slide"
@@ -4662,77 +4684,77 @@ msgid "Slides"
 msgstr "Slajdy"
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 #, python-brace-format
 msgid "Slide {n} of {total}"
 msgstr "Slajd {n} z {total}"
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 msgid "Previous image"
 msgstr "Poprzedni obraz"
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 msgid "Next image"
 msgstr "Następny obraz"
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 #, python-brace-format
 msgid "Go to image {n}"
 msgstr "Przejdź do obrazu {n}"
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 #, python-brace-format
 msgid "Image {n} of {total}"
 msgstr "Obraz {n} z {total}"
 
-#: .\templates\courses\lesson_unit.html:84
+#: .\templates\courses\lesson_unit.html:85
 #: .\templates\courses\manage\editor\editor.html:217
 #: .\templates\courses\quiz_unit.html:38
 msgid "Enlarge image"
 msgstr "Powiększ obraz"
 
-#: .\templates\courses\lesson_unit.html:84
+#: .\templates\courses\lesson_unit.html:85
 #: .\templates\courses\manage\editor\editor.html:217
 #: .\templates\courses\quiz_unit.html:38
 msgid "Enlarged image"
 msgstr "Powiększony obraz"
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Scroll tabs left"
 msgstr "Przewiń zakładki w lewo"
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Scroll tabs right"
 msgstr "Przewiń zakładki w prawo"
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Carousel"
 msgstr "Karuzela"
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 #, python-brace-format
 msgid "Go to slide {n}"
 msgstr "Przejdź do slajdu {n}"
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "slide"
@@ -5225,11 +5247,6 @@ msgstr "CSV"
 #: .\templates\courses\manage\analytics_matrix.html:36
 msgid "Excel (.xlsx)"
 msgstr "Excel (.xlsx)"
-
-#: .\templates\courses\manage\analytics_matrix.html:37
-#: .\templates\courses\manage\gradebook_print.html:48
-msgid "Print"
-msgstr "Drukuj"
 
 #: .\templates\courses\manage\analytics_matrix.html:55
 #: .\templates\grouping\allocation_assign.html:27
