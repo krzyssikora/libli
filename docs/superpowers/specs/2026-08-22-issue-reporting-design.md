@@ -824,7 +824,17 @@ diagnostic value does not justify the personal-data question.
 
 `page_url` and `page_title` are their own columns, not telemetry keys, and are therefore
 capped **in `IssueReportForm.clean_*`**: `page_url` truncated to `PAGE_URL_MAX_LENGTH`,
-`page_title` to `PAGE_TITLE_MAX_LENGTH`. Left to the database, an over-long title raises
+`page_title` to `PAGE_TITLE_MAX_LENGTH`.
+
+**`page_title` must be declared explicitly on the form** — `forms.CharField(required=
+False, widget=HiddenInput)` with **no `max_length`** — not left to ModelForm derivation.
+A derived field carries `MaxLengthValidator`, which runs inside `_clean_fields` *before*
+`clean_page_title`; Django skips a `clean_<field>` hook when the field itself raised, so
+an over-long title would come back as a `400` field error rather than being truncated —
+the exact outcome the error table forbids, and the paired test would go RED against a
+faithful implementation. `page_url` needs no such declaration: a `TextField` derives a
+`CharField` with no `max_length`, so its truncation works as written. This is the same
+ModelForm-derivation trap already caught for `extra_emails` and `forms.JSONField`. Left to the database, an over-long title raises
 `DataError` and 500s the submission, and `page_url` — an unbounded `TextField` fed from
 an untrusted POST field — would accept megabytes.
 
@@ -1004,7 +1014,7 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | An anonymous POST returns **`401` JSON**, not a redirect | Restore `@login_required` |
 | A non-JSON / 5xx response leaves the dialog open with the description intact | Assume JSON on every response |
 | A 150-char display name plus a long email yields a stored label of exactly `REPORTER_LABEL_MAX_LENGTH` | Drop the truncation |
-| `page_title` over its cap is truncated, not rejected and not a `DataError` | Drop `clean_page_title` |
+| `page_title` over its cap is truncated, not rejected and not a `DataError` | Drop `clean_page_title`; **or** leave `page_title` to ModelForm derivation, whose `MaxLengthValidator` pre-empts the hook |
 | 6th report within the rolling hour -> `429`, no row, no mail | Raise `THROTTLE_MAX_REPORTS` |
 | Recipients = active PA-Group members with an email, unioned with `extra_emails`, de-duplicated | Drop `extra_emails` from the recipient union |
 | Recipients are in **`bcc`**, not `to` | Move them to `to` |
@@ -1023,7 +1033,7 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | A POST carrying `user_agent=forged` / `accept_language=forged` stores the values from `HTTP_USER_AGENT` / `HTTP_ACCEPT_LANGUAGE` | Read the two server keys from `request.POST` |
 | A warm cache means a second authenticated render issues **zero** statements against `support_supportsettings` or its through table | Call `filter(pk=1).first()` directly from `can_report` instead of `get_support_config()` |
 | An **anonymous** GET of `report_detail` redirects to `LOGIN_URL`, while an authenticated Teacher gets 403 | Drop `@login_required` from the triage views |
-| A PA whose permissions came from `setup_roles` gets 200 on the Support tab and the Allowed reporters page | Guard them with a permission not seeded to any group |
+| A PA whose permissions came from `setup_roles` can **POST** `institution:settings_support` (302 to `?tab=support`, row saved) and **GET** `support:reporters` (200) | Guard them with a permission not seeded to any group |
 | A `javascript:` `page_url` is inert in the **email** body and HTML alternative, not just the triage page | Guard only the triage template |
 | An uploaded file with **no extension at all** stores as `<uuid>.png`, not `<uuid>.<basename>` | Use a naive `rsplit(".")[-1]` |
 | `reporter_roles` is stored in canonical `ROLE_NAMES` order regardless of set iteration | Join the frozenset directly |
@@ -1035,7 +1045,7 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | A reporter whose language is `pl` with an institution default of `en` produces an **English** subject and body | Override to the reporter's language |
 | An inactive or since-promoted existing extra **survives** a save that only adds someone else | Scope the roster queryset to active non-PA users alone |
 | The dialog works on a page whose template overrides `{% block extra_css %}` / `{% block extra_js %}` | Put the dialog's assets inside those blocks |
-| The rendered textarea's `maxlength` equals `DESCRIPTION_MAX_LENGTH` | Hardcode the number in the template |
+| After a save, a GET of the Support tab renders the stored addresses **one per line**, and re-submitting that textarea unchanged saves the same list | Leave `initial` as the raw JSON list (the PA sees `['a@b.com']` and the next save is rejected) |
 | The unfiltered list shows only open reports; `?status=all` shows both; an unrecognised value falls back to `open` | Default to `all` |
 | `extra_emails` accepts newline-separated addresses typed into the textarea | Leave the ModelForm's `forms.JSONField` default in place |
 | POST `report_delete` as a PA removes the row, the file, and redirects to the filtered list | Delete the route or the view |
@@ -1094,9 +1104,11 @@ markup. Every new view ships styled in **both** light and dark themes.
 `support.view_supportsettings` and `support.change_supportsettings`.
 
 **`setup_roles` must be run after `migrate`** on deploy, or Django creates all five and
-attaches them to nobody. The blast radius is not only triage: the **Support settings tab
-and the Allowed reporters page 403 for every Platform Admin** too, because they are
-guarded by `support.change_supportsettings`. No test catches this — it is a
+attaches them to nobody. The blast radius is not only triage: **saving** the Support settings tab, and the
+Allowed reporters page outright, **403 for every Platform Admin** too, because both are
+guarded by `support.change_supportsettings`. Note the tab itself still *renders* — it is
+served by `institution:settings`, which keys on `institution.change_institution` — so
+the symptom is a Save that fails on a page that looked fine. No test catches this — it is a
 deployment-ordering property, and it belongs in the release checklist. All five
 codenames are listed here deliberately, since this note is the only clue a
 `change_supportsettings` failure leaves.
