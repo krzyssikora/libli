@@ -1,0 +1,13 @@
+{% load i18n %}{% trans "A new issue report was submitted." %}
+
+{% trans "View it here" %}: {{ detail_url }}
+
+{% trans "Reported by" %}: {{ report.reporter_label }}{% if roles %} ({{ roles|join:", " }}){% endif %}
+{% trans "Page" %}: {{ report.page_title }}
+{% trans "URL" %}: {{ report.page_url }}
+
+{% trans "Description" %}:
+{{ report.description }}
+
+{% for key, label, value in telemetry %}{{ label }}: {{ value }}
+{% endfor %}
