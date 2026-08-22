@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-20 21:41+0200\n"
+"POT-Creation-Date: 2026-08-22 15:05+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -565,7 +565,8 @@ msgstr "Lista musi mieć od %(lo)s do %(hi)s pozycji."
 #: .\grouping\forms.py:79 .\grouping\forms.py:217 .\grouping\forms.py:255
 #: .\institution\models.py:24 .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
-#: .\templates\courses\manage\media\manager.html:27
+#: .\templates\courses\manage\media\manager.html:29
+#: .\templates\courses\manage\media\manager.html:38
 msgid "Name"
 msgstr "Nazwa"
 
@@ -799,20 +800,20 @@ msgstr "Wpisz liczbę lub ułamek."
 msgid "Enter a non-negative number or fraction."
 msgstr "Wpisz nieujemną liczbę lub ułamek."
 
-#: .\courses\media.py:24 .\courses\models.py:786
+#: .\courses\media.py:24 .\courses\models.py:787
 #: .\courses\templatetags\courses_manage_extras.py:35
 #: .\courses\views_manage.py:1963
 #: .\templates\courses\manage\editor\_add_menu.html:30
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
-#: .\templates\courses\manage\media\manager.html:24
+#: .\templates\courses\manage\media\manager.html:26
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:25 .\courses\models.py:787
+#: .\courses\media.py:25 .\courses\models.py:788
 #: .\courses\templatetags\courses_manage_extras.py:36
 #: .\courses\views_manage.py:1964
 #: .\templates\courses\manage\editor\_add_menu.html:31
-#: .\templates\courses\manage\media\manager.html:24
+#: .\templates\courses\manage\media\manager.html:26
 msgid "Video"
 msgstr "Wideo"
 
@@ -821,153 +822,205 @@ msgstr "Wideo"
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
 
-#: .\courses\media.py:185
+#: .\courses\media.py:199
 msgid "The submitted file is empty."
 msgstr "Przesłany plik jest pusty."
 
-#: .\courses\models.py:191 .\templates\courses\_unit_footer.html:40
+#: .\courses\media_fetch.py:47
+msgid "That URL redirects to a host that is not on the allow-list."
+msgstr "Ten adres przekierowuje do serwera spoza listy dozwolonych."
+
+#: .\courses\media_fetch.py:125 .\courses\media_fetch.py:136
+#, python-format
+msgid "The image host returned an error (status %(status)s)."
+msgstr "Serwer obrazów zwrócił błąd (status %(status)s)."
+
+#: .\courses\media_fetch.py:142 .\courses\media_fetch.py:196
+msgid "That URL redirects too many times."
+msgstr "Ten adres przekierowuje zbyt wiele razy."
+
+#: .\courses\media_fetch.py:148 .\courses\media_fetch.py:163
+msgid "The image host returned an invalid redirect."
+msgstr "Serwer obrazów zwrócił nieprawidłowe przekierowanie."
+
+#: .\courses\media_fetch.py:187
+msgid "Could not reach the image host."
+msgstr "Nie można połączyć się z serwerem obrazów."
+
+#: .\courses\media_fetch.py:221 .\courses\media_fetch.py:384
+#: .\courses\media_fetch.py:387
+msgid "That image type is not allowed."
+msgstr "Ten typ obrazu nie jest dozwolony."
+
+#: .\courses\media_fetch.py:227
+msgid "That URL did not return an image."
+msgstr "Ten adres nie zwrócił obrazu."
+
+#: .\courses\media_fetch.py:242 .\courses\media_fetch.py:259
+#: .\courses\validators.py:104
+#, python-format
+msgid "Image file too large (max %(mib)d MiB)."
+msgstr "Plik graficzny za duży (maks. %(mib)d MiB)."
+
+#: .\courses\media_fetch.py:298
+msgid "Fetching the image took too long."
+msgstr "Pobieranie obrazu trwało zbyt długo."
+
+#: .\courses\media_fetch.py:360 .\courses\media_fetch.py:370
+msgid "That image's dimensions are too large."
+msgstr "Wymiary tego obrazu są zbyt duże."
+
+#: .\courses\media_fetch.py:374
+msgid "That URL did not return a usable image."
+msgstr "Ten adres nie zwrócił użytecznego obrazu."
+
+#: .\courses\media_fetch.py:417
+msgid "The fetched file is empty."
+msgstr "Pobrany plik jest pusty."
+
+#: .\courses\models.py:192 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr "Część"
 
-#: .\courses\models.py:192
+#: .\courses\models.py:193
 msgid "Chapter"
 msgstr "Rozdział"
 
-#: .\courses\models.py:193
+#: .\courses\models.py:194
 msgid "Section"
 msgstr "Sekcja"
 
-#: .\courses\models.py:194 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:195 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:197 .\templates\courses\manage\_add_affordance.html:23
+#: .\courses\models.py:198 .\templates\courses\manage\_add_affordance.html:23
 #: .\templates\courses\manage\editor\editor.html:94
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:198 .\courses\rollups.py:180
+#: .\courses\models.py:199 .\courses\rollups.py:180
 #: .\templates\courses\manage\_add_affordance.html:26
 #: .\templates\courses\manage\editor\editor.html:97
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:492
+#: .\courses\models.py:493
 msgid "Example"
 msgstr "Przykład"
 
-#: .\courses\models.py:493 .\notes\forms.py:11
+#: .\courses\models.py:494 .\notes\forms.py:11
 msgid "Note"
 msgstr "Notatka"
 
-#: .\courses\models.py:494
+#: .\courses\models.py:495
 msgid "Tip"
 msgstr "Wskazówka"
 
-#: .\courses\models.py:497
+#: .\courses\models.py:498
 msgid "Important"
 msgstr "Ważne"
 
-#: .\courses\models.py:498
+#: .\courses\models.py:499
 msgid "Task"
 msgstr "Zadanie"
 
-#: .\courses\models.py:777
+#: .\courses\models.py:778
 msgid "Generated"
 msgstr "Wygenerowano"
 
-#: .\courses\models.py:778
+#: .\courses\models.py:779
 msgid "Skipped"
 msgstr "Pominięto"
 
-#: .\courses\models.py:779
+#: .\courses\models.py:780
 msgid "Failed"
 msgstr "Niepowodzenie"
 
-#: .\courses\models.py:844 .\courses\models.py:1142
+#: .\courses\models.py:865 .\courses\models.py:1163
 msgid "Small"
 msgstr "Mały"
 
-#: .\courses\models.py:845 .\courses\models.py:1143
+#: .\courses\models.py:866 .\courses\models.py:1164
 msgid "Medium"
 msgstr "Średni"
 
-#: .\courses\models.py:846 .\courses\models.py:1144
+#: .\courses\models.py:867 .\courses\models.py:1165
 msgid "Large"
 msgstr "Duży"
 
-#: .\courses\models.py:853 .\courses\models.py:1148
+#: .\courses\models.py:874 .\courses\models.py:1169
 msgctxt "image size"
 msgid "Full"
 msgstr "Pełny"
 
-#: .\courses\models.py:1752
+#: .\courses\models.py:1773
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr "Zakładki"
 
-#: .\courses\models.py:1753
+#: .\courses\models.py:1774
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr "Karuzela"
 
-#: .\courses\models.py:1762
+#: .\courses\models.py:1783
 msgctxt "tabs label position"
 msgid "Above"
 msgstr "Nad"
 
-#: .\courses\models.py:1763
+#: .\courses\models.py:1784
 msgctxt "tabs label position"
 msgid "Below"
 msgstr "Pod"
 
-#: .\courses\models.py:1764
+#: .\courses\models.py:1785
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr "Ukryta"
 
-#: .\courses\models.py:2093 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:2114 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:2094
+#: .\courses\models.py:2115
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:2095
+#: .\courses\models.py:2116
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:2226
+#: .\courses\models.py:2247
 msgid "your answer, correct"
 msgstr "twoja odpowiedź, poprawna"
 
-#: .\courses\models.py:2227
+#: .\courses\models.py:2248
 msgid "your answer, incorrect"
 msgstr "twoja odpowiedź, niepoprawna"
 
-#: .\courses\models.py:2228
+#: .\courses\models.py:2249
 msgid "correct answer, not chosen"
 msgstr "poprawna odpowiedź, niewybrana"
 
-#: .\courses\models.py:2897
+#: .\courses\models.py:2918
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:2899
+#: .\courses\models.py:2920
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:2904
+#: .\courses\models.py:2925
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:2975
+#: .\courses\models.py:2996
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:2976
+#: .\courses\models.py:2997
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -2327,15 +2380,30 @@ msgstr "Element „%(v)s” musi należeć do węzła typu jednostka."
 msgid "Media entry '%(v)s' is not referenced by any element."
 msgstr "Wpis multimediów „%(v)s” nie jest używany przez żaden element."
 
-#: .\courses\validators.py:103
-#, python-format
-msgid "Image file too large (max %(mib)d MiB)."
-msgstr "Plik graficzny za duży (maks. %(mib)d MiB)."
-
-#: .\courses\validators.py:113
+#: .\courses\validators.py:114
 #, python-format
 msgid "Video file too large (max %(mib)d MiB)."
 msgstr "Plik wideo za duży (maks. %(mib)d MiB)."
+
+#: .\courses\validators.py:144
+msgid "Enter an image URL."
+msgstr "Podaj adres URL obrazu."
+
+#: .\courses\validators.py:150
+msgid "That URL is too long (maximum 500 characters)."
+msgstr "Ten adres URL jest za długi (maksymalnie 500 znaków)."
+
+#: .\courses\validators.py:156
+msgid "That does not look like a valid URL."
+msgstr "To nie wygląda na poprawny adres URL."
+
+#: .\courses\validators.py:163
+msgid "Image URLs must use https."
+msgstr "Adresy URL obrazów muszą używać https."
+
+#: .\courses\validators.py:168
+msgid "That image host is not on the allow-list."
+msgstr "Ten serwer obrazów nie znajduje się na liście dozwolonych."
 
 #: .\courses\video_url.py:36
 #, python-format
@@ -3272,7 +3340,7 @@ msgstr "Usunąć tę notatkę?"
 #: .\tags\templates\tags\delete_confirm.html:13
 #: .\templates\courses\manage\_tree_node.html:159
 #: .\templates\courses\manage\editor\_element_row_controls.html:33
-#: .\templates\courses\manage\media\_asset_cell.html:41
+#: .\templates\courses\manage\media\_asset_cell.html:45
 #: .\templates\courses\manage\node_confirm_delete.html:18
 #: .\templates\courses\manage\subject_confirm_delete.html:8
 #: .\templates\courses\manage\subject_list.html:24
@@ -3947,7 +4015,7 @@ msgstr "Nieaktywny"
 #: .\templates\courses\manage\builder.html:30
 #: .\templates\courses\manage\course_list.html:27
 #: .\templates\courses\manage\editor\_link_dialog.html:28
-#: .\templates\courses\manage\media\manager.html:42
+#: .\templates\courses\manage\media\manager.html:53
 msgid "Filter"
 msgstr "Filtruj"
 
@@ -5514,7 +5582,7 @@ msgid "Button label"
 msgstr "Etykieta przycisku"
 
 #: .\templates\courses\manage\editor\_edit_callout.html:3
-#: .\templates\courses\manage\media\manager.html:23
+#: .\templates\courses\manage\media\manager.html:25
 msgid "Kind"
 msgstr "Rodzaj"
 
@@ -6090,7 +6158,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_image.html:7
 #: .\templates\courses\manage\editor\_edit_video.html:11
 #: .\templates\courses\manage\media\manager.html:3
-#: .\templates\courses\manage\media\manager.html:17
+#: .\templates\courses\manage\media\manager.html:19
 msgid "Media"
 msgstr "Media"
 
@@ -6778,11 +6846,11 @@ msgstr "Używane przez element."
 msgid "unused"
 msgstr "nieużywane"
 
-#: .\templates\courses\manage\media\_asset_cell.html:36
+#: .\templates\courses\manage\media\_asset_cell.html:40
 msgid "Replace file"
 msgstr "Zastąp plik"
 
-#: .\templates\courses\manage\media\_asset_cell.html:41
+#: .\templates\courses\manage\media\_asset_cell.html:45
 msgid "In use — cannot delete"
 msgstr "W użyciu — nie można usunąć"
 
@@ -6792,33 +6860,51 @@ msgid "No media match."
 msgstr "Brak pasujących plików multimedialnych."
 
 #: .\templates\courses\manage\media\_picker.html:6
+#: .\templates\courses\manage\media\manager.html:18
+msgid "Could not fetch that image."
+msgstr "Nie udało się pobrać tego obrazu."
+
+#: .\templates\courses\manage\media\_picker.html:8
 msgid "Library"
 msgstr "Biblioteka"
 
-#: .\templates\courses\manage\media\_picker.html:7
-#: .\templates\courses\manage\media\manager.html:29
+#: .\templates\courses\manage\media\_picker.html:9
+#: .\templates\courses\manage\media\manager.html:31
 msgid "Upload"
 msgstr "Prześlij"
 
 #: .\templates\courses\manage\media\_picker.html:11
+msgid "From URL"
+msgstr "Z adresu URL"
+
+#: .\templates\courses\manage\media\_picker.html:16
 msgid "Search images…"
 msgstr "Szukaj obrazów…"
 
-#: .\templates\courses\manage\media\_picker.html:11
+#: .\templates\courses\manage\media\_picker.html:16
 msgid "Search videos…"
 msgstr "Szukaj wideo…"
 
-#: .\templates\courses\manage\media\_picker.html:17
+#: .\templates\courses\manage\media\_picker.html:22
 msgid "Upload an image — added and selected."
 msgstr "Prześlij obraz — zostanie dodany i wybrany."
 
-#: .\templates\courses\manage\media\_picker.html:17
+#: .\templates\courses\manage\media\_picker.html:22
 msgid "Upload a video — added and selected."
 msgstr "Prześlij wideo — zostanie dodane i wybrane."
 
-#: .\templates\courses\manage\media\_picker.html:19
+#: .\templates\courses\manage\media\_picker.html:24
 msgid "or drag & drop a file here"
 msgstr "lub przeciągnij i upuść plik tutaj"
+
+#: .\templates\courses\manage\media\_picker.html:28
+msgid "Paste an image URL — fetched, added and selected."
+msgstr "Wklej adres URL obrazu — zostanie pobrany, dodany i wybrany."
+
+#: .\templates\courses\manage\media\_picker.html:30
+#: .\templates\courses\manage\media\manager.html:40
+msgid "Fetch"
+msgstr "Pobierz"
 
 #: .\templates\courses\manage\media\manager.html:11
 msgid "Replace with:"
@@ -6845,39 +6931,44 @@ msgstr "Nie udało się zastąpić pliku."
 msgid "Confirm file replacement"
 msgstr "Potwierdź zastąpienie pliku"
 
-#: .\templates\courses\manage\media\manager.html:26
+#: .\templates\courses\manage\media\manager.html:28
 msgid "File"
 msgstr "Plik"
 
-#: .\templates\courses\manage\media\manager.html:27
+#: .\templates\courses\manage\media\manager.html:29
+#: .\templates\courses\manage\media\manager.html:38
 msgid "optional"
 msgstr "opcjonalne"
 
-#: .\templates\courses\manage\media\manager.html:28
+#: .\templates\courses\manage\media\manager.html:30
 msgid "defaults to filename"
 msgstr "domyślnie nazwa pliku"
 
-#: .\templates\courses\manage\media\manager.html:31
+#: .\templates\courses\manage\media\manager.html:36
+msgid "Image URL"
+msgstr "Adres URL obrazu"
+
+#: .\templates\courses\manage\media\manager.html:42
 msgid "Drag & drop files here"
 msgstr "Przeciągnij i upuść pliki tutaj"
 
-#: .\templates\courses\manage\media\manager.html:36
+#: .\templates\courses\manage\media\manager.html:47
 msgid "All types"
 msgstr "Wszystkie rodzaje"
 
-#: .\templates\courses\manage\media\manager.html:37
+#: .\templates\courses\manage\media\manager.html:48
 msgid "Images"
 msgstr "Obrazy"
 
-#: .\templates\courses\manage\media\manager.html:38
+#: .\templates\courses\manage\media\manager.html:49
 msgid "Videos"
 msgstr "Filmy wideo"
 
-#: .\templates\courses\manage\media\manager.html:41
+#: .\templates\courses\manage\media\manager.html:52
 msgid "Search by name or filename…"
 msgstr "Szukaj wg nazwy lub pliku…"
 
-#: .\templates\courses\manage\media\manager.html:44
+#: .\templates\courses\manage\media\manager.html:55
 msgid "files"
 msgstr "plików"
 

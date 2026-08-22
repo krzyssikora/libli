@@ -180,7 +180,6 @@ def test_headers_are_sent_on_every_redirect_hop(monkeypatch):
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
-@pytest.mark.xfail(reason="needs the pl catalog from Task 12", strict=False)
 def test_worker_message_renders_in_the_active_language(monkeypatch):
     """Proves the params= deferral. gettext is THREAD-LOCAL and the daemon thread has
     no activation, so a message %-formatted on the worker resolves to English there and
