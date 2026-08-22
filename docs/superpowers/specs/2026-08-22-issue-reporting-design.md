@@ -65,7 +65,8 @@ delivery and triage. Nothing about it belongs in `core` or `institution`.
 ```
 support/
     __init__.py
-    apps.py                 # ready(): connect the cache-invalidation signals
+    apps.py                 # ready(): connect support/signals.py
+    signals.py              # cache invalidation + screenshot cleanup receivers
     constants.py            # every cap and limit named below
     models.py               # SupportSettings, IssueReport
     policy.py               # can_report() + the cached audience bundle
@@ -105,6 +106,8 @@ Every limit the rest of this spec refers to is named here, so tests assert again
 name rather than a number they inferred from the implementation.
 
 ```python
+from datetime import timedelta
+
 DESCRIPTION_MAX_LENGTH = 4000
 PAGE_URL_MAX_LENGTH = 2000
 PAGE_TITLE_MAX_LENGTH = 300
@@ -113,7 +116,16 @@ REPORTER_ROLES_MAX_LENGTH = 200
 THROTTLE_MAX_REPORTS = 5           # per user, per window
 THROTTLE_WINDOW = timedelta(hours=1)
 EXTRA_EMAILS_MAX = 20
+SUPPORT_CONFIG_CACHE_KEY = "support:config"
+SUPPORT_CONFIG_TTL = 300           # seconds; mirrors core.services.CACHE_TTL
+LIST_PAGE_SIZE = 25
 ```
+
+The per-key telemetry caps and numeric bounds are the one deliberate exception: they
+live in `support/telemetry.py` next to the allow-list they belong to, as named module
+constants (`TELEMETRY_CAPS`, `TELEMETRY_BOUNDS`). Tests import them from there. What
+matters is that **no test asserts a bare literal**; splitting them across two modules is
+fine, inventing them at the call site is not.
 
 ### Models (`support/models.py`)
 
@@ -179,7 +191,13 @@ class Status(models.TextChoices):
 `"Display Name (username) <email>"` can reach ~560 characters. Postgres raises
 `DataError` on overflow, which would 500 the submission — losing the report at exactly
 the moment the user is telling you something is broken. The label is built and then
-sliced to `REPORTER_LABEL_MAX_LENGTH`; `reporter_roles` is sliced the same way.
+sliced to `REPORTER_LABEL_MAX_LENGTH`.
+
+`reporter_roles` is truncated **on a comma boundary**, dropping any trailing partial
+name rather than slicing mid-string. A blind slice could store `Course Adm`, which the
+`ROLE_LABELS` fallback below would then faithfully render as a role the user never held.
+The four current roles cannot overflow 200 characters; the cap exists for future or
+renamed Groups, which is precisely the case where a mid-token cut would lie.
 
 `reporter_label` and `reporter_roles` are **denormalised on purpose**. This repo hard-
 deletes and keeps no orphan audit rows; a report whose provenance evaporates with the
@@ -211,6 +229,14 @@ class ScreenshotStorage(FileSystemStorage):
     import time and override_settings(...) in tests would be a silent no-op —
     every screenshot test would write into the developer's working tree.
 
+    BOTH base_location and location must be plain properties. In Django 5.2
+    FileSystemStorage declares each as a separate @cached_property (location =
+    abspath(base_location)), and every path operation — path(), _save(), exists() —
+    goes through `location`, not `base_location`. Overriding only base_location
+    would still freeze the resolved path on first access, and
+    StorageSettingsMixin._clear_cached_properties only pops the cache for
+    MEDIA_ROOT / MEDIA_URL, never for a custom setting name.
+
     base_url is None and url() raises, so a template reaching for the idiomatic
     {{ report.screenshot.url }} fails loudly instead of emitting a plausible
     /media/... link that bypasses the PA-only view and resolves to nothing.
@@ -218,19 +244,36 @@ class ScreenshotStorage(FileSystemStorage):
 
     @property
     def base_location(self):
-        return self._value_or_setting(None, settings.SUPPORT_SCREENSHOT_DIR)
+        return settings.SUPPORT_SCREENSHOT_DIR
+
+    @property
+    def location(self):
+        return os.path.abspath(self.base_location)
 
     def url(self, name):
         raise NotImplementedError("Use {% url 'support:screenshot' report.pk %}.")
 ```
+
+The paired test must resolve a path under **two different** `override_settings`
+values within one process. Asserting once passes even on the frozen implementation,
+because the first access happens after the override — the freeze only shows up on the
+second test in the same process, which is exactly the kind of order-dependent green
+this repo's mutant discipline exists to catch.
 
 The field passes the **class itself** as the callable: `storage=ScreenshotStorage`.
 Django invokes it at field init and serialises the callable reference — not an
 instance's absolute `location` — into the migration.
 
 `screenshot_upload_to` produces `screenshots/<YYYY>/<MM>/<uuid4>.<ext>`, with the
-extension taken from the validated original filename, so the stored name never derives
-from user-supplied text.
+extension taken from the validated original filename and **lower-cased** (a real upload
+can be `Photo.PNG`, and `FileExtensionValidator` lower-cases before comparing while a
+naive `rsplit(".")[-1]` does not). The stored name therefore never derives from
+user-supplied text — no original basename, no path separators, no traversal. The
+content-type lookup in the screenshot view is likewise case-insensitive.
+
+The idiomatic `upload_to="screenshots/%Y/%m/"` is **wrong here** and is the thing an
+implementer will reach for: it preserves the client-supplied basename. This is a
+security property, so it carries its own test row and mutant.
 
 **Validation uses `support/validators.py::validate_screenshot_file`, not
 `courses.validators.validate_image_file`.** The latter applies
@@ -243,7 +286,16 @@ from an unrelated setting.
 
 `post_delete` on `IssueReport` deletes the file. Django does not do this on its own, and
 orphaned screenshots of student data accumulating on disk is exactly the failure mode to
-avoid.
+avoid. All three receivers — `post_save` and `m2m_changed` for the cache,
+`post_delete` for the file — live in **`support/signals.py`** and are connected from
+`SupportConfig.ready()`, so none of them can end up in a module that is never imported.
+
+**Rollback also orphans a file.** `form.save()` writes through the storage inside
+`transaction.atomic()`, but filesystem writes are not transactional: if the transaction
+rolls back, the row vanishes while the file stays on disk forever — no row means
+`post_delete` never fires and no PA can ever see or delete it. `report_create`
+therefore captures `report.screenshot.name` and, in an `except` around the atomic
+block, deletes it from the storage before re-raising.
 
 ### Audience policy (`support/policy.py`)
 
@@ -251,17 +303,24 @@ avoid.
 order:
 
 1. Anonymous, or `not user.is_active` -> `False`.
-2. `user.is_superuser` **or** membership of the `Platform Admin` Group -> `True`,
-   unconditionally, whatever the ladder says.
+2. `user.is_superuser` -> `True`.
 3. If the rung is `all` -> `True` for any authenticated active user, **without
    consulting Groups at all**.
-4. The user's role Group names intersect the rung's admitted set -> `True`.
+4. Membership of the `Platform Admin` Group -> `True`, unconditionally, whatever the
+   ladder says.
+5. The user's role Group names intersect the rung's admitted set -> `True`.
    (`admins` admits nothing extra; `course_admins` adds Course Admin; `teachers` adds
    Teacher and Course Admin.)
-5. `user.id` is in the extras set -> `True`.
-6. Otherwise `False`.
+6. `user.id` is in the extras set -> `True`.
+7. Otherwise `False`.
 
-**Rule 2 spells out the superuser case deliberately.** `accounts/services.py`
+**The ordering is deliberate.** Rules 1–3 are settled without touching Groups, so the
+most permissive rung genuinely skips the Group lookup rather than merely claiming to.
+Placing the Platform Admin check at 4 rather than 2 changes no outcome — a PA is
+admitted by rule 3 under `all` anyway — but it keeps the stated performance property
+true, and the tests are written against these numbers.
+
+**Rules 2 and 4 split the superuser case deliberately.** `accounts/services.py`
 (`is_last_active_platform_admin`) documents that "superusers outside the PA group are a
 separate recovery path and are not counted", so Group membership and `is_superuser` are
 genuinely distinct here. A recovery superuser is also the account most likely to be
@@ -274,8 +333,7 @@ query keys on Group membership only, matching `is_last_active_platform_admin`.
 intersection, the `all` rung would deny an authenticated account holding no role Group —
 a freshly `createsuperuser`'d account, an SSO-provisioned account before role
 assignment, or an account whose Group was removed — under the one rung whose label
-promises the opposite. Short-circuiting also removes the Group lookup for the most
-permissive setting.
+promises the opposite.
 
 **Query budget.** `can_report` runs on **every authenticated page render** via the
 context processor below. The settings row and the extras ids come from a cached bundle
@@ -294,8 +352,9 @@ def role_names_for(request):
 
 `user_roles` is refactored to use it, and `support_availability` passes its result into
 `can_report(user, role_names=...)`. Net cost stays at **one** Group query per request,
-not two. Callers outside the request cycle (the POST view, tests) omit `role_names` and
-`can_report` fetches them itself — one query on a POST is immaterial.
+not two. `report_create` has a live request and passes `role_names_for(request)` too;
+only callers with no request at all (tests, management commands) omit the argument, in
+which case `can_report` fetches the names itself.
 
 Cache invalidation must be connected to **both**:
 
@@ -326,7 +385,14 @@ The tab holds exactly two editable controls plus one summary:
    save**; at most `EXTRA_EMAILS_MAX` entries; stored as a JSON list. Normalising on
    save (not only at send) keeps the stored list and the send-time dedup consistent.
    Above it, a read-only line names the Platform Admins who will be mailed
-   automatically, so "who gets this" is never a guess.
+   automatically, so "who gets this" is never a guess. **Below it, a warning line:**
+   "These addresses receive the full report, including any attached screenshot, which
+   may contain student data." That warning is load-bearing. This design goes to real
+   lengths to keep screenshots behind `permission_required`, and then hands them,
+   unauthenticated and unlogged, to whatever a PA types into a free-text box. Emailing
+   the attachment is still the right call — a helpdesk alias with no libli account
+   cannot open a login-walled link — but it is an **accepted disclosure**, and the
+   person accepting it has to be told at the point of decision.
 3. **Also allowed** — a read-only summary ("3 people also allowed") linking to the
    dedicated **Allowed reporters** page. `SupportSettingsForm` carries **no** M2M field,
    so the always-rendered Support panel costs nothing beyond the already-selected count.
@@ -347,9 +413,12 @@ with `pk=1`. This is the one place `load()` is correct; every read path still us
 - `core/context_processors.py` gains `support_availability(request)` returning
   `{"can_report_issue": ...}` — the same shape as the existing `help_availability` —
   registered in `TEMPLATES["OPTIONS"]["context_processors"]` beside it.
-- `templates/base.html`: the account menu gains a **Report an issue** item behind
-  `{% if can_report_issue %}`, and includes `support/_report_dialog.html` once, also
-  behind that flag.
+- `templates/base.html`, behind `{% if can_report_issue %}` in two **separate**
+  places: the **trigger** is a menu item inside the account-menu panel, while the
+  `{% include "support/_report_dialog.html" %}` sits at body level, outside every
+  `hidden` / `data-menu-panel` container. This split is required, not tidiness — the
+  account panel carries the `hidden` attribute, and `showModal()` on a `<dialog>` inside
+  a hidden subtree does not reliably work.
 - `support/static/support/js/report_dialog.js` opens the dialog, populates the hidden
   telemetry fields, handles paste-to-attach, posts `FormData` via `fetch`, and renders
   errors back inside the dialog.
@@ -377,21 +446,37 @@ attached.
 
 ### Triage surface
 
-`support/views_manage.py`, all behind `permission_required`:
+`support/views_manage.py`, every view decorated
+`@permission_required("support.<perm>_issuereport", raise_exception=True)`. The flag is
+mandatory, not decoration: `permission_required` defaults to `raise_exception=False`,
+which **redirects to `LOGIN_URL` (302)** instead of raising `PermissionDenied`, and
+every 403 asserted in this spec would then be a 302. The repo is uniform on this —
+`accounts/views_manage.py:40`, `courses/views_manage.py:85`, `grouping/views.py:35` and
+`core/views.py:198` all pass it.
 
-- `report_list` — paginated (`Paginator`, as in `accounts/views_manage.py`), newest
-  first, with an open/resolved filter. Columns: created, reporter, role, first line of
-  the description, a screenshot indicator, status.
+- `report_list` — paginated at `LIST_PAGE_SIZE` (`Paginator`, as in
+  `accounts/views_manage.py`), newest first. Columns: created, reporter, role, first
+  line of the description, a screenshot indicator, a **not-emailed** indicator, status.
+  Filtered by `?status=`, accepting `open`, `resolved` and `all`; **the default is
+  `open`**, because the list exists to show what still needs doing. The Admin-menu item
+  links to the unfiltered (therefore open) URL.
 - `report_detail` — the description, the telemetry rendered as **labelled rows, not a
   JSON blob** (labels from `support/telemetry.py`), the screenshot thumbnail, and the
-  status and delete actions.
-- `report_set_status` — POST only; moves a report between `open` and `resolved`, so a
-  mis-click is recoverable. Setting the status a report already has is a **no-op**: it
-  must not overwrite an existing `resolved_by`/`resolved_at` and lose who actually
-  triaged it. Resolving sets both; reopening clears both.
+  status and delete actions. When `emailed_at` is null it shows a **"not emailed"**
+  notice: that column exists solely to record a delivery failure, and the error handling
+  below leans on the triage surface being the safety net — which it is not if a PA
+  cannot tell a delivered report from an undelivered one without a shell.
+- `report_set_status` — POST only. The target comes from a `status` POST field whose
+  only accepted values are `open` and `resolved`; anything missing or unrecognised
+  returns **400 without touching the row**. Setting the status a report already has is a
+  **no-op**: it must not overwrite an existing `resolved_by`/`resolved_at` and lose who
+  actually triaged it. Resolving sets both; reopening clears both. Redirects back to
+  `report_detail`.
 - `report_delete` — POST only, with confirmation. This is the sole production path that
   removes a report and, via `post_delete`, its screenshot; without it the receiver is
   reachable only from tests and screenshots of student data accumulate forever.
+  Redirects to `report_list`, preserving the current `?status=` filter — returning to
+  `report_detail` would 404 on the row just deleted.
 - `screenshot` — `FileResponse` for the private file. **404** when the field is empty or
   the file is missing from disk (a DB restored against a fresh volume must not 500).
   Served `Content-Disposition: inline` with a `Content-Type` derived from the stored
@@ -443,11 +528,27 @@ Both sides are written against this table; nothing here is left to the implement
 | Field errors | `400` | `{"ok": false, "message": null, "errors": {"<field>": ["<msg>", ...]}}` | Render each list under its field |
 | Throttled | `429` | `{"ok": false, "message": "<polite text>", "errors": {}}` | Show `message` as a banner; keep the typed text |
 | Not permitted | `403` | `{"ok": false, "message": "<text>", "errors": {}}` | Show `message` as a banner |
-| Not authenticated | `302` | allauth login redirect | Follow normally |
+| Not authenticated | `401` | `{"ok": false, "message": "<text>", "errors": {}}` | Show `message`, offer a link to log in; never navigate away silently |
+| Anything else, or a non-JSON body | any | — | Generic banner, dialog stays open, **typed description preserved** |
+| `fetch` rejects (network) | — | — | Same generic banner |
+
+**`report_create` does not use `@login_required`.** It checks
+`request.user.is_authenticated` itself and returns the `401` above. This is not a style
+preference: `fetch()` defaults to `redirect: "follow"`, so a `302` to the login page is
+invisible to the client — it observes `status === 200`, `redirected === true` and an
+HTML body, `response.json()` throws, and the dialog dies silently with the user's typed
+description still in it. A dialog left open past session expiry is an entirely ordinary
+path, so the contract must be observable.
+
+The last two rows exist because a feature whose whole premise is "something on this page
+is broken" must not itself fail silently. Django's CSRF failure view returns a `403`
+with an **HTML** body, so the client **checks `Content-Type` before parsing** rather than
+assuming JSON on a 403; a 500 or a dropped connection lands in the same generic-banner
+branch. In every one of these cases the description the user typed is preserved.
 
 `errors` is built from `form.errors.get_json_data()`, reduced to `{field: [message,
 ...]}`. The client distinguishes the cases by HTTP status, never by inspecting text.
-Every response carries `Content-Type: application/json` except the login redirect.
+Every response the view itself produces carries `Content-Type: application/json`.
 
 ### Telemetry assembly and sanitisation (`support/telemetry.py`)
 
@@ -485,12 +586,19 @@ capped **in `IssueReportForm.clean_*`**: `page_url` truncated to `PAGE_URL_MAX_L
 an untrusted POST field — would accept megabytes.
 
 `page_url` is the sharp edge for rendering. It is stored as text, rendered escaped
-everywhere, and in the triage template is turned into a link **only if** it parses to
-`http`/`https` **and** its host equals `Site.objects.get_current().domain`; otherwise it
-prints as inert text. The current Site — not `request.get_host()`, not `ALLOWED_HOSTS` —
-is the source of truth, matching `notifications/emails._absolute_url`, which uses it
-precisely so a link can never be host-spoofed. A `javascript:` value must never reach an
-`href`.
+everywhere, and in the triage template is turned into a link **only if** its scheme is
+`http` or `https` **and** its host matches the current Site. The current Site — not
+`request.get_host()`, not `ALLOWED_HOSTS` — is the source of truth, matching
+`notifications/emails._absolute_url`, which uses it precisely so a link can never be
+host-spoofed. A `javascript:` value must never reach an `href`.
+
+The comparison is `urlparse(url).hostname` (already port-stripped and lower-cased)
+against `Site.domain.split(":")[0].lower()`. Comparing `netloc` to `Site.domain`
+directly would fail on every port-bearing deployment and throughout local development
+(`localhost:8000` vs `localhost`). Note also that Django's default `Site.domain` is
+`example.com`, so an install that never edited the Site row gets inert text for every
+report — **by design, not a bug**: an unmatched host renders as plain text, and the page
+still looks correct, so this is called out here to stop it being chased as a defect.
 
 ### Throttle
 
@@ -505,10 +613,19 @@ deleting reports refunds quota — acceptable, since only PAs can delete.
 
 ### Audience resolution
 
-`can_report` calls `get_support_config()`, which either hits the cache or runs one query
-for the settings row plus one for the extras ids and caches the bundle. A settings save
-or an `extra_reporters` change drops the cache, so a grant takes effect on the next
-request.
+`can_report` calls `get_support_config()`, which either hits the cache
+(`SUPPORT_CONFIG_CACHE_KEY`, `SUPPORT_CONFIG_TTL`) or runs one query for the settings
+row plus one for the extras ids and caches the bundle.
+
+**The invalidation guarantee is bounded, and the spec states it honestly.** The default
+cache is `LocMemCache`, which `core/services.py` already documents as per-process.
+`invalidate_support_config()` therefore clears the bundle **immediately in the worker
+that handled the save, and only within `SUPPORT_CONFIG_TTL` elsewhere** — exactly the
+same property `get_site_config` has. This bounds **revocation** latency as well as
+grants: a PA who narrows the rung may still see reports accepted by another worker for
+up to the TTL. That is acceptable for this feature and is not worth a cross-process
+invalidation mechanism, but it must not be described as instantaneous. The paired test
+exercises the single-process path only, which is all a test process can observe.
 
 ### Email delivery
 
@@ -532,12 +649,19 @@ documents.
   because the audience is a fixed admin list rather than a per-user fan-out. Noted so a
   later reviewer does not "restore consistency" and undo it.
 - **`reply_to`:** the reporter's address when they have one, so a PA can simply reply.
-- **Subject:** institution name plus reporter display name, with **whitespace collapsed**
-  (`" ".join(value.split())`) — a display name containing a newline would otherwise split
-  the header.
-- **Body:** description, reporter, roles, page URL, and the telemetry as a labelled list
-  built from `TELEMETRY_LABELS`. The screenshot is **attached** (capped at 5 MiB by the
-  upload validator).
+- **Subject:** institution name, the report id, and the reporter's display name, with
+  **whitespace collapsed** (`" ".join(value.split())`) — a display name containing a
+  newline would otherwise split the header. The id is what stops every report from one
+  reporter sharing a byte-identical subject; without it mail clients thread them and the
+  inbox becomes exactly as undifferentiated as the status-less list the design table
+  rejects.
+- **Body:** description, reporter, roles, page URL, the telemetry as a labelled list
+  built from `TELEMETRY_LABELS`, and — first — an **absolute link to
+  `support:report_detail`**, built with the same `Site`-based helper as
+  `notifications/emails._absolute_url` so it cannot be host-spoofed. Without it a PA who
+  wants the full-size screenshot or the resolve button has to open the triage list and
+  guess which row this was, which undercuts the whole reason reports are stored. The
+  screenshot is **attached** (capped at 5 MiB by the upload validator).
 - **Ordering:** the view wraps the save in `transaction.atomic()` and the send runs in
   `transaction.on_commit` inside `try`/`except`. Success sets `emailed_at` with
   `save(update_fields=["emailed_at"])` — a bare `save()` from a post-commit callback
@@ -562,7 +686,9 @@ and `resolved_at` record who and when.
 | Situation | Behaviour |
 |---|---|
 | A user who may not report POSTs to `support:report_create` | **403** per the JSON contract. The menu item being hidden is not access control, and the ladder's top rung is "Everyone" — this gate *is* the feature. |
-| Anonymous POST | `@login_required` redirect. |
+| Anonymous POST | **`401` JSON**, never a login redirect — a `fetch` follows a 302 invisibly and the dialog would die silently. |
+| A 500, a network drop, or Django's HTML CSRF-failure 403 | Generic banner; the dialog stays open and the typed description is preserved. The client checks `Content-Type` before parsing. |
+| The transaction rolls back after the screenshot file was written | The `except` around the atomic block deletes the orphaned file before re-raising. |
 | Empty or whitespace-only description | `400` with a field error; no row, no mail. |
 | Description over `DESCRIPTION_MAX_LENGTH` | `400` with a field error; the dialog also shows a live character counter so this is rare. |
 | `page_url` / `page_title` over their caps | Silently truncated in `clean_*` — never a `DataError`, never a rejected report. |
@@ -578,6 +704,8 @@ and `resolved_at` record who and when.
 | A template reaches for `report.screenshot.url` | `NotImplementedError` — loud in tests rather than a silently broken `/media/` link. |
 | A report is deleted | `post_delete` removes the screenshot file from disk. |
 | `report_set_status` called with the status the report already has | No-op; `resolved_by` / `resolved_at` are preserved. |
+| `report_set_status` with a missing or unrecognised `status` value | **400**, row untouched. |
+| A `Site.domain` that never left its `example.com` default | Every `page_url` renders as inert text. Intended, not a defect. |
 | A stored role name is no longer in `ROLE_LABELS` | Rendered as the raw stored name. |
 | The `SupportSettings` row does not exist yet | Every read path uses `filter(pk=1).first() or SupportSettings()`, so the defaults apply and no row is written on a GET. The first save from the Allowed reporters page creates it. |
 
@@ -595,7 +723,9 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | A user added to `extra_reporters` can report on the very next request | Remove the `m2m_changed` cache-invalidation receiver |
 | The **first-ever** save of the Allowed reporters page creates pk=1 and invalidates the cache | Read via `filter(pk=1).first()` on that page's POST path |
 | Changing `audience` takes effect on the next request | Remove the `post_save` receiver |
-| An authenticated render issues **one** Group query, not two | Drop `role_names_for`'s per-request memo |
+| An authenticated render of `home` issues **one** Group query, not two — measured with `CaptureQueriesContext`, asserting exactly one captured statement whose SQL mentions `auth_group` | Drop `role_names_for`'s per-request memo |
+| An anonymous POST returns **`401` JSON**, not a redirect | Restore `@login_required` |
+| A non-JSON / 5xx response leaves the dialog open with the description intact | Assume JSON on every response |
 | A 150-char display name plus a long email yields a stored label of exactly `REPORTER_LABEL_MAX_LENGTH` | Drop the truncation |
 | `page_title` over its cap is truncated, not rejected and not a `DataError` | Drop `clean_page_title` |
 | 6th report within the rolling hour -> `429`, no row, no mail | Raise `THROTTLE_MAX_REPORTS` |
@@ -608,7 +738,17 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | **A send that raises still leaves the report row** | Move the send out of the `try`/`except` |
 | **A rolled-back transaction sends no email** | Call `send()` directly instead of via `on_commit` |
 | A Teacher GETting the screenshot view -> 403 | Drop `permission_required` |
-| A screenshot is written under `SUPPORT_SCREENSHOT_DIR`, not `MEDIA_ROOT`, with `override_settings` pointing it at a tmp dir | Build the storage eagerly at import (the override then silently fails) |
+| A screenshot is written under `SUPPORT_SCREENSHOT_DIR`, not `MEDIA_ROOT` — resolving the path under **two different** `override_settings` values in one process | Override only `base_location`, leaving `location` a `cached_property` (a single-override test passes anyway) |
+| A file named `../../evil name.png` is stored as `screenshots/<YYYY>/<MM>/<uuid4>.png`, with no trace of the original basename | `upload_to="screenshots/%Y/%m/"` |
+| An upload named `Photo.PNG` stores a lower-cased extension and serves the right content type | Append the extension verbatim |
+| A save that raises **after** the file is written leaves no file on disk | Drop the rollback cleanup |
+| POST `report_delete` as a PA removes the row, the file, and redirects to the filtered list | Delete the route or the view |
+| POST `report_delete` as a Teacher -> 403; GET does not delete | Drop `raise_exception=True`; allow GET |
+| `report_set_status` with a missing or bogus value -> 400, row untouched | Fall through to `resolved` |
+| A non-PA hitting any triage view gets **403**, not a 302 to the login page | Drop `raise_exception=True` |
+| `emailed_at` null renders a "not emailed" indicator on the detail page | Omit the indicator |
+| The email body contains an absolute `report_detail` link and the id appears in the subject | Drop the link; drop the id |
+| `reporter_roles` truncation drops a trailing partial name rather than cutting mid-token | Use a blind slice |
 | `report.screenshot.url` raises | Let `base_url` fall back to `MEDIA_URL` |
 | Screenshot view 404s for an empty field and for a missing file | `FileResponse` on the raw path |
 | Deleting a report deletes its file | Remove the `post_delete` receiver |
