@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
+from django.core.validators import URLValidator
 from django.utils.translation import gettext_lazy as _
 
 # --- Static caps KEPT for back-compat: frozen migration 0006 + existing tests
@@ -124,3 +125,46 @@ def validate_embed_url(url):
     allowed = {d.lower() for d in settings.ALLOWED_EMBED_DOMAINS}
     if not any(host == d or host.endswith("." + d) for d in allowed):
         raise ValidationError("Embed domain is not on the allow-list.")
+
+
+MAX_FETCH_URL_LENGTH = 500  # matches MediaAsset.source_url's max_length
+
+
+def validate_fetch_url(url):
+    """Guard for server-side image fetches. Returns the STRIPPED url.
+
+    Twin of validate_embed_url, with three differences: it strips, it length-caps
+    (source_url is a 500-char column), and it runs URLValidator. Callers MUST use the
+    return value -- a bare call whose result is discarded leaves the caller's url
+    unstripped, stores "\\nhttps://..." in source_url, and still passes every other
+    test in the suite, because they all use clean urls.
+    """
+    url = (url or "").strip()
+    if not url:
+        raise ValidationError(_("Enter an image URL."), code="empty")
+    if len(url) > MAX_FETCH_URL_LENGTH:
+        # Literal 500, matching the spec's pinned error text exactly -- the spec's
+        # error table is the single source for the implementation, the view tests AND
+        # the .po entries, so parameterising it here would fork the msgid.
+        raise ValidationError(
+            _("That URL is too long (maximum 500 characters)."), code="too-long"
+        )
+    try:
+        URLValidator()(url)
+    except ValidationError as exc:
+        raise ValidationError(
+            _("That does not look like a valid URL."), code="malformed"
+        ) from exc
+    parts = urlsplit(url)
+    allowed_schemes = (
+        {"https", "http"} if settings.ALLOW_HTTP_IMAGE_FETCH else {"https"}
+    )
+    if parts.scheme not in allowed_schemes:
+        raise ValidationError(_("Image URLs must use https."), code="scheme")
+    host = (parts.hostname or "").lower()
+    allowed = {d.lower() for d in settings.ALLOWED_IMAGE_FETCH_DOMAINS}
+    if not any(host == d or host.endswith("." + d) for d in allowed):
+        raise ValidationError(
+            _("That image host is not on the allow-list."), code="host"
+        )
+    return url
