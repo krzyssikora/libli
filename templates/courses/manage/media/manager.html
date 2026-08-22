@@ -13,7 +13,9 @@
          data-msg-replace-commit="{% trans 'Replace' %}"
          data-msg-replace-cancel="{% trans 'Cancel' %}"
          data-msg-replace-failed="{% trans 'Could not replace the file.' %}"
-         data-msg-replace-aria="{% trans 'Confirm file replacement' %}">
+         data-msg-replace-aria="{% trans 'Confirm file replacement' %}"
+         data-fetch-url="{% url 'courses:manage_media_fetch' slug=course.slug %}"
+         data-msg-fetch-failed="{% trans 'Could not fetch that image.' %}">
   <div class="page-head"><h1>{% trans "Media" %}</h1>
     <a class="page-head__crumb" href="{% url 'courses:manage_builder' slug=course.slug %}">← {{ course.title }}</a></div>
   <div class="uploadcard">
@@ -27,6 +29,15 @@
       <label class="field">{% trans "Name" %} <span class="muted">({% trans "optional" %})</span>
         <input type="text" name="name" placeholder="{% trans 'defaults to filename' %}"></label>
       <button class="btn" type="submit">{% trans "Upload" %}</button>
+    </form>
+    <form class="media-fetch" method="post"
+          action="{% url 'courses:manage_media_fetch' slug=course.slug %}">
+      {% csrf_token %}
+      <label class="field">{% trans "Image URL" %}
+        <input type="url" name="url" required placeholder="https://…"></label>
+      <label class="field">{% trans "Name" %} <span class="muted">({% trans "optional" %})</span>
+        <input type="text" name="name"></label>
+      <button class="btn" type="submit" data-fetch-submit>{% trans "Fetch" %}</button>
     </form>
     <div class="media-drop" hidden>{% trans "Drag & drop files here" %}</div>
   </div>

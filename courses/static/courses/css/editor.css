@@ -344,6 +344,10 @@ body.editor-page .app-main { max-width: 102rem; }
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
+.media-fetch {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
 .media-drop {
   border: 2px dashed var(--border-strong); border-radius: var(--radius-md);
   padding: var(--space-6); text-align: center; color: var(--text-secondary);
@@ -767,6 +771,23 @@ button.asset-cell:hover { border-color: var(--primary); }
    shrink), and deliberately not an OPEN one -- an unfloored open details would be
    squeezed to ~30px and wrap every unit title to a few characters per line. */
 .asset-foot > :first-child:not([open]) { min-width: 0; }
+
+/* .asset-foot (:756) is display:flex; justify-content: space-between, designed
+   around exactly two children -- a third makes space-between push this link to
+   the centre, and flex items default to min-width:auto, which the
+   :first-child:not([open]) rule above does not reach (this is the MIDDLE child).
+   margin-inline-start: auto keeps .asset-actions hard right without touching
+   .asset-foot's own justify-content, which every other cell still depends on. */
+.asset-source {
+  min-width: 0; flex: 0 1 auto;
+  margin-inline-start: auto;   /* keeps .asset-actions hard right */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* a literal, matching .asset-fname's own font-size: there is NO --text-sm token
+     in this repo (tokens.css defines --text-primary/secondary/tertiary only), and
+     an undefined custom property is invalid at computed-value time -- the link
+     would silently inherit full body size. */
+  font-size: .72rem; color: var(--text-secondary);
+}
 
 /* Shrink without clipping is a worse-looking bug: with overflow visible the
    glyphs are still painted at full width, straight across the buttons. Both

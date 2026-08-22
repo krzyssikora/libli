@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-20 21:41+0200\n"
+"POT-Creation-Date: 2026-08-22 17:16+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -544,7 +544,8 @@ msgstr ""
 #: .\grouping\forms.py:79 .\grouping\forms.py:217 .\grouping\forms.py:255
 #: .\institution\models.py:24 .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
-#: .\templates\courses\manage\media\manager.html:27
+#: .\templates\courses\manage\media\manager.html:29
+#: .\templates\courses\manage\media\manager.html:38
 msgid "Name"
 msgstr ""
 
@@ -760,20 +761,20 @@ msgstr ""
 msgid "Enter a non-negative number or fraction."
 msgstr ""
 
-#: .\courses\media.py:24 .\courses\models.py:786
+#: .\courses\media.py:24 .\courses\models.py:787
 #: .\courses\templatetags\courses_manage_extras.py:35
 #: .\courses\views_manage.py:1963
 #: .\templates\courses\manage\editor\_add_menu.html:30
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
-#: .\templates\courses\manage\media\manager.html:24
+#: .\templates\courses\manage\media\manager.html:26
 msgid "Image"
 msgstr ""
 
-#: .\courses\media.py:25 .\courses\models.py:787
+#: .\courses\media.py:25 .\courses\models.py:788
 #: .\courses\templatetags\courses_manage_extras.py:36
 #: .\courses\views_manage.py:1964
 #: .\templates\courses\manage\editor\_add_menu.html:31
-#: .\templates\courses\manage\media\manager.html:24
+#: .\templates\courses\manage\media\manager.html:26
 msgid "Video"
 msgstr ""
 
@@ -782,153 +783,205 @@ msgstr ""
 msgid "Drag to image"
 msgstr ""
 
-#: .\courses\media.py:185
+#: .\courses\media.py:199
 msgid "The submitted file is empty."
 msgstr ""
 
-#: .\courses\models.py:191 .\templates\courses\_unit_footer.html:40
+#: .\courses\media_fetch.py:55
+msgid "That URL redirects to a host that is not on the allow-list."
+msgstr ""
+
+#: .\courses\media_fetch.py:133 .\courses\media_fetch.py:144
+#, python-format
+msgid "The image host returned an error (status %(status)s)."
+msgstr ""
+
+#: .\courses\media_fetch.py:150 .\courses\media_fetch.py:204
+msgid "That URL redirects too many times."
+msgstr ""
+
+#: .\courses\media_fetch.py:156 .\courses\media_fetch.py:171
+msgid "The image host returned an invalid redirect."
+msgstr ""
+
+#: .\courses\media_fetch.py:195
+msgid "Could not reach the image host."
+msgstr ""
+
+#: .\courses\media_fetch.py:229 .\courses\media_fetch.py:397
+#: .\courses\media_fetch.py:400
+msgid "That image type is not allowed."
+msgstr ""
+
+#: .\courses\media_fetch.py:235
+msgid "That URL did not return an image."
+msgstr ""
+
+#: .\courses\media_fetch.py:250 .\courses\media_fetch.py:267
+#: .\courses\validators.py:104
+#, python-format
+msgid "Image file too large (max %(mib)d MiB)."
+msgstr ""
+
+#: .\courses\media_fetch.py:311
+msgid "Fetching the image took too long."
+msgstr ""
+
+#: .\courses\media_fetch.py:373 .\courses\media_fetch.py:383
+msgid "That image's dimensions are too large."
+msgstr ""
+
+#: .\courses\media_fetch.py:387
+msgid "That URL did not return a usable image."
+msgstr ""
+
+#: .\courses\media_fetch.py:430
+msgid "The fetched file is empty."
+msgstr ""
+
+#: .\courses\models.py:192 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr ""
 
-#: .\courses\models.py:192
+#: .\courses\models.py:193
 msgid "Chapter"
 msgstr ""
 
-#: .\courses\models.py:193
+#: .\courses\models.py:194
 msgid "Section"
 msgstr ""
 
-#: .\courses\models.py:194 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:195 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr ""
 
-#: .\courses\models.py:197 .\templates\courses\manage\_add_affordance.html:23
+#: .\courses\models.py:198 .\templates\courses\manage\_add_affordance.html:23
 #: .\templates\courses\manage\editor\editor.html:94
 msgid "Lesson"
 msgstr ""
 
-#: .\courses\models.py:198 .\courses\rollups.py:180
+#: .\courses\models.py:199 .\courses\rollups.py:180
 #: .\templates\courses\manage\_add_affordance.html:26
 #: .\templates\courses\manage\editor\editor.html:97
 msgid "Quiz"
 msgstr ""
 
-#: .\courses\models.py:492
+#: .\courses\models.py:493
 msgid "Example"
 msgstr ""
 
-#: .\courses\models.py:493 .\notes\forms.py:11
+#: .\courses\models.py:494 .\notes\forms.py:11
 msgid "Note"
 msgstr ""
 
-#: .\courses\models.py:494
+#: .\courses\models.py:495
 msgid "Tip"
 msgstr ""
 
-#: .\courses\models.py:497
+#: .\courses\models.py:498
 msgid "Important"
 msgstr ""
 
-#: .\courses\models.py:498
+#: .\courses\models.py:499
 msgid "Task"
 msgstr ""
 
-#: .\courses\models.py:777
+#: .\courses\models.py:778
 msgid "Generated"
 msgstr ""
 
-#: .\courses\models.py:778
+#: .\courses\models.py:779
 msgid "Skipped"
 msgstr ""
 
-#: .\courses\models.py:779
+#: .\courses\models.py:780
 msgid "Failed"
 msgstr ""
 
-#: .\courses\models.py:844 .\courses\models.py:1142
+#: .\courses\models.py:865 .\courses\models.py:1180
 msgid "Small"
 msgstr ""
 
-#: .\courses\models.py:845 .\courses\models.py:1143
+#: .\courses\models.py:866 .\courses\models.py:1181
 msgid "Medium"
 msgstr ""
 
-#: .\courses\models.py:846 .\courses\models.py:1144
+#: .\courses\models.py:867 .\courses\models.py:1182
 msgid "Large"
 msgstr ""
 
-#: .\courses\models.py:853 .\courses\models.py:1148
+#: .\courses\models.py:874 .\courses\models.py:1186
 msgctxt "image size"
 msgid "Full"
 msgstr ""
 
-#: .\courses\models.py:1752
+#: .\courses\models.py:1790
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr ""
 
-#: .\courses\models.py:1753
+#: .\courses\models.py:1791
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr ""
 
-#: .\courses\models.py:1762
+#: .\courses\models.py:1800
 msgctxt "tabs label position"
 msgid "Above"
 msgstr ""
 
-#: .\courses\models.py:1763
+#: .\courses\models.py:1801
 msgctxt "tabs label position"
 msgid "Below"
 msgstr ""
 
-#: .\courses\models.py:1764
+#: .\courses\models.py:1802
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr ""
 
-#: .\courses\models.py:2093 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:2131 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:2094
+#: .\courses\models.py:2132
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:2095
+#: .\courses\models.py:2133
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:2226
+#: .\courses\models.py:2264
 msgid "your answer, correct"
 msgstr ""
 
-#: .\courses\models.py:2227
+#: .\courses\models.py:2265
 msgid "your answer, incorrect"
 msgstr ""
 
-#: .\courses\models.py:2228
+#: .\courses\models.py:2266
 msgid "correct answer, not chosen"
 msgstr ""
 
-#: .\courses\models.py:2897
+#: .\courses\models.py:2935
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:2899
+#: .\courses\models.py:2937
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:2904
+#: .\courses\models.py:2942
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:2975
+#: .\courses\models.py:3013
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:2976
+#: .\courses\models.py:3014
 msgid "Submitted"
 msgstr ""
 
@@ -1027,7 +1080,7 @@ msgid "Table"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:41
-#: .\courses\views_manage.py:1969 .\templates\courses\lesson_unit.html:82
+#: .\courses\views_manage.py:1969 .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\_add_menu.html:36
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
@@ -1035,7 +1088,7 @@ msgid "Gallery"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:42
-#: .\courses\views_manage.py:1970 .\templates\courses\lesson_unit.html:86
+#: .\courses\views_manage.py:1970 .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\_add_menu.html:38
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
@@ -2223,14 +2276,29 @@ msgstr ""
 msgid "Media entry '%(v)s' is not referenced by any element."
 msgstr ""
 
-#: .\courses\validators.py:103
-#, python-format
-msgid "Image file too large (max %(mib)d MiB)."
-msgstr ""
-
-#: .\courses\validators.py:113
+#: .\courses\validators.py:114
 #, python-format
 msgid "Video file too large (max %(mib)d MiB)."
+msgstr ""
+
+#: .\courses\validators.py:144
+msgid "Enter an image URL."
+msgstr ""
+
+#: .\courses\validators.py:150
+msgid "That URL is too long (maximum 500 characters)."
+msgstr ""
+
+#: .\courses\validators.py:156
+msgid "That does not look like a valid URL."
+msgstr ""
+
+#: .\courses\validators.py:163
+msgid "Image URLs must use https."
+msgstr ""
+
+#: .\courses\validators.py:168
+msgid "That image host is not on the allow-list."
 msgstr ""
 
 #: .\courses\video_url.py:36
@@ -3045,29 +3113,45 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:7
+#: .\notes\templates\notes\_note_card.html:5
+msgid "My note"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:8
 #, python-format
 msgid "on: %(blk)s"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:11
+#: .\notes\templates\notes\_note_card.html:12
 #: .\notes\templates\notes\_readonly_note_card.html:5
 #, python-format
 msgid "edited %(when)s ago"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:11
+#: .\notes\templates\notes\_note_card.html:12
 #: .\notes\templates\notes\_readonly_note_card.html:5
 #, python-format
 msgid "added %(when)s ago"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:16
+#. Translators: %(date)s is a short date, e.g. 21.08.2026
+#: .\notes\templates\notes\_note_card.html:15
+#, python-format
+msgid "edited %(date)s"
+msgstr ""
+
+#. Translators: %(date)s is a short date, e.g. 21.08.2026
+#: .\notes\templates\notes\_note_card.html:18
+#, python-format
+msgid "added %(date)s"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:24
 #: .\notes\templates\notes\edit_page.html:5
 msgid "Edit note"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:26
+#: .\notes\templates\notes\_note_card.html:34
 msgid "Delete note"
 msgstr ""
 
@@ -3122,7 +3206,7 @@ msgstr ""
 #: .\tags\templates\tags\delete_confirm.html:13
 #: .\templates\courses\manage\_tree_node.html:159
 #: .\templates\courses\manage\editor\_element_row_controls.html:33
-#: .\templates\courses\manage\media\_asset_cell.html:41
+#: .\templates\courses\manage\media\_asset_cell.html:45
 #: .\templates\courses\manage\node_confirm_delete.html:18
 #: .\templates\courses\manage\subject_confirm_delete.html:8
 #: .\templates\courses\manage\subject_list.html:24
@@ -3780,7 +3864,7 @@ msgstr ""
 #: .\templates\courses\manage\builder.html:30
 #: .\templates\courses\manage\course_list.html:27
 #: .\templates\courses\manage\editor\_link_dialog.html:28
-#: .\templates\courses\manage\media\manager.html:42
+#: .\templates\courses\manage\media\manager.html:53
 msgid "Filter"
 msgstr ""
 
@@ -4234,11 +4318,17 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: .\templates\courses\_unit_strip.html:10
+#: .\templates\courses\_unit_strip.html:9
+#: .\templates\courses\manage\analytics_matrix.html:37
+#: .\templates\courses\manage\gradebook_print.html:48
+msgid "Print"
+msgstr ""
+
+#: .\templates\courses\_unit_strip.html:18
 msgid "Edit unit"
 msgstr ""
 
-#: .\templates\courses\_unit_strip.html:10
+#: .\templates\courses\_unit_strip.html:18
 msgid "(opens in a new tab)"
 msgstr ""
 
@@ -4450,7 +4540,7 @@ msgstr ""
 msgid "interactive content"
 msgstr ""
 
-#: .\templates\courses\elements\iframeelement.html:10
+#: .\templates\courses\elements\iframeelement.html:19
 msgid "embedded content"
 msgstr ""
 
@@ -4463,14 +4553,14 @@ msgid "Show next"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 msgid "Previous slide"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 msgid "Next slide"
@@ -4482,77 +4572,77 @@ msgid "Slides"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 #, python-brace-format
 msgid "Slide {n} of {total}"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 msgid "Previous image"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 msgid "Next image"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 #, python-brace-format
 msgid "Go to image {n}"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 #, python-brace-format
 msgid "Image {n} of {total}"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:84
+#: .\templates\courses\lesson_unit.html:85
 #: .\templates\courses\manage\editor\editor.html:217
 #: .\templates\courses\quiz_unit.html:38
 msgid "Enlarge image"
 msgstr "Enlarge image"
 
-#: .\templates\courses\lesson_unit.html:84
+#: .\templates\courses\lesson_unit.html:85
 #: .\templates\courses\manage\editor\editor.html:217
 #: .\templates\courses\quiz_unit.html:38
 msgid "Enlarged image"
 msgstr "Enlarged image"
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Scroll tabs left"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Scroll tabs right"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Carousel"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 #, python-brace-format
 msgid "Go to slide {n}"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "slide"
@@ -5024,11 +5114,6 @@ msgstr ""
 msgid "Excel (.xlsx)"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:37
-#: .\templates\courses\manage\gradebook_print.html:48
-msgid "Print"
-msgstr ""
-
 #: .\templates\courses\manage\analytics_matrix.html:55
 #: .\templates\grouping\allocation_assign.html:27
 #: .\templates\grouping\group_form.html:28
@@ -5301,7 +5386,7 @@ msgid "Button label"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_callout.html:3
-#: .\templates\courses\manage\media\manager.html:23
+#: .\templates\courses\manage\media\manager.html:25
 msgid "Kind"
 msgstr ""
 
@@ -5850,7 +5935,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_image.html:7
 #: .\templates\courses\manage\editor\_edit_video.html:11
 #: .\templates\courses\manage\media\manager.html:3
-#: .\templates\courses\manage\media\manager.html:17
+#: .\templates\courses\manage\media\manager.html:19
 msgid "Media"
 msgstr ""
 
@@ -6498,11 +6583,11 @@ msgstr ""
 msgid "unused"
 msgstr ""
 
-#: .\templates\courses\manage\media\_asset_cell.html:36
+#: .\templates\courses\manage\media\_asset_cell.html:40
 msgid "Replace file"
 msgstr ""
 
-#: .\templates\courses\manage\media\_asset_cell.html:41
+#: .\templates\courses\manage\media\_asset_cell.html:45
 msgid "In use — cannot delete"
 msgstr ""
 
@@ -6512,32 +6597,50 @@ msgid "No media match."
 msgstr ""
 
 #: .\templates\courses\manage\media\_picker.html:6
+#: .\templates\courses\manage\media\manager.html:18
+msgid "Could not fetch that image."
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:8
 msgid "Library"
 msgstr ""
 
-#: .\templates\courses\manage\media\_picker.html:7
-#: .\templates\courses\manage\media\manager.html:29
+#: .\templates\courses\manage\media\_picker.html:9
+#: .\templates\courses\manage\media\manager.html:31
 msgid "Upload"
 msgstr ""
 
 #: .\templates\courses\manage\media\_picker.html:11
+msgid "From URL"
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:16
 msgid "Search images…"
 msgstr ""
 
-#: .\templates\courses\manage\media\_picker.html:11
+#: .\templates\courses\manage\media\_picker.html:16
 msgid "Search videos…"
 msgstr ""
 
-#: .\templates\courses\manage\media\_picker.html:17
+#: .\templates\courses\manage\media\_picker.html:22
 msgid "Upload an image — added and selected."
 msgstr ""
 
-#: .\templates\courses\manage\media\_picker.html:17
+#: .\templates\courses\manage\media\_picker.html:22
 msgid "Upload a video — added and selected."
 msgstr ""
 
-#: .\templates\courses\manage\media\_picker.html:19
+#: .\templates\courses\manage\media\_picker.html:24
 msgid "or drag & drop a file here"
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:28
+msgid "Paste an image URL — fetched, added and selected."
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:30
+#: .\templates\courses\manage\media\manager.html:40
+msgid "Fetch"
 msgstr ""
 
 #: .\templates\courses\manage\media\manager.html:11
@@ -6562,39 +6665,44 @@ msgstr ""
 msgid "Confirm file replacement"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:26
+#: .\templates\courses\manage\media\manager.html:28
 msgid "File"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:27
+#: .\templates\courses\manage\media\manager.html:29
+#: .\templates\courses\manage\media\manager.html:38
 msgid "optional"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:28
+#: .\templates\courses\manage\media\manager.html:30
 msgid "defaults to filename"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:31
+#: .\templates\courses\manage\media\manager.html:36
+msgid "Image URL"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:42
 msgid "Drag & drop files here"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:36
+#: .\templates\courses\manage\media\manager.html:47
 msgid "All types"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:37
+#: .\templates\courses\manage\media\manager.html:48
 msgid "Images"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:38
+#: .\templates\courses\manage\media\manager.html:49
 msgid "Videos"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:41
+#: .\templates\courses\manage\media\manager.html:52
 msgid "Search by name or filename…"
 msgstr ""
 
-#: .\templates\courses\manage\media\manager.html:44
+#: .\templates\courses\manage\media\manager.html:55
 msgid "files"
 msgstr ""
 

@@ -31,6 +31,10 @@
           </ul>
         </details>
       {% else %}<span class="muted">{% trans "unused" %}</span>{% endif %}
+      {% if asset.source_host %}
+        <a class="asset-source" href="{{ asset.source_url }}" title="{{ asset.source_url }}"
+           target="_blank" rel="noopener noreferrer">{{ asset.source_host }}</a>
+      {% endif %}
       <div class="asset-actions">
         <button type="button" class="iconbtn" data-replace-asset="{{ asset.pk }}"
                 aria-label="{% trans 'Replace file' %}" title="{% trans 'Replace file' %}">⇄</button>

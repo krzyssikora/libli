@@ -29,6 +29,13 @@ HTMLEL_SANDBOX_ORIGIN = "http://testserver"
 # with override_settings(GEOGEBRA_API_LOOKUP=True).
 GEOGEBRA_API_LOOKUP = False
 
+# REPLACES the production list rather than extending it -- with the Wikimedia hosts
+# still present, a unit test whose transport mock failed to intercept could reach the
+# real network. Both spellings: pytest-django resolves live_server to "localhost" by
+# default, and 127.0.0.1 is listed so a --liveserver override does not break the e2e.
+ALLOWED_IMAGE_FETCH_DOMAINS = ["localhost", "127.0.0.1"]
+ALLOW_HTTP_IMAGE_FETCH = True
+
 # --- optional: run against the disposable tuned server (docker-compose.test.yml) ---
 # Unset, everything below is a no-op and behaviour is identical to before.
 # See docs/development/testing.md.

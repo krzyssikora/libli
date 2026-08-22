@@ -105,7 +105,16 @@ def truncate_filename(name, limit=255):
     return base[:limit]
 
 
-def create_asset(course, kind, uploaded_file, user, name="", generate=True):
+def create_asset(
+    course,
+    kind,
+    uploaded_file,
+    user,
+    name="",
+    generate=True,
+    source_url="",
+    content_hash="",
+):
     """Create a MediaAsset and, by default, generate its image derivatives.
 
     `generate=False` is for bulk paths (the transfer importer) that must not
@@ -121,6 +130,11 @@ def create_asset(course, kind, uploaded_file, user, name="", generate=True):
         original_filename=truncate_filename(uploaded_file.name),
         name=(name or "").strip()[:255],
         uploaded_by=user,
+        # Set BEFORE full_clean() so the model stays the single validation authority.
+        # Both default to "" so every existing caller -- including the transfer
+        # importer's generate=False path -- behaves exactly as before.
+        source_url=source_url,
+        content_hash=content_hash,
     )
     asset.full_clean()  # per-kind extension + size validators (ValidationError -> 422)
     asset.save()
@@ -195,6 +209,9 @@ def replace_asset(asset, uploaded_file):
     asset.file = uploaded_file
     asset.original_filename = truncate_filename(uploaded_file.name)
     asset.content_hash = ""  # a STALE hash would mis-dedup a later LAL import
+    # Same class of defect, one step worse: the cell's source link would actively
+    # assert a provenance that no longer describes the stored bytes.
+    asset.source_url = ""
     # Validate exactly what this writes. `uploaded_by` is the load-bearing
     # exclusion: null=True WITHOUT blank=True, so clean_fields() raises "This
     # field cannot be blank." for every LAL-imported / migrated / seeded row.
@@ -205,7 +222,9 @@ def replace_asset(asset, uploaded_file):
     # `exclude` and still branches on the untouched self.kind, which is where
     # the per-kind extension/size validation lives.
     asset.full_clean(exclude=["course", "kind", "name", "uploaded_by"])
-    asset.save(update_fields=["file", "original_filename", "content_hash"])
+    asset.save(
+        update_fields=["file", "original_filename", "content_hash", "source_url"]
+    )
 
     # Computed HERE, not inside the except block below. asset.file.name is
     # already committed and nothing between here and the except block ever

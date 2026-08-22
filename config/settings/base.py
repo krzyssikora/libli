@@ -198,6 +198,22 @@ ALLOWED_EMBED_DOMAINS = env.list(
     ],
 )
 
+# Hosts this server will CONNECT TO to fetch an image. Deliberately separate from
+# ALLOWED_EMBED_DOMAINS: that list authorises what a browser may load in an iframe,
+# this one authorises server-side egress, and conflating them would silently widen
+# a privilege. NOTE: the allow-list is the ONLY SSRF defence -- there is no IP-range
+# check behind it, and the match accepts every subdomain, so each entry must be a
+# host whose ENTIRE subdomain tree is trusted (never s3.amazonaws.com, github.io, a
+# shared CDN, ...).
+ALLOWED_IMAGE_FETCH_DOMAINS = env.list(
+    "LIBLI_ALLOWED_IMAGE_FETCH_DOMAINS",
+    default=["upload.wikimedia.org", "commons.wikimedia.org"],
+)
+# Test-only escape hatch: pytest-django's live_server speaks plain http, so an
+# https-only rule would make a real end-to-end fetch test impossible. Default OFF,
+# and that default is itself asserted by a test.
+ALLOW_HTTP_IMAGE_FETCH = env.bool("LIBLI_ALLOW_HTTP_IMAGE_FETCH", default=False)
+
 # Absolute origin (scheme+host, no trailing slash) baked into the HTML-element
 # sandbox CSP + <base href>. Trusted/configured — never derived from request Host.
 HTMLEL_SANDBOX_ORIGIN = env(
