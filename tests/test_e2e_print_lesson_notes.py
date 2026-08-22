@@ -237,46 +237,59 @@ def test_label_and_date_print_and_are_absent_on_screen(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_blocks_are_not_dimmed_or_ringed_in_print(page, live_server):
-    """Outlines survive the strip-backgrounds default, so a focused block would
-    print visibly ringed. Both rules are (0,2,0)."""
-    # TWO blocks: applyHighlight (notes.js:434) dims only blocks OTHER than the
-    # target, so a single-block fixture is never .is-dimmed and the opacity
-    # assertion could not fail.
+    """A dimmed or ringed block must not print that way.
+
+    The state is injected AFTER print media is entered, and both halves of that
+    are deliberate.
+
+    Injected rather than gestured: notes.js applies these classes on hover and
+    focus and clears them on mouseout (:467) and focusout (:500), and both fire
+    easily around the print lifecycle -- opening the panels shifts layout under a
+    stationary cursor, and a headless browser does not hold document focus the
+    way a real one does. Measured, a focus-driven fixture passed locally and
+    failed on CI for exactly that reason.
+
+    AFTER emulate_media rather than before: notes.js's own highlight bookkeeping
+    (clearHighlight/applyHighlight, :410-434) can re-run while the enter path
+    opens panels and move the classes to a different block -- measured, an
+    injection placed before the media switch had is-dimmed relocated onto the
+    other block, which silently made every mutant survive. Injecting last leaves
+    no window for that.
+
+    Which state notes.js happens to be in at snapshot time is ITS behaviour. What
+    these print rules must do is neutralise the classes WHEN PRESENT, and that is
+    what is asserted.
+    """
     course, unit, student, _ = _lesson_with_note("e2e-pn-dim", elements=2)
     _open(page, live_server, course, unit, student)
 
-    # FOCUS, not hover, and the distinction is not stylistic. Measured: hovering
-    # the handle does apply the classes, but dispatching beforeprint then opens
-    # the panels, the layout shifts under the stationary cursor, mouseout fires
-    # and notes.js clears BOTH classes -- so a hover-based fixture asserts on a
-    # state that no longer exists. Focus survives a layout shift, and it is also
-    # the case the design actually names: "a student who clicks a note and then
-    # presses Ctrl+P".
-    #
-    # The card must be reachable to focus, so its panel is opened by hand first;
-    # notes.js:64-71 gives every .note-card a tabindex.
-    page.locator(".block-notes__handle").first.click()
-    page.wait_for_selector(".note-card", state="visible")
-    page.locator(".note-card").first.focus()
-    page.wait_for_function(
-        "() => document.querySelector('.lesson-block.is-dimmed') !== null"
-    )
-
     page.evaluate("window.dispatchEvent(new Event('beforeprint'))")
     page.emulate_media(media="print")
+
     state = page.evaluate(
-        "() => { const dim = document.querySelector('.lesson-block.is-dimmed');"
-        "        const hi = document.querySelector('.lesson-block.is-highlighted');"
-        "        if (!dim || !hi) return { missing: true };"
-        "        return { dimOpacity: getComputedStyle(dim).opacity,"
-        "                 hiOutline: getComputedStyle(hi).outlineStyle }; }"
+        "() => { const bs = document.querySelectorAll('.lesson-block');"
+        "        bs[0].classList.add('is-highlighted');"
+        "        bs[1].classList.add('is-dimmed');"
+        "        const card = bs[0].querySelector('.note-card');"
+        "        card.classList.add('is-highlighted');"
+        "        return { dimClass: bs[1].className,"
+        "                 dimOpacity: getComputedStyle(bs[1]).opacity,"
+        "                 hiOutline: getComputedStyle(bs[0]).outlineStyle,"
+        "                 cardRail: getComputedStyle(card).borderLeftWidth }; }"
     )
-    assert not state.get("missing"), (
-        "the highlight state was cleared before the print snapshot -- the fixture "
-        "is asserting on a state that no longer exists"
+    # Guard the fixture itself: if notes.js has moved the class off this block,
+    # the measurements below would be meaningless and every mutant would survive.
+    assert "is-dimmed" in state["dimClass"], (
+        f"the injected class did not stick: {state}"
     )
     assert float(state["dimOpacity"]) == 1.0, f"other block printed dimmed: {state}"
-    assert state["hiOutline"] == "none", f"focused block printed ringed: {state}"
+    assert state["hiOutline"] == "none", f"highlighted block printed ringed: {state}"
+    # applyHighlight stamps is-highlighted on the CARD too (notes.js:445-449),
+    # and notes.css:292 gives that a 6px rail -- borders survive the
+    # strip-backgrounds default, so it would print fatter than every sibling.
+    assert state["cardRail"] == "4px", (
+        f"highlighted card printed a {state['cardRail']} rail, not 4px: {state}"
+    )
 
 
 @pytest.mark.django_db(transaction=True)
