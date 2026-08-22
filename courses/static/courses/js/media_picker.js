@@ -141,6 +141,20 @@
         e.preventDefault();
         selectAsset(assetBtn.getAttribute("data-asset-id"), assetBtn.getAttribute("data-name"), assetBtn.getAttribute("data-url"));
       }
+      var fetchBtn = e.target.closest("[data-picker-fetch]");
+      if (fetchBtn && overlay.contains(fetchBtn)) {
+        var box = overlay.querySelector("[data-picker-url]");
+        fetchPickerUrl(box ? box.value.trim() : "");
+        return;
+      }
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (!overlay || e.key !== "Enter") return;
+      var box = e.target.closest("[data-picker-url]");
+      if (!box || !overlay.contains(box)) return;
+      e.preventDefault();
+      fetchPickerUrl(box.value.trim());
     });
 
     // Upload a chosen/dropped file -> POST -> auto-select. Shared by the file input
@@ -166,6 +180,61 @@
           var cell = tmp.querySelector("[data-asset-id]");
           if (cell) selectAsset(cell.getAttribute("data-asset-id"), cell.getAttribute("data-name"), cell.getAttribute("data-url"));
         });
+    }
+
+    // From URL tab: fetch a hosted image by URL -> auto-select.
+    // In-flight guard as a FLAG, not just a disabled button: the panel has a SECOND
+    // activation route (Enter on [data-picker-url]) that never touches the button, so
+    // DOM state alone lets two Enter presses create two duplicate assets.
+    var fetchInFlight = false;
+
+    function fetchPickerUrl(url) {
+      var picker = overlay && overlay.querySelector(".picker");
+      if (!picker || !url || fetchInFlight) return;
+      var btn = overlay.querySelector("[data-picker-fetch]");
+      fetchInFlight = true;
+      if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
+      function done() {
+        fetchInFlight = false;
+        if (btn) { btn.disabled = false; btn.removeAttribute("aria-busy"); }
+      }
+      var fd = new FormData();
+      fd.append("url", url);
+      fetch(picker.getAttribute("data-fetch-url"), {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
+        body: fd,
+      }).then(function (r) { return r.text().then(function (t) { return { status: r.status, text: t }; }); })
+        .then(function (res) {
+          var tmp = document.createElement("div"); tmp.innerHTML = res.text.trim();
+          if (res.status !== 200 && res.status !== 201) {
+            // Parse the fragment and flash its TEXT: _op_error.html is a full
+            // <div class="op-error" role="alert">, and flash() sets textContent -- so
+            // passing the raw body shows tags, and innerHTML would nest a second
+            // role="alert" inside the flash's own.
+            var err = tmp.querySelector(".op-error");
+            var card = overlay && overlay.querySelector(".picker-card");  // NOT .picker
+            // Guard like the model does (uploadPickerFile above): the author can close
+            // the picker during a 20s fetch, leaving overlay null, and flash() would then
+            // throw on host.prepend() -- inside the promise chain, before .finally.
+            if (card) {
+              flash(card, (err && err.textContent.trim()) ||
+                          msg(picker, "fetch-failed", "Could not fetch that image."));
+            }
+            return;
+          }
+          var cell = tmp.querySelector("[data-asset-id]");
+          if (cell) selectAsset(cell.getAttribute("data-asset-id"),
+                               cell.getAttribute("data-name"),
+                               cell.getAttribute("data-url"));
+        })
+        .catch(function () {
+          // The THIRD outcome. uploadPickerFile has no .catch at all, so without this
+          // a network drop leaves the button disabled for the life of the page.
+          var card = overlay && overlay.querySelector(".picker-card");
+          if (card) flash(card, msg(picker, "fetch-failed", "Could not fetch that image."));
+        })
+        .finally(done);
     }
 
     // Upload tab: a file chosen via the file input -> upload.
@@ -284,6 +353,42 @@
           if (res.status === 200 || res.status === 201) { insertCell(res.text); form.reset(); }
           else flash(root, "Upload failed.");
         });
+      });
+    }
+
+    // Fetch-by-URL form: not generic with .media-upload above (that one early-returns
+    // unless a file input has files, and builds a FormData carrying file + kind).
+    var fetchForm = root.querySelector(".media-fetch");
+    if (fetchForm) {
+      var mgrInFlight = false;
+      fetchForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (mgrInFlight) return;
+        var btn = fetchForm.querySelector("[data-fetch-submit]");
+        mgrInFlight = true;
+        if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }
+        var fd = new FormData(fetchForm);
+        fetch(root.dataset.fetchUrl, {
+          method: "POST",
+          headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
+          body: fd,
+        }).then(function (r) { return r.text().then(function (t) { return { status: r.status, text: t }; }); })
+          .then(function (res) {
+            var tmp = document.createElement("div"); tmp.innerHTML = res.text.trim();
+            if (res.status === 200 || res.status === 201) {
+              insertCell(res.text);
+              fetchForm.reset();   // else the URL stays and one more click duplicates
+              return;
+            }
+            var err = tmp.querySelector(".op-error");
+            flash(root, (err && err.textContent.trim()) ||
+                        msg(root, "fetch-failed", "Could not fetch that image."));
+          })
+          .catch(function () { flash(root, msg(root, "fetch-failed", "Could not fetch that image.")); })
+          .finally(function () {
+            mgrInFlight = false;
+            if (btn) { btn.disabled = false; btn.removeAttribute("aria-busy"); }
+          });
       });
     }
 
