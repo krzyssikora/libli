@@ -1047,6 +1047,9 @@ def test_a_fourth_redirect_is_too_many(monkeypatch):
         ("https://evil.com/x.png", "not on the allow-list"),
         ("http://upload.wikimedia.org/x.png", "not on the allow-list"),  # downgrade
         ("", "invalid redirect"),
+        # A Location that makes urljoin/urlsplit raise ValueError -- without the guard
+        # this escapes the HTTPError handler and becomes a 500, not a 422.
+        ("//[bad", "invalid redirect"),
     ],
 )
 def test_bad_redirect_targets(monkeypatch, location, fragment):
@@ -1218,7 +1221,21 @@ def _fetch(submitted_url, deadline, max_bytes):
                         _("The image host returned an invalid redirect."),
                         code="redirect-invalid",
                     )
-                target = urljoin(current_url, location)
+                try:
+                    target = urljoin(current_url, location)
+                    target_host = urlsplit(target).hostname or ""
+                except ValueError as bad:
+                    # MEASURED: urljoin(..., "//[bad") raises ValueError("Invalid IPv6
+                    # URL"), and so does urlsplit on such a target. Both sites sit
+                    # inside the `except HTTPError` handler, so the sibling
+                    # (TimeoutError, URLError, OSError) clause does NOT catch them --
+                    # the ValueError would reach _run's broad handler, be re-raised
+                    # unchanged, and surface as a 500 rather than the 422 the error
+                    # table promises. Same guard MediaAsset.source_host already uses.
+                    raise ValidationError(
+                        _("The image host returned an invalid redirect."),
+                        code="redirect-invalid",
+                    ) from bad
                 try:
                     current_url = validate_fetch_url(target)
                 except ValidationError as inner:
@@ -1228,7 +1245,7 @@ def _fetch(submitted_url, deadline, max_bytes):
                     raise ValidationError(
                         _REDIRECT_OFF_ALLOWLIST,
                         code="redirect-off-allowlist",
-                        params={"target_host": urlsplit(target).hostname or ""},
+                        params={"target_host": target_host},
                     ) from inner
             finally:
                 try:
@@ -1998,10 +2015,11 @@ def test_budget_is_checked_between_redirect_hops(monkeypatch):
     """
     import urllib.error
 
-    # Ratio chosen so a SECOND hop cannot start before the deadline even under xdist
-    # load: one hop consumes 0.4s against a 0.5s budget, leaving no room for another.
-    # A 0.2s-per-hop / 0.3s-budget pair leaves only ~0.1s of headroom, which Windows
-    # sleep granularity can eat -- reddening a correct build intermittently.
+    # Build the fixtures BEFORE the clock: CourseFactory + UserFactory + the two
+    # effective_* reads cost 57.7ms on the first call and 25-26ms after (MEASURED
+    # against the test DB), which would otherwise eat the margin below.
+    course, user = CourseFactory(), UserFactory()
+
     monkeypatch.setattr(media_fetch, "DEADLINE_SECONDS", 0.5)
     started = []
 
@@ -2013,18 +2031,20 @@ def test_budget_is_checked_between_redirect_hops(monkeypatch):
         )
 
     monkeypatch.setattr(media_fetch, "_open", slow_redirect)
-    t0 = time.monotonic()
     with pytest.raises(ValidationError) as exc:
-        media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
+        media_fetch.fetch_image_asset(course, URL, user)
     assert "took too long" in "; ".join(exc.value.messages)
 
-    # Give the daemon thread a moment to make any further (forbidden) calls.
+    # Give the daemon thread time to make any further (forbidden) calls.
     time.sleep(0.5)
     assert started, "the worker never issued a request"
-    # No hop may START after the deadline instant. Without the top-of-loop check the
-    # worker fires all four hops and this fails.
-    assert max(started) < t0 + 0.5, f"a hop started past the deadline: {started}"
-    assert len(started) <= 2
+    # COUNT, not a wall-clock bound. A second hop legitimately starts on a correct
+    # build -- _remaining only raises at left <= 0, so with ~0.098s of budget left the
+    # loop takes another turn -- which is why <= 2 is the correct bound and why an
+    # earlier `max(started) < t0 + 0.5` assertion had only ~40ms of headroom and could
+    # redden a CORRECT build under load. On the mutant the worker has started hops at
+    # ~0, 0.4 and 0.8s by this point, so len(started) == 3 and this goes RED.
+    assert len(started) <= 2, f"the worker kept issuing hops past the deadline: {started}"
 ```
 
 - [ ] **Step 2: Run.** Expected: PASS (production code from T4–T5 already implements this).
@@ -2868,8 +2888,14 @@ def test_picker_enter_key_fetches(page, live_server, ...):
     page.fill("[data-picker-url]", fixture_url(live_server))
     page.locator("[data-picker-url]").press("Enter")      # NO button click
     page.wait_for_selector(".picker-overlay", state="detached")
-    # selectAsset ran: the element's media select now carries the fetched asset
-    assert page.locator("select[name=media] option:checked").count() == 1
+    # Assert the select's VALUE, not an option count. ImageElementForm.media is a
+    # ModelChoiceField that keeps its empty_label (required is flipped to True in
+    # __init__, AFTER the field is built, and initial is None), so _edit_image.html
+    # always renders <option value="">---------</option> and there is ALWAYS exactly
+    # one :checked option -- before the fetch and after it. A count assertion is 1 on
+    # every build, including one where selectAsset never ran.
+    # tests/test_e2e_media_picker.py:87-88 does it this way.
+    assert page.locator("[data-edit-slot] select[name=media]").input_value() != ""
 
 
 @pytest.mark.django_db(transaction=True)
