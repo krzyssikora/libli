@@ -45,7 +45,12 @@ def _absolute_url(path):
 
 
 def resolve_pa_recipients():
-    """Active PA-Group members with an email. The automatic half."""
+    """Active PA-Group members with an email. The automatic half.
+
+    Superusers outside that Group are deliberately excluded — they can report,
+    but do not receive reports (mirrors
+    accounts.services.is_last_active_platform_admin).
+    """
     return list(
         User.objects.filter(is_active=True, groups__name=PLATFORM_ADMIN)
         .exclude(email__isnull=True)

@@ -1,0 +1,63 @@
+{% load i18n %}
+<dialog id="report-dialog" class="report-dialog" aria-labelledby="report-dialog-title">
+  <form method="post" action="{% url 'support:report_create' %}"
+        enctype="multipart/form-data" data-report-form>
+    {% csrf_token %}
+    <h2 id="report-dialog-title">{% trans "Report an issue" %}</h2>
+
+    <p class="report-dialog__banner" data-report-banner hidden></p>
+
+    <label for="report-description">{% trans "What went wrong?" %}</label>
+    <textarea id="report-description" name="description" rows="5" required
+              maxlength="{{ report_description_max }}"
+              data-report-description></textarea>
+    <p class="report-dialog__counter" data-report-counter></p>
+    <p class="report-dialog__error" data-error-for="description" hidden></p>
+
+    <label for="report-screenshot">{% trans "Screenshot (optional)" %}</label>
+    <input type="file" id="report-screenshot" name="screenshot"
+           accept="image/png,image/jpeg,image/gif,image/webp" data-report-file>
+    <p class="report-dialog__hint">
+      {% trans "You can paste an image straight from the clipboard." %}
+    </p>
+
+    {% comment %}Client-side strings are server-rendered into data- attributes so
+    Task 12's `makemessages -l pl -a` picks them up. Hard-coding them in the JS
+    would bypass i18n entirely — `makemessages` without `-d djangojs` never reads
+    .js files — and a `lang === "pl"` ternary in JS cannot scale past two
+    languages.{% endcomment %}
+    <span hidden
+      data-msg-generic="{% trans 'Something went wrong. Please try again.' %}"
+      data-msg-badimage="{% trans 'That image format is not supported.' %}"
+      data-login-url="{% url 'account_login' %}"
+      data-msg-login="{% trans 'Log in again' %}"></span>
+    <p class="report-dialog__error" data-error-for="screenshot" hidden></p>
+
+    {% comment %}Hidden telemetry inputs live INSIDE the form so new FormData(form)
+    carries them along with the CSRF token. Building the payload field-by-field in
+    JS would omit the token and 403 every submission.{% endcomment %}
+    <input type="hidden" name="page_url" data-tel="page_url">
+    <input type="hidden" name="page_title" data-tel="page_title">
+    <input type="hidden" name="viewport_w" data-tel="viewport_w">
+    <input type="hidden" name="viewport_h" data-tel="viewport_h">
+    <input type="hidden" name="screen_w" data-tel="screen_w">
+    <input type="hidden" name="screen_h" data-tel="screen_h">
+    <input type="hidden" name="dpr" data-tel="dpr">
+    <input type="hidden" name="timezone" data-tel="timezone">
+    <input type="hidden" name="theme" data-tel="theme">
+    <input type="hidden" name="ui_language" data-tel="ui_language">
+
+    <details class="report-dialog__disclosure">
+      <summary>{% trans "What will be sent" %}</summary>
+      <dl data-report-preview></dl>
+      <p>
+        {% trans "We also record your name and email address, your role, your browser identification and language, and the time." %}
+      </p>
+    </details>
+
+    <div class="report-dialog__actions">
+      <button type="button" data-report-cancel>{% trans "Cancel" %}</button>
+      <button type="submit">{% trans "Send report" %}</button>
+    </div>
+  </form>
+</dialog>

@@ -1,2 +1,24 @@
 /* Grants kept only by the roster union: present, checked, visibly explained. */
 label:has([data-out-of-roster]) { color: var(--text-secondary); }
+
+.report-dialog {
+  /* <dialog> renders in the top layer and does NOT inherit the page theme here,
+     so every colour is set explicitly from the tokens rather than inherited. */
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 1.25rem;
+  max-width: min(36rem, calc(100vw - 2rem));
+  width: 100%;
+}
+.report-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+.report-dialog textarea { width: 100%; }
+.report-dialog__counter { color: var(--text-secondary); font-size: 0.875rem; }
+.report-dialog__error { color: var(--danger); }
+.report-dialog__banner {
+  border: 1px solid var(--border-default);
+  padding: 0.5rem 0.75rem;
+}
+.report-dialog__hint { color: var(--text-secondary); font-size: 0.875rem; }
+.report-dialog__actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
