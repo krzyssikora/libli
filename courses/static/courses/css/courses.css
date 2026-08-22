@@ -113,6 +113,55 @@ blockquote {
 .embed-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; }
 .embed-frame > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
+/* Width bounds for an embed whose size we know. THREE of them, smallest wins:
+
+   1. 100%      — never overflow the column (must stay FIRST in the min(); every
+                  other bound is free to exceed the column and this is what stops it).
+   2. --embed-w — never enlarge past the size the embed was authored at. Matches how
+                  images already behave, though by a different mechanism: an <img>
+                  defaults to `width: auto`, which resolves to its INTRINSIC width, so
+                  reset.css's `max-width: 100%` only ever shrinks it to the column.
+                  An iframe has no intrinsic size and defaults to 300x150, so the pair
+                  captured from the embed code / API lookup has to stand in for one.
+   3. the dvh   — never grow taller than the window. This is the bound that fixes a
+      bound       PORTRAIT embed: at the 648px column a 450x780 applet was 1123px
+                  tall, and 1512px in the 872px collapsed column. Expressed as a
+                  WIDTH so the aspect-ratio above still derives the height -- a
+                  max-height would clamp the box and squash the absolutely-positioned
+                  iframe inside it instead of scaling the frame.
+
+   dvh not vh, for the reason spelled out at the image presets (:53).
+
+   max(320px, ...) is a floor on the dvh bound only: below roughly a phone's width a
+   GeoGebra applet's sliders and buttons stop being operable, so a portrait embed on
+   a phone held sideways scrolls rather than shrinking into uselessness. It cannot
+   push the frame past the column or past its natural size -- both of those bounds
+   are outside the max().
+
+   Gated on --sized rather than on var() fallbacks: with no dimensions there is no
+   honest natural width, and `min(100%, var(--embed-w, <anything>) * 1px, ...)` would
+   either collapse the frame or need a sentinel that reads as a real number.
+
+   This block MUST stay after `.embed-frame` (:113): the two selectors TIE at (0,1,0),
+   so `width` here beats the `width: 100%` there on source order alone. Same trap the
+   image presets carry at :58. */
+.embed-frame--sized {
+  width: min(
+    100%,
+    calc(var(--embed-w) * 1px),
+    max(320px, calc(85dvh * var(--embed-w) / var(--embed-h)))
+  );
+  margin-inline: auto;
+}
+
+/* dvh is meaningless on paper — same trap as the image presets' print block at :103,
+   and it MUST likewise stay after the rule it overrides, since a media query adds no
+   specificity. Dropping the viewport bound leaves the column and natural-size bounds,
+   which are the two that still mean something in print. */
+@media print {
+  .embed-frame--sized { width: min(100%, calc(var(--embed-w) * 1px)); }
+}
+
 /* Sandboxed HTML element (1b-iii) */
 .html-el {
   position: relative;
