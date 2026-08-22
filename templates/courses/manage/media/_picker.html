@@ -1,10 +1,15 @@
 {% load i18n %}
 <div class="picker" data-kind="{{ kind }}"
      data-upload-url="{% url 'courses:manage_media_upload' slug=course.slug %}"
-     data-search-url="{% url 'courses:manage_media_picker' slug=course.slug %}">
+     data-search-url="{% url 'courses:manage_media_picker' slug=course.slug %}"
+     data-fetch-url="{% url 'courses:manage_media_fetch' slug=course.slug %}"
+     data-msg-fetch-failed="{% trans 'Could not fetch that image.' %}">
   <div class="picker__tabs">
     <button type="button" class="picker__tab is-on" data-tab="library">{% trans "Library" %}</button>
     <button type="button" class="picker__tab" data-tab="upload">{% trans "Upload" %}</button>
+    {% if kind == "image" %}
+      <button type="button" class="picker__tab" data-tab="fetch">{% trans "From URL" %}</button>
+    {% endif %}
   </div>
   <div class="picker__panel" data-panel="library">
     <label class="search"><input type="search" class="input" data-picker-search
@@ -18,4 +23,11 @@
     <input type="file" class="picker__file" data-kind="{{ kind }}">
     <div class="picker__drop" data-picker-drop>{% trans "or drag & drop a file here" %}</div>
   </div>
+  {% if kind == "image" %}
+    <div class="picker__panel" data-panel="fetch" hidden>
+      <p class="muted">{% trans "Paste an image URL — fetched, added and selected." %}</p>
+      <input type="url" class="input" data-picker-url placeholder="https://…">
+      <button type="button" class="btn" data-picker-fetch>{% trans "Fetch" %}</button>
+    </div>
+  {% endif %}
 </div>
