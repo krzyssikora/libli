@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -8,6 +9,10 @@ from django.views.decorators.http import require_POST
 
 from courses import media as media_svc
 from courses.element_forms import MediaAssetForm
+
+# NOT `from courses import media_fetch` -- the module and the view share a name,
+# and `def media_fetch` would rebind it at import.
+from courses.media_fetch import fetch_image_asset
 from courses.models import MediaAsset
 from courses.views_manage import _require_manage
 from courses.views_manage import _wants_fragment
@@ -82,6 +87,36 @@ def media_rename(request, slug):
             status=422,
         )
     media_svc.rename_asset(asset, name)
+    if not _wants_fragment(request):
+        return redirect("courses:manage_media", slug=course.slug)
+    media_svc.attach_usage(asset)
+    return render(
+        request,
+        "courses/manage/media/_asset_cell.html",
+        {"course": course, "asset": asset},
+    )
+
+
+@require_POST  # above @login_required: a non-POST is a 405 regardless of auth
+@login_required
+def media_fetch(request, slug):
+    course = _require_manage(request, slug)
+    try:
+        asset = fetch_image_asset(
+            course,
+            request.POST.get("url") or "",  # .get, never bracket access
+            request.user,
+            name=(request.POST.get("name") or "").strip(),
+        )
+    except ValidationError as e:
+        msg = "; ".join(e.messages)  # not str(e) -- error_dict repr
+        if not _wants_fragment(request):
+            # media_upload redirects SILENTLY on this path; this improves on it.
+            messages.error(request, msg)
+            return redirect("courses:manage_media", slug=course.slug)
+        return render(
+            request, "courses/manage/_op_error.html", {"message": msg}, status=422
+        )
     if not _wants_fragment(request):
         return redirect("courses:manage_media", slug=course.slug)
     media_svc.attach_usage(asset)
