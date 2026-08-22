@@ -2,12 +2,14 @@
 
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core.validators import EmailValidator
 from django.db.models import Q
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
 from institution.roles import PLATFORM_ADMIN
 from support.constants import DESCRIPTION_MAX_LENGTH
+from support.constants import EXTRA_EMAILS_MAX
 from support.constants import PAGE_TITLE_MAX_LENGTH
 from support.constants import PAGE_URL_MAX_LENGTH
 from support.models import IssueReport
@@ -110,3 +112,56 @@ class ReporterPickerForm(forms.ModelForm):
         self.fields["extra_reporters"].widget.out_of_roster = set(selected) - set(
             base.values_list("pk", flat=True)
         )
+
+
+class SupportSettingsForm(forms.ModelForm):
+    """Audience + recipient addresses. Carries NO M2M field: _settings_context
+    renders every panel on every settings render, so a per-user roster here would
+    materialise one checkbox per active user on every GET of the Branding tab.
+    The roster lives on its own page (support:reporters)."""
+
+    audience = forms.ChoiceField(
+        choices=SupportSettings.Audience.choices,
+        widget=forms.RadioSelect,
+        label=_("Who can report an issue"),
+    )
+    # Overridden explicitly: left to the ModelForm default a JSONField yields
+    # forms.JSONField, whose textarea expects literal JSON — a field that looks
+    # right and rejects everything a PA types.
+    extra_emails = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 4}),
+        label=_("Also send reports to"),
+        help_text=_(
+            "One address per line. These addresses receive the full report, "
+            "including any attached screenshot, which may contain student data."
+        ),
+    )
+
+    class Meta:
+        model = SupportSettings
+        fields = ["audience", "extra_emails"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            stored = (self.instance.extra_emails or []) if self.instance else []
+            self.initial["extra_emails"] = "\n".join(stored)
+
+    def clean_extra_emails(self):
+        raw = self.cleaned_data.get("extra_emails") or ""
+        validate = EmailValidator()
+        seen, addresses = set(), []
+        for line in raw.splitlines():
+            address = line.strip().lower()
+            if not address:
+                continue
+            validate(address)
+            if address not in seen:
+                seen.add(address)
+                addresses.append(address)
+        if len(addresses) > EXTRA_EMAILS_MAX:
+            raise forms.ValidationError(
+                _("At most %(count)d addresses.") % {"count": EXTRA_EMAILS_MAX}
+            )
+        return addresses

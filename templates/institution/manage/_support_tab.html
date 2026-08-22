@@ -1,0 +1,28 @@
+{% load i18n %}
+<form method="post" action="{% url 'institution:settings_support' %}">
+  {% csrf_token %}
+  <fieldset>
+    <legend>{% trans "Who can report an issue" %}</legend>
+    {{ support.audience }}
+    {{ support.audience.errors }}
+  </fieldset>
+
+  {% comment %}The spec requires this line to NAME the Platform Admins who will be
+  mailed automatically, so "who gets this" is never a guess — a generic sentence
+  does not satisfy it.{% endcomment %}
+  <p class="field-note">
+    {% blocktrans with names=auto_recipients|join:", " %}Platform Admins can always report, and always receive reports: {{ names }}{% endblocktrans %}
+  </p>
+
+  <label for="{{ support.extra_emails.id_for_label }}">{{ support.extra_emails.label }}</label>
+  {{ support.extra_emails }}
+  <p class="field-note field-note--warning">{{ support.extra_emails.help_text }}</p>
+  {{ support.extra_emails.errors }}
+
+  <p>
+    {% blocktrans count counter=extra_reporter_count %}{{ counter }} other person is also allowed.{% plural %}{{ counter }} other people are also allowed.{% endblocktrans %}
+    <a href="{% url 'support:reporters' %}">{% trans "Manage" %}</a>
+  </p>
+
+  <button type="submit">{% trans "Save" %}</button>
+</form>

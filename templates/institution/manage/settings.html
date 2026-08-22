@@ -28,5 +28,8 @@
   <div data-tab="integrations" {% if active_tab != "integrations" %}hidden{% endif %}>
     {% include "institution/manage/_integrations_tab.html" %}
   </div>
+  <div data-tab="support" {% if active_tab != "support" %}hidden{% endif %}>
+    {% include "institution/manage/_support_tab.html" %}
+  </div>
 </section>
 {% endblock %}

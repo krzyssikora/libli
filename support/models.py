@@ -60,8 +60,8 @@ class SupportSettings(models.Model):
     """Single-row (pk=1) config. Modelled on integrations.WebhookEndpoint.
 
     READS on a render path MUST use objects.filter(pk=1).first(), never load():
-    load()'s get_or_create would write a row during a plain GET. Only the two
-    write paths (the Support tab POST and the Allowed reporters POST) use load().
+    load()'s get_or_create would write a row during a plain GET. load() is used
+    by both POST paths and, deliberately, by the Allowed reporters GET too.
     """
 
     class Audience(models.TextChoices):

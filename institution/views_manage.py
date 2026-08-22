@@ -23,8 +23,18 @@ from integrations.delivery import send_test_event
 from integrations.forms import IntegrationsForm
 from integrations.models import WebhookDelivery
 from integrations.models import WebhookEndpoint
+from support.forms import SupportSettingsForm
+from support.models import SupportSettings
 
-TABS = ("branding", "access", "uploads", "sso", "notifications", "integrations")
+TABS = (
+    "branding",
+    "access",
+    "uploads",
+    "sso",
+    "notifications",
+    "integrations",
+    "support",
+)
 
 
 def _active_tab(request):
@@ -43,11 +53,13 @@ def _settings_context(
     sso=None,
     notifications=None,
     integrations=None,
+    support=None,
 ):
-    """Assemble the six-form context. Any bound (errored) form passed in is used as-is;
-    the rest are unbound — the four institution forms seeded from `inst`, the SSO form
-    seeded from the service. The SSO sub-context is built on EVERY render because
-    settings.html renders all six panels (inactive ones just hidden).
+    """Assemble the seven-form context. Any bound (errored) form passed in is used
+    as-is; the rest are unbound — the four institution forms seeded from `inst`,
+    the SSO form seeded from the service. The SSO sub-context is built on EVERY
+    render because settings.html renders all seven panels (inactive ones just
+    hidden).
 
     The integrations form is likewise built on every render (the panel is always
     included, just hidden) but from a READ-ONLY fetch, not `WebhookEndpoint.load()` —
@@ -57,6 +69,20 @@ def _settings_context(
     app = load_sso_app()
     site = get_current_site(request)
     endpoint_ro = WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()
+    support_row = SupportSettings.objects.filter(pk=1).first() or SupportSettings()
+    # Count through the JOIN TABLE, never support_row.extra_reporters.count():
+    # before the first save support_row is unsaved, and an M2M access on an
+    # unsaved instance raises ValueError — 500ing every settings tab on a fresh
+    # install.
+    extra_reporter_count = SupportSettings.extra_reporters.through.objects.filter(
+        supportsettings_id=1
+    ).count()
+    # Named, not merely counted: the panel must show WHICH addresses receive
+    # reports automatically. Reuses the one resolver so the panel and the mailer
+    # can never disagree about who "the Platform Admins" are.
+    from support.emails import resolve_pa_recipients
+
+    auto_recipients = resolve_pa_recipients()
     return {
         "active_tab": active_tab,
         "branding": branding or BrandingForm(instance=inst),
@@ -80,6 +106,9 @@ def _settings_context(
         "recent_deliveries": (
             WebhookDelivery.objects.all()[:20] if active_tab == "integrations" else []
         ),
+        "support": support or SupportSettingsForm(instance=support_row),
+        "extra_reporter_count": extra_reporter_count,
+        "auto_recipients": auto_recipients,
     }
 
 
@@ -227,3 +256,29 @@ def settings_integrations_test(request):
     else:
         messages.error(request, _("Test event failed: %(reason)s") % {"reason": detail})
     return redirect(_index_url("integrations"))
+
+
+@login_required
+@permission_required("support.change_supportsettings", raise_exception=True)
+def settings_support(request):
+    # GET guard first, matching settings_integrations: without it a GET binds an
+    # empty QueryDict and re-renders the settings page covered in validation
+    # errors.
+    if request.method == "GET":
+        return redirect(_index_url("support"))
+    # Bind to a READ-ONLY instance, not load(). load() is get_or_create, which
+    # writes pk=1 before is_valid() is ever called — so an invalid POST would
+    # materialise the singleton, and the two rejection tests below (which assert
+    # count() == 0) would fail against this very view. SupportSettingsForm holds
+    # no M2M, so an unsaved instance is safe here, and save() forces pk=1.
+    row = SupportSettings.objects.filter(pk=1).first() or SupportSettings()
+    form = SupportSettingsForm(request.POST, instance=row)
+    if form.is_valid():
+        form.save()
+        messages.success(request, _("Support settings saved."))
+        return redirect(_index_url("support"))
+    return render(
+        request,
+        "institution/manage/settings.html",
+        _settings_context(request, Institution.load(), "support", support=form),
+    )

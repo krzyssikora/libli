@@ -44,16 +44,20 @@ def _absolute_url(path):
     return f"{scheme}://{domain}{path}"
 
 
-def resolve_recipients():
-    """Active PA-Group members with an email, unioned with extra_emails,
-    de-duplicated case-insensitively. Superusers outside the Group are NOT
-    included, matching accounts.services.is_last_active_platform_admin."""
-    addresses = list(
+def resolve_pa_recipients():
+    """Active PA-Group members with an email. The automatic half."""
+    return list(
         User.objects.filter(is_active=True, groups__name=PLATFORM_ADMIN)
         .exclude(email__isnull=True)
         .exclude(email="")
         .values_list("email", flat=True)
     )
+
+
+def resolve_recipients():
+    """resolve_pa_recipients() unioned with extra_emails, de-duplicated
+    case-insensitively."""
+    addresses = resolve_pa_recipients()
     row = SupportSettings.objects.filter(pk=1).first()
     if row is not None:
         addresses += [a for a in (row.extra_emails or []) if a]
