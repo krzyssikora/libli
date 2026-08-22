@@ -326,15 +326,105 @@ def _log_worker_failure(submitted_url, exc):
     )
 
 
+PILLOW_FORMAT_MAP = {
+    "PNG": ("png",),
+    "JPEG": ("jpg", "jpeg"),
+    # Pillow reports MPO -- not JPEG -- for multi-picture JPEGs, which is what most
+    # phone cameras produce and a large share of real web JPEGs. Omitting it would
+    # reject them as an unknown format.
+    "MPO": ("jpg", "jpeg"),
+    "GIF": ("gif",),
+    "WEBP": ("webp",),
+}
+
+
+def _verify_payload(data):
+    """Return img.format. Rejects anything Pillow cannot open, and over-large canvases.
+
+    Image.open's header sniff is the real format authority; Image.verify() is a no-op
+    on the base class and is overridden by only a few plugins (notably PNG). A
+    TRUNCATED jpeg/gif/webp passes both, is stored, and fails later inside
+    generate_derivatives, which swallows it -- knowingly accepted, so do not write a
+    truncation-rejection test.
+    """
+    from PIL import Image
+
+    try:
+        img = Image.open(BytesIO(data))
+        fmt, size = img.format, img.size
+        # Pixel check BEFORE verify(): PngImageFile.verify() walks chunks and checks
+        # CRCs, so the natural huge-IHDR fixture would be rejected as "not a usable
+        # image" and this test would fail on a CORRECT build.
+        if size[0] * size[1] > MAX_PIXELS:
+            raise ValidationError(
+                _("That image's dimensions are too large."), code="too-many-pixels"
+            )
+        img.verify()
+    except ValidationError:
+        raise
+    except Image.DecompressionBombError as exc:
+        # Its own clause, BEFORE the broad one: Pillow raises this from Image.open
+        # above 2x MAX_IMAGE_PIXELS, i.e. before the size check above can run. Mapping
+        # it here keeps both sides of that boundary reporting the same condition.
+        raise ValidationError(
+            _("That image's dimensions are too large."), code="too-many-pixels"
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 - the view catches only ValidationError
+        raise ValidationError(
+            _("That URL did not return a usable image."), code="not-an-image"
+        ) from exc
+    return fmt
+
+
+def _derive_filename(current_url, fmt, allowed_exts):
+    from courses.validators import SAFE_IMAGE_EXTENSIONS
+
+    candidates = PILLOW_FORMAT_MAP.get(fmt)
+    if not candidates:
+        raise ValidationError(_("That image type is not allowed."), code="format")
+    ext = next((c for c in candidates if c in allowed_exts), None)
+    if ext is None:
+        raise ValidationError(_("That image type is not allowed."), code="format")
+
+    # Unquote FIRST, then basename: taking the basename first leaves "..%2F..%2Fx.png"
+    # intact, which unquotes to "../../x.png" and makes Django's storage raise
+    # SuspiciousFileOperation -- a 500, since only ValidationError is caught.
+    path = unquote(urlsplit(current_url).path)
+    stem = path.rsplit("/", 1)[-1]
+    head, dot, tail = stem.rpartition(".")
+    # Strip against the FIXED safe universe, never effective_image_extensions(): the
+    # latter is intersected with admin config, so under a narrowing to ["jpeg"] a
+    # .jpg path would not be stripped and we would store Foo.jpg.jpeg.
+    if dot and tail.lower() in SAFE_IMAGE_EXTENSIONS:
+        stem = head
+    stem = stem.replace("/", "").replace("\\", "").replace("..", "")
+    stem = "".join(ch for ch in stem if ch.isprintable()).lstrip(".").strip()
+    return truncate_filename(f"{stem or 'image'}.{ext}")
+
+
 def _build_asset(course, user, name, submitted_url, current_url, data, allowed_exts):
-    """Steps 9-13, on the request thread."""
-    if not data:
-        # media_upload gets its empty-file rejection from MediaAssetForm's FileField,
-        # which this path bypasses, and MediaAsset.clean() has no lower size bound --
-        # so without this a 200 + Content-Length: 0 creates a real zero-byte asset.
-        raise ValidationError(_("The fetched file is empty."), code="empty-body")
-    filename = "image.png"  # replaced in Task 7
-    digest = hashlib.sha256(data).hexdigest()  # EXACTLY lal_loader/media.py:33's form
+    # Steps 9-13 run HERE, on the request thread, so they log at their own sites --
+    # the spec's fourth logging bullet. Without these, four enumerated conditions
+    # (empty body, not-a-usable-image, too-many-pixels, unknown format) leave no
+    # operator-visible trace at all.
+    host = urlsplit(submitted_url).hostname
+    try:
+        if not data:
+            # media_upload gets its empty-file rejection from MediaAssetForm's
+            # FileField, which this path bypasses, and MediaAsset.clean() has no
+            # lower size bound -- so without this a 200 + Content-Length: 0 creates a
+            # real zero-byte asset.
+            raise ValidationError(_("The fetched file is empty."), code="empty-body")
+        fmt = _verify_payload(data)
+        filename = _derive_filename(current_url, fmt, allowed_exts)
+    except ValidationError as exc:
+        logger.warning(
+            "image fetch: host=%s reason=%s", host, getattr(exc, "code", None)
+        )
+        raise
+    digest = hashlib.sha256(data).hexdigest()
+    # Written out in full rather than elided: `name=name` in particular is easy to drop
+    # on a re-type, and no test in Tasks 4-8 asserts it.
     return create_asset(
         course,
         "image",
