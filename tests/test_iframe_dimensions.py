@@ -534,3 +534,73 @@ def test_form_non_geogebra_unchanged_url_keeps_its_pair():
     saved = form.save()
     lookup.assert_not_called()
     assert (saved.width, saved.height) == (640, 360)
+
+
+# --- frame_size: the numbers .embed-frame's width bounds are computed from ---
+#
+# Appended at the END of this file on purpose. Inserting these next to the render
+# tests they belong with would shift every line below them, rotting the
+# `tests/test_iframe_dimensions.py:376` citation in
+# docs/superpowers/specs/2026-08-11-geogebra-lookup-followups-design.md.
+
+
+def test_frame_size_and_frame_ratio_cannot_disagree():
+    # frame_ratio is DERIVED from frame_size, so the five ordered steps have one
+    # implementation. Two independent walks of the same steps is exactly the drift
+    # this consolidation exists to prevent -- the badge/ratio pairing in
+    # size_unknown's docstring makes the same argument.
+    el = IframeElement(url=URL, width=800, height=760)
+    assert el.frame_size == (800, 760)
+    assert el.frame_ratio == "800 / 760"
+
+
+def test_frame_size_is_none_when_no_ratio_is_claimed():
+    assert IframeElement(url=OTHER_RENDER_URL).frame_size is None
+    assert IframeElement(url=OTHER_RENDER_URL).frame_ratio is None
+
+
+def test_render_emits_the_width_bound_custom_properties_when_sized():
+    # --embed-w/--embed-h feed the natural-size and viewport bounds in courses.css.
+    # aspect-ratio alone cannot: calc() needs W and H as bare numbers, and the
+    # ratio is a single indivisible <ratio> token.
+    html = _render(800, 760)
+    assert "embed-frame--sized" in html
+    assert "--embed-w: 800" in html
+    assert "--embed-h: 760" in html
+
+
+def test_render_omits_the_modifier_and_properties_when_no_ratio_is_claimed():
+    # THE regression guard on the untouched default path. Without the modifier the
+    # width bounds never apply, so a dimensionless embed keeps its historical
+    # full-width 16:9 geometry. If the modifier leaked onto this branch, the
+    # natural-size bound would resolve against an unset --embed-w and collapse the
+    # frame -- silently, since no other test here measures width.
+    html = _render_url(OTHER_RENDER_URL)
+    assert "embed-frame" in html
+    assert "embed-frame--sized" not in html
+    assert "--embed-w" not in html
+
+
+def test_render_width_bounds_follow_the_url_sized_applet_not_the_stored_pair():
+    # The step-0-vs-step-2 ordering, now measured on the WIDTH BOUND rather than
+    # only the ratio. A build that derived --embed-w from self.width would cap the
+    # frame at 880px around an applet the src renders at 800 -- the frame would
+    # claim a size the src does not back up, in the other axis.
+    html = _render_url(
+        "https://www.geogebra.org/material/iframe/id/abc/width/800/height/400",
+        880,
+        660,
+    )
+    assert "--embed-w: 800" in html
+    assert "--embed-w: 880" not in html
+
+
+def test_render_emits_no_custom_properties_for_the_style_injection_url():
+    # Mirrors test_render_rejects_style_injection_from_the_url for the new
+    # properties: they land in the SAME style attribute, so a build that emitted
+    # them from unvalidated URL segments would reopen the hole that test closed.
+    hostile = (
+        "https://www.geogebra.org/material/iframe/id/abc"
+        "/width/1;position:fixed;top:0;height:100vh/height/1"
+    )
+    assert "--embed-w" not in _render_url(hostile)

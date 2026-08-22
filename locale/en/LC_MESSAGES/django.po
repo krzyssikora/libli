@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-22 15:05+0200\n"
+"POT-Creation-Date: 2026-08-22 17:16+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -787,55 +787,55 @@ msgstr ""
 msgid "The submitted file is empty."
 msgstr ""
 
-#: .\courses\media_fetch.py:47
+#: .\courses\media_fetch.py:55
 msgid "That URL redirects to a host that is not on the allow-list."
 msgstr ""
 
-#: .\courses\media_fetch.py:125 .\courses\media_fetch.py:136
+#: .\courses\media_fetch.py:133 .\courses\media_fetch.py:144
 #, python-format
 msgid "The image host returned an error (status %(status)s)."
 msgstr ""
 
-#: .\courses\media_fetch.py:142 .\courses\media_fetch.py:196
+#: .\courses\media_fetch.py:150 .\courses\media_fetch.py:204
 msgid "That URL redirects too many times."
 msgstr ""
 
-#: .\courses\media_fetch.py:148 .\courses\media_fetch.py:163
+#: .\courses\media_fetch.py:156 .\courses\media_fetch.py:171
 msgid "The image host returned an invalid redirect."
 msgstr ""
 
-#: .\courses\media_fetch.py:187
+#: .\courses\media_fetch.py:195
 msgid "Could not reach the image host."
 msgstr ""
 
-#: .\courses\media_fetch.py:221 .\courses\media_fetch.py:384
-#: .\courses\media_fetch.py:387
+#: .\courses\media_fetch.py:229 .\courses\media_fetch.py:397
+#: .\courses\media_fetch.py:400
 msgid "That image type is not allowed."
 msgstr ""
 
-#: .\courses\media_fetch.py:227
+#: .\courses\media_fetch.py:235
 msgid "That URL did not return an image."
 msgstr ""
 
-#: .\courses\media_fetch.py:242 .\courses\media_fetch.py:259
+#: .\courses\media_fetch.py:250 .\courses\media_fetch.py:267
 #: .\courses\validators.py:104
 #, python-format
 msgid "Image file too large (max %(mib)d MiB)."
 msgstr ""
 
-#: .\courses\media_fetch.py:298
+#: .\courses\media_fetch.py:311
 msgid "Fetching the image took too long."
 msgstr ""
 
-#: .\courses\media_fetch.py:360 .\courses\media_fetch.py:370
+#: .\courses\media_fetch.py:373 .\courses\media_fetch.py:383
 msgid "That image's dimensions are too large."
 msgstr ""
 
-#: .\courses\media_fetch.py:374
+#: .\courses\media_fetch.py:387
 msgid "That URL did not return a usable image."
 msgstr ""
 
-#: .\courses\media_fetch.py:417
+#: .\courses\media_fetch.py:430
 msgid "The fetched file is empty."
 msgstr ""
 
@@ -898,90 +898,90 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
-#: .\courses\models.py:865 .\courses\models.py:1163
+#: .\courses\models.py:865 .\courses\models.py:1180
 msgid "Small"
 msgstr ""
 
-#: .\courses\models.py:866 .\courses\models.py:1164
+#: .\courses\models.py:866 .\courses\models.py:1181
 msgid "Medium"
 msgstr ""
 
-#: .\courses\models.py:867 .\courses\models.py:1165
+#: .\courses\models.py:867 .\courses\models.py:1182
 msgid "Large"
 msgstr ""
 
-#: .\courses\models.py:874 .\courses\models.py:1169
+#: .\courses\models.py:874 .\courses\models.py:1186
 msgctxt "image size"
 msgid "Full"
 msgstr ""
 
-#: .\courses\models.py:1773
+#: .\courses\models.py:1790
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr ""
 
-#: .\courses\models.py:1774
+#: .\courses\models.py:1791
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr ""
 
-#: .\courses\models.py:1783
+#: .\courses\models.py:1800
 msgctxt "tabs label position"
 msgid "Above"
 msgstr ""
 
-#: .\courses\models.py:1784
+#: .\courses\models.py:1801
 msgctxt "tabs label position"
 msgid "Below"
 msgstr ""
 
-#: .\courses\models.py:1785
+#: .\courses\models.py:1802
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr ""
 
-#: .\courses\models.py:2114 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:2131 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:2115
+#: .\courses\models.py:2132
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:2116
+#: .\courses\models.py:2133
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:2247
+#: .\courses\models.py:2264
 msgid "your answer, correct"
 msgstr ""
 
-#: .\courses\models.py:2248
+#: .\courses\models.py:2265
 msgid "your answer, incorrect"
 msgstr ""
 
-#: .\courses\models.py:2249
+#: .\courses\models.py:2266
 msgid "correct answer, not chosen"
 msgstr ""
 
-#: .\courses\models.py:2918
+#: .\courses\models.py:2935
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:2920
+#: .\courses\models.py:2937
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:2925
+#: .\courses\models.py:2942
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:2996
+#: .\courses\models.py:3013
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:2997
+#: .\courses\models.py:3014
 msgid "Submitted"
 msgstr ""
 
@@ -1080,7 +1080,7 @@ msgid "Table"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:41
-#: .\courses\views_manage.py:1969 .\templates\courses\lesson_unit.html:82
+#: .\courses\views_manage.py:1969 .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\_add_menu.html:36
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
@@ -1088,7 +1088,7 @@ msgid "Gallery"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:42
-#: .\courses\views_manage.py:1970 .\templates\courses\lesson_unit.html:86
+#: .\courses\views_manage.py:1970 .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\_add_menu.html:38
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
@@ -3113,29 +3113,45 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:7
+#: .\notes\templates\notes\_note_card.html:5
+msgid "My note"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:8
 #, python-format
 msgid "on: %(blk)s"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:11
+#: .\notes\templates\notes\_note_card.html:12
 #: .\notes\templates\notes\_readonly_note_card.html:5
 #, python-format
 msgid "edited %(when)s ago"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:11
+#: .\notes\templates\notes\_note_card.html:12
 #: .\notes\templates\notes\_readonly_note_card.html:5
 #, python-format
 msgid "added %(when)s ago"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:16
+#. Translators: %(date)s is a short date, e.g. 21.08.2026
+#: .\notes\templates\notes\_note_card.html:15
+#, python-format
+msgid "edited %(date)s"
+msgstr ""
+
+#. Translators: %(date)s is a short date, e.g. 21.08.2026
+#: .\notes\templates\notes\_note_card.html:18
+#, python-format
+msgid "added %(date)s"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:24
 #: .\notes\templates\notes\edit_page.html:5
 msgid "Edit note"
 msgstr ""
 
-#: .\notes\templates\notes\_note_card.html:26
+#: .\notes\templates\notes\_note_card.html:34
 msgid "Delete note"
 msgstr ""
 
@@ -4302,11 +4318,17 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: .\templates\courses\_unit_strip.html:10
+#: .\templates\courses\_unit_strip.html:9
+#: .\templates\courses\manage\analytics_matrix.html:37
+#: .\templates\courses\manage\gradebook_print.html:48
+msgid "Print"
+msgstr ""
+
+#: .\templates\courses\_unit_strip.html:18
 msgid "Edit unit"
 msgstr ""
 
-#: .\templates\courses\_unit_strip.html:10
+#: .\templates\courses\_unit_strip.html:18
 msgid "(opens in a new tab)"
 msgstr ""
 
@@ -4518,7 +4540,7 @@ msgstr ""
 msgid "interactive content"
 msgstr ""
 
-#: .\templates\courses\elements\iframeelement.html:10
+#: .\templates\courses\elements\iframeelement.html:19
 msgid "embedded content"
 msgstr ""
 
@@ -4531,14 +4553,14 @@ msgid "Show next"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 msgid "Previous slide"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 msgid "Next slide"
@@ -4550,77 +4572,77 @@ msgid "Slides"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:80
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:34 .\templates\courses\quiz_unit.html:40
 #, python-brace-format
 msgid "Slide {n} of {total}"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 msgid "Previous image"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 msgid "Next image"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 #, python-brace-format
 msgid "Go to image {n}"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:82
+#: .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
 #, python-brace-format
 msgid "Image {n} of {total}"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:84
+#: .\templates\courses\lesson_unit.html:85
 #: .\templates\courses\manage\editor\editor.html:217
 #: .\templates\courses\quiz_unit.html:38
 msgid "Enlarge image"
 msgstr "Enlarge image"
 
-#: .\templates\courses\lesson_unit.html:84
+#: .\templates\courses\lesson_unit.html:85
 #: .\templates\courses\manage\editor\editor.html:217
 #: .\templates\courses\quiz_unit.html:38
 msgid "Enlarged image"
 msgstr "Enlarged image"
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Scroll tabs left"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Scroll tabs right"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "Carousel"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 #, python-brace-format
 msgid "Go to slide {n}"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:86
+#: .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
 msgid "slide"
@@ -5090,11 +5112,6 @@ msgstr ""
 
 #: .\templates\courses\manage\analytics_matrix.html:36
 msgid "Excel (.xlsx)"
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:37
-#: .\templates\courses\manage\gradebook_print.html:48
-msgid "Print"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_matrix.html:55

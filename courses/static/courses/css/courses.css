@@ -113,6 +113,55 @@ blockquote {
 .embed-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; }
 .embed-frame > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
+/* Width bounds for an embed whose size we know. THREE of them, smallest wins:
+
+   1. 100%      — never overflow the column (must stay FIRST in the min(); every
+                  other bound is free to exceed the column and this is what stops it).
+   2. --embed-w — never enlarge past the size the embed was authored at. Matches how
+                  images already behave, though by a different mechanism: an <img>
+                  defaults to `width: auto`, which resolves to its INTRINSIC width, so
+                  reset.css's `max-width: 100%` only ever shrinks it to the column.
+                  An iframe has no intrinsic size and defaults to 300x150, so the pair
+                  captured from the embed code / API lookup has to stand in for one.
+   3. the dvh   — never grow taller than the window. This is the bound that fixes a
+      bound       PORTRAIT embed: at the 648px column a 450x780 applet was 1123px
+                  tall, and 1512px in the 872px collapsed column. Expressed as a
+                  WIDTH so the aspect-ratio above still derives the height -- a
+                  max-height would clamp the box and squash the absolutely-positioned
+                  iframe inside it instead of scaling the frame.
+
+   dvh not vh, for the reason spelled out at the image presets (:53).
+
+   max(320px, ...) is a floor on the dvh bound only: below roughly a phone's width a
+   GeoGebra applet's sliders and buttons stop being operable, so a portrait embed on
+   a phone held sideways scrolls rather than shrinking into uselessness. It cannot
+   push the frame past the column or past its natural size -- both of those bounds
+   are outside the max().
+
+   Gated on --sized rather than on var() fallbacks: with no dimensions there is no
+   honest natural width, and `min(100%, var(--embed-w, <anything>) * 1px, ...)` would
+   either collapse the frame or need a sentinel that reads as a real number.
+
+   This block MUST stay after `.embed-frame` (:113): the two selectors TIE at (0,1,0),
+   so `width` here beats the `width: 100%` there on source order alone. Same trap the
+   image presets carry at :58. */
+.embed-frame--sized {
+  width: min(
+    100%,
+    calc(var(--embed-w) * 1px),
+    max(320px, calc(85dvh * var(--embed-w) / var(--embed-h)))
+  );
+  margin-inline: auto;
+}
+
+/* dvh is meaningless on paper — same trap as the image presets' print block at :103,
+   and it MUST likewise stay after the rule it overrides, since a media query adds no
+   specificity. Dropping the viewport bound leaves the column and natural-size bounds,
+   which are the two that still mean something in print. */
+@media print {
+  .embed-frame--sized { width: min(100%, calc(var(--embed-w) * 1px)); }
+}
+
 /* Sandboxed HTML element (1b-iii) */
 .html-el {
   position: relative;
@@ -2432,3 +2481,81 @@ dialog.imgzoom:not([open]) { display: none; }
    it can (desktop), all to duplicate a word the chip already renders in full.
    The rail/drawer icon carries title= for the opposite reason: there the word is
    not visible at all. */
+
+/* ── Print: callout accents ────────────────────────────────────────────────
+   courses.css:2010-2014 declares dark-only --callout-accent values, in a sheet
+   loaded AFTER tokens.css and at (0,2,0), so tokens.css's print override cannot
+   reach them. Without this a dark-theme lesson prints its callout headings and
+   rails at #7db0f7 (2.23:1) or #e8b761 on white.
+
+   The value source is the LIGHT declaration of the same selector
+   (courses.css:2004-2008), not :root -- --callout-accent is never declared on
+   :root at all. tests/test_print_tokens_css.py pins each pair. */
+@media print {
+  [data-theme="dark"] .callout--example { --callout-accent: #2563c9; }
+  [data-theme="dark"] .callout--note    { --callout-accent: #55606b; }
+  [data-theme="dark"] .callout--tip     { --callout-accent: #1f8a52; }
+  [data-theme="dark"] .callout--warning { --callout-accent: #b06f0f; }
+  [data-theme="dark"] .callout--task    { --callout-accent: #a8318f; }
+}
+
+/* ── Print: reveal every slideshow slide ───────────────────────────────────
+   A multi-slide lesson printed only the ACTIVE slide. The carousel block at
+   :1852 already carries this lesson in its own comment ("printing a carousel
+   silently loses every slide but the current one"); the identical defect in
+   slideshows was never fixed.
+
+   Written against the POST-ENHANCEMENT DOM. slideshow.js moves slides into
+   .slideshow-deck > .slideshow-stage, so [data-slideshow] > .slide matches
+   nothing at runtime and a rule written that way would be inert.
+
+   display:block alone is not enough: the slides are position:absolute inset:0
+   inside a fixed-height clipping stage, so revealing them would just stack them
+   invisibly on one spot. Mirrors the carousel precedent at :1868-1870 in full. */
+@media print {
+  .slideshow-deck {
+    overflow: visible !important;
+    /* Screen chrome for a widget paper does not have. */
+    border: 0; border-radius: 0; box-shadow: none; background: none; margin-block: 0;
+  }
+  /* The stage also carries .scroll-y (app.css:1886, position:relative), which is
+     why the position reset is needed at all. */
+  .slideshow-stage { position: static !important; height: auto !important; }
+  /* No pseudo-element hide needed here: slideshow.js:49 gives the stage
+     `.scroll-y`, and app.css:1913 already drops .scroll-y::before/::after in
+     print. Duplicating it would be dead weight. */
+  .slideshow-deck .slide,
+  .slideshow-deck .slide[hidden] {
+    display: block !important; position: static !important;
+    overflow: visible !important;
+    /* opacity beats an INLINE style: slideshow.js:187 sets the OUTGOING slide to
+       opacity 0 and holds it for FADE_MS=320 until settleHidden() at :191, during
+       which that slide is not yet [hidden] and so is revealed by the rules above.
+       (:180 sets the incoming slide to 0 too, but :186 restores it synchronously
+       three statements later, so it is never observably transparent.)
+
+       transition:none is required ALONGSIDE it, and winning the cascade is not
+       enough without it: :393 puts `transition: opacity 320ms ease` on this very
+       rule, so changing the computed value starts an ANIMATION rather than
+       applying it, and the print snapshot samples mid-fade. The
+       prefers-reduced-motion block at :398-400 is the precedent for this shape. */
+    opacity: 1 !important; transition: none !important;
+  }
+  /* Prev/Next is meaningless ink once every slide prints -- same principle the
+     carousel block applies to .tabs__cbar / .tabs__status at :1870. */
+  .slideshow-bar { display: none !important; }
+}
+
+/* ── Print affordance ──────────────────────────────────────────────────────
+   The button's only behaviour is window.print(), so with JS off it is a dead
+   control -- hide it rather than render it inert. base.html:15 already adds
+   `js` to documentElement in its prepaint script.
+
+   The print rule must ALSO be html.js-qualified. The gate is (0,2,1); a print
+   rule at (0,1,0) would lose to it and the button would print on paper. The
+   .unit-strip__edit precedent at :2308 gets away with (0,1,0) only because
+   nothing gates .unit-strip__edit. Equal weights mean source order decides, so
+   the print rule must FOLLOW the gate -- which appending guarantees. */
+.unit-strip__print { display: none; }
+html.js .unit-strip__print { display: inline-flex; }
+@media print { html.js .unit-strip__print { display: none; } }

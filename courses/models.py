@@ -936,15 +936,32 @@ class IframeElement(ElementBase):
     def frame_ratio(self):
         """CSS aspect-ratio for the wrapper, or None to keep .embed-frame's 16:9.
 
+        Derived from frame_size so the ratio and the width bounds computed from the
+        same pair can never disagree -- the argument size_unknown's docstring makes
+        for the badge. Kept as the ratio STRING because the template writes it into
+        an inline `aspect-ratio`, where a <ratio> is one indivisible token.
+        """
+        size = self.frame_size
+        return None if size is None else "{} / {}".format(*size)
+
+    @property
+    def frame_size(self):
+        """The (width, height) the wrapper should size itself from, or None.
+
         FIVE ordered steps (0-4). The order is load-bearing in both directions: the
         rendered frame must never claim a ratio the src does not back up, and never
         ignore one the src does impose.
+
+        Returns the PAIR, not just their ratio, because .embed-frame bounds its width
+        by the embed's own width as well as by its shape (see courses.css: never
+        enlarge past the size the embed was authored at). calc() cannot recover W and
+        H from an aspect-ratio, so both numbers have to reach the CSS.
         """
         # 0. The URL sizes the applet itself -> match IT, not the stored columns. Must
         #    precede step 2, or a URL-sized applet gets a disagreeing stored ratio.
         url_width, url_height = geogebra_url_size(self.url)
         if usable_dimensions(url_width, url_height):
-            return f"{url_width} / {url_height}"
+            return (url_width, url_height)
         # 1. A GeoGebra material in a shape geogebra_sized_src will NOT rewrite: claim
         #    nothing, even with stored dimensions, or we frame GeoGebra's 800x600
         #    default in a W/H box. Must precede step 2.
@@ -952,11 +969,11 @@ class IframeElement(ElementBase):
             return None
         # 2. A known size -- also the branch every non-GeoGebra provider reaches.
         if usable_dimensions(self.width, self.height):
-            return f"{self.width} / {self.height}"
+            return (self.width, self.height)
         # 3. A canonical GeoGebra embed with no known size renders at GeoGebra's own
         #    default, measured to leave a 0.0px gap; 16:9 leaves 161.3px.
         if is_geogebra_iframe_url(self.url):
-            return "{} / {}".format(*GEOGEBRA_DEFAULT_SIZE)
+            return GEOGEBRA_DEFAULT_SIZE
         # 4. Everything else keeps the CSS default.
         return None
 

@@ -441,3 +441,135 @@
 .course-notes .note-card__gotolesson a:hover { text-decoration: underline; }
 .course-notes .note-card__gotolesson .icon { width: .9em; height: .9em; transition: transform .15s ease; }
 .course-notes .note-card__gotolesson a:hover .icon { transform: translateX(2px); }
+
+/* ── Print-only card furniture (hidden on screen) ─────────────────────────── */
+.note-card__print-label { display: none; }
+.note-card__print-date { display: none; }
+
+/* ── Print ────────────────────────────────────────────────────────────────
+   notes.css had NO print rules before this feature: every note lives inside a
+   closed <details>, so a printed lesson showed none of them.
+
+   A print at-rule adds NO specificity, so each rule below must match or beat the
+   screen rule it undoes. The weights that matter:
+     (0,5,0) the read-first add-composer hide            -- notes.css:181
+     (0,4,0) the floating pop                            -- :92
+     (0,3,0) the "Add another note" reveal               -- :177
+     (0,2,0) the block highlight / dim pair              -- :278, :284
+     (0,1,1) the unanchored summary's padding            -- :270
+   Note an attribute selector counts in the CLASS column; miscounting it is how
+   an inert rule gets written.
+
+   Scoping rule: scope a HIDE to .lesson, globalise an UN-HIDE. course_notes.html
+   loads this sheet too and renders .note-card via _readonly_note_card.html, so an
+   unscoped hide would strip content from the hub -- but a .lesson-scoped un-clamp
+   would leave the hub printing truncated notes (notes.js:577 clamps there too). */
+@media print {
+  /* Return the pop to flow. Written VERBATIM as the (0,4,0) screen selector so
+     it cannot be got wrong by miscounting; it wins on end-of-file source order.
+     top needs !important because positionPop (notes.js:524) writes it INLINE.
+     right is named because --clamped sets `left: auto; right: 0` -- resetting
+     left alone leaves it. */
+  .notes-js .block-notes__panel[open] .block-notes__pop {
+    position: static; top: auto !important; left: auto; right: auto;
+    width: auto; margin-top: .4rem; padding: 0;
+    background: none; border: 0; border-radius: 0;
+    max-height: none; overflow-y: visible; z-index: auto; box-shadow: none;
+  }
+
+  /* UNSCOPED, deliberately: the hub clamps too. (0,1,0) tying notes.css:186 and
+     winning by source order -- the one equal-weight case here, safe only because
+     this block is pinned to the end of the file. */
+  .note-card__body--clamp {
+    display: block; -webkit-line-clamp: none; overflow: visible;
+  }
+  .note-card__more { display: none; }
+
+  /* Controls. add-more needs the (0,3,0) shape or it loses to its screen reveal. */
+  .lesson .note-card__actions,
+  .lesson .block-notes__add-label,
+  .lesson .note-delete-confirm { display: none; }
+  .lesson .block-notes__pop--has-notes .block-notes__add-more { display: none; }
+
+  /* A composer survives only if it holds text the student would lose: an inline
+     edit, a typed draft (print.js marks it -- CSS cannot see a textarea's value,
+     since typing changes `value`, not DOM children), or a rejected no-JS draft.
+     That last carve-out is a NO-JS guarantee only: with .notes-js present,
+     notes.css:181 already hides it at (0,5,0), which nothing here beats. */
+  .lesson .note-composer:not(.note-composer--edit):not(.note-composer--has-draft):not(:has(.note-composer__error)) {
+    display: none;
+  }
+  .lesson .note-composer__actions { display: none; }
+  .lesson .note-composer__input {
+    field-sizing: content; height: auto; max-height: none;
+    overflow: visible; resize: none;
+    /* border:0 is load-bearing, not chrome: the input is box-sizing:border-box
+       (:209) and inherits input[type] border/padding, so print.js's scrollHeight
+       stamp (a padding-box measurement) is short by the border width. */
+    border: 0;
+  }
+
+  /* An empty pop prints as a stray zero-height box. The :has() list MUST include
+     the draft and error classes: _block_notes.html renders a composer for EVERY
+     block, note-less ones included, and re-opens the panel with a rejected draft
+     on note-less blocks too -- without them this rule hides the pop and both
+     carve-outs above buy nothing. .note-delete-confirm is deliberately OUT, so a
+     block whose only note is mid-delete loses its pop entirely, which is what
+     "omitted cleanly" means. */
+  .lesson .block-notes__pop:not(:has(.note-card, .note-composer--edit, .note-composer--has-draft, .note-composer__error)) {
+    display: none;
+  }
+
+  /* Both summary elements: visibility, NOT display:none. Engines differ on
+     whether a details element renders its children when the summary is not
+     rendered, and that details is load-bearing for the unanchored section
+     printing at all. The full reset matters -- height:0 alone leaves padding, and
+     with the global box-sizing:border-box a "zero-height" box still measures 8px.
+     .lesson is LOAD-BEARING on the unanchored one: its padding comes from
+     `.unanchored-notes summary` at (0,1,1) (:270), which (0,1,0) would lose to. */
+  .lesson .block-notes__handle,
+  .lesson .unanchored-notes__handle {
+    visibility: hidden; height: 0; padding: 0; margin: 0; border: 0;
+    overflow: hidden;
+  }
+
+  /* notes.css:45 pulls the affordance up against its element with a negative
+     margin. With the handle gone that drags the card over the block it
+     annotates. */
+  .lesson .block-notes { margin-top: .35rem; margin-bottom: .75rem; }
+
+  /* notes.js dims every OTHER block while a note card is hovered or focused, and
+     clears it only on blur -- so clicking a note then pressing Ctrl+P printed
+     most of the lesson at 45% opacity with one block visibly ringed. Outlines,
+     like borders, survive the strip-backgrounds default. Both are (0,2,0). */
+  .lesson .lesson-block.is-dimmed { opacity: 1; }
+  .lesson .lesson-block.is-highlighted { background: none; outline: none; }
+  /* applyHighlight (notes.js:445-449) stamps is-highlighted on the matching
+     .note-card TOO, and notes.css:292 gives that a 6px accent rail -- borders
+     survive the strip-backgrounds default, so the focused card would print
+     with a fatter rail than every sibling. (0,3,0) to beat that (0,2,0) rule. */
+  .lesson .note-card.is-highlighted {
+    border-left-width: 4px; background: var(--surface-raised);
+  }
+
+  /* Keep the per-block accent rail -- borders paint even when backgrounds are
+     stripped -- and never split a note across a page boundary. */
+  .lesson .note-card { break-inside: avoid; }
+
+  /* Flatten the unanchored container; its notes print as ordinary cards, their
+     provenance carried by the My note label. */
+  .lesson .unanchored-notes {
+    border: 0; border-top: 1px solid var(--border-strong);
+    background: none; border-radius: 0;
+  }
+
+  /* Print-only furniture. Uppercase is presentation, not a msgid -- the same
+     treatment .ba__side-heading gets at courses.css:2113. */
+  .lesson .note-card__print-label {
+    display: block; text-transform: uppercase; letter-spacing: .08em;
+    font-size: .62rem; font-weight: 700; color: var(--text-secondary);
+    margin: 0 0 .2rem;
+  }
+  .lesson .note-card__print-date { display: inline; }
+  .lesson .note-card__meta-rel { display: none; }
+}
