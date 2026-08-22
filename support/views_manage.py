@@ -10,6 +10,7 @@ rather than a bare 403.
 
 import mimetypes
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
@@ -21,10 +22,13 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from support.constants import LIST_PAGE_SIZE
+from support.forms import ReporterPickerForm
 from support.models import IssueReport
+from support.models import SupportSettings
 from support.policy import role_labels
 from support.telemetry import safe_page_link
 from support.telemetry import telemetry_rows
@@ -126,3 +130,29 @@ def screenshot(request, pk):
     response = FileResponse(handle, content_type=content_type)
     response["Content-Disposition"] = "inline"
     return response
+
+
+@login_required
+@permission_required("support.change_supportsettings", raise_exception=True)
+def reporters(request):
+    # load() on BOTH methods, which is a deliberate exception to the spec's
+    # "read paths use filter(pk=1).first()" rule — state it rather than let it
+    # look like an oversight. ReporterPickerForm.__init__ reads
+    # instance.extra_reporters to build the roster union, and an M2M access on an
+    # unsaved instance raises ValueError. The page is PA-only and reached
+    # deliberately, so materialising pk=1 here costs one row on first visit and
+    # never happens on a student render.
+    row = SupportSettings.load()
+    if request.method == "POST":
+        form = ReporterPickerForm(request.POST, instance=row)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("Allowed reporters updated."))
+            # `?tab=support` is only honoured once Task 8 adds "support" to TABS;
+            # until then _active_tab falls back to "branding", so between these
+            # two tasks a save lands the PA on the Branding tab. Harmless and
+            # self-resolving — noted so it is not chased as a bug.
+            return redirect(f"{reverse('institution:settings')}?tab=support")
+    else:
+        form = ReporterPickerForm(instance=row)
+    return render(request, "support/manage/reporters.html", {"form": form})

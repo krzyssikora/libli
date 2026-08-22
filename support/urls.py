@@ -28,4 +28,7 @@ urlpatterns = [
         views_manage.screenshot,
         name="screenshot",
     ),
+    path(
+        "manage/settings/support/reporters/", views_manage.reporters, name="reporters"
+    ),
 ]

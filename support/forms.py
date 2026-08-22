@@ -1,12 +1,17 @@
 """Forms for the report dialog and the PA settings surfaces."""
 
 from django import forms
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
+from institution.roles import PLATFORM_ADMIN
 from support.constants import DESCRIPTION_MAX_LENGTH
 from support.constants import PAGE_TITLE_MAX_LENGTH
 from support.constants import PAGE_URL_MAX_LENGTH
 from support.models import IssueReport
+from support.models import SupportSettings
 
 
 class IssueReportForm(forms.ModelForm):
@@ -46,3 +51,62 @@ class IssueReportForm(forms.ModelForm):
 
     def clean_page_title(self):
         return (self.cleaned_data.get("page_title") or "")[:PAGE_TITLE_MAX_LENGTH]
+
+
+class OutOfRosterCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
+    """Marks grants that appear only because of the roster union.
+
+    The spec requires already-selected users outside the base roster to render
+    "checked, with a muted note explaining why they are listed", and a plain
+    CheckboxSelectMultiple has no per-option affordance. create_option is a
+    WIDGET hook — putting it on the form would be dead code that never runs.
+    """
+
+    out_of_roster = frozenset()
+
+    def create_option(self, name, value, label, *args, **kwargs):
+        # Django passes a ModelChoiceIteratorValue here, so unwrap it.
+        pk = getattr(value, "value", value)
+        if pk in self.out_of_roster:
+            label = format_lazy(
+                "{label} — {note}",
+                label=label,
+                note=_("no longer in the roster; still allowed to report"),
+            )
+        option = super().create_option(name, value, label, *args, **kwargs)
+        if pk in self.out_of_roster:
+            option["attrs"]["data-out-of-roster"] = "1"
+        return option
+
+
+class ReporterPickerForm(forms.ModelForm):
+    """The roster of individually-granted reporters.
+
+    The queryset is active non-PA users UNIONED with whoever is currently
+    selected. Scoped to active non-PA users alone, an already-granted user who
+    has since been deactivated or promoted to PA would be absent from the
+    rendered list, and the next save_m2m() would silently REVOKE them — a PA
+    opening the page to add one person would drop an unrelated grant.
+    """
+
+    class Meta:
+        model = SupportSettings
+        fields = ["extra_reporters"]
+        widgets = {"extra_reporters": OutOfRosterCheckboxSelectMultiple}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        User = get_user_model()
+        selected = list(self.instance.extra_reporters.values_list("pk", flat=True))
+        base = User.objects.filter(is_active=True).exclude(groups__name=PLATFORM_ADMIN)
+        self.fields["extra_reporters"].queryset = (
+            User.objects.filter(Q(pk__in=base.values("pk")) | Q(pk__in=selected))
+            .distinct()
+            .order_by("display_name", "username")
+        )
+        self.fields["extra_reporters"].required = False
+        # Hand the widget the pks that survive only because of the union, so it
+        # can mark them. Django calls create_option on the WIDGET, never the form.
+        self.fields["extra_reporters"].widget.out_of_roster = set(selected) - set(
+            base.values_list("pk", flat=True)
+        )

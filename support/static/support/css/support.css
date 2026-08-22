@@ -1,0 +1,2 @@
+/* Grants kept only by the roster union: present, checked, visibly explained. */
+label:has([data-out-of-roster]) { color: var(--text-secondary); }
