@@ -3,6 +3,7 @@ import re
 import secrets
 from decimal import Decimal
 from fractions import Fraction
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -813,6 +814,12 @@ class MediaAsset(models.Model):
         max_length=10, choices=DerivativesState.choices, blank=True, default=""
     )
     name = models.CharField(max_length=255, blank=True, default="")
+    # Provenance for an asset fetched from a URL; blank for every upload. LOCAL
+    # metadata, deliberately NOT exported -- the transfer manifest's media entry is
+    # _exact_keys-validated and both this and content_hash describe how THIS instance
+    # obtained the bytes, which is meaningless in an instance that received them in an
+    # archive. max_length 500 matches validators.MAX_FETCH_URL_LENGTH.
+    source_url = models.URLField(max_length=500, blank=True, default="")
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
     )
@@ -821,6 +828,20 @@ class MediaAsset(models.Model):
     @property
     def display_name(self):
         return self.name or self.original_filename
+
+    @property
+    def source_host(self):
+        """Hostname of source_url, or "" -- never raises.
+
+        urlsplit().hostname raises ValueError on a malformed authority (a bracketed
+        IPv6 remnant, an out-of-range port), and this runs for EVERY cell in the
+        manager grid, so one bad row would 500 the whole page. Same guard
+        geogebra_material_id uses.
+        """
+        try:
+            return urlsplit(self.source_url).hostname or ""
+        except ValueError:
+            return ""
 
     def __str__(self):
         return f"{self.get_kind_display()}: {self.display_name}"
