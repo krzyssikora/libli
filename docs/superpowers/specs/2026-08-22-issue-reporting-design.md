@@ -32,6 +32,7 @@ implementation does not silently re-litigate them.
 | The screenshot is **attached to the email**, not linked | `extra_emails` may be a helpdesk alias with no libli account, for which a login-walled link is useless. |
 | A **fixed** per-user rate limit, not a configurable one | The top rung of the ladder is "Everyone". One frustrated student on a broken page can otherwise fill an inbox in a minute. A configurable number is a field to explain, migrate and test for a value nobody will change. |
 | Triage is a **list plus detail plus open/resolved**, not Django admin | This product deliberately does not send PAs to `/admin/`, and the telemetry renders there as an unreadable JSON blob. Without a status the list becomes undifferentiated within a month. |
+| The extras picker lives on **its own page**, not inside the settings tab | `institution/views_manage.py:_settings_context` renders *every* settings panel on every settings render, hiding the inactive ones. A roster checkbox list inside the Support panel would therefore materialise one row per active user on every GET of the Branding tab. The cited precedent (`templates/grouping/group_form.html`) is a dedicated page, and this follows it properly. |
 
 ### Out of scope
 
@@ -47,6 +48,10 @@ be useful:
 - More than one screenshot per report.
 - An unread-count badge in the nav (a query on every request for a number nobody waits
   on).
+- **Automatic retention/expiry of reports.** Reports and their screenshots are kept
+  indefinitely until a PA deletes them; deletion is a manual PA action (see "Triage
+  surface"). A `TRANSFER_STAGING_MAX_AGE_HOURS`-style sweep is deliberately deferred
+  until there is evidence of volume.
 
 ## Architecture
 
@@ -61,19 +66,53 @@ delivery and triage. Nothing about it belongs in `core` or `institution`.
 support/
     __init__.py
     apps.py                 # ready(): connect the cache-invalidation signals
+    constants.py            # every cap and limit named below
     models.py               # SupportSettings, IssueReport
-    policy.py               # can_report(user) + the cached audience bundle
-    storage.py              # private screenshot storage (callable, see below)
-    forms.py                # SupportSettingsForm, IssueReportForm
+    policy.py               # can_report() + the cached audience bundle
+    storage.py              # ScreenshotStorage
+    validators.py           # validate_screenshot_file
+    telemetry.py            # allow-list, caps, sanitiser, display labels
+    forms.py                # SupportSettingsForm, ReporterPickerForm, IssueReportForm
     emails.py               # send_issue_report_email(report)
     views.py                # report_create (the dialog POST target)
-    views_manage.py         # report_list, report_detail, report_resolve, screenshot
+    views_manage.py         # reporters, report_list, report_detail,
+                            # report_set_status, report_delete, screenshot
     urls.py
     migrations/
     templates/support/...
     static/support/js/report_dialog.js
     static/support/css/support.css
     tests/
+```
+
+**Root URLconf.** `config/urls.py` gains `path("", include("support.urls"))` alongside
+the other app includes. `support/urls.py` uses `app_name = "support"` and these
+prefixes:
+
+| Route | Name | Audience |
+|---|---|---|
+| `report/` (POST) | `support:report_create` | any permitted reporter |
+| `manage/issue-reports/` | `support:report_list` | PA |
+| `manage/issue-reports/<pk>/` | `support:report_detail` | PA |
+| `manage/issue-reports/<pk>/status/` (POST) | `support:report_set_status` | PA |
+| `manage/issue-reports/<pk>/delete/` (POST) | `support:report_delete` | PA |
+| `manage/issue-reports/<pk>/screenshot/` | `support:screenshot` | PA |
+| `manage/settings/support/reporters/` | `support:reporters` | PA |
+
+### Constants (`support/constants.py`)
+
+Every limit the rest of this spec refers to is named here, so tests assert against a
+name rather than a number they inferred from the implementation.
+
+```python
+DESCRIPTION_MAX_LENGTH = 4000
+PAGE_URL_MAX_LENGTH = 2000
+PAGE_TITLE_MAX_LENGTH = 300
+REPORTER_LABEL_MAX_LENGTH = 200
+REPORTER_ROLES_MAX_LENGTH = 200
+THROTTLE_MAX_REPORTS = 5           # per user, per window
+THROTTLE_WINDOW = timedelta(hours=1)
+EXTRA_EMAILS_MAX = 20
 ```
 
 ### Models (`support/models.py`)
@@ -106,24 +145,41 @@ never has to infer that the ladder is cumulative.
 
 **`IssueReport`** — one row per submission.
 
+```python
+class Status(models.TextChoices):
+    OPEN = "open", pgettext_lazy("issue report status", "Open")
+    RESOLVED = "resolved", pgettext_lazy("issue report status", "Resolved")
+```
+
 | Field | Type | Notes |
 |---|---|---|
 | `reporter` | `FK(AUTH_USER_MODEL, null=True, on_delete=SET_NULL, related_name="issue_reports")` | |
-| `reporter_label` | `CharField(max_length=200)` | Denormalised `"Display Name (username) <email>"` |
-| `reporter_roles` | `CharField(max_length=200)` | Comma-joined **Group names** (storage keys, e.g. `Teacher`), never translated labels |
-| `description` | `TextField()` | Required; `DESCRIPTION_MAX_LENGTH = 4000` enforced in the form |
-| `page_url` | `TextField(blank=True)` | Untrusted; stored as text, never as a `URLField` |
-| `page_title` | `CharField(max_length=300, blank=True)` | Untrusted |
-| `screenshot` | `ImageField(blank=True, storage=..., upload_to=...)` | Optional; see "Screenshot storage" |
+| `reporter_label` | `CharField(max_length=REPORTER_LABEL_MAX_LENGTH)` | Denormalised; **truncated on build**, see below |
+| `reporter_roles` | `CharField(max_length=REPORTER_ROLES_MAX_LENGTH, blank=True)` | Comma-joined **Group names** (storage keys, e.g. `Teacher`), never translated labels; truncated on build |
+| `description` | `TextField()` | Required; `DESCRIPTION_MAX_LENGTH` enforced in the form |
+| `page_url` | `TextField(blank=True)` | Untrusted; truncated to `PAGE_URL_MAX_LENGTH` in the form, never a `URLField` |
+| `page_title` | `CharField(max_length=PAGE_TITLE_MAX_LENGTH, blank=True)` | Untrusted; truncated in the form |
+| `screenshot` | `ImageField(blank=True, storage=ScreenshotStorage, upload_to=screenshot_upload_to, validators=[validate_screenshot_file])` | Optional |
 | `telemetry` | `JSONField(default=dict, blank=True)` | Sanitised client and server facts |
 | `created_at` | `DateTimeField(auto_now_add=True)` | |
-| `status` | `CharField(choices=Status.choices, default=Status.OPEN)` | `open` / `resolved` |
+| `status` | `CharField(max_length=16, choices=Status.choices, default=Status.OPEN)` | |
 | `resolved_at` | `DateTimeField(null=True, blank=True)` | |
 | `resolved_by` | `FK(AUTH_USER_MODEL, null=True, on_delete=SET_NULL, related_name="+")` | |
 | `emailed_at` | `DateTimeField(null=True, blank=True)` | Null means the mail never went out |
 
-`Meta.ordering = ["-created_at"]` plus an index on `("status", "-created_at")` — the
-triage list always filters on status and orders by recency.
+`Meta.ordering = ["-created_at"]`, with two indexes:
+
+- `("status", "-created_at")` — the triage list always filters on status and orders by
+  recency.
+- `("reporter", "-created_at")` — serves the throttle's per-user count, which would
+  otherwise scan.
+
+**`reporter_label` truncation is mandatory, not incidental.** `User.display_name` is
+`max_length=150`, `username` is 150 and `email` is 254, so the composed
+`"Display Name (username) <email>"` can reach ~560 characters. Postgres raises
+`DataError` on overflow, which would 500 the submission — losing the report at exactly
+the moment the user is telling you something is broken. The label is built and then
+sliced to `REPORTER_LABEL_MAX_LENGTH`; `reporter_roles` is sliced the same way.
 
 `reporter_label` and `reporter_roles` are **denormalised on purpose**. This repo hard-
 deletes and keeps no orphan audit rows; a report whose provenance evaporates with the
@@ -131,7 +187,10 @@ account tells the PA nothing. `reporter` remains a FK so a live account still li
 
 Roles are stored as Group **names**, not `ROLE_LABELS` values: `institution/roles.py` is
 explicit that the Group name is the storage key and `ROLE_LABELS` is display-only. The
-triage template renders the stored names through `ROLE_LABELS`.
+triage template renders each stored name through `ROLE_LABELS`, **falling back to the
+raw stored name** when the key is absent — a snapshot can name a Group that has since
+been renamed or removed, and that must render as text rather than raising or rendering
+blank.
 
 ### Screenshot storage (`support/storage.py`)
 
@@ -142,24 +201,45 @@ SUPPORT_SCREENSHOT_DIR = BASE_DIR / "support_screenshots"   # config/settings/ba
 Declared beside `TRANSFER_STAGING_DIR` and carrying the same kind of comment: **not
 under `MEDIA_ROOT`, because these must never be web-served.**
 
-`support/storage.py` exposes a **callable**, not a module-level storage instance:
-
 ```python
-def screenshot_storage():
-    return FileSystemStorage(location=settings.SUPPORT_SCREENSHOT_DIR)
+class ScreenshotStorage(FileSystemStorage):
+    """Private storage for report screenshots.
+
+    Resolves the directory on EVERY access rather than at import: Django's
+    FileField.__init__ calls a callable `storage` immediately, so a storage built
+    with location=settings.SUPPORT_SCREENSHOT_DIR would freeze that path at model-
+    import time and override_settings(...) in tests would be a silent no-op —
+    every screenshot test would write into the developer's working tree.
+
+    base_url is None and url() raises, so a template reaching for the idiomatic
+    {{ report.screenshot.url }} fails loudly instead of emitting a plausible
+    /media/... link that bypasses the PA-only view and resolves to nothing.
+    """
+
+    @property
+    def base_location(self):
+        return self._value_or_setting(None, settings.SUPPORT_SCREENSHOT_DIR)
+
+    def url(self, name):
+        raise NotImplementedError("Use {% url 'support:screenshot' report.pk %}.")
 ```
 
-used as `ImageField(storage=screenshot_storage, ...)`. This is load-bearing:
-`FileSystemStorage` is deconstructible, so passing an *instance* would freeze this
-machine's absolute `location` into the migration file. Django accepts a callable for
-`storage=` and serialises the callable reference instead.
+The field passes the **class itself** as the callable: `storage=ScreenshotStorage`.
+Django invokes it at field init and serialises the callable reference — not an
+instance's absolute `location` — into the migration.
 
-`upload_to` is a function producing `screenshots/<YYYY>/<MM>/<uuid4>.<ext>`, so the
-filename never derives from user-supplied text.
+`screenshot_upload_to` produces `screenshots/<YYYY>/<MM>/<uuid4>.<ext>`, with the
+extension taken from the validated original filename, so the stored name never derives
+from user-supplied text.
 
-The file is validated by the **existing** `courses.validators.validate_image_file`,
-which already applies `Institution.allowed_image_extensions` and `max_image_mib`
-(ceiling 5 MiB). No new upload settings are introduced.
+**Validation uses `support/validators.py::validate_screenshot_file`, not
+`courses.validators.validate_image_file`.** The latter applies
+`Institution.allowed_image_extensions`, which a PA may narrow for *content* uploads; a
+PA who restricts course images to `jpg`/`webp` would then silently break screenshot
+paste, since clipboard images are PNG on Windows. `validate_screenshot_file` therefore
+validates against the permanent `SAFE_IMAGE_EXTENSIONS` ceiling and
+`MAX_IMAGE_MIB_CEILING` (5 MiB) from `courses.validators`, decoupling bug reporting
+from an unrelated setting.
 
 `post_delete` on `IssueReport` deletes the file. Django does not do this on its own, and
 orphaned screenshots of student data accumulating on disk is exactly the failure mode to
@@ -167,23 +247,57 @@ avoid.
 
 ### Audience policy (`support/policy.py`)
 
-`can_report(user) -> bool` is the single source of truth, evaluated in order:
+`can_report(user, role_names=None) -> bool` is the single source of truth, evaluated in
+order:
 
-1. Anonymous or inactive -> `False`.
-2. Platform Admin -> `True`, unconditionally, whatever the ladder says.
-3. The user's role Group names intersect the tier's admitted set -> `True`.
+1. Anonymous, or `not user.is_active` -> `False`.
+2. `user.is_superuser` **or** membership of the `Platform Admin` Group -> `True`,
+   unconditionally, whatever the ladder says.
+3. If the rung is `all` -> `True` for any authenticated active user, **without
+   consulting Groups at all**.
+4. The user's role Group names intersect the rung's admitted set -> `True`.
    (`admins` admits nothing extra; `course_admins` adds Course Admin; `teachers` adds
-   Teacher; `all` adds Student.)
-4. `user.id` is in the extras set -> `True`.
-5. Otherwise `False`.
+   Teacher and Course Admin.)
+5. `user.id` is in the extras set -> `True`.
+6. Otherwise `False`.
 
-This runs on **every authenticated page render** (the context processor below feeds
-`base.html`), so it must not cost queries per request. It reads a cached bundle
+**Rule 2 spells out the superuser case deliberately.** `accounts/services.py`
+(`is_last_active_platform_admin`) documents that "superusers outside the PA group are a
+separate recovery path and are not counted", so Group membership and `is_superuser` are
+genuinely distinct here. A recovery superuser is also the account most likely to be
+debugging a broken deployment, and `permission_required` already grants them the triage
+pages, so denying them the report dialog would be incoherent. Note the asymmetry, which
+is intended: superusers **can report**, but are **not** email recipients — the recipient
+query keys on Group membership only, matching `is_last_active_platform_admin`.
+
+**Rule 3 exists because "Everyone" must mean everyone.** Evaluated purely as a Group
+intersection, the `all` rung would deny an authenticated account holding no role Group —
+a freshly `createsuperuser`'d account, an SSO-provisioned account before role
+assignment, or an account whose Group was removed — under the one rung whose label
+promises the opposite. Short-circuiting also removes the Group lookup for the most
+permissive setting.
+
+**Query budget.** `can_report` runs on **every authenticated page render** via the
+context processor below. The settings row and the extras ids come from a cached bundle
 `{"audience": str, "extra_reporter_ids": frozenset[int]}` built by
 `get_support_config()` and dropped by `invalidate_support_config()`, following the
 `get_site_config` / `invalidate_site_config` pattern at `core/services.py:102-113`.
 
-Invalidation must be connected to **both**:
+The user's Group names are a per-user fact that no such bundle can hold, and
+`core/context_processors.py:user_roles` **already** runs exactly that query on every
+authenticated request. To avoid doubling it, `core/services.py` gains:
+
+```python
+def role_names_for(request):
+    """Group names of request.user as a frozenset, memoised on the request."""
+```
+
+`user_roles` is refactored to use it, and `support_availability` passes its result into
+`can_report(user, role_names=...)`. Net cost stays at **one** Group query per request,
+not two. Callers outside the request cycle (the POST view, tests) omit `role_names` and
+`can_report` fetches them itself — one query on a POST is immaterial.
+
+Cache invalidation must be connected to **both**:
 
 - `post_save` on `SupportSettings`, and
 - `m2m_changed` on `SupportSettings.extra_reporters.through`.
@@ -201,20 +315,32 @@ A seventh tab, **Support**, on the existing settings page:
   `SupportSettings.objects.filter(pk=1).first() or SupportSettings()` — never `load()` —
   exactly as the integrations panel already does.
 - `institution/urls.py`: `manage/settings/support/` -> `institution:settings_support`.
-- The form itself lives in `support/forms.py` as `SupportSettingsForm` and is imported by
-  the institution view, the same direction as `IntegrationsForm` today.
+- `SupportSettingsForm` lives in `support/forms.py` and is imported by the institution
+  view, the same direction as `IntegrationsForm` today.
 
-Three controls:
+The tab holds exactly two editable controls plus one summary:
 
 1. **Who can report** — a radio group of the four rungs.
-2. **Also allow these people** — the roster-picker pattern from
-   `templates/grouping/group_form.html`: a searchable (`data-roster-search`) checkbox
-   list of active non-PA users, filtered client-side. No new interaction is invented.
-3. **Send reports to** — a textarea, one address per line, each validated with Django's
-   `EmailValidator`; blank lines ignored; stored as a JSON list.
+2. **Send reports to** — a textarea, one address per line, each validated with Django's
+   `EmailValidator`; blank lines ignored; addresses **lower-cased and de-duplicated on
+   save**; at most `EXTRA_EMAILS_MAX` entries; stored as a JSON list. Normalising on
+   save (not only at send) keeps the stored list and the send-time dedup consistent.
+   Above it, a read-only line names the Platform Admins who will be mailed
+   automatically, so "who gets this" is never a guess.
+3. **Also allowed** — a read-only summary ("3 people also allowed") linking to the
+   dedicated **Allowed reporters** page. `SupportSettingsForm` carries **no** M2M field,
+   so the always-rendered Support panel costs nothing beyond the already-selected count.
 
-Above control 3, a read-only line names the Platform Admins who will be mailed
-automatically, so "who gets this" is never a guess.
+**Allowed reporters page** (`support:reporters`, `permission_required`): the roster
+picker pattern from `templates/grouping/group_form.html` — a searchable
+(`data-roster-search`) checkbox list of active non-PA users, filtered client-side. Being
+a dedicated page, it renders that list only when a PA actually opens it.
+
+Its POST path uses `SupportSettings.load()` — writing is the whole point of the page, so
+the singleton is materialised first and `save_m2m()` therefore always runs against a row
+with `pk=1`. This is the one place `load()` is correct; every read path still uses
+`filter(pk=1).first()`. The first-ever save must both create the row and fire the
+`m2m_changed` invalidation, and is tested as such.
 
 ### Reporter surface
 
@@ -226,36 +352,60 @@ automatically, so "who gets this" is never a guess.
   behind that flag.
 - `support/static/support/js/report_dialog.js` opens the dialog, populates the hidden
   telemetry fields, handles paste-to-attach, posts `FormData` via `fetch`, and renders
-  field errors back inside the dialog.
+  errors back inside the dialog.
 - The `<dialog>` needs **explicit theming**: in this codebase a `<dialog>` does not
   inherit the page theme, so its colours must be set from the theme tokens rather than
   inherited.
 
+**CSRF.** The dialog contains a real `<form method="post" action="{% url
+'support:report_create' %}" enctype="multipart/form-data">` including `{% csrf_token %}`,
+and the JS submits `new FormData(form)` — the token travels as a form field. The
+telemetry inputs are real hidden `<input>`s inside that form, populated by JS, not
+values assembled ad hoc in the fetch call. Building the `FormData` field-by-field would
+omit the token and 403 every submission, which is easy to misdiagnose against the
+permission 403 below.
+
 **Paste to attach.** A `paste` listener on the dialog reads an image out of
-`event.clipboardData.items` and assigns it to the file input via a `DataTransfer`. On
-Windows this makes the whole flow `Win+Shift+S`, open the dialog, `Ctrl+V`, type, send.
-The `<input type="file">` remains, both as the fallback and as the control that shows
-what is attached. This is the difference between a screenshot field people use and one
-they skip.
+`event.clipboardData.items`, **re-wraps it as `new File([blob], "screenshot.<ext>",
+{type: blob.type})`** with the extension derived from the blob's MIME type, and assigns
+it to the file input via a `DataTransfer`. The re-wrap is required, not cosmetic:
+`getAsFile()` returns a browser-dependent name that is often extensionless or `blob`,
+and `FileExtensionValidator` parses the filename — so the headline flow (`Win+Shift+S`,
+`Ctrl+V`, send) would otherwise fail with a confusing "extension not allowed". The
+`<input type="file">` remains, both as the fallback and as the control that shows what is
+attached.
 
 ### Triage surface
 
-`support/views_manage.py`:
+`support/views_manage.py`, all behind `permission_required`:
 
 - `report_list` — paginated (`Paginator`, as in `accounts/views_manage.py`), newest
   first, with an open/resolved filter. Columns: created, reporter, role, first line of
   the description, a screenshot indicator, status.
 - `report_detail` — the description, the telemetry rendered as **labelled rows, not a
-  JSON blob**, the screenshot thumbnail, and a *Mark resolved* form.
-- `report_resolve` — POST only; sets `status`, `resolved_at`, `resolved_by`.
-- `screenshot` — `FileResponse` for the private file.
+  JSON blob** (labels from `support/telemetry.py`), the screenshot thumbnail, and the
+  status and delete actions.
+- `report_set_status` — POST only; moves a report between `open` and `resolved`, so a
+  mis-click is recoverable. Setting the status a report already has is a **no-op**: it
+  must not overwrite an existing `resolved_by`/`resolved_at` and lose who actually
+  triaged it. Resolving sets both; reopening clears both.
+- `report_delete` — POST only, with confirmation. This is the sole production path that
+  removes a report and, via `post_delete`, its screenshot; without it the receiver is
+  reachable only from tests and screenshots of student data accumulate forever.
+- `screenshot` — `FileResponse` for the private file. **404** when the field is empty or
+  the file is missing from disk (a DB restored against a fresh volume must not 500).
+  Served `Content-Disposition: inline` with a `Content-Type` derived from the stored
+  extension, never from anything the client sent.
 
-Reached from an **Issue reports** item in the Admin menu in `base.html`, beside
-"Institution settings".
+Reached from an **Issue reports** item in the Admin menu in `base.html`, wrapped in
+`{% if perms.support.view_issuereport %}`. The outer `.app-nav__admin` condition
+(`templates/base.html:91`) is **left unchanged**: `view_issuereport` is PA-only, and
+every PA already satisfies that chain via `perms.institution.change_institution`, so
+adding a disjunct would be dead.
 
-Access is a real permission, not a role-name check: `support.view_issuereport` and
-`support.change_issuereport` are appended to `PLATFORM_ADMIN_PERMS` in
-`institution/roles.py`, and the views use `permission_required`.
+Access is a real permission, not a role-name check: `support.view_issuereport`,
+`support.change_issuereport` and `support.delete_issuereport` are appended to
+`PLATFORM_ADMIN_PERMS` in `institution/roles.py`.
 
 ## Data flow
 
@@ -269,36 +419,89 @@ Access is a real permission, not a role-name check: `support.view_issuereport` a
    `timezone` (`Intl.DateTimeFormat().resolvedOptions().timeZone`), `theme`
    (`documentElement.dataset.theme`), `ui_language` (`<html lang>`).
 3. The user types a description and optionally pastes or picks a screenshot. A
-   collapsible **"What will be sent"** block shows the collected values verbatim, so
-   nothing is gathered behind the user's back.
+   collapsible **"What will be sent"** block shows those values verbatim **and** a
+   static line naming the facts collected server-side that it cannot display — "we also
+   record your name and email address, your role, your browser identification and
+   language, and the time". Without that line the transparency claim would be false, since
+   the user agent, `Accept-Language`, the role snapshot and `reporter_label` never pass
+   through the client.
 4. `POST` `multipart/form-data` to `support:report_create`.
 5. The view: `@login_required`, then **re-checks `can_report(request.user)` and 403s
    otherwise**, then the throttle, then `IssueReportForm` validation.
-6. On success the row is saved with the sanitised telemetry and the role snapshot, and
-   the email is queued with `transaction.on_commit`.
-7. The response is JSON; the dialog shows a confirmation and closes. Field errors come
-   back as JSON and render inside the dialog.
+6. On success the row is saved inside `transaction.atomic()` with the sanitised
+   telemetry and the role snapshot, and the email is queued with
+   `transaction.on_commit`.
+7. The dialog renders the JSON response per the contract below.
 
-### Telemetry assembly and sanitisation
+### The `report_create` JSON contract
 
-Everything in step 2 is **client-supplied and therefore untrusted**. The view builds the
-stored `telemetry` dict itself:
+Both sides are written against this table; nothing here is left to the implementer.
 
-- It reads only a **fixed allow-list of keys**; unknown keys are dropped.
-- Every string value is truncated to a per-key cap before storage.
-- Numeric values are coerced with a bounded fallback; a non-numeric viewport is dropped,
-  never stored raw.
-- Server-derived facts — `user_agent` (`HTTP_USER_AGENT`), `accept_language`
-  (`HTTP_ACCEPT_LANGUAGE`), the role snapshot and the timestamp — are taken from
-  `request` and from the database, never from the payload. Where a server fact and a
-  client claim overlap, the server fact wins.
-- **No IP address is collected.** This is a platform with student accounts; the
-  diagnostic value does not justify the personal-data question.
+| Outcome | HTTP | Body | Dialog behaviour |
+|---|---|---|---|
+| Success | `201` | `{"ok": true, "message": "<thank-you text>"}` | Show `message`, close |
+| Field errors | `400` | `{"ok": false, "message": null, "errors": {"<field>": ["<msg>", ...]}}` | Render each list under its field |
+| Throttled | `429` | `{"ok": false, "message": "<polite text>", "errors": {}}` | Show `message` as a banner; keep the typed text |
+| Not permitted | `403` | `{"ok": false, "message": "<text>", "errors": {}}` | Show `message` as a banner |
+| Not authenticated | `302` | allauth login redirect | Follow normally |
 
-`page_url` is the sharp edge. It is stored as text, rendered escaped everywhere, and in
-the triage template is turned into a link **only if it parses to this site's own
-origin**; otherwise it prints as inert text. A `javascript:` value must never reach an
+`errors` is built from `form.errors.get_json_data()`, reduced to `{field: [message,
+...]}`. The client distinguishes the cases by HTTP status, never by inspecting text.
+Every response carries `Content-Type: application/json` except the login redirect.
+
+### Telemetry assembly and sanitisation (`support/telemetry.py`)
+
+Everything in step 2 is **client-supplied and therefore untrusted**. The view never
+stores the payload; it builds the `telemetry` dict from a fixed allow-list. Unknown keys
+are dropped silently.
+
+| Key | Source | Type | Rule |
+|---|---|---|---|
+| `viewport_w`, `viewport_h` | client | int | Keep iff `1 <= v <= 20000`, else **drop the key** |
+| `screen_w`, `screen_h` | client | int | Same bounds, same drop |
+| `dpr` | client | float | Keep iff `0 < v <= 10`, rounded to 2dp, else drop |
+| `timezone` | client | str | Truncate to 64 |
+| `theme` | client | str | Keep iff exactly `light` or `dark`, else drop |
+| `ui_language` | client | str | Truncate to 16 |
+| `user_agent` | **server** (`HTTP_USER_AGENT`) | str | Truncate to 512 |
+| `accept_language` | **server** (`HTTP_ACCEPT_LANGUAGE`) | str | Truncate to 256 |
+
+Out-of-range or non-numeric values are **dropped, never clamped** — a clamped 20000px
+viewport is a plausible-looking lie in a diagnostic record, while an absent key is
+honestly absent. Where a server fact and a client claim would overlap, the server fact
+wins.
+
+`TELEMETRY_LABELS` in the same module maps each key to a translated display label, and
+is the single source shared by the triage template and the email body, so the two can
+never drift.
+
+**No IP address is collected.** This is a platform with student accounts; the
+diagnostic value does not justify the personal-data question.
+
+`page_url` and `page_title` are their own columns, not telemetry keys, and are therefore
+capped **in `IssueReportForm.clean_*`**: `page_url` truncated to `PAGE_URL_MAX_LENGTH`,
+`page_title` to `PAGE_TITLE_MAX_LENGTH`. Left to the database, an over-long title raises
+`DataError` and 500s the submission, and `page_url` — an unbounded `TextField` fed from
+an untrusted POST field — would accept megabytes.
+
+`page_url` is the sharp edge for rendering. It is stored as text, rendered escaped
+everywhere, and in the triage template is turned into a link **only if** it parses to
+`http`/`https` **and** its host equals `Site.objects.get_current().domain`; otherwise it
+prints as inert text. The current Site — not `request.get_host()`, not `ALLOWED_HOSTS` —
+is the source of truth, matching `notifications/emails._absolute_url`, which uses it
+precisely so a link can never be host-spoofed. A `javascript:` value must never reach an
 `href`.
+
+### Throttle
+
+`support/policy.py::throttle_exceeded(user)` returns True when
+`IssueReport.objects.filter(reporter=user, created_at__gte=now() -
+THROTTLE_WINDOW).count() >= THROTTLE_MAX_REPORTS`. A **rolling** window, not a clock
+hour. Served by the `("reporter", "-created_at")` index.
+
+No one is exempt, PAs included: the limit is high enough not to obstruct honest use, and
+an exemption is a branch nobody would test. Because the count reads stored rows,
+deleting reports refunds quota — acceptable, since only PAs can delete.
 
 ### Audience resolution
 
@@ -317,40 +520,66 @@ documents.
 
 - **Language:** the institution default (`get_site_config()["default_language"]`), not
   the reporter's. One message goes to every recipient, so it can only have one language.
-- **Recipients:** every **active** Platform Admin with a non-empty email address, unioned
-  with `extra_emails`, de-duplicated case-insensitively.
+- **Recipients:** every **active** member of the `Platform Admin` Group with a non-empty
+  email address, unioned with `extra_emails`, de-duplicated case-insensitively.
+  Superusers outside that Group are not included (see "Audience policy", rule 2).
+- **Envelope:** `to=[settings.DEFAULT_FROM_EMAIL]` with every resolved recipient in
+  **`bcc`**. Putting them in `to` would disclose each PA's personal address to a
+  helpdesk alias and to every other recipient — indefensible in a design whose other
+  choices are explicitly privacy-driven.
+- **This is a deliberate divergence** from `notifications/emails.py:107`, which sends one
+  message *per* recipient with `[recipient.email]`. A single bcc'd message is right here
+  because the audience is a fixed admin list rather than a per-user fan-out. Noted so a
+  later reviewer does not "restore consistency" and undo it.
 - **`reply_to`:** the reporter's address when they have one, so a PA can simply reply.
 - **Subject:** institution name plus reporter display name, with **whitespace collapsed**
-  — a display name containing a newline would otherwise split the header.
-- **Body:** description, reporter, roles, page URL, and the telemetry as a labelled list.
-  The screenshot is **attached** (capped at 5 MiB by the upload validator).
-- **Ordering:** the row is committed first; the send runs in `transaction.on_commit`
-  inside `try`/`except`. Success sets `emailed_at`; failure logs and leaves it null. With
-  SMTP unconfigured the report still exists and the PA still sees it — the entire reason
-  storage was chosen over email-only.
+  (`" ".join(value.split())`) — a display name containing a newline would otherwise split
+  the header.
+- **Body:** description, reporter, roles, page URL, and the telemetry as a labelled list
+  built from `TELEMETRY_LABELS`. The screenshot is **attached** (capped at 5 MiB by the
+  upload validator).
+- **Ordering:** the view wraps the save in `transaction.atomic()` and the send runs in
+  `transaction.on_commit` inside `try`/`except`. Success sets `emailed_at` with
+  `save(update_fields=["emailed_at"])` — a bare `save()` from a post-commit callback
+  would rewrite every field of a row a PA may have resolved in the meantime. Failure
+  logs and leaves it null. With SMTP unconfigured the report still exists and the PA
+  still sees it — the entire reason storage was chosen over email-only.
+
+`ATOMIC_REQUESTS` is **not** set in this project, so without the explicit
+`transaction.atomic()` the callback would fire immediately and the rollback guarantee
+would be vacuous. Tests execute the callbacks with pytest-django's
+`django_capture_on_commit_callbacks(execute=True)`; under a plain `django_db` mark they
+do not run at all.
 
 ### Triage
 
 The PA opens **Issue reports**, filters to open, opens one, reads the telemetry and the
-screenshot, acts, and marks it resolved. `resolved_by` and `resolved_at` record who and
-when.
+screenshot, acts, and marks it resolved (or reopens it, or deletes it). `resolved_by`
+and `resolved_at` record who and when.
 
 ## Error handling
 
 | Situation | Behaviour |
 |---|---|
-| A user who may not report POSTs to `support:report_create` | **403.** The menu item being hidden is not access control, and the ladder's top rung is "Everyone" — this gate *is* the feature. |
+| A user who may not report POSTs to `support:report_create` | **403** per the JSON contract. The menu item being hidden is not access control, and the ladder's top rung is "Everyone" — this gate *is* the feature. |
 | Anonymous POST | `@login_required` redirect. |
-| Empty or whitespace-only description | Form error rendered inside the dialog; no row, no mail. |
-| Description over `DESCRIPTION_MAX_LENGTH` | Form error; the dialog also shows a live character counter so this is rare. |
-| Screenshot too large, or a disallowed or non-image extension | `validate_image_file` error rendered inside the dialog; the description the user typed is preserved. |
-| 6th report from one user within an hour | Refused with a polite message ("you have sent a few already — please try again later"), **no row written and no mail sent**. Counted from the stored rows; no new state. |
+| Empty or whitespace-only description | `400` with a field error; no row, no mail. |
+| Description over `DESCRIPTION_MAX_LENGTH` | `400` with a field error; the dialog also shows a live character counter so this is rare. |
+| `page_url` / `page_title` over their caps | Silently truncated in `clean_*` — never a `DataError`, never a rejected report. |
+| Screenshot too large, or a disallowed or non-image extension | `400` with a field error; the description the user typed is preserved client-side. |
+| Pasted image with an extensionless name | Re-wrapped by the JS before it reaches the input; never surfaces as a validation error. |
+| 6th report from one user within the rolling hour | `429` with a polite message; **no row written and no mail sent**. |
 | SMTP unconfigured, or the send raises | The report row survives; `emailed_at` stays null; the failure is logged. The reporter is still told the report was received, because it was. |
+| The enclosing transaction rolls back | `on_commit` never fires, so no email describes a report that does not exist. |
 | No resolvable recipients (no PA has an email and `extra_emails` is empty) | The row is still written; nothing is sent; a warning is logged. The triage list is the safety net. |
-| Hostile telemetry (`page_url` of `javascript:...`, over-long strings, unknown keys) | Dropped, truncated, or stored as inert escaped text; never emitted into an `href`. |
+| Hostile telemetry (`page_url` of `javascript:...`, over-long strings, unknown keys, a 10⁹-px viewport) | Dropped, truncated, or stored as inert escaped text; never emitted into an `href`. |
 | A non-PA requests a screenshot URL | **403** from `permission_required`. |
+| Screenshot requested for a report with none, or whose file is gone | **404**, not a 500. |
+| A template reaches for `report.screenshot.url` | `NotImplementedError` — loud in tests rather than a silently broken `/media/` link. |
 | A report is deleted | `post_delete` removes the screenshot file from disk. |
-| The `SupportSettings` row does not exist yet | Every read path uses `filter(pk=1).first() or SupportSettings()`, so the defaults apply and no row is written on a GET. |
+| `report_set_status` called with the status the report already has | No-op; `resolved_by` / `resolved_at` are preserved. |
+| A stored role name is no longer in `ROLE_LABELS` | Rendered as the raw stored name. |
+| The `SupportSettings` row does not exist yet | Every read path uses `filter(pk=1).first() or SupportSettings()`, so the defaults apply and no row is written on a GET. The first save from the Allowed reporters page creates it. |
 
 ## Testing
 
@@ -359,30 +588,51 @@ RED** — a test that cannot fail on a broken build is not evidence.
 
 | Test | Mutant that must break it |
 |---|---|
-| `can_report` matrix: 4 tiers by 4 roles, plus extras and anonymous | Drop the "Platform Admin always" rule |
-| **A Student POSTs `report_create` while the tier is `course_admins` -> 403** | Delete the server-side `can_report` gate from the view |
+| **A permitted user's POST creates one row** with the expected `page_url`, `reporter_label`, `reporter_roles` snapshot and allow-listed telemetry, and returns `201` | Drop the role snapshot, or store `reporter` only |
+| `can_report` matrix: 4 rungs by 4 roles, plus extras, a **group-less authenticated user**, a superuser outside the PA Group, an inactive user, and anonymous | Drop the "Platform Admin / superuser always" rule |
+| Under the `all` rung, a user holding **no** role Group can report | Evaluate `all` as a Group intersection |
+| **A Student POSTs `report_create` while the rung is `course_admins` -> 403** | Delete the server-side `can_report` gate from the view |
 | A user added to `extra_reporters` can report on the very next request | Remove the `m2m_changed` cache-invalidation receiver |
+| The **first-ever** save of the Allowed reporters page creates pk=1 and invalidates the cache | Read via `filter(pk=1).first()` on that page's POST path |
 | Changing `audience` takes effect on the next request | Remove the `post_save` receiver |
-| 6th report within an hour -> refused, no row, no mail | Raise the limit |
-| Recipients = active PAs with an email, unioned with `extra_emails`, de-duplicated | Drop `extra_emails` from the recipient union |
+| An authenticated render issues **one** Group query, not two | Drop `role_names_for`'s per-request memo |
+| A 150-char display name plus a long email yields a stored label of exactly `REPORTER_LABEL_MAX_LENGTH` | Drop the truncation |
+| `page_title` over its cap is truncated, not rejected and not a `DataError` | Drop `clean_page_title` |
+| 6th report within the rolling hour -> `429`, no row, no mail | Raise `THROTTLE_MAX_REPORTS` |
+| Recipients = active PA-Group members with an email, unioned with `extra_emails`, de-duplicated | Drop `extra_emails` from the recipient union |
+| Recipients are in **`bcc`**, not `to` | Move them to `to` |
 | A PA with no email address is not a recipient, and does not break the send | Remove the non-empty-email filter |
+| A display name containing `\n` / `\r` produces a **single-line subject** | Remove the whitespace collapse |
 | The screenshot is attached to the outgoing message | Drop the attachment |
-| `emailed_at` is set on success | Never set it |
-| **A send that raises still leaves the report row** | Move the send out of `on_commit`, or out of the `try` |
+| `emailed_at` is set on success, via `update_fields` (a concurrent `status` change survives) | Use a bare `save()` |
+| **A send that raises still leaves the report row** | Move the send out of the `try`/`except` |
+| **A rolled-back transaction sends no email** | Call `send()` directly instead of via `on_commit` |
 | A Teacher GETting the screenshot view -> 403 | Drop `permission_required` |
-| A screenshot is written outside `MEDIA_ROOT` | Point the storage at `MEDIA_ROOT` |
+| A screenshot is written under `SUPPORT_SCREENSHOT_DIR`, not `MEDIA_ROOT`, with `override_settings` pointing it at a tmp dir | Build the storage eagerly at import (the override then silently fails) |
+| `report.screenshot.url` raises | Let `base_url` fall back to `MEDIA_URL` |
+| Screenshot view 404s for an empty field and for a missing file | `FileResponse` on the raw path |
 | Deleting a report deletes its file | Remove the `post_delete` receiver |
-| `page_url` of `javascript:alert(1)` renders escaped and never as an `href` | Link `page_url` unconditionally |
-| Unknown telemetry keys are dropped; over-long values truncated | Store the payload verbatim |
-| `reporter_label` survives deletion of the reporting account | Read the label through the FK instead of the snapshot |
-| The settings form rejects a malformed address in `extra_emails` | Drop the `EmailValidator` |
-| A GET of any other settings tab writes no `SupportSettings` row | Use `load()` instead of `filter(pk=1).first()` |
+| `page_url` of `javascript:alert(1)`, and one on a foreign host, render escaped and never as an `href` | Link `page_url` unconditionally |
+| Unknown telemetry keys dropped; over-long strings truncated; an out-of-range viewport **dropped, not clamped** | Store the payload verbatim |
+| A screenshot still validates after a PA narrows `Institution.allowed_image_extensions` | Validate with `validate_image_file` |
+| A stored role name absent from `ROLE_LABELS` renders as the raw name | Index `ROLE_LABELS` directly |
+| `report_set_status` to the current status preserves `resolved_by` / `resolved_at` | Write them unconditionally |
+| The settings form rejects a malformed address, caps the list at `EXTRA_EMAILS_MAX`, and lower-cases on save | Drop the `EmailValidator` / the cap / the normalisation |
+| A GET of any other settings tab writes no `SupportSettings` row **and renders no per-user roster** | Use `load()` in `_settings_context`; put the M2M field back on `SupportSettingsForm` |
 
-**e2e (Playwright).** Open the dialog from the account menu, paste an image from the
-clipboard, submit, and assert both the stored row and the confirmation. Per this repo's
-e2e practice: drive the real UI rather than posting directly, synchronise on conditions
-rather than sleeps, and take **light and dark** screenshots — a `<dialog>` in dark mode
-needs `user.theme` set on the user, because the theme cookie does not reach it.
+**e2e (Playwright).** Open the dialog from the account menu, attach an image **by
+dispatching a synthetic paste**, submit, and assert both the stored row and the
+confirmation. The paste is performed with `page.evaluate`: fetch the fixture image as a
+blob, build a `DataTransfer`, and dispatch a `ClipboardEvent("paste")` on the dialog.
+`Ctrl+V` cannot work — Playwright cannot portably put an image on the OS clipboard, and
+an empty paste would leave the optional screenshot empty while the submit still
+succeeded, giving a test that cannot fail. **Mutant: remove the `paste` listener** — the
+assertion on the stored screenshot must go RED.
+
+Per this repo's e2e practice: drive the real UI rather than posting directly,
+synchronise on conditions rather than sleeps, and take **light and dark** screenshots —
+a `<dialog>` in dark mode needs `user.theme` set on the user, because the theme cookie
+does not reach it.
 
 **i18n.** All model, form and template strings use `gettext_lazy`; the email module uses
 eager `gettext` inside its `translation.override(...)` block. Message catalogs are
@@ -390,20 +640,20 @@ regenerated and Polish translations supplied.
 
 ## Visual design
 
-The new views — the report dialog, the Support settings tab, and the triage list and
-detail — are built to match the existing design language (token-driven CSS, no
-Bootstrap, monochrome SVG icons using `currentColor`, never emoji). The
-`frontend-design` skill is applied to these views as a final pass, after the behaviour
-is complete and tested, so the visual work happens once against finished markup. Every
-new view ships styled in **both** light and dark themes.
+The new views — the report dialog, the Support settings tab, the Allowed reporters page,
+and the triage list and detail — are built to match the existing design language
+(token-driven CSS, no Bootstrap, monochrome SVG icons using `currentColor`, never
+emoji). The `frontend-design` skill is applied to these views as a final pass, after the
+behaviour is complete and tested, so the visual work happens once against finished
+markup. Every new view ships styled in **both** light and dark themes.
 
 ## Deployment note
 
-`support.view_issuereport` and `support.change_issuereport` are new permissions attached
-to the Platform Admin group. **`setup_roles` must be run after `migrate`** on deploy, or
-the permissions exist but are attached to nobody and the triage pages 403 for everyone.
-No test catches this — it is a deployment-ordering property, and it belongs in the
-release checklist.
+`support.view_issuereport`, `support.change_issuereport` and
+`support.delete_issuereport` are new permissions attached to the Platform Admin group.
+**`setup_roles` must be run after `migrate`** on deploy, or the permissions exist but
+are attached to nobody and the triage pages 403 for everyone. No test catches this — it
+is a deployment-ordering property, and it belongs in the release checklist.
 
 `SUPPORT_SCREENSHOT_DIR` must exist and be writable by the application user, and — like
 `transfer_staging` — must **not** be exposed by the web server.
