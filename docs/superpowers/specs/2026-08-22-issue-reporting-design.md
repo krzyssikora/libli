@@ -237,10 +237,19 @@ class ScreenshotStorage(FileSystemStorage):
     StorageSettingsMixin._clear_cached_properties only pops the cache for
     MEDIA_ROOT / MEDIA_URL, never for a custom setting name.
 
-    base_url is None and url() raises, so a template reaching for the idiomatic
-    {{ report.screenshot.url }} fails loudly instead of emitting a plausible
-    /media/... link that bypasses the PA-only view and resolves to nothing.
+    url() raises, so a template reaching for the idiomatic {{ report.screenshot.url }}
+    fails loudly instead of emitting a plausible /media/... link that bypasses the
+    PA-only view and resolves to nothing. base_url is pinned to None as well, so the
+    inherited cached_property can never quietly resolve to MEDIA_URL.
+
+    The constructor's `location` argument is intentionally INERT: overriding the
+    cached_property with a plain property means FileSystemStorage.__init__ stores
+    self._location and nothing ever reads it. Tests must redirect the directory with
+    override_settings(SUPPORT_SCREENSHOT_DIR=...), never ScreenshotStorage(location=...),
+    which would silently use the real directory.
     """
+
+    base_url = None
 
     @property
     def base_location(self):
@@ -293,9 +302,29 @@ avoid. All three receivers — `post_save` and `m2m_changed` for the cache,
 **Rollback also orphans a file.** `form.save()` writes through the storage inside
 `transaction.atomic()`, but filesystem writes are not transactional: if the transaction
 rolls back, the row vanishes while the file stays on disk forever — no row means
-`post_delete` never fires and no PA can ever see or delete it. `report_create`
-therefore captures `report.screenshot.name` and, in an `except` around the atomic
-block, deletes it from the storage before re-raising.
+`post_delete` never fires and no PA can ever see or delete it.
+
+The cleanup has an exact shape, because the obvious one is broken:
+
+```python
+saved_name = None
+try:
+    with transaction.atomic():
+        report = form.save()
+        saved_name = report.screenshot.name or None
+        ...
+except Exception:
+    if saved_name:
+        ScreenshotStorage().delete(saved_name)
+    raise
+```
+
+`saved_name` is initialised **before** the `try`. The likeliest failure is a database
+error raised *by* `form.save()` itself, after the field's `pre_save` has already written
+the file to disk; an `except` block that reads `report.screenshot.name` would then raise
+`NameError` on an unbound name, masking the real exception *and* still orphaning the
+file. The paired test must therefore simulate a failure **inside** `form.save()`, not
+after it.
 
 ### Audience policy (`support/policy.py`)
 
@@ -356,6 +385,14 @@ not two. `report_create` has a live request and passes `role_names_for(request)`
 only callers with no request at all (tests, management commands) omit the argument, in
 which case `can_report` fetches the names itself.
 
+**A naive query-count assertion would be false on a correct build.** `base.html`
+evaluates `perms.*` for every authenticated user, which drives
+`ModelBackend._get_group_permissions` — `Permission.objects.filter(group__user=user)`,
+whose SQL also joins `auth_group`. Counting every statement mentioning `auth_group`
+therefore yields at least two on a *correct* build. The auth backend's permission query
+is expected and must be excluded; the test counts only statements selecting
+`"auth_group"."name"`, which the permission query does not.
+
 Cache invalidation must be connected to **both**:
 
 - `post_save` on `SupportSettings`, and
@@ -384,6 +421,13 @@ The tab holds exactly two editable controls plus one summary:
    `EmailValidator`; blank lines ignored; addresses **lower-cased and de-duplicated on
    save**; at most `EXTRA_EMAILS_MAX` entries; stored as a JSON list. Normalising on
    save (not only at send) keeps the stored list and the send-time dedup consistent.
+
+   `SupportSettingsForm` must **override this field explicitly** as a
+   `CharField(widget=Textarea, required=False)` with a `clean_extra_emails` that splits,
+   validates, normalises and returns a list, and with `initial` rendered as
+   newline-joined text. Left to the ModelForm default, a `JSONField` yields
+   `forms.JSONField`, whose textarea expects literal JSON — a field that looks right and
+   rejects everything a PA types.
    Above it, a read-only line names the Platform Admins who will be mailed
    automatically, so "who gets this" is never a guess. **Below it, a warning line:**
    "These addresses receive the full report, including any attached screenshot, which
@@ -397,22 +441,47 @@ The tab holds exactly two editable controls plus one summary:
    dedicated **Allowed reporters** page. `SupportSettingsForm` carries **no** M2M field,
    so the always-rendered Support panel costs nothing beyond the already-selected count.
 
+   That count is taken **through the join table** —
+   `SupportSettings.extra_reporters.through.objects.filter(supportsettings_id=1).count()`
+   — never as `row.extra_reporters.count()` on the read-only fallback. `_settings_context`
+   builds every panel on every render of *any* settings tab, and before the first save the
+   fallback is an unsaved instance whose M2M access raises `ValueError`. Reaching for the
+   natural `.count()` therefore 500s the settings page on a brand-new install, on every
+   tab — the first-run path.
+
 **Allowed reporters page** (`support:reporters`, `permission_required`): the roster
 picker pattern from `templates/grouping/group_form.html` — a searchable
 (`data-roster-search`) checkbox list of active non-PA users, filtered client-side. Being
 a dedicated page, it renders that list only when a PA actually opens it.
 
-Its POST path uses `SupportSettings.load()` — writing is the whole point of the page, so
-the singleton is materialised first and `save_m2m()` therefore always runs against a row
-with `pk=1`. This is the one place `load()` is correct; every read path still uses
-`filter(pk=1).first()`. The first-ever save must both create the row and fire the
+Its POST path binds to `SupportSettings.load()` — writing is the whole point of the
+page, so the singleton is materialised first and `save_m2m()` therefore always runs
+against a row with `pk=1`. The first-ever save must both create the row and fire the
 `m2m_changed` invalidation, and is tested as such.
+
+`settings_support`'s POST binds to `load()` for the same reason, matching
+`settings_integrations` (`institution/views_manage.py`), which already does exactly this
+for `WebhookEndpoint`. So the rule is: **the two write paths — the Support tab's POST
+and the Allowed reporters POST — use `load()`; every read path uses
+`filter(pk=1).first()`.**
+
+**Roster queryset:** active non-PA users **unioned with the currently-selected
+`extra_reporters`**. A queryset of only "active non-PA users" would omit any already-
+granted user who has since been deactivated or promoted to PA, and the next
+`save_m2m()` would then silently *revoke* that grant — a PA opening the page to add one
+person would drop an unrelated one without being told. Already-selected users outside
+the base roster render checked, with a muted note explaining why they are listed.
 
 ### Reporter surface
 
 - `core/context_processors.py` gains `support_availability(request)` returning
-  `{"can_report_issue": ...}` — the same shape as the existing `help_availability` —
-  registered in `TEMPLATES["OPTIONS"]["context_processors"]` beside it.
+  `{"can_report_issue": ..., "report_description_max": DESCRIPTION_MAX_LENGTH}` —
+  the same shape as the existing `help_availability` — registered in
+  `TEMPLATES["OPTIONS"]["context_processors"]` beside it. The cap has to travel this
+  way: the dialog is `{% include %}`d from `base.html` and so has no view context, and
+  the `maxlength` attribute, the live counter and the JS all need the value. The
+  template renders it into a `data-` attribute on the textarea and the JS reads it from
+  there, so `DESCRIPTION_MAX_LENGTH` is written down exactly once.
 - `templates/base.html`, behind `{% if can_report_issue %}` in two **separate**
   places: the **trigger** is a menu item inside the account-menu panel, while the
   `{% include "support/_report_dialog.html" %}` sits at body level, outside every
@@ -422,6 +491,12 @@ with `pk=1`. This is the one place `load()` is correct; every read path still us
 - `support/static/support/js/report_dialog.js` opens the dialog, populates the hidden
   telemetry fields, handles paste-to-attach, posts `FormData` via `fetch`, and renders
   errors back inside the dialog.
+- Its `<link>` and `<script>` go **directly in `base.html`**, beside the shell's own
+  asset tags and guarded by the same `{% if can_report_issue %}` — explicitly **not**
+  inside `{% block extra_css %}` / `{% block extra_js %}`. Those blocks exist for child
+  templates to override, and most pages do override them, which would drop the dialog's
+  assets on exactly those routes: an unstyled, inert dialog on some pages and a working
+  one on others.
 - The `<dialog>` needs **explicit theming**: in this codebase a `<dialog>` does not
   inherit the page theme, so its colours must be set from the theme tokens rather than
   inherited.
@@ -458,8 +533,9 @@ every 403 asserted in this spec would then be a 302. The repo is uniform on this
   `accounts/views_manage.py`), newest first. Columns: created, reporter, role, first
   line of the description, a screenshot indicator, a **not-emailed** indicator, status.
   Filtered by `?status=`, accepting `open`, `resolved` and `all`; **the default is
-  `open`**, because the list exists to show what still needs doing. The Admin-menu item
-  links to the unfiltered (therefore open) URL.
+  `open`**, because the list exists to show what still needs doing, and an unrecognised
+  value falls back to `open` rather than erroring. The Admin-menu item links to the
+  unfiltered (therefore open) URL.
 - `report_detail` — the description, the telemetry rendered as **labelled rows, not a
   JSON blob** (labels from `support/telemetry.py`), the screenshot thumbnail, and the
   status and delete actions. When `emailed_at` is null it shows a **"not emailed"**
@@ -476,7 +552,10 @@ every 403 asserted in this spec would then be a 302. The repo is uniform on this
   removes a report and, via `post_delete`, its screenshot; without it the receiver is
   reachable only from tests and screenshots of student data accumulate forever.
   Redirects to `report_list`, preserving the current `?status=` filter — returning to
-  `report_detail` would 404 on the row just deleted.
+  `report_detail` would 404 on the row just deleted. The filter arrives as a **hidden
+  input on the confirmation form**, validated against the same `{open, resolved, all}`
+  set and falling back to the default otherwise. Not `HTTP_REFERER`, which is an open
+  redirect waiting to happen.
 - `screenshot` — `FileResponse` for the private file. **404** when the field is empty or
   the file is missing from disk (a DB restored against a fresh volume must not 500).
   Served `Content-Disposition: inline` with a `Content-Type` derived from the stored
@@ -524,13 +603,22 @@ Both sides are written against this table; nothing here is left to the implement
 
 | Outcome | HTTP | Body | Dialog behaviour |
 |---|---|---|---|
-| Success | `201` | `{"ok": true, "message": "<thank-you text>"}` | Show `message`, close |
+| Success | `201` | `{"ok": true, "message": "<thank-you text>"}` | Show `message`, **reset the form**, close |
+| Not a POST | `405` | non-JSON | Generic banner (the `Content-Type` check routes it there) |
 | Field errors | `400` | `{"ok": false, "message": null, "errors": {"<field>": ["<msg>", ...]}}` | Render each list under its field |
 | Throttled | `429` | `{"ok": false, "message": "<polite text>", "errors": {}}` | Show `message` as a banner; keep the typed text |
 | Not permitted | `403` | `{"ok": false, "message": "<text>", "errors": {}}` | Show `message` as a banner |
 | Not authenticated | `401` | `{"ok": false, "message": "<text>", "errors": {}}` | Show `message`, offer a link to log in; never navigate away silently |
 | Anything else, or a non-JSON body | any | — | Generic banner, dialog stays open, **typed description preserved** |
 | `fetch` rejects (network) | — | — | Same generic banner |
+
+The view is `@require_POST`. **Resetting the form on success is not cosmetic:** the
+dialog lives in `base.html` and the page never navigates, so without a reset the next
+open would show the previous description and still hold the previously attached file in
+the `<input type="file">` — a short path to a duplicate report carrying a stale
+screenshot. The reset clears the description, the file input and the paste-populated
+`DataTransfer`; the telemetry fields are re-read on every open, since the user may have
+resized or navigated in between.
 
 **`report_create` does not use `@login_required`.** It checks
 `request.user.is_authenticated` itself and returns the `401` above. This is not a style
@@ -555,6 +643,12 @@ Every response the view itself produces carries `Content-Type: application/json`
 Everything in step 2 is **client-supplied and therefore untrusted**. The view never
 stores the payload; it builds the `telemetry` dict from a fixed allow-list. Unknown keys
 are dropped silently.
+
+The sanitiser reads **directly from `request.POST`** (and `request.META` for the two
+server-side keys), never through `IssueReportForm`. The eight client keys are neither
+model fields nor declared form fields, and routing them through the form would mean a
+malformed telemetry value could *reject a bug report*. Bad telemetry is always dropped,
+never an error.
 
 | Key | Source | Type | Rule |
 |---|---|---|---|
@@ -617,6 +711,21 @@ deleting reports refunds quota — acceptable, since only PAs can delete.
 (`SUPPORT_CONFIG_CACHE_KEY`, `SUPPORT_CONFIG_TTL`) or runs one query for the settings
 row plus one for the extras ids and caches the bundle.
 
+**The no-row branch must not touch the M2M.** When `filter(pk=1).first()` returns
+`None`, `get_support_config()` returns
+`{"audience": Audience.ADMINS, "extra_reporter_ids": frozenset()}` immediately and
+**never constructs a fallback `SupportSettings()` to read `extra_reporters` from**.
+Django raises `ValueError: … needs to have a primary key value before a many-to-many
+relationship can be used` for any M2M access on an unsaved instance, and `can_report`
+runs from a context processor on *every authenticated page render* — so taking the
+`or SupportSettings()` shortcut here would 500 the entire site on a fresh install,
+until someone happened to save the Allowed reporters page.
+
+The general `filter(pk=1).first() or SupportSettings()` rule stated elsewhere in this
+spec is about **scalar** fields, where an unsaved instance safely yields the model
+defaults. It does not extend to `extra_reporters`, and every read of that relation must
+be guarded on `pk` being set.
+
 **The invalidation guarantee is bounded, and the spec states it honestly.** The default
 cache is `LocMemCache`, which `core/services.py` already documents as per-process.
 `invalidate_support_config()` therefore clears the bundle **immediately in the worker
@@ -644,6 +753,11 @@ documents.
   **`bcc`**. Putting them in `to` would disclose each PA's personal address to a
   helpdesk alias and to every other recipient — indefensible in a design whose other
   choices are explicitly privacy-driven.
+- **Empty recipient set short-circuits before `send()`.** Because `to` is always
+  non-empty, an empty `bcc` would still produce a valid message to
+  `DEFAULT_FROM_EMAIL`; `send()` would return 1 and stamp `emailed_at`, making that
+  column lie in precisely the case it exists to record. So: if the resolved recipient
+  set is empty, log a warning, **skip `send()` entirely**, and leave `emailed_at` null.
 - **This is a deliberate divergence** from `notifications/emails.py:107`, which sends one
   message *per* recipient with `[recipient.email]`. A single bcc'd message is right here
   because the audience is a fixed admin list rather than a per-user fan-out. Noted so a
@@ -707,7 +821,7 @@ and `resolved_at` record who and when.
 | `report_set_status` with a missing or unrecognised `status` value | **400**, row untouched. |
 | A `Site.domain` that never left its `example.com` default | Every `page_url` renders as inert text. Intended, not a defect. |
 | A stored role name is no longer in `ROLE_LABELS` | Rendered as the raw stored name. |
-| The `SupportSettings` row does not exist yet | Every read path uses `filter(pk=1).first() or SupportSettings()`, so the defaults apply and no row is written on a GET. The first save from the Allowed reporters page creates it. |
+| The `SupportSettings` row does not exist yet | Scalar reads use `filter(pk=1).first() or SupportSettings()`, so the defaults apply and no row is written on a GET. **`extra_reporters` is never read off that fallback** — an M2M access on an unsaved instance raises `ValueError`, which would 500 both the settings page and every authenticated render. The first save from either write path creates the row. |
 
 ## Testing
 
@@ -723,7 +837,7 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | A user added to `extra_reporters` can report on the very next request | Remove the `m2m_changed` cache-invalidation receiver |
 | The **first-ever** save of the Allowed reporters page creates pk=1 and invalidates the cache | Read via `filter(pk=1).first()` on that page's POST path |
 | Changing `audience` takes effect on the next request | Remove the `post_save` receiver |
-| An authenticated render of `home` issues **one** Group query, not two — measured with `CaptureQueriesContext`, asserting exactly one captured statement whose SQL mentions `auth_group` | Drop `role_names_for`'s per-request memo |
+| An authenticated render of `home` issues **one** role-names query, not two — `CaptureQueriesContext`, counting only statements that select `"auth_group"."name"` | Drop `role_names_for`'s per-request memo |
 | An anonymous POST returns **`401` JSON**, not a redirect | Restore `@login_required` |
 | A non-JSON / 5xx response leaves the dialog open with the description intact | Assume JSON on every response |
 | A 150-char display name plus a long email yields a stored label of exactly `REPORTER_LABEL_MAX_LENGTH` | Drop the truncation |
@@ -741,7 +855,17 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | A screenshot is written under `SUPPORT_SCREENSHOT_DIR`, not `MEDIA_ROOT` — resolving the path under **two different** `override_settings` values in one process | Override only `base_location`, leaving `location` a `cached_property` (a single-override test passes anyway) |
 | A file named `../../evil name.png` is stored as `screenshots/<YYYY>/<MM>/<uuid4>.png`, with no trace of the original basename | `upload_to="screenshots/%Y/%m/"` |
 | An upload named `Photo.PNG` stores a lower-cased extension and serves the right content type | Append the extension verbatim |
-| A save that raises **after** the file is written leaves no file on disk | Drop the rollback cleanup |
+| A failure raised **inside** `form.save()` leaves no file on disk, and the original exception propagates (not a `NameError`) | Read `report.screenshot.name` in the `except` instead of a pre-initialised `saved_name` |
+| **With no `SupportSettings` row**, an authenticated render succeeds and `can_report` is False for a Student | Read the extras ids off an unsaved `SupportSettings()` fallback |
+| **With no `SupportSettings` row**, a GET of every settings tab renders 200 with "0 also allowed" | Call `.extra_reporters.count()` on the unsaved fallback |
+| With no PA email and empty `extra_emails`, `mail.outbox` is empty and `emailed_at` is null | Send anyway, since `to` is non-empty |
+| 5 reports timestamped 61 minutes ago -> the 6th succeeds; 5 timestamped 59 minutes ago -> throttled | Anchor the window on the current clock hour instead of `now() - THROTTLE_WINDOW` |
+| A reporter whose language is `pl` with an institution default of `en` produces an **English** subject and body | Override to the reporter's language |
+| An inactive or since-promoted existing extra **survives** a save that only adds someone else | Scope the roster queryset to active non-PA users alone |
+| The dialog works on a page whose template overrides `{% block extra_css %}` / `{% block extra_js %}` | Put the dialog's assets inside those blocks |
+| The rendered textarea's `maxlength` equals `DESCRIPTION_MAX_LENGTH` | Hardcode the number in the template |
+| The unfiltered list shows only open reports; `?status=all` shows both; an unrecognised value falls back to `open` | Default to `all` |
+| `extra_emails` accepts newline-separated addresses typed into the textarea | Leave the ModelForm's `forms.JSONField` default in place |
 | POST `report_delete` as a PA removes the row, the file, and redirects to the filtered list | Delete the route or the view |
 | POST `report_delete` as a Teacher -> 403; GET does not delete | Drop `raise_exception=True`; allow GET |
 | `report_set_status` with a missing or bogus value -> 400, row untouched | Fall through to `resolved` |
@@ -749,7 +873,7 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | `emailed_at` null renders a "not emailed" indicator on the detail page | Omit the indicator |
 | The email body contains an absolute `report_detail` link and the id appears in the subject | Drop the link; drop the id |
 | `reporter_roles` truncation drops a trailing partial name rather than cutting mid-token | Use a blind slice |
-| `report.screenshot.url` raises | Let `base_url` fall back to `MEDIA_URL` |
+| `report.screenshot.url` raises | **Remove the `url()` override** (inheriting `FileSystemStorage.url`, which then builds a plausible `/media/...` link). Note the mutant is *not* "let `base_url` fall back" — `url()` raises unconditionally, so that mutant could never go RED |
 | Screenshot view 404s for an empty field and for a missing file | `FileResponse` on the raw path |
 | Deleting a report deletes its file | Remove the `post_delete` receiver |
 | `page_url` of `javascript:alert(1)`, and one on a foreign host, render escaped and never as an `href` | Link `page_url` unconditionally |
