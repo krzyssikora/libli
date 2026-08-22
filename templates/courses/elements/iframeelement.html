@@ -1,7 +1,15 @@
 {% load i18n %}
 <div class="el el--iframe">
-  {% with ratio=el.frame_ratio %}
-  <div class="embed-frame"{% if ratio %} style="aspect-ratio: {{ ratio }}"{% endif %}>
+  {% comment %}--embed-w/--embed-h carry the pair as bare numbers for the width bounds
+  in courses.css; the inline aspect-ratio stays because calc() cannot read a <ratio>
+  back apart. aspect-ratio is written FIRST so the style attribute keeps the exact
+  prefix test_render_rejects_style_injection_from_the_url asserts against. The
+  --sized modifier, not the presence of the properties, is what gates those bounds:
+  an unset --embed-w would otherwise collapse the frame instead of leaving it at the
+  historical full-width 16:9.{% endcomment %}
+  {% with size=el.frame_size %}
+  <div class="embed-frame{% if size %} embed-frame--sized{% endif %}"
+       {% if size %}style="aspect-ratio: {{ size.0 }} / {{ size.1 }}; --embed-w: {{ size.0 }}; --embed-h: {{ size.1 }}"{% endif %}>
     {% comment %}referrerpolicy: send the page origin to the embed provider; Django's
     default Referrer-Policy: same-origin would otherwise strip the Referer cross-origin.{% endcomment %}
     <iframe src="{{ el.embed_src }}" loading="lazy"
