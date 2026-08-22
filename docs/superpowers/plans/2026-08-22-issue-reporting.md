@@ -2924,48 +2924,10 @@ def test_a_teacher_cannot_open_or_save_the_page(client):
 Run: `uv run pytest tests/test_support_reporters_page.py -v`
 Expected: `NoReverseMatch: 'reporters'`.
 
-- [ ] **Step 3: Write the form**
+- [ ] **Step 3: Write the widget and the form**
 
-Append to `support/forms.py`:
-
-```python
-class ReporterPickerForm(forms.ModelForm):
-    """The roster of individually-granted reporters.
-
-    The queryset is active non-PA users UNIONED with whoever is currently
-    selected. Scoped to active non-PA users alone, an already-granted user who
-    has since been deactivated or promoted to PA would be absent from the
-    rendered list, and the next save_m2m() would silently REVOKE them — a PA
-    opening the page to add one person would drop an unrelated grant.
-    """
-
-    class Meta:
-        model = SupportSettings
-        fields = ["extra_reporters"]
-        widgets = {"extra_reporters": forms.CheckboxSelectMultiple}
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        User = get_user_model()
-        selected = list(self.instance.extra_reporters.values_list("pk", flat=True))
-        base = User.objects.filter(is_active=True).exclude(
-            groups__name=PLATFORM_ADMIN
-        )
-        self.fields["extra_reporters"].queryset = (
-            User.objects.filter(Q(pk__in=base.values("pk")) | Q(pk__in=selected))
-            .distinct()
-            .order_by("display_name", "username")
-        )
-        self.fields["extra_reporters"].required = False
-        # Hand the widget the pks that survive only because of the union, so it
-        # can mark them. Django calls create_option on the WIDGET, never the form.
-        self.fields["extra_reporters"].widget.out_of_roster = set(selected) - set(
-            base.values_list("pk", flat=True)
-        )
-```
-
-The widget, defined above the form in the same module and referenced from
-`Meta.widgets = {"extra_reporters": OutOfRosterCheckboxSelectMultiple}`:
+Append both to `support/forms.py`, **widget first** — `Meta.widgets` below
+references it by name at class-creation time:
 
 ```python
 class OutOfRosterCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
@@ -2992,25 +2954,74 @@ class OutOfRosterCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
         if pk in self.out_of_roster:
             option["attrs"]["data-out-of-roster"] = "1"
         return option
+
+
+class ReporterPickerForm(forms.ModelForm):
+    """The roster of individually-granted reporters.
+
+    The queryset is active non-PA users UNIONED with whoever is currently
+    selected. Scoped to active non-PA users alone, an already-granted user who
+    has since been deactivated or promoted to PA would be absent from the
+    rendered list, and the next save_m2m() would silently REVOKE them — a PA
+    opening the page to add one person would drop an unrelated grant.
+    """
+
+    class Meta:
+        model = SupportSettings
+        fields = ["extra_reporters"]
+        widgets = {"extra_reporters": OutOfRosterCheckboxSelectMultiple}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        User = get_user_model()
+        selected = list(self.instance.extra_reporters.values_list("pk", flat=True))
+        base = User.objects.filter(is_active=True).exclude(
+            groups__name=PLATFORM_ADMIN
+        )
+        self.fields["extra_reporters"].queryset = (
+            User.objects.filter(Q(pk__in=base.values("pk")) | Q(pk__in=selected))
+            .distinct()
+            .order_by("display_name", "username")
+        )
+        self.fields["extra_reporters"].required = False
+        # Hand the widget the pks that survive only because of the union, so it
+        # can mark them. Django calls create_option on the WIDGET, never the form.
+        self.fields["extra_reporters"].widget.out_of_roster = set(selected) - set(
+            base.values_list("pk", flat=True)
+        )
 ```
 
-with `from django.utils.text import format_lazy` added to the imports. The
-`data-` attribute is the test hook; the appended note is what the PA actually
-reads. Add the muted rule to `support/static/support/css/support.css`:
+The `data-` attribute is the test hook; the appended note is what the PA actually
+reads.
+
+**Create** `support/static/support/css/support.css` here — this task is the first
+to need it, and Task 9 *appends* the dialog rules to the same file rather than
+recreating it:
 
 ```css
-[data-out-of-roster] + span,
+/* Grants kept only by the roster union: present, checked, visibly explained. */
 label:has([data-out-of-roster]) { color: var(--text-secondary); }
 ```
+
+Load it from `reporters.html` with `{% block extra_css %}<link rel="stylesheet"
+href="{% static 'support/css/support.css' %}">{% endblock %}`.
 
 Add to `support/forms.py` imports:
 
 ```python
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.utils.text import format_lazy
 
 from institution.roles import PLATFORM_ADMIN
+from support.models import SupportSettings
 ```
+
+`SupportSettings` is required here, not in Task 8: `ReporterPickerForm.Meta.model`
+is evaluated at class-creation time, and Task 4's `support/forms.py` imports only
+`IssueReport` — so without this line the whole module fails to import at the end
+of this task, breaking `report_create` and every test in the file. Task 8's import
+list repeats it; adding it twice is harmless, ruff will drop the duplicate.
 
 - [ ] **Step 4: Write the view and URL**
 
@@ -3485,8 +3496,8 @@ git commit -m "feat(support): Support settings tab (audience + recipient address
 ### Task 9: The report dialog (template, JS, CSS)
 
 **Files:**
-- Create: `support/templates/support/_report_dialog.html`, `support/static/support/js/report_dialog.js`, `support/static/support/css/support.css`
-- Modify: `templates/base.html`
+- Create: `support/templates/support/_report_dialog.html`, `support/static/support/js/report_dialog.js`
+- Modify: `templates/base.html`, `support/static/support/css/support.css` (**created by Task 7** — append the dialog rules below, do not recreate the file or the out-of-roster rule is silently lost)
 - Test: `tests/test_support_dialog_markup.py`
 
 **Interfaces:**
@@ -3843,9 +3854,12 @@ Expected: assertion failures — no trigger, no dialog.
 })();
 ```
 
-- [ ] **Step 5: Write the CSS**
+- [ ] **Step 5: Append the dialog CSS**
 
-`support/static/support/css/support.css` — a `<dialog>` does not inherit the page theme in this codebase, so its colours must be set explicitly from the tokens:
+**Append** to `support/static/support/css/support.css`, which Task 7 created —
+recreating it would drop the out-of-roster rule. A `<dialog>` does not inherit
+the page theme in this codebase, so its colours must be set explicitly from the
+tokens:
 
 ```css
 .report-dialog {
