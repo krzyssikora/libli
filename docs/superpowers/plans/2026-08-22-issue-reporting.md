@@ -176,6 +176,19 @@ def test_validator_accepts_a_file_well_under_the_ceiling():
     validate_screenshot_file(upload)  # must not raise
 
 
+def test_the_ceiling_is_mib_not_bytes():
+    """A tiny PNG kills the literal `max_bytes=5` mutant but not a ceiling set an
+    order of magnitude too low (KiB for MiB), which is the same class of bug."""
+    from courses.validators import MAX_IMAGE_MIB_CEILING
+    from support.validators import MAX_SCREENSHOT_BYTES
+
+    assert MAX_SCREENSHOT_BYTES == MAX_IMAGE_MIB_CEILING * 1024 * 1024
+    four_mib = SimpleUploadedFile(
+        "big.png", _png_bytes() + b"\0" * (4 * 1024 * 1024), content_type="image/png"
+    )
+    validate_screenshot_file(four_mib)  # must not raise
+
+
 def test_validator_rejects_a_disallowed_extension():
     upload = SimpleUploadedFile("shot.txt", b"nope", content_type="text/plain")
     with pytest.raises(ValidationError):
@@ -516,7 +529,7 @@ Open it and confirm the `screenshot` field serialises as `storage=support.storag
 - [ ] **Step 8: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_support_models.py -v`
-Expected: 11 passed. Grep the summary line — do not trust the exit code.
+Expected: no failures and no errors. Grep the summary line — do not trust the exit code. (Counting tests here would only rot; the plan adds rows to this file in later rounds.)
 
 - [ ] **Step 9: Falsify two of them**
 
@@ -567,12 +580,12 @@ from institution.roles import STUDENT
 from institution.roles import TEACHER
 from institution.roles import seed_roles
 from support.constants import THROTTLE_MAX_REPORTS
-from support.constants import THROTTLE_WINDOW
 from support.models import IssueReport
 from support.models import SupportSettings
 from support.policy import AUDIENCE_GROUPS
 from support.policy import can_report
 from support.policy import role_labels
+from support.policy import role_snapshot
 from support.policy import throttle_exceeded
 from tests.factories import UserFactory
 from tests.factories import make_pa
@@ -704,10 +717,22 @@ def test_a_warm_cache_costs_no_settings_queries_on_a_render(client):
 def test_an_authenticated_render_issues_one_role_names_query(client):
     """Only statements selecting auth_group.name count: base.html's perms.*
     lookups make the auth backend join auth_group too, so counting every
-    auth_group statement would be FALSE on a correct build."""
+    auth_group statement would be FALSE on a correct build.
+
+    mark_onboarded() is mandatory. core/views.py:home redirects any holder of
+    institution.change_institution into institution:setup while the install is
+    not onboarded, and the seeded Institution row starts with onboarded=False —
+    so a PA GET of /home/ would be a 302 that renders no template, runs no
+    context processors, and counts ZERO role queries, failing on a correct build.
+    tests/test_dashboard_panels.py and tests/test_nav_structure.py do the same.
+    """
+    from core.services import mark_onboarded
+
     make_pa(client)
+    mark_onboarded()
     with CaptureQueriesContext(connection) as ctx:
-        client.get(reverse("home"))
+        response = client.get(reverse("home"))
+    assert response.status_code == 200  # not a redirect
     role_queries = [
         q for q in ctx.captured_queries if '"auth_group"."name"' in q["sql"]
     ]
@@ -978,7 +1003,7 @@ In `config/settings/base.py`, add `"core.context_processors.support_availability
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_support_policy.py -v`
-Expected: all pass (16 matrix cases + 12 others).
+Expected: no failures and no errors (the 16 matrix cases plus the rest).
 
 - [ ] **Step 7: Falsify three of them**
 
@@ -1022,6 +1047,17 @@ from support.telemetry import TELEMETRY_LABELS
 from support.telemetry import safe_page_link
 from support.telemetry import sanitise
 from support.telemetry import telemetry_rows
+
+
+@pytest.fixture(autouse=True)
+def _clear_site_cache():
+    """django.contrib.sites keeps a module-level SITE_CACHE. clear_site_cache
+    fires on pre_save, but safe_page_link immediately re-populates it INSIDE the
+    test transaction — so the rollback restores the row while the cache keeps
+    "libli.example"/"localhost" for the rest of the pytest worker, poisoning any
+    later test that reads Site.domain. The root conftest does not clear it."""
+    yield
+    Site.objects.clear_cache()
 
 
 def _request(post=None, **meta):
@@ -1285,11 +1321,12 @@ from django.urls import reverse
 from institution.roles import PLATFORM_ADMIN
 from support.constants import DESCRIPTION_MAX_LENGTH
 from support.constants import PAGE_TITLE_MAX_LENGTH
+from support.constants import PAGE_URL_MAX_LENGTH
 from support.constants import THROTTLE_MAX_REPORTS
 from support.models import IssueReport
 from support.models import SupportSettings
+from tests.factories import UserFactory
 from tests.factories import make_ca
-from tests.factories import make_pa
 from tests.factories import make_student
 from tests.test_support_models import _png_bytes
 
@@ -1472,25 +1509,32 @@ def test_a_failure_inside_save_leaves_no_orphaned_file(client, tmp_path, monkeyp
     assert IssueReport.objects.count() == 0
 
 
-def test_a_successful_post_queues_the_email(client, django_capture_on_commit_callbacks):
-    """Mutant: delete the transaction.on_commit(...) line — every other test in
-    this file and the email file still passes, because those call
-    send_issue_report_email directly."""
-    from django.contrib.auth.models import Group as AuthGroup
-    from django.core import mail
-
-    from institution.roles import PLATFORM_ADMIN
-    from institution.roles import seed_roles
-
-    seed_roles()
-    admin = UserFactory(username="mailbox", email="pa@school.example")
-    admin.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
-
+def test_an_over_long_page_url_is_truncated_not_rejected(client):
     _set_audience(Audience.ALL)
     make_student(client)
-    with django_capture_on_commit_callbacks(execute=True):
+    long_url = "https://libli.example/?q=" + "x" * (PAGE_URL_MAX_LENGTH + 100)
+    response = client.post(reverse(URL_NAME), _payload(page_url=long_url))
+    assert response.status_code == 201
+    assert len(IssueReport.objects.get().page_url) == PAGE_URL_MAX_LENGTH
+
+
+def test_a_successful_post_registers_an_on_commit_callback(
+    client, django_capture_on_commit_callbacks
+):
+    """Mutant: delete the transaction.on_commit(...) line — without this test,
+    every other test in this file and in the email file still passes, because
+    those call send_issue_report_email directly.
+
+    Asserts the callback is REGISTERED (execute=False), not that mail was sent:
+    at this point support/emails.py is still the no-op stub, and even a real
+    implementation would raise NoReverseMatch for support:report_detail. The
+    delivery assertion lives in Task 6, once both exist.
+    """
+    _set_audience(Audience.ALL)
+    make_student(client)
+    with django_capture_on_commit_callbacks() as callbacks:
         assert client.post(reverse(URL_NAME), _payload()).status_code == 201
-    assert len(mail.outbox) == 1
+    assert len(callbacks) == 1
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1657,15 +1701,23 @@ def report_create(request):
             report.reporter_label = build_label(request.user)
             report.reporter_roles = role_snapshot(role_names)
             report.telemetry = sanitise(request)
-            _persist(report)  # <- the screenshot file is written HERE
-            saved_name = report.screenshot.name or None
+            try:
+                _persist(report)  # <- the screenshot file is written HERE
+            finally:
+                # `finally`, NOT the next statement. _persist is exactly where the
+                # failure is raised, so a plain assignment after it would never run
+                # on the failure path — saved_name would stay None and the cleanup
+                # below would silently no-op, which is the bug this whole block
+                # exists to prevent. By this point pre_save has set the storage
+                # name, so it is captured on both paths.
+                saved_name = report.screenshot.name or None
             transaction.on_commit(lambda: send_issue_report_email(report))
     except Exception:
         # Filesystem writes are not transactional: on rollback the row vanishes
         # while the file stays on disk forever — no row means no post_delete, and
-        # no PA can ever see or delete it. saved_name is initialised BEFORE the
-        # try because the likeliest failure is raised by _persist itself, after
-        # the write, leaving `report` unbound.
+        # no PA can ever see or delete it. saved_name is initialised before the
+        # outer try so a failure BEFORE _persist (where no file was written) also
+        # takes a safe path.
         if saved_name:
             ScreenshotStorage().delete(saved_name)
         raise
@@ -1714,7 +1766,7 @@ git commit -m "feat(support): report_create endpoint with JSON contract and roll
 ### Task 5: Triage views, templates and permissions
 
 **Files:**
-- Create: `support/views_manage.py`, `support/templates/support/manage/report_list.html`, `support/templates/support/manage/report_detail.html`
+- Create: `support/views_manage.py`, `support/templates/support/manage/report_list.html`, `support/templates/support/manage/report_detail.html`, `support/static/support/js/confirm.js`
 - Modify: `support/urls.py`, `institution/roles.py`, `templates/base.html`
 - Test: `tests/test_support_triage.py`
 
@@ -2174,6 +2226,20 @@ urlpatterns = [
   </tbody>
 </table>
 </div>
+{% comment %}Without this nav, LIST_PAGE_SIZE = 25 makes every report past the
+25th unreachable from the UI. Mirrors templates/accounts/manage/people.html; the
+active ?status= must ride along or paging silently resets the filter.{% endcomment %}
+{% if page_obj.has_other_pages %}
+<nav class="pagination" aria-label="{% trans 'Pagination' %}">
+  {% if page_obj.has_previous %}
+    <a href="?status={{ status }}&amp;page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>
+  {% endif %}
+  <span>{% blocktrans with n=page_obj.number total=page_obj.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
+  {% if page_obj.has_next %}
+    <a href="?status={{ status }}&amp;page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>
+  {% endif %}
+</nav>
+{% endif %}
 {% endblock %}
 ```
 
@@ -2236,6 +2302,9 @@ attribute for you. A small handler in support.js reads [data-confirm] and calls
 confirm(). Note for any future e2e: Playwright AUTO-DISMISSES confirm() unless the
 test registers page.on("dialog", ...), so a delete e2e without that listener
 silently does nothing and still passes.{% endcomment %}
+{% comment %}Without the script below the delete button would submit on first
+click with no prompt at all, silently dropping the spec's "POST only, WITH
+confirmation".{% endcomment %}
 <form method="post" action="{% url 'support:report_delete' report.pk %}"
       data-confirm="{% trans 'Delete this report and its screenshot?' %}">
   {% csrf_token %}
@@ -2243,6 +2312,29 @@ silently does nothing and still passes.{% endcomment %}
   <button type="submit" class="btn--danger">{% trans "Delete" %}</button>
 </form>
 {% endblock %}
+{% block extra_js %}
+<script src="{% static 'support/js/confirm.js' %}" defer></script>
+{% endblock %}
+```
+
+with `{% load static %}` beside `{% load i18n %}` at the top.
+
+Create `support/static/support/js/confirm.js` — nothing else in the repo binds
+`[data-confirm]` on this page (`courses/static/courses/js/review_roster.js` has a
+handler but is never loaded here), so without this file the delete button submits
+on the first click:
+
+```javascript
+(function () {
+  "use strict";
+  document.querySelectorAll("form[data-confirm]").forEach(function (form) {
+    form.addEventListener("submit", function (event) {
+      if (!window.confirm(form.getAttribute("data-confirm"))) {
+        event.preventDefault();
+      }
+    });
+  });
+})();
 ```
 
 - [ ] **Step 6: Add the Admin-menu item**
@@ -2296,13 +2388,18 @@ Create `tests/test_support_emails.py`:
 ```python
 """Recipient resolution, envelope shape and delivery bookkeeping."""
 
+from unittest import mock
+
 import pytest
 from django.conf import settings as dj_settings
 from django.contrib.auth.models import Group as AuthGroup
+from django.contrib.sites.models import Site
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
+
+import support.emails
 
 from institution.models import Institution
 from institution.roles import PLATFORM_ADMIN
@@ -2436,9 +2533,9 @@ def test_the_message_uses_the_institution_language_not_the_reporters():
     institution default AND the untranslated msgid, so the mutant ("override to
     the reporter's language") would produce an identical subject.
 
-    Run this AFTER Task 12 supplies the Polish catalog. Assert on the observed
-    active language rather than catalog text so it does not re-break whenever the
-    Polish wording is edited.
+    Asserts on the observed active language rather than catalog text, so it runs
+    now (no Polish catalog needed — Task 12 is six tasks away) and does not
+    re-break whenever the Polish wording is edited.
     """
     from django.utils import translation
 
@@ -2469,6 +2566,26 @@ def test_a_javascript_page_url_is_never_an_href_in_the_email():
     send_issue_report_email(_report(page_url="javascript:alert(1)"))
     html = mail.outbox[0].alternatives[0][0]
     assert 'href="javascript:' not in html
+
+
+def test_a_successful_post_actually_delivers(client, django_capture_on_commit_callbacks):
+    """The other half of Task 4's callback-registration test: now that both the
+    real emails module and support:report_detail exist, prove the wired callback
+    delivers. Mutant: delete the transaction.on_commit(...) line in the view."""
+    from support.models import SupportSettings as _S
+    from tests.factories import make_student
+
+    _pa()
+    row = _S.load()
+    row.audience = _S.Audience.ALL
+    row.save()
+    make_student(client)
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            reverse("support:report_create"), {"description": "It broke"}
+        )
+    assert response.status_code == 201
+    assert len(mail.outbox) == 1
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -2792,6 +2909,8 @@ def test_an_out_of_roster_grant_is_marked_for_the_muted_note(client):
     stale_grant.save()
     body = client.get(reverse("support:reporters")).content.decode()
     assert body.count("data-out-of-roster") == 1
+    # The spec asks for a NOTE the PA can read, not just a test hook.
+    assert "still allowed to report" in body
 
 
 def test_a_teacher_cannot_open_or_save_the_page(client):
@@ -2838,31 +2957,51 @@ class ReporterPickerForm(forms.ModelForm):
             .order_by("display_name", "username")
         )
         self.fields["extra_reporters"].required = False
-        self.out_of_roster = set(selected) - set(
+        # Hand the widget the pks that survive only because of the union, so it
+        # can mark them. Django calls create_option on the WIDGET, never the form.
+        self.fields["extra_reporters"].widget.out_of_roster = set(selected) - set(
             base.values_list("pk", flat=True)
         )
+```
 
-    def create_option(self, name, value, *args, **kwargs):
-        """Mark grants that survive only because of the union.
+The widget, defined above the form in the same module and referenced from
+`Meta.widgets = {"extra_reporters": OutOfRosterCheckboxSelectMultiple}`:
 
-        The spec requires already-selected users outside the base roster to render
-        "checked, with a muted note explaining why they are listed", and a plain
-        CheckboxSelectMultiple cannot express a per-option note. This tags them so
-        the template can. Django passes `value` as a ModelChoiceIteratorValue, so
-        compare its .value.
-        """
-        option = super().create_option(name, value, *args, **kwargs)
+```python
+class OutOfRosterCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
+    """Marks grants that appear only because of the roster union.
+
+    The spec requires already-selected users outside the base roster to render
+    "checked, with a muted note explaining why they are listed", and a plain
+    CheckboxSelectMultiple has no per-option affordance. create_option is a
+    WIDGET hook — putting it on the form would be dead code that never runs.
+    """
+
+    out_of_roster = frozenset()
+
+    def create_option(self, name, value, label, *args, **kwargs):
+        # Django passes a ModelChoiceIteratorValue here, so unwrap it.
         pk = getattr(value, "value", value)
+        if pk in self.out_of_roster:
+            label = format_lazy(
+                "{label} — {note}",
+                label=label,
+                note=_("no longer in the roster; still allowed to report"),
+            )
+        option = super().create_option(name, value, label, *args, **kwargs)
         if pk in self.out_of_roster:
             option["attrs"]["data-out-of-roster"] = "1"
         return option
 ```
 
-`create_option` belongs on the **widget**, not the form, so either subclass
-`CheckboxSelectMultiple` and give it an `out_of_roster` attribute set from the
-form's `__init__`, or render the note from a separate list in the template. Pick
-one and keep the styling muted; the paired test asserts the marker is present for
-a deactivated grant and absent for an ordinary one.
+with `from django.utils.text import format_lazy` added to the imports. The
+`data-` attribute is the test hook; the appended note is what the PA actually
+reads. Add the muted rule to `support/static/support/css/support.css`:
+
+```css
+[data-out-of-roster] + span,
+label:has([data-out-of-roster]) { color: var(--text-secondary); }
+```
 
 Add to `support/forms.py` imports:
 
@@ -2894,6 +3033,10 @@ def reporters(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("Allowed reporters updated."))
+            # `?tab=support` is only honoured once Task 8 adds "support" to TABS;
+            # until then _active_tab falls back to "branding", so between these
+            # two tasks a save lands the PA on the Branding tab. Harmless and
+            # self-resolving — noted so it is not chased as a bug.
             return redirect(f"{reverse('institution:settings')}?tab=support")
     else:
         form = ReporterPickerForm(instance=row)
@@ -2975,7 +3118,7 @@ git commit -m "feat(support): Allowed reporters roster page"
 ### Task 8: The Support settings tab
 
 **Files:**
-- Modify: `support/forms.py`, `institution/views_manage.py`, `institution/urls.py`, `templates/institution/manage/settings.html`, `templates/institution/manage/_tabs.html`
+- Modify: `support/forms.py`, `support/emails.py` (split `resolve_recipients`, Step 4), `institution/views_manage.py`, `institution/urls.py`, `templates/institution/manage/settings.html`, `templates/institution/manage/_tabs.html`
 - Create: `templates/institution/manage/_support_tab.html`
 - Test: `tests/test_support_settings_tab.py`
 
@@ -3429,11 +3572,17 @@ def test_the_dialog_assets_are_outside_the_overridable_blocks(client):
 
 
 def test_the_dialog_script_survives_a_template_that_overrides_extra_js(client):
-    """The JS half of the pair above, on a page that really does override
-    {% block extra_js %}. institution:settings is PA-only, hence the PA login."""
+    """The JS half of the pair above.
+
+    templates/courses/catalog.html really does override {% block extra_js %} —
+    institution/manage/settings.html does NOT (it overrides only extra_css), so
+    pointing this at the settings page would pass even with the <script> moved
+    inside the block, which is the mutant this test exists to kill. Verify the
+    chosen template still has the block before relying on this assertion.
+    """
     _set_audience(SupportSettings.Audience.ALL)
-    make_pa(client)
-    js_page = client.get(reverse("institution:settings")).content.decode()
+    make_student(client)
+    js_page = client.get(reverse("courses:catalog")).content.decode()
     assert "support/js/report_dialog.js" in js_page
 ```
 
@@ -3469,6 +3618,17 @@ Expected: assertion failures — no trigger, no dialog.
     <p class="report-dialog__hint">
       {% trans "You can paste an image straight from the clipboard." %}
     </p>
+
+    {% comment %}Client-side strings are server-rendered into data- attributes so
+    Task 12's `makemessages -l pl -a` picks them up. Hard-coding them in the JS
+    would bypass i18n entirely — `makemessages` without `-d djangojs` never reads
+    .js files — and a `lang === "pl"` ternary in JS cannot scale past two
+    languages.{% endcomment %}
+    <span hidden
+      data-msg-generic="{% trans 'Something went wrong. Please try again.' %}"
+      data-msg-badimage="{% trans 'That image format is not supported.' %}"
+      data-login-url="{% url 'account_login' %}"
+      data-msg-login="{% trans 'Log in again' %}"></span>
     <p class="report-dialog__error" data-error-for="screenshot" hidden></p>
 
     {% comment %}Hidden telemetry inputs live INSIDE the form so new FormData(form)
@@ -3520,6 +3680,9 @@ Expected: assertion failures — no trigger, no dialog.
   var fileInput = dialog.querySelector("[data-report-file]");
   var preview = dialog.querySelector("[data-report-preview]");
   var maxLength = parseInt(description.getAttribute("maxlength"), 10);
+  // Translated strings come from the server, never from JS literals.
+  var strings = dialog.querySelector("[data-msg-generic]");
+  function msg(key) { return strings.getAttribute("data-msg-" + key); }
 
   // image/* -> extension. NOT blob.type.split("/")[1], which yields "svg+xml"
   // and "x-icon" — filenames that fail the extension validator with the very
@@ -3606,9 +3769,7 @@ Expected: assertion failures — no trigger, no dialog.
       if (!blob) continue;
       var ext = MIME_EXT[blob.type];
       if (!ext) {
-        showBanner(document.documentElement.lang === "pl"
-          ? "Ten format obrazu nie jest obsługiwany."
-          : "That image format is not supported.");
+        showBanner(msg("badimage"));
         return;
       }
       var file = new File([blob], "screenshot." + ext, { type: blob.type });
@@ -3632,7 +3793,7 @@ Expected: assertion failures — no trigger, no dialog.
       // Check Content-Type BEFORE parsing: Django's CSRF failure view returns a
       // 403 with an HTML body, and a 500 or a 405 is not JSON either.
       if (type.indexOf("application/json") === -1) {
-        showBanner("Something went wrong. Please try again.");
+        showBanner(msg("generic"));
         return null;
       }
       return response.json().then(function (payload) {
@@ -3665,8 +3826,18 @@ Expected: assertion failures — no trigger, no dialog.
         });
       }
       if (result.payload.message) showBanner(result.payload.message);
+      if (result.status === 401) {
+        // The spec's 401 row: "Show message, OFFER A LINK TO LOG IN; never
+        // navigate away silently." A banner alone strands a user whose session
+        // expired with a typed description still in the dialog.
+        var link = document.createElement("a");
+        link.href = strings.getAttribute("data-login-url");
+        link.textContent = msg("login");
+        banner.appendChild(document.createTextNode(" "));
+        banner.appendChild(link);
+      }
     }).catch(function () {
-      showBanner("Something went wrong. Please try again.");
+      showBanner(msg("generic"));
     });
   });
 })();
@@ -3865,15 +4036,124 @@ Expected: 1 passed.
 
 Comment out the `dialog.addEventListener("paste", ...)` block in `report_dialog.js`. Re-run: the `wait_for_function` on `files.length === 1` must time out and the test must FAIL. Restore by hand.
 
-- [ ] **Step 5: Capture light and dark screenshots**
+- [ ] **Step 5: Add the error-path e2e cases**
 
-Add a second e2e that opens the dialog and screenshots it in both themes. Set the theme on the **user** (`user.theme = "dark"`), not via the cookie — a `<dialog>` does not pick up the cookie-driven theme. Save to `docs/superpowers/screenshots/`. Look at both images and judge the dark one on its own terms, not as "the light one inverted".
+Three spec rows have no test anywhere else — the `Content-Type` guard, the
+`__all__` banner fallback, and "the confirmation is observable before the dialog
+closes". All are branches a later edit could quietly drop. Append to the same file:
 
-- [ ] **Step 6: Commit**
+```python
+@pytest.mark.parametrize("status", [500, 403])
+def test_a_non_json_response_keeps_the_dialog_open_with_the_text(
+    page, live_server, status
+):
+    """Mutant: assume JSON on every response (drop the Content-Type check)."""
+    row = SupportSettings.load()
+    row.audience = SupportSettings.Audience.ALL
+    row.save()
+    _student()
+    _login(page, live_server, "reporter")
+    page.goto(f"{live_server.url}/home/")
+
+    # Django's CSRF failure view really does return a 403 with an HTML body, so
+    # this is the shape the client must survive, not a contrived one.
+    page.route(
+        "**/report/",
+        lambda route: route.fulfill(
+            status=status, content_type="text/html", body="<html>boom</html>"
+        ),
+    )
+    page.click("[data-account-menu] [data-menu-trigger]")
+    page.click("[data-report-trigger]")
+    page.fill("[data-report-description]", "typed text must survive")
+    page.click("#report-dialog button[type=submit]")
+
+    page.wait_for_selector("[data-report-banner]:not([hidden])")
+    assert page.is_visible("#report-dialog[open]")
+    assert page.input_value("[data-report-description]") == "typed text must survive"
+
+
+def test_an_empty_description_renders_under_its_field(page, live_server):
+    """The per-field branch of the error contract, driven through the real UI."""
+    row = SupportSettings.load()
+    row.audience = SupportSettings.Audience.ALL
+    row.save()
+    _student()
+    _login(page, live_server, "reporter")
+    page.goto(f"{live_server.url}/home/")
+    page.click("[data-account-menu] [data-menu-trigger]")
+    page.click("[data-report-trigger]")
+    # The textarea is `required`, so clear the browser guard to reach the server.
+    page.eval_on_selector("[data-report-description]", "el => el.removeAttribute('required')")
+    page.click("#report-dialog button[type=submit]")
+    page.wait_for_selector('[data-error-for="description"]:not([hidden])')
+
+
+def test_a_non_field_error_lands_in_the_banner(page, live_server):
+    """Mutant: render only per-field keys — an __all__ error is then returned by
+    the server and silently dropped, leaving a form that refuses to submit and
+    says nothing."""
+    row = SupportSettings.load()
+    row.audience = SupportSettings.Audience.ALL
+    row.save()
+    _student()
+    _login(page, live_server, "reporter")
+    page.goto(f"{live_server.url}/home/")
+    page.route(
+        "**/report/",
+        lambda route: route.fulfill(
+            status=400,
+            content_type="application/json",
+            body='{"ok": false, "message": null, "errors": {"__all__": ["nope"]}}',
+        ),
+    )
+    page.click("[data-account-menu] [data-menu-trigger]")
+    page.click("[data-report-trigger]")
+    page.fill("[data-report-description]", "anything")
+    page.click("#report-dialog button[type=submit]")
+    banner = page.wait_for_selector("[data-report-banner]:not([hidden])")
+    assert "nope" in banner.inner_text()
+```
+
+Run: `uv run pytest -m e2e tests/test_e2e_support_report.py -v`
+
+- [ ] **Step 6: Capture light and dark screenshots**
+
+Concrete, because Task 11 Step 4 re-runs this. Append:
+
+```python
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_capture_report_dialog_screenshot(page, live_server, theme):
+    """Not an assertion test — it produces the two images Task 11 judges.
+
+    The theme is set on the USER, not via the libli_theme cookie: a <dialog>
+    renders in the top layer and does not pick up the cookie-driven theme in this
+    codebase, so a cookie-set dark run would silently photograph a light dialog.
+    """
+    row = SupportSettings.load()
+    row.audience = SupportSettings.Audience.ALL
+    row.save()
+    user = _student()
+    user.theme = theme
+    user.save()
+    _login(page, live_server, "reporter")
+    page.goto(f"{live_server.url}/home/")
+    page.click("[data-account-menu] [data-menu-trigger]")
+    page.click("[data-report-trigger]")
+    page.wait_for_selector("#report-dialog[open]")
+    page.fill("[data-report-description]", "The submit button does nothing.")
+    page.screenshot(path=f"docs/superpowers/screenshots/report-dialog-{theme}.png")
+```
+
+This writes `docs/superpowers/screenshots/report-dialog-light.png` and
+`report-dialog-dark.png`. **Open both.** Judge the dark rendering on its own
+terms, not as "the light one inverted".
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add tests/test_e2e_support_report.py docs/superpowers/screenshots
-git commit -m "test(support): e2e report submission with a pasted screenshot"
+git commit -m "test(support): e2e report submission, error paths and theme captures"
 ```
 
 ---
@@ -3881,7 +4161,7 @@ git commit -m "test(support): e2e report submission with a pasted screenshot"
 ### Task 11: Visual design pass
 
 **Files:**
-- Modify: `support/static/support/css/support.css`, `support/templates/support/**`, `templates/institution/manage/_support_panel.html`
+- Modify: `support/static/support/css/support.css`, `support/templates/support/**`, `templates/institution/manage/_support_tab.html`
 - Test: re-run Task 9 and Task 10 suites
 
 - [ ] **Step 1: Invoke the frontend-design skill**
