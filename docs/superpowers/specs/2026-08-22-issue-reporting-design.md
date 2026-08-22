@@ -213,10 +213,19 @@ unstable between two reports from the same person.
 
 Roles are stored as Group **names**, not `ROLE_LABELS` values: `institution/roles.py` is
 explicit that the Group name is the storage key and `ROLE_LABELS` is display-only. The
-triage template renders each stored name through `ROLE_LABELS`, **falling back to the
-raw stored name** when the key is absent — a snapshot can name a Group that has since
-been renamed or removed, and that must render as text rather than raising or rendering
-blank.
+stored names are rendered through `ROLE_LABELS`, **falling back to the raw stored name**
+when the key is absent — a snapshot can name a Group that has since been renamed or
+removed, and that must render as text rather than raising or rendering blank.
+
+Like `safe_page_link`, this needs **one named home**:
+`support/policy.py::role_labels(reporter_roles) -> list[str]`, splitting on commas and
+returning `ROLE_LABELS.get(name, name)` for each. Django templates cannot index a dict
+by a variable key, so "the template renders them through `ROLE_LABELS`" is not
+implementable literally; and there are three consumers (triage list, triage detail, both
+email templates), which is exactly the drift a named helper prevents. Note the repo's
+nearest precedent, `accounts/views_manage.py:36`, resolves labels in Python and *drops*
+unknown names — the opposite of the fallback wanted here, so it must not simply be
+reused.
 
 ### Screenshot storage (`support/storage.py`)
 
@@ -312,6 +321,22 @@ validates against the permanent `SAFE_IMAGE_EXTENSIONS` ceiling and
 `MAX_IMAGE_MIB_CEILING` (5 MiB) from `courses.validators`, decoupling bug reporting
 from an unrelated setting.
 
+The call is written out because the unit conversion is a trap:
+
+```python
+_validate_file(
+    file,
+    extensions=SAFE_IMAGE_EXTENSIONS,
+    max_bytes=MAX_IMAGE_MIB_CEILING * 1024 * 1024,   # the constant is MiB, not bytes
+    too_big_msg=...,
+)
+```
+
+`MAX_IMAGE_MIB_CEILING` is `5` and `_validate_file`'s parameter is `max_bytes`, so
+passing it through verbatim would cap screenshots at five **bytes**. The repo's own
+`effective_max_image_bytes()` multiplies by a private `_MIB`, which is not importable
+here.
+
 It **delegates to `courses.validators._validate_file`** rather than re-implementing the
 checks, so it inherits that helper's `if getattr(file, "_committed", False): return`
 guard. That skip is not incidental: without it, reading `.size` on an already-stored
@@ -363,6 +388,16 @@ Two details are load-bearing:
   that write; an `except` block that read `report.screenshot.name` would then raise
   `NameError` on an unbound name, masking the real exception *and* still orphaning the
   file. The paired test simulates a failure **inside** `report.save()`.
+- **`send_issue_report_email` must swallow and log every exception internally**, exactly
+  as `notifications/emails.py` does. `Atomic.__exit__` commits and *then* runs the
+  on-commit hooks, both still inside the `with` block — so an exception escaping the
+  send would propagate into this cleanup `except`, which is guarded only on
+  `saved_name` and cannot distinguish a rollback from a post-commit failure. The result
+  would be a **committed** report whose screenshot has just been deleted, plus a 500 to
+  a reporter whose report was in fact saved. No test can catch this: under
+  `django_capture_on_commit_callbacks(execute=True)` the callbacks run *outside* the
+  atomic exit, so the interaction never reproduces in the suite. Containment at the
+  source is the only defence.
 
 **`IssueReportForm.Meta.fields` is exactly
 `["description", "page_url", "page_title", "screenshot"]`.** Never `"__all__"`, which is
@@ -387,8 +422,11 @@ order:
    a **named constant**, `AUDIENCE_GROUPS: dict[str, frozenset[str]]` in
    `support/policy.py`, built from the `institution.roles` name constants: `admins`
    admits nothing extra, `course_admins` adds Course Admin, `teachers` adds Teacher and
-   Course Admin. The 4x4 matrix test parametrises off `AUDIENCE_GROUPS` rather than
-   re-stating the ladder, so the two cannot drift.
+   Course Admin, and **`all` maps to `frozenset(ROLE_NAMES)`**. The `all` entry is never
+   consulted at runtime — rule 3 short-circuits above it — but it must exist so the
+   4x4 matrix test can parametrise all four rungs off the constant rather than
+   re-stating the ladder. The lookup is `AUDIENCE_GROUPS.get(audience, frozenset())`,
+   never a bare subscript, so reordering the rules later cannot turn into a `KeyError`.
 6. `user.id` is in the extras set -> `True`.
 7. Otherwise `False`.
 
@@ -533,8 +571,12 @@ the base roster render checked, with a muted note explaining why they are listed
   `TEMPLATES["OPTIONS"]["context_processors"]` beside it. The cap has to travel this
   way: the dialog is `{% include %}`d from `base.html` and so has no view context, and
   the `maxlength` attribute, the live counter and the JS all need the value. The
-  template renders it into a `data-` attribute on the textarea and the JS reads it from
-  there, so `DESCRIPTION_MAX_LENGTH` is written down exactly once.
+  template renders it as a real `maxlength="{{ report_description_max }}"` on the
+  textarea — server-rendered, so the paired test can assert it in the returned HTML —
+  and the JS reads the value back off that same attribute for the live counter. One
+  attribute, no separate `data-` copy, and `DESCRIPTION_MAX_LENGTH` written down exactly
+  once. Applying `maxlength` from JS instead would leave the server-rendered HTML
+  without it, and the test would fail on a correct build.
 - `templates/base.html`, behind `{% if can_report_issue %}` in two **separate**
   places: the **trigger** is a menu item inside the account-menu panel, while the
   `{% include "support/_report_dialog.html" %}` sits at body level, outside every
@@ -670,8 +712,13 @@ session expired — gets a bare 403 instead of log-in-then-return.
    the user agent, `Accept-Language`, the role snapshot and `reporter_label` never pass
    through the client.
 4. `POST` `multipart/form-data` to `support:report_create`.
-5. The view: `@login_required`, then **re-checks `can_report(request.user)` and 403s
-   otherwise**, then the throttle, then `IssueReportForm` validation.
+5. The view is `@require_POST` and carries **no `@login_required`** (see the contract
+   below): it checks `request.user.is_authenticated` itself and returns `401` JSON,
+   then **re-checks `can_report(request.user)` and 403s otherwise**, then the throttle,
+   then `IssueReportForm(request.POST, request.FILES)` validation. Binding
+   `request.FILES` is not optional — `IssueReportForm(request.POST)` alone validates and
+   saves cleanly with the screenshot **silently discarded**, and only the e2e would
+   notice.
 6. On success the row is saved inside `transaction.atomic()` with the sanitised
    telemetry and the role snapshot, and the email is queued with
    `transaction.on_commit`.
@@ -759,9 +806,18 @@ viewport is a plausible-looking lie in a diagnostic record, while an absent key 
 honestly absent. Where a server fact and a client claim would overlap, the server fact
 wins.
 
-`TELEMETRY_LABELS` in the same module maps each key to a translated display label, and
-is the single source shared by the triage template and the email body, so the two can
-never drift.
+`TELEMETRY_LABELS` in the same module maps each key to a translated display label, in a
+**declared order**. Rendering goes through a named helper,
+`support/telemetry.py::telemetry_rows(telemetry) -> list[tuple[str, str]]`, which
+iterates `TELEMETRY_LABELS` in that order and **omits keys the sanitiser dropped** — no
+placeholder rows. A shared dict alone would prevent label drift but not row-order drift
+(dict order vs. `report.telemetry` insertion order vs. alphabetical would differ between
+triage and email), and the template dict-lookup-by-variable-key limitation applies here
+as it does to `role_labels`. Omission is the right rendering for a dropped key: the
+sanitiser drops out-of-range values rather than clamping them precisely because an
+absent viewport is an honest diagnostic fact and a clamped one is a plausible lie —
+rendering "unknown" would undo that. The triage templates and both email templates all
+consume `telemetry_rows`.
 
 **No IP address is collected.** This is a platform with student accounts; the
 diagnostic value does not justify the personal-data question.
@@ -871,9 +927,15 @@ documents.
   inbox becomes exactly as undifferentiated as the status-less list the design table
   rejects.
 - **Body:** description, reporter, roles, page URL, the telemetry as a labelled list
-  built from `TELEMETRY_LABELS`, and — first — an **absolute link to
-  `support:report_detail`**, built with the same `Site`-based helper as
-  `notifications/emails._absolute_url` so it cannot be host-spoofed. Without it a PA who
+  built from `TELEMETRY_LABELS` via `telemetry_rows`, and — first — an **absolute link
+  to `support:report_detail`**, built by a small `_absolute_url` in
+  `support/emails.py` mirroring `notifications/emails.py:38-43`
+  (`Site.objects.get_current().domain` plus
+  `allauth.account.app_settings.DEFAULT_HTTP_PROTOCOL`; `SITE_ID = 1` is set, so no
+  request is needed). Local rather than imported: the notifications one is a private,
+  underscore-prefixed name in another app, and reaching across for it is the kind of
+  coupling this repo avoids. `safe_page_link` reads the same `Site.domain`, so the two
+  agree on what "this site" means without sharing code. Without it a PA who
   wants the full-size screenshot or the resolve button has to open the triage list and
   guess which row this was, which undercuts the whole reason reports are stored. The
   screenshot is **attached** (capped at 5 MiB by the upload validator).
@@ -989,7 +1051,11 @@ RED** — a test that cannot fail on a broken build is not evidence.
 | `page_url` of `javascript:alert(1)`, and one on a foreign host, render escaped and never as an `href` | Link `page_url` unconditionally |
 | Unknown telemetry keys dropped; over-long strings truncated; an out-of-range viewport **dropped, not clamped** | Store the payload verbatim |
 | A screenshot still validates after a PA narrows `Institution.allowed_image_extensions` | Validate with `validate_image_file` |
-| A stored role name absent from `ROLE_LABELS` renders as the raw name | Index `ROLE_LABELS` directly |
+| A stored role name absent from `ROLE_LABELS` renders as the raw name, in triage **and** in the email | Index `ROLE_LABELS` directly / drop unknown names as `accounts/views_manage.py:36` does |
+| `telemetry_rows` yields the same order in triage and email, and omits keys the sanitiser dropped | Iterate `report.telemetry` instead of `TELEMETRY_LABELS` |
+| A 4 MiB screenshot is accepted (the MiB->bytes conversion is applied) | Pass `MAX_IMAGE_MIB_CEILING` straight into `max_bytes` |
+| A submitted screenshot is actually stored | Bind the form without `request.FILES` |
+| The server-rendered textarea carries `maxlength` | Apply `maxlength` from JS only |
 | `report_set_status` to the current status preserves `resolved_by` / `resolved_at` | Write them unconditionally |
 | The settings form rejects a malformed address, caps the list at `EXTRA_EMAILS_MAX`, and lower-cases on save | Drop the `EmailValidator` / the cap / the normalisation |
 | A GET of any other settings tab writes no `SupportSettings` row **and renders no per-user roster** | Use `load()` in `_settings_context`; put the M2M field back on `SupportSettingsForm` |
@@ -1023,11 +1089,17 @@ markup. Every new view ships styled in **both** light and dark themes.
 
 ## Deployment note
 
-`support.view_issuereport`, `support.change_issuereport` and
-`support.delete_issuereport` are new permissions attached to the Platform Admin group.
-**`setup_roles` must be run after `migrate`** on deploy, or the permissions exist but
-are attached to nobody and the triage pages 403 for everyone. No test catches this — it
-is a deployment-ordering property, and it belongs in the release checklist.
+**Five** new permissions are attached to the Platform Admin group:
+`support.view_issuereport`, `support.change_issuereport`, `support.delete_issuereport`,
+`support.view_supportsettings` and `support.change_supportsettings`.
+
+**`setup_roles` must be run after `migrate`** on deploy, or Django creates all five and
+attaches them to nobody. The blast radius is not only triage: the **Support settings tab
+and the Allowed reporters page 403 for every Platform Admin** too, because they are
+guarded by `support.change_supportsettings`. No test catches this — it is a
+deployment-ordering property, and it belongs in the release checklist. All five
+codenames are listed here deliberately, since this note is the only clue a
+`change_supportsettings` failure leaves.
 
 `SUPPORT_SCREENSHOT_DIR` must exist and be writable by the application user, and — like
 `transfer_staging` — must **not** be exposed by the web server.
