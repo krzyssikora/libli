@@ -2211,7 +2211,11 @@ urlpatterns = [
   {% for report in page_obj %}
     <tr>
       <td>{{ report.created_at }}</td>
-      <td><a href="{% url 'support:report_detail' report.pk %}">{{ report.reporter_label }}</a></td>
+      {% comment %}Carry the active filter into the detail link: it is the only
+      route to report_detail, so without it _filter_value always sees the default
+      and report_delete's hidden input always says "open" — a PA who filtered to
+      resolved or all is always bounced back to the open list.{% endcomment %}
+      <td><a href="{% url 'support:report_detail' report.pk %}?status={{ status }}">{{ report.reporter_label }}</a></td>
       <td>{{ report.role_labels|join:", " }}</td>
       <td>{{ report.description|truncatechars:80 }}</td>
       <td>{% if report.screenshot %}{% trans "Yes" %}{% endif %}</td>
@@ -3003,8 +3007,8 @@ recreating it:
 label:has([data-out-of-roster]) { color: var(--text-secondary); }
 ```
 
-Load it from `reporters.html` with `{% block extra_css %}<link rel="stylesheet"
-href="{% static 'support/css/support.css' %}">{% endblock %}`.
+Step 5's template body includes the `{% block extra_css %}` link that loads it,
+alongside the `{% block extra_js %}` roster-filter script — transcribe both.
 
 Add to `support/forms.py` imports:
 
@@ -3068,8 +3072,12 @@ Add to `support/urls.py`:
 
 ```django
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block head_title %}{% trans "Allowed reporters" %}{% endblock %}
+{% comment %}Without this link the out-of-roster muted rule created in Step 3
+never loads on the one page it exists for, and no test would notice — they assert
+the attribute and the note text, not the colour.{% endcomment %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'support/css/support.css' %}">{% endblock %}
 {% block content %}
 <h1>{% trans "Allowed reporters" %}</h1>
 <p>{% trans "These people can report an issue regardless of the audience setting." %}</p>
@@ -3953,6 +3961,8 @@ Create `tests/test_e2e_support_report.py`. The fixtures are `page` and `live_ser
 ```python
 """End-to-end: open the dialog, paste an image, submit, verify the stored row."""
 
+import os
+
 import pytest
 from django.contrib.auth.models import Group
 
@@ -3963,7 +3973,25 @@ from support.models import SupportSettings
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
 
-pytestmark = [pytest.mark.e2e, pytest.mark.django_db]
+# transaction=True is MANDATORY, not stylistic. live_server runs in a background
+# thread on its own connection; under a plain django_db mark the test's rows (the
+# SupportSettings row, the student) stay in an uncommitted transaction the server
+# cannot see, so the login fails and IssueReport.objects.get() finds nothing.
+# 109 e2e tests in this repo use transaction=True; effectively none use the plain
+# marker.
+pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    """Every e2e module in this repo declares this, and it lives in NO shared
+    conftest — not the root one, not tests/conftest.py, not pyproject.toml. The
+    sync Playwright API trips Django's async_unsafe guard, so ORM calls in the
+    test body raise SynchronousOnlyOperation without it. Task 10 Step 3 runs this
+    file alone, so no sibling module's fixture can cover for a missing one here.
+    """
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
 
 
 def _student(username="reporter"):
