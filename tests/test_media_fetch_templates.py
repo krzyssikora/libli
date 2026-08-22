@@ -100,6 +100,13 @@ def test_cell_renders_a_source_link_for_a_fetched_asset(course_and_manager):
     assert 'target="_blank"' in html
     assert ">upload.wikimedia.org<" in html  # hostname is the LABEL
     assert url in html  # full URL in title
+    # The region matters, not just the link: editor.css's .asset-source rule
+    # (margin-inline-start: auto, and the three-child space-between behaviour) only
+    # applies inside .asset-foot. A mutant that moves the anchor into .asset-names
+    # would still satisfy every assertion above.
+    foot = re.search(r'<div class="asset-foot">.*?</div>\s*</div>', html, re.S)
+    assert foot, "no .asset-foot region rendered"
+    assert 'class="asset-source"' in foot.group(0)
 
 
 def test_cell_renders_no_link_for_a_malformed_source(course_and_manager):

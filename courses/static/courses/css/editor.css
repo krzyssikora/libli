@@ -772,7 +772,7 @@ button.asset-cell:hover { border-color: var(--primary); }
    squeezed to ~30px and wrap every unit title to a few characters per line. */
 .asset-foot > :first-child:not([open]) { min-width: 0; }
 
-/* .asset-foot (:752) is display:flex; justify-content: space-between, designed
+/* .asset-foot (:756) is display:flex; justify-content: space-between, designed
    around exactly two children -- a third makes space-between push this link to
    the centre, and flex items default to min-width:auto, which the
    :first-child:not([open]) rule above does not reach (this is the MIDDLE child).

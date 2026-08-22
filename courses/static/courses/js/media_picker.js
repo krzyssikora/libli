@@ -190,7 +190,12 @@
 
     function fetchPickerUrl(url) {
       var picker = overlay && overlay.querySelector(".picker");
-      if (!picker || !url || fetchInFlight) return;
+      // NOT `!url`: an empty box is deliberately let through. The picker's input is
+      // not inside a <form>, so no native `required` validation ever fires here --
+      // this is the ONE surface where the server's "Enter an image URL." check is
+      // reachable at all, and swallowing an empty submit here would make the
+      // control look dead (no request, no message, no visual change).
+      if (!picker || fetchInFlight) return;
       var btn = overlay.querySelector("[data-picker-fetch]");
       fetchInFlight = true;
       if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); }

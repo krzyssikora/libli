@@ -38,6 +38,14 @@ logger = logging.getLogger(__name__)
 # Params whose value adds nothing beyond the already-rendered message. NOTE `status`
 # is interpolated into its message too but is deliberately NOT here: the log line
 # carries no other field that identifies which status fired.
+#
+# CAUTION for translators: ValidationError.__iter__ runs `message %= params`
+# whenever params is truthy, even for messages (like "Could not reach the image
+# host." and "That URL did not return an image.") that carry no %(name)s
+# placeholder -- the params exist only for the log line above. A literal `%`
+# landing in either translated string in a future catalog pass turns that
+# %-format into a ValueError/KeyError at render time -- a 500 on a rejection
+# path. The current Polish catalog is fine; keep this in mind on the next edit.
 _MESSAGE_ONLY_PARAMS = {"mib"}
 
 # Hoisted to module level deliberately: raised from four levels of nesting inside
@@ -126,7 +134,7 @@ def _fetch(submitted_url, deadline, max_bytes):
                         code="status",
                         params={"status": resp.status},
                     )
-                _check_content_type(resp)  # Task 6 fills this in
+                _check_content_type(resp)  # rejects SVG and any non-image content type
                 return _read_capped(resp, deadline, max_bytes), current_url
         except urllib.error.HTTPError as exc:
             # MUST precede the URLError clause below: HTTPError subclasses URLError.
@@ -279,7 +287,12 @@ def fetch_image_asset(course, submitted_url, user, name=""):
         except BaseException as exc:  # noqa: BLE001 - re-raised on the joiner
             box["exc"] = exc  # store FIRST
             try:
-                exc.close()  # HTTPError only; harmless otherwise
+                # Defensive and currently unreachable: _fetch's own `finally`
+                # (above) already closes every HTTPError it handles, and no
+                # HTTPError escapes it, so `exc` here is never one. Kept as a
+                # belt-and-braces guard on the broad `except BaseException` above,
+                # in the style of this repo's other deliberately-undrivable guards.
+                exc.close()
             except Exception:  # noqa: BLE001, S110
                 pass
 

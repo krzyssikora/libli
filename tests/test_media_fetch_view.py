@@ -106,6 +106,23 @@ def test_no_js_failure_redirects_with_a_message(client, course_and_manager):
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
+def test_no_js_success_redirects_to_manage_media(
+    client, course_and_manager, monkeypatch
+):
+    """The success mirror of test_no_js_failure_redirects_with_a_message: a plain
+    (no X-Requested-With) POST that succeeds redirects to manage_media rather than
+    rendering the _asset_cell fragment, and still creates the asset."""
+    course, _ = course_and_manager
+    patch_transport(monkeypatch)
+    resp = client.post(url_for(course), {"url": URL}, follow=True)
+    assert resp.redirect_chain
+    assert resp.redirect_chain[-1][0] == reverse(
+        "courses:manage_media", kwargs={"slug": course.slug}
+    )
+    assert MediaAsset.objects.filter(course=course).count() == 1
+
+
+@override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=WIKI, ALLOW_HTTP_IMAGE_FETCH=False)
 def test_authenticated_get_is_405(client, course_and_manager):
     """Falsifies "drop @require_POST entirely" -- NOT the decorator ORDER.
 

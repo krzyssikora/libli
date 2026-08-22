@@ -54,10 +54,11 @@ def test_exactly_three_redirects_succeed(monkeypatch):
     asset = media_fetch.fetch_image_asset(CourseFactory(), URL, UserFactory())
     assert asset.source_url == URL
     # NOTE: the other half of the spec's paired invariant -- that the filename stem
-    # comes from the FINAL hop -- is asserted in TASK 7, not here. _derive_filename
-    # does not exist yet at this task, and Task 4's _build_asset hardcodes
-    # filename="image.png", so an assertion on original_filename would be RED for a
-    # reason that has nothing to do with redirects.
+    # comes from the FINAL hop -- is asserted in
+    # test_media_fetch_filename.py::test_stem_comes_from_the_final_hop, not here.
+    # Keeping that assertion there (rather than adding original_filename here) keeps
+    # each test's failure reason mapped to a single concern: this one to redirects,
+    # that one to filename derivation.
 
 
 @override_settings(ALLOWED_IMAGE_FETCH_DOMAINS=OK, ALLOW_HTTP_IMAGE_FETCH=False)
