@@ -422,7 +422,7 @@ def _build_asset(course, user, name, submitted_url, current_url, data, allowed_e
             "image fetch: host=%s reason=%s", host, getattr(exc, "code", None)
         )
         raise
-    digest = hashlib.sha256(data).hexdigest()
+    digest = hashlib.sha256(data).hexdigest()  # EXACTLY lal_loader/media.py:33's form
     # Written out in full rather than elided: `name=name` in particular is easy to drop
     # on a re-type, and no test in Tasks 4-8 asserts it.
     return create_asset(
