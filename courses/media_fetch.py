@@ -197,11 +197,55 @@ def _fetch(submitted_url, deadline, max_bytes):
     )
 
 
+MEDIA_TYPE_MAP = {
+    "image/png": ("png",),
+    "image/jpeg": ("jpg", "jpeg"),
+    "image/jpg": ("jpg", "jpeg"),  # non-standard but widely emitted
+    "image/gif": ("gif",),
+    "image/webp": ("webp",),
+}
+
+
+def _media_type(resp):
+    raw = (resp.headers or {}).get("Content-Type") or ""
+    return raw.split(";", 1)[0].strip().lower()
+
+
 def _check_content_type(resp):
-    return None
+    mt = _media_type(resp)
+    if mt == "image/svg+xml":
+        # Excluded on purpose (active content; the upload path refuses it too). But
+        # Wikimedia serves a lot of SVG and IS the default allow-list, so an author
+        # WILL paste one -- "did not return an image" would be false and unhelpful.
+        raise ValidationError(
+            _("That image type is not allowed."),
+            code="content-type",
+            params={"content_type": mt},
+        )
+    if mt not in MEDIA_TYPE_MAP:
+        raise ValidationError(
+            _("That URL did not return an image."),
+            code="content-type",
+            params={"content_type": mt},
+        )
 
 
 def _read_capped(resp, deadline, max_bytes):
+    # ADVISORY ONLY: an absent/non-numeric/negative header is ignored, never a
+    # rejection and never a reason to relax the streaming check below. It only saves
+    # a pointless transfer. (iter-style reads yield DECOMPRESSED bytes, so a gzipped
+    # response can declare a length well under the cap and still exceed it.)
+    declared = (resp.headers or {}).get("Content-Length")
+    try:
+        if declared is not None and int(declared) > max_bytes:
+            raise ValidationError(
+                _("Image file too large (max %(mib)d MiB)."),
+                code="too-large",
+                params={"mib": max_bytes // (1024 * 1024)},
+            )
+    except (TypeError, ValueError):
+        pass
+
     chunks, total = [], 0
     while True:
         _remaining(deadline)  # checked once per chunk
@@ -284,6 +328,11 @@ def _log_worker_failure(submitted_url, exc):
 
 def _build_asset(course, user, name, submitted_url, current_url, data, allowed_exts):
     """Steps 9-13, on the request thread."""
+    if not data:
+        # media_upload gets its empty-file rejection from MediaAssetForm's FileField,
+        # which this path bypasses, and MediaAsset.clean() has no lower size bound --
+        # so without this a 200 + Content-Length: 0 creates a real zero-byte asset.
+        raise ValidationError(_("The fetched file is empty."), code="empty-body")
     filename = "image.png"  # replaced in Task 7
     digest = hashlib.sha256(data).hexdigest()  # EXACTLY lal_loader/media.py:33's form
     return create_asset(
