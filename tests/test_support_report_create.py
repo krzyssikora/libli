@@ -68,6 +68,7 @@ def test_a_course_admin_is_allowed_on_that_same_rung(client):
     _set_audience(Audience.COURSE_ADMINS)
     make_ca(client)
     assert client.post(reverse(URL_NAME), _payload()).status_code == 201
+    assert "Course Admin" in IssueReport.objects.get().reporter_roles
 
 
 def test_anonymous_gets_401_json_not_a_redirect(client):
@@ -100,6 +101,8 @@ def test_an_over_long_description_is_a_field_error(client):
         reverse(URL_NAME), _payload(description="x" * (DESCRIPTION_MAX_LENGTH + 1))
     )
     assert response.status_code == 400
+    assert "description" in response.json()["errors"]
+    assert IssueReport.objects.count() == 0
 
 
 def test_an_over_long_page_title_is_truncated_not_rejected(client):
@@ -117,7 +120,7 @@ def test_an_over_long_page_title_is_truncated_not_rejected(client):
 def test_server_assigned_columns_cannot_be_set_from_the_payload(client):
     """Mutant: widen IssueReportForm to fields = "__all__"."""
     _set_audience(Audience.ALL)
-    make_student(client)
+    student = make_student(client)
     # UserFactory, NOT make_pa: make_* logs the new user in, and calling
     # make_student twice would try to create a second user named "student" and
     # raise IntegrityError. The test only needs another user's pk.
@@ -132,6 +135,7 @@ def test_server_assigned_columns_cannot_be_set_from_the_payload(client):
         ),
     )
     report = IssueReport.objects.get()
+    assert report.reporter == student
     assert report.status == IssueReport.Status.OPEN
     assert report.emailed_at is None
     assert "forged" not in report.telemetry
