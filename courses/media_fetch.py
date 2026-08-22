@@ -101,13 +101,104 @@ def _remaining(deadline):
 
 
 def _fetch(submitted_url, deadline, max_bytes):
-    """Worker body: steps 4-8. Returns (data, current_url). Raises only."""
+    """Worker body: steps 4-8. Returns (data, current_url).
+
+    Redirects and non-2xx arrive as RAISED HTTPError, never as returned responses:
+    build_opener keeps HTTPErrorProcessor (which raises outside 200-299) and
+    _NoRedirect raises on any 3xx. So opener.open() returns ONLY a 2xx.
+    """
     current_url = submitted_url
-    with _open(
-        _build_request(current_url), min(TIMEOUT_SECONDS, _remaining(deadline))
-    ) as resp:
-        data = _read_capped(resp, deadline, max_bytes)
-    return data, current_url
+    for hop in range(MAX_REDIRECT_HOPS + 1):  # one initial GET + at most 3 redirects
+        # EXACTLY ONE budget check per iteration. It is deliberately fused into the
+        # timeout computation rather than written as a separate bare call above: two
+        # checks would make the first redundant (the argument is evaluated before
+        # _open runs, and _BudgetExceeded escapes both except clauses either way), and
+        # a "drop the top-of-loop check" mutant would then be a no-op that no test
+        # could catch. One check, one mutant, one RED test.
+        hop_timeout = min(TIMEOUT_SECONDS, _remaining(deadline))
+        try:
+            with _open(_build_request(current_url), hop_timeout) as resp:
+                # HTTPErrorProcessor raises only OUTSIDE 200-299, so a 204/206 lands
+                # here as a normal response and needs an explicit check.
+                if getattr(resp, "status", 200) != 200:
+                    raise ValidationError(
+                        _("The image host returned an error (status %(status)s)."),
+                        code="status",
+                        params={"status": resp.status},
+                    )
+                _check_content_type(resp)  # Task 6 fills this in
+                return _read_capped(resp, deadline, max_bytes), current_url
+        except urllib.error.HTTPError as exc:
+            # MUST precede the URLError clause below: HTTPError subclasses URLError.
+            try:
+                if exc.code not in REDIRECT_STATUSES:
+                    raise ValidationError(
+                        _("The image host returned an error (status %(status)s)."),
+                        code="status",
+                        params={"status": exc.code},
+                    )
+                if hop == MAX_REDIRECT_HOPS:
+                    raise ValidationError(
+                        _("That URL redirects too many times."),
+                        code="redirect-too-many",
+                    )
+                location = (exc.headers or {}).get("Location") or ""
+                if not location:
+                    raise ValidationError(
+                        _("The image host returned an invalid redirect."),
+                        code="redirect-invalid",
+                    )
+                try:
+                    target = urljoin(current_url, location)
+                    target_host = urlsplit(target).hostname or ""
+                except ValueError as bad:
+                    # MEASURED: urljoin(..., "//[bad") raises ValueError("Invalid IPv6
+                    # URL"), and so does urlsplit on such a target. Both sites sit
+                    # inside the `except HTTPError` handler, so the sibling
+                    # (TimeoutError, URLError, OSError) clause does NOT catch them --
+                    # the ValueError would reach _run's broad handler, be re-raised
+                    # unchanged, and surface as a 500 rather than the 422 the error
+                    # table promises. Same guard MediaAsset.source_host already uses.
+                    raise ValidationError(
+                        _("The image host returned an invalid redirect."),
+                        code="redirect-invalid",
+                    ) from bad
+                try:
+                    current_url = validate_fetch_url(target)
+                except ValidationError as inner:
+                    # Replace the underlying rule's message: telling the author their
+                    # URL "must use https" when it was the REDIRECT that downgraded is
+                    # a false statement about what they typed.
+                    raise ValidationError(
+                        _REDIRECT_OFF_ALLOWLIST,
+                        code="redirect-off-allowlist",
+                        params={"target_host": target_host},
+                    ) from inner
+            finally:
+                try:
+                    exc.close()  # the `with` was never entered -- close it here
+                except Exception:  # noqa: BLE001, S110
+                    pass
+        except (TimeoutError, urllib.error.URLError, OSError) as exc:
+            # NOT delivery.py:67's tuple -- that one INCLUDES HTTPError, which would
+            # swallow every redirect and status error above. This is delivery.py:144's,
+            # plus OSError for mid-read socket failures.
+            raise ValidationError(
+                _("Could not reach the image host."),
+                code="transport",
+                params={"exc": type(exc).__name__},
+            ) from exc
+    # Deliberately undrivable, kept as a guard in the style of geogebra.py:405-412: the
+    # `hop == MAX_REDIRECT_HOPS` branch already raises on the last iteration and every
+    # other path returns or raises, so the loop cannot fall through. Do NOT write a
+    # test for this line -- no input reaches it.
+    raise ValidationError(
+        _("That URL redirects too many times."), code="redirect-too-many"
+    )
+
+
+def _check_content_type(resp):
+    return None
 
 
 def _read_capped(resp, deadline, max_bytes):
