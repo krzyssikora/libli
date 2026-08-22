@@ -107,6 +107,9 @@
               {% if perms.accounts.view_user %}
               <a class="menu__item" href="{% url 'accounts:people' %}">{% trans "People" %}</a>
               {% endif %}
+              {% if perms.support.view_issuereport %}
+              <a class="menu__item" href="{% url 'support:report_list' %}">{% trans "Issue reports" %}</a>
+              {% endif %}
               {% if perms.institution.change_institution %}
               <span class="menu__sep" role="separator"></span>
               <a class="menu__item" href="{% url 'institution:settings' %}">{% trans "Institution settings" %}</a>

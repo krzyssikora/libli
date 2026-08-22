@@ -50,6 +50,17 @@ SUBJECT_PERMS = [
     "courses.delete_subject",
 ]
 
+# Issue reporting (Phase: support). change_supportsettings guards the Support
+# settings tab's POST and the Allowed reporters page — it must be seeded here or
+# Django creates it, attaches it to nobody, and every PA 403s on Save.
+SUPPORT_PERMS = [
+    "support.view_issuereport",
+    "support.change_issuereport",
+    "support.delete_issuereport",
+    "support.view_supportsettings",
+    "support.change_supportsettings",
+]
+
 PLATFORM_ADMIN_PERMS = [
     "accounts.add_user",
     "accounts.change_user",
@@ -63,6 +74,7 @@ PLATFORM_ADMIN_PERMS = [
     "institution.view_brandcolor",
     *COURSE_PERMS,
     *SUBJECT_PERMS,
+    *SUPPORT_PERMS,
 ]
 
 GROUPING_TEACHER_PERMS = [

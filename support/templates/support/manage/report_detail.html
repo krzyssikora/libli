@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Issue report" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Issue report" %} #{{ report.pk }}</h1>
+
+{% if not report.emailed_at %}
+  <p class="alert alert--warning">
+    {% trans "Not emailed — no message went out for this report." %}
+  </p>
+{% endif %}
+
+<dl>
+  <dt>{% trans "Reported by" %}</dt>
+  <dd>{{ report.reporter_label }}{% if roles %} ({{ roles|join:", " }}){% endif %}</dd>
+  <dt>{% trans "Page" %}</dt>
+  <dd>
+    {{ report.page_title }}<br>
+    {% comment %}safe_page_link is None for a javascript: or foreign-host URL, so a
+    hostile page_url prints as inert escaped text.{% endcomment %}
+    {% if page_link %}<a href="{{ page_link }}">{{ report.page_url }}</a>
+    {% else %}{{ report.page_url }}{% endif %}
+  </dd>
+  {% for key, label, value in telemetry %}
+  <dt>{{ label }}</dt><dd>{{ value }}</dd>
+  {% endfor %}
+</dl>
+
+<h2>{% trans "Description" %}</h2>
+<p>{{ report.description|linebreaksbr }}</p>
+
+{% if report.screenshot %}
+<h2>{% trans "Screenshot" %}</h2>
+<a href="{% url 'support:screenshot' report.pk %}">
+  <img src="{% url 'support:screenshot' report.pk %}" alt="{% trans 'Screenshot attached to this report' %}" style="max-width:100%">
+</a>
+{% endif %}
+
+<form method="post" action="{% url 'support:report_set_status' report.pk %}">
+  {% csrf_token %}
+  {% if report.status == "open" %}
+    <input type="hidden" name="status" value="resolved">
+    <button type="submit">{% trans "Mark resolved" %}</button>
+  {% else %}
+    <input type="hidden" name="status" value="open">
+    <button type="submit">{% trans "Reopen" %}</button>
+  {% endif %}
+</form>
+
+{% comment %}The confirmation text goes in a data- attribute, NOT inline in an
+onsubmit JS string literal: Task 12 supplies Polish, and a translation containing
+an apostrophe would terminate the literal and break the page. Django escapes the
+attribute for you. A small handler in support.js reads [data-confirm] and calls
+confirm(). Note for any future e2e: Playwright AUTO-DISMISSES confirm() unless the
+test registers page.on("dialog", ...), so a delete e2e without that listener
+silently does nothing and still passes.{% endcomment %}
+{% comment %}Without the script below the delete button would submit on first
+click with no prompt at all, silently dropping the spec's "POST only, WITH
+confirmation".{% endcomment %}
+<form method="post" action="{% url 'support:report_delete' report.pk %}"
+      data-confirm="{% trans 'Delete this report and its screenshot?' %}">
+  {% csrf_token %}
+  <input type="hidden" name="status" value="{{ status }}">
+  <button type="submit" class="btn--danger">{% trans "Delete" %}</button>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'support/js/confirm.js' %}" defer></script>
+{% endblock %}

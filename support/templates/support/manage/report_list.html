@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Issue reports" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Issue reports" %}</h1>
+<nav class="filter-row" aria-label="{% trans 'Filter by status' %}">
+  {% for value in status_filters %}
+    <a href="?status={{ value }}" aria-current="{% if value == status %}true{% else %}false{% endif %}">
+      {% if value == "open" %}{% trans "Open" %}
+      {% elif value == "resolved" %}{% trans "Resolved" %}
+      {% else %}{% trans "All" %}{% endif %}
+    </a>
+  {% endfor %}
+</nav>
+<div class="scroll-x">
+<table class="ledger">
+  <thead>
+    <tr>
+      <th>{% trans "When" %}</th><th>{% trans "Reporter" %}</th>
+      <th>{% trans "Role" %}</th><th>{% trans "Description" %}</th>
+      <th>{% trans "Screenshot" %}</th><th>{% trans "Status" %}</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for report in page_obj %}
+    <tr>
+      <td>{{ report.created_at }}</td>
+      {% comment %}Carry the active filter into the detail link: it is the only
+      route to report_detail, so without it _filter_value always sees the default
+      and report_delete's hidden input always says "open" — a PA who filtered to
+      resolved or all is always bounced back to the open list.{% endcomment %}
+      <td><a href="{% url 'support:report_detail' report.pk %}?status={{ status }}">{{ report.reporter_label }}</a></td>
+      <td>{{ report.role_labels|join:", " }}</td>
+      <td>{{ report.description|truncatechars:80 }}</td>
+      <td>{% if report.screenshot %}{% trans "Yes" %}{% endif %}</td>
+      <td>
+        {{ report.get_status_display }}
+        {% if not report.emailed_at %} — {% trans "not emailed" %}{% endif %}
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6">{% trans "No reports." %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% comment %}Without this nav, LIST_PAGE_SIZE = 25 makes every report past the
+25th unreachable from the UI. Mirrors templates/accounts/manage/people.html; the
+active ?status= must ride along or paging silently resets the filter.{% endcomment %}
+{% if page_obj.has_other_pages %}
+<nav class="pagination" aria-label="{% trans 'Pagination' %}">
+  {% if page_obj.has_previous %}
+    <a href="?status={{ status }}&amp;page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>
+  {% endif %}
+  <span>{% blocktrans with n=page_obj.number total=page_obj.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
+  {% if page_obj.has_next %}
+    <a href="?status={{ status }}&amp;page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endblock %}
