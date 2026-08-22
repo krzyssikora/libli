@@ -137,3 +137,21 @@ def effective_primary(cfg=None):
 def default_name():
     """The fallback institution name, for callers that must not import _DEFAULTS."""
     return _DEFAULTS["name"]
+
+
+def role_names_for(request):
+    """Group names of request.user as a frozenset, memoised on the request.
+
+    Both user_roles and support_availability need them, and without the memo an
+    authenticated render would run the same auth_group query twice.
+    """
+    cached = getattr(request, "_libli_role_names", None)
+    if cached is not None:
+        return cached
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        names = frozenset()
+    else:
+        names = frozenset(user.groups.values_list("name", flat=True))
+    request._libli_role_names = names
+    return names

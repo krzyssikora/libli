@@ -73,6 +73,7 @@ TEMPLATES = [
                 "core.context_processors.user_roles",
                 "core.context_processors.notifications_badge",
                 "core.context_processors.help_availability",
+                "core.context_processors.support_availability",
             ],
         },
     },
