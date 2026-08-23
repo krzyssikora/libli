@@ -73,7 +73,16 @@ label:has([data-out-of-roster]) { color: var(--text-secondary); }
 }
 .ledger tbody tr:hover { background: var(--surface-sunken); }
 
-/* Pagination nav. Mirrors .pagination in accounts/css/people.css. */
+/* Pagination nav. NOT introducing a new visual convention: accounts/css/
+   people.css:87-96 defines this exact pair — .pagination { display:flex;
+   gap; ... } and .pagination__status { color; font-size } — loaded by both
+   people.html and invitations.html via their own extra_css block. Repeated
+   here rather than centralised because it is page-scoped CSS living
+   alongside a sibling app, the same layering every other rule in this file
+   uses. Keep it: the .btn classes on the prev/next links style the buttons
+   themselves, but without this rule the nav loses its flex gap and the
+   status text loses its secondary colour — the one view that would then
+   diverge from the other two paginated lists in the product. */
 .pagination { display: flex; gap: var(--space-3); align-items: center;
   margin-top: var(--space-4); flex-wrap: wrap; }
 .pagination__status { color: var(--text-secondary); font-size: .875rem; }
