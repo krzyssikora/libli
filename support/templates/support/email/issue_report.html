@@ -1,0 +1,22 @@
+{% load i18n %}
+<p>{% trans "A new issue report was submitted." %}</p>
+<p><a href="{{ detail_url }}">{% trans "View it here" %}</a></p>
+<p>
+  <strong>{% trans "Reported by" %}:</strong> {{ report.reporter_label }}
+  {% if roles %}({{ roles|join:", " }}){% endif %}
+</p>
+<p>
+  <strong>{% trans "Page" %}:</strong> {{ report.page_title }}<br>
+  {% comment %}safe_page_link returns None for a javascript: or foreign-host URL,
+  so a hostile page_url renders as inert escaped text. This is the one output
+  that travels outside the login wall.{% endcomment %}
+  {% if page_link %}<a href="{{ page_link }}">{{ report.page_url }}</a>
+  {% else %}{{ report.page_url }}{% endif %}
+</p>
+<p><strong>{% trans "Description" %}:</strong></p>
+<p>{{ report.description|linebreaksbr }}</p>
+<table>
+  {% for key, label, value in telemetry %}
+  <tr><th align="left">{{ label }}</th><td>{{ value }}</td></tr>
+  {% endfor %}
+</table>

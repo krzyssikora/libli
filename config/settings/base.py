@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "notifications",
     "tags",
     "integrations",
+    "support",
 ]
 
 MIDDLEWARE = [
@@ -72,6 +73,7 @@ TEMPLATES = [
                 "core.context_processors.user_roles",
                 "core.context_processors.notifications_badge",
                 "core.context_processors.help_availability",
+                "core.context_processors.support_availability",
             ],
         },
     },
@@ -180,6 +182,11 @@ TRANSFER_MAX_MEDIA_ENTRIES = 1000
 TRANSFER_STAGING_MAX_AGE_HOURS = 6
 # NOT under MEDIA_ROOT: staged archives must never be web-served (spec §4.3/§6).
 TRANSFER_STAGING_DIR = BASE_DIR / "transfer_staging"
+
+# NOT under MEDIA_ROOT: report screenshots may contain another student's name,
+# answers or grades and must never be web-served. Served only by the PA-only
+# support:screenshot view. Mirrors TRANSFER_STAGING_DIR above.
+SUPPORT_SCREENSHOT_DIR = BASE_DIR / "support_screenshots"
 
 # Whitelisted hosts for video/iframe embeds (validated in clean()). Bare lowercase
 # hosts; a host matches iff it equals one OR is a subdomain of one. Phase 5 makes

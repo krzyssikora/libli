@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-22 17:16+0200\n"
+"POT-Creation-Date: 2026-08-23 02:44+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -150,11 +150,11 @@ msgstr ""
 msgid "User reactivated."
 msgstr ""
 
-#: .\config\settings\base.py:143
+#: .\config\settings\base.py:145
 msgid "English"
 msgstr ""
 
-#: .\config\settings\base.py:143
+#: .\config\settings\base.py:145
 msgid "Polski"
 msgstr ""
 
@@ -215,7 +215,7 @@ msgstr ""
 #: .\core\help.py:269 .\notes\templates\notes\course_notes.html:9
 #: .\notes\templates\notes\overview.html:3
 #: .\notes\templates\notes\overview.html:10
-#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:78
+#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:79
 msgid "Tags & notes"
 msgstr ""
 
@@ -240,13 +240,13 @@ msgstr ""
 msgid "SSO (OIDC)"
 msgstr ""
 
-#: .\core\help.py:311 .\courses\forms.py:81 .\templates\base.html:100
+#: .\core\help.py:311 .\courses\forms.py:81 .\templates\base.html:101
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
 msgstr ""
 
-#: .\core\help.py:318 .\grouping\forms.py:257 .\templates\base.html:103
+#: .\core\help.py:318 .\grouping\forms.py:257 .\templates\base.html:104
 #: .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr ""
@@ -262,7 +262,7 @@ msgstr ""
 #: .\core\help.py:339
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
-#: .\templates\base.html:124 .\templates\base.html:128
+#: .\templates\base.html:128 .\templates\base.html:132
 #: .\templates\institution\manage\_tabs.html:12
 msgid "Notifications"
 msgstr ""
@@ -2630,7 +2630,7 @@ msgstr ""
 msgid "This allocation belongs to a different course."
 msgstr ""
 
-#: .\grouping\forms.py:217 .\templates\base.html:83
+#: .\grouping\forms.py:217 .\templates\base.html:84
 #: .\templates\grouping\group_list.html:5
 #: .\templates\grouping\my_groups.html:10
 msgid "Groups"
@@ -2898,50 +2898,54 @@ msgstr ""
 msgid "Platform Admin"
 msgstr ""
 
-#: .\institution\views_manage.py:114
+#: .\institution\views_manage.py:143
 msgid "Branding saved."
 msgstr ""
 
-#: .\institution\views_manage.py:120
+#: .\institution\views_manage.py:149
 msgid "Access settings saved."
 msgstr ""
 
-#: .\institution\views_manage.py:127
+#: .\institution\views_manage.py:156
 msgid "Upload settings saved."
 msgstr ""
 
-#: .\institution\views_manage.py:139
+#: .\institution\views_manage.py:168
 msgid "Retention settings saved."
 msgstr ""
 
-#: .\institution\views_manage.py:175
+#: .\institution\views_manage.py:204
 msgid "SSO settings saved."
 msgstr ""
 
-#: .\institution\views_manage.py:177
+#: .\institution\views_manage.py:206
 msgid "Nothing to save."
 msgstr ""
 
-#: .\institution\views_manage.py:199
+#: .\institution\views_manage.py:228
 msgid "Endpoint uses http — grades transit in cleartext. Prefer https."
 msgstr ""
 
-#: .\institution\views_manage.py:201
+#: .\institution\views_manage.py:230
 msgid "Integration settings saved."
 msgstr ""
 
-#: .\institution\views_manage.py:218
+#: .\institution\views_manage.py:247
 msgid "Set an endpoint URL and signing secret before sending a test event."
 msgstr ""
 
-#: .\institution\views_manage.py:225
+#: .\institution\views_manage.py:254
 #, python-format
 msgid "Test event delivered — endpoint returned %(code)s."
 msgstr ""
 
-#: .\institution\views_manage.py:228
+#: .\institution\views_manage.py:257
 #, python-format
 msgid "Test event failed: %(reason)s"
+msgstr ""
+
+#: .\institution\views_manage.py:278
+msgid "Support settings saved."
 msgstr ""
 
 #: .\institution\views_setup.py:33
@@ -3058,6 +3062,7 @@ msgstr ""
 #: .\notes\templates\notes\_composer.html:10
 #: .\notes\templates\notes\_notes_i18n.html:3
 #: .\notes\templates\notes\edit_page.html:11
+#: .\support\templates\support\manage\reporters.html:30
 #: .\templates\accounts\manage\user_form.html:27
 #: .\templates\courses\elements\markdoneelement.html:19
 #: .\templates\courses\manage\analytics_bands.html:53
@@ -3070,6 +3075,7 @@ msgstr ""
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
 #: .\templates\grouping\group_form.html:53
+#: .\templates\institution\manage\_support_tab.html:44
 msgid "Save"
 msgstr ""
 
@@ -3077,6 +3083,8 @@ msgstr ""
 #: .\notes\templates\notes\_notes_i18n.html:4
 #: .\notes\templates\notes\confirm_delete.html:12
 #: .\notes\templates\notes\edit_page.html:14
+#: .\support\templates\support\_report_dialog.html:61
+#: .\support\templates\support\manage\reporters.html:31
 #: .\tags\templates\tags\_tags_i18n.html:5
 #: .\tags\templates\tags\delete_confirm.html:14
 #: .\tags\templates\tags\rename_page.html:17
@@ -3161,6 +3169,7 @@ msgid "Delete?"
 msgstr ""
 
 #: .\notes\templates\notes\_notes_i18n.html:6
+#: .\support\templates\support\manage\report_list.html:37
 #: .\tags\templates\tags\_tags_i18n.html:7
 #: .\templates\courses\manage\_unit_panel.html:9
 msgid "Yes"
@@ -3203,6 +3212,7 @@ msgid "Delete this note?"
 msgstr ""
 
 #: .\notes\templates\notes\confirm_delete.html:9
+#: .\support\templates\support\manage\report_detail.html:69
 #: .\tags\templates\tags\delete_confirm.html:13
 #: .\templates\courses\manage\_tree_node.html:159
 #: .\templates\courses\manage\editor\_element_row_controls.html:33
@@ -3379,12 +3389,14 @@ msgid "Mark read"
 msgstr ""
 
 #: .\notifications\templates\notifications\list.html:40
+#: .\support\templates\support\manage\report_list.html:55
 #: .\templates\accounts\manage\invitations.html:49
 #: .\templates\accounts\manage\people.html:62
 msgid "Pagination"
 msgstr ""
 
 #: .\notifications\templates\notifications\list.html:41
+#: .\support\templates\support\manage\report_list.html:57
 #: .\templates\accounts\manage\invitations.html:50
 #: .\templates\accounts\manage\people.html:63
 #: .\templates\courses\_unit_footer.html:13
@@ -3398,6 +3410,7 @@ msgid "Page %(num)s of %(total)s"
 msgstr ""
 
 #: .\notifications\templates\notifications\list.html:43
+#: .\support\templates\support\manage\report_list.html:61
 #: .\templates\accounts\manage\invitations.html:52
 #: .\templates\accounts\manage\people.html:65
 #: .\templates\courses\_unit_footer.html:49
@@ -3417,6 +3430,309 @@ msgstr ""
 #: .\notifications\tests\test_retention_i18n.py:18
 #: .\templates\institution\manage\_notifications_tab.html:25
 msgid "Purge old notifications now"
+msgstr ""
+
+#: .\support\emails.py:95
+#, python-format
+msgid "[%(institution)s] Issue report #%(pk)s from %(who)s"
+msgstr ""
+
+#: .\support\forms.py:32 .\support\templates\support\_report_dialog.html:10
+msgid "What went wrong?"
+msgstr ""
+
+#: .\support\forms.py:48
+msgid "Please describe what went wrong."
+msgstr ""
+
+#: .\support\forms.py:76
+msgid "no longer in the roster; still allowed to report"
+msgstr ""
+
+#: .\support\forms.py:126 .\templates\institution\manage\_support_tab.html:12
+msgid "Who can report an issue"
+msgstr ""
+
+#: .\support\forms.py:134
+msgid "Also send reports to"
+msgstr ""
+
+#: .\support\forms.py:136
+msgid ""
+"One address per line. These addresses receive the full report, including any "
+"attached screenshot, which may contain student data."
+msgstr ""
+
+#: .\support\forms.py:165
+#, python-format
+msgid "At most %(count)d addresses."
+msgstr ""
+
+#: .\support\models.py:68
+msgid "Platform Admins only"
+msgstr ""
+
+#: .\support\models.py:69
+msgid "Course Admins and Platform Admins"
+msgstr ""
+
+#: .\support\models.py:70
+msgid "Teachers, Course Admins and Platform Admins"
+msgstr ""
+
+#: .\support\models.py:71
+msgid "Everyone, including students"
+msgstr ""
+
+#: .\support\models.py:98
+#: .\support\templates\support\manage\report_list.html:10
+msgctxt "issue report status"
+msgid "Open"
+msgstr ""
+
+#: .\support\models.py:99
+#: .\support\templates\support\manage\report_list.html:11
+msgctxt "issue report status"
+msgid "Resolved"
+msgstr ""
+
+#: .\support\telemetry.py:16
+msgid "Viewport width"
+msgstr ""
+
+#: .\support\telemetry.py:17
+msgid "Viewport height"
+msgstr ""
+
+#: .\support\telemetry.py:18
+msgid "Screen width"
+msgstr ""
+
+#: .\support\telemetry.py:19
+msgid "Screen height"
+msgstr ""
+
+#: .\support\telemetry.py:20
+msgid "Device pixel ratio"
+msgstr ""
+
+#: .\support\telemetry.py:21 .\templates\core\user_settings.html:75
+msgid "Theme"
+msgstr ""
+
+#: .\support\telemetry.py:22
+msgid "Interface language"
+msgstr ""
+
+#: .\support\telemetry.py:23
+msgid "Time zone"
+msgstr ""
+
+#: .\support\telemetry.py:24
+msgid "Browser"
+msgstr ""
+
+#: .\support\telemetry.py:25
+msgid "Language header"
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:6 .\templates\base.html:144
+msgid "Report an issue"
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:17
+msgid "Screenshot (optional)"
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:21
+msgid "You can paste an image straight from the clipboard."
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:31
+msgid "Something went wrong. Please try again."
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:32
+msgid "That image format is not supported."
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:34
+msgid "Log in again"
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:53
+msgid "What will be sent"
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:56
+msgid ""
+"We also record your name and email address, your role, your browser "
+"identification and language, and the time."
+msgstr ""
+
+#: .\support\templates\support\_report_dialog.html:62
+msgid "Send report"
+msgstr ""
+
+#: .\support\templates\support\email\issue_report.html:2
+#: .\support\templates\support\email\issue_report.txt:1
+msgid "A new issue report was submitted."
+msgstr ""
+
+#: .\support\templates\support\email\issue_report.html:3
+#: .\support\templates\support\email\issue_report.txt:3
+msgid "View it here"
+msgstr ""
+
+#: .\support\templates\support\email\issue_report.html:5
+#: .\support\templates\support\email\issue_report.txt:5
+#: .\support\templates\support\manage\report_detail.html:15
+msgid "Reported by"
+msgstr ""
+
+#: .\support\templates\support\email\issue_report.html:9
+#: .\support\templates\support\email\issue_report.txt:6
+#: .\support\templates\support\manage\report_detail.html:17
+msgid "Page"
+msgstr ""
+
+#: .\support\templates\support\email\issue_report.html:17
+#: .\support\templates\support\email\issue_report.txt:9
+#: .\support\templates\support\manage\report_detail.html:31
+#: .\support\templates\support\manage\report_list.html:21
+msgid "Description"
+msgstr ""
+
+#: .\support\templates\support\email\issue_report.txt:7
+msgid "URL"
+msgstr ""
+
+#: .\support\templates\support\manage\report_detail.html:3
+#: .\support\templates\support\manage\report_detail.html:6
+msgid "Issue report"
+msgstr ""
+
+#: .\support\templates\support\manage\report_detail.html:10
+msgid "Not emailed — no message went out for this report."
+msgstr ""
+
+#: .\support\templates\support\manage\report_detail.html:35
+#: .\support\templates\support\manage\report_list.html:22
+msgid "Screenshot"
+msgstr ""
+
+#: .\support\templates\support\manage\report_detail.html:37
+msgid "Screenshot attached to this report"
+msgstr ""
+
+#: .\support\templates\support\manage\report_detail.html:46
+msgid "Mark resolved"
+msgstr ""
+
+#: .\support\templates\support\manage\report_detail.html:49
+msgid "Reopen"
+msgstr ""
+
+#: .\support\templates\support\manage\report_detail.html:66
+msgid "Delete this report and its screenshot?"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:3
+#: .\support\templates\support\manage\report_list.html:6
+#: .\templates\base.html:113
+msgid "Issue reports"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:7
+msgid "Filter by status"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:12
+#: .\templates\accounts\manage\people.html:29
+msgid "All"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:20
+msgid "When"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:20
+msgid "Reporter"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:21
+#: .\templates\accounts\manage\invitations.html:17
+#: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\people.html:18
+#: .\templates\accounts\manage\people.html:41
+#: .\templates\accounts\manage\user_form.html:15
+#: .\templates\institution\setup\team.html:17
+msgid "Role"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:22
+#: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\people.html:27
+#: .\templates\accounts\manage\people.html:42
+#: .\templates\institution\manage\_integrations_tab.html:53
+msgid "Status"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:41
+msgid "not emailed"
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:45
+msgid "No reports."
+msgstr ""
+
+#: .\support\templates\support\manage\report_list.html:59
+#: .\templates\accounts\manage\invitations.html:51
+#: .\templates\accounts\manage\people.html:64
+#, python-format
+msgid "Page %(n)s of %(total)s"
+msgstr ""
+
+#: .\support\templates\support\manage\reporters.html:3
+#: .\support\templates\support\manage\reporters.html:10
+#: .\support\templates\support\manage\reporters.html:21
+msgid "Allowed reporters"
+msgstr ""
+
+#: .\support\templates\support\manage\reporters.html:11
+msgid "These people can report an issue regardless of the audience setting."
+msgstr ""
+
+#: .\support\templates\support\manage\reporters.html:24
+#: .\templates\grouping\allocation_assign.html:36
+#: .\templates\grouping\group_form.html:16
+#: .\templates\grouping\group_form.html:39
+msgid "Type part of a name…"
+msgstr ""
+
+#: .\support\validators.py:30
+#, python-format
+msgid "Screenshot too large (max %(mib)d MiB)."
+msgstr ""
+
+#: .\support\views.py:49
+msgid "Please log in again to send this report."
+msgstr ""
+
+#: .\support\views.py:53
+msgid "You do not have access to issue reporting."
+msgstr ""
+
+#: .\support\views.py:57
+msgid "You have sent a few reports already. Please try again later."
+msgstr ""
+
+#: .\support\views.py:97
+msgid "Thank you — your report was sent."
+msgstr ""
+
+#: .\support\views_manage.py:150
+msgid "Allowed reporters updated."
 msgstr ""
 
 #: .\tags\services.py:32
@@ -3562,7 +3878,7 @@ msgstr ""
 msgid "Back to main page"
 msgstr ""
 
-#: .\templates\403.html:25 .\templates\base.html:146
+#: .\templates\403.html:25 .\templates\base.html:153
 #: .\templates\core\landing.html:12
 msgid "Log in"
 msgstr ""
@@ -3600,10 +3916,11 @@ msgid "My groups"
 msgstr ""
 
 #: .\templates\_groups_tabs.html:7
+#: .\templates\institution\manage\_support_tab.html:39
 msgid "Manage"
 msgstr ""
 
-#: .\templates\_groups_tabs.html:10 .\templates\base.html:106
+#: .\templates\_groups_tabs.html:10 .\templates\base.html:107
 #: .\templates\grouping\allocation_list.html:5
 msgid "Allocations"
 msgstr ""
@@ -3769,7 +4086,7 @@ msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:109
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:110
 msgid "People"
 msgstr ""
 
@@ -3782,24 +4099,8 @@ msgstr ""
 msgid "Email"
 msgstr ""
 
-#: .\templates\accounts\manage\invitations.html:17
-#: .\templates\accounts\manage\invitations.html:25
-#: .\templates\accounts\manage\people.html:18
-#: .\templates\accounts\manage\people.html:41
-#: .\templates\accounts\manage\user_form.html:15
-#: .\templates\institution\setup\team.html:17
-msgid "Role"
-msgstr ""
-
 #: .\templates\accounts\manage\invitations.html:18
 msgid "Send invitation"
-msgstr ""
-
-#: .\templates\accounts\manage\invitations.html:25
-#: .\templates\accounts\manage\people.html:27
-#: .\templates\accounts\manage\people.html:42
-#: .\templates\institution\manage\_integrations_tab.html:53
-msgid "Status"
 msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:26
@@ -3816,12 +4117,6 @@ msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:40
 msgid "Revoke"
-msgstr ""
-
-#: .\templates\accounts\manage\invitations.html:51
-#: .\templates\accounts\manage\people.html:64
-#, python-format
-msgid "Page %(n)s of %(total)s"
 msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:56
@@ -3843,10 +4138,6 @@ msgstr ""
 
 #: .\templates\accounts\manage\people.html:21
 msgid "No role"
-msgstr ""
-
-#: .\templates\accounts\manage\people.html:29
-msgid "All"
 msgstr ""
 
 #: .\templates\accounts\manage\people.html:30
@@ -3928,56 +4219,56 @@ msgid ""
 "administrator."
 msgstr ""
 
-#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:72
+#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:73
 msgid "Toggle theme"
 msgstr ""
 
-#: .\templates\base.html:76
+#: .\templates\base.html:77
 msgid "Menu"
 msgstr ""
 
-#: .\templates\base.html:77
+#: .\templates\base.html:78
 #: .\templates\institution\manage\_branding_fields.html:16
 msgid "Primary"
 msgstr ""
 
-#: .\templates\base.html:80 .\templates\core\home.html:45
+#: .\templates\base.html:81 .\templates\core\home.html:45
 #: .\templates\courses\manage\course_list.html:3
 #: .\templates\courses\manage\course_list.html:7
 msgid "Studio"
 msgstr ""
 
-#: .\templates\base.html:86 .\templates\core\landing.html:32
+#: .\templates\base.html:87 .\templates\core\landing.html:32
 #: .\templates\help\doc.html:21 .\templates\help\index.html:3
 #: .\templates\help\index.html:7
 msgid "Help"
 msgstr ""
 
-#: .\templates\base.html:96
+#: .\templates\base.html:97
 msgid "Admin"
 msgstr ""
 
-#: .\templates\base.html:113 .\templates\core\home.html:67
+#: .\templates\base.html:117 .\templates\core\home.html:67
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr ""
 
-#: .\templates\base.html:114
+#: .\templates\base.html:118
 msgid "Setup wizard"
 msgstr ""
 
-#: .\templates\base.html:115
+#: .\templates\base.html:119
 msgid "SIS webhook guide"
 msgstr ""
 
-#: .\templates\base.html:138 .\templates\core\home.html:65
+#: .\templates\base.html:142 .\templates\core\home.html:65
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr ""
 
-#: .\templates\base.html:141
+#: .\templates\base.html:148
 msgid "Log out"
 msgstr ""
 
@@ -4096,10 +4387,6 @@ msgstr ""
 
 #: .\templates\core\user_settings.html:60
 msgid "Interface language. Content stays in whatever language it was written."
-msgstr ""
-
-#: .\templates\core\user_settings.html:75
-msgid "Theme"
 msgstr ""
 
 #: .\templates\core\user_settings.html:76
@@ -6953,12 +7240,6 @@ msgstr ""
 msgid "Search by name"
 msgstr ""
 
-#: .\templates\grouping\allocation_assign.html:36
-#: .\templates\grouping\group_form.html:16
-#: .\templates\grouping\group_form.html:39
-msgid "Type part of a name…"
-msgstr ""
-
 #: .\templates\grouping\allocation_assign.html:39
 #: .\templates\grouping\group_form.html:31
 msgid "Cohort"
@@ -7355,6 +7636,23 @@ msgstr ""
 msgid "Save SSO settings"
 msgstr ""
 
+#: .\templates\institution\manage\_support_tab.html:22
+#, python-format
+msgid ""
+"Platform Admins can always report, and always receive reports: %(names)s"
+msgstr ""
+
+#: .\templates\institution\manage\_support_tab.html:27
+msgid "Additional recipients"
+msgstr ""
+
+#: .\templates\institution\manage\_support_tab.html:38
+#, python-format
+msgid "%(counter)s other person is also allowed."
+msgid_plural "%(counter)s other people are also allowed."
+msgstr[0] ""
+msgstr[1] ""
+
 #: .\templates\institution\manage\_tabs.html:2
 msgid "Settings sections"
 msgstr ""
@@ -7365,6 +7663,10 @@ msgstr ""
 
 #: .\templates\institution\manage\_tabs.html:8
 msgid "Uploads"
+msgstr ""
+
+#: .\templates\institution\manage\_tabs.html:16
+msgid "Support"
 msgstr ""
 
 #: .\templates\institution\manage\_uploads_tab.html:9

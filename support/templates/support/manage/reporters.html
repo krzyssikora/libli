@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Allowed reporters" %}{% endblock %}
+{% comment %}Without this link the out-of-roster muted rule created in Step 3
+never loads on the one page it exists for, and no test would notice — they assert
+the attribute and the note text, not the colour.{% endcomment %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'support/css/support.css' %}">{% endblock %}
+{% block content %}
+<h1>{% trans "Allowed reporters" %}</h1>
+<p>{% trans "These people can report an issue regardless of the audience setting." %}</p>
+<form method="post">
+  {% csrf_token %}
+  {% comment %}The attribute set is load-bearing, not decorative. roster_filter.js
+  iterates [data-roster] and RETURNS IMMEDIATELY unless the root contains
+  [data-roster-list] — so a plain class="roster" with a bare search input leaves
+  the box completely inert. This mirrors templates/grouping/group_form.html.
+  [data-roster-count] and [data-roster-selected] are optional.{% endcomment %}
+  <fieldset class="roster" data-roster>
+    <legend>{% trans "Allowed reporters" %}</legend>
+    <div class="roster-filter" data-roster-filter>
+      <input type="search" data-roster-search
+             placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
+      <p class="roster-filter__count" data-roster-count aria-live="polite" hidden></p>
+    </div>
+    <div class="checkbox-list" data-roster-list>{{ form.extra_reporters }}</div>
+  </fieldset>
+  {{ form.extra_reporters.errors }}
+  <button class="btn" type="submit">{% trans "Save" %}</button>
+  <a class="btn btn--ghost" href="{% url 'institution:settings' %}?tab=support">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'grouping/js/roster_filter.js' %}" defer></script>
+{% endblock %}

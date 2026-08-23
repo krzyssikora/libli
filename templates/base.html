@@ -46,6 +46,7 @@
   <link rel="stylesheet" href="{% static 'core/css/app.css' %}">
   {% brand_vars %}
   {% favicon_links %}
+  {% if can_report_issue %}<link rel="stylesheet" href="{% static 'support/css/support.css' %}">{% endif %}
   {% block extra_css %}{% endblock %}
   {% block extra_head %}{% endblock %}
 </head>
@@ -107,6 +108,9 @@
               {% if perms.accounts.view_user %}
               <a class="menu__item" href="{% url 'accounts:people' %}">{% trans "People" %}</a>
               {% endif %}
+              {% if perms.support.view_issuereport %}
+              <a class="menu__item" href="{% url 'support:report_list' %}">{% trans "Issue reports" %}</a>
+              {% endif %}
               {% if perms.institution.change_institution %}
               <span class="menu__sep" role="separator"></span>
               <a class="menu__item" href="{% url 'institution:settings' %}">{% trans "Institution settings" %}</a>
@@ -135,6 +139,9 @@
           <div class="menu__panel account-menu" data-menu-panel hidden>
             <span class="menu__item">{{ user }}</span>
             <a class="menu__item" href="{% url 'core:user_settings' %}">{% trans "Settings" %}</a>
+            {% if can_report_issue %}
+            <button class="menu__item" type="button" data-report-trigger>{% trans "Report an issue" %}</button>
+            {% endif %}
             <form method="post" action="{% url 'account_logout' %}">
               {% csrf_token %}
               <button class="menu__item" type="submit">{% trans "Log out" %}</button>
@@ -162,5 +169,9 @@
   <script src="{% static 'core/js/scroll_affordance.js' %}" defer></script>
   {% block extra_body %}{% endblock %}
   {% block extra_js %}{% endblock %}
+  {% if can_report_issue %}
+    {% include "support/_report_dialog.html" %}
+    <script src="{% static 'support/js/report_dialog.js' %}" defer></script>
+  {% endif %}
 </body>
 </html>

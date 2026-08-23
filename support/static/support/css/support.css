@@ -1,0 +1,106 @@
+/* Grants kept only by the roster union: present, checked, visibly explained. */
+label:has([data-out-of-roster]) { color: var(--text-secondary); }
+
+.report-dialog {
+  /* <dialog> renders in the top layer and does NOT inherit the page theme here,
+     so every colour is set explicitly from the tokens rather than inherited. */
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6);
+  max-width: min(36rem, calc(100vw - 2rem));
+  width: 100%;
+  /* reset.css's `* { margin: 0; }` overrides the UA `margin: auto` that
+     showModal() relies on to centre a <dialog> in the top layer — without this
+     the dialog pins to the top-left in both themes. */
+  margin: auto;
+}
+.report-dialog h2 {
+  /* reset.css's `* { margin: 0; }` strips the UA default bottom margin an
+     <h2> would otherwise have — the same root cause as the dialog-centring
+     defect above. Restore it explicitly from the token scale so the title
+     does not collide with "What went wrong?" directly beneath it. */
+  margin-block-end: var(--space-5);
+}
+.report-dialog::backdrop { background: var(--surface-overlay); }
+.report-dialog textarea { width: 100%; }
+.report-dialog__counter { color: var(--text-secondary); font-size: 0.875rem; }
+.report-dialog__error { color: var(--danger); }
+.report-dialog__banner {
+  border: 1px solid var(--border-default);
+  padding: 0.5rem 0.75rem;
+}
+.report-dialog__hint { color: var(--text-secondary); font-size: 0.875rem; }
+.report-dialog__actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+
+/* ── Triage list (report_list.html) ──────────────────────────────────────── */
+
+/* Status filter tabs. Mirrors .manage__tabs / .settings__tabs — an underline
+   row keyed on aria-current rather than an "is-on" class, since the view
+   already expresses the active filter that way. */
+.filter-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.filter-row a {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.filter-row a:hover { color: var(--text-primary); }
+.filter-row a[aria-current="true"] {
+  color: var(--text-primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+/* Report ledger table. Mirrors .people-table (accounts/css/people.css). */
+.ledger { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.ledger th, .ledger td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ledger th {
+  font-size: .78rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--text-secondary);
+}
+.ledger tbody tr:hover { background: var(--surface-sunken); }
+
+/* Pagination nav. NOT introducing a new visual convention: accounts/css/
+   people.css:87-96 defines this exact pair — .pagination { display:flex;
+   gap; ... } and .pagination__status { color; font-size } — loaded by both
+   people.html and invitations.html via their own extra_css block. Repeated
+   here rather than centralised because it is page-scoped CSS living
+   alongside a sibling app, the same layering every other rule in this file
+   uses. Keep it: the .btn classes on the prev/next links style the buttons
+   themselves, but without this rule the nav loses its flex gap and the
+   status text loses its secondary colour — the one view that would then
+   diverge from the other two paginated lists in the product. */
+.pagination { display: flex; gap: var(--space-3); align-items: center;
+  margin-top: var(--space-4); flex-wrap: wrap; }
+.pagination__status { color: var(--text-secondary); font-size: .875rem; }
+
+/* ── Report detail (report_detail.html) ──────────────────────────────────── */
+
+/* Key/value metadata list. Mirrors .unit-summary (courses/css/builder.css). */
+.report-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  /* When the report HAS been emailed, the alert--warning box above is absent,
+     so <h1> sits directly above this grid with the same reset.css margin
+     collision the dialog title had — restore the gap explicitly. Harmless in
+     the unmailed branch too: .alert already carries its own margin-bottom. */
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.report-meta dt { color: var(--text-secondary); font-size: .8rem; }
+.report-meta dd { margin: 0; color: var(--text-primary); }

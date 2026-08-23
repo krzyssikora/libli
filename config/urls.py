@@ -28,6 +28,7 @@ urlpatterns = [
     path("", include("tags.urls")),
     path("", include("institution.urls")),
     path("", include("integrations.urls")),
+    path("", include("support.urls")),
     path("accounts/", include("allauth.account.urls")),
     path("accounts/", include("allauth.socialaccount.urls")),
     path("accounts/", include("allauth.socialaccount.providers.openid_connect.urls")),

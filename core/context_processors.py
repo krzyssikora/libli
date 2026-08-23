@@ -4,6 +4,7 @@ from django.conf import settings
 from django.utils import translation
 
 from core.services import get_site_config
+from core.services import role_names_for
 
 THEME_VALUES = {"light", "dark", "auto"}
 COOKIE_THEME = "libli_theme"
@@ -65,9 +66,10 @@ def ui_prefs(request):
 def user_roles(request):
     """Group-based role flags for the dashboard sections + account menu.
 
-    Early-returns all-False for anonymous (never touches .groups). One cheap
-    query per authed request. Group names come from institution.roles constants
-    (re-sliceable; no inline magic strings)."""
+    Early-returns all-False for anonymous (never touches .groups). Group names
+    come from core.services.role_names_for, shared with support_availability.
+    Group names come from institution.roles constants (re-sliceable; no inline
+    magic strings)."""
     from institution.roles import COURSE_ADMIN
     from institution.roles import PLATFORM_ADMIN
     from institution.roles import STUDENT
@@ -81,7 +83,7 @@ def user_roles(request):
             "is_course_admin": False,
             "is_platform_admin": False,
         }
-    names = set(user.groups.values_list("name", flat=True))
+    names = role_names_for(request)
     return {
         "is_student": STUDENT in names,
         "is_teacher": TEACHER in names,
@@ -120,3 +122,17 @@ def help_availability(request):
 
     user = getattr(request, "user", None)
     return {"help_available": user_has_any_help(user)}
+
+
+def support_availability(request):
+    """Expose `can_report_issue` so base.html shows the report trigger only to a
+    permitted reporter, plus the description cap the dialog's textarea needs
+    (the dialog is included from base.html and so has no view context)."""
+    from support.constants import DESCRIPTION_MAX_LENGTH
+    from support.policy import can_report
+
+    user = getattr(request, "user", None)
+    return {
+        "can_report_issue": can_report(user, role_names=role_names_for(request)),
+        "report_description_max": DESCRIPTION_MAX_LENGTH,
+    }
