@@ -7,8 +7,8 @@
 <nav class="filter-row" aria-label="{% trans 'Filter by status' %}">
   {% for value in status_filters %}
     <a href="?status={{ value }}" aria-current="{% if value == status %}true{% else %}false{% endif %}">
-      {% if value == "open" %}{% trans "Open" %}
-      {% elif value == "resolved" %}{% trans "Resolved" %}
+      {% if value == "open" %}{% trans "Open" context "issue report status" %}
+      {% elif value == "resolved" %}{% trans "Resolved" context "issue report status" %}
       {% else %}{% trans "All" %}{% endif %}
     </a>
   {% endfor %}

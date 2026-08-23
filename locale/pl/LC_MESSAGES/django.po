@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-23 02:32+0200\n"
+"POT-Creation-Date: 2026-08-23 02:44+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -3539,7 +3539,6 @@ msgid "Manage email preferences"
 msgstr "Zarządzaj powiadomieniami e-mail"
 
 #: .\notifications\templates\notifications\list.html:28
-#: .\support\templates\support\manage\report_list.html:10
 #: .\templates\courses\catalog.html:44
 msgid "Open"
 msgstr "Otwórz"
@@ -3622,8 +3621,8 @@ msgid ""
 "One address per line. These addresses receive the full report, including any "
 "attached screenshot, which may contain student data."
 msgstr ""
-"Jeden adres w wierszu. Te adresy otrzymują pełne zgłoszenie, w tym ewentualny "
-"załączony zrzut ekranu, który może zawierać dane uczniów."
+"Jeden adres w wierszu. Te adresy otrzymują pełne zgłoszenie, w tym "
+"ewentualny załączony zrzut ekranu, który może zawierać dane uczniów."
 
 #: .\support\forms.py:165
 #, python-format
@@ -3647,11 +3646,13 @@ msgid "Everyone, including students"
 msgstr "Wszyscy, w tym uczniowie"
 
 #: .\support\models.py:98
+#: .\support\templates\support\manage\report_list.html:10
 msgctxt "issue report status"
 msgid "Open"
 msgstr "Otwarte"
 
 #: .\support\models.py:99
+#: .\support\templates\support\manage\report_list.html:11
 msgctxt "issue report status"
 msgid "Resolved"
 msgstr "Rozwiązane"
@@ -3776,7 +3777,8 @@ msgstr "Zgłoszenie problemu"
 
 #: .\support\templates\support\manage\report_detail.html:10
 msgid "Not emailed — no message went out for this report."
-msgstr "Nie wysłano e-mailem — dla tego zgłoszenia nie wysłano żadnej wiadomości."
+msgstr ""
+"Nie wysłano e-mailem — dla tego zgłoszenia nie wysłano żadnej wiadomości."
 
 #: .\support\templates\support\manage\report_detail.html:35
 #: .\support\templates\support\manage\report_list.html:22
@@ -3808,10 +3810,6 @@ msgstr "Zgłoszenia problemów"
 #: .\support\templates\support\manage\report_list.html:7
 msgid "Filter by status"
 msgstr "Filtruj po statusie"
-
-#: .\support\templates\support\manage\report_list.html:11
-msgid "Resolved"
-msgstr "Rozwiązane"
 
 #: .\support\templates\support\manage\report_list.html:12
 #: .\templates\accounts\manage\people.html:29
@@ -3867,7 +3865,8 @@ msgstr "Dozwoleni zgłaszający"
 
 #: .\support\templates\support\manage\reporters.html:11
 msgid "These people can report an issue regardless of the audience setting."
-msgstr "Te osoby mogą zgłaszać problemy niezależnie od ustawienia grupy uprawnionych."
+msgstr ""
+"Te osoby mogą zgłaszać problemy niezależnie od ustawienia grupy uprawnionych."
 
 #: .\support\templates\support\manage\reporters.html:24
 #: .\templates\grouping\allocation_assign.html:36
@@ -8112,3 +8111,6 @@ msgstr "Rozpocznij"
 #: .\templates\integrations\webhook_guide.html:3
 msgid "SIS webhook integration guide"
 msgstr "Przewodnik integracji webhooka SIS"
+
+#~ msgid "Resolved"
+#~ msgstr "Rozwiązane"

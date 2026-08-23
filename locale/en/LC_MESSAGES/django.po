@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-23 02:32+0200\n"
+"POT-Creation-Date: 2026-08-23 02:44+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -3380,7 +3380,6 @@ msgid "Manage email preferences"
 msgstr ""
 
 #: .\notifications\templates\notifications\list.html:28
-#: .\support\templates\support\manage\report_list.html:10
 #: .\templates\courses\catalog.html:44
 msgid "Open"
 msgstr ""
@@ -3486,11 +3485,13 @@ msgid "Everyone, including students"
 msgstr ""
 
 #: .\support\models.py:98
+#: .\support\templates\support\manage\report_list.html:10
 msgctxt "issue report status"
 msgid "Open"
 msgstr ""
 
 #: .\support\models.py:99
+#: .\support\templates\support\manage\report_list.html:11
 msgctxt "issue report status"
 msgid "Resolved"
 msgstr ""
@@ -3644,10 +3645,6 @@ msgstr ""
 
 #: .\support\templates\support\manage\report_list.html:7
 msgid "Filter by status"
-msgstr ""
-
-#: .\support\templates\support\manage\report_list.html:11
-msgid "Resolved"
 msgstr ""
 
 #: .\support\templates\support\manage\report_list.html:12
