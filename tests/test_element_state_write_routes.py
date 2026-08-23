@@ -80,6 +80,7 @@ def test_the_first_party_app_set_is_what_we_think_it_is():
         "notifications",
         "tags",
         "integrations",
+        "support",
     }
 
 

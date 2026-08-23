@@ -316,6 +316,15 @@ def test_lesson_html_render_query_count_invariant(client):
 
     ContentType.objects.get_for_model(MathElement)
     ContentType.objects.get_for_model(HtmlElement)
+    # Warm support.policy's process-level cached config bundle. The lesson page's
+    # context processor (core.context_processors.support_availability) calls
+    # support.policy.can_report(), which reads get_support_config() -- a cache miss
+    # on the first call issues one extra SupportSettings query that a hit doesn't.
+    # Without this, len(q1) == len(q3)+1 for a reason unrelated to per-element
+    # leakage. Do not delete this as redundant with the ContentType warm-up above.
+    from support.policy import get_support_config
+
+    get_support_config()
     with CaptureQueriesContext(connection) as q1:
         assert client.get(url1).status_code == 200
     with CaptureQueriesContext(connection) as q3:
