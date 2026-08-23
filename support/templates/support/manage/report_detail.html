@@ -52,7 +52,7 @@
 {% comment %}The confirmation text goes in a data- attribute, NOT inline in an
 onsubmit JS string literal: Task 12 supplies Polish, and a translation containing
 an apostrophe would terminate the literal and break the page. Django escapes the
-attribute for you. A small handler in support.js reads [data-confirm] and calls
+attribute for you. A small handler in confirm.js reads [data-confirm] and calls
 confirm(). Note for any future e2e: Playwright AUTO-DISMISSES confirm() unless the
 test registers page.on("dialog", ...), so a delete e2e without that listener
 silently does nothing and still passes.{% endcomment %}

@@ -216,9 +216,9 @@ def test_a_successful_post_registers_an_on_commit_callback(
     those call send_issue_report_email directly.
 
     Asserts the callback is REGISTERED (execute=False), not that mail was sent:
-    at this point support/emails.py is still the no-op stub, and even a real
-    implementation would raise NoReverseMatch for support:report_detail. The
-    delivery assertion lives in Task 6, once both exist.
+    this module tests report_create in isolation, so it does not depend on
+    email delivery succeeding. The delivery assertion (execute=True) lives in
+    test_support_emails.py::test_a_successful_post_actually_delivers.
     """
     _set_audience(Audience.ALL)
     make_student(client)

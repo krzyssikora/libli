@@ -76,10 +76,11 @@ def resolve_recipients():
 
 
 def send_issue_report_email(report):
-    """Never raises. See the module note in Task 4's stub: an exception escaping
-    here would reach report_create's rollback `except` — which cannot tell a
-    rollback from a post-commit failure — and delete a COMMITTED report's
-    screenshot while 500ing a reporter whose report was in fact saved."""
+    """Never raises — see the `except Exception` guard at the end of this
+    function. An exception escaping here would reach report_create's rollback
+    `except` — which cannot tell a rollback from a post-commit failure — and
+    delete a COMMITTED report's screenshot while 500ing a reporter whose
+    report was in fact saved."""
     try:
         recipients = resolve_recipients()
         if not recipients:
@@ -139,5 +140,5 @@ def send_issue_report_email(report):
         # update_fields: a bare save() from a post-commit callback would rewrite
         # every field of a row a PA may have resolved in the meantime.
         report.save(update_fields=["emailed_at"])
-    except Exception:  # noqa: BLE001 — must never escape the on_commit hook
+    except Exception:  # must never escape the on_commit hook
         logger.exception("issue report email delivery failed (report %s)", report.pk)

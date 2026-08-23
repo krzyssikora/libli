@@ -148,10 +148,9 @@ def reporters(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("Allowed reporters updated."))
-            # `?tab=support` is only honoured once Task 8 adds "support" to TABS;
-            # until then _active_tab falls back to "branding", so between these
-            # two tasks a save lands the PA on the Branding tab. Harmless and
-            # self-resolving — noted so it is not chased as a bug.
+            # `?tab=support` lands the PA back on the Support tab: TABS in
+            # institution/views_manage.py includes "support", so _active_tab
+            # honours it.
             return redirect(f"{reverse('institution:settings')}?tab=support")
     else:
         form = ReporterPickerForm(instance=row)

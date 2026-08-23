@@ -180,26 +180,3 @@ def test_a_non_field_error_lands_in_the_banner(page, live_server):
     page.click("#report-dialog button[type=submit]")
     banner = page.wait_for_selector("[data-report-banner]:not([hidden])")
     assert "nope" in banner.inner_text()
-
-
-@pytest.mark.parametrize("theme", ["light", "dark"])
-def test_capture_report_dialog_screenshot(page, live_server, theme):
-    """Not an assertion test — it produces the two images Task 11 judges.
-
-    The theme is set on the USER, not via the libli_theme cookie: a <dialog>
-    renders in the top layer and does not pick up the cookie-driven theme in this
-    codebase, so a cookie-set dark run would silently photograph a light dialog.
-    """
-    row = SupportSettings.load()
-    row.audience = SupportSettings.Audience.ALL
-    row.save()
-    user = _student()
-    user.theme = theme
-    user.save()
-    _login(page, live_server, "reporter")
-    page.goto(f"{live_server.url}/home/")
-    page.click("[data-account-menu] [data-menu-trigger]")
-    page.click("[data-report-trigger]")
-    page.wait_for_selector("#report-dialog[open]")
-    page.fill("[data-report-description]", "The submit button does nothing.")
-    page.screenshot(path=f"docs/superpowers/screenshots/report-dialog-{theme}.png")

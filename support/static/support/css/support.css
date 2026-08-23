@@ -102,5 +102,5 @@ label:has([data-out-of-roster]) { color: var(--text-secondary); }
   margin-top: var(--space-4);
   margin-bottom: var(--space-5);
 }
-.report-meta dt { color: var(--text-tertiary); font-size: .8rem; }
+.report-meta dt { color: var(--text-secondary); font-size: .8rem; }
 .report-meta dd { margin: 0; color: var(--text-primary); }

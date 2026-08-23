@@ -56,6 +56,20 @@ def test_anonymous_is_redirected_to_login_rather_than_403(client):
     assert "/login" in response["Location"] or "accounts" in response["Location"]
 
 
+def test_a_teacher_cannot_set_status_and_the_report_is_unchanged(client):
+    make_teacher(client)
+    report = _report()
+    response = client.post(
+        reverse("support:report_set_status", args=[report.pk]),
+        {"status": IssueReport.Status.RESOLVED},
+    )
+    assert response.status_code == 403
+    report.refresh_from_db()
+    assert report.status == IssueReport.Status.OPEN
+    assert report.resolved_by is None
+    assert report.resolved_at is None
+
+
 def test_resolving_records_who_and_when(client):
     pa = make_pa(client)
     report = _report()

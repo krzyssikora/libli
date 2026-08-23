@@ -1,4 +1,4 @@
-"""Support receivers: screenshot cleanup (here) and cache invalidation (Task 2)."""
+"""Support receivers: screenshot cleanup and support-config cache invalidation."""
 
 from django.db.models.signals import m2m_changed
 from django.db.models.signals import post_delete

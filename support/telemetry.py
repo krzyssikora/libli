@@ -28,7 +28,6 @@ TELEMETRY_LABELS = {
 TELEMETRY_CAPS = {
     "timezone": 64,
     "ui_language": 16,
-    "theme": 16,
     "user_agent": 512,
     "accept_language": 256,
 }

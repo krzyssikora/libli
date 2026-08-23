@@ -141,9 +141,9 @@ def test_the_message_uses_the_institution_language_not_the_reporters():
     institution default AND the untranslated msgid, so the mutant ("override to
     the reporter's language") would produce an identical subject.
 
-    Asserts on the observed active language rather than catalog text, so it runs
-    now (no Polish catalog needed — Task 12 is six tasks away) and does not
-    re-break whenever the Polish wording is edited.
+    Asserts on the observed active language rather than catalog text, so it is
+    independent of the Polish catalog and does not re-break whenever the Polish
+    wording is edited.
     """
     from django.utils import translation
 
