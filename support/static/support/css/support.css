@@ -7,12 +7,17 @@ label:has([data-out-of-roster]) { color: var(--text-secondary); }
   background: var(--surface-raised);
   color: var(--text-primary);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
-  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6);
   max-width: min(36rem, calc(100vw - 2rem));
   width: 100%;
+  /* reset.css's `* { margin: 0; }` overrides the UA `margin: auto` that
+     showModal() relies on to centre a <dialog> in the top layer — without this
+     the dialog pins to the top-left in both themes. */
+  margin: auto;
 }
-.report-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+.report-dialog::backdrop { background: var(--surface-overlay); }
 .report-dialog textarea { width: 100%; }
 .report-dialog__counter { color: var(--text-secondary); font-size: 0.875rem; }
 .report-dialog__error { color: var(--danger); }
@@ -21,4 +26,60 @@ label:has([data-out-of-roster]) { color: var(--text-secondary); }
   padding: 0.5rem 0.75rem;
 }
 .report-dialog__hint { color: var(--text-secondary); font-size: 0.875rem; }
-.report-dialog__actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.report-dialog__actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+
+/* ── Triage list (report_list.html) ──────────────────────────────────────── */
+
+/* Status filter tabs. Mirrors .manage__tabs / .settings__tabs — an underline
+   row keyed on aria-current rather than an "is-on" class, since the view
+   already expresses the active filter that way. */
+.filter-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.filter-row a {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.filter-row a:hover { color: var(--text-primary); }
+.filter-row a[aria-current="true"] {
+  color: var(--text-primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+/* Report ledger table. Mirrors .people-table (accounts/css/people.css). */
+.ledger { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.ledger th, .ledger td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ledger th {
+  font-size: .78rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--text-secondary);
+}
+.ledger tbody tr:hover { background: var(--surface-sunken); }
+
+/* Pagination nav. Mirrors .pagination in accounts/css/people.css. */
+.pagination { display: flex; gap: var(--space-3); align-items: center;
+  margin-top: var(--space-4); flex-wrap: wrap; }
+.pagination__status { color: var(--text-secondary); font-size: .875rem; }
+
+/* ── Report detail (report_detail.html) ──────────────────────────────────── */
+
+/* Key/value metadata list. Mirrors .unit-summary (courses/css/builder.css). */
+.report-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  margin-bottom: var(--space-5);
+}
+.report-meta dt { color: var(--text-tertiary); font-size: .8rem; }
+.report-meta dd { margin: 0; color: var(--text-primary); }

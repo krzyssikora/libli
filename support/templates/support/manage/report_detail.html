@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static %}
 {% block head_title %}{% trans "Issue report" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'support/css/support.css' %}">{% endblock %}
 {% block content %}
 <h1>{% trans "Issue report" %} #{{ report.pk }}</h1>
 
@@ -10,7 +11,7 @@
   </p>
 {% endif %}
 
-<dl>
+<dl class="report-meta">
   <dt>{% trans "Reported by" %}</dt>
   <dd>{{ report.reporter_label }}{% if roles %} ({{ roles|join:", " }}){% endif %}</dd>
   <dt>{% trans "Page" %}</dt>
@@ -36,14 +37,15 @@
 </a>
 {% endif %}
 
+<div class="row-actions">
 <form method="post" action="{% url 'support:report_set_status' report.pk %}">
   {% csrf_token %}
   {% if report.status == "open" %}
     <input type="hidden" name="status" value="resolved">
-    <button type="submit">{% trans "Mark resolved" %}</button>
+    <button class="btn" type="submit">{% trans "Mark resolved" %}</button>
   {% else %}
     <input type="hidden" name="status" value="open">
-    <button type="submit">{% trans "Reopen" %}</button>
+    <button class="btn" type="submit">{% trans "Reopen" %}</button>
   {% endif %}
 </form>
 
@@ -61,8 +63,9 @@ confirmation".{% endcomment %}
       data-confirm="{% trans 'Delete this report and its screenshot?' %}">
   {% csrf_token %}
   <input type="hidden" name="status" value="{{ status }}">
-  <button type="submit" class="btn--danger">{% trans "Delete" %}</button>
+  <button type="submit" class="btn btn--danger">{% trans "Delete" %}</button>
 </form>
+</div>
 {% endblock %}
 {% block extra_js %}
 <script src="{% static 'support/js/confirm.js' %}" defer></script>

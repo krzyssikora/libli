@@ -25,8 +25,8 @@ the attribute and the note text, not the colour.{% endcomment %}
     <div class="checkbox-list" data-roster-list>{{ form.extra_reporters }}</div>
   </fieldset>
   {{ form.extra_reporters.errors }}
-  <button type="submit">{% trans "Save" %}</button>
-  <a href="{% url 'institution:settings' %}?tab=support">{% trans "Cancel" %}</a>
+  <button class="btn" type="submit">{% trans "Save" %}</button>
+  <a class="btn btn--ghost" href="{% url 'institution:settings' %}?tab=support">{% trans "Cancel" %}</a>
 </form>
 {% endblock %}
 {% block extra_js %}

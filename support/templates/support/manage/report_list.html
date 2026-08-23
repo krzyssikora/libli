@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block head_title %}{% trans "Issue reports" %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'support/css/support.css' %}">{% endblock %}
 {% block content %}
 <h1>{% trans "Issue reports" %}</h1>
 <nav class="filter-row" aria-label="{% trans 'Filter by status' %}">
@@ -34,8 +35,9 @@
       <td>{{ report.description|truncatechars:80 }}</td>
       <td>{% if report.screenshot %}{% trans "Yes" %}{% endif %}</td>
       <td>
-        {{ report.get_status_display }}
-        {% if not report.emailed_at %} — {% trans "not emailed" %}{% endif %}
+        {% if report.status == "open" %}<span class="badge badge--open">{{ report.get_status_display }}</span>
+        {% else %}{{ report.get_status_display }}{% endif %}
+        {% if not report.emailed_at %} <span class="muted">— {% trans "not emailed" %}</span>{% endif %}
       </td>
     </tr>
   {% empty %}
@@ -50,11 +52,11 @@ active ?status= must ride along or paging silently resets the filter.{% endcomme
 {% if page_obj.has_other_pages %}
 <nav class="pagination" aria-label="{% trans 'Pagination' %}">
   {% if page_obj.has_previous %}
-    <a href="?status={{ status }}&amp;page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>
+    <a class="btn btn--ghost btn--small" href="?status={{ status }}&amp;page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>
   {% endif %}
-  <span>{% blocktrans with n=page_obj.number total=page_obj.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
+  <span class="pagination__status">{% blocktrans with n=page_obj.number total=page_obj.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
   {% if page_obj.has_next %}
-    <a href="?status={{ status }}&amp;page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>
+    <a class="btn btn--ghost btn--small" href="?status={{ status }}&amp;page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>
   {% endif %}
 </nav>
 {% endif %}

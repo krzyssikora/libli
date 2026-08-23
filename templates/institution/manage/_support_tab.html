@@ -1,28 +1,44 @@
 {% load i18n %}
-<form method="post" action="{% url 'institution:settings_support' %}">
+<form class="settings__form" method="post" action="{% url 'institution:settings_support' %}">
   {% csrf_token %}
-  <fieldset>
-    <legend>{% trans "Who can report an issue" %}</legend>
-    {{ support.audience }}
-    {{ support.audience.errors }}
-  </fieldset>
 
-  {% comment %}The spec requires this line to NAME the Platform Admins who will be
-  mailed automatically, so "who gets this" is never a guess — a generic sentence
-  does not satisfy it.{% endcomment %}
-  <p class="field-note">
-    {% blocktrans with names=auto_recipients|join:", " %}Platform Admins can always report, and always receive reports: {{ names }}{% endblocktrans %}
-  </p>
+  <div class="settings__section">
+    <div class="settings__field">
+      {% comment %}Reuses the fieldset.checkbox-list border/legend treatment
+      institution/settings.css already defines for the uploads tab's chip
+      pickers — a plain radio group needs the same box, not a new rule.{% endcomment %}
+      <fieldset class="checkbox-list">
+        <legend class="settings__section-title">{% trans "Who can report an issue" %}</legend>
+        {{ support.audience }}
+      </fieldset>
+      {{ support.audience.errors }}
+    </div>
+    {% comment %}The spec requires this line to NAME the Platform Admins who will be
+    mailed automatically, so "who gets this" is never a guess — a generic sentence
+    does not satisfy it.{% endcomment %}
+    <p class="settings__help">
+      {% blocktrans with names=auto_recipients|join:", " %}Platform Admins can always report, and always receive reports: {{ names }}{% endblocktrans %}
+    </p>
+  </div>
 
-  <label for="{{ support.extra_emails.id_for_label }}">{{ support.extra_emails.label }}</label>
-  {{ support.extra_emails }}
-  <p class="field-note field-note--warning">{{ support.extra_emails.help_text }}</p>
-  {{ support.extra_emails.errors }}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Additional recipients" %}</h2>
+    <div class="settings__field">
+      <label class="settings__label" for="{{ support.extra_emails.id_for_label }}">{{ support.extra_emails.label }}</label>
+      {{ support.extra_emails }}
+      {{ support.extra_emails.errors }}
+    </div>
+    <p class="alert alert--warning">{{ support.extra_emails.help_text }}</p>
+  </div>
 
-  <p>
-    {% blocktrans count counter=extra_reporter_count %}{{ counter }} other person is also allowed.{% plural %}{{ counter }} other people are also allowed.{% endblocktrans %}
-    <a href="{% url 'support:reporters' %}">{% trans "Manage" %}</a>
-  </p>
+  <div class="settings__section">
+    <p>
+      {% blocktrans count counter=extra_reporter_count %}{{ counter }} other person is also allowed.{% plural %}{{ counter }} other people are also allowed.{% endblocktrans %}
+      <a href="{% url 'support:reporters' %}">{% trans "Manage" %}</a>
+    </p>
+  </div>
 
-  <button type="submit">{% trans "Save" %}</button>
+  <div class="settings__actions">
+    <button class="btn" type="submit">{% trans "Save" %}</button>
+  </div>
 </form>
