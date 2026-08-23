@@ -17,6 +17,13 @@ label:has([data-out-of-roster]) { color: var(--text-secondary); }
      the dialog pins to the top-left in both themes. */
   margin: auto;
 }
+.report-dialog h2 {
+  /* reset.css's `* { margin: 0; }` strips the UA default bottom margin an
+     <h2> would otherwise have — the same root cause as the dialog-centring
+     defect above. Restore it explicitly from the token scale so the title
+     does not collide with "What went wrong?" directly beneath it. */
+  margin-block-end: var(--space-5);
+}
 .report-dialog::backdrop { background: var(--surface-overlay); }
 .report-dialog textarea { width: 100%; }
 .report-dialog__counter { color: var(--text-secondary); font-size: 0.875rem; }
@@ -79,6 +86,11 @@ label:has([data-out-of-roster]) { color: var(--text-secondary); }
   grid-template-columns: auto 1fr;
   gap: var(--space-1) var(--space-3);
   align-items: baseline;
+  /* When the report HAS been emailed, the alert--warning box above is absent,
+     so <h1> sits directly above this grid with the same reset.css margin
+     collision the dialog title had — restore the gap explicitly. Harmless in
+     the unmailed branch too: .alert already carries its own margin-bottom. */
+  margin-top: var(--space-4);
   margin-bottom: var(--space-5);
 }
 .report-meta dt { color: var(--text-tertiary); font-size: .8rem; }
