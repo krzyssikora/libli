@@ -48,7 +48,7 @@ def test_badge_does_not_grow_the_editor_row_at_the_pane_floor(page, live_server)
     control = IframeElement.objects.create(
         url=canonical, title="Identical title", width=880, height=660
     )
-    # KEEP THE JOIN ROWS: _element_row.html:302 emits data-element="{{ el.pk }}" where
+    # KEEP THE JOIN ROWS: _element_row.html:338 emits data-element="{{ el.pk }}" where
     # `el` is the Element JOIN row, never the IframeElement. Locating on the concrete
     # pk would match nothing -- or, worse, a DIFFERENT element's row whose join pk
     # happens to collide, silently measuring the wrong two rows.

@@ -35,6 +35,7 @@ from courses.marking import normalize_text
 from courses.marking import parse_numeric_value
 from courses.marking import validate_numeric_text
 from courses.marking import validate_tolerance_text
+from courses.sanitize import normalize_body
 from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
 from courses.sanitize import sanitize_label
@@ -405,7 +406,7 @@ class TextElement(ElementBase):
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
     def save(self, *args, **kwargs):
-        self.body = sanitize_html(self.body)
+        self.body = normalize_body(self.body)
         super().save(*args, **kwargs)
 
 
@@ -432,7 +433,7 @@ class SpoilerElement(ElementBase):
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
     def save(self, *args, **kwargs):
-        self.body = sanitize_html(self.body)
+        self.body = normalize_body(self.body)
         super().save(*args, **kwargs)
 
     def join_row(self):
@@ -514,7 +515,7 @@ class CalloutElement(ElementBase):
     def save(self, *args, **kwargs):
         if self.kind not in self.Kind.values:
             self.kind = self.Kind.EXAMPLE
-        self.body = sanitize_html(self.body)
+        self.body = normalize_body(self.body)
         super().save(*args, **kwargs)
 
     @property

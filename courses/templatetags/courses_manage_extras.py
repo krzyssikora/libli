@@ -127,6 +127,23 @@ def _host(url):
 
 
 @register.filter
+def body_excerpt(body):
+    """One-line plain-text excerpt of a rich-text body, for an editor row label.
+
+    Deliberately does NOT drop math spans the way sanitize.desc_to_alt does: a
+    callout body is very often mostly math, and dropping it would leave the body
+    row blank on exactly those elements. Raw LaTeX in the excerpt matches how a
+    Math element is already summarised below (`Truncator(el.latex)`).
+
+    Returns "" for a body with no visible content -- which by construction never
+    reaches a caller that renders it, because `normalize_body` stores that body as
+    "" in the first place and every call site guards on the field being truthy.
+    """
+    text = re.sub(r"\s+", " ", strip_tags(body or "")).strip()
+    return Truncator(unescape(text)).chars(60)
+
+
+@register.filter
 def element_summary(el):
     """Display label for an element row (DoD #1). el is the concrete content object."""
     name = el.__class__.__name__
@@ -139,8 +156,7 @@ def element_summary(el):
             return el.media.display_name
         return _host(el.url) or "Video"
     if name == "TextElement":
-        text = re.sub(r"\s+", " ", strip_tags(el.body)).strip()
-        return Truncator(unescape(text)).chars(60) or "Text"
+        return body_excerpt(el.body) or "Text"
     if name == "MathElement":
         return Truncator(el.latex).chars(60) or "Math"
     if name == "HtmlElement":

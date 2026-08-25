@@ -1,0 +1,19 @@
+{% load i18n courses_manage_extras %}{% comment %}
+A container's OWN rich text, shown as a non-draggable pseudo-row ABOVE its children
+list -- the same order the body renders in on the student page (spoilerelement.html
+and calloutelement.html both emit `body` before `__children`).
+
+Shared by the spoiler and the callout branches of _element_row.html, the two
+container types that carry a `body`. NOT inside the children loop's `{% empty %}`
+arm, which is where the old "has text" hint lived and is why that hint was
+unreachable the moment a child existed.
+
+It is an `.el-select` carrying `data-element-id` + `data-form-url`, so the
+delegated handler in editor.js opens THIS container's own edit form -- the only
+route to the body, since the body is not a child element and has no row of its own.
+No new JS: that handler already matches any `.el-select` in the pane.
+
+Guarded on `obj.body` being truthy, which is now equivalent to "carries visible
+text": normalize_body stores a body cleared in the RTE as "" rather than the
+`<p><br></p>` contenteditable leaves behind.
+{% endcomment %}{% if obj.body %}<button type="button" class="el-bodyrow el-select" data-element-id="{{ el.pk }}" data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"><span class="el-tag el-tag--body">{% trans "Text" %}</span><span class="el-bodyrow__excerpt">{{ obj.body|body_excerpt }}</span></button>{% endif %}

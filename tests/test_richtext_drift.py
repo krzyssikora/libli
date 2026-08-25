@@ -22,6 +22,10 @@ COURSES = Path(__file__).resolve().parent.parent / "courses"
 #     `save: self.body = sanitize_html(self.body)`) -- the exact case this exists for.
 #   - the assignment target, because QuestionElement.save() already holds TWO calls.
 #   - compared as a sorted whole, so a DELETED site moves it too.
+# The rows below record only (file, qualname, target); WHICH of the two sanitisers a
+# site calls is deliberately NOT part of the key, because both mean the same thing
+# here ("this field is stored rich text") and moving a site between them must not
+# be reported as one site removed plus one added.
 # The third element is the target ONLY when the call is the entire right-hand side of an
 # assignment. A call nested in an expression -- inside strip_sentinel(...), inside
 # mark_safe(...), or as a keyword argument to objects.create(...) -- records None.
@@ -52,15 +56,27 @@ EXPECTED = [
 QUESTION_FORM_MODELS = {m.__name__ for m in CONCRETE_QUESTION_MODELS}
 
 
+# BOTH entry points into the sanitiser, because either one marks a field as stored
+# rich text -- which is the only thing this tripwire cares about. `normalize_body`
+# wraps sanitize_html and additionally collapses a body with no visible content to
+# "" (see courses/sanitize.py). When the three body-bearing models moved onto it,
+# a name-matching walk that knew only `sanitize_html` stopped seeing them at all:
+# the baseline still listed the three rows, so the failure read as "removed; drop
+# it from EXPECTED" -- and taking that advice would have left the copy-TextElement
+# case this file exists for permanently undetectable. courses/sanitize.py is
+# excluded from the walk, so normalize_body's own internal call is not double-counted.
+SANITIZERS = {"sanitize_html", "normalize_body"}
+
+
 def _is_sanitize(node):
     if not isinstance(node, ast.Call):
         return False
     func = node.func
     if isinstance(func, ast.Name):
-        return func.id == "sanitize_html"
+        return func.id in SANITIZERS
     # Also catches `sanitize.sanitize_html(...)`. An `as`-aliased import stays a known
     # blind spot; nothing in the repo does that today.
-    return isinstance(func, ast.Attribute) and func.attr == "sanitize_html"
+    return isinstance(func, ast.Attribute) and func.attr in SANITIZERS
 
 
 def _target(assign):
