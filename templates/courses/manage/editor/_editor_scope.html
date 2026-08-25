@@ -1,7 +1,15 @@
 {% load i18n courses_manage_extras %}
 <div class="editor-grid is-mode-split">
+  {% comment %}
+  data-saved-element names the join row this response WROTE, and only element_save
+  sets it. editor.js reads it to bring the saved element back into view; a create has
+  no other way to be found (the pending row carries no data-element, because the pk
+  did not exist when the form was rendered). Blank on every other path -- a move or a
+  delete must fall back to the row the op acted on, not to whatever the last save
+  touched.
+  {% endcomment %}
   <section class="pane editor-pane" data-scope="editor" data-updated="{{ unit.updated.isoformat }}"
-       data-unit="{{ unit.pk }}"
+       data-unit="{{ unit.pk }}" data-saved-element="{{ saved_element }}"
        data-add-url="{% url 'courses:manage_element_add' slug=unit.course.slug %}"
        data-save-url="{% url 'courses:manage_element_save' slug=unit.course.slug %}"
        data-move-url="{% url 'courses:manage_element_move' slug=unit.course.slug %}">
@@ -50,7 +58,14 @@
         {% endcomment %}
         {% for el, obj in rows %}{% include "courses/manage/editor/_element_row.html" with open_form=open_form open_form_pk=open_form_pk depth=1 %}{% empty %}
           {% if open_form_pk != "new" %}<li class="empty-state">{% trans "No elements yet." %}</li>{% endif %}{% endfor %}
-        {% if open_form_pk == "new" %}<li class="el-row el-row--editing"><div class="el-row__head"><span class="el-tag">{% trans "New" %}</span></div><div class="el-edit-slot" data-edit-slot>{{ open_form|safe }}</div></li>{% endif %}
+        {% comment %}
+        The pending CREATE row, TOP-LEVEL ONLY. `open_form_slot` is the slot key the
+        author picked (blank for a top-level add), and the container branches in
+        _element_row.html claim the row when it names their slot -- so this `not`
+        is what stops a nested add from ALSO drawing the form down here, at the
+        bottom of the unit, far from the container it belongs to.
+        {% endcomment %}
+        {% if open_form_pk == "new" and not open_form_slot %}{% include "courses/manage/editor/_pending_new_row.html" %}{% endif %}
       </ol>
       {% include "courses/manage/editor/_add_menu.html" with depth=0 %}{% paste_buttons %}
     </div>

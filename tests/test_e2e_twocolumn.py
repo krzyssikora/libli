@@ -96,6 +96,11 @@ def _columns_rows(page):
     )
 
 
+SAVED_CHILD = ".element-list--nested .el-row[data-element]"
+"""Saved children only -- the row holding an open CREATE form is drawn in the slot
+too and carries no data-element until the save lands."""
+
+
 def _wait_columns_state(page, expected_counts):
     """Poll until the editor's per-column nested-row counts match exactly.
 
@@ -104,7 +109,13 @@ def _wait_columns_state(page, expected_counts):
     lands), so a naive wait_for_selector for a selector that already matched the
     STALE pane returns instantly without proving the swap happened. Acting on that
     stale pane detaches the very node the next gesture is mid-click on. Polling the
-    actual per-column counts is the only race-free checkpoint."""
+    actual per-column counts is the only race-free checkpoint.
+
+    `.el-row[data-element]` -- SAVED children only. The row holding an open CREATE
+    form is drawn in the slot too (that is where the author picked), and it carries no
+    data-element until the save lands. A bare `.el-row` therefore reaches the expected
+    count the moment the form OPENS, so the poll returns on the pre-save pane and the
+    next gesture acts on a node the in-flight swap is about to detach."""
     page.wait_for_function(
         """(expected) => {
             const details = document.querySelectorAll(
@@ -112,7 +123,7 @@ def _wait_columns_state(page, expected_counts):
                 + '> details.columns-rows');
             if (details.length !== expected.length) return false;
             return Array.from(details).every((d, i) =>
-                d.querySelectorAll('.element-list--nested .el-row').length
+                d.querySelectorAll('.element-list--nested .el-row[data-element]').length
                     === expected[i]);
         }""",
         arg=expected_counts,
@@ -191,9 +202,9 @@ def test_grow_add_children_shrink_and_student_view(page, live_server):
 
     # The editor's own nested row lists reflect the same placement.
     rows = _columns_rows(page)
-    assert rows.nth(0).locator(".element-list--nested .el-row").count() == 1
-    assert rows.nth(1).locator(".element-list--nested .el-row").count() == 0
-    assert rows.nth(2).locator(".element-list--nested .el-row").count() == 1
+    assert rows.nth(0).locator(SAVED_CHILD).count() == 1
+    assert rows.nth(1).locator(SAVED_CHILD).count() == 0
+    assert rows.nth(2).locator(SAVED_CHILD).count() == 1
 
     # --- 3. Student/taking view: three columns, side by side, right children. ---
     page.goto(_lesson_url(live_server, unit))

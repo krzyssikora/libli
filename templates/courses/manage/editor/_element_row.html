@@ -81,12 +81,29 @@
     {% for tab, children in obj.resolved_tabs %}
       <details class="tabs-rows" data-tab-id="{{ tab.id }}"{% if el.pk|slot_key:tab.id|in_set:open_slots %} open data-force-open{% elif clip_active %} open data-force-open{% elif forloop.first %} open{% endif %}>
         <summary class="tabs-rows__summary">{{ tab.label }} <span class="tabs-rows__count">{{ children|length }}</span></summary>
+        {% comment %}
+        The pending CREATE row belongs to whichever slot the author opened the
+        add-menu in, and `open_form_slot` (built by the view from builder.slot_key)
+        names it. Both conditions below build the key the same way, via the slot_key
+        FILTER, so this side and the view cannot drift into a key that matches
+        nothing -- which would make the form vanish from the response entirely
+        rather than merely land in the wrong place.
+
+        The `{% templatetag openblock %} empty {% templatetag closeblock %}` guard
+        is not cosmetic: the placeholder keys on the CHILD queryset, which the
+        pending row is not part of, so without it the author reads "this is empty"
+        directly above the form they just opened inside it.
+
+        Every container branch below repeats this pair against its own slot id
+        (tab.id / column.id / obj.SLOT_ID / slot_id).
+        {% endcomment %}
         <ol class="element-list element-list--nested">
           {% for child in children %}
             {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
           {% empty %}
-            <li class="empty-state">{% trans "This tab is empty." %}</li>
+            {% if open_form_pk != "new" or open_form_slot != el.pk|slot_key:tab.id %}<li class="empty-state">{% trans "This tab is empty." %}</li>{% endif %}
           {% endfor %}
+          {% if open_form_pk == "new" and open_form_slot == el.pk|slot_key:tab.id %}{% include "courses/manage/editor/_pending_new_row.html" %}{% endif %}
         </ol>
         {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=tab.id depth=depth %}{% endif %}{% paste_buttons el.pk tab.id %}
       </details>
@@ -144,8 +161,9 @@
           {% for child in children %}
             {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
           {% empty %}
-            <li class="empty-state">{% trans "This column is empty." %}</li>
+            {% if open_form_pk != "new" or open_form_slot != el.pk|slot_key:column.id %}<li class="empty-state">{% trans "This column is empty." %}</li>{% endif %}
           {% endfor %}
+          {% if open_form_pk == "new" and open_form_slot == el.pk|slot_key:column.id %}{% include "courses/manage/editor/_pending_new_row.html" %}{% endif %}
         </ol>
         {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=column.id depth=depth %}{% endif %}{% paste_buttons el.pk column.id %}
       </details>
@@ -194,12 +212,15 @@
       {% for child in obj.resolved_children %}
         {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
       {% empty %}
-        {% if obj.body %}
-          <li class="empty-state">{% trans "This spoiler has text, but nothing nested inside it yet. Add an element to nest content inside it." %}</li>
-        {% else %}
-          <li class="empty-state">{% trans "This spoiler is empty." %}</li>
+        {% if open_form_pk != "new" or open_form_slot != el.pk|slot_key:obj.SLOT_ID %}
+          {% if obj.body %}
+            <li class="empty-state">{% trans "This spoiler has text, but nothing nested inside it yet. Add an element to nest content inside it." %}</li>
+          {% else %}
+            <li class="empty-state">{% trans "This spoiler is empty." %}</li>
+          {% endif %}
         {% endif %}
       {% endfor %}
+      {% if open_form_pk == "new" and open_form_slot == el.pk|slot_key:obj.SLOT_ID %}{% include "courses/manage/editor/_pending_new_row.html" %}{% endif %}
     </ol>
     {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
   </div>
@@ -249,8 +270,9 @@
         {% for child in children %}
           {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
         {% empty %}
-          <li class="empty-state">{% trans "This slot is empty." %}</li>
+          {% if open_form_pk != "new" or open_form_slot != el.pk|slot_key:slot_id %}<li class="empty-state">{% trans "This slot is empty." %}</li>{% endif %}
         {% endfor %}
+        {% if open_form_pk == "new" and open_form_slot == el.pk|slot_key:slot_id %}{% include "courses/manage/editor/_pending_new_row.html" %}{% endif %}
       </ol>
       {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=slot_id depth=depth %}{% endif %}{% paste_buttons el.pk slot_id %}
     </div>
@@ -296,12 +318,15 @@
       {% for child in obj.resolved_children %}
         {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
       {% empty %}
-        {% if obj.body %}
-          <li class="empty-state">{% trans "This callout has text, but nothing nested inside it yet. Add an element to nest content inside it." %}</li>
-        {% else %}
-          <li class="empty-state">{% trans "This callout is empty." %}</li>
+        {% if open_form_pk != "new" or open_form_slot != el.pk|slot_key:obj.SLOT_ID %}
+          {% if obj.body %}
+            <li class="empty-state">{% trans "This callout has text, but nothing nested inside it yet. Add an element to nest content inside it." %}</li>
+          {% else %}
+            <li class="empty-state">{% trans "This callout is empty." %}</li>
+          {% endif %}
         {% endif %}
       {% endfor %}
+      {% if open_form_pk == "new" and open_form_slot == el.pk|slot_key:obj.SLOT_ID %}{% include "courses/manage/editor/_pending_new_row.html" %}{% endif %}
     </ol>
     {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
   </div>

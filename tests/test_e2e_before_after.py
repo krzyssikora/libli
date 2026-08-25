@@ -132,18 +132,29 @@ def _ba_rows(page):
     )
 
 
+SAVED_CHILD = ".element-list--nested .el-row[data-element]"
+"""Saved children only -- the row holding an open CREATE form is drawn in the slot
+too and carries no data-element until the save lands."""
+
+
 def _wait_ba_state(page, expected_counts):
     """Poll until the editor's per-slot nested-row counts match exactly. A Save's
     fetch is fire-and-forget from the caller's point of view (mirrors
     test_e2e_twocolumn.py's _wait_columns_state -- see its docstring for why a
-    naive wait_for_selector would race the swap)."""
+    naive wait_for_selector would race the swap).
+
+    `.el-row[data-element]` -- SAVED children only. The row holding an open CREATE
+    form is drawn in the slot too (that is where the author picked), and it carries no
+    data-element until the save lands. A bare `.el-row` therefore reaches the expected
+    count the moment the form OPENS, so the poll returns on the pre-save pane and the
+    next gesture acts on a node the in-flight swap is about to detach."""
     page.wait_for_function(
         """(expected) => {
             const rows = document.querySelectorAll(
                 '[data-scope="editor"] .el-row--beforeafter .el-row__ba > .ba-rows');
             if (rows.length !== expected.length) return false;
             return Array.from(rows).every((d, i) =>
-                d.querySelectorAll('.element-list--nested .el-row').length
+                d.querySelectorAll('.element-list--nested .el-row[data-element]').length
                     === expected[i]);
         }""",
         arg=expected_counts,
@@ -583,8 +594,8 @@ def test_editor_slots_accept_a_child_each(page, live_server):
     assert after_child.content_object.body == "After text"
 
     rows = _ba_rows(page)
-    assert rows.nth(0).locator(".element-list--nested .el-row").count() == 1
-    assert rows.nth(1).locator(".element-list--nested .el-row").count() == 1
+    assert rows.nth(0).locator(SAVED_CHILD).count() == 1
+    assert rows.nth(1).locator(SAVED_CHILD).count() == 1
 
 
 # ---------------------------------------------------------------------------

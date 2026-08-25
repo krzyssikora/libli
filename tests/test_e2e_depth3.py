@@ -144,12 +144,18 @@ def _wait_nested_row_count(page, container_selector, expected):
     ALREADY matched the stale pane returns instantly and proves nothing, and acting on
     the stale pane detaches the node the next gesture is mid-click on. Counting the rows
     that only the swapped pane can have is the race-free checkpoint. (No sleeps: this
-    repo's sleep-based e2e tests fail only under parallel load.)"""
+    repo's sleep-based e2e tests fail only under parallel load.)
+
+    `[data-element]` -- SAVED children only. The row holding an open CREATE form is
+    drawn in the slot the author picked, and carries no data-element until the save
+    lands; a bare `.el-row` would reach the expected count the moment the form OPENS,
+    which is exactly the stale-pane read this helper exists to prevent."""
     page.wait_for_function(
         """([sel, n]) => {
             const host = document.querySelector(sel);
             if (!host) return false;
-            const rows = host.querySelectorAll('.element-list--nested > .el-row');
+            const rows = host.querySelectorAll(
+                '.element-list--nested > .el-row[data-element]');
             return rows.length === n;
         }""",
         arg=[container_selector, expected],

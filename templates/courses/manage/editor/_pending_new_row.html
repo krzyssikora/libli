@@ -1,0 +1,11 @@
+{% load i18n %}{% comment %}
+The row holding the blank CREATE form -- the element that does not exist yet.
+
+Rendered in exactly ONE place per response: the slot the author picked. The caller
+owns that decision (`open_form_pk == "new"` and the slot key match); this partial only
+draws the row, so the markup has one definition instead of six.
+
+It carries NO data-element, because there is no pk until the save lands. That is why
+element_save has to name what it wrote on the pane (`data-saved-element` in
+_editor_scope.html) -- editor.js cannot read the pk off this row.
+{% endcomment %}<li class="el-row el-row--editing"><div class="el-row__head"><span class="el-tag">{% trans "New" %}</span></div><div class="el-edit-slot" data-edit-slot>{{ open_form|safe }}</div></li>

@@ -469,9 +469,19 @@
       if (res.status === 200 || res.status === 409 || res.status === 422) {
         applyFragments(res.text);
         if (res.status === 409) flash(msg("conflict", "This changed elsewhere — reloaded to the latest."));
-        if (keepId) {
-          alignTopInPane(root.querySelector('.el-row[data-element="' + keepId + '"]'));
-          scrollPreviewTo(keepId);  // re-align the preview to the element, not reset to top
+        // What the response SAYS it wrote wins over what the DOM guessed. A create's
+        // form sits in a row with no data-element -- the pk did not exist when it was
+        // rendered -- so closest() answers with the enclosing CONTAINER's row, or with
+        // nothing at all at top level. Neither is the element the author just wrote:
+        // in a container already holding a run of children the two are most of a pane
+        // apart, and a top-level create left both panes wherever the (tall) form had
+        // pushed them. On an update the two agree, so this is one path, not a branch.
+        // Read AFTER applyFragments: the attribute is on the pane the swap installed.
+        var pane = root.querySelector('[data-scope="editor"]');
+        var focusId = (pane && pane.getAttribute("data-saved-element")) || keepId;
+        if (focusId) {
+          alignTopInPane(root.querySelector('.el-row[data-element="' + focusId + '"]'));
+          scrollPreviewTo(focusId);  // re-align the preview to the element, not reset to top
         }
       }
     });
