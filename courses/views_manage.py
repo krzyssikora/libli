@@ -1832,11 +1832,17 @@ def _render_editor_fragments(
     error="",
     open_slots=None,
     changed=False,
+    open_form_slot="",
+    saved_element="",
 ):
     """Render editor pane + preview as two data-scope fragments (the single source for
     every editor-context 200/409/422 response). Serialises data-updated from the
     freshly-read unit row so the token never desyncs. `refresh=False` lets a caller that
-    already refreshed avoid a redundant second refresh."""
+    already refreshed avoid a redundant second refresh.
+
+    `open_form_slot` places a PENDING create form (see the key's comment below);
+    `saved_element` names the row this response wrote. Both default to "" so every
+    caller that neither creates nor saves stays correct by omission."""
     if refresh:
         unit.refresh_from_db(fields=["updated"])
     join_rows, rows = _editor_rows(unit)
@@ -1878,6 +1884,20 @@ def _render_editor_fragments(
             # on only one makes the first page load look perfect while every
             # later fragment swap silently drops the feature.
             "open_slots": open_slots or set(),
+            # The slot key (builder.slot_key) the PENDING create form belongs to, or
+            # "" for a top-level add. element_add resolves the scope and the host form
+            # round-trips it as hidden fields, so the element always LANDED in the
+            # right slot -- but nothing told the row template where to DRAW the form,
+            # and it went to the bottom of the top-level list whatever the author
+            # picked. _element_row.html's container branches claim the row when this
+            # names their slot; _editor_scope.html keeps it only when this is blank.
+            "open_form_slot": open_form_slot,
+            # The join row this response WROTE, for editor.js's post-save scroll. A
+            # create cannot be found any other way: the pending row carries no
+            # data-element, because the pk did not exist when the form was rendered.
+            # Blank on every other path, so a move/delete falls back to the row its
+            # own op acted on instead of chasing the last save.
+            "saved_element": saved_element,
             # Supplied by _editor_page already; added here so the moved banner
             # block has both of its variables defined on BOTH render paths.
             "changed": changed,
@@ -2007,6 +2027,7 @@ def _render_open_form(
     parent="",
     tab="",
     open_slots=None,
+    pending_slot="",
 ):
     """Render the host <form> wrapping a per-type editor partial, then the full editor
     scope with that form embedded in the form host.
@@ -2021,7 +2042,15 @@ def _render_open_form(
     `parent`/`tab` are only meaningful on a nested CREATE: they round-trip as hidden
     fields so scope survives the two-hop element_add -> element_save create, and
     survives an ElementFormInvalid 422 re-render. The edit-an-existing-element path
-    (element_form) leaves both at their "" default -- an update never reads them."""
+    (element_form) leaves both at their "" default -- an update never reads them.
+
+    `pending_slot` is the same scope expressed as a builder.slot_key, and it decides
+    where the row holding this form is DRAWN. It is a separate argument rather than a
+    key derived from `parent`/`tab` here, because those two arrive as raw POST strings
+    on the 422 path: a key built from an unresolvable pair would match no container,
+    and the form would then render NOWHERE instead of merely at the wrong depth. Both
+    callers pass a key built from an already-RESOLVED scope, or "" -- and "" is the
+    safe answer, since _editor_scope.html treats it as "draw it at top level"."""
     from courses.element_forms import _SG_SEED_STEM
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
@@ -2140,6 +2169,7 @@ def _render_open_form(
         open_form_pk=str(element_pk),
         refresh=False,
         open_slots=open_slots,
+        open_form_slot=pending_slot,
     )
 
 
@@ -2223,33 +2253,52 @@ def element_add(request, slug):
         # There is no row yet, so the open-set comes from the SCOPE the author
         # picked. resolve_scope has already validated the pair above.
         open_slots=builder_svc.scope_slots(parent_join, tab_id),
+        pending_slot=_pending_slot(parent_join, tab_id),
     )
 
 
-def _slots_for_failed_save(unit, type_key, element_ref, post_data):
-    """The open-set for re-rendering a save that did NOT complete (the 422).
+def _pending_slot(parent_join, tab_id):
+    """The slot key the row holding a pending CREATE form belongs to.
+
+    "" for a top-level add: the root list is not a container slot, and
+    _editor_scope.html reads the blank as "draw the row here". One helper so the two
+    callers cannot disagree about which of those two answers a top-level add gets.
+    """
+    return "" if parent_join is None else builder_svc.slot_key(parent_join.pk, tab_id)
+
+
+def _scope_for_failed_save(unit, type_key, element_ref, post_data):
+    """(open_slots, pending_slot) for re-rendering a save that did NOT complete (422).
 
     Has to work from POST alone. On an UPDATE the row is still there, untouched, so
-    this answers exactly as the success path does. On a CREATE there is no row at all
-    -- @transaction.atomic rolled the whole attempt back -- so the scope is
-    re-resolved from the hidden fields the host form round-trips.
+    this answers exactly as the success path does -- and there is no pending row to
+    place, because the form renders in that row's own edit slot. On a CREATE there is
+    no row at all -- @transaction.atomic rolled the whole attempt back -- so the scope
+    is re-resolved from the hidden fields the host form round-trips.
 
     That re-resolution is guarded because it has NOT been validated in this request:
     save_element raises ElementFormInvalid from its form check, which sits BEFORE its
     resolve_scope call, so unlike the element_add path this pair reaches us unchecked.
-    A bad pair costs the author only the open-set (the 422 itself still renders);
-    letting NestingError escape would turn their typo into a 500.
+    A bad pair costs the author only the open-set and the row's placement (the 422
+    itself still renders, at top level); letting NestingError escape would turn their
+    typo into a 500.
+
+    Both answers come from ONE resolution deliberately: resolving twice would let the
+    container render open while the form was drawn somewhere else entirely.
     """
     if element_ref != "new":
         el = Element.objects.filter(pk=element_ref, unit=unit).first()
-        return builder_svc.ancestor_slots(el) if el is not None else set()
+        slots = builder_svc.ancestor_slots(el) if el is not None else set()
+        return slots, ""
     try:
         parent_join, tab_id = builder_svc.resolve_scope(
             unit, post_data.get("parent"), post_data.get("tab"), type_key
         )
     except builder_svc.NestingError:
-        return set()
-    return builder_svc.scope_slots(parent_join, tab_id)
+        return set(), ""
+    return builder_svc.scope_slots(parent_join, tab_id), _pending_slot(
+        parent_join, tab_id
+    )
 
 
 @login_required
@@ -2318,6 +2367,13 @@ def element_save(request, slug):
         # corrected resubmit lands the child at top level. An update never reads
         # parent/tab.
         is_create = element_ref == "new"
+        # A 422 needs the open-set as much as a 200 does: the form carrying the error
+        # message is INSIDE the container, so re-rendering on the pane's defaults
+        # collapses the only thing the author needs to read -- and placing the row
+        # back in that same slot is the other half of the same requirement.
+        failed_slots, failed_pending = _scope_for_failed_save(
+            unit, type_key, element_ref, request.POST
+        )
         return _render_open_form(
             request,
             unit,
@@ -2329,12 +2385,8 @@ def element_save(request, slug):
             status=422,
             parent=request.POST.get("parent", "") if is_create else "",
             tab=request.POST.get("tab", "") if is_create else "",
-            # A 422 needs the open-set as much as a 200 does: the form carrying the
-            # error message is INSIDE the container, so re-rendering on the pane's
-            # defaults collapses the only thing the author needs to read.
-            open_slots=_slots_for_failed_save(
-                unit, type_key, element_ref, request.POST
-            ),
+            open_slots=failed_slots,
+            pending_slot=failed_pending,
         )
     if not _wants_fragment(request):
         return redirect(_editor_path(course, unit))
@@ -2342,7 +2394,14 @@ def element_save(request, slug):
     # would be undone by the author's very next Save: the column reopens on the click
     # and shuts again the moment the form is submitted.
     return _render_editor_fragments(
-        request, unit, open_slots=builder_svc.ancestor_slots(join)
+        request,
+        unit,
+        open_slots=builder_svc.ancestor_slots(join),
+        # Name what was written so editor.js can bring it back into view. On a CREATE
+        # this is the only way it can be found at all -- the row the author filled in
+        # carried no pk -- and the author was otherwise left staring at wherever the
+        # form had been.
+        saved_element=join.pk,
     )
 
 
