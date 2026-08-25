@@ -369,7 +369,7 @@ def test_click_flips_before_after_to_the_panel_holding_the_child(page, live_serv
     """e2e 4. Mutant (b4): drop the before/after toggle click -> RED.
 
     Click path: .el-row__label (.el-select). No <details> precondition -- ba rows are
-    always-open divs (templates/courses/manage/editor/_element_row.html:243).
+    always-open divs (templates/courses/manage/editor/_element_row.html:267).
     """
     from courses.models import BeforeAfterElement
 
@@ -830,7 +830,7 @@ def test_post_op_reveal_through_a_spoiler(page, live_server):
     assertion targets.
 
     No _open_slots call here -- spoiler child rows render in an always-open
-    <div class="el-row__spoiler"> (_element_row.html:192), unlike tabs and
+    <div class="el-row__spoiler"> (_element_row.html:210), unlike tabs and
     two-column, so there is no <details> to pre-open.
     """
     from courses.models import SpoilerElement

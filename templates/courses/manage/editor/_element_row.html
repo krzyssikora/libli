@@ -208,6 +208,7 @@
   carries the depth guard.
   {% endcomment %}
   <div class="el-row__spoiler">
+    {% include "courses/manage/editor/_element_body_row.html" %}
     <ol class="element-list element-list--nested">
       {% for child in obj.resolved_children %}
         {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
@@ -314,6 +315,7 @@
   carries the depth guard.
   {% endcomment %}
   <div class="el-row__callout">
+    {% include "courses/manage/editor/_element_body_row.html" %}
     <ol class="element-list element-list--nested">
       {% for child in obj.resolved_children %}
         {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}

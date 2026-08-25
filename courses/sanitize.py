@@ -8,6 +8,7 @@ import nh3
 
 from courses.colour import TC_CLASS_TAGS
 from courses.colour import TC_CLASS_VALUES
+from courses.migrations_support import body_is_empty_ish
 
 # Safe subset for styled rich text. NOT the deferred arbitrary-HTML element — no
 # scripts, no style/script-bearing attributes.
@@ -97,6 +98,30 @@ def sanitize_html(value, *, allowed_classes=None):
         link_rel=None,  # manage rel ourselves via ALLOWED_ATTRIBUTES
         url_schemes=ALLOWED_URL_SCHEMES,
     )
+
+
+def normalize_body(value, *, allowed_classes=None):
+    """sanitize_html, then collapse a body carrying no VISIBLE content to "".
+
+    Why this exists: MEASURED in headless Chromium, clearing an RTE surface with
+    Ctrl+A + Delete leaves `<p><br></p>` behind (backspacing every character
+    instead leaves ""). Both `p` and `br` are in ALLOWED_TAGS, so sanitize_html
+    preserves that verbatim and the field stays TRUTHY. Every consumer guards on a
+    bare `{% if el.body %}` -- so the student page renders an empty paragraph (a
+    blank line) and the editor row reports that the element "has text".
+
+    The classifier is `migrations_support.body_is_empty_ish`, REUSED rather than
+    re-implemented, and that reuse is load-bearing: `migrations/0053` clears
+    exactly the rows this rejects, so a second, drifting definition here would let
+    the next save re-create a row that migration had just cleared. That function is
+    documented as FROZEN; this one only calls it.
+
+    NOT folded into sanitize_html: that function's contract is "strip everything
+    outside the safe subset", and it is also the sanitiser for question stems and
+    table cells, where emptiness is the form layer's business.
+    """
+    clean = sanitize_html(value, allowed_classes=allowed_classes)
+    return "" if body_is_empty_ish(clean) else clean
 
 
 # Cells allow only inline emphasis + line break + the colour carrier. Includes b/i

@@ -1170,6 +1170,36 @@ button.asset-cell:hover { border-color: var(--primary); }
 .el-row--spoiler .el-row__spoiler { margin-top: var(--space-3); }
 /* The nested-children region under a callout row's edit slot. */
 .el-row--callout .el-row__callout { margin-top: var(--space-3); }
+
+/* The container's OWN text, shown above its children list (see
+   _element_body_row.html). Deliberately NOT styled as an .el-row: it is not a
+   child element -- it cannot be dragged, reordered, copied or deleted, and giving
+   it the row chrome would invite an author to look for controls that are not
+   there. A quieter, flatter strip instead, on the sunken surface the ba-rows
+   label already uses.
+
+   `width: 100%` and not `display: block`: this is a <button>, whose UA style is
+   inline-block, so without the width it shrink-wraps the excerpt and the click
+   target stops at the end of the text. */
+.el-bodyrow {
+  display: flex; align-items: center; gap: var(--space-2);
+  width: 100%; margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px dashed var(--border-subtle); border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.el-bodyrow:hover { border-color: var(--border-strong); }
+/* --text-tertiary fails AA at body size, so the excerpt takes --text-secondary;
+   only the .el-tag badge (which is uppercase and non-essential) stays quieter. */
+.el-bodyrow__excerpt {
+  min-width: 0; flex: 1 1 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: .82rem; color: var(--text-secondary);
+}
+/* flex: 0 0 auto so the badge never shrinks when the excerpt is long -- a
+   basis-weighted shrink would otherwise eat the label before the excerpt. */
+.el-tag--body { flex: 0 0 auto; }
 .tabs-rows { border-radius: var(--radius-sm); }
 .tabs-rows__summary {
   cursor: pointer; list-style: none;
