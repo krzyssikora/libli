@@ -2173,6 +2173,16 @@ def _render_open_form(
     )
 
 
+def _pending_slot(parent_join, tab_id):
+    """The slot key the row holding a pending CREATE form belongs to.
+
+    "" for a top-level add -- the root list is not a container slot, and
+    _editor_scope.html reads the blank as "draw the row here". One helper, so the add
+    path and the 422 re-render cannot disagree about that answer.
+    """
+    return "" if parent_join is None else builder_svc.slot_key(parent_join.pk, tab_id)
+
+
 @login_required
 def element_add(request, slug):
     course = _require_manage(request, slug)
@@ -2255,16 +2265,6 @@ def element_add(request, slug):
         open_slots=builder_svc.scope_slots(parent_join, tab_id),
         pending_slot=_pending_slot(parent_join, tab_id),
     )
-
-
-def _pending_slot(parent_join, tab_id):
-    """The slot key the row holding a pending CREATE form belongs to.
-
-    "" for a top-level add: the root list is not a container slot, and
-    _editor_scope.html reads the blank as "draw the row here". One helper so the two
-    callers cannot disagree about which of those two answers a top-level add gets.
-    """
-    return "" if parent_join is None else builder_svc.slot_key(parent_join.pk, tab_id)
 
 
 def _scope_for_failed_save(unit, type_key, element_ref, post_data):

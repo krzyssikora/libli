@@ -84,10 +84,10 @@
         {% comment %}
         The pending CREATE row belongs to whichever slot the author opened the
         add-menu in, and `open_form_slot` (built by the view from builder.slot_key)
-        names it. Both tests below spell the key the same way, via the slot_key
-        FILTER, so the two sides cannot drift into a key that matches nothing --
-        which would make the form vanish from the response entirely rather than
-        merely land in the wrong place.
+        names it. Both conditions below build the key the same way, via the slot_key
+        FILTER, so this side and the view cannot drift into a key that matches
+        nothing -- which would make the form vanish from the response entirely
+        rather than merely land in the wrong place.
 
         The `{% templatetag openblock %} empty {% templatetag closeblock %}` guard
         is not cosmetic: the placeholder keys on the CHILD queryset, which the
