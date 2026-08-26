@@ -47,11 +47,18 @@ silently re-litigate them.
 
 ## Selection rule
 
-A source table converts when **all three** hold:
+A source table converts when **all four** hold:
 
 1. `<table>` carries class `my_table_noborder`;
 2. at least one `<tr>` has `border-bottom` in its inline `style`;
-3. the first row is **not** the `wzór | nazwa` header pair.
+3. the first row is **not** the `wzór | nazwa` header pair;
+4. no cell holds more than one `\(…\)` run.
+
+(4) is a refusal, not a filter: such a cell has no correct array slot — unwrapping it
+splices the runs and eats the text between them, and `\text{}` renders the delimiters
+literally — so neither the cell nor its table converts. Zero cells in this corpus hit it,
+so the count below is unchanged; it is in the rule because the module outlives the
+corpus.
 
 Measured over `C:\Users\krzys\Documents\teaching\LAL\html\045_wielomiany\*.html`:
 123 tables total → 77 pass (1) and (2) → **73** pass (3). The four excluded by (3) are
@@ -66,6 +73,7 @@ Per cell, from the legacy `<td>`:
 | `\(X\)` | `X` |
 | `\(\)` or empty `<td>` | empty slot |
 | text that is not a single math run | `\text{...}` |
+| text holding **two or more** math runs | refused — see selection rule (4) |
 | `class="red_on_yellow"` | wrapped in `\htmlClass{mk mk-amber}{...}` |
 
 Per row: a `border-bottom` in the row's inline style appends `\hline`.
