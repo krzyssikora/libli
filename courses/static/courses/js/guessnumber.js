@@ -22,7 +22,7 @@
       // Server already rendered the locked/correct appearance (readonly
       // value, is-correct, success shown, Check omitted). No typeset call is
       // needed here -- unlike .switchgrid/.filltable/.switchgate, .guessnumber
-      // IS in math.js's global renderInlineText list (math.js:31).
+      // IS in math.js's global renderInlineText list (math.js:52).
       return;
     }
 

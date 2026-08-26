@@ -1341,6 +1341,43 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .tc-green { color: var(--tc-green); }
 .tc-orange { color: var(--tc-orange); }
 
+/* --- Long-division arrays (MathElement). `.el--math` had no rules at all; an
+   array is intrinsically sized, so on a narrow viewport every one of them
+   exceeds the content column. MEASURED against the 648px column: 72 of the 73
+   SELECTED source arrays fit, the widest (160#34) overflows by 5px. (73 were
+   selected from the legacy HTML; 71 had a stored counterpart and were
+   converted.) --- */
+.el--math { overflow-x: auto; }
+/* `overflow-x: auto` also makes `.el--math` a block formatting context root,
+   which stops KaTeX's `.katex-display { margin: 1em 0 }` collapsing out through
+   it -- for EVERY math element in the app, not just the 71. A/B MEASURED on a
+   math-heavy lesson at 1280px (overflow-x: auto vs overflow-x: visible, same
+   page, same render): whitespace above and below each formula 60.78px against
+   44.78px, and 76.78px against 44.78px between two adjacent math elements. The
+   page grew 96px over three math elements -- 32px each. The gap BETWEEN element
+   boxes was 44.78px in both runs: without the BFC the vendor margin collapsed
+   into that larger gap and contributed nothing, and with it the margin turns
+   additive. Zeroing it restores the collapsed geometry exactly (re-measured:
+   identical to the overflow-x: visible run). Scoped to `.el--math` alone:
+   `.el--table`/`.el--filltable` keep the vendor margin (see the alignment block
+   above, which deliberately leaves it untouched). */
+.el--math > .katex-display { margin-block: 0; }
+
+/* The step highlight, carried by \htmlClass{mk mk-amber} inside the array.
+   NOT \colorbox: that compiles to an inline background-color, so it can never
+   follow the theme, and it inflates the marked row -- MEASURED at 6px taller
+   overall with one \hline gap pushed to 50px against 46/47px elsewhere.
+   Ink is --tc-orange, not --warning: --warning on --warning-subtle measures
+   2.79:1 in light. This pair is 5.09:1 light / 7.11:1 dark.
+   `.math-live` is the editor's live preview (_edit_math.html), which renders the
+   same KaTeX into a div that is NOT `.el--math` -- without it an author editing
+   one of the 71 sees the highlighted digit unstyled while the saved element is
+   styled. */
+.el--math .mk,
+.math-live .mk { border-radius: 3px; padding: .02em .2em; margin: 0 -.05em; }
+.el--math .mk-amber,
+.math-live .mk-amber { background: var(--warning-subtle); color: var(--tc-orange); }
+
 /* --- Fill-in table (student self-check widget). Structurally a twin of
    .el--table (same border/ta-*/va-* rules, renamed) wrapped in a .filltable
    root that also carries the Check button + result summary. Basic/functional

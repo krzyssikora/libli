@@ -3,7 +3,27 @@
   function renderOne(el) {
     if (el.dataset.katexDone === "1") return;  // idempotent: skip already-rendered
     try {
-      katex.render(el.textContent, el, { displayMode: true, throwOnError: false });
+      katex.render(el.textContent, el, {
+        displayMode: true,
+        throwOnError: false,
+        // \htmlClass is the ONLY trusted command, matched by EQUALITY, and its
+        // class VALUE is bounded as well. \htmlStyle and \htmlData would let
+        // authored LaTeX inject arbitrary CSS and data attributes; \href and \url
+        // arbitrary URLs. A prefix test would admit all of them.
+        //
+        // The value check closes the second axis. KaTeX hands the class over in
+        // the SAME context object ({command: "\\htmlClass", class: ...}), so a
+        // command-only predicate lets authored LaTeX put any class the stylesheet
+        // already defines into the top-level lesson DOM -- a full-viewport
+        // `position: fixed; inset: 0` overlay, or a .visually-hidden-shaped class
+        // that conceals content. No script, no URL and no HTML injection (the
+        // value reaches the DOM as className on a node KaTeX builds), so the
+        // ceiling is visual -- but the mk-* highlight vocabulary is the whole
+        // requirement, so nothing else needs to get through.
+        // Deliberately NOT added to renderInlineText below: that path covers
+        // author prose in .el--text and every other element, and does not need it.
+        trust: function (c) { return c.command === "\\htmlClass" && /^mk mk-[a-z]+$/.test(c.class); },
+      });
       el.dataset.katexDone = "1";
     } catch (e) {
       /* leave raw LaTeX on error */
