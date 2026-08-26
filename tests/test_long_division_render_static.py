@@ -2,8 +2,18 @@
 
 These assert on file CONTENT rather than behaviour because the units under
 test are a KaTeX render option and two CSS rules -- neither is reachable from
-Python, and both are silently droppable (KaTeX discards an untrusted command
-without error; a missing CSS rule just renders unstyled).
+Python, and both are droppable without an error being raised.
+
+Losing the trust option is NOT a silent no-op: KaTeX routes an untrusted command
+to `formatUnsupportedCmd`, which drops the argument and renders the command NAME
+character by character in `errorColor` (verified in the vendored 0.16.11
+bundle). The highlighted digit would vanish and a red `\\htmlClass` would appear
+in its place. A missing CSS rule renders unstyled, which is the quiet failure.
+
+`tests/test_e2e_math_reflow.py::test_a_marked_array_cell_renders_highlighted`
+covers the same ground on the real render path, in a browser. These guards are
+the cheap ones: they name WHICH line is load-bearing and why, and they run
+without `-m e2e`.
 """
 
 import re
@@ -43,17 +53,43 @@ def _token(block, name):
     return match.group(1)
 
 
+def _trust_predicate():
+    """The `trust:` option's own source line.
+
+    Scoped deliberately: `"startsWith" not in src` is a whole-file assertion that
+    any unrelated future use of it anywhere in math.js would break, and it would
+    not notice a prefix match written on a line of its own.
+    """
+    for line in MATH_JS.read_text(encoding="utf-8").splitlines():
+        if line.strip().startswith("trust:"):
+            return line
+    raise AssertionError("no trust: option in math.js")
+
+
 def test_math_js_trusts_htmlclass_by_equality():
-    src = MATH_JS.read_text(encoding="utf-8")
-    assert 'c.command === "\\\\htmlClass"' in src
+    assert 'c.command === "\\\\htmlClass"' in _trust_predicate()
 
 
 def test_math_js_trust_is_not_a_prefix_match():
     # A prefix/startsWith test would also admit \htmlStyle and \htmlData, which
     # let authored LaTeX inject arbitrary CSS and data attributes.
-    src = MATH_JS.read_text(encoding="utf-8")
-    assert "startsWith" not in src
-    assert "indexOf" not in src.split("trust")[-1][:200]
+    trust = _trust_predicate()
+    assert "startsWith" not in trust
+    assert "indexOf" not in trust
+
+
+def test_math_js_trust_bounds_the_class_value():
+    # Trust has TWO axes and the command check closes only one. KaTeX passes the
+    # class in the same context object ({command: "\\htmlClass", class: ...}), so
+    # without a value check authored LaTeX may apply any class the stylesheet
+    # defines -- a full-viewport `position: fixed; inset: 0` overlay over a
+    # student's lesson, or a .visually-hidden-shaped class that hides content --
+    # in the top-level lesson DOM, a primitive this project otherwise sandboxes
+    # (HtmlElement goes through htmlsandbox.build_srcdoc into a cross-origin
+    # iframe). The mk-* highlight vocabulary is the whole requirement.
+    trust = _trust_predicate()
+    assert "/^mk mk-[a-z]+$/" in trust
+    assert ".test(c.class)" in trust
 
 
 def test_inline_prose_path_does_not_get_trust():

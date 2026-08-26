@@ -175,14 +175,26 @@ content, dry-run by default").
 `[data-katex]` render call:
 
 ```js
-trust: (c) => c.command === "\\htmlClass"
+trust: (c) => c.command === "\\htmlClass" && /^mk mk-[a-z]+$/.test(c.class)
 ```
 
 An **equality** check, not a prefix. `\htmlStyle` and `\htmlData` would let authored
 LaTeX inject arbitrary CSS and data attributes; `\href` and `\url` arbitrary URLs. All
-stay denied. `MathElement.latex` is staff-authored and already unsanitised, so this
-widens nothing that was not already trusted. Verified: 30 class-carrying spans, 0 parse
-errors.
+stay denied. Verified: 30 class-carrying spans, 0 parse errors.
+
+This **does** widen the surface, and the value check is what bounds the widening.
+`MathElement.latex` being staff-authored and unsanitised is not a justification: the
+comparable raw-authoring surface, `HtmlElement`, is deliberately **not** trusted in the
+page — `courses/models.py:1006-1019` renders it through `htmlsandbox.build_srcdoc` into
+a cross-origin sandboxed iframe. `\htmlClass` puts an author-chosen class straight into
+the top-level lesson DOM, which is the primitive this project otherwise sandboxes. KaTeX
+hands the class over in the same context object (`{command: "\\htmlClass", class: …}`),
+so a command-only predicate would admit any class the stylesheet already defines —
+including the full-viewport `position: fixed; inset: 0` classes (`courses.css:2287`,
+`app.css:477`) as an overlay on a student's lesson page, or a `.visually-hidden`-shaped
+class to conceal content. No script, no URL and no HTML injection (the value reaches the
+DOM as `className` on a node KaTeX builds), so the ceiling is visual — but it is real,
+and the `mk mk-*` pattern is the whole requirement, so nothing else needs through.
 
 **`courses/static/courses/css/courses.css`** — add:
 

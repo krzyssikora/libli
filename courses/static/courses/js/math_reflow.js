@@ -672,7 +672,7 @@
                         // own "No element provided to render" error unchanged
     var extra = extraIgnoreSelector(options);
     // matches/closest are absent on Document and DocumentFragment, exactly as
-    // math.js:18 already guards for [data-katex].
+    // math.js:38 already guards for [data-katex].
     if (isIgnored(root, extra)) return;
     if (root.closest && root.closest(IGNORE_SELECTOR)) return;
     if (extra && root.closest && root.closest(extra)) return;
