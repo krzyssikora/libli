@@ -1,6 +1,7 @@
 """The converter's contract. Pure functions over BeautifulSoup nodes: no
 database, no filesystem, no fixture directory."""
 
+import pytest
 from bs4 import BeautifulSoup
 
 from courses.longdivision.convert import cell_latex
@@ -48,6 +49,28 @@ def test_wzor_nazwa_header_is_rejected():
     assert is_long_division(t) is False
 
 
+def test_a_table_with_a_two_run_cell_is_rejected():
+    # `\(a\) + \(b\)` has no correct array slot: unwrapping splices the runs and
+    # eats the ` + `, and \text{} renders the delimiters literally. So neither
+    # the cell nor its table converts -- the table keeps its stored TableElement
+    # and the command counts it "not a long division", which is visible.
+    # math_reflow.js names this exact shape as the one case that must be refused.
+    t = _t(
+        f'<table class="my_table_noborder"><tr{RULED}>'
+        r"<td>\(a\) + \(b\)</td></tr></table>"
+    )
+    assert is_long_division(t) is False
+
+
+def test_a_table_whose_cells_each_hold_one_run_is_still_selected():
+    # The refusal is per CELL, not "any \( anywhere in the table".
+    t = _t(
+        f'<table class="my_table_noborder"><tr{RULED}>'
+        r"<td>\(a\)</td><td>\(b\)</td></tr></table>"
+    )
+    assert is_long_division(t) is True
+
+
 # --- cells ----------------------------------------------------------------
 
 
@@ -65,6 +88,14 @@ def test_empty_cell_is_an_empty_slot():
 
 def test_prose_cell_is_wrapped_in_text():
     assert cell_latex(_td("<td>nazwa</td>")) == r"\text{nazwa}"
+
+
+def test_a_two_run_cell_refuses_rather_than_unwrapping_greedily():
+    # `^\\\((.*)\\\)$` with re.S matched the WHOLE cell and captured
+    # `a\) + \(b` -- two runs spliced into one, the ` + ` gone, no error.
+    # Nothing in the corpus hits it; the module outlives the corpus.
+    with pytest.raises(ValueError, match="more than one math run"):
+        cell_latex(_td(r"<td>\(a\) + \(b\)</td>"))
 
 
 def test_highlighted_cell_carries_the_mark_class():

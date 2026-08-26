@@ -24,6 +24,9 @@ from django.conf import settings
 MATH_JS = Path(settings.BASE_DIR) / "courses/static/courses/js/math.js"
 COURSES_CSS = Path(settings.BASE_DIR) / "courses/static/courses/css/courses.css"
 TOKENS_CSS = Path(settings.BASE_DIR) / "core/static/core/css/tokens.css"
+EDIT_MATH_HTML = (
+    Path(settings.BASE_DIR) / "templates/courses/manage/editor/_edit_math.html"
+)
 
 
 def _lum(hexstr):
@@ -110,6 +113,34 @@ def test_mark_classes_defined():
     assert ".el--math .mk-amber" in css
     assert "var(--warning-subtle)" in css.split(".el--math .mk-amber")[1][:120]
     assert "var(--tc-orange)" in css.split(".el--math .mk-amber")[1][:120]
+
+
+def _rule_selectors(css, declaration):
+    """The selector list of the rule whose declaration block contains `declaration`.
+
+    Reads the whole selector list rather than a literal substring, so splitting
+    it across lines or reordering it does not redden the test -- only actually
+    dropping a scope does.
+    """
+    at = css.index(declaration)
+    brace = css.rindex("{", 0, at)
+    start = max(css.rindex("}", 0, brace), css.rindex("*/", 0, brace)) + 1
+    return css[start:brace]
+
+
+def test_mark_classes_cover_the_editor_live_preview():
+    # _edit_math.html renders the live preview into `.math-live`, which is NOT
+    # `.el--math`. Scoped to .el--math alone, an author editing one of the 71
+    # sees the highlighted digit unstyled while the saved element is styled.
+    css = COURSES_CSS.read_text(encoding="utf-8")
+    assert 'class="math-live"' in EDIT_MATH_HTML.read_text(encoding="utf-8")
+    for declaration in (
+        "padding: .02em .2em",
+        "background: var(--warning-subtle); color: var(--tc-orange)",
+    ):
+        selectors = _rule_selectors(css, declaration)
+        assert ".el--math" in selectors, declaration
+        assert ".math-live" in selectors, declaration
 
 
 def test_highlight_clears_aa_in_both_themes():

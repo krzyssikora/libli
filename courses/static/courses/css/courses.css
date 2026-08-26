@@ -1344,7 +1344,9 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 /* --- Long-division arrays (MathElement). `.el--math` had no rules at all; an
    array is intrinsically sized, so on a narrow viewport every one of them
    exceeds the content column. MEASURED against the 648px column: 72 of the 73
-   converted arrays fit, the widest (160#34) overflows by 5px. --- */
+   SELECTED source arrays fit, the widest (160#34) overflows by 5px. (73 were
+   selected from the legacy HTML; 71 had a stored counterpart and were
+   converted.) --- */
 .el--math { overflow-x: auto; }
 
 /* The step highlight, carried by \htmlClass{mk mk-amber} inside the array.
@@ -1352,9 +1354,15 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    follow the theme, and it inflates the marked row -- MEASURED at 6px taller
    overall with one \hline gap pushed to 50px against 46/47px elsewhere.
    Ink is --tc-orange, not --warning: --warning on --warning-subtle measures
-   2.79:1 in light. This pair is 5.09:1 light / 7.11:1 dark. */
-.el--math .mk { border-radius: 3px; padding: .02em .2em; margin: 0 -.05em; }
-.el--math .mk-amber { background: var(--warning-subtle); color: var(--tc-orange); }
+   2.79:1 in light. This pair is 5.09:1 light / 7.11:1 dark.
+   `.math-live` is the editor's live preview (_edit_math.html), which renders the
+   same KaTeX into a div that is NOT `.el--math` -- without it an author editing
+   one of the 71 sees the highlighted digit unstyled while the saved element is
+   styled. */
+.el--math .mk,
+.math-live .mk { border-radius: 3px; padding: .02em .2em; margin: 0 -.05em; }
+.el--math .mk-amber,
+.math-live .mk-amber { background: var(--warning-subtle); color: var(--tc-orange); }
 
 /* --- Fill-in table (student self-check widget). Structurally a twin of
    .el--table (same border/ta-*/va-* rules, renamed) wrapped in a .filltable
