@@ -15,12 +15,33 @@
 - **Python `>=3.13`**, Django `>=5.2,<5.3`, PostgreSQL **16** (matches `.github/workflows/ci.yml`).
 - **Exactly one `app` container.** This is what makes `migrate` in the entrypoint safe and lets `TRANSFER_STAGING_DIR` be a local volume. Do not add replicas.
 - **Transfer-cap defaults must not change.** `TRANSFER_MAX_COMPRESSED_BYTES` stays `1 * 1024**3`, `TRANSFER_MAX_UNCOMPRESSED_BYTES` stays `1536 * 1024**2`, `TRANSFER_MAX_MEDIA_ENTRIES` stays `1000`. Only their env-overridability is new.
-- **`TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served.** They must not appear in any Caddy route.
+- **`TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served.** They must not appear in any Caddy route, and Task 6/7 both prove it with a real request, not a grep.
 - **No hardcoded passwords** in new code. ruff `S105`/`S106`/`S107` are enabled outside `tests/`.
-- **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates.
+- **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates. Note `B` (bugbear) is selected — an unused loop variable (`B007`) fails the build.
 - **Run tests narrowly.** Whole-repo sweeps are a branch gate, not a task step. Start the test DB first: `docker compose -f docker-compose.test.yml up -d`.
 - **Every test must be shown RED against its named mutant** before the task is accepted. A test that cannot fail is not evidence.
-- **Branch:** `feat/demo-deployment` (already created; the spec is committed there).
+
+### Working location — read before Task 1
+
+The spec and an **earlier, defective** version of this plan were merged to `master` as a
+side effect of another branch being cut from them (PR #274). Both files are already on
+master; this plan supersedes what is there.
+
+Work in the dedicated worktree, not the shared checkout — a parallel session shares that
+checkout's HEAD and has already switched branches mid-task once:
+
+```bash
+git -C <main-checkout> worktree list          # confirm the worktree exists
+cd ../libli-wt-deploy                          # branch: fix/demo-deployment-plan-review
+git rev-parse --abbrev-ref HEAD                # MUST print fix/demo-deployment-plan-review
+```
+
+**Re-check the branch after every long-running step**, not just before committing. A
+subagent dispatch or a slow test run is exactly the window in which the shared checkout
+moves. A worktree is immune, which is why the work lives in one.
+
+**A worktree has no `.env`.** Copy it in before running anything that touches the database:
+`cp <main-checkout>/.env .` — see the `env-file-cannot-override-an-exported-var` note.
 
 ---
 
@@ -32,9 +53,10 @@
 - `courses/management/commands/seed_demo_activity.py` — demo student cohort + activity.
 
 **Modified application code**
-- `config/settings/base.py:174-181` — three caps become `env.int` reads.
-- `institution/forms.py:118-145` — `BrandingForm` gains `public_hostname`.
+- `config/settings/base.py` — the three cap assignments at lines **175, 176 and 181** become `env.int` reads.
+- `institution/forms.py` — `BrandingForm` gains `public_hostname`; its **existing** `__init__` (line 152) and **existing** `save` (line 236) are edited, not duplicated.
 - `templates/institution/manage/_branding_fields.html` — renders the new field.
+- `tests/conftest.py` — new autouse fixture resetting the sites-framework cache.
 - `pyproject.toml` — add `gunicorn`.
 
 **New infrastructure (repo root unless noted)**
@@ -52,7 +74,7 @@ Note `templates/institution/manage/_branding_fields.html` is included by **both*
 ### Task 1: Transfer caps become env-overridable
 
 **Files:**
-- Modify: `config/settings/base.py:174-181`
+- Modify: `config/settings/base.py` lines 175, 176, 181
 - Test: `tests/test_transfer_caps_env.py` (create)
 
 **Interfaces:**
@@ -64,45 +86,76 @@ Note `templates/institution/manage/_branding_fields.html` is included by **both*
 Create `tests/test_transfer_caps_env.py`:
 
 ```python
-"""The three transfer caps are deployment guardrails (config/settings/base.py:172-174).
-A school's default install must keep the shipped values; only an operator's env
-raises them. Both halves of that contract are asserted here."""
+"""The three transfer caps are deployment guardrails. A school's default install
+must keep the shipped values; only an operator's env raises them. Both halves of
+that contract are asserted here.
+
+Both tests reload config.settings.base rather than reading django.conf.settings.
+That is deliberate: base.py reads BASE_DIR/.env at import time and django-environ's
+read_env copies those values into os.environ, so a developer who set the overrides
+in their own .env -- exactly what docs/deployment.md tells them to do -- would
+otherwise turn the defaults test red for reasons unrelated to the code.
+
+Reloading config.settings.base does NOT disturb django.conf.settings, which is
+already configured; this exercises the module's read logic in isolation.
+"""
 
 import importlib
 import os
 from unittest import mock
 
+import pytest
 
-def test_transfer_caps_default_to_the_shipped_guardrails():
-    from django.conf import settings
+CAP_ENV_NAMES = (
+    "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES",
+    "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES",
+    "LIBLI_TRANSFER_MAX_MEDIA_ENTRIES",
+)
 
-    assert settings.TRANSFER_MAX_COMPRESSED_BYTES == 1 * 1024**3
-    assert settings.TRANSFER_MAX_UNCOMPRESSED_BYTES == 1536 * 1024**2
-    assert settings.TRANSFER_MAX_MEDIA_ENTRIES == 1000
 
+@pytest.fixture
+def reload_base():
+    """Reload config.settings.base under a controlled environment.
 
-def test_transfer_caps_are_env_overridable():
-    """Reload the settings module with the vars set. A hardcoded constant keeps
-    the old value and fails; an env.int() read picks the new one up.
-
-    Reloading config.settings.base does NOT disturb django.conf.settings, which
-    is already configured — this exercises the module's read logic in isolation.
+    Neutralises read_env so the dict passed in is the ONLY input, and restores the
+    real module afterwards so later tests in the session see normal settings.
     """
+    import environ
+
     import config.settings.base as base
 
-    overrides = {
-        "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES": "5368709120",   # 5 GiB
-        "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES": "6442450944",  # 6 GiB
-        "LIBLI_TRANSFER_MAX_MEDIA_ENTRIES": "2000",
-    }
-    try:
-        with mock.patch.dict(os.environ, overrides):
-            reloaded = importlib.reload(base)
-            assert reloaded.TRANSFER_MAX_COMPRESSED_BYTES == 5368709120
-            assert reloaded.TRANSFER_MAX_UNCOMPRESSED_BYTES == 6442450944
-            assert reloaded.TRANSFER_MAX_MEDIA_ENTRIES == 2000
-    finally:
-        importlib.reload(base)  # restore module state for the rest of the session
+    def _reload(env_overrides):
+        with (
+            mock.patch.object(environ.Env, "read_env", lambda *a, **k: None),
+            mock.patch.dict(os.environ, env_overrides),
+        ):
+            for name in CAP_ENV_NAMES:
+                if name not in env_overrides:
+                    os.environ.pop(name, None)
+            return importlib.reload(base)
+
+    yield _reload
+    importlib.reload(base)
+
+
+def test_transfer_caps_default_to_the_shipped_guardrails(reload_base):
+    base = reload_base({})
+    assert base.TRANSFER_MAX_COMPRESSED_BYTES == 1 * 1024**3
+    assert base.TRANSFER_MAX_UNCOMPRESSED_BYTES == 1536 * 1024**2
+    assert base.TRANSFER_MAX_MEDIA_ENTRIES == 1000
+
+
+def test_transfer_caps_are_env_overridable(reload_base):
+    base = reload_base(
+        {
+            "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES": "5368709120",   # 5 GiB
+            "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES": "6442450944",  # 6 GiB
+            "LIBLI_TRANSFER_MAX_MEDIA_ENTRIES": "2000",
+        }
+    )
+    assert base.TRANSFER_MAX_COMPRESSED_BYTES == 5368709120
+    assert base.TRANSFER_MAX_UNCOMPRESSED_BYTES == 6442450944
+    assert base.TRANSFER_MAX_MEDIA_ENTRIES == 2000
 ```
 
 - [ ] **Step 2: Run the test and confirm it fails**
@@ -115,7 +168,7 @@ Expected: `test_transfer_caps_default_to_the_shipped_guardrails` PASSES (values 
 
 - [ ] **Step 3: Make the caps env-overridable**
 
-In `config/settings/base.py`, replace the three constant assignments (currently lines 175, 176, 181). Leave `TRANSFER_MAX_COURSE_JSON_BYTES`, `TRANSFER_MAX_MANIFEST_BYTES`, `TRANSFER_MAX_NODES`, `TRANSFER_MAX_ELEMENTS` untouched:
+In `config/settings/base.py`, replace the assignments at lines 175, 176 and 181. Leave `TRANSFER_MAX_COURSE_JSON_BYTES`, `TRANSFER_MAX_MANIFEST_BYTES`, `TRANSFER_MAX_NODES`, `TRANSFER_MAX_ELEMENTS` untouched:
 
 ```python
 # Env-overridable so a deployment hosting a large course can raise them without
@@ -162,22 +215,55 @@ its own environment."
 
 ---
 
-### Task 2: `Site` domain module and management command
+### Task 2: `Site` domain module, command, and the sites-cache fixture
 
 **Files:**
 - Create: `institution/site_domain.py`
 - Create: `institution/management/commands/set_site_domain.py`
-- Create: `institution/management/__init__.py`, `institution/management/commands/__init__.py` *(only if absent — `institution/management/commands/setup_roles.py` already exists, so they are present)*
+- Modify: `tests/conftest.py` (new autouse fixture)
 - Test: `tests/test_site_domain.py` (create)
 
 **Interfaces:**
 - Consumes: nothing.
 - Produces:
   - `institution.site_domain.validate_site_domain(value) -> str` — raises `django.core.exceptions.ValidationError` on a bad host. Task 3's form imports this.
-  - `institution.site_domain.set_site_domain(domain, name=None) -> Site` — validates, writes, clears the Site cache.
+  - `institution.site_domain.set_site_domain(domain, name=None) -> Site` — validates, writes, clears the sites-framework cache.
   - Management command `set_site_domain`, reading `--domain` or the `DJANGO_SITE_DOMAIN` env var. Task 5's entrypoint calls it.
+  - Autouse fixture `_reset_sites_framework_cache` in `tests/conftest.py`. Task 3's tests depend on it.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Add the sites-cache autouse fixture**
+
+`django.contrib.sites.models.SITE_CACHE` is a module-level dict that the database
+rollback does **not** undo. The repo already has an autouse fixture named
+`_clear_site_cache` (`tests/conftest.py:406`) — it clears the Django **cache framework**
+(LocMemCache), which is a different thing entirely, and the similar name is a trap.
+
+Without this, Task 3's new `BrandingForm.__init__` calls `get_current()` on every
+instantiation and repopulates the cache after each rollback, so a domain written by one
+test leaks into the next and assertions on `"example.com"` fail order-dependently under
+`pytest-xdist`.
+
+Append to `tests/conftest.py`:
+
+```python
+@pytest.fixture(autouse=True)
+def _reset_sites_framework_cache():
+    """Reset django.contrib.sites' SITE_CACHE around every test.
+
+    NOT the same as _clear_site_cache above, which clears the Django CACHE
+    FRAMEWORK. SITE_CACHE is a module-level dict in django.contrib.sites.models,
+    is not transaction-scoped, and survives the per-test rollback. BrandingForm
+    repopulates it on every instantiation, so a leaked domain makes later tests
+    fail depending on execution order.
+    """
+    from django.contrib.sites.models import Site
+
+    Site.objects.clear_cache()
+    yield
+    Site.objects.clear_cache()
+```
+
+- [ ] **Step 2: Write the failing test**
 
 Create `tests/test_site_domain.py`:
 
@@ -221,44 +307,70 @@ def test_invalid_hosts_are_rejected(value):
 
 
 @pytest.mark.django_db
-def test_set_site_domain_writes_and_clears_the_cache():
+def test_set_site_domain_persists_to_the_database():
+    """Read the row back FRESH rather than through get_current(), which would
+    hand back the same in-memory object set_site_domain just mutated."""
+    from django.conf import settings as dj_settings
     from django.contrib.sites.models import Site
 
     from institution.site_domain import set_site_domain
 
-    Site.objects.get_current()  # prime the SITE_ID cache with example.com
     set_site_domain("libli.example.org", name="libli")
+    row = Site.objects.get(pk=dj_settings.SITE_ID)
+    assert (row.domain, row.name) == ("libli.example.org", "libli")
 
-    assert Site.objects.get_current().domain == "libli.example.org"
-    assert Site.objects.get_current().name == "libli"
+
+@pytest.mark.django_db
+def test_set_site_domain_clears_the_sites_cache():
+    """Assert on the CACHE, not on get_current().domain.
+
+    get_current() returns the object held in SITE_CACHE, and set_site_domain
+    mutates that very object -- so an assertion on get_current().domain reports
+    the new value whether or not clear_cache() ran, and the mutant survives.
+    The only observable effect of the clear is the cache entry's absence.
+    """
+    from django.conf import settings as dj_settings
+    from django.contrib.sites import models as sites_models
+    from django.contrib.sites.models import Site
+
+    from institution.site_domain import set_site_domain
+
+    Site.objects.get_current()  # prime
+    assert dj_settings.SITE_ID in sites_models.SITE_CACHE
+
+    set_site_domain("libli.example.org")
+    assert dj_settings.SITE_ID not in sites_models.SITE_CACHE
 
 
 @pytest.mark.django_db
 def test_command_sets_the_domain_from_the_argument():
+    from django.conf import settings as dj_settings
     from django.contrib.sites.models import Site
 
     call_command("set_site_domain", "--domain", "demo.example.org")
-    assert Site.objects.get_current().domain == "demo.example.org"
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "demo.example.org"
 
 
 @pytest.mark.django_db
 def test_command_reads_the_env_var(monkeypatch):
+    from django.conf import settings as dj_settings
     from django.contrib.sites.models import Site
 
     monkeypatch.setenv("DJANGO_SITE_DOMAIN", "env.example.org")
     call_command("set_site_domain")
-    assert Site.objects.get_current().domain == "env.example.org"
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "env.example.org"
 
 
 @pytest.mark.django_db
 def test_command_is_a_no_op_when_unset(monkeypatch):
     """The entrypoint calls this unconditionally. With no domain configured it
     must warn and exit cleanly, never abort the boot of a running instance."""
+    from django.conf import settings as dj_settings
     from django.contrib.sites.models import Site
 
     monkeypatch.delenv("DJANGO_SITE_DOMAIN", raising=False)
     call_command("set_site_domain")
-    assert Site.objects.get_current().domain == "example.com"  # untouched
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "example.com"
 
 
 @pytest.mark.django_db
@@ -270,7 +382,7 @@ def test_command_rejects_a_url(monkeypatch):
         call_command("set_site_domain")
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 ```bash
 uv run python -m pytest tests/test_site_domain.py -v
@@ -278,7 +390,7 @@ uv run python -m pytest tests/test_site_domain.py -v
 
 Expected: all FAIL with `ModuleNotFoundError: No module named 'institution.site_domain'`.
 
-- [ ] **Step 3: Write `institution/site_domain.py`**
+- [ ] **Step 4: Write `institution/site_domain.py`**
 
 ```python
 """Validation and persistence for the django.contrib.sites Site domain.
@@ -292,6 +404,12 @@ Django ships Site #1 as the placeholder "example.com".
 Shared by the `set_site_domain` management command (called from the container
 entrypoint) and BrandingForm's public_hostname field (the non-technical
 surface in the first-run wizard).
+
+NOTE: `_DOMAIN_RE` in institution/forms.py:246 is a DIFFERENT regex for a
+different job -- it validates email domains for AccessForm's allow-list and is
+deliberately stricter (requires a dot, lowercase only). Do not merge them: a
+public hostname may legitimately be a single label ("localhost") and carry a
+port, neither of which is ever valid in an email domain.
 """
 
 import re
@@ -345,7 +463,7 @@ def set_site_domain(domain, name=None):
     return site
 ```
 
-- [ ] **Step 4: Write `institution/management/commands/set_site_domain.py`**
+- [ ] **Step 5: Write `institution/management/commands/set_site_domain.py`**
 
 ```python
 """Set the django.contrib.sites Site domain from --domain or DJANGO_SITE_DOMAIN.
@@ -397,7 +515,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Site domain set to {site.domain}"))
 ```
 
-- [ ] **Step 5: Run the test and confirm it passes**
+- [ ] **Step 6: Run the test and confirm it passes**
 
 ```bash
 uv run python -m pytest tests/test_site_domain.py -v
@@ -405,24 +523,29 @@ uv run python -m pytest tests/test_site_domain.py -v
 
 Expected: 15 passed (4 + 6 parametrised cases, plus 5 behaviour tests).
 
-- [ ] **Step 6: Falsify — confirm the tests can fail**
+- [ ] **Step 7: Falsify — confirm the tests can fail**
 
-Two mutants, run one at a time and edit each out by hand afterwards:
+Three mutants, run one at a time and edit each out by hand afterwards:
 
-1. Delete the `Site.objects.clear_cache()` line in `set_site_domain`. Re-run. Expected: `test_set_site_domain_writes_and_clears_the_cache` FAILS — `get_current()` returns the primed `example.com`. *This is the whole reason the line exists; if the test still passes, the test primes the cache incorrectly and must be fixed.*
-2. Change the no-op branch to `raise CommandError(...)`. Re-run. Expected: `test_command_is_a_no_op_when_unset` FAILS.
+1. Delete the `Site.objects.clear_cache()` line in `set_site_domain`. Expected: `test_set_site_domain_clears_the_sites_cache` FAILS — the SITE_ID key is still present. (`test_set_site_domain_persists_to_the_database` correctly still passes; it tests a different guarantee.)
+2. Change the no-op branch to `raise CommandError(...)`. Expected: `test_command_is_a_no_op_when_unset` FAILS.
+3. Delete the new `_reset_sites_framework_cache` fixture from `tests/conftest.py` and run `uv run python -m pytest tests/test_site_domain.py tests/test_setup_wizard.py -p no:randomly -v`. Expected: at least one `example.com` assertion FAILS from a leaked domain. (Run it after Task 3, when the wizard tests exist.)
 
-- [ ] **Step 7: Lint and commit**
+- [ ] **Step 8: Lint and commit**
 
 ```bash
 uv run ruff check . --no-cache && uv run ruff format --check .
-git add institution/site_domain.py institution/management/commands/set_site_domain.py tests/test_site_domain.py
+git add institution/site_domain.py institution/management/commands/set_site_domain.py tests/test_site_domain.py tests/conftest.py
 git commit -m "feat(institution): set_site_domain command and validator
 
 Site #1 ships as example.com, and build_accept_url builds invitation and
 password-reset links from it deliberately (so they cannot be host-spoofed).
 Without this step every such link on a fresh deployment is dead, and no
-test catches it."
+test catches it.
+
+Also adds an autouse fixture resetting django.contrib.sites' SITE_CACHE,
+which is module-level and survives the per-test rollback -- distinct from
+the existing _clear_site_cache, which clears the cache framework."
 ```
 
 ---
@@ -430,25 +553,42 @@ test catches it."
 ### Task 3: `public_hostname` on `BrandingForm` — the non-technical surface
 
 **Files:**
-- Modify: `institution/forms.py:118-145` (`BrandingForm`)
+- Modify: `institution/forms.py` — the **existing** `__init__` (line 152) and the **existing** `save` (line 236); add one field declaration after `accent` (line 128)
 - Modify: `templates/institution/manage/_branding_fields.html` (the Identity section, after the `favicon` field)
 - Test: `tests/test_setup_wizard.py` (append)
 
 **Interfaces:**
-- Consumes: `institution.site_domain.validate_site_domain`, `institution.site_domain.set_site_domain` (Task 2).
+- Consumes: `institution.site_domain.validate_site_domain`, `institution.site_domain.set_site_domain`, and the `_reset_sites_framework_cache` fixture (all Task 2).
 - Produces: form field named `public_hostname` on `BrandingForm`. No later task depends on it.
 
-The wizard's Identity step is handled by `_modelform_step` (`institution/views_setup.py`), which calls `form.save()`. Overriding `BrandingForm.save()` is therefore sufficient — **do not modify `views_setup.py`**.
+**`BrandingForm` already defines both `__init__` and `save`.** Adding second definitions
+would leave two methods of the same name in one class body, and whichever is written later
+silently wins — either the Site is never written, or every brand-colour save is destroyed.
+Edit the existing methods.
+
+The wizard's Identity step is handled by `_modelform_step` (`institution/views_setup.py`), which calls `form.save()`. Editing `BrandingForm.save()` is therefore sufficient — **do not modify `views_setup.py`**.
 
 - [ ] **Step 1: Write the failing test**
 
 Append to `tests/test_setup_wizard.py`:
 
 ```python
+_IDENTITY_POST = {
+    "action": "next",
+    "name": "Acme Academy",
+    "enabled_languages": ["en", "pl"],
+    "default_language": "en",
+    "default_theme": "auto",
+    "primary": "#147e78",
+    "accent": "#c77b2a",
+}
+
+
 @pytest.mark.django_db
 def test_identity_step_sets_the_site_domain(client):
     """The non-technical fix for dead invitation links: a Platform Admin types
     the public hostname during first-run setup and the Site record is written."""
+    from django.conf import settings as dj_settings
     from django.contrib.sites.models import Site
 
     from tests.factories import make_pa
@@ -456,23 +596,32 @@ def test_identity_step_sets_the_site_domain(client):
     make_pa(client)
     resp = client.post(
         reverse("institution:setup_step", kwargs={"step": "identity"}),
-        {
-            "action": "next",
-            "name": "Acme Academy",
-            "enabled_languages": ["en", "pl"],
-            "default_language": "en",
-            "default_theme": "auto",
-            "primary": "#147e78",
-            "accent": "#c77b2a",
-            "public_hostname": "libli.example.org",
-        },
+        _IDENTITY_POST | {"public_hostname": "libli.example.org"},
     )
     assert resp.status_code == 302
-    assert Site.objects.get_current().domain == "libli.example.org"
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "libli.example.org"
+
+
+@pytest.mark.django_db
+def test_identity_step_still_saves_the_brand_colours(client):
+    """Guards the C1 hazard: BrandingForm.save already wrote BrandColor rows, and
+    a second save() definition would silently drop them."""
+    from institution.models import BrandColor
+    from tests.factories import make_pa
+
+    make_pa(client)
+    client.post(
+        reverse("institution:setup_step", kwargs={"step": "identity"}),
+        _IDENTITY_POST | {"public_hostname": "libli.example.org"},
+    )
+    rows = {c.key: c.value for c in BrandColor.objects.all()}
+    assert rows["primary"] == "#147e78"
+    assert rows["accent"] == "#c77b2a"
 
 
 @pytest.mark.django_db
 def test_identity_step_rejects_a_url_in_the_hostname(client):
+    from django.conf import settings as dj_settings
     from django.contrib.sites.models import Site
 
     from tests.factories import make_pa
@@ -480,24 +629,16 @@ def test_identity_step_rejects_a_url_in_the_hostname(client):
     make_pa(client)
     resp = client.post(
         reverse("institution:setup_step", kwargs={"step": "identity"}),
-        {
-            "action": "next",
-            "name": "Acme Academy",
-            "enabled_languages": ["en", "pl"],
-            "default_language": "en",
-            "default_theme": "auto",
-            "primary": "#147e78",
-            "accent": "#c77b2a",
-            "public_hostname": "https://libli.example.org/setup",
-        },
+        _IDENTITY_POST | {"public_hostname": "https://libli.example.org/setup"},
     )
     assert resp.status_code == 200  # re-renders the step, does not advance
-    assert Site.objects.get_current().domain == "example.com"  # untouched
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "example.com"
 
 
 @pytest.mark.django_db
 def test_identity_step_blank_hostname_leaves_the_site_alone(client):
     """The field is optional: an admin who skips it must not blank the domain."""
+    from django.conf import settings as dj_settings
     from django.contrib.sites.models import Site
 
     from institution.site_domain import set_site_domain
@@ -507,19 +648,10 @@ def test_identity_step_blank_hostname_leaves_the_site_alone(client):
     make_pa(client)
     resp = client.post(
         reverse("institution:setup_step", kwargs={"step": "identity"}),
-        {
-            "action": "next",
-            "name": "Acme Academy",
-            "enabled_languages": ["en", "pl"],
-            "default_language": "en",
-            "default_theme": "auto",
-            "primary": "#147e78",
-            "accent": "#c77b2a",
-            "public_hostname": "",
-        },
+        _IDENTITY_POST | {"public_hostname": ""},
     )
     assert resp.status_code == 302
-    assert Site.objects.get_current().domain == "already.example.org"
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "already.example.org"
 
 
 @pytest.mark.django_db
@@ -537,12 +669,12 @@ def test_identity_step_seeds_the_hostname_field_from_the_site(client):
 - [ ] **Step 2: Run the test and confirm it fails**
 
 ```bash
-uv run python -m pytest tests/test_setup_wizard.py -k "site_domain or hostname" -v
+uv run python -m pytest tests/test_setup_wizard.py -k "site_domain or hostname or brand_colours" -v
 ```
 
-Expected: FAIL — the Site stays `example.com`, and `name="public_hostname"` is absent from the rendered page.
+Expected: FAIL — the Site stays `example.com`, and `name="public_hostname"` is absent from the rendered page. (`test_identity_step_still_saves_the_brand_colours` passes already; it is the regression guard for Step 4.)
 
-- [ ] **Step 3: Add the field to `BrandingForm`**
+- [ ] **Step 3: Declare the field**
 
 In `institution/forms.py`, add the imports near the existing ones:
 
@@ -551,7 +683,7 @@ from institution.site_domain import set_site_domain
 from institution.site_domain import validate_site_domain
 ```
 
-Inside `class BrandingForm(forms.ModelForm):`, after the `accent` declaration (currently line 128), add:
+Inside `class BrandingForm(forms.ModelForm):`, after the `accent` declaration (line 128), add:
 
 ```python
     # NOT an Institution field: this writes django.contrib.sites.Site, which is
@@ -567,34 +699,51 @@ Inside `class BrandingForm(forms.ModelForm):`, after the `accent` declaration (c
     )
 ```
 
-Then add these three methods to the class:
+- [ ] **Step 4: Edit the EXISTING `__init__` and `save`**
+
+`__init__` is at line 152 and already seeds the colour fields with `self.initial.setdefault`. Append one more `setdefault` in the same idiom, immediately before the method ends:
 
 ```python
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         # Seed from the live Site so the admin edits the current value rather
-        # than a blank box. Import here: the sites app must be ready.
+        # than a blank box. Same setdefault idiom as the colours above.
         from django.contrib.sites.models import Site
 
-        self.fields["public_hostname"].initial = Site.objects.get_current().domain
+        self.initial.setdefault("public_hostname", Site.objects.get_current().domain)
+```
 
+Add the new `clean_public_hostname` alongside the existing `clean_*` methods:
+
+```python
     def clean_public_hostname(self):
         value = (self.cleaned_data.get("public_hostname") or "").strip()
         if not value:
             return ""  # optional: blank leaves the Site record untouched
         return validate_site_domain(value)
-
-    def save(self, commit=True):
-        instance = super().save(commit=commit)
-        hostname = self.cleaned_data.get("public_hostname")
-        if commit and hostname:
-            set_site_domain(hostname)
-        return instance
 ```
 
-If `BrandingForm` already defines `__init__`, merge the two bodies rather than adding a second one.
+`save` is at line 236 and already wraps `super().save()` in `transaction.atomic()` and
+writes the `BrandColor` rows. Add the Site write **inside** it, after the colour loop —
+do not add a second `save` method:
 
-- [ ] **Step 4: Render the field**
+```python
+    def save(self, commit=True):
+        with transaction.atomic():
+            inst = super().save(commit=commit)
+            for key in ("primary", "accent"):
+                BrandColor.objects.update_or_create(
+                    institution=inst,
+                    key=key,
+                    defaults={"value": self.cleaned_data[key]},
+                )
+            # Inside the same atomic block: a failed Site write must not leave
+            # the colours committed against a half-applied identity change.
+            hostname = self.cleaned_data.get("public_hostname")
+            if commit and hostname:
+                set_site_domain(hostname)
+        return inst
+```
+
+- [ ] **Step 5: Render the field**
 
 In `templates/institution/manage/_branding_fields.html`, inside the `── Identity ──` section, immediately **after** the `form.favicon` `settings__field` div and before that section's closing `</div>`:
 
@@ -607,7 +756,7 @@ In `templates/institution/manage/_branding_fields.html`, inside the `── Iden
   </div>
 ```
 
-- [ ] **Step 5: Run the test and confirm it passes**
+- [ ] **Step 6: Run the test and confirm it passes**
 
 ```bash
 uv run python -m pytest tests/test_setup_wizard.py -v
@@ -615,15 +764,16 @@ uv run python -m pytest tests/test_setup_wizard.py -v
 
 Expected: all pass, including the pre-existing wizard tests (the new field is optional, so the existing POST bodies that omit it must still succeed — if any now fail, `required=False` was lost).
 
-- [ ] **Step 6: Falsify — confirm the tests can fail**
+- [ ] **Step 7: Falsify — confirm the tests can fail**
 
-Three mutants, one at a time, each edited out by hand:
+Four mutants, one at a time, each edited out by hand:
 
-1. Delete the `set_site_domain(hostname)` call in `save()`. Expected: `test_identity_step_sets_the_site_domain` FAILS.
+1. Delete the `set_site_domain(hostname)` call from `save()`. Expected: `test_identity_step_sets_the_site_domain` FAILS.
 2. Change `clean_public_hostname` to `return value` without validating. Expected: `test_identity_step_rejects_a_url_in_the_hostname` FAILS (302 instead of 200, and the Site is corrupted).
 3. Drop the `if commit and hostname:` guard so a blank writes through. Expected: `test_identity_step_blank_hostname_leaves_the_site_alone` FAILS — the domain is blanked.
+4. Add a **second** `def save(self, commit=True)` at the end of the class that only calls `super().save(commit)`. Expected: `test_identity_step_still_saves_the_brand_colours` FAILS — this is the C1 hazard made observable.
 
-- [ ] **Step 7: Check the manage settings page still renders**
+- [ ] **Step 8: Check the manage settings page still renders**
 
 The template is shared with `templates/institution/manage/_branding_tab.html:13`. Confirm nothing there broke:
 
@@ -633,7 +783,7 @@ uv run python -m pytest tests/ -k "branding" -v
 
 Expected: pass.
 
-- [ ] **Step 8: Lint and commit**
+- [ ] **Step 9: Lint and commit**
 
 ```bash
 uv run ruff check . --no-cache && uv run ruff format --check .
@@ -643,6 +793,9 @@ git commit -m "feat(institution): public hostname field on the identity step
 Closes the gap docs/local-development.md describes as intended but never
 built: nothing in the wizard touched django.contrib.sites.Site, so Site #1
 stayed example.com and every invitation link on a fresh install was dead.
+
+Edits the EXISTING save() rather than adding a second one -- a duplicate
+definition would have silently dropped the BrandColor writes.
 
 The field is shared with the manage settings branding tab, so a Platform
 Admin can also correct it after first run."
@@ -659,32 +812,42 @@ Admin can also correct it after first run."
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
 - Produces: management command `seed_demo_activity`, invoked by Task 7's runbook as
-  `seed_demo_activity --course <slug> --subtree <pk> --students 20 --groups 2 --seed 12345`.
+  `seed_demo_activity --course <slug> --subtree <pk> --students 20 --groups 2 --seed 12345 --password <pw>`.
 
 **Read `courses/management/commands/seed_demo_course.py:320-370` before starting.** It is the reference implementation for the submission/progress half, and its docstrings document two traps this command must not re-fall into.
 
-Four hard constraints, each from existing code:
+Six hard constraints, each from existing code:
 
-1. **Enrollment is derived, never written.** `grouping/services.py:127` defines reachability as group membership; `recompute_enrollment` (`grouping/services.py:182`) creates the `Enrollment`. Writing `Enrollment` rows directly produces state no production path produces.
+1. **Enrollment is derived, never written.** `grouping/services.py:127` defines reachability as group membership; `add_students_to_group` calls `recompute_enrollment` per student (`grouping/services.py:216`). Writing `Enrollment` rows directly produces state no production path produces.
 2. **`UnitProgress` and `QuizSubmission` are separate writes.** `finalize_submission()` deliberately does not touch progress — see the docstring at `seed_demo_course.py:333`.
 3. **Review-mode responses must be stamped `reviewed_at`.** `rollups.submission_is_counted` (`courses/rollups.py:402`) excludes a submission with any unreviewed `REVIEW` question, so its score would silently vanish from the matrix.
 4. **No hardcoded password** — ruff `S106`.
+5. **`set_user_role` before `assign_student_to_cohort`.** `set_user_role` syncs Default-cohort membership through an `m2m_changed` receiver that reads `is_staff` during `groups.set`; assigning the demo cohort first would be undone.
+6. **Mail must be discarded, not captured.** `config/settings/test.py:7` already pins locmem, which *collects* mail into `mailoutbox` — so a locmem override proves nothing. Use the `dummy` backend, which discards.
 
 - [ ] **Step 1: Write the failing test**
 
 Create `tests/test_seed_demo_activity.py`:
 
 ```python
-"""seed_demo_activity: demo cohort + analytics-visible activity, idempotently."""
+"""seed_demo_activity: demo cohort + analytics-visible activity, idempotently.
+
+Every query here is scoped to `demo.student*`. The seeded_course fixture runs
+seed_demo_course, which creates its OWN students and -- deliberately -- one
+unreviewed REVIEW response (seed_demo_course.py:448). An unscoped assertion
+would fail on a perfectly correct seed_demo_activity.
+"""
 
 import pytest
 from django.core.management import call_command
 
+OWNED = "demo.student"
+
 
 @pytest.fixture
 def seeded_course(db):
-    """A small course with one lesson unit and one quiz unit carrying an AUTO
-    question. seed_demo_course builds exactly this shape and is idempotent."""
+    """A small course with a lesson unit and a quiz unit carrying questions.
+    seed_demo_course builds exactly this shape and is idempotent."""
     call_command("seed_demo_course")
     from courses.models import Course
 
@@ -692,9 +855,29 @@ def seeded_course(db):
 
 
 def _run(course, **kw):
-    opts = {"course": course.slug, "students": 6, "groups": 2, "seed": 12345}
+    opts = {
+        "course": course.slug,
+        "students": 6,
+        "groups": 2,
+        "seed": 12345,
+        "password": "seed-only-not-a-real-credential",  # noqa: S106
+    }
     opts.update(kw)
     call_command("seed_demo_activity", **opts)
+
+
+def _owned_responses():
+    from courses.models import QuestionResponse
+
+    return QuestionResponse.objects.filter(
+        submission__student__username__startswith=OWNED
+    )
+
+
+def _owned_submissions():
+    from courses.models import QuizSubmission
+
+    return QuizSubmission.objects.filter(student__username__startswith=OWNED)
 
 
 @pytest.mark.django_db
@@ -702,10 +885,32 @@ def test_creates_the_requested_students_with_unroutable_emails(seeded_course):
     from accounts.models import User
 
     _run(seeded_course)
-    students = User.objects.filter(username__startswith="demo.student")
+    students = User.objects.filter(username__startswith=OWNED)
     assert students.count() == 6
     # .invalid is reserved and can never resolve: no seeded mail can escape.
     assert all(u.email.endswith("@example.invalid") for u in students)
+
+
+@pytest.mark.django_db
+def test_students_get_a_display_name(seeded_course):
+    """User.__str__ returns display_name or username (accounts/models.py:41), so
+    without this the matrix renders demo.student01 and the name pairs are wasted."""
+    from accounts.models import User
+
+    _run(seeded_course)
+    for user in User.objects.filter(username__startswith=OWNED):
+        assert user.display_name
+        assert user.display_name != user.username
+
+
+@pytest.mark.django_db
+def test_students_hold_the_student_role(seeded_course):
+    from accounts.models import User
+    from institution.roles import STUDENT
+
+    _run(seeded_course)
+    for user in User.objects.filter(username__startswith=OWNED):
+        assert user.groups.filter(name=STUDENT).exists()
 
 
 @pytest.mark.django_db
@@ -715,7 +920,9 @@ def test_enrollment_is_derived_from_group_membership(seeded_course):
     from courses.models import Enrollment
 
     _run(seeded_course)
-    rows = Enrollment.objects.filter(course=seeded_course, student__username__startswith="demo.student")
+    rows = Enrollment.objects.filter(
+        course=seeded_course, student__username__startswith=OWNED
+    )
     assert rows.count() == 6
     assert set(rows.values_list("source", flat=True)) == {"group"}
 
@@ -734,19 +941,20 @@ def test_students_are_spread_across_the_requested_groups(seeded_course):
 def test_is_idempotent(seeded_course):
     from accounts.models import User
     from courses.models import Enrollment
-    from courses.models import QuizSubmission
 
     _run(seeded_course)
     first = (
-        User.objects.filter(username__startswith="demo.student").count(),
+        User.objects.filter(username__startswith=OWNED).count(),
         Enrollment.objects.filter(course=seeded_course).count(),
-        QuizSubmission.objects.count(),
+        _owned_submissions().count(),
+        _owned_responses().count(),
     )
     _run(seeded_course)
     second = (
-        User.objects.filter(username__startswith="demo.student").count(),
+        User.objects.filter(username__startswith=OWNED).count(),
         Enrollment.objects.filter(course=seeded_course).count(),
-        QuizSubmission.objects.count(),
+        _owned_submissions().count(),
+        _owned_responses().count(),
     )
     assert first == second
 
@@ -760,7 +968,9 @@ def test_submitted_quizzes_have_a_completed_unit_progress(seeded_course):
     from courses.models import UnitProgress
 
     _run(seeded_course)
-    for sub in QuizSubmission.objects.filter(status=QuizSubmission.Status.SUBMITTED):
+    submitted = _owned_submissions().filter(status=QuizSubmission.Status.SUBMITTED)
+    assert submitted.exists()  # the assertion below is vacuous otherwise
+    for sub in submitted:
         assert UnitProgress.objects.filter(
             student=sub.student, unit=sub.unit, completed=True
         ).exists()
@@ -769,52 +979,57 @@ def test_submitted_quizzes_have_a_completed_unit_progress(seeded_course):
 @pytest.mark.django_db
 def test_review_responses_are_marked_reviewed(seeded_course):
     """rollups.submission_is_counted excludes a submission with any unreviewed
-    REVIEW question, so its score would silently vanish from the matrix."""
+    REVIEW question, so its score would silently vanish from the matrix.
+
+    Scoped to this command's own rows: seed_demo_course deliberately leaves one
+    REVIEW response unreviewed so it lands in the review queue."""
     from courses.models import QuestionElement
-    from courses.models import QuestionResponse
 
     _run(seeded_course)
-    pending = [
+    review_rows = [
         r
-        for r in QuestionResponse.objects.select_related("element").all()
+        for r in _owned_responses().select_related("element")
         if getattr(r.element.content_object, "marking_mode", None)
         == QuestionElement.MarkingMode.REVIEW
-        and r.reviewed_at is None
     ]
-    assert pending == []
+    assert review_rows  # the assertion below is vacuous otherwise
+    assert [r for r in review_rows if r.reviewed_at is None] == []
 
 
 @pytest.mark.django_db
 def test_scores_vary_across_students(seeded_course):
-    """A flat block of identical scores makes the colour bands useless. The
-    seeded spread must actually spread."""
-    from courses.models import QuestionResponse
-
+    """A flat block of identical scores makes the colour bands useless."""
     _run(seeded_course)
-    fractions = set(QuestionResponse.objects.values_list("fraction", flat=True))
-    assert len(fractions) > 1
+    assert len(set(_owned_responses().values_list("fraction", flat=True))) > 1
 
 
 @pytest.mark.django_db
-def test_seeding_sends_no_email(seeded_course, mailoutbox):
-    """recompute_enrollment calls notify_enrolled, which emails each student.
-    Seeding 20 students against live SMTP would fire 20 sends."""
-    _run(seeded_course)
-    assert mailoutbox == []
+def test_seeding_sends_no_email(seeded_course, django_capture_on_commit_callbacks):
+    """notify() defers delivery to transaction.on_commit
+    (notifications/services.py:37), which never fires under a plain django_db
+    test -- so this MUST execute the callbacks or it is unconditionally green."""
+    from django.core import mail
+
+    mail.outbox.clear()
+    with django_capture_on_commit_callbacks(execute=True):
+        _run(seeded_course)
+    assert mail.outbox == []
 
 
 @pytest.mark.django_db
 def test_same_seed_produces_the_same_scores(seeded_course):
-    from courses.models import QuestionResponse
-
+    """Scoped deletes: wiping every submission would destroy seed_demo_course's
+    rows too, and only seed_demo_activity re-runs."""
     _run(seeded_course, seed=999)
-    first = sorted(QuestionResponse.objects.values_list("submission__student__username", "fraction"))
-    QuestionResponse.objects.all().delete()
-    from courses.models import QuizSubmission
-
-    QuizSubmission.objects.all().delete()
+    first = sorted(
+        _owned_responses().values_list("submission__student__username", "fraction")
+    )
+    _owned_responses().delete()
+    _owned_submissions().delete()
     _run(seeded_course, seed=999)
-    second = sorted(QuestionResponse.objects.values_list("submission__student__username", "fraction"))
+    second = sorted(
+        _owned_responses().values_list("submission__student__username", "fraction")
+    )
     assert first == second
 ```
 
@@ -838,21 +1053,26 @@ matrix, idempotently and deterministically.
 Not part of any install: this exists so a demo instance shows realistic data.
 A school's own instance never runs it.
 
-Four constraints, each from existing code:
+Six constraints, each from existing code:
 
 1. Enrollment is DERIVED, never written. grouping/services.py:127 defines
-   reachability as group membership and recompute_enrollment creates the row
-   with source="group". Writing Enrollment directly produces state no
-   production path produces.
+   reachability as group membership, and add_students_to_group already calls
+   recompute_enrollment per student (grouping/services.py:216).
 2. UnitProgress and QuizSubmission are separate writes. finalize_submission()
    deliberately does not touch progress -- see seed_demo_course.py:333.
 3. REVIEW-mode responses must carry reviewed_at, or
    rollups.submission_is_counted (courses/rollups.py:402) drops the whole
    submission from the matrix.
-4. Email is suppressed for the duration: recompute_enrollment calls
-   notify_enrolled, which sends one message per student.
+4. No hardcoded password (ruff S106).
+5. set_user_role BEFORE assign_student_to_cohort: set_user_role syncs
+   Default-cohort membership via an m2m_changed receiver that reads is_staff
+   during groups.set, so assigning the demo cohort first would be undone.
+6. Mail is DISCARDED, not captured. notify_enrolled sends one message per
+   student. The dummy backend throws them away; locmem would collect them,
+   which is what the test suite already installs.
 """
 
+import os
 import random
 import secrets
 from decimal import Decimal
@@ -866,6 +1086,7 @@ from django.utils import timezone
 
 from accounts.emails import ensure_verified_primary_email
 from accounts.models import User
+from accounts.services import set_user_role
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
@@ -874,6 +1095,7 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
 from courses.quiz import finalize_submission
+from courses.rollups import _QUESTION_MODELS
 from courses.rollups import is_quiz_unit
 from courses.rollups import units_in_order
 from courses.rollups import units_under
@@ -883,7 +1105,7 @@ from grouping.models import Cohort
 from grouping.models import Group
 from grouping.services import add_students_to_group
 from grouping.services import assign_student_to_cohort
-from grouping.services import recompute_enrollment
+from institution.roles import STUDENT
 from institution.roles import seed_roles
 
 # Ability bands: (share of the cohort, low fraction, high fraction). Chosen so
@@ -917,22 +1139,24 @@ class Command(BaseCommand):
             "--password",
             default=None,
             help="Shared demo password. Falls back to DEMO_STUDENT_PASSWORD, "
-            "else one is generated and printed once.",
+            "else one is generated and printed once. NOTE: it applies only to "
+            "students CREATED on this run; existing ones keep their password.",
         )
 
     def handle(self, *args, **options):
-        # Console backend for the whole run: recompute_enrollment ->
-        # notify_enrolled sends one email per student, and seeding 20 students
-        # against a live SMTP host would fire 20 messages at @example.invalid.
+        # The dummy backend DISCARDS. recompute_enrollment -> notify_enrolled
+        # sends one message per student, and seeding 20 against a live SMTP host
+        # would fire 20 at @example.invalid. override_settings is a test utility,
+        # used here deliberately: it is the only way to swap the backend for the
+        # duration of a call without threading a connection through
+        # grouping.services, which this command must not modify.
         with override_settings(
-            EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend"
+            EMAIL_BACKEND="django.core.mail.backends.dummy.EmailBackend"
         ):
             self._run(options)
 
     @transaction.atomic
     def _run(self, options):
-        import os
-
         course = Course.objects.filter(slug=options["course"]).first()
         if course is None:
             raise CommandError(f"No course with slug {options['course']!r}.")
@@ -948,7 +1172,7 @@ class Command(BaseCommand):
             password = secrets.token_urlsafe(12)
 
         rng = random.Random(options["seed"])
-        seed_roles()  # role auth-groups must exist before set_user_role
+        seed_roles()  # the role auth-groups must exist before set_user_role
 
         units = self._units(course, options["subtree"])
         students = self._students(n_students, password)
@@ -963,7 +1187,10 @@ class Command(BaseCommand):
         )
         if generated:
             self.stdout.write(
-                self.style.WARNING(f"Generated demo password: {password}")
+                self.style.WARNING(
+                    f"Generated demo password (applies to students created on "
+                    f"THIS run only): {password}"
+                )
             )
 
     def _units(self, course, subtree_pk):
@@ -995,7 +1222,12 @@ class Command(BaseCommand):
 
     def _students(self, n, password):
         """Fixed usernames make re-runs idempotent. @example.invalid is a
-        reserved TLD that can never resolve, so no seeded mail can escape."""
+        reserved TLD that can never resolve, so no seeded mail can escape.
+
+        display_name is what the UI shows: User.__str__ returns
+        `display_name or username` (accounts/models.py:41), so without it the
+        analytics matrix and group rosters would render demo.student01.
+        """
         out = []
         for i in range(n):
             username = f"demo.student{i + 1:02d}"
@@ -1007,18 +1239,22 @@ class Command(BaseCommand):
                     "email": f"{username}@example.invalid",
                     "first_name": first,
                     "last_name": last,
+                    "display_name": f"{first} {last}",
                 },
             )
             if created:
                 user.set_password(password)
                 user.save(update_fields=["password"])
-                ensure_verified_primary_email(user)
+                ensure_verified_primary_email(user, user.email)
+                set_user_role(user, STUDENT)
             out.append(user)
         return out
 
     def _place(self, course, students, n_groups):
-        """Cohort -> Allocation -> Groups -> membership -> recompute_enrollment.
-        Enrollment is never written directly; it is derived from reachability."""
+        """Cohort -> Allocation -> Groups -> membership. Enrollment is never
+        written directly: add_students_to_group calls recompute_enrollment per
+        student (grouping/services.py:216), which derives it from reachability.
+        """
         cohort, _ = Cohort.objects.get_or_create(name="Demo cohort")
         allocation, _ = Allocation.objects.get_or_create(
             course=course, name="Demo allocation"
@@ -1037,13 +1273,10 @@ class Command(BaseCommand):
                 group.save(update_fields=["allocation"])
             groups.append(group)
 
-        for i, student in enumerate(students):
+        for student in students:
             assign_student_to_cohort(student, cohort)
         for i, group in enumerate(groups):
-            members = students[i::n_groups]
-            add_students_to_group(group, members)
-        for student in students:
-            recompute_enrollment(student, course)
+            add_students_to_group(group, students[i::n_groups])
 
     def _ability(self, rng):
         roll = rng.random()
@@ -1073,10 +1306,8 @@ class Command(BaseCommand):
             progress.save()
 
     def _questions(self, unit):
-        """The same scan rollups.quiz_gradeable_max performs, so the responses
-        this writes and the maximum the matrix expects agree."""
-        from courses.rollups import _QUESTION_MODELS
-
+        """The same scan rollups.quiz_gradeable_max performs (courses/rollups.py:373),
+        so the responses this writes and the maximum the matrix expects agree."""
         ct_ids = {ContentType.objects.get_for_model(m).id for m in _QUESTION_MODELS}
         return [
             el
@@ -1132,17 +1363,18 @@ class Command(BaseCommand):
 uv run python -m pytest tests/test_seed_demo_activity.py -v
 ```
 
-Expected: 9 passed. `_QUESTION_MODELS` is defined at `courses/rollups.py:27`; import it rather than duplicating the list, so the seeder scans exactly the elements `quiz_gradeable_max` scores.
+Expected: 11 passed.
 
 - [ ] **Step 5: Falsify — confirm the tests can fail**
 
-Four mutants, one at a time, each edited out by hand afterwards:
+**Six mutants**, one at a time, each edited out by hand afterwards:
 
-1. Replace the `_place` body's last loop with `Enrollment.objects.create(student=student, course=course)`. Expected: `test_enrollment_is_derived_from_group_membership` FAILS on `source`.
-2. Delete the `self._complete(student, unit)` call at the end of `_quiz`. Expected: `test_submitted_quizzes_have_a_completed_unit_progress` FAILS.
-3. Delete the `reviewed_at` block. Expected: `test_review_responses_are_marked_reviewed` FAILS. *If the demo course has no REVIEW-mode question this test is vacuous — add one to the fixture rather than accepting a test that cannot fail.*
-4. Remove the `override_settings` wrapper. Expected: `test_seeding_sends_no_email` FAILS with a non-empty outbox.
-5. In `_units`, replace the ordered intersection with `units = list(units_under(root, drafts="hide"))`. Expected: `test_same_seed_produces_the_same_scores` FAILS **intermittently** — set iteration order varies per process, so rng draws land on different units. If it passes, run it a few times under `-p no:randomly`; an intermittent mutant that never trips still proves the ordering matters, so keep the intersection either way.
+1. Replace the `_place` group loop with `Enrollment.objects.create(student=student, course=course)` per student. Expected: `test_enrollment_is_derived_from_group_membership` FAILS on `source`.
+2. Delete the trailing `self._complete(student, unit)` call in `_quiz`. Expected: `test_submitted_quizzes_have_a_completed_unit_progress` FAILS.
+3. Delete the `reviewed_at` block. Expected: `test_review_responses_are_marked_reviewed` FAILS. (Its `assert review_rows` guard means a demo course with no REVIEW question fails loudly rather than passing vacuously.)
+4. Change the backend in `handle` to `locmem`. Expected: `test_seeding_sends_no_email` FAILS with a non-empty outbox — this is what proves the guard is real, since the test settings already install locmem.
+5. Drop `"display_name"` from the `_students` defaults. Expected: `test_students_get_a_display_name` FAILS.
+6. In `_units`, replace the ordered intersection with `units = list(units_under(root, drafts="hide"))`. Expected: `test_same_seed_produces_the_same_scores` FAILS **intermittently** — set iteration order varies per process. If it passes, run it several times; an intermittent mutant that never trips still proves the ordering matters, so keep the intersection either way.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -1154,8 +1386,8 @@ git commit -m "feat(courses): seed_demo_activity command
 Deterministic, idempotent demo cohort with enough spread that the analytics
 colour bands show range. Drives the real grouping services so Enrollment is
 derived exactly as production derives it, stamps reviewed_at on REVIEW
-questions so submission_is_counted keeps their scores, and suppresses email
-so seeding cannot fire one notification per student."
+questions so submission_is_counted keeps their scores, and discards mail so
+seeding cannot fire one notification per student."
 ```
 
 ---
@@ -1168,9 +1400,9 @@ so seeding cannot fire one notification per student."
 
 **Interfaces:**
 - Consumes: `set_site_domain` management command (Task 2).
-- Produces: an image whose entrypoint accepts `DJANGO_SITE_DOMAIN`, `INIT_ADMIN_USERNAME`, `INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`, and serves on container port `8000`. Task 6's compose file depends on these names.
+- Produces: an image whose entrypoint accepts `DJANGO_SITE_DOMAIN`, `INIT_ADMIN_USERNAME`, `INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`, serves on container port `8000`, exposes `/healthz/` for a healthcheck, and **execs any command passed as arguments** instead of starting gunicorn. Task 6's compose file depends on all of these.
 
-This task has no pytest coverage — it is verified by building and running the image. That is stated rather than papered over with a test that asserts a file exists.
+This task's real verification is Task 6 Step 5, which runs the stack. The checks here are build-time only, and the plan says so rather than implying more.
 
 - [ ] **Step 1: Add gunicorn**
 
@@ -1203,8 +1435,6 @@ support_screenshots
 *.log
 .env
 docker-compose.test.yml
-support_screenshots
-transfer_staging
 tests
 docs
 ```
@@ -1217,18 +1447,23 @@ docs
 # interpreter anyway.
 FROM python:3.13-slim
 
+# UV_FROZEN: never re-resolve at runtime. Without it every `uv run` in the
+# entrypoint re-checks the lockfile, which can become a network operation on a
+# box with restricted egress.
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
+    UV_FROZEN=1 \
     DJANGO_SETTINGS_MODULE=config.settings.production
 
-# libpq for psycopg, curl for the compose healthcheck.
+# libpq for psycopg; curl for the compose healthcheck defined in Task 6.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libpq5 curl \
  && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Pinned: :latest would let a uv release change `sync`/`run` behaviour and break
+# the deploy with no diff in the repo.
+COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
@@ -1243,7 +1478,7 @@ COPY . .
 # which is manifest-based -- without the manifest in the image every {% static %}
 # reference raises at runtime.
 #
-# A throwaway SECRET_KEY and a blank DATABASE_URL: collectstatic touches neither,
+# A throwaway SECRET_KEY and a dummy DATABASE_URL: collectstatic touches neither,
 # but settings import requires them to be present.
 RUN DJANGO_SECRET_KEY=build-only-not-a-runtime-secret \
     DATABASE_URL=postgres://u:p@localhost:5432/db \
@@ -1264,25 +1499,23 @@ Use LF line endings. On Windows confirm with `file docker-entrypoint.sh` — a C
 
 ```bash
 #!/bin/sh
-# libli container entrypoint. Ordered bootstrap, then the app server.
+# libli container entrypoint. Ordered bootstrap, then either the command passed
+# as arguments or the app server.
 #
 # Safe ONLY because there is exactly one app container: `migrate` here would
 # race between replicas. Do not scale this service.
 set -eu
 
+VENV_PY=/app/.venv/bin/python
+
 echo "==> waiting for the database"
 i=0
-until uv run python -c "
-import sys
-from django.db import connection
+until "$VENV_PY" -c "
 import django
 django.setup()
-try:
-    connection.ensure_connection()
-except Exception as exc:
-    print(exc, file=sys.stderr)
-    sys.exit(1)
-" 2>/dev/null; do
+from django.db import connection
+connection.ensure_connection()
+"; do
   i=$((i + 1))
   if [ "$i" -ge 60 ]; then
     echo "!! database unreachable after 60 attempts; refusing to start" >&2
@@ -1292,7 +1525,7 @@ except Exception as exc:
 done
 
 echo "==> migrate"
-uv run python manage.py migrate --noinput
+"$VENV_PY" manage.py migrate --noinput
 
 # Unconditional, even though init_platform also calls it. Permissions live as
 # constants in institution/roles.py but are only ASSIGNED by seed_roles(); on an
@@ -1300,12 +1533,12 @@ uv run python manage.py migrate --noinput
 # the only caller. No test can catch its omission -- tests/factories.py calls
 # seed_roles() itself, so the suite passes either way.
 echo "==> setup_roles"
-uv run python manage.py setup_roles
+"$VENV_PY" manage.py setup_roles
 
 # Site #1 ships as example.com and build_accept_url builds invitation and
 # password-reset links from it. A no-op when DJANGO_SITE_DOMAIN is unset.
 echo "==> set_site_domain"
-uv run python manage.py set_site_domain
+"$VENV_PY" manage.py set_site_domain
 
 # Only when fully specified: init_platform fails fast on missing credentials
 # when non-interactive, which must not stop a healthy instance from booting.
@@ -1313,20 +1546,31 @@ if [ -n "${INIT_ADMIN_USERNAME:-}" ] \
    && [ -n "${INIT_ADMIN_EMAIL:-}" ] \
    && [ -n "${INIT_ADMIN_PASSWORD:-}" ]; then
   echo "==> init_platform"
-  uv run python manage.py init_platform
+  "$VENV_PY" manage.py init_platform
 else
   echo "==> init_platform skipped (INIT_ADMIN_* not fully set)"
 fi
 
+# `docker compose run app <cmd>` must run <cmd>, not silently boot a web server.
+if [ "$#" -gt 0 ]; then
+  echo "==> exec $*"
+  exec "$@"
+fi
+
 echo "==> gunicorn"
+# The venv binary directly, NOT `uv run gunicorn`: gunicorn must be PID 1 so it
+# receives SIGTERM itself. With --timeout 1800 chosen so a 25-minute import is
+# not killed, a TERM swallowed by an intermediate process is a data-loss path.
+#
 # --timeout 1800: a multi-GB course import occupies one worker for ~25 minutes
 # of sustained upload; the 30s default would kill it mid-stage.
 # --threads: keeps the site responsive while one worker is consumed by that import.
-exec uv run gunicorn config.wsgi:application \
+exec /app/.venv/bin/gunicorn config.wsgi:application \
   --bind 0.0.0.0:8000 \
   --workers "${GUNICORN_WORKERS:-2}" \
   --threads "${GUNICORN_THREADS:-4}" \
   --timeout "${GUNICORN_TIMEOUT:-1800}" \
+  --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT:-120}" \
   --access-logfile - \
   --error-logfile -
 ```
@@ -1339,13 +1583,16 @@ docker build -t libli:local .
 
 Expected: builds clean. The `collectstatic` layer must report the number of files copied — if it errors on a missing static reference, that is a real bug to fix now, not at deploy time.
 
-- [ ] **Step 6: Verify the entrypoint ordering is what shipped**
+- [ ] **Step 6: Verify the argument passthrough**
 
 ```bash
-docker run --rm --entrypoint sh libli:local -c 'grep -n "^echo \"==>" /usr/local/bin/docker-entrypoint.sh'
+docker run --rm --entrypoint sh libli:local -c 'echo passthrough-ok'
+docker run --rm libli:local /app/.venv/bin/python -c "print('exec-ok')" 2>&1 | tail -2
 ```
 
-Expected, in this order: waiting for the database, migrate, setup_roles, set_site_domain, gunicorn (with the conditional init_platform between the last two).
+Expected: the first prints `passthrough-ok`. The second reaches the DB-wait loop and fails there (no database) — that is correct and proves the bootstrap runs; what matters is that it does **not** print `==> gunicorn`. The real passthrough test runs against the live stack in Task 6 Step 5.
+
+The *ordering* of the bootstrap is verified in Task 6 Step 5 against the runtime log, not by grepping this file — grepping the file just written proves only that `COPY` worked.
 
 - [ ] **Step 7: Commit**
 
@@ -1356,21 +1603,25 @@ git commit -m "feat(deploy): production image and ordered entrypoint
 gunicorn was not a dependency at all. collectstatic runs at build time
 because whitenoise's manifest storage needs the manifest in the image.
 setup_roles runs unconditionally: init_platform is conditional, and no
-test can catch a missing role seed."
+test can catch a missing role seed.
+
+gunicorn is exec'd from the venv rather than through `uv run` so it is
+PID 1 and receives SIGTERM itself; with --timeout 1800 a swallowed TERM
+would abort an in-flight import."
 ```
 
 ---
 
-### Task 6: Compose stack, Caddyfile, env example
+### Task 6: Compose stack, Caddyfile, env example, local smoke test
 
 **Files:**
 - Create: `docker-compose.prod.yml`, `Caddyfile`, `.env.production.example`
 
 **Interfaces:**
-- Consumes: the image and env var names from Task 5; `LIBLI_TRANSFER_MAX_*` from Task 1; `DJANGO_SITE_DOMAIN` from Task 2.
+- Consumes: the image, `/healthz/`, and the argument passthrough from Task 5; `LIBLI_TRANSFER_MAX_*` from Task 1; `DJANGO_SITE_DOMAIN` from Task 2.
 - Produces: service names `app`, `db`, `caddy`; volumes `pgdata`, `media`, `transfer_staging`, `support_screenshots`, `caddy_data`, `caddy_config`. Task 7's runbook references these by name.
 
-Named `docker-compose.prod.yml`, not `docker-compose.yml`, so it can never be picked up by a bare `docker compose` in the repo root alongside the existing `docker-compose.test.yml`.
+Named `docker-compose.prod.yml`, not `docker-compose.yml`, so it can never be picked up by a bare `docker compose` in the repo root alongside the existing `docker-compose.test.yml`. The app's env file is `.env.production`, **not** `.env` — the repo root already holds a local-dev `.env` with `DJANGO_DEBUG=true`, and pointing the container at it would inline local settings into a production run.
 
 - [ ] **Step 1: Write `Caddyfile`**
 
@@ -1400,7 +1651,8 @@ Named `docker-compose.prod.yml`, not `docker-compose.yml`, so it can never be pi
 	#
 	# transfer_staging/ and support_screenshots/ are deliberately NOT routed
 	# here either, and must never be: staged archives are raw unvalidated
-	# uploads, and screenshots may carry another student's grades.
+	# uploads, and screenshots may carry another student's grades. Step 5 and
+	# the runbook both prove they 404 with a real request, not a grep.
 
 	handle {
 		reverse_proxy app:8000 {
@@ -1428,7 +1680,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-libli}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
       POSTGRES_DB: ${POSTGRES_DB:-libli}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -1444,29 +1696,44 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file: .env
+    env_file: .env.production
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DATABASE_URL: postgres://${POSTGRES_USER:-libli}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-libli}
       DJANGO_BEHIND_PROXY: "true"
+      # Django spills uploads above FILE_UPLOAD_MAX_MEMORY_SIZE to the system
+      # temp dir BEFORE the view moves them to TRANSFER_STAGING_DIR. Left at the
+      # default that is a multi-GB write to the container's overlay filesystem on
+      # the host root disk. Point it at the staging volume so the transient copy
+      # lands on sized storage that the disk arithmetic accounts for.
+      FILE_UPLOAD_TEMP_DIR: /app/transfer_staging
     volumes:
       - media:/app/media
       - transfer_staging:/app/transfer_staging
       - support_screenshots:/app/support_screenshots
     expose:
       - "8000"
+    healthcheck:
+      # Gates caddy's start: without it the first requests after a deploy 502
+      # while migrate runs, which is also when Caddy is completing ACME.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
 
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
       - "443:443/udp"
     environment:
-      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env}
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.production}
       CADDY_MAX_BODY: ${CADDY_MAX_BODY:-1GB}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -1487,12 +1754,14 @@ volumes:
 - [ ] **Step 3: Write `.env.production.example`**
 
 ```bash
-# Copy to .env next to docker-compose.prod.yml and fill in. Never commit the
-# filled copy. Mirrors the "production only" block of .env.example.
+# Copy to .env.production next to docker-compose.prod.yml and fill in. Never
+# commit the filled copy. NOT named .env -- the repo root already holds a
+# local-dev .env with DJANGO_DEBUG=true.
 
 # --- identity ---
 # The address Caddy answers on and requests a certificate for. A bare hostname
-# gets automatic HTTPS from Let's Encrypt.
+# gets automatic HTTPS from Let's Encrypt. Use http://localhost for a local
+# smoke test, which skips ACME entirely.
 SITE_ADDRESS=libli.example.org
 
 # Host part only. Used to build invitation and password-reset links, which come
@@ -1513,6 +1782,11 @@ INIT_ADMIN_USERNAME=admin
 INIT_ADMIN_EMAIL=admin@example.org
 INIT_ADMIN_PASSWORD=
 
+# --- demo data (only if you run seed_demo_activity; harmless otherwise) ---
+# Set explicitly so a re-run does not print a NEW password that does not apply
+# to the already-created students.
+# DEMO_STUDENT_PASSWORD=
+
 # --- email (left unset, mail is logged to the console, visibly unconfigured) ---
 # DJANGO_EMAIL_HOST=smtp.example.org
 # DJANGO_EMAIL_PORT=587
@@ -1526,6 +1800,7 @@ INIT_ADMIN_PASSWORD=
 GUNICORN_WORKERS=2
 GUNICORN_THREADS=4
 GUNICORN_TIMEOUT=1800
+GUNICORN_GRACEFUL_TIMEOUT=120
 
 # --- transfer caps: RAISE ONLY IF YOU HOST AN OVERSIZED COURSE ---
 # The shipped defaults (1 GiB / 1.5 GiB / 1000 entries) are deliberate
@@ -1542,26 +1817,79 @@ GUNICORN_TIMEOUT=1800
 - [ ] **Step 4: Validate the compose file**
 
 ```bash
-cp .env.production.example .env.compose-check
-printf '\nPOSTGRES_PASSWORD=x\nDJANGO_SECRET_KEY=y\n' >> .env.compose-check
-docker compose -f docker-compose.prod.yml --env-file .env.compose-check config >/dev/null && echo OK
-rm .env.compose-check
+cp .env.production.example .env.production
+printf '\nPOSTGRES_PASSWORD=localsmoke\nDJANGO_SECRET_KEY=localsmoke\n' >> .env.production
+sed -i 's|^SITE_ADDRESS=.*|SITE_ADDRESS=http://localhost|' .env.production
+sed -i 's|^DJANGO_ALLOWED_HOSTS=.*|DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,app|' .env.production
+sed -i 's|^DJANGO_CSRF_TRUSTED_ORIGINS=.*|DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost|' .env.production
+sed -i 's|^DJANGO_SITE_DOMAIN=.*|DJANGO_SITE_DOMAIN=localhost|' .env.production
+printf '\nDJANGO_SECURE_SSL_REDIRECT=false\n' >> .env.production
+
+docker compose -f docker-compose.prod.yml --env-file .env.production config \
+  | grep -E "DJANGO_SETTINGS_MODULE|FILE_UPLOAD_TEMP_DIR"
 ```
 
-Expected: `OK`. A missing required variable surfaces here rather than on the droplet.
+Expected: `DJANGO_SETTINGS_MODULE: config.settings.production` and the `FILE_UPLOAD_TEMP_DIR` line. If `config.settings.local` appears, the service is reading the wrong env file.
 
-- [ ] **Step 5: Confirm the staging volumes are not web-served**
+`.env.production` is gitignored via the existing `.env` rule only if that rule is a glob — check `.gitignore` and add `.env.production` explicitly if not.
+
+- [ ] **Step 5: Run the whole stack locally — the real verification**
+
+This is the first time `app`, `db` and `caddy` run together. Every integration failure the
+build steps cannot see — the DB-wait loop, `migrate` under the production settings module,
+whitenoise behind Caddy, the media mount, `env_file` resolution, the gunicorn bind, the
+healthcheck gate — surfaces here rather than on the VPS with ACME in flight.
+
+`SITE_ADDRESS=http://localhost` makes Caddy serve plain HTTP and skip Let's Encrypt.
 
 ```bash
-grep -n "transfer_staging\|support_screenshots" Caddyfile
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml logs -f app     # Ctrl-C once gunicorn starts
 ```
 
-Expected: **only** the comment lines — no `root`, `file_server`, or `handle` referencing either. Raw unvalidated uploads and other students' grades must not be reachable over HTTP.
+Assert the bootstrap ran in the right order — against the **runtime log**, not the script:
+
+```bash
+docker compose -f docker-compose.prod.yml logs app | grep '==>'
+```
+
+Expected, in this order: `waiting for the database`, `migrate`, `setup_roles`,
+`set_site_domain`, `init_platform` (or its "skipped" line), `gunicorn`.
+
+Then:
+
+```bash
+# a media file to range-test
+docker compose -f docker-compose.prod.yml exec app \
+  sh -c 'mkdir -p /app/media/smoke && head -c 1048576 /dev/urandom > /app/media/smoke/probe.bin'
+
+curl -sI http://localhost/healthz/                                   # 200
+curl -sI http://localhost/static/admin/css/base.css                  # 200, whitenoise manifest
+curl -sI http://localhost/media/smoke/probe.bin -H 'Range: bytes=0-100' | head -5
+#   MUST be 206 Partial Content with accept-ranges: bytes
+
+# The staging directories must NOT be reachable. A grep of the Caddyfile cannot
+# prove this; a request can.
+curl -so /dev/null -w '%{http_code}\n' http://localhost/transfer_staging/
+curl -so /dev/null -w '%{http_code}\n' http://localhost/support_screenshots/
+#   both MUST be 404 (or 403) -- never 200 and never a directory listing
+
+# Argument passthrough (Task 5's interface)
+docker compose -f docker-compose.prod.yml run --rm app \
+  /app/.venv/bin/python manage.py showmigrations --plan | tail -3
+```
+
+Tear down, destroying the volumes so nothing local leaks into a later run:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production down -v
+rm .env.production
+```
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add docker-compose.prod.yml Caddyfile .env.production.example
+git add docker-compose.prod.yml Caddyfile .env.production.example .gitignore
 git commit -m "feat(deploy): compose stack with Caddy serving media
 
 Caddy over nginx for two reasons that matter at this size: it streams
@@ -1569,8 +1897,12 @@ request bodies (nginx buffers the whole body to disk, a fourth multi-GB
 copy during import) and its file_server does HTTP Range, which Django
 does not implement anywhere and which video seeking requires.
 
+FILE_UPLOAD_TEMP_DIR points at the staging volume: Django spills large
+uploads to the system temp dir before the view stages them, which by
+default is a multi-GB write to the container overlay on the root disk.
+
 transfer_staging and support_screenshots are volumes but deliberately
-have no Caddy route."
+have no Caddy route, proven by a request rather than a grep."
 ```
 
 ---
@@ -1579,15 +1911,13 @@ have no Caddy route."
 
 **Files:**
 - Create: `docs/deployment.md`
-- Modify: `docs/roadmap.md:175` — the cross-cutting concern is now partly resolved; point at the new doc.
+- Modify: `docs/roadmap.md` — the "Non-technical deployment/install" bullet (begins at line **174**); point it at the new doc.
 
 **Interfaces:**
 - Consumes: every artifact from Tasks 1-6.
 - Produces: nothing consumed by code.
 
 - [ ] **Step 1: Write `docs/deployment.md`**
-
-Cover, in order, with real commands rather than descriptions:
 
 1. **Provision.** Contabo VPS, Ubuntu 24.04, **50 GB disk minimum** (peak usage during a matematyka import is ~17 GB; steady is ~9 GB). Order early — Contabo accounts sometimes get manual review before provisioning, which can take a day.
 
@@ -1614,13 +1944,13 @@ Cover, in order, with real commands rather than descriptions:
 
    ```bash
    git clone <repo-url> /opt/libli && cd /opt/libli
-   cp .env.production.example .env
+   cp .env.production.example .env.production
    python3 -c "import secrets; print(secrets.token_urlsafe(64))"   # DJANGO_SECRET_KEY
    python3 -c "import secrets; print(secrets.token_urlsafe(32))"   # POSTGRES_PASSWORD
-   nano .env                                                        # fill every blank
-   chmod 600 .env
+   nano .env.production                                             # fill every blank
+   chmod 600 .env.production
    docker compose -f docker-compose.prod.yml up -d --build
-   docker compose -f docker-compose.prod.yml logs -f app            # watch the ordered bootstrap
+   docker compose -f docker-compose.prod.yml logs -f app
    ```
 
    The log must show, in order: `waiting for the database`, `migrate`, `setup_roles`, `set_site_domain`, `init_platform`, `gunicorn`.
@@ -1628,43 +1958,78 @@ Cover, in order, with real commands rather than descriptions:
 4. **Verify** — run every check in Step 2 below before going further.
 
 5. **Walk the first-run wizard** at `https://<host>/setup/`, signed in as the `INIT_ADMIN_USERNAME` account. Confirm the Identity step shows the **Public hostname** field pre-filled with the value the entrypoint set, and that the five steps (Welcome → Identity → Access → Team → SSO) complete. This is the non-developer surface — walk it as a school admin would, without a shell open.
-6. **Load matematyka.** Raise the three `LIBLI_TRANSFER_MAX_*` vars and `CADDY_MAX_BODY` in `.env`, restart, check `df -h` shows ≥17 GB free, export locally from the builder, then import through the web UI. After success, delete the staged archive rather than waiting out the 6-hour `TRANSFER_STAGING_MAX_AGE_HOURS`:
-   ```bash
-   docker compose -f docker-compose.prod.yml exec app sh -c 'rm -f /app/transfer_staging/*.zip'
-   ```
-   Then **lower the caps back** and restart, so the demo box does not sit with a 5 GB upload ceiling.
-7. **Seed the demo data.**
+
+6. **Load matematyka.** Raise the three `LIBLI_TRANSFER_MAX_*` vars and `CADDY_MAX_BODY` in `.env.production`, `docker compose … up -d` to apply, confirm `df -h /` shows **≥17 GB** free, then export locally from the builder and import through the web UI.
+
+   After success, delete the staged archive rather than waiting out the 6-hour `TRANSFER_STAGING_MAX_AGE_HOURS`:
+
    ```bash
    docker compose -f docker-compose.prod.yml exec app \
-     uv run python manage.py seed_demo_course
-   docker compose -f docker-compose.prod.yml exec app \
-     uv run python manage.py seed_demo_activity \
-       --course matematyka --subtree <pk> --students 20 --groups 2 --seed 12345
+     sh -c 'rm -f /app/transfer_staging/*.zip'
    ```
-8. **Schedule the notification purge** — `docs/local-development.md` notes there is no built-in scheduler and the table grows without one.
-9. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served.
+
+   Then **lower the caps back** and `up -d` again, so the demo box does not sit with a 5 GB upload ceiling.
+
+7. **Find the course slug and subtree pk** before seeding — the importer assigns the slug, and it is not guaranteed to be `matematyka`:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml exec app /app/.venv/bin/python manage.py shell -c "
+   from courses.models import Course, ContentNode
+   for c in Course.objects.all():
+       print(c.pk, repr(c.slug), c.title)
+   "
+   # then, with the slug from above:
+   docker compose -f docker-compose.prod.yml exec app /app/.venv/bin/python manage.py shell -c "
+   from courses.models import ContentNode
+   for n in ContentNode.objects.filter(course__slug='<slug>', parent__isnull=True).order_by('order'):
+       print(n.pk, n.kind, n.title)
+   "
+   ```
+
+8. **Seed the demo data.** Set `DEMO_STUDENT_PASSWORD` in `.env.production` first, so a re-run does not print a new password that does not apply to existing students.
+
+   ```bash
+   docker compose -f docker-compose.prod.yml exec app \
+     /app/.venv/bin/python manage.py seed_demo_course
+   docker compose -f docker-compose.prod.yml exec app \
+     /app/.venv/bin/python manage.py seed_demo_activity \
+       --course <slug> --subtree <pk> --students 20 --groups 2 --seed 12345
+   ```
+
+9. **Schedule the notification purge** — `docs/local-development.md` notes there is no built-in scheduler and the table grows without one.
+
+10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
 
 - [ ] **Step 2: Put the post-deploy checks in the runbook verbatim**
 
 ```bash
+# Pick a real media file first -- this check is the one most likely to be
+# skipped, and a placeholder path is why.
+MP4=$(docker compose -f docker-compose.prod.yml exec -T app \
+        sh -c 'find /app/media -name "*.mp4" | head -1' | tr -d '\r')
+REL=${MP4#/app/media/}
+echo "https://<host>/media/$REL"
+
 # Video seeking. A 200 here means every student's <video> is unseekable --
 # the page looks fine and only someone trying to replay a passage finds out.
-curl -sI https://<host>/media/<some>.mp4 -H 'Range: bytes=0-100' | head -5
+curl -sI "https://<host>/media/$REL" -H 'Range: bytes=0-100' | head -5
 # MUST show: HTTP/2 206  and  accept-ranges: bytes
 
-# Whitenoise manifest intact
-curl -sI https://<host>/static/admin/css/base.css | head -3   # 200
-
-# TLS and the HTTP redirect
+curl -sI https://<host>/healthz/                               # 200
+curl -sI https://<host>/static/admin/css/base.css              # 200
 curl -sI http://<host>/ | head -3                              # 301/308 to https
 
-# Disk headroom BEFORE importing
-df -h /
+# Staging dirs must be unreachable -- a request, not a grep.
+curl -so /dev/null -w '%{http_code}\n' https://<host>/transfer_staging/
+curl -so /dev/null -w '%{http_code}\n' https://<host>/support_screenshots/
+# both MUST be 404/403
+
+df -h /                                                        # ≥17 GB before importing
 ```
 
 - [ ] **Step 3: Update the roadmap**
 
-In `docs/roadmap.md`, amend the "Non-technical deployment/install" bullet to note that the containerised install now exists and point at `docs/deployment.md`. Keep the edit **line-count neutral** if practical — line-inserting diffs rot `file:line` citations elsewhere in the docs.
+In `docs/roadmap.md`, amend the "Non-technical deployment/install" bullet (line 174) to note that the containerised install now exists and point at `docs/deployment.md`. Keep the edit **line-count neutral** if practical — line-inserting diffs rot `file:line` citations elsewhere in the docs.
 
 - [ ] **Step 4: Commit**
 
@@ -1673,7 +2038,9 @@ git add docs/deployment.md docs/roadmap.md
 git commit -m "docs: deployment runbook
 
 Includes the Range check on /media/, which is the one post-deploy
-verification that must not be skipped: a 200 there is a silent failure."
+verification that must not be skipped: a 200 there is a silent failure.
+The slug and subtree pk are looked up rather than assumed -- the importer
+assigns the slug."
 ```
 
 ---
