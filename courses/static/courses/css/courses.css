@@ -1348,6 +1348,20 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    selected from the legacy HTML; 71 had a stored counterpart and were
    converted.) --- */
 .el--math { overflow-x: auto; }
+/* `overflow-x: auto` also makes `.el--math` a block formatting context root,
+   which stops KaTeX's `.katex-display { margin: 1em 0 }` collapsing out through
+   it -- for EVERY math element in the app, not just the 71. A/B MEASURED on a
+   math-heavy lesson at 1280px (overflow-x: auto vs overflow-x: visible, same
+   page, same render): whitespace above and below each formula 60.78px against
+   44.78px, and 76.78px against 44.78px between two adjacent math elements. The
+   page grew 96px over three math elements -- 32px each. The gap BETWEEN element
+   boxes was 44.78px in both runs: without the BFC the vendor margin collapsed
+   into that larger gap and contributed nothing, and with it the margin turns
+   additive. Zeroing it restores the collapsed geometry exactly (re-measured:
+   identical to the overflow-x: visible run). Scoped to `.el--math` alone:
+   `.el--table`/`.el--filltable` keep the vendor margin (see the alignment block
+   above, which deliberately leaves it untouched). */
+.el--math > .katex-display { margin-block: 0; }
 
 /* The step highlight, carried by \htmlClass{mk mk-amber} inside the array.
    NOT \colorbox: that compiles to an inline background-color, so it can never

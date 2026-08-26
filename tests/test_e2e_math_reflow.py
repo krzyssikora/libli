@@ -323,3 +323,72 @@ def test_centred_display_math_is_reflowed(page, live_server):
     html = page.locator(".el--text").inner_html()
     assert 'class="ta-center"' in html  # the alignment survived the merge
     assert "</div><div" not in html  # and the three lines became one block
+
+
+# ---- Step 4: the long-division highlight -------------------------------------
+
+
+def test_marked_array_cell_renders_highlighted(page, live_server):
+    """The whole \\htmlClass chain on the REAL render path, in one assertion set.
+
+    Three independent things must hold for `.el--math .mk-amber` to exist and be
+    painted: math.js's `trust` option must admit `\\htmlClass{mk mk-amber}` (both
+    the command AND the class value), KaTeX must put the class on a node it
+    builds, and courses.css must define the rule. Each is source-guarded in
+    tests/test_long_division_render_static.py; this is the test that makes those
+    guards redundant rather than load-bearing.
+
+    Dropping the trust option is NOT a silent no-op: KaTeX routes an untrusted
+    command to `formatUnsupportedCmd`, which drops the argument and renders the
+    command NAME in `errorColor` -- the digit vanishes behind a red \\htmlClass.
+    """
+    unit = _open_pa_session(page, live_server, "mr_mark", "mr-mark")
+    add_element(
+        unit,
+        MathElement.objects.create(
+            latex="\\begin{array}{r}\\htmlClass{mk mk-amber}{2}\\end{array}"
+        ),
+    )
+
+    page.goto(_lesson_url(live_server, unit))
+    page.wait_for_selector(".el--math .katex")
+    mark = page.locator(".el--math .mk-amber")
+    assert mark.count() == 1
+    assert mark.first.inner_text().strip() == "2"
+
+    painted = page.evaluate(
+        "() => getComputedStyle(document.querySelector('.el--math .mk-amber'))"
+        ".backgroundColor"
+    )
+    assert painted not in ("transparent", "rgba(0, 0, 0, 0)"), painted
+
+
+def test_math_element_adds_no_block_space_around_the_formula(page, live_server):
+    """`.el--math { overflow-x: auto }` makes the element a block formatting
+    context root, so KaTeX's `.katex-display { margin: 1em 0 }` stops collapsing
+    out through it -- for EVERY math element in the app, not just the 71.
+
+    A/B MEASURED at 1280px on a math-heavy lesson (overflow-x: auto against
+    overflow-x: visible, same page, same render): 60.78px of whitespace above and
+    below each formula against 44.78px, and 76.78px against 44.78px between two
+    adjacent math elements; the page grew 96px over three math elements.
+    `.el--math > .katex-display { margin-block: 0 }` restores the old layout
+    exactly (re-measured: byte-identical geometry to the overflow-x: visible
+    run). This pins that restoration -- without it each offset below is one 1em
+    margin instead of zero.
+    """
+    unit = _open_pa_session(page, live_server, "mr_space", "mr-space")
+    add_element(unit, MathElement.objects.create(latex="a^2+b^2=c^2"))
+
+    page.goto(_lesson_url(live_server, unit))
+    page.wait_for_selector(".el--math .katex")
+    offsets = page.evaluate(
+        """() => {
+             const el = document.querySelector('.el--math');
+             const d = el.querySelector('.katex-display');
+             const a = el.getBoundingClientRect(), b = d.getBoundingClientRect();
+             return { top: b.top - a.top, bottom: a.bottom - b.bottom };
+           }"""
+    )
+    assert abs(offsets["top"]) < 1, offsets
+    assert abs(offsets["bottom"]) < 1, offsets
