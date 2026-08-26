@@ -6,6 +6,7 @@ Python, and both are silently droppable (KaTeX discards an untrusted command
 without error; a missing CSS rule just renders unstyled).
 """
 
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -26,6 +27,20 @@ def _ratio(a, b):
     la, lb = _lum(a), _lum(b)
     hi, lo = max(la, lb), min(la, lb)
     return (hi + 0.05) / (lo + 0.05)
+
+
+def _block(css, selector):
+    """The declaration block for a top-level selector, e.g. ':root'."""
+    match = re.search(re.escape(selector) + r"\s*\{(.*?)\n\}", css, re.DOTALL)
+    assert match, f"no {selector} block in tokens.css"
+    return match.group(1)
+
+
+def _token(block, name):
+    """A single `--name: #hex;` value out of a declaration block."""
+    match = re.search(rf"{re.escape(name)}:\s*(#[0-9A-Fa-f]{{6}})", block)
+    assert match, f"no {name} in block"
+    return match.group(1)
 
 
 def test_math_js_trusts_htmlclass_by_equality():
@@ -64,6 +79,25 @@ def test_mark_classes_defined():
 def test_highlight_clears_aa_in_both_themes():
     # The pair was chosen on this number: --warning on --warning-subtle looks
     # fine but measures 2.79:1 in light.
-    pairs = {"light": ("#8A5514", "#F4E8CD"), "dark": ("#E8B761", "#3A2F18")}
-    for theme, (fg, bg) in pairs.items():
+    #
+    # The hex literals below are a CROSS-CHECK, not the source of truth
+    # (house style: tests/test_text_colour_css.py). The ratio is computed from
+    # the PARSED tokens.css values, so editing --tc-orange or --warning-subtle
+    # reddens this test instead of leaving it measuring numbers that no
+    # longer exist.
+    literals = {"light": ("#8A5514", "#F4E8CD"), "dark": ("#E8B761", "#3A2F18")}
+    css = TOKENS_CSS.read_text(encoding="utf-8")
+    for theme, selector in (("light", ":root"), ("dark", '[data-theme="dark"]')):
+        block = _block(css, selector)
+        fg = _token(block, "--tc-orange")
+        bg = _token(block, "--warning-subtle")
+        expected_fg, expected_bg = literals[theme]
+        assert fg.upper() == expected_fg.upper(), (
+            f"{selector} --tc-orange moved to {fg}; update the literal and "
+            f"re-run the AA measurement"
+        )
+        assert bg.upper() == expected_bg.upper(), (
+            f"{selector} --warning-subtle moved to {bg}; update the literal "
+            f"and re-run the AA measurement"
+        )
         assert _ratio(fg, bg) >= 4.5, f"{theme} highlight below AA"
