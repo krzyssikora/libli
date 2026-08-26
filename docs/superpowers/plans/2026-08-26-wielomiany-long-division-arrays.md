@@ -986,6 +986,24 @@ def test_a_source_table_with_no_stored_counterpart_is_reported(tmp_path, capsys)
     out = capsys.readouterr().out
     assert "450_x#0" in out
     assert "no stored counterpart" in out
+
+
+def test_a_byte_identical_twin_is_not_reported_absent(tmp_path, capsys):
+    # `resolve` returns the FIRST of several byte-identical plain candidates, so
+    # the twins stay unclaimed by ident while their content is fully converted.
+    # Keying absence on ident would report them as lost content. MEASURED on the
+    # real corpus: 150#0 and 155#0 are the same 204 characters, 150#1 and 155#1
+    # the same 307 -- ident-keyed reports 4 absent, latex-keyed reports the 2 that
+    # genuinely have none.
+    _course_with_table(_cells())
+    part = ContentNode.objects.get(title="Wielomiany")
+    src = _source(tmp_path)
+    twin = (src / "130_x.html").read_text(encoding="utf-8")
+    (src / "155_x.html").write_text(twin, encoding="utf-8")  # same table, other file
+    _run(part, src)
+    out = capsys.readouterr().out
+    assert "155_x#0" not in out
+    assert "no stored counterpart" not in out
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1110,9 +1128,16 @@ class Command(BaseCommand):
                 % (join.pk, join.unit_id)
             )
 
-        claimed = {src.ident for _, src in matched}
+        # Absence is judged on LATEX, not on ident. `resolve` legitimately returns
+        # the first of several byte-identical plain candidates, so the others stay
+        # unclaimed by ident while their content is fully converted -- 150#0 and
+        # 155#0 are the same 204 characters, and 150#1/155#1 the same 307. Keying
+        # this on ident would report two tables as lost content that are not lost
+        # at all. MEASURED against the real corpus: ident-keyed reports 4 absent,
+        # latex-keyed reports the 2 that genuinely have no stored counterpart.
+        converted = {src.latex for _, src in matched}
         for src in sources:
-            if src.ident not in claimed:
+            if src.latex not in converted:
                 self.stdout.write(
                     "  %s: no stored counterpart (skipped)" % src.ident
                 )
@@ -1161,7 +1186,7 @@ def test_converted_element_renders_as_a_katex_math_block(tmp_path):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run python -m pytest tests/test_long_division_command.py -v`
-Expected: 7 passed.
+Expected: 8 passed.
 
 - [ ] **Step 6: Falsify the two safety tests**
 
@@ -1216,12 +1241,22 @@ Expected, and **stop and report if any line differs**:
 - [ ] **Step 2: Check the six ambiguous resolutions in the listing**
 
 In the `--list-matches` output confirm:
-- the unit-423 table resolves to `130_wielomiany_dzielenie#9` (highlighted)
-- the unit-424 table resolves to `140_wielomiany_dzielenie#9` (highlighted)
-- unit 425's two resolve to `150_wielomiany_dzielenie#0` / `#1` (plain)
-- unit 426's two resolve to `155_wielomiany_dzielenie#0` / `#1` (plain)
+- the unit-423 table resolves to `130_wielomiany_dzielenie#9` (**highlighted** — 9 of its
+  10 matched tables carry the mark)
+- the unit-424 table resolves to `140_wielomiany_dzielenie#9` (**highlighted**, likewise 9
+  of 10)
+- units 425 and 426 each resolve both of their tables to the **plain** variant, with zero
+  highlighted
 
-The user confirmed 425 came from `150` and 426 from `155`. If the listing disagrees, stop — the majority/fallback rule has picked wrong.
+**On attribution for 425/426.** The user confirmed 425 came from `150_wielomiany_dzielenie`
+and 426 from `155`. The listing will attribute **both** to `150`, and that is expected, not
+a fault: `150#0` and `155#0` are byte-identical (204 chars), as are `150#1` and `155#1`
+(307 chars), so `resolve` returns whichever it sees first and the stored latex is the same
+either way. Unit 426 receives exactly the correct array. Do NOT add a global 1:1 assignment
+to correct a log line that has no effect on content.
+
+What WOULD be a fault, and must stop the run: either unit showing a highlighted variant, or
+the highlighted/plain split for 423/424 coming out other than 9 of 10.
 
 - [ ] **Step 3: Apply**
 
