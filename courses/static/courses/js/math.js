@@ -3,7 +3,17 @@
   function renderOne(el) {
     if (el.dataset.katexDone === "1") return;  // idempotent: skip already-rendered
     try {
-      katex.render(el.textContent, el, { displayMode: true, throwOnError: false });
+      katex.render(el.textContent, el, {
+        displayMode: true,
+        throwOnError: false,
+        // \htmlClass is the ONLY trusted command, matched by EQUALITY. It adds a
+        // class attribute and nothing else. \htmlStyle and \htmlData would let
+        // authored LaTeX inject arbitrary CSS and data attributes; \href and \url
+        // arbitrary URLs. A prefix test would admit all of them.
+        // Deliberately NOT added to renderInlineText below: that path covers
+        // author prose in .el--text and every other element, and does not need it.
+        trust: function (c) { return c.command === "\\htmlClass"; },
+      });
       el.dataset.katexDone = "1";
     } catch (e) {
       /* leave raw LaTeX on error */
