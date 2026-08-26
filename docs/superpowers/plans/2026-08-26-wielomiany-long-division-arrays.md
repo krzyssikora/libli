@@ -1305,5 +1305,12 @@ join.object_id = <original table pk>
 join.save(update_fields=["content_type", "object_id"])
 ```
 
-The original pk is not recorded anywhere, so capture the `--list-matches` output of the
-applying run before Step 3 if a targeted revert may be wanted later.
+`--list-matches` does NOT carry the original pk — it prints the join pk, the unit pk and
+the source ident, and the apply loop used to overwrite `object_id` without reading it.
+The applying run now prints the mapping itself, one `REVERT el=… unit=… table=<old> ->
+math=<new>` line per converted element; capture that output.
+
+The mat-pp run predates that line, so its mapping was reconstructed afterwards from the
+orphaned rows and is committed as
+[`…-revert-map.md`](2026-08-26-wielomiany-long-division-arrays-revert-map.md). Take
+`<original table pk>` from that file's `orphan_table_pk` column.

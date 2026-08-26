@@ -6,6 +6,13 @@ prod-side counterpart.
 The stored TableElement rows are NEVER deleted -- the Element join is repointed
 and the old row is left orphaned, which is the whole revert path (repoint back).
 Element deletion in libli is a hard delete with no backups.
+
+A revert therefore needs the pk the repoint overwrote, and the repoint is the
+only place that pk is still known: --list-matches carries the join, unit and
+source ident, none of which name it. So --apply PRINTS `table=<old> ->
+math=<new>` for every element it converts. Capture that output. (The mat-pp run
+predates this line; its map had to be reconstructed from content afterwards --
+see scripts/longdivision_revert_map.py.)
 """
 
 from django.contrib.contenttypes.models import ContentType
@@ -115,12 +122,23 @@ class Command(BaseCommand):
         # this on ident would report two tables as lost content that are not lost
         # at all. MEASURED against the real corpus: ident-keyed reports 4 absent,
         # latex-keyed reports the 2 that genuinely have no stored counterpart.
-        converted = {src.latex for _, src in matched}
-        for src in sources:
-            if src.latex not in converted:
-                self.stdout.write(
-                    "  %s: no stored counterpart (skipped)" % src.ident  # noqa: UP031 - clearer than nested braces here
-                )
+        #
+        # With NOTHING matched there is no converted set to judge absence
+        # against, so every source table would be reported absent -- on an
+        # already-applied re-run that is the whole corpus (73 lines) printed as
+        # lost content immediately before `converted 0`.
+        if not matched:
+            reason = (
+                "already applied -- no table elements left in the subtree"
+                if not joins
+                else "no stored table matched a source table"
+            )
+            self.stdout.write(self.style.SUCCESS(f"{reason}; nothing to convert"))
+        else:
+            converted = {src.latex for _, src in matched}
+            for src in sources:
+                if src.latex not in converted:
+                    self.stdout.write(f"  {src.ident}: no stored counterpart (skipped)")
 
         if ambiguous:
             raise CommandError(
@@ -133,8 +151,17 @@ class Command(BaseCommand):
         math_ct = ContentType.objects.get_for_model(MathElement)
         with transaction.atomic():
             for join, src in matched:
+                # READ the old pk before overwriting it. The orphaned TableElement
+                # is the revert path and this is the last moment anything knows
+                # which row it is -- once object_id is reassigned the link is gone
+                # from the database entirely.
+                old_table_pk = join.object_id
                 math = MathElement.objects.create(latex=src.latex)
                 join.content_type = math_ct
                 join.object_id = math.pk
                 join.save(update_fields=["content_type", "object_id"])
+                self.stdout.write(
+                    f"  REVERT el={join.pk} unit={join.unit_id} "
+                    f"table={old_table_pk} -> math={math.pk}"
+                )
         self.stdout.write(self.style.SUCCESS("converted %d" % len(matched)))  # noqa: UP031 - clearer than nested braces here
