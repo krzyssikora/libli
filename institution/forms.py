@@ -16,6 +16,9 @@ from core.services import PRIMARY_DEFAULT
 from courses import validators as _cv
 from institution.models import BrandColor
 from institution.models import Institution
+from institution.site_domain import PLACEHOLDER_DOMAIN
+from institution.site_domain import set_site_domain
+from institution.site_domain import validate_site_domain
 
 
 class BrandingFileInput(ClearableFileInput):
@@ -126,6 +129,17 @@ class BrandingForm(forms.ModelForm):
     )
     primary = _hex_field(_("Primary colour"))
     accent = _hex_field(_("Accent colour"))
+    # NOT an Institution field: this writes django.contrib.sites.Site, which is
+    # where build_accept_url reads the host for invitation and reset links.
+    public_hostname = forms.CharField(
+        required=False,
+        label=_("Public hostname"),
+        help_text=_(
+            "The address people use to reach this site, e.g. libli.example.org. "
+            "Used to build invitation and password-reset links. It does not "
+            "change which addresses the server accepts — your host set that up."
+        ),
+    )
 
     class Meta:
         model = Institution
@@ -165,12 +179,31 @@ class BrandingForm(forms.ModelForm):
         self.initial.setdefault(
             "accent", normalize_hex(rows.get("accent")) or ACCENT_DEFAULT.lower()
         )
+        # Seed from the live Site so the admin edits the current value rather
+        # than a blank box. Same setdefault idiom as the colours above.
+        #
+        # EXCEPT for Django's "example.com" placeholder: that value passes
+        # validate_site_domain, so pre-filling it would let an admin click Next
+        # and write back the exact broken state this field exists to fix. A
+        # blank box prompts them instead.
+        from django.contrib.sites.models import Site
+
+        current = Site.objects.get_current().domain
+        self.initial.setdefault(
+            "public_hostname", "" if current == PLACEHOLDER_DOMAIN else current
+        )
 
     def clean_enabled_languages(self):
         value = self.cleaned_data["enabled_languages"]
         if not value:
             raise forms.ValidationError(_("Enable at least one language."))
         return value
+
+    def clean_public_hostname(self):
+        value = (self.cleaned_data.get("public_hostname") or "").strip()
+        if not value:
+            return ""  # optional: blank leaves the Site record untouched
+        return validate_site_domain(value)
 
     def clean_logo(self):
         value = self.cleaned_data.get("logo")
@@ -242,6 +275,16 @@ class BrandingForm(forms.ModelForm):
                     key=key,
                     defaults={"value": self.cleaned_data[key]},
                 )
+            # Inside the same atomic block: a failed Site write must not leave
+            # the colours committed against a half-applied identity change.
+            #
+            # name= too: Django ships Site #1 with name AND domain set to
+            # "example.com", and allauth prefixes every account email subject
+            # with "[{site.name}] " and renders it in the body. Leaving it would
+            # keep the placeholder on the very surface this fixes.
+            hostname = self.cleaned_data.get("public_hostname")
+            if commit and hostname:
+                set_site_domain(hostname, name=self.cleaned_data["name"])
         return inst
 
 

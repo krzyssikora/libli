@@ -172,16 +172,36 @@ MEDIA_ROOT = BASE_DIR / "media"
 # --- Course transfer (export/import) — spec 2026-07-05. Deployment guardrails,
 # not product limits; deployments hosting bigger courses raise them (and must
 # raise proxy body-size + worker timeout limits to match — see docs note).
-TRANSFER_MAX_COMPRESSED_BYTES = 1 * 1024**3  # 1 GiB zip upload
-TRANSFER_MAX_UNCOMPRESSED_BYTES = 1536 * 1024**2  # 1.5 GiB declared/actual total
+# The four caps below are env-overridable so a deployment hosting a large course
+# can raise them without a code change; the DEFAULTS are unchanged, so a stock
+# install keeps the guardrails. The remaining three have measured headroom
+# against the largest real course (5.76 MiB course.json, 229 B manifest, 1,010
+# nodes) and stay fixed.
+TRANSFER_MAX_COMPRESSED_BYTES = env.int(
+    "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES", default=1 * 1024**3
+)  # 1 GiB zip upload
+TRANSFER_MAX_UNCOMPRESSED_BYTES = env.int(
+    "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES", default=1536 * 1024**2
+)  # 1.5 GiB declared/actual total
 TRANSFER_MAX_COURSE_JSON_BYTES = 10 * 1024**2
 TRANSFER_MAX_MANIFEST_BYTES = 64 * 1024
 TRANSFER_MAX_NODES = 5000
-TRANSFER_MAX_ELEMENTS = 20000
-TRANSFER_MAX_MEDIA_ENTRIES = 1000
+# Enforced on IMPORT only (courses/transfer/schema.py), never on export, so a
+# fixed value rejects an oversized archive AFTER the whole upload has completed.
+TRANSFER_MAX_ELEMENTS = env.int("LIBLI_TRANSFER_MAX_ELEMENTS", default=20000)
+TRANSFER_MAX_MEDIA_ENTRIES = env.int("LIBLI_TRANSFER_MAX_MEDIA_ENTRIES", default=1000)
 TRANSFER_STAGING_MAX_AGE_HOURS = 6
 # NOT under MEDIA_ROOT: staged archives must never be web-served (spec §4.3/§6).
 TRANSFER_STAGING_DIR = BASE_DIR / "transfer_staging"
+
+# Where Django spills an upload too large for memory, BEFORE the view moves it to
+# TRANSFER_STAGING_DIR. None = the system temp dir, correct for local dev. A
+# container sets this to a path on sized storage, or a multi-GB upload lands on
+# the overlay filesystem. Deliberately NOT TRANSFER_STAGING_DIR: staging.sweep()
+# unlinks any file there past its age cap, which would orphan-reap spill files
+# and blur the disk accounting between two independently-sized concerns.
+# Not under MEDIA_ROOT either, for the same reason as above.
+FILE_UPLOAD_TEMP_DIR = env("DJANGO_FILE_UPLOAD_TEMP_DIR", default=None)
 
 # NOT under MEDIA_ROOT: report screenshots may contain another student's name,
 # answers or grades and must never be web-served. Served only by the PA-only

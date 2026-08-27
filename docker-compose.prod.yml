@@ -1,0 +1,114 @@
+# libli production stack. ONE app container by design -- `migrate` runs in the
+# entrypoint, and TRANSFER_STAGING_DIR is a local volume that the preview and
+# confirm requests of one import must both see. Do not scale `app`.
+name: libli
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-libli}
+      # Bare guard: compose supplies its own "required variable ... is missing
+      # a value" and still fails on unset OR empty. Do NOT put explanatory text
+      # after the question mark -- a secret scanner reads it as an assigned
+      # value for a key whose name contains PASSWORD, which is a CI failure and
+      # an incident to triage. Guidance belongs in a comment like this one.
+      # Set POSTGRES_PASSWORD in .env.production.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:-libli}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-libli}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env.production
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DATABASE_URL: postgres://${POSTGRES_USER:-libli}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-libli}
+      DJANGO_BEHIND_PROXY: "true"
+      # Interpolation-time guard, so a blank fails at `up` rather than silently
+      # falling back to base.py's "dev-insecure-key-change-me". The :? form
+      # fires on unset OR empty, which "fill every blank" in a runbook cannot.
+      # Both bare `:?` for the same reason as POSTGRES_PASSWORD above.
+      # Set DJANGO_SECRET_KEY and DJANGO_SITE_DOMAIN in .env.production.
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?}
+      DJANGO_SITE_DOMAIN: ${DJANGO_SITE_DOMAIN:?}
+      # Django spills uploads above FILE_UPLOAD_MAX_MEMORY_SIZE to the system
+      # temp dir BEFORE the view moves them to TRANSFER_STAGING_DIR. Left at the
+      # default that is a multi-GB write to the container's overlay filesystem on
+      # the host root disk. Its OWN volume, deliberately NOT transfer_staging:
+      # staging.sweep() (courses/transfer/staging.py:22) unlinks ANY file there
+      # past the age cap, which would delete an in-flight spill.
+      DJANGO_FILE_UPLOAD_TEMP_DIR: /app/upload_tmp
+    volumes:
+      - media:/app/media
+      - transfer_staging:/app/transfer_staging
+      - upload_tmp:/app/upload_tmp
+      - support_screenshots:/app/support_screenshots
+    expose:
+      - "8000"
+    healthcheck:
+      # Gates caddy's start: without it the first requests after a deploy 502
+      # while migrate runs, which is also when Caddy is completing ACME.
+      #
+      # Both headers are load-bearing:
+      #  - Host: the request must present a name in DJANGO_ALLOWED_HOSTS or
+      #    get_host() raises DisallowedHost -> 400 -> never healthy -> caddy
+      #    never starts and the site is unreachable. "localhost" is in the
+      #    shipped example's ALLOWED_HOSTS for exactly this reason.
+      #  - X-Forwarded-Proto: with SECURE_SSL_REDIRECT=True (production.py:6)
+      #    SecurityMiddleware answers plain HTTP with a 301 BEFORE the view runs,
+      #    and `curl -f` treats a 301 as success -- degrading the check to
+      #    "gunicorn accepted a socket". This makes request.is_secure() true so
+      #    the check reaches the view.
+      # Asserting the body, not just the status, is what makes it a real check.
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS -H "Host: ${DJANGO_SITE_DOMAIN:-localhost}"
+          -H "X-Forwarded-Proto: https"
+          http://127.0.0.1:8000/healthz/ | grep -q '"status": *"ok"'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      # Bare `:?`; set SITE_ADDRESS in .env.production.
+      SITE_ADDRESS: ${SITE_ADDRESS:?}
+      CADDY_MAX_BODY: ${CADDY_MAX_BODY:-1200MiB}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Read-only: Caddy serves media, it never writes it.
+      - media:/srv/media:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  media:
+  transfer_staging:
+  upload_tmp:
+  support_screenshots:
+  caddy_data:
+  caddy_config:

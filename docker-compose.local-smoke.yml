@@ -1,0 +1,9 @@
+# LOCAL SMOKE TEST ONLY -- never deployed.
+# Windows reserves port 80 (winnat excluded ranges), so the published ports are
+# remapped. Deliberately changes NOTHING else: DJANGO_ALLOWED_HOSTS and
+# DJANGO_SECURE_SSL_REDIRECT keep their shipped values, because configuring
+# those differently locally is how a broken healthcheck passes a smoke test.
+services:
+  caddy:
+    ports: !override
+      - "8080:80"
