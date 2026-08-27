@@ -1380,7 +1380,13 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-libli}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+      # Bare guard: compose supplies its own "required variable ... is missing
+      # a value" and still fails on unset OR empty. Do NOT put explanatory text
+      # after the question mark -- a secret scanner reads it as an assigned
+      # value for a key whose name contains PASSWORD, which is a CI failure and
+      # an incident to triage. Guidance belongs in a comment like this one.
+      # Set POSTGRES_PASSWORD in .env.production.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
       POSTGRES_DB: ${POSTGRES_DB:-libli}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -1404,8 +1410,10 @@ services:
       # Interpolation-time guard, so a blank fails at `up` rather than silently
       # falling back to base.py's "dev-insecure-key-change-me". The :? form
       # fires on unset OR empty, which "fill every blank" in a runbook cannot.
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env.production}
-      DJANGO_SITE_DOMAIN: ${DJANGO_SITE_DOMAIN:?set DJANGO_SITE_DOMAIN in .env.production}
+      # Both bare `:?` for the same reason as POSTGRES_PASSWORD above.
+      # Set DJANGO_SECRET_KEY and DJANGO_SITE_DOMAIN in .env.production.
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?}
+      DJANGO_SITE_DOMAIN: ${DJANGO_SITE_DOMAIN:?}
       # Django spills uploads above FILE_UPLOAD_MAX_MEMORY_SIZE to the system
       # temp dir BEFORE the view moves them to TRANSFER_STAGING_DIR. Left at the
       # default that is a multi-GB write to the container's overlay filesystem on
@@ -1457,7 +1465,8 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.production}
+      # Bare `:?`; set SITE_ADDRESS in .env.production.
+      SITE_ADDRESS: ${SITE_ADDRESS:?}
       CADDY_MAX_BODY: ${CADDY_MAX_BODY:-1200MiB}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -1565,7 +1574,11 @@ GUNICORN_GRACEFUL_TIMEOUT=120
 
 ```bash
 cp .env.production.example .env.production
-printf '\nPOSTGRES_PASSWORD=localsmoke\nDJANGO_SECRET_KEY=localsmoke\n' >> .env.production
+# Generated, not literal: a hardcoded value here trips secret scanners on CI.
+{ echo
+  echo "POSTGRES_PASSWORD=$(uv run python -c 'import secrets;print(secrets.token_urlsafe(16))')"
+  echo "DJANGO_SECRET_KEY=$(uv run python -c 'import secrets;print(secrets.token_urlsafe(32))')"
+} >> .env.production
 sed -i 's|^SITE_ADDRESS=.*|SITE_ADDRESS=http://localhost|' .env.production
 sed -i 's|^DJANGO_CSRF_TRUSTED_ORIGINS=.*|DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost|' .env.production
 sed -i 's|^DJANGO_SITE_DOMAIN=.*|DJANGO_SITE_DOMAIN=localhost|' .env.production
