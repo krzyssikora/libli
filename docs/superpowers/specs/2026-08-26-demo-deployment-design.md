@@ -9,7 +9,7 @@ cross-cutting concern (`docs/roadmap.md:175`), and the accumulated "at first dep
 X" notes live only in memory files.
 
 This design builds the first deployment: a containerised install (`app`, `db`, `caddy`)
-that stands up a working instance on a single Ubuntu droplet, plus fixes for the two defects
+that stands up a working instance on a single Contabo VPS (Ubuntu), plus fixes for the two defects
 a real deployment exposes.
 
 The immediate output is a demo box carrying the **matematyka** course (1,010 nodes,
@@ -97,7 +97,7 @@ concurrently:
 | OS + image + venv + Postgres | ~5 GB |
 
 **Peak ≈ 17 GB, steady ≈ 9 GB.** A 25 GB droplet works right up until the import and
-then fails on disk. **50 GB is the floor** — the ~$12/mo DigitalOcean tier (2 GB RAM /
+then fails on disk. **50 GB is the floor**. The chosen host is Contabo, whose tiers all clear it comfortably; the equivalent DigitalOcean tier for reference is ~$12/mo (2 GB RAM /
 1 vCPU / 50 GB) or any Contabo tier, all of which exceed it comfortably.
 
 ## Architecture
@@ -128,7 +128,10 @@ exist in the image or every `{% static %}` reference raises at runtime.
 
 `locale/*/LC_MESSAGES/*.mo` are committed, so no `compilemessages` step is required.
 
-### 2. `docker-compose.yml`
+### 2. `docker-compose.prod.yml`
+
+Named `.prod.` so a bare `docker compose` in the repo root cannot pick it up alongside
+the existing `docker-compose.test.yml`.
 
 Three services. Four persistent paths, three of them volumes:
 
@@ -209,7 +212,9 @@ not a body size, and needs no proxy counterpart.
 ### 6. `docker-entrypoint.sh`
 
 ```
-wait for db (bounded pg_isready loop; fail loud, never start gunicorn on failure)
+wait for db (bounded Django connection.ensure_connection() probe; fail loud, never
+  start gunicorn on failure. NOT pg_isready: it is not in the app image, and the Django
+  probe additionally proves DATABASE_URL and the settings module resolve)
   → migrate
   → setup_roles
   → set Site domain from DJANGO_SITE_DOMAIN
@@ -243,8 +248,8 @@ No WSGI server is currently a dependency. Production group, not dev.
 
 This section described a seeder generating ~20 fake students and enough quiz activity to
 populate the analytics matrix. **It was removed from this deployment's scope after three
-plan-review rounds** and now has its own spec and plan, written after matematyka is
-imported. See the Non-goals entry above for why, and
+plan-review rounds** and will get its own spec and plan, to be written after matematyka
+is imported. See the Non-goals entry above for why, and
 `docs/superpowers/plans/2026-08-26-demo-deployment.md` § "Deliberately out of scope" for
 the detail. The restructured draft survives at commit `8dae86e3`.
 
@@ -290,8 +295,10 @@ The container stack is verified by executing a real deployment. The runbook carr
 checks:
 
 ```bash
-curl -sI https://<host>/media/<file>.mp4 -H 'Range: bytes=0-100'
-# MUST be 206 Partial Content with Accept-Ranges.
+curl -s -o /dev/null -D - -r 0-100 https://<host>/media/<file>.mp4
+# MUST be 206 Partial Content with Accept-Ranges. A GET with the body discarded,
+# NOT a HEAD: Range-on-HEAD is a file-server implementation detail, whereas a
+# <video> element issues a GET.
 # A 200 means seeking is silently broken for every student.
 
 curl -sI https://<host>/static/<hashed>.css   # 200 — whitenoise manifest intact
