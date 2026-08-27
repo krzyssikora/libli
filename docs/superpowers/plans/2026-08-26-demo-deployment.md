@@ -14,7 +14,7 @@
 
 - **Python `>=3.13`**, Django `>=5.2,<5.3`, PostgreSQL **16** (matches `.github/workflows/ci.yml`).
 - **Exactly one `app` container.** This is what makes `migrate` in the entrypoint safe and lets `TRANSFER_STAGING_DIR` be a local volume. Do not add replicas.
-- **Transfer-cap defaults must not change.** `TRANSFER_MAX_COMPRESSED_BYTES` stays `1 * 1024**3`, `TRANSFER_MAX_UNCOMPRESSED_BYTES` stays `1536 * 1024**2`, `TRANSFER_MAX_MEDIA_ENTRIES` stays `1000`. Only their env-overridability is new.
+- **Transfer-cap defaults must not change.** `TRANSFER_MAX_COMPRESSED_BYTES` stays `1 * 1024**3`, `TRANSFER_MAX_UNCOMPRESSED_BYTES` stays `1536 * 1024**2`, `TRANSFER_MAX_MEDIA_ENTRIES` stays `1000`, `TRANSFER_MAX_ELEMENTS` stays `20000`. Only their env-overridability is new. **Four caps, not three** — matematyka measures 20,226 elements.
 - **`TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served.** They must not appear in any Caddy route, and Task 5 Step 5 and Task 6 Step 2 both prove it with a real request, not a grep.
 - **No hardcoded passwords** in new code. ruff `S105`/`S106`/`S107` are enabled outside `tests/`.
 - **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates. Note `B` (bugbear) and `S` (bandit) are selected, so an unused loop variable (`B007`) fails the build. `I` is selected too, and `ruff format` does NOT sort imports: run `uv run ruff check --fix` for `I001` before the gate.
@@ -74,12 +74,12 @@ Note `templates/institution/manage/_branding_fields.html` is included by **both*
 ### Task 1: Upload sizing settings become env-overridable
 
 **Files:**
-- Modify: `config/settings/base.py` lines 175, 176, 181, plus one new setting
+- Modify: `config/settings/base.py` lines 175, 176, 180, 181, plus one new setting
 - Test: `tests/test_transfer_caps_env.py` (create)
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: env var names `LIBLI_TRANSFER_MAX_COMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_MEDIA_ENTRIES` (all integers, bytes / count), and `DJANGO_FILE_UPLOAD_TEMP_DIR` (path or unset). Task 5's compose file and `.env.production.example` set them; Task 6's runbook documents them.
+- Produces: env var names `LIBLI_TRANSFER_MAX_COMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_MEDIA_ENTRIES`, `LIBLI_TRANSFER_MAX_ELEMENTS` (all integers, bytes / count), and `DJANGO_FILE_UPLOAD_TEMP_DIR` (path or unset). Task 5's compose file and `.env.production.example` set them; Task 6's runbook documents them.
 
 **Why `FILE_UPLOAD_TEMP_DIR` belongs here.** Django spills any upload above
 `FILE_UPLOAD_MAX_MEMORY_SIZE` to `FILE_UPLOAD_TEMP_DIR` **before** the view can move it to
@@ -123,6 +123,7 @@ CAP_ENV_NAMES = (
     "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES",
     "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES",
     "LIBLI_TRANSFER_MAX_MEDIA_ENTRIES",
+    "LIBLI_TRANSFER_MAX_ELEMENTS",
     "DJANGO_FILE_UPLOAD_TEMP_DIR",
 )
 
@@ -157,6 +158,7 @@ def test_transfer_caps_default_to_the_shipped_guardrails(reload_base):
     assert base.TRANSFER_MAX_COMPRESSED_BYTES == 1 * 1024**3
     assert base.TRANSFER_MAX_UNCOMPRESSED_BYTES == 1536 * 1024**2
     assert base.TRANSFER_MAX_MEDIA_ENTRIES == 1000
+    assert base.TRANSFER_MAX_ELEMENTS == 20000
 
 
 def test_transfer_caps_are_env_overridable(reload_base):
@@ -166,11 +168,13 @@ def test_transfer_caps_are_env_overridable(reload_base):
             "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES": "5368709120",
             "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES": "6442450944",
             "LIBLI_TRANSFER_MAX_MEDIA_ENTRIES": "2000",
+            "LIBLI_TRANSFER_MAX_ELEMENTS": "25000",
         }
     )
     assert base.TRANSFER_MAX_COMPRESSED_BYTES == 5368709120
     assert base.TRANSFER_MAX_UNCOMPRESSED_BYTES == 6442450944
     assert base.TRANSFER_MAX_MEDIA_ENTRIES == 2000
+    assert base.TRANSFER_MAX_ELEMENTS == 25000
 
 
 def test_file_upload_temp_dir_defaults_to_none(reload_base):
@@ -198,7 +202,7 @@ Expected: 1 passed, 3 failed. `test_transfer_caps_default_to_the_shipped_guardra
 
 - [ ] **Step 3: Make the caps env-overridable**
 
-In `config/settings/base.py`, replace the assignments at lines 175, 176 and 181. Leave `TRANSFER_MAX_COURSE_JSON_BYTES`, `TRANSFER_MAX_MANIFEST_BYTES`, `TRANSFER_MAX_NODES`, `TRANSFER_MAX_ELEMENTS` untouched:
+In `config/settings/base.py`, replace the assignments at lines 175, 176 and 181. Leave `TRANSFER_MAX_COURSE_JSON_BYTES`, `TRANSFER_MAX_MANIFEST_BYTES` and `TRANSFER_MAX_NODES` untouched — measured against matematyka they all have headroom (5.76 MiB course.json, 229 B manifest, 1,010 nodes):
 
 ```python
 # Env-overridable so a deployment hosting a large course can raise them without
@@ -217,6 +221,15 @@ and
 
 ```python
 TRANSFER_MAX_MEDIA_ENTRIES = env.int("LIBLI_TRANSFER_MAX_MEDIA_ENTRIES", default=1000)
+```
+
+and the element cap on line 180 — **measured, not assumed**: matematyka is 20,226 elements
+against a default of 20,000. It is enforced on IMPORT only
+(`courses/transfer/schema.py:211`), so leaving it fixed would reject the archive *after*
+a 25-minute upload, with no way to raise it without a redeploy:
+
+```python
+TRANSFER_MAX_ELEMENTS = env.int("LIBLI_TRANSFER_MAX_ELEMENTS", default=20000)
 ```
 
 Then add the new setting immediately after `TRANSFER_STAGING_DIR` (line 184), where the
@@ -288,7 +301,9 @@ instantiation and repopulates the cache after each rollback, so a domain written
 test leaks into the next and assertions on `"example.com"` fail order-dependently under
 `pytest-xdist`.
 
-Append to `tests/conftest.py`:
+Append to `tests/conftest.py`.
+
+(The root `conftest.py` is where the repo puts cross-cutting isolation fixtures, and it says so. `tests/` scope is deliberate here: `Site` is touched only by `tests/`, and `courses/tests`, `integrations/tests` and `notifications/tests` never instantiate `BrandingForm`. If that changes, move it up to the root conftest next to `_reset_active_language`.)
 
 ```python
 @pytest.fixture(autouse=True)
@@ -495,8 +510,8 @@ uv run python -m pytest tests/test_site_domain.py -v
 
 Expected — and this baseline is deliberately precise, because two of these tests pass **vacuously** at this point and only become meaningful after Step 5:
 
-- The 10 validator cases and `test_set_site_domain_*` fail with `ModuleNotFoundError: No module named 'institution.site_domain'`.
-- Five of the six `call_command` tests fail with `CommandError: Unknown command: 'set_site_domain'`.
+- The 11 validator cases (4 valid + 7 invalid), `test_set_site_domain_*`, and `test_only_if_placeholder_leaves_a_configured_site_alone` fail with `ModuleNotFoundError: No module named 'institution.site_domain'` — the last one dies at its own import line, before reaching the command.
+- Four of the six `call_command` tests fail with `CommandError: Unknown command: 'set_site_domain'`.
 - `test_command_rejects_a_url` **PASSES** — it wraps the call in `pytest.raises(CommandError)`, and an unknown command raises exactly that.
 - `test_site_cache_does_not_leak_from_the_previous_test` **PASSES** — the test before it dies at the import line before it can prime `SITE_CACHE`.
 
@@ -745,7 +760,11 @@ def test_identity_step_sets_the_site_domain(client):
         _IDENTITY_POST | {"public_hostname": "libli.example.org"},
     )
     assert resp.status_code == 302
-    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "libli.example.org"
+    site = Site.objects.get(pk=dj_settings.SITE_ID)
+    assert site.domain == "libli.example.org"
+    # allauth subject-lines every account email "[{site.name}] ", so a stale name
+    # keeps "example.com" on the surface this task exists to fix.
+    assert site.name == "Acme Academy"
 
 
 @pytest.mark.django_db
@@ -919,7 +938,11 @@ do not add a second `save` method:
             # the colours committed against a half-applied identity change.
             hostname = self.cleaned_data.get("public_hostname")
             if commit and hostname:
-                set_site_domain(hostname)
+                # name= too: Django ships Site #1 with name AND domain set to
+                # "example.com", and allauth prefixes every account email
+                # subject with "[{site.name}] " and renders it in the body.
+                # Leaving it keeps the placeholder on the very surface this fixes.
+                set_site_domain(hostname, name=self.cleaned_data["name"])
         return inst
 ```
 
@@ -950,7 +973,7 @@ Six mutants, one at a time, each edited out by hand:
 
 1. Delete the `set_site_domain(hostname)` call from `save()`. Expected: `test_identity_step_sets_the_site_domain` FAILS.
 2. Change `clean_public_hostname` to `return value` without validating. Expected: `test_identity_step_rejects_a_url_in_the_hostname` FAILS (302 instead of 200, and the Site is corrupted).
-3. Drop the `if commit and hostname:` guard so a blank writes through. Expected: `test_identity_step_blank_hostname_leaves_the_site_alone` FAILS — the domain is blanked.
+3. Drop the `if commit and hostname:` guard so a blank writes through. Expected: `test_identity_step_blank_hostname_leaves_the_site_alone` turns red — but as an **error**, not a failed assertion: `set_site_domain("")` re-raises `ValidationError` out of `save()` and the view, so the request never returns 302. Red is red; do not go hunting for a blanked domain.
 4. Add a **second** `def save(self, commit=True)` at the end of the class that only calls `super().save(commit)`. Expected: `test_identity_step_still_saves_the_brand_colours` FAILS — this is the C1 hazard made observable.
 5. Delete the `_reset_sites_framework_cache` fixture added in Task 2 Step 1, then run:
    ```bash
@@ -1035,6 +1058,7 @@ support_screenshots
 .env*
 docker-compose.test.yml
 tests
+**/tests
 docs/superpowers
 docs/mockups
 docs/planning
@@ -1167,7 +1191,11 @@ echo "==> set_site_domain"
 # boot -- silently reverting any correction a Platform Admin made through the
 # settings UI, which restart: unless-stopped makes routine. Env seeds the value
 # once; the UI owns it thereafter.
-"$VENV_PY" manage.py set_site_domain --only-if-placeholder
+# --name too: Django ships Site #1 with name AND domain as "example.com", and
+# allauth prefixes every account email subject with "[{site.name}] ". The
+# ${VAR:+...} form omits the flag entirely when DJANGO_SITE_NAME is unset.
+"$VENV_PY" manage.py set_site_domain --only-if-placeholder \
+  ${DJANGO_SITE_NAME:+--name "$DJANGO_SITE_NAME"}
 
 # Only when fully specified: init_platform fails fast on missing credentials
 # when non-interactive, which must not stop a healthy instance from booting.
@@ -1359,8 +1387,9 @@ services:
       # Django spills uploads above FILE_UPLOAD_MAX_MEMORY_SIZE to the system
       # temp dir BEFORE the view moves them to TRANSFER_STAGING_DIR. Left at the
       # default that is a multi-GB write to the container's overlay filesystem on
-      # the host root disk. Point it at the staging volume so the transient copy
-      # lands on sized storage that the disk arithmetic accounts for.
+      # the host root disk. Its OWN volume, deliberately NOT transfer_staging:
+      # staging.sweep() (courses/transfer/staging.py:22) unlinks ANY file there
+      # past the age cap, which would delete an in-flight spill.
       DJANGO_FILE_UPLOAD_TEMP_DIR: /app/upload_tmp
     volumes:
       - media:/app/media
@@ -1447,6 +1476,9 @@ DJANGO_SITE_DOMAIN=libli.example.org
 # DisallowedHost -> 400 -> the container never becomes healthy -> caddy never
 # starts. Keep it even though nobody browses to it.
 DJANGO_ALLOWED_HOSTS=libli.example.org,localhost,127.0.0.1
+# Shown in allauth email subjects as "[<name>] ". Left unset, Site #1 keeps
+# Django's "example.com" placeholder there even once the domain is correct.
+DJANGO_SITE_NAME=libli
 DJANGO_CSRF_TRUSTED_ORIGINS=https://libli.example.org
 
 # --- secrets ---
@@ -1491,6 +1523,9 @@ GUNICORN_GRACEFUL_TIMEOUT=120
 # LIBLI_TRANSFER_MAX_COMPRESSED_BYTES=5368709120
 # LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES=6442450944
 # LIBLI_TRANSFER_MAX_MEDIA_ENTRIES=2000
+# Measured: matematyka is 20,226 elements against a default of 20,000. Enforced
+# on IMPORT only, so an un-raised cap rejects the archive after the whole upload.
+# LIBLI_TRANSFER_MAX_ELEMENTS=25000
 # CADDY_MAX_BODY=5500MiB
 ```
 
@@ -1570,7 +1605,15 @@ docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
 
 curl -sI http://localhost/healthz/                                   # 200
 curl -sI http://localhost/                                           # 200 -- the landing page
-curl -sI http://localhost/static/admin/css/base.css                  # 200, whitenoise manifest
+# Whitenoise serves BOTH admin/css/base.css and admin/css/base.<hash>.css from
+# STATIC_ROOT, so the un-hashed path returns 200 even with a broken manifest --
+# while every {% static %} call raises. Resolve a real hashed name and request THAT.
+MANIFEST=/app/staticfiles/staticfiles.json
+HASHED=$(docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  /app/.venv/bin/python -c "import json; print(json.load(open('$MANIFEST'))['paths']['admin/css/base.css'])" \
+  | tr -d '\r')
+echo "resolved: $HASHED"
+curl -sI "http://localhost/static/$HASHED"                           # 200
 
 # Range: a GET with the body discarded, NOT a HEAD. Range-on-HEAD is a file-server
 # implementation detail; a <video> issues a GET, so that is what must be proven.
@@ -1620,9 +1663,11 @@ request bodies (nginx buffers the whole body to disk, a fourth multi-GB
 copy during import) and its file_server does HTTP Range, which Django
 does not implement anywhere and which video seeking requires.
 
-FILE_UPLOAD_TEMP_DIR points at the staging volume: Django spills large
-uploads to the system temp dir before the view stages them, which by
-default is a multi-GB write to the container overlay on the root disk.
+FILE_UPLOAD_TEMP_DIR gets its OWN upload_tmp volume -- deliberately not
+transfer_staging, whose sweep() unlinks any file past the age cap and would
+delete an in-flight spill. Django spills large uploads to the temp dir before
+the view stages them, which by default is a multi-GB write to the container
+overlay on the root disk.
 
 transfer_staging and support_screenshots are volumes but deliberately
 have no Caddy route, proven by a request rather than a grep."
@@ -1687,7 +1732,7 @@ have no Caddy route, proven by a request rather than a grep."
 
 4. **Verify** — run every check in Step 2 below before going further.
 
-5. **Walk the first-run wizard** at `https://<host>/setup/`, signed in as the `INIT_ADMIN_USERNAME` account. Confirm the Identity step shows the **Public hostname** field pre-filled with the value the entrypoint set, and that the five steps (Welcome → Identity → Access → Team → SSO) complete. This is the non-developer surface — walk it as a school admin would, without a shell open.
+5. **Walk the first-run wizard** at `https://<host>/manage/setup/` (the route is `manage/setup/`, `institution/urls.py:57` — there is no bare `/setup/`), signed in as the `INIT_ADMIN_USERNAME` account. Confirm the Identity step shows the **Public hostname** field pre-filled with the value the entrypoint set, and that the five steps (Welcome → Identity → Access → Team → SSO) complete. This is the non-developer surface — walk it as a school admin would, without a shell open.
 
    **On the Access step, leave the signup policy on `invite`.** This is a public box with a
    real DNS name; "open" means strangers can self-register on it. `init_platform` defaults
@@ -1704,8 +1749,9 @@ have no Caddy route, proven by a request rather than a grep."
    upload over the operator's own connection — budget ~25 minutes of sustained transfer
    and do it on a link you can leave alone.
 
-   **6a. Raise the caps on the server.** In `.env.production`, uncomment the three
-   `LIBLI_TRANSFER_MAX_*` overrides and `CADDY_MAX_BODY`, then apply and confirm headroom:
+   **6a. Raise the caps on the server.** In `.env.production`, uncomment **all four**
+   `LIBLI_TRANSFER_MAX_*` overrides (compressed, uncompressed, media entries **and
+   elements**) and `CADDY_MAX_BODY`, then apply and confirm headroom:
 
    ```bash
    docker compose -f docker-compose.prod.yml --env-file .env.production up -d
@@ -1718,6 +1764,13 @@ have no Caddy route, proven by a request rather than a grep."
    (`courses:manage_course_export`). The browser downloads a single `.zip`; expect roughly
    the size of `media/` (~3.8 GB), since mp4 does not compress. If an export pre-flight
    page appears listing problems, read it — confirming past it is `?confirm=1`.
+
+   **Free ~8 GB on the drive holding your system temp dir first.**
+   `courses/views_transfer.py:59` builds the whole archive into a
+   `SpooledTemporaryFile(max_size=32 MB)` **before** the response emits its first byte, so
+   the archive exists twice locally: once spilled to temp, once as the download. Expect
+   **several minutes with no browser progress at all** while it compresses 3.7 GB of
+   incompressible mp4 — that is not a hang.
 
    **6c. Import on the server.** Open `https://<host>/manage/courses/import/`
    (`courses:manage_course_import`), choose the archive, and upload. This is a
@@ -1819,7 +1872,7 @@ curl -s -o /dev/null -D - -r 0-100 "https://<host>/media/$REL" | head -5
 
 curl -sI https://<host>/healthz/                               # 200
 curl -sI https://<host>/                                       # 200 -- the landing page
-curl -sI https://<host>/static/admin/css/base.css              # 200
+curl -sI "https://<host>/static/$HASHED"                       # 200 ($HASHED as in Task 5 Step 5)
 curl -sI http://<host>/ | head -3                              # 301/308 to https
 
 # Staging dirs must be unreachable -- a request, not a grep.

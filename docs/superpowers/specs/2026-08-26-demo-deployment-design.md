@@ -187,7 +187,7 @@ in a different app, so the field is declared explicitly and saved alongside the 
 
 ### 5. Application change: transfer caps become env-overridable
 
-Three constants in `config/settings/base.py` become `env.int(...)` reads **keeping their
+Four constants in `config/settings/base.py` become `env.int(...)` reads **keeping their
 current values**:
 
 | setting | current default |
@@ -195,13 +195,17 @@ current values**:
 | `TRANSFER_MAX_COMPRESSED_BYTES` | 1 GiB |
 | `TRANSFER_MAX_UNCOMPRESSED_BYTES` | 1.5 GiB |
 | `TRANSFER_MAX_MEDIA_ENTRIES` | 1000 |
+| `TRANSFER_MAX_ELEMENTS` | 20000 |
 
 The defaults are deliberate guardrails — `config/settings/base.py:172-174` calls them
 exactly that — and a school installing libli must not silently inherit a 4 GB upload
 ceiling. Only the demo's own `.env` raises them.
 
-matematyka exceeds all three: 1,194 media entries against a cap of 1,000, and ~3.8 GB
-against caps of 1 GiB compressed and 1.5 GiB uncompressed (mp4 does not compress). The
+matematyka exceeds all four, measured against the real course: 1,194 media entries
+against a cap of 1,000; **20,226 elements against a cap of 20,000**; and ~3.8 GB against
+caps of 1 GiB compressed and 1.5 GiB uncompressed (mp4 does not compress). The element
+cap is enforced on import only, so an un-raised value rejects the archive after the
+whole upload has completed. The
 caps are enforced at `courses/transfer/importer.py:244,258,275,304` and
 `courses/transfer/schema.py:213`, with a pre-stage check at
 `courses/views_transfer.py:118`.
