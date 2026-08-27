@@ -14,7 +14,7 @@
 
 - **Python `>=3.13`**, Django `>=5.2,<5.3`, PostgreSQL **16** (matches `.github/workflows/ci.yml`).
 - **Exactly one `app` container.** This is what makes `migrate` in the entrypoint safe and lets `TRANSFER_STAGING_DIR` be a local volume. Do not add replicas.
-- **Transfer-cap defaults must not change.** `TRANSFER_MAX_COMPRESSED_BYTES` stays `1 * 1024**3`, `TRANSFER_MAX_UNCOMPRESSED_BYTES` stays `1536 * 1024**2`, `TRANSFER_MAX_MEDIA_ENTRIES` stays `1000`, `TRANSFER_MAX_ELEMENTS` stays `20000`. Only their env-overridability is new. **Four caps, not three** — matematyka measures 20,226 elements.
+- **Transfer-cap defaults must not change.** `TRANSFER_MAX_COMPRESSED_BYTES` stays `1 * 1024**3`, `TRANSFER_MAX_UNCOMPRESSED_BYTES` stays `1536 * 1024**2`, `TRANSFER_MAX_MEDIA_ENTRIES` stays `1000`, `TRANSFER_MAX_ELEMENTS` stays `20000`. Only their env-overridability is new. **Four caps, not three** — matematyka measures 20,226 elements, 1,191 exported media entries and ~3.6 GiB.
 - **`TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served.** They must not appear in any Caddy route, and Task 5 Step 5 and Task 6 Step 2 both prove it with a real request, not a grep.
 - **No hardcoded passwords** in new code. ruff `S105`/`S106`/`S107` are enabled outside `tests/`.
 - **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates. Note `B` (bugbear) and `S` (bandit) are selected, so an unused loop variable (`B007`) fails the build. `I` is selected too, and `ruff format` does NOT sort imports: run `uv run ruff check --fix` for `I001` before the gate.
@@ -53,7 +53,7 @@ moves. A worktree is immune, which is why the work lives in one.
 - `institution/management/commands/set_site_domain.py` — entrypoint-callable wrapper.
 
 **Modified application code**
-- `config/settings/base.py` — the three cap assignments at lines **175, 176 and 181** become `env.int` reads.
+- `config/settings/base.py` — the four cap assignments at lines **175, 176, 180 and 181** become `env.int` reads, plus a new `FILE_UPLOAD_TEMP_DIR`.
 - `institution/forms.py` — `BrandingForm` gains `public_hostname`; its **existing** `__init__` (line 152) and **existing** `save` (line 236) are edited, not duplicated.
 - `templates/institution/manage/_branding_fields.html` — renders the new field.
 - `tests/conftest.py` — new autouse fixture resetting the sites-framework cache.
@@ -90,16 +90,19 @@ variables, so setting it in compose alone does nothing: the read has to exist he
 
 It gets its **own** volume (`/app/upload_tmp`), deliberately not `TRANSFER_STAGING_DIR`.
 `staging.sweep()` (`courses/transfer/staging.py:22`) unlinks **any** file in the staging
-directory older than `TRANSFER_STAGING_MAX_AGE_HOURS`, not just `*.zip` — pointing the
-spill there would let the sweeper delete an in-flight upload, and would leave orphaned
-spill files that Task 6's `rm -f …/*.zip` cleanup does not match.
+directory older than `TRANSFER_STAGING_MAX_AGE_HOURS`, not just `*.zip`. So spilling there
+would leave orphaned upload temp files that Task 6's `rm -f …/*.zip` cleanup does not
+match and the sweeper reaps on its own schedule, and it would blur the disk accounting
+between two independently-sized concerns. (The sweeper cannot reach an *in-flight* spill:
+the cap is 6 hours and the upload takes ~25 minutes. The orphan and accounting reasons are
+the ones that hold.)
 
 - [ ] **Step 1: Write the failing test**
 
 Create `tests/test_transfer_caps_env.py`:
 
 ```python
-"""The three transfer caps are deployment guardrails. A school's default install
+"""The four transfer caps are deployment guardrails. A school's default install
 must keep the shipped values; only an operator's env raises them. Both halves of
 that contract are asserted here.
 
@@ -263,7 +266,7 @@ Two mutants, one at a time, each **edited out by hand** — do not `git checkout
 ```bash
 uv run ruff check . --no-cache && uv run ruff format --check .
 git add config/settings/base.py tests/test_transfer_caps_env.py
-git commit -m "feat(settings): make the three transfer caps env-overridable
+git commit -m "feat(settings): make the four transfer caps env-overridable
 
 Defaults are unchanged -- a stock install keeps the shipped guardrails.
 Only a deployment hosting an oversized course raises them, and only via
@@ -398,11 +401,43 @@ def test_set_site_domain_clears_the_sites_cache():
 
     from institution.site_domain import set_site_domain
 
-    Site.objects.get_current()  # prime
+    # Prime a key Django's own receiver does NOT touch. django.contrib.sites
+    # connects clear_site_cache to pre_save (models.py:119) and it deletes only
+    # SITE_CACHE[instance.pk] and the OLD domain key -- so asserting on those
+    # two passes whether or not set_site_domain cleared anything, and the mutant
+    # survives. Only a whole-dict assertion distinguishes the two.
+    sites_models.SITE_CACHE["stale.example.org"] = Site.objects.get_current()
     assert dj_settings.SITE_ID in sites_models.SITE_CACHE
 
     set_site_domain("libli.example.org")
-    assert dj_settings.SITE_ID not in sites_models.SITE_CACHE
+    assert sites_models.SITE_CACHE == {}
+
+
+@pytest.mark.django_db
+def test_set_site_domain_truncates_an_overlong_name():
+    """Site.name is max_length=50; Institution.name is longer. A realistic school
+    name would otherwise raise DataError inside the form's transaction.atomic(),
+    500-ing the Identity step and rolling back the brand colours with it."""
+    from django.conf import settings as dj_settings
+    from django.contrib.sites.models import Site
+
+    from institution.site_domain import set_site_domain
+
+    long_name = "Zespol Szkol Ogolnoksztalcacych im. Marii Sklodowskiej-Curie w Warszawie"
+    assert len(long_name) > 50
+    set_site_domain("libli.example.org", name=long_name)
+    assert Site.objects.get(pk=dj_settings.SITE_ID).name == long_name[:50]
+
+
+@pytest.mark.django_db
+def test_command_sets_the_name():
+    """The --name wiring, which nothing else exercises: a typo like
+    options["site_name"] would otherwise ship green."""
+    from django.conf import settings as dj_settings
+    from django.contrib.sites.models import Site
+
+    call_command("set_site_domain", "--domain", "demo.example.org", "--name", "Acme")
+    assert Site.objects.get(pk=dj_settings.SITE_ID).name == "Acme"
 
 
 @pytest.mark.django_db
@@ -568,6 +603,11 @@ INVALID_MESSAGE = _(
 # BrandingForm, which leaves the field blank rather than pre-filling it.
 PLACEHOLDER_DOMAIN = "example.com"
 
+# django.contrib.sites.models.Site.name is CharField(max_length=50), which is
+# SHORTER than Institution.name. Anything longer must be truncated, not passed
+# through -- see set_site_domain.
+SITE_NAME_MAX_LENGTH = 50
+
 
 def validate_site_domain(value):
     """Return `value` unchanged if it is a bare host (optionally :port).
@@ -598,7 +638,13 @@ def set_site_domain(domain, name=None):
     site.domain = domain
     fields = ["domain"]
     if name:
-        site.name = name
+        # TRUNCATE: Site.name is max_length=50 while Institution.name allows far
+        # more, and a realistic school name ("Zespół Szkół Ogólnokształcących
+        # im. Marii Skłodowskiej-Curie w Warszawie" is 72 characters) would raise
+        # DataError. In the form that happens inside transaction.atomic(), so it
+        # would 500 the Identity step AND roll back the brand colours; in the
+        # entrypoint, under `set -eu`, it would crash-loop the container.
+        site.name = name[:SITE_NAME_MAX_LENGTH]
         fields.append("name")
     site.save(update_fields=fields)
     Site.objects.clear_cache()
@@ -685,12 +731,12 @@ Expected: 20 passed (4 + 7 parametrised cases, plus 9 behaviour tests).
 
 - [ ] **Step 7: Falsify — confirm the tests can fail**
 
-Three mutants, run one at a time and edit each out by hand afterwards:
+Four mutants, run one at a time and edit each out by hand afterwards — the fourth is deferred to Task 3, where the tests it needs exist:
 
-1. Delete the `Site.objects.clear_cache()` line in `set_site_domain`. Expected: `test_set_site_domain_clears_the_sites_cache` FAILS — the SITE_ID key is still present. (`test_set_site_domain_persists_to_the_database` correctly still passes; it tests a different guarantee.)
+1. Delete the `Site.objects.clear_cache()` line in `set_site_domain`. Expected: `test_set_site_domain_clears_the_sites_cache` FAILS on `assert sites_models.SITE_CACHE == {}` — the primed `"stale.example.org"` key survives, because Django's own `pre_save` receiver removes only `instance.pk` and the old domain. (`test_set_site_domain_persists_to_the_database` correctly still passes; it tests a different guarantee.)
 2. Change the no-op branch to `raise CommandError(...)`. Expected: `test_command_is_a_no_op_when_unset` FAILS.
 3. Delete the `r"^(?=.{1,100}$)"` lookahead from `_HOST_RE`. Expected: the 113-character parametrised case FAILS. That guard exists solely to stop a `DataError` at `Site.save()` (`Site.domain` is `max_length=100`); without a case whose labels are each under 63 characters it would be unfalsifiable.
-The third mutant — deleting the `_reset_sites_framework_cache` fixture — needs the wizard tests that Task 3 adds, so it is **Task 3 Step 7 mutant 5**, not a deferred note here. Do not skip it: it is the only falsification of the new fixture.
+The fourth mutant — deleting the `_reset_sites_framework_cache` fixture — needs the wizard tests that Task 3 adds, so it runs as **Task 3 Step 7 mutant 5**, not here. Do not skip it: it is the only falsification of the new fixture.
 
 - [ ] **Step 8: Lint and commit**
 
@@ -844,7 +890,6 @@ def test_identity_step_leaves_the_field_blank_on_a_placeholder_site(client):
     # Scoped to the field: tests/factories.py:236 gives users
     # "<username>@test.example.com", so a whole-page substring check would
     # break the moment the account menu rendered an email.
-    assert b'name="public_hostname" value="example.com"' not in resp.content
     assert b'value="example.com"' not in resp.content
 ```
 
@@ -986,10 +1031,10 @@ Six mutants, one at a time, each edited out by hand:
 
 - [ ] **Step 8: Check the manage settings page still renders**
 
-The template is shared with `templates/institution/manage/_branding_tab.html:13`. Confirm nothing there broke:
+The template is shared with `templates/institution/manage/_branding_tab.html:13`, and Task 3 changes both `__init__` (which now issues a `Site` query) and `save()`. Run the two settings suites in full — `-k "branding"` collects only 12 of their 56 tests, and the other 44 are the regression surface:
 
 ```bash
-uv run python -m pytest tests/ -k "branding" -v
+uv run python -m pytest tests/test_settings_5c_forms.py tests/test_settings_5c_views.py tests/test_setup_wizard.py -v
 ```
 
 Expected: pass.
@@ -1019,10 +1064,11 @@ Admin can also correct it after first run."
 **Files:**
 - Modify: `pyproject.toml` and `uv.lock` (dependencies)
 - Create: `Dockerfile`, `docker-entrypoint.sh`, `.dockerignore`
+- Modify: `.gitattributes` (`*.sh text eol=lf` — see Step 4)
 
 **Interfaces:**
 - Consumes: `set_site_domain` management command (Task 2).
-- Produces: an image whose entrypoint accepts `DJANGO_SITE_DOMAIN`, `INIT_ADMIN_USERNAME`, `INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`, serves on container port `8000`, exposes `/healthz/` for a healthcheck, and **execs any command passed as arguments** instead of starting gunicorn. Task 5's compose file depends on all of these.
+- Produces: an image whose entrypoint accepts `DJANGO_SITE_DOMAIN`, `DJANGO_SITE_NAME`, `INIT_ADMIN_USERNAME`, `INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`, `GUNICORN_WORKERS`, `GUNICORN_THREADS`, `GUNICORN_TIMEOUT`, `GUNICORN_GRACEFUL_TIMEOUT`, serves on container port `8000`, exposes `/healthz/` for a healthcheck, and **execs any command passed as arguments** instead of starting gunicorn. Task 5's compose file depends on all of these.
 
 This task's real verification is Task 5 Step 5, which runs the stack. The checks here are build-time only, and the plan says so rather than implying more.
 
@@ -1143,7 +1189,24 @@ anything beyond demo data; record it in the runbook's "Known constraints".
 
 - [ ] **Step 4: Write `docker-entrypoint.sh`**
 
-Use LF line endings. On Windows confirm with `file docker-entrypoint.sh` — a CRLF shebang fails with `no such file or directory`.
+**Add a `.gitattributes` rule first — this is not optional on this machine.** The repo's
+git config is `core.autocrlf=true` and `.gitattributes` currently carries only a favicon
+rule, so git will re-materialise this script as **CRLF on every checkout**: the next
+`git switch`, `git checkout` or fresh clone silently undoes any manual fix, and the
+following `docker build` bakes a `#!/bin/sh\r` shebang that makes the container exit
+immediately with `no such file or directory`. A one-time check cannot defend against a
+transformation that repeats.
+
+Append to `.gitattributes`:
+
+```gitattributes
+# Baked into the container as its ENTRYPOINT. core.autocrlf=true would otherwise
+# hand Windows checkouts a CRLF shebang, which the container rejects at exec with
+# a "no such file or directory" that names the interpreter, not the line ending.
+*.sh text eol=lf
+```
+
+Then confirm with `file docker-entrypoint.sh` (expect "ASCII text", **not** "with CRLF line terminators"), and commit `.gitattributes` alongside the script.
 
 ```bash
 #!/bin/sh
@@ -1252,10 +1315,10 @@ Expected: `0`, then `no env files`. A non-zero pytest count means `uv run` crept
 - [ ] **Step 6: Verify the bootstrap starts and gunicorn is not reached**
 
 ```bash
-docker run --rm libli:local /app/.venv/bin/python -c "print('exec-ok')" 2>&1 | tail -3
+docker run --rm libli:local /app/.venv/bin/python -c "print('exec-ok')" 2>&1 | grep "==>"
 ```
 
-Expected: it reaches `==> waiting for the database` and eventually exits non-zero (no database is running) — which proves the bootstrap runs. What matters is that it does **not** print `==> gunicorn`.
+Expected: `==> waiting for the database` and nothing else, then a non-zero exit (no database is running) — which proves the bootstrap runs. What matters is that `==> gunicorn` is **absent**. Grep rather than `tail`: the 60 probe attempts each emit a multi-line traceback on stderr, so the echoes you are checking for scroll hundreds of lines out of reach.
 
 **This takes about four minutes**: the DB-wait loop is 60 attempts of `django.setup()` plus `sleep 2`. That is not a hang. To shorten it, temporarily lower the `-ge 60` ceiling while testing.
 
@@ -1274,7 +1337,7 @@ The *ordering* of the bootstrap is verified in Task 5 Step 5 against the runtime
 - [ ] **Step 7: Commit**
 
 ```bash
-git add pyproject.toml uv.lock Dockerfile docker-entrypoint.sh .dockerignore
+git add pyproject.toml uv.lock Dockerfile docker-entrypoint.sh .dockerignore .gitattributes
 git commit -m "feat(deploy): production image and ordered entrypoint
 
 gunicorn was not a dependency at all. collectstatic runs at build time
@@ -1478,6 +1541,10 @@ DJANGO_SITE_DOMAIN=libli.example.org
 DJANGO_ALLOWED_HOSTS=libli.example.org,localhost,127.0.0.1
 # Shown in allauth email subjects as "[<name>] ". Left unset, Site #1 keeps
 # Django's "example.com" placeholder there even once the domain is correct.
+# APPLIED ON FIRST BOOT ONLY: the entrypoint passes --only-if-placeholder, so
+# once the domain is set this is ignored. Setting it later changes nothing --
+# re-save the wizard's Identity step with the hostname filled in instead, which
+# writes both. Truncated to 50 chars (Site.name is max_length=50).
 DJANGO_SITE_NAME=libli
 DJANGO_CSRF_TRUSTED_ORIGINS=https://libli.example.org
 
@@ -1509,15 +1576,18 @@ INIT_ADMIN_PASSWORD=
 
 # --- gunicorn ---
 # 1800s covers a multi-GB course upload; the 30s default kills it mid-stage.
-GUNICORN_WORKERS=2
+# 4 workers on the 8 GB Contabo entry tier: a 25-minute import then occupies a
+# quarter of capacity rather than half. Drop to 2 on a 2 GB host.
+GUNICORN_WORKERS=4
 GUNICORN_THREADS=4
 GUNICORN_TIMEOUT=1800
 GUNICORN_GRACEFUL_TIMEOUT=120
 
 # --- transfer caps: RAISE ONLY IF YOU HOST AN OVERSIZED COURSE ---
-# The shipped defaults (1 GiB / 1.5 GiB / 1000 entries) are deliberate
-# guardrails. The matematyka demo course needs all three raised: it is 1,194
-# media assets and ~3.8 GB, and mp4 does not compress.
+# The shipped defaults (1 GiB / 1.5 GiB / 1000 entries / 20000 elements) are
+# deliberate guardrails. The matematyka demo course needs all FOUR raised: it
+# exports 1,191 media entries, 20,226 elements and ~3.6 GiB, and mp4 does not
+# compress.
 # CADDY_MAX_BODY must be raised to match, or Caddy rejects the upload before
 # Django ever sees it.
 # LIBLI_TRANSFER_MAX_COMPRESSED_BYTES=5368709120
@@ -1631,7 +1701,9 @@ docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app
 # unconditional echo -- it prints whether the command wrote, no-op'd, or was
 # skipped by --only-if-placeholder. This is one of the two headline defects the
 # whole plan exists to fix, so it gets a real read, not a log grep.
-docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app   /app/.venv/bin/python -c   "import django; django.setup(); from django.contrib.sites.models import Site; print(Site.objects.get_current().domain)"
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  /app/.venv/bin/python -c \
+  "import django; django.setup(); from django.contrib.sites.models import Site; print(Site.objects.get_current().domain)"
 #   MUST print localhost -- NOT example.com
 
 # The staging directories must NOT be reachable. A grep of the Caddyfile cannot
@@ -1689,6 +1761,25 @@ have no Caddy route, proven by a request rather than a grep."
 
 1. **Provision.** Contabo VPS, Ubuntu 24.04, **50 GB disk minimum** (peak usage during a matematyka import is ~17 GB; steady is ~9 GB). Order early — Contabo accounts sometimes get manual review before provisioning, which can take a day.
 
+   **Harden SSH before anything else, and before DNS points at the box.** Contabo
+   typically emails a root password rather than taking a key at order time; a public IP
+   with password authentication is being brute-forced within hours. From your own machine:
+
+   ```bash
+   ssh-copy-id root@<ip>
+   ssh root@<ip>
+   sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
+   sed -i 's/^#\?PermitRootLogin .*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+   systemctl restart ssh
+   ```
+
+   Open a **second** terminal and confirm you can still log in before closing the first.
+
+   No firewall is needed: the compose file publishes only 80/443 (via `caddy`), `app` uses
+   `expose` so gunicorn is reachable only on the compose network, and `db` publishes
+   nothing. Note that `ufw` would not help anyway — Docker writes its own iptables rules
+   and bypasses it, so a green `ufw status` proves nothing about a published port.
+
    ```bash
    # on the VPS, as root
    apt-get update && apt-get install -y ca-certificates curl git
@@ -1722,7 +1813,9 @@ have no Caddy route, proven by a request rather than a grep."
    # non-empty wrong value. A stale DJANGO_ALLOWED_HOSTS makes the healthcheck
    # 400 -> the app never becomes healthy -> caddy never starts -> the site is
    # simply unreachable. A stale CSRF origin 403s every wizard POST instead.
-   grep -n 'example\.org' .env.production   # MUST return nothing before you boot
+   # Scoped to those four keys: INIT_ADMIN_EMAIL and the commented SMTP lines
+   # legitimately keep example.org, so an unscoped grep would cry wolf every time.
+   grep -nE '^(SITE_ADDRESS|DJANGO_SITE_DOMAIN|DJANGO_ALLOWED_HOSTS|DJANGO_CSRF_TRUSTED_ORIGINS)=.*example\.org' .env.production   # MUST return nothing
    chmod 600 .env.production
    docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
    docker compose -f docker-compose.prod.yml --env-file .env.production logs -f app
@@ -1730,7 +1823,7 @@ have no Caddy route, proven by a request rather than a grep."
 
    The log must show, in order: `waiting for the database`, `migrate`, `setup_roles`, `set_site_domain`, `init_platform`, `gunicorn`.
 
-4. **Verify** — run every check in Step 2 below before going further.
+4. **Verify** — run every check in Step 2 below before going further. The Range check runs in **two passes**: a throwaway probe file now, and a real `.mp4` after step 6. Step 2 gives both.
 
 5. **Walk the first-run wizard** at `https://<host>/manage/setup/` (the route is `manage/setup/`, `institution/urls.py:57` — there is no bare `/setup/`), signed in as the `INIT_ADMIN_USERNAME` account. Confirm the Identity step shows the **Public hostname** field pre-filled with the value the entrypoint set, and that the five steps (Welcome → Identity → Access → Team → SSO) complete. This is the non-developer surface — walk it as a school admin would, without a shell open.
 
@@ -1820,8 +1913,10 @@ have no Caddy route, proven by a request rather than a grep."
    "
    ```
 
-   For matematyka expect roughly **1,010 nodes and 1,194 media assets**. A materially
-   lower media count means the archive was truncated — re-import rather than proceeding.
+   For matematyka expect **1,010 nodes and 1,191 media assets** — measured from a real
+   `build_export()`. (The course has 1,194 `MediaAsset` rows; three are unreferenced and
+   are not exported, so 1,191 is correct, not truncation.) A materially lower count does
+   mean a truncated archive — re-import rather than proceeding.
 
 8. **Seed the second, smaller course.** `seed_demo_course` is already written and
    idempotent, so this is one line:
@@ -1842,25 +1937,43 @@ have no Caddy route, proven by a request rather than a grep."
    without one. `docs/local-development.md:55` gives the host form (`cd /app && uv run …`),
    which does **not** apply here — this deployment runs the command inside the container:
 
+   Install with `sudo crontab -e` (root's crontab — **no** user field). The command must
+   be **one physical line**: a crontab command field ends at the newline and a trailing
+   backslash is not a continuation, so a wrapped entry silently never runs.
+
    ```cron
-   # /etc/crontab or `crontab -e` on the VPS — daily at 03:30
-   30 3 * * * cd /opt/libli && docker compose -f docker-compose.prod.yml \
-     --env-file .env.production exec -T app \
-     /app/.venv/bin/python manage.py purge_notifications
+   30 3 * * * cd /opt/libli && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app /app/.venv/bin/python manage.py purge_notifications
    ```
+
+   If you prefer `/etc/crontab` instead, that file takes an extra **user** field between
+   the schedule and the command (`30 3 * * * root cd /opt/libli && …`) — without it, cron
+   parses `cd` as the username and the job fails.
 
    `exec -T` is required: cron has no TTY. Test it once by hand with `--dry-run` first.
 
-10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Signup policy stays `invite`. The app container runs as root (accepted; see Task 4). After changing the hostname through the settings UI, `restart app` so every gunicorn worker picks it up — `SITE_CACHE` is per-process. The same applies to **any** settings or branding change: there is no `CACHES` setting, so Django's default LocMemCache is per-process too, and `core/services.py:17` caches the whole site-config bundle for `CACHE_TTL = 300`. With two workers, up to five minutes of refreshes can alternate between old and new values. `restart app` clears it immediately. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
+10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Signup policy stays `invite`. The app container runs as root (accepted; see Task 4). `DJANGO_SITE_NAME` applies on **first boot only** — afterwards, change it by re-saving the wizard's Identity step, not by editing `.env.production`. After changing the hostname through the settings UI, `restart app` so every gunicorn worker picks it up — `SITE_CACHE` is per-process. The same applies to **any** settings or branding change: there is no `CACHES` setting, so Django's default LocMemCache is per-process too, and `core/services.py:17` caches the whole site-config bundle for `CACHE_TTL = 300`. With more than one worker, up to five minutes of refreshes can alternate between old and new values. `restart app` clears it immediately. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
 
 - [ ] **Step 2: Put the post-deploy checks in the runbook verbatim**
 
 ```bash
-# Pick a real media file first -- this check is the one most likely to be
-# skipped, and a placeholder path is why.
+# --- Range check: run this TWICE ---
+#
+# At step 4 the media volume is EMPTY (matematyka arrives at step 6, and
+# seed_demo_course ships no .mp4), so `find` returns nothing and the check would
+# request /media/ and 404. Use a throwaway probe now, and a real video after the
+# import -- only the second run exercises a file a student would actually watch.
+#
+# PASS 1, at step 4 -- create a probe:
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  sh -c 'mkdir -p /app/media/smoke && head -c 1048576 /dev/urandom > /app/media/smoke/probe.bin'
+REL=smoke/probe.bin
+
+# PASS 2, after step 6 -- a real video, and delete the probe:
 MP4=$(docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
         sh -c 'find /app/media -name "*.mp4" | head -1' | tr -d '\r')
 REL=${MP4#/app/media/}
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  rm -rf /app/media/smoke
 echo "https://<host>/media/$REL"
 
 # Video seeking. A 200 here means every student's <video> is unseekable --
@@ -1872,7 +1985,14 @@ curl -s -o /dev/null -D - -r 0-100 "https://<host>/media/$REL" | head -5
 
 curl -sI https://<host>/healthz/                               # 200
 curl -sI https://<host>/                                       # 200 -- the landing page
-curl -sI "https://<host>/static/$HASHED"                       # 200 ($HASHED as in Task 5 Step 5)
+# Resolve a hashed static name HERE -- $HASHED from Task 5 Step 5 lived in a
+# different shell on a different machine. Un-hashed paths return 200 even with a
+# broken manifest, so an empty $HASHED would silently prove nothing.
+MANIFEST=/app/staticfiles/staticfiles.json
+HASHED=$(docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  /app/.venv/bin/python -c "import json; print(json.load(open('$MANIFEST'))['paths']['admin/css/base.css'])" \
+  | tr -d '\r')
+curl -sI "https://<host>/static/$HASHED"                       # 200
 curl -sI http://<host>/ | head -3                              # 301/308 to https
 
 # Staging dirs must be unreachable -- a request, not a grep.
