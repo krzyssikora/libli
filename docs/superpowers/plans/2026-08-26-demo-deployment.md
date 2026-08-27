@@ -56,7 +56,6 @@ moves. A worktree is immune, which is why the work lives in one.
 - `config/settings/base.py` — the four cap assignments at lines **175, 176, 180 and 181** become `env.int` reads, plus a new `FILE_UPLOAD_TEMP_DIR`.
 - `institution/forms.py` — `BrandingForm` gains `public_hostname`; its **existing** `__init__` (line 152) and **existing** `save` (line 236) are edited, not duplicated.
 - `templates/institution/manage/_branding_fields.html` — renders the new field.
-- `tests/conftest.py` — new autouse fixture resetting the sites-framework cache.
 - `pyproject.toml` — add `gunicorn`.
 
 **New infrastructure (repo root unless noted)**
@@ -280,7 +279,6 @@ its own environment."
 **Files:**
 - Create: `institution/site_domain.py`
 - Create: `institution/management/commands/set_site_domain.py`
-- Modify: `tests/conftest.py` (new autouse fixture)
 - Test: `tests/test_site_domain.py` (create)
 
 **Interfaces:**
@@ -290,41 +288,33 @@ its own environment."
   - `institution.site_domain.validate_site_domain(value) -> str` — raises `django.core.exceptions.ValidationError` on a bad host. Task 3's form imports this.
   - `institution.site_domain.set_site_domain(domain, name=None) -> Site` — validates, writes, clears the sites-framework cache.
   - Management command `set_site_domain`, reading `--domain` or the `DJANGO_SITE_DOMAIN` env var. Task 4's entrypoint calls it.
-  - Autouse fixture `_reset_sites_framework_cache` in `tests/conftest.py`. Task 3's tests depend on it.
 
-- [ ] **Step 1: Add the sites-cache autouse fixture**
+- [ ] **Step 1: Confirm test isolation is already handled — write NO fixture**
 
-`django.contrib.sites.models.SITE_CACHE` is a module-level dict that the database
-rollback does **not** undo. The repo already has an autouse fixture named
-`_clear_site_cache` (`tests/conftest.py:406`) — it clears the Django **cache framework**
-(LocMemCache), which is a different thing entirely, and the similar name is a trap.
+`django.contrib.sites.models.SITE_CACHE` is a module-level dict that the database rollback
+does not undo, and Task 3's `BrandingForm.__init__` repopulates it on every instantiation.
+That looks like it needs an autouse reset fixture. **It does not** — pytest-django already
+ships one:
 
-Without this, Task 3's new `BrandingForm.__init__` calls `get_current()` on every
-instantiation and repopulates the cache after each rollback, so a domain written by one
-test leaks into the next and assertions on `"example.com"` fail order-dependently under
-`pytest-xdist`.
-
-Append to `tests/conftest.py`.
-
-(The root `conftest.py` is where the repo puts cross-cutting isolation fixtures, and it says so. `tests/` scope is deliberate here: `Site` is touched only by `tests/`, and `courses/tests`, `integrations/tests` and `notifications/tests` never instantiate `BrandingForm`. If that changes, move it up to the root conftest next to `_reset_active_language`.)
-
-```python
-@pytest.fixture(autouse=True)
-def _reset_sites_framework_cache():
-    """Reset django.contrib.sites' SITE_CACHE around every test.
-
-    NOT the same as _clear_site_cache above, which clears the Django CACHE
-    FRAMEWORK. SITE_CACHE is a module-level dict in django.contrib.sites.models,
-    is not transaction-scoped, and survives the per-test rollback. BrandingForm
-    repopulates it on every instantiation, so a leaked domain makes later tests
-    fail depending on execution order.
-    """
-    from django.contrib.sites.models import Site
-
-    Site.objects.clear_cache()
-    yield
-    Site.objects.clear_cache()
+```bash
+grep -n "_django_clear_site_cache" -A 12 .venv/Lib/site-packages/pytest_django/plugin.py
 ```
+
+Expect an `@pytest.fixture(autouse=True)` at about line 815 that calls
+`Site.objects.clear_cache()` whenever `django.contrib.sites` is in `INSTALLED_APPS`
+(`config/settings/base.py:25` — it is). That is function-scoped and autouse, so every test
+in this repo already starts with an empty `SITE_CACHE`.
+
+**This step exists to stop the fixture being written.** Three earlier drafts of this plan
+added a `_reset_sites_framework_cache` fixture to `tests/conftest.py`, and every attempt to
+falsify it failed — deleting it leaves all 57 tests in `test_site_domain.py` +
+`test_setup_wizard.py` green, because there was never anything for it to fix. A test that
+cannot fail is not evidence, and a fixture whose removal changes nothing is not isolation.
+
+Note the near-miss that made this look plausible: the repo *does* have an autouse fixture
+called `_clear_site_cache` (`tests/conftest.py:406`), but it clears the Django **cache
+framework** (LocMemCache), which is a different thing entirely. The similar name is the
+trap. Neither fixture is yours to add.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -508,33 +498,6 @@ def test_only_if_placeholder_leaves_a_configured_site_alone():
         == "chosen-by-the-admin.example.org"
     )
 
-
-# MUST stay last in this module. It is the ONLY test that observes
-# _reset_sites_framework_cache directly, and it does so by asserting the state
-# the preceding test leaves behind.
-@pytest.mark.django_db
-def test_site_cache_does_not_leak_from_the_previous_test():
-    """Companion to the _reset_sites_framework_cache fixture.
-
-    Every other assertion in this suite reads the Site ROW, which the per-test
-    rollback restores whether or not SITE_CACHE was cleared -- so none of them
-    can observe the fixture. SITE_CACHE is a module-level dict in
-    django.contrib.sites.models and is NOT rolled back.
-
-    The test immediately above calls get_current() and returns early without
-    writing, so it leaves the cache populated. With the fixture in place this
-    starts empty; without it, it does not. pytest runs in definition order here
-    (pytest-randomly is not installed), which is what makes that deterministic.
-
-    CAVEAT: under the branch gate's `pytest -n auto`, xdist's default --dist load
-    may schedule this onto a worker that never ran the preceding test, so it
-    asserts on an empty cache for an unrelated reason. It is not flaky -- it just
-    stops proving anything there. Run the falsification sequentially, as the
-    mutant step does.
-    """
-    from django.contrib.sites import models as sites_models
-
-    assert sites_models.SITE_CACHE == {}
 ```
 
 - [ ] **Step 3: Run the test and confirm it fails**
@@ -543,14 +506,13 @@ def test_site_cache_does_not_leak_from_the_previous_test():
 uv run python -m pytest tests/test_site_domain.py -v
 ```
 
-Expected — and this baseline is deliberately precise, because two of these tests pass **vacuously** at this point and only become meaningful after Step 5:
+Expected: **20 failed, 1 passed** — and this baseline is deliberately precise, because that single pass is **vacuous** and only becomes meaningful after Step 5:
 
 - The 11 validator cases (4 valid + 7 invalid), `test_set_site_domain_*`, and `test_only_if_placeholder_leaves_a_configured_site_alone` fail with `ModuleNotFoundError: No module named 'institution.site_domain'` — the last one dies at its own import line, before reaching the command.
-- Four of the six `call_command` tests fail with `CommandError: Unknown command: 'set_site_domain'`.
+- Five of the six `call_command` tests fail with `CommandError: Unknown command: 'set_site_domain'`.
 - `test_command_rejects_a_url` **PASSES** — it wraps the call in `pytest.raises(CommandError)`, and an unknown command raises exactly that.
-- `test_site_cache_does_not_leak_from_the_previous_test` **PASSES** — the test before it dies at the import line before it can prime `SITE_CACHE`.
 
-Do not treat those two passes as the tests being satisfied.
+Do not treat that pass as the test being satisfied — mutant 4 in Step 7 is what actually shows it red.
 
 - [ ] **Step 4: Write `institution/site_domain.py`**
 
@@ -727,22 +689,22 @@ class Command(BaseCommand):
 uv run python -m pytest tests/test_site_domain.py -v
 ```
 
-Expected: 20 passed (4 + 7 parametrised cases, plus 9 behaviour tests).
+Expected: 21 passed (4 + 7 parametrised cases, plus 10 behaviour tests). Measured, not estimated.
 
 - [ ] **Step 7: Falsify — confirm the tests can fail**
 
-Four mutants, run one at a time and edit each out by hand afterwards — the fourth is deferred to Task 3, where the tests it needs exist:
+Four mutants, run one at a time and edit each out by hand afterwards:
 
 1. Delete the `Site.objects.clear_cache()` line in `set_site_domain`. Expected: `test_set_site_domain_clears_the_sites_cache` FAILS on `assert sites_models.SITE_CACHE == {}` — the primed `"stale.example.org"` key survives, because Django's own `pre_save` receiver removes only `instance.pk` and the old domain. (`test_set_site_domain_persists_to_the_database` correctly still passes; it tests a different guarantee.)
 2. Change the no-op branch to `raise CommandError(...)`. Expected: `test_command_is_a_no_op_when_unset` FAILS.
 3. Delete the `r"^(?=.{1,100}$)"` lookahead from `_HOST_RE`. Expected: the 113-character parametrised case FAILS. That guard exists solely to stop a `DataError` at `Site.save()` (`Site.domain` is `max_length=100`); without a case whose labels are each under 63 characters it would be unfalsifiable.
-The fourth mutant — deleting the `_reset_sites_framework_cache` fixture — needs the wizard tests that Task 3 adds, so it runs as **Task 3 Step 7 mutant 5**, not here. Do not skip it: it is the only falsification of the new fixture.
+4. Delete the `try` / `except ValidationError: raise CommandError(...)` wrapper in `handle()`, so the raw exception escapes. Expected: `test_command_rejects_a_url` FAILS — it asserts `pytest.raises(CommandError)` and now sees a bare `django.core.exceptions.ValidationError`. Without this mutant that test is never shown red anywhere: at the Step 3 baseline it passes vacuously, because an unknown command also raises `CommandError`.
 
 - [ ] **Step 8: Lint and commit**
 
 ```bash
-uv run ruff check . --no-cache && uv run ruff format --check .
-git add institution/site_domain.py institution/management/commands/set_site_domain.py tests/test_site_domain.py tests/conftest.py
+uv run ruff format . && uv run ruff check . --no-cache && uv run ruff format --check .
+git add institution/site_domain.py institution/management/commands/set_site_domain.py tests/test_site_domain.py
 git commit -m "feat(institution): set_site_domain command and validator
 
 Site #1 ships as example.com, and build_accept_url builds invitation and
@@ -765,7 +727,7 @@ the existing _clear_site_cache, which clears the cache framework."
 - Test: `tests/test_setup_wizard.py` (append)
 
 **Interfaces:**
-- Consumes: `institution.site_domain.validate_site_domain`, `institution.site_domain.set_site_domain`, and the `_reset_sites_framework_cache` fixture (all Task 2).
+- Consumes: `institution.site_domain.validate_site_domain`, `institution.site_domain.set_site_domain` (both Task 2).
 - Produces: form field named `public_hostname` on `BrandingForm`. No later task depends on it.
 
 **`BrandingForm` already defines both `__init__` and `save`.** Adding second definitions
@@ -874,7 +836,10 @@ def test_identity_step_seeds_the_hostname_field_from_the_site(client):
     make_pa(client)
     resp = client.get(reverse("institution:setup_step", kwargs={"step": "identity"}))
     assert b'name="public_hostname"' in resp.content
-    assert b"seeded.example.org" in resp.content
+    # Scoped to the field's value, matching the placeholder test below: a
+    # whole-page substring check would break the moment some other element
+    # rendered the hostname.
+    assert b'value="seeded.example.org"' in resp.content
 
 
 @pytest.mark.django_db
@@ -899,7 +864,7 @@ def test_identity_step_leaves_the_field_blank_on_a_placeholder_site(client):
 uv run python -m pytest tests/test_setup_wizard.py -k "site_domain or hostname or brand_colours or placeholder" -v
 ```
 
-Expected: FAIL — the Site stays `example.com`, and `name="public_hostname"` is absent from the rendered page. (`test_identity_step_still_saves_the_brand_colours` passes already; it is the regression guard for Step 4.)
+Expected: **4 failed, 2 passed** — the Site stays `example.com` and `name="public_hostname"` is absent from the page. Both passes are expected: `test_identity_step_still_saves_the_brand_colours` is the regression guard for Step 4, and `test_identity_step_blank_hostname_leaves_the_site_alone` passes **vacuously** (with no field at all the Site is trivially untouched) — it only becomes meaningful under Step 7 mutant 3.
 
 - [ ] **Step 3: Declare the field**
 
@@ -1017,16 +982,10 @@ Expected: all pass, including the pre-existing wizard tests (the new field is op
 Six mutants, one at a time, each edited out by hand:
 
 1. Delete the `set_site_domain(hostname)` call from `save()`. Expected: `test_identity_step_sets_the_site_domain` FAILS.
-2. Change `clean_public_hostname` to `return value` without validating. Expected: `test_identity_step_rejects_a_url_in_the_hostname` FAILS (302 instead of 200, and the Site is corrupted).
+2. Change `clean_public_hostname` to `return value` without validating. Expected: `test_identity_step_rejects_a_url_in_the_hostname` turns red — as an **error**, not a failed assertion, exactly like mutant 3: `set_site_domain` re-validates, so `ValidationError` propagates out of `save()` through `views_setup.py` to the test client. There is no 302, and the Site is never corrupted (the write never happens, and it is inside `transaction.atomic()` regardless). Red is red.
 3. Drop the `if commit and hostname:` guard so a blank writes through. Expected: `test_identity_step_blank_hostname_leaves_the_site_alone` turns red — but as an **error**, not a failed assertion: `set_site_domain("")` re-raises `ValidationError` out of `save()` and the view, so the request never returns 302. Red is red; do not go hunting for a blanked domain.
 4. Add a **second** `def save(self, commit=True)` at the end of the class that only calls `super().save(commit)`. Expected: `test_identity_step_still_saves_the_brand_colours` FAILS — this is the C1 hazard made observable.
-5. Delete the `_reset_sites_framework_cache` fixture added in Task 2 Step 1, then run:
-   ```bash
-   uv run python -m pytest tests/test_site_domain.py tests/test_setup_wizard.py  -v
-   ```
-   Expected: `test_site_cache_does_not_leak_from_the_previous_test` FAILS — `SITE_CACHE` still holds the entry the preceding test primed.
-
-   That test is the **only** observer of the fixture. Every other assertion in both files reads the Site *row*, which the per-test rollback restores whether or not the cache was cleared, so none of them can fail on this mutant — do not expect a broader failure and do not treat its absence as the fixture being fine.
+5. Delete the `public_hostname` `setdefault` from `__init__` entirely. Expected: `test_identity_step_seeds_the_hostname_field_from_the_site` FAILS — the field renders with no value.
 6. Change the `__init__` seeding to `self.initial.setdefault("public_hostname", Site.objects.get_current().domain)` (i.e. drop the placeholder guard from Step 4). Expected: `test_identity_step_leaves_the_field_blank_on_a_placeholder_site` FAILS — the box would be pre-filled with `example.com`, which validates, so an admin clicking Next writes the broken value straight back.
 
 - [ ] **Step 8: Check the manage settings page still renders**
