@@ -171,8 +171,8 @@ real pilot needs it before then — until it lands, Django admin + fixtures fill
 
 - **Content translation strategy** *(decide in Phase 1)* — UI is EN/PL, but is *course
   content* monolingual-per-course, or translatable per element? Big schema implication.
-- **Non-technical deployment/install** *(revisit through Phase 0 & 5)* — "a school can
-  start it easily" likely means a one-command/containerized install + the first-run wizard.
+- **Non-technical deployment/install** — **shipped: see `docs/deployment.md`.** caddy/app/db
+  via `docker compose`, ordered bootstrap, first-run wizard. Open: published image; backups.
 - **RBAC re-sliceability** — every permission check uses Django permissions/Groups, never
   hardcoded role strings, so roles can be split later.
 - **Accessibility & responsive** — light/dark + mobile/desktop for every view (your stated requirement).
