@@ -1,0 +1,41 @@
+# libli reverse proxy.
+#
+# Caddy, not nginx, for two measured reasons:
+#  - nginx buffers the whole request body to disk before proxying
+#    (proxy_request_buffering on by default), adding a FOURTH multi-GB copy
+#    during a large course import. Caddy streams request bodies.
+#  - file_server implements HTTP Range. Django implements none anywhere in its
+#    response stack, and core/media_serve.py (which adds it) is DEBUG-only, so
+#    without a Range-capable server a student cannot seek inside a <video>.
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Media is served straight off the volume: Django never sees it, so 3.7 GB
+	# of mp4 traffic never occupies a gunicorn worker.
+	handle_path /media/* {
+		root * /srv/media
+		file_server
+	}
+
+	# /static/ is deliberately NOT routed here. Whitenoise serves it from inside
+	# the app so its hashed manifest stays authoritative.
+	#
+	# transfer_staging/ and support_screenshots/ are deliberately NOT routed
+	# here either, and must never be: staged archives are raw unvalidated
+	# uploads, and screenshots may carry another student's grades. Step 5 and
+	# the runbook both prove they 404 with a real request, not a grep.
+
+	handle {
+		# No explicit header_up: reverse_proxy already sets X-Forwarded-For,
+		# X-Forwarded-Proto and X-Forwarded-Host by default, and Caddy warns
+		# ("Unnecessary header_up X-Forwarded-Proto") if you restate it. Django
+		# reads the proto header via SECURE_PROXY_SSL_HEADER, which compose
+		# enables with DJANGO_BEHIND_PROXY=true.
+		reverse_proxy app:8000
+	}
+
+	request_body {
+		max_size {$CADDY_MAX_BODY:1200MiB}
+	}
+}

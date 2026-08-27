@@ -7,7 +7,9 @@ __pycache__/
 staticfiles/
 /media/
 # Env / secrets
-.env
+.env*
+!.env.example
+!.env.production.example
 # Tooling / sessions
 .claude/
 .superpowers/

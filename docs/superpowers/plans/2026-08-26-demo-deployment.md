@@ -1314,7 +1314,7 @@ would abort an in-flight import."
 ### Task 5: Compose stack, Caddyfile, env example, local smoke test
 
 **Files:**
-- Create: `docker-compose.prod.yml`, `Caddyfile`, `.env.production.example`
+- Create: `docker-compose.prod.yml`, `Caddyfile`, `.env.production.example`, `docker-compose.local-smoke.yml` (local port remap; never deployed)
 - Modify: `.gitignore` (Step 4 widens the `.env` rule; Step 6 commits it)
 
 **Interfaces:**
@@ -1605,6 +1605,24 @@ elsewhere.
 
 **`.gitignore:10` is the literal string `.env`, not a glob — so `.env.production` is NOT ignored.** Before creating the file, change that line to `.env*` and add `!.env.example` and `!.env.production.example` beneath it (both are committed and must stay tracked), then confirm with `git check-ignore -v .env.production`. A filled secrets file showing up in `git status` is one careless `git add -A` from being committed.
 
+- [ ] **Step 4a: Validate the Caddyfile BEFORE bringing the stack up**
+
+```bash
+docker run --rm -v "$(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro"   -e SITE_ADDRESS=http://localhost caddy:2-alpine   caddy validate --config /etc/caddy/Caddyfile
+```
+
+Expect `Valid configuration` and **no warnings**.
+
+This step exists because `caddy` has **no healthcheck** in the compose file, and
+`restart: unless-stopped` means a Caddyfile syntax error produces a crash loop that
+`docker compose ps` reports as `running` / `Up 2 seconds`. Without validating first you
+discover the problem as an empty reply (`curl` exit 52) and have to read container logs to
+find out why — and `docker compose logs` shows the *stale* pre-fix output, which reads as
+though the fix did not take. Validate first; it is two seconds against ten minutes.
+
+On Windows, `$(pwd)` needs to be `$(pwd -W)` and the command needs `MSYS_NO_PATHCONV=1`
+— see below.
+
 - [ ] **Step 5: Run the whole stack locally — the real verification**
 
 This is the first time `app`, `db` and `caddy` run together. Every integration failure the
@@ -1613,6 +1631,20 @@ whitenoise behind Caddy, the media mount, `env_file` resolution, the gunicorn bi
 healthcheck gate — surfaces here rather than on the VPS with ACME in flight.
 
 `SITE_ADDRESS=http://localhost` makes Caddy serve plain HTTP and skip Let's Encrypt.
+
+**On Windows, two environment obstacles, neither of which affects the VPS:**
+
+1. **Port 80 is unavailable** — Windows reserves ranges via winnat, and the bind fails with
+   "An attempt was made to access a socket in a way forbidden by its access permissions".
+   Use the committed `docker-compose.local-smoke.yml` override, which remaps the published
+   port to 8080 and changes **nothing else** — `DJANGO_ALLOWED_HOSTS` and
+   `DJANGO_SECURE_SSL_REDIRECT` keep their shipped values, because configuring those
+   differently locally is precisely how a broken healthcheck passes a smoke test. Add
+   `-f docker-compose.local-smoke.yml` to every compose command below, and use
+   `http://localhost:8080` in the curls.
+2. **Git Bash rewrites container-absolute paths** — `/app/.venv/bin/python` becomes
+   `C:/Program Files/Git/app/.venv/bin/python`. Prefix every `docker … exec`/`run` that
+   names a container path with `MSYS_NO_PATHCONV=1`.
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
