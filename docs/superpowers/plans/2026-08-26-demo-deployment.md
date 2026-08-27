@@ -17,7 +17,7 @@
 - **Transfer-cap defaults must not change.** `TRANSFER_MAX_COMPRESSED_BYTES` stays `1 * 1024**3`, `TRANSFER_MAX_UNCOMPRESSED_BYTES` stays `1536 * 1024**2`, `TRANSFER_MAX_MEDIA_ENTRIES` stays `1000`. Only their env-overridability is new.
 - **`TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served.** They must not appear in any Caddy route, and Task 6/7 both prove it with a real request, not a grep.
 - **No hardcoded passwords** in new code. ruff `S105`/`S106`/`S107` are enabled outside `tests/`.
-- **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates. Note `B` (bugbear) is selected — an unused loop variable (`B007`) fails the build.
+- **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates. Note `B` (bugbear) and `S` (bandit) are selected — an unused loop variable (`B007`) and a bare `random.Random` (`S311`) both fail the build. `I` is selected too, and `ruff format` does NOT sort imports: run `uv run ruff check --fix` for `I001` before the gate.
 - **Run tests narrowly.** Whole-repo sweeps are a branch gate, not a task step. Start the test DB first: `docker compose -f docker-compose.test.yml up -d`.
 - **Every test must be shown RED against its named mutant** before the task is accepted. A test that cannot fail is not evidence.
 - **The Python blocks in this plan are illustrative, not formatter-clean.** ruff format (black semantics) explodes multi-line collections one element per line, collapses calls that fit in 88 columns, and normalises inline comments. Run `uv run ruff format .` after transcribing a block and before the lint gate, rather than treating a `--check` failure as a defect in your transcription.
@@ -89,6 +89,12 @@ overlay filesystem on the host root disk — a copy the spec's disk arithmetic d
 name. Django reads settings from the settings module, never from arbitrary environment
 variables, so setting it in compose alone does nothing: the read has to exist here.
 
+It gets its **own** volume (`/app/upload_tmp`), deliberately not `TRANSFER_STAGING_DIR`.
+`staging.sweep()` (`courses/transfer/staging.py:22`) unlinks **any** file in the staging
+directory older than `TRANSFER_STAGING_MAX_AGE_HOURS`, not just `*.zip` — pointing the
+spill there would let the sweeper delete an in-flight upload, and would leave orphaned
+spill files that Task 7's `rm -f …/*.zip` cleanup does not match.
+
 - [ ] **Step 1: Write the failing test**
 
 Create `tests/test_transfer_caps_env.py`:
@@ -118,6 +124,7 @@ CAP_ENV_NAMES = (
     "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES",
     "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES",
     "LIBLI_TRANSFER_MAX_MEDIA_ENTRIES",
+    "DJANGO_FILE_UPLOAD_TEMP_DIR",
 )
 
 
@@ -334,6 +341,7 @@ def test_valid_hosts_are_accepted(value):
         "libli.example.org/",          # trailing slash
         "user@libli.example.org",      # userinfo
         "-libli.example.org",          # leading hyphen in a label
+        "a" * 95 + ".example.org",     # 107 chars: Site.domain is max_length=100
         "",
     ],
 )
@@ -418,6 +426,57 @@ def test_command_rejects_a_url(monkeypatch):
     monkeypatch.setenv("DJANGO_SITE_DOMAIN", "https://demo.example.org/")
     with pytest.raises(CommandError):
         call_command("set_site_domain")
+
+
+@pytest.mark.django_db
+def test_only_if_placeholder_writes_when_the_site_is_unset():
+    from django.conf import settings as dj_settings
+    from django.contrib.sites.models import Site
+
+    call_command("set_site_domain", "--domain", "first.example.org",
+                 "--only-if-placeholder")
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "first.example.org"
+
+
+@pytest.mark.django_db
+def test_only_if_placeholder_leaves_a_configured_site_alone():
+    """The entrypoint runs on EVERY boot. Without this the container would
+    silently revert a hostname a Platform Admin corrected through the settings
+    UI -- and restart: unless-stopped makes reboots routine."""
+    from django.conf import settings as dj_settings
+    from django.contrib.sites.models import Site
+
+    from institution.site_domain import set_site_domain
+
+    set_site_domain("chosen-by-the-admin.example.org")
+    call_command("set_site_domain", "--domain", "from-the-env.example.org",
+                 "--only-if-placeholder")
+    assert (
+        Site.objects.get(pk=dj_settings.SITE_ID).domain
+        == "chosen-by-the-admin.example.org"
+    )
+
+
+# MUST stay last in this module. It is the ONLY test that observes
+# _reset_sites_framework_cache directly, and it does so by asserting the state
+# the preceding test leaves behind.
+@pytest.mark.django_db
+def test_site_cache_does_not_leak_from_the_previous_test():
+    """Companion to the _reset_sites_framework_cache fixture.
+
+    Every other assertion in this suite reads the Site ROW, which the per-test
+    rollback restores whether or not SITE_CACHE was cleared -- so none of them
+    can observe the fixture. SITE_CACHE is a module-level dict in
+    django.contrib.sites.models and is NOT rolled back.
+
+    The test immediately above calls get_current() and returns early without
+    writing, so it leaves the cache populated. With the fixture in place this
+    starts empty; without it, it does not. pytest runs in definition order here
+    (pytest-randomly is not installed), which is what makes that deterministic.
+    """
+    from django.contrib.sites import models as sites_models
+
+    assert sites_models.SITE_CACHE == {}
 ```
 
 - [ ] **Step 3: Run the test and confirm it fails**
@@ -458,8 +517,11 @@ from django.utils.translation import gettext_lazy as _
 
 # A bare host with an optional :port. No scheme, no path, no userinfo, no
 # trailing slash -- Site.domain is a host, and Django concatenates it directly.
+# The length lookahead is 100, not DNS's 253: Site.domain is max_length=100, and
+# a longer value would pass validation only to fail at save() with a database
+# error instead of a form error.
 _HOST_RE = re.compile(
-    r"^(?=.{1,253}(?::\d{1,5})?$)"
+    r"^(?=.{1,100}$)"
     r"(?!-)[A-Za-z0-9-]{1,63}(?<!-)"
     r"(?:\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*"
     r"(?::\d{1,5})?$"
@@ -487,6 +549,11 @@ def set_site_domain(domain, name=None):
 
     Clears the sites framework's per-SITE_ID cache: get_current() memoizes, so
     without this a long-lived process keeps serving the old domain in links.
+
+    LIMITATION: SITE_CACHE is a per-PROCESS dict. With GUNICORN_WORKERS > 1 this
+    clears only the worker that served the request; siblings keep building links
+    from the old domain until they are recycled. After changing the hostname
+    through the settings UI, restart the app service -- Task 7 says so.
     """
     from django.contrib.sites.models import Site
 
@@ -519,6 +586,7 @@ from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 
+from institution.site_domain import PLACEHOLDER_DOMAIN
 from institution.site_domain import set_site_domain
 
 
@@ -534,6 +602,13 @@ class Command(BaseCommand):
         parser.add_argument(
             "--name", default=None, help="Human-readable site name (optional)."
         )
+        parser.add_argument(
+            "--only-if-placeholder",
+            action="store_true",
+            help="Write only while the Site still holds Django's example.com "
+            "placeholder. The entrypoint uses this so a hostname corrected "
+            "through the settings UI is not reverted on the next restart.",
+        )
 
     def handle(self, *args, **options):
         domain = options["domain"] or os.environ.get("DJANGO_SITE_DOMAIN", "")
@@ -547,6 +622,16 @@ class Command(BaseCommand):
                 )
             )
             return
+        if options["only_if_placeholder"]:
+            from django.contrib.sites.models import Site
+
+            current = Site.objects.get_current().domain
+            if current != PLACEHOLDER_DOMAIN:
+                self.stdout.write(
+                    f"Site domain is already {current!r}; leaving it alone "
+                    f"(--only-if-placeholder)."
+                )
+                return
         try:
             site = set_site_domain(domain, name=options["name"])
         except ValidationError as exc:
@@ -560,7 +645,7 @@ class Command(BaseCommand):
 uv run python -m pytest tests/test_site_domain.py -v
 ```
 
-Expected: 16 passed (4 + 6 parametrised cases, plus 6 behaviour tests).
+Expected: 19 passed (4 + 6 parametrised cases, plus 9 behaviour tests).
 
 - [ ] **Step 7: Falsify — confirm the tests can fail**
 
@@ -715,13 +800,17 @@ def test_identity_step_leaves_the_field_blank_on_a_placeholder_site(client):
     make_pa(client)  # Site #1 is still example.com
     resp = client.get(reverse("institution:setup_step", kwargs={"step": "identity"}))
     assert b'name="public_hostname"' in resp.content
-    assert b"example.com" not in resp.content
+    # Scoped to the field: tests/factories.py:236 gives users
+    # "<username>@test.example.com", so a whole-page substring check would
+    # break the moment the account menu rendered an email.
+    assert b'name="public_hostname" value="example.com"' not in resp.content
+    assert b'value="example.com"' not in resp.content
 ```
 
 - [ ] **Step 2: Run the test and confirm it fails**
 
 ```bash
-uv run python -m pytest tests/test_setup_wizard.py -k "site_domain or hostname or brand_colours" -v
+uv run python -m pytest tests/test_setup_wizard.py -k "site_domain or hostname or brand_colours or placeholder" -v
 ```
 
 Expected: FAIL — the Site stays `example.com`, and `name="public_hostname"` is absent from the rendered page. (`test_identity_step_still_saves_the_brand_colours` passes already; it is the regression guard for Step 4.)
@@ -731,9 +820,14 @@ Expected: FAIL — the Site stays `example.com`, and `name="public_hostname"` is
 In `institution/forms.py`, add the imports near the existing ones:
 
 ```python
+from institution.site_domain import PLACEHOLDER_DOMAIN
 from institution.site_domain import set_site_domain
 from institution.site_domain import validate_site_domain
 ```
+
+All three are used by the edits below. Omitting `PLACEHOLDER_DOMAIN` raises `NameError` on
+**every** `BrandingForm` instantiation — which includes `_settings_context` in
+`institution/views_manage.py`, not just the wizard, so the manage settings page 500s too.
 
 Inside `class BrandingForm(forms.ModelForm):`, after the `accent` declaration (line 128), add:
 
@@ -843,9 +937,11 @@ Four mutants, one at a time, each edited out by hand:
 4. Add a **second** `def save(self, commit=True)` at the end of the class that only calls `super().save(commit)`. Expected: `test_identity_step_still_saves_the_brand_colours` FAILS — this is the C1 hazard made observable.
 5. Delete the `_reset_sites_framework_cache` fixture added in Task 2 Step 1, then run:
    ```bash
-   uv run python -m pytest tests/test_site_domain.py tests/test_setup_wizard.py -p no:randomly -v
+   uv run python -m pytest tests/test_site_domain.py tests/test_setup_wizard.py  -v
    ```
-   Expected: at least one assertion on `example.com` FAILS from a domain leaked by an earlier test. This is the only falsification of that fixture — Task 2 could not run it because the wizard tests did not exist yet.
+   Expected: `test_site_cache_does_not_leak_from_the_previous_test` FAILS — `SITE_CACHE` still holds the entry the preceding test primed.
+
+   That test is the **only** observer of the fixture. Every other assertion in both files reads the Site *row*, which the per-test rollback restores whether or not the cache was cleared, so none of them can fail on this mutant — do not expect a broader failure and do not treat its absence as the fixture being fine.
 6. Change the `__init__` seeding to `self.initial.setdefault("public_hostname", Site.objects.get_current().domain)` (i.e. drop the placeholder guard from Step 4). Expected: `test_identity_step_leaves_the_field_blank_on_a_placeholder_site` FAILS — the box would be pre-filled with `example.com`, which validates, so an admin clicking Next writes the broken value straight back.
 
 - [ ] **Step 8: Check the manage settings page still renders**
@@ -862,7 +958,7 @@ Expected: pass.
 
 ```bash
 uv run ruff check . --no-cache && uv run ruff format --check .
-git add institution/forms.py templates/institution/manage/_branding_fields.html tests/test_setup_wizard.py
+git add institution/site_domain.py institution/forms.py templates/institution/manage/_branding_fields.html tests/test_setup_wizard.py
 git commit -m "feat(institution): public hostname field on the identity step
 
 Closes the gap docs/local-development.md describes as intended but never
@@ -1078,10 +1174,78 @@ def test_review_responses_are_marked_reviewed(seeded_course):
 
 
 @pytest.mark.django_db
-def test_scores_vary_across_students(seeded_course):
-    """A flat block of identical scores makes the colour bands useless."""
+def test_a_review_unit_yields_a_counted_submission(seeded_course):
+    """The end-to-end version of the constraint above.
+
+    rollups._quiz_review_maps derives total_review from the unit's REVIEW
+    ELEMENTS (courses/rollups.py:344), not from the responses written -- so
+    both an unreviewed response AND a skipped one leave reviewed < total and
+    drop the whole submission from the matrix. This asserts the outcome the
+    matrix actually reads, rather than the reviewed_at column alone."""
+    from courses.rollups import _quiz_review_maps
+    from courses.rollups import submission_is_counted
+
     _run(seeded_course)
-    assert len(set(_owned_responses().values_list("fraction", flat=True))) > 1
+    subs = list(_owned_submissions())
+    assert subs
+    _has_auto, total_review, reviewed_counts = _quiz_review_maps(
+        [s.unit_id for s in subs], subs
+    )
+    review_subs = [s for s in subs if total_review.get(s.unit_id, 0) > 0]
+    assert review_subs, "no seeded submission covers a REVIEW question"
+    for sub in review_subs:
+        assert submission_is_counted(sub, total_review, reviewed_counts)
+
+
+@pytest.mark.django_db
+def test_scores_vary_across_students(seeded_course):
+    """A flat block of identical scores makes the colour bands useless.
+
+    Asserts across STUDENTS, not just across rows: an earlier draft passed
+    because one lone student happened to draw two different fractions, while
+    every other student never reached a quiz at all."""
+    _run(seeded_course)
+    rows = set(
+        _owned_responses().values_list("submission__student__username", "fraction")
+    )
+    assert len({username for username, _ in rows}) > 1
+    assert len({fraction for _, fraction in rows}) > 1
+
+
+@pytest.mark.django_db
+def test_every_student_attempts_at_least_one_quiz(seeded_course):
+    """Quiz participation is drawn independently of the lesson prefix. Tying the
+    two meant that on a course whose quiz sits at the end -- the normal shape --
+    almost nobody reached one and the quiz matrix stayed empty."""
+    from accounts.models import User
+
+    _run(seeded_course)
+    attempted = set(_owned_submissions().values_list("student__username", flat=True))
+    everyone = set(
+        User.objects.filter(username__startswith=OWNED).values_list(
+            "username", flat=True
+        )
+    )
+    assert attempted == everyone
+
+
+@pytest.mark.django_db
+def test_a_wrong_answer_is_not_stored_as_the_correct_one(seeded_course):
+    """The score is derived from the answer (seed_demo_course.py:318), so a
+    response scored below 1.0 must not hold the fully-correct answer -- a
+    browsing visitor would see the right option selected beside a failing mark."""
+    from courses.models import ChoiceQuestionElement
+
+    _run(seeded_course)
+    for r in _owned_responses().select_related("element"):
+        question = r.element.content_object
+        if not isinstance(question, ChoiceQuestionElement):
+            continue
+        correct = sorted(
+            question.choices.filter(is_correct=True).values_list("pk", flat=True)
+        )
+        if r.fraction < 1:
+            assert r.latest_answer != correct
 
 
 @pytest.mark.django_db
@@ -1229,8 +1393,6 @@ Six constraints, each from existing code:
 import os
 import random
 import secrets
-from decimal import Decimal
-
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
@@ -1245,17 +1407,20 @@ from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import QuestionElement
-from courses.models import ShortTextQuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
+from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
+from courses.models import _accepted_lines
 from courses.quiz import finalize_submission
 from courses.rollups import _QUESTION_MODELS
 from courses.rollups import is_quiz_unit
 from courses.rollups import units_in_order
 from courses.rollups import units_under
 from courses.scoring import earned_marks
+from courses.scoring import to_stored_fraction
 from grouping.models import Allocation
 from grouping.models import Cohort
 from grouping.models import Group
@@ -1327,10 +1492,10 @@ class Command(BaseCommand):
         if generated:
             password = secrets.token_urlsafe(12)
 
-        rng = random.Random(options["seed"])
+        rng = random.Random(options["seed"])  # noqa: S311 - demo data, not a secret
         seed_roles()  # the role auth-groups must exist before set_user_role
 
-        self._skipped = 0
+        self._skipped_units = set()
         units = self._units(course, options["subtree"])
         students = self._students(n_students, password)
         self._place(course, students, n_groups)
@@ -1342,13 +1507,16 @@ class Command(BaseCommand):
                 f"on {course.slug} ({len(units)} units)."
             )
         )
-        if self._skipped:
+        if self._skipped_units:
             # Never silent: a bounded run that reports full coverage reads as
             # "everything is answered" when it is not.
             self.stdout.write(
                 self.style.WARNING(
-                    f"Skipped {self._skipped} question(s) whose type this seeder "
-                    f"cannot answer faithfully — widen _latest_answer to cover them."
+                    f"Skipped {len(self._skipped_units)} quiz unit(s) holding a "
+                    f"question type this seeder cannot answer. The WHOLE unit is "
+                    f"skipped: a partial one would leave reviewed < total and "
+                    f"vanish from the analytics matrix entirely. Widen "
+                    f"_latest_answer to cover them."
                 )
             )
         if generated:
@@ -1454,23 +1622,28 @@ class Command(BaseCommand):
         return _BANDS[-1][1], _BANDS[-1][2]
 
     def _activity(self, units, students, rng):
+        """Lessons follow a per-student prefix; quizzes are drawn separately.
+
+        Tying quiz attempts to the lesson prefix does not work: quizzes sit at
+        the END of a chapter, so on a realistic course almost no student ever
+        reaches one and the quiz matrix -- the thing this seeder exists to
+        populate -- stays empty. The two are therefore independent, with the
+        first quiz guaranteed so every student contributes at least one row.
+        """
+        lessons = [u for u in units if not is_quiz_unit(u)]
+        quizzes = [u for u in units if is_quiz_unit(u)]
         for student in students:
             low, high = self._ability(rng)
-            # Completion is driven by the ability band too. If every student
-            # completed every unit the progress matrix would render one uniform
-            # colour -- the same flat-block failure the score spread avoids.
-            # The strongest students finish nearly everything; the weakest trail.
-            reach = low + (high - low) * 0.5
-            for index, unit in enumerate(units):
-                # Deterministic prefix, not a per-unit coin flip: a student who
-                # has worked through 60% of a course has done the FIRST 60%, and
-                # a random scatter would look like nobody follows the ordering.
-                if index >= max(1, round(len(units) * reach)):
-                    break
-                if is_quiz_unit(unit):
-                    self._quiz(unit, student, rng, low, high)
-                else:
-                    self._complete(student, unit)
+            # A deterministic PREFIX, not a per-unit coin flip: a student who has
+            # worked through 60% of a course has done the FIRST 60%, and a random
+            # scatter would look like nobody follows the ordering. Depth varies by
+            # band, so the progress matrix shows range instead of one flat colour.
+            depth = max(1, round(len(lessons) * (low + (high - low) * 0.5)))
+            for unit in lessons[:depth]:
+                self._complete(student, unit)
+            for i, quiz in enumerate(quizzes):
+                if i == 0 or rng.random() < high:  # noqa: S311
+                    self._quiz(quiz, student, rng, low, high)
 
     def _complete(self, student, unit):
         """The caller's half of "a finished unit has a completed UnitProgress".
@@ -1493,7 +1666,7 @@ class Command(BaseCommand):
             if isinstance(el.content_object, QuestionElement)
         ]
 
-    def _latest_answer(self, question):
+    def _latest_answer(self, question, want_correct):
         """A plausible stored answer for `question`, or None if this seeder
         cannot produce one faithfully.
 
@@ -1501,9 +1674,15 @@ class Command(BaseCommand):
         so a response without one renders as unanswered with a score beside it --
         every blank marked wrong, on a box whose purpose is being browsed.
 
-        Returning None (and skipping the response) is deliberate: a wrong-SHAPED
-        answer is worse than no answer, because the results page would try to
-        render it. Widen this method rather than inventing a placeholder.
+        `want_correct` exists because the SCORE IS DERIVED FROM THE ANSWER (see
+        _quiz), exactly as seed_demo_course.py:318 does it. Storing a fully
+        correct answer next to a random 0.45 would show a browsing visitor the
+        right option selected beside a failing mark.
+
+        Returning None (and skipping the whole UNIT) is deliberate: a
+        wrong-SHAPED answer is worse than no answer, because the results page
+        renders whatever is stored. Widen this method rather than inventing a
+        placeholder.
 
         BEFORE IMPLEMENTING: run the audit in Step 3a to see which concrete
         question models the target course actually uses, and cover those.
@@ -1514,13 +1693,33 @@ class Command(BaseCommand):
             correct = sorted(
                 question.choices.filter(is_correct=True).values_list("pk", flat=True)
             )
-            return correct or None
+            if not correct:
+                return None
+            if want_correct:
+                return correct
+            # A wrong pick: any option that is not in the correct set, so the
+            # stored answer actually matches the stored score.
+            wrong = sorted(
+                question.choices.exclude(is_correct=True).values_list("pk", flat=True)
+            )
+            return wrong[:1] or correct
         if isinstance(question, ShortTextQuestionElement):
             # `accepted` is a newline-delimited TextField, not a list
             # (courses/models.py:2432). build_answer returns a plain string, so
             # latest_answer must be a plain string too.
             lines = [ln.strip() for ln in question.accepted.splitlines() if ln.strip()]
-            return lines[0] if lines else None
+            if not lines:
+                return None
+            return lines[0] if want_correct else "nie wiem"
+        if isinstance(question, ExtendedResponseQuestionElement):
+            # REVIEW-mode, and answerable: build_answer/mark take a plain string
+            # (courses/models.py:2465). Covering it is not optional -- see the
+            # REVIEW note in _quiz.
+            return (
+                "Rozwiązanie: " + " ".join(_accepted_lines(question.required_keywords))
+                if want_correct
+                else "Nie potrafię tego uzasadnić."
+            )
         return None
 
     def _quiz(self, unit, student, rng, low, high):
@@ -1533,18 +1732,34 @@ class Command(BaseCommand):
             defaults={"status": QuizSubmission.Status.IN_PROGRESS},
         )
         if submission.status != QuizSubmission.Status.SUBMITTED:
-            for element in self._questions(unit):
+            gradeable = [
+                el
+                for el in self._questions(unit)
+                if el.content_object.marking_mode
+                != QuestionElement.MarkingMode.NOT_MARKED
+            ]
+            # Decide the answers for the WHOLE unit up front. If any question type
+            # is unsupported, skip the entire unit rather than part of it:
+            # _quiz_review_maps derives total_review from the unit's REVIEW
+            # ELEMENTS, not from the responses written (courses/rollups.py:344),
+            # so an omitted REVIEW response leaves reviewed < total and
+            # submission_is_counted drops the whole submission from the matrix --
+            # the exact outcome constraint 3 exists to prevent.
+            plan = []
+            for element in gradeable:
                 question = element.content_object
-                if question.marking_mode == QuestionElement.MarkingMode.NOT_MARKED:
-                    continue
-                answer = self._latest_answer(question)
+                want_correct = rng.random() < high  # noqa: S311
+                answer = self._latest_answer(question, want_correct)
                 if answer is None:
-                    # A question type this seeder cannot answer faithfully.
-                    # Skip it rather than write a response that renders as
-                    # "not answered" -- see _latest_answer.
-                    self._skipped += 1
-                    continue
-                fraction = Decimal(str(round(rng.uniform(low, high), 2)))
+                    self._skipped_units.add(unit.pk)
+                    return
+                plan.append((element, question, answer))
+
+            for element, question, answer in plan:
+                # The score is DERIVED from the answer, never drawn independently
+                # (seed_demo_course.py:318). A random fraction beside a fully
+                # correct answer is incoherent on a box built to be browsed.
+                fraction = to_stored_fraction(question.mark(answer).fraction)
                 response, _ = QuestionResponse.objects.get_or_create(
                     submission=submission,
                     element=element,
@@ -1577,11 +1792,11 @@ class Command(BaseCommand):
 uv run python -m pytest tests/test_seed_demo_activity.py -v
 ```
 
-Expected: 14 passed.
+Expected: 16 passed.
 
 - [ ] **Step 5: Falsify — confirm the tests can fail**
 
-**Nine mutants**, one at a time, each edited out by hand afterwards:
+**Twelve mutants**, one at a time, each edited out by hand afterwards:
 
 1. Replace the `_place` group loop with `Enrollment.objects.create(student=student, course=course)` per student. Expected: `test_enrollment_is_derived_from_group_membership` FAILS on `source`.
 2. Delete the trailing `self._complete(student, unit)` call in `_quiz`. Expected: `test_submitted_quizzes_have_a_completed_unit_progress` FAILS.
@@ -1592,6 +1807,9 @@ Expected: 14 passed.
 7. Replace `QuizSubmission.objects.select_for_update().get_or_create(...)` in `_quiz` with an unconditional `QuizSubmission.objects.create(...)`, and drop the `if submission.status != SUBMITTED:` guard. Expected: `test_is_idempotent` FAILS — the second run doubles the submission and response counts. Without this the idempotency test is unproven, and it is the one most likely to pass vacuously.
 8. Delete the `break` in `_activity`'s unit loop so every student completes every unit. Expected: `test_completion_varies_across_students` FAILS — one uniform colour across the progress matrix.
 9. Remove `"latest_answer": answer` from the `get_or_create` defaults. Expected: `test_responses_record_an_answer` FAILS — and this is the state in which every seeded quiz renders as "not answered".
+10. In `_quiz`, replace the derived fraction with `fraction = to_stored_fraction(0.5)` while leaving `want_correct` alone. Expected: `test_a_wrong_answer_is_not_stored_as_the_correct_one` FAILS — the correct answer stored beside a half mark.
+11. In `_activity`, gate quizzes on the lesson prefix again (`for quiz in quizzes[:depth]`). Expected: `test_every_student_attempts_at_least_one_quiz` FAILS — on a course whose quiz sits at the end, most students never reach one.
+12. In `_quiz`, replace the whole-unit `return` on an unsupported question with `continue`. Expected: `test_a_review_unit_yields_a_counted_submission` FAILS — a partially answered REVIEW unit leaves reviewed < total and drops out of the matrix.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -1653,8 +1871,17 @@ support_screenshots
 .env*
 docker-compose.test.yml
 tests
-docs
+docs/superpowers
+docs/mockups
+docs/planning
 ```
+
+**`docs/` itself must NOT be excluded.** `core/help.py:21` sets
+`DOCS_ROOT = <repo root>/docs` and `render_markdown_doc` (`core/help.py:135`) reads those
+files **at request time** — its docstring says "A missing file is a packaging/deploy bug —
+fail loud." Excluding the tree would make every `/help/<slug>/` page raise
+`FileNotFoundError` in production. Only the sub-trees the running app never reads are
+excluded above.
 
 - [ ] **Step 3: Write the `Dockerfile`**
 
@@ -1715,6 +1942,13 @@ EXPOSE 8000
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 ```
 
+**The container runs as root, and that is an accepted risk for this demo, not an
+oversight.** A non-root `USER` is the better posture, but the four named volumes are
+created root-owned on first `up`, so adding it without also fixing volume ownership
+produces a container that cannot write `media/` or `transfer_staging/` — a new failure mode
+introduced at the last step before a live deploy. Revisit it when this stack carries
+anything beyond demo data; record it in the runbook's "Known constraints".
+
 - [ ] **Step 4: Write `docker-entrypoint.sh`**
 
 Use LF line endings. On Windows confirm with `file docker-entrypoint.sh` — a CRLF shebang fails with `no such file or directory`.
@@ -1760,7 +1994,12 @@ echo "==> setup_roles"
 # Site #1 ships as example.com and build_accept_url builds invitation and
 # password-reset links from it. A no-op when DJANGO_SITE_DOMAIN is unset.
 echo "==> set_site_domain"
-"$VENV_PY" manage.py set_site_domain
+# --only-if-placeholder: DJANGO_SITE_DOMAIN is mandatory on this stack (compose
+# guards it with :?), so without the flag this would rewrite the Site on EVERY
+# boot -- silently reverting any correction a Platform Admin made through the
+# settings UI, which restart: unless-stopped makes routine. Env seeds the value
+# once; the UI owns it thereafter.
+"$VENV_PY" manage.py set_site_domain --only-if-placeholder
 
 # Only when fully specified: init_platform fails fast on missing credentials
 # when non-interactive, which must not stop a healthy instance from booting.
@@ -1814,7 +2053,7 @@ docker run --rm --entrypoint sh libli:local -c 'ls -a /app | grep "^\.env" || ec
 
 Expected: `0`, then `no env files`. A non-zero pytest count means `uv run` crept back into a build layer; an `.env*` file means the `.dockerignore` exclusion is wrong and secrets are baked into a layer.
 
-- [ ] **Step 6: Verify the argument passthrough**
+- [ ] **Step 6: Verify the bootstrap starts and gunicorn is not reached**
 
 ```bash
 docker run --rm libli:local /app/.venv/bin/python -c "print('exec-ok')" 2>&1 | tail -3
@@ -1945,10 +2184,11 @@ services:
       # default that is a multi-GB write to the container's overlay filesystem on
       # the host root disk. Point it at the staging volume so the transient copy
       # lands on sized storage that the disk arithmetic accounts for.
-      DJANGO_FILE_UPLOAD_TEMP_DIR: /app/transfer_staging
+      DJANGO_FILE_UPLOAD_TEMP_DIR: /app/upload_tmp
     volumes:
       - media:/app/media
       - transfer_staging:/app/transfer_staging
+      - upload_tmp:/app/upload_tmp
       - support_screenshots:/app/support_screenshots
     expose:
       - "8000"
@@ -2002,6 +2242,7 @@ volumes:
   pgdata:
   media:
   transfer_staging:
+  upload_tmp:
   support_screenshots:
   caddy_data:
   caddy_config:
@@ -2094,20 +2335,34 @@ docker compose -f docker-compose.prod.yml --env-file .env.production config \
 
 Expected: `DJANGO_SETTINGS_MODULE: config.settings.production` and the `DJANGO_FILE_UPLOAD_TEMP_DIR` line. If `config.settings.local` appears, the service is reading the wrong env file.
 
-**Deliberately NOT overridden here:** `DJANGO_ALLOWED_HOSTS` keeps the shipped example's
-value, and `DJANGO_SECURE_SSL_REDIRECT` keeps its production default of `True`. Rewriting
-either would make the local run the one configuration in which a broken healthcheck can
-still pass — the smoke test must exercise the same host and redirect behaviour the VPS
-will. `SITE_ADDRESS=http://localhost` only tells Caddy to serve plain HTTP and skip ACME;
-it does not change how Django sees the request, because Caddy still sends
-`X-Forwarded-Proto`.
+**`DJANGO_ALLOWED_HOSTS` is deliberately NOT overridden** — it keeps the shipped example's
+value, which now includes `localhost`. Rewriting it would make the local run the one
+configuration in which a broken healthcheck can still pass, which is how the
+`DisallowedHost` bug hid in an earlier draft.
+
+**`DJANGO_SECURE_SSL_REDIRECT=false` IS required locally**, and the reason matters. Caddy
+sends `X-Forwarded-Proto: {scheme}`, and on an `http://localhost` site `{scheme}` is
+`http`. With `DJANGO_BEHIND_PROXY=true` Django trusts that header, so `request.is_secure()`
+is **False**, and `SECURE_SSL_REDIRECT` (True by default, `config/settings/production.py:6`)
+makes `SecurityMiddleware` return a **301** before any view runs. Every app-routed check
+below would then get 301 instead of 200/404 — including the two staging-directory checks
+that must be 404 — while only the `/media/` Range check survives, because Caddy answers
+that one without Django. The container healthcheck is unaffected only because it hand-sets
+`X-Forwarded-Proto: https`.
+
+```bash
+printf '\nDJANGO_SECURE_SSL_REDIRECT=false\n' >> .env.production
+```
+
+This is the one axis on which local and production legitimately differ, and it is a
+documented knob (`.env.example` lists it). Everything else stays as shipped.
 
 Note this `config` check proves only that the *variable* reaches the container. That
 `FILE_UPLOAD_TEMP_DIR` is actually *applied* is proven at runtime in Step 5 — a grep of
 rendered compose output is the same grep-instead-of-request weakness this plan rejects
 elsewhere.
 
-**`.gitignore:10` is the literal string `.env`, not a glob — so `.env.production` is NOT ignored.** Before creating the file, change that line to `.env*` and add `!.env.production.example` beneath it, then confirm with `git check-ignore -v .env.production`. A filled secrets file showing up in `git status` is one careless `git add -A` from being committed.
+**`.gitignore:10` is the literal string `.env`, not a glob — so `.env.production` is NOT ignored.** Before creating the file, change that line to `.env*` and add `!.env.example` and `!.env.production.example` beneath it (both are committed and must stay tracked), then confirm with `git check-ignore -v .env.production`. A filled secrets file showing up in `git status` is one careless `git add -A` from being committed.
 
 - [ ] **Step 5: Run the whole stack locally — the real verification**
 
@@ -2153,7 +2408,7 @@ curl -s -o /dev/null -D - -r 0-100 http://localhost/media/smoke/probe.bin | head
 docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
   /app/.venv/bin/python -c \
   "from django.conf import settings; print(settings.FILE_UPLOAD_TEMP_DIR)"
-#   MUST print /app/transfer_staging
+#   MUST print /app/upload_tmp
 
 # The staging directories must NOT be reachable. A grep of the Caddyfile cannot
 # prove this; a request can.
@@ -2319,7 +2574,7 @@ have no Caddy route, proven by a request rather than a grep."
 
    `exec -T` is required: cron has no TTY. Test it once by hand with `--dry-run` first.
 
-10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Signup policy stays `invite`. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
+10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Signup policy stays `invite`. The app container runs as root (accepted; see Task 5). After changing the hostname through the settings UI, `restart app` so every gunicorn worker picks it up — SITE_CACHE is per-process. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
 
 - [ ] **Step 2: Put the post-deploy checks in the runbook verbatim**
 
