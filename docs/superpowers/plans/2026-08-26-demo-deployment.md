@@ -274,7 +274,7 @@ its own environment."
 
 ---
 
-### Task 2: `Site` domain module, command, and the sites-cache fixture
+### Task 2: `Site` domain module and management command
 
 **Files:**
 - Create: `institution/site_domain.py`
@@ -1484,10 +1484,12 @@ volumes:
 # local-dev .env with DJANGO_DEBUG=true.
 
 # --- identity ---
-# The address Caddy answers on and requests a certificate for. A bare hostname
-# gets automatic HTTPS from Let's Encrypt. Use http://localhost for a local
-# smoke test, which skips ACME entirely.
-SITE_ADDRESS=libli.example.org
+# The address(es) Caddy answers on and requests certificates for. A bare
+# hostname gets automatic HTTPS from Let's Encrypt. A COMMA-SEPARATED list is
+# valid and makes Caddy serve, and get a cert for, each name -- but every extra
+# name is another ACME challenge that must succeed on first boot. Use
+# http://localhost for a local smoke test, which skips ACME entirely.
+SITE_ADDRESS=libli.example.org, www.libli.example.org
 
 # Host part only. Used to build invitation and password-reset links, which come
 # from the django.contrib.sites Site record, not the request Host header.
@@ -1497,7 +1499,8 @@ DJANGO_SITE_DOMAIN=libli.example.org
 # requests /healthz/ over the loopback, and a host outside this list raises
 # DisallowedHost -> 400 -> the container never becomes healthy -> caddy never
 # starts. Keep it even though nobody browses to it.
-DJANGO_ALLOWED_HOSTS=libli.example.org,localhost,127.0.0.1
+# Must list EVERY name in SITE_ADDRESS, or that name 400s with DisallowedHost.
+DJANGO_ALLOWED_HOSTS=libli.example.org,www.libli.example.org,localhost,127.0.0.1
 # Shown in allauth email subjects as "[<name>] ". Left unset, Site #1 keeps
 # Django's "example.com" placeholder there even once the domain is correct.
 # APPLIED ON FIRST BOOT ONLY: the entrypoint passes --only-if-placeholder, so
@@ -1505,7 +1508,7 @@ DJANGO_ALLOWED_HOSTS=libli.example.org,localhost,127.0.0.1
 # re-save the wizard's Identity step with the hostname filled in instead, which
 # writes both. Truncated to 50 chars (Site.name is max_length=50).
 DJANGO_SITE_NAME=libli
-DJANGO_CSRF_TRUSTED_ORIGINS=https://libli.example.org
+DJANGO_CSRF_TRUSTED_ORIGINS=https://libli.example.org,https://www.libli.example.org
 
 # --- secrets ---
 # generate: python -c "import secrets; print(secrets.token_urlsafe(64))"
@@ -1774,11 +1777,29 @@ have no Caddy route, proven by a request rather than a grep."
    # simply unreachable. A stale CSRF origin 403s every wizard POST instead.
    # Scoped to those four keys: INIT_ADMIN_EMAIL and the commented SMTP lines
    # legitimately keep example.org, so an unscoped grep would cry wolf every time.
-   grep -nE '^(SITE_ADDRESS|DJANGO_SITE_DOMAIN|DJANGO_ALLOWED_HOSTS|DJANGO_CSRF_TRUSTED_ORIGINS)=.*example\.org' .env.production   # MUST return nothing
+   grep -nE '^(SITE_ADDRESS|DJANGO_SITE_DOMAIN|DJANGO_ALLOWED_HOSTS|DJANGO_CSRF_TRUSTED_ORIGINS)=.*example\.org' .env.production   # MUST return nothing (all four keys, both names)
    chmod 600 .env.production
    docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
    docker compose -f docker-compose.prod.yml --env-file .env.production logs -f app
    ```
+
+   **Values for the current deployment** (the example file stays generic so the
+   install path remains reusable):
+
+   ```bash
+   SITE_ADDRESS=libli.pl, www.libli.pl
+   DJANGO_SITE_DOMAIN=libli.pl
+   DJANGO_ALLOWED_HOSTS=libli.pl,www.libli.pl,localhost,127.0.0.1
+   DJANGO_CSRF_TRUSTED_ORIGINS=https://libli.pl,https://www.libli.pl
+   DJANGO_SITE_NAME=libli
+   ```
+
+   `DJANGO_SITE_DOMAIN` stays the **apex only** — it is the single host baked into
+   invitation and password-reset links, not a list.
+
+   Note the domain's CAA records already permit `letsencrypt.org` (alongside `certum.pl`),
+   which is what lets Caddy issue at all; a CAA listing only certum.pl would make ACME fail
+   with an error that points at the domain rather than the DNS. Do not remove them.
 
    The log must show, in order: `waiting for the database`, `migrate`, `setup_roles`, `set_site_domain`, `init_platform`, `gunicorn`.
 
