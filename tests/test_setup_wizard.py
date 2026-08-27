@@ -469,3 +469,119 @@ def test_finish_clears_skip_session_flag(client):
         },
     )
     assert client.session.get("setup_skipped") is None
+
+
+_IDENTITY_POST = {
+    "action": "next",
+    "name": "Acme Academy",
+    "enabled_languages": ["en", "pl"],
+    "default_language": "en",
+    "default_theme": "auto",
+    "primary": "#147e78",
+    "accent": "#c77b2a",
+}
+
+
+@pytest.mark.django_db
+def test_identity_step_sets_the_site_domain(client):
+    """The non-technical fix for dead invitation links: a Platform Admin types
+    the public hostname during first-run setup and the Site record is written."""
+    from django.conf import settings as dj_settings
+    from django.contrib.sites.models import Site
+
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "identity"}),
+        _IDENTITY_POST | {"public_hostname": "libli.example.org"},
+    )
+    assert resp.status_code == 302
+    site = Site.objects.get(pk=dj_settings.SITE_ID)
+    assert site.domain == "libli.example.org"
+    # allauth subject-lines every account email "[{site.name}] ", so a stale name
+    # keeps "example.com" on the surface this task exists to fix.
+    assert site.name == "Acme Academy"
+
+
+@pytest.mark.django_db
+def test_identity_step_still_saves_the_brand_colours(client):
+    """Guards the C1 hazard: BrandingForm.save already wrote BrandColor rows, and
+    a second save() definition would silently drop them."""
+    from institution.models import BrandColor
+    from tests.factories import make_pa
+
+    make_pa(client)
+    client.post(
+        reverse("institution:setup_step", kwargs={"step": "identity"}),
+        _IDENTITY_POST | {"public_hostname": "libli.example.org"},
+    )
+    rows = {c.key: c.value for c in BrandColor.objects.all()}
+    assert rows["primary"] == "#147e78"
+    assert rows["accent"] == "#c77b2a"
+
+
+@pytest.mark.django_db
+def test_identity_step_rejects_a_url_in_the_hostname(client):
+    from django.conf import settings as dj_settings
+    from django.contrib.sites.models import Site
+
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "identity"}),
+        _IDENTITY_POST | {"public_hostname": "https://libli.example.org/setup"},
+    )
+    assert resp.status_code == 200  # re-renders the step, does not advance
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "example.com"
+
+
+@pytest.mark.django_db
+def test_identity_step_blank_hostname_leaves_the_site_alone(client):
+    """The field is optional: an admin who skips it must not blank the domain."""
+    from django.conf import settings as dj_settings
+    from django.contrib.sites.models import Site
+
+    from institution.site_domain import set_site_domain
+    from tests.factories import make_pa
+
+    set_site_domain("already.example.org")
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "identity"}),
+        _IDENTITY_POST | {"public_hostname": ""},
+    )
+    assert resp.status_code == 302
+    assert Site.objects.get(pk=dj_settings.SITE_ID).domain == "already.example.org"
+
+
+@pytest.mark.django_db
+def test_identity_step_seeds_the_hostname_field_from_the_site(client):
+    from institution.site_domain import set_site_domain
+    from tests.factories import make_pa
+
+    set_site_domain("seeded.example.org")
+    make_pa(client)
+    resp = client.get(reverse("institution:setup_step", kwargs={"step": "identity"}))
+    assert b'name="public_hostname"' in resp.content
+    # Scoped to the field's value, matching the placeholder test below: a
+    # whole-page substring check would break the moment some other element
+    # rendered the hostname.
+    assert b'value="seeded.example.org"' in resp.content
+
+
+@pytest.mark.django_db
+def test_identity_step_leaves_the_field_blank_on_a_placeholder_site(client):
+    """Django's example.com placeholder is a VALID hostname, so pre-filling it
+    would let an admin click Next and write the broken value straight back --
+    confirming the exact state this field exists to fix."""
+    from tests.factories import make_pa
+
+    make_pa(client)  # Site #1 is still example.com
+    resp = client.get(reverse("institution:setup_step", kwargs={"step": "identity"}))
+    assert b'name="public_hostname"' in resp.content
+    # Scoped to the field: tests/factories.py:236 gives users
+    # "<username>@test.example.com", so a whole-page substring check would
+    # break the moment the account menu rendered an email.
+    assert b'value="example.com"' not in resp.content
