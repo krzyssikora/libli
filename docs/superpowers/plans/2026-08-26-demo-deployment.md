@@ -20,6 +20,7 @@
 - **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates. Note `B` (bugbear) is selected — an unused loop variable (`B007`) fails the build.
 - **Run tests narrowly.** Whole-repo sweeps are a branch gate, not a task step. Start the test DB first: `docker compose -f docker-compose.test.yml up -d`.
 - **Every test must be shown RED against its named mutant** before the task is accepted. A test that cannot fail is not evidence.
+- **The Python blocks in this plan are illustrative, not formatter-clean.** ruff format (black semantics) explodes multi-line collections one element per line, collapses calls that fit in 88 columns, and normalises inline comments. Run `uv run ruff format .` after transcribing a block and before the lint gate, rather than treating a `--check` failure as a defect in your transcription.
 
 ### Working location — read before Task 1
 
@@ -71,15 +72,22 @@ Note `templates/institution/manage/_branding_fields.html` is included by **both*
 
 ---
 
-### Task 1: Transfer caps become env-overridable
+### Task 1: Upload sizing settings become env-overridable
 
 **Files:**
-- Modify: `config/settings/base.py` lines 175, 176, 181
+- Modify: `config/settings/base.py` lines 175, 176, 181, plus one new setting
 - Test: `tests/test_transfer_caps_env.py` (create)
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: env var names `LIBLI_TRANSFER_MAX_COMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_MEDIA_ENTRIES` (all integers, bytes / count). Task 6's `.env.production.example` documents them; Task 7's runbook sets them.
+- Produces: env var names `LIBLI_TRANSFER_MAX_COMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_MEDIA_ENTRIES` (all integers, bytes / count), and `DJANGO_FILE_UPLOAD_TEMP_DIR` (path or unset). Task 6's compose file and `.env.production.example` set them; Task 7's runbook documents them.
+
+**Why `FILE_UPLOAD_TEMP_DIR` belongs here.** Django spills any upload above
+`FILE_UPLOAD_MAX_MEMORY_SIZE` to `FILE_UPLOAD_TEMP_DIR` **before** the view can move it to
+`TRANSFER_STAGING_DIR`. Left at its default that is a multi-GB write to the container's
+overlay filesystem on the host root disk — a copy the spec's disk arithmetic does not
+name. Django reads settings from the settings module, never from arbitrary environment
+variables, so setting it in compose alone does nothing: the read has to exist here.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -148,15 +156,31 @@ def test_transfer_caps_default_to_the_shipped_guardrails(reload_base):
 def test_transfer_caps_are_env_overridable(reload_base):
     base = reload_base(
         {
-            "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES": "5368709120",   # 5 GiB
-            "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES": "6442450944",  # 6 GiB
+            # 5 GiB, 6 GiB
+            "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES": "5368709120",
+            "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES": "6442450944",
             "LIBLI_TRANSFER_MAX_MEDIA_ENTRIES": "2000",
         }
     )
     assert base.TRANSFER_MAX_COMPRESSED_BYTES == 5368709120
     assert base.TRANSFER_MAX_UNCOMPRESSED_BYTES == 6442450944
     assert base.TRANSFER_MAX_MEDIA_ENTRIES == 2000
+
+
+def test_file_upload_temp_dir_defaults_to_none(reload_base):
+    """Unset, Django falls back to the system temp dir -- correct for local dev."""
+    base = reload_base({})
+    assert base.FILE_UPLOAD_TEMP_DIR is None
+
+
+def test_file_upload_temp_dir_is_env_overridable(reload_base):
+    """Setting it in compose alone would do nothing: Django reads settings from
+    the settings module, never from arbitrary environment variables."""
+    base = reload_base({"DJANGO_FILE_UPLOAD_TEMP_DIR": "/app/transfer_staging"})
+    assert base.FILE_UPLOAD_TEMP_DIR == "/app/transfer_staging"
 ```
+
+Add `DJANGO_FILE_UPLOAD_TEMP_DIR` to `CAP_ENV_NAMES` in the fixture above so it is cleared alongside the other three.
 
 - [ ] **Step 2: Run the test and confirm it fails**
 
@@ -189,17 +213,31 @@ and
 TRANSFER_MAX_MEDIA_ENTRIES = env.int("LIBLI_TRANSFER_MAX_MEDIA_ENTRIES", default=1000)
 ```
 
+Then add the new setting immediately after `TRANSFER_STAGING_DIR` (line 184), where the
+staging comment already explains the surrounding intent:
+
+```python
+# Where Django spills an upload too large for memory, BEFORE the view moves it to
+# TRANSFER_STAGING_DIR. None = the system temp dir, correct for local dev. A
+# container sets this to a path on sized storage, or a multi-GB upload lands on
+# the overlay filesystem. Not under MEDIA_ROOT, for the same reason as above.
+FILE_UPLOAD_TEMP_DIR = env("DJANGO_FILE_UPLOAD_TEMP_DIR", default=None)
+```
+
 - [ ] **Step 4: Run the test and confirm it passes**
 
 ```bash
 uv run python -m pytest tests/test_transfer_caps_env.py -v
 ```
 
-Expected: 2 passed.
+Expected: 4 passed.
 
 - [ ] **Step 5: Falsify — confirm the test can fail**
 
-Temporarily revert one line to `TRANSFER_MAX_MEDIA_ENTRIES = 1000`. Re-run. Expected: `test_transfer_caps_are_env_overridable` FAILS with `assert 1000 == 2000`. **Edit the mutant out by hand** — do not `git checkout` the file, which would destroy the whole task's work.
+Two mutants, one at a time, each **edited out by hand** — do not `git checkout` the file, which would destroy the whole task's work.
+
+1. Revert one line to `TRANSFER_MAX_MEDIA_ENTRIES = 1000`. Expected: `test_transfer_caps_are_env_overridable` FAILS with `assert 1000 == 2000`.
+2. Delete the `FILE_UPLOAD_TEMP_DIR` line entirely. Expected: `test_file_upload_temp_dir_is_env_overridable` FAILS with `AttributeError` — which is precisely the state the compose variable alone would have left the deployment in.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -388,7 +426,7 @@ def test_command_rejects_a_url(monkeypatch):
 uv run python -m pytest tests/test_site_domain.py -v
 ```
 
-Expected: all FAIL with `ModuleNotFoundError: No module named 'institution.site_domain'`.
+Expected: all FAIL, in two distinct ways. The validator tests fail with `ModuleNotFoundError: No module named 'institution.site_domain'`; the four `call_command` tests fail with `CommandError: Unknown command: 'set_site_domain'`. Both are expected — a single failure mode here would mean one half was not written.
 
 - [ ] **Step 4: Write `institution/site_domain.py`**
 
@@ -405,8 +443,9 @@ Shared by the `set_site_domain` management command (called from the container
 entrypoint) and BrandingForm's public_hostname field (the non-technical
 surface in the first-run wizard).
 
-NOTE: `_DOMAIN_RE` in institution/forms.py:246 is a DIFFERENT regex for a
-different job -- it validates email domains for AccessForm's allow-list and is
+NOTE: institution/forms.py defines `_DOMAIN_RE` (search for the symbol, not a
+line number -- Task 3 inserts ~25 lines above it). That is a DIFFERENT regex for
+a different job: it validates email domains for AccessForm's allow-list and is
 deliberately stricter (requires a dot, lowercase only). Do not merge them: a
 public hostname may legitimately be a single label ("localhost") and carry a
 port, neither of which is ever valid in an email domain.
@@ -521,7 +560,7 @@ class Command(BaseCommand):
 uv run python -m pytest tests/test_site_domain.py -v
 ```
 
-Expected: 15 passed (4 + 6 parametrised cases, plus 5 behaviour tests).
+Expected: 16 passed (4 + 6 parametrised cases, plus 6 behaviour tests).
 
 - [ ] **Step 7: Falsify — confirm the tests can fail**
 
@@ -529,7 +568,7 @@ Three mutants, run one at a time and edit each out by hand afterwards:
 
 1. Delete the `Site.objects.clear_cache()` line in `set_site_domain`. Expected: `test_set_site_domain_clears_the_sites_cache` FAILS — the SITE_ID key is still present. (`test_set_site_domain_persists_to_the_database` correctly still passes; it tests a different guarantee.)
 2. Change the no-op branch to `raise CommandError(...)`. Expected: `test_command_is_a_no_op_when_unset` FAILS.
-3. Delete the new `_reset_sites_framework_cache` fixture from `tests/conftest.py` and run `uv run python -m pytest tests/test_site_domain.py tests/test_setup_wizard.py -p no:randomly -v`. Expected: at least one `example.com` assertion FAILS from a leaked domain. (Run it after Task 3, when the wizard tests exist.)
+The third mutant — deleting the `_reset_sites_framework_cache` fixture — needs the wizard tests that Task 3 adds, so it is **Task 3 Step 7 mutant 5**, not a deferred note here. Do not skip it: it is the only falsification of the new fixture.
 
 - [ ] **Step 8: Lint and commit**
 
@@ -664,6 +703,19 @@ def test_identity_step_seeds_the_hostname_field_from_the_site(client):
     resp = client.get(reverse("institution:setup_step", kwargs={"step": "identity"}))
     assert b'name="public_hostname"' in resp.content
     assert b"seeded.example.org" in resp.content
+
+
+@pytest.mark.django_db
+def test_identity_step_leaves_the_field_blank_on_a_placeholder_site(client):
+    """Django's example.com placeholder is a VALID hostname, so pre-filling it
+    would let an admin click Next and write the broken value straight back --
+    confirming the exact state this field exists to fix."""
+    from tests.factories import make_pa
+
+    make_pa(client)  # Site #1 is still example.com
+    resp = client.get(reverse("institution:setup_step", kwargs={"step": "identity"}))
+    assert b'name="public_hostname"' in resp.content
+    assert b"example.com" not in resp.content
 ```
 
 - [ ] **Step 2: Run the test and confirm it fails**
@@ -706,9 +758,26 @@ Inside `class BrandingForm(forms.ModelForm):`, after the `accent` declaration (l
 ```python
         # Seed from the live Site so the admin edits the current value rather
         # than a blank box. Same setdefault idiom as the colours above.
+        #
+        # EXCEPT for Django's "example.com" placeholder: that value passes
+        # validate_site_domain, so pre-filling it would let an admin click Next
+        # and write back the exact broken state this field exists to fix. A blank
+        # box prompts them instead.
         from django.contrib.sites.models import Site
 
-        self.initial.setdefault("public_hostname", Site.objects.get_current().domain)
+        current = Site.objects.get_current().domain
+        self.initial.setdefault(
+            "public_hostname", "" if current == PLACEHOLDER_DOMAIN else current
+        )
+```
+
+`PLACEHOLDER_DOMAIN` is a new constant in `institution/site_domain.py`, exported alongside
+the validator so both halves agree on what "unset" looks like:
+
+```python
+# Django ships Site #1 with this domain. It is a valid hostname, so it passes
+# validation -- it must be recognised by identity, not by rejection.
+PLACEHOLDER_DOMAIN = "example.com"
 ```
 
 Add the new `clean_public_hostname` alongside the existing `clean_*` methods:
@@ -772,6 +841,12 @@ Four mutants, one at a time, each edited out by hand:
 2. Change `clean_public_hostname` to `return value` without validating. Expected: `test_identity_step_rejects_a_url_in_the_hostname` FAILS (302 instead of 200, and the Site is corrupted).
 3. Drop the `if commit and hostname:` guard so a blank writes through. Expected: `test_identity_step_blank_hostname_leaves_the_site_alone` FAILS — the domain is blanked.
 4. Add a **second** `def save(self, commit=True)` at the end of the class that only calls `super().save(commit)`. Expected: `test_identity_step_still_saves_the_brand_colours` FAILS — this is the C1 hazard made observable.
+5. Delete the `_reset_sites_framework_cache` fixture added in Task 2 Step 1, then run:
+   ```bash
+   uv run python -m pytest tests/test_site_domain.py tests/test_setup_wizard.py -p no:randomly -v
+   ```
+   Expected: at least one assertion on `example.com` FAILS from a domain leaked by an earlier test. This is the only falsification of that fixture — Task 2 could not run it because the wizard tests did not exist yet.
+6. Change the `__init__` seeding to `self.initial.setdefault("public_hostname", Site.objects.get_current().domain)` (i.e. drop the placeholder guard from Step 4). Expected: `test_identity_step_leaves_the_field_blank_on_a_placeholder_site` FAILS — the box would be pre-filled with `example.com`, which validates, so an admin clicking Next writes the broken value straight back.
 
 - [ ] **Step 8: Check the manage settings page still renders**
 
@@ -932,7 +1007,13 @@ def test_students_are_spread_across_the_requested_groups(seeded_course):
     from grouping.models import Group
 
     _run(seeded_course, groups=2)
-    groups = Group.objects.filter(course=seeded_course, name__startswith="Demo group")
+    # "Demo cohort group", not "Demo group": seed_demo_course.py:383 already
+    # creates a group literally named "Demo Group" on this course, and the two
+    # would differ only by case -- which PostgreSQL LIKE happens to distinguish,
+    # making this assertion silently order-of-the-day fragile.
+    groups = Group.objects.filter(
+        course=seeded_course, name__startswith="Demo cohort group"
+    )
     assert groups.count() == 2
     assert all(g.memberships.count() == 3 for g in groups)
 
@@ -1004,15 +1085,65 @@ def test_scores_vary_across_students(seeded_course):
 
 
 @pytest.mark.django_db
-def test_seeding_sends_no_email(seeded_course, django_capture_on_commit_callbacks):
+def test_completion_varies_across_students(seeded_course):
+    """The same argument applied to the OTHER matrix. If every student completes
+    every unit the progress view renders one uniform colour, which is exactly the
+    flat block this seeder exists to avoid."""
+    from django.db.models import Count
+
+    from courses.models import UnitProgress
+
+    _run(seeded_course, students=6)
+    counts = (
+        UnitProgress.objects.filter(
+            student__username__startswith=OWNED, completed=True
+        )
+        .values("student_id")
+        .annotate(n=Count("id"))
+        .values_list("n", flat=True)
+    )
+    assert len(set(counts)) > 1
+
+
+@pytest.mark.django_db
+def test_responses_record_an_answer(seeded_course):
+    """courses/views.py:1788 keys "answered" on latest_answer being non-null.
+    Without it every seeded quiz renders as unanswered with a score beside it --
+    on a box whose whole purpose is being browsed."""
+    _run(seeded_course)
+    assert _owned_responses().exists()
+    assert not _owned_responses().filter(latest_answer__isnull=True).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_seeding_sends_no_email():
     """notify() defers delivery to transaction.on_commit
     (notifications/services.py:37), which never fires under a plain django_db
-    test -- so this MUST execute the callbacks or it is unconditionally green."""
+    test -- so a naive version of this test is unconditionally green.
+
+    transaction=True, NOT django_capture_on_commit_callbacks: the command's dummy
+    backend is installed by an override_settings block inside handle(), which
+    exits when call_command returns. Capturing the callbacks would run them
+    AFTER that override lifted, under the test settings' locmem backend
+    (config/settings/test.py:7), and six messages would land in the outbox on a
+    perfectly correct build. With transaction=True the command's own
+    @transaction.atomic really commits, inside the override, which is the
+    production ordering.
+
+    deliver_notification_email bails only on a BLANK address
+    (notifications/emails.py:88), so @example.invalid does not save us here.
+
+    Builds its own course rather than using the seeded_course fixture, which is
+    bound to the non-transactional `db` fixture.
+    """
     from django.core import mail
 
+    from courses.models import Course
+
+    call_command("seed_demo_course")
+    course = Course.objects.get(slug="demo-course")
     mail.outbox.clear()
-    with django_capture_on_commit_callbacks(execute=True):
-        _run(seeded_course)
+    _run(course)
     assert mail.outbox == []
 
 
@@ -1041,6 +1172,29 @@ uv run python -m pytest tests/test_seed_demo_activity.py -v
 ```
 
 Expected: all FAIL with `Unknown command: 'seed_demo_activity'`.
+
+- [ ] **Step 3a: Audit which question types the target course actually uses**
+
+`_latest_answer` (below) covers choice and short-text, and returns `None` for anything
+else — which the command counts and reports rather than writing an unanswerable response.
+Before implementing, find out what you are actually up against:
+
+```bash
+uv run python manage.py shell -c "
+from collections import Counter
+from django.contrib.contenttypes.models import ContentType
+from courses.models import Element
+from courses.rollups import _QUESTION_MODELS
+ids = {ContentType.objects.get_for_model(m).id: m.__name__ for m in _QUESTION_MODELS}
+rows = Element.objects.filter(content_type_id__in=ids).values_list('content_type_id', flat=True)
+for name, n in Counter(ids[i] for i in rows).most_common():
+    print(f'{n:6d}  {name}')
+"
+```
+
+If a type outside choice/short-text dominates the subtree you intend to seed, widen
+`_latest_answer` to cover it — **do not** invent a placeholder answer. The results page
+renders whatever is stored, so a wrong-shaped value is worse than a skipped question.
 
 - [ ] **Step 3: Write the command**
 
@@ -1087,10 +1241,12 @@ from django.utils import timezone
 from accounts.emails import ensure_verified_primary_email
 from accounts.models import User
 from accounts.services import set_user_role
+from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import QuestionElement
+from courses.models import ShortTextQuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
@@ -1174,6 +1330,7 @@ class Command(BaseCommand):
         rng = random.Random(options["seed"])
         seed_roles()  # the role auth-groups must exist before set_user_role
 
+        self._skipped = 0
         units = self._units(course, options["subtree"])
         students = self._students(n_students, password)
         self._place(course, students, n_groups)
@@ -1185,6 +1342,15 @@ class Command(BaseCommand):
                 f"on {course.slug} ({len(units)} units)."
             )
         )
+        if self._skipped:
+            # Never silent: a bounded run that reports full coverage reads as
+            # "everything is answered" when it is not.
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Skipped {self._skipped} question(s) whose type this seeder "
+                    f"cannot answer faithfully — widen _latest_answer to cover them."
+                )
+            )
         if generated:
             self.stdout.write(
                 self.style.WARNING(
@@ -1265,7 +1431,7 @@ class Command(BaseCommand):
         for i in range(n_groups):
             group, _ = Group.objects.get_or_create(
                 course=course,
-                name=f"Demo group {i + 1}",
+                name=f"Demo cohort group {i + 1}",
                 defaults={"allocation": allocation},
             )
             if group.allocation_id != allocation.pk:
@@ -1290,7 +1456,17 @@ class Command(BaseCommand):
     def _activity(self, units, students, rng):
         for student in students:
             low, high = self._ability(rng)
-            for unit in units:
+            # Completion is driven by the ability band too. If every student
+            # completed every unit the progress matrix would render one uniform
+            # colour -- the same flat-block failure the score spread avoids.
+            # The strongest students finish nearly everything; the weakest trail.
+            reach = low + (high - low) * 0.5
+            for index, unit in enumerate(units):
+                # Deterministic prefix, not a per-unit coin flip: a student who
+                # has worked through 60% of a course has done the FIRST 60%, and
+                # a random scatter would look like nobody follows the ordering.
+                if index >= max(1, round(len(units) * reach)):
+                    break
                 if is_quiz_unit(unit):
                     self._quiz(unit, student, rng, low, high)
                 else:
@@ -1317,6 +1493,36 @@ class Command(BaseCommand):
             if isinstance(el.content_object, QuestionElement)
         ]
 
+    def _latest_answer(self, question):
+        """A plausible stored answer for `question`, or None if this seeder
+        cannot produce one faithfully.
+
+        courses/views.py:1788 sets "answered" from `latest_answer is not None`,
+        so a response without one renders as unanswered with a score beside it --
+        every blank marked wrong, on a box whose purpose is being browsed.
+
+        Returning None (and skipping the response) is deliberate: a wrong-SHAPED
+        answer is worse than no answer, because the results page would try to
+        render it. Widen this method rather than inventing a placeholder.
+
+        BEFORE IMPLEMENTING: run the audit in Step 3a to see which concrete
+        question models the target course actually uses, and cover those.
+        """
+        if isinstance(question, ChoiceQuestionElement):
+            # Same access path as seed_demo_course.py:370, and the same stored
+            # shape: a SORTED LIST of Choice pks, not a set (JSONField).
+            correct = sorted(
+                question.choices.filter(is_correct=True).values_list("pk", flat=True)
+            )
+            return correct or None
+        if isinstance(question, ShortTextQuestionElement):
+            # `accepted` is a newline-delimited TextField, not a list
+            # (courses/models.py:2432). build_answer returns a plain string, so
+            # latest_answer must be a plain string too.
+            lines = [ln.strip() for ln in question.accepted.splitlines() if ln.strip()]
+            return lines[0] if lines else None
+        return None
+
     def _quiz(self, unit, student, rng, low, high):
         # select_for_update: finalize_submission's docstring requires the caller
         # to hold the row lock; _run is @transaction.atomic, which is the
@@ -1331,6 +1537,13 @@ class Command(BaseCommand):
                 question = element.content_object
                 if question.marking_mode == QuestionElement.MarkingMode.NOT_MARKED:
                     continue
+                answer = self._latest_answer(question)
+                if answer is None:
+                    # A question type this seeder cannot answer faithfully.
+                    # Skip it rather than write a response that renders as
+                    # "not answered" -- see _latest_answer.
+                    self._skipped += 1
+                    continue
                 fraction = Decimal(str(round(rng.uniform(low, high), 2)))
                 response, _ = QuestionResponse.objects.get_or_create(
                     submission=submission,
@@ -1338,6 +1551,7 @@ class Command(BaseCommand):
                     defaults={
                         "fraction": fraction,
                         "earned_marks": earned_marks(fraction, question.max_marks),
+                        "latest_answer": answer,
                         "attempt_count": 1,
                         "last_attempt_at": timezone.now(),
                     },
@@ -1363,11 +1577,11 @@ class Command(BaseCommand):
 uv run python -m pytest tests/test_seed_demo_activity.py -v
 ```
 
-Expected: 11 passed.
+Expected: 14 passed.
 
 - [ ] **Step 5: Falsify — confirm the tests can fail**
 
-**Six mutants**, one at a time, each edited out by hand afterwards:
+**Nine mutants**, one at a time, each edited out by hand afterwards:
 
 1. Replace the `_place` group loop with `Enrollment.objects.create(student=student, course=course)` per student. Expected: `test_enrollment_is_derived_from_group_membership` FAILS on `source`.
 2. Delete the trailing `self._complete(student, unit)` call in `_quiz`. Expected: `test_submitted_quizzes_have_a_completed_unit_progress` FAILS.
@@ -1375,6 +1589,9 @@ Expected: 11 passed.
 4. Change the backend in `handle` to `locmem`. Expected: `test_seeding_sends_no_email` FAILS with a non-empty outbox — this is what proves the guard is real, since the test settings already install locmem.
 5. Drop `"display_name"` from the `_students` defaults. Expected: `test_students_get_a_display_name` FAILS.
 6. In `_units`, replace the ordered intersection with `units = list(units_under(root, drafts="hide"))`. Expected: `test_same_seed_produces_the_same_scores` FAILS **intermittently** — set iteration order varies per process. If it passes, run it several times; an intermittent mutant that never trips still proves the ordering matters, so keep the intersection either way.
+7. Replace `QuizSubmission.objects.select_for_update().get_or_create(...)` in `_quiz` with an unconditional `QuizSubmission.objects.create(...)`, and drop the `if submission.status != SUBMITTED:` guard. Expected: `test_is_idempotent` FAILS — the second run doubles the submission and response counts. Without this the idempotency test is unproven, and it is the one most likely to pass vacuously.
+8. Delete the `break` in `_activity`'s unit loop so every student completes every unit. Expected: `test_completion_varies_across_students` FAILS — one uniform colour across the progress matrix.
+9. Remove `"latest_answer": answer` from the `get_or_create` defaults. Expected: `test_responses_record_an_answer` FAILS — and this is the state in which every seeded quiz renders as "not answered".
 
 - [ ] **Step 6: Lint and commit**
 
@@ -1433,7 +1650,7 @@ support_screenshots
 .ruff_cache
 **/__pycache__
 *.log
-.env
+.env*
 docker-compose.test.yml
 tests
 docs
@@ -1480,9 +1697,14 @@ COPY . .
 #
 # A throwaway SECRET_KEY and a dummy DATABASE_URL: collectstatic touches neither,
 # but settings import requires them to be present.
+#
+# /app/.venv/bin/python, NOT `uv run`: uv run re-syncs the environment before
+# executing and does NOT inherit the --no-dev above, so it would reinstall
+# pytest, pytest-django, pytest-xdist and pytest-playwright into the production
+# image -- and need network access on a layer that should need none.
 RUN DJANGO_SECRET_KEY=build-only-not-a-runtime-secret \
     DATABASE_URL=postgres://u:p@localhost:5432/db \
-    uv run python manage.py collectstatic --noinput
+    /app/.venv/bin/python manage.py collectstatic --noinput
 
 # locale/*/LC_MESSAGES/*.mo are committed, so no compilemessages step.
 
@@ -1583,14 +1805,26 @@ docker build -t libli:local .
 
 Expected: builds clean. The `collectstatic` layer must report the number of files copied — if it errors on a missing static reference, that is a real bug to fix now, not at deploy time.
 
+Then confirm the production image carries no test dependencies and no secrets:
+
+```bash
+docker run --rm --entrypoint sh libli:local -c 'ls /app/.venv/bin | grep -c pytest || true'   # MUST be 0
+docker run --rm --entrypoint sh libli:local -c 'ls -a /app | grep "^\.env" || echo "no env files"'
+```
+
+Expected: `0`, then `no env files`. A non-zero pytest count means `uv run` crept back into a build layer; an `.env*` file means the `.dockerignore` exclusion is wrong and secrets are baked into a layer.
+
 - [ ] **Step 6: Verify the argument passthrough**
 
 ```bash
-docker run --rm --entrypoint sh libli:local -c 'echo passthrough-ok'
-docker run --rm libli:local /app/.venv/bin/python -c "print('exec-ok')" 2>&1 | tail -2
+docker run --rm libli:local /app/.venv/bin/python -c "print('exec-ok')" 2>&1 | tail -3
 ```
 
-Expected: the first prints `passthrough-ok`. The second reaches the DB-wait loop and fails there (no database) — that is correct and proves the bootstrap runs; what matters is that it does **not** print `==> gunicorn`. The real passthrough test runs against the live stack in Task 6 Step 5.
+Expected: it reaches `==> waiting for the database` and eventually exits non-zero (no database is running) — which proves the bootstrap runs. What matters is that it does **not** print `==> gunicorn`.
+
+**This takes about four minutes**: the DB-wait loop is 60 attempts of `django.setup()` plus `sleep 2`. That is not a hang. To shorten it, temporarily lower the `-ge 60` ceiling while testing.
+
+Do **not** verify this with `docker run --entrypoint sh` — replacing the entrypoint bypasses the very script under test, so such a check proves only that the image contains a shell. The full passthrough test runs against the live stack in Task 6 Step 5.
 
 The *ordering* of the bootstrap is verified in Task 6 Step 5 against the runtime log, not by grepping this file — grepping the file just written proves only that `COPY` worked.
 
@@ -1661,7 +1895,7 @@ Named `docker-compose.prod.yml`, not `docker-compose.yml`, so it can never be pi
 	}
 
 	request_body {
-		max_size {$CADDY_MAX_BODY:1GB}
+		max_size {$CADDY_MAX_BODY:1GiB}
 	}
 }
 ```
@@ -1701,12 +1935,17 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DATABASE_URL: postgres://${POSTGRES_USER:-libli}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-libli}
       DJANGO_BEHIND_PROXY: "true"
+      # Interpolation-time guard, so a blank fails at `up` rather than silently
+      # falling back to base.py's "dev-insecure-key-change-me". The :? form
+      # fires on unset OR empty, which "fill every blank" in a runbook cannot.
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env.production}
+      DJANGO_SITE_DOMAIN: ${DJANGO_SITE_DOMAIN:?set DJANGO_SITE_DOMAIN in .env.production}
       # Django spills uploads above FILE_UPLOAD_MAX_MEMORY_SIZE to the system
       # temp dir BEFORE the view moves them to TRANSFER_STAGING_DIR. Left at the
       # default that is a multi-GB write to the container's overlay filesystem on
       # the host root disk. Point it at the staging volume so the transient copy
       # lands on sized storage that the disk arithmetic accounts for.
-      FILE_UPLOAD_TEMP_DIR: /app/transfer_staging
+      DJANGO_FILE_UPLOAD_TEMP_DIR: /app/transfer_staging
     volumes:
       - media:/app/media
       - transfer_staging:/app/transfer_staging
@@ -1716,7 +1955,24 @@ services:
     healthcheck:
       # Gates caddy's start: without it the first requests after a deploy 502
       # while migrate runs, which is also when Caddy is completing ACME.
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/healthz/ || exit 1"]
+      #
+      # Both headers are load-bearing:
+      #  - Host: the request must present a name in DJANGO_ALLOWED_HOSTS or
+      #    get_host() raises DisallowedHost -> 400 -> never healthy -> caddy
+      #    never starts and the site is unreachable. "localhost" is in the
+      #    shipped example's ALLOWED_HOSTS for exactly this reason.
+      #  - X-Forwarded-Proto: with SECURE_SSL_REDIRECT=True (production.py:6)
+      #    SecurityMiddleware answers plain HTTP with a 301 BEFORE the view runs,
+      #    and `curl -f` treats a 301 as success -- degrading the check to
+      #    "gunicorn accepted a socket". This makes request.is_secure() true so
+      #    the check reaches the view.
+      # Asserting the body, not just the status, is what makes it a real check.
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS -H "Host: ${DJANGO_SITE_DOMAIN:-localhost}"
+          -H "X-Forwarded-Proto: https"
+          http://127.0.0.1:8000/healthz/ | grep -q '"status": *"ok"'
       interval: 10s
       timeout: 5s
       retries: 30
@@ -1734,7 +1990,7 @@ services:
       - "443:443/udp"
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.production}
-      CADDY_MAX_BODY: ${CADDY_MAX_BODY:-1GB}
+      CADDY_MAX_BODY: ${CADDY_MAX_BODY:-1GiB}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Read-only: Caddy serves media, it never writes it.
@@ -1768,7 +2024,11 @@ SITE_ADDRESS=libli.example.org
 # from the django.contrib.sites Site record, not the request Host header.
 DJANGO_SITE_DOMAIN=libli.example.org
 
-DJANGO_ALLOWED_HOSTS=libli.example.org
+# localhost is REQUIRED here, not optional: the app container's healthcheck
+# requests /healthz/ over the loopback, and a host outside this list raises
+# DisallowedHost -> 400 -> the container never becomes healthy -> caddy never
+# starts. Keep it even though nobody browses to it.
+DJANGO_ALLOWED_HOSTS=libli.example.org,localhost,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=https://libli.example.org
 
 # --- secrets ---
@@ -1778,6 +2038,11 @@ POSTGRES_USER=libli
 POSTGRES_DB=libli
 
 # --- first Platform Admin (read by init_platform; omit to skip bootstrap) ---
+# The password must satisfy Django's validators (length, not-too-common, not
+# similar to the username/email). init_platform raises CommandError otherwise,
+# which under `set -e` kills the entrypoint -- and with restart: unless-stopped
+# the container then crash-loops with caddy's health gate never releasing.
+# If the site never comes up, check: logs app | grep '==> init_platform'
 INIT_ADMIN_USERNAME=admin
 INIT_ADMIN_EMAIL=admin@example.org
 INIT_ADMIN_PASSWORD=
@@ -1811,7 +2076,7 @@ GUNICORN_GRACEFUL_TIMEOUT=120
 # LIBLI_TRANSFER_MAX_COMPRESSED_BYTES=5368709120
 # LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES=6442450944
 # LIBLI_TRANSFER_MAX_MEDIA_ENTRIES=2000
-# CADDY_MAX_BODY=5GB
+# CADDY_MAX_BODY=5GiB
 ```
 
 - [ ] **Step 4: Validate the compose file**
@@ -1820,18 +2085,29 @@ GUNICORN_GRACEFUL_TIMEOUT=120
 cp .env.production.example .env.production
 printf '\nPOSTGRES_PASSWORD=localsmoke\nDJANGO_SECRET_KEY=localsmoke\n' >> .env.production
 sed -i 's|^SITE_ADDRESS=.*|SITE_ADDRESS=http://localhost|' .env.production
-sed -i 's|^DJANGO_ALLOWED_HOSTS=.*|DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,app|' .env.production
 sed -i 's|^DJANGO_CSRF_TRUSTED_ORIGINS=.*|DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost|' .env.production
 sed -i 's|^DJANGO_SITE_DOMAIN=.*|DJANGO_SITE_DOMAIN=localhost|' .env.production
-printf '\nDJANGO_SECURE_SSL_REDIRECT=false\n' >> .env.production
 
 docker compose -f docker-compose.prod.yml --env-file .env.production config \
-  | grep -E "DJANGO_SETTINGS_MODULE|FILE_UPLOAD_TEMP_DIR"
+  | grep -E "DJANGO_SETTINGS_MODULE|DJANGO_FILE_UPLOAD_TEMP_DIR"
 ```
 
-Expected: `DJANGO_SETTINGS_MODULE: config.settings.production` and the `FILE_UPLOAD_TEMP_DIR` line. If `config.settings.local` appears, the service is reading the wrong env file.
+Expected: `DJANGO_SETTINGS_MODULE: config.settings.production` and the `DJANGO_FILE_UPLOAD_TEMP_DIR` line. If `config.settings.local` appears, the service is reading the wrong env file.
 
-`.env.production` is gitignored via the existing `.env` rule only if that rule is a glob — check `.gitignore` and add `.env.production` explicitly if not.
+**Deliberately NOT overridden here:** `DJANGO_ALLOWED_HOSTS` keeps the shipped example's
+value, and `DJANGO_SECURE_SSL_REDIRECT` keeps its production default of `True`. Rewriting
+either would make the local run the one configuration in which a broken healthcheck can
+still pass — the smoke test must exercise the same host and redirect behaviour the VPS
+will. `SITE_ADDRESS=http://localhost` only tells Caddy to serve plain HTTP and skip ACME;
+it does not change how Django sees the request, because Caddy still sends
+`X-Forwarded-Proto`.
+
+Note this `config` check proves only that the *variable* reaches the container. That
+`FILE_UPLOAD_TEMP_DIR` is actually *applied* is proven at runtime in Step 5 — a grep of
+rendered compose output is the same grep-instead-of-request weakness this plan rejects
+elsewhere.
+
+**`.gitignore:10` is the literal string `.env`, not a glob — so `.env.production` is NOT ignored.** Before creating the file, change that line to `.env*` and add `!.env.production.example` beneath it, then confirm with `git check-ignore -v .env.production`. A filled secrets file showing up in `git status` is one careless `git add -A` from being committed.
 
 - [ ] **Step 5: Run the whole stack locally — the real verification**
 
@@ -1844,13 +2120,13 @@ healthcheck gate — surfaces here rather than on the VPS with ACME in flight.
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-docker compose -f docker-compose.prod.yml logs -f app     # Ctrl-C once gunicorn starts
+docker compose -f docker-compose.prod.yml --env-file .env.production logs -f app     # Ctrl-C once gunicorn starts
 ```
 
 Assert the bootstrap ran in the right order — against the **runtime log**, not the script:
 
 ```bash
-docker compose -f docker-compose.prod.yml logs app | grep '==>'
+docker compose -f docker-compose.prod.yml --env-file .env.production logs app | grep '==>'
 ```
 
 Expected, in this order: `waiting for the database`, `migrate`, `setup_roles`,
@@ -1860,13 +2136,24 @@ Then:
 
 ```bash
 # a media file to range-test
-docker compose -f docker-compose.prod.yml exec app \
+docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
   sh -c 'mkdir -p /app/media/smoke && head -c 1048576 /dev/urandom > /app/media/smoke/probe.bin'
 
 curl -sI http://localhost/healthz/                                   # 200
+curl -sI http://localhost/                                           # 200 -- the landing page
 curl -sI http://localhost/static/admin/css/base.css                  # 200, whitenoise manifest
-curl -sI http://localhost/media/smoke/probe.bin -H 'Range: bytes=0-100' | head -5
+
+# Range: a GET with the body discarded, NOT a HEAD. Range-on-HEAD is a file-server
+# implementation detail; a <video> issues a GET, so that is what must be proven.
+curl -s -o /dev/null -D - -r 0-100 http://localhost/media/smoke/probe.bin | head -5
 #   MUST be 206 Partial Content with accept-ranges: bytes
+
+# FILE_UPLOAD_TEMP_DIR is APPLIED, not merely present in the environment. Django
+# reads settings from the settings module; an env var alone changes nothing.
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  /app/.venv/bin/python -c \
+  "from django.conf import settings; print(settings.FILE_UPLOAD_TEMP_DIR)"
+#   MUST print /app/transfer_staging
 
 # The staging directories must NOT be reachable. A grep of the Caddyfile cannot
 # prove this; a request can.
@@ -1875,7 +2162,7 @@ curl -so /dev/null -w '%{http_code}\n' http://localhost/support_screenshots/
 #   both MUST be 404 (or 403) -- never 200 and never a directory listing
 
 # Argument passthrough (Task 5's interface)
-docker compose -f docker-compose.prod.yml run --rm app \
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \
   /app/.venv/bin/python manage.py showmigrations --plan | tail -3
 ```
 
@@ -1949,8 +2236,8 @@ have no Caddy route, proven by a request rather than a grep."
    python3 -c "import secrets; print(secrets.token_urlsafe(32))"   # POSTGRES_PASSWORD
    nano .env.production                                             # fill every blank
    chmod 600 .env.production
-   docker compose -f docker-compose.prod.yml up -d --build
-   docker compose -f docker-compose.prod.yml logs -f app
+   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+   docker compose -f docker-compose.prod.yml --env-file .env.production logs -f app
    ```
 
    The log must show, in order: `waiting for the database`, `migrate`, `setup_roles`, `set_site_domain`, `init_platform`, `gunicorn`.
@@ -1959,12 +2246,23 @@ have no Caddy route, proven by a request rather than a grep."
 
 5. **Walk the first-run wizard** at `https://<host>/setup/`, signed in as the `INIT_ADMIN_USERNAME` account. Confirm the Identity step shows the **Public hostname** field pre-filled with the value the entrypoint set, and that the five steps (Welcome → Identity → Access → Team → SSO) complete. This is the non-developer surface — walk it as a school admin would, without a shell open.
 
+   **On the Access step, leave the signup policy on `invite`.** This is a public box with a
+   real DNS name; "open" means strangers can self-register on it. `init_platform` defaults
+   to invite, so this is a matter of not changing it. Verify afterwards:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+     /app/.venv/bin/python -c \
+     "import django; django.setup(); from institution.models import Institution; print(Institution.load().signup_policy)"
+   # MUST print: invite
+   ```
+
 6. **Load matematyka.** Raise the three `LIBLI_TRANSFER_MAX_*` vars and `CADDY_MAX_BODY` in `.env.production`, `docker compose … up -d` to apply, confirm `df -h /` shows **≥17 GB** free, then export locally from the builder and import through the web UI.
 
    After success, delete the staged archive rather than waiting out the 6-hour `TRANSFER_STAGING_MAX_AGE_HOURS`:
 
    ```bash
-   docker compose -f docker-compose.prod.yml exec app \
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
      sh -c 'rm -f /app/transfer_staging/*.zip'
    ```
 
@@ -1973,49 +2271,75 @@ have no Caddy route, proven by a request rather than a grep."
 7. **Find the course slug and subtree pk** before seeding — the importer assigns the slug, and it is not guaranteed to be `matematyka`:
 
    ```bash
-   docker compose -f docker-compose.prod.yml exec app /app/.venv/bin/python manage.py shell -c "
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec app /app/.venv/bin/python manage.py shell -c "
    from courses.models import Course, ContentNode
    for c in Course.objects.all():
        print(c.pk, repr(c.slug), c.title)
    "
    # then, with the slug from above:
-   docker compose -f docker-compose.prod.yml exec app /app/.venv/bin/python manage.py shell -c "
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec app /app/.venv/bin/python manage.py shell -c "
    from courses.models import ContentNode
    for n in ContentNode.objects.filter(course__slug='<slug>', parent__isnull=True).order_by('order'):
        print(n.pk, n.kind, n.title)
    "
    ```
 
-8. **Seed the demo data.** Set `DEMO_STUDENT_PASSWORD` in `.env.production` first, so a re-run does not print a new password that does not apply to existing students.
+8. **Seed the demo data.** Pass `--password` explicitly on the command line.
+
+   Setting `DEMO_STUDENT_PASSWORD` in `.env.production` is **not** enough on its own:
+   `docker compose exec` runs inside the *already-running* container, whose environment was
+   fixed from `env_file` at start. Editing the file afterwards has no effect until the
+   service is recreated, so the command would fall through to generating a random password
+   — the exact outcome setting it was meant to avoid. Either pass `--password`, or run
+   `… up -d app` after the edit and before seeding.
 
    ```bash
-   docker compose -f docker-compose.prod.yml exec app \
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
      /app/.venv/bin/python manage.py seed_demo_course
-   docker compose -f docker-compose.prod.yml exec app \
+   docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
      /app/.venv/bin/python manage.py seed_demo_activity \
-       --course <slug> --subtree <pk> --students 20 --groups 2 --seed 12345
+       --course <slug> --subtree <pk> --students 20 --groups 2 --seed 12345 \
+       --password '<chosen-demo-password>'
    ```
 
-9. **Schedule the notification purge** — `docs/local-development.md` notes there is no built-in scheduler and the table grows without one.
+   Record that password: a later re-run generates a *different* one, and because
+   `get_or_create` skips `set_password` for students that already exist, the newly printed
+   value would not be the one that works.
 
-10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
+9. **Schedule the notification purge.** There is no built-in scheduler and the table grows
+   without one. `docs/local-development.md:55` gives the host form (`cd /app && uv run …`),
+   which does **not** apply here — this deployment runs the command inside the container:
+
+   ```cron
+   # /etc/crontab or `crontab -e` on the VPS — daily at 03:30
+   30 3 * * * cd /opt/libli && docker compose -f docker-compose.prod.yml \
+     --env-file .env.production exec -T app \
+     /app/.venv/bin/python manage.py purge_notifications
+   ```
+
+   `exec -T` is required: cron has no TTY. Test it once by hand with `--dry-run` first.
+
+10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Signup policy stays `invite`. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
 
 - [ ] **Step 2: Put the post-deploy checks in the runbook verbatim**
 
 ```bash
 # Pick a real media file first -- this check is the one most likely to be
 # skipped, and a placeholder path is why.
-MP4=$(docker compose -f docker-compose.prod.yml exec -T app \
+MP4=$(docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
         sh -c 'find /app/media -name "*.mp4" | head -1' | tr -d '\r')
 REL=${MP4#/app/media/}
 echo "https://<host>/media/$REL"
 
 # Video seeking. A 200 here means every student's <video> is unseekable --
 # the page looks fine and only someone trying to replay a passage finds out.
-curl -sI "https://<host>/media/$REL" -H 'Range: bytes=0-100' | head -5
+# A GET with the body discarded, NOT a HEAD: Range-on-HEAD is a file-server
+# implementation detail, whereas a <video> element issues a GET.
+curl -s -o /dev/null -D - -r 0-100 "https://<host>/media/$REL" | head -5
 # MUST show: HTTP/2 206  and  accept-ranges: bytes
 
 curl -sI https://<host>/healthz/                               # 200
+curl -sI https://<host>/                                       # 200 -- the landing page
 curl -sI https://<host>/static/admin/css/base.css              # 200
 curl -sI http://<host>/ | head -3                              # 301/308 to https
 
