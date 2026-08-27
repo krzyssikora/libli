@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build libli's first deployment — a containerised install (`app`, `db`, `caddy`) that stands up a working instance on a single Contabo VPS, plus fixes for the two defects a real deployment exposes, plus a demo-data seeder.
+**Goal:** Build libli's first deployment — a containerised install (`app`, `db`, `caddy`) that stands up a working instance on a single Contabo VPS, plus fixes for the two defects a real deployment exposes.
 
 **Architecture:** Caddy terminates TLS, serves `/media/` directly from a volume (giving HTTP Range, which Django lacks entirely), and reverse-proxies everything else to gunicorn. Whitenoise keeps `/static/` inside the app so its hashed manifest stays authoritative. A single `app` container runs an ordered entrypoint (`migrate` → `setup_roles` → Site domain → `init_platform` → gunicorn). Demo content is loaded separately and is not part of the install.
 
@@ -17,7 +17,7 @@
 - **Transfer-cap defaults must not change.** `TRANSFER_MAX_COMPRESSED_BYTES` stays `1 * 1024**3`, `TRANSFER_MAX_UNCOMPRESSED_BYTES` stays `1536 * 1024**2`, `TRANSFER_MAX_MEDIA_ENTRIES` stays `1000`. Only their env-overridability is new.
 - **`TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served.** They must not appear in any Caddy route, and Task 6/7 both prove it with a real request, not a grep.
 - **No hardcoded passwords** in new code. ruff `S105`/`S106`/`S107` are enabled outside `tests/`.
-- **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates. Note `B` (bugbear) and `S` (bandit) are selected — an unused loop variable (`B007`) and a bare `random.Random` (`S311`) both fail the build. `I` is selected too, and `ruff format` does NOT sort imports: run `uv run ruff check --fix` for `I001` before the gate.
+- **ruff must pass:** `uv run ruff check . --no-cache` and `uv run ruff format --check .` are separate gates. Note `B` (bugbear) and `S` (bandit) are selected, so an unused loop variable (`B007`) fails the build. `I` is selected too, and `ruff format` does NOT sort imports: run `uv run ruff check --fix` for `I001` before the gate.
 - **Run tests narrowly.** Whole-repo sweeps are a branch gate, not a task step. Start the test DB first: `docker compose -f docker-compose.test.yml up -d`.
 - **Every test must be shown RED against its named mutant** before the task is accepted. A test that cannot fail is not evidence.
 - **The Python blocks in this plan are illustrative, not formatter-clean.** ruff format (black semantics) explodes multi-line collections one element per line, collapses calls that fit in 88 columns, and normalises inline comments. Run `uv run ruff format .` after transcribing a block and before the lint gate, rather than treating a `--check` failure as a defect in your transcription.
@@ -51,7 +51,6 @@ moves. A worktree is immune, which is why the work lives in one.
 **New application code**
 - `institution/site_domain.py` — validation + persistence for the `django.contrib.sites` Site domain. One responsibility; consumed by both a management command and a form.
 - `institution/management/commands/set_site_domain.py` — entrypoint-callable wrapper.
-- `courses/management/commands/seed_demo_activity.py` — demo student cohort + activity.
 
 **Modified application code**
 - `config/settings/base.py` — the three cap assignments at lines **175, 176 and 181** become `env.int` reads.
@@ -65,7 +64,7 @@ moves. A worktree is immune, which is why the work lives in one.
 - `docs/deployment.md` — the runbook.
 
 **New tests**
-- `tests/test_transfer_caps_env.py`, `tests/test_site_domain.py`, `tests/test_seed_demo_activity.py`
+- `tests/test_transfer_caps_env.py`, `tests/test_site_domain.py`
 - `tests/test_setup_wizard.py` — extended, not replaced.
 
 Note `templates/institution/manage/_branding_fields.html` is included by **both** `templates/institution/setup/identity.html:8` and `templates/institution/manage/_branding_tab.html:13`. Adding the field there deliberately surfaces it on the manage settings page too, so a Platform Admin can correct the hostname after first run, not only during it.
@@ -80,7 +79,7 @@ Note `templates/institution/manage/_branding_fields.html` is included by **both*
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: env var names `LIBLI_TRANSFER_MAX_COMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_MEDIA_ENTRIES` (all integers, bytes / count), and `DJANGO_FILE_UPLOAD_TEMP_DIR` (path or unset). Task 6's compose file and `.env.production.example` set them; Task 7's runbook documents them.
+- Produces: env var names `LIBLI_TRANSFER_MAX_COMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES`, `LIBLI_TRANSFER_MAX_MEDIA_ENTRIES` (all integers, bytes / count), and `DJANGO_FILE_UPLOAD_TEMP_DIR` (path or unset). Task 5's compose file and `.env.production.example` set them; Task 6's runbook documents them.
 
 **Why `FILE_UPLOAD_TEMP_DIR` belongs here.** Django spills any upload above
 `FILE_UPLOAD_MAX_MEMORY_SIZE` to `FILE_UPLOAD_TEMP_DIR` **before** the view can move it to
@@ -93,7 +92,7 @@ It gets its **own** volume (`/app/upload_tmp`), deliberately not `TRANSFER_STAGI
 `staging.sweep()` (`courses/transfer/staging.py:22`) unlinks **any** file in the staging
 directory older than `TRANSFER_STAGING_MAX_AGE_HOURS`, not just `*.zip` — pointing the
 spill there would let the sweeper delete an in-flight upload, and would leave orphaned
-spill files that Task 7's `rm -f …/*.zip` cleanup does not match.
+spill files that Task 6's `rm -f …/*.zip` cleanup does not match.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -553,7 +552,7 @@ def set_site_domain(domain, name=None):
     LIMITATION: SITE_CACHE is a per-PROCESS dict. With GUNICORN_WORKERS > 1 this
     clears only the worker that served the request; siblings keep building links
     from the old domain until they are recycled. After changing the hostname
-    through the settings UI, restart the app service -- Task 7 says so.
+    through the settings UI, restart the app service -- Task 6 says so.
     """
     from django.contrib.sites.models import Site
 
@@ -974,860 +973,7 @@ Admin can also correct it after first run."
 
 ---
 
-### Task 4: `seed_demo_activity` management command
-
-**Files:**
-- Create: `courses/management/commands/seed_demo_activity.py`
-- Test: `tests/test_seed_demo_activity.py` (create)
-
-**Interfaces:**
-- Consumes: nothing from earlier tasks.
-- Produces: management command `seed_demo_activity`, invoked by Task 7's runbook as
-  `seed_demo_activity --course <slug> --subtree <pk> --students 20 --groups 2 --seed 12345 --password <pw>`.
-
-**Read `courses/management/commands/seed_demo_course.py:320-370` before starting.** It is the reference implementation for the submission/progress half, and its docstrings document two traps this command must not re-fall into.
-
-Six hard constraints, each from existing code:
-
-1. **Enrollment is derived, never written.** `grouping/services.py:127` defines reachability as group membership; `add_students_to_group` calls `recompute_enrollment` per student (`grouping/services.py:216`). Writing `Enrollment` rows directly produces state no production path produces.
-2. **`UnitProgress` and `QuizSubmission` are separate writes.** `finalize_submission()` deliberately does not touch progress — see the docstring at `seed_demo_course.py:333`.
-3. **Review-mode responses must be stamped `reviewed_at`.** `rollups.submission_is_counted` (`courses/rollups.py:402`) excludes a submission with any unreviewed `REVIEW` question, so its score would silently vanish from the matrix.
-4. **No hardcoded password** — ruff `S106`.
-5. **`set_user_role` before `assign_student_to_cohort`.** `set_user_role` syncs Default-cohort membership through an `m2m_changed` receiver that reads `is_staff` during `groups.set`; assigning the demo cohort first would be undone.
-6. **Mail must be discarded, not captured.** `config/settings/test.py:7` already pins locmem, which *collects* mail into `mailoutbox` — so a locmem override proves nothing. Use the `dummy` backend, which discards.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `tests/test_seed_demo_activity.py`:
-
-```python
-"""seed_demo_activity: demo cohort + analytics-visible activity, idempotently.
-
-Every query here is scoped to `demo.student*`. The seeded_course fixture runs
-seed_demo_course, which creates its OWN students and -- deliberately -- one
-unreviewed REVIEW response (seed_demo_course.py:448). An unscoped assertion
-would fail on a perfectly correct seed_demo_activity.
-"""
-
-import pytest
-from django.core.management import call_command
-
-OWNED = "demo.student"
-
-
-@pytest.fixture
-def seeded_course(db):
-    """A small course with a lesson unit and a quiz unit carrying questions.
-    seed_demo_course builds exactly this shape and is idempotent."""
-    call_command("seed_demo_course")
-    from courses.models import Course
-
-    return Course.objects.get(slug="demo-course")
-
-
-def _run(course, **kw):
-    opts = {
-        "course": course.slug,
-        "students": 6,
-        "groups": 2,
-        "seed": 12345,
-        "password": "seed-only-not-a-real-credential",  # noqa: S106
-    }
-    opts.update(kw)
-    call_command("seed_demo_activity", **opts)
-
-
-def _owned_responses():
-    from courses.models import QuestionResponse
-
-    return QuestionResponse.objects.filter(
-        submission__student__username__startswith=OWNED
-    )
-
-
-def _owned_submissions():
-    from courses.models import QuizSubmission
-
-    return QuizSubmission.objects.filter(student__username__startswith=OWNED)
-
-
-@pytest.mark.django_db
-def test_creates_the_requested_students_with_unroutable_emails(seeded_course):
-    from accounts.models import User
-
-    _run(seeded_course)
-    students = User.objects.filter(username__startswith=OWNED)
-    assert students.count() == 6
-    # .invalid is reserved and can never resolve: no seeded mail can escape.
-    assert all(u.email.endswith("@example.invalid") for u in students)
-
-
-@pytest.mark.django_db
-def test_students_get_a_display_name(seeded_course):
-    """User.__str__ returns display_name or username (accounts/models.py:41), so
-    without this the matrix renders demo.student01 and the name pairs are wasted."""
-    from accounts.models import User
-
-    _run(seeded_course)
-    for user in User.objects.filter(username__startswith=OWNED):
-        assert user.display_name
-        assert user.display_name != user.username
-
-
-@pytest.mark.django_db
-def test_students_hold_the_student_role(seeded_course):
-    from accounts.models import User
-    from institution.roles import STUDENT
-
-    _run(seeded_course)
-    for user in User.objects.filter(username__startswith=OWNED):
-        assert user.groups.filter(name=STUDENT).exists()
-
-
-@pytest.mark.django_db
-def test_enrollment_is_derived_from_group_membership(seeded_course):
-    """Not written directly: the command must drive the real grouping services,
-    so every Enrollment carries source='group' exactly as production creates it."""
-    from courses.models import Enrollment
-
-    _run(seeded_course)
-    rows = Enrollment.objects.filter(
-        course=seeded_course, student__username__startswith=OWNED
-    )
-    assert rows.count() == 6
-    assert set(rows.values_list("source", flat=True)) == {"group"}
-
-
-@pytest.mark.django_db
-def test_students_are_spread_across_the_requested_groups(seeded_course):
-    from grouping.models import Group
-
-    _run(seeded_course, groups=2)
-    # "Demo cohort group", not "Demo group": seed_demo_course.py:383 already
-    # creates a group literally named "Demo Group" on this course, and the two
-    # would differ only by case -- which PostgreSQL LIKE happens to distinguish,
-    # making this assertion silently order-of-the-day fragile.
-    groups = Group.objects.filter(
-        course=seeded_course, name__startswith="Demo cohort group"
-    )
-    assert groups.count() == 2
-    assert all(g.memberships.count() == 3 for g in groups)
-
-
-@pytest.mark.django_db
-def test_is_idempotent(seeded_course):
-    from accounts.models import User
-    from courses.models import Enrollment
-
-    _run(seeded_course)
-    first = (
-        User.objects.filter(username__startswith=OWNED).count(),
-        Enrollment.objects.filter(course=seeded_course).count(),
-        _owned_submissions().count(),
-        _owned_responses().count(),
-    )
-    _run(seeded_course)
-    second = (
-        User.objects.filter(username__startswith=OWNED).count(),
-        Enrollment.objects.filter(course=seeded_course).count(),
-        _owned_submissions().count(),
-        _owned_responses().count(),
-    )
-    assert first == second
-
-
-@pytest.mark.django_db
-def test_submitted_quizzes_have_a_completed_unit_progress(seeded_course):
-    """finalize_submission does not touch UnitProgress; writing it is the
-    caller's half of the invariant (seed_demo_course.py:333). Without it the
-    unit stays in build_outline's `open` set."""
-    from courses.models import QuizSubmission
-    from courses.models import UnitProgress
-
-    _run(seeded_course)
-    submitted = _owned_submissions().filter(status=QuizSubmission.Status.SUBMITTED)
-    assert submitted.exists()  # the assertion below is vacuous otherwise
-    for sub in submitted:
-        assert UnitProgress.objects.filter(
-            student=sub.student, unit=sub.unit, completed=True
-        ).exists()
-
-
-@pytest.mark.django_db
-def test_review_responses_are_marked_reviewed(seeded_course):
-    """rollups.submission_is_counted excludes a submission with any unreviewed
-    REVIEW question, so its score would silently vanish from the matrix.
-
-    Scoped to this command's own rows: seed_demo_course deliberately leaves one
-    REVIEW response unreviewed so it lands in the review queue."""
-    from courses.models import QuestionElement
-
-    _run(seeded_course)
-    review_rows = [
-        r
-        for r in _owned_responses().select_related("element")
-        if getattr(r.element.content_object, "marking_mode", None)
-        == QuestionElement.MarkingMode.REVIEW
-    ]
-    assert review_rows  # the assertion below is vacuous otherwise
-    assert [r for r in review_rows if r.reviewed_at is None] == []
-
-
-@pytest.mark.django_db
-def test_a_review_unit_yields_a_counted_submission(seeded_course):
-    """The end-to-end version of the constraint above.
-
-    rollups._quiz_review_maps derives total_review from the unit's REVIEW
-    ELEMENTS (courses/rollups.py:344), not from the responses written -- so
-    both an unreviewed response AND a skipped one leave reviewed < total and
-    drop the whole submission from the matrix. This asserts the outcome the
-    matrix actually reads, rather than the reviewed_at column alone."""
-    from courses.rollups import _quiz_review_maps
-    from courses.rollups import submission_is_counted
-
-    _run(seeded_course)
-    subs = list(_owned_submissions())
-    assert subs
-    _has_auto, total_review, reviewed_counts = _quiz_review_maps(
-        [s.unit_id for s in subs], subs
-    )
-    review_subs = [s for s in subs if total_review.get(s.unit_id, 0) > 0]
-    assert review_subs, "no seeded submission covers a REVIEW question"
-    for sub in review_subs:
-        assert submission_is_counted(sub, total_review, reviewed_counts)
-
-
-@pytest.mark.django_db
-def test_scores_vary_across_students(seeded_course):
-    """A flat block of identical scores makes the colour bands useless.
-
-    Asserts across STUDENTS, not just across rows: an earlier draft passed
-    because one lone student happened to draw two different fractions, while
-    every other student never reached a quiz at all."""
-    _run(seeded_course)
-    rows = set(
-        _owned_responses().values_list("submission__student__username", "fraction")
-    )
-    assert len({username for username, _ in rows}) > 1
-    assert len({fraction for _, fraction in rows}) > 1
-
-
-@pytest.mark.django_db
-def test_every_student_attempts_at_least_one_quiz(seeded_course):
-    """Quiz participation is drawn independently of the lesson prefix. Tying the
-    two meant that on a course whose quiz sits at the end -- the normal shape --
-    almost nobody reached one and the quiz matrix stayed empty."""
-    from accounts.models import User
-
-    _run(seeded_course)
-    attempted = set(_owned_submissions().values_list("student__username", flat=True))
-    everyone = set(
-        User.objects.filter(username__startswith=OWNED).values_list(
-            "username", flat=True
-        )
-    )
-    assert attempted == everyone
-
-
-@pytest.mark.django_db
-def test_a_wrong_answer_is_not_stored_as_the_correct_one(seeded_course):
-    """The score is derived from the answer (seed_demo_course.py:318), so a
-    response scored below 1.0 must not hold the fully-correct answer -- a
-    browsing visitor would see the right option selected beside a failing mark."""
-    from courses.models import ChoiceQuestionElement
-
-    _run(seeded_course)
-    for r in _owned_responses().select_related("element"):
-        question = r.element.content_object
-        if not isinstance(question, ChoiceQuestionElement):
-            continue
-        correct = sorted(
-            question.choices.filter(is_correct=True).values_list("pk", flat=True)
-        )
-        if r.fraction < 1:
-            assert r.latest_answer != correct
-
-
-@pytest.mark.django_db
-def test_completion_varies_across_students(seeded_course):
-    """The same argument applied to the OTHER matrix. If every student completes
-    every unit the progress view renders one uniform colour, which is exactly the
-    flat block this seeder exists to avoid."""
-    from django.db.models import Count
-
-    from courses.models import UnitProgress
-
-    _run(seeded_course, students=6)
-    counts = (
-        UnitProgress.objects.filter(
-            student__username__startswith=OWNED, completed=True
-        )
-        .values("student_id")
-        .annotate(n=Count("id"))
-        .values_list("n", flat=True)
-    )
-    assert len(set(counts)) > 1
-
-
-@pytest.mark.django_db
-def test_responses_record_an_answer(seeded_course):
-    """courses/views.py:1788 keys "answered" on latest_answer being non-null.
-    Without it every seeded quiz renders as unanswered with a score beside it --
-    on a box whose whole purpose is being browsed."""
-    _run(seeded_course)
-    assert _owned_responses().exists()
-    assert not _owned_responses().filter(latest_answer__isnull=True).exists()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_seeding_sends_no_email():
-    """notify() defers delivery to transaction.on_commit
-    (notifications/services.py:37), which never fires under a plain django_db
-    test -- so a naive version of this test is unconditionally green.
-
-    transaction=True, NOT django_capture_on_commit_callbacks: the command's dummy
-    backend is installed by an override_settings block inside handle(), which
-    exits when call_command returns. Capturing the callbacks would run them
-    AFTER that override lifted, under the test settings' locmem backend
-    (config/settings/test.py:7), and six messages would land in the outbox on a
-    perfectly correct build. With transaction=True the command's own
-    @transaction.atomic really commits, inside the override, which is the
-    production ordering.
-
-    deliver_notification_email bails only on a BLANK address
-    (notifications/emails.py:88), so @example.invalid does not save us here.
-
-    Builds its own course rather than using the seeded_course fixture, which is
-    bound to the non-transactional `db` fixture.
-    """
-    from django.core import mail
-
-    from courses.models import Course
-
-    call_command("seed_demo_course")
-    course = Course.objects.get(slug="demo-course")
-    mail.outbox.clear()
-    _run(course)
-    assert mail.outbox == []
-
-
-@pytest.mark.django_db
-def test_same_seed_produces_the_same_scores(seeded_course):
-    """Scoped deletes: wiping every submission would destroy seed_demo_course's
-    rows too, and only seed_demo_activity re-runs."""
-    _run(seeded_course, seed=999)
-    first = sorted(
-        _owned_responses().values_list("submission__student__username", "fraction")
-    )
-    _owned_responses().delete()
-    _owned_submissions().delete()
-    _run(seeded_course, seed=999)
-    second = sorted(
-        _owned_responses().values_list("submission__student__username", "fraction")
-    )
-    assert first == second
-```
-
-- [ ] **Step 2: Run the test and confirm it fails**
-
-```bash
-docker compose -f docker-compose.test.yml up -d
-uv run python -m pytest tests/test_seed_demo_activity.py -v
-```
-
-Expected: all FAIL with `Unknown command: 'seed_demo_activity'`.
-
-- [ ] **Step 3a: Audit which question types the target course actually uses**
-
-`_latest_answer` (below) covers choice and short-text, and returns `None` for anything
-else — which the command counts and reports rather than writing an unanswerable response.
-Before implementing, find out what you are actually up against:
-
-```bash
-uv run python manage.py shell -c "
-from collections import Counter
-from django.contrib.contenttypes.models import ContentType
-from courses.models import Element
-from courses.rollups import _QUESTION_MODELS
-ids = {ContentType.objects.get_for_model(m).id: m.__name__ for m in _QUESTION_MODELS}
-rows = Element.objects.filter(content_type_id__in=ids).values_list('content_type_id', flat=True)
-for name, n in Counter(ids[i] for i in rows).most_common():
-    print(f'{n:6d}  {name}')
-"
-```
-
-If a type outside choice/short-text dominates the subtree you intend to seed, widen
-`_latest_answer` to cover it — **do not** invent a placeholder answer. The results page
-renders whatever is stored, so a wrong-shaped value is worse than a skipped question.
-
-- [ ] **Step 3: Write the command**
-
-Create `courses/management/commands/seed_demo_activity.py`:
-
-```python
-"""Seed a demo student cohort and enough activity to populate the analytics
-matrix, idempotently and deterministically.
-
-Not part of any install: this exists so a demo instance shows realistic data.
-A school's own instance never runs it.
-
-Six constraints, each from existing code:
-
-1. Enrollment is DERIVED, never written. grouping/services.py:127 defines
-   reachability as group membership, and add_students_to_group already calls
-   recompute_enrollment per student (grouping/services.py:216).
-2. UnitProgress and QuizSubmission are separate writes. finalize_submission()
-   deliberately does not touch progress -- see seed_demo_course.py:333.
-3. REVIEW-mode responses must carry reviewed_at, or
-   rollups.submission_is_counted (courses/rollups.py:402) drops the whole
-   submission from the matrix.
-4. No hardcoded password (ruff S106).
-5. set_user_role BEFORE assign_student_to_cohort: set_user_role syncs
-   Default-cohort membership via an m2m_changed receiver that reads is_staff
-   during groups.set, so assigning the demo cohort first would be undone.
-6. Mail is DISCARDED, not captured. notify_enrolled sends one message per
-   student. The dummy backend throws them away; locmem would collect them,
-   which is what the test suite already installs.
-"""
-
-import os
-import random
-import secrets
-from django.contrib.contenttypes.models import ContentType
-from django.core.management.base import BaseCommand
-from django.core.management.base import CommandError
-from django.db import transaction
-from django.test.utils import override_settings
-from django.utils import timezone
-
-from accounts.emails import ensure_verified_primary_email
-from accounts.models import User
-from accounts.services import set_user_role
-from courses.models import ChoiceQuestionElement
-from courses.models import ContentNode
-from courses.models import Course
-from courses.models import Element
-from courses.models import ExtendedResponseQuestionElement
-from courses.models import QuestionElement
-from courses.models import QuestionResponse
-from courses.models import QuizSubmission
-from courses.models import ShortTextQuestionElement
-from courses.models import UnitProgress
-from courses.models import _accepted_lines
-from courses.quiz import finalize_submission
-from courses.rollups import _QUESTION_MODELS
-from courses.rollups import is_quiz_unit
-from courses.rollups import units_in_order
-from courses.rollups import units_under
-from courses.scoring import earned_marks
-from courses.scoring import to_stored_fraction
-from grouping.models import Allocation
-from grouping.models import Cohort
-from grouping.models import Group
-from grouping.services import add_students_to_group
-from grouping.services import assign_student_to_cohort
-from institution.roles import STUDENT
-from institution.roles import seed_roles
-
-# Ability bands: (share of the cohort, low fraction, high fraction). Chosen so
-# the analytics colour bands show range rather than a flat block.
-_BANDS = [(0.15, 0.80, 0.98), (0.65, 0.45, 0.78), (0.20, 0.15, 0.42)]
-
-_FIRST = ["Anna", "Piotr", "Maria", "Jakub", "Zofia", "Marcin", "Julia", "Tomasz",
-          "Alicja", "Michal", "Hanna", "Adam", "Lena", "Pawel", "Nina", "Filip",
-          "Ewa", "Krzysztof", "Ola", "Bartosz"]
-_LAST = ["Kowalska", "Nowak", "Wisniewska", "Wojcik", "Kowalczyk", "Kaminska",
-         "Lewandowski", "Zielinska", "Szymanski", "Wozniak", "Dabrowska",
-         "Kozlowski", "Jankowska", "Mazur", "Krawczyk", "Piotrowska",
-         "Grabowski", "Nowicka", "Pawlowski", "Michalska"]
-
-
-class Command(BaseCommand):
-    help = "Seed demo students, groups and activity for the analytics matrix."
-
-    def add_arguments(self, parser):
-        parser.add_argument("--course", required=True, help="Course slug.")
-        parser.add_argument(
-            "--subtree",
-            type=int,
-            default=None,
-            help="ContentNode pk to scope activity to. Omit for the whole course.",
-        )
-        parser.add_argument("--students", type=int, default=20)
-        parser.add_argument("--groups", type=int, default=2)
-        parser.add_argument("--seed", type=int, default=12345)
-        parser.add_argument(
-            "--password",
-            default=None,
-            help="Shared demo password. Falls back to DEMO_STUDENT_PASSWORD, "
-            "else one is generated and printed once. NOTE: it applies only to "
-            "students CREATED on this run; existing ones keep their password.",
-        )
-
-    def handle(self, *args, **options):
-        # The dummy backend DISCARDS. recompute_enrollment -> notify_enrolled
-        # sends one message per student, and seeding 20 against a live SMTP host
-        # would fire 20 at @example.invalid. override_settings is a test utility,
-        # used here deliberately: it is the only way to swap the backend for the
-        # duration of a call without threading a connection through
-        # grouping.services, which this command must not modify.
-        with override_settings(
-            EMAIL_BACKEND="django.core.mail.backends.dummy.EmailBackend"
-        ):
-            self._run(options)
-
-    @transaction.atomic
-    def _run(self, options):
-        course = Course.objects.filter(slug=options["course"]).first()
-        if course is None:
-            raise CommandError(f"No course with slug {options['course']!r}.")
-
-        n_students = options["students"]
-        n_groups = options["groups"]
-        if n_groups < 1 or n_students < n_groups:
-            raise CommandError("--students must be >= --groups, and --groups >= 1.")
-
-        password = options["password"] or os.environ.get("DEMO_STUDENT_PASSWORD")
-        generated = password is None
-        if generated:
-            password = secrets.token_urlsafe(12)
-
-        rng = random.Random(options["seed"])  # noqa: S311 - demo data, not a secret
-        seed_roles()  # the role auth-groups must exist before set_user_role
-
-        self._skipped_units = set()
-        units = self._units(course, options["subtree"])
-        students = self._students(n_students, password)
-        self._place(course, students, n_groups)
-        self._activity(units, students, rng)
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Seeded {len(students)} students across {n_groups} groups "
-                f"on {course.slug} ({len(units)} units)."
-            )
-        )
-        if self._skipped_units:
-            # Never silent: a bounded run that reports full coverage reads as
-            # "everything is answered" when it is not.
-            self.stdout.write(
-                self.style.WARNING(
-                    f"Skipped {len(self._skipped_units)} quiz unit(s) holding a "
-                    f"question type this seeder cannot answer. The WHOLE unit is "
-                    f"skipped: a partial one would leave reviewed < total and "
-                    f"vanish from the analytics matrix entirely. Widen "
-                    f"_latest_answer to cover them."
-                )
-            )
-        if generated:
-            self.stdout.write(
-                self.style.WARNING(
-                    f"Generated demo password (applies to students created on "
-                    f"THIS run only): {password}"
-                )
-            )
-
-    def _units(self, course, subtree_pk):
-        """Units to generate activity for, in document order.
-
-        units_in_order / units_under are the same helpers the analytics matrix
-        walks, so the seeded rows land in exactly the cells the matrix renders.
-
-        units_under returns a SET, not a list -- its docstring is explicit about
-        this. Iterating it directly would give a different order per process,
-        and --seed would stop meaning anything, because rng draws are consumed
-        in unit order. Intersecting with the ordered whole-course walk restores
-        document order AND makes the run reproducible.
-        """
-        ordered = list(units_in_order(course, drafts="hide"))
-        if subtree_pk is None:
-            units = ordered
-        else:
-            root = ContentNode.objects.filter(pk=subtree_pk, course=course).first()
-            if root is None:
-                raise CommandError(
-                    f"No node {subtree_pk} in course {course.slug!r}."
-                )
-            subtree = units_under(root, drafts="hide")
-            units = [u for u in ordered if u in subtree]
-        if not units:
-            raise CommandError("That scope contains no visible units.")
-        return units
-
-    def _students(self, n, password):
-        """Fixed usernames make re-runs idempotent. @example.invalid is a
-        reserved TLD that can never resolve, so no seeded mail can escape.
-
-        display_name is what the UI shows: User.__str__ returns
-        `display_name or username` (accounts/models.py:41), so without it the
-        analytics matrix and group rosters would render demo.student01.
-        """
-        out = []
-        for i in range(n):
-            username = f"demo.student{i + 1:02d}"
-            first = _FIRST[i % len(_FIRST)]
-            last = _LAST[i % len(_LAST)]
-            user, created = User.objects.get_or_create(
-                username=username,
-                defaults={
-                    "email": f"{username}@example.invalid",
-                    "first_name": first,
-                    "last_name": last,
-                    "display_name": f"{first} {last}",
-                },
-            )
-            if created:
-                user.set_password(password)
-                user.save(update_fields=["password"])
-                ensure_verified_primary_email(user, user.email)
-                set_user_role(user, STUDENT)
-            out.append(user)
-        return out
-
-    def _place(self, course, students, n_groups):
-        """Cohort -> Allocation -> Groups -> membership. Enrollment is never
-        written directly: add_students_to_group calls recompute_enrollment per
-        student (grouping/services.py:216), which derives it from reachability.
-        """
-        cohort, _ = Cohort.objects.get_or_create(name="Demo cohort")
-        allocation, _ = Allocation.objects.get_or_create(
-            course=course, name="Demo allocation"
-        )
-        allocation.cohorts.add(cohort)
-
-        groups = []
-        for i in range(n_groups):
-            group, _ = Group.objects.get_or_create(
-                course=course,
-                name=f"Demo cohort group {i + 1}",
-                defaults={"allocation": allocation},
-            )
-            if group.allocation_id != allocation.pk:
-                group.allocation = allocation
-                group.save(update_fields=["allocation"])
-            groups.append(group)
-
-        for student in students:
-            assign_student_to_cohort(student, cohort)
-        for i, group in enumerate(groups):
-            add_students_to_group(group, students[i::n_groups])
-
-    def _ability(self, rng):
-        roll = rng.random()
-        cumulative = 0.0
-        for share, low, high in _BANDS:
-            cumulative += share
-            if roll <= cumulative:
-                return low, high
-        return _BANDS[-1][1], _BANDS[-1][2]
-
-    def _activity(self, units, students, rng):
-        """Lessons follow a per-student prefix; quizzes are drawn separately.
-
-        Tying quiz attempts to the lesson prefix does not work: quizzes sit at
-        the END of a chapter, so on a realistic course almost no student ever
-        reaches one and the quiz matrix -- the thing this seeder exists to
-        populate -- stays empty. The two are therefore independent, with the
-        first quiz guaranteed so every student contributes at least one row.
-        """
-        lessons = [u for u in units if not is_quiz_unit(u)]
-        quizzes = [u for u in units if is_quiz_unit(u)]
-        for student in students:
-            low, high = self._ability(rng)
-            # A deterministic PREFIX, not a per-unit coin flip: a student who has
-            # worked through 60% of a course has done the FIRST 60%, and a random
-            # scatter would look like nobody follows the ordering. Depth varies by
-            # band, so the progress matrix shows range instead of one flat colour.
-            depth = max(1, round(len(lessons) * (low + (high - low) * 0.5)))
-            for unit in lessons[:depth]:
-                self._complete(student, unit)
-            for i, quiz in enumerate(quizzes):
-                if i == 0 or rng.random() < high:  # noqa: S311
-                    self._quiz(quiz, student, rng, low, high)
-
-    def _complete(self, student, unit):
-        """The caller's half of "a finished unit has a completed UnitProgress".
-        Guarded on `completed` so a re-run never re-stamps completed_at, which
-        UnitProgress.save() sets once on the False -> True transition."""
-        progress, _ = UnitProgress.objects.get_or_create(student=student, unit=unit)
-        if not progress.completed:
-            progress.completed = True
-            progress.save()
-
-    def _questions(self, unit):
-        """The same scan rollups.quiz_gradeable_max performs (courses/rollups.py:373),
-        so the responses this writes and the maximum the matrix expects agree."""
-        ct_ids = {ContentType.objects.get_for_model(m).id for m in _QUESTION_MODELS}
-        return [
-            el
-            for el in Element.objects.filter(
-                unit=unit, content_type_id__in=ct_ids, parent__isnull=True
-            ).prefetch_related("content_object")
-            if isinstance(el.content_object, QuestionElement)
-        ]
-
-    def _latest_answer(self, question, want_correct):
-        """A plausible stored answer for `question`, or None if this seeder
-        cannot produce one faithfully.
-
-        courses/views.py:1788 sets "answered" from `latest_answer is not None`,
-        so a response without one renders as unanswered with a score beside it --
-        every blank marked wrong, on a box whose purpose is being browsed.
-
-        `want_correct` exists because the SCORE IS DERIVED FROM THE ANSWER (see
-        _quiz), exactly as seed_demo_course.py:318 does it. Storing a fully
-        correct answer next to a random 0.45 would show a browsing visitor the
-        right option selected beside a failing mark.
-
-        Returning None (and skipping the whole UNIT) is deliberate: a
-        wrong-SHAPED answer is worse than no answer, because the results page
-        renders whatever is stored. Widen this method rather than inventing a
-        placeholder.
-
-        BEFORE IMPLEMENTING: run the audit in Step 3a to see which concrete
-        question models the target course actually uses, and cover those.
-        """
-        if isinstance(question, ChoiceQuestionElement):
-            # Same access path as seed_demo_course.py:370, and the same stored
-            # shape: a SORTED LIST of Choice pks, not a set (JSONField).
-            correct = sorted(
-                question.choices.filter(is_correct=True).values_list("pk", flat=True)
-            )
-            if not correct:
-                return None
-            if want_correct:
-                return correct
-            # A wrong pick: any option that is not in the correct set, so the
-            # stored answer actually matches the stored score.
-            wrong = sorted(
-                question.choices.exclude(is_correct=True).values_list("pk", flat=True)
-            )
-            return wrong[:1] or correct
-        if isinstance(question, ShortTextQuestionElement):
-            # `accepted` is a newline-delimited TextField, not a list
-            # (courses/models.py:2432). build_answer returns a plain string, so
-            # latest_answer must be a plain string too.
-            lines = [ln.strip() for ln in question.accepted.splitlines() if ln.strip()]
-            if not lines:
-                return None
-            return lines[0] if want_correct else "nie wiem"
-        if isinstance(question, ExtendedResponseQuestionElement):
-            # REVIEW-mode, and answerable: build_answer/mark take a plain string
-            # (courses/models.py:2465). Covering it is not optional -- see the
-            # REVIEW note in _quiz.
-            return (
-                "Rozwiązanie: " + " ".join(_accepted_lines(question.required_keywords))
-                if want_correct
-                else "Nie potrafię tego uzasadnić."
-            )
-        return None
-
-    def _quiz(self, unit, student, rng, low, high):
-        # select_for_update: finalize_submission's docstring requires the caller
-        # to hold the row lock; _run is @transaction.atomic, which is the
-        # enclosing transaction that lock needs.
-        submission, _ = QuizSubmission.objects.select_for_update().get_or_create(
-            student=student,
-            unit=unit,
-            defaults={"status": QuizSubmission.Status.IN_PROGRESS},
-        )
-        if submission.status != QuizSubmission.Status.SUBMITTED:
-            gradeable = [
-                el
-                for el in self._questions(unit)
-                if el.content_object.marking_mode
-                != QuestionElement.MarkingMode.NOT_MARKED
-            ]
-            # Decide the answers for the WHOLE unit up front. If any question type
-            # is unsupported, skip the entire unit rather than part of it:
-            # _quiz_review_maps derives total_review from the unit's REVIEW
-            # ELEMENTS, not from the responses written (courses/rollups.py:344),
-            # so an omitted REVIEW response leaves reviewed < total and
-            # submission_is_counted drops the whole submission from the matrix --
-            # the exact outcome constraint 3 exists to prevent.
-            plan = []
-            for element in gradeable:
-                question = element.content_object
-                want_correct = rng.random() < high  # noqa: S311
-                answer = self._latest_answer(question, want_correct)
-                if answer is None:
-                    self._skipped_units.add(unit.pk)
-                    return
-                plan.append((element, question, answer))
-
-            for element, question, answer in plan:
-                # The score is DERIVED from the answer, never drawn independently
-                # (seed_demo_course.py:318). A random fraction beside a fully
-                # correct answer is incoherent on a box built to be browsed.
-                fraction = to_stored_fraction(question.mark(answer).fraction)
-                response, _ = QuestionResponse.objects.get_or_create(
-                    submission=submission,
-                    element=element,
-                    defaults={
-                        "fraction": fraction,
-                        "earned_marks": earned_marks(fraction, question.max_marks),
-                        "latest_answer": answer,
-                        "attempt_count": 1,
-                        "last_attempt_at": timezone.now(),
-                    },
-                )
-                # A REVIEW question left unreviewed makes the whole submission
-                # "pending", and submission_is_counted drops its score from the
-                # matrix (courses/rollups.py:402).
-                if (
-                    question.marking_mode == QuestionElement.MarkingMode.REVIEW
-                    and response.reviewed_at is None
-                ):
-                    response.reviewed_at = timezone.now()
-                    response.save(update_fields=["reviewed_at"])
-            finalize_submission(unit, submission)
-        # Unconditional: a run seeded before this write existed has no progress
-        # row, and only an unconditional call converges it.
-        self._complete(student, unit)
-```
-
-- [ ] **Step 4: Run the test and confirm it passes**
-
-```bash
-uv run python -m pytest tests/test_seed_demo_activity.py -v
-```
-
-Expected: 16 passed.
-
-- [ ] **Step 5: Falsify — confirm the tests can fail**
-
-**Twelve mutants**, one at a time, each edited out by hand afterwards:
-
-1. Replace the `_place` group loop with `Enrollment.objects.create(student=student, course=course)` per student. Expected: `test_enrollment_is_derived_from_group_membership` FAILS on `source`.
-2. Delete the trailing `self._complete(student, unit)` call in `_quiz`. Expected: `test_submitted_quizzes_have_a_completed_unit_progress` FAILS.
-3. Delete the `reviewed_at` block. Expected: `test_review_responses_are_marked_reviewed` FAILS. (Its `assert review_rows` guard means a demo course with no REVIEW question fails loudly rather than passing vacuously.)
-4. Change the backend in `handle` to `locmem`. Expected: `test_seeding_sends_no_email` FAILS with a non-empty outbox — this is what proves the guard is real, since the test settings already install locmem.
-5. Drop `"display_name"` from the `_students` defaults. Expected: `test_students_get_a_display_name` FAILS.
-6. In `_units`, replace the ordered intersection with `units = list(units_under(root, drafts="hide"))`. Expected: `test_same_seed_produces_the_same_scores` FAILS **intermittently** — set iteration order varies per process. If it passes, run it several times; an intermittent mutant that never trips still proves the ordering matters, so keep the intersection either way.
-7. Replace `QuizSubmission.objects.select_for_update().get_or_create(...)` in `_quiz` with an unconditional `QuizSubmission.objects.create(...)`, and drop the `if submission.status != SUBMITTED:` guard. Expected: `test_is_idempotent` FAILS — the second run doubles the submission and response counts. Without this the idempotency test is unproven, and it is the one most likely to pass vacuously.
-8. Delete the `break` in `_activity`'s unit loop so every student completes every unit. Expected: `test_completion_varies_across_students` FAILS — one uniform colour across the progress matrix.
-9. Remove `"latest_answer": answer` from the `get_or_create` defaults. Expected: `test_responses_record_an_answer` FAILS — and this is the state in which every seeded quiz renders as "not answered".
-10. In `_quiz`, replace the derived fraction with `fraction = to_stored_fraction(0.5)` while leaving `want_correct` alone. Expected: `test_a_wrong_answer_is_not_stored_as_the_correct_one` FAILS — the correct answer stored beside a half mark.
-11. In `_activity`, gate quizzes on the lesson prefix again (`for quiz in quizzes[:depth]`). Expected: `test_every_student_attempts_at_least_one_quiz` FAILS — on a course whose quiz sits at the end, most students never reach one.
-12. In `_quiz`, replace the whole-unit `return` on an unsupported question with `continue`. Expected: `test_a_review_unit_yields_a_counted_submission` FAILS — a partially answered REVIEW unit leaves reviewed < total and drops out of the matrix.
-
-- [ ] **Step 6: Lint and commit**
-
-```bash
-uv run ruff check . --no-cache && uv run ruff format --check .
-git add courses/management/commands/seed_demo_activity.py tests/test_seed_demo_activity.py
-git commit -m "feat(courses): seed_demo_activity command
-
-Deterministic, idempotent demo cohort with enough spread that the analytics
-colour bands show range. Drives the real grouping services so Enrollment is
-derived exactly as production derives it, stamps reviewed_at on REVIEW
-questions so submission_is_counted keeps their scores, and discards mail so
-seeding cannot fire one notification per student."
-```
-
----
-
-### Task 5: `gunicorn`, `Dockerfile`, entrypoint
+### Task 4: `gunicorn`, `Dockerfile`, entrypoint
 
 **Files:**
 - Modify: `pyproject.toml` (dependencies)
@@ -1835,9 +981,9 @@ seeding cannot fire one notification per student."
 
 **Interfaces:**
 - Consumes: `set_site_domain` management command (Task 2).
-- Produces: an image whose entrypoint accepts `DJANGO_SITE_DOMAIN`, `INIT_ADMIN_USERNAME`, `INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`, serves on container port `8000`, exposes `/healthz/` for a healthcheck, and **execs any command passed as arguments** instead of starting gunicorn. Task 6's compose file depends on all of these.
+- Produces: an image whose entrypoint accepts `DJANGO_SITE_DOMAIN`, `INIT_ADMIN_USERNAME`, `INIT_ADMIN_EMAIL`, `INIT_ADMIN_PASSWORD`, serves on container port `8000`, exposes `/healthz/` for a healthcheck, and **execs any command passed as arguments** instead of starting gunicorn. Task 4's image; Task 5's compose file depends on all of these.
 
-This task's real verification is Task 6 Step 5, which runs the stack. The checks here are build-time only, and the plan says so rather than implying more.
+This task's real verification is Task 5 Step 5, which runs the stack. The checks here are build-time only, and the plan says so rather than implying more.
 
 - [ ] **Step 1: Add gunicorn**
 
@@ -1900,7 +1046,7 @@ ENV PYTHONUNBUFFERED=1 \
     UV_FROZEN=1 \
     DJANGO_SETTINGS_MODULE=config.settings.production
 
-# libpq for psycopg; curl for the compose healthcheck defined in Task 6.
+# libpq for psycopg; curl for the compose healthcheck defined in Task 5.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libpq5 curl \
  && rm -rf /var/lib/apt/lists/*
@@ -2063,9 +1209,9 @@ Expected: it reaches `==> waiting for the database` and eventually exits non-zer
 
 **This takes about four minutes**: the DB-wait loop is 60 attempts of `django.setup()` plus `sleep 2`. That is not a hang. To shorten it, temporarily lower the `-ge 60` ceiling while testing.
 
-Do **not** verify this with `docker run --entrypoint sh` — replacing the entrypoint bypasses the very script under test, so such a check proves only that the image contains a shell. The full passthrough test runs against the live stack in Task 6 Step 5.
+Do **not** verify this with `docker run --entrypoint sh` — replacing the entrypoint bypasses the very script under test, so such a check proves only that the image contains a shell. The full passthrough test runs against the live stack in Task 5 Step 5.
 
-The *ordering* of the bootstrap is verified in Task 6 Step 5 against the runtime log, not by grepping this file — grepping the file just written proves only that `COPY` worked.
+The *ordering* of the bootstrap is verified in Task 5 Step 5 against the runtime log, not by grepping this file — grepping the file just written proves only that `COPY` worked.
 
 - [ ] **Step 7: Commit**
 
@@ -2085,14 +1231,14 @@ would abort an in-flight import."
 
 ---
 
-### Task 6: Compose stack, Caddyfile, env example, local smoke test
+### Task 5: Compose stack, Caddyfile, env example, local smoke test
 
 **Files:**
 - Create: `docker-compose.prod.yml`, `Caddyfile`, `.env.production.example`
 
 **Interfaces:**
 - Consumes: the image, `/healthz/`, and the argument passthrough from Task 5; `LIBLI_TRANSFER_MAX_*` from Task 1; `DJANGO_SITE_DOMAIN` from Task 2.
-- Produces: service names `app`, `db`, `caddy`; volumes `pgdata`, `media`, `transfer_staging`, `support_screenshots`, `caddy_data`, `caddy_config`. Task 7's runbook references these by name.
+- Produces: service names `app`, `db`, `caddy`; volumes `pgdata`, `media`, `transfer_staging`, `support_screenshots`, `caddy_data`, `caddy_config`. Task 6's runbook references these by name.
 
 Named `docker-compose.prod.yml`, not `docker-compose.yml`, so it can never be picked up by a bare `docker compose` in the repo root alongside the existing `docker-compose.test.yml`. The app's env file is `.env.production`, **not** `.env` — the repo root already holds a local-dev `.env` with `DJANGO_DEBUG=true`, and pointing the container at it would inline local settings into a production run.
 
@@ -2288,11 +1434,6 @@ INIT_ADMIN_USERNAME=admin
 INIT_ADMIN_EMAIL=admin@example.org
 INIT_ADMIN_PASSWORD=
 
-# --- demo data (only if you run seed_demo_activity; harmless otherwise) ---
-# Set explicitly so a re-run does not print a NEW password that does not apply
-# to the already-created students.
-# DEMO_STUDENT_PASSWORD=
-
 # --- email (left unset, mail is logged to the console, visibly unconfigured) ---
 # DJANGO_EMAIL_HOST=smtp.example.org
 # DJANGO_EMAIL_PORT=587
@@ -2449,14 +1590,14 @@ have no Caddy route, proven by a request rather than a grep."
 
 ---
 
-### Task 7: The runbook
+### Task 6: The runbook
 
 **Files:**
 - Create: `docs/deployment.md`
 - Modify: `docs/roadmap.md` — the "Non-technical deployment/install" bullet (begins at line **174**); point it at the new doc.
 
 **Interfaces:**
-- Consumes: every artifact from Tasks 1-6.
+- Consumes: every artifact from Tasks 1-5.
 - Produces: nothing consumed by code.
 
 - [ ] **Step 1: Write `docs/deployment.md`**
@@ -2539,27 +1680,20 @@ have no Caddy route, proven by a request rather than a grep."
    "
    ```
 
-8. **Seed the demo data.** Pass `--password` explicitly on the command line.
-
-   Setting `DEMO_STUDENT_PASSWORD` in `.env.production` is **not** enough on its own:
-   `docker compose exec` runs inside the *already-running* container, whose environment was
-   fixed from `env_file` at start. Editing the file afterwards has no effect until the
-   service is recreated, so the command would fall through to generating a random password
-   — the exact outcome setting it was meant to avoid. Either pass `--password`, or run
-   `… up -d app` after the edit and before seeding.
+8. **Seed the second, smaller course.** `seed_demo_course` is already written and
+   idempotent, so this is one line:
 
    ```bash
    docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
      /app/.venv/bin/python manage.py seed_demo_course
-   docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
-     /app/.venv/bin/python manage.py seed_demo_activity \
-       --course <slug> --subtree <pk> --students 20 --groups 2 --seed 12345 \
-       --password '<chosen-demo-password>'
    ```
 
-   Record that password: a later re-run generates a *different* one, and because
-   `get_or_create` skips `set_password` for students that already exist, the newly printed
-   value would not be the one that works.
+   **Fake students and analytics data are deliberately NOT part of this deployment.**
+   The `seed_demo_activity` command is a separate piece of work with its own spec and
+   plan, written against the imported matematyka rather than guessed at in advance — see
+   "After the plan". Until it lands, the analytics matrix on matematyka is empty, which is
+   expected, not a deployment fault. Demo Course carries the one seeded student
+   `seed_demo_course` already creates.
 
 9. **Schedule the notification purge.** There is no built-in scheduler and the table grows
    without one. `docs/local-development.md:55` gives the host form (`cd /app && uv run …`),
@@ -2574,7 +1708,7 @@ have no Caddy route, proven by a request rather than a grep."
 
    `exec -T` is required: cron has no TTY. Test it once by hand with `--dry-run` first.
 
-10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Signup policy stays `invite`. The app container runs as root (accepted; see Task 5). After changing the hostname through the settings UI, `restart app` so every gunicorn worker picks it up — SITE_CACHE is per-process. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
+10. **Known constraints.** One app container only. No backups. `TRANSFER_STAGING_DIR` and `SUPPORT_SCREENSHOT_DIR` must never be web-served. Signup policy stays `invite`. The app container runs as root (accepted; see Task 4). After changing the hostname through the settings UI, `restart app` so every gunicorn worker picks it up — SITE_CACHE is per-process. Peak disk during import is ~17 GB including the `FILE_UPLOAD_TEMP_DIR` copy.
 
 - [ ] **Step 2: Put the post-deploy checks in the runbook verbatim**
 
@@ -2624,9 +1758,38 @@ assigns the slug."
 
 ---
 
+## Deliberately out of scope: the demo-activity seeder
+
+An earlier draft carried a seventh artifact, `seed_demo_activity`, generating ~20 fake
+students and enough quiz activity to populate the analytics matrix. **It was split out
+after three review rounds**, and the reason is worth recording so it is not merged back
+in casually.
+
+Every other task in this plan went quiet after round 1. The seeder produced new CRITICAL
+defects in all three rounds, each time because generating *semantically valid* quiz data
+turns out to be coupled to domain rules that only surface when you run it against real
+content: the score has to be derived from the answer or a correct answer sits beside a
+failing mark; `_quiz_review_maps` derives `total_review` from a unit's REVIEW **elements**,
+so skipping one unanswerable question silently drops the whole submission from the matrix;
+and tying quiz attempts to lesson progress means nobody reaches a quiz on a course whose
+quizzes sit at the end. Each fix created the next defect.
+
+That is a signal the work was being specified too far ahead of execution. It gets its own
+spec and plan, written **after** matematyka is imported, against the question types that
+course actually contains — which the audit command below can then answer for real rather
+than in the abstract.
+
+The restructured draft is not lost: it is in this branch's history at commit `8dae86e3`,
+including the derived-score model, the whole-unit skip, and twelve named mutants. Start
+from it rather than from scratch.
+
+Consequence for this deployment: the analytics matrix on matematyka will be empty until
+that work lands. `seed_demo_course` still provides a second course with one enrolled
+student, so the analytics surfaces are reachable and demonstrable, just sparse.
+
 ## After the plan
 
-Once the box is live, two memory files are stale and must be corrected rather than left:
+Once the box is live, the seeder above is the immediate follow-up, and two memory files are stale and must be corrected rather than left:
 
 - `no-deployment-no-prod-db` becomes **false**. Rewrite it; do not delete it.
 - `first-deployment-checklist`'s deferred items (migration 0060 + `FORMAT_VERSION 13`, the internal-link cutover runbook with `--start-at`) become live work.

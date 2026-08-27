@@ -10,12 +10,12 @@ X" notes live only in memory files.
 
 This design builds the first deployment: a containerised install (`app`, `db`, `caddy`)
 that stands up a working instance on a single Ubuntu droplet, plus fixes for the two defects
-a real deployment exposes, plus a demo-data seeder.
+a real deployment exposes.
 
 The immediate output is a demo box carrying the **matematyka** course (1,010 nodes,
-1,194 media assets, 3.8 GB), a second smaller course, and ~20 fake students whose
-activity populates the analytics matrix. The durable output is an install path a school
-could follow.
+1,194 media assets, 3.8 GB) and a second smaller course. The durable output is an install
+path a school could follow. Fake students and analytics data are a separate piece of work
+(see Non-goals).
 
 **The demo content is not part of the installer.** A school installing libli gets an
 empty instance; loading matematyka is a separate, optional step. Nothing in the image or
@@ -58,6 +58,15 @@ Explicitly out of scope, not to be added opportunistically during implementation
 - **`ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` configurable at runtime.** They are settings;
   see component 4 for why the wizard cannot own them.
 - **Async email or a task queue.** Unchanged; notification email stays synchronous.
+- **The demo-activity seeder (`seed_demo_activity`).** Split out after three plan-review
+  rounds. Every other part of this design went quiet after round 1; the seeder produced
+  new CRITICAL defects in all three, each time because generating *semantically valid*
+  quiz data is coupled to domain rules that only surface when run against real content —
+  the score must be derived from the answer, `_quiz_review_maps` derives `total_review`
+  from a unit's REVIEW **elements** so a skipped question drops the whole submission, and
+  quiz attempts cannot be gated on lesson progress. It gets its own spec written **after**
+  matematyka is imported, when the question types in play can be audited rather than
+  assumed. Consequence: the analytics matrix on matematyka is empty until that lands.
 
 ## Sizing
 
@@ -103,8 +112,8 @@ then fails on disk. **50 GB is the floor** — the ~$12/mo DigitalOcean tier (2 
                                      db (postgres:16)
 ```
 
-Ten artifacts. Four are application changes (4, 5, 7, 8); the rest are new infrastructure
-files.
+Ten artifacts, of which nine remain in scope (8 is split out — see Non-goals). Three of
+those nine are application changes (4, 5, 7); the rest are new infrastructure files.
 
 ### 1. `Dockerfile`
 
@@ -230,37 +239,15 @@ The runbook states this rather than generalising it.
 
 No WSGI server is currently a dependency. Production group, not dev.
 
-### 8. `seed_demo_activity` management command
+### 8. `seed_demo_activity` management command — SPLIT OUT, see Non-goals
 
-```
---course matematyka --subtree <pk> --students 20 --groups 2 --seed 12345
-```
+This section described a seeder generating ~20 fake students and enough quiz activity to
+populate the analytics matrix. **It was removed from this deployment's scope after three
+plan-review rounds** and now has its own spec and plan, written after matematyka is
+imported. See the Non-goals entry above for why, and
+`docs/superpowers/plans/2026-08-26-demo-deployment.md` § "Deliberately out of scope" for
+the detail. The restructured draft survives at commit `8dae86e3`.
 
-Idempotent via fixed usernames (`demo.student01`…`demo.student20`) and `get_or_create`.
-A deterministic `random.Random(seed)` produces a plausible spread — a few strong, most
-middling, two struggling — so the analytics colour bands show range rather than a flat
-block. Scoped to one subtree, not all 1,010 nodes, so the data reads as deliberate.
-
-Four constraints, each from existing code:
-
-- **Enrollment is derived, not written.** The command drives the real services —
-  `assign_student_to_cohort` → `add_students_to_group` (`grouping/services.py:208`) →
-  `Allocation` (`grouping/models.py:163`) → `recompute_enrollment`
-  (`grouping/services.py:182`). Creating `Enrollment` rows directly would produce state
-  the application never produces.
-- **`UnitProgress` and `QuizSubmission` are written separately.**
-  `finalize_submission()` deliberately does not touch `UnitProgress` — the trap
-  documented at `courses/management/commands/seed_demo_course.py:333`.
-- **No hardcoded password.** Takes `--password` or `DEMO_STUDENT_PASSWORD`; absent both,
-  generates one and prints it once. A literal would also trip ruff `S106`, which is
-  enabled outside `tests/`.
-- **Email suppressed for the command's duration.** `recompute_enrollment` calls
-  `notify_enrolled`, which sends one email per student; seeding 20 students against live
-  SMTP would fire 20 sends at `@example.invalid`. The command forces the console backend,
-  with a comment explaining why.
-
-Fake accounts use `@example.invalid` — a reserved TLD that can never resolve — so no mail
-can escape even if the suppression is bypassed.
 
 ### 9. `.env.production.example`
 
@@ -293,9 +280,6 @@ idempotent: one runbook line, not a build item.
 | caps read from env | restore the hardcoded constant → red |
 | wizard writes `Site` | drop the `Site.save()` → red |
 | wizard field rejects a scheme/path | accept `https://x/y` → red |
-| seeder idempotency | remove `get_or_create` → second run doubles rows → red |
-| seeder derives enrollment | write `Enrollment` directly → reachability assertion → red |
-| seeder suppresses email | restore the default backend → outbox non-empty → red |
 
 Each test must be shown RED against its mutant before the implementation is accepted; a
 test that cannot fail is not evidence.
