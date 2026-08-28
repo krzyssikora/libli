@@ -13,6 +13,8 @@ localized_doc_path and DOCS_ROOT are reused from core.help; consequently the
 
 from dataclasses import dataclass
 
+import markdown
+import nh3
 from django.utils.translation import gettext_lazy as _
 
 
@@ -54,3 +56,57 @@ PAGES = {
         ),
     ),
 }
+
+
+# A DOCUMENT allow-list, not courses.sanitize's rich-text one. That module's
+# ALLOWED_TAGS (courses/sanitize.py:15) has no h1/table/thead/tbody/tr/th/td/hr,
+# so a document passed through it loses its tables and headings silently.
+PUBLIC_PAGE_TAGS = frozenset(
+    {
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "p",
+        "br",
+        "ul",
+        "ol",
+        "li",
+        "strong",
+        "b",
+        "em",
+        "i",
+        "code",
+        "pre",
+        "blockquote",
+        "a",
+        "hr",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "th",
+        "td",
+    }
+)
+# "rel" must NOT be here: nh3 raises ValueError when link_rel is set (its
+# default), and we keep that default so every <a> gets rel="noopener noreferrer"
+# -- the right behaviour on an anonymous surface. Markdown cannot emit rel anyway.
+PUBLIC_PAGE_ATTRIBUTES = {"a": {"href", "title"}}
+# nh3 ALREADY blocks javascript: and data: by default. This set excludes ftp:,
+# tel:, magnet: and friends. (courses/sanitize.py:43's comment claims otherwise
+# and is wrong.)
+PUBLIC_PAGE_URL_SCHEMES = {"http", "https", "mailto"}
+
+
+def render_markdown(source):
+    """Markdown -> sanitised HTML. No token substitution: that runs after."""
+    html = markdown.markdown(source or "", extensions=["fenced_code", "tables"])
+    return nh3.clean(
+        html,
+        tags=set(PUBLIC_PAGE_TAGS),
+        attributes=PUBLIC_PAGE_ATTRIBUTES,
+        url_schemes=PUBLIC_PAGE_URL_SCHEMES,
+    )
