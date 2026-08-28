@@ -113,6 +113,22 @@ nano .env.production      # fill every blank AND replace every example hostname
 chmod 600 .env.production
 ```
 
+**Save all three secrets in a password manager as you generate them** —
+`DJANGO_SECRET_KEY`, `POSTGRES_PASSWORD` and the `INIT_ADMIN_PASSWORD` you choose.
+`.env.production` is the working store, but it exists only on this host: lose the host and
+you have nothing. What each costs you if lost:
+
+- **`INIT_ADMIN_PASSWORD`** is your login. Recoverable with `manage.py changepassword`, but
+  only if you still have shell access.
+- **`POSTGRES_PASSWORD` is the awkward one.** Postgres uses it *only* when it initialises an
+  empty data directory — the very first `up`. After that it is baked into the `pgdata`
+  volume. Putting a new value in `.env.production` later does **not** change the database's
+  password; the app simply stops connecting, and the failure reads as a config error rather
+  than a forgotten credential. Recovery is `exec`ing into the `db` container and running
+  `ALTER USER <user> WITH PASSWORD '…'`.
+- **`DJANGO_SECRET_KEY`** is the least critical. Regenerating logs everyone out and
+  invalidates outstanding password-reset and invitation links, but nothing is unrecoverable.
+
 **Four keys ship with a placeholder hostname rather than a blank**, so "fill every blank"
 misses them, and compose's `:?` guards do not fire on a non-empty wrong value. A stale
 `DJANGO_ALLOWED_HOSTS` makes the healthcheck return 400 → the app never becomes healthy →
