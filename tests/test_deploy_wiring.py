@@ -122,15 +122,30 @@ def test_deploy_yml_resets_before_invoking_the_script():
 
 
 def test_ssh_action_stops_on_the_first_failing_line():
-    """appleboy/ssh-action defaults to running every line and reporting the exit
-    code of the LAST one. With a multi-line script that means a failed fetch is
-    followed by a deploy.sh run against stale code, and the run is still green --
-    the exact failure this whole file exists to make impossible.
+    """drone-ssh runs the script as one remote shell and reports the exit code of
+    the LAST command. Without `set -e` a failed fetch is followed by a deploy
+    against stale code, reported green -- the exact failure this file exists to
+    make impossible.
 
-    Mutant: drop script_stop, or set it false.
+    It must be `set -e` inside the script, and it must come first. The action's
+    `script_stop` input does NOT do this: v1 rejects it as an unknown input,
+    warns, and carries on. The second assertion is the load-bearing one -- the
+    first version of this guard asserted `script_stop: true` was present, which
+    was true of the text and false of the behaviour, so its mutant went red
+    while production had no protection at all.
+
+    Mutant: delete the `set -e` line, move it below `cd`, or swap it back for
+    `script_stop: true`.
     """
     text = DEPLOY_YML.read_text(encoding="utf-8")
-    assert re.search(r"^\s*script_stop: true$", text, re.MULTILINE), text
+    body = re.search(r"^\s*script: \|\n((?:\s+.*\n)+)", text, re.MULTILINE)
+    assert body, "deploy.yml no longer has a literal-block script"
+    first = next(ln.strip() for ln in body.group(1).splitlines() if ln.strip())
+    assert first == "set -e", f"first script line is {first!r}, not 'set -e'"
+    assert not re.search(r"^\s*script_stop:", text, re.MULTILINE), (
+        "script_stop is not a v1 input -- it is ignored, and asserting it "
+        "reads as protection that does not exist"
+    )
 
 
 def test_deploy_path_matches_the_runbook():
