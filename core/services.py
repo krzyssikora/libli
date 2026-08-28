@@ -35,6 +35,12 @@ _DEFAULTS = {
     "onboarded": False,
     "favicon_url": None,
     "favicon_size": None,
+    "controller_name": "",
+    "controller_address": "",
+    "contact_email": "",
+    "supervisory_authority": "",
+    "notification_retention_days": 90,
+    "demo_instance": False,
 }
 
 
@@ -96,6 +102,19 @@ def _build():
         "onboarded": inst.onboarded,
         "favicon_url": favicon_url,
         "favicon_size": favicon_size,
+        "controller_name": inst.controller_name or _DEFAULTS["controller_name"],
+        "controller_address": (
+            inst.controller_address or _DEFAULTS["controller_address"]
+        ),
+        "contact_email": inst.contact_email or _DEFAULTS["contact_email"],
+        "supervisory_authority": (
+            inst.supervisory_authority or _DEFAULTS["supervisory_authority"]
+        ),
+        # BARE reads, following "onboarded" above -- NOT the `or _DEFAULTS[...]`
+        # idiom. 0 means "never purge" and False is a real value; coalescing
+        # would rewrite 0 -> 90 and make False unrepresentable.
+        "notification_retention_days": inst.notification_retention_days,
+        "demo_instance": inst.demo_instance,
     }
 
 
