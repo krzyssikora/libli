@@ -168,14 +168,19 @@ The log must show, **in this order**:
 ==> migrate
 ==> setup_roles
 ==> set_site_domain
-==> init_platform
+==> init_platform            (or "init_platform skipped" — see below)
 ==> gunicorn
 ```
 
+They scroll past fast. `logs app | grep '==>'` shows just these six.
+
 `setup_roles` is the one that matters and the one no test can catch: permissions live as
 constants in `institution/roles.py` but are only *assigned* by `seed_roles()`, and the
-test suite calls it itself so it passes either way. If `init_platform` reports *skipped*,
-one of the three `INIT_ADMIN_*` values is missing.
+test suite calls it itself so it passes either way.
+
+`==> init_platform skipped` is **expected** if you left `INIT_ADMIN_*` unset — that is the
+recommended route, and §5 creates the admin interactively instead. It only indicates a
+problem if you meant to set those three and one is missing.
 
 If the container crash-loops here, the usual cause is an `INIT_ADMIN_PASSWORD` that fails
 Django's validators — `logs app | grep '==> init_platform'`.
@@ -238,9 +243,43 @@ Then delete the probe: `exec -T app rm -rf /app/media/smoke`.
 
 ---
 
-## 5. First-run wizard
+## 5. Create the Platform Admin, then the first-run wizard
 
-Sign in as `INIT_ADMIN_USERNAME` and walk `https://<host>/manage/setup/` — note the path is
+If you left `INIT_ADMIN_*` **unset** in `.env.production` — the recommended route, since it
+keeps the password out of any file, out of `docker inspect`, and out of shell history —
+the entrypoint printed `==> init_platform skipped` and no admin exists yet. Create one now,
+interactively:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production exec app   /app/.venv/bin/python manage.py init_platform
+```
+
+It prompts for username, email and password; the password is read with `getpass`, so it is
+not echoed and never touches disk. Expect `Created Platform Admin '<username>'.`
+
+**No `-T`** — the TTY is what enables the prompts. (§7's cron entry uses `-T` for the
+opposite reason: cron has no TTY.) Run this **after** the stack is healthy, since it needs a
+migrated database and a running container.
+
+The command is idempotent and its reconcile is deliberately non-destructive: on an existing
+user it fixes only the superuser flags and group membership, and **never overwrites the
+password**. So a password you later change through the UI survives restarts.
+
+Verify:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app   /app/.venv/bin/python -c "import django; django.setup(); from accounts.models import User; u=User.objects.get(username='<username>'); print(u.is_superuser, [g.name for g in u.groups.all()])"
+# expect: True ['Platform Admin']
+```
+
+If instead you set `INIT_ADMIN_*` in `.env.production`, the entrypoint already created the
+admin on first boot — **delete those three lines now** and `up -d` to recreate the container
+without them. `env_file` values become container environment variables, visible via
+`docker inspect` to anyone in the `docker` group.
+
+### The wizard
+
+Sign in as the admin you just created and walk `https://<host>/manage/setup/` — note the path is
 `manage/setup/`, not `/setup/`.
 
 Five steps: Welcome → Identity → Access → Team → SSO. This is the non-developer surface;
