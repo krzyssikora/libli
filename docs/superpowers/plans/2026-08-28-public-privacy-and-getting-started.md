@@ -414,6 +414,16 @@ def test_controller_address_block_set_and_blank():
     assert "{libli:controller_address}" not in off
 
 
+def test_block_pass_uses_a_function_replacement():
+    # The block pass builds its replacement with `lambda m, v=value: v`. A string
+    # replacement there would interpret \\1 in an admin-entered address. Only a
+    # backslash-group in controller_address distinguishes the two.
+    out = render(
+        "{libli:controller_address}\n", controller_address=r"Ul. A\\1 B"
+    )
+    assert r"Ul. A\\1 B" in out
+
+
 def test_block_tokens_are_not_in_the_inline_map():
     # A misplaced block token must fall to the UNKNOWN branch (literal text),
     # not be substituted with escaped markup.
@@ -1389,7 +1399,10 @@ def test_page_emits_its_real_description_title_and_one_h1(client, slug, name):
     # Non-empty, and the RIGHT description: `'name="description"' in body`
     # passes on content="" and on the wrong context key.
     assert str(PAGES[slug].description)[:40] in body
-    assert str(PAGES[slug].title) in body  # <title> carries the registry title
+    # Assert on the COMPOSED element, not the bare string: the shipped markdown
+    # opens with "# Privacy notice", so `str(title) in body` is already true via
+    # the <h1> and stays green with head_title deleted or the key misnamed.
+    assert f"<title>{PAGES[slug].title} ·" in body
     assert body.count("<h1>") == 1  # base.html has none; the markdown owns it
 
 
