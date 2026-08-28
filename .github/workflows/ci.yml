@@ -1,7 +1,13 @@
 name: ci
+# Pull requests only. The `push: branches: [master]` trigger was dropped when CD
+# landed: with branch protection requiring these three jobs before a PR merges,
+# every commit that reaches master has already been through this workflow, and
+# the merge-commit run was a second copy of the same result. deploy.yml does not
+# re-test either, for the same reason -- this run is the deploy gate.
+#
+# Re-adding a master trigger reinstates that duplication (and, with e2e, roughly
+# doubles the wall-clock cost of a merge). tests/test_deploy_wiring.py guards it.
 on:
-  push:
-    branches: [master]
   pull_request:
 concurrency:
   group: ci-${{ github.ref }}
