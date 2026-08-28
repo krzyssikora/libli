@@ -459,19 +459,22 @@ automated deploy runs the `deploy.sh` the initial `git clone` already placed the
 needs no execute bit either -- the workflow invokes it as `bash /opt/libli/deploy.sh`,
 which is deliberate, because git on Windows does not record one.
 
-And branch protection:
+And branch protection (**already applied 2026-08-28**; kept here for a rebuild):
 
 ```bash
-gh api -X PUT repos/krzyssikora/libli/branches/master/protection \
-  -H "Accept: application/vnd.github+json" \
-  -f 'required_status_checks[strict]=false' \
-  -f 'required_status_checks[contexts][]=lint' \
-  -f 'required_status_checks[contexts][]=unit' \
-  -f 'required_status_checks[contexts][]=e2e' \
-  -F 'enforce_admins=false' \
-  -F 'required_pull_request_reviews[required_approving_review_count]=0' \
-  -F 'restrictions=null'
+gh api -X PUT repos/krzyssikora/libli/branches/master/protection --input - <<'JSON'
+{
+  "required_status_checks": {"strict": false, "contexts": ["lint", "unit", "e2e"]},
+  "enforce_admins": false,
+  "required_pull_request_reviews": {"required_approving_review_count": 0},
+  "restrictions": null
+}
+JSON
 ```
+
+A JSON body, not `-f key[sub]=value`: this endpoint rejects the bracket form with
+`"required_pull_request_reviews", "required_status_checks" weren't supplied` (422).
+`restrictions: null` is required and must be present even though it is empty.
 
 `strict=false` is on purpose: `strict` would require every PR to be rebased onto the tip
 before merging, which re-runs CI on each intervening merge — reintroducing the
