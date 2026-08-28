@@ -75,12 +75,21 @@ Three things drive the design:
   the age purge on `if days > 0`, and the query filters `read_at__isnull=False` — so the window
   applies to **read** notifications only. The purge is an operator-installed cron line
   (`docs/deployment.md:407`), not something the image runs.
-- **The codebase writes eleven `libli`-prefixed browser-storage keys**, not three:
-  `libli_theme` (cookie), `libli_unit_tree_collapsed`, `libli-editor-view`,
-  `libli_review_roster_collapsed`, `libli_outline_open:<course-slug>`,
-  `libli:tabopen:<pk>:<slot>`, `libli:reveal`, `libli:tagfilter`, and
-  `libli:htmlel:{height,req,theme}`. This is why §Content item 5 describes them by prefix rather
-  than enumerating them (see C4 rationale there).
+- **The codebase writes exactly five localStorage keys**, under **three** different prefix styles:
+  `libli-editor-view` (**hyphen**, `courses/static/courses/js/editor.js:763`),
+  `libli:tabopen:<element-pk>:<slot-id>` (`editor.js:48`, built by string **concatenation**),
+  `libli_outline_open:<course-slug>`, `libli_review_roster_collapsed`, and
+  `libli_unit_tree_collapsed`. `libli_theme` is a **cookie**, covered by the cookie table, not
+  localStorage.
+  **`libli:reveal` and `libli:tagfilter` are `CustomEvent` type names, and
+  `libli:htmlel:{height,req,theme}` are `postMessage` message types — none of them store
+  anything.** Recorded explicitly so a later reader does not "restore" them to the storage list.
+  The three prefix styles are why §Content item 5 documents `libli_`, `libli:` **and** `libli-`:
+  a two-prefix claim is false at HEAD.
+- **No first-party storage call uses a template literal.** The six call sites pass one string
+  literal (`editor.js:763`), a bare `KEY` identifier (`outline_tree.js`, `review_roster.js`,
+  `unit_nav.js`), or a `slotStoreKey(...)` function call whose body concatenates a literal prefix
+  (`editor.js:48`). Any scanner must handle those shapes, not interpolation.
 - **`ALLOWED_IMAGE_FETCH_DOMAINS`** (`config/settings/base.py:235`) authorises **server-side**
   egress when a teacher adds an image by URL — a different mechanism from browser-side embeds.
 
@@ -98,7 +107,8 @@ deletion of the `EN / PL` span.
 `core/static/core/css/app.css`, `core/static/core/css/auth.css`, `templates/base.html`,
 `templates/core/landing.html`, `templates/core/public_page.html` (new),
 `templates/allauth/layouts/entrance.html`, `templates/institution/manage/settings.html`,
-`templates/institution/manage/_tabs.html`, `docs/public/*.md`, `locale/pl/LC_MESSAGES/`.
+`templates/institution/manage/_tabs.html`,
+`templates/institution/manage/_public_pages_tab.html` (new), `docs/public/*.md`, `locale/pl/LC_MESSAGES/`.
 
 **Out of scope:** authenticated pages render no footer. The staff help area is untouched. No
 cookie-consent banner. No crawler configuration — only a meta description ships.
@@ -239,7 +249,10 @@ def normalize_lang(lang):  # (lang or "en").split("-")[0]
 
 Used on **every** path that touches a language code: the DB lookup, the file lookup,
 `PublicPage.save()`, and the settings panel's language list. **The panel's normalised language
-list is de-duplicated, order-preserving.** `enabled_languages` is runtime-editable and the whole
+list is de-duplicated, order-preserving, and read from `get_site_config()` rather than from
+`inst` directly** - `_build()` coalesces an empty stored list to `_DEFAULTS["enabled_languages"]`,
+so reading `inst.enabled_languages` would render zero language rows on a deployment whose stored
+list is empty while the public pages still resolved `["en", "pl"]`. `enabled_languages` is runtime-editable and the whole
 justification for normalising is that an admin may put `pl-PL` in it — so `["pl", "pl-PL"]` would
 otherwise yield two textareas per page sharing one `name="override-privacy-pl"`, where the last
 value silently wins on POST.
@@ -309,9 +322,23 @@ string replacement, because `re.sub` interprets `\1`, `\g<0>` and a trailing bac
 is *already wrapped in a paragraph*. Substituting a `<p>…</p>` block there would produce invalid
 nested paragraphs; substituting `""` would leave a stray empty `<p></p>` on every non-demo page.
 
-**1. Block pass** — matches the token *with its enclosing paragraph*
-(`<p>\s*\{libli:demo_notice\}\s*</p>`) and replaces the **whole match**: the notice block when
-`demo_instance` is true, the empty string when false. Only `demo_notice` is a block token.
+**1. Block pass** — for each **block token**, matches it *with its enclosing paragraph*
+(`<p>\s*\{libli:NAME\}\s*</p>`) and replaces the **whole match**. There are **two** block tokens:
+
+- `demo_notice` — the notice block when `demo_instance` is true, the empty string when false.
+- `controller_address` — the escaped, `nl2br`'d address wrapped in its paragraph when set, **the
+  empty string when blank**, which removes the paragraph entirely.
+
+`controller_address` is a block token *because* its degenerate case is "omit the address". The
+inline pass can only replace a token with a string; it cannot delete an enclosing clause. Making
+it inline and substituting `""` would leave the stray empty `<p></p>` this spec already identifies
+as a failure mode — and would make its test unkillable, since a correct build and the mutant
+("substitute `\"\"`") would emit byte-identical output. Block replacement is the only mechanism
+here that both deletes the paragraph and gives the assertion something to discriminate on.
+
+**Authoring constraint, same as `demo_notice`:** `{libli:controller_address}` must be a paragraph
+of its own at top level, so §Content item 1 is authored as separate sentences and removing the
+address paragraph leaves the surrounding prose grammatical.
 
 **2. Inline pass**, running **after** the block pass and over the whole document *including* the
 inserted notice:
@@ -338,9 +365,9 @@ match must be reconstructed.
 normalise `\r\n` and `\r` to `\n`, then escape, then `\n` → `<br>`; and the test fixture uses CRLF
 so it exercises the shape an admin actually produces.
 
-**The inline pass's token map contains only the seven inline tokens — `demo_notice` is not in
-it.** That is what makes a misplaced `demo_notice` fall into the unknown-token branch and render
-as literal text (the accepted residual risk below). An implementer who builds one map of all eight
+**The inline pass's token map contains only the six inline tokens — neither block token is in
+it.** That is what makes a misplaced block token fall into the unknown-token branch and render as
+literal text (the accepted residual risk below). An implementer who builds one map of all eight
 would instead render `html.escape("<p class=…>…</p>")` — visible markup, a worse and
 differently-shaped failure than the one documented.
 
@@ -349,10 +376,21 @@ running after the block pass is safe: the inserted notice's `class` attribute li
 `>…<` run and cannot be corrupted. The pass does **not** exempt `<pre>`/`<code>`, so authors must
 not show token syntax verbatim in a code fence.
 
-**Tokens are never substituted inside attribute values.** Verified:
-`markdown.markdown("[mail](mailto:{libli:contact_email})")` yields
+**Tokens are not substituted inside attribute values — provided no attribute value contains a raw
+`>`.** Verified: `markdown.markdown("[mail](mailto:{libli:contact_email})")` yields
 `<a href="mailto:{libli:contact_email}">`, which nh3 preserves — substituting there would write an
 admin-controlled value into a URL *after* it was vetted.
+
+**The qualification is real and must not be dropped.** nh3 leaves a literal `>` unescaped inside
+attribute values (a gotcha this repo has recorded before), so
+`[x](https://e.com "a > b")` renders `title="a > b"`, and the `>([^<]*)<` run scan then starts a
+"text run" *inside* the `title` attribute — swallowing the rest of the tag. A token positioned
+after such a `>` within the same tag would be substituted into an attribute. **Accepted as
+residual risk** rather than guarded: reaching it requires an override author, who already holds
+`institution.change_institution` and can publish arbitrary prose anyway, and the stronger
+invariant survives regardless — values are still `html.escape`d, so no value can contribute a tag.
+A test pins the boundary with a link title containing `> {libli:contact_email}` so the behaviour
+is recorded rather than assumed.
 
 **Authoring constraint, not optional:** no `{libli:…}` token may appear inside a markdown link
 target or any other attribute position. `[write to us](mailto:{libli:contact_email})` would
@@ -363,11 +401,11 @@ inside an attribute in any of the four shipped files.
 | Token | Kind | Source |
 |---|---|---|
 | `{libli:controller_name}` | inline | `cfg["controller_name"]` or `cfg["name"]` when blank |
-| `{libli:controller_address}` | inline | `cfg["controller_address"]`, escaped then `\n` → `<br>` |
-| `{libli:contact_email}` | inline | `cfg["contact_email"]` |
+| `{libli:controller_address}` | **block** | `cfg["controller_address"]`, escaped then `\n` → `<br>`; **paragraph removed when blank** |
+| `{libli:contact_email}` | inline | `cfg["contact_email"]`, else "the person who runs this site" |
 | `{libli:site_name}` | inline | `cfg["name"]` |
 | `{libli:supervisory_authority}` | inline | `cfg["supervisory_authority"]`, else a neutral phrase |
-| `{libli:embed_domains}` | inline | `settings.ALLOWED_EMBED_DOMAINS`, comma-joined; neutral phrase when empty |
+| `{libli:embed_domains}` | inline | `settings.ALLOWED_EMBED_DOMAINS`, **normalised** then comma-joined; neutral phrase when empty |
 | `{libli:retention_phrase}` | inline | **A complete phrase including the unit** — see below |
 | `{libli:demo_notice}` | **block** | The notice when `cfg["demo_instance"]`, else empty |
 
@@ -380,12 +418,12 @@ bare number would make one of the two renderings always broken — "removed afte
 "removed after until you delete them".
 
 **Every deployment-dependent token has a defined degenerate case**, because a token that renders
-nothing turns its sentence into a fragment. All seven inline tokens, without exception:
+nothing turns its sentence into a fragment. All eight tokens, without exception:
 
 | Token | Degenerate case |
 |---|---|
 | `controller_name` | blank → `cfg["name"]` (itself defaulting to `"My Institution"`) |
-| `controller_address` | blank → the sentence **omits the address clause entirely** |
+| `controller_address` | blank → **the whole paragraph is removed** (this is why it is a block token) |
 | `contact_email` | blank → "the person who runs this site" (no bare empty address) |
 | `site_name` | `cfg["name"]` is never blank (`_DEFAULTS` supplies it) |
 | `supervisory_authority` | blank → "your national data protection authority" |
@@ -400,8 +438,12 @@ notice naming a controller **at no address**, telling a data subject to send era
 §Content items 1 and 9 must be authored as separate sentences, so removing one leaves the
 surrounding prose grammatical.
 
-`{libli:demo_notice}` expands to a pre-built `<p class="public-page__notice">…</p>` built from a
-translated `gettext` message — never from user input.
+`{libli:demo_notice}` expands to a pre-built `<p class="public-page__notice">…</p>` assembled with
+`format_html` from a translated `gettext` message — never from user input. **The `format_html` is
+not decorative:** the block pass runs after `nh3.clean`, so this message is the one string on the
+page reaching the browser neither sanitised nor escaped, and a translator's bare `&` or `<` in a
+hand-edited `.po` would emit malformed HTML on a live page. `format_html` keeps the trusted
+wrapper markup and the escaped message separate.
 
 **Authoring constraints for the demo notice**, both enforced by tests on the shipped markdown:
 
@@ -447,7 +489,7 @@ A new eighth tab, `public-pages`.
     as `_action(request, PublicPagesForm, "public_pages", "public-pages", <success msg>)`.
     **This is the first tab where the `ctx_key` and the tab slug diverge** — every existing call
     passes the same literal for both. They must differ here, because `_action` splats
-    `**{ctx_key: form}` into `_settings_context` (`institution/views_manage.py:138`) and
+    `**{ctx_key: form}` into `_settings_context` (`institution/views_manage.py:136`) and
     `"public-pages"` is not a valid Python identifier. Getting it wrong raises `TypeError` on the
     invalid-form re-render, a reachable path: `contact_email` is an `EmailField`, so a typo'd
     address would 500 the settings page.
@@ -550,8 +592,10 @@ mid-sentence in a language that governs case: "prawo do wniesienia skargi do …
 genitive, so a nominative catalogue string reads wrong. **Any sentence hosting a token must be
 authored so the token sits in a case-neutral position** — after a colon, or as its own clause —
 and the Polish fallback phrases must match the frame their sentence uses. This applies to
-`supervisory_authority`, the empty-embed phrase, `retention_phrase`, and admin-entered
-`controller_name`.
+`supervisory_authority`, the empty-embed phrase, `retention_phrase`, admin-entered
+`controller_name`, **and the `contact_email` fallback phrase** - which lands mid-sentence in
+§Content item 9 in exactly the case-governed position this section warns about, so that sentence
+places it after a colon or as its own clause.
 
 ## Data flow
 
@@ -618,19 +662,31 @@ Both pages ship real prose in English and Polish, not placeholders.
    | `libli_theme` | Light/dark appearance | One year |
 
    Browser storage is described **by prefix, not enumerated**: libli stores interface preferences
-   — which panels you left open, your editor view mode, your last tag filter — in your browser's
-   local storage under keys beginning `libli_` or `libli:`, most of them written only while using
-   the course editor or marking screens. **This is deliberate.** The codebase writes eleven such
-   keys today; a list claiming to name them "exactly" would be false the moment a feature adds a
-   twelfth, and this is a document whose value is that its claims hold. A test asserts every
-   storage key written by the shipped JS begins with one of the two documented prefixes, so the
-   categorical claim stays true by construction. **That test's mechanism is pinned**, because the
-   keys are not all string literals: it regexes the first argument of every
-   `.setItem(` / `.getItem(` / `.removeItem(` call on `localStorage` or `sessionStorage` across
-   `**/static/**/*.js`, taking the **leading literal segment** of a template literal (so
-   `` `libli:tabopen:${pk}` `` matches on `libli:tabopen:`), and asserts the `libli_` / `libli:`
-   prefix. A naive scan of literal arguments alone would miss exactly the dynamic keys that make
-   enumeration impossible in the first place.
+   — which panels you left open, your editor view mode — in your browser's local storage under
+   keys beginning **`libli_`, `libli:` or `libli-`**, written only while using the course editor
+   or marking screens. **This is deliberate.** A list claiming to name them "exactly" would be
+   false the moment a feature adds one, and this is a document whose value is that its claims
+   hold.
+
+   **All three prefixes are documented because all three exist.** `libli-editor-view`
+   (`editor.js:763`) uses a hyphen; a two-prefix claim would be **false at HEAD**, and its guard
+   test red on a correct build before any mutant. Renaming the key was considered and rejected —
+   it would discard every author's stored view mode, and `editor.js:44-47` records that this
+   project has previously refused exactly such a rename.
+
+   A test asserts every storage key written by the first-party JS begins with one of the three
+   documented prefixes. **Its mechanism is pinned**, because the keys are neither all literals nor
+   ever template literals:
+   - **Scan roots:** the project's own `<app>/static/**/*.js` under `BASE_DIR` only, explicitly
+     excluding `.venv/`, `site-packages/` and `staticfiles/`. A bare `**/static/**/*.js` glob
+     would sweep Django's bundled admin JS (`theme.js` writes `"theme"`; `nav_sidebar.js` writes
+     `django.admin.navSidebarIsOpen`) and turn the test red for reasons unrelated to libli.
+   - **Argument shapes:** resolve a bare identifier to its `var NAME = "…"` initialiser in the
+     same file; take the leading string literal of a concatenation expression (so
+     `"libli:tabopen:" + pk + …` matches on `libli:tabopen:`); and **fail loudly on any argument
+     shape it cannot resolve**, so a new dynamic key cannot slip past silently. There are no
+     template literals in first-party JS today, so that case is future-proofing, not the
+     representative one.
 6. **Third parties** — embeds a teacher adds (`{libli:embed_domains}`), stating that the browser
    contacts them directly **only** on pages where a teacher placed one, **and that those providers
    may set their own cookies and storage**; SSO / OpenID Connect when configured; the mail
@@ -723,7 +779,10 @@ Every assertion is paired with the mutant that must turn it red.
 | `{libli:controller_name}` falls back to `cfg["name"]` when blank | Remove the fallback |
 | `{libli:supervisory_authority}` falls back to the neutral phrase when blank | Hardcode "UODO" |
 | **A blank `contact_email` renders the fallback phrase, never an empty address** | Substitute `""` |
-| **A blank `controller_address` omits the address clause, leaving grammatical prose** | Substitute `""` |
+| **A blank `controller_address` removes its whole paragraph, leaving no empty `<p></p>`** | Make it an inline token substituting `""` |
+| **A set `controller_address` renders inside its own paragraph** | Drop the block branch |
+| **A link title containing a raw `>` does not cause a following token to be substituted into an attribute** | *(boundary pinned; documented residual risk)* |
+| **`{libli:embed_domains}` strips `www.` and de-duplicates** | Join the raw setting |
 | **`<p>x {libli:site_name}</p>` renders with its `<p>` and `</p>` intact** | Drop the delimiters from the inline `re.sub` replacement |
 | **A CRLF `controller_address` renders `line1<br>line2` with no stray `\r`** | Skip the newline normalisation |
 | `{libli:embed_domains}` renders the neutral phrase when the list is empty | Join an empty list |
@@ -741,7 +800,9 @@ Every assertion is paired with the mutant that must turn it red.
 | **The stated `csrftoken` lifetime matches `settings.CSRF_COOKIE_AGE`** | Change the setting without the text |
 | **The stated `libli_theme` lifetime matches `core/views.py`'s `max_age` constant** | Change the constant without the text |
 | **`settings.SESSION_EXPIRE_AT_BROWSER_CLOSE` is falsy** (the notice calls `sessionid` persistent) | Set it to `True` without changing the notice |
-| **Every storage key written by the shipped JS begins with `libli_` or `libli:`** | Add a key with another prefix |
+| **Every storage key written by FIRST-PARTY JS begins with `libli_`, `libli:` or `libli-`** | Add a key with another prefix |
+| **That scan excludes `.venv`/`site-packages`/`staticfiles`** | Glob `**/static/**/*.js` (Django admin JS turns it red) |
+| **That scan resolves `KEY` identifiers and concatenated prefixes, and fails loudly on unresolvable shapes** | Match string literals only (5 of 6 sites unchecked) |
 | No cookie outside the four documented names is set on the public or entrance pages | Add an undocumented cookie |
 | **A `PublicPage` row whose slug is not in `PAGES` survives a panel save untouched** | Union over all existing rows regardless of slug |
 | **The `public_pages` ctx_key re-renders an invalid form without `TypeError`** | Pass `"public-pages"` as the ctx_key |
@@ -776,8 +837,11 @@ HTML assertion can see it. No new e2e test is otherwise warranted.
 - **One sanitiser for both sources**, so the trust split cannot be got wrong later.
 - **`img` is excluded** from the allow-list deliberately.
 - **No cross-language override fallback** — language-appropriate text beats content-identical text.
-- **Browser storage is described by prefix, not enumerated** — eleven keys exist and a "named
-  exactly" list would rot; a prefix test keeps the categorical claim true by construction.
+- **Browser storage is described by prefix, not enumerated** — five localStorage keys exist under
+  three prefix styles (`libli_`, `libli:`, `libli-`), and a "named exactly" list would rot; a
+  prefix test over first-party JS keeps the categorical claim true by construction. The
+  `libli-editor-view` hyphen is documented rather than renamed, because renaming would discard
+  every author's stored view mode.
 - **Deleting a row is the revert action** — one code path, not two.
 - **Rows for an unregistered slug are inert** and cleaned up by hand in the Django admin.
 - **The panel warns on a missing demo notice but not on a misplaced one** — detecting placement
