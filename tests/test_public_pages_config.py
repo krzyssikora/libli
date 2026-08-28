@@ -68,3 +68,17 @@ def test_demo_instance_true_reaches_the_bundle():
     inst.demo_instance = True
     inst.save()
     assert get_site_config()["demo_instance"] is True
+
+
+def test_demo_instance_is_a_bare_read_not_a_coalesced_one():
+    """`x or False` is the identity for booleans, so no behavioural test can
+    distinguish the bare read from the `or _DEFAULTS[...]` idiom for this field.
+    Assert on the source instead -- this is the authoritative guard for the
+    falsy rule on `demo_instance`."""
+    import inspect
+
+    from core import services
+
+    source = inspect.getsource(services._build)
+    assert '"demo_instance": inst.demo_instance,' in source
+    assert '"demo_instance": inst.demo_instance or' not in source
