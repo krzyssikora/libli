@@ -154,7 +154,7 @@ docker run --rm -v "$(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro" \
 # expect: Valid configuration, and no warnings
 ```
 
-Then:
+Then — this is the **only** time you run this by hand; every later deploy is §8:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
@@ -414,11 +414,131 @@ schedule and the command.
 
 ---
 
+## 8. Continuous deployment
+
+Everything above is the **first** install. After it, a merge to `master` deploys on its
+own — `.github/workflows/deploy.yml` SSHes in and runs `deploy.sh` from this repo, which
+resets the checkout to `origin/master`, validates the Caddyfile, rebuilds, and waits for
+the stack to become healthy. Nothing is left for you to do on the box.
+
+The container entrypoint is what makes that safe: `migrate`, `setup_roles` and
+`set_site_domain` run on every boot (§3), so a recreate applies schema changes and
+re-seeds role permissions by itself. A deploy job that only moved code would still be
+correct.
+
+### There is no test job — that is deliberate
+
+`ci.yml` runs on the pull request, and branch protection requires its three jobs before
+the PR can merge. So `master` only ever holds a commit that already went green, and
+re-running the suite on the merge commit would be a second copy of the same result.
+
+**Branch protection is therefore load-bearing, not hygiene.** With it off — or bypassed
+by an admin push straight to `master` — the merge deploys code nothing has tested. If you
+ever turn it off, put a test job back into `deploy.yml`.
+
+### One-time setup
+
+A key for the runner, on your own machine:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/libli_github_actions -C "github-actions-libli" -N ""
+ssh-copy-id -i ~/.ssh/libli_github_actions.pub root@<ip>
+ssh -i ~/.ssh/libli_github_actions root@<ip> 'echo ok'   # must print ok before going on
+```
+
+Then the three secrets the workflow reads — the same three names bonnot and fijit use:
+
+```bash
+gh secret set SSH_HOST     --repo krzyssikora/libli --body "<ip-or-hostname>"
+gh secret set SSH_USERNAME --repo krzyssikora/libli --body "root"
+gh secret set SSH_KEY      --repo krzyssikora/libli < ~/.ssh/libli_github_actions
+```
+
+`SSH_KEY` is the **private** key.
+
+Nothing else needs seeding on the host, including on a box whose checkout predates CD:
+`deploy.yml` resets to `origin/master` itself before invoking `deploy.sh`, precisely so
+the script that fetches the repo does not have to already be in the repo it fetches.
+`deploy.sh` needs no execute bit either -- the workflow invokes it as
+`bash /opt/libli/deploy.sh`, which is deliberate, because git on Windows records none.
+
+And branch protection (**already applied 2026-08-28**; kept here for a rebuild):
+
+```bash
+gh api -X PUT repos/krzyssikora/libli/branches/master/protection --input - <<'JSON'
+{
+  "required_status_checks": {"strict": false, "contexts": ["lint", "unit", "e2e"]},
+  "enforce_admins": false,
+  "required_pull_request_reviews": {"required_approving_review_count": 0},
+  "restrictions": null
+}
+JSON
+```
+
+A JSON body, not `-f key[sub]=value`: this endpoint rejects the bracket form with
+`"required_pull_request_reviews", "required_status_checks" weren't supplied` (422).
+`restrictions: null` is required and must be present even though it is empty.
+
+`strict=false` is on purpose: `strict` would require every PR to be rebased onto the tip
+before merging, which re-runs CI on each intervening merge — reintroducing the
+duplication this arrangement exists to remove.
+
+### Deploying without a commit
+
+```bash
+gh workflow run deploy.yml --repo krzyssikora/libli
+```
+
+Use this after editing `.env.production` on the host, which no commit can trigger.
+
+### When a deploy goes red
+
+`deploy.sh` fails loudly at four points, in order: the Caddyfile does not parse, the build
+fails, the app container never reports healthy (`--wait`), or the public URL does not
+answer `/healthz/`. The first leaves the running site untouched. The other three do not:
+the old container is already gone, so a red run means the site is **down**, not merely
+un-updated.
+
+There is no automatic rollback. Recovery is manual and takes one rebuild:
+
+```bash
+ssh root@<ip>
+cd /opt/libli
+git reset --hard <last-good-sha>
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --wait
+```
+
+A migration that fails part-way is the case that needs care — the schema may be ahead of
+the code you just reset to. Read `logs app | grep '==>'` before assuming a rebuild fixes it.
+
+### Two things about `deploy.sh` worth knowing
+
+- **The reset happens twice, on purpose.** `deploy.yml` resets the checkout before it runs
+  `deploy.sh`, and `deploy.sh` resets again. The workflow copy bootstraps a host that has
+  no `deploy.sh` yet and guarantees bash parses the version this commit ships; the script
+  copy is what makes running `bash deploy.sh` by hand -- the rollback path below -- correct
+  on its own. Deleting either one breaks a case the other does not cover.
+- **It resets, it does not pull.** `.env.production` is untracked, so the reset cannot
+  destroy the host's only copy of the secrets — but any *tracked* file edited on the box
+  is discarded without warning. Edit files here, not there.
+
+`tests/test_deploy_wiring.py` guards the parts of this that no other test touches: the
+paths agreeing across `deploy.yml`, `deploy.sh` and this document; `--wait` still being
+passed; `ci.yml` not regrowing a `master` trigger.
+
+---
+
 ## Known constraints
 
 - **One `app` container.** `migrate` runs in the entrypoint; the staging dir is a local
   volume.
 - **No backups.** No `pg_dump` cron, no snapshot policy.
+- **Every deploy is ~1-2 minutes of 502s.** `up -d --build` rebuilds the image on the
+  serving box and recreates the app container; Caddy stays up and answers 502 until the
+  new container passes its healthcheck. Accepted for a demo.
+- **No rollback.** A build or migration that fails leaves the site down, not merely
+  un-updated -- the previous container is already gone. Recovery is a manual reset and
+  rebuild on the host; see §8.
 - **The container runs as root.** Accepted for now: the four named volumes are created
   root-owned on first `up`, so adding a non-root `USER` without also fixing volume
   ownership produces a container that cannot write `media/`. Revisit before this carries
