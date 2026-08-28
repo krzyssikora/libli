@@ -95,9 +95,42 @@ def test_deploy_yml_invokes_the_script_at_the_path_deploy_sh_assumes():
     without changing the other.
     """
     text = DEPLOY_YML.read_text(encoding="utf-8")
-    match = re.search(r"^\s*script: bash (\S+)$", text, re.MULTILINE)
+    match = re.search(r"^\s*bash (\S+)$", text, re.MULTILINE)
     assert match, "deploy.yml no longer invokes a script over ssh"
     assert match.group(1) == f"{_app_dir()}/deploy.sh"
+    # The `cd` in deploy.yml's own script block is a third copy of the path.
+    assert re.search(rf"^\s*cd {re.escape(_app_dir())}$", text, re.MULTILINE), text
+
+
+def test_deploy_yml_resets_before_invoking_the_script():
+    """The bootstrap. deploy.sh is what fetches the repo, so a host whose
+    checkout predates it has no deploy.sh to run -- the first deploy dies on
+    `No such file or directory` with nothing to reset it into place. Resetting
+    from the workflow first is what breaks that circle, and it is also what makes
+    a change to deploy.sh take effect on the deploy that introduces it rather
+    than the one after.
+
+    Mutant: delete the fetch/reset lines from deploy.yml's script block, or move
+    the `bash` line above them.
+    """
+    text = DEPLOY_YML.read_text(encoding="utf-8")
+    reset = re.search(r"^\s*git reset --hard origin/master$", text, re.MULTILINE)
+    invoke = re.search(r"^\s*bash \S+/deploy\.sh$", text, re.MULTILINE)
+    assert reset, "deploy.yml no longer resets the checkout before deploying"
+    assert invoke, "deploy.yml no longer invokes deploy.sh"
+    assert reset.start() < invoke.start(), "the reset must precede the invocation"
+
+
+def test_ssh_action_stops_on_the_first_failing_line():
+    """appleboy/ssh-action defaults to running every line and reporting the exit
+    code of the LAST one. With a multi-line script that means a failed fetch is
+    followed by a deploy.sh run against stale code, and the run is still green --
+    the exact failure this whole file exists to make impossible.
+
+    Mutant: drop script_stop, or set it false.
+    """
+    text = DEPLOY_YML.read_text(encoding="utf-8")
+    assert re.search(r"^\s*script_stop: true$", text, re.MULTILINE), text
 
 
 def test_deploy_path_matches_the_runbook():

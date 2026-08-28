@@ -6,11 +6,16 @@
 # .github/workflows/deploy.yml via appleboy/ssh-action:
 #   bash /opt/libli/deploy.sh
 #
-# A change to THIS script takes effect on the deploy AFTER the one that pulls it
-# in: bash has already parsed the in-flight script into memory before the reset
-# below rewrites the file on disk. Re-exec'ing into the new copy is a footgun
-# (it doubles every deploy that changes the script); the one-deploy lag is
-# accepted. Precedent and identical reasoning: bonnot's deploy/deploy.sh.
+# deploy.yml resets the checkout BEFORE invoking this file, so the copy bash
+# parses is always the one the current commit ships -- a change here takes
+# effect on the deploy that introduces it, not the one after. That ordering is
+# also what bootstraps a host whose checkout predates this script existing.
+# It is a real dependency, not a tidy-up candidate: see deploy.yml's comment.
+#
+# The reset below is therefore redundant under CI and load-bearing by hand --
+# running `bash deploy.sh` on the box (the §8 rollback path) must still be
+# correct on its own. bonnot's deploy/deploy.sh accepts a one-deploy lag here
+# instead, because provision.sh seeds its copy; libli has no provision step.
 set -euo pipefail
 
 APP_DIR=/opt/libli

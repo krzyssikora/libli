@@ -454,10 +454,13 @@ gh secret set SSH_USERNAME --repo krzyssikora/libli --body "root"
 gh secret set SSH_KEY      --repo krzyssikora/libli < ~/.ssh/libli_github_actions
 ```
 
-`SSH_KEY` is the **private** key. Nothing else needs seeding on the host: the first
-automated deploy runs the `deploy.sh` the initial `git clone` already placed there. It
-needs no execute bit either -- the workflow invokes it as `bash /opt/libli/deploy.sh`,
-which is deliberate, because git on Windows does not record one.
+`SSH_KEY` is the **private** key.
+
+Nothing else needs seeding on the host, including on a box whose checkout predates CD:
+`deploy.yml` resets to `origin/master` itself before invoking `deploy.sh`, precisely so
+the script that fetches the repo does not have to already be in the repo it fetches.
+`deploy.sh` needs no execute bit either -- the workflow invokes it as
+`bash /opt/libli/deploy.sh`, which is deliberate, because git on Windows records none.
 
 And branch protection (**already applied 2026-08-28**; kept here for a rebuild):
 
@@ -510,10 +513,11 @@ the code you just reset to. Read `logs app | grep '==>'` before assuming a rebui
 
 ### Two things about `deploy.sh` worth knowing
 
-- **A change to `deploy.sh` takes effect on the deploy _after_ the one that pulls it in.**
-  Bash has already parsed the running script into memory before the `git reset` inside it
-  rewrites the file. Test a change to it by merging, then triggering a second, empty
-  deploy with `gh workflow run`.
+- **The reset happens twice, on purpose.** `deploy.yml` resets the checkout before it runs
+  `deploy.sh`, and `deploy.sh` resets again. The workflow copy bootstraps a host that has
+  no `deploy.sh` yet and guarantees bash parses the version this commit ships; the script
+  copy is what makes running `bash deploy.sh` by hand -- the rollback path below -- correct
+  on its own. Deleting either one breaks a case the other does not cover.
 - **It resets, it does not pull.** `.env.production` is untracked, so the reset cannot
   destroy the host's only copy of the secrets — but any *tracked* file edited on the box
   is discarded without warning. Edit files here, not there.

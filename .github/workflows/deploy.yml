@@ -42,6 +42,26 @@ jobs:
           # timeout while the host carries on, so the run is red and the site
           # state is unknown.
           command_timeout: 30m
-          # The host runs the copy of this script that the `git reset` inside it
-          # has just pulled -- see deploy.sh's header on the one-deploy lag.
-          script: bash /opt/libli/deploy.sh
+          # Without this, appleboy/ssh-action runs every line and reports the
+          # exit code of the LAST one -- so a failed fetch would be followed by
+          # a deploy.sh run against stale code, and the run would still be green.
+          script_stop: true
+          # The reset lives here as well as inside deploy.sh, and the redundancy
+          # is the point. It resolves a bootstrap that otherwise cannot start:
+          # deploy.sh is what fetches the repo, so on a host whose checkout
+          # predates it -- a fresh provision, or this one -- there is no
+          # deploy.sh to run and the deploy dies on "No such file or directory".
+          #
+          # It also means `bash` reads the version of deploy.sh that this run
+          # just fetched, rather than the one already on disk. Without that, a
+          # change to deploy.sh would not take effect until the NEXT deploy,
+          # which makes a broken change surface one merge away from its cause.
+          #
+          # deploy.sh keeps its own reset so that running it by hand on the box
+          # (the rollback path in docs/deployment.md §8) is still correct on its
+          # own. Re-running it here costs one no-op fetch.
+          script: |
+            cd /opt/libli
+            git fetch origin master
+            git reset --hard origin/master
+            bash /opt/libli/deploy.sh
