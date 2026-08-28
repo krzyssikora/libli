@@ -186,8 +186,9 @@ the moment a default flipped. Only the four string fields coalesce.
 
 ### New module: `core/public_pages.py`
 
-Owns `PAGES` (slug → markdown base path, `gettext_lazy` title, `gettext_lazy` meta description,
-URL name), the sanitiser configuration, `normalize_lang`, `render_public_page`, and the token
+Owns `PAGES` (slug → markdown base path, `gettext_lazy` title, `gettext_lazy` meta
+description -- deliberately **no** URL name, since markdown cannot reverse a URL and the field
+would be dead data), the sanitiser configuration, `normalize_lang`, `render_public_page`, and the token
 passes.
 
 ### Sanitisation: a document allow-list, not the rich-text one
@@ -411,8 +412,8 @@ inside an attribute in any of the four shipped files.
 
 **The retention token expands to a whole predicate, not a bare number.** It is named
 `retention_phrase` rather than `notification_retention_days` precisely so no author is tempted to
-write "after {token} days". At the default it renders "after 90 days"; at `0` it renders "until
-you delete them". §Content item 8's sentence is authored so the token *is* the predicate, and both
+write "after {token} days". At the default it renders "after 90 days"; at `0` it renders
+"only when you delete them". §Content item 8's sentence is authored so the token *is* the predicate, and both
 the English and Polish sentences must read correctly under either expansion. Specifying it as a
 bare number would make one of the two renderings always broken — "removed after 90" (no unit) or
 "removed after until you delete them". The chosen fallback is **"only when you delete them"**, so

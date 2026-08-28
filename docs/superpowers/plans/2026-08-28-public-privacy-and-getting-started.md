@@ -248,7 +248,7 @@ Expected: FAIL — `ImportError: cannot import name 'render_markdown'`
 
 - [ ] **Step 3: Write minimal implementation**
 
-Add to `core/public_pages.py`. **New imports go into the module's top-of-file import block, isort-ordered — stdlib, then third-party, then `core.*`, one name per line** — not at the point of use, which would trip ruff `E402` and `I`. The same applies to Tasks 3 and 8.
+Add to `core/public_pages.py`. **New imports go into the module's top-of-file import block, isort-ordered — stdlib, then third-party, then `core.*`, one name per line** — not at the point of use, which would trip ruff `E402` and `I`. **This applies to the test modules too:** every block below headed `# append to tests/...` means append the *body*; its imports belong in that file's top import block. `pyproject.toml`'s `per-file-ignores` for `tests/**` covers only `S105/S106/S107`, so `E402` fires in tests exactly as it does in application code. The same applies to Tasks 3 and 8. After assembling each test module, run `uv run ruff check --no-cache --fix <file>` and `uv run ruff format <file>` before committing, so the final gate has nothing left to find.
 
 ```python
 import markdown
