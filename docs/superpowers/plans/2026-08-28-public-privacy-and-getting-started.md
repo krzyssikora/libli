@@ -18,7 +18,7 @@ Every task's requirements implicitly include this section. Values are copied ver
 - **The pinned `nh3.clean` call.** `attributes={"a": {"href", "title"}}` — **`rel` must NOT appear**. `nh3.clean(..., attributes={"a": {"href","title","rel"}})` raises `ValueError: "rel" attribute is not allowed for tag "a" when link_rel is set`. Keep nh3's default `link_rel`, which stamps `rel="noopener noreferrer"` on every `<a>`.
 - **`PUBLIC_PAGE_TAGS`** = `h1 h2 h3 h4 h5 h6 p br ul ol li strong b em i code pre blockquote a hr table thead tbody tr th td`. **`img` is excluded on purpose.**
 - **`PUBLIC_PAGE_URL_SCHEMES`** = `{"http", "https", "mailto"}`. nh3 already blocks `javascript:`/`data:` by default; this set excludes `ftp:`/`tel:`/`magnet:`.
-- **Every token value is coerced with `str(...)` before `html.escape`.** `html.escape(90)` raises `AttributeError` — `notification_retention_days` is an int.
+- **Every token value is coerced with `str(...)` before `html.escape`.** This guards the *lazy-proxy* case: several values are `gettext_lazy` proxies, and `str()` forces them at substitution time under the active language. **Note honestly: this is a non-killing constraint.** The spec's paired mutant ("drop the `str()` coercion") no longer dies, because `retention_phrase` resolved the only int into a formatted string. Keep the coercion for the lazy case; do not write a test that cannot fail.
 - **Token substitution uses a function replacement**, never a string replacement: `re.sub(pattern, lambda m: value, html)`. `re.sub` interprets `\1`, `\g<0>` and a trailing backslash in the replacement, and these values are admin- and translator-controlled.
 - **The inline pass must re-emit its delimiters.** The pattern consumes `>` and `<`; a replacement returning only the run text yields `<pHello libli/p>`.
 - **Two block tokens** (`demo_notice`, `controller_address`), **six inline tokens**. Neither block token appears in the inline map.
@@ -66,7 +66,7 @@ uv run python -m pytest tests/test_public_pages.py -v
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `normalize_lang(lang) -> str`; `PAGES: dict[str, Page]` where `Page` is a frozen dataclass with fields `slug: str`, `path: str`, `title` (lazy), `description` (lazy), `url_name: str`.
+- Produces: `normalize_lang(lang) -> str`; `PAGES: dict[str, Page]` where `Page` is a frozen dataclass with fields `slug: str`, `path: str`, `title` (lazy), `description` (lazy). There is deliberately **no** `url_name` field: markdown cannot reverse a URL, so it would be dead data.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -80,7 +80,10 @@ from core.public_pages import normalize_lang
 
 @pytest.mark.parametrize(
     "raw,expected",
-    [("en", "en"), ("pl", "pl"), ("pl-PL", "pl"), ("PL-pl", "PL"), ("", "en"), (None, "en")],
+    [
+        ("en", "en"), ("pl", "pl"), ("pl-PL", "pl"),
+        ("PL-pl", "PL"), ("", "en"), (None, "en"),
+    ],
 )
 def test_normalize_lang(raw, expected):
     assert normalize_lang(raw) == expected
@@ -90,14 +93,12 @@ def test_pages_registry_shape():
     assert set(PAGES) == {"privacy", "getting-started"}
     assert PAGES["privacy"].path == "public/privacy.md"
     assert PAGES["getting-started"].path == "public/getting-started.md"
-    assert PAGES["privacy"].url_name == "core:privacy"
-    assert PAGES["getting-started"].url_name == "core:getting_started"
     for page in PAGES.values():
         assert str(page.title)
         assert str(page.description)
 ```
 
-Note `("PL-pl", "PL")`: `normalize_lang` splits on `-` and does **not** lower-case, matching `core/help.py:151` exactly. Django hands us lower-cased codes, so this only pins that we do not add behaviour the help module lacks.
+Note `("PL-pl", "PL")`: `normalize_lang` splits on `-` and does **not** lower-case, matching `localized_doc_path` in `core/help.py` exactly. Django hands us lower-cased codes, so this only pins that we do not add behaviour the help module lacks.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -129,9 +130,9 @@ from django.utils.translation import gettext_lazy as _
 def normalize_lang(lang):
     """Bare language code: falsy -> "en", regional -> its base ("pl-PL" -> "pl").
 
-    Mirrors core/help.py:151 so the DB lookup and the file lookup key on the
-    same space. Used on every path that touches a language code, including
-    PublicPage.save() and the settings panel's language list.
+    Mirrors localized_doc_path in core/help.py so the DB lookup and the file
+    lookup key on the same space. Used on every path that touches a language
+    code, including PublicPage.save() and the settings panel's language list.
     """
     return (lang or "en").split("-")[0]
 
@@ -142,7 +143,6 @@ class Page:
     path: str  # markdown base path, relative to core.help.DOCS_ROOT
     title: object  # gettext_lazy
     description: object  # gettext_lazy; the <meta name="description">
-    url_name: str
 
 
 PAGES = {
@@ -152,7 +152,6 @@ PAGES = {
         _("Privacy notice"),
         _("What libli stores about you, who can see it, how long it is kept, "
           "and how to exercise your data-protection rights."),
-        "core:privacy",
     ),
     "getting-started": Page(
         "getting-started",
@@ -160,7 +159,6 @@ PAGES = {
         _("Getting started"),
         _("What libli is, how schools use it, and how to get an account or "
           "reach a human."),
-        "core:getting_started",
     ),
 }
 ```
@@ -168,7 +166,7 @@ PAGES = {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run python -m pytest tests/test_public_pages.py -v`
-Expected: PASS (8 tests)
+Expected: PASS (7 tests)
 
 - [ ] **Step 5: Commit**
 
@@ -186,7 +184,7 @@ git commit -m "feat(public-pages): add normalize_lang and the PAGES registry"
 - Test: `tests/test_public_pages.py`
 
 **Interfaces:**
-- Consumes: `PAGES`, `normalize_lang` (Task 1).
+- Consumes: nothing (same module as Task 1; the sanitiser references neither `PAGES` nor `normalize_lang`).
 - Produces: `PUBLIC_PAGE_TAGS: frozenset[str]`; `render_markdown(source: str) -> str` — markdown-rendered, sanitised HTML with no token substitution yet.
 
 - [ ] **Step 1: Write the failing test**
@@ -372,7 +370,9 @@ def test_supervisory_authority_fallback():
     assert "your national data protection authority" in render(
         "{libli:supervisory_authority}\n"
     )
-    assert "UODO" in render("{libli:supervisory_authority}\n", supervisory_authority="UODO")
+    assert "UODO" in render(
+        "{libli:supervisory_authority}\n", supervisory_authority="UODO"
+    )
 
 
 def test_contact_email_fallback():
@@ -403,7 +403,10 @@ def test_demo_notice_block_present_and_absent():
 
 
 def test_controller_address_block_set_and_blank():
-    on = render("{libli:controller_address}\n", controller_address="Ul. Kwiatowa 1\r\n00-001 Warszawa")
+    on = render(
+        "{libli:controller_address}\n",
+        controller_address="Ul. Kwiatowa 1\r\n00-001 Warszawa",
+    )
     assert "<p>Ul. Kwiatowa 1<br>00-001 Warszawa</p>" in on
     assert "\r" not in on  # CRLF normalised BEFORE nl2br
     off = render("x\n\n{libli:controller_address}\n\ny\n")
@@ -429,7 +432,10 @@ def test_token_after_a_raw_gt_in_a_title_IS_substituted():
     # Documented, accepted residual risk: nh3 leaves a raw > unescaped inside an
     # attribute, which ends the >...< run early. The value is still escaped, so
     # it cannot break out of the quotes. Asserting the opposite would be RED.
-    out = render('[x](https://e.com "a > {libli:contact_email}")\n', contact_email="dpo@x.pl")
+    out = render(
+        '[x](https://e.com "a > {libli:contact_email}")\n',
+        contact_email="dpo@x.pl",
+    )
     assert "dpo@x.pl" in out
 ```
 
@@ -448,6 +454,7 @@ import re
 
 from django.conf import settings
 from django.utils.html import format_html
+from django.utils.translation import ngettext
 
 BLOCK_TOKENS = frozenset({"demo_notice", "controller_address"})
 INLINE_TOKENS = frozenset({
@@ -499,8 +506,15 @@ def _inline_values(cfg):
         "embed_domains": (
             ", ".join(domains) if domains else _("no embed providers are enabled")
         ),
+        # ngettext, not _: Polish declares nplurals=3, so a single msgid gives
+        # one form for 1, 2 and 22 days. Resolved here, at substitution time, so
+        # the active language picks the form.
         "retention_phrase": (
-            _("after %(days)d days") % {"days": days} if days else _("until you delete them")
+            ngettext(
+                "after %(days)d day", "after %(days)d days", days
+            ) % {"days": days}
+            if days
+            else _("until you delete them")
         ),
     }
 
@@ -595,10 +609,14 @@ def test_str_and_ordering():
 
 @pytest.mark.django_db
 def test_slug_language_is_unique():
+    from django.db import transaction
     from django.db.utils import IntegrityError
 
     PublicPage.objects.create(slug="privacy", language="en", body_markdown="a")
-    with pytest.raises(IntegrityError):
+    # transaction.atomic is the standard idiom: without it the IntegrityError
+    # leaves the test's outer atomic block needing rollback, and any assertion
+    # added after this raises TransactionManagementError.
+    with pytest.raises(IntegrityError), transaction.atomic():
         PublicPage.objects.create(slug="privacy", language="en", body_markdown="b")
 
 
@@ -824,7 +842,9 @@ And to the literal dict returned by `_build()`:
 
 ```python
         "controller_name": inst.controller_name or _DEFAULTS["controller_name"],
-        "controller_address": inst.controller_address or _DEFAULTS["controller_address"],
+        "controller_address": (
+            inst.controller_address or _DEFAULTS["controller_address"]
+        ),
         "contact_email": inst.contact_email or _DEFAULTS["contact_email"],
         "supervisory_authority": (
             inst.supervisory_authority or _DEFAULTS["supervisory_authority"]
@@ -850,201 +870,14 @@ git commit -m "feat(public-pages): carry controller identity in the site-config 
 
 ---
 
-### Task 6: `render_public_page`
-
-**Files:**
-- Modify: `core/public_pages.py`
-- Test: `tests/test_public_pages_render.py`
-
-**Interfaces:**
-- Consumes: `PAGES`, `normalize_lang`, `render_markdown`, `substitute_tokens` (Tasks 1–3); `PublicPage` (Task 4).
-- Produces: `render_public_page(slug: str, lang: str, cfg: dict) -> tuple[SafeString, str]` returning `(html, resolved_lang)`.
-
-- [ ] **Step 1: Write the failing test**
-
-```python
-# tests/test_public_pages_render.py
-import pytest
-
-from core.public_pages import render_public_page
-from institution.models import PublicPage
-from tests.test_public_pages import cfg
-
-
-@pytest.mark.django_db
-def test_repo_template_is_served_when_no_override():
-    html, lang = render_public_page("privacy", "en", cfg())
-    assert lang == "en"
-    assert "<h1>" in html
-
-
-@pytest.mark.django_db
-def test_override_beats_the_repo_template():
-    PublicPage.objects.create(slug="privacy", language="en", body_markdown="# Mine\n")
-    html, _lang = render_public_page("privacy", "en", cfg())
-    assert "<h1>Mine</h1>" in html
-
-
-@pytest.mark.django_db
-def test_blank_override_row_is_treated_as_no_override():
-    PublicPage.objects.create(slug="privacy", language="en", body_markdown="   ")
-    html, _lang = render_public_page("privacy", "en", cfg())
-    assert "<h1>Mine</h1>" not in html
-
-
-@pytest.mark.django_db
-def test_deleting_the_override_falls_back_to_the_template():
-    row = PublicPage.objects.create(slug="privacy", language="en", body_markdown="# Mine\n")
-    row.delete()
-    html, _lang = render_public_page("privacy", "en", cfg())
-    assert "<h1>Mine</h1>" not in html
-
-
-@pytest.mark.django_db
-def test_regional_request_hits_the_bare_code_override_row():
-    PublicPage.objects.create(slug="privacy", language="pl", body_markdown="# Moje\n")
-    html, lang = render_public_page("privacy", "pl-PL", cfg())
-    assert "<h1>Moje</h1>" in html
-    assert lang == "pl"
-
-
-@pytest.mark.django_db
-def test_an_en_only_override_does_not_leak_into_pl():
-    PublicPage.objects.create(slug="privacy", language="en", body_markdown="# EnOnly\n")
-    html, _lang = render_public_page("privacy", "pl", cfg())
-    assert "EnOnly" not in html
-
-
-@pytest.mark.django_db
-def test_resolved_lang_is_en_when_the_base_path_comes_back(monkeypatch):
-    # localized_doc_path returns a PATH, not a language, and silently returns the
-    # English base when the sibling is absent. resolved_lang is derived from
-    # WHICH path came back -- pinned here because the derivation is not obvious.
-    import core.public_pages as pp
-
-    monkeypatch.setattr(pp, "localized_doc_path", lambda base, code: base)
-    _html, lang = render_public_page("privacy", "pl", cfg())
-    assert lang == "en"
-
-
-@pytest.mark.django_db
-def test_resolved_lang_is_the_code_when_a_sibling_comes_back(monkeypatch):
-    # The other half of the same derivation: mutant "return code unconditionally"
-    # passes the test above only if this one also exists.
-    import core.public_pages as pp
-
-    monkeypatch.setattr(
-        pp, "localized_doc_path",
-        lambda base, code: base.removesuffix(".md") + f".{code}.md",
-    )
-    _html, lang = render_public_page("privacy", "pl", cfg())
-    assert lang == "pl"
-
-
-@pytest.mark.django_db
-def test_pl_request_serves_the_pl_sibling():
-    # End-to-end against the real shipped files (Task 7 creates privacy.pl.md).
-    html, lang = render_public_page("privacy", "pl", cfg())
-    assert lang == "pl"
-    assert html != ""
-
-
-@pytest.mark.django_db
-def test_missing_file_renders_an_empty_body_not_a_500(monkeypatch):
-    import core.public_pages as pp
-
-    monkeypatch.setitem(
-        pp.PAGES, "privacy",
-        pp.Page("privacy", "public/does-not-exist.md", "T", "D", "core:privacy"),
-    )
-    html, lang = render_public_page("privacy", "en", cfg())
-    assert html == ""
-    assert lang == "en"
-
-
-@pytest.mark.django_db
-def test_output_is_marked_safe():
-    from django.utils.safestring import SafeString
-
-    html, _lang = render_public_page("privacy", "en", cfg())
-    assert isinstance(html, SafeString)
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `uv run python -m pytest tests/test_public_pages_render.py -v`
-Expected: FAIL — `ImportError: cannot import name 'render_public_page'`
-
-- [ ] **Step 3: Write minimal implementation**
-
-Add to `core/public_pages.py`:
-
-```python
-import logging
-
-from django.utils.safestring import mark_safe
-
-from core.help import DOCS_ROOT
-from core.help import localized_doc_path
-
-logger = logging.getLogger(__name__)
-
-
-def render_public_page(slug, lang, cfg):
-    """Return (safe html, resolved_lang) for one public page.
-
-    cfg is the site-config bundle, passed in by the view so this stays
-    injectable from unit tests and the tokens have one source of truth.
-    """
-    # Imported INSIDE the function on purpose: institution.models imports
-    # normalize_lang from this module, so a module-level import here is a cycle.
-    # Mirrors core/services.py:71, which does the same for Institution.
-    from institution.models import PublicPage
-
-    page = PAGES[slug]  # KeyError on an unregistered slug is a programming error
-    code = normalize_lang(lang)
-
-    row = PublicPage.objects.filter(slug=slug, language=code).first()
-    if row and row.body_markdown.strip():
-        source, resolved = row.body_markdown, code
-    else:
-        rel = localized_doc_path(page.path, code)
-        resolved = code if rel != page.path else "en"
-        try:
-            # encoding is MANDATORY: without it the platform default applies
-            # (cp1250 on Windows dev machines) and a Polish file raises
-            # UnicodeDecodeError -- a ValueError, which would escape the guard
-            # below and 500 the marketing surface.
-            source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-        except OSError:
-            logger.exception("public page %s (%s) could not be read", slug, rel)
-            return mark_safe(""), code
-
-    return mark_safe(substitute_tokens(render_markdown(source), cfg)), resolved
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `uv run python -m pytest tests/test_public_pages_render.py -v`
-Expected: PASS. (Tests that read `docs/public/*.md` will fail until Task 7/8 create those files — run this task's suite again after Task 8 and confirm.)
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add core/public_pages.py tests/test_public_pages_render.py
-git commit -m "feat(public-pages): add render_public_page with the override chain"
-```
-
----
-
-### Task 7: Shipped privacy notice (EN + PL)
+### Task 6: Shipped privacy notice (EN + PL)
 
 **Files:**
 - Create: `docs/public/privacy.md`, `docs/public/privacy.pl.md`
 
 **Interfaces:**
-- Consumes: the token names from Task 3.
-- Produces: the two shipped privacy files.
+- Consumes: `render_markdown` and `substitute_tokens` (Tasks 2–3) for the Task 7 guards.
+- Produces: the two shipped privacy files. These must exist before Task 8, whose renderer reads them.
 
 **Authoring rules that are enforced by tests in Task 8 — read before writing:**
 1. `{libli:demo_notice}` and `{libli:controller_address}` must each be **a paragraph of their own at top level**, with **no heading immediately above them**, and their sections must read correctly when the paragraph is removed.
@@ -1071,12 +904,12 @@ Write the full English notice with these ten sections, following the spec's §Co
 
 A full Polish translation of the same document, same section order, same tokens. Watch rule 3: in section 9 write the lead-in so `{libli:supervisory_authority}` follows a colon rather than a preposition that would govern case.
 
-- [ ] **Step 3: Verify both files render**
+- [ ] **Step 3: Verify both files parse and render**
 
 ```bash
-uv run python -m pytest tests/test_public_pages_render.py -v
+uv run python -m pytest tests/test_public_pages_content.py -v -k privacy
 ```
-Expected: PASS, including `test_repo_template_is_served_when_no_override`.
+Expected: the privacy cases PASS (the getting-started ones arrive in Task 7).
 
 - [ ] **Step 4: Commit**
 
@@ -1087,14 +920,14 @@ git commit -m "docs(public-pages): add the shipped privacy notice in EN and PL"
 
 ---
 
-### Task 8: Shipped getting-started (EN + PL) and the shipped-markdown guards
+### Task 7: Shipped getting-started (EN + PL) and the shipped-markdown guards
 
 **Files:**
 - Create: `docs/public/getting-started.md`, `docs/public/getting-started.pl.md`
 - Test: `tests/test_public_pages_content.py`
 
 **Interfaces:**
-- Consumes: the four shipped files (Tasks 7–8).
+- Consumes: the four shipped files (Tasks 6–7).
 - Produces: guard tests over all four.
 
 - [ ] **Step 1: Write the failing test**
@@ -1195,7 +1028,7 @@ Expected: FAIL — the two getting-started files do not exist.
 - **Evaluating libli?** — courses and lessons, roughly thirty element types including interactive and mathematical ones, quizzes with automatic marking, teacher analytics, English and Polish. Then `{libli:demo_notice}` **as its own top-level paragraph** (so the demo claim is gated and a school's own deployment never tells its parents the site is a demo). Then how to reach a human — `{libli:contact_email}` as plain text — and a plain markdown link to `/privacy/`, because a school's DPO asks for it first.
 - **Trying to log in?** — accounts are created by your school rather than self-service; forgotten passwords go through the reset link on the login page; invitations expire after 14 days, so ask for a fresh one; anything broken goes to your teacher or the contact address.
 
-**Note:** this file must also contain `{libli:controller_address}` **or** be excluded from the block-token placement test. It does not need an address, so instead: in `test_no_block_token_has_a_heading_immediately_above_it` the loop simply finds no match and passes — no change needed. But `test_demo_notice_is_placed_where_the_block_regex_matches` **does** require `{libli:demo_notice}` in all four files, which this file has.
+**Note:** this file carries `{libli:demo_notice}` (required by the guard over all four files) but no `{libli:controller_address}` — an address does not belong on a getting-started page. The heading-placement guard simply finds no `controller_address` match here and passes.
 
 - [ ] **Step 4: Write `docs/public/getting-started.pl.md`**
 
@@ -1203,7 +1036,7 @@ Full Polish translation, same structure, same tokens.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `uv run python -m pytest tests/test_public_pages_content.py tests/test_public_pages_render.py -v`
+Run: `uv run python -m pytest tests/test_public_pages_content.py -v`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
@@ -1211,6 +1044,229 @@ Expected: PASS
 ```bash
 git add docs/public/getting-started.md docs/public/getting-started.pl.md tests/test_public_pages_content.py
 git commit -m "docs(public-pages): add getting-started in EN and PL with shipped-markdown guards"
+```
+
+---
+
+### Task 8: `render_public_page`
+
+**Files:**
+- Modify: `core/public_pages.py`
+- Test: `tests/test_public_pages_render.py`
+
+**Interfaces:**
+- Consumes: `PAGES`, `normalize_lang`, `render_markdown`, `substitute_tokens` (Tasks 1–3); `PublicPage` (Task 4); the four shipped files (Tasks 6–7).
+- Produces: `render_public_page(slug: str, lang: str, cfg: dict) -> tuple[SafeString, str]` returning `(html, resolved_lang)`.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+# tests/test_public_pages_render.py
+import pytest
+
+from core.public_pages import render_public_page
+from institution.models import PublicPage
+from tests.test_public_pages import cfg
+
+
+@pytest.mark.django_db
+def test_repo_template_is_served_when_no_override():
+    html, lang = render_public_page("privacy", "en", cfg())
+    assert lang == "en"
+    assert "<h1>" in html
+
+
+@pytest.mark.django_db
+def test_override_beats_the_repo_template():
+    PublicPage.objects.create(slug="privacy", language="en", body_markdown="# Mine\n")
+    html, _lang = render_public_page("privacy", "en", cfg())
+    assert "<h1>Mine</h1>" in html
+
+
+@pytest.mark.django_db
+def test_blank_override_row_is_treated_as_no_override():
+    PublicPage.objects.create(slug="privacy", language="en", body_markdown="   ")
+    html, _lang = render_public_page("privacy", "en", cfg())
+    assert "<h1>Mine</h1>" not in html
+
+
+@pytest.mark.django_db
+def test_deleting_the_override_falls_back_to_the_template():
+    row = PublicPage.objects.create(
+        slug="privacy", language="en", body_markdown="# Mine\n"
+    )
+    row.delete()
+    html, _lang = render_public_page("privacy", "en", cfg())
+    assert "<h1>Mine</h1>" not in html
+
+
+@pytest.mark.django_db
+def test_regional_request_hits_the_bare_code_override_row():
+    PublicPage.objects.create(slug="privacy", language="pl", body_markdown="# Moje\n")
+    html, lang = render_public_page("privacy", "pl-PL", cfg())
+    assert "<h1>Moje</h1>" in html
+    assert lang == "pl"
+
+
+@pytest.mark.django_db
+def test_an_en_only_override_does_not_leak_into_pl():
+    PublicPage.objects.create(slug="privacy", language="en", body_markdown="# EnOnly\n")
+    html, _lang = render_public_page("privacy", "pl", cfg())
+    assert "EnOnly" not in html
+
+
+@pytest.mark.django_db
+def test_resolved_lang_is_en_when_the_base_path_comes_back(monkeypatch):
+    # localized_doc_path returns a PATH, not a language, and silently returns the
+    # English base when the sibling is absent. resolved_lang is derived from
+    # WHICH path came back -- pinned here because the derivation is not obvious.
+    import core.public_pages as pp
+
+    monkeypatch.setattr(pp, "localized_doc_path", lambda base, code: base)
+    _html, lang = render_public_page("privacy", "pl", cfg())
+    assert lang == "en"
+
+
+@pytest.mark.django_db
+def test_resolved_lang_is_the_code_when_a_sibling_comes_back(monkeypatch):
+    # The other half of the same derivation: mutant "return code unconditionally"
+    # passes the test above only if this one also exists.
+    import core.public_pages as pp
+
+    monkeypatch.setattr(
+        pp, "localized_doc_path",
+        lambda base, code: base.removesuffix(".md") + f".{code}.md",
+    )
+    _html, lang = render_public_page("privacy", "pl", cfg())
+    assert lang == "pl"
+
+
+@pytest.mark.django_db
+def test_pl_request_serves_the_pl_sibling():
+    # End-to-end against the real shipped files (Task 6 creates privacy.pl.md).
+    html, lang = render_public_page("privacy", "pl", cfg())
+    assert lang == "pl"
+    assert html != ""
+
+
+@pytest.mark.django_db
+def test_missing_file_renders_an_empty_body_not_a_500(monkeypatch):
+    import core.public_pages as pp
+
+    monkeypatch.setitem(
+        pp.PAGES, "privacy",
+        pp.Page("privacy", "public/does-not-exist.md", "T", "D"),
+    )
+    html, lang = render_public_page("privacy", "en", cfg())
+    assert html == ""
+    assert lang == "en"
+
+
+@pytest.mark.django_db
+def test_repo_file_branch_is_sanitised_too(tmp_path, monkeypatch):
+    """The spec's mutant is "sanitise only the override branch". Task 2's test
+    calls render_markdown directly and Task 9's uses an override row, so
+    NEITHER exercises the repo-file branch -- this one does."""
+    import core.public_pages as pp
+
+    (tmp_path / "public").mkdir()
+    (tmp_path / "public" / "privacy.md").write_text(
+        "# T
+
+<script>alert(1)</script>
+", encoding="utf-8"
+    )
+    monkeypatch.setattr(pp, "DOCS_ROOT", tmp_path)
+    html, _lang = render_public_page("privacy", "en", cfg())
+    assert "<script" not in html
+    assert "alert(1)" not in html
+
+
+def test_the_file_read_pins_utf8():
+    """Platform-independent guard. On Linux CI the preferred encoding is already
+    UTF-8, so dropping encoding="utf-8" still decodes the Polish file and a
+    behavioural test stays green -- the mutant would only die on a cp1250 dev
+    machine. Assert on the source instead; this is the authoritative check."""
+    import inspect
+
+    from core.public_pages import render_public_page as fn
+
+    assert 'encoding="utf-8"' in inspect.getsource(fn)
+
+
+@pytest.mark.django_db
+def test_output_is_marked_safe():
+    from django.utils.safestring import SafeString
+
+    html, _lang = render_public_page("privacy", "en", cfg())
+    assert isinstance(html, SafeString)
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `uv run python -m pytest tests/test_public_pages_render.py -v`
+Expected: FAIL — `ImportError: cannot import name 'render_public_page'`
+
+- [ ] **Step 3: Write minimal implementation**
+
+Add to `core/public_pages.py`:
+
+```python
+import logging
+
+from django.utils.safestring import mark_safe
+
+from core.help import DOCS_ROOT
+from core.help import localized_doc_path
+
+logger = logging.getLogger(__name__)
+
+
+def render_public_page(slug, lang, cfg):
+    """Return (safe html, resolved_lang) for one public page.
+
+    cfg is the site-config bundle, passed in by the view so this stays
+    injectable from unit tests and the tokens have one source of truth.
+    """
+    # Imported INSIDE the function on purpose: institution.models imports
+    # normalize_lang from this module, so a module-level import here is a cycle.
+    # Mirrors core/services.py:71, which does the same for Institution.
+    from institution.models import PublicPage
+
+    page = PAGES[slug]  # KeyError on an unregistered slug is a programming error
+    code = normalize_lang(lang)
+
+    row = PublicPage.objects.filter(slug=slug, language=code).first()
+    if row and row.body_markdown.strip():
+        source, resolved = row.body_markdown, code
+    else:
+        rel = localized_doc_path(page.path, code)
+        resolved = code if rel != page.path else "en"
+        try:
+            # encoding is MANDATORY: without it the platform default applies
+            # (cp1250 on Windows dev machines) and a Polish file raises
+            # UnicodeDecodeError -- a ValueError, which would escape the guard
+            # below and 500 the marketing surface.
+            source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+        except OSError:
+            logger.exception("public page %s (%s) could not be read", slug, rel)
+            return mark_safe(""), code  # noqa: S308 - empty string
+
+    # noqa: S308 - nh3-sanitised, then every substituted value is html.escape'd
+    html = substitute_tokens(render_markdown(source), cfg)
+    return mark_safe(html), resolved  # noqa: S308
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `uv run python -m pytest tests/test_public_pages_render.py -v`
+Expected: PASS. The shipped markdown exists by now (Tasks 6–7), so this suite is green as it stands — no deferred failures.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add core/public_pages.py tests/test_public_pages_render.py
+git commit -m "feat(public-pages): add render_public_page with the override chain"
 ```
 
 ---
@@ -1297,20 +1353,42 @@ def test_controller_name_from_settings_reaches_the_page(client):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", URLS)
-def test_page_emits_a_meta_description_and_one_h1(client, name):
+@pytest.mark.parametrize("slug,name", [("privacy", "core:privacy"),
+                                       ("getting-started", "core:getting_started")])
+def test_page_emits_its_real_description_title_and_one_h1(client, slug, name):
+    from core.public_pages import PAGES
+
     body = client.get(reverse(name)).content.decode()
-    assert 'name="description"' in body
-    assert body.count("<h1>") == 1
+    # Non-empty, and the RIGHT description: `'name="description"' in body`
+    # passes on content="" and on the wrong context key.
+    assert str(PAGES[slug].description)[:40] in body
+    assert str(PAGES[slug].title) in body  # <title> carries the registry title
+    assert body.count("<h1>") == 1  # base.html has none; the markdown owns it
 
 
 @pytest.mark.django_db
-def test_fallback_body_is_marked_with_its_language(client):
+def test_body_is_marked_with_the_resolved_language(client):
+    # Assert on the ARTICLE: base.html:4 already emits <html lang="pl">, so a
+    # bare `'lang="pl"' in body` is green even with the attribute deleted.
     session = client.session
     session["_language"] = "pl"
     session.save()
     body = client.get(reverse("core:privacy")).content.decode()
-    assert 'lang="pl"' in body
+    assert '<article class="public-page" lang="pl">' in body
+
+
+@pytest.mark.django_db
+def test_an_english_fallback_body_is_marked_en_inside_a_pl_page(client, monkeypatch):
+    # The real fallback case: English prose served inside <html lang="pl">.
+    import core.public_pages as pp
+
+    monkeypatch.setattr(pp, "localized_doc_path", lambda base, code: base)
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    body = client.get(reverse("core:privacy")).content.decode()
+    assert '<article class="public-page" lang="en">' in body
+    assert '<html lang="pl"' in body
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1399,7 +1477,9 @@ Append to `core/static/core/css/app.css`, composing from existing tokens (no new
   color: var(--text-primary);
 }
 .public-page h1 { margin-bottom: var(--space-2); }
-.public-page h2 { margin-top: var(--space-7); }
+/* tokens.css defines 1-6, 8, 10 only: var(--space-7) is UNDEFINED and would
+   make the whole declaration invalid, silently dropping the margin. */
+.public-page h2 { margin-top: var(--space-8); }
 .public-page table {
   width: 100%; border-collapse: collapse; margin: var(--space-4) 0;
 }
@@ -1416,10 +1496,9 @@ Append to `core/static/core/css/app.css`, composing from existing tokens (no new
 
 - [ ] **Step 7: Run tests**
 
-This task's footer include lands in Task 10; until then, create a placeholder so the template resolves:
+No placeholder file is needed: `base.html` has no `{% block footer %}` until Task 10, and Django never executes a block a child defines but the parent does not declare — so the `{% include %}` inside it cannot raise `TemplateDoesNotExist` here.
 
 ```bash
-printf '' > templates/core/_public_footer.html
 uv run python -m pytest tests/test_public_pages_views.py -v
 ```
 Expected: PASS
@@ -1427,7 +1506,7 @@ Expected: PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add core/views_public.py core/urls.py templates/core/public_page.html templates/core/_public_footer.html core/static/core/css/app.css tests/test_public_pages_views.py
+git add core/views_public.py core/urls.py templates/core/public_page.html core/static/core/css/app.css tests/test_public_pages_views.py
 git commit -m "feat(public-pages): serve /privacy/ and /getting-started/ anonymously"
 ```
 
@@ -1592,10 +1671,14 @@ git commit -m "feat(public-pages): link the pages from the landing and entrance 
 # tests/test_public_pages_settings.py
 import pytest
 from django.urls import reverse
+from django.urls import reverse_lazy
 
 from institution.models import Institution
 from institution.models import PublicPage
 from tests.factories import make_verified_user
+
+
+PANEL = reverse_lazy("institution:settings") + "?tab=public-pages"
 
 
 def _admin():
@@ -1629,10 +1712,13 @@ def test_get_redirects_rather_than_rendering(client, name):
 @pytest.mark.django_db
 def test_panel_renders_one_textarea_per_page_per_language(client):
     client.force_login(_admin())
-    body = client.get(reverse("institution:settings") + "?tab=public-pages").content.decode()
+    body = client.get(PANEL).content.decode()
     for slug in ("privacy", "getting-started"):
         for lang in ("en", "pl"):
             assert f'name="override-{slug}-{lang}"' in body
+    # EXACT count: a presence check does not kill "iterate settings.LANGUAGES",
+    # which is a superset and would render extra textareas while staying green.
+    assert body.count('name="override-') == 4
 
 
 @pytest.mark.django_db
@@ -1641,7 +1727,7 @@ def test_regional_enabled_language_is_normalised_and_deduped(client):
     inst.enabled_languages = ["pl", "pl-PL"]
     inst.save()
     client.force_login(_admin())
-    body = client.get(reverse("institution:settings") + "?tab=public-pages").content.decode()
+    body = client.get(PANEL).content.decode()
     assert body.count('name="override-privacy-pl"') == 1
     assert 'name="override-privacy-pl-PL"' not in body
 
@@ -1654,6 +1740,21 @@ def test_saving_writes_a_row_and_blanking_deletes_it(client):
     assert PublicPage.objects.filter(slug="privacy", language="en").exists()
     client.post(url, {"override-privacy-en": "   "})
     assert not PublicPage.objects.filter(slug="privacy", language="en").exists()
+
+
+@pytest.mark.django_db
+def test_override_save_emits_a_success_message(client):
+    # _action owns messages.success and this view cannot reuse it, so without an
+    # explicit call the one action publishing live legal text confirms nothing.
+    from django.contrib.messages import get_messages
+
+    client.force_login(_admin())
+    response = client.post(
+        reverse("institution:settings_page_overrides"),
+        {"override-privacy-en": "# Mine
+"},
+    )
+    assert [str(m) for m in get_messages(response.wsgi_request)]
 
 
 @pytest.mark.django_db
@@ -1674,7 +1775,7 @@ def test_a_stale_language_row_is_listed_and_deletable(client):
     inst.enabled_languages = ["en", "pl"]
     inst.save()
     client.force_login(_admin())
-    body = client.get(reverse("institution:settings") + "?tab=public-pages").content.decode()
+    body = client.get(PANEL).content.decode()
     assert 'name="override-privacy-de"' in body
     client.post(
         reverse("institution:settings_page_overrides"), {"override-privacy-de": ""}
@@ -1696,7 +1797,7 @@ def test_a_row_with_an_unregistered_slug_survives_a_save(client):
 def test_partial_override_warning(client):
     PublicPage.objects.create(slug="privacy", language="en", body_markdown="# Mine\n")
     client.force_login(_admin())
-    body = client.get(reverse("institution:settings") + "?tab=public-pages").content.decode()
+    body = client.get(PANEL).content.decode()
     assert "some but not all" in body
 
 
@@ -1709,7 +1810,7 @@ def test_missing_demo_notice_warning(client):
         slug="privacy", language="en", body_markdown="# No token here\n"
     )
     client.force_login(_admin())
-    body = client.get(reverse("institution:settings") + "?tab=public-pages").content.decode()
+    body = client.get(PANEL).content.decode()
     assert "demonstration warning" in body
 
 
@@ -1756,12 +1857,13 @@ class PublicPagesForm(forms.ModelForm):
 
 - [ ] **Step 4: Add the views**
 
-In `institution/views_manage.py`, add `"public-pages"` to `TABS`, add the two new kwargs to `_settings_context`'s signature (`public_pages=None, page_overrides=None`) and into the context dict it builds, and add the `page_overrides` builder plus both views:
+In `institution/views_manage.py`: add `from institution.forms import PublicPagesForm` alongside the existing form imports; add `"public-pages"` to `TABS`; add the two new kwargs to `_settings_context`'s signature (`public_pages=None, page_overrides=None`) and into the context dict it builds; then add the `page_overrides` builder plus both views:
 
 ```python
-def _page_overrides(inst):
+def _page_overrides():
     """One dict per registered slug, in PAGES order. Built on the DISPLAY path,
-    because the settings view renders every panel on GET.
+    because the settings view renders every panel on GET. Takes no argument:
+    everything comes from get_site_config() and PublicPage.objects.
 
     Languages come from get_site_config() (the COALESCED bundle), not from inst:
     _build() coalesces an empty stored list to the default, so reading inst
@@ -1835,12 +1937,11 @@ def settings_page_overrides(request):
     if request.method == "GET":
         return redirect(_index_url("public-pages"))
 
-    inst = Institution.load()
     # The iteration set is the SAME union the panel builds -- and it is
     # qualified to slugs still in PAGES. Without that qualification, a row for a
     # retired slug (for which the panel rendered no textarea) would read as ""
     # and the delete-when-blank rule would silently destroy live legal text.
-    for page in _page_overrides(inst):
+    for page in _page_overrides():
         for row in page["rows"]:
             key = f"override-{page['slug']}-{row['language']}"
             # Never parse submitted key names: "getting-started" contains
@@ -1866,7 +1967,9 @@ def settings_page_overrides(request):
 In `_settings_context`, always build the overrides:
 
 ```python
-        "page_overrides": page_overrides if page_overrides is not None else _page_overrides(inst),
+        "page_overrides": (
+            page_overrides if page_overrides is not None else _page_overrides()
+        ),
         "public_pages": public_pages or PublicPagesForm(instance=inst),
 ```
 
@@ -1923,6 +2026,9 @@ Create `templates/institution/manage/_public_pages_tab.html` — **two sibling f
           <label class="settings__label" for="override-{{ page.slug }}-{{ row.language }}">
             {{ row.language|upper }}{% if not row.enabled %} — {% trans "no longer enabled" %}{% endif %}
           </label>
+          {# No .settings__input rule exists; styling comes from app.css:150's bare
+             `textarea` selector. The class is carried for consistency with the SSO
+             panel, which uses it the same way. #}
           <textarea class="settings__input" rows="8"
                     id="override-{{ page.slug }}-{{ row.language }}"
                     name="override-{{ page.slug }}-{{ row.language }}">{{ row.value }}</textarea>
@@ -1935,7 +2041,20 @@ Create `templates/institution/manage/_public_pages_tab.html` — **two sibling f
 </form>
 ```
 
-Add the panel to `settings.html` and the link to `_tabs.html`, following the seven existing entries exactly.
+In `templates/institution/manage/settings.html`, after the `support` panel:
+
+```django
+  <div data-tab="public-pages" {% if active_tab != "public-pages" %}hidden{% endif %}>
+    {% include "institution/manage/_public_pages_tab.html" %}
+  </div>
+```
+
+In `templates/institution/manage/_tabs.html`, after the `support` link — this label is the string Task 13 translates:
+
+```django
+  <a class="settings__tab{% if active_tab == 'public-pages' %} is-on{% endif %}"
+     href="{% url 'institution:settings' %}?tab=public-pages">{% trans "Public pages" %}</a>
+```
 
 - [ ] **Step 7: Run tests**
 
@@ -1977,11 +2096,14 @@ from django.conf import settings
 from core.help import DOCS_ROOT
 
 PRIVACY = (DOCS_ROOT / "public/privacy.md").read_text(encoding="utf-8")
+PRIVACY_PL = (DOCS_ROOT / "public/privacy.pl.md").read_text(encoding="utf-8")
 
 
 def test_session_cookie_age_matches_the_stated_two_weeks():
     assert settings.SESSION_COOKIE_AGE == 1209600
     assert "two weeks" in PRIVACY.lower()
+    # The Polish notice states the same lifetimes and is equally falsifiable.
+    assert "dwa tygodnie" in PRIVACY_PL.lower()
 
 
 def test_session_cookie_is_still_persistent():
@@ -2022,13 +2144,16 @@ def test_every_first_party_storage_key_uses_a_documented_prefix():
     writes "theme" and "django.admin.*") and would be red for unrelated reasons.
     """
     prefixes = ("libli_", "libli:", "libli-")
-    call_re = re.compile(r"(?:local|session)Storage\.(?:set|get|remove)Item\(\s*([^,)]+)")
+    call_re = re.compile(
+        r"(?:local|session)Storage\.(?:set|get|remove)Item\(\s*([^,)]+)"
+    )
     lit_re = re.compile(r'^["\']([^"\']*)')
     unresolved = []
     bad = []
 
     for path in settings.BASE_DIR.glob("*/static/**/*.js"):
-        if any(part in {".venv", "site-packages", "staticfiles"} for part in path.parts):
+        skip = {".venv", "site-packages", "staticfiles"}
+        if any(part in skip for part in path.parts):
             continue
         source = path.read_text(encoding="utf-8")
         for raw in call_re.findall(source):
@@ -2048,7 +2173,8 @@ def test_every_first_party_storage_key_uses_a_documented_prefix():
                     key = lit_re.match(init.group(1).strip()).group(1)
                 elif call:
                     ret = re.search(
-                        rf"function\s+{re.escape(call.group(1))}\s*\([^)]*\)\s*\{{[^}}]*?return\s+(.+)",
+                        rf"function\s+{re.escape(call.group(1))}"
+                        rf"\s*\([^)]*\)\s*\{{[^}}]*?return\s+(.+)",
                         source, re.S,
                     )
                     if ret and lit_re.match(ret.group(1).strip()):
