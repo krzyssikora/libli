@@ -415,7 +415,9 @@ write "after {token} days". At the default it renders "after 90 days"; at `0` it
 you delete them". §Content item 8's sentence is authored so the token *is* the predicate, and both
 the English and Polish sentences must read correctly under either expansion. Specifying it as a
 bare number would make one of the two renderings always broken — "removed after 90" (no unit) or
-"removed after until you delete them".
+"removed after until you delete them". The chosen fallback is **"only when you delete them"**, so
+both expansions read correctly in the one frame: "removed after 90 days" and "removed only when
+you delete them".
 
 **Every deployment-dependent token has a defined degenerate case**, because a token that renders
 nothing turns its sentence into a fragment. All seven deployment-dependent tokens, without
@@ -430,7 +432,7 @@ false - is specified with the block pass above):
 | `site_name` | `cfg["name"]` is never blank (`_DEFAULTS` supplies it) |
 | `supervisory_authority` | blank → "your national data protection authority" |
 | `embed_domains` | empty → a phrase stating no embed providers are enabled |
-| `retention_phrase` | `0` → "until you delete them" |
+| `retention_phrase` | `0` → "only when you delete them" (fits the same frame as "after N days") |
 
 `controller_address` and `contact_email` matter most here and are the easiest to overlook: the
 default state — no `Institution` row, or an admin who filled in only the name — is a state the
@@ -588,6 +590,11 @@ New translatable chrome — the `PAGES` titles and meta descriptions, the demo-n
 two footer link labels, the settings tab and section labels, the override view's success message,
 the neutral fallback phrases, and both panel warnings — needs `makemessages`, Polish strings, and
 `compilemessages` before the PR.
+
+**`retention_phrase` must use `ngettext`, not a single `msgid`.** Polish declares `nplurals=3`,
+so one message id would give 1, 2 and 22 days the same form. The entry is
+`msgid "after %(days)d day"` / `msgid_plural "after %(days)d days"`, and all three `msgstr[n]`
+slots must be filled -- the 90-day default selects the third.
 
 **Polish inflection is a design constraint, not a translator detail.** Substituted phrases land
 mid-sentence in a language that governs case: "prawo do wniesienia skargi do …" requires the
@@ -799,7 +806,7 @@ Every assertion is paired with the mutant that must turn it red.
 | **`<p>x {libli:site_name}</p>` renders with its `<p>` and `</p>` intact** | Drop the delimiters from the inline `re.sub` replacement |
 | **A CRLF `controller_address` renders `line1<br>line2` with no stray `\r`** | Skip the newline normalisation |
 | `{libli:embed_domains}` renders the neutral phrase when the list is empty | Join an empty list |
-| **`{libli:retention_phrase}` renders "after 90 days" at 90 and "until you delete them" at 0** | Render the bare integer |
+| **`{libli:retention_phrase}` renders "after 90 days" at 90 and "only when you delete them" at 0** | Render the bare integer |
 | The `pl` sibling is served under `pl` | Ignore the language argument |
 | A missing `pl` sibling falls back to English and the body is marked `lang="en"` | Return `code` unconditionally |
 | `demo_instance = True` renders the demo block on **both** pages | Hardcode the token to `""` |
