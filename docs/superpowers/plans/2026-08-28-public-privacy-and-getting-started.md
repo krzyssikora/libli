@@ -248,7 +248,7 @@ Expected: FAIL — `ImportError: cannot import name 'render_markdown'`
 
 - [ ] **Step 3: Write minimal implementation**
 
-Add to `core/public_pages.py`:
+Add to `core/public_pages.py`. **New imports go into the module's top-of-file import block, isort-ordered — stdlib, then third-party, then `core.*`, one name per line** — not at the point of use, which would trip ruff `E402` and `I`. The same applies to Tasks 3 and 8.
 
 ```python
 import markdown
@@ -361,7 +361,7 @@ def test_unknown_token_renders_literally():
 
 def test_retention_phrase_at_default_and_zero():
     assert "after 90 days" in render("{libli:retention_phrase}\n")
-    assert "until you delete them" in render(
+    assert "only when you delete them" in render(
         "{libli:retention_phrase}\n", notification_retention_days=0
     )
 
@@ -514,7 +514,7 @@ def _inline_values(cfg):
                 "after %(days)d day", "after %(days)d days", days
             ) % {"days": days}
             if days
-            else _("until you delete them")
+            else _("only when you delete them")
         ),
     }
 
@@ -524,16 +524,21 @@ def substitute_tokens(html, cfg):
     # --- Block pass: replace the token WITH its enclosing <p>. Substituting a
     # <p> block inline would nest paragraphs; substituting "" would leave an
     # empty <p></p> on every page where the block is off.
+    # Driven off BLOCK_TOKENS so the frozenset cannot drift out of sync with
+    # the literals -- a set that nothing reads is documentation, not code.
     address = cfg["controller_address"]
-    html = _block_re("demo_notice").sub(
-        (lambda m: _demo_notice_html()) if cfg["demo_instance"] else (lambda m: ""),
-        html,
-    )
     if address:
         rendered = "<p>" + _nl2br(html_lib.escape(str(address))) + "</p>"
-        html = _block_re("controller_address").sub(lambda m: rendered, html)
     else:
-        html = _block_re("controller_address").sub(lambda m: "", html)
+        rendered = ""
+    block_values = {
+        "demo_notice": _demo_notice_html() if cfg["demo_instance"] else "",
+        "controller_address": rendered,
+    }
+    assert set(block_values) == set(BLOCK_TOKENS)
+    for name in BLOCK_TOKENS:
+        value = block_values[name]
+        html = _block_re(name).sub(lambda m, v=value: v, html)
 
     # --- Inline pass: TEXT RUNS ONLY, delimiters re-emitted. A token inside an
     # attribute is left literal (it lies outside any >...< run).
@@ -879,7 +884,7 @@ git commit -m "feat(public-pages): carry controller identity in the site-config 
 - Consumes: `render_markdown` and `substitute_tokens` (Tasks 2–3) for the Task 7 guards.
 - Produces: the two shipped privacy files. These must exist before Task 8, whose renderer reads them.
 
-**Authoring rules that are enforced by tests in Task 8 — read before writing:**
+**Authoring rules that are enforced by tests in Task 7 — read before writing:**
 1. `{libli:demo_notice}` and `{libli:controller_address}` must each be **a paragraph of their own at top level**, with **no heading immediately above them**, and their sections must read correctly when the paragraph is removed.
 2. **No `{libli:…}` token inside a link target or any attribute.** `{libli:contact_email}` renders as plain text only — never `[write](mailto:{libli:contact_email})`.
 3. Tokens sit in **case-neutral positions** in the Polish text (after a colon, or as their own clause), because Polish inflects.
@@ -896,7 +901,7 @@ Write the full English notice with these ten sections, following the spec's §Co
 5. **Cookies and local storage** — the four-row table exactly as the spec gives it (`sessionid` two weeks *persistent, not a session cookie*; `csrftoken` about a year; `messages` short-lived; `libli_theme` one year), then the by-prefix paragraph naming `libli_`, `libli:` **and** `libli-`.
 6. **Other services** — `{libli:embed_domains}`; that the browser contacts them only on pages where a teacher placed an embed **and those providers may set their own cookies and storage**; SSO; the mail provider; the results webhook when enabled; the web server's access logs, which **do** record IP addresses even though the application never stores them; and that adding an image by URL makes the **server** fetch it, carrying no user data.
 7. **Who can see your information** — teachers see their own students; platform admins see everything; students see nothing about each other; notes and tags are private to their author.
-8. **How long we keep it** — read notifications are removed `{libli:retention_phrase}`, on a schedule the operator installs; unread notifications are never removed on age; learning records have no automatic expiry.
+8. **How long we keep it** — read notifications are removed `{libli:retention_phrase}` — the sentence must read correctly under **both** expansions ("removed after 90 days" and "removed only when you delete them"), which is why the token carries the whole predicate; the purge runs on a schedule the operator installs; unread notifications are never removed on age; learning records have no automatic expiry.
 9. **Your rights** — access, rectification, erasure, restriction, portability, objection; then, **after a colon**, `{libli:supervisory_authority}`. Then plainly: there is no self-service export or delete today, requests go to the contact address and are handled by hand, and **deactivating an account is not erasure**.
 10. **Children**, **Security** (phrased as a property of the production deployment the operator runs — HTTPS and secure cookies come from the production settings; Django password hashing and role-based access are unconditional), and **Changes to this notice**.
 
@@ -906,10 +911,27 @@ A full Polish translation of the same document, same section order, same tokens.
 
 - [ ] **Step 3: Verify both files parse and render**
 
+`tests/test_public_pages_content.py` does not exist yet -- it is authored in Task 7, which is where
+the shipped-markdown guards land. Verify this task's own artifacts directly instead:
+
 ```bash
-uv run python -m pytest tests/test_public_pages_content.py -v -k privacy
+uv run python -c "
+from django import setup; import os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.local'); setup()
+from core.help import DOCS_ROOT
+from core.public_pages import render_markdown, substitute_tokens
+cfg = {'name': 'X', 'controller_name': '', 'controller_address': '',
+       'contact_email': '', 'supervisory_authority': '',
+       'notification_retention_days': 90, 'demo_instance': True}
+for rel in ('public/privacy.md', 'public/privacy.pl.md'):
+    html = substitute_tokens(render_markdown((DOCS_ROOT/rel).read_text(encoding='utf-8')), cfg)
+    assert '{libli:' not in html, rel
+    assert 'public-page__notice' in html, rel
+    assert html.count('<h1>') == 1, rel
+print('both privacy files render clean')
+"
 ```
-Expected: the privacy cases PASS (the getting-started ones arrive in Task 7).
+Expected: `both privacy files render clean`.
 
 - [ ] **Step 4: Commit**
 
@@ -1085,9 +1107,15 @@ def test_override_beats_the_repo_template():
 
 @pytest.mark.django_db
 def test_blank_override_row_is_treated_as_no_override():
+    # Assert POSITIVELY that the repo template was served. The mutant here is
+    # `if row:` instead of `if row and row.body_markdown.strip():`, under which
+    # source == "   " and markdown renders "" -- so a mere `"<h1>Mine</h1>" not
+    # in html` is green on BOTH builds. Requiring real template content is what
+    # makes it red.
     PublicPage.objects.create(slug="privacy", language="en", body_markdown="   ")
     html, _lang = render_public_page("privacy", "en", cfg())
-    assert "<h1>Mine</h1>" not in html
+    assert "<h1>" in html
+    assert "Privacy" in html  # the shipped notice's own heading text
 
 
 @pytest.mark.django_db
@@ -1171,10 +1199,7 @@ def test_repo_file_branch_is_sanitised_too(tmp_path, monkeypatch):
 
     (tmp_path / "public").mkdir()
     (tmp_path / "public" / "privacy.md").write_text(
-        "# T
-
-<script>alert(1)</script>
-", encoding="utf-8"
+        "# T\n\n<script>alert(1)</script>\n", encoding="utf-8"
     )
     monkeypatch.setattr(pp, "DOCS_ROOT", tmp_path)
     html, _lang = render_public_page("privacy", "en", cfg())
@@ -1252,7 +1277,9 @@ def render_public_page(slug, lang, cfg):
             logger.exception("public page %s (%s) could not be read", slug, rel)
             return mark_safe(""), code  # noqa: S308 - empty string
 
-    # noqa: S308 - nh3-sanitised, then every substituted value is html.escape'd
+    # Safe by construction: nh3-sanitised, then every substituted value is
+    # html.escape'd. (The suppression itself is the trailing noqa below --
+    # ruff only honours # noqa on the line reporting the violation.)
     html = substitute_tokens(render_markdown(source), cfg)
     return mark_safe(html), resolved  # noqa: S308
 ```
@@ -1279,7 +1306,7 @@ git commit -m "feat(public-pages): add render_public_page with the override chai
 - Test: `tests/test_public_pages_views.py`
 
 **Interfaces:**
-- Consumes: `render_public_page` (Task 6), `get_site_config` (Task 5).
+- Consumes: `render_public_page` (Task 8), `get_site_config` (Task 5).
 - Produces: URL names `core:privacy` and `core:getting_started`.
 
 - [ ] **Step 1: Write the failing test**
@@ -1516,7 +1543,7 @@ git commit -m "feat(public-pages): serve /privacy/ and /getting-started/ anonymo
 
 **Files:**
 - Modify: `templates/base.html`, `templates/core/landing.html`, `templates/allauth/layouts/entrance.html`, `core/static/core/css/app.css`, `core/static/core/css/auth.css`
-- Create: `templates/core/_public_footer.html` (replacing the Task 9 placeholder)
+- Create: `templates/core/_public_footer.html` (first created here; Task 9's `{% include %}` is never executed — see Task 9 Step 7)
 - Test: `tests/test_public_pages_footer.py`
 
 **Interfaces:**
@@ -1751,8 +1778,7 @@ def test_override_save_emits_a_success_message(client):
     client.force_login(_admin())
     response = client.post(
         reverse("institution:settings_page_overrides"),
-        {"override-privacy-en": "# Mine
-"},
+        {"override-privacy-en": "# Mine\n"},
     )
     assert [str(m) for m in get_messages(response.wsgi_request)]
 
@@ -2219,7 +2245,7 @@ uv run python manage.py makemessages -l pl
 
 - [ ] **Step 2: Translate every new string**
 
-New strings needing Polish: both `PAGES` titles and both meta descriptions; the demo-notice sentence; the three neutral fallback phrases ("the person who runs this site", "your national data protection authority", "no embed providers are enabled"); both `retention_phrase` forms ("after %(days)d days", "until you delete them"); the two footer link labels; the settings tab label, section titles, field labels and help texts; both panel warnings; the "no longer enabled" marker; and both success messages.
+New strings needing Polish: both `PAGES` titles and both meta descriptions; the demo-notice sentence; the three neutral fallback phrases ("the person who runs this site", "your national data protection authority", "no embed providers are enabled"); the `retention_phrase` **`ngettext` entry** (`msgid "after %(days)d day"` / `msgid_plural "after %(days)d days"`) — **all three** Polish `msgstr[n]` slots must be filled, since `nplurals=3` and the 90-day default selects `msgstr[2]` — plus "only when you delete them"; the two footer link labels; the settings tab label, section titles, field labels and help texts; both panel warnings; the "no longer enabled" marker; and both success messages.
 
 **Clear every `#, fuzzy` marker on a new entry.** A fuzzy pre-fill puts a *wrong* Polish string into the catalogue, and clearing it means deleting **both** the `#, fuzzy` comment line and the wrong `msgstr` body.
 
