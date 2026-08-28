@@ -86,8 +86,8 @@ Three things drive the design:
   anything.** Recorded explicitly so a later reader does not "restore" them to the storage list.
   The three prefix styles are why §Content item 5 documents `libli_`, `libli:` **and** `libli-`:
   a two-prefix claim is false at HEAD.
-- **No first-party storage call uses a template literal.** The six call sites pass one string
-  literal (`editor.js:763`), a bare `KEY` identifier (`outline_tree.js`, `review_roster.js`,
+- **No first-party storage call uses a template literal.** The five `setItem` call sites pass one
+  string literal (`editor.js:763`), a bare `KEY` identifier (`outline_tree.js`, `review_roster.js`,
   `unit_nav.js`), or a `slotStoreKey(...)` function call whose body concatenates a literal prefix
   (`editor.js:48`). Any scanner must handle those shapes, not interpolation.
 - **`ALLOWED_IMAGE_FETCH_DOMAINS`** (`config/settings/base.py:235`) authorises **server-side**
@@ -234,7 +234,7 @@ column-alignment syntax (`|:---:|`) has **no effect** — the extension emits
 
 **On the scheme list.** `nh3` **already blocks `javascript:` and `data:` by default** (verified).
 `url_schemes` does *not* add protection against those two; what it excludes is `ftp:`, `tel:`,
-`magnet:` and friends. The inherited comment at `courses/sanitize.py:41` claiming otherwise is
+`magnet:` and friends. The inherited comment at `courses/sanitize.py:43` claiming otherwise is
 wrong. Note the observed shape of that exclusion: nh3 strips the **`href` attribute** but keeps
 the `<a>` element and its text (`<a rel="noopener noreferrer">y</a>`), which the test row reflects.
 
@@ -348,8 +348,8 @@ re.sub(r">([^<]*)<", lambda m: ">" + substitute_run(m.group(1)) + "<", html)
     where substitute_run applies re.sub(r"\{libli:(\w+)\}", replace_one, run_text)
     and replace_one returns:
         - html.escape(str(value))                 for every inline token
-        - nl2br(normalize_newlines(html.escape(str(value))))  for controller_address only
-        - the literal matched text                for an unknown token
+        - the literal matched text                for anything else
+          (including both BLOCK tokens - they are not in the inline map)
 ```
 
 **The delimiters must be re-emitted.** The pattern *consumes* the `>` and `<`, so a replacement
@@ -418,7 +418,9 @@ bare number would make one of the two renderings always broken — "removed afte
 "removed after until you delete them".
 
 **Every deployment-dependent token has a defined degenerate case**, because a token that renders
-nothing turns its sentence into a fragment. All eight tokens, without exception:
+nothing turns its sentence into a fragment. All seven deployment-dependent tokens, without
+exception (`demo_notice`'s own degenerate case - the paragraph removed when `demo_instance` is
+false - is specified with the block pass above):
 
 | Token | Degenerate case |
 |---|---|
@@ -681,12 +683,23 @@ Both pages ship real prose in English and Polish, not placeholders.
      excluding `.venv/`, `site-packages/` and `staticfiles/`. A bare `**/static/**/*.js` glob
      would sweep Django's bundled admin JS (`theme.js` writes `"theme"`; `nav_sidebar.js` writes
      `django.admin.navSidebarIsOpen`) and turn the test red for reasons unrelated to libli.
-   - **Argument shapes:** resolve a bare identifier to its `var NAME = "…"` initialiser in the
-     same file; take the leading string literal of a concatenation expression (so
-     `"libli:tabopen:" + pk + …` matches on `libli:tabopen:`); and **fail loudly on any argument
-     shape it cannot resolve**, so a new dynamic key cannot slip past silently. There are no
-     template literals in first-party JS today, so that case is future-proofing, not the
-     representative one.
+   - **Argument shapes**, and the rules must **compose** or the test is red at HEAD on two of the
+     five write sites:
+     1. Take the **leading string literal of a concatenation** (so `"libli:tabopen:" + pk + …`
+        matches on `libli:tabopen:`).
+     2. Resolve a **bare identifier** to its initialiser in the same file — and apply rule 1 to
+        that initialiser, because it may itself be a concatenation. `outline_tree.js:7` is
+        `var KEY = "libli_outline_open:" + (tree.dataset.courseSlug || "")`, so a rule expecting
+        a plain `var NAME = "…"` literal fails there.
+     3. Resolve a **call to a same-file function** to the leading string literal of that
+        function's `return` expression. `editor.js:52` passes `slotStoreKey(details)`, whose body
+        (`editor.js:48`) returns the concatenation — a scanner without this rule never reaches it.
+     4. **Fail loudly on any shape it cannot resolve**, so a new dynamic key cannot slip past
+        silently.
+
+     There are no template literals in first-party JS today, so that case is future-proofing, not
+     the representative one. With rules 1–3 composed, all five sites resolve and the test is green
+     at HEAD.
 6. **Third parties** — embeds a teacher adds (`{libli:embed_domains}`), stating that the browser
    contacts them directly **only** on pages where a teacher placed one, **and that those providers
    may set their own cookies and storage**; SSO / OpenID Connect when configured; the mail
@@ -781,7 +794,7 @@ Every assertion is paired with the mutant that must turn it red.
 | **A blank `contact_email` renders the fallback phrase, never an empty address** | Substitute `""` |
 | **A blank `controller_address` removes its whole paragraph, leaving no empty `<p></p>`** | Make it an inline token substituting `""` |
 | **A set `controller_address` renders inside its own paragraph** | Drop the block branch |
-| **A link title containing a raw `>` does not cause a following token to be substituted into an attribute** | *(boundary pinned; documented residual risk)* |
+| **A token after a raw `>` in a link title IS substituted into the attribute, and the value is still escaped so it cannot break out of the quotes** | *(boundary pinned; documented residual risk)* |
 | **`{libli:embed_domains}` strips `www.` and de-duplicates** | Join the raw setting |
 | **`<p>x {libli:site_name}</p>` renders with its `<p>` and `</p>` intact** | Drop the delimiters from the inline `re.sub` replacement |
 | **A CRLF `controller_address` renders `line1<br>line2` with no stray `\r`** | Skip the newline normalisation |
