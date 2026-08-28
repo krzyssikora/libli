@@ -361,7 +361,7 @@ def test_unknown_token_renders_literally():
 
 def test_retention_phrase_at_default_and_zero():
     assert "after 90 days" in render("{libli:retention_phrase}\n")
-    assert "only when you delete them" in render(
+    assert "only when the item they refer to is removed" in render(
         "{libli:retention_phrase}\n", notification_retention_days=0
     )
 
@@ -524,7 +524,7 @@ def _inline_values(cfg):
                 "after %(days)d day", "after %(days)d days", days
             ) % {"days": days}
             if days
-            else _("only when you delete them")
+            else _("only when the item they refer to is removed")
         ),
     }
 
@@ -911,7 +911,7 @@ Write the full English notice with these ten sections, following the spec's §Co
 5. **Cookies and local storage** — the four-row table exactly as the spec gives it (`sessionid` two weeks *persistent, not a session cookie*; `csrftoken` about a year; `messages` short-lived; `libli_theme` one year), then the by-prefix paragraph naming `libli_`, `libli:` **and** `libli-`.
 6. **Other services** — `{libli:embed_domains}`; that the browser contacts them only on pages where a teacher placed an embed **and those providers may set their own cookies and storage**; SSO; the mail provider; the results webhook when enabled; the web server's access logs, which **do** record IP addresses even though the application never stores them; and that adding an image by URL makes the **server** fetch it, carrying no user data.
 7. **Who can see your information** — teachers see their own students; platform admins see everything; students see nothing about each other; notes and tags are private to their author.
-8. **How long we keep it** — read notifications are removed `{libli:retention_phrase}` — the sentence must read correctly under **both** expansions ("removed after 90 days" and "removed only when you delete them"), which is why the token carries the whole predicate; the purge runs on a schedule the operator installs; unread notifications are never removed on age; learning records have no automatic expiry.
+8. **How long we keep it** — read notifications are removed `{libli:retention_phrase}` — the sentence must read correctly under **both** expansions ("removed after 90 days" and "removed only when the item they refer to is removed"), which is why the token carries the whole predicate; the purge runs on a schedule the operator installs; unread notifications are never removed on age; learning records have no automatic expiry.
 9. **Your rights** — access, rectification, erasure, restriction, portability, objection; then, **after a colon**, `{libli:supervisory_authority}`. Then plainly: there is no self-service export or delete today, requests go to the contact address and are handled by hand, and **deactivating an account is not erasure**.
 10. **Children**, **Security** (phrased as a property of the production deployment the operator runs — HTTPS and secure cookies come from the production settings; Django password hashing and role-based access are unconditional), and **Changes to this notice**.
 
@@ -2258,7 +2258,7 @@ uv run python manage.py makemessages -l pl
 
 - [ ] **Step 2: Translate every new string**
 
-New strings needing Polish: both `PAGES` titles and both meta descriptions; the demo-notice sentence; the three neutral fallback phrases ("the person who runs this site", "your national data protection authority", "no embed providers are enabled"); the `retention_phrase` **`ngettext` entry** (`msgid "after %(days)d day"` / `msgid_plural "after %(days)d days"`) — **all three** Polish `msgstr[n]` slots must be filled, since `nplurals=3` and the 90-day default selects `msgstr[2]` — plus "only when you delete them"; the two footer link labels; the settings tab label, section titles, field labels and help texts; both panel warnings; the "no longer enabled" marker; and both success messages.
+New strings needing Polish: both `PAGES` titles and both meta descriptions; the demo-notice sentence; the three neutral fallback phrases ("the person who runs this site", "your national data protection authority", "no embed providers are enabled"); the `retention_phrase` **`ngettext` entry** (`msgid "after %(days)d day"` / `msgid_plural "after %(days)d days"`) — **all three** Polish `msgstr[n]` slots must be filled, since `nplurals=3` and the 90-day default selects `msgstr[2]` — plus "only when the item they refer to is removed"; the two footer link labels; the settings tab label, section titles, field labels and help texts; both panel warnings; the "no longer enabled" marker; and both success messages.
 
 **Clear every `#, fuzzy` marker on a new entry.** A fuzzy pre-fill puts a *wrong* Polish string into the catalogue, and clearing it means deleting **both** the `#, fuzzy` comment line and the wrong `msgstr` body.
 
