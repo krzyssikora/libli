@@ -141,11 +141,11 @@ That access belongs to the organisation named above and to whoever it engages to
 
 ## How long we keep it
 
-A notification you have read is removed {libli:retention_phrase}. Two qualifications matter. Where
-a time limit applies, the application does not enforce it by itself: the rows go when the purge
-job runs, which the operator's deployment has to schedule, or when a Platform Admin runs it from
-the settings panel — on a deployment where nobody set that schedule up, nothing is removed on age
-at all. And notifications you have **not** read are never removed because of their age.
+Notifications you have read are removed {libli:retention_phrase}. Two qualifications matter. The
+removal is not something the application does by itself: the rows go when the purge job runs, which
+the operator's deployment has to schedule, or when a Platform Admin runs it from the settings panel
+— on a deployment where nobody set that schedule up, nothing is removed at all. And notifications
+you have **not** read are never removed because of their age.
 
 Your learning record — enrolments, progress, submissions, answers and attempts — has **no
 automatic expiry.** It is kept for as long as the account exists, and removing it is a manual act

@@ -124,7 +124,7 @@ def test_unknown_token_renders_literally():
 
 def test_retention_phrase_at_default_and_zero():
     assert "after 90 days" in render("{libli:retention_phrase}\n")
-    assert "only when you delete them" in render(
+    assert "only when the item they refer to is removed" in render(
         "{libli:retention_phrase}\n", notification_retention_days=0
     )
 

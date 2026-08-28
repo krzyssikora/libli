@@ -146,12 +146,11 @@ którym powierza ona prowadzenie serwisu.
 
 ## Jak długo przechowujemy dane
 
-Przeczytane powiadomienie jest usuwane {libli:retention_phrase}. Istotne są dwa zastrzeżenia. Tam,
-gdzie obowiązuje termin, aplikacja nie egzekwuje go sama z siebie: rekordy znikają, gdy zostanie
-uruchomione zadanie czyszczące, które musi zaplanować wdrożenie operatora, albo gdy uruchomi je
-Administrator platformy z panelu ustawień — we wdrożeniu, w którym nikt takiego harmonogramu nie
-ustawił, nic nie jest usuwane ze względu na wiek. Powiadomienia, których **nie** przeczytałeś,
-nigdy nie są usuwane ze względu na wiek.
+Przeczytane powiadomienia są usuwane {libli:retention_phrase}. Istotne są dwa zastrzeżenia.
+Usuwanie nie dzieje się samo z siebie: rekordy znikają wtedy, gdy zostanie uruchomione zadanie
+czyszczące, które musi zaplanować wdrożenie operatora, albo gdy uruchomi je Administrator platformy
+z panelu ustawień — we wdrożeniu, w którym nikt takiego harmonogramu nie ustawił, nie jest usuwane
+nic. Powiadomienia, których **nie** przeczytałeś, nigdy nie są usuwane ze względu na wiek.
 
 Zapis Twojej nauki — zapisy na kursy, postępy, podejścia, odpowiedzi i próby — **nie ma żadnego
 automatycznego terminu wygaśnięcia.** Jest przechowywany tak długo, jak istnieje konto, a jego

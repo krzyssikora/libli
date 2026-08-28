@@ -14,8 +14,8 @@ What the platform does:
   LaTeX; and interactive elements — drag-and-drop onto an image, fill-in-the-blank, matching
   pairs, answer grids, steppers, before-and-after sliders, embedded GeoGebra worksheets.
 - **Quizzes with automatic marking.** Questions with a fixed answer are marked the moment they are
-  submitted. Open-ended answers are queued for a teacher to read and mark. Every attempt is kept,
-  so you can see how an answer developed, not just where it ended up.
+  submitted. Open-ended answers are queued for a teacher to read and mark. Every attempt is
+  stored, not only the last one.
 - **Teacher analytics.** A progress-and-results matrix for a group, drillable down to one student
   and one question, plus a gradebook export.
 - **English and Polish**, interface and content, switchable per user.

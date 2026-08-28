@@ -17,7 +17,7 @@ Co platforma potrafi:
   arkusze GeoGebry.
 - **Testy z automatycznym sprawdzaniem.** Pytania o ustalonej odpowiedzi są sprawdzane w chwili
   przesłania. Odpowiedzi otwarte trafiają do kolejki, w której czyta je i ocenia nauczyciel. Każda
-  próba jest zachowywana, więc widać, jak odpowiedź powstawała, a nie tylko na czym się skończyła.
+  próba jest zapisywana, nie tylko ostatnia.
 - **Analityka dla nauczyciela.** Macierz postępów i wyników dla grupy, z możliwością zejścia do
   jednego ucznia i jednego pytania, oraz eksport ocen.
 - **Angielski i polski**, w interfejsie i w treści, przełączane osobno dla każdego użytkownika.

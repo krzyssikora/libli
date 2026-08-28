@@ -181,7 +181,7 @@ def _inline_values(cfg):
         "retention_phrase": (
             ngettext("after %(days)d day", "after %(days)d days", days) % {"days": days}
             if days
-            else _("only when you delete them")
+            else _("only when the item they refer to is removed")
         ),
     }
 
