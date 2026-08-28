@@ -317,13 +317,26 @@ nested paragraphs; substituting `""` would leave a stray empty `<p></p>` on ever
 inserted notice:
 
 ```
-re.sub(r">([^<]*)<", lambda run: substitute_run(run.group(1)), html)
+re.sub(r">([^<]*)<", lambda m: ">" + substitute_run(m.group(1)) + "<", html)
     where substitute_run applies re.sub(r"\{libli:(\w+)\}", replace_one, run_text)
     and replace_one returns:
         - html.escape(str(value))                 for every inline token
-        - nl2br(html.escape(str(value)))          for controller_address only
+        - nl2br(normalize_newlines(html.escape(str(value))))  for controller_address only
         - the literal matched text                for an unknown token
 ```
+
+**The delimiters must be re-emitted.** The pattern *consumes* the `>` and `<`, so a replacement
+returning only the run text deletes one bracket on each side of every match — verified:
+`<p>Hello {libli:site_name}</p>` becomes `<pHello libli/p>`, destroying every rendered page. This
+is the inverse of the block pass, which replaces its whole match deliberately; here the whole
+match must be reconstructed.
+
+**`controller_address` normalises line endings before converting them.** The field is edited in a
+`<textarea>`, and browsers submit textarea content with **CRLF**, so the stored value contains
+`\r\n`. Escaping and then replacing only `\n` yields `line1\r<br>line2` — which renders correctly
+(the `\r` is HTML whitespace) but fails any test asserting the substring `line1<br>line2`. So:
+normalise `\r\n` and `\r` to `\n`, then escape, then `\n` → `<br>`; and the test fixture uses CRLF
+so it exercises the shape an admin actually produces.
 
 **The inline pass's token map contains only the seven inline tokens — `demo_notice` is not in
 it.** That is what makes a misplaced `demo_notice` fall into the unknown-token branch and render
@@ -367,9 +380,25 @@ bare number would make one of the two renderings always broken — "removed afte
 "removed after until you delete them".
 
 **Every deployment-dependent token has a defined degenerate case**, because a token that renders
-nothing turns its sentence into a fragment: `controller_name` blank → `cfg["name"]`;
-`supervisory_authority` blank → "your national data protection authority"; `embed_domains` empty →
-a phrase stating no embed providers are enabled; retention `0` → "until you delete them".
+nothing turns its sentence into a fragment. All seven inline tokens, without exception:
+
+| Token | Degenerate case |
+|---|---|
+| `controller_name` | blank → `cfg["name"]` (itself defaulting to `"My Institution"`) |
+| `controller_address` | blank → the sentence **omits the address clause entirely** |
+| `contact_email` | blank → "the person who runs this site" (no bare empty address) |
+| `site_name` | `cfg["name"]` is never blank (`_DEFAULTS` supplies it) |
+| `supervisory_authority` | blank → "your national data protection authority" |
+| `embed_domains` | empty → a phrase stating no embed providers are enabled |
+| `retention_phrase` | `0` → "until you delete them" |
+
+`controller_address` and `contact_email` matter most here and are the easiest to overlook: the
+default state — no `Institution` row, or an admin who filled in only the name — is a state the
+testing table deliberately exercises. Without these two fallbacks that state ships a live privacy
+notice naming a controller **at no address**, telling a data subject to send erasure requests to
+**an empty string**. Because the address clause is *omitted* rather than filled with a placeholder,
+§Content items 1 and 9 must be authored as separate sentences, so removing one leaves the
+surrounding prose grammatical.
 
 `{libli:demo_notice}` expands to a pre-built `<p class="public-page__notice">…</p>` built from a
 translated `gettext` message — never from user input.
@@ -396,9 +425,16 @@ A new eighth tab, `public-pages`.
 - **`page_overrides` has a pinned shape and a pinned order:**
 
   ```
-  [{"slug", "title", "rows": [{"language", "value", "enabled": bool}],
-    "partial": bool, "missing_demo_notice": bool}, ...]
+  [{"slug", "title",
+    "rows": [{"language", "value", "enabled": bool, "missing_demo_notice": bool}],
+    "partial": bool, "any_missing_demo_notice": bool}, ...]
   ```
+
+  **`missing_demo_notice` is a per-row flag, not a page-level one.** The condition it reports —
+  a non-blank override that omits `{libli:demo_notice}` — is a property of one language's text:
+  with `en` and `pl` overrides where only one carries the token, a page-level boolean could not
+  say which language lost the warning. `partial` genuinely *is* page-level. The page-level
+  `any_missing_demo_notice` exists only as a roll-up for the panel's banner.
 
   Pages iterate in **`PAGES` registry order**; within a page, rows are the de-duplicated
   normalised enabled languages in `enabled_languages` order, followed by stale rows sorted by
@@ -407,15 +443,28 @@ A new eighth tab, `public-pages`.
   `missing_demo_notice` are computed in `_settings_context`, never in the template.
 - The panel contains **two independent sibling `<form>` elements** (HTML forbids nesting):
   - `institution:settings_public_pages` — the five `Institution` fields, via a new
-    `PublicPagesForm(ModelForm on Institution)`. This one **does** reuse `_action(...)`.
+    `PublicPagesForm(ModelForm on Institution)`. This one **does** reuse `_action(...)`, called
+    as `_action(request, PublicPagesForm, "public_pages", "public-pages", <success msg>)`.
+    **This is the first tab where the `ctx_key` and the tab slug diverge** — every existing call
+    passes the same literal for both. They must differ here, because `_action` splats
+    `**{ctx_key: form}` into `_settings_context` (`institution/views_manage.py:138`) and
+    `"public-pages"` is not a valid Python identifier. Getting it wrong raises `TypeError` on the
+    invalid-form re-render, a reachable path: `contact_email` is an `EmailField`, so a typo'd
+    address would 500 the settings page.
   - `institution:settings_page_overrides` — the override rows. This **cannot** reuse `_action`,
     which binds a single ModelForm to `Institution`. Because `messages.success` lives inside
     `_action`, this view **must emit its own** before redirecting — otherwise the one action that
     publishes live legal text is also the only panel that confirms nothing.
 - **The override view's iteration set is exactly the union the panel builds**: `PAGES` ×
   de-duplicated normalised `enabled_languages`, **unioned with the `(slug, language)` pairs of
-  existing rows**. The narrower reading — iterate only enabled languages — would render a stale
-  row's textarea, accept its submission and silently ignore it, making the row undeletable.
+  existing rows whose slug is still in `PAGES`**. The narrower reading — iterate only enabled
+  languages — would render a stale row's textarea, accept its submission and silently ignore it,
+  making the row undeletable. The **slug qualification is equally load-bearing in the other
+  direction**: without it the view would iterate a pair for a slug no longer in `PAGES`, for which
+  the panel never rendered a textarea, so `request.POST.get(...)` returns `""` and the
+  delete-when-blank rule would **silently destroy a row this spec twice promises is inert and
+  hand-managed** — a history-less deletion of live legal text. Stale *languages* are in the union;
+  stale *slugs* are not.
 - It reads `request.POST.get(f"override-{slug}-{language}", "")` per pair and **never parses
   submitted key names** — `getting-started` contains hyphens. Per pair: write when non-blank,
   **delete** any existing row when blank.
@@ -455,10 +504,20 @@ authenticated pages are unchanged *in output*.
 page.** `.auth-main` currently sets `min-height: calc(100vh - 2 * var(--space-6))` plus padding
 (`auth.css:3-11`), so a footer after `</main>` starts outside the viewport — meaning the privacy
 link at the point of account creation, driver #2 and "the placement that matters most", would be
-reachable only by scrolling a page that otherwise never scrolls. Fix: make `body.auth` a flex
-column with `.auth-main { flex: 1 }` and drop the `min-height`, so the footer sits at the bottom
-of the viewport on short pages and below the content on long ones. **No HTML assertion can catch
-this** — the links exist in the markup either way — so it is verified by screenshot.
+reachable only by scrolling a page that otherwise never scrolls.
+
+**The fix needs a viewport floor on the new flex container, not just a flex child.** The height
+currently lives entirely on `.auth-main`; `body` carries no height rule. Simply making `body.auth`
+a flex column and dropping `.auth-main`'s `min-height` leaves the container at *content* height,
+so `flex: 1` has no free space to absorb — the footer would not reach the bottom fold, and the
+login card would lose the vertical centring `.auth-main`'s `justify-content: center` gives it and
+jump to the top of every entrance page. So the pinned fix is: `body.auth { min-height: 100vh;
+display: flex; flex-direction: column }`, `.auth-main { flex: 1 }` **retaining its
+`justify-content: center`**, and the `min-height` removed from `.auth-main` only.
+
+**No HTML assertion can catch this** — the links exist in the markup either way — so it is
+verified by screenshot, checking **both** that the footer sits at the bottom fold **and** that the
+card is still vertically centred. Checking only the first would let the centring regression pass.
 
 ### Page template and CSS
 
@@ -565,7 +624,13 @@ Both pages ship real prose in English and Polish, not placeholders.
    keys today; a list claiming to name them "exactly" would be false the moment a feature adds a
    twelfth, and this is a document whose value is that its claims hold. A test asserts every
    storage key written by the shipped JS begins with one of the two documented prefixes, so the
-   categorical claim stays true by construction.
+   categorical claim stays true by construction. **That test's mechanism is pinned**, because the
+   keys are not all string literals: it regexes the first argument of every
+   `.setItem(` / `.getItem(` / `.removeItem(` call on `localStorage` or `sessionStorage` across
+   `**/static/**/*.js`, taking the **leading literal segment** of a template literal (so
+   `` `libli:tabopen:${pk}` `` matches on `libli:tabopen:`), and asserts the `libli_` / `libli:`
+   prefix. A naive scan of literal arguments alone would miss exactly the dynamic keys that make
+   enumeration impossible in the first place.
 6. **Third parties** — embeds a teacher adds (`{libli:embed_domains}`), stating that the browser
    contacts them directly **only** on pages where a teacher placed one, **and that those providers
    may set their own cookies and storage**; SSO / OpenID Connect when configured; the mail
@@ -657,6 +722,10 @@ Every assertion is paired with the mutant that must turn it red.
 | **An inline-positioned `{libli:demo_notice}` renders literally, not as escaped markup** | Add `demo_notice` to the inline map |
 | `{libli:controller_name}` falls back to `cfg["name"]` when blank | Remove the fallback |
 | `{libli:supervisory_authority}` falls back to the neutral phrase when blank | Hardcode "UODO" |
+| **A blank `contact_email` renders the fallback phrase, never an empty address** | Substitute `""` |
+| **A blank `controller_address` omits the address clause, leaving grammatical prose** | Substitute `""` |
+| **`<p>x {libli:site_name}</p>` renders with its `<p>` and `</p>` intact** | Drop the delimiters from the inline `re.sub` replacement |
+| **A CRLF `controller_address` renders `line1<br>line2` with no stray `\r`** | Skip the newline normalisation |
 | `{libli:embed_domains}` renders the neutral phrase when the list is empty | Join an empty list |
 | **`{libli:retention_phrase}` renders "after 90 days" at 90 and "until you delete them" at 0** | Render the bare integer |
 | The `pl` sibling is served under `pl` | Ignore the language argument |
@@ -671,8 +740,11 @@ Every assertion is paired with the mutant that must turn it red.
 | The notice's stated `sessionid` lifetime matches `settings.SESSION_COOKIE_AGE` | Change the setting without the text |
 | **The stated `csrftoken` lifetime matches `settings.CSRF_COOKIE_AGE`** | Change the setting without the text |
 | **The stated `libli_theme` lifetime matches `core/views.py`'s `max_age` constant** | Change the constant without the text |
+| **`settings.SESSION_EXPIRE_AT_BROWSER_CLOSE` is falsy** (the notice calls `sessionid` persistent) | Set it to `True` without changing the notice |
 | **Every storage key written by the shipped JS begins with `libli_` or `libli:`** | Add a key with another prefix |
 | No cookie outside the four documented names is set on the public or entrance pages | Add an undocumented cookie |
+| **A `PublicPage` row whose slug is not in `PAGES` survives a panel save untouched** | Union over all existing rows regardless of slug |
+| **The `public_pages` ctx_key re-renders an invalid form without `TypeError`** | Pass `"public-pages"` as the ctx_key |
 | Landing footer has both links **and** no literal `EN / PL` | Restore the span |
 | The entrance layout carries both links | Remove its `footer` block |
 | **`/home/`** renders **no** footer | Put content in `base.html`'s `footer` block |
@@ -714,9 +786,18 @@ HTML assertion can see it. No new e2e test is otherwise warranted.
 - **The effective date lives in the content.**
 - **Recorded exceptions to "no shipped sentence may assert a changeable fact":** the security
   paragraph is phrased as a property of the production deployment; cookie **names** are hardcoded
-  as properties of the code; and cookie **lifetimes** are hardcoded to their current values, with
-  guard tests on all three (`SESSION_COOKIE_AGE`, `CSRF_COOKIE_AGE`, and `core/views.py`'s
-  `max_age`) so changing any of them fails CI rather than silently falsifying the notice.
+  as properties of the code; and cookie **lifetimes and persistence** are hardcoded to their
+  current values, with guard tests on all **four** (`SESSION_COOKIE_AGE`, `CSRF_COOKIE_AGE`,
+  `core/views.py`'s `max_age`, and `SESSION_EXPIRE_AT_BROWSER_CLOSE`) so changing any of them fails
+  CI rather than silently falsifying the notice. The fourth is not redundant: setting
+  `SESSION_EXPIRE_AT_BROWSER_CLOSE = True` makes `sessionid` a browser-session cookie while
+  `SESSION_COOKIE_AGE` stays `1209600`, so the other three guards would all stay green while the
+  notice's "persistent, not a session cookie" became false.
+- **The `messages` cookie row is knowingly unguarded.** Configuring `MESSAGE_STORAGE` to a session
+  backend would remove that cookie entirely, leaving the notice describing one that no longer
+  exists — and the "no undocumented cookie" test catches additions, not removals. Accepted because
+  the failure direction is **over-disclosure**, which is benign in a privacy notice, unlike the
+  lifetime claims where the error direction is understating what is stored.
 - **Per-request cost is accepted.** If it ever matters, cache on
   `(slug, lang, PublicPage.updated_at)`.
 - **Crawler configuration is out of scope** — a meta description ships, nothing else.
