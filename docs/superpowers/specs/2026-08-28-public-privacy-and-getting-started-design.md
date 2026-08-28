@@ -617,7 +617,7 @@ GET /privacy/
                 |                     # OSError -> log, return ("", code)
                 +-- markdown.markdown(source, extensions=["fenced_code", "tables"])
                 +-- nh3.clean(html, tags=..., attributes={"a": {"href","title"}}, url_schemes=...)
-                +-- block-token pass   (demo_notice, with its enclosing <p>)
+                +-- block-token pass   (demo_notice + controller_address, each with its enclosing <p>)
                 +-- inline-token pass  (text runs between > and <; str() then escape)
                 +-- mark_safe
        -> render "core/public_page.html" with html, resolved_lang, title, description
