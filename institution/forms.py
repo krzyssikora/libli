@@ -385,3 +385,17 @@ class RetentionForm(forms.ModelForm):
         model = Institution
         fields = ["notification_retention_days"]
         labels = {"notification_retention_days": _("Retention window (days)")}
+
+
+class PublicPagesForm(forms.ModelForm):
+    """Controller identity for the public privacy notice."""
+
+    class Meta:
+        model = Institution
+        fields = [
+            "controller_name",
+            "controller_address",
+            "contact_email",
+            "supervisory_authority",
+            "demo_instance",
+        ]

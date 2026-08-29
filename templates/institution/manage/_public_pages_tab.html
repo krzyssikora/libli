@@ -1,0 +1,48 @@
+{% load i18n %}
+<form class="settings__form" method="post" action="{% url 'institution:settings_public_pages' %}">
+  {% csrf_token %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Who runs this site" %}</h2>
+    {% for field in public_pages %}
+      <div class="settings__field">
+        <label class="settings__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="settings__help">{{ field.help_text }}</p>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="settings__actions"><button class="btn" type="submit">{% trans "Save" %}</button></div>
+</form>
+
+<form class="settings__form" method="post" action="{% url 'institution:settings_page_overrides' %}">
+  {% csrf_token %}
+  {% for page in page_overrides %}
+    <div class="settings__section">
+      <h2 class="settings__section-title">{{ page.title }}</h2>
+      {% if page.partial %}
+        <p class="alert alert--warning">{% trans "This page is overridden in some but not all of your languages. Visitors will see different text depending on their language." %}</p>
+      {% endif %}
+      {% if page.any_missing_demo_notice %}
+        <p class="alert alert--warning">{% trans "This is a demonstration site, but one of your versions below does not include the {libli:demo_notice} token, so it will not show the demonstration warning." %}</p>
+      {% endif %}
+      {% for row in page.rows %}
+        <div class="settings__field">
+          <label class="settings__label" for="override-{{ page.slug }}-{{ row.language }}">
+            {{ row.language|upper }}{% if not row.enabled %} — {% trans "no longer enabled" %}{% endif %}
+          </label>
+          {% comment %}
+          No .settings__input rule exists; styling comes from app.css:150's bare
+          `textarea` selector. The class is carried for consistency with the SSO
+          panel, which uses it the same way.
+          {% endcomment %}
+          <textarea class="settings__input" rows="8"
+                    id="override-{{ page.slug }}-{{ row.language }}"
+                    name="override-{{ page.slug }}-{{ row.language }}">{{ row.value }}</textarea>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+  <p class="settings__help">{% trans "Leave a box empty to use the text that ships with libli. Saving replaces the published notice immediately and keeps no history — keep your own copy." %}</p>
+  <div class="settings__actions"><button class="btn" type="submit">{% trans "Save" %}</button></div>
+</form>

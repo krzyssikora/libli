@@ -16,6 +16,7 @@ from accounts.sso_config import redirect_uri
 from accounts.sso_config import save_sso_config
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
+from institution.forms import PublicPagesForm
 from institution.forms import RetentionForm
 from institution.forms import UploadsForm
 from institution.models import Institution
@@ -34,6 +35,7 @@ TABS = (
     "notifications",
     "integrations",
     "support",
+    "public-pages",
 )
 
 
@@ -54,6 +56,8 @@ def _settings_context(
     notifications=None,
     integrations=None,
     support=None,
+    public_pages=None,
+    page_overrides=None,
 ):
     """Assemble the seven-form context. Any bound (errored) form passed in is used
     as-is; the rest are unbound — the four institution forms seeded from `inst`,
@@ -109,6 +113,10 @@ def _settings_context(
         "support": support or SupportSettingsForm(instance=support_row),
         "extra_reporter_count": extra_reporter_count,
         "auto_recipients": auto_recipients,
+        "page_overrides": (
+            page_overrides if page_overrides is not None else _page_overrides()
+        ),
+        "public_pages": public_pages or PublicPagesForm(instance=inst),
     }
 
 
@@ -282,3 +290,111 @@ def settings_support(request):
         "institution/manage/settings.html",
         _settings_context(request, Institution.load(), "support", support=form),
     )
+
+
+def _page_overrides():
+    """One dict per registered slug, in PAGES order. Built on the DISPLAY path,
+    because the settings view renders every panel on GET. Takes no argument:
+    everything comes from get_site_config() and PublicPage.objects.
+
+    Languages come from get_site_config() (the COALESCED bundle), not from inst:
+    _build() coalesces an empty stored list to the default, so reading inst
+    directly would render zero language rows on a deployment whose stored list
+    is empty while the public pages still resolved ["en", "pl"].
+    """
+    from core.public_pages import PAGES
+    from core.public_pages import normalize_lang
+    from core.services import get_site_config
+    from institution.models import PublicPage
+
+    enabled = []
+    for code in get_site_config()["enabled_languages"]:
+        code = normalize_lang(code)
+        if code not in enabled:
+            enabled.append(code)
+
+    rows_by_key = {(r.slug, r.language): r for r in PublicPage.objects.all()}
+    demo = get_site_config()["demo_instance"]
+    out = []
+    for slug, page in PAGES.items():
+        stale = sorted(
+            lang for (s, lang) in rows_by_key if s == slug and lang not in enabled
+        )
+        rows = []
+        for lang in enabled + stale:
+            row = rows_by_key.get((slug, lang))
+            value = row.body_markdown if row else ""
+            rows.append(
+                {
+                    "language": lang,
+                    "value": value,
+                    "enabled": lang in enabled,
+                    # Per-ROW, not per-page: with en and pl overrides where only one
+                    # carries the token, a page-level flag cannot say which language
+                    # lost the warning.
+                    "missing_demo_notice": bool(
+                        demo and value.strip() and "{libli:demo_notice}" not in value
+                    ),
+                }
+            )
+        filled = [r for r in rows if r["enabled"] and r["value"].strip()]
+        out.append(
+            {
+                "slug": slug,
+                "title": page.title,
+                "rows": rows,
+                "partial": 0 < len(filled) < len(enabled),
+                "any_missing_demo_notice": any(r["missing_demo_notice"] for r in rows),
+            }
+        )
+    return out
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_public_pages(request):
+    # ctx_key "public_pages" MUST differ from the tab slug "public-pages":
+    # _action splats **{ctx_key: form}, and "public-pages" is not a valid Python
+    # identifier. This is the first tab where the two diverge.
+    return _action(
+        request,
+        PublicPagesForm,
+        "public_pages",
+        "public-pages",
+        _("Public page settings saved."),
+    )
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_page_overrides(request):
+    from institution.models import PublicPage
+
+    if request.method == "GET":
+        return redirect(_index_url("public-pages"))
+
+    # The iteration set is the SAME union the panel builds -- and it is
+    # qualified to slugs still in PAGES. Without that qualification, a row for a
+    # retired slug (for which the panel rendered no textarea) would read as ""
+    # and the delete-when-blank rule would silently destroy live legal text.
+    for page in _page_overrides():
+        for row in page["rows"]:
+            key = f"override-{page['slug']}-{row['language']}"
+            # Never parse submitted key names: "getting-started" contains
+            # hyphens, so override-getting-started-pl cannot be split safely.
+            value = request.POST.get(key, "")
+            if value.strip():
+                obj, _created = PublicPage.objects.get_or_create(
+                    slug=page["slug"], language=row["language"]
+                )
+                obj.body_markdown = value
+                obj.save()
+            else:
+                PublicPage.objects.filter(
+                    slug=page["slug"], language=row["language"]
+                ).delete()
+    # _action owns messages.success, and this view cannot reuse it -- so it must
+    # emit its own, or the one action that publishes live legal text is the only
+    # panel that confirms nothing.
+    messages.success(request, _("Public page content saved."))
+    return redirect(_index_url("public-pages"))
