@@ -12,8 +12,8 @@ The controller of your personal data is {libli:controller_name}.
 
 {libli:controller_address}
 
-The address for questions about this notice, and for any of the requests described under "Your
-rights" below, is {libli:contact_email}.
+Questions about this notice, and any of the requests described under "Your rights" below, go
+to: {libli:contact_email}.
 
 {libli:demo_notice}
 
@@ -73,8 +73,8 @@ libli.
 
 All of this exists so that the courses work, so that a teacher can mark your work and give you
 feedback, and so that your school can administer its accounts. The lawful basis for the processing
-is decided by the organisation named above as controller, not by libli; ask them at the address
-above if you need it in writing.
+is decided by the organisation named above as controller, not by libli; if you need it in
+writing, ask using the contact given under "Who is responsible" above.
 
 ## What libli does not collect
 
@@ -120,9 +120,9 @@ does, that provider receives your IP address and the request for the embedded ma
 set its own cookies and storage in your browser** under its own terms, which libli does not
 control.
 
-Some of these providers are established outside the European Economic Area. Where that is so, the
-contact is made directly between your browser and that provider, on that provider's own terms.
-libli is not a party to it and transfers nothing itself.
+Where a permitted provider is established outside the European Economic Area, the contact is made
+directly between your browser and that provider, on that provider's own terms. libli is not a
+party to it and transfers nothing itself.
 
 **Single sign-on.** If your school signs you in through its own identity provider, that provider
 tells libli who you are — an identifier and, where the school configures it, your name and email
@@ -197,8 +197,8 @@ Three practical points, stated plainly because they change what you should expec
 
 - **There is no self-service export and no self-service delete.** libli has no button that
   downloads your data or removes your account.
-- **Requests are handled by hand.** Send yours to the contact address given under "Who is
-  responsible" above, and a person will act on it.
+- **Requests are handled by hand.** Send yours to the contact given under "Who is responsible"
+  above, and a person will act on it.
 - **Deactivating an account is not erasure.** A deactivated account can no longer sign in, but the
   account and everything attached to it stay in the database until someone deletes them.
 

@@ -27,10 +27,10 @@ to uczeń, a potem spojrzeć na tę samą pracę od strony nauczyciela.
 
 {libli:demo_notice}
 
-Pytania o testowe wdrożenie, o uruchomienie libli w Twojej szkole albo o cokolwiek z tej strony
-kieruj na adres kontaktowy: {libli:contact_email}. Odpowie na nie człowiek.
+Masz pytania o testowe wdrożenie, o uruchomienie libli w Twojej szkole albo o cokolwiek z tej
+strony? Kontakt: {libli:contact_email}.
 
-Jeśli jesteś inspektorem ochrony danych w szkole, zacznij od strony
+Jeśli odpowiadasz w szkole za ochronę danych osobowych, zacznij od strony
 [informacja o ochronie danych osobowych](/privacy/). Opisuje, co jest przechowywane o uczniu, kto
 ma do tego wgląd, jak długo dane są przechowywane i jak korzystać z praw osoby, której dane
 dotyczą.
@@ -47,5 +47,5 @@ dotyczą.
   ustawić administrator.
 - **Zaproszenie przestało działać.** Odnośnik z zaproszenia jest ważny przez 14 dni od chwili
   wystawienia. Potem wygasa i nie da się go odnowić; poproś o nowe osobę, która Cię zaprosiła.
-- **Coś nie działa.** Powiedz nauczycielowi, który może to zgłosić dalej, albo napisz na adres
-  kontaktowy: {libli:contact_email}.
+- **Coś nie działa.** Powiedz nauczycielowi, który może to zgłosić dalej, albo napisz
+  bezpośrednio. Kontakt: {libli:contact_email}.

@@ -25,8 +25,8 @@ would, then look at the same work from the teacher's side.
 
 {libli:demo_notice}
 
-Questions about a trial, about running libli at your school, or about anything on this page go to
-{libli:contact_email}, and a person will answer.
+Questions about a trial, about running libli at your school, or about anything on this page go
+to: {libli:contact_email}.
 
 If you are a school's data protection officer, the page you want first is the
 [privacy notice](/privacy/). It sets out what is stored about a pupil, who can see it, how long it

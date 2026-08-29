@@ -12,8 +12,8 @@ Administratorem Twoich danych osobowych jest: {libli:controller_name}.
 
 {libli:controller_address}
 
-Adres do kontaktu w sprawach opisanych w tej informacji, w tym w sprawie wniosków opisanych niżej
-w części o prawach, to: {libli:contact_email}.
+Kontakt w sprawie tej informacji oraz wniosków opisanych niżej w części o prawach:
+{libli:contact_email}.
 
 {libli:demo_notice}
 
@@ -59,10 +59,10 @@ kursu są zapisywane wraz z kontem, które je dodało.
 powiadomienia pocztą.
 
 **Zgłoszenia problemów.** Jeśli wyślesz zgłoszenie problemu, libli zapisuje jego treść, adres i
-tytuł strony, z której zgłoszenie zostało wysłane, załączony przez Ciebie zrzut ekranu, Twoje imię
-i nazwisko, nazwę użytkownika, adres e-mail i role posiadane w tamtym momencie, a także krótki
-opis techniczny przeglądarki: jej sygnaturę user-agent, rozmiar okna i ekranu, gęstość pikseli,
-ustawienie wyglądu, język interfejsu, nagłówek języka i strefę czasową.
+tytuł strony, z której zgłoszenie zostało wysłane, załączony przez Ciebie zrzut ekranu, Twoją
+nazwę wyświetlaną, nazwę użytkownika, adres e-mail i role posiadane w tamtym momencie, a także
+krótki opis techniczny przeglądarki: jej sygnaturę user-agent, rozmiar okna i ekranu, gęstość
+pikseli, ustawienie wyglądu, język interfejsu, nagłówek języka i strefę czasową.
 
 Wysłanie zgłoszenia to nie tylko jego zapisanie. **Jego treść jest wysyłana pocztą** — to, co
 zostało napisane, strona, z której przyszło, cały opis techniczny, Twoja nazwa wyświetlana, nazwa
@@ -74,7 +74,7 @@ nikogo, kto ma jakąkolwiek rolę w libli.
 Wszystko to istnieje po to, żeby kursy działały, żeby nauczyciel mógł ocenić Twoją pracę i dać Ci
 informację zwrotną oraz żeby szkoła mogła zarządzać kontami. Podstawę prawną przetwarzania
 określa organizacja wskazana wyżej jako administrator, a nie libli; jeśli potrzebujesz jej na
-piśmie, napisz na podany wyżej adres.
+piśmie, zwróć się do adresata wskazanego wyżej, w części o tym, kto odpowiada za dane.
 
 ## Czego libli nie zbiera
 
@@ -122,9 +122,9 @@ której nauczyciel faktycznie osadził taki materiał — na każdej innej stron
 osadzonego materiału oraz **może zapisać w Twojej przeglądarce własne pliki cookie i własne dane**
 na własnych warunkach, na które libli nie ma wpływu.
 
-Część tych dostawców ma siedzibę poza Europejskim Obszarem Gospodarczym. Tam, gdzie tak jest,
-połączenie zachodzi bezpośrednio między Twoją przeglądarką a tym dostawcą, na jego własnych
-warunkach. libli nie jest stroną tego połączenia i samo niczego nie przekazuje.
+Jeśli dopuszczony dostawca ma siedzibę poza Europejskim Obszarem Gospodarczym, połączenie zachodzi
+bezpośrednio między Twoją przeglądarką a tym dostawcą, na jego własnych warunkach. libli nie jest
+stroną tego połączenia i samo niczego nie przekazuje.
 
 **Logowanie jednokrotne (SSO).** Jeśli szkoła loguje Cię przez własnego dostawcę tożsamości, ten
 dostawca przekazuje libli, kim jesteś — identyfikator oraz, jeśli szkoła tak to skonfiguruje,
@@ -137,8 +137,8 @@ e-mail i treść tych wiadomości, w tym wszystko, co niesie ze sobą zgłoszeni
 **Webhook z wynikami.** Administrator może włączyć webhook przekazujący zatwierdzone wyniki testów
 do innego systemu — na przykład do dziennika szkolnego. Jest wyłączony, dopóki administrator go
 nie włączy, i dotyczy wyłącznie kursów z nadanym kodem zewnętrznym. Gdy jest włączony, każdy
-zatwierdzony wynik wysyła pod skonfigurowany adres Twój numer w rejestrze, adres e-mail, nazwę
-widoczną na Twoim koncie, kurs, to, o który test chodzi, grupę i wynik.
+zatwierdzony wynik wysyła pod skonfigurowany adres Twój numer w rejestrze lub numer ucznia, adres
+e-mail, nazwę widoczną na Twoim koncie, kurs, to, o który test chodzi, grupę i wynik.
 
 **Logi dostępu serwera WWW.** Serwer WWW obsługujący ten serwis prowadzi logi dostępu i **te logi
 zapisują adresy IP**, mimo że sama aplikacja nigdy ich nie przechowuje. Czas ich przechowywania
@@ -202,8 +202,8 @@ Trzy uwagi praktyczne, podane wprost, bo zmieniają to, czego należy się spodz
 
 - **Nie ma samoobsługowego eksportu ani samoobsługowego usunięcia konta.** libli nie ma przycisku,
   który pobierze Twoje dane albo skasuje Twoje konto.
-- **Wnioski są obsługiwane ręcznie.** Wyślij swój na adres kontaktowy podany wyżej, w części o
-  tym, kto odpowiada za dane, a zajmie się nim człowiek.
+- **Wnioski są obsługiwane ręcznie.** Swój skieruj do adresata wskazanego wyżej, w części o tym,
+  kto odpowiada za dane, a zajmie się nim człowiek.
 - **Dezaktywacja konta to nie jest usunięcie danych.** Dezaktywowane konto nie może się już
   zalogować, ale samo konto i wszystko, co jest z nim związane, pozostaje w bazie danych, dopóki
   ktoś tego nie skasuje.
