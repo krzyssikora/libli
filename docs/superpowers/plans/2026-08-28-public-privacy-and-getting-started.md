@@ -1498,10 +1498,15 @@ from core import views_public
 {% block head_title %}{{ title }} · {{ site.name|default:"libli" }}{% endblock %}
 {% block extra_head %}<meta name="description" content="{{ description }}">{% endblock %}
 {% block content %}
-{# The markdown owns the <h1>; the registry title fills <title> and the meta
-   description only, so a page never renders two <h1> elements. resolved_lang is
-   emitted unconditionally -- LANGUAGE_CODE can be regional while resolved_lang
-   is always bare, so comparing them would mark every page as a fallback. #}
+{% comment %}
+The markdown owns the <h1>; the registry title fills <title> and the meta
+description only, so a page never renders two <h1> elements. resolved_lang is
+emitted unconditionally -- LANGUAGE_CODE can be regional while resolved_lang
+is always bare, so comparing them would mark every page as a fallback.
+NOTE: {% comment %}, NOT a multi-line {# #}. Django's {# #} is SINGLE-LINE only;
+a multi-line one leaks its text into the response -- and since this text mentions
+<h1>, it breaks the "exactly one <h1>" assertion two steps below.
+{% endcomment %}
 <article class="public-page" lang="{{ resolved_lang }}">{{ body }}</article>
 {% endblock %}
 {% block footer %}{% include "core/_public_footer.html" %}{% endblock %}
