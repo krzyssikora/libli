@@ -34,8 +34,21 @@ def test_csrf_cookie_age_matches_the_stated_year():
 
 
 def test_theme_cookie_max_age_matches_the_stated_year():
-    source = (settings.BASE_DIR / "core" / "views.py").read_text(encoding="utf-8")
-    assert "31_536_000" in source
+    """The libli_theme lifetime is hardcoded in TWO places that must agree with
+    the notice's "One year": the server-side cookie set in core/views.py (the
+    logged-in settings toggle) and the client-side cookie write in
+    core/static/core/js/ui.js (the pre-login theme toggle, loaded by
+    templates/base.html and templates/allauth/layouts/entrance.html -- it runs
+    on /privacy/, /getting-started/ and /accounts/login/). Either one drifting
+    from 31536000 makes "One year" false on some surface, so both are checked.
+    """
+    views_source = (settings.BASE_DIR / "core" / "views.py").read_text(encoding="utf-8")
+    assert "31_536_000" in views_source
+
+    ui_js_source = (
+        settings.BASE_DIR / "core" / "static" / "core" / "js" / "ui.js"
+    ).read_text(encoding="utf-8")
+    assert "Max-Age=31536000" in ui_js_source
 
 
 @pytest.mark.django_db
@@ -58,6 +71,10 @@ def test_every_first_party_storage_key_uses_a_documented_prefix():
     Scan roots are the project's own app static dirs only: a bare
     **/static/**/*.js glob sweeps .venv and Django's bundled admin JS (which
     writes "theme" and "django.admin.*") and would be red for unrelated reasons.
+    The single leading "*/static/**/*.js" segment is what excludes those
+    vendor roots today (measured: 0 matches from `skip` below). `skip` is
+    belt-and-braces for a future looser glob, not the thing doing the
+    exclusion now -- keep it, but do not credit it with today's result.
     """
     prefixes = ("libli_", "libli:", "libli-")
     call_re = re.compile(
@@ -68,6 +85,9 @@ def test_every_first_party_storage_key_uses_a_documented_prefix():
     bad = []
 
     for path in settings.BASE_DIR.glob("*/static/**/*.js"):
+        # Belt-and-braces only: the glob shape above already excludes .venv,
+        # site-packages and staticfiles today (measured: this never matches).
+        # Keep it in case the glob is ever loosened to sweep vendor trees.
         skip = {".venv", "site-packages", "staticfiles"}
         if any(part in skip for part in path.parts):
             continue
