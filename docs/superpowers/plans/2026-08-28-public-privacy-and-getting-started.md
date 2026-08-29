@@ -2168,8 +2168,17 @@ def test_csrf_cookie_age_matches_the_stated_year():
 
 
 def test_theme_cookie_max_age_matches_the_stated_year():
-    source = (settings.BASE_DIR / "core" / "views.py").read_text(encoding="utf-8")
-    assert "31_536_000" in source
+    """The libli_theme lifetime is hardcoded in TWO places and both must agree
+    with the notice: the Python set_cookie in core/views.py and the client-side
+    write in core/static/core/js/ui.js. ui.js runs on /privacy/,
+    /getting-started/ and /accounts/login/, so a guard covering only views.py
+    lets the notice's "One year" claim go false via the JS path."""
+    py = (settings.BASE_DIR / "core" / "views.py").read_text(encoding="utf-8")
+    assert "31_536_000" in py
+    js = (settings.BASE_DIR / "core" / "static" / "core" / "js" / "ui.js").read_text(
+        encoding="utf-8"
+    )
+    assert "Max-Age=31536000" in js
 
 
 @pytest.mark.django_db
