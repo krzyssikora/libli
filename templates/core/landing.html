@@ -28,8 +28,7 @@
   <span class="brand">libli<span class="brand__dot">.</span></span>
   <span>· {{ site.name|default:"libli" }}</span>
   <span class="app-header__spacer"></span>
-  <span>{% trans "Privacy" %}</span>
-  <span>{% trans "Help" %}</span>
-  <span aria-hidden="true">EN / PL</span>
+  <a href="{% url 'core:privacy' %}">{% trans "Privacy" %}</a>
+  <a href="{% url 'core:getting_started' %}">{% trans "Help" %}</a>
 </footer>
 {% endblock %}

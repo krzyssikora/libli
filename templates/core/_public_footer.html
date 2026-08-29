@@ -1,0 +1,11 @@
+{# templates/core/_public_footer.html #}
+{% load i18n %}
+<footer class="public-footer">
+  <a href="{% url 'core:privacy' %}">{% trans "Privacy" %}</a>
+  {% comment %}
+  Labelled "Help" but pointing at /getting-started/: /help/ is the staff area
+  (core/urls.py:17, login_required). Deliberate -- see the spec's Accepted
+  decisions. Do not "fix" by renumbering the staff help URLs.
+  {% endcomment %}
+  <a href="{% url 'core:getting_started' %}">{% trans "Help" %}</a>
+</footer>

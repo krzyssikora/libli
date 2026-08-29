@@ -2117,3 +2117,9 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   background: var(--surface-sunken); padding: var(--space-4);
   border-radius: var(--radius-sm);
 }
+.public-footer {
+  display: flex; gap: var(--space-4); justify-content: center;
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary); font-size: .875rem;
+}

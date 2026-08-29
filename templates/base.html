@@ -162,6 +162,7 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  {% block footer %}{% endblock %}
   <script src="{% static 'core/js/ui.js' %}" defer></script>
   {% comment %}Global: every horizontally scrollable box (.scroll-x) gets its edge
   affordance, from lesson tables to the manage-page ledgers. Pure enhancement —

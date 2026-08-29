@@ -1,11 +1,17 @@
 /* Auth/entrance layout — centered card. Token-only; light/dark via tokens.css. */
 
+body.auth {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .auth-main {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 2 * var(--space-6));
+  flex: 1;
   padding: var(--space-8) var(--space-5);
   gap: var(--space-4);
 }
