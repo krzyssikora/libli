@@ -2,6 +2,7 @@ from django.urls import path
 
 from core import views
 from core import views_help
+from core import views_public
 
 app_name = "core"
 
@@ -18,4 +19,6 @@ urlpatterns = [
     path("help/<slug:slug>/", views_help.help_topic, name="help_topic"),
     path("site.webmanifest", views.webmanifest, name="webmanifest"),
     path("favicon.ico", views.favicon_ico, name="favicon_ico"),
+    path("privacy/", views_public.privacy, name="privacy"),
+    path("getting-started/", views_public.getting_started, name="getting_started"),
 ]
