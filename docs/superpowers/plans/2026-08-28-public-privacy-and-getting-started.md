@@ -1633,9 +1633,11 @@ Immediately after `</main>` and **before** the first `<script>` tag — the only
 {% load i18n %}
 <footer class="public-footer">
   <a href="{% url 'core:privacy' %}">{% trans "Privacy" %}</a>
-  {# Labelled "Help" but pointing at /getting-started/: /help/ is the staff area
-     (core/urls.py:17, login_required). Deliberate -- see the spec's Accepted
-     decisions. Do not "fix" by renumbering the staff help URLs. #}
+  {% comment %}
+  Labelled "Help" but pointing at /getting-started/: /help/ is the staff area
+  (core/urls.py:17, login_required). Deliberate -- see the spec's Accepted
+  decisions. Do not "fix" by renumbering the staff help URLs.
+  {% endcomment %}
   <a href="{% url 'core:getting_started' %}">{% trans "Help" %}</a>
 </footer>
 ```
@@ -2072,9 +2074,11 @@ Create `templates/institution/manage/_public_pages_tab.html` — **two sibling f
           <label class="settings__label" for="override-{{ page.slug }}-{{ row.language }}">
             {{ row.language|upper }}{% if not row.enabled %} — {% trans "no longer enabled" %}{% endif %}
           </label>
-          {# No .settings__input rule exists; styling comes from app.css:150's bare
-             `textarea` selector. The class is carried for consistency with the SSO
-             panel, which uses it the same way. #}
+          {% comment %}
+          No .settings__input rule exists; styling comes from app.css:150's bare
+          `textarea` selector. The class is carried for consistency with the SSO
+          panel, which uses it the same way.
+          {% endcomment %}
           <textarea class="settings__input" rows="8"
                     id="override-{{ page.slug }}-{{ row.language }}"
                     name="override-{{ page.slug }}-{{ row.language }}">{{ row.value }}</textarea>
