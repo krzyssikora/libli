@@ -12,6 +12,7 @@ localized_doc_path and DOCS_ROOT are reused from core.help; consequently the
 """
 
 import html as html_lib
+import logging
 import re
 from dataclasses import dataclass
 
@@ -19,8 +20,14 @@ import markdown
 import nh3
 from django.conf import settings
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
+
+from core.help import DOCS_ROOT
+from core.help import localized_doc_path
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_lang(lang):
@@ -221,3 +228,40 @@ def substitute_tokens(html, cfg):
         return ">" + _INLINE_RE.sub(replace_one, match.group(1)) + "<"
 
     return _RUN_RE.sub(substitute_run, html)
+
+
+def render_public_page(slug, lang, cfg):
+    """Return (safe html, resolved_lang) for one public page.
+
+    cfg is the site-config bundle, passed in by the view so this stays
+    injectable from unit tests and the tokens have one source of truth.
+    """
+    # Imported INSIDE the function on purpose: institution.models imports
+    # normalize_lang from this module, so a module-level import here is a cycle.
+    # Mirrors core/services.py:71, which does the same for Institution.
+    from institution.models import PublicPage
+
+    page = PAGES[slug]  # KeyError on an unregistered slug is a programming error
+    code = normalize_lang(lang)
+
+    row = PublicPage.objects.filter(slug=slug, language=code).first()
+    if row and row.body_markdown.strip():
+        source, resolved = row.body_markdown, code
+    else:
+        rel = localized_doc_path(page.path, code)
+        resolved = code if rel != page.path else "en"
+        try:
+            # encoding is MANDATORY: without it the platform default applies
+            # (cp1250 on Windows dev machines) and a Polish file raises
+            # UnicodeDecodeError -- a ValueError, which would escape the guard
+            # below and 500 the marketing surface.
+            source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+        except OSError:
+            logger.exception("public page %s (%s) could not be read", slug, rel)
+            return mark_safe(""), code  # noqa: S308 - empty string
+
+    # Safe by construction: nh3-sanitised, then every substituted value is
+    # html.escape'd. (The suppression itself is the trailing noqa below --
+    # ruff only honours # noqa on the line reporting the violation.)
+    html = substitute_tokens(render_markdown(source), cfg)
+    return mark_safe(html), resolved  # noqa: S308
