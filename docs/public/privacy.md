@@ -21,23 +21,35 @@ rights" below, is {libli:contact_email}.
 
 **Account and identity.** A username, which every account has. An email address, which is
 optional — libli needs one only for password resets, invitations and email notifications. A
-display name, and a first and last name where your school supplies them. An external ID, when
-your school signs you in through its own identity provider, so that libli can match you to the
-record held there. The role your account holds: Student, Teacher, Course Admin or Platform Admin.
+display name, and a first and last name where your school supplies them. The role your account
+holds: Student, Teacher, Course Admin or Platform Admin.
 
-**Your learning record.** Which lessons you have opened and which you have marked complete; which
-courses you are enrolled in; your quiz submissions, with the time you submitted them and the score
-and maximum score recorded for each; and the answers themselves, including a teacher's written
-feedback on them. Practice work you do inside a lesson — a drag-and-drop you rearranged, a blank
-you filled in outside a quiz — is stored against your account too, and is not shown in the
-teacher's analytics.
+**A register or student number.** A platform administrator can record an external register or
+student number against your account. libli itself does nothing with it, but it is one of the
+fields sent out by the results webhook described under "Other services" below, on a deployment
+where an administrator has switched that webhook on.
+
+**If you sign in through your school's identity provider.** For such an account libli also keeps,
+locally: which provider it was, the identifier that provider uses for you, when the account was
+first connected and when it last signed in, and the claims the provider returned about you —
+usually your name and email address — stored as they were sent. **libli does not keep the access
+tokens the provider issues**, so it holds nothing that could be used to reach your account at that
+provider.
+
+**Your learning record.** Which lessons you have opened, which blocks within each lesson you have
+seen, and which lessons you have marked complete; which courses you are enrolled in; your quiz
+submissions, with the time you submitted them and the score and maximum score recorded for each;
+and the answers themselves, including a teacher's written feedback on them. Practice work you do
+inside a lesson — a drag-and-drop you rearranged, a blank you filled in outside a quiz — is
+stored against your account too, and is not shown in the teacher's analytics.
 
 **Every answer you submit to a question is kept, with the time you submitted it — not only your
 latest one.** If you answer the same question three times, all three answers remain, each stamped
 with when it was sent. Reworking an answer does not erase the earlier ones.
 
-**Groups and classes.** Which groups you belong to, which course each group sits on, and which
-teachers teach it.
+**Groups, classes and cohorts.** Which groups you belong to, which course each group sits on, and
+which teachers teach it. Also the cohort — the year group or intake your school sorts accounts
+into — that your account has been assigned to, together with who assigned it and when.
 
 **Your own notes, tags and uploads.** The private notes you attach to a lesson and the coloured
 tags you put on lessons are stored under your account. Files added to a course's media library
@@ -51,6 +63,13 @@ on and its title, any screenshot you chose to attach, your name, username, email
 roles you held at the time, and a short technical snapshot of your browser: its user-agent string,
 window and screen size, device pixel ratio, appearance setting, interface language, language
 header and time zone.
+
+Submitting a report does not only store it. **Its contents are sent by email** — what you wrote,
+the page it came from, the whole technical snapshot, your display name, username and email
+address, and your screenshot as an attachment — to every Platform Admin who has an email address,
+and to any additional addresses the operator has configured to receive reports. Those additional
+addresses are whatever the operator entered; they need not belong to anyone holding a role in
+libli.
 
 All of this exists so that the courses work, so that a teacher can mark your work and give you
 feedback, and so that your school can administer its accounts. The lawful basis for the processing
@@ -79,15 +98,16 @@ libli sets four cookies, all first-party, all functional:
 | Cookie | Purpose | Lifetime |
 | --- | --- | --- |
 | `sessionid` | Keeps you logged in and, before you log in, remembers your language choice | Two weeks. It is a persistent cookie, not a session cookie: it survives closing the browser |
-| `csrftoken` | The anti-forgery check on every form you submit | About a year. It carries no identifier |
+| `csrftoken` | The anti-forgery check on every form you submit | About a year. It contains nothing that identifies you |
 | `messages` | Carries a one-off confirmation or error message from one page to the next | Short-lived; it is cleared as soon as the message has been shown |
 | `libli_theme` | Your light or dark appearance choice | One year |
 
 libli also keeps a few interface preferences in your browser's local storage — which panels you
 left open in a course outline, whether a navigation or roster panel is collapsed, which view mode
 you last used in the course editor. These are written by libli's own scripts under keys beginning
-`libli_`, `libli:` or `libli-`. They never leave your browser, they contain no identifier, and
-clearing your browser's site data removes them. They are described by prefix rather than listed
+`libli_`, `libli:` or `libli-`. They never leave your browser, they contain nothing that
+identifies you — at most the slug or number of a course or a page element — and clearing your
+browser's site data removes them. They are described by prefix rather than listed
 one by one so that this paragraph stays true when a feature adds one.
 
 ## Other services
@@ -95,23 +115,28 @@ one by one so that this paragraph stays true when a feature adds one.
 **Embedded material.** A teacher can place a video or an interactive worksheet from another
 provider inside a lesson. Which providers are permitted is fixed by the operator of this site.
 Currently: {libli:embed_domains}. Your browser contacts one of them only on a page where a teacher
-actually placed such an embed — on every other page, including this one, it does not. Where it does, that provider receives your IP address and
-the request for the embedded material, and **may set its own cookies and storage in your browser**
-under its own terms, which libli does not control.
+actually placed such an embed — on every other page, including this one, it does not. Where it
+does, that provider receives your IP address and the request for the embedded material, and **may
+set its own cookies and storage in your browser** under its own terms, which libli does not
+control.
+
+Some of these providers are established outside the European Economic Area. Where that is so, the
+contact is made directly between your browser and that provider, on that provider's own terms.
+libli is not a party to it and transfers nothing itself.
 
 **Single sign-on.** If your school signs you in through its own identity provider, that provider
 tells libli who you are — an identifier and, where the school configures it, your name and email
 address. libli sends no learning record back to it.
 
-**Email.** Password resets, invitations and notifications are sent through the mail server the
-operator of this site configures. That server handles your email address and the contents of those
-messages.
+**Email.** Password resets, invitations, notifications and problem reports are sent through the
+mail server the operator of this site configures. That server handles your email address and the
+contents of those messages, including everything a problem report carries.
 
 **Results webhook.** An administrator can switch on a webhook that forwards finalised quiz results
 to another system — a school register, for example. It is off unless an administrator turns it on,
 and it applies only to courses given an external code. When it is on, each finalised result sends
-your external ID, your email address, your name, the course, the group and the score to the
-address the administrator configured.
+your register or student number, your email address, the name shown on your account, the course,
+which quiz it was, the group and the score to the address the administrator configured.
 
 **Web server access logs.** The web server that serves this site keeps access logs, and **those
 logs do record IP addresses**, even though the application itself never stores one. How long they
@@ -135,6 +160,10 @@ the size lookup libli makes at geogebra.org when a teacher pastes a GeoGebra lin
   shown to you, and yours are not shown to them.
 - **Your notes and your tags are yours alone.** No teacher screen and no administrator screen
   displays them.
+- **Course content is a separate question from personal data.** Any account that is not a
+  Student — Teacher, Course Admin or Platform Admin — can open every course on this site, whether
+  or not they teach it. That gives them the material; it does not give them anyone's record, which
+  the points above still govern.
 
 Anyone with direct access to the server or its database can of course read anything stored there.
 That access belongs to the organisation named above and to whoever it engages to run the service.
@@ -150,6 +179,10 @@ you have **not** read are never removed because of their age.
 Your learning record — enrolments, progress, submissions, answers and attempts — has **no
 automatic expiry.** It is kept for as long as the account exists, and removing it is a manual act
 by an administrator.
+
+Problem reports, and the screenshots attached to them, are kept until a Platform Admin deletes
+them. Nothing removes them because of their age. Copies already sent out by email are outside
+libli's control.
 
 ## Your rights
 
@@ -187,7 +220,9 @@ organisation named above.
 Independently of any deployment choice: passwords are never stored, only a salted hash of them,
 using Django's password hashing; what an account may see is decided by its role on every single
 request rather than by hiding links; and screenshots attached to problem reports are stored
-outside the web-served media directory and are delivered only to a Platform Admin.
+outside the web-served media directory, so no one can fetch one by guessing a URL, and inside
+libli only a Platform Admin can open one. They do also leave as an attachment on the report email
+described above.
 
 ## Changes to this notice
 

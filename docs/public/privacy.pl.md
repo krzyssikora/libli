@@ -21,14 +21,25 @@ w części o prawach, to: {libli:contact_email}.
 
 **Konto i dane identyfikacyjne.** Nazwa użytkownika, którą ma każde konto. Adres e-mail, który
 jest opcjonalny — libli potrzebuje go wyłącznie do resetu hasła, zaproszeń i powiadomień pocztą.
-Nazwa wyświetlana oraz imię i nazwisko, jeśli szkoła je uzupełni. Identyfikator zewnętrzny, jeśli
-szkoła loguje Cię przez własnego dostawcę tożsamości — po to, aby libli dopasowało Cię do rekordu
-prowadzonego po tamtej stronie. Rola przypisana do konta: Uczeń, Nauczyciel, Administrator kursów
-lub Administrator platformy.
+Nazwa wyświetlana oraz imię i nazwisko, jeśli szkoła je uzupełni. Rola przypisana do konta: Uczeń,
+Nauczyciel, Administrator kursów lub Administrator platformy.
 
-**Zapis Twojej nauki.** Które lekcje otworzyłeś i które oznaczyłeś jako ukończone; na jakie kursy
-jesteś zapisany; Twoje podejścia do testów wraz z czasem przesłania oraz zapisanym wynikiem i
-wynikiem maksymalnym; a także same odpowiedzi, razem z pisemną informacją zwrotną nauczyciela.
+**Numer w rejestrze lub numer ucznia.** Administrator platformy może zapisać przy Twoim koncie
+zewnętrzny numer z rejestru albo numer ucznia. Samo libli nic z nim nie robi, ale jest to jedno z
+pól wysyłanych przez webhook z wynikami, opisany niżej w części o usługach zewnętrznych — na
+wdrożeniach, na których administrator ten webhook włączył.
+
+**Jeśli logowanie odbywa się przez dostawcę tożsamości szkoły.** Przy takim koncie libli
+przechowuje u siebie dodatkowo: informację, który to dostawca, identyfikator, jakim posługuje się
+u niego Twoje konto, datę pierwszego połączenia konta i datę ostatniego logowania oraz zwrócone
+przez dostawcę dane o Tobie — zwykle imię, nazwisko i adres e-mail — zapisane w takiej postaci, w
+jakiej przyszły. **libli nie przechowuje tokenów dostępu** wystawianych przez dostawcę, więc nie
+ma u siebie niczego, czym można by sięgnąć do Twojego konta po tamtej stronie.
+
+**Zapis Twojej nauki.** Które lekcje zostały otwarte na Twoim koncie, które ich fragmenty zostały
+wyświetlone i które lekcje oznaczono jako ukończone; na jakie kursy jest zapisane Twoje konto;
+Twoje podejścia do testów wraz z czasem przesłania oraz zapisanym wynikiem i wynikiem
+maksymalnym; a także same odpowiedzi, razem z pisemną informacją zwrotną nauczyciela.
 Ćwiczenia wykonywane w obrębie lekcji — przestawione elementy, luki uzupełnione poza testem — też
 są zapisywane przy Twoim koncie i nie są pokazywane w analityce nauczyciela.
 
@@ -36,8 +47,9 @@ są zapisywane przy Twoim koncie i nie są pokazywane w analityce nauczyciela.
 ostatnia.** Jeśli odpowiesz na to samo pytanie trzy razy, zostaną wszystkie trzy odpowiedzi, każda
 ze swoim znacznikiem czasu. Poprawienie odpowiedzi nie kasuje poprzednich.
 
-**Grupy i klasy.** Do jakich grup należysz, przy jakim kursie stoi każda z nich i którzy
-nauczyciele ją prowadzą.
+**Grupy, klasy i kohorty.** Do jakich grup należysz, przy jakim kursie stoi każda z nich i którzy
+nauczyciele ją prowadzą. Także kohorta — rocznik lub nabór, do którego szkoła przypisuje konta —
+do której przypisano Twoje konto, wraz z informacją, kto i kiedy tego przypisania dokonał.
 
 **Twoje własne notatki, etykiety i pliki.** Prywatne notatki dopięte do lekcji oraz kolorowe
 etykiety nakładane na lekcje są zapisywane przy Twoim koncie. Pliki dodane do biblioteki mediów
@@ -47,10 +59,17 @@ kursu są zapisywane wraz z kontem, które je dodało.
 powiadomienia pocztą.
 
 **Zgłoszenia problemów.** Jeśli wyślesz zgłoszenie problemu, libli zapisuje jego treść, adres i
-tytuł strony, na której byłeś, załączony przez Ciebie zrzut ekranu, Twoje imię i nazwisko, nazwę
-użytkownika, adres e-mail i role posiadane w tamtym momencie, a także krótki opis techniczny
-przeglądarki: jej sygnaturę user-agent, rozmiar okna i ekranu, gęstość pikseli, ustawienie
-wyglądu, język interfejsu, nagłówek języka i strefę czasową.
+tytuł strony, z której zgłoszenie zostało wysłane, załączony przez Ciebie zrzut ekranu, Twoje imię
+i nazwisko, nazwę użytkownika, adres e-mail i role posiadane w tamtym momencie, a także krótki
+opis techniczny przeglądarki: jej sygnaturę user-agent, rozmiar okna i ekranu, gęstość pikseli,
+ustawienie wyglądu, język interfejsu, nagłówek języka i strefę czasową.
+
+Wysłanie zgłoszenia to nie tylko jego zapisanie. **Jego treść jest wysyłana pocztą** — to, co
+zostało napisane, strona, z której przyszło, cały opis techniczny, Twoja nazwa wyświetlana, nazwa
+użytkownika i adres e-mail oraz zrzut ekranu w załączniku — do każdego Administratora platformy,
+który ma adres e-mail, oraz na wszystkie dodatkowe adresy skonfigurowane przez operatora do
+odbierania zgłoszeń. Te dodatkowe adresy to te, które wpisał operator; nie muszą należeć do
+nikogo, kto ma jakąkolwiek rolę w libli.
 
 Wszystko to istnieje po to, żeby kursy działały, żeby nauczyciel mógł ocenić Twoją pracę i dać Ci
 informację zwrotną oraz żeby szkoła mogła zarządzać kontami. Podstawę prawną przetwarzania
@@ -80,15 +99,16 @@ libli ustawia cztery pliki cookie, wszystkie własne i wszystkie funkcjonalne:
 | Cookie | Do czego służy | Czas życia |
 | --- | --- | --- |
 | `sessionid` | Utrzymuje zalogowanie, a przed zalogowaniem zapamiętuje wybrany język | Dwa tygodnie. Jest to cookie trwałe, nie sesyjne: przetrwa zamknięcie przeglądarki |
-| `csrftoken` | Zabezpieczenie przed sfałszowaniem żądania przy wysyłaniu formularzy | Około roku. Nie zawiera żadnego identyfikatora |
+| `csrftoken` | Zabezpieczenie przed sfałszowaniem żądania przy wysyłaniu formularzy | Około roku. Nie zawiera niczego, co Cię identyfikuje |
 | `messages` | Przenosi jednorazowy komunikat o powodzeniu lub błędzie na kolejną stronę | Krótkotrwałe; znika, gdy komunikat zostanie wyświetlony |
 | `libli_theme` | Twój wybór jasnego lub ciemnego wyglądu | Rok |
 
-libli trzyma też kilka ustawień interfejsu w pamięci lokalnej przeglądarki — które panele
-zostawiłeś rozwinięte w konspekcie kursu, czy panel nawigacji lub listy uczniów jest zwinięty,
-jakiego trybu widoku ostatnio używałeś w edytorze kursu. Zapisują je własne skrypty libli pod
-kluczami zaczynającymi się od `libli_`, `libli:` lub `libli-`. Nigdy nie opuszczają Twojej
-przeglądarki, nie zawierają żadnego identyfikatora, a wyczyszczenie danych witryny je usuwa.
+libli trzyma też kilka ustawień interfejsu w pamięci lokalnej przeglądarki — które panele zostały
+rozwinięte w konspekcie kursu, czy panel nawigacji lub listy uczniów jest zwinięty, jaki tryb
+widoku był ostatnio używany w edytorze kursu. Zapisują je własne skrypty libli pod kluczami
+zaczynającymi się od `libli_`, `libli:` lub `libli-`. Nigdy nie opuszczają Twojej przeglądarki,
+nie zawierają niczego, co Cię identyfikuje — najwyżej identyfikator kursu lub elementu strony — a
+wyczyszczenie danych witryny je usuwa.
 Opisujemy je przez przedrostek, a nie przez wyliczenie, żeby ten akapit pozostał prawdziwy także
 wtedy, gdy nowa funkcja doda kolejny klucz.
 
@@ -102,19 +122,23 @@ której nauczyciel faktycznie osadził taki materiał — na każdej innej stron
 osadzonego materiału oraz **może zapisać w Twojej przeglądarce własne pliki cookie i własne dane**
 na własnych warunkach, na które libli nie ma wpływu.
 
+Część tych dostawców ma siedzibę poza Europejskim Obszarem Gospodarczym. Tam, gdzie tak jest,
+połączenie zachodzi bezpośrednio między Twoją przeglądarką a tym dostawcą, na jego własnych
+warunkach. libli nie jest stroną tego połączenia i samo niczego nie przekazuje.
+
 **Logowanie jednokrotne (SSO).** Jeśli szkoła loguje Cię przez własnego dostawcę tożsamości, ten
 dostawca przekazuje libli, kim jesteś — identyfikator oraz, jeśli szkoła tak to skonfiguruje,
 Twoje imię, nazwisko i adres e-mail. libli nie odsyła mu żadnego zapisu Twojej nauki.
 
-**Poczta.** Reset hasła, zaproszenia i powiadomienia są wysyłane przez serwer pocztowy
-skonfigurowany przez operatora tego serwisu. Ten serwer przetwarza Twój adres e-mail i treść tych
-wiadomości.
+**Poczta.** Reset hasła, zaproszenia, powiadomienia i zgłoszenia problemów są wysyłane przez
+serwer pocztowy skonfigurowany przez operatora tego serwisu. Ten serwer przetwarza Twój adres
+e-mail i treść tych wiadomości, w tym wszystko, co niesie ze sobą zgłoszenie problemu.
 
 **Webhook z wynikami.** Administrator może włączyć webhook przekazujący zatwierdzone wyniki testów
 do innego systemu — na przykład do dziennika szkolnego. Jest wyłączony, dopóki administrator go
 nie włączy, i dotyczy wyłącznie kursów z nadanym kodem zewnętrznym. Gdy jest włączony, każdy
-zatwierdzony wynik wysyła pod skonfigurowany adres Twój identyfikator zewnętrzny, adres e-mail,
-nazwisko, kurs, grupę i wynik.
+zatwierdzony wynik wysyła pod skonfigurowany adres Twój numer w rejestrze, adres e-mail, nazwę
+widoczną na Twoim koncie, kurs, to, o który test chodzi, grupę i wynik.
 
 **Logi dostępu serwera WWW.** Serwer WWW obsługujący ten serwis prowadzi logi dostępu i **te logi
 zapisują adresy IP**, mimo że sama aplikacja nigdy ich nie przechowuje. Czas ich przechowywania
@@ -139,6 +163,10 @@ apletu, które libli wykonuje w geogebra.org, gdy nauczyciel wkleja odnośnik do
   innego ucznia, a Twoich nie pokazujemy jemu.
 - **Twoje notatki i etykiety są tylko Twoje.** Nie wyświetla ich żaden ekran nauczyciela ani
   administratora.
+- **Dostęp do treści kursów to inna sprawa niż dane osobowe.** Każde konto, które nie jest kontem
+  ucznia — Nauczyciel, Administrator kursów, Administrator platformy — może otworzyć każdy kurs w
+  tym serwisie, niezależnie od tego, czy go prowadzi. Daje to dostęp do materiału, a nie do
+  czyjegokolwiek zapisu nauki, o którym rozstrzygają punkty powyżej.
 
 Każdy, kto ma bezpośredni dostęp do serwera lub jego bazy danych, może oczywiście odczytać
 wszystko, co jest tam zapisane. Ten dostęp należy do organizacji wskazanej wyżej i do podmiotów,
@@ -150,11 +178,15 @@ Przeczytane powiadomienia są usuwane {libli:retention_phrase}. Istotne są dwa 
 Usuwanie nie dzieje się samo z siebie: rekordy znikają wtedy, gdy zostanie uruchomione zadanie
 czyszczące, które musi zaplanować wdrożenie operatora, albo gdy uruchomi je Administrator platformy
 z panelu ustawień — we wdrożeniu, w którym nikt takiego harmonogramu nie ustawił, nie jest usuwane
-nic. Powiadomienia, których **nie** przeczytałeś, nigdy nie są usuwane ze względu na wiek.
+nic. Powiadomienia **nieprzeczytane** nigdy nie są usuwane ze względu na wiek.
 
 Zapis Twojej nauki — zapisy na kursy, postępy, podejścia, odpowiedzi i próby — **nie ma żadnego
 automatycznego terminu wygaśnięcia.** Jest przechowywany tak długo, jak istnieje konto, a jego
 usunięcie jest ręczną czynnością administratora.
+
+Zgłoszenia problemów i załączone do nich zrzuty ekranu są przechowywane, dopóki nie skasuje ich
+Administrator platformy. Nic nie usuwa ich ze względu na wiek. Kopie rozesłane już pocztą są poza
+kontrolą libli.
 
 ## Twoje prawa
 
@@ -194,7 +226,9 @@ Niezależnie od decyzji wdrożeniowych: hasła nigdy nie są przechowywane, a je
 liczony mechanizmem haszowania haseł Django; to, co dane konto może zobaczyć, jest rozstrzygane na
 podstawie jego roli przy każdym pojedynczym żądaniu, a nie przez ukrywanie odnośników; a zrzuty
 ekranu załączone do zgłoszeń problemów są zapisywane poza katalogiem mediów serwowanym przez WWW i
-są udostępniane wyłącznie Administratorowi platformy.
+są w samym libli udostępniane wyłącznie Administratorowi platformy i nikt nie pobierze ich,
+zgadując adres. Wychodzą jednak również jako załącznik wiadomości ze zgłoszeniem, o czym mowa
+wyżej.
 
 ## Zmiany tej informacji
 

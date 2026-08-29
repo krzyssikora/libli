@@ -13,7 +13,7 @@ Co platforma potrafi:
 - **Około trzydziestu rodzajów elementów treści.** Tekst, obrazy, wideo, tabele, galerie, panele z
   zakładkami, wyróżnienia, układy dwukolumnowe, ukrywacze i bramki odsłaniające; notacja
   matematyczna składana w LaTeX-u; oraz elementy interaktywne — przeciąganie na obraz,
-  uzupełnianie luk, dobieranie par, siatki odpowiedzi, kroczki, suwaki „przed i po", osadzone
+  uzupełnianie luk, dobieranie par, siatki odpowiedzi, kroczki, suwaki „przed i po”, osadzone
   arkusze GeoGebry.
 - **Testy z automatycznym sprawdzaniem.** Pytania o ustalonej odpowiedzi są sprawdzane w chwili
   przesłania. Odpowiedzi otwarte trafiają do kolejki, w której czyta je i ocenia nauczyciel. Każda
@@ -39,7 +39,7 @@ dotyczą.
 
 - **Konta nie zakłada się samemu.** We wdrożeniu szkolnym konta zakłada szkoła, a strona logowania
   kieruje Cię do administratora. Jeśli na Twojej stronie logowania widnieje odnośnik „Zarejestruj
-  się", to znaczy, że samodzielna rejestracja została w tym serwisie włączona i możesz z niej
+  się”, to znaczy, że samodzielna rejestracja została w tym serwisie włączona i możesz z niej
   skorzystać.
 - **Zapomniane hasło.** Wejdź na [/accounts/password/reset/](/accounts/password/reset/) i podaj
   swój adres e-mail. Zadziała to tylko wtedy, gdy Twoje konto ma przypisany adres e-mail — adres
