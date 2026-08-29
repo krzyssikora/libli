@@ -31,6 +31,11 @@ def test_session_cookie_is_still_persistent():
 
 def test_csrf_cookie_age_matches_the_stated_year():
     assert settings.CSRF_COOKIE_AGE == 31449600
+    # Both notices state the lifetime, so both must be falsifiable here. Without
+    # these, an edit to the Polish "Około roku" is unguarded while the same edit
+    # to "two weeks" is caught by the session guard above.
+    assert "about a year" in PRIVACY.lower()
+    assert "około roku" in PRIVACY_PL.lower()
 
 
 def test_theme_cookie_max_age_matches_the_stated_year():
@@ -49,6 +54,12 @@ def test_theme_cookie_max_age_matches_the_stated_year():
         settings.BASE_DIR / "core" / "static" / "core" / "js" / "ui.js"
     ).read_text(encoding="utf-8")
     assert "Max-Age=31536000" in ui_js_source
+
+    # The notice text, in both languages. Matched as whole table cells: a bare
+    # "rok" substring is already inside the csrftoken row's "Około roku", so it
+    # would stay green after the libli_theme cell was edited.
+    assert "| One year |" in PRIVACY
+    assert "| Rok |" in PRIVACY_PL
 
 
 @pytest.mark.django_db

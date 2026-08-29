@@ -75,6 +75,38 @@ def test_exactly_one_h1(rel):
     assert html.count("<h1>") == 1
 
 
+def test_every_root_relative_link_resolves():
+    """Markdown cannot reverse a URL, so the shipped files hardcode /privacy/ and
+    /accounts/password/reset/ as literal paths. Nothing else notices when one of
+    those routes is renamed or removed, and these are the surfaces a stranger
+    and a locked-out user land on -- so resolve() every root-relative href.
+
+    Swept across all four files at once, not parametrised: only the two
+    getting-started files carry such a link today, so a per-file non-empty
+    assertion would be red on a correct build.
+    """
+    from django.urls import Resolver404
+    from django.urls import resolve
+
+    found = {}
+    for rel in SHIPPED:
+        source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+        html = substitute_tokens(render_markdown(source), cfg())
+        for href in re.findall(r'href="(/[^"]*)"', html):
+            found.setdefault(href, rel)
+
+    # Non-vacuity: if the link syntax or the sanitiser ever stopped emitting
+    # these hrefs, the loop below would pass over an empty set.
+    assert {"/privacy/", "/accounts/password/reset/"} <= set(found), found
+
+    for href, rel in found.items():
+        path = href.split("?")[0].split("#")[0]
+        try:
+            resolve(path)
+        except Resolver404:
+            raise AssertionError(f"{rel}: {href} does not resolve") from None
+
+
 def test_every_registered_page_has_both_language_files():
     for page in PAGES.values():
         assert (DOCS_ROOT / page.path).exists()

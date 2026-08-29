@@ -307,14 +307,15 @@ def _page_overrides():
     from core.services import get_site_config
     from institution.models import PublicPage
 
+    config = get_site_config()
     enabled = []
-    for code in get_site_config()["enabled_languages"]:
+    for code in config["enabled_languages"]:
         code = normalize_lang(code)
         if code not in enabled:
             enabled.append(code)
 
     rows_by_key = {(r.slug, r.language): r for r in PublicPage.objects.all()}
-    demo = get_site_config()["demo_instance"]
+    demo = config["demo_instance"]
     out = []
     for slug, page in PAGES.items():
         stale = sorted(
@@ -370,7 +371,12 @@ def settings_public_pages(request):
 def settings_page_overrides(request):
     from institution.models import PublicPage
 
-    if request.method == "GET":
+    # NOT `== "GET"`: every other non-POST method (HEAD, OPTIONS, PUT, DELETE)
+    # carries an empty request.POST, so falling through would run the
+    # delete-when-blank rule over every registered slug x language and wipe the
+    # published legal text -- and CsrfViewMiddleware exempts HEAD and OPTIONS,
+    # so two of those need no token at all.
+    if request.method != "POST":
         return redirect(_index_url("public-pages"))
 
     # The iteration set is the SAME union the panel builds -- and it is

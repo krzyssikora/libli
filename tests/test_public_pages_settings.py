@@ -73,6 +73,31 @@ def test_panel_uses_the_coalesced_language_list_not_the_stored_one(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("method", ["head", "options", "put", "delete"])
+def test_a_non_post_method_cannot_wipe_the_overrides(client, method):
+    """The guard must be `!= "POST"`, not `== "GET"`.
+
+    request.POST is an empty QueryDict for HEAD, OPTIONS, PUT and DELETE, so a
+    GET-only guard lets each of them fall into the write loop, where the
+    delete-when-blank rule removes every PublicPage row for every registered
+    slug x language -- an unconditional, history-less deletion of published
+    legal text. Two of these are worse than the rest: CsrfViewMiddleware exempts
+    GET, HEAD, OPTIONS and TRACE, so HEAD and OPTIONS need no token at all.
+    """
+    PublicPage.objects.create(slug="privacy", language="en", body_markdown="# EN")
+    PublicPage.objects.create(
+        slug="getting-started", language="pl", body_markdown="# PL"
+    )
+    client.force_login(_admin())
+
+    response = getattr(client, method)(reverse("institution:settings_page_overrides"))
+
+    assert response.status_code == 302
+    assert PublicPage.objects.filter(slug="privacy", language="en").exists()
+    assert PublicPage.objects.filter(slug="getting-started", language="pl").exists()
+
+
+@pytest.mark.django_db
 def test_saving_writes_a_row_and_blanking_deletes_it(client):
     client.force_login(_admin())
     url = reverse("institution:settings_page_overrides")
@@ -151,6 +176,13 @@ def test_missing_demo_notice_warning(client):
     client.force_login(_admin())
     body = client.get(PANEL).content.decode()
     assert "demonstration warning" in body
+    # Per-ROW too, not only the page-level roll-up: the roll-up cannot say WHICH
+    # language lost the warning, which is the spec's stated reason for the flag.
+    # Only the EN box carries text here, so the PL half is what discriminates.
+    label = body.split('for="override-privacy-en"')[1].split("</label>")[0]
+    assert "no demonstration warning" in label
+    pl_label = body.split('for="override-privacy-pl"')[1].split("</label>")[0]
+    assert "no demonstration warning" not in pl_label
 
 
 @pytest.mark.django_db

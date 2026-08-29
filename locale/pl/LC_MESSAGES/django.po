@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-29 03:12+0200\n"
+"POT-Creation-Date: 2026-08-29 03:59+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -2952,8 +2952,8 @@ msgid ""
 msgstr ""
 "Adres, pod którym użytkownicy otwierają ten serwis, np. libli.example.org. "
 "Służy do budowania odnośników w zaproszeniach i przy resecie hasła. Nie "
-"zmienia tego, jakie adresy przyjmuje serwer — to skonfigurował Twój "
-"dostawca hostingu."
+"zmienia tego, jakie adresy przyjmuje serwer — to skonfigurował Twój dostawca "
+"hostingu."
 
 #: .\institution\forms.py:199
 msgid "Enable at least one language."
@@ -3222,11 +3222,11 @@ msgstr "Zdarzenie testowe nie powiodło się: %(reason)s"
 msgid "Support settings saved."
 msgstr "Ustawienia zgłoszeń zapisane."
 
-#: .\institution\views_manage.py:364
+#: .\institution\views_manage.py:365
 msgid "Public page settings saved."
 msgstr "Ustawienia stron publicznych zostały zapisane."
 
-#: .\institution\views_manage.py:399
+#: .\institution\views_manage.py:405
 msgid "Public page content saved."
 msgstr "Treść stron publicznych została zapisana."
 
@@ -8081,6 +8081,10 @@ msgstr ""
 #: .\templates\institution\manage\_public_pages_tab.html:32
 msgid "no longer enabled"
 msgstr "już nie jest włączony"
+
+#: .\templates\institution\manage\_public_pages_tab.html:32
+msgid "no demonstration warning"
+msgstr "brak ostrzeżenia o wersji demonstracyjnej"
 
 #: .\templates\institution\manage\_public_pages_tab.html:47
 msgid ""

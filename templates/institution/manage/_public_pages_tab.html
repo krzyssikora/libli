@@ -29,7 +29,7 @@
       {% for row in page.rows %}
         <div class="settings__field">
           <label class="settings__label" for="override-{{ page.slug }}-{{ row.language }}">
-            {{ row.language|upper }}{% if not row.enabled %} — {% trans "no longer enabled" %}{% endif %}
+            {{ row.language|upper }}{% if not row.enabled %} — {% trans "no longer enabled" %}{% endif %}{% if row.missing_demo_notice %} — {% trans "no demonstration warning" %}{% endif %}
           </label>
           {% comment %}
           No .settings__input rule exists; styling comes from app.css:150's bare
