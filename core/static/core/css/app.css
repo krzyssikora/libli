@@ -2094,3 +2094,32 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    Accepted, same as the .katex-display neutralisation and the five-line
    group clamp elsewhere in this file: a tall construct keeps its own height
    rather than being deformed to fit a single text line. */
+
+/* Public pages (privacy, getting-started). Prose column matching the 46rem
+   content cap used elsewhere; no new design tokens. */
+.public-page {
+  max-width: 46rem; margin: var(--space-8) auto; padding: 0 var(--space-5);
+  color: var(--text-primary);
+}
+.public-page h1 { margin-bottom: var(--space-2); }
+/* tokens.css defines 1-6, 8, 10 only: var(--space-7) is UNDEFINED and would
+   make the whole declaration invalid, silently dropping the margin. */
+.public-page h2 { margin-top: var(--space-8); }
+.public-page table {
+  width: 100%; border-collapse: collapse; margin: var(--space-4) 0;
+}
+.public-page th, .public-page td {
+  border: 1px solid var(--border-subtle); padding: var(--space-2);
+  text-align: left; vertical-align: top;
+}
+.public-page__notice {
+  border: 1px solid var(--border-subtle); border-left-width: 4px;
+  background: var(--surface-sunken); padding: var(--space-4);
+  border-radius: var(--radius-sm);
+}
+.public-footer {
+  display: flex; gap: var(--space-4); justify-content: center;
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary); font-size: .875rem;
+}

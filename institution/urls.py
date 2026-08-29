@@ -52,6 +52,16 @@ urlpatterns = [
         views_manage.settings_support,
         name="settings_support",
     ),
+    path(
+        "manage/settings/public-pages/",
+        views_manage.settings_public_pages,
+        name="settings_public_pages",
+    ),
+    path(
+        "manage/settings/public-pages/content/",
+        views_manage.settings_page_overrides,
+        name="settings_page_overrides",
+    ),
     # Phase 5e — first-run setup wizard
     # skip MUST precede <str:step> so /manage/setup/skip/ is not captured as a step.
     path("manage/setup/", views_setup.setup, name="setup"),

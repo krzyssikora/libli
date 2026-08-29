@@ -31,5 +31,8 @@
   <div data-tab="support" {% if active_tab != "support" %}hidden{% endif %}>
     {% include "institution/manage/_support_tab.html" %}
   </div>
+  <div data-tab="public-pages" {% if active_tab != "public-pages" %}hidden{% endif %}>
+    {% include "institution/manage/_public_pages_tab.html" %}
+  </div>
 </section>
 {% endblock %}
