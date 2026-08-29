@@ -655,7 +655,10 @@ Both pages ship real prose in English and Polish, not placeholders.
    `{libli:contact_email}`.
 2. **`{libli:demo_notice}`** — its own top-level paragraph, with no heading of its own.
 3. **What is held, and why** — account and identity (username, optional email, display/first/last
-   name, `external_id`); the learning record; groups; the user's own notes, tags and uploads;
+   name; a register/student number a Platform Admin may enter (`User.external_id` -- written
+   ONLY by the PA user-edit form at `accounts/forms.py:156`, never by SSO, and transmitted by
+   the results webhook); and, for SSO accounts, the allauth `SocialAccount` row the provider
+   returns); the learning record; groups; the user's own notes, tags and uploads;
    preferences; support reports. **Names `Attempt` (`courses/models.py:3101`) explicitly**: every
    submitted answer is retained with its timestamp, not merely the latest.
 4. **What libli does not collect** — scoped to libli's own processing: no IP addresses in the
