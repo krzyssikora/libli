@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-23 02:44+0200\n"
+"POT-Creation-Date: 2026-08-29 03:12+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -272,6 +272,62 @@ msgstr "Kreator pierwszego uruchomienia"
 #: .\templates\institution\manage\_tabs.html:12
 msgid "Notifications"
 msgstr "Powiadomienia"
+
+#: .\core\public_pages.py:55
+msgid "Privacy notice"
+msgstr "Informacja o ochronie danych osobowych"
+
+#: .\core\public_pages.py:57
+msgid ""
+"What libli stores about you, who can see it, how long it is kept, and how to "
+"exercise your data-protection rights."
+msgstr ""
+"Co libli przechowuje na Twój temat, kto ma do tego wgląd, jak długo dane są "
+"przechowywane i jak korzystać z praw osoby, której dane dotyczą."
+
+#: .\core\public_pages.py:64
+msgid "Getting started"
+msgstr "Pierwsze kroki"
+
+#: .\core\public_pages.py:66
+msgid ""
+"What libli is, how schools use it, and how to get an account or reach a "
+"human."
+msgstr ""
+"Czym jest libli, jak korzystają z niego szkoły oraz jak uzyskać konto lub "
+"skontaktować się z człowiekiem."
+
+#: .\core\public_pages.py:160
+msgid ""
+"This is a demonstration site. Anything you enter here is visible to the "
+"person who runs it — please do not enter real pupil data."
+msgstr ""
+"To jest serwis demonstracyjny. Wszystko, co tu wpiszesz, jest widoczne dla "
+"osoby, która go prowadzi — prosimy nie wprowadzać prawdziwych danych uczniów."
+
+#: .\core\public_pages.py:177
+msgid "the person who runs this site"
+msgstr "osoba, która prowadzi ten serwis"
+
+#: .\core\public_pages.py:180
+msgid "your national data protection authority"
+msgstr "Twój krajowy organ ochrony danych osobowych"
+
+#: .\core\public_pages.py:183
+msgid "no embed providers are enabled"
+msgstr "nie włączono żadnych dostawców materiałów osadzonych"
+
+#: .\core\public_pages.py:189
+#, python-format
+msgid "after %(days)d day"
+msgid_plural "after %(days)d days"
+msgstr[0] "po %(days)d dniu"
+msgstr[1] "po %(days)d dniach"
+msgstr[2] "po %(days)d dniach"
+
+#: .\core\public_pages.py:191
+msgid "only when the item they refer to is removed"
+msgstr "dopiero wtedy, gdy zostanie usunięty element, którego dotyczą"
 
 #: .\core\views.py:142
 msgid "Your settings have been saved."
@@ -563,7 +619,7 @@ msgstr "Lista musi mieć od %(lo)s do %(hi)s pozycji."
 
 #: .\courses\exporters.py:62 .\courses\exporters.py:122 .\grouping\forms.py:20
 #: .\grouping\forms.py:79 .\grouping\forms.py:217 .\grouping\forms.py:255
-#: .\institution\models.py:24 .\templates\accounts\manage\people.html:41
+#: .\institution\models.py:25 .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
 #: .\templates\courses\manage\media\manager.html:29
 #: .\templates\courses\manage\media\manager.html:38
@@ -800,24 +856,24 @@ msgstr "Wpisz liczbę lub ułamek."
 msgid "Enter a non-negative number or fraction."
 msgstr "Wpisz nieujemną liczbę lub ułamek."
 
-#: .\courses\media.py:24 .\courses\models.py:787
+#: .\courses\media.py:24 .\courses\models.py:788
 #: .\courses\templatetags\courses_manage_extras.py:35
-#: .\courses\views_manage.py:1963
+#: .\courses\views_manage.py:1983
 #: .\templates\courses\manage\editor\_add_menu.html:30
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
 #: .\templates\courses\manage\media\manager.html:26
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:25 .\courses\models.py:788
+#: .\courses\media.py:25 .\courses\models.py:789
 #: .\courses\templatetags\courses_manage_extras.py:36
-#: .\courses\views_manage.py:1964
+#: .\courses\views_manage.py:1984
 #: .\templates\courses\manage\editor\_add_menu.html:31
 #: .\templates\courses\manage\media\manager.html:26
 msgid "Video"
 msgstr "Wideo"
 
-#: .\courses\media.py:26 .\courses\views_manage.py:1991
+#: .\courses\media.py:26 .\courses\views_manage.py:2011
 #: .\templates\courses\manage\editor\_add_menu.html:101
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
@@ -878,149 +934,149 @@ msgstr "Ten adres nie zwrócił użytecznego obrazu."
 msgid "The fetched file is empty."
 msgstr "Pobrany plik jest pusty."
 
-#: .\courses\models.py:192 .\templates\courses\_unit_footer.html:40
+#: .\courses\models.py:193 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr "Część"
 
-#: .\courses\models.py:193
+#: .\courses\models.py:194
 msgid "Chapter"
 msgstr "Rozdział"
 
-#: .\courses\models.py:194
+#: .\courses\models.py:195
 msgid "Section"
 msgstr "Sekcja"
 
-#: .\courses\models.py:195 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:196 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:198 .\templates\courses\manage\_add_affordance.html:23
+#: .\courses\models.py:199 .\templates\courses\manage\_add_affordance.html:23
 #: .\templates\courses\manage\editor\editor.html:94
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:199 .\courses\rollups.py:180
+#: .\courses\models.py:200 .\courses\rollups.py:180
 #: .\templates\courses\manage\_add_affordance.html:26
 #: .\templates\courses\manage\editor\editor.html:97
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:493
+#: .\courses\models.py:494
 msgid "Example"
 msgstr "Przykład"
 
-#: .\courses\models.py:494 .\notes\forms.py:11
+#: .\courses\models.py:495 .\notes\forms.py:11
 msgid "Note"
 msgstr "Notatka"
 
-#: .\courses\models.py:495
+#: .\courses\models.py:496
 msgid "Tip"
 msgstr "Wskazówka"
 
-#: .\courses\models.py:498
+#: .\courses\models.py:499
 msgid "Important"
 msgstr "Ważne"
 
-#: .\courses\models.py:499
+#: .\courses\models.py:500
 msgid "Task"
 msgstr "Zadanie"
 
-#: .\courses\models.py:778
+#: .\courses\models.py:779
 msgid "Generated"
 msgstr "Wygenerowano"
 
-#: .\courses\models.py:779
+#: .\courses\models.py:780
 msgid "Skipped"
 msgstr "Pominięto"
 
-#: .\courses\models.py:780
+#: .\courses\models.py:781
 msgid "Failed"
 msgstr "Niepowodzenie"
 
-#: .\courses\models.py:865 .\courses\models.py:1180
+#: .\courses\models.py:866 .\courses\models.py:1181
 msgid "Small"
 msgstr "Mały"
 
-#: .\courses\models.py:866 .\courses\models.py:1181
+#: .\courses\models.py:867 .\courses\models.py:1182
 msgid "Medium"
 msgstr "Średni"
 
-#: .\courses\models.py:867 .\courses\models.py:1182
+#: .\courses\models.py:868 .\courses\models.py:1183
 msgid "Large"
 msgstr "Duży"
 
-#: .\courses\models.py:874 .\courses\models.py:1186
+#: .\courses\models.py:875 .\courses\models.py:1187
 msgctxt "image size"
 msgid "Full"
 msgstr "Pełny"
 
-#: .\courses\models.py:1790
+#: .\courses\models.py:1791
 msgctxt "tabs display"
 msgid "Tabs"
 msgstr "Zakładki"
 
-#: .\courses\models.py:1791
+#: .\courses\models.py:1792
 msgctxt "tabs display"
 msgid "Carousel"
 msgstr "Karuzela"
 
-#: .\courses\models.py:1800
+#: .\courses\models.py:1801
 msgctxt "tabs label position"
 msgid "Above"
 msgstr "Nad"
 
-#: .\courses\models.py:1801
+#: .\courses\models.py:1802
 msgctxt "tabs label position"
 msgid "Below"
 msgstr "Pod"
 
-#: .\courses\models.py:1802
+#: .\courses\models.py:1803
 msgctxt "tabs label position"
 msgid "Hidden"
 msgstr "Ukryta"
 
-#: .\courses\models.py:2131 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:2132 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:2132
+#: .\courses\models.py:2133
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:2133
+#: .\courses\models.py:2134
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:2264
+#: .\courses\models.py:2265
 msgid "your answer, correct"
 msgstr "twoja odpowiedź, poprawna"
 
-#: .\courses\models.py:2265
+#: .\courses\models.py:2266
 msgid "your answer, incorrect"
 msgstr "twoja odpowiedź, niepoprawna"
 
-#: .\courses\models.py:2266
+#: .\courses\models.py:2267
 msgid "correct answer, not chosen"
 msgstr "poprawna odpowiedź, niewybrana"
 
-#: .\courses\models.py:2935
+#: .\courses\models.py:2936
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:2937
+#: .\courses\models.py:2938
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:2942
+#: .\courses\models.py:2943
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:3013
+#: .\courses\models.py:3014
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:3014
+#: .\courses\models.py:3015
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -1091,8 +1147,9 @@ msgid "Great!"
 msgstr "Świetnie!"
 
 #: .\courses\templatetags\courses_manage_extras.py:34
-#: .\courses\views_manage.py:1962
+#: .\courses\views_manage.py:1982
 #: .\templates\courses\manage\editor\_add_menu.html:29
+#: .\templates\courses\manage\editor\_element_body_row.html:19
 msgid "Text"
 msgstr "Tekst"
 
@@ -1101,25 +1158,25 @@ msgid "Embed"
 msgstr "Osadzenie"
 
 #: .\courses\templatetags\courses_manage_extras.py:38
-#: .\courses\views_manage.py:1966
+#: .\courses\views_manage.py:1986
 #: .\templates\courses\manage\editor\_add_menu.html:33
 msgid "Math"
 msgstr "Wzór"
 
 #: .\courses\templatetags\courses_manage_extras.py:39
-#: .\courses\views_manage.py:1967
+#: .\courses\views_manage.py:1987
 #: .\templates\courses\manage\editor\_add_menu.html:34
 msgid "HTML"
 msgstr "HTML"
 
 #: .\courses\templatetags\courses_manage_extras.py:40
-#: .\courses\views_manage.py:1968
+#: .\courses\views_manage.py:1988
 #: .\templates\courses\manage\editor\_add_menu.html:35
 msgid "Table"
 msgstr "Tabela"
 
 #: .\courses\templatetags\courses_manage_extras.py:41
-#: .\courses\views_manage.py:1969 .\templates\courses\lesson_unit.html:83
+#: .\courses\views_manage.py:1989 .\templates\courses\lesson_unit.html:83
 #: .\templates\courses\manage\editor\_add_menu.html:36
 #: .\templates\courses\manage\editor\editor.html:209
 #: .\templates\courses\quiz_unit.html:36
@@ -1127,7 +1184,7 @@ msgid "Gallery"
 msgstr "Galeria"
 
 #: .\courses\templatetags\courses_manage_extras.py:42
-#: .\courses\views_manage.py:1970 .\templates\courses\lesson_unit.html:87
+#: .\courses\views_manage.py:1990 .\templates\courses\lesson_unit.html:87
 #: .\templates\courses\manage\editor\_add_menu.html:38
 #: .\templates\courses\manage\editor\editor.html:224
 #: .\templates\courses\quiz_unit.html:40
@@ -1135,7 +1192,7 @@ msgid "Tabs"
 msgstr "Zakładki"
 
 #: .\courses\templatetags\courses_manage_extras.py:43
-#: .\courses\views_manage.py:1971
+#: .\courses\views_manage.py:1991
 #: .\templates\courses\manage\editor\_add_menu.html:39
 msgid "Columns"
 msgstr "Kolumny"
@@ -1169,7 +1226,7 @@ msgid "Matrix"
 msgstr "Macierz"
 
 #: .\courses\templatetags\courses_manage_extras.py:51
-#: .\courses\views_manage.py:1990
+#: .\courses\views_manage.py:2010
 #: .\templates\courses\manage\editor\_add_menu.html:100
 msgid "Multi-select grid"
 msgstr "Siatka wielokrotnego wyboru"
@@ -1183,15 +1240,15 @@ msgid "Essay"
 msgstr "Esej"
 
 #: .\courses\templatetags\courses_manage_extras.py:54
-#: .\courses\views_manage.py:1972
+#: .\courses\views_manage.py:1992
 #: .\templates\courses\manage\editor\_add_menu.html:106
 #: .\templates\courses\manage\editor\_element_row.html:10
 msgid "Slide break"
 msgstr "Podział slajdów"
 
 #: .\courses\templatetags\courses_manage_extras.py:55
-#: .\courses\templatetags\courses_manage_extras.py:154
-#: .\courses\views_manage.py:1973 .\notes\templates\notes\_notes_i18n.html:10
+#: .\courses\templatetags\courses_manage_extras.py:170
+#: .\courses\views_manage.py:1993 .\notes\templates\notes\_notes_i18n.html:10
 #: .\templates\courses\elements\revealgateelement.html:5
 #: .\templates\courses\manage\editor\_add_menu.html:45
 #: .\templates\courses\manage\editor\_edit_revealgate.html:6
@@ -1200,44 +1257,44 @@ msgid "Show more"
 msgstr "Pokaż więcej"
 
 #: .\courses\templatetags\courses_manage_extras.py:56
-#: .\courses\views_manage.py:1974
+#: .\courses\views_manage.py:1994
 #: .\templates\courses\manage\editor\_add_menu.html:50
 msgid "Spoiler"
 msgstr "Rozwijana treść"
 
 #: .\courses\templatetags\courses_manage_extras.py:57
-#: .\courses\views_manage.py:1975
+#: .\courses\views_manage.py:1995
 #: .\templates\courses\manage\editor\_add_menu.html:46
 msgid "Fill in & confirm"
 msgstr "Uzupełnij i potwierdź"
 
 #: .\courses\templatetags\courses_manage_extras.py:58
-#: .\courses\views_manage.py:1976
+#: .\courses\views_manage.py:1996
 #: .\templates\courses\manage\editor\_add_menu.html:47
 msgid "Choose & confirm"
 msgstr "Wybierz i zatwierdź"
 
 #: .\courses\templatetags\courses_manage_extras.py:59
-#: .\courses\views_manage.py:1977
+#: .\courses\views_manage.py:1997
 #: .\templates\courses\manage\editor\_add_menu.html:48
 msgid "Switch grid"
 msgstr "Siatka przełączników"
 
 #: .\courses\templatetags\courses_manage_extras.py:60
-#: .\courses\views_manage.py:1978
+#: .\courses\views_manage.py:1998
 #: .\templates\courses\manage\editor\_add_menu.html:49
 msgid "Fill-in table"
 msgstr "Tabela do uzupełnienia"
 
 #: .\courses\templatetags\courses_manage_extras.py:61
-#: .\courses\views_manage.py:1979
+#: .\courses\views_manage.py:1999
 #: .\templates\courses\manage\editor\_add_menu.html:37
 msgid "Callout"
 msgstr "Ramka"
 
 #: .\courses\templatetags\courses_manage_extras.py:62
-#: .\courses\templatetags\courses_manage_extras.py:160
-#: .\courses\views_manage.py:1980
+#: .\courses\templatetags\courses_manage_extras.py:176
+#: .\courses\views_manage.py:2000
 #: .\templates\courses\manage\editor\_add_menu.html:40
 msgid "Before / after"
 msgstr "Przed / po"
@@ -1248,14 +1305,14 @@ msgid "Steps"
 msgstr "Kroki"
 
 #: .\courses\templatetags\courses_manage_extras.py:64
-#: .\courses\templatetags\courses_manage_extras.py:226
-#: .\courses\views_manage.py:1982
+#: .\courses\templatetags\courses_manage_extras.py:242
+#: .\courses\views_manage.py:2002
 #: .\templates\courses\manage\editor\_add_menu.html:52
 msgid "Checklist"
 msgstr "Lista zadań"
 
 #: .\courses\templatetags\courses_manage_extras.py:65
-#: .\courses\views_manage.py:1983
+#: .\courses\views_manage.py:2003
 #: .\templates\courses\manage\editor\_add_menu.html:53
 msgid "Guess the number"
 msgstr "Zgadnij liczbę"
@@ -1264,28 +1321,28 @@ msgstr "Zgadnij liczbę"
 msgid "MChoice"
 msgstr "Wwybór"
 
-#: .\courses\templatetags\courses_manage_extras.py:156
+#: .\courses\templatetags\courses_manage_extras.py:172
 #: .\templates\courses\elements\spoilerelement.html:21
 #: .\templates\courses\manage\editor\_edit_spoiler.html:6
 msgid "Reveal"
 msgstr "Pokaż"
 
-#: .\courses\templatetags\courses_manage_extras.py:167
+#: .\courses\templatetags\courses_manage_extras.py:183
 #, python-format
 msgid "%(rows)d×%(cols)d table"
 msgstr "tabela %(rows)d×%(cols)d"
 
-#: .\courses\templatetags\courses_manage_extras.py:172
+#: .\courses\templatetags\courses_manage_extras.py:188
 #, python-format
 msgid "%(rows)d×%(cols)d fill-in table, %(n)d answer(s)"
 msgstr "tabela do uzupełnienia %(rows)d×%(cols)d, liczba odpowiedzi: %(n)d"
 
-#: .\courses\templatetags\courses_manage_extras.py:185
+#: .\courses\templatetags\courses_manage_extras.py:201
 #, python-format
 msgid "%(summary)s · gate"
 msgstr "%(summary)s · bramka"
 
-#: .\courses\templatetags\courses_manage_extras.py:191
+#: .\courses\templatetags\courses_manage_extras.py:207
 #, python-format
 msgid "%(n)d image"
 msgid_plural "%(n)d images"
@@ -1293,7 +1350,7 @@ msgstr[0] "%(n)d obraz"
 msgstr[1] "%(n)d obrazy"
 msgstr[2] "%(n)d obrazów"
 
-#: .\courses\templatetags\courses_manage_extras.py:197
+#: .\courses\templatetags\courses_manage_extras.py:213
 #, python-format
 msgid "%(n)d tab"
 msgid_plural "%(n)d tabs"
@@ -1301,12 +1358,12 @@ msgstr[0] "%(n)d zakładka"
 msgstr[1] "%(n)d zakładki"
 msgstr[2] "%(n)d zakładek"
 
-#: .\courses\templatetags\courses_manage_extras.py:205
+#: .\courses\templatetags\courses_manage_extras.py:221
 #, python-format
 msgid "%(summary)s · carousel"
 msgstr "%(summary)s · karuzela"
 
-#: .\courses\templatetags\courses_manage_extras.py:211
+#: .\courses\templatetags\courses_manage_extras.py:227
 #, python-format
 msgid "%(n)d column"
 msgid_plural "%(n)d columns"
@@ -1314,8 +1371,8 @@ msgstr[0] "%(n)d kolumna"
 msgstr[1] "%(n)d kolumny"
 msgstr[2] "%(n)d kolumn"
 
-#: .\courses\templatetags\courses_manage_extras.py:221
-#: .\courses\views_manage.py:1981
+#: .\courses\templatetags\courses_manage_extras.py:237
+#: .\courses\views_manage.py:2001
 #: .\templates\courses\manage\editor\_add_menu.html:51
 msgid "Step-by-step"
 msgstr "Krok po kroku"
@@ -2473,7 +2530,7 @@ msgstr "Nie możesz dodać poziomu %(kind)s do tego kursu."
 #: .\courses\views_manage.py:925 .\courses\views_manage.py:951
 #: .\courses\views_manage.py:1014 .\courses\views_manage.py:1053
 #: .\courses\views_manage.py:1261 .\templates\courses\manage\builder.html:12
-#: .\templates\courses\manage\editor\_editor_scope.html:42
+#: .\templates\courses\manage\editor\_editor_scope.html:51
 #: .\templates\courses\manage\editor\editor.html:26
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
@@ -2568,57 +2625,57 @@ msgstr "Miejsce docelowe zostało usunięte w trakcie pracy."
 msgid "That placement is not allowed."
 msgstr "Nie można umieścić elementu w tym miejscu."
 
-#: .\courses\views_manage.py:1965
+#: .\courses\views_manage.py:1985
 #: .\templates\courses\manage\editor\_add_menu.html:32
 msgid "Iframe"
 msgstr "Iframe"
 
-#: .\courses\views_manage.py:1984
+#: .\courses\views_manage.py:2004
 #: .\templates\courses\manage\editor\_add_menu.html:84
 #: .\templates\courses\manage\editor\_add_menu.html:94
 msgid "Short text"
 msgstr "Krótki tekst"
 
-#: .\courses\views_manage.py:1985
+#: .\courses\views_manage.py:2005
 #: .\templates\courses\manage\editor\_add_menu.html:85
 #: .\templates\courses\manage\editor\_add_menu.html:95
 msgid "Short numeric"
 msgstr "Liczba"
 
-#: .\courses\views_manage.py:1986
+#: .\courses\views_manage.py:2006
 #: .\templates\courses\manage\editor\_add_menu.html:86
 #: .\templates\courses\manage\editor\_add_menu.html:96
 #: .\tests\test_i18n_questions_2b.py:35
 msgid "Fill in the blanks"
 msgstr "Uzupełnij luki"
 
-#: .\courses\views_manage.py:1987
+#: .\courses\views_manage.py:2007
 #: .\templates\courses\manage\editor\_add_menu.html:97
 msgid "Drag the words"
 msgstr "Przeciągnij słowa"
 
-#: .\courses\views_manage.py:1988
+#: .\courses\views_manage.py:2008
 #: .\templates\courses\manage\editor\_add_menu.html:98
 msgid "Match pairs"
 msgstr "Dopasuj pary"
 
-#: .\courses\views_manage.py:1989
+#: .\courses\views_manage.py:2009
 #: .\templates\courses\manage\editor\_add_menu.html:99
 msgid "Matrix question"
 msgstr "Pytanie macierzowe"
 
-#: .\courses\views_manage.py:1992
+#: .\courses\views_manage.py:2012
 #: .\templates\courses\manage\editor\_add_menu.html:102
 msgid "Extended response"
 msgstr "Rozszerzona odpowiedź"
 
-#: .\courses\views_manage.py:2098
+#: .\courses\views_manage.py:2127
 #: .\templates\courses\manage\editor\_add_menu.html:83
 #: .\templates\courses\manage\editor\_add_menu.html:93
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:2098
+#: .\courses\views_manage.py:2127
 #: .\templates\courses\manage\editor\_add_menu.html:82
 #: .\templates\courses\manage\editor\_add_menu.html:92
 msgid "Single choice"
@@ -2823,176 +2880,191 @@ msgstr[2] ""
 "%(count)d wierszy zostało zmienionych przez kogoś innego i nie zostało "
 "nadpisanych: %(names)s."
 
-#: .\institution\forms.py:53
+#: .\institution\forms.py:56
 msgid "Current logo"
 msgstr "Aktualne logo"
 
-#: .\institution\forms.py:54
+#: .\institution\forms.py:57
 msgid "No logo yet"
 msgstr "Brak logo"
 
-#: .\institution\forms.py:55
+#: .\institution\forms.py:58
 msgid "Replace logo"
 msgstr "Zastąp logo"
 
-#: .\institution\forms.py:56
+#: .\institution\forms.py:59
 msgid "Upload logo"
 msgstr "Prześlij logo"
 
-#: .\institution\forms.py:57
+#: .\institution\forms.py:60
 msgid "Remove logo"
 msgstr "Usuń logo"
 
-#: .\institution\forms.py:84
+#: .\institution\forms.py:87
 msgid "Current favicon"
 msgstr "Bieżąca ikona strony"
 
-#: .\institution\forms.py:85
+#: .\institution\forms.py:88
 msgid "No favicon yet"
 msgstr "Brak ikony strony"
 
-#: .\institution\forms.py:86
+#: .\institution\forms.py:89
 msgid "Replace favicon"
 msgstr "Zmień ikonę strony"
 
-#: .\institution\forms.py:87
+#: .\institution\forms.py:90
 msgid "Upload favicon"
 msgstr "Prześlij ikonę strony"
 
-#: .\institution\forms.py:88
+#: .\institution\forms.py:91
 msgid "Remove favicon"
 msgstr "Usuń ikonę strony"
 
-#: .\institution\forms.py:112
+#: .\institution\forms.py:115
 msgid "Enter a 6-digit hex colour like #147E78."
 msgstr "Podaj kolor 6-cyfrowym kodem hex, np. #147E78."
 
-#: .\institution\forms.py:122
+#: .\institution\forms.py:125
 msgid "Enabled languages"
 msgstr "Włączone języki"
 
-#: .\institution\forms.py:125
+#: .\institution\forms.py:128
 msgid "Default language"
 msgstr "Domyślny język"
 
-#: .\institution\forms.py:127
+#: .\institution\forms.py:130
 msgid "Primary colour"
 msgstr "Kolor podstawowy"
 
-#: .\institution\forms.py:128
+#: .\institution\forms.py:131
 msgid "Accent colour"
 msgstr "Kolor uzupełniający"
 
-#: .\institution\forms.py:172
+#: .\institution\forms.py:136
+msgid "Public hostname"
+msgstr "Publiczna nazwa hosta"
+
+#: .\institution\forms.py:138
+msgid ""
+"The address people use to reach this site, e.g. libli.example.org. Used to "
+"build invitation and password-reset links. It does not change which "
+"addresses the server accepts — your host set that up."
+msgstr ""
+"Adres, pod którym użytkownicy otwierają ten serwis, np. libli.example.org. "
+"Służy do budowania odnośników w zaproszeniach i przy resecie hasła. Nie "
+"zmienia tego, jakie adresy przyjmuje serwer — to skonfigurował Twój "
+"dostawca hostingu."
+
+#: .\institution\forms.py:199
 msgid "Enable at least one language."
 msgstr "Włącz co najmniej jeden język."
 
-#: .\institution\forms.py:180
+#: .\institution\forms.py:213
 msgid "Logo must be 2 MB or smaller."
 msgstr "Logo musi mieć rozmiar 2 MB lub mniejszy."
 
-#: .\institution\forms.py:195
+#: .\institution\forms.py:228
 msgid "The favicon must be 256 KB or smaller."
 msgstr "Ikona strony może mieć najwyżej 256 KB."
 
-#: .\institution\forms.py:199
+#: .\institution\forms.py:232
 msgid "The favicon must be a .png file."
 msgstr "Ikona strony musi być plikiem .png."
 
-#: .\institution\forms.py:202
+#: .\institution\forms.py:235
 msgid "The favicon must be a PNG image."
 msgstr "Ikona strony musi być obrazem PNG."
 
-#: .\institution\forms.py:208
+#: .\institution\forms.py:241
 msgid "The favicon must be square - crop it to equal width and height first."
 msgstr ""
 "Ikona strony musi być kwadratowa - najpierw przytnij ją do równej szerokości "
 "i wysokości."
 
-#: .\institution\forms.py:215
+#: .\institution\forms.py:248
 msgid "The favicon must be between 192 and 512 pixels."
 msgstr "Ikona strony musi mieć od 192 do 512 pikseli."
 
-#: .\institution\forms.py:232
+#: .\institution\forms.py:265
 msgid "Default language must be an enabled language."
 msgstr "Domyślny język musi być językiem włączonym."
 
-#: .\institution\forms.py:259
+#: .\institution\forms.py:302
 msgid "Allowed email domains"
 msgstr "Dozwolone domeny e-mail"
 
-#: .\institution\forms.py:260
+#: .\institution\forms.py:303
 msgid "One domain per line. Leave blank to allow any domain."
 msgstr ""
 "Jedna domena w wierszu. Pozostaw puste, aby zezwolić na dowolną domenę."
 
-#: .\institution\forms.py:283
+#: .\institution\forms.py:326
 #, python-format
 msgid "\"%(d)s\" is not a valid domain."
 msgstr "\"%(d)s\" nie jest prawidłową domeną."
 
-#: .\institution\forms.py:298
+#: .\institution\forms.py:341
 msgid "Allowed image types"
 msgstr "Dozwolone typy obrazów"
 
-#: .\institution\forms.py:303
+#: .\institution\forms.py:346
 msgid "Allowed video types"
 msgstr "Dozwolone typy wideo"
 
-#: .\institution\forms.py:308
+#: .\institution\forms.py:351
 msgid "Max image size (MiB)"
 msgstr "Maksymalny rozmiar obrazu (MiB)"
 
-#: .\institution\forms.py:309 .\institution\forms.py:315
+#: .\institution\forms.py:352 .\institution\forms.py:358
 #, python-brace-format
 msgid "Up to {n} MiB."
 msgstr "Do {n} MiB."
 
-#: .\institution\forms.py:314
+#: .\institution\forms.py:357
 msgid "Max video size (MiB)"
 msgstr "Maksymalny rozmiar wideo (MiB)"
 
-#: .\institution\forms.py:330
+#: .\institution\forms.py:373
 msgid "Enable at least one image type."
 msgstr "Włącz co najmniej jeden typ obrazu."
 
-#: .\institution\forms.py:336
+#: .\institution\forms.py:379
 msgid "Enable at least one video type."
 msgstr "Włącz co najmniej jeden typ wideo."
 
-#: .\institution\forms.py:344
+#: .\institution\forms.py:387
 msgid "Retention window (days)"
 msgstr "Okno przechowywania (dni)"
 
-#: .\institution\models.py:20
+#: .\institution\models.py:21
 msgid "Invite only"
 msgstr "Tylko z zaproszeniem"
 
-#: .\institution\models.py:20
+#: .\institution\models.py:21
 msgid "Open self-signup"
 msgstr "Otwarta samodzielna rejestracja"
 
-#: .\institution\models.py:21 .\templates\core\_theme_tiles.html:12
+#: .\institution\models.py:22 .\templates\core\_theme_tiles.html:12
 msgid "Light"
 msgstr "Jasny"
 
-#: .\institution\models.py:21 .\templates\core\_theme_tiles.html:23
+#: .\institution\models.py:22 .\templates\core\_theme_tiles.html:23
 msgid "Dark"
 msgstr "Ciemny"
 
-#: .\institution\models.py:21 .\templates\core\_theme_tiles.html:41
+#: .\institution\models.py:22 .\templates\core\_theme_tiles.html:41
 msgid "Auto"
 msgstr "Automatyczny"
 
-#: .\institution\models.py:27
+#: .\institution\models.py:28
 msgid "Logo"
 msgstr "Logo"
 
-#: .\institution\models.py:33
+#: .\institution\models.py:34
 msgid "Favicon"
 msgstr "Ikona strony (favicon)"
 
-#: .\institution\models.py:35
+#: .\institution\models.py:36
 msgid ""
 "Square PNG, 192-512 px, up to 256 KB. Replaces the libli icon in browser "
 "tabs and on home screens. Transparent areas show as black on iOS home "
@@ -3003,15 +3075,15 @@ msgstr ""
 "na czarno na ekranie głównym iOS - dla najlepszego efektu użyj jednolitego "
 "tła."
 
-#: .\institution\models.py:44
+#: .\institution\models.py:45
 msgid "Signup policy"
 msgstr "Zasady rejestracji"
 
-#: .\institution\models.py:61
+#: .\institution\models.py:62
 msgid "Default theme"
 msgstr "Motyw domyślny"
 
-#: .\institution\models.py:74
+#: .\institution\models.py:75
 msgid ""
 "Delete read notifications older than this many days, measured from when each "
 "notification was created. 0 keeps read notifications indefinitely; orphaned "
@@ -3020,6 +3092,55 @@ msgstr ""
 "Usuwaj przeczytane powiadomienia starsze niż podana liczba dni, licząc od "
 "utworzenia powiadomienia. 0 zachowuje przeczytane powiadomienia "
 "bezterminowo; osierocone powiadomienia są usuwane niezależnie."
+
+#: .\institution\models.py:84
+msgid "Data controller name"
+msgstr "Nazwa administratora danych"
+
+#: .\institution\models.py:86
+msgid ""
+"Shown on the public privacy notice. Falls back to the institution name when "
+"blank."
+msgstr ""
+"Wyświetlana w publicznej informacji o ochronie danych osobowych. Gdy pole "
+"jest puste, używana jest nazwa instytucji."
+
+#: .\institution\models.py:92
+msgid "Data controller address"
+msgstr "Adres administratora danych"
+
+#: .\institution\models.py:93
+msgid "Postal address. Omitted from the notice entirely when blank."
+msgstr ""
+"Adres pocztowy. Gdy pole jest puste, jest w informacji całkowicie pomijany."
+
+#: .\institution\models.py:97
+msgid "Contact address for data requests"
+msgstr "Adres kontaktowy w sprawie wniosków dotyczących danych"
+
+#: .\institution\models.py:102
+msgid "Supervisory authority"
+msgstr "Organ nadzorczy"
+
+#: .\institution\models.py:104
+msgid ""
+"The data-protection regulator for your country (in Poland, UODO). A neutral "
+"phrase is used when blank."
+msgstr ""
+"Organ nadzorujący ochronę danych osobowych w Twoim kraju (w Polsce UODO). "
+"Gdy pole jest puste, używane jest neutralne sformułowanie."
+
+#: .\institution\models.py:110
+msgid "This is a demonstration site"
+msgstr "To jest serwis demonstracyjny"
+
+#: .\institution\models.py:112
+msgid ""
+"Adds a warning to the public pages telling visitors not to enter real pupil "
+"data."
+msgstr ""
+"Dodaje do stron publicznych ostrzeżenie, żeby nie wprowadzać prawdziwych "
+"danych uczniów."
 
 #: .\institution\roles.py:19
 #: .\templates\courses\manage\analytics_matrix.html:110
@@ -3039,59 +3160,75 @@ msgstr "Administrator kursu"
 msgid "Platform Admin"
 msgstr "Administrator platformy"
 
-#: .\institution\views_manage.py:143
+#: .\institution\site_domain.py:39
+msgid ""
+"Enter a hostname such as libli.example.org — no http://, no path, no "
+"trailing slash."
+msgstr ""
+"Podaj nazwę hosta, na przykład libli.example.org — bez http://, bez ścieżki "
+"i bez ukośnika na końcu."
+
+#: .\institution\views_manage.py:151
 msgid "Branding saved."
 msgstr "Wygląd zapisany."
 
-#: .\institution\views_manage.py:149
+#: .\institution\views_manage.py:157
 msgid "Access settings saved."
 msgstr "Ustawienia dostępu zostały zapisane."
 
-#: .\institution\views_manage.py:156
+#: .\institution\views_manage.py:164
 msgid "Upload settings saved."
 msgstr "Ustawienia przesyłania zostały zapisane."
 
-#: .\institution\views_manage.py:168
+#: .\institution\views_manage.py:176
 msgid "Retention settings saved."
 msgstr "Zapisano ustawienia przechowywania."
 
-#: .\institution\views_manage.py:204
+#: .\institution\views_manage.py:212
 msgid "SSO settings saved."
 msgstr "Ustawienia SSO zapisane."
 
-#: .\institution\views_manage.py:206
+#: .\institution\views_manage.py:214
 msgid "Nothing to save."
 msgstr "Brak zmian do zapisania."
 
-#: .\institution\views_manage.py:228
+#: .\institution\views_manage.py:236
 msgid "Endpoint uses http — grades transit in cleartext. Prefer https."
 msgstr ""
 "Punkt końcowy używa http — oceny są przesyłane jawnym tekstem. Zalecane "
 "https."
 
-#: .\institution\views_manage.py:230
+#: .\institution\views_manage.py:238
 msgid "Integration settings saved."
 msgstr "Zapisano ustawienia integracji."
 
-#: .\institution\views_manage.py:247
+#: .\institution\views_manage.py:255
 msgid "Set an endpoint URL and signing secret before sending a test event."
 msgstr ""
 "Przed wysłaniem zdarzenia testowego ustaw adres URL punktu końcowego i klucz "
 "podpisujący."
 
-#: .\institution\views_manage.py:254
+#: .\institution\views_manage.py:262
 #, python-format
 msgid "Test event delivered — endpoint returned %(code)s."
 msgstr "Zdarzenie testowe dostarczone — punkt końcowy zwrócił %(code)s."
 
-#: .\institution\views_manage.py:257
+#: .\institution\views_manage.py:265
 #, python-format
 msgid "Test event failed: %(reason)s"
 msgstr "Zdarzenie testowe nie powiodło się: %(reason)s"
 
-#: .\institution\views_manage.py:278
+#: .\institution\views_manage.py:286
 msgid "Support settings saved."
 msgstr "Ustawienia zgłoszeń zapisane."
+
+#: .\institution\views_manage.py:364
+msgid "Public page settings saved."
+msgstr "Ustawienia stron publicznych zostały zapisane."
+
+#: .\institution\views_manage.py:399
+msgid "Public page content saved."
+msgstr "Treść stron publicznych została zapisana."
 
 #: .\institution\views_setup.py:33
 msgid "Welcome"
@@ -3223,6 +3360,8 @@ msgstr "Napisz notatkę"
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
 #: .\templates\grouping\group_form.html:53
+#: .\templates\institution\manage\_public_pages_tab.html:15
+#: .\templates\institution\manage\_public_pages_tab.html:48
 #: .\templates\institution\manage\_support_tab.html:44
 msgid "Save"
 msgstr "Zapisz"
@@ -3241,11 +3380,11 @@ msgstr "Zapisz"
 #: .\templates\courses\manage\course_confirm_delete.html:16
 #: .\templates\courses\manage\editor\_element_row.html:37
 #: .\templates\courses\manage\editor\_element_row.html:58
-#: .\templates\courses\manage\editor\_element_row.html:111
-#: .\templates\courses\manage\editor\_element_row.html:172
-#: .\templates\courses\manage\editor\_element_row.html:225
-#: .\templates\courses\manage\editor\_element_row.html:279
-#: .\templates\courses\manage\editor\_element_row.html:331
+#: .\templates\courses\manage\editor\_element_row.html:129
+#: .\templates\courses\manage\editor\_element_row.html:191
+#: .\templates\courses\manage\editor\_element_row.html:248
+#: .\templates\courses\manage\editor\_element_row.html:303
+#: .\templates\courses\manage\editor\_element_row.html:359
 #: .\templates\courses\manage\editor\_host_form.html:26
 #: .\templates\courses\manage\editor\_link_dialog.html:86
 #: .\templates\courses\manage\editor\editor.html:28
@@ -3591,7 +3730,7 @@ msgstr "Zapisz ustawienia przechowywania"
 msgid "Purge old notifications now"
 msgstr "Wyczyść stare powiadomienia teraz"
 
-#: .\support\emails.py:95
+#: .\support\emails.py:96
 #, python-format
 msgid "[%(institution)s] Issue report #%(pk)s from %(who)s"
 msgstr "[%(institution)s] Zgłoszenie problemu #%(pk)s od %(who)s"
@@ -4348,11 +4487,11 @@ msgstr "Nigdy"
 #: .\templates\courses\manage\course_list.html:62
 #: .\templates\courses\manage\editor\_element_row.html:35
 #: .\templates\courses\manage\editor\_element_row.html:56
-#: .\templates\courses\manage\editor\_element_row.html:109
-#: .\templates\courses\manage\editor\_element_row.html:170
-#: .\templates\courses\manage\editor\_element_row.html:223
-#: .\templates\courses\manage\editor\_element_row.html:277
-#: .\templates\courses\manage\editor\_element_row.html:329
+#: .\templates\courses\manage\editor\_element_row.html:127
+#: .\templates\courses\manage\editor\_element_row.html:189
+#: .\templates\courses\manage\editor\_element_row.html:246
+#: .\templates\courses\manage\editor\_element_row.html:301
+#: .\templates\courses\manage\editor\_element_row.html:357
 #: .\templates\courses\manage\subject_list.html:23
 #: .\templates\grouping\allocation_list.html:18
 #: .\templates\grouping\cohort_list.html:12
@@ -4413,9 +4552,9 @@ msgstr "Główne"
 msgid "Studio"
 msgstr "Studio"
 
-#: .\templates\base.html:87 .\templates\core\landing.html:32
-#: .\templates\help\doc.html:21 .\templates\help\index.html:3
-#: .\templates\help\index.html:7
+#: .\templates\base.html:87 .\templates\core\_public_footer.html:11
+#: .\templates\core\landing.html:32 .\templates\help\doc.html:21
+#: .\templates\help\index.html:3 .\templates\help\index.html:7
 msgid "Help"
 msgstr "Pomoc"
 
@@ -4446,6 +4585,10 @@ msgstr "Ustawienia"
 #: .\templates\base.html:148
 msgid "Log out"
 msgstr "Wyloguj"
+
+#: .\templates\core\_public_footer.html:4 .\templates\core\landing.html:31
+msgid "Privacy"
+msgstr "Prywatność"
 
 #: .\templates\core\home.html:3
 msgid "Dashboard"
@@ -4524,10 +4667,6 @@ msgstr ""
 #: .\templates\core\landing.html:14
 msgid "Continue with SSO"
 msgstr "Kontynuuj z SSO"
-
-#: .\templates\core\landing.html:31
-msgid "Privacy"
-msgstr "Prywatność"
 
 #: .\templates\core\user_settings.html:9
 msgid "Manage your account and preferences."
@@ -4992,12 +5131,12 @@ msgid "Switch content"
 msgstr "Zmień treść"
 
 #: .\templates\courses\elements\beforeafterelement.html:27
-#: .\templates\courses\manage\editor\_element_row.html:251
+#: .\templates\courses\manage\editor\_element_row.html:274
 msgid "Before"
 msgstr "Przed"
 
 #: .\templates\courses\elements\beforeafterelement.html:27
-#: .\templates\courses\manage\editor\_element_row.html:251
+#: .\templates\courses\manage\editor\_element_row.html:274
 msgid "After"
 msgstr "Po"
 
@@ -5536,7 +5675,7 @@ msgid "Elements"
 msgstr "Elementy"
 
 #: .\templates\courses\manage\_unit_panel.html:19
-#: .\templates\courses\manage\editor\_editor_scope.html:56
+#: .\templates\courses\manage\editor\_editor_scope.html:65
 msgid "No elements yet."
 msgstr "Brak elementów."
 
@@ -6730,13 +6869,13 @@ msgstr ""
 "Wklej dowolny link — pasek adresu, przycisk Udostępnij lub adres osadzenia, "
 "wszystkie działają."
 
-#: .\templates\courses\manage\editor\_editor_scope.html:8
+#: .\templates\courses\manage\editor\_editor_scope.html:17
 #: .\templates\courses\manage\editor\editor.html:3
 #: .\templates\courses\manage\editor\editor.html:141
 msgid "Editor"
 msgstr "Edytor"
 
-#: .\templates\courses\manage\editor\_editor_scope.html:8
+#: .\templates\courses\manage\editor\_editor_scope.html:17
 #: .\templates\courses\manage\import_preview.html:10
 #: .\tests\test_editor_count_i18n.py:45
 #, python-format
@@ -6746,27 +6885,23 @@ msgstr[0] "%(n)s element"
 msgstr[1] "%(n)s elementy"
 msgstr[2] "%(n)s elementów"
 
-#: .\templates\courses\manage\editor\_editor_scope.html:23
+#: .\templates\courses\manage\editor\_editor_scope.html:32
 #, python-format
 msgid "Selected: %(clip_label)s"
 msgstr "Zaznaczono: %(clip_label)s"
 
-#: .\templates\courses\manage\editor\_editor_scope.html:30
+#: .\templates\courses\manage\editor\_editor_scope.html:39
 msgid "Cancel selection"
 msgstr "Anuluj zaznaczenie"
-
-#: .\templates\courses\manage\editor\_editor_scope.html:57
-msgid "New"
-msgstr "Nowy"
 
 #: .\templates\courses\manage\editor\_element_row.html:7
 #: .\templates\courses\manage\editor\_element_row.html:23
 #: .\templates\courses\manage\editor\_element_row.html:49
-#: .\templates\courses\manage\editor\_element_row.html:102
-#: .\templates\courses\manage\editor\_element_row.html:163
-#: .\templates\courses\manage\editor\_element_row.html:216
-#: .\templates\courses\manage\editor\_element_row.html:270
-#: .\templates\courses\manage\editor\_element_row.html:320
+#: .\templates\courses\manage\editor\_element_row.html:120
+#: .\templates\courses\manage\editor\_element_row.html:182
+#: .\templates\courses\manage\editor\_element_row.html:239
+#: .\templates\courses\manage\editor\_element_row.html:294
+#: .\templates\courses\manage\editor\_element_row.html:348
 msgid "Drag to reorder"
 msgstr "Przeciągnij, aby zmienić kolejność"
 
@@ -6778,20 +6913,20 @@ msgstr "ukrywa kolejne bloki, dopóki uczeń nie kliknie"
 msgid "inactive in quizzes"
 msgstr "nieaktywne w quizach"
 
-#: .\templates\courses\manage\editor\_element_row.html:89
+#: .\templates\courses\manage\editor\_element_row.html:106
 msgid "This tab is empty."
 msgstr "Ta zakładka jest pusta."
 
-#: .\templates\courses\manage\editor\_element_row.html:145
+#: .\templates\courses\manage\editor\_element_row.html:163
 #, python-format
 msgid "Column %(n)s"
 msgstr "Kolumna %(n)s"
 
-#: .\templates\courses\manage\editor\_element_row.html:150
+#: .\templates\courses\manage\editor\_element_row.html:168
 msgid "This column is empty."
 msgstr "Ta kolumna jest pusta."
 
-#: .\templates\courses\manage\editor\_element_row.html:202
+#: .\templates\courses\manage\editor\_element_row.html:223
 msgid ""
 "This spoiler has text, but nothing nested inside it yet. Add an element to "
 "nest content inside it."
@@ -6799,15 +6934,15 @@ msgstr ""
 "Ta rozwijana treść ma tekst, ale nie ma jeszcze nic zagnieżdżonego. Dodaj "
 "element, aby zagnieździć w niej treść."
 
-#: .\templates\courses\manage\editor\_element_row.html:204
+#: .\templates\courses\manage\editor\_element_row.html:225
 msgid "This spoiler is empty."
 msgstr "Ta rozwijana treść jest pusta."
 
-#: .\templates\courses\manage\editor\_element_row.html:257
+#: .\templates\courses\manage\editor\_element_row.html:280
 msgid "This slot is empty."
 msgstr "Ten slot jest pusty."
 
-#: .\templates\courses\manage\editor\_element_row.html:306
+#: .\templates\courses\manage\editor\_element_row.html:332
 msgid ""
 "This callout has text, but nothing nested inside it yet. Add an element to "
 "nest content inside it."
@@ -6815,11 +6950,11 @@ msgstr ""
 "Ta ramka ma tekst, ale nie ma jeszcze nic zagnieżdżonego. Dodaj element, aby "
 "zagnieździć w niej treść."
 
-#: .\templates\courses\manage\editor\_element_row.html:308
+#: .\templates\courses\manage\editor\_element_row.html:334
 msgid "This callout is empty."
 msgstr "Ta ramka jest pusta."
 
-#: .\templates\courses\manage\editor\_element_row.html:325
+#: .\templates\courses\manage\editor\_element_row.html:353
 msgid ""
 "The applet size is unknown, so it renders in a 4:3 frame and may be cropped. "
 "Paste the <iframe> embed code for exact sizing."
@@ -6827,7 +6962,7 @@ msgstr ""
 "Nieznany rozmiar apletu, więc jest wyświetlany w ramce 4:3 i może zostać "
 "przycięty. Wklej kod osadzania <iframe>, aby uzyskać dokładny rozmiar."
 
-#: .\templates\courses\manage\editor\_element_row.html:325
+#: .\templates\courses\manage\editor\_element_row.html:353
 msgid "applet size unknown"
 msgstr "nieznany rozmiar apletu"
 
@@ -6935,6 +7070,10 @@ msgstr "Maks. punktów"
 #: .\templates\courses\manage\editor\_paste_buttons.html:11
 msgid "Copy here"
 msgstr "Kopiuj tutaj"
+
+#: .\templates\courses\manage\editor\_pending_new_row.html:11
+msgid "New"
+msgstr "Nowy"
 
 #: .\templates\courses\manage\editor\_preview.html:3
 msgid "Live preview"
@@ -7818,19 +7957,19 @@ msgstr "Twoja instytucja"
 msgid "Accent"
 msgstr "Uzupełniający"
 
-#: .\templates\institution\manage\_branding_fields.html:51
+#: .\templates\institution\manage\_branding_fields.html:58
 msgid "Brand colours"
 msgstr "Kolory marki"
 
-#: .\templates\institution\manage\_branding_fields.html:59
+#: .\templates\institution\manage\_branding_fields.html:66
 msgid "Pick primary colour"
 msgstr "Wybierz kolor podstawowy"
 
-#: .\templates\institution\manage\_branding_fields.html:71
+#: .\templates\institution\manage\_branding_fields.html:78
 msgid "Pick accent colour"
 msgstr "Wybierz kolor uzupełniający"
 
-#: .\templates\institution\manage\_branding_fields.html:83
+#: .\templates\institution\manage\_branding_fields.html:90
 msgid "Localization"
 msgstr "Lokalizacja"
 
@@ -7917,6 +8056,41 @@ msgstr "Wyczyść teraz"
 msgid "Purge uses the saved retention value; save your changes first."
 msgstr "Czyszczenie używa zapisanej wartości; najpierw zapisz zmiany."
 
+#: .\templates\institution\manage\_public_pages_tab.html:5
+msgid "Who runs this site"
+msgstr "Kto prowadzi ten serwis"
+
+#: .\templates\institution\manage\_public_pages_tab.html:24
+msgid ""
+"This page is overridden in some but not all of your languages. Visitors will "
+"see different text depending on their language."
+msgstr ""
+"Ta strona jest nadpisana w części Twoich języków, ale nie we wszystkich. "
+"Odwiedzający zobaczą różny tekst w zależności od swojego języka."
+
+#: .\templates\institution\manage\_public_pages_tab.html:27
+msgid ""
+"This is a demonstration site, but one of your versions below does not "
+"include the {libli:demo_notice} token, so it will not show the demonstration "
+"warning."
+msgstr ""
+"To jest serwis demonstracyjny, ale jedna z poniższych wersji nie zawiera "
+"tokenu {libli:demo_notice}, więc nie wyświetli ostrzeżenia o wersji "
+"demonstracyjnej."
+
+#: .\templates\institution\manage\_public_pages_tab.html:32
+msgid "no longer enabled"
+msgstr "już nie jest włączony"
+
+#: .\templates\institution\manage\_public_pages_tab.html:47
+msgid ""
+"Leave a box empty to use the text that ships with libli. Saving replaces the "
+"published notice immediately and keeps no history — keep your own copy."
+msgstr ""
+"Pozostaw pole puste, aby korzystać z tekstu dostarczanego razem z libli. "
+"Zapisanie natychmiast zastępuje opublikowaną informację i nie zachowuje "
+"historii — zachowaj własną kopię."
+
 #: .\templates\institution\manage\_sso_fields.html:10
 msgid ""
 "When off, the SSO sign-in button is hidden everywhere but your saved "
@@ -8001,6 +8175,10 @@ msgstr "Przesyłanie"
 #: .\templates\institution\manage\_tabs.html:16
 msgid "Support"
 msgstr "Zgłoszenia"
+
+#: .\templates\institution\manage\_tabs.html:18
+msgid "Public pages"
+msgstr "Strony publiczne"
 
 #: .\templates\institution\manage\_uploads_tab.html:9
 msgid "Allowed file types"
