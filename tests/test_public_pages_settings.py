@@ -2,6 +2,7 @@ import pytest
 from django.urls import reverse
 from django.urls import reverse_lazy
 
+from core.public_pages import PAGES
 from institution.models import Institution
 from institution.models import PublicPage
 from tests.factories import make_verified_user
@@ -56,6 +57,19 @@ def test_regional_enabled_language_is_normalised_and_deduped(client):
     body = client.get(PANEL).content.decode()
     assert body.count('name="override-privacy-pl"') == 1
     assert 'name="override-privacy-pl-PL"' not in body
+
+
+@pytest.mark.django_db
+def test_panel_uses_the_coalesced_language_list_not_the_stored_one(client):
+    """`_build()` coalesces an empty stored list to the default, so the panel must
+    read enabled_languages from get_site_config(), not from the Institution row.
+    Reading `inst` directly renders ZERO textareas here instead of four."""
+    inst = Institution.load()
+    inst.enabled_languages = []
+    inst.save()
+    client.force_login(_admin())
+    body = client.get(PANEL).content.decode()
+    assert body.count('name="override-') == len(PAGES) * 2
 
 
 @pytest.mark.django_db
