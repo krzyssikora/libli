@@ -11,7 +11,10 @@ outcome produced by margin collapsing across the aside, and an earlier attempt
 that zeroed the aside's margins looked correct in the stylesheet while measuring
 32px — twice the intended gap. Only a real browser catches that.
 
-The collapsed TOC state is opt-in (base.html reads localStorage), so this suite
+Both TOC states are exercised. They give genuinely different columns -- 872px
+collapsed (prose capped at 736, so the lane is free) against 648px pinned (prose
+fills it, so the lane costs 44px) -- and the rail has to hold in both. The
+collapsed state is opt-in via localStorage (base.html's pre-paint), so this suite
 sets that key itself; no other e2e exercises the collapsed shell.
 
 Marked `e2e` (excluded by default; run with -m e2e).
@@ -135,22 +138,29 @@ def _build_lesson(slug, username):
     return course, unit, elements, student
 
 
-def _open_collapsed(page, live_server, course, unit):
+def _open_unit(page, live_server, course, unit, collapsed):
     page.set_viewport_size(RAIL_VIEWPORT)
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
-    # The rail is gated on the collapsed shell, which base.html's pre-paint
-    # restores from localStorage. Set it, then reload so the class is present
-    # before first paint (setting it after load would leave <html> unclassed).
-    page.evaluate("() => localStorage.setItem('libli_unit_tree_collapsed', '1')")
+    # base.html's pre-paint restores the collapse choice from localStorage. Set
+    # the key, then reload so <html> carries the class before first paint —
+    # setting it after load would leave the shell in its default (pinned) state
+    # and quietly measure the wrong column.
+    page.evaluate(
+        "(v) => localStorage.setItem('libli_unit_tree_collapsed', v)",
+        "1" if collapsed else "0",
+    )
     page.reload()
     page.wait_for_selector(".block-notes__handle")
 
 
 @pytest.mark.django_db(transaction=True)
-def test_handle_costs_no_vertical_space_in_the_rail(page, live_server):
-    course, unit, _, _ = _build_lesson("e2e-rail-space", "e2e_rail_space")
-    _login(page, live_server, "e2e_rail_space")
-    _open_collapsed(page, live_server, course, unit)
+@pytest.mark.parametrize("collapsed", [True, False], ids=["collapsed", "pinned"])
+def test_handle_costs_no_vertical_space_in_the_rail(page, live_server, collapsed):
+    slug = f"e2e-rail-space-{int(collapsed)}"
+    user = f"e2e_rail_space_{int(collapsed)}"
+    course, unit, _, _ = _build_lesson(slug, user)
+    _login(page, live_server, user)
+    _open_unit(page, live_server, course, unit, collapsed)
 
     geo = page.evaluate(GEOMETRY)
 
@@ -169,10 +179,13 @@ def test_handle_costs_no_vertical_space_in_the_rail(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_handle_sits_in_its_lane_clear_of_the_prose(page, live_server):
+@pytest.mark.parametrize("collapsed", [True, False], ids=["collapsed", "pinned"])
+def test_handle_sits_in_its_lane_clear_of_the_prose(page, live_server, collapsed):
     from notes.models import Note
 
-    course, unit, elements, student = _build_lesson("e2e-rail-lane", "e2e_rail_lane")
+    slug = f"e2e-rail-lane-{int(collapsed)}"
+    user = f"e2e_rail_lane_{int(collapsed)}"
+    course, unit, elements, student = _build_lesson(slug, user)
     # A 2-digit count is the widest the handle ever gets. It is anchored on
     # `right`, so an overflowing count grows LEFTWARDS over the text — which is
     # what the fixed width in the rail block exists to prevent.
@@ -180,8 +193,8 @@ def test_handle_sits_in_its_lane_clear_of_the_prose(page, live_server):
         Note.objects.create(
             author=student, unit=unit, element=elements[0], body=f"note {i}"
         )
-    _login(page, live_server, "e2e_rail_lane")
-    _open_collapsed(page, live_server, course, unit)
+    _login(page, live_server, user)
+    _open_unit(page, live_server, course, unit, collapsed)
 
     geo = page.evaluate(GEOMETRY)
     assert geo["handles"], "no handles were measured"
@@ -198,7 +211,7 @@ def test_pop_still_opens_beside_the_block_from_the_rail(page, live_server):
         author=student, unit=unit, element=elements[0], body="anchored note"
     )
     _login(page, live_server, "e2e_rail_pop")
-    _open_collapsed(page, live_server, course, unit)
+    _open_unit(page, live_server, course, unit, collapsed=True)
 
     # Real gesture: click the summary, as a student would.
     page.locator(".block-notes__handle").first.click()
