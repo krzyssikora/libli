@@ -1,0 +1,14 @@
+{% load i18n %}
+{% if show %}
+{# No parent/tab: the destination slot is DERIVED from `before` server-side, so #}
+{# this form has one thing to get right instead of three. #}
+<form class="tree__inline" method="post" action="{% url 'courses:manage_element_paste' slug=unit.course.slug %}" data-op="element-paste-before">
+  {% csrf_token %}
+  <input type="hidden" name="ctx" value="editor">
+  <input type="hidden" name="mode" value="move">
+  <input type="hidden" name="before" value="{{ el.pk }}">
+  <input type="hidden" name="unit" value="{{ unit.pk }}">
+  <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
+  <button class="iconbtn pastebtn" type="submit" aria-label="{% trans 'Move before this element' %}" title="{% trans 'Move before this element' %}">📋</button>
+</form>
+{% endif %}

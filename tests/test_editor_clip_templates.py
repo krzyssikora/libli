@@ -409,3 +409,114 @@ def test_no_banner_renders_when_nothing_is_marked(client):
     body = _editor(client, course, unit)
 
     assert 'id="clip-banner"' not in body
+
+
+# ── the per-row "paste before this element" button ─────────────────────────
+# Marker: data-op="element-paste-before", distinct from the slot buttons'
+# data-op="element-paste".
+
+
+def _row_section(body, pk):
+    """The markup of ONE element row: from its data-element attribute to the next
+    row's.
+
+    Same shape of limitation as _slot_section: a row holding NESTED rows would be
+    truncated at its first child, so anchor only on leaf rows -- which every
+    fixture below does.
+    """
+    at = body.index(f'data-element="{pk}"')
+    nxt = body.find('data-element="', at + 1)
+    return body[at:] if nxt == -1 else body[at:nxt]
+
+
+def test_no_paste_before_button_renders_when_nothing_is_marked(client):
+    course, unit = _seed(client)
+    _text(unit)
+    _text(unit)
+
+    body = _editor(client, course, unit)
+
+    assert 'data-op="element-paste-before"' not in body
+
+
+def test_every_other_row_in_the_marked_elements_own_slot_offers_paste_before(client):
+    """Clause 5 rendered the other way round: the marked element's OWN slot is
+    exactly where a positional move is wanted, and exactly where the slot-level
+    move button is (correctly) absent."""
+    course, unit = _seed(client)
+    first = _text(unit, body="<p>1</p>")
+    second = _text(unit, body="<p>2</p>")
+    subject = _text(unit, body="<p>s</p>")
+    _mark(client, course, unit, subject)
+
+    body = _editor(client, course, unit)
+
+    for anchor in (first, second):
+        section = _row_section(body, anchor.pk)
+        assert 'data-op="element-paste-before"' in section
+        assert f'name="before" value="{anchor.pk}"' in section
+
+
+def test_the_marked_rows_own_paste_before_button_is_absent(client):
+    """Pasting an element above itself is the service's 400. The row that carries
+    the mark must not offer it in the first place."""
+    course, unit = _seed(client)
+    first = _text(unit, body="<p>1</p>")
+    subject = _text(unit, body="<p>s</p>")
+    _mark(client, course, unit, subject)
+
+    body = _editor(client, course, unit)
+
+    assert 'data-op="element-paste-before"' in _row_section(body, first.pk)
+    assert 'data-op="element-paste-before"' not in _row_section(body, subject.pk)
+
+
+def test_the_row_directly_below_the_mark_offers_no_paste_before(client):
+    """Landing above your own next sibling leaves the order exactly as it is, so
+    the button would spend a full re-render to change nothing."""
+    course, unit = _seed(client)
+    first = _text(unit, body="<p>1</p>")
+    subject = _text(unit, body="<p>s</p>")
+    below = _text(unit, body="<p>b</p>")
+    _mark(client, course, unit, subject)
+
+    body = _editor(client, course, unit)
+
+    assert 'data-op="element-paste-before"' in _row_section(body, first.pk)
+    assert 'data-op="element-paste-before"' not in _row_section(body, below.pk)
+
+
+def test_a_non_nestable_mark_offers_no_paste_before_on_a_nested_row(client):
+    """The derived slot faces the same rules the posted one does: a slidebreak may
+    not be nested, so a row inside a tabs slot must not offer to take it -- while a
+    top-level row still does, which is what keeps the absence non-vacuous."""
+    course, unit = _seed(client)
+    top = _text(unit, body="<p>1</p>")
+    dest, slots = _tabs(unit)
+    nested = _text(unit, parent=dest, tab=slots[0], body="<p>n</p>")
+    sb = Element.objects.create(
+        unit=unit, content_object=SlideBreakElement.objects.create()
+    )
+    _mark(client, course, unit, sb)
+
+    body = _editor(client, course, unit)
+
+    assert 'data-op="element-paste-before"' in _row_section(body, top.pk)
+    assert 'data-op="element-paste-before"' not in _row_section(body, nested.pk)
+
+
+def test_the_editor_page_leaks_no_raw_template_comment(client):
+    """Django's {# #} does NOT span lines: a comment written across two lines
+    renders BOTH lines as literal text. Here that put "{# Only while a mark is
+    pending..." into every element row's control bar, on every editor page, while
+    all nine tests above stayed green -- they assert what IS in the markup and
+    never that nothing extra is.
+
+    Cheap and general on purpose: it guards the whole editor page, not this one
+    template, because the next multi-line comment will be somewhere else."""
+    course, unit = _seed(client)
+    _text(unit)
+    dest, slots = _tabs(unit)
+    _text(unit, parent=dest, tab=slots[0])
+
+    assert "{#" not in _editor(client, course, unit)

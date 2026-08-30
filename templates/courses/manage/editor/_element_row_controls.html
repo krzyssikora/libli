@@ -1,4 +1,7 @@
-{% load i18n %}
+{% load i18n courses_manage_extras %}
+{# Only while a mark is pending, so the ordinary render pays nothing. #}
+{# The tag runs once per row and this pane carries dozens of them. #}
+{% if clip_active %}{% paste_before_button el %}{% endif %}
 <form class="tree__inline" method="post" action="{% url 'courses:manage_element_move' slug=unit.course.slug %}" data-op="element-move">
   {% csrf_token %}
   <input type="hidden" name="ctx" value="editor">

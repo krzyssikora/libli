@@ -457,7 +457,14 @@ def subtree_facts(join, children_map=None):
 
 
 def paste_allowed(
-    unit, marked_join, dest_parent, tab, mode, facts=None, dest_depth=None
+    unit,
+    marked_join,
+    dest_parent,
+    tab,
+    mode,
+    facts=None,
+    dest_depth=None,
+    positional=False,
 ):
     """Is placing `marked_join`'s subtree into (`dest_parent`, `tab`) admissible?
 
@@ -471,6 +478,14 @@ def paste_allowed(
 
     `facts` and `dest_depth` follow one rule: the render supplies them, the endpoint
     omits them, and this function computes whatever it was not given.
+
+    `positional` says the caller is placing the subtree at a CHOSEN index in the
+    destination group rather than appending to it, which suspends clause 5 and
+    nothing else. Clause 5 reads "you are already in this slot, so a move here is a
+    no-op" -- true when the destination is only ever the end of the group, false
+    the moment an index is named, since reordering within your own slot is exactly
+    what paste-before-an-element is for. Every other clause is unconditional: a
+    positional paste is still refused for depth, nestability, and cycles.
 
     Reason precedence, fixed and depended on by every caller's tests: wrong_unit,
     into_own_subtree, not_a_container, unknown_slot, type_not_nestable,
@@ -552,7 +567,7 @@ def paste_allowed(
     if dest_depth > facts.min_headroom:  # clause 3
         return False, "too_deep"
 
-    if mode == "move":  # clause 5 -- pks, never instances
+    if mode == "move" and not positional:  # clause 5 -- pks, never instances
         here = (dest_parent.pk if dest_parent is not None else None, tab)
         if here == (marked_join.parent_id, marked_join.tab_id):
             return False, "own_slot"
@@ -1000,7 +1015,7 @@ def _copy_below(el, unit, _export, _importer, TransferError):
 
 
 @transaction.atomic
-def paste_element(course, element_pk, parent_ref, tab, mode, unit_token):
+def paste_element(course, element_pk, parent_ref, tab, mode, unit_token, before=None):
     """Move or copy the marked element's subtree into (parent_ref, tab).
 
     Returns (unit, placed_join) -- the join, not just the unit, because the view
@@ -1010,6 +1025,14 @@ def paste_element(course, element_pk, parent_ref, tab, mode, unit_token):
     this transaction and this lock, so a concurrent add into the destination slot
     cannot interleave between the render-time check and the placement. The
     render-time call is advisory; this one is the enforcement.
+
+    `before` names the join the subtree must land directly ABOVE, and is the whole
+    of the paste-at-a-position path. The destination slot is then DERIVED from that
+    join rather than posted, so `parent_ref`/`tab` are ignored and the two can never
+    disagree -- the client has one thing to get right instead of three. Naming the
+    anchor rather than an integer index also keeps the placement race-free: the
+    index is resolved here, inside the transaction and the lock, so a mark left
+    pending while a co-author edits the list cannot land the element one slot off.
     """
     if mode not in ("move", "copy"):
         raise NestingError("unknown mode")
@@ -1017,13 +1040,26 @@ def paste_element(course, element_pk, parent_ref, tab, mode, unit_token):
     el, unit = _locked_element(course, element_pk)
     _check_token(unit.updated, unit_token)
 
-    dest_parent, tab_id = _parse_scope_ref(unit, parent_ref, tab)
-    ok, reason = paste_allowed(unit, el, dest_parent, tab_id, mode)
+    anchor = None
+    if before in (None, ""):
+        dest_parent, tab_id = _parse_scope_ref(unit, parent_ref, tab)
+    else:
+        # move-only, deliberately: the editor offers no copy-before control, so a
+        # copy carrying an anchor is a malformed payload. Refusing beats silently
+        # dropping the argument and appending, which would look like a UI bug.
+        if mode != "move":
+            raise NestingError("before is a move-only argument")
+        anchor = _resolve_before(unit, el, before)
+        dest_parent, tab_id = anchor.parent, anchor.tab_id
+
+    ok, reason = paste_allowed(
+        unit, el, dest_parent, tab_id, mode, positional=anchor is not None
+    )
     if not ok:
         raise PlacementRefused(reason)
 
     if mode == "move":
-        placed = _move_into(el, unit, dest_parent, tab_id)
+        placed = _move_into(el, unit, dest_parent, tab_id, anchor=anchor)
     else:
         placed = _copy_into(el, unit, dest_parent, tab_id)
 
@@ -1031,12 +1067,46 @@ def paste_element(course, element_pk, parent_ref, tab, mode, unit_token):
     return unit, placed
 
 
-def _move_into(el, unit, dest_parent, tab_id):
+def _resolve_before(unit, el, before):
+    """Resolve a `before` payload to the join the subject must land above.
+
+    Shape errors raise NestingError (400) and a vanished anchor raises
+    ParentGoneError (422), matching _parse_scope_ref's split: the first cannot come
+    from the UI, the second is an ordinary race with a co-author's delete.
+
+    Pasting an element before ITSELF is a shape error rather than a no-op 200: the
+    row carrying the mark renders no button, so only a hand-crafted POST gets here,
+    and place_element would otherwise have to invent a meaning for an anchor that
+    is absent from the post-removal sibling list by construction.
+
+    select_related mirrors _parse_scope_ref's: the derived dest_parent is
+    `anchor.parent`, and paste_allowed walks up from it to compute the depth.
+    """
+    try:
+        pk = int(before)
+    except (TypeError, ValueError):
+        raise NestingError("bad before ref") from None
+    if pk == el.pk:
+        raise NestingError("cannot paste an element before itself")
+    anchor = (
+        Element.objects.select_related("parent__parent__parent")
+        .filter(pk=pk, unit=unit)
+        .first()
+    )
+    if anchor is None:
+        raise ParentGoneError("unknown before target")
+    return anchor
+
+
+def _move_into(el, unit, dest_parent, tab_id, anchor=None):
     """Re-parent the ROOT join row only; descendants keep their parent and unit
     FKs, so the whole subtree travels with it for free.
 
     The step order is load-bearing -- see the comments inline. Runs inside
     paste_element's transaction and its element+unit lock.
+
+    `anchor` is the sibling to land directly above; without one the paste appends
+    as it always has.
     """
     # 1. Capture BEFORE mutating: a move overwrites these same fields in place, so
     #    reading them afterwards would compact the DESTINATION twice and leave a
@@ -1051,11 +1121,18 @@ def _move_into(el, unit, dest_parent, tab_id):
     el.tab_id = tab_id
     el.save(update_fields=["parent", "tab_id"])
 
-    # 3. None clamps to the end of the group: a paste APPENDS, and position is then
-    #    adjusted with the existing arrows.
-    ordering.place_element(el, unit, None)
+    # 3. None clamps to the end of the group: an anchorless paste APPENDS, and
+    #    position is then adjusted with the existing arrows. With an anchor,
+    #    place_element resolves the index against the post-removal sibling list
+    #    itself -- see its docstring for why the index is not computed here.
+    ordering.place_element(el, unit, None, before=anchor)
 
-    # 4. Compact the CAPTURED source group, as delete_element does.
+    # 4. Compact the CAPTURED source group, as delete_element does. When the source
+    #    group IS the destination -- which only a `before` paste can produce, since
+    #    clause 5 refuses an anchorless move into your own slot -- step 3 has
+    #    already left it numbered 0..n-1 with no duplicates, so compacting it again
+    #    re-reads the same order and writes nothing. It must still run: the two
+    #    groups differ on every other path.
     ordering.compact_elements(unit, parent=old_parent, tab_id=old_tab)
     return el
 

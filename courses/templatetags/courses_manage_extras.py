@@ -403,3 +403,33 @@ def paste_buttons(context, parent="", tab=""):
         "show_move": key in (context.get("move_slots") or set()),
         "show_copy": key in (context.get("copy_slots") or set()),
     }
+
+
+@register.inclusion_tag(
+    "courses/manage/editor/_paste_before_button.html", takes_context=True
+)
+def paste_before_button(context, el):
+    """Render ONE row's "paste the marked element above this one" control, if the
+    rule allows it.
+
+    The sibling of `paste_buttons`, and deliberately shaped like it: the rule stays
+    in Python and the template only asks `show`. It differs in what it keys on --
+    a slot for that tag, a ROW for this one -- because the destination here is a
+    position, and a position is named by the element it sits above.
+
+    Two rows are suppressed even where the slot allows it: the row carrying the
+    mark (pasting above yourself is _resolve_before's 400) and the row directly
+    below it (already true, so the paste would spend a full re-render changing
+    nothing). Both come from the view precomputed; re-deriving the second one here
+    would need the whole ordered sibling list per row.
+    """
+    clip_pk = context.get("clip_element_pk") or ""
+    row_pk = str(el.pk)
+    if not clip_pk or row_pk in (clip_pk, context.get("clip_noop_pk") or ""):
+        return {"show": False}
+    key = builder.slot_key(el.parent_id, el.tab_id or "")
+    return {
+        "show": key in (context.get("before_slots") or set()),
+        "unit": context.get("unit"),
+        "el": el,
+    }
