@@ -1894,7 +1894,40 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .el--tabs .tabs__bar.is-scroll-end .tabs__chev--next { display: inline-flex; }
 .el--tabs .tabs__chev .ic { width: 1rem; height: 1rem; }
 
-.el--tabs[data-display="tabs"] > .tabs__stage > .tabs__section > .tabs__panel { padding-top: var(--space-5); }
+/* The bar's border-bottom marks where a panel STARTS; nothing marked where it ENDED,
+   so the element below a tabs element read as though it might still be tab content --
+   worse because that boundary MOVES as the student switches between tabs of unequal
+   height. A left rule down the panel supplies the missing terminus, and because it is
+   VISIBLE it also defuses the movement: the same switch now reads as "the tab I am on
+   got shorter" rather than as the page rearranging itself. Deliberately not paired
+   with a height reservation -- padding every short tab out to the tallest tab's
+   height buys stillness with a screenful of dead space.
+
+   Values copied from `.ba__panel` below, which is the nearest precedent in every
+   respect: same treatment, and needed no wrapper for the same structural reason --
+   the panel is ONE box holding all its children, so a single border per side is
+   continuous by construction (contrast `.spoiler__children`, which exists only
+   because per-child borders came out segmented). Its warning transfers too: do NOT
+   add :first-child/:last-child margin resets. This box hugs its content because the
+   children's margins collapse OUT of it (padding-top, but no bottom padding, so the
+   last child's margin-bottom escapes and the box ends AT the content); the resets
+   are the callout's treatment and would defeat that hug.
+
+   --primary because the ACTIVE tab is already primary-underlined: one colour saying
+   "this content belongs to the lit tab".
+
+   Tabs mode only. A carousel terminates its content with the dots bar below it, and
+   an asymmetric left indent would fight its centred label and centred nav; the
+   [data-display] attribute is what excludes it.
+
+   The child chain is explicit for the reason every carousel rule's is: a nested tabs
+   element is legal, and a descendant selector would draw a second rule on the inner
+   element's panel. */
+.el--tabs[data-display="tabs"] > .tabs__stage > .tabs__section > .tabs__panel {
+  padding-top: var(--space-5);
+  padding-left: var(--space-4);
+  border-left: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+}
 .el--tabs .tabs__child + .tabs__child { margin-top: var(--space-5); }
 
 /* No-JS / print: panels stack under visible headings. */
