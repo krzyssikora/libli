@@ -135,17 +135,61 @@ def test_apply_preserves_position_and_title(tmp_path):
     assert join.tab_id == SpoilerElement.SLOT_ID
 
 
-def test_apply_prints_the_pk_it_overwrote(tmp_path, capsys):
+def _table():
+    return TableElement.objects.create(
+        data=TableElement.normalize_data({"cells": _cells()})
+    )
+
+
+def _offset_sequences(table_ahead_by):
+    """Leave the TableElement pk sequence exactly `table_ahead_by` ahead of the
+    MathElement one (negative puts MathElement ahead).
+
+    Postgres sequences are NOT rolled back with the test transaction -- only the
+    rows are -- so the gap between two models' sequences when a test starts is
+    whatever the tests that ran before it on this xdist worker happened to leave.
+    Under `-n auto` xdist's default `load` scheduler hands each test to whichever
+    worker is free, so that set is TIMING-dependent and varies run to run on one
+    commit. This helper makes the gap an INPUT instead of an accident.
+
+    Levelling first is what makes the offset absolute rather than relative to an
+    unknown starting gap: each pass bumps whichever sequence is behind by exactly
+    one, so the gap shrinks by one and the loop terminates.
+    """
+    t, m = _table(), MathElement.objects.create(latex="x")
+    while t.pk != m.pk:
+        if t.pk < m.pk:
+            t = _table()
+        else:
+            m = MathElement.objects.create(latex="x")
+    for _ in range(abs(table_ahead_by)):
+        if table_ahead_by > 0:
+            _table()
+        else:
+            MathElement.objects.create(latex="x")
+
+
+@pytest.mark.parametrize("table_ahead_by", [-3, 0, 1, 2, 3, 4, 8])
+def test_apply_prints_the_pk_it_overwrote(tmp_path, capsys, table_ahead_by):
     # The orphaned TableElement is the whole revert path, and the repoint is the
     # last moment anything knows which row it is -- --list-matches carries the
     # join, the unit and the source ident, none of which name it. The mat-pp run
     # shipped without this line and its map had to be reconstructed from content.
     #
-    # The spare MathElements push the math pk sequence past the table's, so
-    # `table=<old> -> math=<new>` cannot pass by the two pks coinciding.
-    for _ in range(3):
-        MathElement.objects.create(latex="x")
+    # `table=<old> -> math=<new>` must not be satisfiable by the two pks
+    # COINCIDING, or a command that printed one pk in both slots would pass. The
+    # parametrisation is the regression: this held only by luck until 2026-08-30,
+    # when CI hit `assert 11 != 11` on a green branch that touches none of this.
+    _offset_sequences(table_ahead_by)
     _, part, unit, table, join = _course_with_table(_cells())
+    # Build the table FIRST, then drive the math sequence past its pk. A fixed
+    # count of spare rows cannot do this: it separates the two sequences only when
+    # they already started close, and collides outright when the table sequence
+    # leads by exactly the count. Bumping until the pk is provably greater makes
+    # the command's own MathElement land strictly higher whatever came before.
+    while True:
+        if MathElement.objects.create(latex="x").pk > table.pk:
+            break
     _run(part, _source(tmp_path), apply=True)
     join.refresh_from_db()
     assert table.pk != join.object_id
