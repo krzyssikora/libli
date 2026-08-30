@@ -1498,33 +1498,76 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .el--filltable[data-header-row] tr:first-child th { border-bottom: 2px solid var(--border-strong); font-weight: 600; }
 .el--filltable[data-header-col] tr th:first-child { border-right: 2px solid var(--border-strong); font-weight: 600; }
 
-/* Answer input: small, inline, sized to hold a short answer rather than
-   stretching to fill the cell (a table cell's contenteditable ancestor is not
-   involved here — this is the plain student-facing input). */
-.filltable__input {
-  width: 6ch;
-  min-width: 4rem;
-  padding: var(--space-1) var(--space-2);
-  font: inherit;
-  /* border-strong (not border-default): an unfilled input sits inside a dark
-     table cell in dark mode, where border-default is nearly invisible — the
-     student must be able to see the well to type into it. */
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-raised);
-  color: var(--text-primary);
-}
+/* Answer input: the plain student-facing control (a table cell's contenteditable
+   ancestor is not involved here). It deliberately declares NO box and NO palette
+   of its own — reset.css gives every control `font: inherit; color: inherit`, and
+   app.css's `input[type=text], … ` rule supplies the width, padding, background,
+   border and radius. The input fills its cell.
+
+   ⚠️ THAT app.css RULE IS (0,1,1) — an attribute selector PLUS a type selector —
+   so it beats any single class, whatever the source order. ANY declaration this
+   component needs to WIN must be written at ≥ (0,2,0), as the two verdict rules
+   below are. There used to be a `.filltable__input` block here declaring
+   `width: 6ch`, `min-width: 4rem`, a tighter `padding`,
+   `background: var(--surface-raised)`, `border`, `border-radius`, `color` and
+   `font: inherit`. MEASURED, not one of them reached the page: four were
+   outranked (the input renders full-cell-width, 12px padding, on
+   --surface-sunken) and the rest were exact duplicates of what app.css and
+   reset.css already give — including the `--border-strong` rim the block argued
+   for, which app.css picks for every form control on the same reasoning. It read
+   as the design without being the design, so it is gone. Restoring that narrow
+   inline input is a deliberate, separate change.
+
+   `:focus-visible` below IS load-bearing: it is (0,2,0), and it tightens
+   reset.css's global 2px outline-offset to 1px so the ring does not collide with
+   the cell border. */
 .filltable__input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* THE CELL'S `.ta-*` MUST REACH THE ANSWER TEXT. `text-align` does not inherit
+   into a form control: Chromium, Gecko and WebKit all compute `text-align:
+   start` on `<input>` from their UA sheet, and nothing here declared one — so an
+   author who centres a fill-in table saw every answer stay flush left, both as
+   the student types and on the mine.done restore path. Same defect class as
+   `.katex-display` and `.cell-img` above (a child of the cell that will not take
+   the cell's text-align), and the same fix: hand the control back to whichever
+   `.ta-*` the cell carries. A/B MEASURED by
+   tests/test_e2e_filltable_answer_align.py (glyph ink inside the input's own
+   box, left/right slack in px): with this rule, 9/475 · 242/242 · 476/9;
+   with it removed, ta-left, ta-center and ta-right ALL rendered 9/475 —
+   identical, i.e. halign had no effect on the answer text whatever.
+
+   (0,2,0), not (0,1,0): app.css declares no text-align today, so a bare class
+   would in fact work — but this control is exactly where that assumption has
+   already failed six times over (see the note above and the verdict states
+   below), so the fix is written above the trap rather than beside it. */
+.el--filltable .filltable__input { text-align: inherit; }
 
 /* Correctness states: filltable.js toggles these per input after a Check;
    a correct cell is then locked read-only (mirrors .fillgate's blank-input
-   verdict states so the self-check families read as one, see app.css). */
-.filltable__input--correct {
+   verdict states so the self-check families read as one, see app.css).
+
+   `.el--filltable` IS THE POINT OF THESE SELECTORS, not tidiness. Written bare,
+   `.filltable__input--correct` is (0,1,0) and loses to app.css's
+   `input[type=text], …` (0,1,1), so the green and the red never painted at all:
+   MEASURED on a real Check, correct AND incorrect both computed background
+   #FAF8F3 (--surface-sunken) and border-colour #D6CFC1 (--border-strong) — the
+   two verdicts were the SAME PICTURE, and only the summary line and the
+   read-only lock told a student which cells they had got right. Pinned by
+   tests/test_e2e_filltable_verdict_colours.py, which asserts each state against
+   the token painted in the live page (not a hard-coded hex) and, last, that the
+   two states differ at all.
+
+   This is what the sibling family already does and what should have been copied
+   with the design: `[data-fillgate] .question__blank-input.is-correct` in
+   app.css is (0,3,0). `:read-only` below is a pseudo-CLASS, so that rule was
+   (0,2,0) and had always worked — which is exactly why the breakage was hard to
+   see: the locked cell's text really did dim. */
+.el--filltable .filltable__input--correct {
   border-color: var(--success);
   background: var(--success-subtle);
 }
 .filltable__input--correct:read-only { color: var(--text-secondary); cursor: default; }
-.filltable__input--incorrect {
+.el--filltable .filltable__input--incorrect {
   border-color: var(--danger);
   background: var(--danger-subtle);
 }
