@@ -451,3 +451,146 @@ def test_a_move_into_a_spoiler_uses_its_fixed_slot():
 
     fresh = Element.objects.get(pk=placed.pk)
     assert (fresh.parent_id, fresh.tab_id) == (sp.pk, SpoilerElement.SLOT_ID)
+
+
+# ── paste BEFORE a chosen element ──────────────────────────────────────────
+# `before` names the join the subject should land directly above. The
+# destination slot is DERIVED from that join, so the client posts no
+# parent/tab on this path and the two can never disagree.
+
+
+def test_a_move_before_a_sibling_in_its_own_slot_lands_directly_above_it():
+    """The reason `before` exists at all. Clause 5 refuses a plain move into your
+    own slot, so without a positional path an element at the bottom of a group can
+    only climb one step per round trip with the arrows."""
+    course, unit = make_course_with_unit()
+    first = _text(unit, body="<p>1</p>")
+    second = _text(unit, body="<p>2</p>")
+    third = _text(unit, body="<p>3</p>")
+    subject = _text(unit, body="<p>s</p>")
+
+    paste_element(course, subject.pk, "", "", "move", _tok(unit), before=second.pk)
+
+    assert [pk for pk, _o in _orders(unit, None, "")] == [
+        first.pk,
+        subject.pk,
+        second.pk,
+        third.pk,
+    ]
+
+
+def test_a_move_before_a_later_sibling_accounts_for_its_own_removal():
+    """place_element's `position` indexes the POST-REMOVAL sibling list.
+
+    Mutant: resolve the target's index in the group as it stands (pre-removal) ->
+    the subject lands one slot too low, BELOW the element it was aimed above.
+    Asserted on the whole order, so neighbour identity is what fails, not a
+    number."""
+    course, unit = make_course_with_unit()
+    subject = _text(unit, body="<p>s</p>")
+    second = _text(unit, body="<p>2</p>")
+    third = _text(unit, body="<p>3</p>")
+    fourth = _text(unit, body="<p>4</p>")
+
+    paste_element(course, subject.pk, "", "", "move", _tok(unit), before=third.pk)
+
+    assert [pk for pk, _o in _orders(unit, None, "")] == [
+        second.pk,
+        subject.pk,
+        third.pk,
+        fourth.pk,
+    ]
+
+
+def test_a_move_before_a_target_in_another_slot_lands_in_that_slot():
+    """The destination scope is derived from the target, never posted."""
+    course, unit = make_course_with_unit()
+    dest, slots = _tabs(unit)
+    anchor = _text(unit, parent=dest, tab=slots[1], body="<p>a</p>")
+    subject = _text(unit, body="<p>s</p>")
+
+    paste_element(course, subject.pk, "", "", "move", _tok(unit), before=anchor.pk)
+
+    fresh = Element.objects.get(pk=subject.pk)
+    assert (fresh.parent_id, fresh.tab_id) == (dest.pk, slots[1])
+    assert [pk for pk, _o in _orders(unit, dest, slots[1])] == [subject.pk, anchor.pk]
+
+
+def test_a_move_before_a_target_inside_its_own_subtree_is_refused():
+    """Clause 4 still applies: the parent derived from a descendant target is
+    inside the marked subtree."""
+    course, unit = make_course_with_unit()
+    root, rslots = _tabs(unit)
+    child = _text(unit, parent=root, tab=rslots[0])
+
+    with pytest.raises(PlacementRefused) as exc:
+        paste_element(course, root.pk, "", "", "move", _tok(unit), before=child.pk)
+
+    assert exc.value.reason_key == "into_own_subtree"
+
+
+def test_a_move_before_a_non_nestable_targets_slot_is_still_refused():
+    """Clause 2 still applies. A slidebreak may not be nested, and aiming it before
+    a child of a container is exactly a request to nest it -- the derived slot must
+    face the same rule the posted slot does."""
+    from courses.models import SlideBreakElement
+
+    course, unit = make_course_with_unit()
+    dest, slots = _tabs(unit)
+    anchor = _text(unit, parent=dest, tab=slots[0])
+    sb = Element.objects.create(
+        unit=unit, content_object=SlideBreakElement.objects.create()
+    )
+
+    with pytest.raises(PlacementRefused) as exc:
+        paste_element(course, sb.pk, "", "", "move", _tok(unit), before=anchor.pk)
+
+    assert exc.value.reason_key == "type_not_nestable"
+
+
+def test_a_move_before_itself_is_a_shape_error():
+    """No UI can produce it -- the row that carries the mark renders no button."""
+    course, unit = make_course_with_unit()
+    subject = _text(unit)
+
+    with pytest.raises(builder.NestingError):
+        paste_element(course, subject.pk, "", "", "move", _tok(unit), before=subject.pk)
+
+
+def test_a_move_before_a_vanished_target_reports_the_destination_is_gone():
+    """422, not 400: a co-author really can delete the anchor while a mark is
+    pending, so this is an ordinary race, not a malformed payload."""
+    course, unit = make_course_with_unit()
+    subject = _text(unit)
+    doomed = _text(unit)
+    doomed_pk = doomed.pk
+    doomed.delete()
+
+    with pytest.raises(builder.ParentGoneError):
+        paste_element(course, subject.pk, "", "", "move", _tok(unit), before=doomed_pk)
+
+
+def test_a_copy_may_not_name_a_before_target():
+    """The editor offers `before` for moves only, so a copy carrying one is a
+    malformed payload rather than a silently ignored argument."""
+    course, unit = make_course_with_unit()
+    subject = _text(unit)
+    anchor = _text(unit)
+
+    with pytest.raises(builder.NestingError):
+        paste_element(course, subject.pk, "", "", "copy", _tok(unit), before=anchor.pk)
+
+
+def test_a_plain_move_into_the_elements_own_slot_is_still_refused():
+    """Clause 5's regression guard. `before` skips it; a slot paste must not.
+
+    Mutant: drop clause 5 rather than making it conditional -> RED here while every
+    `before` test above stays green."""
+    course, unit = make_course_with_unit()
+    subject = _text(unit)
+    _text(unit)
+
+    with pytest.raises(PlacementRefused) as exc:
+        paste_element(course, subject.pk, "", "", "move", _tok(unit))
+
+    assert exc.value.reason_key == "own_slot"

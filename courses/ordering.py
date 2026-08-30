@@ -93,16 +93,32 @@ def place_node(node, new_parent, course, position):
             n.save(update_fields=["order", "updated"])
 
 
-def place_element(element, unit, position):
+def place_element(element, unit, position, before=None):
     """Insert `element` at a 0-based `position` among its OWN group's other elements
     (clamped 0..len(others)), renumbering only rows whose order changed. Returns True
-    iff any order changed. `others` is the POST-REMOVAL sibling list."""
+    iff any order changed. `others` is the POST-REMOVAL sibling list.
+
+    `before` names a sibling to land directly above and OVERRIDES `position`. It is
+    resolved against `others` -- the very list the insert indexes into -- so the
+    post-removal semantics are stated once. A caller that computed the index itself
+    would have to re-derive that list and would be free to drift from it by one
+    whenever the element is moving DOWN within its own group.
+
+    A `before` absent from `others` falls back to appending. Unreachable through
+    paste_element, which resolves the anchor inside the same transaction and under
+    the same unit lock every writer takes, and rejects an anchor equal to
+    `element`; the clamp is here so a future caller cannot turn a stale pk into a
+    crash mid-reorder."""
     others = list(
         element_siblings(unit, element.parent, element.tab_id)
         .select_for_update()
         .exclude(pk=element.pk)
         .order_by("order", "pk")
     )
+    if before is not None:
+        position = next(
+            (i for i, o in enumerate(others) if o.pk == before.pk), len(others)
+        )
     if position is None or position > len(others):
         position = len(others)
     if position < 0:

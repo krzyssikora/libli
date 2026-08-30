@@ -62,6 +62,21 @@ def _paste(client, course, unit, parent, tab, mode="move", token=None):
     )
 
 
+def _paste_before(client, course, unit, anchor, mode="move", token=None):
+    """The before-path posts NO parent/tab: the slot is derived from the anchor."""
+    return client.post(
+        reverse("courses:manage_element_paste", kwargs={"slug": course.slug}),
+        {
+            "ctx": "editor",
+            "mode": mode,
+            "before": anchor if isinstance(anchor, int) else anchor.pk,
+            "unit": unit.pk,
+            "unit_token": token if token is not None else unit.updated.isoformat(),
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+
+
 def test_a_move_returns_both_fragments_and_relocates_the_element(client):
     course, unit = _seed(client)
     dest, slots = _tabs(unit)
@@ -487,3 +502,102 @@ def test_a_user_who_cannot_manage_the_course_is_refused(client):
     assert resp.status_code in (403, 404)
     subject.refresh_from_db()
     assert subject.parent_id is None
+
+
+# ── paste BEFORE a chosen element, through the view ────────────────────────
+
+
+def _order(unit, parent=None, tab=""):
+    return list(
+        Element.objects.filter(unit=unit, parent=parent, tab_id=tab)
+        .order_by("order", "pk")
+        .values_list("pk", flat=True)
+    )
+
+
+def test_a_paste_before_a_sibling_reorders_within_the_slot_and_clears_the_mark(client):
+    """The whole point, end to end: an element added at the BOTTOM reaches the top
+    of a 4-element group in one request instead of three arrow round trips."""
+    course, unit = _seed(client)
+    first = _text(unit, body="<p>1</p>")
+    second = _text(unit, body="<p>2</p>")
+    subject = _text(unit, body="<p>s</p>")
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    resp = _paste_before(client, course, unit, first)
+
+    assert resp.status_code == 200
+    assert _order(unit) == [subject.pk, first.pk, second.pk]
+    assert "element_clip" not in client.session
+
+
+def test_a_paste_before_derives_the_slot_from_the_anchor(client):
+    """No parent/tab is posted at all, so a view that kept reading them would land
+    the element at top level and leave this RED."""
+    course, unit = _seed(client)
+    dest, slots = _tabs(unit)
+    anchor = _text(unit, parent=dest, tab=slots[1], body="<p>a</p>")
+    subject = _text(unit, body="<p>s</p>")
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    resp = _paste_before(client, course, unit, anchor)
+
+    assert resp.status_code == 200
+    subject.refresh_from_db()
+    assert (subject.parent_id, subject.tab_id) == (dest.pk, slots[1])
+    assert _order(unit, dest, slots[1]) == [subject.pk, anchor.pk]
+
+
+def test_a_paste_before_a_vanished_anchor_is_a_422_with_a_visible_reason(client):
+    """A co-author deleting the anchor between the mark and the click is the race
+    this path creates. Assert the BODY: a bare status leaves the author staring at
+    an unchanged pane with no idea why."""
+    course, unit = _seed(client)
+    subject = _text(unit)
+    doomed = _text(unit)
+    doomed_pk = doomed.pk
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+    Element.objects.filter(pk=doomed_pk).delete()
+    unit.refresh_from_db()
+
+    resp = _paste_before(client, course, unit, doomed_pk)
+
+    assert resp.status_code == 422
+    body = resp.content.decode()
+    assert 'data-scope="editor"' in body
+    assert "removed while you were working" in body
+
+
+def test_a_paste_before_with_a_stale_token_is_a_409(client):
+    course, unit = _seed(client)
+    anchor = _text(unit)
+    subject = _text(unit)
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+
+    resp = _paste_before(
+        client, course, unit, anchor, token="2020-01-01T00:00:00+00:00"
+    )
+
+    assert resp.status_code == 409
+    assert _order(unit) == [anchor.pk, subject.pk]
+
+
+def test_a_paste_before_itself_is_a_400(client):
+    """No UI produces it -- the marked row renders no button -- so it is a shape
+    error, not a refusal the author needs explained."""
+    course, unit = _seed(client)
+    _text(unit)
+    subject = _text(unit)
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    resp = _paste_before(client, course, unit, subject)
+
+    assert resp.status_code == 400

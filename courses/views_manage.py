@@ -21,6 +21,7 @@ from django.views.decorators.http import require_POST
 from courses import builder as builder_svc
 from courses import builder_filter
 from courses import builder_open  # for builder_open.CEILING -- see below
+from courses import ordering as ordering_svc
 from courses import quiz_warnings
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
@@ -1588,6 +1589,8 @@ def _clip_context(request, unit):
         "clip_label": "",
         "move_slots": set(),
         "copy_slots": set(),
+        "before_slots": set(),
+        "clip_noop_pk": "",
     }
     clip = request.session.get(CLIP_SESSION_KEY) or {}
     if clip.get("unit") != unit.pk:
@@ -1621,6 +1624,37 @@ def _clip_context(request, unit):
             if ok:
                 bucket.add(key)
 
+    # A row's "paste before" button asks for a POSITION inside a slot, which is a
+    # different question from the slot buttons' "append to this slot". The only
+    # rule that differs is clause 5, and clause 5 can fire for exactly one slot --
+    # the marked element's own -- so this is ONE extra paste_allowed call rather
+    # than a second pass over `pairs`. Asked rather than assumed: "it already lives
+    # there, so it must still be admissible" is true today only because no clause
+    # depends on anything a move within one slot changes.
+    before_slots = set(move_slots)
+    ok, _reason = builder_svc.paste_allowed(
+        unit, marked, marked.parent, marked.tab_id, "move", facts=facts, positional=True
+    )
+    if ok:
+        before_slots.add(builder_svc.slot_key(marked.parent_id, marked.tab_id))
+
+    # The one row whose button would be a no-op: the marked element is ALREADY
+    # directly above its next sibling, so landing there costs a full re-render to
+    # change nothing. Read from the ordered sibling list rather than with
+    # order__gt, because `order` is only distinct after a compaction.
+    siblings = list(
+        ordering_svc.element_siblings(unit, marked.parent, marked.tab_id)
+        .order_by("order", "pk")
+        .values_list("pk", flat=True)
+    )
+    # `in` before `index`, for the reason the marked-element lookup above is
+    # wrapped: this runs on EVERY editor render while a mark is pending, so a bare
+    # .index() raising would be a 500 the author cannot clear without dropping the
+    # session cookie. The group is queried from marked's own parent/tab, so a miss
+    # is unreachable -- and suppressing one button is the right way to be wrong.
+    after = siblings[siblings.index(marked.pk) + 1 :] if marked.pk in siblings else []
+    noop_pk = str(after[0]) if after else ""
+
     obj = marked.content_object
     return {
         "clip_active": True,
@@ -1638,6 +1672,10 @@ def _clip_context(request, unit):
         "clip_label": marked.title or element_summary(obj),
         "move_slots": move_slots,
         "copy_slots": copy_slots,
+        "before_slots": before_slots,
+        # STRINGIFIED for the same reason clip_element_pk is: the tag compares it
+        # against str(el.pk).
+        "clip_noop_pk": noop_pk,
     }
 
 
@@ -1727,6 +1765,10 @@ def element_paste(request, slug):
             request.POST.get("tab"),
             request.POST.get("mode"),
             request.POST.get("unit_token"),
+            # Absent on the slot buttons, present on a row's "paste before" one.
+            # The service ignores parent/tab whenever it is set, so the two forms
+            # never have to agree about a destination.
+            before=request.POST.get("before"),
         )
     except builder_svc.ConflictError:
         return _element_conflict(request, course)
