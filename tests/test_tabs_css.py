@@ -234,3 +234,68 @@ def test_the_width_cap_did_not_leak_onto_a_carousel_selector():
     for line in css.splitlines():
         if '[data-display="carousel"]' in line or ".tabs--carousel" in line:
             assert "max-width" not in line, f"carousel selector gained a cap: {line}"
+
+
+TABS_PANEL_SELECTOR = (
+    '.el--tabs[data-display="tabs"] > .tabs__stage > .tabs__section > .tabs__panel'
+)
+
+
+def test_the_tabs_mode_panel_carries_a_left_rule_marking_where_it_ends():
+    """The bar's border-bottom marks where a panel STARTS; nothing marked where it
+    ENDED, so the element below a tabs element read as though it might still be tab
+    content -- worse because that boundary MOVES as the student switches between
+    tabs of unequal height. A left rule down the panel gives the missing terminus
+    and, being visible, turns an unexplained page reflow into "the tab I am on got
+    shorter".
+
+    Values are copied from `.ba__panel` (courses.css), the nearest precedent: same
+    treatment, and it needed no wrapper for the same structural reason -- the panel
+    is ONE box holding all its children, so a single border is continuous by
+    construction. (`.spoiler__children` exists only because the spoiler's per-CHILD
+    borders came out segmented; that wrapper is not needed here.) The box hugs its
+    content because it has padding-top but no bottom padding, so the last child's
+    margin-bottom collapses OUT and the rule stops at the content rather than a
+    margin past it.
+
+    Values, not property names. `border-left: 0` and `padding-left: 0` both satisfy
+    a presence-only check while shipping precisely the bug this rule removes -- the
+    same trap the overflow-wrap assertion above documents.
+
+    The EXPLICIT CHILD CHAIN is load-bearing and _rule_block is what pins it: a
+    nested tabs element is legal, and loosening the selector to
+    `.el--tabs[data-display="tabs"] .tabs__panel` would draw a second rule on the
+    inner element's panel -- the trap PR #219 hit repeatedly with the carousel
+    rules. _rule_block anchors on the exact selector, so any such loosening raises
+    ValueError here rather than passing quietly.
+    """
+    css = CSS.read_text(encoding="utf-8")
+    block = _rule_block(css, TABS_PANEL_SELECTOR)
+
+    assert re.search(r"border-left:\s*2px solid", block), (
+        f"the panel has no bottom terminus: {block!r}"
+    )
+    assert re.search(r"padding-left:\s*var\(--space-\d\)", block), (
+        f"the rule would sit flush against the content: {block!r}"
+    )
+    assert "padding-top" in block, (
+        "the pre-existing gap below the tab bar was dropped when the rule was added"
+    )
+    assert css.count(TABS_PANEL_SELECTOR) == 1, (
+        "the tabs-mode panel selector is declared twice -- the later block wins and "
+        "the assertions above may be reading the losing one"
+    )
+
+
+def test_the_left_rule_did_not_leak_onto_a_carousel_selector():
+    """A carousel already terminates its content with the dots bar below it, and an
+    asymmetric left indent would fight its centred label and centred nav. The
+    `[data-display="tabs"]` attribute on the rule above is what excludes it.
+
+    Line-based for the same reason -- and with the same blind spot -- as the
+    width-cap leak scan above.
+    """
+    css = re.sub(r"/\*.*?\*/", "", CSS.read_text(encoding="utf-8"), flags=re.S)
+    for line in css.splitlines():
+        if '[data-display="carousel"]' in line or ".tabs--carousel" in line:
+            assert "border-left" not in line, f"carousel gained a left rule: {line}"
