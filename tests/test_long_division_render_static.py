@@ -104,8 +104,28 @@ def test_inline_prose_path_does_not_get_trust():
 
 
 def test_math_element_scrolls_instead_of_overflowing():
+    """An intrinsically-sized array exceeds the content column, so the element
+    scrolls sideways rather than spilling.
+
+    The other two declarations are the same rule's second half and belong in the
+    same guard, because `overflow-x` alone CANNOT be shipped: CSS Overflow 3
+    §3.3 computes the other axis' `visible` to `auto` as soon as this one is
+    set, which made every math element a vertical scroll container too (measured
+    on 354 of the 788 stored formulas) and clipped the ink that KaTeX paints
+    just outside the block. `tests/test_e2e_math_element_overflow.py` proves the
+    consequence in a browser; this guard names the three declarations so that
+    deleting one is not a silent edit.
+
+    Matched inside the rule BODY, not as a literal line: the declarations may be
+    reordered or rewrapped without reddening this, and only `.el--math {` at the
+    start of a line can match -- `.el--math > .katex-display` and `.el--math .mk`
+    head their own rules."""
     css = COURSES_CSS.read_text(encoding="utf-8")
-    assert ".el--math { overflow-x: auto; }" in css
+    body = re.search(r"^\.el--math\s*\{([^}]*)\}", css, re.M)
+    assert body, "the .el--math rule is missing"
+    assert "overflow-x: auto" in body.group(1)
+    assert "overflow-y: hidden" in body.group(1)
+    assert "padding-block:" in body.group(1)
 
 
 def test_mark_classes_defined():

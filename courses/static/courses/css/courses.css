@@ -1347,7 +1347,44 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    SELECTED source arrays fit, the widest (160#34) overflows by 5px. (73 were
    selected from the legacy HTML; 71 had a stored counterpart and were
    converted.) --- */
-.el--math { overflow-x: auto; }
+/* `overflow-y` and `padding-block` are the SECOND half of this rule, and neither
+   is cosmetic. CSS Overflow 3 §3.3: when one axis is not `visible`, a `visible`
+   value on the OTHER axis computes to `auto` -- so `overflow-x: auto` alone
+   silently turned every math element into a VERTICAL scroll container too.
+   KaTeX's inline-blocks routinely sit a few px outside the block they typeset
+   into (`.vlist` children carry `position: relative` offsets and negative
+   margins), so that vertical scrollbar then appeared on almost half the corpus
+   and the clipped edge ate real ink.
+
+   MEASURED over all 788 stored MathElement.latex values, rendered at the 648px
+   column:
+     * scrollHeight - clientHeight > 0 on 354 of 788 (44.9%), max 8px
+       -- i.e. 354 elements painted a vertical scrollbar;
+     * an A/B pixel diff against `overflow: visible` differed on 345 of the 766
+       that do not scroll horizontally -- a shaved row at one edge or the other;
+       the top `\hline` of a long-division array, which sits one pixel above the
+       block's own top edge, is the clearest instance.
+     * the ink itself escapes the element box by AT MOST 1px above and 2px below
+       (measured directly off the `overflow: visible` render, per element).
+
+   `overflow-y: hidden` is what removes the scrollbar: the residual overflow is
+   the invisible box overhang, and padding alone would need 8px a side to absorb
+   it. `padding-block: 4px` is what keeps the ink -- 2x the measured 2px worst
+   case, on both edges. Verified together over the same 788: ZERO elements lose
+   an ink row against the `overflow: visible` reference.
+
+   THE PRICE, stated because the note below fought for exactly this geometry:
+   every math element grows 8px (4px a side). Sibling margins COLLAPSE, so a
+   compensating `margin-block` cannot claw it back -- `max(1rem - 4px, 1rem)` is
+   still 1rem against any normal `.el` neighbour. Accepted at 8px; the 32px the
+   note below rejects is four times larger.
+
+   A horizontal scrollbar, on the 22 elements that scroll, is drawn INSIDE the
+   padding box. Measured 0px reserved in Chromium here (overlay scrollbars) and
+   no element lost ink; on a UA with classic space-reserving scrollbars it would
+   overlap the bottom padding, which `overflow-y: hidden` no longer lets the
+   reader scroll away. Re-measure here if that ever becomes a real UA. */
+.el--math { overflow-x: auto; overflow-y: hidden; padding-block: 4px; }
 /* `overflow-x: auto` also makes `.el--math` a block formatting context root,
    which stops KaTeX's `.katex-display { margin: 1em 0 }` collapsing out through
    it -- for EVERY math element in the app, not just the 71. A/B MEASURED on a

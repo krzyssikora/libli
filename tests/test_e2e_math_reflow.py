@@ -375,7 +375,14 @@ def test_math_element_adds_no_block_space_around_the_formula(page, live_server):
     `.el--math > .katex-display { margin-block: 0 }` restores the old layout
     exactly (re-measured: byte-identical geometry to the overflow-x: visible
     run). This pins that restoration -- without it each offset below is one 1em
-    margin instead of zero.
+    margin instead of the padding.
+
+    The offsets are measured against `.el--math`'s own `padding-block`, not
+    against zero: the rule deliberately carries 4px a side so that KaTeX's ink,
+    which escapes the block by up to 2px, survives the clip that `overflow-x`
+    forces on both axes (see the rule's note in courses.css). A 1em margin is
+    16px, four times the padding, so the assertion still fails loudly if the
+    `margin-block: 0` is dropped.
     """
     unit = _open_pa_session(page, live_server, "mr_space", "mr-space")
     add_element(unit, MathElement.objects.create(latex="a^2+b^2=c^2"))
@@ -387,7 +394,9 @@ def test_math_element_adds_no_block_space_around_the_formula(page, live_server):
              const el = document.querySelector('.el--math');
              const d = el.querySelector('.katex-display');
              const a = el.getBoundingClientRect(), b = d.getBoundingClientRect();
-             return { top: b.top - a.top, bottom: a.bottom - b.bottom };
+             const cs = getComputedStyle(el);
+             return { top: b.top - a.top - parseFloat(cs.paddingTop),
+                      bottom: a.bottom - b.bottom - parseFloat(cs.paddingBottom) };
            }"""
     )
     assert abs(offsets["top"]) < 1, offsets

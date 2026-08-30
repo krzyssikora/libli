@@ -2095,6 +2095,56 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    group clamp elsewhere in this file: a tall construct keeps its own height
    rather than being deformed to fit a single text line. */
 
+/* --- Inline maths must not shed its trailing punctuation ------------------- */
+/* REPORTED on a real unit: "...w jednej kolumnie to \(18\)." rendered with the
+   full stop alone on the next line, although the author typed no space before
+   it.
+
+   THE CAUSE IS NOT WHITESPACE. KaTeX types a formula into `.katex .base`, which
+   the vendored sheet makes `display: inline-block` -- an ATOMIC INLINE, which
+   the line breaker treats as an object replacement character and is free to
+   break after, punctuation or not. REPRODUCED at 264px with a plain
+   `<span style="display:inline-block">18</span>.` and NOT reproduced with a
+   plain `<b>18</b>.`, so the inline-block is the whole mechanism.
+
+   Chromium resolves that boundary against the atomic inline's PARENT INLINE, not
+   against the common ancestor of the two runs. MEASURED, same probe, sweeping
+   the width from 420px down to 70px:
+     * U+2060 WORD JOINER inserted between the formula and the stop -- STILL
+       BREAKS (so the fix cannot be a character);
+     * `white-space: nowrap` on a wrapper AROUND `.katex` plus
+       `white-space: normal` back on `.katex` -- STILL BREAKS;
+     * `white-space: nowrap` on `.katex` itself -- never breaks.
+   `word-break: keep-all` and `line-break: strict` on the paragraph were also
+   measured, and neither moves the break at all.
+
+   THE GUARD IS LOAD-BEARING. KaTeX deliberately emits SEVERAL `.base` runs for a
+   long inline formula, breaking at relations and binary operators, so that it
+   can wrap inside the prose column; a blanket nowrap turns those into one
+   unbreakable run -- MEASURED 570px of horizontal overflow out of a 300px
+   paragraph on a 23-run formula. `:not(:has(.base ~ .base))` matches only the
+   formulas that have NO internal break opportunity, where nowrap can therefore
+   change nothing except the boundary this rule exists to close. Re-measured on
+   the guarded rule: the 23-run formula keeps `white-space: normal`, wraps
+   internally exactly as before, and overflows by 0px.
+
+   A FOLLOWING SPACE STILL BREAKS -- checked, and it is the reason this is safe
+   to ship globally: the space belongs to the prose element, whose own
+   `white-space` still governs it. Same probe with " oraz kolejne slowa" after
+   the formula broke at 295px with and without this rule.
+
+   KNOWN LIMIT: a MULTI-run inline formula followed directly by punctuation is
+   left alone, and still sheds it. Closing that needs the last `.base` and the
+   punctuation inside one nowrap box, which means moving author text into
+   KaTeX's output; not worth it until a real unit shows the shape.
+
+   Specificity is (0,2,0) -- `.katex` plus the `:has()` argument, which `:not()`
+   passes through -- against the vendor's (0,1,0) `.katex`, so the invariant at
+   the head of this section holds. The vendor's only `white-space` declarations
+   are `.katex .base` and `.katex-display > .katex`, both already `nowrap`, so
+   this rule never contradicts one. */
+.katex:not(:has(.base ~ .base)) { white-space: nowrap; }   /* (0,2,0) > (0,1,0) */
+
 /* Public pages (privacy, getting-started). Prose column matching the 46rem
    content cap used elsewhere; no new design tokens. */
 .public-page {
