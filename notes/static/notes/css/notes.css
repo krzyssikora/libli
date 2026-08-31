@@ -41,8 +41,16 @@
 /* ── Block-notes aside ───────────────────────────────────────────────────── */
 /* Negative top margin pulls the affordance up to hug its own element: each
    rendered .el has margin:1rem 0, so without this the icon sits ~1.5rem below
-   its element but only ~1rem above the next — reading as the next block's. */
-.block-notes { margin-top: -.85rem; margin-bottom: .35rem; }
+   its element but only ~1rem above the next — reading as the next block's.
+   -1rem, not -.85rem: the handle is a flow row whose cost is FIXED per block
+   regardless of how tall the block is, so a one-line paragraph (~26px) used to
+   carry ~29px of affordance beneath it — more than the text itself. Pulling to
+   -1rem exactly cancels the element's own 16px bottom margin, so the icon sits
+   flush against its block rather than 2.4px below it, and the row's total cost
+   drops to ~19px. The 2.4:16 above/below ratio the hug relies on becomes 0:16,
+   which is a stronger hug, not a weaker one. The rail below removes the row
+   entirely where the column can spare the width. */
+.block-notes { margin-top: -1rem; margin-bottom: .35rem; }
 
 .block-notes__panel { border: none; padding: 0; margin: 0; }
 
@@ -56,7 +64,7 @@
   width: fit-content;
   margin-left: auto;          /* tuck against the block's right edge */
   font-size: .8rem;
-  padding: .2rem .35rem;
+  padding: .1rem .3rem;
   border-radius: 6px;
   color: var(--text-tertiary);
   opacity: .6;
@@ -80,7 +88,9 @@
 .block-notes__handle::marker { display: none; content: ""; }
 
 .block-notes__count { font-weight: 600; font-variant-numeric: tabular-nums; }
-.block-notes__icon { width: 1.25rem; height: 1.25rem; flex: none; }
+/* 1rem in the flow row (narrow columns), restored to 1.25rem in the rail below
+   where the width is already reserved and a bigger target costs nothing. */
+.block-notes__icon { width: 1rem; height: 1rem; flex: none; }
 
 /* Notes panel: hidden until the icon is clicked. With JS on a wide viewport it
    floats to the RIGHT of the block, over the page margin — a separate layer,
@@ -109,6 +119,133 @@
   .notes-js .block-notes__panel[open] .block-notes__pop--clamped {
     left: auto;
     right: 0;
+  }
+}
+
+/* ── Rail: the handle beside its block, not beneath it ────────────────────── */
+/* THE RULE: on a wide viewport the handle leaves the flow entirely and sits in a
+   2.75rem lane in the PAGE GUTTER, just outside the block's right edge. The flow
+   row above costs ~19px per block even after the tightening — a FIXED cost, the
+   same under a ten-line paragraph as under a one-liner, which is what made short
+   paragraphs read as spread out. In the rail it costs 0px, for EVERY element
+   kind (prose, tables, images, questions), with no measurement and no JS.
+
+   THE LANE MUST NOT COME OUT OF THE COLUMN. This was learned the hard way: an
+   earlier revision put `padding-right` on .lesson-block and CI failed twice.
+   Both reading columns are within a few dozen pixels of a hard floor:
+     tree pinned, 648px    → a 3-column .el--twocolumn needs 3 x 12rem + 2 x
+                             --space-5 = 616px, a 4-column one 636px
+                             (courses.css:2103). 12px of slack. Take 44px and
+                             the columns fold to a second row.
+     tree collapsed, 872px → .lesson-unit__head's heading group runs ~756px
+                             beside the done pill against a 46rem/736px title
+                             cap. 20px of slack. Take 44px and the GROUP binds
+                             instead of the cap, so the cap stops being what
+                             holds the title — silently.
+   Neither symptom names the notes rail, so tests/test_e2e_notes_rail.py carries
+   an explicit column-width guard in both states as the signpost.
+
+   Two further consequences of taking it from the gutter rather than the column:
+   a tinted block still FILLS the column (an invariant asserted against .lesson's
+   content box in tests/test_e2e_uniform_block_width.py), and the block's right
+   edge is the SAME in both TOC states — only the left edge moves — so one gutter
+   rule serves both. Space is guaranteed at this gate: above 1200px .app-main is
+   pinned at its 960px cap and centred, leaving >=120px to the right of it.
+
+   NOT a grid or a flex on .lesson-block either, which was the other candidate:
+   both make .lesson-block__body a grid/flex item, establishing an independent
+   formatting context that TRAPS the `.el { margin: 1rem 0 }` margins now
+   collapsing out to the section — silently re-adding per block most of the
+   height this change exists to remove.
+
+   WHY 1200px. Below it the pop is IN FLOW, and an in-flow pop inside a 2.75rem
+   lane is a 44px-wide panel; tying the rail to the width at which the pop floats
+   (:100) means the rail and the crushed-pop state cannot overlap. `.notes-js`
+   for the same reason — with JS off the pop is in flow at every width, so no-JS
+   keeps the flow row.
+
+   `screen and` is defensive, not required: Chromium evaluates print media
+   queries against the ~1046px page area (courses.css:1148), already below 1200.
+   It costs nothing and means the print block at the end of this file does not
+   have to undo a lane it can never see. */
+@media screen and (min-width: 1200px) {
+  /* The aside stays `position: static` deliberately, and the HANDLE is what
+     leaves the flow instead. .block-notes__pop is absolutely positioned against
+     .lesson-block and reads `left: calc(100% + 1rem)` off it (:102); positioning
+     the aside would make IT the containing block, turning that 100% into 2.75rem
+     and re-parenting notes.js's `offsetTop` (:524) onto the wrong offsetParent.
+     With the summary out of flow and the closed pop display:none, the aside has
+     no in-flow content left and collapses to zero height on its own.
+
+     It still needs the -1rem pull, though. MEASURED: with `margin: 0` here the
+     gap between two short blocks is 32px, not 16 — a zero-height aside is still
+     the block's last in-flow child, so the element's own 16px bottom margin gets
+     spent positioning it rather than collapsing away, and the next block's 16px
+     top margin then stacks on top. -1rem cancels that and restores the plain
+     element-to-element rhythm; margin-bottom goes to 0 for the same reason,
+     being .35rem of trailing space under an invisible box. */
+  html.notes-js [data-unit-shell] .block-notes {
+    margin-top: -1rem;
+    margin-bottom: 0;
+  }
+  html.notes-js [data-unit-shell] .block-notes__handle {
+    position: absolute;
+    top: 0;
+    /* Negative: the lane is .lesson's padding now, so it lies OUTSIDE
+       .lesson-block's right edge. -2.55rem centres the 2.35rem handle in the
+       2.75rem lane ((2.75 - 2.35) / 2 = .2rem of inset on each side). */
+    right: -2.55rem;
+    /* Stacked, not inline, and this is the rule that keeps the count in the
+       lane: inline, `[icon] (12)` measures ~53px against a 44px lane. Which way
+       it escapes depends on the width below — leftwards over the prose if the
+       box is fit-content, rightwards past the block edge if it is fixed — so
+       neither width is a defence on its own. Column direction bounds the handle
+       to the wider of icon and count, which fits either way. Guarded by
+       tests/test_e2e_notes_rail.py, which measures the ink, not this box. */
+    flex-direction: column;
+    gap: 0;
+    width: 2.35rem;
+    /* A fixed width, replacing the flow row's `width: fit-content` (:64), so
+       every handle occupies the same lane position however long its count is —
+       a fit-content box anchored on `right` shifts left as the count grows,
+       and a rail whose icons do not line up is worse than no rail.
+       NOT what keeps the count off the prose: a mutant dropping this line
+       leaves tests/test_e2e_notes_rail.py green, because `flex-direction:
+       column` above already bounds the width to the wider of icon and count.
+       That is the load-bearing rule; this one is alignment. */
+    /* margin-left:auto (:65) right-tucks it in the flow row; `right` places it
+       here, and leaving auto would fight the fixed width. */
+    margin-left: 0;
+    padding: .15rem;
+  }
+  html.notes-js [data-unit-shell] .block-notes__icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  html.notes-js [data-unit-shell] .block-notes__count {
+    font-size: .7rem;
+    line-height: 1;
+  }
+
+  /* The pop has to clear the handle, which now sits in the gutter just past the
+     block's right edge. The stock `calc(100% + 1rem)` (:105) would open it
+     straight over the icon; 3rem clears the 2.55rem offset with a small gap.
+
+     `:not(--clamped)` is LOAD-BEARING, not tidiness. notes.js measures overflow
+     and adds --clamped (:526), whose `left: auto; right: 0` (:119) is (0,4,0).
+     This rule is (0,6,1) and would simply OVERRIDE that `left: auto`, leaving
+     the panel pinned off the right edge of the screen with the clamp class
+     applied and doing nothing — which is exactly what it did before this
+     selector was scoped: the pop ran off the viewport at 1400px. Excluding the
+     clamped variant hands those cases back to the clamp rule untouched.
+
+     The shift does mean the pop clamps at widths where it previously opened
+     free (roughly 1200-1450px). That is the designed narrow-margin fallback,
+     not a new failure mode, and it is the price of keeping the lane out of the
+     reading column — which cannot afford it (see the gate note above). */
+  html.notes-js [data-unit-shell] .block-notes__panel[open]
+    .block-notes__pop:not(.block-notes__pop--clamped) {
+    left: calc(100% + 3rem);
   }
 }
 
@@ -452,11 +589,11 @@
 
    A print at-rule adds NO specificity, so each rule below must match or beat the
    screen rule it undoes. The weights that matter:
-     (0,5,0) the read-first add-composer hide            -- notes.css:181
-     (0,4,0) the floating pop                            -- :92
-     (0,3,0) the "Add another note" reveal               -- :177
-     (0,2,0) the block highlight / dim pair              -- :278, :284
-     (0,1,1) the unanchored summary's padding            -- :270
+     (0,5,0) the read-first add-composer hide            -- notes.css:318
+     (0,4,0) the floating pop                            -- :102
+     (0,3,0) the "Add another note" reveal               -- :314
+     (0,2,0) the block highlight / dim pair              -- :415, :421
+     (0,1,1) the unanchored summary's padding            -- :407
    Note an attribute selector counts in the CLASS column; miscounting it is how
    an inert rule gets written.
 
@@ -477,7 +614,7 @@
     max-height: none; overflow-y: visible; z-index: auto; box-shadow: none;
   }
 
-  /* UNSCOPED, deliberately: the hub clamps too. (0,1,0) tying notes.css:186 and
+  /* UNSCOPED, deliberately: the hub clamps too. (0,1,0) tying notes.css:323 and
      winning by source order -- the one equal-weight case here, safe only because
      this block is pinned to the end of the file. */
   .note-card__body--clamp {
@@ -495,7 +632,7 @@
      edit, a typed draft (print.js marks it -- CSS cannot see a textarea's value,
      since typing changes `value`, not DOM children), or a rejected no-JS draft.
      That last carve-out is a NO-JS guarantee only: with .notes-js present,
-     notes.css:181 already hides it at (0,5,0), which nothing here beats. */
+     notes.css:318 already hides it at (0,5,0), which nothing here beats. */
   .lesson .note-composer:not(.note-composer--edit):not(.note-composer--has-draft):not(:has(.note-composer__error)) {
     display: none;
   }
@@ -504,7 +641,7 @@
     field-sizing: content; height: auto; max-height: none;
     overflow: visible; resize: none;
     /* border:0 is load-bearing, not chrome: the input is box-sizing:border-box
-       (:209) and inherits input[type] border/padding, so print.js's scrollHeight
+       (:344) and inherits input[type] border/padding, so print.js's scrollHeight
        stamp (a padding-box measurement) is short by the border width. */
     border: 0;
   }
@@ -526,14 +663,14 @@
      printing at all. The full reset matters -- height:0 alone leaves padding, and
      with the global box-sizing:border-box a "zero-height" box still measures 8px.
      .lesson is LOAD-BEARING on the unanchored one: its padding comes from
-     `.unanchored-notes summary` at (0,1,1) (:270), which (0,1,0) would lose to. */
+     `.unanchored-notes summary` at (0,1,1) (:407), which (0,1,0) would lose to. */
   .lesson .block-notes__handle,
   .lesson .unanchored-notes__handle {
     visibility: hidden; height: 0; padding: 0; margin: 0; border: 0;
     overflow: hidden;
   }
 
-  /* notes.css:45 pulls the affordance up against its element with a negative
+  /* notes.css:53 pulls the affordance up against its element with a negative
      margin. With the handle gone that drags the card over the block it
      annotates. */
   .lesson .block-notes { margin-top: .35rem; margin-bottom: .75rem; }
@@ -545,7 +682,7 @@
   .lesson .lesson-block.is-dimmed { opacity: 1; }
   .lesson .lesson-block.is-highlighted { background: none; outline: none; }
   /* applyHighlight (notes.js:445-449) stamps is-highlighted on the matching
-     .note-card TOO, and notes.css:292 gives that a 6px accent rail -- borders
+     .note-card TOO, and notes.css:429 gives that a 6px accent rail -- borders
      survive the strip-backgrounds default, so the focused card would print
      with a fatter rail than every sibling. (0,3,0) to beat that (0,2,0) rule. */
   .lesson .note-card.is-highlighted {
