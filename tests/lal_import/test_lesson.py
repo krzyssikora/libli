@@ -1886,3 +1886,36 @@ def test_inline_math_only_block_is_kept():
     texts = [e for e in elements if e["type"] == "text"]
     assert len(texts) == 1
     assert "a" in texts[0]["body"]
+
+
+# --- a reveal table whose "rows" are bare <div>s inside <table> ---------------
+# Invalid HTML that html.parser leaves in place rather than foster-parenting, so
+# the table has NO <tr> at all. Found in 045_wielomiany/440_wielomiany_rownania
+# .html, where it silently cost the unit all 30 exercises: _reveal_table_spoilers
+# iterated find_all("tr"), matched nothing, and raised no flag -- so the unit was
+# emitted with fully_mapped: true. The two sibling table paths (table_element,
+# fill_table_element) have always guarded this with "table has no rows".
+ROWLESS_REVEAL_TABLE = r"""
+<table class="my_table_TL">
+<div class="show_solution ks_button">zobacz</div>
+<div>\(x^{3}-5x^{2}+7x-3=0\)</div>
+<div class="question_solution hidden">\(x\in\{1, 3\}\)</div>
+<div class="question_answer"></div>
+</table>
+"""
+
+
+def test_reveal_table_without_rows_is_flagged_not_dropped():
+    from scripts.lal_import.emit import is_fully_mapped
+
+    elements, flags = parse_lesson(ROWLESS_REVEAL_TABLE, "440_wielomiany_rownania.html")
+    # Content loss must be LOUD: a flagged element AND a flag record, which is
+    # what makes emit.unit_payload write fully_mapped: false.
+    assert flags, "a rowless reveal table raised no flag"
+    assert any(e.get("flagged") for e in elements), "no flagged element emitted"
+    assert not is_fully_mapped(elements)
+    # The dropped exercise must still be carried in the raw payload, so the unit
+    # can be recovered by hand rather than being gone.
+    raw = " ".join(e.get("raw", "") for e in elements)
+    assert "x^{3}-5x^{2}+7x-3=0" in raw
+    assert "question_solution" in raw

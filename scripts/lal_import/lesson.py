@@ -242,6 +242,18 @@ def _reveal_table_spoilers(table, consumed, state):
     """One nested Spoiler per <tr> with a .question_solution cell (or inlined rows,
     inside a spoiler). label = the row's first <td> text."""
     elements, flags = [], []
+    if not table.find_all("tr"):
+        # A reveal table with NO <tr> at all: the source wrote its rows as bare
+        # <div>s directly inside <table> -- invalid HTML, which html.parser leaves
+        # in place rather than foster-parenting out. The loop below then iterates
+        # nothing and drops every exercise WITHOUT raising a flag, so
+        # emit.is_fully_mapped still reports the unit clean.
+        # 045_wielomiany/440_wielomiany_rownania.html lost all 30 of its exercises
+        # exactly this way, and the JSON it produced said fully_mapped: true.
+        # table_element and fill_table_element have always guarded this
+        # (tables.py "table has no rows"); this was the third path, unguarded.
+        _unmapped("reveal table has no rows", table, elements, flags)
+        return elements, flags
     for tr in table.find_all("tr"):
         sol = tr.find(class_="question_solution")
         if sol is None:
