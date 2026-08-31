@@ -206,19 +206,41 @@ def test_handle_sits_in_its_lane_clear_of_the_prose(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_pop_still_opens_beside_the_block_from_the_rail(page, live_server):
+@pytest.mark.parametrize(
+    "width,expect_clamped",
+    [(1400, True), (1800, False)],
+    ids=["clamped", "free"],
+)
+def test_pop_still_opens_beside_the_block_from_the_rail(
+    page, live_server, width, expect_clamped
+):
     from notes.models import Note
 
-    course, unit, elements, student = _build_lesson("e2e-rail-pop", "e2e_rail_pop")
+    slug = f"e2e-rail-pop-{width}"
+    user = f"e2e_rail_pop_{width}"
+    course, unit, elements, student = _build_lesson(slug, user)
     Note.objects.create(
         author=student, unit=unit, element=elements[0], body="anchored note"
     )
-    _login(page, live_server, "e2e_rail_pop")
+    _login(page, live_server, user)
     _open_unit(page, live_server, course, unit, collapsed=True)
+    page.set_viewport_size({"width": width, "height": RAIL_VIEWPORT["height"]})
 
     # Real gesture: click the summary, as a student would.
     page.locator(".block-notes__handle").first.click()
     page.wait_for_selector(".block-notes__panel[open] .block-notes__pop")
+    # SYNC ON positionPop, not on the pop being visible. <details> fires `toggle`
+    # ASYNCHRONOUSLY, and notes.js does its measure-and-clamp in that handler --
+    # so the pop is already painted, at its unclamped offset, for a window before
+    # the clamp lands. wait_for_selector can return inside that window: this test
+    # passed locally every time and failed on CI, where a loaded runner widens
+    # it. positionPop always stamps an inline `top` (:524), which is its
+    # unambiguous signature and is independent of what is asserted below.
+    page.wait_for_function(
+        "() => {const p = document.querySelector("
+        "'.block-notes__panel[open] .block-notes__pop');"
+        " return p && p.style.top !== '';}"
+    )
 
     pop = page.evaluate(
         """() => {
@@ -238,7 +260,13 @@ def test_pop_still_opens_beside_the_block_from_the_rail(page, live_server):
     )
     # Positioning the ASIDE rather than the handle would re-parent the pop's
     # containing block onto a 2.75rem box, collapsing it into the lane.
-    assert pop["onScreen"], "pop left the viewport"
+    # Both branches are exercised: at 1400 the offset pushes the pop past the
+    # right edge so notes.js clamps it; at 1800 there is room and it opens free,
+    # which is the case the +3rem offset actually has to get right.
+    assert pop["clamped"] is expect_clamped, (
+        f"expected clamped={expect_clamped} at {width}px, got {pop}"
+    )
+    assert pop["onScreen"], f"pop left the viewport: {pop}"
     # The handle now lives in the gutter the pop used to open into, so the pop
     # is offset to clear it. If that offset is lost the panel opens straight
     # over the icon the student just clicked -- and over the only control that
