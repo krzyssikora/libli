@@ -47,6 +47,19 @@
      silently break it. Near-opaque, unlike --surface-overlay: nothing of the page may
      show through. */
   --scrim-solid: rgba(12,11,10,0.97);
+  /* Plate painted behind an author-uploaded content image (courses.css). Declared
+     ONCE, here, and deliberately NOT repeated in the [data-theme="dark"] block below
+     -- that absence is the whole mechanism, exactly as for --scrim-solid above, and
+     the same source-level test shape guards it (tests/test_image_plate_tokens.py).
+     A dark-theme page must composite a transparent PNG onto the LIGHT ground it was
+     authored against, so a var(--surface-base) here would defeat the token by
+     resolving to the dark value in the only context that uses it.
+
+     The literal therefore duplicates :root's --surface-base ON PURPOSE. It is not
+     drift: retuning the light page ground without retuning this leaves dark-theme
+     images sitting on a plate that no longer matches, and
+     tests/test_e2e_dark_image_plate.py goes red to say so. */
+  --image-plate: #F4F1EA;
   --text-primary: #1E1C18; --text-secondary: #5A544A; --text-tertiary: #8A8477;
   --text-inverse: #FBF9F4;
   --border-subtle: #EDE8DE; --border-default: #E7E1D6; --border-strong: #D6CFC1;
