@@ -1542,6 +1542,35 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    below), so the fix is written above the trap rather than beside it. */
 .el--filltable .filltable__input { text-align: inherit; }
 
+/* THE ANSWER COLUMN MUST KEEP ROOM FOR THE ANSWER. app.css gives this control
+   `width: 100%` (see above -- the input fills its cell, by decision), and a
+   PERCENTAGE width contributes NOTHING to a column's intrinsic width in auto
+   table layout: the answer column's whole width demand is this control's own
+   padding + border, while every static cell demands its text. So ALL of the
+   squeeze -- a phone, the pinned TOC narrowing the content column, or simply a
+   table with more columns than the column fits -- lands on the answer cells
+   first, which are the only cells the student needs to read.
+
+   MEASURED on the reported table (unit 459, 15 columns, 3 answers) with this
+   floor removed, the input's CONTENT box: 3px / 3px / 0px at a 1280px viewport
+   and the same at 390px -- the value is in the DOM, correct, and invisible.
+
+   The floor is a BORDER-box minimum, so it has to carry app.css's padding and
+   border itself; what it buys is the `4ch` -- four characters of answer, which
+   covers 96% of the answer cells in the corpus (1-4 chars; the rest still
+   scroll inside the input, as they already do at any width). MEASURED with it:
+   40.6px of content, every reported answer fully visible at 390px and at 1280.
+   A wider table simply scrolls in `.el--filltable__scroll`, which is what that
+   scroller is for; the page itself does not grow.
+
+   min-width, not width: it binds ONLY under squeeze, so a table with room to
+   spare renders byte-identically to before. (0,2,0) for the reason the block
+   above gives -- app.css's (0,1,1) `input[type=text]` rule owns this control's
+   box. A/B in tests/test_e2e_filltable_answer_visible_narrow.py. */
+.el--filltable .filltable__input {
+  min-width: calc(4ch + 2 * var(--space-3) + 2px);
+}
+
 /* Correctness states: filltable.js toggles these per input after a Check;
    a correct cell is then locked read-only (mirrors .fillgate's blank-input
    verdict states so the self-check families read as one, see app.css).
