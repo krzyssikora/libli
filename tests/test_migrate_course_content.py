@@ -4192,3 +4192,78 @@ def test_a_state_write_oserror_on_part_zero_names_the_right_recovery(
     # `committed is None`, so that assertion alone cannot tell which fired.
     assert "could not write" in msg
     assert calls["n"] == 2  # the loop's write was reached, and only once
+
+
+# --- Cap pre-flight on the bundle export ------------------------------------
+
+
+def test_export_prints_each_part_s_counts(tmp_path):
+    """The per-part numbers are what an operator plans a migration from --
+    before this they had to be measured by hand against a live database.
+    """
+    _mk_source(parts=("Alpha", "Beta"))
+    bundle = tmp_path / "bundle"
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        stdout=out,
+    )
+    text = out.getvalue()
+    # Both parts reported, each with the counts that decide whether the archive
+    # will be accepted on import.
+    assert text.count("nodes=") == 2
+    assert text.count("elements=") == 2
+    assert text.count("media_entries=") == 2
+    assert text.count("archive_bytes=") == 2
+
+
+def test_export_does_not_abort_when_a_part_is_over_a_cap(settings, tmp_path):
+    """A cap finding must NOT behave like a `problems` finding.
+
+    --allow-problems aborts a whole bundle export on any problem, and the
+    per-part bundle is precisely the path a course too big for one archive
+    travels. If an over-cap part aborted here, the tool would refuse to build
+    the very bundle that solves the problem it is reporting.
+    """
+    settings.TRANSFER_MAX_NODES = 0  # every part is over
+    _mk_source(parts=("Alpha", "Beta"))
+    bundle = tmp_path / "bundle"
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        stdout=out,
+    )
+    assert len(list(bundle.glob("*.zip"))) == 2
+    assert (bundle / MANIFEST_NAME).exists()  # the completion marker still written
+
+
+def test_export_flags_the_part_that_is_over_a_cap(settings, tmp_path):
+    """Naming the part matters: a bundle is 21 archives for a real course, and
+    "something is too big" without a part number is not actionable.
+    """
+    settings.TRANSFER_MAX_NODES = 0
+    _mk_source(parts=("Alpha", "Beta"))
+    bundle = tmp_path / "bundle"
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        stdout=out,
+    )
+    text = out.getvalue()
+    assert "LIBLI_TRANSFER_MAX_NODES" in text
+    assert "part 0" in text and "part 1" in text

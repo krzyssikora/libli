@@ -1,25 +1,54 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block head_title %}{% trans "Export — missing media" %} · libli{% endblock %}
+{% block head_title %}{% trans "Export — review before downloading" %} · libli{% endblock %}
 {% block content %}
 <section class="manage">
-  <h1>{% trans "Export — missing media" %}</h1>
-  <p class="helptext">
-    {% trans "This course can be exported, but some media is missing. Review the items below, then export anyway." %}
-  </p>
-  <ul class="export-missing">
-    {% for p in problems %}
-      <li>
-        {% if p.type == "missing_image" %}
-          {% blocktrans with name=p.filename units=p.units|join:", " %}Image “{{ name }}” is missing — it will be exported as a placeholder. Used in: {{ units }}.{% endblocktrans %}
-        {% elif p.type == "dropped_video" %}
-          {% blocktrans with name=p.filename units=p.units|join:", " %}Video “{{ name }}” is missing — this video block will be left out of the export. In: {{ units }}.{% endblocktrans %}
-        {% else %}
-          {% blocktrans with units=p.units|join:", " %}A broken content block will be left out of the export. In: {{ units }}.{% endblocktrans %}
-        {% endif %}
-      </li>
-    {% endfor %}
-  </ul>
+  <h1>{% trans "Export — review before downloading" %}</h1>
+
+  {% if limits %}
+    {% comment %}Limits first: a missing image costs one placeholder, whereas an{% endcomment %}
+    {% comment %}archive over a cap is refused wholesale by the receiving instance.{% endcomment %}
+    <h2>{% trans "Larger than this instance accepts" %}</h2>
+    <p class="helptext">
+      {% trans "This archive can still be exported. The limits below are the ones THIS instance would enforce on import — the instance you import into may allow more, and each limit can be raised there by setting the environment variable named beside it." %}
+    </p>
+    <ul class="export-limits">
+      {% for m in limits %}
+        <li>
+          {% if m.unit == "bytes" %}
+            {% blocktrans with needs=m.value|filesizeformat cap=m.cap|filesizeformat %}Needs {{ needs }}; this instance accepts {{ cap }}.{% endblocktrans %}
+            {% if m.estimate %}
+              <span class="helptext">{% trans "(estimated from media size — the archive is not written yet)" %}</span>
+            {% endif %}
+          {% else %}
+            {% blocktrans with needs=m.value cap=m.cap %}Needs {{ needs }}; this instance accepts {{ cap }}.{% endblocktrans %}
+          {% endif %}
+          <code>{{ m.env }}</code>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if problems %}
+    <h2>{% trans "Missing media" %}</h2>
+    <p class="helptext">
+      {% trans "This course can be exported, but some media is missing. Review the items below, then export anyway." %}
+    </p>
+    <ul class="export-missing">
+      {% for p in problems %}
+        <li>
+          {% if p.type == "missing_image" %}
+            {% blocktrans with name=p.filename units=p.units|join:", " %}Image “{{ name }}” is missing — it will be exported as a placeholder. Used in: {{ units }}.{% endblocktrans %}
+          {% elif p.type == "dropped_video" %}
+            {% blocktrans with name=p.filename units=p.units|join:", " %}Video “{{ name }}” is missing — this video block will be left out of the export. In: {{ units }}.{% endblocktrans %}
+          {% else %}
+            {% blocktrans with units=p.units|join:", " %}A broken content block will be left out of the export. In: {{ units }}.{% endblocktrans %}
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
   <div class="form__actions">
     <a class="btn btn--primary" href="{{ request.path }}?confirm=1">{% trans "Export anyway" %}</a>
     <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}">{% trans "Cancel" %}</a>

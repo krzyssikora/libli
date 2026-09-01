@@ -39,21 +39,32 @@ from courses.transfer.schema import TransferError
 
 def _stream_archive(request, course, node):
     # Build ONCE: a residual TransferError -> friendly redirect (never a 500);
-    # problems -> pre-flight page (unless confirmed); else stream from the
-    # already-built artifacts — no second graph walk (§5).
+    # problems or over-cap limits -> pre-flight page (unless confirmed); else
+    # stream from the already-built artifacts — no second graph walk (§5).
+    report = {}
     try:
         manifest, document, media_assets, problems = build_export(
-            course, node, source_host=request.get_host()
+            course, node, source_host=request.get_host(), report=report
         )
     except TransferError as exc:  # residual/unexpected export failure
         messages.error(request, exc.message)
         return redirect("courses:manage_builder", slug=course.slug)
 
-    if problems and request.GET.get("confirm") != "1":
+    # Only the BREACHES reach the page. The full measure list is the CLI's
+    # concern (an operator planning a migration wants every number); a browser
+    # export is an author's errand, and a table of five green rows on every
+    # export would train them to click past the one row that matters.
+    limits = [m for m in report["limits"] if m["over"]]
+
+    # `problems or limits`, NOT `problems`: a course over a cap usually has no
+    # content problems at all, so gating on `problems` alone would compute the
+    # limits and then silently drop them — the whole point of the check is the
+    # archive that is otherwise perfectly healthy.
+    if (problems or limits) and request.GET.get("confirm") != "1":
         return render(
             request,
             "courses/manage/export_preview.html",
-            {"problems": problems, "course": course},
+            {"problems": problems, "limits": limits, "course": course},
         )
 
     spool = tempfile.SpooledTemporaryFile(max_size=32 * 1024 * 1024)

@@ -1,4 +1,5 @@
 import io
+import re
 import zipfile
 from pathlib import Path
 
@@ -557,3 +558,72 @@ def test_export_placeholder_round_trips_via_import_engine(
 
     # the placeholder image imported as a real .png image asset on the new course
     assert Asset.objects.filter(course=new_course, kind="image").exists()
+
+
+# --- Cap pre-flight on the export views -------------------------------------
+#
+# The caps are enforced on IMPORT, so before this an oversize archive was
+# diagnosed only after being built, downloaded and uploaded again. The export
+# views surface build_export's advisory `report["limits"]` on the same
+# pre-flight page the missing-media path already uses.
+
+
+def test_export_over_a_cap_shows_the_preflight_page_with_no_missing_media(
+    client, owner, course, settings
+):
+    """The cap finding ALONE must open the page. Reusing the missing-media page
+    means the two findings share a gate, and the obvious wiring -- `if problems`
+    -- silently ignores limits, because a course over a cap usually has no
+    content problems at all.
+    """
+    settings.TRANSFER_MAX_NODES = 0  # the fixture course has one node
+    client.force_login(owner)
+    resp = client.get(reverse("courses:manage_course_export", args=[course.slug]))
+    assert resp.status_code == 200
+    assert "attachment" not in resp.get("Content-Disposition", "")
+
+
+def test_the_preflight_page_names_what_the_archive_needs_and_what_is_accepted(
+    client, owner, course, settings
+):
+    """Both numbers, or the page cannot be acted on: knowing an archive is too
+    big is useless without knowing the limit to raise it past.
+    """
+    settings.TRANSFER_MAX_NODES = 0
+    client.force_login(owner)
+    resp = client.get(reverse("courses:manage_course_export", args=[course.slug]))
+    body = resp.content.decode()
+    block = re.search(r'<ul class="export-limits">.*?</ul>', body, re.S)
+    assert block, "no export-limits list rendered"
+    # The exact sentence, so that swapping value and cap -- which renders a
+    # perfectly plausible page saying the archive needs 0 and the instance
+    # accepts 1 -- fails here.
+    assert "Needs 1; this instance accepts 0." in block.group(0)
+    assert "LIBLI_TRANSFER_MAX_NODES" in block.group(0)  # the knob to turn
+
+
+def test_export_over_a_cap_still_streams_on_confirm(client, owner, course, settings):
+    """The importing deployment's caps decide, so an over-cap archive must
+    remain producible -- it may be entirely legal there.
+    """
+    settings.TRANSFER_MAX_NODES = 0
+    client.force_login(owner)
+    url = reverse("courses:manage_course_export", args=[course.slug])
+    resp = client.get(url, {"confirm": "1"})
+    assert resp["Content-Disposition"].startswith("attachment;")
+    body = b"".join(resp.streaming_content)
+    with zipfile.ZipFile(io.BytesIO(body)) as zf:
+        assert "course.json" in zf.namelist()
+
+
+def test_subtree_export_over_a_cap_shows_the_preflight_page(
+    client, owner, course, settings
+):
+    node = course.nodes.filter(kind="unit").first()
+    settings.TRANSFER_MAX_NODES = 0
+    client.force_login(owner)
+    resp = client.get(
+        reverse("courses:manage_node_export", args=[course.slug, node.pk])
+    )
+    assert resp.status_code == 200
+    assert "attachment" not in resp.get("Content-Disposition", "")

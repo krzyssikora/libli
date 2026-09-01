@@ -689,19 +689,40 @@ def limit_measures(document, media_total_bytes):
     so a count exactly AT the cap is not flagged: it imports fine, and warning
     about it would train the operator to ignore the report.
     """
+    # Both byte caps apply to the same archive, so the one that BINDS is the
+    # smaller -- and it is also the only one worth naming, since raising the
+    # other would move nothing. Resolved once, here, so the cap and the env var
+    # the operator is told to raise can never disagree.
+    byte_caps = (
+        (settings.TRANSFER_MAX_COMPRESSED_BYTES, "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES"),
+        (
+            settings.TRANSFER_MAX_UNCOMPRESSED_BYTES,
+            "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES",
+        ),
+    )
+    archive_cap, archive_env = min(byte_caps)
+
     measures = [
-        ("nodes", len(document["nodes"]), settings.TRANSFER_MAX_NODES, "count"),
+        (
+            "nodes",
+            len(document["nodes"]),
+            settings.TRANSFER_MAX_NODES,
+            "count",
+            "LIBLI_TRANSFER_MAX_NODES",
+        ),
         (
             "elements",
             len(document["elements"]),
             settings.TRANSFER_MAX_ELEMENTS,
             "count",
+            "LIBLI_TRANSFER_MAX_ELEMENTS",
         ),
         (
             "media_entries",
             len(document["media"]),
             settings.TRANSFER_MAX_MEDIA_ENTRIES,
             "count",
+            "LIBLI_TRANSFER_MAX_MEDIA_ENTRIES",
         ),
         (
             # Measured, not estimated: this is the one cap whose value cannot be
@@ -712,20 +733,18 @@ def limit_measures(document, media_total_bytes):
             len(json.dumps(document, ensure_ascii=False).encode("utf-8")),
             settings.TRANSFER_MAX_COURSE_JSON_BYTES,
             "bytes",
+            "LIBLI_TRANSFER_MAX_COURSE_JSON_BYTES",
         ),
         (
             # An ESTIMATE, and the only one here. The zip is not written yet, so
             # the compressed size is unknown; media dominates it and is already
             # compressed (mp4/png), which makes the uncompressed total a close
-            # lower bound. Capped by whichever byte limit binds FIRST -- both
-            # apply to the same archive, so the smaller is the real ceiling.
+            # lower bound.
             "archive_bytes",
             media_total_bytes,
-            min(
-                settings.TRANSFER_MAX_COMPRESSED_BYTES,
-                settings.TRANSFER_MAX_UNCOMPRESSED_BYTES,
-            ),
+            archive_cap,
             "bytes",
+            archive_env,
         ),
     ]
     return [
@@ -734,10 +753,11 @@ def limit_measures(document, media_total_bytes):
             "value": value,
             "cap": cap,
             "unit": unit,
+            "env": env,
             "over": value > cap,
             "estimate": key == "archive_bytes",
         }
-        for key, value, cap, unit in measures
+        for key, value, cap, unit, env in measures
     ]
 
 

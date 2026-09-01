@@ -4,10 +4,22 @@ Two phases with a bundle directory between them, because a Django process
 binds one database: `export` runs against the source, `import` against the
 target, and `verify` reconciles afterwards.
 
-Content moves ONE TOP-LEVEL PART AT A TIME. That is not incidental --
-import_course() would create a second course beside the prepared target, and
-validate_document() caps each archive at TRANSFER_MAX_ELEMENTS/MEDIA_ENTRIES,
-which a whole-course archive of a large course would breach outright.
+Content moves ONE TOP-LEVEL PART AT A TIME. That is not incidental, for two
+independent reasons:
+
+  - import_course() would create a SECOND course beside the prepared target,
+    rather than grafting into it. This reason is structural and permanent.
+  - A whole-course archive of a large course breaches the transfer caps. Since
+    the caps were re-scaled the COUNT caps no longer bind (the largest real
+    course measures 20,608 elements against a 100,000 limit and 1,191 media
+    against 5,000), but the BYTE caps still do, and decisively: that same course
+    carries 3.66 GB of media against a 1 GiB archive limit. Per-part archives
+    are each far under it -- the largest measures 575 MB.
+
+Do not read the second reason as "raise the byte cap and export the course in
+one piece". The byte caps are sized to what the host's staging, upload-spill and
+media volumes can each hold at once; this command exists so that ceiling never
+has to move. See docs/deployment-course-transfer.md.
 """
 
 import json
@@ -895,6 +907,7 @@ class Command(BaseCommand):
         total_elements = 0
         node_kind_counts = {}
         written = set()
+        over_cap = []
 
         for part in parts:
             report = {}
@@ -932,7 +945,23 @@ class Command(BaseCommand):
             written.add(name)
             with open(bundle / name, "wb") as fh:
                 write_archive_from(manifest, document, media_assets, fh)
-            self.stdout.write(f"exported part {part.order}: {name}")
+            counts = ", ".join(f"{m['key']}={m['value']}" for m in report["limits"])
+            self.stdout.write(f"exported part {part.order}: {name} ({counts})")
+            # ADVISORY, never fatal -- unlike `problems` above, which aborts the
+            # whole bundle unless --allow-problems. An over-cap part must not
+            # abort: the per-part bundle is exactly the path a course too big
+            # for one archive travels, so refusing to build it would refuse the
+            # remedy for the condition being reported. And the caps that decide
+            # belong to the TARGET deployment, which this process cannot see.
+            for m in report["limits"]:
+                if not m["over"]:
+                    continue
+                over_cap.append(part.order)
+                self.stdout.write(
+                    f"  note: part {part.order} {m['key']}={m['value']} exceeds "
+                    f"this instance's limit of {m['cap']}; the importing "
+                    f"instance must allow more (raise {m['env']} there)"
+                )
 
         if len(written) != len(parts):  # pragma: no cover -- guarded above
             raise CommandError(
@@ -959,6 +988,13 @@ class Command(BaseCommand):
             f"elements, {len(side)} distinct media asset(s), "
             f"{len(node_index)} node(s) indexed for internal links)"
         )
+        if over_cap:
+            self.stdout.write(
+                f"note: {len(set(over_cap))} part(s) exceed a limit on THIS "
+                f"instance: {sorted(set(over_cap))}. The bundle is complete and "
+                f"was written in full; check the target instance's limits "
+                f"before importing."
+            )
 
     # --- import ------------------------------------------------------------
 

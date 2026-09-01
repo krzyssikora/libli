@@ -23,7 +23,8 @@ def _measure(report, key):
     for m in report["limits"]:
         if m["key"] == key:
             return m
-    raise AssertionError(f"no {key!r} measure in {[m['key'] for m in report['limits']]}")
+    keys = [m["key"] for m in report["limits"]]
+    raise AssertionError(f"no {key!r} measure in {keys}")
 
 
 @pytest.mark.django_db
@@ -167,3 +168,44 @@ def test_limits_are_reported_for_a_subtree_export_too():
     build_export(course, node=unit, report=report)
 
     assert _measure(report, "elements")["value"] == 1
+
+
+@pytest.mark.django_db
+def test_each_measure_names_the_env_var_that_raises_it():
+    """A finding an operator cannot act on is noise: knowing an archive is too
+    big is useless without the name of the knob that moves the limit.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    assert _measure(report, "nodes")["env"] == "LIBLI_TRANSFER_MAX_NODES"
+    assert _measure(report, "elements")["env"] == "LIBLI_TRANSFER_MAX_ELEMENTS"
+    assert (
+        _measure(report, "course_json_bytes")["env"]
+        == "LIBLI_TRANSFER_MAX_COURSE_JSON_BYTES"
+    )
+
+
+@pytest.mark.django_db
+@override_settings(
+    TRANSFER_MAX_COMPRESSED_BYTES=500,
+    TRANSFER_MAX_UNCOMPRESSED_BYTES=100,
+)
+def test_archive_bytes_names_whichever_byte_cap_actually_binds():
+    """Two env vars back one measure. Naming the compressed one unconditionally
+    would send the operator to raise a limit that changes nothing, because the
+    uncompressed cap would still reject the archive.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    assert (
+        _measure(report, "archive_bytes")["env"]
+        == "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES"
+    )
