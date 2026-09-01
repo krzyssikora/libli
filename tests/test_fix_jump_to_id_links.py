@@ -213,3 +213,120 @@ def test_restore_is_byte_identical_even_for_a_body_save_would_rewrite(scene, tmp
 
     te.refresh_from_db()
     assert te.body == dirty
+
+
+# --- the prose fix ----------------------------------------------------------
+#
+# One sentence whose text contradicts its own link. It is pinned to a specific
+# TextElement pk in the mapping rather than found by searching for the phrase,
+# because the phrase is not unique: another body in the same course uses
+# "proporcjonalność prostą" entirely correctly, and a search-and-replace would
+# silently corrupt it.
+
+
+def _prose_map(tmp_path, target, *, text_pk, unit, old="stara fraza", new="nowa fraza"):
+    doc = json.loads(open(_map_file(tmp_path, target), encoding="utf-8").read())
+    doc["prose"] = [
+        {
+            "text_pk": text_pk,
+            "unit_pk": unit.pk,
+            "unit_title": unit.title,
+            "old": old,
+            "new": new,
+        }
+    ]
+    p = tmp_path / "map_prose.json"
+    p.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+    return str(p)
+
+
+def test_the_prose_fix_touches_only_the_pinned_body(scene, tmp_path):
+    """THE guard on this feature. The phrase is NOT unique in the course --
+    another lesson uses it correctly -- so a search-and-replace would corrupt a
+    sentence nobody asked to change, in a course of 20,608 elements where it
+    would not be noticed.
+    """
+    _course, unit, target, _te = scene
+    # The innocent body is created FIRST, so it has the LOWER pk and is what a
+    # phrase-search implementation would reach for. Without that ordering this
+    # test passes against `.filter(body__contains=...).first()` by luck, and
+    # cannot fail on the mutant it exists to kill.
+    innocent = TextElement.objects.create(body="<p>stara fraza gdzie indziej</p>")
+    Element.objects.create(unit=unit, title="", content_object=innocent)
+    victim = TextElement.objects.create(body="<p>stara fraza tutaj</p>")
+    Element.objects.create(unit=unit, title="", content_object=victim)
+    te = victim
+
+    mapfile = _prose_map(tmp_path, target, text_pk=victim.pk, unit=unit)
+    call_command(
+        "fix_jump_to_id_links",
+        map=mapfile,
+        fix_prose=True,
+        snapshot=str(tmp_path / "s.json"),
+    )
+    te.refresh_from_db()
+    innocent.refresh_from_db()
+    assert "nowa fraza" in te.body
+    assert innocent.body == "<p>stara fraza gdzie indziej</p>"
+
+
+def test_the_prose_fix_runs_when_no_jump_to_id_links_remain(scene, tmp_path):
+    """It must not ride on the link scan. The natural order of work is links
+    first, prose second -- by which time the link scan matches nothing, and a
+    prose fix coupled to it can never run again.
+    """
+    _course, unit, target, te = scene
+    te.body = "<p>stara fraza</p>"  # no jump_to_id anywhere
+    te.save()
+    mapfile = _prose_map(tmp_path, target, text_pk=te.pk, unit=unit)
+    call_command(
+        "fix_jump_to_id_links",
+        map=mapfile,
+        fix_prose=True,
+        snapshot=str(tmp_path / "s.json"),
+    )
+    te.refresh_from_db()
+    assert "nowa fraza" in te.body
+
+
+def test_a_prose_body_missing_the_phrase_aborts(scene, tmp_path):
+    _course, unit, target, te = scene
+    te.body = "<p>zupełnie co innego</p>"
+    te.save()
+    mapfile = _prose_map(tmp_path, target, text_pk=te.pk, unit=unit)
+    with pytest.raises(CommandError, match="does not contain"):
+        call_command(
+            "fix_jump_to_id_links",
+            map=mapfile,
+            fix_prose=True,
+            snapshot=str(tmp_path / "s.json"),
+        )
+
+
+def test_a_prose_body_whose_unit_drifted_aborts(scene, tmp_path):
+    """Same drift guard as the links: the pk must still be the lesson the fix
+    was verified against."""
+    _course, unit, target, te = scene
+    te.body = "<p>stara fraza</p>"
+    te.save()
+    mapfile = _prose_map(tmp_path, target, text_pk=te.pk, unit=unit)
+    doc = json.loads(open(mapfile, encoding="utf-8").read())
+    doc["prose"][0]["unit_title"] = "Something else"
+    open(mapfile, "w", encoding="utf-8").write(json.dumps(doc, ensure_ascii=False))
+    with pytest.raises(CommandError, match="drift"):
+        call_command(
+            "fix_jump_to_id_links",
+            map=mapfile,
+            fix_prose=True,
+            snapshot=str(tmp_path / "s.json"),
+        )
+
+
+def test_without_the_flag_the_prose_is_left_alone(scene, tmp_path):
+    _course, unit, target, te = scene
+    te.body = "<p>stara fraza</p>"
+    te.save()
+    mapfile = _prose_map(tmp_path, target, text_pk=te.pk, unit=unit)
+    call_command("fix_jump_to_id_links", map=mapfile, snapshot=str(tmp_path / "s.json"))
+    te.refresh_from_db()
+    assert te.body == "<p>stara fraza</p>"

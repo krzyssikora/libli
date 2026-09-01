@@ -152,5 +152,15 @@
    "uses": 5,
    "note": "one edX unit that libli split into 1 and 2; the FIRST was agreed"
   }
- }
+ },
+ "prose": [
+  {
+   "text_pk": 4234,
+   "unit_pk": 496,
+   "unit_title": "Wprowadzenie",
+   "old": "proporcjonalność prostą",
+   "new": "proporcjonalność odwrotną",
+   "why": "the block before names 'funkcja proporcjonalnosci odwrotnej' and the next two lessons are 'Funkcja proporcjonalnosci odwrotnej - powtorzenie 1/2', which is what 'powtorzmy ja w wielkim skrocie' points at"
+  }
+ ]
 }

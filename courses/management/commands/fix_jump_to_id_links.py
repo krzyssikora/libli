@@ -47,11 +47,15 @@ LINK = re.compile(
 # so a link this command cannot rewrite is reported rather than passed over.
 ANY_JUMP = re.compile(r"jump_to_id/([0-9a-zA-Z_-]+)")
 
-# The one prose defect found alongside the links: unit 496's sentence reads
-# "proporcjonalnosc PROSTA" while naming a target about "odwrotna", contradicting
-# both the block before it and the two lessons after. Behind its own flag, off by
-# default -- it is the author's copy, not a link.
-PROSE_FIX = ("proporcjonalność prostą", "proporcjonalność odwrotną")
+# The prose defects live in the mapping's "prose" list, each PINNED TO A
+# TextElement pk -- never found by searching for the phrase.
+#
+# That is not fastidiousness. The one real entry corrects "proporcjonalnosc
+# PROSTA" to "odwrotna" in unit 496, and a second body in the same course
+# (text 1036, "To rownanie opisuje proporcjonalnosc prosta pomiedzy iloscia wody
+# a czasem nalewania") uses the identical phrase entirely correctly. A
+# search-and-replace would corrupt it, in a course of 20,608 elements, where
+# nobody would notice.
 
 
 class Command(BaseCommand):
@@ -115,7 +119,11 @@ class Command(BaseCommand):
             planned.append((te, new_body, hits))
 
         if o.get("fix_prose"):
-            planned = self._plan_prose(planned, snapshot)
+            # Resolved INDEPENDENTLY of the link scan, and merged into `planned`
+            # by pk. Coupling it to the scan made it unrunnable the moment the
+            # links were fixed -- which is the natural order of the work, so the
+            # prose fix could never run at all.
+            planned = self._plan_prose(planned, snapshot, doc.get("prose") or [])
 
         total = sum(len(h) for _t, _b, h in planned)
         self.stdout.write(
@@ -251,20 +259,56 @@ class Command(BaseCommand):
 
         return LINK.sub(sub, body), hits
 
-    def _plan_prose(self, planned, snapshot):
-        old, new = PROSE_FIX
-        out, done = [], False
-        for te, body, hits in planned:
-            if old in body:
-                body = body.replace(old, new)
-                hits = hits + [f"prose: {old!r} -> {new!r}"]
-                done = True
-            out.append((te, body, hits))
-        if not done:
-            raise CommandError(
-                f"--fix-prose found no body containing {old!r}; it may already "
-                f"have been corrected. Refusing to guess."
+    def _plan_prose(self, planned, snapshot, entries):
+        """Merge the pinned prose edits into the plan, keyed by TextElement pk.
+
+        Each entry names its own text_pk, so this works whether or not that body
+        also carried a link, and whether or not any links remain at all.
+        """
+        if not entries:
+            raise CommandError("--fix-prose was passed but the mapping has no 'prose'")
+        by_pk = {te.pk: i for i, (te, _b, _h) in enumerate(planned)}
+        out = list(planned)
+        for e in entries:
+            te = TextElement.objects.filter(pk=e["text_pk"]).first()
+            if te is None:
+                raise CommandError(f"prose: text {e['text_pk']} no longer exists")
+            join = (
+                Element.objects.filter(
+                    content_type__model="textelement", object_id=te.pk
+                )
+                .select_related("unit")
+                .first()
             )
+            if join is None or join.unit.pk != e["unit_pk"]:
+                raise CommandError(
+                    f"prose: text {te.pk} no longer sits in unit {e['unit_pk']} "
+                    f"-- drift; refusing to write"
+                )
+            if join.unit.title != e["unit_title"]:
+                raise CommandError(
+                    f"prose: unit {join.unit.pk} title drifted -- mapping recorded "
+                    f"{e['unit_title']!r}, database holds {join.unit.title!r}"
+                )
+            idx = by_pk.get(te.pk)
+            body = planned[idx][1] if idx is not None else te.body
+            if e["old"] not in body:
+                raise CommandError(
+                    f"prose: text {te.pk} does not contain {e['old']!r}; it may "
+                    f"already have been corrected. Refusing to guess."
+                )
+            if body.count(e["old"]) != 1:
+                raise CommandError(
+                    f"prose: text {te.pk} contains {e['old']!r} "
+                    f"{body.count(e['old'])} times; refusing to guess which."
+                )
+            new_body = body.replace(e["old"], e["new"])
+            hit = f"prose: {e['old']!r} -> {e['new']!r}"
+            if idx is not None:
+                out[idx] = (te, new_body, planned[idx][2] + [hit])
+            else:
+                snapshot[str(te.pk)] = te.body
+                out.append((te, new_body, [hit]))
         return out
 
     def _build_report(self, planned, nodes, base_url):
