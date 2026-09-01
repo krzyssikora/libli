@@ -1,0 +1,292 @@
+"""Export-side cap pre-flight.
+
+The caps are enforced on IMPORT, which means an oversize archive is diagnosed
+only after it has been built, downloaded and uploaded again. `build_export`
+already knows every count before it writes a byte, so it reports them here
+against the LOCAL caps.
+
+The reporting is advisory and must stay that way: the caps that actually decide
+belong to the IMPORTING deployment, which the exporting instance cannot see. An
+archive over this instance's caps may be perfectly importable elsewhere, so
+nothing in this module may cause an export to be refused.
+"""
+
+import pytest
+from django.test import override_settings
+
+from courses.transfer.export import build_export
+from tests.factories import ElementFactory
+from tests.factories import make_course_with_unit
+
+
+def _measure(report, key):
+    for m in report["limits"]:
+        if m["key"] == key:
+            return m
+    keys = [m["key"] for m in report["limits"]]
+    raise AssertionError(f"no {key!r} measure in {keys}")
+
+
+@pytest.mark.django_db
+def test_build_export_reports_every_cap_it_knows_about():
+    """One measure per cap the archive can trip, always -- not only on breach.
+
+    Reporting every measure unconditionally is what lets the CLI print the
+    per-part table an operator plans a migration from. A report that listed only
+    breaches would show an empty table for a healthy course, which is the case
+    the operator most wants numbers for.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    assert {m["key"] for m in report["limits"]} == {
+        "nodes",
+        "elements",
+        "media_entries",
+        "course_json_bytes",
+        "archive_bytes",
+    }
+
+
+@pytest.mark.django_db
+def test_a_course_inside_every_cap_reports_nothing_over():
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    assert [m["key"] for m in report["limits"] if m["over"]] == []
+
+
+@pytest.mark.django_db
+@override_settings(TRANSFER_MAX_ELEMENTS=1)
+def test_an_element_count_over_the_cap_is_reported_over():
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    m = _measure(report, "elements")
+    assert m["value"] == 2
+    assert m["cap"] == 1
+    assert m["over"] is True
+
+
+@pytest.mark.django_db
+@override_settings(TRANSFER_MAX_ELEMENTS=2)
+def test_a_count_exactly_at_the_cap_is_not_over():
+    """The import check is `len(elements) > cap`, so equality passes there. An
+    off-by-one here would warn about an archive that imports perfectly.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    assert _measure(report, "elements")["value"] == 2
+    assert _measure(report, "elements")["over"] is False
+
+
+@pytest.mark.django_db
+def test_course_json_bytes_is_measured_not_estimated():
+    """The document is serialised to measure it, because this is the one count
+    cap whose value cannot be derived from a length. A guess here would be the
+    only measure an operator could not act on.
+    """
+    import json
+
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    _manifest, document, _media, _problems = build_export(course, report=report)
+
+    exact = len(json.dumps(document, ensure_ascii=False).encode("utf-8"))
+    assert _measure(report, "course_json_bytes")["value"] == exact
+
+
+@pytest.mark.django_db
+@override_settings(
+    TRANSFER_MAX_COMPRESSED_BYTES=500,
+    TRANSFER_MAX_UNCOMPRESSED_BYTES=100,
+)
+def test_archive_bytes_is_capped_by_whichever_byte_limit_binds_first():
+    """Both byte caps apply to the same archive, so the one that binds is the
+    SMALLER. Reporting against the compressed cap alone would clear an archive
+    that the uncompressed cap rejects -- and on this payload class (mp4/png,
+    already compressed) the two numbers are within a few percent of each other,
+    so the smaller one is the honest ceiling.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    assert _measure(report, "archive_bytes")["cap"] == 100
+
+
+@pytest.mark.django_db
+@override_settings(TRANSFER_MAX_ELEMENTS=1)
+def test_being_over_a_cap_never_refuses_the_export():
+    """The importing deployment's caps are the ones that decide and are
+    unknowable from here, so an over-cap measure is a diagnosis, never a
+    rejection. If this ever raises, an operator can no longer produce an archive
+    for a deployment that legitimately raised its own limits.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+    ElementFactory(unit=unit)
+
+    report = {}
+    manifest, document, _media, problems = build_export(course, report=report)
+
+    assert len(document["elements"]) == 2
+    assert manifest["kind"] == "course"
+    # And it must not leak into `problems`: migrate_course_content aborts a
+    # whole bundle export on any problem, and a cap finding must never do that.
+    assert problems == []
+
+
+@pytest.mark.django_db
+def test_limits_are_reported_for_a_subtree_export_too():
+    """A node export is the path a big course actually travels, so it is the
+    path whose numbers matter most.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, node=unit, report=report)
+
+    assert _measure(report, "elements")["value"] == 1
+
+
+@pytest.mark.django_db
+def test_each_measure_names_the_env_var_that_raises_it():
+    """A finding an operator cannot act on is noise: knowing an archive is too
+    big is useless without the name of the knob that moves the limit.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    assert _measure(report, "nodes")["env"] == "LIBLI_TRANSFER_MAX_NODES"
+    assert _measure(report, "elements")["env"] == "LIBLI_TRANSFER_MAX_ELEMENTS"
+    assert (
+        _measure(report, "course_json_bytes")["env"]
+        == "LIBLI_TRANSFER_MAX_COURSE_JSON_BYTES"
+    )
+
+
+@pytest.mark.django_db
+@override_settings(
+    TRANSFER_MAX_COMPRESSED_BYTES=500,
+    TRANSFER_MAX_UNCOMPRESSED_BYTES=100,
+)
+def test_archive_bytes_names_whichever_byte_cap_actually_binds():
+    """Two env vars back one measure. Naming the compressed one unconditionally
+    would send the operator to raise a limit that changes nothing, because the
+    uncompressed cap would still reject the archive.
+    """
+    course, unit = make_course_with_unit()
+    ElementFactory(unit=unit)
+
+    report = {}
+    build_export(course, report=report)
+
+    assert (
+        _measure(report, "archive_bytes")["env"]
+        == "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES"
+    )
+
+
+def test_export_limits_list_has_a_rule_in_app_css():
+    """The pre-flight page loads base only (reset/tokens/app), so `.export-limits`
+    must have a rule in app.css or it ships as a default-UA bulleted list beside
+    the styled `.export-missing` card on the very same page.
+
+    Same guard shape as tests/test_publish_styles.py: the selector must
+    TERMINATE a selector in the rule's list, so a descendant or state rule
+    elsewhere cannot keep this green after the block that matters is deleted.
+    """
+    import re
+    from pathlib import Path
+
+    app_css = (
+        Path(__file__).resolve().parent.parent
+        / "core"
+        / "static"
+        / "core"
+        / "css"
+        / "app.css"
+    )
+    css = re.sub(r"/\*.*?\*/", "", app_css.read_text(encoding="utf-8"), flags=re.S)
+    assert re.search(r"\.export-limits\s*[,{]", css), (
+        ".export-limits has no rule in app.css; the export pre-flight page "
+        "loads no other stylesheet that could style it."
+    )
+
+
+def test_export_preflight_page_scope_class_has_a_rule_in_app_css():
+    """The page stacks an h1 and up to two h2s, and reset.css sets `* { margin: 0 }`
+    -- so without a scoped heading rule the section titles collide with the h1 and
+    with the list above them. Caught by a screenshot, not by any assertion:
+    `.export-limits` already had its rule and the page still read as one run-on
+    heading.
+
+    Scoped to its own class rather than `.manage h2`, which every manage page
+    would inherit.
+    """
+    import re
+    from pathlib import Path
+
+    app_css = (
+        Path(__file__).resolve().parent.parent
+        / "core"
+        / "static"
+        / "core"
+        / "css"
+        / "app.css"
+    )
+    css = re.sub(r"/\*.*?\*/", "", app_css.read_text(encoding="utf-8"), flags=re.S)
+    assert re.search(r"\.export-preflight\s+h2\s*[,{]", css), (
+        ".export-preflight h2 has no rule in app.css; the page's section "
+        "headings collide under reset.css's `* { margin: 0 }`."
+    )
+
+
+def test_the_export_report_lists_drop_the_ua_list_indent():
+    """reset.css zeroes `margin` but NOT `padding`, so a `ul` keeps its UA
+    `padding-inline-start` (~40px). Inside a bordered card that renders as an
+    empty gutter with the warning accent floating inset instead of sitting flush
+    against the card edge -- visible in the screenshot, invisible to every other
+    test. `.export-missing` shipped with this; the shared rule fixes both.
+    """
+    import re
+    from pathlib import Path
+
+    app_css = (
+        Path(__file__).resolve().parent.parent
+        / "core"
+        / "static"
+        / "core"
+        / "css"
+        / "app.css"
+    )
+    css = re.sub(r"/\*.*?\*/", "", app_css.read_text(encoding="utf-8"), flags=re.S)
+    block = re.search(r"\.export-missing,\s*\.export-limits\s*\{(.*?)\}", css, re.S)
+    assert block, "the shared list rule is gone"
+    assert re.search(r"padding\s*:\s*0", block.group(1)), (
+        "the shared list rule must zero the UA list indent"
+    )

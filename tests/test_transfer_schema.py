@@ -33,11 +33,11 @@ def test_element_models_lists_all_32_concrete_element_models():
 def test_transfer_settings_constants():
     assert settings.TRANSFER_MAX_COMPRESSED_BYTES == 1 * 1024**3
     assert settings.TRANSFER_MAX_UNCOMPRESSED_BYTES == 1536 * 1024**2  # 1.5 GiB
-    assert settings.TRANSFER_MAX_COURSE_JSON_BYTES == 10 * 1024**2
+    assert settings.TRANSFER_MAX_COURSE_JSON_BYTES == 64 * 1024**2
     assert settings.TRANSFER_MAX_MANIFEST_BYTES == 64 * 1024
     assert settings.TRANSFER_MAX_NODES == 5000
-    assert settings.TRANSFER_MAX_ELEMENTS == 20000
-    assert settings.TRANSFER_MAX_MEDIA_ENTRIES == 1000
+    assert settings.TRANSFER_MAX_ELEMENTS == 100000
+    assert settings.TRANSFER_MAX_MEDIA_ENTRIES == 5000
     assert settings.TRANSFER_STAGING_MAX_AGE_HOURS == 6
     assert settings.TRANSFER_STAGING_DIR  # a path, not under MEDIA_ROOT
     assert str(settings.MEDIA_ROOT) not in str(settings.TRANSFER_STAGING_DIR)
