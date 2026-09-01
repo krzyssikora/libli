@@ -209,3 +209,30 @@ def test_archive_bytes_names_whichever_byte_cap_actually_binds():
         _measure(report, "archive_bytes")["env"]
         == "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES"
     )
+
+
+def test_export_limits_list_has_a_rule_in_app_css():
+    """The pre-flight page loads base only (reset/tokens/app), so `.export-limits`
+    must have a rule in app.css or it ships as a default-UA bulleted list beside
+    the styled `.export-missing` card on the very same page.
+
+    Same guard shape as tests/test_publish_styles.py: the selector must
+    TERMINATE a selector in the rule's list, so a descendant or state rule
+    elsewhere cannot keep this green after the block that matters is deleted.
+    """
+    import re
+    from pathlib import Path
+
+    app_css = (
+        Path(__file__).resolve().parent.parent
+        / "core"
+        / "static"
+        / "core"
+        / "css"
+        / "app.css"
+    )
+    css = re.sub(r"/\*.*?\*/", "", app_css.read_text(encoding="utf-8"), flags=re.S)
+    assert re.search(r"\.export-limits\s*[,{]", css), (
+        ".export-limits has no rule in app.css; the export pre-flight page "
+        "loads no other stylesheet that could style it."
+    )

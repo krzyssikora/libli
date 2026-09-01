@@ -67,9 +67,14 @@
   flex-wrap: wrap;
 }
 
-/* Export pre-flight "missing media" report: an advisory list (not an error), so each
-   row carries a quiet warning left-accent rather than alarm colour. */
-.export-missing {
+/* Export pre-flight reports: BOTH lists on export_preview.html -- missing media, and
+   counts over this instance's transfer caps. Advisory lists (not errors), so each row
+   carries a quiet warning left-accent rather than alarm colour: neither blocks the
+   export, and a cap breach may not even be a breach on the instance being imported
+   into. Sharing one treatment is deliberate -- two differently-styled advisory lists
+   stacked on one page would imply a severity difference that does not exist. */
+.export-missing,
+.export-limits {
   list-style: none;
   margin: var(--space-4) 0 var(--space-6);
   border: 1px solid var(--border-default);
@@ -77,12 +82,25 @@
   overflow: hidden;
   background: var(--surface-raised);
 }
-.export-missing li {
+.export-missing li,
+.export-limits li {
   padding: var(--space-3) var(--space-4);
   border-left: 3px solid var(--warning);
   line-height: 1.5;
 }
-.export-missing li + li { border-top: 1px solid var(--border-subtle); }
+.export-missing li + li,
+.export-limits li + li { border-top: 1px solid var(--border-subtle); }
+/* The env var name. `code` inherits the page font stack otherwise, which makes an
+   ALL-CAPS underscore identifier read as prose mid-sentence. */
+.export-limits code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
 
 /* Import upload drop target. Progressive enhancement — the native file input inside
    stays fully usable (and required) without JS; import_dropzone.js adds drag/drop. */
