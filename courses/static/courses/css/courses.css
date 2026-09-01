@@ -1487,7 +1487,19 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .filltable-editor__img--full   { max-width: 200px; max-height: 200px; }
 .ta-center > .filltable-editor__img { margin-inline: auto; }
 .ta-right  > .filltable-editor__img { margin-inline: auto 0; }
-.el--filltable__scroll { overflow-x: auto; }
+/* `position: relative` IS LOAD-BEARING, and it is not about z-order. Overflow
+   clipping does not reach an absolutely positioned descendant whose containing
+   block is OUTSIDE the clipper, and a static scroller is nobody's containing
+   block: KaTeX renders a hidden MathML copy of every formula into
+   `.katex-mathml`, which katex.css declares `position: absolute`, so on a
+   static scroller those boxes take `.scroll-x` (the edge-shading wrapper, one
+   level up, `position: relative`) instead, escape the clip at their static
+   position out at the table's full width, and drag the whole PAGE sideways to
+   reach them. MEASURED on unit 459's 15-column table at a 390px viewport:
+   documentElement 390/795 without this declaration, 390/390 with it, same page,
+   same load. Falsified by tests/test_e2e_filltable_scroller_contains_math.py.
+   A table of plain cells never showed it -- no math, nothing absolute. */
+.el--filltable__scroll { overflow-x: auto; position: relative; }
 .el--filltable table { border-collapse: collapse; width: 100%; }
 .el--filltable th, .el--filltable td { padding: var(--space-2); }
 .el--filltable th { color: var(--text-primary); }
