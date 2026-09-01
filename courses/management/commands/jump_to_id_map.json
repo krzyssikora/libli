@@ -1,0 +1,166 @@
+{
+ "course_slug": "mat-pp",
+ "targets": {
+  "1338ba773b124de5abe5b6289a868ee2": {
+   "node_pk": 430,
+   "title": "Dzielenie wielomianów 3 - dopasowanie wyrazów",
+   "kind": "unit",
+   "edx_name": "Dzielenie wielomianów 3",
+   "uses": 1
+  },
+  "14ebbce139bc447eaf7213da54a53092": {
+   "node_pk": 888,
+   "title": "Przesuwanie wykresu wzdłuż osi \\(ox\\)",
+   "kind": "unit",
+   "edx_name": "Przesuwanie wykresu wzdłuż osi ox",
+   "uses": 2
+  },
+  "1a55970974e24c60a34789b4b51c70bb": {
+   "node_pk": 257,
+   "title": "Nachylenie linii prostej 1",
+   "kind": "unit",
+   "edx_name": "Nachylenie linii prostej",
+   "uses": 3
+  },
+  "219ea2e1a9174d1d97f7d30742e4415b": {
+   "node_pk": 905,
+   "title": "Równania",
+   "kind": "unit",
+   "edx_name": "Równania",
+   "uses": 1
+  },
+  "23e2ad54dcb2442d949b536ff4ade63b": {
+   "node_pk": 1152,
+   "title": "Dzielenie wielomianów 1 - pisemnie",
+   "kind": "unit",
+   "edx_name": "Dzielenie wielomianów 1",
+   "uses": 1
+  },
+  "26aaae708ac34d74a461ea6f1a663322": {
+   "node_pk": 282,
+   "title": "Współczynniki kierunkowe",
+   "kind": "unit",
+   "edx_name": "Współczynniki kierunkowe",
+   "uses": 1
+  },
+  "3072f628746c4dcf9613abeb56b8de3b": {
+   "node_pk": 381,
+   "title": "Proporcjonalność odwrotna",
+   "kind": "unit",
+   "edx_name": "Proporcjonalność odwrotna",
+   "uses": 1,
+   "note": "target confirmed; the prose typo prosta->odwrotna is a SEPARATE, flagged change"
+  },
+  "4bf9e10fdd7444c1a5c84d17512f1955": {
+   "node_pk": 287,
+   "title": "Podsumowanie",
+   "kind": "unit",
+   "edx_name": "Funkcja liniowa - podsumowanie",
+   "uses": 1
+  },
+  "4e7686963d554e21863177d258a75585": {
+   "node_pk": 889,
+   "title": "Przesuwanie wykresu wzdłuż osi \\(oy\\)",
+   "kind": "unit",
+   "edx_name": "Przesuwanie wykresu wzdłuż osi oy",
+   "uses": 1
+  },
+  "5661a986b20d411ba8403da5e16863a6": {
+   "node_pk": 639,
+   "title": "Podstawowe twierdzenia",
+   "kind": "unit",
+   "edx_name": "Podstawowe twierdzenia",
+   "uses": 1
+  },
+  "676a5dda58f64946a6a4747c68ad5157": {
+   "node_pk": 665,
+   "title": "Środek odcinka",
+   "kind": "unit",
+   "edx_name": "Środek odcinka",
+   "uses": 3
+  },
+  "6a14217a2a954f108a0cceb1c1436295": {
+   "node_pk": 517,
+   "title": "Wzór rekurencyjny - użyteczność",
+   "kind": "unit",
+   "edx_name": "Wzór rekurencyjny - użyteczność",
+   "uses": 1
+  },
+  "6e7e46b8f0be4ac885af94cfb366287e": {
+   "node_pk": 332,
+   "title": "Zamiana postaci ogólnej funkcji kwadratowej na postać kanoniczną.",
+   "kind": "unit",
+   "edx_name": "Zamiana postaci ogólnej funkcji kwadratowej na postać kanoniczną",
+   "uses": 1
+  },
+  "86ef6fc5f8ba461a84fb22a3aaf5e55c": {
+   "node_pk": 364,
+   "title": "Metody rozwiązywania równań kwadratowych",
+   "kind": "unit",
+   "edx_name": "Metody rozwiązywania równań kwadratowych",
+   "uses": 1
+  },
+  "b3c27d9a7a754655b04f52cf59cc3ac2": {
+   "node_pk": 662,
+   "title": "Długość odcinka 2",
+   "kind": "unit",
+   "edx_name": "Długość odcinka 2",
+   "uses": 2
+  },
+  "b96e07ed702f4bd589f2e37fe20b4934": {
+   "node_pk": 649,
+   "title": "Twierdzenia o kątach w kole",
+   "kind": "unit",
+   "edx_name": "Twierdzenia o kątach w kole",
+   "uses": 1
+  },
+  "cd78033f1582432caedd8a9dbeeb4b54": {
+   "node_pk": 269,
+   "title": "Czy punkt leży na prostej?",
+   "kind": "unit",
+   "edx_name": "Czy punkt leży na prostej?",
+   "uses": 1
+  },
+  "e10cfe6d55194428bf2ba0c84677c339": {
+   "node_pk": 295,
+   "title": "Układy równań",
+   "kind": "part",
+   "edx_name": "Wstęp",
+   "uses": 1,
+   "note": "chapter-level: the sentence names the chapter; node_permalink resolves a part to the outline"
+  },
+  "ea88ce739d8e4350afab6fa63688c75d": {
+   "node_pk": 340,
+   "title": "Obliczanie miejsc zerowych",
+   "kind": "unit",
+   "edx_name": "Obliczanie miejsc zerowych",
+   "uses": 1
+  },
+  "fbc819931db64e0e90d3ba05d25782d2": {
+   "node_pk": 247,
+   "title": "Funkcja liniowa",
+   "kind": "part",
+   "edx_name": "Wstęp",
+   "uses": 2,
+   "note": "chapter-level: the sentence names the chapter; node_permalink resolves a part to the outline"
+  },
+  "ff5d39c0ea4a4e54a55b4cec48c980c2": {
+   "node_pk": 270,
+   "title": "Równanie prostej przechodzącej przez dwa punkty 1",
+   "kind": "unit",
+   "edx_name": "Równanie prostej przechodzącej przez dwa punkty",
+   "uses": 5,
+   "note": "one edX unit that libli split into 1 and 2; the FIRST was agreed"
+  }
+ },
+ "prose": [
+  {
+   "text_pk": 4234,
+   "unit_pk": 496,
+   "unit_title": "Wprowadzenie",
+   "old": "proporcjonalność prostą",
+   "new": "proporcjonalność odwrotną",
+   "why": "the block before names 'funkcja proporcjonalnosci odwrotnej' and the next two lessons are 'Funkcja proporcjonalnosci odwrotnej - powtorzenie 1/2', which is what 'powtorzmy ja w wielkim skrocie' points at"
+  }
+ ]
+}
