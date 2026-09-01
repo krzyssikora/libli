@@ -919,6 +919,107 @@ def test_tiny_image_opens_and_is_not_upscaled(page, live_server, tiny_lesson):
     assert box["width"] <= 1.5, f"1x1 image was upscaled to {box['width']}"
 
 
+def _transparent_ink_png(size=BIG, ink_frac=0.40, ink=(17, 17, 17)):
+    """A fully transparent PNG carrying a centred near-black opaque square.
+
+    A genuine alpha=0 ground, not white pixels: white composites identically over
+    any background, so a fixture built that way would pass on the broken build.
+    """
+    from io import BytesIO
+
+    from PIL import Image
+    from PIL import ImageDraw
+
+    w, h = size
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    dw, dh = w * ink_frac, h * ink_frac
+    ImageDraw.Draw(img).rectangle(
+        [(w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2], fill=(*ink, 255)
+    )
+    buf = BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+@pytest.fixture
+def transparent_zoom_lesson(db, _isolated_media):
+    """zoom_lesson's shape, but the image has a transparent ground.
+
+    Same 1400x900 as BIG so the geometry this module pins elsewhere is unchanged --
+    only the alpha channel differs from the magenta fixture.
+    """
+    from courses.models import ImageElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    asset = make_image_asset(
+        course, filename="transparent.png", raw=_transparent_ink_png()
+    )
+    add_element(
+        unit, ImageElement.objects.create(media=asset, alt="A labelled diagram")
+    )
+    user = _student("transparentstudent")
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_overlay_plates_a_transparent_image_in_both_themes(
+    page, live_server, transparent_zoom_lesson, tmp_path, theme
+):
+    """A transparent PNG must not composite onto the scrim, in EITHER theme.
+
+    Parametrised over both themes rather than asserting only dark, because unlike the
+    lesson-surface plate this defect was never theme-specific: --scrim-solid is
+    declared once and deliberately never restated for dark (tokens.css), so the
+    overlay is near-black in light mode too and a dark-ink diagram was equally
+    invisible there. A dark-only test would leave the larger half of the bug unpinned.
+
+    The plate is read from the token, not hardcoded, so a design-pass retune of the
+    page ground cannot turn this red for no defect.
+    """
+    from PIL import Image
+
+    unit, user = transparent_zoom_lesson
+    user.theme = theme
+    user.save(update_fields=["theme"])
+    _goto(page, live_server, unit, user)
+    # A mis-wired fixture must fail loudly rather than measure the same theme twice.
+    assert page.evaluate("document.documentElement.dataset.theme") == theme
+
+    trigger = _trigger(page)
+    _await_decoded(page, trigger)
+    _open(page, trigger)
+    img = page.locator(".imgzoom__img")
+
+    token = page.evaluate(
+        "() => getComputedStyle(document.documentElement)"
+        ".getPropertyValue('--image-plate').trim()"
+    )
+    expected = [int(token[i : i + 2], 16) for i in (1, 3, 5)]
+
+    # Sampling the rendered bitmap, not backgroundColor: a resolved declaration is not
+    # proof anything was painted, and only pixels show that the ink survived alongside
+    # the plate. Fractions of the shot, so the assertion does not depend on the fitted
+    # overlay geometry, which varies with the viewport.
+    assert page.evaluate("() => devicePixelRatio") == 1
+    shot = tmp_path / f"imgzoom-plate-{theme}.png"  # never the repo root
+    img.screenshot(path=str(shot))
+    frame = Image.open(shot).convert("RGB")
+    w, h = frame.size
+    corner = frame.getpixel((int(w * 0.08), int(h * 0.08)))
+    centre = frame.getpixel((int(w * 0.50), int(h * 0.50)))
+
+    assert all(abs(a - b) <= 12 for a, b in zip(corner, expected, strict=True)), (
+        f"[{theme}] transparent ground shows {corner}, not the plate {expected} -- "
+        "the image is compositing onto the scrim"
+    )
+    # The other half of the spec: a fix that lightens the ink (any invert-based one)
+    # passes the check above and still destroys the diagram.
+    lum = (0.2126 * centre[0] + 0.7152 * centre[1] + 0.0722 * centre[2]) / 255
+    assert lum < 0.15, f"[{theme}] the image's own dark ink did not survive: {centre}"
+
+
 @pytest.fixture
 def quiz_zoom_lesson(db, _isolated_media):
     """A QUIZ unit (unit_type="quiz", make_quiz_unit), not a lesson -- every other

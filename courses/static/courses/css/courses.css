@@ -2553,6 +2553,30 @@ dialog.imgzoom:not([open]) { display: none; }
    verified.
    Task 7, not by inspection. */
 .imgzoom__img { max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; width: auto; height: auto; display: block; }
+/* Same light plate the lesson surface paints behind a transparent PNG (:129), for the
+   same reason: ~6% of the media corpus is dark line art on a transparent ground,
+   authored for Open edX, and here it composites onto --scrim-solid and disappears.
+
+   NOT scoped to [data-theme="dark"], unlike the lesson rule. --scrim-solid is declared
+   once and deliberately never restated for dark (tokens.css), because an image viewer
+   is conventionally dark in both themes -- so this overlay was near-black, and the
+   diagram equally invisible, for a LIGHT-theme reader too. The plate has to be
+   theme-invariant for exactly the reason the scrim is.
+
+   BACKGROUND ONLY -- no padding, unlike the lesson rule, and that is load-bearing
+   rather than a stylistic choice. getBoundingClientRect() returns the BORDER box, so
+   padding here would enter the geometry this block spent seven spec rounds getting
+   right: on the height-capped 1400x900 fixture, 12px of padding moves the measured
+   aspect ratio from 1.5556 to 1.5389 -- measured, not inferred: the border box comes
+   back 1231.11x800 for a delta of 0.01667, reddening the `< 0.01` assertion in
+   test_overlay_enlarges_without_upscaling_and_fits_the_viewport. A gutter, if one is
+   ever wanted, must come as max-height: calc(100% - 2 * gutter) -- the same rule the
+   comment above this one already states for the dialog.
+
+   It also makes the change invisible to every OPAQUE image: their own pixels cover the
+   background completely, so no photo gains a mat. The lesson-surface rule could not
+   have this property, because its padding applies whether or not the PNG has alpha. */
+.imgzoom__img { background: var(--image-plate); }
 /* Unit strip: the tag panel and the Edit-unit link on one row.
    The strip owns the block rhythm; .unit-tags' own .5rem margin (from tags.css)
    is zeroed inside it so both flex items align on the row's top edge, so no
