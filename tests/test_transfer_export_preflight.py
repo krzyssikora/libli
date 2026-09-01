@@ -236,3 +236,57 @@ def test_export_limits_list_has_a_rule_in_app_css():
         ".export-limits has no rule in app.css; the export pre-flight page "
         "loads no other stylesheet that could style it."
     )
+
+
+def test_export_preflight_page_scope_class_has_a_rule_in_app_css():
+    """The page stacks an h1 and up to two h2s, and reset.css sets `* { margin: 0 }`
+    -- so without a scoped heading rule the section titles collide with the h1 and
+    with the list above them. Caught by a screenshot, not by any assertion:
+    `.export-limits` already had its rule and the page still read as one run-on
+    heading.
+
+    Scoped to its own class rather than `.manage h2`, which every manage page
+    would inherit.
+    """
+    import re
+    from pathlib import Path
+
+    app_css = (
+        Path(__file__).resolve().parent.parent
+        / "core"
+        / "static"
+        / "core"
+        / "css"
+        / "app.css"
+    )
+    css = re.sub(r"/\*.*?\*/", "", app_css.read_text(encoding="utf-8"), flags=re.S)
+    assert re.search(r"\.export-preflight\s+h2\s*[,{]", css), (
+        ".export-preflight h2 has no rule in app.css; the page's section "
+        "headings collide under reset.css's `* { margin: 0 }`."
+    )
+
+
+def test_the_export_report_lists_drop_the_ua_list_indent():
+    """reset.css zeroes `margin` but NOT `padding`, so a `ul` keeps its UA
+    `padding-inline-start` (~40px). Inside a bordered card that renders as an
+    empty gutter with the warning accent floating inset instead of sitting flush
+    against the card edge -- visible in the screenshot, invisible to every other
+    test. `.export-missing` shipped with this; the shared rule fixes both.
+    """
+    import re
+    from pathlib import Path
+
+    app_css = (
+        Path(__file__).resolve().parent.parent
+        / "core"
+        / "static"
+        / "core"
+        / "css"
+        / "app.css"
+    )
+    css = re.sub(r"/\*.*?\*/", "", app_css.read_text(encoding="utf-8"), flags=re.S)
+    block = re.search(r"\.export-missing,\s*\.export-limits\s*\{(.*?)\}", css, re.S)
+    assert block, "the shared list rule is gone"
+    assert re.search(r"padding\s*:\s*0", block.group(1)), (
+        "the shared list rule must zero the UA list indent"
+    )
