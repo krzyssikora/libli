@@ -172,24 +172,49 @@ MEDIA_ROOT = BASE_DIR / "media"
 # --- Course transfer (export/import) — spec 2026-07-05. Deployment guardrails,
 # not product limits; deployments hosting bigger courses raise them (and must
 # raise proxy body-size + worker timeout limits to match — see docs note).
-# The four caps below are env-overridable so a deployment hosting a large course
-# can raise them without a code change; the DEFAULTS are unchanged, so a stock
-# install keeps the guardrails. The remaining three have measured headroom
-# against the largest real course (5.76 MiB course.json, 229 B manifest, 1,010
-# nodes) and stay fixed.
+#
+# The caps split into two kinds, and they are sized on OPPOSITE principles:
+#
+#  - COUNT caps (nodes, elements, media entries, course.json bytes) are
+#    memory-bound and reachable only by an authenticated user who already holds
+#    the import permission. They are sized so they are NEVER the binding
+#    constraint on a real course: the largest real course measures 1,021 nodes /
+#    20,608 elements / 1,191 media / 5.79 MiB of course.json, and does not yet
+#    cover a full national curriculum, so the defaults leave roughly 5x headroom
+#    over it. A count cap that a legitimate course trips is a bug in the cap.
+#  - BYTE caps (compressed/uncompressed archive size) cost real disk on the
+#    host — staging, the upload spill dir and the media volume each need room
+#    for one — so they stay deliberately modest and are raised only by an
+#    operator who has sized the storage to match. A course too large for one
+#    archive is moved with `migrate_course_content`, whose per-part archives are
+#    each far under these, NOT by inflating them.
+#
+# TRANSFER_MAX_COURSE_JSON_BYTES is what actually bounds import memory: it is a
+# byte cap on the decoded document, so no count cap can let an unbounded
+# document through. That is WHY the count caps can be generous.
+# tests/test_transfer_caps_env.py pins both halves.
+#
+# All six are env-overridable. Previously COURSE_JSON_BYTES and NODES were not,
+# justified by headroom against a course that has since grown into it — a fixed
+# cap with no escape hatch is the one an operator cannot route around at 3am.
 TRANSFER_MAX_COMPRESSED_BYTES = env.int(
     "LIBLI_TRANSFER_MAX_COMPRESSED_BYTES", default=1 * 1024**3
 )  # 1 GiB zip upload
 TRANSFER_MAX_UNCOMPRESSED_BYTES = env.int(
     "LIBLI_TRANSFER_MAX_UNCOMPRESSED_BYTES", default=1536 * 1024**2
 )  # 1.5 GiB declared/actual total
-TRANSFER_MAX_COURSE_JSON_BYTES = 10 * 1024**2
+TRANSFER_MAX_COURSE_JSON_BYTES = env.int(
+    "LIBLI_TRANSFER_MAX_COURSE_JSON_BYTES", default=64 * 1024**2
+)  # 64 MiB decoded document — the real memory bound
 TRANSFER_MAX_MANIFEST_BYTES = 64 * 1024
-TRANSFER_MAX_NODES = 5000
-# Enforced on IMPORT only (courses/transfer/schema.py), never on export, so a
-# fixed value rejects an oversized archive AFTER the whole upload has completed.
-TRANSFER_MAX_ELEMENTS = env.int("LIBLI_TRANSFER_MAX_ELEMENTS", default=20000)
-TRANSFER_MAX_MEDIA_ENTRIES = env.int("LIBLI_TRANSFER_MAX_MEDIA_ENTRIES", default=1000)
+TRANSFER_MAX_NODES = env.int("LIBLI_TRANSFER_MAX_NODES", default=5000)
+# Enforced on IMPORT (courses/transfer/schema.py). Export does not REFUSE on
+# these — it cannot, because the importing deployment's caps are the ones that
+# decide and are unknowable from here — but it does report the archive's numbers
+# against the local caps before writing, so an oversize archive is diagnosed
+# before the upload rather than after it. See courses/transfer/export.py.
+TRANSFER_MAX_ELEMENTS = env.int("LIBLI_TRANSFER_MAX_ELEMENTS", default=100000)
+TRANSFER_MAX_MEDIA_ENTRIES = env.int("LIBLI_TRANSFER_MAX_MEDIA_ENTRIES", default=5000)
 TRANSFER_STAGING_MAX_AGE_HOURS = 6
 # NOT under MEDIA_ROOT: staged archives must never be web-served (spec §4.3/§6).
 TRANSFER_STAGING_DIR = BASE_DIR / "transfer_staging"

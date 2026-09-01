@@ -4,6 +4,7 @@ import json
 import os
 import zipfile
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -669,6 +670,77 @@ def walk_unit_joins(unit_pk, joins_by_unit):
         yield from emit(join, None, "")
 
 
+def limit_measures(document, media_total_bytes):
+    """What this archive needs, against what THIS deployment accepts.
+
+    Advisory only. The caps that decide belong to the IMPORTING deployment and
+    are unknowable from here, so nothing derived from this may refuse an export
+    -- an archive over these numbers is perfectly importable into an instance
+    that raised its own limits. `tests/test_transfer_export_preflight.py` pins
+    that.
+
+    Deliberately NOT folded into build_export's `problems` list, which means
+    something else entirely: `migrate_course_content --allow-problems` ABORTS a
+    whole bundle export on any problem, and a cap finding must never do that --
+    per-part archives are exactly the path a course too big for one archive
+    travels. Different channel, different meaning.
+
+    `over` mirrors the import check's own comparison (`len(x) > cap`, schema.py),
+    so a count exactly AT the cap is not flagged: it imports fine, and warning
+    about it would train the operator to ignore the report.
+    """
+    measures = [
+        ("nodes", len(document["nodes"]), settings.TRANSFER_MAX_NODES, "count"),
+        (
+            "elements",
+            len(document["elements"]),
+            settings.TRANSFER_MAX_ELEMENTS,
+            "count",
+        ),
+        (
+            "media_entries",
+            len(document["media"]),
+            settings.TRANSFER_MAX_MEDIA_ENTRIES,
+            "count",
+        ),
+        (
+            # Measured, not estimated: this is the one cap whose value cannot be
+            # derived from a length, and write_archive_from serialises the same
+            # dict the same way (json.dumps(..., ensure_ascii=False)), so the
+            # number is the one the importer will actually check.
+            "course_json_bytes",
+            len(json.dumps(document, ensure_ascii=False).encode("utf-8")),
+            settings.TRANSFER_MAX_COURSE_JSON_BYTES,
+            "bytes",
+        ),
+        (
+            # An ESTIMATE, and the only one here. The zip is not written yet, so
+            # the compressed size is unknown; media dominates it and is already
+            # compressed (mp4/png), which makes the uncompressed total a close
+            # lower bound. Capped by whichever byte limit binds FIRST -- both
+            # apply to the same archive, so the smaller is the real ceiling.
+            "archive_bytes",
+            media_total_bytes,
+            min(
+                settings.TRANSFER_MAX_COMPRESSED_BYTES,
+                settings.TRANSFER_MAX_UNCOMPRESSED_BYTES,
+            ),
+            "bytes",
+        ),
+    ]
+    return [
+        {
+            "key": key,
+            "value": value,
+            "cap": cap,
+            "unit": unit,
+            "over": value > cap,
+            "estimate": key == "archive_bytes",
+        }
+        for key, value, cap, unit in measures
+    ]
+
+
 def build_export(
     course,
     node=None,
@@ -951,6 +1023,8 @@ def build_export(
         }
         if node is not None:
             manifest["node"] = {"title": node.title, "kind": node.kind}
+        if report is not None:
+            report["limits"] = limit_measures(document, total_bytes)
         return manifest, document, media_assets, problems
 
 
