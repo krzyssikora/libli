@@ -422,9 +422,10 @@ def build_lesson_context(node, user):
     ).exists()
     # Flat unit-wide (NOT scoped to parent__isnull=True) so a question nested in a
     # spoiler/tab — children keep their own `unit` FK — is still detected, arming
-    # question.js/dnd.js. Four question types are nestable (choice, short_text,
-    # short_numeric, fill_blank — builder.NESTABLE_QUESTION_KEYS), so this fires for
-    # any of them nested in a container; top-level behaviour is unchanged.
+    # question.js/dnd.js. The nestable question types are named by
+    # builder.NESTABLE_QUESTION_KEYS (choice, short_text, short_numeric, fill_blank
+    # and the two grids), so this fires for any of them nested in a container;
+    # top-level behaviour is unchanged. Counting them here would only go stale.
     has_questions = node.elements.filter(content_type_id__in=question_ct_ids).exists()
     # has_fill_table: plain CT-model filter, moved here unchanged. The block
     # comment below belongs to has_filltable_gate, NOT to this line.

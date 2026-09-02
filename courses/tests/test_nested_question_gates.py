@@ -71,29 +71,44 @@ def _units():
     return course, lesson, make_quiz_unit(course=course)
 
 
+# The nestable question types, as the FORM keys element_add hands over. Shared by the
+# three parametrized cases below so a type widened at one authority can never be
+# forgotten at the other two.
+#
+# `choicegridquestion` / `multigridquestion` joined the set when the two grid types
+# were widened; unlike the other three their form key had no alias at all, so an
+# un-aliased key falls through resolve_scope's `_NESTABLE_FORM_KEY_ALIASES.get(k, k)`
+# UNCHANGED and misses NESTABLE_TYPE_KEYS -- which is why the acceptance half below
+# is the one that fails without the alias entry.
+QUESTION_FORM_KEYS = [
+    "choicequestion",
+    "shorttextquestion",
+    "shortnumericquestion",
+    "choicegridquestion",
+    "multigridquestion",
+]
+
+
 # --------------------------------------------------------------------------
 # Authority 1: resolve_scope
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "form_key", ["choicequestion", "shorttextquestion", "shortnumericquestion"]
-)
+@pytest.mark.parametrize("form_key", QUESTION_FORM_KEYS)
 def test_resolve_scope_refuses_a_question_into_a_quiz_container(form_key):
     """FORM keys, as element_add hands them over: the clause tests the ALIASED key,
-    so a clause written against the raw `type_key` would let all three through."""
+    so a clause written against the raw `type_key` would let every one of them
+    through."""
     _course, _lesson, quiz = _units()
     dest = _callout(quiz)
     with pytest.raises(NestingError):
         builder.resolve_scope(quiz, str(dest.pk), CalloutElement.SLOT_ID, form_key)
 
 
-@pytest.mark.parametrize(
-    "form_key", ["choicequestion", "shorttextquestion", "shortnumericquestion"]
-)
+@pytest.mark.parametrize("form_key", QUESTION_FORM_KEYS)
 def test_resolve_scope_accepts_the_same_question_into_a_lesson_container(form_key):
     """The other direction, same call. Without it the refusal above is satisfied by
-    dropping the three keys from NESTABLE_TYPE_KEYS altogether."""
+    dropping the keys from NESTABLE_TYPE_KEYS altogether."""
     _course, lesson, _quiz = _units()
     dest = _callout(lesson)
     parent, tab = builder.resolve_scope(

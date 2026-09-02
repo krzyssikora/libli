@@ -84,10 +84,11 @@ COURSE_SCOPED_TYPE_KEYS = ("image", "video", "gallery", "filltable", "table")
 # Members are TRANSFER keys (courses.transfer.export.SERIALIZERS), not the
 # element_add/element_save "type" strings -- an invariant test asserts
 # NESTABLE_TYPE_KEYS <= set(SERIALIZERS). Several types' form key differs from
-# their transfer key (before_after, choice, fill_blank, fill_gate, fill_table,
-# guess_number, mark_done, reveal_gate, short_numeric, short_text, switch_gate,
-# switch_grid, two_column -- see _NESTABLE_FORM_KEY_ALIASES below);
-# resolve_scope() translates the incoming form key before checking membership.
+# their transfer key (before_after, choice, choice_grid, fill_blank, fill_gate,
+# fill_table, guess_number, mark_done, multi_grid, reveal_gate, short_numeric,
+# short_text, switch_gate, switch_grid, two_column -- see
+# _NESTABLE_FORM_KEY_ALIASES below); resolve_scope() translates the incoming form
+# key before checking membership.
 NESTABLE_TYPE_KEYS = frozenset(
     {
         "text",
@@ -111,13 +112,26 @@ NESTABLE_TYPE_KEYS = frozenset(
         "guess_number",
         # The graded question keys. `fill_blank` above is nestable too and predates
         # them (it arrived by side effect of the interactive-in-spoiler work); these
-        # three make the capability deliberate. Questions are LEAVES, so they are
+        # make the capability deliberate. Questions are LEAVES, so they are
         # governed by clause 3, never clause 4. The remaining question types
-        # (extended_response, the three drag types, the two grid types) stay out on
+        # (extended_response, drag_fill_blank, match_pair, drag_to_image) stay out on
         # purpose -- see the design spec's non-goals.
         "choice",
         "short_text",
         "short_numeric",
+        # The two GRID keys, added after the fact: the authoring pattern that wanted
+        # them is a Task callout holding the instruction text together with the grid
+        # that answers it -- before this the grid could only sit OUTSIDE, as a
+        # sibling. Both, never one: they are structural twins (N statements x M
+        # columns, radio vs checkbox) and widening one alone just moves the wall.
+        #
+        # Their widget is a <table>, the first among the nestable types. That needs
+        # no width work here -- choicegridquestionelement.html and its multigrid twin
+        # already wrap the table in `.scroll-x` / `.choicegrid-scroll`
+        # (overflow-x: auto), so a container's narrower column scrolls it rather than
+        # overflowing.
+        "choice_grid",
+        "multi_grid",
         # Container keys. EVERY member of this set is in
         # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS
         # holds. (Phrased about the invariant, not a count -- "Both" was already
@@ -137,7 +151,17 @@ NESTABLE_TYPE_KEYS = frozenset(
 # across a unit_type flip do NOT read this set -- they go through the deliberately
 # WIDER unit_has_nested_question(), which spans every QuestionElement subclass.
 NESTABLE_QUESTION_KEYS = frozenset(
-    {"choice", "short_text", "short_numeric", "fill_blank"}
+    {
+        "choice",
+        "short_text",
+        "short_numeric",
+        "fill_blank",
+        # The grids belong in BOTH sets. Added to NESTABLE_TYPE_KEYS alone they would
+        # nest happily in a QUIZ -- a hole rather than a feature -- because this is
+        # the only set that carries the lesson-only rule.
+        "choice_grid",
+        "multi_grid",
+    }
 )
 
 # Form key -> transfer key, for the types where the two namespaces diverge.
@@ -151,12 +175,14 @@ NESTABLE_QUESTION_KEYS = frozenset(
 # while the cards sat there inviting clicks.
 _NESTABLE_FORM_KEY_ALIASES = {
     "beforeafter": "before_after",
+    "choicegridquestion": "choice_grid",
     "choicequestion": "choice",
     "fillblankquestion": "fill_blank",
     "fillgate": "fill_gate",
     "filltable": "fill_table",
     "guessnumber": "guess_number",
     "markdone": "mark_done",
+    "multigridquestion": "multi_grid",
     "revealgate": "reveal_gate",
     "shortnumericquestion": "short_numeric",
     "shorttextquestion": "short_text",
