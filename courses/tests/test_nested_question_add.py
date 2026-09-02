@@ -49,6 +49,11 @@ def _managed(client):
         ("choice-multi", "True"),
         ("shorttextquestion", None),
         ("shortnumericquestion", None),
+        # The two grid types. Their cards post the FORM key unchanged (no
+        # card->key rewrite like the choice pair), so `expect_multiple` is None
+        # and the `name="type" value=...` branch below is what runs.
+        ("choicegridquestion", None),
+        ("multigridquestion", None),
     ],
 )
 def test_nested_add_of_a_widened_question_type_opens_its_form(
@@ -113,13 +118,25 @@ def test_nested_add_of_a_widened_question_creates_no_element_row(client):
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "add_type",
-    ["choice-single", "choice-multi", "shorttextquestion", "shortnumericquestion"],
+    [
+        "choice-single",
+        "choice-multi",
+        "shorttextquestion",
+        "shortnumericquestion",
+        "choicegridquestion",
+        "multigridquestion",
+    ],
 )
 def test_nested_add_of_a_widened_question_type_is_400_in_a_quiz(client, add_type):
     """The quiz companion of the parametrized acceptance test above -- one per card,
     because element_add rewrites `type` for the two choice cards before resolve_scope
     ever sees it, and only a per-card POST proves each rewrite still reaches the
-    gate."""
+    gate.
+
+    The two grid cards carry no rewrite, so what they pin here instead is that
+    widening NESTABLE_QUESTION_KEYS -- not just NESTABLE_TYPE_KEYS -- is what keeps
+    them out of a quiz. Adding the grids to the wider set alone turns these two
+    into 200s."""
     course, _lesson = _managed(client)
     quiz = make_quiz_unit(course=course)
     callout = CalloutElement.objects.create(kind="example")

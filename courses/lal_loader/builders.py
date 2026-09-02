@@ -74,11 +74,14 @@ LAL_SPOILER_CHILD_TYPES = frozenset(
 
 # EVERY question etype this loader can build -- SIX branches, not four:
 # choice_grid and multi_grid are QuestionElement subclasses too, and both are
-# reachable from the ungated tabs recursion below. Deliberately as wide
-# as unit_has_nested_question (which spans all ten concrete question models), NOT
-# as narrow as NESTABLE_QUESTION_KEYS: a manifest creating tabs > choice_grid in a
-# quiz would otherwise land content that no write authority refused, and that unit
-# is then permanently barred from every unit_type flip.
+# reachable from the ungated tabs recursion below. Deliberately keyed on what this
+# loader can BUILD, never mirrored from builder.NESTABLE_QUESTION_KEYS: the two sets
+# happen to name the same six types today (the grids joined the builder set when
+# they were made nestable), but that agreement is a coincidence, not a contract.
+# Narrowing this to whatever the builder currently allows would let a manifest land
+# content that no write authority refused -- and such a unit is then permanently
+# barred from every unit_type flip, because the flip guard is the WIDER
+# unit_has_nested_question (all ten concrete question models).
 #
 # Spelled CANONICALLY because the guard canonicalises first: _PARSER_TO_CANONICAL
 # maps "fillblank" -> "fill_blank" (above), so a set holding the raw "fillblank"

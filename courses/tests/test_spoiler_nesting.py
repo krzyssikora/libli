@@ -377,26 +377,23 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
         "guessnumber",
     ):
         assert f'data-add-type="{allowed}"' in block, allowed
-    # INVERTED by the question widening: the four cards of the three widened types
-    # (choice contributes two) are now offered in a nested menu on a LESSON unit.
-    for allowed_question in (
-        "choice-single",
-        "choice-multi",
-        "shorttextquestion",
-        "shortnumericquestion",
-        "fillblankquestion",
-    ):
+    # INVERTED by the question widening, then again by the grid widening, which moved
+    # choicegridquestion/multigridquestion out of the banned tuple below. Reads
+    # NESTED_QUESTION_CARDS (defined further down) rather than a second hand-written
+    # copy: the two lists drifting apart is exactly how this test broke last time --
+    # the module-level tuple grew and this literal did not.
+    for allowed_question in NESTED_QUESTION_CARDS:
         assert f'data-add-type="{allowed_question}"' in block, allowed_question
-    # The drag and grid types plus extended_response stay hidden in every nested
-    # menu -- they are not in NESTABLE_TYPE_KEYS and a click would 400.
+    # The drag types and extended_response stay hidden in every nested menu -- they
+    # are not in NESTABLE_TYPE_KEYS and a click would 400. Asserted as the COMPLEMENT
+    # of the tuple above, so a card can never appear in both.
     for banned_question in (
         "dragfillblankquestion",
         "matchpairquestion",
-        "choicegridquestion",
-        "multigridquestion",
         "dragtoimagequestion",
         "extendedresponsequestion",
     ):
+        assert banned_question not in NESTED_QUESTION_CARDS, banned_question
         assert f'data-add-type="{banned_question}"' not in block, banned_question
 
 
@@ -482,6 +479,8 @@ def test_tabs_add_menu_offers_the_widened_questions_and_hides_the_rest(client):
         "choice-multi",
         "shorttextquestion",
         "shortnumericquestion",
+        "choicegridquestion",  # INVERTED by the grid widening
+        "multigridquestion",
     ):
         assert f'data-add-type="{allowed}"' in block, allowed
     for banned_question in (
@@ -505,16 +504,19 @@ def test_tabs_nested_menu_still_offers_spoiler(client):
     assert 'data-add-type="spoiler"' in html  # still present via the tabs nested menu
 
 
-# The nested `Questions` group, card by card. Assert the STRINGS, never a count: a
-# count is blind to the choice-single/choice-multi mix-up, and emitting
+# The nested `Questions` group, card by card. Assert the STRINGS, never a count of
+# the group: a count is blind to the choice-single/choice-multi mix-up, and emitting
 # data-add-type="choicequestion" on both cards would 200 on every click while
-# silently producing two identical single-choice elements.
+# silently producing two identical single-choice elements. (The per-card `count == 2`
+# below is a different check -- it locates each card in BOTH menus.)
 NESTED_QUESTION_CARDS = (
     "choice-single",
     "choice-multi",
     "shorttextquestion",
     "shortnumericquestion",
     "fillblankquestion",
+    "choicegridquestion",
+    "multigridquestion",
 )
 
 
@@ -522,7 +524,7 @@ def _quiz_unit(course):
     return ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
 
 
-def test_nested_add_menu_offers_the_five_question_cards_in_a_lesson(client):
+def test_nested_add_menu_offers_every_question_card_in_a_lesson(client):
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _lesson_unit(course)

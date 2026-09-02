@@ -75,6 +75,13 @@ that guard lives on the include in _element_row.html, not here.
     The Fill-in-the-blanks card moved here from the Interactive group above, where it
     sat as the one graded type among ungrouped widgets; its availability is unchanged
     (nested, lessons only).
+
+    The two grid cards (Matrix question / Multi-select grid) carry no card->key
+    rewrite at all: element_add passes "choicegridquestion" / "multigridquestion"
+    through unchanged, and builder's alias map translates them to choice_grid /
+    multi_grid. They duplicate the strings in the top-level Questions group below and
+    that is deliberate -- the two groups are guarded by opposite `nested` branches, so
+    only one of them ever renders per menu.
     {% endcomment %}
     <p class="typemenu__group-label">{% trans "Questions" %}</p>
     <div class="typemenu__group">
@@ -83,6 +90,8 @@ that guard lives on the include in _element_row.html, not here.
       <button type="button" class="typecard" data-add-type="shorttextquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-shorttext"/></svg>{% trans "Short text" %}</button>
       <button type="button" class="typecard" data-add-type="shortnumericquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-shortnumeric"/></svg>{% trans "Short numeric" %}</button>
       <button type="button" class="typecard" data-add-type="fillblankquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-fillblank"/></svg>{% trans "Fill in the blanks" %}</button>
+      <button type="button" class="typecard" data-add-type="choicegridquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgrid"/></svg>{% trans "Matrix question" %}</button>
+      <button type="button" class="typecard" data-add-type="multigridquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgrid"/></svg>{% trans "Multi-select grid" %}</button>
     </div>
     {% endif %}
     {% if not nested %}

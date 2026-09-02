@@ -346,7 +346,13 @@ def test_every_new_form_key_alias_resolves_into_nestable_type_keys():
     endpoint tests in test_nested_question_add.py are what pin the collapse.
     """
     aliases = builder._NESTABLE_FORM_KEY_ALIASES
-    for form_key in ("choicequestion", "shorttextquestion", "shortnumericquestion"):
+    for form_key in (
+        "choicequestion",
+        "shorttextquestion",
+        "shortnumericquestion",
+        "choicegridquestion",
+        "multigridquestion",
+    ):
         assert aliases[form_key] in builder.NESTABLE_TYPE_KEYS
 
 
