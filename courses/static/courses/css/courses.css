@@ -1449,6 +1449,77 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    above, which deliberately leaves it untouched). */
 .el--math > .katex-display { margin-block: 0; }
 
+/* --- Display maths typed into PROSE. The same scroller, one level down. ---
+   `\[…\]` in a text element, a callout body or a question stem typesets through
+   auto-render into this same `.katex-display` wrapper, and the vendor's
+   `.katex-display > .katex { white-space: nowrap }` means it can never wrap. The
+   rule above is scoped to `.el--math`, so until now that was the one combination
+   with no escape hatch: display mode's nowrap and no scroller.
+
+   SIZED against `mat-pp`: 1,551 such blocks in 1,192 text elements over 323
+   units, plus 123 objects (callout bodies, choice/short-numeric/gate stems, a
+   figcaption) that could never become math elements at all -- there is no join
+   row to repoint, so no data migration can reach them. MEASURED, ink extent
+   against the column: 7 blocks overflow at 648px (worst by 438px), 80 at 390px,
+   236 at 280px. ZERO put ink left of the column at any of those widths, which is
+   why a right-only scroller is a complete fix and not a partial one -- centred
+   content in an LTR scroller otherwise parks ink at a negative offset that
+   `scrollLeft` (which clamps at 0) can never reach.
+
+   All three declarations are load-bearing, each pinned by its own A/B leg in
+   tests/test_e2e_prose_display_math_overflow.py:
+     * `overflow-x` is the scroller. Note `scrollWidth > clientWidth` is NOT
+       evidence it works -- Chromium reports that for a plain overflowing block
+       too. Whether `scrollLeft` MOVES is the difference. It also fixes a defect
+       that was already live: MEASURED at a 390px viewport, this fixture gave
+       `documentElement.scrollWidth` 746px against a 390px client BEFORE this
+       block existed. Wide prose maths dragged the whole lesson sideways; 390/390
+       with the scroller.
+     * `overflow-y: hidden` + `padding-block: 4px` travel TOGETHER, for the
+       reason spelled out above: `overflow-x: auto` computes the other axis'
+       `visible` to `auto`, and KaTeX's inline-blocks sit a couple of px outside
+       the block they typeset into. Without both, every formula gains a vertical
+       scrollbar and the clipped edge eats real ink.
+
+   ⚠️ `position: relative` was DRAFTED here and then DELETED, A/B in hand -- do
+   not add it back on the fill-in table's precedent. There, the abs-pos
+   `.katex-mathml` took `.scroll-x` (a positioned ancestor OUTSIDE the scroller)
+   as its containing block and sat unclipped at the table's full width, dragging
+   the page to 795px. It cannot happen here: `.katex-mathml` is a clipped 1x1px
+   box whose static position is the formula's LEFT edge, never its right. With
+   `position: static !important` forced back on, the page measured 390/390 --
+   identical to the shipped render. An unearned declaration carrying a plausible
+   rationale is worse than none.
+
+   THE PRICE, stated because the rule above had to fight for its geometry:
+   **+8px per block and nothing more.** A/B MEASURED over all 1,551 stored blocks
+   at the 648px column, shipped against the same page with these declarations
+   neutralised: 1,536 of them grew by exactly 8.0px (min == max), total column
+   219,503px against 207,215px. That is the `padding-block` alone.
+
+   The +32px margin blow-up the rule above documents does NOT happen here, and
+   the difference is worth keeping straight: THERE the scroller is on `.el--math`,
+   an ANCESTOR, so the wrapper's vendored `margin: 1em 0` could no longer collapse
+   out through it and turned additive -- which is what `.el--math > .katex-display
+   { margin-block: 0 }` exists to undo. HERE the scroller is the wrapper itself,
+   so that margin still collapses with the surrounding prose exactly as before.
+   No `margin-block` companion is needed; adding one would delete real spacing.
+
+   Three surfaces opt out, each because it already solves this its own way, and
+   each is pinned by a drift guard in the same test file. Specificity is (0,2,0)
+   against (0,1,0), so the opt-out wins without !important. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 4px;
+}
+.el--math .katex-display,
+.el--table .katex-display,
+.el--filltable .katex-display {
+  overflow: visible;
+  padding-block: 0;
+}
+
 /* The step highlight, carried by \htmlClass{mk mk-amber} inside the array.
    NOT \colorbox: that compiles to an inline background-color, so it can never
    follow the theme, and it inflates the marked row -- MEASURED at 6px taller
