@@ -1212,22 +1212,39 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   html.unit-tree-collapsed [data-unit-shell] > .unit-toc-pin { display: none; }
 }
 
-/* Prose cap. THE RULE: in the collapsed state, tinted element-root blocks fill the
-   column; prose caps at 46rem wherever it lives, including inside a tinted block.
-   46rem is the value in the shared `.quiz, .lesson` rule near the top of this file,
-   reintroduced at element level in the collapsed state only.
+/* Prose cap. THE RULE: in the collapsed state, an element ROOT fills the column;
+   the cap applies to prose that sits INSIDE a card or a gate, so widening the box
+   does not stretch its text. 46rem is the value in the shared `.quiz, .lesson`
+   rule near the top of this file, reintroduced at element level in the collapsed
+   state only.
 
    Still an allow-list, not cap-by-default: element root classes are heterogeneous,
    and a missed opt-out BREAKS layout (a squeezed table) whereas a missed entry only
-   leaves prose wide. What changed is WHICH things are on it -- the tinted roots
-   (callout, question card, the quiz preview alert) came OFF so they agree with each
-   other, and the prose INSIDE a card went ON so widening the box does not stretch
-   its text. `.quiz-finish` and `.lesson-unit__head` came off too: both are chrome
-   drawn around the cards, and a separator that stops 136px short of the card edge
-   reads as broken. `.lesson-unit__title` stays capped, so the heading keeps its
-   measure while its row widens.
+   leaves prose wide. The tinted roots (callout, question card, the quiz preview
+   alert) are off it so they agree with each other; `.quiz-finish` and
+   `.lesson-unit__head` are off too, both being chrome drawn around the cards, where
+   a separator that stops 136px short of the card edge reads as broken.
+   `.lesson-unit__title` stays capped, so the heading keeps its measure while its
+   row widens.
 
-   `.callout__body` needs no entry -- it carries `.el--text`, already listed.
+   ⚠️ `.el--text` CAME OFF on a user report: a top-level paragraph stopped 136px
+   short of the callout above it (MEASURED on unit 487, collapsed: `.el--text` 736
+   @204 against `.callout` 872 @204). Every block shares a left edge, so the step
+   showed as a ragged RIGHT edge with nothing to explain it. `.callout__body` and
+   `.spoiler__body` carry `.el--text`, so prose inside a tinted block widens with
+   the block -- that is intended, not an oversight.
+
+   THE REJECTED ALTERNATIVE, and do not retry it: widening only the display maths.
+   `\[..\]` typesets INSIDE a <p>, so the only mechanism that reaches it is a
+   negative inline margin -- which escapes the CONTAINER as well. Screenshotted in a
+   callout, the box cleared the panel border and the accent rail, and 795 of the
+   1,192 prose-maths elements in mat-pp are nested. It also broke the left edge
+   (maths at x=136 against x=204 for its own paragraph). The maths case is a red
+   herring regardless: ink measured over all 1,551 stored display blocks overflows
+   on 2 at 872px, 6 at 736 and 7 at 688, so the whole width question moves FIVE
+   formulas, and the `.katex-display` scroller above reaches every one at any width.
+   tests/test_e2e_text_element_width.py pins the containment property.
+
    Left alignment needs no declaration -- the global `* { margin: 0 }` leaves no auto
    margins to centre. `screen and` because printed output must not depend on a
    per-browser collapse preference.
@@ -1238,7 +1255,6 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    first selector when the slice is split on a brace. */
 @media screen and (min-width: 641px) {
   /* prose-cap:begin */
-  html.unit-tree-collapsed [data-unit-shell] .el--text,
   html.unit-tree-collapsed [data-unit-shell] .el--question .question__stem,
   html.unit-tree-collapsed [data-unit-shell] .el--question .question__choices,
   html.unit-tree-collapsed [data-unit-shell] .el--question .question__feedback,

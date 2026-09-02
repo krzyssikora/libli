@@ -155,14 +155,14 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
 
     This test carries more weight than a typical source guard. It is the only
     guard that the prose-cap selectors are SCOPED to [data-unit-shell] (the
-    teacher review page renders none of the twelve capped selectors, so no
+    teacher review page renders none of the capped selectors, so no
     behavioural test there can falsify a widened one), and the only guard for the
     deletion at all (display:none removes the rail's box, so leftover rules are
     behaviourally invisible).
 
     Note the narrower claim: the e2e suite DOES give behavioural coverage that
-    several of the twelve entries cap at 46rem (`.lesson-unit__title` in
-    test_e2e_unit_nav.py, and `.el--text`, `.question__stem`, `.question__choices`,
+    several of the entries cap at 46rem (`.lesson-unit__title` in
+    test_e2e_unit_nav.py, and `.question__stem`, `.question__choices`,
     `.question__feedback` and `textarea.question__text-input` in
     test_e2e_uniform_block_width.py). Do not delete those assertions believing this
     test subsumes them, and do not weaken this test believing it carries more than
@@ -190,7 +190,7 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
     # is split on `}`. A naive `split("{")[0]` yields "@media (min-width: 641px) ",
     # which contains no `html.unit-tree-collapsed`, so the check is skipped -- and
     # since the prose-cap rule is the only rule in its block, the entire
-    # twelve-selector list would go unexamined.
+    # allow-list would go unexamined.
     examined = 0
     for chunk in stripped.split("}"):
         if "{" not in chunk:
@@ -210,16 +210,19 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
 
     # Coverage floor, so a tokenisation bug fails loudly instead of passing
     # vacuously. 4 structural (rail reveal, pin reveal, margin, print) + one per
-    # allow-list entry (12) = 16. The operator is >=, so ADDING an allow-list
-    # entry never reddens the suite; re-derive this number only on a removal.
-    assert examined >= 16, (
-        f"only {examined} collapsed-state selectors were examined, expected >= 16. "
+    # allow-list entry (11) = 15. The operator is >=, so ADDING an allow-list
+    # entry never reddens the suite; re-derive this number only on a removal --
+    # which is what `.el--text` coming off the cap was.
+    assert examined >= 15, (
+        f"only {examined} collapsed-state selectors were examined, expected >= 15. "
         f"The tokenisation is broken -- a naive prelude split yields 1."
     )
 
 
 PROSE_CAP_SELECTORS = [
-    "html.unit-tree-collapsed [data-unit-shell] .el--text",
+    # `.el--text` is deliberately ABSENT: a text element fills its column like the
+    # tinted blocks beside it. See courses.css's prose-cap comment and
+    # tests/test_e2e_text_element_width.py.
     "html.unit-tree-collapsed [data-unit-shell] .el--question .question__stem",
     "html.unit-tree-collapsed [data-unit-shell] .el--question .question__choices",
     "html.unit-tree-collapsed [data-unit-shell] .el--question .question__feedback",
@@ -260,7 +263,7 @@ def _prose_cap_prelude():
     return [s.strip() for s in prelude.split(",") if s.strip()]
 
 
-def test_prose_cap_prelude_is_exactly_the_expected_twelve_selectors():
+def test_prose_cap_prelude_is_exactly_the_expected_eleven_selectors():
     """The ONLY guard that catches a rule lifted out of the collapsed block.
 
     The per-selector scoping loop above cannot: it `continue`s on any selector
@@ -270,7 +273,7 @@ def test_prose_cap_prelude_is_exactly_the_expected_twelve_selectors():
     assertion so a DUPLICATED selector still does.
     """
     prelude = _prose_cap_prelude()
-    assert len(prelude) == 12, f"expected 12 selectors, got {len(prelude)}: {prelude}"
+    assert len(prelude) == 11, f"expected 11 selectors, got {len(prelude)}: {prelude}"
     assert sorted(prelude) == sorted(PROSE_CAP_SELECTORS), (
         f"prose-cap prelude drifted.\n"
         f"  unexpected: {sorted(set(prelude) - set(PROSE_CAP_SELECTORS))}\n"

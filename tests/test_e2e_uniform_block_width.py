@@ -298,12 +298,17 @@ def test_lesson_title_caps_in_a_two_item_head(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_prose_inside_a_widened_box_stays_capped(page, live_server):
-    """The other half of the design: the BOX widens, its PROSE does not.
+    """The other half of the design: a CARD widens, its prose does not.
 
-    All five newly-capped containers are measured here. Asserts the 736 token, not
-    "narrower than its own box": both containers have padding, so a child is ALWAYS
-    strictly narrower than its parent's border box, cap or no cap -- that assertion
-    cannot fail and would read as a pin while proving nothing.
+    Asserts the 736 token, not "narrower than its own box": the card has padding,
+    so a child is ALWAYS strictly narrower than its parent's border box, cap or no
+    cap -- that assertion cannot fail and would read as a pin while proving nothing.
+
+    NARROWED since #246: `.callout__body` was measured here too, but `.el--text`
+    (which it carries) has come off the cap, so prose in a tinted block now widens
+    with the block. The callout fixture below is KEPT anyway -- it is what makes the
+    nested TableElement render, and the container arm of the sibling test relies on
+    the same shape.
 
     Fixture and locator requirements, each load-bearing:
       - the container callout carries a non-empty body, because calloutelement.html
@@ -381,8 +386,12 @@ def test_prose_inside_a_widened_box_stays_capped(page, live_server):
     )
 
     column = page.evaluate(COLUMN_JS)
+    # `.callout__body` is NO LONGER in this list. It carries `.el--text`, which came
+    # off the cap so a text element matches the tinted blocks beside it -- prose in
+    # a tinted block now widens with the block. That half is pinned by
+    # tests/test_e2e_text_element_width.py; the card and gate prose below is what
+    # still caps, and is what this test now covers.
     for sel in (
-        ".callout__body",
         ".el--question .question__stem",
         ".question__choices",
         f"{st} .question__feedback",
