@@ -154,7 +154,28 @@ def settings_branding(request):
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_access(request):
-    return _action(request, AccessForm, "access", "access", _("Access settings saved."))
+    response = _action(
+        request, AccessForm, "access", "access", _("Access settings saved.")
+    )
+    # Advisory only, and deliberately AFTER _action: sso_only with no working IdP
+    # is not a lockout (accept_invite ignores the policy, and existing password
+    # accounts can still log in), so refusing the save would be wrong. A hard
+    # guard is also impossible -- the first-run wizard's Access step runs BEFORE
+    # its SSO step, so it would make the policy unselectable where it is offered.
+    # Not added to the wizard for that same reason: there it would fire for every
+    # school, two steps before they could act on it.
+    if Institution.load().signup_policy == "sso_only" and not is_enabled(
+        load_sso_app(), get_current_site(request)
+    ):
+        messages.warning(
+            request,
+            _(
+                "Signup is set to SSO only, but SSO is not enabled — new users "
+                "cannot sign in until you configure it on the SSO tab. Existing "
+                "accounts and invitations are unaffected."
+            ),
+        )
+    return response
 
 
 @login_required

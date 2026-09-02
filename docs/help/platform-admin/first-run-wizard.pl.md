@@ -12,7 +12,10 @@ garść ustawień wartych podjęcia od razu pierwszego dnia.
 2. **Tożsamość** — nazwa Twojej instytucji, logo, favicon, kolory i języki
    (te same pola co w temacie
    [Branding i ustawienia platformy](branding-settings)).
-3. **Dostęp** — polityka rejestracji i dozwolone domeny e-mail.
+3. **Dostęp** — polityka rejestracji i dozwolone domeny e-mail. Możesz
+   spokojnie wybrać tu **Tylko SSO**, mimo że samo SSO konfigurujesz
+   dopiero w kroku 5 — ustawienie zacznie działać po podłączeniu dostawcy,
+   a do tego czasu zaproszenia i istniejące logowania działają normalnie.
 4. **Zespół** — wysyłanie zaproszeń do pierwszych współpracowników bez
    opuszczania kreatora; co dzieje się dalej opisuje temat
    [Zaproszenia](invitations).

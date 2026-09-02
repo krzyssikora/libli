@@ -22,14 +22,25 @@ włączony, a domyślny musi być jednym z włączonych.
 
 Kontroluje, kto i skąd może się zarejestrować:
 
-- Pole formularza **Signup policy** (na razie nieprzetłumaczone w polskim
-  interfejsie) pozwala wybrać opcję **Tylko z zaproszeniem** lub **Otwarta
-  samodzielna rejestracja**; zaproszenia (zobacz
-  [Zaproszenia](invitations)) działają niezależnie od tego ustawienia.
+- **Zasady rejestracji** — jedna z trzech opcji, od najbardziej zamkniętej:
+  - **Tylko z zaproszeniem** — każde konto tworzysz samodzielnie. Nie ma
+    formularza rejestracji.
+  - **Tylko SSO** — również bez formularza rejestracji, ale każdy, kto
+    zaloguje się przez Twojego dostawcę tożsamości (zobacz [SSO](sso)),
+    automatycznie otrzymuje konto — z ograniczeniem do dozwolonych domen
+    e-mail poniżej. To ustawienie dla szkoły, której nauczyciele i uczniowie
+    mają już konta Microsoft lub Google: nikt nie może utworzyć hasła, które
+    omijałoby Wasze własne zasady logowania.
+  - **Otwarta samodzielna rejestracja** — każdy może założyć konto z hasłem,
+    z ograniczeniem do dozwolonych domen e-mail poniżej.
+
+  Zaproszenia (zobacz [Zaproszenia](invitations)) oraz logowanie na istniejące
+  konta działają przy **wszystkich trzech**, więc przełączenie na Tylko SSO
+  nigdy nie zablokuje Ci dostępu do własnej platformy.
 - **Dozwolone domeny e-mail** — jedna domena w wierszu; pozostaw puste, aby
   zezwolić na dowolną domenę. Przy zaproszeniach jest to ustawienie
   doradcze (dostajesz ostrzeżenie, nie blokadę), ale przy samodzielnej
-  rejestracji jest egzekwowane.
+  rejestracji i przy SSO jest egzekwowane.
 
 ## Przesyłanie
 

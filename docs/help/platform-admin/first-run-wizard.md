@@ -11,7 +11,10 @@ worth deciding on day one.
 1. **Welcome** — an overview of what's ahead.
 2. **Identity** — your institution's name, logo, favicon, colours and
    languages (the same fields as [Branding & settings](branding-settings)).
-3. **Access** — sign-up policy and allowed email domains.
+3. **Access** — sign-up policy and allowed email domains. Choosing **SSO
+   only** here is fine even though SSO itself is not set up until step 5 —
+   the policy takes effect once you connect a provider, and until then
+   invitations and existing sign-ins carry on working.
 4. **Team** — send invitations to your first colleagues without leaving
    the wizard; see [Invitations](invitations) for what happens next.
 5. **SSO** — optionally connect an OIDC identity provider; see

@@ -1,4 +1,5 @@
 from allauth.account.adapter import get_adapter
+from allauth.account.forms import SignupForm
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -12,6 +13,40 @@ from accounts.services import set_user_role
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import ROLE_CHOICES
 from institution.roles import STUDENT
+
+
+class PolicySignupForm(SignupForm):
+    """Self-signup form that honours the institution's email-domain allowlist.
+
+    Wired via ACCOUNT_FORMS (config/settings/base.py). Until this existed,
+    `allowed_email_domains` was enforced in exactly ONE place -- the SSO gate in
+    accounts.provisioning.evaluate_sso_provisioning -- while the local signup
+    form consulted `signup_policy` alone. Since SSO auto-provisioning required
+    the "open" policy, turning SSO on also opened public password signup to
+    every domain on the internet. The allowlist now binds on both doors.
+
+    Bound HERE and not on AccountAdapter.clean_email, which would look tidier:
+    allauth's AddEmailForm routes through the adapter too, so an adapter-wide
+    binding would also stop an existing user adding an out-of-domain address.
+    The signup form is the only surface with the hole.
+
+    An EMPTY allowlist stays permissive -- it is the shipped default, and it is
+    how evaluate_sso_provisioning already reads the field.
+    """
+
+    def clean_email(self):
+        from accounts.provisioning import email_domain
+        from accounts.provisioning import normalized_allowlist
+        from institution.models import Institution
+
+        email = super().clean_email()
+        allowed = normalized_allowlist(Institution.load().allowed_email_domains)
+        if allowed and email_domain(email) not in allowed:
+            raise forms.ValidationError(
+                _("Sign-up is limited to these email domains: %(domains)s.")
+                % {"domains": ", ".join(sorted(allowed))}
+            )
+        return email
 
 
 class SendInvitationForm(forms.Form):
