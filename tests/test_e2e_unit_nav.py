@@ -1347,10 +1347,19 @@ def test_content_column_aligns_with_the_strip_above_it(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_prose_is_capped_while_the_table_takes_the_full_column(browser, live_server):
-    """46rem = 736px. Measure the ELEMENT roots, not the enclosing
-    <section class="lesson-block"> — that stays 872px either way and would make the
-    assertion vacuous.
+def test_prose_and_a_table_both_take_the_full_column(browser, live_server):
+    """Measure the ELEMENT roots, not the enclosing <section class="lesson-block">
+    — that stays 872px either way and would make the assertion vacuous.
+
+    REWRITTEN, not merely re-tuned. This test used to assert `.el--text` capped at
+    736 while the table took the column, and the pairing WAS the mechanism: the
+    inequality between them is what proved the cap had not leaked onto wide
+    content. `.el--text` has since come off the prose-cap allow-list, so both now
+    fill the column and that inequality is gone.
+
+    The surviving claim is that neither is squeezed, so both are asserted against
+    the COLUMN rather than against each other — equality alone would also hold if
+    the cap leaked onto the table and dragged both down to 736 together.
     """
     _make_student("e2e_pin_cap")
     course, unit = _seed_text_and_table_unit("e2e_pin_cap", "e2e-pin-cap")
@@ -1367,10 +1376,22 @@ def test_prose_is_capped_while_the_table_takes_the_full_column(browser, live_ser
     table_w = page.evaluate(
         "() => document.querySelector('.el--table').getBoundingClientRect().width"
     )
-    assert text_w <= 736 + 2, f"prose must cap at 46rem (736px), got {text_w:.1f}"
-    assert table_w > 736 + 2, (
-        f"the table must take the full column, got {table_w:.1f} — if this equals "
-        f"the prose width the cap has leaked onto wide content"
+    column = page.evaluate(
+        "() => { const a = document.querySelector('.lesson');"
+        " const s = getComputedStyle(a);"
+        " return a.clientWidth - parseFloat(s.paddingLeft)"
+        " - parseFloat(s.paddingRight); }"
+    )
+    assert column > 736 + 2, (
+        f"the column is {column:.1f} — at or below the old 46rem cap nothing below "
+        f"can distinguish a capped element from an uncapped one"
+    )
+    assert abs(text_w - column) <= 2, (
+        f"prose must take the full column, got {text_w:.1f} against {column:.1f}"
+    )
+    assert abs(table_w - column) <= 2, (
+        f"the table must take the full column, got {table_w:.1f} against "
+        f"{column:.1f} — if this is 736 the cap has leaked onto wide content"
     )
     ctx.close()
 
