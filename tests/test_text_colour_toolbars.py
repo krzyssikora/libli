@@ -50,7 +50,7 @@ def test_every_swatch_has_an_accessible_name():
 
 
 def test_swatch_active_state_does_not_reuse_rte_btn_is_on():
-    """editor.css:230 makes .rte-btn.is-on solid --primary, which would repaint the
+    """editor.css makes .rte-btn.is-on solid --primary, which would repaint the
     active swatch brand-teal and hide the very colour it represents. Specificity is a
     tie, so the swatch rule must come LATER in the file."""
     css = (ROOT / "courses/static/courses/css/editor.css").read_text(encoding="utf-8")

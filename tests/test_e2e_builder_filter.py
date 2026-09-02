@@ -195,7 +195,7 @@ def test_a_toggle_under_a_filter_carries_the_APPLIED_q(page, live_server):
     # is /build/node/<pk>/scope/ (courses/urls.py:169) and is untouched. The
     # aborted fetch raises a "Network error" notice this row does not assert
     # on, and [data-busy] deliberately does not block pointer events
-    # (builder.css:196-198), so the toggle click still lands.
+    # (builder.css), so the toggle click still lands.
     page.route("**/build/tree/**", lambda route: route.abort())
 
     sent = []

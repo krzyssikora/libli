@@ -17,9 +17,9 @@ geometry assertion, only by looking at a real render.
      drawn naively at that size reads as a blob. The e2e suite pins where the
      glyph SITS, never what it LOOKS like.
   2. THE `--surface-sunken` COLLISION. `.unit-kind-chip` is a `.badge`, whose
-     fill is `var(--surface-sunken)` (app.css:119) — the SAME token
-     `.outline-unit:hover` (app.css:539) and `.outline-node:target`
-     (app.css:560-562) paint the row with. Under either state the chip's fill
+     fill is `var(--surface-sunken)` (app.css) — the SAME token
+     `.outline-unit:hover` (app.css) and `.outline-node:target`
+     (app.css) paint the row with. Under either state the chip's fill
      equals its background and only its 1px `--border-default` rim separates
      it. The spec accepts this; the outline rest/hover/target triple below is
      what that acceptance is judged from.

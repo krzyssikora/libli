@@ -77,7 +77,7 @@ blockquote {
    Scoped to the capped presets so `full` keeps today's flush-left geometry — 1013
    images must render byte-identically.
 
-   `margin-inline` is the ONLY differentiator here: reset.css:11 already sets
+   `margin-inline` is the ONLY differentiator here: reset.css already sets
    `img, picture, svg { display: block; max-width: 100%; }` app-wide, so restating
    display:block keeps this rule self-contained but changes nothing. Do not read it as
    the thing `full` is being excluded from. (That reset also makes the `max-width: 100%`
@@ -121,7 +121,7 @@ blockquote {
    and sizes to the WIDER of {image, caption} (see :69), so a long caption would widen
    the plate past the picture and drop themed caption text onto a light slab.
 
-   box-sizing is border-box app-wide (reset.css:2), so this padding is INSIDE the
+   box-sizing is border-box app-wide (reset.css), so this padding is INSIDE the
    bounding boxes set above -- a width-bound image draws 2*var(--space-3) narrower in
    dark mode than in light. Deliberate: the alternatives that reserve no space
    (`outline`, a spread-only `box-shadow`) paint the plate outside the content column
@@ -415,7 +415,7 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
    extended-response `textarea` (same class) keeps app.css's width:100%, but is
    itself capped at 46rem in the collapsed shell by the prose-cap block below, so
    it no longer fills the card column. Growth is vertical only regardless —
-   app.css:150 is `textarea { resize: vertical }`, which overrides the browser
+   app.css declares `textarea { resize: vertical }`, which overrides the browser
    default `resize: both` precisely so a full-width textarea cannot be dragged
    past its container. */
 .quiz input.question__text-input,
@@ -836,7 +836,7 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
   display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
 
 /* The (0,2,0) descendant chain is what outranks `.icon { width: 1em; height: 1em }`
-   (app.css:108, specificity (0,1,0)). A bare `.unit-tree__chevron` rule would tie .icon and
+   (app.css, specificity (0,1,0)). A bare `.unit-tree__chevron` rule would tie .icon and
    win only by stylesheet order, which a future extra_css reshuffle could silently flip. */
 /* No colour of its own: currentColor makes the chevron take each level's own weight —
    primary at part level, tertiary micro-type at chapter/section — so the disclosure
@@ -857,7 +857,7 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
 .unit-tree__count { flex: none; font-size: .62rem; font-weight: 600; letter-spacing: 0;
   font-variant-numeric: tabular-nums; color: var(--text-tertiary); }
 /* Its OWN class, not .unit-tree__check: that one resets .badge--done's margin-left:auto
-   because in a unit row the tick is a LEADING icon (courses.css:550-552). Here it trails.
+   because in a unit row the tick is a LEADING icon. Here it trails.
    The one coloured mark in an otherwise tertiary row, so a finished group reads at a
    glance; .badge's default padding (var(--space-2)) is too wide for a 14rem rail. */
 .unit-tree__groupcheck { flex: none; font-size: .66rem; line-height: 1; padding: 0 .3rem; }
@@ -1109,7 +1109,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   .unit-drawer__list .unit-tree__unit { align-items: flex-start; }
   /* Touch has no hover, so title= yields nothing in the drawer — show the word
      on the row. All SIX .visually-hidden declarations must be reset
-     (core/static/core/css/app.css:1330-1337): resetting only `position` leaves
+     (core/static/core/css/app.css): resetting only `position` leaves
      a 1px×1px clipped span, the drawer shows a bare glyph, and every render
      test stays green.
      Do NOT add `.unit-drawer__list .unit-kind { flex: 0 1 auto; min-width: 0 }`:
@@ -1146,7 +1146,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    So the plate and border were decoration that could not be seen; dropping them is
    also truer to the change, which exists to take a stripe OUT of this gutter.
    The chrome appears on hover, where it is feedback rather than permanent noise.
-   No :focus-visible rule here — reset.css:24 already applies the global ring.
+   No :focus-visible rule here — reset.css already applies the global ring.
    align-items/justify-content live here (not in the reveal block below) because
    they are inert under display: none and only matter once display: flex applies —
    but they belong with the pin's other appearance rules, not the reveal. */
@@ -2376,7 +2376,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 /* Before / after — base */
 .el--beforeafter { margin-block: var(--space-6); }
 
-/* Borrows .spoiler__toggle's token set (app.css:1048-1063) minus its two
+/* Borrows .spoiler__toggle's token set (app.css) minus its two
    <summary>-specific declarations. Both are "press this to change what you see"
    controls; an author who has used one should recognise the other. */
 .ba__toggle {
@@ -2414,12 +2414,12 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    no margin, no padding, no border, not a flow-root -- so margins collapse
    through it untouched. An empty rule set would be dead CSS. */
 
-/* Ported verbatim from app.css:1101-1105 (.spoiler__body, .spoiler > .spoiler__children).
+/* Ported verbatim from app.css (.spoiler__body, .spoiler > .spoiler__children).
    HORIZONTAL padding only, no vertical margin, not a flow-root -- so the
    children's own margins keep collapsing OUT and the rule starts and stops on the
    content rather than on the margins. Do NOT add :first-child/:last-child margin
    resets: those are the CALLOUT's treatment, needed only because .callout has
-   padding that blocks collapsing (courses.css:1823-1834 says the spoiler's
+   padding that blocks collapsing (courses.css says the spoiler's
    rationale does not transfer). They would defeat the hug.
    Each side is ONE box holding all that side's children, so a single border per
    side is continuous by construction -- which is why this needs no
@@ -2434,7 +2434,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 /* Degraded states. Grouped with the .ba--dead per-instance twin so a single
    failed instance degrades exactly as a JS-less page does.
    The un-hide must invert ALL FIVE properties of .visually-hidden
-   (app.css:1330) -- `clip`, NOT `clip-path`, which the utility does not use;
+   (app.css) -- `clip`, NOT `clip-path`, which the utility does not use;
    a clip-path override is a no-op leaving a 1x1 clipped box. `white-space:
    nowrap` is deliberately not reverted: the headings are one word. */
 html:not(.ba-js) .ba__side-heading,
@@ -2569,8 +2569,9 @@ html.imgzoom-open { overflow: hidden; }
 
 /* Every box declaration below is scoped to [open]: an unscoped author-origin
    `display` would beat the UA's `dialog:not([open]) { display: none }` and leave the
-   dialog permanently covering the page — the same trap as `[hidden]` vs `display:grid`
-   at courses.css:353. This rule makes that explicit and guards a future edit that
+   dialog permanently covering the page — the same trap as `[hidden]` vs the
+   `display: grid` on `.el__qnum` in this sheet. This rule makes that explicit
+   and guards a future edit that
    forgets the scoping; at (0,2,1) it also outranks an unscoped `.imgzoom` at (0,1,0),
    so it — not the UA rule — is what governs the closed state. */
 dialog.imgzoom:not([open]) { display: none; }
@@ -2751,7 +2752,7 @@ dialog.imgzoom:not([open]) { display: none; }
    already applies to .result-row__title and .outline-unit__title. All four
    inherit line-height 1.5, which already exceeds KaTeX's 1.2, so there was
    never a taller value to clamp. The full measurement and the one case where
-   the mechanism IS real (h1, at reset.css:10's 1.15) are recorded in app.css's
+   the mechanism IS real (h1, at reset.css's 1.15) are recorded in app.css's
    block -- read it before adding a clamp here.
 
    The per-surface behaviour below is unaffected by that removal and is still
@@ -2775,7 +2776,7 @@ dialog.imgzoom:not([open]) { display: none; }
      hyphens:auto. Intended behaviour is that the surrounding prose keeps
      wrapping and clamping as today while the formula stays intact on whichever
      line it lands on.
-   - The MOBILE DRAWER is a fourth case, not covered here: courses.css:1007-1009
+   - The MOBILE DRAWER is a fourth case, not covered here: this sheet
      overrides .unit-drawer__list .unit-tree__label to white-space:normal, so at
      <=640px titles WRAP rather than clip, in a title column MEASURED at 209.7px
      (tests/test_e2e_unit_nav.py's phone drawer arm, 390x780, on a SQUEEZED
@@ -2791,13 +2792,13 @@ dialog.imgzoom:not([open]) { display: none; }
      clean -- no rule needed here. Re-check if the drawer's title column ever
      narrows further, since the risk scales with how little width the wrap gets.
 
-   Also unaddressed on purpose: courses.css:967-972 re-opens .unit-crumbs__label
+   Also unaddressed on purpose: this sheet re-opens .unit-crumbs__label
    under @media print with overflow-wrap:anywhere, which cannot break a KaTeX
    inline-block, so a long maths crumb can still overflow in print. Accepted --
    printing a breadcrumb is marginal and the text is not lost, only over-wide.
 
    A FIFTH surface joined this list on 2026-08-12 and is NOT clean: the OUTLINE
-   row (.outline-unit__title, app.css:549, overflow-wrap:anywhere) now sits
+   row (.outline-unit__title, app.css, overflow-wrap:anywhere) now sits
    beside a .unit-kind-chip. overflow-wrap cannot break a KaTeX inline-block, so
    an atom wider than the title column overflows it and paints across the 8px
    flex gap into the chip. MEASURED by
@@ -2818,13 +2819,13 @@ dialog.imgzoom:not([open]) { display: none; }
    not visible at all. */
 
 /* ── Print: callout accents ────────────────────────────────────────────────
-   courses.css:2010-2014 declares dark-only --callout-accent values, in a sheet
+   This sheet declares dark-only --callout-accent values, and is
    loaded AFTER tokens.css and at (0,2,0), so tokens.css's print override cannot
    reach them. Without this a dark-theme lesson prints its callout headings and
    rails at #7db0f7 (2.23:1) or #e8b761 on white.
 
-   The value source is the LIGHT declaration of the same selector
-   (courses.css:2004-2008), not :root -- --callout-accent is never declared on
+   The value source is the LIGHT declaration of the same selector in this
+   sheet, not :root -- --callout-accent is never declared on
    :root at all. tests/test_print_tokens_css.py pins each pair. */
 @media print {
   [data-theme="dark"] .callout--example { --callout-accent: #2563c9; }
@@ -2853,11 +2854,11 @@ dialog.imgzoom:not([open]) { display: none; }
     /* Screen chrome for a widget paper does not have. */
     border: 0; border-radius: 0; box-shadow: none; background: none; margin-block: 0;
   }
-  /* The stage also carries .scroll-y (app.css:1886, position:relative), which is
+  /* The stage also carries .scroll-y (app.css, position:relative), which is
      why the position reset is needed at all. */
   .slideshow-stage { position: static !important; height: auto !important; }
   /* No pseudo-element hide needed here: slideshow.js:49 gives the stage
-     `.scroll-y`, and app.css:1913 already drops .scroll-y::before/::after in
+     `.scroll-y`, and app.css already drops .scroll-y::before/::after in
      print. Duplicating it would be dead weight. */
   .slideshow-deck .slide,
   .slideshow-deck .slide[hidden] {

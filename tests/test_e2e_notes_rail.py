@@ -14,7 +14,7 @@ that zeroed the aside's margins looked correct in the stylesheet while measuring
 Collapsed shell ONLY, and that is a hard constraint rather than a default. The
 lane is 44px of column, and the pinned column is 648px with only 32px of slack
 before a 3-column .el--twocolumn folds to a second row (12px for a 4-column one:
-courses.css:2103). The collapsed column is 872px, where the same layout has
+courses.css). The collapsed column is 872px, where the same layout has
 236px to spare and prose is capped at 736px, so the lane costs a text element
 nothing. The collapsed state is opt-in via localStorage (base.html's pre-paint),
 so this suite sets that key itself; no other e2e exercises the collapsed shell.

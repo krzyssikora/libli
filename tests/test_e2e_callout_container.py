@@ -116,7 +116,7 @@ def test_both_callout_shapes_render_at_one_width(page, live_server):
     is what makes this test meaningful, not merely non-vacuous.
 
     641px is NOT enough either. The collapsed content box is .app-main's 960px cap
-    less its 2x20px padding = 920; the -2.4rem shell shift at courses.css:1051
+    less its 2x20px padding = 920; the -2.4rem shell shift at courses.css
     exactly OFFSETS the 2.4rem pin lane, so .unit-shell__main stays 920; less the
     3rem .lesson padding = 872px at any viewport >= 1040px. At 641px it is far
     smaller, which would put both arms under the 736px cap and make the comparison

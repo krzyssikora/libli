@@ -139,7 +139,7 @@ def test_correct_answer_reveals(page, live_server):
     expect(inp).to_be_disabled()
     assert _visible(page, trailing_row.pk) is True
     # The solved table must STAY on screen -- hideWrapper:false. Without it
-    # cascadeFrom sets gateWrap.hidden, and app.css:1125 removes the table and its
+    # cascadeFrom sets gateWrap.hidden, and app.css removes the table and its
     # notes entirely. Both Playwright assertions above are visibility-agnostic, so
     # this line is the only behavioural guard on that option.
     assert _visible(page, table_row.pk) is True

@@ -17,7 +17,7 @@
 
   var opened = new Set();   // panels WE opened -- never ones the student opened
   /* textarea -> its inline style.height BEFORE we touched it. A Map, not a Set:
-     `textarea { resize: vertical }` (app.css:166) means a student's own
+     `textarea { resize: vertical }` (app.css) means a student's own
      drag-resize lives in that same inline property, so blanking it on the
      leave path would silently undo their resize. Restore exactly what was
      there -- usually "", sometimes their height. */

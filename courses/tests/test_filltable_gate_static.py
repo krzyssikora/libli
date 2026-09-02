@@ -28,7 +28,7 @@ def test_save_flag_stays_done_only():
 
 def test_cascade_keeps_the_solved_table_on_screen():
     # cascadeFrom reads `hideWrapper = opts.hideWrapper !== false`, so OMITTING
-    # the option means TRUE: gateWrap.hidden = true, and app.css:1125
+    # the option means TRUE: gateWrap.hidden = true, and app.css
     # (.lesson-block[hidden] { display: none !important }) deletes the solved
     # table and its notes from the page. For a button gate that is right -- the
     # control has been consumed. For a fill-table the wrapper IS the student's

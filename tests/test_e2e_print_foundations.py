@@ -120,7 +120,7 @@ def test_dark_theme_author_text_colour_prints_dark(page, live_server):
     """Row 2. Correct: --tc-red #B2372A, 6.05:1. Mutant: #EA8A82, 2.48:1.
 
     Measures the REAL painted element. `.tc-red { color: var(--tc-red) }`
-    (courses.css:1290) is the rule that paints author-coloured text, and
+    (courses.css) is the rule that paints author-coloured text, and
     sanitize_html preserves the class (courses/tests/test_sanitize_colour.py).
     Reading the token off <html> with a synthetic probe would leave that render
     path untested.
@@ -143,7 +143,7 @@ def test_dark_theme_author_text_colour_prints_dark(page, live_server):
 def test_dark_theme_callout_heading_prints_dark(page, live_server):
     """Row 3. Correct: #2563c9, 5.67:1. Mutant: #7db0f7, 2.23:1.
 
-    `.callout__heading` carries `color: var(--callout-accent)` (courses.css:1966),
+    `.callout__heading` carries `color: var(--callout-accent)` (courses.css),
     so this reads the painted heading directly.
     """
     from courses.models import CalloutElement
@@ -217,7 +217,7 @@ def test_every_slide_prints_stacked_in_flow(page, live_server):
     _login(page, live_server, student.username)
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
     # The print rules target the post-enhancement DOM; entering print before the
-    # deck exists leaves courses.css:355's FOUC pre-hide in charge and the test
+    # deck exists leaves courses.css's FOUC pre-hide in charge and the test
     # would be RED on a correct build.
     page.wait_for_selector(".slideshow-deck", state="attached")
 

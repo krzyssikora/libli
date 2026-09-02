@@ -598,7 +598,7 @@ def test_clicking_a_folded_summary_reveals_its_units(browser, live_server):
 def test_chapter_microtype_survives_the_details_nesting(browser, live_server):
     """The highest-risk change in 2A: the > child combinator stops matching once
     <details> is interposed, and chapters silently lose their uppercase micro-type.
-    Baseline is the literal current value (courses.css:540-542), not 'same as today'.
+    Baseline is the literal current value (courses.css), not 'same as today'.
 
     Originally also checked the "childless shape" (a chapter with zero children,
     rendered as a plain <div class="unit-tree__head"> per _unit_tree_node.html's
@@ -1207,7 +1207,7 @@ def test_narrow_desktop_band_is_width_neutral(browser, live_server):
     Measure `.unit-shell` with getBoundingClientRect, NOT `.app-main` with
     getComputedStyle. The shell is the actual containing box of the two flex
     children, so `main == shell - lane` needs no padding arithmetic at all --
-    and `box-sizing: border-box` is global here (reset.css:2), which makes
+    and `box-sizing: border-box` is global here (reset.css), which makes
     `getComputedStyle(x).width` ambiguous between the border box and the content
     box. Sidestep the ambiguity rather than reason about it.
     """
@@ -1720,7 +1720,7 @@ def test_rail_kind_markers_share_the_right_hand_gutter(browser, live_server):
             f"{short_right:.1f} vs {long_right:.1f} -- .unit-tree__label must keep "
             f"flex-grow so a short title still fills the row"
         )
-        # .unit-tree__unit's padding is .3rem .5rem (courses.css:766) and it has no
+        # .unit-tree__unit's padding is .3rem .5rem (courses.css) and it has no
         # right border, so the content edge is exactly right - 8.
         assert abs(short_right - (row_right - 8)) <= 1, (
             f"the marker does not sit in the row's right-hand gutter: marker right "
@@ -1810,7 +1810,7 @@ def test_desktop_lesson_head_keeps_the_chip_and_the_pill_in_place(
             f"<h1> inherits flex:1 1 0% from .lesson-unit__head and absorbs the group"
         )
 
-        # The head's gap is 1rem (courses.css:837). With the group at flex:1 1 auto
+        # The head's gap is 1rem (courses.css). With the group at flex:1 1 auto
         # there is no free space, so space-between puts the pill exactly one gap past
         # the group; with the group shrink-wrapped it flies to the column's far right.
         gap = b["done"]["left"] - b["group"]["right"]
@@ -2017,8 +2017,8 @@ def test_drawer_marker_shows_its_word_and_keeps_its_box(browser, live_server):
         # THE CORRECT-BUILD VALUE IS 3.0, NOT 4.0, and the band's lower edge is
         # therefore where a correct build SITS -- it is not slack. `.visually-hidden`
         # is declared THREE times: app.css defines the six declarations the drawer
-        # un-hide resets, but notes/static/notes/css/notes.css:4 and
-        # tags/static/tags/css/tags.css:6 redeclare it with `margin: -1px`, and both
+        # un-hide resets, but notes/static/notes/css/notes.css and
+        # tags/static/tags/css/tags.css redeclare it with `margin: -1px`, and both
         # load AFTER courses.css, so the -1px left margin survives the un-hide and
         # eats 1px of the gap. MEASURED, not reasoned: Task 7's gap mutant (delete
         # `gap` from .unit-kind) read label.left - svg.right = -1.0, not 0.

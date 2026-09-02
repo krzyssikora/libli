@@ -23,7 +23,8 @@ SCREEN, _sep, PRINT = CSS.partition("@media print")
 
 # The ONE token the print block deliberately does NOT copy from :root.
 # --text-inverse is only ever `color:` on a `background: var(--primary)`
-# (app.css:39,53; the unit-footer Next link at courses.css:814). Print strips
+# (app.css's `.btn` and `.btn--primary`; the unit-footer Next link,
+# courses.css's `.unit-foot__nav--primary`). Print strips
 # backgrounds, so the paint that justifies an "inverse" colour is gone --
 # :root's #FBF9F4 prints at 1.05:1 on white, which is the exact defect this
 # block exists to fix. The dark theme's own #1E1C18 (17.01:1) was accidentally
@@ -35,7 +36,8 @@ def _decls(body):
     """{token-name: value} for one declaration block body.
 
     The newline exclusion in the value class is the whole mechanism, and it is
-    deliberately the ONLY one. tokens.css:44-48 is prose containing
+    deliberately the ONLY one. tokens.css's `--scrim-solid` comment is prose
+    containing
     "--surface-overlay:", and a naive [^;]+ (which matches newlines) swallows from
     there to the next semicolon: --surface-overlay comes back as "nothing of the
     page may\n show through. */\n --scrim-solid: ..." and --scrim-solid never gets
@@ -170,9 +172,9 @@ def test_every_dark_rule_in_a_shipped_stylesheet_is_classified():
     """A new [data-theme="dark"] rule must not slip in unnoticed: it either needs a
     print counterpart or a recorded reason it does not.
 
-    Deliberately limited to COLUMN-0 rules. error.css:50's dark rule is indented
+    Deliberately limited to COLUMN-0 rules. error.css's dark rule is indented
     inside a media query and is not matched; that is accepted, because dropping the
-    anchor would also match the prose mentions in notes.css:17 and tags.css:2.
+    anchor would also match the prose mentions in notes.css and tags.css.
     """
     root = Path(__file__).resolve().parent.parent
     covered = {  # has a print counterpart

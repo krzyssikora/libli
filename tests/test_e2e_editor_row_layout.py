@@ -30,7 +30,7 @@ def test_badge_does_not_grow_the_editor_row_at_the_pane_floor(page, live_server)
     overflow was measured at -- adding the badge must not push the action bar onto an
     extra wrapped line or grow the row.
 
-    .el-actions already carries flex-wrap: wrap (editor.css:572), the fix for the
+    .el-actions already carries flex-wrap: wrap (editor.css), the fix for the
     measured 41px escape, so the badge's cost is VERTICAL rather than horizontal.
     """
     page.set_viewport_size({"width": 1130, "height": 900})
