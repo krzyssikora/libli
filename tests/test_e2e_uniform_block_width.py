@@ -317,13 +317,13 @@ def test_prose_inside_a_widened_box_stays_capped(page, live_server):
       - the short-text question is ANSWERED below. Its .question__feedback div is
         NOT :empty (the `{% if %}` sits on its own line, leaving a whitespace text
         node), so it renders as a zero-height box with a real width -- one
-        whitespace edit away from courses.css:158
+        whitespace edit away from courses.css
         `.el--question .question__feedback:empty { display: none }`. Driving an
         answer means the arm measures a box with actual content, and the width is
         read via getBoundingClientRect (BOX_JS) rather than bounding_box(), which
         is unreliable on a zero-height element.
 
-    The Choice rows are realistic content, not a width requirement: courses.css:143
+    The Choice rows are realistic content, not a width requirement: courses.css
     makes .question__choices a block <ul> with no width rule, so it fills its
     container with or without <li> children.
     """
@@ -439,7 +439,7 @@ def test_short_answer_input_still_caps_at_22rem(page, live_server):
     """Specificity guard. The new entry MUST be `textarea.question__text-input`.
 
     Written with a bare class it still out-specifies
-    `.quiz input.question__text-input` (courses.css:319-320) on the class
+    `.quiz input.question__text-input` (courses.css) on the class
     component, and the single-line short-text/short-numeric boxes would silently
     jump from 352px to 736px.
 

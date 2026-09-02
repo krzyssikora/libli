@@ -132,7 +132,7 @@
 
    Placement is load-bearing: :root and [data-theme="dark"] are both (0,1,0) and
    both match <html>, so this wins only by source order. Anywhere above the dark
-   block (tokens.css:79) it is silently inert. Keep it last in the file.
+   `[data-theme="dark"]` block it is silently inert. Keep it last in the file.
    tests/test_print_tokens_css.py pins both the placement and every value. */
 @media print {
   /* Light theme prints this element invisibly too -- see the --text-inverse note
@@ -156,8 +156,9 @@
     --scroll-edge: rgba(30,28,24,0.16);
     --text-primary: #1E1C18; --text-secondary: #5A544A; --text-tertiary: #8A8477;
     /* The ONE deliberate divergence from :root. --text-inverse is only ever
-       `color:` on a `background: var(--primary)` (app.css:39,53; the unit-footer
-       Next link at courses.css:814). Print strips backgrounds, so the paint that
+       `color:` on a `background: var(--primary)` (app.css's `.btn` and
+       `.btn--primary`; the unit-footer Next link, courses.css's
+       `.unit-foot__nav--primary`). Print strips backgrounds, so the paint that
        justifies an "inverse" colour is gone: :root's #FBF9F4 would print at
        1.05:1 on white -- the exact defect this whole block exists to fix, and the
        dark theme's own #1E1C18 (17.01:1) was accidentally the safe one. Both

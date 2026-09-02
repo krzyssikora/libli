@@ -74,7 +74,7 @@ label:has([data-out-of-roster]) { color: var(--text-secondary); }
 .ledger tbody tr:hover { background: var(--surface-sunken); }
 
 /* Pagination nav. NOT introducing a new visual convention: accounts/css/
-   people.css:87-96 defines this exact pair — .pagination { display:flex;
+   people.css defines this exact pair — .pagination { display:flex;
    gap; ... } and .pagination__status { color; font-size } — loaded by both
    people.html and invitations.html via their own extra_css block. Repeated
    here rather than centralised because it is page-scoped CSS living

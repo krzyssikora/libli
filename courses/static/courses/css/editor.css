@@ -17,7 +17,7 @@
    content column and give it air under the pane head; the 12px margin-bottom above plus
    .pane-body's padding is replaced by that padding alone, so the gaps read even.
    Scoped with `.editor-pane >` so nothing else moves: builder.html's page-level flash,
-   the sticky .builder__panel > .op-error (builder.css:168) and editor.js's flash(),
+   the sticky .builder__panel > .op-error (builder.css) and editor.js's flash(),
    which prepends to section.editor (the page, not the pane), are all unaffected. */
 .editor-pane > .op-error { margin: var(--space-3) var(--space-4) 0; }
 

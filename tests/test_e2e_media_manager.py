@@ -827,7 +827,7 @@ def test_the_pencil_button_stays_on_the_first_line(page, live_server):
     }""")
     assert lines >= 2, "fixture does not wrap; the mutants cannot discriminate"
     span = page.locator(".asset-dname").first.bounding_box()
-    # The pencil is opacity:0 until its cell is hovered (editor.css:725-726),
+    # The pencil is opacity:0 until its cell is hovered (editor.css),
     # so probe bounding_box() -- do NOT assert visibility.
     pen = page.locator("[data-rename-asset]").first.bounding_box()
     assert abs(pen["y"] - span["y"]) <= 1
@@ -1010,7 +1010,7 @@ def test_hovering_the_covered_neighbour_switches_the_overlay(page, live_server):
     intercepting and the neighbour can never be hovered.
 
     Seed a FULL ROW, not two assets. `.app-main` caps at 960px
-    (core/static/core/css/app.css:34), so at 1280x900 the grid is ~920px wide
+    (core/static/core/css/app.css), so at 1280x900 the grid is ~920px wide
     and minmax(8rem, 1fr) yields SIX columns of ~143px. With two cells the
     320px overlay lands in empty grid area, the probe below returns null, and
     this row's own guard assertion fails on a correct build.
@@ -1428,7 +1428,7 @@ def test_scroll_and_resize_each_close_the_overlay(page, live_server):
     page.wait_for_timeout(400)
     _open_preview(page, "przewijany_23_0.png")
     # HEIGHT only, not width: this grid's columns are auto-fill on WIDTH
-    # (courses.css:350), so a width change reflows the column count, which
+    # (courses.css), so a width change reflows the column count, which
     # shifts which cell sits under the still-stationary cursor -- Chromium
     # re-hit-tests on reflow exactly as it does on scroll (see the wheel-delta
     # note above), firing a real mouseout that starts the ordinary 300ms hide

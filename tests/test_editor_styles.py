@@ -93,7 +93,7 @@ def test_editor_css_defines_every_class_the_link_ui_uses():
 def test_duplicated_badge_rules_match_their_twin():
     # A class-name substring check cannot catch what this duplication actually risks:
     # the two copies drifting. Compare declarations. All THREE duplicated rules, not
-    # just the base one -- editor.css:920-921 duplicates the --part/--chapter/--section
+    # just the base one -- editor.css duplicates the --part/--chapter/--section
     # and --unit modifiers too, and each can drift independently of the others.
     import re
 

@@ -74,7 +74,7 @@ def test_ba_child_joins_the_hidden_guard():
     """.ba__child is a reveal-cascade wrapper exactly as .tabs__child is, so it
     needs the same protection against an author display beating [hidden].
 
-    Anchor on the guard LINE itself: app.css:1124 is
+    Anchor on the guard rule itself: app.css's first one is
     `.reveal-gate[hidden] { display: none !important; }`, which is the FIRST line
     matching a generic [hidden]+!important pattern and would never contain
     .ba__child -- making a first-match regex RED against correct code.
@@ -114,7 +114,7 @@ def test_print_unhides_with_block_not_revert():
 
 
 def test_print_reverts_clip_not_clip_path():
-    """.visually-hidden (app.css:1330) uses `clip`, not `clip-path`. A
+    """.visually-hidden (app.css) uses `clip`, not `clip-path`. A
     `clip-path: none` override is a no-op leaving a 1x1 overflow-hidden box --
     an unlabelled printed page that LOOKS handled.
     """

@@ -73,7 +73,7 @@ def test_element_list_item_can_shrink():
 
 
 def test_tree_title_input_neutralises_the_global_form_control_rule():
-    # app.css:136 styles input[type=text] with a sunken background, a strong border and
+    # app.css styles input[type=text] with a sunken background, a strong border and
     # padding. It ties input.tree__title on specificity (0,1,1) and is only beaten by
     # builder.css loading later, so the rule must explicitly reset each property --
     # assert the DECLARATIONS, not specificity.

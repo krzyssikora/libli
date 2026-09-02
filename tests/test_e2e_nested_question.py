@@ -18,7 +18,7 @@ shortcut into check_answer or into question.js's internals.
 Two traps this file is written around (both are repo lessons, not theory):
 
   * Playwright reports a screen-reader-only node as VISIBLE. `.sr-only`
-    (reset.css:25) is `position:absolute; width:1px; height:1px; clip:rect(0 0 0
+    (reset.css) is `position:absolute; width:1px; height:1px; clip:rect(0 0 0
     0)` -- a 1x1 box is a NON-EMPTY box, so `is_visible()` is True and asserting
     on it proves nothing about what a sighted student sees. The marker
     assertions therefore read `bounding_box()` and compare the glyph's real box

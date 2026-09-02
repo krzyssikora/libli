@@ -329,8 +329,8 @@ def test_click_opens_a_closed_spoiler_around_the_child(page, live_server):
     that covers the second path, so the target must not be a button.
 
     Target `.el-tag` (a <span>), NOT `.el-row__top`: that is a display:flex row
-    (editor.css:580) whose `.el-actions` carries margin-left:auto over ~250px of icon
-    buttons (editor.css:606), so Playwright's centre-of-box click lands INSIDE
+    (editor.css) whose `.el-actions` carries margin-left:auto over ~250px of icon
+    buttons (editor.css), so Playwright's centre-of-box click lands INSIDE
     .el-actions on a narrow nested row and routes to .el-select instead. A spoiler
     opens on either path, so the mis-route would be silent.
     """

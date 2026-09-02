@@ -705,7 +705,8 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 /* Gated, not cancelled. A media query adds no specificity, so a `reduce` override
    at the same selector merely TIES and source order decides; at a lower
    specificity it loses outright — which is why the rail's chevron
-   (courses.css:746-753) animates for reduced-motion users today. Do not
+   (courses.css, `.unit-tree__chevron`) animates for reduced-motion users
+   today. Do not
    "harmonise" back to that form. */
 @media (prefers-reduced-motion: no-preference) {
   .outline-node__head > .outline-node__chevron { transition: transform 120ms ease; }
@@ -1430,7 +1431,8 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .el-editor__option-row input[type="text"] { flex: 1; }
 
 /* The image size preset control. No global fieldset *appearance* rule exists --
-   reset.css:22 only zeroes `min-inline-size`, so without this the radios ship
+   reset.css's `fieldset` rule only zeroes `min-inline-size`, so without this
+   the radios ship
    with the UA border and zero spacing next to the flat .el-editor labels above
    them. Tokens only — no literal colours. */
 .size-presets {
@@ -2080,7 +2082,8 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    .katex/.katex-display selector and baseline is the initial value, so that
    half was inert by construction.
 
-   THE ONE PLACE THE MECHANISM IS REAL: reset.css:10 gives h1-h4
+   THE ONE PLACE THE MECHANISM IS REAL: reset.css's `h1, h2, h3, h4` rule
+   gives them
    line-height:1.15, which is BELOW the vendor's 1.2 -- so on .lesson-unit__title
    (an <h1>) a clamp would actually bite. It is deliberately left unclamped, on
    the same footing as the .katex-display neutralisation and the five-line group
@@ -2114,7 +2117,7 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    (\(\frac{p}{q}\)) measures 32.1px, and a \[...\] display integral 39.6px --
    but an A/B against a same-specificity override that RESTORES the vendor's
    line-height:1.2 reproduces the IDENTICAL 32.1px / 39.6px. The growth is not
-   caused by line-height at all (reset.css:6 sets body{line-height:1.5}, a
+   caused by line-height at all (reset.css's `body` rule sets line-height:1.5, a
    24px box at 16px, which already EXCEEDS the vendor's 1.2 * 16px = 19.2px --
    line-height was never the taller value here) -- it is the fraction's own
    strut height, which line-height cannot touch. `vertical-align:baseline` is

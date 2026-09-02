@@ -1,7 +1,7 @@
 """.prev-el` must never declare `display`.
 
 The child wrappers .callout__child / .spoiler__child / .twocolumn__child are NOT in
-app.css:1179's [hidden] guard -- they honour `hidden` only through the UA rule, which
+app.css's [hidden] guard -- they honour `hidden` only through the UA rule, which
 an author `display` on .prev-el would beat. reveal.js's gateWrap.hidden = true then
 stops working in the editor preview.
 

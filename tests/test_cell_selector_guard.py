@@ -91,7 +91,8 @@ EXEMPT = re.compile(r"td\[data-control\]|createElement")
 WINDOW = 2
 
 # `th` as a WHOLE token. A bare substring test is vacuous over a 2-line window:
-# editor.css:595 is followed by `min-width: 4rem;` -- which contains "th" -- so
+# editor.css's `.table-editor__grid td, .table-editor__grid th` selector is
+# followed by `min-width: 4rem;` -- which contains "th" -- so
 # that row would pass whether or not the selector was ever widened. ("this",
 # "them", "path" do the same elsewhere.)
 TH_TOKEN = re.compile(r"(?<![a-z])th(?![a-z])")

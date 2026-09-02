@@ -285,7 +285,7 @@ def test_blocks_are_not_dimmed_or_ringed_in_print(page, live_server):
     assert float(state["dimOpacity"]) == 1.0, f"other block printed dimmed: {state}"
     assert state["hiOutline"] == "none", f"highlighted block printed ringed: {state}"
     # applyHighlight stamps is-highlighted on the CARD too (notes.js:445-449),
-    # and notes.css:292 gives that a 6px rail -- borders survive the
+    # and notes.css gives that a 6px rail -- borders survive the
     # strip-backgrounds default, so it would print fatter than every sibling.
     assert state["cardRail"] == "4px", (
         f"highlighted card printed a {state['cardRail']} rail, not 4px: {state}"

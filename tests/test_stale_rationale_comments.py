@@ -16,16 +16,26 @@ CALLOUT = ROOT / "templates" / "courses" / "elements" / "calloutelement.html"
 def test_text_input_comment_no_longer_claims_the_textarea_fills_the_card():
     """`textarea.question__text-input` is now capped at 46rem in the collapsed
     shell, so 'fills the card column, resizable up to it' is false on the surface
-    it describes. (It was already misleading: app.css:150 is
+    it describes. (It was already misleading: app.css declares
     `textarea { resize: vertical }`, so it has never been draggable sideways.)
 
-    Asserts on `app.css:150`, NOT on the string `resize: vertical` -- that string
-    already occurs at courses.css:633 in an unrelated rule, so an assertion on it
-    would pass on the unmodified file and pin nothing.
+    THE ANCHOR IS THE WHOLE DECLARATION, and the two rejected alternatives are
+    both instructive:
+
+    * a bare `resize: vertical` is VACUOUS -- courses.css already contains that
+      string in an unrelated textarea rule, so the assertion would pass on the
+      unmodified file and pin nothing.
+    * the app.css line-150 citation this test used to assert on is worse than
+      vacuous. It pinned a LINE NUMBER, so it required courses.css to keep citing
+      a line the rule had long since moved off (`textarea { resize: vertical }`
+      now sits 46 lines further down) -- the guard against stale prose was itself
+      mandating stale prose. Anchor on text that moves with the rule, never on an
+      ordinal. See tests/test_css_citations_are_durable.py, which now forbids the
+      whole class -- and which is why that citation is spelled out in words here.
     """
     css = CSS.read_text(encoding="utf-8")
     assert "resizable up to it" not in css
-    assert "app.css:150" in css, (
+    assert "`textarea { resize: vertical }`" in css, (
         "the amended comment must cite the rule that actually constrains the "
         "textarea, so the next reader does not re-derive it"
     )

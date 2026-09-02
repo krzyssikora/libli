@@ -135,7 +135,7 @@
    Both reading columns are within a few dozen pixels of a hard floor:
      tree pinned, 648px    → a 3-column .el--twocolumn needs 3 x 12rem + 2 x
                              --space-5 = 616px, a 4-column one 636px
-                             (courses.css:2103). 12px of slack. Take 44px and
+                             (courses.css). 12px of slack. Take 44px and
                              the columns fold to a second row.
      tree collapsed, 872px → .lesson-unit__head's heading group runs ~756px
                              beside the done pill against a 46rem/736px title
@@ -165,7 +165,7 @@
    keeps the flow row.
 
    `screen and` is defensive, not required: Chromium evaluates print media
-   queries against the ~1046px page area (courses.css:1148), already below 1200.
+   queries against the ~1046px page area (courses.css), already below 1200.
    It costs nothing and means the print block at the end of this file does not
    have to undo a lane it can never see. */
 @media screen and (min-width: 1200px) {
@@ -589,11 +589,17 @@
 
    A print at-rule adds NO specificity, so each rule below must match or beat the
    screen rule it undoes. The weights that matter:
-     (0,5,0) the read-first add-composer hide            -- notes.css:318
-     (0,4,0) the floating pop                            -- :102
-     (0,3,0) the "Add another note" reveal               -- :314
-     (0,2,0) the block highlight / dim pair              -- :415, :421
-     (0,1,1) the unanchored summary's padding            -- :407
+     (0,5,0) the read-first add-composer hide
+             `.notes-js .block-notes__pop--has-notes:not(.is-adding)
+              .note-composer:not(.note-composer--edit)`
+     (0,4,0) the floating pop
+             `.notes-js .block-notes__panel[open] .block-notes__pop`
+     (0,3,0) the "Add another note" reveal
+             `.notes-js .block-notes__pop--has-notes .block-notes__add-more`
+     (0,2,0) the block highlight / dim pair
+             `.lesson-block.is-highlighted` / `.lesson-block.is-dimmed`
+     (0,1,1) the unanchored summary's padding
+             `.unanchored-notes summary`
    Note an attribute selector counts in the CLASS column; miscounting it is how
    an inert rule gets written.
 
@@ -614,7 +620,8 @@
     max-height: none; overflow-y: visible; z-index: auto; box-shadow: none;
   }
 
-  /* UNSCOPED, deliberately: the hub clamps too. (0,1,0) tying notes.css:323 and
+  /* UNSCOPED, deliberately: the hub clamps too. (0,1,0) tying the screen
+     `.note-card__body--clamp` rule and
      winning by source order -- the one equal-weight case here, safe only because
      this block is pinned to the end of the file. */
   .note-card__body--clamp {
@@ -632,7 +639,8 @@
      edit, a typed draft (print.js marks it -- CSS cannot see a textarea's value,
      since typing changes `value`, not DOM children), or a rejected no-JS draft.
      That last carve-out is a NO-JS guarantee only: with .notes-js present,
-     notes.css:318 already hides it at (0,5,0), which nothing here beats. */
+     the read-first add-composer hide above already hides it at (0,5,0),
+     which nothing here beats. */
   .lesson .note-composer:not(.note-composer--edit):not(.note-composer--has-draft):not(:has(.note-composer__error)) {
     display: none;
   }
@@ -670,7 +678,7 @@
     overflow: hidden;
   }
 
-  /* notes.css:53 pulls the affordance up against its element with a negative
+  /* `.block-notes` pulls the affordance up against its element with a negative
      margin. With the handle gone that drags the card over the block it
      annotates. */
   .lesson .block-notes { margin-top: .35rem; margin-bottom: .75rem; }
@@ -682,7 +690,8 @@
   .lesson .lesson-block.is-dimmed { opacity: 1; }
   .lesson .lesson-block.is-highlighted { background: none; outline: none; }
   /* applyHighlight (notes.js:445-449) stamps is-highlighted on the matching
-     .note-card TOO, and notes.css:429 gives that a 6px accent rail -- borders
+     .note-card TOO, and `.note-card.is-highlighted` gives that a 6px accent
+     rail -- borders
      survive the strip-backgrounds default, so the focused card would print
      with a fatter rail than every sibling. (0,3,0) to beat that (0,2,0) rule. */
   .lesson .note-card.is-highlighted {
@@ -701,7 +710,7 @@
   }
 
   /* Print-only furniture. Uppercase is presentation, not a msgid -- the same
-     treatment .ba__side-heading gets at courses.css:2113. */
+     treatment .ba__side-heading gets at courses.css. */
   .lesson .note-card__print-label {
     display: block; text-transform: uppercase; letter-spacing: .08em;
     font-size: .62rem; font-weight: 700; color: var(--text-secondary);

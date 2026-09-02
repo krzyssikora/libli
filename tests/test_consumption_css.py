@@ -178,7 +178,7 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
     # / __bar, and they are caught only because `.unit-tree` is a prefix of each.
     # Anchoring on a following `,` or `{` would catch one and let four ship green.
     assert not re.search(r"html\.unit-tree-collapsed\s+\.unit-tree", stripped), (
-        "the old unscoped sliver rules are still present; courses.css:866-873 must "
+        "the old unscoped sliver rules are still present; courses.css must "
         "be deleted in full. The new form is "
         "`html.unit-tree-collapsed [data-unit-shell] > .unit-tree`, which does not "
         "match this pattern."

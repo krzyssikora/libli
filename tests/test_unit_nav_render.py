@@ -385,7 +385,7 @@ def test_completed_group_renders_the_group_check(client):
     )
     assert not any("unit-tree__check" in s for s in summaries), (
         "the group check must NOT reuse .unit-tree__check — that class resets "
-        ".badge--done's margin-left:auto for a LEADING icon (courses.css:550-552); "
+        ".badge--done's margin-left:auto for a LEADING icon (courses.css); "
         "in the summary the check trails"
     )
 
@@ -930,7 +930,7 @@ def test_toc_pin_renders_on_lesson_and_quiz_with_a_unique_aria_controls_target(c
 
 @pytest.mark.django_db
 def test_rail_marks_quiz_and_additional_as_the_last_child(client):
-    """The icon TRAILS the label. The ✓ already leads (courses.css:788 resets
+    """The icon TRAILS the label. The ✓ already leads (courses.css resets
     .badge--done's margin-left:auto for exactly that), so a second leading glyph
     would make every completed additional unit begin with two marks.
 
