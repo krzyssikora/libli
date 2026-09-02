@@ -276,6 +276,10 @@ def test_prose_display_math_does_not_widen_the_page(page, live_server):
         # Table cells carry their own `.scroll-x` + inner-scroller shape and their
         # own display-maths alignment override; both were measured separately.
         ("table", ".el--table .katex-display"),
+        # The fill-in table is a THIRD selector in that opt-out block, not a
+        # synonym for the one above -- without its own leg, deleting just that
+        # line of the rule would go unnoticed by the whole suite.
+        ("filltable", ".el--filltable .katex-display"),
     ],
 )
 def test_surfaces_that_solve_this_their_own_way_opt_out(
@@ -283,6 +287,7 @@ def test_surfaces_that_solve_this_their_own_way_opt_out(
 ):
     """A drift guard. Without the opt-out these two silently acquire a nested
     scroller, and nothing else in the suite would say so."""
+    from courses.models import FillTableElement
     from courses.models import MathElement
     from courses.models import TableElement
 
@@ -292,8 +297,15 @@ def test_surfaces_that_solve_this_their_own_way_opt_out(
     unit = _seed_course_and_unit(username, slug=f"pdm-optout-{surface}")
     if surface == "math":
         add_element(unit, MathElement.objects.create(latex=r"\frac{k}{m}"))
-    else:
+    elif surface == "table":
         el = TableElement(data={"cells": [[{"html": r"\[\frac{k}{m}\]"}]]})
+        el.save()
+        add_element(unit, el)
+    else:
+        # A `static` cell: an `answer` cell holds an input, not typeset maths.
+        el = FillTableElement(
+            data={"cells": [[{"kind": "static", "html": r"\[\frac{k}{m}\]"}]]}
+        )
         el.save()
         add_element(unit, el)
     path = reverse(

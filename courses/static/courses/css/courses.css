@@ -1491,6 +1491,20 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    identical to the shipped render. An unearned declaration carrying a plausible
    rationale is worse than none.
 
+   THE PRICE, stated because the rule above had to fight for its geometry:
+   **+8px per block and nothing more.** A/B MEASURED over all 1,551 stored blocks
+   at the 648px column, shipped against the same page with these declarations
+   neutralised: 1,536 of them grew by exactly 8.0px (min == max), total column
+   219,503px against 207,215px. That is the `padding-block` alone.
+
+   The +32px margin blow-up the rule above documents does NOT happen here, and
+   the difference is worth keeping straight: THERE the scroller is on `.el--math`,
+   an ANCESTOR, so the wrapper's vendored `margin: 1em 0` could no longer collapse
+   out through it and turned additive -- which is what `.el--math > .katex-display
+   { margin-block: 0 }` exists to undo. HERE the scroller is the wrapper itself,
+   so that margin still collapses with the surrounding prose exactly as before.
+   No `margin-block` companion is needed; adding one would delete real spacing.
+
    Three surfaces opt out, each because it already solves this its own way, and
    each is pinned by a drift guard in the same test file. Specificity is (0,2,0)
    against (0,1,0), so the opt-out wins without !important. */
