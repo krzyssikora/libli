@@ -25,18 +25,38 @@ ROTATE=0
 SLUG=""
 TS=""
 IMAGE_TAG=""
-GHCR_TOKEN=""
+GHCR_TOKEN_FILE=""
 SSH_HOST=""
 SSH_USER=""
 
+# A value-taking flag given as the LAST argument expands "$2" under `set -u`
+# and dies with "restore.sh: line NN: $2: unbound variable" -- an internal-
+# looking crash instead of the friendly message the required-value block below
+# exists to print, and at 2am the difference matters. Checked here rather than
+# with ${2:?...} so the message names the FLAG the operator actually typed.
+require_value() {  # $1 = the flag, $2 = its value if one was given
+  [ $# -ge 2 ] || { echo "!! $1 needs a value" >&2; exit 2; }
+}
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    --slug) SLUG="$2"; shift 2 ;;
-    --ts) TS="$2"; shift 2 ;;
-    --image-tag) IMAGE_TAG="$2"; shift 2 ;;
-    --ssh-host) SSH_HOST="$2"; shift 2 ;;
-    --ssh-user) SSH_USER="$2"; shift 2 ;;
-    --ghcr-token) GHCR_TOKEN="$2"; shift 2 ;;
+    --slug) require_value "$@"; SLUG="$2"; shift 2 ;;
+    --ts) require_value "$@"; TS="$2"; shift 2 ;;
+    --image-tag) require_value "$@"; IMAGE_TAG="$2"; shift 2 ;;
+    --ssh-host) require_value "$@"; SSH_HOST="$2"; shift 2 ;;
+    --ssh-user) require_value "$@"; SSH_USER="$2"; shift 2 ;;
+    # A PATH, not the PAT itself. The other two credentials already arrive as
+    # tmpfs paths; a token on the command line is readable from `ps` by any
+    # user on the box for the length of the pull and lands in the operator's
+    # shell history besides.
+    --ghcr-token-file) require_value "$@"; GHCR_TOKEN_FILE="$2"; shift 2 ;;
+    --ghcr-token)
+      echo "!! --ghcr-token is not accepted: a PAT on the command line is" >&2
+      echo "   visible in ps and lands in shell history. Deliver it the same" >&2
+      echo "   way as the other two credentials and pass the path:" >&2
+      echo "   ssh <box> 'cat > /dev/shm/libli-ghcr.token' < <your local copy>" >&2
+      echo "   restore.sh ... --ghcr-token-file /dev/shm/libli-ghcr.token" >&2
+      exit 2 ;;
     --pre-cutover) MODE=pre-cutover; shift ;;
     --live) MODE=live; shift ;;
     --rotate-secrets) ROTATE=1; shift ;;
@@ -66,26 +86,53 @@ fi
 # --- CREDENTIALS ---------------------------------------------------------
 # tmpfs, never disk, removed on every exit path including failure. The invariant
 # is "never AT REST on a server" -- a restore necessarily decrypts here.
-trap 'shred -u "$AGE_KEY" "$SSH_KEY" 2>/dev/null || rm -f "$AGE_KEY" "$SSH_KEY"' EXIT
+#
+# EXIT ALONE IS NOT ENOUGH. Bash does not run an EXIT trap when the shell is
+# killed by an untrapped SIGTERM -- a reboot, a `systemctl stop`, a plain
+# `kill`. That would leave the SHARED age private key, which decrypts every
+# school's history and whose stated invariant is "never at rest on a server",
+# sitting in /dev/shm. The signal handler exits rather than only cleaning up,
+# so the run cannot carry on with its own credentials shredded.
+shred_keys() {
+  shred -u "$AGE_KEY" "$SSH_KEY" 2>/dev/null || rm -f "$AGE_KEY" "$SSH_KEY"
+}
+trap shred_keys EXIT
+trap 'shred_keys; exit 1' INT TERM HUP
 for key in "$AGE_KEY" "$SSH_KEY"; do
   if [ ! -s "$key" ]; then
     echo "!! $key is absent. Deliver it out of band before running this:" >&2
     echo "   ssh <box> 'cat > $key' < <your local copy>" >&2
     exit 1
   fi
+  # The delivery the runbook prescribes -- `ssh <box> 'cat > /dev/shm/...'` --
+  # creates the file at 0644, and ssh REFUSES a private key that permissive
+  # ("UNPROTECTED PRIVATE KEY FILE"), which would land at CONFIRM's first scp
+  # rather than here. Done in the script rather than only in the runbook so it
+  # survives an operator who delivers the keys some other way.
+  chmod 600 "$key"
 done
 
 SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=accept-new"
 REMOTE="$SSH_USER@$SSH_HOST"
 BASE="schools/$SLUG"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"; shred -u "$AGE_KEY" "$SSH_KEY" 2>/dev/null || rm -f "$AGE_KEY" "$SSH_KEY"' EXIT
+# Widened, not replaced: $WORK holds the DECRYPTED dump from the DUMP step
+# onward, so it is plaintext pupil data with the same standing as the keys.
+cleanup() { rm -rf "$WORK"; shred_keys; }
+trap cleanup EXIT
+trap 'cleanup; exit 1' INT TERM HUP
 
 # Same constraint as backup.sh: the Storage Box is not a shell. List with
 # rsync, test and delete with sftp, and compute everything here.
+#
+# -8 and the single sub() are load-bearing for the same reasons backup.sh spells
+# out: without -8 rsync escapes every high byte as \#303\#243 under the C
+# locale, so a filename with Polish diacritics would be reported to the operator
+# as unrepairable content loss while sitting intact on the mirror; and blanking
+# $1..$4 rebuilds $0 with OFS, collapsing runs of whitespace inside a filename.
 remote_ls() {
-  rsync --list-only -r -e "ssh $SSH_OPTS" "$REMOTE:$BASE/$1/" 2>/dev/null \
-    | awk '$1 !~ /^d/ { $1=$2=$3=$4=""; sub(/^ +/, ""); print }'
+  rsync --list-only -8 -r -e "ssh $SSH_OPTS" "$REMOTE:$BASE/$1/" 2>/dev/null \
+    | awk '$1 !~ /^d/ { sub(/^[^ ]+ +[^ ]+ [^ ]+ [^ ]+ /, ""); print }'
 }
 
 remote_exists() {
@@ -178,11 +225,13 @@ else
   TARGET="ghcr.io/krzyssikora/libli:$IMAGE_TAG"
 fi
 
-if [ -n "$GHCR_TOKEN" ]; then
-  printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u krzyssikora --password-stdin
+if [ -n "$GHCR_TOKEN_FILE" ]; then
+  [ -s "$GHCR_TOKEN_FILE" ] \
+    || { echo "!! $GHCR_TOKEN_FILE is empty or absent" >&2; exit 2; }
+  docker login ghcr.io -u krzyssikora --password-stdin < "$GHCR_TOKEN_FILE"
 fi
 docker pull "$TARGET" \
-  || { echo "!! cannot pull $TARGET. Pass --ghcr-token if this box has no valid login." >&2; exit 1; }
+  || { echo "!! cannot pull $TARGET. Deliver a read:packages PAT to tmpfs and pass --ghcr-token-file <path> if this box has no valid login." >&2; exit 1; }
 
 # The compose file governs the postgres major, the volume names and the
 # healthcheck, so a checkout that disagrees with the image can contradict it.
@@ -222,7 +271,16 @@ chmod 600 .env.production
 # Left in place the entrypoint's init_platform would mint an admin account on a
 # production restore.
 sed -i '/^INIT_ADMIN_/d' .env.production
-sed -i "s|^LIBLI_IMAGE_TAG=.*|LIBLI_IMAGE_TAG=$target_tag|" .env.production
+# grep -q / append, not a bare `sed -i s|...|`: a substitution against a key
+# that is not in the file succeeds and changes nothing, so compose would then
+# fail at `up` on the bare `${LIBLI_IMAGE_TAG:?}` guard -- after the wipe. An
+# artifact from a box provisioned before deploy.sh started writing that key has
+# exactly that shape. Same shape as DJANGO_SECURE_SSL_REDIRECT below.
+if grep -q '^LIBLI_IMAGE_TAG=' .env.production; then
+  sed -i "s|^LIBLI_IMAGE_TAG=.*|LIBLI_IMAGE_TAG=$target_tag|" .env.production
+else
+  echo "LIBLI_IMAGE_TAG=$target_tag" >> .env.production
+fi
 
 if [ "$MODE" = "pre-cutover" ]; then
   # DNS still points at the OLD box, so ACME would fail validation repeatedly and
@@ -249,6 +307,19 @@ if [ "$ROTATE" = "1" ]; then
   echo "POSTGRES_PASSWORD=$new_pg"
   echo "DJANGO_SECRET_KEY=$new_secret"
 fi
+
+# --- DUMP ----------------------------------------------------------------
+# Fetched and decrypted HERE, before the wipe, not at LOAD. A network fault, a
+# truncated artifact and an age key that does not match are all ordinary
+# failures, and every one of them used to be discovered AFTER `compose down
+# --volumes` had already destroyed the box. The env artifact is handled before
+# the wipe for exactly this reason; the dump is the one artifact without which
+# there is nothing to do at all, so it earns the same treatment.
+#
+# It stays in $WORK, which the trap removes on every exit path -- the plaintext
+# pupil database must not outlive the run.
+scp $SSH_OPTS "$REMOTE:$BASE/db/$TS.dump.age" "$WORK/db.age"
+age -d -i "$AGE_KEY" -o "$WORK/db.dump" "$WORK/db.age"
 
 compose() {
   docker compose -f docker-compose.prod.yml --env-file .env.production "$@"
@@ -279,17 +350,36 @@ compose create
 # db ALONE. The entrypoint runs `migrate` on every boot, so a full `up` would
 # create the schema and the dump would then collide with it.
 compose up -d db
-until compose exec -T db pg_isready -U "$(sed -n 's/^POSTGRES_USER=//p' .env.production | head -1)"; do
+PGUSER_VALUE="$(sed -n 's/^POSTGRES_USER=//p' .env.production | head -1)"
+# BOUNDED. An unbounded `until` loop hangs forever if the database never comes
+# up -- and just after WIPE is precisely when it might not, so the failure mode
+# of the naive loop is a restore that appears to be progressing while the box
+# has no data on it at all. Same attempt count and same shape as
+# docker-entrypoint.sh's own database wait.
+attempt=0
+until compose exec -T db pg_isready -U "$PGUSER_VALUE"; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 60 ]; then
+    echo "!! the database did not become ready after 60 attempts (2 minutes)." >&2
+    echo "   The volumes are wiped and the dump is in a temp dir that this" >&2
+    echo "   script's trap has now removed; re-run the restore once the cause" >&2
+    echo "   is fixed. Read the logs first:" >&2
+    echo "   docker compose -f docker-compose.prod.yml --env-file .env.production logs db" >&2
+    exit 1
+  fi
   sleep 2
 done
 
 # --- LOAD ----------------------------------------------------------------
-scp $SSH_OPTS "$REMOTE:$BASE/db/$TS.dump.age" "$WORK/db.age"
-age -d -i "$AGE_KEY" -o "$WORK/db.dump" "$WORK/db.age"
-PGUSER_VALUE="$(sed -n 's/^POSTGRES_USER=//p' .env.production | head -1)"
+# The dump was fetched and decrypted at DUMP, before the wipe. Only the load
+# itself happens here.
 PGDB_VALUE="$(sed -n 's/^POSTGRES_DB=//p' .env.production | head -1)"
-PGPASSWORD_VALUE="$(sed -n 's/^POSTGRES_PASSWORD=//p' .env.production | head -1)"
-compose exec -T -e PGPASSWORD="$PGPASSWORD_VALUE" db \
+# NO `-e PGPASSWORD=...`: that would put the database password on `docker`'s
+# own argv, readable from `ps` by any user on the box for the length of the
+# restore, and it buys nothing. This connects over the container's UNIX socket,
+# and the postgres image's initdb writes `local all all trust` -- which is why
+# the pg_isready wait above and the compose healthcheck also pass only -U.
+compose exec -T db \
   pg_restore -U "$PGUSER_VALUE" -d "$PGDB_VALUE" --clean --if-exists < "$WORK/db.dump"
 
 # --- FILES ---------------------------------------------------------------
@@ -300,7 +390,11 @@ compose exec -T -e PGPASSWORD="$PGPASSWORD_VALUE" db \
 scp $SSH_OPTS "$REMOTE:$BASE/caddy/$TS.tar.age" "$WORK/caddy.age"
 age -d -i "$AGE_KEY" "$WORK/caddy.age" | tar -C "$(vol_path caddy_data)" -xf -
 
-compose run --rm --no-deps app /app/.venv/bin/python manage.py list_referenced_files \
+# -T for the same reason backup.sh calls it load-bearing on its own execs: the
+# output is redirected into a file that later drives comm(1), and leaving that
+# to compose's TTY auto-detection means the stream depends on whether a human
+# happened to be at a terminal.
+compose run --rm -T --no-deps app /app/.venv/bin/python manage.py list_referenced_files \
   > "$WORK/restored_refs.txt"
 awk -F'\t' '$1 == "media" { print $2 }' "$WORK/restored_refs.txt" | sort > "$WORK/need_media.txt"
 awk -F'\t' '$1 == "support_screenshots" { print $2 }' "$WORK/restored_refs.txt" | sort > "$WORK/need_shots.txt"
@@ -325,7 +419,13 @@ rsync_ok -a --files-from="$WORK/fetch_media.txt" -e "ssh $SSH_OPTS" \
 
 SHOTS_DIR="$(vol_path support_screenshots)"
 while read -r name; do
-  remote_exists "screenshots/$name.age" || continue
+  # NAMED, not silently skipped. Screenshots are personal data and VERIFY has
+  # no analogue for them -- it reconciles media only -- so this line is the
+  # only record that a referenced screenshot did not come back.
+  if ! remote_exists "screenshots/$name.age"; then
+    echo "!! screenshot not on the mirror, skipped: $name" >&2
+    continue
+  fi
   mkdir -p "$SHOTS_DIR/$(dirname "$name")"
   scp $SSH_OPTS "$REMOTE:$BASE/screenshots/$name.age" "$WORK/shot.age"
   age -d -i "$AGE_KEY" -o "$SHOTS_DIR/$name" "$WORK/shot.age"
