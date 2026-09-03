@@ -150,12 +150,27 @@ def test_backup_retention_matches_the_stated_periods():
     exactly the drift this file exists to prevent -- and this one is a legal
     statement in two languages, not a UI string.
 
-    Mutant: change RETAIN_DAILY_DAYS in backup.sh without the notices.
+    Mutant: change a constant in backup.sh without updating both notices.
     """
-    assert _backup_constant("RETAIN_DAILY_DAYS") == 30
-    assert _backup_constant("RETAIN_MONTHLY_MONTHS") == 12
-    assert _backup_constant("MIRROR_PRUNE_DAYS") == 90
-    for notice in (PRIVACY, PRIVACY_PL):
-        assert "30" in notice and "12" in notice and "90" in notice, notice[:200]
+    daily = _backup_constant("RETAIN_DAILY_DAYS")
+    monthly = _backup_constant("RETAIN_MONTHLY_MONTHS")
+    prune = _backup_constant("MIRROR_PRUNE_DAYS")
+    # Pinned so a deliberate policy change stays visible in the diff instead
+    # of silently propagating from backup.sh.
+    assert daily == 30
+    assert monthly == 12
+    assert prune == 90
+
+    # Derived from the constants, not from literals: this is what couples the
+    # shell script to the notice. A bare `"30" in notice` is satisfied by any
+    # stray 30 in the document and would not move when the constant moves.
+    assert f"**{daily} days**" in PRIVACY
+    assert f"**{monthly} months**" in PRIVACY
+    assert f"**{prune} days**" in PRIVACY
+    assert f"**{daily} dni**" in PRIVACY_PL
+    assert f"**{monthly} miesięcy**" in PRIVACY_PL
+    assert f"**{prune} dni**" in PRIVACY_PL
+
+    # The 13-month total is a human-readable consequence, not a constant.
     assert "13 months" in PRIVACY
     assert "13 miesięcy" in PRIVACY_PL
