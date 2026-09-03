@@ -849,7 +849,7 @@ backup, only in a file on a box that has just been rebuilt. That echo is unpleas
 is the only channel available, and §3 of the runbook already generates secrets this way.
 
 Everything else **cannot** be generated locally, because an external system has to issue it
-and agree to it: `EMAIL_HOST_PASSWORD` (the mail provider), `LIBLI_GHCR_TOKEN` (GitHub),
+and agree to it: `DJANGO_EMAIL_HOST_PASSWORD` (the mail provider), `LIBLI_GHCR_TOKEN` (GitHub),
 `LIBLI_BACKUP_SSH_KEY_PATH`'s key and the Storage Box sub-account (Hetzner), and the two
 secrets that live in the database. So the flag does not pretend to handle them. Instead
 HANDOFF prints them as an explicit outstanding list and **exits non-zero**, so a restore
@@ -869,7 +869,7 @@ Three groups, by when each is possible:
   file in the same pass, and it is generatable. Rotating it logs everyone out and
   invalidates outstanding reset and invitation links, which on a compromise restore is
   the desired outcome rather than a cost.
-- `EMAIL_HOST_PASSWORD` is **not** in this group despite also being an env-file edit: the
+- `DJANGO_EMAIL_HOST_PASSWORD` is **not** in this group despite also being an env-file edit: the
   mail provider has to issue it, so it belongs to the out-of-band group below. It is the
   one entry where "same file" and "same actor" pull in different directions, and the
   actor wins.
@@ -892,7 +892,7 @@ non-zero while any remain.
 - A new `LIBLI_GHCR_TOKEN`, with the old PAT revoked at GitHub. ⚠️ Revoking it before the
   next restore is why out-of-band input 3 exists: the box's stored `docker login` stops
   working the moment the old PAT dies.
-- `EMAIL_HOST_PASSWORD`, reissued by the mail provider.
+- `DJANGO_EMAIL_HOST_PASSWORD`, reissued by the mail provider.
 - The shared `age` recipient **only** if the private key itself is suspect. That is a
   fleet-wide event rather than a per-school one: it means re-encrypting every school's
   history, so it is a decision to take deliberately, not a reflex.
@@ -929,7 +929,7 @@ this, and handover is its one exception. The procedure:
    Storage Box credential is never disclosed either.
 4. Values in `.env.production` that must be regenerated or re-pointed on handover:
    `DJANGO_SECRET_KEY` (rotate — it was in artifacts under the shared key),
-   `POSTGRES_PASSWORD` (rotate), `EMAIL_HOST_*` (theirs now),
+   `POSTGRES_PASSWORD` (rotate), `DJANGO_EMAIL_*` (theirs now),
    `LIBLI_BACKUP_*` (their destination and recipient), and `SITE_ADDRESS` /
    `DJANGO_SITE_DOMAIN` / `DJANGO_ALLOWED_HOSTS` / `DJANGO_CSRF_TRUSTED_ORIGINS` if the
    hostname changes.
@@ -1185,7 +1185,8 @@ snapshots consume the same quota, so the practical figure is well below the nomi
 - **The five-input pricing estimator** for the school-facing page: pupil band, planned
   courses, videos per course, typical video length, number of creators. Needs an
   MB-per-minute constant **measured** against the matematyka corpus rather than guessed
-  (`courses/models.py:803` records 232 video assets against a ~9 GB footprint). Note that
+  (the `MediaAsset.width` comment in `courses/models.py` records 232 video assets against a
+  ~9 GB footprint). Note that
   images cost ~2.5x nominal because each stores `thumb` and `web` alongside the original,
   which is why the estimator folds images into a per-course baseline instead of asking.
 - **The annual school statement** — planned versus actual, per school. Half of it is
