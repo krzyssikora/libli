@@ -324,13 +324,13 @@ smuggles in through a test; both scripts say so in their headers.
  2. abort if schools/<slug>/db/<ts>.* already exists
  3. row counts + migration set  (informational; skew stated below)
  4. compose exec -T db pg_dump -Fc  ->  a temp file on the host
- 5. pg_restore --list on that file  <- the truncation detector
- 6. age -r $RECIPIENT  -> upload db/<ts>.dump.age ; rm the temp file
- 7. age -r $RECIPIENT .env.production -> env/<ts>.env.age
- 8. mirror media/        (rsync, no --delete)
- 9. screenshots: upload E\R encrypted (NO --delete), then rm R\E explicitly
-10. tar caddy_data | age -> caddy/<ts>.tar.age
-11. write refs/<ts>.txt (list_referenced_files, via exec -- app IS running here)
+ 5. write refs/<ts>.txt IMMEDIATELY (list_referenced_files, via exec -T app)
+ 6. pg_restore --list on the dump  <- the truncation detector
+ 7. age -r $RECIPIENT  -> upload db/<ts>.dump.age ; rm the temp file
+ 8. age -r $RECIPIENT .env.production -> env/<ts>.env.age
+ 9. mirror media/        (rsync, no --delete)
+10. screenshots: upload E\R encrypted (NO --delete), then rm R\(E u refs)
+11. tar caddy_data | age -> caddy/<ts>.tar.age
 12. update media-missing.tsv; write manifest/<ts>.json
 13. prune db/, env/, caddy/ + refs/ per retention; prune media/ per the tsv
 14. GET the heartbeat URL — on success only
@@ -376,8 +376,17 @@ So: compute both sets explicitly and act on them separately.
 2. Walk the live tree → the expected set **E** = `{<path>.age for each live screenshot}`.
 3. **Upload `E \ R`.** Encrypt just those into a staging directory mirroring the tree, then
    `rsync` the staging directory **without `--delete`**.
-4. **Erase `R \ E`.** Delete exactly those paths on the remote, by explicit name — a batched
-   `ssh … 'xargs rm -f'` over the computed list, never a `--delete` sweep.
+4. **Erase `R \ (E ∪ refs)`.** Delete exactly those paths on the remote, by explicit name —
+   a batched `ssh … 'xargs rm -f'` over the computed list, never a `--delete` sweep.
+   The keep-set includes **tonight's `refs/<ts>.txt`**, not just the live tree, and that
+   union closes an intra-run race that is otherwise invisible: a screenshot whose
+   `IssueReport` row is deleted *after* the dump was spooled but *before* this step would
+   be absent from the live tree here, erased from the mirror, and then absent from a
+   live-DB reading of `refs` too — so the mirror and `refs` would agree the file is gone
+   while the dump still pointed at it, CONFIRM would see no discrepancy, and FILES would
+   fail *after* WIPE. Keeping anything tonight's dump references costs at most one extra
+   day of retention (tomorrow's dump no longer references it, so tomorrow's run erases it)
+   and makes CONFIRM's guarantee exact for the newest backup.
 5. Remove the staging directory in an `EXIT` trap.
 
 Step 3 is incremental *because screenshot names are immutable* — a given path's bytes never
@@ -605,6 +614,20 @@ the missing paths.
 
 `refs/` is pruned on the same clock as `db/`, `env/` and `caddy/`, since it is meaningless
 without them.
+
+**`refs/<ts>.txt` is written immediately after the dump, before either mirror step**, so it
+describes the same database the dump captured rather than the database as it stood minutes
+later. Written at the end of the run instead, it would be read *after* the screenshot
+erasure and could agree with a mirror from which the dump's own references had just been
+removed. The erasure's keep-set unions in tonight's `refs` for the same reason; see
+*Per-file encryption of screenshots*.
+
+**An older dump referencing an erased screenshot is genuinely not fully restorable, and
+that is the design.** RODO erasure was chosen over recoverability for `screenshots/`
+deliberately, so a twelve-month-old dump can legitimately reference files that no longer
+exist anywhere. CONFIRM's job is not to prevent that — it is to say so *before* WIPE, so the
+operator chooses a different `<ts>` or accepts the gap knowingly. Only the intra-run race
+above is a bug; the long-horizon gap is a stated consequence.
 
 FILES still recomputes the list from the restored database and stays the authoritative
 check. The two can differ by files created in the seconds between the list and the dump —
@@ -999,7 +1022,13 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
     appears before the `compose down` line. *Mutant:* delete the diff, or move it
     after `down` → RED. This is the guard that keeps a doomed restore from destroying
     live data first, and the 12-month retention makes it reachable.
-16. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
+16. **`refs/` is written before either mirror step.** In `backup.sh`, the
+    `list_referenced_files` line appears after the `pg_dump` line and before both the
+    media rsync and the screenshot `rm`. *Mutant:* move it to the end of the script →
+    RED. Also assert the erasure keep-set names `refs`, not just the live tree;
+    *mutant:* drop `refs` from the union → RED. Together these pin the intra-run race
+    that would otherwise let CONFIRM pass a dump whose screenshots were just erased.
+17. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
     the `up` blocks of `docs/deployment.md` §3 and §8. *Mutant:* leave one behind → RED.
     This is the guard that catches the half-finished image switch, which would otherwise
     present as a box quietly building from source while everything else assumed it pulled.
