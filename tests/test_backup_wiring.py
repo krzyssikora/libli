@@ -12,11 +12,11 @@ red is not a guard.
 """
 
 import re
-import shutil  # noqa: F401 -- used by guards Tasks 3 and 4 append to this file
-import subprocess  # noqa: F401 -- used by guards Tasks 3 and 4 append to this file
+import shutil
+import subprocess
 from pathlib import Path
 
-import pytest  # noqa: F401 -- used by guards Tasks 3 and 4 append to this file
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 DEPLOY_YML = ROOT / ".github/workflows/deploy.yml"
@@ -198,6 +198,88 @@ def test_the_erasure_keep_set_includes_refs():
     """
     text = BACKUP_SH.read_text(encoding="utf-8")
     assert re.search(r"keep_set.*refs|refs.*keep_set", text), text
+
+
+def _first_missing_awk_program():
+    """backup.sh's own media-missing.tsv program, extracted verbatim.
+
+    Matched together with its argument list, so a change to the invocation's
+    shape fails here loudly rather than silently testing a program that is no
+    longer the one the script runs.
+    """
+    match = re.search(
+        r"""awk -F'\\t' -v today="\$TODAY" '\n(.*?)\n' """
+        r'''"\$STAGING/missing\.tsv" "\$STAGING/gone\.txt"''',
+        BACKUP_SH.read_text(encoding="utf-8"),
+        re.DOTALL,
+    )
+    assert match, "backup.sh no longer builds media-missing.tsv the documented way"
+    return match.group(1)
+
+
+def _run_first_missing(tmp_path, missing_rows, gone_paths, today="2026-09-04"):
+    """Run that program over a two-file fixture and return its output lines."""
+    missing = tmp_path / "missing.tsv"
+    gone = tmp_path / "gone.txt"
+    missing.write_text(
+        "".join(f"{p}\t{d}\n" for p, d in missing_rows), encoding="utf-8", newline="\n"
+    )
+    gone.write_text(
+        "".join(f"{p}\n" for p in gone_paths), encoding="utf-8", newline="\n"
+    )
+    result = subprocess.run(  # noqa: S603 -- resolved awk, tmp_path arguments
+        [
+            shutil.which("awk"),
+            "-F",
+            "\\t",
+            "-v",
+            f"today={today}",
+            _first_missing_awk_program(),
+            str(missing),
+            str(gone),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout.splitlines()
+
+
+@pytest.mark.skipif(shutil.which("awk") is None, reason="awk not on PATH")
+def test_a_first_missing_date_is_recorded_on_the_very_first_run(tmp_path):
+    """The prune keys on time since FIRST OBSERVED MISSING, and the state file
+    starts EMPTY -- so the empty-first-file case is the one the mechanism has to
+    survive, and it is the only run where the file is guaranteed empty.
+
+    Mutant: `FILENAME == ARGV[1]` -> `NR == FNR`. That idiom identifies the
+    first file by "no records read yet", so with an empty missing.tsv NR stays
+    0, every line of gone.txt satisfies it, all of them are consumed as the
+    seen-map and NOTHING is printed. media-missing.tsv is then a fixed point at
+    empty forever: no path ever gets a date, MIRROR_PRUNE_DAYS never has a row
+    to act on, and docs/public/privacy.md's published "and are then deleted
+    too" -- a RODO retention claim in two languages -- is never performed.
+    """
+    out = _run_first_missing(tmp_path, [], ["a/one.png", "b/two.png"])
+    assert out == ["a/one.png\t2026-09-04", "b/two.png\t2026-09-04"], out
+
+
+@pytest.mark.skipif(shutil.which("awk") is None, reason="awk not on PATH")
+def test_an_existing_first_missing_date_survives_and_a_reappearance_clears_it(tmp_path):
+    """The clock must not restart every night on a path that stays missing, or
+    nothing ever ages past MIRROR_PRUNE_DAYS; and a path that came back must
+    lose its row, so a corrected mis-deletion restarts the window.
+
+    Mutant: drop the `($1 in seen)` lookup and always stamp today -- no file
+    ever ages out. Or print the seen-map's own rows as well -- a path that
+    reappeared would keep its old date and be deleted from the mirror while
+    live.
+    """
+    out = _run_first_missing(
+        tmp_path,
+        [("a/old.png", "2026-01-01"), ("a/came-back.png", "2026-02-02")],
+        ["a/old.png", "b/new.png"],
+    )
+    assert out == ["a/old.png\t2026-01-01", "b/new.png\t2026-09-04"], out
 
 
 def test_no_delete_anywhere_in_backup():

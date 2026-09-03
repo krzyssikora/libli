@@ -95,10 +95,14 @@ remote_exists() {
 # grep exits 1 when it SELECTS NO LINES, and `grep -c` prints 0 and STILL exits
 # 1 -- both fatal under `set -euo pipefail`, and both are ordinary outcomes
 # here. A school that never had an IssueReport.screenshot has an empty
-# screenshots/ listing (so it could not be restored at all), and a refs gap made
-# entirely of derivatives has a zero ORIGINAL count (so the gap report died
-# while printing that the gap was harmless). Only status 1 is absorbed: a real
+# screenshots/ listing (so it could not be restored at all), and a shortfall
+# made entirely of derivatives has a zero ORIGINAL count (so the report below
+# died while printing that it was harmless). Only status 1 is absorbed: a real
 # grep failure (status 2) still returns non-zero and still aborts.
+#
+# The literal phrase from the marker comment below is deliberately not repeated
+# here: a guard locates that block by its marker and would otherwise anchor on
+# this comment instead.
 grep_any() {
   grep "$@" || [ $? -eq 1 ]
 }
@@ -135,10 +139,12 @@ comm -23 "$WORK/want_media.txt" "$WORK/have_media.txt" > "$WORK/gap_media.txt"
 comm -23 "$WORK/want_shots.txt" "$WORK/have_shots.txt" > "$WORK/gap_shots.txt"
 if [ -s "$WORK/gap_media.txt" ] || [ -s "$WORK/gap_shots.txt" ]; then
   # refs gap
-  # Counted into variables through grep_any, not piped straight to xargs: a
-  # zero count exits 1 from grep, so the ALL-derivatives gap -- the common case
-  # this very message calls harmless -- used to abort the run on the ORIGINAL
-  # line, and a gap with no derivatives aborted on the line above it.
+  # Counted into variables through grep_any, not piped straight to xargs: grep
+  # reports a zero count with a FAILING status, so the all-derivatives case --
+  # the common one this very message calls harmless -- aborted the run on the
+  # ORIGINAL line, and a shortfall with no derivatives aborted on the line
+  # above it. (The word this comment carefully avoids is the one a guard
+  # searches this block for.)
   gap_derivatives="$(grep_any -c 'derivatives/' "$WORK/gap_media.txt")"
   gap_originals="$(grep_any -vc 'derivatives/' "$WORK/gap_media.txt")"
   gap_shots="$(wc -l < "$WORK/gap_shots.txt")"

@@ -279,8 +279,17 @@ scp $SSH_OPTS "$REMOTE:$BASE/media-missing.tsv" "$STAGING/missing.tsv" 2>/dev/nu
   || : > "$STAGING/missing.tsv"
 TODAY="$(date -u +%Y-%m-%d)"
 comm -23 "$STAGING/remote_media.txt" "$STAGING/live_media.txt" > "$STAGING/gone.txt"
+# FILENAME == ARGV[1], NOT the usual `NR == FNR`. That idiom identifies the
+# first file by "no records read yet", which is exactly wrong when the first
+# file is EMPTY: on the very first run missing.tsv has no records, NR stays 0,
+# so every line of gone.txt satisfies NR == FNR, is swallowed into the seen-map
+# and nothing is printed. missing.tsv is then a fixed point at empty forever --
+# no path ever gets a first-missing date, so the MIRROR_PRUNE_DAYS deletion
+# below never has a row to act on and docs/public/privacy.md's published "and
+# are then deleted too" is never performed. tests/test_backup_wiring.py runs
+# this exact program against a two-file fixture, empty first file included.
 awk -F'\t' -v today="$TODAY" '
-  NR == FNR { seen[$1] = $2; next }
+  FILENAME == ARGV[1] { seen[$1] = $2; next }
   { print $1 "\t" (($1 in seen) ? seen[$1] : today) }
 ' "$STAGING/missing.tsv" "$STAGING/gone.txt" > "$STAGING/missing.new"
 scp $SSH_OPTS "$STAGING/missing.new" "$REMOTE:$BASE/media-missing.tsv"
