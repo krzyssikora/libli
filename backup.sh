@@ -130,15 +130,43 @@ TS="$(date -u +%Y-%m-%dT%H%M%S)"
 # side only ever lists, transfers and deletes. Task 0 verified exactly what the
 # endpoint accepts before any of this was written. Do not reintroduce
 # `ssh $REMOTE "<script>"`: it works on your laptop and fails on the target.
+# -8 (--8-bit-output) is MANDATORY under cron. rsync escapes bytes that are
+# non-printable IN THE CURRENT LOCALE as \#303\#243, and cron runs in the C
+# locale where EVERY high byte qualifies. Django keeps unicode word characters
+# in an uploaded filename, so on a Polish maths platform `cwiczenie_1.png` with
+# its real diacritics is entirely ordinary -- and escaped it would never match
+# the raw bytes `find` reports for the same file, so it would be recorded gone
+# every single night and, at a restore, reported to the operator as unrepairable
+# content loss while sitting intact on the mirror.
+#
+# The name is cut off the listing by ONE sub(), not by blanking $1..$4: field
+# assignment rebuilds $0 with OFS, which collapses every run of whitespace
+# INSIDE the filename to a single space and strips leading ones. The listing is
+# `perms <pad>size date time name` and the separator before the name is exactly
+# one space, so everything after it survives verbatim.
 remote_ls() {  # $1 = subdirectory under $BASE; prints file paths relative to it
-  rsync --list-only -r -e "ssh $SSH_OPTS" "$REMOTE:$BASE/$1/" 2>/dev/null \
-    | awk '$1 !~ /^d/ { $1=$2=$3=$4=""; sub(/^ +/, ""); print }'
+  rsync --list-only -8 -r -e "ssh $SSH_OPTS" "$REMOTE:$BASE/$1/" 2>/dev/null \
+    | awk '$1 !~ /^d/ { sub(/^[^ ]+ +[^ ]+ [^ ]+ [^ ]+ /, ""); print }'
 }
 
-remote_mkdir() {  # sftp mkdir fails on an existing directory; that is fine
-  for dir in "$@"; do
-    printf 'mkdir %s\n' "$dir"
-  done | sftp -b - $SSH_OPTS "$REMOTE:$BASE/" > /dev/null 2>&1 || true
+# Targets the ACCOUNT ROOT and creates the parents itself. sftp cd's into its
+# target at startup, so aiming this at "$REMOTE:$BASE/" fails before it runs a
+# single mkdir on a Storage Box where schools/<slug>/ does not exist yet -- the
+# `|| true` swallows that, and the very first backup a school ever takes then
+# dies at the first scp with nowhere to put anything.
+#
+# Every line carries sftp's `-` prefix, which means "ignore this command's
+# failure and carry on". mkdir on an existing directory IS the ordinary case
+# from the second night onward, and without the prefix sftp stops at the first
+# such failure -- so on a box where schools/ exists but schools/<slug>/ does
+# not, the children would never be created.
+remote_mkdir() {
+  {
+    printf '%s\n' "-mkdir schools" "-mkdir $BASE"
+    for dir in "$@"; do
+      printf '%s\n' "-mkdir $BASE/$dir"
+    done
+  } | sftp -b - $SSH_OPTS "$REMOTE:" > /dev/null 2>&1 || true
 }
 
 remote_rm() {  # reads $BASE-relative paths on stdin
@@ -157,7 +185,15 @@ remote_exists() {  # $1 = $BASE-relative path
 
 STAGING="$(mktemp -d)"
 DUMP_TMP="$(mktemp)"
-trap 'rm -rf "$STAGING" "$DUMP_TMP"' EXIT
+# EXIT ALONE IS NOT ENOUGH. Bash does not run an EXIT trap when the shell is
+# killed by an untrapped SIGTERM -- a reboot, a `systemctl stop`, a plain
+# `kill` -- which would leave the ENTIRE PUPIL DATABASE in plaintext in
+# $DUMP_TMP under /tmp. The signal handler cleans up and then exits rather than
+# only cleaning up: a bare handler returns control to the interrupted command
+# and the run would carry on with its own staging directory deleted.
+cleanup() { rm -rf "$STAGING" "$DUMP_TMP"; }
+trap cleanup EXIT
+trap 'cleanup; exit 1' INT TERM HUP
 
 # Spelled out, not `mkdir -p $BASE/{db,env,...}`: brace expansion is a bash
 # extension and the remote is not bash. Unexpanded it would create ONE directory
@@ -188,9 +224,14 @@ MIGRATIONS="$(compose exec -T db psql -U "$PGUSER_VALUE" -d "$PGDB_VALUE" -At -F
 # A compose exec, not a host command: there is no postgres client on the host.
 # -T is load-bearing twice -- cron has no TTY, and a pty would corrupt the
 # binary -Fc stream.
-PGPASSWORD_VALUE="$(env_value POSTGRES_PASSWORD)"
-compose exec -T -e PGPASSWORD="$PGPASSWORD_VALUE" db \
-  pg_dump -U "$PGUSER_VALUE" -Fc "$PGDB_VALUE" > "$DUMP_TMP"
+#
+# NO `-e PGPASSWORD=...`. That would put the database password on `docker`'s
+# own argv, where any user on the box can read it out of `ps` for as long as
+# the dump runs -- and it buys nothing: this is a UNIX-SOCKET connection inside
+# the container, and the postgres image's initdb writes `local all all trust`.
+# The row_counts and migration queries above, the truncation detector below and
+# the compose healthcheck all already connect with -U and no password.
+compose exec -T db pg_dump -U "$PGUSER_VALUE" -Fc "$PGDB_VALUE" > "$DUMP_TMP"
 
 # --- 5. refs, IMMEDIATELY ------------------------------------------------
 # Must describe the database the DUMP captured. Written at the end of the run it
