@@ -361,9 +361,9 @@ until compose exec -T db pg_isready -U "$PGUSER_VALUE"; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 60 ]; then
     echo "!! the database did not become ready after 60 attempts (2 minutes)." >&2
-    echo "   The volumes are wiped and the dump is in a temp dir that this" >&2
-    echo "   script's trap has now removed; re-run the restore once the cause" >&2
-    echo "   is fixed. Read the logs first:" >&2
+    echo "   The volumes are already wiped and this script's trap is about to" >&2
+    echo "   remove the decrypted dump, so fix the cause and re-run the whole" >&2
+    echo "   restore. Read the logs first:" >&2
     echo "   docker compose -f docker-compose.prod.yml --env-file .env.production logs db" >&2
     exit 1
   fi

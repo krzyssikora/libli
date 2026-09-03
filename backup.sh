@@ -130,14 +130,15 @@ TS="$(date -u +%Y-%m-%dT%H%M%S)"
 # side only ever lists, transfers and deletes. Task 0 verified exactly what the
 # endpoint accepts before any of this was written. Do not reintroduce
 # `ssh $REMOTE "<script>"`: it works on your laptop and fails on the target.
+#
 # -8 (--8-bit-output) is MANDATORY under cron. rsync escapes bytes that are
 # non-printable IN THE CURRENT LOCALE as \#303\#243, and cron runs in the C
 # locale where EVERY high byte qualifies. Django keeps unicode word characters
-# in an uploaded filename, so on a Polish maths platform `cwiczenie_1.png` with
-# its real diacritics is entirely ordinary -- and escaped it would never match
-# the raw bytes `find` reports for the same file, so it would be recorded gone
-# every single night and, at a restore, reported to the operator as unrepairable
-# content loss while sitting intact on the mirror.
+# in an uploaded filename, so on a Polish maths platform `ćwiczenie_1.png` is
+# entirely ordinary -- and escaped it would never match the raw bytes `find`
+# reports for the same file, so it would be recorded gone every single night
+# and, at a restore, reported to the operator as unrepairable content loss
+# while sitting intact on the mirror.
 #
 # The name is cut off the listing by ONE sub(), not by blanking $1..$4: field
 # assignment rebuilds $0 with OFS, which collapses every run of whitespace
