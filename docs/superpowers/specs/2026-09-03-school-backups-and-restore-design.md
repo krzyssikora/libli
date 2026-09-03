@@ -88,13 +88,21 @@ from the password manager, not from any server:
 1. The **`age` identity** (above).
 2. A **Storage Box credential for restores** — the main account, or a per-school
    read-capable sub-account. Deliberately *not* the credential the school box itself
-   holds: that one is compromised in exactly the scenario a restore is for.
-3. The **school slug**, as `--slug`. It is needed to build the remote path
+   holds: that one is compromised in exactly the scenario a restore is for. It gets the
+   *same* treatment as the age identity, because it has the same bootstrap problem and is
+   equally sensitive: `--ssh-host` and `--ssh-user` as flags, and the key delivered to
+   `/dev/shm/libli-restore-ssh.key` by the same `ssh <box> 'cat > ...'` route, removed by
+   the same `EXIT` trap. `restore.sh` refuses to start if either the age identity or this
+   key is absent.
+3. A **GHCR read credential** (`--ghcr-token`, or the same tmpfs route). Needed because
+   step 4 runs `docker run` against the target image on a box that has never pulled it,
+   and the package is private — see *Publishing the image* below.
+4. The **school slug**, as `--slug`. It is needed to build the remote path
    `schools/<slug>/...` *before* anything can be fetched or decrypted, so it cannot come
    from `.env.production` — which is itself one of the things being fetched. Provisioning
    sections 1-2 install SSH and Docker and no configuration at all, so there is no earlier
    source for it either.
-4. The **target `<ts>`**, chosen by reading `manifest/`.
+5. The **target `<ts>`**, chosen by reading `manifest/`.
 
 Optionally `--image-tag`; see *Which image the checks compare against* below.
 
@@ -380,14 +388,15 @@ the runbook (SSH hardened, Docker installed).
  4. resolve the TARGET image (below); refuse if its migration set does not
     contain the manifest's; refuse if the db image's postgres major is lower
  5. decrypt env/<ts>.env.age -> .env.production, chmod 600, strip INIT_ADMIN_*,
-    then rewrite LIBLI_IMAGE_TAG to the target resolved at step 4
+    rewrite LIBLI_IMAGE_TAG to the target from step 4, and -- on a compromise
+    restore -- apply the ENV-FILE half of the rotation HERE (see below)
  6. compose down --volumes          <- DESTRUCTIVE. Gated by step 2.
  7. compose up -d db                <- db ALONE. Not the app.
  8. decrypt + pg_restore the dump into the fresh database
  9. restore caddy/, media/ and screenshots/  <- three different paths; see below
 10. compose up -d --wait            <- entrypoint migrates forward
 11. verify; then the pre- or post-cutover checks per mode
-12. if this restore followed a suspected compromise, rotate (below)
+12. compromise restore only: the DATABASE half of the rotation, admin UI (below)
 ```
 
 ### Which image the checks compare against
@@ -432,6 +441,23 @@ what makes "a fresh `pgdata` initialised from the restored `.env.production`" tr
 construction rather than by assumption. On the resize and provider-move paths it is a no-op.
 Declining the confirmation at step 2 exits without touching anything.
 
+**It clears all seven volumes, not just `pgdata`, and that is intended.** `down --volumes`
+removes every named volume in the compose file (none are `external`). Taking them in turn:
+`caddy_config`, `transfer_staging` and `upload_tmp` are the excluded three and regenerate
+themselves; `caddy_data`, `media` and `screenshots` are restored at step 9. So the outcome
+is correct — but the *reason* to want the wider wipe is stronger than "step 9 puts it back":
+
+- It is what makes the media volume contain **exactly** the referenced set. A surgical
+  `docker volume rm libli_pgdata` would preserve the old media tree, and step 9 only *adds*
+  referenced files — so any file the old tree held that the restored database does not
+  reference would survive, unreferenced and still reachable at its URL through Caddy. That
+  is the resurrection hole again, arriving by a different door.
+- The cost is a full re-fetch of `media/` even on a same-box restore where the files were
+  untouched — roughly 9 GB for a school with the matematyka import. That is intra-Hetzner
+  traffic between the box and the Storage Box: fast and not billed. Paying it to get an
+  exactly-correct volume is the right trade, and it is worth knowing before the first
+  rehearsal that a restore is bandwidth-shaped rather than instant.
+
 **Step 7 must not be `up -d`.** The container entrypoint runs `migrate` on every boot
 (`docker-entrypoint.sh`). Bringing the full stack up against an empty database creates the
 schema, and the dump then collides with it. The database is loaded before the app container
@@ -444,9 +470,17 @@ serves `media/` directly from the volume, a resurrected file is reachable at its
 whether or not any row points at it. So after the database is loaded, `restore.sh` asks it
 what it needs:
 
+```sh
+# `run --rm`, NOT `exec`: at step 9 the app container has not started yet (step 10 does
+# that), so there is nothing to exec into. `run` starts a throwaway container against the
+# already-running db service, which is exactly what is available at this point.
+compose run --rm --no-deps app /app/.venv/bin/python manage.py list_referenced_files
+# one MEDIA_ROOT / SUPPORT_SCREENSHOT_DIR-relative path per line
 ```
-manage.py list_referenced_files   # one MEDIA_ROOT/SUPPORT_SCREENSHOT_DIR-relative path per line
-```
+
+`--no-deps` because `db` is already up and `depends_on` would otherwise pull `caddy` into
+the picture. The entrypoint is bypassed by naming the interpreter directly, so this does
+not re-run `migrate` as a side effect of asking a question.
 
 covering `MediaAsset.file`/`thumb`/`web`, `Institution.logo`/`favicon` and
 `IssueReport.screenshot`. Exactly those are fetched. This is the only new Python in B1, it
@@ -499,7 +533,7 @@ So `restore.sh` takes a mode:
 
 The runbook's restore section splits the section 4 checks into those two groups.
 
-### Rotation after a compromise — step 12
+### Rotation after a compromise — split by when it can happen
 
 The threat model names an adversary holding the box's own credential, and the restore
 credential is deliberately a different one for that reason. But step 5 restores
@@ -508,21 +542,40 @@ values the adversary had. Without a rotation step the rebuilt box resumes nightl
 using a credential someone else is known to hold — which would quietly undo the whole
 point of having used a separate credential to recover.
 
-So when a restore follows a suspected compromise, rotate before the first nightly run:
+These cannot all happen at the same moment, and treating rotation as a single tidy-up step
+at the end would silently get one of them wrong. Three groups, by when they are possible:
 
-- `LIBLI_BACKUP_SSH_KEY` and the **Storage Box sub-account** itself (new sub-account, new
-  key; the old one revoked at Hetzner, not merely unused).
-- `POSTGRES_PASSWORD` — but note it can only change while `pgdata` is being re-initialised,
-  so it must be set **at step 5**, before step 6's `down --volumes`, not afterwards.
-- `DJANGO_SECRET_KEY`, and `EMAIL_HOST_PASSWORD` if one is configured.
-- The SSO client secret in `SocialApp.secret` and `WebhookEndpoint.secret` — both live in
-  the **database**, so they survive the restore and are rotated through the admin UI, not
-  the env file. Easy to miss for exactly that reason.
-- Optionally the shared `age` recipient, if the private key itself is suspect — which is a
-  fleet-wide event, not a per-school one, and means re-encrypting every school's history.
+**At step 5 — mandatory, because later is too late.**
 
-This list is the disaster-recovery counterpart to the handover rotation below, and
-`docs/backup-and-restore.md` carries both.
+- **`POSTGRES_PASSWORD`.** Postgres accepts a new password only while it is initialising an
+  empty data directory, so the new value has to be in `.env.production` *before* step 6
+  destroys `pgdata` and step 7 recreates it. Rotate it after step 6 and the database keeps
+  the old password while the app uses the new one — the same footgun step 6 exists to
+  avoid, reintroduced by good intentions.
+- `DJANGO_SECRET_KEY` and `EMAIL_HOST_PASSWORD` — no timing constraint of their own, but
+  they are edits to the same file and belong in the same pass. Rotating the secret key logs
+  everyone out and invalidates outstanding reset and invitation links, which on a
+  compromise restore is the desired outcome rather than a cost.
+
+**At step 12 — because these live in the database and only exist once it is restored.**
+
+- `SocialApp.secret` (the SSO client secret) and `WebhookEndpoint.secret`. Neither is in
+  the env file, so both survive the restore intact and neither is touched by anything
+  above. Rotated through the admin UI with the app running. Easy to miss for exactly that
+  reason: a rotation pass that only edits `.env.production` leaves two live secrets in the
+  adversary's hands.
+
+**Out of band, before the first nightly run — at Hetzner and GitHub, not on the box.**
+
+- A **new Storage Box sub-account** and key, with the old one **revoked** at Hetzner rather
+  than merely unused, and `LIBLI_BACKUP_SSH_KEY_PATH`'s key file replaced.
+- A new `LIBLI_GHCR_TOKEN`, with the old PAT revoked at GitHub.
+- The shared `age` recipient **only** if the private key itself is suspect. That is a
+  fleet-wide event rather than a per-school one: it means re-encrypting every school's
+  history, so it is a decision to take deliberately, not a reflex.
+
+`docs/backup-and-restore.md` carries this as a checklist beside the handover rotation below;
+they are the same shape and neither should be reconstructed from memory under pressure.
 
 ### How the four paths use it
 
@@ -580,6 +633,34 @@ the key being readable later by a process deploy.sh never spawned:
   runbook's §3 first boot, `restore.sh` steps 7 and 10, a manual `up -d` after editing the
   env — would abort outright without a persisted value.
 
+### Publishing the image — nothing does this today
+
+`.github/workflows/` contains `ci.yml` (tests, on pull requests) and `deploy.yml` (SSHes in
+and runs `deploy.sh`). **Neither builds or pushes an image**, and `deploy.sh` builds locally
+with `compose up -d --build`. So the entire pull-don't-build model has no producer until one
+is added, and every consumer of it — `deploy.sh`'s pull, `restore.sh` step 4's `docker run`,
+the manifest's `image` field — has nothing to read. This is B1 work, not an assumption.
+
+- **A new `publish` job**, in `deploy.yml` ahead of the deploy step so the image provably
+  exists before any box is told to pull it. Not a separate workflow: two workflows on the
+  same trigger would race, and the deploy must be strictly downstream of the push.
+- **Tags:** `:master` and `:sha-<short>`, both pushed every time, using
+  `docker/build-push-action` with GitHub Actions layer caching.
+- **Auth:** the job's own `GITHUB_TOKEN` with `permissions: packages: write`. No PAT needed
+  for pushing.
+- **The package stays private**, because the image contains the application source of a
+  private repo. A public package would publish that source, which is not a trade this
+  makes. The consequence is a real one and it is why credential 3 exists above: **each
+  school box needs a GHCR read credential** — a fine-grained PAT with `read:packages`,
+  stored as `LIBLI_GHCR_TOKEN` and used for a `docker login ghcr.io` before the pull.
+  `deploy.sh` performs that login; `restore.sh` needs it before step 4, from out of band.
+- ⚠️ **`docker/build-push-action` builds on the runner, not on the box** — which is the
+  point. It removes the RAM spike that makes 4 GB a real floor from every school box at
+  once, and it is what makes the sizing table in the hosting model honest.
+
+A PAT expires. That is a silent, dated failure mode for every school at once, so its expiry
+goes in the same calendar as the restore rehearsal.
+
 That has a pleasant consequence: `docs/deployment.md` §8's rollback is `git reset --hard
 <last-good-sha>` followed by a recreate, and it **keeps working unchanged in meaning**,
 because the tag follows the checkout. Without this the reset would silently become a no-op
@@ -634,6 +715,16 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
    whose real value lives in a shell script is exactly the drift that file was written to
    prevent.
 9. **Both scripts parse** (`bash -n`), matching the existing deploy guard.
+10. **The publish job precedes the deploy step**, and both live in `deploy.yml`. Assert the
+    build-push step appears before the `appleboy/ssh-action` step, and that `deploy.sh`
+    performs a `docker login ghcr.io` before its `pull`. *Mutant:* reorder the jobs, or
+    drop the login → RED. Without this a deploy can tell a box to pull a tag that does not
+    exist yet, which fails on the box rather than in CI — the slowest possible place to
+    find out.
+11. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
+    the `up` blocks of `docs/deployment.md` §3 and §8. *Mutant:* leave one behind → RED.
+    This is the guard that catches the half-finished image switch, which would otherwise
+    present as a box quietly building from source while everything else assumed it pulled.
 
 `tests/test_list_referenced_files.py` — real unit tests, not textual: every file-bearing
 field is covered (add a `FileField` to a model and the test should notice), blank fields are
@@ -671,7 +762,10 @@ becomes a one-off.
   recovery procedure, and the rehearsal log. Separate from `docs/deployment.md`, which is
   already long; cross-linked from its §8.
 - **`docs/deployment.md`** —
-  - §1: install `age`; set the host clock to UTC.
+  - §1: install `age`; set the host clock to UTC; place the Storage Box key file at
+    `/root/.ssh/libli_backup` mode 0600; `docker login ghcr.io` with `LIBLI_GHCR_TOKEN`.
+  - §8's *One-time setup*: the `publish` job's GHCR permissions, and the fine-grained
+    `read:packages` PAT each box needs — beside the three existing `SSH_*` secrets.
   - §3: the first-boot `up -d --build` block becomes a pull. An operator following the
     current text on a fresh box would otherwise get no image at all.
   - §7: the cron entry, beside `purge_notifications` at a non-colliding slot, with the same
@@ -683,10 +777,21 @@ becomes a one-off.
     the first time, which is a real thing this work delivers. State what it cannot undo: an
     already-applied migration.
 - **`.env.production.example`** (16 keys today) gains, with comments: `LIBLI_SCHOOL_SLUG`,
-  `LIBLI_IMAGE_TAG`, `LIBLI_BACKUP_AGE_RECIPIENT`, `LIBLI_BACKUP_SSH_HOST`,
-  `LIBLI_BACKUP_SSH_USER`, `LIBLI_BACKUP_SSH_KEY`, `LIBLI_BACKUP_HEARTBEAT_URL`. All are
-  mandatory; `backup.sh` checks each with `env_value` and exits non-zero naming the missing
-  key, since a blank value must not silently produce a backup that goes nowhere.
+  `LIBLI_IMAGE_TAG`, `LIBLI_GHCR_TOKEN`, `LIBLI_BACKUP_AGE_RECIPIENT`,
+  `LIBLI_BACKUP_SSH_HOST`, `LIBLI_BACKUP_SSH_USER`, **`LIBLI_BACKUP_SSH_KEY_PATH`** and
+  `LIBLI_BACKUP_HEARTBEAT_URL`. All are mandatory; `backup.sh` checks each with `env_value`
+  and exits non-zero naming the missing key, since a blank value must not silently produce
+  a backup that goes nowhere.
+
+  ⚠️ **`_PATH`, not the key material.** `env_value()` is
+  `sed -n "s/^$1=//p" … | head -1` — it reads exactly one line, and every existing key in
+  this file is single-line. An OpenSSH private key is a multi-line PEM block, so storing it
+  inline would be silently truncated to its `-----BEGIN…` header: a config that parses,
+  looks right, and cannot authenticate. So the env holds a **path**
+  (`/root/.ssh/libli_backup`, mode 0600), and provisioning places the key file there as its
+  own documented step in §1. Base64-encoding it into one line was the alternative and was
+  rejected — it hides the key's shape from anyone reading the file and adds a decode step to
+  two scripts to save one provisioning line.
 - **`docs/public/privacy.md` and `docs/public/privacy.pl.md`** — both, stating the same
   retention periods. `test_every_registered_page_has_both_language_files` treats them as a
   pair, and the Polish notice is the legally operative one for a Polish school.
