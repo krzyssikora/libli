@@ -184,6 +184,16 @@ Problem reports, and the screenshots attached to them, are kept until a Platform
 them. Nothing removes them because of their age. Copies already sent out by email are outside
 libli's control.
 
+**Backups.** The server is backed up every night to encrypted storage in the European Union.
+A nightly copy is kept for **30 days**, and one copy per month for a further **12 months** —
+so no backup is older than about **13 months**, after which it is deleted permanently. Files
+removed from a course stay in the backup for **90 days** so that an accidental deletion can
+be undone, and are then deleted too. A screenshot you attached to a problem report is removed
+from the backup on the same night it is deleted from the site, not after a delay.
+
+Backups are encrypted with a key that is not held on the server, so someone who obtained the
+server could not read them.
+
 ## Your rights
 
 You can ask for access to the personal data held about you, for it to be corrected, for it to be

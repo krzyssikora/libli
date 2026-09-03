@@ -134,3 +134,28 @@ def test_every_first_party_storage_key_uses_a_documented_prefix():
 
     assert not unresolved, f"unresolved storage key expressions: {unresolved}"
     assert not bad, f"storage keys outside the documented prefixes: {bad}"
+
+
+BACKUP_SH = (DOCS_ROOT.parent / "backup.sh").read_text(encoding="utf-8")
+
+
+def _backup_constant(name):
+    match = re.search(rf"^{name}=(\d+)$", BACKUP_SH, re.MULTILINE)
+    assert match, f"backup.sh no longer defines {name}"
+    return int(match.group(1))
+
+
+def test_backup_retention_matches_the_stated_periods():
+    """Publishing a retention claim whose real value lives in a shell script is
+    exactly the drift this file exists to prevent -- and this one is a legal
+    statement in two languages, not a UI string.
+
+    Mutant: change RETAIN_DAILY_DAYS in backup.sh without the notices.
+    """
+    assert _backup_constant("RETAIN_DAILY_DAYS") == 30
+    assert _backup_constant("RETAIN_MONTHLY_MONTHS") == 12
+    assert _backup_constant("MIRROR_PRUNE_DAYS") == 90
+    for notice in (PRIVACY, PRIVACY_PL):
+        assert "30" in notice and "12" in notice and "90" in notice, notice[:200]
+    assert "13 months" in PRIVACY
+    assert "13 miesięcy" in PRIVACY_PL
