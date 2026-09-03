@@ -210,6 +210,11 @@ bash /opt/libli/restore.sh \
 `--live` is the default and needs no flag. `--ghcr-token <pat>` joins the list only if
 step-2's login check failed (input 3 above).
 
+⚠️ **`--live` means DNS already points at this box.** It's the ordinary disaster-recovery
+case — restore onto the same hostname the site already answers on. It is **not** the second
+half of a two-phase cutover; see *Cutting over after `--pre-cutover`* below for why a resize
+or provider move does not finish with a second `restore.sh --live` run.
+
 The script runs fourteen named steps — LOCK, CREDENTIALS, CONFIRM, IDENTITY, VERSION, ENV,
 **WIPE**, MATERIALISE, DB UP, LOAD, FILES, APP UP, VERIFY, HANDOFF — all of them the
 script's own work, none a manual step. Two things about that sequence are worth knowing
@@ -248,7 +253,7 @@ pick a `<ts>` inside the 30-day daily window or a monthly survivor instead.
 | Path | Flags | Notes |
 |---|---|---|
 | **Restore** (disaster recovery, box lost or rebuilt, same hostname) | `--live` (default), usually no `--image-tag` | With no `--image-tag`, VERSION targets the manifest's own `image` — the check is a tautology here and is printed as skipped, which is honest about what it did and did not verify. |
-| **Resize** (bigger/smaller box, same provider, same eventual hostname) | first `--pre-cutover`, then `--live` | Boot the new box through §1-2, run the pre-flight, then `restore.sh --pre-cutover`. That mode rewrites `SITE_ADDRESS=http://<hostname>` and sets `DJANGO_SECURE_SSL_REDIRECT=false`, so Caddy serves plain HTTP and never attempts ACME while DNS still points at the old box. Verify with `curl` against `127.0.0.1` and an explicit `Host:` header. Once satisfied, repoint DNS, then **re-run the whole script on the same `<ts>` with `--live`** (no `--pre-cutover`) — this second run is what restores both keys and is what actually cuts over; it re-wipes and re-fetches media, so expect the full run time again. |
+| **Resize** (bigger/smaller box, same provider, same eventual hostname) | `--pre-cutover` **once** | Boot the new box through §1-2, run the pre-flight, then `restore.sh --pre-cutover`. That mode rewrites `SITE_ADDRESS=http://<hostname>` and sets `DJANGO_SECURE_SSL_REDIRECT=false`, so Caddy serves plain HTTP and never attempts ACME while DNS still points at the old box. Verify with `curl` against `127.0.0.1` and an explicit `Host:` header. Cut over with the small manual procedure below — **not** a second `restore.sh` run. |
 | **Provider move** (leaving Hetzner) | identical to Resize | Nothing in the artifact is Hetzner-specific; the destination box just needs the same pre-flight. |
 | **Handover** (school takes over ownership of its box) | none of `restore.sh`'s flags | Not a fifth mechanism, but not just paperwork either — see §6. It's a key *rotation* (re-encrypting the school's current artifact under a keypair only the school holds) plus a set of `.env.production` edits made in place, not a `restore.sh` run. |
 
@@ -256,6 +261,56 @@ pick a `<ts>` inside the 30-day daily window or a monthly survivor instead.
 restore is itself a response to a compromise — see §5. It is never inferred: nothing about
 a manifest or a box can tell the script whether this is a compromise restore, so the
 operator states it explicitly.
+
+### Cutting over after `--pre-cutover`
+
+**Do not re-run `restore.sh` to cut over.** `restore.sh` is deliberately straight-line —
+there is no partial-run mode — so a second invocation repeats all fourteen steps, including
+WIPE and a full media re-fetch. That would destroy the restore you just verified and rebuild
+it from scratch, and if that second pass fails partway (a transient network fault, a Storage
+Box hiccup) you are left worse off than before you started. The ~9 GB re-transfer is the
+smaller half of that cost; the wipe is the real one.
+
+Cutover only ever touches the two keys `--pre-cutover` changed, with no wipe and no
+re-fetch:
+
+**Before running `restore.sh --pre-cutover`, capture the real `SITE_ADDRESS`.** ENV
+overwrites it on disk to `http://<hostname>`, so the original value has to be read from the
+artifact itself, before that happens — from the same age identity already on tmpfs from
+pre-flight step 4:
+
+```bash
+scp -i /dev/shm/libli-restore-ssh.key -o StrictHostKeyChecking=accept-new \
+  <storage-box-user>@<storage-box-host>:schools/<slug>/env/<ts>.env.age /dev/shm/env-preview.age
+age -d -i /dev/shm/libli-restore.key -o /dev/shm/env-preview /dev/shm/env-preview.age
+grep '^SITE_ADDRESS=' /dev/shm/env-preview      # write this value down — you'll need it below
+rm -f /dev/shm/env-preview /dev/shm/env-preview.age
+```
+
+Then run `restore.sh --pre-cutover` and verify against `127.0.0.1` as the table above
+describes. When DNS has actually been repointed and you're ready to go live:
+
+```bash
+# 1. Repoint DNS at the new box and wait for it to resolve there.
+getent hosts <hostname>          # must return the NEW box's address
+
+# 2. Undo the two keys --pre-cutover changed.
+cd /opt/libli
+sed -i "s|^SITE_ADDRESS=.*|SITE_ADDRESS=<the value you recorded above>|" .env.production
+sed -i '/^DJANGO_SECURE_SSL_REDIRECT=false$/d' .env.production
+
+# 3. Recreate so Caddy picks up the real address and requests a certificate.
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --wait
+
+# 4. Now run the post-cutover checks against the public name.
+curl -fsS https://<hostname>/healthz/ | grep -q '"status": *"ok"'
+```
+
+Step 2's delete is safe rather than lossy: `DJANGO_SECURE_SSL_REDIRECT` isn't normally set
+in `.env.production` at all (it isn't one of the keys `.env.production.example` ships), and
+`config/settings/production.py` defaults it to `true` when absent — so deleting the line
+`--pre-cutover` added restores the same behaviour the box would have without ever having
+seen that flag.
 
 ---
 
