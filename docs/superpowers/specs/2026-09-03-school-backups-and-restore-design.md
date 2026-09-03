@@ -89,9 +89,16 @@ from the password manager, not from any server:
 2. A **Storage Box credential for restores** — the main account, or a per-school
    read-capable sub-account. Deliberately *not* the credential the school box itself
    holds: that one is compromised in exactly the scenario a restore is for.
-3. The **target `<ts>`**, chosen by reading `manifest/`.
+3. The **school slug**, as `--slug`. It is needed to build the remote path
+   `schools/<slug>/...` *before* anything can be fetched or decrypted, so it cannot come
+   from `.env.production` — which is itself one of the things being fetched. Provisioning
+   sections 1-2 install SSH and Docker and no configuration at all, so there is no earlier
+   source for it either.
+4. The **target `<ts>`**, chosen by reading `manifest/`.
 
-`docs/backup-and-restore.md` lists these three as a pre-flight checklist.
+Optionally `--image-tag`; see *Which image the checks compare against* below.
+
+`docs/backup-and-restore.md` lists these as a pre-flight checklist.
 
 ## The artifact
 
@@ -235,7 +242,7 @@ constant and this work does not use the transfer format at all).
 | `migrations` | The version-direction check. See below. |
 | `postgres_major` | `restore.sh` refuses when the `db` image's major is lower. |
 | `row_counts` | Informational, with a stated skew. See *Verification*. |
-| `media.files` | Lower bound for the mirror check. |
+| `media.files` | Informational — the file-count half of the storage figure, beside `media.bytes`. It is **not** the media completeness gate; that gate is referenced-files-equals-fetched-files at restore time, which never reads this field. Recorded because a night-on-night drop in it is a visible symptom of a mirror losing files. |
 | `media.bytes` | The per-school storage figure the pricing model needs. Written now, read by nobody in this work — `backup.sh` already walks the tree, so it is free here and expensive anywhere else. |
 
 **The version check uses migration *sets*, not a single head.** Django has one leaf per
@@ -369,17 +376,52 @@ the runbook (SSH hardened, Docker installed).
 ```
  1. require the age identity at /dev/shm; install the EXIT trap
  2. fetch + print manifest/<ts>.json; require a typed confirmation
- 3. refuse unknown manifest `schema`; refuse a `school` mismatch
- 4. refuse if the image's migration set does not contain the manifest's
-    refuse if the db image's postgres major is below the manifest's
- 5. decrypt env/<ts>.env.age -> .env.production, chmod 600, strip INIT_ADMIN_*
+ 3. refuse unknown manifest `schema`; refuse if manifest.school != --slug
+ 4. resolve the TARGET image (below); refuse if its migration set does not
+    contain the manifest's; refuse if the db image's postgres major is lower
+ 5. decrypt env/<ts>.env.age -> .env.production, chmod 600, strip INIT_ADMIN_*,
+    then rewrite LIBLI_IMAGE_TAG to the target resolved at step 4
  6. compose down --volumes          <- DESTRUCTIVE. Gated by step 2.
  7. compose up -d db                <- db ALONE. Not the app.
  8. decrypt + pg_restore the dump into the fresh database
- 9. restore caddy/; mirror media/ and screenshots/ back  <- referenced files only
+ 9. restore caddy/, media/ and screenshots/  <- three different paths; see below
 10. compose up -d --wait            <- entrypoint migrates forward
 11. verify; then the pre- or post-cutover checks per mode
+12. if this restore followed a suspected compromise, rotate (below)
 ```
+
+### Which image the checks compare against
+
+Step 4 is only meaningful if the image being checked *can* differ from `manifest.image` —
+comparing the manifest against itself would always pass and prove nothing. So the target is
+an explicit input:
+
+- **Default: `manifest.image`.** The disaster-recovery case — bring the site back exactly
+  as it was. The check is a tautology here and is skipped with a printed note, which is
+  honest about what it did and did not verify.
+- **`--image-tag <tag>`: the override, and the only case worth guarding.** Restoring a
+  three-week-old dump onto today's image is a normal and often *desirable* thing to do, and
+  it is the case that can go wrong: forward is fine, backward is broken. This is where
+  the migration-set containment check earns its place.
+
+Step 4 resolves the target *before* `.env.production` exists, which is why it cannot read
+`LIBLI_IMAGE_TAG` from the env — the env is one of the things being restored. Step 5 then
+writes the resolved target into the restored file, so the persisted value matches what
+actually gets pulled rather than what the old box happened to be running.
+
+### Restoring the three data sets, which are three different mechanisms
+
+Step 9 is one line in the list and three procedures in practice. Naming them separately
+because the encrypted-per-file loop is easy to under-build:
+
+| Set | Stored as | Restore path |
+|---|---|---|
+| `caddy/` | one `<ts>.tar.age` archive | `age -d` then `tar -x` into the `caddy_data` volume path |
+| `media/` | plain per-file mirror | `rsync` **only** the paths `list_referenced_files` names |
+| `screenshots/` | per-file `.age` | fetch only referenced paths, `age -d` each, strip the `.age` suffix, write into the `support_screenshots` volume path |
+
+All three write to host paths resolved by `vol_path()`, and all three run *after* the
+database is loaded, because the referenced-file list comes from it.
 
 **Step 6 is the step whose absence would have been a silent data bug.** On the same-box
 restore path the box already has a `pgdata` volume, and the postgres image reads
@@ -457,6 +499,31 @@ So `restore.sh` takes a mode:
 
 The runbook's restore section splits the section 4 checks into those two groups.
 
+### Rotation after a compromise — step 12
+
+The threat model names an adversary holding the box's own credential, and the restore
+credential is deliberately a different one for that reason. But step 5 restores
+`.env.production` **verbatim**, and that file still contains the `LIBLI_BACKUP_SSH_*`
+values the adversary had. Without a rotation step the rebuilt box resumes nightly backups
+using a credential someone else is known to hold — which would quietly undo the whole
+point of having used a separate credential to recover.
+
+So when a restore follows a suspected compromise, rotate before the first nightly run:
+
+- `LIBLI_BACKUP_SSH_KEY` and the **Storage Box sub-account** itself (new sub-account, new
+  key; the old one revoked at Hetzner, not merely unused).
+- `POSTGRES_PASSWORD` — but note it can only change while `pgdata` is being re-initialised,
+  so it must be set **at step 5**, before step 6's `down --volumes`, not afterwards.
+- `DJANGO_SECRET_KEY`, and `EMAIL_HOST_PASSWORD` if one is configured.
+- The SSO client secret in `SocialApp.secret` and `WebhookEndpoint.secret` — both live in
+  the **database**, so they survive the restore and are rotated through the admin UI, not
+  the env file. Easy to miss for exactly that reason.
+- Optionally the shared `age` recipient, if the private key itself is suspect — which is a
+  fleet-wide event, not a per-school one, and means re-encrypting every school's history.
+
+This list is the disaster-recovery counterpart to the handover rotation below, and
+`docs/backup-and-restore.md` carries both.
+
 ### How the four paths use it
 
 - **Restore** — `--live`, same hostname. Step 6 is the destructive one.
@@ -497,8 +564,21 @@ already uses for every mandatory value. `deploy.sh` drops `--build` for a `pull`
 
 **Tag scheme, and why it keeps the existing rollback working.** B1 publishes exactly two
 tags per build: `:master` (floating, for libli.pl's canary) and **`:sha-<short>`**
-(immutable). `deploy.sh` sets `LIBLI_IMAGE_TAG=sha-$(git rev-parse --short HEAD)` from the
-checkout it just reset — so the running image always corresponds to the checked-out commit.
+(immutable). `deploy.sh` **rewrites the `LIBLI_IMAGE_TAG=` line in `.env.production`
+itself** — `sed`-in-place if the key is present, appended if not — to
+`sha-$(git rev-parse --short HEAD)` from the checkout it just reset, *before* invoking
+`compose up`. So the running image always corresponds to the checked-out commit.
+
+**It must be persisted to the file, not exported for one shell.** Three things depend on
+the key being readable later by a process deploy.sh never spawned:
+
+- `backup.sh` runs hours later under cron and reads it with `env_value`; a transient export
+  would make every nightly backup fail its own mandatory-key check.
+- The encrypted `env/<ts>.env.age` in the artifact must carry the tag that matches the
+  manifest's `image`, or "start the version this dump came from" has nothing to read.
+- `compose` guards the key with the bare `:?`, so **any** `up` outside deploy.sh — the
+  runbook's §3 first boot, `restore.sh` steps 7 and 10, a manual `up -d` after editing the
+  env — would abort outright without a persisted value.
 
 That has a pleasant consequence: `docs/deployment.md` §8's rollback is `git reset --hard
 <last-good-sha>` followed by a recreate, and it **keeps working unchanged in meaning**,
