@@ -75,12 +75,12 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           # appleboy/ssh-action defaults to a 10-minute command_timeout, and a
-          # deploy legitimately exceeds it: an image rebuild on the 4-vCPU box
-          # plus `--wait` on a healthcheck with start_period 60s and 30 retries
-          # at 10s is over 10 minutes on its own. The default does not fail the
-          # deploy cleanly -- it severs the SSH session mid-build and reports a
-          # timeout while the host carries on, so the run is red and the site
-          # state is unknown.
+          # deploy legitimately exceeds it: pulling the multi-GB image over the
+          # box's own link plus `--wait` on a healthcheck with start_period 60s
+          # and 30 retries at 10s is over 10 minutes on its own. The default
+          # does not fail the deploy cleanly -- it severs the SSH session
+          # mid-pull and reports a timeout while the host carries on, so the
+          # run is red and the site state is unknown.
           command_timeout: 30m
           # `set -e` is the FIRST line of the script below, not the action's
           # `script_stop` input. v1 (v1.2.5, wrapping drone-ssh 1.8.4) does not
