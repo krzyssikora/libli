@@ -191,8 +191,7 @@ scp $SSH_OPTS "$STAGING/refs.txt" "$REMOTE:$BASE/refs/$TS.txt"
 # --- 6. truncation detector ---------------------------------------------
 # A truncated -Fc archive fails to list. Cheap, and it is why row_counts does
 # not have to carry that weight.
-pg_restore_list() { compose exec -T db pg_restore --list; }
-pg_restore_list < "$DUMP_TMP" > /dev/null
+compose exec -T db pg_restore --list < "$DUMP_TMP" > /dev/null
 
 # --- 7. upload the dump --------------------------------------------------
 # Public-key mode: this box holds only the recipient, so it writes a backup it
