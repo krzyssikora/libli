@@ -1,7 +1,7 @@
-"""Guard: the 22 functions duplicated across the two table editors must not drift.
+"""Guard: the 23 functions duplicated across the two table editors must not drift.
 
-`table_editor.js` and `filltable_editor.js` share code-identical logic across 22
-functions -- 11 at file scope, 11 nested inside `wire()`. Nothing
+`table_editor.js` and `filltable_editor.js` share code-identical logic across 23
+functions -- 11 at file scope, 12 nested inside `wire()`. Nothing
 else enforces that they stay in step, so the realistic failure is silent: a
 selection bug gets fixed in one editor, its twin is missed, and each editor's own
 tests stay green because neither exercises the other's file.
@@ -16,7 +16,7 @@ done later.
 The contract is a CLASSIFICATION, not a list: every function name present in both
 files must appear in exactly one of TWINS or DIVERGENT. That is what stops the
 guard rotting -- a new shared helper forces a decision instead of silently
-becoming a 23rd unguarded twin.
+becoming a 24th unguarded twin.
 """
 
 import re
@@ -30,11 +30,11 @@ FILL_JS = ROOT / "courses" / "static" / "courses" / "js" / "filltable_editor.js"
 #
 # Asserted so a regex regression fails loudly instead of silently extracting
 # nothing -- every comparison below trivially passes over an empty set. Counting
-# EVERY function, not just the 22 twins, is deliberate: if extraction silently
+# EVERY function, not just the 23 twins, is deliberate: if extraction silently
 # missed a newly added shared helper in one file, that name would never look
 # "common to both" and the classification check would stay green while an
-# unguarded 23rd twin existed.
-EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}
+# unguarded 24th twin existed.
+EXPECTED_COUNTS = {TABLE_JS: 31, FILL_JS: 37}
 
 _DEF = re.compile(r"^\s*function (\w+)\s*\(")
 _TRAILING_COMMENT = re.compile(r"\s*//.*$")
@@ -163,6 +163,7 @@ TWINS = [
     "paintRange",
     "refreshAlignButtons",
     "refreshHeaderButton",
+    "refreshInlineButtons",
     "say",
     "stashFor",
     "tooBig",

@@ -546,3 +546,64 @@ def test_editor_gate_checkbox_round_trips(page, live_server):
 
     obj.refresh_from_db()
     assert obj.data["gate"] is True
+
+
+@pytest.mark.django_db(transaction=True)
+def test_filltable_toolbar_paints_inline_format_active_state(page, live_server):
+    """Twin of tests/test_e2e_table_editor.py's
+    test_table_toolbar_paints_inline_format_active_state.
+
+    test_editor_twin_drift pins refreshInlineButtons' BODY identical across the
+    two editors, but nothing there pins its CALL SITES: dropping the call from
+    this file's bold branch would leave both guards green and this toolbar dead
+    again. The static cell is the only kind that can carry inline format -- an
+    answer cell holds an <input>, not editable HTML."""
+    unit, _a, _b = _editor_context(page, live_server, "ft_state", "ft-state")
+    element = _seed_filltable_for_images(unit)
+    _goto_editor(page, live_server, "ft_state", unit)
+    _open_edit(page, element.pk)
+
+    toolbar = "[data-edit-slot] [data-table-toolbar] "
+    bold = page.locator(toolbar + "[data-cmd='bold']")
+    italic = page.locator(toolbar + "[data-cmd='italic']")
+    red = page.locator(toolbar + "[data-cmd='colour-red']")
+
+    def is_on(button):
+        return button.evaluate("b => b.classList.contains('is-on')")
+
+    cell = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").first
+    cell.click()
+    page.keyboard.press("Control+A")
+    bold.click()
+    assert is_on(bold), "Bold must light up once the selection is bold"
+    assert not is_on(italic), "Italic must stay unlit"
+    red.click()
+    assert is_on(red), "The applied colour swatch must light up"
+
+    # The caret walk: leaving the bold run must drop its highlight with no focus
+    # change to trigger the repaint. Only bold is walked -- typed text lands
+    # INSIDE the tc-red span, so the tail really is red and the swatch is right
+    # to stay lit; the swatch's caret-tracking is asserted below instead.
+    page.keyboard.press("ArrowRight")  # collapse past the formatted run
+    bold.click()  # ... and stop bolding from here
+    page.keyboard.type("tail")
+    assert not is_on(bold), "the caret sits in the plain tail"
+    for _ in range(5):
+        page.keyboard.press("ArrowLeft")  # ... back into the formatted run
+    assert is_on(bold), "Bold must light up when the caret re-enters bold text"
+
+    # A different, unformatted static cell reports neither format.
+    page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").nth(
+        1
+    ).click()
+    assert not is_on(bold), "a plain cell must not report bold"
+    assert not is_on(red), "a plain cell must not report a colour"
+
+    # The plainest gesture in the bug report: no selection at all, just a caret,
+    # press Bold. Only the click handler's own repaint can light the button --
+    # a collapsed caret emits no selectionchange. Kept last: it deliberately
+    # leaves a pending format behind.
+    bold.click()
+    assert is_on(bold), "Bold must light up on a collapsed caret"
+    page.keyboard.type("y")
+    assert is_on(bold), "... and it stays lit while typing inside the run"
