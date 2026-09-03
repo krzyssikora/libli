@@ -60,7 +60,7 @@ bypasses it, so a green `ufw status` proves nothing about a published port.
 ### Install Docker
 
 ```bash
-apt-get update && apt-get install -y ca-certificates curl git age
+apt-get update && apt-get install -y ca-certificates curl git age rsync
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
@@ -77,6 +77,10 @@ docker login ghcr.io -u krzyssikora    # paste a read:packages PAT
 
 Stay on an Ubuntu LTS the Docker repo actually publishes for. A release newer than the
 repo's coverage fails at `apt-get install docker-ce` with no obvious cause.
+
+`rsync` is in that first `apt-get install` because both `backup.sh` and `restore.sh` depend
+on it — it is how they list, mirror and fetch from the Storage Box — and Ubuntu's minimal
+cloud images do not ship it. Missing, the first nightly backup fails at its first `rsync`.
 
 Set the host clock to UTC:
 

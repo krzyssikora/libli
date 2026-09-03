@@ -122,8 +122,12 @@ from any server:
    --volumes` (that command touches volumes, not the Docker config) — so on a normally
    provisioned box you won't need this. You *will* need it for: a box provisioned before the
    token existed, a PAT that has since expired or been revoked, or a bare-metal rebuild
-   where §1 hasn't run yet. `restore.sh` tries the existing login first and only asks for
-   `--ghcr-token` if the pull fails.
+   where §1 hasn't run yet. `restore.sh` tries the existing login first; if the pull fails
+   it **exits 1** naming the image it could not pull, and you re-invoke it with
+   `--ghcr-token-file <path>` — it does not stop and prompt. Like the other two
+   credentials the PAT is passed as a **tmpfs path, never as the token itself**: a secret
+   on the command line is readable from `ps` by anyone on the box and lands in your shell
+   history. `--ghcr-token` is refused, with those instructions.
 4. **The school slug** (`--slug`). Needed to build the remote path `schools/<slug>/...`
    before anything can be fetched — a box that has had only §1-2 has no config at all yet,
    so there is nowhere else to read it from.
@@ -142,9 +146,10 @@ the `env_value()` helper — is on the far side of that clone. On the disaster-r
 resize and provider-move paths the box has only had §1-2 done to it. Do these five steps in
 this order:
 
-1. **Runbook §1-2** on the target box: SSH hardened, Docker installed, `age` installed, the
-   clock set to UTC, and the Storage Box key file placed. (This is provisioning, not
-   restore — see `docs/deployment.md` §1.)
+1. **Runbook §1-2** on the target box: SSH hardened, Docker installed, `age` and `rsync`
+   installed, the clock set to UTC, and the Storage Box key file placed. (This is
+   provisioning, not restore — see `docs/deployment.md` §1. `rsync` is not in Ubuntu's
+   minimal cloud image and every Storage Box listing and fetch below needs it.)
 
 2. **From your own machine**, using your local copy of the restore SSH key, list what's
    restorable and pick a `<ts>`:
@@ -183,10 +188,29 @@ this order:
    ```bash
    ssh <box> 'cat > /dev/shm/libli-restore.key' < ~/.age/libli.key
    ssh <box> 'cat > /dev/shm/libli-restore-ssh.key' < ~/.ssh/libli_restore_key
+   ssh <box> 'chmod 600 /dev/shm/libli-restore.key /dev/shm/libli-restore-ssh.key'
    ```
 
-   `restore.sh` refuses to start if either is absent, and installs an `EXIT` trap that
-   `shred`s both on every exit path, success or failure.
+   That redirection creates the files at **0644**, and `ssh` refuses to use a private key
+   that permissive — hence the third line. `restore.sh` also applies the `chmod` itself,
+   immediately after checking both files are present, so a delivery done some other way is
+   covered too; the line above is here because a runbook that leaves a key world-readable
+   on a shared box is wrong even when the script repairs it.
+
+   If you also need the GHCR PAT (input 3 above), deliver it the same way and pass the
+   path:
+
+   ```bash
+   ssh <box> 'cat > /dev/shm/libli-ghcr.token' < <your local copy>
+   ssh <box> 'chmod 600 /dev/shm/libli-ghcr.token'
+   # then add: --ghcr-token-file /dev/shm/libli-ghcr.token
+   ```
+
+   `restore.sh` refuses to start if either of the two mandatory credentials is absent, and
+   installs traps on `EXIT`, `INT`, `TERM` and `HUP` that `shred` both on every exit path,
+   success or failure. `EXIT` alone would not survive the box being rebooted or the run
+   being `kill`ed mid-restore, which is exactly when a key left in `/dev/shm` matters. The
+   GHCR token file is yours to remove — the script never touches a path you chose.
 
 5. **Invoke it** (§3 below has the full flag set per path).
 
@@ -203,21 +227,23 @@ bash /opt/libli/restore.sh \
   --ssh-host <storage-box-host> \
   --ssh-user <storage-box-user> \
   [--image-tag sha-<full-sha>] \
+  [--ghcr-token-file <path>] \
   [--pre-cutover] \
   [--rotate-secrets]
 ```
 
-`--live` is the default and needs no flag. `--ghcr-token <pat>` joins the list only if
-step-2's login check failed (input 3 above).
+`--live` is the default and needs no flag. `--ghcr-token-file <path>` joins the list only
+after a run has already failed at `docker pull` (input 3 above) — the script tries the
+box's existing login first and exits 1 telling you to re-invoke, rather than prompting.
 
 ⚠️ **`--live` means DNS already points at this box.** It's the ordinary disaster-recovery
 case — restore onto the same hostname the site already answers on. It is **not** the second
 half of a two-phase cutover; see *Cutting over after `--pre-cutover`* below for why a resize
 or provider move does not finish with a second `restore.sh --live` run.
 
-The script runs fourteen named steps — LOCK, CREDENTIALS, CONFIRM, IDENTITY, VERSION, ENV,
-**WIPE**, MATERIALISE, DB UP, LOAD, FILES, APP UP, VERIFY, HANDOFF — all of them the
-script's own work, none a manual step. Two things about that sequence are worth knowing
+The script runs fifteen named steps — LOCK, CREDENTIALS, CONFIRM, IDENTITY, VERSION, ENV,
+DUMP, **WIPE**, MATERIALISE, DB UP, LOAD, FILES, APP UP, VERIFY, HANDOFF — all of them the
+script's own work, none a manual step. Three things about that sequence are worth knowing
 before you type the confirmation slug:
 
 - **CONFIRM proves the artifact exists before it asks you anything.** It hard-refuses if
@@ -228,6 +254,12 @@ before you type the confirmation slug:
   legitimately outliving some of its media is normal. Typing the school slug is what
   accepts that printed gap; anything beyond it that turns up missing later is a genuine
   fault and fails the run.
+- **DUMP happens before WIPE, and that is deliberate.** The dump is fetched from the
+  Storage Box and decrypted *before* anything is destroyed, so a network fault, a truncated
+  artifact or an `age` key that does not match this school's history all fail while the box
+  is still intact and still serving. (The `.env.production` artifact is handled before WIPE
+  for the same reason.) The decrypted dump lives in the script's temp directory, which the
+  traps remove on every exit path — it is plaintext pupil data and must not outlive the run.
 - **WIPE (`compose down --volumes`) is the point of no return**, and it takes all seven
   volumes, not just `pgdata` — that's what guarantees the restored `media/` contains
   *exactly* the referenced set rather than also resurrecting whatever the old box's tree
@@ -265,7 +297,7 @@ operator states it explicitly.
 ### Cutting over after `--pre-cutover`
 
 **Do not re-run `restore.sh` to cut over.** `restore.sh` is deliberately straight-line —
-there is no partial-run mode — so a second invocation repeats all fourteen steps, including
+there is no partial-run mode — so a second invocation repeats all fifteen steps, including
 WIPE and a full media re-fetch. That would destroy the restore you just verified and rebuild
 it from scratch, and if that second pass fails partway (a transient network fault, a Storage
 Box hiccup) you are left worse off than before you started. The ~9 GB re-transfer is the
