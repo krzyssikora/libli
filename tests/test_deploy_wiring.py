@@ -95,7 +95,7 @@ def test_deploy_yml_invokes_the_script_at_the_path_deploy_sh_assumes():
     without changing the other.
     """
     text = DEPLOY_YML.read_text(encoding="utf-8")
-    match = re.search(r"^\s*bash (\S+)$", text, re.MULTILINE)
+    match = re.search(r"^\s*(?:\S+=\S+ )?bash (\S+)$", text, re.MULTILINE)
     assert match, "deploy.yml no longer invokes a script over ssh"
     assert match.group(1) == f"{_app_dir()}/deploy.sh"
     # The `cd` in deploy.yml's own script block is a third copy of the path.
@@ -115,7 +115,7 @@ def test_deploy_yml_resets_before_invoking_the_script():
     """
     text = DEPLOY_YML.read_text(encoding="utf-8")
     reset = re.search(r"^\s*git reset --hard origin/master$", text, re.MULTILINE)
-    invoke = re.search(r"^\s*bash \S+/deploy\.sh$", text, re.MULTILINE)
+    invoke = re.search(r"^\s*(?:\S+=\S+ )?bash \S+/deploy\.sh$", text, re.MULTILINE)
     assert reset, "deploy.yml no longer resets the checkout before deploying"
     assert invoke, "deploy.yml no longer invokes deploy.sh"
     assert reset.start() < invoke.start(), "the reset must precede the invocation"
@@ -182,7 +182,7 @@ def test_deploy_script_resets_rather_than_pulls():
     Mutant: replace the fetch/reset pair with `git pull origin master`.
     """
     text = DEPLOY_SH.read_text(encoding="utf-8")
-    assert re.search(r"^git reset --hard origin/master$", text, re.MULTILINE), text
+    assert re.search(r"^\s*git reset --hard origin/master$", text, re.MULTILINE), text
     assert not re.search(r"^\s*git pull\b", text, re.MULTILINE), text
 
 
@@ -225,3 +225,242 @@ def test_deploy_script_parses():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+# ---- the fetch retry -------------------------------------------------------
+#
+# These EXECUTE the shipped shell rather than reading it. A regex can confirm the
+# word "retry" appears; only running it proves a second attempt is actually made,
+# that the loop terminates, and -- the one that matters -- that a fetch which
+# never succeeds stops the deploy instead of letting it run against stale code.
+#
+# `git` and `sleep` are replaced by shell FUNCTIONS in a prelude, not by files on
+# PATH: a function shadows a PATH lookup on every platform, while an executable
+# stub depends on an exec bit that Windows does not really set.
+
+
+def _harness(calls_path, fail_fetches):
+    """A bash prelude stubbing `git` and `sleep`.
+
+    Every git invocation is logged to `calls_path`; the first `fail_fetches`
+    fetches exit 128, which is what git returns for the credential prompt this
+    retry exists to survive. `sleep` becomes a no-op so the shipped delay costs
+    the suite nothing -- the real value is asserted separately, in
+    test_deploy_retry_delay_is_not_instant.
+    """
+    log = str(calls_path).replace("\\", "/")
+    return (
+        "git() {\n"
+        f'  echo "$@" >> "{log}"\n'
+        '  if [ "$1" = fetch ]; then\n'
+        f"    n=$(grep -c '^fetch' \"{log}\")\n"
+        f'    if [ "$n" -le {fail_fetches} ]; then return 128; fi\n'
+        "  fi\n"
+        "  return 0\n"
+        "}\n"
+        "sleep() { :; }\n"
+    )
+
+
+def _run_bash(script):
+    return subprocess.run(  # noqa: S603 -- fixed argv, generated script
+        [shutil.which("bash"), "-c", script],
+        capture_output=True,
+        text=True,
+    )
+
+
+def _sh_settings():
+    """deploy.sh's top-level GIT_FETCH_* assignments -- the retry budget the
+    extracted functions read. Sourced with them so `set -u` sees them defined,
+    and so the tests exercise the SHIPPED defaults rather than invented ones."""
+    text = DEPLOY_SH.read_text(encoding="utf-8")
+    found = re.findall(r"^GIT_FETCH_\w+=.*$", text, re.MULTILINE)
+    assert found, "deploy.sh no longer defines its retry budget at the top level"
+    return "\n".join(found)
+
+
+def _sh_function(name):
+    """One top-level `name() { ... }` block, verbatim, out of deploy.sh."""
+    text = DEPLOY_SH.read_text(encoding="utf-8")
+    match = re.search(rf"^{name}\(\) \{{$.*?^\}}$", text, re.MULTILINE | re.DOTALL)
+    assert match, f"deploy.sh no longer defines a top-level {name}()"
+    return match.group(0)
+
+
+def _deploy_yml_script():
+    """deploy.yml's `script:` block, dedented -- the shell that runs on the host."""
+    lines = DEPLOY_YML.read_text(encoding="utf-8").splitlines()
+    start = next(i for i, ln in enumerate(lines) if ln.strip() == "script: |")
+    indent = len(lines[start]) - len(lines[start].lstrip()) + 2
+    out = []
+    for ln in lines[start + 1 :]:
+        if ln.strip() and not ln.startswith(" " * indent):
+            break
+        out.append(ln[indent:])
+    return "\n".join(out)
+
+
+def _yml_script_for(tmp_path, stub):
+    """deploy.yml's script with the host paths pointed at tmp_path. The retry
+    loop itself runs exactly as shipped."""
+    app = _app_dir()
+    return (
+        _deploy_yml_script()
+        .replace(f"bash {app}/deploy.sh", f'bash "{str(stub).replace(chr(92), "/")}"')
+        .replace(f"cd {app}", f'cd "{str(tmp_path).replace(chr(92), "/")}"')
+    )
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_deploy_script_retries_a_fetch_that_fails(tmp_path):
+    """GitHub answers an ANONYMOUS fetch of this public repo with a 401 challenge
+    often enough to have failed three deploys in two days (#293, #295, #296); git
+    then dies on "could not read Username" because there is no tty. Nothing is
+    wrong with the checkout -- in #296 the fetch 440 ms earlier had SUCCEEDED.
+
+    Mutant: drop the loop and call `git fetch origin master` once. The stub fails
+    twice, so a single attempt returns 128 and the function reports failure.
+    """
+    calls = tmp_path / "calls"
+    calls.write_text("")
+    result = _run_bash(
+        f"set -euo pipefail\n{_harness(calls, 2)}\n{_sh_settings()}\n"
+        f"{_sh_function('fetch_master')}\nfetch_master"
+    )
+    assert result.returncode == 0, result.stderr
+    assert calls.read_text().count("fetch") == 3, calls.read_text()
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_deploy_script_gives_up_rather_than_retrying_forever(tmp_path):
+    """The converse. A retry that never surrenders turns a GitHub outage into a
+    deploy that hangs until command_timeout severs the session at 30m -- which
+    reports a timeout while the host carries on, the exact failure mode the
+    timeout comment warns about.
+
+    Mutant: `while true` with no attempt cap, or `return 0` on exhaustion.
+    """
+    calls = tmp_path / "calls"
+    calls.write_text("")
+    result = _run_bash(
+        f"set -uo pipefail\n{_harness(calls, 99)}\n{_sh_settings()}\n"
+        f"{_sh_function('fetch_master')}\nfetch_master"
+    )
+    assert result.returncode != 0, "an exhausted retry must fail the deploy"
+    attempts = calls.read_text().count("fetch")
+    assert 2 <= attempts <= 5, f"expected a small capped retry, got {attempts}"
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_deploy_script_skips_its_own_fetch_when_ci_already_fetched(tmp_path):
+    """deploy.yml fetches and resets before invoking deploy.sh, so deploy.sh's own
+    fetch is a SECOND request to github.com within a second. That pair is what
+    tripped #296: the first fetch succeeded, the second was refused 440 ms later.
+    Under CI the second one buys nothing -- the reset still runs, so the invariant
+    this function guarantees is unchanged.
+
+    Mutant: ignore LIBLI_DEPLOY_SKIP_FETCH and always fetch.
+    """
+    calls = tmp_path / "calls"
+    calls.write_text("")
+    result = _run_bash(
+        f"set -euo pipefail\n{_harness(calls, 0)}\n"
+        f"{_sh_settings()}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
+        "LIBLI_DEPLOY_SKIP_FETCH=1 sync_working_tree"
+    )
+    assert result.returncode == 0, result.stderr
+    logged = calls.read_text()
+    assert "fetch" not in logged, f"CI already fetched; deploy.sh refetched: {logged}"
+    # The reset is NOT skipped -- it is what guarantees the tree matches master.
+    assert "reset --hard origin/master" in logged, logged
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_deploy_script_still_fetches_when_run_by_hand(tmp_path):
+    """The rollback path in docs/deployment.md is `bash deploy.sh` on the box,
+    with no CI to have fetched first. Skipping the fetch there would silently
+    deploy whatever origin/master pointed at last time.
+
+    Mutant: skip the fetch unconditionally, or default the guard the other way.
+    """
+    calls = tmp_path / "calls"
+    calls.write_text("")
+    result = _run_bash(
+        f"set -euo pipefail\n{_harness(calls, 0)}\n"
+        f"{_sh_settings()}\n{_sh_function('fetch_master')}\n{_sh_function('sync_working_tree')}\n"
+        "sync_working_tree"
+    )
+    assert result.returncode == 0, result.stderr
+    assert "fetch origin master" in calls.read_text(), calls.read_text()
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_deploy_yml_retries_its_own_fetch_before_invoking_the_script(tmp_path):
+    """deploy.yml cannot borrow deploy.sh's retry: its fetch is what puts
+    deploy.sh on a host that may not have it yet (the bootstrap this file already
+    guards). So the loop is duplicated, and so is the test for it.
+
+    Mutant: drop the loop from deploy.yml's script block.
+    """
+    calls = tmp_path / "calls"
+    calls.write_text("")
+    marker = tmp_path / "deployed"
+    stub = tmp_path / "stub-deploy.sh"
+    stub.write_text(f'touch "{str(marker).replace(chr(92), "/")}"\n')
+    result = _run_bash(f"{_harness(calls, 2)}\n{_yml_script_for(tmp_path, stub)}")
+    assert result.returncode == 0, result.stderr
+    assert calls.read_text().count("fetch") == 3, calls.read_text()
+    assert marker.exists(), "the deploy never ran after the fetch recovered"
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_deploy_yml_does_not_deploy_when_every_fetch_fails(tmp_path):
+    """The load-bearing one. A retry loop that falls through on exhaustion would
+    reset to a stale origin/master and deploy it -- the "green deploy against old
+    code" this file exists to make impossible, now reachable through the very
+    change meant to make deploys more reliable.
+
+    Mutant: `break` instead of `exit 1` when the attempts run out.
+    """
+    calls = tmp_path / "calls"
+    calls.write_text("")
+    marker = tmp_path / "deployed"
+    stub = tmp_path / "stub-deploy.sh"
+    stub.write_text(f'touch "{str(marker).replace(chr(92), "/")}"\n')
+    result = _run_bash(f"{_harness(calls, 99)}\n{_yml_script_for(tmp_path, stub)}")
+    assert result.returncode != 0, "a fetch that never succeeds must fail the run"
+    assert not marker.exists(), "deployed against a stale checkout"
+
+
+def test_deploy_yml_tells_deploy_sh_that_it_already_fetched():
+    """The two files agree on the variable name through nothing but this test --
+    the same seam as the APP_DIR guard above. A typo on either side is invisible:
+    deploy.sh simply fetches again, restoring the request pair that failed #296,
+    and every deploy still goes green.
+
+    Mutant: rename the variable in one file only.
+    """
+    yml = DEPLOY_YML.read_text(encoding="utf-8")
+    invoke = re.search(r"^\s*(\S+)=1 bash \S+/deploy\.sh$", yml, re.MULTILINE)
+    assert invoke, "deploy.yml no longer marks the fetch as already done"
+    assert invoke.group(1) in DEPLOY_SH.read_text(encoding="utf-8")
+
+
+def test_deploy_retry_waits_between_attempts():
+    """Three attempts fired back to back inside a second would retry INSIDE the
+    window that refused the first one. The stubbed `sleep` cannot see this, so it
+    is asserted on the text.
+
+    Mutant: delete the sleep, or set the delay to 0.
+    """
+    for path in (DEPLOY_SH, DEPLOY_YML):
+        text = path.read_text(encoding="utf-8")
+        literal = [int(m) for m in re.findall(r"^\s*sleep (\d+)$", text, re.MULTILINE)]
+        named = [
+            int(m)
+            for m in re.findall(
+                r"^GIT_FETCH_DELAY=\$\{GIT_FETCH_DELAY:-(\d+)\}$", text, re.MULTILINE
+            )
+        ]
+        assert any(d >= 2 for d in literal + named), f"{path.name}: {literal}{named}"

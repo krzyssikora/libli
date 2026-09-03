@@ -493,9 +493,28 @@ Use this after editing `.env.production` on the host, which no commit can trigge
 
 ### When a deploy goes red
 
-`deploy.sh` fails loudly at four points, in order: the Caddyfile does not parse, the build
-fails, the app container never reports healthy (`--wait`), or the public URL does not
-answer `/healthz/`. The first leaves the running site untouched. The other three do not:
+**Before any of the below: check whether it even got past the fetch.**
+
+```
+fatal: could not read Username for 'https://github.com': No such device or address
+```
+
+That is GitHub answering an **anonymous** fetch of this (public) repo with a 401 challenge,
+which git cannot satisfy without a tty. It is not a credential problem — a public fetch
+needs none. It killed the #293, #295 and #296 deploys; in #296 the fetch 440 ms earlier had
+*succeeded*, so treat it as throttling of the host's IP rather than anything on the box.
+Both fetches now retry three times, five seconds apart, which absorbs it. If a red run
+still shows this after three attempts, **the site is untouched** — nothing had been rebuilt
+yet — so re-run the workflow rather than reaching for the recovery below.
+
+The durable fix, if it recurs often, is to stop fetching anonymously: add a read-only deploy
+key to the repo and switch the host's remote to `git@github.com:krzyssikora/libli.git`.
+Authenticated fetches are not subject to the anonymous per-IP limits.
+
+Past that point `deploy.sh` fails loudly at four places, in order: the Caddyfile does not
+parse, the build fails, the app container never reports healthy (`--wait`), or the public
+URL does not answer `/healthz/`. The first leaves the running site untouched. The other
+three do not:
 the old container is already gone, so a red run means the site is **down**, not merely
 un-updated.
 
@@ -513,11 +532,15 @@ the code you just reset to. Read `logs app | grep '==>'` before assuming a rebui
 
 ### Two things about `deploy.sh` worth knowing
 
-- **The reset happens twice, on purpose.** `deploy.yml` resets the checkout before it runs
-  `deploy.sh`, and `deploy.sh` resets again. The workflow copy bootstraps a host that has
-  no `deploy.sh` yet and guarantees bash parses the version this commit ships; the script
-  copy is what makes running `bash deploy.sh` by hand -- the rollback path below -- correct
-  on its own. Deleting either one breaks a case the other does not cover.
+- **The reset happens twice, on purpose — the fetch no longer does.** `deploy.yml` resets
+  the checkout before it runs `deploy.sh`, and `deploy.sh` resets again. The workflow copy
+  bootstraps a host that has no `deploy.sh` yet and guarantees bash parses the version this
+  commit ships; the script copy is what makes running `bash deploy.sh` by hand -- the
+  rollback path below -- correct on its own. Deleting either one breaks a case the other
+  does not cover. The **fetch** is a different matter: two requests to github.com inside a
+  second is what tripped #296, so `deploy.yml` sets `LIBLI_DEPLOY_SKIP_FETCH=1` and
+  `deploy.sh` resets to the ref CI just fetched. Run by hand the variable is unset, so the
+  fetch happens — which is exactly what the rollback path needs.
 - **It resets, it does not pull.** `.env.production` is untracked, so the reset cannot
   destroy the host's only copy of the secrets — but any *tracked* file edited on the box
   is discarded without warning. Edit files here, not there.
