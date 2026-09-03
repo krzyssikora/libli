@@ -378,10 +378,16 @@ def test_the_checkout_must_match_the_image():
     healthcheck, so a checkout newer than the image can disagree with it.
 
     Mutant: delete the `if [ "$checkout_tag" != "$target_tag" ]; then ... fi`
-    comparison block. `checkout_tag="sha-$(git rev-parse HEAD)"` is an
+    comparison block entirely (`checkout_tag="sha-$(git rev-parse HEAD)"` is an
     assignment that stays behind on its own, so a bare substring match on
-    "git rev-parse HEAD" cannot detect the mutant -- this anchors on the
-    comparison itself and an `exit` inside it.
+    "git rev-parse HEAD" cannot detect that). Or, keep the `if`/`fi` but gut
+    the body -- replace the two `echo`s and `exit 1` with a no-op `:` -- which
+    a window stretched all the way to the next step marker cannot catch,
+    because the migration-containment and postgres-major checks that follow
+    inside that wider window carry their own `exit 1`s. The window here is the
+    comparison's OWN block only: from the `if` line to ITS matching `fi` (the
+    next line that is exactly `fi`, since this script's blocks are flat and
+    unnested), not to a step marker.
     """
     lines = RESTORE_SH.read_text(encoding="utf-8").splitlines()
     cmp_idx = next(
@@ -389,9 +395,8 @@ def test_the_checkout_must_match_the_image():
         for i, ln in enumerate(lines)
         if re.search(r'\[ "\$checkout_tag" != "\$target_tag" \]', ln)
     )
-    env_idx = next(i for i, ln in enumerate(lines) if re.match(r"^# --- ENV\b", ln))
-    assert cmp_idx < env_idx
-    block = lines[cmp_idx:env_idx]
+    fi_idx = next(i for i, ln in enumerate(lines) if i > cmp_idx and ln == "fi")
+    block = lines[cmp_idx + 1 : fi_idx]
     assert any(re.search(r"\bexit\b", ln) for ln in block), block
 
 
