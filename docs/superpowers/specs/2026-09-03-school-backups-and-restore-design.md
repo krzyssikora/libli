@@ -466,8 +466,38 @@ mitigation that does not exist.
 
 ## `restore.sh`
 
-The same script serves all four paths. It runs on a box provisioned through sections 1-2 of
-the runbook (SSH hardened, Docker installed).
+The same script serves all four paths.
+
+### Step 0: getting `restore.sh` onto the box at all
+
+⚠️ **This is a bootstrap gap that has to be closed explicitly, because the runbook does not
+close it.** `restore.sh` runs on a box provisioned through runbook §1-2 — SSH hardened,
+Docker installed — and §1-2 deliberately install *no* configuration, which is the same fact
+that forces `--slug` to be a flag. But the `git clone <repo-url> /opt/libli` is in **§3**,
+and everything the restore needs from the repo is on the far side of it: `restore.sh`
+itself, `docker-compose.prod.yml` (which `vol_path()`'s `libli_` prefix, the `db` image's
+postgres major and the volume list all come from), and the `env_value()` helper. On the
+disaster-recovery-onto-new-hardware, resize and provider-move paths the box has only had
+§1-2, so the operator would be running a script that by this design's own reasoning is not
+there yet.
+
+So the pre-flight in `docs/backup-and-restore.md` is, in order:
+
+1. Runbook §1-2 (SSH, Docker, `age`, UTC clock, the Storage Box key file).
+2. Read `manifest/` **from your own machine** and choose `<ts>` and the target version.
+3. `git clone` the repo to `/opt/libli` and **`git checkout` the commit that corresponds to
+   the target image tag** — the manifest's `git_sha` by default, or the sha behind
+   `--image-tag` when overriding. Never floating `master`.
+4. Deliver the age identity and restore SSH key to tmpfs.
+5. `bash /opt/libli/restore.sh --slug … --ts … [--image-tag …] [--rotate-secrets]`.
+
+Step 3 pinning to a *commit* rather than a branch is not tidiness. The compose file governs
+the postgres major, the volume names and the healthcheck, so a checkout newer than the image
+being started can disagree with it — a `postgres:17` line in a compose file restoring a
+`postgres:16` dump, for instance. To keep that honest, **`restore.sh` compares its own
+checkout's sha against the target it resolves at VERSION and refuses when they differ**,
+naming both. That turns "the operator cloned the wrong thing" from a subtle mid-restore
+failure into a refusal before anything is touched.
 
 ```
  1. LOCK        flock the shared lock -- fail LOUDLY if held, never skip
@@ -476,7 +506,8 @@ the runbook (SSH hardened, Docker installed).
                 caddy/ for that <ts> all still exist; then TYPE the slug
  4. IDENTITY    refuse an unknown `schema`; refuse manifest.school != --slug
  5. VERSION     resolve the TARGET image; refuse unless its migration set
-                contains the manifest's; refuse a lower postgres major
+                contains the manifest's; refuse a lower postgres major;
+                refuse if this checkout's sha != the target's (see step 0)
  6. ENV         decrypt env/<ts>.env.age -> .env.production, chmod 600, strip
                 INIT_ADMIN_*, write the VERSION target into LIBLI_IMAGE_TAG;
                 with --rotate-secrets, mint the two generatable secrets HERE
@@ -619,11 +650,18 @@ involve `restore.sh` at all.
 
 ### Verification, and the skew that is honestly stated
 
-`row_counts` and the migration set are captured at step 3, *before* the dump at step 4, so
-they describe the database a moment earlier. On a live site rows arrive in between. They
-are therefore **informational**, printed for the operator to eyeball, and never a pass/fail
-gate — a gate would go red on healthy backups and could still pass on a bad one if drift
-happened to compensate.
+**`row_counts` is informational — the migration set is not.** Both are captured before the
+dump, but only one of them drifts in that window, and conflating them would misrepresent
+the version check the whole restore depends on.
+
+- **`row_counts`** describes the database a moment before the dump, and on a live site rows
+  arrive in between. So it is printed for the operator to eyeball and is **never a
+  pass/fail gate** — a gate would go red on healthy backups and could still pass on a bad
+  one if drift happened to compensate.
+- **The migration set does not drift in seconds.** Migrations are applied by a deploy or by
+  the entrypoint on boot, and the lock means neither can be running concurrently with a
+  backup. So the set captured before the dump is the set the dump contains, and the
+  containment check at VERSION is an **exact, restore-blocking gate**.
 
 The gates are the ones that can actually be exact:
 
@@ -894,7 +932,11 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
     existence check for `db/`/`env/`/`caddy/` appears before the confirmation read.
     *Mutant:* move the check after the prompt, or delete it → RED. Guards the one
     failure a never-pruned `manifest/` makes reachable.
-13. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
+13. **The checkout matches the image.** `restore.sh` compares its own `git rev-parse`
+    against the resolved target tag and refuses on a mismatch. *Mutant:* delete the
+    comparison → RED. Without it a stale checkout's compose file can contradict the
+    image it starts, and the runbook's §3 clone is the step that makes that reachable.
+14. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
     the `up` blocks of `docs/deployment.md` §3 and §8. *Mutant:* leave one behind → RED.
     This is the guard that catches the half-finished image switch, which would otherwise
     present as a box quietly building from source while everything else assumed it pulled.
@@ -930,10 +972,11 @@ becomes a one-off.
 
 ## Documentation
 
-- **New `docs/backup-and-restore.md`** — the artifact, both scripts, key custody, the
-  three out-of-band restore inputs, the four paths, the handover rotation, the single-file
-  recovery procedure, and the rehearsal log. Separate from `docs/deployment.md`, which is
-  already long; cross-linked from its §8.
+- **New `docs/backup-and-restore.md`** — the artifact, all three scripts, key custody, the
+  **step-0 pre-flight** (§1-2, choose `<ts>`, pinned clone, credentials to tmpfs, invoke),
+  the out-of-band input set, the four paths, both rotation checklists (compromise and
+  handover), the single-file recovery procedure, and the rehearsal log. Separate from
+  `docs/deployment.md`, which is already long; cross-linked from its §8.
 - **`docs/deployment.md`** —
   - §1: install `age`; set the host clock to UTC; place the Storage Box key file at
     `/root/.ssh/libli_backup` mode 0600; `docker login ghcr.io` with `LIBLI_GHCR_TOKEN`.
