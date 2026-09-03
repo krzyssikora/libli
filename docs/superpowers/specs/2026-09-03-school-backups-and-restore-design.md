@@ -436,9 +436,16 @@ agree without conversion.
 **Failure must be loud, and cron cannot be the channel.** There is no MTA on the box and
 Hetzner blocks outbound 25 by default, so `MAILTO` is unavailable. The final step is an outbound
 HTTPS ping to a dead-man's-switch (healthchecks.io free tier or equivalent), which alerts
-on *absence* — the only thing that detects a backup that stopped running. **Period 24 h,
-grace 6 h**: the grace must exceed one nightly interval plus the run's own duration, and a
-first media sync on a 9 GB tree can take hours. Alerts go to Krzysztof by email and push.
+on *absence* — the only thing that detects a backup that stopped running.
+
+**Period 24 h, grace 6 h.** The switch alerts once `period + grace` has elapsed since the
+last ping, and the ping happens at the *end* of a successful run — so the gap between
+consecutive pings is one interval plus however much the run's duration **changed**. The
+rule is therefore **grace > how much a run can lengthen between nights**. Not grace > a
+run's duration, and definitely not grace > interval + duration, which 6 h could never
+satisfy and which an earlier draft of this line wrongly asserted. Six hours covers a media
+tree that grew by a course import overnight; the first run is long in absolute terms but
+has no prior ping to be late against. Alerts go to Krzysztof by email and push.
 
 ### Overlap with a deploy
 
@@ -538,6 +545,14 @@ an explicit input:
 - **Default: `manifest.image`.** The disaster-recovery case — bring the site back exactly
   as it was. The check is a tautology here and is skipped with a printed note, which is
   honest about what it did and did not verify.
+- **`--image-tag <tag>` must match `^sha-[0-9a-f]{7,40}$`, and `restore.sh` enforces it**
+  before VERSION does anything else. "Never floating `master`" in the pre-flight is an
+  instruction to a human, and the checkout-sha comparison needs a sha to compare: given
+  `--image-tag master` there is nothing to extract, so the guard would either die on a
+  failed match or pass vacuously — an undefined boundary of exactly the kind IDENTITY,
+  CONFIRM and the postgres-major check all refuse to leave open. A floating tag is also
+  wrong on its own terms: it names different code on different days, so it cannot pin a
+  restore to a version. The refusal says so rather than just rejecting the pattern.
 - **`--image-tag <tag>`: the override, and the only case worth guarding.** Restoring a
   three-week-old dump onto today's image is a normal and often *desirable* thing to do, and
   it is the case that can go wrong: forward is fine, backward is broken. This is where
@@ -936,7 +951,10 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
     against the resolved target tag and refuses on a mismatch. *Mutant:* delete the
     comparison → RED. Without it a stale checkout's compose file can contradict the
     image it starts, and the runbook's §3 clone is the step that makes that reachable.
-14. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
+14. **`--image-tag` is format-checked.** `restore.sh` refuses a tag not matching
+    `^sha-[0-9a-f]{7,40}$` before VERSION runs. *Mutant:* accept any string → RED,
+    because the checkout-sha comparison then has nothing well-formed to parse.
+15. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
     the `up` blocks of `docs/deployment.md` §3 and §8. *Mutant:* leave one behind → RED.
     This is the guard that catches the half-finished image switch, which would otherwise
     present as a box quietly building from source while everything else assumed it pulled.
