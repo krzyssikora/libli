@@ -18,7 +18,47 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Builds on the runner, not on the school box. That is the point: it removes
+  # the image build -- the RAM spike that makes 4 GB a real floor -- from every
+  # box at once, and it is what lets a restore start the exact version a dump
+  # came from rather than rebuilding it.
+  #
+  # In this workflow rather than a separate one: two workflows on the same
+  # trigger would race, and the deploy must be strictly downstream of the push.
+  publish:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Two tags, both pushed every time. :master is the floating canary tag
+      # libli.pl follows; :sha-<short> is immutable and is what a manifest
+      # records -- a floating tag cannot pin a restore to a version.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/krzyssikora/libli:master
+            ghcr.io/krzyssikora/libli:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
+    needs: publish
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
     # Job-level rather than workflow-level, and cancel-in-progress: false. A

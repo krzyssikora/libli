@@ -26,7 +26,14 @@ services:
       retries: 20
 
   app:
-    build: .
+    # Pulled, never built here. A build on a school box is the RAM spike that
+    # makes 4 GB a real floor, and a restore must be able to start the exact
+    # version a dump came from -- which needs a pullable immutable tag, not a
+    # source tree. deploy.sh writes LIBLI_IMAGE_TAG from the checkout it just
+    # reset, so the running image always matches the checked-out commit and
+    # docs/deployment.md §8's `git reset --hard` rollback keeps its meaning.
+    # Bare `:?` for the same reason as POSTGRES_PASSWORD below.
+    image: ghcr.io/krzyssikora/libli:${LIBLI_IMAGE_TAG:?}
     restart: unless-stopped
     depends_on:
       db:

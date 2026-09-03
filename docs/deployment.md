@@ -71,6 +71,10 @@ apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 ```
 
+```bash
+docker login ghcr.io -u krzyssikora    # paste a read:packages PAT
+```
+
 Stay on an Ubuntu LTS the Docker repo actually publishes for. A release newer than the
 repo's coverage fails at `apt-get install docker-ce` with no obvious cause.
 
@@ -154,10 +158,13 @@ docker run --rm -v "$(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro" \
 # expect: Valid configuration, and no warnings
 ```
 
+Set `LIBLI_IMAGE_TAG` to the `sha-<full-sha>` tag you intend to run before this; every later
+deploy writes it for you.
+
 Then — this is the **only** time you run this by hand; every later deploy is §8:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 docker compose -f docker-compose.prod.yml --env-file .env.production logs -f app
 ```
 
@@ -493,20 +500,23 @@ Use this after editing `.env.production` on the host, which no commit can trigge
 
 ### When a deploy goes red
 
-`deploy.sh` fails loudly at four points, in order: the Caddyfile does not parse, the build
-fails, the app container never reports healthy (`--wait`), or the public URL does not
-answer `/healthz/`. The first leaves the running site untouched. The other three do not:
-the old container is already gone, so a red run means the site is **down**, not merely
-un-updated.
+`deploy.sh` fails loudly at four points, in order: the Caddyfile does not parse, the GHCR
+login or the pull fails, the app container never reports healthy (`--wait`), or the public
+URL does not answer `/healthz/`. The first leaves the running site untouched. The other
+three do not: the old container is already gone, so a red run means the site is **down**,
+not merely un-updated.
 
-There is no automatic rollback. Recovery is manual and takes one rebuild:
+There is no automatic rollback. Recovery is manual and takes one pull:
 
 ```bash
 ssh root@<ip>
 cd /opt/libli
 git reset --hard <last-good-sha>
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --wait
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --wait
 ```
+
+`git reset --hard <sha>` still does what it always did — `deploy.sh` derives
+`LIBLI_IMAGE_TAG` from the checkout, so moving the checkout moves the image.
 
 A migration that fails part-way is the case that needs care — the schema may be ahead of
 the code you just reset to. Read `logs app | grep '==>'` before assuming a rebuild fixes it.
@@ -533,12 +543,14 @@ passed; `ci.yml` not regrowing a `master` trigger.
 - **One `app` container.** `migrate` runs in the entrypoint; the staging dir is a local
   volume.
 - **No backups.** No `pg_dump` cron, no snapshot policy.
-- **Every deploy is ~1-2 minutes of 502s.** `up -d --build` rebuilds the image on the
-  serving box and recreates the app container; Caddy stays up and answers 502 until the
-  new container passes its healthcheck. Accepted for a demo.
-- **No rollback.** A build or migration that fails leaves the site down, not merely
-  un-updated -- the previous container is already gone. Recovery is a manual reset and
-  rebuild on the host; see §8.
+- **Every deploy is a short window of 502s.** `up -d` pulls the new image and recreates the
+  app container; Caddy stays up and answers 502 until the new container passes its
+  healthcheck. Shorter than it was when the box built its own image, because the pull is
+  the only work done here and the build already happened on the runner.
+- **Rollback is one pull.** `git reset --hard <last-good-sha>` then `bash deploy.sh`: the
+  tag follows the checkout, so the previous image is pulled rather than rebuilt. What this
+  cannot undo is an **already-applied migration** — the schema stays ahead of the code, and
+  that case needs a restore from `docs/backup-and-restore.md`, not a rollback.
 - **The container runs as root.** Accepted for now: the four named volumes are created
   root-owned on first `up`, so adding a non-root `USER` without also fixing volume
   ownership produces a container that cannot write `media/`. Revisit before this carries

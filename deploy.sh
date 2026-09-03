@@ -21,6 +21,13 @@ set -euo pipefail
 APP_DIR=/opt/libli
 cd "$APP_DIR"
 
+# Shared with backup.sh and restore.sh. A merge landing mid-dump would recreate
+# the app container, restart postgres' dependents and prune images underneath it.
+# deploy.sh WAITS rather than skipping: a silently dropped deploy would report
+# green in Actions having done nothing.
+exec 9>/var/lock/libli-deploy.lock
+flock 9
+
 compose() {
   docker compose -f docker-compose.prod.yml --env-file .env.production "$@"
 }
@@ -55,13 +62,37 @@ docker run --rm -v "$APP_DIR/Caddyfile:/etc/caddy/Caddyfile:ro" \
   -e SITE_ADDRESS="$(env_value SITE_ADDRESS)" \
   caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
 
-echo "==> rebuilding and recreating the stack"
-# --wait is the failure handling. It blocks on the app healthcheck -- which
-# asserts the /healthz/ BODY, not merely that gunicorn accepted a socket -- and
-# exits non-zero if the container never goes healthy. A failed migration or a
-# broken build therefore turns the Actions run red rather than silently leaving
-# a dead site behind a green checkmark.
-compose up -d --build --wait
+echo "==> pinning the image tag to this checkout"
+# Written INTO .env.production, not exported: backup.sh reads it hours later
+# under cron with env_value, the encrypted env in each artifact must carry the
+# tag matching its manifest, and compose guards the key with `:?` so any `up`
+# outside this script -- the runbook's §3 first boot, restore.sh, a manual
+# `up -d` -- would abort without a persisted value.
+image_tag="sha-$(git rev-parse HEAD)"
+if grep -q '^LIBLI_IMAGE_TAG=' .env.production; then
+  sed -i "s|^LIBLI_IMAGE_TAG=.*|LIBLI_IMAGE_TAG=${image_tag}|" .env.production
+else
+  printf 'LIBLI_IMAGE_TAG=%s\n' "$image_tag" >> .env.production
+fi
+
+echo "==> logging in to ghcr.io"
+# The package is private: it contains the application source of a private repo.
+# An unauthenticated pull fails with an opaque `denied`.
+#
+# Checked explicitly rather than letting an empty value reach docker login: a
+# blank password produces "unauthorized" and, under pipefail, aborts the deploy
+# with an error that reads like a registry outage rather than a missing key.
+ghcr_token="$(env_value LIBLI_GHCR_TOKEN)"
+if [ -z "$ghcr_token" ]; then
+  echo "!! LIBLI_GHCR_TOKEN is unset in .env.production." >&2
+  echo "   Add a read:packages PAT to it; see docs/deployment.md section 1." >&2
+  exit 1
+fi
+printf '%s' "$ghcr_token" | docker login ghcr.io -u krzyssikora --password-stdin
+
+echo "==> pulling and recreating the stack"
+compose pull
+compose up -d --wait
 
 echo "==> verifying the site through caddy"
 # Through the public name, not 127.0.0.1: this is the only step that exercises
@@ -73,9 +104,9 @@ curl -fsS --retry 5 --retry-delay 3 --retry-connrefused \
   "https://${site_domain}/healthz/" | grep -q '"status": *"ok"'
 
 echo "==> pruning dangling images"
-# Every --build leaves the previous image's layers dangling, and nothing else on
+# Every pull leaves the previous image's layers dangling, and nothing else on
 # this host reclaims them. The runbook's 50 GB floor is sized for a ~17 GB
-# import peak, so unbounded build garbage eventually breaks an import rather
+# import peak, so unbounded image garbage eventually breaks an import rather
 # than the deploy that caused it. Dangling only -- never `-a`, which would also
 # delete the pulled postgres and caddy images while their containers are down.
 docker image prune -f
