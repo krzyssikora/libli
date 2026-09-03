@@ -60,7 +60,7 @@ bypasses it, so a green `ufw status` proves nothing about a published port.
 ### Install Docker
 
 ```bash
-apt-get update && apt-get install -y ca-certificates curl git
+apt-get update && apt-get install -y ca-certificates curl git age
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
@@ -77,6 +77,31 @@ docker login ghcr.io -u krzyssikora    # paste a read:packages PAT
 
 Stay on an Ubuntu LTS the Docker repo actually publishes for. A release newer than the
 repo's coverage fails at `apt-get install docker-ce` with no obvious cause.
+
+Set the host clock to UTC:
+
+```bash
+timedatectl set-timezone UTC
+```
+
+Cron's `15 2 * * *` slot for `backup.sh` (§7), the `<ts>` it stamps on every artifact, and
+the `taken_at` field in each night's manifest must all be readings of the **same** clock —
+otherwise "restore to last Tuesday's 02:15 run" requires converting between the box's local
+time and the UTC the artifact is actually named in.
+
+Place the Storage Box restore key this box will use for its own nightly uploads (this is
+the box's **write** credential, `LIBLI_BACKUP_SSH_KEY_PATH` — not the separate restore-only
+credential a *recovery* uses, which never lives on a server; see
+[docs/backup-and-restore.md](backup-and-restore.md)):
+
+```bash
+install -m 600 /dev/null /root/.ssh/libli_backup
+nano /root/.ssh/libli_backup      # paste the private key, save
+```
+
+`.env.production` (§3) then points `LIBLI_BACKUP_SSH_KEY_PATH` at this path — a path, not
+the key material inline: `env_value()` reads one line, and a multi-line PEM would be
+silently truncated to its `-----BEGIN…` header.
 
 ---
 
@@ -443,6 +468,8 @@ The container entrypoint is what makes that safe: `migrate`, `setup_roles` and
 re-seeds role permissions by itself. A deploy job that only moved code would still be
 correct.
 
+Backups and restores are in [docs/backup-and-restore.md](backup-and-restore.md).
+
 ### There is no test job — that is deliberate
 
 `ci.yml` runs on the pull request, and branch protection requires its three jobs before
@@ -552,7 +579,6 @@ passed; `ci.yml` not regrowing a `master` trigger.
 
 - **One `app` container.** `migrate` runs in the entrypoint; the staging dir is a local
   volume.
-- **No backups.** No `pg_dump` cron, no snapshot policy.
 - **Every deploy is a short window of 502s.** `up -d` pulls the new image and recreates the
   app container; Caddy stays up and answers 502 until the new container passes its
   healthcheck. Shorter than it was when the box built its own image, because the pull is
