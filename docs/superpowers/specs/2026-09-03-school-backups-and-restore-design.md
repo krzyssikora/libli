@@ -401,6 +401,29 @@ in `backup.sh` is the bug this section exists to prevent. *Mutant:* reintroduce
 
 ### Retention algorithm
 
+**30 daily + 12 monthly is confirmed** (Krzysztof, 2026-09-03), and the reasoning matters
+more than the numbers because it is what a school's data-protection officer will be told:
+
+- **30 days of nightlies is a *detection* window, not a storage decision.** It is sized for
+  how long a problem can go unnoticed in a school — a two-week holiday when nobody logs in,
+  plus margin for a bad import or a mis-run migration noticed "some time last month". Seven
+  days, the common default and what Hetzner's own add-on offers, does not span one school
+  holiday.
+- **12 monthly points cover the academic year**, answering "what did this course look like
+  in September?" asked in June.
+- **13 months total is where RODO sets the ceiling.** Backups hold pupil records, grades and
+  submissions, so retention must be stated and bounded — it is published in both privacy
+  notices. "One academic year plus a margin" is defensible; three years is not. It also
+  bounds erasure: a pupil's data persists in backups for at most 13 months.
+
+Storage cost plays **no part** in this. The dump is small — media is not in Postgres — so
+~42 sets is single-digit GB against a shared 1 TB. The numbers are bought with the published
+retention promise, not with money, which is also why they are cheap to revise later.
+
+Two things the rule deliberately does not do: it does **not** version `media/` (a single
+mirror with the 90-day rule, which is the gap CONFIRM prints), and it is **not** the
+ransomware horizon (that is 10 days, from the snapshots).
+
 Precise enough to implement, including the awkward cases:
 
 - Keep **every** `db/`, `env/` and `caddy/` artifact whose `<ts>` is within
@@ -446,7 +469,8 @@ agree without conversion.
 
 **Failure must be loud, and cron cannot be the channel.** There is no MTA on the box and
 Hetzner blocks outbound 25 by default, so `MAILTO` is unavailable. The final step is an outbound
-HTTPS ping to a dead-man's-switch (healthchecks.io free tier or equivalent), which alerts
+HTTPS ping to a dead-man's-switch — **healthchecks.io, free tier** (decided; one check per
+school, well inside the free tier's 20) — which alerts
 on *absence* — the only thing that detects a backup that stopped running.
 
 **Period 24 h, grace 6 h.** The switch alerts once `period + grace` has elapsed since the
