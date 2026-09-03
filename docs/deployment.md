@@ -416,6 +416,16 @@ trailing backslash is not a continuation:
 
 `exec -T` is required: cron has no TTY. Test once by hand with `--dry-run` first.
 
+And the nightly backup — **one physical line**, same as above:
+
+```cron
+15 2 * * * bash /opt/libli/backup.sh >> /var/log/libli-backup.log 2>&1
+```
+
+`15 2`, deliberately not `30 3`: a dump competing with the retention purge for the
+same container and disk is avoidable. The host clock is UTC, so this, the artifact
+timestamps and `taken_at` are all the same clock.
+
 If you use `/etc/crontab` instead, that file takes an extra **user** field between the
 schedule and the command.
 
