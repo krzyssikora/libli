@@ -520,9 +520,10 @@ failure into a refusal before anything is touched.
 ```
  1. LOCK        flock the shared lock -- fail LOUDLY if held, never skip
  2. CREDENTIALS require the age identity + restore SSH key on tmpfs; EXIT trap
- 3. CONFIRM     fetch + print manifest/<ts>.json; REFUSE unless db/, env/ and
-                caddy/ exist AND refs/<ts>.txt is satisfied by the mirror;
-                then TYPE the slug
+ 3. CONFIRM     fetch + print manifest/<ts>.json; HARD REFUSE unless db/, env/
+                and caddy/ exist. Diff refs/<ts>.txt against the mirror and
+                PRINT any gap (it may be legitimate) -- then TYPE the slug,
+                which accepts that gap and records it for FILES
  4. IDENTITY    refuse an unknown `schema`; refuse manifest.school != --slug
  5. VERSION     resolve the TARGET image; refuse unless its migration set
                 contains the manifest's; refuse a lower postgres major;
@@ -609,8 +610,8 @@ legitimately no longer holding.
 while the app container is up and the database is live, so it can produce the referenced-file
 list at backup time — `compose exec -T app` rather than the `run --rm` the restore needs —
 and store it as `refs/<ts>.txt`. CONFIRM then diffs that list against a remote listing of
-`media/` and `screenshots/`, needing **no database at all**, and refuses before WIPE naming
-the missing paths.
+`media/` and `screenshots/`, needing **no database at all**, and shows the gap before WIPE
+naming the missing paths.
 
 `refs/` is pruned on the same clock as `db/`, `env/` and `caddy/`, since it is meaningless
 without them.
@@ -625,9 +626,34 @@ removed. The erasure's keep-set unions in tonight's `refs` for the same reason; 
 **An older dump referencing an erased screenshot is genuinely not fully restorable, and
 that is the design.** RODO erasure was chosen over recoverability for `screenshots/`
 deliberately, so a twelve-month-old dump can legitimately reference files that no longer
-exist anywhere. CONFIRM's job is not to prevent that — it is to say so *before* WIPE, so the
-operator chooses a different `<ts>` or accepts the gap knowingly. Only the intra-run race
-above is a bug; the long-horizon gap is a stated consequence.
+exist anywhere. Only the intra-run race above is a bug; the long-horizon gap is a stated
+consequence.
+
+### CONFIRM's two checks are not the same kind of check
+
+Which means CONFIRM cannot treat both of its inputs the same way, and saying it "refuses"
+on either would make every sufficiently old `<ts>` permanently unrestorable — contradicting
+the paragraph above.
+
+| Check | Behaviour | Why |
+|---|---|---|
+| `db/`, `env/`, `caddy/` exist | **Hard refuse, no override** | Without the dump or the env there is nothing to restore. There is no degraded mode. |
+| `refs/<ts>.txt` vs the mirror | **Print the gap, then proceed to the prompt** | A gap here is often correct, and a restore missing some media is still worth doing — the database, the users, the grades and the marking are all intact. |
+
+So **the typed slug is what constitutes knowing acceptance of the gap.** The summary is
+printed immediately above the prompt, grouped by consequence, because the three kinds are
+not equally serious:
+
+- **missing derivatives** — harmless; `backfill_media_derivatives` regenerates them.
+- **missing screenshots** — expected on an old `<ts>`; erased by design.
+- **missing originals** (`MediaAsset.file`, `Institution.logo`/`favicon`) — real content
+  loss, unrepairable, and the only group worth hesitating over.
+
+**FILES then honours that acceptance.** CONFIRM records the accepted set, and FILES fails
+loudly only on files missing that CONFIRM did *not* already declare — an unexpected gap
+means the mirror lost something between the check and the fetch, which is a genuine fault.
+Without this the split would be pointless: the operator would accept a gap at CONFIRM and
+the restore would die at FILES over the same files anyway, post-WIPE.
 
 FILES still recomputes the list from the restored database and stays the authoritative
 check. The two can differ by files created in the seconds between the list and the dump —
@@ -719,9 +745,12 @@ covering `MediaAsset.file`/`thumb`/`web`, `Institution.logo`/`favicon` and
 is small, and unlike a shell script it is directly testable in pytest.
 
 It also makes the media check *exact* rather than a tolerance: files fetched must equal
-files referenced. Any that are missing from the mirror are listed by name and the restore
-fails loudly — a missing derivative is repaired with `backfill_media_derivatives`, a
-missing original is not repairable and the operator needs to know which.
+files referenced, **minus the gap CONFIRM already declared and the operator already
+accepted** by typing the slug. Anything missing beyond that accepted set is listed by name
+and the restore fails loudly, because it means the mirror lost a file between the check and
+the fetch — a genuine fault rather than a known consequence. A missing derivative is
+repaired with `backfill_media_derivatives`; a missing original is not repairable and the
+operator needs to know which. See *CONFIRM's two checks are not the same kind of check*.
 
 **Single-file recovery** — the everyday use of the append-only mirror, and what justifies
 it — is a documented `rsync` of one path out of `media/` into the volume. It does not
@@ -1018,10 +1047,13 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
 14. **`--image-tag` is format-checked.** `restore.sh` refuses a tag not matching
     `^sha-[0-9a-f]{7,40}$` before VERSION runs. *Mutant:* accept any string → RED,
     because the checkout-sha comparison then has nothing well-formed to parse.
-15. **Completeness is checked before the wipe.** In `restore.sh`, the `refs/` diff
-    appears before the `compose down` line. *Mutant:* delete the diff, or move it
-    after `down` → RED. This is the guard that keeps a doomed restore from destroying
-    live data first, and the 12-month retention makes it reachable.
+15. **Completeness is checked before the wipe, and the two checks differ.** In
+    `restore.sh` the `refs/` diff appears before the `compose down` line.
+    *Mutant:* delete the diff, or move it after `down` → RED. Also assert the
+    asymmetry: a missing `db/`/`env/`/`caddy/` object exits non-zero, while a `refs/`
+    gap alone reaches the confirmation prompt. *Mutant:* make a refs gap exit → RED,
+    because that would make every dump old enough to have a legitimate gap
+    unrestorable.
 16. **`refs/` is written before either mirror step.** In `backup.sh`, the
     `list_referenced_files` line appears after the `pg_dump` line and before both the
     media rsync and the screenshot `rm`. *Mutant:* move it to the end of the script →
