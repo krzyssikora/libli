@@ -108,7 +108,9 @@ password manager rather than from any server:
    from `.env.production` — which is itself one of the things being fetched. Provisioning
    sections 1-2 install SSH and Docker and no configuration at all, so there is no earlier
    source for it either.
-5. The **target `<ts>`**, chosen by reading `manifest/`.
+5. The **target `<ts>`**, chosen by reading `manifest/` — which outlives the artifacts it
+   describes, so not every entry is restorable. CONFIRM refuses a pruned one before
+   asking anything of the operator; see *Retention algorithm*.
 
 Optionally `--image-tag`; see *Which image the checks compare against* below.
 
@@ -124,7 +126,8 @@ schools/<slug>/
   media/**                     per-file mirror, plain, pruned at 90 days
   media-missing.tsv            path -> first-missing date; drives the media prune
   caddy/<ts>.tar.age           caddy_data, encrypted
-  manifest/<ts>.json           what this backup is
+  manifest/<ts>.json           what this backup is. NEVER pruned -- so it
+                               outlives the artifacts it describes
   wal/                         naming reservation only; no code touches it
 ```
 
@@ -402,6 +405,23 @@ Precise enough to implement, including the awkward cases:
   under *Mirror retention* above.
 - `screenshots/`: no age-based rule at all. A screenshot leaves the mirror when it leaves
   the live tree, on the same run.
+- **`manifest/` is never pruned.** Each file is a few hundred bytes, and the deferred annual
+  school statement wants the `media.bytes` series over years — far longer than any artifact
+  is kept. Keeping them is nearly free and deliberately outlives the thing they describe.
+
+⚠️ **Which means `manifest/` lists more timestamps than are restorable, and that is a trap
+with teeth.** The operator chooses a restore point *by reading* `manifest/` (out-of-band
+input 5), so once the 30-day window has passed there are entries whose `db/`, `env/` and
+`caddy/` artifacts have been pruned. Every early check — CONFIRM printing the manifest,
+IDENTITY comparing `school`, VERSION comparing migration sets — reads only the manifest and
+would pass happily for one of those ghosts. The failure would land at ENV, five steps in,
+after the operator has already typed the confirmation slug: the fail-halfway behaviour this
+design rejects for the age identity.
+
+So **CONFIRM checks that the target's `db/`, `env/` and `caddy/` objects all exist before it
+asks for the confirmation**, and refuses up front naming which are missing. The same listing
+marks each manifest entry restorable or metadata-only, so the choice is informed rather than
+corrected afterwards.
 
 `RETAIN_DAILY_DAYS`, `RETAIN_MONTHLY_MONTHS` and `MIRROR_PRUNE_DAYS` are shell constants at
 the top of `backup.sh` so the privacy-notice guard can read them (test 8).
@@ -452,7 +472,8 @@ the runbook (SSH hardened, Docker installed).
 ```
  1. LOCK        flock the shared lock -- fail LOUDLY if held, never skip
  2. CREDENTIALS require the age identity + restore SSH key on tmpfs; EXIT trap
- 3. CONFIRM     fetch + print manifest/<ts>.json; operator must TYPE the slug
+ 3. CONFIRM     fetch + print manifest/<ts>.json; REFUSE unless db/, env/ and
+                caddy/ for that <ts> all still exist; then TYPE the slug
  4. IDENTITY    refuse an unknown `schema`; refuse manifest.school != --slug
  5. VERSION     resolve the TARGET image; refuse unless its migration set
                 contains the manifest's; refuse a lower postgres major
@@ -510,7 +531,12 @@ because the encrypted-per-file loop is easy to under-build:
 All three write to host paths resolved by `vol_path()`, and all three run *after* the
 database is loaded, because the referenced-file list comes from it.
 
-**CONFIRM requires the operator to type the school slug**, not `y` or Enter. WIPE is
+**CONFIRM does two things, in this order: it proves the artifacts exist, then it asks.**
+Checking existence *after* the confirmation would be the same fail-halfway shape, just
+one step later. Only once the target is known to be restorable does it require the
+operator to type the school slug — not `y` or Enter.
+
+ WIPE is
 irreversible and the two ways to get a restore wrong are the wrong `<ts>` and the wrong
 box; a keystroke confirms neither. Typing the slug forces the operator to read what is on
 screen, and it is the value that distinguishes one school's box from another's.
@@ -864,7 +890,11 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
 11. **`--rotate-secrets` writes before it wipes.** In `restore.sh`, the secret-generation
     lines appear before the `compose down` line. *Mutant:* move them after → RED. This is
     the one ordering error that produces a database whose password nothing knows.
-12. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
+12. **CONFIRM proves the artifacts exist before it prompts.** In `restore.sh`, the
+    existence check for `db/`/`env/`/`caddy/` appears before the confirmation read.
+    *Mutant:* move the check after the prompt, or delete it → RED. Guards the one
+    failure a never-pruned `manifest/` makes reachable.
+13. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
     the `up` blocks of `docs/deployment.md` §3 and §8. *Mutant:* leave one behind → RED.
     This is the guard that catches the half-finished image switch, which would otherwise
     present as a box quietly building from source while everything else assumed it pulled.
