@@ -82,8 +82,8 @@ compromised laptop loses all of them anyway. **Handover is the exception; see be
 
 Goal 1 says "nothing pulled from the original machine", and there is a bootstrap trap
 hiding in it: the Storage Box credential lives *inside* the encrypted `.env.production`,
-so it cannot be used to fetch that file. A restore therefore needs three things that come
-from the password manager, not from any server:
+so it cannot be used to fetch that file. A restore therefore needs these, from the
+password manager rather than from any server:
 
 1. The **`age` identity** (above).
 2. A **Storage Box credential for restores** — the main account, or a per-school
@@ -94,9 +94,15 @@ from the password manager, not from any server:
    `/dev/shm/libli-restore-ssh.key` by the same `ssh <box> 'cat > ...'` route, removed by
    the same `EXIT` trap. `restore.sh` refuses to start if either the age identity or this
    key is absent.
-3. A **GHCR read credential** (`--ghcr-token`, or the same tmpfs route). Needed because
-   step 4 runs `docker run` against the target image on a box that has never pulled it,
-   and the package is private — see *Publishing the image* below.
+3. A **GHCR read credential** — but **only when the box has no valid login already**.
+   Provisioning §1 performs `docker login ghcr.io`, and that persists in
+   `~/.docker/config.json`, which `compose down --volumes` does not touch. So on a
+   normally-provisioned box VERSION's `docker run` just works and this input is not needed.
+   It *is* needed in three real cases: a box provisioned before the token existed, a PAT
+   that has since expired or been revoked (including by the rotation list below), and a
+   bare-metal rebuild where §1 has not run yet. `restore.sh` therefore tries the existing
+   login first and falls back to `--ghcr-token`, failing with that instruction rather than
+   an opaque `denied` from the registry.
 4. The **school slug**, as `--slug`. It is needed to build the remote path
    `schools/<slug>/...` *before* anything can be fetched or decrypted, so it cannot come
    from `.env.production` — which is itself one of the things being fetched. Provisioning
@@ -114,8 +120,9 @@ Optionally `--image-tag`; see *Which image the checks compare against* below.
 schools/<slug>/
   db/<ts>.dump.age             pg_dump -Fc, encrypted. Dated, pruned.
   env/<ts>.env.age             .env.production, encrypted. Dated, pruned.
-  screenshots/**.age           per-file mirror, encrypted, WITH --delete
+  screenshots/**.age           per-file mirror, encrypted, erased on deletion
   media/**                     per-file mirror, plain, pruned at 90 days
+  media-missing.tsv            path -> first-missing date; drives the media prune
   caddy/<ts>.tar.age           caddy_data, encrypted
   manifest/<ts>.json           what this backup is
   wal/                         naming reservation only; no code touches it
@@ -161,14 +168,36 @@ cannot be squared with a published retention period. So it is pruned: **a file a
 the live tree for more than `MIRROR_PRUNE_DAYS` (90) is deleted from the mirror.** Ninety
 days is about a term — long enough to notice a mistake, short enough to state publicly.
 
-**`screenshots/` uses `--delete`.** `IssueReport.screenshot` is personal data and may carry
-another pupil's grades. A deletion is an erasure, and an erasure that the backup silently
-undoes is not an erasure. Recoverability loses to RODO here, deliberately.
+⚠️ **"Absent from the live tree for 90 days" cannot be measured from the file's own
+mtime.** `rsync` preserves the *source's* mtime on the mirrored copy and never touches it
+again once the source is gone — so a course image uploaded two years ago and never edited
+already has an mtime far older than 90 days on the day it is deleted. A prune keyed on that
+mtime deletes it on the **very next nightly run**, collapsing the window from 90 days to
+"until tonight" — and doing so precisely for the long-lived, never-modified files most
+likely to be deleted by mistake. The guarantee would read correct and be worthless.
+
+What has to be tracked is *time since first observed missing*, which nothing on disk
+records. So `backup.sh` keeps one small state file beside the mirror,
+`schools/<slug>/media-missing.tsv`, of `path<TAB>first-missing-date`. Each run:
+
+- a mirrored path absent from the live tree and **not** in the file gains a row dated today;
+- a path that has reappeared has its row dropped (an accidental deletion that got fixed
+  restarts the clock, which is the desired behaviour);
+- a path whose row is older than `MIRROR_PRUNE_DAYS` is deleted from the mirror and the row
+  removed.
+
+A lost or corrupted state file is not a data-loss event: every missing path simply gets
+today's date and the window restarts. Failing *long* is the right direction for a prune.
+
+**`screenshots/` is erased on deletion.** `IssueReport.screenshot` is personal data and may
+carry another pupil's grades. A deletion is an erasure, and an erasure the backup silently
+undoes is not an erasure. Recoverability loses to RODO here, deliberately — and note this
+is done by an explicit `rm` of a computed list, **not** by `rsync --delete`; see *Per-file
+encryption* below for why that distinction is load-bearing.
 
 Screenshot names are immutable (`screenshots/<YYYY>/<MM>/<uuid4>.<ext>` — the client
-filename is never used), which makes the encrypted mirror cheap: `--ignore-existing`
-alongside `--delete` means only genuinely new files are encrypted and uploaded, and
-nothing is ever re-encrypted. See *Per-file encryption* below.
+filename is never used), which is what keeps the encrypted mirror cheap: a name already on
+the remote never needs re-encrypting.
 
 ### Media paths must be preserved exactly
 
@@ -243,13 +272,13 @@ constant and this work does not use the transfer format at all).
 | Field | Purpose |
 |---|---|
 | `schema` | `restore.sh` refuses a major it does not know. Bumping it obliges the author to state the reader behaviour for the old value. |
-| `school` | Guards against restoring school A's dump onto school B's box. Compared against `LIBLI_SCHOOL_SLUG`. |
+| `school` | Guards against restoring school A's dump onto school B's box. **Written** by `backup.sh` from `LIBLI_SCHOOL_SLUG` (the env exists on a running box); **compared** by `restore.sh` against `--slug`, because at IDENTITY the env has not been decrypted yet. Two different sources by necessity, so neither side should reach for the other's. |
 | `taken_at` | Human selection of a restore point. |
 | `image` | The **immutable** tag to pull. Never `:master`. |
 | `git_sha` | Cross-check against the checkout; also what §8's rollback resets to. |
 | `migrations` | The version-direction check. See below. |
 | `postgres_major` | `restore.sh` refuses when the `db` image's major is lower. |
-| `row_counts` | Informational, with a stated skew. See *Verification*. |
+| `row_counts` | Informational, with a stated skew. **Derived, not curated:** every table in the `public` schema from `information_schema.tables`, minus the four exclusions named under *Verification*. Derived so it cannot rot as migrations add models — the same reasoning as test 1 deriving the volume list from the compose file rather than restating it. The two tables in the example are an excerpt, not the set. |
 | `media.files` | Informational — the file-count half of the storage figure, beside `media.bytes`. It is **not** the media completeness gate; that gate is referenced-files-equals-fetched-files at restore time, which never reads this field. Recorded because a night-on-night drop in it is a visible symptom of a mirror losing files. |
 | `media.bytes` | The per-school storage figure the pricing model needs. Written now, read by nobody in this work — `backup.sh` already walks the tree, so it is free here and expensive anywhere else. |
 
@@ -267,7 +296,7 @@ Reading that set from an image that has not started needs no database — the mi
 docker run --rm --entrypoint sh <image> -c 'ls /app/*/migrations/[0-9]*.py'
 ```
 
-That is what makes the check possible at step 4, before the database exists.
+That is what makes the VERSION check possible before the database exists.
 
 ## `backup.sh`
 
@@ -295,19 +324,19 @@ smuggles in through a test; both scripts say so in their headers.
  6. age -r $RECIPIENT  -> upload db/<ts>.dump.age ; rm the temp file
  7. age -r $RECIPIENT .env.production -> env/<ts>.env.age
  8. mirror media/        (rsync, no --delete)
- 9. mirror screenshots/  (encrypt-new-then-rsync --delete --ignore-existing)
+ 9. screenshots: upload E\R encrypted (NO --delete), then rm R\E explicitly
 10. tar caddy_data | age -> caddy/<ts>.tar.age
-11. write manifest/<ts>.json
-12. prune db/, env/, caddy/ per retention; prune media/ per MIRROR_PRUNE_DAYS
+11. update media-missing.tsv; write manifest/<ts>.json
+12. prune db/, env/, caddy/ per retention; prune media/ per media-missing.tsv
 13. GET the heartbeat URL — on success only
 ```
 
-**Step 4 is a compose exec, not a host command.** There is no postgres client on the host;
+**The dump is a compose exec, not a host command.** There is no postgres client on the host;
 the database exists only inside the `db` container. `-T` is load-bearing twice over: cron
 has no TTY, and a pseudo-TTY would corrupt the binary `-Fc` stream. Credentials come from
 `env_value POSTGRES_USER` / `POSTGRES_DB` with `PGPASSWORD` from `env_value POSTGRES_PASSWORD`.
 
-**Steps 4-6 use a temp file rather than a single pipe, and that buys the truncation check.**
+**The dump goes to a temp file rather than a single pipe, and that buys the truncation check.**
 The dump is *small* — media lives on disk, not in Postgres — so spooling it costs almost
 nothing, and it lets `pg_restore --list` read the archive's table of contents before
 upload. A truncated `-Fc` archive fails to list. That is a real, cheap integrity check on
@@ -318,7 +347,7 @@ postgres image from `POSTGRES_USER`/`POSTGRES_PASSWORD` on first init, not by th
 
 **rsync exit 24 is success.** `rsync` returns 24 ("some files vanished before they could be
 transferred") whenever a file is deleted mid-run, which is routine on a live media tree.
-Under `set -e` that would abort before step 13 and fire the heartbeat alert on a backup
+Under `set -e` that would abort before the heartbeat and alert on a backup
 that is fine — and repeated false alerts are how a real one gets ignored. The scripts wrap
 rsync in a helper that treats **0 and 24** as success and every other code as failure.
 
@@ -327,14 +356,34 @@ rsync in a helper that treats **0 and 24** as success and every other code as fa
 `rsync` cannot transform files in flight, and `age` output is non-deterministic, so
 rsync's size/mtime comparison is useless across the plain/encrypted boundary. The rule:
 
-1. `rsync --list-only` the remote `screenshots/` to get the set of `<name>.age` already there.
-2. For each live screenshot **not** in that set, encrypt into a staging directory that
-   mirrors the tree, named `<name>.age`.
-3. `rsync --delete --ignore-existing` the staging directory to the remote.
-4. Remove the staging directory in an `EXIT` trap.
+⚠️ **Upload and erasure MUST be two separate operations.** The obvious one-liner —
+`rsync --delete --ignore-existing` from a staging directory holding only tonight's new
+files — is catastrophically wrong. `--delete` removes destination files that have no
+counterpart **in the source file list**, and `--ignore-existing` only suppresses
+re-*transfer* of files that do match; it exempts nothing from deletion. A sparse staging
+directory therefore tells rsync that every previously-uploaded screenshot no longer exists,
+and **every nightly run would delete the entire screenshot history except that night's
+batch.** Silent, and the exact opposite of what the RODO reasoning above asks for.
 
-`--ignore-existing` is safe *because screenshot names are immutable* — a given path's bytes
-never change. That is what keeps the run incremental without re-encrypting the world.
+So: compute both sets explicitly and act on them separately.
+
+1. `rsync --list-only` the remote `screenshots/` → the remote set **R** of `<name>.age`.
+2. Walk the live tree → the expected set **E** = `{<path>.age for each live screenshot}`.
+3. **Upload `E \ R`.** Encrypt just those into a staging directory mirroring the tree, then
+   `rsync` the staging directory **without `--delete`**.
+4. **Erase `R \ E`.** Delete exactly those paths on the remote, by explicit name — a batched
+   `ssh … 'xargs rm -f'` over the computed list, never a `--delete` sweep.
+5. Remove the staging directory in an `EXIT` trap.
+
+Step 3 is incremental *because screenshot names are immutable* — a given path's bytes never
+change, so a name already in **R** never needs re-encrypting. Step 4 is what actually
+implements erasure, and because it names paths derived from **R** minus **E**, it can only
+ever remove something the live tree no longer has.
+
+Test 3 pins this: the media rsync must not carry `--delete`, and the screenshots rsync must
+not carry it either — the erasure is the explicit `rm`, and a `--delete` appearing anywhere
+in `backup.sh` is the bug this section exists to prevent. *Mutant:* reintroduce
+`--delete --ignore-existing` on the staging sync → RED.
 
 ### Retention algorithm
 
@@ -348,8 +397,11 @@ Precise enough to implement, including the awkward cases:
 - Two runs in one day are both kept while inside the 30-day window; monthly promotion picks
   the earliest in the month. This is why the rule is date-based rather than "keep the newest
   30", which would retain 15 days if two runs landed daily.
-- `media/`: delete any mirrored file whose path is absent from the live tree and whose
-  mirror mtime is older than `MIRROR_PRUNE_DAYS` (90).
+- `media/`: delete any mirrored file whose row in `media-missing.tsv` is older than
+  `MIRROR_PRUNE_DAYS` (90) — **never** keyed on the file's own mtime, for the reason given
+  under *Mirror retention* above.
+- `screenshots/`: no age-based rule at all. A screenshot leaves the mirror when it leaves
+  the live tree, on the same run.
 
 `RETAIN_DAILY_DAYS`, `RETAIN_MONTHLY_MONTHS` and `MIRROR_PRUNE_DAYS` are shell constants at
 the top of `backup.sh` so the privacy-notice guard can read them (test 8).
@@ -362,7 +414,7 @@ and disk is avoidable. The host is UTC (provisioning step), so cron, `<ts>` and 
 agree without conversion.
 
 **Failure must be loud, and cron cannot be the channel.** There is no MTA on the box and
-Hetzner blocks outbound 25 by default, so `MAILTO` is unavailable. Step 13 is an outbound
+Hetzner blocks outbound 25 by default, so `MAILTO` is unavailable. The final step is an outbound
 HTTPS ping to a dead-man's-switch (healthchecks.io free tier or equivalent), which alerts
 on *absence* — the only thing that detects a backup that stopped running. **Period 24 h,
 grace 6 h**: the grace must exceed one nightly interval plus the run's own duration, and a
@@ -370,11 +422,27 @@ first media sync on a 9 GB tree can take hours. Alerts go to Krzysztof by email 
 
 ### Overlap with a deploy
 
-The `flock` at step 1 is taken on `/var/lock/libli-deploy.lock`, and **`deploy.sh` takes
+The `flock` is taken on `/var/lock/libli-deploy.lock`, and **`deploy.sh` takes
 the same lock**. A backup-only lock would have excluded a previous *backup* while leaving
 the real hazard open: a merge to master mid-dump recreates the app container, restarts
-postgres' dependents and prunes images. Test 7 asserts both scripts name the same lock
-path — otherwise the risk table would claim a mitigation that does not exist.
+postgres' dependents and prunes images.
+
+**All three scripts take it** — `restore.sh` too. A restore is the longest-running of the
+three (a full `media/` re-fetch is bandwidth-shaped, tens of minutes to hours) and so is
+the one most likely to still be running when the 02:15 cron fires or a merge lands. Without
+the lock, a nightly `pg_dump` could read a database mid-`pg_restore`, or a deploy's recreate
+could race `compose down --volumes`.
+
+But the three differ in **how** they respond to a held lock, and that difference matters:
+
+| Script | Lock held | Why |
+|---|---|---|
+| `backup.sh` | exit 0, quietly | Tonight's backup is skippable; the heartbeat's absence alerts if it keeps happening. |
+| `deploy.sh` | wait, then fail | A deploy must not be silently dropped — CD would report green having done nothing. |
+| `restore.sh` | **fail immediately and loudly** | A silently skipped restore is the worst outcome in the set: the operator believes the site is being recovered while nothing is happening. |
+
+Test 7 asserts all three name the same lock path — otherwise the risk table would claim a
+mitigation that does not exist.
 
 ## `restore.sh`
 
@@ -382,26 +450,28 @@ The same script serves all four paths. It runs on a box provisioned through sect
 the runbook (SSH hardened, Docker installed).
 
 ```
- 1. require the age identity at /dev/shm; install the EXIT trap
- 2. fetch + print manifest/<ts>.json; require a typed confirmation
- 3. refuse unknown manifest `schema`; refuse if manifest.school != --slug
- 4. resolve the TARGET image (below); refuse if its migration set does not
-    contain the manifest's; refuse if the db image's postgres major is lower
- 5. decrypt env/<ts>.env.age -> .env.production, chmod 600, strip INIT_ADMIN_*,
-    rewrite LIBLI_IMAGE_TAG to the target from step 4, and -- on a compromise
-    restore -- apply the ENV-FILE half of the rotation HERE (see below)
- 6. compose down --volumes          <- DESTRUCTIVE. Gated by step 2.
- 7. compose up -d db                <- db ALONE. Not the app.
- 8. decrypt + pg_restore the dump into the fresh database
- 9. restore caddy/, media/ and screenshots/  <- three different paths; see below
-10. compose up -d --wait            <- entrypoint migrates forward
-11. verify; then the pre- or post-cutover checks per mode
-12. compromise restore only: the DATABASE half of the rotation, admin UI (below)
+ 1. LOCK        flock the shared lock -- fail LOUDLY if held, never skip
+ 2. CREDENTIALS require the age identity + restore SSH key on tmpfs; EXIT trap
+ 3. CONFIRM     fetch + print manifest/<ts>.json; operator must TYPE the slug
+ 4. IDENTITY    refuse an unknown `schema`; refuse manifest.school != --slug
+ 5. VERSION     resolve the TARGET image; refuse unless its migration set
+                contains the manifest's; refuse a lower postgres major
+ 6. ENV         decrypt env/<ts>.env.age -> .env.production, chmod 600, strip
+                INIT_ADMIN_*, write the VERSION target into LIBLI_IMAGE_TAG,
+                and on a compromise restore apply the ENV-FILE rotation HERE
+ 7. WIPE        compose down --volumes    <- DESTRUCTIVE. Gated by CONFIRM.
+ 8. MATERIALISE compose create            <- makes all volumes, starts nothing
+ 9. DB UP       compose up -d db          <- db ALONE. Not the app.
+10. LOAD        decrypt + pg_restore the dump into the fresh database
+11. FILES       restore caddy/, media/, screenshots/ -- three paths; see below
+12. APP UP      compose up -d --wait      <- entrypoint migrates forward
+13. VERIFY      then the pre- or post-cutover checks per mode
+14. ROTATE-DB   compromise restore only: the DATABASE-side rotation, admin UI
 ```
 
 ### Which image the checks compare against
 
-Step 4 is only meaningful if the image being checked *can* differ from `manifest.image` —
+The VERSION step is only meaningful if the image being checked *can* differ from `manifest.image` —
 comparing the manifest against itself would always pass and prove nothing. So the target is
 an explicit input:
 
@@ -413,14 +483,14 @@ an explicit input:
   it is the case that can go wrong: forward is fine, backward is broken. This is where
   the migration-set containment check earns its place.
 
-Step 4 resolves the target *before* `.env.production` exists, which is why it cannot read
-`LIBLI_IMAGE_TAG` from the env — the env is one of the things being restored. Step 5 then
+VERSION resolves the target *before* `.env.production` exists, which is why it cannot read
+`LIBLI_IMAGE_TAG` from the env — the env is one of the things being restored. ENV then
 writes the resolved target into the restored file, so the persisted value matches what
 actually gets pulled rather than what the old box happened to be running.
 
 ### Restoring the three data sets, which are three different mechanisms
 
-Step 9 is one line in the list and three procedures in practice. Naming them separately
+FILES is one line in the list and three procedures in practice. Naming them separately
 because the encrypted-per-file loop is easy to under-build:
 
 | Set | Stored as | Restore path |
@@ -432,23 +502,28 @@ because the encrypted-per-file loop is easy to under-build:
 All three write to host paths resolved by `vol_path()`, and all three run *after* the
 database is loaded, because the referenced-file list comes from it.
 
-**Step 6 is the step whose absence would have been a silent data bug.** On the same-box
+**CONFIRM requires the operator to type the school slug**, not `y` or Enter. WIPE is
+irreversible and the two ways to get a restore wrong are the wrong `<ts>` and the wrong
+box; a keystroke confirms neither. Typing the slug forces the operator to read what is on
+screen, and it is the value that distinguishes one school's box from another's.
+
+**WIPE is the step whose absence would have been a silent data bug.** On the same-box
 restore path the box already has a `pgdata` volume, and the postgres image reads
 `POSTGRES_PASSWORD` **only when it initialises an empty data directory**. Restoring into an
 existing volume would leave the database on the *old* password while the app used the
 restored one — precisely the footgun `docs/deployment.md` documents. `down --volumes` is
 what makes "a fresh `pgdata` initialised from the restored `.env.production`" true by
 construction rather than by assumption. On the resize and provider-move paths it is a no-op.
-Declining the confirmation at step 2 exits without touching anything.
+Declining at CONFIRM exits without touching anything.
 
 **It clears all seven volumes, not just `pgdata`, and that is intended.** `down --volumes`
 removes every named volume in the compose file (none are `external`). Taking them in turn:
 `caddy_config`, `transfer_staging` and `upload_tmp` are the excluded three and regenerate
-themselves; `caddy_data`, `media` and `screenshots` are restored at step 9. So the outcome
-is correct — but the *reason* to want the wider wipe is stronger than "step 9 puts it back":
+themselves; `caddy_data`, `media` and `screenshots` are restored at FILES. So the outcome
+is correct — but the *reason* to want the wider wipe is stronger than "FILES puts it back":
 
 - It is what makes the media volume contain **exactly** the referenced set. A surgical
-  `docker volume rm libli_pgdata` would preserve the old media tree, and step 9 only *adds*
+  `docker volume rm libli_pgdata` would preserve the old media tree, and FILES only *adds*
   referenced files — so any file the old tree held that the restored database does not
   reference would survive, unreferenced and still reachable at its URL through Caddy. That
   is the resurrection hole again, arriving by a different door.
@@ -458,20 +533,33 @@ is correct — but the *reason* to want the wider wipe is stronger than "step 9 
   exactly-correct volume is the right trade, and it is worth knowing before the first
   rehearsal that a restore is bandwidth-shaped rather than instant.
 
-**Step 7 must not be `up -d`.** The container entrypoint runs `migrate` on every boot
+**MATERIALISE exists because `up -d db` creates only `db`'s volumes.** `compose up` brings
+into existence just the named volumes attached to the services it starts, and `db` mounts
+only `pgdata`. After WIPE has destroyed all seven, `media`, `support_screenshots` and
+`caddy_data` belong to `app` and `caddy` — which do not start until APP UP. So FILES would
+call `vol_path()` on volumes that do not exist and fail on `docker volume inspect`, with
+nothing in the sequence having created them.
+
+`compose create` is the fix rather than `docker volume create`: it materialises every
+volume **with Compose's own labels** and starts no containers. Hand-created volumes carry
+no `com.docker.compose.*` labels, and Compose then refuses to adopt a same-named volume it
+did not create, demanding `external: true` — so the apparently simpler command would trade
+a missing volume for a failing `up`.
+
+**DB UP must not be `up -d`.** The container entrypoint runs `migrate` on every boot
 (`docker-entrypoint.sh`). Bringing the full stack up against an empty database creates the
 schema, and the dump then collides with it. The database is loaded before the app container
 ever starts. Test 6 asserts a qualified `up -d db` precedes the `pg_restore` line and that
 no unqualified `up -d` appears before it.
 
-**Step 9 restores only the files the restored database references.** Copying the whole
+**FILES restores only the files the restored database references.** Copying the whole
 mirror back would resurrect every file deleted in the last 90 days — and because Caddy
 serves `media/` directly from the volume, a resurrected file is reachable at its URL
 whether or not any row points at it. So after the database is loaded, `restore.sh` asks it
 what it needs:
 
 ```sh
-# `run --rm`, NOT `exec`: at step 9 the app container has not started yet (step 10 does
+# `run --rm`, NOT `exec`: at FILES the app container has not started yet (APP UP does
 # that), so there is nothing to exec into. `run` starts a throwaway container against the
 # already-running db service, which is exactly what is available at this point.
 compose run --rm --no-deps app /app/.venv/bin/python manage.py list_referenced_files
@@ -511,14 +599,14 @@ The gates are the ones that can actually be exact:
 
 `row_counts` covers only tables the entrypoint does not touch — it excludes `auth_group`,
 `auth_permission`, `django_migrations` and `django_site`, all of which `migrate`,
-`setup_roles` and `set_site_domain` rewrite on boot at step 10. Step 5 strips
+`setup_roles` and `set_site_domain` rewrite on boot at APP UP. ENV strips
 `INIT_ADMIN_*` from the restored env for the same reason and one worse: left in place, the
 entrypoint's `init_platform` would mint an admin account on a production restore.
 
 ### Pre-cutover mode, or Caddy burns the rate limit before you need it
 
 On the resize and provider-move paths, DNS still points at the *old* box when the new one
-boots. Step 10 would start Caddy, which immediately attempts ACME for `SITE_ADDRESS`,
+boots. APP UP would start Caddy, which immediately attempts ACME for `SITE_ADDRESS`,
 fails validation repeatedly, and eats Let's Encrypt's failed-validation budget — possibly
 blocking issuance at the cutover, the worst possible moment. The section 4 checks would
 also be meaningless, since the public hostname resolves to the other machine.
@@ -536,7 +624,7 @@ The runbook's restore section splits the section 4 checks into those two groups.
 ### Rotation after a compromise — split by when it can happen
 
 The threat model names an adversary holding the box's own credential, and the restore
-credential is deliberately a different one for that reason. But step 5 restores
+credential is deliberately a different one for that reason. But ENV restores
 `.env.production` **verbatim**, and that file still contains the `LIBLI_BACKUP_SSH_*`
 values the adversary had. Without a rotation step the rebuilt box resumes nightly backups
 using a credential someone else is known to hold — which would quietly undo the whole
@@ -545,19 +633,19 @@ point of having used a separate credential to recover.
 These cannot all happen at the same moment, and treating rotation as a single tidy-up step
 at the end would silently get one of them wrong. Three groups, by when they are possible:
 
-**At step 5 — mandatory, because later is too late.**
+**At ENV — mandatory, because later is too late.**
 
 - **`POSTGRES_PASSWORD`.** Postgres accepts a new password only while it is initialising an
-  empty data directory, so the new value has to be in `.env.production` *before* step 6
-  destroys `pgdata` and step 7 recreates it. Rotate it after step 6 and the database keeps
-  the old password while the app uses the new one — the same footgun step 6 exists to
+  empty data directory, so the new value has to be in `.env.production` *before* WIPE
+  destroys `pgdata` and DB UP recreates it. Rotate it after WIPE and the database keeps
+  the old password while the app uses the new one — the same footgun WIPE exists to
   avoid, reintroduced by good intentions.
 - `DJANGO_SECRET_KEY` and `EMAIL_HOST_PASSWORD` — no timing constraint of their own, but
   they are edits to the same file and belong in the same pass. Rotating the secret key logs
   everyone out and invalidates outstanding reset and invitation links, which on a
   compromise restore is the desired outcome rather than a cost.
 
-**At step 12 — because these live in the database and only exist once it is restored.**
+**At ROTATE-DB — because these live in the database and only exist once it is restored.**
 
 - `SocialApp.secret` (the SSO client secret) and `WebhookEndpoint.secret`. Neither is in
   the env file, so both survive the restore intact and neither is touched by anything
@@ -579,7 +667,7 @@ they are the same shape and neither should be reconstructed from memory under pr
 
 ### How the four paths use it
 
-- **Restore** — `--live`, same hostname. Step 6 is the destructive one.
+- **Restore** — `--live`, same hostname. WIPE is the destructive one.
 - **Resize** — `--pre-cutover` on the larger box, repoint DNS, re-run `--live`.
 - **Provider move** — identical to resize. Nothing in the artifact is Hetzner-specific.
 - **Handover** — see below. Not a fifth mechanism, but *not* just documentation either.
@@ -630,7 +718,7 @@ the key being readable later by a process deploy.sh never spawned:
 - The encrypted `env/<ts>.env.age` in the artifact must carry the tag that matches the
   manifest's `image`, or "start the version this dump came from" has nothing to read.
 - `compose` guards the key with the bare `:?`, so **any** `up` outside deploy.sh — the
-  runbook's §3 first boot, `restore.sh` steps 7 and 10, a manual `up -d` after editing the
+  runbook's §3 first boot, `restore.sh`'s DB UP and APP UP, a manual `up -d` after editing the
   env — would abort outright without a persisted value.
 
 ### Publishing the image — nothing does this today
@@ -638,7 +726,7 @@ the key being readable later by a process deploy.sh never spawned:
 `.github/workflows/` contains `ci.yml` (tests, on pull requests) and `deploy.yml` (SSHes in
 and runs `deploy.sh`). **Neither builds or pushes an image**, and `deploy.sh` builds locally
 with `compose up -d --build`. So the entire pull-don't-build model has no producer until one
-is added, and every consumer of it — `deploy.sh`'s pull, `restore.sh` step 4's `docker run`,
+is added, and every consumer of it — `deploy.sh`'s pull, `restore.sh`'s VERSION `docker run`,
 the manifest's `image` field — has nothing to read. This is B1 work, not an assumption.
 
 - **A new `publish` job**, in `deploy.yml` ahead of the deploy step so the image provably
@@ -653,7 +741,7 @@ the manifest's `image` field — has nothing to read. This is B1 work, not an as
   makes. The consequence is a real one and it is why credential 3 exists above: **each
   school box needs a GHCR read credential** — a fine-grained PAT with `read:packages`,
   stored as `LIBLI_GHCR_TOKEN` and used for a `docker login ghcr.io` before the pull.
-  `deploy.sh` performs that login; `restore.sh` needs it before step 4, from out of band.
+  `deploy.sh` performs that login; `restore.sh` needs one before VERSION.
 - ⚠️ **`docker/build-push-action` builds on the runner, not on the box** — which is the
   point. It removes the RAM spike that makes 4 GB a real floor from every school box at
   once, and it is what makes the sizing table in the hosting model honest.
@@ -693,9 +781,11 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
    the compose file, never hand-maintained beside it.
 2. **Dump precedes media.** The `pg_dump` line appears before the media rsync line in
    `backup.sh`. *Mutant:* swap → RED.
-3. **No `--delete` on the media mirror; `--delete` present on the screenshots mirror.**
-   *Mutant:* either one flipped → RED. This is the RODO-vs-recoverability split, so it is
-   pinned in both directions.
+3. **No `--delete` anywhere in `backup.sh`.** Neither mirror may use it: `media/` keeps
+   deleted files on purpose, and `screenshots/` erases by an explicit `rm` of a computed
+   list. *Mutant:* add `--delete` to either rsync → RED. This is the single guard
+   standing between the RODO erasure path and a nightly job that deletes the whole
+   screenshot history, so it is pinned as an absolute rather than per-mirror.
 4. **The dump is verified before upload.** A `pg_restore --list` line appears between the
    `pg_dump` line and the `age` line. *Mutant:* remove it → RED.
 5. **`set -euo pipefail`** is the first executable line of both scripts, in the shape of
@@ -703,7 +793,8 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
 6. **`restore.sh` loads the database before the app starts.** A qualified `up -d db`
    precedes the `pg_restore` line; no unqualified `up -d` precedes it. *Mutant:* replace
    `up -d db` with `up -d` → RED.
-7. **Lock agreement.** `backup.sh` and `deploy.sh` name the same lock path; the compose
+7. **Lock agreement.** `backup.sh`, `deploy.sh` **and `restore.sh`** name the same lock
+   path; the compose
    file still declares `name: libli` (which `vol_path()` depends on); the cron line in the
    runbook matches `backup.sh`'s path. Shaped after
    `test_deploy_yml_invokes_the_script_at_the_path_deploy_sh_assumes`.
