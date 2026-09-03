@@ -194,10 +194,23 @@ def test_the_erasure_keep_set_includes_refs():
     omitted from a live-DB reading of refs, so CONFIRM would see no discrepancy
     while the dump still pointed at it.
 
-    Mutant: drop refs from the union.
+    Mutant: drop refs from the union -- but that is not the cheap one. The
+    minimal edit that removes the protection is ONE WORD on the line after it:
+    point the `comm` that produces erase.txt at expected.txt instead of
+    keep_set.txt. keep_set.txt is still built, the union is still COMPUTED, and
+    an assertion that only looks for the union stays green while the erasure has
+    gone back to reading the live tree alone. So the anchor here is the
+    CONSUMER: whatever computes erase.txt must read keep_set.
     """
     text = BACKUP_SH.read_text(encoding="utf-8")
     assert re.search(r"keep_set.*refs|refs.*keep_set", text), text
+    erase = [
+        ln
+        for ln in text.splitlines()
+        if "erase.txt" in ln and ln.lstrip().startswith("comm ")
+    ]
+    assert len(erase) == 1, erase
+    assert "keep_set" in erase[0], erase[0]
 
 
 def _first_missing_awk_program():
@@ -427,10 +440,20 @@ def test_confirm_proves_the_artifacts_exist_before_it_prompts():
     confirmation has already been typed.
 
     Mutant: move the existence check below the read.
+
+    Anchored on the `remote_exists "$object"` CALL, not on the path string. The
+    path `db/$TS.dump.age` appears in this script wherever the dump is fetched
+    too, so a substring match could be satisfied by a line that proves nothing
+    about a probe having run -- and the fetch is what the check exists to
+    protect. The loop's own line is pinned as well, so the probe cannot be
+    narrowed to a single artifact while the message still names three.
     """
-    assert _line_index(RESTORE_SH, r"db/\$TS\.dump\.age") < _line_index(
-        RESTORE_SH, r"^\s*read "
-    )
+    loop = _line_index(RESTORE_SH, r"^for object in .*db/\$TS\.dump\.age")
+    probe = _line_index(RESTORE_SH, r'remote_exists "\$object"')
+    assert loop < probe < _line_index(RESTORE_SH, r"^\s*read ")
+    loop_line = RESTORE_SH.read_text(encoding="utf-8").splitlines()[loop]
+    for artifact in ("db/$TS.dump.age", "env/$TS.env.age", "caddy/$TS.tar.age"):
+        assert artifact in loop_line, (artifact, loop_line)
 
 
 def test_completeness_is_checked_before_the_wipe():
@@ -492,9 +515,30 @@ def test_image_tag_is_format_checked():
     from dead informational text quoting the same pattern. There must be
     exactly ONE enforcing site: a redundant `case` block that only checked the
     prefix has been collapsed into this single grep.
+
+    A matching grep is not yet enforcement, though: `grep -Eq` with its result
+    DISCARDED tests the tag and then carries on with it, so the second half
+    pins that failing the pattern leaves the script. That is the cheaper
+    mutant of the two -- deleting the `|| { ...; exit 1; }` continuation and
+    keeping the grep.
     """
     lines = RESTORE_SH.read_text(encoding="utf-8").splitlines()
-    assert any("grep -Eq" in ln and "^sha-[0-9a-f]{7,40}$" in ln for ln in lines), lines
+    idx = [
+        i
+        for i, ln in enumerate(lines)
+        if "grep -Eq" in ln and "^sha-[0-9a-f]{7,40}$" in ln
+    ]
+    assert len(idx) == 1, idx
+    # The check spans a line continuation, so the test does too: the `||` and
+    # its `exit` must belong to THIS grep, which is what joining from its own
+    # line to the end of the continued command establishes.
+    command = []
+    for ln in lines[idx[0] :]:
+        command.append(ln)
+        if not ln.rstrip().endswith("\\"):
+            break
+    joined = " ".join(command)
+    assert re.search(r"\|\|.*\bexit 1\b", joined), joined
 
 
 def test_pre_cutover_disables_acme_by_the_scheme():
@@ -504,11 +548,23 @@ def test_pre_cutover_disables_acme_by_the_scheme():
     for local smoke runs.
 
     Mutant: drop the scheme rewrite -> the restore attempts ACME against DNS
-    still pointing at the old box, burning the failed-validation budget.
+    still pointing at the old box, burning the failed-validation budget. Or,
+    cheaper: move either rewrite OUT of the `--pre-cutover` branch, so a --live
+    restore serves plain HTTP and never asks for a certificate. A match over
+    the whole file cannot see that, and neither can one that counts comments:
+    this script explains both rewrites in prose beside them. So the window is
+    the ENV branch's own block, comments stripped.
     """
-    text = RESTORE_SH.read_text(encoding="utf-8")
-    assert "SITE_ADDRESS=http://" in text, text
-    assert "DJANGO_SECURE_SSL_REDIRECT=false" in text, text
+    lines = RESTORE_SH.read_text(encoding="utf-8").splitlines()
+    start = next(
+        i for i, ln in enumerate(lines) if ln == 'if [ "$MODE" = "pre-cutover" ]; then'
+    )
+    # The next line that is exactly `fi`: this script's top-level blocks are
+    # flat, and the nested if/else inside this one closes at an INDENTED `fi`.
+    end = next(i for i, ln in enumerate(lines) if i > start and ln == "fi")
+    block = [ln for ln in lines[start:end] if not ln.lstrip().startswith("#")]
+    assert any("SITE_ADDRESS=http://" in ln for ln in block), block
+    assert any("DJANGO_SECURE_SSL_REDIRECT=false" in ln for ln in block), block
     assert not re.search(
         r"^\s*tls\b", CADDYFILE.read_text(encoding="utf-8"), re.MULTILINE
     )
