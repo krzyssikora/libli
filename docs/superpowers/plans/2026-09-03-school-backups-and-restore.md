@@ -29,6 +29,67 @@ Copied verbatim from the spec. Every task's requirements implicitly include thes
 
 ---
 
+### Task 0: Establish what the Storage Box's SSH endpoint actually accepts
+
+⚠️ **Do this first, before a line of Task 3 is written.** Tasks 3 and 4 assume the remote can only *list*, *transfer* and *delete* — everything else is computed on the school box. That assumption is the difference between a working design and one that fails at the first rehearsal, after everything else looks done. A Hetzner Storage Box exposes a restricted command set (rsync, sftp, scp, borg plus a short allow-list), **not** a general-purpose shell: no `awk`, no GNU `date -d`, no `mktemp`, no loops. An earlier draft of this plan ran all of those remotely and would have had to be redesigned late.
+
+This task produces an answer and a recorded note, not code. It needs the Storage Box ordered and a sub-account created.
+
+**Files:**
+- Modify: `docs/backup-and-restore.md` — but that file does not exist until Task 6, so record the findings in the commit message and in the branch's PR description, then fold them into the document when Task 6 writes it.
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: a yes/no on each primitive Tasks 3-4 rely on. If any answer differs from the expectation below, **stop and re-plan** rather than working around it in shell.
+
+- [ ] **Step 1: Probe the endpoint**
+
+With the sub-account credential in `~/.ssh/libli_backup`:
+
+```bash
+BOX=u123456@u123456.your-storagebox.de
+KEY=~/.ssh/libli_backup
+
+# Expected to WORK -- these are what the design uses.
+printf 'mkdir probe\n' | sftp -b - -i $KEY $BOX
+echo hello > /tmp/probe.txt && scp -i $KEY /tmp/probe.txt $BOX:probe/
+rsync --list-only -r -e "ssh -i $KEY" $BOX:probe/
+printf 'rm probe/probe.txt\nrmdir probe\n' | sftp -b - -i $KEY $BOX
+
+# Expected to FAIL -- confirming the restriction is real, not assumed.
+ssh -i $KEY $BOX 'echo x | awk "{print}"'  || echo "no awk (expected)"
+ssh -i $KEY $BOX 'date -u -d "30 days ago"' || echo "no date -d (expected)"
+```
+
+- [ ] **Step 2: Record the result**
+
+Write down, verbatim, which of the six commands succeeded. Two outcomes:
+
+- **The four expected-to-work commands work** → the plan proceeds exactly as written.
+- **Any of them fails** → stop. `remote_ls` (rsync `--list-only`), `remote_mkdir`/`remote_rm`/`remote_exists` (sftp batch mode) are the only remote primitives Tasks 3-4 use, and all four are load-bearing. Re-plan the affected steps rather than inventing a workaround under time pressure.
+
+- [ ] **Step 3: Commit the finding**
+
+Nothing in the repo changes, so commit an empty marker so the finding is in the history where a later reader will look for it:
+
+```bash
+git commit --allow-empty -m "chore(ops): record the Storage Box's usable command set
+
+The backup and restore scripts compute everything locally and use the
+remote only to list (rsync --list-only), transfer (scp/rsync) and delete
+(sftp batch). This records the probe that established that: a Storage
+Box is not a general-purpose shell, and a design that assumed one would
+have failed at the first rehearsal rather than in review.
+
+Probed and working: sftp mkdir/rm/ls batch, scp, rsync --list-only.
+Confirmed absent: awk, date -d.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_016Aopus3KuLErHrHWKWeiKe"
+```
+
+---
+
 ### Task 1: `list_referenced_files` management command
 
 The only new Python in B1. Both scripts need it: `backup.sh` writes its output to `refs/<ts>.txt`, and `restore.sh` uses it to fetch exactly the files the restored database references rather than the whole mirror (which would resurrect every deleted file — and Caddy serves `media/` directly, so a resurrected file is reachable at its URL with no row pointing at it).
@@ -439,6 +500,16 @@ compose pull
 compose up -d --wait
 ```
 
+⚠️ **`deploy.sh` mentions `--build` twice, and only one of them is the command.** Line 76's comment reads "Every `--build` leaves the previous image's layers dangling". `test_no_build_survives_anywhere` reads the whole file, so leaving it there fails the guard at Step 9. The prune itself is still wanted — pulling new tags leaves old layers dangling just as building did — so keep `docker image prune -f` and reword its comment:
+
+```bash
+# Every pull leaves the previous image's layers dangling, and nothing else on
+# this host reclaims them. The runbook's 50 GB floor is sized for a ~17 GB
+# import peak, so unbounded image garbage eventually breaks an import rather
+# than the deploy that caused it. Dangling only -- never `-a`, which would also
+# delete the pulled postgres and caddy images while their containers are down.
+```
+
 Also add the shared lock as the first thing after `cd "$APP_DIR"`:
 
 ```bash
@@ -479,6 +550,15 @@ docker login ghcr.io -u krzyssikora    # paste a read:packages PAT
 
 - §3, replace `docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build` with `... up -d` and add a sentence above it: "Set `LIBLI_IMAGE_TAG` to the `sha-<full-sha>` tag you intend to run before this; every later deploy writes it for you."
 - §8's rollback block, replace `up -d --build --wait` with `up -d --wait` and add: "`git reset --hard <sha>` still does what it always did — `deploy.sh` derives `LIBLI_IMAGE_TAG` from the checkout, so moving the checkout moves the image."
+- *Known constraints*, the **"Every deploy is ~1-2 minutes of 502s"** bullet (line 536) also contains `--build` and is now factually wrong — the box no longer builds. Replace it with:
+
+```markdown
+- **Every deploy is a short window of 502s.** `up -d` pulls the new image and recreates the
+  app container; Caddy stays up and answers 502 until the new container passes its
+  healthcheck. Shorter than it was when the box built its own image, because the pull is
+  the only work done here and the build already happened on the runner.
+```
+
 - *Known constraints*, replace the "**No rollback.**" bullet with:
 
 ```markdown
@@ -490,7 +570,7 @@ docker login ghcr.io -u krzyssikora    # paste a read:packages PAT
 
 - [ ] **Step 8: Update the existing deploy guard**
 
-In `tests/test_deploy_wiring.py`, in `test_deploy_script_waits_for_health`, replace the `--build` assertion (line 174) and its docstring's mutant line:
+In `tests/test_deploy_wiring.py`, in `test_deploy_script_waits_for_health`, replace the single `--build` assertion (line 174). Its docstring names only the `--wait` mutant, so it needs no change:
 
 ```python
     assert "--wait" in match.group(0), match.group(0)
@@ -598,11 +678,23 @@ def test_every_classification_carries_a_reason():
 
 
 def _line_index(path, pattern):
+    """The first NON-COMMENT line matching pattern.
+
+    Skipping comments is load-bearing, not tidiness. backup.sh's header explains
+    pipefail with "without it a pg_dump that dies part-way...", and the
+    VOLUME_CLASS block says "pgdata: captured by pg_dump, never mirrored" -- both
+    contain the literal `pg_dump` and both sit ABOVE the real invocation.
+    Matching those would pin every ordering guard to a line that never moves, so
+    test_dump_precedes_the_media_mirror would stay green with the dump step moved
+    below the media rsync. An assertion that cannot go red is not a guard.
+    """
     lines = path.read_text(encoding="utf-8").splitlines()
     for i, ln in enumerate(lines):
+        if ln.lstrip().startswith("#"):
+            continue
         if re.search(pattern, ln):
             return i
-    raise AssertionError(f"{path.name} has no line matching {pattern!r}")
+    raise AssertionError(f"{path.name} has no non-comment line matching {pattern!r}")
 
 
 def test_dump_precedes_the_media_mirror():
@@ -847,16 +939,48 @@ REMOTE="$SSH_USER@$SSH_HOST"
 BASE="schools/$SLUG"
 TS="$(date -u +%Y-%m-%dT%H%M%S)"
 
-remote() { ssh $SSH_OPTS "$REMOTE" "$@"; }
+# ⚠️ A Hetzner Storage Box is NOT a general-purpose shell. There is no awk, no
+# GNU `date -d`, no mktemp, no loops -- only a restricted set plus sftp/rsync/
+# scp/borg. So EVERY computation happens here on the school box, and the remote
+# side only ever lists, transfers and deletes. Task 0 verified exactly what the
+# endpoint accepts before any of this was written. Do not reintroduce
+# `ssh $REMOTE "<script>"`: it works on your laptop and fails on the target.
+remote_ls() {  # $1 = subdirectory under $BASE; prints file paths relative to it
+  rsync --list-only -r -e "ssh $SSH_OPTS" "$REMOTE:$BASE/$1/" 2>/dev/null \
+    | awk '$1 !~ /^d/ { $1=$2=$3=$4=""; sub(/^ +/, ""); print }'
+}
+
+remote_mkdir() {  # sftp mkdir fails on an existing directory; that is fine
+  for dir in "$@"; do
+    printf 'mkdir %s\n' "$dir"
+  done | sftp -b - $SSH_OPTS "$REMOTE:$BASE/" > /dev/null 2>&1 || true
+}
+
+remote_rm() {  # reads $BASE-relative paths on stdin
+  local batch
+  batch="$(mktemp)"
+  sed 's|^|rm |' > "$batch"
+  if [ -s "$batch" ]; then
+    sftp -b "$batch" $SSH_OPTS "$REMOTE:$BASE/" > /dev/null
+  fi
+  rm -f "$batch"
+}
+
+remote_exists() {  # $1 = $BASE-relative path
+  printf 'ls %s\n' "$1" | sftp -b - $SSH_OPTS "$REMOTE:$BASE/" > /dev/null 2>&1
+}
 
 STAGING="$(mktemp -d)"
 DUMP_TMP="$(mktemp)"
 trap 'rm -rf "$STAGING" "$DUMP_TMP"' EXIT
 
-remote "mkdir -p $BASE/{db,env,caddy,refs,manifest,media,screenshots}"
+# Spelled out, not `mkdir -p $BASE/{db,env,...}`: brace expansion is a bash
+# extension and the remote is not bash. Unexpanded it would create ONE directory
+# literally named "{db,env,caddy,...}" and every later path would miss.
+remote_mkdir db env caddy refs manifest media screenshots
 
 # --- 2. never overwrite an existing timestamp ----------------------------
-if remote "test -e $BASE/db/$TS.dump.age"; then
+if remote_exists "db/$TS.dump.age"; then
   echo "!! $BASE/db/$TS.dump.age already exists; refusing to overwrite" >&2
   exit 1
 fi
@@ -925,8 +1049,7 @@ rsync_ok -a -e "ssh $SSH_OPTS" "$MEDIA_DIR/" "$REMOTE:$BASE/media/"
 # and --ignore-existing only suppresses re-transfer -- it exempts nothing from
 # deletion.
 SHOTS_DIR="$(vol_path support_screenshots)"
-remote "cd $BASE/screenshots && find . -type f -name '*.age' | sed 's|^\./||'" \
-  | sort > "$STAGING/remote.txt"
+remote_ls screenshots | grep '\.age$' | sort > "$STAGING/remote.txt"
 (cd "$SHOTS_DIR" && find . -type f | sed 's|^\./||') | sed 's|$|.age|' \
   | sort > "$STAGING/expected.txt"
 
@@ -951,8 +1074,7 @@ awk -F'\t' '$1 == "support_screenshots" { print $2 ".age" }' "$STAGING/refs.txt"
 sort -u "$STAGING/expected.txt" "$STAGING/refs_shots.txt" > "$STAGING/keep_set.txt"
 comm -23 "$STAGING/remote.txt" "$STAGING/keep_set.txt" > "$STAGING/erase.txt"
 if [ -s "$STAGING/erase.txt" ]; then
-  sed "s|^|$BASE/screenshots/|" "$STAGING/erase.txt" \
-    | remote "xargs -r rm -f"
+  sed 's|^|screenshots/|' "$STAGING/erase.txt" | remote_rm
 fi
 
 # --- 11. caddy_data ------------------------------------------------------
@@ -967,7 +1089,7 @@ scp $SSH_OPTS "$STAGING/caddy.age" "$REMOTE:$BASE/caddy/$TS.tar.age"
 # and never touches it again once the source is gone, so a file uploaded two
 # years ago and deleted today is already "older than 90 days" and would be
 # pruned on the NEXT run. Track time since FIRST OBSERVED MISSING instead.
-remote "cd $BASE/media && find . -type f | sed 's|^\./||'" | sort > "$STAGING/remote_media.txt"
+remote_ls media | sort > "$STAGING/remote_media.txt"
 (cd "$MEDIA_DIR" && find . -type f | sed 's|^\./||') | sort > "$STAGING/live_media.txt"
 scp $SSH_OPTS "$REMOTE:$BASE/media-missing.tsv" "$STAGING/missing.tsv" 2>/dev/null \
   || : > "$STAGING/missing.tsv"
@@ -991,7 +1113,12 @@ SHOT_BYTES="$(du -sb "$SHOTS_DIR" | cut -f1)"
   printf '  "image": "ghcr.io/krzyssikora/libli:%s",\n' "$(env_value LIBLI_IMAGE_TAG)"
   printf '  "git_sha": "%s",\n' "$(git rev-parse HEAD)"
   printf '  "postgres_major": %s,\n' "$(compose exec -T db psql -U "$PGUSER_VALUE" -At -c 'SHOW server_version' | cut -d. -f1)"
-  printf '  "migrations": ["%s"],\n' "$(echo "$MIGRATIONS" | paste -sd'","' -)"
+  # NOT `paste -sd'","'`: GNU paste treats a multi-character -d as a CYCLE of
+  # single-character delimiters, so A B C D joins to  A"B,C"D  -- malformed
+  # JSON, which restore.sh then parses into garbage tokens and the
+  # migration-containment check silently stops gating anything. Verified by
+  # hand. Same awk shape as row_counts below.
+  printf '  "migrations": [%s],\n' "$(echo "$MIGRATIONS" | awk '{printf "%s\"%s\"", (NR>1?",":""), $0}')"
   printf '  "row_counts": {%s},\n' "$(echo "$ROW_COUNTS" | awk -F, '{printf "%s\"%s\":%s", (NR>1?",":""), $1, $2}')"
   printf '  "media": {"files": %s, "bytes": %s},\n' "$MEDIA_FILES" "$MEDIA_BYTES"
   printf '  "screenshots": {"files": %s, "bytes": %s}\n' "$SHOT_FILES" "$SHOT_BYTES"
@@ -1006,30 +1133,33 @@ scp $SSH_OPTS "$STAGING/manifest.json" "$REMOTE:$BASE/manifest/$TS.json"
 # would re-designate a different keeper every night while the month runs.
 # manifest/ is NEVER pruned -- it is a few hundred bytes and the annual school
 # statement wants the media.bytes series over years.
-remote "
-  set -eu
-  cd $BASE
-  cutoff=\$(date -u -d '$RETAIN_DAILY_DAYS days ago' +%Y-%m-%d)
-  monthly_cutoff=\$(date -u -d '$RETAIN_MONTHLY_MONTHS months ago' +%Y-%m)
-  for dir in db env caddy refs; do
-    keep=\$(mktemp)
-    ls \$dir | sed 's/[.].*//' | sort > \$keep.all
-    awk -v c=\"\$cutoff\" 'substr(\$0,1,10) >= c' \$keep.all > \$keep
-    awk -v c=\"\$cutoff\" 'substr(\$0,1,10) < c' \$keep.all \
-      | awk -v m=\"\$monthly_cutoff\" 'substr(\$0,1,7) >= m' \
-      | awk '!seen[substr(\$0,1,7)]++' >> \$keep
-    sort -u \$keep -o \$keep
-    ls \$dir | while read -r f; do
-      grep -qx \"\${f%%.*}\" \$keep || rm -f \$dir/\$f
-    done
-    rm -f \$keep \$keep.all
-  done
-  prune_before=\$(date -u -d '$MIRROR_PRUNE_DAYS days ago' +%Y-%m-%d)
-  awk -F'\t' -v c=\"\$prune_before\" '\$2 < c { print \$1 }' media-missing.tsv \
-    | while read -r p; do rm -f \"media/\$p\"; done
-  awk -F'\t' -v c=\"\$prune_before\" '\$2 >= c' media-missing.tsv > media-missing.new \
-    && mv media-missing.new media-missing.tsv
-"
+# Computed HERE, deleted there. The remote has no awk, no `date -d` and no
+# loops; it only lists (rsync) and deletes (sftp).
+cutoff="$(date -u -d "$RETAIN_DAILY_DAYS days ago" +%Y-%m-%d)"
+monthly_cutoff="$(date -u -d "$RETAIN_MONTHLY_MONTHS months ago" +%Y-%m)"
+for dir in db env caddy refs; do
+  remote_ls "$dir" | sort > "$STAGING/have.txt"
+  # <ts> is the filename up to the first dot, and <ts> sorts chronologically
+  # because it is ISO-8601 -- which is why "the earliest of each month" is one
+  # awk pass over a sorted list rather than a date comparison.
+  sed 's/[.].*//' "$STAGING/have.txt" | sort -u > "$STAGING/stamps.txt"
+  awk -v c="$cutoff" 'substr($0,1,10) >= c' "$STAGING/stamps.txt" > "$STAGING/keep.txt"
+  awk -v c="$cutoff" 'substr($0,1,10) < c' "$STAGING/stamps.txt" \
+    | awk -v m="$monthly_cutoff" 'substr($0,1,7) >= m' \
+    | awk '!seen[substr($0,1,7)]++' >> "$STAGING/keep.txt"
+  sort -u "$STAGING/keep.txt" -o "$STAGING/keep.txt"
+  awk -v d="$dir" 'NR==FNR { keep[$0]; next }
+       { stamp = $0; sub(/[.].*/, "", stamp)
+         if (!(stamp in keep)) print d "/" $0 }' \
+    "$STAGING/keep.txt" "$STAGING/have.txt" | remote_rm
+done
+
+prune_before="$(date -u -d "$MIRROR_PRUNE_DAYS days ago" +%Y-%m-%d)"
+awk -F'\t' -v c="$prune_before" '$2 < c { print "media/" $1 }' \
+  "$STAGING/missing.new" | remote_rm
+awk -F'\t' -v c="$prune_before" '$2 >= c' "$STAGING/missing.new" \
+  > "$STAGING/missing.kept"
+scp $SSH_OPTS "$STAGING/missing.kept" "$REMOTE:$BASE/media-missing.tsv"
 
 # --- 14. heartbeat, on success only --------------------------------------
 # Alerts on ABSENCE, which is the only thing that detects a backup that stopped
@@ -1297,12 +1427,14 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-for required in SLUG TS SSH_HOST SSH_USER; do
-  if [ -z "${!required}" ]; then
-    echo "!! --${required,,} is required" >&2
-    exit 2
-  fi
-done
+# The literal flag spellings, not ${name,,}: that lowercases the VARIABLE name
+# and would print "--ssh_host is required" for a flag the case block above only
+# accepts as --ssh-host. Telling an operator at 2am to pass a flag the script
+# then rejects as an unknown argument is worse than saying nothing.
+[ -n "$SLUG" ]     || { echo "!! --slug is required" >&2; exit 2; }
+[ -n "$TS" ]       || { echo "!! --ts is required" >&2; exit 2; }
+[ -n "$SSH_HOST" ] || { echo "!! --ssh-host is required" >&2; exit 2; }
+[ -n "$SSH_USER" ] || { echo "!! --ssh-user is required" >&2; exit 2; }
 
 # --- LOCK ----------------------------------------------------------------
 # Fails LOUDLY rather than skipping. A silently skipped restore is the worst
@@ -1332,7 +1464,16 @@ BASE="schools/$SLUG"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"; shred -u "$AGE_KEY" "$SSH_KEY" 2>/dev/null || rm -f "$AGE_KEY" "$SSH_KEY"' EXIT
 
-remote() { ssh $SSH_OPTS "$REMOTE" "$@"; }
+# Same constraint as backup.sh: the Storage Box is not a shell. List with
+# rsync, test and delete with sftp, and compute everything here.
+remote_ls() {
+  rsync --list-only -r -e "ssh $SSH_OPTS" "$REMOTE:$BASE/$1/" 2>/dev/null \
+    | awk '$1 !~ /^d/ { $1=$2=$3=$4=""; sub(/^ +/, ""); print }'
+}
+
+remote_exists() {
+  printf 'ls %s\n' "$1" | sftp -b - $SSH_OPTS "$REMOTE:$BASE/" > /dev/null 2>&1
+}
 
 # --- CONFIRM -------------------------------------------------------------
 scp $SSH_OPTS "$REMOTE:$BASE/manifest/$TS.json" "$WORK/manifest.json"
@@ -1344,7 +1485,7 @@ cat "$WORK/manifest.json"
 # artefacts are gone -- without this the failure lands after the confirmation.
 missing=""
 for object in "db/$TS.dump.age" "env/$TS.env.age" "caddy/$TS.tar.age"; do
-  remote "test -e $BASE/$object" || missing="$missing $object"
+  remote_exists "$object" || missing="$missing $object"
 done
 if [ -n "$missing" ]; then
   # missing artefact
@@ -1358,9 +1499,8 @@ fi
 # make every old-enough <ts> unrestorable. The typed slug below IS the
 # acceptance, and FILES honours it.
 scp $SSH_OPTS "$REMOTE:$BASE/refs/$TS.txt" "$WORK/refs.txt"
-remote "cd $BASE/media && find . -type f | sed 's|^\./||'" | sort > "$WORK/have_media.txt"
-remote "cd $BASE/screenshots && find . -type f -name '*.age' | sed 's|^\./||;s|\.age$||'" \
-  | sort > "$WORK/have_shots.txt"
+remote_ls media | sort > "$WORK/have_media.txt"
+remote_ls screenshots | grep '\.age$' | sed 's|\.age$||' | sort > "$WORK/have_shots.txt"
 awk -F'\t' '$1 == "media" { print $2 }' "$WORK/refs.txt" | sort > "$WORK/want_media.txt"
 awk -F'\t' '$1 == "support_screenshots" { print $2 }' "$WORK/refs.txt" | sort > "$WORK/want_shots.txt"
 comm -23 "$WORK/want_media.txt" "$WORK/have_media.txt" > "$WORK/gap_media.txt"
@@ -1533,7 +1673,7 @@ rsync_ok -a --files-from="$WORK/need_media.txt" -e "ssh $SSH_OPTS" \
 
 SHOTS_DIR="$(vol_path support_screenshots)"
 while read -r name; do
-  remote "test -e $BASE/screenshots/$name.age" || continue
+  remote_exists "screenshots/$name.age" || continue
   mkdir -p "$SHOTS_DIR/$(dirname "$name")"
   scp $SSH_OPTS "$REMOTE:$BASE/screenshots/$name.age" "$WORK/shot.age"
   age -d -i "$AGE_KEY" -o "$SHOTS_DIR/$name" "$WORK/shot.age"
