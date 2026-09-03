@@ -243,7 +243,7 @@ or provider move does not finish with a second `restore.sh --live` run.
 
 The script runs fifteen named steps — LOCK, CREDENTIALS, CONFIRM, IDENTITY, VERSION, ENV,
 DUMP, **WIPE**, MATERIALISE, DB UP, LOAD, FILES, APP UP, VERIFY, HANDOFF — all of them the
-script's own work, none a manual step. Three things about that sequence are worth knowing
+script's own work, none a manual step. Four things about that sequence are worth knowing
 before you type the confirmation slug:
 
 - **CONFIRM proves the artifact exists before it asks you anything.** It hard-refuses if
