@@ -793,13 +793,30 @@ also be meaningless, since the public hostname resolves to the other machine.
 
 So `restore.sh` takes a mode:
 
-- **`--pre-cutover`** — boots with `tls internal`, so Caddy uses its own CA and attempts no
-  ACME. Checks run against `127.0.0.1` with an explicit `Host:` header, exactly as the
+- **`--pre-cutover`** — at ENV, rewrite two keys in the restored `.env.production`:
+  `SITE_ADDRESS=http://<hostname>` (note the explicit `http://` scheme) and
+  `DJANGO_SECURE_SSL_REDIRECT=false`. Caddy then serves plain HTTP and **attempts no ACME
+  at all**. Checks run against `127.0.0.1` with an explicit `Host:` header, exactly as the
   container healthcheck already does. This validates the restore without touching DNS.
 - **`--live`** (default) — the real `SITE_ADDRESS`, ACME as normal, and the full section 4
-  checks against the public name. Run after DNS is repointed.
+  checks against the public name. Run after DNS is repointed. Re-running `restore.sh` in
+  `--live` mode after the DNS change is what restores both keys.
 
-The runbook's restore section splits the section 4 checks into those two groups.
+**Why the scheme rather than a `tls` directive.** An earlier draft said pre-cutover "boots
+with `tls internal`", which was a mechanism that does not exist: the `Caddyfile` has **no
+`tls` directive at all**, and Caddy's automatic HTTPS is driven entirely by whether
+`{$SITE_ADDRESS}` parses as a domain. Making `tls` variable-driven would mean a new env
+var, a Caddyfile edit, a compose default and another guard — to reach a state the repo can
+already express. `docs/deployment.md`'s local-smoke section already documents exactly this
+pair of overrides for exactly this effect ("Caddy then serves plain HTTP and skips ACME
+entirely"), so pre-cutover mode reuses a path that is already exercised rather than
+inventing one. `DJANGO_ALLOWED_HOSTS` needs no change — it is the production value and
+already contains the hostname.
+
+The runbook's restore section splits the section 4 checks into those two groups: what can
+be proved over plain HTTP against `127.0.0.1` before the cutover, and what can only be
+proved against the public name afterwards (TLS, the certificate, and the Range check
+through the real hostname).
 
 ### Rotation after a compromise — split by when it can happen
 
@@ -1060,7 +1077,12 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
     RED. Also assert the erasure keep-set names `refs`, not just the live tree;
     *mutant:* drop `refs` from the union → RED. Together these pin the intra-run race
     that would otherwise let CONFIRM pass a dump whose screenshots were just erased.
-17. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
+17. **`--pre-cutover` disables ACME by the scheme, not by a `tls` directive.** Assert
+    `restore.sh` writes `SITE_ADDRESS=http://` and `DJANGO_SECURE_SSL_REDIRECT=false`
+    in that mode, and that the `Caddyfile` still contains no `tls` directive (so a
+    future edit that hardcodes one is caught). *Mutant:* drop the scheme rewrite →
+    RED, because the restore would then attempt ACME against DNS pointing elsewhere.
+18. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
     the `up` blocks of `docs/deployment.md` §3 and §8. *Mutant:* leave one behind → RED.
     This is the guard that catches the half-finished image switch, which would otherwise
     present as a box quietly building from source while everything else assumed it pulled.
@@ -1077,8 +1099,8 @@ B1 is not complete when the scripts exist. It is complete when a backup taken by
 - [ ] `pg_restore` completes with no errors
 - [ ] referenced files fetched == referenced files listed
 - [ ] the stack reaches healthy; `/healthz/` returns `"status": "ok"`
-- [ ] the site answers over TLS on the restored hostname (`--live`) or the internal CA
-      (`--pre-cutover`)
+- [ ] the site answers on the restored hostname over TLS (`--live`), or over plain HTTP at
+      `127.0.0.1` with a `Host:` header (`--pre-cutover`)
 - [ ] a known course opens and renders a media element (proves paths survived)
 - [ ] a Range request on a real `.mp4` returns 206 (the failure mode the runbook fears)
 - [ ] a support screenshot decrypts and opens
