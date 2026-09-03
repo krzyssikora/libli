@@ -292,3 +292,107 @@ def test_table_edit_preserves_content_when_only_label_changed(page, live_server)
     assert after["cells"][0][0]["halign"] == "center"
     element.refresh_from_db()
     assert element.title == "Renamed"
+
+
+def _tbtn(page, selector):
+    return page.locator(f"[data-edit-slot] [data-table-toolbar] {selector}")
+
+
+def _is_on(button):
+    return button.evaluate("b => b.classList.contains('is-on')")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_table_toolbar_paints_inline_format_active_state(page, live_server):
+    """The B/I/U buttons and the colour swatches must show whether the format
+    is live at the caret, exactly as the prose toolbar's refreshActive does.
+
+    Without this the table toolbar is the only editing surface where pressing
+    Bold produces no feedback on the control itself: the alignment and header
+    buttons paint .is-on, these did not, so an author reads the click as a
+    dead button and cannot tell an already-bold cell from a plain one."""
+    _make_pa_user("tbl_state")
+    _login(page, live_server, "tbl_state")
+    unit = _unit("tbl_state", "tbl-state")
+    _add_table(page, live_server, unit)
+
+    bold = _tbtn(page, "[data-cmd='bold']")
+    italic = _tbtn(page, "[data-cmd='italic']")
+    red = _tbtn(page, "[data-cmd='colour-red']")
+    blue = _tbtn(page, "[data-cmd='colour-blue']")
+
+    cells = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]")
+    first, second = cells.nth(0), cells.nth(1)
+
+    # Applying a format lights its own button, and only it.
+    first.click()
+    page.keyboard.type("bolded")
+    page.keyboard.press("Control+A")
+    bold.click()
+    assert _is_on(bold), "Bold must light up once the selection is bold"
+    assert not _is_on(italic), "Italic must stay unlit"
+
+    # Pressing it again un-bolds, and the button must follow back down.
+    bold.click()
+    assert not _is_on(bold), "Bold must unlight when the format is toggled off"
+
+    # A colour swatch reports the slot at the caret, and swapping slots moves
+    # the highlight rather than lighting both.
+    bold.click()
+    red.click()
+    assert _is_on(red), "The applied colour swatch must light up"
+    assert not _is_on(blue), "Only the applied slot lights up"
+    blue.click()
+    assert _is_on(blue)
+    assert not _is_on(red), "Re-colouring must move the highlight, not add one"
+
+    # Arrowing WITHIN one cell, across the boundary between bold and plain text,
+    # must move the highlight too: focus never changes here, so nothing but a
+    # selection-driven repaint can keep the button honest.
+    third = cells.nth(2)
+    third.click()
+    page.keyboard.type("aa")
+    page.keyboard.press("Control+A")
+    bold.click()
+    page.keyboard.press("ArrowRight")  # collapse to the end of "aa"
+    bold.click()  # ... and stop bolding from here
+    page.keyboard.type("bb")
+    assert third.inner_html() == "<b>aa</b>bb", "precondition for the caret walk"
+    assert not _is_on(bold), "the caret sits in the plain tail"
+    for _ in range(3):
+        page.keyboard.press("ArrowLeft")  # ... into the middle of "aa"
+    assert _is_on(bold), "Bold must light up when the caret enters bold text"
+    for _ in range(3):
+        page.keyboard.press("ArrowRight")  # ... and back out into "bb"
+    assert not _is_on(bold), "Bold must unlight when the caret leaves bold text"
+
+    # Moving the caret to a plain cell drops every inline highlight -- the
+    # state must track the CARET, not the last button pressed.
+    second.click()
+    page.keyboard.type("plain")
+    assert not _is_on(bold), "A plain cell must not report bold"
+    assert not _is_on(red)
+    assert not _is_on(blue)
+
+    # ... and coming back to the formatted cell lights them again, which is
+    # the read an author relies on to tell the two cells apart.
+    first.click()
+    page.keyboard.press("Control+A")
+    page.wait_for_function(
+        "() => document.querySelector("
+        "'[data-edit-slot] [data-table-toolbar] [data-cmd=\"bold\"]'"
+        ").classList.contains('is-on')"
+    )
+    assert _is_on(blue), "Returning to a coloured cell must re-light its swatch"
+
+    # The plainest gesture in the bug report: caret in an untouched cell, no
+    # selection at all, press Bold. The button must light straight away -- it is
+    # the only signal that the NEXT keystroke will be bold. Kept last, and in a
+    # cell of its own, because it deliberately leaves a pending format behind.
+    fourth = cells.nth(3)
+    fourth.click()
+    bold.click()
+    assert _is_on(bold), "Bold must light up on a collapsed caret"
+    page.keyboard.type("x")
+    assert fourth.inner_html() == "<b>x</b>", "... and the typing must be bold"
+    assert _is_on(bold), "... and it stays lit while typing inside the run"
