@@ -296,3 +296,113 @@ def test_scripts_parse(script):
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_restore_loads_the_database_before_the_app_starts():
+    """The entrypoint runs `migrate` on every boot, so bringing the full stack up
+    against an empty database creates the schema and the dump then collides.
+
+    Mutant: replace `up -d db` with `up -d`.
+    """
+    text = RESTORE_SH.read_text(encoding="utf-8")
+    db_up = _line_index(RESTORE_SH, r"compose up -d db\b")
+    load = _line_index(RESTORE_SH, r"pg_restore")
+    assert db_up < load
+    head = text.splitlines()[:load]
+    assert not [ln for ln in head if re.search(r"compose up -d\s*$", ln)], head
+
+
+def test_volumes_are_materialised_before_paths_are_resolved():
+    """`up -d db` creates only pgdata; media, support_screenshots and caddy_data
+    belong to app and caddy, which do not start until later -- so vol_path would
+    fail on volumes that do not exist. `compose create` makes them WITH compose's
+    labels; `docker volume create` would make unlabelled ones compose then
+    refuses to adopt.
+
+    Mutant: delete the compose create line.
+    """
+    # Anchored on the first CALL, not the definition: vol_path() is defined up
+    # with the other helpers in the ENV section, which is before compose create.
+    assert _line_index(RESTORE_SH, r"compose create") < _line_index(
+        RESTORE_SH, r"vol_path caddy_data"
+    )
+
+
+def test_rotate_secrets_writes_before_it_wipes():
+    """POSTGRES_PASSWORD is read by postgres ONLY while it initialises an empty
+    data directory. Rotated after the wipe, the database keeps the old password
+    while the app uses the new one.
+
+    Mutant: move the generation below `compose down`.
+    """
+    gen = _line_index(RESTORE_SH, r"rotate_secrets|openssl rand")
+    assert gen < _line_index(RESTORE_SH, r"compose down --volumes")
+
+
+def test_confirm_proves_the_artifacts_exist_before_it_prompts():
+    """Otherwise a never-pruned manifest/ lets an operator pick a <ts> whose
+    artifacts are gone; it passes every early check and fails at ENV, after the
+    confirmation has already been typed.
+
+    Mutant: move the existence check below the read.
+    """
+    assert _line_index(RESTORE_SH, r"db/\$TS\.dump\.age") < _line_index(
+        RESTORE_SH, r"^\s*read "
+    )
+
+
+def test_completeness_is_checked_before_the_wipe():
+    """Mutant: move the refs diff after `compose down`."""
+    assert _line_index(RESTORE_SH, r"refs/\$TS\.txt") < _line_index(
+        RESTORE_SH, r"compose down --volumes"
+    )
+
+
+def test_a_missing_artifact_exits_but_a_refs_gap_does_not():
+    """The asymmetry is the point. A refs gap is often LEGITIMATE -- media is
+    pruned at 90 days and screenshots are erased on deletion, while dumps are
+    kept 13 months -- so refusing on one would make every old-enough <ts>
+    unrestorable. The typed slug IS the knowing acceptance.
+
+    Mutant: make a refs gap exit non-zero.
+    """
+    text = RESTORE_SH.read_text(encoding="utf-8")
+    missing_block = re.search(r"missing artefact.*?\n(.*?)\nfi", text, re.DOTALL)
+    assert missing_block and "exit 1" in missing_block.group(1), text
+    gap_block = re.search(r"refs gap.*?\n(.*?)\nfi", text, re.DOTALL)
+    assert gap_block and "exit" not in gap_block.group(1), text
+
+
+def test_the_checkout_must_match_the_image():
+    """The compose file governs the postgres major, the volume names and the
+    healthcheck, so a checkout newer than the image can disagree with it.
+
+    Mutant: delete the comparison.
+    """
+    assert re.search(r"git rev-parse HEAD", RESTORE_SH.read_text(encoding="utf-8"))
+
+
+def test_image_tag_is_format_checked():
+    """ "Never floating master" in a runbook is an instruction to a human. The
+    checkout-sha comparison needs a sha to compare.
+
+    Mutant: accept any string.
+    """
+    assert "^sha-[0-9a-f]" in RESTORE_SH.read_text(encoding="utf-8")
+
+
+def test_pre_cutover_disables_acme_by_the_scheme():
+    """The Caddyfile has NO tls directive -- automatic HTTPS is driven entirely
+    by whether {$SITE_ADDRESS} parses as a domain. The http:// scheme plus
+    DJANGO_SECURE_SSL_REDIRECT=false is the pair the runbook already documents
+    for local smoke runs.
+
+    Mutant: drop the scheme rewrite -> the restore attempts ACME against DNS
+    still pointing at the old box, burning the failed-validation budget.
+    """
+    text = RESTORE_SH.read_text(encoding="utf-8")
+    assert "SITE_ADDRESS=http://" in text, text
+    assert "DJANGO_SECURE_SSL_REDIRECT=false" in text, text
+    assert not re.search(
+        r"^\s*tls\b", CADDYFILE.read_text(encoding="utf-8"), re.MULTILINE
+    )
