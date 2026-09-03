@@ -128,6 +128,20 @@ from django.db import models
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture
+def image_asset(course_with_image):
+    """One MediaAsset with a real file on disk.
+
+    Built on the existing `course_with_image` fixture (tests/conftest.py) rather
+    than a new one: it already redirects MEDIA_ROOT to tmp_path, which
+    make_image_asset needs because it writes real bytes. There is no bare
+    `image_asset` fixture in the project -- `course_with_image` returns a
+    (course, asset) tuple, and this unpacks it.
+    """
+    _course, asset = course_with_image
+    return asset
+
+
 def _run():
     out = StringIO()
     call_command("list_referenced_files", stdout=out)
@@ -183,7 +197,7 @@ uv run pytest tests/test_list_referenced_files.py -v
 
 Expected: FAIL — `Unknown command: 'list_referenced_files'`.
 
-If the `image_asset` fixture does not exist in `tests/conftest.py`, find the equivalent MediaAsset factory in `tests/factories.py` and use it; do not invent a new fixture name.
+The `image_asset` fixture is defined locally at the top of this test file (above), wrapping the project's existing `course_with_image`. Do not add a new fixture to `tests/conftest.py` — this one is used by a single file.
 
 - [ ] **Step 3: Write the command**
 
@@ -717,7 +731,11 @@ def test_refs_is_written_before_either_mirror_step():
     refs = _line_index(BACKUP_SH, r"list_referenced_files")
     assert _line_index(BACKUP_SH, r"pg_dump") < refs
     assert refs < _line_index(BACKUP_SH, r"rsync.*media")
-    assert refs < _line_index(BACKUP_SH, r"xargs rm")
+    # `| remote_rm`, not `remote_rm`: the bare name also matches the function
+    # DEFINITION near the top of the script, which precedes refs and would make
+    # this assertion fail against a correct script. Piping only ever happens at
+    # a call site, and the first call site is the screenshot erasure.
+    assert refs < _line_index(BACKUP_SH, r"\|\s*remote_rm")
 
 
 def test_the_erasure_keep_set_includes_refs():
@@ -739,8 +757,18 @@ def test_no_delete_anywhere_in_backup():
     `--ignore-existing` suppresses re-transfer and exempts nothing from deletion.
 
     Mutant: add `--delete` to either rsync.
+
+    Comment lines are skipped for the same reason _line_index skips them: this
+    script's own commentary explains at length why --delete must never appear,
+    and a raw substring search over the whole file would be red before anyone
+    writes a bug -- so the falsification step could demonstrate nothing.
     """
-    assert "--delete" not in BACKUP_SH.read_text(encoding="utf-8")
+    offenders = [
+        ln
+        for ln in BACKUP_SH.read_text(encoding="utf-8").splitlines()
+        if "--delete" in ln and not ln.lstrip().startswith("#")
+    ]
+    assert not offenders, offenders
 
 
 def test_the_dump_is_verified_before_upload():
@@ -762,13 +790,21 @@ def test_all_three_scripts_fail_on_the_first_error_and_in_a_pipe():
     Mutant: drop `pipefail` from any of the three.
     """
     for path in (DEPLOY_SH, BACKUP_SH, RESTORE_SH):
-        body = [
+        lines = path.read_text(encoding="utf-8").splitlines()
+        # The shebang is checked on the RAW first line. Filtering `#`-prefixed
+        # lines first would drop it -- `#!/usr/bin/env bash` starts with `#` --
+        # and `body[0].startswith("#!")` could then never be true for any script.
+        assert lines[0].startswith("#!"), f"{path.name}: {lines[0]!r}"
+        # Then the first line that is neither blank nor a comment. deploy.sh
+        # carries a long header comment between its shebang and its `set` line
+        # while backup.sh and restore.sh put `set` on line 2, so a positional
+        # index cannot treat the three uniformly -- but "first real line" can.
+        real = next(
             ln
-            for ln in path.read_text(encoding="utf-8").splitlines()
+            for ln in lines[1:]
             if ln.strip() and not ln.lstrip().startswith("#")
-        ]
-        assert body[0].startswith("#!"), path.name
-        assert body[1] == "set -euo pipefail", f"{path.name}: {body[1]!r}"
+        )
+        assert real == "set -euo pipefail", f"{path.name}: {real!r}"
 
 
 def test_all_three_scripts_share_one_lock_path():
