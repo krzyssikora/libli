@@ -83,6 +83,18 @@ rsync_ok() {
   [ "$code" -eq 0 ] || [ "$code" -eq 24 ]
 }
 
+# grep exits 1 when it SELECTS NO LINES, which under `set -euo pipefail` is
+# fatal -- and "no lines" is the ordinary case here: most schools have never
+# had an IssueReport.screenshot, so the remote listing is empty every night.
+# Aborting there would leave the run without a manifest (the artifact then has
+# no restorable <ts> at all), without a prune, and without a heartbeat.
+# Only status 1 is absorbed: a REAL grep failure (status 2 -- an unreadable
+# file, a bad pattern) still returns non-zero and still aborts the run, so this
+# tolerates the empty result without tolerating a fault.
+grep_any() {
+  grep "$@" || [ $? -eq 1 ]
+}
+
 require_env() {
   local value
   value="$(env_value "$1")"
@@ -221,7 +233,7 @@ rsync_ok -a -e "ssh $SSH_OPTS" "$MEDIA_DIR/" "$REMOTE:$BASE/media/"
 # and --ignore-existing only suppresses re-transfer -- it exempts nothing from
 # deletion.
 SHOTS_DIR="$(vol_path support_screenshots)"
-remote_ls screenshots | grep '\.age$' | sort > "$STAGING/remote.txt"
+remote_ls screenshots | grep_any '\.age$' | sort > "$STAGING/remote.txt"
 (cd "$SHOTS_DIR" && find . -type f | sed 's|^\./||') | sed 's|$|.age|' \
   | sort > "$STAGING/expected.txt"
 

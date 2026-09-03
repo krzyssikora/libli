@@ -92,6 +92,17 @@ remote_exists() {
   printf 'ls %s\n' "$1" | sftp -b - $SSH_OPTS "$REMOTE:$BASE/" > /dev/null 2>&1
 }
 
+# grep exits 1 when it SELECTS NO LINES, and `grep -c` prints 0 and STILL exits
+# 1 -- both fatal under `set -euo pipefail`, and both are ordinary outcomes
+# here. A school that never had an IssueReport.screenshot has an empty
+# screenshots/ listing (so it could not be restored at all), and a refs gap made
+# entirely of derivatives has a zero ORIGINAL count (so the gap report died
+# while printing that the gap was harmless). Only status 1 is absorbed: a real
+# grep failure (status 2) still returns non-zero and still aborts.
+grep_any() {
+  grep "$@" || [ $? -eq 1 ]
+}
+
 # --- CONFIRM -------------------------------------------------------------
 scp $SSH_OPTS "$REMOTE:$BASE/manifest/$TS.json" "$WORK/manifest.json"
 echo "=== manifest $TS ==="
@@ -117,17 +128,24 @@ fi
 # acceptance, and FILES honours it.
 scp $SSH_OPTS "$REMOTE:$BASE/refs/$TS.txt" "$WORK/refs.txt"
 remote_ls media | sort > "$WORK/have_media.txt"
-remote_ls screenshots | grep '\.age$' | sed 's|\.age$||' | sort > "$WORK/have_shots.txt"
+remote_ls screenshots | grep_any '\.age$' | sed 's|\.age$||' | sort > "$WORK/have_shots.txt"
 awk -F'\t' '$1 == "media" { print $2 }' "$WORK/refs.txt" | sort > "$WORK/want_media.txt"
 awk -F'\t' '$1 == "support_screenshots" { print $2 }' "$WORK/refs.txt" | sort > "$WORK/want_shots.txt"
 comm -23 "$WORK/want_media.txt" "$WORK/have_media.txt" > "$WORK/gap_media.txt"
 comm -23 "$WORK/want_shots.txt" "$WORK/have_shots.txt" > "$WORK/gap_shots.txt"
 if [ -s "$WORK/gap_media.txt" ] || [ -s "$WORK/gap_shots.txt" ]; then
   # refs gap
+  # Counted into variables through grep_any, not piped straight to xargs: a
+  # zero count exits 1 from grep, so the ALL-derivatives gap -- the common case
+  # this very message calls harmless -- used to abort the run on the ORIGINAL
+  # line, and a gap with no derivatives aborted on the line above it.
+  gap_derivatives="$(grep_any -c 'derivatives/' "$WORK/gap_media.txt")"
+  gap_originals="$(grep_any -vc 'derivatives/' "$WORK/gap_media.txt")"
+  gap_shots="$(wc -l < "$WORK/gap_shots.txt")"
   echo "=== files this dump references that the mirror no longer holds ==="
-  grep -c 'derivatives/' "$WORK/gap_media.txt" | xargs printf '  %s derivative(s) -- harmless, backfill_media_derivatives regenerates them\n'
-  wc -l < "$WORK/gap_shots.txt" | xargs printf '  %s screenshot(s) -- expected on an old <ts>; erased by design\n'
-  grep -vc 'derivatives/' "$WORK/gap_media.txt" | xargs printf '  %s ORIGINAL(s) -- unrepairable content loss\n'
+  printf '  %s derivative(s) -- harmless, backfill_media_derivatives regenerates them\n' "$gap_derivatives"
+  printf '  %s screenshot(s) -- expected on an old <ts>; erased by design\n' "$gap_shots"
+  printf '  %s ORIGINAL(s) -- unrepairable content loss\n' "$gap_originals"
   echo "Typing the slug below accepts this gap."
 fi
 
@@ -281,7 +299,22 @@ compose run --rm --no-deps app /app/.venv/bin/python manage.py list_referenced_f
 awk -F'\t' '$1 == "media" { print $2 }' "$WORK/restored_refs.txt" | sort > "$WORK/need_media.txt"
 awk -F'\t' '$1 == "support_screenshots" { print $2 }' "$WORK/restored_refs.txt" | sort > "$WORK/need_shots.txt"
 
-rsync_ok -a --files-from="$WORK/need_media.txt" -e "ssh $SSH_OPTS" \
+# rsync exits 23 when a --files-from entry is ABSENT ON THE SENDER, and the gap
+# CONFIRM printed is precisely a set of absent entries -- so fetching
+# need_media.txt verbatim aborted the accepted-gap path here, after WIPE, which
+# made the whole accept-and-reconcile design unreachable. Adding 23 to
+# rsync_ok's tolerated list would instead make a genuinely partial transfer read
+# as success. The fetch list is therefore intersected with what the mirror
+# actually holds, leaving gap_media.txt the single declared exception.
+#
+# Listed AGAIN rather than reusing CONFIRM's have_media.txt: that is what keeps
+# VERIFY able to do its stated job. A file the mirror lost BETWEEN the check and
+# the fetch is simply not fetched here, and VERIFY then names it as missing
+# beyond the declared gap -- whereas reusing the older listing would put it back
+# in the --files-from and abort on 23 again.
+remote_ls media | sort > "$WORK/have_media_now.txt"
+comm -12 "$WORK/need_media.txt" "$WORK/have_media_now.txt" > "$WORK/fetch_media.txt"
+rsync_ok -a --files-from="$WORK/fetch_media.txt" -e "ssh $SSH_OPTS" \
   "$REMOTE:$BASE/media/" "$(vol_path media)/"
 
 SHOTS_DIR="$(vol_path support_screenshots)"
