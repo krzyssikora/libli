@@ -29,11 +29,16 @@ RUNBOOK = ROOT / "docs/deployment.md"
 
 
 def test_publish_job_precedes_the_deploy_step():
-    """A deploy that runs before the push tells the box to pull a tag that does
-    not exist yet -- failing on the host rather than in CI, which is the slowest
-    possible place to find out.
+    """GitHub Actions runs jobs in parallel by default -- textual order in the
+    YAML does not serialize them. `needs: publish` is the only thing that makes
+    `deploy` wait for the push to finish, so without it a deploy can start
+    before the image exists, telling the box to pull a tag that is not there
+    yet -- failing on the host rather than in CI, which is the slowest possible
+    place to find out.
 
-    Mutant: move the publish job below the ssh-action step.
+    Mutant: delete `needs: publish` from the deploy job (block order and step
+    order alone cannot catch this, since GitHub Actions ignores YAML position
+    when scheduling jobs).
     """
     text = DEPLOY_YML.read_text(encoding="utf-8")
     push = text.find("docker/build-push-action")
@@ -41,6 +46,9 @@ def test_publish_job_precedes_the_deploy_step():
     assert push != -1, "deploy.yml no longer publishes an image"
     assert ssh != -1, "deploy.yml no longer deploys"
     assert push < ssh, "the publish step must precede the deploy step"
+    assert re.search(r"^\s*deploy:\s*\n\s*needs:\s*publish\s*$", text, re.MULTILINE), (
+        "the deploy job must declare `needs: publish`, or the two jobs race"
+    )
 
 
 def test_deploy_logs_in_before_it_pulls():
