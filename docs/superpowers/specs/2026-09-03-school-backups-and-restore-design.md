@@ -457,8 +457,8 @@ the runbook (SSH hardened, Docker installed).
  5. VERSION     resolve the TARGET image; refuse unless its migration set
                 contains the manifest's; refuse a lower postgres major
  6. ENV         decrypt env/<ts>.env.age -> .env.production, chmod 600, strip
-                INIT_ADMIN_*, write the VERSION target into LIBLI_IMAGE_TAG,
-                and on a compromise restore apply the ENV-FILE rotation HERE
+                INIT_ADMIN_*, write the VERSION target into LIBLI_IMAGE_TAG;
+                with --rotate-secrets, mint the two generatable secrets HERE
  7. WIPE        compose down --volumes    <- DESTRUCTIVE. Gated by CONFIRM.
  8. MATERIALISE compose create            <- makes all volumes, starts nothing
  9. DB UP       compose up -d db          <- db ALONE. Not the app.
@@ -466,8 +466,16 @@ the runbook (SSH hardened, Docker installed).
 11. FILES       restore caddy/, media/, screenshots/ -- three paths; see below
 12. APP UP      compose up -d --wait      <- entrypoint migrates forward
 13. VERIFY      then the pre- or post-cutover checks per mode
-14. ROTATE-DB   compromise restore only: the DATABASE-side rotation, admin UI
+14. HANDOFF     print what the script could NOT do; exit non-zero if any
+                --rotate-secrets follow-up is outstanding
 ```
+
+**All fourteen are `restore.sh`'s own execution.** Nothing in the list is a human step, and
+that is deliberate — an earlier draft ended with "the database-side rotation, admin UI",
+which put a manual task in the same numbered sequence as `compose` invocations and left a
+reader unable to tell which of the steps the script actually performs. The manual follow-ups
+now live only in the rotation section, and HANDOFF is the script *telling* the operator
+about them rather than pretending to do them.
 
 ### Which image the checks compare against
 
@@ -630,22 +638,55 @@ values the adversary had. Without a rotation step the rebuilt box resumes nightl
 using a credential someone else is known to hold — which would quietly undo the whole
 point of having used a separate credential to recover.
 
-These cannot all happen at the same moment, and treating rotation as a single tidy-up step
-at the end would silently get one of them wrong. Three groups, by when they are possible:
+**It is not a fifth path and not a mode the script guesses.** A compromise restore is any
+of the four paths plus the flag **`--rotate-secrets`**. There is no heuristic and no prompt:
+the operator knows whether they are recovering from a compromise, and nothing about a
+manifest or a box can tell the script.
 
-**At ENV — mandatory, because later is too late.**
+**What the flag does, and the sharp line through the middle of it.** Exactly two of the
+secrets can be generated on the box, because they are arbitrary random strings that nothing
+external has to agree with:
+
+```sh
+POSTGRES_PASSWORD   openssl rand -base64 36 | tr -d '/+=' | head -c 32
+DJANGO_SECRET_KEY   openssl rand -base64 64 | tr -d '\n'
+```
+
+`--rotate-secrets` writes both into the decrypted `.env.production` at ENV — before WIPE,
+which is the whole reason the flag exists rather than a post-restore checklist — and then
+**prints them once**, with the instruction to save them to the password manager
+immediately. They exist nowhere else at that moment: not in the artifact, not in any
+backup, only in a file on a box that has just been rebuilt. That echo is unpleasant but it
+is the only channel available, and §3 of the runbook already generates secrets this way.
+
+Everything else **cannot** be generated locally, because an external system has to issue it
+and agree to it: `EMAIL_HOST_PASSWORD` (the mail provider), `LIBLI_GHCR_TOKEN` (GitHub),
+`LIBLI_BACKUP_SSH_KEY_PATH`'s key and the Storage Box sub-account (Hetzner), and the two
+secrets that live in the database. So the flag does not pretend to handle them. Instead
+HANDOFF prints them as an explicit outstanding list and **exits non-zero**, so a restore
+that leaves known-compromised credentials in place cannot end in a green terminal and be
+mistaken for finished.
+
+Three groups, by when each is possible:
+
+**At ENV, by the script — mandatory, because later is too late.**
 
 - **`POSTGRES_PASSWORD`.** Postgres accepts a new password only while it is initialising an
   empty data directory, so the new value has to be in `.env.production` *before* WIPE
   destroys `pgdata` and DB UP recreates it. Rotate it after WIPE and the database keeps
   the old password while the app uses the new one — the same footgun WIPE exists to
   avoid, reintroduced by good intentions.
-- `DJANGO_SECRET_KEY` and `EMAIL_HOST_PASSWORD` — no timing constraint of their own, but
-  they are edits to the same file and belong in the same pass. Rotating the secret key logs
-  everyone out and invalidates outstanding reset and invitation links, which on a
-  compromise restore is the desired outcome rather than a cost.
+- `DJANGO_SECRET_KEY` — no timing constraint of its own, but it is an edit to the same
+  file in the same pass, and it is generatable. Rotating it logs everyone out and
+  invalidates outstanding reset and invitation links, which on a compromise restore is
+  the desired outcome rather than a cost.
+- `EMAIL_HOST_PASSWORD` is **not** in this group despite also being an env-file edit: the
+  mail provider has to issue it, so it belongs to the out-of-band group below. It is the
+  one entry where "same file" and "same actor" pull in different directions, and the
+  actor wins.
 
-**At ROTATE-DB — because these live in the database and only exist once it is restored.**
+**After the restore, by a human — because these live in the database and only exist once
+it is restored.** `restore.sh` does not do this; HANDOFF names it.
 
 - `SocialApp.secret` (the SSO client secret) and `WebhookEndpoint.secret`. Neither is in
   the env file, so both survive the restore intact and neither is touched by anything
@@ -653,11 +694,16 @@ at the end would silently get one of them wrong. Three groups, by when they are 
   reason: a rotation pass that only edits `.env.production` leaves two live secrets in the
   adversary's hands.
 
-**Out of band, before the first nightly run — at Hetzner and GitHub, not on the box.**
+**Out of band, by a human, before the first nightly run — at the provider, not on the
+box.** `restore.sh` cannot do any of these and does not try; HANDOFF lists them and exits
+non-zero while any remain.
 
 - A **new Storage Box sub-account** and key, with the old one **revoked** at Hetzner rather
   than merely unused, and `LIBLI_BACKUP_SSH_KEY_PATH`'s key file replaced.
-- A new `LIBLI_GHCR_TOKEN`, with the old PAT revoked at GitHub.
+- A new `LIBLI_GHCR_TOKEN`, with the old PAT revoked at GitHub. ⚠️ Revoking it before the
+  next restore is why out-of-band input 3 exists: the box's stored `docker login` stops
+  working the moment the old PAT dies.
+- `EMAIL_HOST_PASSWORD`, reissued by the mail provider.
 - The shared `age` recipient **only** if the private key itself is suspect. That is a
   fleet-wide event rather than a per-school one: it means re-encrypting every school's
   history, so it is a decision to take deliberately, not a reflex.
@@ -668,6 +714,8 @@ they are the same shape and neither should be reconstructed from memory under pr
 ### How the four paths use it
 
 - **Restore** — `--live`, same hostname. WIPE is the destructive one.
+  Add `--rotate-secrets` when recovering from a compromise; it is a modifier on this path
+  (or any other), not a path of its own.
 - **Resize** — `--pre-cutover` on the larger box, repoint DNS, re-run `--live`.
 - **Provider move** — identical to resize. Nothing in the artifact is Hetzner-specific.
 - **Handover** — see below. Not a fifth mechanism, but *not* just documentation either.
@@ -788,7 +836,8 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
    screenshot history, so it is pinned as an absolute rather than per-mirror.
 4. **The dump is verified before upload.** A `pg_restore --list` line appears between the
    `pg_dump` line and the `age` line. *Mutant:* remove it → RED.
-5. **`set -euo pipefail`** is the first executable line of both scripts, in the shape of
+5. **`set -euo pipefail`** is the first executable line of all three scripts (`deploy.sh`
+   already has it; the guard stops it regressing), in the shape of
    `test_ssh_action_stops_on_the_first_failing_line`. *Mutant:* drop `pipefail` → RED.
 6. **`restore.sh` loads the database before the app starts.** A qualified `up -d db`
    precedes the `pg_restore` line; no unqualified `up -d` precedes it. *Mutant:* replace
@@ -805,14 +854,17 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
    *Mutant:* change a constant without the notices → RED. Publishing a retention claim
    whose real value lives in a shell script is exactly the drift that file was written to
    prevent.
-9. **Both scripts parse** (`bash -n`), matching the existing deploy guard.
+9. **All three scripts parse** (`bash -n`), matching the existing deploy guard.
 10. **The publish job precedes the deploy step**, and both live in `deploy.yml`. Assert the
     build-push step appears before the `appleboy/ssh-action` step, and that `deploy.sh`
     performs a `docker login ghcr.io` before its `pull`. *Mutant:* reorder the jobs, or
     drop the login → RED. Without this a deploy can tell a box to pull a tag that does not
     exist yet, which fails on the box rather than in CI — the slowest possible place to
     find out.
-11. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
+11. **`--rotate-secrets` writes before it wipes.** In `restore.sh`, the secret-generation
+    lines appear before the `compose down` line. *Mutant:* move them after → RED. This is
+    the one ordering error that produces a database whose password nothing knows.
+12. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
     the `up` blocks of `docs/deployment.md` §3 and §8. *Mutant:* leave one behind → RED.
     This is the guard that catches the half-finished image switch, which would otherwise
     present as a box quietly building from source while everything else assumed it pulled.
