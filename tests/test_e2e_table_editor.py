@@ -6,8 +6,10 @@ Drives the REAL UI gestures throughout (clicks, keyboard typing) — no
 page.evaluate shortcuts. Marked e2e (excluded from the default run)."""
 
 import os
+import re
 
 import pytest
+from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
@@ -298,8 +300,21 @@ def _tbtn(page, selector):
     return page.locator(f"[data-edit-slot] [data-table-toolbar] {selector}")
 
 
-def _is_on(button):
-    return button.evaluate("b => b.classList.contains('is-on')")
+# The toolbar repaints on `selectionchange`, which the browser delivers
+# ASYNCHRONOUSLY: a caret move and the class that reflects it are not the same
+# tick. Reading classList straight after a keypress therefore samples a race --
+# measured at roughly one press in six going stale on an IDLE machine, and it is
+# what failed this test's fill-table twin on CI. expect() retries until it
+# settles; a class that is genuinely never painted still fails, at the timeout.
+IS_ON = re.compile(r"(^|\s)is-on(\s|$)")
+
+
+def _expect_on(button, why):
+    expect(button, why).to_have_class(IS_ON)
+
+
+def _expect_off(button, why):
+    expect(button, why).not_to_have_class(IS_ON)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -329,26 +344,32 @@ def test_table_toolbar_paints_inline_format_active_state(page, live_server):
     page.keyboard.type("bolded")
     page.keyboard.press("Control+A")
     bold.click()
-    assert _is_on(bold), "Bold must light up once the selection is bold"
-    assert not _is_on(italic), "Italic must stay unlit"
+    _expect_on(bold, "Bold must light up once the selection is bold")
+    _expect_off(italic, "Italic must stay unlit")
 
     # Pressing it again un-bolds, and the button must follow back down.
     bold.click()
-    assert not _is_on(bold), "Bold must unlight when the format is toggled off"
+    _expect_off(bold, "Bold must unlight when the format is toggled off")
 
     # A colour swatch reports the slot at the caret, and swapping slots moves
     # the highlight rather than lighting both.
     bold.click()
     red.click()
-    assert _is_on(red), "The applied colour swatch must light up"
-    assert not _is_on(blue), "Only the applied slot lights up"
+    _expect_on(red, "The applied colour swatch must light up")
+    _expect_off(blue, "Only the applied slot lights up")
     blue.click()
-    assert _is_on(blue)
-    assert not _is_on(red), "Re-colouring must move the highlight, not add one"
+    _expect_on(blue, "The newly applied slot lights up")
+    _expect_off(red, "Re-colouring must move the highlight, not add one")
 
-    # Arrowing WITHIN one cell, across the boundary between bold and plain text,
-    # must move the highlight too: focus never changes here, so nothing but a
-    # selection-driven repaint can keep the button honest.
+    # Moving the caret WITHIN one cell, across the boundary between bold and
+    # plain text, must move the highlight too: focus never changes here, so
+    # nothing but a selection-driven repaint can keep the button honest.
+    #
+    # Home/End rather than a counted run of ArrowLefts. A count has to land
+    # inside the bold run without overshooting it, which makes the test depend
+    # on how many caret stops the browser puts at an element boundary -- a
+    # platform detail, and one press of slack either way. Home and End land at
+    # the extremes, which is what is actually being asserted.
     third = cells.nth(2)
     third.click()
     page.keyboard.type("aa")
@@ -358,32 +379,26 @@ def test_table_toolbar_paints_inline_format_active_state(page, live_server):
     bold.click()  # ... and stop bolding from here
     page.keyboard.type("bb")
     assert third.inner_html() == "<b>aa</b>bb", "precondition for the caret walk"
-    assert not _is_on(bold), "the caret sits in the plain tail"
-    for _ in range(3):
-        page.keyboard.press("ArrowLeft")  # ... into the middle of "aa"
-    assert _is_on(bold), "Bold must light up when the caret enters bold text"
-    for _ in range(3):
-        page.keyboard.press("ArrowRight")  # ... and back out into "bb"
-    assert not _is_on(bold), "Bold must unlight when the caret leaves bold text"
+    _expect_off(bold, "the caret sits in the plain tail")
+    page.keyboard.press("Home")  # ... to the start, inside "aa"
+    _expect_on(bold, "Bold must light up when the caret enters bold text")
+    page.keyboard.press("End")  # ... and back out into "bb"
+    _expect_off(bold, "Bold must unlight when the caret leaves bold text")
 
     # Moving the caret to a plain cell drops every inline highlight -- the
     # state must track the CARET, not the last button pressed.
     second.click()
     page.keyboard.type("plain")
-    assert not _is_on(bold), "A plain cell must not report bold"
-    assert not _is_on(red)
-    assert not _is_on(blue)
+    _expect_off(bold, "A plain cell must not report bold")
+    _expect_off(red, "A plain cell must not report red")
+    _expect_off(blue, "A plain cell must not report blue")
 
     # ... and coming back to the formatted cell lights them again, which is
     # the read an author relies on to tell the two cells apart.
     first.click()
     page.keyboard.press("Control+A")
-    page.wait_for_function(
-        "() => document.querySelector("
-        "'[data-edit-slot] [data-table-toolbar] [data-cmd=\"bold\"]'"
-        ").classList.contains('is-on')"
-    )
-    assert _is_on(blue), "Returning to a coloured cell must re-light its swatch"
+    _expect_on(bold, "Returning to a bold cell must re-light Bold")
+    _expect_on(blue, "Returning to a coloured cell must re-light its swatch")
 
     # The plainest gesture in the bug report: caret in an untouched cell, no
     # selection at all, press Bold. The button must light straight away -- it is
@@ -392,7 +407,7 @@ def test_table_toolbar_paints_inline_format_active_state(page, live_server):
     fourth = cells.nth(3)
     fourth.click()
     bold.click()
-    assert _is_on(bold), "Bold must light up on a collapsed caret"
+    _expect_on(bold, "Bold must light up on a collapsed caret")
     page.keyboard.type("x")
     assert fourth.inner_html() == "<b>x</b>", "... and the typing must be bold"
-    assert _is_on(bold), "... and it stays lit while typing inside the run"
+    _expect_on(bold, "... and it stays lit while typing inside the run")
