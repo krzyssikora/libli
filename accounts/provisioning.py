@@ -32,12 +32,18 @@ def evaluate_sso_provisioning(
     """Decide whether a brand-new SSO identity may be provisioned.
 
     Order: a valid pending invitation overrides everything; otherwise an
-    un-invited signup needs signup_policy == "open" and (when a domain allowlist
-    is set) an allowed email domain. The caller passes an already-valid
-    `invitation` (or None); this function does no clock/DB work itself."""
+    un-invited signup needs a policy that permits JIT provisioning ("open" or
+    "sso_only") and (when a domain allowlist is set) an allowed email domain.
+    The caller passes an already-valid `invitation` (or None); this function does
+    no clock/DB work itself.
+
+    "sso_only" reaches the SAME allowlist check as "open" deliberately: it means
+    "our identity provider's users", not "anyone who owns a Microsoft account".
+    The two differ only on the LOCAL signup form, which sso_only shuts entirely
+    (accounts.adapters.AccountAdapter.is_open_for_signup)."""
     if invitation is not None:
         return Decision(allow=True, invitation_to_consume=invitation)
-    if signup_policy != "open":
+    if signup_policy not in ("open", "sso_only"):
         return Decision(allow=False, reason="policy")
     if allowed_email_domains:
         allowed = normalized_allowlist(allowed_email_domains)

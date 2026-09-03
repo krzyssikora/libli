@@ -18,7 +18,19 @@ def default_languages():
 class Institution(models.Model):
     """Single-row, runtime-editable institution config. Use Institution.load()."""
 
-    SIGNUP_CHOICES = [("invite", _("Invite only")), ("open", _("Open self-signup"))]
+    # Ordered by openness. "sso_only" means: no local signup form at all, but a
+    # brand-new SSO identity is provisioned just-in-time, still gated by
+    # allowed_email_domains (accounts/provisioning.evaluate_sso_provisioning).
+    # It exists because SSO auto-provisioning previously required "open", which
+    # also threw the password signup form open to the public internet.
+    # Invitations work under every policy -- accounts.views.accept_invite never
+    # reads this field -- and so does password LOGIN for accounts that already
+    # exist, which is what keeps the init_platform admin as a break-glass route.
+    SIGNUP_CHOICES = [
+        ("invite", _("Invite only")),
+        ("sso_only", _("SSO only")),
+        ("open", _("Open self-signup")),
+    ]
     THEME_CHOICES = [("light", _("Light")), ("dark", _("Dark")), ("auto", _("Auto"))]
 
     name = models.CharField(
@@ -43,6 +55,14 @@ class Institution(models.Model):
         choices=SIGNUP_CHOICES,
         default="invite",
         verbose_name=_("Signup policy"),
+        help_text=_(
+            "Invite only: you create every account. SSO only: anyone signing in "
+            "through your identity provider gets an account automatically, with "
+            "no password form on the site. Open self-signup: anyone can register "
+            "with a password. SSO only and Open are both restricted by the "
+            "allowed email domains below. Invitations and existing logins keep "
+            "working whichever you choose."
+        ),
     )
     allowed_email_domains = models.JSONField(default=list, blank=True)
     allowed_image_extensions = models.JSONField(

@@ -110,6 +110,10 @@ ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD = "phone_number"
 # Policy-gating adapter: enables self-signup only when Institution.signup_policy
 # == "open" (Task 3).
 ACCOUNT_ADAPTER = "accounts.adapters.AccountAdapter"
+# Binds Institution.allowed_email_domains to the self-signup form. Only the
+# "signup" key is overridden: allauth's AddEmailForm and the invite-accept flow
+# must stay unrestricted -- see the PolicySignupForm docstring.
+ACCOUNT_FORMS = {"signup": "accounts.forms.PolicySignupForm"}
 LOGIN_URL = (
     "account_login"  # explicit (Django's default happens to match the allauth mount)
 )

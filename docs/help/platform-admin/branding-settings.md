@@ -22,12 +22,22 @@ the enabled ones.
 
 Controls who can sign up and where from:
 
-- **Signup policy** — either **Invite only** or **Open self-signup**;
-  invitations (see [Invitations](invitations)) work regardless of this
-  setting.
+- **Signup policy** — one of three, in order of openness:
+  - **Invite only** — you create every account. No sign-up form.
+  - **SSO only** — no sign-up form either, but anyone who signs in through
+    your identity provider (see [SSO](sso)) gets an account automatically,
+    restricted to the allowed email domains below. This is the setting for a
+    school whose staff and pupils already have Microsoft or Google accounts:
+    nobody can create a password that bypasses your own sign-in policies.
+  - **Open self-signup** — anyone may register with a password, restricted to
+    the allowed email domains below.
+
+  Invitations (see [Invitations](invitations)) and sign-in for accounts that
+  already exist work under **all three**, so switching to SSO only can never
+  lock you out of your own platform.
 - **Allowed email domains** — one domain per line; leave it blank to allow
   any domain. This is advisory for invites (you get a warning, not a
-  block) but is enforced for self-service sign-up.
+  block) but is enforced for self-service sign-up and for SSO.
 
 ## Uploads
 
