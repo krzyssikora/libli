@@ -317,6 +317,41 @@ This is in B1 because restore depends on it: without a pullable immutable tag, "
 - Consumes: nothing from Task 1.
 - Produces: images at `ghcr.io/krzyssikora/libli:master` and `ghcr.io/krzyssikora/libli:sha-<short>`; the `.env.production` key `LIBLI_IMAGE_TAG`; `vol_path()`'s `libli_` prefix stays valid because `name: libli` is untouched. Tasks 3 and 4 read `LIBLI_IMAGE_TAG`.
 
+> ⚠️ **This task breaks the live site on merge unless the box is provisioned first.**
+> `libli.pl` is already in production with CD: `deploy.yml` fires `deploy.sh` on every push
+> to `master`. Its `.env.production` is untracked and has no `LIBLI_GHCR_TOKEN`, so the
+> first auto-deploy after this merges pipes an **empty** password into `docker login`,
+> which fails — and under `set -euo pipefail` the deploy aborts before `compose pull`.
+> Every subsequent deploy fails the same way until a human intervenes. Step 0 below is
+> not optional and cannot be done after the merge.
+
+- [ ] **Step 0: Provision the live box BEFORE this branch merges**
+
+Create a fine-grained GitHub PAT with `read:packages`, then, on the production host:
+
+```bash
+ssh root@<libli.pl-ip>
+cd /opt/libli
+printf 'LIBLI_GHCR_TOKEN=%s\n' '<the PAT>' >> .env.production
+printf 'LIBLI_IMAGE_TAG=%s\n' "sha-$(git rev-parse HEAD)" >> .env.production
+chmod 600 .env.production
+
+# Prove the credential works BEFORE the merge makes deploy.sh depend on it.
+sed -n 's/^LIBLI_GHCR_TOKEN=//p' .env.production | head -1 \
+  | docker login ghcr.io -u krzyssikora --password-stdin
+# expect: Login Succeeded
+```
+
+`LIBLI_IMAGE_TAG` is seeded here too: `deploy.sh` rewrites it on every run, but compose
+guards it with `:?`, so a hand-run `up -d` between the merge and the first deploy would
+otherwise abort. It does not matter that the seeded value names an image that does not
+exist yet — the publish job creates it, and the next deploy overwrites the key.
+
+⚠️ The image must also exist before the first deploy pulls it. The `publish` job runs in
+the same workflow *ahead of* the deploy step (guard 10 pins that ordering), so the merge
+itself creates the tag it then pulls. That is the whole reason the two live in one workflow
+rather than two racing ones.
+
 - [ ] **Step 1: Write the failing guards**
 
 Create `tests/test_backup_wiring.py`:
@@ -507,7 +542,17 @@ fi
 echo "==> logging in to ghcr.io"
 # The package is private: it contains the application source of a private repo.
 # An unauthenticated pull fails with an opaque `denied`.
-env_value LIBLI_GHCR_TOKEN | docker login ghcr.io -u krzyssikora --password-stdin
+#
+# Checked explicitly rather than letting an empty value reach docker login: a
+# blank password produces "unauthorized" and, under pipefail, aborts the deploy
+# with an error that reads like a registry outage rather than a missing key.
+ghcr_token="$(env_value LIBLI_GHCR_TOKEN)"
+if [ -z "$ghcr_token" ]; then
+  echo "!! LIBLI_GHCR_TOKEN is unset in .env.production." >&2
+  echo "   Add a read:packages PAT to it; see docs/deployment.md section 1." >&2
+  exit 1
+fi
+printf '%s' "$ghcr_token" | docker login ghcr.io -u krzyssikora --password-stdin
 
 echo "==> pulling and recreating the stack"
 compose pull
@@ -564,6 +609,9 @@ docker login ghcr.io -u krzyssikora    # paste a read:packages PAT
 
 - §3, replace `docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build` with `... up -d` and add a sentence above it: "Set `LIBLI_IMAGE_TAG` to the `sha-<full-sha>` tag you intend to run before this; every later deploy writes it for you."
 - §8's rollback block, replace `up -d --build --wait` with `up -d --wait` and add: "`git reset --hard <sha>` still does what it always did — `deploy.sh` derives `LIBLI_IMAGE_TAG` from the checkout, so moving the checkout moves the image."
+- §8's *When a deploy goes red* prose, two sentences that still describe a build the box no longer does. `test_no_build_survives_anywhere` matches only the literal `--build` and cannot catch these:
+  - "**`deploy.sh` fails loudly at four points, in order: the Caddyfile does not parse, the build fails, …**" → the second failure point is now **the GHCR login or the pull**, not a build.
+  - "**Recovery is manual and takes one rebuild:**" → "takes one pull".
 - *Known constraints*, the **"Every deploy is ~1-2 minutes of 502s"** bullet (line 536) also contains `--build` and is now factually wrong — the box no longer builds. Replace it with:
 
 ```markdown
@@ -1987,5 +2035,11 @@ uv run ruff format --check .
 ```
 
 - [ ] **The rehearsal.** ⚠️ **This work is not complete when the scripts exist.** It is complete when a backup taken by `backup.sh` has been restored by `restore.sh` onto a *fresh* box and the nine-item checklist in the spec passes. Textual guards prove the wiring has not drifted; only the rehearsal proves it works. Record it in the rehearsal log and set the quarterly calendar entry.
+
+- [ ] ⚠️ **Confirm the live box is provisioned (Task 2, Step 0) before merging.** `deploy.yml`
+  fires on push to `master`, so the merge itself is the trigger — there is no window in
+  which to fix this afterwards. SSH to `libli.pl` and confirm `LIBLI_GHCR_TOKEN` is set and
+  `docker login ghcr.io` succeeds by hand. Skipping this leaves the live site's CD broken
+  on every subsequent deploy.
 
 - [ ] **Calendar items that are not code:** order the Storage Box; create the healthchecks.io check (period 24h, grace 6h); note the GHCR PAT's expiry date beside the rehearsal reminder; and if any school wants mail from its own domain, file the Hetzner port-25 unblock request — it needs roughly a month's lead time.
