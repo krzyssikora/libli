@@ -124,6 +124,7 @@ schools/<slug>/
   env/<ts>.env.age             .env.production, encrypted. Dated, pruned.
   screenshots/**.age           per-file mirror, encrypted, erased on deletion
   media/**                     per-file mirror, plain, pruned at 90 days
+  refs/<ts>.txt                the files this dump references; CONFIRM's pre-WIPE check
   media-missing.tsv            path -> first-missing date; drives the media prune
   caddy/<ts>.tar.age           caddy_data, encrypted
   manifest/<ts>.json           what this backup is. NEVER pruned -- so it
@@ -329,9 +330,10 @@ smuggles in through a test; both scripts say so in their headers.
  8. mirror media/        (rsync, no --delete)
  9. screenshots: upload E\R encrypted (NO --delete), then rm R\E explicitly
 10. tar caddy_data | age -> caddy/<ts>.tar.age
-11. update media-missing.tsv; write manifest/<ts>.json
-12. prune db/, env/, caddy/ per retention; prune media/ per media-missing.tsv
-13. GET the heartbeat URL — on success only
+11. write refs/<ts>.txt (list_referenced_files, via exec -- app IS running here)
+12. update media-missing.tsv; write manifest/<ts>.json
+13. prune db/, env/, caddy/ + refs/ per retention; prune media/ per the tsv
+14. GET the heartbeat URL — on success only
 ```
 
 **The dump is a compose exec, not a host command.** There is no postgres client on the host;
@@ -510,7 +512,8 @@ failure into a refusal before anything is touched.
  1. LOCK        flock the shared lock -- fail LOUDLY if held, never skip
  2. CREDENTIALS require the age identity + restore SSH key on tmpfs; EXIT trap
  3. CONFIRM     fetch + print manifest/<ts>.json; REFUSE unless db/, env/ and
-                caddy/ for that <ts> all still exist; then TYPE the slug
+                caddy/ exist AND refs/<ts>.txt is satisfied by the mirror;
+                then TYPE the slug
  4. IDENTITY    refuse an unknown `schema`; refuse manifest.school != --slug
  5. VERSION     resolve the TARGET image; refuse unless its migration set
                 contains the manifest's; refuse a lower postgres major;
@@ -576,6 +579,44 @@ because the encrypted-per-file loop is easy to under-build:
 
 All three write to host paths resolved by `vol_path()`, and all three run *after* the
 database is loaded, because the referenced-file list comes from it.
+
+### The completeness check has to happen before WIPE, not at FILES
+
+⚠️ **The obvious placement of the media completeness check is past the point of no return.**
+FILES compares referenced files against fetched files and fails loudly — but it runs at step
+11, and WIPE is step 7. The referenced-file list appeared to require the *restored* database,
+which does not exist until LOAD. So on the same-box restore path — the one case where WIPE
+destroys data that was still live and good — an old `<ts>` could pass CONFIRM, IDENTITY and
+VERSION, get wiped, load its dump, and only then discover that originals it references are
+gone and not repairable.
+
+And this is a *reachable* state, not a theoretical one, precisely because of two other
+deliberate decisions: `media/` prunes files missing for more than 90 days, `screenshots/`
+erases on deletion with no grace at all, and the retention rule keeps monthly dumps for
+twelve months. A ten-month-old dump legitimately references files the mirror is equally
+legitimately no longer holding.
+
+**The fix is to move the knowledge earlier, not to move the check later.** `backup.sh` runs
+while the app container is up and the database is live, so it can produce the referenced-file
+list at backup time — `compose exec -T app` rather than the `run --rm` the restore needs —
+and store it as `refs/<ts>.txt`. CONFIRM then diffs that list against a remote listing of
+`media/` and `screenshots/`, needing **no database at all**, and refuses before WIPE naming
+the missing paths.
+
+`refs/` is pruned on the same clock as `db/`, `env/` and `caddy/`, since it is meaningless
+without them.
+
+FILES still recomputes the list from the restored database and stays the authoritative
+check. The two can differ by files created in the seconds between the list and the dump —
+the same skew `row_counts` has — so a small discrepancy is reported rather than fatal, while
+a missing *original* is still a hard failure. CONFIRM is the cheap predictor; FILES is the
+truth.
+
+**And if FILES fails anyway, the box is not stranded.** The nightly artifact taken before
+the restore began is still on the Storage Box, and the mirror still holds every file *it*
+references. Re-running against the newest `<ts>` returns the box to where it was this
+morning. Worth stating explicitly, because "WIPE has run and FILES just failed" otherwise
+reads like an unrecoverable position at the worst possible moment.
 
 **CONFIRM does two things, in this order: it proves the artifacts exist, then it asks.**
 Checking existence *after* the confirmation would be the same fail-halfway shape, just
@@ -954,7 +995,11 @@ the file the new one sits beside. Each guard names the mutant that must turn it 
 14. **`--image-tag` is format-checked.** `restore.sh` refuses a tag not matching
     `^sha-[0-9a-f]{7,40}$` before VERSION runs. *Mutant:* accept any string → RED,
     because the checkout-sha comparison then has nothing well-formed to parse.
-15. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
+15. **Completeness is checked before the wipe.** In `restore.sh`, the `refs/` diff
+    appears before the `compose down` line. *Mutant:* delete the diff, or move it
+    after `down` → RED. This is the guard that keeps a doomed restore from destroying
+    live data first, and the 12-month retention makes it reachable.
+16. **No `--build` survives anywhere.** Assert `--build` appears in neither `deploy.sh` nor
     the `up` blocks of `docs/deployment.md` §3 and §8. *Mutant:* leave one behind → RED.
     This is the guard that catches the half-finished image switch, which would otherwise
     present as a box quietly building from source while everything else assumed it pulled.
