@@ -377,18 +377,37 @@ def test_the_checkout_must_match_the_image():
     """The compose file governs the postgres major, the volume names and the
     healthcheck, so a checkout newer than the image can disagree with it.
 
-    Mutant: delete the comparison.
+    Mutant: delete the `if [ "$checkout_tag" != "$target_tag" ]; then ... fi`
+    comparison block. `checkout_tag="sha-$(git rev-parse HEAD)"` is an
+    assignment that stays behind on its own, so a bare substring match on
+    "git rev-parse HEAD" cannot detect the mutant -- this anchors on the
+    comparison itself and an `exit` inside it.
     """
-    assert re.search(r"git rev-parse HEAD", RESTORE_SH.read_text(encoding="utf-8"))
+    lines = RESTORE_SH.read_text(encoding="utf-8").splitlines()
+    cmp_idx = next(
+        i
+        for i, ln in enumerate(lines)
+        if re.search(r'\[ "\$checkout_tag" != "\$target_tag" \]', ln)
+    )
+    env_idx = next(i for i, ln in enumerate(lines) if re.match(r"^# --- ENV\b", ln))
+    assert cmp_idx < env_idx
+    block = lines[cmp_idx:env_idx]
+    assert any(re.search(r"\bexit\b", ln) for ln in block), block
 
 
 def test_image_tag_is_format_checked():
     """ "Never floating master" in a runbook is an instruction to a human. The
     checkout-sha comparison needs a sha to compare.
 
-    Mutant: accept any string.
+    Mutant: widen the enforced pattern (e.g. `grep -Eq '^sha-.*'`), or delete
+    the grep entirely while leaving the error text's literal pattern behind --
+    a bare substring match on "^sha-[0-9a-f]" cannot tell the enforcing site
+    from dead informational text quoting the same pattern. There must be
+    exactly ONE enforcing site: a redundant `case` block that only checked the
+    prefix has been collapsed into this single grep.
     """
-    assert "^sha-[0-9a-f]" in RESTORE_SH.read_text(encoding="utf-8")
+    lines = RESTORE_SH.read_text(encoding="utf-8").splitlines()
+    assert any("grep -Eq" in ln and "^sha-[0-9a-f]{7,40}$" in ln for ln in lines), lines
 
 
 def test_pre_cutover_disables_acme_by_the_scheme():

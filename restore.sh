@@ -149,12 +149,8 @@ if [ -z "$IMAGE_TAG" ]; then
   TARGET="$manifest_image"
   echo "==> target is the manifest's own image; the containment check is a tautology and is skipped"
 else
-  case "$IMAGE_TAG" in
-    sha-*) ;;
-    *) echo "!! --image-tag must match ^sha-[0-9a-f]{7,40}$; a floating tag names different code on different days and cannot pin a restore" >&2; exit 1 ;;
-  esac
   echo "$IMAGE_TAG" | grep -Eq '^sha-[0-9a-f]{7,40}$' \
-    || { echo "!! --image-tag must match ^sha-[0-9a-f]{7,40}$" >&2; exit 1; }
+    || { echo "!! --image-tag must match ^sha-[0-9a-f]{7,40}$; a floating tag names different code on different days and cannot pin a restore" >&2; exit 1; }
   TARGET="ghcr.io/krzyssikora/libli:$IMAGE_TAG"
 fi
 
