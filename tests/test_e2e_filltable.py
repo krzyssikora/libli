@@ -568,42 +568,56 @@ def test_filltable_toolbar_paints_inline_format_active_state(page, live_server):
     italic = page.locator(toolbar + "[data-cmd='italic']")
     red = page.locator(toolbar + "[data-cmd='colour-red']")
 
-    def is_on(button):
-        return button.evaluate("b => b.classList.contains('is-on')")
+    # The toolbar repaints on `selectionchange`, which the browser delivers
+    # ASYNCHRONOUSLY: a caret move and the class that reflects it are not the
+    # same tick. Reading classList straight after a keypress samples a race --
+    # roughly one press in six goes stale on an IDLE machine, and on loaded CI
+    # that is what failed this test. expect() retries until it settles; a class
+    # that is genuinely never painted still fails, at the timeout.
+    is_on = re.compile(r"(^|\s)is-on(\s|$)")
 
     cell = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").first
     cell.click()
     page.keyboard.press("Control+A")
     bold.click()
-    assert is_on(bold), "Bold must light up once the selection is bold"
-    assert not is_on(italic), "Italic must stay unlit"
+    expect(bold, "Bold must light up once the selection is bold").to_have_class(is_on)
+    expect(italic, "Italic must stay unlit").not_to_have_class(is_on)
     red.click()
-    assert is_on(red), "The applied colour swatch must light up"
+    expect(red, "The applied colour swatch must light up").to_have_class(is_on)
 
     # The caret walk: leaving the bold run must drop its highlight with no focus
     # change to trigger the repaint. Only bold is walked -- typed text lands
     # INSIDE the tc-red span, so the tail really is red and the swatch is right
     # to stay lit; the swatch's caret-tracking is asserted below instead.
+    #
+    # Home/End rather than a counted run of ArrowLefts. A count has to land
+    # inside the bold run without overshooting it, which makes the test depend
+    # on how many caret stops the browser puts at an element boundary -- a
+    # platform detail, and one press of slack either way. Home and End land at
+    # the extremes, which is what is actually being asserted.
     page.keyboard.press("ArrowRight")  # collapse past the formatted run
     bold.click()  # ... and stop bolding from here
     page.keyboard.type("tail")
-    assert not is_on(bold), "the caret sits in the plain tail"
-    for _ in range(5):
-        page.keyboard.press("ArrowLeft")  # ... back into the formatted run
-    assert is_on(bold), "Bold must light up when the caret re-enters bold text"
+    expect(bold, "the caret sits in the plain tail").not_to_have_class(is_on)
+    page.keyboard.press("Home")  # ... back into the formatted run
+    expect(bold, "Bold must light up when the caret re-enters bold text").to_have_class(
+        is_on
+    )
 
     # A different, unformatted static cell reports neither format.
     page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").nth(
         1
     ).click()
-    assert not is_on(bold), "a plain cell must not report bold"
-    assert not is_on(red), "a plain cell must not report a colour"
+    expect(bold, "a plain cell must not report bold").not_to_have_class(is_on)
+    expect(red, "a plain cell must not report a colour").not_to_have_class(is_on)
 
     # The plainest gesture in the bug report: no selection at all, just a caret,
     # press Bold. Only the click handler's own repaint can light the button --
     # a collapsed caret emits no selectionchange. Kept last: it deliberately
     # leaves a pending format behind.
     bold.click()
-    assert is_on(bold), "Bold must light up on a collapsed caret"
+    expect(bold, "Bold must light up on a collapsed caret").to_have_class(is_on)
     page.keyboard.type("y")
-    assert is_on(bold), "... and it stays lit while typing inside the run"
+    expect(bold, "... and it stays lit while typing inside the run").to_have_class(
+        is_on
+    )
