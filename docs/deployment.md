@@ -438,6 +438,23 @@ ever turn it off, put a test job back into `deploy.yml`.
 
 ### One-time setup
 
+**§8 involves two different SSH keys, in opposite directions.** This one lets the Actions
+runner into the host. The other — in *Fetching over SSH* below, and optional — lets the host
+into GitHub. They share nothing: different files, different machines, different install
+commands. Mixing them up is the likeliest mistake in this section:
+
+| | this one | *Fetching over SSH* |
+|---|---|---|
+| direction | runner **→** host | host **→** github.com |
+| file | `~/.ssh/libli_github_actions` | `~/.ssh/libli_repo` |
+| generated on | your own machine | the host |
+| the PUBLIC half goes to | the host's `authorized_keys`, via `ssh-copy-id` | the repo's deploy keys, via `gh repo deploy-key add` |
+| the PRIVATE half lives in | the `SSH_KEY` repo secret | the host, and nowhere else |
+
+`ssh-copy-id` appears only in this row. It installs a key into a remote *host's*
+`authorized_keys`, and GitHub deploy keys are not `authorized_keys` — they are repo
+settings, reachable only through the API or the web UI.
+
 A key for the runner, on your own machine:
 
 ```bash
@@ -528,9 +545,12 @@ credential is involved — and GitHub throttles anonymous git per IP. An authent
 is not subject to those limits.
 
 A read-only **deploy key** is the way to authenticate: scoped to this one repo, no expiry to
-diarise, and it cannot push.
+diarise, and it cannot push. It is NOT the key from *One-time setup* and is not installed
+with `ssh-copy-id` — see the table there if the two have run together.
 
-On the host:
+The three blocks below run on **two different machines**, and the middle one is the switch.
+
+**On the host** — generate the key, and print its public half:
 
 ```bash
 ssh root@<ip>
@@ -538,13 +558,19 @@ ssh-keygen -t ed25519 -f ~/.ssh/libli_repo -C "libli-prod-fetch" -N ""
 cat ~/.ssh/libli_repo.pub          # copy this line
 ```
 
-From your own machine, register the PUBLIC half — leave write access unchecked:
+**On your own machine** — register that public half as a deploy key. Paste the printed line
+into a local file first; `gh` reads a file, and the host has no `gh`. Leave write access
+unchecked, which is the default:
 
 ```bash
-gh repo deploy-key add <the-pub-file> --repo krzyssikora/libli --title "libli prod host (read-only)"
+gh repo deploy-key add thatfile.pub --repo krzyssikora/libli --title "libli prod host (read-only)"
+gh repo deploy-key list --repo krzyssikora/libli     # confirm it is there, and read-only
 ```
 
-Back on the host — **`ssh-keyscan` first**:
+The public half is public: pasting it between machines costs nothing. The private
+`~/.ssh/libli_repo` never leaves the host.
+
+**Back on the host** — **`ssh-keyscan` first**:
 
 ```bash
 ssh-keyscan github.com >> ~/.ssh/known_hosts
