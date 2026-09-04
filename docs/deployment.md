@@ -590,13 +590,28 @@ first connection asks whether to trust it. Yours will not: an interactive `ssh -
 you and you accept. The *deploy* has no tty, so it fails with `Host key verification failed`
 — the fault appears one deploy later, with nobody watching, and looks nothing like its cause.
 
-Verify before relying on it, in that same session:
+Verify before relying on it — **on the host**, in that same session. Three separate
+commands, never chained with `&&`:
 
 ```bash
-ssh -T git@github.com                  # "Hi krzyssikora/libli! You've successfully authenticated"
+ssh -T git@github.com
 git fetch origin master                # MUST succeed
 git remote -v                          # MUST show git@github.com:...
 ```
+
+**`ssh -T git@github.com` exits 1 even when it succeeds**, because GitHub has no shell to
+hand you. Chaining it with `&&` therefore stops the run dead after a *successful* auth, and
+a working setup reads as a broken one. Judge it by the greeting, not the exit code:
+
+- `Hi krzyssikora/libli! You've successfully authenticated…` — the DEPLOY KEY answered. The
+  repo name is what tells you so, and it is what you want.
+- `Hi krzyssikora! …` — your PERSONAL key answered instead (an agent, or another
+  `IdentityFile`). Interactive fetches would work and the deploy would still fail, because
+  it runs without your agent. Fix `~/.ssh/config` before going on; `IdentitiesOnly yes` is
+  what stops a loaded agent key being offered first.
+
+Verifying from your own machine proves nothing here: it would exercise your key, not the
+host's, and the host is the only machine whose fetch is changing.
 
 If either command fails, revert and investigate before the next merge:
 
