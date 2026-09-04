@@ -68,9 +68,29 @@ jobs:
           # deploy.sh keeps its own reset so that running it by hand on the box
           # (the rollback path in docs/deployment.md §8) is still correct on its
           # own. Re-running it here costs one no-op fetch.
+          #
+          # The retry: GitHub intermittently answers an ANONYMOUS fetch of this
+          # PUBLIC repo with a 401 challenge, and git dies on "could not read
+          # Username" for want of a tty. Three deploys died that way in two days
+          # (#293, #295, #296) -- and #296 proves it is not the host's
+          # credentials, because its FIRST fetch succeeded and the second was
+          # refused 440 ms later. `exit 1` on exhaustion, never `break`: falling
+          # through would reset to a stale origin/master and deploy it green.
+          #
+          # LIBLI_DEPLOY_SKIP_FETCH tells deploy.sh this fetch already happened,
+          # so it resets without asking github.com a second time inside a second.
+          # deploy.sh keeps its own fetch for the by-hand rollback path.
           script: |
             set -e
             cd /opt/libli
-            git fetch origin master
+            for attempt in 1 2 3; do
+              if git fetch origin master; then break; fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "git fetch failed 3 times; refusing to deploy stale code" >&2
+                exit 1
+              fi
+              echo "git fetch failed (attempt $attempt/3); retrying in 5s"
+              sleep 5
+            done
             git reset --hard origin/master
-            bash /opt/libli/deploy.sh
+            LIBLI_DEPLOY_SKIP_FETCH=1 bash /opt/libli/deploy.sh
