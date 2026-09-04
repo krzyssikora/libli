@@ -72,7 +72,7 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 ```
 
 ```bash
-docker login ghcr.io -u krzyssikora    # paste a read:packages PAT
+docker login ghcr.io -u krzyssikora    # paste a CLASSIC PAT with read:packages
 ```
 
 Stay on an Ubuntu LTS the Docker repo actually publishes for. A release newer than the

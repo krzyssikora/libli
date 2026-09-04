@@ -44,7 +44,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Two tags, both pushed every time. :master is the floating canary tag
-      # libli.pl follows; :sha-<short> is immutable and is what a manifest
+      # libli.pl follows; :sha-<full-sha> is immutable and is what a manifest
       # records -- a floating tag cannot pin a restore to a version.
       - name: Build and push
         uses: docker/build-push-action@v6

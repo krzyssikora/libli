@@ -101,8 +101,9 @@ password manager rather than from any server:
    It *is* needed in three real cases: a box provisioned before the token existed, a PAT
    that has since expired or been revoked (including by the rotation list below), and a
    bare-metal rebuild where §1 has not run yet. `restore.sh` therefore tries the existing
-   login first and falls back to `--ghcr-token`, failing with that instruction rather than
-   an opaque `denied` from the registry.
+   login first and falls back to `--ghcr-token-file <path>` -- a tmpfs path, never the PAT
+   itself on argv, and a bare `--ghcr-token` is refused pointing at it -- failing with that
+   instruction rather than an opaque `denied` from the registry.
 4. The **school slug**, as `--slug`. It is needed to build the remote path
    `schools/<slug>/...` *before* anything can be fetched or decrypted, so it cannot come
    from `.env.production` — which is itself one of the things being fetched. Provisioning
@@ -338,8 +339,12 @@ smuggles in through a test; both scripts say so in their headers.
 
 **The dump is a compose exec, not a host command.** There is no postgres client on the host;
 the database exists only inside the `db` container. `-T` is load-bearing twice over: cron
-has no TTY, and a pseudo-TTY would corrupt the binary `-Fc` stream. Credentials come from
-`env_value POSTGRES_USER` / `POSTGRES_DB` with `PGPASSWORD` from `env_value POSTGRES_PASSWORD`.
+has no TTY, and a pseudo-TTY would corrupt the binary `-Fc` stream. The user and database
+come from `env_value POSTGRES_USER` / `POSTGRES_DB`. There is deliberately **no**
+`PGPASSWORD`: the exec connects over the container's UNIX socket, which the postgres image's
+initdb trusts (`local all all trust`), and `-e PGPASSWORD=` would publish the database
+password on `docker`'s own argv for as long as the dump runs. `restore.sh`'s `pg_restore`
+connects the same way.
 
 **The dump goes to a temp file rather than a single pipe, and that buys the truncation check.**
 The dump is *small* — media lives on disk, not in Postgres — so spooling it costs almost
@@ -555,18 +560,22 @@ failure into a refusal before anything is touched.
  6. ENV         decrypt env/<ts>.env.age -> .env.production, chmod 600, strip
                 INIT_ADMIN_*, write the VERSION target into LIBLI_IMAGE_TAG;
                 with --rotate-secrets, mint the two generatable secrets HERE
- 7. WIPE        compose down --volumes    <- DESTRUCTIVE. Gated by CONFIRM.
- 8. MATERIALISE compose create            <- makes all volumes, starts nothing
- 9. DB UP       compose up -d db          <- db ALONE. Not the app.
-10. LOAD        decrypt + pg_restore the dump into the fresh database
-11. FILES       restore caddy/, media/, screenshots/ -- three paths; see below
-12. APP UP      compose up -d --wait      <- entrypoint migrates forward
-13. VERIFY      then the pre- or post-cutover checks per mode
-14. HANDOFF     print what the script could NOT do; exit non-zero if any
+ 7. DUMP        fetch + decrypt db/<ts>.dump.age into $WORK, BEFORE the wipe:
+                a network fault, a truncated artifact and a wrong age key are
+                all ordinary failures, and each one used to surface AFTER
+                `down --volumes` had destroyed the box
+ 8. WIPE        compose down --volumes    <- DESTRUCTIVE. Gated by CONFIRM.
+ 9. MATERIALISE compose create            <- makes all volumes, starts nothing
+10. DB UP       compose up -d db          <- db ALONE. Not the app.
+11. LOAD        pg_restore the already-decrypted dump into the fresh database
+12. FILES       restore caddy/, media/, screenshots/ -- three paths; see below
+13. APP UP      compose up -d --wait      <- entrypoint migrates forward
+14. VERIFY      then the pre- or post-cutover checks per mode
+15. HANDOFF     print what the script could NOT do; exit non-zero if any
                 --rotate-secrets follow-up is outstanding
 ```
 
-**All fourteen are `restore.sh`'s own execution.** Nothing in the list is a human step, and
+**All fifteen are `restore.sh`'s own execution.** Nothing in the list is a human step, and
 that is deliberate — an earlier draft ended with "the database-side rotation, admin UI",
 which put a manual task in the same numbered sequence as `compose` invocations and left a
 reader unable to tell which of the steps the script actually performs. The manual follow-ups
@@ -618,7 +627,7 @@ database is loaded, because the referenced-file list comes from it.
 
 ⚠️ **The obvious placement of the media completeness check is past the point of no return.**
 FILES compares referenced files against fetched files and fails loudly — but it runs at step
-11, and WIPE is step 7. The referenced-file list appeared to require the *restored* database,
+12, and WIPE is step 8. The referenced-file list appeared to require the *restored* database,
 which does not exist until LOAD. So on the same-box restore path — the one case where WIPE
 destroys data that was still live and good — an old `<ts>` could pass CONFIRM, IDENTITY and
 VERSION, get wiped, load its dump, and only then discover that originals it references are
