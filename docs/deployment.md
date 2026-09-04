@@ -483,6 +483,109 @@ A JSON body, not `-f key[sub]=value`: this endpoint rejects the bracket form wit
 before merging, which re-runs CI on each intervening merge — reintroducing the
 duplication this arrangement exists to remove.
 
+### Alerting on a failed deploy
+
+A red deploy notifies nobody by default. #295 and #296 both failed and production sat about
+30 hours behind master until #297's deploy happened to succeed. `deploy.yml`'s last step
+reports every outcome to a [healthchecks.io](https://healthchecks.io) check — the plain ping
+URL on success, `URL/fail` otherwise — and the check's own alert is the notification.
+
+One-time, on healthchecks.io (free tier):
+
+1. Create a check named `libli deploy`.
+2. Set **period 30 days, grace 3 days**. This is deliberately far longer than any deploy
+   cadence: the period is not there to watch for deploys, it is a liveness check on the
+   ALERTING ITSELF. If pings stop arriving entirely — a broken step, a revoked URL, a
+   forgotten secret — the dead-man's-switch fires on its own. The cost is one "no ping"
+   alert if you ever go a month without deploying, which is the channel proving it works.
+3. Copy the ping URL (`https://hc-ping.com/<uuid>`).
+
+Then, from your own machine:
+
+```bash
+gh secret set HEALTHCHECKS_DEPLOY_URL --repo krzyssikora/libli --body "https://hc-ping.com/<uuid>"
+```
+
+**The ping URL is a credential — never commit it.** Anyone holding it can mark your deploys
+healthy. It lives in the repo secret and nowhere else; GitGuardian scans every commit.
+
+Two behaviours worth knowing before you rely on it:
+
+- **Until the secret exists, the step prints one line and exits 0.** Merging the step before
+  creating the check cannot redden a deploy.
+- **A failed ping does not fail the deploy.** A healthchecks.io outage must not turn a
+  working deploy red — the site is up either way. That is exactly what the long period
+  above is the backstop for.
+
+A failed deploy leaves the check DOWN until the next successful one pings it up, so the
+dashboard answers "is production running master?" and not merely "did the last run go red".
+
+### Fetching over SSH (removes the anonymous-fetch failures)
+
+Optional, and worth doing only if the 401 above recurs despite the retry. The host fetches
+`https://github.com/krzyssikora/libli` **anonymously** — the repo is public, so no
+credential is involved — and GitHub throttles anonymous git per IP. An authenticated fetch
+is not subject to those limits.
+
+A read-only **deploy key** is the way to authenticate: scoped to this one repo, no expiry to
+diarise, and it cannot push.
+
+On the host:
+
+```bash
+ssh root@<ip>
+ssh-keygen -t ed25519 -f ~/.ssh/libli_repo -C "libli-prod-fetch" -N ""
+cat ~/.ssh/libli_repo.pub          # copy this line
+```
+
+From your own machine, register the PUBLIC half — leave write access unchecked:
+
+```bash
+gh repo deploy-key add <the-pub-file> --repo krzyssikora/libli --title "libli prod host (read-only)"
+```
+
+Back on the host — **`ssh-keyscan` first**:
+
+```bash
+ssh-keyscan github.com >> ~/.ssh/known_hosts
+cat >> ~/.ssh/config <<'EOF'
+Host github.com
+    User git
+    IdentityFile ~/.ssh/libli_repo
+    IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+cd /opt/libli
+git remote set-url origin git@github.com:krzyssikora/libli.git
+```
+
+**The `ssh-keyscan` line is the trap.** Without it github.com's host key is unknown, and the
+first connection asks whether to trust it. Yours will not: an interactive `ssh -T` prompts
+you and you accept. The *deploy* has no tty, so it fails with `Host key verification failed`
+— the fault appears one deploy later, with nobody watching, and looks nothing like its cause.
+
+Verify before relying on it, in that same session:
+
+```bash
+ssh -T git@github.com                  # "Hi krzyssikora/libli! You've successfully authenticated"
+git fetch origin master                # MUST succeed
+git remote -v                          # MUST show git@github.com:...
+```
+
+If either command fails, revert and investigate before the next merge:
+
+```bash
+git remote set-url origin https://github.com/krzyssikora/libli.git
+```
+
+**Do this when no deploy is in flight, and not in the same window as a merge.** A mistake
+here breaks the *next* deploy at its first command, so it wants to be the only change in
+play when that deploy runs.
+
+Nothing in the test suite guards any of this: the remote is state on the host, not in the
+repo. `tests/test_deploy_wiring.py` can prove `deploy.sh` retries a failed fetch; only that
+`git fetch` above can prove the host can fetch at all.
+
 ### Deploying without a commit
 
 ```bash
@@ -507,9 +610,8 @@ Both fetches now retry three times, five seconds apart, which absorbs it. If a r
 still shows this after three attempts, **the site is untouched** — nothing had been rebuilt
 yet — so re-run the workflow rather than reaching for the recovery below.
 
-The durable fix, if it recurs often, is to stop fetching anonymously: add a read-only deploy
-key to the repo and switch the host's remote to `git@github.com:krzyssikora/libli.git`.
-Authenticated fetches are not subject to the anonymous per-IP limits.
+The retry absorbs it; it does not remove it. **Fetching over SSH** below is the durable
+fix, and is worth applying if this signature shows up again.
 
 Past that point `deploy.sh` fails loudly at four places, in order: the Caddyfile does not
 parse, the build fails, the app container never reports healthy (`--wait`), or the public

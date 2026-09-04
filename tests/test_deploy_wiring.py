@@ -27,6 +27,9 @@ DEPLOY_YML = ROOT / ".github/workflows/deploy.yml"
 DEPLOY_SH = ROOT / "deploy.sh"
 RUNBOOK = ROOT / "docs/deployment.md"
 
+# The reporting step's name, in one place: the tests find the step by it.
+PING_STEP = "Report the deploy outcome"
+
 
 def _on_block(path):
     """The lines of a workflow's top-level `on:` mapping.
@@ -464,3 +467,171 @@ def test_deploy_retry_waits_between_attempts():
             )
         ]
         assert any(d >= 2 for d in literal + named), f"{path.name}: {literal}{named}"
+
+
+# ---- the outcome ping ------------------------------------------------------
+#
+# Executed, not read, for the same reason as the fetch retry above: the branch
+# that matters here is the one that only runs when a deploy has ALREADY failed,
+# which is precisely the path no green run ever exercises.
+#
+# The step is written so every value reaches the shell through `env:` rather
+# than a `${{ }}` interpolation inside `run:`. That is what makes the block
+# plain shell these tests can run; it also keeps workflow expressions out of a
+# command line.
+
+
+def _deploy_yml_step(name):
+    """One step's `run:` block, dedented, found by its `name:`."""
+    lines = DEPLOY_YML.read_text(encoding="utf-8").splitlines()
+    start = next(
+        (i for i, ln in enumerate(lines) if ln.strip() == f"- name: {name}"), None
+    )
+    assert start is not None, f"deploy.yml has no step named {name!r}"
+    run = next(
+        (i for i in range(start, len(lines)) if lines[i].strip() == "run: |"), None
+    )
+    assert run is not None, f"the {name!r} step has no literal-block run:"
+    indent = len(lines[run]) - len(lines[run].lstrip()) + 2
+    out = []
+    for ln in lines[run + 1 :]:
+        if ln.strip() and not ln.startswith(" " * indent):
+            break
+        out.append(ln[indent:])
+    return "\n".join(out)
+
+
+def _ping_script():
+    return _deploy_yml_step(PING_STEP)
+
+
+def _run_ping(tmp_path, hc_url, status, run_url="https://run/1"):
+    """Run the reporting step with a stubbed `curl` that logs its argv."""
+    calls = tmp_path / "curl-calls"
+    calls.write_text("")
+    log = str(calls).replace("\\", "/")
+    prelude = f'curl() {{\n  echo "$@" >> "{log}"\n  return ${{CURL_RC:-0}}\n}}\n'
+    env = (
+        f"HC_URL={hc_url!r}\nJOB_STATUS={status!r}\nRUN_URL={run_url!r}\n"
+        "export HC_URL JOB_STATUS RUN_URL\n"
+    ).replace("'", '"')
+    result = subprocess.run(  # noqa: S603 -- fixed argv, generated script
+        [shutil.which("bash"), "-e", "-c", prelude + env + _ping_script()],
+        capture_output=True,
+        text=True,
+    )
+    return result, calls.read_text()
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_a_failed_deploy_pings_the_fail_endpoint(tmp_path):
+    """The whole point. #295 and #296 both went red and nothing said so, which is
+    how production sat ~30 hours behind master.
+
+    Mutant: drop the "/fail" suffix and ping the base URL. healthchecks.io then
+    records the failed deploy as a SUCCESS -- worse than no alerting, because
+    the dashboard now actively says everything is fine.
+    """
+    result, calls = _run_ping(tmp_path, "https://hc.example/uuid", "failure")
+    assert result.returncode == 0, result.stderr
+    assert "https://hc.example/uuid/fail" in calls, calls
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_a_successful_deploy_pings_the_plain_endpoint(tmp_path):
+    """The other half of the switch: without a success ping the check never
+    recovers, so the first red deploy leaves it down for good and every later
+    alert is the same stale one.
+
+    Mutant: always append "/fail".
+    """
+    result, calls = _run_ping(tmp_path, "https://hc.example/uuid", "success")
+    assert result.returncode == 0, result.stderr
+    assert "https://hc.example/uuid " in calls or calls.strip().endswith(
+        "https://hc.example/uuid"
+    ), calls
+    assert "/fail" not in calls, calls
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_reporting_is_silent_until_the_secret_is_set(tmp_path):
+    """The secret is set by hand on healthchecks.io's schedule, not the repo's.
+    Between merging this and creating the check, an unset secret must not turn a
+    perfectly good deploy red -- and `curl ""` would.
+
+    Mutant: delete the empty-check guard.
+    """
+    result, calls = _run_ping(tmp_path, "", "success")
+    assert result.returncode == 0, result.stderr
+    assert calls.strip() == "", f"pinged with no URL configured: {calls}"
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def test_a_failed_ping_does_not_fail_the_deploy(tmp_path):
+    """A healthchecks.io outage must not redden a deploy that actually worked --
+    the site is up either way, and a red run that means "the alerting is sick"
+    is exactly the signal that gets ignored.
+
+    What catches a PERMANENTLY broken ping path is the check's own period: no
+    pings at all and the dead-man's-switch fires by itself. That is why this
+    step can afford to swallow the error.
+
+    Mutant: remove the `|| echo` fallback and let curl's status stand.
+    """
+    calls = tmp_path / "curl-calls"
+    calls.write_text("")
+    log = str(calls).replace("\\", "/")
+    script = (
+        "curl() {\n"
+        f'  echo "$@" >> "{log}"\n'
+        "  return 7\n"  # curl's "failed to connect"
+        "}\n"
+        'HC_URL="https://hc.example/uuid"\nJOB_STATUS="success"\n'
+        'RUN_URL="https://run/1"\nexport HC_URL JOB_STATUS RUN_URL\n'
+    ) + _ping_script()
+    result = subprocess.run(  # noqa: S603 -- fixed argv, generated script
+        [shutil.which("bash"), "-e", "-c", script], capture_output=True, text=True
+    )
+    assert result.returncode == 0, (
+        f"a failed ping failed the deploy: rc={result.returncode} {result.stderr}"
+    )
+
+
+def test_the_outcome_is_reported_even_when_the_deploy_failed():
+    """`if: always()` is load-bearing and invisible: a step without it is skipped
+    the moment an earlier step fails, so the reporting step would run on exactly
+    the deploys that do not need reporting and skip the ones that do. Nothing in
+    a green run can tell the two apart.
+
+    Mutant: drop the `if:` line, or make it `if: success()`.
+    """
+    text = DEPLOY_YML.read_text(encoding="utf-8")
+    step = text.index(f"- name: {PING_STEP}")
+    nxt = text.find("\n      - name:", step)
+    block = text[step : nxt if nxt != -1 else len(text)]
+    assert re.search(r"^\s*if: always\(\)$", block, re.MULTILINE), block
+
+
+def test_the_ping_carries_the_run_url():
+    """The alert mail is only useful if it says which run to open. healthchecks.io
+    shows the ping's BODY on the check's timeline, so the run URL rides there.
+
+    Mutant: drop --data-raw, leaving an alert with nothing to click.
+    """
+    script = _ping_script()
+    assert "--data-raw" in script and "$RUN_URL" in script, script
+    text = DEPLOY_YML.read_text(encoding="utf-8")
+    assert re.search(r"^\s*RUN_URL: \S.*$", text, re.MULTILINE), (
+        "RUN_URL must be assembled in env:, not interpolated into the run: block"
+    )
+
+
+def test_no_workflow_expression_survives_into_the_ping_script():
+    """`${{ }}` inside `run:` is substituted before bash sees it, so the block
+    would stop being runnable shell -- and every test above would be exercising a
+    string that never runs in CI. It is also how a value ends up on a command
+    line instead of in an environment variable.
+
+    Mutant: inline ${{ secrets.HEALTHCHECKS_DEPLOY_URL }} at the curl call.
+    """
+    assert "${{" not in _ping_script(), _ping_script()

@@ -29,6 +29,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Deploy to production
+        id: deploy
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -94,3 +95,36 @@ jobs:
             done
             git reset --hard origin/master
             LIBLI_DEPLOY_SKIP_FETCH=1 bash /opt/libli/deploy.sh
+
+      # A red deploy told nobody. #295 and #296 both failed and production sat
+      # ~30 hours behind master until #297's deploy happened to succeed, so this
+      # reports the outcome to a healthchecks.io check: the plain URL on success,
+      # URL/fail otherwise. The check's alert is the notification.
+      #
+      # Every value reaches the shell through env:, never a ${{ }} inside run:.
+      # That keeps the block plain shell -- which is what lets its tests EXTRACT
+      # and RUN it, the branch that only fires on an already-failed deploy being
+      # exactly the one no green run exercises -- and keeps a secret off a
+      # command line.
+      - name: Report the deploy outcome
+        if: always()
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECKS_DEPLOY_URL }}
+          JOB_STATUS: ${{ steps.deploy.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$HC_URL" ]; then
+            echo "HEALTHCHECKS_DEPLOY_URL is unset; not reporting this deploy"
+            exit 0
+          fi
+          endpoint="$HC_URL"
+          if [ "$JOB_STATUS" != "success" ]; then
+            endpoint="$HC_URL/fail"
+          fi
+          # The body shows on the check's timeline, so the alert mail has the run
+          # to open. Swallowing curl's status is deliberate: a healthchecks.io
+          # outage must not redden a deploy that worked. A permanently broken
+          # ping path is caught by the check's own period instead -- no pings at
+          # all and the dead-man's-switch fires by itself.
+          curl -fsS -m 10 --retry 3 -o /dev/null --data-raw "$RUN_URL" "$endpoint" \
+            || echo "healthchecks ping failed; the check's own period is the backstop"
