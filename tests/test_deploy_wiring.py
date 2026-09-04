@@ -174,7 +174,9 @@ def test_deploy_script_waits_for_health():
     match = re.search(r"^compose up .*$", text, re.MULTILINE)
     assert match, "deploy.sh no longer brings the stack up"
     assert "--wait" in match.group(0), match.group(0)
-    assert "--build" in match.group(0), match.group(0)
+    # `--build` was removed when the box switched to pulling a published image;
+    # tests/test_backup_wiring.py::test_no_build_survives_anywhere pins that.
+    assert "compose pull" in text, text
 
 
 def test_deploy_script_resets_rather_than_pulls():

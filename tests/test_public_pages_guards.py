@@ -134,3 +134,53 @@ def test_every_first_party_storage_key_uses_a_documented_prefix():
 
     assert not unresolved, f"unresolved storage key expressions: {unresolved}"
     assert not bad, f"storage keys outside the documented prefixes: {bad}"
+
+
+BACKUP_SH = (DOCS_ROOT.parent / "backup.sh").read_text(encoding="utf-8")
+
+
+def _backup_constant(name):
+    match = re.search(rf"^{name}=(\d+)$", BACKUP_SH, re.MULTILINE)
+    assert match, f"backup.sh no longer defines {name}"
+    return int(match.group(1))
+
+
+def test_backup_retention_matches_the_stated_periods():
+    """Publishing a retention claim whose real value lives in a shell script is
+    exactly the drift this file exists to prevent -- and this one is a legal
+    statement in two languages, not a UI string.
+
+    Mutant: change a constant in backup.sh without updating both notices. Or,
+    cheaper and worse: swap which period each SENTENCE describes -- promise the
+    nightly copy for 90 days and the deleted file for 30. Asserting the three
+    bold values independently cannot see that swap, because all three still
+    appear; so each is asserted together with the words around it that say what
+    it is a period FOR, in both languages.
+    """
+    daily = _backup_constant("RETAIN_DAILY_DAYS")
+    monthly = _backup_constant("RETAIN_MONTHLY_MONTHS")
+    prune = _backup_constant("MIRROR_PRUNE_DAYS")
+    # Pinned so a deliberate policy change stays visible in the diff instead
+    # of silently propagating from backup.sh.
+    assert daily == 30
+    assert monthly == 12
+    assert prune == 90
+
+    # Derived from the constants, not from literals: this is what couples the
+    # shell script to the notice. A bare `"30" in notice` is satisfied by any
+    # stray 30 in the document and would not move when the constant moves.
+    assert f"A nightly copy is kept for **{daily} days**" in PRIVACY
+    assert f"one copy per month for a further **{monthly} months**" in PRIVACY
+    assert f"stay in the backup for **{prune} days**" in PRIVACY
+    assert f"Kopię nocną przechowujemy **{daily} dni**" in PRIVACY_PL
+    assert f"kopię miesięczną przez kolejne **{monthly} miesięcy**" in PRIVACY_PL
+    assert f"pozostają w kopii **{prune} dni**" in PRIVACY_PL
+
+    # The total is a human-readable CONSEQUENCE of the two artifact periods, so
+    # it is derived here rather than written down: the monthly copies cover the
+    # months before the daily window, and the daily window is the month on top
+    # of them. Hard-coding 13 would let it drift the moment either constant
+    # moved -- which is the whole failure this file exists to prevent.
+    total_months = monthly + -(-daily // 30)
+    assert f"older than about **{total_months} months**" in PRIVACY
+    assert f"starsza niż około **{total_months} miesięcy**" in PRIVACY_PL

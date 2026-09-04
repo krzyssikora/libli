@@ -60,7 +60,7 @@ bypasses it, so a green `ufw status` proves nothing about a published port.
 ### Install Docker
 
 ```bash
-apt-get update && apt-get install -y ca-certificates curl git
+apt-get update && apt-get install -y ca-certificates curl git age rsync
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
@@ -71,8 +71,41 @@ apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 ```
 
+```bash
+docker login ghcr.io -u krzyssikora    # paste a CLASSIC PAT with read:packages
+```
+
 Stay on an Ubuntu LTS the Docker repo actually publishes for. A release newer than the
 repo's coverage fails at `apt-get install docker-ce` with no obvious cause.
+
+`rsync` is in that first `apt-get install` because both `backup.sh` and `restore.sh` depend
+on it — it is how they list, mirror and fetch from the Storage Box — and Ubuntu's minimal
+cloud images do not ship it. Missing, the first nightly backup fails at its first `rsync`.
+
+Set the host clock to UTC:
+
+```bash
+timedatectl set-timezone UTC
+```
+
+Cron's `15 2 * * *` slot for `backup.sh` (§7), the `<ts>` it stamps on every artifact, and
+the `taken_at` field in each night's manifest must all be readings of the **same** clock —
+otherwise "restore to last Tuesday's 02:15 run" requires converting between the box's local
+time and the UTC the artifact is actually named in.
+
+Place the Storage Box restore key this box will use for its own nightly uploads (this is
+the box's **write** credential, `LIBLI_BACKUP_SSH_KEY_PATH` — not the separate restore-only
+credential a *recovery* uses, which never lives on a server; see
+[docs/backup-and-restore.md](backup-and-restore.md)):
+
+```bash
+install -m 600 /dev/null /root/.ssh/libli_backup
+nano /root/.ssh/libli_backup      # paste the private key, save
+```
+
+`.env.production` (§3) then points `LIBLI_BACKUP_SSH_KEY_PATH` at this path — a path, not
+the key material inline: `env_value()` reads one line, and a multi-line PEM would be
+silently truncated to its `-----BEGIN…` header.
 
 ---
 
@@ -154,10 +187,13 @@ docker run --rm -v "$(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro" \
 # expect: Valid configuration, and no warnings
 ```
 
+Set `LIBLI_IMAGE_TAG` to the `sha-<full-sha>` tag you intend to run before this; every later
+deploy writes it for you.
+
 Then — this is the **only** time you run this by hand; every later deploy is §8:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 docker compose -f docker-compose.prod.yml --env-file .env.production logs -f app
 ```
 
@@ -409,6 +445,16 @@ trailing backslash is not a continuation:
 
 `exec -T` is required: cron has no TTY. Test once by hand with `--dry-run` first.
 
+And the nightly backup — **one physical line**, same as above:
+
+```cron
+15 2 * * * bash /opt/libli/backup.sh >> /var/log/libli-backup.log 2>&1
+```
+
+`15 2`, deliberately not `30 3`: a dump competing with the retention purge for the
+same container and disk is avoidable. The host clock is UTC, so this, the artifact
+timestamps and `taken_at` are all the same clock.
+
 If you use `/etc/crontab` instead, that file takes an extra **user** field between the
 schedule and the command.
 
@@ -425,6 +471,8 @@ The container entrypoint is what makes that safe: `migrate`, `setup_roles` and
 `set_site_domain` run on every boot (§3), so a recreate applies schema changes and
 re-seeds role permissions by itself. A deploy job that only moved code would still be
 correct.
+
+Backups and restores are in [docs/backup-and-restore.md](backup-and-restore.md).
 
 ### There is no test job — that is deliberate
 
@@ -660,20 +708,26 @@ The retry absorbs it; it does not remove it. **Fetching over SSH** below is the 
 fix, and is worth applying if this signature shows up again.
 
 Past that point `deploy.sh` fails loudly at four places, in order: the Caddyfile does not
-parse, the build fails, the app container never reports healthy (`--wait`), or the public
-URL does not answer `/healthz/`. The first leaves the running site untouched. The other
-three do not:
-the old container is already gone, so a red run means the site is **down**, not merely
-un-updated.
+parse, **the GHCR login or the pull fails**, the app container never reports healthy
+(`--wait`), or the public URL does not answer `/healthz/`. The first leaves the running site
+untouched. The other three do not: the old container is already gone, so a red run means the
+site is **down**, not merely un-updated.
 
-There is no automatic rollback. Recovery is manual and takes one rebuild:
+(The second point used to be "the build fails". The box no longer builds — it pulls a
+published image — so a failure there is now a registry or credential problem, not a
+compilation one.)
+
+There is no automatic rollback. Recovery is manual and takes one pull:
 
 ```bash
 ssh root@<ip>
 cd /opt/libli
 git reset --hard <last-good-sha>
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build --wait
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --wait
 ```
+
+`git reset --hard <sha>` still does what it always did — `deploy.sh` derives
+`LIBLI_IMAGE_TAG` from the checkout, so moving the checkout moves the image.
 
 A migration that fails part-way is the case that needs care — the schema may be ahead of
 the code you just reset to. Read `logs app | grep '==>'` before assuming a rebuild fixes it.
@@ -703,13 +757,14 @@ passed; `ci.yml` not regrowing a `master` trigger.
 
 - **One `app` container.** `migrate` runs in the entrypoint; the staging dir is a local
   volume.
-- **No backups.** No `pg_dump` cron, no snapshot policy.
-- **Every deploy is ~1-2 minutes of 502s.** `up -d --build` rebuilds the image on the
-  serving box and recreates the app container; Caddy stays up and answers 502 until the
-  new container passes its healthcheck. Accepted for a demo.
-- **No rollback.** A build or migration that fails leaves the site down, not merely
-  un-updated -- the previous container is already gone. Recovery is a manual reset and
-  rebuild on the host; see §8.
+- **Every deploy is a short window of 502s.** `up -d` pulls the new image and recreates the
+  app container; Caddy stays up and answers 502 until the new container passes its
+  healthcheck. Shorter than it was when the box built its own image, because the pull is
+  the only work done here and the build already happened on the runner.
+- **Rollback is one pull.** `git reset --hard <last-good-sha>` then `bash deploy.sh`: the
+  tag follows the checkout, so the previous image is pulled rather than rebuilt. What this
+  cannot undo is an **already-applied migration** — the schema stays ahead of the code, and
+  that case needs a restore from `docs/backup-and-restore.md`, not a rollback.
 - **The container runs as root.** Accepted for now: the four named volumes are created
   root-owned on first `up`, so adding a non-root `USER` without also fixing volume
   ownership produces a container that cannot write `media/`. Revisit before this carries

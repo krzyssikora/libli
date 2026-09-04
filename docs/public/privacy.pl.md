@@ -188,6 +188,16 @@ Zgłoszenia problemów i załączone do nich zrzuty ekranu są przechowywane, do
 Administrator platformy. Nic nie usuwa ich ze względu na wiek. Kopie rozesłane już pocztą są poza
 kontrolą libli.
 
+**Kopie zapasowe.** Serwer jest co noc kopiowany na zaszyfrowany nośnik w Unii Europejskiej.
+Kopię nocną przechowujemy **30 dni**, a jedną kopię miesięczną przez kolejne **12 miesięcy** —
+żadna kopia nie jest więc starsza niż około **13 miesięcy**, po czym zostaje trwale usunięta.
+Pliki usunięte z kursu pozostają w kopii **90 dni**, aby można było cofnąć przypadkowe
+usunięcie, i następnie również są usuwane. Zrzut ekranu dołączony do zgłoszenia problemu
+znika z kopii tej samej nocy, w której usuniemy go z serwisu — bez opóźnienia.
+
+Kopie są szyfrowane kluczem, którego nie ma na serwerze, więc osoba, która przejęłaby serwer,
+nie mogłaby ich odczytać.
+
 ## Twoje prawa
 
 Możesz żądać dostępu do dotyczących Cię danych osobowych, ich sprostowania, ich usunięcia,
