@@ -25,8 +25,16 @@ cd "$APP_DIR"
 # the app container, restart postgres' dependents and prune images underneath it.
 # deploy.sh WAITS rather than skipping: a silently dropped deploy would report
 # green in Actions having done nothing.
+#
+# Taken before anything else, including the fetch: the point is to hold the lock
+# for the whole run, not merely for the part that touches containers.
 exec 9>/var/lock/libli-deploy.lock
 flock 9
+
+# Retry budget for the fetch below. Overridable so the host can widen it without
+# a code change; the defaults are what CI runs.
+GIT_FETCH_ATTEMPTS=${GIT_FETCH_ATTEMPTS:-3}
+GIT_FETCH_DELAY=${GIT_FETCH_DELAY:-5}
 
 compose() {
   docker compose -f docker-compose.prod.yml --env-file .env.production "$@"
@@ -39,17 +47,56 @@ env_value() {
   sed -n "s/^$1=//p" .env.production | head -1
 }
 
+# GitHub intermittently answers an ANONYMOUS fetch of this PUBLIC repo with a 401
+# challenge, and git then dies on "could not read Username" because a deploy has
+# no tty to prompt at. It killed three deploys in two days (#293, #295, #296).
+# It is NOT a credential problem: a public fetch needs none, and in #296 the
+# fetch 440 ms earlier had SUCCEEDED. Retrying turns it into a slower deploy
+# rather than a red one -- and, because the run is red at the END of the retries
+# and not at the start, the site is left on the previous commit either way.
+fetch_master() {
+  local attempt=1
+  while true; do
+    if git fetch origin master; then
+      return 0
+    fi
+    if [ "$attempt" -ge "$GIT_FETCH_ATTEMPTS" ]; then
+      echo "==> git fetch failed $GIT_FETCH_ATTEMPTS times; refusing to deploy" >&2
+      return 1
+    fi
+    echo "==> git fetch failed (attempt $attempt/$GIT_FETCH_ATTEMPTS); retrying in ${GIT_FETCH_DELAY}s"
+    attempt=$((attempt + 1))
+    sleep "$GIT_FETCH_DELAY"
+  done
+}
+
+sync_working_tree() {
+  # fetch + reset --hard, never `git pull`:
+  #   - the host checkout is a mirror of master by definition. Any local
+  #     divergence is wrong and should be flattened, not merged.
+  #   - `git pull` aborts on divergent branches and depends on pull.rebase config
+  #     that varies across git versions.
+  # .env.production is untracked (.gitignore's `.env*`), so the reset cannot
+  # destroy the host's only copy of the secrets.
+  #
+  # deploy.yml fetches and resets before invoking this file, so this fetch is a
+  # SECOND request to github.com inside a second -- and that pair is what tripped
+  # #296, where the first was served and the second refused 440 ms later. CI sets
+  # LIBLI_DEPLOY_SKIP_FETCH to drop it. The RESET is never skipped: it, not the
+  # fetch, is what guarantees the tree matches origin/master. Run by hand (the
+  # rollback path in docs/deployment.md) the variable is unset and the fetch
+  # happens, which is what makes that path correct on its own.
+  if [ -n "${LIBLI_DEPLOY_SKIP_FETCH:-}" ]; then
+    echo "==> CI already fetched; resetting to the ref it fetched"
+  else
+    fetch_master
+  fi
+  git checkout master 2>/dev/null || true
+  git reset --hard origin/master
+}
+
 echo "==> resetting the working tree to origin/master"
-# fetch + reset --hard, never `git pull`:
-#   - the host checkout is a mirror of master by definition. Any local
-#     divergence is wrong and should be flattened, not merged.
-#   - `git pull` aborts on divergent branches and depends on pull.rebase config
-#     that varies across git versions.
-# .env.production is untracked (.gitignore's `.env*`), so the reset cannot
-# destroy the host's only copy of the secrets.
-git fetch origin master
-git checkout master 2>/dev/null || true
-git reset --hard origin/master
+sync_working_tree
 
 echo "==> validating the Caddyfile"
 # caddy has no healthcheck in docker-compose.prod.yml, so a syntax error here

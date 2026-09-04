@@ -15,6 +15,12 @@
   var MAX_COLS = 20;
   var HALIGNS = ["left", "center", "right"];
   var VALIGNS = ["top", "middle", "bottom"];
+  // data-cmd values whose active state is queryCommandState-derived, and the
+  // colour slots whose active state comes from the caret's ancestor class. The
+  // data-cmd value and the execCommand name are deliberately the same string
+  // here (unlike the align buttons), so one list serves both.
+  var INLINE_CMDS = ["bold", "italic", "underline"];
+  var COLOUR_SLOTS = ["red", "blue", "green", "orange"];
   var CELL_IMAGE_DEFAULT = "full";
   var CELL_IMAGE_INSERT = "medium";
   // Whole-literal class names: `classList.add('filltable-editor__img--' + size)` would
@@ -367,6 +373,42 @@
     // Rich-text commands (bold/italic/underline/math) only make sense on a
     // contenteditable (static) cell; the "Answer cell" toggle stays live so
     // the author can always flip an answer cell back to static first.
+    // B/I/U and the swatches read the SELECTION, not the cell's own attributes,
+    // so they cannot ride along in refreshAlignButtons: they must be repainted on
+    // every caret move, not only when focus lands on a different cell. This
+    // mirrors text_toolbar.js's refreshActive -- without it these are the only
+    // controls in the toolbar that never light up, and a click on Bold reads as a
+    // dead button (the format IS applied; nothing on screen says so).
+    function refreshInlineButtons() {
+      if (!toolbar) return;
+      // The caret must be inside the cell the toolbar acts on. focusCell is never
+      // nulled on blur, so without this the buttons would keep reporting the state
+      // of a selection that has since moved to another element entirely.
+      var live = false;
+      if (focusCell && focusCell.hasAttribute("contenteditable")) {
+        var sel = window.getSelection();
+        live = !!(sel && sel.rangeCount &&
+                  focusCell.contains(sel.getRangeAt(0).commonAncestorContainer));
+      }
+      INLINE_CMDS.forEach(function (cmd) {
+        var btn = toolbar.querySelector('[data-cmd="' + cmd + '"]');
+        if (!btn) return;
+        var on = false;
+        if (live) {
+          try { on = document.queryCommandState(cmd); } catch (e) { on = false; }
+        }
+        btn.classList.toggle("is-on", !!on);
+      });
+      // The active slot comes from the caret's ancestor class, not from
+      // queryCommandState -- colour is a class, not an execCommand format.
+      var slot = (live && window.libliColour)
+        ? window.libliColour.activeSlot(focusCell) : null;
+      COLOUR_SLOTS.forEach(function (name) {
+        var btn = toolbar.querySelector('[data-cmd="colour-' + name + '"]');
+        if (btn) btn.classList.toggle("is-on", slot === name);
+      });
+    }
+
     function refreshToolbarState() {
       if (!toolbar) return;              // unrelated guard; STAYS
       var mergeBtn = toolbar.querySelector("[data-merge]");
@@ -430,6 +472,7 @@
       if (removeBtn) removeBtn.hidden = !showCellCtl;
 
       refreshAlignButtons();
+      refreshInlineButtons();
     }
 
     // Per-node stash holding BOTH kinds' last-known content, so a toggle
@@ -611,6 +654,18 @@
                                // Header enablement both read focusCell, so
                                // the toolbar must recompute whenever focus
                                // moves, and alignment tracks it too
+    });
+
+    // Caret moves inside a cell change the inline state without ever changing
+    // focusCell, so focusin alone would leave the buttons reporting whatever the
+    // format was when the cell was entered. selectionchange is document-scoped
+    // (there is no element-scoped equivalent) and cheap: refreshInlineButtons
+    // reads a handful of nodes and settles to "all off" for any selection that
+    // is not inside this editor's focused cell -- which is exactly what clicking
+    // away must do. isConnected skips grids left behind by a fragment swap.
+    document.addEventListener("selectionchange", function () {
+      if (!grid.isConnected) return;
+      refreshInlineButtons();
     });
 
     // Chrome and genuine multi-line controls are excluded, but the fill-table's
@@ -811,6 +866,7 @@
             // bold/italic/underline); apply() sets and resets it itself.
             window.libliColour.apply(focusCell, slot);
             serialize();
+            refreshInlineButtons();
             return;
           }
           if (cmd === "bold" || cmd === "italic" || cmd === "underline") {
@@ -820,6 +876,7 @@
             document.execCommand("styleWithCSS", false, false);
             document.execCommand(cmd, false, null);
             serialize();
+            refreshInlineButtons();
           } else if (cmd === "math") {
             if (!window.libliMathInput) return;
             var sel = window.getSelection();

@@ -6,8 +6,10 @@ Drives the REAL UI gestures throughout (clicks, keyboard typing) — no
 page.evaluate shortcuts. Marked e2e (excluded from the default run)."""
 
 import os
+import re
 
 import pytest
+from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
@@ -292,3 +294,120 @@ def test_table_edit_preserves_content_when_only_label_changed(page, live_server)
     assert after["cells"][0][0]["halign"] == "center"
     element.refresh_from_db()
     assert element.title == "Renamed"
+
+
+def _tbtn(page, selector):
+    return page.locator(f"[data-edit-slot] [data-table-toolbar] {selector}")
+
+
+# The toolbar repaints on `selectionchange`, which the browser delivers
+# ASYNCHRONOUSLY: a caret move and the class that reflects it are not the same
+# tick. Reading classList straight after a keypress therefore samples a race --
+# measured at roughly one press in six going stale on an IDLE machine, and it is
+# what failed this test's fill-table twin on CI. expect() retries until it
+# settles; a class that is genuinely never painted still fails, at the timeout.
+IS_ON = re.compile(r"(^|\s)is-on(\s|$)")
+
+
+def _expect_on(button, why):
+    expect(button, why).to_have_class(IS_ON)
+
+
+def _expect_off(button, why):
+    expect(button, why).not_to_have_class(IS_ON)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_table_toolbar_paints_inline_format_active_state(page, live_server):
+    """The B/I/U buttons and the colour swatches must show whether the format
+    is live at the caret, exactly as the prose toolbar's refreshActive does.
+
+    Without this the table toolbar is the only editing surface where pressing
+    Bold produces no feedback on the control itself: the alignment and header
+    buttons paint .is-on, these did not, so an author reads the click as a
+    dead button and cannot tell an already-bold cell from a plain one."""
+    _make_pa_user("tbl_state")
+    _login(page, live_server, "tbl_state")
+    unit = _unit("tbl_state", "tbl-state")
+    _add_table(page, live_server, unit)
+
+    bold = _tbtn(page, "[data-cmd='bold']")
+    italic = _tbtn(page, "[data-cmd='italic']")
+    red = _tbtn(page, "[data-cmd='colour-red']")
+    blue = _tbtn(page, "[data-cmd='colour-blue']")
+
+    cells = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]")
+    first, second = cells.nth(0), cells.nth(1)
+
+    # Applying a format lights its own button, and only it.
+    first.click()
+    page.keyboard.type("bolded")
+    page.keyboard.press("Control+A")
+    bold.click()
+    _expect_on(bold, "Bold must light up once the selection is bold")
+    _expect_off(italic, "Italic must stay unlit")
+
+    # Pressing it again un-bolds, and the button must follow back down.
+    bold.click()
+    _expect_off(bold, "Bold must unlight when the format is toggled off")
+
+    # A colour swatch reports the slot at the caret, and swapping slots moves
+    # the highlight rather than lighting both.
+    bold.click()
+    red.click()
+    _expect_on(red, "The applied colour swatch must light up")
+    _expect_off(blue, "Only the applied slot lights up")
+    blue.click()
+    _expect_on(blue, "The newly applied slot lights up")
+    _expect_off(red, "Re-colouring must move the highlight, not add one")
+
+    # Moving the caret WITHIN one cell, across the boundary between bold and
+    # plain text, must move the highlight too: focus never changes here, so
+    # nothing but a selection-driven repaint can keep the button honest.
+    #
+    # Home/End rather than a counted run of ArrowLefts. A count has to land
+    # inside the bold run without overshooting it, which makes the test depend
+    # on how many caret stops the browser puts at an element boundary -- a
+    # platform detail, and one press of slack either way. Home and End land at
+    # the extremes, which is what is actually being asserted.
+    third = cells.nth(2)
+    third.click()
+    page.keyboard.type("aa")
+    page.keyboard.press("Control+A")
+    bold.click()
+    page.keyboard.press("ArrowRight")  # collapse to the end of "aa"
+    bold.click()  # ... and stop bolding from here
+    page.keyboard.type("bb")
+    assert third.inner_html() == "<b>aa</b>bb", "precondition for the caret walk"
+    _expect_off(bold, "the caret sits in the plain tail")
+    page.keyboard.press("Home")  # ... to the start, inside "aa"
+    _expect_on(bold, "Bold must light up when the caret enters bold text")
+    page.keyboard.press("End")  # ... and back out into "bb"
+    _expect_off(bold, "Bold must unlight when the caret leaves bold text")
+
+    # Moving the caret to a plain cell drops every inline highlight -- the
+    # state must track the CARET, not the last button pressed.
+    second.click()
+    page.keyboard.type("plain")
+    _expect_off(bold, "A plain cell must not report bold")
+    _expect_off(red, "A plain cell must not report red")
+    _expect_off(blue, "A plain cell must not report blue")
+
+    # ... and coming back to the formatted cell lights them again, which is
+    # the read an author relies on to tell the two cells apart.
+    first.click()
+    page.keyboard.press("Control+A")
+    _expect_on(bold, "Returning to a bold cell must re-light Bold")
+    _expect_on(blue, "Returning to a coloured cell must re-light its swatch")
+
+    # The plainest gesture in the bug report: caret in an untouched cell, no
+    # selection at all, press Bold. The button must light straight away -- it is
+    # the only signal that the NEXT keystroke will be bold. Kept last, and in a
+    # cell of its own, because it deliberately leaves a pending format behind.
+    fourth = cells.nth(3)
+    fourth.click()
+    bold.click()
+    _expect_on(bold, "Bold must light up on a collapsed caret")
+    page.keyboard.type("x")
+    assert fourth.inner_html() == "<b>x</b>", "... and the typing must be bold"
+    _expect_on(bold, "... and it stays lit while typing inside the run")

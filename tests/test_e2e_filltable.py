@@ -546,3 +546,78 @@ def test_editor_gate_checkbox_round_trips(page, live_server):
 
     obj.refresh_from_db()
     assert obj.data["gate"] is True
+
+
+@pytest.mark.django_db(transaction=True)
+def test_filltable_toolbar_paints_inline_format_active_state(page, live_server):
+    """Twin of tests/test_e2e_table_editor.py's
+    test_table_toolbar_paints_inline_format_active_state.
+
+    test_editor_twin_drift pins refreshInlineButtons' BODY identical across the
+    two editors, but nothing there pins its CALL SITES: dropping the call from
+    this file's bold branch would leave both guards green and this toolbar dead
+    again. The static cell is the only kind that can carry inline format -- an
+    answer cell holds an <input>, not editable HTML."""
+    unit, _a, _b = _editor_context(page, live_server, "ft_state", "ft-state")
+    element = _seed_filltable_for_images(unit)
+    _goto_editor(page, live_server, "ft_state", unit)
+    _open_edit(page, element.pk)
+
+    toolbar = "[data-edit-slot] [data-table-toolbar] "
+    bold = page.locator(toolbar + "[data-cmd='bold']")
+    italic = page.locator(toolbar + "[data-cmd='italic']")
+    red = page.locator(toolbar + "[data-cmd='colour-red']")
+
+    # The toolbar repaints on `selectionchange`, which the browser delivers
+    # ASYNCHRONOUSLY: a caret move and the class that reflects it are not the
+    # same tick. Reading classList straight after a keypress samples a race --
+    # roughly one press in six goes stale on an IDLE machine, and on loaded CI
+    # that is what failed this test. expect() retries until it settles; a class
+    # that is genuinely never painted still fails, at the timeout.
+    is_on = re.compile(r"(^|\s)is-on(\s|$)")
+
+    cell = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").first
+    cell.click()
+    page.keyboard.press("Control+A")
+    bold.click()
+    expect(bold, "Bold must light up once the selection is bold").to_have_class(is_on)
+    expect(italic, "Italic must stay unlit").not_to_have_class(is_on)
+    red.click()
+    expect(red, "The applied colour swatch must light up").to_have_class(is_on)
+
+    # The caret walk: leaving the bold run must drop its highlight with no focus
+    # change to trigger the repaint. Only bold is walked -- typed text lands
+    # INSIDE the tc-red span, so the tail really is red and the swatch is right
+    # to stay lit; the swatch's caret-tracking is asserted below instead.
+    #
+    # Home/End rather than a counted run of ArrowLefts. A count has to land
+    # inside the bold run without overshooting it, which makes the test depend
+    # on how many caret stops the browser puts at an element boundary -- a
+    # platform detail, and one press of slack either way. Home and End land at
+    # the extremes, which is what is actually being asserted.
+    page.keyboard.press("ArrowRight")  # collapse past the formatted run
+    bold.click()  # ... and stop bolding from here
+    page.keyboard.type("tail")
+    expect(bold, "the caret sits in the plain tail").not_to_have_class(is_on)
+    page.keyboard.press("Home")  # ... back into the formatted run
+    expect(bold, "Bold must light up when the caret re-enters bold text").to_have_class(
+        is_on
+    )
+
+    # A different, unformatted static cell reports neither format.
+    page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").nth(
+        1
+    ).click()
+    expect(bold, "a plain cell must not report bold").not_to_have_class(is_on)
+    expect(red, "a plain cell must not report a colour").not_to_have_class(is_on)
+
+    # The plainest gesture in the bug report: no selection at all, just a caret,
+    # press Bold. Only the click handler's own repaint can light the button --
+    # a collapsed caret emits no selectionchange. Kept last: it deliberately
+    # leaves a pending format behind.
+    bold.click()
+    expect(bold, "Bold must light up on a collapsed caret").to_have_class(is_on)
+    page.keyboard.type("y")
+    expect(bold, "... and it stays lit while typing inside the run").to_have_class(
+        is_on
+    )
