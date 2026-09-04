@@ -595,9 +595,14 @@ commands, never chained with `&&`:
 
 ```bash
 ssh -T git@github.com
-git fetch origin master                # MUST succeed
-git remote -v                          # MUST show git@github.com:...
+git remote -v                          # MUST show git@github.com:... FIRST
+git fetch origin master                # only now does this test anything
 ```
+
+**The order of those last two is not cosmetic.** Against a remote still on the `https://`
+URL, `git fetch` succeeds anonymously exactly as it always did — a green result that says
+nothing whatever about SSH, on the one command you are relying on to prove the change
+worked. Confirm what the remote IS before testing what it does.
 
 **`ssh -T git@github.com` exits 1 even when it succeeds**, because GitHub has no shell to
 hand you. Chaining it with `&&` therefore stops the run dead after a *successful* auth, and
