@@ -119,9 +119,38 @@ SSH_USER="$(require_env LIBLI_BACKUP_SSH_USER)"
 SSH_KEY="$(require_env LIBLI_BACKUP_SSH_KEY_PATH)"
 HEARTBEAT="$(require_env LIBLI_BACKUP_HEARTBEAT_URL)"
 
-SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=accept-new"
+# Optional, with defaults that are right for a Hetzner Storage Box sub-account.
+# env_value yields empty for a missing key, so the :- default covers both
+# "absent" and "present but blank".
+SSH_PORT="$(env_value LIBLI_BACKUP_SSH_PORT)"
+SSH_PORT="${SSH_PORT:-23}"
+REMOTE_BASE="$(env_value LIBLI_BACKUP_REMOTE_BASE)"
+REMOTE_BASE="${REMOTE_BASE:-.}"
+
+# `-o Port=`, not `-p`: this string is reused by ssh, scp, sftp AND inside
+# rsync's `-e`, and they disagree on the short flag (ssh takes -p, scp and sftp
+# take -P). The long form is accepted by all of them.
+#
+# ⚠️ A Hetzner Storage Box listens on 23, NOT 22 -- verified against a real box
+# on 2026-09-04, where every command silently failed until the port was right.
+# Overridable so the deferred off-Hetzner copy needs no code change.
+SSH_OPTS="-i $SSH_KEY -o Port=${SSH_PORT} -o StrictHostKeyChecking=accept-new"
 REMOTE="$SSH_USER@$SSH_HOST"
-BASE="schools/$SLUG"
+
+# ⚠️ EMPTY by default, and that is correct for a Storage Box sub-account.
+# Sub-accounts are CHROOTED to their base directory: the credential that runs
+# this script logs in and lands directly in the school's own directory, which it
+# sees as `/home`. Prefixing `schools/<slug>` here would ask for
+# schools/<slug>/schools/<slug>/... -- verified on a real box, where the
+# sub-account's sftp `pwd` is `/home` while the main account sees the same place
+# as `/home/schools/<slug>`.
+#
+# Set it only for a credential that is NOT chrooted -- the main account, which
+# restore.sh uses and which does need the prefix.
+#
+# "." rather than "": an empty BASE would render "$BASE/db" as "/db", an
+# ABSOLUTE path, and silently write outside the account's directory (or fail).
+BASE="$REMOTE_BASE"
 TS="$(date -u +%Y-%m-%dT%H%M%S)"
 
 # ⚠️ A Hetzner Storage Box is NOT a general-purpose shell. There is no awk, no
@@ -163,7 +192,12 @@ remote_ls() {  # $1 = subdirectory under $BASE; prints file paths relative to it
 # not, the children would never be created.
 remote_mkdir() {
   {
-    printf '%s\n' "-mkdir schools" "-mkdir $BASE"
+    # Only create parents when BASE actually names some. A chrooted
+    # sub-account is ALREADY inside its own directory, and asking it to
+    # "-mkdir schools" would create a stray schools/ INSIDE the backup area.
+    if [ "$BASE" != "." ]; then
+      printf '%s\n' "-mkdir schools" "-mkdir $BASE"
+    fi
     for dir in "$@"; do
       printf '%s\n' "-mkdir $BASE/$dir"
     done

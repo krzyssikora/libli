@@ -350,6 +350,28 @@ def test_all_three_scripts_fail_on_the_first_error_and_in_a_pipe():
         assert real == "set -euo pipefail", f"{path.name}: {real!r}"
 
 
+@pytest.mark.parametrize("script", [BACKUP_SH, RESTORE_SH], ids=["backup", "restore"])
+def test_ssh_options_carry_a_port_in_the_form_all_four_tools_accept(script):
+    """A Hetzner Storage Box listens on 23, not 22 -- verified against a real
+    box, where every scp/sftp/rsync silently failed until the port was set.
+
+    The long `-o Port=` form is load-bearing: SSH_OPTS is reused by ssh, scp,
+    sftp AND inside rsync's `-e`, and the short flags disagree (ssh -p, but
+    scp -P and sftp -P). `-p` here would work for ssh and rsync and break the
+    other two -- the worst kind of wrong, since the dump would upload and the
+    mirrors would not.
+
+    Mutant: replace `-o Port=` with `-p`, or drop the port entirely.
+    """
+    line = next(
+        ln
+        for ln in script.read_text(encoding="utf-8").splitlines()
+        if ln.lstrip().startswith("SSH_OPTS=")
+    )
+    assert "-o Port=" in line, line
+    assert not re.search(r"(?<![-\w])-p\s", line), line
+
+
 def test_all_three_scripts_share_one_lock_path():
     """Otherwise the risk table claims a mitigation that does not exist.
 

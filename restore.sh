@@ -28,6 +28,11 @@ IMAGE_TAG=""
 GHCR_TOKEN_FILE=""
 SSH_HOST=""
 SSH_USER=""
+# 23 is the Hetzner Storage Box SSH port, not the default 22.
+SSH_PORT=23
+# Empty here so the BASE assignment below can distinguish "not given" from a
+# deliberate ".", which is what a chrooted credential needs.
+REMOTE_BASE=""
 
 # A value-taking flag given as the LAST argument expands "$2" under `set -u`
 # and dies with "restore.sh: line NN: $2: unbound variable" -- an internal-
@@ -45,6 +50,11 @@ while [ $# -gt 0 ]; do
     --image-tag) require_value "$@"; IMAGE_TAG="$2"; shift 2 ;;
     --ssh-host) require_value "$@"; SSH_HOST="$2"; shift 2 ;;
     --ssh-user) require_value "$@"; SSH_USER="$2"; shift 2 ;;
+    --ssh-port) require_value "$@"; SSH_PORT="$2"; shift 2 ;;
+    # `.` when restoring with a chrooted sub-account, which already lands
+    # inside the school's directory. Defaults to schools/<slug> for the main
+    # account, whose home is one level up.
+    --remote-base) require_value "$@"; REMOTE_BASE="$2"; shift 2 ;;
     # A PATH, not the PAT itself. The other two credentials already arrive as
     # tmpfs paths; a token on the command line is readable from `ps` by any
     # user on the box for the length of the pull and lands in the operator's
@@ -112,9 +122,26 @@ for key in "$AGE_KEY" "$SSH_KEY"; do
   chmod 600 "$key"
 done
 
-SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=accept-new"
+# `-o Port=`, not `-p`: this string is reused by ssh, scp, sftp AND inside
+# rsync's `-e`, and they disagree on the short flag (ssh takes -p, scp and sftp
+# take -P). The long form is accepted by all of them.
+#
+# ⚠️ A Hetzner Storage Box listens on 23, NOT 22 -- verified against a real box.
+SSH_OPTS="-i $SSH_KEY -o Port=${SSH_PORT} -o StrictHostKeyChecking=accept-new"
 REMOTE="$SSH_USER@$SSH_HOST"
-BASE="schools/$SLUG"
+
+# Defaults to the PREFIXED form, which is the opposite of backup.sh's default,
+# and deliberately so: the two scripts use different credentials with different
+# views of the same data.
+#
+#   backup.sh  runs as the school's own sub-account, which is CHROOTED into
+#              schools/<slug> and sees it as `/home` -- so no prefix.
+#   restore.sh runs as the MAIN account (out-of-band input 2: never the box's
+#              own credential, which is compromised in the scenario a restore is
+#              for), whose home is `/home` -- so the prefix is required.
+#
+# Override with --remote-base when restoring with a chrooted credential instead.
+BASE="${REMOTE_BASE:-schools/$SLUG}"
 WORK="$(mktemp -d)"
 # Widened, not replaced: $WORK holds the DECRYPTED dump from the DUMP step
 # onward, so it is plaintext pupil data with the same standing as the keys.
