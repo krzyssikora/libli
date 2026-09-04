@@ -492,12 +492,28 @@ def test_a_missing_artifact_exits_but_a_refs_gap_does_not():
     unrestorable. The typed slug IS the knowing acceptance.
 
     Mutant: make a refs gap exit non-zero.
+
+    Each window is anchored on its own marker LINE, never on prose: "a refs gap
+    is often legitimate" appears in the explanatory comment six lines above the
+    marker, so a bare substring match opened the window there and swept in code
+    this test does not govern. Comments are then stripped from the window,
+    because the negative half asserts the ABSENCE of a word -- without that,
+    any future comment containing "exit" reddens a correct script, and the
+    guarded block already carries one that has to contort around the word.
     """
     text = RESTORE_SH.read_text(encoding="utf-8")
-    missing_block = re.search(r"missing artefact.*?\n(.*?)\nfi", text, re.DOTALL)
-    assert missing_block and "exit 1" in missing_block.group(1), text
-    gap_block = re.search(r"refs gap.*?\n(.*?)\nfi", text, re.DOTALL)
-    assert gap_block and "exit" not in gap_block.group(1), text
+
+    def block_after(marker):
+        window = re.search(
+            rf"^[ \t]*# {marker}$\n(.*?)\nfi$", text, re.DOTALL | re.MULTILINE
+        )
+        assert window, f"no `# {marker}` marker line in restore.sh"
+        return "\n".join(
+            ln for ln in window.group(1).splitlines() if not ln.lstrip().startswith("#")
+        )
+
+    assert "exit 1" in block_after("missing artefact"), text
+    assert "exit" not in block_after("refs gap"), text
 
 
 def test_the_checkout_must_match_the_image():
