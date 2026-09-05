@@ -173,7 +173,14 @@ types a unit holds without a query, and one class costs nothing.{% endcomment %}
       // window or under window.MathLive. Be tolerant.
       var MFE = window.MathfieldElement || (window.MathLive && window.MathLive.MathfieldElement);
       if (MFE) {
-        MFE.fontsDirectory = "{% static 'courses/vendor/mathlive/fonts' %}";
+        {% comment %}`{% static %}` on the fonts DIRECTORY has no manifest entry
+        and raises "Missing staticfiles manifest entry" at render time under
+        production's ManifestStaticFilesStorage -- a 500 on every editor page,
+        invisible locally because local.py swaps in the manifest-less storage.
+        Resolve a real file instead and strip the filename; MathLive appends its
+        own font names to this prefix, and the unhashed names it asks for are
+        served from STATIC_ROOT alongside the hashed copies.{% endcomment %}
+        MFE.fontsDirectory = "{% static 'courses/vendor/mathlive/fonts/KaTeX_Main-Regular.woff2' %}".replace(/\/[^\/]*$/, "");
         MFE.soundsDirectory = null;  // no keystroke sounds
       }
     });
