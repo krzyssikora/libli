@@ -312,7 +312,8 @@ artifact itself, before that happens — from the same age identity already on t
 pre-flight step 4:
 
 ```bash
-scp -i /dev/shm/libli-restore-ssh.key -o StrictHostKeyChecking=accept-new \
+scp -i /dev/shm/libli-restore-ssh.key -o Port=23 -o StrictHostKeyChecking=yes \
+  -o UserKnownHostsFile=/opt/libli/storagebox_known_hosts \
   <storage-box-user>@<storage-box-host>:schools/<slug>/env/<ts>.env.age /dev/shm/env-preview.age
 age -d -i /dev/shm/libli-restore.key -o /dev/shm/env-preview /dev/shm/env-preview.age
 grep '^SITE_ADDRESS=' /dev/shm/env-preview      # write this value down — you'll need it below

@@ -11,6 +11,8 @@ Each assertion names the mutant that makes it fail. An assertion that cannot go
 red is not a guard.
 """
 
+import base64
+import hashlib
 import re
 import shutil
 import subprocess
@@ -26,6 +28,7 @@ RESTORE_SH = ROOT / "restore.sh"
 COMPOSE = ROOT / "docker-compose.prod.yml"
 CADDYFILE = ROOT / "Caddyfile"
 RUNBOOK = ROOT / "docs/deployment.md"
+KNOWN_HOSTS = ROOT / "storagebox_known_hosts"
 
 
 def test_publish_job_precedes_the_deploy_step():
@@ -606,3 +609,62 @@ def test_pre_cutover_disables_acme_by_the_scheme():
     assert not re.search(
         r"^\s*tls\b", CADDYFILE.read_text(encoding="utf-8"), re.MULTILINE
     )
+
+
+def test_both_scripts_pin_the_storage_box_host_key():
+    """`accept-new` trusts whatever key answers the FIRST time, which on a
+    freshly provisioned box is exactly the moment an attacker in the path wins:
+    the box then uploads its school's backups to a host nobody verified, and
+    age encryption does not save it -- the artifacts are still delivered to the
+    wrong party, and the mirror listing that decides what to prune is theirs
+    too. Hetzner PUBLISHES the fingerprints, so trust-on-first-use is weaker
+    than necessary here.
+
+    Both scripts, not one: backup.sh runs nightly on every school box, and
+    restore.sh runs on a rented box during a recovery -- the more hostile
+    setting of the two, and the one where nobody is reading the output.
+
+    Mutant: put `accept-new` back in either script, or drop the
+    UserKnownHostsFile so `=yes` consults the empty default and refuses
+    everything.
+    """
+    for script in (BACKUP_SH, RESTORE_SH):
+        text = script.read_text(encoding="utf-8")
+        opts = re.search(r"^SSH_OPTS=.*$", text, re.MULTILINE)
+        assert opts, f"{script.name} has no SSH_OPTS line"
+        line = opts.group(0)
+        assert "StrictHostKeyChecking=yes" in line, line
+        assert "accept-new" not in line, line
+        assert "UserKnownHostsFile=" in line, line
+
+
+def test_the_pinned_host_keys_are_hetzners_published_fingerprints():
+    """A pin is only worth something if the file holds the RIGHT keys. This
+    recomputes each fingerprint from the committed blob and compares it against
+    what Hetzner publishes, so a corrupted, truncated or substituted file is
+    caught here rather than as a silent refusal on a box at 02:15.
+
+    Computed in pure Python rather than by shelling out to ssh-keygen: CI
+    images are not guaranteed to ship OpenSSH, and a guard that skips itself
+    when a binary is missing protects nothing.
+
+    Mutant: change one character of any key blob in storagebox_known_hosts,
+    drop a line, or replace the wildcard host with a single box's name.
+    """
+    published = {
+        "SHA256:XqONwb1S0zuj5A1CDxpOSuD2hnAArV1A3wKY7Z3sdgM",
+        "SHA256:EMlfI8GsRIfpVkoW1H2u0zYVpFGKkIMKHFZIRkf2ioI",
+        "SHA256:oDHZqKXnoMtgvPBjjC57pcuFez28roaEuFcfwyg8O5c",
+    }
+    found = set()
+    for line in KNOWN_HOSTS.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        host, _keytype, blob = line.split()[:3]
+        # The port form is load-bearing: a Storage Box listens on 23, and an
+        # entry written without `[host]:23` never matches -- which under `=yes`
+        # fails closed, refusing every transfer for a reason nothing names.
+        assert host == "[*.your-storagebox.de]:23", host
+        digest = hashlib.sha256(base64.b64decode(blob)).digest()
+        found.add("SHA256:" + base64.b64encode(digest).decode().rstrip("="))
+    assert found == published, found
