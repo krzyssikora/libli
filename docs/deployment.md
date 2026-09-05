@@ -107,6 +107,13 @@ nano /root/.ssh/libli_backup      # paste the private key, save
 the key material inline: `env_value()` reads one line, and a multi-line PEM would be
 silently truncated to its `-----BEGIN…` header.
 
+You do **not** need to set up `known_hosts` for the Storage Box. Both scripts run with
+`StrictHostKeyChecking=yes` against `storagebox_known_hosts`, committed in this repo:
+Hetzner publishes the host-key fingerprints and they are identical for every Storage Box,
+so one pinned file serves the whole fleet. It lives in the repo rather than in
+`/root/.ssh` because `restore.sh` runs from a fresh clone on a rented box, before any
+provisioning step could have installed one.
+
 ---
 
 ## 2. DNS
@@ -464,8 +471,10 @@ schedule and the command.
 
 Everything above is the **first** install. After it, a merge to `master` deploys on its
 own — `.github/workflows/deploy.yml` SSHes in and runs `deploy.sh` from this repo, which
-resets the checkout to `origin/master`, validates the Caddyfile, rebuilds, and waits for
-the stack to become healthy. Nothing is left for you to do on the box.
+resets the checkout to `origin/master`, validates the Caddyfile, logs in to GHCR, PULLS
+`sha-<full-sha>` and waits for the stack to become healthy. It no longer builds on the
+box -- that moved to the `publish` job, which is what removes the build's RAM spike from
+every school box at once. Nothing is left for you to do on the box.
 
 The container entrypoint is what makes that safe: `migrate`, `setup_roles` and
 `set_site_domain` run on every boot (§3), so a recreate applies schema changes and

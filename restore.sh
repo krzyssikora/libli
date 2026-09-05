@@ -127,7 +127,21 @@ done
 # take -P). The long form is accepted by all of them.
 #
 # ⚠️ A Hetzner Storage Box listens on 23, NOT 22 -- verified against a real box.
-SSH_OPTS="-i $SSH_KEY -o Port=${SSH_PORT} -o StrictHostKeyChecking=accept-new"
+# ⚠️ The host key is PINNED, not accepted on first use. Hetzner publishes the
+# fingerprints and they are identical for every Storage Box, so `accept-new`
+# bought nothing but a window: the first connection from a freshly provisioned
+# box is precisely when an attacker in the path wins, and age encryption does
+# not save it -- the artifacts still go to the wrong party.
+#
+# The file is IN THE REPO rather than /root/.ssh/known_hosts because restore.sh
+# runs from a fresh clone on a rented box, before .env.production exists and
+# before any provisioning step could have installed one. Overridable for the
+# deferred off-Hetzner copy.
+KNOWN_HOSTS="$(env_value LIBLI_BACKUP_SSH_KNOWN_HOSTS)"
+KNOWN_HOSTS="${KNOWN_HOSTS:-$APP_DIR/storagebox_known_hosts}"
+[ -r "$KNOWN_HOSTS" ] || { echo "!! $KNOWN_HOSTS is missing or unreadable" >&2; exit 1; }
+
+SSH_OPTS="-i $SSH_KEY -o Port=${SSH_PORT} -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS"
 REMOTE="$SSH_USER@$SSH_HOST"
 
 # Defaults to the PREFIXED form, which is the opposite of backup.sh's default,
