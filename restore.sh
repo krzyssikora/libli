@@ -259,11 +259,16 @@ school="$(sed -n 's/.*"school": *"\([^"]*\)".*/\1/p' "$WORK/manifest.json")"
 manifest_image="$(sed -n 's/.*"image": *"\([^"]*\)".*/\1/p' "$WORK/manifest.json")"
 if [ -z "$IMAGE_TAG" ]; then
   TARGET="$manifest_image"
+  # A REAL branch, not just a message. This printed "is skipped" while the
+  # check below ran anyway, exiting 1 on the next breath -- and that false
+  # message is what hid the scan bug below until the first rehearsal.
+  SKIP_CONTAINMENT=1
   echo "==> target is the manifest's own image; the containment check is a tautology and is skipped"
 else
   echo "$IMAGE_TAG" | grep -Eq '^sha-[0-9a-f]{7,40}$' \
     || { echo "!! --image-tag must match ^sha-[0-9a-f]{7,40}$; a floating tag names different code on different days and cannot pin a restore" >&2; exit 1; }
   TARGET="ghcr.io/krzyssikora/libli:$IMAGE_TAG"
+  SKIP_CONTAINMENT=0
 fi
 
 if [ -n "$GHCR_TOKEN_FILE" ]; then
@@ -287,16 +292,30 @@ fi
 # Django has one migration leaf PER APP, so a single "head" cannot detect an
 # image behind on a courses migration. Set containment, read from the image's
 # migration FILES -- which needs no database.
-docker run --rm --entrypoint sh "$TARGET" -c 'ls /app/*/migrations/[0-9]*.py' \
-  | sed 's|.*/\([^/]*\)/migrations/\([^.]*\)\.py|\1.\2|' | sort > "$WORK/image_migrations.txt"
-sed -n 's/.*"migrations": \[\(.*\)\].*/\1/p' "$WORK/manifest.json" \
-  | tr ',' '\n' | tr -d '" ' | sort > "$WORK/dump_migrations.txt"
-if ! comm -23 "$WORK/dump_migrations.txt" "$WORK/image_migrations.txt" | grep -q .; then
-  :
-else
-  echo "!! the target image is BEHIND the dump; restoring forward is safe, backward is not:" >&2
-  comm -23 "$WORK/dump_migrations.txt" "$WORK/image_migrations.txt" >&2
-  exit 1
+#
+# WHERE it reads them from is load-bearing. `ls /app/*/migrations/` sees only
+# the nine FIRST-PARTY apps, while the manifest records what the DATABASE has
+# applied -- which includes Django contrib and allauth, and those live in the
+# venv under /app/.venv/lib/.../site-packages. That mismatch reported 35 of
+# 124 migrations permanently missing and made this check refuse EVERY artifact
+# on every day, until the first rehearsal ran it (2026-09-05).
+#
+# `find /app`, not `find /`: the same 139 results, but bounded -- and it cannot
+# start exiting non-zero on an unreadable mount some future image adds, which
+# under `set -o pipefail` would abort the restore right here.
+#
+# The sed needs no change: for allauth/account and django/contrib/auth alike,
+# the directory holding `migrations/` IS the app label.
+if [ "$SKIP_CONTAINMENT" -eq 0 ]; then
+  docker run --rm --entrypoint sh "$TARGET" -c 'find /app -path "*/migrations/[0-9]*.py"' \
+    | sed 's|.*/\([^/]*\)/migrations/\([^.]*\)\.py|\1.\2|' | sort -u > "$WORK/image_migrations.txt"
+  sed -n 's/.*"migrations": \[\(.*\)\].*/\1/p' "$WORK/manifest.json" \
+    | tr ',' '\n' | tr -d '" ' | sort > "$WORK/dump_migrations.txt"
+  if comm -23 "$WORK/dump_migrations.txt" "$WORK/image_migrations.txt" | grep -q .; then
+    echo "!! the target image is BEHIND the dump; restoring forward is safe, backward is not:" >&2
+    comm -23 "$WORK/dump_migrations.txt" "$WORK/image_migrations.txt" >&2
+    exit 1
+  fi
 fi
 
 manifest_pg="$(sed -n 's/.*"postgres_major": *\([0-9]*\).*/\1/p' "$WORK/manifest.json")"

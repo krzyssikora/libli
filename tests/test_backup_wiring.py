@@ -668,3 +668,68 @@ def test_the_pinned_host_keys_are_hetzners_published_fingerprints():
         digest = hashlib.sha256(base64.b64decode(blob)).digest()
         found.add("SHA256:" + base64.b64encode(digest).decode().rstrip("="))
     assert found == published, found
+
+
+def test_the_image_migration_scan_reaches_third_party_apps():
+    """`ls /app/*/migrations/[0-9]*.py` sees only the nine FIRST-PARTY apps.
+    The manifest records what the DATABASE has applied, which includes Django
+    contrib and allauth -- and those live in site-packages, not /app. So the
+    containment check compared 124 recorded migrations against 89 visible ones
+    and reported 35 permanently missing: account 9, auth 12, socialaccount 6,
+    admin 3, contenttypes 2, sites 2, sessions 1.
+
+    That made `restore.sh` refuse EVERY artifact, on every day, at VERSION.
+    Found by the first rehearsal on 2026-09-05 -- 13 spec rounds, 4 plan rounds
+    and a green guard suite all missed it, because nothing had ever run the
+    script.
+
+    A filesystem-wide `find` returns 139 and contains all 124. The existing sed
+    needs no change: for contrib and allauth alike, the directory holding
+    `migrations/` IS the app label (allauth/account, django/contrib/auth).
+
+    Mutant: restore the `/app/*/migrations` glob.
+    """
+    text = RESTORE_SH.read_text(encoding="utf-8")
+    scan = re.search(r"^.*--entrypoint sh .*migrations.*$", text, re.MULTILINE)
+    assert scan, "no image migration scan in restore.sh"
+    assert "find " in scan.group(0), scan.group(0)
+    assert "/app/*/migrations" not in scan.group(0), scan.group(0)
+
+
+def test_the_skipped_containment_check_is_actually_skipped():
+    """With no `--image-tag` the script printed "the containment check is a
+    tautology and is skipped" and then ran it anyway -- the branch set TARGET
+    and nothing else. The message was false, and it was the message an operator
+    would read at 2am as the script exited 1 on the next line.
+
+    This one matters beyond its own bug: it is what EXPOSED the scan bug above.
+    Had the skip worked, the scan would have stayed broken and unnoticed until
+    the first restore that passed `--image-tag` -- a real cross-version
+    recovery, under pressure, which is the worst possible place to find it.
+
+    Mutant: delete the `$SKIP_CONTAINMENT` test guarding the scan, so the
+    message is printed but the check still runs.
+    """
+    lines = RESTORE_SH.read_text(encoding="utf-8").splitlines()
+    said_skipped = next(
+        i for i, ln in enumerate(lines) if "tautology and is skipped" in ln
+    )
+    scan = next(
+        i
+        for i, ln in enumerate(lines)
+        if "--entrypoint sh" in ln and "migrations" in ln
+    )
+    assert said_skipped < scan, (said_skipped, scan)
+    # The scan must sit inside a block conditional on the same decision the
+    # message announces -- not merely after it.
+    between = lines[said_skipped:scan]
+    assert any(re.search(r"if .*SKIP_CONTAINMENT.*-eq 0", ln) for ln in between), (
+        between
+    )
+    # Both branches must assign it. Dropping either one leaves the later test
+    # reading an unbound variable, which `set -u` turns into an abort part-way
+    # through VERSION -- loud, but on a box mid-recovery, and for a reason that
+    # names a shell variable rather than anything an operator can act on.
+    text = "\n".join(lines)
+    assert "SKIP_CONTAINMENT=1" in text, "the no --image-tag branch must set it"
+    assert "SKIP_CONTAINMENT=0" in text, "the --image-tag branch must set it"

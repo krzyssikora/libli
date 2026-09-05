@@ -156,12 +156,18 @@ this order:
 
    ```bash
    chmod 600 ~/.ssh/libli_restore_key   # wherever you saved it from the password manager
-   rsync --list-only -e "ssh -i ~/.ssh/libli_restore_key" \
+   rsync --list-only -e "ssh -i ~/.ssh/libli_restore_key -o Port=23" \
      <storage-box-user>@<storage-box-host>:schools/<slug>/manifest/
-   scp -i ~/.ssh/libli_restore_key \
+   scp -i ~/.ssh/libli_restore_key -o Port=23 \
      <storage-box-user>@<storage-box-host>:schools/<slug>/manifest/<ts>.json /tmp/manifest.json
    cat /tmp/manifest.json
    ```
+
+   ⚠️ `-o Port=23` on both, and on every Storage Box command in this document. Port 22
+   also answers, but only for a key installed in **RFC4716** format, while port 23 takes
+   the plain one-line OpenSSH form -- so a port-less command works or fails depending on
+   which format the operator's key happens to be in. That is worse than simply failing:
+   it works until it meets a box whose key is one-line only.
 
    Read `image` and `git_sha` off the manifest — you need them for the next step. (A
    Storage Box only speaks sftp/rsync/scp/borg, so this is `scp`, not an interactive shell.)
@@ -487,4 +493,4 @@ calendar entry** naming this document; a rehearsal without that mechanism become
 
 | Date | `<ts>` restored | Box | Outcome | Surprises |
 |---|---|---|---|---|
-| _(none yet — the first rehearsal is required before this work is considered complete; see the branch's PR checklist)_ | | | | |
+| 2026-09-05 | `2026-09-05T021501` | libli.pl itself (same-box `--live`) | **Passed, after fixing two bugs it found** | `restore.sh` refused at VERSION and always would have: the containment check read the image's migrations from `ls /app/*/migrations/`, which cannot see Django contrib or allauth in site-packages — 124 recorded vs 89 visible, 35 permanently “missing”. And the `--image-tag`-less branch printed “is skipped” without skipping, which is what hid the first bug. Both fixed. Nothing was destroyed: VERSION runs before WIPE. Cert expiry proved `caddy_data` restored rather than re-issued. Items 5-7 N/A — no media or screenshots yet. |
