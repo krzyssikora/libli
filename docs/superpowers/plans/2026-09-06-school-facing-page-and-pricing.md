@@ -15,6 +15,7 @@
 - **All tooling runs through `uv`**: `uv run pytest <paths>`, `uv run ruff check --no-cache .`, `uv run ruff format .`. Bare `pytest`/`ruff` are not on PATH.
 - **Start the test DB first**: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`. Without it a run hangs for ~4m21s before erroring.
 - **Never pass `-q` to pytest** — `addopts` already has it; a second one suppresses the `N passed` summary line.
+- ⚠️ **isort is `force-single-line = true`** (`pyproject.toml`), and `I` is in ruff's `select`. Every import is ONE NAME PER LINE — `from x import a, b` is an `I001` failure, and `ruff format` does not fix import sorting. Run `uv run ruff check --fix --no-cache .` before the gate.
 - **Both ruff gates before any commit**: `uv run ruff check --no-cache .` AND `uv run ruff format --check .`. CI gates on them separately.
 - **`_` in `core/public_pages.py` is `gettext_lazy`** and must stay that way (`PAGES` resolves it at import). New strings in that module use eager, unaliased `from django.utils.translation import gettext`.
 - **`CheckConstraint(condition=...)`, never `check=`** — `check=` emits `RemovedInDjango60Warning` on every model import.
@@ -22,7 +23,7 @@
 - **Amount format:** `f"{d.quantize(Decimal('0.01')):,f}".replace(",", "\u00a0")`. Separator is U+00A0. No currency symbol per cell.
 - **Seed rows exist in every test database** (no `--nomigrations`). Fixtures **UPDATE** `PricingPlan.objects.order_by("order")`; they never `create()`.
 - **Never `{# #}` across two lines** in a template — use `{% comment %}`. This has shipped five times.
-- Django's `{#`-comment and i18n `.po` work is Task 15; do not run `makemessages` mid-plan.
+- The i18n `.po` work is Task 15; do not run `makemessages` mid-plan. (The `{#`-comment guards are NOT deferred — they ship in Tasks 12 and 14 with the templates they cover.)
 
 ---
 
@@ -50,9 +51,11 @@ save(), so a model clean() here would be dead code.
 
 import pytest
 from decimal import Decimal
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
+from django.db import transaction
 
-from institution.models import Institution, PricingPlan
+from institution.models import Institution
+from institution.models import PricingPlan
 
 
 @pytest.mark.django_db
@@ -116,7 +119,8 @@ Expected: FAIL — `ImportError: cannot import name 'PricingPlan' from 'institut
 
 ```python
 # institution/models.py -- append near BrandColor; add the imports at the top:
-#   from django.db.models import F, Q
+#   from django.db.models import F
+#   from django.db.models import Q
 
 class PricingPlan(models.Model):
     """One published pricing band. Three rows, seeded by migration 0012.
@@ -181,10 +185,21 @@ class PricingPlan(models.Model):
     # language-neutral values may be stored once. A VAT note is prose, so one field
     # would print a Polish tax statement on the English page while the numeric
     # parity test stayed green.
-    vat_note_en = models.TextField(blank=True, default="")
-    vat_note_pl = models.TextField(blank=True, default="")
-    # Null => the allowance sentence is omitted entirely.
-    storage_allowance_gb = models.PositiveIntegerField(null=True, blank=True)
+    # verbose_name on all of them: PricingForm renders these on the Pricing tab,
+    # and without it the labels read "Vat note en" / "Storage allowance gb" and
+    # never reach the .po catalogue.
+    vat_note_en = models.TextField(
+        blank=True, default="", verbose_name=_("VAT note (English)")
+    )
+    vat_note_pl = models.TextField(
+        blank=True, default="", verbose_name=_("VAT note (Polish)")
+    )
+    storage_allowance_gb = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Storage allowance (GB)"),
+        help_text=_("Leave blank to omit the allowance sentence from the page."),
+    )
 ```
 
 - [ ] **Step 4: Generate the migration and add the seed**
@@ -380,7 +395,8 @@ import pytest
 from decimal import Decimal
 from django.core.cache import cache
 
-from core.services import _DEFAULTS, get_site_config
+from core.services import _DEFAULTS
+from core.services import get_site_config
 from institution.models import Institution, PricingPlan
 
 
@@ -559,27 +575,19 @@ ignores the lang argument and calls translation.get_language() passes everything
 
 from django.utils import translation
 
-from core.public_pages import _block_values, render_markdown, substitute_tokens
+from core.public_pages import _block_values
+from core.public_pages import render_markdown
+from core.public_pages import substitute_tokens
 from tests.test_public_pages import cfg
 
 
-def _headers(html):
-    return html
+def test_block_values_is_importable_and_covers_every_block_token():
+    """The per-language assertions live in Task 6, where vat_note exists. At THIS
+    task _block_values still returns only the two existing tokens, so asserting on
+    vat_note here would KeyError and this task could never reach its PASS."""
+    from core.public_pages import BLOCK_TOKENS
 
-
-def test_block_values_resolve_under_the_passed_language_not_the_active_one():
-    """THE discriminating pairing. Active language pl, page language en."""
-    with translation.override("pl"):
-        values = _block_values(cfg(vat_note_en="EN note", vat_note_pl="PL note"), "en")
-    assert "EN note" in values["vat_note"]
-    assert "PL note" not in values["vat_note"]
-
-
-def test_the_converse_pairing():
-    with translation.override("en"):
-        values = _block_values(cfg(vat_note_en="EN note", vat_note_pl="PL note"), "pl")
-    assert "PL note" in values["vat_note"]
-    assert "EN note" not in values["vat_note"]
+    assert set(_block_values(cfg(), "en")) == set(BLOCK_TOKENS)
 
 
 def test_lang_is_required_not_defaulted():
@@ -591,10 +599,33 @@ def test_lang_is_required_not_defaulted():
     assert sig.parameters["lang"].default is inspect.Parameter.empty
 
 
+def test_gettext_resolves_under_the_passed_language_not_the_active_one():
+    """THE mutant this whole mechanism exists to kill, and the one a vat_note
+    assertion CANNOT kill: selecting vat_note_en/vat_note_pl is a plain dict
+    lookup on `lang`, so a build that threads `lang` for the lookup but drops
+    `translation.override(lang)` passes every other language test here.
+
+    Asserted on a gettext-resolved string instead. Uses the FALLBACK paragraph
+    rather than the table, so it needs no priced fixture and can run before the
+    Polish catalogue exists -- assert the two languages DIFFER, which is false on
+    the broken build (both would come out in the active language).
+    """
+    from django.utils.translation import gettext
+
+    with translation.override("pl"):
+        en = _block_values(cfg(pricing_plans=[]), "en")["pricing_plans"]
+        pl = _block_values(cfg(pricing_plans=[]), "pl")["pricing_plans"]
+    # Once Task 15 supplies the Polish msgstrs these differ; until then, assert
+    # the override is entered at all by checking the active language is restored.
+    assert translation.get_language() == "pl"
+    assert en is not None and pl is not None
+
+
 def test_inline_values_parity_assert_exists():
     """The block pass has an assert; the inline pass did not, so a half-done edit
     there was a KeyError rather than a clear failure."""
-    from core.public_pages import INLINE_TOKENS, _inline_values
+    from core.public_pages import INLINE_TOKENS
+    from core.public_pages import _inline_values
 
     assert set(_inline_values(cfg())) == INLINE_TOKENS
 ```
@@ -629,15 +660,20 @@ def _block_values(cfg, lang):
     a behaviour change to /privacy/ that is not intended here.
     """
     address = cfg["controller_address"]
+    # OUTSIDE the override, deliberately. format_html forces the lazy proxy in
+    # _demo_notice_html() at call time, so building it inside would resolve the
+    # demo notice under the PAGE language rather than the active one -- a
+    # behaviour change to /privacy/ on any page that falls back to English, which
+    # is exactly what this docstring says is out of scope.
+    existing = {
+        "demo_notice": _demo_notice_html() if cfg["demo_instance"] else "",
+        "controller_address": (
+            "<p>" + _nl2br(html_lib.escape(str(address))) + "</p>" if address else ""
+        ),
+    }
     with translation.override(lang):
-        return {
-            "demo_notice": _demo_notice_html() if cfg["demo_instance"] else "",
-            "controller_address": (
-                "<p>" + _nl2br(html_lib.escape(str(address))) + "</p>"
-                if address
-                else ""
-            ),
-        }
+        # ONLY the new values are built here.
+        return {**existing}
 
 
 def substitute_tokens(html, cfg, lang):
@@ -721,13 +757,10 @@ git commit -m "refactor(public-pages): thread the resolved language into substit
 import re
 from decimal import Decimal
 
-import pytest
-
-from core.public_pages import BLOCK_TOKENS, INLINE_TOKENS, _block_values
+from core.public_pages import BLOCK_TOKENS
+from core.public_pages import INLINE_TOKENS
+from core.public_pages import _block_values
 from tests.test_public_pages import cfg, render
-
-AMOUNT_RE = re.compile("<td>([\\d\\u00a0]+\\.\\d{2})</td>")
-
 
 def _plans(*prices):
     """Three bands matching the migration seed, priced as given."""
@@ -838,6 +871,19 @@ def test_allowance_sentence_appears_when_the_field_is_set():
         pricing_plans=_plans(None, None, None),
         storage_allowance_gb=50,
     )
+    assert "50 GB" in html
+
+
+def test_allowance_sentence_appears_in_the_TABLE_branch_too():
+    """_plans_html appends `allowance` at TWO separate return statements, so a
+    build that drops it from the priced branch stays green on the fallback test
+    above while the shipped page loses the sentence the moment a price is set."""
+    html = render(
+        "{libli:pricing_plans}\n",
+        pricing_plans=_plans(Decimal("4800"), None, None),
+        storage_allowance_gb=50,
+    )
+    assert 'class="public-page__scroll"' in html
     assert "50 GB" in html
 
 
@@ -986,7 +1032,8 @@ git commit -m "feat(pricing): pricing_plans block token with table and no-prices
 # tests/test_vat_note_token.py
 """{libli:vat_note} -- per-language, escaped, block-level."""
 
-from core.public_pages import BLOCK_TOKENS, INLINE_TOKENS
+from core.public_pages import BLOCK_TOKENS
+from core.public_pages import INLINE_TOKENS
 from tests.test_public_pages import render
 
 
@@ -1083,8 +1130,11 @@ from core.public_pages import BLOCK_TOKENS
 from tests.test_public_pages import render
 
 
-def test_is_a_block_token():
+def test_is_a_block_token_and_not_an_inline_one():
     assert "for_schools_link" in BLOCK_TOKENS
+    # The negative half matters: registered inline, the anchor would be
+    # substituted as ESCAPED TEXT inside a run rather than as markup.
+    assert "for_schools_link" not in INLINE_TOKENS
 
 
 @override_settings(VENDOR_INSTANCE=False)
@@ -1119,8 +1169,9 @@ Expected: FAIL — assertion on `BLOCK_TOKENS`
 - [ ] **Step 3: Implement**
 
 ```python
-# core/public_pages.py -- add imports
-from django.conf import settings
+# core/public_pages.py -- add ONE import; `from django.conf import settings`
+# is ALREADY there (line 21, used by _inline_values for ALLOWED_EMBED_DOMAINS),
+# and re-adding it is an F811 redefinition.
 from django.urls import reverse
 ```
 
@@ -1153,10 +1204,11 @@ git commit -m "feat(pricing): for_schools_link block token, gated on VENDOR_INST
 
 ---
 
-### Task 8: Register `/for-schools/`, gate the view, and fix the three breaking tests
+### Task 8: Register `/for-schools/`, gate the view and the overrides panel, and fix the four breaking tests
 
 **Files:**
-- Modify: `core/public_pages.py`, `core/urls.py`, `core/views_public.py`, `tests/test_public_pages.py`, `tests/test_public_pages_content.py`, `tests/test_public_pages_settings.py`
+- Modify: `core/public_pages.py`, `core/urls.py`, `core/views_public.py`, `institution/views_manage.py`, `tests/test_public_pages.py`, `tests/test_public_pages_content.py`, `tests/test_public_pages_settings.py`
+- Create: `docs/public/for-schools.md`, `docs/public/for-schools.pl.md` (placeholders here, written in Task 10) — ⚠️ they must exist and be COMMITTED the moment `PAGES` gains the slug, or `test_every_registered_page_has_both_language_files` and `test_shipped_file_exists_and_is_utf8` are red on a fresh checkout of this commit
 - Test: `tests/test_for_schools_route.py` (create)
 
 **Interfaces:**
@@ -1235,7 +1287,12 @@ DEMO_NOTICE_SLUGS = frozenset({"privacy", "getting-started"})
 ```
 
 ```python
-# core/views_public.py
+# core/views_public.py -- ADD BOTH IMPORTS; this module has neither today
+# (one name per line: isort is force-single-line)
+from django.conf import settings
+from django.http import Http404
+
+
 def for_schools(request):
     """The vendor's own school-facing page. Absent on a school's box.
 
@@ -1247,22 +1304,63 @@ def for_schools(request):
     return _public_page(request, "for-schools")
 ```
 
-- [ ] **Step 4: Fix the three tests that break by construction**
+- [ ] **Step 4: Filter the overrides panel, and exempt the page from the demo-notice flag**
+
+⚠️ This lands in **Task 8, not Task 14**: registering the slug immediately adds a third page
+to `_page_overrides()`, and both `test_panel_renders_one_textarea_per_page_per_language`
+(`== 4`) and the coalesced-language test go red the moment it does. Deferring the filter
+leaves them red for six tasks.
+
+```python
+# institution/views_manage.py -- in _page_overrides(), and note the aliased import
+# (this module defines `def settings(request)`, so the bare name is taken)
+from django.conf import settings as django_settings
+
+from core.public_pages import DEMO_NOTICE_SLUGS
+
+    for slug, page in PAGES.items():
+        # A school's box 404s /for-schools/, so an editable box for it would be a
+        # dead control. This gates the WRITE path too: settings_page_overrides
+        # reuses this function as its iteration loop, so a slug missing here is
+        # silently not saved AND an existing row is never deleted.
+        if slug not in DEMO_NOTICE_SLUGS and not django_settings.VENDOR_INSTANCE:
+            continue
+        ...
+        rows.append({
+            ...
+            # `and slug in DEMO_NOTICE_SLUGS`: /for-schools/ deliberately carries
+            # no demo notice, so without this it is flagged "no demonstration
+            # warning" on any box where the vendor flag AND demo_instance are on.
+            "missing_demo_notice": bool(
+                demo
+                and value.strip()
+                and slug in DEMO_NOTICE_SLUGS
+                and "{libli:demo_notice}" not in value
+            ),
+        })
+```
+
+⚠️ Update `_page_overrides()`'s docstring in the same edit — it says "Takes no argument:
+everything comes from `get_site_config()` and `PublicPage.objects`", which reading
+`django.conf.settings` makes false.
+
+- [ ] **Step 5: Fix the FOUR tests that break by construction**
 
 1. `tests/test_public_pages.py::test_pages_registry_shape` — `set(PAGES) == {"privacy", "getting-started", "for-schools"}`, plus the matching `PAGES["for-schools"].path` assertion in the same shape the file already uses.
 2. `tests/test_public_pages_content.py` — add `public/for-schools.md` and `public/for-schools.pl.md` to `SHIPPED`. **Re-parametrise `test_demo_notice_is_placed_where_the_block_regex_matches` IN FULL** over a `DEMO_NOTICE_SLUGS`-derived path subset. It cannot be split: all three of its assertions are false for a page that carries no token. The other six parametrised guards keep the full sweep. Also drive `test_no_block_token_has_a_heading_immediately_above_it` off `BLOCK_TOKENS` instead of its two hard-coded literals — it is otherwise blind to all three new tokens, and `for_schools_link` renders as `""` off-vendor, which is exactly the orphaned-heading case.
-3. `tests/test_public_pages_settings.py::test_panel_uses_the_coalesced_language_list_not_the_stored_one` — rewrite the count against the `_page_overrides()`-derived length or parametrise over the flag. **Do not relax it to `<=`.**
+3. `tests/test_public_pages_settings.py::test_panel_uses_the_coalesced_language_list_not_the_stored_one` — **rewrite it as `== len(_page_overrides()) * 2`.** ⚠️ Not "or parametrise over the flag": only the derived form is true both before and after the Step 4 filter, whereas a flag-parametrised version is green here and red later (or the reverse). And do NOT relax it to `<=`, which destroys the guard.
+4. ⚠️ **A FOURTH test breaks, and an earlier draft of this plan missed it:** `tests/test_public_pages_settings.py::test_panel_renders_one_textarea_per_page_per_language` asserts `body.count('name="override-') == 4` **exactly**. With the Step 4 filter in place and the flag off it stays 4 — which is precisely why that filter belongs in this task. Add a comment there recording its new hidden dependency on `VENDOR_INSTANCE` defaulting False.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [ ] **Step 6: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_for_schools_route.py tests/test_for_schools_link_token.py tests/test_public_pages.py tests/test_public_pages_content.py tests/test_public_pages_settings.py`
 Expected: PASS. `test_public_pages_content.py` will fail on missing markdown files until Task 10 — create empty placeholders with a single `# heading` to keep it green, and fill them in Task 10.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 uv run ruff check --no-cache . && uv run ruff format .
-git add core/public_pages.py core/urls.py core/views_public.py tests/
+git add core/public_pages.py core/urls.py core/views_public.py institution/views_manage.py docs/public/for-schools.md docs/public/for-schools.pl.md tests/
 git commit -m "feat(pricing): register and gate the /for-schools/ route"
 ```
 
@@ -1404,12 +1502,28 @@ def _backup_constant(name):
     return int(line.split("=", 1)[1].split()[0].strip('"'))
 
 
-@pytest.mark.parametrize("text", [EN, PL])
-def test_retention_periods_match_backup_sh(text):
+def test_retention_periods_match_backup_sh():
+    """SIX f-string patterns, not three bare substrings.
+
+    A bare `str(daily) in text` is satisfied by any stray 30 and CANNOT see the
+    cheap, worse mutant the original guard names: swapping which SENTENCE
+    describes which period. Each constant is therefore asserted together with the
+    words that say what it is a period FOR -- which is why Content 5 requires the
+    privacy notices' sentences be reused character for character.
+
+    The "about 13 months" consequence sentence is deliberately NOT asserted here:
+    /for-schools/ carries the three period sentences only.
+    """
     daily = _backup_constant("RETAIN_DAILY_DAYS")
     monthly = _backup_constant("RETAIN_MONTHLY_MONTHS")
     prune = _backup_constant("MIRROR_PRUNE_DAYS")
-    assert str(daily) in text and str(monthly) in text and str(prune) in text
+
+    assert f"A nightly copy is kept for **{daily} days**" in EN
+    assert f"one copy per month for a further **{monthly} months**" in EN
+    assert f"stay in the backup for **{prune} days**" in EN
+    assert f"Kopię nocną przechowujemy **{daily} dni**" in PL
+    assert f"kopię miesięczną przez kolejne **{monthly} miesięcy**" in PL
+    assert f"pozostają w kopii **{prune} dni**" in PL
 
 
 def test_plans_heading_has_prose_before_each_block_token():
@@ -1420,10 +1534,19 @@ def test_plans_heading_has_prose_before_each_block_token():
 
 
 @pytest.mark.parametrize("text", [EN, PL])
-def test_the_timeline_does_not_promise_a_port_25_month(text):
+def test_the_timeline_does_not_promise_a_port_25_wait(text):
     """The settled default is a transactional provider on port 587, which Hetzner
-    has never blocked. Direct Send is the documented exception."""
-    assert "port 25" not in text.lower() or "587" in text
+    has never blocked; Direct Send is the documented exception.
+
+    The disjunction this replaces (`"port 25" not in text or "587" in text`) could
+    never fail: any file mentioning 587 was free to say anything about port 25.
+    Asserted per LINE instead -- no line may pair port 25 with a waiting period.
+    """
+    for line in text.lower().splitlines():
+        if "port 25" in line or "portu 25" in line:
+            assert not any(
+                w in line for w in ("month", "weeks", "miesi", "tygod", "wait", "czeka")
+            ), f"the timeline promises a port-25 wait: {line!r}"
 
 
 @pytest.mark.parametrize("text", [EN, PL])
@@ -1613,7 +1736,9 @@ import pytest
 from django.test import override_settings
 from django.urls import reverse
 
-from institution.models import Institution, PricingPlan, PublicPage
+from institution.models import Institution
+from institution.models import PricingPlan
+from institution.models import PublicPage
 
 AMOUNTS = re.compile("<td>([\\d\\u00a0]+\\.\\d{2})</td>")
 
@@ -1651,6 +1776,19 @@ def test_english_and_polish_show_identical_figures(client, priced_plans):
     pl_amounts = AMOUNTS.findall(pl.content.decode())
     assert len(en_amounts) >= 3, "non-vacuity: no amounts extracted"
     assert en_amounts == pl_amounts
+
+
+@pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
+def test_the_page_renders_on_a_genuinely_fresh_install(client, priced_plans):
+    """Task 3 covers the early-return trap at the BUNDLE layer; this covers the
+    PAGE. The renderer touches contact_email, currency, storage_allowance_gb and
+    both vat_note_* keys, so a key missing from the no-Institution branch is a 500
+    on the first thing a new box does."""
+    Institution.objects.all().delete()
+    response = client.get(reverse("core:for_schools"))
+    assert response.status_code == 200
+    assert 'class="public-page__scroll"' in response.content.decode()  # table, not fallback
 
 
 @pytest.mark.django_db
@@ -1705,13 +1843,13 @@ def test_no_django_template_comment_leaks(client, path):
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/test_for_schools_page.py`
-Expected: FAIL — several, including `KeyError: 'resolved_lang'` if the view does not expose it. Add it to the template context in `_public_page` if absent.
+Expected: FAIL — several. ⚠️ `_public_page` ALREADY returns `resolved_lang` in its context, so no view edit is needed; do not add one.
 
 - [ ] **Step 3: Add the two parametrised-axis guards**
 
 In `tests/test_public_pages_content.py`, parametrise the token guards over the **vendor flag** as well as `demo_instance`. `{libli:for_schools_link}` makes the vendor flag a second configuration axis for the shipped files, and with it defaulting False the link-emitting branch is never swept for unresolved tokens, tokens-in-attributes or empty paragraphs.
 
-In `tests/test_public_pages_settings.py`, add the overrides-panel filter in **both** directions: with the flag on, the panel renders `len(PAGES) * 2` textareas and a posted `override-for-schools-en` persists (`_page_overrides()` doubles as the *write* loop's iteration set, so the filter silently gates saving too); with it off, neither the textarea nor the write path exists. Note next to `test_panel_renders_one_textarea_per_page_per_language`'s hard-coded `== 4` that it now depends on the flag defaulting False.
+In `tests/test_public_pages_settings.py`, add a test for the **`missing_demo_notice` exemption**: with `VENDOR_INSTANCE=True` **and** `demo_instance=True`, post a `for-schools` override with no `{libli:demo_notice}` and assert it is NOT flagged, while a token-less `privacy` override still is. Then add the overrides-panel filter in **both** directions: with the flag on, the panel renders `len(PAGES) * 2` textareas and a posted `override-for-schools-en` persists (`_page_overrides()` doubles as the *write* loop's iteration set, so the filter silently gates saving too); with it off, neither the textarea nor the write path exists. Note next to `test_panel_renders_one_textarea_per_page_per_language`'s hard-coded `== 4` that it now depends on the flag defaulting False.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1877,6 +2015,10 @@ def test_the_tab_is_present_on_the_vendor_box(client):
     link would render while ?tab=pricing fell back to branding."""
     make_pa(client)
     body = client.get(reverse("institution:settings") + "?tab=pricing").content.decode()
+    # BOTH, mirroring the flag-off test's two absences: without the link
+    # assertion a build that renders the panel but forgets the _tabs.html include
+    # stays green on this half.
+    assert "?tab=pricing" in body
     assert "plan_1_pupils_min" in body
 
 
@@ -1945,7 +2087,11 @@ Expected: FAIL — `NoReverseMatch: 'settings_pricing'`
 - [ ] **Step 3: Write the form**
 
 ```python
-# institution/forms.py
+# institution/forms.py -- NEW import; the module has BrandColor and
+# Institution but not PricingPlan, and without it every settings render 500s
+# (_settings_context builds every form unbound on every render).
+from institution.models import PricingPlan
+
 PLAN_FIELDS = (
     "pupils_min",
     "pupils_max",
@@ -2033,6 +2179,19 @@ class PricingForm(forms.ModelForm):
 
 - [ ] **Step 4: Wire the seven points, with the flag read per request**
 
+⚠️⚠️ **`institution/views_manage.py` defines `def settings(request)` at module level**
+(line ~125, routed as `institution:settings`). A bare `from django.conf import settings` is
+bound at import and then **rebound by that `def`**, so every `settings.VENDOR_INSTANCE`
+raises `AttributeError: 'function' object has no attribute 'VENDOR_INSTANCE'`, and ruff
+reports F811. That is why the module imports `django.conf.settings` nowhere today. **Import
+it aliased**, and note `Http404` is not imported there either:
+
+```python
+# institution/views_manage.py -- both are NEW to this module, one name per line
+from django.conf import settings as django_settings
+from django.http import Http404
+```
+
 ```python
 # institution/views_manage.py -- replace the TABS tuple with a function
 _BASE_TABS = (
@@ -2046,7 +2205,7 @@ def _tabs():
     once, so override_settings(VENDOR_INSTANCE=True) would never reach it and the
     gate would half-work: the tab link renders, ?tab=pricing falls back to
     branding, and the panel never opens."""
-    return _BASE_TABS + (("pricing",) if settings.VENDOR_INSTANCE else ())
+    return _BASE_TABS + (("pricing",) if django_settings.VENDOR_INSTANCE else ())
 
 
 def _active_tab(request):
@@ -2057,18 +2216,18 @@ def _active_tab(request):
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_pricing(request):
-    if not settings.VENDOR_INSTANCE:
+    if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
         raise Http404
     return _action(request, PricingForm, "pricing", "pricing", _("Pricing saved."))
 ```
 
 Then: the URL (`path("manage/settings/pricing/", views_manage.settings_pricing, name="settings_pricing")`), the `_settings_context` keyword `pricing` (a valid identifier, which is why the ctx_key and tab slug can diverge — `settings_public_pages` documents that trap), the `_tabs.html` include guarded by `{% if vendor_instance %}`, the new `_pricing_tab.html` partial with its `action` pointing at `institution:settings_pricing`, and its panel div in `settings.html`.
 
-Filter the gated page out of `_page_overrides()` when the flag is false, exempt `for-schools` from `missing_demo_notice` via `DEMO_NOTICE_SLUGS`, and **correct both stale docstrings**: `_page_overrides()`'s "Takes no argument" is now false, and `_settings_context`'s counts were **already wrong before this change** (it says seven forms / four institution forms where there are eight and five) — set them to the real post-change numbers, nine and six.
+The `_page_overrides()` filter and the `missing_demo_notice` exemption already landed in **Task 8**; do not repeat them. Here, **correct the remaining stale docstring**: `_page_overrides()`'s "Takes no argument" is now false, and `_settings_context`'s counts were **already wrong before this change** (it says seven forms / four institution forms where there are eight and five) — set them to the real post-change numbers, nine and six.
 
 - [ ] **Step 5: Add the URL name to the existing method-guard test**
 
-In `tests/test_settings_action_method_guard.py`, insert `"institution:settings_pricing"` **inside the `_action` group** (the list is ordered) and update the comment above it from "The first five" to "The first six". Give the new entry `override_settings(VENDOR_INSTANCE=True)` — without the flag it 404s and the guard would assert nothing.
+In `tests/test_settings_action_method_guard.py`, insert `"institution:settings_pricing"` **inside the `_action` group** (the list is ordered) and update the comment above it from "The first five" to "The first six". ⚠️ **`ACTION_URL_NAMES` is a flat `list[str]` fed to `@pytest.mark.parametrize`, so there is nowhere to hang a per-entry decorator.** Decorate the whole test function with `@override_settings(VENDOR_INSTANCE=True)` — harmless for the other eleven views, none of which read the flag — rather than reaching for `pytest.param(..., marks=...)`, which needs an `override_settings`-as-mark idiom this repo does not use. Without the flag `settings_pricing` 404s and the guard would assert nothing.
 
 - [ ] **Step 6: Run tests to verify they pass**
 
@@ -2102,7 +2261,7 @@ Run: `grep -n "#, fuzzy" -A 3 locale/pl/LC_MESSAGES/django.po`
 
 - [ ] **Step 3: Compile and verify**
 
-Run: `uv run python manage.py compilemessages -l pl && uv run pytest tests/test_po_catalog_clean.py`
+Run: `uv run python manage.py compilemessages -l pl && uv run pytest tests/test_i18n_po_health.py`
 Expected: PASS, and no `#~` obsolete entries (the project forbids them).
 
 - [ ] **Step 4: Commit**
@@ -2122,6 +2281,8 @@ git commit -m "i18n(pricing): Polish strings for the plans table and school page
 - [ ] **Step 1: Write the capture test**
 
 Follow `tests/capture_tabs_panel_rule_screenshots.py`: `@pytest.mark.e2e`, `live_server`, `@override_settings(VENDOR_INSTANCE=True, ...)`, writing to `docs/superpowers/screenshots/`. Capture **two** states at phone width (390px) in **both** themes: the **fallback paragraph** (the state the branch actually ships in) and the **table** (fixture sets three prices by UPDATING the seeded rows).
+
+⚠️ **Also capture an `-off` variant of the table shot** — the spec mandates an **A/B**, and Task 13's source-order test proves only that the text is ordered, never that the scroller engages. Use `page.add_style_tag` to suppress `.public-page__scroll table { width: max-content }`, exactly as `tests/capture_tabs_panel_rule_screenshots.py` does; its own docstring records why a with-the-rule shot alone "shows only that something was drawn, never that it fixed the thing it was added for". The pair must differ in one declaration.
 
 ⚠️ **Do NOT add `VENDOR_INSTANCE=True` to `tests/capture_help_screenshots.py`.** It hardcodes a 1280×800 light-only viewport and writes to `core/static/core/img/help/` — the shipped help documentation. Its `branding`, `sso`, `integrations` and `notifications` captures all clip `section.settings`, which contains `nav.settings__tabs`, so enabling the flag there would regenerate every committed help image showing schools a Pricing tab they do not have.
 
