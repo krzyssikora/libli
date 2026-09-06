@@ -133,7 +133,15 @@ def _index_url(tab):
 
 
 def _action(request, form_cls, ctx_key, tab, success_msg):
-    if request.method == "GET":
+    # NOT `== "GET"`: every other non-POST method (HEAD, OPTIONS, PUT, DELETE)
+    # carries an EMPTY request.POST, and an empty QueryDict makes several of
+    # these forms VALID -- `enabled`/checkbox fields fall to False, so the
+    # clean() rules that would have objected never fire. The fall-through then
+    # reaches form.save() and writes the blanks over the stored row. And
+    # CsrfViewMiddleware skips the safe methods, so HEAD and OPTIONS carry no
+    # token at all. Same fix as settings_page_overrides (#279); the whole family
+    # behaves one way now.
+    if request.method != "POST":
         return redirect(_index_url(tab))  # method contract: actions are POST targets
     inst = Institution.load()
     form = form_cls(request.POST, request.FILES, instance=inst)
@@ -201,8 +209,8 @@ def settings_notifications(request):
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_notifications_purge(request):
-    if request.method == "GET":
-        return redirect(_index_url("notifications"))  # actions are POST targets
+    if request.method != "POST":
+        return redirect(_index_url("notifications"))  # non-POST: see _action
     # Function-local import: keeps notifications out of this module's import graph.
     from notifications.retention import format_purge_result
     from notifications.retention import purge_notifications
@@ -215,8 +223,8 @@ def settings_notifications_purge(request):
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_sso(request):
-    if request.method == "GET":
-        return redirect(_index_url("sso"))  # method contract: actions are POST targets
+    if request.method != "POST":
+        return redirect(_index_url("sso"))  # non-POST: see _action
     form = SsoForm(request.POST, app=load_sso_app())
     if form.is_valid():
         cd = form.cleaned_data
@@ -245,8 +253,8 @@ def settings_sso(request):
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_integrations(request):
-    if request.method == "GET":
-        return redirect(_index_url("integrations"))  # actions are POST targets
+    if request.method != "POST":
+        return redirect(_index_url("integrations"))  # non-POST: see _action
     endpoint = WebhookEndpoint.load()
     form = IntegrationsForm(request.POST, instance=endpoint)
     if form.is_valid():
@@ -267,8 +275,8 @@ def settings_integrations(request):
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_integrations_test(request):
-    if request.method == "GET":
-        return redirect(_index_url("integrations"))  # actions are POST targets
+    if request.method != "POST":
+        return redirect(_index_url("integrations"))  # non-POST: see _action
     endpoint = WebhookEndpoint.load()
     if not (endpoint.url and endpoint.secret):
         messages.error(
@@ -290,10 +298,10 @@ def settings_integrations_test(request):
 @login_required
 @permission_required("support.change_supportsettings", raise_exception=True)
 def settings_support(request):
-    # GET guard first, matching settings_integrations: without it a GET binds an
-    # empty QueryDict and re-renders the settings page covered in validation
-    # errors.
-    if request.method == "GET":
+    # Non-POST guard first, matching settings_integrations: without it the empty
+    # QueryDict binds and the settings page re-renders covered in validation
+    # errors. `!= "POST"`, not `== "GET"` -- see _action.
+    if request.method != "POST":
         return redirect(_index_url("support"))
     # Bind to a READ-ONLY instance, not load(). load() is get_or_create, which
     # writes pk=1 before is_valid() is ever called — so an invalid POST would
