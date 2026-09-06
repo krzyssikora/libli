@@ -249,7 +249,8 @@ run on every render of `/privacy/` and `/getting-started/`.
   assertions.** The *values* are checked by
   `test_defaults_carry_every_new_key_with_the_right_values` against a separate hard-coded
   tuple, so `currency == "PLN"`, `pricing_plans == []` and `storage_allowance_gb is None` must
-  be added there too — otherwise a `currency` default of `""` ships green and prints
+  be added there too — and `vat_note_en` / `vat_note_pl` slot straight into that test's
+  existing `for key in (...)` loop asserting `== ""`, so **all five** new keys end up pinned — otherwise a `currency` default of `""` ships green and prints
   "Annual price ()" as the column header.
 - ⚠️⚠️ **The `PricingPlan` query MUST run BEFORE the `inst is None` early return.** Plans have
   no FK to `Institution` (above), so on a box where the migration has seeded three plans but
@@ -571,6 +572,9 @@ form's gap/overlap `clean()` would validate a band set that is not the one rende
 
 ### Migration
 
+⚠️ **These rows exist in every test database** — no `--nomigrations` in `addopts` — so test
+fixtures must UPDATE them, never create (see Testing 0).
+
 **One migration, operations in this order:** `CreateModel(PricingPlan)`, the four
 `AddField`s on `Institution`, `AddConstraint(...)`, then `RunPython(seed, RunPython.noop)`.
 ⚠️ The autodetector pops `constraints` out of the model options and emits a **separate**
@@ -652,11 +656,19 @@ a reason unrelated to this change.
 
 Load-bearing first.
 
-0. ⚠️ **A PRICED-PLAN FIXTURE is a precondition for items 1, 5, 7, 14 and 18.** In the shipped state
+0. ⚠️ **A PRICED-PLAN FIXTURE is a precondition for items 1, 5, 7, 14, 18 and 19.** In the shipped state
    every `annual_price` is null, so the token renders the fallback paragraph and there is **no
    table at all**. A parity or ordering test written against the shipped state regexes an
    empty match set in both languages and passes vacuously — the exact shape this section warns
-   about. The fixture seeds three *priced* plans, and every test that reads the table asserts
+   about. ⚠️ **The fixture UPDATES, it does not create.** `pyproject.toml`'s `addopts` sets no
+   `--nomigrations`, so `RunPython(seed, ...)` runs against every test database and orders
+   1/2/3 already exist — `PricingPlan.objects.create(order=1, ...)` raises `IntegrityError` on
+   the unique `order`. The plausible workaround (creating orders 4/5/6) silently produces a
+   six-row, gapped, non-monotonic band set that breaks the three-row invariant, changes
+   `plans[-1]["pupils_max"] + 1`, and makes every table test measure a page nobody ships. The
+   fixture therefore sets `annual_price` on `PricingPlan.objects.order_by("order")`, and for
+   item 5 nulls one of them.
+   The fixture makes three plans *priced*, and every test that reads the table asserts
    **non-vacuity** (at least three amounts extracted) before comparing anything. ⚠️ Item 5
    needs a **mixed** fixture — at least one priced plan AND one null-priced plan — since
    "renders by arrangement" is only reachable when some other plan carries a price; with all
@@ -694,7 +706,12 @@ Load-bearing first.
    phrase on every table unconditionally. **All prices null** renders the fallback paragraph,
    including the blank-`contact_email` case.
 6. **A price edit is visible immediately** — the `core/apps.py` signal, tested by saving a
-   plan and re-rendering, not by asserting the signal is connected.
+   plan and re-rendering, not by asserting the signal is connected. ⚠️ **PRIME THE CACHE
+   FIRST.** `tests/conftest.py`'s autouse `_clear_site_cache` calls `cache.clear()` before
+   every test, so a test that edits and *then* renders finds an empty cache, rebuilds from the
+   database, and sees the new price **whether or not `PricingPlan` is in the signal tuple** —
+   the mutant survives. Render (or call `get_site_config()`) BEFORE the edit, so the
+   stale-cache path is the one under test.
 7. **Row order survives an edit** — save the middle band, assert the rendered order. ⚠️ Name
    the mutant honestly: with `Meta.ordering` present every queryset is already ordered, so
    dropping the explicit `.order_by` leaves this test green. It kills only the build that has
@@ -702,7 +719,12 @@ Load-bearing first.
    `test_demo_instance_is_a_bare_read_not_a_coalesced_one` pins its rule.
 8. **Band validation, named by layer:** the `CheckConstraint` rejects
    `pupils_min >= pupils_max` at the database; the **form** rejects overlapping, gapped and
-   non-monotonic band sets.
+   non-monotonic band sets — **and the per-row `pupils_min < pupils_max` rule too.** ⚠️ That
+   last case is the one the Model section added to stop a 500 and is the easiest to leave
+   unguarded: POST `(1,150), (151,400), (401,300)` to `settings_pricing` and assert a **200
+   with a form error** — not a 302, not a 500, not an escaping `IntegrityError`. The mutant it
+   kills is "a `clean()` carrying only the cross-row rules", which passes every other
+   assertion in this item while still 500ing on an admin typo.
 9. **Retention figures guarded against the code**, in the style of
    `tests/test_public_pages_guards.py::test_backup_retention_matches_the_stated_periods`.
    ⚠️ That guard works only because it asserts f-strings embedding each constant *inside the
@@ -762,6 +784,8 @@ Load-bearing first.
     them — the spec's longest mechanism section would have zero discriminating coverage. Call
     `substitute_tokens(html, cfg, "en")` inside `with translation.override("pl")` and assert
     the column headers and fourth-tier label come out **English**; then the converse pairing.
+    ⚠️ Both strings exist only in the **table** branch, so this needs the priced fixture — or
+    else assert on the fallback paragraph's language, which resolves inside the same override.
 20. **The Pricing tab gate, both directions.** With `VENDOR_INSTANCE` false, `settings_pricing`
     returns 404 to a POST from a permitted admin and the settings body contains neither
     `?tab=pricing` nor a `plan_1_pupils_min` input; with it true, both are present. ⚠️ Without
