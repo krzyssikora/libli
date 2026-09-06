@@ -208,6 +208,19 @@ appear in the settings UI.
 `django.conf.settings`, so no cache or query is involved. (⚠️ Do not read `Institution.load()`
 on a GET render path: it is `get_or_create`, a write, which `core/services.py` forbids there.)
 
+⚠️ **PIN `VENDOR_INSTANCE = False` IN `config/settings/test.py`.** `base.py` calls
+`env.read_env(BASE_DIR/".env")`, which copies the developer's local `.env` into
+`os.environ`, and `test.py` does `from base import *`. The implementer building this page
+will set `LIBLI_VENDOR_INSTANCE=true` in their own `.env` to see `/for-schools/` on
+`runserver` — and that flips the flag for the **entire test run**, turning Testing 15's
+hard-coded `== 4` into 6 and reddening every gate-off assertion (Testing 3, 16, 20) for a
+reason unrelated to the code. This repo has been bitten by exactly this leak before:
+`tests/test_transfer_caps_env.py`'s docstring records a developer's `.env` reddening a
+defaults test, and `test.py` already pins `GEOGEBRA_API_LOOKUP = False`,
+`ALLOWED_IMAGE_FETCH_DOMAINS` and `CACHES` for the same reason. Use the same comment shape:
+tests that exercise the vendor page opt back in with `override_settings(VENDOR_INSTANCE=True)`
+— **never** through the environment.
+
 **Operator paperwork:** an entry in `.env.production.example` (which documents every
 operator-set variable; `docker-compose.prod.yml` uses a bare `env_file:` so no compose edit
 is needed) and a line in `docs/deployment.md`, since turning the page on is by design a
@@ -721,20 +734,36 @@ Load-bearing first.
    `pupils_min >= pupils_max` at the database; the **form** rejects overlapping, gapped and
    non-monotonic band sets — **and the per-row `pupils_min < pupils_max` rule too.** ⚠️ That
    last case is the one the Model section added to stop a 500 and is the easiest to leave
-   unguarded: POST `(1,150), (151,400), (401,300)` to `settings_pricing` and assert a **200
-   with a form error** — not a 302, not a 500, not an escaping `IntegrityError`. The mutant it
+   unguarded: POST `(1,150), (151,400), (401,300)` to `settings_pricing` **under
+   `override_settings(VENDOR_INSTANCE=True)`** — without it the view 404s and the assertion is
+   unreachable — and assert a **200 with a form error** — not a 302, not a 500, not an escaping `IntegrityError`. The mutant it
    kills is "a `clean()` carrying only the cross-row rules", which passes every other
-   assertion in this item while still 500ing on an admin typo.
+   assertion in this item while still 500ing on an admin typo. The three cross-row cases
+   (overlap, gap, non-monotonic) are **form unit tests** and need no flag; only the view-level
+   POST above does.
 9. **Retention figures guarded against the code**, in the style of
    `tests/test_public_pages_guards.py::test_backup_retention_matches_the_stated_periods`.
    ⚠️ That guard works only because it asserts f-strings embedding each constant *inside the
    surrounding prose* — a bare `"30" in notice` is worthless, as its own docstring says. This
-   is why Content 5 requires reusing the privacy notices' exact sentences: the existing
-   patterns then extend to both new files unchanged.
+   is why Content 5 requires reusing the privacy notices' exact sentences.
+   ⚠️ **Name the subset.** That guard asserts eight patterns against `PRIVACY`/`PRIVACY_PL`:
+   three period sentences per language plus a derived "about 13 months" consequence sentence
+   per language. `/for-schools/` carries **the three period sentences in each language, not
+   the 13-month consequence** — that one reads as compliance boilerplate in a "where the data
+   lives" section. The new guard asserts those six patterns against `FOR_SCHOOLS` /
+   `FOR_SCHOOLS_PL`; it does not reuse the full eight-pattern loop. A dropped pattern is an
+   unguarded claim, so the subset is stated here rather than left to the implementer.
 10. Anonymous access to `/privacy/`, `/getting-started/` and `/for-schools/` (the last with
     the gate **on**; the gate-off case is item 3), both languages; `PublicPage` overrides
     still win.
-11. `"{#" not in` the rendered page — the Django single-line-comment trap, shipped five times.
+11. `"{#" not in body` — the Django single-line-comment trap, shipped five times. ⚠️ **Name
+    the surfaces; `/for-schools/` is nearly the wrong one.** Its body is markdown inserted as a
+    variable, so a `{#` there is inert text, not a template comment. The templates this change
+    creates or edits are `_pricing_tab.html` (NEW, and by far the largest — 18 plan fields plus
+    four `Institution` fields, in a repo that comments templates densely), `_tabs.html`,
+    `settings.html` and `landing.html`; of those, `/for-schools/` renders none. Assert on **the
+    settings page with `VENDOR_INSTANCE=True` and `?tab=pricing`**, the landing page, and
+    `/for-schools/`.
 12. **Insert the new settings URL name into `ACTION_URL_NAMES` in
     `tests/test_settings_action_method_guard.py`**, not a fresh test. ⚠️ Insert it **inside
     the `_action` group** (the list is ordered, and the comment above it says "The first five
