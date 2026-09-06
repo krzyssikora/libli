@@ -135,10 +135,16 @@ done
 #
 # The file is IN THE REPO rather than /root/.ssh/known_hosts because restore.sh
 # runs from a fresh clone on a rented box, before .env.production exists and
-# before any provisioning step could have installed one. Overridable for the
-# deferred off-Hetzner copy.
-KNOWN_HOSTS="$(env_value LIBLI_BACKUP_SSH_KNOWN_HOSTS)"
-KNOWN_HOSTS="${KNOWN_HOSTS:-$APP_DIR/storagebox_known_hosts}"
+# before any provisioning step could have installed one.
+#
+# ⚠️ Overridden from the PROCESS ENVIRONMENT, not with env_value(), and that
+# asymmetry with backup.sh is forced by the sentence above: env_value reads
+# .env.production, which at this point in a restore has not been decrypted yet
+# -- on a bare-metal rebuild it does not exist at all. backup.sh may use
+# env_value here because it only ever runs on a box that is already
+# provisioned. Export it if you need it:
+#   LIBLI_BACKUP_SSH_KNOWN_HOSTS=/path/to/known_hosts restore.sh ...
+KNOWN_HOSTS="${LIBLI_BACKUP_SSH_KNOWN_HOSTS:-$APP_DIR/storagebox_known_hosts}"
 [ -r "$KNOWN_HOSTS" ] || { echo "!! $KNOWN_HOSTS is missing or unreadable" >&2; exit 1; }
 
 SSH_OPTS="-i $SSH_KEY -o Port=${SSH_PORT} -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS"

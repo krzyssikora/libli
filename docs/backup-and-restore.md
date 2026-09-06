@@ -111,6 +111,15 @@ uses lives *inside* the encrypted `.env.production`, so it can't be used to fetc
 file. Get all five of these from the password manager before you start — none of them come
 from any server:
 
+⚠️ **Keep them to hand for the whole session, not just the first attempt.** The exit trap
+shreds `/dev/shm` on *every* path, including a run that fails in its first second for a
+trivial reason — a mistyped flag, a wrong `<ts>`, a missing file. Every retry therefore
+needs the `age` key and the restore SSH key delivered again. That is the trap behaving
+correctly: a plaintext age identity must never outlive the run that needed it. It does mean
+a fumbled flag sends you back to the password manager while the site is down, so open the
+entry once and leave it open. Measured on 2026-09-05: two failed starts cost two
+re-deliveries.
+
 1. **The `age` private key.** The shared identity, in the password manager plus one offline
    copy. Losing it loses every school's backups — accepted deliberately.
 2. **A Storage Box credential for restores** — `--ssh-host` / `--ssh-user`, plus its own SSH
@@ -494,3 +503,4 @@ calendar entry** naming this document; a rehearsal without that mechanism become
 | Date | `<ts>` restored | Box | Outcome | Surprises |
 |---|---|---|---|---|
 | 2026-09-05 | `2026-09-05T021501` | libli.pl itself (same-box `--live`) | **Passed, after fixing two bugs it found** | `restore.sh` refused at VERSION and always would have: the containment check read the image's migrations from `ls /app/*/migrations/`, which cannot see Django contrib or allauth in site-packages — 124 recorded vs 89 visible, 35 permanently “missing”. And the `--image-tag`-less branch printed “is skipped” without skipping, which is what hid the first bug. Both fixed. Nothing was destroyed: VERSION runs before WIPE. Cert expiry proved `caddy_data` restored rather than re-issued. Items 5-7 N/A — no media or screenshots yet. |
+| 2026-09-05 | `2026-09-05T232246` | libli.pl itself (same-box `--live`) | **Passed — all nine, first full-coverage run** | 5m34s including re-fetching 3.9 GB. First rehearsal with real content: **2,791 files fetched == 2,791 listed**, so item 2 was a genuine check rather than the 0==0 of the morning run. The encrypted screenshot came back a valid PNG at its exact plaintext size, exercising the `mirror-encrypted` path in both directions for the first time. A `.mp4` served 206 out of the restored volume. ⚠️ Ran against a HAND-PATCHED `restore.sh`: the shipped one died at line 140 with `env_value: command not found`, a regression introduced hours earlier by the host-key pinning change and fixed in the same PR as this row. |
