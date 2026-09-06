@@ -733,3 +733,48 @@ def test_the_skipped_containment_check_is_actually_skipped():
     text = "\n".join(lines)
     assert "SKIP_CONTAINMENT=1" in text, "the no --image-tag branch must set it"
     assert "SKIP_CONTAINMENT=0" in text, "the --image-tag branch must set it"
+
+
+# Every non-function name the three scripts invoke inside a command
+# substitution. Deliberately a maintained baseline rather than "anything on
+# PATH": CI images vary, so resolving against PATH would make the guard pass or
+# fail on the runner's package list rather than on the script. Adding a new
+# external command should be a visible one-line edit here.
+SHELL_EXTERNALS = frozenset(
+    {"date", "dirname", "du", "echo", "git", "mktemp", "openssl", "sed", "wc"}
+)
+
+_SH_FUNC = re.compile(r"^([a-z_][a-z0-9_]*)\(\)\s*\{", re.MULTILINE)
+_SH_CALL = re.compile(r"\$\(\s*([a-z_][a-z0-9_]*)\b")
+
+
+@pytest.mark.parametrize(
+    "script", [BACKUP_SH, RESTORE_SH, DEPLOY_SH], ids=lambda p: p.name
+)
+def test_every_command_substitution_resolves(script):
+    """`bash -n` parses; it does not check that a called name EXISTS.
+
+    This caught a real one the day it was written. The host-key pinning change
+    copied `KNOWN_HOSTS="$(env_value ...)"` from backup.sh into restore.sh --
+    but backup.sh DEFINES env_value and restore.sh does not, and cannot
+    meaningfully: restore.sh has no .env.production to read until the ENV step
+    decrypts one, which is the chicken-and-egg the whole design is built round.
+
+    The shipped script died at line 140 with `env_value: command not found`,
+    having passed `bash -n`, a green CI run, and two textual guards that
+    asserted the SSH_OPTS line's contents. It sat on master for ten hours. The
+    rehearsal that found it was only running because the box happened to be
+    pinned to an older commit the first time round.
+
+    Mutant: call any undefined function from a command substitution in any of
+    the three scripts.
+    """
+    text = script.read_text(encoding="utf-8")
+    defined = set(_SH_FUNC.findall(text))
+    called = set(_SH_CALL.findall(text))
+    unresolved = called - defined - SHELL_EXTERNALS
+    assert not unresolved, (
+        f"{script.name} calls {sorted(unresolved)} in a command substitution, "
+        f"but defines no such function. Either define it, or -- if it is a real "
+        f"binary -- add it to SHELL_EXTERNALS."
+    )
