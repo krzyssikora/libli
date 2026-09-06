@@ -15,6 +15,7 @@
 - **All tooling runs through `uv`**: `uv run pytest <paths>`, `uv run ruff check --no-cache .`, `uv run ruff format .`. Bare `pytest`/`ruff` are not on PATH.
 - **Start the test DB first**: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`. Without it a run hangs for ~4m21s before erroring.
 - **Never pass `-q` to pytest** — `addopts` already has it; a second one suppresses the `N passed` summary line.
+- ⚠️ **Every `zip()` needs an explicit `strict=`** — ruff selects `B`, so `B905` is enforced, it has no safe autofix, and every `zip()` already in this repo carries it.
 - ⚠️ **isort is `force-single-line = true`** (`pyproject.toml`), and `I` is in ruff's `select`. Every import is ONE NAME PER LINE — `from x import a, b` is an `I001` failure, and `ruff format` does not fix import sorting. Run `uv run ruff check --fix --no-cache .` before the gate.
 - **Both ruff gates before any commit**: `uv run ruff check --no-cache .` AND `uv run ruff format --check .`. CI gates on them separately.
 - **`_` in `core/public_pages.py` is `gettext_lazy`** and must stay that way (`PAGES` resolves it at import). New strings in that module use eager, unaliased `from django.utils.translation import gettext`.
@@ -79,7 +80,8 @@ def test_seeded_bands_are_gap_free_and_monotonic():
     """The seed must satisfy the form's own cross-row rules, or the settings tab
     rejects the shipped state on an operator's first save."""
     rows = list(PricingPlan.objects.order_by("order"))
-    for lo, hi in zip(rows, rows[1:]):
+    # strict=False: the pairwise walk is deliberately one shorter than rows.
+    for lo, hi in zip(rows, rows[1:], strict=False):
         assert hi.pupils_min == lo.pupils_max + 1
 
 
@@ -754,7 +756,8 @@ def _plans(*prices):
             "courses_included": c,
             "video_hours_included": v,
         }
-        for (o, lo, hi, h, c, v), p in zip(rows, prices)
+        # strict=True: always three of each, so a mismatch is a bug, not a trim.
+        for (o, lo, hi, h, c, v), p in zip(rows, prices, strict=True)
     ]
 
 
@@ -1883,7 +1886,7 @@ not the mutant.
 
 - [ ] **Step 3: Add the two parametrised-axis guards**
 
-In `tests/test_public_pages_content.py`, parametrise **three named guards** over the vendor flag as well as `demo_instance`: `test_no_unresolved_token_remains_in_either_configuration`, `test_no_token_survives_inside_an_attribute`, and `test_no_empty_paragraph_when_blocks_are_off`. ⚠️ A second `@pytest.mark.parametrize` cannot carry `override_settings`, so the mechanism is an inner context manager, parametrised on the flag:
+⚠️ Both files need `from django.test import override_settings` (single-line); neither imports it today. In `tests/test_public_pages_content.py`, parametrise **three named guards** over the vendor flag as well as `demo_instance`: `test_no_unresolved_token_remains_in_either_configuration`, `test_no_token_survives_inside_an_attribute`, and `test_no_empty_paragraph_when_blocks_are_off`. ⚠️ A second `@pytest.mark.parametrize` cannot carry `override_settings`, so the mechanism is an inner context manager, parametrised on the flag:
 
 ```python
 @pytest.mark.parametrize("vendor", [False, True])
@@ -2200,7 +2203,9 @@ class PricingForm(forms.ModelForm):
                 )
                 return cleaned
             bands.append((plan.order, lo, hi))
-        for (_o1, _lo1, hi1), (o2, lo2, _hi2) in zip(bands, bands[1:]):
+        for (_o1, _lo1, hi1), (o2, lo2, _hi2) in zip(
+            bands, bands[1:], strict=False
+        ):
             if lo2 != hi1 + 1:
                 self.add_error(
                     f"plan_{o2}_pupils_min",
@@ -2228,18 +2233,21 @@ class PricingForm(forms.ModelForm):
 
 - [ ] **Step 4: Wire the seven points, with the flag read per request**
 
-⚠️⚠️ **`institution/views_manage.py` defines `def settings(request)` at module level**
-(line ~125, routed as `institution:settings`). A bare `from django.conf import settings` is
-bound at import and then **rebound by that `def`**, so every `settings.VENDOR_INSTANCE`
-raises `AttributeError: 'function' object has no attribute 'VENDOR_INSTANCE'`, and ruff
-reports F811. That is why the module imports `django.conf.settings` nowhere today. **Import
-it aliased**, and note `Http404` is not imported there either:
+⚠️ **`django_settings` is ALREADY imported — Task 8 Step 4 added it** for the
+`_page_overrides()` filter, and Task 8 Step 7 committed the file. Re-adding it here is a
+duplicate line: `F811 Redefinition of unused django_settings` plus `I001`, failing this
+task's own commit gate. Only `Http404` is new to the module here:
 
 ```python
-# institution/views_manage.py -- both are NEW to this module, one name per line
-from django.conf import settings as django_settings
+# institution/views_manage.py -- ONLY this one is new; django_settings came in Task 8
 from django.http import Http404
 ```
+
+Background, so the alias is not "simplified" away later: this module defines
+`def settings(request)` at module level (routed as `institution:settings`), so a bare
+`from django.conf import settings` is bound at import and then **rebound by that `def`** —
+every `settings.VENDOR_INSTANCE` would raise
+`AttributeError: 'function' object has no attribute 'VENDOR_INSTANCE'`.
 
 ```python
 # institution/views_manage.py -- replace the TABS tuple with a function
@@ -2291,7 +2299,7 @@ the same half-working gate the `TABS` note warns about, one layer down — and
 `"plan_1_pupils_min" in body` is true of hidden markup. Add an assertion that the
 `data-tab="pricing"` div carries no `hidden` attribute when `?tab=pricing`.
 
-The `_page_overrides()` filter and the `missing_demo_notice` exemption already landed in **Task 8**; do not repeat them. Here, **correct the remaining stale docstring**: `_page_overrides()`'s "Takes no argument" is now false, and `_settings_context`'s counts were **already wrong before this change** (it says seven forms / four institution forms where there are eight and five) — set them to the real post-change numbers, nine and six.
+The `_page_overrides()` filter and the `missing_demo_notice` exemption already landed in **Task 8**; do not repeat them. Here, **correct the remaining stale docstring**: `_page_overrides()`'s "Takes no argument" is now false, and `_settings_context`'s counts were **already wrong before this change** (it says seven forms / four institution forms where there are eight and five, and ⚠️ a THIRD stale one: "settings.html renders all seven panels", which is eight today) — set ALL THREE to the real post-change numbers: **nine forms, nine panels, six institution forms**.
 
 - [ ] **Step 5: Add the URL name to the existing method-guard test**
 
