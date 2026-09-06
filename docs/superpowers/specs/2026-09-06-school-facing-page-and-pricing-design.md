@@ -139,6 +139,22 @@ above band 1 on the public page.
 consequence is that `_build()` cannot reach the rows through the `Institution` instance and
 must query them separately — see the early-return trap below.
 
+Four fields on `Institution` (the natural home: the tab is an `Institution` ModelForm).
+⚠️ These were dropped by an earlier revision of this spec while `_build()` was still told to
+read them — a schema migration adds them alongside `CreateModel(PricingPlan)`:
+
+| Field | Definition |
+|---|---|
+| `currency` | `CharField(max_length=3, default="PLN")` — an ISO 4217 code, free text not choices, so a non-PLN school needs no migration |
+| `vat_note_en` | `TextField(blank=True, default="")` |
+| `vat_note_pl` | `TextField(blank=True, default="")` |
+| `storage_allowance_gb` | `PositiveIntegerField(null=True, blank=True)` — null ⇒ the allowance sentence is omitted entirely |
+
+⚠️ **`vat_note` is per-language, and this is forced by the spec's own argument.** The reason
+plans carry no name is that only language-neutral values may be stored once. A VAT note is
+prose; a single field would print a Polish tax statement on the English page while the
+numeric parity test stayed green.
+
 #### Validation lives in the form and the database, not in `PricingPlan.clean()`
 
 ⚠️ **Django never calls `full_clean()` on `save()`**, and neither of this spec's two write
@@ -150,8 +166,10 @@ precedent — neither defines `clean()`; `BrandColor` uses field `validators`.
 
 So:
 
-- **`Meta.constraints`** gets `CheckConstraint(check=Q(pupils_min__lt=F("pupils_max")),
+- **`Meta.constraints`** gets `CheckConstraint(condition=Q(pupils_min__lt=F("pupils_max")),
   name="pricingplan_band_is_ordered")` — holds at the database on every write path.
+  ⚠️ **`condition=`, not `check=`**: this project runs Django 5.2 and `CheckConstraint.check`
+  raises `RemovedInDjango60Warning` at model-import time, i.e. on every test session.
 - **The pricing form's `clean()`** rejects bands that overlap, leave a gap, or run
   non-monotonically across the three blocks. That is a cross-row rule no single instance can
   see, and the form is the only place all three are visible at once.
@@ -168,7 +186,7 @@ environment variable **`LIBLI_VENDOR_INSTANCE`**, default `False`.
 ⚠️ **It must NOT be `demo_instance`.** That field's help text is *"Adds a warning to the
 public pages telling visitors not to enter real pupil data"* (`Institution.demo_instance`)
 — a content-warning flag with one existing meaning, consumed by `core/public_pages.py`'s
-demo notice and by `views_manage.missing_demo_notice`. Gating on it would (a) stamp "this is
+demo notice and by `_page_overrides()`'s per-row `missing_demo_notice` flag. Gating on it would (a) stamp "this is
 a demonstration site — do not enter real pupil data" across our own sales page, (b) publish
 our price list on any school pilot box that has the flag on — the exact failure the gate
 exists to prevent — and (c) silently delete the page from libli.pl the day the flag is turned
@@ -210,9 +228,12 @@ requirement, not merely a test. Files edited: `core/context_processors.py`,
 **never writes**. The renderer must do **no ORM query of its own** — a query there would also
 run on every render of `/privacy/` and `/getting-started/`.
 
-- `core/services._build()` gains: `pricing_plans` (a list of plain dicts, already ordered,
-  already serialised to primitives), `currency`, `vat_note_en`, `vat_note_pl`,
-  `storage_allowance_gb`.
+- `core/services._build()` gains: `pricing_plans` (a list of plain dicts, already ordered),
+  `currency`, `vat_note_en`, `vat_note_pl`, `storage_allowance_gb`.
+  ⚠️ **The bundle carries `Decimal | None` for `annual_price`, NOT a pre-formatted string.**
+  Formatting stays in the renderer, which is the layer the parity test reads. (An earlier
+  draft said "serialised to primitives" while also putting `quantize` in the renderer — those
+  contradict; this is the resolution.)
 - **`_DEFAULTS` gains matching keys** with fresh-install values: `[]`, `"PLN"`, `""`, `""`,
   `None`. ⚠️ `_build()` returns `dict(_DEFAULTS)` early when there is no `Institution` row,
   and `tests/test_public_pages_config.py::test_bundle_carries_every_new_key_with_NO_institution_row`
@@ -234,6 +255,16 @@ run on every render of `/privacy/` and `/getting-started/`.
 | `{libli:pricing_plans}` | **block** | the plans table (or the no-prices fallback), including the storage-allowance sentence |
 | `{libli:vat_note}` | **block** | the resolved language's note, `_nl2br`'d; empty string when blank |
 | `{libli:for_schools_link}` | **block** | the cross-pointer on `/getting-started/`; empty string off-vendor |
+
+⚠️ **`for_schools_link` needs the vendor flag, which is deliberately not in `cfg`.** The
+context processor delivers it to *templates*, not to `substitute_tokens`. Resolution:
+**`substitute_tokens` reads `settings.VENDOR_INSTANCE` directly** for this one token. That is
+a deliberate exception to "cfg is the injectable single source of truth for tokens", and it
+has a concrete cost: the nine existing `substitute_tokens(...)` call sites can no longer
+steer this token through `cfg(**over)` and need `override_settings` instead. Accepted, because
+putting a deploy-time flag into the ORM bundle would be worse. The anchor is built with
+**`reverse("core:for_schools")`** and `format_html`, never a hardcoded `/for-schools/` — a
+hardcoded path would also escape `test_every_root_relative_link_resolves`.
 
 ⚠️ **There is NO new inline token.** An earlier draft had `{libli:storage_allowance}` while
 also stating the allowance sentence is emitted inside the `pricing_plans` block — which
@@ -257,7 +288,12 @@ token — but it is the cheapest possible moment to close it.
 
 `vat_note` is a **block** token, not inline, for the reason `controller_address` is: the
 inline pass escapes into a text run with no `_nl2br`, so a two-line note would render as one
-run-on line. It gets the same `_nl2br` (CRLF-normalised) treatment.
+run-on line.
+
+⚠️ **It is `_nl2br(html_lib.escape(str(note)))`, exactly as `controller_address` is — the
+escape is not optional.** Block values are inserted *after* nh3, so they reach the browser
+unsanitised, and this is the one value on the page that is free admin-authored text. A guard
+asserts that a stored `<b>` renders as escaped text, not as markup.
 
 #### Language selection
 
@@ -268,9 +304,28 @@ so `resolved == "en"` while the active language is still `pl`. Using `get_langua
 put the Polish VAT note and Polish column headers on a page whose prose is English.
 
 **Resolution:** `render_public_page` threads its computed `resolved` into
-`substitute_tokens(html, cfg, lang)` as a new argument, and both the `vat_note_*` selection
-and the `gettext` column headers resolve under that language. This is a signature change to
-an existing function; every call site must be updated.
+`substitute_tokens(html, cfg, lang)` as a new argument.
+
+⚠️ **Threading `lang` is not by itself enough.** Selecting `vat_note_en`/`vat_note_pl` is a
+dict lookup and works, but `gettext` resolves under the *active thread* language, not a
+passed argument. The column headers, the "by arrangement" cells and the fallback paragraph
+need an explicit **`with translation.override(lang):`**, scoped to **the new block values
+only** — wrapping the whole of `substitute_tokens` would also change `_demo_notice_html()`
+and `_inline_values()`'s `retention_phrase` on any page that fell back to English, a
+behaviour change to `/privacy/` this spec does not intend.
+
+⚠️ **`core/public_pages.py` imports `gettext_lazy as _`.** A lazy proxy resolves when it is
+coerced to `str`, which for `format_html` happens at format time — so it picks up `lang` only
+if the forcing happens inside the override, and silently picks up the ambient language
+otherwise. That is the exact failure this section exists to prevent, reintroduced by the
+module's own import alias. **Use eager `gettext` (a new import) for the new strings**, inside
+the override.
+
+⚠️ **`lang` is positional-required, not defaulted.** A `lang="en"` default would keep all
+nine existing call sites green while silently pinning English into the content guards. The
+call sites are `core/public_pages.py`, `tests/test_public_pages.py`'s shared `render()`
+helper, and **six in `tests/test_public_pages_content.py`** — all must be edited, and they
+belong in the "existing tests that break" inventory.
 
 ### Rendering the table
 
@@ -280,8 +335,12 @@ Built with `format_html`, following `_demo_notice_html()` — substitution runs 
 **Row labels** are `pupils_min`–`pupils_max`, both numbers, hence identical in both
 languages. **Plans carry no name**, which is what makes the parity guard achievable.
 
-**The fourth "by arrangement" tier is emitted by the renderer** as a final `<tr>` whose
-cells come from `gettext`, with **no database row**. ⚠️ It cannot be prose in the markdown:
+**The fourth "by arrangement" tier is emitted by the renderer** as a final `<tr>` with **no
+database row**. ⚠️ **Its first cell interpolates the last band's ceiling** —
+`_("%(above)s and above") % {"above": plans[-1]["pupils_max"] + 1}` — not a static phrase:
+a static "Larger schools" leaves a visible gap above the last band that a school will notice.
+Named interpolation, and the placeholder must survive into both `.po` files. The remaining
+cells are `gettext` literals. ⚠️ It cannot be prose in the markdown:
 the token substitutes a complete `<table>` for its enclosing `<p>`, and markdown outside it
 can only produce a sibling paragraph, never a `<tr>` inside the generated table.
 
@@ -290,8 +349,10 @@ header is **dynamic** — `currency` is an editable field — so it needs *named
 not concatenation: `_("Annual price (%(currency)s)") % {"currency": cfg["currency"]}`. The
 placeholder must survive into both `.po` files.
 
-**Amount formatting:** `str(Decimal.quantize(2))` with a plain space as the thousands
-separator, and the currency in the header rather than beside each amount. No `floatformat`,
+**Amount formatting:** `f"{d.quantize(Decimal('0.01')):,f}".replace(",", " ")` — ⚠️
+`Decimal.quantize` takes an exponent Decimal, not `2`, and `str(Decimal)` emits **no**
+thousands separator, so it must be inserted deliberately. The separator is **U+00A0**
+(non-breaking), not U+0020, so an amount never wraps mid-number. and the currency in the header rather than beside each amount. No `floatformat`,
 no `intcomma`, no locale-dependent formatting — the numeric strings must be byte-identical
 across EN and PL for the parity test to be a real comparison rather than a formatting
 assertion.
@@ -301,7 +362,13 @@ assertion.
 is `width: 100%` inside a 46rem column, so the table shrinks to the wrapper and the scroller
 never engages — every column wraps to one or two characters instead. The rule must be
 `.public-page__scroll { overflow-x: auto }` plus
-`.public-page__scroll table { width: max-content; min-width: 100% }`. ⚠️ Fixable only in the
+`.public-page__scroll table { width: max-content; min-width: 100% }`.
+⚠️ **`.public-page table` and `.public-page__scroll table` are BOTH (0,1,1) — a specificity
+TIE, decided by source order.** The new block must be inserted *after* `.public-page table`
+in `app.css`; placed above it the block is completely inert while reading exactly like the
+design. This repo has shipped that failure before. Confirm with an **A/B** (render with and
+without the rule), never by measuring the built page — measuring with the rule present
+proves nothing. ⚠️ Fixable only in the
 renderer: `PUBLIC_PAGE_TAGS` has no `div`, so a markdown-authored wrapper is stripped by nh3
 — but the token value is inserted *after* nh3. The privacy notice's existing tables stay
 unwrapped; that inconsistency is accepted (they are narrow and already fit).
@@ -312,7 +379,11 @@ unwrapped; that inconsistency is accepted (they are narrow and already fit).
 meet this spec's own stated purpose.
 
 So: when **no** plan has an `annual_price`, `{libli:pricing_plans}` renders **not the table**
-but a fallback paragraph. Its full composition, because this is the state the branch actually
+but a fallback paragraph. ⚠️ **An EMPTY `pricing_plans` list renders the same fallback**, and
+this must be stated rather than left to follow vacuously: `_DEFAULTS` and `BASE_CFG` both
+carry `[]`, so it is the state every direct `substitute_tokens` unit test runs under. The
+readings it rules out — a lone renderer-emitted "by arrangement" row, or a header-only empty
+`<table>` — are all reachable from the prose otherwise. Its full composition, because this is the state the branch actually
 ships in and therefore the one most worth pinning:
 
 - the "prices for your school on request" sentence;
@@ -340,16 +411,24 @@ Filling the prices is a release step, not a code change.
    `set(PAGES) == {"privacy", "getting-started"}` — exact equality, not a subset. It becomes
    `== {"privacy", "getting-started", "for-schools"}` plus the matching `PAGES[...].path`
    assertion the file already has for the other two.
-2. `tests/test_public_pages_content.py` holds a hard-coded `SHIPPED` list of four files and
-   parametrises six guards over it. One is
-   `test_demo_notice_is_placed_where_the_block_regex_matches`, which asserts
+2. `tests/test_public_pages_content.py` holds a hard-coded `SHIPPED` list of four files.
+   ⚠️ **Seven guards are parametrised over it, not six**, and
+   `test_every_root_relative_link_resolves` is **not** among them — it sweeps `SHIPPED`
+   internally by design, so it picks the new files up automatically. The parametrised seven
+   include `test_shipped_file_exists_and_is_utf8` and
+   `test_no_block_token_has_a_heading_immediately_above_it`, both of which an earlier draft
+   of this spec omitted.
+   One of them, `test_demo_notice_is_placed_where_the_block_regex_matches`, asserts
    `"{libli:demo_notice}" in source` — and `for-schools.md` deliberately carries no such
    token. **Resolution: add both new files to `SHIPPED`, and split that one guard** so the
-   token-present half runs over a `DEMO_NOTICE_PAGES` subset while the other five
-   (unresolved-token, token-in-attribute, empty-paragraph, exactly-one-h1,
-   root-relative-link) keep the full sweep. Not adding the files would leave the new page —
-   the one that hardcodes `/privacy/`-style links — with zero coverage from the guard that
-   checks exactly that.
+   token-present half runs over a `DEMO_NOTICE_PAGES` subset while the rest keep the full
+   sweep. Not adding the files would leave the new page — the one that hardcodes
+   `/privacy/`-style links — with zero coverage from the guard that checks exactly that.
+   ⚠️ **`test_no_block_token_has_a_heading_immediately_above_it` hard-codes its trigger**
+   (`if "{libli:demo_notice}" in line or "{libli:controller_address}" in line`), so it is
+   blind to all three new block tokens. **Drive it off `BLOCK_TOKENS`** instead. This matters
+   concretely: `{libli:for_schools_link}` renders as an *empty string* off-vendor, which is
+   precisely the orphaned-heading failure the guard exists to catch.
 3. `tests/test_public_pages_settings.py::test_panel_uses_the_coalesced_language_list_not_the_stored_one`
    asserts `body.count('name="override-') == len(PAGES) * 2`. Filtering the gated page out of
    the panel (below) makes that `(len(PAGES) - 1) * 2` with the flag off. **Rewrite the
@@ -360,6 +439,9 @@ Filling the prices is a release step, not a code change.
 iteration set, so a school admin would otherwise see an editable "For schools" box for a
 route that 404s on their box. **The overrides panel filters out the gated page when
 `VENDOR_INSTANCE` is false**, and `for-schools.md` carries no `{libli:demo_notice}`.
+⚠️ `_page_overrides()`'s docstring says "Takes no argument: everything comes from
+`get_site_config()` and `PublicPage.objects`" — reading `django.conf.settings` there makes
+that false, so the docstring is updated in the same edit.
 
 ### Settings tab
 
@@ -381,18 +463,27 @@ Pricing form **must be an `Institution` ModelForm** whose `save()` also writes t
 7. permission `institution.change_institution`
 
 **Form shape.** `BrandingForm` is the precedent but declares only two extra fields; this
-needs 3 rows x 5 fields = 15.
+needs **3 rows x 6 fields = 18**, plus the four `Institution` fields above.
+
+⚠️ **Six per row, not five.** The editable set is `pupils_min`, `pupils_max`, `annual_price`,
+`support_hours_per_term`, `courses_included`, `video_hours_included`; `order` is the row key,
+not an input. The cross-row `clean()` needs both bounds submitted, so none may be dropped —
+and an implementer following a "five fields" count would most plausibly omit `pupils_min`,
+which the Model section explicitly forbids deriving.
 
 - **Naming:** `plan_<order>_<field>`, e.g. `plan_1_pupils_min`, so the cross-row `clean()`
   can iterate rather than hard-code.
 - **Declared** in `__init__` by looping over the rows, not as fifteen class attributes.
 - **`initial`** seeded from `PricingPlan.objects.order_by("order")` via
   `self.initial.setdefault`, mirroring `BrandingForm.__init__`. ⚠️ `_settings_context`
-  constructs *every* form unbound on *every* settings render, so this query runs on all eight
-  tabs — keep it to one `order_by`, no per-row queries.
+  constructs *every* form unbound on *every* settings render, so this query runs on all nine
+  tabs (eight today plus Pricing) — keep it to one `order_by`, no per-row queries.
 - **`annual_price` is `required=False`** so the shipped null state can be re-saved without
   inventing a price.
-- **`save()`** writes with `get_or_create(order=N)` then field assignment.
+- **`save()`** writes with **`.get(order=N)`**, not `get_or_create`. ⚠️ Because the field set
+  is derived from the rows that already exist, every `N` in `save()` names an existing row —
+  the create branch is unreachable, and a bare `get_or_create` would hit the same
+  missing-`defaults=` `IntegrityError` the migration section flags if it ever were reached.
 
 ⚠️ **The three-row invariant.** The form iterates `PricingPlan.objects.order_by("order")`,
 not `range(1, 4)`. A fourth row created out-of-band (shell, a future migration) would
@@ -402,8 +493,11 @@ form's gap/overlap `clean()` would validate a band set that is not the one rende
 
 ### Migration
 
-`RunPython(seed, RunPython.noop)` — irreversible data migrations cannot be tested. Target the
-current graph head (`institution/0011` at time of writing; verify).
+**One migration, operations in this order:** `CreateModel(PricingPlan)` (carrying its
+`CheckConstraint`), the four `AddField`s on `Institution`, then
+`RunPython(seed, RunPython.noop)` — the data step must follow the schema steps in the same
+`operations` list. `RunPython.noop` because irreversible data migrations cannot be tested.
+Target the current graph head (`institution/0011` at time of writing; verify).
 
 ⚠️ **`get_or_create(order=N)` MUST carry `defaults={...}`.** Five fields are non-nullable
 with no default, so a bare `get_or_create` raises `IntegrityError` on a fresh database.
@@ -458,12 +552,25 @@ the `{libli:for_schools_link}` block, empty off-vendor.
 along with the contact and privacy-notice paragraphs.
 `test_no_block_token_has_a_heading_immediately_above_it` fails if the trim leaves the token as
 the first non-blank content under a heading. State where the notice and those two paragraphs
-land in the trimmed file, and place the token with prose above it.
+land in the trimmed file, and place every block token with prose above it.
+
+⚠️ **The `/privacy/` link lives in the paragraph being moved**, and
+`test_every_root_relative_link_resolves` asserts
+`{"/privacy/", "/accounts/password/reset/"} <= set(found)` as an explicit non-vacuity check
+across the whole `SHIPPED` sweep. A root-relative `/privacy/` link **must survive in at least
+one `SHIPPED` file** after the trim — name which file carries it, or that assert goes red for
+a reason unrelated to this change.
 
 ## Testing
 
 Load-bearing first.
 
+0. ⚠️ **A PRICED-PLAN FIXTURE is a precondition for items 1, 7 and 14.** In the shipped state
+   every `annual_price` is null, so the token renders the fallback paragraph and there is **no
+   table at all**. A parity or ordering test written against the shipped state regexes an
+   empty match set in both languages and passes vacuously — the exact shape this section warns
+   about. The fixture seeds three *priced* plans, and every test that reads the table asserts
+   **non-vacuity** (at least three amounts extracted) before comparing anything.
 1. **EN and PL render identical figures.** ⚠️ **Assert `resolved_lang == "pl"` first.**
    `localized_doc_path` falls back to the English base silently when `for-schools.pl.md` is
    absent, so a naive version compares English against English and is green with no Polish
@@ -478,9 +585,12 @@ Load-bearing first.
    `allauth/layouts/entrance.html`) and a **duplicated link block in
    `templates/core/landing.html`** — `tests/test_public_pages_footer.py` already asserts them
    separately for this reason. Parametrise over the route, both footers and the entrance page.
-4. **Fresh install:** the page renders with no `Institution` row — and ⚠️ **asserts the seeded
-   plan content is present**, not merely a 200. A 200-only assertion stays green through the
-   early-return bug this spec exists to prevent.
+4. **Fresh install:** the page renders with no `Institution` row. ⚠️ **This test MUST set at
+   least one `annual_price` first, or it cannot detect the bug it exists for.** With all
+   prices null, `pricing_plans == []` and three seeded rows produce **byte-identical** output
+   (both take the fallback branch) — so the early-return bug is invisible. With one price set,
+   the populated build renders a table and the broken build renders the fallback, which is a
+   real discriminator.
 5. **A plan with `annual_price=None`** renders "by arrangement". **All prices null** renders
    the fallback paragraph, including the blank-`contact_email` case.
 6. **A price edit is visible immediately** — the `core/apps.py` signal, tested by saving a
@@ -516,6 +626,28 @@ Load-bearing first.
     three priced plans. ⚠️ Both need `VENDOR_INSTANCE` true — state whether the capture uses
     `tests/capture_*.py` under `override_settings` or a `live_server` e2e test, since the two
     enable a Django setting differently.
+
+15. **The overrides-panel filter, both directions.** With the flag **on**, the panel renders
+    `len(PAGES) * 2` textareas and a posted `override-for-schools-en` persists (⚠️
+    `_page_overrides()` doubles as the *write* loop's iteration set, so the filter silently
+    gates saving too). With it **off**, neither the textarea nor the write path exists.
+    ⚠️ `test_panel_renders_one_textarea_per_page_per_language`'s hard-coded `== 4` now has a
+    hidden dependency on the flag defaulting False — note it there.
+16. **The content guards parametrise over the vendor flag as well as `demo_instance`.**
+    `{libli:for_schools_link}` makes the vendor flag a *second* configuration axis for the
+    shipped files, and with it defaulting False the link-emitting branch is never swept for
+    unresolved tokens, tokens-in-attributes or empty paragraphs.
+17. **The `CheckConstraint` test wraps its save in `transaction.atomic()`** inside
+    `pytest.raises(IntegrityError)`, and asserts nothing afterwards outside a fresh atomic
+    block. ⚠️ An `IntegrityError` leaves the surrounding pytest-django transaction unusable, so
+    any later ORM call raises `TransactionManagementError` and reads as an unrelated failure.
+    There is no existing `CheckConstraint` in this repo for an implementer to copy.
+18. **The storage-allowance sentence, both branches:** absent when `storage_allowance_gb` is
+    null (which is the shipped default), present with its GB figure when set — in both the
+    fallback and table renderings.
+19. **The nine `substitute_tokens` call sites** are updated for the new required `lang`
+    argument: `core/public_pages.py`, `tests/test_public_pages.py`'s `render()` helper, and
+    six in `tests/test_public_pages_content.py`.
 
 ⚠️ Falsify each guard before trusting it: for every test, name the production edit that
 keeps it green, and check that edit is not the bug. A 302-shaped assertion on the settings
