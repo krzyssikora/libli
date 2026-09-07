@@ -134,6 +134,33 @@ class Institution(models.Model):
         ),
     )
 
+    # Pricing, published on /for-schools/ (vendor instances only).
+    currency = models.CharField(
+        max_length=3,
+        default="PLN",
+        verbose_name=_("Currency"),
+        help_text=_("ISO 4217 code, shown in the price column header."),
+    )
+    # PER-LANGUAGE, and that is forced: plans carry no name precisely because only
+    # language-neutral values may be stored once. A VAT note is prose, so one field
+    # would print a Polish tax statement on the English page while the numeric
+    # parity test stayed green.
+    # verbose_name on all of them: PricingForm renders these on the Pricing tab,
+    # and without it the labels read "Vat note en" / "Storage allowance gb" and
+    # never reach the .po catalogue.
+    vat_note_en = models.TextField(
+        blank=True, default="", verbose_name=_("VAT note (English)")
+    )
+    vat_note_pl = models.TextField(
+        blank=True, default="", verbose_name=_("VAT note (Polish)")
+    )
+    storage_allowance_gb = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Storage allowance (GB)"),
+        help_text=_("Leave blank to omit the allowance sentence from the page."),
+    )
+
     def save(self, *args, **kwargs):
         # Enforce singleton: always row pk=1. A second save() updates that one
         # row rather than inserting a duplicate.
@@ -171,6 +198,55 @@ class BrandColor(models.Model):
 
     def __str__(self):
         return f"{self.key}={self.value}"
+
+
+class PricingPlan(models.Model):
+    """One published pricing band. Three rows, seeded by migration 0012.
+
+    NO Institution FK, unlike BrandColor: libli is single-tenant per box, so a FK
+    would buy nothing -- but the consequence is load-bearing, because
+    core.services._build() cannot reach these rows through the Institution
+    instance and must query them BEFORE its no-Institution early return.
+
+    Plans carry no NAME. The row label is the pupil band, which is a number and
+    therefore identical in English and Polish -- that is what makes the EN/PL
+    figure-parity guard achievable at all.
+
+    Validation lives in the pricing form's clean() and in the constraint below,
+    never in a model clean(): Django does not call full_clean() on save(), and
+    neither write path (the migration's historical model, the form's field
+    assignment) would invoke one.
+    """
+
+    order = models.PositiveSmallIntegerField(unique=True)
+    # Stored explicitly, NOT derived from the previous row's max: derivation is
+    # unstated cleverness that silently produces nonsense on non-monotonic input.
+    pupils_min = models.PositiveIntegerField()
+    # The open-ended top tier is emitted by the renderer, so there is no null case.
+    pupils_max = models.PositiveIntegerField()
+    # Null => "by arrangement". max_digits AND decimal_places are both mandatory:
+    # Django's system checks reject a DecimalField missing either (E132 / E130).
+    annual_price = models.DecimalField(
+        max_digits=9, decimal_places=2, null=True, blank=True
+    )
+    support_hours_per_term = models.PositiveSmallIntegerField()
+    courses_included = models.PositiveSmallIntegerField()
+    video_hours_included = models.PositiveSmallIntegerField()
+
+    class Meta:
+        ordering = ["order"]
+        constraints = [
+            # condition=, NOT check=: check= emits RemovedInDjango60Warning on
+            # every model import (noise on every test session) and stops working
+            # in Django 6.0.
+            models.CheckConstraint(
+                condition=models.Q(pupils_min__lt=models.F("pupils_max")),
+                name="pricingplan_band_is_ordered",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.pupils_min}-{self.pupils_max}"
 
 
 class PublicPage(models.Model):
