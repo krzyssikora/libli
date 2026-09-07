@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-07 13:25+0200\n"
+"POT-Creation-Date: 2026-09-07 14:44+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -278,11 +278,11 @@ msgstr "Kreator pierwszego uruchomienia"
 msgid "Notifications"
 msgstr "Powiadomienia"
 
-#: .\core\public_pages.py:59
+#: .\core\public_pages.py:60
 msgid "Privacy notice"
 msgstr "Informacja o ochronie danych osobowych"
 
-#: .\core\public_pages.py:61
+#: .\core\public_pages.py:62
 msgid ""
 "What libli stores about you, who can see it, how long it is kept, and how to "
 "exercise your data-protection rights."
@@ -290,11 +290,11 @@ msgstr ""
 "Co libli przechowuje na Twój temat, kto ma do tego wgląd, jak długo dane są "
 "przechowywane i jak korzystać z praw osoby, której dane dotyczą."
 
-#: .\core\public_pages.py:68
+#: .\core\public_pages.py:69
 msgid "Getting started"
 msgstr "Pierwsze kroki"
 
-#: .\core\public_pages.py:70
+#: .\core\public_pages.py:71
 msgid ""
 "What libli is, how schools use it, and how to get an account or reach a "
 "human."
@@ -302,17 +302,19 @@ msgstr ""
 "Czym jest libli, jak korzystają z niego szkoły oraz jak uzyskać konto lub "
 "skontaktować się z człowiekiem."
 
-#: .\core\public_pages.py:77
+#: .\core\public_pages.py:78
 msgid "libli for schools"
 msgstr "libli dla szkół"
 
-#: .\core\public_pages.py:79
+#: .\core\public_pages.py:80
 msgid ""
 "What a school gets, what we need from you, where the data lives, and what it "
 "costs."
-msgstr "Co szkoła otrzymuje, czego od Was potrzebujemy, gdzie znajdują się dane i ile to kosztuje."
+msgstr ""
+"Co szkoła otrzymuje, czego od Was potrzebujemy, gdzie znajdują się dane i "
+"ile to kosztuje."
 
-#: .\core\public_pages.py:193
+#: .\core\public_pages.py:194
 msgid ""
 "This is a demonstration site. Anything you enter here is visible to the "
 "person who runs it — please do not enter real pupil data."
@@ -320,19 +322,19 @@ msgstr ""
 "To jest serwis demonstracyjny. Wszystko, co tu wpiszesz, jest widoczne dla "
 "osoby, która go prowadzi — prosimy nie wprowadzać prawdziwych danych uczniów."
 
-#: .\core\public_pages.py:210 .\core\public_pages.py:263
+#: .\core\public_pages.py:211 .\core\public_pages.py:264
 msgid "the person who runs this site"
 msgstr "osoba, która prowadzi ten serwis"
 
-#: .\core\public_pages.py:213
+#: .\core\public_pages.py:214
 msgid "your national data protection authority"
 msgstr "Twój krajowy organ ochrony danych osobowych"
 
-#: .\core\public_pages.py:216
+#: .\core\public_pages.py:217
 msgid "no embed providers are enabled"
 msgstr "nie włączono żadnych dostawców materiałów osadzonych"
 
-#: .\core\public_pages.py:222
+#: .\core\public_pages.py:223
 #, python-format
 msgid "after %(days)d day"
 msgid_plural "after %(days)d days"
@@ -340,42 +342,43 @@ msgstr[0] "po %(days)d dniu"
 msgstr[1] "po %(days)d dniach"
 msgstr[2] "po %(days)d dniach"
 
-#: .\core\public_pages.py:224
+#: .\core\public_pages.py:225
 msgid "only when the item they refer to is removed"
 msgstr "dopiero wtedy, gdy zostanie usunięty element, którego dotyczą"
 
-#: .\core\public_pages.py:258
+#: .\core\public_pages.py:259
 #, python-format
 msgid "Storage allowance: %(gb)s GB, advisory and reconciled at renewal."
 msgstr "Limit miejsca: %(gb)s GB, orientacyjny i weryfikowany przy odnowieniu."
 
-#: .\core\public_pages.py:267
+#: .\core\public_pages.py:268
 msgid "Prices for your school are quoted on request."
 msgstr "Ceny dla Twojej szkoły wyceniamy indywidualnie."
 
-#: .\core\public_pages.py:268
+#: .\core\public_pages.py:269
 #, python-format
 msgid "Ask %(contact)s, and see the five numbers above."
 msgstr "Zapytaj %(contact)s — zobacz też pięć liczb powyżej."
 
-#: .\core\public_pages.py:276
+#: .\core\public_pages.py:277
 msgid "Pupils"
 msgstr "Uczniowie"
 
-#: .\core\public_pages.py:277
+#: .\core\public_pages.py:278
 #, python-format
 msgid "Annual price (%(currency)s)"
 msgstr "Cena roczna (%(currency)s)"
 
-#: .\core\public_pages.py:278 .\templates\institution\manage\_tabs.html:16
-msgid "Support"
-msgstr "Zgłoszenia"
-
 #: .\core\public_pages.py:279
+msgctxt "pricing table column"
+msgid "Support"
+msgstr "Wsparcie"
+
+#: .\core\public_pages.py:280
 msgid "Courses"
 msgstr "Kursy"
 
-#: .\core\public_pages.py:280 .\courses\media.py:25 .\courses\models.py:789
+#: .\core\public_pages.py:281 .\courses\media.py:25 .\courses\models.py:789
 #: .\courses\templatetags\courses_manage_extras.py:36
 #: .\courses\views_manage.py:2026
 #: .\templates\courses\manage\editor\_add_menu.html:31
@@ -383,28 +386,28 @@ msgstr "Kursy"
 msgid "Video"
 msgstr "Wideo"
 
-#: .\core\public_pages.py:291 .\core\public_pages.py:305
-#: .\core\public_pages.py:306 .\core\public_pages.py:307
-#: .\core\public_pages.py:308
+#: .\core\public_pages.py:292 .\core\public_pages.py:306
+#: .\core\public_pages.py:307 .\core\public_pages.py:308
+#: .\core\public_pages.py:309
 msgid "by arrangement"
 msgstr "do uzgodnienia"
 
-#: .\core\public_pages.py:292
+#: .\core\public_pages.py:293
 #, python-format
 msgid "%(n)s h / term"
 msgstr "%(n)s godz. / semestr"
 
-#: .\core\public_pages.py:294
+#: .\core\public_pages.py:295
 #, python-format
 msgid "%(n)s h"
 msgstr "%(n)s godz."
 
-#: .\core\public_pages.py:304
+#: .\core\public_pages.py:305
 #, python-format
 msgid "%(above)s and above"
 msgstr "%(above)s i więcej"
 
-#: .\core\public_pages.py:357
+#: .\core\public_pages.py:358
 msgid "Considering libli for a school?"
 msgstr "Rozważasz libli dla swojej szkoły?"
 
@@ -8292,7 +8295,9 @@ msgstr "Plan %(order)s"
 msgid ""
 "Bands must run consecutively, in order, with no gap and no overlap. Leave a "
 "price blank to show \"by arrangement\"."
-msgstr "Zakresy muszą następować po sobie, po kolei, bez luk i bez nakładania się. Pozostaw cenę pustą, aby pokazać „do uzgodnienia”."
+msgstr ""
+"Zakresy muszą następować po sobie, po kolei, bez luk i bez nakładania się. "
+"Pozostaw cenę pustą, aby pokazać „do uzgodnienia”."
 
 #: .\templates\institution\manage\_pricing_tab.html:44
 msgid "Currency and notes"
@@ -8421,6 +8426,10 @@ msgstr "Wygląd"
 #: .\templates\institution\manage\_tabs.html:8
 msgid "Uploads"
 msgstr "Przesyłanie"
+
+#: .\templates\institution\manage\_tabs.html:16
+msgid "Support"
+msgstr "Zgłoszenia"
 
 #: .\templates\institution\manage\_tabs.html:18
 msgid "Public pages"

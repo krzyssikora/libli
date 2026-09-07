@@ -50,6 +50,26 @@ def test_english_and_polish_show_identical_figures(client, priced_plans):
 
 @pytest.mark.django_db
 @override_settings(VENDOR_INSTANCE=True)
+def test_polish_support_column_header_is_not_the_settings_tab_word(
+    client, priced_plans
+):
+    """Kills the mutant where the price table's third <th> shares a msgid with
+    the unrelated settings-tab "Support" link (locale/pl: "Zgłoszenia", i.e.
+    Reports/Tickets). If _plans_html ever goes back to a bare gettext("Support")
+    the Polish price table would carry that domain-specific translation instead
+    of a word for support hours -- wrong on the vendor's own sales page.
+    """
+    pl = client.get(reverse("core:for_schools"), headers={"accept-language": "pl"})
+    assert pl.context["resolved_lang"] == "pl"
+    body = pl.content.decode()
+
+    headers = re.findall(r"<th>(.*?)</th>", body)
+    assert "Wsparcie" in headers
+    assert "Zgłoszenia" not in headers
+
+
+@pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
 def test_the_page_renders_on_a_genuinely_fresh_install(client, priced_plans):
     """Task 3 covers the early-return trap at the BUNDLE layer; this covers the
     PAGE. The renderer touches contact_email, currency, storage_allowance_gb and

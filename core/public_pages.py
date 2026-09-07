@@ -27,6 +27,7 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
+from django.utils.translation import pgettext
 
 from core.help import DOCS_ROOT
 from core.help import localized_doc_path
@@ -275,7 +276,7 @@ def _plans_html(cfg):
         "<tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr>",
         gettext("Pupils"),
         gettext("Annual price (%(currency)s)") % {"currency": cfg["currency"]},
-        gettext("Support"),
+        pgettext("pricing table column", "Support"),
         gettext("Courses"),
         gettext("Video"),
     )
