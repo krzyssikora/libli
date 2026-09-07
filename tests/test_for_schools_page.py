@@ -10,7 +10,14 @@ from institution.models import Institution
 from institution.models import PricingPlan
 from institution.models import PublicPage
 
-AMOUNTS = re.compile('<p class="pricing-cards__price">([\\d\\u00a0]+\\.\\d{2})</p>')
+# Captures ONLY the leading numeral (with its NBSP thousands separator and an
+# optional fractional part), not the whole price line: the line now also
+# carries the currency and the period word ("year" / "rok"), and THOSE are
+# expected to differ (or, for currency, to be configurable) -- only the figure
+# itself is the parity guard's business. The numeral ends where the literal
+# ASCII space before the currency code begins (the amount's own thousands
+# separator is NBSP, never a plain space, so this boundary is unambiguous).
+AMOUNTS = re.compile('<p class="pricing-cards__price">([\\d\\u00a0]+(?:\\.\\d+)?) ')
 
 
 @pytest.fixture
@@ -62,10 +69,14 @@ def test_polish_support_bound_label_is_not_the_settings_tab_word(client, priced_
     assert pl.context["resolved_lang"] == "pl"
     body = pl.content.decode()
 
-    # The label sits inside <strong>, immediately before the value, in each
-    # card's bounds list: <li><strong>{label}:</strong> {value}</li>.
-    labels = re.findall(r"<strong>(.*?)</strong>", body)
-    assert "Wsparcie:" in labels
+    # The label sits in its own span, immediately before the value's span, in
+    # each card's bounds list:
+    # <li class="pricing-cards__bound">
+    #   <span class="pricing-cards__label">{label}</span>
+    #   <span class="pricing-cards__value">{value}</span>
+    # </li>
+    labels = re.findall(r'<span class="pricing-cards__label">(.*?)</span>', body)
+    assert "Wsparcie" in labels
     assert not any("Zgłoszenia" in label for label in labels)
 
 
@@ -89,7 +100,7 @@ def test_row_order_survives_editing_a_middle_band(client, priced_plans):
     PricingPlan.objects.filter(order=2).update(annual_price="7300.00")
     body = client.get(reverse("core:for_schools")).content.decode()
     amounts = AMOUNTS.findall(body)
-    assert amounts == ["4 800.00", "7 300.00", "10 800.00"]
+    assert amounts == ["4 800", "7 300", "10 800"]
 
 
 def test_the_explicit_order_by_is_pinned_at_the_source():

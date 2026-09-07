@@ -230,6 +230,13 @@ def _inline_values(cfg):
 def _amount(value):
     """Bare numeral, U+00A0 thousands separator, no currency symbol.
 
+    Decimal places are OMITTED when the fractional part is zero and KEPT
+    otherwise: prices will not carry fractions in practice, but always
+    truncating would render a stored 4800.50 as 4800 -- a wrong price on a
+    sales page. `to_integral_value()` (not a hardcoded `Decimal("1")`
+    re-quantize) is what makes the zero-fraction check exact regardless of
+    the value's original exponent.
+
     str(Decimal) emits no separator at all, so it is inserted deliberately;
     quantize takes an exponent Decimal, not an int. U+00A0 rather than a plain
     space so an amount never wraps mid-number. The parity guard compares these
@@ -237,7 +244,41 @@ def _amount(value):
     """
     from decimal import Decimal
 
-    return f"{value.quantize(Decimal('0.01')):,f}".replace(",", " ")
+    value = value.quantize(Decimal("0.01"))
+    if value == value.to_integral_value():
+        value = value.to_integral_value()
+    return f"{value:,f}".replace(",", " ")
+
+
+def _price_line(price, currency):
+    """A card's own price line: 'by arrangement', or the amount bound to its
+    currency and period so the figure reads correctly even out of context
+    (e.g. a screen reader landing mid-page).
+
+    Two SEPARATE msgids, not one combined phrase: "10 800 PLN / year" does not
+    fit a column at this width without wrapping, and wrapping lands the break
+    right after the slash ("10 800 PLN /" / "year"), which is worse than
+    choosing the break deliberately. The period is instead its own trailing
+    line (see .pricing-cards__period in app.css) -- always, not just when it
+    would otherwise wrap, so the layout is the same shape at every width.
+
+    currency is the caller's cfg["currency"] -- an editable field, so it must
+    never be hardcoded here. The amount/currency pair keeps NAMED
+    placeholders, so a translator can reorder them and the substitution still
+    lines up by name rather than position; the period is a plain msgid
+    because it carries no value of its own to interpolate.
+    """
+    if price is None:
+        return gettext("by arrangement")
+    amount_currency = gettext("%(amount)s %(currency)s") % {
+        "amount": _amount(price),
+        "currency": currency,
+    }
+    return format_html(
+        '{} <span class="pricing-cards__period">{}</span>',
+        amount_currency,
+        gettext("/ year"),
+    )
 
 
 def _plans_html(cfg):
@@ -256,6 +297,17 @@ def _plans_html(cfg):
     annual price as the visual anchor, followed by its three bounds. The open
     top tier cannot be picked by a school, so it is a quiet line below the list,
     not a fourth card.
+
+    No leftover "Annual price (currency)" column header sits above the list:
+    that line was a table column header stranded by an earlier refactor (cards
+    have no columns), and each card's own price line is now self-describing
+    (amount + currency + period, see _price_line), so it said nothing the
+    price line does not already say.
+
+    Each bound is a label stacked over its value, not an inline "Label: value"
+    run -- the Polish labels (e.g. "Wsparcie") are long enough that an inline
+    pair wraps ugly at a card's width; a screen reader still gets the label
+    immediately before the value either way.
     """
     plans = cfg["pricing_plans"]
     allowance = ""
@@ -278,14 +330,6 @@ def _plans_html(cfg):
             + allowance
         )
 
-    # Currency lives here, and ONLY here -- the individual cards below carry a
-    # bare numeral (no currency symbol), so this sentence is the one editable
-    # place the currency appears. Reuses the exact msgid the old column header
-    # used, so an existing .po translation keeps applying unchanged.
-    intro = format_html(
-        '<p class="pricing-cards__intro">{}</p>',
-        gettext("Annual price (%(currency)s)") % {"currency": cfg["currency"]},
-    )
     # pgettext context kept exactly as it was when this label lived in a table
     # column header, so the existing Polish translation ("Wsparcie") keeps
     # matching -- msgctxt is part of the lookup key.
@@ -298,18 +342,25 @@ def _plans_html(cfg):
         '<h3 class="pricing-cards__band">{}</h3>'
         '<p class="pricing-cards__price">{}</p>'
         '<ul class="pricing-cards__bounds">'
-        "<li><strong>{}:</strong> {}</li>"
-        "<li><strong>{}:</strong> {}</li>"
-        "<li><strong>{}:</strong> {}</li>"
+        '<li class="pricing-cards__bound">'
+        '<span class="pricing-cards__label">{}</span>'
+        '<span class="pricing-cards__value">{}</span>'
+        "</li>"
+        '<li class="pricing-cards__bound">'
+        '<span class="pricing-cards__label">{}</span>'
+        '<span class="pricing-cards__value">{}</span>'
+        "</li>"
+        '<li class="pricing-cards__bound">'
+        '<span class="pricing-cards__label">{}</span>'
+        '<span class="pricing-cards__value">{}</span>'
+        "</li>"
         "</ul>"
         "</li>",
         (
             (
                 gettext("%(lo)s–%(hi)s pupils")
                 % {"lo": p["pupils_min"], "hi": p["pupils_max"]},
-                _amount(p["annual_price"])
-                if p["annual_price"] is not None
-                else gettext("by arrangement"),
+                _price_line(p["annual_price"], cfg["currency"]),
                 support_label,
                 gettext("%(n)s h / term") % {"n": p["support_hours_per_term"]},
                 courses_label,
@@ -329,7 +380,7 @@ def _plans_html(cfg):
         gettext("%(above)s and above") % {"above": plans[-1]["pupils_max"] + 1},
         gettext("by arrangement"),
     )
-    return intro + card_list + tail + allowance
+    return card_list + tail + allowance
 
 
 def _block_values(cfg, lang):

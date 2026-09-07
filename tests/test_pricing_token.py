@@ -81,25 +81,38 @@ def test_priced_plans_render_a_card_per_plan():
     assert html.count('class="pricing-cards__item"') == 3
 
 
-def test_amounts_use_a_nonbreaking_thousands_separator_and_no_symbol():
+def test_amounts_use_a_nonbreaking_thousands_separator_and_omit_decimals_when_whole():
+    """A whole-number price (every seeded plan, in practice) never carries
+    the old always-two-decimals ".00" tail."""
     html = render(
         "{libli:pricing_plans}\n", pricing_plans=_plans(Decimal("10800"), None, None)
     )
-    assert "10 800.00" in html
-    # currency lives in the intro sentence only -- split it off and prove the
-    # cards after it carry no currency symbol.
-    assert "PLN" not in html.split('<ul class="pricing-cards">', 1)[1]
+    assert "10 800 PLN" in html
+    assert "10 800.00" not in html  # no comma separator, no stray decimals
+    assert ".00" not in html
 
 
-def test_currency_appears_in_the_intro_sentence_only():
+def test_amounts_keep_decimals_when_the_price_has_a_fractional_part():
+    """The half of the no-decimals rule most likely to be missed: truncating
+    unconditionally would render a stored 4800.50 as 4800 -- a wrong price."""
+    html = render(
+        "{libli:pricing_plans}\n", pricing_plans=_plans(Decimal("4800.50"), None, None)
+    )
+    assert "4 800.50 PLN" in html
+
+
+def test_currency_is_interpolated_from_cfg_not_hardcoded():
+    """Each priced card carries its own currency now that the old intro
+    sentence (the only place it used to appear) is gone. Overriding cfg's
+    currency and finding the DEFAULT ("PLN") nowhere in the output is what
+    rules out a hardcoded literal."""
     html = render(
         "{libli:pricing_plans}\n",
-        pricing_plans=_plans(Decimal("4800"), None, None),
+        pricing_plans=_plans(Decimal("4800"), Decimal("7200"), Decimal("10800")),
         currency="EUR",
     )
-    intro, rest = html.split('<ul class="pricing-cards">', 1)
-    assert "EUR" in intro
-    assert "EUR" not in rest
+    assert "PLN" not in html
+    assert html.count("EUR") == 3  # once per priced card, nowhere else
 
 
 def test_by_arrangement_is_scoped_to_the_null_priced_card():
@@ -113,7 +126,7 @@ def test_by_arrangement_is_scoped_to_the_null_priced_card():
     band2 = _card(html, "101–300")
     band1 = _card(html, "1–100")
     assert "arrangement" in band2
-    assert "4 800.00" in band1
+    assert "4 800 PLN" in band1
     assert "arrangement" not in band1
 
 

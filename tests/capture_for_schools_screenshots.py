@@ -10,21 +10,25 @@ is set the way tests/test_e2e_error_pages.py sets it for its own anonymous
 pages -- the libli_theme COOKIE, not User.theme. _resolve_theme_pref in
 core/context_processors.py only reaches User.theme for an authenticated user;
 here request.user is AnonymousUser, so the cookie is the correct and only
-lever.
+lever. Language is set the way tests/test_for_schools_page.py sets it for the
+django test client -- an Accept-Language header, via
+page.set_extra_http_headers -- because there is no logged-in User.language
+either, and core.middleware.SessionLocaleMiddleware falls back to exactly that
+header when no session key is present.
 
 Two page states, each shot at phone width AND a desktop width, in both
-themes -- eight images total:
+themes, in both languages -- sixteen images total:
 
-* fallback-{phone,desktop}-{light,dark}.png -- every PricingPlan.annual_price
-  is NULL, which is what this branch actually ships (migration 0012 seeds
-  three rows with no price). The renderer falls back to a paragraph and emits
-  no cards at all.
-* cards-{phone,desktop}-{light,dark}.png -- a fixture prices the three seeded
-  rows so the pricing-cards branch renders instead. The desktop shot is the
-  one that proves the three cards actually sit side by side; the phone shot
-  is the one that proves they stack legibly instead of a scroller (the table
-  layout this replaced needed a horizontal-scroll A/B; a stacking card list
-  has no such failure mode to A/B against).
+* fallback-{phone,desktop}-{light,dark}-{en,pl}.png -- every
+  PricingPlan.annual_price is NULL, which is what this branch actually ships
+  (migration 0012 seeds three rows with no price). The renderer falls back to
+  a paragraph and emits no cards at all.
+* cards-{phone,desktop}-{light,dark}-{en,pl}.png -- a fixture prices the three
+  seeded rows so the pricing-cards branch renders instead. The desktop shot is
+  the one that proves the three plans actually sit side by side; the phone
+  shot is the one that proves they stack legibly. The Polish shots are the
+  ones that matter most: the English labels ("Support", "Courses") are short
+  enough to hide a wrap that the longer Polish ones ("Wsparcie") exposed.
 """
 
 import os
@@ -112,38 +116,47 @@ def priced_plans(db):
     return PricingPlan.objects.order_by("order")
 
 
-def _goto_for_schools(page, live_server, theme, viewport):
+def _goto_for_schools(page, live_server, theme, viewport, lang):
     # Anonymous: _resolve_theme_pref reads the libli_theme cookie SERVER-side
     # and renders data-theme accordingly -- there is no logged-in user whose
     # User.theme could win instead.
     page.context.add_cookies(
         [{"name": "libli_theme", "value": theme, "url": live_server.url}]
     )
+    # Anonymous again: no User.language either, so the language lever is the
+    # same one tests/test_for_schools_page.py drives the django test client
+    # with -- Accept-Language -- set on the CONTEXT so it rides along on every
+    # request this page makes, the same way the theme cookie does.
+    page.set_extra_http_headers({"Accept-Language": lang})
     page.set_viewport_size(VIEWPORTS[viewport])
     page.goto(f"{live_server.url}{reverse('core:for_schools')}")
     page.wait_for_selector("article.public-page")
 
 
 @override_settings(VENDOR_INSTANCE=True)
+@pytest.mark.parametrize("lang", ["en", "pl"])
 @pytest.mark.parametrize("theme", ["light", "dark"])
 @pytest.mark.parametrize("viewport", ["phone", "desktop"])
-def test_capture_fallback(page, live_server, viewport, theme):
+def test_capture_fallback(page, live_server, viewport, theme, lang):
     """No priced plans: the state this branch actually ships in."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    _goto_for_schools(page, live_server, theme, viewport)
+    _goto_for_schools(page, live_server, theme, viewport, lang)
     # Prove this is the fallback branch, not an accidental cards render.
     assert page.locator(".pricing-cards").count() == 0
     page.screenshot(
-        path=str(OUT_DIR / f"fallback-{viewport}-{theme}.png"), full_page=True
+        path=str(OUT_DIR / f"fallback-{viewport}-{theme}-{lang}.png"), full_page=True
     )
 
 
 @override_settings(VENDOR_INSTANCE=True)
+@pytest.mark.parametrize("lang", ["en", "pl"])
 @pytest.mark.parametrize("theme", ["light", "dark"])
 @pytest.mark.parametrize("viewport", ["phone", "desktop"])
-def test_capture_cards(page, live_server, viewport, theme, priced_plans):
+def test_capture_cards(page, live_server, viewport, theme, lang, priced_plans):
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    _goto_for_schools(page, live_server, theme, viewport)
+    _goto_for_schools(page, live_server, theme, viewport, lang)
     page.wait_for_selector(".pricing-cards")
     assert page.locator(".pricing-cards__item").count() == 3
-    page.screenshot(path=str(OUT_DIR / f"cards-{viewport}-{theme}.png"), full_page=True)
+    page.screenshot(
+        path=str(OUT_DIR / f"cards-{viewport}-{theme}-{lang}.png"), full_page=True
+    )

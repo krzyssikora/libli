@@ -2206,34 +2206,83 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   border: 1px solid var(--border-subtle); padding: var(--space-2);
   text-align: left; vertical-align: top;
 }
-/* Pricing plan cards (emitted by the pricing_plans token, after nh3 --
-   PUBLIC_PAGE_TAGS has no `div`/`h3`, so a markdown-authored version of this
-   would be stripped). auto-fit stacks to one column on a phone with no hard
-   breakpoint, the same pattern .catalog__grid already uses. Selectors below
-   need `.public-page` prefixed on to override the bare `.public-page ul` /
-   `.public-page li + li` rules above, regardless of source order: those are
-   (0,1,1) and (0,1,2), and TWO classes always outrank one no matter how many
-   bare elements the weaker selector adds -- unlike the table/scroller pair
-   further up this file, this is not a specificity tie. */
+/* Pricing plan comparison (emitted by the pricing_plans token, after nh3 --
+   PUBLIC_PAGE_TAGS has no `h3`, so a markdown-authored version of this would
+   be stripped). Deliberately NOT the raised-card-with-shadow treatment this
+   replaced: every other element on this page is plain type set on the page
+   ground, so three identical rounded boxes read as an imported widget rather
+   than part of the document. Instead the three plans borrow the page's OWN
+   table rule -- a hairline above and below the whole group (like
+   `.public-page table`), with a single hairline between adjacent columns, the
+   way a printed price list is set. A fixed 3-column grid, not auto-fit: there
+   are always exactly three real plans (the open tier is not a card, see
+   .pricing-cards__above below), so the column count is known, not
+   content-driven. Selectors below need `.public-page` prefixed on to override
+   the bare `.public-page ul` / `.public-page li + li` rules above, regardless
+   of source order: those are (0,1,1) and (0,1,2), and TWO classes always
+   outrank one no matter how many bare elements the weaker selector adds --
+   unlike the table/scroller pair further up this file, this is not a
+   specificity tie. */
 .public-page .pricing-cards {
-  list-style: none; padding-left: 0;
-  display: grid; gap: var(--space-4);
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  list-style: none; padding-left: 0; margin: var(--space-4) 0 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
 }
-.pricing-cards__intro { font-weight: 600; }
 .public-page .pricing-cards__item { margin-top: 0; }
 .pricing-cards__item {
-  background: var(--surface-raised); border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg); padding: var(--space-5); box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  border-left: 1px solid var(--border-default);
+}
+/* A rule only belongs BETWEEN two things -- the first column in the row gets
+   none, since the group's own border-top/bottom already frames the row. */
+.pricing-cards__item:first-child { border-left: none; }
+/* Below the same width the rest of this page stacks at (app.css:252 and
+   friends, all `max-width: 640px`), the grid collapses to one column: a left
+   rule would then sit between vertically stacked items and cut a line THROUGH
+   the middle of each row instead of separating them, so the rule direction
+   flips to match. */
+@media (max-width: 640px) {
+  .public-page .pricing-cards { grid-template-columns: 1fr; }
+  .pricing-cards__item { border-left: none; border-top: 1px solid var(--border-default); }
+  .pricing-cards__item:first-child { border-top: none; }
 }
 .pricing-cards__band {
   margin: 0 0 var(--space-2); font-size: 1rem; font-weight: 600;
   color: var(--text-secondary);
 }
-.pricing-cards__price { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); }
+/* tabular-nums so the figures line up when a viewer compares the three
+   columns at a glance -- a legibility device for THIS comparison, not a
+   typeface change (still Inter). */
+.pricing-cards__price {
+  margin: 0 0 var(--space-4); font-size: 1.5rem; font-weight: 700;
+  color: var(--text-primary); font-variant-numeric: tabular-nums;
+}
+/* Deliberately its own line, always -- not a wrap this width happens to
+   trigger. "10 800 PLN / year" does not fit a column without wrapping, and an
+   accidental wrap breaks right after the slash; a block period line breaks in
+   the one place that reads well, at every width. */
+.pricing-cards__period {
+  display: block; margin-top: var(--space-1); font-size: .85rem;
+  font-weight: 400; color: var(--text-tertiary);
+}
 .public-page .pricing-cards__bounds { padding-left: 0; margin-bottom: 0; }
-.pricing-cards__bounds { list-style: none; font-size: .9rem; color: var(--text-secondary); }
-.pricing-cards__above { font-size: .875rem; color: var(--text-tertiary); }
+.pricing-cards__bounds {
+  list-style: none; display: flex; flex-direction: column; gap: var(--space-3);
+}
+/* Overrides the bare `.public-page li + li` margin above (0,1,2) -- this is
+   (0,2,1) -- so the flex `gap` on the bounds list is the only vertical space,
+   not gap PLUS a leftover margin on top of it. */
+.public-page .pricing-cards__bounds li { margin-top: 0; }
+/* Label stacked over value, never an inline "Label: value" run: the Polish
+   labels (e.g. "Wsparcie") are long enough that the pair wraps mid-phrase at
+   a column's width, and a stacked pair has no such failure mode. */
+.pricing-cards__bound { display: flex; flex-direction: column; gap: var(--space-1); }
+.pricing-cards__label { font-size: .8125rem; color: var(--text-tertiary); }
+.pricing-cards__value {
+  font-size: .9rem; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.pricing-cards__above { font-size: .875rem; color: var(--text-tertiary); margin-top: var(--space-3); }
 .public-page__notice {
   border: 1px solid var(--border-subtle); border-left-width: 4px;
   background: var(--surface-sunken); padding: var(--space-4);
