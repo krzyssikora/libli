@@ -1043,6 +1043,17 @@ class SlideBreakElement(ElementBase):
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
 
+class DividerElement(ElementBase):
+    """Field-less horizontal rule: a visual separator between sibling elements.
+
+    Renders as a bare <hr> via the by-convention template lookup in
+    ElementBase.render -- no override, because it reads nothing from the state
+    context. Unlike SlideBreakElement (the other field-less type) this one is
+    NESTABLE: separating the children of a callout is the case it was added for."""
+
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+
 class RevealGateElement(ElementBase):
     """A 'Show more' gate: a thin divider that (client-side) hides the
     following sibling elements until its button is clicked. See the

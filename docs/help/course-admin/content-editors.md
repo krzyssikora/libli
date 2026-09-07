@@ -150,6 +150,15 @@ slot.
 
 ## Structure
 
+{el:divider} **Divider** — a horizontal rule and nothing else: it carries no fields,
+so adding one from the Add-element menu drops it straight in with no form to fill.
+Use it to set two blocks apart that belong to the same section but should not read as
+one run of text. Unlike a Slide break it is purely visual — it never changes how a
+lesson paginates — and unlike a Slide break it can sit **inside** a container: a rule
+between a callout's children is the case it was added for. Its card sits in the
+**Content** group of the Add-element menu, not under Structure — that group is the
+one offered inside a container, which is where you are most likely to want it.
+
 {el:slidebreak} **Slide break** — a marker, not a content block: it carries no fields and
 renders nothing itself. Adding one or more Slide breaks to a lesson splits it
 into a paginated slideshow/deck view instead of one long scroll, with each

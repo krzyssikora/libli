@@ -204,6 +204,10 @@ def _val_slide_break(data, elid, media_kinds):
     return set()
 
 
+def _val_divider(data, elid, media_kinds):
+    return set()
+
+
 def _val_reveal_gate(data, elid, media_kinds):
     return set()
 
@@ -976,6 +980,7 @@ VALIDATORS = {
     "math": _val_math,
     "html": _val_html,
     "slide_break": _val_slide_break,
+    "divider": _val_divider,
     "reveal_gate": _val_reveal_gate,
     "spoiler": _val_spoiler,
     "callout": _val_callout,

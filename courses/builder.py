@@ -93,6 +93,10 @@ NESTABLE_TYPE_KEYS = frozenset(
     {
         "text",
         "math",
+        # A field-less horizontal rule. Nestable BY DESIGN and unlike its
+        # field-less sibling slide_break, which is top-level only: separating the
+        # children of a callout is the case it was added for.
+        "divider",
         "image",
         "video",
         "iframe",

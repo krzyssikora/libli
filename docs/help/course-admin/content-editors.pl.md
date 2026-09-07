@@ -156,6 +156,16 @@ treść”. Zobacz „Kontenery i zagnieżdżanie” poniżej, co można w nim u
 
 ## Struktura
 
+{el:divider} **Linia** — pozioma linia i nic więcej: nie ma żadnych pól, więc
+dodanie jej z menu „Dodaj element” wstawia ją od razu, bez formularza do wypełnienia.
+Służy do oddzielenia dwóch bloków, które należą do tej samej sekcji, ale nie powinny
+czytać się jak jeden ciąg tekstu. W odróżnieniu od Podziału slajdów jest wyłącznie
+wizualna — nigdy nie zmienia sposobu dzielenia lekcji na slajdy — i w odróżnieniu od
+niego może stać **wewnątrz** kontenera: linia między elementami potomnymi ramki to
+przypadek, dla którego powstała. Jej karta znajduje się w grupie **Treść** menu
+„Dodaj element”, a nie w Strukturze — to właśnie ta grupa jest dostępna wewnątrz
+kontenera, czyli tam, gdzie najczęściej będzie potrzebna.
+
 {el:slidebreak} **Podział slajdów** — znacznik, a nie blok treści: nie ma żadnych pól i
 sam w sobie nic nie wyświetla. Dodanie jednego lub więcej Podziałów slajdów
 do lekcji zamienia ją w podzielony na slajdy widok pokazu slajdów zamiast

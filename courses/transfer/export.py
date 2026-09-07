@@ -13,6 +13,7 @@ from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
+from courses.models import DividerElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
 from courses.models import Element
@@ -109,6 +110,10 @@ def _ser_html(el, ids):
 
 
 def _ser_slide_break(concrete, media_ids):
+    return {}
+
+
+def _ser_divider(concrete, media_ids):
     return {}
 
 
@@ -479,6 +484,7 @@ SERIALIZERS = {
     "math": (MathElement, _ser_math),
     "html": (HtmlElement, _ser_html),
     "slide_break": (SlideBreakElement, _ser_slide_break),
+    "divider": (DividerElement, _ser_divider),
     "reveal_gate": (RevealGateElement, _ser_reveal_gate),
     "spoiler": (SpoilerElement, _ser_spoiler),
     "callout": (CalloutElement, _ser_callout),

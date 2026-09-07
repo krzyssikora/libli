@@ -52,6 +52,7 @@ _ELEMENT_LABELS = {
     "dragtoimagequestionelement": _("Zones"),
     "extendedresponsequestionelement": _("Essay"),
     "slidebreakelement": _("Slide break"),
+    "dividerelement": _("Divider"),
     "revealgateelement": _("Show more"),
     "spoilerelement": _("Spoiler"),
     "fillgateelement": _("Fill in & confirm"),
@@ -162,6 +163,11 @@ def element_summary(el):
     if name == "HtmlElement":
         text = re.sub(r"\s+", " ", strip_tags(el.html)).strip()
         return Truncator(unescape(text)).chars(60) or "HTML"
+    if name == "DividerElement":
+        # Field-less rule: nothing to summarise, and element_type_label already
+        # says "Divider" -- same reasoning as SlideBreakElement below. Same em
+        # dash too, so the two field-less rows read identically in the outline.
+        return "—"
     if name == "SlideBreakElement":
         # Field-less delimiter: no content to summarise (type tag already
         # says "Slide break" via element_type_label — avoid repeating it).
