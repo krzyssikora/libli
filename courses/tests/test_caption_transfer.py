@@ -12,6 +12,7 @@ import pytest
 from courses.models import ImageElement
 from courses.models import MediaAsset
 from courses.sanitize import CAPTION_MAX_LENGTH
+from courses.sanitize import LEGACY_PLAIN_CAPTION_MAX
 from courses.transfer.export import SERIALIZERS
 from courses.transfer.importer import BUILDERS
 from courses.transfer.payloads import validate_element_data
@@ -92,11 +93,32 @@ def test_a_caption_longer_than_the_cap_is_rejected():
         _validate("x" * (CAPTION_MAX_LENGTH + 1), format_version=FORMAT_VERSION)
 
 
-def test_the_cap_leaves_room_for_markup_the_old_255_did_not():
-    """Regression on the number itself: 255 was the plain-text CharField bound,
-    and one anchor costs ~30 characters before any visible text."""
-    assert CAPTION_MAX_LENGTH == 1000
+def test_a_caption_at_the_cap_is_accepted():
     assert _validate("x" * CAPTION_MAX_LENGTH, format_version=FORMAT_VERSION)
+
+
+@pytest.mark.parametrize("ch,grown", [("&", "&amp;"), ("<", "&lt;"), (">", "&gt;")])
+def test_the_worst_case_legacy_caption_still_imports(ch, grown):
+    """A legal old archive must never become un-importable.
+
+    Pre-14 captions were bounded by the plain-text CharField(255), and
+    _upgrade_legacy_data escapes BEFORE the cap is measured -- so 255 bare
+    ampersands arrive as 1275 characters. A cap that does not dominate that
+    rejects an archive the source instance legitimately exported and this
+    instance legitimately wrote, with no way for the operator to repair it.
+    (Same principle as the v12 quiz rule's refusal to enforce against v11.)
+    """
+    caption = ch * LEGACY_PLAIN_CAPTION_MAX
+    out = _validate(caption, format_version=13)
+    assert out == grown * LEGACY_PLAIN_CAPTION_MAX
+    assert len(out) > 1000, "worst case must actually exceed the naive cap"
+
+
+def test_the_cap_dominates_the_legacy_worst_case():
+    """Pinned as arithmetic, not as a literal: the two constants must move
+    together, and `&amp;` (5 chars) is the widest single-character expansion
+    html.escape produces."""
+    assert CAPTION_MAX_LENGTH >= LEGACY_PLAIN_CAPTION_MAX * len("&amp;")
 
 
 @pytest.mark.django_db

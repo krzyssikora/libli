@@ -187,13 +187,25 @@ def sanitize_cell(value, *, tags=None, allowed_classes=None):
 # colour, because the caption toolbar carries no swatches.
 CAPTION_TAGS = {"a", "strong", "b", "em", "i", "u", "br"}
 
+# The pre-FORMAT_VERSION-14 bound: captions were plain text in a CharField(255),
+# so no archive or row written before this feature can exceed it.
+LEGACY_PLAIN_CAPTION_MAX = 255
+
 # Length bound on the STORED HTML, enforced by ImageElementForm and the transfer
-# validator (the column itself is now a TextField). 255 was the old plain-text
-# CharField bound and is far too tight once one anchor costs ~30 characters
-# before any visible text; the cap still exists because a runaway caption widens
-# the whole figure -- courses.css gives `.el--image--small` and its siblings
-# `width: fit-content`, which sizes to the WIDER of {image, caption}.
-CAPTION_MAX_LENGTH = 1000
+# validator (the column itself is now a TextField). A cap still exists because a
+# runaway caption widens the whole figure -- courses.css gives
+# `.el--image--small` and its siblings `width: fit-content`, which sizes to the
+# WIDER of {image, caption}.
+#
+# The NUMBER is not free. Both the migration and the transfer upgrade escape
+# legacy plain text BEFORE anything measures it, and escaping grows a string by
+# up to 5x (`&` -> `&amp;`). So a cap below LEGACY_PLAIN_CAPTION_MAX * 5 would
+# reject an archive the source instance legitimately exported and this instance
+# legitimately wrote, with nothing the operator could do to repair it -- the same
+# trap the v12 quiz rule avoids by not enforcing against v11. 2000 clears that
+# floor (1275) and still leaves authoring room for markup, where the old 255 did
+# not: one anchor costs ~30 characters before any visible text.
+CAPTION_MAX_LENGTH = 2000
 
 # Every block boundary the RTE surface or a paste can introduce, OPENING and
 # closing tag alike. `div` and friends are outside CAPTION_TAGS, and nh3 UNWRAPS
