@@ -1,4 +1,10 @@
 <figure class="el el--image el--image--{{ el.size }}" data-preview-el="{{ el.pk }}">
   <img src="{{ el.media.file.url }}" alt="{{ el.alt }}" data-zoomable>
-  {% if el.figcaption %}<figcaption>{{ el.figcaption }}</figcaption>{% endif %}
+  {% comment %}|safe: the caption is rich text (CAPTION_TAGS -- emphasis and links).
+     ImageElement.save() runs sanitize_caption on EVERY write path, so the column is
+     the trusted boundary; escaping here instead would put a literal &amp; on screen
+     for every caption migration 0062 escaped. Truthiness is the only guard on the
+     element, which is why sanitize_caption collapses a no-visible-content caption
+     to "" rather than leaving "<div><br></div>" behind.{% endcomment %}
+  {% if el.figcaption %}<figcaption>{{ el.figcaption|safe }}</figcaption>{% endif %}
 </figure>

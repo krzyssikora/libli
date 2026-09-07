@@ -38,7 +38,11 @@ elements.
 {el:image} **Image** — embeds a picture from the course's media library. Pick an existing
 upload or upload a new one on the spot (see [Media manager](media-manager));
 add optional **alt text** for accessibility (leave it blank only for a purely
-decorative image) and an optional **caption** shown under the picture. Choose
+decorative image) and an optional **caption** shown under the picture. The
+caption is a small rich-text field: bold, italic, underline, and **links** —
+handy for crediting a source, and the link button offers other pages in this
+course as well as a web address. It is one line of prose, so headings, lists
+and colour are deliberately not offered there. Choose
 a **Size** — Small, Medium, Large, or Full — to set how big the picture
 appears: each is a bounding box, so the image scales to fit inside a box this
 big while keeping its shape, never stretching or cropping. **Full** is the

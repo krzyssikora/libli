@@ -1,5 +1,6 @@
 """Turn a parsed element dict into a concrete libli element attached to a unit."""
 
+import html
 from decimal import Decimal
 
 from courses.geogebra import canonicalize_geogebra_url
@@ -402,7 +403,13 @@ def build_element(
             ImageElement.objects.create(
                 media=asset,
                 alt=el.get("alt", ""),
-                figcaption=el.get("figcaption", ""),
+                # PLAIN TEXT -> HTML. lesson.py fills this key from BeautifulSoup
+                # get_text(), so the JSON holds characters; from FORMAT_VERSION 14
+                # the column is read as HTML. Same escape migration 0062 applied
+                # to the rows already stored. Without it a caption reading
+                # "\(a<b\)" is truncated to "\(a" by the sanitiser on the way in,
+                # and one reading "<b>x</b>" silently starts rendering as bold.
+                figcaption=html.escape(el.get("figcaption", ""), quote=False),
             ),
         )
     if etype == "video":

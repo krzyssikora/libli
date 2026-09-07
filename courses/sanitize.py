@@ -179,6 +179,81 @@ def sanitize_cell(value, *, tags=None, allowed_classes=None):
     return placeholder.sub(lambda m: _canon_math(spans[int(m.group(1))]), cleaned)
 
 
+# ---- Image captions -------------------------------------------------------
+# ONE line of prose that may carry emphasis and links -- deliberately narrower
+# than ALLOWED_TAGS, and kept in step with the four buttons on
+# _rte_toolbar_caption.html (B / I / U / link): a tag the caption toolbar cannot
+# produce has no business surviving a paste either. No `span`, and therefore no
+# colour, because the caption toolbar carries no swatches.
+CAPTION_TAGS = {"a", "strong", "b", "em", "i", "u", "br"}
+
+# The pre-FORMAT_VERSION-14 bound: captions were plain text in a CharField(255),
+# so no archive or row written before this feature can exceed it.
+LEGACY_PLAIN_CAPTION_MAX = 255
+
+# Length bound on the STORED HTML, enforced by ImageElementForm and the transfer
+# validator (the column itself is now a TextField). A cap still exists because a
+# runaway caption widens the whole figure -- courses.css gives
+# `.el--image--small` and its siblings `width: fit-content`, which sizes to the
+# WIDER of {image, caption}.
+#
+# The NUMBER is not free. Both the migration and the transfer upgrade escape
+# legacy plain text BEFORE anything measures it, and escaping grows a string by
+# up to 5x (`&` -> `&amp;`). So a cap below LEGACY_PLAIN_CAPTION_MAX * 5 would
+# reject an archive the source instance legitimately exported and this instance
+# legitimately wrote, with nothing the operator could do to repair it -- the same
+# trap the v12 quiz rule avoids by not enforcing against v11. 2000 clears that
+# floor (1275) and still leaves authoring room for markup, where the old 255 did
+# not: one anchor costs ~30 characters before any visible text.
+CAPTION_MAX_LENGTH = 2000
+
+# Every block boundary the RTE surface or a paste can introduce, OPENING and
+# closing tag alike. `div` and friends are outside CAPTION_TAGS, and nh3 UNWRAPS
+# a disallowed tag rather than dropping its text -- so without this pass two
+# lines are stored concatenated ("one" + "two" -> "onetwo"): silent corruption of
+# the author's text with nothing on screen to explain it.
+#
+# BOTH ends, not just the closing tag. MEASURED in Chromium: typing "one", ENTER,
+# "two" into an EMPTY surface yields `one<div>two</div>` -- the first line stays
+# a bare text node and only the second is wrapped, so there is no closing tag
+# between the two words. Matching openings alone is equally wrong in the other
+# direction (`<div>a</div>tail` has no opening between "a" and "tail"), which is
+# why this pass emits a <br> for each and then collapses the runs.
+_CAPTION_BLOCK_EDGE = re.compile(
+    r"(?i)</?(?:div|p|h[1-6]|li|ul|ol|blockquote|pre)\b[^>]*>"
+)
+# Runs of <br> collapse to one. A caption is a single line of prose, so a blank
+# line in it carries no meaning -- and the pass above emits two <br> for every
+# adjacent `</div><div>` pair.
+_CAPTION_BR_RUN = re.compile(r"(?i)(?:\s*<br\s*/?>\s*){2,}")
+# Leading/trailing <br> -- what a block boundary at either end leaves behind
+# ("<div>only</div>" -> "<br>only<br>").
+_CAPTION_EDGE_BR = re.compile(r"(?i)^(?:\s*<br\s*/?>\s*)+|(?:\s*<br\s*/?>\s*)+$")
+
+
+def sanitize_caption(value):
+    """Sanitise one image caption to CAPTION_TAGS. Idempotent on clean input.
+
+    Block boundaries become <br> BEFORE the tag strip (see _CAPTION_BLOCK_EDGE),
+    and a caption carrying no visible content collapses to "" so the
+    `{% if el.figcaption %}` guard in imageelement.html -- the only thing that
+    decides whether a <figcaption> element is emitted at all -- still holds.
+    """
+    with_breaks = _CAPTION_BLOCK_EDGE.sub("<br>", value or "")
+    cleaned = nh3.clean(
+        with_breaks,
+        tags=CAPTION_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        allowed_classes={},
+        link_rel=None,  # manage rel ourselves via ALLOWED_ATTRIBUTES
+        url_schemes=ALLOWED_URL_SCHEMES,
+        strip_comments=True,
+    )
+    collapsed = _CAPTION_BR_RUN.sub("<br>", cleaned)
+    trimmed = _CAPTION_EDGE_BR.sub("", collapsed).strip()
+    return "" if body_is_empty_ish(trimmed) else trimmed
+
+
 _WS = re.compile(r"\s+")
 _BR = re.compile(r"(?i)<br\s*/?>")
 

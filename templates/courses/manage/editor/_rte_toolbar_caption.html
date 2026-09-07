@@ -1,0 +1,17 @@
+{% load i18n %}
+{% comment %}The caption toolbar: a deliberate SUBSET of _rte_toolbar.html.
+
+A caption is one line of prose, so no headings, lists, quote, code, alignment or
+math -- and no colour swatches. Every button here has a matching tag in
+CAPTION_TAGS (courses/sanitize.py); a button whose output the sanitiser deletes
+would be a control that silently does nothing, so the two are pinned together by
+test_caption_editor.test_the_caption_toolbar_offers_nothing_the_sanitiser_would_strip.
+
+No JS of its own: applyCmd in text_toolbar.js dispatches on data-cmd and simply
+never sees the commands this toolbar omits.{% endcomment %}
+<div class="rte-toolbar rte-toolbar--caption" data-rte-toolbar>
+  <button type="button" class="rte-btn" data-cmd="bold" title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic"><use href="#ed-bold"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic"><use href="#ed-italic"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic"><use href="#ed-underline"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="link" title="{% trans 'Link' %}" aria-label="{% trans 'Link' %}"><svg class="ic"><use href="#ed-link"/></svg></button>
+</div>

@@ -36,6 +36,7 @@ from courses.marking import parse_numeric_value
 from courses.marking import validate_numeric_text
 from courses.marking import validate_tolerance_text
 from courses.sanitize import normalize_body
+from courses.sanitize import sanitize_caption
 from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
 from courses.sanitize import sanitize_label
@@ -878,12 +879,25 @@ class ImageElement(ElementBase):
         "MediaAsset", on_delete=models.PROTECT, limit_choices_to={"kind": "image"}
     )
     alt = models.CharField(max_length=255, blank=True)  # empty = decorative (valid)
-    figcaption = models.CharField(max_length=255, blank=True)
+    # Rich text, not plain: the safe inline subset of CAPTION_TAGS (emphasis +
+    # links). TextField rather than CharField(255) because escaping the legacy
+    # plain text can already overflow 255 (`&` -> `&amp;`) and one anchor costs
+    # ~30 more characters before any visible text; the length bound that remains
+    # is the form/transfer cap, sanitize.CAPTION_MAX_LENGTH.
+    figcaption = models.TextField(blank=True)
     # A bounding box, not a width: max-width lives on the <figure> and max-height
     # on the <img> (see courses.css). `full` is today's rendering plus a
     # max-height:100dvh floor, so no data migration is needed.
     size = models.CharField(max_length=8, choices=Size.choices, default=Size.FULL)
     elements = GenericRelation(Element)
+
+    def save(self, *args, **kwargs):
+        # Defence in depth on every write path (editor form, transfer importer,
+        # LAL loader, admin), mirroring TextElement.save() and
+        # GalleryElement.save(). imageelement.html renders the caption with
+        # |safe, so the column itself has to be the trusted boundary.
+        self.figcaption = sanitize_caption(self.figcaption)
+        super().save(*args, **kwargs)
 
 
 class VideoElement(ElementBase):
