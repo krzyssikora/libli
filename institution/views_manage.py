@@ -135,7 +135,13 @@ def _settings_context(
             page_overrides if page_overrides is not None else _page_overrides()
         ),
         "public_pages": public_pages or PublicPagesForm(instance=inst),
-        "pricing": pricing or PricingForm(instance=inst),
+        # Gated like the tab itself (_tabs()): the panel div is gated too, so
+        # there is no leak on a school box, but building the one form for a tab
+        # that cannot exist there still costs a PricingPlan query on every GET.
+        "pricing": (
+            pricing
+            or (PricingForm(instance=inst) if django_settings.VENDOR_INSTANCE else None)
+        ),
     }
 
 

@@ -80,8 +80,8 @@ def test_a_get_redirects_and_writes_no_row(client):
 
 
 def test_the_support_tab_link_is_rendered(client):
-    """Mutant: add "support" to TABS but leave _tabs.html alone — ?tab=support
-    becomes valid while no link to it ever appears."""
+    """Mutant: add "support" to _BASE_TABS but leave _tabs.html alone —
+    ?tab=support becomes valid while no link to it ever appears."""
     make_pa(client)
     body = client.get(reverse("institution:settings")).content.decode()
     assert "?tab=support" in body
