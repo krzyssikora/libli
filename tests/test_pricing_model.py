@@ -52,6 +52,19 @@ def test_constraint_rejects_a_reversed_band():
 
 
 @pytest.mark.django_db
+def test_constraint_rejects_equal_bounds():
+    """Kills the lte mutant: condition=Q(pupils_min__lte=F("pupils_max")) would
+    ACCEPT min == max, a zero-pupil band. The hard-reversal case above (300, 200)
+    cannot catch that widening -- 300 <= 200 is exactly as false as 300 < 200 --
+    so this boundary case is the only thing that pins the constraint to a strict
+    less-than."""
+    row = PricingPlan.objects.get(order=1)
+    row.pupils_min, row.pupils_max = 200, 200
+    with pytest.raises(IntegrityError), transaction.atomic():
+        row.save()
+
+
+@pytest.mark.django_db
 def test_institution_pricing_field_defaults():
     inst = Institution.load()
     assert inst.currency == "PLN"
