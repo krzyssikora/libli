@@ -2261,10 +2261,18 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 /* Deliberately its own line, always -- not a wrap this width happens to
    trigger. "10 800 PLN / year" does not fit a column without wrapping, and an
    accidental wrap breaks right after the slash; a block period line breaks in
-   the one place that reads well, at every width. */
+   the one place that reads well, at every width.
+
+   --text-tertiary at this size is a documented AA failure in the LIGHT theme
+   (#8A8477 on #F4F1EA measures ~3.3:1 -- tests/test_text_colour_css.py's own
+   note; 13-14px text needs 4.5:1, and none of this block's sizes clear the
+   18.66px-bold / 24px-regular bar for the "large text" 3:1 floor instead).
+   The SAME token measures ~4.76:1 in dark (against #1A1816) and would pass
+   there alone -- moved to --text-secondary anyway so this rule does not
+   silently flip between compliant and not depending on theme. */
 .pricing-cards__period {
   display: block; margin-top: var(--space-1); font-size: .85rem;
-  font-weight: 400; color: var(--text-tertiary);
+  font-weight: 400; color: var(--text-secondary);
 }
 .public-page .pricing-cards__bounds { padding-left: 0; margin-bottom: 0; }
 .pricing-cards__bounds {
@@ -2276,13 +2284,25 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .public-page .pricing-cards__bounds li { margin-top: 0; }
 /* Label stacked over value, never an inline "Label: value" run: the Polish
    labels (e.g. "Wsparcie") are long enough that the pair wraps mid-phrase at
-   a column's width, and a stacked pair has no such failure mode. */
+   a column's width, and a stacked pair has no such failure mode.
+
+   Label and value were --text-tertiary/--text-secondary (a two-step dimness
+   ramp); tertiary fails AA at this size in light mode (see .pricing-cards__period
+   above), so both step up one rung -- secondary/primary -- to keep the SAME
+   relative distinction rather than converging on one colour. Weight carries
+   the rest of that distinction (label lighter, value medium) so the pair
+   still reads apart even for a viewer who cannot see the colour difference. */
 .pricing-cards__bound { display: flex; flex-direction: column; gap: var(--space-1); }
-.pricing-cards__label { font-size: .8125rem; color: var(--text-tertiary); }
-.pricing-cards__value {
-  font-size: .9rem; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+.pricing-cards__label {
+  font-size: .8125rem; font-weight: 400; color: var(--text-secondary);
 }
-.pricing-cards__above { font-size: .875rem; color: var(--text-tertiary); margin-top: var(--space-3); }
+.pricing-cards__value {
+  font-size: .9rem; font-weight: 500; color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+/* Same AA fix as .pricing-cards__period above -- tertiary at .875rem fails in
+   light mode. */
+.pricing-cards__above { font-size: .875rem; color: var(--text-secondary); margin-top: var(--space-3); }
 .public-page__notice {
   border: 1px solid var(--border-subtle); border-left-width: 4px;
   background: var(--surface-sunken); padding: var(--space-4);
