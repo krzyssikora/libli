@@ -61,6 +61,19 @@ def test_a_block_boundary_becomes_a_br_so_words_cannot_silently_join():
     assert out == "one<br>two"
 
 
+def test_the_unwrapped_first_line_still_breaks():
+    """MEASURED in Chromium (tests/test_e2e_caption_link.py found this): typing
+    "one", ENTER, "two" into an EMPTY surface yields `one<div>two</div>` -- the
+    first line stays a bare text node and only the SECOND gets a wrapper. Keying
+    the break off closing tags alone stored "onetwo", so the break has to come
+    off the OPENING tag as well."""
+    assert sanitize_caption("one<div>two</div>") == "one<br>two"
+
+
+def test_a_block_followed_by_a_bare_tail_keeps_them_apart():
+    assert sanitize_caption("<div>a</div>tail") == "a<br>tail"
+
+
 def test_a_paragraph_boundary_becomes_a_br_too():
     assert sanitize_caption("<p>one</p><p>two</p>") == "one<br>two"
 

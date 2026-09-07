@@ -195,28 +195,39 @@ CAPTION_TAGS = {"a", "strong", "b", "em", "i", "u", "br"}
 # {image, caption} (courses.css:69-72).
 CAPTION_MAX_LENGTH = 1000
 
-# Closing tags of every block the RTE surface or a paste can introduce. The
-# surface sets defaultParagraphSeparator=div, so each ENTER-separated line
-# arrives as its own <div>. `div` is outside CAPTION_TAGS, and nh3 UNWRAPS a
-# disallowed tag rather than dropping its text -- so without this pass two lines
-# are stored concatenated ("one" + "two" -> "onetwo"): silent corruption of the
-# author's text with nothing on screen to explain it. Turning the boundary into
-# a <br> first is what makes the unwrap lossless.
-_CAPTION_BLOCK_CLOSE = re.compile(r"(?i)</(?:div|p|h[1-6]|li|ul|ol|blockquote|pre)\s*>")
-# Leading/trailing <br> runs -- including the one EVERY trailing block boundary
-# leaves behind ("<div>only</div>" -> "only<br>").
+# Every block boundary the RTE surface or a paste can introduce, OPENING and
+# closing tag alike. `div` and friends are outside CAPTION_TAGS, and nh3 UNWRAPS
+# a disallowed tag rather than dropping its text -- so without this pass two
+# lines are stored concatenated ("one" + "two" -> "onetwo"): silent corruption of
+# the author's text with nothing on screen to explain it.
+#
+# BOTH ends, not just the closing tag. MEASURED in Chromium: typing "one", ENTER,
+# "two" into an EMPTY surface yields `one<div>two</div>` -- the first line stays
+# a bare text node and only the second is wrapped, so there is no closing tag
+# between the two words. Matching openings alone is equally wrong in the other
+# direction (`<div>a</div>tail` has no opening between "a" and "tail"), which is
+# why this pass emits a <br> for each and then collapses the runs.
+_CAPTION_BLOCK_EDGE = re.compile(
+    r"(?i)</?(?:div|p|h[1-6]|li|ul|ol|blockquote|pre)\b[^>]*>"
+)
+# Runs of <br> collapse to one. A caption is a single line of prose, so a blank
+# line in it carries no meaning -- and the pass above emits two <br> for every
+# adjacent `</div><div>` pair.
+_CAPTION_BR_RUN = re.compile(r"(?i)(?:\s*<br\s*/?>\s*){2,}")
+# Leading/trailing <br> -- what a block boundary at either end leaves behind
+# ("<div>only</div>" -> "<br>only<br>").
 _CAPTION_EDGE_BR = re.compile(r"(?i)^(?:\s*<br\s*/?>\s*)+|(?:\s*<br\s*/?>\s*)+$")
 
 
 def sanitize_caption(value):
     """Sanitise one image caption to CAPTION_TAGS. Idempotent on clean input.
 
-    Block boundaries become <br> BEFORE the tag strip (see _CAPTION_BLOCK_CLOSE),
+    Block boundaries become <br> BEFORE the tag strip (see _CAPTION_BLOCK_EDGE),
     and a caption carrying no visible content collapses to "" so the
     `{% if el.figcaption %}` guard in imageelement.html -- the only thing that
     decides whether a <figcaption> element is emitted at all -- still holds.
     """
-    with_breaks = _CAPTION_BLOCK_CLOSE.sub("<br>", value or "")
+    with_breaks = _CAPTION_BLOCK_EDGE.sub("<br>", value or "")
     cleaned = nh3.clean(
         with_breaks,
         tags=CAPTION_TAGS,
@@ -226,7 +237,8 @@ def sanitize_caption(value):
         url_schemes=ALLOWED_URL_SCHEMES,
         strip_comments=True,
     )
-    trimmed = _CAPTION_EDGE_BR.sub("", cleaned).strip()
+    collapsed = _CAPTION_BR_RUN.sub("<br>", cleaned)
+    trimmed = _CAPTION_EDGE_BR.sub("", collapsed).strip()
     return "" if body_is_empty_ish(trimmed) else trimmed
 
 
