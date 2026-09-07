@@ -1,36 +1,8 @@
 # Getting started
 
-libli is a learning platform a school runs for itself: teachers build courses out of lessons and
-quizzes, students work through them, and the marking, progress tracking and analytics come with it.
-
-## Evaluating libli?
-
-What the platform does:
-
-- **Courses, lessons and quizzes.** A course is a tree of chapters and units. A unit is either a
-  lesson to read and work through, or a quiz that is submitted and scored.
-- **Around thirty kinds of content element.** Text, images, video, tables, galleries, tabbed
-  panels, callouts, two-column layouts, spoilers and reveal gates; mathematical notation set with
-  LaTeX; and interactive elements — drag-and-drop onto an image, fill-in-the-blank, matching
-  pairs, answer grids, steppers, before-and-after sliders, embedded GeoGebra worksheets.
-- **Quizzes with automatic marking.** Questions with a fixed answer are marked the moment they are
-  submitted. Open-ended answers are queued for a teacher to read and mark. Every attempt is
-  stored, not only the last one.
-- **Teacher analytics.** A progress-and-results matrix for a group, drillable down to one student
-  and one question, plus a gradebook export.
-- **English and Polish**, interface and content, switchable per user.
-
-The honest way to evaluate it is to open a course and work through a lesson exactly as a student
-would, then look at the same work from the teacher's side.
-
-{libli:demo_notice}
-
-Questions about a trial, about running libli at your school, or about anything on this page go
-to: {libli:contact_email}.
-
-If you are a school's data protection officer, the page you want first is the
-[privacy notice](/privacy/). It sets out what is stored about a pupil, who can see it, how long it
-is kept, and how to exercise a data subject's rights.
+libli is a learning platform run just for your school, on a server dedicated to it: teachers
+build courses out of lessons and quizzes, students work through them, and the marking, progress
+tracking and analytics come with it.
 
 ## Trying to log in?
 
@@ -46,3 +18,22 @@ is kept, and how to exercise a data subject's rights.
   one.
 - **Something is broken.** Tell your teacher, who can escalate it, or write to
   {libli:contact_email}.
+
+## Looking for something else?
+
+If you landed here while considering libli for a school rather than trying to sign in, the page
+you want is the one about running libli at your school.
+
+{libli:for_schools_link}
+
+If this particular site is a public demonstration rather than a school's live deployment, one
+more thing applies before you explore it:
+
+{libli:demo_notice}
+
+Questions about a trial, about running libli at your school, or about anything on this page go
+to: {libli:contact_email}.
+
+If you are a school's data protection officer, the page you want first is the
+[privacy notice](/privacy/). It sets out what is stored about a pupil, who can see it, how long it
+is kept, and how to exercise a data subject's rights.
