@@ -2187,7 +2187,18 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .public-page h1 { margin-bottom: var(--space-2); }
 /* tokens.css defines 1-6, 8, 10 only: var(--space-7) is UNDEFINED and would
    make the whole declaration invalid, silently dropping the margin. */
-.public-page h2 { margin-top: var(--space-8); }
+.public-page h2 { margin-top: var(--space-8); margin-bottom: var(--space-2); }
+/* reset.css's `* { margin: 0 }` leaves paragraphs and list items touching, with
+   only line-height between them: a multi-paragraph section reads as one solid
+   block. Restores paragraph rhythm; `.public-page h2` above supplies the space
+   above a heading, so a plain bottom margin here is enough between a
+   paragraph and the next one OR the next heading. */
+.public-page p { margin-bottom: var(--space-4); }
+.public-page ul, .public-page ol {
+  margin-bottom: var(--space-4);
+  padding-left: var(--space-5);
+}
+.public-page li + li { margin-top: var(--space-1); }
 .public-page table {
   width: 100%; border-collapse: collapse; margin: var(--space-4) 0;
 }
