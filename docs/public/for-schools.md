@@ -48,11 +48,7 @@ shared with another school's data.
 
 ## What happens if you leave
 
-You can leave at any time and take your data with you. Handover works as a **key rotation**: we
-generate a fresh encryption key that only you and we agree on, re-encrypt a current backup under
-it, and hand you that key — never the shared key that also protects every other school's backups.
-From there, the same process that recovers your server from an outage stands your data up
-wherever you choose to run it next.
+You can leave at any time and take your data with you. Handover works as a **key rotation**: you generate the new encryption key, on your own machine, and give us only its **public half** — the private half never leaves your hands. We re-encrypt a current backup to that public key and hand over the resulting archive. We never disclose the shared key that protects every other school's backups, and we never hold your private key. From there, the same restore process that recovers a server after an outage stands your data up wherever you choose to run it next.
 
 ## Timeline
 

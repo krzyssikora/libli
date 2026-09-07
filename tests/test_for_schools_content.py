@@ -75,3 +75,42 @@ def test_the_timeline_does_not_promise_a_port_25_wait(text):
 @pytest.mark.parametrize("text", [EN, PL])
 def test_carries_no_demo_notice_token(text):
     assert "{libli:demo_notice}" not in text
+
+
+@pytest.mark.parametrize(
+    "text,generates_phrase,private_phrase,never_hold_phrase,reversed_phrase",
+    [
+        (
+            EN,
+            "you generate the new encryption key",
+            "the private half never leaves your hands",
+            "we never hold your private key",
+            "hand you that key",
+        ),
+        (
+            PL,
+            "to Ty generujesz nowy klucz szyfrujący",
+            "część prywatna nigdy nie opuszcza Twoich rąk",
+            "nigdy nie mamy dostępu do Twojego klucza prywatnego",
+            "przekazujemy Ci ten klucz",
+        ),
+    ],
+)
+def test_handover_states_the_school_generates_the_key(
+    text, generates_phrase, private_phrase, never_hold_phrase, reversed_phrase
+):
+    """Round-1 review defect: section 6 originally read "we generate a fresh
+    encryption key ... and hand you that key", reversing who generates the keypair.
+    If libli generated it, libli's systems would necessarily hold the private half
+    at least transiently before handover -- exactly the guarantee this section
+    exists to rule out.
+
+    Asserted as phrases inside the surrounding prose, not the bare word
+    "key"/"klucz", which any sentence about encryption would satisfy regardless of
+    who holds what -- see test_retention_periods_match_backup_sh's docstring for
+    why a bare-word check is worthless here too.
+    """
+    assert generates_phrase in text
+    assert private_phrase in text
+    assert never_hold_phrase in text
+    assert reversed_phrase not in text

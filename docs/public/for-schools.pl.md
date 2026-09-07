@@ -49,11 +49,7 @@ szkołę, nigdy współdzielony z danymi innej szkoły.
 
 ## Co się dzieje, gdy odchodzisz
 
-Możesz zrezygnować w dowolnym momencie i zabrać swoje dane ze sobą. Przekazanie danych działa jako
-**rotacja klucza**: generujemy nowy klucz szyfrujący, uzgodniony tylko z Tobą, szyfrujemy nim
-aktualną kopię zapasową i przekazujemy Ci ten klucz — nigdy klucza współdzielonego, który chroni
-też kopie zapasowe innych szkół. Dalej działa ten sam proces, który przywraca serwer po awarii i
-który stawia Twoje dane tam, gdzie zdecydujesz się je uruchomić.
+Możesz zrezygnować w dowolnym momencie i zabrać swoje dane ze sobą. Przekazanie danych działa jako **rotacja klucza**: to Ty generujesz nowy klucz szyfrujący, na własnym urządzeniu, i przekazujesz nam tylko jego **część publiczną** — część prywatna nigdy nie opuszcza Twoich rąk. Tym kluczem publicznym ponownie szyfrujemy aktualną kopię zapasową i przekazujemy Ci gotowe archiwum. Nigdy nie ujawniamy współdzielonego klucza, który chroni kopie zapasowe innych szkół, i nigdy nie mamy dostępu do Twojego klucza prywatnego. Dalej działa ten sam proces przywracania serwera, który stawia Twoje dane tam, gdzie zdecydujesz się je uruchomić.
 
 ## Harmonogram
 
