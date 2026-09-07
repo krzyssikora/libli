@@ -19,15 +19,11 @@ ocenianie, śledzenie postępów i analityka są częścią platformy.
 - **Coś nie działa.** Powiedz nauczycielowi, który może to zgłosić dalej, albo napisz
   bezpośrednio. Kontakt: {libli:contact_email}.
 
-## Szukasz czegoś innego?
-
-Jeśli trafiłeś tu, rozważając libli dla szkoły, a nie próbując się zalogować, strona, której
-szukasz, dotyczy uruchomienia libli w Twojej szkole.
+Zalogowanie się to inna sprawa niż uruchomienie libli w szkole.
 
 {libli:for_schools_link}
 
-Jeśli to konkretne wdrożenie jest publiczną wersją demonstracyjną, a nie żywym wdrożeniem szkoły,
-zanim zaczniesz je przeglądać, obowiązuje jeszcze jedna zasada:
+Publiczny serwis demonstracyjny poinformuje o tym poniżej.
 
 {libli:demo_notice}
 

@@ -19,15 +19,11 @@ tracking and analytics come with it.
 - **Something is broken.** Tell your teacher, who can escalate it, or write to
   {libli:contact_email}.
 
-## Looking for something else?
-
-If you landed here while considering libli for a school rather than trying to sign in, the page
-you want is the one about running libli at your school.
+Signing in is a separate matter from setting libli up for a school in the first place.
 
 {libli:for_schools_link}
 
-If this particular site is a public demonstration rather than a school's live deployment, one
-more thing applies before you explore it:
+A public demonstration site will say so below.
 
 {libli:demo_notice}
 
