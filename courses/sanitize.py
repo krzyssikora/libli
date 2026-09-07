@@ -179,6 +179,49 @@ def sanitize_cell(value, *, tags=None, allowed_classes=None):
     return placeholder.sub(lambda m: _canon_math(spans[int(m.group(1))]), cleaned)
 
 
+# ---- Image captions -------------------------------------------------------
+# ONE line of prose that may carry emphasis and links -- deliberately narrower
+# than ALLOWED_TAGS, and kept in step with the four buttons on
+# _rte_toolbar_caption.html (B / I / U / link): a tag the caption toolbar cannot
+# produce has no business surviving a paste either. No `span`, and therefore no
+# colour, because the caption toolbar carries no swatches.
+CAPTION_TAGS = {"a", "strong", "b", "em", "i", "u", "br"}
+
+# Closing tags of every block the RTE surface or a paste can introduce. The
+# surface sets defaultParagraphSeparator=div, so each ENTER-separated line
+# arrives as its own <div>. `div` is outside CAPTION_TAGS, and nh3 UNWRAPS a
+# disallowed tag rather than dropping its text -- so without this pass two lines
+# are stored concatenated ("one" + "two" -> "onetwo"): silent corruption of the
+# author's text with nothing on screen to explain it. Turning the boundary into
+# a <br> first is what makes the unwrap lossless.
+_CAPTION_BLOCK_CLOSE = re.compile(r"(?i)</(?:div|p|h[1-6]|li|ul|ol|blockquote|pre)\s*>")
+# Leading/trailing <br> runs -- including the one EVERY trailing block boundary
+# leaves behind ("<div>only</div>" -> "only<br>").
+_CAPTION_EDGE_BR = re.compile(r"(?i)^(?:\s*<br\s*/?>\s*)+|(?:\s*<br\s*/?>\s*)+$")
+
+
+def sanitize_caption(value):
+    """Sanitise one image caption to CAPTION_TAGS. Idempotent on clean input.
+
+    Block boundaries become <br> BEFORE the tag strip (see _CAPTION_BLOCK_CLOSE),
+    and a caption carrying no visible content collapses to "" so the
+    `{% if el.figcaption %}` guard in imageelement.html -- the only thing that
+    decides whether a <figcaption> element is emitted at all -- still holds.
+    """
+    with_breaks = _CAPTION_BLOCK_CLOSE.sub("<br>", value or "")
+    cleaned = nh3.clean(
+        with_breaks,
+        tags=CAPTION_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        allowed_classes={},
+        link_rel=None,  # manage rel ourselves via ALLOWED_ATTRIBUTES
+        url_schemes=ALLOWED_URL_SCHEMES,
+        strip_comments=True,
+    )
+    trimmed = _CAPTION_EDGE_BR.sub("", cleaned).strip()
+    return "" if body_is_empty_ish(trimmed) else trimmed
+
+
 _WS = re.compile(r"\s+")
 _BR = re.compile(r"(?i)<br\s*/?>")
 
