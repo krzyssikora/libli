@@ -41,7 +41,7 @@ def test_format_version_is_pinned():
     # Renamed from test_format_version_is_bumped: that name claimed ownership
     # of the number this feature bumped, but Task 9 (published on the node
     # payload) has since bumped it again to 10.
-    assert FORMAT_VERSION == 13
+    assert FORMAT_VERSION == 14
 
 
 @pytest.mark.django_db

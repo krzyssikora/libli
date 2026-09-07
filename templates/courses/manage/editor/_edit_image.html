@@ -7,7 +7,19 @@
   <div class="media-chosen" data-media-preview></div>
   <button type="button" class="btn btn--small" data-pick-media="image">{% trans "Choose media" %}</button>
   <label>{% trans "Alt text" %} <input type="text" name="alt" value="{{ form.alt.value|default:'' }}"></label>
-  <label>{% trans "Caption" %} <input type="text" name="figcaption" value="{{ form.figcaption.value|default:'' }}"></label>
+  {% comment %}The caption is rich text (emphasis + links), so it gets the shared RTE
+     surface rather than a text input. The `.el-editor--text` wrapper is NOT cosmetic:
+     wireRte finds its toolbar with textarea.closest(".el-editor--text"), and without
+     it the toolbar is never located and every button is silently inert. Same shape as
+     a question stem (_edit_choicequestion.html:6-9). No <input> may share
+     name="figcaption" — two controls with one name double-submit, and the empty one
+     goes last, blanking the caption on every save.{% endcomment %}
+  <label class="el-editor__label">{% trans "Caption" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar_caption.html" %}
+    <textarea name="figcaption" class="rte-source" data-rte-source rows="2">{{ form.figcaption.value|default:"" }}</textarea>
+  </div>
+  {% for e in form.figcaption.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
   {% comment %}Radios rather than a select: all four options stay visible at once and one
      click both selects and drives the live preview. `checked` is NOT cosmetic — `size` is a
      required ChoiceField, so a group with nothing checked submits no `size` key and fails

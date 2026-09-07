@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from courses.color_bands import is_valid_stored
 from courses.constants import COURSE_LANGUAGES
 
-FORMAT_VERSION = 13
+FORMAT_VERSION = 14
 KIND_COURSE = "course"
 KIND_SUBTREE = "subtree"
 
@@ -346,7 +346,12 @@ def validate_document(doc, *, kind, target_allowed_kinds=None, format_version=No
             or node_kind[el["unit"]] != "unit"
         ):
             _err(_("Element '%(v)s' must belong to a unit node."), v=el["id"])
-        refs = validate_element_data(el, media_kinds)  # Task 7; returns media ids used
+        # format_version reaches the per-element layer for values whose MEANING is
+        # version-dependent while their shape is not -- today, the pre-14
+        # plain-text `figcaption` (see payloads._upgrade_legacy_data).
+        refs = validate_element_data(  # Task 7; returns media ids used
+            el, media_kinds, format_version=format_version
+        )
         referenced_media |= refs
 
     # Cross-element nesting refs (parent/tab). Runs AFTER the per-element loop so

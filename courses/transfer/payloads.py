@@ -5,6 +5,7 @@ the same contract, just read instead of written. Every rejection raises
 TransferError (translated) — never a raw exception on hostile input.
 """
 
+import html
 import re
 from decimal import Decimal
 
@@ -22,6 +23,7 @@ from courses.models import BeforeAfterElement
 from courses.models import DragZone
 from courses.models import ImageElement
 from courses.models import TableElement
+from courses.sanitize import CAPTION_MAX_LENGTH
 from courses.switchgate import SENTINEL_TOKEN
 from courses.transfer.schema import TransferError
 from courses.transfer.schema import _exact_keys
@@ -149,7 +151,12 @@ def _val_image(data, elid, media_kinds):
     _exact_keys(data, ["media", "alt", "figcaption", "size"], _("image data"))
     refs = _require_media(data["media"], elid, media_kinds, "image")
     check_str(data["alt"], "alt", max_length=255)
-    check_str(data["figcaption"], "figcaption", max_length=255)
+    # CAPTION_MAX_LENGTH, not 255: from FORMAT_VERSION 14 the caption is HTML, and
+    # 255 was the plain-text CharField bound. A pre-14 archive was written under
+    # the tighter bound and has just been escaped by _upgrade_legacy_data (which
+    # can only grow it), so the looser cap is also what keeps a legal old archive
+    # importable.
+    check_str(data["figcaption"], "figcaption", max_length=CAPTION_MAX_LENGTH)
     return refs
 
 
@@ -997,11 +1004,44 @@ VALIDATORS = {
 }
 
 
-def validate_element_data(el, media_kinds):
+# FORMAT_VERSION at which `figcaption` stopped being plain text and became the
+# CAPTION_TAGS subset of HTML. The archive SHAPE did not change, so no schema
+# check notices -- only the version can tell the two apart.
+CAPTION_HTML_VERSION = 14
+
+
+def _upgrade_legacy_data(el, format_version):
+    """Version-gated re-interpretation of values whose MEANING changed while
+    their shape did not. Lives here rather than inside a validator because the
+    VALIDATORS dispatch is uniform (data, elid, media_kinds) and threading a
+    version through all forty of them to serve one key is the worse trade.
+
+    Escapes a pre-14 `figcaption`: it was authored as plain text and is about to
+    be read as HTML, so `&` renders wrong and `<` is worse than wrong -- nh3
+    reads it as a tag that never closes and drops everything after it, silently
+    truncating the caption on import.
+
+    An unknown version (None) is treated as MODERN. That is deliberately the
+    opposite default from the v12 quiz rule at schema.py:379, and the asymmetry
+    is the point: that rule REJECTS on doubt, which is safe, while this one would
+    TRANSFORM on doubt, and double-escaping a modern caption corrupts it visibly
+    and permanently. No import path reaches here without a manifest.
+    """
+    if el.get("type") != "image" or format_version is None:
+        return
+    if not isinstance(format_version, int) or format_version >= CAPTION_HTML_VERSION:
+        return
+    data = el.get("data")
+    if isinstance(data, dict) and isinstance(data.get("figcaption"), str):
+        data["figcaption"] = html.escape(data["figcaption"], quote=False)
+
+
+def validate_element_data(el, media_kinds, *, format_version=None):
     """Validate el["data"] for el["type"]; return the set of referenced media ids.
 
-    Mutates el["data"] to store canonicalized embed URLs (video/iframe) so that
-    commit persists exactly what was checked.
+    Mutates el["data"] to store canonicalized embed URLs (video/iframe), and to
+    upgrade values whose meaning is version-dependent (see _upgrade_legacy_data),
+    so that commit persists exactly what was checked.
     """
     # isinstance guard BEFORE the dict lookup: a hostile list/dict type value
     # would otherwise raise "unhashable type" -> 500.
@@ -1016,4 +1056,7 @@ def validate_element_data(el, media_kinds):
     data = el.get("data")
     if not isinstance(data, dict):
         raise TransferError(_("Element data must be an object."))
+    # AFTER the shape guards (so a hostile payload cannot reach the upgrade) and
+    # BEFORE the validator (so the cap is measured against what will be stored).
+    _upgrade_legacy_data(el, format_version)
     return VALIDATORS[el["type"]](data, el["id"], media_kinds)

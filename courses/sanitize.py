@@ -187,6 +187,14 @@ def sanitize_cell(value, *, tags=None, allowed_classes=None):
 # colour, because the caption toolbar carries no swatches.
 CAPTION_TAGS = {"a", "strong", "b", "em", "i", "u", "br"}
 
+# Length bound on the STORED HTML, enforced by ImageElementForm and the transfer
+# validator (the column itself is now a TextField). 255 was the old plain-text
+# CharField bound and is far too tight once one anchor costs ~30 characters
+# before any visible text; the cap still exists because a runaway caption widens
+# the whole figure -- `figure` is width: fit-content and sizes to the WIDER of
+# {image, caption} (courses.css:69-72).
+CAPTION_MAX_LENGTH = 1000
+
 # Closing tags of every block the RTE surface or a paste can introduce. The
 # surface sets defaultParagraphSeparator=div, so each ENTER-separated line
 # arrives as its own <div>. `div` is outside CAPTION_TAGS, and nh3 UNWRAPS a

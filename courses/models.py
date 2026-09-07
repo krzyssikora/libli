@@ -883,7 +883,7 @@ class ImageElement(ElementBase):
     # links). TextField rather than CharField(255) because escaping the legacy
     # plain text can already overflow 255 (`&` -> `&amp;`) and one anchor costs
     # ~30 more characters before any visible text; the length bound that remains
-    # is the form/transfer cap, FIGCAPTION_MAX_LENGTH.
+    # is the form/transfer cap, sanitize.CAPTION_MAX_LENGTH.
     figcaption = models.TextField(blank=True)
     # A bounding box, not a width: max-width lives on the <figure> and max-height
     # on the <img> (see courses.css). `full` is today's rendering plus a

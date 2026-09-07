@@ -65,6 +65,8 @@ from courses.models import TabsElement
 from courses.models import TextElement
 from courses.models import TwoColumnElement
 from courses.models import VideoElement
+from courses.sanitize import CAPTION_MAX_LENGTH
+from courses.sanitize import sanitize_caption
 from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
 from courses.transfer.schema import TransferError
@@ -130,6 +132,30 @@ class ImageElementForm(_CourseScopedMediaForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["media"].required = True
+
+    def clean_figcaption(self):
+        """Sanitise first, THEN measure.
+
+        Order matters both ways. `figcaption` is a TextField, so it arrives with
+        no length validator at all -- the old CharField(255) bound simply
+        vanished when the column widened, and nothing else would notice.
+        And the cap has to be measured against what will be STORED: sanitising
+        only ever shrinks, so checking the raw paste would reject content whose
+        stored form is well inside the cap, showing the author a length error
+        about characters they cannot see.
+
+        ImageElement.save() sanitises again (it is the boundary for the import
+        and admin paths that never build this form); sanitize_caption is
+        idempotent, so the second pass is free.
+        """
+        cleaned = sanitize_caption(self.cleaned_data.get("figcaption", ""))
+        if len(cleaned) > CAPTION_MAX_LENGTH:
+            raise forms.ValidationError(
+                _("The caption is too long (limit %(n)d characters)."),
+                params={"n": CAPTION_MAX_LENGTH},
+                code="max_length",
+            )
+        return cleaned
 
 
 class VideoElementForm(_CourseScopedMediaForm):
