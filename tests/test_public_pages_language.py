@@ -6,7 +6,10 @@ test in the suite runs where the two agree, so without this file a build that
 ignores the lang argument and calls translation.get_language() passes everything.
 """
 
+import pytest
+
 from core.public_pages import _block_values
+from core.public_pages import render_markdown
 from core.public_pages import substitute_tokens
 from tests.test_public_pages import cfg
 
@@ -29,10 +32,18 @@ def test_lang_is_required_not_defaulted():
     assert sig.parameters["lang"].default is inspect.Parameter.empty
 
 
-def test_inline_values_parity_assert_exists():
-    """The block pass has an assert; the inline pass did not, so a half-done edit
-    there was a KeyError rather than a clear failure."""
-    from core.public_pages import INLINE_TOKENS
-    from core.public_pages import _inline_values
+def test_the_inline_pass_asserts_parity_rather_than_keyerroring(monkeypatch):
+    """Kills the delete-the-assert mutant. The old body compared _inline_values to
+    INLINE_TOKENS directly -- true before this task and after it, so it guarded
+    nothing. Patching INLINE_TOKENS to hold a name _inline_values does not build
+    makes the production assert the only thing standing between the caller and a
+    bare KeyError -- and the source html contains no such token, so without the
+    assert the call would return normally rather than KeyError, which is exactly
+    what distinguishes the two builds."""
+    from core import public_pages
 
-    assert set(_inline_values(cfg())) == INLINE_TOKENS
+    monkeypatch.setattr(
+        public_pages, "INLINE_TOKENS", frozenset(public_pages.INLINE_TOKENS | {"nope"})
+    )
+    with pytest.raises(AssertionError):
+        substitute_tokens(render_markdown("hi\n"), cfg(), "en")
