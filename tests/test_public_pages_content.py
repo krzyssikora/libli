@@ -3,6 +3,8 @@ import re
 import pytest
 
 from core.help import DOCS_ROOT
+from core.public_pages import BLOCK_TOKENS
+from core.public_pages import DEMO_NOTICE_SLUGS
 from core.public_pages import PAGES
 from core.public_pages import render_markdown
 from core.public_pages import substitute_tokens
@@ -13,6 +15,18 @@ SHIPPED = [
     "public/privacy.pl.md",
     "public/getting-started.md",
     "public/getting-started.pl.md",
+    "public/for-schools.md",
+    "public/for-schools.pl.md",
+]
+
+# The subset of SHIPPED that must carry {libli:demo_notice} -- for-schools is
+# deliberately excluded (VENDOR_ONLY_SLUGS, not DEMO_NOTICE_SLUGS), so it cannot
+# join the full SHIPPED sweep below without going red on a correct build.
+DEMO_NOTICE_SHIPPED = [
+    rel
+    for rel in SHIPPED
+    if rel.removesuffix(".pl.md").removesuffix(".md").rsplit("/", 1)[-1]
+    in DEMO_NOTICE_SLUGS
 ]
 
 
@@ -21,7 +35,7 @@ def test_shipped_file_exists_and_is_utf8(rel):
     assert (DOCS_ROOT / rel).read_text(encoding="utf-8").strip()
 
 
-@pytest.mark.parametrize("rel", SHIPPED)
+@pytest.mark.parametrize("rel", DEMO_NOTICE_SHIPPED)
 def test_demo_notice_is_placed_where_the_block_regex_matches(rel):
     # Misplaced (indented, in a list, mid-sentence) the token silently renders as
     # literal text, swallowing the do-not-enter-real-pupil-data warning.
@@ -38,7 +52,7 @@ def test_no_block_token_has_a_heading_immediately_above_it(rel):
     # it would be orphaned on every non-demo deployment.
     lines = (DOCS_ROOT / rel).read_text(encoding="utf-8").splitlines()
     for i, line in enumerate(lines):
-        if "{libli:demo_notice}" in line or "{libli:controller_address}" in line:
+        if any(f"{{libli:{name}}}" in line for name in BLOCK_TOKENS):
             above = [x for x in lines[:i] if x.strip()]
             assert not (above and above[-1].lstrip().startswith("#")), (
                 f"{rel}: heading immediately above {line.strip()}"

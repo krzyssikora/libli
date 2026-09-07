@@ -2,9 +2,9 @@ import pytest
 from django.urls import reverse
 from django.urls import reverse_lazy
 
-from core.public_pages import PAGES
 from institution.models import Institution
 from institution.models import PublicPage
+from institution.views_manage import _page_overrides
 from tests.factories import make_verified_user
 
 PANEL = reverse_lazy("institution:settings") + "?tab=public-pages"
@@ -45,6 +45,10 @@ def test_panel_renders_one_textarea_per_page_per_language(client):
             assert f'name="override-{slug}-{lang}"' in body
     # EXACT count: a presence check does not kill "iterate settings.LANGUAGES",
     # which is a superset and would render extra textareas while staying green.
+    # Hidden dependency: this literal `4` is (len(PAGES) - 1) * 2, i.e. it relies
+    # on VENDOR_INSTANCE defaulting False so _page_overrides() filters
+    # "for-schools" out here. Do not "fix" it to 6 -- that would mean the
+    # vendor-only filter regressed, not that this assertion is wrong.
     assert body.count('name="override-') == 4
 
 
@@ -63,13 +67,20 @@ def test_regional_enabled_language_is_normalised_and_deduped(client):
 def test_panel_uses_the_coalesced_language_list_not_the_stored_one(client):
     """`_build()` coalesces an empty stored list to the default, so the panel must
     read enabled_languages from get_site_config(), not from the Institution row.
-    Reading `inst` directly renders ZERO textareas here instead of four."""
+    Reading `inst` directly renders ZERO textareas here instead of four.
+
+    Derived, not a literal: `== len(_page_overrides()) * 2`, not "or parametrise
+    over the flag" -- only the derived form is true both before and after the
+    Step 4 vendor-only filter, whereas a flag-parametrised version is green here
+    and red later (or the reverse). Called AFTER inst.save() so it reads the
+    rebuilt cache, and never relaxed to `<=`, which would destroy the guard.
+    """
     inst = Institution.load()
     inst.enabled_languages = []
     inst.save()
     client.force_login(_admin())
     body = client.get(PANEL).content.decode()
-    assert body.count('name="override-') == len(PAGES) * 2
+    assert body.count('name="override-') == len(_page_overrides()) * 2
 
 
 @pytest.mark.django_db

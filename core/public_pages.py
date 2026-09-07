@@ -19,6 +19,7 @@ from dataclasses import dataclass
 import markdown
 import nh3
 from django.conf import settings
+from django.urls import reverse
 from django.utils import translation
 from django.utils.html import format_html
 from django.utils.html import format_html_join
@@ -70,7 +71,28 @@ PAGES = {
             "reach a human."
         ),
     ),
+    "for-schools": Page(
+        "for-schools",
+        "public/for-schools.md",
+        _("libli for schools"),
+        _(
+            "What a school gets, what we need from you, where the data lives, "
+            "and what it costs."
+        ),
+    ),
 }
+
+# TWO sets, deliberately separate. They coincide today only because /for-schools/
+# happens to be both the only vendor-gated page and the only page without a demo
+# notice -- collapsing them means the next public page that legitimately carries no
+# demo notice (a terms page, say) is silently dropped from the overrides panel AND
+# from settings_page_overrides' write loop, on every box.
+#
+# Pages that must carry {libli:demo_notice}: drives the content guard's subset and
+# _page_overrides()' missing_demo_notice flag.
+DEMO_NOTICE_SLUGS = frozenset({"privacy", "getting-started"})
+# Pages that exist only on the vendor's own box: drives the overrides-panel filter.
+VENDOR_ONLY_SLUGS = frozenset({"for-schools"})
 
 
 # A DOCUMENT allow-list, not courses.sanitize's rich-text one. That module's
@@ -128,7 +150,13 @@ def render_markdown(source):
 
 
 BLOCK_TOKENS = frozenset(
-    {"demo_notice", "controller_address", "pricing_plans", "vat_note"}
+    {
+        "demo_notice",
+        "controller_address",
+        "pricing_plans",
+        "vat_note",
+        "for_schools_link",
+    }
 )
 INLINE_TOKENS = frozenset(
     {
@@ -321,6 +349,15 @@ def _block_values(cfg, lang):
             "pricing_plans": _plans_html(cfg),
             "vat_note": (
                 "<p>" + _nl2br(html_lib.escape(str(note))) + "</p>" if note else ""
+            ),
+            "for_schools_link": (
+                format_html(
+                    '<p><a href="{}">{}</a></p>',
+                    reverse("core:for_schools"),
+                    gettext("Considering libli for a school?"),
+                )
+                if settings.VENDOR_INSTANCE
+                else ""
             ),
         }
 

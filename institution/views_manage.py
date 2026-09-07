@@ -322,16 +322,22 @@ def settings_support(request):
 
 
 def _page_overrides():
-    """One dict per registered slug, in PAGES order. Built on the DISPLAY path,
-    because the settings view renders every panel on GET. Takes no argument:
-    everything comes from get_site_config() and PublicPage.objects.
+    """One dict per registered slug, in PAGES order (excluding vendor-only slugs
+    off the vendor box). Built on the DISPLAY path, because the settings view
+    renders every panel on GET. Takes no argument: everything comes from
+    get_site_config(), django.conf.settings.VENDOR_INSTANCE, and
+    PublicPage.objects.
 
     Languages come from get_site_config() (the COALESCED bundle), not from inst:
     _build() coalesces an empty stored list to the default, so reading inst
     directly would render zero language rows on a deployment whose stored list
     is empty while the public pages still resolved ["en", "pl"].
     """
+    from django.conf import settings as django_settings
+
+    from core.public_pages import DEMO_NOTICE_SLUGS
     from core.public_pages import PAGES
+    from core.public_pages import VENDOR_ONLY_SLUGS
     from core.public_pages import normalize_lang
     from core.services import get_site_config
     from institution.models import PublicPage
@@ -347,6 +353,12 @@ def _page_overrides():
     demo = config["demo_instance"]
     out = []
     for slug, page in PAGES.items():
+        # A school's box 404s /for-schools/, so an editable box for it would be a
+        # dead control. This gates the WRITE path too: settings_page_overrides
+        # reuses this function as its iteration loop, so a slug missing here is
+        # silently not saved AND an existing row is never deleted.
+        if slug in VENDOR_ONLY_SLUGS and not django_settings.VENDOR_INSTANCE:
+            continue
         stale = sorted(
             lang for (s, lang) in rows_by_key if s == slug and lang not in enabled
         )
@@ -361,9 +373,15 @@ def _page_overrides():
                     "enabled": lang in enabled,
                     # Per-ROW, not per-page: with en and pl overrides where only one
                     # carries the token, a page-level flag cannot say which language
-                    # lost the warning.
+                    # lost the warning. `slug in DEMO_NOTICE_SLUGS`: /for-schools/
+                    # deliberately carries no demo notice, so without this it would
+                    # be flagged "no demonstration warning" on any box where the
+                    # vendor flag AND demo_instance are both on.
                     "missing_demo_notice": bool(
-                        demo and value.strip() and "{libli:demo_notice}" not in value
+                        demo
+                        and value.strip()
+                        and slug in DEMO_NOTICE_SLUGS
+                        and "{libli:demo_notice}" not in value
                     ),
                 }
             )

@@ -21,4 +21,5 @@ urlpatterns = [
     path("favicon.ico", views.favicon_ico, name="favicon_ico"),
     path("privacy/", views_public.privacy, name="privacy"),
     path("getting-started/", views_public.getting_started, name="getting_started"),
+    path("for-schools/", views_public.for_schools, name="for_schools"),
 ]
