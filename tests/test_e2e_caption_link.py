@@ -51,7 +51,15 @@ def _login(page, live_server, username):
 def _seed(owner, caption):
     """A published unit holding one image whose caption is plain words. The
     <img> src 404s (no bytes on disk) and that is fine -- every assertion here
-    is about the <figcaption>, and a missing image still renders its figure."""
+    is about the <figcaption>, and a missing image still renders its figure.
+
+    Returns the Element JOIN ROW, not just the ImageElement: the editor's
+    `data-element-id` carries `Element.pk` (see the `el.content_type.model`
+    branches in _element_row.html, where `el` is the join row and `obj` the
+    content object). Those are two independent sequences -- they merely
+    COINCIDED on a fresh local database, which is why keying the locator off
+    `ImageElement.pk` passed here and timed out in CI.
+    """
     from courses.models import ContentNode
     from courses.models import Course
     from courses.models import Element
@@ -77,9 +85,17 @@ def _seed(owner, caption):
         file="courses/media/pillars.png",
         original_filename="pillars.png",
     )
+    # Push the two sequences apart ON PURPOSE, so ImageElement.pk can never
+    # equal Element.pk in this fixture. Not a fix -- the fix is keying the
+    # locator off the join row below -- but a DETECTOR: with the sequences
+    # aligned, the wrong pk works by luck locally and only fails in CI, which is
+    # exactly how this shipped. One spare row makes the offset deterministic.
+    spare = ImageElement.objects.create(media=media, alt="", figcaption="")
     image = ImageElement.objects.create(media=media, alt="pillars", figcaption=caption)
-    Element.objects.create(unit=unit, content_object=image)
-    return course, unit, image
+    assert image.pk != spare.pk
+    row = Element.objects.create(unit=unit, content_object=image)
+    assert row.pk != image.pk, "sequences realigned; the detector is not detecting"
+    return course, unit, image, row
 
 
 def _open_editor(page, live_server, course, unit):
@@ -117,11 +133,11 @@ def test_add_a_source_link_to_a_caption_and_read_it_as_a_student(page, live_serv
     from courses.models import ImageElement
 
     owner = _make_pa_user("cap")
-    course, unit, image = _seed(owner, "Photo: NASA")
+    course, unit, image, row = _seed(owner, "Photo: NASA")
     _login(page, live_server, "cap")
     _open_editor(page, live_server, course, unit)
 
-    page.click(f".el-act-edit[data-element-id='{image.pk}']")
+    page.click(f".el-act-edit[data-element-id='{row.pk}']")
     surface = page.locator("[data-edit-slot] .rte-surface")
     # The surface EXISTING is the first real claim: it only appears because
     # initRte enhanced a [data-rte-source] textarea that used to be an <input>.
@@ -179,11 +195,11 @@ def test_a_caption_authored_as_two_lines_keeps_its_words_apart(page, live_server
     from courses.models import ImageElement
 
     owner = _make_pa_user("cap2")
-    course, unit, image = _seed(owner, "")
+    course, unit, image, row = _seed(owner, "")
     _login(page, live_server, "cap2")
     _open_editor(page, live_server, course, unit)
 
-    page.click(f".el-act-edit[data-element-id='{image.pk}']")
+    page.click(f".el-act-edit[data-element-id='{row.pk}']")
     surface = page.locator("[data-edit-slot] .rte-surface")
     surface.wait_for(state="visible")
     surface.click()

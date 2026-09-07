@@ -65,7 +65,7 @@ def test_capture(page, live_server):
     from courses.models import Enrollment
 
     owner = _make_pa_user("shot")
-    course, unit, _image = _seed(owner, CAPTION)
+    course, unit, _image, _row = _seed(owner, CAPTION)
     Enrollment.objects.create(student=owner, course=course)
     _login(page, live_server, "shot")
 
