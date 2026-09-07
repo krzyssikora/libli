@@ -67,7 +67,7 @@ resets, notifications — goes out over port 587, the default for every school a
 has never blocked.
 
 A school that insists on Microsoft Exchange Direct Send instead can have it, over port 25.
-Hetzner blocks that port by default and unblocks it only for an established, paying account -
+Hetzner blocks that port by default and unblocks it only for an established, paying account —
 in practice, one that is 30 days old with at least one cleared invoice. There is no fee for the
 unblock; tell us early if you already know you will need it.
 
