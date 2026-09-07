@@ -2202,6 +2202,14 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .public-page table {
   width: 100%; border-collapse: collapse; margin: var(--space-4) 0;
 }
+/* Wraps the plans table only (emitted by the pricing_plans token, after nh3 --
+   PUBLIC_PAGE_TAGS has no `div`, so a markdown-authored wrapper is stripped).
+   MUST sit after the rule above: both selectors are (0,1,1), so source order
+   decides, and above it this block is inert. */
+.public-page__scroll { overflow-x: auto; }
+/* overflow-x alone is not enough: the rule above is width:100%, so the table
+   shrinks to the wrapper and the scroller never engages. */
+.public-page__scroll table { width: max-content; min-width: 100%; }
 .public-page th, .public-page td {
   border: 1px solid var(--border-subtle); padding: var(--space-2);
   text-align: left; vertical-align: top;
