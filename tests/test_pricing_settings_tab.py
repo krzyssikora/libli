@@ -52,9 +52,15 @@ def test_the_tab_is_absent_from_the_settings_page_on_a_school_box(client):
 @pytest.mark.django_db
 @override_settings(VENDOR_INSTANCE=True)
 def test_the_tab_is_present_on_the_vendor_box(client):
-    """Drives the PER-REQUEST evaluation. A module-level conditional TABS tuple is
-    evaluated once at import, so override_settings never reaches it -- the tab
-    link would render while ?tab=pricing fell back to branding."""
+    """Locks the `_tabs.html` tab LINK: it renders (and the panel markup is in
+    the response) when VENDOR_INSTANCE is on. It does NOT lock per-request
+    evaluation of `_tabs()` -- that guarantee belongs to
+    test_the_pricing_panel_is_not_hidden_on_tab_pricing below. Proven by mutant
+    testing: freezing `_tabs()` to a module-level tuple computed once at import
+    does NOT redden this test (the tab link and the hidden panel markup both
+    still render regardless of which tabs `_tabs()` returns at request time),
+    while it DOES redden the other test (active_tab falls back to "branding",
+    so the panel renders with `hidden` set)."""
     make_pa(client)
     body = client.get(reverse("institution:settings") + "?tab=pricing").content.decode()
     # BOTH, mirroring the flag-off test's two absences: without the link
@@ -100,6 +106,13 @@ def test_a_reversed_band_is_a_form_error_not_a_500(client):
     # The status alone is only a proxy: _action returns 200 exclusively on an
     # invalid form TODAY, and that coupling is invisible here. Assert the errors.
     assert response.context["pricing"].errors
+    # response.context["pricing"].errors is a property of the FORM OBJECT, not
+    # of the rendered page -- it stays true even if _pricing_tab.html renders
+    # none of the six {{ row.*.errors }} calls, which would hand the admin a
+    # 200 with no visible explanation (the same "no visible errors" outcome the
+    # `hidden` trap describes, one layer deeper: the panel is open, but silent).
+    # Assert the error text actually reaches the response body.
+    assert "greater than the lower bound" in response.content.decode()
 
 
 @pytest.mark.django_db
