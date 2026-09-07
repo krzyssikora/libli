@@ -281,6 +281,12 @@ HTMLEL_SANDBOX_ORIGIN = env(
 # that would otherwise always time out.
 GEOGEBRA_API_LOOKUP = env.bool("LIBLI_GEOGEBRA_API_LOOKUP", default=True)
 
+# This box is the VENDOR's own instance (libli.pl), not a school's. Gates
+# /for-schools/, its footer links and the Pricing settings tab. Env var carries
+# the LIBLI_ prefix, the setting drops it -- same convention as
+# ALLOW_HTTP_IMAGE_FETCH and GEOGEBRA_API_LOOKUP.
+VENDOR_INSTANCE = env.bool("LIBLI_VENDOR_INSTANCE", default=False)
+
 # The allocation grid posts two fields per student row (the radio's single value
 # plus its hidden state token) plus a small fixed overhead, so Django's default
 # of 1000 would 400 with TooManyFieldsSent past roughly 500 students — losing

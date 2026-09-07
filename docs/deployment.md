@@ -197,6 +197,11 @@ docker run --rm -v "$(pwd)/Caddyfile:/etc/caddy/Caddyfile:ro" \
 Set `LIBLI_IMAGE_TAG` to the `sha-<full-sha>` tag you intend to run before this; every later
 deploy writes it for you.
 
+Set `LIBLI_VENDOR_INSTANCE=true` only if this box is the vendor's own instance
+(libli.pl) — it publishes `/for-schools/` and the price list. Turning the
+school-facing page on is a **deploy** step (edit `.env.production`, then `up
+-d`), never a settings toggle. Leave unset or `false` on every school box.
+
 Then — this is the **only** time you run this by hand; every later deploy is §8:
 
 ```bash
