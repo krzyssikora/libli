@@ -1,7 +1,9 @@
 import pytest
+from django.test import override_settings
 from django.urls import reverse
 from django.urls import reverse_lazy
 
+from core.public_pages import PAGES
 from institution.models import Institution
 from institution.models import PublicPage
 from institution.views_manage import _page_overrides
@@ -194,6 +196,82 @@ def test_missing_demo_notice_warning(client):
     assert "no demonstration warning" in label
     pl_label = body.split('for="override-privacy-pl"')[1].split("</label>")[0]
     assert "no demonstration warning" not in pl_label
+
+
+@pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
+def test_missing_demo_notice_exemption_for_vendor_only_page(client):
+    """/for-schools/ is in VENDOR_ONLY_SLUGS, not DEMO_NOTICE_SLUGS: it
+    deliberately carries no {libli:demo_notice}, so the flag must stay False for
+    it even with VENDOR_INSTANCE and demo_instance both on -- while an ordinary
+    DEMO_NOTICE_SLUGS page (privacy) with the same token-less body is still
+    flagged. Both halves are required: without the privacy half, a build that
+    never flags anything would also pass.
+    """
+    inst = Institution.load()
+    inst.demo_instance = True
+    inst.save()
+    PublicPage.objects.create(
+        slug="for-schools", language="en", body_markdown="# No token here\n"
+    )
+    PublicPage.objects.create(
+        slug="privacy", language="en", body_markdown="# No token here either\n"
+    )
+    client.force_login(_admin())
+    body = client.get(PANEL).content.decode()
+
+    fs_label = body.split('for="override-for-schools-en"')[1].split("</label>")[0]
+    assert "no demonstration warning" not in fs_label
+
+    privacy_label = body.split('for="override-privacy-en"')[1].split("</label>")[0]
+    assert "no demonstration warning" in privacy_label
+
+
+@pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
+def test_panel_renders_for_schools_when_vendor_flag_is_on(client):
+    """_page_overrides() doubles as the write loop's iteration set (see
+    settings_page_overrides), so this filter silently gates saving too --
+    covered by test_a_posted_for_schools_override_persists_when_vendor_is_on
+    below. len(PAGES) * 2, not the literal 6, so the count tracks PAGES if a
+    fourth page is ever registered."""
+    client.force_login(_admin())
+    body = client.get(PANEL).content.decode()
+    for lang in ("en", "pl"):
+        assert f'name="override-for-schools-{lang}"' in body
+    assert body.count('name="override-') == len(PAGES) * 2
+
+
+@pytest.mark.django_db
+def test_panel_omits_for_schools_when_vendor_flag_is_off(client):
+    client.force_login(_admin())
+    body = client.get(PANEL).content.decode()
+    assert 'name="override-for-schools-en"' not in body
+    assert 'name="override-for-schools-pl"' not in body
+
+
+@pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
+def test_a_posted_for_schools_override_persists_when_vendor_is_on(client):
+    client.force_login(_admin())
+    client.post(
+        reverse("institution:settings_page_overrides"),
+        {"override-for-schools-en": "# Mine\n"},
+    )
+    assert PublicPage.objects.filter(slug="for-schools", language="en").exists()
+
+
+@pytest.mark.django_db
+def test_a_posted_for_schools_override_is_dropped_when_vendor_is_off(client):
+    """With the flag off, "for-schools" is not in _page_overrides()' iteration
+    set, so settings_page_overrides never reaches the get_or_create branch for
+    it -- the posted value is silently discarded, not saved and not rejected."""
+    client.force_login(_admin())
+    client.post(
+        reverse("institution:settings_page_overrides"),
+        {"override-for-schools-en": "# Mine\n"},
+    )
+    assert not PublicPage.objects.filter(slug="for-schools", language="en").exists()
 
 
 @pytest.mark.django_db

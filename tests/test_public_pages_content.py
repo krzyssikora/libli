@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from django.test import override_settings
 
 from core.help import DOCS_ROOT
 from core.public_pages import BLOCK_TOKENS
@@ -59,27 +60,53 @@ def test_no_block_token_has_a_heading_immediately_above_it(rel):
             )
 
 
+# {libli:for_schools_link} makes settings.VENDOR_INSTANCE a genuine second
+# configuration axis for these three sweeps: it defaults False in
+# config/settings/test.py, so without parametrising over it, the
+# link-emitting branch of _block_values (see core/public_pages.py) is never
+# rendered and never swept for an unresolved token, a token surviving inside
+# an attribute, or an empty paragraph.
+@pytest.mark.parametrize("vendor", [False, True])
 @pytest.mark.parametrize("rel", SHIPPED)
-def test_no_token_survives_inside_an_attribute(rel):
-    source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-    html = substitute_tokens(render_markdown(source), cfg(demo_instance=True), "en")
-    for tag in re.findall(r"<[^>]+>", html):
-        assert "{libli:" not in tag, f"{rel}: token inside {tag}"
-
-
-@pytest.mark.parametrize("rel", SHIPPED)
-def test_no_unresolved_token_remains_in_either_configuration(rel):
+def test_no_token_survives_inside_an_attribute(rel, vendor):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
     for demo in (True, False):
-        html = substitute_tokens(render_markdown(source), cfg(demo_instance=demo), "en")
-        assert "{libli:" not in html, f"{rel}: unresolved token (demo={demo})"
+        with override_settings(VENDOR_INSTANCE=vendor):
+            html = substitute_tokens(
+                render_markdown(source), cfg(demo_instance=demo), "en"
+            )
+        for tag in re.findall(r"<[^>]+>", html):
+            assert "{libli:" not in tag, (
+                f"{rel}: token inside {tag} (vendor={vendor}, demo={demo})"
+            )
 
 
+@pytest.mark.parametrize("vendor", [False, True])
 @pytest.mark.parametrize("rel", SHIPPED)
-def test_no_empty_paragraph_when_blocks_are_off(rel):
+def test_no_unresolved_token_remains_in_either_configuration(rel, vendor):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-    html = substitute_tokens(render_markdown(source), cfg(demo_instance=False), "en")
-    assert "<p></p>" not in html
+    for demo in (True, False):
+        with override_settings(VENDOR_INSTANCE=vendor):
+            html = substitute_tokens(
+                render_markdown(source), cfg(demo_instance=demo), "en"
+            )
+        assert "{libli:" not in html, (
+            f"{rel}: unresolved token (vendor={vendor}, demo={demo})"
+        )
+
+
+@pytest.mark.parametrize("vendor", [False, True])
+@pytest.mark.parametrize("rel", SHIPPED)
+def test_no_empty_paragraph_when_blocks_are_off(rel, vendor):
+    source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+    for demo in (True, False):
+        with override_settings(VENDOR_INSTANCE=vendor):
+            html = substitute_tokens(
+                render_markdown(source), cfg(demo_instance=demo), "en"
+            )
+        assert "<p></p>" not in html, (
+            f"{rel}: empty paragraph (vendor={vendor}, demo={demo})"
+        )
 
 
 @pytest.mark.parametrize("rel", SHIPPED)
