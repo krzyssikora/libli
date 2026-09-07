@@ -12,8 +12,9 @@ class CoreConfig(AppConfig):
         from core.services import invalidate_site_config
         from institution.models import BrandColor
         from institution.models import Institution
+        from institution.models import PricingPlan
 
-        for model in (Institution, BrandColor):
+        for model in (Institution, BrandColor, PricingPlan):
             post_save.connect(invalidate_site_config, sender=model)
             post_delete.connect(invalidate_site_config, sender=model)
 

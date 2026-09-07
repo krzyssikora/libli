@@ -41,6 +41,11 @@ _DEFAULTS = {
     "supervisory_authority": "",
     "notification_retention_days": 90,
     "demo_instance": False,
+    "pricing_plans": [],
+    "currency": "PLN",
+    "vat_note_en": "",
+    "vat_note_pl": "",
+    "storage_allowance_gb": None,
 }
 
 
@@ -73,12 +78,42 @@ def _favicon_fields(field):
     return field.url, f"{width}x{height}"
 
 
+def _pricing_plans():
+    """Plan rows as plain dicts, ordered.
+
+    annual_price stays a Decimal (or None): formatting belongs to the renderer,
+    which is the layer the EN/PL parity guard reads.
+    """
+    from institution.models import PricingPlan
+
+    return [
+        {
+            "order": p.order,
+            "pupils_min": p.pupils_min,
+            "pupils_max": p.pupils_max,
+            "annual_price": p.annual_price,
+            "support_hours_per_term": p.support_hours_per_term,
+            "courses_included": p.courses_included,
+            "video_hours_included": p.video_hours_included,
+        }
+        # Explicit order_by even though Meta.ordering supplies it: belt and braces
+        # on the one query whose output order is publicly visible.
+        for p in PricingPlan.objects.order_by("order")
+    ]
+
+
 def _build():
     from institution.models import Institution
 
+    # BEFORE the early return, and that ordering is load-bearing: PricingPlan has
+    # no FK to Institution, so on a box where the migration has seeded plans but
+    # nothing has created the Institution row yet, querying after the branch would
+    # hand back [] with the rows unread.
+    plans = _pricing_plans()
+
     inst = Institution.objects.filter(pk=1).prefetch_related("brand_colors").first()
     if inst is None:
-        return dict(_DEFAULTS)
+        return {**_DEFAULTS, "pricing_plans": plans}
     colors = {c.key: c.value for c in inst.brand_colors.all()}
     favicon_url, favicon_size = _favicon_fields(inst.favicon)
     return {
@@ -115,6 +150,11 @@ def _build():
         # would rewrite 0 -> 90 and make False unrepresentable.
         "notification_retention_days": inst.notification_retention_days,
         "demo_instance": inst.demo_instance,
+        "pricing_plans": plans,
+        "currency": inst.currency or _DEFAULTS["currency"],
+        "vat_note_en": inst.vat_note_en,
+        "vat_note_pl": inst.vat_note_pl,
+        "storage_allowance_gb": inst.storage_allowance_gb,
     }
 
 
