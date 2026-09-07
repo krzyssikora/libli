@@ -19,6 +19,7 @@ from dataclasses import dataclass
 import markdown
 import nh3
 from django.conf import settings
+from django.utils import translation
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -193,22 +194,42 @@ def _inline_values(cfg):
     }
 
 
-def substitute_tokens(html, cfg):
+def _block_values(cfg, lang):
+    """The block token values, each already a complete block element or "".
+
+    lang is the page's RESOLVED language, not translation.get_language(): those
+    diverge exactly when a .pl.md file is absent and the English base is served.
+
+    translation.override wraps ONLY this function's gettext calls. Wrapping the
+    whole of substitute_tokens would also change _demo_notice_html() and
+    _inline_values()' retention_phrase on any page that fell back to English --
+    a behaviour change to /privacy/ that is not intended here.
+    """
+    address = cfg["controller_address"]
+    # OUTSIDE the override, deliberately. format_html forces the lazy proxy in
+    # _demo_notice_html() at call time, so building it inside would resolve the
+    # demo notice under the PAGE language rather than the active one -- a
+    # behaviour change to /privacy/ on any page that falls back to English, which
+    # is exactly what this docstring says is out of scope.
+    existing = {
+        "demo_notice": _demo_notice_html() if cfg["demo_instance"] else "",
+        "controller_address": (
+            "<p>" + _nl2br(html_lib.escape(str(address))) + "</p>" if address else ""
+        ),
+    }
+    with translation.override(lang):
+        # ONLY the new values are built here.
+        return {**existing}
+
+
+def substitute_tokens(html, cfg, lang):
     """Block pass then inline pass. Runs AFTER sanitisation."""
     # --- Block pass: replace the token WITH its enclosing <p>. Substituting a
     # <p> block inline would nest paragraphs; substituting "" would leave an
     # empty <p></p> on every page where the block is off.
     # Driven off BLOCK_TOKENS so the frozenset cannot drift out of sync with
     # the literals -- a set that nothing reads is documentation, not code.
-    address = cfg["controller_address"]
-    if address:
-        rendered = "<p>" + _nl2br(html_lib.escape(str(address))) + "</p>"
-    else:
-        rendered = ""
-    block_values = {
-        "demo_notice": _demo_notice_html() if cfg["demo_instance"] else "",
-        "controller_address": rendered,
-    }
+    block_values = _block_values(cfg, lang)
     assert set(block_values) == set(BLOCK_TOKENS)
     for name in BLOCK_TOKENS:
         value = block_values[name]
@@ -217,6 +238,9 @@ def substitute_tokens(html, cfg):
     # --- Inline pass: TEXT RUNS ONLY, delimiters re-emitted. A token inside an
     # attribute is left literal (it lies outside any >...< run).
     values = _inline_values(cfg)
+    # Symmetric with the block-pass assert above. Without it a name added to
+    # INLINE_TOKENS but not to _inline_values is a bare KeyError at render time.
+    assert set(values) == set(INLINE_TOKENS)
 
     def replace_one(match):
         name = match.group(1)
@@ -263,5 +287,5 @@ def render_public_page(slug, lang, cfg):
     # Safe by construction: nh3-sanitised, then every substituted value is
     # html.escape'd. (The suppression itself is the trailing noqa below --
     # ruff only honours # noqa on the line reporting the violation.)
-    html = substitute_tokens(render_markdown(source), cfg)
+    html = substitute_tokens(render_markdown(source), cfg, resolved)
     return mark_safe(html), resolved  # noqa: S308

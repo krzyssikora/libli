@@ -4,6 +4,7 @@ from core.public_pages import PAGES
 from core.public_pages import normalize_lang
 from core.public_pages import render_markdown
 from core.public_pages import substitute_tokens
+from core.services import _DEFAULTS
 
 
 @pytest.mark.parametrize(
@@ -77,23 +78,18 @@ def test_sanitiser_does_not_raise_on_a_link():
     assert 'rel="noopener noreferrer"' in html
 
 
-BASE_CFG = {
-    "name": "Greenfield School",
-    "controller_name": "",
-    "controller_address": "",
-    "contact_email": "",
-    "supervisory_authority": "",
-    "notification_retention_days": 90,
-    "demo_instance": False,
-}
+# Derived, not hand-built: this dict is imported by test_public_pages_content.py
+# and test_public_pages_render.py, so a missing key is a KeyError across roughly
+# every token test and reads as an unrelated mass failure.
+BASE_CFG = {**_DEFAULTS, "name": "Greenfield School"}
 
 
 def cfg(**over):
     return {**BASE_CFG, **over}
 
 
-def render(source, **over):
-    return substitute_tokens(render_markdown(source), cfg(**over))
+def render(source, lang="en", **over):
+    return substitute_tokens(render_markdown(source), cfg(**over), lang)
 
 
 def test_delimiters_are_re_emitted():

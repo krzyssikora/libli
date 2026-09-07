@@ -27,7 +27,7 @@ def test_demo_notice_is_placed_where_the_block_regex_matches(rel):
     # literal text, swallowing the do-not-enter-real-pupil-data warning.
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
     assert "{libli:demo_notice}" in source
-    html = substitute_tokens(render_markdown(source), cfg(demo_instance=True))
+    html = substitute_tokens(render_markdown(source), cfg(demo_instance=True), "en")
     assert "public-page__notice" in html
     assert "{libli:demo_notice}" not in html
 
@@ -48,7 +48,7 @@ def test_no_block_token_has_a_heading_immediately_above_it(rel):
 @pytest.mark.parametrize("rel", SHIPPED)
 def test_no_token_survives_inside_an_attribute(rel):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-    html = substitute_tokens(render_markdown(source), cfg(demo_instance=True))
+    html = substitute_tokens(render_markdown(source), cfg(demo_instance=True), "en")
     for tag in re.findall(r"<[^>]+>", html):
         assert "{libli:" not in tag, f"{rel}: token inside {tag}"
 
@@ -57,21 +57,21 @@ def test_no_token_survives_inside_an_attribute(rel):
 def test_no_unresolved_token_remains_in_either_configuration(rel):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
     for demo in (True, False):
-        html = substitute_tokens(render_markdown(source), cfg(demo_instance=demo))
+        html = substitute_tokens(render_markdown(source), cfg(demo_instance=demo), "en")
         assert "{libli:" not in html, f"{rel}: unresolved token (demo={demo})"
 
 
 @pytest.mark.parametrize("rel", SHIPPED)
 def test_no_empty_paragraph_when_blocks_are_off(rel):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-    html = substitute_tokens(render_markdown(source), cfg(demo_instance=False))
+    html = substitute_tokens(render_markdown(source), cfg(demo_instance=False), "en")
     assert "<p></p>" not in html
 
 
 @pytest.mark.parametrize("rel", SHIPPED)
 def test_exactly_one_h1(rel):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-    html = substitute_tokens(render_markdown(source), cfg())
+    html = substitute_tokens(render_markdown(source), cfg(), "en")
     assert html.count("<h1>") == 1
 
 
@@ -91,7 +91,7 @@ def test_every_root_relative_link_resolves():
     found = {}
     for rel in SHIPPED:
         source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-        html = substitute_tokens(render_markdown(source), cfg())
+        html = substitute_tokens(render_markdown(source), cfg(), "en")
         for href in re.findall(r'href="(/[^"]*)"', html):
             found.setdefault(href, rel)
 
