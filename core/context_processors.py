@@ -15,7 +15,8 @@ def institution_branding(request):
 
     Exposed as both ``site`` (used by base.html on non-allauth pages) and
     ``institution`` (used by auth templates where allauth shadows ``site``
-    with a Django Site object from django.contrib.sites)."""
+    with a Django Site object from django.contrib.sites). Also exposes
+    ``vendor_instance``, the raw ``settings.VENDOR_INSTANCE`` flag."""
     cfg = get_site_config()
     # Read from settings, NOT through cfg: cfg is the never-writes ORM bundle and
     # a deploy-time flag does not belong in it. Templates cannot reach
