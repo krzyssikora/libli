@@ -26,7 +26,7 @@ def test_migration_seeds_three_bands_priceless():
     ]
     assert [r.annual_price for r in rows] == [None, None, None]
     assert [r.support_hours_per_term for r in rows] == [6, 8, 12]
-    assert [r.courses_included for r in rows] == [3, 6, 12]
+    assert [r.courses_included for r in rows] == [15, 20, 25]
     assert [r.video_hours_included for r in rows] == [10, 20, 40]
 
 

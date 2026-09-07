@@ -10,7 +10,7 @@ from institution.models import Institution
 from institution.models import PricingPlan
 from institution.models import PublicPage
 
-AMOUNTS = re.compile("<td>([\\d\\u00a0]+\\.\\d{2})</td>")
+AMOUNTS = re.compile('<p class="pricing-cards__price">([\\d\\u00a0]+\\.\\d{2})</p>')
 
 
 @pytest.fixture
@@ -50,22 +50,23 @@ def test_english_and_polish_show_identical_figures(client, priced_plans):
 
 @pytest.mark.django_db
 @override_settings(VENDOR_INSTANCE=True)
-def test_polish_support_column_header_is_not_the_settings_tab_word(
-    client, priced_plans
-):
-    """Kills the mutant where the price table's third <th> shares a msgid with
-    the unrelated settings-tab "Support" link (locale/pl: "Zgłoszenia", i.e.
-    Reports/Tickets). If _plans_html ever goes back to a bare gettext("Support")
-    the Polish price table would carry that domain-specific translation instead
-    of a word for support hours -- wrong on the vendor's own sales page.
+def test_polish_support_bound_label_is_not_the_settings_tab_word(client, priced_plans):
+    """Kills the mutant where the card's "Support" bound label shares a msgid
+    with the unrelated settings-tab "Support" link (locale/pl: "Zgłoszenia",
+    i.e. Reports/Tickets). If _plans_html ever goes back to a bare
+    gettext("Support") the Polish cards would carry that domain-specific
+    translation instead of a word for support hours -- wrong on the vendor's
+    own sales page.
     """
     pl = client.get(reverse("core:for_schools"), headers={"accept-language": "pl"})
     assert pl.context["resolved_lang"] == "pl"
     body = pl.content.decode()
 
-    headers = re.findall(r"<th>(.*?)</th>", body)
-    assert "Wsparcie" in headers
-    assert "Zgłoszenia" not in headers
+    # The label sits inside <strong>, immediately before the value, in each
+    # card's bounds list: <li><strong>{label}:</strong> {value}</li>.
+    labels = re.findall(r"<strong>(.*?)</strong>", body)
+    assert "Wsparcie:" in labels
+    assert not any("Zgłoszenia" in label for label in labels)
 
 
 @pytest.mark.django_db
@@ -78,8 +79,8 @@ def test_the_page_renders_on_a_genuinely_fresh_install(client, priced_plans):
     Institution.objects.all().delete()
     response = client.get(reverse("core:for_schools"))
     assert response.status_code == 200
-    # the TABLE, not the fallback paragraph
-    assert 'class="public-page__scroll"' in response.content.decode()
+    # the CARDS, not the fallback paragraph
+    assert 'class="pricing-cards"' in response.content.decode()
 
 
 @pytest.mark.django_db

@@ -2202,18 +2202,38 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .public-page table {
   width: 100%; border-collapse: collapse; margin: var(--space-4) 0;
 }
-/* Wraps the plans table only (emitted by the pricing_plans token, after nh3 --
-   PUBLIC_PAGE_TAGS has no `div`, so a markdown-authored wrapper is stripped).
-   MUST sit after the rule above: both selectors are (0,1,1), so source order
-   decides, and above it this block is inert. */
-.public-page__scroll { overflow-x: auto; }
-/* overflow-x alone is not enough: the rule above is width:100%, so the table
-   shrinks to the wrapper and the scroller never engages. */
-.public-page__scroll table { width: max-content; min-width: 100%; }
 .public-page th, .public-page td {
   border: 1px solid var(--border-subtle); padding: var(--space-2);
   text-align: left; vertical-align: top;
 }
+/* Pricing plan cards (emitted by the pricing_plans token, after nh3 --
+   PUBLIC_PAGE_TAGS has no `div`/`h3`, so a markdown-authored version of this
+   would be stripped). auto-fit stacks to one column on a phone with no hard
+   breakpoint, the same pattern .catalog__grid already uses. Selectors below
+   need `.public-page` prefixed on to override the bare `.public-page ul` /
+   `.public-page li + li` rules above, regardless of source order: those are
+   (0,1,1) and (0,1,2), and TWO classes always outrank one no matter how many
+   bare elements the weaker selector adds -- unlike the table/scroller pair
+   further up this file, this is not a specificity tie. */
+.public-page .pricing-cards {
+  list-style: none; padding-left: 0;
+  display: grid; gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+.pricing-cards__intro { font-weight: 600; }
+.public-page .pricing-cards__item { margin-top: 0; }
+.pricing-cards__item {
+  background: var(--surface-raised); border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg); padding: var(--space-5); box-shadow: var(--shadow-sm);
+}
+.pricing-cards__band {
+  margin: 0 0 var(--space-2); font-size: 1rem; font-weight: 600;
+  color: var(--text-secondary);
+}
+.pricing-cards__price { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); }
+.public-page .pricing-cards__bounds { padding-left: 0; margin-bottom: 0; }
+.pricing-cards__bounds { list-style: none; font-size: .9rem; color: var(--text-secondary); }
+.pricing-cards__above { font-size: .875rem; color: var(--text-tertiary); }
 .public-page__notice {
   border: 1px solid var(--border-subtle); border-left-width: 4px;
   background: var(--surface-sunken); padding: var(--space-4);
