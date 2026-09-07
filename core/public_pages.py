@@ -21,7 +21,9 @@ import nh3
 from django.conf import settings
 from django.utils import translation
 from django.utils.html import format_html
+from django.utils.html import format_html_join
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
@@ -125,7 +127,7 @@ def render_markdown(source):
     )
 
 
-BLOCK_TOKENS = frozenset({"demo_notice", "controller_address"})
+BLOCK_TOKENS = frozenset({"demo_notice", "controller_address", "pricing_plans"})
 INLINE_TOKENS = frozenset(
     {
         "controller_name",
@@ -194,6 +196,98 @@ def _inline_values(cfg):
     }
 
 
+def _amount(value):
+    """Bare numeral, U+00A0 thousands separator, no currency symbol.
+
+    str(Decimal) emits no separator at all, so it is inserted deliberately;
+    quantize takes an exponent Decimal, not an int. U+00A0 rather than a plain
+    space so an amount never wraps mid-number. The parity guard compares these
+    strings byte for byte, which is why no locale-dependent formatting is used.
+    """
+    from decimal import Decimal
+
+    return f"{value.quantize(Decimal('0.01')):,f}".replace(",", " ")
+
+
+def _plans_html(cfg):
+    """The plans table, or the no-prices fallback. Always block-level.
+
+    Emits the storage-allowance sentence too: it lives inside this token so the
+    fallback branch can own it. The VAT note does NOT -- that is a separate token
+    placed independently in the markdown, which this branch cannot suppress.
+
+    Callers must already be inside translation.override(lang); every gettext here
+    is eager and unaliased, because `_` in this module is gettext_lazy and a lazy
+    proxy would resolve at format time under the ambient language.
+    """
+    plans = cfg["pricing_plans"]
+    allowance = ""
+    if cfg["storage_allowance_gb"]:
+        allowance = format_html(
+            "<p>{}</p>",
+            gettext("Storage allowance: %(gb)s GB, advisory and reconciled at renewal.")
+            % {"gb": cfg["storage_allowance_gb"]},
+        )
+
+    if not any(p["annual_price"] is not None for p in plans):
+        contact = cfg["contact_email"] or gettext("the person who runs this site")
+        return (
+            format_html(
+                "<p>{} {}</p>",
+                gettext("Prices for your school are quoted on request."),
+                gettext("Ask %(contact)s, and see the five numbers above.")
+                % {"contact": contact},
+            )
+            + allowance
+        )
+
+    header = format_html(
+        "<tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr>",
+        gettext("Pupils"),
+        gettext("Annual price (%(currency)s)") % {"currency": cfg["currency"]},
+        gettext("Support"),
+        gettext("Courses"),
+        gettext("Video"),
+    )
+    body = format_html_join(
+        "",
+        "<tr><td>{}-{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+        (
+            (
+                p["pupils_min"],
+                p["pupils_max"],
+                _amount(p["annual_price"])
+                if p["annual_price"] is not None
+                else gettext("by arrangement"),
+                gettext("%(n)s h / term") % {"n": p["support_hours_per_term"]},
+                p["courses_included"],
+                gettext("%(n)s h") % {"n": p["video_hours_included"]},
+            )
+            for p in plans
+        ),
+    )
+    # The open-ended tier is emitted here, not stored and not written in markdown:
+    # the token substitutes a complete <table> for its enclosing <p>, so markdown
+    # outside it can only make a sibling paragraph, never a <tr> inside this table.
+    tail = format_html(
+        "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+        gettext("%(above)s and above") % {"above": plans[-1]["pupils_max"] + 1},
+        gettext("by arrangement"),
+        gettext("by arrangement"),
+        gettext("by arrangement"),
+        gettext("by arrangement"),
+    )
+    return (
+        format_html(
+            '<div class="public-page__scroll"><table>{}{}{}</table></div>',
+            header,
+            body,
+            tail,
+        )
+        + allowance
+    )
+
+
 def _block_values(cfg, lang):
     """The block token values, each already a complete block element or "".
 
@@ -219,7 +313,7 @@ def _block_values(cfg, lang):
     }
     with translation.override(lang):
         # ONLY the new values are built here.
-        return {**existing}
+        return {**existing, "pricing_plans": _plans_html(cfg)}
 
 
 def substitute_tokens(html, cfg, lang):
