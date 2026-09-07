@@ -16,6 +16,7 @@ from core.services import PRIMARY_DEFAULT
 from courses import validators as _cv
 from institution.models import BrandColor
 from institution.models import Institution
+from institution.models import PricingPlan
 from institution.site_domain import PLACEHOLDER_DOMAIN
 from institution.site_domain import set_site_domain
 from institution.site_domain import validate_site_domain
@@ -399,3 +400,111 @@ class PublicPagesForm(forms.ModelForm):
             "supervisory_authority",
             "demo_instance",
         ]
+
+
+PLAN_FIELDS = (
+    "pupils_min",
+    "pupils_max",
+    "annual_price",
+    "support_hours_per_term",
+    "courses_included",
+    "video_hours_included",
+)
+# SIX per row, not five. order is the row key, not an input, and the cross-row
+# clean() needs BOTH bounds submitted -- an implementer working from a "five
+# fields" count would most plausibly drop pupils_min, which the model explicitly
+# forbids deriving.
+
+
+class PricingForm(forms.ModelForm):
+    class Meta:
+        model = Institution
+        fields = ["currency", "vat_note_en", "vat_note_pl", "storage_allowance_gb"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Iterates the rows that EXIST, not range(1, 4): a fourth row created
+        # out-of-band would otherwise render on the public page while this tab
+        # silently ignored it, and clean() would validate a band set that is not
+        # the one rendered. One order_by, no per-row queries -- _settings_context
+        # builds every form unbound on every settings render, so this runs on all
+        # nine tabs.
+        self._plans = list(PricingPlan.objects.order_by("order"))
+        for plan in self._plans:
+            for name in PLAN_FIELDS:
+                field = PricingPlan._meta.get_field(name).formfield()
+                # required=False on annual_price so the shipped null state can be
+                # re-saved without inventing a price.
+                if name == "annual_price":
+                    field.required = False
+                self.fields[f"plan_{plan.order}_{name}"] = field
+                self.initial.setdefault(
+                    f"plan_{plan.order}_{name}", getattr(plan, name)
+                )
+
+    def rows(self):
+        # Template helper, not part of the brief's form contract: PLAN_FIELDS is
+        # a fixed, known-at-authoring-time tuple, but the ROW COUNT is not (see
+        # the __init__ note above), so the template cannot spell
+        # `pricing.plan_1_pupils_min` etc. for a dynamic order -- it loops this
+        # instead and addresses each row's fields by their fixed names.
+        out = []
+        for plan in self._plans:
+            row = {"order": plan.order}
+            for name in PLAN_FIELDS:
+                row[name] = self[f"plan_{plan.order}_{name}"]
+            out.append(row)
+        return out
+
+    def field_labels(self):
+        # Column headers for the rows() table, keyed by the fixed PLAN_FIELDS
+        # names rather than borrowed off row 1's bound fields -- so the header
+        # renders even if a future row set omits order=1.
+        return {
+            name: PricingPlan._meta.get_field(name).formfield().label
+            for name in PLAN_FIELDS
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        bands = []
+        for plan in self._plans:
+            lo = cleaned.get(f"plan_{plan.order}_pupils_min")
+            hi = cleaned.get(f"plan_{plan.order}_pupils_max")
+            if lo is None or hi is None:
+                return cleaned
+            # PER-ROW, and it must be here as well as in the CheckConstraint:
+            # (1,150),(151,400),(401,300) has no gap and no overlap between
+            # consecutive rows, so the cross-row rules below pass it and save()
+            # would raise IntegrityError out of _action -- a 500 on a typo.
+            if lo >= hi:
+                self.add_error(
+                    f"plan_{plan.order}_pupils_max",
+                    _("The upper bound must be greater than the lower bound."),
+                )
+                return cleaned
+            bands.append((plan.order, lo, hi))
+        for (_o1, _lo1, hi1), (o2, lo2, _hi2) in zip(bands, bands[1:], strict=False):
+            if lo2 != hi1 + 1:
+                self.add_error(
+                    f"plan_{o2}_pupils_min",
+                    _("Bands must run consecutively with no gap and no overlap."),
+                )
+                break
+        return cleaned
+
+    def save(self, commit=True):
+        # atomic for the same reason BrandingForm.save() is: the band rules are a
+        # CROSS-ROW invariant the per-row CheckConstraint cannot restore, so a
+        # failure between row 1 and row 2 would commit a band set the form
+        # validated as a whole.
+        with transaction.atomic():
+            inst = super().save(commit=commit)
+            for plan in self._plans:
+                # .get(), not get_or_create: the field set is derived from rows
+                # that already exist, so the create branch is unreachable.
+                row = PricingPlan.objects.get(order=plan.order)
+                for name in PLAN_FIELDS:
+                    setattr(row, name, self.cleaned_data[f"plan_{plan.order}_{name}"])
+                row.save()
+        return inst

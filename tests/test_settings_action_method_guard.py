@@ -20,6 +20,7 @@ too as a regression lock on the fix that already exists.
 """
 
 import pytest
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -27,7 +28,7 @@ from integrations.models import WebhookEndpoint
 from notifications.models import Notification
 from tests.factories import make_pa
 
-# Every settings action view. The first five share the `_action` helper, so they
+# Every settings action view. The first six share the `_action` helper, so they
 # stand or fall together; the rest carry their own copy of the guard.
 ACTION_URL_NAMES = [
     "institution:settings_branding",
@@ -35,6 +36,7 @@ ACTION_URL_NAMES = [
     "institution:settings_uploads",
     "institution:settings_notifications",
     "institution:settings_public_pages",
+    "institution:settings_pricing",
     "institution:settings_notifications_purge",
     "institution:settings_sso",
     "institution:settings_integrations",
@@ -49,6 +51,7 @@ NON_POST_METHODS = ["head", "options", "put", "delete"]
 
 
 @pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
 @pytest.mark.parametrize("url_name", ACTION_URL_NAMES)
 @pytest.mark.parametrize("method", NON_POST_METHODS)
 def test_settings_action_redirects_instead_of_running_on_non_post(
@@ -60,6 +63,10 @@ def test_settings_action_redirects_instead_of_running_on_non_post(
     are POST targets") and matches #279's fix, so the whole family behaves one
     way. A 200 here means the body rendered -- i.e. the request reached the
     action.
+
+    VENDOR_INSTANCE=True is needed only for settings_pricing (it 404s without
+    the flag, and the guard would assert nothing) -- harmless for the other
+    eleven views, none of which read the flag.
     """
     make_pa(client)
 

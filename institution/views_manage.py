@@ -1,9 +1,11 @@
 """Platform-admin settings: Branding / Access / Uploads / SSO / Notifications tabs."""
 
+from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.sites.shortcuts import get_current_site
+from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
@@ -16,6 +18,7 @@ from accounts.sso_config import redirect_uri
 from accounts.sso_config import save_sso_config
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
+from institution.forms import PricingForm
 from institution.forms import PublicPagesForm
 from institution.forms import RetentionForm
 from institution.forms import UploadsForm
@@ -27,7 +30,13 @@ from integrations.models import WebhookEndpoint
 from support.forms import SupportSettingsForm
 from support.models import SupportSettings
 
-TABS = (
+# NOTE for anyone tempted to "simplify" this alias away: this module defines
+# `def settings(request)` below (routed as `institution:settings`), so a bare
+# `from django.conf import settings` would be bound at import time and then
+# REBOUND by that def -- every `settings.VENDOR_INSTANCE` reference here would
+# raise `AttributeError: 'function' object has no attribute 'VENDOR_INSTANCE'`.
+
+_BASE_TABS = (
     "branding",
     "access",
     "uploads",
@@ -39,9 +48,17 @@ TABS = (
 )
 
 
+def _tabs():
+    """Per REQUEST, not at import. A module-level conditional tuple is evaluated
+    once, so override_settings(VENDOR_INSTANCE=True) would never reach it and the
+    gate would half-work: the tab link renders, ?tab=pricing falls back to
+    branding, and the panel never opens."""
+    return _BASE_TABS + (("pricing",) if django_settings.VENDOR_INSTANCE else ())
+
+
 def _active_tab(request):
     tab = request.GET.get("tab", "branding")
-    return tab if tab in TABS else "branding"
+    return tab if tab in _tabs() else "branding"
 
 
 def _settings_context(
@@ -58,11 +75,12 @@ def _settings_context(
     support=None,
     public_pages=None,
     page_overrides=None,
+    pricing=None,
 ):
-    """Assemble the seven-form context. Any bound (errored) form passed in is used
-    as-is; the rest are unbound — the four institution forms seeded from `inst`,
+    """Assemble the nine-form context. Any bound (errored) form passed in is used
+    as-is; the rest are unbound — the six institution forms seeded from `inst`,
     the SSO form seeded from the service. The SSO sub-context is built on EVERY
-    render because settings.html renders all seven panels (inactive ones just
+    render because settings.html renders all nine panels (inactive ones just
     hidden).
 
     The integrations form is likewise built on every render (the panel is always
@@ -117,6 +135,7 @@ def _settings_context(
             page_overrides if page_overrides is not None else _page_overrides()
         ),
         "public_pages": public_pages or PublicPagesForm(instance=inst),
+        "pricing": pricing or PricingForm(instance=inst),
     }
 
 
@@ -324,17 +343,15 @@ def settings_support(request):
 def _page_overrides():
     """One dict per registered slug, in PAGES order (excluding vendor-only slugs
     off the vendor box). Built on the DISPLAY path, because the settings view
-    renders every panel on GET. Takes no argument: everything comes from
-    get_site_config(), django.conf.settings.VENDOR_INSTANCE, and
-    PublicPage.objects.
+    renders every panel on GET, using the module-level `django_settings` alias
+    (not a local import — see the note by that import): everything comes from
+    get_site_config(), django_settings.VENDOR_INSTANCE, and PublicPage.objects.
 
     Languages come from get_site_config() (the COALESCED bundle), not from inst:
     _build() coalesces an empty stored list to the default, so reading inst
     directly would render zero language rows on a deployment whose stored list
     is empty while the public pages still resolved ["en", "pl"].
     """
-    from django.conf import settings as django_settings
-
     from core.public_pages import DEMO_NOTICE_SLUGS
     from core.public_pages import PAGES
     from core.public_pages import VENDOR_ONLY_SLUGS
@@ -451,3 +468,11 @@ def settings_page_overrides(request):
     # panel that confirms nothing.
     messages.success(request, _("Public page content saved."))
     return redirect(_index_url("public-pages"))
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_pricing(request):
+    if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
+        raise Http404
+    return _action(request, PricingForm, "pricing", "pricing", _("Pricing saved."))

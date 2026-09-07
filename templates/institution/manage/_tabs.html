@@ -16,4 +16,8 @@
      href="{% url 'institution:settings' %}?tab=support">{% trans "Support" %}</a>
   <a class="settings__tab{% if active_tab == 'public-pages' %} is-on{% endif %}"
      href="{% url 'institution:settings' %}?tab=public-pages">{% trans "Public pages" %}</a>
+  {% if vendor_instance %}
+  <a class="settings__tab{% if active_tab == 'pricing' %} is-on{% endif %}"
+     href="{% url 'institution:settings' %}?tab=pricing">{% trans "Pricing" %}</a>
+  {% endif %}
 </nav>

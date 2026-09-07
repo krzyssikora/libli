@@ -62,6 +62,11 @@ urlpatterns = [
         views_manage.settings_page_overrides,
         name="settings_page_overrides",
     ),
+    path(
+        "manage/settings/pricing/",
+        views_manage.settings_pricing,
+        name="settings_pricing",
+    ),
     # Phase 5e — first-run setup wizard
     # skip MUST precede <str:step> so /manage/setup/skip/ is not captured as a step.
     path("manage/setup/", views_setup.setup, name="setup"),
