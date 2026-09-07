@@ -30,5 +30,8 @@
   <span class="app-header__spacer"></span>
   <a href="{% url 'core:privacy' %}">{% trans "Privacy" %}</a>
   <a href="{% url 'core:getting_started' %}">{% trans "Help" %}</a>
+  {% if vendor_instance %}
+    <a href="{% url 'core:for_schools' %}">{% trans "For schools" %}</a>
+  {% endif %}
 </footer>
 {% endblock %}

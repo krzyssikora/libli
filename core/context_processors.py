@@ -17,7 +17,16 @@ def institution_branding(request):
     ``institution`` (used by auth templates where allauth shadows ``site``
     with a Django Site object from django.contrib.sites)."""
     cfg = get_site_config()
-    return {"site": cfg, "institution": cfg}
+    # Read from settings, NOT through cfg: cfg is the never-writes ORM bundle and
+    # a deploy-time flag does not belong in it. Templates cannot reach
+    # django.conf.settings on their own, and there is no shared view to hang a
+    # per-view key on -- landing.html has its own view, _public_footer.html is
+    # included by two unrelated layouts.
+    return {
+        "site": cfg,
+        "institution": cfg,
+        "vendor_instance": settings.VENDOR_INSTANCE,
+    }
 
 
 def _resolve_theme_pref(request):
