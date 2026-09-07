@@ -94,6 +94,4 @@ Przy podpisaniu umowy ustalamy pięć wartości:
 
 {libli:pricing_plans}
 
-Ceny podawane są za rok szkolny.
-
 {libli:vat_note}

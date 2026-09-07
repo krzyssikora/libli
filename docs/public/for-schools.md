@@ -83,6 +83,4 @@ At signup we agree five numbers:
 
 {libli:pricing_plans}
 
-Prices are quoted per school year.
-
 {libli:vat_note}
