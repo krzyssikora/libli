@@ -3,8 +3,9 @@
 No JavaScript changes are needed for this: `initRte` in text_toolbar.js enhances
 ANY `[data-rte-source]` textarea, and `wireRte` finds its toolbar through
 `textarea.closest(".el-editor--text")` -- which is exactly why the caption block
-is wrapped in that class, the same way every question stem is
-(_edit_choicequestion.html:6-9).
+is wrapped in that class, the same way every question stem is -- see the
+`.el-editor--text` wrapper around the `stem` textarea in
+_edit_choicequestion.html.
 """
 
 import re

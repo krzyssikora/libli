@@ -191,8 +191,8 @@ CAPTION_TAGS = {"a", "strong", "b", "em", "i", "u", "br"}
 # validator (the column itself is now a TextField). 255 was the old plain-text
 # CharField bound and is far too tight once one anchor costs ~30 characters
 # before any visible text; the cap still exists because a runaway caption widens
-# the whole figure -- `figure` is width: fit-content and sizes to the WIDER of
-# {image, caption} (courses.css:69-72).
+# the whole figure -- courses.css gives `.el--image--small` and its siblings
+# `width: fit-content`, which sizes to the WIDER of {image, caption}.
 CAPTION_MAX_LENGTH = 1000
 
 # Every block boundary the RTE surface or a paste can introduce, OPENING and

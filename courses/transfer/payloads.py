@@ -1022,7 +1022,8 @@ def _upgrade_legacy_data(el, format_version):
     truncating the caption on import.
 
     An unknown version (None) is treated as MODERN. That is deliberately the
-    opposite default from the v12 quiz rule at schema.py:379, and the asymmetry
+    opposite default from the v12 quiz rule (`enforce_quiz_rule` in
+    courses/transfer/schema.py), and the asymmetry
     is the point: that rule REJECTS on doubt, which is safe, while this one would
     TRANSFORM on doubt, and double-escaping a modern caption corrupts it visibly
     and permanently. No import path reaches here without a manifest.

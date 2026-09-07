@@ -6,10 +6,12 @@ courses/tests/test_caption_render.py and tests/test_e2e_caption_link.py.
     uv run pytest tests/capture_caption_link_screenshots.py -m e2e
 
 Both themes, captured from the same seeded page. The claim under review is that
-this feature needs NO new CSS: the dark image plate is painted on the <img>, not
-the <figure> (courses.css:120-122, deliberately, so caption text never lands on
-a light slab), so a caption link sits on the ordinary page background where the
-global `a { color: var(--accent) }` in reset.css:23 already themes it.
+this feature needs NO new CSS: the dark image plate is painted by courses.css's
+`[data-theme="dark"] .el--image img` -- on the <img>, not the <figure>, and
+deliberately so, since a figure sized to a long caption would drop themed
+caption text onto a light slab. The caption therefore sits on the ordinary page
+background, where reset.css's global `a { color: var(--accent) }` already themes
+it.
 
 That claim is exactly the kind a single screenshot cannot settle, so each theme
 also yields an `-plain` shot with the link's colour forced back to the caption's
@@ -44,9 +46,9 @@ CAPTION = (
 )
 
 # The link's own colour, zeroed back to the surrounding caption text. Must stay in
-# step with reset.css:23 -- if `a` stops keying on --accent and this is not
-# updated, the `-plain` shot silently becomes a duplicate and the pair proves
-# nothing.
+# step with reset.css's bare `a` rule -- if that stops keying on --accent and this
+# is not updated, the `-plain` shot silently becomes a duplicate of `-on` and the
+# pair proves nothing.
 LINK_OFF = "figcaption a { color: inherit; }"
 
 

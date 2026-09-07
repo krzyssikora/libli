@@ -11,9 +11,10 @@
      surface rather than a text input. The `.el-editor--text` wrapper is NOT cosmetic:
      wireRte finds its toolbar with textarea.closest(".el-editor--text"), and without
      it the toolbar is never located and every button is silently inert. Same shape as
-     a question stem (_edit_choicequestion.html:6-9). No <input> may share
-     name="figcaption" — two controls with one name double-submit, and the empty one
-     goes last, blanking the caption on every save.{% endcomment %}
+     a question stem — see the `.el-editor--text` wrapper around the `stem` textarea
+     in _edit_choicequestion.html. No <input> may share name="figcaption": two
+     controls with one name double-submit, and the empty one goes last, blanking
+     the caption on every save.{% endcomment %}
   <label class="el-editor__label">{% trans "Caption" %}</label>
   <div class="el-editor--text">
     {% include "courses/manage/editor/_rte_toolbar_caption.html" %}
