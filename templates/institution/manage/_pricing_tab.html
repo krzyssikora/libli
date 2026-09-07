@@ -14,12 +14,12 @@ institution/views_manage.py's settings_pricing and _tabs().
         <thead>
           <tr>
             <th>{% trans "Plan" %}</th>
-            <th>{{ pricing.field_labels.pupils_min }}</th>
-            <th>{{ pricing.field_labels.pupils_max }}</th>
-            <th>{{ pricing.field_labels.annual_price }}</th>
-            <th>{{ pricing.field_labels.support_hours_per_term }}</th>
-            <th>{{ pricing.field_labels.courses_included }}</th>
-            <th>{{ pricing.field_labels.video_hours_included }}</th>
+            <th>{% trans "Pupils min" %}</th>
+            <th>{% trans "Pupils max" %}</th>
+            <th>{% trans "Annual price" %}</th>
+            <th>{% trans "Support hours per term" %}</th>
+            <th>{% trans "Courses included" %}</th>
+            <th>{% trans "Video hours included" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -37,7 +37,7 @@ institution/views_manage.py's settings_pricing and _tabs().
         </tbody>
       </table>
     </div>
-    <p class="settings__help">{% trans "Bands must run consecutively, in order, with no gap and no overlap. Leave a price blank to show \"by arrangement\"." %}</p>
+    <p class="settings__help">{% trans 'Bands must run consecutively, in order, with no gap and no overlap. Leave a price blank to show "by arrangement".' %}</p>
   </div>
 
   <div class="settings__section">

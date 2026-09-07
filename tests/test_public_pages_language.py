@@ -6,11 +6,15 @@ test in the suite runs where the two agree, so without this file a build that
 ignores the lang argument and calls translation.get_language() passes everything.
 """
 
+from decimal import Decimal
+
 import pytest
+from django.utils import translation
 
 from core.public_pages import _block_values
 from core.public_pages import render_markdown
 from core.public_pages import substitute_tokens
+from tests.test_pricing_token import _plans
 from tests.test_public_pages import cfg
 
 
@@ -47,3 +51,18 @@ def test_the_inline_pass_asserts_parity_rather_than_keyerroring(monkeypatch):
     )
     with pytest.raises(AssertionError):
         substitute_tokens(render_markdown("hi\n"), cfg(), "en")
+
+
+@pytest.mark.parametrize("page_lang", ["en", "pl"])
+def test_gettext_resolves_under_the_page_language_not_the_thread_language(page_lang):
+    """The mutant: a substitute_tokens that ignores `lang` and calls
+    translation.get_language(). Both pairings are needed -- one alone is satisfied
+    by a build that always returns the active language."""
+    other = "pl" if page_lang == "en" else "en"
+    plans = _plans(Decimal("4800"), Decimal("7200"), Decimal("10800"))
+    with translation.override(other):
+        under = _block_values(cfg(pricing_plans=plans), page_lang)["pricing_plans"]
+    with translation.override(page_lang):
+        native = _block_values(cfg(pricing_plans=plans), page_lang)["pricing_plans"]
+    # Same page language => same output, whatever the thread language was.
+    assert under == native

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-08 00:35+0200\n"
+"POT-Creation-Date: 2026-09-07 13:25+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -278,11 +278,11 @@ msgstr "Kreator pierwszego uruchomienia"
 msgid "Notifications"
 msgstr "Powiadomienia"
 
-#: .\core\public_pages.py:55
+#: .\core\public_pages.py:59
 msgid "Privacy notice"
 msgstr "Informacja o ochronie danych osobowych"
 
-#: .\core\public_pages.py:57
+#: .\core\public_pages.py:61
 msgid ""
 "What libli stores about you, who can see it, how long it is kept, and how to "
 "exercise your data-protection rights."
@@ -290,11 +290,11 @@ msgstr ""
 "Co libli przechowuje na Twój temat, kto ma do tego wgląd, jak długo dane są "
 "przechowywane i jak korzystać z praw osoby, której dane dotyczą."
 
-#: .\core\public_pages.py:64
+#: .\core\public_pages.py:68
 msgid "Getting started"
 msgstr "Pierwsze kroki"
 
-#: .\core\public_pages.py:66
+#: .\core\public_pages.py:70
 msgid ""
 "What libli is, how schools use it, and how to get an account or reach a "
 "human."
@@ -302,7 +302,17 @@ msgstr ""
 "Czym jest libli, jak korzystają z niego szkoły oraz jak uzyskać konto lub "
 "skontaktować się z człowiekiem."
 
-#: .\core\public_pages.py:160
+#: .\core\public_pages.py:77
+msgid "libli for schools"
+msgstr "libli dla szkół"
+
+#: .\core\public_pages.py:79
+msgid ""
+"What a school gets, what we need from you, where the data lives, and what it "
+"costs."
+msgstr "Co szkoła otrzymuje, czego od Was potrzebujemy, gdzie znajdują się dane i ile to kosztuje."
+
+#: .\core\public_pages.py:193
 msgid ""
 "This is a demonstration site. Anything you enter here is visible to the "
 "person who runs it — please do not enter real pupil data."
@@ -310,19 +320,19 @@ msgstr ""
 "To jest serwis demonstracyjny. Wszystko, co tu wpiszesz, jest widoczne dla "
 "osoby, która go prowadzi — prosimy nie wprowadzać prawdziwych danych uczniów."
 
-#: .\core\public_pages.py:177
+#: .\core\public_pages.py:210 .\core\public_pages.py:263
 msgid "the person who runs this site"
 msgstr "osoba, która prowadzi ten serwis"
 
-#: .\core\public_pages.py:180
+#: .\core\public_pages.py:213
 msgid "your national data protection authority"
 msgstr "Twój krajowy organ ochrony danych osobowych"
 
-#: .\core\public_pages.py:183
+#: .\core\public_pages.py:216
 msgid "no embed providers are enabled"
 msgstr "nie włączono żadnych dostawców materiałów osadzonych"
 
-#: .\core\public_pages.py:189
+#: .\core\public_pages.py:222
 #, python-format
 msgid "after %(days)d day"
 msgid_plural "after %(days)d days"
@@ -330,9 +340,73 @@ msgstr[0] "po %(days)d dniu"
 msgstr[1] "po %(days)d dniach"
 msgstr[2] "po %(days)d dniach"
 
-#: .\core\public_pages.py:191
+#: .\core\public_pages.py:224
 msgid "only when the item they refer to is removed"
 msgstr "dopiero wtedy, gdy zostanie usunięty element, którego dotyczą"
+
+#: .\core\public_pages.py:258
+#, python-format
+msgid "Storage allowance: %(gb)s GB, advisory and reconciled at renewal."
+msgstr "Limit miejsca: %(gb)s GB, orientacyjny i weryfikowany przy odnowieniu."
+
+#: .\core\public_pages.py:267
+msgid "Prices for your school are quoted on request."
+msgstr "Ceny dla Twojej szkoły wyceniamy indywidualnie."
+
+#: .\core\public_pages.py:268
+#, python-format
+msgid "Ask %(contact)s, and see the five numbers above."
+msgstr "Zapytaj %(contact)s — zobacz też pięć liczb powyżej."
+
+#: .\core\public_pages.py:276
+msgid "Pupils"
+msgstr "Uczniowie"
+
+#: .\core\public_pages.py:277
+#, python-format
+msgid "Annual price (%(currency)s)"
+msgstr "Cena roczna (%(currency)s)"
+
+#: .\core\public_pages.py:278 .\templates\institution\manage\_tabs.html:16
+msgid "Support"
+msgstr "Zgłoszenia"
+
+#: .\core\public_pages.py:279
+msgid "Courses"
+msgstr "Kursy"
+
+#: .\core\public_pages.py:280 .\courses\media.py:25 .\courses\models.py:789
+#: .\courses\templatetags\courses_manage_extras.py:36
+#: .\courses\views_manage.py:2026
+#: .\templates\courses\manage\editor\_add_menu.html:31
+#: .\templates\courses\manage\media\manager.html:26
+msgid "Video"
+msgstr "Wideo"
+
+#: .\core\public_pages.py:291 .\core\public_pages.py:305
+#: .\core\public_pages.py:306 .\core\public_pages.py:307
+#: .\core\public_pages.py:308
+msgid "by arrangement"
+msgstr "do uzgodnienia"
+
+#: .\core\public_pages.py:292
+#, python-format
+msgid "%(n)s h / term"
+msgstr "%(n)s godz. / semestr"
+
+#: .\core\public_pages.py:294
+#, python-format
+msgid "%(n)s h"
+msgstr "%(n)s godz."
+
+#: .\core\public_pages.py:304
+#, python-format
+msgid "%(above)s and above"
+msgstr "%(above)s i więcej"
+
+#: .\core\public_pages.py:357
+msgid "Considering libli for a school?"
+msgstr "Rozważasz libli dla swojej szkoły?"
 
 #: .\core\views.py:142
 msgid "Your settings have been saved."
@@ -875,16 +949,8 @@ msgstr "Wpisz nieujemną liczbę lub ułamek."
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:25 .\courses\models.py:790
-#: .\courses\templatetags\courses_manage_extras.py:36
-#: .\courses\views_manage.py:2026
-#: .\templates\courses\manage\editor\_add_menu.html:31
-#: .\templates\courses\manage\media\manager.html:26
-msgid "Video"
-msgstr "Wideo"
-
-#: .\courses\media.py:26 .\courses\views_manage.py:2054
-#: .\templates\courses\manage\editor\_add_menu.html:118
+#: .\courses\media.py:26 .\courses\views_manage.py:2053
+#: .\templates\courses\manage\editor\_add_menu.html:110
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
 
@@ -1195,7 +1261,7 @@ msgstr "Galeria"
 
 #: .\courses\templatetags\courses_manage_extras.py:42
 #: .\courses\views_manage.py:2032 .\templates\courses\lesson_unit.html:87
-#: .\templates\courses\manage\editor\_add_menu.html:46
+#: .\templates\courses\manage\editor\_add_menu.html:38
 #: .\templates\courses\manage\editor\editor.html:232
 #: .\templates\courses\quiz_unit.html:40
 msgid "Tabs"
@@ -2899,71 +2965,71 @@ msgstr[2] ""
 "%(count)d wierszy zostało zmienionych przez kogoś innego i nie zostało "
 "nadpisanych: %(names)s."
 
-#: .\institution\forms.py:56
+#: .\institution\forms.py:57
 msgid "Current logo"
 msgstr "Aktualne logo"
 
-#: .\institution\forms.py:57
+#: .\institution\forms.py:58
 msgid "No logo yet"
 msgstr "Brak logo"
 
-#: .\institution\forms.py:58
+#: .\institution\forms.py:59
 msgid "Replace logo"
 msgstr "Zastąp logo"
 
-#: .\institution\forms.py:59
+#: .\institution\forms.py:60
 msgid "Upload logo"
 msgstr "Prześlij logo"
 
-#: .\institution\forms.py:60
+#: .\institution\forms.py:61
 msgid "Remove logo"
 msgstr "Usuń logo"
 
-#: .\institution\forms.py:87
+#: .\institution\forms.py:88
 msgid "Current favicon"
 msgstr "Bieżąca ikona strony"
 
-#: .\institution\forms.py:88
+#: .\institution\forms.py:89
 msgid "No favicon yet"
 msgstr "Brak ikony strony"
 
-#: .\institution\forms.py:89
+#: .\institution\forms.py:90
 msgid "Replace favicon"
 msgstr "Zmień ikonę strony"
 
-#: .\institution\forms.py:90
+#: .\institution\forms.py:91
 msgid "Upload favicon"
 msgstr "Prześlij ikonę strony"
 
-#: .\institution\forms.py:91
+#: .\institution\forms.py:92
 msgid "Remove favicon"
 msgstr "Usuń ikonę strony"
 
-#: .\institution\forms.py:115
+#: .\institution\forms.py:116
 msgid "Enter a 6-digit hex colour like #147E78."
 msgstr "Podaj kolor 6-cyfrowym kodem hex, np. #147E78."
 
-#: .\institution\forms.py:125
+#: .\institution\forms.py:126
 msgid "Enabled languages"
 msgstr "Włączone języki"
 
-#: .\institution\forms.py:128
+#: .\institution\forms.py:129
 msgid "Default language"
 msgstr "Domyślny język"
 
-#: .\institution\forms.py:130
+#: .\institution\forms.py:131
 msgid "Primary colour"
 msgstr "Kolor podstawowy"
 
-#: .\institution\forms.py:131
+#: .\institution\forms.py:132
 msgid "Accent colour"
 msgstr "Kolor uzupełniający"
 
-#: .\institution\forms.py:136
+#: .\institution\forms.py:137
 msgid "Public hostname"
 msgstr "Publiczna nazwa hosta"
 
-#: .\institution\forms.py:138
+#: .\institution\forms.py:139
 msgid ""
 "The address people use to reach this site, e.g. libli.example.org. Used to "
 "build invitation and password-reset links. It does not change which "
@@ -2974,86 +3040,94 @@ msgstr ""
 "zmienia tego, jakie adresy przyjmuje serwer — to skonfigurował Twój dostawca "
 "hostingu."
 
-#: .\institution\forms.py:199
+#: .\institution\forms.py:200
 msgid "Enable at least one language."
 msgstr "Włącz co najmniej jeden język."
 
-#: .\institution\forms.py:213
+#: .\institution\forms.py:214
 msgid "Logo must be 2 MB or smaller."
 msgstr "Logo musi mieć rozmiar 2 MB lub mniejszy."
 
-#: .\institution\forms.py:228
+#: .\institution\forms.py:229
 msgid "The favicon must be 256 KB or smaller."
 msgstr "Ikona strony może mieć najwyżej 256 KB."
 
-#: .\institution\forms.py:232
+#: .\institution\forms.py:233
 msgid "The favicon must be a .png file."
 msgstr "Ikona strony musi być plikiem .png."
 
-#: .\institution\forms.py:235
+#: .\institution\forms.py:236
 msgid "The favicon must be a PNG image."
 msgstr "Ikona strony musi być obrazem PNG."
 
-#: .\institution\forms.py:241
+#: .\institution\forms.py:242
 msgid "The favicon must be square - crop it to equal width and height first."
 msgstr ""
 "Ikona strony musi być kwadratowa - najpierw przytnij ją do równej szerokości "
 "i wysokości."
 
-#: .\institution\forms.py:248
+#: .\institution\forms.py:249
 msgid "The favicon must be between 192 and 512 pixels."
 msgstr "Ikona strony musi mieć od 192 do 512 pikseli."
 
-#: .\institution\forms.py:265
+#: .\institution\forms.py:266
 msgid "Default language must be an enabled language."
 msgstr "Domyślny język musi być językiem włączonym."
 
-#: .\institution\forms.py:302
+#: .\institution\forms.py:303
 msgid "Allowed email domains"
 msgstr "Dozwolone domeny e-mail"
 
-#: .\institution\forms.py:303
+#: .\institution\forms.py:304
 msgid "One domain per line. Leave blank to allow any domain."
 msgstr ""
 "Jedna domena w wierszu. Pozostaw puste, aby zezwolić na dowolną domenę."
 
-#: .\institution\forms.py:326
+#: .\institution\forms.py:327
 #, python-format
 msgid "\"%(d)s\" is not a valid domain."
 msgstr "\"%(d)s\" nie jest prawidłową domeną."
 
-#: .\institution\forms.py:341
+#: .\institution\forms.py:342
 msgid "Allowed image types"
 msgstr "Dozwolone typy obrazów"
 
-#: .\institution\forms.py:346
+#: .\institution\forms.py:347
 msgid "Allowed video types"
 msgstr "Dozwolone typy wideo"
 
-#: .\institution\forms.py:351
+#: .\institution\forms.py:352
 msgid "Max image size (MiB)"
 msgstr "Maksymalny rozmiar obrazu (MiB)"
 
-#: .\institution\forms.py:352 .\institution\forms.py:358
+#: .\institution\forms.py:353 .\institution\forms.py:359
 #, python-brace-format
 msgid "Up to {n} MiB."
 msgstr "Do {n} MiB."
 
-#: .\institution\forms.py:357
+#: .\institution\forms.py:358
 msgid "Max video size (MiB)"
 msgstr "Maksymalny rozmiar wideo (MiB)"
 
-#: .\institution\forms.py:373
+#: .\institution\forms.py:374
 msgid "Enable at least one image type."
 msgstr "Włącz co najmniej jeden typ obrazu."
 
-#: .\institution\forms.py:379
+#: .\institution\forms.py:380
 msgid "Enable at least one video type."
 msgstr "Włącz co najmniej jeden typ wideo."
 
-#: .\institution\forms.py:387
+#: .\institution\forms.py:388
 msgid "Retention window (days)"
 msgstr "Okno przechowywania (dni)"
+
+#: .\institution\forms.py:474
+msgid "The upper bound must be greater than the lower bound."
+msgstr "Górna granica musi być większa niż dolna granica."
+
+#: .\institution\forms.py:482
+msgid "Bands must run consecutively with no gap and no overlap."
+msgstr "Zakresy muszą następować po sobie, bez luk i bez nakładania się."
 
 #: .\institution\models.py:30
 msgid "Invite only"
@@ -3180,6 +3254,30 @@ msgstr ""
 "Dodaje do stron publicznych ostrzeżenie, żeby nie wprowadzać prawdziwych "
 "danych uczniów."
 
+#: .\institution\models.py:141
+msgid "Currency"
+msgstr "Waluta"
+
+#: .\institution\models.py:142
+msgid "ISO 4217 code, shown in the price column header."
+msgstr "Kod ISO 4217, wyświetlany w nagłówku kolumny z ceną."
+
+#: .\institution\models.py:152
+msgid "VAT note (English)"
+msgstr "Uwaga o VAT (wersja angielska)"
+
+#: .\institution\models.py:155
+msgid "VAT note (Polish)"
+msgstr "Uwaga o VAT (wersja polska)"
+
+#: .\institution\models.py:160
+msgid "Storage allowance (GB)"
+msgstr "Limit miejsca (GB)"
+
+#: .\institution\models.py:161
+msgid "Leave blank to omit the allowance sentence from the page."
+msgstr "Pozostaw puste, aby pominąć zdanie o limicie na stronie."
+
 #: .\institution\roles.py:19
 #: .\templates\courses\manage\analytics_matrix.html:110
 #: .\templates\grouping\allocation_assign.html:55
@@ -3206,15 +3304,15 @@ msgstr ""
 "Podaj nazwę hosta, na przykład libli.example.org — bez http://, bez ścieżki "
 "i bez ukośnika na końcu."
 
-#: .\institution\views_manage.py:159
+#: .\institution\views_manage.py:178
 msgid "Branding saved."
 msgstr "Wygląd zapisany."
 
-#: .\institution\views_manage.py:166
+#: .\institution\views_manage.py:185
 msgid "Access settings saved."
 msgstr "Ustawienia dostępu zostały zapisane."
 
-#: .\institution\views_manage.py:181
+#: .\institution\views_manage.py:200
 msgid ""
 "Signup is set to SSO only, but SSO is not enabled — new users cannot sign in "
 "until you configure it on the SSO tab. Existing accounts and invitations are "
@@ -3224,59 +3322,63 @@ msgstr ""
 "użytkownicy nie mogą się zalogować, dopóki nie skonfigurujesz go na karcie "
 "SSO. Nie ma to wpływu na istniejące konta i zaproszenia."
 
-#: .\institution\views_manage.py:193
+#: .\institution\views_manage.py:212
 msgid "Upload settings saved."
 msgstr "Ustawienia przesyłania zostały zapisane."
 
-#: .\institution\views_manage.py:205
+#: .\institution\views_manage.py:224
 msgid "Retention settings saved."
 msgstr "Zapisano ustawienia przechowywania."
 
-#: .\institution\views_manage.py:241
+#: .\institution\views_manage.py:260
 msgid "SSO settings saved."
 msgstr "Ustawienia SSO zapisane."
 
-#: .\institution\views_manage.py:243
+#: .\institution\views_manage.py:262
 msgid "Nothing to save."
 msgstr "Brak zmian do zapisania."
 
-#: .\institution\views_manage.py:265
+#: .\institution\views_manage.py:284
 msgid "Endpoint uses http — grades transit in cleartext. Prefer https."
 msgstr ""
 "Punkt końcowy używa http — oceny są przesyłane jawnym tekstem. Zalecane "
 "https."
 
-#: .\institution\views_manage.py:267
+#: .\institution\views_manage.py:286
 msgid "Integration settings saved."
 msgstr "Zapisano ustawienia integracji."
 
-#: .\institution\views_manage.py:284
+#: .\institution\views_manage.py:303
 msgid "Set an endpoint URL and signing secret before sending a test event."
 msgstr ""
 "Przed wysłaniem zdarzenia testowego ustaw adres URL punktu końcowego i klucz "
 "podpisujący."
 
-#: .\institution\views_manage.py:291
+#: .\institution\views_manage.py:310
 #, python-format
 msgid "Test event delivered — endpoint returned %(code)s."
 msgstr "Zdarzenie testowe dostarczone — punkt końcowy zwrócił %(code)s."
 
-#: .\institution\views_manage.py:294
+#: .\institution\views_manage.py:313
 #, python-format
 msgid "Test event failed: %(reason)s"
 msgstr "Zdarzenie testowe nie powiodło się: %(reason)s"
 
-#: .\institution\views_manage.py:315
+#: .\institution\views_manage.py:334
 msgid "Support settings saved."
 msgstr "Ustawienia zgłoszeń zapisane."
 
-#: .\institution\views_manage.py:394
+#: .\institution\views_manage.py:429
 msgid "Public page settings saved."
 msgstr "Ustawienia stron publicznych zostały zapisane."
 
-#: .\institution\views_manage.py:434
+#: .\institution\views_manage.py:469
 msgid "Public page content saved."
 msgstr "Treść stron publicznych została zapisana."
+
+#: .\institution\views_manage.py:478
+msgid "Pricing saved."
+msgstr "Cennik zapisany."
 
 #: .\institution\views_setup.py:33
 msgid "Welcome"
@@ -4637,6 +4739,10 @@ msgstr "Wyloguj"
 #: .\templates\core\_public_footer.html:4 .\templates\core\landing.html:31
 msgid "Privacy"
 msgstr "Prywatność"
+
+#: .\templates\core\_public_footer.html:13 .\templates\core\landing.html:34
+msgid "For schools"
+msgstr "Dla szkół"
 
 #: .\templates\core\home.html:3
 msgid "Dashboard"
@@ -8145,6 +8251,57 @@ msgstr "Wyczyść teraz"
 msgid "Purge uses the saved retention value; save your changes first."
 msgstr "Czyszczenie używa zapisanej wartości; najpierw zapisz zmiany."
 
+#: .\templates\institution\manage\_pricing_tab.html:11
+msgid "Plan bands"
+msgstr "Zakresy planów"
+
+#: .\templates\institution\manage\_pricing_tab.html:16
+msgid "Plan"
+msgstr "Plan"
+
+#: .\templates\institution\manage\_pricing_tab.html:17
+msgid "Pupils min"
+msgstr "Uczniowie od"
+
+#: .\templates\institution\manage\_pricing_tab.html:18
+msgid "Pupils max"
+msgstr "Uczniowie do"
+
+#: .\templates\institution\manage\_pricing_tab.html:19
+msgid "Annual price"
+msgstr "Cena roczna"
+
+#: .\templates\institution\manage\_pricing_tab.html:20
+msgid "Support hours per term"
+msgstr "Godziny wsparcia / semestr"
+
+#: .\templates\institution\manage\_pricing_tab.html:21
+msgid "Courses included"
+msgstr "Liczba kursów"
+
+#: .\templates\institution\manage\_pricing_tab.html:22
+msgid "Video hours included"
+msgstr "Godziny wideo"
+
+#: .\templates\institution\manage\_pricing_tab.html:28
+#, python-format
+msgid "Plan %(order)s"
+msgstr "Plan %(order)s"
+
+#: .\templates\institution\manage\_pricing_tab.html:40
+msgid ""
+"Bands must run consecutively, in order, with no gap and no overlap. Leave a "
+"price blank to show \"by arrangement\"."
+msgstr "Zakresy muszą następować po sobie, po kolei, bez luk i bez nakładania się. Pozostaw cenę pustą, aby pokazać „do uzgodnienia”."
+
+#: .\templates\institution\manage\_pricing_tab.html:44
+msgid "Currency and notes"
+msgstr "Waluta i uwagi"
+
+#: .\templates\institution\manage\_pricing_tab.html:70
+msgid "Save pricing"
+msgstr "Zapisz cennik"
+
 #: .\templates\institution\manage\_public_pages_tab.html:5
 msgid "Who runs this site"
 msgstr "Kto prowadzi ten serwis"
@@ -8265,13 +8422,13 @@ msgstr "Wygląd"
 msgid "Uploads"
 msgstr "Przesyłanie"
 
-#: .\templates\institution\manage\_tabs.html:16
-msgid "Support"
-msgstr "Zgłoszenia"
-
 #: .\templates\institution\manage\_tabs.html:18
 msgid "Public pages"
 msgstr "Strony publiczne"
+
+#: .\templates\institution\manage\_tabs.html:21
+msgid "Pricing"
+msgstr "Cennik"
 
 #: .\templates\institution\manage\_uploads_tab.html:9
 msgid "Allowed file types"

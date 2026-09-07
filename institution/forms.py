@@ -456,15 +456,6 @@ class PricingForm(forms.ModelForm):
             out.append(row)
         return out
 
-    def field_labels(self):
-        # Column headers for the rows() table, keyed by the fixed PLAN_FIELDS
-        # names rather than borrowed off row 1's bound fields -- so the header
-        # renders even if a future row set omits order=1.
-        return {
-            name: PricingPlan._meta.get_field(name).formfield().label
-            for name in PLAN_FIELDS
-        }
-
     def clean(self):
         cleaned = super().clean()
         bands = []
