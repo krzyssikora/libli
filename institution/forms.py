@@ -465,7 +465,7 @@ class PricingForm(forms.ModelForm):
             if lo is None or hi is None:
                 return cleaned
             # PER-ROW, and it must be here as well as in the CheckConstraint:
-            # (1,150),(151,400),(401,300) has no gap and no overlap between
+            # (1,100),(101,300),(301,200) has no gap and no overlap between
             # consecutive rows, so the cross-row rules below pass it and save()
             # would raise IntegrityError out of _action -- a 500 on a typo.
             if lo >= hi:

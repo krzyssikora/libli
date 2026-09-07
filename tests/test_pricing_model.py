@@ -20,9 +20,9 @@ def test_migration_seeds_three_bands_priceless():
     """The shipped state: three gap-free monotonic bands, no prices."""
     rows = list(PricingPlan.objects.order_by("order"))
     assert [(r.order, r.pupils_min, r.pupils_max) for r in rows] == [
-        (1, 1, 150),
-        (2, 151, 400),
-        (3, 401, 800),
+        (1, 1, 100),
+        (2, 101, 300),
+        (3, 301, 500),
     ]
     assert [r.annual_price for r in rows] == [None, None, None]
     assert [r.support_hours_per_term for r in rows] == [6, 8, 12]

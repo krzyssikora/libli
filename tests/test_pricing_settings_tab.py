@@ -35,7 +35,7 @@ def test_the_tab_404s_on_a_school_box(client):
     make_pa(client)
     response = client.post(
         reverse("institution:settings_pricing"),
-        _post_data([(1, 150), (151, 400), (401, 800)]),
+        _post_data([(1, 100), (101, 300), (301, 500)]),
     )
     assert response.status_code == 404
 
@@ -91,7 +91,7 @@ def test_the_pricing_panel_is_not_hidden_on_tab_pricing(client):
 @pytest.mark.django_db
 @override_settings(VENDOR_INSTANCE=True)
 def test_a_reversed_band_is_a_form_error_not_a_500(client):
-    """THE regression this validation exists for. (1,150),(151,400),(401,300) has
+    """THE regression this validation exists for. (1,100),(101,300),(301,200) has
     no gap and no overlap BETWEEN CONSECUTIVE ROWS, so a clean() carrying only the
     cross-row rules passes it -- and save() then hits the CheckConstraint, raising
     IntegrityError out of _action, which has no handler. An admin who types two
@@ -100,7 +100,7 @@ def test_a_reversed_band_is_a_form_error_not_a_500(client):
     make_pa(client)
     response = client.post(
         reverse("institution:settings_pricing"),
-        _post_data([(1, 150), (151, 400), (401, 300)]),
+        _post_data([(1, 100), (101, 300), (301, 200)]),
     )
     assert response.status_code == 200  # re-rendered, not 302, not 500
     # The status alone is only a proxy: _action returns 200 exclusively on an
@@ -120,9 +120,9 @@ def test_a_reversed_band_is_a_form_error_not_a_500(client):
 @pytest.mark.parametrize(
     "bands",
     [
-        [(1, 150), (100, 400), (401, 800)],  # overlap
-        [(1, 150), (200, 400), (401, 800)],  # gap
-        [(1, 150), (401, 800), (151, 400)],  # non-monotonic
+        [(1, 100), (50, 300), (301, 500)],  # overlap
+        [(1, 100), (150, 300), (301, 500)],  # gap
+        [(1, 100), (301, 500), (101, 300)],  # non-monotonic
     ],
 )
 def test_cross_row_band_rules_are_rejected(client, bands):
@@ -136,7 +136,7 @@ def test_cross_row_band_rules_are_rejected(client, bands):
 @override_settings(VENDOR_INSTANCE=True)
 def test_a_valid_save_persists_and_redirects(client):
     make_pa(client)
-    data = _post_data([(1, 150), (151, 400), (401, 900)])
+    data = _post_data([(1, 100), (101, 300), (301, 900)])
     data["plan_3_annual_price"] = "10800.00"
     response = client.post(reverse("institution:settings_pricing"), data)
     assert response.status_code == 302

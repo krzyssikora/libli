@@ -13,9 +13,9 @@ def seed_plans(apps, schema_editor):
     """
     PricingPlan = apps.get_model('institution', 'PricingPlan')
     for order, lo, hi, hours, courses, video in (
-        (1, 1, 150, 6, 3, 10),
-        (2, 151, 400, 8, 6, 20),
-        (3, 401, 800, 12, 12, 40),
+        (1, 1, 100, 6, 3, 10),
+        (2, 101, 300, 8, 6, 20),
+        (3, 301, 500, 12, 12, 40),
     ):
         PricingPlan.objects.get_or_create(
             order=order,

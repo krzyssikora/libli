@@ -22,7 +22,7 @@ def test_bundle_carries_the_seeded_plans_in_order():
     plans = get_site_config()["pricing_plans"]
     assert [p["order"] for p in plans] == [1, 2, 3]
     assert plans[0]["pupils_min"] == 1
-    assert plans[-1]["pupils_max"] == 800
+    assert plans[-1]["pupils_max"] == 500
 
 
 @pytest.mark.django_db

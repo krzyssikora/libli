@@ -83,21 +83,21 @@ def _allow_sync_orm_under_playwright():
 _PLAN_SHAPE = {
     1: {
         "pupils_min": 1,
-        "pupils_max": 150,
+        "pupils_max": 100,
         "support_hours_per_term": 6,
         "courses_included": 3,
         "video_hours_included": 10,
     },
     2: {
-        "pupils_min": 151,
-        "pupils_max": 400,
+        "pupils_min": 101,
+        "pupils_max": 300,
         "support_hours_per_term": 8,
         "courses_included": 6,
         "video_hours_included": 20,
     },
     3: {
-        "pupils_min": 401,
-        "pupils_max": 800,
+        "pupils_min": 301,
+        "pupils_max": 500,
         "support_hours_per_term": 12,
         "courses_included": 12,
         "video_hours_included": 40,

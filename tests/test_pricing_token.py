@@ -12,7 +12,7 @@ from tests.test_public_pages import render
 
 def _plans(*prices):
     """Three bands matching the migration seed, priced as given."""
-    rows = [(1, 1, 150, 6, 3, 10), (2, 151, 400, 8, 6, 20), (3, 401, 800, 12, 12, 40)]
+    rows = [(1, 1, 100, 6, 3, 10), (2, 101, 300, 8, 6, 20), (3, 301, 500, 12, 12, 40)]
     return [
         {
             "order": o,
@@ -95,19 +95,19 @@ def test_by_arrangement_is_scoped_to_the_null_priced_row():
         pricing_plans=_plans(Decimal("4800"), None, Decimal("10800")),
     )
     rows = re.findall(r"<tr>(.*?)</tr>", html, re.S)
-    band2 = next(r for r in rows if "151" in r and "400" in r)
-    band1 = next(r for r in rows if "1" in r and "150" in r)
+    band2 = next(r for r in rows if "101" in r and "300" in r)
+    band1 = next(r for r in rows if "1" in r and "100" in r)
     assert "arrangement" in band2
     assert "4 800.00" in band1
     assert "arrangement" not in band1
 
 
 def test_the_fourth_tier_interpolates_the_last_bands_ceiling():
-    """A static "Larger schools" would leave a visible gap above 800."""
+    """A static "Larger schools" would leave a visible gap above 500."""
     html = render(
         "{libli:pricing_plans}\n", pricing_plans=_plans(Decimal("4800"), None, None)
     )
-    assert "801" in html
+    assert "501" in html
 
 
 def test_allowance_sentence_is_absent_when_the_field_is_null():
