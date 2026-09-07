@@ -18,7 +18,7 @@
 
 ## What we need from you
 
-If you want to use libli at your_subdomain.libli.pl - we need nothing from you. Once the
+If you want to use libli at your_subdomain.libli.pl — we need nothing from you. Once the
 contract is signed, we get to work.
 
 If you want to use libli at your own domain (e.g. libli.your-domain.example), we need three DNS
@@ -28,7 +28,7 @@ email, to the same person who manages your domain. They can usually be set the s
 
 ### Two DNS traps worth knowing
 
-Both apply only to a custom domain - on a your_subdomain.libli.pl subdomain we manage the
+Both apply only to a custom domain — on a your_subdomain.libli.pl subdomain we manage the
 **CAA** and **AAAA** records ourselves, so neither trap can arise.
 
 1. A **CAA** record that omits `letsencrypt.org`.
@@ -45,7 +45,7 @@ Both apply only to a custom domain - on a your_subdomain.libli.pl subdomain we m
 
 ## What we do not need
 
-No server. No hardware. No procurement process. No software installed on a pupil's device - a
+No server. No hardware. No procurement process. No software installed on a pupil's device — a
 browser on whatever the pupil already has is enough.
 
 ## Where the data lives
@@ -58,12 +58,12 @@ another school's data.
 
 ## What happens if you leave
 
-You can leave at any time and take your data with you. Handover works as a key rotation: you generate the new encryption key, on your own machine, and give us only its public half - the private half never leaves your hands. We re-encrypt a current backup to that public key and hand over the resulting archive. We never disclose the shared key that protects every other school's backups, and we never hold your private key. From there, the same restore process that recovers a server after an outage stands your data up wherever you choose to run it next.
+You can leave at any time and take your data with you. Handover works as a **key rotation**: you generate the new encryption key, on your own machine, and give us only its **public half** — the private half never leaves your hands. We re-encrypt a current backup to that public key and hand over the resulting archive. We never disclose the shared key that protects every other school's backups, and we never hold your private key. From there, the same restore process that recovers a server after an outage stands your data up wherever you choose to run it next.
 
 ## Timeline
 
-Send the DNS request above and your site can be running the same day. Outgoing mail - password
-resets, notifications - goes out over port 587, the default for every school and a port Hetzner
+Send the DNS request above and your site can be running the same day. Outgoing mail — password
+resets, notifications — goes out over port 587, the default for every school and a port Hetzner
 has never blocked.
 
 A school that insists on Microsoft Exchange Direct Send instead can have it, over port 25.

@@ -19,7 +19,7 @@
 
 ## Czego od Ciebie potrzebujemy
 
-Jeśli chcesz używać libli pod adresem twoja_subdomena.libli.pl - nie potrzebujemy od Ciebie
+Jeśli chcesz używać libli pod adresem twoja_subdomena.libli.pl — nie potrzebujemy od Ciebie
 nic. Po podpisaniu umowy przystępujemy do działania.
 
 Jeśli chcesz używać libli pod własnym adresem (np. libli.twoja_domena.pl), potrzebujemy od
@@ -30,12 +30,12 @@ je ustawić tego samego dnia.
 
 ### Dwie pułapki w DNS, o których warto wiedzieć
 
-Obie dotyczą wyłącznie własnej domeny - na poddomenie twoja_subdomena.libli.pl rekordami
+Obie dotyczą wyłącznie własnej domeny — na poddomenie twoja_subdomena.libli.pl rekordami
 **CAA** i **AAAA** zarządzamy sami, więc żadna z tych pułapek nie może wystąpić.
 
 1. Rekord **CAA**, który pomija `letsencrypt.org`.
 
-    Większość szkolnych domen w ogóle nie ma rekordu CAA - wtedy nie trzeba nic robić. Jeśli
+    Większość szkolnych domen w ogóle nie ma rekordu CAA — wtedy nie trzeba nic robić. Jeśli
     Twoja domena go ma, ale pomija `letsencrypt.org`, serwer nie uzyska certyfikatu i strona
     nigdy nie wystartuje przez HTTPS.
 
@@ -48,7 +48,7 @@ Obie dotyczą wyłącznie własnej domeny - na poddomenie twoja_subdomena.libli.
 ## Czego nie potrzebujemy
 
 Żadnego serwera. Żadnego sprzętu. Żadnych procedur zakupowych. Żadnego oprogramowania
-instalowanego na urządzeniu ucznia - wystarczy przeglądarka na tym, co uczeń już ma.
+instalowanego na urządzeniu ucznia — wystarczy przeglądarka na tym, co uczeń już ma.
 
 ## Gdzie są dane
 
@@ -64,8 +64,8 @@ usunięcie, i następnie również są usuwane.
 ## Co się dzieje, gdy odchodzisz
 
 Możesz zrezygnować w dowolnym momencie i zabrać swoje dane ze sobą. Przekazanie danych działa
-jako rotacja klucza: to Ty generujesz nowy klucz szyfrujący, na własnym urządzeniu, i
-przekazujesz nam tylko jego część publiczną - część prywatna nigdy nie opuszcza Twoich rąk.
+jako **rotacja klucza**: to Ty generujesz nowy klucz szyfrujący, na własnym urządzeniu, i
+przekazujesz nam tylko jego **część publiczną** — część prywatna nigdy nie opuszcza Twoich rąk.
 Tym kluczem publicznym ponownie szyfrujemy aktualną kopię zapasową i przekazujemy Ci gotowe
 archiwum. Nigdy nie ujawniamy współdzielonego klucza, który chroni kopie zapasowe innych szkół,
 i nigdy nie mamy dostępu do Twojego klucza prywatnego. Dalej działa ten sam proces przywracania
@@ -74,12 +74,12 @@ serwera, który stawia Twoje dane tam, gdzie zdecydujesz się je uruchomić.
 ## Harmonogram
 
 Wyślij prośbę o zmiany DNS opisaną wyżej, a Twoja strona może działać jeszcze tego samego dnia.
-Poczta wychodząca - resetowanie haseł, powiadomienia - jest wysyłana przez port 587, domyślny
+Poczta wychodząca — resetowanie haseł, powiadomienia — jest wysyłana przez port 587, domyślny
 dla każdej szkoły i port, którego Hetzner nigdy nie zablokował.
 
 Szkoła, która koniecznie chce korzystać z Microsoft Exchange Direct Send, może to zrobić przez
 port 25. Hetzner domyślnie blokuje ten port i odblokowuje go tylko dla ustabilizowanego,
-płacącego konta - w praktyce takiego, które ma 30 dni i co najmniej jedną rozliczoną fakturę.
+płacącego konta — w praktyce takiego, które ma 30 dni i co najmniej jedną rozliczoną fakturę.
 Odblokowanie jest bezpłatne; daj nam znać wcześniej, jeśli wiesz, że będzie potrzebne.
 
 ## Plany
