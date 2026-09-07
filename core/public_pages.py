@@ -127,7 +127,9 @@ def render_markdown(source):
     )
 
 
-BLOCK_TOKENS = frozenset({"demo_notice", "controller_address", "pricing_plans"})
+BLOCK_TOKENS = frozenset(
+    {"demo_notice", "controller_address", "pricing_plans", "vat_note"}
+)
 INLINE_TOKENS = frozenset(
     {
         "controller_name",
@@ -313,7 +315,14 @@ def _block_values(cfg, lang):
     }
     with translation.override(lang):
         # ONLY the new values are built here.
-        return {**existing, "pricing_plans": _plans_html(cfg)}
+        note = cfg["vat_note_pl"] if lang == "pl" else cfg["vat_note_en"]
+        return {
+            **existing,
+            "pricing_plans": _plans_html(cfg),
+            "vat_note": (
+                "<p>" + _nl2br(html_lib.escape(str(note))) + "</p>" if note else ""
+            ),
+        }
 
 
 def substitute_tokens(html, cfg, lang):
