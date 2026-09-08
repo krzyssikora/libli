@@ -2237,11 +2237,11 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 /* A rule only belongs BETWEEN two things -- the first column in the row gets
    none, since the group's own border-top/bottom already frames the row. */
 .pricing-cards__item:first-child { border-left: none; }
-/* Below the same width the rest of this page stacks at (app.css:252 and
-   friends, all `max-width: 640px`), the grid collapses to one column: a left
-   rule would then sit between vertically stacked items and cut a line THROUGH
-   the middle of each row instead of separating them, so the rule direction
-   flips to match. */
+/* Below the same width the rest of this sheet stacks at (the shared
+   `max-width: 640px` breakpoint of `.app-header`, `.landing-hero` and
+   `.roster-filter__field`), the grid collapses to one column: a left rule
+   would then sit between vertically stacked items and cut a line THROUGH the
+   middle of each row, not separate them, so the rule direction flips. */
 @media (max-width: 640px) {
   .public-page .pricing-cards { grid-template-columns: 1fr; }
   .pricing-cards__item { border-left: none; border-top: 1px solid var(--border-default); }
