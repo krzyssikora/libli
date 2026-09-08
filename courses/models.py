@@ -306,6 +306,7 @@ ELEMENT_MODELS = [
     "markdoneelement",
     "guessnumberelement",
     "beforeafterelement",
+    "dividerelement",
 ]
 
 
