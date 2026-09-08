@@ -199,3 +199,42 @@ def test_editor_row_shows_a_divider_with_no_edit_button(client):
     assert "element-row--divider" in body
     row = body.split(f'data-element="{join.pk}"', 1)[1].split("</li>", 1)[0]
     assert "el-act-edit" not in row  # the pencil that opens the (empty) form
+
+
+@pytest.mark.django_db
+def test_duplicate_element_copies_a_divider():
+    """The reported bug: the editor's Copy routes through the transfer importer,
+    which is the only element route that calls full_clean() on the JOIN row -- so a
+    type absent from ELEMENT_MODELS creates fine and copies with "content type
+    instance with id N is not a valid choice"."""
+    from courses.builder import duplicate_element
+    from courses.models import DividerElement
+    from tests.factories import add_element
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    join = add_element(unit, DividerElement.objects.create())
+
+    _unit, new_join = duplicate_element(course, join.pk, unit.updated.isoformat())
+
+    assert new_join.pk != join.pk
+    assert isinstance(new_join.content_object, DividerElement)
+
+
+def test_element_models_lists_every_concrete_element_type():
+    """DERIVED, never hand-listed. ELEMENT_MODELS feeds limit_choices_to on
+    Element.content_type; a type missing from it saves fine through element_save
+    (which does not full_clean the join row) and then fails every route that does.
+    A per-type membership assertion catches the type it names and no other -- this
+    one catches the NEXT element type to ship without the list entry."""
+    from django.apps import apps
+
+    from courses.models import ELEMENT_MODELS
+    from courses.models import ElementBase
+
+    concrete = {
+        m._meta.model_name
+        for m in apps.get_app_config("courses").get_models()
+        if issubclass(m, ElementBase)
+    }
+    assert concrete == set(ELEMENT_MODELS)
