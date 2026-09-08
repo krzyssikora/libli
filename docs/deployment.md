@@ -771,10 +771,28 @@ passed; `ci.yml` not regrowing a `master` trigger.
 
 - **One `app` container.** `migrate` runs in the entrypoint; the staging dir is a local
   volume.
-- **Every deploy is a short window of 502s.** `up -d` pulls the new image and recreates the
-  app container; Caddy stays up and answers 502 until the new container passes its
-  healthcheck. Shorter than it was when the box built its own image, because the pull is
-  the only work done here and the build already happened on the runner.
+- **Every deploy is a short window with no app**, MEASURED at 24 s on the #312 deploy.
+  `up -d` pulls the new image and recreates the app container; Caddy stays up throughout.
+  Shorter than it was when the box built its own image, because the pull is the only work
+  done here and the build already happened on the runner.
+
+  Readers see `maintenance.html` — a self-contained page saying the platform is updating,
+  in Polish and English — rather than the browser's own error. The Caddyfile's
+  `handle_errors 502 503 504` block serves it, at the URL that was requested, with a
+  `503` and a 7-second meta refresh, so the reader lands back on the page they were on.
+
+  Two properties worth knowing before editing either file:
+  - **500 is deliberately NOT in that list.** `handle_errors` fires only on errors Caddy
+    itself generates, so a 500 from a healthy Django passes straight through and stays
+    visible. Adding 500 would render every real exception as routine maintenance.
+  - **The page may reference no asset.** `/static/` is Whitenoise, inside the app that is
+    down, so every stylesheet, script, font or image would fail exactly when the page is
+    shown. Everything is inline, including the palette, which is copied from `tokens.css`
+    rather than referenced. `tests/test_maintenance_page_wiring.py` guards both.
+
+  Still a real outage: the window itself is unchanged, writes in flight are still lost,
+  and the deploy that changes the Caddyfile recreates Caddy too, so that one deploy shows
+  a connection error instead. Screenshots: `docs/superpowers/screenshots/maintenance-*`.
 - **Rollback is one pull.** `git reset --hard <last-good-sha>` then `bash deploy.sh`: the
   tag follows the checkout, so the previous image is pulled rather than rebuilt. What this
   cannot undo is an **already-applied migration** — the schema stays ahead of the code, and

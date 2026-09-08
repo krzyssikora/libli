@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<!--
+  Served by Caddy ONLY while the app container is unavailable -- every deploy
+  recreates it, measured at 24 s. Two consequences shape this file:
+
+  1. EVERY asset must be inline. /static/ is served by Whitenoise from inside
+     the very app that is down, so a stylesheet, script, font or image link is
+     guaranteed to fail at the one moment this page is rendered. That includes
+     the site's Inter webfont -- hence the system stack below. Guarded by
+     tests/test_maintenance_page_wiring.py.
+
+  2. The reload is a meta refresh, not JS. handle_errors does not redirect, so
+     this page is served AT the URL the reader asked for, and a plain reload
+     returns them to the exact unit they were on.
+
+  Colours are copied literals from tokens.css, not var() references, for the
+  same reason as (1). If the palette moves there, it must be moved here by hand.
+-->
+<meta http-equiv="refresh" content="7">
+<title>Trwa aktualizacja &middot; libli</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --surface-base: #F4F1EA;
+    --surface-raised: #FFFFFF;
+    --text-primary: #1E1C18;
+    --text-secondary: #5A544A;
+    --border-default: #E7E1D6;
+    --accent: #C77B2A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-base: #1A1816;
+      --surface-raised: #2C2925;
+      --text-primary: #F2EFE9;
+      --text-secondary: #BDB6A8;
+      --border-default: #584C40;
+      --accent: #D8A36A;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: var(--surface-base);
+    color: var(--text-primary);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .card {
+    width: 100%;
+    max-width: 30rem;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+  }
+  .wordmark {
+    margin: 0 0 1.75rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .wordmark span { color: var(--accent); }
+  h1 {
+    margin: 0 0 .5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .lead { margin: 0; color: var(--text-secondary); }
+  .en {
+    margin: 1.5rem 0 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-default);
+    color: var(--text-secondary);
+    font-size: .9375rem;
+  }
+  .en strong { color: var(--text-primary); font-weight: 600; }
+  .dots {
+    display: flex;
+    justify-content: center;
+    gap: .375rem;
+    margin-top: 1.75rem;
+  }
+  .dots i {
+    width: .4375rem;
+    height: .4375rem;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: .3;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .dots i:nth-child(2) { animation-delay: .2s; }
+  .dots i:nth-child(3) { animation-delay: .4s; }
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: .25; }
+    40%           { opacity: 1; }
+  }
+  /* The dots are decoration; the sentence above already carries the message. */
+  @media (prefers-reduced-motion: reduce) {
+    .dots i { animation: none; opacity: .5; }
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <p class="wordmark">libli<span>.</span></p>
+
+    <h1>Trwa aktualizacja platformy.</h1>
+    <p class="lead">Za chwil&#281; wr&oacute;cisz na swoj&#261; stron&#281;.</p>
+
+    <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+
+    <p class="en">
+      <strong>The platform is updating.</strong><br>
+      You&rsquo;ll be back on your page in a moment.
+    </p>
+  </main>
+</body>
+</html>
