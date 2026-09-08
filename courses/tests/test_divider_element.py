@@ -219,22 +219,3 @@ def test_duplicate_element_copies_a_divider():
 
     assert new_join.pk != join.pk
     assert isinstance(new_join.content_object, DividerElement)
-
-
-def test_element_models_lists_every_concrete_element_type():
-    """DERIVED, never hand-listed. ELEMENT_MODELS feeds limit_choices_to on
-    Element.content_type; a type missing from it saves fine through element_save
-    (which does not full_clean the join row) and then fails every route that does.
-    A per-type membership assertion catches the type it names and no other -- this
-    one catches the NEXT element type to ship without the list entry."""
-    from django.apps import apps
-
-    from courses.models import ELEMENT_MODELS
-    from courses.models import ElementBase
-
-    concrete = {
-        m._meta.model_name
-        for m in apps.get_app_config("courses").get_models()
-        if issubclass(m, ElementBase)
-    }
-    assert concrete == set(ELEMENT_MODELS)

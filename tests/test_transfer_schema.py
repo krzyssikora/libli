@@ -7,8 +7,30 @@ from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import TransferError
 
 
-def test_element_models_lists_all_32_concrete_element_models():
-    assert len(ELEMENT_MODELS) == 32
+def test_element_models_lists_every_concrete_element_type():
+    """DERIVED, never hand-counted. ELEMENT_MODELS feeds limit_choices_to on
+    Element.content_type, and element_save does NOT full_clean the join row -- so a
+    type missing from the list is created happily and then fails every route that
+    DOES full_clean it: editor copy, editor paste, duplicate_unit, course import.
+
+    Replaces a `len(ELEMENT_MODELS) == 32` pin, which was the wrong shape twice over.
+    It stayed GREEN when the Divider shipped a model with no list entry, because the
+    count never moved -- the omission it existed to catch. And it reddened this file
+    plus two unrelated ones the moment the entry was added. The set comparison catches
+    both directions and needs no edit when a type lands.
+    """
+    from django.apps import apps
+
+    from courses.models import ElementBase
+
+    concrete = {
+        m._meta.model_name
+        for m in apps.get_app_config("courses").get_models()
+        if issubclass(m, ElementBase)
+    }
+    assert concrete == set(ELEMENT_MODELS)
+
+    # kept from the pinned version: names whose absence has burned us before
     for name in (
         "extendedresponsequestionelement",
         "dragfillblankquestionelement",
