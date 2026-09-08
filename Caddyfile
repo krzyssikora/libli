@@ -35,6 +35,32 @@
 		reverse_proxy app:8000
 	}
 
+	# While the app container restarts -- every deploy recreates it, MEASURED at
+	# 24 s on the #312 deploy -- there is no upstream and Caddy answers 502. Caddy
+	# itself is NOT recreated, so it stays up throughout and can say so, instead of
+	# leaving the browser to render its own "This page isn't working".
+	#
+	# 502/503/504, never 500: handle_errors fires only on errors CADDY generates, so
+	# a 500 from a healthy Django already passes through untouched. Adding 500 here
+	# would dress every real exception as routine maintenance -- the site would look
+	# fine while it was broken. tests/test_maintenance_page_wiring.py guards that.
+	#
+	# No redirect: the page is served AT the requested URL, so the meta refresh
+	# inside it returns the reader to the unit they were on, not to the site root.
+	handle_errors 502 503 504 {
+		root * /srv/maintenance
+		rewrite * /maintenance.html
+		header Retry-After 15
+		# no-store, or the browser can answer the refresh from cache and the page
+		# outlives the outage it describes.
+		header Cache-Control "no-store"
+		file_server {
+			# NOT file_server's default 200: a 200 is cacheable and indexable, so a
+			# crawler or cache could keep serving the outage as the site's content.
+			status 503
+		}
+	}
+
 	request_body {
 		max_size {$CADDY_MAX_BODY:1200MiB}
 	}

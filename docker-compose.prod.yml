@@ -106,6 +106,9 @@ services:
       CADDY_MAX_BODY: ${CADDY_MAX_BODY:-1200MiB}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Served only when the app is unreachable; see the Caddyfile's
+      # handle_errors block. Read-only, like the Caddyfile beside it.
+      - ./maintenance.html:/srv/maintenance/maintenance.html:ro
       # Read-only: Caddy serves media, it never writes it.
       - media:/srv/media:ro
       - caddy_data:/data
