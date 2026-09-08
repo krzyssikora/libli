@@ -11,6 +11,11 @@ NEW_KEYS = {
     "supervisory_authority",
     "demo_instance",
     "notification_retention_days",
+    "pricing_plans",
+    "currency",
+    "vat_note_en",
+    "vat_note_pl",
+    "storage_allowance_gb",
 }
 
 
@@ -18,11 +23,16 @@ def test_defaults_carry_every_new_key_with_the_right_values():
     assert NEW_KEYS <= set(_DEFAULTS)
     assert _DEFAULTS["demo_instance"] is False
     assert _DEFAULTS["notification_retention_days"] == 90
+    assert _DEFAULTS["currency"] == "PLN"
+    assert _DEFAULTS["pricing_plans"] == []
+    assert _DEFAULTS["storage_allowance_gb"] is None
     for key in (
         "controller_name",
         "controller_address",
         "contact_email",
         "supervisory_authority",
+        "vat_note_en",
+        "vat_note_pl",
     ):
         assert _DEFAULTS[key] == ""
 

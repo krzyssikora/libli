@@ -8,4 +8,7 @@
   decisions. Do not "fix" by renumbering the staff help URLs.
   {% endcomment %}
   <a href="{% url 'core:getting_started' %}">{% trans "Help" %}</a>
+  {% if vendor_instance %}
+    <a href="{% url 'core:for_schools' %}">{% trans "For schools" %}</a>
+  {% endif %}
 </footer>

@@ -29,6 +29,13 @@ HTMLEL_SANDBOX_ORIGIN = "http://testserver"
 # with override_settings(GEOGEBRA_API_LOOKUP=True).
 GEOGEBRA_API_LOOKUP = False
 
+# The suite must never see the vendor page by accident. Pinned rather than
+# inherited because base.py reads a developer's .env into os.environ, and whoever
+# is building the page will have LIBLI_VENDOR_INSTANCE=true set there. Tests that
+# exercise the vendor page opt back in with override_settings(VENDOR_INSTANCE=True)
+# -- never through the environment.
+VENDOR_INSTANCE = False
+
 # REPLACES the production list rather than extending it -- with the Wikimedia hosts
 # still present, a unit test whose transport mock failed to intercept could reach the
 # real network. Both spellings: pytest-django resolves live_server to "localhost" by

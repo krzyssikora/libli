@@ -148,9 +148,9 @@ def reporters(request):
         if form.is_valid():
             form.save()
             messages.success(request, _("Allowed reporters updated."))
-            # `?tab=support` lands the PA back on the Support tab: TABS in
+            # `?tab=support` lands the PA back on the Support tab: _BASE_TABS in
             # institution/views_manage.py includes "support", so _active_tab
-            # honours it.
+            # (via _tabs()) honours it.
             return redirect(f"{reverse('institution:settings')}?tab=support")
     else:
         form = ReporterPickerForm(instance=row)

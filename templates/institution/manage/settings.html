@@ -34,5 +34,10 @@
   <div data-tab="public-pages" {% if active_tab != "public-pages" %}hidden{% endif %}>
     {% include "institution/manage/_public_pages_tab.html" %}
   </div>
+  {% if vendor_instance %}
+  <div data-tab="pricing" {% if active_tab != "pricing" %}hidden{% endif %}>
+    {% include "institution/manage/_pricing_tab.html" %}
+  </div>
+  {% endif %}
 </section>
 {% endblock %}

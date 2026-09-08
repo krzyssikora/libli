@@ -1,8 +1,11 @@
 import re
 
 import pytest
+from django.test import override_settings
 
 from core.help import DOCS_ROOT
+from core.public_pages import BLOCK_TOKENS
+from core.public_pages import DEMO_NOTICE_SLUGS
 from core.public_pages import PAGES
 from core.public_pages import render_markdown
 from core.public_pages import substitute_tokens
@@ -13,6 +16,18 @@ SHIPPED = [
     "public/privacy.pl.md",
     "public/getting-started.md",
     "public/getting-started.pl.md",
+    "public/for-schools.md",
+    "public/for-schools.pl.md",
+]
+
+# The subset of SHIPPED that must carry {libli:demo_notice} -- for-schools is
+# deliberately excluded (VENDOR_ONLY_SLUGS, not DEMO_NOTICE_SLUGS), so it cannot
+# join the full SHIPPED sweep below without going red on a correct build.
+DEMO_NOTICE_SHIPPED = [
+    rel
+    for rel in SHIPPED
+    if rel.removesuffix(".pl.md").removesuffix(".md").rsplit("/", 1)[-1]
+    in DEMO_NOTICE_SLUGS
 ]
 
 
@@ -21,13 +36,13 @@ def test_shipped_file_exists_and_is_utf8(rel):
     assert (DOCS_ROOT / rel).read_text(encoding="utf-8").strip()
 
 
-@pytest.mark.parametrize("rel", SHIPPED)
+@pytest.mark.parametrize("rel", DEMO_NOTICE_SHIPPED)
 def test_demo_notice_is_placed_where_the_block_regex_matches(rel):
     # Misplaced (indented, in a list, mid-sentence) the token silently renders as
     # literal text, swallowing the do-not-enter-real-pupil-data warning.
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
     assert "{libli:demo_notice}" in source
-    html = substitute_tokens(render_markdown(source), cfg(demo_instance=True))
+    html = substitute_tokens(render_markdown(source), cfg(demo_instance=True), "en")
     assert "public-page__notice" in html
     assert "{libli:demo_notice}" not in html
 
@@ -38,40 +53,66 @@ def test_no_block_token_has_a_heading_immediately_above_it(rel):
     # it would be orphaned on every non-demo deployment.
     lines = (DOCS_ROOT / rel).read_text(encoding="utf-8").splitlines()
     for i, line in enumerate(lines):
-        if "{libli:demo_notice}" in line or "{libli:controller_address}" in line:
+        if any(f"{{libli:{name}}}" in line for name in BLOCK_TOKENS):
             above = [x for x in lines[:i] if x.strip()]
             assert not (above and above[-1].lstrip().startswith("#")), (
                 f"{rel}: heading immediately above {line.strip()}"
             )
 
 
+# {libli:for_schools_link} makes settings.VENDOR_INSTANCE a genuine second
+# configuration axis for these three sweeps: it defaults False in
+# config/settings/test.py, so without parametrising over it, the
+# link-emitting branch of _block_values (see core/public_pages.py) is never
+# rendered and never swept for an unresolved token, a token surviving inside
+# an attribute, or an empty paragraph.
+@pytest.mark.parametrize("vendor", [False, True])
 @pytest.mark.parametrize("rel", SHIPPED)
-def test_no_token_survives_inside_an_attribute(rel):
-    source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-    html = substitute_tokens(render_markdown(source), cfg(demo_instance=True))
-    for tag in re.findall(r"<[^>]+>", html):
-        assert "{libli:" not in tag, f"{rel}: token inside {tag}"
-
-
-@pytest.mark.parametrize("rel", SHIPPED)
-def test_no_unresolved_token_remains_in_either_configuration(rel):
+def test_no_token_survives_inside_an_attribute(rel, vendor):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
     for demo in (True, False):
-        html = substitute_tokens(render_markdown(source), cfg(demo_instance=demo))
-        assert "{libli:" not in html, f"{rel}: unresolved token (demo={demo})"
+        with override_settings(VENDOR_INSTANCE=vendor):
+            html = substitute_tokens(
+                render_markdown(source), cfg(demo_instance=demo), "en"
+            )
+        for tag in re.findall(r"<[^>]+>", html):
+            assert "{libli:" not in tag, (
+                f"{rel}: token inside {tag} (vendor={vendor}, demo={demo})"
+            )
 
 
+@pytest.mark.parametrize("vendor", [False, True])
 @pytest.mark.parametrize("rel", SHIPPED)
-def test_no_empty_paragraph_when_blocks_are_off(rel):
+def test_no_unresolved_token_remains_in_either_configuration(rel, vendor):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-    html = substitute_tokens(render_markdown(source), cfg(demo_instance=False))
-    assert "<p></p>" not in html
+    for demo in (True, False):
+        with override_settings(VENDOR_INSTANCE=vendor):
+            html = substitute_tokens(
+                render_markdown(source), cfg(demo_instance=demo), "en"
+            )
+        assert "{libli:" not in html, (
+            f"{rel}: unresolved token (vendor={vendor}, demo={demo})"
+        )
+
+
+@pytest.mark.parametrize("vendor", [False, True])
+@pytest.mark.parametrize("rel", SHIPPED)
+def test_no_empty_paragraph_when_blocks_are_off(rel, vendor):
+    source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+    for demo in (True, False):
+        with override_settings(VENDOR_INSTANCE=vendor):
+            html = substitute_tokens(
+                render_markdown(source), cfg(demo_instance=demo), "en"
+            )
+        assert "<p></p>" not in html, (
+            f"{rel}: empty paragraph (vendor={vendor}, demo={demo})"
+        )
 
 
 @pytest.mark.parametrize("rel", SHIPPED)
 def test_exactly_one_h1(rel):
     source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-    html = substitute_tokens(render_markdown(source), cfg())
+    html = substitute_tokens(render_markdown(source), cfg(), "en")
     assert html.count("<h1>") == 1
 
 
@@ -91,7 +132,7 @@ def test_every_root_relative_link_resolves():
     found = {}
     for rel in SHIPPED:
         source = (DOCS_ROOT / rel).read_text(encoding="utf-8")
-        html = substitute_tokens(render_markdown(source), cfg())
+        html = substitute_tokens(render_markdown(source), cfg(), "en")
         for href in re.findall(r'href="(/[^"]*)"', html):
             found.setdefault(href, rel)
 

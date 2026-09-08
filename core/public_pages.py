@@ -19,10 +19,15 @@ from dataclasses import dataclass
 import markdown
 import nh3
 from django.conf import settings
+from django.urls import reverse
+from django.utils import translation
 from django.utils.html import format_html
+from django.utils.html import format_html_join
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
+from django.utils.translation import pgettext
 
 from core.help import DOCS_ROOT
 from core.help import localized_doc_path
@@ -67,7 +72,28 @@ PAGES = {
             "reach a human."
         ),
     ),
+    "for-schools": Page(
+        "for-schools",
+        "public/for-schools.md",
+        _("libli for schools"),
+        _(
+            "What a school gets, what we need from you, where the data lives, "
+            "and what it costs."
+        ),
+    ),
 }
+
+# TWO sets, deliberately separate. They coincide today only because /for-schools/
+# happens to be both the only vendor-gated page and the only page without a demo
+# notice -- collapsing them means the next public page that legitimately carries no
+# demo notice (a terms page, say) is silently dropped from the overrides panel AND
+# from settings_page_overrides' write loop, on every box.
+#
+# Pages that must carry {libli:demo_notice}: drives the content guard's subset and
+# _page_overrides()' missing_demo_notice flag.
+DEMO_NOTICE_SLUGS = frozenset({"privacy", "getting-started"})
+# Pages that exist only on the vendor's own box: drives the overrides-panel filter.
+VENDOR_ONLY_SLUGS = frozenset({"for-schools"})
 
 
 # A DOCUMENT allow-list, not courses.sanitize's rich-text one. That module's
@@ -124,7 +150,15 @@ def render_markdown(source):
     )
 
 
-BLOCK_TOKENS = frozenset({"demo_notice", "controller_address"})
+BLOCK_TOKENS = frozenset(
+    {
+        "demo_notice",
+        "controller_address",
+        "pricing_plans",
+        "vat_note",
+        "for_schools_link",
+    }
+)
 INLINE_TOKENS = frozenset(
     {
         "controller_name",
@@ -193,22 +227,214 @@ def _inline_values(cfg):
     }
 
 
-def substitute_tokens(html, cfg):
+def _amount(value):
+    """Bare numeral, U+00A0 thousands separator, no currency symbol.
+
+    Decimal places are OMITTED when the fractional part is zero and KEPT
+    otherwise: prices will not carry fractions in practice, but always
+    truncating would render a stored 4800.50 as 4800 -- a wrong price on a
+    sales page. `to_integral_value()` (not a hardcoded `Decimal("1")`
+    re-quantize) is what makes the zero-fraction check exact regardless of
+    the value's original exponent.
+
+    str(Decimal) emits no separator at all, so it is inserted deliberately;
+    quantize takes an exponent Decimal, not an int. U+00A0 rather than a plain
+    space so an amount never wraps mid-number. The parity guard compares these
+    strings byte for byte, which is why no locale-dependent formatting is used.
+    """
+    from decimal import Decimal
+
+    value = value.quantize(Decimal("0.01"))
+    if value == value.to_integral_value():
+        value = value.to_integral_value()
+    return f"{value:,f}".replace(",", " ")
+
+
+def _price_line(price, currency):
+    """A card's own price line: 'by arrangement', or the amount bound to its
+    currency and period so the figure reads correctly even out of context
+    (e.g. a screen reader landing mid-page).
+
+    Two SEPARATE msgids, not one combined phrase: "10 800 PLN / year" does not
+    fit a column at this width without wrapping, and wrapping lands the break
+    right after the slash ("10 800 PLN /" / "year"), which is worse than
+    choosing the break deliberately. The period is instead its own trailing
+    line (see .pricing-cards__period in app.css) -- always, not just when it
+    would otherwise wrap, so the layout is the same shape at every width.
+
+    currency is the caller's cfg["currency"] -- an editable field, so it must
+    never be hardcoded here. The amount/currency pair keeps NAMED
+    placeholders, so a translator can reorder them and the substitution still
+    lines up by name rather than position; the period is a plain msgid
+    because it carries no value of its own to interpolate.
+    """
+    if price is None:
+        return gettext("by arrangement")
+    amount_currency = gettext("%(amount)s %(currency)s") % {
+        "amount": _amount(price),
+        "currency": currency,
+    }
+    return format_html(
+        '{} <span class="pricing-cards__period">{}</span>',
+        amount_currency,
+        gettext("/ year"),
+    )
+
+
+def _plans_html(cfg):
+    """The plan cards, or the no-prices fallback. Always block-level.
+
+    Emits the storage-allowance sentence too: it lives inside this token so the
+    fallback branch can own it. The VAT note does NOT -- that is a separate token
+    placed independently in the markdown, which this branch cannot suppress.
+
+    Callers must already be inside translation.override(lang); every gettext here
+    is eager and unaliased, because `_` in this module is gettext_lazy and a lazy
+    proxy would resolve at format time under the ambient language.
+
+    Cards, not a table: each plan gets its own <li> with a heading (the pupil
+    band -- plans carry no separate name field, see the model docstring) and its
+    annual price as the visual anchor, followed by its three bounds. The open
+    top tier cannot be picked by a school, so it is a quiet line below the list,
+    not a fourth card.
+
+    No leftover "Annual price (currency)" column header sits above the list:
+    that line was a table column header stranded by an earlier refactor (cards
+    have no columns), and each card's own price line is now self-describing
+    (amount + currency + period, see _price_line), so it said nothing the
+    price line does not already say.
+
+    Each bound is a label stacked over its value, not an inline "Label: value"
+    run -- the Polish labels (e.g. "Wsparcie") are long enough that an inline
+    pair wraps ugly at a card's width; a screen reader still gets the label
+    immediately before the value either way.
+    """
+    plans = cfg["pricing_plans"]
+    allowance = ""
+    if cfg["storage_allowance_gb"]:
+        allowance = format_html(
+            "<p>{}</p>",
+            gettext("Storage allowance: %(gb)s GB, advisory and reconciled at renewal.")
+            % {"gb": cfg["storage_allowance_gb"]},
+        )
+
+    if not any(p["annual_price"] is not None for p in plans):
+        contact = cfg["contact_email"] or gettext("the person who runs this site")
+        return (
+            format_html(
+                "<p>{} {}</p>",
+                gettext("Prices for your school are quoted on request."),
+                gettext("Ask %(contact)s, and see the five numbers above.")
+                % {"contact": contact},
+            )
+            + allowance
+        )
+
+    # pgettext context kept exactly as it was when this label lived in a table
+    # column header, so the existing Polish translation ("Wsparcie") keeps
+    # matching -- msgctxt is part of the lookup key.
+    support_label = pgettext("pricing table column", "Support")
+    courses_label = gettext("Courses")
+    video_label = gettext("Video")
+    cards = format_html_join(
+        "",
+        '<li class="pricing-cards__item">'
+        '<h3 class="pricing-cards__band">{}</h3>'
+        '<p class="pricing-cards__price">{}</p>'
+        '<ul class="pricing-cards__bounds">'
+        '<li class="pricing-cards__bound">'
+        '<span class="pricing-cards__label">{}</span>'
+        '<span class="pricing-cards__value">{}</span>'
+        "</li>"
+        '<li class="pricing-cards__bound">'
+        '<span class="pricing-cards__label">{}</span>'
+        '<span class="pricing-cards__value">{}</span>'
+        "</li>"
+        '<li class="pricing-cards__bound">'
+        '<span class="pricing-cards__label">{}</span>'
+        '<span class="pricing-cards__value">{}</span>'
+        "</li>"
+        "</ul>"
+        "</li>",
+        (
+            (
+                gettext("%(lo)s–%(hi)s pupils")
+                % {"lo": p["pupils_min"], "hi": p["pupils_max"]},
+                _price_line(p["annual_price"], cfg["currency"]),
+                support_label,
+                gettext("%(n)s h / term") % {"n": p["support_hours_per_term"]},
+                courses_label,
+                p["courses_included"],
+                video_label,
+                gettext("%(n)s h") % {"n": p["video_hours_included"]},
+            )
+            for p in plans
+        ),
+    )
+    card_list = format_html('<ul class="pricing-cards">{}</ul>', cards)
+    # The open-ended tier is emitted here, not stored and not written in markdown:
+    # a school cannot pick it, so it is prose beneath the cards, not a fourth
+    # card. Both pieces reuse existing msgids verbatim.
+    tail = format_html(
+        '<p class="pricing-cards__above">{} — {}</p>',
+        gettext("%(above)s and above") % {"above": plans[-1]["pupils_max"] + 1},
+        gettext("by arrangement"),
+    )
+    return card_list + tail + allowance
+
+
+def _block_values(cfg, lang):
+    """The block token values, each already a complete block element or "".
+
+    lang is the page's RESOLVED language, not translation.get_language(): those
+    diverge exactly when a .pl.md file is absent and the English base is served.
+
+    translation.override wraps ONLY this function's gettext calls. Wrapping the
+    whole of substitute_tokens would also change _demo_notice_html() and
+    _inline_values()' retention_phrase on any page that fell back to English --
+    a behaviour change to /privacy/ that is not intended here.
+    """
+    address = cfg["controller_address"]
+    # OUTSIDE the override, deliberately. format_html forces the lazy proxy in
+    # _demo_notice_html() at call time, so building it inside would resolve the
+    # demo notice under the PAGE language rather than the active one -- a
+    # behaviour change to /privacy/ on any page that falls back to English, which
+    # is exactly what this docstring says is out of scope.
+    existing = {
+        "demo_notice": _demo_notice_html() if cfg["demo_instance"] else "",
+        "controller_address": (
+            "<p>" + _nl2br(html_lib.escape(str(address))) + "</p>" if address else ""
+        ),
+    }
+    with translation.override(lang):
+        # ONLY the new values are built here.
+        note = cfg["vat_note_pl"] if lang == "pl" else cfg["vat_note_en"]
+        return {
+            **existing,
+            "pricing_plans": _plans_html(cfg),
+            "vat_note": (
+                "<p>" + _nl2br(html_lib.escape(str(note))) + "</p>" if note else ""
+            ),
+            "for_schools_link": (
+                format_html(
+                    '<p><a href="{}">{}</a></p>',
+                    reverse("core:for_schools"),
+                    gettext("Considering libli for a school?"),
+                )
+                if settings.VENDOR_INSTANCE
+                else ""
+            ),
+        }
+
+
+def substitute_tokens(html, cfg, lang):
     """Block pass then inline pass. Runs AFTER sanitisation."""
     # --- Block pass: replace the token WITH its enclosing <p>. Substituting a
     # <p> block inline would nest paragraphs; substituting "" would leave an
     # empty <p></p> on every page where the block is off.
     # Driven off BLOCK_TOKENS so the frozenset cannot drift out of sync with
     # the literals -- a set that nothing reads is documentation, not code.
-    address = cfg["controller_address"]
-    if address:
-        rendered = "<p>" + _nl2br(html_lib.escape(str(address))) + "</p>"
-    else:
-        rendered = ""
-    block_values = {
-        "demo_notice": _demo_notice_html() if cfg["demo_instance"] else "",
-        "controller_address": rendered,
-    }
+    block_values = _block_values(cfg, lang)
     assert set(block_values) == set(BLOCK_TOKENS)
     for name in BLOCK_TOKENS:
         value = block_values[name]
@@ -217,6 +443,9 @@ def substitute_tokens(html, cfg):
     # --- Inline pass: TEXT RUNS ONLY, delimiters re-emitted. A token inside an
     # attribute is left literal (it lies outside any >...< run).
     values = _inline_values(cfg)
+    # Symmetric with the block-pass assert above. Without it a name added to
+    # INLINE_TOKENS but not to _inline_values is a bare KeyError at render time.
+    assert set(values) == set(INLINE_TOKENS)
 
     def replace_one(match):
         name = match.group(1)
@@ -263,5 +492,5 @@ def render_public_page(slug, lang, cfg):
     # Safe by construction: nh3-sanitised, then every substituted value is
     # html.escape'd. (The suppression itself is the trailing noqa below --
     # ruff only honours # noqa on the line reporting the violation.)
-    html = substitute_tokens(render_markdown(source), cfg)
+    html = substitute_tokens(render_markdown(source), cfg, resolved)
     return mark_safe(html), resolved  # noqa: S308
