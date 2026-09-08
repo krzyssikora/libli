@@ -45,6 +45,17 @@ blockquote {
 .el--iframe iframe { width: 100%; border: 0; }
 .el--image img { max-width: 100%; height: auto; }
 
+/* Divider element: an authored horizontal rule between blocks. `border: 0` first
+   because a UA <hr> ships its own inset 3-D border, which would sit under this
+   one as a second, thicker line. Colour comes from a token, so it follows the
+   theme rather than needing a dark-mode override of its own. */
+.el-divider {
+  border: 0;
+  height: 1px;
+  background: var(--border-default);
+  margin: var(--space-4) 0;
+}
+
 /* Image size presets. Each is a BOUNDING BOX: max-width on the figure (a % of
    .lesson's definite content box) and max-height on the img (dvh). A % on the img
    would resolve circularly against a fit-content figure, which is why the two axes

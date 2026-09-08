@@ -15,6 +15,22 @@
     </div>
   </div>
 </li>
+{% elif el.content_type.model == "dividerelement" %}
+<li class="el-row element-row--divider{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}" data-divider-row
+    data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
+  <div class="el-row__head">
+    <button type="button" class="iconbtn ica--grip" draggable="true"
+            aria-label="{% trans 'Drag to reorder' %}" title="{% trans 'Drag to reorder' %}">⠿</button>
+    <div class="el-row__body divider-row__body">
+      <span class="divider-row__rule" aria-hidden="true"></span>
+      <span class="divider-row__label">{% trans "Divider" %}</span>
+      <span class="divider-row__rule" aria-hidden="true"></span>
+      <span class="el-actions">
+        {% include "courses/manage/editor/_element_row_controls.html" with el=el unit=unit %}
+      </span>
+    </div>
+  </div>
+</li>
 {% elif el.content_type.model == "revealgateelement" %}
 <li class="el-row element-row--revealgate{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">

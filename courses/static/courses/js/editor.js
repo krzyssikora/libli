@@ -511,17 +511,27 @@
       // element_save.
       var menu = add.closest("[data-add-menu]");
       var nestedParent = menu && menu.getAttribute("data-parent");
-      // Slide break: a field-less delimiter with no editor form at all — create it
-      // directly against the save endpoint (same one the editor forms submit to)
-      // instead of the normal add -> open-editor flow. It is non-nestable, so the
-      // fast-path can never fire from a nested menu (the card is hidden there, but be
-      // explicit — the server rejects a nested slidebreak regardless).
-      if (addType === "slidebreak" && !nestedParent) {
+      // Field-less types (slide break, divider) have no editor form at all — create
+      // them directly against the save endpoint (same one the editor forms submit to)
+      // instead of the normal add -> open-editor flow. Neither is listed in
+      // element_add's allow-tuple, so taking the normal path would 400 with nothing
+      // on screen.
+      //
+      // The two differ in ONE way: slidebreak is non-nestable, so its fast path is
+      // guarded on !nestedParent (the card is hidden in a nested menu, but be
+      // explicit — the server rejects a nested slidebreak regardless). A divider IS
+      // nestable, so it carries the menu's scope through; element_save resolves it via
+      // resolve_scope on create, which is what enforces the depth clauses.
+      if (addType === "divider" || (addType === "slidebreak" && !nestedParent)) {
         var brkBody = new FormData();
-        brkBody.append("type", "slidebreak");
+        brkBody.append("type", addType);
         brkBody.append("unit", pane.getAttribute("data-unit"));
         brkBody.append("element", "new");
         brkBody.append("unit_token", pane.getAttribute("data-updated"));
+        if (nestedParent) {
+          brkBody.append("parent", nestedParent);
+          brkBody.append("tab", menu.getAttribute("data-tab"));
+        }
         postFragment(pane.getAttribute("data-save-url"), brkBody);
         return;
       }

@@ -27,6 +27,7 @@ from courses.models import CalloutElement
 from courses.models import Choice
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
+from courses.models import DividerElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
 from courses.models import DragZone
@@ -272,6 +273,12 @@ class SlideBreakElementForm(forms.ModelForm):
     class Meta:
         model = SlideBreakElement
         fields = []  # field-less: a break has nothing to edit
+
+
+class DividerElementForm(forms.ModelForm):
+    class Meta:
+        model = DividerElement
+        fields = []  # field-less: a rule has nothing to edit
 
 
 class RevealGateElementForm(forms.ModelForm):
@@ -2052,6 +2059,7 @@ FORM_FOR_TYPE = {
     "math": MathElementForm,
     "html": HtmlElementForm,
     "slidebreak": SlideBreakElementForm,
+    "divider": DividerElementForm,
     "revealgate": RevealGateElementForm,
     "spoiler": SpoilerElementForm,
     "callout": CalloutElementForm,

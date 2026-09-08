@@ -2032,6 +2032,7 @@ _EDITOR_TYPE_LABELS = {
     "tabs": gettext_lazy("Tabs"),
     "twocolumn": gettext_lazy("Columns"),
     "slidebreak": gettext_lazy("Slide break"),
+    "divider": gettext_lazy("Divider"),
     "revealgate": gettext_lazy("Show more"),
     "spoiler": gettext_lazy("Spoiler"),
     "fillgate": gettext_lazy("Fill in & confirm"),
@@ -2359,6 +2360,10 @@ def element_save(request, slug):
         "tabs",
         "twocolumn",
         "slidebreak",
+        # Field-less, so like slidebreak it never reaches element_add: the editor
+        # posts it straight here. Nesting is still enforced -- save_element calls
+        # resolve_scope on create, and "divider" is in NESTABLE_TYPE_KEYS.
+        "divider",
         "revealgate",
         "fillgate",
         "switchgate",

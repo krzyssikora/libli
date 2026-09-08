@@ -32,6 +32,7 @@ from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import DividerElement
 from courses.models import DragBlank
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
@@ -544,6 +545,10 @@ def _build_slide_break(data, assets):
     return SlideBreakElement.objects.create(), ()
 
 
+def _build_divider(data, assets):
+    return DividerElement.objects.create(), ()
+
+
 def _build_reveal_gate(data, assets):
     return RevealGateElement.objects.create(label=data.get("label", "")), ()
 
@@ -856,6 +861,7 @@ BUILDERS = {
     "math": _build_math,
     "html": _build_html,
     "slide_break": _build_slide_break,
+    "divider": _build_divider,
     "reveal_gate": _build_reveal_gate,
     "spoiler": _build_spoiler,
     "callout": _build_callout,

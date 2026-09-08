@@ -52,6 +52,7 @@ ELEMENT_ICON_SLUGS = frozenset(
         "twocolumn",
         "beforeafter",
         "slidebreak",
+        "divider",
         "revealgate",
         "fillgate",
         "switchgate",

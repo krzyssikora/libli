@@ -34,6 +34,13 @@ that guard lives on the include in _element_row.html, not here.
       <button type="button" class="typecard" data-add-type="html"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-html"/></svg>{% trans "HTML" %}</button>
       <button type="button" class="typecard" data-add-type="table"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-table"/></svg>{% trans "Table" %}</button>
       <button type="button" class="typecard" data-add-type="gallery"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-gallery"/></svg>{% trans "Gallery" %}</button>
+      {% comment %}
+      Divider sits in Content, NOT the Structure group below: that group is inside
+      `{% if not nested %}`, so a card placed there would never appear in a
+      container's menu -- separating a callout's children is the case it exists for.
+      Ungated by depth: it is a LEAF, so clause 3 admits it at any depth.
+      {% endcomment %}
+      <button type="button" class="typecard" data-add-type="divider"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-divider"/></svg>{% trans "Divider" %}</button>
       {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="callout"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-callout"/></svg>{% trans "Callout" %}</button>{% endif %}
       {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="tabs"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-tabs"/></svg>{% trans "Tabs" %}</button>{% endif %}
       {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="twocolumn"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-twocolumn"/></svg>{% trans "Columns" %}</button>{% endif %}

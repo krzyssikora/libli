@@ -652,16 +652,32 @@ button.asset-cell:hover { border-color: var(--primary); }
 .el-drop-line::before { left: -3px; }
 .el-drop-line::after { right: -3px; }
 
-/* Slide-break divider row: a compact "— Slide break —" rule instead of a content
-   card. Reuses .el-row/.el-actions/.iconbtn for the border/hover/reorder-delete
-   chrome so it fits the list visually, but renders no edit affordance. */
-.element-row--slidebreak { padding-top: var(--space-1); padding-bottom: var(--space-1); background: none; }
-.slidebreak-row__body { flex-direction: row; align-items: center; gap: var(--space-2); }
-.slidebreak-row__rule { flex: 1 1 auto; height: 1px; background: var(--border-default); }
-.slidebreak-row__label {
+/* The two FIELD-LESS rows -- slide break and divider: a compact "— LABEL —" rule
+   instead of a content card. Reuses .el-row/.el-actions/.iconbtn for the
+   border/hover/reorder-delete chrome so it fits the list visually, but renders no
+   edit affordance (there is no form to open). Selectors are shared rather than
+   duplicated so the twins cannot drift apart visually. */
+.element-row--slidebreak,
+.element-row--divider { padding-top: var(--space-1); padding-bottom: var(--space-1); background: none; }
+.slidebreak-row__body,
+.divider-row__body { flex-direction: row; align-items: center; gap: var(--space-2); }
+.slidebreak-row__rule,
+.divider-row__rule { flex: 1 1 auto; height: 1px; background: var(--border-default); }
+.slidebreak-row__label,
+.divider-row__label {
   flex: none; font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
   color: var(--text-tertiary);
 }
+/* A nested row's grip is display:none (`.element-list--nested .ica--grip` below), so
+   it leaves .el-row__head's `auto 1fr` grid entirely and the body auto-places into
+   the CONTENT-SIZED `auto` column. A text row is unaffected -- it just sizes to its
+   text. This row is not: its rules are `flex: 1 1 auto` spans with no content, so
+   with no free space to grow into they collapse to 0px and the row reads as a stray
+   "DIVIDER" label with the buttons packed left. MEASURED: 135.9px top-level vs 0px
+   nested in the same pane. Span both tracks so the body owns the full width wherever
+   it is placed. Nested-only: at top level the grip still occupies track 1, and
+   spanning from there would push the body onto a second grid row. */
+.element-list--nested .element-row--divider .el-row__body { grid-column: 1 / -1; }
 
 /* add-element dashed button + 5-card type menu */
 .addwrap { margin-top: var(--space-4); }
