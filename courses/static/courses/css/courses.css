@@ -1362,15 +1362,19 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 /* --- Table element (student consumption). Basic/functional pass only — the
    polished visual treatment lands separately via the frontend-design skill. --- */
 .el--table__scroll { overflow-x: auto; }
-/* `width: auto`, NOT 100%. Stretching a table to the content column makes each one
-   share its surplus out in proportion to its own columns' unmet demand, so the SAME
-   first column renders at a different width in two neighbouring tables (measured:
-   116.5px beside a long second column, 279.6px beside a short one). Shrink-to-fit
-   sizes every column from its content alone, so identical columns match across
-   tables. `table-layout: fixed` also equalises them but is ruled out -- it flattens
-   the Large and Full cell-image presets down to Medium. Guarded by
-   tests/test_e2e_table_column_widths.py, which only a browser can fail. */
-.el--table table { border-collapse: collapse; width: auto; }
+/* `width: 100%` is the DEFAULT and stays the default. #314 made this `auto` so that
+   the same first column would render at the same width in two neighbouring tables
+   (it does: 116.5px vs 279.6px before, equal after). MEASURED COST, which is why it
+   was reverted: shrink-to-fit moved 240 of the course's 265 tables across 136 of 148
+   units, 77 of them to under 40% of their column, to fix a clash visible in ~15
+   units. A table's used width is max(min-content, min(max-content, available)), so
+   only tables NARROWER than their column were affected -- there were simply far more
+   of those than expected once KaTeX is typeset (measure this with maths RENDERED:
+   raw LaTeX source is much wider and undercounts badly).
+   Per-table opt-in (`fit`, centred) replaces the blanket rule -- see TableElement's
+   width preset. `table-layout: fixed` equalises columns too but is ruled out: it
+   flattens the Large and Full cell-image presets down to Medium. */
+.el--table table { border-collapse: collapse; width: 100%; }
 .el--table th, .el--table td { padding: var(--space-2); }
 .el--table th { color: var(--text-primary); }
 .el--table--border-grid th, .el--table--border-grid td { border: 1px solid var(--border-default); }

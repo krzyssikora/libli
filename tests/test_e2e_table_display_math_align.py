@@ -145,15 +145,6 @@ def test_table_display_math_honours_cell_halign(page, live_server):
                 [{"html": _FORMULA, "halign": "right"}, {"html": "x"}],
                 [{"html": _FORMULA, "halign": "left"}, {"html": _WIDE}],
                 [{"html": _FORMULA, "halign": "center"}, {"html": ""}],
-                # The slack this test measures must come from the MATH column
-                # itself. `.el--table table` is `width: auto` (shrink-to-fit), so
-                # widening the NEIGHBOUR column -- which is all `_WIDE` in row 2
-                # does -- no longer buys the formula any room: the math column
-                # hugs its own widest cell and every gap measures 0.5px, in which
-                # no alignment is observable. This row is that widest cell. The
-                # filltable twin above needs no such row because
-                # `.el--filltable table` is still `width: 100%`.
-                [{"html": _WIDE}, {"html": ""}],
             ]
         }
     )
