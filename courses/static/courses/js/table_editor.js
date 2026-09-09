@@ -178,6 +178,7 @@
     var thRow = editor.querySelector("[data-th-row]");
     var thCol = editor.querySelector("[data-th-col]");
     var borderSel = editor.querySelector("[data-border]");
+    var widthSel = editor.querySelector("[data-width]");
     if (!hidden || !grid) return; // defensive: markup changed
 
     // Descriptor handed to table_grid.js. `rows`/`cells` are this editor's own
@@ -233,6 +234,7 @@
         header_row: !!(thRow && thRow.checked),
         header_col: !!(thCol && thCol.checked),
         border: (borderSel && borderSel.value) || "grid",
+        width: (widthSel && widthSel.value) || "full",
         cells: cells,
       });
     }
@@ -895,6 +897,7 @@
     if (thRow) thRow.addEventListener("change", function () { serialize(); refreshToolbarState(); });
     if (thCol) thCol.addEventListener("change", function () { serialize(); refreshToolbarState(); });
     if (borderSel) borderSel.addEventListener("change", serialize);
+    if (widthSel) widthSel.addEventListener("change", serialize);
   }
 
   function initTableEditor(root) {

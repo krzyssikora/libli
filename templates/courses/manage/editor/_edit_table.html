@@ -30,6 +30,15 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
         <option value="none" {% if d.border == "none" %}selected{% endif %}>{% trans "None" %}</option>
       </select>
     </label>
+    {% comment %}`d.width` is always present: the view hands the editor
+    normalize_data's output, which defaults a missing key to "full". A table
+    saved before this preset existed therefore opens on Full width.{% endcomment %}
+    <label>{% trans "Width" %}
+      <select data-width>
+        <option value="full" {% if d.width == "full" %}selected{% endif %}>{% trans "Full width" %}</option>
+        <option value="fit" {% if d.width == "fit" %}selected{% endif %}>{% trans "Fit to content" %}</option>
+      </select>
+    </label>
   </div>
 
   <div class="table-editor__toolbar" data-table-toolbar>

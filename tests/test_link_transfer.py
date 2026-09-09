@@ -51,7 +51,7 @@ def test_export_leaves_bodies_byte_identical():
 
 
 def test_format_version_is_current():
-    assert FORMAT_VERSION == 14
+    assert FORMAT_VERSION == 15
 
 
 def test_subtree_documents_carry_link_nodes_too():
