@@ -64,7 +64,7 @@ blockquote {
    dvh not vh: vh resolves against the toolbar-COLLAPSED viewport, so a vh-capped
    image can still fall below the fold on a phone with the address bar showing —
    the exact defect this feature exists to fix. Same reasoning as the imagezoom
-   overlay at :1834.
+   overlay's `height: 100dvh` (`.imgzoom[open]`).
 
    This block MUST stay after `.el { margin: 1rem 0 }` (:4): `.el` and
    `.el--image--small` tie on specificity, so margin-inline:auto wins only on
@@ -1362,7 +1362,15 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 /* --- Table element (student consumption). Basic/functional pass only — the
    polished visual treatment lands separately via the frontend-design skill. --- */
 .el--table__scroll { overflow-x: auto; }
-.el--table table { border-collapse: collapse; width: 100%; }
+/* `width: auto`, NOT 100%. Stretching a table to the content column makes each one
+   share its surplus out in proportion to its own columns' unmet demand, so the SAME
+   first column renders at a different width in two neighbouring tables (measured:
+   116.5px beside a long second column, 279.6px beside a short one). Shrink-to-fit
+   sizes every column from its content alone, so identical columns match across
+   tables. `table-layout: fixed` also equalises them but is ruled out -- it flattens
+   the Large and Full cell-image presets down to Medium. Guarded by
+   tests/test_e2e_table_column_widths.py, which only a browser can fail. */
+.el--table table { border-collapse: collapse; width: auto; }
 .el--table th, .el--table td { padding: var(--space-2); }
 .el--table th { color: var(--text-primary); }
 .el--table--border-grid th, .el--table--border-grid td { border: 1px solid var(--border-default); }
@@ -2863,8 +2871,8 @@ dialog.imgzoom:not([open]) { display: none; }
 }
 
 /* ── Print: reveal every slideshow slide ───────────────────────────────────
-   A multi-slide lesson printed only the ACTIVE slide. The carousel block at
-   :1852 already carries this lesson in its own comment ("printing a carousel
+   A multi-slide lesson printed only the ACTIVE slide. The print block for
+   `.tabs--carousel` carries this lesson in its own comment ("printing a carousel
    silently loses every slide but the current one"); the identical defect in
    slideshows was never fixed.
 
@@ -2874,7 +2882,7 @@ dialog.imgzoom:not([open]) { display: none; }
 
    display:block alone is not enough: the slides are position:absolute inset:0
    inside a fixed-height clipping stage, so revealing them would just stack them
-   invisibly on one spot. Mirrors the carousel precedent at :1868-1870 in full. */
+   invisibly on one spot. Mirrors that block's `position: static` slides in full. */
 @media print {
   .slideshow-deck {
     overflow: visible !important;
