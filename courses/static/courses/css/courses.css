@@ -1571,7 +1571,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .math-live .mk-amber { background: var(--warning-subtle); color: var(--tc-orange); }
 
 /* --- Fill-in table (student self-check widget). Structurally a twin of
-   .el--table (same border/ta-*/va-* rules, renamed) wrapped in a .filltable
+   .el--table (same border, ta-* / va-* rules, renamed) wrapped in a .filltable
    root that also carries the Check button + result summary. Basic/functional
    pass only, matching the sibling table's note above. --- */
 .filltable { margin: var(--space-4) 0; }

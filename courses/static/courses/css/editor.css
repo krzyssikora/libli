@@ -1028,7 +1028,7 @@ button.asset-cell:hover { border-color: var(--primary); }
 /* --- Gallery editor chrome. Rows read as small photo cards (numbered badge +
    rounded thumb), echoing the student gallery's own card look; the toolbar and
    row controls reuse the app's existing icon components (.rte-btn / .iconbtn +
-   the ed-*/bi-* sprite symbols already in the editor DOM) instead of bare
+   the ed-* / bi-* sprite symbols already in the editor DOM) instead of bare
    glyphs, matching the rest of the authoring UI. --- */
 .el-editor--gallery { display: grid; gap: var(--space-3); }
 
