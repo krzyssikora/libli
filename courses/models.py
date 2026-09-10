@@ -1189,6 +1189,17 @@ class TableElement(ElementBase):
 
     DEFAULT_BORDER = "grid"
     BORDERS = {"grid", "rows", "header", "none"}
+    # How the table sits in the reading column. `full` stretches it to the
+    # column, which is what every table did before this preset existed and what
+    # every table without the key still does -- see normalize_data. `fit` shrinks
+    # it to its content and centres it.
+    #
+    # This is a PER-TABLE choice on purpose. #314 applied `fit` as a blanket
+    # stylesheet rule to make two neighbouring tables agree about a shared
+    # column; measured, it moved 240 of 265 tables across 136 of 148 units to fix
+    # a clash visible in ~15, and was reverted in #316.
+    DEFAULT_WIDTH = "full"
+    WIDTHS = {"full", "fit"}
     HALIGN = {"left", "center", "right"}
     VALIGN = {"top", "middle", "bottom"}
     MAX_ROWS = 50
@@ -1352,12 +1363,20 @@ class TableElement(ElementBase):
                 for r in rows
             ]
         border = data.get("border")
+        # isinstance BEFORE the set lookup: `[] in {"full"}` raises TypeError
+        # (unhashable), and this normaliser is the import path's entry point, so
+        # it must not raise on arbitrary stored JSON. `border` above predates
+        # this and is still unguarded -- a separate, pre-existing gap.
+        width = data.get("width")
         return {
             "header_row": bool(data.get("header_row")),
             "header_col": bool(data.get("header_col")),
             "border": border
             if border in TableElement.BORDERS
             else TableElement.DEFAULT_BORDER,
+            "width": width
+            if isinstance(width, str) and width in TableElement.WIDTHS
+            else TableElement.DEFAULT_WIDTH,
             "cells": cells,
         }
 

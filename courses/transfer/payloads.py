@@ -640,11 +640,22 @@ def _val_gallery(data, elid, media_kinds):
 def _val_table(data, elid, media_kinds):
     # `data` is the table dict DIRECTLY (header_row/header_col/border/cells),
     # matching _ser_table's un-wrapped return and _build_table's call shape.
-    _exact_keys(data, ["header_row", "header_col", "border", "cells"], _("table data"))
+    # `width` is optional for pre-v15 archives (the callout `numbered` pattern).
+    # MUST run before _exact_keys, which both requires every listed key and
+    # rejects every unlisted one -- without the setdefault an old archive fails
+    # "missing the key 'width'" and a new one fails "unknown key 'width'".
+    data.setdefault("width", TableElement.DEFAULT_WIDTH)
+    _exact_keys(
+        data, ["header_row", "header_col", "border", "cells", "width"], _("table data")
+    )
     check_bool(data["header_row"], "header_row")
     check_bool(data["header_col"], "header_col")
     if data["border"] not in TableElement.BORDERS:
         _err(_("Element '%(el)s': unknown table border style."), el=elid)
+    # isinstance first: a list/dict value would make the set lookup raise
+    # TypeError (unhashable) where the contract is a translated TransferError.
+    if not isinstance(data["width"], str) or data["width"] not in TableElement.WIDTHS:
+        _err(_("Element '%(el)s': unknown table width preset."), el=elid)
     rows = check_list(data["cells"], "cells")
     if len(rows) > TableElement.MAX_ROWS:
         _err(

@@ -5,7 +5,7 @@ raw \(...\) text — typeset client-side by math.js over .el--table.{% endcommen
 per-cell `header` and plain `<td>` ones: a merge inside a header_row/header_col
 table goes through those <th> branches, and dropping the span there silently
 breaks the layout the editor saved.{% endcomment %}
-<div class="el el--table el--table--border-{{ data.border }}"
+<div class="el el--table el--table--border-{{ data.border }} el--table--width-{{ data.width }}"
      {% if data.header_row %}data-header-row{% endif %}
      {% if data.header_col %}data-header-col{% endif %}>
   <div class="scroll-x" data-scroll-x>

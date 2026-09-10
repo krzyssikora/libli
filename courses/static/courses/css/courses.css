@@ -1375,6 +1375,12 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    width preset. `table-layout: fixed` equalises columns too but is ruled out: it
    flattens the Large and Full cell-image presets down to Medium. */
 .el--table table { border-collapse: collapse; width: 100%; }
+/* The per-table opt-in. `margin-inline: auto` centres it while it is narrower
+   than the column; when the content is wider the auto margins resolve to 0, so
+   the table still starts flush at the scroller's left edge and scrolls normally
+   -- unlike centring a too-wide box with flex, whose leading edge cannot be
+   scrolled back into view. */
+.el--table--width-fit table { width: auto; margin-inline: auto; }
 .el--table th, .el--table td { padding: var(--space-2); }
 .el--table th { color: var(--text-primary); }
 .el--table--border-grid th, .el--table--border-grid td { border: 1px solid var(--border-default); }
