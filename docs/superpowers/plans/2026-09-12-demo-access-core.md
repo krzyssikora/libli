@@ -102,8 +102,9 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
 - **Polish copy** in this PR is limited to display names, the checked-in name lists **and
   eleven new msgids**: the ten `demo/warnings.py` `DISPLAY` strings, plus `_("Revoked")` from
   `demo/models.py`'s `ClosedReason` (Task 2 Step 6). ⚠️ `_("Expired")` is **already** in
-  `locale/pl/LC_MESSAGES/django.po:133`, so only `"Revoked"` needs filling from that pair —
-  eleven extracted, ten to write. Task 6 Step 4b carries the catalog step: `makemessages -l
+  `locale/pl/LC_MESSAGES/django.po:133`, so only `"Revoked"` needs filling from that pair.
+  **Twelve msgids extracted from the new code, eleven of them new, eleven to write** — Step 4b
+  lists all eleven verbatim and is the authority on the count. Task 6 Step 4b carries the catalog step: `makemessages -l
   pl`, fill them, `compilemessages`, commit both `.po` and `.mo` in the same commit. ⚠️ Rebase
   and **regenerate** the `.mo` before the PR — a stale branch conflicts on the binary.
 
@@ -266,6 +267,11 @@ spec). Verified 2026-09-12: it has never been run on libli.pl — no `demo_*` us
 user in total, `mat-pp` the only course, no groups, institution name unchanged, webhook
 disabled. Re-verify only if someone runs an older copy of this runbook.
 ```
+
+⚠️ **Retitle §7 while you are here.** It reads `## 7. Second course and scheduled jobs`
+(`docs/deployment.md:440`), but after this edit the section no longer creates a second course —
+it forbids it — and Task 14 then adds the demo-purge cron to the same section. Change it to
+`## 7. Scheduled jobs`. (The numbering is what later references use; keep the `7.`)
 
 ⚠️ **There is a SECOND site.** `docs/deployment.md:810-812` still reads "The demo-activity
 seeder is separate, unbuilt work; `seed_demo_course` provides one enrolled student on its own
@@ -679,7 +685,12 @@ root, so it becomes an eleventh member and the assertion fails. The guard's own 
 "If a tenth app ships, this guard must be re-read rather than silently skipping it" — so read
 it, confirm `demo/` genuinely holds first-party source that the write-route scan should cover
 (it does: `demo/services.py` and `demo/generator.py` write model state), then add `"demo"` to
-the set and re-run:
+the set and re-run.
+
+⚠️ **Also fix `_first_party_roots()`'s docstring at line 39**, which says "the 9 first-party
+apps". That count is *already* wrong — ten ship today, since it predates `support` — and this
+branch makes it eleven. Keep the edit **line-count neutral** (the repo's citation-rot rule):
+replace `9` with `eleven` in place, do not rewrap the paragraph.
 
 ```bash
 uv run pytest tests/test_element_state_write_routes.py -v
@@ -1295,7 +1306,6 @@ def test_every_registry_type_has_a_fixture_and_an_honest_builder():
             assert 0 < f < 1, (model, f)
 
 
-@pytest.mark.django_db
 def test_the_wrong_text_pool_covers_the_variant_count():  # no django_db: constants only
     """WRONG_TEXTS is the pool _shorttext and _fillblank draw from, and
     WRONG_VARIANTS is how many variants every builder may return. Today both are
@@ -1784,6 +1794,35 @@ def test_a_quiz_with_no_gradeable_question_is_excluded_and_warned():
     assert ("no_gradeable_question", empty.pk) in {
         (w.kind, w.unit_id) for w in plan.warnings
     }
+
+
+@pytest.mark.django_db
+def test_a_quiz_holding_a_review_question_is_skipped_WHOLE():
+    """R3's headline rule, and the ONLY test that drives skip_reason.
+
+    ⚠️ The skip is per-UNIT, never per-question: "Reviewed quiz" also holds a
+    perfectly good choice question, and it must NOT survive on its own. This is
+    also the path that makes the awaiting-review queue structurally empty (see
+    this task's preamble) — so if this test ever starts failing because the skip
+    was narrowed to the offending question, that consequence changed too.
+    """
+    from demo.content import build_course_plan
+    from tests.demo.fixtures import small_course
+
+    course = small_course(quiz_with_review_question=True)
+    plan = build_course_plan(course)
+
+    reviewed = [u for u in plan.units if u.title == "Reviewed quiz"][0]
+    assert reviewed.pk in plan.skipped_quiz_ids
+    assert reviewed.pk not in {u.pk for u in plan.answerable_quizzes}
+    assert reviewed.pk not in plan.questions, "a skipped quiz gets NO question list"
+
+    warning = [w for w in plan.warnings if w.unit_id == reviewed.pk]
+    assert [w.kind for w in warning] == ["quiz_skipped"]
+    assert "REVIEW" in warning[0].reason
+
+    # The good quizzes are untouched — the skip is scoped to the one unit.
+    assert plan.answerable_quizzes
 ```
 
 - [ ] **Step 2: Write the shared fixture builder**
@@ -1846,7 +1885,7 @@ def _choice_question(
 
 def small_course(
     *, slug="small", lesson_with_unanswerable_selfcheck=False,
-    quiz_without_questions=False,
+    quiz_without_questions=False, quiz_with_review_question=False,
 ):
     """⚠️ `slug` is a PARAMETER because `Course.slug` is `unique=True`
     (courses/models.py:127). Any test that needs two courses in one transaction —
@@ -1987,6 +2026,25 @@ def small_course(
         Element.objects.create(
             unit=empty, content_object=TextElement.objects.create(body="<p>x</p>")
         )
+
+    if quiz_with_review_question:
+        # R3's WHOLE-QUIZ SKIP — the one path nothing else drives.
+        # ⚠️ The ExtendedResponse in `lesson_with_unanswerable_selfcheck` is in a
+        # LESSON (deliberately: R3 is quiz-only), and `quiz_without_questions`
+        # exits via `no_gradeable_question`, not via skip_reason. So without this
+        # flag `plan.skipped_quiz_ids` is EMPTY in every test, no test ever sees a
+        # `quiz_skipped` warning, and the rule that fires constantly on real
+        # mat-pp — and that makes the awaiting-review queue structurally empty —
+        # ships with zero positive coverage.
+        from courses.models import ExtendedResponseQuestionElement
+
+        reviewed = _unit(course, part_b, "Reviewed quiz", "quiz")
+        _choice_question(reviewed)  # a GOOD question, so the skip is whole-unit
+        er = ExtendedResponseQuestionElement.objects.create(
+            stem="explain", marking_mode=QuestionElement.MarkingMode.REVIEW,
+            max_marks=Decimal("5"),
+        )
+        Element.objects.create(unit=reviewed, content_object=er)
 
     return course
 ```
@@ -2332,15 +2390,22 @@ def build_course_plan(course):
 uv run pytest tests/demo/test_content.py tests/test_i18n_po_health.py -v
 ```
 
-Expected: PASS (four demo tests, plus the catalog health guards). ⚠️ `test_i18n_po_health.py`
+Expected: PASS (five demo tests, plus the catalog health guards). ⚠️ `test_i18n_po_health.py`
 is the real check behind Step 4b's fuzzy warning — `test_no_fuzzy_entries`,
 `test_no_obsolete_entries` and `test_pl_has_no_untranslated_msgid` run against the actual
 catalogs, so a blank `msgstr` or a `makemessages` fuzzy pre-fill fails here rather than
 shipping.
 
-- [ ] **Step 7: Falsify the quiz-only scope**
+- [ ] **Step 7: Falsify the quiz-only scope and the whole-unit skip**
 
-Delete the `if unit.unit_type != "quiz": continue` guard and re-run.
+Two mutants, reverting each by hand:
+
+1. Narrow the skip to the offending question — replace the REVIEW branch's
+   `skip_reason = …; break` with a bare `continue`.
+   Expected: `test_a_quiz_holding_a_review_question_is_skipped_WHOLE` FAILS — the quiz
+   survives on its good choice question. This is the mutant that matters: a per-question skip
+   looks more useful and quietly changes what R3 means.
+2. Delete the `if unit.unit_type != "quiz": continue` guard and re-run.
 
 Expected: `test_a_lesson_with_an_unanswerable_self_check_is_never_skipped` FAILS. **Revert by
 hand.**
@@ -2808,11 +2873,19 @@ def test_a_non_kit_student_gains_nothing():
 
 @pytest.mark.django_db
 def test_a_skipped_quiz_receives_no_submission():
-    """T5 — whole-unit skip, never a single question."""
+    """T5 — the WRITE half of the whole-unit skip.
+
+    ⚠️ Uses `quiz_with_review_question`, not `quiz_without_questions`: a
+    prose-only quiz exits via the `no_gradeable_question` branch and never sets
+    `skip_reason`, so the earlier version of this test drove a different path
+    than its docstring claimed. Task 6's
+    `test_a_quiz_holding_a_review_question_is_skipped_WHOLE` covers the plan
+    half; this covers the fact that no row is written for it.
+    """
     from courses.models import QuizSubmission
     from tests.demo.fixtures import small_course
 
-    course = small_course(quiz_without_questions=True)
+    course = small_course(quiz_with_review_question=True)
     _pupils, plan, _w = _run(course)
 
     for unit in plan.units:
@@ -2901,9 +2974,12 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
     # quiz, NOT general re-entry: QuestionResponse carries
     # UniqueConstraint(["submission", "element"]), so a second call against a
     # still-IN_PROGRESS submission would raise IntegrityError at the bulk_create
-    # below. Both callers guarantee it cannot happen — the depth loop visits each
-    # unit once, and leave_in_progress skips every unit already in
-    # `submitted_unit_ids`. Keep it that way.
+    # below. All THREE callers guarantee it cannot happen:
+    #   1. generate's depth loop — visits each unit at most once;
+    #   2. generate's reach-forward — fires only when `did_quiz` is False, which
+    #      means no submission exists for ANY answerable quiz, first_quiz included;
+    #   3. leave_in_progress — skips every unit already in `submitted_unit_ids`.
+    # Keep it that way. (2) is the one that is not obvious from its call site.
     now = timezone.now()
     rows = []
     for qplan in qplans[:limit]:  # qplans[:None] is already the whole list
@@ -3195,8 +3271,9 @@ calls `extend_kit` — which is vendor-guarded — must carry its **own**
 uv run pytest tests/demo/test_in_progress.py -v
 ```
 
-Expected: **2 passed, 1 error** — `ImportError: cannot import name 'leave_in_progress'`, which
-Step 4 writes. The third test (`test_no_qualifying_pupil_is_reported_not_silently_swallowed`)
+Expected: **2 passed, 1 failed** — `ImportError: cannot import name 'leave_in_progress'`, which
+Step 4 writes. (`failed`, not `error`: the import is inside the function body, so it raises
+during the call phase; pytest reserves `ERROR` for collection and fixture setup.) The third test (`test_no_qualifying_pupil_is_reported_not_silently_swallowed`)
 drives the pass itself, so it cannot run yet; that one IS the red half of this task's cycle.
 
 ⚠️ **The other two go GREEN immediately, and that is correct** — they read only `build_course_plan`
@@ -4752,6 +4829,45 @@ def test_the_warning_block_is_bounded_however_many_warnings_there_are():
     assert "https://sis.example/hook" in printed, (
         "the data-protection warning must never be the one summarised away"
     )
+
+
+@pytest.mark.django_db
+def test_a_failing_purge_reports_the_survivors_and_still_exits_non_zero(monkeypatch):
+    """The COMMAND half of C4. Task 11 Step 5's third mutant covers the service
+    (purge_expired attempts every kit, then re-raises); this covers what the cron
+    log actually shows — the kits that DID close, printed before the non-zero
+    exit — and that handle() turns PurgeFailed into a CommandError."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from demo import services
+    from demo.models import DemoKit
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    course = small_course()
+    doomed = provision_for_test(course, label="Doomed")
+    survivor = provision_for_test(course, label="Survivor")
+    DemoKit.objects.filter(pk__in=[doomed.pk, survivor.pk]).update(
+        expires_at=timezone.now() - timedelta(days=1)
+    )
+
+    real_purge = services.purge_kit
+    monkeypatch.setattr(
+        services,
+        "purge_kit",
+        lambda kit, *, reason: (_ for _ in ()).throw(RuntimeError("boom"))
+        if kit.pk == doomed.pk
+        else real_purge(kit, reason=reason),
+    )
+
+    out = StringIO()
+    with pytest.raises(CommandError) as exc:
+        call_command("demo_access", "purge", stdout=out)
+
+    assert f"#{survivor.pk}" in out.getvalue(), "the survivor was never reported"
+    assert f"#{doomed.pk}" in str(exc.value)
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -4927,7 +5043,7 @@ class Command(BaseCommand):
 uv run pytest tests/demo/test_command.py -v
 ```
 
-Expected: PASS (five tests).
+Expected: PASS (six tests).
 
 - [ ] **Step 5: Commit**
 
@@ -5436,6 +5552,16 @@ uv run ruff format --check .
 ```
 
 - [ ] **Provision against the local mat-pp copy and LOOK at it** (spec §8, "beyond the suite")
+
+⚠️ **Apply the migration to your LOCAL dev database first.** Task 2 Step 8 only *generates*
+`demo/migrations/0001_initial.py`; pytest creates its own test DB, so nothing in this plan has
+ever applied it to the database this command talks to. Without it `demo_demokit` does not
+exist and the run dies on a `ProgrammingError` before producing the timing number the budget
+and the PR body both need:
+
+```bash
+uv run python manage.py migrate
+```
 
 ```bash
 # Bash — `time` FIRST. `VAR=x time cmd` is NOT the shell keyword: prefixed by an
