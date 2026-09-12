@@ -128,7 +128,15 @@ pk 19, 1,029 nodes, updated 2026-09-05)
 - `finalize_submission` sends no mail and fires no webhook, so seeding is silent.
   (Force-submit does both, but that is a rep's action inside their own kit:
   `courses/review.py:96-102`.)
-  ⚠️ **That is verified for `finalize_submission` ONLY.** R6 claims silence for the whole of
+  ⚠️ **A rep's force-submit is NOT silent, and only its mail half has been risk-assessed.**
+  `force_submit_quiz` mails the reviewing teachers (`courses/review.py:96-98`) and may emit a
+  webhook (`:100-102`). On prod that means a delivery carrying demo pupil data to whatever
+  endpoint is configured — and §5.0 establishes that an endpoint pointing at
+  `sis.demo.example` may already exist from `seed_demo_course`. **"No ACTIVE `WebhookEndpoint`"
+  therefore joins §5.0's standing preconditions**, not merely its one-off remediation list.
+  The plan records which recipients that mail reaches (kit Teacher only, or the course owner
+  too — i.e. Krzysztof).
+  ⚠️ **Silence is verified for `finalize_submission` ONLY.** R6 claims silence for the whole of
   provisioning, which also calls `User.objects.create_user` (×`pupils + 2` — Django's manager,
   not a project helper; the side effects to check are the `post_save` receivers §3.7
   enumerates), `set_user_role` (×`pupils + 2`), `ensure_verified_primary_email` (×2) and
@@ -424,7 +432,11 @@ refuse a kit that already has `closed_at` set.
   cannot distort anything.
   That exception is stated here because it is the only place R3's "never skip one question"
   does not hold.
-- **R4 Completed progress accompanies every submission.** `finalize_submission` deliberately
+- **R4 Completed progress accompanies every FINALIZED submission** — and deliberately not the
+  IN_PROGRESS ones (§4.5), which carry no `UnitProgress` at all, exactly as an unfinished quiz
+  does in production. Stated as an exception in R3's style, because read as "every
+  submission" an implementer would write a completed progress row for an in-progress quiz, a
+  state no production path makes. `finalize_submission` deliberately
   does not touch `UnitProgress`; both production close paths write it, and so must this
   (same reasoning as `seed_demo_course._complete_unit`).
 - **R5 Determinism.** All **content** randomness — names, bands, jitter, right/wrong, partial
@@ -499,6 +511,12 @@ row before any generation runs** (R5 is meaningless otherwise). `created_by` is 
 command invocations and `request.user` for the PR 3 tab. `frontier_part` is stored as given
 (null means "use the derived default", §4.5).
 
+**The defaults are module constants, not argparse literals.** `DEFAULT_DAYS = 14` and
+`DEFAULT_PUPILS = 20` live in the `demo` app beside the band constants; the command's argparse
+defaults and PR 3's form initials both read them. The spec puts the *bounds* in the service so
+the form inherits them, and leaving the *defaults* as hand-copied literals in two callers is
+the same drift by another route — and Q2's answer then has one place to land.
+
 **The named errors.** One hierarchy, referenced by all three consumers: `DemoKitError` as the
 base, with `InvalidLabel`, `InvalidBounds(field)`, `InvalidFrontierPart`, `UsernameCollision`,
 `EmptyCourse`, `EmptyKit`, **`KitAlreadyClosed`** (raised by `extend_kit` and `revoke_kit` on a
@@ -547,8 +565,16 @@ so the PR 3 form inherits them — each raising the matching error above:
      four struggling pupils that is a few percent of provisions going red for a
      content-shaped reason, on a `secrets`-drawn seed.
   2. *The slice geometry:* for these two guaranteed rows **only**, a pupil whose slice
-     contains no obligatory lesson, or no surviving quiz, reaches forward to the first one in
-     the course's pre-order. ⚠️ Otherwise the guarantee is conditional on what the slice
+     contains no obligatory lesson, or no **surviving quiz**, reaches forward to the first
+     such unit in the course's pre-order — "surviving quiz" meaning, here and everywhere else
+     in this spec, **a quiz in step 5.5's answerable-candidate set that has at least one
+     gradeable top-level question** (not merely "the first quiz", which could land on an
+     R3-skipped or gradeable-max-zero unit and fail the invariant all over again).
+     **Its draws and its position in the stream are pinned in §4.5's RNG order, item 3a.**
+     ⚠️ **The artefact, stated honestly:** a pupil who reaches forward gets one lone tick or
+     score far to the right of an otherwise empty row. It fires only on a short frontier — a
+     low `--frontier-part`, or §8's small fixtures — and never at the 0.75 default on
+     `mat-pp`. Such rows **do** count toward §8 criterion 1's numerator: the cell is real. ⚠️ Otherwise the guarantee is conditional on what the slice
      happens to hold, which the dice also decide: a struggling pupil sits at
      `round(frontier_index × 0.70 × (1 ± 0.08))`, so under the endorsed `--frontier-part 0` a
      part opening with a run of lessons before its first quiz gives them no quiz at all, and
@@ -561,11 +587,13 @@ so the PR 3 form inherits them — each raising the matching error above:
   as a broken demo, and leaves the suite green. Per pupil is the assertion that matches what
   a rep sees. (The IN_PROGRESS submission is a **warning**,
   not a rollback condition — §4.5 — and is stated separately because "X or a warning" is
-  unfalsifiable: any implementation satisfies it by warning.) ⚠️ "At least one quiz survived R3/R1b" — the earlier wording — is not the
-  same thing: every pupil's slice ends at their depth, so a course whose surviving quizzes
-  all sit past even the strong band's reach passes that check and still provisions live
-  credentials with an empty results mode and an empty review queue, which is exactly what the
-  check exists to prevent. Assert on rows written, not on the candidate set.
+  unfalsifiable: any implementation satisfies it by warning.)
+  ⚠️ **Why per-pupil rather than kit-wide, now that guarantee 2 exists.** Guarantee 2 retires
+  the original justification — a course whose quizzes all sit past every pupil's reach now
+  provisions fine, and T22 asserts that it does. What a per-pupil assertion still buys is the
+  mixed case: a kit where most pupils' slices hold a quiz and a minority's do not, where a
+  kit-wide floor of "at least one submission anywhere" passes while individual rows come out
+  blank. Assert on rows written, per pupil, never on the candidate set.
 
 Order of work, inside one transaction:
 
@@ -614,7 +642,10 @@ Order of work, inside one transaction:
    group pickers, the ambiguity the kit pk in the group name exists to avoid), generated
    password, verified primary email
    `<username>@demo.invalid` via `ensure_verified_primary_email` (needed:
-   `ACCOUNT_EMAIL_VERIFICATION="mandatory"`, `config/settings/base.py:105`). Login accepts
+   `ACCOUNT_EMAIL_VERIFICATION="mandatory"`, `config/settings/base.py:105`). **`User.email`
+   carries the same address** — the plan confirms whether `ensure_verified_primary_email` sets
+   it or `create_user` must pass it, since the collision scan covers both tables precisely
+   because they can diverge. Login accepts
    username or email (`ACCOUNT_LOGIN_METHODS = {"username", "email"}`, `base.py:99`).
    ⚠️ **`is_staff` at creation time is load-bearing, not tidiness.** `ensure_cohort_membership`
    is a `post_save` receiver (§3.7) that skips staff — but `set_user_role` grants staff
@@ -761,7 +792,9 @@ on them being fixed):
   fraction. T21 covers it. (The PR 3 form does not expose the override, so the rule binds the
   service and the command — and the form too, if it ever grows the field.)
 - **Per-pupil depth** = `clamp(round(frontier_index × multiplier × (1 + jitter)), 0,
-  len(published_units) - 1)`, where `jitter = rng.uniform(-0.08, 0.08)`. Every Bernoulli draw
+  len(published_units) - 1)`, where `jitter = rng.uniform(-0.08, 0.08)` and `round` is
+  **Python's built-in banker's rounding**, not `int(x + 0.5)` — the two disagree at exact
+  halves, and the frontier's `floor` is pinned for the same reason. Every Bernoulli draw
   in this section — `P(correct)`, `P_LESSON_DONE`, `P_OPTIONAL_DONE`, `P_PARTIAL_GIVEN_WRONG`
   — is `rng.random() < p`, pinned for the same reason `uniform` and `randint` are: different
   methods consume the Mersenne stream differently, and R5 is a claim about the stream. The
@@ -842,7 +875,8 @@ on them being fixed):
   being wrong, which invites "draw the second only when wrong" — deterministic too, so T7
   cannot tell the two apart, and they diverge for every later question. That asymmetry is part of the fixed order below.
   **A quiz unit with no GRADEABLE top-level question gets no submission at all** — whether it
-  has none at all (a quiz of prose and images, which T5(d) already builds) or only NOT_MARKED
+  has none at all (a quiz of prose and images — **T5(e)**'s fixture, which is not T5(d)'s:
+  that one has questions, and exists to prove R9's filter) or only NOT_MARKED
   ones. Its `score` and `max_score` would both be 0.00, the cell could never show anything,
   and the 0/0 pair would still join the part column's sum (§3.2). Stated over the gradeable
   max, not over "all NOT_MARKED": the narrower wording let a question-free quiz slip through
@@ -852,8 +886,9 @@ on them being fixed):
 - **Unfinished work.** `IN_PROGRESS_PUPILS = 2` pupils get an IN_PROGRESS submission, so the
   review queue has entries and "Force submit" has a target. (Which two is the selection rule
   below — stated once, there.) **Responses are written for a strictly proper prefix of the unit's top-level
-  questions** — at least one, at most n−1, the count drawn from the kit RNG (and part of the
-  fixed order above) — with no `finalize_submission` and no `UnitProgress`. The submission is
+  questions** — at least one, at most n−1, the count drawn as `rng.randint(1, n - 1)` (pinned
+  like every other draw: `rng.choice(range(1, n))` consumes the stream differently) and part of
+  the fixed order above — with no `finalize_submission` and no `UnitProgress`. The submission is
   opened with the **identical** `select_for_update().get_or_create(student=…, unit=…,
   defaults={"status": IN_PROGRESS})` call as the finalized path and simply left there:
   `status=IN_PROGRESS`, `score`/`max_score` null, responses unlocked. ⚠️ The prefix is
@@ -880,6 +915,13 @@ on them being fixed):
   all-NOT_MARKED unit, which the same section forbids a submission. Picking shallow pupils
   makes a target exist by construction; the strong band, whose depth can clamp to the last
   unit, is exactly who had none.
+  ⚠️ **The target must be a quiz the pupil has NO `QuizSubmission` for** — not merely one
+  "strictly after their depth". The two collide: the shallowest pupils are precisely those
+  most likely to have triggered guarantee 2's reach-forward, which **finalized** a quiz after
+  their depth. Targeting that same unit would hand the identical `get_or_create` an existing
+  SUBMITTED row, write a prefix of responses into a finalized, locked, already-scored
+  submission, produce no review-queue entry and leave `score` stale — T25 failing for a reason
+  nothing else in this spec explains.
   If no pupil qualifies at all, **warn** — a kit with no in-progress submission has an empty
   review queue.
   **The prefix is drawn over the unit's ANSWERABLE top-level questions** — the same `n` the
@@ -902,6 +944,12 @@ on them being fixed):
   3. then, per pupil in order: jitter, then per unit in pre-order, and within a unit either
      the lesson's completion draw (`P_LESSON_DONE` for an obligatory lesson,
      `P_OPTIONAL_DONE` for an optional one) or, for a quiz, per question in element order
+     — and then, as **item 3a**, that pupil's reach-forward rows if §4.4's guarantee 2 fired:
+     the reached lesson is completed **with no draw at all** (it is forced, and there was no
+     in-slice obligatory lesson to draw for), and the reached quiz consumes its questions'
+     draws on the ordinary one-or-two rule. Placed immediately after that pupil's slice walk
+     and before the next pupil's, so the stream is pinned; the reached units lie outside the
+     slice, so the pre-order walk never reaches them on its own
      (one draw, or two for a partial-capable type; **a NOT_MARKED question, a sentinel
      question, and a question whose partial failed R1b all consume one fewer** — none at all
      for the first two, one for the third, which is thereafter treated as non-partial-capable).
@@ -967,9 +1015,27 @@ types, not unit types, which an earlier `SKIP_UNIT_TYPES` spelling got backwards
 enumerated `QuestionElement` subclasses against it)**.** A module-level map `{question model →
 builder}`, where each builder returns `(correct_answer, wrong_answer,
 partial_answer_or_None)`; beside it, `UNANSWERABLE_QUESTION_TYPES`, the explicit set of question types
-the generator deliberately cannot answer. **`UNANSWERABLE_QUESTION_TYPES` starts empty** — §3.1's audit
-found no unanswerable type in published `mat-pp` — and `extendedresponse` is its first
-candidate if one is ever authored. A type in **neither** collection triggers R3's whole-unit
+the generator deliberately cannot answer.
+
+⚠️ **`UNANSWERABLE_QUESTION_TYPES` does NOT start empty, and an earlier draft saying so would
+have made T6 red on day one.** T6 enumerates **model classes**, not content, and
+`courses/models.py` defines **ten** `QuestionElement` subclasses (verified 2026-09-12):
+`Choice` (:2268), `ShortText` (:2470), `ExtendedResponse` (:2499), `ShortNumeric` (:2531),
+`FillBlank` (:2584), `DragFillBlank` (:2634), `MatchPair` (:2688), `ChoiceGrid` (:2741),
+`MultiGrid` (:2831), `DragToImage` (:2921). "Absent from today's content" is not "answerable",
+and `extendedresponse` is not a future candidate — the class exists now. The initial split:
+
+| collection | types | why |
+|---|---|---|
+| **builders registry (7)** | choice, shortnumeric, fillblank, matchpair, choicegrid — the five §3.1 measured against all 371 live rows — plus **shorttext** (a string against `accepted`) and **multigrid** (one sorted column-pk list per row, from `row.correct_columns`; §3.1 measured it in lessons) | shapes known; each needs a T1b fixture |
+| **`UNANSWERABLE_QUESTION_TYPES` (3)** | **extendedresponse**, **dragfill**, **dragtoimage** | `extendedresponse` cannot be answered meaningfully (a REVIEW one has no score until a teacher marks it; an AUTO one needs prose built from keywords). The two drag types look easy on paper but have **never been exercised against a real row**, and neither appears in a published `mat-pp` quiz — so the safe default is to skip, not to guess |
+
+⚠️ **Consequence, stated rather than discovered:** if a `mat-pp` part that publishes a drag
+question **in a quiz** is ever released, R3 skips that whole unit and warns, costing a matrix
+column. Promoting either drag type into the registry later is a bounded follow-up — one
+builder and one T1b fixture each — not a redesign.
+
+A type in **neither** collection triggers R3's whole-unit
 skip with a warning at runtime (never an exception), and fails T6 at test time. §8 T6 drives
 the coverage test off the two collections; T1b tests the builders' behaviour — a registry
 entry that returns a *wrong* "correct" answer is otherwise invisible (§8).
@@ -981,7 +1047,7 @@ entry that returns a *wrong* "correct" answer is otherwise invisible (§8).
 | invocation | behaviour |
 |---|---|
 | `demo_access create --label "SP 12 Kraków" --course <slug> [--days 14] [--pupils 20] [--frontier-part N]` | provisions; prints kit id, both usernames, both generated passwords and the expiry **once** |
-| `demo_access list [--all]` | active and `expired — pending purge` kits only, newest first; `--all` adds closed ones. ⚠️ The default filter is the point: `list` is Risk 5's early warning, and after a year of demos the one pending-purge row that matters would be buried among dozens of closed ones. Columns: id, label, **course slug, pupils**, created, expires, status (`active` / `expired — pending purge` / `closed (expired\|revoked)`). The course and pupil count are there because `list` is the ops-routine surface (§5.4): without them an operator reconciling "which kit is this?" once a second course exists has to go to the DB |
+| `demo_access list [--all]` | active and `expired — pending purge` kits only, newest first; `--all` adds closed ones. ⚠️ The default filter is the point: `list` is Risk 5's early warning, and after a year of demos the one pending-purge row that matters would be buried among dozens of closed ones. Ordered `("-created_at", "-pk")` (pinned: "newest" must not resolve to pk order by accident). Columns: id, label, **course slug, pupils, teacher username** — the one identifier a rep quotes back in an email, free from `kit.teacher`, blank once the FK is nulled; passwords remain unrecoverable (N5) — created, expires, status (`active` / `expired — pending purge` / `closed (expired\|revoked)`). The course and pupil count are there because `list` is the ops-routine surface (§5.4): without them an operator reconciling "which kit is this?" once a second course exists has to go to the DB |
 | `demo_access extend <id> --days N` | `expires_at = max(expires_at, now()) + N days` — the `max` matters for a kit that expired yesterday but has not been purged (§4.7), where extending from the stale date could leave it still expired. Refuses a closed kit; warns when the new `expires_at` is more than 60 days after `created_at` (the class's back-dated activity then looks abandoned) |
 | `demo_access revoke <id>` | purges now, `closed_reason="revoked"`; refuses a closed kit |
 | `demo_access purge [--dry-run]` | purges every kit matching `expires_at <= now() AND closed_at IS NULL`, `closed_reason="expired"`, **each kit in its own transaction**: a failure is logged and the loop continues to the next kit, with a non-zero exit at the end so the cron log shows it. One kit's failure must not leave the others' logins alive. `--dry-run` **prints the id and label of every kit it would purge** and writes nothing — a dry run that printed nothing could not serve as the "test it by hand first" step below |
@@ -1007,7 +1073,12 @@ warning** (as a flag on `ExtendResult`) rather than printing it: the warning is 
 mitigation, and leaving it in the command would let PR 3's "Extend +14 days" button walk a kit
 past 60 days silently — the one field where D6's shared service layer would have been broken.
 The command prints it; the tab renders it as a form message. The `active / expired — pending purge / closed (…)` status string is
-a **`DemoKit` property**, computed once on the model, so the command and the tab cannot drift.
+a **`DemoKit` property**, computed once on the model, so the command and the tab cannot drift
+— as a machine-readable **key** (`active` / `pending_purge` / `closed_expired` /
+`closed_revoked`) plus a translated display map used only by the tab. A lazily translated
+property would make `demo_access list`'s output follow the process locale (Polish, given
+§4.8's audience); a bare English one would ship an untranslated cell in a panel §4.6 requires
+to be fully translated.
 
 ⚠️ The purge predicate's `closed_at IS NULL` conjunct is what makes purge **idempotent**:
 without it every historical kit is re-processed nightly for ever. It is tested directly
@@ -1139,6 +1210,8 @@ Polish suggestions were deliberately left unapplied for the same reason —
    `Course.objects.count() == 1`:
    - **Seeder remediation** (one-off, before the first kit): no `demo-course` Course, no
      `demo-subject` Subject, no `demo_*` users, and the other artefacts above cleared.
+   - **No ACTIVE `WebhookEndpoint`** (re-checked before each kit, not once): a rep's
+     force-submit emits to it, carrying demo pupil data off the box (§3.2).
    - **Rep visibility** (re-evaluated whenever a course is added, for ever): every course on
      the box is one a rep may see. The day a private course legitimately lands — which
      Risk 2 anticipates — this check fails, and the decision then is either to stop issuing
@@ -1212,8 +1285,13 @@ units were created first**. Same family as the project's recurring pk-coincidenc
 ⚠️ **Every test that provisions runs under `override_settings(VENDOR_INSTANCE=True)`.**
 `config/settings/test.py:37` pins the flag **False** (its own comment says vendor tests opt
 back in this way), so the suite's default is the *guarded* state: without the override,
-Stated as a **rule, not a list**: **every test except T13** provisions and therefore needs the
-override, and T13 is the only one that runs at the test settings' default. (Two earlier
+Stated as a **rule, not a list**: **every test provisions its fixture kit under
+`override_settings(VENDOR_INSTANCE=True)`**. T13 is the only one whose *assertions* then run
+at the test settings' default — its arrange phase needs the override like everyone else's,
+because a live kit (users, group, enrolments, a populated `kit.users`) can only come from
+`provision_kit`, which refuses at the default. ⚠️ Without that split, T13 either hand-rolls a
+`DemoKit` whose `kit.users` differs from the real one — so `purge_kit`'s deletion set is not
+what prod runs — or quietly acquires the override and loses its whole point. (Two earlier
 drafts enumerated ranges, and both went stale the moment a test was appended — first T14, then
 T23–T25.)
 
@@ -1267,7 +1345,11 @@ T23–T25.)
   score); (c) a unit with an unanswerable question **nested in a container** is generated
   normally, because R9 never looks at it; (d) a quiz holding **prose, image and callout
   elements** beside its questions is generated normally — R9's question filter, without which
-  every real quiz would be skipped and the kit would roll back empty. Plus: a **one-question**
+  every real quiz would be skipped and the kit would roll back empty; (e) a quiz unit holding
+  **only** prose/image/callout elements and **no question at all** gets **no submission**
+  (§4.5's gradeable-max rule). ⚠️ (d) and (e) are different fixtures: (d)'s unit has
+  questions. Mutant for (e): gate the no-submission rule on "all NOT_MARKED" instead of on the
+  gradeable max, and the question-free quiz slips through R3 into a finalized 0/0. Plus: a **one-question**
   quiz and an **all-NOT_MARKED** quiz are never chosen as IN_PROGRESS targets (the
   empty-prefix and no-gradeable-response boundaries, §4.5), and when the quiz just past a
   pupil's depth is R3-skipped the chain moves to the next candidate rather than writing an
@@ -1380,11 +1462,14 @@ T23–T25.)
   published unit, raises the named error before any row is written. Mutant: `if
   kit.frontier_part:` in place of `is not None`.
 - **T22 Preconditions, the credential path and the `repr`.** The two password fields are
-  absent from `repr(ProvisionResult(...))` (the `field(repr=False)` mechanism, §4.4). A course with **no published units** raises
-  the named error before any row is written (the inverted-`clamp` case, §4.4); a course whose
-  quizzes all sit past every pupil's depth fails the **post-generation** invariant (no
-  finalized submission with a score) and rolls back, rather than provisioning live
-  credentials with an empty results mode; `provision_kit` returns a `ProvisionResult` whose
+  absent from `repr(ProvisionResult(...))` (the `field(repr=False)` mechanism, §4.4). A course
+  with **no published units** raises `EmptyCourse` before any row is written (the
+  inverted-`clamp` case, §4.4). ⚠️ **`EmptyKit`'s scenario is now narrow, and an earlier draft
+  named one that guarantee 2 has made impossible**: a course whose quizzes all sit past every
+  pupil's depth **provisions successfully** — that is what the reach-forward is for, and this
+  test asserts it does, with the reached rows present. `EmptyKit` fires only when the course
+  has **no obligatory lesson anywhere, or no surviving quiz anywhere**, which is what the
+  rollback case builds; `provision_kit` returns a `ProvisionResult` whose
   two passwords authenticate their users, **neither appears in any persisted `DemoKit`
   field**, and after PR 3's result page is read once the password is gone from the session.
   Mutants: return the `DemoKit` row alone (the command and tab then have nothing to show);
@@ -1423,7 +1508,9 @@ the drill-down, the review queue and the pupil view in a browser, light and dark
 to unit columns** (an unexpanded part column lights up as soon as one quiz under it counts,
 §3.2, so it cannot discriminate):
 1. *results mode* — at least two-thirds of **the course's published quiz units, minus those
-   R3-skipped and those whose questions are all NOT_MARKED**, hold a score for at least half
+   R3-skipped and those with no gradeable top-level question** (the same "surviving quiz" set
+   §4.4 defines — a quiz with no questions at all, or only NOT_MARKED ones, can never hold a
+   score for anyone and would read as a low score for the fraction), hold a score for at least half
    **the class, meaning the generated pupils only** — the matrix has `pupils + 1` rows and the
    extra one, the rep's Student, is deliberately blank at measurement time, so measuring
    "half" over 21 rows instead of 20 would shift this, the sole quantitative gate on
