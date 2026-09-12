@@ -77,23 +77,21 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
      ⚠️ Add these **alongside** the existing `tests/**` entries, not replacing them.
   4. **`typing.Optional` / `typing.Union` are banned** (`UP045`/`UP007` at py313). Write
      `int | None`.
-  5. **88 columns** (`E501`). Several lines in the blocks below exceed it as written — the
-     longer `demo/warnings.py` `DISPLAY` strings (`correct_answer_rejected`,
-     `sentinel_answered`, `partial_fallback`, `no_qualifying_pupil`), the `Group.objects.create`
-     name f-string, `frontier_index`'s `parts = [...]` comprehension, the `KitAlreadyClosed`
-     f-string and the `fewer_in_progress_than_target` argument line. Wrap them as you paste;
-     for the `DISPLAY` entries, put the text inside a wrapped `_(` call. The repo's convention
-     for a line that genuinely cannot be wrapped is an explicit `# noqa: E501` (see
+  5. **88 columns** (`E501`). **A dozen-plus lines in the blocks below exceed it as written** —
+     the longer `demo/warnings.py` `DISPLAY` strings, `demo/content.py`'s
+     `warns.append(DemoWarning("question_dropped", ...))` and `skip_reason = f"..."` lines, the
+     `Group.objects.create` name f-string, the `KitAlreadyClosed` f-string, the
+     `fewer_in_progress_than_target` argument line, `demo_access.py`'s `"... and N more"`
+     write, and `test_content.py`'s `saw_sentinel` message, among others. **Do not work from
+     this list** — it is illustrative and was already incomplete once. Run
+     `uv run ruff check --no-cache <file>` after pasting each block and fix what it names. For
+     the `DISPLAY` entries, wrap the text inside the `_(` call. The repo's convention for a
+     line that genuinely cannot be wrapped is an explicit `# noqa: E501` (see
      `config/settings/base.py:141`) — none of ours needs one.
   6. **`I001` enforces ORDERING too, not just splitting** — section order (stdlib /
      third-party / first-party), alphabetical within each section, **and it checks
      function-local import blocks as well as module headers**. So after splitting a block,
-     re-sort it. Three blocks below are wrong as pasted and must be fixed in place:
-     `demo/builders.py`'s header (`courses.marking` must precede `courses.models`),
-     `tests/demo/test_model.py` (`from datetime import timedelta` is stdlib and belongs above
-     the `pytest`/`django` block, not below it), and `_projection` in
-     `tests/demo/test_determinism.py` (its `courses.quiz` import is stranded after a blank
-     line, below `demo.content`).
+     re-sort it.
   7. **`ruff format --check .` is a SEPARATE gate** from `ruff check`, and it is the last
      command in Final verification. It explodes any collection or call carrying a **magic
      trailing comma** to one element per line — which reformats all four `demo/names.py` name
@@ -145,6 +143,8 @@ this is prevention, not cleanup.
 **Files:**
 - Modify: `courses/management/commands/seed_demo_course.py` (imports + top of `handle`)
 - Modify: `docs/deployment.md` — **two sites**, §7 (~440-448) and the gotchas bullet at ~810
+- Modify: `docs/development/setup.md:86` and `docs/development/architecture.md:80` — both
+  still present `seed_demo_course` as freely runnable
 - Test: `tests/test_seed_demo_course.py`
 
 **Interfaces:**
@@ -254,10 +254,22 @@ bullet with:
   refuses to run with `DEBUG=False` — see §7.)
 ```
 
+⚠️ **And two DEVELOPER docs, outside `deployment.md`.** A developer whose local settings module
+has `DEBUG=False` now gets a bare `CommandError` with nothing explaining the new precondition:
+
+- `docs/development/setup.md:86` shows `uv run python manage.py seed_demo_course` as a plain
+  setup step — add "(local only; the command refuses to run with `DEBUG=False`)".
+- `docs/development/architecture.md:80` lists it among the management commands — add the same
+  parenthetical.
+
+(`courses/tests/test_callout_numbering_render.py:184` calls `Command()._callout` directly,
+never `handle()`, so the guard does not touch it.)
+
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/management/commands/seed_demo_course.py docs/deployment.md tests/test_seed_demo_course.py
+git add courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
+git add docs/deployment.md docs/development/setup.md docs/development/architecture.md
 git commit -m "fix(demo): seed_demo_course refuses to run with DEBUG=False
 
 It creates demo_admin as a Platform Admin with a password hardcoded in
@@ -277,9 +289,10 @@ live box. Prod measured clean 2026-09-12; this is prevention."
 
 **Interfaces:**
 - Produces:
-  - `demo.models.DemoKit` with fields `label, slug, course, group, teacher, student, users,
-    seed, pupil_count, frontier_part, created_at, expires_at, created_by, closed_at,
-    closed_reason` and property `status_key -> str`.
+  - `demo.models.DemoKit` with fields `label, slug, course, course_slug, group, teacher,
+    student, users, seed, pupil_count, frontier_part, created_at, expires_at, created_by,
+    closed_at, closed_reason` and property `status_key -> str`. **Every FK is nullable and
+    `SET_NULL`** — the row outlives the kit by design, so none of them may `PROTECT`.
   - `demo.models.DemoKit.ClosedReason` (`EXPIRED`, `REVOKED`).
   - `demo.constants` — every name in the block below.
   - `demo.errors.DemoKitError` and its nine subclasses.
@@ -521,7 +534,18 @@ class DemoKit(models.Model):
     # leave room for "-NNN-nauczyciel" inside username's 150, and a column twice
     # the size lets a direct write break that invariant silently.
     slug = models.SlugField(max_length=SLUG_MAX)
-    course = models.ForeignKey("courses.Course", on_delete=models.PROTECT)
+    # SET_NULL, not PROTECT. The row is retained for ever (see the class
+    # docstring), so PROTECT would mean every closed kit permanently blocks its
+    # course from deletion: after a few dozen demos, dropping or replacing
+    # mat-pp raises ProtectedError, and neither `revoke` nor `purge` can clear
+    # it because neither nulls this FK. `course_slug` below keeps the historical
+    # record readable after the course is gone.
+    course = models.ForeignKey(
+        "courses.Course", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    # Denormalised at creation so `demo_access list` and the retained row still
+    # say WHICH course the demo was for once the FK is nulled.
+    course_slug = models.SlugField(max_length=SLUG_MAX, blank=True)
     group = models.ForeignKey(
         "grouping.Group", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -1656,7 +1680,7 @@ created first, so `pk` order is not pre-order.
 ```python
 """Fixture courses for the demo tests. `small` is the default.
 
-It carries six deliberate properties, each pinned by an assertion somewhere:
+It carries seven deliberate properties, each pinned by an assertion somewhere:
   * part B is CREATED FIRST, so pre-order != pk order;
   * "Late quiz"'s TWO questions sort against pk order, so the (unit, ordinal)
     keys move if `_top_level_questions` drops its explicit `order_by`. (quiz_b's
@@ -1667,6 +1691,8 @@ It carries six deliberate properties, each pinned by an assertion somewhere:
     `in_progress_candidates` is non-empty for Task 9;
   * an ALL-CORRECT choice question, so the NO_WRONG_ANSWER sentinel branch is
     exercised;
+  * a NOT_MARKED question sharing "Notes quiz" with a graded one, so the
+    no-fraction branch is exercised;
   * a TWO-BLANK fill-blank question IN PART A, the only partial-capable row —
     without it the whole partial half of _pick_answer is dead in every
     end-to-end test, and its POSITION matters as much as its existence (see the
@@ -1678,7 +1704,7 @@ from decimal import Decimal
 from courses.models import (
     Blank, Choice, ChoiceQuestionElement, ContentNode, Course, Element,
     FillBlankQuestionElement, QuestionElement, ShortNumericQuestionElement,
-    TextElement,
+    ShortTextQuestionElement, TextElement,
 )
 
 
@@ -1793,6 +1819,17 @@ def small_course(
     late_b.save(update_fields=["order"])
     assert late_b.pk > late_a.pk, "the later-created question must sort FIRST"
 
+    # A NOT_MARKED question, sharing a quiz with a graded one. The generator
+    # writes it an ANSWER but NO fraction (courses/views.py does the same), and
+    # compute_scores ignores it — so without this row that whole branch is
+    # untested and nothing stops the generator stamping 1.0 on ungraded work.
+    notes_quiz = _unit(course, part_a, "Notes quiz", "quiz")
+    _choice_question(notes_quiz, correct="3")
+    unmarked = ShortTextQuestionElement.objects.create(
+        stem="Your own notes?", accepted="",
+        marking_mode=QuestionElement.MarkingMode.NOT_MARKED, max_marks=Decimal("0"),
+    )
+    Element.objects.create(unit=notes_quiz, content_object=unmarked)
 
     # A SENTINEL question: every option correct, so _choice finds no wrong pick
     # and build() returns NO_WRONG_ANSWER. Exercises the sentinel branch in
@@ -2458,7 +2495,7 @@ def _run(course, pupil_count=5, seed=11):
 def test_every_stored_fraction_is_the_mark_of_the_stored_answer():
     """T1 — the derived-score rule. Without to_stored_fraction the comparison is
     Decimal vs float and fails on every partial."""
-    from courses.models import QuestionResponse
+    from courses.models import QuestionElement, QuestionResponse
     from courses.quiz import answer_from_json
     from courses.scoring import to_stored_fraction
     from tests.demo.fixtures import small_course
@@ -2468,8 +2505,17 @@ def test_every_stored_fraction_is_the_mark_of_the_stored_answer():
 
     responses = QuestionResponse.objects.select_related("element").all()
     assert responses.exists()
+    unmarked = 0
     for r in responses:
         question = r.element.content_object
+        if question.marking_mode == QuestionElement.MarkingMode.NOT_MARKED:
+            # Matches courses/views.py: a NOT_MARKED response carries an answer
+            # but NO fraction. Pinned here so the generator cannot drift into
+            # stamping 1.0 on questions nothing grades.
+            assert r.fraction is None and r.earned_marks is None
+            assert r.latest_answer is not None
+            unmarked += 1
+            continue
         # ⚠️ QUESTION FIRST. The real signature is
         # `answer_from_json(question, latest_answer)` (courses/quiz.py:192) —
         # note that answer_to_json takes only the payload, so the pair is NOT
@@ -2478,6 +2524,8 @@ def test_every_stored_fraction_is_the_mark_of_the_stored_answer():
         # derived-score test marks a model instance instead of an answer.
         answer = answer_from_json(question, r.latest_answer)
         assert r.fraction == to_stored_fraction(question.mark(answer).fraction)
+
+    assert unmarked, "the fixture must carry a NOT_MARKED question (see 'Notes quiz')"
 
 
 @pytest.mark.django_db
@@ -2675,11 +2723,21 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
     rows = []
     for qplan in qplans[:limit]:  # qplans[:None] is already the whole list
         answer, fraction = _pick_answer(rng, qplan, p_correct)
-        stored = to_stored_fraction(fraction)
+        # ⚠️ NOT_MARKED ROWS STORE NO FRACTION. courses/views.py:1654-1664 sets
+        # `response.fraction` / `earned_marks` ONLY when marking_mode is AUTO and
+        # leaves them None otherwise. Writing 1.0 here would make every `[N]`
+        # question in the kit render as fully correct on any surface that shows a
+        # stored fraction — and compute_scores ignores NOT_MARKED, so no scoring
+        # test could ever see it. It would surface first in the mat-pp eyeball,
+        # and again in PR 5's per-question view.
+        stored = to_stored_fraction(fraction) if qplan.gradeable else None
         rows.append(
             QuestionResponse(
                 submission=submission, element_id=qplan.element_id,
-                fraction=stored, earned_marks=earned_marks(stored, qplan.max_marks),
+                fraction=stored,
+                earned_marks=(
+                    earned_marks(stored, qplan.max_marks) if stored is not None else None
+                ),
                 latest_answer=answer_to_json(answer), attempt_count=1,
                 last_attempt_at=now, locked=False,
             )
@@ -3261,6 +3319,21 @@ def test_provisioning_is_silent(django_capture_on_commit_callbacks):
     assert not Notification.objects.filter(
         recipient__in=result.kit.users.all()
     ).exists(), "enrolment notifications leaked into the kit users' bell menus"
+
+    # The mute is SCOPED, not global: it must be OFF again afterwards, or every
+    # other request in this worker loses its notifications for the duration.
+    # ⚠️ Assert on a real notify() call, not just on the flag — a module-attribute
+    # swap that forgot to restore would leave the flag False and notify() dead.
+    from notifications.services import notify
+    from tests.factories import make_verified_user
+
+    bystander = make_verified_user(username="bystander", email="b@example.com")
+    assert notify(
+        recipient=bystander,
+        kind=Notification.Kind.ENROLLED,
+        target=result.kit.course,
+        data={"course_title": "x", "course_slug": "small"},
+    ) is not None, "notify() was still muted after provisioning returned"
     # ⚠️ The delivery count below is a REGRESSION GUARD ONLY, and is currently
     # vacuous: emit_result_finalized is called from courses/views.py and
     # courses/review.py, never from finalize_submission, so the generator's path
@@ -3396,6 +3469,8 @@ wrote, above `require_vendor`** (`E402`); append only the dataclass and the func
 import contextlib
 import random
 import secrets
+# (no `contextvars` here — the ContextVar lives in notifications/services.py,
+#  where notify() can read it; see Step 3b.)
 from dataclasses import dataclass, field
 from datetime import timedelta
 
@@ -3559,7 +3634,8 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
 
     seed = secrets.randbelow(2**31) if seed is None else seed
     kit = DemoKit.objects.create(
-        label=label, slug=slug, course=course, seed=seed, pupil_count=pupils,
+        label=label, slug=slug, course=course, course_slug=course.slug,
+        seed=seed, pupil_count=pupils,
         frontier_part=frontier_part, created_by=created_by,
         expires_at=timezone.now() + timedelta(days=days),
     )
@@ -3637,15 +3713,23 @@ def suppress_enrolment_notifications():
     Patching the notifications entry point is deliberate: the alternative —
     creating Enrollment rows directly — would bypass the grouping service, which
     is exactly what the spec's T16 forbids.
-    """
-    from notifications import services as notification_services
 
-    original = notification_services.notify
-    notification_services.notify = lambda *a, **kw: None
-    try:
+    ⚠️ A CONTEXTVAR, NOT A BARE MODULE-ATTRIBUTE SWAP. Rebinding
+    `notification_services.notify` for the duration is process-global: PR 3 calls
+    provision_kit synchronously from an admin form, and Task 10 Step 6 budgets
+    that at up to 60 s — during which EVERY OTHER REQUEST in that worker would
+    silently lose its notifications. A ContextVar is per-thread and per-async-task,
+    so only the provisioning call is affected, and it cannot leak if an exception
+    unwinds between the set and the reset.
+
+    The ContextVar itself lives in `notifications/services.py` (Step 3b), not
+    here: `notify()` is what must read it, and notifications must not import from
+    demo.
+    """
+    from notifications.services import muted
+
+    with muted():
         yield
-    finally:
-        notification_services.notify = original
 
 
 def _webhook_warnings():
@@ -3658,6 +3742,44 @@ def _webhook_warnings():
         return [DemoWarning("active_webhook_endpoint", None, endpoint.url)]
     return []
 ```
+
+- [ ] **Step 3b: Give `notifications` a mute switch**
+
+The ContextVar belongs where `notify()` can read it. In `notifications/services.py`, add at
+module level:
+
+```python
+import contextlib
+import contextvars
+
+# Per-thread / per-async-task mute. Set by callers that create many rows in one
+# operation and must stay silent — demo.services.provision_kit enrols 6-41 users
+# at once (spec R6). NOT a module-attribute swap: provisioning can run inside a
+# web request for up to a minute, and rebinding `notify` globally would silence
+# every OTHER request in that worker for the duration.
+_MUTED = contextvars.ContextVar("notifications_muted", default=False)
+
+
+@contextlib.contextmanager
+def muted():
+    token = _MUTED.set(True)
+    try:
+        yield
+    finally:
+        _MUTED.reset(token)
+```
+
+and make it the first statement of `notify()`, beside the existing
+`recipient == actor` no-op:
+
+```python
+    if _MUTED.get():
+        return None
+```
+
+⚠️ Put it **before** `Notification.objects.create(...)`, so neither the row nor the
+`transaction.on_commit(...)` email is produced. Returning `None` matches the existing
+self-notification early-out, so no caller needs to change.
 
 - [ ] **Step 4: Run the provisioning and in-progress tests**
 
@@ -3708,20 +3830,44 @@ Add a cheap query-count pin to `tests/demo/test_provision.py`:
 
 ```python
 @pytest.mark.django_db
-def test_the_content_pass_does_not_scale_its_queries_with_the_class(
-    django_assert_num_queries,
+def test_provisioning_queries_do_not_scale_with_the_class(
+    django_assert_max_num_queries,
 ):
-    """build_course_plan runs ONCE per kit and must not depend on pupil_count.
-    A loose ceiling, not a tight pin — it exists to catch a per-pupil regression
-    (the 20x multiplier the whole design removes), not to freeze the query plan.
-    ⚠️ Bump it only after reading the diff that raised it."""
-    from demo.content import build_course_plan
-    from tests.demo.fixtures import small_course
+    """The 20x multiplier this whole design removes lives in the PUPIL LOOP, so
+    that is what has to be measured.
 
-    course = small_course()
-    with django_assert_num_queries(60):
-        build_course_plan(course)
+    ⚠️ `django_assert_max_num_queries`, NOT `django_assert_num_queries` — the
+    latter wraps assertNumQueries and asserts EQUALITY (`exact=True`), so a
+    ceiling written with it fails on correct code the moment the count is
+    anything but the literal.
+
+    ⚠️ And it must provision TWICE at different class sizes. A single
+    `build_course_plan(course)` pin cannot see the regression it would be named
+    for: that function takes no pupil count and touches no pupil, so
+    reintroducing per-pupil mark() calls inside _answer_quiz leaves it green.
+    """
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    small_five = small_course()
+    with django_assert_max_num_queries(2000) as five:
+        provision_for_test(small_five, label="Five", pupils=5)
+
+    small_ten = small_course()
+    with django_assert_max_num_queries(4000) as ten:
+        provision_for_test(small_ten, label="Ten", pupils=10)
+
+    # Doubling the class must not more than double the queries. A per-pupil
+    # content pass would make the ratio track the question count instead.
+    assert len(ten) < len(five) * 2.5, (
+        f"{len(five)} queries for 5 pupils, {len(ten)} for 10 — the per-pupil "
+        "cost is superlinear; the content pass is running inside the loop"
+    )
 ```
+
+⚠️ The two absolute ceilings are deliberately loose — they are a tripwire, not a plan pin.
+**The ratio is the real assertion.** Record the two actual numbers in the PR body alongside the
+mat-pp timing.
 
 Then time a local mat-pp run (see Final verification for the env-var spelling) and **write the
 seconds and the verdict into the PR body**.
@@ -3769,6 +3915,7 @@ def test_purge_removes_every_kit_user_and_the_group_and_keeps_the_row():
     those are the FKs most likely to block a delete."""
     from django.contrib.auth import get_user_model
 
+    from courses.models import QuizSubmission
     from demo.models import DemoKit
     from demo.services import purge_kit
     from grouping.models import Collection, Group
@@ -3777,6 +3924,18 @@ def test_purge_removes_every_kit_user_and_the_group_and_keeps_the_row():
 
     kit = provision_for_test(small_course())
     Collection.objects.create(name="Demo", course=kit.course, owner=kit.teacher)
+    # Force-submit one of the kit's quizzes, so QuizSubmission.submitted_by —
+    # the FK this test's docstring singles out — is actually populated. Without
+    # this the delete path it claims to exercise is untested (it is SET_NULL, so
+    # the test passed either way, which is exactly the problem).
+    unfinished = QuizSubmission.objects.filter(
+        student__in=kit.users.all(), status=QuizSubmission.Status.IN_PROGRESS
+    ).first()
+    assert unfinished is not None, "the kit must carry an in-progress submission"
+    unfinished.submitted_by = kit.teacher
+    unfinished.status = QuizSubmission.Status.SUBMITTED
+    unfinished.save(update_fields=["submitted_by", "status"])
+
     user_ids = list(kit.users.values_list("pk", flat=True))
     group_id = kit.group_id
 
@@ -4075,7 +4234,9 @@ def test_create_prints_both_logins_and_the_expiry_once():
     )
     printed = out.getvalue()
     assert "sp-12-nauczyciel" in printed and "sp-12-uczen" in printed
-    assert "expires" in printed.lower()
+    # "once" is in the test's NAME, so assert it: a build that printed the expiry
+    # three times would otherwise stay green.
+    assert printed.lower().count("expires") == 1
 
 
 @pytest.mark.django_db
@@ -4164,10 +4325,15 @@ def test_the_warning_block_is_bounded_however_many_warnings_there_are():
     from demo.warnings import DemoWarning
 
     out = StringIO()
-    command = Command()
-    command.stdout = out
+    # ⚠️ `Command(stdout=out)`, NOT `Command()` then `command.stdout = out`.
+    # BaseCommand.__init__ wraps stdout in an OutputWrapper whose write() appends
+    # the missing newline; assigning a bare StringIO over it removes that, so
+    # every write concatenates, `splitlines()` returns ONE line, and the
+    # line-count assertion below is green on any implementation — including the
+    # 501-ungrouped-lines one this test exists to reject.
+    command = Command(stdout=out)
     command._print_warnings(
-        [DemoWarning("variant_dropped", n, str(n)) for n in range(500)]
+        [DemoWarning("variant_dropped", n, str(n)) for n in range(1, 501)]
         + [DemoWarning("active_webhook_endpoint", None, "https://sis.example/hook")]
     )
     printed = out.getvalue()
@@ -4189,7 +4355,12 @@ Expected: FAIL — `Unknown command: 'demo_access'`.
 
 - [ ] **Step 3: Write the command**
 
-`demo/management/commands/demo_access.py`:
+**First create the two package markers** — `demo/management/__init__.py` and
+`demo/management/commands/__init__.py`, both **empty**. Without them Django's command
+discovery never finds the module, and Step 2's `Unknown command: 'demo_access'` persists
+through Step 4 with a thoroughly misleading cause.
+
+Then `demo/management/commands/demo_access.py`:
 
 ```python
 """Issue and retire school demo kits.
@@ -4280,7 +4451,12 @@ class Command(BaseCommand):
             group = by_kind[kind]
             self.stdout.write(self.style.WARNING(f"  ! {kind} x{len(group)}"))
             for warning in group[: self.WARNING_SAMPLES]:
-                where = f"unit {warning.unit_id}" if warning.unit_id else "kit"
+                # `is not None`, not truthiness — the same falsy-zero rule this
+                # plan applies to frontier_part and unit_count. Real pks are
+                # never 0, so this is consistency rather than a live bug.
+                where = (
+                    f"unit {warning.unit_id}" if warning.unit_id is not None else "kit"
+                )
                 self.stdout.write(f"      {where}: {warning.reason}")
             if len(group) > self.WARNING_SAMPLES:
                 self.stdout.write(f"      ... and {len(group) - self.WARNING_SAMPLES} more")
@@ -4291,8 +4467,10 @@ class Command(BaseCommand):
             kits = kits.filter(closed_at__isnull=True)
         for kit in kits:
             teacher = kit.teacher.username if kit.teacher else "-"
+            # course_slug, not kit.course.slug — `course` is SET_NULL and a kit
+            # can outlive its course, which would be an AttributeError here.
             self.stdout.write(
-                f"#{kit.pk}\t{kit.label}\t{kit.course.slug}\t{kit.pupil_count}\t"
+                f"#{kit.pk}\t{kit.label}\t{kit.course_slug}\t{kit.pupil_count}\t"
                 f"{teacher}\t{kit.created_at:%Y-%m-%d}\t{kit.expires_at:%Y-%m-%d}\t"
                 f"{kit.status_key}"
             )
@@ -4504,6 +4682,11 @@ def test_the_golden_class_is_unchanged():
 ```bash
 uv run pytest tests/demo/test_determinism.py::test_the_golden_class_is_unchanged -v
 ```
+
+⚠️ **Two failure modes.** If instead it fails on the `"Blanks quiz" in answered_correctly`
+precondition, seed 777 produced no pupil who answered the two-blank question correctly — that
+is the dice, not the code. Try the next seed, and remember the change is **coupled**: the seed
+constant and `golden_class.json` must move together, in the same commit.
 
 Expected: FAIL with "golden file written". **Open `tests/demo/golden_class.json` and read
 it**: five pupils with Polish names, progress lists that differ between pupils, stored answer
