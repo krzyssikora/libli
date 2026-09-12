@@ -33,6 +33,7 @@ from demo.builders import NO_WRONG_ANSWER
 from demo.constants import AVERAGE
 from demo.constants import BANDS
 from demo.constants import FRONTIER_FRACTION
+from demo.constants import IN_PROGRESS_PUPILS
 from demo.constants import JITTER
 from demo.constants import P_PARTIAL_GIVEN_WRONG
 from demo.constants import STRONG
@@ -40,6 +41,7 @@ from demo.constants import STRONG_PCT
 from demo.constants import STRUGGLING
 from demo.constants import STRUGGLING_PCT
 from demo.errors import InvalidFrontierPart
+from demo.warnings import DemoWarning  # no alias: it is named DemoWarning at source
 
 
 def assign_bands(rng, pupil_count):
@@ -264,4 +266,93 @@ def generate(rng, plan, pupils, *, course, frontier_part=None):
                 rng, pupil, first_quiz, plan.questions[first_quiz.pk], cfg["p_correct"]
             )
 
+    warnings.extend(leave_in_progress(rng, plan, pupils, bands, depths))
     return warnings, bands, depths
+
+
+def _usable_target(plan, depth, submitted_unit_ids):
+    """The STATIC, draw-free predicate. Selection runs before the pass, so a
+    predicate phrased as 'yields a conforming prefix' would force an implementer
+    to simulate draws — perturbing a stream nothing pins.
+
+    No `pupil` parameter: the caller already resolved it into
+    `submitted_unit_ids`, and a parameter the body never reads sends a reader
+    hunting for logic that is not here.
+    """
+    for unit in plan.in_progress_candidates:
+        position = next(i for i, u in enumerate(plan.units) if u.pk == unit.pk)
+        if position <= depth or unit.pk in submitted_unit_ids:
+            continue
+        qplans = plan.questions[unit.pk]
+        n = len(qplans)
+        first_gradeable = next((i for i, q in enumerate(qplans) if q.gradeable), None)
+        # 0-based: a prefix of length L <= n-1 covers indices 0..L-1.
+        if first_gradeable is not None and first_gradeable <= n - 2:
+            return unit
+    return None
+
+
+def leave_in_progress(rng, plan, pupils, bands, depths):
+    """The shallowest pupils WITH A USABLE TARGET get an unfinished quiz.
+
+    Not 'the first two in creation order': the shallowest pupils are exactly the
+    ones the reach-forward already gave a finalized submission after their
+    depth, so the weaker rule selects pupils with nothing to write. Ties break
+    on (depth, creation index) — bands share multipliers and jitter often rounds
+    to the same integer.
+    """
+    # (No local `from courses.models import QuizSubmission` — Task 8 already put
+    # it in the module header, and a function-local re-import tells the next
+    # reader there is an import cycle here. There is not.)
+    warnings = []
+    ranked = sorted(range(len(pupils)), key=lambda i: (depths[i], i))
+    chosen = []
+    for i in ranked:
+        submitted = set(
+            QuizSubmission.objects.filter(student=pupils[i]).values_list(
+                "unit_id", flat=True
+            )
+        )
+        target = _usable_target(plan, depths[i], submitted)
+        if target is not None:
+            chosen.append((i, target))
+        if len(chosen) == IN_PROGRESS_PUPILS:
+            break
+
+    for i, unit in chosen:
+        qplans = plan.questions[unit.pk]
+        n = len(qplans)
+        length = rng.randint(1, n - 1)
+        # If the drawn prefix holds no gradeable response, EXTEND forward to the
+        # first gradeable question, consuming no further draw.
+        if not any(q.gradeable for q in qplans[:length]):
+            # `idx`, not `i` and not `n`: the genexp has its own scope so reusing
+            # either is not a bug, but `i` is the PUPIL index this loop is keyed
+            # on and `n` is len(qplans) on the line below — a reader should not
+            # have to prove scoping rules to read a function about which pupil
+            # gets which unit.
+            first_gradeable = next(idx for idx, q in enumerate(qplans) if q.gradeable)
+            length = min(first_gradeable + 1, n - 1)
+        _answer_quiz(
+            rng,
+            pupils[i],
+            unit,
+            qplans,
+            BANDS[bands[i]]["p_correct"],
+            finalize=False,
+            limit=length,
+        )
+
+    if not chosen:
+        warnings.append(
+            DemoWarning("no_qualifying_pupil", None, "no pupil had a usable target")
+        )
+    elif len(chosen) < IN_PROGRESS_PUPILS:
+        warnings.append(
+            DemoWarning(
+                "fewer_in_progress_than_target",
+                None,
+                f"{len(chosen)} of {IN_PROGRESS_PUPILS}",
+            )
+        )
+    return warnings
