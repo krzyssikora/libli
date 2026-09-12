@@ -2,6 +2,7 @@
 every rule lives here rather than in a caller."""
 
 import contextlib
+import logging
 import random
 import secrets
 
@@ -34,6 +35,7 @@ from demo.constants import DEFAULT_DAYS
 from demo.constants import DEFAULT_PUPILS
 from demo.constants import EMAIL_DOMAIN
 from demo.constants import LABEL_MAX
+from demo.constants import LONG_LIVED_DAYS
 from demo.constants import MAX_DAYS
 from demo.constants import MAX_DISAMBIGUATOR
 from demo.constants import MAX_PUPILS
@@ -51,11 +53,14 @@ from demo.names import draw_names
 from demo.warnings import DemoWarning
 from grouping.models import Group
 from grouping.services import add_students_to_group
+from grouping.services import delete_group
 from institution.roles import STUDENT
 from institution.roles import TEACHER
 from institution.roles import seed_roles
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 
 def require_vendor():
@@ -360,3 +365,104 @@ def _webhook_warnings():
     if endpoint.enabled and endpoint.url:
         return [DemoWarning("active_webhook_endpoint", None, endpoint.url)]
     return []
+
+
+@dataclass
+class ExtendResult:
+    kit: DemoKit
+    new_expires_at: object
+    long_lived: bool
+
+
+def _require_open(kit):
+    if kit.closed_at is not None:
+        raise errors.KitAlreadyClosed(
+            f"kit #{kit.pk} was closed on {kit.closed_at:%Y-%m-%d}"
+        )
+
+
+@transaction.atomic
+def purge_kit(kit, *, reason):
+    """Atomic PER KIT. A partial failure that deleted the users, left the group
+    and never set closed_at would be re-purged nightly for ever.
+
+    NOT vendor-guarded (R8). Deliberately tolerant of a half-dismantled kit.
+    """
+    # Materialise the pks BEFORE deleting: a lazy kit.users.all() shrinks
+    # underneath the loop as each deleted user cascades away its through-row,
+    # which is how a Teacher gets missed and left live under a closed kit.
+    user_ids = list(kit.users.values_list("pk", flat=True))
+    User.objects.filter(pk__in=user_ids).delete()
+    if kit.group_id is not None:
+        group = Group.objects.filter(pk=kit.group_id).first()
+        if group is not None:
+            delete_group(group)  # the service: it recomputes enrolment after
+    kit.group = None
+    kit.teacher = None
+    kit.student = None
+    kit.closed_at = timezone.now()
+    kit.closed_reason = reason
+    kit.save(
+        update_fields=["group", "teacher", "student", "closed_at", "closed_reason"]
+    )
+
+
+def revoke_kit(kit):
+    _require_open(kit)
+    purge_kit(kit, reason=DemoKit.ClosedReason.REVOKED)
+
+
+def extend_kit(kit, *, days):
+    require_vendor()
+    _require_open(kit)
+    if not MIN_DAYS <= days <= MAX_DAYS:
+        raise errors.InvalidBounds("days", f"days must be {MIN_DAYS}-{MAX_DAYS}")
+    base = max(kit.expires_at, timezone.now())
+    kit.expires_at = base + timedelta(days=days)
+    kit.save(update_fields=["expires_at"])
+    long_lived = kit.expires_at - kit.created_at > timedelta(days=LONG_LIVED_DAYS)
+    return ExtendResult(kit, kit.expires_at, long_lived)
+
+
+def purge_expired(*, dry_run=False):
+    """`expires_at <= now AND closed_at IS NULL`. The second conjunct is what
+    makes purge IDEMPOTENT: without it every historical kit is re-processed
+    nightly for ever.
+
+    ⚠️ EVERY KIT IS ATTEMPTED, even after one raises. `purge_kit` being
+    @transaction.atomic only guarantees that an ALREADY-PURGED kit stays purged;
+    without the try/except below, an exception on the first kit propagates out of
+    the loop and every later due kit is never attempted — their logins stay live
+    on prod, which is precisely the failure the runbook's cron warning is about.
+    Failures are re-raised at the END so the cron run still exits non-zero and
+    the operator hears about it.
+    """
+    due = list(
+        DemoKit.objects.filter(expires_at__lte=timezone.now(), closed_at__isnull=True)
+    )
+    if dry_run:
+        return due
+    purged, failures = [], []
+    for kit in due:
+        try:
+            purge_kit(kit, reason=DemoKit.ClosedReason.EXPIRED)
+        # A broad catch on purpose: one bad kit must not strand the rest. (No
+        # `noqa` — `BLE` is not in this repo's ruff `select`, and bugbear does
+        # not flag `except Exception`; a suppression here would imply a gate
+        # that does not exist.)
+        except Exception as exc:
+            logger.exception("demo kit #%s failed to purge", kit.pk)
+            failures.append((kit.pk, exc))
+        else:
+            purged.append(kit)
+    if failures:
+        ids = ", ".join(f"#{pk}" for pk, _ in failures)
+        # `errors.PurgeFailed`, NOT a bare `PurgeFailed`. This module imports
+        # `from demo import errors` and spells every raise `errors.X`; the bare
+        # name is an F821 at the lint gate and a NameError at runtime — which
+        # would make test_one_failing_kit_does_not_strand_the_others fail on the
+        # CORRECT build, indistinguishable from Step 5's third mutant.
+        raise errors.PurgeFailed(
+            f"{len(failures)} kit(s) failed to purge: {ids}", purged
+        )
+    return purged
