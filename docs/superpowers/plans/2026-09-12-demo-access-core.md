@@ -43,8 +43,20 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
   `config/settings/test.py:37` pins the flag False.
 - ⚠️ **Never pass `-q` to pytest** — `addopts` in `pyproject.toml` already has it, and a
   doubled `-q` suppresses the summary line.
-- **Polish copy** in this PR is limited to display names and the checked-in name lists. No new
-  msgids beyond the model/field labels and `ClosedReason`.
+- ⚠️ **Start the test-DB container before the first pytest step.** Against a stopped
+  container the first run looks *hung* for 4m21s before it fails. Do this once, before
+  Task 1 Step 2, and never background a pytest run — a backgrounded run orphans the test
+  DB and the next one dies with `DuplicateDatabase`.
+- ⚠️ **Single-line imports.** `pyproject.toml` selects ruff rule `I` and sets
+  `[tool.ruff.lint.isort] force-single-line = true`. **Every `from x import (A, B, C)` block
+  in this plan is illustrative shorthand and must be written one import per line** (see
+  `courses/management/commands/seed_demo_course.py:16-56` for the house style). The final
+  `ruff check` gate fails otherwise, across a dozen files at once.
+- **Polish copy** in this PR is limited to display names, the checked-in name lists **and the
+  ten `demo/warnings.py` display strings**. Those ten ARE new msgids, and Task 6 Step 4b
+  carries the catalog step: `makemessages -l pl`, fill them, `compilemessages`, commit both
+  `.po` and `.mo` in the same commit. ⚠️ Rebase and **regenerate** the `.mo` before the PR —
+  a stale branch conflicts on the binary.
 
 ---
 
@@ -142,9 +154,13 @@ uv run pytest tests/test_seed_demo_course.py -v
 ```
 
 Expected: PASS — the new test passes and the pre-existing ones still do (they run under the
-test settings, where `DEBUG` is False by default… **if they now fail, that is the point**: add
-`settings.DEBUG = True` to the existing tests' arrange, since they exercise the fixture
-deliberately).
+test settings, where `DEBUG` is False by default… **if they now fail, that is the point**:
+they exercise the fixture deliberately, so repair each one by adding the pytest-django
+`settings` fixture **to the test's signature** and setting `settings.DEBUG = True` in its
+arrange. ⚠️ `settings` is a fixture, not a module-level name — `settings.DEBUG = True` alone
+is a `NameError`. Count the tests in `tests/test_seed_demo_course.py` first (`grep -c "^def
+test_"`) and confirm you repaired exactly that many; a test you missed reports as an
+unrelated failure).
 
 - [ ] **Step 5: Fix the runbook**
 
@@ -390,6 +406,9 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from demo.constants import LABEL_MAX
+from demo.constants import SLUG_MAX
+
 
 class DemoKit(models.Model):
     """One school representative's demo access.
@@ -404,11 +423,14 @@ class DemoKit(models.Model):
         EXPIRED = "expired", _("Expired")
         REVOKED = "revoked", _("Revoked")
 
-    label = models.CharField(max_length=200)
+    label = models.CharField(max_length=LABEL_MAX)
     # NOT unique: a closed kit's row is retained, so a unique slug would
     # permanently block a second demo for the same school. Uniqueness lives on
-    # the usernames instead (services._free_disambiguator).
-    slug = models.SlugField(max_length=200)
+    # the usernames instead (services._free_base).
+    # max_length is SLUG_MAX, not a loose 200: the constant's whole job is to
+    # leave room for "-NNN-nauczyciel" inside username's 150, and a column twice
+    # the size lets a direct write break that invariant silently.
+    slug = models.SlugField(max_length=SLUG_MAX)
     course = models.ForeignKey("courses.Course", on_delete=models.PROTECT)
     group = models.ForeignKey(
         "grouping.Group", on_delete=models.SET_NULL, null=True, blank=True
@@ -651,6 +673,8 @@ def test_draw_names_is_deterministic_for_a_seed():
 
 
 def test_draw_names_raises_rather_than_spinning_on_a_short_pool(monkeypatch):
+    """The PRE-CHECK half: count exceeds the shortest list, so draw_names refuses
+    before the loop."""
     from demo import errors, names
 
     monkeypatch.setattr(names, "FEMININE_SURNAMES", ("Kowalska",))
@@ -659,7 +683,31 @@ def test_draw_names_raises_rather_than_spinning_on_a_short_pool(monkeypatch):
     monkeypatch.setattr(names, "MASCULINE_GIVEN", ("Jan",))
     with pytest.raises(errors.NamePoolExhausted):
         names.draw_names(random.Random(1), 10)
+
+
+def test_the_retry_limit_itself_raises_rather_than_spinning(monkeypatch):
+    """The RETRY half. The test above never reaches the `while` loop — it trips
+    the pre-check and returns — so without this case NAME_RETRY_LIMIT is dead
+    code and a live spin ships untested. Here the pre-check PASSES (count == the
+    shortest list's length) but only one surname per gender exists, so the third
+    pupil cannot get a distinct pair."""
+    from demo import errors, names
+
+    monkeypatch.setattr(names, "FEMININE_GIVEN", ("Anna", "Maria"))
+    monkeypatch.setattr(names, "MASCULINE_GIVEN", ("Jan", "Piotr"))
+    monkeypatch.setattr(names, "FEMININE_SURNAMES", ("Kowalska", "Nowak"))
+    monkeypatch.setattr(names, "MASCULINE_SURNAMES", ("Kowalski", "Nowak"))
+    # 2 given x 2 surnames per gender = at most 4 pairs per gender, but the
+    # gender draw is a coin flip: asking for 4 forces repeated collisions on
+    # whichever gender comes up more often.
+    with pytest.raises(errors.NamePoolExhausted) as exc:
+        names.draw_names(random.Random(1), 4)
+    assert "retries" in str(exc.value), "the RETRY branch, not the pre-check"
 ```
+
+⚠️ The second test asserts on `"retries"` precisely because both branches raise the same
+class: without the message assertion it would pass on a build where the pre-check fired and
+the retry loop was deleted.
 
 - [ ] **Step 2: Run it and watch it fail**
 
@@ -782,7 +830,7 @@ def draw_names(rng, count):
 uv run pytest tests/demo/test_names.py -v
 ```
 
-Expected: PASS (four tests).
+Expected: PASS (five tests).
 
 - [ ] **Step 5: Falsify the distinctness rule**
 
@@ -809,6 +857,9 @@ whole order, and neither determinism test could see it.
 ⚠️ Verified while writing this plan (read the code, don't trust the prose):
 `ShortNumericQuestionElement.mark` is `abs(got - want) <= tol` — the tolerance is **absolute**,
 so "band upper bound + 1" is a genuinely wrong answer.
+`parse_numeric_value` and `canonical_numeric_text` live in **`courses/marking.py`** (lines 128
+and 169). There is no `courses/numeric.py`; importing one is a `ModuleNotFoundError` on the
+first `import demo.builders`, which every task from here on depends on.
 `ChoiceQuestionElement.mark` is `set(answer) == correct_set` with **no** `n > 0` guard, so a
 question with **no** correct choice marks an empty pick 1.0 — such a row is *unanswerable*, not
 a validation failure.
@@ -900,7 +951,12 @@ def _fixtures():
         stem="MultiGrid", marking_mode=QuestionElement.MarkingMode.AUTO,
         max_marks=Decimal("1"),
     )
-    mcols = [MultiGridColumn.objects.create(question=mg, label=l) for l in ("a", "b", "c")]
+    # `label`, not `l`: ruff selects E, and E741 rejects `l` as a binding name.
+    # tests/** only ignores S105/S106/S107.
+    mcols = [
+        MultiGridColumn.objects.create(question=mg, label=label)
+        for label in ("a", "b", "c")
+    ]
     for label in ("r1", "r2"):
         row = MultiGridRow.objects.create(question=mg, label=label)
         row.correct_columns.set(mcols[:2])
@@ -1010,7 +1066,13 @@ from courses.models import (
     ShortNumericQuestionElement, ShortTextQuestionElement,
 )
 from courses.models import _accepted_lines
-from courses.numeric import parse_numeric_value
+# ⚠️ courses/numeric.py DOES NOT EXIST. The parser lives in courses/marking.py,
+# and it is the same one ShortNumericQuestionElement.mark uses
+# (courses/models.py:2567) — which is the only reason our "correct" answer marks
+# 1.0. canonical_numeric_text is what turns a Fraction back into the decimal a
+# pupil would actually type.
+from courses.marking import canonical_numeric_text
+from courses.marking import parse_numeric_value
 from courses.quiz import answer_to_json
 from demo.constants import WRONG_TEXTS, WRONG_VARIANTS
 
@@ -1048,10 +1110,19 @@ def _shortnumeric(q):
     want = parse_numeric_value(q.value)
     if want is None:
         return None  # a hand-edited row: every answer marks 0.0
-    tol = parse_numeric_value(q.tolerance) or Fraction(0)
+    tol = parse_numeric_value(q.tolerance)
+    # Explicit `is None`, NOT `... or Fraction(0)`: Fraction(0) is falsy, so the
+    # `or` form is right only by accident. courses/models.py:2570 carries this
+    # exact comment about this exact expression — do not reintroduce the form it
+    # rejects.
+    if tol is None:
+        tol = Fraction(0)
     upper = want + tol  # mark() is abs(got - want) <= tol — ABSOLUTE tolerance
-    wrong = [str(upper + n) for n in (1, 2, 3)][:WRONG_VARIANTS]
-    return Answers(str(want), wrong, None)
+    # DECIMAL TEXT, never str(Fraction): a row with value="4.5" would otherwise
+    # store every pupil's answer as "9/2" — it marks correct, but PR 5's
+    # per-question view shows the rep an answer no pupil would type.
+    wrong = [canonical_numeric_text(str(upper + n)) for n in (1, 2, 3)][:WRONG_VARIANTS]
+    return Answers(q.value, wrong, None)
 
 
 def _shorttext(q):
@@ -1239,17 +1310,34 @@ questions × (1 + k)` `mark()` calls — the 20× multiplier on exactly the path
 timeout turns on — and would make "passes R3 for this kit" a per-pupil notion, which the
 IN_PROGRESS rule cannot use.
 
+⚠️ **Accepted consequence: the demo's "awaiting review" queue is structurally empty.**
+`pending_reviews_for` (`courses/review.py:236`) returns two lists — `in_progress` and
+`awaiting` (submitted work holding an unreviewed REVIEW response). Because the pass skips
+**any quiz containing a REVIEW question, whole**, no kit can ever produce an `awaiting` row.
+Task 9 fills the `in_progress` half only. This is a deliberate trade — writing a plausible
+extended-response answer is the thing the builders explicitly refuse to guess at — but it
+means **PR 3 and PR 4 must not advertise teacher marking as part of the demo**. If a school
+rep asks to see marking, that is a follow-up: write one pupil an unreviewed REVIEW response
+rather than skipping the quiz. Recorded again in "Deliberately NOT in this plan".
+
 **Files:**
 - Create: `demo/warnings.py`, `demo/content.py`
 - Test: `tests/demo/test_content.py`
 
 **Interfaces:**
 - Produces:
-  - `demo.warnings.Warning` — `NamedTuple(kind, unit_id, reason)`; `unit_id` may be `None`.
+  - `demo.warnings.DemoWarning` — `NamedTuple(kind, unit_id, reason)` with a validating
+    `__new__`; `unit_id` may be `None`. **Named `DemoWarning` at the definition, not
+    `Warning`** — the bare name shadows the builtin exception base, which is why two of the
+    three consumers were already aliasing it on import while the third did not. One spelling
+    everywhere.
   - `demo.warnings.KINDS` — the closed `frozenset`; `demo.warnings.DISPLAY` — `dict[kind,
     lazy str]`.
-  - `demo.content.QuestionPlan` — `NamedTuple(element_id, answers, fractions, partial_ok)`
-    where `fractions` maps `("correct" | index | "partial") -> float`.
+  - `demo.content.QuestionPlan` — `NamedTuple(element_id, max_marks, answers, fractions,
+    gradeable, sentinel)` where `fractions` maps `("correct" | index | "partial") -> float`.
+    **Six fields.** `demo/generator.py` reads `qplan.max_marks`, `qplan.gradeable` and
+    `qplan.sentinel`; there is no `partial_ok` field anywhere in this plan — a Task 7/8
+    implementer building against a four-field shape writes code that cannot run.
   - `demo.content.CoursePlan` — `NamedTuple(units, skipped_quiz_ids, answerable_quizzes,
     in_progress_candidates, questions, warnings)`; `questions` maps `unit_id ->
     list[QuestionPlan]`.
@@ -1267,6 +1355,7 @@ import pytest
 def test_plan_caches_fractions_and_skips_only_quizzes():
     """R1 needs a fraction per written response and the generator may not call
     mark() in the pupil loop, so the cache holds (answer, fraction) pairs."""
+    from demo import builders
     from demo.content import build_course_plan
     from tests.demo.fixtures import small_course
 
@@ -1274,11 +1363,21 @@ def test_plan_caches_fractions_and_skips_only_quizzes():
     plan = build_course_plan(course)
 
     assert plan.units, "published units in pre-order"
+    saw_sentinel = False
     for unit_id, questions in plan.questions.items():
         for q in questions:
             assert q.fractions["correct"] == 1.0
+            if q.sentinel:
+                # NO_WRONG_ANSWER is a bare sentinel object with no __len__, so
+                # len() below would raise TypeError — turning a content
+                # regression into an unrelated crash the moment the fixture
+                # grows an all-correct question.
+                assert q.answers.wrong is builders.NO_WRONG_ANSWER
+                saw_sentinel = True
+                continue
             for i in range(len(q.answers.wrong)):
                 assert q.fractions[i] == 0.0
+    assert saw_sentinel, "the fixture must carry a sentinel question (see all_correct_quiz)"
 
 
 @pytest.mark.django_db
@@ -1298,6 +1397,10 @@ def test_a_lesson_with_an_unanswerable_self_check_is_never_skipped():
 
 @pytest.mark.django_db
 def test_a_quiz_with_no_gradeable_question_gets_no_submission_and_a_warning():
+    """⚠️ ONE kind, not an `or` of two. A prose-only quiz never enters the
+    question loop, so `skip_reason` stays None and the old `or` form asserted on
+    two kinds that this fixture cannot produce — it failed on correct code. The
+    `no_gradeable_question` branch added in Step 5 is what makes it pass."""
     from demo.content import build_course_plan
     from tests.demo.fixtures import small_course
 
@@ -1305,8 +1408,11 @@ def test_a_quiz_with_no_gradeable_question_gets_no_submission_and_a_warning():
     plan = build_course_plan(course)
 
     assert plan.answerable_quizzes, "the good quizzes survive"
-    kinds = {w.kind for w in plan.warnings}
-    assert "quiz_skipped" in kinds or "sentinel_answered" in kinds
+    empty = [u for u in plan.units if u.title == "Prose-only quiz"][0]
+    assert empty.pk not in {u.pk for u in plan.answerable_quizzes}
+    assert ("no_gradeable_question", empty.pk) in {
+        (w.kind, w.unit_id) for w in plan.warnings
+    }
 ```
 
 - [ ] **Step 2: Write the shared fixture builder**
@@ -1316,8 +1422,18 @@ breaks two coincidences: element `order` must disagree with `pk`, and a later pa
 created first, so `pk` order is not pre-order.
 
 ```python
-"""Fixture courses for the demo tests. `small` is the default; it carries the
-two deliberate coincidence-breakers and a 3-variant question for T28."""
+"""Fixture courses for the demo tests. `small` is the default.
+
+It carries five deliberate properties, each pinned by an assertion somewhere:
+  * part B is CREATED FIRST, so pre-order != pk order;
+  * quiz_b's prose element sorts BEFORE its question while holding the HIGHER
+    pk, so element order != pk order;
+  * a 3-wrong-variant choice question, for T28;
+  * a LATE multi-question quiz past every reachable depth, so
+    `in_progress_candidates` is non-empty for Task 9;
+  * an ALL-CORRECT choice question, so the NO_WRONG_ANSWER sentinel branch is
+    exercised.
+Change any of them and read the assertions that name them before you do."""
 
 from decimal import Decimal
 
@@ -1334,13 +1450,17 @@ def _unit(course, parent, title, unit_type, *, obligatory=True, published=True):
     )
 
 
-def _choice_question(unit, *, correct="2", options=("2", "3", "4", "6")):
+def _choice_question(
+    unit, *, correct="2", options=("2", "3", "4", "6"), all_correct=False
+):
     q = ChoiceQuestionElement.objects.create(
         stem="pick", marking_mode=QuestionElement.MarkingMode.AUTO,
-        max_marks=Decimal("1"),
+        max_marks=Decimal("1"), multiple=all_correct,
     )
     for text in options:
-        Choice.objects.create(question=q, text=text, is_correct=(text == correct))
+        Choice.objects.create(
+            question=q, text=text, is_correct=all_correct or (text == correct)
+        )
     return Element.objects.create(unit=unit, content_object=q)
 
 
@@ -1369,13 +1489,38 @@ def small_course(
         stem="2+2?", value="4", tolerance="0",
         marking_mode=QuestionElement.MarkingMode.AUTO, max_marks=Decimal("1"),
     )
-    Element.objects.create(unit=quiz_b, content_object=q)
+    question_el = Element.objects.create(unit=quiz_b, content_object=q)
     prose = Element.objects.create(
         unit=quiz_b, content_object=TextElement.objects.create(body="<p>hi</p>")
     )
-    # ELEMENT ORDER MUST DISAGREE WITH PK: reorder after creation.
+    # ELEMENT ORDER MUST DISAGREE WITH PK.
+    # ⚠️ Element.order is an OrderField(for_fields=["unit"]) that AUTO-ASSIGNS on
+    # create: the question gets 0 and the prose gets 1. Setting prose to 0 alone
+    # makes BOTH 0, and `order_by("order", "pk")` then breaks the tie on pk —
+    # yielding exactly pk order, so the mutant this is supposed to catch
+    # (dropping the explicit order_by) stays green. Swap them properly: the prose
+    # must sort FIRST while holding the HIGHER pk.
     prose.order = 0
     prose.save(update_fields=["order"])
+    question_el.order = 1
+    question_el.save(update_fields=["order"])
+    assert prose.pk > question_el.pk, "the fixture's own property, pinned"
+
+    # A LATE, MULTI-QUESTION QUIZ. Without it `in_progress_candidates` holds only
+    # "A quiz" at pre-order index 6, while the SHALLOWEST depth any band can
+    # produce is round(floor(0.75*14) * 0.70 * 0.92) = 6 — so _usable_target's
+    # `position <= depth` rejects it for every pupil, `chosen` is always empty,
+    # and Task 9's review-queue test fails on correct code. This quiz sits past
+    # every reachable depth and carries two questions, so it qualifies.
+    late_quiz = _unit(course, part_b, "Late quiz", "quiz")
+    _choice_question(late_quiz)
+    _choice_question(late_quiz, correct="3")
+
+    # A SENTINEL question: every option correct, so _choice finds no wrong pick
+    # and build() returns NO_WRONG_ANSWER. Exercises the sentinel branch in
+    # build_course_plan and in _pick_answer, which no other fixture row reaches.
+    sentinel_quiz = _unit(course, part_b, "All-correct quiz", "quiz")
+    _choice_question(sentinel_quiz, correct=None, options=("2", "3"), all_correct=True)
 
     if lesson_with_unanswerable_selfcheck:
         from courses.models import ExtendedResponseQuestionElement
@@ -1416,6 +1561,10 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'demo.content'`.
 A closed set of machine keys plus a translated display map, split the way the
 DemoKit.status_key property is: the command prints keys, PR 3's tab renders the
 map. `unit_id` is optional — two kinds have no unit.
+
+Named DemoWarning, NOT Warning: the bare name shadows the builtin exception
+base, and all three consumers spell it the same way here rather than two of them
+aliasing it on import.
 """
 
 from typing import NamedTuple, Optional
@@ -1423,10 +1572,19 @@ from typing import NamedTuple, Optional
 from django.utils.translation import gettext_lazy as _
 
 
-class Warning(NamedTuple):
+class DemoWarning(NamedTuple):
     kind: str
     unit_id: Optional[int]
     reason: str
+
+    def __new__(cls, kind, unit_id, reason):
+        # THIS is what makes KINDS a closed set. Without it `DemoWarning("quiz_skiped",
+        # ...)` is accepted everywhere, survives Task 15's `set(DISPLAY) == KINDS`
+        # test (which only compares the map with itself), and surfaces as a
+        # KeyError in PR 3's template months later.
+        if kind not in KINDS:
+            raise ValueError(f"unknown warning kind {kind!r}; add it to DISPLAY")
+        return super().__new__(cls, kind, unit_id, reason)
 
 
 DISPLAY = {
@@ -1438,10 +1596,31 @@ DISPLAY = {
     "fewer_in_progress_than_target": _("Fewer unfinished quizzes than intended."),
     "no_qualifying_pupil": _("No pupil could be left with an unfinished quiz; the review queue will be empty."),
     "active_webhook_endpoint": _("A webhook endpoint is enabled: demo data will be sent to it."),
+    "no_gradeable_question": _("Quiz skipped: it holds no question the demo can grade."),
+    "correct_answer_rejected": _("A question's own correct answer did not mark full marks; the quiz was skipped."),
 }
 
 KINDS = frozenset(DISPLAY)
 ```
+
+⚠️ `KINDS` is defined AFTER `DISPLAY` but referenced inside `DemoWarning.__new__`, which only
+runs at call time — that is fine. It is **not** fine to move the class below a `KINDS`
+reference at module scope.
+
+- [ ] **Step 4b: Put the display strings in the Polish catalog**
+
+These ten `gettext_lazy` strings are new msgids (the Global Constraints list them). The
+operator-facing surface is Polish, so they cannot ship untranslated:
+
+```bash
+uv run python manage.py makemessages -l pl
+# fill the ten new msgids in locale/pl/LC_MESSAGES/django.po
+uv run python manage.py compilemessages
+```
+
+⚠️ Commit the `.po` **and** the binary `.mo` in the same commit as `demo/warnings.py`, and
+regenerate the `.mo` after any rebase — a stale branch conflicts on the binary and the
+conflict cannot be resolved by hand.
 
 - [ ] **Step 5: Write the content pass**
 
@@ -1460,7 +1639,7 @@ from typing import NamedTuple
 from courses.models import QuestionElement
 from courses.rollups import units_in_order
 from demo import builders
-from demo.warnings import Warning
+from demo.warnings import DemoWarning
 
 
 class QuestionPlan(NamedTuple):
@@ -1512,19 +1691,40 @@ def build_course_plan(course):
                 break
             if type(q) in builders.UNANSWERABLE_QUESTION_TYPES:
                 if not_marked:
-                    warns.append(Warning("question_dropped", unit.pk, type(q).__name__))
+                    warns.append(DemoWarning("question_dropped", unit.pk, type(q).__name__))
                     continue
                 skip_reason = f"{type(q).__name__} has no builder"
                 break
             answers = builders.build(q)
             if answers is None:
                 if not_marked:
-                    warns.append(Warning("question_dropped", unit.pk, "row unanswerable"))
+                    warns.append(DemoWarning("question_dropped", unit.pk, "row unanswerable"))
                     continue
                 skip_reason = f"{type(q).__name__} row is unanswerable"
                 break
 
-            fractions = {"correct": q.mark(answers.correct).fraction}
+            correct_fraction = q.mark(answers.correct).fraction
+            # THE CORRECT ANSWER IS VALIDATED TOO, not just the variants and the
+            # partial. Otherwise a real mat-pp row shaped unlike our seven
+            # fixtures can hand back an answer that marks 0.4, and every pupil in
+            # the kit stores it as their "correct" response at fraction 0.4 —
+            # silently, with no warning and no skip. Task 5's honest-builder test
+            # catches that for the FIXTURES; this catches it for the course.
+            if correct_fraction != 1.0:
+                if not_marked:
+                    warns.append(
+                        DemoWarning("question_dropped", unit.pk, "correct answer marked "
+                                    f"{correct_fraction}")
+                    )
+                    continue
+                warns.append(
+                    DemoWarning("correct_answer_rejected", unit.pk,
+                                f"{type(q).__name__} marked {correct_fraction}")
+                )
+                skip_reason = f"{type(q).__name__}'s correct answer marked {correct_fraction}"
+                break
+
+            fractions = {"correct": correct_fraction}
             sentinel = answers.wrong is builders.NO_WRONG_ANSWER
             surviving = []
             if not sentinel:
@@ -1534,11 +1734,11 @@ def build_course_plan(course):
                         fractions[len(surviving)] = f
                         surviving.append(variant)
                     else:
-                        warns.append(Warning("variant_dropped", unit.pk, str(f)))
+                        warns.append(DemoWarning("variant_dropped", unit.pk, str(f)))
                 if not surviving:
                     sentinel = True
             if sentinel:
-                warns.append(Warning("sentinel_answered", unit.pk, type(q).__name__))
+                warns.append(DemoWarning("sentinel_answered", unit.pk, type(q).__name__))
                 answers = builders.Answers(answers.correct, builders.NO_WRONG_ANSWER, None)
             else:
                 answers = builders.Answers(answers.correct, surviving, answers.partial)
@@ -1548,7 +1748,7 @@ def build_course_plan(course):
                 if 0 < pf < 1:
                     fractions["partial"] = pf
                 else:
-                    warns.append(Warning("partial_fallback", unit.pk, str(pf)))
+                    warns.append(DemoWarning("partial_fallback", unit.pk, str(pf)))
                     answers = builders.Answers(answers.correct, answers.wrong, None)
 
             plans.append(
@@ -1562,13 +1762,22 @@ def build_course_plan(course):
 
         if skip_reason is not None:
             skipped.add(unit.pk)
-            warns.append(Warning("quiz_skipped", unit.pk, skip_reason))
+            warns.append(DemoWarning("quiz_skipped", unit.pk, skip_reason))
             continue
         questions[unit.pk] = plans
         if gradeable_n:
             answerable.append(unit)
             if answerable_n >= 2:
                 candidates.append(unit)
+        else:
+            # A quiz that reached here with nothing gradeable — a prose-only quiz
+            # never enters the loop at all, so skip_reason is None and this is the
+            # ONLY place it can be reported. Without this branch the kit silently
+            # contains a quiz no pupil will ever have a score for, and the
+            # operator is never told.
+            warns.append(
+                DemoWarning("no_gradeable_question", unit.pk, f"{len(plans)} question(s)")
+            )
 
     return CoursePlan(units, skipped, answerable, candidates, questions, warns)
 ```
@@ -1610,8 +1819,13 @@ gets pinned cheaply.
 - Produces:
   - `demo.generator.assign_bands(rng, pupil_count) -> list[str]` — one band name per pupil, in
     creation order.
-  - `demo.generator.frontier_index(plan, frontier_part) -> int`
-  - `demo.generator.pupil_depth(rng, band, frontier) -> int` — consumes exactly one draw.
+  - `demo.generator.frontier_index(plan, frontier_part, course) -> int` — **`course` is
+    required**, not an optional trailing argument: when `frontier_part is not None` the body
+    does `course.nodes.filter(...)`, so the two-argument form raises `AttributeError:
+    'NoneType' object has no attribute 'nodes'`. Both call sites (Task 8's `generate`, Task
+    15's boundary test) pass all three.
+  - `demo.generator.pupil_depth(rng, band, frontier, unit_count=None) -> int` — consumes
+    exactly one draw.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1636,12 +1850,20 @@ def test_bands_are_a_fixed_partition_not_a_weighted_draw():
     assert bands.count(AVERAGE) == 12
 
 
-def test_the_partition_is_integer_arithmetic_off_the_share_constants():
-    """floor(0.20 * 15) is at the mercy of binary representation."""
-    bands = generator.assign_bands(random.Random(1), 15)
-    assert bands.count(STRONG) == 3
-    assert bands.count(STRUGGLING) == 3
-    assert bands.count(AVERAGE) == 9
+@pytest.mark.parametrize(
+    "pupils,strong,struggling,average",
+    [(15, 3, 3, 9), (18, 3, 3, 12)],
+)
+def test_the_partition_is_integer_arithmetic_off_the_share_constants(
+    pupils, strong, struggling, average
+):
+    """FLOOR, not half-up rounding. 18 is the load-bearing case: `18 * 20 // 100`
+    is 3 while `round(18 * 20 / 100)` is 4, so it separates the integer form from
+    the rounding mutant. 15 alone does not — see Step 5."""
+    bands = generator.assign_bands(random.Random(1), pupils)
+    assert bands.count(STRONG) == strong
+    assert bands.count(STRUGGLING) == struggling
+    assert bands.count(AVERAGE) == average
 
 
 def test_every_band_is_populated_at_the_minimum_pupil_count():
@@ -1657,17 +1879,43 @@ def test_bands_are_deterministic_for_a_seed():
     )
 
 
-@pytest.mark.parametrize(
-    "band,lo,hi", [(STRONG, 70, 90), (AVERAGE, 61, 78), (STRUGGLING, 42, 55)]
-)
-def test_depth_scales_with_the_band(band, lo, hi):
-    """frontier = floor(0.75 * 100) = 75; multipliers 1.15/1.00/0.70 with +/-8%."""
-    depths = [generator.pupil_depth(random.Random(s), band, 75) for s in range(50)]
-    assert all(lo <= d <= hi for d in depths), (min(depths), max(depths))
+@pytest.mark.parametrize("band", [STRONG, AVERAGE, STRUGGLING])
+def test_depth_scales_with_the_band(band):
+    """Bounds are DERIVED from the constants, never hard-coded.
+
+    ⚠️ The hard-coded version of this test (70-90 / 61-78 / 42-55) failed on
+    correct code: with frontier=75 the true ceilings are round(75*1.15*1.08)=93,
+    round(75*1.00*1.08)=81 and round(75*0.70*1.08)=57. Deriving them also means a
+    JITTER or multiplier change cannot leave the test asserting a stale window.
+    """
+    from demo.constants import BANDS, JITTER
+
+    frontier = 75
+    centre = frontier * BANDS[band]["depth"]
+    lo, hi = round(centre * (1 - JITTER)), round(centre * (1 + JITTER))
+    depths = [generator.pupil_depth(random.Random(s), band, frontier) for s in range(50)]
+    assert all(lo <= d <= hi for d in depths), (min(depths), max(depths), lo, hi)
+    # A guard: 50 seeds must actually spread, or the bounds check is vacuous.
+    assert len(set(depths)) > 1
+
+
+def test_the_bands_are_separated_at_the_same_frontier():
+    """What the parametrised test above CANNOT see: it checks each band against
+    its own window, so a build where every band used the AVERAGE multiplier
+    passes all three. This pins the ordering between them."""
+    from demo.constants import BANDS
+
+    frontier = 75
+    centres = {
+        b: round(frontier * BANDS[b]["depth"]) for b in (STRONG, AVERAGE, STRUGGLING)
+    }
+    assert centres[STRUGGLING] < centres[AVERAGE] < centres[STRONG]
 
 
 def test_depth_is_clamped_into_the_unit_range():
     assert generator.pupil_depth(random.Random(1), STRONG, 0) == 0
+    # The unit_count clamp: a frontier near the end must not index past the list.
+    assert generator.pupil_depth(random.Random(1), STRONG, 13, 14) <= 13
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -1724,8 +1972,12 @@ def assign_bands(rng, pupil_count):
     return bands
 
 
-def frontier_index(plan, frontier_part=None, course=None):
+def frontier_index(plan, frontier_part, course):
     """The published-unit index the class is working around.
+
+    `course` is REQUIRED (no default): the frontier_part branch dereferences it,
+    and a default of None turns a wiring mistake into an AttributeError deep in
+    the body instead of a TypeError at the call.
 
     `frontier_part` is tested with `is not None`: part 0 is a legal AND falsy
     value, and `if frontier_part:` would silently turn --frontier-part 0 into
@@ -1762,16 +2014,23 @@ def pupil_depth(rng, band, frontier, unit_count=None):
 uv run pytest tests/demo/test_class_shape.py -v
 ```
 
-Expected: PASS (seven, counting the parametrised three).
+Expected: PASS (ten: two partition cases, three band cases, and five singletons).
 
 - [ ] **Step 5: Falsify the integer arithmetic**
 
-Change `pupil_count * STRONG_PCT // 100` to `int(0.20 * pupil_count)` and re-run.
+⚠️ **Do not use `int(0.20 * pupil_count)` as the mutant.** Python's `0.2` is slightly *greater*
+than one fifth, so `int(0.2 * n) == n * 20 // 100` for every integer `n` — verified across
+1..200, zero disagreements. That mutant is behaviourally identical, produces a green run, and
+teaches you nothing. ("Try 35" does not rescue it.)
 
-Expected: `test_the_partition_is_integer_arithmetic_off_the_share_constants` FAILS at 15
-pupils (`0.2 * 15` is `3.0000000000000004`, so `int()` gives 3 — **if it passes, try 35**:
-the point is that float arithmetic is representation-dependent and the integer form is not).
-**Revert by hand.**
+Use a mutant that genuinely differs: change `pupil_count * STRONG_PCT // 100` to
+`round(pupil_count * STRONG_PCT / 100)`. The two disagree at `pupil_count` 8, 9, 13, 14, 18,
+19, 23, 24, 28, 29, 33, 34, 38, 39 — floor vs half-up. So first **add a parametrised case at
+`pupil_count=18`** (integer form: 3 strong, 3 struggling, 12 average; `round` form: 4 and 4),
+then apply the mutant and re-run.
+
+Expected: `test_the_partition_is_integer_arithmetic_off_the_share_constants` FAILS at 18
+pupils. **Revert by hand** — do not `git checkout`, which would take the whole file.
 
 - [ ] **Step 6: Commit**
 
@@ -1790,9 +2049,10 @@ git commit -m "feat(demo): band partition, frontier and per-pupil depth"
 
 **Interfaces:**
 - Consumes: `demo.content.build_course_plan`, `demo.generator.assign_bands/pupil_depth`.
-- Produces: `demo.generator.generate(rng, kit, plan, pupils) -> list[Warning]` — writes every
-  pupil's progress and finalized submissions; `pupils` is the list of `User` rows in creation
-  order.
+- Produces: `demo.generator.generate(rng, plan, pupils, *, course, frontier_part=None) ->
+  (list[DemoWarning], list[str], list[int])` — writes every pupil's progress and finalized
+  submissions; `pupils` is the list of `User` rows in creation order. It returns the
+  `(warnings, bands, depths)` triple, **not** a bare warnings list.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1817,7 +2077,7 @@ def _run(course, pupil_count=5, seed=11):
         pupils.append(u)
     plan = build_course_plan(course)
     warnings, _bands, _depths = generate(
-        random.Random(seed), None, plan, pupils, course=course
+        random.Random(seed), plan, pupils, course=course
     )
     return pupils, plan, warnings
 
@@ -1838,7 +2098,13 @@ def test_every_stored_fraction_is_the_mark_of_the_stored_answer():
     assert responses.exists()
     for r in responses:
         question = r.element.content_object
-        answer = answer_from_json(r.latest_answer, question)
+        # ⚠️ QUESTION FIRST. The real signature is
+        # `answer_from_json(question, latest_answer)` (courses/quiz.py:192) —
+        # note that answer_to_json takes only the payload, so the pair is NOT
+        # symmetrical. Reversed, every `isinstance(question, ...)` branch inside
+        # is False, the function hands back the model object, and this headline
+        # derived-score test marks a model instance instead of an answer.
+        answer = answer_from_json(question, r.latest_answer)
         assert r.fraction == to_stored_fraction(question.mark(answer).fraction)
 
 
@@ -1951,6 +2217,11 @@ def _complete(student, unit):
 
 
 def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=None):
+    # select_for_update is KEPT deliberately, and only for the contract:
+    # finalize_submission's docstring says "Caller holds select_for_update on the
+    # submission". It is a no-op on the create path (there is no row to lock) and
+    # there is no concurrent writer here — every user was created inside this same
+    # transaction — so do not read it as concurrency protection.
     submission, _ = QuizSubmission.objects.select_for_update().get_or_create(
         student=student, unit=unit,
         defaults={"status": QuizSubmission.Status.IN_PROGRESS},
@@ -1979,11 +2250,17 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
     return submission
 
 
-def generate(rng, kit, plan, pupils, *, course, frontier_part=None):
-    """Write every pupil's activity. Returns the warnings it accumulated."""
+def generate(rng, plan, pupils, *, course, frontier_part=None):
+    """Write every pupil's activity. Returns the warnings it accumulated.
+
+    NO `kit` PARAMETER. The body never read it and the plan's own test passed
+    None for it — a positional argument that is legitimately None at half the
+    call sites is an invitation to start using it and break the other half. R7
+    scoping comes from `pupils`, which is the list the caller already filtered.
+    """
     warnings = []
     bands = assign_bands(rng, len(pupils))
-    frontier = frontier_index(plan, frontier_part, course)
+    frontier = frontier_index(plan, frontier_part, course)  # all three, always
     answerable_ids = {u.pk for u in plan.answerable_quizzes}
     first_lesson = next((u for u in plan.units if is_obligatory_lesson(u)), None)
     first_quiz = plan.answerable_quizzes[0] if plan.answerable_quizzes else None
@@ -2061,7 +2338,17 @@ has a target — the demo's fourth requirement.
 
 **Interfaces:**
 - Produces: `demo.generator.leave_in_progress(rng, plan, pupils, bands, depths) ->
-  list[Warning]` — called by `generate` after every pupil's finalized pass.
+  list[DemoWarning]` — called by `generate` after every pupil's finalized pass.
+- Consumes: `demo.generator._usable_target(plan, depth, submitted_unit_ids)` — internal, and
+  deliberately takes no `pupil`.
+
+⚠️ **This task ends GREEN, like every other.** An earlier draft had it commit two knowingly
+red tests "until Task 10", with an optional "comment the provisioning lines out" workaround and
+no instruction to uncomment them — which is how Task 10 Step 4 comes to report PASS on a
+half-commented file, and how branch protection (the repo's actual test gate) gets a red commit.
+The provisioning-dependent half of T25 now lives in **Task 10's** test file, where
+`provision_kit` exists. What stays here is the pure, plan-level half, which goes green as soon
+as the pass is written.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2072,36 +2359,43 @@ import pytest
 
 
 @pytest.mark.django_db
-def test_the_review_queue_is_non_empty_for_the_kit_teacher():
-    """T25 — §1's fourth requirement has no other test. pending_reviews_for
-    filters on reviewable_students and quiz_units_in_order, so a submission
-    written for the wrong scope leaves the queue silently empty."""
-    from courses.models import QuizSubmission, UnitProgress
+def test_a_candidate_exists_beyond_every_reachable_depth():
+    """THE FIXTURE GUARD, and the reason "Late quiz" exists.
+
+    `_usable_target` rejects any unit at `position <= depth`, and a pupil shallow
+    enough to miss a quiz is handed it anyway by generate()'s reach-forward —
+    which puts it in `submitted_unit_ids` and trips the second rejection. So if
+    every candidate sits at or below the shallowest depth, `chosen` is ALWAYS
+    empty, no IN_PROGRESS row is ever written, and T25 fails on correct code.
+    That is exactly what the original fixture did. Pin it here, cheaply, rather
+    than debugging it through a provisioning run.
+    """
+    from demo.constants import BANDS, JITTER, MIN_PUPILS, STRUGGLING
+    from demo.content import build_course_plan
+    from demo.generator import frontier_index
     from tests.demo.fixtures import small_course
-    from tests.demo.helpers import provision_for_test
 
-    kit = provision_for_test(small_course())
-    in_progress = QuizSubmission.objects.filter(
-        status=QuizSubmission.Status.IN_PROGRESS
+    course = small_course()
+    plan = build_course_plan(course)
+    frontier = frontier_index(plan, None, course)
+    # The shallowest depth any band can produce: the smallest multiplier at the
+    # most negative jitter. Derived, never a literal.
+    min_depth = round(frontier * BANDS[STRUGGLING]["depth"] * (1 - JITTER))
+
+    positions = {u.pk: i for i, u in enumerate(plan.units)}
+    reachable = [
+        u for u in plan.in_progress_candidates if positions[u.pk] > min_depth
+    ]
+    assert reachable, (
+        "no in-progress candidate sits past the shallowest possible depth "
+        f"({min_depth}); the review queue can never fill"
     )
-    assert in_progress.exists()
-
-    # R4's negative half: an unfinished quiz carries NO completed progress.
-    for submission in in_progress:
-        assert not UnitProgress.objects.filter(
-            student=submission.student, unit=submission.unit, completed=True
-        ).exists()
-
-    # And it is only kit pupils.
-    assert set(in_progress.values_list("student_id", flat=True)) <= set(
-        kit.users.values_list("pk", flat=True)
-    )
+    assert MIN_PUPILS >= 2
 
 
 @pytest.mark.django_db
 def test_a_one_question_quiz_is_never_an_in_progress_target():
     """randint(1, n-1) raises at n == 1, and a prefix must be strictly proper."""
-    from courses.models import QuizSubmission
     from demo.content import build_course_plan
     from tests.demo.fixtures import small_course
 
@@ -2112,20 +2406,19 @@ def test_a_one_question_quiz_is_never_an_in_progress_target():
         if u.unit_type == "quiz" and len(plan.questions.get(u.pk, [])) == 1
     ]
     assert one_question, "the fixture needs a single-question quiz"
-    assert not set(one_question) & set(plan.in_progress_candidates)
-
-    from tests.demo.helpers import provision_for_test
-
-    provision_for_test(course)
-    for unit in one_question:
-        assert not QuizSubmission.objects.filter(
-            unit=unit, status=QuizSubmission.Status.IN_PROGRESS
-        ).exists()
+    assert not {u.pk for u in one_question} & {
+        u.pk for u in plan.in_progress_candidates
+    }
 ```
+
+⚠️ The membership check is on **pks**, not on model instances: two queries for the same row
+produce unequal Python objects in some paths, and a set intersection of instances would then
+be empty for the wrong reason.
 
 - [ ] **Step 2: Write the provisioning test helper**
 
-`tests/demo/helpers.py` — a thin wrapper so tests do not re-type the override and the seed:
+`tests/demo/helpers.py` — a thin wrapper so tests do not re-type the override and the seed.
+Written now because Task 10's tests all use it:
 
 ```python
 from django.test import override_settings
@@ -2133,17 +2426,29 @@ from django.test import override_settings
 from demo.constants import DEFAULT_DAYS
 
 
-def provision_for_test(course, *, label="SP 12", pupils=5, days=DEFAULT_DAYS, seed=4242):
+def provision_for_test(
+    course, *, label="SP 12", pupils=5, days=DEFAULT_DAYS, seed=4242, full=False
+):
     """Every provisioning test needs VENDOR_INSTANCE on (test settings pin it
     False) and an EXPLICIT seed (the service draws one from secrets otherwise,
-    so content assertions would run against a fresh random class each time)."""
+    so content assertions would run against a fresh random class each time).
+
+    `full=True` returns the whole ProvisionResult instead of just `.kit` — the
+    warnings and the two passwords are otherwise unreachable, which silently
+    defeated the webhook half of T12.
+    """
     from demo.services import provision_kit
 
     with override_settings(VENDOR_INSTANCE=True):
-        return provision_kit(
+        result = provision_kit(
             label, course=course, days=days, pupils=pupils, seed=seed
-        ).kit
+        )
+    return result if full else result.kit
 ```
+
+⚠️ The `override_settings` block ends when `provision_for_test` returns. Any test that then
+calls `extend_kit` — which is vendor-guarded — must carry its **own**
+`@override_settings(VENDOR_INSTANCE=True)`; see Task 11.
 
 - [ ] **Step 3: Run it and watch it fail**
 
@@ -2151,10 +2456,10 @@ def provision_for_test(course, *, label="SP 12", pupils=5, days=DEFAULT_DAYS, se
 uv run pytest tests/demo/test_in_progress.py -v
 ```
 
-Expected: FAIL — `demo.services.provision_kit` does not exist yet (Task 10). That is fine and
-expected: write the pass now, and this file goes green at the end of Task 10. Run the
-`plan.in_progress_candidates` half first by commenting the provisioning lines if you want a
-green step here.
+Expected: FAIL — `ImportError: cannot import name 'frontier_index'` is already satisfied by
+Task 7, so the real failure is the fixture guard: `small_course` must carry "Late quiz". If
+that assertion passes and the one-question assertion fails, the fixture is the problem, not
+the pass.
 
 - [ ] **Step 4: Write the pass**
 
@@ -2162,13 +2467,18 @@ Append to `demo/generator.py`:
 
 ```python
 from demo.constants import IN_PROGRESS_PUPILS
-from demo.warnings import Warning as DemoWarning
+from demo.warnings import DemoWarning  # no alias: it is named DemoWarning at source
 
 
-def _usable_target(plan, pupil, depth, submitted_unit_ids):
+def _usable_target(plan, depth, submitted_unit_ids):
     """The STATIC, draw-free predicate. Selection runs before the pass, so a
     predicate phrased as 'yields a conforming prefix' would force an implementer
-    to simulate draws — perturbing a stream nothing pins."""
+    to simulate draws — perturbing a stream nothing pins.
+
+    No `pupil` parameter: the caller already resolved it into
+    `submitted_unit_ids`, and a parameter the body never reads sends a reader
+    hunting for logic that is not here.
+    """
     for unit in plan.in_progress_candidates:
         position = next(i for i, u in enumerate(plan.units) if u.pk == unit.pk)
         if position <= depth or unit.pk in submitted_unit_ids:
@@ -2204,7 +2514,7 @@ def leave_in_progress(rng, plan, pupils, bands, depths):
                 "unit_id", flat=True
             )
         )
-        target = _usable_target(plan, pupils[i], depths[i], submitted)
+        target = _usable_target(plan, depths[i], submitted)
         if target is not None:
             chosen.append((i, target))
         if len(chosen) == IN_PROGRESS_PUPILS:
@@ -2244,7 +2554,16 @@ Then call it at the end of `generate`, before the return:
     return warnings, bands, depths
 ```
 
-- [ ] **Step 5: Commit (tests go green at the end of Task 10)**
+- [ ] **Step 5: Run the tests**
+
+```bash
+uv run pytest tests/demo/test_in_progress.py -v
+```
+
+Expected: PASS (two tests). Both are pure plan assertions — nothing here needs
+`provision_kit`.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add demo/generator.py tests/demo/test_in_progress.py tests/demo/helpers.py
@@ -2333,8 +2652,19 @@ def test_passwords_authenticate_and_never_persist():
     )
     assert result.teacher_password not in repr(result)
     assert result.student_password not in repr(result)
-    for field in ("label", "slug"):
-        assert result.teacher_password not in getattr(result.kit, field)
+    # Sweep EVERY string-valued column on the row, not just label/slug.
+    # ⚠️ The old two-field loop was vacuous: `label` is operator input and `slug`
+    # is derived from it, so neither could ever hold a freshly generated
+    # 14-character secret — it was green on a build that added a
+    # `teacher_password` column.
+    result.kit.refresh_from_db()
+    for f in result.kit._meta.get_fields():
+        if not getattr(f, "concrete", False):
+            continue
+        value = getattr(result.kit, f.attname, None)
+        if isinstance(value, str):
+            assert result.teacher_password not in value, f.name
+            assert result.student_password not in value, f.name
 
 
 @pytest.mark.django_db
@@ -2421,13 +2751,87 @@ def test_provisioning_is_silent():
     endpoint.save()
 
     before = WebhookDelivery.objects.count()
-    result_kit = provision_for_test(small_course())
+    result = provision_for_test(small_course(), full=True)
 
     assert mail.outbox == []
     assert WebhookDelivery.objects.count() == before
     # ...and the operator is TOLD the endpoint is live (it is a data-leak
     # surface the moment a rep presses Force submit).
-    assert result_kit is not None
+    # ⚠️ This needs the FULL ProvisionResult. The old form asserted
+    # `result_kit is not None` on the bare `.kit` — true on every build,
+    # including one where _webhook_warnings() returns [] unconditionally, so the
+    # half of the test its own comment describes was measuring nothing.
+    hits = [w for w in result.warnings if w.kind == "active_webhook_endpoint"]
+    assert len(hits) == 1
+    assert hits[0].reason == endpoint.url
+
+
+@pytest.mark.django_db
+def test_the_review_queue_is_non_empty_for_the_kit_teacher():
+    """T25 — §1's fourth requirement. MOVED HERE from Task 9 because it needs
+    provision_kit; Task 9 keeps only the plan-level half so it can end green.
+
+    pending_reviews_for filters on reviewable_students AND quiz_units_in_order,
+    so a submission written for the wrong scope leaves the queue silently empty —
+    asserting on the QuizSubmission table alone would not catch that, which is
+    why the queue itself is queried.
+    """
+    from courses.models import QuizSubmission, UnitProgress
+    from courses.review import pending_reviews_for
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    course = small_course()
+    kit = provision_for_test(course)
+
+    queue = pending_reviews_for(kit.teacher, course, drafts="hide")
+    assert queue["in_progress"], "the teacher's own queue, not just the table"
+    # ⚠️ queue["awaiting"] is EXPECTED to be empty — any quiz holding a REVIEW
+    # question is skipped whole (see Task 6's accepted consequence). Asserting it
+    # non-empty would be red on correct code.
+
+    in_progress = QuizSubmission.objects.filter(
+        status=QuizSubmission.Status.IN_PROGRESS
+    )
+    assert in_progress.count() == 2  # IN_PROGRESS_PUPILS, by construction
+
+    # R4's negative half: an unfinished quiz carries NO completed progress.
+    for submission in in_progress:
+        assert not UnitProgress.objects.filter(
+            student=submission.student, unit=submission.unit, completed=True
+        ).exists()
+
+    # And it is only kit pupils.
+    assert set(in_progress.values_list("student_id", flat=True)) <= set(
+        kit.users.values_list("pk", flat=True)
+    )
+
+
+@pytest.mark.django_db
+def test_the_demo_teacher_can_read_every_course_on_the_box():
+    """⚠️ THIS TEST DOCUMENTS A KNOWN WIDENING, and is expected to PASS — read
+    the note under Step 3 before changing it.
+
+    `accessible_courses` (courses/access.py:22) returns Course.objects.all() for
+    ANY is_staff user, and the demo Teacher is created is_staff=True because the
+    teaching surfaces key on it. So a school rep's demo login can read every
+    other course hosted on the vendor instance, including another school's kit.
+    Pinning it here means the day someone narrows staff access, this test goes
+    red and the narrowing is a deliberate decision rather than a surprise.
+    """
+    from courses.access import accessible_courses
+    from courses.models import Course
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    course = small_course()
+    other = Course.objects.create(slug="other", title="Other", language="pl")
+    kit = provision_for_test(course)
+
+    assert kit.teacher.is_staff
+    assert other in accessible_courses(kit.teacher)
+    # The rep's STUDENT login is correctly narrow — that half is not a widening.
+    assert other not in accessible_courses(kit.student)
 
 
 @pytest.mark.django_db
@@ -2460,9 +2864,21 @@ Expected: FAIL — `ImportError: cannot import name 'provision_kit'`.
 
 - [ ] **Step 3: Write `provision_kit`**
 
+⚠️ **Known widening, accepted for the PR 1–2 interval.** The Teacher is created
+`is_staff=True` because the teaching surfaces key on that flag — and
+`courses/access.py:22` grants **every** `is_staff` user read access to **every** course on the
+box. On the vendor instance that means one school's demo Teacher can open another school's
+demo course, and any other course hosted there. Two reasons this ships anyway: the vendor
+instance hosts only courses we author and the kits we issue, and kits are time-limited and
+purged. It is **not** acceptable once PR 3 lets kits be issued from a web form: narrowing it
+(a non-staff Teacher role, or scoping `accessible_courses` by group) is PR 3 work, and T9's
+cross-kit isolation test belongs with it. The test above pins the current behaviour so the
+narrowing cannot happen silently. Also listed under "Deliberately NOT in this plan".
+
 Append to `demo/services.py`:
 
 ```python
+import random
 import secrets
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -2477,7 +2893,8 @@ from django.views.decorators.debug import sensitive_variables
 from accounts.emails import ensure_verified_primary_email
 from accounts.services import set_user_role
 from courses.models import QuizSubmission, UnitProgress
-from courses.rollups import is_obligatory_lesson
+# NOTE: no `is_obligatory_lesson` import here — nothing in this module uses it
+# (its only consumer is demo/generator.py), and ruff's F401 fails the lint gate.
 from demo import errors
 from demo.constants import (
     DEFAULT_DAYS, DEFAULT_PUPILS, EMAIL_DOMAIN, LABEL_MAX, MAX_DAYS,
@@ -2488,7 +2905,7 @@ from demo.content import build_course_plan
 from demo.generator import generate
 from demo.models import DemoKit
 from demo.names import draw_names
-from demo.warnings import Warning as DemoWarning
+from demo.warnings import DemoWarning
 from grouping.models import Group
 from grouping.services import add_students_to_group
 from institution.roles import STUDENT, TEACHER
@@ -2614,9 +3031,7 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
     kit.save(update_fields=["group", "teacher", "student"])
     kit.users.add(teacher, student)
 
-    import random
-
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # imported at module level; there is no cycle here
     names = draw_names(rng, pupils)
     pupil_users = []
     for username, (first, last) in zip(pupil_names, names, strict=True):
@@ -2631,7 +3046,7 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
     add_students_to_group(group, [student, *pupil_users], added_by=teacher)
 
     warnings, _bands, _depths = generate(
-        rng, kit, plan, pupil_users, course=course, frontier_part=frontier_part
+        rng, plan, pupil_users, course=course, frontier_part=frontier_part
     )
     warnings.extend(plan.warnings)
     warnings.extend(_webhook_warnings())
@@ -2785,8 +3200,16 @@ def test_purge_expired_selects_only_expired_open_kits_and_is_idempotent():
 
 
 @pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
 def test_extend_moves_from_now_and_flags_a_long_lived_kit():
-    """T15b. max(expires_at, now()) matters for a kit that expired yesterday."""
+    """T15b. max(expires_at, now()) matters for a kit that expired yesterday.
+
+    ⚠️ The override is REQUIRED and is not inherited: extend_kit calls
+    require_vendor() as its first statement, config/settings/test.py:37 pins
+    VENDOR_INSTANCE=False, and provision_for_test's own context manager has
+    already exited by the time this test calls extend_kit. Without it the test
+    errors on ImproperlyConfigured.
+    """
     from demo.models import DemoKit
     from demo.services import extend_kit
     from tests.demo.fixtures import small_course
@@ -2810,7 +3233,11 @@ def test_extend_moves_from_now_and_flags_a_long_lived_kit():
 
 
 @pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
 def test_extend_and_revoke_refuse_a_closed_kit():
+    """Same override, same reason — and without it the ImproperlyConfigured
+    raised by the guard would fail the `pytest.raises(KitAlreadyClosed)` for a
+    reason that has nothing to do with the rule under test."""
     from demo.models import DemoKit
     from demo.services import extend_kit, purge_kit, revoke_kit
     from tests.demo.fixtures import small_course
@@ -2841,6 +3268,24 @@ def test_the_cleanup_half_is_exempt_from_the_vendor_guard():
     kit.refresh_from_db()
     assert kit.status_key == "closed_revoked"
     assert purge_expired() == []
+
+
+@pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=False)
+def test_extend_is_guarded_by_the_vendor_flag():
+    """The OTHER half of R8, which nothing else covers. The exemption test above
+    proves purge/revoke stay open; this proves extend does not — without it, a
+    build that dropped require_vendor() from extend_kit is green everywhere."""
+    from django.core.exceptions import ImproperlyConfigured
+
+    from demo.services import extend_kit
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    kit = provision_for_test(small_course())
+    with pytest.raises(ImproperlyConfigured) as exc:
+        extend_kit(kit, days=7)
+    assert "LIBLI_VENDOR_INSTANCE" in str(exc.value)
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -2938,7 +3383,7 @@ def purge_expired(*, dry_run=False):
 uv run pytest tests/demo/test_lifecycle.py -v
 ```
 
-Expected: PASS (six tests).
+Expected: PASS (seven tests).
 
 - [ ] **Step 5: Falsify the purge predicate**
 
@@ -3041,12 +3486,30 @@ def test_the_guarded_and_exempt_subcommands_are_split_as_specified():
     guarded, exempt = {"create", "extend"}, {"purge", "revoke", "list"}
     assert actions == guarded | exempt
 
-    for name in guarded:
-        with pytest.raises(CommandError):
-            call_command("demo_access", name, "--label", "x", "--course", "small")
+    # ⚠️ EVERY ARGUMENT MUST BE VALID, or the guard is never reached.
+    # The earlier version of this test built no fixture and passed no kit id, so
+    # `create` died on "no course with slug 'small'" and `extend` on KitNotFound
+    # — both BEFORE the service was called. Both pytest.raises(CommandError)
+    # assertions were green on a build with no vendor guard at all.
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    course = small_course()
+    kit = provision_for_test(course)  # provisions with the flag ON, then drops it
+
+    for name, args in (
+        ("create", ("--label", "SP 99", "--course", "small", "--pupils", "5")),
+        ("extend", (str(kit.pk), "--days", "7")),
+    ):
+        with pytest.raises(CommandError) as exc:
+            call_command("demo_access", name, *args)
+        # The MESSAGE, not merely the class: it is what distinguishes the guard
+        # from every other way these subcommands can fail.
+        assert "LIBLI_VENDOR_INSTANCE" in str(exc.value), name
 
     call_command("demo_access", "purge", "--dry-run")  # must NOT raise
     call_command("demo_access", "list")
+    call_command("demo_access", "revoke", str(kit.pk))  # exempt, and must work
 
 
 @pytest.mark.django_db
@@ -3077,6 +3540,7 @@ The subcommand shape mirrors migrate_course_content: a positional `action` with
 one way the guard could leave stranger-known logins alive on prod.
 """
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 
 from courses.models import Course
@@ -3106,9 +3570,12 @@ class Command(BaseCommand):
     def handle(self, *args, **o):
         try:
             getattr(self, f"_{o['action']}")(o)
-        except errors.DemoKitError as exc:
-            raise CommandError(str(exc)) from exc
-        except Exception as exc:  # ImproperlyConfigured from the vendor guard
+        # NAMED exceptions only. A blanket `except Exception` swallowed every
+        # AttributeError, TypeError and IntegrityError from the services into a
+        # CommandError with no traceback — the worst possible surface for
+        # debugging a failed provision on prod, and it made the DemoKitError
+        # clause above dead code.
+        except (errors.DemoKitError, ImproperlyConfigured) as exc:
             raise CommandError(str(exc)) from exc
 
     def _kit(self, o):
@@ -3211,10 +3678,50 @@ GOLDEN = Path(__file__).with_name("golden_class.json")
 
 
 def _projection(kit):
-    """The generated values, EXCLUDING timestamps: every row keeps a wall-clock
-    stamp (there is no back-dating), so a naive row comparison is red on correct
-    code."""
+    """The generated values, EXCLUDING timestamps AND PRIMARY KEYS.
+
+    Timestamps: every row keeps a wall-clock stamp (there is no back-dating), so
+    a naive row comparison is red on correct code.
+
+    ⚠️ PKS ARE THE BIGGER TRAP, and this repo has hit it four times. An earlier
+    draft projected `r.element_id`, which broke BOTH tests below:
+      * self-consistency built two separate courses and compared their element
+        pks — never equal, whatever the generator does, so the test could not
+        pass;
+      * the golden file would have pinned absolute pks into a checked-in
+        artefact. Postgres sequences are not reset by pytest-django's rollback,
+        so those values depend on everything that ran earlier in the session —
+        a different chunk under `-n`, a reordered run, or any new fixture
+        anywhere in tests/ makes the file mismatch with NO change to the draw
+        order. The one test that exists to pin the draw order would have been
+        the flakiest in the suite.
+
+    The stable key is POSITIONAL: (unit title, index of the question within its
+    unit in the plan's own element order).
+    """
     from courses.models import QuestionResponse, UnitProgress
+    from demo.content import build_course_plan
+
+    from courses.quiz import answer_to_json
+
+    plan = build_course_plan(kit.course)
+    # element pk -> ("Unit title", ordinal within the unit, {json -> slot label})
+    key_of = {}
+    for unit in plan.units:
+        for i, q in enumerate(plan.questions.get(unit.pk, [])):
+            # ⚠️ THE STORED PAYLOAD CARRIES PKS TOO. A choice answer is a set of
+            # Choice pks; the grid builders store column pks. So dumping
+            # latest_answer verbatim reintroduces exactly the trap the key above
+            # removes. Instead, map each payload back to WHICH SLOT the generator
+            # picked — "correct", "partial", or "wrong-N". That is precisely what
+            # the draw order decides, and it is pk-free.
+            slots = {repr(answer_to_json(q.answers.correct)): "correct"}
+            if q.answers.partial is not None:
+                slots[repr(answer_to_json(q.answers.partial))] = "partial"
+            if not q.sentinel:
+                for n, variant in enumerate(q.answers.wrong):
+                    slots[repr(answer_to_json(variant))] = f"wrong-{n}"
+            key_of[q.element_id] = (unit.title, i, slots)
 
     rows = []
     for pupil in kit.users.exclude(pk__in=[kit.teacher_id, kit.student_id]).order_by(
@@ -3225,12 +3732,16 @@ def _projection(kit):
                 "unit__title", flat=True
             )
         )
-        answers = [
-            [r.element_id, str(r.fraction), json.dumps(r.latest_answer, sort_keys=True)]
-            for r in QuestionResponse.objects.filter(
-                submission__student=pupil
-            ).order_by("element_id")
-        ]
+        answers = []
+        for r in QuestionResponse.objects.filter(submission__student=pupil):
+            title, ordinal, slots = key_of[r.element_id]
+            slot = slots.get(repr(r.latest_answer))
+            assert slot is not None, (
+                f"stored answer matches no cached slot for {title}[{ordinal}] — "
+                "the generator wrote something the content pass never validated"
+            )
+            answers.append([title, ordinal, str(r.fraction), slot])
+        answers.sort()
         rows.append(
             {"username": pupil.username, "name": pupil.display_name,
              "progress": progress, "answers": answers}
@@ -3246,9 +3757,20 @@ def test_the_same_seed_produces_the_same_class():
     from tests.demo.fixtures import small_course
     from tests.demo.helpers import provision_for_test
 
-    first = _projection(provision_for_test(small_course(), seed=2024))
-    second = _projection(provision_for_test(small_course(), seed=2024))
-    assert first == second
+    # ONE course, TWO kits. Building `small_course()` twice would compare two
+    # disjoint sets of rows — and it also exercises the username disambiguator
+    # for free, since the second kit takes the same label.
+    course = small_course()
+    first = _projection(provision_for_test(course, seed=2024))
+    second = _projection(provision_for_test(course, seed=2024))
+    # The usernames differ by design (sp-12-... vs sp-12-2-...), so compare
+    # everything except that field. A `def`, not a lambda assignment — ruff's
+    # E731 rejects the latter and tests/** does not ignore E.
+    def without_username(rows):
+        return [{k: v for k, v in row.items() if k != "username"} for row in rows]
+
+    assert without_username(first) == without_username(second)
+    assert first[0]["username"] != second[0]["username"], "the disambiguator ran"
 
 
 @pytest.mark.django_db
@@ -3260,6 +3782,10 @@ def test_the_golden_class_is_unchanged():
 
     Landing a DELIBERATE order change means regenerating this file in the same
     commit — that is the point of it.
+
+    The projection is pk-free (see _projection): the file records unit titles,
+    question ordinals and slot labels, so it survives a different test order, a
+    different xdist chunk and any new fixture elsewhere in tests/.
     """
     from tests.demo.fixtures import small_course
     from tests.demo.helpers import provision_for_test
@@ -3503,8 +4029,16 @@ uv run ruff format --check .
 - [ ] **Provision against the local mat-pp copy and LOOK at it** (spec §8, "beyond the suite")
 
 ```bash
-uv run python manage.py demo_access create --label "Test School" --course mat-pp --seed 1
+LIBLI_VENDOR_INSTANCE=true uv run python manage.py demo_access create \
+  --label "Test School" --course mat-pp --seed 1
 ```
+
+⚠️ **The env var is required.** `config/settings/base.py:288` reads
+`VENDOR_INSTANCE = env.bool("LIBLI_VENDOR_INSTANCE", default=False)` and no dev settings module
+overrides it, so `provision_kit`'s `require_vendor()` refuses before touching mat-pp — and this
+is the only step that produces the wall-clock number the PR body must carry.
+⚠️ **Editing `.env` will NOT help if the variable is already exported** in your shell; a
+`.env` file cannot override an exported var. Export it, or prefix it as above.
 
 Then log in as the printed teacher and read the matrix, the drill-down, the review queue and
 the pupil view, **in light and dark**. Record the wall-clock of the provision — PR 3's tab
@@ -3515,7 +4049,8 @@ depends on whether it fits inside a web request. Check:
 - the review queue is non-empty;
 - names read as a Polish class list, not `test-school-p01`.
 
-Then purge it: `uv run python manage.py demo_access revoke <id>`.
+Then purge it: `uv run python manage.py demo_access revoke <id>` — no env var needed, because
+`revoke` is exempt from the vendor guard (R8).
 
 - [ ] **Open the PR** with the spec linked and the measured provisioning time in the body.
 
@@ -3536,15 +4071,35 @@ Then purge it: `uv run python manage.py demo_access revoke <id>`.
   it here if the local mat-pp run suggests the bands are not visibly distinct.
 - **T14** (`/admin/` lists zero models) and **T9** (cross-kit isolation) — both need a second
   kit and the analytics views; they belong with PR 3's surface work.
+- **Narrowing the demo Teacher's course access.** `is_staff=True` grants read access to every
+  course on the box (`courses/access.py:22`), so one school's demo Teacher can open another's.
+  Accepted for the PR 1–2 interval (see Task 10 Step 3) and **pinned by a passing test**, so
+  the narrowing is a decision, not a surprise. It must land with PR 3, before kits can be
+  issued from a web form.
+- **Teacher marking / the "awaiting review" queue.** Structurally empty, because any quiz with
+  a REVIEW question is skipped whole (see Task 6). PR 3 and PR 4 must not advertise marking as
+  part of the demo. The follow-up, if a rep asks for it: write one pupil an unreviewed REVIEW
+  response instead of skipping the quiz.
 
 **Test-to-task map** (spec §8 numbering): T1/T2a/T2b/T3/T5 → Task 8 · T1b/T6 → Task 5 ·
 T2c → Task 6 · T7/T7b → Task 13 · T8/T15/T15b → Task 11 · T12/T17/T20/T22/T28 → Task 10 ·
 T13/T26 → Task 12 · T16 → Tasks 10–11 (asserted on behaviour: the `Enrollment` rows
 `add_students_to_group` writes, and `delete_group`'s post-delete recompute) · T17b/T18/T21/T29
-→ Task 15 · T19 → Task 1 · T25 → Task 9 · T27 → Task 4.
+→ Task 15 · T19 → Task 1 · **T25 → Task 10** (moved off Task 9, which needs no `provision_kit`
+and now ends green like every other task) · T27 → Task 4.
 
-**Type consistency checked:** `generate()` returns `(warnings, bands, depths)` at all three
-call sites; `Answers` is `(correct, wrong, partial)` everywhere; `build_course_plan` returns
+**Type consistency checked:** `generate(rng, plan, pupils, *, course, frontier_part=None)`
+returns `(warnings, bands, depths)` at both call sites and takes **no `kit`**; `frontier_index`
+takes all three of `(plan, frontier_part, course)` at both call sites; `Answers` is
+`(correct, wrong, partial)` everywhere; `QuestionPlan` is the six-field
+`(element_id, max_marks, answers, fractions, gradeable, sentinel)`; `build_course_plan` returns
 `CoursePlan` and every consumer uses its field names; `provision_kit` returns
-`ProvisionResult` and `extend_kit` returns `ExtendResult`, both unpacked by attribute.
+`ProvisionResult` and `extend_kit` returns `ExtendResult`, both unpacked by attribute; the
+warning type is spelled `DemoWarning` at its definition and at all three import sites.
+
+**Names verified against the repo** (not recalled): `parse_numeric_value` and
+`canonical_numeric_text` are in `courses/marking.py`; `answer_from_json(question,
+latest_answer)` takes the question FIRST while `answer_to_json(answer)` takes only the payload;
+`accessible_courses` returns all courses for `is_staff`; `Element.order` is
+`OrderField(for_fields=["unit"])`; `pending_reviews_for` returns `{"awaiting", "in_progress"}`.
 
