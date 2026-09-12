@@ -47,11 +47,31 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
   container the first run looks *hung* for 4m21s before it fails. Do this once, before
   Task 1 Step 2, and never background a pytest run — a backgrounded run orphans the test
   DB and the next one dies with `DuplicateDatabase`.
-- ⚠️ **Single-line imports.** `pyproject.toml` selects ruff rule `I` and sets
-  `[tool.ruff.lint.isort] force-single-line = true`. **Every `from x import (A, B, C)` block
-  in this plan is illustrative shorthand and must be written one import per line** (see
-  `courses/management/commands/seed_demo_course.py:16-56` for the house style). The final
-  `ruff check` gate fails otherwise, across a dozen files at once.
+- ⚠️ **The lint gate, in full.** `pyproject.toml` sets `select = ["E", "F", "I", "UP", "B",
+  "S"]`, `ignore = ["S101"]`, `target-version = "py313"`, and `tests/**` ignores only
+  `S105/S106/S107`. Four consequences bite this plan's code blocks, and **all four surface only
+  at the Final-verification step**, across a dozen files at once. Fix them as you write, not
+  at the end:
+  1. **Single-line imports** (`I001`, `force-single-line = true`). Every `from x import (A, B,
+     C)` block below is illustrative shorthand and must be written one import per line — see
+     `courses/management/commands/seed_demo_course.py:16-56` for the house style.
+  2. **Imports go in the file's header** (`E402`). Several tasks say "Append to
+     `demo/generator.py`" / "`demo/services.py`" and then show an import block at the top of
+     the appended text. **Do not paste it there.** Merge those imports into the module header
+     that Task 7/3 already wrote, and append only the functions. An import after a `def` is
+     `E402`.
+  3. **`random.Random(...)` is `S311`** — flagged on the *constructor*, not on the method
+     calls. There is no existing `random` usage anywhere in this repo, so there is no house
+     convention to copy. **Decision for this plan: a per-file-ignore, not fifteen `noqa`s.**
+     Task 2 Step 7 adds it to `pyproject.toml`:
+     ```toml
+     [tool.ruff.lint.per-file-ignores]
+     "demo/**" = ["S311"]        # deterministic content generation; secrets covers
+     "tests/demo/**" = ["S311"]  # the seed and the passwords (spec R5/§4.6)
+     ```
+     ⚠️ Add these **alongside** the existing `tests/**` entries, not replacing them.
+  4. **`typing.Optional` / `typing.Union` are banned** (`UP045`/`UP007` at py313). Write
+     `int | None`.
 - **Polish copy** in this PR is limited to display names, the checked-in name lists **and the
   ten `demo/warnings.py` display strings**. Those ten ARE new msgids, and Task 6 Step 4b
   carries the catalog step: `makemessages -l pl`, fill them, `compilemessages`, commit both
@@ -93,7 +113,7 @@ this is prevention, not cleanup.
 
 **Files:**
 - Modify: `courses/management/commands/seed_demo_course.py` (imports + top of `handle`)
-- Modify: `docs/deployment.md:440-448`
+- Modify: `docs/deployment.md` — **two sites**, §7 (~440-448) and the gotchas bullet at ~810
 - Test: `tests/test_seed_demo_course.py`
 
 **Interfaces:**
@@ -153,14 +173,25 @@ statements of `handle()`:
 uv run pytest tests/test_seed_demo_course.py -v
 ```
 
-Expected: PASS — the new test passes and the pre-existing ones still do (they run under the
-test settings, where `DEBUG` is False by default… **if they now fail, that is the point**:
-they exercise the fixture deliberately, so repair each one by adding the pytest-django
-`settings` fixture **to the test's signature** and setting `settings.DEBUG = True` in its
-arrange. ⚠️ `settings` is a fixture, not a module-level name — `settings.DEBUG = True` alone
-is a `NameError`. Count the tests in `tests/test_seed_demo_course.py` first (`grep -c "^def
-test_"`) and confirm you repaired exactly that many; a test you missed reports as an
-unrelated failure).
+Expected: PASS. The 12 pre-existing tests run under the test settings, where `DEBUG` is False,
+so they will now fail — **that is the point**; they exercise the fixture deliberately.
+
+**Repair them in ONE line, not twelve.** `tests/test_seed_demo_course.py:5` already declares
+
+```python
+@pytest.fixture(autouse=True)
+def _isolate_media_root(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+```
+
+which already holds the `settings` fixture for every test in the module. Add
+`settings.DEBUG = True` to its body. Twelve signature edits are unnecessary, and the new test
+above is unaffected because it sets `settings.DEBUG = False` in its own body, which runs after
+the autouse fixture.
+
+⚠️ `settings` is a pytest-django fixture, not a module-level import — that is why it has to be
+reached through a fixture at all. Confirm all 12 originals still pass
+(`grep -c "^def test_" tests/test_seed_demo_course.py` → 12, and the run reports 13 passed).
 
 - [ ] **Step 5: Fix the runbook**
 
@@ -174,6 +205,20 @@ repository. For a school demo, use `manage.py demo_access create` (see the demo-
 spec). Verified 2026-09-12: it has never been run on libli.pl — no `demo_*` users, one
 user in total, `mat-pp` the only course, no groups, institution name unchanged, webhook
 disabled. Re-verify only if someone runs an older copy of this runbook.
+```
+
+⚠️ **There is a SECOND site.** `docs/deployment.md:810-812` still reads "The demo-activity
+seeder is separate, unbuilt work; `seed_demo_course` provides one enrolled student on its own
+course so the analytics surfaces are reachable." After this PR that sentence is wrong twice
+over — the command now refuses on prod, and the demo-activity seeder is exactly what PR 2
+builds. An operator reading the gotchas list would still believe it is runnable. Replace that
+bullet with:
+
+```markdown
+- **Analytics on an imported course will be empty** until a class has used it. To make the
+  analytics surfaces reachable for a demo, issue a demo kit: `manage.py demo_access create
+  --label "<school>" --course <slug>`. (`seed_demo_course` is a local screenshot fixture and
+  refuses to run with `DEBUG=False` — see §7.)
 ```
 
 - [ ] **Step 6: Commit**
@@ -323,7 +368,9 @@ WRONG_VARIANTS = 3
 NAME_RETRY_LIMIT = 50
 MIN_NAMES_PER_LIST = 40
 
-# band -> (share_pct, p_correct, depth_multiplier, p_lesson, p_optional)
+# band -> {"p_correct", "depth" (a multiplier), "p_lesson", "p_optional"}.
+# The class SHARES are not in here: they are STRONG_PCT / STRUGGLING_PCT above,
+# because assign_bands partitions on integers while these four are probabilities.
 STRONG = "strong"
 AVERAGE = "average"
 STRUGGLING = "struggling"
@@ -368,8 +415,12 @@ class InvalidBounds(DemoKitError):
         super().__init__(message)
 
 
-class InvalidFrontierPart(DemoKitError):
-    pass
+class InvalidFrontierPart(InvalidBounds):
+    """A subclass of InvalidBounds, so PR 3's form attaches it to a FIELD like
+    the other two bounds errors rather than surfacing it as a form-wide error."""
+
+    def __init__(self, message):
+        super().__init__("frontier_part", message)
 
 
 class UsernameCollision(DemoKitError):
@@ -480,9 +531,21 @@ class DemoKit(models.Model):
         return "active"
 ```
 
-- [ ] **Step 7: Register the app**
+- [ ] **Step 7: Register the app and open the S311 per-file-ignore**
 
 In `config/settings/base.py`, add `"demo",` to `INSTALLED_APPS` after `"support",`.
+
+In `pyproject.toml`, **add** to the existing `[tool.ruff.lint.per-file-ignores]` block (keep
+the two `S105/S106/S107` entries that are already there):
+
+```toml
+"demo/**" = ["S311"]
+"tests/demo/**" = ["S311"]
+```
+
+Done here rather than at the end so the lint gate is green from the first `random.Random(`
+this plan writes — see the Global Constraints for why `S311` is the right rule to silence and
+`secrets` is what covers the security-sensitive draws.
 
 ⚠️ It goes in `base.py`, **not** a vendor-only settings module: a conditionally installed app
 makes its migration conditional too. The guard is in the code (Task 3), not the install.
@@ -515,7 +578,7 @@ Expected: "No changes detected" — CI runs this and fails the build otherwise.
 - [ ] **Step 11: Commit**
 
 ```bash
-git add demo/ config/settings/base.py tests/demo/
+git add demo/ config/settings/base.py pyproject.toml tests/demo/
 git commit -m "feat(demo): add the demo app, DemoKit model and error hierarchy"
 ```
 
@@ -688,26 +751,42 @@ def test_draw_names_raises_rather_than_spinning_on_a_short_pool(monkeypatch):
 def test_the_retry_limit_itself_raises_rather_than_spinning(monkeypatch):
     """The RETRY half. The test above never reaches the `while` loop — it trips
     the pre-check and returns — so without this case NAME_RETRY_LIMIT is dead
-    code and a live spin ships untested. Here the pre-check PASSES (count == the
-    shortest list's length) but only one surname per gender exists, so the third
-    pupil cannot get a distinct pair."""
+    code and a live spin ships untested.
+
+    ⚠️ THE POOL CANNOT BE SHAPED TO REACH THIS BRANCH. Any pool short enough to
+    exhaust distinct pairs also satisfies `min(len(...)) < count`, so the
+    pre-check fires first and raises the OTHER message. (An earlier draft of this
+    test claimed four 2-element lists with count=4 would pass the pre-check;
+    2 < 4, so it does not — the test was red on correct code.) The only way in is
+    to drop the retry budget to zero and force one collision.
+    """
     from demo import errors, names
 
+    monkeypatch.setattr(names, "NAME_RETRY_LIMIT", 0)
     monkeypatch.setattr(names, "FEMININE_GIVEN", ("Anna", "Maria"))
     monkeypatch.setattr(names, "MASCULINE_GIVEN", ("Jan", "Piotr"))
     monkeypatch.setattr(names, "FEMININE_SURNAMES", ("Kowalska", "Nowak"))
     monkeypatch.setattr(names, "MASCULINE_SURNAMES", ("Kowalski", "Nowak"))
-    # 2 given x 2 surnames per gender = at most 4 pairs per gender, but the
-    # gender draw is a coin flip: asking for 4 forces repeated collisions on
-    # whichever gender comes up more often.
+
+    class _FixedRng:
+        """Every draw returns the same value, so pupil 2 collides with pupil 1."""
+
+        def random(self):
+            return 0.0  # < 0.5 -> feminine, every time
+
+        def randrange(self, n):
+            return 0  # "Anna", "Kowalska", every time
+
     with pytest.raises(errors.NamePoolExhausted) as exc:
-        names.draw_names(random.Random(1), 4)
+        names.draw_names(_FixedRng(), 2)  # 2 <= 2, so the pre-check passes
     assert "retries" in str(exc.value), "the RETRY branch, not the pre-check"
 ```
 
-⚠️ The second test asserts on `"retries"` precisely because both branches raise the same
-class: without the message assertion it would pass on a build where the pre-check fired and
-the retry loop was deleted.
+⚠️ Two things make this test honest. The message assertion, because **both branches raise the
+same class** — without it the test passes on a build where the retry loop was deleted and the
+pre-check fired. And `NAME_RETRY_LIMIT` being read **at call time inside `draw_names`**, not
+captured at import: if the implementation binds the constant as a default argument, the
+monkeypatch is inert and this test silently stops testing anything.
 
 - [ ] **Step 2: Run it and watch it fail**
 
@@ -731,8 +810,6 @@ calls the demo's best moment. A library or generator is rejected for a
 different reason: it would make the determinism test depend on a package
 upgrade.
 """
-
-import random  # noqa: F401 - the type of the `rng` argument, for readers
 
 from demo.constants import NAME_RETRY_LIMIT
 from demo.errors import NamePoolExhausted
@@ -785,6 +862,12 @@ MASCULINE_SURNAMES = (
 
 def draw_names(rng, count):
     """`count` distinct, gender-consistent (first, last) pairs.
+
+    `rng` is a `random.Random`. (Stated here rather than via a `noqa`'d unused
+    `import random` at the top, which reads as an accident to the next person.)
+
+    NAME_RETRY_LIMIT is read as a MODULE GLOBAL inside the loop below — never
+    captured as a default argument — so the retry test can monkeypatch it.
 
     RNG contract (spec §4.5, order item 1) — per pupil in creation order:
     gender, then given name, then surname; a duplicate pair redraws THE SURNAME
@@ -943,8 +1026,12 @@ def _fixtures():
         max_marks=Decimal("1"),
     )
     cols = [GridColumn.objects.create(question=cg, label=lbl) for lbl in ("yes", "no")]
-    for label in ("r1", "r2"):
-        GridRow.objects.create(question=cg, label=label, correct_column=cols[0])
+    for text in ("r1", "r2"):
+        # ⚠️ ROWS USE `statement`, COLUMNS USE `label`. GridRow (courses/models.py:2818)
+        # and MultiGridRow (:2905) declare `statement`; only the *Column models
+        # have `label`. Passing label= is a TypeError that kills the whole module
+        # before a single assertion runs.
+        GridRow.objects.create(question=cg, statement=text, correct_column=cols[0])
     made.append(cg)
 
     mg = MultiGridQuestionElement.objects.create(
@@ -957,8 +1044,8 @@ def _fixtures():
         MultiGridColumn.objects.create(question=mg, label=label)
         for label in ("a", "b", "c")
     ]
-    for label in ("r1", "r2"):
-        row = MultiGridRow.objects.create(question=mg, label=label)
+    for text in ("r1", "r2"):
+        row = MultiGridRow.objects.create(question=mg, statement=text)  # statement, not label
         row.correct_columns.set(mcols[:2])
     made.append(mg)
 
@@ -1014,6 +1101,28 @@ def test_every_question_type_is_classified():
 
 
 @pytest.mark.django_db
+def test_numeric_wrong_answers_are_decimal_text_not_fractions():
+    """A pupil types "5.5", never "11/2". parse_numeric_value returns a Fraction
+    and canonical_numeric_text deliberately PRESERVES fraction form, so the naive
+    str()/canonicalise route stores "11/2" for every non-integer row — which is
+    most of mat-pp."""
+    from decimal import Decimal
+
+    from courses.models import QuestionElement, ShortNumericQuestionElement
+    from demo import builders
+
+    q = ShortNumericQuestionElement.objects.create(
+        stem="half?", value="4.5", tolerance="0",
+        marking_mode=QuestionElement.MarkingMode.AUTO, max_marks=Decimal("1"),
+    )
+    answers = builders.build(q)
+    assert answers.correct == "4.5"
+    for variant in answers.wrong:
+        assert "/" not in variant, variant
+        assert q.mark(variant).fraction == 0.0
+
+
+@pytest.mark.django_db
 def test_a_choice_with_no_correct_option_is_unanswerable():
     """mark() is `set(answer) == correct_set` with no n>0 guard, so an empty pick
     would mark 1.0 — the row is excluded here rather than 'failing validation'."""
@@ -1055,6 +1164,7 @@ PR 5's per-question view renders each pupil's stored answer: one wrong answer
 per question shows twenty pupils who all chose option C.
 """
 
+from decimal import Decimal
 from fractions import Fraction
 from typing import NamedTuple
 
@@ -1069,9 +1179,8 @@ from courses.models import _accepted_lines
 # ⚠️ courses/numeric.py DOES NOT EXIST. The parser lives in courses/marking.py,
 # and it is the same one ShortNumericQuestionElement.mark uses
 # (courses/models.py:2567) — which is the only reason our "correct" answer marks
-# 1.0. canonical_numeric_text is what turns a Fraction back into the decimal a
-# pupil would actually type.
-from courses.marking import canonical_numeric_text
+# 1.0. (canonical_numeric_text is deliberately NOT imported: it preserves
+# fraction form rather than converting it — see _decimal_text below.)
 from courses.marking import parse_numeric_value
 from courses.quiz import answer_to_json
 from demo.constants import WRONG_TEXTS, WRONG_VARIANTS
@@ -1121,8 +1230,21 @@ def _shortnumeric(q):
     # DECIMAL TEXT, never str(Fraction): a row with value="4.5" would otherwise
     # store every pupil's answer as "9/2" — it marks correct, but PR 5's
     # per-question view shows the rep an answer no pupil would type.
-    wrong = [canonical_numeric_text(str(upper + n)) for n in (1, 2, 3)][:WRONG_VARIANTS]
+    # ⚠️ canonical_numeric_text DOES NOT DO THIS FOR YOU. It deliberately
+    # PRESERVES structural form and does not reduce fractions
+    # (courses/marking.py:178-181: "an author who writes 6/4 reopens the editor
+    # and sees 6/4"), so canonical_numeric_text("9/2") is "9/2". Divide through
+    # Decimal first; that is what actually produces decimal text.
+    wrong = [_decimal_text(upper + n) for n in (1, 2, 3)][:WRONG_VARIANTS]
     return Answers(q.value, wrong, None)
+
+
+def _decimal_text(value):
+    """A Fraction as the decimal a pupil would type. `format(..., "f")` avoids
+    scientific notation; normalize() trims the trailing zeros Decimal division
+    leaves behind."""
+    quotient = Decimal(value.numerator) / Decimal(value.denominator)
+    return format(quotient.normalize(), "f")
 
 
 def _shorttext(q):
@@ -1216,7 +1338,11 @@ def _multigrid(q):
             variant.append([others[min(nth, len(others) - 1)]])
         wrong.append(variant)
     partial = None
-    if len(rows) >= 2 and len(correct[0]) >= 1:
+    # No `len(correct[0]) >= 1` conjunct: the `any(not sets ...)` guard above
+    # already returned None for an empty row, so it is always true. What actually
+    # decides between the two constructions below is whether row 0 has >= 2
+    # correct columns (drop one) or exactly 1 (swap in a wrong one).
+    if len(rows) >= 2:
         partial = [correct[0][1:]] + correct[1:]
         if not correct[0][1:]:
             others = [c.pk for c in columns if c.pk not in correct[0]]
@@ -1282,7 +1408,7 @@ def build(question):
 uv run pytest tests/demo/test_builders.py -v
 ```
 
-Expected: PASS (three tests). ⚠️ If `test_every_question_type_is_classified` fails, a question
+Expected: PASS (four tests). ⚠️ If `test_every_question_type_is_classified` fails, a question
 type was added to the codebase — classify it, do not weaken the test. If an import fails, fix
 the import path against `courses/models.py` rather than the test.
 
@@ -1326,8 +1452,9 @@ rather than skipping the quiz. Recorded again in "Deliberately NOT in this plan"
 
 **Interfaces:**
 - Produces:
-  - `demo.warnings.DemoWarning` — `NamedTuple(kind, unit_id, reason)` with a validating
-    `__new__`; `unit_id` may be `None`. **Named `DemoWarning` at the definition, not
+  - `demo.warnings.DemoWarning` — `@dataclass(frozen=True)` with fields `(kind, unit_id,
+    reason)` and a validating `__post_init__`; `unit_id` may be `None`. **A frozen dataclass,
+    not a NamedTuple** — see Step 4. **Named `DemoWarning` at the definition, not
     `Warning`** — the bare name shadows the builtin exception base, which is why two of the
     three consumers were already aliasing it on import while the third did not. One spelling
     everywhere.
@@ -1424,22 +1551,27 @@ created first, so `pk` order is not pre-order.
 ```python
 """Fixture courses for the demo tests. `small` is the default.
 
-It carries five deliberate properties, each pinned by an assertion somewhere:
+It carries six deliberate properties, each pinned by an assertion somewhere:
   * part B is CREATED FIRST, so pre-order != pk order;
-  * quiz_b's prose element sorts BEFORE its question while holding the HIGHER
-    pk, so element order != pk order;
+  * "Late quiz"'s TWO questions sort against pk order, so the (unit, ordinal)
+    keys move if `_top_level_questions` drops its explicit `order_by`. (quiz_b's
+    prose/question swap also disagrees with pk, but quiz_b holds only ONE
+    question, so no test can observe it — keep both, rely on this one.)
   * a 3-wrong-variant choice question, for T28;
   * a LATE multi-question quiz past every reachable depth, so
     `in_progress_candidates` is non-empty for Task 9;
   * an ALL-CORRECT choice question, so the NO_WRONG_ANSWER sentinel branch is
-    exercised.
+    exercised;
+  * a TWO-BLANK fill-blank question, the only partial-capable row — without it
+    the whole partial half of _pick_answer is dead in every end-to-end test.
 Change any of them and read the assertions that name them before you do."""
 
 from decimal import Decimal
 
 from courses.models import (
-    Choice, ChoiceQuestionElement, ContentNode, Course, Element,
-    QuestionElement, ShortNumericQuestionElement, TextElement,
+    Blank, Choice, ChoiceQuestionElement, ContentNode, Course, Element,
+    FillBlankQuestionElement, QuestionElement, ShortNumericQuestionElement,
+    TextElement,
 )
 
 
@@ -1507,14 +1639,43 @@ def small_course(
     assert prose.pk > question_el.pk, "the fixture's own property, pinned"
 
     # A LATE, MULTI-QUESTION QUIZ. Without it `in_progress_candidates` holds only
-    # "A quiz" at pre-order index 6, while the SHALLOWEST depth any band can
-    # produce is round(floor(0.75*14) * 0.70 * 0.92) = 6 — so _usable_target's
-    # `position <= depth` rejects it for every pupil, `chosen` is always empty,
-    # and Task 9's review-queue test fails on correct code. This quiz sits past
-    # every reachable depth and carries two questions, so it qualifies.
+    # "A quiz", while _usable_target's `position <= depth` rejects anything at or
+    # below the SHALLOWEST depth any band can produce —
+    # round(floor(0.75 * len(units)) * 0.70 * 0.92). (Compute it from the fixture
+    # rather than trusting a literal here: units get added and the number moves.
+    # Task 9's first test derives it and asserts a candidate survives.) With no
+    # surviving candidate, `chosen` is always empty and Task 9's review-queue
+    # test fails on correct code.
     late_quiz = _unit(course, part_b, "Late quiz", "quiz")
-    _choice_question(late_quiz)
-    _choice_question(late_quiz, correct="3")
+    late_a = _choice_question(late_quiz)
+    late_b = _choice_question(late_quiz, correct="3")
+    # ELEMENT ORDER MUST DISAGREE WITH PK **IN A UNIT THAT HAS TWO QUESTIONS**.
+    # ⚠️ quiz_b's prose/question swap below is NOT enough on its own:
+    # _top_level_questions filters down to QuestionElements, and quiz_b holds
+    # exactly one, so its ordinal is 0 whatever the queryset order — dropping
+    # `.order_by("order", "pk")` would leave every test AND the golden file green.
+    # Swapping these two makes the (unit, ordinal) keys in the golden projection
+    # actually change under that mutant.
+    late_a.order, late_b.order = 1, 0
+    late_a.save(update_fields=["order"])
+    late_b.save(update_fields=["order"])
+    assert late_b.pk > late_a.pk, "the later-created question must sort FIRST"
+
+    # A PARTIAL-CAPABLE QUESTION. Without one, `_pick_answer`'s partial branch,
+    # P_PARTIAL_GIVEN_WRONG, the content pass's partial validation and the
+    # `partial_fallback` warning are never executed end-to-end — and Task 13's
+    # falsification step (which moves the partial draw) becomes a no-op that
+    # cannot turn the golden test red. _fillblank returns a partial whenever
+    # there are >= 2 blanks.
+    fb_quiz = _unit(course, part_b, "Blanks quiz", "quiz")
+    fb = FillBlankQuestionElement.objects.create(
+        stem="2 + {{2}} = {{4}}",
+        marking_mode=QuestionElement.MarkingMode.AUTO, max_marks=Decimal("2"),
+    )
+    Blank.objects.create(question=fb, accepted="2")
+    Blank.objects.create(question=fb, accepted="4")
+    Element.objects.create(unit=fb_quiz, content_object=fb)
+    _choice_question(fb_quiz, correct="4")  # a second question: also a candidate
 
     # A SENTINEL question: every option correct, so _choice finds no wrong pick
     # and build() returns NO_WRONG_ANSWER. Exercises the sentinel branch in
@@ -1567,24 +1728,35 @@ base, and all three consumers spell it the same way here rather than two of them
 aliasing it on import.
 """
 
-from typing import NamedTuple, Optional
+from dataclasses import dataclass
 
 from django.utils.translation import gettext_lazy as _
 
 
-class DemoWarning(NamedTuple):
+@dataclass(frozen=True)
+class DemoWarning:
+    """⚠️ A frozen dataclass, NOT a NamedTuple.
+
+    `typing.NamedTuple` lists `__new__` in its `_prohibited` set, so defining one
+    raises `AttributeError: Cannot overwrite NamedTuple attribute __new__` at
+    CLASS-CREATION time — `import demo.warnings` fails, and with it every module
+    from Task 6 onward. (Verified under this repo's interpreter.) A frozen
+    dataclass validates in `__post_init__` instead, and the consumers only ever
+    use attribute access (`w.kind`, `w.unit_id`, `w.reason`) plus equality, all
+    of which it provides.
+    """
+
     kind: str
-    unit_id: Optional[int]
+    unit_id: int | None  # `X | None`, never Optional[X]: ruff UP045 at py313
     reason: str
 
-    def __new__(cls, kind, unit_id, reason):
+    def __post_init__(self):
         # THIS is what makes KINDS a closed set. Without it `DemoWarning("quiz_skiped",
         # ...)` is accepted everywhere, survives Task 15's `set(DISPLAY) == KINDS`
         # test (which only compares the map with itself), and surfaces as a
         # KeyError in PR 3's template months later.
-        if kind not in KINDS:
-            raise ValueError(f"unknown warning kind {kind!r}; add it to DISPLAY")
-        return super().__new__(cls, kind, unit_id, reason)
+        if self.kind not in KINDS:
+            raise ValueError(f"unknown warning kind {self.kind!r}; add it to DISPLAY")
 
 
 DISPLAY = {
@@ -1603,9 +1775,27 @@ DISPLAY = {
 KINDS = frozenset(DISPLAY)
 ```
 
-⚠️ `KINDS` is defined AFTER `DISPLAY` but referenced inside `DemoWarning.__new__`, which only
-runs at call time — that is fine. It is **not** fine to move the class below a `KINDS`
-reference at module scope.
+⚠️ `KINDS` is defined AFTER `DISPLAY` but referenced inside `__post_init__`, which only runs at
+call time — that is fine. It is **not** fine to move the class below a `KINDS` reference at
+module scope.
+
+- [ ] **Step 4a: Prove the closed set is actually closed**
+
+Add to `tests/demo/test_content.py` (this task's own file — `test_boundaries.py` does not exist
+until Task 15, and the validation should be pinned in the commit that introduces it):
+
+```python
+def test_an_unknown_warning_kind_is_refused():
+    """Without this, __post_init__ could be deleted and every other test stays
+    green — Task 15's `set(DISPLAY) == KINDS` only compares the map with itself.
+    No django_db mark: this touches no database."""
+    from demo.warnings import DemoWarning
+
+    with pytest.raises(ValueError):
+        DemoWarning("quiz_skiped", None, "typo")
+
+    DemoWarning("quiz_skipped", None, "the correctly spelled one")  # must not raise
+```
 
 - [ ] **Step 4b: Put the display strings in the Polish catalog**
 
@@ -1788,7 +1978,7 @@ def build_course_plan(course):
 uv run pytest tests/demo/test_content.py -v
 ```
 
-Expected: PASS (three tests).
+Expected: PASS (four tests).
 
 - [ ] **Step 7: Falsify the quiz-only scope**
 
@@ -1796,6 +1986,16 @@ Delete the `if unit.unit_type != "quiz": continue` guard and re-run.
 
 Expected: `test_a_lesson_with_an_unanswerable_self_check_is_never_skipped` FAILS. **Revert by
 hand.**
+
+- [ ] **Step 7b: Falsify the element ordering**
+
+Drop `.order_by("order", "pk")` from `_top_level_questions` (leaving the queryset unordered)
+and re-run `tests/demo/` — including the golden test once Task 13 exists.
+
+Expected: the "Late quiz" questions swap ordinals, so the golden projection's `(unit title,
+ordinal)` keys change and `test_the_golden_class_is_unchanged` FAILS. ⚠️ If it PASSES, the
+fixture's order/pk disagreement has regressed — check `late_a.order, late_b.order = 1, 0`
+survived, and that `assert late_b.pk > late_a.pk` still holds. **Revert by hand.**
 
 - [ ] **Step 8: Commit**
 
@@ -1916,6 +2116,10 @@ def test_depth_is_clamped_into_the_unit_range():
     assert generator.pupil_depth(random.Random(1), STRONG, 0) == 0
     # The unit_count clamp: a frontier near the end must not index past the list.
     assert generator.pupil_depth(random.Random(1), STRONG, 13, 14) <= 13
+    # is-not-None, not truthiness: 0 is rejected loudly rather than falling
+    # through to the unclamped branch.
+    with pytest.raises(ValueError):
+        generator.pupil_depth(random.Random(1), STRONG, 5, 0)
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -2001,10 +2205,19 @@ def frontier_index(plan, frontier_part, course):
 
 def pupil_depth(rng, band, frontier, unit_count=None):
     """Consumes exactly one draw (the jitter). `round` is Python's banker's
-    rounding, NOT int(x + 0.5) — the two disagree at exact halves."""
+    rounding, NOT int(x + 0.5) — the two disagree at exact halves.
+
+    `unit_count is not None`, NOT truthiness: this is the same falsy-zero trap
+    the frontier_part docstring spends a paragraph on, and writing it the other
+    way here would let `unit_count=0` silently fall through to the UNCLAMPED
+    branch. provision_kit raises EmptyCourse before that can happen today, but
+    this is a public interface Task 15's boundary test calls directly.
+    """
+    if unit_count is not None and unit_count < 1:
+        raise ValueError("unit_count must be >= 1 when given")
     jitter = rng.uniform(-JITTER, JITTER)
     depth = round(frontier * BANDS[band]["depth"] * (1 + jitter))
-    top = (unit_count - 1) if unit_count else max(depth, 0)
+    top = (unit_count - 1) if unit_count is not None else max(depth, 0)
     return max(0, min(depth, top))
 ```
 
@@ -2125,7 +2338,30 @@ def test_progress_mode_and_results_mode_both_populate():
 
 
 @pytest.mark.django_db
-def test_a_non_kit_student_gains_nothing(settings):
+def test_some_pupil_lands_a_partial_answer():
+    """The partial half of _pick_answer has NO other end-to-end coverage: the
+    builders test exercises it in isolation, and every other fixture question
+    returns partial=None. Without this, P_PARTIAL_GIVEN_WRONG, the
+    fractions["partial"] key and the partial_fallback branch are dead code that
+    every test leaves green.
+
+    ⚠️ 20 pupils and a pinned seed, not 5: with p_partial 0.4 applied only to
+    wrong answers, a 5-pupil class can legitimately produce none.
+    """
+    from courses.models import QuestionResponse
+    from tests.demo.fixtures import small_course
+
+    course = small_course()
+    _run(course, pupil_count=20, seed=99)
+
+    partials = [
+        r for r in QuestionResponse.objects.all() if 0 < float(r.fraction) < 1
+    ]
+    assert partials, "no pupil scored a strict partial on the two-blank question"
+
+
+@pytest.mark.django_db
+def test_a_non_kit_student_gains_nothing():
     """T3 / R7 — the generator writes only for the pupils it is handed."""
     from courses.models import Enrollment, QuizSubmission, UnitProgress
     from tests.demo.fixtures import small_course
@@ -2167,9 +2403,11 @@ Expected: FAIL — `ImportError: cannot import name 'generate'`.
 
 - [ ] **Step 3: Write the generator**
 
-Append to `demo/generator.py`:
+Append to `demo/generator.py` — ⚠️ **the imports go into the module header Task 7 wrote, not
+here** (`E402`); only the functions are appended:
 
 ```python
+# --- into the header ---
 from django.utils import timezone
 
 from courses.models import QuestionResponse, QuizSubmission, UnitProgress
@@ -2178,6 +2416,8 @@ from courses.rollups import is_obligatory_lesson
 from courses.scoring import earned_marks, to_stored_fraction
 from demo.builders import NO_WRONG_ANSWER
 from demo.constants import P_PARTIAL_GIVEN_WRONG
+
+# --- appended below the existing functions ---
 
 
 def _pick_answer(rng, qplan, p_correct):
@@ -2230,7 +2470,7 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
         return submission
     now = timezone.now()
     rows = []
-    for qplan in qplans[: limit if limit is not None else len(qplans)]:
+    for qplan in qplans[:limit]:  # qplans[:None] is already the whole list
         answer, fraction = _pick_answer(rng, qplan, p_correct)
         stored = to_stored_fraction(fraction)
         rows.append(
@@ -2244,6 +2484,14 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
     # QuestionResponse has no save() override (verified), so bulk_create is safe
     # here — and this is the highest-volume write by an order of magnitude.
     QuestionResponse.objects.bulk_create(rows)
+    # ⚠️ NO `Attempt` ROWS, deliberately. The real answer path
+    # (courses/views.py:1674) creates one Attempt per response; we write
+    # attempt_count=1 with nothing behind it. What that costs: any surface that
+    # JOINS Attempt shows a count with no history — PR 5's per-question view is
+    # the stated consumer, so PR 5 must either read attempt_count alone or this
+    # decision must be revisited there. Writing them here would add ~pupils x
+    # questions rows for a demo that never replays an attempt; it consumes no
+    # draw either way, so the draw order is unaffected.
     if finalize:
         finalize_submission(unit, submission)
         _complete(student, unit)
@@ -2450,24 +2698,32 @@ def provision_for_test(
 calls `extend_kit` — which is vendor-guarded — must carry its **own**
 `@override_settings(VENDOR_INSTANCE=True)`; see Task 11.
 
-- [ ] **Step 3: Run it and watch it fail**
+- [ ] **Step 3: Run them**
 
 ```bash
 uv run pytest tests/demo/test_in_progress.py -v
 ```
 
-Expected: FAIL — `ImportError: cannot import name 'frontier_index'` is already satisfied by
-Task 7, so the real failure is the fixture guard: `small_course` must carry "Late quiz". If
-that assertion passes and the one-question assertion fails, the fixture is the problem, not
-the pass.
+⚠️ **These two go GREEN immediately, and that is correct** — they read only `build_course_plan`
+(Task 6) and `frontier_index` (Task 7), both of which exist, and `small_course` already carries
+"Late quiz" because Task 6 Step 2 wrote it that way. They are not a red/green cycle for
+`leave_in_progress`; they are **fixture guards** that make the pass in Step 4 possible at all,
+placed here so a later fixture edit that removes the late quiz fails loudly and cheaply rather
+than surfacing as an empty review queue in Task 10.
+
+Expected: PASS (two tests). If either fails, the fixture has regressed — repair
+`tests/demo/fixtures.py`, not these assertions.
 
 - [ ] **Step 4: Write the pass**
 
-Append to `demo/generator.py`:
+Append to `demo/generator.py` — ⚠️ **header imports into the header** (`E402`):
 
 ```python
+# --- into the header ---
 from demo.constants import IN_PROGRESS_PUPILS
 from demo.warnings import DemoWarning  # no alias: it is named DemoWarning at source
+
+# --- appended below ---
 
 
 def _usable_target(plan, depth, submitted_unit_ids):
@@ -2503,8 +2759,9 @@ def leave_in_progress(rng, plan, pupils, bands, depths):
     on (depth, creation index) — bands share multipliers and jitter often rounds
     to the same integer.
     """
-    from courses.models import QuizSubmission
-
+    # (No local `from courses.models import QuizSubmission` — Task 8 already put
+    # it in the module header, and a function-local re-import tells the next
+    # reader there is an import cycle here. There is not.)
     warnings = []
     ranked = sorted(range(len(pupils)), key=lambda i: (depths[i], i))
     chosen = []
@@ -2707,6 +2964,20 @@ def test_bounds_and_preconditions_raise_named_errors():
         with pytest.raises(errors.EmptyCourse):
             provision_kit("SP", course=empty, days=14, pupils=5, seed=1)
 
+        # frontier_part is validated UP FRONT, like days and pupils — not deep
+        # inside generate() after every user has been written. Asserting on the
+        # empty DemoKit table is what proves the check ran early; a late raise
+        # still rolls back, so `pytest.raises` alone cannot tell the difference.
+        from demo.models import DemoKit
+
+        before = DemoKit.objects.count()
+        with pytest.raises(errors.InvalidFrontierPart) as exc:
+            provision_kit(
+                "SP", course=course, days=14, pupils=5, seed=1, frontier_part=99
+            )
+        assert exc.value.field == "frontier_part"  # it is an InvalidBounds
+        assert DemoKit.objects.count() == before
+
 
 @pytest.mark.django_db
 def test_a_second_kit_for_the_same_school_gets_distinct_usernames():
@@ -2736,12 +3007,25 @@ def test_provisioning_refuses_on_a_school_box():
 
 
 @pytest.mark.django_db
-def test_provisioning_is_silent():
-    """T12 — R6. The fixture carries an ENABLED endpoint, or the webhook half of
-    this test is green on a build that fires one per enrolment."""
+def test_provisioning_is_silent(django_capture_on_commit_callbacks):
+    """T12 — R6.
+
+    ⚠️ TWO TRAPS, both of which made the earlier version of this test green on a
+    build that mails the world.
+
+    1. `mail.outbox == []` alone proves NOTHING here. provision_kit is
+       @transaction.atomic and pytest-django rolls back, so the on_commit
+       callbacks that actually send are DISCARDED, never run. The assertion is
+       green whether or not the suppression exists. Hence
+       `django_capture_on_commit_callbacks(execute=True)`, which runs them.
+    2. The observable, transaction-independent fact is the Notification ROWS —
+       assert on those too, because they are written synchronously and would show
+       up in the demo Teacher's own bell menu.
+    """
     from django.core import mail
 
     from integrations.models import WebhookDelivery, WebhookEndpoint
+    from notifications.models import Notification
     from tests.demo.fixtures import small_course
     from tests.demo.helpers import provision_for_test
 
@@ -2751,9 +3035,18 @@ def test_provisioning_is_silent():
     endpoint.save()
 
     before = WebhookDelivery.objects.count()
-    result = provision_for_test(small_course(), full=True)
+    with django_capture_on_commit_callbacks(execute=True):
+        result = provision_for_test(small_course(), full=True)
 
     assert mail.outbox == []
+    assert not Notification.objects.filter(
+        recipient__in=result.kit.users.all()
+    ).exists(), "enrolment notifications leaked into the kit users' bell menus"
+    # ⚠️ The delivery count below is a REGRESSION GUARD ONLY, and is currently
+    # vacuous: emit_result_finalized is called from courses/views.py and
+    # courses/review.py, never from finalize_submission, so the generator's path
+    # cannot create a WebhookDelivery on ANY build. Keep it for the day someone
+    # routes the generator through the view layer — do not read it as live cover.
     assert WebhookDelivery.objects.count() == before
     # ...and the operator is TOLD the endpoint is live (it is a data-leak
     # surface the moment a rep presses Force submit).
@@ -2813,8 +3106,9 @@ def test_the_demo_teacher_can_read_every_course_on_the_box():
     the note under Step 3 before changing it.
 
     `accessible_courses` (courses/access.py:22) returns Course.objects.all() for
-    ANY is_staff user, and the demo Teacher is created is_staff=True because the
-    teaching surfaces key on it. So a school rep's demo login can read every
+    ANY is_staff user, and the demo Teacher receives is_staff=True from its
+    TEACHER role — `set_user_role` derives the flag via `role_is_staff`, so this
+    is not something _make_user chose. So a school rep's demo login can read every
     other course hosted on the vendor instance, including another school's kit.
     Pinning it here means the day someone narrows staff access, this test goes
     red and the narrowing is a deliberate decision rather than a surprise.
@@ -2864,8 +3158,8 @@ Expected: FAIL — `ImportError: cannot import name 'provision_kit'`.
 
 - [ ] **Step 3: Write `provision_kit`**
 
-⚠️ **Known widening, accepted for the PR 1–2 interval.** The Teacher is created
-`is_staff=True` because the teaching surfaces key on that flag — and
+⚠️ **Known widening, accepted for the PR 1–2 interval.** The Teacher ends up `is_staff=True`
+because `set_user_role(TEACHER)` derives the flag from `role_is_staff` — and
 `courses/access.py:22` grants **every** `is_staff` user read access to **every** course on the
 box. On the vendor instance that means one school's demo Teacher can open another school's
 demo course, and any other course hosted there. Two reasons this ships anyway: the vendor
@@ -2875,9 +3169,12 @@ purged. It is **not** acceptable once PR 3 lets kits be issued from a web form: 
 cross-kit isolation test belongs with it. The test above pins the current behaviour so the
 narrowing cannot happen silently. Also listed under "Deliberately NOT in this plan".
 
-Append to `demo/services.py`:
+Append to `demo/services.py` — ⚠️ **this whole import block belongs in the module header Task 3
+wrote, above `require_vendor`** (`E402`); append only the dataclass and the functions:
 
 ```python
+# --- into the header ---
+import contextlib
 import random
 import secrets
 from dataclasses import dataclass, field
@@ -2911,6 +3208,8 @@ from grouping.services import add_students_to_group
 from institution.roles import STUDENT, TEACHER
 
 User = get_user_model()
+
+# --- appended below require_vendor ---
 
 
 @dataclass
@@ -2963,14 +3262,20 @@ def _free_base(slug, pupils):
     )
 
 
-def _make_user(username, *, display_name, password=None, staff=False, role=None,
+def _make_user(username, *, display_name, password=None, role=None,
                first_name="", last_name=""):
+    """NO `staff` PARAMETER. `set_user_role` below does
+    `user.is_staff = role_is_staff(role) or user.is_superuser` and saves
+    (accounts/services.py:36-37), so it is the LAST writer of the flag — an
+    `is_staff=` passed at creation is overwritten, not honoured. Keeping the
+    parameter would be dead weight whose stated rationale is false, and a future
+    caller passing `staff=True, role=STUDENT` would be silently demoted.
+
+    The role is therefore the single authority: `role_is_staff(TEACHER)` is True,
+    which IS the course-access widening documented above.
+    """
     user = User.objects.create_user(
         username=username, email=f"{username}@{EMAIL_DOMAIN}", password=password,
-        # is_staff at CREATION time, not via set_user_role afterwards: the
-        # cohort post_save receiver skips staff, and set_user_role grants the
-        # flag only after the row exists.
-        is_staff=staff,
     )
     user.display_name = display_name
     user.first_name = first_name
@@ -3002,6 +3307,12 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
     plan = build_course_plan(course)
     if not plan.units:
         raise errors.EmptyCourse(f"{course.slug} has no published unit")
+    # frontier_part is validated HERE, alongside days/pupils — not deep inside
+    # frontier_index, which generate() only reaches after the kit, the group, the
+    # teacher, the student and every pupil have been written. `--frontier-part 99`
+    # would otherwise do a full provisioning's worth of work before rolling back,
+    # and PR 3's form could not attach the message to a field.
+    frontier_index(plan, frontier_part, course)  # raises InvalidFrontierPart
 
     slug = slugify(label, allow_unicode=False)[:SLUG_MAX] or SLUG_FALLBACK
     base = _free_base(slug, pupils)
@@ -3020,7 +3331,7 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
     teacher_password, student_password = _password(), _password()
     teacher = _make_user(
         teacher_name, display_name=f"Nauczyciel demo — {label} (#{kit.pk})"[:150],
-        password=teacher_password, staff=True, role=TEACHER,
+        password=teacher_password, role=TEACHER,  # role_is_staff(TEACHER) -> is_staff
     )
     group.teachers.add(teacher)
     student = _make_user(
@@ -3043,7 +3354,15 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
         pupil_users.append(pupil)
 
     # The SERVICE, never a direct Enrollment.objects.create.
-    add_students_to_group(group, [student, *pupil_users], added_by=teacher)
+    # ⚠️ R6 ("provisioning is silent") LIVES OR DIES HERE. The chain is:
+    #   add_students_to_group -> recompute_enrollment -> (on a NEW Enrollment)
+    #   notify_enrolled -> notify() -> Notification.objects.create(...)
+    #                                + transaction.on_commit(deliver_..._email)
+    # So without suppression this writes one Notification row per pupil and
+    # queues one email per pupil to an @demo.invalid address, fired when the
+    # outer atomic block commits.
+    with suppress_enrolment_notifications():
+        add_students_to_group(group, [student, *pupil_users], added_by=teacher)
 
     warnings, _bands, _depths = generate(
         rng, plan, pupil_users, course=course, frontier_part=frontier_part
@@ -3064,6 +3383,30 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
             )
 
     return ProvisionResult(kit, teacher_password, student_password, warnings)
+
+
+@contextlib.contextmanager
+def suppress_enrolment_notifications():
+    """Keep provisioning silent (spec R6) across add_students_to_group.
+
+    A kit enrols 6-41 users in one go. Each NEW Enrollment row makes
+    recompute_enrollment call notify_enrolled, which writes a Notification AND
+    registers an on_commit email to an @demo.invalid address. Nobody wants 20
+    bounce reports per demo, and the rows would show up in the Teacher's own bell
+    menu the first time they log in.
+
+    Patching the notifications entry point is deliberate: the alternative —
+    creating Enrollment rows directly — would bypass the grouping service, which
+    is exactly what the spec's T16 forbids.
+    """
+    from notifications import services as notification_services
+
+    original = notification_services.notify
+    notification_services.notify = lambda *a, **kw: None
+    try:
+        yield
+    finally:
+        notification_services.notify = original
 
 
 def _webhook_warnings():
@@ -3298,11 +3641,14 @@ Expected: FAIL — `ImportError: cannot import name 'purge_kit'`.
 
 - [ ] **Step 3: Write the lifecycle services**
 
-Append to `demo/services.py`:
+Append to `demo/services.py` — ⚠️ **imports into the header** (`E402`):
 
 ```python
+# --- into the header ---
 from demo.constants import LONG_LIVED_DAYS
 from grouping.services import delete_group
+
+# --- appended below ---
 
 
 @dataclass
@@ -4029,8 +4375,15 @@ uv run ruff format --check .
 - [ ] **Provision against the local mat-pp copy and LOOK at it** (spec §8, "beyond the suite")
 
 ```bash
+# Bash
 LIBLI_VENDOR_INSTANCE=true uv run python manage.py demo_access create \
   --label "Test School" --course mat-pp --seed 1
+```
+
+```powershell
+# PowerShell (this machine's primary shell — `VAR=value cmd` is a PARSE ERROR here)
+$env:LIBLI_VENDOR_INSTANCE = "true"
+uv run python manage.py demo_access create --label "Test School" --course mat-pp --seed 1
 ```
 
 ⚠️ **The env var is required.** `config/settings/base.py:288` reads
