@@ -482,10 +482,20 @@ ever vendor-gated — a lost `LIBLI_VENDOR_INSTANCE`. That is why it is not. Add
 `demo_access list` to the routine you already use to look at the box: it shows
 `pending_purge` rows.
 
-**Before the first kit:** set `LIBLI_VENDOR_INSTANCE=true` in `.env.production` (measured
-2026-09-12: unset, so `/for-schools/` is 404 and `demo_access create` refuses), and fill
-`Institution.contact_email` (measured: blank). ⚠️ The same flag publishes `/for-schools/`, so
-turning it on is a publishing decision — see the spec's §5.
+**Before the first kit — ONE item remains:** set `LIBLI_VENDOR_INSTANCE=true` in
+`.env.production` (still unset as of 2026-09-12, so `/for-schools/` is 404 and
+`demo_access create` refuses). ⚠️ The same flag publishes `/for-schools/`, so turning it on is
+a **publishing decision, not an ops chore** — see the spec's §5. Do not flip it merely to
+rehearse a kit.
+
+✅ **Done 2026-09-12** (on libli.pl, so a rebuild is what needs these, not this box): the purge
+cron above is installed in the root crontab and verified with `--dry-run`; an
+`/etc/logrotate.d/libli` rotates `/var/log/libli-*.log` weekly, 8 deep, `copytruncate` (it also
+covers the backup and restore logs, which had nothing before); and `Institution.contact_email`
+is filled. ⚠️ That last one is a **web form**, not a shell command — the **Public pages** tab at
+`/manage/settings/public-pages/`. The purge cron was installed *before* the vendor flag on
+purpose: `demo_access purge` is exempt from the vendor guard, so the safety net now exists
+before any kit can, and there is no window in which a kit outlives its purge.
 
 If you use `/etc/crontab` instead, that file takes an extra **user** field between the
 schedule and the command.
