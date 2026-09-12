@@ -48,13 +48,18 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
   Task 1 Step 2, and never background a pytest run — a backgrounded run orphans the test
   DB and the next one dies with `DuplicateDatabase`.
 - ⚠️ **The lint gate, in full.** `pyproject.toml` sets `select = ["E", "F", "I", "UP", "B",
-  "S"]`, `ignore = ["S101"]`, `target-version = "py313"`, and `tests/**` ignores only
-  `S105/S106/S107`. Four consequences bite this plan's code blocks, and **all four surface only
-  at the Final-verification step**, across a dozen files at once. Fix them as you write, not
-  at the end:
-  1. **Single-line imports** (`I001`, `force-single-line = true`). Every `from x import (A, B,
-     C)` block below is illustrative shorthand and must be written one import per line — see
-     `courses/management/commands/seed_demo_course.py:16-56` for the house style.
+  "S"]`, `ignore = ["S101"]`, `target-version = "py313"`, **no explicit `line-length` (so the
+  default 88 applies)**, and `tests/**` ignores only `S105/S106/S107`. Six consequences bite
+  this plan's code blocks, and **all six surface only at the Final-verification step**, across
+  a dozen files at once. Fix them as you write, not at the end:
+  1. **Single-line imports** (`I001`, `force-single-line = true`). **Any `from x import A, B`
+     — parenthesized or not — is shorthand in this plan** and must be written one name per
+     line. The parenthesized blocks are the obvious ones; so are `from demo import errors,
+     names`, `from demo.constants import AVERAGE, STRONG, STRUGGLING`, `from courses.quiz
+     import answer_to_json, finalize_submission`, `from dataclasses import dataclass, field`
+     and roughly twenty more. See `courses/management/commands/seed_demo_course.py:6-56`,
+     which spells `from courses.models import Choice` / `from courses.models import
+     ChoiceQuestionElement` on separate lines.
   2. **Imports go in the file's header** (`E402`). Several tasks say "Append to
      `demo/generator.py`" / "`demo/services.py`" and then show an import block at the top of
      the appended text. **Do not paste it there.** Merge those imports into the module header
@@ -72,11 +77,28 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
      ⚠️ Add these **alongside** the existing `tests/**` entries, not replacing them.
   4. **`typing.Optional` / `typing.Union` are banned** (`UP045`/`UP007` at py313). Write
      `int | None`.
-- **Polish copy** in this PR is limited to display names, the checked-in name lists **and the
-  ten `demo/warnings.py` display strings**. Those ten ARE new msgids, and Task 6 Step 4b
-  carries the catalog step: `makemessages -l pl`, fill them, `compilemessages`, commit both
-  `.po` and `.mo` in the same commit. ⚠️ Rebase and **regenerate** the `.mo` before the PR —
-  a stale branch conflicts on the binary.
+  5. **88 columns** (`E501`). Several lines in the blocks below exceed it as written — the
+     longer `demo/warnings.py` `DISPLAY` strings (`correct_answer_rejected`,
+     `sentinel_answered`, `partial_fallback`, `no_qualifying_pupil`), the `Group.objects.create`
+     name f-string, `frontier_index`'s `parts = [...]` comprehension, the `KitAlreadyClosed`
+     f-string and the `fewer_in_progress_than_target` argument line. Wrap them as you paste;
+     for the `DISPLAY` entries, put the text inside a wrapped `_(` call. The repo's convention
+     for a line that genuinely cannot be wrapped is an explicit `# noqa: E501` (see
+     `config/settings/base.py:141`) — none of ours needs one.
+  6. **`ruff format --check .` is a SEPARATE gate** from `ruff check`, and it is the last
+     command in Final verification. It explodes any collection or call carrying a **magic
+     trailing comma** to one element per line — which reformats all four `demo/names.py` name
+     tuples and every multi-argument `models.ForeignKey(...)` written packed-with-a-trailing-
+     comma below. Either drop the trailing comma where the block should stay packed, or run
+     `uv run ruff format <file>` as you write each one and take its output. Do not leave this
+     to the end.
+- **Polish copy** in this PR is limited to display names, the checked-in name lists **and
+  eleven new msgids**: the ten `demo/warnings.py` `DISPLAY` strings, plus `_("Revoked")` from
+  `demo/models.py`'s `ClosedReason` (Task 2 Step 6). ⚠️ `_("Expired")` is **already** in
+  `locale/pl/LC_MESSAGES/django.po:133`, so only `"Revoked"` needs filling from that pair —
+  eleven extracted, ten to write. Task 6 Step 4b carries the catalog step: `makemessages -l
+  pl`, fill them, `compilemessages`, commit both `.po` and `.mo` in the same commit. ⚠️ Rebase
+  and **regenerate** the `.mo` before the PR — a stale branch conflicts on the binary.
 
 ---
 
@@ -340,6 +362,11 @@ MAX_DAYS = 90
 # MIN_PUPILS is 5, not 2: the band partition is `pupils * 20 // 100`, which is
 # ZERO for 2-4 pupils, making the whole class one band.
 MIN_PUPILS = 5
+# ⚠️ MAX_PUPILS is bounded by the NAME POOLS, which hold exactly 40 entries each
+# (MIN_NAMES_PER_LIST below). Raising it without extending demo/names.py makes
+# every provisioning at the new ceiling raise NamePoolExhausted — after the kit,
+# group, teacher and student rows have been written.
+# tests/demo/test_names.py::test_the_pools_cover_the_maximum_class pins the pair.
 MAX_PUPILS = 40
 LABEL_MAX = 200
 LONG_LIVED_DAYS = 60  # extend_kit flags a kit alive longer than this
@@ -713,6 +740,28 @@ def test_lists_meet_the_minimum_length():
         assert len(set(lst)) == len(lst)
 
 
+def test_the_pools_cover_the_maximum_class():
+    """MAX_PUPILS and MIN_NAMES_PER_LIST are BOTH 40 today, which makes
+    `--pupils 40` the exact boundary — and nothing else relates them. Raise
+    MAX_PUPILS (an obvious operator tweak; it sits under "operator bounds") and
+    every provisioning at the new ceiling raises NamePoolExhausted AFTER the
+    kit, group, teacher and student rows are written. The check above stays green
+    throughout, because it compares the lists against the wrong constant.
+
+    Derived, never a `== 40` pin on either side."""
+    from demo import names
+    from demo.constants import MAX_PUPILS
+
+    shortest = min(
+        len(names.FEMININE_GIVEN), len(names.MASCULINE_GIVEN),
+        len(names.FEMININE_SURNAMES), len(names.MASCULINE_SURNAMES),
+    )
+    assert shortest >= MAX_PUPILS, (
+        f"the name pools ({shortest}) cannot fill a class of MAX_PUPILS "
+        f"({MAX_PUPILS}) — extend the lists or lower the bound"
+    )
+
+
 def test_draw_names_returns_distinct_gender_consistent_pairs():
     from demo import names
 
@@ -913,13 +962,36 @@ def draw_names(rng, count):
 uv run pytest tests/demo/test_names.py -v
 ```
 
-Expected: PASS (five tests).
+Expected: PASS (seven tests, counting the pool-coverage and cramped-pool cases).
 
 - [ ] **Step 5: Falsify the distinctness rule**
 
-Temporarily change `draw_names` to skip the `while` loop (accept duplicates) and re-run.
+⚠️ **Not against the production lists.** With the `while` loop removed, 40 draws split ~20/20
+by gender into a 40×40 = 1600-pair space per gender; expected collisions are ~0.12 per gender,
+so the mutant leaves the test green roughly **four times in five**. A falsification that is a
+coin flip teaches nothing.
 
-Expected: `test_draw_names_returns_distinct_gender_consistent_pairs` FAILS. **Revert by
+Use a shaped pool instead. Add this test alongside the others:
+
+```python
+def test_pairs_are_distinct_on_a_pool_where_collisions_are_forced(monkeypatch):
+    """The distinctness mutant is only visible on a CRAMPED pool: 4 given names
+    and 4 surnames per gender means 40 draws from 16 pairs, so skipping the
+    retry loop collides with certainty rather than with probability 0.21."""
+    from demo import names
+
+    for attr in ("FEMININE_GIVEN", "MASCULINE_GIVEN"):
+        monkeypatch.setattr(names, attr, ("A", "B", "C", "D"))
+    for attr in ("FEMININE_SURNAMES", "MASCULINE_SURNAMES"):
+        monkeypatch.setattr(names, attr, ("W", "X", "Y", "Z"))
+
+    drawn = names.draw_names(random.Random(5), 4)  # 4 <= 4: pre-check passes
+    assert len(set(drawn)) == 4
+```
+
+Then remove the `while` loop and re-run.
+
+Expected: `test_pairs_are_distinct_on_a_pool_where_collisions_are_forced` FAILS. **Revert by
 hand** — do not `git checkout`, which would take the whole file with it.
 
 - [ ] **Step 6: Commit**
@@ -1562,8 +1634,10 @@ It carries six deliberate properties, each pinned by an assertion somewhere:
     `in_progress_candidates` is non-empty for Task 9;
   * an ALL-CORRECT choice question, so the NO_WRONG_ANSWER sentinel branch is
     exercised;
-  * a TWO-BLANK fill-blank question, the only partial-capable row — without it
-    the whole partial half of _pick_answer is dead in every end-to-end test.
+  * a TWO-BLANK fill-blank question IN PART A, the only partial-capable row —
+    without it the whole partial half of _pick_answer is dead in every
+    end-to-end test, and its POSITION matters as much as its existence (see the
+    comment at its creation).
 Change any of them and read the assertions that name them before you do."""
 
 from decimal import Decimal
@@ -1614,6 +1688,31 @@ def small_course(
     # Three wrong variants (four options, one correct) — T28's question.
     _choice_question(quiz_a)
     _choice_question(quiz_a, correct="3")
+
+    # THE PARTIAL-CAPABLE QUESTION, and it must live IN PART A — inside every
+    # band's reach. _fillblank returns a partial whenever there are >= 2 blanks,
+    # and this is the only such row in the fixture: without it `_pick_answer`'s
+    # partial branch, P_PARTIAL_GIVEN_WRONG, the content pass's partial
+    # validation and the `partial_fallback` warning are dead in every end-to-end
+    # test, and Task 13's draw-order mutant (which moves the partial draw) cannot
+    # turn the golden test red.
+    #
+    # ⚠️ POSITION IS THE WHOLE POINT. Parked at the END of Part B it sat at
+    # pre-order index 15 of 17, while the depth bands reach 8-9 (struggling),
+    # 11-13 (average) and 13-15 (strong, and 15 only on ~18% of jitters) — so a
+    # 20-pupil class answered it at all only ~55% of the time, and the partial
+    # assertion held maybe 1 run in 40. Here it is at index 7, below the
+    # SHALLOWEST depth round(floor(0.75*17) * 0.70 * 0.92) = 8, so every pupil
+    # reaches it. Re-derive that arithmetic if you add or move a unit.
+    fb_quiz = _unit(course, part_a, "Blanks quiz", "quiz")
+    fb = FillBlankQuestionElement.objects.create(
+        stem="2 + {{2}} = {{4}}",
+        marking_mode=QuestionElement.MarkingMode.AUTO, max_marks=Decimal("2"),
+    )
+    Blank.objects.create(question=fb, accepted="2")
+    Blank.objects.create(question=fb, accepted="4")
+    Element.objects.create(unit=fb_quiz, content_object=fb)
+    _choice_question(fb_quiz, correct="4")  # a second question, so it is 2-deep
     for i in range(6):
         _unit(course, part_b, f"B lesson {i}", "lesson")
     quiz_b = _unit(course, part_b, "B quiz", "quiz")
@@ -1661,21 +1760,6 @@ def small_course(
     late_b.save(update_fields=["order"])
     assert late_b.pk > late_a.pk, "the later-created question must sort FIRST"
 
-    # A PARTIAL-CAPABLE QUESTION. Without one, `_pick_answer`'s partial branch,
-    # P_PARTIAL_GIVEN_WRONG, the content pass's partial validation and the
-    # `partial_fallback` warning are never executed end-to-end — and Task 13's
-    # falsification step (which moves the partial draw) becomes a no-op that
-    # cannot turn the golden test red. _fillblank returns a partial whenever
-    # there are >= 2 blanks.
-    fb_quiz = _unit(course, part_b, "Blanks quiz", "quiz")
-    fb = FillBlankQuestionElement.objects.create(
-        stem="2 + {{2}} = {{4}}",
-        marking_mode=QuestionElement.MarkingMode.AUTO, max_marks=Decimal("2"),
-    )
-    Blank.objects.create(question=fb, accepted="2")
-    Blank.objects.create(question=fb, accepted="4")
-    Element.objects.create(unit=fb_quiz, content_object=fb)
-    _choice_question(fb_quiz, correct="4")  # a second question: also a candidate
 
     # A SENTINEL question: every option correct, so _choice finds no wrong pick
     # and build() returns NO_WRONG_ANSWER. Exercises the sentinel branch in
@@ -1799,18 +1883,27 @@ def test_an_unknown_warning_kind_is_refused():
 
 - [ ] **Step 4b: Put the display strings in the Polish catalog**
 
-These ten `gettext_lazy` strings are new msgids (the Global Constraints list them). The
-operator-facing surface is Polish, so they cannot ship untranslated:
+`makemessages` extracts **eleven** new msgids here: these ten `DISPLAY` strings **plus
+`_("Revoked")` from `demo/models.py`'s `ClosedReason`**, which Task 2 introduced two tasks ago
+and which has no entry in the catalog. (`_("Expired")` is already translated at
+`locale/pl/LC_MESSAGES/django.po:133`.) The operator-facing surface is Polish, so none of them
+can ship untranslated:
 
 ```bash
 uv run python manage.py makemessages -l pl
-# fill the ten new msgids in locale/pl/LC_MESSAGES/django.po
+# fill the eleven new msgids in locale/pl/LC_MESSAGES/django.po
 uv run python manage.py compilemessages
 ```
 
-⚠️ Commit the `.po` **and** the binary `.mo` in the same commit as `demo/warnings.py`, and
-regenerate the `.mo` after any rebase — a stale branch conflicts on the binary and the
-conflict cannot be resolved by hand.
+⚠️ **Check for `#, fuzzy` entries before you compile.** The catalog currently has zero. If
+`makemessages` pre-fills one from a similar string it is almost certainly the WRONG
+translation, and clearing it takes **two** deletions — the `#, fuzzy` line *and* the wrong
+`msgstr`. `grep -c "#, fuzzy" locale/pl/LC_MESSAGES/django.po` must still be 0 when you are
+done.
+
+⚠️ Commit the `.po` **and** the binary `.mo` in the same commit as `demo/warnings.py` (Step 8's
+`git add` includes both), and regenerate the `.mo` after any rebase — a stale branch conflicts
+on the binary and the conflict cannot be resolved by hand.
 
 - [ ] **Step 5: Write the content pass**
 
@@ -1851,9 +1944,19 @@ class CoursePlan(NamedTuple):
 
 
 def _top_level_questions(unit):
-    """R9: the set compute_scores and the review gate use. The explicit order_by
-    is load-bearing — Element.order is for_fields=["unit"], and an unordered
-    queryset lets Postgres return rows in any order, breaking determinism."""
+    """R9: the set compute_scores and the review gate use.
+
+    The explicit order_by RESTATES `Element.Meta.ordering = ["order", "pk"]`
+    (courses/models.py:346). It is not what makes the queryset ordered — Meta
+    already does — so removing it changes nothing today. It is here so that a
+    future Meta change cannot silently move every ordinal in the golden file:
+    determinism depends on this key, and the dependency should be visible at the
+    only place that reads it.
+
+    ⚠️ Do not "simplify" it away on the grounds that it is redundant. And note
+    that the falsifying mutant is `.order_by()` (the no-arg form, which CLEARS
+    Meta.ordering) or `.order_by("pk")` — dropping the call entirely is a no-op.
+    """
     elements = (
         unit.elements.filter(parent__isnull=True)
         .order_by("order", "pk")
@@ -1987,20 +2090,31 @@ Delete the `if unit.unit_type != "quiz": continue` guard and re-run.
 Expected: `test_a_lesson_with_an_unanswerable_self_check_is_never_skipped` FAILS. **Revert by
 hand.**
 
-- [ ] **Step 7b: Falsify the element ordering**
+- [ ] **Step 7b: Pin the element ordering here; falsify it in Task 13**
 
-Drop `.order_by("order", "pk")` from `_top_level_questions` (leaving the queryset unordered)
-and re-run `tests/demo/` — including the golden test once Task 13 exists.
+`tests/demo/test_content.py` cannot see an ordering change on its own, so add this assertion
+to `test_plan_caches_fractions_and_skips_only_quizzes`:
 
-Expected: the "Late quiz" questions swap ordinals, so the golden projection's `(unit title,
-ordinal)` keys change and `test_the_golden_class_is_unchanged` FAILS. ⚠️ If it PASSES, the
-fixture's order/pk disagreement has regressed — check `late_a.order, late_b.order = 1, 0`
-survived, and that `assert late_b.pk > late_a.pk` still holds. **Revert by hand.**
+```python
+    # The (unit, ordinal) keys the golden file is built from. "Late quiz"'s two
+    # questions were created in one order and given the OPPOSITE `order`, so this
+    # is the one place the plan's ordering is observable.
+    late = [u for u in plan.units if u.title == "Late quiz"][0]
+    ids = [q.element_id for q in plan.questions[late.pk]]
+    assert ids == sorted(ids, reverse=True), "element order must not be pk order"
+```
+
+The falsification belongs with the golden test, not here — see **Task 13 Step 4b**. (An
+earlier draft told you to run it at this point "once Task 13 exists", which no step ever
+returned to do.)
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add demo/content.py demo/warnings.py tests/demo/test_content.py tests/demo/fixtures.py
+# The catalog, per Step 4b — the .po AND the binary .mo, or the PR ships eleven
+# untranslated msgids and the "regenerate after rebase" warning has nothing to act on.
+git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo
 git commit -m "feat(demo): kit-wide content pass — validate once, cache answers and fractions"
 ```
 
@@ -2189,9 +2303,20 @@ def frontier_index(plan, frontier_part, course):
     """
     total = len(plan.units)
     if frontier_part is not None:
-        parts = [n for n in course.nodes.filter(parent__isnull=True).order_by("order", "pk")]
-        if frontier_part >= len(parts):
-            raise InvalidFrontierPart(f"part {frontier_part} does not exist")
+        parts = list(
+            course.nodes.filter(parent__isnull=True).order_by("order", "pk")
+        )
+        # BOTH ends. `>= len(parts)` alone lets -1 through: it passes the
+        # `is not None` branch, passes this check, and `parts[-1]` then silently
+        # selects the LAST part — the opposite of what the operator typed. The
+        # run reaches DemoKit.objects.create(frontier_part=-1), where
+        # PositiveSmallIntegerField raises a DB error that the command's
+        # `except (DemoKitError, ImproperlyConfigured)` deliberately does not
+        # catch, so the operator gets a raw traceback.
+        if not 0 <= frontier_part < len(parts):
+            raise InvalidFrontierPart(
+                f"part {frontier_part} does not exist (0..{len(parts) - 1})"
+            )
         wanted = parts[frontier_part]
         ids = set(wanted._subtree_node_ids())
         positions = [i for i, u in enumerate(plan.units) if u.pk in ids]
@@ -2238,9 +2363,10 @@ teaches you nothing. ("Try 35" does not rescue it.)
 
 Use a mutant that genuinely differs: change `pupil_count * STRONG_PCT // 100` to
 `round(pupil_count * STRONG_PCT / 100)`. The two disagree at `pupil_count` 8, 9, 13, 14, 18,
-19, 23, 24, 28, 29, 33, 34, 38, 39 — floor vs half-up. So first **add a parametrised case at
-`pupil_count=18`** (integer form: 3 strong, 3 struggling, 12 average; `round` form: 4 and 4),
-then apply the mutant and re-run.
+19, 23, 24, 28, 29, 33, 34, 38, 39 — floor vs half-up. **Step 1's parametrisation already
+carries the `pupil_count=18` case** (integer form: 3 strong, 3 struggling, 12 average; `round`
+form: 4 and 4), which is the one that separates them — do not add it again. Apply the mutant
+and re-run.
 
 Expected: `test_the_partition_is_integer_arithmetic_off_the_share_constants` FAILS at 18
 pupils. **Revert by hand** — do not `git checkout`, which would take the whole file.
@@ -2347,16 +2473,27 @@ def test_some_pupil_lands_a_partial_answer():
 
     ⚠️ 20 pupils and a pinned seed, not 5: with p_partial 0.4 applied only to
     wrong answers, a 5-pupil class can legitimately produce none.
+
+    ⚠️ This test depends on "Blanks quiz" sitting inside EVERY band's depth
+    (Part A, index 7). The guard below asserts that precondition directly, so a
+    fixture move reports as "nobody reached it" rather than as a mysterious
+    dice failure.
     """
     from courses.models import QuestionResponse
+    from demo.content import build_course_plan
     from tests.demo.fixtures import small_course
 
     course = small_course()
-    _run(course, pupil_count=20, seed=99)
+    _pupils, plan, _w = _run(course, pupil_count=20, seed=99)
 
-    partials = [
-        r for r in QuestionResponse.objects.all() if 0 < float(r.fraction) < 1
-    ]
+    blanks = [u for u in plan.units if u.title == "Blanks quiz"][0]
+    blank_elements = {q.element_id for q in plan.questions[blanks.pk]}
+    reached = QuestionResponse.objects.filter(element_id__in=blank_elements)
+    assert reached.exists(), (
+        "no pupil reached 'Blanks quiz' — it has moved out of the bands' depth"
+    )
+
+    partials = [r for r in reached if 0 < float(r.fraction) < 1]
     assert partials, "no pupil scored a strict partial on the two-blank question"
 
 
@@ -2499,7 +2636,11 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
 
 
 def generate(rng, plan, pupils, *, course, frontier_part=None):
-    """Write every pupil's activity. Returns the warnings it accumulated.
+    """Write every pupil's activity. Returns `(warnings, bands, depths)`.
+
+    The triple, not a bare warnings list — Task 9 consumes bands and depths for
+    the IN_PROGRESS selection, and narrowing this docstring is how a caller comes
+    to unpack one value.
 
     NO `kit` PARAMETER. The body never read it and the plan's own test passed
     None for it — a positional argument that is legitimately None at half the
@@ -2556,7 +2697,7 @@ all three; keep it that way rather than narrowing the signature.
 uv run pytest tests/demo/test_generator_writes.py -v
 ```
 
-Expected: PASS (four tests).
+Expected: PASS (five tests).
 
 - [ ] **Step 5: Falsify the progress write**
 
@@ -2784,7 +2925,12 @@ def leave_in_progress(rng, plan, pupils, bands, depths):
         # If the drawn prefix holds no gradeable response, EXTEND forward to the
         # first gradeable question, consuming no further draw.
         if not any(q.gradeable for q in qplans[:length]):
-            first_gradeable = next(i for i, q in enumerate(qplans) if q.gradeable)
+            # `idx`, not `i` and not `n`: the genexp has its own scope so reusing
+            # either is not a bug, but `i` is the PUPIL index this loop is keyed
+            # on and `n` is len(qplans) on the line below — a reader should not
+            # have to prove scoping rules to read a function about which pupil
+            # gets which unit.
+            first_gradeable = next(idx for idx, q in enumerate(qplans) if q.gradeable)
             length = min(first_gradeable + 1, n - 1)
         _answer_quiz(
             rng, pupils[i], unit, qplans, BANDS[bands[i]]["p_correct"],
@@ -3199,13 +3345,14 @@ from demo.constants import (
     PASSWORD_LENGTH, SLUG_FALLBACK, SLUG_MAX,
 )
 from demo.content import build_course_plan
-from demo.generator import generate
+from demo.generator import frontier_index  # NOT just `generate` — the up-front
+from demo.generator import generate        # frontier_part check below calls it
 from demo.models import DemoKit
 from demo.names import draw_names
 from demo.warnings import DemoWarning
 from grouping.models import Group
 from grouping.services import add_students_to_group
-from institution.roles import STUDENT, TEACHER
+from institution.roles import STUDENT, TEACHER, seed_roles
 
 User = get_user_model()
 
@@ -3237,9 +3384,20 @@ def _usernames(base, pupils):
 
 
 def _taken(names):
-    """Case-insensitive, across User.username, User.email AND allauth's
-    EmailAddress — addresses live in both tables, and ensure_verified_primary_email
-    raises a bare ValueError mid-transaction on a verified row bound elsewhere."""
+    """Exact-match, across User.username, User.email AND allauth's EmailAddress.
+
+    All three tables, because an address lives in two of them and
+    ensure_verified_primary_email raises a bare ValueError mid-transaction on a
+    verified row bound elsewhere.
+
+    EXACT, not case-insensitive: `__in` is case-sensitive on Postgres, and
+    lowercasing the candidates does nothing about a stored
+    `SP-12-Nauczyciel@demo.invalid`. That is acceptable here because every name
+    we generate is already lowercase (slugify + the `-pNN` suffix), so a
+    differently-cased squatter is a pre-existing hand-made row, not a kit we
+    issued. If that ever stops being true, switch to `__iexact` in a loop or
+    `annotate(Lower(...))` — do NOT just lowercase harder on this side.
+    """
     lowered = [n.lower() for n in names]
     emails = [f"{n}@{EMAIL_DOMAIN}" for n in lowered]
     return (
@@ -3303,6 +3461,14 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
         raise errors.InvalidBounds("pupils", f"pupils must be {MIN_PUPILS}-{MAX_PUPILS}")
     if not MIN_DAYS <= days <= MAX_DAYS:
         raise errors.InvalidBounds("days", f"days must be {MIN_DAYS}-{MAX_DAYS}")
+
+    # Matches seed_demo_course.py:80's precedent. accounts/services.py:34 uses
+    # Group.objects.get_or_create(name=role), so on a box where setup_roles never
+    # ran, set_user_role would silently create a PERMISSION-LESS "Teacher" group:
+    # is_staff and the review queue still work (groups_visible_to reaches the
+    # demo Teacher via Group.teachers), so no test here would notice, but any
+    # demo surface gated on a courses.*/grouping.* perm would be dead for the rep.
+    seed_roles()
 
     plan = build_course_plan(course)
     if not plan.units:
@@ -3431,11 +3597,25 @@ reach-forward is not firing — check `first_lesson` / `first_quiz` in `generate
 
 - [ ] **Step 5: Falsify the collision scan**
 
-Change `_taken` to check `User.objects.filter(username__in=...)` only, then add a test user
-whose *email* collides, and re-run `test_a_second_kit_for_the_same_school_gets_distinct_usernames`.
+Insert a squatter at the top of
+`test_a_second_kit_for_the_same_school_gets_distinct_usernames`, before the first
+`provision_for_test` — it holds the *email* the kit wants, but not the username:
 
-Expected: the provisioning blows up with allauth's `ValueError` mid-transaction instead of
-bumping cleanly. **Revert by hand.**
+```python
+    from tests.factories import make_verified_user
+
+    make_verified_user(username="squatter", email="sp-12-nauczyciel@demo.invalid")
+```
+
+Re-run: it must still PASS (the kit bumps to `sp-12-2-…`). Then change `_taken` to check
+`User.objects.filter(username__in=lowered)` only, and re-run.
+
+Expected: **an `IntegrityError` on `User.email`'s unique index**
+(`accounts/models.py:24` — `email = models.EmailField(..., unique=True)`), raised inside
+`create_user` before allauth is reached. ⚠️ The original wording predicted allauth's
+`ValueError`; that is the signal only when the collision is an `EmailAddress` row with no
+matching `User.email`. Either way the provisioning dies mid-transaction instead of bumping
+cleanly, which is the point. **Revert by hand** — both the `_taken` change and the squatter.
 
 - [ ] **Step 6: Commit**
 
@@ -4137,6 +4317,19 @@ def test_the_golden_class_is_unchanged():
     from tests.demo.helpers import provision_for_test
 
     actual = _projection(provision_for_test(small_course(), pupils=5, seed=777))
+
+    # PRECONDITION FOR STEP 4's MUTANT, asserted rather than assumed. Moving the
+    # partial draw only perturbs the stream if some pupil actually ANSWERS a
+    # partial-capable question. If no recorded response belongs to the two-blank
+    # question, the mutant is a no-op and the plan's headline draw-order defence
+    # reports a false green. "Blanks quiz" lives in Part A precisely so this
+    # holds for every band — see the fixture.
+    answered = {row[0] for r in actual for row in r["answers"]}
+    assert "Blanks quiz" in answered, (
+        "no pupil answered the partial-capable question; Step 4's mutant would "
+        "be a no-op and this test would not defend the draw order"
+    )
+
     if not GOLDEN.exists():  # first run: record, then read the diff by eye
         GOLDEN.write_text(json.dumps(actual, indent=2, ensure_ascii=False), "utf-8")
         pytest.fail("golden file written — inspect it, then re-run")
@@ -4150,9 +4343,10 @@ uv run pytest tests/demo/test_determinism.py::test_the_golden_class_is_unchanged
 ```
 
 Expected: FAIL with "golden file written". **Open `tests/demo/golden_class.json` and read
-it**: five pupils with Polish names, progress lists that differ between pupils, and stored
-answers that are not all identical. If it looks wrong, the generator is wrong — fix it before
-accepting the file.
+it**: five pupils with Polish names, progress lists that differ between pupils, stored answer
+slots that are not all `"correct"`, and **at least one `"Blanks quiz"` row** (the assertion
+above enforces that, but look at it — a `"partial"` slot among them is what Step 4's mutant
+moves). If it looks wrong, the generator is wrong — fix it before accepting the file.
 
 - [ ] **Step 3: Re-run both tests**
 
@@ -4170,6 +4364,25 @@ is drawn only when needed) and re-run.
 Expected: `test_the_golden_class_is_unchanged` FAILS while `test_the_same_seed_produces_the_
 same_class` still PASSES — which is precisely the division of labour between the two.
 **Revert by hand.**
+
+- [ ] **Step 4b: Falsify the element ordering**
+
+The mutant Task 6 Step 7b set up, run here because the golden file is what observes it.
+
+In `_top_level_questions`, change `.order_by("order", "pk")` to **`.order_by("pk")`** and
+re-run.
+
+⚠️ **Not "drop the `.order_by(...)` call".** `Element.Meta.ordering = ["order", "pk"]`
+(courses/models.py:346) would keep the queryset ordered by exactly the same key, so deleting
+the call is a behaviourally identical mutant and a guaranteed false green. `.order_by("pk")`
+(or the no-arg `.order_by()`, which clears Meta) is what actually changes the order.
+
+Expected: "Late quiz"'s two questions swap ordinals, so the golden projection's
+`(unit title, ordinal)` keys change and `test_the_golden_class_is_unchanged` FAILS — along
+with `test_plan_caches_fractions_and_skips_only_quizzes`' ordering assertion. If either
+PASSES, the fixture's order/pk disagreement has regressed: check `late_a.order,
+late_b.order = 1, 0` survived and `assert late_b.pk > late_a.pk` still holds. **Revert by
+hand.**
 
 - [ ] **Step 5: Commit**
 
@@ -4260,8 +4473,13 @@ def test_frontier_part_zero_is_honoured_not_treated_as_falsy():
     default = frontier_index(plan, None, course)
     assert part_zero != default, "part 0 must not collapse to the fraction"
 
-    with pytest.raises(errors.InvalidFrontierPart):
-        frontier_index(plan, 99, course)
+    # BOTH ends of the range. -1 is the one that used to slip through: it is a
+    # legal int, it is < len(parts), and parts[-1] silently selects the LAST
+    # part before the DB rejects the negative on write.
+    for bad in (99, -1):
+        with pytest.raises(errors.InvalidFrontierPart) as exc:
+            frontier_index(plan, bad, course)
+        assert exc.value.field == "frontier_part"  # it subclasses InvalidBounds
 
 
 @pytest.mark.django_db
@@ -4364,6 +4582,15 @@ uv run pytest tests/demo/ tests/test_seed_demo_course.py -v
 Expected: all green. ⚠️ **Grep the summary line** — pytest can exit 0 with failures in the
 body.
 
+⚠️ **No whole-repo sweep is needed, and here is why** (a sweep is a branch gate, not a task
+step). This branch makes two registry-wide edits — `"demo"` into `INSTALLED_APPS` and a
+per-file-ignore in `pyproject.toml` — and the repo has exactly two drift guards that enumerate
+the registry: `tests/test_list_referenced_files.py:71` (iterates `apps.get_models()` looking
+for `FileField`s) and `tests/test_transfer_schema.py:28` (pins `apps.get_app_config("courses")`).
+Both were checked while writing this plan: `DemoKit` declares no `FileField` and is not a
+`courses` model, so neither guard moves. If you add a `FileField` to `DemoKit` later, the first
+one is the test that will tell you.
+
 - [ ] **Check migrations and lint**
 
 ```bash
@@ -4443,7 +4670,10 @@ and now ends green like every other task) · T27 → Task 4.
 
 **Type consistency checked:** `generate(rng, plan, pupils, *, course, frontier_part=None)`
 returns `(warnings, bands, depths)` at both call sites and takes **no `kit`**; `frontier_index`
-takes all three of `(plan, frontier_part, course)` at both call sites; `Answers` is
+takes all three of `(plan, frontier_part, course)` at **all three** call sites —
+`generate`, `provision_kit`'s up-front validation, and Task 15's boundary test — and
+`demo/services.py` **imports it by name** (not only `generate`, which was the original
+omission: an unbound `frontier_index` is an F821 that kills every provisioning test); `Answers` is
 `(correct, wrong, partial)` everywhere; `QuestionPlan` is the six-field
 `(element_id, max_marks, answers, fractions, gradeable, sentinel)`; `build_course_plan` returns
 `CoursePlan` and every consumer uses its field names; `provision_kit` returns
