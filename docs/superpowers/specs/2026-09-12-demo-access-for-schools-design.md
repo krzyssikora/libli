@@ -142,10 +142,14 @@ pk 19, 1,029 nodes, updated 2026-09-05)
   Hence the published-only rule (§4.3, R2).
 - There is **no teacher page for an AUTO answer**: `quiz_results` shows only the logged-in
   user's own submission (`courses/views.py:1728-1730`) and the review page shows REVIEW
-  questions only (`courses/views_review.py:76-77`). ⚠️ `/for-schools/` **already claims**
-  analytics are "drillable down to one pupil and one question", so the live page is inaccurate
-  today. Resolved 2026-09-12 by building the view — **PR 5** (§6), which is what makes the
-  claim true and what makes wrong-answer variety (§3.1) matter.
+  questions only (`courses/views_review.py:76-77`). ⚠️ `docs/public/for-schools.md` claims
+  analytics are "drillable down to one pupil and one question", which no code supports.
+  ✅ **Measured on prod 2026-09-12: that page is NOT live** — `LIBLI_VENDOR_INSTANCE` is unset,
+  so `/for-schools/` returns **404** while `/privacy/` and `/getting-started/` return 200. So
+  the claim is queued, not published, and nothing is misleading anyone today. (An earlier
+  draft of this spec twice called the live page inaccurate; it was wrong.) Resolved
+  2026-09-12 by building the view — **PR 5** (§6) — which must land **before the vendor flag
+  is switched on**, and which is what makes wrong-answer variety (§3.1) matter.
 - `finalize_submission` sends no mail and fires no webhook, so seeding is silent.
   (Force-submit does both, but that is a rep's action inside their own kit:
   `courses/review.py:96-102`.)
@@ -1382,43 +1386,38 @@ Polish suggestions were deliberately left unapplied for the same reason —
 
 ## 5. Ops steps for Krzysztof (not code)
 
-0. **BLOCKING, before PR 2 ships:** establish whether `seed_demo_course` has ever been run on
-   libli.pl, since runbook §7 has told the operator to do exactly that since the first
-   deployment. Check for **every** artefact it creates
-   (`courses/management/commands/seed_demo_course.py`), not just the dangerous account:
-   - `demo_admin` (Platform Admin) and `demo_teacher` (Course Admin) plus the four demo
-     pupils, all on the repo-published password;
-   - the `demo-course` **Course** and `demo-subject` **Subject** (`:70-77`), the
-     "Demo Group" group (`:383`), the demo Collection, notes and tags (`:393-412`);
-   - `Institution.name` overwritten to "Demo Academy" (`:481-484`);
-   - the `WebhookEndpoint` pointing at `sis.demo.example` (`:463-476`) and its delivery row;
-   - the saved SSO config (`:453-461`) and the `invitee@demo.example` invitation.
+0. ✅ **DONE 2026-09-12 — `seed_demo_course` has NEVER been run on libli.pl.** Measured
+   read-only against prod: **zero** of its six users exist (`demo_admin`, `demo_teacher`,
+   `demo_student`, `demo_s1..s3`); the database holds **1 user in total** and it is staff;
+   courses = `['mat-pp']` and subjects = `['mat']`, so no `demo-course` / `demo-subject`;
+   **no groups at all**; `Institution.name` is "Libli Szkoła Testowa", not "Demo Academy";
+   `WebhookEndpoint.enabled` is False with an empty URL; no `SocialApp`; no invitations.
+   `Course.objects.count() == 1` — §3.3's rep-visibility precondition holds today.
+   **Nothing to remediate.** PR 1's `DEBUG=False` guard still ships (prod runs `DEBUG=False`,
+   confirmed in the same check), and the runbook instruction still has to go — this step
+   becomes "re-verify only if someone runs the old §7".
 
-   ⚠️ **The course matters as much as the admin account.** §3.3's caveat — a rep Teacher
-   reads every course — is justified there by "`mat-pp` is the only course on libli.pl". If
-   this command has run, that premise is already false and the first rep sees an English
-   "Demo Course" beside it.
+   **Two STANDING checks survive that one-off, and both were green on 2026-09-12:**
+   - **No enabled `WebhookEndpoint`** — re-checked before each kit, not once: a rep's
+     force-submit emits to it, carrying demo pupil data off the box (§3.2). Measured:
+     disabled, URL empty. `provision_kit` warns if that ever changes, so this is belt and
+     braces rather than the only guard.
+   - **Rep visibility** — re-evaluated whenever a course is added, for ever: every course on
+     the box must be one a rep may see, since a Teacher reads them all (§3.3). Measured:
+     `mat-pp` alone. Never write this as a count; the day a private course legitimately lands,
+     the decision is to stop issuing kits or to narrow a rep's read access (Risk 2).
 
-   That yields **two separate checks**, which an earlier draft of this spec conflated into
-   `Course.objects.count() == 1`:
-   - **Seeder remediation** (one-off, before the first kit): no `demo-course` Course, no
-     `demo-subject` Subject, no `demo_*` users, and the other artefacts above cleared.
-   - **No ACTIVE `WebhookEndpoint`** (re-checked before each kit, not once): a rep's
-     force-submit emits to it, carrying demo pupil data off the box (§3.2).
-   - **Rep visibility** (re-evaluated whenever a course is added, for ever): every course on
-     the box is one a rep may see. The day a private course legitimately lands — which
-     Risk 2 anticipates — this check fails, and the decision then is either to stop issuing
-     kits or to narrow a rep's read access. Do not write it as a count: it would be
-     permanently false and silently ignored.
-
-   Remediation: take a DB snapshot first (the nightly backup exists, but a pre-deletion
-   snapshot is the cheap insurance), then delete the demo users and course, restore the
-   institution name, disable the webhook endpoint, and clear the SSO config. PR 1 ships this
-   as a checklist in the runbook beside the guard.
-1. Confirm `LIBLI_VENDOR_INSTANCE=true` is in `.env.production` **and visible inside the app
-   container** (`config/settings/base.py:288` defaults it to False). Without it, `create`
-   refuses — `purge` deliberately still runs (R8).
-2. Fill `Institution.contact_email` on libli.pl if still blank (it ships blank).
+1. ⚠️ **Set `LIBLI_VENDOR_INSTANCE=true` in `.env.production` — measured 2026-09-12, it is
+   NOT set**, and two things follow. (a) `demo_access create` refuses until it is (`purge`,
+   `revoke` and `list` deliberately still run, R8). (b) **The flag is also what publishes
+   `/for-schools/`**: it is 404 on the live site today while `/privacy/` and
+   `/getting-started/` are 200, so #309's school page and price list are shipped but dark.
+   **Sequence it after PR 5** — turning it on publishes the "one pupil and one question"
+   claim, which PR 5 is what makes true (§10 Q3). Turning it on is a **publishing decision**,
+   not a config tidy-up.
+2. Fill `Institution.contact_email` on libli.pl — measured 2026-09-12: **blank**. It is the
+   address PR 4's demo copy points a school at, so it is a prerequisite for that PR, not an
+   optional nicety.
 3. Decide whether to switch on `Institution.demo_instance`. It adds the "demonstration site
    — do not enter real pupil data" notice to `/privacy/` and `/getting-started/`; it does
    **not** affect `/for-schools/`, which is exempt by design.
@@ -1882,11 +1881,12 @@ A green suite cannot say whether the class looks believable
 - ~~**Q2**~~ **RESOLVED 2026-09-12 by Krzysztof — the defaults stand:** 20 pupils, 14 days,
   `FRONTIER_FRACTION = 0.75`. No longer blocks PR 2.
 - ~~**Q3**~~ **RESOLVED 2026-09-12 by Krzysztof — BUILD the per-question view**, as its own
-  follow-up PR (PR 5, §6). ⚠️ Note what this says about the *live* site: `/for-schools/`
-  already claims analytics drill down "to one pupil and one question", and §3.2 establishes
-  that no such teacher-facing view exists for AUTO answers — **so the page is inaccurate
-  today**, before any of this ships. PR 5 makes the existing claim true; PR 4's new demo copy
-  must not merge ahead of it.
+  follow-up PR (PR 5, §6). ✅ **Measured on prod the same day: `/for-schools/` is 404** — the
+  page #309 shipped is gated on `LIBLI_VENDOR_INSTANCE`, which is unset — so its
+  "one pupil and one question" claim is **queued, not published**. Nothing is misleading a
+  reader today, and the ordering constraint is therefore about the flag, not about damage
+  control: **PR 5 lands before the vendor flag goes on**, and PR 4's demo copy lands after
+  PR 5.
 - ~~**Q3b**~~ **RESOLVED — and it is now in scope, because Q3 was answered by building.**
   Step 5.5's kit-wide cache would give all twenty pupils the byte-identical wrong answer,
   invisible while no per-question view exists and "twenty pupils all chose option C" the day
