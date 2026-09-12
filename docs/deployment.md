@@ -437,15 +437,14 @@ Re-run the Range check from §4 against a **real** `.mp4` now that media exists.
 
 ---
 
-## 7. Second course and scheduled jobs
+## 7. Scheduled jobs
 
-`seed_demo_course` is idempotent and gives you a small second course with an enrolled
-student:
-
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
-  /app/.venv/bin/python manage.py seed_demo_course
-```
+`seed_demo_course` is a LOCAL screenshot fixture and refuses to run with `DEBUG=False`.
+Do not run it here: it creates a Platform Admin whose password is hardcoded in the
+repository. For a school demo, use `manage.py demo_access create` (see the demo-access
+spec). Verified 2026-09-12: it has never been run on libli.pl — no `demo_*` users, one
+user in total, `mat-pp` the only course, no groups, institution name unchanged, webhook
+disabled. Re-verify only if someone runs an older copy of this runbook.
 
 Notifications are never auto-deleted without a scheduler. Install with `sudo crontab -e`
 — **one physical line**, because a crontab command field ends at the newline and a
@@ -466,6 +465,27 @@ And the nightly backup — **one physical line**, same as above:
 `15 2`, deliberately not `30 3`: a dump competing with the retention purge for the
 same container and disk is avoidable. The host clock is UTC, so this, the artifact
 timestamps and `taken_at` are all the same clock.
+
+And the demo-kit purge — **one physical line**, in the root crontab:
+
+```cron
+45 3 * * * cd /opt/libli && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app /app/.venv/bin/python manage.py demo_access purge >> /var/log/libli-demo-purge.log 2>&1
+```
+
+`45 3`, clear of the 02:15 backup and the 03:30 notifications purge. Test it once by hand
+with `--dry-run` first, and check `logrotate` covers `/var/log/libli-*.log`.
+
+⚠️ **A silently failing purge leaves live logins on prod.** Three ways it can stop: the app
+container being down (including the ~24 s of every deploy), one kit raising (each kit has its
+own transaction, so the others still close and the run exits non-zero), and — if `purge` were
+ever vendor-gated — a lost `LIBLI_VENDOR_INSTANCE`. That is why it is not. Add
+`demo_access list` to the routine you already use to look at the box: it shows
+`pending_purge` rows.
+
+**Before the first kit:** set `LIBLI_VENDOR_INSTANCE=true` in `.env.production` (measured
+2026-09-12: unset, so `/for-schools/` is 404 and `demo_access create` refuses), and fill
+`Institution.contact_email` (measured: blank). ⚠️ The same flag publishes `/for-schools/`, so
+turning it on is a publishing decision — see the spec's §5.
 
 If you use `/etc/crontab` instead, that file takes an extra **user** field between the
 schedule and the command.
@@ -807,9 +827,10 @@ passed; `ci.yml` not regrowing a `master` trigger.
   `--only-if-placeholder`, so once the domain is set the env var is ignored. To change it
   later, re-save the wizard's Identity step with the hostname filled in — that writes both.
 - **Peak disk during import is ~17 GB**, including the `FILE_UPLOAD_TEMP_DIR` copy.
-- **Analytics on an imported course will be empty.** The demo-activity seeder is separate,
-  unbuilt work; `seed_demo_course` provides one enrolled student on its own course so the
-  analytics surfaces are reachable.
+- **Analytics on an imported course will be empty** until a class has used it. To make the
+  analytics surfaces reachable for a demo, issue a demo kit: `manage.py demo_access create
+  --label "<school>" --course <slug>`. (`seed_demo_course` is a local screenshot fixture and
+  refuses to run with `DEBUG=False` — see §7.)
 
 ## Testing this stack locally
 

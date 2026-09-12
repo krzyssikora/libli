@@ -5,6 +5,11 @@ from django.core.management import call_command
 @pytest.fixture(autouse=True)
 def _isolate_media_root(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
+    # seed_demo_course refuses with DEBUG=False (it creates a Platform Admin with
+    # a password hardcoded in this repo). The test settings pin DEBUG False, so
+    # every test here needs it on; the guard's own test sets it back to False in
+    # its body, which runs after this autouse fixture.
+    settings.DEBUG = True
 
 
 @pytest.mark.django_db
@@ -306,3 +311,14 @@ def test_seed_repairs_progress_missing_from_an_earlier_seed():
     )
     missing = [pair for pair in submitted if pair not in completed]
     assert not missing, f"rerun left submissions without progress: {missing}"
+
+
+@pytest.mark.django_db
+def test_seed_demo_course_refuses_when_debug_is_false(settings):
+    """It creates a Platform Admin whose password is published in this repo."""
+    from django.core.management.base import CommandError
+
+    settings.DEBUG = False
+    with pytest.raises(CommandError) as exc:
+        call_command("seed_demo_course")
+    assert "DEBUG=False" in str(exc.value)

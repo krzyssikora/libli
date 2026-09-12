@@ -33,6 +33,7 @@ uv run python manage.py migrate
 uv run python manage.py init_platform     # prompts for admin username/email/password
 
 # 5. (Optional) seed a demo course with an enrolled student
+#    (local only; refuses to run with `DEBUG=False`)
 uv run python manage.py seed_demo_course
 
 # 6. Run the server, then log in at http://localhost:8000/

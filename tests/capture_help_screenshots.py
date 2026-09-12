@@ -400,7 +400,8 @@ def test_capture_help_screenshots(live_server, browser):
         assert not unknown, f"CAPTURE_ONLY names unknown shots: {sorted(unknown)}"
 
     with freeze_time(FREEZE_AT):
-        call_command("seed_demo_course")  # once, before the locale loop
+        with override_settings(DEBUG=True):  # seed_demo_course is DEBUG-only since PR 1
+            call_command("seed_demo_course")  # once, before the locale loop
         OUT_DIR.mkdir(parents=True, exist_ok=True)
 
         for locale in ("en", "pl"):

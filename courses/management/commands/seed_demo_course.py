@@ -3,10 +3,12 @@
 from decimal import Decimal
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
+from django.core.management.base import CommandError
 from django.db import transaction
 
 from accounts.emails import ensure_verified_primary_email
@@ -67,6 +69,18 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        # This command is a SCREENSHOT FIXTURE, not a demo seeder: it creates
+        # demo_admin as a Platform Admin with the password below, which is
+        # published in this repository. docs/deployment.md used to tell the
+        # operator to run it on the live box; that instruction is gone, and this
+        # guard is what makes it stay gone.
+        if not settings.DEBUG:
+            raise CommandError(
+                "seed_demo_course refuses to run with DEBUG=False: it creates a "
+                "Platform Admin whose password is hardcoded in this repository. "
+                "It is a local screenshot fixture. For a school demo use "
+                "`manage.py demo_access create` instead."
+            )
         subject, _ = Subject.objects.get_or_create(
             slug="demo-subject", defaults={"title_en": "Demo Subject"}
         )

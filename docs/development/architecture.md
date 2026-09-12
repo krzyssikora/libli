@@ -7,7 +7,7 @@ stale where they disagree with the code.
 
 ## The apps
 
-libli is a single Django project (`config/`) with nine local apps:
+libli is a single Django project (`config/`) with eleven local apps:
 
 | App | Owns |
 | --- | --- |
@@ -20,6 +20,8 @@ libli is a single Django project (`config/`) with nine local apps:
 | `tags` | Personal tags on units. |
 | `notifications` | Event notifications: in-app list, bell dropdown, email delivery, and a retention/purge command. |
 | `integrations` | The outbound **SIS / e-register grade-sync webhook** and its public receiver guide. |
+| `support` | User-submitted **issue reports** (with screenshot upload and telemetry), their manage-side triage queue, and the support settings singleton. |
+| `demo` | Time-limited **school demo kits**: a Teacher + Student login and ~20 fake pupils with generated activity, provisioned and purged by `demo_access`. Vendor-instance only. |
 
 ## The content model
 
@@ -77,8 +79,9 @@ progressive-enhancement JS over a working no-JS base.
   self-hosted Inter); vendored **KaTeX** and **MathLive** live under
   `courses/static/courses/vendor/`.
 - **i18n** — English + real Polish under `locale/`.
-- **Management commands** — `init_platform`, `setup_roles`, `seed_demo_course`,
-  `flush_webhooks`, `purge_notifications`.
+- **Management commands** — `init_platform`, `setup_roles`, `seed_demo_course`
+  (local only; refuses to run with `DEBUG=False`), `flush_webhooks`, `purge_notifications`,
+  `demo_access`.
 - **Tests** — one top-level `tests/` package (see
   [`conventions.md`](conventions.md)).
 

@@ -1,0 +1,321 @@
+[
+  {
+    "username": "sp-12-p1",
+    "name": "Renata Dudek",
+    "progress": [
+      "A lesson 0",
+      "A lesson 1",
+      "A lesson 2",
+      "A lesson 3",
+      "A lesson 5",
+      "A quiz",
+      "B lesson 0",
+      "B lesson 1",
+      "Blanks quiz",
+      "Notes quiz"
+    ],
+    "answers": [
+      [
+        "A quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "A quiz",
+        1,
+        "0.0000",
+        "wrong-1"
+      ],
+      [
+        "Blanks quiz",
+        0,
+        "0.5000",
+        "partial"
+      ],
+      [
+        "Blanks quiz",
+        1,
+        "0.0000",
+        "wrong-2"
+      ],
+      [
+        "Late quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Notes quiz",
+        0,
+        "0.0000",
+        "wrong-2"
+      ],
+      [
+        "Notes quiz",
+        1,
+        "None",
+        "correct"
+      ]
+    ]
+  },
+  {
+    "username": "sp-12-p2",
+    "name": "Wojciech Witkowski",
+    "progress": [
+      "A lesson 0",
+      "A lesson 1",
+      "A lesson 2",
+      "A lesson 3",
+      "A lesson 4",
+      "A lesson 5",
+      "A quiz",
+      "B lesson 0",
+      "B lesson 1",
+      "B lesson 2",
+      "B lesson 3",
+      "B lesson 4",
+      "B lesson 5",
+      "Blanks quiz",
+      "Notes quiz"
+    ],
+    "answers": [
+      [
+        "A quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "A quiz",
+        1,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Blanks quiz",
+        0,
+        "0.0000",
+        "wrong-2"
+      ],
+      [
+        "Blanks quiz",
+        1,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Notes quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Notes quiz",
+        1,
+        "None",
+        "correct"
+      ]
+    ]
+  },
+  {
+    "username": "sp-12-p3",
+    "name": "Antoni Michalak",
+    "progress": [
+      "A lesson 0",
+      "A lesson 1",
+      "A lesson 2",
+      "A lesson 3",
+      "A lesson 4",
+      "A lesson 5",
+      "A quiz",
+      "B lesson 0",
+      "B lesson 1",
+      "B lesson 2",
+      "B lesson 3",
+      "Blanks quiz",
+      "Notes quiz"
+    ],
+    "answers": [
+      [
+        "A quiz",
+        0,
+        "0.0000",
+        "wrong-1"
+      ],
+      [
+        "A quiz",
+        1,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Blanks quiz",
+        0,
+        "0.0000",
+        "wrong-1"
+      ],
+      [
+        "Blanks quiz",
+        1,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Late quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Notes quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Notes quiz",
+        1,
+        "None",
+        "correct"
+      ]
+    ]
+  },
+  {
+    "username": "sp-12-p4",
+    "name": "Borys Nowakowski",
+    "progress": [
+      "A lesson 0",
+      "A lesson 1",
+      "A lesson 2",
+      "A lesson 3",
+      "A lesson 4",
+      "A lesson 5",
+      "A quiz",
+      "B lesson 0",
+      "B lesson 1",
+      "B lesson 2",
+      "B lesson 3",
+      "B lesson 4",
+      "Blanks quiz",
+      "Notes quiz"
+    ],
+    "answers": [
+      [
+        "A quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "A quiz",
+        1,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Blanks quiz",
+        0,
+        "0.0000",
+        "wrong-1"
+      ],
+      [
+        "Blanks quiz",
+        1,
+        "0.0000",
+        "wrong-1"
+      ],
+      [
+        "Notes quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Notes quiz",
+        1,
+        "None",
+        "correct"
+      ]
+    ]
+  },
+  {
+    "username": "sp-12-p5",
+    "name": "Marcin Zieliński",
+    "progress": [
+      "A lesson 0",
+      "A lesson 1",
+      "A lesson 2",
+      "A lesson 3",
+      "A lesson 4",
+      "A lesson 5",
+      "A quiz",
+      "B lesson 0",
+      "B lesson 1",
+      "B lesson 2",
+      "B lesson 3",
+      "B lesson 4",
+      "B lesson 5",
+      "B quiz",
+      "Blanks quiz",
+      "Late quiz",
+      "Notes quiz"
+    ],
+    "answers": [
+      [
+        "A quiz",
+        0,
+        "0.0000",
+        "wrong-0"
+      ],
+      [
+        "A quiz",
+        1,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "B quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Blanks quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Blanks quiz",
+        1,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Late quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Late quiz",
+        1,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Notes quiz",
+        0,
+        "1.0000",
+        "correct"
+      ],
+      [
+        "Notes quiz",
+        1,
+        "None",
+        "correct"
+      ]
+    ]
+  }
+]

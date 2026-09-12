@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "tags",
     "integrations",
     "support",
+    "demo",
 ]
 
 MIDDLEWARE = [
