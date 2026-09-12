@@ -133,6 +133,30 @@ consume.
 
 ---
 
+## Branching — read before Task 1
+
+**ONE branch, ONE pull request, fifteen commits.** The title says "PR 1 + PR 2" because the
+work has two *logical* halves — the safety guard, then the demo app — and the spec numbers them
+that way. It does **not** mean two pull requests: there is one Final verification and one "Open
+the PR" step, and Task 1's guard is three files that nobody should wait on.
+
+⚠️ **Create the branch before Task 1 Step 1.** Master is the default branch and *is* the
+protected test gate this plan leans on (Task 2 Step 7, Task 9's preamble); committing Task 1
+Step 6 onto it directly bypasses exactly the gate the plan relies on.
+
+```bash
+git switch -c feat/demo-access-core
+```
+
+If you are running under a skill that already provisioned a worktree and branch, confirm with
+`git branch --show-current` and skip this — do not create a second one.
+
+If you decide to ship Task 1 separately after all (it is self-contained, and a smaller PR is
+easier to review), branch it off master on its own, open it, and rebase the demo-app branch on
+top once it merges — but say so up front rather than discovering the split mid-task.
+
+---
+
 ### Task 1: PR 1 — `seed_demo_course` refuses to run in production
 
 The command creates `demo_admin` as a **Platform Admin with the password `demo-pass-123`
@@ -1272,7 +1296,7 @@ def test_every_registry_type_has_a_fixture_and_an_honest_builder():
 
 
 @pytest.mark.django_db
-def test_the_wrong_text_pool_covers_the_variant_count():
+def test_the_wrong_text_pool_covers_the_variant_count():  # no django_db: constants only
     """WRONG_TEXTS is the pool _shorttext and _fillblank draw from, and
     WRONG_VARIANTS is how many variants every builder may return. Today both are
     3 and the relationship is only a COMMENT — raise WRONG_VARIANTS to 4 and
@@ -1284,10 +1308,12 @@ def test_the_wrong_text_pool_covers_the_variant_count():
     assert len(set(WRONG_TEXTS)) == len(WRONG_TEXTS)
 
 
-@pytest.mark.django_db
 def test_every_question_type_is_classified():
     """T6 — derived, never a len(...) == N pin. A new question type fails until
-    someone puts it in the registry or in UNANSWERABLE_QUESTION_TYPES."""
+    someone puts it in the registry or in UNANSWERABLE_QUESTION_TYPES.
+
+    No `django_db`: this walks `__subclasses__` and touches no row. Same rule as
+    Task 6 Step 4a's warning-kind test — don't pay for a database you never use."""
     from courses.models import QuestionElement
     from demo import builders
 
@@ -1613,7 +1639,7 @@ def build(question):
 uv run pytest tests/demo/test_builders.py -v
 ```
 
-Expected: PASS (four tests). ⚠️ If `test_every_question_type_is_classified` fails, a question
+Expected: PASS (five tests). ⚠️ If `test_every_question_type_is_classified` fails, a question
 type was added to the codebase — classify it, do not weaken the test. If an import fails, fix
 the import path against `courses/models.py` rather than the test.
 
@@ -2108,13 +2134,17 @@ msgid "A webhook endpoint is enabled: demo data will be sent to it."
 msgstr "Webhook jest włączony: dane demo zostaną do niego wysłane."
 
 msgid "Revoked"
-msgstr "Cofnięty"
+msgstr "Cofnięte"
 ```
 
+⚠️ **`"Cofnięte"`, not `"Cofnięty"` — it has to agree with its neighbour.** `_("Expired")` is
+already translated at `django.po:133` as **`"Wygasłe"`** (neuter, written for invitation
+statuses), and PR 3's tab renders the two `ClosedReason` labels side by side. `"Wygasłe"` next
+to a masculine `"Cofnięty"` reads as a bug in the operator UI. If PR 3's column heading implies
+a different noun, change **both** together rather than one.
+
 ⚠️ These are a starting draft by a non-native writer — **read them before committing**, since
-they are what a school representative's operator sees. `"Cofnięty"` (access withdrawn) is the
-deliberate choice over `"Odwołany"` (cancelled) for `ClosedReason.REVOKED`; change it if the
-admin tab's register differs.
+they are what a school representative's operator sees.
 
 ⚠️ **Check for `#, fuzzy` entries before you compile.** The catalog currently has zero. If
 `makemessages` pre-fills one from a similar string it is almost certainly the WRONG
@@ -3165,15 +3195,20 @@ calls `extend_kit` — which is vendor-guarded — must carry its **own**
 uv run pytest tests/demo/test_in_progress.py -v
 ```
 
-⚠️ **These two go GREEN immediately, and that is correct** — they read only `build_course_plan`
+Expected: **2 passed, 1 error** — `ImportError: cannot import name 'leave_in_progress'`, which
+Step 4 writes. The third test (`test_no_qualifying_pupil_is_reported_not_silently_swallowed`)
+drives the pass itself, so it cannot run yet; that one IS the red half of this task's cycle.
+
+⚠️ **The other two go GREEN immediately, and that is correct** — they read only `build_course_plan`
 (Task 6) and `frontier_index` (Task 7), both of which exist, and `small_course` already carries
 "Late quiz" because Task 6 Step 2 wrote it that way. They are not a red/green cycle for
 `leave_in_progress`; they are **fixture guards** that make the pass in Step 4 possible at all,
 placed here so a later fixture edit that removes the late quiz fails loudly and cheaply rather
 than surfacing as an empty review queue in Task 10.
 
-Expected: PASS (two tests). If either fails, the fixture has regressed — repair
-`tests/demo/fixtures.py`, not these assertions.
+If either of **those two named fixture guards** fails, the fixture has regressed — repair
+`tests/demo/fixtures.py`, not the assertions. (The third test's ImportError is expected and is
+not a fixture problem.)
 
 - [ ] **Step 4: Write the pass**
 
@@ -3283,7 +3318,8 @@ Then call it at the end of `generate`, before the return:
 uv run pytest tests/demo/test_in_progress.py -v
 ```
 
-Expected: PASS (two tests). Both are pure plan assertions — nothing here needs
+Expected: PASS (three tests) — the two plan-level fixture guards, plus the shortfall-warning
+test that Step 4's `leave_in_progress` has now made importable. None of them needs
 `provision_kit`.
 
 - [ ] **Step 6: Commit**
@@ -3412,8 +3448,14 @@ def test_every_pupil_holds_progress_and_a_scored_submission():
 
 @pytest.mark.django_db
 def test_bounds_and_preconditions_raise_named_errors():
-    """T15b/T22 — enforced in the SERVICE, so PR 3's form inherits them."""
+    """T15b/T22 — enforced in the SERVICE, so PR 3's form inherits them.
+
+    ⚠️ ONE import block. `with` creates no scope, so re-importing `DemoKit` or
+    `small_course` beside the later cases puts two bindings in the same function
+    scope — `F811 redefinition of unused ...`, a real lint failure that surfaces
+    only at Final verification."""
     from courses.models import Course
+    from demo.models import DemoKit
     from demo.services import provision_kit
     from tests.demo.fixtures import small_course
 
@@ -3437,9 +3479,6 @@ def test_bounds_and_preconditions_raise_named_errors():
         # course-shaped message, not by the per-pupil EmptyKit loop after every
         # row has been written. Assert on the empty DemoKit table: a late raise
         # also rolls back, so pytest.raises alone cannot tell them apart.
-        from demo.models import DemoKit
-        from tests.demo.fixtures import small_course
-
         prose_only = small_course(slug="prose-only", quiz_without_questions=True)
         prose_only.nodes.filter(unit_type="quiz").exclude(
             title="Prose-only quiz"
@@ -3454,8 +3493,6 @@ def test_bounds_and_preconditions_raise_named_errors():
         # inside generate() after every user has been written. Asserting on the
         # empty DemoKit table is what proves the check ran early; a late raise
         # still rolls back, so `pytest.raises` alone cannot tell the difference.
-        from demo.models import DemoKit
-
         before = DemoKit.objects.count()
         with pytest.raises(errors.InvalidFrontierPart) as exc:
             provision_kit(
@@ -4116,8 +4153,22 @@ children, `finalize_submission` → `compute_scores` re-queries elements and GFK
 submission, and `_free_base`'s `_taken` is three queries per disambiguator attempt. A 5-pupil
 run over 18 units could plausibly land either side of 2000.
 
-So: **run it once with both ceilings at `100_000` and the `per_pupil` assertion commented
-out**, printing `len(five)`, `len(ten)` and `(len(ten) - len(five)) / 5`. Then:
+So: **run it once with both ceilings at `100_000` and the `per_pupil` assertion replaced by a
+deliberate failure** that renders the numbers:
+
+```python
+    pytest.fail(f"five={len(five)} ten={len(ten)} per_pupil={(len(ten) - len(five)) / 5}")
+```
+
+⚠️ **A `print()` will not work here.** `addopts` carries `-q` and pytest captures stdout, so a
+*passing* test shows you nothing — and with the assertion commented out it does pass. Either
+fail deliberately as above, or run that single node with `-s`:
+
+```bash
+uv run pytest "tests/demo/test_provision.py::test_provisioning_queries_do_not_scale_with_the_class" -s -v
+```
+
+Then:
 
 - set each ceiling to roughly **1.5×** its measured count;
 - set `MEASURED_PER_PUPIL` (a module constant in the test file) to the measured marginal cost;
@@ -4160,7 +4211,10 @@ a web request."
   - `demo.services.revoke_kit(kit) -> None`
   - `demo.services.extend_kit(kit, *, days) -> ExtendResult` — dataclass
     `kit, new_expires_at, long_lived`
-  - `demo.services.purge_expired(*, dry_run=False) -> list[DemoKit]`
+  - `demo.services.purge_expired(*, dry_run=False) -> list[DemoKit]`, raising
+    `demo.errors.PurgeFailed` after attempting every due kit if any failed.
+    ⚠️ Spelled **`errors.PurgeFailed`** at the raise site, like every other error in
+    `demo/services.py` — one spelling, as with `DemoWarning`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -4499,14 +4553,23 @@ def purge_expired(*, dry_run=False):
     for kit in due:
         try:
             purge_kit(kit, reason=DemoKit.ClosedReason.EXPIRED)
-        except Exception as exc:  # noqa: BLE001 - one bad kit must not strand the rest
+        # A broad catch on purpose: one bad kit must not strand the rest. (No
+        # `noqa` — `BLE` is not in this repo's ruff `select`, and bugbear does
+        # not flag `except Exception`; a suppression here would imply a gate
+        # that does not exist.)
+        except Exception as exc:
             logger.exception("demo kit #%s failed to purge", kit.pk)
             failures.append((kit.pk, exc))
         else:
             purged.append(kit)
     if failures:
         ids = ", ".join(f"#{pk}" for pk, _ in failures)
-        raise PurgeFailed(f"{len(failures)} kit(s) failed to purge: {ids}", purged)
+        # `errors.PurgeFailed`, NOT a bare `PurgeFailed`. This module imports
+        # `from demo import errors` and spells every raise `errors.X`; the bare
+        # name is an F821 at the lint gate and a NameError at runtime — which
+        # would make test_one_failing_kit_does_not_strand_the_others fail on the
+        # CORRECT build, indistinguishable from Step 5's third mutant.
+        raise errors.PurgeFailed(f"{len(failures)} kit(s) failed to purge: {ids}", purged)
     return purged
 ```
 
@@ -4875,12 +4938,17 @@ very line being edited describes the command it replaces:
 1. **Line 80**, the management-command list (Task 1 edits the same line to annotate
    `seed_demo_course`): add `demo_access`.
 2. **The `## The apps` table at lines 8-23**, which opens "libli is a single Django project
-   (`config/`) with **nine** local apps" and lists one row per app. Change **nine** to **ten**
-   and add a row:
+   (`config/`) with **nine** local apps" and lists one row per app.
 
+   ⚠️ **The existing count is ALREADY WRONG: the table omits `support`**, which is in
+   `INSTALLED_APPS` and in `test_element_state_write_routes.py`'s first-party set. So the edit
+   is **nine → eleven**, with **two** new rows, not one:
+
+   | `support` | *(describe from the app's own code — it is the pre-existing omission, not part of this PR's scope; if you would rather not, change the count to ten and add only `demo`, leaving the discrepancy as it was.)* |
    | `demo` | Time-limited **school demo kits**: a Teacher + Student login and ~20 fake pupils with generated activity, provisioned and purged by `demo_access`. Vendor-instance only. |
 
-⚠️ The "nine local apps" count in that sentence is prose, not a test — nothing catches it drifting.
+⚠️ Count against `INSTALLED_APPS` at edit time, not against the existing prose — the sentence is
+prose, not a test, and nothing catches it drifting.
 
 ```bash
 git add demo/management/ tests/demo/test_command.py docs/development/architecture.md
@@ -5327,9 +5395,15 @@ body.
 
 ⚠️ **`notifications/tests/` is in that command on purpose.** Task 10 Step 3b adds an
 unconditional early return at the top of `notify()` — the only out-of-app *code* change in this
-PR — and that package holds 30 test modules (`test_services.py`, `test_wire_enrolled.py`,
+PR — and that package holds 28 test modules (`test_services.py`, `test_wire_enrolled.py`,
 `test_emit_helpers.py`, `test_email_wiring.py` …) that no other step runs. Without this, the
 mute's only verification is one assertion inside `test_provisioning_is_silent`.
+
+⚠️ Three of those modules — `test_e2e_bell.py`, `test_e2e_email_prefs.py`,
+`test_e2e_notifications.py` — **collect nothing** under `addopts = "-m 'not e2e'"`. So this
+command covers the mute at the service level only; its browser-level behaviour (the bell
+dropdown) is not exercised. Accepted: the mute is a single early return whose ContextVar
+defaults to `False`, and the service tests are where that is observable.
 
 ⚠️ **`tests/test_i18n_po_health.py` and `tests/test_element_state_write_routes.py` are in that
 command for the same reason** — the branch edits the Polish catalog and the app registry, and
