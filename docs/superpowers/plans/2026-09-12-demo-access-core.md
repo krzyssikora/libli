@@ -49,9 +49,9 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
   DB and the next one dies with `DuplicateDatabase`.
 - ⚠️ **The lint gate, in full.** `pyproject.toml` sets `select = ["E", "F", "I", "UP", "B",
   "S"]`, `ignore = ["S101"]`, `target-version = "py313"`, **no explicit `line-length` (so the
-  default 88 applies)**, and `tests/**` ignores only `S105/S106/S107`. Six consequences bite
-  this plan's code blocks, and **all six surface only at the Final-verification step**, across
-  a dozen files at once. Fix them as you write, not at the end:
+  default 88 applies)**, and `tests/**` ignores only `S105/S106/S107`. Seven consequences bite
+  this plan's code blocks, and **all seven surface only at the Final-verification step**,
+  across a dozen files at once. Fix them as you write, not at the end:
   1. **Single-line imports** (`I001`, `force-single-line = true`). **Any `from x import A, B`
      — parenthesized or not — is shorthand in this plan** and must be written one name per
      line. The parenthesized blocks are the obvious ones; so are `from demo import errors,
@@ -85,7 +85,16 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
      for the `DISPLAY` entries, put the text inside a wrapped `_(` call. The repo's convention
      for a line that genuinely cannot be wrapped is an explicit `# noqa: E501` (see
      `config/settings/base.py:141`) — none of ours needs one.
-  6. **`ruff format --check .` is a SEPARATE gate** from `ruff check`, and it is the last
+  6. **`I001` enforces ORDERING too, not just splitting** — section order (stdlib /
+     third-party / first-party), alphabetical within each section, **and it checks
+     function-local import blocks as well as module headers**. So after splitting a block,
+     re-sort it. Three blocks below are wrong as pasted and must be fixed in place:
+     `demo/builders.py`'s header (`courses.marking` must precede `courses.models`),
+     `tests/demo/test_model.py` (`from datetime import timedelta` is stdlib and belongs above
+     the `pytest`/`django` block, not below it), and `_projection` in
+     `tests/demo/test_determinism.py` (its `courses.quiz` import is stranded after a blank
+     line, below `demo.content`).
+  7. **`ruff format --check .` is a SEPARATE gate** from `ruff check`, and it is the last
      command in Final verification. It explodes any collection or call carrying a **magic
      trailing comma** to one element per line — which reformats all four `demo/names.py` name
      tuples and every multi-argument `models.ForeignKey(...)` written packed-with-a-trailing-
@@ -212,8 +221,10 @@ above is unaffected because it sets `settings.DEBUG = False` in its own body, wh
 the autouse fixture.
 
 ⚠️ `settings` is a pytest-django fixture, not a module-level import — that is why it has to be
-reached through a fixture at all. Confirm all 12 originals still pass
-(`grep -c "^def test_" tests/test_seed_demo_course.py` → 12, and the run reports 13 passed).
+reached through a fixture at all. Confirm all 12 originals still pass: the run reports
+**13 passed** (12 originals + the guard Step 1 appended), and
+`grep -c "^def test_" tests/test_seed_demo_course.py` now returns **13**, not 12 — Step 1 added
+its test to this same file.
 
 - [ ] **Step 5: Fix the runbook**
 
@@ -278,9 +289,10 @@ live box. Prod measured clean 2026-09-12; this is prevention."
 Create `tests/demo/__init__.py` (empty) and `tests/demo/test_model.py`:
 
 ```python
+from datetime import timedelta  # stdlib FIRST — I001 checks section order
+
 import pytest
 from django.utils import timezone
-from datetime import timedelta
 
 
 @pytest.mark.django_db
@@ -962,7 +974,8 @@ def draw_names(rng, count):
 uv run pytest tests/demo/test_names.py -v
 ```
 
-Expected: PASS (seven tests, counting the pool-coverage and cramped-pool cases).
+Expected: PASS (**six** tests). Step 5 adds a seventh, the cramped-pool case — it is not in
+this file yet, so do not go hunting for it here.
 
 - [ ] **Step 5: Falsify the distinctness rule**
 
@@ -975,9 +988,20 @@ Use a shaped pool instead. Add this test alongside the others:
 
 ```python
 def test_pairs_are_distinct_on_a_pool_where_collisions_are_forced(monkeypatch):
-    """The distinctness mutant is only visible on a CRAMPED pool: 4 given names
-    and 4 surnames per gender means 40 draws from 16 pairs, so skipping the
-    retry loop collides with certainty rather than with probability 0.21."""
+    """The distinctness mutant is only visible on a CRAMPED pool AND A SEED THAT
+    ACTUALLY COLLIDES.
+
+    ⚠️ THE SEED IS LOAD-BEARING — re-verify it if these pools change. `count` has
+    to be 4, not 40, because the pre-check `min(len(...)) < count` fires first;
+    and at count=4 only about a third of seeds collide at all (98 of the first
+    300). `Random(5)` is one of the two-thirds that do NOT: with and without the
+    retry loop it yields the identical
+    [('C','W'), ('B','W'), ('A','Y'), ('B','Z')], so the mutant would be a
+    guaranteed false green.
+
+    `Random(1)` is verified to collide: with the loop it draws four distinct
+    pairs; without it, ('D','Z') twice.
+    """
     from demo import names
 
     for attr in ("FEMININE_GIVEN", "MASCULINE_GIVEN"):
@@ -985,14 +1009,17 @@ def test_pairs_are_distinct_on_a_pool_where_collisions_are_forced(monkeypatch):
     for attr in ("FEMININE_SURNAMES", "MASCULINE_SURNAMES"):
         monkeypatch.setattr(names, attr, ("W", "X", "Y", "Z"))
 
-    drawn = names.draw_names(random.Random(5), 4)  # 4 <= 4: pre-check passes
+    drawn = names.draw_names(random.Random(1), 4)  # 4 <= 4: pre-check passes
     assert len(set(drawn)) == 4
 ```
 
 Then remove the `while` loop and re-run.
 
-Expected: `test_pairs_are_distinct_on_a_pool_where_collisions_are_forced` FAILS. **Revert by
-hand** — do not `git checkout`, which would take the whole file with it.
+Expected: `test_pairs_are_distinct_on_a_pool_where_collisions_are_forced` FAILS, with
+`('D', 'Z')` drawn twice. ⚠️ If it PASSES, **check the seed before checking the code** — at
+`count=4` only ~1 seed in 3 collides, and an earlier draft of this step used `Random(5)`, which
+produces byte-identical output either way. **Revert by hand** — do not `git checkout`, which
+would take the whole file with it.
 
 - [ ] **Step 6: Commit**
 
@@ -1240,20 +1267,22 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import NamedTuple
 
-from courses.models import (
-    ChoiceGridQuestionElement, ChoiceQuestionElement,
-    DragFillBlankQuestionElement, DragToImageQuestionElement,
-    ExtendedResponseQuestionElement, FillBlankQuestionElement,
-    MatchPairQuestionElement, MultiGridQuestionElement,
-    ShortNumericQuestionElement, ShortTextQuestionElement,
-)
-from courses.models import _accepted_lines
+# ⚠️ ALPHABETICAL: courses.marking BEFORE courses.models. I001 checks ordering,
+# not only splitting, and an earlier draft had marking stranded below models.
+#
 # ⚠️ courses/numeric.py DOES NOT EXIST. The parser lives in courses/marking.py,
 # and it is the same one ShortNumericQuestionElement.mark uses
 # (courses/models.py:2567) — which is the only reason our "correct" answer marks
 # 1.0. (canonical_numeric_text is deliberately NOT imported: it preserves
 # fraction form rather than converting it — see _decimal_text below.)
 from courses.marking import parse_numeric_value
+from courses.models import (
+    ChoiceGridQuestionElement, ChoiceQuestionElement,
+    DragFillBlankQuestionElement, DragToImageQuestionElement,
+    ExtendedResponseQuestionElement, FillBlankQuestionElement,
+    MatchPairQuestionElement, MultiGridQuestionElement,
+    ShortNumericQuestionElement, ShortTextQuestionElement, _accepted_lines,
+)
 from courses.quiz import answer_to_json
 from demo.constants import WRONG_TEXTS, WRONG_VARIANTS
 
@@ -1595,8 +1624,12 @@ def test_a_lesson_with_an_unanswerable_self_check_is_never_skipped():
 
 
 @pytest.mark.django_db
-def test_a_quiz_with_no_gradeable_question_gets_no_submission_and_a_warning():
-    """⚠️ ONE kind, not an `or` of two. A prose-only quiz never enters the
+def test_a_quiz_with_no_gradeable_question_is_excluded_and_warned():
+    """The PLAN half only — nothing here touches QuizSubmission (the name used to
+    promise that and deliver it in a different task). The submission half is
+    Task 8's `test_a_skipped_quiz_receives_no_submission`.
+
+    ⚠️ ONE kind, not an `or` of two. A prose-only quiz never enters the
     question loop, so `skip_reason` stays None and the old `or` form asserted on
     two kinds that this fixture cannot produce — it failed on correct code. The
     `no_gradeable_question` branch added in Step 5 is what makes it pass."""
@@ -2449,14 +2482,33 @@ def test_every_stored_fraction_is_the_mark_of_the_stored_answer():
 
 @pytest.mark.django_db
 def test_progress_mode_and_results_mode_both_populate():
-    """T2a and T2b — two independent readers of the matrix."""
+    """T2a and T2b — two independent readers of the matrix.
+
+    ⚠️ THE LESSON ASSERTION MUST BE SCOPED AND COUNT-SENSITIVE. A bare
+    `UnitProgress.objects.filter(completed=True).exists()` is green on a build
+    with NO lesson writes at all, because two other paths still populate it:
+    `_answer_quiz(finalize=True)` calls `_complete` for every answered quiz, and
+    `generate`'s reach-forward forces `first_lesson` for any pupil whose
+    `did_lesson` is False — which, with the depth-loop writes gone, is ALL of
+    them. Counting lesson rows is what separates "the loop wrote them" (~50 for
+    5 pupils) from "only the reach-forward did" (exactly 5).
+    """
     from courses.models import QuizSubmission, UnitProgress
     from tests.demo.fixtures import small_course
 
     course = small_course()
-    _run(course)
+    pupils, _plan, _w = _run(course)
 
-    assert UnitProgress.objects.filter(completed=True).exists()
+    lesson_rows = UnitProgress.objects.filter(
+        completed=True, unit__unit_type="lesson"
+    ).count()
+    assert lesson_rows > len(pupils), (
+        f"{lesson_rows} completed lessons for {len(pupils)} pupils — that is the "
+        "reach-forward alone; the depth loop wrote nothing"
+    )
+    # Vacuous against the generator, kept as a REGRESSION GUARD: UnitProgress.save()
+    # stamps completed_at on every write path, so this can only fail if someone
+    # reintroduces a queryset `.update(completed=True)`, which bypasses save().
     assert UnitProgress.objects.filter(completed=True, completed_at=None).count() == 0
     submitted = QuizSubmission.objects.filter(status=QuizSubmission.Status.SUBMITTED)
     assert submitted.exists()
@@ -2478,6 +2530,13 @@ def test_some_pupil_lands_a_partial_answer():
     (Part A, index 7). The guard below asserts that precondition directly, so a
     fixture move reports as "nobody reached it" rather than as a mysterious
     dice failure.
+
+    ⚠️ TWO FAILURE MODES, and they need different responses. If `reached` is
+    EMPTY, the fixture moved — fix the fixture. If `reached` is non-empty but
+    `partials` is empty, it is the DICE, not the code: P(no partial anywhere) is
+    about 4% for an arbitrary seed at 20 pupils. Try the next seed and pin it.
+    Re-verify the pinned seed whenever BANDS, P_PARTIAL_GIVEN_WRONG or the pupil
+    count changes.
     """
     from courses.models import QuestionResponse
     from demo.content import build_course_plan
@@ -2605,6 +2664,13 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
     )
     if submission.status == QuizSubmission.Status.SUBMITTED:
         return submission
+    # ⚠️ SINGLE-SHOT per (pupil, unit). The guard above covers a re-finalized
+    # quiz, NOT general re-entry: QuestionResponse carries
+    # UniqueConstraint(["submission", "element"]), so a second call against a
+    # still-IN_PROGRESS submission would raise IntegrityError at the bulk_create
+    # below. Both callers guarantee it cannot happen — the depth loop visits each
+    # unit once, and leave_in_progress skips every unit already in
+    # `submitted_unit_ids`. Keep it that way.
     now = timezone.now()
     rows = []
     for qplan in qplans[:limit]:  # qplans[:None] is already the whole list
@@ -2701,11 +2767,18 @@ Expected: PASS (five tests).
 
 - [ ] **Step 5: Falsify the progress write**
 
-Comment out the `_complete(...)` call inside the lesson branch and re-run.
+Comment out the `_complete(...)` call inside the **lesson branch of the depth loop** — and
+leave the reach-forward and `_answer_quiz`'s `_complete` alone, so the mutant is exactly "the
+depth loop's lesson writes are gone". Re-run.
 
-Expected: `test_progress_mode_and_results_mode_both_populate` FAILS on the `UnitProgress`
-assertion while the results half still passes — which is the point of splitting them.
-**Revert by hand.**
+Expected: `test_progress_mode_and_results_mode_both_populate` FAILS on the lesson-count
+assertion (it drops to exactly one row per pupil — the forced `first_lesson`) while the
+results half still passes, which is the point of splitting them.
+
+⚠️ If it PASSES, the assertion has been loosened back to a bare `.exists()`. That form is
+green on this mutant for two independent reasons — quiz units write `UnitProgress` too, and
+the reach-forward fires for every pupil once `did_lesson` is universally False. **Revert by
+hand.**
 
 - [ ] **Step 6: Commit**
 
@@ -3617,7 +3690,43 @@ Expected: **an `IntegrityError` on `User.email`'s unique index**
 matching `User.email`. Either way the provisioning dies mid-transaction instead of bumping
 cleanly, which is the point. **Revert by hand** — both the `_taken` change and the squatter.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Measure the cost NOW, not at the end**
+
+The kit-wide content pass removed the 20× per-pupil multiplier, but **the 1× cost is still
+unbounded and nothing has measured it.** `_top_level_questions` is a query per unit, every
+`mark()` re-queries its own children, `_complete`/`_answer_quiz` do a `get_or_create` per
+(pupil, unit), and `finalize_submission` re-queries the unit's elements per submission. On
+mat-pp that is plausibly tens of thousands of queries. **PR 3 puts this behind a web request**,
+so the number decides whether PR 3's tab can call the service synchronously at all — and
+learning it after Task 15 means learning it too late to shape the design.
+
+**Budget: a 20-pupil kit on mat-pp provisions in ≤ 60 s.** Under that, PR 3 can call the
+service inline (with a generous timeout). Over it, PR 3 needs a job/progress surface, which is
+a design change, not a tuning exercise — say so in the PR body rather than optimising here.
+
+Add a cheap query-count pin to `tests/demo/test_provision.py`:
+
+```python
+@pytest.mark.django_db
+def test_the_content_pass_does_not_scale_its_queries_with_the_class(
+    django_assert_num_queries,
+):
+    """build_course_plan runs ONCE per kit and must not depend on pupil_count.
+    A loose ceiling, not a tight pin — it exists to catch a per-pupil regression
+    (the 20x multiplier the whole design removes), not to freeze the query plan.
+    ⚠️ Bump it only after reading the diff that raised it."""
+    from demo.content import build_course_plan
+    from tests.demo.fixtures import small_course
+
+    course = small_course()
+    with django_assert_num_queries(60):
+        build_course_plan(course)
+```
+
+Then time a local mat-pp run (see Final verification for the env-var spelling) and **write the
+seconds and the verdict into the PR body**.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add demo/services.py tests/demo/test_provision.py
@@ -4043,6 +4152,31 @@ def test_the_guarded_and_exempt_subcommands_are_split_as_specified():
 def test_a_missing_kit_id_is_a_clean_error():
     with pytest.raises(CommandError):
         call_command("demo_access", "revoke", "9999")
+
+
+@pytest.mark.django_db
+def test_the_warning_block_is_bounded_however_many_warnings_there_are():
+    """The passwords are the two lines the operator needs. Warnings are emitted
+    PER QUESTION and PER VARIANT, so on mat-pp an ungrouped list runs to
+    thousands of lines and buries them. Grouping is what keeps the block
+    readable; this pins it against a course of any size."""
+    from demo.management.commands.demo_access import Command
+    from demo.warnings import DemoWarning
+
+    out = StringIO()
+    command = Command()
+    command.stdout = out
+    command._print_warnings(
+        [DemoWarning("variant_dropped", n, str(n)) for n in range(500)]
+        + [DemoWarning("active_webhook_endpoint", None, "https://sis.example/hook")]
+    )
+    printed = out.getvalue()
+
+    assert len(printed.splitlines()) < 20, "the block must not scale with the course"
+    assert "variant_dropped x500" in printed  # the count survives grouping
+    assert "https://sis.example/hook" in printed, (
+        "the data-protection warning must never be the one summarised away"
+    )
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -4126,8 +4260,30 @@ class Command(BaseCommand):
         self.stdout.write(f"  pupil:   {kit.student.username}  {result.student_password}")
         self.stdout.write(f"  expires: {kit.expires_at:%Y-%m-%d %H:%M} UTC")
         self.stdout.write("  (the passwords are not stored; copy them now)")
-        for warning in result.warnings:
-            self.stdout.write(self.style.WARNING(f"  ! {warning.kind}: {warning.reason}"))
+        self._print_warnings(result.warnings)
+
+    # Warnings are PER QUESTION and PER VARIANT over a whole course. On mat-pp —
+    # hundreds of published quizzes — printing one line each buries the two lines
+    # that matter (the passwords) and the one that is a data-protection signal
+    # (active_webhook_endpoint) under thousands of lines of noise. Group them.
+    # The full list stays on ProvisionResult.warnings for PR 3's tab.
+    WARNING_SAMPLES = 3
+
+    def _print_warnings(self, warnings):
+        if not warnings:
+            return
+        by_kind = {}
+        for warning in warnings:
+            by_kind.setdefault(warning.kind, []).append(warning)
+        self.stdout.write(self.style.WARNING(f"  {len(warnings)} warning(s):"))
+        for kind in sorted(by_kind):
+            group = by_kind[kind]
+            self.stdout.write(self.style.WARNING(f"  ! {kind} x{len(group)}"))
+            for warning in group[: self.WARNING_SAMPLES]:
+                where = f"unit {warning.unit_id}" if warning.unit_id else "kit"
+                self.stdout.write(f"      {where}: {warning.reason}")
+            if len(group) > self.WARNING_SAMPLES:
+                self.stdout.write(f"      ... and {len(group) - self.WARNING_SAMPLES} more")
 
     def _list(self, o):
         kits = DemoKit.objects.all()
@@ -4168,7 +4324,7 @@ class Command(BaseCommand):
 uv run pytest tests/demo/test_command.py -v
 ```
 
-Expected: PASS (four tests).
+Expected: PASS (five tests).
 
 - [ ] **Step 5: Commit**
 
@@ -4225,10 +4381,10 @@ def _projection(kit):
     The stable key is POSITIONAL: (unit title, index of the question within its
     unit in the plan's own element order).
     """
+    # One sorted block — I001 checks function-local imports too.
     from courses.models import QuestionResponse, UnitProgress
-    from demo.content import build_course_plan
-
     from courses.quiz import answer_to_json
+    from demo.content import build_course_plan
 
     plan = build_course_plan(kit.course)
     # element pk -> ("Unit title", ordinal within the unit, {json -> slot label})
@@ -4324,10 +4480,17 @@ def test_the_golden_class_is_unchanged():
     # question, the mutant is a no-op and the plan's headline draw-order defence
     # reports a false green. "Blanks quiz" lives in Part A precisely so this
     # holds for every band — see the fixture.
-    answered = {row[0] for r in actual for row in r["answers"]}
-    assert "Blanks quiz" in answered, (
-        "no pupil answered the partial-capable question; Step 4's mutant would "
-        "be a no-op and this test would not defend the draw order"
+    # ⚠️ ANSWERED **CORRECTLY**, not merely answered. Step 4's mutant moves the
+    # partial draw inside `if not correct_roll:`, so it only perturbs the stream
+    # for a pupil whose first roll came out CORRECT (the draw then happens in the
+    # unmutated build and not in the mutated one). A run where every pupil got
+    # the two-blank question wrong draws identically either way.
+    answered_correctly = {
+        row[0] for r in actual for row in r["answers"] if row[3] == "correct"
+    }
+    assert "Blanks quiz" in answered_correctly, (
+        "no pupil answered the partial-capable question CORRECTLY; Step 4's "
+        "mutant would be a no-op and this test would not defend the draw order"
     )
 
     if not GOLDEN.exists():  # first run: record, then read the diff by eye
@@ -4621,8 +4784,9 @@ is the only step that produces the wall-clock number the PR body must carry.
 `.env` file cannot override an exported var. Export it, or prefix it as above.
 
 Then log in as the printed teacher and read the matrix, the drill-down, the review queue and
-the pupil view, **in light and dark**. Record the wall-clock of the provision — PR 3's tab
-depends on whether it fits inside a web request. Check:
+the pupil view, **in light and dark**. Record the wall-clock of the provision against **Task 10
+Step 6's budget: ≤ 60 s for a 20-pupil kit**. Under it, PR 3 can call the service inline; over
+it, PR 3 needs a job/progress surface — state which in the PR body. Check:
 - results mode: at least two-thirds of the course's gradeable quiz units hold a score for at
   least half the pupils;
 - progress mode: the class shows **gaps**, not a clean staircase;
