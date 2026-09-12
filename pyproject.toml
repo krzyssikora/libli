@@ -40,6 +40,8 @@ ignore = ["S101"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106", "S107"]
 "**/tests/**" = ["S105", "S106", "S107"]
+"demo/**" = ["S311"]        # deterministic content generation; secrets covers
+"tests/demo/**" = ["S311"]  # the seed and the passwords (spec R5/§4.6)
 
 [tool.ruff.lint.isort]
 force-single-line = true

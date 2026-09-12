@@ -36,7 +36,7 @@ EXPECTED_WRITE_COUNT = 3
 
 
 def _first_party_roots():
-    """Every in-tree Python root: the 9 first-party apps, plus config/,
+    """Every in-tree Python root: the eleven first-party apps, plus config/,
     scripts/ and manage.py.
 
     Filters app configs by `path.parent == ROOT` -- NOT "path is under ROOT". The
@@ -81,6 +81,7 @@ def test_the_first_party_app_set_is_what_we_think_it_is():
         "tags",
         "integrations",
         "support",
+        "demo",
     }
 
 
