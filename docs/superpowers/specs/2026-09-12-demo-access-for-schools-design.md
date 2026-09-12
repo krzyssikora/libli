@@ -80,13 +80,13 @@ pk 19, 1,029 nodes, updated 2026-09-05)
 
   | type | answer shape | correct from | wrong from |
   |------|--------------|--------------|-----------|
-  | choice (`courses/models.py:2359`) | set of `Choice` pks | the `is_correct=True` set | **the first choice in `(order, pk)` that is not correct** |
+  | choice (`courses/models.py:2359`) | set of `Choice` pks | the `is_correct=True` set | the first up-to-3 choices in `(order, pk)` that are not correct |
   | shortnumeric (`:2566`) | str parsed by `parse_numeric_value` | `value` | a value **outside the accepted band's upper bound**, computed from the band rather than by arithmetic on `tolerance` — the plan confirms the field's semantics at `courses/models.py:2566+`; if `tolerance` were ever relative, `value + tolerance + 1` could still land inside the band, R1b would fire and a whole unit would vanish for an untraceable reason |
-  | fillblank (`:2596`) | list of str, one per blank | first line of each `Blank.accepted` | the module constant `WRONG_TEXT` (a fixed nonsense string) in the **first** blank, correct elsewhere — partial credit by construction |
-  | matchpair (`:2708`) | list of right-hand tokens in pair order | `expected_tokens()` | the same tokens rotated **by one, left**; returns `NO_WRONG_ANSWER` when that is the identity (one pair, or all tokens equal) |
-  | choicegrid (`:2773`) | list of one `GridColumn` pk per row | `row.correct_column_id` | in the **first** row, the first `GridColumn` in `(order, pk)` other than its correct one; correct elsewhere — partial credit by construction |
-  | shorttext (`:2470`) | a string checked against `accepted` | the first `accepted` entry | a string that is not in `accepted` under the model's own normalisation (case/whitespace — the plan cites the comparison, since a naive "any other string" could match an all-accepting row). Partial slot: **`None`** — the mark is all-or-nothing. A row that accepts everything returns `NO_WRONG_ANSWER` |
-  | multigrid (`:2831`) | one **sorted list of column pks** per row, from `row.correct_columns` | the correct sets | drop one correct column from the first row (partial credit possible per row, exactly like choicegrid — so its third slot is a real partial, not `None`). A grid whose every row has a single column returns `NO_WRONG_ANSWER` |
+  | fillblank (`:2596`) | list of str, one per blank | first line of each `Blank.accepted` | `WRONG_TEXT_1..3` (fixed nonsense strings) in the **first** blank, correct elsewhere — partial credit by construction |
+  | matchpair (`:2708`) | list of right-hand tokens in pair order | `expected_tokens()` | the tokens rotated left by 1, then by 2, then by 3 (only rotations that are not the identity; `NO_WRONG_ANSWER` when none is) |
+  | choicegrid (`:2773`) | list of one `GridColumn` pk per row | `row.correct_column_id` | in the **first** row, each of the first up-to-3 `GridColumn`s in `(order, pk)` other than its correct one; correct elsewhere — partial credit by construction |
+  | shorttext (`:2470`) | a string checked against `accepted` | the first `accepted` entry | `WRONG_TEXT_1..3`, checked against `accepted` under the model's own normalisation (case/whitespace — the plan cites the comparison, since a naive "any other string" could match an all-accepting row). Partial slot: **`None`** — the mark is all-or-nothing. A row that accepts everything returns `NO_WRONG_ANSWER` |
+  | multigrid (`:2831`) | one **sorted list of column pks** per row, from `row.correct_columns` | the correct sets | drop the 1st, then the 2nd, then the 3rd correct column of the first row (as many variants as it has correct columns, capped at 3; partial credit per row, exactly like choicegrid — so its third slot is a real partial, not `None`). A grid whose every row has a single column returns `NO_WRONG_ANSWER` |
 
   Those last two are the registry types §3.1's live audit did **not** cover, so their
   wrong/partial contracts are specified here rather than inferred: every builder returns a
@@ -128,9 +128,10 @@ pk 19, 1,029 nodes, updated 2026-09-05)
   Hence the published-only rule (§4.3, R2).
 - There is **no teacher page for an AUTO answer**: `quiz_results` shows only the logged-in
   user's own submission (`courses/views.py:1728-1730`) and the review page shows REVIEW
-  questions only (`courses/views_review.py:76-77`). ⚠️ `/for-schools/` currently claims
-  analytics are "drillable down to one pupil and one question" — see open question Q3,
-  which blocks PR 4.
+  questions only (`courses/views_review.py:76-77`). ⚠️ `/for-schools/` **already claims**
+  analytics are "drillable down to one pupil and one question", so the live page is inaccurate
+  today. Resolved 2026-09-12 by building the view — **PR 5** (§6), which is what makes the
+  claim true and what makes wrong-answer variety (§3.1) matter.
 - `finalize_submission` sends no mail and fires no webhook, so seeding is silent.
   (Force-submit does both, but that is a rep's action inside their own kit:
   `courses/review.py:96-102`.)
@@ -951,7 +952,11 @@ on them being fixed):
   show the partial-credit marking that distinguishes libli. RNG cost: a partial-capable
   question consumes **two** draws (correct?, then partial?) **always — including when the
   first draw came out correct, in which case the second is drawn and discarded**; a
-  non-partial one consumes **one**. Pinned because `P_PARTIAL_GIVEN_WRONG` is conditional on
+  non-partial one consumes **one**. **A question answered WRONG consumes one further draw**,
+  the `rng.randrange(len(variants))` pick among the wrong variants (§3.1) — not drawn when the
+  answer is correct or partial, and not drawn when the list has a single element, since
+  `randrange(1)` would still consume from the stream: **the pick is skipped entirely for a
+  one-variant list.** Pinned because `P_PARTIAL_GIVEN_WRONG` is conditional on
   being wrong, which invites "draw the second only when wrong" — deterministic too, so T7
   cannot tell the two apart, and they diverge for every later question. That asymmetry is part of the fixed order below.
   **A quiz unit with no GRADEABLE top-level question gets no submission at all** — whether it
@@ -966,7 +971,9 @@ on them being fixed):
 - **Unfinished work.** `IN_PROGRESS_PUPILS = 2` pupils get an IN_PROGRESS submission, so the
   review queue has entries and "Force submit" has a target. (Which two is the selection rule
   below — stated once, there.) **Responses are written for a strictly proper prefix of the unit's top-level
-  questions** — at least one, at most n−1, the count drawn as `rng.randint(1, n - 1)` (pinned
+  questions** (answered by the identical per-question rule as the finalized path, §4.5's RNG
+  order item 4 — band draw, partial draw, variant pick) — at least one, at most n−1, the count
+  drawn as `rng.randint(1, n - 1)` (pinned
   like every other draw: `rng.choice(range(1, n))` consumes the stream differently) and part of
   the fixed order above — with no `finalize_submission` and no `UnitProgress`. The submission is
   opened with the **identical** `select_for_update().get_or_create(student=…, unit=…,
@@ -1056,10 +1063,11 @@ on them being fixed):
      draws on the ordinary one-or-two rule. Placed immediately after that pupil's slice walk
      and before the next pupil's, so the stream is pinned; the reached units lie outside the
      slice, so the pre-order walk never reaches them on its own
-     (one draw, or two for a partial-capable type; **a NOT_MARKED question, a sentinel
-     question, and a question whose partial failed R1b all consume one fewer** — none at all
-     for the first two, one for the third, which step 5.5 has already settled as
-     non-partial-capable for **every** pupil).
+     (one draw, or two for a partial-capable type, **plus one variant-pick draw when the
+     answer came out wrong and the question has more than one wrong variant**; **a NOT_MARKED
+     question, a sentinel question, and a question whose partial failed R1b all consume one
+     fewer** — none at all for the first two, one for the third, which step 5.5 has already
+     settled as non-partial-capable for **every** pupil).
      There is **no** back-dating offset draw: back-dating is gone (above).
      ⚠️ **A unit the kit-wide pass put in the R3-skipped set consumes NO draws**, and so do an
      all-NOT_MARKED quiz and a unit that is neither lesson nor quiz. Stated because the
@@ -1145,6 +1153,18 @@ and `extendedresponse` is not a future candidate — the class exists now. The i
 
 **Both collections are keyed on the model CLASS, never on a string**, so a key cannot drift
 from a class name (and `dragfill` is not `dragfillblank`).
+
+⚠️ **The wrong slot holds an ORDERED LIST of up to `WRONG_VARIANTS = 3` answers, not one.**
+Q3 was answered by building the per-question drill-down (PR 5), which renders each pupil's
+stored answer — so a kit-wide cache holding one wrong answer per question shows twenty pupils
+who all chose option C. Each builder therefore returns
+`(correct, [wrong_1 … wrong_k], partial_or_None)` with `1 <= k <= 3`, all deterministic from
+the row and ordered; a type that can offer only one wrong answer returns a single-element
+list, and `NO_WRONG_ANSWER` still means "none at all". The per-pupil loop **draws an index
+into that list** (`rng.randrange(len(variants))`) — one extra draw per wrong answer, pinned in
+§4.5's order. Step 5.5 validates **every** variant under R1b (`mark(v).fraction < 1.0` for
+each), which is why the list is capped at 3: the validation cost is bounded and paid once,
+kit-wide.
 
 ⚠️ **Every builder is a PURE function of the question row and consumes NO RNG draw** — not
 from the kit RNG, not from the global `random`. §4.5's fixed order lists no builder draws, so
@@ -1370,9 +1390,21 @@ Blocked on §5.0 and on Q2 (Q1 is resolved, §10).
 **PR 3 — admin tab.** Views, templates, form, i18n, e2e. No new business logic: every action
 calls PR 2's services.
 
+**PR 5 — the per-question drill-down** (Q3, decided 2026-09-12). A teacher-facing view of one
+pupil's answers to one quiz's AUTO questions — stem, the pupil's stored `latest_answer`, the
+correct answer, the mark — behind the **same** `scoping.can_review_course` gate and the same
+group scoping as the rest of analytics (§3.3), reached from the existing per-pupil drill-down.
+⚠️ **This is a product feature, not demo machinery**: it fixes an inaccuracy that is live on
+`/for-schools/` today (§10 Q3), and it is what makes PR 4's copy true. Its own design — which
+question types render how, what a nested or NOT_MARKED question shows — is **out of this
+spec's scope**; if it needs more than a thin template over data the drill-down already loads,
+it gets its own short design note. What belongs here is only the consequence for the
+generator, which is already folded into PR 2: wrong-answer variants (§3.1, §4.5).
+
 **PR 4 — public copy.** The `/for-schools/` section in both languages. Split from PR 2
-deliberately: it is blocked on a human decision (Q3) and a human translation review, and the
-core app should not wait on either.
+deliberately: it needs a human translation review, and the core app should not wait on it.
+⚠️ **PR 4 must not merge before PR 5**: its new copy sits on a page whose existing
+"one pupil and one question" claim is only true once PR 5 ships.
 
 ## 7. Non-goals
 
@@ -1383,6 +1415,10 @@ core app should not wait on either.
 - **N5** A password-reset action for a kit — revoke and re-create is two commands.
 - **N6** Running on a school's own box: the services and commands refuse (§4.1).
 - **N7** Multiple quiz attempts per pupil (§4.5).
+- **N9** Teacher **marking** in the demo (Q4, decided 2026-09-12). The review queue shows
+  force-submit and nothing to mark: published `mat-pp` carries no REVIEW question, and none is
+  added for the demo — it would change real content, and an unmarked REVIEW response drops its
+  whole submission from the matrix (§3.4).
 - **N8** Logging in *as* a fake pupil. They carry `set_unusable_password()` and no rep can
   authenticate as one; the rep's own Student is the pupil view. This is a decision, not an
   oversight — generating 20 more stranger-known logins per kit on prod buys a view the rep
@@ -1399,8 +1435,9 @@ core app should not wait on either.
 - **`golden`** — T7b only: `small`'s two coincidence-breakers (T7b needs them more than any
   other test), plus **every** reduced-draw case §4.5 enumerates — a skipped quiz, an
   all-NOT_MARKED quiz, a unit that is neither lesson nor quiz, a NOT_MARKED question, a
-  sentinel question, a partial-capable question, **and a question whose partial marks 1.0** so
-  the R1b fallback's one-draw rule is in the pinned stream too. (An earlier inventory listed
+  sentinel question, a partial-capable question, **a question whose partial marks 1.0** so the
+  R1b fallback's one-draw rule is in the pinned stream too, **a question with 3 wrong variants
+  and one with a single variant** so both the variant-pick draw and its skip are pinned. (An earlier inventory listed
   four of the seven and still claimed "every".)
 
 Each test is falsified against a named mutant.
@@ -1446,7 +1483,8 @@ T23–T25.)
   and `row.correct_column_id`) and `matchpair`. Reuse the existing factories where they
   exist and write a shared fixture helper in the `demo` tests where they do not; T6 asserts
   no registry type lacks a fixture, so this cannot quietly shrink to the two easy types.
-  For every entry, against a fixture question of that type:
+  For every entry, against a fixture question of that type — **and for every wrong variant the
+  builder returns, not just the first** (the cap is 3, so the cost is bounded):
   `mark(correct).fraction == 1`, `mark(wrong).fraction < 1`, and where a partial is returned
   `0 < mark(partial).fraction < 1`. Without this, T1 is tautological (R1 defines `fraction`
   as `mark()`'s output), and a builder returning a wrong "correct" answer yields a
@@ -1581,6 +1619,12 @@ T23–T25.)
   gone. Mutants: drop the `closed_at IS NULL` conjunct; call `delete_group` unconditionally,
   so the null-group kit raises and never closes; make one kit's purge raise and assert the
   others still close and the exit code is non-zero.
+- **T28 Wrong answers vary between pupils.** On a kit whose fixture has a question with 3
+  wrong variants, the pupils who got that question wrong do **not** all store the same
+  `latest_answer` — and every stored wrong answer is one of the validated variants. ⚠️ This is
+  what PR 5's per-question view will render; without it the view shows twenty pupils who all
+  chose option C, and nothing else in the suite looks at *which* wrong answer was stored.
+  Mutant: always take `variants[0]` (deterministic, still marks < 1, passes T1, T1b and T2c).
 - **T27 Names.** Both list-length assertions against the **shipped** lists
   (`len(F_GIVEN) >= 40` etc.); a provisioned kit holds `pupils` distinct `(first, last)` pairs
   with gender-consistent surname forms; and `provision_kit`'s **runtime** length check raises
@@ -1761,17 +1805,20 @@ A green suite cannot say whether the class looks believable
   (`courses/rollups.py:1115-1160`), and it reads for the **logged-in** user, which no fake
   pupil ever is (N8). §4.5, R5's draw order, T18 and Risk 3 are updated accordingly. This no
   longer blocks PR 2.
-- **Q2** (blocks PR 2) Confirm the default pupil count (20), kit lifetime (14 days) and
-  `FRONTIER_FRACTION` (0.75) with Krzysztof.
-- **Q3** (blocks PR 4) `/for-schools/` claims analytics drill down "to one pupil and one
-  question", but no teacher-facing per-question view exists for AUTO answers (§3.2). Either
-  the copy is corrected or the claim is met — decide before the demo is shown to anyone.
-- **Q3b** ⚠️ **If Q3 is answered by BUILDING the per-question drill-down rather than by
-  correcting the copy**, the generator needs more than one wrong answer per question: step
-  5.5's kit-wide cache gives all twenty pupils the byte-identical wrong answer, which is
-  invisible today (§3.2: no teacher-facing per-question view exists for AUTO answers) and
-  becomes "twenty pupils all chose option C" the day that view lands. That changes the cache
-  shape and R5's draw order, so it is a spec change, not an implementation detail.
-- **Q4** Should the demo show teacher **marking** at all? It needs a REVIEW question, which
-  published `mat-pp` does not have (§3.4). Options: leave it out, or give the demo a tiny
-  separate course carrying one REVIEW question.
+- ~~**Q2**~~ **RESOLVED 2026-09-12 by Krzysztof — the defaults stand:** 20 pupils, 14 days,
+  `FRONTIER_FRACTION = 0.75`. No longer blocks PR 2.
+- ~~**Q3**~~ **RESOLVED 2026-09-12 by Krzysztof — BUILD the per-question view**, as its own
+  follow-up PR (PR 5, §6). ⚠️ Note what this says about the *live* site: `/for-schools/`
+  already claims analytics drill down "to one pupil and one question", and §3.2 establishes
+  that no such teacher-facing view exists for AUTO answers — **so the page is inaccurate
+  today**, before any of this ships. PR 5 makes the existing claim true; PR 4's new demo copy
+  must not merge ahead of it.
+- ~~**Q3b**~~ **RESOLVED — and it is now in scope, because Q3 was answered by building.**
+  Step 5.5's kit-wide cache would give all twenty pupils the byte-identical wrong answer,
+  invisible while no per-question view exists and "twenty pupils all chose option C" the day
+  PR 5 lands. §3.1, §4.3 R1b, §4.5 and §8 are updated for **wrong-answer variants**; the
+  change is folded into PR 2 rather than deferred to PR 5, because retrofitting variety into a
+  kit-wide cache afterwards would change R5's draw order under a shipped generator.
+- ~~**Q4**~~ **RESOLVED 2026-09-12 by Krzysztof — skipped.** The demo shows force-submit but
+  not marking; published `mat-pp` has no REVIEW question and none will be added for the demo
+  (§3.4). Recorded as non-goal N9.
