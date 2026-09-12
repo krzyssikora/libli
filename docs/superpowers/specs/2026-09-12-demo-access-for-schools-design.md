@@ -17,7 +17,11 @@ What they must be able to do (settled with Krzysztof, 2026-09-11):
 
 1. browse lessons as a pupil,
 2. take a quiz and see it marked,
-3. see teacher analytics — the progress/results matrix and the drill-down to one pupil.
+3. see teacher analytics — the progress/results matrix and the drill-down to one pupil,
+4. and, secondarily, find the review queue non-empty: it is what makes "Force submit" a
+   live button rather than a dead one. Listed here because §4.4's post-generation warning,
+   §4.5's IN_PROGRESS pass and T5 all treat it as a deliverable, and a reader sizing the work
+   from this list alone would otherwise miss it.
 
 Explicitly NOT in scope: editing content in the demo, self-serve signup, outgoing
 email, and a demo review queue (see §3.4).
@@ -302,8 +306,11 @@ kit leaves no such users behind, so the distinction could only ever have seen li
   budgeted against the widest disambiguating integer below, not a two-digit one).
 - The disambiguating integer is searched over **2..999**; past that, the named collision
   error, so the search always terminates.
-- A label that slugifies to `""` — entirely non-ASCII input such as `"Łódź ###"` can —
+- A label that slugifies to `""` — a pure-punctuation label such as `"###"`, or CJK input —
   falls back to the literal `demo`; the disambiguating integer then separates schools.
+  (Polish diacritics do **not** degenerate: `slugify("Łódź", allow_unicode=False)` is `odz`,
+  since NFKD maps `ó`→`o` and `ź`→`z` and only the undecomposable `Ł` is dropped. A fixture
+  built on a Polish label would never exercise this fallback.)
 - Pupil numbering is zero-padded to the width of `--pupils` (`p01…p20` at the default), so
   it stays consistent and cannot collide within a kit; `--pupils` is bounded 5–40 (§4.4).
 - The group name truncates the label to 150 characters before the ` (#<pk>)` suffix.
@@ -354,6 +361,13 @@ refuse a kit that already has `closed_at` set.
   guards exactly that hand-edited/pre-migration case). Any of those silently produces a
   strong-band pupil failing a question. A failure here is a skip, never an exception that
   aborts the kit.
+  ⚠️ **Validation runs on the STORED form of the answer, not the builder's Python value.** The
+  builders return Python objects (a `set` of pks, a list of strings); `latest_answer` holds
+  what `answer_to_json` made of them, and `answer_from_json` turns a choice answer back into a
+  set (`courses/quiz.py:174,192`). So the generator serialises first and validates the
+  deserialised value — otherwise R1b could pass on a builder whose *stored* answer marks
+  differently, and T1, which re-marks `latest_answer`, would fail on code R1b called correct.
+  Builder output, stored answer and asserted mark are then the same object by construction.
   ⚠️ **The partial answer is validated per row too**, whenever one is used:
   `0 < mark(partial).fraction < 1`. R1b's own argument applies to it verbatim — a "partial"
   fill-blank whose remaining blanks happen to match, or a partial on a single-row grid, marks
@@ -374,8 +388,9 @@ refuse a kit that already has `closed_at` set.
   §8's criterion excludes skipped units from its denominator, so nothing would surface it.
 - **R2 Published only.** Only units with `published=True` receive progress or submissions —
   otherwise a draft appears in the matrix (§3.2).
-- **R3 Whole-unit skip.** If a unit contains any question the builders registry cannot
-  answer (including one in neither the registry nor `UNANSWERABLE_QUESTION_TYPES`), any question that
+- **R3 Whole-unit skip.** If a unit contains any **question** (R9's filtered set — never a
+  prose or image element) the builders registry cannot answer, including one whose type is in
+  neither the registry nor `UNANSWERABLE_QUESTION_TYPES`, any question that
   fails R1b, **or any REVIEW-mode question**, the unit is skipped entirely and a warning
   naming the unit and the reason is printed. Never skip a single question: a partial unit
   still counts, and a missing response reads exactly like an unreviewed REVIEW question.
@@ -411,10 +426,26 @@ refuse a kit that already has `closed_at` set.
   exposure with no operator override, in precisely the scenario the rule exists for. Every
   exempt command destroys or reads; none creates, and on a school's box the table is empty so
   all are no-ops there. T13 asserts this split at the **service** level as well as the parser.
-- **R9 Top-level questions only.** The generator enumerates exactly
-  `unit.elements.filter(parent__isnull=True)`, because that is the set `compute_scores` and
-  the review-pending gate use (§3.2). A nested question is neither answered nor a cause of an
-  R3 skip — answering one would write responses the score path ignores. This is a rule, not
+- **R9 Top-level QUESTIONS only.** The generator enumerates
+  `unit.elements.filter(parent__isnull=True).order_by("order", "pk")` **and keeps only those
+  whose `content_object` is a `QuestionElement` instance** — the join rows are `Element`s, and
+  §3.1 measured 479 elements against 260 questions, so the other 219 are prose, images and
+  callouts. ⚠️ Without the question filter, R3's "a type in neither the registry nor
+  `UNANSWERABLE_QUESTION_TYPES`" matches a text element and **every quiz is skipped**, leaving
+  an empty kit that §4.4's post-generation invariant then rolls back. R3's classification rule
+  is scoped to **question** types; a non-question element is ignored silently, like §4.5's
+  non-lesson non-quiz units. Resolving a join row to its concrete subclass uses the same
+  `content_object` access `compute_scores` does (`courses/quiz.py:213-217`,
+  `prefetch_related("content_object")`), not a bespoke union.
+  ⚠️ The **explicit `order_by` is load-bearing**: `Element.order` is
+  `OrderField(for_fields=["unit"])` (`courses/models.py:337`) and an unordered queryset lets
+  Postgres return rows in any order, which silently breaks R5 and makes T7 flaky rather than
+  red. The same explicit ordering applies wherever the generator walks blanks, pairs, grid
+  rows or choices — a matchpair's "tokens rotated" and a fill-blank's per-blank list both
+  depend on a pinned order.
+  Only top level: `compute_scores` and the review-pending gate filter `parent__isnull=True`
+  (§3.2), so a nested question is neither answered nor a cause of an R3 skip — answering one
+  would write responses the score path ignores. This is a rule, not
   an observation about today's `mat-pp`: §3.1's audit found all 260 questions top-level, but
   the reason it is *safe* is the `parent__isnull=True` filter, which holds whatever the
   content does next.
@@ -443,6 +474,10 @@ command invocations and `request.user` for the PR 3 tab. `frontier_part` is stor
 **Preconditions and bounds, enforced in `provision_kit` itself** — not only in the command,
 so the PR 3 form inherits them — each raising a named error:
 
+- `label` non-blank after stripping and at most 200 characters. ⚠️ It is the one free-text
+  input, and `Model.objects.create()` does **not** enforce `max_length`: an over-long label
+  reaches Postgres as a raw `DataError` mid-transaction, after the collision scan, instead of
+  a named error — and PR 3's form would inherit no check at all;
 - `5 <= pupils <= 40` and `1 <= days <= 90` (0 or negative days creates a kit the next purge
   deletes; 500 pupils would write six figures of rows in one web request). ⚠️ **The floor is
   5, not 2**, because the integer partition gives `strong = struggling = pupils * 20 // 100`,
@@ -462,8 +497,9 @@ so the PR 3 form inherits them — each raising a named error:
   likely operator slip, and "a course with that slug exists" does not catch it;
 - **a post-generation invariant on what was actually written**, checked inside the
   transaction so a failure rolls the whole kit back: **at least one finalized
-  `QuizSubmission` with a non-null `score`**, and at least one IN_PROGRESS submission or an
-  explicit warning. ⚠️ "At least one quiz survived R3/R1b" — the earlier wording — is not the
+  `QuizSubmission` with a non-null `score`**. (The IN_PROGRESS submission is a **warning**,
+  not a rollback condition — §4.5 — and is stated separately because "X or a warning" is
+  unfalsifiable: any implementation satisfies it by warning.) ⚠️ "At least one quiz survived R3/R1b" — the earlier wording — is not the
   same thing: every pupil's slice ends at their depth, so a course whose surviving quizzes
   all sit past even the strong band's reach passes that check and still provisions live
   credentials with an empty results mode and an empty review queue, which is exactly what the
@@ -556,7 +592,14 @@ Order of work, inside one transaction:
    `grouping.services.add_students_to_group(group, students, added_by=<kit Teacher>)`, never
    a direct `Enrollment.objects.create` (the service is the only sanctioned path, and
    `GroupMembership.added_by` is SET_NULL so deleting the Teacher later is safe).
-6. **Activity** for the fake pupils only (§4.5).
+5.5. **The kit-wide content pass**, computed **once**, before any pupil is touched: resolve
+   the published-unit list (§4.5), validate every top-level question per R1b, and cache the
+   R3-skipped set, the per-question answers and the answerable-quiz candidate set.
+   ⚠️ R1b costs two or three `mark()` calls per question row; re-deriving it inside the
+   per-pupil loop multiplies that by `pupils` — a 20× multiplier on exactly the cost PR 3's
+   request timeout turns on (§4.6). It also settles that "passes R3 for this kit" is a
+   kit-level fact, not a per-pupil one, which the IN_PROGRESS rule depends on.
+6. **Activity** for the fake pupils only (§4.5), consulting that cache and never re-marking.
 
 ⚠️ **Every user is added to `kit.users` the moment it is created** — steps 2, 3 and 4 each
 write the M2M immediately, never in a batch at the end. Two behaviours read that set and
@@ -585,7 +628,10 @@ on them being fixed):
 | struggling | 0.20 | 0.35 | 0.70 |
 
 - **Band assignment is a fixed partition, not a weighted draw per pupil.** In integer
-  arithmetic — `strong = struggling = pupils * 20 // 100`, the remainder `average`; float
+  arithmetic off the shares themselves — `STRONG_PCT = STRUGGLING_PCT = 20`,
+  `strong = struggling = pupils * STRONG_PCT // 100`, the remainder `average`, and the table
+  above renders those same constants rather than restating them (a literal `20` in the
+  formula means editing the table changes nothing and T7 still passes); float
   `floor(0.20 * pupils)` is at the mercy of binary representation (`0.2 * 15` is
   `3.0000000000000004`) in a rule T7 needs to be exact; the resulting list is then shuffled once with the kit RNG. A per-pupil weighted
   draw was rejected: a 20-pupil class could legitimately come out with no strugglers, which
@@ -640,7 +686,11 @@ on them being fixed):
   ambiguous and the last matrix column depends on it. Within that slice the pupil attempts
   every **quiz**, completes each **obligatory lesson** with probability
   `P_LESSON_DONE` = 1.00 / 0.95 / 0.80 by band, and completes each **optional lesson** with
-  `P_OPTIONAL_DONE` = 0.50 / 0.30 / 0.15.
+  `P_OPTIONAL_DONE` = 0.50 / 0.30 / 0.15. "Obligatory lesson" means exactly
+  `courses.rollups.is_obligatory_lesson(node)` (`courses/rollups.py:157-164`) — the same
+  predicate the matrix denominator uses, reused rather than reimplemented, so the generator
+  cannot desynchronise from the screen it generates for; an optional lesson is a `LESSON`
+  unit that predicate rejects.
   ⚠️ Optional lessons count toward no matrix total (§3.2) but they **do** carry a tick in the
   per-pupil drill-down, which is §1's requirement 3 — leaving them untouched would show every
   optional lesson unticked for every pupil, a systematic pattern no class has, on one of the
@@ -665,7 +715,11 @@ on them being fixed):
   `attempt_count = 1`, `last_attempt_at = timezone.now()` at write time — **rewritten** by
   the back-dating pass if Q1 keeps it, so the field is well defined on either branch of that
   question rather than defined only by reference to a pass one branch deletes — and `locked`
-  left False —
+  left False. Those are the **mutable** fields; the row is additionally identified by its
+  `submission` and `element` FKs (the pair `finalize_submission`'s
+  `responses.update(locked=True)` and `compute_scores`' `responses[el.pk]` lookup both rely
+  on), and `max_marks` is **not** denormalised onto it — R1's `earned_marks(fraction,
+  max_marks)` reads `max_marks` from the question object. —
   `finalize_submission` sets it via `responses.update(locked=True)` for the finalized rows,
   and the IN_PROGRESS rows stay unlocked, which is what production leaves them as.
   ⚠️ `last_attempt_at` is a plain nullable field with **no auto behaviour**
@@ -697,15 +751,23 @@ on them being fixed):
   `compute_scores` counts toward `max_score` but not `score`, §3.2) and shows a half-filled
   form on resume. The half-filled version is the realistic one — it is why the quiz is
   unfinished.
-  ⚠️ **The candidate set is the quizzes that pass R3 and R1b for this kit** — the same
-  filtered set the finalized pass uses, not "published quizzes". Otherwise this rule is the
-  one place that can select a unit the generator is forbidden to answer, and it would write
-  an empty submission (no responses to force-submit) or raise, contradicting R1b's
-  "a skip, never an exception". Within that set the target is **the first quiz strictly after
-  the pupil's depth**; failing that, the last such quiz the pupil has not already submitted;
-  failing that, skip the pupil and **warn** — a kit with fewer than `IN_PROGRESS_PUPILS`
-  in-progress submissions has an empty review queue, one of the two screens the demo exists
-  to show. A candidate found to fail validation mid-write is skipped and the chain continues.
+  ⚠️ **The candidate set** is the quizzes that pass R3 and R1b for this kit (§4.4 step 5.5's
+  cache), **excluding** units whose questions are all NOT_MARKED (§4.5 gives those no
+  submission at all) and units with **fewer than two** top-level answerable questions — a
+  strictly proper prefix needs `n >= 2`, and `mat-pp` does contain one-question quizzes
+  (§3.1), on which `randint(1, n-1)` would raise.
+  **Which pupils get one:** the `IN_PROGRESS_PUPILS` shallowest pupils by depth **that have a
+  candidate quiz ahead of them**, not "the first two in creation order". The target is the
+  first candidate quiz strictly after the pupil's depth. ⚠️ The old chain was unreachable
+  past its first clause: if no candidate lies after the pupil's depth then every candidate is
+  inside the slice, where the pupil has already submitted all of them, so "the last one not
+  already submitted" was empty by construction — and the one case that *did* reach it was an
+  all-NOT_MARKED unit, which the same section forbids a submission. Picking shallow pupils
+  makes a target exist by construction; the strong band, whose depth can clamp to the last
+  unit, is exactly who had none.
+  If no pupil qualifies at all, **warn** — a kit with no in-progress submission has an empty
+  review queue. A candidate found to fail validation mid-write is skipped and the next
+  candidate quiz is tried.
 - **RNG order (fixed, part of R5), in full:**
   1. **per pupil in creation order: given name, then surname** (two draws each, plus a redraw
      per rejected duplicate — see below). ⚠️ These happen in §4.4 step 4, *before* everything
@@ -742,8 +804,15 @@ on them being fixed):
   ⚠️ **The mapping is keyed on `(unit_id, student_id)`, not on `unit_id` alone.** A unit-only
   key stamps all 20 pupils — strong, average and struggling — as having finished unit *k* at
   the identical instant, a shape no class has, and it erases exactly the pace variation the
-  bands exist to show. Each pupil's timestamp for a unit is the unit's base plus a small
-  per-pupil offset drawn from the kit RNG (in the fixed order above).
+  bands exist to show. Each pupil's timestamp is the base plus a small per-pupil offset drawn
+  from the kit RNG (in the fixed order above).
+  ⚠️ **The index is normalised against the PUPIL'S OWN depth, not the whole list**: unit *k*
+  of a pupil whose depth is *d* lands at `created_at − BACKDATE_DAYS × (1 − k/d)`. Normalising
+  against `len(published_units)` instead would put a struggling pupil's *latest* work
+  ≈ 20 days in the past, so the whole slow band reads "stopped working three weeks ago" in the
+  drill-down — Risk 3's abandoned-class symptom arriving on day one. A real slow pupil has
+  done *less*, not *older*, work: everyone's most recent activity should sit near
+  `created_at`, with the bands differing in how far they got. T18 asserts it.
   **Covered:** `UnitProgress.completed_at`; `QuizSubmission.submitted_at` **and `created`**
   for finalized rows — back-dating `submitted_at` alone would leave every submission
   claiming it was submitted 42 days before it was created (`created` is `auto_now_add`,
@@ -774,7 +843,7 @@ entry that returns a *wrong* "correct" answer is otherwise invisible (§8).
 | invocation | behaviour |
 |---|---|
 | `demo_access create --label "SP 12 Kraków" --course <slug> [--days 14] [--pupils 20] [--frontier-part N]` | provisions; prints kit id, both usernames, both generated passwords and the expiry **once** |
-| `demo_access list` | id, label, **course slug, pupils**, created, expires, status (`active` / `expired — pending purge` / `closed (expired\|revoked)`). The course and pupil count are there because `list` is the ops-routine surface (§5.4): without them an operator reconciling "which kit is this?" once a second course exists has to go to the DB |
+| `demo_access list [--all]` | active and `expired — pending purge` kits only, newest first; `--all` adds closed ones. ⚠️ The default filter is the point: `list` is Risk 5's early warning, and after a year of demos the one pending-purge row that matters would be buried among dozens of closed ones. Columns: id, label, **course slug, pupils**, created, expires, status (`active` / `expired — pending purge` / `closed (expired\|revoked)`). The course and pupil count are there because `list` is the ops-routine surface (§5.4): without them an operator reconciling "which kit is this?" once a second course exists has to go to the DB |
 | `demo_access extend <id> --days N` | `expires_at = max(expires_at, now()) + N days` — the `max` matters for a kit that expired yesterday but has not been purged (§4.7), where extending from the stale date could leave it still expired. Refuses a closed kit; warns when the new `expires_at` is more than 60 days after `created_at` (the class's back-dated activity then looks abandoned) |
 | `demo_access revoke <id>` | purges now, `closed_reason="revoked"`; refuses a closed kit |
 | `demo_access purge [--dry-run]` | purges every kit matching `expires_at <= now() AND closed_at IS NULL`, `closed_reason="expired"`, **each kit in its own transaction**: a failure is logged and the loop continues to the next kit, with a non-zero exit at the end so the cron log shows it. One kit's failure must not leave the others' logins alive. `--dry-run` **prints the id and label of every kit it would purge** and writes nothing — a dry run that printed nothing could not serve as the "test it by hand first" step below |
@@ -786,11 +855,18 @@ import re-derives slugs from titles, so a slug is not a stable identifier —
 
 **The service layer behind the table** (D6: the commands and the tab call the same
 functions): `provision_kit(...) -> ProvisionResult` (§4.4), `purge_kit(kit, *, reason)`
-returning None, `extend_kit(kit, *, days)` and `revoke_kit(kit)`. **`extend_kit` enforces the
-same `1 <= days <= 90` bound as creation and the same closed-kit refusal** — unbounded here,
-`--days 0` is a no-op that still writes, a negative value moves `expires_at` into the past so
-the next purge deletes the kit the operator just tried to keep, and `--days 3650` manufactures
-Risk 3's abandoned class. The `active / expired — pending purge / closed (…)` status string is
+returning None, `extend_kit(kit, *, days) -> ExtendResult` and `revoke_kit(kit)`.
+**The vendor guard sits in the services, one answer each:** `provision_kit` and `extend_kit`
+**guarded** (matching their subcommands), `revoke_kit` and `purge_kit` **exempt** (R8) — T13
+asserts all four, not just the two it used to name.
+**`extend_kit` enforces the same `1 <= days <= 90` bound as creation and the same closed-kit
+refusal** — unbounded here, `--days 0` is a no-op that still writes, a negative value moves
+`expires_at` into the past so the next purge deletes the kit the operator just tried to keep,
+and `--days 3650` manufactures Risk 3's abandoned class. **It also returns the 60-day
+warning** (as a flag on `ExtendResult`) rather than printing it: the warning is Risk 3's only
+mitigation, and leaving it in the command would let PR 3's "Extend +14 days" button walk a kit
+past 60 days silently — the one field where D6's shared service layer would have been broken.
+The command prints it; the tab renders it as a form message. The `active / expired — pending purge / closed (…)` status string is
 a **`DemoKit` property**, computed once on the model, so the command and the tab cannot drift.
 
 ⚠️ The purge predicate's `closed_at IS NULL` conjunct is what makes purge **idempotent**:
@@ -798,8 +874,8 @@ without it every historical kit is re-processed nightly for ever. It is tested d
 (T15), not just via `purge_kit`.
 
 Passwords are `PASSWORD_LENGTH = 14` characters drawn with `secrets.choice` from a pinned
-module constant: the ASCII letters and digits minus the ambiguous `O o 0 I l 1`, i.e. 55
-symbols, so ~81 bits. Stated exactly rather than as "~12 characters" because this credential
+module constant: the ASCII letters and digits minus the ambiguous `O o 0 I l 1`, i.e. **56**
+symbols (62 − 6), so ~81 bits. Stated exactly rather than as "~12 characters" because this credential
 goes to a stranger and lives on prod for a fortnight. Passwords are **never stored** — only
 Django's hash.
 
@@ -1030,10 +1106,14 @@ the only test that runs at the default**, and it reads as such.
   generated, that question alone skipped (R3's stated exception); (b) a unit whose top-level
   questions are **all** NOT_MARKED gets no submission (§4.5 — the cell could never show a
   score); (c) a unit with an unanswerable question **nested in a container** is generated
-  normally, because R9 never looks at it. Plus: when the quiz just past a pupil's depth is
-  R3-skipped, the IN_PROGRESS chain moves on to the next candidate rather than writing an
-  empty submission. Mutant: `continue` past an unanswerable top-level AUTO question instead
-  of skipping its unit.
+  normally, because R9 never looks at it; (d) a quiz holding **prose, image and callout
+  elements** beside its questions is generated normally — R9's question filter, without which
+  every real quiz would be skipped and the kit would roll back empty. Plus: a **one-question**
+  quiz and an **all-NOT_MARKED** quiz are never chosen as IN_PROGRESS targets (the
+  empty-prefix and no-gradeable-response boundaries, §4.5), and when the quiz just past a
+  pupil's depth is R3-skipped the chain moves to the next candidate rather than writing an
+  empty submission. Mutants: `continue` past an unanswerable top-level AUTO question instead
+  of skipping its unit; drop the `QuestionElement` filter from R9's enumeration.
 - **T6 Type coverage, derived not pinned.** Enumerate `QuestionElement` subclasses; assert
   each is either in the builders registry or in `UNANSWERABLE_QUESTION_TYPES`, **and that every registry
   type has a fixture in T1b** — so a type cannot pass quietly by having no fixture. A new
@@ -1116,7 +1196,9 @@ the only test that runs at the default**, and it reads as such.
 - **T18 Back-dating** (only if Q1 keeps it): `completed_at` and `submitted_at` land inside
   the `BACKDATE_DAYS` window before `created_at`; **two different units' timestamps are
   strictly ordered** by pre-order position; **two pupils differ on the same unit** (the
-  per-pupil offset, §4.5); and every finalized row satisfies `created <= submitted_at`.
+  per-pupil offset, §4.5); **every pupil's latest activity sits near `created_at` regardless
+  of band** (the per-pupil-depth normalisation — a struggling pupil whose last work is three
+  weeks stale is the failure this catches); and every finalized row satisfies `created <= submitted_at`.
   Mutants: write one scalar to every row (the window assertion still passes, the ordering one
   must not); and key the `Case` on `unit_id` alone (the cross-unit ordering still passes, the
   two-pupils one must not).
@@ -1151,19 +1233,21 @@ the drill-down, the review queue and the pupil view in a browser, light and dark
 **Acceptance criteria for the frontier default**, both measured **with every part expanded
 to unit columns** (an unexpanded part column lights up as soon as one quiz under it counts,
 §3.2, so it cannot discriminate):
-1. *results mode* — at least two-thirds of the eligible **quiz unit** columns hold a score for
-   at least half **the class, meaning the generated pupils only**
+1. *results mode* — at least two-thirds of **the course's published quiz units, minus those
+   R3-skipped and those whose questions are all NOT_MARKED**, hold a score for at least half
+   **the class, meaning the generated pupils only**
    (the matrix has `pupils + 1` rows and the extra one, the rep's Student, is deliberately
    blank at measurement time — counting it over 21 rows would shift the sole gate on
-   `FRONTIER_FRACTION`). **The denominator is: quiz units carrying at least one finalized
-   submission in this kit, minus R3-skipped units**, read off the exported matrix rather than
-   from generator logs. Stated that precisely because "attempted" could also mean "in any
-   pupil's slice", which would include columns only the strong band reached — columns that by
-   construction can never hold a score for half the class, so a correct implementation would
-   fail the gate for a reason unrelated to the fraction. Excluding skips matters for the
-   mirror-image reason: a skip blanks a column for everyone, so counting them turns the
-   measurement into a verdict on builder coverage. Skip warnings are recorded beside the
-   number;
+   ⚠️ **The denominator must not move with `FRONTIER_FRACTION`, or the criterion cannot gate
+   it.** Two earlier denominators did: "units the generator attempted" and "units carrying a
+   finalized submission" are both prefixes ending at the *deepest* pupil's depth
+   (≈ `F × 1.15 × 1.08 × len`), while the numerator ends at the *median* pupil's
+   (≈ `F × len`). Their ratio is ≈ `1/1.24 ≈ 0.8` for **every** F up to ~0.8 — the same
+   verdict at 0.75, 0.65 and 0.10. Measured against the course's whole published quiz set the
+   ratio is instead ≈ F, so two-thirds genuinely fails at 0.6 and passes at 0.75. The two
+   exclusions are the units that can never hold a score for anyone, and skip warnings are
+   recorded beside the number so a low reading can be attributed to builder coverage rather
+   than to the fraction. Read off the exported matrix, not from generator logs;
 2. *progress mode* — the class shows **gaps behind the frontier**, not a clean staircase
    (the `P_LESSON_DONE` check, §4.5). This is the screen that opens first.
 
