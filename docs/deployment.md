@@ -466,6 +466,27 @@ And the nightly backup — **one physical line**, same as above:
 same container and disk is avoidable. The host clock is UTC, so this, the artifact
 timestamps and `taken_at` are all the same clock.
 
+And the demo-kit purge — **one physical line**, in the root crontab:
+
+```cron
+45 3 * * * cd /opt/libli && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app /app/.venv/bin/python manage.py demo_access purge >> /var/log/libli-demo-purge.log 2>&1
+```
+
+`45 3`, clear of the 02:15 backup and the 03:30 notifications purge. Test it once by hand
+with `--dry-run` first, and check `logrotate` covers `/var/log/libli-*.log`.
+
+⚠️ **A silently failing purge leaves live logins on prod.** Three ways it can stop: the app
+container being down (including the ~24 s of every deploy), one kit raising (each kit has its
+own transaction, so the others still close and the run exits non-zero), and — if `purge` were
+ever vendor-gated — a lost `LIBLI_VENDOR_INSTANCE`. That is why it is not. Add
+`demo_access list` to the routine you already use to look at the box: it shows
+`pending_purge` rows.
+
+**Before the first kit:** set `LIBLI_VENDOR_INSTANCE=true` in `.env.production` (measured
+2026-09-12: unset, so `/for-schools/` is 404 and `demo_access create` refuses), and fill
+`Institution.contact_email` (measured: blank). ⚠️ The same flag publishes `/for-schools/`, so
+turning it on is a publishing decision — see the spec's §5.
+
 If you use `/etc/crontab` instead, that file takes an extra **user** field between the
 schedule and the command.
 
