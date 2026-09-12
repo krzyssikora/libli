@@ -1,10 +1,29 @@
 """Notification creation, read/query services, and the per-event notify helpers."""
 
+import contextlib
+import contextvars
+
 from django.db import transaction
 
 from courses.models import Course
 from courses.models import QuizSubmission
 from notifications.models import Notification
+
+# Per-thread / per-async-task mute. Set by callers that create many rows in one
+# operation and must stay silent — demo.services.provision_kit enrols 6-41 users
+# at once (spec R6). NOT a module-attribute swap: provisioning can run inside a
+# web request for up to a minute, and rebinding `notify` globally would silence
+# every OTHER request in that worker for the duration.
+_MUTED = contextvars.ContextVar("notifications_muted", default=False)
+
+
+@contextlib.contextmanager
+def muted():
+    token = _MUTED.set(True)
+    try:
+        yield
+    finally:
+        _MUTED.reset(token)
 
 
 def _resolve_target(target):
@@ -19,6 +38,8 @@ def _resolve_target(target):
 def notify(*, recipient, kind, target, actor=None, data=None):
     """Record a notification. No-op (returns None) when recipient == actor.
     Call inside the emit site's transaction.atomic() block."""
+    if _MUTED.get():
+        return None
     if actor is not None and recipient == actor:
         return None
     target_type, target_id = _resolve_target(target)
