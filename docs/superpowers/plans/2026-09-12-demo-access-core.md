@@ -273,14 +273,32 @@ has `DEBUG=False` now gets a bare `CommandError` with nothing explaining the new
   `config.settings.test`, where `DEBUG` is False. It is **not** collected by the default run
   (`python_files = ["test_*.py"]` does not match `capture_*`), so nothing goes red — the
   help-screenshot regeneration workflow simply starts raising `CommandError` the next time
-  someone runs that file explicitly, with no clue why. **Fix it now**, with the same autouse
-  shape Step 4 uses:
+  someone runs that file explicitly, with no clue why. **Fix it at the CALL SITE**, not with an
+  autouse fixture:
 
   ```python
-  @pytest.fixture(autouse=True)
-  def _allow_the_screenshot_fixture(settings):
-      settings.DEBUG = True  # seed_demo_course is DEBUG-only since PR 1
+  from django.test import override_settings
+
+  with override_settings(DEBUG=True):  # seed_demo_course is DEBUG-only since PR 1
+      call_command("seed_demo_course")  # once, before the locale loop
   ```
+
+  ⚠️ Narrow on purpose. An autouse `settings.DEBUG = True` would flip the flag for the whole
+  of `test_capture_help_screenshots` — a `live_server` + Playwright run whose entire output is
+  committed PNGs — changing error-page rendering, `connection.queries` accumulation and static
+  handling for the duration. A strictly larger blast radius than the one line that needs it, in
+  the one file the plan admits nothing routinely runs.
+
+  **Verify it**, since nothing else will:
+
+  ```bash
+  uv run pytest tests/capture_help_screenshots.py -m e2e -v
+  ```
+
+  ⚠️ `-m e2e` is mandatory — `addopts` carries `-m 'not e2e'`, so without it the file collects
+  zero tests and reports a misleading green. Start the test-DB container first (see the Global
+  Constraints), and expect a browser run. If you cannot run it here, say so in the PR body
+  rather than claiming the fix is verified.
 
 - `courses/tests/test_callout_numbering_render.py:184` calls `Command()._callout` directly,
   never `handle()`, so the guard does not touch it. No change needed.
@@ -518,6 +536,16 @@ class KitAlreadyClosed(DemoKitError):
 
 class NamePoolExhausted(DemoKitError):
     pass
+
+
+class PurgeFailed(DemoKitError):
+    """Raised AFTER purge_expired has attempted every due kit, so one bad kit
+    cannot strand the rest. Carries the kits that DID close, so the command can
+    still report them before the non-zero exit."""
+
+    def __init__(self, message, purged):
+        self.purged = purged
+        super().__init__(message)
 ```
 
 - [ ] **Step 6: Write the model**
@@ -615,9 +643,26 @@ class DemoKit(models.Model):
         return "active"
 ```
 
-- [ ] **Step 7: Register the app and open the S311 per-file-ignore**
+- [ ] **Step 7: Register the app, update the app-set guard, and open the S311 per-file-ignore**
 
 In `config/settings/base.py`, add `"demo",` to `INSTALLED_APPS` after `"support",`.
+
+⚠️ **`tests/test_element_state_write_routes.py:69` WILL GO RED, and it is a branch-protection
+gate, not a local one.** `test_the_first_party_app_set_is_what_we_think_it_is` builds
+`_first_party_roots()` from `apps.get_app_configs()` filtered to `path.parent == ROOT`, and
+asserts equality against a hard-coded set of ten names. `demo/` sits directly under the repo
+root, so it becomes an eleventh member and the assertion fails. The guard's own comment says
+"If a tenth app ships, this guard must be re-read rather than silently skipping it" — so read
+it, confirm `demo/` genuinely holds first-party source that the write-route scan should cover
+(it does: `demo/services.py` and `demo/generator.py` write model state), then add `"demo"` to
+the set and re-run:
+
+```bash
+uv run pytest tests/test_element_state_write_routes.py -v
+```
+
+This is the **third** registry-wide drift guard, alongside `tests/test_list_referenced_files.py`
+and `tests/test_transfer_schema.py` — see Final verification.
 
 In `pyproject.toml`, **add** to the existing `[tool.ruff.lint.per-file-ignores]` block (keep
 the two `S105/S106/S107` entries that are already there):
@@ -663,6 +708,7 @@ Expected: "No changes detected" — CI runs this and fails the build otherwise.
 
 ```bash
 git add demo/ config/settings/base.py pyproject.toml tests/demo/
+git add tests/test_element_state_write_routes.py  # the app-set guard, per Step 7
 git commit -m "feat(demo): add the demo app, DemoKit model and error hierarchy"
 ```
 
@@ -1223,6 +1269,19 @@ def test_every_registry_type_has_a_fixture_and_an_honest_builder():
         if answers.partial is not None:
             f = question.mark(answers.partial).fraction
             assert 0 < f < 1, (model, f)
+
+
+@pytest.mark.django_db
+def test_the_wrong_text_pool_covers_the_variant_count():
+    """WRONG_TEXTS is the pool _shorttext and _fillblank draw from, and
+    WRONG_VARIANTS is how many variants every builder may return. Today both are
+    3 and the relationship is only a COMMENT — raise WRONG_VARIANTS to 4 and
+    every text-shaped question silently caps at three with no warning. Same shape
+    as the MAX_PUPILS / name-pool coupling; derived, never a `== 3` pin."""
+    from demo.constants import WRONG_TEXTS, WRONG_VARIANTS
+
+    assert len(WRONG_TEXTS) >= WRONG_VARIANTS
+    assert len(set(WRONG_TEXTS)) == len(WRONG_TEXTS)
 
 
 @pytest.mark.django_db
@@ -2240,10 +2299,14 @@ def build_course_plan(course):
 - [ ] **Step 6: Run the tests**
 
 ```bash
-uv run pytest tests/demo/test_content.py -v
+uv run pytest tests/demo/test_content.py tests/test_i18n_po_health.py -v
 ```
 
-Expected: PASS (four tests).
+Expected: PASS (four demo tests, plus the catalog health guards). ⚠️ `test_i18n_po_health.py`
+is the real check behind Step 4b's fuzzy warning — `test_no_fuzzy_entries`,
+`test_no_obsolete_entries` and `test_pl_has_no_untranslated_msgid` run against the actual
+catalogs, so a blank `msgstr` or a `makemessages` fuzzy pre-fill fails here rather than
+shipping.
 
 - [ ] **Step 7: Falsify the quiz-only scope**
 
@@ -3021,7 +3084,41 @@ def test_a_one_question_quiz_is_never_an_in_progress_target():
     assert not {u.pk for u in one_question} & {
         u.pk for u in plan.in_progress_candidates
     }
+
+
+@pytest.mark.django_db
+def test_no_qualifying_pupil_is_reported_not_silently_swallowed():
+    """Both shortfall branches tell the operator that §1's fourth requirement — a
+    non-empty review queue — silently failed. Nothing else drives them: Task 15's
+    DISPLAY test only proves the map is self-consistent, so without this they are
+    dead code every test leaves green, and the
+    f"{len(chosen)} of {IN_PROGRESS_PUPILS}" reason could be malformed forever.
+
+    Driven directly rather than through a course shaped to fail: every pupil is
+    handed a depth past the end of the outline, so _usable_target's
+    `position <= depth` rejects every candidate."""
+    import random
+
+    from demo.content import build_course_plan
+    from demo.generator import leave_in_progress
+    from demo.warnings import KINDS
+    from tests.demo.fixtures import small_course
+
+    plan = build_course_plan(small_course())
+    deep = len(plan.units) + 1
+    warnings = leave_in_progress(
+        random.Random(1), plan, pupils=[None, None], bands=["average"] * 2,
+        depths=[deep, deep],
+    )
+
+    assert [w.kind for w in warnings] == ["no_qualifying_pupil"]
+    assert warnings[0].kind in KINDS  # the closed-set guard actually fired
+    assert warnings[0].reason
 ```
+
+⚠️ `pupils=[None, None]` works only because no pupil is ever selected — the `QuizSubmission`
+lookup runs against `student=None` and returns empty. If you extend this test to a case where
+`chosen` is non-empty, pass real users.
 
 ⚠️ The membership check is on **pks**, not on model instances: two queries for the same row
 produce unequal Python objects in some paths, and a set intersection of instances would then
@@ -3336,6 +3433,23 @@ def test_bounds_and_preconditions_raise_named_errors():
         with pytest.raises(errors.EmptyCourse):
             provision_kit("SP", course=empty, days=14, pupils=5, seed=1)
 
+        # A course with units but NOTHING ANSWERABLE — caught up front, by the
+        # course-shaped message, not by the per-pupil EmptyKit loop after every
+        # row has been written. Assert on the empty DemoKit table: a late raise
+        # also rolls back, so pytest.raises alone cannot tell them apart.
+        from demo.models import DemoKit
+        from tests.demo.fixtures import small_course
+
+        prose_only = small_course(slug="prose-only", quiz_without_questions=True)
+        prose_only.nodes.filter(unit_type="quiz").exclude(
+            title="Prose-only quiz"
+        ).update(published=False)
+        before = DemoKit.objects.count()
+        with pytest.raises(errors.EmptyCourse) as exc:
+            provision_kit("SP", course=prose_only, days=14, pupils=5, seed=1)
+        assert "quiz" in str(exc.value)
+        assert DemoKit.objects.count() == before
+
         # frontier_part is validated UP FRONT, like days and pupils — not deep
         # inside generate() after every user has been written. Asserting on the
         # empty DemoKit table is what proves the check ran early; a late raise
@@ -3492,7 +3606,7 @@ def test_the_demo_teacher_can_read_every_course_on_the_box():
     """⚠️ THIS TEST DOCUMENTS A KNOWN WIDENING, and is expected to PASS — read
     the note under Step 3 before changing it.
 
-    `accessible_courses` (courses/access.py:22) returns Course.objects.all() for
+    `accessible_courses` (courses/access.py:22-23) returns Course.objects.all() for
     ANY is_staff user, and the demo Teacher receives is_staff=True from its
     TEACHER role — `set_user_role` derives the flag via `role_is_staff`, so this
     is not something _make_user chose. So a school rep's demo login can read every
@@ -3547,7 +3661,7 @@ Expected: FAIL — `ImportError: cannot import name 'provision_kit'`.
 
 ⚠️ **Known widening, accepted for the PR 1–2 interval.** The Teacher ends up `is_staff=True`
 because `set_user_role(TEACHER)` derives the flag from `role_is_staff` — and
-`courses/access.py:22` grants **every** `is_staff` user read access to **every** course on the
+`courses/access.py:22-23` grants **every** `is_staff` user read access to **every** course on the
 box. On the vendor instance that means one school's demo Teacher can open another school's
 demo course, and any other course hosted there. Two reasons this ships anyway: the vendor
 instance hosts only courses we author and the kits we issue, and kits are time-limited and
@@ -3579,8 +3693,10 @@ from django.views.decorators.debug import sensitive_variables
 from accounts.emails import ensure_verified_primary_email
 from accounts.services import set_user_role
 from courses.models import QuizSubmission, UnitProgress
-# NOTE: no `is_obligatory_lesson` import here — nothing in this module uses it
-# (its only consumer is demo/generator.py), and ruff's F401 fails the lint gate.
+# `is_obligatory_lesson` IS used here — by the up-front "no obligatory lesson"
+# check in provision_kit. (It was briefly dropped as unused when that check lived
+# only in the generator; restore it, or the check is an F821.)
+from courses.rollups import is_obligatory_lesson
 from demo import errors
 from demo.constants import (
     DEFAULT_DAYS, DEFAULT_PUPILS, EMAIL_DOMAIN, LABEL_MAX, MAX_DAYS,
@@ -3727,6 +3843,21 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
     # would otherwise do a full provisioning's worth of work before rolling back,
     # and PR 3's form could not attach the message to a field.
     frontier_index(plan, frontier_part, course)  # raises InvalidFrontierPart
+
+    # The other two whole-course defects, checked HERE for the same reason.
+    # generate()'s reach-forward is a no-op when either of these is missing, so
+    # the per-pupil EmptyKit loop at the bottom would be the first to notice —
+    # after a kit, a group, a teacher, a student, up to 40 pupils and the whole
+    # generation pass have been written and are about to roll back. And its
+    # message names a PUPIL ("produced no usable activity for sp-12-p01") when
+    # the defect is the COURSE.
+    if not any(is_obligatory_lesson(u) for u in plan.units):
+        raise errors.EmptyCourse(f"{course.slug} has no obligatory published lesson")
+    if not plan.answerable_quizzes:
+        raise errors.EmptyCourse(
+            f"{course.slug} has no quiz the demo can answer "
+            f"({len(plan.skipped_quiz_ids)} skipped)"
+        )
 
     slug = slugify(label, allow_unicode=False)[:SLUG_MAX] or SLUG_FALLBACK
     base = _free_base(slug, pupils)
@@ -3962,28 +4093,40 @@ def test_provisioning_queries_do_not_scale_with_the_class(
     with django_assert_max_num_queries(4000) as ten:
         provision_for_test(small_ten, label="Ten", pupils=10)
 
-    # Doubling the class must not more than double the queries. A per-pupil
-    # content pass would make the ratio track the question count instead.
-    assert len(ten) < len(five) * 2.5, (
-        f"{len(five)} queries for 5 pupils, {len(ten)} for 10 — the per-pupil "
-        "cost is superlinear; the content pass is running inside the loop"
+    # THE MARGINAL COST PER PUPIL — the quantity a per-pupil content pass
+    # inflates. Measured on the correct build (see below) and pinned with
+    # headroom.
+    #
+    # ⚠️ NOT A RATIO. `assert len(ten) < len(five) * 2.5` cannot fail for ANY
+    # input: query cost is B + p*X (a fixed base plus a per-pupil term), so the
+    # 5->10 ratio is (B + 10X)/(B + 5X), which is strictly less than 2 for every
+    # B > 0 and approaches 2 only as B -> 0. Moving the content pass inside the
+    # loop multiplies X — it does not make growth superlinear — so the ratio
+    # stays under 2 either way and the guard is green on the broken build.
+    per_pupil = (len(ten) - len(five)) / 5
+    assert per_pupil <= MEASURED_PER_PUPIL * 1.5, (
+        f"{per_pupil:.1f} queries per additional pupil vs a measured "
+        f"{MEASURED_PER_PUPIL} — the content pass is running inside the loop"
     )
 ```
 
-⚠️ **The 2000/4000 ceilings are placeholders — MEASURE FIRST, then set them.** Nothing has
+⚠️ **Every number here is a placeholder — MEASURE FIRST, then set all three.** Nothing has
 counted these: `_top_level_questions` is a query per unit, `mark()` re-queries its own
 children, `finalize_submission` → `compute_scores` re-queries elements and GFK targets per
 submission, and `_free_base`'s `_taken` is three queries per disambiguator attempt. A 5-pupil
 run over 18 units could plausibly land either side of 2000.
 
-So: **run it once with both ceilings at `100_000`**, read the two counts the failure message
-or a `print(len(five), len(ten))` gives you, then set each ceiling to roughly **1.5×** the
-measured value and write both numbers into this step and into the PR body.
+So: **run it once with both ceilings at `100_000` and the `per_pupil` assertion commented
+out**, printing `len(five)`, `len(ten)` and `(len(ten) - len(five)) / 5`. Then:
 
-⚠️ **A later breach means investigating, not bumping.** Once the numbers are measured, raising
-a ceiling to get green destroys the only tripwire this task installs. **The ratio assertion is
-the real test** — it is the one that catches the per-pupil regression, and it needs no
-calibration.
+- set each ceiling to roughly **1.5×** its measured count;
+- set `MEASURED_PER_PUPIL` (a module constant in the test file) to the measured marginal cost;
+- write all three numbers into this step **and** into the PR body.
+
+⚠️ **A later breach means investigating, not bumping.** Raising a number to get green destroys
+the only tripwire this task installs. **`per_pupil` is the real test** — the two absolute
+ceilings are a coarse backstop that also moves whenever the fixture grows a unit, but the
+marginal cost is what the design's whole "validate once, kit-wide" argument is about.
 
 Then time a local mat-pp run (see Final verification for the env-var spelling) and **write the
 seconds and the verdict into the PR body**.
@@ -4106,12 +4249,64 @@ def test_purge_expired_selects_only_expired_open_kits_and_is_idempotent():
         expires_at=timezone.now() - timedelta(days=1)
     )
 
+    # --dry-run IS A PREVIEW, and the runbook tells the operator to trust it on
+    # prod. Prove it changes nothing: a build that ignores (or inverts) the flag
+    # purges the kits here, and without these three assertions every test stays
+    # green while the "safe preview" silently destroys a live demo.
+    from django.contrib.auth import get_user_model
+
+    previewed = purge_expired(dry_run=True)
+    assert [k.pk for k in previewed] == [expired.pk]
+    expired.refresh_from_db()
+    assert expired.closed_at is None, "--dry-run closed a kit"
+    assert get_user_model().objects.filter(demo_kits=expired).exists(), (
+        "--dry-run deleted the kit's users"
+    )
+
     purged = purge_expired()
     assert [k.pk for k in purged] == [expired.pk]
 
     assert purge_expired() == []  # closed_at IS NULL keeps it idempotent
     live.refresh_from_db()
     assert live.closed_at is None
+
+
+@pytest.mark.django_db
+def test_one_failing_kit_does_not_strand_the_others(monkeypatch):
+    """C4 — the runbook tells the operator "each kit has its own transaction, so
+    the others still close and the run exits non-zero". Without the try/except in
+    purge_expired that sentence is false: the first exception leaves every later
+    kit's logins LIVE ON PROD, which is the exact failure the cron warning exists
+    for."""
+    from demo import services
+    from demo.models import DemoKit
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    course = small_course()
+    first = provision_for_test(course, label="First")
+    second = provision_for_test(course, label="Second")
+    DemoKit.objects.filter(pk__in=[first.pk, second.pk]).update(
+        expires_at=timezone.now() - timedelta(days=1)
+    )
+
+    real_purge = services.purge_kit
+
+    def explode_on_first(kit, *, reason):
+        if kit.pk == first.pk:
+            raise RuntimeError("boom")
+        return real_purge(kit, reason=reason)
+
+    monkeypatch.setattr(services, "purge_kit", explode_on_first)
+
+    with pytest.raises(errors.PurgeFailed) as exc:
+        services.purge_expired()
+
+    second.refresh_from_db()
+    assert second.closed_at is not None, "the second kit was stranded"
+    assert [k.pk for k in exc.value.purged] == [second.pk]
+    first.refresh_from_db()
+    assert first.closed_at is None
 
 
 @pytest.mark.django_db
@@ -4217,8 +4412,12 @@ Append to `demo/services.py` — ⚠️ **imports into the header** (`E402`):
 
 ```python
 # --- into the header ---
+import logging
+
 from demo.constants import LONG_LIVED_DAYS
 from grouping.services import delete_group
+
+logger = logging.getLogger(__name__)
 
 # --- appended below ---
 
@@ -4281,17 +4480,33 @@ def extend_kit(kit, *, days):
 def purge_expired(*, dry_run=False):
     """`expires_at <= now AND closed_at IS NULL`. The second conjunct is what
     makes purge IDEMPOTENT: without it every historical kit is re-processed
-    nightly for ever. Each kit gets its own transaction so one failure does not
-    leave the others' logins alive."""
+    nightly for ever.
+
+    ⚠️ EVERY KIT IS ATTEMPTED, even after one raises. `purge_kit` being
+    @transaction.atomic only guarantees that an ALREADY-PURGED kit stays purged;
+    without the try/except below, an exception on the first kit propagates out of
+    the loop and every later due kit is never attempted — their logins stay live
+    on prod, which is precisely the failure the runbook's cron warning is about.
+    Failures are re-raised at the END so the cron run still exits non-zero and
+    the operator hears about it.
+    """
     due = list(
         DemoKit.objects.filter(expires_at__lte=timezone.now(), closed_at__isnull=True)
     )
     if dry_run:
         return due
-    purged = []
+    purged, failures = [], []
     for kit in due:
-        purge_kit(kit, reason=DemoKit.ClosedReason.EXPIRED)
-        purged.append(kit)
+        try:
+            purge_kit(kit, reason=DemoKit.ClosedReason.EXPIRED)
+        except Exception as exc:  # noqa: BLE001 - one bad kit must not strand the rest
+            logger.exception("demo kit #%s failed to purge", kit.pk)
+            failures.append((kit.pk, exc))
+        else:
+            purged.append(kit)
+    if failures:
+        ids = ", ".join(f"#{pk}" for pk, _ in failures)
+        raise PurgeFailed(f"{len(failures)} kit(s) failed to purge: {ids}", purged)
     return purged
 ```
 
@@ -4301,14 +4516,21 @@ def purge_expired(*, dry_run=False):
 uv run pytest tests/demo/test_lifecycle.py -v
 ```
 
-Expected: PASS (seven tests).
+Expected: PASS (eight tests).
 
-- [ ] **Step 5: Falsify the purge predicate**
+- [ ] **Step 5: Falsify the purge predicate, the dry-run flag and the failure isolation**
 
-Drop `closed_at__isnull=True` from `purge_expired` and re-run.
+Three mutants, one at a time, **reverting each by hand** before the next:
 
-Expected: `test_purge_expired_selects_only_expired_open_kits_and_is_idempotent` FAILS on the
-second `purge_expired()` call. **Revert by hand.**
+1. Drop `closed_at__isnull=True` from `purge_expired`.
+   Expected: `test_purge_expired_selects_only_expired_open_kits_and_is_idempotent` FAILS on the
+   second `purge_expired()` call.
+2. Delete the `if dry_run: return due` line.
+   Expected: the same test FAILS on `assert expired.closed_at is None, "--dry-run closed a
+   kit"` — the preview the runbook tells the operator to trust would have purged for real.
+3. Remove the `try/except` from `purge_expired`'s loop (let the exception propagate).
+   Expected: `test_one_failing_kit_does_not_strand_the_others` FAILS with `RuntimeError: boom`
+   instead of `PurgeFailed`, and the second kit is left open — live logins on prod.
 
 - [ ] **Step 6: Commit**
 
@@ -4500,7 +4722,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from courses.models import Course
 from demo import errors
-from demo.constants import DEFAULT_DAYS, DEFAULT_PUPILS
+from demo.constants import DEFAULT_DAYS, DEFAULT_PUPILS, LONG_LIVED_DAYS
 from demo.models import DemoKit
 from demo.services import extend_kit, provision_kit, purge_expired, revoke_kit
 
@@ -4608,8 +4830,11 @@ class Command(BaseCommand):
         result = extend_kit(self._kit(o), days=o["days"])
         self.stdout.write(f"#{result.kit.pk} now expires {result.new_expires_at:%Y-%m-%d}")
         if result.long_lived:
+            # The CONSTANT, not a literal 60 — same rule as LABEL_MAX above.
             self.stdout.write(
-                self.style.WARNING("  ! this kit has been alive for over 60 days")
+                self.style.WARNING(
+                    f"  ! this kit has been alive for over {LONG_LIVED_DAYS} days"
+                )
             )
 
     def _revoke(self, o):
@@ -4618,8 +4843,16 @@ class Command(BaseCommand):
         self.stdout.write(f"#{kit.pk} revoked")
 
     def _purge(self, o):
-        due = purge_expired(dry_run=o["dry_run"])
         verb = "would purge" if o["dry_run"] else "purged"
+        try:
+            due = purge_expired(dry_run=o["dry_run"])
+        except errors.PurgeFailed as exc:
+            # Report what DID close before the non-zero exit — handle() turns
+            # this into a CommandError, and the cron log is the only place
+            # anyone will see either half.
+            for kit in exc.purged:
+                self.stdout.write(f"{verb} #{kit.pk} {kit.label}")
+            raise
         for kit in due:
             self.stdout.write(f"{verb} #{kit.pk} {kit.label}")
         self.stdout.write(f"{verb} {len(due)} kit(s)")
@@ -4635,11 +4868,19 @@ Expected: PASS (five tests).
 
 - [ ] **Step 5: Commit**
 
-Also add `demo_access` to the management-command list at `docs/development/architecture.md:80`
-(Task 1 edits that same line to annotate `seed_demo_course`), and the `demo` app to whatever
-app inventory that file carries — otherwise the branch ships a new operator-facing command and
-a whole new app that the architecture doc does not mention, while the very line being edited
-describes the command it replaces.
+Also update `docs/development/architecture.md` in **two** places, or the branch ships a new
+operator-facing command and a whole new app the architecture doc never mentions — while the
+very line being edited describes the command it replaces:
+
+1. **Line 80**, the management-command list (Task 1 edits the same line to annotate
+   `seed_demo_course`): add `demo_access`.
+2. **The `## The apps` table at lines 8-23**, which opens "libli is a single Django project
+   (`config/`) with **nine** local apps" and lists one row per app. Change **nine** to **ten**
+   and add a row:
+
+   | `demo` | Time-limited **school demo kits**: a Teacher + Student login and ~20 fake pupils with generated activity, provisioned and purged by `demo_access`. Vendor-instance only. |
+
+⚠️ The "nine local apps" count in that sentence is prose, not a test — nothing catches it drifting.
 
 ```bash
 git add demo/management/ tests/demo/test_command.py docs/development/architecture.md
@@ -4864,12 +5105,26 @@ re-run.
 the call is a behaviourally identical mutant and a guaranteed false green. `.order_by("pk")`
 (or the no-arg `.order_by()`, which clears Meta) is what actually changes the order.
 
-Expected: "Late quiz"'s two questions swap ordinals, so the golden projection's
-`(unit title, ordinal)` keys change and `test_the_golden_class_is_unchanged` FAILS — along
-with `test_plan_caches_fractions_and_skips_only_quizzes`' ordering assertion. If either
-PASSES, the fixture's order/pk disagreement has regressed: check `late_a.order,
-late_b.order = 1, 0` survived and `assert late_b.pk > late_a.pk` still holds. **Revert by
-hand.**
+Expected: **`test_plan_caches_fractions_and_skips_only_quizzes`' ordering assertion FAILS**
+(Task 6 Step 7b's `assert ids == sorted(ids, reverse=True)`). That is the assertion which
+observes this mutant.
+
+⚠️ **`test_the_golden_class_is_unchanged` is expected to stay GREEN, and that is correct — do
+not go hunting.** "Late quiz"'s two questions are structurally identical: both are
+`_choice_question` rows with four options, one correct, three surviving wrong variants,
+`max_marks=1`, `gradeable=True`, `sentinel=False`, `partial=None`. `_projection` records
+`[title, ordinal, fraction, slot]` where `slot` is the POSITIONAL label (`wrong-0`), never the
+answer's content, and `_pick_answer` consumes the same draws in the same order for either
+question. So swapping which element sits at ordinal 0 leaves every projected row
+byte-identical. (The two IN_PROGRESS pupils are the same story: `rng.randint(1, n-1)` with
+`n=2` is always 1, so only ordinal 0 is answered either way.)
+
+If you want the golden file to observe ordering too, make the two questions
+projection-distinguishable — give one a different `max_marks`, or a different surviving-variant
+count — and regenerate the file in the same commit. Not required: Step 7b's assertion already
+pins it, cheaply and without a coupled regeneration.
+
+**Revert by hand.**
 
 - [ ] **Step 5: Commit**
 
@@ -5063,7 +5318,8 @@ git commit -m "test(demo): frontier-part zero, degenerate labels, warning kinds,
 - [ ] **Run the whole demo suite plus every test that touches what we changed**
 
 ```bash
-uv run pytest tests/demo/ tests/test_seed_demo_course.py notifications/tests/ -v
+uv run pytest tests/demo/ tests/test_seed_demo_course.py notifications/tests/ \
+  tests/test_i18n_po_health.py tests/test_element_state_write_routes.py -v
 ```
 
 Expected: all green. ⚠️ **Grep the summary line** — pytest can exit 0 with failures in the
@@ -5075,17 +5331,27 @@ PR — and that package holds 30 test modules (`test_services.py`, `test_wire_en
 `test_emit_helpers.py`, `test_email_wiring.py` …) that no other step runs. Without this, the
 mute's only verification is one assertion inside `test_provisioning_is_silent`.
 
+⚠️ **`tests/test_i18n_po_health.py` and `tests/test_element_state_write_routes.py` are in that
+command for the same reason** — the branch edits the Polish catalog and the app registry, and
+both files own those as repo-wide invariants. The i18n guards (`test_no_fuzzy_entries`,
+`test_no_obsolete_entries`, `test_pl_has_no_untranslated_msgid`) are what actually enforce Task
+6 Step 4b's "check for `#, fuzzy`" warning; a manual `grep -c` is not a gate.
+
 ⚠️ **Beyond that, no whole-repo sweep is needed** (a sweep is a branch gate, not a task step).
-The branch makes **three** edits outside `demo/`:
-1. `"demo"` into `INSTALLED_APPS`, and
-2. a per-file-ignore in `pyproject.toml` — the repo has exactly two drift guards that enumerate
-   the registry, `tests/test_list_referenced_files.py:71` (iterates `apps.get_models()` looking
-   for `FileField`s) and `tests/test_transfer_schema.py:28` (pins
-   `apps.get_app_config("courses")`). Both were checked while writing this plan: `DemoKit`
-   declares no `FileField` and is not a `courses` model, so neither guard moves. If you add a
-   `FileField` to `DemoKit` later, the first one is the test that will tell you.
+The branch makes **four** edits outside `demo/`:
+1. `"demo"` into `INSTALLED_APPS`. **Three** drift guards enumerate the registry:
+   `tests/test_list_referenced_files.py:71` (iterates `apps.get_models()` looking for
+   `FileField`s) — inert, `DemoKit` declares none; `tests/test_transfer_schema.py:28` (pins
+   `apps.get_app_config("courses")`) — inert, `DemoKit` is not a `courses` model; and
+   `tests/test_element_state_write_routes.py:69` (a hard-coded first-party app set) — **this
+   one moves**, and Task 2 Step 7 updates it. If you add a `FileField` to `DemoKit` later, the
+   first is the test that will tell you.
+2. A per-file-ignore in `pyproject.toml`.
 3. `notify()`'s early return — safe by construction because the ContextVar defaults to
-   `False`, so every existing caller behaves exactly as before; the run above is what proves it.
+   `False`, so every existing caller behaves exactly as before; the `notifications/tests/` run
+   above is what proves it.
+4. `locale/pl/LC_MESSAGES/django.po` and `django.mo` — eleven new msgids, guarded by the i18n
+   health tests above.
 
 - [ ] **Check migrations and lint**
 
@@ -5098,8 +5364,10 @@ uv run ruff format --check .
 - [ ] **Provision against the local mat-pp copy and LOOK at it** (spec §8, "beyond the suite")
 
 ```bash
-# Bash — `time` gives the wall-clock the budget below needs
-LIBLI_VENDOR_INSTANCE=true time uv run python manage.py demo_access create \
+# Bash — `time` FIRST. `VAR=x time cmd` is NOT the shell keyword: prefixed by an
+# assignment, `time` is parsed as an ordinary command word, and this machine's
+# Git Bash has no /usr/bin/time — it fails with "time: command not found".
+time LIBLI_VENDOR_INSTANCE=true uv run python manage.py demo_access create \
   --label "Test School" --course mat-pp --pupils 20 --seed 1
 ```
 
@@ -5156,7 +5424,7 @@ Then purge it: `uv run python manage.py demo_access revoke <id>` — no env var 
 - **T14** (`/admin/` lists zero models) and **T9** (cross-kit isolation) — both need a second
   kit and the analytics views; they belong with PR 3's surface work.
 - **Narrowing the demo Teacher's course access.** `is_staff=True` grants read access to every
-  course on the box (`courses/access.py:22`), so one school's demo Teacher can open another's.
+  course on the box (`courses/access.py:22-23`), so one school's demo Teacher can open another's.
   Accepted for the PR 1–2 interval (see Task 10 Step 3) and **pinned by a passing test**, so
   the narrowing is a decision, not a surprise. It must land with PR 3, before kits can be
   issued from a web form.
