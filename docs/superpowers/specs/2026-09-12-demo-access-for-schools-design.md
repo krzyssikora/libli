@@ -80,11 +80,11 @@ pk 19, 1,029 nodes, updated 2026-09-05)
 
   | type | answer shape | correct from | wrong from |
   |------|--------------|--------------|-----------|
-  | choice (`courses/models.py:2359`) | set of `Choice` pks | `is_correct=True` | any other choice |
+  | choice (`courses/models.py:2359`) | set of `Choice` pks | the `is_correct=True` set | **the first choice in `(order, pk)` that is not correct** |
   | shortnumeric (`:2566`) | str parsed by `parse_numeric_value` | `value` | a value **outside the accepted band's upper bound**, computed from the band rather than by arithmetic on `tolerance` — the plan confirms the field's semantics at `courses/models.py:2566+`; if `tolerance` were ever relative, `value + tolerance + 1` could still land inside the band, R1b would fire and a whole unit would vanish for an untraceable reason |
-  | fillblank (`:2596`) | list of str, one per blank | first line of each `Blank.accepted` | any other string (partial credit possible) |
-  | matchpair (`:2708`) | list of right-hand tokens in pair order | `expected_tokens()` | the same tokens rotated |
-  | choicegrid (`:2773`) | list of one `GridColumn` pk per row | `row.correct_column_id` | any other column (partial credit possible) |
+  | fillblank (`:2596`) | list of str, one per blank | first line of each `Blank.accepted` | the module constant `WRONG_TEXT` (a fixed nonsense string) in the **first** blank, correct elsewhere — partial credit by construction |
+  | matchpair (`:2708`) | list of right-hand tokens in pair order | `expected_tokens()` | the same tokens rotated **by one, left**; returns `NO_WRONG_ANSWER` when that is the identity (one pair, or all tokens equal) |
+  | choicegrid (`:2773`) | list of one `GridColumn` pk per row | `row.correct_column_id` | in the **first** row, the first `GridColumn` in `(order, pk)` other than its correct one; correct elsewhere — partial credit by construction |
   | shorttext (`:2470`) | a string checked against `accepted` | the first `accepted` entry | a string that is not in `accepted` under the model's own normalisation (case/whitespace — the plan cites the comparison, since a naive "any other string" could match an all-accepting row). Partial slot: **`None`** — the mark is all-or-nothing. A row that accepts everything returns `NO_WRONG_ANSWER` |
   | multigrid (`:2831`) | one **sorted list of column pks** per row, from `row.correct_columns` | the correct sets | drop one correct column from the first row (partial credit possible per row, exactly like choicegrid — so its third slot is a real partial, not `None`). A grid whose every row has a single column returns `NO_WRONG_ANSWER` |
 
@@ -172,6 +172,11 @@ pk 19, 1,029 nodes, updated 2026-09-05)
   (`institution/roles.py:80-86`), and Django admin applies none of `grouping/scoping.py`'s
   filtering — so registering a grouping model in admin later would silently give every
   demo Teacher cross-kit visibility. Guard test in §8 (T14).
+  ⚠️ **Only `grouping/admin.py` was read, and T14 asserts over the WHOLE admin index.** The
+  plan enumerates the Teacher role's full permission set against every registered admin model
+  in every installed app (`notes`, `tags`, `accounts`, `institution`, `courses`, `support`, …)
+  and records the result here with file:line. If any of them registers a model the Teacher can
+  view, T14 is red on day one and this safety claim is wrong, not merely untested.
 - The People page needs `accounts.view_user`, Platform Admin only
   (`accounts/views_manage.py:40`, `institution/roles.py:64-67`), so a rep cannot enumerate users.
 - A Teacher **cannot submit a quiz**: finishing requires enrolment
@@ -271,7 +276,13 @@ a hard startup failure on every box the app ships to, which is all of them; the 
 `seed_demo_course`, `Institution.demo_instance` and `{libli:demo_notice}` are names, not
 labels.) PR 3's action views live under `/manage/settings/demo/…`, beside the other
 institution-settings actions, in the `institution` URL namespace — the `demo` app ships no
-URLconf of its own.
+URLconf of its own. **Its views and templates live in `institution` too**
+(`institution/views_manage.py`, `templates/institution/manage/_demo_tab.html`), beside the
+Pricing tab they mirror; the `demo` app keeps the model, services, generator, commands, name
+lists and constants. ⚠️ So "removable as a unit" holds for the machinery, not for the tab: PR
+3's four view functions and two templates would have to be deleted from `institution` by hand.
+That is the cost of matching the existing settings-tab structure, and it is the right trade —
+a second settings surface in another app would be the odd one out.
 
 ### 4.2 Model
 
@@ -404,8 +415,10 @@ refuse a kit that already has `closed_at` set.
   **1.0**, so a pupil the generator decided got the question wrong is recorded with full
   credit and the band probabilities quietly stop meaning anything. A partial that fails
   validation **falls back to the validated wrong answer for that question**; it does not skip
-  the unit, because a working wrong answer is already in hand. From then on that question is
-  **treated as non-partial-capable and consumes one draw**, not two — pinned because the
+  the unit, because a working wrong answer is already in hand. That question is
+  **non-partial-capable from the outset and consumes one draw**, not two — **step 5.5 settles
+  it before any pupil draw, so every pupil consumes one**, not "the first pupil discovers it
+  and consumes two". Pinned because the
   alternative (draw twice, discard the second) shifts the stream for every later question, the
   same R5 hole the NOT_MARKED and sentinel cases close.
   ⚠️ **A builder that cannot construct a wrong answer at all** — a matchpair whose rotation
@@ -419,6 +432,12 @@ refuse a kit that already has `closed_at` set.
   always-two-draws rule and diverge from the fixed order for every later question. Then the
   generator then **answers it with the correct answer, consuming no RNG draw, and does not
   skip its unit.**
+  ⚠️ **R1b's own assertions are narrowed accordingly**: when slot 2 is `NO_WRONG_ANSWER`, the
+  pass validates `mark(correct).fraction == 1.0` only, asserts slot 3 is `None`, and records
+  the question as sentinel-answered — it never calls `mark()` on the sentinel. Read
+  unconditionally ("assert `mark(wrong).fraction < 1.0` for that specific question row"), the
+  sentinel would either raise or silently mark 0.0 and "pass", and every sentinel question
+  would crash provisioning or be R3-skipped — the outcome this paragraph exists to prevent.
   ⚠️ **Be honest about what that costs.** For a genuinely NOT_MARKED question the answer is
   invisible — `compute_scores` excludes it from `score` and `max_score` alike. For a
   **sentinel on an AUTO question it is not**: that question's `max_marks` still counts toward
@@ -450,9 +469,14 @@ refuse a kit that already has `closed_at` set.
   still counts, and a missing response reads exactly like an unreviewed REVIEW question.
   **The one exception is a NOT_MARKED question**, which `compute_scores` excludes from both
   `score` and `max_score` (`courses/quiz.py:204-228`): it is answered with the **correct**
-  answer and consumes **no RNG draw** (§4.5), and when its type has no builder it is skipped
-  **without** skipping the unit — it can contribute to neither total, so a missing response
-  cannot distort anything.
+  answer and consumes **no RNG draw** (§4.5); and when its type has no builder, **or its row
+  fails R1b**, it is dropped — no response written — **without** skipping the unit, with a
+  warning. It can contribute to neither total, so a missing response cannot distort anything.
+  ⚠️ The R1b half matters: carving the exception for the no-builder case alone (an earlier
+  draft) let one hand-edited NOT_MARKED row — a choice with no `is_correct`, an unparseable
+  shortnumeric, R1b's own examples — blank a whole matrix column: a code-shaped cause with a
+  content-shaped symptom, which is what R3 exists to avoid. **Only AUTO and REVIEW questions
+  escalate an R1b failure to a whole-unit skip.**
   That exception is stated here because it is the only place R3's "never skip one question"
   does not hold.
 - **R4 Completed progress accompanies every FINALIZED submission** — and deliberately not the
@@ -514,13 +538,22 @@ refuse a kit that already has `closed_at` set.
 provision_kit(
     label, *, course, days, pupils,
     frontier_part=None, seed=None, created_by=None,
-) -> ProvisionResult          # dataclass: kit, teacher_password, student_password
+) -> ProvisionResult   # kit, teacher_password, student_password, warnings
 ```
 
 ⚠️ **The return type is a `ProvisionResult`, not the `DemoKit` row** — the row cannot carry
 the passwords, because they are never persisted (§4.6), so returning it would leave both
 callers with no way to display what they are required to display and make T11
-unimplementable. `ProvisionResult` is an in-memory dataclass, and "never logged" is given a **mechanism**
+unimplementable. ⚠️ **`warnings` is the single channel for everything the generator has to report** —
+R3 whole-quiz skips, R1b's partial fallback, a pupil with no IN_PROGRESS target, the
+no-qualifying-pupil case, and (per §3.2) an ACTIVE `WebhookEndpoint`. Structured entries
+(`kind`, `unit`, `reason`), **not printed from inside the service**: the command prints them
+and PR 3's tab renders them, translated at render time from a machine key, exactly as the
+`list` status property is split. Without a channel, an operator provisioning from the tab
+would never learn that half the quizzes were skipped — the same silent-tab failure §4.6
+refuses for `extend_kit`'s 60-day flag.
+
+`ProvisionResult` is an in-memory dataclass, and "never logged" is given a **mechanism**
 rather than left as a rule: both password fields carry `field(repr=False)` (a plain
 `@dataclass` generates a `__repr__` listing every field), `provision_kit` is decorated
 `@sensitive_variables()` and PR 3's action view `@sensitive_post_parameters()`. ⚠️ Django's
@@ -544,7 +577,9 @@ the same drift by another route — and Q2's answer then has one place to land.
 
 **The named errors.** One hierarchy, referenced by all three consumers: `DemoKitError` as the
 base, with `InvalidLabel`, `InvalidBounds(field)`, `InvalidFrontierPart`, `UsernameCollision`,
-`EmptyCourse`, `EmptyKit`, **`KitAlreadyClosed`** (⚠️ the vendor guard's `ImproperlyConfigured`
+`EmptyCourse`, `EmptyKit`, **`KitNotFound`** (the command and PR 3's views both resolve a kit
+by id and need the same answer — a typo must not be an unhandled `DoesNotExist` traceback;
+the command maps it to a `CommandError`, the tab to a 404), **`KitAlreadyClosed`** (⚠️ the vendor guard's `ImproperlyConfigured`
 sits deliberately **outside** this hierarchy: it signals misconfiguration, not bad input, so a
 caller catching `DemoKitError` does not swallow it; PR 3's own 404 gate is what keeps it
 unreachable from the form) (raised by `extend_kit` and `revoke_kit` on a
@@ -558,7 +593,8 @@ the service" claim fails; the tests assert on these classes rather than on `Valu
 **Preconditions and bounds, enforced in `provision_kit` itself** — not only in the command,
 so the PR 3 form inherits them — each raising the matching error above:
 
-- `label` non-blank after stripping and at most 200 characters. ⚠️ It is the one free-text
+- `label` non-blank after stripping and at most 200 characters — **the stripped value is what
+  is stored**, and what the group name, both `display_name`s and `slugify` all read. ⚠️ It is the one free-text
   input, and `Model.objects.create()` does **not** enforce `max_length`: an over-long label
   reaches Postgres as a raw `DataError` mid-transaction, after the collision scan, instead of
   a named error — and PR 3's form would inherit no check at all;
@@ -580,7 +616,8 @@ so the PR 3 form inherits them — each raising the matching error above:
   nothing in it. Pointing `--course` at a freshly imported or wholly draft course is the most
   likely operator slip, and "a course with that slug exists" does not catch it;
 - **a post-generation invariant on what was actually written**, checked inside the
-  transaction so a failure rolls the whole kit back: **every generated pupil holds at least
+  transaction so a failure rolls the whole kit back: **every one of the `pupils` fake pupils
+  created in step 4 — never the rep's Student, who starts blank by design — holds at least
   one completed obligatory `UnitProgress`, and at least one finalized `QuizSubmission` with a
   non-null `score`** — raising `EmptyKit`.
   ⚠️ **It is made satisfiable by construction, not left to the dice — and that takes two
@@ -665,7 +702,10 @@ Order of work, inside one transaction:
    kits for the same school are distinguishable in the Teacher's pickers.
 2. **Teacher login** — created with **`is_staff=True` in the initial `create_user` call**,
    then role Teacher via `set_user_role`, `language="pl"`,
-   `display_name=f"Nauczyciel demo — {label}"` (truncated to the field's max length; the bare
+   `display_name=f"Nauczyciel demo — {label} (#{kit.pk})"` — **the label is truncated, never
+   the pk**, because `label` runs to 200 characters against `display_name`'s 150 and two
+   schools sharing a long prefix would otherwise truncate to the *same* name, restoring the
+   very collision this clause rejects (the group name solves it with the pk; so must this). The bare
    "Nauczyciel demo" would give every live kit an identical row in the People page and the
    group pickers, the ambiguity the kit pk in the group name exists to avoid), generated
    password, verified primary email
@@ -947,12 +987,16 @@ on them being fixed):
   strictly proper prefix needs `n >= 2`, and `mat-pp` does contain one-question quizzes
   (§3.1), on which `randint(1, n-1)` would raise.
   **Which pupils get one:** the `IN_PROGRESS_PUPILS` shallowest pupils by depth **that have a
-  USABLE target ahead of them** — a candidate they have no `QuizSubmission` for and which
-  yields a conforming prefix, i.e. the full target predicate below, not the weaker "a
-  candidate exists". ⚠️ The weaker predicate selects a pupil who then has nothing to write:
-  the shallowest pupils are exactly those guarantee 2's reach-forward already gave a finalized
-  submission after their depth. Selection is not re-run afterwards, so a kit can still end
-  with fewer than `IN_PROGRESS_PUPILS` — with the warning above. Not "the first two in
+  USABLE target ahead of them**, where usable is a **static, draw-free** predicate: a
+  candidate in `IN_PROGRESS_CANDIDATES`, after the pupil's depth, that the pupil has no
+  `QuizSubmission` for, **and whose first gradeable answerable question sits at position
+  ≤ n−2** (so a conforming prefix provably exists). ⚠️ Draw-free is the point: selection runs
+  before the pass, so phrasing it as "yields a conforming prefix" would leave an implementer
+  either simulating draws — perturbing a stream nothing pins — or inventing this rule anyway.
+  The weaker "a candidate exists" would select a pupil with nothing to write: the shallowest
+  pupils are exactly the ones guarantee 2's reach-forward already gave a finalized submission
+  after their depth. Selection is not re-run afterwards, so a kit can still end with fewer
+  than `IN_PROGRESS_PUPILS` — with the warning above. Not "the first two in
   creation order"; sorted by
   `(depth, creation index)`, since bands share multipliers and jitter often rounds to the
   same integer, so "shallowest" alone is not a total order and different tie-breaks would
@@ -964,6 +1008,10 @@ on them being fixed):
   all-NOT_MARKED unit, which the same section forbids a submission. Picking shallow pupils
   makes a target exist by construction; the strong band, whose depth can clamp to the last
   unit, is exactly who had none.
+  ⚠️ **An already-submitted candidate is skipped BEFORE any prefix-length draw (zero draws);
+  only the no-gradeable-prefix rejection costs one.** Both rejection reasons had to be pinned:
+  draw-then-reject and reject-before-drawing are equally deterministic and diverge for every
+  later draw in the pass, including the second selected pupil's.
   ⚠️ **The target must be a quiz the pupil has NO `QuizSubmission` for** — not merely one
   "strictly after their depth". The two collide: the shallowest pupils are precisely those
   most likely to have triggered guarantee 2's reach-forward, which **finalized** a quiz after
@@ -985,10 +1033,10 @@ on them being fixed):
   would reach `n`, move to the next candidate, consuming one further prefix-length draw.
   Pinned because three implementations — redraw the length, extend, or skip the candidate —
   are all consistent with "must contain a gradeable response", all deterministic, and all
-  diverge in the stream. **If the chain exhausts every candidate after the pupil's depth, that
-  pupil gets no IN_PROGRESS submission and a warning is printed** — never a raise (it would
-  roll back a good kit) and never a wrap back to the start of the course (the pupil has
-  submitted those already).
+  diverge in the stream. (The selection predicate above guarantees such a prefix exists for a
+  selected pupil, so this extension always terminates inside the first candidate; the
+  move-to-next-candidate branch survives only for the reach-forward collision, which costs no
+  draw.)
   (There is no "fails validation mid-write" fallback: step 5.5 makes validation a kit-level
   fact computed once, so a candidate cannot fail later. An earlier draft said otherwise, and
   taking it literally would reintroduce the 20× re-validation step 5.5 exists to remove.)
@@ -1010,7 +1058,8 @@ on them being fixed):
      slice, so the pre-order walk never reaches them on its own
      (one draw, or two for a partial-capable type; **a NOT_MARKED question, a sentinel
      question, and a question whose partial failed R1b all consume one fewer** — none at all
-     for the first two, one for the third, which is thereafter treated as non-partial-capable).
+     for the first two, one for the third, which step 5.5 has already settled as
+     non-partial-capable for **every** pupil).
      There is **no** back-dating offset draw: back-dating is gone (above).
      ⚠️ **A unit the kit-wide pass put in the R3-skipped set consumes NO draws**, and so do an
      all-NOT_MARKED quiz and a unit that is neither lesson nor quiz. Stated because the
@@ -1020,8 +1069,14 @@ on them being fixed):
   4. finally, the IN_PROGRESS pass: **for the pupils chosen by the selection rule below,
      walked in `(depth, creation index)` order** — never "the first two in creation order",
      which is the rule that paragraph rejects — the prefix-length draw, then per answered
-     question in element order on the same one-or-two-draw rule. Selection and iteration are
-     each pinned once, and they agree. ⚠️ It runs **after** every pupil's finalized pass, as a
+     question in element order **on the identical per-question decision the finalized path
+     uses** — the pupil's band `P(correct)`, then `P_PARTIAL_GIVEN_WRONG`, the same
+     always-two-draws rule, the same cached builders and the same R1/R1b treatment. The only
+     differences are the truncated question set, the absent `finalize_submission` and the
+     absent `UnitProgress`. ⚠️ Stated because carrying over only the *draw count* leaves the
+     answers' distribution open, and it is visible: this is the submission the rep
+     force-submits, and its score lands in the matrix. Selection and iteration are each pinned
+     once, and they agree. ⚠️ It runs **after** every pupil's finalized pass, as a
      separate sweep — an earlier version of this list omitted the
      pass entirely, so R5 was incomplete in the same way the name draws once were, and an
      implementation could run it before, inside or after the per-pupil loop and still claim
@@ -1090,6 +1145,14 @@ and `extendedresponse` is not a future candidate — the class exists now. The i
 
 **Both collections are keyed on the model CLASS, never on a string**, so a key cannot drift
 from a class name (and `dragfill` is not `dragfillblank`).
+
+⚠️ **Every builder is a PURE function of the question row and consumes NO RNG draw** — not
+from the kit RNG, not from the global `random`. §4.5's fixed order lists no builder draws, so
+a builder that took one would silently invalidate the whole order, and neither T7 (same code
+twice) nor T7b (which would pin the accidental behaviour) could see it. Step 5.5 calls each
+builder **once per question, kit-wide**, before any pupil draw is made; the per-pupil loop
+only *chooses among* the cached answers. That is also why the wrong/partial values below are
+pinned to deterministic rules rather than to "any other …".
 
 ⚠️ **Consequence, stated rather than discovered:** if a `mat-pp` part that publishes a drag
 question **in a quiz** is ever released, R3 skips that whole unit and warns, costing a matrix
@@ -1333,9 +1396,12 @@ core app should not wait on either.
 - **`wide`** — T24 only: `pupils = 20` over **at least 12 obligatory lessons and 12 gradeable
   questions**, so each 20% edge band holds four pupils and the band inequality is not decided
   by two draws. Numbers, not "double-figure"; it is the one slow fixture, used once.
-- **`golden`** — T7b only: small, but containing a skipped quiz, a NOT_MARKED question, a
-  sentinel question and a partial-capable question, so the pinned stream exercises every
-  zero-draw and two-draw case.
+- **`golden`** — T7b only: `small`'s two coincidence-breakers (T7b needs them more than any
+  other test), plus **every** reduced-draw case §4.5 enumerates — a skipped quiz, an
+  all-NOT_MARKED quiz, a unit that is neither lesson nor quiz, a NOT_MARKED question, a
+  sentinel question, a partial-capable question, **and a question whose partial marks 1.0** so
+  the R1b fallback's one-draw rule is in the pinned stream too. (An earlier inventory listed
+  four of the seven and still claimed "every".)
 
 Each test is falsified against a named mutant.
 
@@ -1400,7 +1466,10 @@ T23–T25.)
   AUTO — **every pupil scores full marks on it**, the accepted artefact R1b names rather than
   something to assert away. Mutant: validate the
   builder against the type rather than the row, and the pupil silently fails a question;
-  second mutant: skip the unit on the partial failure, which blanks a column for a reason no
+  A **NOT_MARKED** row that fails R1b is dropped and its unit **kept** (R3's widened
+  exception); and a sentinel builder's question is validated on `correct` only — a build that
+  calls `mark(NO_WRONG_ANSWER)` must go red here rather than crash provisioning.
+  Second mutant: skip the unit on the partial failure, which blanks a column for a reason no
   measurement would trace.
 - **T3 Real users untouched (R7).** A fixture course with a pre-existing enrolled student
   who is not in the kit gains **zero** new `UnitProgress`, `QuizSubmission` and
@@ -1436,8 +1505,12 @@ T23–T25.)
   ([[guards-that-assert-the-adjacent-thing]] #9). Mutant: add a question type to neither
   collection; the test must go red.
 - **T7 Determinism.** Two runs with the same seed produce identical responses, progress and
-  band assignment. Mutant: swap the jitter draw ahead of the band shuffle, or iterate a
-  unit's questions in pk order rather than element order — the class must change.
+  band assignment. ⚠️ **Its only honest mutant is one that breaks determinism itself** — reseed
+  from `secrets` per run, or key the band partition on something that varies between runs. A
+  mutant that *reorders* draws leaves T7 green, because it mutates the code under test for
+  both runs and the two still agree; those belong to T7b, which is the only test that pins an
+  absolute stream. An earlier draft named two reordering mutants here, and both were
+  non-falsifying.
 - **T7b The golden class** — what actually defends §4.5's RNG order. ⚠️ T7 is a
   **self-consistency** test: it runs the same code twice, so it cannot pin an *absolute*
   stream, and §4.5 itself says so twice. That leaves the most intricately specified part of
@@ -1446,7 +1519,12 @@ T23–T25.)
   defended by nothing. So: one fixed seed against a fixture that exercises a skipped quiz, a
   NOT_MARKED question, a sentinel question and a partial-capable question, with the resulting
   class pinned as a checked-in expected structure (per-pupil band, depth, completed units,
-  per-question fraction). Mutants: each reordering §4.5 enumerates. Landing a deliberate
+  per-question fraction). Mutants: **each reordering §4.5 enumerates** — swapping the jitter
+  draw ahead of the band shuffle, iterating a unit's questions in pk order rather than element
+  order, drawing the partial only when the first draw said wrong, consuming draws for a
+  skipped quiz. ⚠️ The `small` fixture's "elements re-ordered after creation" coincidence-
+  breaker is **T7b's** requirement, not T7's: without it the pk-order mutant produces an
+  identical golden file. Landing a deliberate
   order change means regenerating the expected file in the same commit — which is the point. (The
   earlier wording, "invariant under a reordering of the loops", asserted the opposite of
   §4.5 and was impossible to satisfy.)
@@ -1503,10 +1581,23 @@ T23–T25.)
   gone. Mutants: drop the `closed_at IS NULL` conjunct; call `delete_group` unconditionally,
   so the null-group kit raises and never closes; make one kit's purge raise and assert the
   others still close and the exit code is non-zero.
+- **T27 Names.** Both list-length assertions against the **shipped** lists
+  (`len(F_GIVEN) >= 40` etc.); a provisioned kit holds `pupils` distinct `(first, last)` pairs
+  with gender-consistent surname forms; and `provision_kit`'s **runtime** length check raises
+  `NamePoolExhausted` before any row is written against a stubbed short list. ⚠️ Three
+  behaviours §4.5 argues at length that appeared in no numbered test — a plan built from §8
+  alone would ship none of them, and the gendered-inflection rationale with them. Mutants:
+  assert on the product rather than the lengths; redraw the whole pair instead of the surname;
+  drop the runtime check.
 - **T15b Bounds and extend arithmetic.** `provision_kit` (not just the command) rejects
   `pupils` outside 5–40 and `days` outside 1–90 with the named error, and so does
   `extend_kit`; `extend_kit` on a kit that expired yesterday moves `expires_at` to
-  `now() + N days`, not into the past, and refuses a closed kit. Mutant: validate in the
+  `now() + N days`, not into the past, and refuses a closed kit with `KitAlreadyClosed`.
+  **`extend_kit` on a kit created 50 days ago with `days=30` returns `long_lived=True`**, and
+  `False` on a fresh one — the flag §4.6 argues hardest for is otherwise untested, and its
+  regression (PR 3's button walking a kit past 60 days silently) is reachable well inside the
+  1–90 bound. Mutant: compute the 60-day comparison in the command and have `ExtendResult`
+  always report False. Mutant: validate in the
   command only — the service-level call must then go through, which is what PR 3's form and
   its Extend button would hit.
 - **T16 Enrolment and deletion go through the services.** Provisioning calls
@@ -1522,8 +1613,12 @@ T23–T25.)
   Polish label never degenerates, §4.2, so the fixture must deliberately not be Polish) yields
   the `demo` fallback rather than usernames beginning with `-`; a 250-character label is
   rejected by `InvalidLabel` and, at 200, truncates the group name correctly; `--pupils 40`
-  pads pupil numbers to a consistent width. Four boundaries §4.2 specifies that T17 does not
-  reach, each producing user-visible identifiers on prod.
+  pads pupil numbers to a consistent width; and two labels sharing a long prefix produce
+  **distinct** `display_name`s for their logins (the 150-char truncation collision, §4.4).
+  Five boundaries §4.2/§4.4 specify that T17 does not reach, each producing user-visible
+  identifiers on prod. Mutants, one per boundary: drop the `or "demo"` fallback; accept a
+  250-character label; drop the group-name truncation; pad pupils to a fixed width of 2; build
+  the logins' `display_name` without the kit pk.
 - **T17 Username disambiguation.** A second kit for the same label provisions successfully
   with distinct usernames; a candidate name held by an **unrelated** account — including one
   whose address exists only as an allauth `EmailAddress` row — **bumps the integer and
@@ -1574,7 +1669,9 @@ T23–T25.)
 - **T24 The bands actually differ.** On one provisioned kit — **an explicit `seed`, on the
   `wide` fixture** — the strong band's mean completed
   obligatory-lesson count **and** mean `score / max_score` both strictly exceed the struggling
-  band's. ⚠️ Both conditions are load-bearing: at `pupils = 5` on a tiny course each edge band
+  band's — the latter computed **per pupil as `sum(score) / sum(max_score)` over that pupil's
+  finalized submissions, then averaged across the band** (mean-of-ratios and ratio-of-sums
+  differ on uneven slice depths, and this is a strict inequality). ⚠️ Both conditions are load-bearing: at `pupils = 5` on a tiny course each edge band
   is **one** pupil over a handful of questions at P=0.90 vs P=0.35, and a strict inequality
   between two single-pupil means is inside flake range — more so because a sentinel-answered
   question (R1b) is aced by every band and compresses the gap. ⚠️ T7 pins determinism, not differentiation: flattening all three bands
