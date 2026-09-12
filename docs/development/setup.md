@@ -80,7 +80,8 @@ first **Platform Admin**. Credentials come from the environment
 run it interactively, from prompts. The admin's email is pre-verified so you can
 log in through the allauth front door immediately.
 
-Optionally seed a demo course, content tree, and an enrolled student:
+Optionally seed a demo course, content tree, and an enrolled student (local only; refuses
+to run with `DEBUG=False`):
 
 ```bash
 uv run python manage.py seed_demo_course

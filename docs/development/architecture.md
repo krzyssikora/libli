@@ -77,8 +77,8 @@ progressive-enhancement JS over a working no-JS base.
   self-hosted Inter); vendored **KaTeX** and **MathLive** live under
   `courses/static/courses/vendor/`.
 - **i18n** — English + real Polish under `locale/`.
-- **Management commands** — `init_platform`, `setup_roles`, `seed_demo_course`,
-  `flush_webhooks`, `purge_notifications`.
+- **Management commands** — `init_platform`, `setup_roles`, `seed_demo_course`
+  (local only; refuses to run with `DEBUG=False`), `flush_webhooks`, `purge_notifications`.
 - **Tests** — one top-level `tests/` package (see
   [`conventions.md`](conventions.md)).
 

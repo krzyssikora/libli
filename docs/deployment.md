@@ -437,15 +437,14 @@ Re-run the Range check from §4 against a **real** `.mp4` now that media exists.
 
 ---
 
-## 7. Second course and scheduled jobs
+## 7. Scheduled jobs
 
-`seed_demo_course` is idempotent and gives you a small second course with an enrolled
-student:
-
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
-  /app/.venv/bin/python manage.py seed_demo_course
-```
+`seed_demo_course` is a LOCAL screenshot fixture and refuses to run with `DEBUG=False`.
+Do not run it here: it creates a Platform Admin whose password is hardcoded in the
+repository. For a school demo, use `manage.py demo_access create` (see the demo-access
+spec). Verified 2026-09-12: it has never been run on libli.pl — no `demo_*` users, one
+user in total, `mat-pp` the only course, no groups, institution name unchanged, webhook
+disabled. Re-verify only if someone runs an older copy of this runbook.
 
 Notifications are never auto-deleted without a scheduler. Install with `sudo crontab -e`
 — **one physical line**, because a crontab command field ends at the newline and a
@@ -807,9 +806,10 @@ passed; `ci.yml` not regrowing a `master` trigger.
   `--only-if-placeholder`, so once the domain is set the env var is ignored. To change it
   later, re-save the wizard's Identity step with the hostname filled in — that writes both.
 - **Peak disk during import is ~17 GB**, including the `FILE_UPLOAD_TEMP_DIR` copy.
-- **Analytics on an imported course will be empty.** The demo-activity seeder is separate,
-  unbuilt work; `seed_demo_course` provides one enrolled student on its own course so the
-  analytics surfaces are reachable.
+- **Analytics on an imported course will be empty** until a class has used it. To make the
+  analytics surfaces reachable for a demo, issue a demo kit: `manage.py demo_access create
+  --label "<school>" --course <slug>`. (`seed_demo_course` is a local screenshot fixture and
+  refuses to run with `DEBUG=False` — see §7.)
 
 ## Testing this stack locally
 
