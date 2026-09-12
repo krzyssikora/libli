@@ -100,8 +100,19 @@ pk 19, 1,029 nodes, updated 2026-09-05)
     response with `reviewed_at` (`courses/rollups.py:402-409`); the review count comes from
     the unit's **elements**, not the responses (`:348-360`), so a *missing* response blocks
     the score exactly like an unreviewed one. This is the trap that sank the earlier seeder.
+- ⚠️ **A matrix column is NOT a quiz.** Columns come from `frontier_columns`
+  (`courses/rollups.py:558-640`): each leaf column is a top-level part until the viewer
+  expands it, and it carries `lesson_pks` / `quiz_pks` **sets over its whole subtree**, so a
+  results cell sums every counted submission in that part. A column shows a score as soon as
+  *one* quiz under it counts. Anything reasoning about "quiz columns" (§4.5, §8) must say
+  whether it means the default part columns or the fully expanded unit columns.
 - **Drill-down** (`courses/views_analytics.py:233`): lesson ticks from `UnitProgress.completed`
   (`courses/rollups.py:246-265`), a status pill per quiz (`:514-532`).
+- ⚠️ **Scoring sees only top-level questions.** `compute_scores` (`courses/quiz.py:209`),
+  `_quiz_review_maps` (`courses/rollups.py:346-351`) and `quiz_gradeable_max` all filter
+  `parent__isnull=True`. A question nested in a callout or spoiler contributes to neither
+  `score` nor `max_score`, and does not arm the REVIEW-pending gate. This is a property of
+  the code, not of today's content, and it is what R9 rests on.
 - ⚠️ **Draft units appear as soon as they carry data.** These views pass
   `drafts="keep-with-data"` (`courses/views_analytics.py:28-54`, `courses/rollups.py:80-81`).
   Hence the published-only rule (§4.3, R2).
@@ -219,10 +230,12 @@ settings module: a conditionally installed app makes its migration conditional t
 box that later flips the flag would need a migration run out of band.
 
 ⚠️ **Because the app ships everywhere, the guard is in the code, not the install:**
-`provision_kit()` raises `ImproperlyConfigured` and every `demo_access` subcommand raises
-`CommandError` when `settings.VENDOR_INSTANCE` is False. A school's box therefore carries an
-empty table and a command that refuses to run — never a path to fake pupils beside real
-ones. Test T13.
+`provision_kit()` raises `ImproperlyConfigured`, and the `create`, `extend` and `revoke`
+subcommands raise `CommandError`, when `settings.VENDOR_INSTANCE` is False. A school's box
+therefore carries an empty table and a command that refuses to create anything — never a
+path to fake pupils beside real ones. **`purge`, `purge_kit` and `list` are exempt on
+purpose**; the reasoning is in R8, and it is the one asymmetry in this design that is
+load-bearing rather than tidy. Test T13.
 
 ### 4.2 Model
 
@@ -235,7 +248,7 @@ DemoKit
   teacher        FK(User, SET_NULL, null=True, related_name="+")
   student        FK(User, SET_NULL, null=True, related_name="+")
   users          M2M(User, related_name="demo_kits")   # EVERY user the kit created
-  seed           PositiveIntegerField            # RNG seed; makes the data reproducible
+  seed           PositiveIntegerField            # RNG seed; diagnostic, see below
   pupil_count    PositiveSmallIntegerField
   frontier_part  PositiveSmallIntegerField(null=True)  # the --frontier-part override, if given
   created_at     DateTimeField(auto_now_add)
@@ -268,15 +281,23 @@ user the kit did not create, provisioning fails with a named error rather than r
 `Group.name` is 200, `grouping/models.py:84`):
 
 - `slug = slugify(label, allow_unicode=False)[:SLUG_MAX]` with `SLUG_MAX = 100`, which
-  leaves room for the longest suffix the scheme can produce (`-NN-nauczyciel`, `-NN-pNN`).
+  leaves room for the longest suffix the scheme can produce (`-NNN-nauczyciel`, `-NNN-pNN`,
+  budgeted against the widest disambiguating integer below, not a two-digit one).
+- The disambiguating integer is searched over **2..999**; past that, the named collision
+  error, so the search always terminates.
 - A label that slugifies to `""` — entirely non-ASCII input such as `"Łódź ###"` can —
   falls back to the literal `demo`; the disambiguating integer then separates schools.
 - Pupil numbering is zero-padded to the width of `--pupils` (`p01…p20` at the default), so
   it stays consistent and cannot collide within a kit; `--pupils` is capped at 40 (§4.6).
 - The group name truncates the label to 150 characters before the ` (#<pk>)` suffix.
 
-**Closing policy.** `purge_kit` (whether from `revoke` or the nightly `purge`) deletes the
-kit's users and its group, then **retains the `DemoKit` row** with `closed_at` set,
+**Closing policy.** `purge_kit` (whether from `revoke` or the nightly `purge`) is
+`@transaction.atomic` **per kit** — a partial failure that deleted the users, left the group
+and never set `closed_at` would be re-purged nightly for ever and keep reading as "pending"
+in `list`. It deletes **the users first, then the group** via
+`grouping.services.delete_group`, so that service's post-delete enrolment recompute
+(`grouping/services.py:249-254`) finds no surviving members; then it **retains the `DemoKit`
+row** with `closed_at` set,
 `closed_reason` recording which path closed it, and the user/group FKs nulled. The row is a
 record of who was given a demo and when; it holds no credentials. `extend` and `revoke`
 refuse a kit that already has `closed_at` set.
@@ -325,8 +346,21 @@ refuse a kit that already has `closed_at` set.
   directly; no notification helper is invoked.
 - **R7 No real users touched.** The generator writes progress, submissions and responses
   only for users in `kit.users`. Test T3.
-- **R8 Vendor only.** Nothing in §4.4 or §4.5 runs when `settings.VENDOR_INSTANCE` is False
-  (§4.1).
+- **R8 Vendor only, on the creating half.** `provision_kit` (§4.4, §4.5) and the `create`,
+  `extend` and `revoke` subcommands refuse when `settings.VENDOR_INSTANCE` is False (§4.1).
+  ⚠️ **`purge_kit`, `purge` and `list` are deliberately NOT guarded.** Guarding the cleanup
+  path is the one way the guard itself could leave stranger-known logins alive on prod: the
+  flag is an env var (`LIBLI_VENDOR_INSTANCE`, `config/settings/base.py:288`), and a compose
+  change that loses it would turn the nightly purge into a non-zero exit in a log nobody
+  greps (Risk 5). On a school's box the table is empty, so purge is a no-op there anyway.
+  T13 asserts this split at the **service** level as well as the parser.
+- **R9 Top-level questions only.** The generator enumerates exactly
+  `unit.elements.filter(parent__isnull=True)`, because that is the set `compute_scores` and
+  the review-pending gate use (§3.2). A nested question is neither answered nor a cause of an
+  R3 skip — answering one would write responses the score path ignores. This is a rule, not
+  an observation about today's `mat-pp`: §3.1's audit found all 260 questions top-level, but
+  the reason it is *safe* is the `parent__isnull=True` filter, which holds whatever the
+  content does next.
 
 ### 4.4 What `provision_kit()` creates
 
@@ -352,6 +386,25 @@ Order of work, inside one transaction:
 0. **The `DemoKit` row** — label, slug, course, `expires_at`, `pupil_count`,
    `frontier_part`, `created_by` and the resolved `seed`. It is created **first** because
    the group name embeds its pk and every later step writes back to its FKs.
+   ⚠️ **What the stored `seed` is for.** There is no `--seed` flag and no regenerate
+   subcommand — regenerating a live kit in place is a non-goal (it would rewrite a class the
+   rep may be looking at). R5's determinism exists so the **suite** can pin a class (T7) and
+   so a puzzling kit can be reproduced locally from its stored seed for diagnosis. Say that
+   rather than implying reproducibility is an operator feature.
+   `expires_at = timezone.now() + timedelta(days=days)` — stated because §4.6 pins
+   `extend`'s arithmetic and leaving creation's implicit invites "end of the Nth day"
+   instead. Consequence: a 14-day kit created at 10:00 is deleted by the 03:45 run on day
+   15, so a rep gets 14 days plus a fraction.
+   ⚠️ **Before any user is created**, scan every candidate username and email for a
+   collision, case-insensitively, across `User.username`, `User.email` **and allauth's
+   `EmailAddress.email`** — addresses live in both tables, and `ensure_verified_primary_email`
+   raises a bare `ValueError` on a verified row bound to another user
+   (`accounts/emails.py:8-17`). Scanning all names up front means the demo app's own named
+   exception fires before the group exists, rather than allauth's `ValueError` landing
+   mid-transaction with a Teacher already written; if that `ValueError` ever does fire, it is
+   a bug in the scan, not an expected path. The unique constraint remains the real arbiter:
+   an `IntegrityError` during user creation (two concurrent `create` runs resolving the same
+   disambiguating integer) is caught and re-raised as the same named collision error.
 1. **The group** — `"Klasa demo — <label> (#<kit pk>)"` in `course`, then written to
    `kit.group`. Created before the users: the enrolment service takes a group. The kit pk is
    in the name so two kits for the same school are distinguishable in the Teacher's pickers.
@@ -371,8 +424,13 @@ Order of work, inside one transaction:
    `display_name` then `first_name`/`last_name` (`accounts/models.py:26,42,55-70`) and the
    matrix sorts with `polish_sort_key`. Without them the rep's own row would read
    `sp-12-krakow-uczen` among "Anna Kowalska" — on the screen §4.4 calls the demo's best
-   moment. The plan must confirm which field the matrix renders and put the pupils' names
-   where that lands.
+   moment. **Pupils get `first_name` + `last_name` and no `display_name`** (the natural shape
+   for a class list, and it lets the sort work on the surname); the two logins get a
+   `display_name`, which takes precedence. Since `display_name` wins wherever it is set, both
+   spellings render correctly on any surface; T20 pins that the rep's own row shows a human
+   name rather than a username.
+   Every kit user is created with `language="pl"` — the pupil login walks a Polish lesson in
+   front of the rep, so the default locale must not decide it.
 5. **Enrolment** — the Student and the pupils are added with
    `grouping.services.add_students_to_group(group, students, added_by=<kit Teacher>)`, never
    a direct `Enrollment.objects.create` (the service is the only sanctioned path, and
@@ -405,14 +463,27 @@ on them being fixed):
   makes both the demo and the §8 acceptance criterion non-deterministic in a way T7 cannot
   express. The floor rule keeps the middle band absorbing the remainder at every size the
   bounds allow (2–40 pupils).
-- **Class frontier.** `FRONTIER_FRACTION = 0.75`: the frontier is the published-unit index at
-  75% of the course's published units in course order, derived from the live tree.
-  ⚠️ **0.75 is derived from §8's acceptance criterion, not chosen by feel.** A quiz column
-  holds a score for at least half the class only if it sits at or below the *median* pupil's
-  depth; the median pupil is in the `average` band (strong 0.20 + average 0.60 covers the
-  top 80%), whose depth is `FRONTIER_FRACTION × 1.00 ± jitter`. So the fraction must clear
-  the criterion's two-thirds with margin — 0.65 would land *below* it and fail its own test
-  except by jitter luck.
+- **"Course order" means the outline pre-order**, i.e. the list
+  `courses.rollups.units_in_order(course, drafts="hide")` returns — the generator reuses that
+  helper rather than re-deriving the sequence. ⚠️ This is not pedantry: `ContentNode.order`
+  is `OrderField(for_fields=["course", "parent"])` (`courses/models.py:210`), so sibling
+  order is only **locally** monotonic and a flat `nodes.order_by("order")` interleaves unit 0
+  of part 0 with unit 0 of part 5. `_walk_preorder`'s docstring
+  (`courses/rollups.py:86-92`) says exactly this. Every ordered notion below — the frontier
+  index, each pupil's slice, R5's per-unit RNG order, and the back-dating's "oldest first" —
+  is defined on that pre-order list and is nonsense without it.
+- **Class frontier.** `FRONTIER_FRACTION = 0.75`: the frontier is the index at 75% of that
+  published-unit list.
+  ⚠️ **Why 0.75, honestly stated.** The obvious derivation — "the median pupil must reach
+  two-thirds of the quiz columns" — does **not** discriminate 0.75 from 0.65, because a
+  default matrix column is a *part*, not a quiz (§3.2): a column lights up as soon as one
+  quiz under it counts, so at part granularity both fractions clear two-thirds. 0.75 is
+  chosen on the plainer ground that it leaves fewer right-hand columns blank **when the rep
+  expands a part into unit columns**, which is where an empty matrix would actually show.
+  The median pupil (the `average` band covers the 20th–80th percentile) then sits at
+  0.75 ± jitter of the published units, so roughly three-quarters of the expanded quiz
+  columns carry a score for at least half the class. §8's acceptance criterion is stated
+  against that expanded view for the same reason.
   ⚠️ It is likewise deliberately NOT "the third part": parts 0–9 of `mat-pp` are published,
   so a third-part frontier would leave ~7 of ~10 matrix columns empty for every pupil — the
   same mostly-blank matrix that sank the earlier seeder, only further right.
@@ -420,48 +491,90 @@ on them being fixed):
   **"part N" means the Nth top-level child of the course by `order`, 0-indexed** ("part" is
   `mat-pp`'s editorial word, not a model). A part that does not exist, or that contains no
   published unit, is a named error — not a silent fallback to the fraction.
+  ⚠️ **`frontier_part = 0` is legal and falsy.** The override is tested with `is not None`
+  everywhere — service, command and the PR 3 form — because `if kit.frontier_part:`,
+  `frontier_part or default`, or a form's `cleaned_data.get(...) or None` each silently turn
+  `--frontier-part 0` (Zbiory liczbowe, a perfectly reasonable choice) into the 0.75
+  fraction. T21 covers it.
 - **Per-pupil depth** = `clamp(round(frontier_index × multiplier × (1 + jitter)), 0,
   len(published_units) - 1)`, where `jitter = rng.uniform(-0.08, 0.08)`.
 - **Per pupil:** the pupil's slice is `published_units[: depth + 1]` — inclusive of the unit
   at `depth`, stated as a slice because "up to" and "at or before" leave the bound
-  ambiguous and the last matrix column depends on it. Within that slice: complete every
-  **obligatory lesson**, and attempt every **quiz**.
+  ambiguous and the last matrix column depends on it. Within that slice the pupil attempts
+  every **quiz**, and completes each **obligatory lesson** with probability
+  `P_LESSON_DONE` = 1.00 / 0.95 / 0.80 by band.
+  ⚠️ **That per-band probability is what stops the progress matrix being a perfect
+  staircase.** Progress mode is the matrix's default — the first screen a rep sees — and it
+  reads only `UnitProgress.completed` (§3.2), so a generator that completes *every* lesson
+  behind the frontier renders every cell as 100%, one partial cell, then "—", with the bands
+  invisible. A real class has holes behind it. The band `P(correct)` affects results mode
+  only, so without `P_LESSON_DONE` nothing varies on the screen that opens first.
 - **Per quiz:** open the submission exactly as the production close paths do —
   `QuizSubmission.objects.select_for_update().get_or_create(student=…, unit=…,
   defaults={"status": IN_PROGRESS})`, the shape `seed_demo_course._graded_submission` uses,
   with the enclosing `@transaction.atomic` supplying the lock `finalize_submission`'s
-  docstring requires (`courses/quiz.py:232-240`). Then for each top-level question decide
-  right/wrong (and, for types that support partial credit, partly right) from the band;
-  build the answer via the type's builder (§3.1 table); validate it per R1b; write a
-  `QuestionResponse` (`fraction` and `earned_marks` per R1, `latest_answer` via
-  `answer_to_json`, `attempt_count = 1`); then `finalize_submission` and a completed
-  `UnitProgress`. The generator sets no timestamp by hand — `save()` stamps `submitted_at`
-  and the back-dating pass (below) moves it. **Every pupil makes exactly one attempt per
-  quiz**, whatever the unit's `max_attempts` allows — a retry would need an `Attempt`
-  history to be coherent and buys the demo nothing.
+  docstring requires (`courses/quiz.py:232-240`). Then for each **top-level** question (R9)
+  decide right / partly right / wrong from the band; build the answer via the type's builder
+  (§3.1 table); validate it per R1b; write a `QuestionResponse`; then `finalize_submission`
+  and a completed `UnitProgress`.
+  **The `QuestionResponse` field set is exactly:** `fraction` and `earned_marks` per R1,
+  `latest_answer` via `answer_to_json`, `attempt_count = 1`, `last_attempt_at` set to the
+  same timestamp the back-dating pass will use for that unit, and `locked` left False —
+  `finalize_submission` sets it via `responses.update(locked=True)` for the finalized rows,
+  and the IN_PROGRESS rows stay unlocked, which is what production leaves them as.
+  ⚠️ `last_attempt_at` is a plain nullable field with **no auto behaviour**
+  (`courses/models.py:3126`): unless the generator writes it, it is NULL for every response
+  and the back-dating pass has nothing to move.
+  **No `Attempt` rows are created**, though `attempt_count = 1` — safe because no analytics
+  or review surface reads `response.attempts` (§3.2; the review page reads `latest_answer`,
+  `earned_marks`, `review_feedback`, `reviewed_at`). The plan must re-confirm that before
+  relying on it. **Every pupil makes exactly one attempt per quiz**, whatever the unit's
+  `max_attempts` allows — a fuller retry history is what `Attempt` rows would be for, and it
+  buys the demo nothing.
+  **Wrong-vs-partial split:** `P_PARTIAL_GIVEN_WRONG = 0.4` — of the answers that are not
+  correct, 40% are partly right where the type supports it, so fill-blank and grid questions
+  show the partial-credit marking that distinguishes libli. RNG cost: a partial-capable
+  question consumes **two** draws (correct?, then partial?), a non-partial one consumes
+  **one**. That asymmetry is part of the fixed order below.
+  **A unit whose top-level questions are all NOT_MARKED gets no submission at all** — its
+  `score` and `max_score` would both be 0.00 and the cell could never show anything, while
+  the 0/0 pair still joins the part column's sum (§3.2). Matches `quiz_gradeable_max`'s
+  treatment of a unit with no gradeable question.
 - **Unfinished work.** `IN_PROGRESS_PUPILS = 2`: the first two pupils in generation order
   get an IN_PROGRESS submission (responses written, no `finalize_submission`, no
-  `UnitProgress`), so the review queue has entries and "Force submit" has a target. The
-  target unit is **the first published quiz strictly after the pupil's depth**; when there is
-  none (a pupil clamped to the last unit, or a course whose last quiz sits before the
-  frontier), fall back to the last published quiz the pupil has not already submitted, and
-  when there is no such quiz either, skip that pupil and **warn** — a kit that ends up with
-  fewer than `IN_PROGRESS_PUPILS` in-progress submissions has an empty review queue, which
-  is one of the two screens the demo exists to show.
+  `UnitProgress`), so the review queue has entries and "Force submit" has a target.
+  ⚠️ **The candidate set is the quizzes that pass R3 and R1b for this kit** — the same
+  filtered set the finalized pass uses, not "published quizzes". Otherwise this rule is the
+  one place that can select a unit the generator is forbidden to answer, and it would write
+  an empty submission (no responses to force-submit) or raise, contradicting R1b's
+  "a skip, never an exception". Within that set the target is **the first quiz strictly after
+  the pupil's depth**; failing that, the last such quiz the pupil has not already submitted;
+  failing that, skip the pupil and **warn** — a kit with fewer than `IN_PROGRESS_PUPILS`
+  in-progress submissions has an empty review queue, one of the two screens the demo exists
+  to show. A candidate found to fail validation mid-write is skipped and the chain continues.
 - **RNG order (fixed, part of R5):** the band partition and its single shuffle → then, per
-  pupil in order: jitter, then per unit in course order, then per question in element order.
-  An implementation that reorders these draws produces a different class from the same seed
-  and fails T7.
-- **Dates.** After the writes, one bulk `.update()` per model at the end of the transaction
-  back-dates timestamps across the `BACKDATE_DAYS = 42` before `created_at`, oldest unit
-  first. A queryset `update()` is required because these fields are stamped in `save()`.
-  **Covered:** `UnitProgress.completed_at`, `QuizSubmission.submitted_at`, and — because the
-  review queue is one of the two screens the demo exists to show — the **IN_PROGRESS**
-  submissions' `created` timestamp and their responses' `last_attempt_at`, which no
-  finalize would otherwise touch. **Knowingly left at `now()`:** `GroupMembership.added_at`
-  and the group's own creation (the class roster reads as set up today, which is true and
-  appears on no demo screen). ⚠️ Blocked on Q1: if no analytics surface displays these
-  dates, drop the back-dating rather than ship untestable decoration.
+  pupil in order: jitter, then per unit in pre-order, and within a unit either the lesson's
+  `P_LESSON_DONE` draw or, for a quiz, per question in element order (one draw, or two for a
+  partial-capable type). An implementation that reorders these draws produces a different
+  class from the same seed — that reordering is T7's mutant.
+- **Dates.** After the writes, the timestamps are back-dated across `BACKDATE_DAYS = 42`
+  before `created_at`, each unit's timestamp derived from its index in the ordered
+  published-unit list so the class reads oldest-first.
+  ⚠️ **One `.update()` per model is not enough, and the spec used to say it was.** A queryset
+  `.update(completed_at=X)` writes the *same* scalar to every matched row, which cannot
+  produce per-unit ordering. The mechanism is one `.update()` per model carrying a
+  `Case(When(unit_id=…, then=Value(ts)), …)` mapping built from that list; a queryset update
+  is still required (rather than `save()`) because these fields are stamped in `save()`.
+  **Covered:** `UnitProgress.completed_at`; `QuizSubmission.submitted_at` **and `created`**
+  for finalized rows — back-dating `submitted_at` alone would leave every submission
+  claiming it was submitted 42 days before it was created (`created` is `auto_now_add`,
+  `courses/models.py:3091`), a row no production path can make; the IN_PROGRESS submissions'
+  `created`; and every response's `last_attempt_at`.
+  **Knowingly left at `now()`:** `QuizSubmission.updated` (`auto_now`, invisible on every
+  demo screen), `GroupMembership.added_at` and the group's own creation — the roster reads
+  as set up today, which is true.
+  ⚠️ Blocked on Q1: if no surface displays these dates, drop the back-dating rather than
+  ship untestable decoration.
 
 **Builders registry, and `SKIP_UNIT_TYPES`.** A module-level map `{question model →
 builder}`, where each builder returns `(correct_answer, wrong_answer,
@@ -483,7 +596,7 @@ entry that returns a *wrong* "correct" answer is otherwise invisible (§8).
 | `demo_access list` | id, label, created, expires, status (`active` / `expired — pending purge` / `closed (expired\|revoked)`) |
 | `demo_access extend <id> --days N` | `expires_at = max(expires_at, now()) + N days` — the `max` matters for a kit that expired yesterday but has not been purged (§4.7), where extending from the stale date could leave it still expired. Refuses a closed kit; warns when the new `expires_at` is more than 60 days after `created_at` (the class's back-dated activity then looks abandoned) |
 | `demo_access revoke <id>` | purges now, `closed_reason="revoked"`; refuses a closed kit |
-| `demo_access purge [--dry-run]` | purges every kit matching `expires_at <= now() AND closed_at IS NULL`, `closed_reason="expired"`. `--dry-run` **prints the id and label of every kit it would purge** and writes nothing — a dry run that printed nothing could not serve as the "test it by hand first" step below |
+| `demo_access purge [--dry-run]` | purges every kit matching `expires_at <= now() AND closed_at IS NULL`, `closed_reason="expired"`, **each kit in its own transaction**: a failure is logged and the loop continues to the next kit, with a non-zero exit at the end so the cron log shows it. One kit's failure must not leave the others' logins alive. `--dry-run` **prints the id and label of every kit it would purge** and writes nothing — a dry run that printed nothing could not serve as the "test it by hand first" step below |
 
 `--course` takes a **slug** and is required; the command errors clearly when no course
 matches. (A default would be a foot-gun the day a second course lands on libli.pl, and
@@ -494,8 +607,11 @@ import re-derives slugs from titles, so a slug is not a stable identifier —
 without it every historical kit is re-processed nightly for ever. It is tested directly
 (T15), not just via `purge_kit`.
 
-Passwords are generated with `secrets.choice` over an unambiguous alphabet (no `O`/`0`,
-`l`/`1`), ~12 characters, and are **never stored** — only Django's hash.
+Passwords are `PASSWORD_LENGTH = 14` characters drawn with `secrets.choice` from a pinned
+module constant: the ASCII letters and digits minus the ambiguous `O o 0 I l 1`, i.e. 55
+symbols, so ~81 bits. Stated exactly rather than as "~12 characters" because this credential
+goes to a stranger and lives on prod for a fortnight. Passwords are **never stored** — only
+Django's hash.
 
 **Cron**, added to runbook §7 as one physical line in the **root** crontab (`sudo crontab
 -e`), like the other two; test once by hand with `--dry-run` first:
@@ -507,12 +623,18 @@ Passwords are generated with `secrets.choice` over an unambiguous alphabet (no `
 03:45: clear of the 02:15 backup and the 03:30 `purge_notifications`. The host clock is UTC
 (stated in runbook §7 for the backup line), so this is 03:45 UTC.
 
-⚠️ **A silently failing purge leaves live logins on prod.** `docker compose … exec -T` fails
-whenever the app container is down — which includes the ~24 s of every deploy
-([[wanted-continuous-deployment]]) and indefinitely after a failed one. The log above is the
-first line of defence; the second is that `demo_access list` is part of the ops routine
-(§5.3) and shows `expired — pending purge` rows. No login-time expiry check is added (§4.7),
-so this residual exposure is accepted knowingly rather than by omission.
+⚠️ **A silently failing purge leaves live logins on prod.** Three ways it can stop: the app
+container being down (`docker compose … exec -T` then fails — including the ~24 s of every
+deploy, [[wanted-continuous-deployment]], and indefinitely after a failed one); one kit
+raising (hence the per-kit transactions above); and, if `purge` were vendor-gated, a lost
+`LIBLI_VENDOR_INSTANCE` — which is precisely why R8 exempts it. The log above is the first
+line of defence; the second is that `demo_access list` is part of the ops routine (§5.3) and
+shows `expired — pending purge` rows. No login-time expiry check is added (§4.7), so this
+residual exposure is accepted knowingly rather than by omission.
+
+The log is append-only and root-owned; the runbook step says to confirm `logrotate` covers
+`/var/log/libli-*.log` (the backup log at `/var/log/libli-backup.log` has the same shape)
+and to add the pattern if it does not.
 
 **Admin tab (PR 3).** A "Demo access" tab in institution settings:
 
@@ -594,19 +716,32 @@ Polish suggestions were deliberately left unapplied for the same reason —
    ⚠️ **The course matters as much as the admin account.** §3.3's caveat — a rep Teacher
    reads every course — is justified there by "`mat-pp` is the only course on libli.pl". If
    this command has run, that premise is already false and the first rep sees an English
-   "Demo Course" beside it. The concrete precondition is therefore
-   **`Course.objects.count() == 1`** before the first kit is issued.
+   "Demo Course" beside it.
+
+   That yields **two separate checks**, which an earlier draft of this spec conflated into
+   `Course.objects.count() == 1`:
+   - **Seeder remediation** (one-off, before the first kit): no `demo-course` Course, no
+     `demo-subject` Subject, no `demo_*` users, and the other artefacts above cleared.
+   - **Rep visibility** (re-evaluated whenever a course is added, for ever): every course on
+     the box is one a rep may see. The day a private course legitimately lands — which
+     Risk 2 anticipates — this check fails, and the decision then is either to stop issuing
+     kits or to narrow a rep's read access. Do not write it as a count: it would be
+     permanently false and silently ignored.
 
    Remediation: take a DB snapshot first (the nightly backup exists, but a pre-deletion
    snapshot is the cheap insurance), then delete the demo users and course, restore the
    institution name, disable the webhook endpoint, and clear the SSO config. PR 1 ships this
    as a checklist in the runbook beside the guard.
-1. Fill `Institution.contact_email` on libli.pl if still blank (it ships blank).
-2. Decide whether to switch on `Institution.demo_instance`. It adds the "demonstration site
+1. Confirm `LIBLI_VENDOR_INSTANCE=true` is in `.env.production` **and visible inside the app
+   container** (`config/settings/base.py:288` defaults it to False). Without it, `create`
+   refuses — `purge` deliberately still runs (R8).
+2. Fill `Institution.contact_email` on libli.pl if still blank (it ships blank).
+3. Decide whether to switch on `Institution.demo_instance`. It adds the "demonstration site
    — do not enter real pupil data" notice to `/privacy/` and `/getting-started/`; it does
    **not** affect `/for-schools/`, which is exempt by design.
-3. Install the purge cron line, and add `demo_access list` to the routine you already use to
-   look at the box — it is what surfaces a purge that has silently stopped running.
+4. Install the purge cron line (checking `logrotate` covers its log, §4.6), and add
+   `demo_access list` to the routine you already use to look at the box — it is what
+   surfaces a purge that has silently stopped running.
 
 ## 6. Delivery — four PRs
 
@@ -638,7 +773,13 @@ core app should not wait on either.
 ## 8. Testing
 
 Against a small fixture course in the test DB (`mat-pp` is not available there), each test
-falsified against a named mutant:
+falsified against a named mutant.
+
+⚠️ **Every test that provisions runs under `override_settings(VENDOR_INSTANCE=True)`.**
+`config/settings/test.py:37` pins the flag **False** (its own comment says vendor tests opt
+back in this way), so the suite's default is the *guarded* state: without the override,
+T1–T12 and T15–T21 would all raise `ImproperlyConfigured` from R8's guard before asserting
+anything. T13 is the one that runs at the default and reads as such.
 
 - **T1 Derived score.** Every written response satisfies
   `fraction == to_stored_fraction(mark(latest_answer).fraction)`, and `earned_marks` equals
@@ -646,8 +787,12 @@ falsified against a named mutant:
   what makes this assertion true for partial credit (R1); comparing the raw float would fail
   on correct code. Include a partial-credit question in the fixture, or the wrapper is
   untested. Mutant: a fixed 0.5 score.
-- **T1b Builders are honest** — the highest-value test here. For **every** entry in the
-  builders registry, against a fixture question of that type:
+- **T1b Builders are honest** — the highest-value test here. It needs a fixture question of
+  **every** registry type, including the awkward ones: `choicegrid` (with `GridColumn` rows
+  and `row.correct_column_id`) and `matchpair`. Reuse the existing factories where they
+  exist and write a shared fixture helper in the `demo` tests where they do not; T6 asserts
+  no registry type lacks a fixture, so this cannot quietly shrink to the two easy types.
+  For every entry, against a fixture question of that type:
   `mark(correct).fraction == 1`, `mark(wrong).fraction < 1`, and where a partial is returned
   `0 < mark(partial).fraction < 1`. Without this, T1 is tautological (R1 defines `fraction`
   as `mark()`'s output), and a builder returning a wrong "correct" answer yields a
@@ -668,17 +813,27 @@ falsified against a named mutant:
   `kit.users` to all enrolled students.
 - **T4 Drafts untouched.** A fixture with draft units gains no progress and no submissions,
   and the matrix gains no column. Mutant: drop the published filter (R2).
-- **T5 Whole-unit skip.** A unit with an unanswerable question, and separately a unit with a
-  REVIEW question, each receive **no** submission and warn. A unit with a **NOT_MARKED**
-  question of an unsupported type is the counter-case: it is still generated, the question
-  alone skipped (R3's stated exception). Mutant: `continue` past an unanswerable AUTO
-  question instead of skipping its unit.
+- **T5 Whole-unit skip, and its three counter-cases.** A unit with an unanswerable question,
+  and separately a unit with a REVIEW question, each receive **no** submission and warn.
+  Counter-cases: (a) a unit with a **NOT_MARKED** question of an unsupported type is still
+  generated, that question alone skipped (R3's stated exception); (b) a unit whose top-level
+  questions are **all** NOT_MARKED gets no submission (§4.5 — the cell could never show a
+  score); (c) a unit with an unanswerable question **nested in a container** is generated
+  normally, because R9 never looks at it. Plus: when the quiz just past a pupil's depth is
+  R3-skipped, the IN_PROGRESS chain moves on to the next candidate rather than writing an
+  empty submission. Mutant: `continue` past an unanswerable top-level AUTO question instead
+  of skipping its unit.
 - **T6 Type coverage, derived not pinned.** Enumerate `QuestionElement` subclasses; assert
-  each is either in the builders registry or in `SKIP_UNIT_TYPES`. A new question type fails
-  until someone classifies it. **No `len(...) == N` pin**
-  ([[guards-that-assert-the-adjacent-thing]] #9).
-- **T7 Determinism.** Same seed → same responses, same progress, same band assignment,
-  including after a reordering of the generator's loops (the fixed RNG order, §4.5).
+  each is either in the builders registry or in `SKIP_UNIT_TYPES`, **and that every registry
+  type has a fixture in T1b** — so a type cannot pass quietly by having no fixture. A new
+  question type fails until someone classifies it. **No `len(...) == N` pin**
+  ([[guards-that-assert-the-adjacent-thing]] #9). Mutant: add a question type to neither
+  collection; the test must go red.
+- **T7 Determinism.** Two runs with the same seed produce identical responses, progress and
+  band assignment. Mutant: swap the jitter draw ahead of the band shuffle, or iterate a
+  unit's questions in pk order rather than element order — the class must change. (The
+  earlier wording, "invariant under a reordering of the loops", asserted the opposite of
+  §4.5 and was impossible to satisfy.)
 - **T8 Purge leaves nothing.** After a rep has created a collection and force-submitted,
   `purge_kit` removes every kit user, the group (via `grouping.services.delete_group`) and
   all their rows; the Default cohort's member count returns to its pre-kit value (§3.7); the
@@ -689,37 +844,62 @@ falsified against a named mutant:
   is an optional one-off; do not make it the routine falsification
   ([[reverting-a-mutant-with-git-checkout-destroys-your-work]]).
 - **T9 Isolation.** Kit A's Teacher sees A's pupils in analytics and none of B's, and cannot
-  reach a draft unit.
+  reach a draft unit. ⚠️ Kit B must be **fully provisioned with data**, or the test passes
+  because B is empty rather than because scoping works. Mutant: add kit A's Teacher to kit
+  B's `group.teachers`; B's pupils must then appear and the test go red.
 - **T10 Vendor gating of the tab.** With the flag off: the tab link is absent and `?tab=demo`
   falls back to the branding panel with 200 (**not** 404 — `_active_tab`'s fallback), while
   each action view returns 404. With the flag on: Platform Admin only; non-POST → 405.
+  Mutant: gate the action views on the tab list instead of their own flag check — the 404
+  assertions must go red.
 - **T11 Credentials are shown once.** The password appears in the first render of the result
   page, is absent from the session afterwards, and is absent from a second GET of that page
   and from the list page. Mutant: render on POST without popping the session key.
 - **T12 Silence (R6).** Provisioning leaves `mail.outbox` empty, enqueues no
   `WebhookDelivery`, and creates no `Notification` row for any user outside `kit.users`.
-- **T13 Vendor guard, derived over every subcommand.** With `VENDOR_INSTANCE=False`,
-  `provision_kit` raises `ImproperlyConfigured`, and **every** `demo_access` subcommand —
-  enumerated from the parser, never listed by hand and never pinned by count — raises
-  `CommandError` with no rows written. ⚠️ A guard on `create` alone would keep a
-  hand-written T13 green while `purge` still ran on a school's box: the exact
-  "assert the adjacent thing" shape ([[guards-that-assert-the-adjacent-thing]]).
+- **T13 Vendor guard, derived and split.** At the test settings' default
+  (`VENDOR_INSTANCE=False`, no override): `provision_kit` raises `ImproperlyConfigured` with
+  no rows written; **every** subcommand enumerated from the parser — never listed by hand,
+  never pinned by count — is asserted to be in exactly one of two sets, the guarded
+  (`create`, `extend`, `revoke`, raising `CommandError`) or the exempt (`purge`, `list`,
+  running normally); and `purge_kit` itself is callable, since R8's exemption is a service-
+  level claim and a parser-only test would miss a guard added one layer down. ⚠️ A guard on
+  `create` alone would keep a hand-written version of this green while `purge` refused to run
+  on prod ([[guards-that-assert-the-adjacent-thing]]).
 - **T14 `/admin/` exposes nothing.** A kit Teacher's `/admin/` index lists zero models
   (§3.3). Mutant: register `Group` in `grouping/admin.py`.
 - **T15 Purge selection.** A kit expiring tomorrow survives `demo_access purge`; one that
-  expired yesterday does not; a second run is a no-op (idempotence via `closed_at IS NULL`);
-  `--dry-run` writes nothing **and prints the ids it would purge**.
+  expired yesterday does not; a second run is a no-op; `--dry-run` writes nothing **and
+  prints the ids it would purge**. ⚠️ The idempotence case must contain an **already-closed**
+  kit whose `expires_at` is in the past, or it passes because the second run found nothing
+  rather than because the predicate filtered it. Mutant: drop the `closed_at IS NULL`
+  conjunct. Second mutant: make one kit's purge raise and assert the others still close and
+  the exit code is non-zero.
 - **T15b Bounds and extend arithmetic.** `provision_kit` (not just the command) rejects
   `pupils` outside 2–40 and `days` outside 1–90 with the named error; `extend` on a kit that
-  expired yesterday moves `expires_at` to `now() + N days`, not into the past.
+  expired yesterday moves `expires_at` to `now() + N days`, not into the past. Mutant:
+  validate in the command only — the service-level call must then go through, which is what
+  PR 3's form would hit.
 - **T16 Enrolment and deletion go through the services.** Provisioning calls
   `add_students_to_group` (not `Enrollment.objects.create`) and purge calls
-  `delete_group` — asserted on behaviour where possible, on the source otherwise.
+  `delete_group` — asserted on **behaviour** (the `Enrollment` rows and `added_by` the
+  service writes, and the post-delete recompute) rather than on a source grep, which a
+  refactor defeats silently. Mutant: swap in a direct `Enrollment.objects.create` and a bare
+  `group.delete()`.
 - **T17 Username disambiguation.** A second kit for the same label provisions successfully
-  with distinct usernames; a collision with a **non-kit** user fails with the named error.
+  with distinct usernames; a collision with a **non-kit** user — including one whose address
+  exists only as an allauth `EmailAddress` row — fails with the named error before any user
+  is created. Mutant: drop the non-kit collision check, or scan `User.email` only.
 - **T18 Back-dating** (only if Q1 keeps it): `completed_at` and `submitted_at` land inside
-  the `BACKDATE_DAYS` window before `created_at`, and are ordered oldest-unit-first.
-- **T19 `seed_demo_course` refuses** under `DEBUG=False`.
+  the `BACKDATE_DAYS` window before `created_at`; **two different units' timestamps are
+  strictly ordered** by pre-order position; and every finalized row satisfies
+  `created <= submitted_at`. Mutant: write one scalar to every row — the window assertion
+  still passes, the ordering one must not.
+- **T21 Frontier override.** `--frontier-part 0` produces the part-0 frontier, **not** the
+  0.75 fraction (the falsy-zero trap, §4.5); a part index out of range, or one with no
+  published unit, raises the named error.
+- **T19 `seed_demo_course` refuses** under `DEBUG=False`. Mutant: guard on
+  `settings.DEBUG is None` or on an env var the test does not set.
 - **T20 The rep's Student can actually do the demo** — the only test of §1's requirement 2.
   The kit's Student is non-staff, holds a `GroupMembership` of the kit group with the
   recomputed `Enrollment`, and can open a published quiz, submit it and read a stored score.
@@ -731,10 +911,18 @@ falsified against a named mutant:
 **Beyond the suite:** provision a kit against the local `mat-pp` copy and read the matrix,
 the drill-down, the review queue and the pupil view in a browser, light and dark;
 **record the wall-clock of that provision** (PR 3's tab depends on it, §4.6).
-**Acceptance criterion for the frontier default: at least two-thirds of the matrix's quiz
-columns hold a score for at least half the class** — which `FRONTIER_FRACTION = 0.75`
-clears via the median-pupil derivation in §4.5, and which `0.65` would not. A green suite
-cannot say whether the class looks believable
+**Acceptance criteria for the frontier default**, both measured **with every part expanded
+to unit columns** (an unexpanded part column lights up as soon as one quiz under it counts,
+§3.2, so it cannot discriminate):
+1. *results mode* — at least two-thirds of the **quiz unit** columns the generator actually
+   attempted hold a score for at least half the class. R3-skipped units are excluded from the
+   denominator and their warnings recorded alongside the measurement: a skip blanks a column
+   for the whole class, so counting them would turn this into a verdict on builder coverage
+   rather than on `FRONTIER_FRACTION`;
+2. *progress mode* — the class shows **gaps behind the frontier**, not a clean staircase
+   (the `P_LESSON_DONE` check, §4.5). This is the screen that opens first.
+
+A green suite cannot say whether the class looks believable
 ([[verify-ui-with-screenshots]], [[reviews-that-execute-beat-reviews-that-read]]).
 
 ## 9. Risks
