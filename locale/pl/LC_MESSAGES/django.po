@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-10 01:51+0200\n"
+"POT-Creation-Date: 2026-09-12 18:07+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -129,7 +129,7 @@ msgstr "Oczekujące"
 msgid "Accepted"
 msgstr "Zaakceptowane"
 
-#: .\accounts\views_manage.py:89
+#: .\accounts\views_manage.py:89 .\demo\models.py:20
 msgid "Expired"
 msgstr "Wygasłe"
 
@@ -161,11 +161,11 @@ msgstr "Użytkownik dezaktywowany."
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
-#: .\config\settings\base.py:149
+#: .\config\settings\base.py:150
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:149
+#: .\config\settings\base.py:150
 msgid "Polski"
 msgstr "Polski"
 
@@ -2122,6 +2122,7 @@ msgid "Element '%(el)s': unknown table border style."
 msgstr "Element „%(el)s”: nieznany styl obramowania tabeli."
 
 #: .\courses\transfer\payloads.py:658
+#, python-format
 msgid "Element '%(el)s': unknown table width preset."
 msgstr "Element „%(el)s”: nieznane ustawienie szerokości tabeli."
 
@@ -2857,6 +2858,60 @@ msgstr "Zaimportowano zawartość."
 #: .\courses\views_transfer.py:346 .\courses\views_transfer.py:389
 msgid "Import cancelled."
 msgstr "Import anulowany."
+
+#: .\demo\models.py:21
+msgid "Revoked"
+msgstr "Cofnięte"
+
+#: .\demo\warnings.py:45
+msgid "Quiz skipped: it holds a question the demo cannot answer."
+msgstr "Pominięto quiz: zawiera pytanie, na które demo nie potrafi odpowiedzieć."
+
+#: .\demo\warnings.py:46
+msgid "An unmarked question was left unanswered."
+msgstr "Pytanie nieoceniane pozostało bez odpowiedzi."
+
+#: .\demo\warnings.py:47
+msgid "A wrong-answer variant failed validation."
+msgstr "Wariant błędnej odpowiedzi nie przeszedł walidacji."
+
+#: .\demo\warnings.py:49
+msgid "A question has no usable wrong answer; all pupils answer it correctly."
+msgstr ""
+"Pytanie nie ma użytecznej błędnej odpowiedzi; wszyscy uczniowie odpowiadają na "
+"nie poprawnie."
+
+#: .\demo\warnings.py:52
+msgid "A partial answer failed validation; the wrong answer is used."
+msgstr "Odpowiedź częściowa nie przeszła walidacji; użyto błędnej odpowiedzi."
+
+#: .\demo\warnings.py:54
+msgid "Fewer unfinished quizzes than intended."
+msgstr "Mniej nieukończonych quizów niż zakładano."
+
+#: .\demo\warnings.py:56
+msgid ""
+"No pupil could be left with an unfinished quiz; the review queue will be "
+"empty."
+msgstr ""
+"Żaden uczeń nie mógł zostać z nieukończonym quizem; kolejka do sprawdzenia "
+"będzie pusta."
+
+#: .\demo\warnings.py:60
+msgid "A webhook endpoint is enabled: demo data will be sent to it."
+msgstr "Webhook jest włączony: dane demo zostaną do niego wysłane."
+
+#: .\demo\warnings.py:63
+msgid "Quiz skipped: it holds no question the demo can grade."
+msgstr "Pominięto quiz: nie zawiera pytania, które demo potrafi ocenić."
+
+#: .\demo\warnings.py:66
+msgid ""
+"A question's own correct answer did not mark full marks; the quiz was "
+"skipped."
+msgstr ""
+"Poprawna odpowiedź pytania nie uzyskała pełnej punktacji; quiz został "
+"pominięty."
 
 #: .\grouping\forms.py:81 .\templates\grouping\group_detail.html:20
 msgid "Teachers"
