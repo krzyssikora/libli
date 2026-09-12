@@ -143,8 +143,11 @@ this is prevention, not cleanup.
 **Files:**
 - Modify: `courses/management/commands/seed_demo_course.py` (imports + top of `handle`)
 - Modify: `docs/deployment.md` — **two sites**, §7 (~440-448) and the gotchas bullet at ~810
-- Modify: `docs/development/setup.md:86` and `docs/development/architecture.md:80` — both
-  still present `seed_demo_course` as freely runnable
+- Modify: `README.md:36`, `docs/development/setup.md:86` and
+  `docs/development/architecture.md:80` — all three still present `seed_demo_course` as freely
+  runnable. **`README.md` is the one a new developer hits first.**
+- Modify: `tests/capture_help_screenshots.py` — it calls the command and the guard breaks it
+  (see Step 5)
 - Test: `tests/test_seed_demo_course.py`
 
 **Interfaces:**
@@ -254,22 +257,40 @@ bullet with:
   refuses to run with `DEBUG=False` — see §7.)
 ```
 
-⚠️ **And two DEVELOPER docs, outside `deployment.md`.** A developer whose local settings module
+⚠️ **And three more docs, outside `deployment.md`.** A developer whose local settings module
 has `DEBUG=False` now gets a bare `CommandError` with nothing explaining the new precondition:
 
+- **`README.md:36`** — under "# 5. (Optional) seed a demo course with an enrolled student",
+  the most-read entry point in the repo. Add "(local only; refuses to run with `DEBUG=False`)".
 - `docs/development/setup.md:86` shows `uv run python manage.py seed_demo_course` as a plain
-  setup step — add "(local only; the command refuses to run with `DEBUG=False`)".
-- `docs/development/architecture.md:80` lists it among the management commands — add the same
+  setup step — same parenthetical.
+- `docs/development/architecture.md:80` lists it among the management commands — same
   parenthetical.
 
-(`courses/tests/test_callout_numbering_render.py:184` calls `Command()._callout` directly,
-never `handle()`, so the guard does not touch it.)
+⚠️ **THE CALLER AUDIT, in full** — one caller actually breaks:
+
+- **`tests/capture_help_screenshots.py:403`** does `call_command("seed_demo_course")` under
+  `config.settings.test`, where `DEBUG` is False. It is **not** collected by the default run
+  (`python_files = ["test_*.py"]` does not match `capture_*`), so nothing goes red — the
+  help-screenshot regeneration workflow simply starts raising `CommandError` the next time
+  someone runs that file explicitly, with no clue why. **Fix it now**, with the same autouse
+  shape Step 4 uses:
+
+  ```python
+  @pytest.fixture(autouse=True)
+  def _allow_the_screenshot_fixture(settings):
+      settings.DEBUG = True  # seed_demo_course is DEBUG-only since PR 1
+  ```
+
+- `courses/tests/test_callout_numbering_render.py:184` calls `Command()._callout` directly,
+  never `handle()`, so the guard does not touch it. No change needed.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
-git add docs/deployment.md docs/development/setup.md docs/development/architecture.md
+git add tests/capture_help_screenshots.py
+git add README.md docs/deployment.md docs/development/setup.md docs/development/architecture.md
 git commit -m "fix(demo): seed_demo_course refuses to run with DEBUG=False
 
 It creates demo_admin as a Platform Admin with a password hardcoded in
@@ -1629,7 +1650,16 @@ def test_plan_caches_fractions_and_skips_only_quizzes():
                 continue
             for i in range(len(q.answers.wrong)):
                 assert q.fractions[i] == 0.0
-    assert saw_sentinel, "the fixture must carry a sentinel question (see all_correct_quiz)"
+    assert saw_sentinel, (
+        "the fixture must carry a sentinel question (see 'All-correct quiz')"
+    )
+    # The NOT_MARKED branch must be REACHABLE, not merely present in the fixture.
+    # A row whose builder returns None is dropped by build_course_plan and never
+    # becomes a QuestionPlan, which silently kills every gradeable=False code
+    # path downstream.
+    assert any(
+        not q.gradeable for qs in plan.questions.values() for q in qs
+    ), "no QuestionPlan has gradeable=False — see 'Notes quiz' in the fixture"
 
 
 @pytest.mark.django_db
@@ -1730,9 +1760,16 @@ def _choice_question(
 
 
 def small_course(
-    *, lesson_with_unanswerable_selfcheck=False, quiz_without_questions=False
+    *, slug="small", lesson_with_unanswerable_selfcheck=False,
+    quiz_without_questions=False,
 ):
-    course = Course.objects.create(slug="small", title="Small", language="pl")
+    """⚠️ `slug` is a PARAMETER because `Course.slug` is `unique=True`
+    (courses/models.py:127). Any test that needs two courses in one transaction —
+    Task 10 Step 6's scaling test is the one — must pass a distinct slug for the
+    second, or the create raises IntegrityError.
+    (Note the separate rule in Task 13: for comparing two KITS, build ONE course
+    and provision twice. Two courses there would compare disjoint row sets.)"""
+    course = Course.objects.create(slug=slug, title="Small", language="pl")
     # PART 2 IS CREATED FIRST: pre-order must not coincide with pk order, or the
     # "flat order_by('order')" mutant is invisible.
     part_b = ContentNode.objects.create(
@@ -1756,13 +1793,16 @@ def small_course(
     # test, and Task 13's draw-order mutant (which moves the partial draw) cannot
     # turn the golden test red.
     #
-    # ⚠️ POSITION IS THE WHOLE POINT. Parked at the END of Part B it sat at
-    # pre-order index 15 of 17, while the depth bands reach 8-9 (struggling),
-    # 11-13 (average) and 13-15 (strong, and 15 only on ~18% of jitters) — so a
-    # 20-pupil class answered it at all only ~55% of the time, and the partial
-    # assertion held maybe 1 run in 40. Here it is at index 7, below the
-    # SHALLOWEST depth round(floor(0.75*17) * 0.70 * 0.92) = 8, so every pupil
-    # reaches it. Re-derive that arithmetic if you add or move a unit.
+    # ⚠️ POSITION IS THE WHOLE POINT. Parked at the END of Part B it sat near the
+    # tail of the outline, while the depth bands reach roughly 8-9 (struggling),
+    # 11-13 (average) and 13-15 (strong) — so a 20-pupil class answered it at all
+    # only ~55% of the time, and the partial assertion held maybe 1 run in 40.
+    # Here it is in Part A, below the SHALLOWEST depth any band can produce:
+    #     round(floor(0.75 * len(plan.units)) * 0.70 * 0.92)
+    # The fixture currently builds 18 published units (9 under each part), giving
+    # a floor of 8 against this quiz's index of 7. ⚠️ RE-DERIVE FROM THE
+    # EXPRESSION, never from the numbers — they move whenever a unit is added.
+    # Task 9's first test derives the same floor and asserts a candidate survives.
     fb_quiz = _unit(course, part_a, "Blanks quiz", "quiz")
     fb = FillBlankQuestionElement.objects.create(
         stem="2 + {{2}} = {{4}}",
@@ -1825,8 +1865,16 @@ def small_course(
     # untested and nothing stops the generator stamping 1.0 on ungraded work.
     notes_quiz = _unit(course, part_a, "Notes quiz", "quiz")
     _choice_question(notes_quiz, correct="3")
+    # ⚠️ `accepted` MUST BE NON-EMPTY. `_accepted_lines` (courses/models.py:2465)
+    # drops blank lines, so accepted="" yields [] and `_shorttext` returns None —
+    # build_course_plan then takes the `question_dropped` branch and the row never
+    # becomes a QuestionPlan at all. The effect is worse than a missing fixture:
+    # `gradeable=False` becomes UNREACHABLE plan-wide, so _pick_answer's
+    # `not qplan.gradeable` early-out and _answer_quiz's `if qplan.gradeable else
+    # None` — the branch that stops the generator stamping 1.0 on [N] questions —
+    # are dead code that every test leaves green.
     unmarked = ShortTextQuestionElement.objects.create(
-        stem="Your own notes?", accepted="",
+        stem="Your own notes?", accepted="cokolwiek",
         marking_mode=QuestionElement.MarkingMode.NOT_MARKED, max_marks=Decimal("0"),
     )
     Element.objects.create(unit=notes_quiz, content_object=unmarked)
@@ -1961,9 +2009,53 @@ can ship untranslated:
 
 ```bash
 uv run python manage.py makemessages -l pl
-# fill the eleven new msgids in locale/pl/LC_MESSAGES/django.po
+# transcribe the msgstr values below into locale/pl/LC_MESSAGES/django.po
 uv run python manage.py compilemessages
 ```
+
+**The eleven `msgstr` values — transcribe, do not invent.** `compilemessages` makes them
+permanent, so leaving an implementer to draft eleven operator-facing Polish strings unaided is
+the one step in this plan whose output quality would be unspecified:
+
+```po
+msgid "Quiz skipped: it holds a question the demo cannot answer."
+msgstr "Pominięto quiz: zawiera pytanie, na które demo nie potrafi odpowiedzieć."
+
+msgid "Quiz skipped: it holds no question the demo can grade."
+msgstr "Pominięto quiz: nie zawiera pytania, które demo potrafi ocenić."
+
+msgid "An unmarked question was left unanswered."
+msgstr "Pytanie nieoceniane pozostało bez odpowiedzi."
+
+msgid "A wrong-answer variant failed validation."
+msgstr "Wariant błędnej odpowiedzi nie przeszedł walidacji."
+
+msgid "A question has no usable wrong answer; all pupils answer it correctly."
+msgstr "Pytanie nie ma użytecznej błędnej odpowiedzi; wszyscy uczniowie odpowiadają na nie poprawnie."
+
+msgid "A partial answer failed validation; the wrong answer is used."
+msgstr "Odpowiedź częściowa nie przeszła walidacji; użyto błędnej odpowiedzi."
+
+msgid "A question's own correct answer did not mark full marks; the quiz was skipped."
+msgstr "Poprawna odpowiedź pytania nie uzyskała pełnej punktacji; quiz został pominięty."
+
+msgid "Fewer unfinished quizzes than intended."
+msgstr "Mniej nieukończonych quizów niż zakładano."
+
+msgid "No pupil could be left with an unfinished quiz; the review queue will be empty."
+msgstr "Żaden uczeń nie mógł zostać z nieukończonym quizem; kolejka do sprawdzenia będzie pusta."
+
+msgid "A webhook endpoint is enabled: demo data will be sent to it."
+msgstr "Webhook jest włączony: dane demo zostaną do niego wysłane."
+
+msgid "Revoked"
+msgstr "Cofnięty"
+```
+
+⚠️ These are a starting draft by a non-native writer — **read them before committing**, since
+they are what a school representative's operator sees. `"Cofnięty"` (access withdrawn) is the
+deliberate choice over `"Odwołany"` (cancelled) for `ClosedReason.REVOKED`; change it if the
+admin tab's register differs.
 
 ⚠️ **Check for `#, fuzzy` entries before you compile.** The catalog currently has zero. If
 `makemessages` pre-fills one from a similar string it is almost certainly the WRONG
@@ -3110,6 +3202,9 @@ git commit -m "feat(demo): leave two pupils with an unfinished quiz for the revi
 
 **Files:**
 - Modify: `demo/services.py`
+- Modify: **`notifications/services.py`** — a ContextVar mute plus one early return in
+  `notify()` (Step 3b). The only out-of-app code change in PR 2; it must be committed and
+  tested with it.
 - Test: `tests/demo/test_provision.py`
 
 **Interfaces:**
@@ -3604,7 +3699,12 @@ def provision_kit(label, *, course, days=DEFAULT_DAYS, pupils=DEFAULT_PUPILS,
 
     label = (label or "").strip()
     if not label or len(label) > LABEL_MAX:
-        raise errors.InvalidLabel("label must be non-blank and at most 200 characters")
+        # The CONSTANT, not a literal 200: a hard-coded number in the message is
+        # one that lies the day LABEL_MAX changes — the exact failure the
+        # constants module's own docstring argues against.
+        raise errors.InvalidLabel(
+            f"label must be non-blank and at most {LABEL_MAX} characters"
+        )
     if not MIN_PUPILS <= pupils <= MAX_PUPILS:
         raise errors.InvalidBounds("pupils", f"pupils must be {MIN_PUPILS}-{MAX_PUPILS}")
     if not MIN_DAYS <= days <= MAX_DAYS:
@@ -3784,8 +3884,11 @@ self-notification early-out, so no caller needs to change.
 - [ ] **Step 4: Run the provisioning and in-progress tests**
 
 ```bash
-uv run pytest tests/demo/test_provision.py tests/demo/test_in_progress.py -v
+uv run pytest tests/demo/test_provision.py tests/demo/test_in_progress.py notifications/tests/ -v
 ```
+
+⚠️ `notifications/tests/` is included because Step 3b changed `notify()` — run it here, at the
+task that made the edit, not only at the end.
 
 Expected: PASS. ⚠️ If `test_every_pupil_holds_progress_and_a_scored_submission` fails, the
 reach-forward is not firing — check `first_lesson` / `first_quiz` in `generate`, not the test.
@@ -3849,11 +3952,13 @@ def test_provisioning_queries_do_not_scale_with_the_class(
     from tests.demo.fixtures import small_course
     from tests.demo.helpers import provision_for_test
 
-    small_five = small_course()
+    # ⚠️ DISTINCT SLUGS. Course.slug is unique=True, so a second bare
+    # small_course() raises IntegrityError and this test cannot run at all.
+    small_five = small_course(slug="scale-5")
     with django_assert_max_num_queries(2000) as five:
         provision_for_test(small_five, label="Five", pupils=5)
 
-    small_ten = small_course()
+    small_ten = small_course(slug="scale-10")
     with django_assert_max_num_queries(4000) as ten:
         provision_for_test(small_ten, label="Ten", pupils=10)
 
@@ -3865,9 +3970,20 @@ def test_provisioning_queries_do_not_scale_with_the_class(
     )
 ```
 
-⚠️ The two absolute ceilings are deliberately loose — they are a tripwire, not a plan pin.
-**The ratio is the real assertion.** Record the two actual numbers in the PR body alongside the
-mat-pp timing.
+⚠️ **The 2000/4000 ceilings are placeholders — MEASURE FIRST, then set them.** Nothing has
+counted these: `_top_level_questions` is a query per unit, `mark()` re-queries its own
+children, `finalize_submission` → `compute_scores` re-queries elements and GFK targets per
+submission, and `_free_base`'s `_taken` is three queries per disambiguator attempt. A 5-pupil
+run over 18 units could plausibly land either side of 2000.
+
+So: **run it once with both ceilings at `100_000`**, read the two counts the failure message
+or a `print(len(five), len(ten))` gives you, then set each ceiling to roughly **1.5×** the
+measured value and write both numbers into this step and into the PR body.
+
+⚠️ **A later breach means investigating, not bumping.** Once the numbers are measured, raising
+a ceiling to get green destroys the only tripwire this task installs. **The ratio assertion is
+the real test** — it is the one that catches the per-pupil regression, and it needs no
+calibration.
 
 Then time a local mat-pp run (see Final verification for the env-var spelling) and **write the
 seconds and the verdict into the PR body**.
@@ -3875,8 +3991,16 @@ seconds and the verdict into the PR body**.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add demo/services.py tests/demo/test_provision.py
-git commit -m "feat(demo): provision_kit — users, group, enrolment and generated activity"
+# ⚠️ notifications/services.py IS PART OF THIS COMMIT. Step 3b creates `muted()`
+# and notify()'s early return there, and demo/services.py imports that name — a
+# commit without it pushes a branch whose every provisioning test fails on an
+# ImportError, while the dirty local tree stayed green.
+git add demo/services.py notifications/services.py tests/demo/test_provision.py
+git commit -m "feat(demo): provision_kit — users, group, enrolment and generated activity
+
+Adds a ContextVar mute to notifications.services so a kit's 6-41 enrolments
+stay silent (spec R6) without a process-global patch: PR 3 calls this inside
+a web request."
 ```
 
 ---
@@ -4416,6 +4540,11 @@ class Command(BaseCommand):
         return kit
 
     def _create(self, o):
+        # Both flags, symmetrically. Without the label check, omitting --label
+        # surfaces as provision_kit's "label must be non-blank…", which never
+        # names the flag the operator actually forgot.
+        if not o["label"]:
+            raise errors.DemoKitError('--label "<school>" is required')
         if not o["course"]:
             raise errors.DemoKitError("--course <slug> is required")
         course = Course.objects.filter(slug=o["course"]).first()
@@ -4506,8 +4635,14 @@ Expected: PASS (five tests).
 
 - [ ] **Step 5: Commit**
 
+Also add `demo_access` to the management-command list at `docs/development/architecture.md:80`
+(Task 1 edits that same line to annotate `seed_demo_course`), and the `demo` app to whatever
+app inventory that file carries — otherwise the branch ships a new operator-facing command and
+a whole new app that the architecture doc does not mention, while the very line being edited
+describes the command it replaces.
+
 ```bash
-git add demo/management/ tests/demo/test_command.py
+git add demo/management/ tests/demo/test_command.py docs/development/architecture.md
 git commit -m "feat(demo): the demo_access management command"
 ```
 
@@ -4663,11 +4798,17 @@ def test_the_golden_class_is_unchanged():
     # for a pupil whose first roll came out CORRECT (the draw then happens in the
     # unmutated build and not in the mutated one). A run where every pupil got
     # the two-blank question wrong draws identically either way.
+    # ⚠️ (TITLE, ORDINAL), not the title alone. "Blanks quiz" holds TWO questions:
+    # the two-blank fill-blank at ordinal 0 — the only partial-capable row in the
+    # fixture — and a plain choice question at ordinal 1. Matching on the title
+    # alone passes when a pupil answered the CHOICE question correctly, which
+    # says nothing about the fill-blank, so the guard installed to prevent a
+    # false green could itself be one.
     answered_correctly = {
-        row[0] for r in actual for row in r["answers"] if row[3] == "correct"
+        (row[0], row[1]) for r in actual for row in r["answers"] if row[3] == "correct"
     }
-    assert "Blanks quiz" in answered_correctly, (
-        "no pupil answered the partial-capable question CORRECTLY; Step 4's "
+    assert ("Blanks quiz", 0) in answered_correctly, (
+        "no pupil answered the two-blank fill-blank question CORRECTLY; Step 4's "
         "mutant would be a no-op and this test would not defend the draw order"
     )
 
@@ -4922,20 +5063,29 @@ git commit -m "test(demo): frontier-part zero, degenerate labels, warning kinds,
 - [ ] **Run the whole demo suite plus every test that touches what we changed**
 
 ```bash
-uv run pytest tests/demo/ tests/test_seed_demo_course.py -v
+uv run pytest tests/demo/ tests/test_seed_demo_course.py notifications/tests/ -v
 ```
 
 Expected: all green. ⚠️ **Grep the summary line** — pytest can exit 0 with failures in the
 body.
 
-⚠️ **No whole-repo sweep is needed, and here is why** (a sweep is a branch gate, not a task
-step). This branch makes two registry-wide edits — `"demo"` into `INSTALLED_APPS` and a
-per-file-ignore in `pyproject.toml` — and the repo has exactly two drift guards that enumerate
-the registry: `tests/test_list_referenced_files.py:71` (iterates `apps.get_models()` looking
-for `FileField`s) and `tests/test_transfer_schema.py:28` (pins `apps.get_app_config("courses")`).
-Both were checked while writing this plan: `DemoKit` declares no `FileField` and is not a
-`courses` model, so neither guard moves. If you add a `FileField` to `DemoKit` later, the first
-one is the test that will tell you.
+⚠️ **`notifications/tests/` is in that command on purpose.** Task 10 Step 3b adds an
+unconditional early return at the top of `notify()` — the only out-of-app *code* change in this
+PR — and that package holds 30 test modules (`test_services.py`, `test_wire_enrolled.py`,
+`test_emit_helpers.py`, `test_email_wiring.py` …) that no other step runs. Without this, the
+mute's only verification is one assertion inside `test_provisioning_is_silent`.
+
+⚠️ **Beyond that, no whole-repo sweep is needed** (a sweep is a branch gate, not a task step).
+The branch makes **three** edits outside `demo/`:
+1. `"demo"` into `INSTALLED_APPS`, and
+2. a per-file-ignore in `pyproject.toml` — the repo has exactly two drift guards that enumerate
+   the registry, `tests/test_list_referenced_files.py:71` (iterates `apps.get_models()` looking
+   for `FileField`s) and `tests/test_transfer_schema.py:28` (pins
+   `apps.get_app_config("courses")`). Both were checked while writing this plan: `DemoKit`
+   declares no `FileField` and is not a `courses` model, so neither guard moves. If you add a
+   `FileField` to `DemoKit` later, the first one is the test that will tell you.
+3. `notify()`'s early return — safe by construction because the ContextVar defaults to
+   `False`, so every existing caller behaves exactly as before; the run above is what proves it.
 
 - [ ] **Check migrations and lint**
 
@@ -4948,16 +5098,23 @@ uv run ruff format --check .
 - [ ] **Provision against the local mat-pp copy and LOOK at it** (spec §8, "beyond the suite")
 
 ```bash
-# Bash
-LIBLI_VENDOR_INSTANCE=true uv run python manage.py demo_access create \
-  --label "Test School" --course mat-pp --seed 1
+# Bash — `time` gives the wall-clock the budget below needs
+LIBLI_VENDOR_INSTANCE=true time uv run python manage.py demo_access create \
+  --label "Test School" --course mat-pp --pupils 20 --seed 1
 ```
 
 ```powershell
 # PowerShell (this machine's primary shell — `VAR=value cmd` is a PARSE ERROR here)
 $env:LIBLI_VENDOR_INSTANCE = "true"
-uv run python manage.py demo_access create --label "Test School" --course mat-pp --seed 1
+Measure-Command {
+  uv run python manage.py demo_access create `
+    --label "Test School" --course mat-pp --pupils 20 --seed 1 | Out-Default
+}
 ```
+
+⚠️ The `| Out-Default` is load-bearing: `Measure-Command` swallows its block's stdout, and
+without it **the printed passwords never reach the screen** — and they are not stored anywhere.
+⚠️ `--pupils 20` is explicit because the budget is stated for a 20-pupil kit.
 
 ⚠️ **The env var is required.** `config/settings/base.py:288` reads
 `VENDOR_INSTANCE = env.bool("LIBLI_VENDOR_INSTANCE", default=False)` and no dev settings module
