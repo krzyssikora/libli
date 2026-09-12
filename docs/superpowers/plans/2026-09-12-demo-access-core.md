@@ -125,8 +125,12 @@ references below (§4.5, R1b, T7…) are spec sections and are where the *why* l
 | `demo/generator.py` | bands, depths, slices, the writes, the IN_PROGRESS pass |
 | `demo/services.py` | `provision_kit`, `purge_kit`, `extend_kit`, `revoke_kit`, `require_vendor`, `ProvisionResult`, `ExtendResult` |
 | `demo/warnings.py` | the closed `kind` set + the translated display map |
+| `demo/management/__init__.py`, `demo/management/commands/__init__.py` | empty package markers — **without both, Django never discovers the command** |
 | `demo/management/commands/demo_access.py` | the operator surface |
 | `tests/demo/` | one test module per unit above |
+| `tests/demo/fixtures.py` | `small_course` — seven deliberate properties, each pinned by an assertion (Task 6) |
+| `tests/demo/helpers.py` | `provision_for_test` — the vendor override + explicit seed (Task 9) |
+| `tests/demo/golden_class.json` | the checked-in draw-order baseline (Task 13) |
 
 Split by responsibility: `content.py` (what is answerable) and `generator.py` (who did what)
 change for different reasons, and `builders.py` is pure data-shaping that the other two
@@ -332,6 +336,10 @@ has `DEBUG=False` now gets a bare `CommandError` with nothing explaining the new
 
 - `courses/tests/test_callout_numbering_render.py:184` calls `Command()._callout` directly,
   never `handle()`, so the guard does not touch it. No change needed.
+- `tests/test_help.py:458-460` imports the module for a constant
+  (`from courses.management.commands import seed_demo_course`, then
+  `Image.open(seed_demo_course._DEMO_PNG)`) and never calls `handle()`. No change needed —
+  listed so that a `grep` confirming "in full" turns up nothing unexplained.
 
 - [ ] **Step 6: Commit**
 
@@ -1283,6 +1291,7 @@ def test_every_registry_type_has_a_fixture_and_an_honest_builder():
     tautological: it defines `fraction` as mark()'s own output, so a builder
     returning a WRONG 'correct' answer is invisible."""
     from demo import builders
+    from demo.constants import WRONG_VARIANTS
 
     by_type = {type(q): q for q in _fixtures()}
     assert set(by_type) == set(builders.REGISTRY), "every registry type needs a fixture"
@@ -1293,7 +1302,11 @@ def test_every_registry_type_has_a_fixture_and_an_honest_builder():
         assert question.mark(answers.correct).fraction == 1.0, model
 
         assert answers.wrong is not builders.NO_WRONG_ANSWER, model
-        assert 1 <= len(answers.wrong) <= builders.WRONG_VARIANTS, model
+        # From demo.constants, NOT through demo.builders. The builders module only
+        # re-exports it incidentally via its header import; moving that import into
+        # a function body (which this plan does elsewhere) would break this line
+        # with an AttributeError that reads as a test bug.
+        assert 1 <= len(answers.wrong) <= WRONG_VARIANTS, model
         serialised = [answer_to_json(v) for v in answers.wrong]
         assert len(serialised) == len({repr(s) for s in serialised}), model
         for variant in answers.wrong:
@@ -1480,12 +1493,27 @@ def _shortnumeric(q):
     return Answers(q.value, wrong, None)
 
 
+_DECIMAL_PLACES = Decimal("0.0001")
+
+
 def _decimal_text(value):
     """A Fraction as the decimal a pupil would type. `format(..., "f")` avoids
     scientific notation; normalize() trims the trailing zeros Decimal division
-    leaves behind."""
+    leaves behind.
+
+    ⚠️ QUANTIZED. `courses/marking.py` deliberately preserves fraction form
+    (authors write `6/4`), so a real mat-pp row can hold `value="1/3"` — and the
+    bare division would then produce "1.333333333333333333333333333" under
+    Decimal's default 28-digit context. That is exactly the unreadable answer
+    this function exists to prevent, reached by a different route, and nothing
+    would go red: the variant still marks 0.0, so only the mat-pp eyeball would
+    ever show it.
+
+    Four places is safe against the margin: these variants are `upper + 1/2/3`,
+    so rounding by <= 0.00005 cannot pull one back inside an absolute tolerance.
+    """
     quotient = Decimal(value.numerator) / Decimal(value.denominator)
-    return format(quotient.normalize(), "f")
+    return format(quotient.quantize(_DECIMAL_PLACES).normalize(), "f")
 
 
 def _shorttext(q):
@@ -4801,8 +4829,8 @@ def test_a_missing_kit_id_is_a_clean_error():
         call_command("demo_access", "revoke", "9999")
 
 
-@pytest.mark.django_db
 def test_the_warning_block_is_bounded_however_many_warnings_there_are():
+    # No django_db: this builds DemoWarnings and a Command, and queries nothing.
     """The passwords are the two lines the operator needs. Warnings are emitted
     PER QUESTION and PER VARIANT, so on mat-pp an ungrouped list runs to
     thousands of lines and buries them. Grouping is what keeps the block
