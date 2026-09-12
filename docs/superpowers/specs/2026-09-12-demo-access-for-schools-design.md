@@ -129,8 +129,10 @@ pk 19, 1,029 nodes, updated 2026-09-05)
   (Force-submit does both, but that is a rep's action inside their own kit:
   `courses/review.py:96-102`.)
   ⚠️ **That is verified for `finalize_submission` ONLY.** R6 claims silence for the whole of
-  provisioning, which also calls `create_user` (×22), `set_user_role` (×22),
-  `ensure_verified_primary_email` (×2) and `add_students_to_group` (×21) — none of them read
+  provisioning, which also calls `User.objects.create_user` (×22 — Django's manager, not a
+  project helper; the side effects to check are the `post_save` receivers §3.7 enumerates),
+  `set_user_role` (×22), `ensure_verified_primary_email` (×2) and `add_students_to_group`
+  (×1, looping internally over 21 students) — none of them read
   for mail, `Notification` or webhook side effects. §3.7 already found that user creation
   fires two receivers nobody expected, so assuming these four are quiet is the one bet this
   spec otherwise refuses to make. **The plan verifies each with a file:line before relying on
@@ -481,8 +483,13 @@ provision_kit(
 ⚠️ **The return type is a `ProvisionResult`, not the `DemoKit` row** — the row cannot carry
 the passwords, because they are never persisted (§4.6), so returning it would leave both
 callers with no way to display what they are required to display and make T11
-unimplementable. `ProvisionResult` is an in-memory dataclass: never stored, never logged,
-never put in a `repr` that reaches a log. "Shown once" is therefore a property of the
+unimplementable. `ProvisionResult` is an in-memory dataclass, and "never logged" is given a **mechanism**
+rather than left as a rule: both password fields carry `field(repr=False)` (a plain
+`@dataclass` generates a `__repr__` listing every field), `provision_kit` is decorated
+`@sensitive_variables()` and PR 3's action view `@sensitive_post_parameters()`. ⚠️ Django's
+error reporter dumps local variables into tracebacks — and into `ADMINS` mail once SMTP lands
+(Risk 6) — so without those, any unrelated exception below the view leaks both
+stranger-bound prod passwords into a log or an email. T22 asserts the `repr`. "Shown once" is therefore a property of the
 caller — the command prints it and forgets it; the tab puts it in the one-shot session key.
 
 `seed`, when omitted, is drawn once from `secrets.randbelow(2**31)` and **persisted on the
@@ -490,8 +497,15 @@ row before any generation runs** (R5 is meaningless otherwise). `created_by` is 
 command invocations and `request.user` for the PR 3 tab. `frontier_part` is stored as given
 (null means "use the derived default", §4.5).
 
+**The named errors.** One hierarchy, referenced by all three consumers: `DemoKitError` as the
+base, with `InvalidLabel`, `InvalidBounds(field)`, `InvalidFrontierPart`, `UsernameCollision`,
+`EmptyCourse` and `EmptyKit`. The command maps each to a `CommandError` with a useful message;
+**PR 3's form needs `InvalidBounds` to carry the offending field name**, or it cannot attach
+the message to `pupils` rather than `days` and the "the form inherits the bounds by calling
+the service" claim fails; the tests assert on these classes rather than on `ValueError`.
+
 **Preconditions and bounds, enforced in `provision_kit` itself** — not only in the command,
-so the PR 3 form inherits them — each raising a named error:
+so the PR 3 form inherits them — each raising the matching error above:
 
 - `label` non-blank after stripping and at most 200 characters. ⚠️ It is the one free-text
   input, and `Model.objects.create()` does **not** enforce `max_length`: an over-long label
@@ -517,7 +531,15 @@ so the PR 3 form inherits them — each raising a named error:
 - **a post-generation invariant on what was actually written**, checked inside the
   transaction so a failure rolls the whole kit back: **every generated pupil holds at least
   one completed obligatory `UnitProgress`, and at least one finalized `QuizSubmission` with a
-  non-null `score`**. ⚠️ A kit-wide floor of "at least one submission anywhere" — the earlier
+  non-null `score`** — raising `EmptyKit`.
+  ⚠️ **It is made satisfiable by construction, not left to the dice.** The first obligatory
+  lesson and the first surviving quiz in each pupil's slice are completed **regardless of the
+  band draw** (the draw is still consumed, so R5's stream is unchanged — that is why it is
+  listed in §4.5's order). Without that, a struggling pupil with three obligatory lessons in
+  slice fails all three `P_LESSON_DONE = 0.80` draws with p ≈ 0.008; across four struggling
+  pupils that is a few percent of provisions, the seed comes from `secrets` unless supplied,
+  and the suite's own provisioning tests go intermittently red for a content-shaped reason.
+  The invariant then stays as a genuine last-resort assertion rather than a dice roll. ⚠️ A kit-wide floor of "at least one submission anywhere" — the earlier
   wording — is satisfied by a kit where nineteen of twenty pupils have an entirely blank
   results row, which is reachable whenever a struggling pupil's slice contains no quiz, reads
   as a broken demo, and leaves the suite green. Per pupil is the assertion that matches what
@@ -604,15 +626,28 @@ Order of work, inside one transaction:
    `User.email` **with no allauth `EmailAddress` row** — they never authenticate, so there is
    nothing to verify — `set_unusable_password()`, role Student, `language="pl"`.
    The collision scan (step 0) still covers both tables for every candidate.
-   ⚠️ **Every kit user gets a human name**, because `User.__str__`/full-name logic prefers
-   `display_name` then `first_name`/`last_name` (`accounts/models.py:26,42,55-70`) and the
-   matrix sorts with `polish_sort_key`. Without them the rep's own row would read
-   `sp-12-krakow-uczen` among "Anna Kowalska" — on the screen §4.4 calls the demo's best
-   moment. **Pupils get `first_name` + `last_name` and no `display_name`** (the natural shape
-   for a class list, and it lets the sort work on the surname); the two logins get a
-   `display_name`, which takes precedence. Since `display_name` wins wherever it is set, both
-   spellings render correctly on any surface; T20 pins that the rep's own row shows a human
-   name rather than a username.
+   ⚠️ **Every kit user needs a `display_name`, and an earlier draft of this spec got that
+   backwards.** The three demo screens render **`student.display_name|default:student.username`
+   and nothing else** — `analytics_matrix.html:144-145`, `analytics_student.html:9`,
+   `review_queue.html:16,31`, `review_submission.html:58`. `User.__str__` is
+   `display_name or username` (`accounts/models.py:42`); only `sort_name` (`:45-55`) and
+   `list_display_name` (`:57-72`) consult `first_name`/`last_name`, and **no demo screen uses
+   either**. So pupils given only `first_name`/`last_name` would render as
+   `sp-12-krakow-p01 … p20` across the matrix, the drill-down and the review queue — the exact
+   failure the names exist to prevent, with the gendered lists, the redraw and the pool
+   assertion all buying nothing visible.
+   **So each pupil gets `first_name`, `last_name`, AND `display_name = f"{first} {last}"`**
+   (`max_length=150`, `accounts/models.py:26`). Setting all three keeps `list_display_name`
+   clean too: it appends `" (display)"` only when the display string differs from
+   `"First Last"` (`:70`), which this spelling never does. The two logins keep their
+   label-carrying `display_name`.
+   ⚠️ **The matrix does not sort by surname**: `courses/views_analytics.py:96-98` orders the
+   pool by `username`, and `polish_sort_key` lives only in `grouping/views.py`. The class list
+   therefore reads in generation order, with the rep's own `…-uczen` row last — harmless, but
+   no rationale should rest on alphabetical-by-surname.
+   T20 asserts a **generated pupil's** row shows a human name, not only the rep's Student row:
+   the Student is the one row that carries a `display_name` on the broken build and would pass
+   alone.
    Every kit user is created with `language="pl"` — the pupil login walks a Polish lesson in
    front of the rep, so the default locale must not decide it.
 5. **Enrolment** — the Student and the pupils are added with
@@ -777,9 +812,9 @@ on them being fixed):
   `score` and `max_score` would both be 0.00 and the cell could never show anything, while
   the 0/0 pair still joins the part column's sum (§3.2). Matches `quiz_gradeable_max`'s
   treatment of a unit with no gradeable question.
-- **Unfinished work.** `IN_PROGRESS_PUPILS = 2`: the first two pupils in generation order
-  get an IN_PROGRESS submission, so the review queue has entries and "Force submit" has a
-  target. **Responses are written for a strictly proper prefix of the unit's top-level
+- **Unfinished work.** `IN_PROGRESS_PUPILS = 2` pupils get an IN_PROGRESS submission, so the
+  review queue has entries and "Force submit" has a target. (Which two is the selection rule
+  below — stated once, there.) **Responses are written for a strictly proper prefix of the unit's top-level
   questions** — at least one, at most n−1, the count drawn from the kit RNG (and part of the
   fixed order above) — with no `finalize_submission` and no `UnitProgress`. ⚠️ The prefix is
   specified because this is the submission a rep will force-submit and resume: a fully
@@ -806,11 +841,21 @@ on them being fixed):
   makes a target exist by construction; the strong band, whose depth can clamp to the last
   unit, is exactly who had none.
   If no pupil qualifies at all, **warn** — a kit with no in-progress submission has an empty
-  review queue. A candidate found to fail validation mid-write is skipped and the next
-  candidate quiz is tried.
+  review queue.
+  **The prefix is drawn over the unit's ANSWERABLE top-level questions** — the same `n` the
+  candidate rule counts, never all top-level questions — and must contain at least one
+  **gradeable** response. ⚠️ Otherwise a five-question unit with three NOT_MARKED or
+  sentinel-answered questions can yield a prefix made entirely of questions that reach neither
+  `score` nor `max_score`: the rep force-submits and gets a submission with nothing in it,
+  the very state §4.5 forbids for an all-NOT_MARKED unit. If the chosen candidate cannot yield
+  such a prefix, move to the next candidate, consuming one further prefix-length draw.
+  (There is no "fails validation mid-write" fallback: step 5.5 makes validation a kit-level
+  fact computed once, so a candidate cannot fail later. An earlier draft said otherwise, and
+  taking it literally would reintroduce the 20× re-validation step 5.5 exists to remove.)
 - **RNG order (fixed, part of R5), in full:**
   1. **per pupil in creation order: gender, then given name, then surname** (three draws each,
-     plus a redraw per rejected duplicate — see below). ⚠️ These happen in §4.4 step 4, *before* everything
+     plus **exactly one** further draw per rejected duplicate, since a rejection redraws the
+     surname only — see below). ⚠️ These happen in §4.4 step 4, *before* everything
      below, and an earlier draft left them out of this list entirely, which made R5 either
      incomplete or false;
   2. the band partition and its single shuffle;
@@ -819,75 +864,60 @@ on them being fixed):
      `P_OPTIONAL_DONE` for an optional one) or, for a quiz, per question in element order
      (one draw, or two for a partial-capable type; **a NOT_MARKED question, a sentinel
      question, and a question whose partial failed R1b all consume one fewer** — none at all
-     for the first two, one for the third, which is thereafter treated as non-partial-capable),
-     then the per-pupil back-dating offset.
+     for the first two, one for the third, which is thereafter treated as non-partial-capable).
+     There is **no** back-dating offset draw: back-dating is gone (above).
      ⚠️ **A unit the kit-wide pass put in the R3-skipped set consumes NO draws**, and so do an
      all-NOT_MARKED quiz and a unit that is neither lesson nor quiz. Stated because the
      alternative — walking a skipped unit's questions and discarding the results — is equally
      consistent with a list that simply omits the case, and the two diverge for every unit
      after the first skip. T7 cannot adjudicate it: it compares two runs of the *same* code;
-  4. finally, the IN_PROGRESS pass: for the first `IN_PROGRESS_PUPILS` pupils in creation
-     order, the prefix-length draw, then per answered question in element order on the same
-     one-or-two-draw rule. ⚠️ It runs **after** every pupil's finalized pass and its
-     back-dating offsets, as a separate sweep — an earlier version of this list omitted the
+  4. finally, the IN_PROGRESS pass: **for the pupils chosen by the selection rule below,
+     walked in `(depth, creation index)` order** — never "the first two in creation order",
+     which is the rule that paragraph rejects — the prefix-length draw, then per answered
+     question in element order on the same one-or-two-draw rule. Selection and iteration are
+     each pinned once, and they agree. ⚠️ It runs **after** every pupil's finalized pass, as a
+     separate sweep — an earlier version of this list omitted the
      pass entirely, so R5 was incomplete in the same way the name draws once were, and an
      implementation could run it before, inside or after the per-pupil loop and still claim
      conformance.
 
   **Names are distinct per kit**: a drawn `(first_name, last_name)` pair already used in this
-  kit is rejected and redrawn, so a 20-row matrix never shows two "Anna Kowalska" rows that
-  drill into different pupils. ⚠️ **The redraw is bounded** (a fixed retry count, then a named
-  error) and a module-level assertion pins
-  `min(len(F_GIVEN) × len(F_SURNAMES), len(M_GIVEN) × len(M_SURNAMES)) >= MAX_PUPILS`: an
-  unbounded redraw over a list trimmed below `pupils` distinct pairs — by a future edit or a
-  bad merge — spins for ever inside a transaction, and inside a web request on prod for PR 3's
-  tab. 40 given names × 40 surnames per gender is the stated minimum, and a test asserts the
-  shipped lists meet it. An implementation that reorders any of these draws produces a different class from
+  kit is rejected and **the surname alone is redrawn** — gender and given name are kept, so a
+  rejection costs exactly **one** draw. Pinned because "a redraw" is not a number: re-rolling
+  the surname, the pair, or all three diverge for every pupil after the first collision, and
+  R5 pins the Bernoulli method and the `uniform`/`randint` choices for exactly this reason.
+  ⚠️ **The pool assertion is on the list lengths, not on their product**:
+  `len(F_GIVEN) >= 40 and len(F_SURNAMES) >= 40`, and the same for the masculine pair, checked
+  by a test against the shipped lists. A product-based assertion (`>= MAX_PUPILS`) is
+  satisfied by 40 given names × **1** surname, on which drawing the 40th distinct pair
+  succeeds with probability 1/40 per attempt — the bounded retry's named error would then fire
+  during ordinary provisioning rather than on a bad merge. The bound matters because gender is
+  drawn per pupil, so a 40-pupil kit can need 40 distinct pairs from a single gender's lists. An implementation that reorders any of these draws produces a different class from
   the same seed: that reordering is T7's mutant.
-- **Dates.** After the writes, the timestamps are back-dated across `BACKDATE_DAYS = 42`
-  before `created_at`, each unit's timestamp derived from its index in the ordered
-  published-unit list so the class reads oldest-first.
-  ⚠️ **One `.update()` per model is not enough, and the spec used to say it was.** A queryset
-  `.update(completed_at=X)` writes the *same* scalar to every matched row, which cannot
-  produce per-unit ordering. The mechanism is one `.update()` per model carrying a
-  `Case(When(...), …)` mapping; a queryset update is still required (rather than `save()`)
-  because these fields are stamped in `save()`.
-  ⚠️ **The mapping is keyed on `(unit_id, student_id)`, not on `unit_id` alone.** A unit-only
-  key stamps all 20 pupils — strong, average and struggling — as having finished unit *k* at
-  the identical instant, a shape no class has, and it erases exactly the pace variation the
-  bands exist to show. Each pupil's timestamp is the base plus a small per-pupil offset drawn
-  from the kit RNG (in the fixed order above).
-  ⚠️ **The index is normalised against the PUPIL'S OWN depth, not the whole list**: unit *k*
-  of a pupil whose depth is *d* lands at `created_at − BACKDATE_DAYS × (1 − k/d)`, **and when
-  `d == 0` the pupil's single unit lands at `created_at`** — `d` is 0 whenever
-  `frontier_index` is (a one-unit course: `floor(0.75 × 1) == 0`), and without that case the
-  formula divides by zero inside the provisioning transaction. §8's fixture courses are
-  deliberately small, so this is reachable in the suite, not only on a thin real course. Normalising
-  against `len(published_units)` instead would put a struggling pupil's *latest* work
-  ≈ 20 days in the past, so the whole slow band reads "stopped working three weeks ago" in the
-  drill-down — Risk 3's abandoned-class symptom arriving on day one. A real slow pupil has
-  done *less*, not *older*, work: everyone's most recent activity should sit near
-  `created_at`, with the bands differing in how far they got. T18 asserts it.
-  **Covered:** `UnitProgress.completed_at`; `QuizSubmission.submitted_at` **and `created`**
-  for finalized rows — back-dating `submitted_at` alone would leave every submission
-  claiming it was submitted 42 days before it was created (`created` is `auto_now_add`,
-  `courses/models.py:3091`), a row no production path can make; the IN_PROGRESS submissions'
-  `created`; and every response's `last_attempt_at`.
-  ⚠️ **The IN_PROGRESS rows do NOT sit on the depth curve.** Their target quiz is *strictly
-  after* the pupil's depth, so `k > d`, `1 − k/d` is negative and the formula would stamp
-  them **into the future** relative to the kit — a row no production path can make, sorting
-  nonsensically in the review queue. They are the pupil's *current* work: their `created` and
-  their responses' `last_attempt_at` land at `created_at` minus a small RNG-drawn offset
-  (hours, not weeks). T18 asserts they are the newest rows in the kit.
-  **Each `.update()` is filtered to the kit** — `student__in=kit.users`,
-  `submission__student__in=kit.users` — never a bare `Case` mapping over the whole table. R7
-  forbids touching anyone else's rows, and T3 counts *new* rows, so an unfiltered update that
-  stamped a real pupil's existing `completed_at` would pass it.
-  **Knowingly left at `now()`:** `QuizSubmission.updated` (`auto_now`, invisible on every
-  demo screen), `GroupMembership.added_at` and the group's own creation — the roster reads
-  as set up today, which is true.
-  ⚠️ Blocked on Q1: if no surface displays these dates, drop the back-dating rather than
-  ship untestable decoration.
+- **Dates: there is no back-dating. Q1 is RESOLVED — nothing displays these timestamps.**
+  Verified 2026-09-12 against the whole template tree and the export: **no** template renders
+  `completed_at`, `submitted_at`, `last_attempt_at`, `created`, a `date:` filter or
+  `timesince` — the matrix, the drill-down, the review queue and the review page render names,
+  percentages and status pills only — and `courses/gradebook.py` / `courses/views_export.py`
+  carry no timestamp column. The review queue orders by `unit__title, student__username`
+  (`courses/review.py:245`), not by date. The one consumer found anywhere is the resume anchor
+  (`courses/rollups.py:1115-1160`), which reads them **for the logged-in user** — and no fake
+  pupil ever logs in (N8) while the rep's own Student starts with no activity by design.
+
+  So every row keeps the timestamp its own `save()` stamps, and the generator writes no
+  `.update()` at all. ⚠️ **This deletes a whole subsystem the spec carried for five rounds** —
+  a `Case(When(...))` mapping per model, a per-pupil offset, a depth normalisation, a
+  division-by-zero case at `d == 0`, a future-stamping trap for the IN_PROGRESS rows, a
+  `created <= submitted_at` invariant, a kit-scoped filter on each update, and test T18 — none
+  of which any human could ever have seen. It is also thousands of bind parameters removed
+  from the one transaction PR 3 may run inside a web request (at the defaults the
+  `UnitProgress` mapping alone approached ~26,000, against Postgres's 65,535 per-statement
+  ceiling). The class simply reads as having been created today, which is true.
+
+  ⚠️ Consequences to carry: R5's fixed order loses its back-dating offset draw (below);
+  Risk 3's "the class ages" disappears, since nothing claims a date; and if a future surface
+  ever *does* show these dates, back-dating returns as its own decision, not as a silent
+  reinstatement.
 
 **Builders registry, and `UNANSWERABLE_QUESTION_TYPES`** (named for what it holds — question
 types, not unit types, which an earlier `SKIP_UNIT_TYPES` spelling got backwards while T6
@@ -1121,6 +1151,14 @@ core app should not wait on either.
 Against a small fixture course in the test DB (`mat-pp` is not available there), each test
 falsified against a named mutant.
 
+⚠️ **The fixture must break two coincidences, or two named mutants are green on a broken
+build.** In a freshly built fixture `Element.order` ascending *is* `pk` ascending and
+`ContentNode` pre-order *is* pk order, so T7's "iterate questions in pk order" mutant and
+T18's pre-order trap both produce identical output. The fixture therefore includes **at least
+one quiz whose elements are re-ordered after creation** and **one course whose later part's
+units were created first**. Same family as the project's recurring pk-coincidence flake
+([[independent-pk-sequences-make-substring-assertions-flaky]]).
+
 ⚠️ **Every test that provisions runs under `override_settings(VENDOR_INSTANCE=True)`.**
 `config/settings/test.py:37` pins the flag **False** (its own comment says vendor tests opt
 back in this way), so the suite's default is the *guarded* state: without the override,
@@ -1269,18 +1307,11 @@ the only test that runs at the default**, and it reads as such.
   provisioning still succeeds** (§4.2's single rule); the named error appears only when the
   2..999 search is exhausted. Mutant: scan `User.email` only, so the `EmailAddress`-only
   holder is missed and `ensure_verified_primary_email` raises mid-transaction instead.
-- **T18 Back-dating** (only if Q1 keeps it): `completed_at` and `submitted_at` land inside
-  the `BACKDATE_DAYS` window before `created_at`; **two different units' timestamps are
-  strictly ordered** by pre-order position; **two pupils differ on the same unit** (the
-  per-pupil offset, §4.5); **every pupil's latest activity sits near `created_at` regardless
-  of band** (the per-pupil-depth normalisation — a struggling pupil whose last work is three
-  weeks stale is the failure this catches); **the IN_PROGRESS rows are the newest in the kit
-  and never later than `created_at`** (the `k > d` future-stamping trap, §4.5); a pupil whose
-  depth is 0 gets a timestamp rather than a `ZeroDivisionError`; and every finalized row satisfies `created <= submitted_at`.
-  Mutants: write one scalar to every row (the window assertion still passes, the ordering one
-  must not); and key the `Case` on `unit_id` alone (the cross-unit ordering still passes, the
-  two-pupils one must not).
-*(T19 and T20 follow; T21–T22 close the list.)*
+- **T18 No timestamp rewriting.** The generator issues **no** queryset `.update()` against
+  `UnitProgress`, `QuizSubmission` or `QuestionResponse` — Q1 is resolved and back-dating is
+  gone (§4.5). Assert it where it bites: a pre-existing non-kit student's `completed_at` is
+  byte-identical after a provision. Mutant: reinstate a bare `Case(When(...))` update with no
+  `student__in=kit.users` filter; the row count is unchanged, so only this assertion goes red.
 - **T19 `seed_demo_course` refuses** under `DEBUG=False`. Mutant: guard on
   `settings.DEBUG is None` or on an env var the test does not set.
 - **T20 The rep's Student can actually do the demo** — the only test of §1's requirement 2.
@@ -1288,13 +1319,26 @@ the only test that runs at the default**, and it reads as such.
   recomputed `Enrollment`, and can open a published quiz, submit it and read a stored score.
   ⚠️ Every other test targets the generator or the gating; a kit whose Student came out
   staff (or unenrolled) passes all of them and then silently gets the read-only previewer
-  instead of a real submission (`courses/views.py:1455,1696-1697`). It also asserts the rep's
-  own matrix row shows a **human name**, not `sp-12-krakow-uczen` (§4.4). Mutant: create the
-  Student with role Teacher.
+  instead of a real submission (`courses/views.py:1455,1696-1697`). It also asserts that a
+  **generated pupil's** matrix row shows a human name — not only the rep's own row, which
+  carries a `display_name` even on the build where the pupils' names never render (§4.4).
+  Mutants: create the Student with role Teacher; give pupils `first_name`/`last_name` without
+  a `display_name`, on which the matrix falls back to `…-p01`.
 - **T21 Frontier override.** `--frontier-part 0` produces the part-0 frontier, **not** the
   0.75 fraction (the falsy-zero trap, §4.5); a part index out of range, or one with no
   published unit, raises the named error before any row is written. Mutant: `if
   kit.frontier_part:` in place of `is not None`.
+- **T22 Preconditions, the credential path and the `repr`.** The two password fields are
+  absent from `repr(ProvisionResult(...))` (the `field(repr=False)` mechanism, §4.4). A course with **no published units** raises
+  the named error before any row is written (the inverted-`clamp` case, §4.4); a course whose
+  quizzes all sit past every pupil's depth fails the **post-generation** invariant (no
+  finalized submission with a score) and rolls back, rather than provisioning live
+  credentials with an empty results mode; `provision_kit` returns a `ProvisionResult` whose
+  two passwords authenticate their users, **neither appears in any persisted `DemoKit`
+  field**, and after PR 3's result page is read once the password is gone from the session.
+  Mutants: return the `DemoKit` row alone (the command and tab then have nothing to show);
+  check the surviving-quiz set instead of the written rows (the past-the-depth case then
+  provisions happily).
 - **T23 The drill-down is populated.** Build one pupil's drill-down through the real
   `rollups` code and assert an **obligatory**-lesson tick, an **optional**-lesson tick and a
   quiz status pill. ⚠️ Without this, deleting the whole `P_OPTIONAL_DONE` pass keeps every
@@ -1307,16 +1351,14 @@ the only test that runs at the default**, and it reads as such.
   to one set of probabilities is perfectly deterministic, populates both matrix modes, and
   passes T1, T2a, T2b and T7 — leaving the demo's whole visual premise defended only by a
   human eyeballing "gaps, not a staircase". Mutant: flatten the band constants.
-- **T22 Preconditions and the credential path.** A course with **no published units** raises
-  the named error before any row is written (the inverted-`clamp` case, §4.4); a course whose
-  quizzes all sit past every pupil's depth fails the **post-generation** invariant (no
-  finalized submission with a score) and rolls back, rather than provisioning live
-  credentials with an empty results mode; `provision_kit` returns a `ProvisionResult` whose
-  two passwords authenticate their users, **neither appears in any persisted `DemoKit`
-  field**, and after PR 3's result page is read once the password is gone from the session.
-  Mutants: return the `DemoKit` row alone (the command and tab then have nothing to show);
-  check the surviving-quiz set instead of the written rows (the past-the-depth case then
-  provisions happily).
+- **T25 The review queue is non-empty.** Build it through the real
+  `courses/review.py::pending_reviews_for` **as the kit Teacher** and assert the in-progress
+  list is non-empty and contains only kit pupils. ⚠️ §1's fourth requirement has no other
+  test: T5 asserts only which quizzes are *never* chosen. That function filters on
+  `scoping.reviewable_students` and on `quiz_units_in_order`, so an IN_PROGRESS submission
+  written for a pupil outside the group, or on a unit the drafts filter drops, leaves the
+  queue silently empty while every other test passes. Mutants: write the IN_PROGRESS
+  submissions with `status=SUBMITTED`; write them for a non-member pupil.
 
 **Beyond the suite:** provision a kit against the local `mat-pp` copy and read the matrix,
 the drill-down, the review queue and the pupil view in a browser, light and dark;
@@ -1354,9 +1396,9 @@ A green suite cannot say whether the class looks believable
    duration from §8 is what decides whether PR 3's tab can call it synchronously (§4.6).
 2. **Teacher reads every course.** §3.3. A standing caveat for the day a second, private
    course lands on libli.pl.
-3. **The class ages.** Dates are relative to `created_at`, so a repeatedly extended kit
-   eventually shows a class that stopped working months ago. Hence `extend`'s warning past
-   60 days from `created_at`.
+3. **~~The class ages.~~ Retired by Q1's resolution** — nothing carries or displays a date, so
+   an extended kit's class cannot read as abandoned. `extend_kit`'s 60-day warning is kept
+   anyway: a kit alive for two months is worth a second look regardless of how its data reads.
 4. **`mat-pp` edits during a demo.** Deleting a unit a kit has data for removes that data
    (hard delete, [[deleted-elements-recover-only-via-lal-json]]). Harmless — the column
    simply disappears.
@@ -1369,14 +1411,13 @@ A green suite cannot say whether the class looks believable
 
 ## 10. Open questions
 
-- **Q1** (blocks PR 2's date handling) Does any analytics or review surface actually display
-  the back-dated timestamps? If none does, drop the back-dating (§4.5) and T18 as
-  untestable decoration. (The mechanism half of this question is already settled: a queryset
-  `update()` bypasses `save()` by construction, which is why §4.5 specifies it.)
-  ⚠️ Dropping it also removes the per-pupil offset from R5's fixed RNG order, so the same
-  seed gives a different class before and after the decision. That is acceptable — no kit
-  spans the change — but the plan should note it rather than discover it; keeping the draw
-  and discarding its value would preserve stream stability if that ever matters.
+- ~~**Q1**~~ **RESOLVED 2026-09-12 — no surface displays those timestamps, so there is no
+  back-dating.** Checked across the whole template tree, `courses/gradebook.py` and
+  `courses/views_export.py`; the review queue sorts by title and username
+  (`courses/review.py:245`); the only reader anywhere is the resume anchor
+  (`courses/rollups.py:1115-1160`), and it reads for the **logged-in** user, which no fake
+  pupil ever is (N8). §4.5, R5's draw order, T18 and Risk 3 are updated accordingly. This no
+  longer blocks PR 2.
 - **Q2** (blocks PR 2) Confirm the default pupil count (20), kit lifetime (14 days) and
   `FRONTIER_FRACTION` (0.75) with Krzysztof.
 - **Q3** (blocks PR 4) `/for-schools/` claims analytics drill down "to one pupil and one
