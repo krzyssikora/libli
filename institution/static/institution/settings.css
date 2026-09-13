@@ -1,9 +1,12 @@
 /* Phase 5c Institution Settings surface — token-driven styles (core/css/tokens.css).
    No hardcoded colours. Mirrors people.css idioms and breakpoints. */
 
-/* ── Settings page layout ─────────────────────────────────────────────────── */
+/* ── Settings page layout ─────────────────────────────────────────────────────
+   The page uses the whole .app-main column so the tab row and table-first cards
+   (.settings__form--wide) get the room; everything else in a tab panel keeps the
+   readable 48rem measure it always had. */
 
-.settings {
+.settings [data-tab] > :not(.settings__form--wide) {
   max-width: 48rem;
 }
 
@@ -19,21 +22,42 @@
   margin: 0 0 var(--space-2);
 }
 
-/* ── Tab bar (mirrors .manage__tabs in people.css) ────────────────────────── */
+/* ── Tab bar (the underline idiom of .manage__tabs in people.css) ─────────────
+   ONE row that scrolls sideways when it does not fit; no label ever wraps. The
+   NAV is the scroller and the .scroll-x wrapper around it paints the edge shade
+   (app.css, core/js/scroll_affordance.js). An overflow-x: auto box also clips the
+   y-axis, so people.css's "tab border-bottom pulled over the parent's rule with
+   margin-bottom: -1px" would be clipped here. Instead the rule is an inset shadow
+   on the nav, and the active underline an inset shadow INSIDE the tab box, which
+   paints over the rule exactly where the old overlap did. */
+
+.settings__tabs-wrap {
+  margin-bottom: var(--space-6);
+}
 
 .settings__tabs {
   display: flex;
+  align-items: center;
   gap: var(--space-2);
-  margin-bottom: var(--space-6);
-  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  box-shadow: inset 0 -1px 0 var(--border-subtle);
+  /* Scrolled fully right, the last tab ends a gap short of the edge instead of
+     flush against it (and sub-pixel past it: scrollLeft stops at a whole pixel). */
+  padding-right: var(--space-2);
+}
+
+.settings__tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .settings__tab {
+  flex: none;
+  white-space: nowrap;
   padding: var(--space-2) var(--space-3);
   color: var(--text-secondary);
-  border-bottom: 2px solid transparent;
   text-decoration: none;
-  margin-bottom: -1px;
 }
 
 .settings__tab:hover {
@@ -42,18 +66,42 @@
 
 .settings__tab.is-on {
   color: var(--text-primary);
-  border-bottom-color: var(--primary);
+  box-shadow: inset 0 -2px 0 var(--primary);
   font-weight: 600;
+}
+
+/* The scroller clips anything outside the tab row, a focus ring included. */
+.settings__tab:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Vendor-only tabs (Pricing, Demo access) sit after this quiet rule. */
+.settings__tabs-divider {
+  flex: none;
+  width: 1px;
+  height: 1.25em;
+  margin: 0 var(--space-2);
+  background: var(--border-default);
 }
 
 /* ── Settings form card ────────────────────────────────────────────────────── */
 
 .settings__form {
+  max-width: 48rem;
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: var(--space-6);
   box-shadow: var(--shadow-xs);
+}
+
+/* A table-first card (Demo kits) takes the whole column. */
+.settings__form--wide {
+  max-width: none;
+}
+
+.settings__form + .settings__form {
+  margin-top: var(--space-5);
 }
 
 /* ── Field rows ─────────────────────────────────────────────────────────────
@@ -79,6 +127,16 @@
   display: block;
   font-size: .8125rem;
   color: var(--text-tertiary);
+  margin-top: var(--space-1);
+}
+
+/* A bulleted list set like .settings__help (the Demo tab intro). */
+.settings__help-list {
+  margin: var(--space-1) 0;
+  padding-left: var(--space-5);
+}
+
+.settings__help-list li + li {
   margin-top: var(--space-1);
 }
 
@@ -217,6 +275,14 @@
    actions bar — the actions bar provides its own top border as a separator.
    (:last-of-type is not usable here because .settings__actions is also a div.) */
 .settings__section:has(+ .settings__actions) {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+/* Nor when nothing follows it inside its card: the divider and padding would
+   draw an empty band above the card's bottom edge. */
+.settings__form > .settings__section:last-child {
   padding-bottom: 0;
   margin-bottom: 0;
   border-bottom: none;
@@ -440,6 +506,64 @@
   border-color: color-mix(in srgb, var(--danger) 45%, var(--border-default));
 }
 
+/* ── Table scroller ───────────────────────────────────────────────────────────
+   The element that really scrolls a .settings__table sideways, at every width.
+   The .scroll-x[data-scroll-x] wrapper around it does not scroll; it only paints
+   the edge shade (core/js/scroll_affordance.js contract). */
+
+.settings__table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Demo kits table ──────────────────────────────────────────────────────────
+   Slugs, logins, dates, statuses and headers never break mid-word; the table
+   scrolls instead. Only the free-text Label wraps, and only down to 10rem:
+   overflow-wrap: anywhere (NOT break-word, which leaves min-content untouched)
+   stops a long label with no spaces from widening the column. Absolute
+   min-width only — a percentage width collapses in an auto-layout table. */
+
+.settings__table--kits th,
+.settings__table--kits td {
+  white-space: nowrap;
+}
+
+.settings__table--kits .settings__cell-label {
+  white-space: normal;
+  min-width: 10rem;
+  overflow-wrap: anywhere;
+}
+
+/* Extend + Revoke: compact, side by side, never stacked. */
+.settings__row-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings__row-actions form {
+  margin: 0;
+}
+
+.settings__row-actions .btn {
+  white-space: nowrap;
+}
+
+/* Quiet destructive row action: an outline sibling of app.css's solid
+   .btn--danger, tinted like .badge--danger. Qualified with .btn so it outranks
+   .btn, .btn:hover and .btn:active whatever the stylesheet order. */
+.btn.settings__btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-default));
+}
+
+.btn.settings__btn-danger:hover,
+.btn.settings__btn-danger:active {
+  background: var(--danger-subtle);
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
 /* Phase 5d — SSO redirect-URI display */
@@ -459,6 +583,14 @@
     display: block;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* A table that has its own .settings__table-scroll stays a table: the rule
+     above would make the TABLE the scroller, inside a box that never overflows,
+     and the edge shade would watch the wrong element. */
+  .settings__table-scroll > .settings__table {
+    display: table;
+    overflow-x: visible;
   }
 
   .palette,
@@ -500,9 +632,17 @@
   cursor: progress;
 }
 
-.btn[data-demo-disabled]:hover,
-.btn[data-demo-disabled]:active {
+/* A busy button keeps its OWN base background under the pointer: the solid
+   Create stays --primary, the ghost Extend stays transparent (the .btn:hover
+   and .btn--ghost:hover fills would read as "pressable"). */
+.btn[data-demo-disabled]:not(.btn--ghost):hover,
+.btn[data-demo-disabled]:not(.btn--ghost):active {
   background: var(--primary);
+}
+
+.btn--ghost[data-demo-disabled]:hover,
+.btn--ghost[data-demo-disabled]:active {
+  background: transparent;
 }
 
 .btn[data-demo-disabled]::before {

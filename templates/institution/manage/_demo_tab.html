@@ -28,7 +28,7 @@
 <div class="settings__section" data-demo-card="{{ card.kit_id }}">
   <h2 class="settings__section-title">{% blocktrans with id=card.kit_id label=card.label %}Demo kit #{{ id }} — {{ label }}{% endblocktrans %}</h2>
   <div class="alert alert--warning">{% trans "These passwords are not stored — copy them now." %}</div>
-  <div class="scroll-x" data-scroll-x><table class="settings__table">
+  <div class="scroll-x" data-scroll-x><div class="settings__table-scroll"><table class="settings__table">
     <tbody>
       <tr>
         <th>{% trans "Teacher login" %}</th>
@@ -41,9 +41,9 @@
         <td><code data-demo-student-password>{{ card.student_password }}</code></td>
       </tr>
       <tr><th>{% trans "Log in at" %}</th><td colspan="2"><code>{{ demo_login_url }}</code></td></tr>
-      <tr><th>{% trans "Expires" %}</th><td colspan="2">{{ card.expires_at|date }}</td></tr>
+      <tr><th>{% trans "Expires" %}</th><td colspan="2">{{ card.expires_at|date:"j M Y" }}</td></tr>
     </tbody>
-  </table></div>
+  </table></div></div>
   {% if card.warning_lines %}
   <div data-demo-warnings>
     <h3 class="settings__label">{% trans "Warnings" %}</h3>
@@ -79,7 +79,8 @@
     </div>
   </div>
 </form>
-<div class="settings__section" data-demo-list>
+{# A card, not a <form>: each row's Extend and Revoke are their own forms. #}
+<div class="settings__form settings__form--wide" data-demo-list>
   <h2 class="settings__section-title">{% trans "Demo kits" %}</h2>
   <p class="settings__help">
     {% if demo_show_all %}
@@ -89,7 +90,7 @@
     {% endif %}
   </p>
   {% if demo_kits %}
-  <div class="scroll-x" data-scroll-x><table class="settings__table">
+  <div class="scroll-x" data-scroll-x><div class="settings__table-scroll"><table class="settings__table settings__table--kits">
     <thead>
       <tr>
         <th>#</th>
@@ -107,32 +108,34 @@
       {% for kit in demo_kits %}
       <tr data-demo-kit="{{ kit.pk }}">
         <td>{{ kit.pk }}</td>
-        <td>{{ kit.label }}</td>
+        <td class="settings__cell-label">{{ kit.label }}</td>
         <td>{{ kit.course_slug }}</td>
         <td>{{ kit.pupil_count }}</td>
         <td>{% if kit.teacher %}{{ kit.teacher.username }}{% else %}—{% endif %}</td>
-        <td>{{ kit.created_at|date }}</td>
-        <td>{{ kit.expires_at|date }}</td>
+        <td>{{ kit.created_at|date:"j M Y" }}</td>
+        <td>{{ kit.expires_at|date:"j M Y" }}</td>
         <td>{{ kit.status_label }}</td>
         <td>
           {% if not kit.closed_at %}
-          <form method="post" action="{% url 'institution:settings_demo_extend' kit.pk %}" data-demo-extend>
-            {% csrf_token %}
-            {% if demo_show_all %}<input type="hidden" name="all" value="1">{% endif %}
-            <button class="btn" type="submit">{{ demo_extend_label }}</button>
-          </form>
-          <form method="post" action="{% url 'institution:settings_demo_revoke' kit.pk %}" data-demo-revoke
-                data-confirm="{% trans 'Revoke this demo kit? Its logins are deleted immediately.' %}">
-            {% csrf_token %}
-            {% if demo_show_all %}<input type="hidden" name="all" value="1">{% endif %}
-            <button class="btn" type="submit">{% trans "Revoke" %}</button>
-          </form>
+          <div class="settings__row-actions">
+            <form method="post" action="{% url 'institution:settings_demo_extend' kit.pk %}" data-demo-extend>
+              {% csrf_token %}
+              {% if demo_show_all %}<input type="hidden" name="all" value="1">{% endif %}
+              <button class="btn btn--ghost btn--small" type="submit">{{ demo_extend_label }}</button>
+            </form>
+            <form method="post" action="{% url 'institution:settings_demo_revoke' kit.pk %}" data-demo-revoke
+                  data-confirm="{% trans 'Revoke this demo kit? Its logins are deleted immediately.' %}">
+              {% csrf_token %}
+              {% if demo_show_all %}<input type="hidden" name="all" value="1">{% endif %}
+              <button class="btn btn--small settings__btn-danger" type="submit">{% trans "Revoke" %}</button>
+            </form>
+          </div>
           {% endif %}
         </td>
       </tr>
       {% endfor %}
     </tbody>
-  </table></div>
+  </table></div></div>
   {% else %}
   <p class="settings__help">{% trans "No demo kits." %}</p>
   {% endif %}
