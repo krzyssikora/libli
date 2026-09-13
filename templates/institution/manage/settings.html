@@ -38,6 +38,9 @@
   <div data-tab="pricing" {% if active_tab != "pricing" %}hidden{% endif %}>
     {% include "institution/manage/_pricing_tab.html" %}
   </div>
+  <div data-tab="demo" {% if active_tab != "demo" %}hidden{% endif %}>
+    {% include "institution/manage/_demo_tab.html" %}
+  </div>
   {% endif %}
 </section>
 {% endblock %}

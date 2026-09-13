@@ -1,0 +1,56 @@
+{% load i18n static %}
+{% if active_tab == "demo" %}
+{# PR 3 spec §4.1: the whole body, scripts included, renders only on the Demo tab. #}
+{# ⚠️ Every link and form action here is absolute ({% url %}): this panel also renders on the create view's error page, served at .../demo/create/. #}
+<div class="settings__section">
+  <h2 class="settings__section-title">{% trans "Demo access" %}</h2>
+  <p class="settings__help">{% trans "A demo kit is a Teacher login — class analytics, per-pupil progress and force-submitting an unfinished quiz — a pupil login that starts with a blank record, and an example class of generated pupils. It lasts the chosen number of days and is then deleted automatically." %}</p>
+</div>
+{# demo:results #}
+{# demo:create-form #}
+<div class="settings__section" data-demo-list>
+  <h2 class="settings__section-title">{% trans "Demo kits" %}</h2>
+  <p class="settings__help">
+    {% if demo_show_all %}
+    <a href="{% url 'institution:settings' %}?tab=demo">{% trans "Show open kits only" %}</a>
+    {% else %}
+    <a href="{% url 'institution:settings' %}?tab=demo&amp;all=1" data-demo-show-all>{% trans "Show closed kits too" %}</a>
+    {% endif %}
+  </p>
+  {% if demo_kits %}
+  <div class="scroll-x" data-scroll-x><table class="settings__table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>{% trans "Label" %}</th>
+        <th>{% trans "Course" %}</th>
+        <th>{% trans "Pupils" %}</th>
+        <th>{% trans "Teacher login" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th>{% trans "Expires" %}</th>
+        <th>{% trans "Status" %}</th>
+        <th>{% trans "Actions" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for kit in demo_kits %}
+      <tr data-demo-kit="{{ kit.pk }}">
+        <td>{{ kit.pk }}</td>
+        <td>{{ kit.label }}</td>
+        <td>{{ kit.course_slug }}</td>
+        <td>{{ kit.pupil_count }}</td>
+        <td>{% if kit.teacher %}{{ kit.teacher.username }}{% else %}—{% endif %}</td>
+        <td>{{ kit.created_at|date }}</td>
+        <td>{{ kit.expires_at|date }}</td>
+        <td>{{ kit.status_label }}</td>
+        <td>{# demo:row-actions #}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="settings__help">{% trans "No demo kits." %}</p>
+  {% endif %}
+</div>
+{# demo:scripts #}
+{% endif %}

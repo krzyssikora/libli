@@ -16,6 +16,8 @@ from accounts.sso_config import is_enabled
 from accounts.sso_config import load_sso_app
 from accounts.sso_config import redirect_uri
 from accounts.sso_config import save_sso_config
+from demo.models import STATUS_DISPLAY
+from demo.models import DemoKit
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
 from institution.forms import PricingForm
@@ -52,13 +54,41 @@ def _tabs():
     """Per REQUEST, not at import. A module-level conditional tuple is evaluated
     once, so override_settings(VENDOR_INSTANCE=True) would never reach it and the
     gate would half-work: the tab link renders, ?tab=pricing falls back to
-    branding, and the panel never opens."""
-    return _BASE_TABS + (("pricing",) if django_settings.VENDOR_INSTANCE else ())
+    branding, and the panel never opens. Demo access (PR 3) is vendor-only for the
+    same reason Pricing is."""
+    vendor_tabs = ("pricing", "demo") if django_settings.VENDOR_INSTANCE else ()
+    return _BASE_TABS + vendor_tabs
 
 
 def _active_tab(request):
     tab = request.GET.get("tab", "branding")
     return tab if tab in _tabs() else "branding"
+
+
+def _demo_context(active_tab, form, show_all):
+    """PR 3 spec §4.1/§4.6. Built ONLY for the Demo tab: the settings view builds
+    every panel on each GET, so without this gate every tab would pay for the kit
+    list. It never touches pending credentials — the settings view owns those
+    (spec §4.4)."""
+    if active_tab != "demo":
+        return {
+            "demo_form": None,
+            "demo_kits": None,
+            "demo_show_all": False,
+            "demo_extend_label": None,
+        }
+    kits = DemoKit.objects.select_related("teacher")
+    if not show_all:
+        kits = kits.filter(closed_at__isnull=True)
+    kits = list(kits)  # the model's ordering: ("-created_at", "-pk")
+    for kit in kits:
+        kit.status_label = STATUS_DISPLAY[kit.status_key]
+    return {
+        "demo_form": form,
+        "demo_kits": kits,
+        "demo_show_all": show_all,
+        "demo_extend_label": None,
+    }
 
 
 def _settings_context(
@@ -76,6 +106,8 @@ def _settings_context(
     public_pages=None,
     page_overrides=None,
     pricing=None,
+    demo_form=None,
+    demo_show_all=False,
 ):
     """Assemble the nine-form context. Any bound (errored) form passed in is used
     as-is; the rest are unbound — the six institution forms seeded from `inst`,
@@ -142,6 +174,7 @@ def _settings_context(
             pricing
             or (PricingForm(instance=inst) if django_settings.VENDOR_INSTANCE else None)
         ),
+        **_demo_context(active_tab, demo_form, demo_show_all),
     }
 
 
@@ -149,7 +182,13 @@ def _settings_context(
 @permission_required("institution.change_institution", raise_exception=True)
 def settings(request):
     inst = Institution.load()
-    ctx = _settings_context(request, inst, _active_tab(request))
+    ctx = _settings_context(
+        request,
+        inst,
+        _active_tab(request),
+        # Spec §4.6: only the literal "1" shows closed kits.
+        demo_show_all=request.GET.get("all") == "1",
+    )
     return render(request, "institution/manage/settings.html", ctx)
 
 
