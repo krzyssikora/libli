@@ -14,6 +14,9 @@ from django.utils.translation import gettext_lazy as _
 from core.services import ACCENT_DEFAULT
 from core.services import PRIMARY_DEFAULT
 from courses import validators as _cv
+from courses.models import Course
+from demo.constants import DEFAULT_DAYS
+from demo.constants import DEFAULT_PUPILS
 from institution.models import BrandColor
 from institution.models import Institution
 from institution.models import PricingPlan
@@ -499,3 +502,18 @@ class PricingForm(forms.ModelForm):
                     setattr(row, name, self.cleaned_data[f"plan_{plan.order}_{name}"])
                 row.save()
         return inst
+
+
+class DemoKitForm(forms.Form):
+    """PR 3 spec §4.2. ⚠️ NO max_length / min_value / max_value: every bound lives
+    in demo.services.provision_kit, and this form inherits them by calling it. A
+    bound copied here would drift from the service's — P8 proves there is none.
+    Requiredness and integer coercion are type-level and stay."""
+
+    # No initial course: the parent spec forbids a default, so the operator picks.
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.order_by("title"), label=_("Course")
+    )
+    label = forms.CharField(label=_("Label"))
+    days = forms.IntegerField(label=_("Days"), initial=DEFAULT_DAYS)
+    pupils = forms.IntegerField(label=_("Pupils"), initial=DEFAULT_PUPILS)

@@ -17,8 +17,12 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.cache import add_never_cache_headers
 from django.utils.formats import date_format
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
+from django.utils.translation import gettext
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
+from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.debug import sensitive_variables
 
 from accounts.forms import SsoForm
@@ -29,14 +33,21 @@ from accounts.sso_config import save_sso_config
 from courses.models import ContentNode
 from demo import errors as demo_errors
 from demo.constants import DEFAULT_DAYS
+from demo.constants import LABEL_MAX
 from demo.constants import LONG_LIVED_DAYS
+from demo.constants import MAX_DAYS
+from demo.constants import MAX_PUPILS
+from demo.constants import MIN_DAYS
+from demo.constants import MIN_PUPILS
 from demo.models import STATUS_DISPLAY
 from demo.models import DemoKit
 from demo.services import extend_kit
+from demo.services import provision_kit
 from demo.services import revoke_kit
 from demo.warnings import DISPLAY as DEMO_WARNING_DISPLAY
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
+from institution.forms import DemoKitForm
 from institution.forms import PricingForm
 from institution.forms import PublicPagesForm
 from institution.forms import RetentionForm
@@ -101,7 +112,7 @@ def _demo_context(active_tab, form, show_all):
     for kit in kits:
         kit.status_label = STATUS_DISPLAY[kit.status_key]
     return {
-        "demo_form": form,
+        "demo_form": form or DemoKitForm(),
         "demo_kits": kits,
         "demo_show_all": show_all,
         "demo_extend_label": ngettext(
@@ -785,3 +796,142 @@ def settings_demo_revoke(request, kit_id):
             request, _("Kit #%(id)s revoked; its logins were deleted.") % {"id": kit.pk}
         )
     return redirect(_demo_list_url(request))
+
+
+# Spec §4.2: display only — the bounds are enforced by provision_kit.
+_DEMO_BOUNDS = {"pupils": (MIN_PUPILS, MAX_PUPILS), "days": (MIN_DAYS, MAX_DAYS)}
+DEMO_WARNING_SAMPLE = 3  # unit ids kept per warning kind (spec §4.3)
+
+
+def _demo_error_sentence(exc):
+    """The translated lead sentence for a DemoKitError with no form field."""
+    if isinstance(exc, demo_errors.UsernameCollision):
+        # ONE msgid for the whole sentence, so Polish word order is free; the URL
+        # enters only as an escaped argument, never inside the translated text.
+        # Not "try again": from the tab this is a double submit whose other request
+        # has just committed a live kit, and this page shows no card.
+        return format_html(
+            gettext(
+                "A kit for this label may have just been created. "
+                "{link_start}Open the Demo tab{link_end} — its credentials appear "
+                "there — before creating again."
+            ),
+            link_start=format_html('<a href="{}">', _index_url("demo")),
+            link_end=mark_safe("</a>"),
+        )
+    if isinstance(exc, demo_errors.EmptyCourse):
+        return _("This course cannot hold a demo.")
+    if isinstance(exc, demo_errors.EmptyKit):
+        return _("The generated class came out empty and was rolled back.")
+    if isinstance(exc, demo_errors.NamePoolExhausted):
+        return _("Ran out of distinct pupil names; use fewer pupils.")
+    return _("The demo kit could not be created.")
+
+
+def _attach_demo_error(form, exc):
+    """Spec §4.2's table. The service's own messages are English; a non-field error
+    is a translated sentence plus that text ESCAPED inside <code> — built with
+    format_html, never mark_safe over an f-string."""
+    if isinstance(exc, demo_errors.InvalidLabel):
+        form.add_error(
+            "label",
+            _("Enter a label of at most %(max)s characters.") % {"max": LABEL_MAX},
+        )
+    elif isinstance(exc, demo_errors.InvalidBounds) and exc.field in _DEMO_BOUNDS:
+        low, high = _DEMO_BOUNDS[exc.field]
+        form.add_error(
+            exc.field,
+            _("Must be between %(min)s and %(max)s.") % {"min": low, "max": high},
+        )
+    else:
+        form.add_error(
+            None, format_html("{} <code>{}</code>", _demo_error_sentence(exc), str(exc))
+        )
+
+
+@sensitive_variables()
+def _demo_result_entry(result):
+    """Spec §4.3's entry. `warnings` is a per-kind SUMMARY: a mat-pp provision emits
+    warnings per question and per variant, and none of their English `reason`s is
+    displayed — except the webhook's, which is its endpoint URL."""
+    kit = result.kit
+    summary = {}
+    for warning in result.warnings:
+        item = summary.setdefault(
+            warning.kind, {"count": 0, "unit_ids": [], "detail": None}
+        )
+        item["count"] += 1
+        if (
+            warning.unit_id is not None
+            and warning.unit_id not in item["unit_ids"]
+            and len(item["unit_ids"]) < DEMO_WARNING_SAMPLE
+        ):
+            item["unit_ids"].append(warning.unit_id)
+        if warning.kind == "active_webhook_endpoint":
+            item["detail"] = warning.reason
+    return {
+        "kit_id": kit.pk,
+        "label": kit.label,
+        "teacher_username": kit.teacher.username,
+        "teacher_password": result.teacher_password,
+        "student_username": kit.student.username,
+        "student_password": result.student_password,
+        "expires_at": kit.expires_at.isoformat(),
+        "stored_at": time.time(),
+        "warnings": summary,
+    }
+
+
+@sensitive_variables()
+def _store_demo_result(request, entry):
+    """Spec §4.3 steps 1-3. Returns the saved list, or None when nothing was saved
+    (then nothing may be mirrored — mirroring [*existing, entry] would put both
+    passwords into request.session for a save that fails anyway)."""
+    fresh = _session_store(request)
+    existing = fresh.get(DEMO_RESULTS_KEY, [])  # the cached read — never .load()
+    if fresh.session_key is None:
+        # The row is gone (a logout in another tab, an expiry). Without this guard
+        # fresh.save() would create() an orphan row holding both passwords.
+        return None
+    saved = [*existing, entry]
+    fresh[DEMO_RESULTS_KEY] = saved
+    try:
+        fresh.save()  # explicit: the backend writes the whole store on save()
+    except UpdateError:
+        return None  # the row vanished between the read and the save
+    return saved
+
+
+@sensitive_variables()
+@sensitive_post_parameters()
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_demo_create(request):
+    if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
+        raise Http404
+    if request.method != "POST":
+        return redirect(_index_url("demo"))  # non-POST: see _action
+    form = DemoKitForm(request.POST)
+    if form.is_valid():
+        data = form.cleaned_data
+        try:
+            # Inline, by design (spec A3): ~40 s for 20 pupils, well inside
+            # gunicorn's --timeout 1800. No frontier_part, no seed.
+            result = provision_kit(
+                data["label"],
+                course=data["course"],
+                days=data["days"],
+                pupils=data["pupils"],
+                created_by=request.user,
+            )
+        except demo_errors.DemoKitError as exc:
+            _attach_demo_error(form, exc)
+        else:
+            saved = _store_demo_result(request, _demo_result_entry(result))
+            response = redirect(_index_url("demo"))
+            _mirror_demo_results(request, saved)
+            return response
+    # Spec §4.4: this error page neither takes nor writes pending credentials — it
+    # answers a POST, so a reload re-submits. Always the default (open-only) list.
+    ctx = _settings_context(request, Institution.load(), "demo", demo_form=form)
+    return render(request, "institution/manage/settings.html", ctx)

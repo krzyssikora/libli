@@ -45,6 +45,7 @@ ACTION_URLS = [
     ("institution:settings_integrations_test", {}),
     ("institution:settings_page_overrides", {}),  # already correct since #279
     ("institution:settings_support", {}),
+    ("institution:settings_demo_create", {}),
     ("institution:settings_demo_extend", {"kit_id": 1}),
     ("institution:settings_demo_revoke", {"kit_id": 1}),
 ]

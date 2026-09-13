@@ -7,6 +7,9 @@ from bs4 import BeautifulSoup
 from django.conf import settings as django_settings
 from django.urls import reverse
 
+from demo.constants import DEFAULT_DAYS
+from demo.constants import MIN_PUPILS
+
 
 def demo_tab_url(show_all=False):
     url = reverse("institution:settings") + "?tab=demo"
@@ -65,3 +68,37 @@ def add_pending(client, *entries):
     store = session_store(client)
     store["demo_kit_results"] = [*store.get("demo_kit_results", []), *entries]
     store.save()
+
+
+def create_url():
+    return reverse("institution:settings_demo_create")
+
+
+def create_data(course, **overrides):
+    """Tab-driven creates post MIN_PUPILS: the form's initial is DEFAULT_PUPILS
+    (20), and each extra pupil costs ~137 queries."""
+    data = {
+        "course": course.pk,
+        "label": "SP 12",
+        "days": DEFAULT_DAYS,
+        "pupils": MIN_PUPILS,
+    }
+    data.update(overrides)
+    return data
+
+
+def seed_the_view(monkeypatch, *, seed=4242, before_return=None):
+    """The view passes no seed, so the service would draw one from `secrets`.
+    Wrap the name the view resolves; `before_return(result)` runs after the real
+    provision, standing in for whatever else happens while a kit is being built."""
+    from institution import views_manage
+
+    real = views_manage.provision_kit
+
+    def seeded(*args, **kwargs):
+        result = real(*args, seed=seed, **kwargs)
+        if before_return is not None:
+            before_return(result)
+        return result
+
+    monkeypatch.setattr(views_manage, "provision_kit", seeded)

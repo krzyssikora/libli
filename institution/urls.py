@@ -68,6 +68,11 @@ urlpatterns = [
         name="settings_pricing",
     ),
     path(
+        "manage/settings/demo/create/",
+        views_manage.settings_demo_create,
+        name="settings_demo_create",
+    ),
+    path(
         "manage/settings/demo/<int:kit_id>/extend/",
         views_manage.settings_demo_extend,
         name="settings_demo_extend",

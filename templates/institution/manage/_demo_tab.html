@@ -50,7 +50,29 @@
   {% endif %}
 </div>
 {% endfor %}
-{# demo:create-form #}
+<form class="settings__form" method="post" action="{% url 'institution:settings_demo_create' %}" data-demo-create>
+  {% csrf_token %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Create demo kit" %}</h2>
+    {% if demo_form.non_field_errors %}
+    <div class="alert alert--error" data-demo-form-errors>
+      {% for error in demo_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+    </div>
+    {% endif %}
+    {% for field in demo_form %}
+    <div class="settings__field">
+      <label class="settings__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {{ field.errors }}
+    </div>
+    {% endfor %}
+    <p class="settings__help">{% trans "Creating a kit can take a minute or more; keep this page open. If the page stops responding, wait a couple of minutes, then reopen the Demo tab — the credentials appear there once the kit exists. Do not create again until it shows in the list." %}</p>
+    <div class="settings__actions">
+      {# No `name`: the submit handler disables this button, and a named disabled button drops its pair from the POST. #}
+      <button class="btn" type="submit" data-demo-submit>{% trans "Create demo kit" %}</button>
+    </div>
+  </div>
+</form>
 <div class="settings__section" data-demo-list>
   <h2 class="settings__section-title">{% trans "Demo kits" %}</h2>
   <p class="settings__help">
