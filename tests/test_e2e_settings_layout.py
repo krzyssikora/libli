@@ -13,6 +13,9 @@ pytestmark = pytest.mark.e2e
 VIEWPORTS = ((1280, 900), (420, 900))
 ALL_TABS = 10  # 8 institution tabs + Pricing and Demo access on a vendor instance
 LONG_LABEL = "Szkoła Podstawowa nr 12 im. Marii Skłodowskiej-Curie w Krakowie"
+# No space anywhere: only the Label cell's overflow-wrap: anywhere lets it wrap.
+UNBROKEN_LABEL = "Szkoła" + "x" * 60
+OPEN_LABELS = ("SP 12", LONG_LABEL, UNBROKEN_LABEL)
 
 # Height of an element's TEXT (a Range over its contents), not of its box: a
 # table cell is as tall as its row and a button carries padding, so the box height
@@ -31,6 +34,16 @@ _TEXT_BOX_JS = """el => {
     top: el.getBoundingClientRect().top,
   };
 }"""
+
+_BOX_JS = "el => el.getBoundingClientRect().toJSON()"
+
+_REM_JS = "() => parseFloat(getComputedStyle(document.documentElement).fontSize)"
+
+# Set the scroller's scrollLeft, then let one frame paint before measuring.
+_SCROLL_TO_JS = """(el, x) => new Promise(done => {
+  el.scrollLeft = x;
+  requestAnimationFrame(() => done(el.scrollLeft));
+})"""
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -67,8 +80,8 @@ def _vendor_admin(page, live_server, settings, *, kits):
     admin.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
     if kits:
         course = small_course()
-        provision_for_test(course, label="SP 12")
-        provision_for_test(course, label=LONG_LABEL)
+        for label in OPEN_LABELS:
+            provision_for_test(course, label=label)
         revoke_kit(provision_for_test(course, label="Closed kit"))
     _login(page, live_server, "layout_pa", TEST_PASSWORD)
 
@@ -122,9 +135,7 @@ def test_page_never_scrolls_sideways_and_tabs_stay_on_one_line(
             tabs = page.locator(".settings__tab")
             assert tabs.count() == ALL_TABS, where
             for i in range(ALL_TABS):
-                tab = tabs.nth(i)
-                assert tab.evaluate("t => t.getClientRects().length") == 1, where
-                _assert_one_line(tab, f"{where}: tab")
+                _assert_one_line(tabs.nth(i), f"{where}: tab")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -161,8 +172,8 @@ def test_kit_rows_keep_actions_side_by_side_and_tokens_on_one_line(
         assert headers[4:7] == ["Teacher login", "Created", "Expires"], headers
 
         open_rows = page.locator("tr[data-demo-kit]:has(form[data-demo-extend])")
-        assert open_rows.count() == 2, where
-        for i in range(2):
+        assert open_rows.count() == len(OPEN_LABELS), where
+        for i in range(len(OPEN_LABELS)):
             row = open_rows.nth(i)
             extend = _assert_one_line(
                 row.locator("form[data-demo-extend] button"), f"{where}: Extend"
@@ -207,3 +218,94 @@ def test_pricing_table_stays_inside_its_card(page, live_server, settings):
     card = page.locator(f"{panel} .settings__form").evaluate(right_edge)
     viewport = page.evaluate("() => window.innerWidth")
     assert card <= viewport, f"at 420px the card ends at {card}"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_demo_cards_share_one_width_and_the_create_form_is_a_grid(
+    page, live_server, settings
+):
+    _vendor_admin(page, live_server, settings, kits=False)
+    create = page.locator("form[data-demo-create]")
+    course = create.locator(".settings__field:has(#id_course)")
+    label = create.locator(".settings__field:has(#id_label)")
+
+    _open(page, live_server, "?tab=demo&all=1", 1280, 900)
+    create_width = create.evaluate(_BOX_JS)["width"]
+    list_width = page.locator("[data-demo-list]").evaluate(_BOX_JS)["width"]
+    assert abs(create_width - list_width) <= 1, (
+        f"at 1280px the create card is {create_width}px, the kit list {list_width}px"
+    )
+    course_box, label_box = course.evaluate(_BOX_JS), label.evaluate(_BOX_JS)
+    assert abs(course_box["top"] - label_box["top"]) <= 1, (
+        "at 1280px Course and Label are not side by side",
+        course_box,
+        label_box,
+    )
+
+    _open(page, live_server, "?tab=demo&all=1", 420, 900)
+    course_box, label_box = course.evaluate(_BOX_JS), label.evaluate(_BOX_JS)
+    assert label_box["top"] >= course_box["bottom"], (
+        "at 420px Label is not below Course",
+        course_box,
+        label_box,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_kit_actions_stay_visible_at_both_scroll_ends(page, live_server, settings):
+    _vendor_admin(page, live_server, settings, kits=True)
+    for width, height in VIEWPORTS:
+        _open(page, live_server, "?tab=demo&all=1", width, height)
+        scroller = page.locator("[data-demo-list] .settings__table-scroll")
+        scroll_width, client_width = scroller.evaluate(
+            "s => [s.scrollWidth, s.clientWidth]"
+        )
+        # The premise: the table really scrolls. Otherwise both ends are the same
+        # view, and a Revoke that is visible there proves nothing about the pin.
+        assert scroll_width > client_width, (width, scroll_width, client_width)
+        revoke = page.locator("tr[data-demo-kit]:has(form[data-demo-extend])").first
+        revoke = revoke.locator("form[data-demo-revoke] button")
+        for end, x in (("left", 0), ("right", scroll_width)):
+            scrolled = scroller.evaluate(_SCROLL_TO_JS, x)
+            where = f"at {width}px scrolled to the {end} end ({scrolled})"
+            assert (scrolled == 0) == (end == "left"), where
+            box, button = scroller.evaluate(_BOX_JS), revoke.evaluate(_BOX_JS)
+            assert button["left"] >= box["left"], (where, button, box)
+            assert button["right"] <= box["right"], (where, button, box)
+
+
+# The table's width may grow by less than this when the unbroken label goes back in.
+_LABEL_SLACK_PX = 16
+
+# The scroller's scrollWidth with the cell's real label, then with a one-character
+# label in its place. That kit's teacher login is just as long (it is slugified
+# from the label) and stays in both measurements, so only the Label cell's own
+# wrapping can account for a difference.
+_WIDTH_WITH_AND_WITHOUT_LABEL_JS = """td => {
+  const scroller = td.closest('.settings__table-scroll');
+  const text = td.textContent;
+  const withLabel = scroller.scrollWidth;
+  td.textContent = 'x';
+  const withoutLabel = scroller.scrollWidth;
+  td.textContent = text;
+  return [withLabel, withoutLabel];
+}"""
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_unbroken_label_wraps_inside_its_cell(page, live_server, settings):
+    _vendor_admin(page, live_server, settings, kits=True)
+    for width, height in VIEWPORTS:
+        _open(page, live_server, "?tab=demo&all=1", width, height)
+        where = f"demo at {width}px"
+        cell = page.locator("td.settings__cell-label", has_text=UNBROKEN_LABEL)
+        cap = 18 * page.evaluate(_REM_JS)
+        cell_width = cell.evaluate(_BOX_JS)["width"]
+        with_label, without_label = cell.evaluate(_WIDTH_WITH_AND_WITHOUT_LABEL_JS)
+        assert cell_width <= cap, (
+            f"{where}: the unbroken label's cell is {cell_width}px wide, cap {cap}px"
+        )
+        assert with_label <= without_label + _LABEL_SLACK_PX, (
+            f"{where}: the unbroken label widens the table from {without_label}px"
+            f" to {with_label}px"
+        )

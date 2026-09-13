@@ -10,6 +10,14 @@
   max-width: 48rem;
 }
 
+/* Demo tab (owner decision): the intro, notices, credential cards and BOTH cards
+   span the whole column, so the create card and the kit list share one width.
+   The same selector shape as the cap above, so it ties that rule and wins by
+   order, and it outranks .settings__form's own 48rem. */
+.settings [data-tab="demo"] > :not(.settings__form--wide) {
+  max-width: none;
+}
+
 .settings__head {
   margin-bottom: var(--space-5);
 }
@@ -477,6 +485,16 @@
   margin-bottom: 0;
 }
 
+/* Demo create form: the two-up grid holds Course | Label, then Days | Pupils.
+   Those two are short numbers, so their inputs get a bare absolute width. */
+.settings__demo-fields {
+  margin-bottom: var(--space-5);
+}
+
+.settings__field--short input[type=number] {
+  width: 8rem;
+}
+
 /* ── Recent deliveries table (Phase: integrations) — mirrors .people-table ── */
 
 .settings__table {
@@ -532,12 +550,55 @@
 .settings__table--kits th,
 .settings__table--kits td {
   white-space: nowrap;
+  /* Tighter than .settings__table's space-3: each pixel given back shows more of
+     the row beside the pinned Actions column. */
+  padding-inline: var(--space-2);
 }
 
 .settings__table--kits .settings__cell-label {
   white-space: normal;
   min-width: 10rem;
   overflow-wrap: anywhere;
+}
+
+/* Actions (header and cells) stay pinned to the scroller's right edge, so Extend
+   and Revoke are visible at every scroll position. Opaque in the card's surface:
+   scrolled cells pass UNDER it (a closed row's empty cell too). z-index 0 lifts it
+   over the in-flow cells and keeps it under the .scroll-x edge shades (z-index 1). */
+.settings__table--kits .settings__col-actions {
+  position: sticky;
+  right: 0;
+  z-index: 0;
+  background: var(--surface-raised);
+}
+
+/* The row's hover fill, or the pinned cell would show as a stripe. */
+.settings__table--kits tbody tr:hover > .settings__col-actions {
+  background: var(--surface-sunken);
+}
+
+/* The separator shows only while content is scrolled under the column
+   (is-scroll-end: content past the right edge). A box-shadow, not a border,
+   so toggling it never shifts the layout. */
+.settings__kits-scroll.is-scroll-end .settings__col-actions {
+  box-shadow: inset 1px 0 0 var(--border-default);
+}
+
+.settings__kits-scroll.is-scroll-end .settings__col-actions::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  right: 100%;
+  width: var(--space-4);
+  background: linear-gradient(to left, var(--scroll-edge), transparent);
+  pointer-events: none;
+}
+
+/* The wrapper's right-edge shade would paint over the pinned buttons; the
+   separator above takes its place. The left-edge shade stays. */
+.settings__kits-scroll::after {
+  content: none;
 }
 
 /* ── Pricing plan-bands table ─────────────────────────────────────────────────
@@ -625,6 +686,12 @@
 
   .field-grid .settings__field {
     margin-bottom: var(--space-5);
+  }
+
+  /* Stacked, the grid's gap alone spaces the Demo fields (as before the grid);
+     the field margin above would double it. */
+  .settings__demo-fields > .settings__field {
+    margin-bottom: 0;
   }
 
   .colour-pair {

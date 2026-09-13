@@ -65,13 +65,16 @@
       {% for error in demo_form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
     </div>
     {% endif %}
-    {% for field in demo_form %}
-    <div class="settings__field">
-      <label class="settings__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-      {{ field }}
-      {{ field.errors }}
+    {# Two-up grid in field order: Course | Label, then Days | Pupils as short fields. #}
+    <div class="field-grid settings__demo-fields">
+      {% for field in demo_form %}
+      <div class="settings__field{% if field.name == 'days' or field.name == 'pupils' %} settings__field--short{% endif %}">
+        <label class="settings__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {{ field.errors }}
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
     <p class="settings__help">{% trans "Creating a kit can take a minute or more; keep this page open. If the page stops responding, wait a couple of minutes, then reopen the Demo tab — the credentials appear there once the kit exists. Do not create again until it shows in the list." %}</p>
     <div class="settings__actions">
       {# No `name`: the submit handler disables this button, and a named disabled button drops its pair from the POST. #}
@@ -90,7 +93,7 @@
     {% endif %}
   </p>
   {% if demo_kits %}
-  <div class="scroll-x" data-scroll-x><div class="settings__table-scroll"><table class="settings__table settings__table--kits">
+  <div class="scroll-x settings__kits-scroll" data-scroll-x><div class="settings__table-scroll"><table class="settings__table settings__table--kits">
     <thead>
       <tr>
         <th>#</th>
@@ -101,7 +104,7 @@
         <th>{% trans "Created" %}</th>
         <th>{% trans "Expires" %}</th>
         <th>{% trans "Status" %}</th>
-        <th>{% trans "Actions" %}</th>
+        <th class="settings__col-actions">{% trans "Actions" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -115,7 +118,8 @@
         <td>{{ kit.created_at|date:"j M Y" }}</td>
         <td>{{ kit.expires_at|date:"j M Y" }}</td>
         <td>{{ kit.status_label }}</td>
-        <td>
+        {# Always rendered, even empty on a closed row: the pinned column must stay opaque. #}
+        <td class="settings__col-actions">
           {% if not kit.closed_at %}
           <div class="settings__row-actions">
             <form method="post" action="{% url 'institution:settings_demo_extend' kit.pk %}" data-demo-extend>
