@@ -60,7 +60,36 @@ def test_issue_use_and_revoke_a_demo_kit(
     page.select_option("#id_course", str(course.pk))
     page.fill("#id_label", "SP 12")
     page.fill("#id_pupils", str(MIN_PUPILS))
+
+    # Hold the SUBMIT, not the request, so the busy-state assertions below do
+    # not race the create's actual duration (~34 s in prod, near-instant here
+    # with the seed monkeypatch). This listener is registered on the same
+    # form AFTER demo_tab.js's own submit listener (already attached at page
+    # load), so demo_tab.js runs first, disables the button, and only then is
+    # the submit cancelled.
+    page.evaluate(
+        "() => { window.__holdCreate = (e) => e.preventDefault();"
+        " document.querySelector('form[data-demo-create]')"
+        ".addEventListener('submit', window.__holdCreate); }"
+    )
     page.locator("[data-demo-submit]").click()
+
+    submit = page.locator("[data-demo-submit]")
+    expect(submit).to_be_disabled()
+    assert submit.get_attribute("data-demo-disabled") is not None
+    animation_name = submit.evaluate(
+        "b => getComputedStyle(b, '::before').animationName"
+    )
+    assert animation_name == "demo-spin"
+
+    # Release: drop the holding listener and resubmit for real. The button
+    # carries no `name`, so nothing is lost from the POST; requestSubmit()
+    # fires a genuine submit event, so demo_tab.js's handler runs again.
+    page.evaluate(
+        "() => { const f = document.querySelector('form[data-demo-create]');"
+        " f.removeEventListener('submit', window.__holdCreate);"
+        " f.requestSubmit(); }"
+    )
 
     card = page.locator("[data-demo-card]")
     expect(card).to_be_visible(timeout=120_000)

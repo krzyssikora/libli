@@ -488,3 +488,41 @@
     justify-content: center;
   }
 }
+
+/* ── Demo tab: busy Create/Extend cue ─────────────────────────────────────
+   PR 3's demo_tab.js marks an in-flight Create/Extend button with
+   data-demo-disabled on submit; .btn itself has no disabled style, so a
+   ~34 s wait otherwise looks identical to idle. Mirrors builder.css's
+   .tree__toggle[data-submitting] spinner idiom. */
+
+.btn[data-demo-disabled] {
+  opacity: .75;
+  cursor: progress;
+}
+
+.btn[data-demo-disabled]:hover,
+.btn[data-demo-disabled]:active {
+  background: var(--primary);
+}
+
+.btn[data-demo-disabled]::before {
+  content: "";
+  width: 1em;
+  height: 1em;
+  flex: none;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: demo-spin .7s linear infinite;
+}
+
+@keyframes demo-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn[data-demo-disabled]::before {
+    animation: none;
+  }
+}
