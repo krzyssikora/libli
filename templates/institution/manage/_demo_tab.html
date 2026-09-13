@@ -127,8 +127,10 @@
               {% if demo_show_all %}<input type="hidden" name="all" value="1">{% endif %}
               <button class="btn btn--ghost btn--small" type="submit">{{ demo_extend_label }}</button>
             </form>
+            {# The label is operator input: blocktrans escapes each variable, and {{ revoke_prompt }} lands attribute-safe (never |safe). #}
+            {% blocktrans with id=kit.pk label=kit.label asvar revoke_prompt %}Revoke demo kit #{{ id }} — {{ label }}? Its logins are deleted immediately.{% endblocktrans %}
             <form method="post" action="{% url 'institution:settings_demo_revoke' kit.pk %}" data-demo-revoke
-                  data-confirm="{% trans 'Revoke this demo kit? Its logins are deleted immediately.' %}">
+                  data-confirm="{{ revoke_prompt }}">
               {% csrf_token %}
               {% if demo_show_all %}<input type="hidden" name="all" value="1">{% endif %}
               <button class="btn btn--small settings__btn-danger" type="submit">{% trans "Revoke" %}</button>

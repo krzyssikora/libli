@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-13 20:20+0200\n"
+"POT-Creation-Date: 2026-09-13 22:57+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -256,7 +256,7 @@ msgstr ""
 msgid "Cohorts"
 msgstr ""
 
-#: .\core\help.py:326 .\templates\institution\manage\_tabs.html:14
+#: .\core\help.py:326 .\templates\institution\manage\_tabs.html:16
 msgid "Integrations"
 msgstr ""
 
@@ -268,7 +268,7 @@ msgstr ""
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
 #: .\templates\base.html:128 .\templates\base.html:132
-#: .\templates\institution\manage\_tabs.html:12
+#: .\templates\institution\manage\_tabs.html:14
 msgid "Notifications"
 msgstr ""
 
@@ -793,7 +793,7 @@ msgstr ""
 #: .\grouping\forms.py:256 .\institution\forms.py:515
 #: .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
-#: .\templates\institution\manage\_demo_tab.html:97
+#: .\templates\institution\manage\_demo_tab.html:101
 msgid "Course"
 msgstr ""
 
@@ -3063,7 +3063,8 @@ msgstr ""
 msgid "Bands must run consecutively with no gap and no overlap."
 msgstr ""
 
-#: .\institution\forms.py:517 .\templates\institution\manage\_demo_tab.html:96
+#: .\institution\forms.py:517
+#: .\templates\institution\manage\_demo_tab.html:100
 msgid "Label"
 msgstr ""
 
@@ -3071,7 +3072,8 @@ msgstr ""
 msgid "Days"
 msgstr ""
 
-#: .\institution\forms.py:519 .\templates\institution\manage\_demo_tab.html:98
+#: .\institution\forms.py:519
+#: .\templates\institution\manage\_demo_tab.html:102
 msgid "Pupils"
 msgstr ""
 
@@ -3370,7 +3372,7 @@ msgstr ""
 msgid "Identity"
 msgstr ""
 
-#: .\institution\views_setup.py:35 .\templates\institution\manage\_tabs.html:6
+#: .\institution\views_setup.py:35 .\templates\institution\manage\_tabs.html:8
 msgid "Access"
 msgstr ""
 
@@ -3379,7 +3381,7 @@ msgid "Team"
 msgstr ""
 
 #: .\institution\views_setup.py:37
-#: .\templates\institution\manage\_tabs.html:10
+#: .\templates\institution\manage\_tabs.html:12
 msgid "SSO"
 msgstr ""
 
@@ -4089,7 +4091,7 @@ msgstr ""
 #: .\templates\accounts\manage\invitations.html:25
 #: .\templates\accounts\manage\people.html:27
 #: .\templates\accounts\manage\people.html:42
-#: .\templates\institution\manage\_demo_tab.html:102
+#: .\templates\institution\manage\_demo_tab.html:106
 #: .\templates\institution\manage\_integrations_tab.html:53
 msgid "Status"
 msgstr ""
@@ -4521,7 +4523,7 @@ msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:26
 #: .\templates\institution\manage\_demo_tab.html:44
-#: .\templates\institution\manage\_demo_tab.html:101
+#: .\templates\institution\manage\_demo_tab.html:105
 msgid "Expires"
 msgstr ""
 
@@ -4534,7 +4536,7 @@ msgid "Resend"
 msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:40
-#: .\templates\institution\manage\_demo_tab.html:128
+#: .\templates\institution\manage\_demo_tab.html:136
 msgid "Revoke"
 msgstr ""
 
@@ -4669,7 +4671,7 @@ msgstr ""
 
 #: .\templates\base.html:117 .\templates\core\home.html:67
 #: .\templates\institution\manage\settings.html:3
-#: .\templates\institution\manage\settings.html:8
+#: .\templates\institution\manage\settings.html:9
 msgid "Institution settings"
 msgstr ""
 
@@ -7991,7 +7993,7 @@ msgid "Save branding"
 msgstr ""
 
 #: .\templates\institution\manage\_demo_tab.html:6
-#: .\templates\institution\manage\_tabs.html:23
+#: .\templates\institution\manage\_tabs.html:26
 msgid "Demo access"
 msgstr ""
 
@@ -8044,7 +8046,7 @@ msgid "These passwords are not stored — copy them now."
 msgstr ""
 
 #: .\templates\institution\manage\_demo_tab.html:34
-#: .\templates\institution\manage\_demo_tab.html:99
+#: .\templates\institution\manage\_demo_tab.html:103
 msgid "Teacher login"
 msgstr ""
 
@@ -8061,11 +8063,11 @@ msgid "Warnings"
 msgstr ""
 
 #: .\templates\institution\manage\_demo_tab.html:62
-#: .\templates\institution\manage\_demo_tab.html:78
+#: .\templates\institution\manage\_demo_tab.html:81
 msgid "Create demo kit"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:75
+#: .\templates\institution\manage\_demo_tab.html:78
 msgid ""
 "Creating a kit can take a minute or more; keep this page open. If the page "
 "stops responding, wait a couple of minutes, then reopen the Demo tab — the "
@@ -8073,32 +8075,34 @@ msgid ""
 "shows in the list."
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:83
+#: .\templates\institution\manage\_demo_tab.html:87
 msgid "Demo kits"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:86
+#: .\templates\institution\manage\_demo_tab.html:90
 msgid "Show open kits only"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:88
+#: .\templates\institution\manage\_demo_tab.html:92
 msgid "Show closed kits too"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:100
+#: .\templates\institution\manage\_demo_tab.html:104
 #: .\templates\institution\manage\_integrations_tab.html:55
 msgid "Created"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:103
+#: .\templates\institution\manage\_demo_tab.html:107
 msgid "Actions"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:125
-msgid "Revoke this demo kit? Its logins are deleted immediately."
+#: .\templates\institution\manage\_demo_tab.html:131
+#, python-format
+msgid ""
+"Revoke demo kit #%(id)s — %(label)s? Its logins are deleted immediately."
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:137
+#: .\templates\institution\manage\_demo_tab.html:146
 msgid "No demo kits."
 msgstr ""
 
@@ -8175,50 +8179,50 @@ msgstr ""
 msgid "Plan bands"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:16
+#: .\templates\institution\manage\_pricing_tab.html:17
 msgid "Plan"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:17
+#: .\templates\institution\manage\_pricing_tab.html:18
 msgid "Pupils min"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:18
+#: .\templates\institution\manage\_pricing_tab.html:19
 msgid "Pupils max"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:19
+#: .\templates\institution\manage\_pricing_tab.html:20
 msgid "Annual price"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:20
+#: .\templates\institution\manage\_pricing_tab.html:21
 msgid "Support hours per term"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:21
+#: .\templates\institution\manage\_pricing_tab.html:22
 msgid "Courses included"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:22
+#: .\templates\institution\manage\_pricing_tab.html:23
 msgid "Video hours included"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:28
+#: .\templates\institution\manage\_pricing_tab.html:29
 #, python-format
 msgid "Plan %(order)s"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:40
+#: .\templates\institution\manage\_pricing_tab.html:42
 msgid ""
 "Bands must run consecutively, in order, with no gap and no overlap. Leave a "
 "price blank to show \"by arrangement\"."
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:44
+#: .\templates\institution\manage\_pricing_tab.html:46
 msgid "Currency and notes"
 msgstr ""
 
-#: .\templates\institution\manage\_pricing_tab.html:70
+#: .\templates\institution\manage\_pricing_tab.html:72
 msgid "Save pricing"
 msgstr ""
 
@@ -8313,27 +8317,27 @@ msgid_plural "%(counter)s other people are also allowed."
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\templates\institution\manage\_tabs.html:2
+#: .\templates\institution\manage\_tabs.html:4
 msgid "Settings sections"
 msgstr ""
 
-#: .\templates\institution\manage\_tabs.html:4
+#: .\templates\institution\manage\_tabs.html:6
 msgid "Branding"
 msgstr ""
 
-#: .\templates\institution\manage\_tabs.html:8
+#: .\templates\institution\manage\_tabs.html:10
 msgid "Uploads"
 msgstr ""
 
-#: .\templates\institution\manage\_tabs.html:16
+#: .\templates\institution\manage\_tabs.html:18
 msgid "Support"
 msgstr ""
 
-#: .\templates\institution\manage\_tabs.html:18
+#: .\templates\institution\manage\_tabs.html:20
 msgid "Public pages"
 msgstr ""
 
-#: .\templates\institution\manage\_tabs.html:21
+#: .\templates\institution\manage\_tabs.html:24
 msgid "Pricing"
 msgstr ""
 

@@ -9,7 +9,10 @@ from playwright.sync_api import expect
 
 pytestmark = pytest.mark.e2e
 
-REVOKE_PROMPT = "Revoke this demo kit? Its logins are deleted immediately."
+
+def _revoke_prompt(kit_id, label):
+    """The Revoke confirm names the kit it acts on."""
+    return f"Revoke demo kit #{kit_id} — {label}? Its logins are deleted immediately."
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -122,4 +125,4 @@ def test_issue_use_and_revoke_a_demo_kit(
     row.locator("form[data-demo-revoke] button").click()
     expect(row).to_have_count(0)
     # Without the recording, a Revoke that never prompts still removes the row.
-    assert prompts == [REVOKE_PROMPT]
+    assert prompts == [_revoke_prompt(kit.pk, "SP 12")]

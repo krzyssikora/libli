@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 import pytest
@@ -146,6 +147,33 @@ def test_a_closed_row_has_no_actions(pa_client, vendor):
     assert closed_row.select("form") == []
     assert open_row.select_one("form[data-demo-extend]") is not None
     assert open_row.select_one("form[data-demo-revoke]") is not None
+
+
+def test_the_revoke_confirm_names_the_kit_and_escapes_its_label(pa_client, vendor):
+    """On a phone, at the table's right scroll end, nothing else on screen says
+    which kit a Revoke acts on. The label is operator input, so it must arrive in
+    the attribute escaped, never as markup."""
+    course = small_course()
+    kit = provision_for_test(course, label="SP 12")
+    tagged = provision_for_test(course, label="<b>x</b>")
+
+    response = pa_client.get(demo_tab_url())
+    page = soup(response)
+
+    form = page.select_one(f'tr[data-demo-kit="{kit.pk}"] form[data-demo-revoke]')
+    prompt = form["data-confirm"]
+    assert f"#{kit.pk} " in prompt, prompt
+    assert "SP 12" in prompt, prompt
+
+    # Raw attributes, not the Label cell (which shows the same label escaped too).
+    raw_prompts = re.findall(r'data-confirm="([^"]*)"', response.content.decode())
+    tagged_prompts = [p for p in raw_prompts if f"#{tagged.pk} " in p]
+    assert len(tagged_prompts) == 1, raw_prompts
+    assert "&lt;b&gt;x&lt;/b&gt;" in tagged_prompts[0], tagged_prompts
+    tagged_form = page.select_one(
+        f'tr[data-demo-kit="{tagged.pk}"] form[data-demo-revoke]'
+    )
+    assert tagged_form.select("b") == []
 
 
 def test_extend_and_revoke_404_on_a_school_box_for_a_real_open_kit(pa_client):
