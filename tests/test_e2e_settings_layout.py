@@ -156,6 +156,25 @@ def test_active_tab_is_scrolled_into_view_on_a_phone(page, live_server, settings
 
 
 @pytest.mark.django_db(transaction=True)
+def test_english_tabs_fit_one_row_on_a_desktop(page, live_server, settings):
+    _vendor_admin(page, live_server, settings, kits=False)
+    _open(page, live_server, "?tab=demo&all=1", 1280, 900)
+
+    nav = page.locator(".settings__tabs")
+    scroll_width, client_width = nav.evaluate("n => [n.scrollWidth, n.clientWidth]")
+    assert scroll_width <= client_width, (
+        f"at 1280px the tab row is {scroll_width}px in a {client_width}px nav"
+    )
+    # With Demo access active, a row that still scrolled would hide Branding.
+    nav_box = nav.evaluate(_BOX_JS)
+    first = page.locator(".settings__tab").first
+    assert first.inner_text() == "Branding"
+    tab_box = first.evaluate(_BOX_JS)
+    assert tab_box["left"] >= nav_box["left"], (tab_box, nav_box)
+    assert tab_box["right"] <= nav_box["right"], (tab_box, nav_box)
+
+
+@pytest.mark.django_db(transaction=True)
 def test_kit_rows_keep_actions_side_by_side_and_tokens_on_one_line(
     page, live_server, settings
 ):
@@ -250,28 +269,80 @@ def test_demo_cards_share_one_width_and_the_create_form_is_a_grid(
         label_box,
     )
 
+    # Only the Demo tab drops the 48rem measure; the other tabs keep it.
+    _open(page, live_server, "?tab=branding", 1280, 900)
+    branding = page.locator("[data-tab='branding'] > .settings__form").first
+    branding_width = branding.evaluate(_BOX_JS)["width"]
+    measure = 48 * page.evaluate(_REM_JS)
+    assert branding_width <= measure, (
+        f"at 1280px the Branding form is {branding_width}px, cap {measure}px"
+    )
+
+
+# True when the topmost element at the centre of `el` (or at `x`, if given) is
+# `el` or inside it: nothing paints over that point and takes the hit instead.
+# elementFromPoint sees only the viewport, so the PAGE is first scrolled
+# vertically to the element (never scrollIntoView: it could move the table's
+# scrollLeft too). A vertical page scroll leaves x unchanged.
+_HIT_JS = """(el, x) => {
+  const before = el.getBoundingClientRect();
+  window.scrollBy(0, before.top - window.innerHeight / 2);
+  const r = el.getBoundingClientRect();
+  const cx = x ?? (r.left + r.right) / 2;
+  const hit = document.elementFromPoint(cx, (r.top + r.bottom) / 2);
+  return el.contains(hit);
+}"""
+
+_FIRST_OPEN_ROW = "tr[data-demo-kit]:has(form[data-demo-extend])"
+
 
 @pytest.mark.django_db(transaction=True)
 def test_kit_actions_stay_visible_at_both_scroll_ends(page, live_server, settings):
+    """Desktop only: at <=640px the Actions column is not pinned (see the next test)."""
     _vendor_admin(page, live_server, settings, kits=True)
-    for width, height in VIEWPORTS:
-        _open(page, live_server, "?tab=demo&all=1", width, height)
-        scroller = page.locator("[data-demo-list] .settings__table-scroll")
-        scroll_width, client_width = scroller.evaluate(
-            "s => [s.scrollWidth, s.clientWidth]"
-        )
-        # The premise: the table really scrolls. Otherwise both ends are the same
-        # view, and a Revoke that is visible there proves nothing about the pin.
-        assert scroll_width > client_width, (width, scroll_width, client_width)
-        revoke = page.locator("tr[data-demo-kit]:has(form[data-demo-extend])").first
-        revoke = revoke.locator("form[data-demo-revoke] button")
-        for end, x in (("left", 0), ("right", scroll_width)):
-            scrolled = scroller.evaluate(_SCROLL_TO_JS, x)
-            where = f"at {width}px scrolled to the {end} end ({scrolled})"
-            assert (scrolled == 0) == (end == "left"), where
-            box, button = scroller.evaluate(_BOX_JS), revoke.evaluate(_BOX_JS)
-            assert button["left"] >= box["left"], (where, button, box)
-            assert button["right"] <= box["right"], (where, button, box)
+    _open(page, live_server, "?tab=demo&all=1", 1280, 900)
+    scroller = page.locator("[data-demo-list] .settings__table-scroll")
+    scroll_width, client_width = scroller.evaluate(
+        "s => [s.scrollWidth, s.clientWidth]"
+    )
+    # The premise: the table really scrolls. Otherwise both ends are the same
+    # view, and a Revoke that is visible there proves nothing about the pin.
+    assert scroll_width > client_width, (scroll_width, client_width)
+    first_open_row = page.locator(_FIRST_OPEN_ROW).first
+    revoke = first_open_row.locator("form[data-demo-revoke] button")
+    for end, x in (("left", 0), ("right", scroll_width)):
+        scrolled = scroller.evaluate(_SCROLL_TO_JS, x)
+        where = f"at 1280px scrolled to the {end} end ({scrolled})"
+        assert (scrolled == 0) == (end == "left"), where
+        box, button = scroller.evaluate(_BOX_JS), revoke.evaluate(_BOX_JS)
+        assert button["left"] >= box["left"], (where, button, box)
+        assert button["right"] <= box["right"], (where, button, box)
+        # Inside the box is not enough: an edge shade or a scrolled cell could
+        # still paint over the button.
+        assert revoke.evaluate(_HIT_JS), f"{where}: Revoke is covered at its centre"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_kit_actions_scroll_with_their_row_on_a_phone(page, live_server, settings):
+    """At 420px a pinned Actions column (~250px) covered two thirds of the table,
+    hiding the kit a Revoke acts on. On a phone it scrolls like every column."""
+    _vendor_admin(page, live_server, settings, kits=True)
+    _open(page, live_server, "?tab=demo&all=1", 420, 900)
+    scroller = page.locator("[data-demo-list] .settings__table-scroll")
+    assert scroller.evaluate(_SCROLL_TO_JS, 0) == 0
+    row = page.locator(_FIRST_OPEN_ROW).first
+    label = row.locator("td.settings__cell-label")
+    box, cell = scroller.evaluate(_BOX_JS), label.evaluate(_BOX_JS)
+    assert cell["left"] >= box["left"], ("at 420px the Label cell", cell, box)
+    assert cell["right"] <= box["right"], ("at 420px the Label cell", cell, box)
+    # Its right end is where a pinned column would lie over it.
+    assert label.evaluate(_HIT_JS, cell["right"] - 2), (
+        "at 420px the Label cell is covered near its right edge"
+    )
+    position = row.locator("td.settings__col-actions").evaluate(
+        "td => getComputedStyle(td).position"
+    )
+    assert position == "static", f"at 420px the Actions cell is {position}"
 
 
 # The table's width may grow by less than this when the unbroken label goes back in.

@@ -43,10 +43,13 @@
   margin-bottom: var(--space-6);
 }
 
+/* Spacing is tight on purpose: all ten English tabs fit the 1280px column in one
+   row (~903px of 920). The tabs' own padding is the only space between them, and
+   the vertical padding keeps a 40px tap target. Polish and phones still scroll. */
 .settings__tabs {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -63,7 +66,7 @@
 .settings__tab {
   flex: none;
   white-space: nowrap;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   color: var(--text-secondary);
   text-decoration: none;
 }
@@ -561,44 +564,50 @@
   overflow-wrap: anywhere;
 }
 
-/* Actions (header and cells) stay pinned to the scroller's right edge, so Extend
-   and Revoke are visible at every scroll position. Opaque in the card's surface:
-   scrolled cells pass UNDER it (a closed row's empty cell too). z-index 0 lifts it
-   over the in-flow cells and keeps it under the .scroll-x edge shades (z-index 1). */
-.settings__table--kits .settings__col-actions {
-  position: sticky;
-  right: 0;
-  z-index: 0;
-  background: var(--surface-raised);
-}
+/* Everything in this block is desktop-only (above the 640px breakpoint). On a
+   phone a pinned Actions column (~250px) covered two thirds of the table and hid
+   the kit a Revoke acts on, so there it scrolls with its row like every column
+   and the wrapper's normal right-edge shade stays. */
+@media (min-width: 641px) {
+  /* Actions (header and cells) stay pinned to the scroller's right edge, so Extend
+     and Revoke are visible at every scroll position. Opaque in the card's surface:
+     scrolled cells pass UNDER it (a closed row's empty cell too). z-index 0 lifts it
+     over the in-flow cells and keeps it under the .scroll-x edge shades (z-index 1). */
+  .settings__table--kits .settings__col-actions {
+    position: sticky;
+    right: 0;
+    z-index: 0;
+    background: var(--surface-raised);
+  }
 
-/* The row's hover fill, or the pinned cell would show as a stripe. */
-.settings__table--kits tbody tr:hover > .settings__col-actions {
-  background: var(--surface-sunken);
-}
+  /* The row's hover fill, or the pinned cell would show as a stripe. */
+  .settings__table--kits tbody tr:hover > .settings__col-actions {
+    background: var(--surface-sunken);
+  }
 
-/* The separator shows only while content is scrolled under the column
-   (is-scroll-end: content past the right edge). A box-shadow, not a border,
-   so toggling it never shifts the layout. */
-.settings__kits-scroll.is-scroll-end .settings__col-actions {
-  box-shadow: inset 1px 0 0 var(--border-default);
-}
+  /* The separator shows only while content is scrolled under the column
+     (is-scroll-end: content past the right edge). A box-shadow, not a border,
+     so toggling it never shifts the layout. */
+  .settings__kits-scroll.is-scroll-end .settings__col-actions {
+    box-shadow: inset 1px 0 0 var(--border-default);
+  }
 
-.settings__kits-scroll.is-scroll-end .settings__col-actions::before {
-  content: "";
-  position: absolute;
-  top: -1px;
-  bottom: -1px;
-  right: 100%;
-  width: var(--space-4);
-  background: linear-gradient(to left, var(--scroll-edge), transparent);
-  pointer-events: none;
-}
+  .settings__kits-scroll.is-scroll-end .settings__col-actions::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    bottom: -1px;
+    right: 100%;
+    width: var(--space-4);
+    background: linear-gradient(to left, var(--scroll-edge), transparent);
+    pointer-events: none;
+  }
 
-/* The wrapper's right-edge shade would paint over the pinned buttons; the
-   separator above takes its place. The left-edge shade stays. */
-.settings__kits-scroll::after {
-  content: none;
+  /* The wrapper's right-edge shade would paint over the pinned buttons; the
+     separator above takes its place. The left-edge shade stays. */
+  .settings__kits-scroll::after {
+    content: none;
+  }
 }
 
 /* ── Pricing plan-bands table ─────────────────────────────────────────────────
