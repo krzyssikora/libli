@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-12 18:07+0200\n"
+"POT-Creation-Date: 2026-09-13 13:31+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -129,7 +129,7 @@ msgstr "Oczekujące"
 msgid "Accepted"
 msgstr "Zaakceptowane"
 
-#: .\accounts\views_manage.py:89 .\demo\models.py:20
+#: .\accounts\views_manage.py:89 .\demo\models.py:21
 msgid "Expired"
 msgstr "Wygasłe"
 
@@ -833,8 +833,10 @@ msgid "Open — students can self-enroll via the catalog"
 msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
 #: .\courses\forms.py:157 .\grouping\forms.py:80 .\grouping\forms.py:217
-#: .\grouping\forms.py:256 .\notifications\models.py:15
+#: .\grouping\forms.py:256 .\institution\forms.py:515
+#: .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
+#: .\templates\institution\manage\_demo_tab.html:91
 msgid "Course"
 msgstr "Kurs"
 
@@ -2859,13 +2861,34 @@ msgstr "Zaimportowano zawartość."
 msgid "Import cancelled."
 msgstr "Import anulowany."
 
-#: .\demo\models.py:21
+#: .\demo\models.py:22
 msgid "Revoked"
 msgstr "Cofnięte"
 
+#: .\demo\models.py:107
+msgctxt "demo kit status"
+msgid "Active"
+msgstr "Aktywne"
+
+#: .\demo\models.py:108
+msgctxt "demo kit status"
+msgid "Expired — pending purge"
+msgstr "Wygasłe — czeka na usunięcie"
+
+#: .\demo\models.py:109
+msgctxt "demo kit status"
+msgid "Closed (expired)"
+msgstr "Zamknięte (wygasłe)"
+
+#: .\demo\models.py:110
+msgctxt "demo kit status"
+msgid "Closed (revoked)"
+msgstr "Zamknięte (cofnięte)"
+
 #: .\demo\warnings.py:45
 msgid "Quiz skipped: it holds a question the demo cannot answer."
-msgstr "Pominięto quiz: zawiera pytanie, na które demo nie potrafi odpowiedzieć."
+msgstr ""
+"Pominięto quiz: zawiera pytanie, na które demo nie potrafi odpowiedzieć."
 
 #: .\demo\warnings.py:46
 msgid "An unmarked question was left unanswered."
@@ -2878,8 +2901,8 @@ msgstr "Wariant błędnej odpowiedzi nie przeszedł walidacji."
 #: .\demo\warnings.py:49
 msgid "A question has no usable wrong answer; all pupils answer it correctly."
 msgstr ""
-"Pytanie nie ma użytecznej błędnej odpowiedzi; wszyscy uczniowie odpowiadają na "
-"nie poprawnie."
+"Pytanie nie ma użytecznej błędnej odpowiedzi; wszyscy uczniowie odpowiadają "
+"na nie poprawnie."
 
 #: .\demo\warnings.py:52
 msgid "A partial answer failed validation; the wrong answer is used."
@@ -3030,71 +3053,71 @@ msgstr[2] ""
 "%(count)d wierszy zostało zmienionych przez kogoś innego i nie zostało "
 "nadpisanych: %(names)s."
 
-#: .\institution\forms.py:57
+#: .\institution\forms.py:60
 msgid "Current logo"
 msgstr "Aktualne logo"
 
-#: .\institution\forms.py:58
+#: .\institution\forms.py:61
 msgid "No logo yet"
 msgstr "Brak logo"
 
-#: .\institution\forms.py:59
+#: .\institution\forms.py:62
 msgid "Replace logo"
 msgstr "Zastąp logo"
 
-#: .\institution\forms.py:60
+#: .\institution\forms.py:63
 msgid "Upload logo"
 msgstr "Prześlij logo"
 
-#: .\institution\forms.py:61
+#: .\institution\forms.py:64
 msgid "Remove logo"
 msgstr "Usuń logo"
 
-#: .\institution\forms.py:88
+#: .\institution\forms.py:91
 msgid "Current favicon"
 msgstr "Bieżąca ikona strony"
 
-#: .\institution\forms.py:89
+#: .\institution\forms.py:92
 msgid "No favicon yet"
 msgstr "Brak ikony strony"
 
-#: .\institution\forms.py:90
+#: .\institution\forms.py:93
 msgid "Replace favicon"
 msgstr "Zmień ikonę strony"
 
-#: .\institution\forms.py:91
+#: .\institution\forms.py:94
 msgid "Upload favicon"
 msgstr "Prześlij ikonę strony"
 
-#: .\institution\forms.py:92
+#: .\institution\forms.py:95
 msgid "Remove favicon"
 msgstr "Usuń ikonę strony"
 
-#: .\institution\forms.py:116
+#: .\institution\forms.py:119
 msgid "Enter a 6-digit hex colour like #147E78."
 msgstr "Podaj kolor 6-cyfrowym kodem hex, np. #147E78."
 
-#: .\institution\forms.py:126
+#: .\institution\forms.py:129
 msgid "Enabled languages"
 msgstr "Włączone języki"
 
-#: .\institution\forms.py:129
+#: .\institution\forms.py:132
 msgid "Default language"
 msgstr "Domyślny język"
 
-#: .\institution\forms.py:131
+#: .\institution\forms.py:134
 msgid "Primary colour"
 msgstr "Kolor podstawowy"
 
-#: .\institution\forms.py:132
+#: .\institution\forms.py:135
 msgid "Accent colour"
 msgstr "Kolor uzupełniający"
 
-#: .\institution\forms.py:137
+#: .\institution\forms.py:140
 msgid "Public hostname"
 msgstr "Publiczna nazwa hosta"
 
-#: .\institution\forms.py:139
+#: .\institution\forms.py:142
 msgid ""
 "The address people use to reach this site, e.g. libli.example.org. Used to "
 "build invitation and password-reset links. It does not change which "
@@ -3105,94 +3128,106 @@ msgstr ""
 "zmienia tego, jakie adresy przyjmuje serwer — to skonfigurował Twój dostawca "
 "hostingu."
 
-#: .\institution\forms.py:200
+#: .\institution\forms.py:203
 msgid "Enable at least one language."
 msgstr "Włącz co najmniej jeden język."
 
-#: .\institution\forms.py:214
+#: .\institution\forms.py:217
 msgid "Logo must be 2 MB or smaller."
 msgstr "Logo musi mieć rozmiar 2 MB lub mniejszy."
 
-#: .\institution\forms.py:229
+#: .\institution\forms.py:232
 msgid "The favicon must be 256 KB or smaller."
 msgstr "Ikona strony może mieć najwyżej 256 KB."
 
-#: .\institution\forms.py:233
+#: .\institution\forms.py:236
 msgid "The favicon must be a .png file."
 msgstr "Ikona strony musi być plikiem .png."
 
-#: .\institution\forms.py:236
+#: .\institution\forms.py:239
 msgid "The favicon must be a PNG image."
 msgstr "Ikona strony musi być obrazem PNG."
 
-#: .\institution\forms.py:242
+#: .\institution\forms.py:245
 msgid "The favicon must be square - crop it to equal width and height first."
 msgstr ""
 "Ikona strony musi być kwadratowa - najpierw przytnij ją do równej szerokości "
 "i wysokości."
 
-#: .\institution\forms.py:249
+#: .\institution\forms.py:252
 msgid "The favicon must be between 192 and 512 pixels."
 msgstr "Ikona strony musi mieć od 192 do 512 pikseli."
 
-#: .\institution\forms.py:266
+#: .\institution\forms.py:269
 msgid "Default language must be an enabled language."
 msgstr "Domyślny język musi być językiem włączonym."
 
-#: .\institution\forms.py:303
+#: .\institution\forms.py:306
 msgid "Allowed email domains"
 msgstr "Dozwolone domeny e-mail"
 
-#: .\institution\forms.py:304
+#: .\institution\forms.py:307
 msgid "One domain per line. Leave blank to allow any domain."
 msgstr ""
 "Jedna domena w wierszu. Pozostaw puste, aby zezwolić na dowolną domenę."
 
-#: .\institution\forms.py:327
+#: .\institution\forms.py:330
 #, python-format
 msgid "\"%(d)s\" is not a valid domain."
 msgstr "\"%(d)s\" nie jest prawidłową domeną."
 
-#: .\institution\forms.py:342
+#: .\institution\forms.py:345
 msgid "Allowed image types"
 msgstr "Dozwolone typy obrazów"
 
-#: .\institution\forms.py:347
+#: .\institution\forms.py:350
 msgid "Allowed video types"
 msgstr "Dozwolone typy wideo"
 
-#: .\institution\forms.py:352
+#: .\institution\forms.py:355
 msgid "Max image size (MiB)"
 msgstr "Maksymalny rozmiar obrazu (MiB)"
 
-#: .\institution\forms.py:353 .\institution\forms.py:359
+#: .\institution\forms.py:356 .\institution\forms.py:362
 #, python-brace-format
 msgid "Up to {n} MiB."
 msgstr "Do {n} MiB."
 
-#: .\institution\forms.py:358
+#: .\institution\forms.py:361
 msgid "Max video size (MiB)"
 msgstr "Maksymalny rozmiar wideo (MiB)"
 
-#: .\institution\forms.py:374
+#: .\institution\forms.py:377
 msgid "Enable at least one image type."
 msgstr "Włącz co najmniej jeden typ obrazu."
 
-#: .\institution\forms.py:380
+#: .\institution\forms.py:383
 msgid "Enable at least one video type."
 msgstr "Włącz co najmniej jeden typ wideo."
 
-#: .\institution\forms.py:388
+#: .\institution\forms.py:391
 msgid "Retention window (days)"
 msgstr "Okno przechowywania (dni)"
 
-#: .\institution\forms.py:474
+#: .\institution\forms.py:477
 msgid "The upper bound must be greater than the lower bound."
 msgstr "Górna granica musi być większa niż dolna granica."
 
-#: .\institution\forms.py:482
+#: .\institution\forms.py:485
 msgid "Bands must run consecutively with no gap and no overlap."
 msgstr "Zakresy muszą następować po sobie, bez luk i bez nakładania się."
+
+#: .\institution\forms.py:517 .\templates\institution\manage\_demo_tab.html:90
+msgid "Label"
+msgstr "Etykieta"
+
+#: .\institution\forms.py:518
+msgid "Days"
+msgstr "Dni"
+
+#: .\institution\forms.py:519 .\templates\institution\manage\_demo_tab.html:92
+msgid "Pupils"
+msgstr "Uczniowie"
 
 #: .\institution\models.py:30
 msgid "Invite only"
@@ -3369,15 +3404,23 @@ msgstr ""
 "Podaj nazwę hosta, na przykład libli.example.org — bez http://, bez ścieżki "
 "i bez ukośnika na końcu."
 
-#: .\institution\views_manage.py:184
+#: .\institution\views_manage.py:119
+#, python-format
+msgid "Extend by %(days)d day"
+msgid_plural "Extend by %(days)d days"
+msgstr[0] "Przedłuż o %(days)d dzień"
+msgstr[1] "Przedłuż o %(days)d dni"
+msgstr[2] "Przedłuż o %(days)d dni"
+
+#: .\institution\views_manage.py:419
 msgid "Branding saved."
 msgstr "Wygląd zapisany."
 
-#: .\institution\views_manage.py:191
+#: .\institution\views_manage.py:426
 msgid "Access settings saved."
 msgstr "Ustawienia dostępu zostały zapisane."
 
-#: .\institution\views_manage.py:206
+#: .\institution\views_manage.py:441
 msgid ""
 "Signup is set to SSO only, but SSO is not enabled — new users cannot sign in "
 "until you configure it on the SSO tab. Existing accounts and invitations are "
@@ -3387,63 +3430,124 @@ msgstr ""
 "użytkownicy nie mogą się zalogować, dopóki nie skonfigurujesz go na karcie "
 "SSO. Nie ma to wpływu na istniejące konta i zaproszenia."
 
-#: .\institution\views_manage.py:218
+#: .\institution\views_manage.py:453
 msgid "Upload settings saved."
 msgstr "Ustawienia przesyłania zostały zapisane."
 
-#: .\institution\views_manage.py:230
+#: .\institution\views_manage.py:465
 msgid "Retention settings saved."
 msgstr "Zapisano ustawienia przechowywania."
 
-#: .\institution\views_manage.py:266
+#: .\institution\views_manage.py:501
 msgid "SSO settings saved."
 msgstr "Ustawienia SSO zapisane."
 
-#: .\institution\views_manage.py:268
+#: .\institution\views_manage.py:503
 msgid "Nothing to save."
 msgstr "Brak zmian do zapisania."
 
-#: .\institution\views_manage.py:290
+#: .\institution\views_manage.py:525
 msgid "Endpoint uses http — grades transit in cleartext. Prefer https."
 msgstr ""
 "Punkt końcowy używa http — oceny są przesyłane jawnym tekstem. Zalecane "
 "https."
 
-#: .\institution\views_manage.py:292
+#: .\institution\views_manage.py:527
 msgid "Integration settings saved."
 msgstr "Zapisano ustawienia integracji."
 
-#: .\institution\views_manage.py:309
+#: .\institution\views_manage.py:544
 msgid "Set an endpoint URL and signing secret before sending a test event."
 msgstr ""
 "Przed wysłaniem zdarzenia testowego ustaw adres URL punktu końcowego i klucz "
 "podpisujący."
 
-#: .\institution\views_manage.py:316
+#: .\institution\views_manage.py:551
 #, python-format
 msgid "Test event delivered — endpoint returned %(code)s."
 msgstr "Zdarzenie testowe dostarczone — punkt końcowy zwrócił %(code)s."
 
-#: .\institution\views_manage.py:319
+#: .\institution\views_manage.py:554
 #, python-format
 msgid "Test event failed: %(reason)s"
 msgstr "Zdarzenie testowe nie powiodło się: %(reason)s"
 
-#: .\institution\views_manage.py:340
+#: .\institution\views_manage.py:575
 msgid "Support settings saved."
 msgstr "Ustawienia zgłoszeń zapisane."
 
-#: .\institution\views_manage.py:435
+#: .\institution\views_manage.py:670
 msgid "Public page settings saved."
 msgstr "Ustawienia stron publicznych zostały zapisane."
 
-#: .\institution\views_manage.py:475
+#: .\institution\views_manage.py:710
 msgid "Public page content saved."
 msgstr "Treść stron publicznych została zapisana."
 
-#: .\institution\views_manage.py:484
+#: .\institution\views_manage.py:719
 msgid "Pricing saved."
 msgstr "Cennik zapisany."
+
+#: .\institution\views_manage.py:751 .\institution\views_manage.py:793
+#, python-format
+msgid "Kit #%(id)s is already closed."
+msgstr "Zestaw #%(id)s jest już zamknięty."
+
+#: .\institution\views_manage.py:755
+#, python-format
+msgid "Kit #%(id)s now expires on %(date)s."
+msgstr "Zestaw #%(id)s wygasa teraz %(date)s."
+
+#: .\institution\views_manage.py:767
+#, python-format
+msgid ""
+"After this extension the kit will have been open for more than %(days)d day."
+msgid_plural ""
+"After this extension the kit will have been open for more than %(days)d days."
+msgstr[0] "Po tym przedłużeniu zestaw będzie działał dłużej niż %(days)d dzień."
+msgstr[1] "Po tym przedłużeniu zestaw będzie działał dłużej niż %(days)d dni."
+msgstr[2] "Po tym przedłużeniu zestaw będzie działał dłużej niż %(days)d dni."
+
+#: .\institution\views_manage.py:796
+#, python-format
+msgid "Kit #%(id)s revoked; its logins were deleted."
+msgstr "Zestaw #%(id)s cofnięty; jego loginy zostały usunięte."
+
+#: .\institution\views_manage.py:815
+#, python-brace-format
+msgid ""
+"A kit for this label may have just been created. {link_start}Open the Demo "
+"tab{link_end} — its credentials appear there — before creating again."
+msgstr ""
+"Zestaw dla tej etykiety mógł właśnie zostać utworzony. {link_start}Otwórz "
+"kartę Dostęp demo{link_end} — pojawią się tam jego dane logowania — zanim "
+"utworzysz kolejny."
+
+#: .\institution\views_manage.py:823
+msgid "This course cannot hold a demo."
+msgstr "Ten kurs nie nadaje się do demo."
+
+#: .\institution\views_manage.py:825
+msgid "The generated class came out empty and was rolled back."
+msgstr "Wygenerowana klasa wyszła pusta i została wycofana."
+
+#: .\institution\views_manage.py:827
+msgid "Ran out of distinct pupil names; use fewer pupils."
+msgstr "Zabrakło różnych imion uczniów; wybierz mniej uczniów."
+
+#: .\institution\views_manage.py:828
+msgid "The demo kit could not be created."
+msgstr "Nie udało się utworzyć zestawu demo."
+
+#: .\institution\views_manage.py:838
+#, python-format
+msgid "Enter a label of at most %(max)s characters."
+msgstr "Etykieta może mieć najwyżej %(max)s znaków."
+
+#: .\institution\views_manage.py:844
+#, python-format
+msgid "Must be between %(min)s and %(max)s."
+msgstr "Wartość musi mieścić się między %(min)s a %(max)s."
 
 #: .\institution\views_setup.py:33
 msgid "Welcome"
@@ -4192,6 +4296,7 @@ msgstr "Rola"
 #: .\templates\accounts\manage\invitations.html:25
 #: .\templates\accounts\manage\people.html:27
 #: .\templates\accounts\manage\people.html:42
+#: .\templates\institution\manage\_demo_tab.html:96
 #: .\templates\institution\manage\_integrations_tab.html:53
 msgid "Status"
 msgstr "Status"
@@ -4631,6 +4736,8 @@ msgid "Send invitation"
 msgstr "Wyślij zaproszenie"
 
 #: .\templates\accounts\manage\invitations.html:26
+#: .\templates\institution\manage\_demo_tab.html:38
+#: .\templates\institution\manage\_demo_tab.html:95
 msgid "Expires"
 msgstr "Wygasa"
 
@@ -4643,6 +4750,7 @@ msgid "Resend"
 msgstr "Wyślij ponownie"
 
 #: .\templates\accounts\manage\invitations.html:40
+#: .\templates\institution\manage\_demo_tab.html:122
 msgid "Revoke"
 msgstr "Cofnij"
 
@@ -8249,6 +8357,113 @@ msgstr "Lokalizacja"
 msgid "Save branding"
 msgstr "Zapisz wygląd"
 
+#: .\templates\institution\manage\_demo_tab.html:6
+#: .\templates\institution\manage\_tabs.html:23
+msgid "Demo access"
+msgstr "Dostęp demo"
+
+#: .\templates\institution\manage\_demo_tab.html:7
+msgid ""
+"A demo kit is a Teacher login — class analytics, per-pupil progress and "
+"force-submitting an unfinished quiz — a pupil login that starts with a blank "
+"record, and an example class of generated pupils. It lasts the chosen number "
+"of days and is then deleted automatically."
+msgstr ""
+"Zestaw demo to login nauczyciela — analityka klasy, postępy poszczególnych "
+"uczniów i wymuszanie oddania niedokończonego quizu — login ucznia, który "
+"zaczyna z pustym kontem, oraz przykładowa klasa wygenerowanych uczniów. "
+"Działa przez wybraną liczbę dni, a potem jest automatycznie usuwany."
+
+#: .\templates\institution\manage\_demo_tab.html:10
+msgid "Credentials are waiting — reload this page."
+msgstr "Dane logowania czekają — odśwież tę stronę."
+
+#: .\templates\institution\manage\_demo_tab.html:15
+#, python-format
+msgid "Kit #%(id)s was closed before its credentials were displayed."
+msgstr "Zestaw #%(id)s został zamknięty, zanim wyświetlono jego dane logowania."
+
+#: .\templates\institution\manage\_demo_tab.html:17
+#, python-format
+msgid ""
+"Credentials for kit #%(id)s were never displayed and are gone; revoke it and "
+"create another."
+msgstr ""
+"Dane logowania zestawu #%(id)s nie zostały wyświetlone i przepadły; cofnij "
+"zestaw i utwórz nowy."
+
+#: .\templates\institution\manage\_demo_tab.html:23
+#, python-format
+msgid "Demo kit #%(id)s — %(label)s"
+msgstr "Zestaw demo #%(id)s — %(label)s"
+
+#: .\templates\institution\manage\_demo_tab.html:24
+msgid "These passwords are not stored — copy them now."
+msgstr "Te hasła nie są nigdzie zapisywane — skopiuj je teraz."
+
+#: .\templates\institution\manage\_demo_tab.html:28
+#: .\templates\institution\manage\_demo_tab.html:93
+msgid "Teacher login"
+msgstr "Login nauczyciela"
+
+#: .\templates\institution\manage\_demo_tab.html:33
+msgid "Pupil login"
+msgstr "Login ucznia"
+
+#: .\templates\institution\manage\_demo_tab.html:37
+msgid "Log in at"
+msgstr "Adres logowania"
+
+#: .\templates\institution\manage\_demo_tab.html:43
+msgid "Warnings"
+msgstr "Ostrzeżenia"
+
+#: .\templates\institution\manage\_demo_tab.html:56
+#: .\templates\institution\manage\_demo_tab.html:72
+msgid "Create demo kit"
+msgstr "Utwórz zestaw demo"
+
+#: .\templates\institution\manage\_demo_tab.html:69
+msgid ""
+"Creating a kit can take a minute or more; keep this page open. If the page "
+"stops responding, wait a couple of minutes, then reopen the Demo tab — the "
+"credentials appear there once the kit exists. Do not create again until it "
+"shows in the list."
+msgstr ""
+"Tworzenie zestawu może potrwać minutę lub dłużej; nie zamykaj tej strony. "
+"Jeśli strona przestanie odpowiadać, odczekaj kilka minut i ponownie otwórz "
+"kartę Dostęp demo — dane logowania pojawią się tam, gdy zestaw powstanie. "
+"Nie twórz go ponownie, dopóki nie pojawi się na liście."
+
+#: .\templates\institution\manage\_demo_tab.html:77
+msgid "Demo kits"
+msgstr "Zestawy demo"
+
+#: .\templates\institution\manage\_demo_tab.html:80
+msgid "Show open kits only"
+msgstr "Pokaż tylko otwarte zestawy"
+
+#: .\templates\institution\manage\_demo_tab.html:82
+msgid "Show closed kits too"
+msgstr "Pokaż także zamknięte zestawy"
+
+#: .\templates\institution\manage\_demo_tab.html:94
+#: .\templates\institution\manage\_integrations_tab.html:55
+msgid "Created"
+msgstr "Utworzono"
+
+#: .\templates\institution\manage\_demo_tab.html:97
+msgid "Actions"
+msgstr "Akcje"
+
+#: .\templates\institution\manage\_demo_tab.html:119
+msgid "Revoke this demo kit? Its logins are deleted immediately."
+msgstr "Cofnąć ten zestaw demo? Jego loginy zostaną natychmiast usunięte."
+
+#: .\templates\institution\manage\_demo_tab.html:131
+msgid "No demo kits."
+msgstr "Brak zestawów demo."
+
 #: .\templates\institution\manage\_integrations_tab.html:6
 msgid "External register (webhook)"
 msgstr "Rejestr zewnętrzny (webhook)"
@@ -8303,10 +8518,6 @@ msgstr "Zdarzenie"
 #: .\templates\institution\manage\_integrations_tab.html:54
 msgid "Attempts"
 msgstr "Próby"
-
-#: .\templates\institution\manage\_integrations_tab.html:55
-msgid "Created"
-msgstr "Utworzono"
 
 #: .\templates\institution\manage\_integrations_tab.html:56
 msgid "Last error"
