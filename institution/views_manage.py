@@ -9,15 +9,23 @@ from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.formats import date_format
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 
 from accounts.forms import SsoForm
 from accounts.sso_config import is_enabled
 from accounts.sso_config import load_sso_app
 from accounts.sso_config import redirect_uri
 from accounts.sso_config import save_sso_config
+from demo import errors as demo_errors
+from demo.constants import DEFAULT_DAYS
+from demo.constants import LONG_LIVED_DAYS
 from demo.models import STATUS_DISPLAY
 from demo.models import DemoKit
+from demo.services import extend_kit
+from demo.services import revoke_kit
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
 from institution.forms import PricingForm
@@ -87,7 +95,10 @@ def _demo_context(active_tab, form, show_all):
         "demo_form": form,
         "demo_kits": kits,
         "demo_show_all": show_all,
-        "demo_extend_label": None,
+        "demo_extend_label": ngettext(
+            "Extend by %(days)d day", "Extend by %(days)d days", DEFAULT_DAYS
+        )
+        % {"days": DEFAULT_DAYS},
     }
 
 
@@ -521,3 +532,82 @@ def settings_pricing(request):
     if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
         raise Http404
     return _action(request, PricingForm, "pricing", "pricing", _("Pricing saved."))
+
+
+def _demo_list_url(request):
+    """PR 3 spec §4.7: back to the list the operator was looking at. Only the
+    literal "1" is honoured, and nothing posted is ever echoed into the URL."""
+    url = _index_url("demo")
+    return f"{url}&all=1" if request.POST.get("all") == "1" else url
+
+
+def _demo_kit_or_404(kit_id):
+    kit = DemoKit.objects.filter(pk=kit_id).first()
+    if kit is None:
+        raise Http404
+    return kit
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_demo_extend(request, kit_id):
+    if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
+        raise Http404
+    if request.method != "POST":
+        return redirect(_index_url("demo"))  # non-POST: see _action
+    kit = _demo_kit_or_404(kit_id)
+    try:
+        # ⚠️ Accepted race (spec §4.7): if the nightly purge closes a pending-purge
+        # kit between the lookup above and this call, _require_open checks the
+        # stale row and the new expiry lands on a closed kit. Locking belongs in
+        # extend_kit, not here.
+        result = extend_kit(kit, days=DEFAULT_DAYS)
+    except demo_errors.KitAlreadyClosed:
+        messages.error(request, _("Kit #%(id)s is already closed.") % {"id": kit.pk})
+    else:
+        messages.success(
+            request,
+            _("Kit #%(id)s now expires on %(date)s.")
+            % {
+                "id": kit.pk,
+                "date": date_format(timezone.localtime(result.new_expires_at)),
+            },
+        )
+        if result.long_lived:
+            # Worded to the computation: long_lived is the kit's LIFESPAN up to the
+            # new expiry (demo/services.py extend_kit), not its age.
+            messages.warning(
+                request,
+                ngettext(
+                    "After this extension the kit will have been open for more "
+                    "than %(days)d day.",
+                    "After this extension the kit will have been open for more "
+                    "than %(days)d days.",
+                    LONG_LIVED_DAYS,
+                )
+                % {"days": LONG_LIVED_DAYS},
+            )
+    return redirect(_demo_list_url(request))
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_demo_revoke(request, kit_id):
+    # The tab is vendor-only like the rest of it. Parent R8's exemption for revoke
+    # lives in the service and in `demo_access revoke`, which stay unguarded.
+    if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
+        raise Http404
+    if request.method != "POST":
+        return redirect(_index_url("demo"))  # non-POST: see _action
+    kit = _demo_kit_or_404(kit_id)
+    try:
+        revoke_kit(kit)
+    except demo_errors.KitAlreadyClosed:
+        # A stale page. Two truly simultaneous revokes both pass _require_open and
+        # both purge; the second only rewrites closed_at. Harmless, not guarded.
+        messages.error(request, _("Kit #%(id)s is already closed.") % {"id": kit.pk})
+    else:
+        messages.success(
+            request, _("Kit #%(id)s revoked; its logins were deleted.") % {"id": kit.pk}
+        )
+    return redirect(_demo_list_url(request))

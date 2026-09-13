@@ -43,7 +43,21 @@
         <td>{{ kit.created_at|date }}</td>
         <td>{{ kit.expires_at|date }}</td>
         <td>{{ kit.status_label }}</td>
-        <td>{# demo:row-actions #}</td>
+        <td>
+          {% if not kit.closed_at %}
+          <form method="post" action="{% url 'institution:settings_demo_extend' kit.pk %}" data-demo-extend>
+            {% csrf_token %}
+            {% if demo_show_all %}<input type="hidden" name="all" value="1">{% endif %}
+            <button class="btn" type="submit">{{ demo_extend_label }}</button>
+          </form>
+          <form method="post" action="{% url 'institution:settings_demo_revoke' kit.pk %}" data-demo-revoke
+                data-confirm="{% trans 'Revoke this demo kit? Its logins are deleted immediately.' %}">
+            {% csrf_token %}
+            {% if demo_show_all %}<input type="hidden" name="all" value="1">{% endif %}
+            <button class="btn" type="submit">{% trans "Revoke" %}</button>
+          </form>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -52,5 +66,7 @@
   <p class="settings__help">{% trans "No demo kits." %}</p>
   {% endif %}
 </div>
+{# confirm.js binds once, to the forms that exist when it runs — `defer` makes that placement-independent. #}
+<script src="{% static 'support/js/confirm.js' %}" defer></script>
 {# demo:scripts #}
 {% endif %}

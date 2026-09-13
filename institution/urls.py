@@ -67,6 +67,16 @@ urlpatterns = [
         views_manage.settings_pricing,
         name="settings_pricing",
     ),
+    path(
+        "manage/settings/demo/<int:kit_id>/extend/",
+        views_manage.settings_demo_extend,
+        name="settings_demo_extend",
+    ),
+    path(
+        "manage/settings/demo/<int:kit_id>/revoke/",
+        views_manage.settings_demo_revoke,
+        name="settings_demo_revoke",
+    ),
     # Phase 5e — first-run setup wizard
     # skip MUST precede <str:step> so /manage/setup/skip/ is not captured as a step.
     path("manage/setup/", views_setup.setup, name="setup"),
