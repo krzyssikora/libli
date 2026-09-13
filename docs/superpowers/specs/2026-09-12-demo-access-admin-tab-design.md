@@ -1,6 +1,6 @@
 # Demo access — PR 3: the admin tab — design
 
-**Status:** approved in brainstorming 2026-09-12. Not yet planned, not yet built.
+**Status:** approved 2026-09-12; spec-review 8 rounds, 73 applied. Plan: docs/superpowers/plans/2026-09-13-demo-access-admin-tab.md. Built in PR 3.
 **Parent:** `docs/superpowers/specs/2026-09-12-demo-access-for-schools-design.md` (below: "the
 parent"). PR 3 is scoped at the parent's §6; §4.4 and §4.6 are the service and command surfaces
 this tab wraps. PR 1 and PR 2 are merged (#318) and deployed.
