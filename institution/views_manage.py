@@ -1,24 +1,32 @@
 """Platform-admin settings: Branding / Access / Uploads / SSO / Notifications tabs."""
 
+import time
+from datetime import datetime
+from importlib import import_module
+
 from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
+from django.contrib.sessions.backends.base import UpdateError
 from django.contrib.sites.shortcuts import get_current_site
 from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.cache import add_never_cache_headers
 from django.utils.formats import date_format
 from django.utils.translation import gettext as _
 from django.utils.translation import ngettext
+from django.views.decorators.debug import sensitive_variables
 
 from accounts.forms import SsoForm
 from accounts.sso_config import is_enabled
 from accounts.sso_config import load_sso_app
 from accounts.sso_config import redirect_uri
 from accounts.sso_config import save_sso_config
+from courses.models import ContentNode
 from demo import errors as demo_errors
 from demo.constants import DEFAULT_DAYS
 from demo.constants import LONG_LIVED_DAYS
@@ -26,6 +34,7 @@ from demo.models import STATUS_DISPLAY
 from demo.models import DemoKit
 from demo.services import extend_kit
 from demo.services import revoke_kit
+from demo.warnings import DISPLAY as DEMO_WARNING_DISPLAY
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
 from institution.forms import PricingForm
@@ -100,6 +109,148 @@ def _demo_context(active_tab, form, show_all):
         )
         % {"days": DEFAULT_DAYS},
     }
+
+
+DEMO_RESULTS_KEY = "demo_kit_results"
+# PR 3 spec §4.4: how long an undisplayed entry may still become a card. A
+# property of the tab, not of the demo machinery, so it lives here.
+DEMO_RESULT_TTL = 15 * 60
+
+
+def _session_store(request):
+    """A SEPARATE store on the request's session row (spec §4.3).
+
+    request.session was loaded when the request began — ~40 s before a create
+    finishes. Anything that marks it modified makes SessionMiddleware save that
+    whole start-of-request snapshot over keys other tabs wrote meanwhile (a staged
+    course import, element_clip, _language). Reading and writing the pending list
+    through this store keeps each read-modify-save to milliseconds.
+
+    ⚠️ Read it with .get(), never .load(): SessionBase.load() returns the data
+    WITHOUT filling _session_cache (django/contrib/sessions/backends/base.py,
+    _get_session), so the next item access loads again — and a row deleted between
+    the two loads nulls the key after the `session_key is None` guard has passed.
+    """
+    engine = import_module(django_settings.SESSION_ENGINE)
+    return engine.SessionStore(session_key=request.session.session_key)
+
+
+def _mirror_demo_results(request, saved):
+    """Spec §4.3 step 4. Called immediately before a view returns, and only with
+    the list a fresh store actually holds (None when the store's guard stopped or
+    its save raised UpdateError — then nothing is mirrored).
+
+    The view never modifies request.session on its own account, but middleware
+    may already have: LanguageSeederMiddleware writes _language (core/middleware.py
+    :28-36), and get_user cycles the key after a SECRET_KEY fallback rotation. A
+    modified request.session is saved whole at the end of the request, so giving it
+    the same list is what stops that save undoing the fresh store's write.
+    """
+    if saved is None or not request.session.modified:
+        return
+    if saved:
+        request.session[DEMO_RESULTS_KEY] = saved
+    else:
+        request.session.pop(DEMO_RESULTS_KEY, None)
+
+
+def _is_speculative(request):
+    """A prefetch or prerender whose body the operator may never see."""
+    purpose = " ".join(
+        (request.headers.get("Sec-Purpose", ""), request.headers.get("Purpose", ""))
+    )
+    return "prefetch" in purpose or "prerender" in purpose
+
+
+def _attach_warning_lines(cards):
+    """Spec §4.4 step 4 / §4.5. The template can neither index DISPLAY by a
+    variable nor sort by its declaration order, so the lines are built here, with
+    ONE title query over every card's unit ids. No raw `reason` is ever stored or
+    shown — it is an English diagnostic — except the webhook's `detail`, a URL."""
+    unit_ids = {
+        unit_id
+        for card in cards
+        for summary in card["warnings"].values()
+        for unit_id in summary["unit_ids"]
+    }
+    titles = dict(
+        ContentNode.objects.filter(pk__in=unit_ids).values_list("pk", "title")
+    )
+    webhook = "active_webhook_endpoint"
+    order = [webhook, *(kind for kind in DEMO_WARNING_DISPLAY if kind != webhook)]
+    for card in cards:
+        lines = []
+        for kind in order:
+            summary = card["warnings"].get(kind)
+            if summary is None:
+                continue
+            lines.append(
+                {
+                    "text": DEMO_WARNING_DISPLAY[kind],
+                    "count": summary["count"],
+                    "detail": summary["detail"],
+                    "titles": [
+                        titles[unit_id]
+                        for unit_id in summary["unit_ids"]
+                        if unit_id in titles
+                    ],
+                }
+            )
+        card["warning_lines"] = lines
+
+
+@sensitive_variables()
+def _pending_demo_results(request):
+    """Spec §4.4 steps 1-5. READS ONLY — the discard runs after a successful render,
+    so a render exception leaves every entry for the next GET (P20)."""
+    fresh = _session_store(request)
+    entries = fresh.get(DEMO_RESULTS_KEY) or []
+    if fresh.session_key is None or not entries:
+        return [], []
+    open_ids = set(
+        DemoKit.objects.filter(
+            pk__in=[entry["kit_id"] for entry in entries], closed_at__isnull=True
+        ).values_list("pk", flat=True)
+    )
+    now = time.time()
+    cards, notices = [], []
+    for entry in entries:
+        if entry["kit_id"] not in open_ids:
+            # Whatever its age: a password for deleted users is never shown, and a
+            # closed kit is never called revocable.
+            notices.append({"kit_id": entry["kit_id"], "kind": "closed"})
+        elif now - entry["stored_at"] > DEMO_RESULT_TTL:
+            notices.append({"kit_id": entry["kit_id"], "kind": "expired"})
+        else:
+            cards.append(
+                {**entry, "expires_at": datetime.fromisoformat(entry["expires_at"])}
+            )
+    _attach_warning_lines(cards)
+    return cards, notices
+
+
+@sensitive_variables()
+def _discard_shown_results(request, kit_ids):
+    """Spec §4.4: remove exactly what this page showed, through a second fresh
+    store. An entry a create saved while the page rendered is not in kit_ids, so it
+    survives (P18). Returns the list the store now holds, or None when the session
+    row is gone or the save raised UpdateError (nothing to mirror then)."""
+    fresh = _session_store(request)
+    current = fresh.get(DEMO_RESULTS_KEY, [])
+    if fresh.session_key is None:
+        return None
+    remaining = [entry for entry in current if entry["kit_id"] not in kit_ids]
+    if remaining == current:
+        return remaining  # the store already agrees; the mirror still applies
+    if remaining:
+        fresh[DEMO_RESULTS_KEY] = remaining
+    else:
+        fresh.pop(DEMO_RESULTS_KEY, None)
+    try:
+        fresh.save()
+    except UpdateError:
+        return None
+    return remaining
 
 
 def _settings_context(
@@ -189,18 +340,41 @@ def _settings_context(
     }
 
 
+@sensitive_variables()
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings(request):
     inst = Institution.load()
+    active_tab = _active_tab(request)
+    cards, notices, waiting = [], [], False
+    # Spec §4.4: pending credentials are taken in exactly one place — here, on a
+    # real GET of the Demo tab. Never on HEAD/OPTIONS (this view has no method
+    # guard) and never on a speculative load, whose body may never be seen.
+    if active_tab == "demo" and request.method == "GET":
+        if _is_speculative(request):
+            waiting = bool(request.session.get(DEMO_RESULTS_KEY))
+        else:
+            cards, notices = _pending_demo_results(request)
     ctx = _settings_context(
         request,
         inst,
-        _active_tab(request),
-        # Spec §4.6: only the literal "1" shows closed kits.
+        active_tab,
         demo_show_all=request.GET.get("all") == "1",
     )
-    return render(request, "institution/manage/settings.html", ctx)
+    ctx.update(
+        demo_results=cards,
+        demo_notices=notices,
+        demo_waiting=waiting,
+        demo_login_url=(
+            request.build_absolute_uri(reverse("account_login")) if cards else None
+        ),
+    )
+    response = render(request, "institution/manage/settings.html", ctx)
+    if cards or notices:
+        add_never_cache_headers(response)
+        shown = {card["kit_id"] for card in cards} | {n["kit_id"] for n in notices}
+        _mirror_demo_results(request, _discard_shown_results(request, shown))
+    return response
 
 
 def _index_url(tab):

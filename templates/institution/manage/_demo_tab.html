@@ -6,7 +6,50 @@
   <h2 class="settings__section-title">{% trans "Demo access" %}</h2>
   <p class="settings__help">{% trans "A demo kit is a Teacher login — class analytics, per-pupil progress and force-submitting an unfinished quiz — a pupil login that starts with a blank record, and an example class of generated pupils. It lasts the chosen number of days and is then deleted automatically." %}</p>
 </div>
-{# demo:results #}
+{% if demo_waiting %}
+<div class="alert alert--info" data-demo-waiting>{% trans "Credentials are waiting — reload this page." %}</div>
+{% endif %}
+{% for notice in demo_notices %}
+<div class="alert alert--warning" data-demo-notice="{{ notice.kit_id }}">
+  {% if notice.kind == "closed" %}
+  {% blocktrans with id=notice.kit_id %}Kit #{{ id }} was closed before its credentials were displayed.{% endblocktrans %}
+  {% else %}
+  {% blocktrans with id=notice.kit_id %}Credentials for kit #{{ id }} were never displayed and are gone; revoke it and create another.{% endblocktrans %}
+  {% endif %}
+</div>
+{% endfor %}
+{% for card in demo_results %}
+<div class="settings__section" data-demo-card="{{ card.kit_id }}">
+  <h2 class="settings__section-title">{% blocktrans with id=card.kit_id label=card.label %}Demo kit #{{ id }} — {{ label }}{% endblocktrans %}</h2>
+  <div class="alert alert--warning">{% trans "These passwords are not stored — copy them now." %}</div>
+  <div class="scroll-x" data-scroll-x><table class="settings__table">
+    <tbody>
+      <tr>
+        <th>{% trans "Teacher login" %}</th>
+        <td><code data-demo-teacher-username>{{ card.teacher_username }}</code></td>
+        <td><code data-demo-teacher-password>{{ card.teacher_password }}</code></td>
+      </tr>
+      <tr>
+        <th>{% trans "Pupil login" %}</th>
+        <td><code data-demo-student-username>{{ card.student_username }}</code></td>
+        <td><code data-demo-student-password>{{ card.student_password }}</code></td>
+      </tr>
+      <tr><th>{% trans "Log in at" %}</th><td colspan="2"><code>{{ demo_login_url }}</code></td></tr>
+      <tr><th>{% trans "Expires" %}</th><td colspan="2">{{ card.expires_at|date }}</td></tr>
+    </tbody>
+  </table></div>
+  {% if card.warning_lines %}
+  <div data-demo-warnings>
+    <h3 class="settings__label">{% trans "Warnings" %}</h3>
+    <ul>
+      {% for line in card.warning_lines %}
+      <li>{{ line.text }} ({{ line.count }}){% if line.detail %} <code>{{ line.detail }}</code>{% endif %}{% if line.titles %} — {{ line.titles|join:", " }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
 {# demo:create-form #}
 <div class="settings__section" data-demo-list>
   <h2 class="settings__section-title">{% trans "Demo kits" %}</h2>
