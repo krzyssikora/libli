@@ -554,7 +554,7 @@
 .settings__table--kits td {
   white-space: nowrap;
   /* Tighter than .settings__table's space-3: each pixel given back shows more of
-     the row beside the pinned Actions column. */
+     the row (beside the Actions column, which is pinned only above 640px). */
   padding-inline: var(--space-2);
 }
 

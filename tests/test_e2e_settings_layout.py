@@ -108,6 +108,9 @@ def _ensure_pricing_plans():
 def _open(page, live_server, query, width, height):
     page.set_viewport_size({"width": width, "height": height})
     page.goto(f"{live_server.url}{reverse('institution:settings')}{query}")
+    # Inter loads with font-display: swap; every width measured here shifts when
+    # it swaps in (the desktop tab row has only ~17px of slack).
+    page.evaluate("() => document.fonts.ready.then(() => true)")
 
 
 def _assert_one_line(locator, what):
@@ -310,6 +313,25 @@ def test_kit_actions_stay_visible_at_both_scroll_ends(page, live_server, setting
     assert scroll_width > client_width, (scroll_width, client_width)
     first_open_row = page.locator(_FIRST_OPEN_ROW).first
     revoke = first_open_row.locator("form[data-demo-revoke] button")
+
+    # Paint, which no hit test can see. The wrapper's right-edge shade is
+    # pointer-events: none, so it would lie over the buttons without taking a hit.
+    shade = page.locator("[data-demo-list] .settings__kits-scroll").evaluate(
+        "w => getComputedStyle(w, '::after').content"
+    )
+    assert shade == "none", f"at 1280px the kit table's right-edge shade is {shade}"
+    # A see-through pinned cell would show the scrolled cells through it.
+    cell_fill = first_open_row.locator("td.settings__col-actions").evaluate(
+        "td => getComputedStyle(td).backgroundColor"
+    )
+    card_fill = page.locator("[data-demo-list]").evaluate(
+        "card => getComputedStyle(card).backgroundColor"
+    )
+    assert cell_fill not in ("rgba(0, 0, 0, 0)", "transparent"), cell_fill
+    assert cell_fill == card_fill, (
+        f"at 1280px the pinned Actions cell is {cell_fill}, its card {card_fill}"
+    )
+
     for end, x in (("left", 0), ("right", scroll_width)):
         scrolled = scroller.evaluate(_SCROLL_TO_JS, x)
         where = f"at 1280px scrolled to the {end} end ({scrolled})"
@@ -317,8 +339,8 @@ def test_kit_actions_stay_visible_at_both_scroll_ends(page, live_server, setting
         box, button = scroller.evaluate(_BOX_JS), revoke.evaluate(_BOX_JS)
         assert button["left"] >= box["left"], (where, button, box)
         assert button["right"] <= box["right"], (where, button, box)
-        # Inside the box is not enough: an edge shade or a scrolled cell could
-        # still paint over the button.
+        # Stacking only: a scrolled cell layered over the button would take the
+        # hit. Paint (a shade, a see-through cell) is guarded above, not here.
         assert revoke.evaluate(_HIT_JS), f"{where}: Revoke is covered at its centre"
 
 
@@ -329,6 +351,12 @@ def test_kit_actions_scroll_with_their_row_on_a_phone(page, live_server, setting
     _vendor_admin(page, live_server, settings, kits=True)
     _open(page, live_server, "?tab=demo&all=1", 420, 900)
     scroller = page.locator("[data-demo-list] .settings__table-scroll")
+    scroll_width, client_width = scroller.evaluate(
+        "s => [s.scrollWidth, s.clientWidth]"
+    )
+    # The premise: the table really scrolls here, so scrollLeft = 0 is one end of
+    # a longer row and not the whole table in view.
+    assert scroll_width > client_width, (scroll_width, client_width)
     assert scroller.evaluate(_SCROLL_TO_JS, 0) == 0
     row = page.locator(_FIRST_OPEN_ROW).first
     label = row.locator("td.settings__cell-label")
