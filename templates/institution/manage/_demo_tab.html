@@ -4,7 +4,13 @@
 {# ⚠️ Every link and form action here is absolute ({% url %}): this panel also renders on the create view's error page, served at .../demo/create/. #}
 <div class="settings__section">
   <h2 class="settings__section-title">{% trans "Demo access" %}</h2>
-  <p class="settings__help">{% trans "A demo kit is a Teacher login — class analytics, per-pupil progress and force-submitting an unfinished quiz — a pupil login that starts with a blank record, and an example class of generated pupils. It lasts the chosen number of days and is then deleted automatically." %}</p>
+  <p class="settings__help">{% trans "A demo kit is:" %}</p>
+  <ul class="settings__help settings__help-list">
+    <li>{% trans "a Teacher login. The Teacher can see class analytics and per-pupil progress, and can force-submit an unfinished quiz;" %}</li>
+    <li>{% trans "a pupil login that starts with a blank record;" %}</li>
+    <li>{% trans "and an example class of generated pupils." %}</li>
+  </ul>
+  <p class="settings__help">{% trans "The kit lasts the chosen number of days and is then deleted automatically." %}</p>
 </div>
 {% if demo_waiting %}
 <div class="alert alert--info" data-demo-waiting>{% trans "Credentials are waiting — reload this page." %}</div>

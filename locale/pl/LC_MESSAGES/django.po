@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-13 13:31+0200\n"
+"POT-Creation-Date: 2026-09-13 20:20+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -836,7 +836,7 @@ msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 #: .\grouping\forms.py:256 .\institution\forms.py:515
 #: .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
-#: .\templates\institution\manage\_demo_tab.html:91
+#: .\templates\institution\manage\_demo_tab.html:97
 msgid "Course"
 msgstr "Kurs"
 
@@ -3217,7 +3217,7 @@ msgstr "Górna granica musi być większa niż dolna granica."
 msgid "Bands must run consecutively with no gap and no overlap."
 msgstr "Zakresy muszą następować po sobie, bez luk i bez nakładania się."
 
-#: .\institution\forms.py:517 .\templates\institution\manage\_demo_tab.html:90
+#: .\institution\forms.py:517 .\templates\institution\manage\_demo_tab.html:96
 msgid "Label"
 msgstr "Etykieta"
 
@@ -3225,7 +3225,7 @@ msgstr "Etykieta"
 msgid "Days"
 msgstr "Dni"
 
-#: .\institution\forms.py:519 .\templates\institution\manage\_demo_tab.html:92
+#: .\institution\forms.py:519 .\templates\institution\manage\_demo_tab.html:98
 msgid "Pupils"
 msgstr "Uczniowie"
 
@@ -3504,7 +3504,8 @@ msgid ""
 "After this extension the kit will have been open for more than %(days)d day."
 msgid_plural ""
 "After this extension the kit will have been open for more than %(days)d days."
-msgstr[0] "Po tym przedłużeniu zestaw będzie działał dłużej niż %(days)d dzień."
+msgstr[0] ""
+"Po tym przedłużeniu zestaw będzie działał dłużej niż %(days)d dzień."
 msgstr[1] "Po tym przedłużeniu zestaw będzie działał dłużej niż %(days)d dni."
 msgstr[2] "Po tym przedłużeniu zestaw będzie działał dłużej niż %(days)d dni."
 
@@ -4296,7 +4297,7 @@ msgstr "Rola"
 #: .\templates\accounts\manage\invitations.html:25
 #: .\templates\accounts\manage\people.html:27
 #: .\templates\accounts\manage\people.html:42
-#: .\templates\institution\manage\_demo_tab.html:96
+#: .\templates\institution\manage\_demo_tab.html:102
 #: .\templates\institution\manage\_integrations_tab.html:53
 msgid "Status"
 msgstr "Status"
@@ -4736,8 +4737,8 @@ msgid "Send invitation"
 msgstr "Wyślij zaproszenie"
 
 #: .\templates\accounts\manage\invitations.html:26
-#: .\templates\institution\manage\_demo_tab.html:38
-#: .\templates\institution\manage\_demo_tab.html:95
+#: .\templates\institution\manage\_demo_tab.html:44
+#: .\templates\institution\manage\_demo_tab.html:101
 msgid "Expires"
 msgstr "Wygasa"
 
@@ -4750,7 +4751,7 @@ msgid "Resend"
 msgstr "Wyślij ponownie"
 
 #: .\templates\accounts\manage\invitations.html:40
-#: .\templates\institution\manage\_demo_tab.html:122
+#: .\templates\institution\manage\_demo_tab.html:128
 msgid "Revoke"
 msgstr "Cofnij"
 
@@ -8363,27 +8364,43 @@ msgid "Demo access"
 msgstr "Dostęp demo"
 
 #: .\templates\institution\manage\_demo_tab.html:7
+msgid "A demo kit is:"
+msgstr "Zestaw demo to:"
+
+#: .\templates\institution\manage\_demo_tab.html:9
 msgid ""
-"A demo kit is a Teacher login — class analytics, per-pupil progress and "
-"force-submitting an unfinished quiz — a pupil login that starts with a blank "
-"record, and an example class of generated pupils. It lasts the chosen number "
-"of days and is then deleted automatically."
+"a Teacher login. The Teacher can see class analytics and per-pupil progress, "
+"and can force-submit an unfinished quiz;"
 msgstr ""
-"Zestaw demo to login nauczyciela — analityka klasy, postępy poszczególnych "
-"uczniów i wymuszanie oddania niedokończonego quizu — login ucznia, który "
-"zaczyna z pustym kontem, oraz przykładowa klasa wygenerowanych uczniów. "
-"Działa przez wybraną liczbę dni, a potem jest automatycznie usuwany."
+"login nauczyciela. Nauczyciel ma dostęp do analityki klasy, postępów "
+"poszczególnych uczniów i możliwość wymuszenia oddania niedokończonego quizu,"
 
 #: .\templates\institution\manage\_demo_tab.html:10
+msgid "a pupil login that starts with a blank record;"
+msgstr "login ucznia, który zaczyna z pustym kontem,"
+
+#: .\templates\institution\manage\_demo_tab.html:11
+msgid "and an example class of generated pupils."
+msgstr "oraz przykładowa klasa wygenerowanych uczniów."
+
+#: .\templates\institution\manage\_demo_tab.html:13
+msgid ""
+"The kit lasts the chosen number of days and is then deleted automatically."
+msgstr ""
+"Zestaw demo działa przez wybraną liczbę dni, a potem jest automatycznie "
+"usuwany."
+
+#: .\templates\institution\manage\_demo_tab.html:16
 msgid "Credentials are waiting — reload this page."
 msgstr "Dane logowania czekają — odśwież tę stronę."
 
-#: .\templates\institution\manage\_demo_tab.html:15
+#: .\templates\institution\manage\_demo_tab.html:21
 #, python-format
 msgid "Kit #%(id)s was closed before its credentials were displayed."
-msgstr "Zestaw #%(id)s został zamknięty, zanim wyświetlono jego dane logowania."
+msgstr ""
+"Zestaw #%(id)s został zamknięty, zanim wyświetlono jego dane logowania."
 
-#: .\templates\institution\manage\_demo_tab.html:17
+#: .\templates\institution\manage\_demo_tab.html:23
 #, python-format
 msgid ""
 "Credentials for kit #%(id)s were never displayed and are gone; revoke it and "
@@ -8392,38 +8409,38 @@ msgstr ""
 "Dane logowania zestawu #%(id)s nie zostały wyświetlone i przepadły; cofnij "
 "zestaw i utwórz nowy."
 
-#: .\templates\institution\manage\_demo_tab.html:23
+#: .\templates\institution\manage\_demo_tab.html:29
 #, python-format
 msgid "Demo kit #%(id)s — %(label)s"
 msgstr "Zestaw demo #%(id)s — %(label)s"
 
-#: .\templates\institution\manage\_demo_tab.html:24
+#: .\templates\institution\manage\_demo_tab.html:30
 msgid "These passwords are not stored — copy them now."
 msgstr "Te hasła nie są nigdzie zapisywane — skopiuj je teraz."
 
-#: .\templates\institution\manage\_demo_tab.html:28
-#: .\templates\institution\manage\_demo_tab.html:93
+#: .\templates\institution\manage\_demo_tab.html:34
+#: .\templates\institution\manage\_demo_tab.html:99
 msgid "Teacher login"
 msgstr "Login nauczyciela"
 
-#: .\templates\institution\manage\_demo_tab.html:33
+#: .\templates\institution\manage\_demo_tab.html:39
 msgid "Pupil login"
 msgstr "Login ucznia"
 
-#: .\templates\institution\manage\_demo_tab.html:37
+#: .\templates\institution\manage\_demo_tab.html:43
 msgid "Log in at"
 msgstr "Adres logowania"
 
-#: .\templates\institution\manage\_demo_tab.html:43
+#: .\templates\institution\manage\_demo_tab.html:49
 msgid "Warnings"
 msgstr "Ostrzeżenia"
 
-#: .\templates\institution\manage\_demo_tab.html:56
-#: .\templates\institution\manage\_demo_tab.html:72
+#: .\templates\institution\manage\_demo_tab.html:62
+#: .\templates\institution\manage\_demo_tab.html:78
 msgid "Create demo kit"
 msgstr "Utwórz zestaw demo"
 
-#: .\templates\institution\manage\_demo_tab.html:69
+#: .\templates\institution\manage\_demo_tab.html:75
 msgid ""
 "Creating a kit can take a minute or more; keep this page open. If the page "
 "stops responding, wait a couple of minutes, then reopen the Demo tab — the "
@@ -8435,32 +8452,32 @@ msgstr ""
 "kartę Dostęp demo — dane logowania pojawią się tam, gdy zestaw powstanie. "
 "Nie twórz go ponownie, dopóki nie pojawi się na liście."
 
-#: .\templates\institution\manage\_demo_tab.html:77
+#: .\templates\institution\manage\_demo_tab.html:83
 msgid "Demo kits"
 msgstr "Zestawy demo"
 
-#: .\templates\institution\manage\_demo_tab.html:80
+#: .\templates\institution\manage\_demo_tab.html:86
 msgid "Show open kits only"
 msgstr "Pokaż tylko otwarte zestawy"
 
-#: .\templates\institution\manage\_demo_tab.html:82
+#: .\templates\institution\manage\_demo_tab.html:88
 msgid "Show closed kits too"
 msgstr "Pokaż także zamknięte zestawy"
 
-#: .\templates\institution\manage\_demo_tab.html:94
+#: .\templates\institution\manage\_demo_tab.html:100
 #: .\templates\institution\manage\_integrations_tab.html:55
 msgid "Created"
 msgstr "Utworzono"
 
-#: .\templates\institution\manage\_demo_tab.html:97
+#: .\templates\institution\manage\_demo_tab.html:103
 msgid "Actions"
 msgstr "Akcje"
 
-#: .\templates\institution\manage\_demo_tab.html:119
+#: .\templates\institution\manage\_demo_tab.html:125
 msgid "Revoke this demo kit? Its logins are deleted immediately."
 msgstr "Cofnąć ten zestaw demo? Jego loginy zostaną natychmiast usunięte."
 
-#: .\templates\institution\manage\_demo_tab.html:131
+#: .\templates\institution\manage\_demo_tab.html:137
 msgid "No demo kits."
 msgstr "Brak zestawów demo."
 

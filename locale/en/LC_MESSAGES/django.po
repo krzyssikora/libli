@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-13 13:31+0200\n"
+"POT-Creation-Date: 2026-09-13 20:20+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -793,7 +793,7 @@ msgstr ""
 #: .\grouping\forms.py:256 .\institution\forms.py:515
 #: .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
-#: .\templates\institution\manage\_demo_tab.html:91
+#: .\templates\institution\manage\_demo_tab.html:97
 msgid "Course"
 msgstr ""
 
@@ -3063,7 +3063,7 @@ msgstr ""
 msgid "Bands must run consecutively with no gap and no overlap."
 msgstr ""
 
-#: .\institution\forms.py:517 .\templates\institution\manage\_demo_tab.html:90
+#: .\institution\forms.py:517 .\templates\institution\manage\_demo_tab.html:96
 msgid "Label"
 msgstr ""
 
@@ -3071,7 +3071,7 @@ msgstr ""
 msgid "Days"
 msgstr ""
 
-#: .\institution\forms.py:519 .\templates\institution\manage\_demo_tab.html:92
+#: .\institution\forms.py:519 .\templates\institution\manage\_demo_tab.html:98
 msgid "Pupils"
 msgstr ""
 
@@ -4089,7 +4089,7 @@ msgstr ""
 #: .\templates\accounts\manage\invitations.html:25
 #: .\templates\accounts\manage\people.html:27
 #: .\templates\accounts\manage\people.html:42
-#: .\templates\institution\manage\_demo_tab.html:96
+#: .\templates\institution\manage\_demo_tab.html:102
 #: .\templates\institution\manage\_integrations_tab.html:53
 msgid "Status"
 msgstr ""
@@ -4520,8 +4520,8 @@ msgid "Send invitation"
 msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:26
-#: .\templates\institution\manage\_demo_tab.html:38
-#: .\templates\institution\manage\_demo_tab.html:95
+#: .\templates\institution\manage\_demo_tab.html:44
+#: .\templates\institution\manage\_demo_tab.html:101
 msgid "Expires"
 msgstr ""
 
@@ -4534,7 +4534,7 @@ msgid "Resend"
 msgstr ""
 
 #: .\templates\accounts\manage\invitations.html:40
-#: .\templates\institution\manage\_demo_tab.html:122
+#: .\templates\institution\manage\_demo_tab.html:128
 msgid "Revoke"
 msgstr ""
 
@@ -7996,61 +7996,76 @@ msgid "Demo access"
 msgstr ""
 
 #: .\templates\institution\manage\_demo_tab.html:7
+msgid "A demo kit is:"
+msgstr ""
+
+#: .\templates\institution\manage\_demo_tab.html:9
 msgid ""
-"A demo kit is a Teacher login — class analytics, per-pupil progress and "
-"force-submitting an unfinished quiz — a pupil login that starts with a blank "
-"record, and an example class of generated pupils. It lasts the chosen number "
-"of days and is then deleted automatically."
+"a Teacher login. The Teacher can see class analytics and per-pupil progress, "
+"and can force-submit an unfinished quiz;"
 msgstr ""
 
 #: .\templates\institution\manage\_demo_tab.html:10
+msgid "a pupil login that starts with a blank record;"
+msgstr ""
+
+#: .\templates\institution\manage\_demo_tab.html:11
+msgid "and an example class of generated pupils."
+msgstr ""
+
+#: .\templates\institution\manage\_demo_tab.html:13
+msgid ""
+"The kit lasts the chosen number of days and is then deleted automatically."
+msgstr ""
+
+#: .\templates\institution\manage\_demo_tab.html:16
 msgid "Credentials are waiting — reload this page."
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:15
+#: .\templates\institution\manage\_demo_tab.html:21
 #, python-format
 msgid "Kit #%(id)s was closed before its credentials were displayed."
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:17
+#: .\templates\institution\manage\_demo_tab.html:23
 #, python-format
 msgid ""
 "Credentials for kit #%(id)s were never displayed and are gone; revoke it and "
 "create another."
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:23
+#: .\templates\institution\manage\_demo_tab.html:29
 #, python-format
 msgid "Demo kit #%(id)s — %(label)s"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:24
+#: .\templates\institution\manage\_demo_tab.html:30
 msgid "These passwords are not stored — copy them now."
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:28
-#: .\templates\institution\manage\_demo_tab.html:93
+#: .\templates\institution\manage\_demo_tab.html:34
+#: .\templates\institution\manage\_demo_tab.html:99
 msgid "Teacher login"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:33
+#: .\templates\institution\manage\_demo_tab.html:39
 msgid "Pupil login"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:37
+#: .\templates\institution\manage\_demo_tab.html:43
 msgid "Log in at"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:43
+#: .\templates\institution\manage\_demo_tab.html:49
 msgid "Warnings"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:56
-#: .\templates\institution\manage\_demo_tab.html:72
+#: .\templates\institution\manage\_demo_tab.html:62
+#: .\templates\institution\manage\_demo_tab.html:78
 msgid "Create demo kit"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:69
+#: .\templates\institution\manage\_demo_tab.html:75
 msgid ""
 "Creating a kit can take a minute or more; keep this page open. If the page "
 "stops responding, wait a couple of minutes, then reopen the Demo tab — the "
@@ -8058,32 +8073,32 @@ msgid ""
 "shows in the list."
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:77
+#: .\templates\institution\manage\_demo_tab.html:83
 msgid "Demo kits"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:80
+#: .\templates\institution\manage\_demo_tab.html:86
 msgid "Show open kits only"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:82
+#: .\templates\institution\manage\_demo_tab.html:88
 msgid "Show closed kits too"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:94
+#: .\templates\institution\manage\_demo_tab.html:100
 #: .\templates\institution\manage\_integrations_tab.html:55
 msgid "Created"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:97
+#: .\templates\institution\manage\_demo_tab.html:103
 msgid "Actions"
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:119
+#: .\templates\institution\manage\_demo_tab.html:125
 msgid "Revoke this demo kit? Its logins are deleted immediately."
 msgstr ""
 
-#: .\templates\institution\manage\_demo_tab.html:131
+#: .\templates\institution\manage\_demo_tab.html:137
 msgid "No demo kits."
 msgstr ""
 
