@@ -16,6 +16,7 @@ from allauth.account.models import EmailAddress
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
+from django.db import IntegrityError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -139,6 +140,32 @@ def _free_base(slug, pupils):
     )
 
 
+@contextlib.contextmanager
+def _named_collision(slug):
+    """PR 3 spec §3.2 — restores the parent's §4.4 step 0, which PR 2 shipped
+    without.
+
+    Two concurrent creates for one slug both pass `_taken`: neither can see the
+    other's uncommitted users, so the loser blocks on the username unique index
+    and then raises IntegrityError. From the tab that is a double-clicked Create.
+
+    ⚠️ NO QUERY and NO RETRY here: the atomic block is already marked for
+    rollback, so any ORM call raises TransactionManagementError and buries the
+    named error. It wraps USER CREATION ONLY, so an IntegrityError from anywhere
+    else — a generator bug — is never mislabelled as a collision. The message never
+    says "retry": the realistic cause is a double run whose other half has just
+    committed a live kit.
+    """
+    try:
+        yield
+    except IntegrityError as exc:
+        raise errors.UsernameCollision(
+            f"login names for {slug!r} are already taken: another create for it "
+            "may still be running or may just have finished — check the kit list "
+            "before creating again"
+        ) from exc
+
+
 def _make_user(
     username, *, display_name, password=None, role=None, first_name="", last_name=""
 ):
@@ -256,12 +283,13 @@ def provision_kit(
     kit.group = group
 
     teacher_password, student_password = _password(), _password()
-    teacher = _make_user(
-        teacher_name,
-        display_name=f"Nauczyciel demo — {label} (#{kit.pk})"[:150],
-        password=teacher_password,
-        role=TEACHER,  # role_is_staff(TEACHER) -> is_staff; cleared just below
-    )
+    with _named_collision(slug):
+        teacher = _make_user(
+            teacher_name,
+            display_name=f"Nauczyciel demo — {label} (#{kit.pk})"[:150],
+            password=teacher_password,
+            role=TEACHER,  # role_is_staff(TEACHER) -> is_staff; cleared just below
+        )
     # PR 3 spec A1/§3.1: a kit Teacher is NOT staff. set_user_role is the last
     # writer of is_staff (accounts/services.py:36-37), so this must come AFTER it.
     # It narrows accessible_courses to the taught-groups branch (the kit's course
@@ -271,12 +299,13 @@ def provision_kit(
     teacher.is_staff = False
     teacher.save(update_fields=["is_staff"])
     group.teachers.add(teacher)
-    student = _make_user(
-        student_name,
-        display_name=f"Uczeń demo — {label} (#{kit.pk})"[:150],
-        password=student_password,
-        role=STUDENT,
-    )
+    with _named_collision(slug):
+        student = _make_user(
+            student_name,
+            display_name=f"Uczeń demo — {label} (#{kit.pk})"[:150],
+            password=student_password,
+            role=STUDENT,
+        )
     kit.teacher, kit.student = teacher, student
     kit.save(update_fields=["group", "teacher", "student"])
     kit.users.add(teacher, student)
@@ -285,13 +314,14 @@ def provision_kit(
     names = draw_names(rng, pupils)
     pupil_users = []
     for username, (first, last) in zip(pupil_names, names, strict=True):
-        pupil = _make_user(
-            username,
-            display_name=f"{first} {last}",
-            first_name=first,
-            last_name=last,
-            role=STUDENT,
-        )
+        with _named_collision(slug):
+            pupil = _make_user(
+                username,
+                display_name=f"{first} {last}",
+                first_name=first,
+                last_name=last,
+                role=STUDENT,
+            )
         kit.users.add(pupil)
         pupil_users.append(pupil)
 

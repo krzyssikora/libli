@@ -422,3 +422,45 @@ def test_wrong_answers_vary_between_pupils():
     assert any(len(set(v)) >= 2 for v in multi), (
         "guard: at least two distinct stored wrong answers"
     )
+
+
+@pytest.mark.django_db
+def test_a_concurrent_create_surfaces_as_a_named_collision(monkeypatch):
+    """P2 (PR 3 spec §3.2). Two creates for one slug both pass `_taken` — neither
+    sees the other's uncommitted users — and the loser hits the username unique
+    index. A pre-existing user plus a blind scan reproduces that without threads."""
+    from django.contrib.auth import get_user_model
+    from django.db import IntegrityError
+
+    from demo.models import DemoKit
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    course = small_course()
+    get_user_model().objects.create_user(username="sp-12-nauczyciel")
+    monkeypatch.setattr("demo.services._taken", lambda names: False)
+
+    with pytest.raises(errors.UsernameCollision) as caught:
+        provision_for_test(course, label="SP 12")
+
+    assert isinstance(caught.value.__cause__, IntegrityError)
+    assert "retry" not in str(caught.value).lower()
+    assert not DemoKit.objects.exists()
+
+
+@pytest.mark.django_db
+def test_an_integrity_error_outside_user_creation_is_not_a_collision(monkeypatch):
+    """The catch wraps USER CREATION ONLY: a generator bug must surface as itself,
+    never as "a kit for this label may have just been created"."""
+    from django.db import IntegrityError
+
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    def broken_generator(*args, **kwargs):
+        raise IntegrityError("generator bug")
+
+    monkeypatch.setattr("demo.services.generate", broken_generator)
+
+    with pytest.raises(IntegrityError):
+        provision_for_test(small_course())
