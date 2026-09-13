@@ -230,9 +230,9 @@ def provision_kit(
     # Matches seed_demo_course.py:80's precedent. accounts/services.py:34 uses
     # Group.objects.get_or_create(name=role), so on a box where setup_roles never
     # ran, set_user_role would silently create a PERMISSION-LESS "Teacher" group:
-    # is_staff and the review queue still work (groups_visible_to reaches the
-    # demo Teacher via Group.teachers), so no test here would notice, but any
-    # demo surface gated on a courses.*/grouping.* perm would be dead for the rep.
+    # the kit course and the review queue still work (both reach the demo
+    # Teacher via Group.teachers), so no test here would notice, but any demo
+    # surface gated on a courses.*/grouping.* perm would be dead for the rep.
     seed_roles()
 
     plan = build_course_plan(course)

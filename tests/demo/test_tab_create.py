@@ -192,6 +192,24 @@ def test_a_failed_create_leaves_pending_credentials_alone(
     assert f"TeacherPw{kit_x.pk}x" in pa_client.get(demo_tab_url()).content.decode()
 
 
+def test_the_collision_link_survives_the_polish_catalog(pa_client, vendor, monkeypatch):
+    """Guards the pl msgstr's {link_start}/{link_end} placeholders."""
+    course = small_course()
+    provision_for_test(course, label="SP 12")
+    seed_the_view(monkeypatch)
+    monkeypatch.setattr("demo.services._taken", lambda names: False)
+    write_stored_session(pa_client, _language="pl")
+
+    response = pa_client.post(create_url(), create_data(course, label="SP 12"))
+
+    assert response.status_code == 200
+    errors_html = str(response.context["demo_form"].non_field_errors())
+    # Polish evidence FIRST: without it, an English render would pass this test
+    # for the wrong reason.
+    assert "Otwórz kartę Dostęp demo" in errors_html
+    assert f'href="{demo_tab_url()}"' in errors_html
+
+
 def test_warnings_from_a_real_provision(pa_client, vendor, monkeypatch):
     """P10, provision half."""
     endpoint = WebhookEndpoint.load()
