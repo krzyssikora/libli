@@ -6,6 +6,7 @@ from django.utils import translation
 from courses.models import ContentNode
 from courses.models import Course
 from demo import errors
+from demo.constants import LABEL_MAX
 from demo.constants import MAX_PUPILS
 from demo.constants import MIN_PUPILS
 from demo.models import DemoKit
@@ -135,6 +136,23 @@ def test_the_form_holds_no_bounds_of_its_own(pa_client, vendor, monkeypatch):
     monkeypatch.setattr("demo.services.MIN_PUPILS", 3)
     pa_client.post(create_url(), create_data(course, pupils=4))
     assert DemoKit.objects.filter(pupil_count=4).exists()
+
+
+def test_an_over_long_label_is_a_label_error_from_the_service(
+    pa_client, vendor, monkeypatch
+):
+    """Spec §4.2's InvalidLabel row (P8's blank label never reaches the service)."""
+    seed_the_view(monkeypatch)
+
+    response = pa_client.post(
+        create_url(), create_data(small_course(), label="x" * (LABEL_MAX + 1))
+    )
+
+    assert response.status_code == 200
+    label_errors = " ".join(response.context["demo_form"].errors["label"])
+    assert str(LABEL_MAX) in label_errors
+    assert not response.context["demo_form"].non_field_errors()
+    assert not DemoKit.objects.exists()
 
 
 def test_a_service_message_is_escaped(pa_client, vendor, monkeypatch):
