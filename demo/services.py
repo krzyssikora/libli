@@ -149,8 +149,9 @@ def _make_user(
     parameter would be dead weight whose stated rationale is false, and a future
     caller passing `staff=True, role=STUDENT` would be silently demoted.
 
-    The role is therefore the single authority: `role_is_staff(TEACHER)` is True,
-    which IS the course-access widening documented above.
+    The role is therefore the single authority: `role_is_staff(TEACHER)` is True —
+    and provision_kit clears the flag on the kit Teacher straight after this
+    returns (PR 3 spec §3.1), undoing the course-access widening.
     """
     user = User.objects.create_user(
         username=username,
@@ -259,8 +260,16 @@ def provision_kit(
         teacher_name,
         display_name=f"Nauczyciel demo — {label} (#{kit.pk})"[:150],
         password=teacher_password,
-        role=TEACHER,  # role_is_staff(TEACHER) -> is_staff
+        role=TEACHER,  # role_is_staff(TEACHER) -> is_staff; cleared just below
     )
+    # PR 3 spec A1/§3.1: a kit Teacher is NOT staff. set_user_role is the last
+    # writer of is_staff (accounts/services.py:36-37), so this must come AFTER it.
+    # It narrows accessible_courses to the taught-groups branch (the kit's course
+    # only) and closes the /admin/ login. Cohorts are unaffected: this save fires
+    # post_save with created=False, and is_staff_user still sees the Teacher role.
+    # A Platform Admin changing this user's role later re-grants staff — accepted.
+    teacher.is_staff = False
+    teacher.save(update_fields=["is_staff"])
     group.teachers.add(teacher)
     student = _make_user(
         student_name,
