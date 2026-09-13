@@ -100,6 +100,12 @@
   max-width: none;
 }
 
+/* A wide card's ordinary stacked fields (Pricing's Currency, VAT notes) keep the
+   readable form measure; its table still gets the whole card. */
+.settings__form--wide .settings__section > .settings__field {
+  max-width: 48rem;
+}
+
 .settings__form + .settings__form {
   margin-top: var(--space-5);
 }
@@ -532,6 +538,25 @@
   white-space: normal;
   min-width: 10rem;
   overflow-wrap: anywhere;
+}
+
+/* ── Pricing plan-bands table ─────────────────────────────────────────────────
+   Each input fills a cell whose width the TABLE decides, down to a 5.5rem floor,
+   instead of a number input's ~20-character intrinsic width, which pushed the
+   table out of its card. Qualified by input type: app.css's input[type=text] is
+   (0,1,1) and outranks a bare class; the band fields render type=number. */
+
+.settings__table--pricing input[type=number],
+.settings__table--pricing input[type=text] {
+  width: 100%;
+  min-width: 5.5rem;
+}
+
+/* Row headers ("Plan 1") never wrap. Column headers DO wrap at their spaces:
+   seven of them on one line each measure wider than the card, so a nowrap there
+   pushed the table 79px out of it at 1280px. A space break is not a mid-word break. */
+.settings__table--pricing tbody th {
+  white-space: nowrap;
 }
 
 /* Extend + Revoke: compact, side by side, never stacked. */

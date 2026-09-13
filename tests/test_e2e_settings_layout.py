@@ -73,6 +73,25 @@ def _vendor_admin(page, live_server, settings, *, kits):
     _login(page, live_server, "layout_pa", TEST_PASSWORD)
 
 
+def _ensure_pricing_plans():
+    """Migration 0012 seeds three bands, but a transactional test's flush wipes
+    them for every later test in the session — and an empty table has no inputs
+    for the sizing assertion to measure."""
+    from institution.models import PricingPlan
+
+    for order, (low, high) in enumerate(((1, 100), (101, 300), (301, 500)), 1):
+        PricingPlan.objects.get_or_create(
+            order=order,
+            defaults={
+                "pupils_min": low,
+                "pupils_max": high,
+                "support_hours_per_term": 6,
+                "courses_included": 15,
+                "video_hours_included": 10,
+            },
+        )
+
+
 def _open(page, live_server, query, width, height):
     page.set_viewport_size({"width": width, "height": height})
     page.goto(f"{live_server.url}{reverse('institution:settings')}{query}")
@@ -89,8 +108,9 @@ def test_page_never_scrolls_sideways_and_tabs_stay_on_one_line(
     page, live_server, settings
 ):
     _vendor_admin(page, live_server, settings, kits=True)
+    _ensure_pricing_plans()
     for width, height in VIEWPORTS:
-        for query in ("?tab=demo&all=1", "?tab=branding"):
+        for query in ("?tab=demo&all=1", "?tab=pricing", "?tab=branding"):
             _open(page, live_server, query, width, height)
             where = f"{query} at {width}px"
 
@@ -155,3 +175,35 @@ def test_kit_rows_keep_actions_side_by_side_and_tokens_on_one_line(
             cells = row.locator("td")
             for column in (4, 5, 6):
                 _assert_one_line(cells.nth(column), f"{where}: {headers[column]}")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_pricing_table_stays_inside_its_card(page, live_server, settings):
+    _vendor_admin(page, live_server, settings, kits=False)
+    _ensure_pricing_plans()
+    panel = "[data-tab='pricing']"
+    right_edge = "el => el.getBoundingClientRect().right"
+
+    _open(page, live_server, "?tab=pricing", 1280, 900)
+    # The premise: the band rows (and so their inputs) are really rendered.
+    assert page.locator(f"{panel} tbody input").count() == 18
+    table = page.locator(f"{panel} .settings__table").evaluate(right_edge)
+    card = page.locator(f"{panel} .settings__form").evaluate(right_edge)
+    assert table <= card, f"at 1280px the table ends at {table}, its card at {card}"
+    # The wide card's ordinary fields keep the 48rem form measure.
+    currency = page.locator(f"{panel} input[name='currency']").evaluate(
+        "el => el.getBoundingClientRect().width"
+    )
+    measure = page.evaluate(
+        "() => 48 * parseFloat(getComputedStyle(document.documentElement).fontSize)"
+    )
+    assert currency <= measure, f"at 1280px Currency is {currency}px, cap {measure}px"
+
+    _open(page, live_server, "?tab=pricing", 420, 900)
+    scroller = page.locator(f"{panel} .settings__table").evaluate(
+        "t => getComputedStyle(t.parentElement).overflowX"
+    )
+    assert scroller in ("auto", "scroll"), scroller
+    card = page.locator(f"{panel} .settings__form").evaluate(right_edge)
+    viewport = page.evaluate("() => window.innerWidth")
+    assert card <= viewport, f"at 420px the card ends at {card}"
