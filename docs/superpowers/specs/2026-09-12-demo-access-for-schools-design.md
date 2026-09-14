@@ -1505,7 +1505,9 @@ group scoping as the rest of analytics (§3.3), reached from the existing per-pu
 `/for-schools/` today (§10 Q3), and it is what makes PR 4's copy true. Its own design — which
 question types render how, what a nested or NOT_MARKED question shows — is **out of this
 spec's scope**; if it needs more than a thin template over data the drill-down already loads,
-it gets its own short design note.
+it gets its own short design note. *(Amended 2026-09-14: it did — designed in
+`docs/superpowers/specs/2026-09-14-per-question-drill-down-design.md`, which lists every
+question, not AUTO only, and opens in-progress submissions too.)*
 ⚠️ **One test is NOT deferrable, and PR 5 does not merge without it:** the view renders one
 person's answers to another person, on **every** box including schools' real-pupil instances
 (§4.1 ships the app everywhere, and PR 5 is not demo machinery at all). So it must assert
