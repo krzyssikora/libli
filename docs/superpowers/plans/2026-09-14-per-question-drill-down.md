@@ -1054,9 +1054,9 @@ Expected: every test PASSES. (The registry drift guard is written in Task 5, onc
 - [ ] **Step 6: Falsify** (each by hand, run `tests/test_answer_summary.py`, observe RED, revert, read `git diff`):
   - (a) `_answer_part`: `expected=expected` (drop rule 2) → `test_choice_correct_wrong_unanswered` RED.
   - (b) `_shortnumeric`: `ok = given == expected` instead of `mark_result.correct` → `test_shortnumeric_ok_is_read_from_mark_not_string_compare` RED.
-  - (c) `_single` non-AUTO branch: pass `expected=expected_when_auto` → `test_shorttext_correct_wrong_unanswered_review` RED.
+  - (c) `_single` non-AUTO branch: `return [_answer_part(given=given, expected=None, ok=False)]` (a REVIEW copy judged wrong) → `test_shorttext_correct_wrong_unanswered_review` RED (`ok` False vs None). (Passing `expected_when_auto` there would be an equivalent mutant: every caller already passes `None` for non-AUTO.)
   - (d) `_extendedresponse`: text part `ok=mark_result.fraction > 0` → `test_extendedresponse_partial_text_part_is_not_ok` RED.
-  - (e) `_extendedresponse`: emit keyword parts before the `if not _is_auto` return → `test_extendedresponse_review_mode_keeps_keywords_but_emits_one_part` RED.
+  - (e) `_extendedresponse` non-AUTO branch: before returning, append one `Part(kind=KEYWORD, label_is_content=False, label=f"Required: {line}", given=None, expected=None, ok=None)` per line of `question.required_keywords.splitlines()` → `test_extendedresponse_review_mode_keeps_keywords_but_emits_one_part` RED on the part-list assertion (three parts instead of one). (Moving the reveal loop above the return instead would crash on `mark_result=None` — red for the wrong reason.)
   - (f) `_choice`: `expected = ", ".join(...)` without `or _("(none)")` → `test_choice_with_no_correct_option_expects_none_label` RED.
   - (g) `Part.mark`: delete the `given is None` line → `test_part_mark_suppresses_tick_on_an_empty_answer_part` RED.
 
@@ -1084,7 +1084,7 @@ Implements spec §4.3 (fillblank, dragfill, dragimage, matchpair, choicegrid, mu
 - Consumes: Task 4's `Part`, `_answer_part`, `_answered`, `_is_auto`, `_text_or_none`, `_ADAPTERS`; `courses.fillblank._TOKEN_RE` (compiled `"￿(\d+)￿"`, group 1 = 0-based gap index).
 - Produces: `_ADAPTERS` holds all ten concrete types; `gap_marked_stem(question) -> SafeString`; `stem_html(question) -> SafeString` (token types → `gap_marked_stem`, every other type → `mark_safe(question.stem)`).
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/test_answer_summary.py` (add `from unittest import mock`, `from django.apps import apps`, `from courses import answer_summary` to its module imports; `stem_html` is imported **inside** the two stem tests, so its absence fails those two tests instead of breaking collection of the whole file):
+- [ ] **Step 1: Write the failing tests** — append to `tests/test_answer_summary.py` (add `from django.apps import apps` and `from courses import answer_summary` to its module imports — **not** `mock`, which only the temporary Falsify test uses and which ruff's F401 would flag; `stem_html` is imported **inside** the two stem tests, so its absence fails those two tests instead of breaking collection of the whole file):
 
 ```python
 # --- T34 drift guard ---------------------------------------------------------
@@ -1497,6 +1497,8 @@ Expected: clean.
 
     ```python
     def test_TEMP_registry_guard_sees_a_new_type():
+        from unittest import mock
+
         class _Stub(QuestionElement):
             class Meta:
                 abstract = True
@@ -1506,7 +1508,7 @@ Expected: clean.
         with mock.patch.object(apps, "get_models", lambda *a, **k: [*real, _Stub]):
             assert _derived_question_models() == set(answer_summary._ADAPTERS)
     ```
-    Expected: FAIL (`_Stub` in the derived set). The stub is abstract and declared inside the test body, so it never registers (spec T34).
+    Expected: FAIL — **read the failure**: it must be the set-inequality `AssertionError` whose diff names `_Stub`, not a `NameError`/`ImportError`/`RuntimeError` (those are red for the wrong reason). The stub is abstract and declared inside the test body, so it never registers (spec T34).
   - (c) `_padded`: `return values` (no pad/truncate) → `test_fillblank_fewer_and_more_stored_values_follow_current_blanks` RED.
   - (d) `_choicegrid.convert`: `return by_pk.get(value)` → `test_choicegrid_parts_empty_row_and_removed_column` RED.
   - (e) `_matchpair`: labels from `mark_result.reveal[i]["left"]` → `test_review_matchpair_and_choicegrid_take_labels_from_child_rows` RED (`TypeError` on `None`).
@@ -1905,7 +1907,7 @@ Expected: all PASS.
   - (f) replace step 4 with `unit = get_object_or_404(ContentNode, pk=node_pk, kind="unit", unit_type="quiz")` (bypasses the slug check; add `from courses.models import ContentNode` for the mutant) → T31 RED (other-course case: 200 instead of 404).
   - (g) step 5: `if submission is None: raise PermissionDenied` (import it for the mutant) → T31 RED (no-submission case: 403 instead of 404). (An unsaved stand-in `QuizSubmission` would not "render an empty page": Django raises on an unsaved instance in `submission__in`, which errors the test for a different reason.)
   - (h) add `viewer=request.user` to `get_node_or_404` → `test_t31b_…` RED.
-  - (i) in the new template, move the Review link inside `_quiz_pill.html` as well → `test_awaiting_header_has_one_review_link` RED (two links).
+  - (i) add `<a class="answers__review" href="#">Review</a>` to the `awaiting` branch of `_quiz_pill.html`, keeping the page's own link → the header holds two `a.answers__review` → `test_awaiting_header_has_one_review_link` RED. (A copy carrying the breakdown's `breakdown-unit__review` class would not be counted and the test would stay green.)
 
 - [ ] **Step 9: Commit**
 
@@ -2805,7 +2807,7 @@ def test_t37_back_link_round_trips_scope_mode_expand_subset_and_values(client):
     assert back == f"{expected_path}?{drill}"
 ```
 
-In `tests/test_title_math_markers.py`, `_analytics_bodies`: keep the existing quiz (it becomes the **link** branch) and give the enrolled student an in-progress submission on it, then add a second quiz with no submission (the **plain** branch). Reorder so the student exists first:
+In `tests/test_title_math_markers.py`, `_analytics_bodies`: the existing quiz becomes the **link** branch (the enrolled student gets an in-progress submission on it) and a second quiz with no submission is the **plain** branch. **Delete** the existing `ContentNodeFactory(... unit_type="quiz" ...)` call **and** the existing `student = UserFactory()` / `EnrollmentFactory(student=student, course=course)` lines below it, and put this block in their place (leaving the old `student` lines would re-bind `student` to a second pupil with no submission, and `linked` would fail for a reason unrelated to the template):
 
 ```python
     student = UserFactory()
@@ -2877,7 +2879,7 @@ Expected: all non-e2e PASS (`test_e2e_analytics.py` deselects without `-m e2e`).
 - [ ] **Step 5: Re-point citations.** Run `grep -n "breakdown-unit__title" templates/courses/manage/_breakdown_node.html` and replace both `N` placeholders from Step 1 with the quiz-branch line number. Then `grep -n "_breakdown_node.html:\|(:[0-9]*)" tests/test_title_math_markers.py` and confirm every citation into `_breakdown_node.html` (docstrings of `_analytics_bodies` and the breakdown test, both assertion messages) names the current line.
 
 - [ ] **Step 6: Falsify** (each by hand → RED → revert → `git diff`):
-  - (a) template: `{% if item.pill %}` instead of `{% if item.pill.submission_pk %}` → `test_t37_quiz_titles_link_iff…` RED (not-started gets a link; its `href` reverse also 404s the missing pk — either way RED).
+  - (a) template: `{% if item.pill %}` instead of `{% if item.pill.submission_pk %}` → `test_t37_quiz_titles_link_iff…` RED: the not-started title gains an `<a>`, so `_breakdown_title_span(soup, notyet.title).select("a") == []` fails. (The `{% url %}` uses `node_pk` and `student.pk`, so the reverse itself still works.)
   - (b) view `analytics_student_quiz`: `back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, "percent")` → `test_t37_back_link_round_trips…` RED.
   - (c) the same with `set()` for `subset_pks` → the back-link test RED.
   - (d) template: move `data-math-title` from the span to the `<a>` → `test_analytics_breakdown_titles_are_marked` RED (`linked`).
@@ -3026,8 +3028,6 @@ Implements spec §5.4 and §5.5.
 
 - [ ] **Step 1: Extract**
 
-First record the baseline: `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po` (write the number down). Then:
-
 Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
 
 - [ ] **Step 2: Confirm the new msgids and fill Polish.** For each msgid below, `grep -n -A3 'msgid "<text>"' locale/pl/LC_MESSAGES/django.po`. If it carries `#, fuzzy`, delete **all three** of: the `#, fuzzy` line, any `#| msgid …` line, and the pre-filled `msgstr` (memory: makemessages-fuzzy-prefills-wrong-translation). Then set:
@@ -3050,12 +3050,12 @@ The count argument is `n` (spec §5.4). "quiz" matches the existing catalog ("Te
 
 If a msgid in the table is absent, the template/`gettext` call that should produce it is missing — fix the source, not the catalog. The reused msgids (`Correct`, `Incorrect`, `Partial`, `Not answered`, `Answer recorded`, `Reviewed`, `Awaiting review`, `Correct answer:`, `Breakdown`, `Review`, `Required`, `Avoid`, `up to %(m)s marks`, the pill strings) must still have their existing non-empty `msgstr`.
 
-Run: `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po` again after clearing — the count must not exceed Step 1's baseline.
+Run: `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po` after clearing — it must print **0** (`tests/test_i18n_po_health.py` allows no fuzzy entry, no obsolete entry and no empty Polish msgstr, and checks every plural index).
 
 - [ ] **Step 3: Compile and check**
 
 Run: `uv run python manage.py compilemessages -l pl -l en`
-Run: `uv run pytest tests/test_analytics_student_quiz.py -v` — Expected: PASS (English assertions; compiling Polish changes nothing under `LANGUAGE_CODE = "en"`).
+Run: `uv run pytest tests/test_i18n_po_health.py tests/test_analytics_student_quiz.py -v` — Expected: PASS. `test_i18n_po_health.py` is the catalog guard (no fuzzy, no obsolete, every pl msgstr filled, plural indices complete); the page tests use English assertions, which compiling Polish does not change under `LANGUAGE_CODE = "en"`.
 Run a Polish render smoke check:
 
 ```bash
@@ -3088,10 +3088,10 @@ Kliknij go, aby zobaczyć quiz pytanie po pytaniu: treść pytania, odpowiedź
 ucznia, poprawną odpowiedź tam, gdzie jego była błędna, punkty oraz liczbę
 wykorzystanych prób. Quiz w toku pokazuje dotychczasowe odpowiedzi. Pytanie
 czekające na sprawdzenie prowadzi prosto do strony sprawdzania. Odnośnik
-**← Rozbicie** wraca do rozbicia bez zmiany widoku analityki.
+**← Szczegóły ucznia** wraca do rozbicia bez zmiany widoku analityki.
 ```
 
-Check the Polish label: `grep -n -A1 'msgid "Breakdown"' locale/pl/LC_MESSAGES/django.po` — if its msgstr is not `Rozbicie`, use the actual msgstr in the help text. Then run the help tests: `uv run pytest tests -k help -v` — Expected: PASS.
+The bold label is the button's real Polish text: `msgid "Breakdown"` → `msgstr "Szczegóły ucznia"` (confirm with `grep -n -A1 'msgid "Breakdown"' locale/pl/LC_MESSAGES/django.po`). The surrounding prose keeps "rozbicie", matching the page's own heading `## Rozbicie na pojedynczego ucznia`. List both help paragraphs among the non-native drafts in the PR. Then run the help tests: `uv run pytest tests -k help -v` — Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -3246,7 +3246,7 @@ Expected: clean, clean, "No changes detected". If `ruff check` reports fixable v
 
 ```bash
 uv run pytest tests/test_analytics_rollups.py tests/test_courses_rollups.py tests/test_analytics_views.py tests/test_analytics_student_quiz.py tests/test_answer_summary.py tests/test_prefetch_question_children.py tests/test_title_math_markers.py tests/test_title_math_assets.py -v
-uv run pytest tests/test_courses_views.py tests/test_quiz_results_render.py tests/test_publish_banners.py tests/test_css_citations_are_durable.py tests/test_publish_viewer_scan.py tests/test_richtext.py tests/test_richtext_drift.py tests/demo -v
+uv run pytest tests/test_i18n_po_health.py tests/test_courses_views.py tests/test_quiz_results_render.py tests/test_publish_banners.py tests/test_css_citations_are_durable.py tests/test_publish_viewer_scan.py tests/test_richtext.py tests/test_richtext_drift.py tests/demo -v
 uv run pytest courses/tests -v
 uv run pytest tests -k "question or quiz or review or gradebook or export or help" -v
 uv run pytest tests/test_e2e_analytics.py tests/test_e2e_results.py tests/test_e2e_questions.py tests/test_e2e_questions_2d.py -m e2e -v
