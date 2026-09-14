@@ -716,3 +716,117 @@ def test_progress_matrix_exposes_has_lessons():
         build_progress_matrix(quizless, [UserFactory()], drafts="keep")["has_lessons"]
         is False
     )
+
+
+# --- D9: both grid types reach the rollups (spec T41) -----------------------
+def _choicegrid_q(unit, max_marks, mode):
+    from courses.models import ChoiceGridQuestionElement
+    from courses.models import GridColumn
+    from courses.models import GridRow
+
+    q = ChoiceGridQuestionElement.objects.create(
+        stem="Grid", marking_mode=mode, max_marks=Decimal(max_marks)
+    )
+    yes = GridColumn.objects.create(question=q, label="yes")
+    GridColumn.objects.create(question=q, label="no")
+    GridRow.objects.create(question=q, statement="r1", correct_column=yes)
+    return Element.objects.create(unit=unit, content_object=q)
+
+
+def _multigrid_q(unit, max_marks, mode):
+    from courses.models import MultiGridColumn
+    from courses.models import MultiGridQuestionElement
+    from courses.models import MultiGridRow
+
+    q = MultiGridQuestionElement.objects.create(
+        stem="MultiGrid", marking_mode=mode, max_marks=Decimal(max_marks)
+    )
+    a = MultiGridColumn.objects.create(question=q, label="a")
+    MultiGridColumn.objects.create(question=q, label="b")
+    row = MultiGridRow.objects.create(question=q, statement="r1")
+    row.correct_columns.set([a])
+    return Element.objects.create(unit=unit, content_object=q)
+
+
+def _pills(course, student):
+    from courses.rollups import build_student_breakdown
+
+    by_unit = {}
+
+    def collect(nodes):
+        for d in nodes:
+            by_unit[d["node"].pk] = d
+            collect(d["children"])
+
+    collect(build_student_breakdown(course, student, drafts="keep")["tree"])
+    return {pk: d.get("pill") for pk, d in by_unit.items()}
+
+
+@pytest.mark.django_db
+def test_grid_only_auto_quiz_pills_scored():
+    from courses.models import QuestionElement
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _choicegrid_q(qz, "2", QuestionElement.MarkingMode.AUTO)
+    s = UserFactory()
+    QuizSubmission.objects.create(
+        student=s,
+        unit=qz,
+        status="submitted",
+        score=Decimal("2"),
+        max_score=Decimal("2"),
+    )
+    assert _pills(course, s)[qz.pk]["kind"] == "scored"
+
+
+@pytest.mark.django_db
+def test_unreviewed_review_multigrid_pills_awaiting_then_submitted():
+    from django.utils import timezone
+
+    from courses.models import QuestionElement
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    el = _multigrid_q(qz, "1", QuestionElement.MarkingMode.REVIEW)
+    s = UserFactory()
+    sub = QuizSubmission.objects.create(
+        student=s,
+        unit=qz,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    assert _pills(course, s)[qz.pk]["kind"] == "awaiting"
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=el,
+        latest_answer=[[]],
+        attempt_count=1,
+        locked=True,
+        earned_marks=Decimal("1"),
+        fraction=Decimal("1.0000"),
+        reviewed_at=timezone.now(),
+    )
+    # Behaviour check, NOT a D9 guard: under the 8-model list the multigrid is
+    # absent from total_review AND reviewed_counts, so this pills "submitted"
+    # either way (spec T41).
+    assert _pills(course, s)[qz.pk]["kind"] == "submitted"
+
+
+@pytest.mark.django_db
+def test_gradeable_max_counts_a_grid():
+    from courses.models import QuestionElement
+    from courses.rollups import quiz_gradeable_max
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _choicegrid_q(qz, "2", QuestionElement.MarkingMode.AUTO)
+    q = ShortTextQuestionElement.objects.create(
+        stem="q", accepted="a", max_marks=Decimal("1")
+    )
+    Element.objects.create(unit=qz, content_object=q)
+    assert quiz_gradeable_max([qz]) == {qz.pk: Decimal("3")}

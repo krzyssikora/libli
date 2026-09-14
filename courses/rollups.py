@@ -7,33 +7,17 @@ from django.db.models import Count
 from django.utils.translation import gettext_lazy
 
 from courses.htmlsandbox import titles_have_math
-from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
-from courses.models import DragFillBlankQuestionElement
-from courses.models import DragToImageQuestionElement
 from courses.models import Element
-from courses.models import ExtendedResponseQuestionElement
-from courses.models import FillBlankQuestionElement
-from courses.models import MatchPairQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
-from courses.models import ShortNumericQuestionElement
-from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
+from courses.richtext import CONCRETE_QUESTION_MODELS
 
-# The 8 concrete QuestionElement subclasses (the roadmap's "9 types" — single+multi
-# MCQ share ChoiceQuestionElement). Mirrors courses/views.py:91-100.
-_QUESTION_MODELS = [
-    ChoiceQuestionElement,
-    ShortTextQuestionElement,
-    ShortNumericQuestionElement,
-    FillBlankQuestionElement,
-    DragFillBlankQuestionElement,
-    MatchPairQuestionElement,
-    DragToImageQuestionElement,
-    ExtendedResponseQuestionElement,
-]
+# Every concrete QuestionElement subclass -- the SAME source builder.py's
+# unit_has_nested_question uses. A hand list here once omitted both grid types.
+_QUESTION_MODELS = CONCRETE_QUESTION_MODELS
 
 # The separator used in hidden_path, which is READ ALOUD (it is the ellipsis crumb's
 # accessible name). Deliberately NOT the visible "›": the visible separators are
