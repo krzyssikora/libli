@@ -1,7 +1,8 @@
 # Per-question drill-down (demo access PR 5) — design
 
-**Status:** approved in brainstorming 2026-09-14; spec-review 10 rounds, 72 applied, 0 disputed
-(no clean verdict). Not yet planned, not yet built.
+**Status:** approved in brainstorming 2026-09-14; spec-review 12 rounds, 79 applied, 0 disputed —
+ended on the severity-aware soft cap (round 12 all MINOR), not a clean verdict. Not yet planned,
+not yet built.
 **Parent:** `docs/superpowers/specs/2026-09-12-demo-access-for-schools-design.md` (below: "the
 parent"), §6 "PR 5" and §8 T30. PR 1–3 are merged (#318, #320); master `d432245a`.
 
@@ -286,6 +287,7 @@ stays in the review queue); replacing the review page's `_answer_display` with `
 @dataclass(frozen=True)
 class Part:
     kind: str              # "answer" | "keyword"
+    label_is_content: bool # True iff label is author text in the COURSE language
     label: str | None      # None for single-part types
     given: str | None      # "answer" parts: the pupil's value; None = left empty
     expected: str | None   # the correct answer as display text
@@ -467,6 +469,13 @@ eleventh question type fails the test until its adapter exists.
     `models.py:2492`, renders no hint rather than a dangling label).
     `given` for extendedresponse keeps line breaks (`white-space: pre-wrap`); an empty part list
     renders the muted "(this question no longer has any parts)" line instead (§4.3);
+  - **language tagging:** `given` and `expected` are course-language content (the pupil's answer,
+    option/column/token texts), so each renders inside `lang="{{ course.language }}"`. A label does
+    only when `part.label_is_content` — `True` for grid statements and matchpair `left`; `False` for
+    the interface-language "Gap i", "Zone i" and the extendedresponse "Required: kw" / "Avoid: kw"
+    labels (the latter mix both languages and are accepted untagged). So a Polish course viewed
+    through an English interface is read aloud in the right voice. T32 asserts `label_is_content`
+    per type;
   - for every row with `attempt_count > 0` (any marking mode, §3.3), "attempt *n* of *max*", or
     "attempt *n*" when `max_attempts` is null (unlimited) **or `n > max_attempts`** (§4.3).
 - All pupil-entered and author-entered text is autoescaped (`given`, labels, `expected`); only the
@@ -584,7 +593,10 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
     **other-group teacher** row **and** the **archived-group teacher** row go 404 → 200 (the latter
     also teaches an active group, so step 2 passes and the unscoped lookup finds pupil A);
   - resolve step 3 through `GroupMembership` of the teacher's groups **without the archived
-    filter** → the **archived-group** row goes 404 → 200. (That teacher also teaches an active
+    filter** — spelled as a copy of `reviewable_students` that **keeps** the PA/owner `Enrollment`
+    branch and drops only `archived=False` from the group-teacher branch (a plain
+    groups-only lookup would also turn the PA and owner rows red, since they teach no group) → the
+    **archived-group** row, and only it, goes 404 → 200. (That teacher also teaches an active
     group on the course, so step 2 passes and only step 3's archived filter decides it.)
   - `can_review_course(...) or user.is_staff` at step 2 **combined with** the unscoped step 3 →
     the **staff** row goes 404 → 200. This is the only mutant the staff row catches on its own;
