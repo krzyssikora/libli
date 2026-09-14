@@ -8,10 +8,19 @@ re-derived. No catch-all fail-open: an unregistered type raises KeyError.
 
 from dataclasses import dataclass
 
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 
+from courses.fillblank import _TOKEN_RE
+from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
+from courses.models import DragFillBlankQuestionElement
+from courses.models import DragToImageQuestionElement
 from courses.models import ExtendedResponseQuestionElement
+from courses.models import FillBlankQuestionElement
+from courses.models import MatchPairQuestionElement
+from courses.models import MultiGridQuestionElement
 from courses.models import QuestionElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
@@ -146,11 +155,195 @@ def _extendedresponse(question, response, mark_result):
     return parts
 
 
+def _padded(stored, count, empty):
+    """Pad/truncate a stored positional answer to the question's CURRENT part
+    count, exactly as each mark() does, so parts and reveal align by index."""
+    values = list(stored) if isinstance(stored, (list, tuple)) else []
+    return (values + [empty] * count)[:count]
+
+
+def _multi(
+    question,
+    response,
+    mark_result,
+    *,
+    labels,
+    content_labels,
+    convert,
+    empty,
+    expected_of,
+    ok_of,
+):
+    """One answer part per child row. Labels and the part count come from the
+    CURRENT child rows in every mode; reveal[i] is read only for AUTO."""
+    count = len(labels)
+    answered = _answered(response)
+    values = _padded(response.latest_answer if answered else None, count, empty)
+    auto = _is_auto(question)
+    parts = []
+    for i, label in enumerate(labels):
+        given = convert(values[i]) if answered else None
+        if not auto:
+            expected, ok = None, None
+        else:
+            item = mark_result.reveal[i]
+            expected = expected_of(item)
+            ok = bool(ok_of(item)) if answered else False
+        parts.append(
+            _answer_part(
+                label=label,
+                label_is_content=content_labels,
+                given=given,
+                expected=expected,
+                ok=ok,
+            )
+        )
+    return parts
+
+
+def _numbered(label, count):
+    return [label % {"n": i + 1} for i in range(count)]
+
+
+def _fillblank(question, response, mark_result):
+    return _multi(
+        question,
+        response,
+        mark_result,
+        labels=_numbered(_("Gap %(n)s"), len(question.blanks.all())),
+        content_labels=False,
+        convert=_text_or_none,
+        empty=None,
+        expected_of=lambda item: item["accepted"],
+        ok_of=lambda item: item["correct"],
+    )
+
+
+def _dragfill(question, response, mark_result):
+    return _multi(
+        question,
+        response,
+        mark_result,
+        labels=_numbered(_("Gap %(n)s"), len(question.dragblanks.all())),
+        content_labels=False,
+        convert=_text_or_none,
+        empty=None,
+        expected_of=lambda item: item["accepted"],
+        ok_of=lambda item: item["correct"],
+    )
+
+
+def _dragimage(question, response, mark_result):
+    return _multi(
+        question,
+        response,
+        mark_result,
+        labels=_numbered(_("Zone %(n)s"), len(question.zones.all())),
+        content_labels=False,
+        convert=_text_or_none,
+        empty=None,
+        expected_of=lambda item: item["accepted"],
+        ok_of=lambda item: item["correct"],
+    )
+
+
+def _matchpair(question, response, mark_result):
+    return _multi(
+        question,
+        response,
+        mark_result,
+        labels=[pair.left for pair in question.pairs.all()],
+        content_labels=True,
+        convert=_text_or_none,
+        empty=None,
+        expected_of=lambda item: item["accepted"],
+        ok_of=lambda item: item["correct"],
+    )
+
+
+def _choicegrid(question, response, mark_result):
+    by_pk = {c.pk: c.label for c in question.columns.all()}
+
+    def convert(value):
+        if value in ("", None):
+            return None
+        return by_pk.get(value, _("(removed option)"))
+
+    return _multi(
+        question,
+        response,
+        mark_result,
+        labels=[row.statement for row in question.rows.all()],
+        content_labels=True,
+        convert=convert,
+        empty="",
+        expected_of=lambda item: item["correct_label"],
+        ok_of=lambda item: item["is_correct"],
+    )
+
+
+def _multigrid(question, response, mark_result):
+    columns = list(question.columns.all())
+    live = {c.pk for c in columns}
+
+    def convert(value):
+        chosen = set(value) if isinstance(value, (list, tuple)) else set()
+        if not chosen:
+            return None
+        texts = [c.label for c in columns if c.pk in chosen]
+        texts += [_("(removed option)")] * len(chosen - live)
+        return ", ".join(texts)
+
+    return _multi(
+        question,
+        response,
+        mark_result,
+        labels=[row.statement for row in question.rows.all()],
+        content_labels=True,
+        convert=convert,
+        empty=[],
+        expected_of=lambda item: ", ".join(item["correct_labels"]) or _("(none)"),
+        ok_of=lambda item: item["is_correct"],
+    )
+
+
+def gap_marked_stem(question):
+    """A fillblank/dragfill TOKEN stem with each U+FFFF n U+FFFF token replaced by a
+    visible [n+1] marker, numbered like the "Gap i" part labels (spec §5.1)."""
+
+    def _swap(match):
+        return str(
+            format_html(
+                '<span class="answers__gap">[{}]</span>', int(match.group(1)) + 1
+            )
+        )
+
+    # The stem was sanitised on save; the inserted markup is digits only.
+    return mark_safe(_TOKEN_RE.sub(_swap, question.stem or ""))  # noqa: S308
+
+
+_TOKEN_STEM_TYPES = (FillBlankQuestionElement, DragFillBlankQuestionElement)
+
+
+def stem_html(question):
+    """The stem as the page renders it: gap-marked for token types, else as-is
+    (sanitised on save, rendered |safe exactly as quiz_results does)."""
+    if isinstance(question, _TOKEN_STEM_TYPES):
+        return gap_marked_stem(question)
+    return mark_safe(question.stem)  # noqa: S308
+
+
 _ADAPTERS = {
     ChoiceQuestionElement: _choice,
     ShortTextQuestionElement: _shorttext,
     ShortNumericQuestionElement: _shortnumeric,
     ExtendedResponseQuestionElement: _extendedresponse,
+    FillBlankQuestionElement: _fillblank,
+    DragFillBlankQuestionElement: _dragfill,
+    DragToImageQuestionElement: _dragimage,
+    MatchPairQuestionElement: _matchpair,
+    ChoiceGridQuestionElement: _choicegrid,
+    MultiGridQuestionElement: _multigrid,
 }
 
 
