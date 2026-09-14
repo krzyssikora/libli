@@ -56,6 +56,15 @@ kursu. Odnośnik **← Analityka** przywraca dokładny zakres, tryb, rozwinięte
 kolumny i podzbiór, z których przyszedłeś, więc możesz zajrzeć do jednego
 ucznia i wrócić prosto do tej samej siatki.
 
+## Odpowiedzi na poszczególne pytania
+
+W rozbiciu ucznia tytuł każdego rozpoczętego przez niego quizu jest odnośnikiem.
+Kliknij go, aby zobaczyć quiz pytanie po pytaniu: treść pytania, odpowiedź
+ucznia, poprawną odpowiedź tam, gdzie jego była błędna, punkty oraz liczbę
+wykorzystanych prób. Quiz w toku pokazuje dotychczasowe odpowiedzi. Pytanie
+czekające na sprawdzenie prowadzi prosto do strony sprawdzania. Odnośnik
+**← Szczegóły ucznia** wraca do rozbicia bez zmiany widoku analityki.
+
 ## Powiązane tematy
 
 - [Macierz analityczna](analytics)
