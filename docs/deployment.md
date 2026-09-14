@@ -299,15 +299,15 @@ the entrypoint printed `==> init_platform skipped` and no admin exists yet. Crea
 interactively:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec app   /app/.venv/bin/python manage.py init_platform
+bash manage.sh init_platform
 ```
 
 It prompts for username, email and password; the password is read with `getpass`, so it is
 not echoed and never touches disk. Expect `Created Platform Admin '<username>'.`
 
-**No `-T`** — the TTY is what enables the prompts. (§7's cron entry uses `-T` for the
-opposite reason: cron has no TTY.) Run this **after** the stack is healthy, since it needs a
-migrated database and a running container.
+**`manage.sh`** runs any `manage.py` command in the app container, with a TTY only when stdin
+and stdout are both a terminal — so these prompts work, while cron (§7), pipes and `$(...)`
+get `-T`. Run this **after** the stack is healthy: it needs a migrated DB and a running container.
 
 The command is idempotent and its reconcile is deliberately non-destructive: on an existing
 user it fixes only the superuser flags and group membership, and **never overwrites the
@@ -316,7 +316,7 @@ password**. So a password you later change through the UI survives restarts.
 Verify:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app   /app/.venv/bin/python -c "import django; django.setup(); from accounts.models import User; u=User.objects.get(username='<username>'); print(u.is_superuser, [g.name for g in u.groups.all()])"
+bash manage.sh shell -c "from accounts.models import User; u=User.objects.get(username='<username>'); print(u.is_superuser, [g.name for g in u.groups.all()])"
 # expect: True ['Platform Admin']
 ```
 
@@ -340,8 +340,8 @@ walk it as a school admin would, without a shell open.
   name; "open" means strangers can self-register.
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
-  /app/.venv/bin/python -c "import django; django.setup(); from institution.models import Institution; print(Institution.load().signup_policy)"
+bash manage.sh shell -c \
+  "from institution.models import Institution; print(Institution.load().signup_policy)"
 # MUST print: invite
 ```
 
@@ -419,8 +419,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
 The importer assigns the slug; it is not guaranteed to match the source.
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec app \
-  /app/.venv/bin/python manage.py shell -c "
+bash manage.sh shell -c "
 from courses.models import ContentNode, Course, MediaAsset
 for c in Course.objects.all():
     print(c.pk, repr(c.slug), c.title,
@@ -451,10 +450,10 @@ Notifications are never auto-deleted without a scheduler. Install with `sudo cro
 trailing backslash is not a continuation:
 
 ```cron
-30 3 * * * cd /opt/libli && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app /app/.venv/bin/python manage.py purge_notifications
+30 3 * * * bash /opt/libli/manage.sh purge_notifications
 ```
 
-`exec -T` is required: cron has no TTY. Test once by hand with `--dry-run` first.
+`manage.sh` adds `-T` itself, since cron has no TTY. Test once by hand with `--dry-run` first.
 
 And the nightly backup — **one physical line**, same as above:
 
@@ -469,7 +468,7 @@ timestamps and `taken_at` are all the same clock.
 And the demo-kit purge — **one physical line**, in the root crontab:
 
 ```cron
-45 3 * * * cd /opt/libli && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app /app/.venv/bin/python manage.py demo_access purge >> /var/log/libli-demo-purge.log 2>&1
+45 3 * * * bash /opt/libli/manage.sh demo_access purge >> /var/log/libli-demo-purge.log 2>&1
 ```
 
 `45 3`, clear of the 02:15 backup and the 03:30 notifications purge. Test it once by hand
