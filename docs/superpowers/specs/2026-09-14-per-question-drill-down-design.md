@@ -174,6 +174,10 @@ Each step 404s on failure (D7):
   - REVIEW with `row["answered"]` false on an **IN_PROGRESS** submission → `"not_answered"`.
     On a SUBMITTED one it stays `"review"`: an unanswered REVIEW question genuinely blocks the
     score (`rollups.py:402-409`) and appears in the review page.
+  - REVIEW with `row["answered"]` true on an **IN_PROGRESS** submission → `"recorded"` ("Answer
+    recorded"): nobody can review it until the pupil finishes, because the review page opens
+    SUBMITTED work only (`views_review.py:39-45`), so "Awaiting review" would promise an action
+    that does not exist yet.
   - AUTO is unaffected (`_results_row` already keys it on `fraction`).
 
 ### 3.4 The header
@@ -203,7 +207,14 @@ Each step 404s on failure (D7):
 - `_quiz_pill` returns `submission_pk` for **every** kind that has a submission (scored,
   submitted, awaiting, in_progress); `not_started` stays without one.
 - `_breakdown_node.html` renders the quiz title as a link to the new page whenever the pill has
-  a `submission_pk`, carrying the breakdown's querystring; `not_started` stays plain text. The
+  a `submission_pk`, carrying the breakdown's querystring; `not_started` stays plain text.
+  **Markup is pinned:** the existing `<span class="breakdown-unit__title" lang="…"
+  data-math-title>` stays the direct child of `div.breakdown-unit` on **both** branches and keeps
+  both attributes; on the link branch the title text sits in an
+  `<a class="breakdown-unit__link" href="…">` **inside** that span. So
+  `tests/test_title_math_markers.py:441-443`'s selector
+  (`div.breakdown-unit:has(.pill) > span.breakdown-unit__title`), the `.breakdown-unit__title`
+  CSS (`app.css:1012`) and `tests/capture_title_math_screenshots.py:631` keep matching. The
   pill itself renders from the shared partial (D8). The existing "Review" link stays.
 - **The shared partial** is `templates/courses/manage/_quiz_pill.html`, taking `p` (the pill
   dict). It contains exactly the five pill `<span>`s of `_breakdown_node.html:8-19` (scored,
@@ -275,8 +286,12 @@ def summarise(question, response, mark_result) -> list[Part]
 | choicegrid | one per row, label = statement | the chosen column's label; `None` for `""`; `"(removed option)"` for a pk not among the columns | `reveal[i]["correct_label"]` | `reveal[i]["is_correct"]` |
 | multigrid | one per row, label = statement | chosen column labels, `", "`-joined; `"(removed option)"` appended once per stored pk not among the columns; `None` for an empty set | `reveal[i]["correct_labels"]` joined | `reveal[i]["is_correct"]` |
 
-`i` in a label is 1-based. For REVIEW/NOT_MARKED questions the same parts are built from the
-stored answer and the current rows alone (no `mark_result`), so rule 1 holds.
+`i` in a label is 1-based. For REVIEW/NOT_MARKED questions the same `"answer"` parts are built
+from the stored answer and the current rows alone (no `mark_result`), so rule 1 holds.
+⚠️ **`"keyword"` parts are emitted for AUTO only.** The editor form checks keywords only for AUTO
+(`element_forms.py:1367-1391`), so a question switched to REVIEW keeps stale
+`required_keywords`/`forbidden_keywords` in the database; a REVIEW or NOT_MARKED extendedresponse
+yields exactly one `"answer"` part and never bare keyword labels implying marking that never ran.
 
 ⚠️ **Content edited after the answer** (the known drift, handled explicitly — D6):
 
@@ -323,7 +338,10 @@ eleventh question type fails the test until its adapter exists.
     (Correct, Partial, Incorrect, Not answered, Answer recorded, Reviewed, Awaiting review).
     Accepted as a copy: extracting a partial would change the pupil's results page, which §3.6
     keeps out of scope. It uses the `marks` filter, so the template loads `courses_extras`;
-  - for REVIEW rows on an `awaiting` submission, a "Review" link to the review page;
+  - a per-row "Review" link to the review page **iff `row.outcome == "review"`** (after the §3.3
+    override, that is only on a SUBMITTED submission); an already-reviewed row gets no link;
+  - on a `"reviewed"` row, the teacher's `review_feedback` when non-empty, as the pupil's page
+    shows it (`quiz_results.html:38-42`) — autoescaped;
   - the parts: one `<div class="answers__part answers__part--{{ part.kind }}">` each — the label
     if any; for an `"answer"` part, `given`, or muted "Not answered" (existing msgid) when `None`
     (a `"keyword"` part renders no given/not-answered text at all, §4.2 rule 5); a ✓/✗ glyph when `ok` is not `None`, `aria-hidden`,
@@ -360,7 +378,8 @@ wiring is a no-op here: the page has no `<form>`.
 New msgids, each filled in Polish by hand (expected set; the plan confirms each is new by grep):
 "Answers", "Gap %(n)s", "Zone %(n)s", "(removed option)", "attempt %(n)s of %(max)s",
 "attempt %(n)s", and an `ngettext` pair "%(k)s of %(n)s question answered" /
-"%(k)s of %(n)s questions answered" (Polish needs its three forms). After `makemessages`, check
+"%(k)s of %(n)s questions answered" — **the plural count argument is `n`** (the noun agrees with
+the total: "1 of 3 questions", "1 z 5 pytań"), never `k`; the Polish three forms follow `n`. After `makemessages`, check
 for fuzzy pre-fills (memory: makemessages-fuzzy-prefills-wrong-translation) and recompile the
 `.mo`.
 
@@ -433,7 +452,9 @@ assertions to the item or header element, not the whole page: the quiz title rep
   the exact `Part` list for: correct; wrong; partial where the type has one (fillblank, dragfill,
   dragimage, matchpair, choicegrid, multigrid); unanswered (AUTO); and the same answer on a
   REVIEW-mode copy (all `expected`/`ok` `None`). Choice covers single and multiple.
-  extendedresponse covers: `"keyword"` parts with `given`/`expected` `None`; unanswered keyword
+  extendedresponse covers: its REVIEW-mode copy **keeps non-empty keywords on the question** and
+  yields exactly one `"answer"` part (mutant: emit keyword parts regardless of mode);
+  `"keyword"` parts with `given`/`expected` `None`; unanswered keyword
   parts `ok is None`; an unanswered AUTO extendedresponse with **no keywords** has text-part
   `ok is False` (rule 3 over `mark_keywords("", [], [])`'s `correct=True`); and, through the
   view, the rendered keyword part of an **answered** extendedresponse does **not** contain
@@ -451,7 +472,13 @@ assertions to the item or header element, not the whole page: the quiz title rep
   as not answered); read part `ok` from the stored fraction (the key-edit case goes red).
 - **T34 Drift guard** (§4.4). Falsified twice: delete one registry entry; and, separately, grow the
   derived set with `mock.patch.object(apps, "get_models", ...)` returning the real models plus a
-  stub subclass. ⚠️ **Never define a throwaway concrete model class**: it registers permanently in
+  stub subclass. **The stub is ABSTRACT** — declared inside the test function body with
+  `class Meta: abstract = True` (an abstract model needs no `app_label` and never registers).
+  `get_models()` would never return it, so the patch is the only place it appears, and
+  `CONCRETE_QUESTION_MODELS` was already built at import time with an abstract filter. The
+  guard's derivation must therefore keep `issubclass` and **not** also filter on
+  `_meta.abstract`, or the stub would be filtered and the growth case could not go red.
+  ⚠️ **Never define a throwaway concrete model class**: it registers permanently in
   `apps.all_models` and `QuestionElement.__subclasses__()` for the whole process/xdist worker
   (poisoning `CONCRETE_QUESTION_MODELS` and every later test that derives the model set), and a
   test-only app would also need an `INSTALLED_APPS` entry.
@@ -463,19 +490,25 @@ assertions to the item or header element, not the whole page: the quiz title rep
   latest_answer=None`** on a listed question (the empty-submit row, §2.2), and `k` must exclude it
   — otherwise the count mutant below cannot go red. The same fixture holds an unanswered REVIEW
   question and an empty-row NOT_MARKED question: both badge "Not answered", not "Awaiting review" /
-  "Answer recorded" (§3.3's override); and on a **SUBMITTED** quiz the unanswered REVIEW question
+  "Answer recorded" (§3.3's override); an **answered** REVIEW question on it badges "Answer
+  recorded" with no Review link; and on a **SUBMITTED** quiz the unanswered REVIEW question
   still badges "Awaiting review".
   Mutants: withhold `expected` while `response.locked` is false; count `k` over all responses
   instead of `answered` listed rows; drop the outcome override (either empty-row badge goes red);
-  apply the REVIEW override on SUBMITTED too (the submitted case goes red).
+  apply the REVIEW override on SUBMITTED too (the submitted case goes red); drop the
+  answered-REVIEW-in-progress arm (that row badges "Awaiting review" and goes red).
 - **T36 Header parity with the breakdown.** For each of the four submission states, the new
   page's pill kind equals the breakdown's pill kind for the same pupil and quiz, including a
   SUBMITTED quiz with an unreviewed REVIEW question (`awaiting`, with exactly one Review link in
   the header and the score text absent), a SUBMITTED ungraded one (`submitted`), and a fully
-  reviewed REVIEW-only quiz (`submitted`, although `max_score > 0`). Mutants — in the **new
-  view's kind computation**, not the shared partial (a partial mutant changes both pages at once
-  and parity stays green): ignore `submission_is_counted` (the awaiting case goes red, score
-  shown); compute `scored` from `max_score` alone (the REVIEW-only case goes red).
+  reviewed REVIEW-only quiz (`submitted`, although `max_score > 0`). ⚠️ The kind is decided
+  inside the SHARED helpers (`_course_results_row`, `_quiz_pill`, §3.4), so a mutant there changes
+  both pages at once and parity stays green. The only view-local code is the **arguments** the
+  new view passes, so the mutants go there:
+  - call `_quiz_review_maps([unit.pk], [])` (no submissions → empty `reviewed_counts`) → the fully
+    reviewed REVIEW-only quiz reads `awaiting` on the new page but `submitted` in the breakdown;
+  - call `_quiz_review_maps([], [submission])` (no unit pks → empty `has_auto`) → the scored quiz
+    reads `submitted` on the new page but `scored` in the breakdown.
 - **T37 Breakdown links.** The quiz title is a link to the new page for scored, submitted,
   awaiting and in_progress; not_started renders no link; the link carries the breakdown's
   querystring; the page's "← Breakdown" link round-trips `scope`, `mode`, `expand`, `student` and
@@ -505,6 +538,10 @@ assertions to the item or header element, not the whole page: the quiz title rep
   - `tests/test_analytics_views.py`'s breakdown tests (`:199-291`) keep passing unchanged — the
     pill partial extraction must not change their asserted text (`90%`, the `/review/<pk>/`
     link).
+  - `tests/test_title_math_markers.py:431-450` (the breakdown title's maths marker) is
+    **extended** to assert the marker separately on the link branch (a quiz with a submission)
+    and the plain branch (`not_started`), so neither passes on the other's marker. Mutant: put
+    `data-math-title` on the `<a>` instead of the span (the link-branch assertion goes red).
   - Tests covering `build_course_results` keep passing after `_course_results_row` is extracted
     (behaviour-preserving), and `courses/tests/` covering `build_quiz_context` keep passing after
     the prefetch extraction.
