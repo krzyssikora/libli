@@ -64,6 +64,12 @@ Each was read on 2026-09-14 at the cited line, on master `d432245a`.
   STORED `response.fraction` (`:1802-1813`); `reveal_result` is a FRESH `mark()` against the
   CURRENT key (`:1819-1822`). If an author edits the key after the pupil answered, the two can
   disagree — the pupil's own results page already shows that split. §4.3 accepts it.
+- **The review page already has a teacher-side answer display**, `views_review._answer_display`
+  (`courses/views_review.py:48-64`), for REVIEW rows only: choice → picked texts; a list →
+  non-empty entries `", "`-joined; a string → stripped. The same REVIEW question therefore reads
+  differently there (one flattened line) and here (per-gap parts with "Not answered", line breaks
+  kept). **Accepted**: this page's parts carry labels the flat line cannot. Moving the review page
+  onto `summarise` is a later PR (§3.6).
 - `quiz_results.html:31-37` holds the outcome badge vocabulary and its msgids.
 - ⚠️ **The reveal partials mostly show the key, not the pupil's answer:**
 
@@ -175,7 +181,10 @@ Each step 404s on failure (D7):
   `prefetch_related("content_object")`, keeping `QuestionElement` rows only.
 - The same per-type prefetch as `build_quiz_context` (§2.5). ⚠️ **Extract it** into one helper,
   `prefetch_question_children(questions)` in `courses/views.py`, called by **all three**:
-  `build_lesson_context`, `build_quiz_context` and the new view — replacing both existing copies
+  `build_lesson_context`, `build_quiz_context` and the new view — prefetching exactly what both
+  copies do **plus `media` for dragimage** (§5.1; the new page's stage reads it, and the lesson
+  and quiz element templates already dereference `el.media.file.url`, so for them this turns N
+  queries into 1 — the plan re-checks any pinned query budget for those pages) — replacing both existing copies
   rather than adding a third. Copies drift exactly the way the lock rule did
   (`courses/quiz.py:94-116`). The lesson and quiz context tests are the regression guard for the
   two replaced copies.
@@ -265,7 +274,7 @@ Each step 404s on failure (D7):
 Attempt history (D3); a per-question view across all pupils (item analysis); any change to the
 review page or the pupil's results page; the author's explanation (pupil-facing); anything in
 the `demo` app; the `/for-schools/` copy (PR 4); a force-submit action on this page (force-submit
-stays in the review queue).
+stays in the review queue); replacing the review page's `_answer_display` with `summarise` (§2.2).
 
 ## 4. The answer summary — `courses/answer_summary.py`
 
@@ -410,12 +419,15 @@ eleventh question type fails the test until its adapter exists.
   - **for a dragimage question, its image with static numbered zone badges**, after the stem (which
     is optional for this type, so without the image a prompt-less question shows nothing of what
     was asked). Markup: the static stage from `dragtoimagequestionelement.html:31-38` —
-    `div.dragimage__stage` holding `<img class="dragimage__img" src="{{ el.media.file.url }}"
-    alt="{{ el.alt }}">` and one `span.dragimage__badge` per zone, positioned by the same inline
+    `div.dragimage__stage` holding `<img class="dragimage__img" src="{{ row.question.media.file.url }}"
+    alt="{{ row.question.alt }}">` and one `span.dragimage__badge` per zone, positioned by the same inline
     `left`/`top` percentages and numbered `forloop.counter` — **without** `data-dnd`, the select
     lists, the pool or any form, so nothing is interactive and no JS runs. Badge numbers equal the
     "Zone i" part labels. A deliberate copy of those eight lines (the element template is a
-    student surface, §3.6); `zones` is already prefetched (§2.5);
+    student surface, §3.6), with `el` spelled `row.question` in the new template. `zones` is already
+    prefetched, but ⚠️ **`media` is a foreign key** (`models.py:2930-2932`) that neither existing
+    prefetch copy loads (`views.py:1349-1350` prefetches `"zones"` only), so
+    `prefetch_question_children` prefetches `"zones", "media"` for dragimage questions (§3.3);
   - the outcome badge, **a deliberate copy of `quiz_results.html:31-37`'s markup and msgids**
     (Correct, Partial, Incorrect, Not answered, Answer recorded, Reviewed, Awaiting review).
     Accepted as a copy: extracting a partial would change the pupil's results page, which §3.6
@@ -528,7 +540,8 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
     teacher** and **owner** rows go 200 → 404 (the staff row stays 404: step 3 still finds no
     reviewable pupil for it);
   - replace step 3's `reviewable_students(...)` with an unscoped `User` lookup → the
-    **other-group teacher** row goes 404 → 200;
+    **other-group teacher** row **and** the **archived-group teacher** row go 404 → 200 (the latter
+    also teaches an active group, so step 2 passes and the unscoped lookup finds pupil A);
   - resolve step 3 through `GroupMembership` of the teacher's groups **without the archived
     filter** → the **archived-group** row goes 404 → 200. (That teacher also teaches an active
     group on the course, so step 2 passes and only step 3's archived filter decides it.)
@@ -659,8 +672,9 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   not_started; drop `values` from the back link; drop the subset from the back link.
 - **T38 Query budget.** The page for a quiz with **one** question of each of the ten types and
   for one with **two** of each (every answered, a submission per fixture) issues the **same**
-  number of queries, measured after a warm-up request (ContentType cache). Mutant: remove one
-  type's prefetch from the extracted helper — the two-of-each count exceeds the one-of-each count.
+  number of queries, measured after a warm-up request (ContentType cache). Mutants: remove one
+  type's prefetch from the extracted helper; drop `"media"` from the dragimage prefetch — in
+  each, the two-of-each count exceeds the one-of-each count.
 - **T39 Maths.** A pupil's short-text `given` containing `\(x\)` in a quiz with no other maths
   sets `has_math`, and the rendered page then includes **both** the KaTeX include and the
   `courses/js/question.js` script tag (after it); a quiz with no maths anywhere includes neither.
