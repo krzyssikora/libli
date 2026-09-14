@@ -31,7 +31,7 @@ mentions the `demo` app.
 | D6 | **No catch-all fail-open.** Known content drift (§4.3) is handled explicitly and tested; anything else raises. | A blanket `except` would hide the next real bug behind "answer could not be displayed". |
 | D7 | **Every failure is 404, never 403.** | The manage convention the breakdown already follows (`courses/views_analytics.py:240-242`). Satisfies the parent's T30 ("403/404"). |
 | D8 | **The breakdown's quiz pill markup moves into a shared partial** used by both the breakdown and the new page's header. | The header must say exactly what the pill says (scored / submitted / awaiting review / in progress); one partial makes that structural rather than two copies kept in step by a test alone. |
-| D9 | **Fix `rollups._QUESTION_MODELS`, which omits both grid types, in this PR** — replace it with `richtext.CONCRETE_QUESTION_MODELS` (§2.5). | The new page puts the header pill (from `_quiz_review_maps`) next to per-row badges (from `_results_row`, which sees every type), so a grid-only AUTO quiz would read "submitted" above scored rows and an unreviewed REVIEW choicegrid would badge "Awaiting review" under a header with no Review link. Rejected: documenting the split — it is a live bug in the matrix, breakdown, course results and gradebook maximum, not a design trade-off. ⚠️ **It changes prod analytics** for quizzes containing grids (mat-pp's published quizzes hold 2 choicegrids): see §7. Kept as its own task and commit so it can be split out if wanted. |
+| D9 | **Fix `rollups._QUESTION_MODELS`, which omits both grid types, in this PR** — replace it with `richtext.CONCRETE_QUESTION_MODELS` (§2.5). | The new page puts the header pill (from `_quiz_review_maps`) next to per-row badges (from `_results_row`, which sees every type), so a grid-only AUTO quiz would read "submitted" above scored rows and an unreviewed REVIEW choicegrid would badge "Awaiting review" under a header with no Review link. Rejected: documenting the split — it is a live bug in the matrix, breakdown, course results and gradebook maximum, not a design trade-off. ⚠️ **It changes prod analytics** for quizzes containing grids (mat-pp's published quizzes hold 2 choicegrids): see §7. Kept as its own task and commit so it can be split out if wanted. The swap also **deletes** the now-unused concrete-model imports (`rollups.py:10-22` — keep `ContentNode`, `Element`, `QuestionElement`, `QuestionResponse`, `QuizSubmission`, `UnitProgress` and any other name still used) and the stale "The 8 concrete … Mirrors courses/views.py:91-100" comment (`:25-26`); `ruff check --no-cache` confirms no F401. |
 
 ## 2. Findings that constrain the design
 
@@ -222,7 +222,8 @@ Each step 404s on failure (D7):
   `build_course_results` then calls in its loop (behaviour unchanged). ⚠️ `course_results`'s
   comment (`courses/views.py:704-708`) justifies a double iteration by "build_course_results
   builds "rows" with three rows.append calls", which stops being true: reword it in the same
-  commit, **line-count neutral** so no other citation into `views.py` shifts. The new view calls
+  commit. (Keeping that one edit line-neutral does **not** protect other citations: the prefetch
+  extraction and D9 shift `views.py`/`rollups.py` lines anyway — §7's citation sweep.) The new view calls
   `_quiz_review_maps([unit.pk], [submission])`, then `_course_results_row(...)`, then
   `_quiz_pill(row)` (§2.5). Kinds and what each shows:
   - `scored` — "scored s/m (p%)", as in the breakdown;
@@ -418,13 +419,17 @@ eleventh question type fails the test until its adapter exists.
     digits only. Every other type renders `stem|safe` unchanged;
   - **for a dragimage question, its image with static numbered zone badges**, after the stem (which
     is optional for this type, so without the image a prompt-less question shows nothing of what
-    was asked). Markup: the static stage from `dragtoimagequestionelement.html:31-38` —
-    `div.dragimage__stage` holding `<img class="dragimage__img" src="{{ row.question.media.file.url }}"
-    alt="{{ row.question.alt }}">` and one `span.dragimage__badge` per zone, positioned by the same inline
-    `left`/`top` percentages and numbered `forloop.counter` — **without** `data-dnd`, the select
-    lists, the pool or any form, so nothing is interactive and no JS runs. Badge numbers equal the
-    "Zone i" part labels. A deliberate copy of those eight lines (the element template is a
-    student surface, §3.6), with `el` spelled `row.question` in the new template. `zones` is already
+    was asked). Markup — a **reduced** version of the static stage in
+    `dragtoimagequestionelement.html:31-38`, not a verbatim copy:
+    `<div class="dragimage__stage">` holding `<img class="dragimage__img"
+    src="{{ row.question.media.file.url }}" alt="{{ row.question.alt }}">` and, per zone,
+    `<span class="dragimage__badge" style="left:{% widthratio z.x 1 100 %}%; top:{% widthratio z.y 1 100 %}%;">{{ forloop.counter }}</span>`.
+    **Dropped** from the source: `data-dnd`, `data-dragimage-stage`, `data-zone`, the
+    `data-x/y/w/h="{{ …|unlocalize }}"` attributes (they exist for `dnd.js`, and `|unlocalize` would
+    need `{% load l10n %}`) and the `{# unlocalize … (see above) #}` comment, which points at text not
+    in the new file; also the select lists, pool and form. Nothing is interactive and no JS runs.
+    Badge numbers equal the "Zone i" part labels. A deliberate reduced copy (the element template is
+    a student surface, §3.6). `zones` is already
     prefetched, but ⚠️ **`media` is a foreign key** (`models.py:2930-2932`) that neither existing
     prefetch copy loads (`views.py:1349-1350` prefetches `"zones"` only), so
     `prefetch_question_children` prefetches `"zones", "media"` for dragimage questions (§3.3);
@@ -477,6 +482,8 @@ in the same commit, **line-count neutral** (e.g. "only the pages that render for
 ### 5.3 Styling
 
 - Load `courses/css/courses.css` for the stem's rich-text prose (as `quiz_results.html:5`).
+- **The question number is the visible `row.qnum`, not the list marker:** `.answers__list` sets
+  `list-style: none` (as `.quiz-results__list` does, `courses.css:724`), so no item reads "1. 1".
 - New `answers__*` rules in `core/static/core/css/app.css`, next to the breakdown block
   (`:1007-1013`), tokens only. Parts stack to one column below 640px; a long grid statement
   wraps rather than scrolling.
@@ -515,7 +522,15 @@ mutant and observe the failure before reverting by hand.
 
 ⚠️ Fixtures create rows in several models with independent pk sequences. Assert on the element's
 `data-question`/`qnum` position or on `Element.pk`, **never** on another model's pk or on a pk
-substring (memory: independent-pk-sequences-make-substring-assertions-flaky). Scope content
+substring (memory: independent-pk-sequences-make-substring-assertions-flaky).
+
+⚠️ **Every pupil viewed by a Platform Admin or course owner needs an `Enrollment` row** for the
+course, in addition to any group membership: `reviewable_students` serves PA/owner from
+`Enrollment` alone (`grouping/scoping.py:84-86`), and `GroupMembershipFactory`
+(`tests/factories.py:495-500`) creates none — no signal does either. Without it a correct build
+404s every PA/owner fixture (T30, T35–T39, T41), and the red invites weakening the assertion.
+
+Scope content
 assertions to the item or header element, not the whole page: the `manage__head` title holds
 both the quiz title and the pupil's name, and question stems or answers can repeat those
 strings. (`head_title` is "Answers · *course title* · libli" and carries neither.)
@@ -535,6 +550,9 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   | pupil A themself | 404 |
   | anonymous | 302 to login |
 
+  The test asserts every row's expected status on the **unmutated** build first — in particular
+  the PA and owner rows are 200, which needs both pupils enrolled (§6 preamble) — so a mutant's
+  200 → 404 is a real flip and not a fixture that was 404 all along.
   Mutants, each with the rows it turns red:
   - gate step 2 on `request.user.is_staff` instead of `can_review_course` → the **non-staff group
     teacher** and **owner** rows go 200 → 404 (the staff row stays 404: step 3 still finds no
@@ -752,6 +770,25 @@ quizzes was AUTO in the parent's local audit (§3.1, 260/260), though prod has m
 description lists all of the above; the manual pass (§6) opens a mat-pp quiz holding a choicegrid
 in the breakdown, the matrix, the pupil's course results and the gradebook export, before and
 after the change.
+
+⚠️ **Citation sweep (a delivery step, not optional).** Extracting `prefetch_question_children`
+removes roughly 20 lines from `build_lesson_context` (`views.py:360-382`) and 25 from
+`build_quiz_context` (`:1334-1356`); D9 deletes the model list and imports near the top of
+`rollups.py`. Every later line in both files shifts (memory:
+line-inserting-diffs-rot-citations-in-untouched-files). After both edits land, grep for
+`views\.py:\d` and `rollups\.py:\d` **outside `docs/` and `.po` files** and re-point every stale
+citation. Known at `d432245a`:
+
+- `demo/generator.py:177` (→ `views.py:1654-1664`) and `:205` (→ `:1674`);
+- `courses/templatetags/courses_extras.py:71` (→ `views.py:1394`);
+- `tests/test_publish_banners.py:209` (→ `:1372`) and `:231` (→ `:1405`);
+- `tests/capture_title_math_screenshots.py:174` (→ `:1411-1417`);
+- `tests/test_title_math_assets.py:269` (→ `:1318`);
+- `courses/rollups.py:1085` (→ `rollups.py:244-250, :265`).
+
+Some of these guards read the cited file (the css-citation tests did), so a missed one can go red
+in CI rather than only rot (memory: courses-css-line-citations-are-stale). This spec's own
+`views.py`/`rollups.py` line numbers describe master `d432245a` and are not re-pointed.
 
 ## 8. Parent amendments
 
