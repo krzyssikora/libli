@@ -1,6 +1,7 @@
 # Per-question drill-down (demo access PR 5) — design
 
-**Status:** approved in brainstorming 2026-09-14. Not yet planned, not yet built.
+**Status:** approved in brainstorming 2026-09-14; spec-review 10 rounds, 72 applied, 0 disputed
+(no clean verdict). Not yet planned, not yet built.
 **Parent:** `docs/superpowers/specs/2026-09-12-demo-access-for-schools-design.md` (below: "the
 parent"), §6 "PR 5" and §8 T30. PR 1–3 are merged (#318, #320); master `d432245a`.
 
@@ -475,13 +476,22 @@ eleventh question type fails the test until its adapter exists.
 mark each item `data-question` — exactly `quiz_results.html:28,62-69`. Without `question.js` the
 `data-question` subtrees are never typeset (§2.5) and stems/answers show raw `\(x\)`. Its form
 wiring is a no-op here: the page has no `<form>`. ⚠️ `_katex_js.html:14-15`'s comment says
-"question.js is deliberately NOT here: only two pages need it" — this page makes three. Reword it
-in the same commit, **line-count neutral** (e.g. "only the pages that render form-less
-`[data-question]` subtrees need it").
+"question.js is deliberately NOT here: only two pages need it" — already stale: three templates
+load it today (`lesson_unit.html:75`, `quiz_results.html:69`, `manage/review_submission.html:138`),
+and this page is the **fourth**. Reword it in the same commit, **line-count neutral**, to something
+true of all four — `lesson_unit.html` has live forms, so not "form-less" — e.g. "only pages with
+`[data-question]` subtrees need it, and it must come AFTER this include".
 
 ### 5.3 Styling
 
 - Load `courses/css/courses.css` for the stem's rich-text prose (as `quiz_results.html:5`).
+- **`.breakdown-unit__link`** gets its own rule: `color: inherit; text-decoration: none`, underline
+  on `:hover`/`:focus-visible` — the title keeps its current look and still reads as a link on
+  interaction, rather than silently taking default link styling.
+- **Muted texts** — "Not answered", "(this question no longer has any parts)", "This quiz has no
+  questions." — use `--text-secondary`, **never** `--text-tertiary`, which fails AA at body size
+  (memory: text-tertiary-fails-aa-at-body-size) and is what the copied `.badge--muted`
+  (`courses.css:716`) uses. The badge itself stays as copied.
 - **The question number is the visible `row.qnum`, not the list marker:** `.answers__list` sets
   `list-style: none` (as `.quiz-results__list` does, `courses.css:724`), so no item reads "1. 1".
 - New `answers__*` rules in `core/static/core/css/app.css`, next to the breakdown block
@@ -555,7 +565,8 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   200 → 404 is a real flip and not a fixture that was 404 all along.
   Mutants, each with the rows it turns red:
   - gate step 2 on `request.user.is_staff` instead of `can_review_course` → the **non-staff group
-    teacher** and **owner** rows go 200 → 404 (the staff row stays 404: step 3 still finds no
+    teacher**, **owner** and **Platform Admin** rows go 200 → 404 (`make_pa` adds the permission
+    group only and never sets `is_staff`, `tests/factories.py:256-258`) (the staff row stays 404: step 3 still finds no
     reviewable pupil for it);
   - replace step 3's `reviewable_students(...)` with an unscoped `User` lookup → the
     **other-group teacher** row **and** the **archived-group teacher** row go 404 → 200 (the latter
@@ -698,7 +709,9 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   `courses/js/question.js` script tag (after it); a quiz with no maths anywhere includes neither.
   Mutants: compute `has_math` from stems only; drop the `question.js` tag (§5.2 — maths would stay
   raw while the flag test passed).
-- **T41 Grids reach the rollups (D9).** Through `build_course_results` (so the breakdown and the
+- **T41 Grids reach the rollups (D9).** Pill kinds are read from `build_student_breakdown`'s tree
+  (`rollups.py:535-555`, which applies `_quiz_pill` to each `build_course_results` row — the
+  row itself carries only `status`/`graded`) (so the breakdown and the
   new header both inherit it): a SUBMITTED **grid-only AUTO** quiz (one choicegrid) pills
   `scored`; a SUBMITTED quiz whose only REVIEW question is an **unreviewed multigrid** pills
   `awaiting`, and after that response gets `reviewed_at` it pills **`submitted`** (no AUTO
@@ -729,7 +742,11 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
     link).
   - `tests/test_title_math_markers.py:431-450` (the breakdown title's maths marker) is
     **extended** to assert the marker separately on the link branch (a quiz with a submission)
-    and the plain branch (`not_started`), so neither passes on the other's marker. Mutant: put
+    and the plain branch (`not_started`), so neither passes on the other's marker. ⚠️ Its docstring
+    and messages cite template lines — `:434` ("The quiz branch (:6) and the lesson branch
+    (:24)"), `:448` (`_breakdown_node.html:6`), `:449` (`(:24)`); moving the pill spans into
+    `_quiz_pill.html` and adding the link branch shifts both, so re-point all three to the
+    post-change lines in the same commit. Mutant: put
     `data-math-title` on the `<a>` instead of the span (the link-branch assertion goes red).
   - Tests covering `build_course_results` keep passing after `_course_results_row` is extracted
     (behaviour-preserving), and the tests covering `build_lesson_context` **and**
@@ -776,7 +793,7 @@ removes roughly 20 lines from `build_lesson_context` (`views.py:360-382`) and 25
 `build_quiz_context` (`:1334-1356`); D9 deletes the model list and imports near the top of
 `rollups.py`. Every later line in both files shifts (memory:
 line-inserting-diffs-rot-citations-in-untouched-files). After both edits land, grep for
-`views\.py:\d` and `rollups\.py:\d` **outside `docs/` and `.po` files** and re-point every stale
+`views\.py:\d`, `rollups\.py:\d` and `_breakdown_node\.html:\d` **outside `docs/` and `.po` files** and re-point every stale
 citation. Known at `d432245a`:
 
 - `demo/generator.py:177` (→ `views.py:1654-1664`) and `:205` (→ `:1674`);
