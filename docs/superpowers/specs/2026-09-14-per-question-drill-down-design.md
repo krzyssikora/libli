@@ -193,7 +193,8 @@ Each step 404s on failure (D7):
     On a SUBMITTED one it stays `"review"`: an unanswered REVIEW question genuinely blocks the
     score (`rollups.py:402-409`) and appears in the review page.
   - REVIEW with `row["answered"]` true on an **IN_PROGRESS** submission → `"recorded"` ("Answer
-    recorded"): nobody can review it until the pupil finishes, because the review page opens
+    recorded"): nobody can review it until the submission is finished (by the pupil, or by a
+    teacher's force-submit from the review queue), because the review page opens
     SUBMITTED work only (`views_review.py:39-45`), so "Awaiting review" would promise an action
     that does not exist yet.
   - AUTO with `row["answered"]` true **and `response.fraction is None`** → `"recorded"`. This is a
@@ -224,10 +225,18 @@ Each step 404s on failure (D7):
   - `in_progress` — "in progress" plus "*k* of *n* questions answered", where *n* is the
     number of listed questions and *k* counts rows with `answered` true. No score: nothing is
     cached before finish (`courses/quiz.py:232-246`).
+- **A quiz with no questions** (`n == 0`) is reachable: `build_quiz_context` creates an
+  IN_PROGRESS submission as soon as an enrolled pupil opens any quiz (`views.py:1364`). The page
+  then omits the "*k* of *n*" count and renders one muted line, "This quiz has no questions."
+  (new msgid), in place of the empty list.
 - **Back link:** "← Breakdown" to `courses:manage_analytics_student` for this pupil, carrying the
   incoming `scope`/`mode`/`expand`/`student`/`values` querystring through `_expand_qs`
   (`courses/views_analytics.py:184-198`) — so the breakdown's own "← Analytics" still restores
-  the matrix.
+  the matrix. The **parse** half (the `mode`/`values` whitelisting plus `_clean_expand` on
+  `expand` and `student`) lives inline in `analytics_student` (`views_analytics.py:247-251`);
+  extract it into `_drill_params(request) -> (scope, mode, expand_pks, subset_pks, values)` and
+  call it from `analytics_student` and the new view, rather than adding a third inline copy.
+  (`analytics_matrix`'s parse differs — it has `scope_rendered` — and is left alone.)
 
 ### 3.5 Entry points from the breakdown
 
@@ -255,7 +264,8 @@ Each step 404s on failure (D7):
 
 Attempt history (D3); a per-question view across all pupils (item analysis); any change to the
 review page or the pupil's results page; the author's explanation (pupil-facing); anything in
-the `demo` app; the `/for-schools/` copy (PR 4).
+the `demo` app; the `/for-schools/` copy (PR 4); a force-submit action on this page (force-submit
+stays in the review queue).
 
 ## 4. The answer summary — `courses/answer_summary.py`
 
@@ -294,7 +304,8 @@ def summarise(question, response, mark_result) -> list[Part]
    never shown ✓; `mark_keywords("", [], [])` is the reachable case, §2.5). `"keyword"` parts
    follow the per-type table instead (`ok=None` when unanswered).
 4. On an `"answer"` part, `given=None` also means "this part left empty" inside an answered
-   question (an empty gap, an unselected grid row, an empty drop slot).
+   question (an empty gap, an unselected grid row, an empty drop slot). **A string part is empty
+   iff `not (v or "").strip()`** — a gap stored as `"  "` is `None`, not an invisible value.
 5. **`"keyword"` parts never carry a pupil value.** `given` and `expected` are always `None`; the
    template renders only the label and the ✓/✗ glyph for them, and never "Not answered" (§5.1).
 
@@ -302,7 +313,7 @@ def summarise(question, response, mark_result) -> list[Part]
 
 | type | parts | `given` | `expected` | `ok` source |
 |---|---|---|---|---|
-| choice (single or multiple) | 1, no label | picked option texts in option `(order, pk)` order, `", "`-joined; one `"(removed option)"` per stored pk no longer among the choices, **appended after** the live option texts | correct option texts, same order | `mark_result.correct` |
+| choice (single or multiple) | 1, no label | picked option texts in option `(order, pk)` order, `", "`-joined; one `"(removed option)"` per stored pk no longer among the choices, **appended after** the live option texts | correct option texts, same order; **`"(none)"`** (new msgid) when the correct set is empty | `mark_result.correct` |
 | shorttext | 1 | the stored string | `mark_result.reveal` (first accepted line) | `.correct` |
 | shortnumeric | 1 | the stored string | `reveal["value"]`, plus `" ± " + reveal["tolerance"]` when tolerance is non-empty | `.correct` |
 | extendedresponse | 1 `"answer"` part for the text (`label=None`, `expected=None` **always** — there is no model answer, §2.5), then one `"keyword"` part per keyword in `reveal` order | the text, line breaks preserved | `None` on every part. Keyword label = `gettext("Required") + ": " + kw` / `gettext("Avoid") + ": " + kw`, reusing the existing bare msgids exactly as `_reveal_extendedresponse.html:8,13` joins them | text part: `.correct` when answered, `False` when unanswered (rule 3); keyword part: `found` for Required, `not found` for Avoid — **`None` on every keyword part when unanswered**, as `_reveal_extendedresponse.html:18-28` does |
@@ -311,7 +322,7 @@ def summarise(question, response, mark_result) -> list[Part]
 | dragimage | one per zone, `"Zone i"` | the chosen label, or `None` | `reveal[i]["accepted"]` | `reveal[i]["correct"]` |
 | matchpair | one per pair, label = `reveal[i]["left"]` | the chosen token, or `None` | the pair's `right` (`reveal[i]["accepted"]`) | `reveal[i]["correct"]` |
 | choicegrid | one per row, label = statement | the chosen column's label; `None` for `""`; `"(removed option)"` for a pk not among the columns | `reveal[i]["correct_label"]` | `reveal[i]["is_correct"]` |
-| multigrid | one per row, label = statement | chosen column labels, `", "`-joined; `"(removed option)"` appended once per stored pk not among the columns; `None` for an empty set | `reveal[i]["correct_labels"]` joined | `reveal[i]["is_correct"]` |
+| multigrid | one per row, label = statement | chosen column labels, `", "`-joined; `"(removed option)"` appended once per stored pk not among the columns; `None` for an empty set | `reveal[i]["correct_labels"]` joined; **`"(none)"`** when that row's correct set is empty | `reveal[i]["is_correct"]` |
 
 `i` in a label is 1-based. For REVIEW/NOT_MARKED questions the same `"answer"` parts are built
 from the stored answer and the current rows alone (no `mark_result`), so rule 1 holds.
@@ -387,7 +398,15 @@ eleventh question type fails the test until its adapter exists.
 - `<ol class="answers__list">`, one `<li class="answers__item is-{{ row.outcome }}" data-question>`
   per row:
   - the question number, and the stem with `|safe` (sanitised on save,
-    `courses/models.py:2198-2201`), inside `lang="{{ course.language }}"`;
+    `courses/models.py:2198-2201`), inside `lang="{{ course.language }}"`.
+    ⚠️ **fillblank and dragfill store a TOKEN stem**, not prose: `fillblank.parse` replaces each
+    `{{…}}` marker with `U+FFFF n U+FFFF`, `n` 0-based (`courses/fillblank.py:17-19,65`), and
+    dragfill reuses it. Rendered raw, the teacher sees replacement glyphs and bare 0-based digits
+    beside "Gap 1" labels. So for those two types the stem goes through
+    `answer_summary.gap_marked_stem(question)`, which substitutes each token (with the module's
+    own token regex, the one `fillblank.py` defines) for `<span class="answers__gap">[n+1]</span>`
+    — numbered exactly like the part labels — and returns a `SafeString`; the inserted markup is
+    digits only. Every other type renders `stem|safe` unchanged;
   - the outcome badge, **a deliberate copy of `quiz_results.html:31-37`'s markup and msgids**
     (Correct, Partial, Incorrect, Not answered, Answer recorded, Reviewed, Awaiting review).
     Accepted as a copy: extracting a partial would change the pupil's results page, which §3.6
@@ -405,7 +424,9 @@ eleventh question type fails the test until its adapter exists.
     `ok` is not `None` — **except that an `"answer"` part with `given is None` never shows ✓**
     (it shows "Not answered", and ✗ when `ok` is `False`), so an empty part scoring `ok=True`
     (e.g. a multigrid row with an empty correct set left empty) never reads "Not answered ✓" —
-    `aria-hidden`, followed by sr-only "Correct" / "Incorrect" (existing msgids, **teacher voice
+    `aria-hidden`, followed by sr-only "Correct" / "Incorrect" — **the glyph and its sr-only label
+    are ONE unit, rendered or suppressed together**, so a screen reader never hears "Correct" where
+    no ✓ is shown (existing msgids, **teacher voice
     — never "your answer"**); then "Correct answer:" (existing msgid) + `expected` **iff
     `expected` is truthy** (an empty-string reveal, e.g. shorttext with no accepted lines,
     `models.py:2492`, renders no hint rather than a dangling label).
@@ -440,7 +461,8 @@ wiring is a no-op here: the page has no `<form>`.
 
 New msgids, each filled in Polish by hand (expected set; the plan confirms each is new by grep):
 "Answers", "Gap %(n)s", "Zone %(n)s", "question %(n)s", "(removed option)",
-"(this question no longer has any parts)", "attempt %(n)s of %(max)s",
+"(this question no longer has any parts)", "(none)", "This quiz has no questions.",
+"attempt %(n)s of %(max)s",
 "attempt %(n)s", and an `ngettext` pair "%(k)s of %(n)s question answered" /
 "%(k)s of %(n)s questions answered" — **the plural count argument is `n`** (the noun agrees with
 the total: "1 of 3 questions", "1 z 5 pytań"), never `k`; the Polish three forms follow `n`. After `makemessages`, check
@@ -518,7 +540,10 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   dragimage, matchpair, choicegrid, multigrid, **extendedresponse** — two required keywords, one
   found: `fraction` 0.5, text part `ok is False` beside one ✓ and one ✗ keyword part; mutant:
   read the text part's `ok` as `fraction > 0`); unanswered (AUTO); and the same answer on a
-  REVIEW-mode copy (all `expected`/`ok` `None`). Choice covers single and multiple.
+  REVIEW-mode copy (all `expected`/`ok` `None`). Choice covers single and multiple. A choice with
+  **no correct option** answered with a pick, and a multigrid row with an **empty correct set**
+  answered with a column, have `ok is False` and `expected == "(none)"` (mutant: leave `expected`
+  as the empty join, which then renders a bare ✗).
   extendedresponse covers: its REVIEW-mode copy **keeps non-empty keywords on the question** and
   yields exactly one `"answer"` part (mutant: emit keyword parts regardless of mode);
   `"keyword"` parts with `given`/`expected` `None`; unanswered keyword
@@ -542,6 +567,8 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   "Correct" (from the stored review `fraction`) with parts from the fresh mark; and an
   **unanswered** REVIEW question reviewed at 0 then made AUTO (`latest_answer=None`, `fraction`
   0) badges "Incorrect" with a "Not answered" ✗ part — both pinning the accepted split. Plus
+  **whitespace gap**: an answered fillblank whose second gap is stored as `"  "` has that part's
+  `given is None` (mutant: test `v == ""` instead of stripping). Plus
   **zero parts**: an answered fillblank whose blanks were all deleted renders the
   "(this question no longer has any parts)" line (mutant: render nothing for an empty part
   list). Mutants: drop the
@@ -565,8 +592,13 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   score, and the correct answer for a wrong answer on a question with attempts left (D5); an
   AUTO row shows "attempt 1 of 2"; an unlimited-attempts row shows "attempt 1"; an answered
   REVIEW row shows "attempt 1 of 1" (mutant: restrict the attempt line to AUTO). A part with
-  `given is None` and `ok is True` renders no ✓, and a shorttext row whose `expected` is `""`
+  `given is None` and `ok is True` renders no ✓ **and no sr-only "Correct"** (mutant: key the
+  sr-only span on `ok` alone), and a shorttext row whose `expected` is `""`
   renders no "Correct answer:" (mutant: test `expected is not None` instead of truthiness).
+  A fillblank item's rendered stem contains no `U+FFFF` and shows `[1]`, `[2]` in the order of its
+  "Gap 1", "Gap 2" parts; a dragfill item likewise (mutant: render the raw `stem|safe` for token
+  types). A quiz with no questions renders "This quiz has no questions." and no "of 0" count
+  (mutant: render the empty list).
   On a SUBMITTED quiz with two unreviewed REVIEW questions, the two per-row Review links have
   distinct accessible names (mutant: drop the sr-only question number).
   ⚠️ The in-progress fixture **must include a `QuestionResponse` with `attempt_count=0,
@@ -581,7 +613,11 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   apply the REVIEW override on SUBMITTED too (the submitted case goes red); drop the
   answered-REVIEW-in-progress arm (that row badges "Awaiting review" and goes red).
 - **T36 Header parity with the breakdown.** For each of the four submission states, the new
-  page's pill kind equals the breakdown's pill kind for the same pupil and quiz, including a
+  page's pill equals the breakdown's pill for the same pupil and quiz — compared as **rendered
+  markup** (the `pill--*` class and its text), scoped to the new page's header and to that quiz's
+  `div.breakdown-unit` row, never as `response.context` dicts (which would pass a header that
+  bypasses the shared partial; mutant: inline a copy of the pill spans in the header with one
+  class changed) — including a
   SUBMITTED quiz with an unreviewed REVIEW question (`awaiting`, with exactly one Review link in
   the header and the score text absent), a SUBMITTED ungraded one (`submitted`), and a fully
   reviewed REVIEW-only quiz (`submitted`, although `max_score > 0`). ⚠️ The kind is decided
