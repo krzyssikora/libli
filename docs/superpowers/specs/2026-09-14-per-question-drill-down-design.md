@@ -331,12 +331,17 @@ def summarise(question, response, mark_result) -> list[Part]
 | fillblank | one per blank, `"Gap i"` | the typed value, or `None` if empty | `reveal[i]["accepted"]` | `reveal[i]["correct"]` |
 | dragfill | one per gap, `"Gap i"` | the chosen token, or `None` | `reveal[i]["accepted"]` | `reveal[i]["correct"]` |
 | dragimage | one per zone, `"Zone i"` | the chosen label, or `None` | `reveal[i]["accepted"]` | `reveal[i]["correct"]` |
-| matchpair | one per pair, label = `reveal[i]["left"]` | the chosen token, or `None` | the pair's `right` (`reveal[i]["accepted"]`) | `reveal[i]["correct"]` |
+| matchpair | one per pair, label = `pairs[i].left` | the chosen token, or `None` | the pair's `right` (`reveal[i]["accepted"]`) | `reveal[i]["correct"]` |
 | choicegrid | one per row, label = statement | the chosen column's label; `None` for `""`; `"(removed option)"` for a pk not among the columns | `reveal[i]["correct_label"]` | `reveal[i]["is_correct"]` |
 | multigrid | one per row, label = statement | chosen column labels, `", "`-joined; `"(removed option)"` appended once per stored pk not among the columns; `None` for an empty set | `reveal[i]["correct_labels"]` joined; **`"(none)"`** when that row's correct set is empty | `reveal[i]["is_correct"]` |
 
 `i` in a label is 1-based. For REVIEW/NOT_MARKED questions the same `"answer"` parts are built
 from the stored answer and the current rows alone (no `mark_result`), so rule 1 holds.
+⚠️ **Labels and part counts always come from the question's current CHILD ROWS, in every mode** —
+`blanks`, `dragblanks`, `zones`, `pairs[i].left`, `rows[i].statement` — never from `reveal`, which
+a REVIEW/NOT_MARKED question does not have (`mark_result is None`; `reveal[i]["left"]` would raise
+`TypeError`). `reveal[i]` is read **only** for `expected` and `ok`, on AUTO questions. The table's
+`reveal[i]["statement"]`-style cells above name the same values the child rows hold.
 ⚠️ **`"keyword"` parts are emitted for AUTO only.** The editor form checks keywords only for AUTO
 (`element_forms.py:1367-1391`), so a question switched to REVIEW keeps stale
 `required_keywords`/`forbidden_keywords` in the database; a REVIEW or NOT_MARKED extendedresponse
@@ -417,7 +422,10 @@ eleventh question type fails the test until its adapter exists.
     `answer_summary.gap_marked_stem(question)`, which substitutes each token (with the module's
     own token regex, the one `fillblank.py` defines) for `<span class="answers__gap">[n+1]</span>`
     — numbered exactly like the part labels — and returns a `SafeString`; the inserted markup is
-    digits only. Every other type renders `stem|safe` unchanged;
+    digits only. A template cannot call a function with an argument, so **the view sets one row
+    key, `row["stem_html"]`**: `gap_marked_stem(q)` for fillblank/dragfill, `mark_safe(q.stem)` for
+    every other type. The template renders only `{{ row.stem_html }}` — no per-type branch in the
+    template;
   - **for a dragimage question, its image with static numbered zone badges**, after the stem (which
     is optional for this type, so without the image a prompt-less question shows nothing of what
     was asked). Markup — a **reduced** version of the static stage in
@@ -485,6 +493,10 @@ true of all four — `lesson_unit.html` has live forms, so not "form-less" — e
 ### 5.3 Styling
 
 - Load `courses/css/courses.css` for the stem's rich-text prose (as `quiz_results.html:5`).
+- ⚠️ **Code never cites a stylesheet by line.** `tests/test_css_citations_are_durable.py:49-73`
+  fails on any `<name>.css:<digits>` in a `.css`, `.py`, `.js` or `.html` file. This spec's
+  `courses.css:N`/`app.css:N` references are for the reader only; a rule comment, template comment
+  or test docstring cites by **selector** ("as `.quiz-results__list` does in courses.css").
 - **`.breakdown-unit__link`** gets its own rule: `color: inherit; text-decoration: none`, underline
   on `:hover`/`:focus-visible` — the title keeps its current look and still reads as a link on
   interaction, rather than silently taking default link styling.
@@ -600,7 +612,9 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   dragimage, matchpair, choicegrid, multigrid, **extendedresponse** — two required keywords, one
   found: `fraction` 0.5, text part `ok is False` beside one ✓ and one ✗ keyword part; mutant:
   read the text part's `ok` as `fraction > 0`); unanswered (AUTO); and the same answer on a
-  REVIEW-mode copy (all `expected`/`ok` `None`). Choice covers single and multiple. A choice with
+  REVIEW-mode copy (all `expected`/`ok` `None`), **including a REVIEW matchpair and a REVIEW
+  choicegrid**, whose labels must come from the child rows (mutant: read labels from `reveal`,
+  which raises on the REVIEW path). Choice covers single and multiple. A choice with
   **no correct option** answered with a pick, and a multigrid row with an **empty correct set**
   answered with a column, have `ok is False` and `expected == "(none)"` (mutant: leave `expected`
   as the empty join, which then renders a bare ✗).
@@ -656,8 +670,8 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   sr-only span on `ok` alone), and a shorttext row whose `expected` is `""`
   renders no "Correct answer:" (mutant: test `expected is not None` instead of truthiness).
   A fillblank item's rendered stem contains no `U+FFFF` and shows `[1]`, `[2]` in the order of its
-  "Gap 1", "Gap 2" parts; a dragfill item likewise (mutant: render the raw `stem|safe` for token
-  types). A quiz with no questions renders "This quiz has no questions." and no "of 0" count
+  "Gap 1", "Gap 2" parts; a dragfill item likewise (mutant: set `stem_html` from the raw stem for
+  token types). A quiz with no questions renders "This quiz has no questions." and no "of 0" count
   (mutant: render the empty list). A prompt-less dragimage item renders its `img.dragimage__img`
   with one `span.dragimage__badge` per zone, numbered like its "Zone i" parts, and contains no
   `select`, `form` or `data-dnd` (mutants: omit the stage; copy the interactive template instead).
@@ -771,8 +785,13 @@ read): on any quiz containing a grid, `has_auto`/the review gate/`quiz_gradeable
 counting it. Every surface fed by `_quiz_review_maps` or `quiz_gradeable_max` moves:
 
 - **Breakdown pill and the pupil's own course results page** (`build_course_results` also serves
-  `course_results`, `views.py:696-703`): a grid-only AUTO quiz moves `submitted` → `scored`, and
-  it now enters the pupil's headline score.
+  `course_results`, `views.py:696-703`):
+  - a grid-only AUTO quiz's pill moves `submitted` → `scored`, and its course-results row switches
+    from "submitted — not graded" to its score (`course_results.html:23-24`). **The headline is
+    unchanged**: `build_course_results` already sums `sub.score`/`sub.max_score` for every
+    non-pending SUBMITTED row regardless of `graded` (`rollups.py:494-497`);
+  - a SUBMITTED quiz with an **unreviewed REVIEW grid** becomes `awaiting_review` (pending) and
+    **drops out** of the pupil's headline score and maximum.
 - **Results matrix cells and averages** (`build_results_matrix`, `rollups.py:833`) and
   **gradebook cells** (`build_quiz_gradebook`, `gradebook.py:95,118`): a SUBMITTED quiz with an
   **unreviewed REVIEW grid** stops being counted — its matrix cell and averages drop it and its
@@ -786,7 +805,9 @@ The REVIEW-grid effects have **no known prod instance**: every question in mat-p
 quizzes was AUTO in the parent's local audit (§3.1, 260/260), though prod has moved since. The PR
 description lists all of the above; the manual pass (§6) opens a mat-pp quiz holding a choicegrid
 in the breakdown, the matrix, the pupil's course results and the gradebook export, before and
-after the change.
+after the change — checking the grid-only quiz's course-results **row** (not the headline, which
+does not move for it); the pending-headline effect has no known prod instance and is pinned by T41
+instead.
 
 ⚠️ **Citation sweep (a delivery step, not optional).** Extracting `prefetch_question_children`
 removes roughly 20 lines from `build_lesson_context` (`views.py:360-382`) and 25 from
