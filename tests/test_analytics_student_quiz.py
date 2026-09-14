@@ -8,6 +8,8 @@ from decimal import Decimal
 import pytest
 from bs4 import BeautifulSoup
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -776,3 +778,56 @@ def test_t37_back_link_round_trips_scope_mode_expand_subset_and_values(client):
     )
     drill = _expand_qs("all", "results", [quiz.pk], [pupil.pk], "raw")
     assert back == f"{expected_path}?{drill}"
+
+
+# --- T38 query budget --------------------------------------------------------------
+def _stored_answer(key, q):
+    if key == "choice":
+        return [q.choices.first().pk]
+    if key == "choicegrid":
+        return [q.columns.first().pk, ""]
+    if key == "multigrid":
+        return [[], []]
+    return {
+        "shorttext": "x",
+        "shortnumeric": "1",
+        "extendedresponse": "alpha",
+        "fillblank": ["2", "5"],
+        "dragfill": ["cat", "cat"],
+        "dragimage": ["Heart", "Heart"],
+        "matchpair": ["1", "3", "2"],
+    }[key]
+
+
+def _every_type_quiz(course, pupil, title, copies):
+    from tests.answer_summary_fixtures import build_all_types
+
+    quiz = _empty_quiz(course, title)
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("20"))
+    for _ in range(copies):
+        for key, q in build_all_types().items():
+            el = Element.objects.create(unit=quiz, content_object=q)
+            _respond(
+                sub,
+                el,
+                latest_answer=_stored_answer(key, q),
+                fraction=Decimal("0"),
+                attempt_count=1,
+            )
+    return quiz
+
+
+def _page_queries(client, url):
+    assert client.get(url).status_code == 200  # warm ContentType/session caches
+    with CaptureQueriesContext(connection) as captured:
+        assert client.get(url).status_code == 200
+    return len(captured)
+
+
+def test_t38_query_count_does_not_grow_with_questions(client):
+    course, pupil = _owner_view(client)
+    one = _every_type_quiz(course, pupil, "One of each", 1)
+    two = _every_type_quiz(course, pupil, "Two of each", 2)
+    assert _page_queries(client, _url(course, pupil.pk, one.pk)) == _page_queries(
+        client, _url(course, pupil.pk, two.pk)
+    )
