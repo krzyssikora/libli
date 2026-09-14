@@ -701,7 +701,7 @@ def course_results(request, slug):
     # top-level as the template's canonical source (summary also carries it).
     drafts = "keep" if can_see_drafts(request.user, course) else "hide"
     summary = build_course_results(course, request.user, drafts=drafts)
-    # build_course_results builds "rows" with three rows.append calls, so it is
+    # build_course_results appends one row per unit to a real list, so it is
     # a real list -- scanning it here and then passing it to the template
     # iterates it twice safely. Were it a generator, the scan would exhaust it and
     # the page would render EMPTY, a silent severe failure no test here would

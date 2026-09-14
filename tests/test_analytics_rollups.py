@@ -519,7 +519,7 @@ def test_build_student_breakdown_pills():
     _review_q(pending, "10")
     s = UserFactory()
     UnitProgressFactory(student=s, unit=les, completed=True)
-    QuizSubmission.objects.create(
+    sub_scored = QuizSubmission.objects.create(
         student=s,
         unit=scored,
         status="submitted",
@@ -549,6 +549,7 @@ def test_build_student_breakdown_pills():
         "score": Decimal("9"),
         "max_score": Decimal("10"),
         "percent": 90,
+        "submission_pk": sub_scored.pk,
     }
     assert by_unit[pending.pk]["pill"]["kind"] == "awaiting"
     assert by_unit[pending.pk]["pill"]["submission_pk"] == sub_pending.pk
@@ -563,7 +564,7 @@ def test_build_student_breakdown_submitted_ungraded_no_percent():
     ch = _chapter(course)
     qz = _quiz(course, ch)  # no AUTO question -> graded False, max_score 0
     s = UserFactory()
-    QuizSubmission.objects.create(
+    sub = QuizSubmission.objects.create(
         student=s,
         unit=qz,
         status="submitted",
@@ -573,7 +574,20 @@ def test_build_student_breakdown_submitted_ungraded_no_percent():
     bd = build_student_breakdown(course, s, drafts="keep")
     pill = bd["tree"][0]["children"][0]["pill"]
     # no score/max/percent -> no divide-by-zero
-    assert pill == {"kind": "submitted"}
+    assert pill == {"kind": "submitted", "submission_pk": sub.pk}
+
+
+@pytest.mark.django_db
+def test_in_progress_pill_carries_submission_pk():
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    s = UserFactory()
+    sub = QuizSubmission.objects.create(student=s, unit=qz, status="in_progress")
+    assert _pills(course, s)[qz.pk] == {
+        "kind": "in_progress",
+        "submission_pk": sub.pk,
+    }
 
 
 @pytest.mark.parametrize(
