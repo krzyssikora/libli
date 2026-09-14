@@ -399,7 +399,7 @@ Run: `uv run pytest tests/test_analytics_rollups.py tests/test_courses_rollups.p
 (`test_e2e_results.py` is `-m e2e`-marked and will be deselected; that is fine here — it runs in Task 13.)
 Expected: all PASS.
 
-- [ ] **Step 7: Falsify.** (a) In `_quiz_pill`, drop `"submission_pk"` from the `in_progress` return → `test_in_progress_pill_carries_submission_pk` RED. (b) In the loop, move `done_count += 1` under `if not row["pending"]` → `tests/test_courses_rollups.py::test_awaiting_review_until_all_reviewed` RED (`assert res["done_count"] == 1`). Revert both by hand; read `git diff`.
+- [ ] **Step 7: Falsify.** (a) In `_quiz_pill`, drop `"submission_pk"` from the `in_progress` return → `test_in_progress_pill_carries_submission_pk` RED. (b) In the loop, move `done_count += 1` under `if not row["pending"]` → `tests/test_courses_rollups.py::test_awaiting_review_until_all_reviewed` RED on `assert res["score"] == Decimal("0")` (got `None`): that assertion precedes the `done_count` one, and `build_course_results` returns `score = score_sum if done_count else None`, so with `done_count` 0 the score breaks first. Revert both by hand; read `git diff`.
 
 - [ ] **Step 7b: Commit**
 
@@ -1520,7 +1520,7 @@ Expected: clean.
             assert _derived_question_models() == set(answer_summary._ADAPTERS)
     ```
     Expected: FAIL — **read the failure**: it must be the set-inequality `AssertionError` whose diff names `_Stub`, not a `NameError`/`ImportError`/`RuntimeError` (those are red for the wrong reason). The stub is abstract and declared inside the test body, so it never registers (spec T34).
-  - (c) `_padded`: `return values` (no pad/truncate) → `test_fillblank_fewer_and_more_stored_values_follow_current_blanks` RED.
+  - (c) `_padded`: `return values` (no pad/truncate) → `test_fillblank_fewer_and_more_stored_values_follow_current_blanks` RED with **`IndexError`** on the one-value case (`_multi` reads `values[1]`) — this is the expected red for this mutant. The test's "more stored values → 2 parts" half is guarded by `_multi` looping over the current child rows, not by `_padded`'s truncation; no `_padded` edit can turn that half red.
   - (d) `_choicegrid.convert`: `return by_pk.get(value)` → `test_choicegrid_parts_empty_row_and_removed_column` RED.
   - (e) `_matchpair`: `labels=[r["left"] for r in (mark_result.reveal if mark_result else ())]` → in REVIEW mode no parts are built, so `test_review_matchpair_and_choicegrid_take_labels_from_child_rows` RED on its `[p.label for p in mp] == ["a", "b", "c"]` assertion (not a crash).
   - (f) `_text_or_none`: `return text if text != "" else None` → `test_fillblank_whitespace_gap_is_empty` RED.
@@ -2420,6 +2420,7 @@ Implements spec §3.4 (zero-question quiz), §4.3 (zero parts), §5.1 (drag-to-i
 - Modify: `courses/views_analytics.py` (`_answers_have_math`; `has_math` in context)
 - Modify: `templates/courses/manage/analytics_student_quiz.html`
 - Modify: `templates/courses/_katex_js.html` (comment only, line-count neutral)
+- Modify: `tests/test_text_colour_script_order.py` (`PAGES` gains the new template)
 - Modify: `tests/test_analytics_student_quiz.py` (append)
 
 **Interfaces:**
@@ -2723,7 +2724,9 @@ Check: `git diff --stat templates/courses/_katex_js.html` → `2 insertions(+), 
 
 - [ ] **Step 6: Run**
 
-Run: `uv run pytest tests/test_analytics_student_quiz.py tests/test_quiz_results_render.py tests/test_title_math_assets.py -v`
+Append `"manage/analytics_student_quiz.html"` to the `PAGES` list in `tests/test_text_colour_script_order.py` (it guards KaTeX script order and `{% if has_math %}` containment for every page that includes `_katex_js.html`; `quiz_results.html` and `review_submission.html` are already listed).
+
+Run: `uv run pytest tests/test_analytics_student_quiz.py tests/test_quiz_results_render.py tests/test_title_math_assets.py tests/test_text_colour_script_order.py -v`
 Expected: all PASS.
 
 - [ ] **Step 7: Falsify** (each by hand → RED → revert → `git diff`):
@@ -2744,7 +2747,7 @@ Expected: all PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/views_analytics.py templates/courses/manage/analytics_student_quiz.html templates/courses/_katex_js.html tests/test_analytics_student_quiz.py
+git add courses/views_analytics.py templates/courses/manage/analytics_student_quiz.html templates/courses/_katex_js.html tests/test_analytics_student_quiz.py tests/test_text_colour_script_order.py
 git commit -m "feat(analytics): drag-to-image stage, empty states and maths on the answers page
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
@@ -3294,7 +3297,7 @@ Expected: clean, clean, "No changes detected". If `ruff check` reports fixable v
 
 ```bash
 uv run pytest tests/test_analytics_rollups.py tests/test_courses_rollups.py tests/test_analytics_views.py tests/test_analytics_student_quiz.py tests/test_answer_summary.py tests/test_prefetch_question_children.py tests/test_title_math_markers.py tests/test_title_math_assets.py -v
-uv run pytest tests/test_i18n_po_health.py tests/test_courses_views.py tests/test_quiz_results_render.py tests/test_publish_banners.py tests/test_css_citations_are_durable.py tests/test_publish_viewer_scan.py tests/test_richtext.py tests/test_richtext_drift.py tests/demo -v
+uv run pytest tests/test_i18n_po_health.py tests/test_static_tag_targets_are_files.py tests/test_text_colour_script_order.py tests/test_title_math_css.py tests/test_courses_views.py tests/test_quiz_results_render.py tests/test_publish_banners.py tests/test_css_citations_are_durable.py tests/test_publish_viewer_scan.py tests/test_richtext.py tests/test_richtext_drift.py tests/demo -v
 uv run pytest courses/tests -v
 uv run pytest tests -k "question or quiz or review or gradebook or export or help" -v
 uv run pytest tests/test_e2e_analytics.py tests/test_e2e_results.py tests/test_e2e_questions.py tests/test_e2e_questions_2d.py -m e2e -v
