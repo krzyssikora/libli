@@ -379,7 +379,7 @@ def _analytics_bodies(client, *, maths_on):
 
     Adds a QUIZ unit: make_title_course creates only unit_type="lesson", so
     _breakdown_node.html's `{% if item.node.unit_type == "quiz" %}` branch
-    (:4-21, holding the :6 marker) would never render and the :24 lesson branch
+    (:4-13, holding the :6 marker) would never render and the :16 lesson branch
     -- same class -- would satisfy the assertion on its own."""
     pa = make_pa(client)
     course, _unit, nodes = make_title_course(maths_on=maths_on)
@@ -431,7 +431,7 @@ def test_analytics_matrix_leaf_headers_are_marked(client):
 def test_analytics_breakdown_titles_are_marked(client):
     """BOTH unit branches plus the group branch, selected DISTINCTLY.
 
-    The quiz branch (:6) and the lesson branch (:24) share the class
+    The quiz branch (:6) and the lesson branch (:16) share the class
     `breakdown-unit__title`, so neither a truthiness check nor a `>= 2` count
     pins them: the fixture has THREE lesson units and one quiz, so dropping the
     quiz marker still leaves three marked spans and `3 >= 2` passes. What
@@ -446,7 +446,7 @@ def test_analytics_breakdown_titles_are_marked(client):
         "div.breakdown-unit:not(:has(.pill)) > span.breakdown-unit__title",
     )
     assert quiz, "the quiz unit branch (_breakdown_node.html:6) is unmarked"
-    assert lesson, "the lesson unit branch (:24) is unmarked"
+    assert lesson, "the lesson unit branch (:16) is unmarked"
     assert _marked(breakdown, "span.breakdown-node__title")
 
 

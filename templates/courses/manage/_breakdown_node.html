@@ -5,17 +5,9 @@
       <div class="breakdown-unit">
         <span class="breakdown-unit__title" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
         {% with p=item.pill %}
-          {% if p.kind == "scored" %}
-            <span class="pill pill--scored">{% blocktrans with s=p.score|floatformat m=p.max_score|floatformat %}scored {{ s }}/{{ m }}{% endblocktrans %} ({{ p.percent }}%)</span>
-          {% elif p.kind == "submitted" %}
-            <span class="pill pill--submitted">{% trans "submitted" %}</span>
-          {% elif p.kind == "awaiting" %}
-            <span class="pill pill--awaiting">{% trans "awaiting review" %}</span>
+          {% include "courses/manage/_quiz_pill.html" %}
+          {% if p.kind == "awaiting" %}
             <a class="breakdown-unit__review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=p.submission_pk %}">{% trans "Review" %}</a>
-          {% elif p.kind == "in_progress" %}
-            <span class="pill pill--progress">{% trans "in progress" %}</span>
-          {% else %}
-            <span class="pill pill--none">{% trans "not started" %}</span>
           {% endif %}
         {% endwith %}
       </div>

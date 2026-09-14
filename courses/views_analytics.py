@@ -9,6 +9,7 @@ from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 
 from courses.access import can_manage_course
+from courses.access import get_node_or_404
 from courses.color_bands import band_style
 from courses.color_bands import course_color_bands
 from courses.color_bands import default_color_bands
@@ -18,6 +19,9 @@ from courses.htmlsandbox import titles_have_math
 from courses.models import Course
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
+from courses.rollups import _course_results_row
+from courses.rollups import _quiz_pill
+from courses.rollups import _quiz_review_maps
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
@@ -198,6 +202,18 @@ def _expand_qs(scope, mode, expand_pks, subset_pks, values):
     return urlencode(data, doseq=True)
 
 
+def _drill_params(request):
+    """(scope, mode, expand_pks, subset_pks, values) from a drill-down page's GET:
+    the breakdown and the per-question page round-trip the matrix's state with it.
+    analytics_matrix parses its own (it also reads scope_rendered)."""
+    scope = request.GET.get("scope", "all")
+    mode = "results" if request.GET.get("mode") == "results" else "progress"
+    values = "raw" if request.GET.get("values") == "raw" else "percent"
+    expand_pks = _clean_expand(request.GET.getlist("expand"))
+    subset_pks = _clean_expand(request.GET.getlist("student"))
+    return scope, mode, expand_pks, subset_pks, values
+
+
 def _decorate_links(matrix, course, scope, mode, reviewable_ids, subset_pks, values):
     """Attach pre-built hrefs (spec §4): on each header cell an expand_url (a
     not-yet-expanded leaf with children) or a collapse_url (an expanded spanning
@@ -244,11 +260,7 @@ def analytics_student(request, slug, student_pk):
     breakdown = build_student_breakdown(
         course, student, drafts="keep-with-data", with_data=with_data
     )
-    scope = request.GET.get("scope", "all")
-    mode = "results" if request.GET.get("mode") == "results" else "progress"
-    values = "raw" if request.GET.get("values") == "raw" else "percent"
-    expand_pks = _clean_expand(request.GET.getlist("expand"))
-    subset_pks = _clean_expand(request.GET.getlist("student"))
+    scope, mode, expand_pks, subset_pks, values = _drill_params(request)
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
     back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
     # build_student_breakdown returns a DICT WRAPPER, {"student": …, "tree": …};
@@ -264,6 +276,48 @@ def analytics_student(request, slug, student_pk):
             "breakdown": breakdown,
             "back_url": f"{matrix_path}?{back_qs}",
             "has_math": has_math,
+        },
+    )
+
+
+@login_required
+def analytics_student_quiz(request, slug, student_pk, node_pk):
+    """One pupil's answers to one quiz (spec §3). Every failure is 404."""
+    course = get_object_or_404(Course, slug=slug)
+    if not scoping.can_review_course(request.user, course):
+        raise Http404
+    student = (
+        scoping.reviewable_students(request.user, course).filter(pk=student_pk).first()
+    )
+    if student is None:
+        raise Http404
+    # No viewer=: an author-facing surface keeps drafts that carry data (a
+    # submission IS data), exactly as the breakdown does.
+    unit = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    submission = QuizSubmission.objects.filter(student=student, unit=unit).first()
+    if submission is None:
+        raise Http404
+    has_auto, total_review, reviewed_counts = _quiz_review_maps([unit.pk], [submission])
+    pill = _quiz_pill(
+        _course_results_row(unit, submission, has_auto, total_review, reviewed_counts)
+    )
+    scope, mode, expand_pks, subset_pks, values = _drill_params(request)
+    student_path = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": student.pk},
+    )
+    back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
+    return render(
+        request,
+        "courses/manage/analytics_student_quiz.html",
+        {
+            "course": course,
+            "student": student,
+            "unit": unit,
+            "submission": submission,
+            "pill": pill,
+            "back_url": f"{student_path}?{back_qs}",
+            "has_math": False,
         },
     )
 
