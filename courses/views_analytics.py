@@ -10,6 +10,8 @@ from django.utils.translation import gettext as _
 
 from courses.access import can_manage_course
 from courses.access import get_node_or_404
+from courses.answer_summary import stem_html
+from courses.answer_summary import summarise
 from courses.color_bands import band_style
 from courses.color_bands import course_color_bands
 from courses.color_bands import default_color_bands
@@ -17,6 +19,7 @@ from courses.color_bands import legend_rows
 from courses.forms import ColorBandsForm
 from courses.htmlsandbox import titles_have_math
 from courses.models import Course
+from courses.models import QuestionElement
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
 from courses.rollups import _course_results_row
@@ -26,6 +29,8 @@ from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
 from courses.rollups import tree_titles_have_math
+from courses.views import _results_row
+from courses.views import prefetch_question_children
 from grouping import scoping
 
 
@@ -280,6 +285,57 @@ def analytics_student(request, slug, student_pk):
     )
 
 
+def _override_outcome(question, response, row, in_progress):
+    """_results_row's outcome vocabulary is post-submit; fix the three cases it
+    misreports on this page (spec §3.3). Never applied inside _results_row: the
+    pupil's own results page is out of scope."""
+    mode = question.marking_mode
+    answered = row["answered"]
+    if mode == QuestionElement.MarkingMode.NOT_MARKED and not answered:
+        return "not_answered"
+    if mode == QuestionElement.MarkingMode.REVIEW and in_progress:
+        # Nobody can review it until the submission is finished (by the pupil or
+        # a teacher's force-submit): the review page opens SUBMITTED work only.
+        return "recorded" if answered else "not_answered"
+    if (
+        mode == QuestionElement.MarkingMode.AUTO
+        and answered
+        and response.fraction is None
+    ):
+        # answered while REVIEW/NOT_MARKED, never reviewed, then switched to AUTO
+        return "recorded"
+    return row["outcome"]
+
+
+def _quiz_answer_rows(unit, submission):
+    """One display row per top-level question, in element order (spec §3.3)."""
+    elements = [
+        el
+        for el in unit.elements.filter(parent__isnull=True)
+        .order_by("order", "pk")
+        .prefetch_related("content_object")
+        if isinstance(el.content_object, QuestionElement)
+    ]
+    prefetch_question_children([el.content_object for el in elements])
+    responses = {r.element_id: r for r in submission.responses.all()}
+    in_progress = submission.status == QuizSubmission.Status.IN_PROGRESS
+    rows = []
+    for qnum, el in enumerate(elements, start=1):
+        question = el.content_object
+        response = responses.get(el.pk)
+        row = _results_row(question, response)
+        row["outcome"] = _override_outcome(question, response, row, in_progress)
+        row["parts"] = summarise(question, response, row["reveal_result"])
+        row["qnum"] = qnum
+        row["stem_html"] = stem_html(question)
+        attempts = response.attempt_count if response is not None else 0
+        limit = question.max_attempts
+        row["attempt_count"] = attempts
+        row["attempt_max"] = limit if limit is not None and attempts <= limit else None
+        rows.append(row)
+    return rows
+
+
 @login_required
 def analytics_student_quiz(request, slug, student_pk, node_pk):
     """One pupil's answers to one quiz (spec §3). Every failure is 404."""
@@ -307,6 +363,7 @@ def analytics_student_quiz(request, slug, student_pk, node_pk):
         kwargs={"slug": course.slug, "student_pk": student.pk},
     )
     back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
+    rows = _quiz_answer_rows(unit, submission)
     return render(
         request,
         "courses/manage/analytics_student_quiz.html",
@@ -318,6 +375,9 @@ def analytics_student_quiz(request, slug, student_pk, node_pk):
             "pill": pill,
             "back_url": f"{student_path}?{back_qs}",
             "has_math": False,
+            "rows": rows,
+            "answered_count": sum(1 for row in rows if row["answered"]),
+            "question_count": len(rows),
         },
     )
 
