@@ -25,6 +25,7 @@
 - **Test users who log in must be verified**: use `make_login` / `make_pa` / `make_teacher` / `make_verified_user` + `client.force_login`, never a bare `UserFactory` for a logged-in viewer (allauth's mandatory verification redirects it).
 - **pk sequences are independent per model** — never assert a pk as a substring of HTML; select elements with BeautifulSoup and compare exact attribute values (memory: independent-pk-sequences-make-substring-assertions-flaky).
 - **Tooling runs through uv**: `uv run pytest …`, `uv run ruff check --no-cache .`, `uv run ruff format --check .`, `uv run python manage.py …`. **Never pass `-q` to pytest** (addopts already has it). e2e tests need `-m e2e`.
+- **Lint before every commit:** `uv run ruff check --no-cache --fix <files the task touched> && uv run ruff format <files the task touched>`, then re-run the task's tests. `pyproject.toml` selects `I` (isort) and `E`: the plan's code blocks are not guaranteed sorted or wrapped, so let ruff fix import order and line length rather than hand-editing.
 - **Test DB preflight (once per session, before any pytest):** a git worktree has no `.env` — copy it from the main checkout (`cp ../libli/.env .env`); start the container with `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`; run ONE pytest process at a time. Read the pass/fail counts from the summary line, not the exit code.
 - **Falsify steps:** each mutant is applied BY HAND, the named test is run and observed RED, then the mutant is reverted BY HAND and `git diff` is read to confirm the revert. **Never `git checkout -- <file>` to revert a mutant** (it discards the task's own uncommitted work).
 - **Commit messages** end with:
@@ -215,8 +216,8 @@ Delete the `from courses.models import X` line for every name whose ONLY remaini
 
 - [ ] **Step 4: Run the tests and lint**
 
-Run: `uv run pytest tests/test_analytics_rollups.py tests/test_analytics_views.py tests/test_courses_views.py -v`
-Expected: all PASS (read the summary line).
+Run: `uv run pytest tests/test_analytics_rollups.py tests/test_courses_rollups.py tests/test_analytics_views.py tests/test_courses_views.py -v`
+Expected: all PASS (read the summary line). `tests/test_courses_rollups.py` holds the main `build_course_results` tests (statuses, url names, done count, query count).
 Run: `uv run ruff check --no-cache courses/rollups.py` — Expected: no F401.
 Run: `uv run python -c "import django,os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.test'); django.setup(); import courses.rollups"` — Expected: no ImportError (no cycle).
 
@@ -393,11 +394,11 @@ The comment stays five lines. Check: `git diff --stat courses/views.py` shows `1
 
 - [ ] **Step 6: Run**
 
-Run: `uv run pytest tests/test_analytics_rollups.py tests/test_analytics_views.py tests/test_courses_views.py tests/test_e2e_results.py tests/test_review_services.py -v`
+Run: `uv run pytest tests/test_analytics_rollups.py tests/test_courses_rollups.py tests/test_analytics_views.py tests/test_courses_views.py tests/test_e2e_results.py tests/test_review_services.py -v`
 (`test_e2e_results.py` is `-m e2e`-marked and will be deselected; that is fine here — it runs in Task 13.)
 Expected: all PASS.
 
-- [ ] **Step 7: Falsify.** (a) In `_quiz_pill`, drop `"submission_pk"` from the `in_progress` return → `test_in_progress_pill_carries_submission_pk` RED. (b) In the loop, move `done_count += 1` under `if not row["pending"]` → an existing `build_course_results` done-count test in `tests/test_courses_views.py` or `tests/test_analytics_rollups.py` goes RED (run both files; name the red test in your report). Revert both by hand; read `git diff`.
+- [ ] **Step 7: Falsify.** (a) In `_quiz_pill`, drop `"submission_pk"` from the `in_progress` return → `test_in_progress_pill_carries_submission_pk` RED. (b) In the loop, move `done_count += 1` under `if not row["pending"]` → `tests/test_courses_rollups.py::test_awaiting_review_until_all_reviewed` RED (`assert res["done_count"] == 1`). Revert both by hand; read `git diff`.
 
 - [ ] **Step 7b: Commit**
 
@@ -544,6 +545,16 @@ def prefetch_question_children(questions):
         prefetch_related_objects(
             multigrid_qs, "columns", "rows", "rows__correct_columns"
         )
+```
+
+In `build_lesson_context`, the comment beginning `# SECOND ACCEPTED LIMITATION, same shape:` names `choice_qs`/`fill_qs`, which stop existing there. Reword its five lines to (still five lines):
+
+```python
+    # SECOND ACCEPTED LIMITATION, same shape: prefetch_question_children(questions)
+    # takes `questions` from `elements` (parent__isnull=True), so a NESTED choice
+    # question re-queries choices.all() per render. Bounded (per-unit question counts
+    # are small) and pre-existing for nested fill_blank's `blanks`. Closing it would
+    # cost an extra flat query on EVERY lesson render, most of which have no nesting.
 ```
 
 In `build_lesson_context`, replace the seven `…_qs = [...]` lines and the seven `if …_qs:` blocks (keep the `questions = [...]` list above them) with the single line:
@@ -1073,7 +1084,7 @@ Implements spec §4.3 (fillblank, dragfill, dragimage, matchpair, choicegrid, mu
 - Consumes: Task 4's `Part`, `_answer_part`, `_answered`, `_is_auto`, `_text_or_none`, `_ADAPTERS`; `courses.fillblank._TOKEN_RE` (compiled `"￿(\d+)￿"`, group 1 = 0-based gap index).
 - Produces: `_ADAPTERS` holds all ten concrete types; `gap_marked_stem(question) -> SafeString`; `stem_html(question) -> SafeString` (token types → `gap_marked_stem`, every other type → `mark_safe(question.stem)`).
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/test_answer_summary.py` (add `from unittest import mock`, `from django.apps import apps`, `from courses import answer_summary`, `from courses.answer_summary import stem_html` to its imports):
+- [ ] **Step 1: Write the failing tests** — append to `tests/test_answer_summary.py` (add `from unittest import mock`, `from django.apps import apps`, `from courses import answer_summary` to its module imports; `stem_html` is imported **inside** the two stem tests, so its absence fails those two tests instead of breaking collection of the whole file):
 
 ```python
 # --- T34 drift guard ---------------------------------------------------------
@@ -1217,8 +1228,65 @@ def test_review_matchpair_and_choicegrid_take_labels_from_child_rows():
     ]
 
 
+# --- T32 matrix: the remaining unanswered-AUTO, REVIEW-copy and partial cases -----
+def test_unanswered_auto_parts_for_every_remaining_type():
+    made = build_all_types()
+
+    def run(key):
+        return summarise_stored(made[key], None, unanswered=True)
+
+    assert run("shortnumeric") == [_answer(None, "1/2", False)]
+    assert run("dragfill") == [_gap(1, None, "cat", False), _gap(2, None, "dog", False)]
+    assert run("dragimage") == [
+        _answer(None, "Heart", False, label="Zone 1"),
+        _answer(None, "Liver", False, label="Zone 2"),
+    ]
+    assert run("matchpair") == [
+        _answer(None, right, False, label=left, label_is_content=True)
+        for left, right in (("a", "1"), ("b", "2"), ("c", "3"))
+    ]
+    assert run("choicegrid") == [
+        _answer(None, "yes", False, label="r1", label_is_content=True),
+        _answer(None, "no", False, label="r2", label_is_content=True),
+    ]
+    assert run("multigrid") == [
+        _answer(None, "a, b", False, label="r1", label_is_content=True),
+        _answer(None, "c", False, label="r2", label_is_content=True),
+    ]
+
+
+def test_review_copies_of_every_remaining_type_carry_given_only():
+    made = build_all_types(mode=REVIEW)
+    assert summarise_stored(made["shortnumeric"], "3") == [_answer("3", None, None)]
+    assert summarise_stored(made["dragfill"], ["dog", "cat"]) == [
+        _gap(1, "dog", None, None),
+        _gap(2, "cat", None, None),
+    ]
+    assert summarise_stored(made["dragimage"], ["Liver", "Heart"]) == [
+        _answer("Liver", None, None, label="Zone 1"),
+        _answer("Heart", None, None, label="Zone 2"),
+    ]
+    mg = made["multigrid"]
+    cols = _cols(mg)
+    assert summarise_stored(mg, [[cols["a"]], []]) == [
+        _answer("a", None, None, label="r1", label_is_content=True),
+        _answer(None, None, None, label="r2", label_is_content=True),
+    ]
+
+
+def test_multigrid_partial_one_row_right_one_wrong():
+    q = build_all_types()["multigrid"]
+    cols = _cols(q)
+    assert summarise_stored(q, [[cols["a"], cols["b"]], [cols["a"]]]) == [
+        _answer("a, b", None, True, label="r1", label_is_content=True),
+        _answer("a", "c", False, label="r2", label_is_content=True),
+    ]
+
+
 # --- token stems --------------------------------------------------------------
 def test_token_stems_are_gap_marked_like_the_part_labels():
+    from courses.answer_summary import stem_html
+
     made = build_all_types()
     for key in ("fillblank", "dragfill"):
         html = str(stem_html(made[key]))
@@ -1228,6 +1296,8 @@ def test_token_stems_are_gap_marked_like_the_part_labels():
 
 
 def test_other_stems_render_unchanged():
+    from courses.answer_summary import stem_html
+
     q = build_all_types()["shorttext"]
     assert str(stem_html(q)) == q.stem
 ```
@@ -1235,7 +1305,7 @@ def test_other_stems_render_unchanged():
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_answer_summary.py -v`
-Expected: the new tests FAIL — `KeyError` for the multi-part types, `ImportError`/`AttributeError` for `stem_html`; the drift guard FAILS listing six models. Task 4's tests still PASS.
+Expected: the new tests FAIL — `KeyError` for the multi-part types, `ImportError: cannot import name 'stem_html'` inside the two stem tests; the drift guard FAILS listing six models. Task 4's tests still PASS.
 
 - [ ] **Step 3: Implement** — in `courses/answer_summary.py` add the imports
 
@@ -1580,9 +1650,12 @@ def test_t30_access_matrix(client):
         (staff, 404),
         (pupil_a, 404),
     ]
-    for viewer, status in expected:
+    actual = {}
+    for viewer, _status in expected:
         client.force_login(viewer)
-        assert client.get(url).status_code == status, viewer.username
+        actual[viewer.username] = client.get(url).status_code
+    # ONE dict comparison, so a failure lists EVERY flipped row (spec T30).
+    assert actual == {viewer.username: status for viewer, status in expected}
     client.logout()
     anonymous = client.get(url)
     assert anonymous.status_code == 302
@@ -1823,13 +1896,14 @@ Run: `uv run pytest tests/test_analytics_student_quiz.py tests/test_analytics_vi
 Expected: all PASS.
 
 - [ ] **Step 8: Falsify** (each by hand → run `tests/test_analytics_student_quiz.py` → RED → revert → `git diff`):
-  - (a) step 2 gate `if not request.user.is_staff:` instead of `can_review_course` → `test_t30_access_matrix` RED on the **teachera** row (and the owner and pa rows: 200 → 404).
-  - (b) step 3 `get_user_model().objects.filter(pk=student_pk).first()` → RED on the **teacherb** row (and **archivedteacher**): 404 → 200.
-  - (c) replace step 3 with a copy of `reviewable_students`' body that keeps the PA/owner `Enrollment` branch and drops only `archived=False` from the group-teacher branch → RED on the **archivedteacher** row only.
-  - (d) `can_review_course(...) or request.user.is_staff` at step 2 **combined with** (b) → RED on the **staffnogroup** row (404 → 200).
+  For (a)–(d) read the **whole dict diff** pytest prints; it must name exactly the rows listed.
+  - (a) step 2 gate `if not request.user.is_staff:` instead of `can_review_course` → `test_t30_access_matrix` RED, flipped rows exactly `pa`, `owner`, `teachera` (200 → 404).
+  - (b) step 3 `get_user_model().objects.filter(pk=student_pk).first()` (import `get_user_model` for the mutant) → RED, flipped rows exactly `teacherb`, `archivedteacher` (404 → 200).
+  - (c) replace step 3 with a copy of `reviewable_students`' body that keeps the PA/owner `Enrollment` branch and drops only `archived=False` from the group-teacher branch → RED, flipped row exactly `archivedteacher`.
+  - (d) `can_review_course(...) or request.user.is_staff` at step 2 **combined with** (b) → RED, flipped rows exactly `teacherb`, `archivedteacher`, `staffnogroup` — `staffnogroup` is the row (b) alone does not flip, and is what this mutant exists to show.
   - (e) drop `require_quiz=True` → `test_t31_each_path_segment_404s_on_its_own` RED (lesson case).
-  - (f) replace step 4 with `unit = get_object_or_404(ContentNode, pk=node_pk, kind="unit", unit_type="quiz")` (bypasses the slug check) → T31 RED (other-course case).
-  - (g) step 5: `if submission is None: submission = QuizSubmission(student=student, unit=unit)` → T31 RED (no-submission case; the page renders).
+  - (f) replace step 4 with `unit = get_object_or_404(ContentNode, pk=node_pk, kind="unit", unit_type="quiz")` (bypasses the slug check; add `from courses.models import ContentNode` for the mutant) → T31 RED (other-course case: 200 instead of 404).
+  - (g) step 5: `if submission is None: raise PermissionDenied` (import it for the mutant) → T31 RED (no-submission case: 403 instead of 404). (An unsaved stand-in `QuizSubmission` would not "render an empty page": Django raises on an unsaved instance in `submission__in`, which errors the test for a different reason.)
   - (h) add `viewer=request.user` to `get_node_or_404` → `test_t31b_…` RED.
   - (i) in the new template, move the Review link inside `_quiz_pill.html` as well → `test_awaiting_header_has_one_review_link` RED (two links).
 
@@ -2156,7 +2230,7 @@ def test_review_feedback_shows_on_any_row_with_feedback(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_analytics_student_quiz.py -v`
-Expected: the new tests FAIL (no `li.answers__item`; `.answers__status` has no count). Task 6's tests still PASS.
+Expected: the new tests FAIL (no `li.answers__item`; `.answers__status` has no count) **except** `test_t36_header_pill_matches_the_breakdown_pill` (Task 6 already built the header pill from the shared partial — its red comes from Falsify (i)–(k)) and `test_t35_teacher_voice_only` (passes trivially until rows render; it guards the template's wording afterwards). Task 6's tests still PASS.
 
 - [ ] **Step 3: Rows.** In `courses/views_analytics.py` add imports:
 
@@ -2309,6 +2383,8 @@ Expected: all PASS.
   - (k) template header: replace the `_quiz_pill.html` include with an inline copy of its spans, changing `pill--scored` to `pill--score` → T36 RED.
   - (l) template: `{% if row.review_feedback and row.outcome == "reviewed" %}` → `test_review_feedback_shows_on_any_row_with_feedback` RED.
   - (m) view: `row["attempt_max"] = limit` (drop the `attempts <= limit` guard) → `test_t33_lowered_max_attempts_never_prints_n_of_smaller_max` RED ("attempt 3 of 1").
+  - (n) **D9 on the page (spec T41):** temporarily restore the 8-model `_QUESTION_MODELS` list in `courses/rollups.py` (paste the eight names back, re-adding their imports) → `test_t41_grid_quizzes_header_pills` RED on the header pill (`.pill--awaiting` missing) and the header Review link. Revert by hand and read `git diff courses/rollups.py`.
+  - (o) `courses/answer_summary.py` `_shortnumeric`: pass `response.fraction == 1` as `correct` instead of `mark_result.correct` → `test_t33_key_edited_after_answering_keeps_badge_and_remarks_parts` RED (the part reads ✓).
 
 - [ ] **Step 7: Commit**
 
@@ -2463,6 +2539,26 @@ def test_course_language_tags_given_expected_and_content_labels(client):
     assert part.select_one(".answers__expected strong")["lang"] == "pl"
 
 
+def test_answered_extendedresponse_keyword_parts_never_say_not_answered(client):
+    """Spec T32's rendered check: keyword parts always have given=None, so only
+    the kind == "answer" gate keeps "Not answered" off them."""
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Keywords")
+    el = _add(
+        quiz,
+        ExtendedResponseQuestionElement,
+        required_keywords="alpha\nbeta",
+        forbidden_keywords="gamma",
+    )
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer="alpha only", fraction=Decimal("0.5"), attempt_count=1)
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    keyword_parts = item.select(".answers__part--keyword")
+    assert len(keyword_parts) == 3
+    for part in keyword_parts:
+        assert "Not answered" not in part.get_text(" ", strip=True)
+
+
 # --- T39 maths ---------------------------------------------------------------
 def _script_srcs(soup):
     return [s["src"] for s in soup.select("script[src]")]
@@ -2506,7 +2602,9 @@ def test_t39_no_maths_anywhere_loads_neither(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_analytics_student_quiz.py -v`
-Expected: the eight new tests FAIL, except `test_t39_no_maths_anywhere_loads_neither` and `test_token_stems_render_gap_markers_matching_the_part_labels`, which may already PASS (stem markers come from Task 7's `stem_html`; `has_math` is still `False`). Record which passed.
+Expected: exactly **four FAIL** — `test_dragimage_row_renders_a_static_numbered_stage`, `test_zero_question_quiz_and_zero_part_question_empty_states`, `test_t39_pupil_typed_maths_loads_katex_and_question_js`, `test_t39_review_feedback_maths_alone_loads_katex`.
+
+The other **six already PASS** on Task 7's build, by design: `test_t39_no_maths_anywhere_loads_neither` (`has_math` is still `False`), `test_token_stems_render_gap_markers_matching_the_part_labels` (Task 7 sets `stem_html`), `test_an_empty_part_that_scores_true_shows_no_tick_and_no_sr_correct` (Task 7 keys glyph and sr-only on `Part.mark`), `test_shorttext_with_empty_expected_renders_no_hint` (Task 7 uses `{% if part.expected %}`), `test_course_language_tags_given_expected_and_content_labels` (Task 7 sets `lang`), `test_answered_extendedresponse_keyword_parts_never_say_not_answered` (Task 7 gates "Not answered" on `part.kind == "answer"`). **Do not change Task 7's template to make them red** — they guard Task 7's markup, and Step 7's mutants (a), (f), (g), (h), (l) supply their red.
 
 - [ ] **Step 3: Implement the view side.** In `courses/views_analytics.py` add imports:
 
@@ -2619,6 +2717,7 @@ Expected: all PASS.
   - (i) `_answers_have_math`: check stems only (`_question_has_math`) → `test_t39_pupil_typed_maths_loads_katex_and_question_js` RED.
   - (j) delete the `question.js` `<script>` → the same test RED.
   - (k) `_answers_have_math`: drop the `review_feedback` line → `test_t39_review_feedback_maths_alone_loads_katex` RED.
+  - (l) template: remove the `{% if part.kind == "answer" %}` / `{% endif %}` pair around the given/"Not answered" markup → `test_answered_extendedresponse_keyword_parts_never_say_not_answered` RED.
 
 - [ ] **Step 8: Commit**
 
@@ -2751,7 +2850,7 @@ and in `test_analytics_breakdown_titles_are_marked` replace the single `quiz = _
 
 - [ ] **Step 2: Run to verify they fail**
 
-Run: `uv run pytest tests/test_analytics_student_quiz.py -k t37 tests/test_title_math_markers.py -k "t37 or breakdown_titles" -v`
+Run: `uv run pytest tests/test_analytics_student_quiz.py tests/test_title_math_markers.py -k "t37 or breakdown_titles" -v`
 Expected: `test_t37_quiz_titles_link_iff…` FAILS (no `a.breakdown-unit__link`); `test_analytics_breakdown_titles_are_marked` FAILS on `linked`; the back-link test PASSES already (Task 6 built `back_url`) — it is here as the regression guard for its mutants.
 
 - [ ] **Step 3: Implement.** In `analytics_student`, add `"drill_qs": back_qs,` to the render context (it already computes `back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)`).
@@ -2927,6 +3026,8 @@ Implements spec §5.4 and §5.5.
 
 - [ ] **Step 1: Extract**
 
+First record the baseline: `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po` (write the number down). Then:
+
 Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
 
 - [ ] **Step 2: Confirm the new msgids and fill Polish.** For each msgid below, `grep -n -A3 'msgid "<text>"' locale/pl/LC_MESSAGES/django.po`. If it carries `#, fuzzy`, delete **all three** of: the `#, fuzzy` line, any `#| msgid …` line, and the pre-filled `msgstr` (memory: makemessages-fuzzy-prefills-wrong-translation). Then set:
@@ -2949,7 +3050,7 @@ The count argument is `n` (spec §5.4). "quiz" matches the existing catalog ("Te
 
 If a msgid in the table is absent, the template/`gettext` call that should produce it is missing — fix the source, not the catalog. The reused msgids (`Correct`, `Incorrect`, `Partial`, `Not answered`, `Answer recorded`, `Reviewed`, `Awaiting review`, `Correct answer:`, `Breakdown`, `Review`, `Required`, `Avoid`, `up to %(m)s marks`, the pill strings) must still have their existing non-empty `msgstr`.
 
-Run: `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po` before and after Step 1 — the count must not have grown.
+Run: `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po` again after clearing — the count must not exceed Step 1's baseline.
 
 - [ ] **Step 3: Compile and check**
 
@@ -3106,7 +3207,13 @@ Run: `grep -rnE "views\.py:[0-9]|rollups\.py:[0-9]|_breakdown_node\.html:[0-9]" 
 
 (`grep` exits 1 on no match — memory: set-e-pipefail-kills-on-nothing-matched; that is not an error here.)
 
-For each hit, open the cited file at the cited line and re-point the number to where the cited code now lives, keeping the edited line's line count unchanged. Known at `d432245a` (numbers are the OLD targets):
+**Scope: only citations that were ACCURATE at `d432245a`.** The grep also returns citations that were already stale on master and regex false positives, so for each hit:
+
+1. **False positive?** Only citations into `courses/views.py`, `courses/rollups.py` or `templates/courses/manage/_breakdown_node.html` count. A hit such as `test_review_views.py:54` (another file whose name ends in `views.py`) is out of scope — skip it.
+2. **Accurate before this branch?** Print the OLD target: `git show d432245a:courses/views.py | sed -n '<N>p'` (substitute the cited file and line). If that line does NOT hold the code the citation describes, the citation was already stale on master — **leave it untouched** and list it under "pre-existing stale citations" in the PR description. Do not guess what it meant.
+3. **Re-point.** If the old line does hold the described code, `grep -n` the current file for a distinctive fragment of that old line and change the cited number to the new line, keeping the edited line's line count unchanged.
+
+Candidates from the spec's review (numbers are the OLD targets; each still goes through checks 1–3):
 - `demo/generator.py:177` (→ `views.py:1654-1664`) and `:205` (→ `:1674`)
 - `courses/templatetags/courses_extras.py:71` (→ `views.py:1394`)
 - `tests/test_publish_banners.py:209` (→ `:1372`) and `:231` (→ `:1405`)
@@ -3133,12 +3240,12 @@ uv run ruff format --check .
 uv run python manage.py makemigrations --check --dry-run
 ```
 
-Expected: clean, clean, "No changes detected". If `ruff format --check` lists files, run `uv run ruff format .` on exactly those, re-run the affected tests, and commit.
+Expected: clean, clean, "No changes detected". If `ruff check` reports fixable violations (I001 import order, formatting-adjacent E rules), run `uv run ruff check --no-cache --fix <those files>`; fix any remaining non-fixable ones by hand. If `ruff format --check` lists files, run `uv run ruff format` on exactly those. Then re-run the affected tests and commit.
 
 - [ ] **Step 3: Branch sweep in chunks** (memory: full-suite-run-is-oom-killed — never one whole-suite run; one pytest process at a time; read each summary line):
 
 ```bash
-uv run pytest tests/test_analytics_rollups.py tests/test_analytics_views.py tests/test_analytics_student_quiz.py tests/test_answer_summary.py tests/test_prefetch_question_children.py tests/test_title_math_markers.py tests/test_title_math_assets.py -v
+uv run pytest tests/test_analytics_rollups.py tests/test_courses_rollups.py tests/test_analytics_views.py tests/test_analytics_student_quiz.py tests/test_answer_summary.py tests/test_prefetch_question_children.py tests/test_title_math_markers.py tests/test_title_math_assets.py -v
 uv run pytest tests/test_courses_views.py tests/test_quiz_results_render.py tests/test_publish_banners.py tests/test_css_citations_are_durable.py tests/test_publish_viewer_scan.py tests/test_richtext.py tests/test_richtext_drift.py tests/demo -v
 uv run pytest courses/tests -v
 uv run pytest tests -k "question or quiz or review or gradebook or export or help" -v
