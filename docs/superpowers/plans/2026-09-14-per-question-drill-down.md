@@ -26,7 +26,7 @@
 - **pk sequences are independent per model** — never assert a pk as a substring of HTML; select elements with BeautifulSoup and compare exact attribute values (memory: independent-pk-sequences-make-substring-assertions-flaky).
 - **Tooling runs through uv**: `uv run pytest …`, `uv run ruff check --no-cache .`, `uv run ruff format --check .`, `uv run python manage.py …`. **Never pass `-q` to pytest** (addopts already has it). e2e tests need `-m e2e`.
 - **Never paste the U+FFFF gap sentinel into a file.** Build token stems from `courses.fillblank.SENTINEL` (`f"{SENTINEL}0{SENTINEL}"`) and assert with `SENTINEL`, as `tests/conftest.py` does — file tools corrupt the raw character, which would make token tests fail (or pass) for the wrong reason.
-- **Lint before every commit:** `uv run ruff check --no-cache --fix <files the task touched> && uv run ruff format <files the task touched>`, then re-run the task's tests. `pyproject.toml` selects `I` (isort) and `E`: the plan's code blocks are not guaranteed sorted or wrapped, so let ruff fix import order and line length rather than hand-editing.
+- **Lint before every commit:** `uv run ruff check --no-cache --fix <files the task touched> && uv run ruff format <files the task touched>`, then re-run the task's tests. `pyproject.toml` selects `E, F, I, UP, B, S`: the plan's code blocks are not guaranteed sorted or wrapped, so let ruff fix import order and line length rather than hand-editing. `S308` is why the `mark_safe` calls carry `# noqa: S308` — keep those.
 - **Test DB preflight (once per session, before any pytest):** a git worktree has no `.env` — copy it from the main checkout (`cp ../libli/.env .env`); start the container with `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`; run ONE pytest process at a time. Read the pass/fail counts from the summary line, not the exit code.
 - **Falsify steps:** each mutant is applied BY HAND, the named test is run and observed RED, then the mutant is reverted BY HAND and `git diff` is read to confirm the revert. **Never `git checkout -- <file>` to revert a mutant** (it discards the task's own uncommitted work).
 - **Commit messages** end with:
@@ -2397,8 +2397,8 @@ Expected: all PASS.
   - (l) template: `{% if row.review_feedback and row.outcome == "reviewed" %}` → `test_review_feedback_shows_on_any_row_with_feedback` RED.
   - (m) view: `row["attempt_max"] = limit` (drop the `attempts <= limit` guard) → `test_t33_lowered_max_attempts_never_prints_n_of_smaller_max` RED ("attempt 3 of 1").
   - (n) **D9 on the page (spec T41):** temporarily restore the 8-model `_QUESTION_MODELS` list in `courses/rollups.py` (paste the eight names back, re-adding their imports) → `test_t41_grid_quizzes_header_pills` RED on the header pill (`.pill--awaiting` missing) and the header Review link. Revert by hand and read `git diff courses/rollups.py`.
-  - (p) template: change `{% trans "Correct answer:" %}` in the parts markup to the literal `Your answer:` → `test_t35_teacher_voice_only` RED ("your answer" found).
   - (o) `courses/answer_summary.py` `_shortnumeric`: pass `response.fraction == 1` as `correct` instead of `mark_result.correct` → `test_t33_key_edited_after_answering_keeps_badge_and_remarks_parts` RED (the part reads ✓).
+  - (p) template: change `{% trans "Correct answer:" %}` in the parts markup to the literal `Your answer:` → `test_t35_teacher_voice_only` RED ("your answer" found).
 
 - [ ] **Step 7: Commit**
 
@@ -2853,7 +2853,7 @@ In `tests/test_title_math_markers.py`, `_analytics_bodies`: the existing quiz be
     )
 ```
 
-and in `test_analytics_breakdown_titles_are_marked` replace the single `quiz = _marked(...)` assertion with two, selected distinctly:
+and in `test_analytics_breakdown_titles_are_marked` **delete both** the `quiz = _marked(...)` assignment **and** its later `assert quiz, "the quiz unit branch …"` line (a leftover `assert quiz` raises `NameError`), then add in their place two selections made distinctly:
 
 ```python
     linked = _marked(
@@ -2920,7 +2920,7 @@ Also rewrite the two docstrings the new fixture made false, **keeping each one's
     one -- so the linked and plain quiz titles are each asserted on their own."""
 ```
 
-Fill `:A-B`, `:C`, `:D`, `:N`, `:M` from `grep -n` over `_breakdown_node.html` (the quiz `{% if item.node.unit_type == "quiz" %}` block's first and last line, the quiz title span, the lesson title span).
+Fill `:A-B`, `:C`, `:D`, `:N`, `:M` from `grep -n` over `_breakdown_node.html` : `A` = the line of `{% if item.node.unit_type == "quiz" %}`; `B` = the line of the quiz branch's closing `</div>`, i.e. the line just **before** `{% else %}` (the old `:4-21` convention); `C` and `N` = the quiz title span; `D` and `M` = the lesson title span.
 
 - [ ] **Step 6: Falsify** (each by hand → RED → revert → `git diff`):
   - (a) template: `{% if item.pill %}` instead of `{% if item.pill.submission_pk %}` → `test_t37_quiz_titles_link_iff…` RED: the not-started title gains an `<a>`, so `_breakdown_title_span(soup, notyet.title).select("a") == []` fails. (The `{% url %}` uses `node_pk` and `student.pk`, so the reverse itself still works.)
@@ -3253,6 +3253,8 @@ Run: `grep -rnE "views\.py:[0-9]|rollups\.py:[0-9]|_breakdown_node\.html:[0-9]" 
 
 (`grep` exits 1 on no match — memory: set-e-pipefail-kills-on-nothing-matched; that is not an error here.)
 
+Citations often continue on the next comment line as a bare `:1674` with no filename, which the grep above cannot see. Re-run it with `-A3` and, for each hit, apply checks 1–3 below to any bare `:<digits>` in the following lines that cites the same file.
+
 **Scope: only citations that were ACCURATE at `d432245a`.** The grep also returns citations that were already stale on master and regex false positives, so for each hit:
 
 1. **False positive?** Only citations into `courses/views.py`, `courses/rollups.py` or `templates/courses/manage/_breakdown_node.html` count. A hit such as `test_review_views.py:54` (another file whose name ends in `views.py`) is out of scope — skip it.
@@ -3302,9 +3304,9 @@ Expected: every summary line reports 0 failed, 0 errors. A failure in a file unr
 
 - [ ] **Step 4: Manual pass on local mat-pp** (spec §6 manual pass, §7). In the worktree with `.env` copied and `LIBLI_VENDOR_INSTANCE=true` exported for the shell:
 
-1. `uv run python manage.py runserver`.
+1. **Before D9 numbers are served from the MAIN checkout, never this worktree.** In `../libli` (its own `.env`, the same `LIBLI_VENDOR_INSTANCE=true` export), run `uv run python manage.py runserver 8001` and use only `http://127.0.0.1:8001` for sub-step 2. Prove the page is master's: the breakdown's quiz titles carry **no** link.
 2. **Before D9 numbers:** on a checkout of master (`git stash` is shared across worktrees — use the main checkout on master instead). First confirm what that checkout is: `git -C ../libli rev-parse --abbrev-ref HEAD` must print `master`, and `git -C ../libli merge-base --is-ancestor <this branch's D9 commit sha> HEAD` must exit **non-zero** (D9 not yet in it); record `git -C ../libli log -1 --oneline` in the PR notes. Then, open the analytics breakdown, the matrix (results mode), a pupil's course results page and the gradebook export for a mat-pp quiz that holds a **choicegrid**; note the pill, the course-results **row**, and the gradebook maximum.
-3. **After:** the same pages on this branch. Record the differences; they must match spec §7 (a grid-only AUTO quiz's pill `submitted` → `scored` and its course-results row shows the score; the headline does not move for it; a mixed quiz's gradebook maximum rises by its grid marks).
+3. **After:** stop the :8001 server; in the worktree run `uv run python manage.py runserver` (port 8000) and open the same pages at `http://127.0.0.1:8000` — the breakdown's quiz titles are now links, which proves the branch is serving. Record the differences; they must match spec §7 (a grid-only AUTO quiz's pill `submitted` → `scored` and its course-results row shows the score; the headline does not move for it; a mixed quiz's gradebook maximum rises by its grid marks).
 4. Provision a demo kit for mat-pp (`uv run python manage.py demo_access create …` — see `docs/deployment.md` §7 for the arguments), log in as its Teacher, open the matrix → a pupil → several quiz titles.
 5. Take screenshots in **light and dark** (`user.theme`, not the cookie — memory: dialog-does-not-inherit-the-page-theme) of: a submitted quiz with wrong answers, an in-progress quiz, a quiz with a choicegrid, and the breakdown with linked titles. Judge the dark shots separately (memory: verify-ui-with-screenshots). Check: wrong answers **vary between pupils** on the same question (parent T28); no text says "you"/"your"; maths is typeset; the phone width (390px) stacks parts without horizontal page scroll.
 6. Revoke the kit (`demo_access revoke …`).
@@ -3315,6 +3317,8 @@ Fix anything found as its own commit with a test that fails first.
   - What: the per-question drill-down (spec link), and **D9**.
   - **D9 changes live numbers on deploy** — paste spec §7's bullet list, plus the Step 4 before/after observations.
   - Polish msgstrs from Task 11 as **non-native drafts for review**.
+  - The two help paragraphs (`drill-down.md` / `.pl.md`, Task 11 Step 4), the Polish one as a non-native draft.
+  - **Pre-existing stale citations** found (and deliberately left) in Step 1.
   - Screenshots (light + dark).
   - Local gate results from Steps 2–3 (summary lines).
   - The body ends with:
