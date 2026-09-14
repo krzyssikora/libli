@@ -1,4 +1,6 @@
 {% load i18n %}
+{# The NAV is the scroller; the .scroll-x wrapper only paints the edge shade (core/js/scroll_affordance.js contract). #}
+<div class="scroll-x settings__tabs-wrap" data-scroll-x>
 <nav class="settings__tabs" aria-label="{% trans 'Settings sections' %}">
   <a class="settings__tab{% if active_tab == 'branding' %} is-on{% endif %}"
      href="{% url 'institution:settings' %}?tab=branding">{% trans "Branding" %}</a>
@@ -17,7 +19,11 @@
   <a class="settings__tab{% if active_tab == 'public-pages' %} is-on{% endif %}"
      href="{% url 'institution:settings' %}?tab=public-pages">{% trans "Public pages" %}</a>
   {% if vendor_instance %}
+  <span class="settings__tabs-divider" aria-hidden="true"></span>
   <a class="settings__tab{% if active_tab == 'pricing' %} is-on{% endif %}"
      href="{% url 'institution:settings' %}?tab=pricing">{% trans "Pricing" %}</a>
+  <a class="settings__tab{% if active_tab == 'demo' %} is-on{% endif %}"
+     href="{% url 'institution:settings' %}?tab=demo">{% trans "Demo access" %}</a>
   {% endif %}
 </nav>
+</div>

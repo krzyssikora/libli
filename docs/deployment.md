@@ -486,7 +486,9 @@ ever vendor-gated — a lost `LIBLI_VENDOR_INSTANCE`. That is why it is not. Add
 `.env.production` (still unset as of 2026-09-12, so `/for-schools/` is 404 and
 `demo_access create` refuses). ⚠️ The same flag publishes `/for-schools/`, so turning it on is
 a **publishing decision, not an ops chore** — see the spec's §5. Do not flip it merely to
-rehearse a kit.
+rehearse a kit. Once it is on, kits can also be issued, extended and revoked from **Settings →
+Demo access** (`/manage/settings/?tab=demo`), which calls the same services as `demo_access`;
+provision and revoke the first throwaway kit there, which also measures the prod wall-clock.
 
 ✅ **Done 2026-09-12** (on libli.pl, so a rebuild is what needs these, not this box): the purge
 cron above is installed in the root crontab and verified with `--dry-run`; an

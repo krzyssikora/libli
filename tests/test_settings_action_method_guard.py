@@ -28,21 +28,26 @@ from integrations.models import WebhookEndpoint
 from notifications.models import Notification
 from tests.factories import make_pa
 
-# Every settings action view. The first six share the `_action` helper, so they
-# stand or fall together; the rest carry their own copy of the guard.
-ACTION_URL_NAMES = [
-    "institution:settings_branding",
-    "institution:settings_access",
-    "institution:settings_uploads",
-    "institution:settings_notifications",
-    "institution:settings_public_pages",
-    "institution:settings_pricing",
-    "institution:settings_notifications_purge",
-    "institution:settings_sso",
-    "institution:settings_integrations",
-    "institution:settings_integrations_test",
-    "institution:settings_page_overrides",  # already correct since #279
-    "institution:settings_support",
+# Every settings action view, with the URL kwargs its route needs. The first six
+# share the `_action` helper, so they stand or fall together; the rest carry their
+# own copy of the guard. The demo views reject a non-POST before they look the kit
+# up, so any kit id will do.
+ACTION_URLS = [
+    ("institution:settings_branding", {}),
+    ("institution:settings_access", {}),
+    ("institution:settings_uploads", {}),
+    ("institution:settings_notifications", {}),
+    ("institution:settings_public_pages", {}),
+    ("institution:settings_pricing", {}),
+    ("institution:settings_notifications_purge", {}),
+    ("institution:settings_sso", {}),
+    ("institution:settings_integrations", {}),
+    ("institution:settings_integrations_test", {}),
+    ("institution:settings_page_overrides", {}),  # already correct since #279
+    ("institution:settings_support", {}),
+    ("institution:settings_demo_create", {}),
+    ("institution:settings_demo_extend", {"kit_id": 1}),
+    ("institution:settings_demo_revoke", {"kit_id": 1}),
 ]
 
 # The four that fell through. GET is excluded deliberately: it was always
@@ -52,10 +57,10 @@ NON_POST_METHODS = ["head", "options", "put", "delete"]
 
 @pytest.mark.django_db
 @override_settings(VENDOR_INSTANCE=True)
-@pytest.mark.parametrize("url_name", ACTION_URL_NAMES)
+@pytest.mark.parametrize(("url_name", "kwargs"), ACTION_URLS)
 @pytest.mark.parametrize("method", NON_POST_METHODS)
 def test_settings_action_redirects_instead_of_running_on_non_post(
-    client, url_name, method
+    client, url_name, kwargs, method
 ):
     """A non-POST is turned away at the door, exactly as a GET is.
 
@@ -64,13 +69,13 @@ def test_settings_action_redirects_instead_of_running_on_non_post(
     way. A 200 here means the body rendered -- i.e. the request reached the
     action.
 
-    VENDOR_INSTANCE=True is needed only for settings_pricing (it 404s without
-    the flag, and the guard would assert nothing) -- harmless for the other
-    eleven views, none of which read the flag.
+    VENDOR_INSTANCE=True is needed by settings_pricing and the demo action views
+    (each 404s without the flag, and the guard would assert nothing) -- harmless
+    for the views that do not read it.
     """
     make_pa(client)
 
-    response = getattr(client, method)(reverse(url_name))
+    response = getattr(client, method)(reverse(url_name, kwargs=kwargs))
 
     assert response.status_code == 302, (
         f"{url_name} answered {method.upper()} with {response.status_code}; "

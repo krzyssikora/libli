@@ -4,38 +4,40 @@ Vendor-only: this panel edits the pupil bands and prices shown on /for-schools/.
 The view 404s and the tab/panel are both hidden without VENDOR_INSTANCE -- see
 institution/views_manage.py's settings_pricing and _tabs().
 {% endcomment %}
-<form class="settings__form" method="post" action="{% url 'institution:settings_pricing' %}">
+<form class="settings__form settings__form--wide" method="post" action="{% url 'institution:settings_pricing' %}">
   {% csrf_token %}
   {{ pricing.non_field_errors }}
   <div class="settings__section">
     <h2 class="settings__section-title">{% trans "Plan bands" %}</h2>
     <div class="scroll-x" data-scroll-x>
-      <table class="settings__table">
-        <thead>
-          <tr>
-            <th>{% trans "Plan" %}</th>
-            <th>{% trans "Pupils min" %}</th>
-            <th>{% trans "Pupils max" %}</th>
-            <th>{% trans "Annual price" %}</th>
-            <th>{% trans "Support hours per term" %}</th>
-            <th>{% trans "Courses included" %}</th>
-            <th>{% trans "Video hours included" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in pricing.rows %}
-          <tr>
-            <th scope="row">{% blocktrans with order=row.order %}Plan {{ order }}{% endblocktrans %}</th>
-            <td>{{ row.pupils_min }}{{ row.pupils_min.errors }}</td>
-            <td>{{ row.pupils_max }}{{ row.pupils_max.errors }}</td>
-            <td>{{ row.annual_price }}{{ row.annual_price.errors }}</td>
-            <td>{{ row.support_hours_per_term }}{{ row.support_hours_per_term.errors }}</td>
-            <td>{{ row.courses_included }}{{ row.courses_included.errors }}</td>
-            <td>{{ row.video_hours_included }}{{ row.video_hours_included.errors }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="settings__table-scroll">
+        <table class="settings__table settings__table--pricing">
+          <thead>
+            <tr>
+              <th>{% trans "Plan" %}</th>
+              <th>{% trans "Pupils min" %}</th>
+              <th>{% trans "Pupils max" %}</th>
+              <th>{% trans "Annual price" %}</th>
+              <th>{% trans "Support hours per term" %}</th>
+              <th>{% trans "Courses included" %}</th>
+              <th>{% trans "Video hours included" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in pricing.rows %}
+            <tr>
+              <th scope="row">{% blocktrans with order=row.order %}Plan {{ order }}{% endblocktrans %}</th>
+              <td>{{ row.pupils_min }}{{ row.pupils_min.errors }}</td>
+              <td>{{ row.pupils_max }}{{ row.pupils_max.errors }}</td>
+              <td>{{ row.annual_price }}{{ row.annual_price.errors }}</td>
+              <td>{{ row.support_hours_per_term }}{{ row.support_hours_per_term.errors }}</td>
+              <td>{{ row.courses_included }}{{ row.courses_included.errors }}</td>
+              <td>{{ row.video_hours_included }}{{ row.video_hours_included.errors }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
     <p class="settings__help">{% trans 'Bands must run consecutively, in order, with no gap and no overlap. Leave a price blank to show "by arrangement".' %}</p>
   </div>

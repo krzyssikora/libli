@@ -192,6 +192,9 @@ pk 19, 1,029 nodes, updated 2026-09-05)
   grants read access to **every** course (`courses/access.py:22-23`) and a login to
   `/admin/`. Acceptable while `mat-pp` is the only course on libli.pl; it is a standing
   caveat before a private course is added there.
+  ⚠️ **Amended by PR 3 (2026-09-13): a *kit* Teacher is no longer staff** — `provision_kit`
+  clears `is_staff` after `set_user_role` — so it reads only its kit's course and has no
+  `/admin/` login (PR 3 spec §3.1). This bullet and the next stay true of ordinary Teachers.
 - ⚠️ **The `/admin/` login is harmless only because `grouping/admin.py` registers no
   models** (verified 2026-09-12: the file is a comment saying management happens through
   `/manage/`). The Teacher role holds `grouping.view_group` and full collection CRUD
@@ -265,7 +268,9 @@ changes a role.
 Consequences for a kit, all accepted rather than fought:
 
 - the kit's **Student and ~20 pupils join the Default cohort**; the Teacher does not
-  (staff are skipped);
+  (staff are skipped) — ⚠️ *amended by PR 3: the Teacher is created non-staff, joins Default
+  on insert and leaves on `set_user_role`'s role change; since PR 3 its exclusion rests on the
+  Teacher role group alone (PR 3 spec §2.6, §3.1)*;
 - so libli.pl's cohort surfaces show demo pupils while a kit is live. Acceptable under D7,
   and it keeps the kit on the same path as every other student the system creates;
 - `CohortMembership.user` is a **`OneToOneField`** (one cohort per student) with CASCADE
@@ -748,6 +753,7 @@ Order of work, inside one transaction:
    a bug in the scan, not an expected path. The unique constraint remains the real arbiter:
    an `IntegrityError` during user creation (two concurrent `create` runs resolving the same
    disambiguating integer) is caught and re-raised as the same named collision error.
+   ⚠️ **PR 2 shipped without this catch; PR 3 restores it** (PR 3 spec §2.5, §3.2).
    ⚠️ **That catch must run no further queries and must let the whole transaction unwind — no
    retry.** Once an `IntegrityError` surfaces inside an `atomic` block the transaction is
    marked for rollback, and any ORM call before unwinding raises `TransactionManagementError`
@@ -763,7 +769,9 @@ Order of work, inside one transaction:
    whole kit invisible to the rep; T16 asserts the predicate rather than the flag. Created
    before the users: the enrolment service takes a group. The kit pk is in the name so two
    kits for the same school are distinguishable in the Teacher's pickers.
-2. **Teacher login** — created with **`is_staff=True` in the initial `create_user` call**,
+2. **Teacher login** — ⚠️ *(as built: created non-staff, made staff by `set_user_role`, and
+   cleared again by PR 3 — PR 3 spec §3.1; the `is_staff=True`-at-creation wording below never
+   matched the code)* created with **`is_staff=True` in the initial `create_user` call**,
    then role Teacher via `set_user_role`, `language="pl"`,
    `display_name=f"Nauczyciel demo — {label} (#{kit.pk})"` — **the label is truncated, never
    the pk**, because `label` runs to 200 characters against `display_name`'s 150 and two
@@ -1364,6 +1372,11 @@ and to add the pattern if it does not.
   timeout or caps the tab's `--pupils` and says large kits go through the command. A
   timeout mid-provision is the bad case: the transaction may still commit while the
   operator never sees the credentials, leaving a kit only `revoke` can clear.
+- ⚠️ **Superseded by the PR 3 spec (§4.2–§4.4, 2026-09-13):** there is no result page —
+  credentials render at the top of the Demo panel from a session list written and read through
+  a *separate* session store, with a warnings summary rather than the raw list; the cache is not
+  an option (per-process `LocMemCache`); and a non-POST answers 302 to `?tab=demo`, not 405. The
+  bullets below are kept as history.
 - create form (**course**, label, days, pupils) → POST → **redirect** to a result page that
   reads **the credentials and the `warnings`** from a **one-shot session key, popped on read** — ⚠️ the warnings must cross the redirect too, or the tab renders passwords and silently drops "half the quizzes were skipped", which is the failure the channel exists to prevent. ⚠️ `course` is on the
   form because `provision_kit` requires it and §4.6 forbids a default: a `ModelChoiceField`
@@ -1440,6 +1453,8 @@ Polish suggestions were deliberately left unapplied for the same reason —
      the box must be one a rep may see, since a Teacher reads them all (§3.3). Measured:
      `mat-pp` alone. Never write this as a count; the day a private course legitimately lands,
      the decision is to stop issuing kits or to narrow a rep's read access (Risk 2).
+     ⚠️ **Retired for kit Teachers by PR 3** — a kit Teacher reads only its kit's course
+     (PR 3 spec §3.1).
 
 1. ⚠️ **Set `LIBLI_VENDOR_INSTANCE=true` in `.env.production` — measured 2026-09-12, it is
    NOT set**, and two things follow. (a) `demo_access create` refuses until it is (`purge`,
@@ -1479,7 +1494,8 @@ generator, the `demo_access` command, the vendor guard, and the cron line in the
 **Unblocked:** §5.0 closed on 2026-09-12 (nothing to remediate) and Q1–Q4 are all resolved (§10). **Q3b's wrong-answer variants are in this PR's scope**, not PR 5's.
 
 **PR 3 — admin tab.** Views, templates, form, i18n, e2e. No new business logic: every action
-calls PR 2's services.
+calls PR 2's services. ⚠️ *(Amended: PR 3 also carries two service changes — the non-staff kit
+Teacher and the restored collision catch; PR 3 spec §3.)*
 
 **PR 5 — the per-question drill-down** (Q3, decided 2026-09-12). A teacher-facing view of one
 pupil's answers to one quiz's AUTO questions — stem, the pupil's stored `latest_answer`, the
@@ -1699,10 +1715,13 @@ T23–T25.)
   B's `group.teachers`; B's pupils must then appear and the test go red.
 - **T10 Vendor gating of the tab.** With the flag off: the tab link is absent and `?tab=demo`
   falls back to the branding panel with 200 (**not** 404 — `_active_tab`'s fallback), while
-  each action view returns 404. With the flag on: Platform Admin only; non-POST → 405.
+  each action view returns 404. With the flag on: Platform Admin only; non-POST → 405
+  ⚠️ *(amended by PR 3: 302 to `?tab=demo`, matching every settings action view; the "gate on
+  the tab list" mutant below is equivalent to the real check — PR 3 spec P3)*.
   Mutant: gate the action views on the tab list instead of their own flag check — the 404
   assertions must go red.
-- **T11 Credentials are shown once.** The password appears in the first render of the result
+- **T11 Credentials are shown once.** ⚠️ *Superseded by PR 3 spec P4–P6, P9, P15 (no result
+  page).* The password appears in the first render of the result
   page, is absent from the session afterwards, and is absent from a second GET of that page
   and from the list page. Mutant: render on POST without popping the session key.
 - **T12 Silence (R6).** Provisioning leaves `mail.outbox` empty, enqueues no
@@ -1723,7 +1742,8 @@ T23–T25.)
   parser-only test would miss a guard added one layer down. ⚠️ A guard on
   `create` alone would keep a hand-written version of this green while `purge` refused to run
   on prod ([[guards-that-assert-the-adjacent-thing]]).
-- **T14 `/admin/` exposes nothing.** A kit Teacher's `/admin/` index lists zero models
+- **T14 `/admin/` exposes nothing.** ⚠️ *Never implemented; superseded by PR 3 spec P1 — a kit
+  Teacher is non-staff and `/admin/` refuses it.* A kit Teacher's `/admin/` index lists zero models
   (§3.3). Mutant: register `Group` in `grouping/admin.py`.
 - **T15 Purge selection.** A kit expiring tomorrow survives `demo_access purge`; one that
   expired yesterday does not; a second run is a no-op; `--dry-run` writes nothing **and
@@ -1835,7 +1855,8 @@ T23–T25.)
   has **no obligatory lesson anywhere, or no surviving quiz anywhere**, which is what the
   rollback case builds; `provision_kit` returns a `ProvisionResult` whose
   two passwords authenticate their users, **neither appears in any persisted `DemoKit`
-  field**, and after PR 3's result page is read once the password is gone from the session.
+  field**, and after PR 3's result page is read once the password is gone from the session
+  ⚠️ *(PR 3 has no result page: P4 asserts the in-panel card is shown once)*.
   Mutants: return the `DemoKit` row alone (the command and tab then have nothing to show);
   check the surviving-quiz set instead of the written rows (the past-the-depth case then
   provisions happily).
@@ -1916,7 +1937,8 @@ A green suite cannot say whether the class looks believable
    removed the back-dating updates; purge is exercised on the local copy before the first real
    kit. The measured
    duration from §8 is what decides whether PR 3's tab can call it synchronously (§4.6).
-2. **Teacher reads every course.** §3.3. A standing caveat for the day a second, private
+2. **Teacher reads every course.** ⚠️ **Closed for kit Teachers by PR 3** (non-staff; PR 3
+   spec §3.1). §3.3. A standing caveat for the day a second, private
    course lands on libli.pl.
 3. **~~The class ages.~~ Retired by Q1's resolution** — nothing carries or displays a date, so
    an extended kit's class cannot read as abandoned. `extend_kit`'s 60-day warning is kept

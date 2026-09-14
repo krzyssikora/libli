@@ -22,7 +22,7 @@ def test_a_kit_provisions_a_teacher_a_student_and_pupils():
     kit = provision_for_test(small_course(), pupils=5)
 
     assert kit.users.count() == 7  # teacher + student + 5 pupils
-    assert kit.teacher.is_staff and not kit.student.is_staff
+    assert not kit.teacher.is_staff and not kit.student.is_staff
     assert kit.group in kit.teacher.taught_groups.all()
     # Every user is in kit.users the moment it is created: R7 filters the
     # generator's writes by it and purge_kit's deletion set IS it.
@@ -303,19 +303,20 @@ def test_the_review_queue_is_non_empty_for_the_kit_teacher():
 
 
 @pytest.mark.django_db
-def test_the_demo_teacher_can_read_every_course_on_the_box():
-    """⚠️ THIS TEST DOCUMENTS A KNOWN WIDENING, and is expected to PASS — read
-    the note under Step 3 before changing it.
+def test_the_demo_teacher_reads_only_its_kit_course(client):
+    """P1 (PR 3 spec §3.1). A kit Teacher is NOT staff, so accessible_courses
+    takes its taught-groups branch — the kit's course alone — and Django admin
+    refuses it.
 
-    `accessible_courses` (courses/access.py:22-23) returns Course.objects.all() for
-    ANY is_staff user, and the demo Teacher receives is_staff=True from its
-    TEACHER role — `set_user_role` derives the flag via `role_is_staff`, so this
-    is not something _make_user chose. So a school rep's demo login can read every
-    other course hosted on the vendor instance, including another school's kit.
-    Pinning it here means the day someone narrows staff access, this test goes
-    red and the narrowing is a deliberate decision rather than a surprise.
+    What this closes is COURSE CONTENT across courses plus an /admin/ login. It is
+    not pupil data: group scoping already kept kit A's Teacher out of kit B's
+    pupils (parent T9). Driven as the role, through real requests, because a
+    queryset assertion cannot see a view that gates on something else.
     """
+    from django.urls import reverse
+
     from courses.access import accessible_courses
+    from courses.models import ContentNode
     from courses.models import Course
     from tests.demo.fixtures import small_course
     from tests.demo.helpers import provision_for_test
@@ -324,10 +325,36 @@ def test_the_demo_teacher_can_read_every_course_on_the_box():
     other = Course.objects.create(slug="other", title="Other", language="pl")
     kit = provision_for_test(course)
 
-    assert kit.teacher.is_staff
-    assert other in accessible_courses(kit.teacher)
-    # The rep's STUDENT login is correctly narrow — that half is not a widening.
+    assert not kit.teacher.is_staff
+    assert set(accessible_courses(kit.teacher)) == {course}
+    # The rep's Student login was always narrow.
     assert other not in accessible_courses(kit.student)
+
+    client.force_login(kit.teacher)
+    lesson = ContentNode.objects.filter(
+        course=course, unit_type="lesson", published=True
+    ).first()
+    quiz = ContentNode.objects.filter(
+        course=course, unit_type="quiz", published=True
+    ).first()
+    reachable = [
+        reverse("courses:course_outline", kwargs={"slug": course.slug}),
+        reverse(
+            "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": lesson.pk}
+        ),
+        reverse("courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": quiz.pk}),
+        reverse("courses:manage_analytics", kwargs={"slug": course.slug}),
+        reverse("courses:manage_review_queue", kwargs={"slug": course.slug}),
+    ]
+    for url in reachable:
+        assert client.get(url).status_code == 200, url
+
+    outline_of_other = reverse("courses:course_outline", kwargs={"slug": other.slug})
+    assert client.get(outline_of_other).status_code == 403  # PermissionDenied
+
+    admin = client.get("/admin/")
+    assert admin.status_code == 302
+    assert admin["Location"].startswith("/admin/login/")
 
 
 @pytest.mark.django_db
@@ -395,3 +422,45 @@ def test_wrong_answers_vary_between_pupils():
     assert any(len(set(v)) >= 2 for v in multi), (
         "guard: at least two distinct stored wrong answers"
     )
+
+
+@pytest.mark.django_db
+def test_a_concurrent_create_surfaces_as_a_named_collision(monkeypatch):
+    """P2 (PR 3 spec §3.2). Two creates for one slug both pass `_taken` — neither
+    sees the other's uncommitted users — and the loser hits the username unique
+    index. A pre-existing user plus a blind scan reproduces that without threads."""
+    from django.contrib.auth import get_user_model
+    from django.db import IntegrityError
+
+    from demo.models import DemoKit
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    course = small_course()
+    get_user_model().objects.create_user(username="sp-12-nauczyciel")
+    monkeypatch.setattr("demo.services._taken", lambda names: False)
+
+    with pytest.raises(errors.UsernameCollision) as caught:
+        provision_for_test(course, label="SP 12")
+
+    assert isinstance(caught.value.__cause__, IntegrityError)
+    assert "retry" not in str(caught.value).lower()
+    assert not DemoKit.objects.exists()
+
+
+@pytest.mark.django_db
+def test_an_integrity_error_outside_user_creation_is_not_a_collision(monkeypatch):
+    """The catch wraps USER CREATION ONLY: a generator bug must surface as itself,
+    never as "a kit for this label may have just been created"."""
+    from django.db import IntegrityError
+
+    from tests.demo.fixtures import small_course
+    from tests.demo.helpers import provision_for_test
+
+    def broken_generator(*args, **kwargs):
+        raise IntegrityError("generator bug")
+
+    monkeypatch.setattr("demo.services.generate", broken_generator)
+
+    with pytest.raises(IntegrityError):
+        provision_for_test(small_course())

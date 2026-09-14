@@ -2,6 +2,7 @@
 {% load i18n static %}
 {% block head_title %}{% trans "Institution settings" %} · libli{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'institution/settings.css' %}">{% endblock %}
+{% block extra_js %}<script src="{% static 'institution/js/settings_tabs.js' %}" defer></script>{% endblock %}
 {% block content %}
 <section class="settings">
   <header class="settings__head">
@@ -37,6 +38,9 @@
   {% if vendor_instance %}
   <div data-tab="pricing" {% if active_tab != "pricing" %}hidden{% endif %}>
     {% include "institution/manage/_pricing_tab.html" %}
+  </div>
+  <div data-tab="demo" {% if active_tab != "demo" %}hidden{% endif %}>
+    {% include "institution/manage/_demo_tab.html" %}
   </div>
   {% endif %}
 </section>

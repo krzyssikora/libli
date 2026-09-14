@@ -1,23 +1,53 @@
 """Platform-admin settings: Branding / Access / Uploads / SSO / Notifications tabs."""
 
+import time
+from datetime import datetime
+from importlib import import_module
+
 from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
+from django.contrib.sessions.backends.base import UpdateError
 from django.contrib.sites.shortcuts import get_current_site
 from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.cache import add_never_cache_headers
+from django.utils.formats import date_format
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
+from django.utils.translation import gettext
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
+from django.views.decorators.debug import sensitive_post_parameters
+from django.views.decorators.debug import sensitive_variables
 
 from accounts.forms import SsoForm
 from accounts.sso_config import is_enabled
 from accounts.sso_config import load_sso_app
 from accounts.sso_config import redirect_uri
 from accounts.sso_config import save_sso_config
+from courses.models import ContentNode
+from demo import errors as demo_errors
+from demo.constants import DEFAULT_DAYS
+from demo.constants import LABEL_MAX
+from demo.constants import LONG_LIVED_DAYS
+from demo.constants import MAX_DAYS
+from demo.constants import MAX_PUPILS
+from demo.constants import MIN_DAYS
+from demo.constants import MIN_PUPILS
+from demo.models import STATUS_DISPLAY
+from demo.models import DemoKit
+from demo.services import extend_kit
+from demo.services import provision_kit
+from demo.services import revoke_kit
+from demo.warnings import DISPLAY as DEMO_WARNING_DISPLAY
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
+from institution.forms import DemoKitForm
 from institution.forms import PricingForm
 from institution.forms import PublicPagesForm
 from institution.forms import RetentionForm
@@ -52,13 +82,186 @@ def _tabs():
     """Per REQUEST, not at import. A module-level conditional tuple is evaluated
     once, so override_settings(VENDOR_INSTANCE=True) would never reach it and the
     gate would half-work: the tab link renders, ?tab=pricing falls back to
-    branding, and the panel never opens."""
-    return _BASE_TABS + (("pricing",) if django_settings.VENDOR_INSTANCE else ())
+    branding, and the panel never opens. Demo access (PR 3) is vendor-only for the
+    same reason Pricing is."""
+    vendor_tabs = ("pricing", "demo") if django_settings.VENDOR_INSTANCE else ()
+    return _BASE_TABS + vendor_tabs
 
 
 def _active_tab(request):
     tab = request.GET.get("tab", "branding")
     return tab if tab in _tabs() else "branding"
+
+
+def _demo_context(active_tab, form, show_all):
+    """PR 3 spec §4.1/§4.6. Built ONLY for the Demo tab: the settings view builds
+    every panel on each GET, so without this gate every tab would pay for the kit
+    list. It never touches pending credentials — the settings view owns those
+    (spec §4.4)."""
+    if active_tab != "demo":
+        return {
+            "demo_form": None,
+            "demo_kits": None,
+            "demo_show_all": False,
+            "demo_extend_label": None,
+        }
+    kits = DemoKit.objects.select_related("teacher")
+    if not show_all:
+        kits = kits.filter(closed_at__isnull=True)
+    kits = list(kits)  # the model's ordering: ("-created_at", "-pk")
+    for kit in kits:
+        kit.status_label = STATUS_DISPLAY[kit.status_key]
+    return {
+        "demo_form": form or DemoKitForm(),
+        "demo_kits": kits,
+        "demo_show_all": show_all,
+        "demo_extend_label": ngettext(
+            "Extend by %(days)d day", "Extend by %(days)d days", DEFAULT_DAYS
+        )
+        % {"days": DEFAULT_DAYS},
+    }
+
+
+DEMO_RESULTS_KEY = "demo_kit_results"
+# PR 3 spec §4.4: how long an undisplayed entry may still become a card. A
+# property of the tab, not of the demo machinery, so it lives here.
+DEMO_RESULT_TTL = 15 * 60
+
+
+def _session_store(request):
+    """A SEPARATE store on the request's session row (spec §4.3).
+
+    request.session was loaded when the request began — ~40 s before a create
+    finishes. Anything that marks it modified makes SessionMiddleware save that
+    whole start-of-request snapshot over keys other tabs wrote meanwhile (a staged
+    course import, element_clip, _language). Reading and writing the pending list
+    through this store keeps each read-modify-save to milliseconds.
+
+    ⚠️ Read it with .get(), never .load(): SessionBase.load() returns the data
+    WITHOUT filling _session_cache (django/contrib/sessions/backends/base.py,
+    _get_session), so the next item access loads again — and a row deleted between
+    the two loads nulls the key after the `session_key is None` guard has passed.
+    """
+    engine = import_module(django_settings.SESSION_ENGINE)
+    return engine.SessionStore(session_key=request.session.session_key)
+
+
+def _mirror_demo_results(request, saved):
+    """Spec §4.3 step 4. Called immediately before a view returns, and only with
+    the list a fresh store actually holds (None when the store's guard stopped or
+    its save raised UpdateError — then nothing is mirrored).
+
+    The view never modifies request.session on its own account, but middleware
+    may already have: LanguageSeederMiddleware writes _language (core/middleware.py
+    :28-36), and get_user cycles the key after a SECRET_KEY fallback rotation. A
+    modified request.session is saved whole at the end of the request, so giving it
+    the same list is what stops that save undoing the fresh store's write.
+    """
+    if saved is None or not request.session.modified:
+        return
+    if saved:
+        request.session[DEMO_RESULTS_KEY] = saved
+    else:
+        request.session.pop(DEMO_RESULTS_KEY, None)
+
+
+def _is_speculative(request):
+    """A prefetch or prerender whose body the operator may never see."""
+    purpose = " ".join(
+        (request.headers.get("Sec-Purpose", ""), request.headers.get("Purpose", ""))
+    )
+    return "prefetch" in purpose or "prerender" in purpose
+
+
+def _attach_warning_lines(cards):
+    """Spec §4.4 step 4 / §4.5. The template can neither index DISPLAY by a
+    variable nor sort by its declaration order, so the lines are built here, with
+    ONE title query over every card's unit ids. No raw `reason` is ever stored or
+    shown — it is an English diagnostic — except the webhook's `detail`, a URL."""
+    unit_ids = {
+        unit_id
+        for card in cards
+        for summary in card["warnings"].values()
+        for unit_id in summary["unit_ids"]
+    }
+    titles = dict(
+        ContentNode.objects.filter(pk__in=unit_ids).values_list("pk", "title")
+    )
+    webhook = "active_webhook_endpoint"
+    order = [webhook, *(kind for kind in DEMO_WARNING_DISPLAY if kind != webhook)]
+    for card in cards:
+        lines = []
+        for kind in order:
+            summary = card["warnings"].get(kind)
+            if summary is None:
+                continue
+            lines.append(
+                {
+                    "text": DEMO_WARNING_DISPLAY[kind],
+                    "count": summary["count"],
+                    "detail": summary["detail"],
+                    "titles": [
+                        titles[unit_id]
+                        for unit_id in summary["unit_ids"]
+                        if unit_id in titles
+                    ],
+                }
+            )
+        card["warning_lines"] = lines
+
+
+@sensitive_variables()
+def _pending_demo_results(request):
+    """Spec §4.4 steps 1-5. READS ONLY — the discard runs after a successful render,
+    so a render exception leaves every entry for the next GET (P20)."""
+    fresh = _session_store(request)
+    entries = fresh.get(DEMO_RESULTS_KEY) or []
+    if fresh.session_key is None or not entries:
+        return [], []
+    open_ids = set(
+        DemoKit.objects.filter(
+            pk__in=[entry["kit_id"] for entry in entries], closed_at__isnull=True
+        ).values_list("pk", flat=True)
+    )
+    now = time.time()
+    cards, notices = [], []
+    for entry in entries:
+        if entry["kit_id"] not in open_ids:
+            # Whatever its age: a password for deleted users is never shown, and a
+            # closed kit is never called revocable.
+            notices.append({"kit_id": entry["kit_id"], "kind": "closed"})
+        elif now - entry["stored_at"] > DEMO_RESULT_TTL:
+            notices.append({"kit_id": entry["kit_id"], "kind": "expired"})
+        else:
+            cards.append(
+                {**entry, "expires_at": datetime.fromisoformat(entry["expires_at"])}
+            )
+    _attach_warning_lines(cards)
+    return cards, notices
+
+
+@sensitive_variables()
+def _discard_shown_results(request, kit_ids):
+    """Spec §4.4: remove exactly what this page showed, through a second fresh
+    store. An entry a create saved while the page rendered is not in kit_ids, so it
+    survives (P18). Returns the list the store now holds, or None when the session
+    row is gone or the save raised UpdateError (nothing to mirror then)."""
+    fresh = _session_store(request)
+    current = fresh.get(DEMO_RESULTS_KEY, [])
+    if fresh.session_key is None:
+        return None
+    remaining = [entry for entry in current if entry["kit_id"] not in kit_ids]
+    if remaining == current:
+        return remaining  # the store already agrees; the mirror still applies
+    if remaining:
+        fresh[DEMO_RESULTS_KEY] = remaining
+    else:
+        fresh.pop(DEMO_RESULTS_KEY, None)
+    try:
+        fresh.save()
+    except UpdateError:
+        return None
+    return remaining
 
 
 def _settings_context(
@@ -76,6 +279,8 @@ def _settings_context(
     public_pages=None,
     page_overrides=None,
     pricing=None,
+    demo_form=None,
+    demo_show_all=False,
 ):
     """Assemble the nine-form context. Any bound (errored) form passed in is used
     as-is; the rest are unbound — the six institution forms seeded from `inst`,
@@ -142,15 +347,45 @@ def _settings_context(
             pricing
             or (PricingForm(instance=inst) if django_settings.VENDOR_INSTANCE else None)
         ),
+        **_demo_context(active_tab, demo_form, demo_show_all),
     }
 
 
+@sensitive_variables()
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings(request):
     inst = Institution.load()
-    ctx = _settings_context(request, inst, _active_tab(request))
-    return render(request, "institution/manage/settings.html", ctx)
+    active_tab = _active_tab(request)
+    cards, notices, waiting = [], [], False
+    # Spec §4.4: pending credentials are taken in exactly one place — here, on a
+    # real GET of the Demo tab. Never on HEAD/OPTIONS (this view has no method
+    # guard) and never on a speculative load, whose body may never be seen.
+    if active_tab == "demo" and request.method == "GET":
+        if _is_speculative(request):
+            waiting = bool(request.session.get(DEMO_RESULTS_KEY))
+        else:
+            cards, notices = _pending_demo_results(request)
+    ctx = _settings_context(
+        request,
+        inst,
+        active_tab,
+        demo_show_all=request.GET.get("all") == "1",
+    )
+    ctx.update(
+        demo_results=cards,
+        demo_notices=notices,
+        demo_waiting=waiting,
+        demo_login_url=(
+            request.build_absolute_uri(reverse("account_login")) if cards else None
+        ),
+    )
+    response = render(request, "institution/manage/settings.html", ctx)
+    if cards or notices:
+        add_never_cache_headers(response)
+        shown = {card["kit_id"] for card in cards} | {n["kit_id"] for n in notices}
+        _mirror_demo_results(request, _discard_shown_results(request, shown))
+    return response
 
 
 def _index_url(tab):
@@ -482,3 +717,221 @@ def settings_pricing(request):
     if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
         raise Http404
     return _action(request, PricingForm, "pricing", "pricing", _("Pricing saved."))
+
+
+def _demo_list_url(request):
+    """PR 3 spec §4.7: back to the list the operator was looking at. Only the
+    literal "1" is honoured, and nothing posted is ever echoed into the URL."""
+    url = _index_url("demo")
+    return f"{url}&all=1" if request.POST.get("all") == "1" else url
+
+
+def _demo_kit_or_404(kit_id):
+    kit = DemoKit.objects.filter(pk=kit_id).first()
+    if kit is None:
+        raise Http404
+    return kit
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_demo_extend(request, kit_id):
+    if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
+        raise Http404
+    if request.method != "POST":
+        return redirect(_index_url("demo"))  # non-POST: see _action
+    kit = _demo_kit_or_404(kit_id)
+    try:
+        # ⚠️ Accepted race (spec §4.7): if the nightly purge closes a pending-purge
+        # kit between the lookup above and this call, _require_open checks the
+        # stale row and the new expiry lands on a closed kit. Locking belongs in
+        # extend_kit, not here.
+        result = extend_kit(kit, days=DEFAULT_DAYS)
+    except demo_errors.KitAlreadyClosed:
+        messages.error(request, _("Kit #%(id)s is already closed.") % {"id": kit.pk})
+    else:
+        messages.success(
+            request,
+            _("Kit #%(id)s now expires on %(date)s.")
+            % {
+                "id": kit.pk,
+                "date": date_format(timezone.localtime(result.new_expires_at)),
+            },
+        )
+        if result.long_lived:
+            # Worded to the computation: long_lived is the kit's LIFESPAN up to the
+            # new expiry (demo/services.py extend_kit), not its age.
+            messages.warning(
+                request,
+                ngettext(
+                    "After this extension the kit will have been open for more "
+                    "than %(days)d day.",
+                    "After this extension the kit will have been open for more "
+                    "than %(days)d days.",
+                    LONG_LIVED_DAYS,
+                )
+                % {"days": LONG_LIVED_DAYS},
+            )
+    return redirect(_demo_list_url(request))
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_demo_revoke(request, kit_id):
+    # The tab is vendor-only like the rest of it. Parent R8's exemption for revoke
+    # lives in the service and in `demo_access revoke`, which stay unguarded.
+    if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
+        raise Http404
+    if request.method != "POST":
+        return redirect(_index_url("demo"))  # non-POST: see _action
+    kit = _demo_kit_or_404(kit_id)
+    try:
+        revoke_kit(kit)
+    except demo_errors.KitAlreadyClosed:
+        # A stale page. Two truly simultaneous revokes both pass _require_open and
+        # both purge; the second only rewrites closed_at. Harmless, not guarded.
+        messages.error(request, _("Kit #%(id)s is already closed.") % {"id": kit.pk})
+    else:
+        messages.success(
+            request, _("Kit #%(id)s revoked; its logins were deleted.") % {"id": kit.pk}
+        )
+    return redirect(_demo_list_url(request))
+
+
+# Spec §4.2: display only — the bounds are enforced by provision_kit.
+_DEMO_BOUNDS = {"pupils": (MIN_PUPILS, MAX_PUPILS), "days": (MIN_DAYS, MAX_DAYS)}
+DEMO_WARNING_SAMPLE = 3  # unit ids kept per warning kind (spec §4.3)
+
+
+def _demo_error_sentence(exc):
+    """The translated lead sentence for a DemoKitError with no form field."""
+    if isinstance(exc, demo_errors.UsernameCollision):
+        # ONE msgid for the whole sentence, so Polish word order is free; the URL
+        # enters only as an escaped argument, never inside the translated text.
+        # Not "try again": from the tab this is a double submit whose other request
+        # has just committed a live kit, and this page shows no card.
+        return format_html(
+            gettext(
+                "A kit for this label may have just been created. "
+                "{link_start}Open the Demo tab{link_end} — its credentials appear "
+                "there — before creating again."
+            ),
+            link_start=format_html('<a href="{}">', _index_url("demo")),
+            link_end=mark_safe("</a>"),
+        )
+    if isinstance(exc, demo_errors.EmptyCourse):
+        return _("This course cannot hold a demo.")
+    if isinstance(exc, demo_errors.EmptyKit):
+        return _("The generated class came out empty and was rolled back.")
+    if isinstance(exc, demo_errors.NamePoolExhausted):
+        return _("Ran out of distinct pupil names; use fewer pupils.")
+    return _("The demo kit could not be created.")
+
+
+def _attach_demo_error(form, exc):
+    """Spec §4.2's table. The service's own messages are English; a non-field error
+    is a translated sentence plus that text ESCAPED inside <code> — built with
+    format_html, never mark_safe over an f-string."""
+    if isinstance(exc, demo_errors.InvalidLabel):
+        form.add_error(
+            "label",
+            _("Enter a label of at most %(max)s characters.") % {"max": LABEL_MAX},
+        )
+    elif isinstance(exc, demo_errors.InvalidBounds) and exc.field in _DEMO_BOUNDS:
+        low, high = _DEMO_BOUNDS[exc.field]
+        form.add_error(
+            exc.field,
+            _("Must be between %(min)s and %(max)s.") % {"min": low, "max": high},
+        )
+    else:
+        form.add_error(
+            None, format_html("{} <code>{}</code>", _demo_error_sentence(exc), str(exc))
+        )
+
+
+@sensitive_variables()
+def _demo_result_entry(result):
+    """Spec §4.3's entry. `warnings` is a per-kind SUMMARY: a mat-pp provision emits
+    warnings per question and per variant, and none of their English `reason`s is
+    displayed — except the webhook's, which is its endpoint URL."""
+    kit = result.kit
+    summary = {}
+    for warning in result.warnings:
+        item = summary.setdefault(
+            warning.kind, {"count": 0, "unit_ids": [], "detail": None}
+        )
+        item["count"] += 1
+        if (
+            warning.unit_id is not None
+            and warning.unit_id not in item["unit_ids"]
+            and len(item["unit_ids"]) < DEMO_WARNING_SAMPLE
+        ):
+            item["unit_ids"].append(warning.unit_id)
+        if warning.kind == "active_webhook_endpoint":
+            item["detail"] = warning.reason
+    return {
+        "kit_id": kit.pk,
+        "label": kit.label,
+        "teacher_username": kit.teacher.username,
+        "teacher_password": result.teacher_password,
+        "student_username": kit.student.username,
+        "student_password": result.student_password,
+        "expires_at": kit.expires_at.isoformat(),
+        "stored_at": time.time(),
+        "warnings": summary,
+    }
+
+
+@sensitive_variables()
+def _store_demo_result(request, entry):
+    """Spec §4.3 steps 1-3. Returns the saved list, or None when nothing was saved
+    (then nothing may be mirrored — mirroring [*existing, entry] would put both
+    passwords into request.session for a save that fails anyway)."""
+    fresh = _session_store(request)
+    existing = fresh.get(DEMO_RESULTS_KEY, [])  # the cached read — never .load()
+    if fresh.session_key is None:
+        # The row is gone (a logout in another tab, an expiry). Without this guard
+        # fresh.save() would create() an orphan row holding both passwords.
+        return None
+    saved = [*existing, entry]
+    fresh[DEMO_RESULTS_KEY] = saved
+    try:
+        fresh.save()  # explicit: the backend writes the whole store on save()
+    except UpdateError:
+        return None  # the row vanished between the read and the save
+    return saved
+
+
+@sensitive_variables()
+@sensitive_post_parameters()
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_demo_create(request):
+    if not django_settings.VENDOR_INSTANCE:  # aliased -- `settings` is a VIEW here
+        raise Http404
+    if request.method != "POST":
+        return redirect(_index_url("demo"))  # non-POST: see _action
+    form = DemoKitForm(request.POST)
+    if form.is_valid():
+        data = form.cleaned_data
+        try:
+            # Inline, by design (spec A3): ~40 s for 20 pupils, well inside
+            # gunicorn's --timeout 1800. No frontier_part, no seed.
+            result = provision_kit(
+                data["label"],
+                course=data["course"],
+                days=data["days"],
+                pupils=data["pupils"],
+                created_by=request.user,
+            )
+        except demo_errors.DemoKitError as exc:
+            _attach_demo_error(form, exc)
+        else:
+            saved = _store_demo_result(request, _demo_result_entry(result))
+            response = redirect(_index_url("demo"))
+            _mirror_demo_results(request, saved)
+            return response
+    # Spec §4.4: this error page neither takes nor writes pending credentials — it
+    # answers a POST, so a reload re-submits. Always the default (open-only) list.
+    ctx = _settings_context(request, Institution.load(), "demo", demo_form=form)
+    return render(request, "institution/manage/settings.html", ctx)

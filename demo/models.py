@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 from demo.constants import LABEL_MAX
 from demo.constants import SLUG_MAX
@@ -95,3 +96,16 @@ class DemoKit(models.Model):
         if self.expires_at <= timezone.now():
             return "pending_purge"
         return "active"
+
+
+# Translated labels for DemoKit.status_key, used only by PR 3's tab. They sit
+# beside the property that produces the keys, as demo.warnings.DISPLAY sits beside
+# KINDS; `demo_access list` prints the keys, never these. A msgctxt because
+# "Active" already exists in the catalog with another meaning. ⚠️ The Polish must
+# agree with ClosedReason's neuter "Wygasłe" / "Cofnięte".
+STATUS_DISPLAY = {
+    "active": pgettext_lazy("demo kit status", "Active"),
+    "pending_purge": pgettext_lazy("demo kit status", "Expired — pending purge"),
+    "closed_expired": pgettext_lazy("demo kit status", "Closed (expired)"),
+    "closed_revoked": pgettext_lazy("demo kit status", "Closed (revoked)"),
+}
