@@ -19,6 +19,7 @@ PAGES = [
     "quiz_results.html",
     "manage/editor/editor.html",
     "manage/review_submission.html",
+    "manage/analytics_student_quiz.html",
 ]
 
 CALLERS = ("math.js", "question.js", "quiz.js", "editor.js")

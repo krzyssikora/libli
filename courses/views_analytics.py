@@ -17,8 +17,10 @@ from courses.color_bands import course_color_bands
 from courses.color_bands import default_color_bands
 from courses.color_bands import legend_rows
 from courses.forms import ColorBandsForm
+from courses.htmlsandbox import has_math_delimiters
 from courses.htmlsandbox import titles_have_math
 from courses.models import Course
+from courses.models import DragToImageQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
@@ -29,6 +31,7 @@ from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
 from courses.rollups import tree_titles_have_math
+from courses.views import _question_has_math
 from courses.views import _results_row
 from courses.views import prefetch_question_children
 from grouping import scoping
@@ -332,8 +335,28 @@ def _quiz_answer_rows(unit, submission):
         limit = question.max_attempts
         row["attempt_count"] = attempts
         row["attempt_max"] = limit if limit is not None and attempts <= limit else None
+        row["dragimage"] = (
+            question if isinstance(question, DragToImageQuestionElement) else None
+        )
         rows.append(row)
     return rows
+
+
+def _answers_have_math(unit, rows):
+    """KaTeX is needed if the title, any question, any review feedback or any
+    displayed part text carries delimiters -- a pupil can type \\(x\\) (spec §5.2)."""
+    if titles_have_math([unit.title]):
+        return True
+    for row in rows:
+        if _question_has_math(row["question"]):
+            return True
+        if has_math_delimiters(row["review_feedback"] or ""):
+            return True
+        for part in row["parts"]:
+            for text in (part.given, part.expected, part.label):
+                if text and has_math_delimiters(text):
+                    return True
+    return False
 
 
 @login_required
@@ -374,7 +397,7 @@ def analytics_student_quiz(request, slug, student_pk, node_pk):
             "submission": submission,
             "pill": pill,
             "back_url": f"{student_path}?{back_qs}",
-            "has_math": False,
+            "has_math": _answers_have_math(unit, rows),
             "rows": rows,
             "answered_count": sum(1 for row in rows if row["answered"]),
             "question_count": len(rows),

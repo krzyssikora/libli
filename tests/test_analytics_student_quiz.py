@@ -511,3 +511,210 @@ def test_review_feedback_shows_on_any_row_with_feedback(client):
     )
     item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
     assert "Well argued" in item.get_text(" ", strip=True)
+
+
+# --- T35 rest: stems, stage, empty states, glyph unit, language ------------------
+def test_token_stems_render_gap_markers_matching_the_part_labels(client):
+    from courses.fillblank import SENTINEL
+    from courses.models import Blank
+    from courses.models import FillBlankQuestionElement
+
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Gaps")
+    q = FillBlankQuestionElement.objects.create(
+        stem=f"2 + {SENTINEL}0{SENTINEL} = {SENTINEL}1{SENTINEL}",
+        max_marks=Decimal("1"),
+    )
+    assert SENTINEL in FillBlankQuestionElement.objects.get(pk=q.pk).stem
+    Blank.objects.create(question=q, accepted="2")
+    Blank.objects.create(question=q, accepted="4")
+    el = Element.objects.create(unit=quiz, content_object=q)
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub, el, latest_answer=["2", "5"], fraction=Decimal("0.5"), attempt_count=1
+    )
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    stem = item.select_one(".answers__stem")
+    assert SENTINEL not in str(stem)
+    assert [g.get_text() for g in stem.select(".answers__gap")] == ["[1]", "[2]"]
+    assert [
+        p.select_one(".answers__label").get_text(strip=True)
+        for p in item.select(".answers__part")
+    ] == ["Gap 1", "Gap 2"]
+
+
+def test_dragimage_row_renders_a_static_numbered_stage(client):
+    from tests.factories import DragZoneFactory
+
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Image")
+    zone = DragZoneFactory(correct_label="Heart")
+    DragZoneFactory(question=zone.question, correct_label="Liver")
+    q = zone.question  # stem is blank: a prompt-less question
+    Element.objects.create(unit=quiz, content_object=q)
+    _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    stage = item.select_one(".dragimage__stage")
+    assert stage is not None
+    assert stage.select_one("img.dragimage__img")["alt"] == q.alt
+    assert [b.get_text(strip=True) for b in stage.select("span.dragimage__badge")] == [
+        "1",
+        "2",
+    ]
+    assert item.select("select, form, [data-dnd], [data-zone]") == []
+
+
+def test_zero_question_quiz_and_zero_part_question_empty_states(client):
+    from courses.models import Blank
+    from courses.models import FillBlankQuestionElement
+
+    course, pupil = _owner_view(client)
+    empty = _empty_quiz(course, "Nothing here")
+    _submitted(pupil, empty, status=QuizSubmission.Status.IN_PROGRESS)
+    soup = _soup(client.get(_url(course, pupil.pk, empty.pk)))
+    assert "This quiz has no questions." in soup.select_one("section.answers").get_text(
+        " ", strip=True
+    )
+    assert " of 0 " not in soup.select_one(".answers__status").get_text(" ", strip=True)
+    assert soup.select("ol.answers__list") == []
+
+    quiz = _empty_quiz(course, "Emptied")
+    from courses.fillblank import SENTINEL
+
+    q = FillBlankQuestionElement.objects.create(
+        stem=f"{SENTINEL}0{SENTINEL}", max_marks=Decimal("1")
+    )
+    Blank.objects.create(question=q, accepted="2")
+    el = Element.objects.create(unit=quiz, content_object=q)
+    sub = _submitted(pupil, quiz, score=Decimal("1"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer=["2"], fraction=Decimal("1"), attempt_count=1)
+    q.blanks.all().delete()
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    assert "(this question no longer has any parts)" in item.get_text(" ", strip=True)
+
+
+def test_an_empty_part_that_scores_true_shows_no_tick_and_no_sr_correct(client):
+    from courses.models import MultiGridColumn
+    from courses.models import MultiGridQuestionElement
+    from courses.models import MultiGridRow
+
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Empty set")
+    q = MultiGridQuestionElement.objects.create(
+        stem="<p>Pick</p>", max_marks=Decimal("1")
+    )
+    MultiGridColumn.objects.create(question=q, label="a")
+    MultiGridRow.objects.create(question=q, statement="r1")  # empty correct set
+    el = Element.objects.create(unit=quiz, content_object=q)
+    sub = _submitted(pupil, quiz, score=Decimal("1"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer=[[]], fraction=Decimal("1"), attempt_count=1)
+    part = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0].select_one(
+        ".answers__part"
+    )
+    assert "Not answered" in part.get_text(" ", strip=True)
+    assert part.select(".answers__glyph") == []
+    assert [s.get_text(strip=True) for s in part.select(".sr-only")] == []
+
+
+def test_shorttext_with_empty_expected_renders_no_hint(client):
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "No key")
+    el = _add(quiz, accepted="")
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer="x", fraction=Decimal("0"), attempt_count=1)
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    assert "Correct answer:" not in item.get_text(" ", strip=True)
+
+
+def test_course_language_tags_given_expected_and_content_labels(client):
+    from courses.models import MatchPair
+    from courses.models import MatchPairQuestionElement
+
+    course, pupil = _owner_view(client)
+    course.language = "pl"
+    course.save(update_fields=["language"])
+    quiz = _empty_quiz(course, "Pary")
+    q = MatchPairQuestionElement.objects.create(
+        stem="<p>Dopasuj</p>", max_marks=Decimal("1")
+    )
+    MatchPair.objects.create(question=q, left="kot", right="cat")
+    MatchPair.objects.create(question=q, left="pies", right="dog")
+    el = Element.objects.create(unit=quiz, content_object=q)
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub, el, latest_answer=["dog", "dog"], fraction=Decimal("0.5"), attempt_count=1
+    )
+    part = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0].select(
+        ".answers__part"
+    )[0]
+    assert part.select_one(".answers__label")["lang"] == "pl"
+    assert part.select_one(".answers__given")["lang"] == "pl"
+    assert part.select_one(".answers__expected strong")["lang"] == "pl"
+
+
+def test_answered_extendedresponse_keyword_parts_never_say_not_answered(client):
+    """Spec T32's rendered check: keyword parts always have given=None, so only
+    the kind == "answer" gate keeps "Not answered" off them."""
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Keywords")
+    el = _add(
+        quiz,
+        ExtendedResponseQuestionElement,
+        required_keywords="alpha\nbeta",
+        forbidden_keywords="gamma",
+    )
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub, el, latest_answer="alpha only", fraction=Decimal("0.5"), attempt_count=1
+    )
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    keyword_parts = item.select(".answers__part--keyword")
+    assert len(keyword_parts) == 3
+    for part in keyword_parts:
+        assert "Not answered" not in part.get_text(" ", strip=True)
+
+
+# --- T39 maths ---------------------------------------------------------------
+def _script_srcs(soup):
+    return [s["src"] for s in soup.select("script[src]")]
+
+
+def test_t39_pupil_typed_maths_loads_katex_and_question_js(client):
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Plain")
+    el = _add(quiz)
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer=r"\(x\)", fraction=Decimal("0"), attempt_count=1)
+    srcs = _script_srcs(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
+    katex = [
+        i for i, s in enumerate(srcs) if s.endswith("math.js") and "question" not in s
+    ]
+    question = [i for i, s in enumerate(srcs) if s.endswith("courses/js/question.js")]
+    assert katex and question and question[0] > katex[0], srcs
+
+
+def test_t39_review_feedback_maths_alone_loads_katex(client):
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Plain feedback")
+    el = _add(quiz)
+    sub = _submitted(pupil, quiz, score=Decimal("1"), max_score=Decimal("1"))
+    _respond(
+        sub,
+        el,
+        latest_answer="Warsaw",
+        fraction=Decimal("1"),
+        attempt_count=1,
+        review_feedback=r"See \(y\)",
+    )
+    srcs = _script_srcs(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
+    assert any(s.endswith("courses/js/question.js") for s in srcs)
+
+
+def test_t39_no_maths_anywhere_loads_neither(client):
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Plain none")
+    el = _add(quiz)
+    sub = _submitted(pupil, quiz, score=Decimal("1"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer="Warsaw", fraction=Decimal("1"), attempt_count=1)
+    srcs = _script_srcs(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
+    assert not any("katex" in s or s.endswith("question.js") for s in srcs)
