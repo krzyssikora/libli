@@ -407,6 +407,15 @@ eleventh question type fails the test until its adapter exists.
     own token regex, the one `fillblank.py` defines) for `<span class="answers__gap">[n+1]</span>`
     — numbered exactly like the part labels — and returns a `SafeString`; the inserted markup is
     digits only. Every other type renders `stem|safe` unchanged;
+  - **for a dragimage question, its image with static numbered zone badges**, after the stem (which
+    is optional for this type, so without the image a prompt-less question shows nothing of what
+    was asked). Markup: the static stage from `dragtoimagequestionelement.html:31-38` —
+    `div.dragimage__stage` holding `<img class="dragimage__img" src="{{ el.media.file.url }}"
+    alt="{{ el.alt }}">` and one `span.dragimage__badge` per zone, positioned by the same inline
+    `left`/`top` percentages and numbered `forloop.counter` — **without** `data-dnd`, the select
+    lists, the pool or any form, so nothing is interactive and no JS runs. Badge numbers equal the
+    "Zone i" part labels. A deliberate copy of those eight lines (the element template is a
+    student surface, §3.6); `zones` is already prefetched (§2.5);
   - the outcome badge, **a deliberate copy of `quiz_results.html:31-37`'s markup and msgids**
     (Correct, Partial, Incorrect, Not answered, Answer recorded, Reviewed, Awaiting review).
     Accepted as a copy: extracting a partial would change the pupil's results page, which §3.6
@@ -440,13 +449,18 @@ eleventh question type fails the test until its adapter exists.
 ### 5.2 Maths
 
 `has_math` = `titles_have_math([unit.title])` or any `_question_has_math(q)` or any
+`has_math_delimiters(row["review_feedback"])` (rendered inside the typeset `li[data-question]`,
+§5.1) or any
 `has_math_delimiters` over each part's `given`, `expected` and `label` (a pupil can type
 `\(x\)` into a short-text answer). When true, include `courses/_katex_css.html` and
 `courses/_katex_js.html`, as `analytics_student.html:4,19` does, **then
 `<script src="{% static 'courses/js/question.js' %}" defer></script>` after that include**, and
 mark each item `data-question` — exactly `quiz_results.html:28,62-69`. Without `question.js` the
 `data-question` subtrees are never typeset (§2.5) and stems/answers show raw `\(x\)`. Its form
-wiring is a no-op here: the page has no `<form>`.
+wiring is a no-op here: the page has no `<form>`. ⚠️ `_katex_js.html:14-15`'s comment says
+"question.js is deliberately NOT here: only two pages need it" — this page makes three. Reword it
+in the same commit, **line-count neutral** (e.g. "only the pages that render form-less
+`[data-question]` subtrees need it").
 
 ### 5.3 Styling
 
@@ -504,6 +518,7 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   | course owner (**non-staff**, asserted up front) | 200 |
   | teacher of pupil A's group (`make_teacher`, **non-staff**) | 200 |
   | teacher of pupil B's group only | 404 |
+  | teacher of pupil B's (active) group **and** of an **archived** group that contains pupil A | 404 |
   | a user with `is_staff=True` **and** the Teacher group who teaches no group on the course (assert `is_staff` up front — `make_teacher` does not set it, §2.4) | 404 |
   | pupil A themself | 404 |
   | anonymous | 302 to login |
@@ -514,6 +529,9 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
     reviewable pupil for it);
   - replace step 3's `reviewable_students(...)` with an unscoped `User` lookup → the
     **other-group teacher** row goes 404 → 200;
+  - resolve step 3 through `GroupMembership` of the teacher's groups **without the archived
+    filter** → the **archived-group** row goes 404 → 200. (That teacher also teaches an active
+    group on the course, so step 2 passes and only step 3's archived filter decides it.)
   - `can_review_course(...) or user.is_staff` at step 2 **combined with** the unscoped step 3 →
     the **staff** row goes 404 → 200. This is the only mutant the staff row catches on its own;
     alone it guards the resolution as a whole, not step 2.
@@ -598,7 +616,11 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   A fillblank item's rendered stem contains no `U+FFFF` and shows `[1]`, `[2]` in the order of its
   "Gap 1", "Gap 2" parts; a dragfill item likewise (mutant: render the raw `stem|safe` for token
   types). A quiz with no questions renders "This quiz has no questions." and no "of 0" count
-  (mutant: render the empty list).
+  (mutant: render the empty list). A prompt-less dragimage item renders its `img.dragimage__img`
+  with one `span.dragimage__badge` per zone, numbered like its "Zone i" parts, and contains no
+  `select`, `form` or `data-dnd` (mutants: omit the stage; copy the interactive template instead).
+  A reviewed row whose `review_feedback` alone carries `\(x\)` sets `has_math` (mutant: leave
+  feedback out of `has_math`).
   On a SUBMITTED quiz with two unreviewed REVIEW questions, the two per-row Review links have
   distinct accessible names (mutant: drop the sr-only question number).
   ⚠️ The in-progress fixture **must include a `QuestionResponse` with `attempt_count=0,
@@ -664,7 +686,10 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   case; T31 owns the draft case).
 - **Existing tests that move:**
   - `tests/test_analytics_rollups.py:547-552` (`scored`) and `:576` (`submitted`) compare whole
-    pill dicts and **must gain `submission_pk`** with the fixture submission's pk (§3.5). `:555`
+    pill dicts and **must gain `submission_pk`** with the fixture submission's pk (§3.5). Those fixtures create the
+    submissions as bare `QuizSubmission.objects.create(...)` (`:522`, and `:576`'s own fixture),
+    unlike `sub_pending` (`:529`): **bind each to a name** (e.g. `sub_scored = …`) and assert
+    `sub_scored.pk` — never `QuizSubmission.objects.last()`, which can pick the other row. `:555`
     (`not_started` has no `submission_pk`) stays unchanged and is the guard that `not_started`
     never gets one.
   - `tests/test_analytics_views.py`'s breakdown tests (`:199-291`) keep passing unchanged — the
