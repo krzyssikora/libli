@@ -25,6 +25,7 @@
 - **Test users who log in must be verified**: use `make_login` / `make_pa` / `make_teacher` / `make_verified_user` + `client.force_login`, never a bare `UserFactory` for a logged-in viewer (allauth's mandatory verification redirects it).
 - **pk sequences are independent per model** — never assert a pk as a substring of HTML; select elements with BeautifulSoup and compare exact attribute values (memory: independent-pk-sequences-make-substring-assertions-flaky).
 - **Tooling runs through uv**: `uv run pytest …`, `uv run ruff check --no-cache .`, `uv run ruff format --check .`, `uv run python manage.py …`. **Never pass `-q` to pytest** (addopts already has it). e2e tests need `-m e2e`.
+- **Never paste the U+FFFF gap sentinel into a file.** Build token stems from `courses.fillblank.SENTINEL` (`f"{SENTINEL}0{SENTINEL}"`) and assert with `SENTINEL`, as `tests/conftest.py` does — file tools corrupt the raw character, which would make token tests fail (or pass) for the wrong reason.
 - **Lint before every commit:** `uv run ruff check --no-cache --fix <files the task touched> && uv run ruff format <files the task touched>`, then re-run the task's tests. `pyproject.toml` selects `I` (isort) and `E`: the plan's code blocks are not guaranteed sorted or wrapped, so let ruff fix import order and line length rather than hand-editing.
 - **Test DB preflight (once per session, before any pytest):** a git worktree has no `.env` — copy it from the main checkout (`cp ../libli/.env .env`); start the container with `docker compose -p libli-test -f docker-compose.test.yml up -d --wait`; run ONE pytest process at a time. Read the pass/fail counts from the summary line, not the exit code.
 - **Falsify steps:** each mutant is applied BY HAND, the named test is run and observed RED, then the mutant is reverted BY HAND and `git diff` is read to confirm the revert. **Never `git checkout -- <file>` to revert a mutant** (it discards the task's own uncommitted work).
@@ -512,7 +513,7 @@ def test_children_and_media_need_no_query_after_prefetch():
 - [ ] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest tests/test_prefetch_question_children.py -v`
-Expected: FAIL with `ImportError: cannot import name 'prefetch_question_children'`.
+Expected: collection ERROR — `ImportError: cannot import name 'prefetch_question_children'`.
 
 - [ ] **Step 3: Implement.** In `courses/views.py`, add above `build_lesson_context`:
 
@@ -563,7 +564,12 @@ In `build_lesson_context`, replace the seven `…_qs = [...]` lines and the seve
     prefetch_question_children(questions)
 ```
 
-Do the same in `build_quiz_context`, keeping its two-line comment `# Mirror build_lesson_context: the GFK prefetch does NOT fetch choices/blanks,` / `# so prefetch them explicitly (avoids N+1 in render/scoring/results).` above the call. **Do not delete `questions` in either builder** — later code in both reads it (`build_quiz_context` uses it for `has_math`). Verify: `grep -n "questions" courses/views.py` still shows uses after each call.
+Do the same in `build_quiz_context`. Its two-line comment `# Mirror build_lesson_context: the GFK prefetch does NOT fetch choices/blanks,` / `# so prefetch them explicitly (avoids N+1 in render/scoring/results).` currently sits above `questions = [...]`; **leave it where it is** and reword its two lines (still two lines) to:
+
+```python
+    # The GFK prefetch does NOT fetch choices/blanks etc., so the shared helper
+    # prefetches every question's children (avoids N+1 in render/scoring/results).
+``` **Do not delete `questions` in either builder** — later code in both reads it (`build_quiz_context` uses it for `has_math`). Verify: `grep -n "questions" courses/views.py` still shows uses after each call.
 
 - [ ] **Step 4: Run**
 
@@ -641,11 +647,14 @@ from courses.models import QuestionElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.quiz import answer_from_json
+from courses.fillblank import SENTINEL
 from tests.factories import MediaAssetFactory
 
 AUTO = QuestionElement.MarkingMode.AUTO
-TOKEN0 = "￿0￿"
-TOKEN1 = "￿1￿"
+# Built from the constant: the raw U+FFFF sentinel is never pasted into a file
+# (file tools corrupt it; see tests/conftest.py's switchgate fixture).
+TOKEN0 = f"{SENTINEL}0{SENTINEL}"
+TOKEN1 = f"{SENTINEL}1{SENTINEL}"
 
 
 def build_all_types(mode=AUTO):
@@ -1081,7 +1090,7 @@ Implements spec §4.3 (fillblank, dragfill, dragimage, matchpair, choicegrid, mu
 - Modify: `tests/test_answer_summary.py` (append)
 
 **Interfaces:**
-- Consumes: Task 4's `Part`, `_answer_part`, `_answered`, `_is_auto`, `_text_or_none`, `_ADAPTERS`; `courses.fillblank._TOKEN_RE` (compiled `"￿(\d+)￿"`, group 1 = 0-based gap index).
+- Consumes: Task 4's `Part`, `_answer_part`, `_answered`, `_is_auto`, `_text_or_none`, `_ADAPTERS`; `courses.fillblank._TOKEN_RE` (compiled from `SENTINEL + r"(\d+)" + SENTINEL`, group 1 = 0-based gap index) and `courses.fillblank.SENTINEL` (the U+FFFF character).
 - Produces: `_ADAPTERS` holds all ten concrete types; `gap_marked_stem(question) -> SafeString`; `stem_html(question) -> SafeString` (token types → `gap_marked_stem`, every other type → `mark_safe(question.stem)`).
 
 - [ ] **Step 1: Write the failing tests** — append to `tests/test_answer_summary.py` (add `from django.apps import apps` and `from courses import answer_summary` to its module imports — **not** `mock`, which only the temporary Falsify test uses and which ruff's F401 would flag; `stem_html` is imported **inside** the two stem tests, so its absence fails those two tests instead of breaking collection of the whole file):
@@ -1286,11 +1295,13 @@ def test_multigrid_partial_one_row_right_one_wrong():
 # --- token stems --------------------------------------------------------------
 def test_token_stems_are_gap_marked_like_the_part_labels():
     from courses.answer_summary import stem_html
+    from courses.fillblank import SENTINEL
 
     made = build_all_types()
     for key in ("fillblank", "dragfill"):
         html = str(stem_html(made[key]))
-        assert "￿" not in html
+        assert SENTINEL in made[key].stem  # the fixture really holds tokens
+        assert SENTINEL not in html
         assert html.index("[1]") < html.index("[2]")
         assert '<span class="answers__gap">[1]</span>' in html
 
@@ -1511,7 +1522,7 @@ Expected: clean.
     Expected: FAIL — **read the failure**: it must be the set-inequality `AssertionError` whose diff names `_Stub`, not a `NameError`/`ImportError`/`RuntimeError` (those are red for the wrong reason). The stub is abstract and declared inside the test body, so it never registers (spec T34).
   - (c) `_padded`: `return values` (no pad/truncate) → `test_fillblank_fewer_and_more_stored_values_follow_current_blanks` RED.
   - (d) `_choicegrid.convert`: `return by_pk.get(value)` → `test_choicegrid_parts_empty_row_and_removed_column` RED.
-  - (e) `_matchpair`: labels from `mark_result.reveal[i]["left"]` → `test_review_matchpair_and_choicegrid_take_labels_from_child_rows` RED (`TypeError` on `None`).
+  - (e) `_matchpair`: `labels=[r["left"] for r in (mark_result.reveal if mark_result else ())]` → in REVIEW mode no parts are built, so `test_review_matchpair_and_choicegrid_take_labels_from_child_rows` RED on its `[p.label for p in mp] == ["a", "b", "c"]` assertion (not a crash).
   - (f) `_text_or_none`: `return text if text != "" else None` → `test_fillblank_whitespace_gap_is_empty` RED.
   - (g) `stem_html`: always `mark_safe(question.stem)` → `test_token_stems_are_gap_marked_like_the_part_labels` RED.
   - (h) `_multigrid` `expected_of`: drop `or _("(none)")` → `test_multigrid_row_with_empty_correct_set_expects_none_label` RED.
@@ -2386,6 +2397,7 @@ Expected: all PASS.
   - (l) template: `{% if row.review_feedback and row.outcome == "reviewed" %}` → `test_review_feedback_shows_on_any_row_with_feedback` RED.
   - (m) view: `row["attempt_max"] = limit` (drop the `attempts <= limit` guard) → `test_t33_lowered_max_attempts_never_prints_n_of_smaller_max` RED ("attempt 3 of 1").
   - (n) **D9 on the page (spec T41):** temporarily restore the 8-model `_QUESTION_MODELS` list in `courses/rollups.py` (paste the eight names back, re-adding their imports) → `test_t41_grid_quizzes_header_pills` RED on the header pill (`.pill--awaiting` missing) and the header Review link. Revert by hand and read `git diff courses/rollups.py`.
+  - (p) template: change `{% trans "Correct answer:" %}` in the parts markup to the literal `Your answer:` → `test_t35_teacher_voice_only` RED ("your answer" found).
   - (o) `courses/answer_summary.py` `_shortnumeric`: pass `response.fraction == 1` as `correct` instead of `mark_result.correct` → `test_t33_key_edited_after_answering_keeps_badge_and_remarks_parts` RED (the part reads ✓).
 
 - [ ] **Step 7: Commit**
@@ -2419,14 +2431,17 @@ Implements spec §3.4 (zero-question quiz), §4.3 (zero parts), §5.1 (drag-to-i
 ```python
 # --- T35 rest: stems, stage, empty states, glyph unit, language ------------------
 def test_token_stems_render_gap_markers_matching_the_part_labels(client):
+    from courses.fillblank import SENTINEL
     from courses.models import Blank
     from courses.models import FillBlankQuestionElement
 
     course, pupil = _owner_view(client)
     quiz = _empty_quiz(course, "Gaps")
     q = FillBlankQuestionElement.objects.create(
-        stem="2 + ￿0￿ = ￿1￿", max_marks=Decimal("1")
+        stem=f"2 + {SENTINEL}0{SENTINEL} = {SENTINEL}1{SENTINEL}",
+        max_marks=Decimal("1"),
     )
+    assert SENTINEL in FillBlankQuestionElement.objects.get(pk=q.pk).stem
     Blank.objects.create(question=q, accepted="2")
     Blank.objects.create(question=q, accepted="4")
     el = Element.objects.create(unit=quiz, content_object=q)
@@ -2434,7 +2449,7 @@ def test_token_stems_render_gap_markers_matching_the_part_labels(client):
     _respond(sub, el, latest_answer=["2", "5"], fraction=Decimal("0.5"), attempt_count=1)
     item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
     stem = item.select_one(".answers__stem")
-    assert "￿" not in str(stem)
+    assert SENTINEL not in str(stem)
     assert [g.get_text() for g in stem.select(".answers__gap")] == ["[1]", "[2]"]
     assert [
         p.select_one(".answers__label").get_text(strip=True)
@@ -2478,7 +2493,11 @@ def test_zero_question_quiz_and_zero_part_question_empty_states(client):
     assert soup.select("ol.answers__list") == []
 
     quiz = _empty_quiz(course, "Emptied")
-    q = FillBlankQuestionElement.objects.create(stem="￿0￿", max_marks=Decimal("1"))
+    from courses.fillblank import SENTINEL
+
+    q = FillBlankQuestionElement.objects.create(
+        stem=f"{SENTINEL}0{SENTINEL}", max_marks=Decimal("1")
+    )
     Blank.objects.create(question=q, accepted="2")
     el = Element.objects.create(unit=quiz, content_object=q)
     sub = _submitted(pupil, quiz, score=Decimal("1"), max_score=Decimal("1"))
@@ -2606,7 +2625,7 @@ def test_t39_no_maths_anywhere_loads_neither(client):
 Run: `uv run pytest tests/test_analytics_student_quiz.py -v`
 Expected: exactly **four FAIL** — `test_dragimage_row_renders_a_static_numbered_stage`, `test_zero_question_quiz_and_zero_part_question_empty_states`, `test_t39_pupil_typed_maths_loads_katex_and_question_js`, `test_t39_review_feedback_maths_alone_loads_katex`.
 
-The other **six already PASS** on Task 7's build, by design: `test_t39_no_maths_anywhere_loads_neither` (`has_math` is still `False`), `test_token_stems_render_gap_markers_matching_the_part_labels` (Task 7 sets `stem_html`), `test_an_empty_part_that_scores_true_shows_no_tick_and_no_sr_correct` (Task 7 keys glyph and sr-only on `Part.mark`), `test_shorttext_with_empty_expected_renders_no_hint` (Task 7 uses `{% if part.expected %}`), `test_course_language_tags_given_expected_and_content_labels` (Task 7 sets `lang`), `test_answered_extendedresponse_keyword_parts_never_say_not_answered` (Task 7 gates "Not answered" on `part.kind == "answer"`). **Do not change Task 7's template to make them red** — they guard Task 7's markup, and Step 7's mutants (a), (f), (g), (h), (l) supply their red.
+The other **six already PASS** on Task 7's build, by design: `test_t39_no_maths_anywhere_loads_neither` (`has_math` is still `False`), `test_token_stems_render_gap_markers_matching_the_part_labels` (Task 7 sets `stem_html`), `test_an_empty_part_that_scores_true_shows_no_tick_and_no_sr_correct` (Task 7 keys glyph and sr-only on `Part.mark`), `test_shorttext_with_empty_expected_renders_no_hint` (Task 7 uses `{% if part.expected %}`), `test_course_language_tags_given_expected_and_content_labels` (Task 7 sets `lang`), `test_answered_extendedresponse_keyword_parts_never_say_not_answered` (Task 7 gates "Not answered" on `part.kind == "answer"`). **Do not change Task 7's template to make them red** — they guard Task 7's markup, and Step 7's mutants (a), (f), (g), (h), (l), (m) supply their red.
 
 - [ ] **Step 3: Implement the view side.** In `courses/views_analytics.py` add imports:
 
@@ -2720,6 +2739,7 @@ Expected: all PASS.
   - (j) delete the `question.js` `<script>` → the same test RED.
   - (k) `_answers_have_math`: drop the `review_feedback` line → `test_t39_review_feedback_maths_alone_loads_katex` RED.
   - (l) template: remove the `{% if part.kind == "answer" %}` / `{% endif %}` pair around the given/"Not answered" markup → `test_answered_extendedresponse_keyword_parts_never_say_not_answered` RED.
+  - (m) view context: `"has_math": True` → `test_t39_no_maths_anywhere_loads_neither` RED.
 
 - [ ] **Step 8: Commit**
 
@@ -2877,6 +2897,30 @@ Run: `uv run pytest tests/test_analytics_student_quiz.py tests/test_title_math_m
 Expected: all non-e2e PASS (`test_e2e_analytics.py` deselects without `-m e2e`).
 
 - [ ] **Step 5: Re-point citations.** Run `grep -n "breakdown-unit__title" templates/courses/manage/_breakdown_node.html` and replace both `N` placeholders from Step 1 with the quiz-branch line number. Then `grep -n "_breakdown_node.html:\|(:[0-9]*)" tests/test_title_math_markers.py` and confirm every citation into `_breakdown_node.html` (docstrings of `_analytics_bodies` and the breakdown test, both assertion messages) names the current line.
+
+Also rewrite the two docstrings the new fixture made false, **keeping each one's line count**:
+
+`_analytics_bodies` — replace its last four docstring lines (from `Adds a QUIZ unit:`) with:
+
+```python
+    Adds TWO QUIZ units -- one the student has started (its title is a link) and
+    one not started (plain) -- because make_title_course creates only lessons, so
+    neither quiz branch of _breakdown_node.html (:A-B, marker :C) would render and
+    the :D lesson branch -- same class -- would satisfy the assertion on its own."""
+```
+
+`test_analytics_breakdown_titles_are_marked` — replace the docstring body after its first line and blank line with:
+
+```python
+    The quiz branch (:N) and the lesson branch (:M) share the class
+    `breakdown-unit__title`, so neither a truthiness check nor a `>= 2` count
+    pins them: the fixture has THREE lesson units and TWO quizzes, so dropping a
+    quiz marker still leaves marked spans and a count passes. The pill separates
+    quiz from lesson; the title link separates a started quiz from a not-started
+    one -- so the linked and plain quiz titles are each asserted on their own."""
+```
+
+Fill `:A-B`, `:C`, `:D`, `:N`, `:M` from `grep -n` over `_breakdown_node.html` (the quiz `{% if item.node.unit_type == "quiz" %}` block's first and last line, the quiz title span, the lesson title span).
 
 - [ ] **Step 6: Falsify** (each by hand → RED → revert → `git diff`):
   - (a) template: `{% if item.pill %}` instead of `{% if item.pill.submission_pk %}` → `test_t37_quiz_titles_link_iff…` RED: the not-started title gains an `<a>`, so `_breakdown_title_span(soup, notyet.title).select("a") == []` fails. (The `{% url %}` uses `node_pk` and `student.pk`, so the reverse itself still works.)
@@ -3050,7 +3094,9 @@ The count argument is `n` (spec §5.4). "quiz" matches the existing catalog ("Te
 
 If a msgid in the table is absent, the template/`gettext` call that should produce it is missing — fix the source, not the catalog. The reused msgids (`Correct`, `Incorrect`, `Partial`, `Not answered`, `Answer recorded`, `Reviewed`, `Awaiting review`, `Correct answer:`, `Breakdown`, `Review`, `Required`, `Avoid`, `up to %(m)s marks`, the pill strings) must still have their existing non-empty `msgstr`.
 
-Run: `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po` after clearing — it must print **0** (`tests/test_i18n_po_health.py` allows no fuzzy entry, no obsolete entry and no empty Polish msgstr, and checks every plural index).
+Clear fuzzy entries in the **English** catalog too: for each new msgid in `locale/en/LC_MESSAGES/django.po` marked `#, fuzzy`, delete the `#, fuzzy` line, any `#| msgid …` lines and the pre-filled `msgstr` text, leaving `msgstr ""` (an empty English msgstr falls back to the msgid and is allowed).
+
+Run: `grep -c "^#, fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po` after clearing — **both** must print **0** (`tests/test_i18n_po_health.py` allows no fuzzy entry, no obsolete entry and no empty Polish msgstr, and checks every plural index).
 
 - [ ] **Step 3: Compile and check**
 
@@ -3257,7 +3303,7 @@ Expected: every summary line reports 0 failed, 0 errors. A failure in a file unr
 - [ ] **Step 4: Manual pass on local mat-pp** (spec §6 manual pass, §7). In the worktree with `.env` copied and `LIBLI_VENDOR_INSTANCE=true` exported for the shell:
 
 1. `uv run python manage.py runserver`.
-2. **Before D9 numbers:** on a checkout of master (`git stash` is shared across worktrees — use the main checkout on master instead), open the analytics breakdown, the matrix (results mode), a pupil's course results page and the gradebook export for a mat-pp quiz that holds a **choicegrid**; note the pill, the course-results **row**, and the gradebook maximum.
+2. **Before D9 numbers:** on a checkout of master (`git stash` is shared across worktrees — use the main checkout on master instead). First confirm what that checkout is: `git -C ../libli rev-parse --abbrev-ref HEAD` must print `master`, and `git -C ../libli merge-base --is-ancestor <this branch's D9 commit sha> HEAD` must exit **non-zero** (D9 not yet in it); record `git -C ../libli log -1 --oneline` in the PR notes. Then, open the analytics breakdown, the matrix (results mode), a pupil's course results page and the gradebook export for a mat-pp quiz that holds a **choicegrid**; note the pill, the course-results **row**, and the gradebook maximum.
 3. **After:** the same pages on this branch. Record the differences; they must match spec §7 (a grid-only AUTO quiz's pill `submitted` → `scored` and its course-results row shows the score; the headline does not move for it; a mixed quiz's gradebook maximum rises by its grid marks).
 4. Provision a demo kit for mat-pp (`uv run python manage.py demo_access create …` — see `docs/deployment.md` §7 for the arguments), log in as its Teacher, open the matrix → a pupil → several quiz titles.
 5. Take screenshots in **light and dark** (`user.theme`, not the cookie — memory: dialog-does-not-inherit-the-page-theme) of: a submitted quiz with wrong answers, an in-progress quiz, a quiz with a choicegrid, and the breakdown with linked titles. Judge the dark shots separately (memory: verify-ui-with-screenshots). Check: wrong answers **vary between pupils** on the same question (parent T28); no text says "you"/"your"; maths is typeset; the phone width (390px) stacks parts without horizontal page scroll.
