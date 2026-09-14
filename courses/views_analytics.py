@@ -283,6 +283,7 @@ def analytics_student(request, slug, student_pk):
             "student": student,
             "breakdown": breakdown,
             "back_url": f"{matrix_path}?{back_qs}",
+            "drill_qs": back_qs,
             "has_math": has_math,
         },
     )

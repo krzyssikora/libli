@@ -18,6 +18,7 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.views_analytics import _expand_qs
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
@@ -718,3 +719,60 @@ def test_t39_no_maths_anywhere_loads_neither(client):
     _respond(sub, el, latest_answer="Warsaw", fraction=Decimal("1"), attempt_count=1)
     srcs = _script_srcs(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
     assert not any("katex" in s or s.endswith("question.js") for s in srcs)
+
+
+# --- T37 breakdown links and the back link -------------------------------------
+def _breakdown_title_span(soup, title):
+    for unit in soup.select("div.breakdown-unit"):
+        span = unit.select_one(":scope > span.breakdown-unit__title")
+        if span is not None and span.get_text(strip=True) == title:
+            return span
+    raise AssertionError(f"no breakdown title {title!r}")
+
+
+def test_t37_quiz_titles_link_iff_the_pupil_has_a_submission(client):
+    course, pupil = _owner_view(client)
+    scored = _empty_quiz(course, "L scored")
+    _add(scored)
+    _submitted(pupil, scored, score=Decimal("1"), max_score=Decimal("1"))
+    ungraded = _empty_quiz(course, "L ungraded")
+    _submitted(pupil, ungraded, score=Decimal("0"), max_score=Decimal("0"))
+    awaiting = _empty_quiz(course, "L awaiting")
+    _add(awaiting, ExtendedResponseQuestionElement, marking_mode=REVIEW)
+    _submitted(pupil, awaiting, score=Decimal("0"), max_score=Decimal("0"))
+    live = _empty_quiz(course, "L live")
+    _add(live)
+    _submitted(pupil, live, status=QuizSubmission.Status.IN_PROGRESS)
+    notyet = _empty_quiz(course, "L not started")
+    _add(notyet)
+
+    qs = f"?scope=all&mode=results&student={pupil.pk}&values=raw"
+    breakdown_path = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": pupil.pk},
+    )
+    soup = _soup(client.get(breakdown_path + qs))
+    drill = _expand_qs("all", "results", [], [pupil.pk], "raw")
+    for quiz in (scored, ungraded, awaiting, live):
+        link = _breakdown_title_span(soup, quiz.title).select_one(
+            "a.breakdown-unit__link"
+        )
+        assert link is not None, quiz.title
+        assert link["href"] == _url(course, pupil.pk, quiz.pk, f"?{drill}")
+    assert _breakdown_title_span(soup, notyet.title).select("a") == []
+
+
+def test_t37_back_link_round_trips_scope_mode_expand_subset_and_values(client):
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Back")
+    _add(quiz)
+    _submitted(pupil, quiz, score=Decimal("1"), max_score=Decimal("1"))
+    qs = f"?scope=all&mode=results&expand={quiz.pk}&student={pupil.pk}&values=raw"
+    soup = _soup(client.get(_url(course, pupil.pk, quiz.pk, qs)))
+    back = soup.select_one("section.answers .manage__head a")["href"]
+    expected_path = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": pupil.pk},
+    )
+    drill = _expand_qs("all", "results", [quiz.pk], [pupil.pk], "raw")
+    assert back == f"{expected_path}?{drill}"

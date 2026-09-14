@@ -3,7 +3,7 @@
   {% if item.is_unit %}
     {% if item.node.unit_type == "quiz" %}
       <div class="breakdown-unit">
-        <span class="breakdown-unit__title" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
+        <span class="breakdown-unit__title" lang="{{ course.language }}" data-math-title>{% if item.pill.submission_pk %}<a class="breakdown-unit__link" href="{% url 'courses:manage_analytics_student_quiz' slug=course.slug student_pk=student.pk node_pk=item.node.pk %}?{{ drill_qs }}">{{ item.node.title }}</a>{% else %}{{ item.node.title }}{% endif %}</span>
         {% with p=item.pill %}
           {% include "courses/manage/_quiz_pill.html" %}
           {% if p.kind == "awaiting" %}
