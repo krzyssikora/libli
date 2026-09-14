@@ -197,7 +197,8 @@ Each step 404s on failure (D7):
     SUBMITTED work only (`views_review.py:39-45`), so "Awaiting review" would promise an action
     that does not exist yet.
   - AUTO with `row["answered"]` true **and `response.fraction is None`** → `"recorded"`. This is a
-    question answered while REVIEW/NOT_MARKED and switched to AUTO afterwards (§4.3):
+    question answered while REVIEW/NOT_MARKED, **never reviewed**, and switched to AUTO
+    afterwards (§4.3; a reviewed one has a `fraction`, set by `review.review_response`):
     `_results_row` badges it `"not_answered"` (`views.py:1802-1804`) while its parts show the
     pupil's answer freshly marked, and *k* counts it answered. "Answer recorded" is true of both.
   - Otherwise AUTO is unaffected (`_results_row` keys it on `fraction`).
@@ -208,7 +209,10 @@ Each step 404s on failure (D7):
 - **Status:** the pill (D8), computed by the breakdown's own code, not a re-derivation. The
   per-unit row construction inside `build_course_results` (`rollups.py:450-493`) is **extracted**
   into `_course_results_row(unit, sub, has_auto, total_review, reviewed_counts)`, which
-  `build_course_results` then calls in its loop (behaviour unchanged). The new view calls
+  `build_course_results` then calls in its loop (behaviour unchanged). ⚠️ `course_results`'s
+  comment (`courses/views.py:704-708`) justifies a double iteration by "build_course_results
+  builds "rows" with three rows.append calls", which stops being true: reword it in the same
+  commit, **line-count neutral** so no other citation into `views.py` shifts. The new view calls
   `_quiz_review_maps([unit.pk], [submission])`, then `_course_results_row(...)`, then
   `_quiz_pill(row)` (§2.5). Kinds and what each shows:
   - `scored` — "scored s/m (p%)", as in the breakdown;
@@ -328,9 +332,26 @@ yields exactly one `"answer"` part and never bare keyword labels implying markin
 - **`max_attempts` lowered after the answer** (e.g. 3 attempts used, now `max_attempts=1`): the
   attempt line shows "attempt *n*" without "of *max*" whenever `n > max_attempts`, never
   "attempt 3 of 1" (§5.1).
-- **Marking mode changed after the answer.** → AUTO: `fraction` is `None`, handled by §3.3's
-  override (`"recorded"`), parts marked fresh. AUTO → REVIEW/NOT_MARKED: `_results_row` keys on
-  the CURRENT mode and ignores the stale `fraction`; parts are `given`-only by rule 1.
+- **Marking mode changed after the answer.**
+  - → AUTO, **never reviewed**: `fraction` is `None`, handled by §3.3's override (`"recorded"`),
+    parts marked fresh.
+  - → AUTO, **after a review**: `review.review_response` (`courses/review.py:43-53`) set `fraction`
+    and `earned_marks` — and creates the row even for an unanswered REVIEW question
+    (`latest_answer=None`). The override does not fire; the badge comes from the teacher's review
+    mark (e.g. "Correct (1/1)") while the parts show a fresh `mark()` — or "Not answered" ✗ when
+    it was never answered. **Accepted**, the same split the pupil's page shows.
+  - AUTO → REVIEW/NOT_MARKED: `_results_row` keys on the CURRENT mode and ignores the stale
+    `fraction`; parts are `given`-only by rule 1.
+- **Header pill vs a row, after a mode switch.** `reviewed_counts` counts every reviewed response
+  on a question element whatever its CURRENT mode (`rollups.py:361-369`), so a quiz with REVIEW
+  Q1 reviewed then switched to AUTO and REVIEW Q2 still unreviewed pills `scored` (1 of 1
+  "reviewed") with no header Review link, while Q2's row badges "Awaiting review" with its own
+  link. **Accepted** — the mismatch predates PR 5 in the breakdown, and the per-row link keeps Q2
+  reviewable; scoping `reviewed_counts` to current-REVIEW elements is a rollup change for another
+  PR.
+- **An answered question whose every row/blank/pair/zone was deleted** yields **zero** parts. The
+  template then renders one muted line, "(this question no longer has any parts)" (new msgid,
+  §5.4), so the pupil's answer is never silently absent.
 - **A removed choice or column pk** displays as `"(removed option)"` — never silently dropped.
   ⚠️ For choicegrid, `reveal[i]["chosen_label"]` is `None` both for `""` and for a removed pk
   (`models.py:2789`), so `given` must be computed from the **stored** value, not from `reveal`.
@@ -388,7 +409,8 @@ eleventh question type fails the test until its adapter exists.
     — never "your answer"**); then "Correct answer:" (existing msgid) + `expected` **iff
     `expected` is truthy** (an empty-string reveal, e.g. shorttext with no accepted lines,
     `models.py:2492`, renders no hint rather than a dangling label).
-    `given` for extendedresponse keeps line breaks (`white-space: pre-wrap`);
+    `given` for extendedresponse keeps line breaks (`white-space: pre-wrap`); an empty part list
+    renders the muted "(this question no longer has any parts)" line instead (§4.3);
   - for every row with `attempt_count > 0` (any marking mode, §3.3), "attempt *n* of *max*", or
     "attempt *n*" when `max_attempts` is null (unlimited) **or `n > max_attempts`** (§4.3).
 - All pupil-entered and author-entered text is autoescaped (`given`, labels, `expected`); only the
@@ -417,7 +439,8 @@ wiring is a no-op here: the page has no `<form>`.
 ### 5.4 i18n
 
 New msgids, each filled in Polish by hand (expected set; the plan confirms each is new by grep):
-"Answers", "Gap %(n)s", "Zone %(n)s", "question %(n)s", "(removed option)", "attempt %(n)s of %(max)s",
+"Answers", "Gap %(n)s", "Zone %(n)s", "question %(n)s", "(removed option)",
+"(this question no longer has any parts)", "attempt %(n)s of %(max)s",
 "attempt %(n)s", and an `ngettext` pair "%(k)s of %(n)s question answered" /
 "%(k)s of %(n)s questions answered" — **the plural count argument is `n`** (the noun agrees with
 the total: "1 of 3 questions", "1 z 5 pytań"), never `k`; the Polish three forms follow `n`. After `makemessages`, check
@@ -514,7 +537,14 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   new expected value — pinning the accepted split. Plus **mode switched to AUTO after
   answering**: a shorttext response with `latest_answer` set and `fraction=None` on a question
   now AUTO badges "Answer recorded" (not "Not answered") and its part shows `given` with ✓/✗ from
-  the fresh mark; on an IN_PROGRESS submission it counts toward *k*. Mutants: drop the
+  the fresh mark; on an IN_PROGRESS submission it counts toward *k*. Plus **reviewed, then
+  switched to AUTO**: an answered REVIEW shorttext reviewed at full marks then made AUTO badges
+  "Correct" (from the stored review `fraction`) with parts from the fresh mark; and an
+  **unanswered** REVIEW question reviewed at 0 then made AUTO (`latest_answer=None`, `fraction`
+  0) badges "Incorrect" with a "Not answered" ✗ part — both pinning the accepted split. Plus
+  **zero parts**: an answered fillblank whose blanks were all deleted renders the
+  "(this question no longer has any parts)" line (mutant: render nothing for an empty part
+  list). Mutants: drop the
   AUTO-`fraction is None` override arm (the badge reads "Not answered" and goes red); skip the padding (IndexError or
   misaligned parts); read choicegrid `given` from `reveal["chosen_label"]` (the removed pk shows
   as not answered); read part `ok` from the stored fraction (the key-edit case goes red).
@@ -581,10 +611,15 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
 - **T41 Grids reach the rollups (D9).** Through `build_course_results` (so the breakdown and the
   new header both inherit it): a SUBMITTED **grid-only AUTO** quiz (one choicegrid) pills
   `scored`; a SUBMITTED quiz whose only REVIEW question is an **unreviewed multigrid** pills
-  `awaiting`, and after that response gets `reviewed_at` it pills `scored`/`submitted` as its
-  marks dictate; `quiz_gradeable_max` for a unit with one AUTO choicegrid (`max_marks` 2) and one
-  AUTO shorttext (`max_marks` 1) is 3. The same fixtures through the new page show a header Review
-  link iff the row has one. Mutant: restore the 8-model list (every case goes red). The swap
+  `awaiting`, and after that response gets `reviewed_at` it pills **`submitted`** (no AUTO
+  question, so `graded` is false); `quiz_gradeable_max` for a unit with one AUTO choicegrid
+  (`max_marks` 2) and one AUTO shorttext (`max_marks` 1) is 3. The same fixtures through the new
+  page show a header Review link iff the row has one. Mutant: restore the 8-model list — the
+  grid-only AUTO pill, the unreviewed-multigrid `awaiting` pill, its header Review link and the
+  gradeable maximum go red. ⚠️ The **post-review** case does **not**: under the 8-model list the
+  multigrid drops out of both `total_review` and `reviewed_counts`, `0 > 0` is false, and it pills
+  `submitted` either way. It stays as a behaviour check that the fix does not leave a reviewed
+  grid pending, not as a guard on D9. The swap
   itself must not pin a count (memory: guards-that-assert-the-adjacent-thing, pattern #9).
 - **T40 e2e (real gestures, `-m e2e`).** A non-staff group teacher logs in, opens the matrix,
   clicks the pupil's name, clicks the quiz title in the breakdown, and sees — inside that
@@ -623,10 +658,25 @@ order stays parent §6: 1 → 2 → 3 → **5** → 4, then the vendor flag.
 
 ⚠️ **D9 changes live numbers on deploy**, with no data migration (everything is computed on
 read): on any quiz containing a grid, `has_auto`/the review gate/`quiz_gradeable_max` start
-counting it. Expected visible effects on prod: a grid-only AUTO quiz's pill moves `submitted` →
-`scored`; a gradebook export's maximum rises by the grid questions' marks. Cached
-`QuizSubmission.score`/`max_score` are unaffected (`compute_scores` already counted grids). The
-PR description says so; the manual pass (§6) checks a mat-pp quiz holding a choicegrid.
+counting it. Every surface fed by `_quiz_review_maps` or `quiz_gradeable_max` moves:
+
+- **Breakdown pill and the pupil's own course results page** (`build_course_results` also serves
+  `course_results`, `views.py:696-703`): a grid-only AUTO quiz moves `submitted` → `scored`, and
+  it now enters the pupil's headline score.
+- **Results matrix cells and averages** (`build_results_matrix`, `rollups.py:833`) and
+  **gradebook cells** (`build_quiz_gradebook`, `gradebook.py:95,118`): a SUBMITTED quiz with an
+  **unreviewed REVIEW grid** stops being counted — its matrix cell and averages drop it and its
+  gradebook cell shows "R" instead of a score.
+- **Gradebook columns**: a grid-only quiz's maximum was 0, which blanks the whole column
+  (`gradebook.py:110`); after D9 the column fills with scores. A mixed quiz's maximum rises by its
+  grid marks.
+
+Cached `QuizSubmission.score`/`max_score` are unaffected (`compute_scores` already counted grids).
+The REVIEW-grid effects have **no known prod instance**: every question in mat-pp's published
+quizzes was AUTO in the parent's local audit (§3.1, 260/260), though prod has moved since. The PR
+description lists all of the above; the manual pass (§6) opens a mat-pp quiz holding a choicegrid
+in the breakdown, the matrix, the pupil's course results and the gradebook export, before and
+after the change.
 
 ## 8. Parent amendments
 
