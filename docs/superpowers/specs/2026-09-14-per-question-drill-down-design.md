@@ -107,6 +107,9 @@ Each was read on 2026-09-14 at the cited line, on master `d432245a`.
 - `build_quiz_context` prefetches each type's children in one query per type present
   (`courses/views.py:1327-1356`): choices, blanks, dragblanks, pairs, zones, grid
   columns/rows, multigrid `rows__correct_columns`. Every `mark()` reads only those.
+  ⚠️ `build_lesson_context` holds a **line-for-line identical copy** of the same seven blocks
+  (`courses/views.py:355-382`); `build_quiz_context`'s comment at `:1327` says "Mirror
+  build_lesson_context". So there are already TWO copies.
 - `_question_has_math` (`courses/views.py:98-130`) decides KaTeX per question.
 - `answer_from_json` (`courses/quiz.py:192-198`): choice → set of pks; everything else unchanged.
   Stored shapes: choice = sorted pk list; shorttext/shortnumeric/extendedresponse = str;
@@ -160,14 +163,19 @@ Each step 404s on failure (D7):
 
 - `elements`: `unit.elements.filter(parent__isnull=True).order_by("order", "pk")` with
   `prefetch_related("content_object")`, keeping `QuestionElement` rows only.
-- The same per-type prefetch as `build_quiz_context` (§2.5). ⚠️ **Extract it** into one helper
-  both builders call, rather than copying the seven `if` blocks: two copies drift exactly the
-  way the lock rule did (`courses/quiz.py:94-116`).
+- The same per-type prefetch as `build_quiz_context` (§2.5). ⚠️ **Extract it** into one helper,
+  `prefetch_question_children(questions)` in `courses/views.py`, called by **all three**:
+  `build_lesson_context`, `build_quiz_context` and the new view — replacing both existing copies
+  rather than adding a third. Copies drift exactly the way the lock rule did
+  (`courses/quiz.py:94-116`). The lesson and quiz context tests are the regression guard for the
+  two replaced copies.
 - `responses = {r.element_id: r for r in submission.responses.all()}`.
 - Per question: `row = _results_row(q, responses.get(el.pk))`, then
   `row["parts"] = summarise(q, row["response"], row["reveal_result"])` (§4),
-  `row["qnum"]` (1-based over listed questions), and for AUTO questions with
-  `response.attempt_count > 0`, `attempt_count` and `max_attempts`.
+  `row["qnum"]` (1-based over listed questions), and for **every** question (any marking mode)
+  with `response.attempt_count > 0`, `attempt_count` and `max_attempts` — `quiz_answer` counts and
+  enforces attempts for every mode (`views.py:1639-1643`, `:1667`), so a REVIEW essay locked after
+  its one attempt says so too.
 - **Outcome override** (§2.2), applied by the new view to `row["outcome"]` after `_results_row`,
   never inside it (the pupil's page is out of scope, §3.6):
   - NOT_MARKED with `row["answered"]` false → `"not_answered"` (any status);
@@ -178,7 +186,11 @@ Each step 404s on failure (D7):
     recorded"): nobody can review it until the pupil finishes, because the review page opens
     SUBMITTED work only (`views_review.py:39-45`), so "Awaiting review" would promise an action
     that does not exist yet.
-  - AUTO is unaffected (`_results_row` already keys it on `fraction`).
+  - AUTO with `row["answered"]` true **and `response.fraction is None`** → `"recorded"`. This is a
+    question answered while REVIEW/NOT_MARKED and switched to AUTO afterwards (§4.3):
+    `_results_row` badges it `"not_answered"` (`views.py:1802-1804`) while its parts show the
+    pupil's answer freshly marked, and *k* counts it answered. "Answer recorded" is true of both.
+  - Otherwise AUTO is unaffected (`_results_row` keys it on `fraction`).
 
 ### 3.4 The header
 
@@ -297,7 +309,14 @@ yields exactly one `"answer"` part and never bare keyword labels implying markin
 
 - **Part count follows the question's current rows.** The stored list is padded with "empty" or
   truncated to that count, exactly as each `mark()` pads (`models.py:2600`, `:2776`, `:2861`;
-  `dnd.py:45`), so parts and `reveal` entries always align by index.
+  `dnd.py:45`), so parts and `reveal` entries always align by index. ⚠️ Index alignment is not
+  semantic correctness: stored answers are positional, so deleting a **middle** row, blank, gap
+  or pair shifts every later stored value onto the next label, and the page shows it under a
+  statement the pupil never answered. `mark()` and the pupil's page misattribute identically;
+  **accepted, not reconciled**.
+- **Marking mode changed after the answer.** → AUTO: `fraction` is `None`, handled by §3.3's
+  override (`"recorded"`), parts marked fresh. AUTO → REVIEW/NOT_MARKED: `_results_row` keys on
+  the CURRENT mode and ignores the stale `fraction`; parts are `given`-only by rule 1.
 - **A removed choice or column pk** displays as `"(removed option)"` — never silently dropped.
   ⚠️ For choicegrid, `reveal[i]["chosen_label"]` is `None` both for `""` and for a removed pk
   (`models.py:2789`), so `given` must be computed from the **stored** value, not from `reveal`.
@@ -339,17 +358,24 @@ eleventh question type fails the test until its adapter exists.
     Accepted as a copy: extracting a partial would change the pupil's results page, which §3.6
     keeps out of scope. It uses the `marks` filter, so the template loads `courses_extras`;
   - a per-row "Review" link to the review page **iff `row.outcome == "review"`** (after the §3.3
-    override, that is only on a SUBMITTED submission); an already-reviewed row gets no link;
+    override, that is only on a SUBMITTED submission); an already-reviewed row gets no link.
+    Several rows can link to the same URL, so each per-row link carries sr-only
+    "question %(n)s" (new msgid) in its accessible name, telling screen-reader link lists apart;
   - on a `"reviewed"` row, the teacher's `review_feedback` when non-empty, as the pupil's page
     shows it (`quiz_results.html:38-42`) — autoescaped;
   - the parts: one `<div class="answers__part answers__part--{{ part.kind }}">` each — the label
     if any; for an `"answer"` part, `given`, or muted "Not answered" (existing msgid) when `None`
-    (a `"keyword"` part renders no given/not-answered text at all, §4.2 rule 5); a ✓/✗ glyph when `ok` is not `None`, `aria-hidden`,
-    followed by sr-only "Correct" / "Incorrect" (existing msgids, **teacher voice — never
-    "your answer"**); then "Correct answer:" (existing msgid) + `expected` when present.
+    (a `"keyword"` part renders no given/not-answered text at all, §4.2 rule 5); a ✓/✗ glyph when
+    `ok` is not `None` — **except that an `"answer"` part with `given is None` never shows ✓**
+    (it shows "Not answered", and ✗ when `ok` is `False`), so an empty part scoring `ok=True`
+    (e.g. a multigrid row with an empty correct set left empty) never reads "Not answered ✓" —
+    `aria-hidden`, followed by sr-only "Correct" / "Incorrect" (existing msgids, **teacher voice
+    — never "your answer"**); then "Correct answer:" (existing msgid) + `expected` **iff
+    `expected` is truthy** (an empty-string reveal, e.g. shorttext with no accepted lines,
+    `models.py:2492`, renders no hint rather than a dangling label).
     `given` for extendedresponse keeps line breaks (`white-space: pre-wrap`);
-  - for AUTO rows with attempts, "attempt *n* of *max*", or "attempt *n*" when `max_attempts` is
-    null (unlimited).
+  - for every row with `attempt_count > 0` (any marking mode, §3.3), "attempt *n* of *max*", or
+    "attempt *n*" when `max_attempts` is null (unlimited).
 - All pupil-entered and author-entered text is autoescaped (`given`, labels, `expected`); only the
   stem is `|safe`, as on the pupil's page.
 
@@ -376,7 +402,7 @@ wiring is a no-op here: the page has no `<form>`.
 ### 5.4 i18n
 
 New msgids, each filled in Polish by hand (expected set; the plan confirms each is new by grep):
-"Answers", "Gap %(n)s", "Zone %(n)s", "(removed option)", "attempt %(n)s of %(max)s",
+"Answers", "Gap %(n)s", "Zone %(n)s", "question %(n)s", "(removed option)", "attempt %(n)s of %(max)s",
 "attempt %(n)s", and an `ngettext` pair "%(k)s of %(n)s question answered" /
 "%(k)s of %(n)s questions answered" — **the plural count argument is `n`** (the noun agrees with
 the total: "1 of 3 questions", "1 z 5 pytań"), never `k`; the Polish three forms follow `n`. After `makemessages`, check
@@ -404,8 +430,9 @@ mutant and observe the failure before reverting by hand.
 ⚠️ Fixtures create rows in several models with independent pk sequences. Assert on the element's
 `data-question`/`qnum` position or on `Element.pk`, **never** on another model's pk or on a pk
 substring (memory: independent-pk-sequences-make-substring-assertions-flaky). Scope content
-assertions to the item or header element, not the whole page: the quiz title repeats in
-`head_title` and the `manage__head` title, and the pupil's name in that title.
+assertions to the item or header element, not the whole page: the `manage__head` title holds
+both the quiz title and the pupil's name, and question stems or answers can repeat those
+strings. (`head_title` is "Answers · *course title* · libli" and carries neither.)
 
 - **T30 Access (parent §8 — PR 5 does not merge without it).** One fixture: a course with two
   non-archived groups, each with one pupil holding a SUBMITTED submission on the same published
@@ -414,7 +441,7 @@ assertions to the item or header element, not the whole page: the quiz title rep
   | viewer | expected |
   |---|---|
   | Platform Admin | 200 |
-  | course owner | 200 |
+  | course owner (**non-staff**, asserted up front) | 200 |
   | teacher of pupil A's group (`make_teacher`, **non-staff**) | 200 |
   | teacher of pupil B's group only | 404 |
   | a user with `is_staff=True` **and** the Teacher group who teaches no group on the course (assert `is_staff` up front — `make_teacher` does not set it, §2.4) | 404 |
@@ -467,7 +494,11 @@ assertions to the item or header element, not the whole page: the quiz title rep
   (`given == "(removed option)"`, not `None`); a multigrid row holding one live and one deleted
   pk. Plus **key edited after answering** (§4.3): a shortnumeric response stored at
   `fraction=1` whose `value` is then changed renders the "Correct" badge **and** a ✗ part with the
-  new expected value — pinning the accepted split. Mutants: skip the padding (IndexError or
+  new expected value — pinning the accepted split. Plus **mode switched to AUTO after
+  answering**: a shorttext response with `latest_answer` set and `fraction=None` on a question
+  now AUTO badges "Answer recorded" (not "Not answered") and its part shows `given` with ✓/✗ from
+  the fresh mark; on an IN_PROGRESS submission it counts toward *k*. Mutants: drop the
+  AUTO-`fraction is None` override arm (the badge reads "Not answered" and goes red); skip the padding (IndexError or
   misaligned parts); read choicegrid `given` from `reveal["chosen_label"]` (the removed pk shows
   as not answered); read part `ok` from the stored fraction (the key-edit case goes red).
 - **T34 Drift guard** (§4.4). Falsified twice: delete one registry entry; and, separately, grow the
@@ -485,7 +516,12 @@ assertions to the item or header element, not the whole page: the quiz title rep
 - **T35 The page.** Owner views: a SUBMITTED graded quiz shows the scored pill and each row's
   badge; an IN_PROGRESS quiz shows the in-progress pill, "*k* of *n* questions answered", no
   score, and the correct answer for a wrong answer on a question with attempts left (D5); an
-  AUTO row shows "attempt 1 of 2"; an unlimited-attempts row shows "attempt 1".
+  AUTO row shows "attempt 1 of 2"; an unlimited-attempts row shows "attempt 1"; an answered
+  REVIEW row shows "attempt 1 of 1" (mutant: restrict the attempt line to AUTO). A part with
+  `given is None` and `ok is True` renders no ✓, and a shorttext row whose `expected` is `""`
+  renders no "Correct answer:" (mutant: test `expected is not None` instead of truthiness).
+  On a SUBMITTED quiz with two unreviewed REVIEW questions, the two per-row Review links have
+  distinct accessible names (mutant: drop the sr-only question number).
   ⚠️ The in-progress fixture **must include a `QuestionResponse` with `attempt_count=0,
   latest_answer=None`** on a listed question (the empty-submit row, §2.2), and `k` must exclude it
   — otherwise the count mutant below cannot go red. The same fixture holds an unanswered REVIEW
@@ -543,8 +579,10 @@ assertions to the item or header element, not the whole page: the quiz title rep
     and the plain branch (`not_started`), so neither passes on the other's marker. Mutant: put
     `data-math-title` on the `<a>` instead of the span (the link-branch assertion goes red).
   - Tests covering `build_course_results` keep passing after `_course_results_row` is extracted
-    (behaviour-preserving), and `courses/tests/` covering `build_quiz_context` keep passing after
-    the prefetch extraction.
+    (behaviour-preserving), and the tests covering `build_lesson_context` **and**
+    `build_quiz_context` (e.g. `courses/tests/test_callout_has_math.py`,
+    `test_nested_question_nojs_feedback.py`) keep passing after both prefetch copies are replaced
+    by `prefetch_question_children`.
 
 **Manual pass before the PR:** provision a local `mat-pp` demo kit, log in as its Teacher, open
 several pupils' quizzes, in light and dark; confirm wrong answers vary between pupils (parent T28
