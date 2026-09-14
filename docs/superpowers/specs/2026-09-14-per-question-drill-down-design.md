@@ -31,6 +31,7 @@ mentions the `demo` app.
 | D6 | **No catch-all fail-open.** Known content drift (§4.3) is handled explicitly and tested; anything else raises. | A blanket `except` would hide the next real bug behind "answer could not be displayed". |
 | D7 | **Every failure is 404, never 403.** | The manage convention the breakdown already follows (`courses/views_analytics.py:240-242`). Satisfies the parent's T30 ("403/404"). |
 | D8 | **The breakdown's quiz pill markup moves into a shared partial** used by both the breakdown and the new page's header. | The header must say exactly what the pill says (scored / submitted / awaiting review / in progress); one partial makes that structural rather than two copies kept in step by a test alone. |
+| D9 | **Fix `rollups._QUESTION_MODELS`, which omits both grid types, in this PR** — replace it with `richtext.CONCRETE_QUESTION_MODELS` (§2.5). | The new page puts the header pill (from `_quiz_review_maps`) next to per-row badges (from `_results_row`, which sees every type), so a grid-only AUTO quiz would read "submitted" above scored rows and an unreviewed REVIEW choicegrid would badge "Awaiting review" under a header with no Review link. Rejected: documenting the split — it is a live bug in the matrix, breakdown, course results and gradebook maximum, not a design trade-off. ⚠️ **It changes prod analytics** for quizzes containing grids (mat-pp's published quizzes hold 2 choicegrids): see §7. Kept as its own task and commit so it can be split out if wanted. |
 
 ## 2. Findings that constrain the design
 
@@ -131,6 +132,15 @@ Each was read on 2026-09-14 at the cited line, on master `d432245a`.
   (`:547-552`) and `{"kind": "submitted"}` (`:576`); `:555` asserts `not_started`.
 - `mark_keywords` returns keyword entries only (`courses/keywords.py:29-35`) — there is no
   model answer — and `mark_keywords("", [], [])` is `correct=True`.
+- ⚠️ **`rollups._QUESTION_MODELS` (`courses/rollups.py:25-36`) lists 8 models and omits
+  `ChoiceGridQuestionElement` and `MultiGridQuestionElement`** (its comment predates the grids).
+  It feeds `_quiz_review_maps` (`:344-346`: `has_auto`, `total_review`, `reviewed_counts`) and
+  `quiz_gradeable_max` (`:383-385`). Both grid editor forms offer every marking mode, REVIEW
+  included (`element_forms.py:1009-1012`, `:1141-1144`), while `compute_scores`
+  (`courses/quiz.py:201-229`) counts grids. So today a grid-only AUTO quiz pills `submitted`
+  despite `max_score > 0`, an unreviewed REVIEW grid never arms the awaiting gate, and the
+  gradebook maximum omits grid marks. `builder.py:744-748` already uses
+  `CONCRETE_QUESTION_MODELS` for the same purpose. D9 fixes it.
 - `views.py` does not import `views_analytics`, so `views_analytics` importing `_results_row`
   from `views` is cycle-free; `views_review.py:19` and `views_export.py:14-15` already import
   private helpers across view modules.
@@ -202,8 +212,9 @@ Each step 404s on failure (D7):
   `_quiz_review_maps([unit.pk], [submission])`, then `_course_results_row(...)`, then
   `_quiz_pill(row)` (§2.5). Kinds and what each shows:
   - `scored` — "scored s/m (p%)", as in the breakdown;
-  - `submitted` — submitted, and either the quiz has no AUTO question or `max_score` is falsy
-    (`rollups.py:518`) — e.g. a fully reviewed REVIEW-only quiz;
+  - `submitted` — submitted, and either the quiz has no AUTO question (of **any** of the ten
+    types, after D9) or `max_score` is falsy (`rollups.py:518`) — e.g. a fully reviewed
+    REVIEW-only quiz;
   - `awaiting` — "awaiting review" **plus the existing "Review" link** to
     `courses:manage_review_submission`;
   - `in_progress` — "in progress" plus "*k* of *n* questions answered", where *n* is the
@@ -287,7 +298,7 @@ def summarise(question, response, mark_result) -> list[Part]
 
 | type | parts | `given` | `expected` | `ok` source |
 |---|---|---|---|---|
-| choice (single or multiple) | 1, no label | picked option texts in option `(order, pk)` order, `", "`-joined; one `"(removed option)"` per stored pk no longer among the choices | correct option texts, same order | `mark_result.correct` |
+| choice (single or multiple) | 1, no label | picked option texts in option `(order, pk)` order, `", "`-joined; one `"(removed option)"` per stored pk no longer among the choices, **appended after** the live option texts | correct option texts, same order | `mark_result.correct` |
 | shorttext | 1 | the stored string | `mark_result.reveal` (first accepted line) | `.correct` |
 | shortnumeric | 1 | the stored string | `reveal["value"]`, plus `" ± " + reveal["tolerance"]` when tolerance is non-empty | `.correct` |
 | extendedresponse | 1 `"answer"` part for the text (`label=None`, `expected=None` **always** — there is no model answer, §2.5), then one `"keyword"` part per keyword in `reveal` order | the text, line breaks preserved | `None` on every part. Keyword label = `gettext("Required") + ": " + kw` / `gettext("Avoid") + ": " + kw`, reusing the existing bare msgids exactly as `_reveal_extendedresponse.html:8,13` joins them | text part: `.correct` when answered, `False` when unanswered (rule 3); keyword part: `found` for Required, `not found` for Avoid — **`None` on every keyword part when unanswered**, as `_reveal_extendedresponse.html:18-28` does |
@@ -314,6 +325,9 @@ yields exactly one `"answer"` part and never bare keyword labels implying markin
   or pair shifts every later stored value onto the next label, and the page shows it under a
   statement the pupil never answered. `mark()` and the pupil's page misattribute identically;
   **accepted, not reconciled**.
+- **`max_attempts` lowered after the answer** (e.g. 3 attempts used, now `max_attempts=1`): the
+  attempt line shows "attempt *n*" without "of *max*" whenever `n > max_attempts`, never
+  "attempt 3 of 1" (§5.1).
 - **Marking mode changed after the answer.** → AUTO: `fraction` is `None`, handled by §3.3's
   override (`"recorded"`), parts marked fresh. AUTO → REVIEW/NOT_MARKED: `_results_row` keys on
   the CURRENT mode and ignores the stale `fraction`; parts are `given`-only by rule 1.
@@ -361,8 +375,9 @@ eleventh question type fails the test until its adapter exists.
     override, that is only on a SUBMITTED submission); an already-reviewed row gets no link.
     Several rows can link to the same URL, so each per-row link carries sr-only
     "question %(n)s" (new msgid) in its accessible name, telling screen-reader link lists apart;
-  - on a `"reviewed"` row, the teacher's `review_feedback` when non-empty, as the pupil's page
-    shows it (`quiz_results.html:38-42`) — autoescaped;
+  - the teacher's `review_feedback` on **any** row where it is non-empty, whatever the outcome —
+    the pupil's page's own condition (`quiz_results.html:38-42`), so feedback on a question later
+    switched out of REVIEW still shows — autoescaped;
   - the parts: one `<div class="answers__part answers__part--{{ part.kind }}">` each — the label
     if any; for an `"answer"` part, `given`, or muted "Not answered" (existing msgid) when `None`
     (a `"keyword"` part renders no given/not-answered text at all, §4.2 rule 5); a ✓/✗ glyph when
@@ -375,7 +390,7 @@ eleventh question type fails the test until its adapter exists.
     `models.py:2492`, renders no hint rather than a dangling label).
     `given` for extendedresponse keeps line breaks (`white-space: pre-wrap`);
   - for every row with `attempt_count > 0` (any marking mode, §3.3), "attempt *n* of *max*", or
-    "attempt *n*" when `max_attempts` is null (unlimited).
+    "attempt *n*" when `max_attempts` is null (unlimited) **or `n > max_attempts`** (§4.3).
 - All pupil-entered and author-entered text is autoescaped (`given`, labels, `expected`); only the
   stem is `|safe`, as on the pupil's page.
 
@@ -477,7 +492,9 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   `viewer=request.user` to `get_node_or_404` (a group teacher cannot see drafts → 404).
 - **T32 Answer summary, per type.** For each of the ten types, pure calls to `summarise` asserting
   the exact `Part` list for: correct; wrong; partial where the type has one (fillblank, dragfill,
-  dragimage, matchpair, choicegrid, multigrid); unanswered (AUTO); and the same answer on a
+  dragimage, matchpair, choicegrid, multigrid, **extendedresponse** — two required keywords, one
+  found: `fraction` 0.5, text part `ok is False` beside one ✓ and one ✗ keyword part; mutant:
+  read the text part's `ok` as `fraction > 0`); unanswered (AUTO); and the same answer on a
   REVIEW-mode copy (all `expected`/`ok` `None`). Choice covers single and multiple.
   extendedresponse covers: its REVIEW-mode copy **keeps non-empty keywords on the question** and
   yields exactly one `"answer"` part (mutant: emit keyword parts regardless of mode);
@@ -561,6 +578,14 @@ strings. (`head_title` is "Answers · *course title* · libli" and carries neith
   `courses/js/question.js` script tag (after it); a quiz with no maths anywhere includes neither.
   Mutants: compute `has_math` from stems only; drop the `question.js` tag (§5.2 — maths would stay
   raw while the flag test passed).
+- **T41 Grids reach the rollups (D9).** Through `build_course_results` (so the breakdown and the
+  new header both inherit it): a SUBMITTED **grid-only AUTO** quiz (one choicegrid) pills
+  `scored`; a SUBMITTED quiz whose only REVIEW question is an **unreviewed multigrid** pills
+  `awaiting`, and after that response gets `reviewed_at` it pills `scored`/`submitted` as its
+  marks dictate; `quiz_gradeable_max` for a unit with one AUTO choicegrid (`max_marks` 2) and one
+  AUTO shorttext (`max_marks` 1) is 3. The same fixtures through the new page show a header Review
+  link iff the row has one. Mutant: restore the 8-model list (every case goes red). The swap
+  itself must not pin a count (memory: guards-that-assert-the-adjacent-thing, pattern #9).
 - **T40 e2e (real gestures, `-m e2e`).** A non-staff group teacher logs in, opens the matrix,
   clicks the pupil's name, clicks the quiz title in the breakdown, and sees — inside that
   question's item — the pupil's wrong numeric answer and "Correct answer:" with the expected
@@ -595,6 +620,13 @@ Scoped test runs per task; the whole-suite sweep, in chunks, is a branch gate on
 
 One PR, off master. **No migration, no FORMAT_VERSION bump.** New pl msgids (§5.4). Merge
 order stays parent §6: 1 → 2 → 3 → **5** → 4, then the vendor flag.
+
+⚠️ **D9 changes live numbers on deploy**, with no data migration (everything is computed on
+read): on any quiz containing a grid, `has_auto`/the review gate/`quiz_gradeable_max` start
+counting it. Expected visible effects on prod: a grid-only AUTO quiz's pill moves `submitted` →
+`scored`; a gradebook export's maximum rises by the grid questions' marks. Cached
+`QuizSubmission.score`/`max_score` are unaffected (`compute_scores` already counted grids). The
+PR description says so; the manual pass (§6) checks a mat-pp quiz holding a choicegrid.
 
 ## 8. Parent amendments
 
