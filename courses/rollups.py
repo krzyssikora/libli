@@ -1069,7 +1069,7 @@ def build_resume(course, user, tree):
     # views.py::build_lesson_context, every `seen` batch, every practice-state write.
     # NOTE: completed=False here is DELIBERATE REDUNDANCY and is NOT falsifiable --
     # open_pks is derived from exactly this filter (build_outline's completed set,
-    # rollups.py:244-250, leaf key at :265), so no mutant of it can go RED. It
+    # rollups.py:228-234, leaf key at :249), so no mutant of it can go RED. It
     # states the intent locally; do not spend a falsification round on it.
     a = (
         UnitProgress.objects.filter(student=user, unit_id__in=open_pks, completed=False)

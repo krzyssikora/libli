@@ -40,7 +40,7 @@ def _unit_with_a_nested_callout(unit):
 @pytest.fixture
 def student_user():
     """Both context builders REQUIRE a real user; neither tolerates None.
-    build_lesson_context reaches `elif user.is_authenticated` (courses/views.py:514)
+    build_lesson_context reaches `elif user.is_authenticated` (courses/views.py:524)
     whenever the viewer is not enrolled -- and is_enrolled(None, course) is a plain
     .filter(student=None).exists(), so that branch always runs and None.is_authenticated
     raises. build_quiz_context crashes further down instead, via
