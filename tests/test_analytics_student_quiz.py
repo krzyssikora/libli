@@ -290,9 +290,9 @@ def test_t35_submitted_unanswered_review_rows_link_with_distinct_names(client):
     sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("0"))
     soup = _soup(client.get(_url(course, pupil.pk, quiz.pk)))
     items = _items(soup)
-    assert [_badge(i).split(" (")[0] for i in items] == [
-        "Awaiting review",
-        "Awaiting review",
+    assert [_badge(i) for i in items] == [
+        "Awaiting review (up to 1 mark)",
+        "Awaiting review (up to 1 mark)",
     ]
     links = [i.select_one("a.answers__row-review") for i in items]
     expected_href = reverse(

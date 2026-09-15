@@ -49,10 +49,9 @@ Twoje wybory rozwinięcia i podzbioru podróżują z tobą: przenoszą się prze
 przełącznik Postęp ↔ Wyniki oraz odnośnik eksportu, więc nigdy nie tracisz
 swojego miejsca przy zmianie tego, co mierzy macierz.
 
-## Rozbicie na pojedynczego ucznia
+## Wyniki pojedynczego ucznia
 
-Kliknij nazwisko ucznia, aby otworzyć jego indywidualne rozbicie dla bieżącego
-kursu. Odnośnik **← Analityka** przywraca dokładny zakres, tryb, rozwinięte
+Kliknij nazwisko ucznia, aby otworzyć jego wyniki w bieżącym kursie. Odnośnik **← Analityka** przywraca dokładny zakres, tryb, rozwinięte
 kolumny i podzbiór, z których przyszedłeś, więc możesz zajrzeć do jednego
 ucznia i wrócić prosto do tej samej siatki.
 
