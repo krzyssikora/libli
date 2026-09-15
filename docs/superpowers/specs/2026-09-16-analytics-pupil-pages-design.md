@@ -34,7 +34,9 @@ Each was the owner's choice, recorded here so the plan does not re-open them.
   for one type).
 - **D3 — The full option list is built teacher-side**, by extending the PR 5 answer builder.
   Rejected: reusing the pupil's own interactive choice markup, which is pupil-voice and carries
-  inputs and scripts (§2.6).
+  inputs and scripts (§2.6). ⚠️ **Refined in review:** the builder does not re-derive the
+  per-option verdicts either — it calls the same `choice_marks` model method the pupil page uses
+  (§5.1), so "the two pages agree" is a mechanism, not a claim.
 - **D4 — Outcome colour is reconciled across both pages.** The badge markup on the two pages is a
   deliberate copy (PR 5 spec §5.1), and a demo rep sees the pupil page through the Student login.
   ⚠️ **Amended in review:** the pupil page already tints its whole question panel by outcome
@@ -46,8 +48,8 @@ Each was the owner's choice, recorded here so the plan does not re-open them.
   matrix. Approved as one of three "my call" items in section 2.
 - **D7 — Chapter headings drop the `x/y required` chip in Results mode** (it counts lessons only,
   §2.3). Approved with D6.
-- **D8 — Optional lessons are tagged in Progress mode.** Approved with D6. §2.3 settles the word:
-  reuse the existing legend term "Optional" / „Opcjonalne".
+- **D8 — Optional lessons are tagged in Progress mode.** Approved with D6. ⚠️ **The word is
+  „Dodatkowa", not „Opcjonalne"** — §2.3 explains why the product already owns this vocabulary.
 - **D9 — The coloured card edge, the decimal comma, and the multi-part header row** were offered as
   flippable and the owner approved all three ("looks good").
 
@@ -107,11 +109,17 @@ carry `display_name = "Uczeń demo — <label> (#pk)"` and no first/last name (d
   `:141-148` is the single source: kind UNIT, type LESSON, `node.obligatory`). Quizzes are excluded
   from both `required_total` and `additional_done`. Hence D7: in a quizzes-only view the chip
   would describe rows that are no longer on the page.
-- **The tree knows which lessons are optional but never shows it** — the template renders neither
-  `additional_done` nor the per-unit obligatory flag. Hence D8.
-- **`Optional` / „Opcjonalne" already exists** as a msgid, used by the course-tree flag legend
-  (`templates/courses/manage/_flag_legend.html:57`). D8 reuses it rather than adding a synonym, so
-  the tag and the legend agree.
+- ⚠️ **"Optional lesson" is already a named concept with ONE rule and ONE word.**
+  `rollups.unit_marker` (`:169-195`) is documented as "the ONE student-facing kind rule" and
+  returns `MARKER_ADDITIONAL` for exactly a non-obligatory LESSON unit; `UNIT_MARKER_LABELS`
+  (`:163-166`) maps it to `Additional` / „Dodatkowa", and `marker_label` (`:198-203`) translates
+  it. The flag legend's „Opcjonalne" (`_flag_legend.html:57`) is the *node-flag* vocabulary on the
+  "Requirement" axis — a different surface for the author, not the reader.
+  **D8 therefore reuses `unit_marker` / `marker_label`**, so the teacher's breakdown and the
+  pupil's own outline call the same lesson by the same name. An earlier draft of this spec reached
+  for „Opcjonalne" and would have shipped a second word derived by a second rule.
+  ⚠️ Its docstring forbids rewriting the rule as `not is_obligatory_lesson(node)` — do not
+  "simplify" it in passing.
 - **`completed` is set for EVERY unit, quizzes included**, but `_breakdown_node.html:4-13` renders
   a pill and no `badge--done` on a quiz row. A submitted quiz can carry `completed=False`, so the
   two signals are not interchangeable — §4.2 settles which row gets which.
@@ -134,6 +142,8 @@ Two consequences the design must handle explicitly:
 - ⚠️ **The pupil view's context is `course, student, breakdown, back_url, drill_qs, has_math`
   (`:281-288`) — no `mode`.** A missing context key is silently falsy in a Django template, so
   every mode-conditional rule would no-op with no error.
+- ⚠️ **That view computes `matrix_path` only** (`:272`); it has no `student_path`. §4.1 lists the
+  `reverse()` the view switch needs.
 
 `_expand_qs(scope, mode, …)` (`:196-211`) is the single builder for such a querystring, and the
 matrix's own view switch is two calls to it with `"progress"` / `"results"` hardcoded
@@ -159,12 +169,17 @@ no notion of the page's mode. So changing that rule is mode-independent, and any
 "in Progress mode only" would need a mode class on `.breakdown__tree` to mean anything. §4.2 is
 written accordingly.
 
-⚠️ **Three test files depend on this tree's markup, and not only on its class names.**
-`tests/test_title_math_markers.py:452-464` selects
-`div.breakdown-unit:has(.pill) > span.breakdown-unit__title` — a **direct-child** combinator, in
-three assertions — and `tests/test_title_math_css.py` / `tests/test_title_math_assets.py` name the
-same classes; `app.css:2092` names `.breakdown-unit__title` in a contrast comment. **Introducing a
-wrapper element around the title would break those selectors with a failure that reads as "title
+⚠️ **FOUR test dependencies on this tree's markup, not merely on its class names:**
+
+| file:line | selector | feeds |
+|---|---|---|
+| `tests/test_title_math_markers.py:452-464` | `div.breakdown-unit:has(.pill) > span.breakdown-unit__title` (three assertions, direct child) | title-maths markers |
+| `tests/test_analytics_student_quiz.py:759` | `:scope > span.breakdown-unit__title` (direct child) | `test_t37_quiz_titles_link_iff_…` |
+| `tests/test_analytics_student_quiz.py:325` | `div.breakdown-unit` → `.breakdown-unit__title` → `.pill` | `test_t36_header_pill_matches_…` |
+| `tests/test_title_math_css.py`, `tests/test_title_math_assets.py` | the same class names | title-maths CSS/assets |
+
+`app.css:2092` also names `.breakdown-unit__title` in a contrast comment. **Introducing a wrapper
+element around the title would break the direct-child selectors with a failure that reads as "title
 maths marker missing".** §4.2 therefore achieves its right-hand column without a wrapper. Renaming
 these classes stays out of scope; restyling them is in scope, and any edit that shifts `app.css`
 line numbers re-points the citations in the same commit (repo convention).
@@ -179,32 +194,51 @@ line numbers re-points the citations in the same commit (repo convention).
 - ⚠️ **`_extendedresponse` (`:125-155`) is neither "single-part" nor "multi-part" in the sense §5.2
   uses:** it emits one `kind="answer"` part **plus N `kind="keyword"` parts** whose `label` is
   `"Required: x"` / `"Avoid: x"` and whose `given` and `expected` are both `None`. §5.2 names this
-  case explicitly.
+  case explicitly, and §5.2's grid predicate must exclude it.
+- ⚠️ **Five existing tests pin `_choice`'s current output exactly** and are the specification of
+  the behaviour §5.1 replaces: `tests/test_answer_summary.py` `test_choice_correct_wrong_unanswered`
+  (`:35-39`), `test_choice_single_select` (`:42-46`),
+  `test_choice_review_mode_has_no_expected_or_ok` (`:49-51`),
+  `test_choice_removed_option_appended_after_live_texts` (`:54-60`),
+  `test_choice_with_no_correct_option_expects_none_label` (`:63-66`). All compare against
+  `_answer(given, expected, ok)` tuples that §5.1 deletes. §7.3 says what happens to each.
+- ⚠️ **The page ALREADY computes per-option marks.** `_results_row` (`courses/views.py:1812-1830`),
+  which `_quiz_answer_rows` calls for every row on this page, sets `row["choices"] =
+  list(question.choices.all())` **and** `row["marks"] = question.choice_marks(choices,
+  selected_ids(answer_from_json(question, response.latest_answer)), reveal_result, "quiz", True)` —
+  the same vocabulary and the same call the pupil's results page uses. §5.1 builds on that rather
+  than deriving a second verdict.
+- ⚠️ **"Two decode paths" was a false alarm** (an earlier draft of this spec said so):
+  `answer_from_json` for a choice is literally `set(latest_answer or [])` (`courses/quiz.py:195-197`)
+  and `selected_ids` passes a set through, so the raw read and the decoded read cannot disagree.
+  The real behavioural difference is `choice_marks`'s own short-circuits (`{}` when `mark_result is
+  None`, or when `mode != "lesson" and not locked`), which §5.1 inherits deliberately.
 - `question.choices.all()` is already prefetched for this page
   (`courses/views.py:354`, `prefetch_related_objects(choice_qs, "choices")`), so D2 adds **no
   queries**. `tests/test_analytics_student_quiz.py:857`
   (`test_t38_query_count_does_not_grow_with_questions`) is the guard that must stay green.
 - `Choice` (`courses/models.py:2447-2459`) has `text` (plain text plus KaTeX delimiters, never
   sanitised), `feedback`, `is_correct`, `order`, ordered by `("order", "pk")`.
-  `ChoiceQuestionElement.multiple` (`:2279`) distinguishes single from multi-select.
-- **The pupil's own results page already has the per-option vocabulary** D2 needs:
-  `ChoiceQuestionElement.MARK_GLYPHS` (`courses/models.py:2309-2313`) maps
-  `correct → ("✓", "your answer, correct")`, `wrong → ("✗", "your answer, incorrect")`,
-  `missed → ("＋", "correct answer, not chosen")`, and `choice_marks` (`:2315-2356`) computes them
-  per option. ⚠️ **Those labels are written in the PUPIL's voice**, so the teacher page reuses the
-  three *kinds* and *glyphs* but needs its own labels (§6). `test_t35_teacher_voice_only` is the
-  guard.
-  The matching colours already exist: `courses/static/courses/css/courses.css:377,382-386`
-  (`answer-wrong` danger, mark `correct` success, `wrong` danger, `missed` warning).
-- ⚠️ **Two decode paths for one stored answer.** `choice_marks` is fed
-  `selected_ids(answer_from_json(question, response.latest_answer))` (`courses/views.py:1766-1776`,
-  `:1813-1821`) and short-circuits to `{}` when `mark_result is None` or the question is not
-  locked; `_choice` instead reads `response.latest_answer` directly. §5.1 settles which is the
-  single source, because "both pages agree" is otherwise an assertion rather than a mechanism.
-- **`_answers_have_math` (`courses/views_analytics.py:346-360`) scans the unit title, each
-  question, review feedback and `part.given/expected/label` — NOT option texts.** Option texts may
-  carry KaTeX (`Choice.text`'s own comment says so), so D2 must extend this scan or a maths option
-  renders as raw source. This is the one place where D2 can silently half-work.
+  ⚠️ **`Choice.is_correct` must never be read by this design** — the key comes from
+  `mark_result.reveal`, which is `None` for a non-auto question; reading the model field would make
+  a key appear where the page must show none (§5.1 rule 1).
+- `ChoiceQuestionElement.multiple` (`:2279`) distinguishes single from multi-select. **The options
+  table renders identically for both, deliberately** — the ✓/✗/＋ markers say what happened, and a
+  radio-vs-checkbox affordance on a read-only teacher page would imply an interaction that does not
+  exist.
+- **The per-option vocabulary already exists:** `ChoiceQuestionElement.MARK_GLYPHS`
+  (`courses/models.py:2309-2313`) maps `correct → ("✓", "your answer, correct")`,
+  `wrong → ("✗", "your answer, incorrect")`, `missed → ("＋", "correct answer, not chosen")`.
+  ⚠️ **Those labels are written in the PUPIL's voice**, so the teacher page reuses the three *kinds*
+  and *glyphs* but needs its own labels (§6). `test_t35_teacher_voice_only` is the guard.
+  The matching colours already exist: `courses/static/courses/css/courses.css:377,382-386`.
+- ✅ **Maths inside option texts already loads KaTeX, today.** `_answers_have_math`
+  (`courses/views_analytics.py:346-360`) delegates to `_question_has_math`
+  (`courses/views.py:98-131`), whose `ChoiceQuestionElement` branch scans `c.text` **and**
+  `c.feedback` for delimiters. An earlier draft of this spec claimed the opposite and made it the
+  design's headline risk; it was wrong, and the mutant it proposed ("leave `_answers_have_math`
+  unextended") is green on both builds. The line that actually protects the option list is
+  `views.py:104-107`, and §7.3's T22 mutates that instead.
 
 ### 2.7 The pupil's results page already carries outcome colour
 
@@ -229,9 +263,10 @@ records as failing AA at body size (a badge is smaller still).
 the only place the score pill renders `scored {{s}}/{{m}} ({{percent}}%)`.
 
 ⚠️ **`tests/test_analytics_student_quiz.py::test_t36_header_pill_matches_the_breakdown_pill`
-asserts the header pill's text equals the breakdown row's pill text, across five pill kinds.** Any
-change to either one turns it red. §5.3 changes the header; §7.3 schedules the guard's replacement
-and states the invariant that survives.
+asserts the header pill's class list AND text equal the breakdown row's** (`:379-382`), over five
+quizzes covering **four distinct kinds** (`reviewed` resolves to `scored`; `not_started` is
+unreachable on this page, which 404s without a submission). §5.3 changes the header; §7.3 T27
+replaces the guard with an invariant that holds for all four.
 
 ⚠️ **`_quiz_pill` carries `score`/`max_score`/`percent` ONLY for `kind == "scored"`**
 (`rollups.py:503-512`). The page is also reachable with `submitted` (submitted but `max_score ==
@@ -247,8 +282,16 @@ never fixed.
 
 - The filter is used **15 times across three templates**: `quiz_results.html`,
   `analytics_student_quiz.html`, `course_results.html` (the pupil's course-level results).
-- **Four tests pin its current output**: `tests/test_quiz_scoring.py:33-45` expect `"2"`, `"1.5"`,
-  `"0.67"`, `"10"`; a fifth asserts `None → "—"`.
+- **Five assertions across three tests pin its current output**:
+  `test_marks_filter_trims_trailing_zeros` (`tests/test_quiz_scoring.py:33-36`, three assertions),
+  `test_marks_filter_whole_tens_not_scientific` (`:39-41`), `test_marks_filter_none_is_dash`
+  (`:44-45`). ⚠️ They call the filter directly, with **no active language**, so after §5.5 their
+  output depends on whatever `LANGUAGE_CODE` happens to be — each updated assertion wraps in
+  `translation.override(...)`.
+- ⚠️ **`USE_THOUSAND_SEPARATOR` is not set anywhere in this repo**, so it holds Django's default
+  `False`, and `django.utils.numberformat.format` groups only when
+  `(use_l10n and settings.USE_THOUSAND_SEPARATOR) or force_grouping`. §5.5 is written knowing that
+  passing `force_grouping=False` changes nothing today.
 - ⚠️ **The CSV/XLSX export does NOT use this filter** — `courses/gradebook.py` builds cells as
   Decimals in Python (`:80-140`) — so localising the filter cannot put a decimal comma into an
   exported file, where it would break parsing. This is what makes D9's decimal comma safe.
@@ -268,15 +311,20 @@ encode today's spelling:
 
 ### 2.11 The help screenshots these changes invalidate
 
-`tests/capture_help_screenshots.py` captures 26 PNGs. Two shot definitions are affected:
+`tests/capture_help_screenshots.py` holds **29 shot definitions** (`SHOTS`, `:129`), and
+`core/static/core/img/help/` holds **58 committed PNGs** (29 × en/pl). Two shot definitions are
+affected:
 
 - `:174-180` — `analytics-matrix`, from `manage_analytics` clipped to `.analytics__matrix`, whose
   row headers are the pupil names **whose order and spelling §3 changes**. Invalidated by PR A.
 - `:181-187` — `drill-down`, from `manage_analytics_student` for `demo_s1`, clipped to
   `.breakdown__tree`. Invalidated by PR B (§4).
 
-⚠️ **The script rewrites all 26 PNGs on a local renderer and is NOT `@pytest.mark.e2e`** (demo spec
-findings; the owner's memory records both). Each PR regenerates its own two shots (en + pl) and
+No other shot renders a pupil name or either changed page (checked: `gradebook-export` clips the
+export form, not a file).
+
+⚠️ **The script rewrites all 58 PNGs on a local renderer and is NOT `@pytest.mark.e2e`** (demo spec
+findings; the owner's memory records both). Each PR regenerates its own shot pair (en + pl) and
 restores the rest with `git checkout -- core/static/core/img/help/`.
 
 ---
@@ -329,9 +377,9 @@ divergence, and it is the one case nobody tests by hand.
   (the row's name cell, linked and unlinked branches);
 - `courses/gradebook.py:42,133` (the exported `name` column, both shapes).
 
-The two drill-down page headings (`analytics_student.html:9`,
+The two drill-down page headings (`analytics_student.html:8-9`,
 `analytics_student_quiz.html:11`) also switch to it, but **in PR B**, where those headings are
-rewritten anyway (§8) — PR A must not touch those two lines.
+rewritten anyway (§8) — PR A must not touch those lines.
 
 ⚠️ **The parenthetical branch is reachable here.** A pupil with first + last **and** an unrelated
 display name renders `"Anna Nowak (Uczeń demo — sp-12 (#41))"` (`accounts/models.py:69-71`). That
@@ -357,14 +405,19 @@ different design.
 ### 4.1 Mode reaches the tree, the context and the template
 
 `build_student_breakdown(course, student, *, drafts, with_data=None, mode="progress")` gains a
-keyword argument, defaulted so the four existing test call sites (§2.3) keep their behaviour.
+keyword argument, defaulted so the four existing test call sites (§2.3) keep their behaviour. It
+also stamps each **unit** dict with `marker = unit_marker(node)` (§2.3) — additive, exactly as
+`build_outline` stamps `depth`, so the template never re-derives the rule.
 
-**The view (`analytics_student`, `views_analytics.py:257-289`) changes in three ways:**
+**The view (`analytics_student`, `views_analytics.py:257-289`) changes in four ways:**
 
 1. `_drill_params(request)` moves **above** the `build_student_breakdown` call — today it runs
    after it (§2.4) — so the mode exists when the builder is called.
 2. The builder receives `mode=mode`.
-3. The context gains `mode` and `other_view_url` (§4.3). `_breakdown_node.html` reads `mode` from
+3. The view reverses its own path —
+   `student_path = reverse("courses:manage_analytics_student", kwargs={"slug": course.slug,
+   "student_pk": student.pk})` — which it does not compute today (§2.4).
+4. The context gains `mode` and `other_view_url` (§4.3). `_breakdown_node.html` reads `mode` from
    the inherited context: its recursive `{% include %}` (`:26`) passes `with item=child
    course=course` and **no `only`**, so outer context stays visible — the plan must not add `only`.
 
@@ -396,27 +449,39 @@ with no `submission_pk`, and `_breakdown_node.html:6` already renders an unlinke
 grows a completion marker, because `completed` and "submitted" are different facts (§2.3) and two
 status signals per row would contradict each other.
 
-⚠️ **The alignment is achieved without a new wrapper element** — `margin-left:auto` on the
-right-hand item, mirroring `.badge--done` (`app.css:739`) — because a wrapper would break the
-three direct-child selectors in `tests/test_title_math_markers.py:452-464` (§2.5). If the design
-pass concludes a wrapper is unavoidable, updating those three selectors moves into the same commit,
-with their docstrings amended to say why.
+⚠️ **The alignment is achieved without a new wrapper element** — `margin-left:auto` on the first
+right-hand item, mirroring `.badge--done` (`app.css:739`) — because a wrapper would break four
+direct-child selectors (§2.5). If the design pass concludes a wrapper is unavoidable, updating all
+four moves into the same commit, with their docstrings amended to say why.
+
+⚠️ **An awaiting-review quiz row has TWO right-hand items**: the pill, then the `Review` link
+(`_breakdown_node.html:9-11`). `margin-left:auto` goes on the **pill**, so the pair sits together
+at the right in the order pill → link, and every quiz row's pill shares one left edge only when the
+row has no link. That asymmetry is deliberate and is one of T33's A/B cases; the alternative
+(pushing the link alone) would leave the pill floating mid-row.
 
 **Both modes**
 - A quiz title is a **visible link** when it has a submission: link colour plus a persistent
   underline, not `color:inherit` with a hover-only underline (§2.5). An unstarted quiz stays plain
   text.
-- The `Review` link for a quiz awaiting review is unchanged (`_breakdown_node.html:9-11`).
+- The `Review` link for a quiz awaiting review is unchanged in content.
 
 **Lesson rows (Progress mode is the only mode that renders them)**
 - Every unit title uses the **normal text colour**: `.breakdown-unit__title.is-done`
-  (`app.css:1012`) no longer greys a completed lesson. The rule change needs no mode scoping —
-  `is-done` is only ever emitted on the lesson branch (§2.5), which Results mode does not render.
-- A finished lesson is marked by a ✓, an unfinished one by an **empty circle** with an accessible
-  name („Nieukończone"), so "no mark" cannot be confused with "not rendered" and colour is not the
-  signal.
-- An **optional lesson** carries a quiet „Opcjonalne" tag (D8, §2.3), so an unfinished lesson that
-  does not count toward `x/y wymagane` says so.
+  (`app.css:1012`) loses its `color` declaration, so a completed lesson is no longer greyed. The
+  rule change needs no mode scoping — `is-done` is only ever emitted on the lesson branch (§2.5),
+  which Results mode does not render.
+  ⚠️ **The `is-done` class keeps being emitted** (`_breakdown_node.html:16`): it is the DOM's only
+  record of completion on a lesson row, it is what T33's A/B toggles against, and removing it would
+  make the marker the sole signal. The rule survives with its other declarations; only `color` goes.
+- A finished lesson is marked by today's `<span class="badge badge--done" aria-label="Completed">✓
+  </span>`; an unfinished one by **`<span class="badge badge--todo" aria-label="Not completed">○
+  </span>`** — a new modifier beside `badge--done` (`app.css:739`), inheriting its
+  `margin-left:auto`, with a muted border and no fill. So "no mark" cannot be confused with "not
+  rendered", and colour is not the signal.
+- An **optional lesson** carries a quiet „Dodatkowa" tag, rendered from the stamped
+  `item.marker` through `marker_label` (§2.3, §4.1) — not from a template-side `obligatory` test,
+  which would re-derive the rule the codebase says has one home.
 
 **Results mode only**
 - Lessons are absent; chapters with no quiz are absent; the chapter chip is not rendered (D7).
@@ -431,16 +496,16 @@ link („← Szczegóły ucznia") read as a different destination than the page 
 | surface | today | after |
 |---|---|---|
 | `analytics_student.html:3` `head_title` | `Breakdown` / „Szczegóły ucznia" | `Pupil results` / „Wyniki ucznia" |
-| `analytics_student.html:9` `h1` | „Szczegóły ucznia — X" | „Wyniki — X" or „Postęp — X" (the view) |
+| `analytics_student.html:8-9` `h1` | „Szczegóły ucznia — X" | „Wyniki — X" or „Postęp — X" (the view) |
 | `analytics_student_quiz.html:12` back link | „← Szczegóły ucznia" | „← Wyniki ucznia" |
 | `docs/help/teacher/drill-down.{md,pl.md}` | "Per-student breakdown" / „Wyniki pojedynczego ucznia" | follows the table above |
 
 - The `h1` names the **view**, reusing the matrix's own msgids (`Results` / `Progress`,
   `locale/pl:2628,2633`), with the pupil's `list_display_name`.
-- Beside it, a link to the **other** view of the same pupil: `f"{student_path}?{_expand_qs(scope,
-  other_mode, expand_pks, subset_pks, values)}"`, built exactly as the matrix builds its own pair
-  (§2.4) and passed to the template as `other_view_url`. It preserves scope, expanded columns,
-  subset and values.
+- Beside it, a link to the **other** view of the same pupil:
+  `f"{student_path}?{_expand_qs(scope, other_mode, expand_pks, subset_pks, values)}"`, built
+  exactly as the matrix builds its own pair (§2.4) and passed to the template as `other_view_url`.
+  It preserves scope, expanded columns, subset and values.
 - „← Analityka" is unchanged, and the per-question page's back link already carries the mode.
 
 ---
@@ -465,41 +530,56 @@ class Option:
     text: str
     picked: bool
     correct: bool | None   # None when the question is not auto-marked
-
-    @property
-    def mark(self):        # derived, mirroring Part.mark
-        ...
+    mark: str | None       # "correct" | "wrong" | "missed" | None
 ```
 
-`mark` is a **property**, not a stored field, for the same reason `Part.mark` is: one rule, no way
-to construct a record whose flags and glyph disagree.
+**Every field comes from a call the page already makes** — this is the mechanism that makes the
+teacher page and the pupil page agree, rather than a promise that they do (§2.6):
 
-**The `mark` rule, with its precedence stated:**
+```python
+choices = list(question.choices.all())                     # already prefetched
+picked_ids = selected_ids(answer_from_json(question, response.latest_answer)) if answered else set()
+marks = question.choice_marks(choices, picked_ids, mark_result, "quiz", True)
+reveal = set(mark_result.reveal or ()) if _is_auto(question) else None
+```
 
-1. **If `correct is None` (the question is not auto-marked), `mark` is `None` for every option,
-   whether picked or not.** There is no key, so no verdict may be implied.
-2. Otherwise: picked and correct → `"correct"`; picked and not correct → `"wrong"`; not picked and
-   correct → `"missed"`; not picked and not correct → `None`.
+- `text` — `choice.text`, in `Choice.Meta.ordering` order.
+- `picked` — `choice.pk in picked_ids`.
+- `correct` — `choice.pk in reveal` when the question is auto-marked, **`None` otherwise**.
+  ⚠️ **Never `Choice.is_correct`** (§2.6): the model field is populated regardless of marking mode,
+  so reading it would show a key on a question that has none.
+- `mark` — `marks.get(choice.pk, {}).get("kind")`, i.e. **whatever `choice_marks` says**, and
+  `None` where it says nothing. `choice_marks` returns `{}` when `mark_result is None`, which is
+  exactly the non-auto case, so **"no verdict on a question with no key" falls out of the shared
+  call instead of being a second rule this spec has to enforce.** `mark` is a stored field, not a
+  property, precisely because its authority is that call, not a local derivation.
 
-Rule 1 wins over rule 2. Stated because the naive reading of rule 2 alone marks every pick on a
-REVIEW question `"wrong"`.
-
-**`picked` reads `response.latest_answer` directly**, the shortcut `_choice` already takes today,
-and **that raw read is declared the single source** for both pages. The pupil page's
-`choice_marks` path decodes via `selected_ids(answer_from_json(...))` (§2.6); the two are expected
-to agree, and §7.3 T13b renders the same submission on both pages and asserts identical per-option
-kinds rather than leaving the agreement asserted in prose.
+**The kinds, for reference** (`models.py:2341-2349`): picked and in the key → `correct`; picked and
+not → `wrong`; not picked and in the key → `missed`; otherwise absent from the dict → `None`.
 
 **Rules**
-- **A picked option that no longer exists** renders as an extra row reading „(usunięta opcja)",
-  reusing the existing msgid (`locale/pl:423`) that `_choice` already emits today.
+- **A picked option that no longer exists** renders after the live options as
+  `Option(text=„(usunięta opcja)", picked=True, correct=None, mark=None)` — reusing the existing
+  msgid (`locale/pl:423`) that `_choice` already emits today. ⚠️ **It asserts no verdict**:
+  `choice_marks` iterates live choices only and has no entry for it, and a deleted option's
+  correctness is unknowable. Rendering it as `wrong` would tell a teacher the pupil answered
+  incorrectly on evidence that no longer exists.
+- **An AUTO question whose key is empty** (no `is_correct` option — today's „(none)" case, pinned
+  by `test_choice_with_no_correct_option_expects_none_label`) renders every option unmarked, plus a
+  caption under the table reusing the „(none)" msgid: „poprawna odpowiedź: (brak)". Without the
+  caption that question is pixel-identical to a non-auto one, which is the distinction §5.1 rule 1
+  exists to preserve.
 - **Not answered** — every option is listed, none picked, the key still marked. The row badge
-  („Bez odpowiedzi") carries the not-answered state; the options block itself renders no
-  „Not answered" fallback text, because the block is a list of options, not an answer run.
+  („Bez odpowiedzi") carries the not-answered state; the options block renders no „Not answered"
+  fallback text, because the block is a list of options, not an answer run.
 - **Not auto-marked** — options listed with picks only; the „Poprawna odpowiedź" column is omitted
   entirely (not rendered empty).
 - **In progress** — the key is shown, exactly as PR 5 decided for the rest of the page (that
-  spec's D5: a teacher sees the key even with attempts left).
+  spec's D5), and `locked=True` is passed as `_results_row` already does.
+- ⚠️ **A choice question loses its part-level ✓/✗ glyph.** `Part(kind="options", ok=None)` makes
+  `Part.mark` `None`, so `analytics_student_quiz.html:69-70` renders no row-level glyph for this
+  type — the per-option markers replace it. Stated because it is a visible behaviour change, and
+  because §5.4's "the glyph stays" sentence would otherwise read as covering this case.
 
 **Markup.** A `<table class="answers__options">` inside the part loop, with a new
 `{% if part.kind == "options" %}` branch in `analytics_student_quiz.html:61-75` — placed **before**
@@ -516,21 +596,29 @@ the plan asserts that in the phone screenshot rather than assuming it.
 
 ### 5.2 Every other type keeps its parts, and gains labels
 
-- **Single-part types** (short text, short numeric, choice-as-single is gone by §5.1) render
-  „Odpowiedź ucznia: …" and, only where the part is not right, „Poprawna odpowiedź: …" (the latter
-  msgid exists, `locale/pl:5459`).
+- **Single-part types** render „Odpowiedź ucznia: …" and, only where the part is not right,
+  „Poprawna odpowiedź: …" (the latter msgid exists, `locale/pl:5459`).
 - **Multi-part types** — fill-in-the-blank, matching pairs, both grids, drag-to-image — keep their
   per-part content label and gain **one header row per question**: „Odpowiedź ucznia" |
   „Poprawna odpowiedź" (D9). To give that header something to head, `.answers__parts` becomes a
-  **three-column grid** (label | given | expected) for these types, and the per-part
+  **three-column grid** (label | given | expected) for these questions, and the per-part
   „Poprawna odpowiedź:" prefix (`analytics_student_quiz.html:71`) is dropped where the header row
   is present — otherwise the page says it twice. At 390px the existing stacking behaviour wins:
   the header row is hidden and each part's expected value regains its inline prefix.
-- ⚠️ **Extended response with keywords is neither.** `_extendedresponse` emits one `answer` part
-  plus N `keyword` parts carrying only a label and a ✓/✗ (§2.6). Its answer part takes the
-  single-part label („Odpowiedź ucznia:"); its keyword parts keep today's label-plus-glyph shape,
-  get **no** header row and **no** columns. A question mixing the two must not be forced into the
-  grid.
+- ⚠️ **The predicate is computed in `_quiz_answer_rows`, not in the template**, which has no
+  question-type information: `row["columned"] = len(parts) > 1 and all(p.kind == ANSWER for p in
+  parts)`. `len(parts) > 1` alone is wrong — extended response emits one `answer` part plus N
+  `keyword` parts (§2.6) — and a choice question's single `options` part is excluded by the same
+  test.
+- ⚠️ **The expected column is empty wherever the pupil was right**, because `_answer_part` sets
+  `expected=None if ok is True else expected` (`answer_summary.py:73-75`). So the header row is
+  rendered **only when at least one part of that question has an `expected`**; a question the pupil
+  answered perfectly keeps the label-and-answer shape with no third column and no header. A
+  partially-right question shows the column with blanks against the correct parts, which is the
+  honest rendering: there is nothing to tell the teacher there.
+- ⚠️ **Extended response with keywords is neither shape.** Its answer part takes the single-part
+  label („Odpowiedź ucznia:"); its keyword parts keep today's label-plus-glyph shape, get **no**
+  header row and **no** columns.
 - `Part.label_is_content` still decides `lang` tagging (PR 5 spec §5.1) — the new header row and
   the option table's `<th>`s are interface text and carry no `lang`.
 
@@ -542,23 +630,22 @@ the plan asserts that in the phone screenshot rather than assuming it.
   different meaning in one line.
 - The back button sits beside the heading and does not wrap beneath a long title (the PR 5
   implementation log records the wrap).
-- **The score becomes the page's most prominent figure, for the one pill kind that has one.** The
-  header renders, by pill kind:
+- **The header renders, by pill kind:**
 
-  | pill kind | prominent figure | state shown |
+  | pill kind | prominent figure | pill |
   |---|---|---|
-  | `scored` | „1 / 5 pkt" + „20%" | — |
+  | `scored` | „1 / 5 pkt" + „20%" | **not rendered** |
   | `submitted` (ungraded, `max_score == 0`) | none | „przesłano" |
   | `awaiting` | none | „oczekuje na ocenę" + the „Sprawdź" link |
   | `in_progress` | none | „w toku" + „Odpowiedzi: 3 z 6" (existing plural msgid, `locale/pl:6229`) |
 
-  No dash, no „0 / 0" placeholder: a kind with no score renders no score element at all.
-- **The shared pill partial is not mutilated.** `_quiz_pill.html` gains a `show_score` flag,
-  defaulting to true, and the per-question header includes it as
-  `{% include "courses/manage/_quiz_pill.html" with p=pill show_score=False %}` — the breakdown's
-  include (`_breakdown_node.html:8`) is unchanged and its rows keep their scores (§2.8). Inside the
-  partial, the `scored` branch renders the state word „przesłano" when `show_score` is false, so
-  the pill is never empty.
+- ⚠️ **The shared pill partial is NOT modified.** For a `scored` quiz the header renders the score
+  stat *instead of* the pill; for the other three kinds it includes `_quiz_pill.html` exactly as
+  today. An earlier draft added a `show_score` flag and had the partial print „przesłano" for a
+  scored quiz — which is the translation of a different msgid (`submitted`) and would have made the
+  header and the breakdown disagree by construction. The breakdown's include
+  (`_breakdown_node.html:8`) is untouched either way, so its rows keep their scores (§2.8).
+- No dash, no „0 / 0" placeholder: a kind with no score renders no score element at all.
 
 ### 5.4 Outcome colour, reconciled across both pages
 
@@ -567,14 +654,14 @@ therefore takes a treatment that reads on a tinted panel **and** on the teacher 
 card: **an outlined badge** — transparent background, `1px` border and text in the outcome colour —
 not a `-subtle` fill.
 
-| outcome | badge | applies to |
-|---|---|---|
-| `correct` | outlined `--success` | both pages |
-| `partial` | outlined `--warning` | both pages |
-| `incorrect` | outlined `--danger` | both pages |
-| `not_answered` | muted — moved from `--text-tertiary` to `--text-secondary` (§2.7) | both pages |
-| `recorded`, `reviewed` | unchanged (neutral) | both pages |
-| `review` | unchanged `.badge--review` (`courses.css:712`) | both pages |
+| outcome | badge | class | applies to |
+|---|---|---|---|
+| `correct` | outlined `--success` | `.badge--correct` | both pages |
+| `partial` | outlined `--warning` | `.badge--partial` | both pages |
+| `incorrect` | outlined `--danger` | `.badge--incorrect` | both pages |
+| `not_answered` | muted — moved from `--text-tertiary` to `--text-secondary` (§2.7) | `.badge--muted` (existing) | both pages |
+| `recorded`, `reviewed` | unchanged (neutral base) | — | both pages |
+| `review` | unchanged | `.badge--review` (existing) | both pages |
 
 The modifiers are defined in **`courses/static/courses/css/courses.css`, beside `.badge--review`
 and `.badge--muted` (`:712-716`)** — both consuming pages link that sheet, and splitting the badge
@@ -588,8 +675,11 @@ spec §5.1); the drift note in both templates is updated to say the modifier is 
 (`.answers__item.is-correct` / `.is-partial` / `.is-incorrect` — classes the template already emits
 at `:28` and which today have no rules at all; the PR 5 log flagged them as unstyled). This is the
 teacher-page equivalent of the pupil page's panel tint, so the two pages end up with the same
-information in the same visual language. Colour is never the only signal: the badge word and the
-✓/✗ glyph stay.
+information in the same visual language.
+
+**Colour is never the only signal.** For every question type the badge's word carries the outcome;
+for non-choice types the per-part ✓/✗ glyph does too; for choice questions the per-option ✓/✗/＋
+markers do, since the row-level glyph is gone (§5.1).
 
 ⚠️ **Dark mode is not free here.** `.pill--scored` hardcodes `color:#fff` on `--primary`, and
 `.pill--awaiting` hardcodes `#f5b942`/`#3a2a00` (`app.css:1044-1049`) — neither follows the theme.
@@ -602,16 +692,17 @@ the outlined badge's contrast on both a tinted panel and a plain card.
 separator by passing the trimmed string through
 `django.utils.formats.number_format(value, decimal_pos=None, force_grouping=False)`.
 
-- **`force_grouping=False` is required, not incidental:** `number_format` would otherwise apply
-  `USE_THOUSAND_SEPARATOR` grouping, and in Polish that is a non-breaking space — „1 000" in a
-  badge. Marks are a magnitude, not a quantity to group.
+- ⚠️ **`force_grouping=False` is documented defensiveness, not a live fix.**
+  `USE_THOUSAND_SEPARATOR` is unset in this repo (§2.9), so grouping is off today either way. It is
+  passed so that switching that setting on later cannot silently put „1 000" in a badge — and T29
+  tests it **under an override**, because without one the mutant cannot fail.
 - The quantize-then-trim step runs first and `decimal_pos` is left `None`, so the trimming rule
   stays the filter's own and is not re-imposed by the formatter.
 - In Polish a half mark reads „0,5" in the badge, matching the pill; in English it is unchanged.
-- `tests/test_quiz_scoring.py:33-45` are updated to assert per-locale output rather than the ASCII
-  form (the pinned values are the specification of the old behaviour, so they must move
-  deliberately, not be deleted), and a value ≥ 1000 is added.
-- The exported file is unaffected (§2.9) and T23 says so explicitly.
+- The five assertions across three tests (§2.9) are updated to assert per-locale output rather than
+  the ASCII form — the pinned values are the specification of the old behaviour, so they move
+  deliberately — each inside an explicit `translation.override(...)`, and a value ≥ 1000 is added.
+- The exported file is unaffected (§2.9) and T30 says so explicitly.
 
 ---
 
@@ -628,6 +719,7 @@ one exists — the right-hand column names them rather than re-inventing them.
 | `chosen, correct` | „wybrana, poprawna" | §5.1 screen-reader label |
 | `chosen, incorrect` | „wybrana, niepoprawna" | §5.1 screen-reader label |
 | `correct, not chosen` | „poprawna, niewybrana" | §5.1 screen-reader label |
+| `correct answer: %(key)s` | „poprawna odpowiedź: %(key)s" | §5.1 empty-key caption (`%(key)s` is the reused „(brak)") |
 | `%(s)s / %(m)s marks` | „%(s)s / %(m)s pkt" | §5.3 score stat |
 | `Not completed` | „Nieukończone" | §4.2 empty-circle marker |
 | `Pupil results` | „Wyniki ucznia" | §4.3 page name, back link |
@@ -645,8 +737,9 @@ question.
 
 Reused, not re-created: `Correct answer:` (`locale/pl:5459`), `(removed option)` (`:423`),
 `(none)` (`:427`), `Not answered` (`:6243`), `Correct` / `Incorrect` / `Partial`, `Review`
-(`:5636`), `Optional` (`:5670`), `Progress` / `Results` (`:2633,2628`), `Completed`,
-`%(k)s of %(n)s question answered` (`:6229`), and every pill word (`:5395,5386,5912,5916,5920`).
+(`:5636`), `Additional` / „Dodatkowa" (`rollups.UNIT_MARKER_LABELS`), `Progress` / `Results`
+(`:2633,2628`), `Completed`, `%(k)s of %(n)s question answered` (`:6229`), and every pill word
+(`:5395,5386,5912,5916,5920`).
 
 ⚠️ `makemessages` fuzzy-prefills new msgids from similar existing ones — it did exactly that twice
 in #323. Every new entry above is checked by hand and the catalogs must end at 0 fuzzy.
@@ -696,14 +789,15 @@ Every rule below is falsified against a named mutant, run and observed red, then
   chapter above it. *Mutant:* prune containers before `attach` → red (the quiz disappears).
 - **T11** The view switch link points at the same pupil with the opposite mode and preserves scope,
   expand, subset and values. *Mutant:* drop `subset_pks` from its querystring → red.
-- **T12** An optional lesson carries the „Opcjonalne" tag and an obligatory one does not.
-  *Mutant:* tag every lesson → red.
+- **T12** A non-obligatory lesson carries the „Dodatkowa" tag and an obligatory one does not, and
+  the tag's text comes from `marker_label` (§2.3). *Mutants:* tag every lesson → red; stamp
+  `marker` from `not item.required_total` (which also catches quizzes) → red on a quiz row.
 - **T13** A quiz row carries a pill and **no** completion marker; a lesson row carries a marker and
-  no pill, with the unfinished marker carrying its accessible name (§4.2).
+  no pill; the unfinished marker is `.badge--todo` with its accessible name (§4.2).
   *Mutant:* render the marker on every unit → red (a `completed=False` submitted quiz would show
   an empty circle beside its „przesłano" pill).
 - **T14** The quiz title's link is **visibly** a link — underline present without hover — via
-  T27's computed-style A/B. `test_t37_quiz_titles_link_iff_the_pupil_has_a_submission` already
+  T33's computed-style A/B. `test_t37_quiz_titles_link_iff_the_pupil_has_a_submission` already
   covers the `<a>`-presence half across five submission states and is **not** duplicated here.
 - **T15** The four existing `build_student_breakdown` call sites still pass with the default
   argument — i.e. the default really is `progress`.
@@ -713,54 +807,78 @@ Every rule below is falsified against a named mutant, run and observed red, then
 ### 7.3 The per-question page (§5)
 
 - **T17** Builder, one case each: picked-and-correct, picked-and-wrong, missed, untouched,
-  deleted-but-picked, not answered, `multiple=True`.
+  not answered, `multiple=True`. Each asserts the `Option` record's four fields.
   *Mutants:* invert `picked`; drop `missed` — each red on its own case.
-- **T18** A **non-auto-marked** choice question yields `mark is None` for every option, including
-  the picked ones, and renders no „Poprawna odpowiedź" column (§5.1 rule 1).
-  *Mutant:* apply rule 2 without rule 1 → red (the pick shows „wybrana, niepoprawna").
-- **T19** The same submission renders identical per-option kinds on the teacher page and on the
-  pupil's results page (`choice_marks`), including a multi-select with one right and one missed
-  option. *Mutant:* make the teacher page treat an unpicked correct option as `None` → red. This
-  is the mechanism behind §5.1's single-source claim.
+- **T17b** A picked-but-deleted option renders last, with `picked=True`, `correct=None` and
+  **`mark is None`** (§5.1). *Mutant:* fall back to `wrong` for an unknown pk → red. This is the
+  case where a wrong rule accuses a pupil on evidence that no longer exists.
+- **T18** A **non-auto-marked** choice question yields `mark is None` and `correct is None` for
+  every option, including the picked ones, and renders no „Poprawna odpowiedź" column.
+  *Mutant:* source `correct` from `Choice.is_correct` → red (a key appears where there is none).
+- **T19** For a **submitted, auto-marked** question over **live** options, the per-option kinds on
+  the teacher page equal `choice_marks`' kinds on the pupil's results page, with the mapping
+  "absent from `choice_marks` ≡ `Option.mark is None`" asserted explicitly.
+  ⚠️ **Scoped deliberately:** an in-progress submission, a non-auto question and a deleted option
+  each break equality *by design* (§5.1), so a broader test would be red on a correct build.
+  *Mutant:* re-derive the kinds locally instead of calling `choice_marks` → red on a multi-select
+  with one picked-correct and one missed option.
 - **T20** The rendered page lists **every** option of a choice question, in author order, not only
   the picked ones. *Mutant:* render only picked options → red.
 - **T21** Teacher voice: `test_t35_teacher_voice_only` is extended over the new labels — no
   „twoja"/"your" anywhere in the options block.
   *Mutant:* reuse `MARK_GLYPHS`' pupil-voice labels → red (§2.6 makes this a live risk).
-- **T22** A maths delimiter **in an option text** loads KaTeX. *Mutant:* leave
-  `_answers_have_math` unextended → red. Without this, §5.1 ships a page that renders raw LaTeX to
-  a school rep.
+- **T22** Maths in an option text loads KaTeX. ⚠️ **The mutant is in `_question_has_math`'s choice
+  branch** (`courses/views.py:104-107`) — delete it → red. An earlier draft aimed this at
+  `_answers_have_math`, where it could not fail (§2.6): that page-level scanner delegates, and the
+  delegation already covers options.
 - **T23** `test_t38_query_count_does_not_grow_with_questions` still passes with options rendered.
   *Mutant:* re-query `question.choices.all()` outside the prefetch → red.
 - **T24** Extended response with keywords: the answer part carries „Odpowiedź ucznia:", the keyword
-  parts carry neither a column header nor an empty expected cell (§5.2).
-  *Mutant:* route keyword parts through the multi-part grid → red.
-- **T25** Badge modifier per outcome on **both** templates, asserted on the rendered class.
-  *Mutant:* remove the modifier from one template → red (this is what stops the deliberate copy
-  drifting). The card-edge class is asserted on the teacher page only.
-- **T26** Header, per pill kind (§5.3): `scored` renders the score element; `submitted`,
-  `awaiting` and `in_progress` render **no** score element, and `in_progress` renders the
-  answered-count phrase. *Mutant:* render the score unconditionally → red on three of four kinds.
-- **T27** `test_t36_header_pill_matches_the_breakdown_pill` is **replaced, not deleted**: its
-  invariant becomes "the header pill and the breakdown pill show the same **state word**", since
-  the header's pill no longer carries the score (§5.3). A second assertion pins the other half: the
-  breakdown row **still shows the score** for a scored quiz. *Mutant:* let `show_score` default to
-  false → red on the breakdown half.
+  parts carry neither a column header nor an empty expected cell, and `row["columned"]` is False
+  (§5.2). *Mutant:* set `columned = len(parts) > 1` → red on a two-keyword question.
+- **T24b** An all-correct multi-part question renders **no** header row and no expected column
+  (§5.2); a partially-correct one renders both. *Mutant:* always render the header → red.
+- **T25** Badge modifier per outcome on **both** templates, asserted on the rendered class
+  (`.badge--correct` / `.badge--partial` / `.badge--incorrect`).
+  *Mutant:* remove the modifier from one template → red. The card-edge class is asserted on the
+  teacher page only.
+- **T26** Header, per pill kind (§5.3): `scored` renders the score element and **no pill**;
+  `submitted`, `awaiting` and `in_progress` render the pill and **no** score element, and
+  `in_progress` renders the answered-count phrase.
+  *Mutant:* render the score unconditionally → red on three of four kinds.
+- **T27** `test_t36_header_pill_matches_the_breakdown_pill` is **replaced, not deleted**. Its
+  invariant becomes, over the **four reachable kinds** (§2.8): for `submitted`, `awaiting` and
+  `in_progress` the header pill's class list and text still equal the breakdown row's; for
+  `scored` the header renders no pill at all while the breakdown row still shows „wynik 1/1".
+  *Mutant:* let the header keep rendering a pill for `scored` → red.
 - **T28** The heading renders the pupil's name and the quiz title as separate elements, and does
   not contain „ — ". *Mutant:* restore the joined title → red.
-- **T29** In Polish, a half mark renders „0,5" in the badge **and** in the score; in English,
-  „0.5"; a mark of 1000 renders without a thousands separator in both (§5.5).
+- **T29** In Polish a half mark renders „0,5" in the badge **and** in the score; in English „0.5" —
+  each assertion inside an explicit `translation.override`. **Under
+  `override_settings(USE_THOUSAND_SEPARATOR=True)`, a mark of 1000 still renders ungrouped.**
   *Mutants:* revert `marks_filter` to the ASCII form → red; drop `force_grouping=False` → red on
-  the 1000 case.
+  the override case (and only there — §5.5 says why).
 - **T30** The exported gradebook still writes a dot decimal (§2.9). *Mutant:* localise the
   export's numbers → red. T29 and T30 are a deliberate pair: one demands the comma, the other
   forbids it where it would corrupt a file.
 - **T31** The options block renders as a table with real `<th>` column headers and per-marker
   `sr-only` labels (§5.1). *Mutant:* drop the `sr-only` labels → red.
+- **T32** An AUTO question with an empty key renders every option unmarked **and** the „(brak)"
+  caption (§5.1). *Mutant:* drop the caption → red, since the page would then be identical to the
+  non-auto rendering T18 pins.
+- **The five existing `_choice` tests** (§2.6) are rewritten against `Option` records, one for one:
+  correct/wrong/unanswered → T17's cases; single-select → T17's `multiple=False` case; review mode
+  → T18; removed option → T17b; no-correct-option → T32. **None is deleted without a successor**,
+  because together they are the specification of what `_choice` did.
 
 ### 7.4 Visual
 
-- **T32** Screenshots, light and dark, desktop and 390px, on mat-pp data:
+- **T33** Any CSS rule this design relies on is confirmed by comparing the computed style **with
+  and without** the rule, never by asserting the rule exists (repo convention: a CSS existence
+  check proves nothing). Cases: the persistent underline (T14), the outlined badge on a tinted
+  panel and on a plain card, the card edge, the right-hand column's alignment including the
+  awaiting-review row's pill+link pair (§4.2), and `.badge--todo`.
+- **T34** Screenshots, light and dark, desktop and 390px, on mat-pp data:
   - the Results and Progress pupil pages;
   - the per-question page for a submitted quiz with a wrong choice answer (the owner's
     „Zbiory - quiz" question 1 is the reference case), an in-progress quiz, and a quiz with a
@@ -769,12 +887,8 @@ Every rule below is falsified against a named mutant, run and observed red, then
     already-tinted panel (§2.7), which is the drift-prone twin named in §9;
   - **`course_results.html`**, the third page §5.5's decimal comma reaches.
   Dark is judged on its own, not as "light but darker".
-- **T33** Any CSS rule this design relies on is confirmed by comparing the computed style **with
-  and without** the rule, never by asserting the rule exists (repo convention: a CSS existence
-  check proves nothing). This covers the persistent underline (T14), the outlined badge, the card
-  edge and the right-hand column's alignment.
-- **T34** Help screenshots: each PR regenerates its own two shots (§2.11) and leaves the other 24
-  untouched, asserted by `git status` listing exactly those two files.
+- **T35** Help screenshots: each PR regenerates its own shot pair and leaves the other 56
+  untouched, asserted by `git status` listing exactly two changed files of 58 (§2.11).
 
 ---
 
@@ -787,9 +901,9 @@ and `gradebook.py`'s two name fields; T1–T5. It regenerates `analytics-matrix.
 (§2.11), repairs the stale `sort_name` docstring and the stale `test_provision.py:48-49` comment,
 both line-count-neutral, and inventories the name assertions listed in §2.10.
 
-⚠️ **PR A must NOT touch `analytics_student.html:9` or `analytics_student_quiz.html:11`** — the
-two headings PR B rewrites (§4.3, §5.3). T5 pins that boundary, so the two PRs cannot collide on
-those lines and PR B needs no rebase beyond the ordinary one.
+⚠️ **PR A must NOT touch `analytics_student.html:8-9` or `analytics_student_quiz.html:11`** — the
+headings PR B rewrites (§4.3, §5.3). T5 pins that boundary, so the two PRs cannot collide on those
+lines and PR B needs no rebase beyond the ordinary one.
 
 **PR B — the two pages (§4, §5, §6).** The design pass (`frontend-design`) runs inside this PR,
 after the markup exists and before the screenshots are judged. It regenerates
@@ -797,7 +911,7 @@ after the markup exists and before the screenshots are judged. It regenerates
 dependency.
 
 **Docs.** `docs/help/teacher/drill-down.md` and `.pl.md` describe both pages and gain: the
-Results/Progress distinction, the view switch, the optional tag, and the option list; their page
+Results/Progress distinction, the view switch, the „Dodatkowa" tag, and the option list; their page
 name follows §4.3's table. `docs/help/teacher/analytics.md` and `.pl.md` gain one sentence on pupil
 order.
 
@@ -809,16 +923,16 @@ were noticed.
 
 ## 9. Risks
 
-1. **The maths-scan miss (§2.6).** The one defect that would ship silently and be seen first by a
-   school rep. T22 is not optional.
-2. **The deliberate template copy (§5.4).** `quiz_results.html` and `analytics_student_quiz.html`
+1. **The deliberate template copy (§5.4).** `quiz_results.html` and `analytics_student_quiz.html`
    must stay parallel; T25 asserts both, and both templates carry the note.
-3. **The shared pill partial (§2.8, §5.3).** A careless edit deletes the score from every quiz row
-   on the breakdown; T27's second half is what catches it.
-4. **Decimal comma reaches a third page** — `course_results.html` (§2.9), which nothing else in
+2. **The shared pill partial (§2.8, §5.3).** It is left unmodified precisely because an earlier
+   draft's `show_score` flag would have changed the breakdown's rows too; T27 pins both halves.
+3. **Decimal comma reaches a third page** — `course_results.html` (§2.9), which nothing else in
    this design touches. Accepted deliberately: one rule for marks across the product beats two.
-5. **Screenshot regeneration side effects (§2.11).** A careless run rewrites 26 committed PNGs on
-   the local renderer. T34 pins the outcome, per PR.
-6. **Structural test dependencies (§2.5).** Three title-maths test files select the breakdown tree
-   by direct-child combinators; a wrapper element added for §4.2's column breaks them with a
-   misleading message.
+4. **Screenshot regeneration side effects (§2.11).** A careless run rewrites all 58 committed PNGs
+   on the local renderer. T35 pins the outcome, per PR.
+5. **Structural test dependencies (§2.5).** Four selectors reach into the breakdown tree by direct
+   child; a wrapper element added for §4.2's column breaks them with a misleading message.
+6. **Replacing a builder that five tests specify (§2.6, §7.3).** `_choice`'s rewrite is the only
+   place in this design where existing, passing tests are deliberately rewritten; each has a named
+   successor so none is quietly dropped.
