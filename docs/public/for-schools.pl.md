@@ -25,7 +25,7 @@ w działaniu. Konto ucznia należy do tej klasy i zaczyna bez żadnych postępó
 wypełnia się w miarę przechodzenia przez lekcje i testy, więc od razu widać, jak zmienia się
 widok nauczyciela. Dostęp jest ważny przez dwa tygodnie.
 
-Aby o nie poprosić, napisz na adres {libli:contact_email}.
+Chcesz je otrzymać? Kontakt: {libli:contact_email}.
 
 ## Czego od Ciebie potrzebujemy
 
