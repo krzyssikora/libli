@@ -16,6 +16,16 @@
   one question, plus a results export
 - an interface in Polish or English, per user's choice
 
+## Try a demo
+
+We can set up a private demo for your school: a teacher login and a pupil login on our full
+maths course, together with an example class whose results give the analytics something to
+show. The pupil login joins that class with a blank record — its row fills in as you work
+through lessons and quizzes, so you can watch the teacher's view change. The course content is
+in Polish. Access lasts two weeks.
+
+To ask for one, write to {libli:contact_email}.
+
 ## What we need from you
 
 If you want to use libli at your_subdomain.libli.pl — we need nothing from you. Once the

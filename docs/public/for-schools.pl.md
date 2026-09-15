@@ -17,6 +17,16 @@
   jednego ucznia i jednego pytania, a także eksport wyników
 - interfejs po polsku lub angielsku, zgodnie z wyborem użytkownika
 
+## Wypróbuj wersję demonstracyjną
+
+Możemy przygotować dla Twojej szkoły prywatne demo: konto nauczyciela i konto ucznia w naszym
+pełnym kursie matematyki, razem z przykładową klasą, której wyniki pozwalają zobaczyć analitykę
+w działaniu. Konto ucznia należy do tej klasy i zaczyna bez żadnych postępów — jego wiersz
+wypełnia się w miarę przechodzenia przez lekcje i testy, więc od razu widać, jak zmienia się
+widok nauczyciela. Dostęp jest ważny przez dwa tygodnie.
+
+Aby o nie poprosić, napisz na adres {libli:contact_email}.
+
 ## Czego od Ciebie potrzebujemy
 
 Jeśli chcesz używać libli pod adresem twoja_subdomena.libli.pl — nie potrzebujemy od Ciebie
