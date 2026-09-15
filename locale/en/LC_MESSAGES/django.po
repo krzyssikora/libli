@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-15 00:59+0200\n"
+"POT-Creation-Date: 2026-09-15 22:42+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -5991,6 +5991,11 @@ msgstr ""
 
 #: .\templates\courses\manage\analytics_student_quiz.html:54
 #: .\templates\courses\quiz_results.html:37
+msgid "up to 1 mark"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:54
+#: .\templates\courses\quiz_results.html:37
 #, python-format
 msgid "up to %(m)s marks"
 msgstr ""
@@ -7727,6 +7732,13 @@ msgstr ""
 #: .\templates\courses\quiz_results.html:15
 msgid "Score"
 msgstr ""
+
+#: .\templates\courses\quiz_results.html:22
+#, python-format
+msgid "%(n)s question awaiting review (up to 1 more mark)"
+msgid_plural "%(n)s questions awaiting review (up to 1 more mark)"
+msgstr[0] ""
+msgstr[1] ""
 
 #: .\templates\courses\quiz_results.html:22
 #, python-format

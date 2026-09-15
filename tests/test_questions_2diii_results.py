@@ -43,6 +43,58 @@ def test_review_row_shows_up_to_marks(client):
     assert "up to" in body.lower() and "3" in body
 
 
+@pytest.mark.parametrize(
+    ("max_marks", "badge", "footer"),
+    [
+        ("1", "(up to 1 mark)", "(up to 1 more mark)"),
+        ("1.00", "(up to 1 mark)", "(up to 1 more mark)"),
+        ("2", "(up to 2 marks)", "(up to 2 more marks)"),
+    ],
+)
+def test_review_marks_noun_agrees_with_exactly_one(client, max_marks, badge, footer):
+    """Both msgids used to carry the plural noun whatever m was: "up to 1 marks",
+    and in Polish „do 1 punktów". "1.00" is how a DecimalField comes back, so it
+    must take the singular branch too."""
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="Essay?", marking_mode="R", max_marks=max_marks
+    )
+    body = _submit_quiz(client, q)
+    assert badge in body
+    assert footer in body
+
+
+@pytest.mark.parametrize(
+    ("max_marks", "badge", "footer"),
+    [
+        ("1", "(do 1 punktu)", "(do 1 dodatkowego punktu)"),
+        ("2", "(do 2 punktów)", "(do 2 dodatkowych punktów)"),
+    ],
+)
+def test_review_marks_noun_agrees_with_exactly_one_in_polish(
+    client, max_marks, badge, footer
+):
+    """„do 1 punktów" was the reported defect. After „do" the genitive plural
+    serves every other count, so the singular branch is the only one needed."""
+    user = make_login(client, "stu")
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
+    add_element(
+        unit,
+        ExtendedResponseQuestionElement.objects.create(
+            stem="Essay?", marking_mode="R", max_marks=max_marks
+        ),
+    )
+    client.get(f"{base}/")
+    client.post(f"{base}/finish/")
+    body = client.get(f"{base}/results/").content.decode()
+    assert badge in body
+    assert footer in body
+
+
 def test_not_marked_excluded_from_pending(client):
     n = ExtendedResponseQuestionElement.objects.create(stem="N?", marking_mode="N")
     r = ExtendedResponseQuestionElement.objects.create(

@@ -126,6 +126,28 @@ def test_anonymous_access_to_all_three_public_pages(client, lang):
 
 @pytest.mark.django_db
 @override_settings(VENDOR_INSTANCE=True)
+@pytest.mark.parametrize(
+    ("lang", "heading"),
+    [("en", "Try a demo"), ("pl", "Wypróbuj wersję demonstracyjną")],
+)
+def test_the_demo_section_renders_the_real_contact_address(client, lang, heading):
+    """The source guard sees the token; this sees the ADDRESS, in the rendered
+    section, per language -- resolved_lang first, or the Polish case would pass
+    on the English fallback."""
+    inst = Institution.load()
+    inst.contact_email = "demo-enquiries@example.test"
+    inst.save()
+    response = client.get(
+        reverse("core:for_schools"), headers={"accept-language": lang}
+    )
+    assert response.context["resolved_lang"] == lang
+    section = response.content.decode().split(f"<h2>{heading}</h2>", 1)[1]
+    section = section.split("<h2>", 1)[0]
+    assert "demo-enquiries@example.test" in section
+
+
+@pytest.mark.django_db
+@override_settings(VENDOR_INSTANCE=True)
 def test_a_publicpage_override_still_wins_for_the_new_page(client):
     PublicPage.objects.create(
         slug="for-schools", language="en", body_markdown="# Overridden\n\nBody.\n"
