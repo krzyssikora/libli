@@ -49,7 +49,7 @@
         {% elif row.outcome == "not_answered" %}<span class="badge badge--muted">{% trans "Not answered" %}</span>
         {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
         {% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
-        {% elif row.outcome == "review" %}<span class="badge badge--review">{% trans "Awaiting review" %} ({% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %})</span>{% endif %}
+        {% elif row.outcome == "review" %}<span class="badge badge--review">{% trans "Awaiting review" %} ({% if row.possible == 1 %}{% trans "up to 1 mark" %}{% else %}{% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %}{% endif %})</span>{% endif %}
         {% if row.outcome == "review" %}
           <a class="answers__row-review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">{% trans "Review" %}<span class="sr-only"> — {% blocktrans with n=row.qnum %}question {{ n }}{% endblocktrans %}</span></a>
         {% endif %}

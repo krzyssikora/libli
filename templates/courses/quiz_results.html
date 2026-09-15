@@ -19,7 +19,7 @@
       <span class="result-summary__score">—</span>
     {% endif %}
     {% if pending_count %}
-      <span class="result-summary__meta">{% blocktrans count n=pending_count with m=pending_marks|marks %}{{ n }} question awaiting review (up to {{ m }} more marks){% plural %}{{ n }} questions awaiting review (up to {{ m }} more marks){% endblocktrans %}</span>
+      <span class="result-summary__meta">{% if pending_marks == 1 %}{% blocktrans count n=pending_count %}{{ n }} question awaiting review (up to 1 more mark){% plural %}{{ n }} questions awaiting review (up to 1 more mark){% endblocktrans %}{% else %}{% blocktrans count n=pending_count with m=pending_marks|marks %}{{ n }} question awaiting review (up to {{ m }} more marks){% plural %}{{ n }} questions awaiting review (up to {{ m }} more marks){% endblocktrans %}{% endif %}</span>
     {% endif %}
   </div>
 
@@ -34,7 +34,7 @@
       {% elif row.outcome == "not_answered" %}<span class="badge badge--muted">{% trans "Not answered" %}</span>
       {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
       {% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
-      {% elif row.outcome == "review" %}<span class="badge badge--review">{% trans "Awaiting review" %} ({% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %})</span>{% endif %}
+      {% elif row.outcome == "review" %}<span class="badge badge--review">{% trans "Awaiting review" %} ({% if row.possible == 1 %}{% trans "up to 1 mark" %}{% else %}{% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %}{% endif %})</span>{% endif %}
       {% if row.review_feedback %}
         <div class="question__feedback question__feedback--review">
           <p>{{ row.review_feedback }}</p>
