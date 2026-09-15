@@ -72,6 +72,7 @@ def test_the_timeline_does_not_promise_a_port_25_wait(text):
             ), f"the timeline promises a port-25 wait: {line!r}"
 
 
+TEXT = {"en": EN, "pl": PL}
 DEMO_HEADING = {"en": "## Try a demo", "pl": "## Wypróbuj wersję demonstracyjną"}
 OFFER_HEADING = {"en": "## What we offer", "pl": "## Co oferujemy"}
 
@@ -80,26 +81,26 @@ def _h2s(text):
     return [line.rstrip() for line in text.splitlines() if line.startswith("## ")]
 
 
-def _demo_section(text, lang):
-    return text.split(DEMO_HEADING[lang] + "\n", 1)[1].split("\n## ", 1)[0]
+def _demo_section(lang):
+    return TEXT[lang].split(DEMO_HEADING[lang] + "\n", 1)[1].split("\n## ", 1)[0]
 
 
-@pytest.mark.parametrize(("text", "lang"), [(EN, "en"), (PL, "pl")])
-def test_the_demo_section_sits_directly_after_what_we_offer(text, lang):
+@pytest.mark.parametrize("lang", ["en", "pl"])
+def test_the_demo_section_sits_directly_after_what_we_offer(lang):
     """Spec §4.8 places it after "What we offer": the offer is what the demo lets
     a school try. Compared as adjacent headings, so a section moved further down
     the page -- below the price list, say -- goes red."""
-    headings = _h2s(text)
+    headings = _h2s(TEXT[lang])
     assert headings.count(DEMO_HEADING[lang]) == 1
     assert headings[headings.index(OFFER_HEADING[lang]) + 1] == DEMO_HEADING[lang]
 
 
-@pytest.mark.parametrize(("text", "lang"), [(EN, "en"), (PL, "pl")])
-def test_the_demo_section_points_at_the_contact_email(text, lang):
+@pytest.mark.parametrize("lang", ["en", "pl"])
+def test_the_demo_section_points_at_the_contact_email(lang):
     """Nothing provisions a kit on request: the address is the demo's only way in,
     so it must sit inside this section, not merely somewhere on the page (the
     page has no other contact_email today, but the pricing fallback renders one)."""
-    assert "{libli:contact_email}" in _demo_section(text, lang)
+    assert "{libli:contact_email}" in _demo_section(lang)
 
 
 def test_the_stated_access_period_matches_the_kit_default():
@@ -111,8 +112,8 @@ def test_the_stated_access_period_matches_the_kit_default():
     en, pl = {14: ("Access lasts two weeks.", "Dostęp jest ważny przez dwa tygodnie.")}[
         DEFAULT_DAYS
     ]
-    assert en in _demo_section(EN, "en")
-    assert pl in _demo_section(PL, "pl")
+    assert en in _demo_section("en")
+    assert pl in _demo_section("pl")
 
 
 @pytest.mark.parametrize("text", [EN, PL])
