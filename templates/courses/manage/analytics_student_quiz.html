@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load i18n static courses_extras %}
+{% block head_title %}{% trans "Answers" %} · {{ course.title }} · libli{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  {% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}
+{% endblock %}
+{% block content %}
+<section class="manage answers">
+  <header class="manage__head">
+    <h1 class="manage__title"><span lang="{{ course.language }}" data-math-title>{{ unit.title }}</span> — {{ student.display_name|default:student.username }}</h1>
+    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Breakdown" %}</a>
+  </header>
+  <p class="answers__status">
+    {% with p=pill %}
+      {% include "courses/manage/_quiz_pill.html" %}
+      {% if p.kind == "awaiting" %}
+        <a class="answers__review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">{% trans "Review" %}</a>
+      {% endif %}
+      {% if p.kind == "in_progress" and question_count %}
+        <span class="answers__count">{% blocktrans with k=answered_count count n=question_count %}{{ k }} of {{ n }} question answered{% plural %}{{ k }} of {{ n }} questions answered{% endblocktrans %}</span>
+      {% endif %}
+    {% endwith %}
+  </p>
+  {% if rows %}
+  <ol class="answers__list">
+    {% for row in rows %}
+    <li class="answers__item is-{{ row.outcome }}" data-question>
+      <div class="answers__head">
+        <span class="answers__qnum">{{ row.qnum }}.</span>
+        <div class="answers__stem question__stem" lang="{{ course.language }}">{{ row.stem_html }}</div>
+      </div>
+      {% if row.dragimage %}
+        {% comment %}A REDUCED copy of the static stage in dragtoimagequestionelement.html:
+        no data-* attributes (they exist for dnd.js), no selects, pool or form.{% endcomment %}
+        <div class="dragimage__stage">
+          <img class="dragimage__img" src="{{ row.dragimage.media.file.url }}" alt="{{ row.dragimage.alt }}">
+          {% for z in row.dragimage.zones.all %}
+            <span class="dragimage__badge" style="left:{% widthratio z.x 1 100 %}%; top:{% widthratio z.y 1 100 %}%;">{{ forloop.counter }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <div class="answers__verdict">
+        {% comment %}A deliberate copy of quiz_results.html's badge markup and msgids
+        (spec §5.1): extracting a partial would change the pupil's results page.{% endcomment %}
+        {% if row.outcome == "correct" %}<span class="badge">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+        {% elif row.outcome == "partial" %}<span class="badge">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+        {% elif row.outcome == "incorrect" %}<span class="badge">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
+        {% elif row.outcome == "not_answered" %}<span class="badge badge--muted">{% trans "Not answered" %}</span>
+        {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
+        {% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+        {% elif row.outcome == "review" %}<span class="badge badge--review">{% trans "Awaiting review" %} ({% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %})</span>{% endif %}
+        {% if row.outcome == "review" %}
+          <a class="answers__row-review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">{% trans "Review" %}<span class="sr-only"> — {% blocktrans with n=row.qnum %}question {{ n }}{% endblocktrans %}</span></a>
+        {% endif %}
+        {% if row.attempt_count %}
+          <span class="answers__attempts">{% if row.attempt_max %}{% blocktrans with n=row.attempt_count max=row.attempt_max %}attempt {{ n }} of {{ max }}{% endblocktrans %}{% else %}{% blocktrans with n=row.attempt_count %}attempt {{ n }}{% endblocktrans %}{% endif %}</span>
+        {% endif %}
+      </div>
+      <div class="answers__parts">
+        {% for part in row.parts %}
+          <div class="answers__part answers__part--{{ part.kind }}">
+            {% if part.label %}<span class="answers__label"{% if part.label_is_content %} lang="{{ course.language }}"{% endif %}>{{ part.label }}</span>{% endif %}
+            {% if part.kind == "answer" %}
+              {% if part.given is not None %}<span class="answers__given" lang="{{ course.language }}">{{ part.given }}</span>{% else %}<span class="answers__muted">{% trans "Not answered" %}</span>{% endif %}
+            {% endif %}
+            {% comment %}The glyph and its sr-only label are ONE unit, keyed on
+            Part.mark, which already suppresses a tick on an empty part.{% endcomment %}
+            {% if part.mark == "correct" %}<span class="answers__glyph answers__glyph--correct" aria-hidden="true">✓</span><span class="sr-only">{% trans "Correct" %}</span>
+            {% elif part.mark == "incorrect" %}<span class="answers__glyph answers__glyph--incorrect" aria-hidden="true">✗</span><span class="sr-only">{% trans "Incorrect" %}</span>{% endif %}
+            {% if part.expected %}<span class="answers__expected">{% trans "Correct answer:" %} <strong lang="{{ course.language }}">{{ part.expected }}</strong></span>{% endif %}
+          </div>
+        {% empty %}
+          <p class="answers__muted">{% trans "(this question no longer has any parts)" %}</p>
+        {% endfor %}
+      </div>
+      {% if row.review_feedback %}
+        <div class="question__feedback question__feedback--review"><p>{{ row.review_feedback }}</p></div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+    <p class="answers__muted answers__empty">{% trans "This quiz has no questions." %}</p>
+  {% endif %}
+</section>
+{% endblock %}
+{% block extra_js %}
+  {% if has_math %}
+    {% comment %}question.js typesets the data-question items and MUST follow the
+    KaTeX include (see _katex_js.html). The page has no form, so its submit wiring
+    is a no-op.{% endcomment %}
+    {% include "courses/_katex_js.html" %}
+    <script src="{% static 'courses/js/question.js' %}" defer></script>
+  {% endif %}
+{% endblock %}

@@ -338,6 +338,36 @@ def _before_after_has_math(el):
     )
 
 
+def prefetch_question_children(questions):
+    """Prefetch every child row a question's mark()/templates read, one query per child
+    relation, per type present. Single copy: build_lesson_context, build_quiz_context
+    and the per-question analytics page all call it. Adds dragimage `media` (a FK
+    the element template dereferences) to what the two old copies loaded."""
+    choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
+    fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
+    dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
+    matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
+    dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
+    choicegrid_qs = [q for q in questions if isinstance(q, ChoiceGridQuestionElement)]
+    multigrid_qs = [q for q in questions if isinstance(q, MultiGridQuestionElement)]
+    if choice_qs:
+        prefetch_related_objects(choice_qs, "choices")
+    if fill_qs:
+        prefetch_related_objects(fill_qs, "blanks")
+    if dragfill_qs:
+        prefetch_related_objects(dragfill_qs, "dragblanks")
+    if matchpair_qs:
+        prefetch_related_objects(matchpair_qs, "pairs")
+    if dragimage_qs:
+        prefetch_related_objects(dragimage_qs, "zones", "media")
+    if choicegrid_qs:
+        prefetch_related_objects(choicegrid_qs, "columns", "rows")
+    if multigrid_qs:
+        prefetch_related_objects(
+            multigrid_qs, "columns", "rows", "rows__correct_columns"
+        )
+
+
 def build_lesson_context(node, user):
     """Shared element/has_*/progress context for a LESSON unit. Reached through
     full_lesson_render_context, which serves every render site (see its docstring --
@@ -357,29 +387,7 @@ def build_lesson_context(node, user):
         for el in elements
         if isinstance(el.content_object, QuestionElement)
     ]
-    choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
-    fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
-    dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
-    matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
-    dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
-    choicegrid_qs = [q for q in questions if isinstance(q, ChoiceGridQuestionElement)]
-    multigrid_qs = [q for q in questions if isinstance(q, MultiGridQuestionElement)]
-    if choice_qs:
-        prefetch_related_objects(choice_qs, "choices")
-    if fill_qs:
-        prefetch_related_objects(fill_qs, "blanks")
-    if dragfill_qs:
-        prefetch_related_objects(dragfill_qs, "dragblanks")
-    if matchpair_qs:
-        prefetch_related_objects(matchpair_qs, "pairs")
-    if dragimage_qs:
-        prefetch_related_objects(dragimage_qs, "zones")
-    if choicegrid_qs:
-        prefetch_related_objects(choicegrid_qs, "columns", "rows")
-    if multigrid_qs:
-        prefetch_related_objects(
-            multigrid_qs, "columns", "rows", "rows__correct_columns"
-        )
+    prefetch_question_children(questions)
     # ACCEPTED LIMITATION: `elements` is scoped to parent__isnull=True, so a tab-/
     # column-nested checklist's items aren't in this prefetch (bounded per-item N+1 on
     # the nested render path only; correctness unaffected, items <= 20).
@@ -390,11 +398,11 @@ def build_lesson_context(node, user):
     ]
     if markdone_els:
         prefetch_related_objects(markdone_els, "items")
-    # SECOND ACCEPTED LIMITATION, same shape: `choice_qs`/`fill_qs` are built from
-    # `elements` (parent__isnull=True), so a NESTED choice question re-queries
-    # choices.all() per render. Bounded (per-unit question counts are small) and
-    # pre-existing for nested fill_blank's `blanks`. Closing it would cost an extra
-    # flat query on EVERY lesson render, including the vast majority with no nesting.
+    # SECOND ACCEPTED LIMITATION, same shape: prefetch_question_children(questions)
+    # takes `questions` from `elements` (parent__isnull=True), so a NESTED choice
+    # question re-queries choices.all() per render. Bounded (per-unit question counts
+    # are small) and pre-existing for nested fill_blank's `blanks`. Closing it would
+    # cost an extra flat query on EVERY lesson render, most of which have no nesting.
 
     question_models = [
         ChoiceQuestionElement,
@@ -701,7 +709,7 @@ def course_results(request, slug):
     # top-level as the template's canonical source (summary also carries it).
     drafts = "keep" if can_see_drafts(request.user, course) else "hide"
     summary = build_course_results(course, request.user, drafts=drafts)
-    # build_course_results builds "rows" with three rows.append calls, so it is
+    # build_course_results appends one row per unit to a real list, so it is
     # a real list -- scanning it here and then passing it to the template
     # iterates it twice safely. Were it a generator, the scan would exhaust it and
     # the page would render EMPTY, a silent severe failure no test here would
@@ -1324,36 +1332,14 @@ def build_quiz_context(node, user):
         .select_related("unit__course")
         .prefetch_related("content_object")
     )
-    # Mirror build_lesson_context: the GFK prefetch does NOT fetch choices/blanks,
-    # so prefetch them explicitly (avoids N+1 in render/scoring/results).
+    # The GFK prefetch does NOT fetch choices/blanks etc., so the shared helper
+    # prefetches every question's children (avoids N+1 in render/scoring/results).
     questions = [
         el.content_object
         for el in elements
         if isinstance(el.content_object, QuestionElement)
     ]
-    choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
-    fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
-    dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
-    matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
-    dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
-    choicegrid_qs = [q for q in questions if isinstance(q, ChoiceGridQuestionElement)]
-    multigrid_qs = [q for q in questions if isinstance(q, MultiGridQuestionElement)]
-    if choice_qs:
-        prefetch_related_objects(choice_qs, "choices")
-    if fill_qs:
-        prefetch_related_objects(fill_qs, "blanks")
-    if dragfill_qs:
-        prefetch_related_objects(dragfill_qs, "dragblanks")
-    if matchpair_qs:
-        prefetch_related_objects(matchpair_qs, "pairs")
-    if dragimage_qs:
-        prefetch_related_objects(dragimage_qs, "zones")
-    if choicegrid_qs:
-        prefetch_related_objects(choicegrid_qs, "columns", "rows")
-    if multigrid_qs:
-        prefetch_related_objects(
-            multigrid_qs, "columns", "rows", "rows__correct_columns"
-        )
+    prefetch_question_children(questions)
 
     submission = None
     # Hoisted: is_enrolled was already called here and its result discarded.

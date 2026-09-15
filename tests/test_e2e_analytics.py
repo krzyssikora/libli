@@ -201,3 +201,61 @@ def test_teacher_toggles_raw_and_percent(page, live_server, client):
     # Back to Percent
     page.get_by_role("link", name="Percent").click()
     expect(page.locator("table.analytics__matrix")).to_contain_text("68%")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_group_teacher_drills_from_the_matrix_to_one_answer(page, live_server, client):
+    from decimal import Decimal
+
+    from courses.models import Element
+    from courses.models import QuestionResponse
+    from courses.models import QuizSubmission
+    from courses.models import ShortNumericQuestionElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import GroupFactory
+    from tests.factories import GroupMembershipFactory
+    from tests.factories import UserFactory
+    from tests.factories import make_teacher
+
+    teacher = make_teacher(client, "e2eanswers")  # NOT staff: the kit-teacher shape
+    course = CourseFactory(owner=UserFactory())
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
+    quiz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=ch, title="Fractions quiz"
+    )
+    question = ShortNumericQuestionElement.objects.create(
+        stem="<p>2/3 + 1/6?</p>", value="5/6", tolerance="", max_marks=Decimal("1")
+    )
+    element = Element.objects.create(unit=quiz, content_object=question)
+    pupil = UserFactory(display_name="Ada L.")
+    group = GroupFactory(course=course)
+    group.teachers.add(teacher)
+    GroupMembershipFactory(group=group, student=pupil)
+    submission = QuizSubmission.objects.create(
+        student=pupil,
+        unit=quiz,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("1"),
+    )
+    QuestionResponse.objects.create(
+        submission=submission,
+        element=element,
+        latest_answer="4/9",
+        fraction=Decimal("0"),
+        attempt_count=1,
+        locked=True,
+    )
+
+    _login(page, live_server, "e2eanswers")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/analytics/")
+    page.get_by_role("link", name="Ada L.").click()
+    page.locator("a.breakdown-unit__link", has_text="Fractions quiz").click()
+    item = page.locator("li.answers__item").first
+    expect(item).to_contain_text("4/9")
+    expect(item).to_contain_text("Correct answer: 5/6")
+    page.locator("section.answers .manage__head").get_by_role("link").click()
+    expect(page.locator(".breakdown .manage__title")).to_contain_text("Ada L.")

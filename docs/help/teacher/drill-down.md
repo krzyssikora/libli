@@ -53,6 +53,16 @@ course. The **← Analytics** link there restores the exact scope, mode, expande
 columns, and subset you came from, so you can dip into one student and pop
 straight back to the same grid.
 
+## Per-question answers
+
+In a student's breakdown, the title of every quiz they have started is a link.
+Click it to see that quiz question by question: the question, what the student
+answered, the correct answer where theirs was wrong, the marks, and how many
+attempts they used. A quiz still in progress shows the answers given so far. A
+question waiting for your review links straight to the review page. The
+**← Breakdown** link takes you back to the breakdown with your analytics view
+unchanged.
+
 ## Related topics
 
 - [The analytics matrix](analytics)

@@ -343,6 +343,12 @@ urlpatterns = [
         name="manage_analytics_student",
     ),
     path(
+        "manage/courses/<slug:slug>/analytics/student/<int:student_pk>/"
+        "quiz/<int:node_pk>/",
+        views_analytics.analytics_student_quiz,
+        name="manage_analytics_student_quiz",
+    ),
+    path(
         "manage/courses/<slug:slug>/analytics/export/",
         views_export.gradebook_export,
         name="manage_analytics_export",

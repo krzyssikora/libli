@@ -9,19 +9,31 @@ from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 
 from courses.access import can_manage_course
+from courses.access import get_node_or_404
+from courses.answer_summary import stem_html
+from courses.answer_summary import summarise
 from courses.color_bands import band_style
 from courses.color_bands import course_color_bands
 from courses.color_bands import default_color_bands
 from courses.color_bands import legend_rows
 from courses.forms import ColorBandsForm
+from courses.htmlsandbox import has_math_delimiters
 from courses.htmlsandbox import titles_have_math
 from courses.models import Course
+from courses.models import DragToImageQuestionElement
+from courses.models import QuestionElement
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
+from courses.rollups import _course_results_row
+from courses.rollups import _quiz_pill
+from courses.rollups import _quiz_review_maps
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
 from courses.rollups import tree_titles_have_math
+from courses.views import _question_has_math
+from courses.views import _results_row
+from courses.views import prefetch_question_children
 from grouping import scoping
 
 
@@ -198,6 +210,18 @@ def _expand_qs(scope, mode, expand_pks, subset_pks, values):
     return urlencode(data, doseq=True)
 
 
+def _drill_params(request):
+    """(scope, mode, expand_pks, subset_pks, values) from a drill-down page's GET:
+    the breakdown and the per-question page round-trip the matrix's state with it.
+    analytics_matrix parses its own (it also reads scope_rendered)."""
+    scope = request.GET.get("scope", "all")
+    mode = "results" if request.GET.get("mode") == "results" else "progress"
+    values = "raw" if request.GET.get("values") == "raw" else "percent"
+    expand_pks = _clean_expand(request.GET.getlist("expand"))
+    subset_pks = _clean_expand(request.GET.getlist("student"))
+    return scope, mode, expand_pks, subset_pks, values
+
+
 def _decorate_links(matrix, course, scope, mode, reviewable_ids, subset_pks, values):
     """Attach pre-built hrefs (spec §4): on each header cell an expand_url (a
     not-yet-expanded leaf with children) or a collapse_url (an expanded spanning
@@ -244,11 +268,7 @@ def analytics_student(request, slug, student_pk):
     breakdown = build_student_breakdown(
         course, student, drafts="keep-with-data", with_data=with_data
     )
-    scope = request.GET.get("scope", "all")
-    mode = "results" if request.GET.get("mode") == "results" else "progress"
-    values = "raw" if request.GET.get("values") == "raw" else "percent"
-    expand_pks = _clean_expand(request.GET.getlist("expand"))
-    subset_pks = _clean_expand(request.GET.getlist("student"))
+    scope, mode, expand_pks, subset_pks, values = _drill_params(request)
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
     back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
     # build_student_breakdown returns a DICT WRAPPER, {"student": …, "tree": …};
@@ -263,7 +283,125 @@ def analytics_student(request, slug, student_pk):
             "student": student,
             "breakdown": breakdown,
             "back_url": f"{matrix_path}?{back_qs}",
+            "drill_qs": back_qs,
             "has_math": has_math,
+        },
+    )
+
+
+def _override_outcome(question, response, row, in_progress):
+    """_results_row's outcome vocabulary is post-submit; fix the three cases it
+    misreports on this page (spec §3.3). Never applied inside _results_row: the
+    pupil's own results page is out of scope."""
+    mode = question.marking_mode
+    answered = row["answered"]
+    if mode == QuestionElement.MarkingMode.NOT_MARKED and not answered:
+        return "not_answered"
+    if mode == QuestionElement.MarkingMode.REVIEW and in_progress:
+        # Nobody can review it until the submission is finished (by the pupil or
+        # a teacher's force-submit): the review page opens SUBMITTED work only.
+        return "recorded" if answered else "not_answered"
+    if (
+        mode == QuestionElement.MarkingMode.AUTO
+        and answered
+        and response.fraction is None
+    ):
+        # answered while REVIEW/NOT_MARKED, never reviewed, then switched to AUTO
+        return "recorded"
+    return row["outcome"]
+
+
+def _quiz_answer_rows(unit, submission):
+    """One display row per top-level question, in element order (spec §3.3)."""
+    elements = [
+        el
+        for el in unit.elements.filter(parent__isnull=True)
+        .order_by("order", "pk")
+        .prefetch_related("content_object")
+        if isinstance(el.content_object, QuestionElement)
+    ]
+    prefetch_question_children([el.content_object for el in elements])
+    responses = {r.element_id: r for r in submission.responses.all()}
+    in_progress = submission.status == QuizSubmission.Status.IN_PROGRESS
+    rows = []
+    for qnum, el in enumerate(elements, start=1):
+        question = el.content_object
+        response = responses.get(el.pk)
+        row = _results_row(question, response)
+        row["outcome"] = _override_outcome(question, response, row, in_progress)
+        row["parts"] = summarise(question, response, row["reveal_result"])
+        row["qnum"] = qnum
+        row["stem_html"] = stem_html(question)
+        attempts = response.attempt_count if response is not None else 0
+        limit = question.max_attempts
+        row["attempt_count"] = attempts
+        row["attempt_max"] = limit if limit is not None and attempts <= limit else None
+        row["dragimage"] = (
+            question if isinstance(question, DragToImageQuestionElement) else None
+        )
+        rows.append(row)
+    return rows
+
+
+def _answers_have_math(unit, rows):
+    """KaTeX is needed if the title, any question, any review feedback or any
+    displayed part text carries delimiters -- a pupil can type \\(x\\) (spec §5.2)."""
+    if titles_have_math([unit.title]):
+        return True
+    for row in rows:
+        if _question_has_math(row["question"]):
+            return True
+        if has_math_delimiters(row["review_feedback"] or ""):
+            return True
+        for part in row["parts"]:
+            for text in (part.given, part.expected, part.label):
+                if text and has_math_delimiters(text):
+                    return True
+    return False
+
+
+@login_required
+def analytics_student_quiz(request, slug, student_pk, node_pk):
+    """One pupil's answers to one quiz (spec §3). Every failure is 404."""
+    course = get_object_or_404(Course, slug=slug)
+    if not scoping.can_review_course(request.user, course):
+        raise Http404
+    student = (
+        scoping.reviewable_students(request.user, course).filter(pk=student_pk).first()
+    )
+    if student is None:
+        raise Http404
+    # No viewer=: an author-facing surface keeps drafts that carry data (a
+    # submission IS data), exactly as the breakdown does.
+    unit = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    submission = QuizSubmission.objects.filter(student=student, unit=unit).first()
+    if submission is None:
+        raise Http404
+    has_auto, total_review, reviewed_counts = _quiz_review_maps([unit.pk], [submission])
+    pill = _quiz_pill(
+        _course_results_row(unit, submission, has_auto, total_review, reviewed_counts)
+    )
+    scope, mode, expand_pks, subset_pks, values = _drill_params(request)
+    student_path = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": student.pk},
+    )
+    back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
+    rows = _quiz_answer_rows(unit, submission)
+    return render(
+        request,
+        "courses/manage/analytics_student_quiz.html",
+        {
+            "course": course,
+            "student": student,
+            "unit": unit,
+            "submission": submission,
+            "pill": pill,
+            "back_url": f"{student_path}?{back_qs}",
+            "has_math": _answers_have_math(unit, rows),
+            "rows": rows,
+            "answered_count": sum(1 for row in rows if row["answered"]),
+            "question_count": len(rows),
         },
     )
 

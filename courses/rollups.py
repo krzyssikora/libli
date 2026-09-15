@@ -7,33 +7,17 @@ from django.db.models import Count
 from django.utils.translation import gettext_lazy
 
 from courses.htmlsandbox import titles_have_math
-from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
-from courses.models import DragFillBlankQuestionElement
-from courses.models import DragToImageQuestionElement
 from courses.models import Element
-from courses.models import ExtendedResponseQuestionElement
-from courses.models import FillBlankQuestionElement
-from courses.models import MatchPairQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
-from courses.models import ShortNumericQuestionElement
-from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
+from courses.richtext import CONCRETE_QUESTION_MODELS
 
-# The 8 concrete QuestionElement subclasses (the roadmap's "9 types" — single+multi
-# MCQ share ChoiceQuestionElement). Mirrors courses/views.py:91-100.
-_QUESTION_MODELS = [
-    ChoiceQuestionElement,
-    ShortTextQuestionElement,
-    ShortNumericQuestionElement,
-    FillBlankQuestionElement,
-    DragFillBlankQuestionElement,
-    MatchPairQuestionElement,
-    DragToImageQuestionElement,
-    ExtendedResponseQuestionElement,
-]
+# Every concrete QuestionElement subclass -- the SAME source builder.py's
+# unit_has_nested_question uses. A hand list here once omitted both grid types.
+_QUESTION_MODELS = CONCRETE_QUESTION_MODELS
 
 # The separator used in hidden_path, which is READ ALOUD (it is the ellipsis crumb's
 # accessible name). Deliberately NOT the visible "›": the visible separators are
@@ -409,6 +393,46 @@ def submission_is_counted(sub, total_review, reviewed_counts):
     return not (total_r > 0 and reviewed_r < total_r)
 
 
+def _course_results_row(unit, sub, has_auto, total_review, reviewed_counts):
+    """One build_course_results row for `unit` and its submission `sub` (or None).
+    Shared by build_course_results and the per-question page's header pill, so
+    the header can never re-derive the pill differently from the breakdown."""
+    if sub is None:
+        return {
+            "unit": unit,
+            "status": "not_started",
+            "graded": False,
+            "score": None,
+            "max_score": None,
+            "pending": False,
+            "submission_pk": None,
+            "url_name": "courses:quiz_unit",
+        }
+    if sub.status == QuizSubmission.Status.IN_PROGRESS:
+        return {
+            "unit": unit,
+            "status": "in_progress",
+            "graded": False,
+            "score": None,
+            "max_score": None,
+            "pending": False,
+            "submission_pk": sub.pk,
+            "url_name": "courses:quiz_unit",
+        }
+    graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0 (max_marks >= 0.01)
+    pending = not submission_is_counted(sub, total_review, reviewed_counts)
+    return {
+        "unit": unit,
+        "status": "awaiting_review" if pending else "submitted",
+        "graded": graded,
+        "score": sub.score,
+        "max_score": sub.max_score,
+        "pending": pending,
+        "submission_pk": sub.pk,
+        "url_name": "courses:quiz_results",
+    }
+
+
 def build_course_results(course, student, *, drafts, with_data=None):
     """Per-course quiz summary for one student (the viewing user). Pure of side
     effects. Sums the headline over SUBMITTED quizzes only, excluding quizzes
@@ -448,53 +472,13 @@ def build_course_results(course, student, *, drafts, with_data=None):
     done_count = 0
     for unit in units:
         sub = submissions.get(unit.pk)
-        if sub is None:
-            rows.append(
-                {
-                    "unit": unit,
-                    "status": "not_started",
-                    "graded": False,
-                    "score": None,
-                    "max_score": None,
-                    "pending": False,
-                    "submission_pk": None,
-                    "url_name": "courses:quiz_unit",
-                }
-            )
-            continue
-        if sub.status == QuizSubmission.Status.IN_PROGRESS:
-            rows.append(
-                {
-                    "unit": unit,
-                    "status": "in_progress",
-                    "graded": False,
-                    "score": None,
-                    "max_score": None,
-                    "pending": False,
-                    "submission_pk": sub.pk,
-                    "url_name": "courses:quiz_unit",
-                }
-            )
-            continue
-        # SUBMITTED
-        graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0 (max_marks >= 0.01)
-        pending = not submission_is_counted(sub, total_review, reviewed_counts)
-        rows.append(
-            {
-                "unit": unit,
-                "status": "awaiting_review" if pending else "submitted",
-                "graded": graded,
-                "score": sub.score,
-                "max_score": sub.max_score,
-                "pending": pending,
-                "submission_pk": sub.pk,
-                "url_name": "courses:quiz_results",
-            }
-        )
-        done_count += 1  # unchanged: pending still counts as submitted
-        if not pending:
-            score_sum += sub.score or Decimal("0")
-            max_sum += sub.max_score or Decimal("0")
+        row = _course_results_row(unit, sub, has_auto, total_review, reviewed_counts)
+        rows.append(row)
+        if row["status"] in ("submitted", "awaiting_review"):
+            done_count += 1  # unchanged: pending still counts as submitted
+            if not row["pending"]:
+                score_sum += sub.score or Decimal("0")
+                max_sum += sub.max_score or Decimal("0")
 
     percent = None
     if max_sum and max_sum > 0:
@@ -512,7 +496,9 @@ def build_course_results(course, student, *, drafts, with_data=None):
 
 
 def _quiz_pill(row):
-    """Map a build_course_results row to a single-sourced status pill (spec §6)."""
+    """Map a build_course_results row to a single-sourced status pill (spec §6).
+    Every kind that has a submission carries its pk: the breakdown links the
+    quiz title to the per-question page with it."""
     status = row["status"]
     if status == "submitted":
         if row["graded"] and row["max_score"]:
@@ -522,13 +508,14 @@ def _quiz_pill(row):
                 "score": row["score"],
                 "max_score": row["max_score"],
                 "percent": _pct(row["score"], row["max_score"]),
+                "submission_pk": row["submission_pk"],
             }
         # submitted but ungraded (max_score == 0): no percent
-        return {"kind": "submitted"}
+        return {"kind": "submitted", "submission_pk": row["submission_pk"]}
     if status == "awaiting_review":
         return {"kind": "awaiting", "submission_pk": row["submission_pk"]}
     if status == "in_progress":
-        return {"kind": "in_progress"}
+        return {"kind": "in_progress", "submission_pk": row["submission_pk"]}
     return {"kind": "not_started"}
 
 
@@ -1082,7 +1069,7 @@ def build_resume(course, user, tree):
     # views.py::build_lesson_context, every `seen` batch, every practice-state write.
     # NOTE: completed=False here is DELIBERATE REDUNDANCY and is NOT falsifiable --
     # open_pks is derived from exactly this filter (build_outline's completed set,
-    # rollups.py:244-250, leaf key at :265), so no mutant of it can go RED. It
+    # rollups.py:228-234, leaf key at :249), so no mutant of it can go RED. It
     # states the intent locally; do not spend a falsification round on it.
     a = (
         UnitProgress.objects.filter(student=user, unit_id__in=open_pks, completed=False)

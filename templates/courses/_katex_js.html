@@ -11,8 +11,8 @@ non-deferred math.js runs DURING parsing, so renderMath(document) and
 renderInlineText(document) see a partial DOM and typeset nothing below their own
 tag, a failure that looks exactly like a missing marker.
 
-question.js is deliberately NOT here: only two pages need it, and it must come
-AFTER this include on both.{% endcomment %}
+question.js is deliberately NOT here: only pages with [data-question] subtrees need
+it, and it must come AFTER this include on each.{% endcomment %}
 <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
 <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
 <script src="{% static 'courses/js/math_reflow.js' %}" defer></script>

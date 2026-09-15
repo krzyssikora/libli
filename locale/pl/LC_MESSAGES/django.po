@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-13 22:57+0200\n"
+"POT-Creation-Date: 2026-09-15 00:59+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -417,6 +417,36 @@ msgstr "Rozważasz libli dla swojej szkoły?"
 #: .\core\views.py:142
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
+
+#: .\courses\answer_summary.py:94 .\courses\answer_summary.py:270
+#: .\courses\answer_summary.py:294
+msgid "(removed option)"
+msgstr "(usunięta opcja)"
+
+#: .\courses\answer_summary.py:101 .\courses\answer_summary.py:305
+msgid "(none)"
+msgstr "(brak)"
+
+#: .\courses\answer_summary.py:140
+#: .\templates\courses\elements\_reveal_extendedresponse.html:8
+#: .\templates\courses\manage\_flag_legend.html:53
+msgid "Required"
+msgstr "Wymagane"
+
+#: .\courses\answer_summary.py:140
+#: .\templates\courses\elements\_reveal_extendedresponse.html:13
+msgid "Avoid"
+msgstr "Unikaj"
+
+#: .\courses\answer_summary.py:213 .\courses\answer_summary.py:227
+#, python-format
+msgid "Gap %(n)s"
+msgstr "Luka %(n)s"
+
+#: .\courses\answer_summary.py:241
+#, python-format
+msgid "Zone %(n)s"
+msgstr "Strefa %(n)s"
 
 #: .\courses\builder.py:786
 msgid ""
@@ -1039,7 +1069,7 @@ msgstr "Jednostka"
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:201 .\courses\rollups.py:180
+#: .\courses\models.py:201 .\courses\rollups.py:164
 #: .\templates\courses\manage\_add_affordance.html:26
 #: .\templates\courses\manage\editor\editor.html:97
 msgid "Quiz"
@@ -1164,7 +1194,7 @@ msgstr "W toku"
 msgid "Submitted"
 msgstr "Przesłano"
 
-#: .\courses\rollups.py:181
+#: .\courses\rollups.py:165
 msgid "Additional"
 msgstr "Dodatkowa"
 
@@ -2568,20 +2598,20 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:1505
+#: .\courses\views.py:1491
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1945
+#: .\courses\views.py:1931
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
 
-#: .\courses\views_analytics.py:280
+#: .\courses\views_analytics.py:418
 msgid "Colours reset to defaults."
 msgstr "Przywrócono domyślne kolory."
 
-#: .\courses\views_analytics.py:286
+#: .\courses\views_analytics.py:424
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
@@ -5137,7 +5167,7 @@ msgstr "Opublikuj"
 #: .\templates\courses\_lesson_article.html:23
 #: .\templates\courses\_outline_node.html:9
 #: .\templates\courses\_unit_tree_node.html:11
-#: .\templates\courses\manage\_breakdown_node.html:25
+#: .\templates\courses\manage\_breakdown_node.html:17
 msgid "Completed"
 msgstr "Ukończono"
 
@@ -5163,7 +5193,7 @@ msgstr "Edytuj tagi"
 
 #: .\templates\courses\_outline_node.html:40
 #: .\templates\courses\_outline_node.html:55
-#: .\templates\courses\manage\_breakdown_node.html:31
+#: .\templates\courses\manage\_breakdown_node.html:23
 msgid "required"
 msgstr "wymagane"
 
@@ -5345,13 +5375,14 @@ msgid "details"
 msgstr "szczegóły"
 
 #: .\templates\courses\course_results.html:28
+#: .\templates\courses\manage\analytics_student_quiz.html:54
 #: .\templates\courses\manage\review_queue.html:11
 #: .\templates\courses\quiz_results.html:37
 msgid "Awaiting review"
 msgstr "Oczekuje na ocenę"
 
 #: .\templates\courses\course_results.html:31
-#: .\templates\courses\manage\_breakdown_node.html:16
+#: .\templates\courses\manage\_quiz_pill.html:14
 msgid "in progress"
 msgstr "w toku"
 
@@ -5360,7 +5391,7 @@ msgid "resume"
 msgstr "wznów"
 
 #: .\templates\courses\course_results.html:34
-#: .\templates\courses\manage\_breakdown_node.html:18
+#: .\templates\courses\manage\_quiz_pill.html:16
 msgid "not started"
 msgstr "nie rozpoczęto"
 
@@ -5384,6 +5415,8 @@ msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s"
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
+#: .\templates\courses\manage\analytics_student_quiz.html:48
+#: .\templates\courses\manage\analytics_student_quiz.html:72
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:39
 #: .\templates\courses\quiz_results.html:31
 msgid "Correct"
@@ -5391,6 +5424,8 @@ msgstr "Poprawnie"
 
 #: .\templates\courses\elements\_question_feedback.html:7
 #: .\templates\courses\elements\_quiz_question_feedback.html:35
+#: .\templates\courses\manage\analytics_student_quiz.html:50
+#: .\templates\courses\manage\analytics_student_quiz.html:73
 #: .\templates\courses\quiz_results.html:33
 msgid "Incorrect"
 msgstr "Niepoprawnie"
@@ -5404,6 +5439,7 @@ msgid "Submitted for review"
 msgstr "Przesłano do oceny"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
+#: .\templates\courses\manage\analytics_student_quiz.html:52
 #: .\templates\courses\quiz_results.html:35
 msgid "Answer recorded"
 msgstr "Odpowiedź zapisana"
@@ -5419,6 +5455,7 @@ msgstr[2] "%(n)s prób pozostało"
 #: .\templates\courses\elements\_reveal_choicegrid.html:11
 #: .\templates\courses\elements\_reveal_fillblank.html:9
 #: .\templates\courses\elements\_reveal_shorttext.html:2
+#: .\templates\courses\manage\analytics_student_quiz.html:74
 msgid "Correct answer:"
 msgstr "Poprawna odpowiedź:"
 
@@ -5434,15 +5471,6 @@ msgstr "Poprawny token:"
 #: .\templates\courses\elements\_reveal_dragimage.html:10
 msgid "Correct label:"
 msgstr "Poprawna etykieta:"
-
-#: .\templates\courses\elements\_reveal_extendedresponse.html:8
-#: .\templates\courses\manage\_flag_legend.html:53
-msgid "Required"
-msgstr "Wymagane"
-
-#: .\templates\courses\elements\_reveal_extendedresponse.html:13
-msgid "Avoid"
-msgstr "Unikaj"
 
 #: .\templates\courses\elements\_reveal_matchpair.html:10
 msgid "Correct match:"
@@ -5598,20 +5626,9 @@ msgstr "Nowy tytuł"
 msgid "More kinds"
 msgstr "Więcej typów"
 
-#: .\templates\courses\manage\_breakdown_node.html:9
-#, python-format
-msgid "scored %(s)s/%(m)s"
-msgstr "wynik %(s)s/%(m)s"
-
-#: .\templates\courses\manage\_breakdown_node.html:11
-msgid "submitted"
-msgstr "przesłano"
-
-#: .\templates\courses\manage\_breakdown_node.html:13
-msgid "awaiting review"
-msgstr "oczekuje na ocenę"
-
-#: .\templates\courses\manage\_breakdown_node.html:14
+#: .\templates\courses\manage\_breakdown_node.html:10
+#: .\templates\courses\manage\analytics_student_quiz.html:18
+#: .\templates\courses\manage\analytics_student_quiz.html:56
 #: .\templates\courses\manage\review_queue.html:18
 #: .\templates\courses\manage\review_submission.html:3
 #: .\templates\courses\manage\review_submission.html:59
@@ -5889,6 +5906,19 @@ msgstr "Przenieś tutaj"
 #: .\templates\courses\manage\_op_error.html:2
 msgid "Couldn't apply that change:"
 msgstr "Nie można zastosować tej zmiany:"
+
+#: .\templates\courses\manage\_quiz_pill.html:8
+#, python-format
+msgid "scored %(s)s/%(m)s"
+msgstr "wynik %(s)s/%(m)s"
+
+#: .\templates\courses\manage\_quiz_pill.html:10
+msgid "submitted"
+msgstr "przesłano"
+
+#: .\templates\courses\manage\_quiz_pill.html:12
+msgid "awaiting review"
+msgstr "oczekuje na ocenę"
 
 #: .\templates\courses\manage\_roster_row.html:25
 #: .\templates\courses\manage\review_queue.html:34
@@ -6186,8 +6216,67 @@ msgstr "Brak lekcji wliczanych do postępów w tym kursie."
 
 #: .\templates\courses\manage\analytics_student.html:3
 #: .\templates\courses\manage\analytics_student.html:8
+#: .\templates\courses\manage\analytics_student_quiz.html:12
 msgid "Breakdown"
 msgstr "Szczegóły ucznia"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:3
+msgid "Answers"
+msgstr "Odpowiedzi"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:21
+#, python-format
+msgid "%(k)s of %(n)s question answered"
+msgid_plural "%(k)s of %(n)s questions answered"
+msgstr[0] "Odpowiedzi: %(k)s z %(n)s pytania"
+msgstr[1] "Odpowiedzi: %(k)s z %(n)s pytań"
+msgstr[2] "Odpowiedzi: %(k)s z %(n)s pytań"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:49
+#: .\templates\courses\quiz_results.html:32
+msgid "Partial"
+msgstr "Częściowo poprawnie"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:51
+#: .\templates\courses\manage\analytics_student_quiz.html:67
+#: .\templates\courses\quiz_results.html:34
+msgid "Not answered"
+msgstr "Bez odpowiedzi"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:53
+#: .\templates\courses\manage\review_submission.html:50
+#: .\templates\courses\quiz_results.html:36
+msgid "Reviewed"
+msgstr "Sprawdzone"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:54
+#: .\templates\courses\quiz_results.html:37
+#, python-format
+msgid "up to %(m)s marks"
+msgstr "do %(m)s punktów"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:56
+#, python-format
+msgid "question %(n)s"
+msgstr "pytanie %(n)s"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:59
+#, python-format
+msgid "attempt %(n)s of %(max)s"
+msgstr "próba %(n)s z %(max)s"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:59
+#, python-format
+msgid "attempt %(n)s"
+msgstr "próba %(n)s"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:77
+msgid "(this question no longer has any parts)"
+msgstr "(to pytanie nie ma już żadnych części)"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:87
+msgid "This quiz has no questions."
+msgstr "Ten quiz nie ma pytań."
 
 #: .\templates\courses\manage\builder.html:3
 msgid "Builder"
@@ -7853,11 +7942,6 @@ msgstr "Zwiń zgłoszenia"
 msgid "To review"
 msgstr "Do sprawdzenia"
 
-#: .\templates\courses\manage\review_submission.html:50
-#: .\templates\courses\quiz_results.html:36
-msgid "Reviewed"
-msgstr "Sprawdzone"
-
 #: .\templates\courses\manage\review_submission.html:64
 #, python-format
 msgid "Force-submit %(n)s in-progress quiz?"
@@ -8008,19 +8092,6 @@ msgid_plural "%(n)s questions awaiting review (up to %(m)s more marks)"
 msgstr[0] "%(n)s pytanie oczekuje na ocenę (do %(m)s dodatkowych punktów)"
 msgstr[1] "%(n)s pytania oczekują na ocenę (do %(m)s dodatkowych punktów)"
 msgstr[2] "%(n)s pytań oczekuje na ocenę (do %(m)s dodatkowych punktów)"
-
-#: .\templates\courses\quiz_results.html:32
-msgid "Partial"
-msgstr "Częściowo poprawnie"
-
-#: .\templates\courses\quiz_results.html:34
-msgid "Not answered"
-msgstr "Bez odpowiedzi"
-
-#: .\templates\courses\quiz_results.html:37
-#, python-format
-msgid "up to %(m)s marks"
-msgstr "do %(m)s punktów"
 
 #: .\templates\grouping\allocation_assign.html:10
 msgid "Back to allocations"
