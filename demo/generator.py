@@ -204,11 +204,11 @@ def _answer_quiz(rng, student, unit, qplans, p_correct, *, finalize=True, limit=
     # ⚠️ NO `Attempt` ROWS, deliberately. The real answer path
     # (courses/views.py:1660) creates one Attempt per response; we write
     # attempt_count=1 with nothing behind it. What that costs: any surface that
-    # JOINS Attempt shows a count with no history — PR 5's per-question view is
-    # the stated consumer, so PR 5 must either read attempt_count alone or this
-    # decision must be revisited there. Writing them here would add ~pupils x
-    # questions rows for a demo that never replays an attempt; it consumes no
-    # draw either way, so the draw order is unaffected.
+    # JOINS Attempt shows a count with no history — PR 5's per-question view,
+    # the stated consumer, reads attempt_count alone (views_analytics.py
+    # _quiz_answer_rows), never joining Attempt. Writing them here would add
+    # ~pupils x questions rows for a demo that never replays an attempt; it
+    # consumes no draw either way, so the draw order is unaffected.
     if finalize:
         finalize_submission(unit, submission)
         _complete(student, unit)

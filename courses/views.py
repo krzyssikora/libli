@@ -339,9 +339,9 @@ def _before_after_has_math(el):
 
 
 def prefetch_question_children(questions):
-    """Prefetch every child row a question's mark()/templates read, one query per
-    type present. THE single copy: build_lesson_context, build_quiz_context and
-    the per-question analytics page all call it. Adds dragimage `media` (a FK
+    """Prefetch every child row a question's mark()/templates read, one query per child
+    relation, per type present. Single copy: build_lesson_context, build_quiz_context
+    and the per-question analytics page all call it. Adds dragimage `media` (a FK
     the element template dereferences) to what the two old copies loaded."""
     choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
     fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]

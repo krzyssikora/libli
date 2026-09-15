@@ -185,13 +185,11 @@ def test_awaiting_header_has_one_review_link(client):
     soup = _soup(client.get(_url(course, pupil.pk, quiz.pk)))
     status = soup.select_one(".answers__status")
     assert status.select_one(".pill--awaiting") is not None
-    links = status.select("a.answers__review")
-    assert [a["href"] for a in links] == [
-        reverse(
-            "courses:manage_review_submission",
-            kwargs={"slug": course.slug, "submission_pk": sub.pk},
-        )
-    ]
+    review_url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": sub.pk},
+    )
+    assert len(status.select(f'a[href="{review_url}"]')) == 1
 
 
 AUTO = QuestionElement.MarkingMode.AUTO
@@ -339,7 +337,9 @@ def test_t36_header_pill_matches_the_breakdown_pill(client):
     awaiting = _empty_quiz(course, "Q awaiting")
     _add(awaiting)
     _add(awaiting, ExtendedResponseQuestionElement, marking_mode=REVIEW)
-    _submitted(pupil, awaiting, score=Decimal("1"), max_score=Decimal("1"))
+    awaiting_sub = _submitted(
+        pupil, awaiting, score=Decimal("1"), max_score=Decimal("1")
+    )
     reviewed = _empty_quiz(course, "Q reviewed")
     rel = _add(reviewed, ExtendedResponseQuestionElement, marking_mode=REVIEW)
     rsub = _submitted(pupil, reviewed, score=Decimal("1"), max_score=Decimal("1"))
@@ -383,7 +383,11 @@ def test_t36_header_pill_matches_the_breakdown_pill(client):
     awaiting_status = _soup(client.get(_url(course, pupil.pk, awaiting.pk))).select_one(
         ".answers__status"
     )
-    assert len(awaiting_status.select("a.answers__review")) == 1
+    awaiting_review_url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": awaiting_sub.pk},
+    )
+    assert len(awaiting_status.select(f'a[href="{awaiting_review_url}"]')) == 1
     assert "scored" not in awaiting_status.get_text(" ", strip=True)
 
 
@@ -721,6 +725,32 @@ def test_t39_no_maths_anywhere_loads_neither(client):
     _respond(sub, el, latest_answer="Warsaw", fraction=Decimal("1"), attempt_count=1)
     srcs = _script_srcs(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
     assert not any("katex" in s or s.endswith("question.js") for s in srcs)
+
+
+def test_t39_shorttext_accepted_maths_alone_loads_question_js(client):
+    """`_question_has_math` has no ShortTextQuestionElement branch (courses/views.py),
+    so a delimiter in `accepted` reaches the page only through
+    `_answers_have_math`'s own `part.expected` check -- pins that field."""
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Shorttext accepted maths")
+    el = _add(quiz, accepted=r"\(x\)")
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer="wrong", fraction=Decimal("0"), attempt_count=1)
+    srcs = _script_srcs(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
+    assert any(s.endswith("courses/js/question.js") for s in srcs)
+
+
+def test_t39_extendedresponse_keyword_label_maths_loads_question_js(client):
+    """`_question_has_math` has no ExtendedResponseQuestionElement branch, so a
+    delimiter in `required_keywords` reaches the page only through
+    `_answers_have_math`'s own `part.label` check -- pins that field."""
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Keyword label maths")
+    el = _add(quiz, ExtendedResponseQuestionElement, required_keywords=r"\(y\)")
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer="no match", fraction=Decimal("0"), attempt_count=1)
+    srcs = _script_srcs(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
+    assert any(s.endswith("courses/js/question.js") for s in srcs)
 
 
 # --- T37 breakdown links and the back link -------------------------------------
