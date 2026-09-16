@@ -491,16 +491,16 @@ In `docs/help/teacher/analytics.md`, under `## Reading the grid`, change the bul
 
 ```markdown
 - **Rows** are students, one per line, in register order: by surname, then first
-  name, alphabetically. A student with no surname on their account is placed by
-  their display name.
+  name, alphabetically. A student whose account lacks either a first name or a
+  surname is placed by their display name.
 ```
 
 Open `docs/help/teacher/analytics.pl.md`, find the matching „Wiersze" bullet, and replace it with:
 
 ```markdown
 - **Wiersze** to uczniowie, po jednym w wierszu, w kolejności dziennika: według
-  nazwiska, a potem imienia, alfabetycznie. Uczeń bez nazwiska na koncie jest
-  umieszczony według nazwy wyświetlanej.
+  nazwiska, a potem imienia, alfabetycznie. Uczeń, któremu na koncie brakuje imienia
+  lub nazwiska, jest umieszczony według nazwy wyświetlanej.
 ```
 
 (If the Polish bullet's bold word differs, keep its existing bold word and replace only the sentence.)
@@ -3117,6 +3117,10 @@ Measure `.badge--partial`'s text contrast (computed `color` against computed `ba
 
 ```bash
 cp C:/Users/krzys/Documents/Python/own/libli/.env .env
+# The help-screenshot captures (A3, B10) seeded a REAL media/ directory here
+# (seed_demo_course saves demo.png under MEDIA_ROOT). mklink refuses an existing
+# path, so remove it -- only if it is a plain directory, never a junction:
+if [ -L media ]; then echo "media is already a junction - skip the mklink"; elif [ -d media ]; then rm -rf media; fi
 cmd //c mklink /J media "C:\Users\krzys\Documents\Python\own\libli\media"
 uv run python manage.py shell -c "from django.conf import settings; from django.db import connection; print(settings.DEBUG, connection.settings_dict['NAME'], settings.MEDIA_ROOT)"
 ```
@@ -3143,10 +3147,10 @@ uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py
 uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py
 ```
 
-If a msgid changed, run the Catalog procedure too. Then:
+If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: remove the `media` junction first (`cmd //c rmdir media` — the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media), then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. Then:
 
 ```bash
-git add core/static/core/css/app.css courses/static/courses/css/courses.css templates/courses/ locale/ tests/
+git add core/static/core/css/app.css courses/static/courses/css/courses.css templates/courses/ locale/ tests/ core/static/core/img/help/
 git commit -m "style(analytics): design pass on the student pages"
 git status --short
 ```
@@ -3182,7 +3186,7 @@ Catalog conflicts are expected: five PR B commits (B3, B4, B6, B7, B8) touch `lo
   2. Re-run the full Catalog procedure from Global Constraints: `makemessages`, then overwrite the msgstr of **every msgid from the Global Constraints table that is now present in the `.po`** (e.g. „Klucz"), fuzzy count 0, `compilemessages`.
   3. `git add locale/` and `git rebase --continue`.
 
-  Expect to repeat this once per conflicting catalog commit. Never hand-merge a `.po` (it resurrects fuzzies and drops owner-decided msgstrs) or a binary `.mo`. Re-run the Step 3 gate's non-e2e chunks after the rebase.
+  Expect to repeat this once per conflicting catalog commit. Never hand-merge a `.po` (it resurrects fuzzies and drops owner-decided msgstrs) or a binary `.mo`. After the rebase, re-run the **whole** Step 3 gate — ruff check and format check, the fuzzy count, all four non-e2e chunks and the full e2e line (at minimum `tests/test_e2e_analytics_student_pages.py`, which pins the computed styles master's CSS changes could shift) — before pushing.
 
 ```bash
 git push -u origin feat/analytics-student-pages
