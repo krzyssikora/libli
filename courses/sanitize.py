@@ -117,7 +117,7 @@ def normalize_body(value, *, allowed_classes=None):
     documented as FROZEN; this one only calls it.
 
     NOT folded into sanitize_html: that function's contract is "strip everything
-    outside the safe subset", and it is also the sanitiser for question stems and
+    outside the safe subset", and it is also the sanitiser for token stems and
     table cells, where emptiness is the form layer's business.
     """
     clean = sanitize_html(value, allowed_classes=allowed_classes)

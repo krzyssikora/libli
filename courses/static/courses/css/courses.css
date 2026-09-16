@@ -395,13 +395,13 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
    build_quiz_context) — contiguous in document order even across a hidden
    slideshow slide, which a CSS counter could not guarantee once slides are
    toggled with display:none; a lesson's embedded checks are not numbered.
-   Scoped to .quiz/.lesson so the results page (which also renders .el--question)
-   is untouched. */
+   Scoped to .quiz/.lesson (+ the editor's .prev preview) so the results page
+   (which also renders .el--question) is untouched. */
 .quiz,
 .lesson { max-width: 46rem; margin-inline: auto; }
 .quiz .lesson-unit__title,
 .lesson .lesson-unit__title { margin-bottom: var(--space-6); }
-.quiz .el--question,
+.quiz .el--question, .prev .el--question,
 .lesson .el--question {
   margin: var(--space-5) 0;
   padding: var(--space-5);
