@@ -3149,6 +3149,7 @@ Expected: `True`, the mat-pp database name the main checkout uses, and a `MEDIA_
 ```bash
 uv run python manage.py shell -c "
 from decimal import Decimal
+from django.db import transaction
 from django.urls import reverse
 from courses.fillblank import SENTINEL
 from courses.models import Blank, Course, ContentNode, Element, Enrollment, FillBlankQuestionElement, ShortTextQuestionElement
@@ -3158,21 +3159,22 @@ matpp = Course.objects.get(slug='mat-pp')
 course, _ = Course.objects.get_or_create(slug='t34-throwaway', defaults={'title': 'T34 throwaway', 'language': matpp.language, 'owner': matpp.owner})
 quiz, _ = ContentNode.objects.get_or_create(course=course, kind='unit', unit_type='quiz', defaults={'title': 'T34 quiz', 'published': True})
 if not quiz.elements.exists():  # not `made`: a run that failed after creating the node must still fill it
-    t0, t1 = f'{SENTINEL}0{SENTINEL}', f'{SENTINEL}1{SENTINEL}'
-    q1 = ShortTextQuestionElement.objects.create(stem='<p>Capital of Poland?</p>', accepted='Warszawa', max_marks=Decimal('1'))
-    q2 = FillBlankQuestionElement.objects.create(stem=f'<p>1 + 1 = {t0}, 2 + 2 = {t1}</p>', max_marks=Decimal('1'))
-    Blank.objects.create(question=q2, accepted='2', order=0)
-    Blank.objects.create(question=q2, accepted='4', order=1)
-    q3 = ShortTextQuestionElement.objects.create(stem='<p>Capital of France?</p>', accepted='Paryż', max_marks=Decimal('1'))
-    for order, q in enumerate((q1, q2, q3)):
-        Element.objects.create(unit=quiz, content_object=q, order=order)
+    with transaction.atomic():  # all-or-nothing: a failed run leaves no question rows to orphan
+        t0, t1 = f'{SENTINEL}0{SENTINEL}', f'{SENTINEL}1{SENTINEL}'
+        q1 = ShortTextQuestionElement.objects.create(stem='<p>Capital of Poland?</p>', accepted='Warszawa', max_marks=Decimal('1'))
+        q2 = FillBlankQuestionElement.objects.create(stem=f'<p>1 + 1 = {t0}, 2 + 2 = {t1}</p>', max_marks=Decimal('1'))
+        Blank.objects.create(question=q2, accepted='2', order=0)
+        Blank.objects.create(question=q2, accepted='4', order=1)
+        q3 = ShortTextQuestionElement.objects.create(stem='<p>Capital of France?</p>', accepted='Paryż', max_marks=Decimal('1'))
+        for order, q in enumerate((q1, q2, q3)):
+            Element.objects.create(unit=quiz, content_object=q, order=order)
 student = User.objects.filter(username='t34student').first() or make_verified_user(username='t34student', email='t34student@example.invalid', password='T34-local-only!')
 Enrollment.objects.get_or_create(student=student, course=course)
 print(reverse('courses:quiz_unit', kwargs={'slug': course.slug, 'node_pk': quiz.pk}))
 "
 ```
 
-Expected: a `/courses/t34-throwaway/u/<pk>/quiz/…` path. If `Course.objects.get(slug='mat-pp')` fails, the local slug differs (imports re-slug from the title): list `Course.objects.values_list('slug', 'title')` and substitute it. Then, with the server running (below), log in as `t34student` / `T34-local-only!`, open that path, and answer through the UI: **„Warszawa"** (correct), blanks **„2" and „5"** (partial), **„Londyn"** (incorrect); finish the quiz. Switch the student's theme with `User.objects.filter(username='t34student').update(theme='dark')`. The owner's per-question page for this student (reached from the throwaway course's analytics) shows the same badges without a student login, which is where Step 1 measures `.badge--partial`. The mat-pp screenshots in Step 2 („Zbiory - quiz" and the other teacher pages) use REAL mat-pp submissions, never this student. Task B12 deletes the throwaway course and student.
+Expected: a `/courses/t34-throwaway/u/<pk>/quiz/…` path. If `Course.objects.get(slug='mat-pp')` fails, the local slug differs (imports re-slug from the title): list `Course.objects.values_list('slug', 'title')` and substitute it. Then, with the server running (below), log in as `t34student` / `T34-local-only!`, open that path, and answer through the UI: **„Warszawa"** (correct), blanks **„2" and „5"** (partial), **„Londyn"** (incorrect); finish the quiz. Step 1 measures `.badge--partial` on this student's own `quiz_results.html`, switching only the THROWAWAY user's theme (`User.objects.filter(username='t34student').update(theme='light')`, measure, then `'dark'`, measure) — it needs no restore. The mat-pp screenshots in Step 2 („Zbiory - quiz" and the other teacher pages) use REAL mat-pp submissions, never this student. Task B12 deletes the throwaway course and student.
 
 Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2. **Record its port** where Task B12 can find it in a later session without publishing it: `echo <port> > .env.t34-port` in the worktree (the `.env*` ignore rule keeps it out of git).
 
@@ -3180,7 +3182,7 @@ Then start the app against the local mat-pp database (use the `run` skill) and l
 
 Invoke the `frontend-design:frontend-design` skill on the two pages as built (spec §8: after the markup exists, before screenshots are judged). Scope: spacing, type scale and colour of the new elements only (`.breakdown__view`, `.breakdown-unit__tag`, `.badge--todo`, `.answers__options`, `.answers__header-row`, `.answers__heading`, `.answers__score`). Any change it proposes to a rule an e2e test pins must keep that test green; re-run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py` after applying.
 
-On the Step 0 server, open a `quiz_results.html` page with a partial row (and the per-question page for the same quiz), and measure `.badge--partial`'s text contrast (computed `color` against computed `background-color`) in light and dark — switch theme via the logged-in user's `theme` field, not a cookie. If either is below 4.5:1, **do not change the colour**. If Task 0 got an owner answer (recorded under "Spec gaps" item 6), report the measured ratios beside that decision; only if it got none, record the ratio for the PR body as a question for the owner.
+On the Step 0 server, logged in as `t34student`, open the throwaway quiz's `quiz_results.html` and measure the partial row's `.badge--partial` text contrast (computed `color` against computed `background-color`) with `t34student`'s theme set to `light`, then to `dark` (the `theme` field as in Step 0, never a cookie; reload after each change). If either is below 4.5:1, **do not change the colour**. If Task 0 got an owner answer (recorded under "Spec gaps" item 6), report the measured ratios beside that decision; only if it got none, record the ratio for the PR body as a question for the owner.
 
 - [ ] **Step 2: Screenshots on mat-pp data (T34)**
 
@@ -3191,6 +3193,8 @@ With the server from Step 0 running, capture light **and** dark, 1280 and 390 wi
 - `course_results.html` and `review_submission.html` (the `.badge--muted` recolour).
 
 Save them under the scratchpad directory, open each with the Read tool, and judge dark on its own terms (legibility of `--warning` text, the badge surface against the card, the pill tokens). Fix what is wrong before continuing.
+
+**Dark teacher pages change a REAL user's setting.** Before the first dark teacher-page capture, note the mat-pp owner's current value (`Course.objects.get(slug='mat-pp').owner.theme`); after the last capture, set it back to exactly that value with `User.objects.filter(pk=<owner pk>).update(theme='<original>')`.
 
 **Stop the Step 0 server now** (it would otherwise keep running through the gate and the rebase, autoreloading on every rewritten file, and hold files in the worktree that block Task B12). Stop it the way the `run` skill started it, then confirm nothing listens on its port: `netstat -ano | grep ":<port> " | grep LISTENING` prints nothing.
 
@@ -3256,7 +3260,7 @@ PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as t
 
 ### Task B12: Clean up after PR B merges
 
-**Precondition:** no process runs from the worktree (the B11 Step 0 server is stopped — `netstat -ano | grep ":<port> " | grep LISTENING`, with the port from `cat .env.t34-port` in the worktree, prints nothing) and no shell's cwd is inside it.
+**Precondition:** no process runs from the worktree — the B11 Step 0 server is stopped: `netstat -ano | grep ":$(cat C:/Users/krzys/Documents/Python/own/libli-analytics-pages/.env.t34-port) " | grep LISTENING` prints nothing.
 
 - [ ] **Step 0: Delete the throwaway T34 course and student (local copy only)**
 
@@ -3266,7 +3270,13 @@ From the worktree (its `.env` points at the local mat-pp DB), before Step 1 remo
 uv run python manage.py shell -c "from accounts.models import User; from courses.models import Course; c = Course.objects.filter(slug='t34-throwaway').first(); print(c.delete() if c else 'no course'); print(User.objects.filter(username='t34student').delete())"
 ```
 
-⚠️ Delete the course through the INSTANCE (`c.delete()`), never `Course.objects.filter(...).delete()`: `Course.delete` is overridden to remove the concrete question rows first, and a queryset delete skips it, orphaning them. Expected: the first tuple includes `'courses.Course': 1`, `'courses.ShortTextQuestionElement': 2`, `'courses.FillBlankQuestionElement': 1` and `'courses.Blank': 2`; the second includes `'accounts.User': 1`. `no course` or `(0, {})` means the wrong database or an already-cleaned copy — check `.env` before going on.
+⚠️ Delete the course through the INSTANCE (`c.delete()`), never `Course.objects.filter(...).delete()`: `Course.delete` is overridden to remove the concrete question rows first, and a queryset delete skips it, orphaning them. Expected: the first tuple includes `'courses.Course': 1` plus cascaded rows (`ContentNode`, `Enrollment`, `QuizSubmission`, …) — it does NOT list the question models, because `Course.delete` removes those BEFORE the cascade whose counts it prints; the second includes `'accounts.User': 1`. `no course` or `(0, {})` means the wrong database or an already-cleaned copy — check `.env` before going on. Then prove nothing was orphaned:
+
+```bash
+uv run python manage.py shell -c "from courses.models import Blank, FillBlankQuestionElement, ShortTextQuestionElement; print(ShortTextQuestionElement.objects.filter(stem__in=['<p>Capital of Poland?</p>', '<p>Capital of France?</p>']).count(), FillBlankQuestionElement.objects.filter(stem__contains='1 + 1 =').count(), Blank.objects.filter(question__stem__contains='1 + 1 =').count())"
+```
+
+Expected: `0 0 0`.
 
 - [ ] **Step 1: Remove the `media` link or directory — junction-aware**
 
@@ -3282,7 +3292,7 @@ ls C:/Users/krzys/Documents/Python/own/libli/media | head -3
 
 - [ ] **Step 2: Remove the worktree and the merged branches**
 
-From the main checkout:
+From the main checkout, with no shell's cwd inside the worktree:
 
 ```bash
 gh pr view feat/analytics-student-order --json state -q .state
