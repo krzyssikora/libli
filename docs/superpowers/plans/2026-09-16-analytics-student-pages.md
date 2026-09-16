@@ -72,8 +72,8 @@
 3. **T33b as written passes on a transparent badge.** A transparent computed background (`rgba(0, 0, 0, 0)`) "differs" from the panel tint while showing it through — the exact green-on-green §2.7 warns about. Task B9's e2e also asserts the badge background is **opaque**.
 4. **`quiz_results.html` carries no drift note today** (only `analytics_student_quiz.html` does). Task B9 adds a single-line `{# … #}` to it, appended to an existing line so the file's line count is unchanged.
 5. **`.pill--awaiting`'s token re-expression (§5.4) names no tokens.** Task B9 uses `--warning-subtle` fill, `--warning` border, `--text-primary` text (AA-safe in both themes; `--warning` text on `--warning-subtle` is ~2.9:1 in light).
-7. **T19 cannot catch a re-deriving builder.** A `_choice` that calls `choice_marks` itself computes the very dict the page computed, so T19's equality stays green. Task B5 adds **T19b**: the builder is handed a doctored dict and must follow it.
 6. **`--warning` text on `--surface-sunken` (§5.4 `.badge--partial`) may fail AA in light mode.** Implemented as specified; Task B11's design pass measures it and raises it with the owner if < 4.5:1 — it does not change the colour unilaterally.
+7. **T19 cannot catch a re-deriving builder.** A `_choice` that calls `choice_marks` itself computes the very dict the page computed, so T19's equality stays green. Task B5 adds **T19b**: the builder is handed a doctored dict and must follow it.
 
 ## File map
 
