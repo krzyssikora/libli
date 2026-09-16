@@ -1071,7 +1071,7 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .answers__option.is-wrong .answers__options-mark{color:var(--danger)}
 .answers__option.is-missed .answers__options-mark{color:var(--warning)}
 /* Multi-part questions (spec §5.2). .answers__given-cell groups the given value and
-   its glyph; outside the grid it is transparent to the flex row. */
+   its glyph; outside the grid, above 640px, it is transparent to the flex row. */
 .answers__given-cell{display:contents}
 .answers__header-row{font-size:.75rem;font-weight:600;color:var(--text-secondary)}
 .answers__parts--columned{display:grid;grid-template-columns:auto 1fr 1fr;
@@ -1097,7 +1097,7 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
     overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
   .answers__parts--columned{display:block}
   .answers__parts--columned .answers__part{display:flex;flex-direction:column}
-  .answers__parts--columned .answers__given-cell{display:contents}
+  .answers__given-cell{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .6rem} /* the glyph stays on its value's line */
   .answers__parts--columned .answers__header-row{display:none}
 }
 
