@@ -208,3 +208,75 @@ def test_t33c_todo_marker_is_not_painted_as_done(page, live_server, client):
     todo = _row(page, "Extra lesson").locator(".badge--todo")
     assert _style(todo, "backgroundColor") != _style(done, "backgroundColor")
     assert _style(todo, "borderTopColor") != _style(done, "borderTopColor")
+
+
+def _seed_choice_page(client, username):
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from courses.models import Element
+    from courses.models import QuestionResponse
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import UserFactory
+    from tests.factories import make_pa
+
+    pa = make_pa(client, username)
+    course = CourseFactory(owner=pa)
+    quiz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Choice quiz"
+    )
+    question = ChoiceQuestionElement.objects.create(
+        stem="<p>Pick</p>", max_marks=Decimal("1"), multiple=True
+    )
+    picked = None
+    for order, text in enumerate(("Alpha", "Beta", "Gamma")):
+        choice = Choice.objects.create(
+            question=question, text=text, is_correct=text == "Beta", order=order
+        )
+        if text == "Alpha":
+            picked = choice
+    el = Element.objects.create(unit=quiz, content_object=question)
+    student = UserFactory(first_name="Anna", last_name="Nowak")
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=quiz,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("1"),
+    )
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=el,
+        latest_answer=[picked.pk],
+        fraction=Decimal("0"),
+        attempt_count=1,
+    )
+    return reverse(
+        "courses:manage_analytics_student_quiz",
+        kwargs={"slug": course.slug, "student_pk": student.pk, "node_pk": quiz.pk},
+    )
+
+
+@pytest.mark.parametrize("width", [1280, 390])
+def test_t33_option_headers_visible_on_desktop_hidden_on_a_phone(
+    page, live_server, client, width
+):
+    path = _seed_choice_page(client, f"e2e_sp_th{width}")
+    _login(page, live_server, f"e2e_sp_th{width}")
+    page.set_viewport_size({"width": width, "height": 900})
+    page.goto(f"{live_server.url}{path}")
+    th = page.locator("table.answers__options th").first
+    if width == 1280:
+        assert _box(th)["w"] > 20
+    else:
+        assert _box(th)["w"] <= 1
+        _neutralise(
+            page,
+            # (0,2,1): must out-rank the collapse rule's th.answers__options-mark half
+            ".answers__options th.answers__options-mark{position:static;width:auto;"
+            "height:auto;clip:auto;margin:0}",
+        )
+        assert _box(th)["w"] > 20

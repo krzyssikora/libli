@@ -60,6 +60,28 @@
       <div class="answers__parts">
         {% for part in row.parts %}
           <div class="answers__part answers__part--{{ part.kind }}">
+            {% if part.kind == "options" %}
+              {% comment %}Every option (spec §5.1). Glyphs are aria-hidden; each row's ONE
+              sr-only label sits in column 1. A picked row with no verdict (a question
+              that is not auto-marked) still says it was chosen.{% endcomment %}
+              <table class="answers__options">
+                {% if part.options_empty_key %}{% trans "(none)" as none_label %}<caption class="answers__options-caption">{% blocktrans with key=none_label %}correct answer: {{ key }}{% endblocktrans %}</caption>{% endif %}
+                <thead><tr>
+                  <th scope="col" class="answers__options-mark">{% trans "Student's choice" %}</th>
+                  {% if part.options_auto %}<th scope="col" class="answers__options-mark">{% trans "Answer key" %}</th>{% endif %}
+                  <th scope="col">{% trans "Answer" %}</th>
+                </tr></thead>
+                <tbody>
+                  {% for option in part.options %}
+                    <tr class="answers__option{% if option.mark %} is-{{ option.mark }}{% endif %}">
+                      <td class="answers__options-mark"><span aria-hidden="true">{% if option.picked %}●{% else %}○{% endif %}</span>{% if option.mark == "correct" %}<span class="sr-only">{% trans "chosen, correct" %}</span>{% elif option.mark == "wrong" %}<span class="sr-only">{% trans "chosen, incorrect" %}</span>{% elif option.mark == "missed" %}<span class="sr-only">{% trans "correct, not chosen" %}</span>{% elif option.picked %}<span class="sr-only">{% trans "chosen" %}</span>{% endif %}</td>
+                      {% if part.options_auto %}<td class="answers__options-mark">{% if option.correct %}<span aria-hidden="true">✓</span>{% endif %}</td>{% endif %}
+                      <td class="answers__options-text" lang="{{ course.language }}">{{ option.text }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% endif %}
             {% if part.label %}<span class="answers__label"{% if part.label_is_content %} lang="{{ course.language }}"{% endif %}>{{ part.label }}</span>{% endif %}
             {% if part.kind == "answer" %}
               {% if part.given is not None %}<span class="answers__given" lang="{{ course.language }}">{{ part.given }}</span>{% else %}<span class="answers__muted">{% trans "Not answered" %}</span>{% endif %}

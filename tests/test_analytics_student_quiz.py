@@ -323,6 +323,21 @@ def test_t35_teacher_voice_only(client):
     el = _add(quiz)
     sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
     _respond(sub, el, latest_answer="Krakow", fraction=Decimal("0"), attempt_count=1)
+    cquiz_q = ChoiceQuestionElement.objects.create(
+        stem="<p>Pick</p>", max_marks=Decimal("1"), multiple=True
+    )
+    for order, text_ in enumerate(("A", "B")):
+        Choice.objects.create(
+            question=cquiz_q, text=text_, is_correct=text_ == "B", order=order
+        )
+    cel = Element.objects.create(unit=quiz, content_object=cquiz_q)
+    _respond(
+        sub,
+        cel,
+        latest_answer=_pick(cquiz_q, "A"),
+        fraction=Decimal("0"),
+        attempt_count=1,
+    )
     text = (
         _soup(client.get(_url(course, pupil.pk, quiz.pk)))
         .select_one("section.answers")
@@ -330,6 +345,7 @@ def test_t35_teacher_voice_only(client):
         .lower()
     )
     assert "your answer" not in text and "you chose" not in text
+    assert "chosen, incorrect" in text and "correct, not chosen" in text
 
 
 # --- T36 header parity ----------------------------------------------------------
@@ -987,3 +1003,175 @@ def test_t19_option_kinds_equal_the_marks_the_page_computed(client):
         expected
     )
     assert got == {"A": "wrong", "B": "correct", "C": "missed"}
+
+
+def _option_rows(item):
+    table = item.select_one("table.answers__options")
+    assert table is not None
+    return table.select("tbody tr")
+
+
+def _ths(item):
+    return [
+        th.get_text(" ", strip=True) for th in item.select("table.answers__options th")
+    ]
+
+
+def test_t31_option_table_columns_and_cells(client):
+    course, pupil = _owner_view(client)
+    _polish(client)
+    quiz, question, el = _choice_quiz(course, "Table", correct=("B",))
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub,
+        el,
+        latest_answer=_pick(question, "A"),
+        fraction=Decimal("0"),
+        attempt_count=1,
+    )
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    assert _ths(item) == ["Wybór ucznia", "Klucz", "Odpowiedź"]
+    cells = [
+        [td.get_text(" ", strip=True) for td in tr.select("td")]
+        for tr in _option_rows(item)
+    ]
+    # column 1: ● iff picked (plus its sr-only label); column 2: ✓ iff correct
+    assert cells == [
+        ["● wybrana, niepoprawna", "", "A"],
+        ["○ poprawna, niewybrana", "✓", "B"],
+        ["○", "", "C"],
+    ]
+
+
+def test_t21b_one_verdict_label_per_option_row_in_column_one(client):
+    course, pupil = _owner_view(client)
+    quiz, question, el = _choice_quiz(course, "Labels", correct=("B",))
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub,
+        el,
+        latest_answer=_pick(question, "A"),
+        fraction=Decimal("0"),
+        attempt_count=1,
+    )
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    for tr in _option_rows(item):
+        labels = tr.select(".sr-only")
+        tds = tr.select("td")
+        assert len(labels) <= 1
+        assert all(label.find_parent("td") is tds[0] for label in labels)
+    classes = [tr.get("class", []) for tr in _option_rows(item)]
+    assert classes == [
+        ["answers__option", "is-wrong"],
+        ["answers__option", "is-missed"],
+        ["answers__option"],
+    ]
+
+
+def test_t18_non_auto_choice_table_has_no_key_column(client):
+    course, pupil = _owner_view(client)
+    quiz, question, el = _choice_quiz(course, "Review", marking_mode=REVIEW)
+    sub = _submitted(pupil, quiz)
+    _respond(sub, el, latest_answer=_pick(question, "C"), attempt_count=1)
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    assert _ths(item) == ["Student's choice", "Answer"]
+    rows = _option_rows(item)
+    assert all(len(tr.select("td")) == 2 for tr in rows)
+    assert rows[2].select_one(".sr-only").get_text(strip=True) == "chosen"
+    assert rows[0].select_one(".sr-only") is None
+
+
+def test_t20_every_option_in_author_order(client):
+    course, pupil = _owner_view(client)
+    quiz, question, el = _choice_quiz(course, "Order", texts=("A", "B", "C"))
+    Choice.objects.filter(question=question, text="A").update(order=2)
+    Choice.objects.filter(question=question, text="C").update(order=0)
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub,
+        el,
+        latest_answer=_pick(question, "B"),
+        fraction=Decimal("1"),
+        attempt_count=1,
+    )
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    texts = [tr.select("td")[-1].get_text(strip=True) for tr in _option_rows(item)]
+    assert texts == ["C", "B", "A"]
+
+
+def test_t32_empty_key_caption_distinguishes_it_from_non_auto(client):
+    course, pupil = _owner_view(client)
+    quiz, question, el = _choice_quiz(course, "No key", correct=())
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub,
+        el,
+        latest_answer=_pick(question, "A"),
+        fraction=Decimal("0"),
+        attempt_count=1,
+    )
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    caption = item.select_one("table.answers__options caption")
+    assert caption.get_text(" ", strip=True) == "correct answer: (none)"
+    assert "is-wrong" in _option_rows(item)[0]["class"]
+
+
+def _loginable_pupil(course, username):
+    """A student the test client can log in as. NOT UserFactory: it sets
+    skip_postgeneration_save, so its password never reaches the database, the
+    session auth hash fails on the next request, and a @login_required page
+    answers 302."""
+    pupil = make_verified_user(username=username, email=f"{username}@test.example.com")
+    EnrollmentFactory(student=pupil, course=course)
+    return pupil
+
+
+def test_t19_student_results_page_shows_the_same_kinds(client):
+    course, _factory_pupil = _owner_view(client)
+    pupil = _loginable_pupil(course, "parity")
+    quiz, question, el = _choice_quiz(course, "Parity", correct=("B", "C"))
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub,
+        el,
+        latest_answer=_pick(question, "A", "B"),
+        fraction=Decimal("0"),
+        attempt_count=1,
+    )
+    item = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))[0]
+    teacher = {
+        tr.select("td")[-1].get_text(strip=True): next(
+            (c[3:] for c in tr["class"] if c.startswith("is-")), None
+        )
+        for tr in _option_rows(item)
+    }
+    client.force_login(pupil)
+    resp = client.get(
+        reverse(
+            "courses:quiz_results", kwargs={"slug": course.slug, "node_pk": quiz.pk}
+        )
+    )
+    assert resp.status_code == 200
+    student = {}
+    for li in _soup(resp).select("li.question__reveal-item"):
+        mark = li.select_one(".question__reveal-mark")
+        kind = None
+        if mark is not None:
+            kind = next(c.split("--")[1] for c in mark["class"] if "--" in c)
+        student[li.select_one("span").get_text(strip=True)] = kind
+    assert teacher == student == {"A": "wrong", "B": "correct", "C": "missed"}
+
+
+def test_t22_maths_in_an_option_loads_katex(client):
+    course, pupil = _owner_view(client)
+    quiz, question, el = _choice_quiz(course, "Maths", texts=("A", r"\(x^2\)"))
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub,
+        el,
+        latest_answer=_pick(question, "A"),
+        fraction=Decimal("0"),
+        attempt_count=1,
+    )
+    soup = _soup(client.get(_url(course, pupil.pk, quiz.pk)))
+    assert any("katex" in src for src in _script_srcs(soup))

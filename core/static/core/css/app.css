@@ -1042,9 +1042,29 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .answers__glyph--incorrect{color:var(--danger)}
 .answers__gap{font-weight:600}
 .answers .dragimage__stage{max-width:32rem;margin:.5rem 0}
+/* Choice options (spec §5.1). width:100% — without it the table shrink-wraps
+   inside the flex .answers__part. Marker columns are as wide as their header. */
+.answers__options{width:100%;table-layout:auto;border-collapse:collapse;margin:.25rem 0}
+.answers__options th{font-size:.75rem;font-weight:600;color:var(--text-secondary);
+  text-align:left;padding:.15rem .5rem}
+.answers__options td{padding:.2rem .5rem;border-top:1px solid var(--border-subtle);
+  vertical-align:baseline}
+.answers__options .answers__options-mark{width:1%;white-space:nowrap;text-align:center}
+.answers__options-text{overflow-wrap:anywhere}
+.answers__options-caption{caption-side:top;text-align:left;font-size:.8rem;
+  color:var(--text-secondary);padding:0 .5rem .2rem}
+.answers__option.is-correct .answers__options-mark{color:var(--success)}
+.answers__option.is-wrong .answers__options-mark{color:var(--danger)}
+.answers__option.is-missed .answers__options-mark{color:var(--warning)}
 @media (max-width:640px){
   .answers__part{flex-direction:column;align-items:flex-start}
   .answers__label{min-width:0}
+  /* The header words collapse; each row's sr-only label still carries the meaning.
+     These are reset.css's nine .sr-only declarations, copied: CSS cannot add a class
+     at a breakpoint, and hiding in THIS direction never has to out-rank .sr-only.
+     The th.answers__options-mark half out-ranks the width:1% marker-column rule. */
+  .answers__options th,.answers__options th.answers__options-mark{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 }
 
 /* Status pills */
