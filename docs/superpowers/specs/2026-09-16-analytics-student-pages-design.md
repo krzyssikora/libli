@@ -675,8 +675,8 @@ question).
   distinguishes this case from a non-auto one.
 - **Not answered** — every option listed, none picked, the key still marked. The row badge („Bez
   odpowiedzi") carries the state; the options block renders no „Not answered" fallback text.
-- **Not auto-marked** (`options_auto` false) — options listed with picks only; the „Poprawna
-  odpowiedź" column is omitted entirely.
+- **Not auto-marked** (`options_auto` false) — options listed with picks only; the „Klucz"
+  column is omitted entirely.
 - **In progress** — the key is shown (PR 5's D5); `locked=True` comes from `_results_row`.
 - ⚠️ **A choice question loses its part-level ✓/✗ glyph**: `ok=None` makes `Part.mark` `None`, so
   `analytics_student_quiz.html:69-70` renders no row-level glyph — the per-option markers replace
@@ -685,7 +685,7 @@ question).
 **Markup.** A `<table class="answers__options">` in a new `{% if part.kind == "options" %}` branch
 in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"` branch (`:64`).
 
-- Three columns, with **all three header words specified**: „Wybór ucznia", „Poprawna odpowiedź"
+- Three columns, with **all three header words specified**: „Wybór ucznia", „Klucz"
   (the whole column omitted when `options_auto` is false), and „Odpowiedź" over the option text
   (`lang="{{ course.language }}"` on the cells, not the header). No empty `<th>`: a header cell
   with no word is a column a screen reader cannot name.
@@ -777,7 +777,7 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   it the three header words sit in one cell in column 1. **It emits three spans, one per column:**
   an empty one over the label column (the labels are the row's own names — „Luka 1", „kot" — and a
   header over them would name nothing), „Odpowiedź ucznia" over the given column, and
-  „Poprawna odpowiedź" over the expected column. The empty span is still emitted, because the grid
+  „Klucz" over the expected column. The empty span is still emitted, because the grid
   needs the cell.
   ⚠️ `display:contents` also means `.answers__part`'s own `padding`, `gap` and `overflow-wrap`
   (`app.css:1028-1029`) stop applying to these questions: row rhythm comes from the grid's
@@ -932,7 +932,7 @@ tokens here and judged in the dark screenshots.
 | `Student's answer:` | „Odpowiedź ucznia:" | §5.2 single-part label |
 | `Student's answer` | „Odpowiedź ucznia" | §5.2 multi-part header row |
 | `Student's choice` | „Wybór ucznia" | §5.1 option column header |
-| `Correct answer` (no colon) | „Poprawna odpowiedź" | §5.1 option column header, §5.2 header row — ⚠️ a NEW msgid: the reused `locale/pl:5459` entry carries the colon |
+| `Answer key` | „Klucz" | §5.1 option column header, §5.2 header row — ⚠️ a NEW msgid; **NOT the bare `Key`**, which already exists as „Legenda" (`locale/pl:5649`, `_flag_legend.html:29`) |
 | `chosen, correct` | „wybrana, poprawna" | §5.1 row label (once, column 1) |
 | `chosen, incorrect` | „wybrana, niepoprawna" | §5.1 row label |
 | `correct, not chosen` | „poprawna, niewybrana" | §5.1 row label |
@@ -949,10 +949,13 @@ by CSS, not by a literal „·" inside a translated string.
 its consumers. `makemessages` will comment the entry out, and that obsolete block is an expected
 part of PR B's diff — distinct from a fuzzy entry, which is not.
 
-⚠️ **Three near-identical Polish words land in one question card** and want the owner's judgement
-together: „Poprawnie" (the verdict badge), „Poprawna odpowiedź:" (the key label, existing) and
-„Poprawna odpowiedź" (the option column header, proposed). „Klucz" is the alternative for the
-column header. Flag all three in the PR body as one question.
+✅ **Owner decision (2026-09-16): the column header is „Klucz".** It was „Poprawna odpowiedź", which
+put three near-identical words in one question card — „Poprawnie" (the verdict badge), „Poprawna
+odpowiedź:" (the key label) and the header. The verdict badge, the existing „Poprawna odpowiedź:"
+label (single-part questions and the 390px per-part prefix), the empty-key caption and the `sr-only`
+row labels are unchanged; only the two column headers (§5.1, §5.2) say „Klucz".
+⚠️ **`makemessages` may fuzzy-prefill `Answer key` from `Key`** → „Legenda"; clear both the
+`#, fuzzy` flag and the wrong `msgstr` (see the fuzzy note below).
 
 Reused, not re-created: **`Answer` / „Odpowiedź" (`locale/pl:7976`, from
 `review_submission.html:92`) — the option-text column header; `makemessages` adds a reference line,
@@ -1052,8 +1055,8 @@ Every rule below is falsified against a named mutant, run and observed red, then
   cannot tell apart. *Mutant:* default `option_marks=None` and raise on `None` → red on the second
   half (a non-auto question 500s).
 - **T18** A **non-auto** choice question: `option_marks` arrives `{}` (normalised from `None`),
-  every option has `mark is None` and `correct is None`, `options_auto` is False, and no „Poprawna
-  odpowiedź" column renders. *Mutants:* source `correct` from `Choice.is_correct` → red; drop the
+  every option has `mark is None` and `correct is None`, `options_auto` is False, and no „Klucz"
+  column renders. *Mutants:* source `correct` from `Choice.is_correct` → red; drop the
   `or {}` normalisation → `AttributeError`.
 - **T19** For a **submitted, auto-marked** question over **live** options, the per-option kinds
   equal the `choice_marks` dict the page computed, and the student's results page renders the same
@@ -1113,10 +1116,12 @@ Every rule below is falsified against a named mutant, run and observed red, then
   "ungrouped under `USE_THOUSAND_SEPARATOR=True`" assertion would fail against any correct
   implementation, and its mutant could never go red.
 - **T30** The exported gradebook still writes a dot decimal. *Mutant:* localise the export → red.
-- **T31** The options table's `<th>`s read exactly „Wybór ucznia", „Poprawna odpowiedź",
+- **T31** The options table's `<th>`s read exactly „Wybór ucznia", „Klucz",
   „Odpowiedź" (and only the first and third on a non-auto question); column 1 shows ● iff `picked`;
   column 2 shows ✓ iff `correct` (§5.1). *Mutants:* mark column 1 from `correct` → red; render
   column 2 for a non-auto question → red; emit an empty third `<th>` → red.
+  Under `translation.override("pl")` the §5.2 header row's three spans read "", „Odpowiedź
+  ucznia", „Klucz". *Mutant:* use the bare `Key` msgid in either header → red („Legenda", §6).
 - **T32** An AUTO question with an empty key renders the „(brak)" caption, and its **picked options
   are marked `wrong`** (§5.1 — what `choice_marks` actually returns). *Mutant:* drop the caption →
   red, since the page would then be indistinguishable from T18's non-auto rendering.
