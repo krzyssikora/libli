@@ -6,6 +6,7 @@ import pytest
 from bs4 import BeautifulSoup
 from django.urls import reverse
 
+from courses import rollups
 from courses.models import QuizSubmission
 from courses.rollups import build_student_breakdown
 from courses.views_analytics import _expand_qs
@@ -223,3 +224,48 @@ def test_t28b_one_page_name_in_both_modes(client):
         )
         current = soup.select_one('.breakdown__view a[aria-current="page"]')
         assert current.get_text(strip=True) == word
+
+
+def _row(soup, title):
+    for row in soup.select(".breakdown-unit"):
+        if row.select_one(".breakdown-unit__title").get_text(" ", strip=True) == title:
+            return row
+    raise AssertionError(f"no row titled {title!r}")
+
+
+def test_t12_additional_tag_sits_between_title_and_marker(client, monkeypatch):
+    monkeypatch.setitem(
+        rollups.UNIT_MARKER_LABELS, rollups.MARKER_ADDITIONAL, "SENTINEL-ADDITIONAL"
+    )
+    _course, _student, _mixed, path = _page_fixture(client)
+    _resp, soup = _get(client, path)
+    extra = _row(soup, "Extra lesson")
+    classes = [
+        " ".join(child.get("class", [])) for child in extra.find_all(recursive=False)
+    ]
+    assert classes == [
+        "breakdown-unit__title",
+        "badge breakdown-unit__tag",
+        "badge badge--todo",
+    ]
+    assert extra.select_one(".breakdown-unit__tag").get_text(strip=True) == (
+        "SENTINEL-ADDITIONAL"
+    )
+    assert _row(soup, "Lonely lesson").select_one(".breakdown-unit__tag") is None
+    quiz = _row(soup, "Chapter quiz")
+    assert quiz.select_one(".breakdown-unit__tag") is None
+    assert quiz.select_one(".unit-kind-chip") is None
+
+
+def test_t13_quiz_rows_carry_a_pill_lesson_rows_a_marker(client):
+    _course, _student, _mixed, path = _page_fixture(client)
+    _resp, soup = _get(client, path)
+    quiz = _row(soup, "Chapter quiz")
+    assert quiz.select_one(".pill") is not None
+    assert quiz.select_one(".badge--done, .badge--todo") is None
+    done = _row(soup, r"Required lesson \(x\)")
+    assert done.select_one(".pill") is None
+    assert done.select_one(".badge--done")["aria-label"] == "Completed"
+    todo = _row(soup, "Lonely lesson")
+    assert todo.select_one(".badge--done") is None
+    assert todo.select_one(".badge--todo")["aria-label"] == "Not completed"

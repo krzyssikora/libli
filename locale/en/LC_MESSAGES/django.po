@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-16 20:23+0200\n"
+"POT-Creation-Date: 2026-09-16 20:36+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -4944,7 +4944,7 @@ msgstr ""
 #: .\templates\courses\_lesson_article.html:23
 #: .\templates\courses\_outline_node.html:9
 #: .\templates\courses\_unit_tree_node.html:11
-#: .\templates\courses\manage\_breakdown_node.html:17
+#: .\templates\courses\manage\_breakdown_node.html:18
 msgid "Completed"
 msgstr ""
 
@@ -4970,7 +4970,7 @@ msgstr ""
 
 #: .\templates\courses\_outline_node.html:40
 #: .\templates\courses\_outline_node.html:55
-#: .\templates\courses\manage\_breakdown_node.html:23
+#: .\templates\courses\manage\_breakdown_node.html:24
 msgid "required"
 msgstr ""
 
@@ -5408,6 +5408,10 @@ msgstr ""
 #: .\templates\courses\manage\review_submission.html:59
 #: .\tests\test_title_math_filter.py:65
 msgid "Review"
+msgstr ""
+
+#: .\templates\courses\manage\_breakdown_node.html:18
+msgid "Not completed"
 msgstr ""
 
 #: .\templates\courses\manage\_course_panel.html:5
