@@ -72,7 +72,7 @@
 3. **T33b as written passes on a transparent badge.** A transparent computed background (`rgba(0, 0, 0, 0)`) "differs" from the panel tint while showing it through — the exact green-on-green §2.7 warns about. Task B9's e2e also asserts the badge background is **opaque**.
 4. **`quiz_results.html` carries no drift note today** (only `analytics_student_quiz.html` does). Task B9 adds a single-line `{# … #}` to it, appended to an existing line so the file's line count is unchanged.
 5. **`.pill--awaiting`'s token re-expression (§5.4) names no tokens.** Task B9 uses `--warning-subtle` fill, `--warning` border, `--text-primary` text (AA-safe in both themes; `--warning` text on `--warning-subtle` is ~2.9:1 in light).
-6. **`--warning` text on `--surface-sunken` (§5.4 `.badge--partial`) may fail AA in light mode.** Implemented as specified; Task B11's design pass measures it and raises it with the owner if < 4.5:1 — it does not change the colour unilaterally.
+6. **`--warning` text on `--surface-sunken` (§5.4 `.badge--partial`) FAILS AA in light mode: 3.19:1** (`#B8811F` on `#FAF8F3`, computed from `tokens.css`; dark `#E8B761` on `#15130F` passes easily). This is an owner question raised **before** execution starts; absent an answer, Task B9 implements the spec as written, Task B11 re-measures it in the browser as confirmation, and the PR body quotes the ratio. The colour is never changed unilaterally.
 7. **T19 cannot catch a re-deriving builder.** A `_choice` that calls `choice_marks` itself computes the very dict the page computed, so T19's equality stays green. Task B5 adds **T19b**: the builder is handed a doctored dict and must follow it.
 
 ## File map
@@ -2096,7 +2096,7 @@ Expected: all PASS, including `test_t38_query_count_does_not_grow_with_questions
 - *Mutant 1 (T31):* column 1 from `option.correct` instead of `option.picked` → T31 red. Revert.
 - *Mutant 2 (T31/T18):* drop `{% if part.options_auto %}` around the key `<td>`/`<th>` → T18 page red. Revert.
 - *Mutant 3 (T31):* emit `<th scope="col"></th>` for the third header → T31 red. Revert.
-- *Mutant 3b (T31):* `{% trans "Answer key" %}` → `{% trans "Key" %}` in the options table's second `<th>`, then re-run `compilemessages` is NOT needed (`Key` already exists) → T31 red („Legenda"). Revert.
+- *Mutant 3b (T31):* `{% trans "Answer key" %}` → `{% trans "Key" %}` in the options table's second `<th>` → T31 red („Legenda"). No catalog step: `Key` already has a msgstr, so the mutant renders without `makemessages`/`compilemessages` — do not run either mid-mutant. Revert.
 - *Mutant 4 (T21b):* repeat the verdict label in the key `<td>` → T21b red. Revert.
 - *Mutant 5 (T20):* `{% for option in part.options %}{% if option.picked %}…{% endif %}` → T20 red. Revert.
 - *Mutant 6 (T21):* render `{{ … }}` from `MARK_GLYPHS` labels — replace `{% trans "chosen, incorrect" %}` with `{% trans "your answer, incorrect" %}` → T35 red. Revert.
@@ -3048,11 +3048,11 @@ klucz tam, gdzie odpowiedź była błędna, punkty i liczbę prób. Pytanie
 wielokrotnego wyboru pokazuje **wszystkie** opcje — co uczeń wybrał i które
 opcje są poprawne; pytanie z kilkoma częściami układa odpowiedzi ucznia i klucz
 w kolumnach. Quiz w toku pokazuje dotychczasowe odpowiedzi. Pytanie czekające
-na Twoją ocenę prowadzi prosto do strony oceniania. Odnośnik **← Wyniki ucznia**
+na sprawdzenie prowadzi prosto do strony sprawdzania. Odnośnik **← Wyniki ucznia**
 wraca z niezmienionym widokiem analityki.
 ```
 
-Keep the page's existing link words exactly as the Polish UI renders them: check „Analityka" and „Postęp"/„Wyniki" against `locale/pl` (`Analytics`, `Progress`, `Results`) and „Dodatkowa" against `Additional`; match the file's and the catalog's vocabulary throughout — „quiz/quizy/quizu" (never „kwiz"; `Quiz` is „Quiz" in `locale/pl`) and „odnośnik" (never „link") — and if the file uses a different register (e.g. no „Ty"-form), match the file.
+Keep the page's existing link words exactly as the Polish UI renders them: check „Analityka" and „Postęp"/„Wyniki" against `locale/pl` (`Analytics`, `Progress`, `Results`) and „Dodatkowa" against `Additional`; match the file's and the catalog's vocabulary throughout — „quiz/quizy/quizu" (never „kwiz"; `Quiz` is „Quiz" in `locale/pl`), „odnośnik" (never „link") and „sprawdzenie/sprawdzania" for review (the UI's `Review` is „Sprawdź"; never „ocena/oceniania") — and if the file uses a different register (e.g. no „Ty"-form), match the file.
 
 - [ ] **Step 3: Help screenshots (manual checklist)**
 
@@ -3092,6 +3092,27 @@ Run the app against the local mat-pp database (use the `run` skill). Capture lig
 
 Save them under the scratchpad directory, open each with the Read tool, and judge dark on its own terms (legibility of `--warning` text, the badge surface against the card, the pill tokens). Fix what is wrong before continuing.
 
+- [ ] **Step 2b: Commit the design-pass and screenshot fixes**
+
+If `git status --short` is clean, skip this step. Otherwise:
+
+```bash
+uv run ruff format <every .py file changed in Steps 1-2>
+uv run ruff check --no-cache .
+uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py
+uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py
+```
+
+If a msgid changed, run the Catalog procedure too. Then:
+
+```bash
+git add core/static/core/css/app.css courses/static/courses/css/courses.css templates/courses/ locale/ tests/
+git commit -m "style(analytics): design pass on the student pages"
+git status --short
+```
+
+Expected: `git status` is clean — `git rebase` in Step 4 refuses to start on a dirty tree, and the Step 3 gate must test what gets pushed.
+
 - [ ] **Step 3: Branch gate**
 
 ```bash
@@ -3102,7 +3123,7 @@ uv run pytest tests/test_[a-f]*.py
 uv run pytest tests/test_[g-o]*.py
 uv run pytest tests/test_[p-z]*.py tests/demo tests/lal_import
 uv run pytest accounts courses core demo grouping institution integrations notes notifications support tags
-uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py tests/test_e2e_analytics.py tests/test_e2e_results.py tests/test_e2e_review.py tests/test_e2e_unit_nav.py tests/test_e2e_outline_tree.py
+uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py tests/test_e2e_analytics.py tests/test_e2e_results.py tests/test_e2e_review.py tests/test_e2e_unit_nav.py tests/test_e2e_outline_tree.py tests/test_e2e_quiz_math.py tests/test_e2e_quiz.py tests/test_e2e_choicegrid.py
 ```
 
 Expected: fuzzy counts `0`; every summary line `N passed` with no `failed`/`error`. If an e2e fails, re-run it alone before believing it (parallel-load flakes are known); a real failure is fixed, not retried away.
