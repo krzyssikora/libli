@@ -8994,6 +8994,3 @@ msgstr "Rozpocznij"
 #: .\templates\integrations\webhook_guide.html:3
 msgid "SIS webhook integration guide"
 msgstr "Przewodnik integracji webhooka SIS"
-
-#~ msgid "Breakdown"
-#~ msgstr "Szczegóły ucznia"
