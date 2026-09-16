@@ -8,7 +8,7 @@ next to a course — or from **My groups & collections**, where each group
 card carries an **Analytics** link scoped to that group. Collection cards
 carry one too, when you can review that collection's course.
 
-![A per-student results breakdown](static:core/img/help/drill-down.en.png)
+![A student's results page](static:core/img/help/drill-down.en.png)
 
 ## Expanding a column
 
@@ -46,21 +46,32 @@ Your expand and subset choices travel with you: they round-trip across the
 Progress ↔ Results toggle and the Export link, so you never lose your place
 when switching what the matrix measures.
 
-## Per-student breakdown
+## Student results
 
-Click a student's name to open their individual breakdown for the current
-course. The **← Analytics** link there restores the exact scope, mode, expanded
-columns, and subset you came from, so you can dip into one student and pop
-straight back to the same grid.
+Click a student's name to open their results page for the current course. It
+opens in the same view as the matrix you came from, and a **Progress / Results**
+switch under the heading changes it without going back:
+
+- **Progress** lists every lesson and quiz. A finished lesson carries a ✓, an
+  unfinished one an empty ○, and a lesson that is not required is tagged
+  **Additional**. Chapter headings show how many required lessons are done.
+- **Results** lists only the quizzes — with their status or score — and the
+  chapters that contain them.
+
+The **← Analytics** link restores the exact scope, mode, expanded columns and
+subset you came from, so you can dip into one student and pop straight back to
+the same grid.
 
 ## Per-question answers
 
-In a student's breakdown, the title of every quiz they have started is a link.
-Click it to see that quiz question by question: the question, what the student
-answered, the correct answer where theirs was wrong, the marks, and how many
-attempts they used. A quiz still in progress shows the answers given so far. A
-question waiting for your review links straight to the review page. The
-**← Breakdown** link takes you back to the breakdown with your analytics view
+On a student's results page, the title of every quiz they have started is a
+link. Click it to see that quiz question by question: the student's answer, the
+answer key where theirs was wrong, the marks, and how many attempts they used.
+A choice question lists **every** option, marking what the student chose and
+which options are correct; a question with several parts lines the student's
+answers and the key up in columns. A quiz still in progress shows the answers
+given so far. A question waiting for your review links straight to the review
+page. The **← Student results** link takes you back with your analytics view
 unchanged.
 
 ## Related topics
