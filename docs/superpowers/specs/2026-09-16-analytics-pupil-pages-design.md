@@ -184,11 +184,18 @@ no notion of the page's mode, so changing that rule is mode-independent.
 |---|---|---|
 | `tests/test_title_math_markers.py:452-464` | `div.breakdown-unit:has(.pill) > span.breakdown-unit__title` (three assertions, direct child) | title-maths markers |
 | `tests/test_analytics_student_quiz.py:759` | `:scope > span.breakdown-unit__title` (direct child) | `test_t37_quiz_titles_link_iff_…` |
-| `tests/test_analytics_student_quiz.py:325` | `div.breakdown-unit` → `.breakdown-unit__title` → `.pill` | `test_t36_header_pill_matches_…` |
-| `tests/test_title_math_css.py`, `tests/test_title_math_assets.py` | the same class names | title-maths CSS/assets |
+| `tests/test_title_math_css.py:131-132` | `.breakdown-unit__title .katex`, `.breakdown-node__title .katex` (class names, not nesting) | title-maths CSS |
 
-**A wrapper element around the title would break the direct-child selectors** with a failure that
-reads as "title maths marker missing". §4.2 adds none.
+**Two further dependencies that a wrapper would NOT break**, listed so risk 6's count stays honest:
+`tests/test_analytics_student_quiz.py:325` (`_breakdown_pill`) does two independent **descendant**
+lookups off the row (`.breakdown-unit__title`, then `.pill`), not a nested selector; and
+`tests/test_title_math_assets.py:460,474` asserts only that the breakdown view loads KaTeX or does
+not — which is what T16's `has_math` rule interacts with, not the markup.
+
+**A wrapper element around the title would break the THREE direct-child selectors** (the three
+assertions at `test_title_math_markers.py:454,459,463` and the one at
+`test_analytics_student_quiz.py:759`) with a failure that reads as "title maths marker missing".
+§4.2 adds none.
 
 ✅ **The right-hand column has a precedent three lines away:** `.rollup` (`app.css:608-612`) sits at
 the right of `.breakdown-node__head` via `margin-left:auto`, and `.rollup + .rollup` (`:611`) shows
@@ -455,6 +462,14 @@ d["additional"] = unit_marker(node) == MARKER_ADDITIONAL
 the rule still lives in `unit_marker`. The visible word comes from
 `marker_label(MARKER_ADDITIONAL)` → „Dodatkowa".
 
+⚠️ **`_breakdown_node.html:1` becomes `{% load i18n courses_extras %}`.** `marker_label` is a
+`simple_tag` on the `courses_extras` library (`courses/templatetags/courses_extras.py:30`), and
+that template loads `i18n` alone — an included template does not inherit its includer's libraries,
+and `analytics_student.html:2` loads only `i18n` either way. This is the same hazard §5.5 handles
+for `_quiz_pill.html`. ⚠️ **The tempting workaround is worse than the failure**: writing
+`{% trans "Additional" %}` in the template would re-create the label outside
+`UNIT_MARKER_LABELS`, which is exactly what D8 exists to prevent — so T12 carries a mutant for it.
+
 **The view (`analytics_student`, `views_analytics.py:257-289`) changes in four ways:**
 
 1. `_drill_params(request)` moves **above** the `build_student_breakdown` call (§2.4).
@@ -678,10 +693,14 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   `sr-only` label still carries the meaning.
   ⚠️ **CSS cannot add a class at a breakpoint**, so the mechanism is stated rather than implied:
   the `<th>`s carry **no** `.sr-only` in the markup, and a `@media (max-width:640px)` block applies
-  the same six declarations `reset.css:25` uses (`position:absolute; width:1px; height:1px;
-  margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap`) to
-  `.answers__options th`. Hiding in the narrow direction avoids having to out-specify `.sr-only`'s
-  own (0,1,0) selector to un-hide. T33 A/Bs the collapse at both widths.
+  to `.answers__options th` the **nine** declarations `.sr-only` uses verbatim
+  (`reset.css:25-28`): `position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0`.
+  ⚠️ **`clip: rect(0 0 0 0)`, not `clip-path: inset(50%)`** — an earlier draft of this spec quoted
+  a `clip-path` recipe and counted six declarations; the file uses the older `clip` property and
+  includes `border: 0`. Copy the file, not the recollection.
+  Hiding in the narrow direction avoids having to out-specify `.sr-only`'s own (0,1,0) selector to
+  un-hide. T33 A/Bs the collapse at both widths.
 - `width:100%` with `table-layout:auto`; the marker columns take `width:1%; white-space:nowrap`.
   Without the explicit width the table shrink-wraps inside its flex parent (`app.css:1028`).
 
@@ -705,12 +724,23 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   - The `any(p.expected …)` term keeps an **all-correct** multi-part question out of the grid:
     `_answer_part` sets `expected=None if ok is True else expected` (`answer_summary.py:73-75`), so
     such a question has nothing to put in a third column.
+  - ⚠️ **It also excludes every NON-AUTO multi-part question, deliberately.** `_multi`
+    (`answer_summary.py:186-188`) sets `expected, ok = None, None` for every part when the question
+    is not auto-marked, so a REVIEW or NOT_MARKED fillblank, dragfill, dragimage, matchpair,
+    choicegrid or multigrid never satisfies the term. That is correct — a question with no key has
+    nothing for the third column — but it is a **third** exclusion class, not a side effect, and
+    T24b pins it so nobody "fixes" the apparent gap by relaxing the term and ships a three-column
+    grid whose third track is empty on every row.
 - **The grid, and every child that lands in it.** ⚠️ `.answers__part` emits up to **five** element
   children today (`analytics_student_quiz.html:63-71`): `.answers__label`,
   `.answers__given`/`.answers__muted`, `.answers__glyph`, a bare `<span class="sr-only">`, and
-  `.answers__expected`. Under `display:contents` all five would become grid items and the three
-  columns would never form (`.sr-only` is clipped, not `display:none`, so it still occupies a
-  track). **The columned branch therefore emits exactly three children per part:**
+  `.answers__expected` — of which **four are in flow and would become grid items** under
+  `display:contents`, so the three columns would never form.
+  ⚠️ **The `sr-only` span is NOT one of them**: `.sr-only` is `position:absolute`
+  (`reset.css:26`), so it is out of flow, is not a grid item, and consumes no track. An earlier
+  draft claimed all five would occupy tracks; the remedy below is unchanged and still necessary,
+  but the count is four.
+  **The columned branch therefore emits exactly three children per part:**
 
   1. `.answers__label` — ⚠️ **also emitted unconditionally**, empty when `part.label` is falsy.
      Today it is guarded by `{% if part.label %}` (`analytics_student_quiz.html:63`), and a
@@ -778,8 +808,14 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   still loaded — no error, just raw LaTeX. The new pupil-name line carries neither attribute: a
   name is not course content. T28 asserts the marker survives.
 - **The back button does not wrap beneath a long title**, by rule rather than by hope:
-  **`.answers .manage__head{flex-wrap:nowrap}`**, `min-width:0` on the title block and
-  `flex-shrink:0` on the button. T33 A/Bs it with a deliberately long quiz title.
+  **`@media (min-width:641px){.answers .manage__head{flex-wrap:nowrap}}`**, `min-width:0` on the
+  title block and `flex-shrink:0` on the button. T33 A/Bs it with a deliberately long quiz title.
+  ⚠️ **The width scope matters as much as the class scope.** `app.css:791` pushes the header button
+  right with `margin-left:auto`, and `app.css:843-844` cancels that at ≤640px **because the header
+  wraps there** — the button is meant to start its own line. Forcing `nowrap` at every width would
+  leave the cancel in place with no wrap to justify it, so on a phone the back button would sit
+  jammed against the title instead of at the right edge. Below 641px this page keeps today's
+  wrapping header, and T33 checks the button's position at 390px as well as at desktop.
   ⚠️ **Scoped to this page, never the bare class.** `.manage__head` is declared once
   (`app.css:783-787`) with `flex-wrap: wrap` and used by **15 templates**; `builder.css:365-376`
   documents the builder's filter row as depending on that wrap ("once the floor no longer fits
@@ -965,7 +1001,10 @@ Every rule below is falsified against a named mutant, run and observed red, then
 - **T12** A non-obligatory lesson carries the „Dodatkowa" tag **between the title and the marker**;
   an obligatory one does not; **a quiz row carries no kind chip**.
   *Mutants:* tag every lesson → red; stamp the raw `unit_marker` and render it unguarded → red
-  („Kwiz" appears); emit the tag after the marker → red on the order assertion.
+  („Kwiz" appears); emit the tag after the marker → red on the order assertion; **replace
+  `marker_label` with a hardcoded `{% trans "Additional" %}` → red**, because the test asserts the
+  rendered word equals `marker_label(MARKER_ADDITIONAL)` resolved in the active language rather
+  than a literal (§4.1's `{% load %}` hazard).
 - **T13** A quiz row carries a pill and no completion marker; a lesson row a marker and no pill;
   the unfinished marker is `.badge--todo` with its accessible name.
   *Mutant:* render the marker on every unit → red.
@@ -1014,8 +1053,10 @@ Every rule below is falsified against a named mutant, run and observed red, then
 - **T24** Extended response with two keywords: `row["columned"]` is False, the answer part carries
   „Odpowiedź ucznia:", the keyword parts get no header row.
   *Mutant:* `columned = len(parts) > 1` → red.
-- **T24b** An **all-correct** multi-part question has `columned` False; a partially-correct one
-  True. *Mutant:* drop the `any(p.expected …)` term → red on the all-correct case.
+- **T24b** Three cases for the `any(p.expected …)` term: an **all-correct** multi-part question has
+  `columned` False; a **partially-correct** one True; and a **non-auto-marked** multi-part question
+  (REVIEW fillblank, say) has it False, because `_multi` gives every part `expected=None` (§5.2).
+  *Mutant:* drop the term → red on the all-correct **and** the non-auto case.
 - **T24c** In a columned question **every part emits three children**, including an empty
   `.answers__expected` for a correct part **and an empty `.answers__label` for a part whose label
   is blank** (§5.2). *Mutants:* keep the `{% if part.expected %}` guard in the columned branch →
@@ -1075,9 +1116,10 @@ Every rule below is falsified against a named mutant, run and observed red, then
   and without** it (repo convention). Cases: the persistent underline (T14); the breakdown pill's
   `margin-left:auto` **and** the per-question header pill's position being unchanged (§2.8);
   `.badge--todo`'s presence **and** its right alignment (§4.2); the awaiting-review row's pill+link
-  pair; the „Dodatkowa" tag's position; the card edge; the columned grid with a **five-child part**
-  collapsed to three (§5.2) and with a **partially-correct** question, at desktop and in the 390px
-  block fallback; **the „Poprawna odpowiedź:" prefix hidden at ≥641px and visible at 390px**
+  pair; the „Dodatkowa" tag's position; the card edge; the columned grid with a part carrying all
+  **five elements — four of them grid items, the `sr-only` span out of flow** (§5.2) — collapsed to
+  three children, and with a **partially-correct** question, at desktop and in the 390px block
+  fallback; **the „Poprawna odpowiedź:" prefix hidden at ≥641px and visible at 390px**
   (§5.2); **the option table's `<th>` words visible at ≥641px and visually hidden at 390px**
   (§5.1); the back button not wrapping under a long title **with the shared `.manage__head` on
   another page still wrapping** (§5.3).
@@ -1149,8 +1191,10 @@ noticed.
    Accepted deliberately: one rule for marks across the product beats two.
 5. **Screenshot regeneration side effects (§2.11).** A careless run rewrites all 58 PNGs; §8's
    checklist is per PR and asserts no collateral diff.
-6. **Structural test dependencies (§2.5).** Four selectors reach into the breakdown tree by direct
-   child; a wrapper element added for §4.2's column breaks them with a misleading message.
+6. **Structural test dependencies (§2.5).** **Three** selectors reach into the breakdown tree by
+   direct child; a wrapper element added for §4.2's column breaks them with a misleading message.
+   (Two further tests touch the same markup but survive a wrapper — §2.5 lists them so the count
+   is not inflated.)
 7. **Replacing a builder that five tests specify (§2.6, §7.3).** Each has a named successor.
 8. **`display:contents` (§5.2).** It removes the part div from the box tree, so padding, borders
    and the old mobile rule stop applying, and a **missing** child silently shifts every later row.
