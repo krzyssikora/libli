@@ -338,7 +338,11 @@ def _quiz_answer_rows(unit, submission):
         response = responses.get(el.pk)
         row = _results_row(question, response)
         row["outcome"] = _override_outcome(question, response, row, in_progress)
-        row["parts"] = summarise(question, response, row["reveal_result"])
+        # row["marks"] is None outside _results_row's AUTO branch; {} is the
+        # builder's "no verdicts" (spec §5.1).
+        row["parts"] = summarise(
+            question, response, row["reveal_result"], option_marks=row["marks"] or {}
+        )
         row["qnum"] = qnum
         row["stem_html"] = stem_html(question)
         attempts = response.attempt_count if response is not None else 0

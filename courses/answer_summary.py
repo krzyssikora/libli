@@ -27,6 +27,17 @@ from courses.models import ShortTextQuestionElement
 
 ANSWER = "answer"
 KEYWORD = "keyword"
+OPTIONS = "options"
+
+
+@dataclass(frozen=True)
+class Option:
+    """One choice option as the teacher sees it (spec §5.1)."""
+
+    text: str
+    picked: bool
+    correct: bool | None  # None when the question is not auto-marked
+    mark: str | None  # "correct" | "wrong" | "missed" | None -- choice_marks' kind
 
 
 @dataclass(frozen=True)
@@ -37,6 +48,9 @@ class Part:
     given: str | None
     expected: str | None
     ok: bool | None
+    options: tuple[Option, ...] | None = None
+    options_auto: bool | None = None
+    options_empty_key: bool = False
 
     @property
     def mark(self):
@@ -84,24 +98,45 @@ def _single(question, response, given, expected_when_auto, correct):
     return [_answer_part(given=given, expected=expected_when_auto, ok=ok)]
 
 
-def _choice(question, response, mark_result):
+def _choice(question, response, mark_result, option_marks):
+    """EVERY option in author order, with the student's pick and the per-option
+    verdicts the page already computed (spec §5.1). `option_marks` is
+    views._results_row's choice_marks dict, normalised to {} by the caller: this
+    function never calls choice_marks itself (one call site) and never reads
+    Choice.is_correct (the key is mark_result.reveal, None when not auto)."""
     choices = list(question.choices.all())
-    given = None
-    if _answered(response):
-        picked = set(response.latest_answer or [])
-        live = {c.pk for c in choices}
-        texts = [c.text for c in choices if c.pk in picked]
-        texts += [_("(removed option)")] * len(picked - live)
-        given = ", ".join(texts) or None
-    expected = None
-    correct = None
-    if _is_auto(question):
-        correct_set = set(mark_result.reveal or ())
-        expected = ", ".join(c.text for c in choices if c.pk in correct_set) or _(
-            "(none)"
+    # Guarded: `response` is None for a question the student never touched.
+    picked = set(response.latest_answer or []) if _answered(response) else set()
+    auto = _is_auto(question)
+    key = set(mark_result.reveal or ()) if auto else set()
+    options = [
+        Option(
+            text=c.text,
+            picked=c.pk in picked,
+            correct=(c.pk in key) if auto else None,
+            mark=option_marks.get(c.pk, {}).get("kind"),
         )
-        correct = mark_result.correct
-    return _single(question, response, given, expected, correct)
+        for c in choices
+    ]
+    live = {c.pk for c in choices}
+    # One row per missing pk: a deleted option's correctness is unknowable.
+    options += [
+        Option(text=_("(removed option)"), picked=True, correct=None, mark=None)
+        for _missing in sorted(picked - live)
+    ]
+    return [
+        Part(
+            kind=OPTIONS,
+            label_is_content=False,
+            label=None,
+            given=None,
+            expected=None,
+            ok=None,
+            options=tuple(options),
+            options_auto=auto,
+            options_empty_key=auto and not key,
+        )
+    ]
 
 
 def _shorttext(question, response, mark_result):
@@ -347,6 +382,19 @@ _ADAPTERS = {
 }
 
 
-def summarise(question, response, mark_result):
-    """Display parts for one question's stored answer (spec §4.1)."""
-    return _ADAPTERS[type(question)](question, response, mark_result)
+_MISSING = object()
+
+
+def summarise(question, response, mark_result, *, option_marks=_MISSING):
+    """Display parts for one question's stored answer (spec §4.1).
+
+    A choice question also needs `option_marks` -- the page's choice_marks dict,
+    {} when there is none. The sentinel is not None on purpose: {} is a legitimate
+    value for a non-auto question, and a None-keyed guard could not tell an
+    omitted argument from it. The other nine adapters keep their signature."""
+    adapter = _ADAPTERS[type(question)]
+    if adapter is _choice:
+        if option_marks is _MISSING:
+            raise TypeError("summarise() needs option_marks for a choice question")
+        return _choice(question, response, mark_result, option_marks)
+    return adapter(question, response, mark_result)

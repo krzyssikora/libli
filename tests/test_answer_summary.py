@@ -1,5 +1,7 @@
 """courses.answer_summary (spec §4; tests T32, T33, T34)."""
 
+from types import SimpleNamespace
+
 import pytest
 from django.apps import apps
 
@@ -9,6 +11,7 @@ from courses.answer_summary import KEYWORD
 from courses.answer_summary import Part
 from courses.models import Choice
 from courses.models import QuestionElement
+from courses.quiz import answer_from_json
 from tests.answer_summary_fixtures import build_all_types
 from tests.answer_summary_fixtures import summarise_stored
 
@@ -31,39 +34,104 @@ def _pks(q, *texts):
     return sorted(c.pk for c in q.choices.all() if c.text in texts)
 
 
-# --- choice ------------------------------------------------------------------
-def test_choice_correct_wrong_unanswered():
+# --- choice (spec §5.1: T17, T17b, T17c, T18, T32) ---------------------------------
+def _options(parts):
+    assert len(parts) == 1 and parts[0].kind == answer_summary.OPTIONS
+    return [(o.text, o.picked, o.correct, o.mark) for o in parts[0].options]
+
+
+def test_t17_choice_picked_correct_and_wrong_and_missed():
     q = build_all_types()["choice"]
-    assert summarise_stored(q, _pks(q, "2", "3")) == [_answer("2, 3", None, True)]
-    assert summarise_stored(q, _pks(q, "2", "4")) == [_answer("2, 4", "2, 3", False)]
-    assert summarise_stored(q, None, unanswered=True) == [_answer(None, "2, 3", False)]
+    assert _options(summarise_stored(q, _pks(q, "2", "3"))) == [
+        ("2", True, True, "correct"),
+        ("3", True, True, "correct"),
+        ("4", False, False, None),
+    ]
+    parts = summarise_stored(q, _pks(q, "2", "4"))
+    assert _options(parts) == [
+        ("2", True, True, "correct"),
+        ("3", False, True, "missed"),
+        ("4", True, False, "wrong"),
+    ]
+    assert parts[0].options_auto is True
+    assert parts[0].options_empty_key is False
+    assert parts[0].mark is None  # no part-level glyph for a choice question
 
 
-def test_choice_single_select():
+def test_t17_choice_not_answered_with_no_response_row():
+    q = build_all_types()["choice"]
+    assert _options(summarise_stored(q, None, unanswered=True)) == [
+        ("2", False, True, "missed"),
+        ("3", False, True, "missed"),
+        ("4", False, False, None),
+    ]
+
+
+def test_t17_choice_single_select_renders_the_same_shape():
     q = build_all_types()["choice"]
     q.multiple = False
     q.save()
-    assert summarise_stored(q, _pks(q, "4")) == [_answer("4", "2, 3", False)]
+    assert _options(summarise_stored(q, _pks(q, "4"))) == [
+        ("2", False, True, "missed"),
+        ("3", False, True, "missed"),
+        ("4", True, False, "wrong"),
+    ]
 
 
-def test_choice_review_mode_has_no_expected_or_ok():
-    q = build_all_types(mode=REVIEW)["choice"]
-    assert summarise_stored(q, _pks(q, "4")) == [_answer("4", None, None)]
-
-
-def test_choice_removed_option_appended_after_live_texts():
+def test_t17b_each_deleted_pick_is_its_own_row_last_and_unmarked():
     q = build_all_types()["choice"]
-    gone = Choice.objects.get(question=q, text="3")
-    stored = sorted([gone.pk, *_pks(q, "2")])
-    gone.delete()
-    parts = summarise_stored(q, stored)
-    assert parts[0].given == "2, (removed option)"
+    gone = list(Choice.objects.filter(question=q, text__in=["3", "4"]))
+    stored = sorted([*_pks(q, "2"), *(c.pk for c in gone)])
+    for choice in gone:
+        choice.delete()
+    assert _options(summarise_stored(q, stored)) == [
+        ("2", True, True, "correct"),
+        ("(removed option)", True, None, None),
+        ("(removed option)", True, None, None),
+    ]
 
 
-def test_choice_with_no_correct_option_expects_none_label():
+def test_t17c_summarise_demands_option_marks_for_a_choice_question():
+    q = build_all_types(mode=REVIEW)["choice"]
+    with pytest.raises(TypeError):
+        answer_summary.summarise(q, None, None)
+    parts = answer_summary.summarise(q, None, None, option_marks={})
+    assert parts[0].kind == answer_summary.OPTIONS
+
+
+def test_t18_non_auto_choice_has_no_key_and_no_verdicts():
+    q = build_all_types(mode=REVIEW)["choice"]
+    parts = summarise_stored(q, _pks(q, "4"))
+    assert _options(parts) == [
+        ("2", False, None, None),
+        ("3", False, None, None),
+        ("4", True, None, None),
+    ]
+    assert parts[0].options_auto is False
+    assert parts[0].options_empty_key is False
+
+
+def test_t32_auto_choice_with_an_empty_key_marks_every_pick_wrong():
     q = build_all_types()["choice"]
     Choice.objects.filter(question=q).update(is_correct=False)
-    assert summarise_stored(q, _pks(q, "4")) == [_answer("4", "(none)", False)]
+    parts = summarise_stored(q, _pks(q, "4"))
+    assert _options(parts) == [
+        ("2", False, False, None),
+        ("3", False, False, None),
+        ("4", True, False, "wrong"),
+    ]
+    assert parts[0].options_empty_key is True
+
+
+def test_t19b_choice_marks_come_from_the_caller_never_the_builder():
+    q = build_all_types()["choice"]
+    stored = _pks(q, "2")
+    mark_result = q.mark(answer_from_json(q, stored))
+    doctored = {c.pk: {"kind": "wrong"} for c in q.choices.all()}
+    parts = answer_summary.summarise(
+        q, SimpleNamespace(latest_answer=stored), mark_result, option_marks=doctored
+    )
+    assert [o.mark for o in parts[0].options] == ["wrong", "wrong", "wrong"]
 
 
 # --- shorttext / shortnumeric ------------------------------------------------

@@ -16,6 +16,8 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import QuestionElement
@@ -942,3 +944,46 @@ def test_t28b_per_question_back_link_names_the_student_results_page(client):
     soup = _soup(client.get(_url(course, pupil.pk, quiz.pk)))
     back = soup.select_one("section.answers .manage__head a")
     assert back.get_text(" ", strip=True) == "← Wyniki ucznia"
+
+
+def _choice_quiz(
+    course, title, *, marking_mode=None, correct=("B",), texts=("A", "B", "C")
+):
+    quiz = _empty_quiz(course, title)
+    fields = {"stem": "<p>Pick</p>", "max_marks": Decimal("1"), "multiple": True}
+    if marking_mode is not None:
+        fields["marking_mode"] = marking_mode
+    question = ChoiceQuestionElement.objects.create(**fields)
+    for order, text in enumerate(texts):
+        Choice.objects.create(
+            question=question, text=text, is_correct=text in correct, order=order
+        )
+    el = Element.objects.create(unit=quiz, content_object=question)
+    return quiz, question, el
+
+
+def _pick(question, *texts):
+    return sorted(c.pk for c in question.choices.all() if c.text in texts)
+
+
+def test_t19_option_kinds_equal_the_marks_the_page_computed(client):
+    course, pupil = _owner_view(client)
+    quiz, question, el = _choice_quiz(course, "Kinds", correct=("B", "C"))
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(
+        sub,
+        el,
+        latest_answer=_pick(question, "A", "B"),
+        fraction=Decimal("0"),
+        attempt_count=1,
+    )
+    resp = client.get(_url(course, pupil.pk, quiz.pk))
+    row = resp.context["rows"][0]
+    by_text = {c.pk: c.text for c in question.choices.all()}
+    expected = {by_text[pk]: mark["kind"] for pk, mark in row["marks"].items()}
+    got = {o.text: o.mark for o in row["parts"][0].options}
+    assert {t: k for t, k in got.items() if k is not None} == expected
+    assert {t for t, k in got.items() if k is None} == set(by_text.values()) - set(
+        expected
+    )
+    assert got == {"A": "wrong", "B": "correct", "C": "missed"}
