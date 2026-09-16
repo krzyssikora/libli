@@ -1669,7 +1669,7 @@ Successor map (none deleted without one): `test_choice_correct_wrong_unanswered`
 - [ ] **Step 3: Run to verify they fail**
 
 Run: `uv run pytest tests/test_answer_summary.py`
-Expected: every choice test FAILS (`summarise() got an unexpected keyword argument 'option_marks'`); the other nine types' tests PASS.
+Expected: every choice test that goes through `summarise_stored` FAILS (`summarise() got an unexpected keyword argument 'option_marks'`); `test_t17c_…` FAILS with `Failed: DID NOT RAISE <class 'TypeError'>` (its first call omits the argument, and today's `_choice` returns normally); `test_t19b_…` is written in Step 7; the other nine types' tests PASS.
 
 - [ ] **Step 4: Implement the builder**
 
@@ -2988,7 +2988,7 @@ git commit -m "feat(analytics): outcome colour on the verdict badge, both pages;
 
 - [ ] **Step 1: English help**
 
-In `docs/help/teacher/drill-down.md` replace the `## Per-student breakdown` and `## Per-question answers` sections with:
+In `docs/help/teacher/drill-down.md`, change the screenshot's alt text `![A per-student results breakdown](static:core/img/help/drill-down.en.png)` to `![A student's results page](static:core/img/help/drill-down.en.png)`, and replace the `## Per-student breakdown` and `## Per-question answers` sections with:
 
 ```markdown
 ## Student results
@@ -3022,7 +3022,7 @@ unchanged.
 
 - [ ] **Step 2: Polish help**
 
-Read `docs/help/teacher/drill-down.pl.md` in full, then replace its two matching sections (the per-student and per-question ones) with:
+Read `docs/help/teacher/drill-down.pl.md` in full. Change the screenshot's alt text `![Szczegółowe wyniki ucznia](static:core/img/help/drill-down.pl.png)` to `![Wyniki ucznia](static:core/img/help/drill-down.pl.png)`, then replace its two matching sections (the per-student and per-question ones) with:
 
 ```markdown
 ## Wyniki ucznia
@@ -3116,7 +3116,12 @@ git fetch origin
 git rebase origin/master
 ```
 
-If the rebase conflicts on a `.mo` file, take either side and re-run `uv run python manage.py compilemessages -l pl -l en` — never hand-merge a binary catalog. Re-run the Step 3 gate's non-e2e chunks after the rebase.
+Catalog conflicts are expected: five PR B commits (B3, B4, B6, B7, B8) touch `locale/`, and each rewrites the `#:` source comments. On ANY conflict in `locale/{pl,en}/LC_MESSAGES/django.{po,mo}`:
+  1. Take master's side of all four catalog files: `git checkout --ours -- locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.mo`. ⚠️ During a rebase the sides are swapped: `--ours` is the branch being rebased ONTO (master), `--theirs` is the commit being replayed.
+  2. Re-run the full Catalog procedure from Global Constraints: `makemessages`, then overwrite the msgstr of **every msgid from the Global Constraints table that is now present in the `.po`** (e.g. „Klucz"), fuzzy count 0, `compilemessages`.
+  3. `git add locale/` and `git rebase --continue`.
+
+  Expect to repeat this once per conflicting catalog commit. Never hand-merge a `.po` (it resurrects fuzzies and drops owner-decided msgstrs) or a binary `.mo`. Re-run the Step 3 gate's non-e2e chunks after the rebase.
 
 ```bash
 git push -u origin feat/analytics-student-pages
