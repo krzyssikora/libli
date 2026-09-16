@@ -12,15 +12,15 @@
 - quizzes with automatic marking: questions with a fixed answer are marked the moment they are
   submitted. Open-ended answers are queued for a teacher to read and mark. When more than one
   attempt is allowed, every attempt is stored, not only the last one
-- teacher analytics: a progress-and-results matrix for a group, drillable down to one pupil and
+- teacher analytics: a progress-and-results matrix for a group, drillable down to one student and
   one question, plus a results export
 - an interface in Polish or English, per user's choice
 
 ## Try a demo
 
-We can set up a private demo for your school: a teacher login and a pupil login on our full
+We can set up a private demo for your school: a teacher login and a student login on our full
 maths course, together with an example class whose results give the analytics something to
-show. The pupil login joins that class with a blank record — its row fills in as you work
+show. The student login joins that class with a blank record — its row fills in as you work
 through lessons and quizzes, so you can watch the teacher's view change. The course content is
 in Polish. Access lasts two weeks.
 
@@ -55,8 +55,8 @@ Both apply only to a custom domain — on a your_subdomain.libli.pl subdomain we
 
 ## What we do not need
 
-No server. No hardware. No procurement process. No software installed on a pupil's device — a
-browser on whatever the pupil already has is enough.
+No server. No hardware. No procurement process. No software installed on a student's device — a
+browser on whatever the student already has is enough.
 
 ## Where the data lives
 
@@ -85,7 +85,7 @@ unblock; tell us early if you already know you will need it.
 
 At signup we agree five numbers:
 
-- the maximum number of pupils on the platform,
+- the maximum number of students on the platform,
 - the number of courses planned,
 - an estimated number of videos per course,
 - typical video length,
