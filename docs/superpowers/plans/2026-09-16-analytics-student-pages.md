@@ -3144,27 +3144,37 @@ uv run python manage.py shell -c "from django.conf import settings; from django.
 
 Expected: `True`, the mat-pp database name the main checkout uses, and a `MEDIA_ROOT` whose directory lists mat-pp's files. Both `.env` and `media` are gitignored — confirm `git status --short` does not list them.
 
-**A student to log in as.** `quiz_results.html` and `course_results.html` are a student's OWN pages — a teacher cannot open them for someone else, and no mat-pp student's password is known. On the LOCAL copy only (prod is the source of truth and is never touched), create a throwaway student with a known password and a submission carrying correct, partial and incorrect rows on a quiz of three auto-marked short-text questions — pick such a quiz in the mat-pp course, or accept whatever three AUTO questions its first quiz has:
+**A student to log in as — with REAL answers, not fabricated rows.** `quiz_results.html` and `course_results.html` are a student's OWN pages; a teacher cannot open them for someone else, and no mat-pp student's password is known. Do NOT write `QuestionResponse` rows by hand: a fraction that disagrees with the stored answer (or a "partial" on a single-answer question) renders incoherent badges and tables, which the design pass would then judge. Instead, on the LOCAL copy only (prod is the source of truth and is never touched), build a tiny throwaway course the mat-pp owner can see, and let a throwaway student take its quiz through the real UI so the real marking produces the rows. From the worktree (its `.env` points at the local mat-pp DB). The snippet is idempotent — safe to re-run:
 
 ```bash
 uv run python manage.py shell -c "
 from decimal import Decimal
-from courses.models import ContentNode, Enrollment, QuestionElement, QuestionResponse, QuizSubmission
+from django.urls import reverse
+from courses.fillblank import SENTINEL
+from courses.models import Blank, Course, ContentNode, Element, Enrollment, FillBlankQuestionElement, ShortTextQuestionElement
+from accounts.models import User
 from tests.factories import make_verified_user
-quiz = ContentNode.objects.filter(course__slug='mat-pp', unit_type='quiz').order_by('pk').first()
-student = make_verified_user(username='t34student', email='t34student@example.invalid', password='T34-local-only!')
-Enrollment.objects.get_or_create(student=student, course=quiz.course)
-sub = QuizSubmission.objects.create(student=student, unit=quiz, status='submitted', score=Decimal('1.5'), max_score=Decimal('3'))
-auto = [el for el in quiz.elements.order_by('order', 'pk') if isinstance(el.content_object, QuestionElement) and el.content_object.marking_mode == QuestionElement.MarkingMode.AUTO][:3]
-for el, fraction in zip(auto, ('1', '0.5', '0')):
-    QuestionResponse.objects.create(submission=sub, element=el, latest_answer='x', fraction=Decimal(fraction), attempt_count=1)
-print(quiz.pk, quiz.title, len(auto))
+matpp = Course.objects.get(slug='mat-pp')
+course, _ = Course.objects.get_or_create(slug='t34-throwaway', defaults={'title': 'T34 throwaway', 'language': matpp.language, 'owner': matpp.owner})
+quiz, made = ContentNode.objects.get_or_create(course=course, kind='unit', unit_type='quiz', defaults={'title': 'T34 quiz', 'published': True})
+if made:
+    t0, t1 = f'{SENTINEL}0{SENTINEL}', f'{SENTINEL}1{SENTINEL}'
+    q1 = ShortTextQuestionElement.objects.create(stem='<p>Capital of Poland?</p>', accepted='Warszawa', max_marks=Decimal('1'))
+    q2 = FillBlankQuestionElement.objects.create(stem=f'<p>1 + 1 = {t0}, 2 + 2 = {t1}</p>', max_marks=Decimal('1'))
+    Blank.objects.create(question=q2, accepted='2', order=0)
+    Blank.objects.create(question=q2, accepted='4', order=1)
+    q3 = ShortTextQuestionElement.objects.create(stem='<p>Capital of France?</p>', accepted='Paryż', max_marks=Decimal('1'))
+    for order, q in enumerate((q1, q2, q3)):
+        Element.objects.create(unit=quiz, content_object=q, order=order)
+student = User.objects.filter(username='t34student').first() or make_verified_user(username='t34student', email='t34student@example.invalid', password='T34-local-only!')
+Enrollment.objects.get_or_create(student=student, course=course)
+print(reverse('courses:quiz_unit', kwargs={'slug': course.slug, 'node_pk': quiz.pk}))
 "
 ```
 
-Expected: a quiz pk and title, and `3`. If the mat-pp slug differs locally, look it up first (`Course.objects.values_list('slug', flat=True)`). Log in as `t34student` / `T34-local-only!` for the student pages; switch its theme with `User.objects.filter(username='t34student').update(theme='dark')`. The partial badge's contrast can ALSO be measured on the teacher's per-question page for this student, which needs no student login. Delete the throwaway student in Task B12.
+Expected: a `/courses/t34-throwaway/u/<pk>/quiz/…` path. If `Course.objects.get(slug='mat-pp')` fails, the local slug differs (imports re-slug from the title): list `Course.objects.values_list('slug', 'title')` and substitute it. Then, with the server running (below), log in as `t34student` / `T34-local-only!`, open that path, and answer through the UI: **„Warszawa"** (correct), blanks **„2" and „5"** (partial), **„Londyn"** (incorrect); finish the quiz. Switch the student's theme with `User.objects.filter(username='t34student').update(theme='dark')`. The owner's per-question page for this student (reached from the throwaway course's analytics) shows the same badges without a student login, which is where Step 1 measures `.badge--partial`. The mat-pp screenshots in Step 2 („Zbiory - quiz" and the other teacher pages) use REAL mat-pp submissions, never this student. Task B12 deletes the throwaway course and student.
 
-Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2. Note its port.
+Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2. **Record its port** in the PR B body draft (`<scratchpad>/pr-b.md`, a line `dev server port: <n>`) — Task B12's precondition checks it, possibly in a later session.
 
 - [ ] **Step 1: `frontend-design` pass**
 
@@ -3195,7 +3205,7 @@ uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py
 uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py
 ```
 
-If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: first take `media` out of the way with the same junction-aware command Task B12 uses — `if [ -L media ]; then MSYS_NO_PATHCONV=1 cmd /c rmdir media; elif [ -d media ]; then rm -rf media; fi` — because the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media, then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Steps 0-2 for more mat-pp screenshots, re-run Step 0's junction block first (it removes the seeded directory). Then:
+If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: first take `media` out of the way with the same junction-aware command Task B12 uses — `if [ -L media ]; then MSYS_NO_PATHCONV=1 cmd /c rmdir media; elif [ -d media ]; then rm -rf media; fi` — because the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media, then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Steps 0-2 for more mat-pp screenshots, re-run Step 0's junction block, then restart the server (the throwaway-course snippet is idempotent, and the student's quiz is already taken — do not take it again) (it removes the seeded directory). Then:
 
 ```bash
 git status --short   # stage EVERY file listed (CSS, templates, courses/*.py, docs/help/, locale/, tests/, help PNGs) -- nothing else should be dirty
@@ -3246,13 +3256,17 @@ PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as t
 
 ### Task B12: Clean up after PR B merges
 
-**Precondition:** no process runs from the worktree (the B11 Step 0 server is stopped — `netstat -ano | grep LISTENING` shows nothing on its port) and no shell's cwd is inside it.
+**Precondition:** no process runs from the worktree (the B11 Step 0 server is stopped — `netstat -ano | grep ":<port> " | grep LISTENING`, with the port recorded in PR B's body, prints nothing) and no shell's cwd is inside it.
 
-- [ ] **Step 0: Delete the throwaway T34 student (local copy only)**
+- [ ] **Step 0: Delete the throwaway T34 course and student (local copy only)**
+
+From the worktree (its `.env` points at the local mat-pp DB), before Step 1 removes anything:
 
 ```bash
-uv run python manage.py shell -c "from accounts.models import User; print(User.objects.filter(username='t34student').delete())"
+uv run python manage.py shell -c "from accounts.models import User; from courses.models import Course; print(Course.objects.filter(slug='t34-throwaway').delete()); print(User.objects.filter(username='t34student').delete())"
 ```
+
+Expected: two tuples; the first includes `'courses.Course': 1`, the second `'accounts.User': 1`. A `(0, {})` means the wrong database or an already-cleaned copy — check `.env` before going on.
 
 - [ ] **Step 1: Remove the `media` link or directory — junction-aware**
 
