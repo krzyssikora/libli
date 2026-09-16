@@ -282,8 +282,16 @@ badge, which lets the panel's tint through. §5.4 gives the badge its own surfac
 `scored {{s}}/{{m}} ({{percent}}%)`.
 
 ⚠️ **`test_t36_header_pill_matches_the_breakdown_pill` asserts the header pill's class list AND
-text equal the breakdown row's** (`:379-382`), over five quizzes covering **four distinct kinds**
-(`reviewed` resolves to `scored`; `not_started` is unreachable here). §7.3 T27 replaces it.
+text equal the breakdown row's** (`:379-382`), over five quizzes covering **four distinct kinds**.
+⚠️ **`reviewed` resolves to `submitted`, not to `scored`** — `tests/…:369-373` maps it to
+`pill--submitted`, because that fixture holds only a REVIEW question, so `has_auto` is False,
+`graded` is False and `_quiz_pill` falls through to `rollups.py:514`. Only `Q scored` is in the
+`scored` bucket; the reviewed quiz belongs to T27's parity group. (`not_started` is unreachable
+here — the page 404s without a submission.)
+⚠️ **That test carries two more assertions** (`:383-391`): the awaiting header renders **exactly
+one** link to the review submission, and its status strip contains no "scored" text. `_quiz_pill`'s
+own comment says the Review link lives in each caller "so no page shows it twice", and §5.3 edits
+that very strip — so T27 carries both forward. §7.3 T27 replaces the whole test.
 
 ⚠️ **`_quiz_pill.html:1 loads only `{% load i18n %}`**, and an included template does not inherit
 the includer's libraries — so §5.5's filter change must add `courses_extras` to that line or the
@@ -665,9 +673,15 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
     `courses.css:382-386` palette) and **one** `sr-only` label, emitted **once, in column 1**
     („wybrana, poprawna" / „wybrana, niepoprawna" / „poprawna, niewybrana", §6), so assistive tech
     hears the verdict once rather than per cell. Rows with `mark is None` get no label.
-- **`<th>` text is visible at ≥640px and `.sr-only` below** (`.sr-only` is a real global,
-  `reset.css:25`), so the marker columns are as wide as their header words on desktop and collapse
-  to glyph width on a phone, where each row's own label still carries the meaning.
+- **`<th>` text is visible on desktop and visually hidden on a phone**, so the marker columns are
+  as wide as their header words at ≥641px and collapse to glyph width below, where each row's own
+  `sr-only` label still carries the meaning.
+  ⚠️ **CSS cannot add a class at a breakpoint**, so the mechanism is stated rather than implied:
+  the `<th>`s carry **no** `.sr-only` in the markup, and a `@media (max-width:640px)` block applies
+  the same six declarations `reset.css:25` uses (`position:absolute; width:1px; height:1px;
+  margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap`) to
+  `.answers__options th`. Hiding in the narrow direction avoids having to out-specify `.sr-only`'s
+  own (0,1,0) selector to un-hide. T33 A/Bs the collapse at both widths.
 - `width:100%` with `table-layout:auto`; the marker columns take `width:1%; white-space:nowrap`.
   Without the explicit width the table shrink-wraps inside its flex parent (`app.css:1028`).
 
@@ -698,12 +712,18 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   columns would never form (`.sr-only` is clipped, not `display:none`, so it still occupies a
   track). **The columned branch therefore emits exactly three children per part:**
 
-  1. `.answers__label`
+  1. `.answers__label` — ⚠️ **also emitted unconditionally**, empty when `part.label` is falsy.
+     Today it is guarded by `{% if part.label %}` (`analytics_student_quiz.html:63`), and a
+     columned question's labels are user content (`GridRow.statement`, `MultiGridRow.statement`,
+     `MatchPair.left` are plain `CharField`s with no non-blank guarantee), so a blank one would
+     emit two children and slide every later row one track left.
   2. `.answers__given-cell` — wrapping the given value (or `.answers__muted`), the glyph and its
      `sr-only` label
   3. `.answers__expected` — **emitted unconditionally**, empty when `part.expected` is falsy,
      because under `display:contents` a missing child does not leave a blank cell: the next part's
      label slides into the vacated track.
+
+  **Both unconditional cells are the same failure mode** (risk 8), and T24c covers both.
 
   `.answers__given-cell` is emitted in **both** layouts and is `display:contents` in the
   non-columned one, so today's flex rendering is unchanged.
@@ -722,7 +742,7 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   „Poprawna odpowiedź" over the expected column. The empty span is still emitted, because the grid
   needs the cell.
   ⚠️ `display:contents` also means `.answers__part`'s own `padding`, `gap` and `overflow-wrap`
-  (`app.css:1028-1031`) stop applying to these questions: row rhythm comes from the grid's
+  (`app.css:1028-1029`) stop applying to these questions: row rhythm comes from the grid's
   `row-gap`, and `overflow-wrap:anywhere` moves onto the three children.
 - **The 390px fallback is an explicit rule, not the old one.** `.answers__part`'s existing
   `@media (max-width:640px){flex-direction:column}` (`app.css:1036-1039`) is inert under
@@ -737,9 +757,12 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   }
   ```
 
-  The per-part „Poprawna odpowiedź:" prefix stays in the markup always and is hidden by CSS above
-  640px (`.answers__parts--columned .answers__expected-label{display:none}`), so it "returns" on a
-  phone without the template knowing the viewport.
+  The per-part „Poprawna odpowiedź:" prefix stays in the markup always and is hidden **inside a
+  min-width query** — `@media (min-width:641px){.answers__parts--columned
+  .answers__expected-label{display:none}}` — so it genuinely returns in the block fallback.
+  ⚠️ **Unscoped, that `display:none` hides the prefix at every width**, and the 390px block above
+  never re-shows it: the fallback would lose exactly the labels this sentence promises it regains.
+  T33 A/Bs the prefix's visibility at 390px.
 - ⚠️ **Extended response with keywords is neither shape** — guaranteed by the
   `all(p.kind == ANSWER …)` term.
 - `Part.label_is_content` still decides `lang` tagging; the header row and the option table's
@@ -749,9 +772,21 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
 
 - **Two lines, not one dash-joined title:** the pupil's `list_display_name` on a small line above,
   the quiz title as the `h1` below (today: `"{{ unit.title }} — {{ student… }}"`, `:11`).
+  ⚠️ **The title keeps its `<span lang="{{ course.language }}" data-math-title>` wrapper.** That
+  marker is what typesets maths in a quiz title, and `has_math` still counts the title
+  (`views_analytics.py:350`), so dropping the span would silently stop typesetting with KaTeX
+  still loaded — no error, just raw LaTeX. The new pupil-name line carries neither attribute: a
+  name is not course content. T28 asserts the marker survives.
 - **The back button does not wrap beneath a long title**, by rule rather than by hope:
-  `.manage__head{flex-wrap:nowrap}`, `min-width:0` on the title block and `flex-shrink:0` on the
-  button. T33 A/Bs it with a deliberately long quiz title.
+  **`.answers .manage__head{flex-wrap:nowrap}`**, `min-width:0` on the title block and
+  `flex-shrink:0` on the button. T33 A/Bs it with a deliberately long quiz title.
+  ⚠️ **Scoped to this page, never the bare class.** `.manage__head` is declared once
+  (`app.css:783-787`) with `flex-wrap: wrap` and used by **15 templates**; `builder.css:365-376`
+  documents the builder's filter row as depending on that wrap ("once the floor no longer fits
+  alongside its siblings the whole form wraps onto its own line"), and `app.css:844` lets narrow
+  manage headers stack. The shared declaration is untouched.
+  ⚠️ **The pupil page's view switch (§4.3) sits BELOW `.manage__head`, not inside it**, so this
+  rule cannot squeeze it; that page keeps the shared wrapping header.
 - **The header renders, by pill kind:**
 
   | pill kind | prominent figure | pill |
@@ -759,7 +794,7 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   | `scored` | „1 / 5 pkt" + „20%" | **not rendered** |
   | `submitted` (ungraded, `max_score == 0`) | none | „przesłano" |
   | `awaiting` | none | „oczekuje na ocenę" + the „Sprawdź" link |
-  | `in_progress` | none | „w toku" + „Odpowiedzi: 3 z 6" (`locale/pl:6229`) |
+  | `in_progress` | none | „w toku" + „Odpowiedzi: 3 z 6 pytań" (`locale/pl:6229`; the msgstr carries the noun) |
 
 - **The score element uses the `marks` filter** — `{{ p.score|marks }} / {{ p.max_score|marks }}` —
   so §5.5's rule reaches the page's most prominent figure. **The percentage renders unfiltered**
@@ -776,6 +811,15 @@ that tint through and stays green-on-green. The badge therefore **keeps the base
 `background: var(--surface-sunken)`** (`app.css:145-156`) and takes **a 1px border and text in the
 outcome colour**.
 
+⚠️ **The fill is stated here, in prose, and NOWHERE in the table** — the table carries only each
+outcome's border and text colour. Round 5 corrected this paragraph and left a `--surface-raised`
+fill sitting in the table two lines below, where an implementer would have read it first.
+
+⚠️ **`not_answered` is deliberately exempt** from the rule below. `courses.css:298-301` paints
+`.question__feedback-panel--not_answered` with `--surface-sunken` too, so that badge is flat on
+flat — but both surfaces are neutral, so there is no false colour signal to avoid and the 1px
+border still separates them. That is why T33b measures only the three coloured outcomes.
+
 ⚠️ **The fill must differ from BOTH backdrops.** An earlier draft said
 `background: var(--surface-raised)` — which is exactly what `.answers__item`, the teacher page's
 question card, already uses (`app.css:1023-1024`). That would have cured green-on-green on the
@@ -784,7 +828,7 @@ card and from every `*-subtle` panel tint, and T33b measures both.
 
 | outcome | badge | class | applies to |
 |---|---|---|---|
-| `correct` | `--success` border + text on `--surface-raised` | `.badge--correct` | both verdict pages |
+| `correct` | `--success` border + text | `.badge--correct` | both verdict pages |
 | `partial` | `--warning` border + text | `.badge--partial` | both verdict pages |
 | `incorrect` | `--danger` border + text | `.badge--incorrect` | both verdict pages |
 | `not_answered` | muted — `--text-tertiary` → `--text-secondary` (AA repair) | `.badge--muted` | ⚠️ **four templates**, §2.7 |
@@ -845,7 +889,6 @@ tokens here and judged in the dark screenshots.
 | `Pupil's answer` | „Odpowiedź ucznia" | §5.2 multi-part header row |
 | `Pupil's choice` | „Wybór ucznia" | §5.1 option column header |
 | `Correct answer` (no colon) | „Poprawna odpowiedź" | §5.1 option column header, §5.2 header row — ⚠️ a NEW msgid: the reused `locale/pl:5459` entry carries the colon |
-| `Answer` | „Odpowiedź" | §5.1 option-text column header |
 | `chosen, correct` | „wybrana, poprawna" | §5.1 row label (once, column 1) |
 | `chosen, incorrect` | „wybrana, niepoprawna" | §5.1 row label |
 | `correct, not chosen` | „poprawna, niewybrana" | §5.1 row label |
@@ -867,7 +910,9 @@ together: „Poprawnie" (the verdict badge), „Poprawna odpowiedź:" (the key l
 „Poprawna odpowiedź" (the option column header, proposed). „Klucz" is the alternative for the
 column header. Flag all three in the PR body as one question.
 
-Reused, not re-created: `Correct answer:` (`locale/pl:5459`), `(removed option)` (`:423`),
+Reused, not re-created: **`Answer` / „Odpowiedź" (`locale/pl:7976`, from
+`review_submission.html:92`) — the option-text column header; `makemessages` adds a reference line,
+not an entry** — `Correct answer:` (`locale/pl:5459`), `(removed option)` (`:423`),
 `(none)` (`:427`), `Not answered` (`:6243`), `Correct` / `Incorrect` / `Partial`, `Review`
 (`:5636`), `Additional` / „Dodatkowa" (`rollups.UNIT_MARKER_LABELS`), `Progress` / `Results`
 (`:2633,2628`), `Completed`, `%(k)s of %(n)s question answered` (`:6229`), and every pill word.
@@ -906,8 +951,12 @@ Every rule below is falsified against a named mutant, run and observed red, then
 
 - **T6** `?mode=results`: quizzes present, **no lesson title**, a quiz-less chapter absent, an
   unstarted quiz present with its pill. *Mutant:* skip the prune → red.
-- **T7** `?mode=results`: a rendered chapter carries **no `.rollup`** (D7). *Mutant:* keep the chip
-  in both modes → red.
+- **T7** `?mode=results`: a rendered chapter carries **no `.rollup`** (D7). ⚠️ **The fixture
+  chapter holds an obligatory lesson AND a quiz**, and the test asserts the same chapter **does**
+  show its `.rollup` in Progress mode. Without both halves the test is vacuous: the chip renders
+  only `{% if item.required_total %}` (`_breakdown_node.html:23`) and `required_total` counts
+  obligatory lessons only, so a quiz-only chapter has no chip on either build.
+  *Mutant:* keep the chip in both modes → red.
 - **T8** `?mode=progress`: lessons and chips present. *Mutant:* prune unconditionally → red.
 - **T9** No `mode`, and `?mode=nonsense`, both render Progress. *Mutant:* default to results → red.
 - **T10** A quiz nested three deep keeps its part and chapter. *Mutant:* prune before `attach` → red.
@@ -968,18 +1017,26 @@ Every rule below is falsified against a named mutant, run and observed red, then
 - **T24b** An **all-correct** multi-part question has `columned` False; a partially-correct one
   True. *Mutant:* drop the `any(p.expected …)` term → red on the all-correct case.
 - **T24c** In a columned question **every part emits three children**, including an empty
-  `.answers__expected` for a correct part (§5.2). *Mutant:* keep the `{% if part.expected %}` guard
-  in the columned branch → red (the count drops to two and the next row shifts).
+  `.answers__expected` for a correct part **and an empty `.answers__label` for a part whose label
+  is blank** (§5.2). *Mutants:* keep the `{% if part.expected %}` guard in the columned branch →
+  red; keep the `{% if part.label %}` guard → red on a blank-label part (both drop the count to two
+  and shift the next row).
 - **T25** Badge modifier per outcome on **both** verdict templates, asserted on the rendered class.
   *Mutant:* remove it from one template → red. The card-edge class is asserted on the teacher page.
 - **T26** Header, per pill kind: `scored` renders the score element and **no pill**; the other
   three render the pill and **no** score element; `in_progress` renders the answered-count phrase.
   *Mutant:* render the score unconditionally → red on three of four kinds.
-- **T27** `test_t36_header_pill_matches_the_breakdown_pill` is **replaced**: for `submitted`,
-  `awaiting` and `in_progress` the header pill's class list and text still equal the breakdown
-  row's; for `scored` the header renders **no** pill while the breakdown row shows its score,
-  now formatted by `marks`, and the header's score element carries the same numbers.
-  *Mutant:* let the header keep a pill for `scored` → red.
+- **T27** `test_t36_header_pill_matches_the_breakdown_pill` is **replaced**, carrying **four**
+  assertions forward:
+  1. for `submitted`, `awaiting`, `in_progress` **and `reviewed`** (which resolves to `submitted`,
+     §2.8) the header pill's class list and text still equal the breakdown row's;
+  2. for `scored` the header renders **no** pill while the breakdown row shows its score, now
+     formatted by `marks`, and the header's score element carries the same numbers;
+  3. the awaiting header still renders **exactly one** link to the review submission (§2.8 — the
+     guard against the „Sprawdź" link appearing twice on the strip §5.3 edits);
+  4. the awaiting status strip still contains no "scored" text.
+  *Mutants:* let the header keep a pill for `scored` → red; render the Review link in both the
+  partial and the caller → red on (3).
 - **T28** The per-question heading renders name and title as separate elements, with no „ — ".
   *Mutant:* restore the joined title → red.
 - **T28b** The pupil page's `h1` reads „Wyniki ucznia — <name>" in **both** modes, the tab title
@@ -1020,7 +1077,10 @@ Every rule below is falsified against a named mutant, run and observed red, then
   `.badge--todo`'s presence **and** its right alignment (§4.2); the awaiting-review row's pill+link
   pair; the „Dodatkowa" tag's position; the card edge; the columned grid with a **five-child part**
   collapsed to three (§5.2) and with a **partially-correct** question, at desktop and in the 390px
-  block fallback; the back button not wrapping under a long title (§5.3).
+  block fallback; **the „Poprawna odpowiedź:" prefix hidden at ≥641px and visible at 390px**
+  (§5.2); **the option table's `<th>` words visible at ≥641px and visually hidden at 390px**
+  (§5.1); the back button not wrapping under a long title **with the shared `.manage__head` on
+  another page still wrapping** (§5.3).
 - **T33b** The badge has a surface of its own **against both backdrops**: its computed background
   differs from the pupil page's `question__feedback-panel--*` tint **and** from the teacher page's
   `.answers__item` card (`--surface-raised`), for `correct`, `partial` and `incorrect`, in both
