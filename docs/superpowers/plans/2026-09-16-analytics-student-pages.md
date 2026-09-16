@@ -312,9 +312,9 @@ Expected: all PASS.
 
 - [ ] **Step 6: Falsify**
 
-- *Mutant 1:* in `analytics_matrix`, restore `.order_by("username")` on both branches (by hand) → T1 red. Revert by hand.
+- *Mutant 1:* in `analytics_matrix`, bypass the helper — replace the `students = scoping.ordered_students(...)` statement with the original `if subset_pks: students = pool.filter(pk__in=subset_pks).order_by("username")` / `else: students = pool.order_by("username")` block → T1 red. (Adding `.order_by` INSIDE the helper call stays green: the helper re-sorts.) Revert by hand.
 - *Mutant 2:* in `ordered_students`, change the key to `lambda u: (u.sort_name, u.username)` → T1 red with `a_swiatek` after `d_zych`. Revert.
-- *Mutant 3:* in `gradebook_export`, restore `.order_by("username")` → T2 red for both shapes. Revert.
+- *Mutant 3:* in `gradebook_export`, bypass the helper — replace the `scoping.ordered_students(...)` expression with the original `pool.filter(pk__in=subset_pks).order_by("username") if subset_pks else pool.order_by("username")` → T2 red for both shapes. Revert.
 - `git diff` shows only Steps 3–4 and the new test file.
 
 (The space-below-letters property is `tests/test_collation.py::test_space_sorts_before_letters`'s to falsify, not T1's — spec §2.2.)
@@ -3122,13 +3122,9 @@ git commit -m "docs(help): student results page, view switch, every option liste
 
 ### Task B11: Design pass, screenshots (T34), branch gate, PR B
 
-- [ ] **Step 1: `frontend-design` pass**
+- [ ] **Step 0: Serve the worktree on mat-pp**
 
-Invoke the `frontend-design:frontend-design` skill on the two pages as built (spec §8: after the markup exists, before screenshots are judged). Scope: spacing, type scale and colour of the new elements only (`.breakdown__view`, `.breakdown-unit__tag`, `.badge--todo`, `.answers__options`, `.answers__header-row`, `.answers__heading`, `.answers__score`). Any change it proposes to a rule an e2e test pins must keep that test green; re-run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py` after applying.
-
-Measure `.badge--partial`'s text contrast (computed `color` against computed `background-color`) in light and dark. If either is below 4.5:1, **do not change the colour**. If Task 0 got an owner answer (recorded under "Spec gaps" item 6), report the measured ratios beside that decision; only if it got none, record the ratio for the PR body as a question for the owner.
-
-- [ ] **Step 2: Screenshots on mat-pp data (T34)**
+Steps 1 and 2 both need the two pages rendered on real data, so set this up first.
 
 ⚠️ **A worktree cannot serve the app as-is.** `config/settings/base.py` reads `.env` from `BASE_DIR` (the worktree — copied there at creation; without it `DEBUG` falls back to False, so the DEBUG-only media routes vanish, and `DATABASE_URL` falls back to its hard-coded default), and `MEDIA_ROOT` is `BASE_DIR / "media"`, which holds mat-pp's images only in the main checkout. From the worktree, first:
 
@@ -3146,10 +3142,19 @@ fi
 uv run python manage.py shell -c "from django.conf import settings; from django.db import connection; print(settings.DEBUG, connection.settings_dict['NAME'], settings.MEDIA_ROOT)"
 ```
 
-Expected: `True`, the mat-pp database name the main checkout uses, and a `MEDIA_ROOT` whose directory lists mat-pp's files. Both `.env` and `media` are gitignored — confirm `git status --short` does not list them. **Teardown, before removing the worktree:** `if [ -L media ]; then cmd //c rmdir media; elif [ -d media ]; then rm -rf media; fi` — a junction is removed ONLY with `cmd //c rmdir` (`rm -rf` follows it into the main checkout's media); a plain directory (left by Step 2b's re-capture) needs `rm -rf`.
+Expected: `True`, the mat-pp database name the main checkout uses, and a `MEDIA_ROOT` whose directory lists mat-pp's files. Both `.env` and `media` are gitignored — confirm `git status --short` does not list them.
 
+Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2.
 
-Run the app against the local mat-pp database (use the `run` skill). Capture light **and** dark, 1280 and 390 wide:
+- [ ] **Step 1: `frontend-design` pass**
+
+Invoke the `frontend-design:frontend-design` skill on the two pages as built (spec §8: after the markup exists, before screenshots are judged). Scope: spacing, type scale and colour of the new elements only (`.breakdown__view`, `.breakdown-unit__tag`, `.badge--todo`, `.answers__options`, `.answers__header-row`, `.answers__heading`, `.answers__score`). Any change it proposes to a rule an e2e test pins must keep that test green; re-run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py` after applying.
+
+On the Step 0 server, open a `quiz_results.html` page with a partial row (and the per-question page for the same quiz), and measure `.badge--partial`'s text contrast (computed `color` against computed `background-color`) in light and dark — switch theme via the logged-in user's `theme` field, not a cookie. If either is below 4.5:1, **do not change the colour**. If Task 0 got an owner answer (recorded under "Spec gaps" item 6), report the measured ratios beside that decision; only if it got none, record the ratio for the PR body as a question for the owner.
+
+- [ ] **Step 2: Screenshots on mat-pp data (T34)**
+
+With the server from Step 0 running, capture light **and** dark, 1280 and 390 wide:
 - the student results page in Results and in Progress mode;
 - the per-question page: the owner's „Zbiory - quiz" with a wrong choice answer on question 1; an in-progress quiz; a quiz awaiting review;
 - `quiz_results.html` for a student with correct/partial/incorrect rows;
@@ -3168,7 +3173,7 @@ uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py
 uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py
 ```
 
-If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: remove the `media` junction first (`cmd //c rmdir media` — the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media), then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Step 2 for more mat-pp screenshots, re-run Step 2's junction block first (it removes the seeded directory). Then:
+If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: remove the `media` junction first (`cmd //c rmdir media` — the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media), then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Steps 0-2 for more mat-pp screenshots, re-run Step 0's junction block first (it removes the seeded directory). Then:
 
 ```bash
 git status --short   # stage EVERY file listed (CSS, templates, courses/*.py, docs/help/, locale/, tests/, help PNGs) -- nothing else should be dirty
@@ -3216,3 +3221,28 @@ gh pr create --base master --title "Analytics student pages: follow the view, li
 ```
 
 PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as the owner's decision); the plan's "Spec gaps" items 2 (the added „wybrana" label), 3 and 5 as questions for the owner; item 6 with the measured contrast ratios — as a question only if Task 0 got no answer, otherwise as a report next to the owner's decision; that T5 was deleted with T28/T28b as successors and T36 replaced by T27; the help screenshots kept; the Claude Code attribution line.
+
+### Task B12: Clean up after PR B merges
+
+- [ ] **Step 1: Remove the `media` link or directory — junction-aware**
+
+From the worktree:
+
+```bash
+if [ -L media ]; then MSYS_NO_PATHCONV=1 cmd /c rmdir media; elif [ -d media ]; then rm -rf media; fi
+ls -d media 2>/dev/null && echo "media still present - stop" || echo "media gone"
+ls C:/Users/krzys/Documents/Python/own/libli/media | head -3
+```
+
+⚠️ A junction is removed ONLY with `cmd /c rmdir`: `rm -rf` follows it and deletes the main checkout's `media/` (mat-pp's images). A plain directory (left by a help-screenshot capture) needs `rm -rf`. Expected: "media gone", and the last command still lists files in the main checkout's media.
+
+- [ ] **Step 2: Remove the worktree and the merged branches**
+
+From the main checkout:
+
+```bash
+git -C C:/Users/krzys/Documents/Python/own/libli worktree remove C:/Users/krzys/Documents/Python/own/libli-analytics-pages
+git -C C:/Users/krzys/Documents/Python/own/libli branch -d feat/analytics-student-order feat/analytics-student-pages
+```
+
+`worktree remove` refuses if the tree is dirty (the copied `.env` is ignored and does not block it). `branch -d` refuses an unmerged branch — if it does, check the PR really merged rather than forcing with `-D`.
