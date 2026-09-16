@@ -10,7 +10,9 @@ również, jeśli możesz przeglądać kurs tej kolekcji.
 
 ## Czytanie siatki
 
-- **Wiersze** to uczniowie, po jednym w każdej linii.
+- **Wiersze** to uczniowie, po jednym w wierszu, w kolejności dziennika: według
+  nazwiska, a potem imienia, alfabetycznie. Uczeń, któremu na koncie brakuje imienia
+  lub nazwiska, jest umieszczony według nazwy wyświetlanej.
 - **Kolumny** odzwierciedlają strukturę kursu — części, rozdziały, sekcje i
   jednostki, w tej samej kolejności co konspekt w kreatorze.
 - Kliknij nagłówek kolumny, aby **rozwinąć** ją głębiej: kolumna części
