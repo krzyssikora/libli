@@ -526,6 +526,8 @@ Keep `analytics-matrix.en.png` and `analytics-matrix.pl.png` only, then restore 
 
 ```bash
 git diff --name-only -- core/static/core/img/help/ | grep -v "analytics-matrix\." | xargs -r git checkout --
+git clean -n -- core/static/core/img/help/   # untracked PNGs the restore above cannot see
+git clean -f -- core/static/core/img/help/   # only if the dry run listed files; none are ours
 git status --short core/static/core/img/help/
 ```
 
@@ -553,7 +555,7 @@ Expected: each summary line reads `N passed` with no `failed`/`error`. Read the 
 - [ ] **Step 7: Commit and open PR A**
 
 ```bash
-git add accounts/models.py tests/demo/test_provision.py docs/help/teacher/analytics.md docs/help/teacher/analytics.pl.md core/static/core/img/help/
+git add accounts/models.py tests/demo/test_provision.py docs/help/teacher/analytics.md docs/help/teacher/analytics.pl.md core/static/core/img/help/analytics-matrix.en.png core/static/core/img/help/analytics-matrix.pl.png
 git commit -m "docs(analytics): student order in help; repair two stale comments"
 git push -u origin feat/analytics-student-order
 gh pr create --base master --title "Analytics: students by surname, named First Surname" --body-file <scratchpad>/pr-a.md
@@ -2848,7 +2850,8 @@ EXPECTED_BADGES = [
 
 def test_t25_badge_modifier_per_outcome_on_both_verdict_pages(client):
     course, _factory_pupil = _owner_view(client)
-    pupil = _loginable_pupil(course, "outcomes")  # defined in Task B6; see its docstring
+    # _loginable_pupil is defined in Task B6; see its docstring
+    pupil = _loginable_pupil(course, "outcomes")
     quiz = _outcome_quiz(course, pupil)
     items = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
     got = [
@@ -2883,6 +2886,8 @@ In `quiz_results.html`, make the same three class changes, and append a single-l
 ```
 
 - [ ] **Step 4: The CSS**
+
+First read "Spec gaps" item 6 in the plan for the owner's Task 0 answer. "Keep" or no answer → the block below as written. A named alternative → use it for `.badge--partial`'s `color` declaration only (border stays `--warning`); T33b's assertions are unchanged either way.
 
 `courses/static/courses/css/courses.css`, replace `.badge--muted { color: var(--text-tertiary); }` with:
 
@@ -2997,10 +3002,10 @@ def test_t33b_badge_has_its_own_opaque_surface_on_both_pages(page, live_server, 
 
     page.context.clear_cookies()
     _login(page, live_server, f"{username}_s")
-    page.goto(
-        f"{live_server.url}"
-        f"{reverse('courses:quiz_results', kwargs={'slug': course.slug, 'node_pk': quiz.pk})}"
+    results_path = reverse(
+        "courses:quiz_results", kwargs={"slug": course.slug, "node_pk": quiz.pk}
     )
+    page.goto(f"{live_server.url}{results_path}")
     for outcome in OUTCOMES:
         panel = page.locator(f".question__feedback-panel--{outcome}")
         badge = panel.locator(".badge")
@@ -3099,6 +3104,8 @@ Keep the page's existing link words exactly as the Polish UI renders them: check
 uv run python -m pytest tests/capture_help_screenshots.py
 git status --short core/static/core/img/help/
 git diff --name-only -- core/static/core/img/help/ | grep -v -e "drill-down\." -e "review-submission\." | xargs -r git checkout --
+git clean -n -- core/static/core/img/help/   # untracked PNGs the restore above cannot see
+git clean -f -- core/static/core/img/help/   # only if the dry run listed files; none are ours
 git status --short core/static/core/img/help/
 ```
 
@@ -3109,7 +3116,7 @@ Expected final status: only files from those four (any of them may be unchanged)
 Run: `uv run pytest tests/test_help.py tests/test_help_capture_isolation.py` → PASS.
 
 ```bash
-git add docs/help/teacher/drill-down.md docs/help/teacher/drill-down.pl.md core/static/core/img/help/
+git add docs/help/teacher/drill-down.md docs/help/teacher/drill-down.pl.md core/static/core/img/help/drill-down.en.png core/static/core/img/help/drill-down.pl.png core/static/core/img/help/review-submission.en.png core/static/core/img/help/review-submission.pl.png
 git commit -m "docs(help): student results page, view switch, every option listed"
 ```
 
@@ -3119,7 +3126,7 @@ git commit -m "docs(help): student results page, view switch, every option liste
 
 Invoke the `frontend-design:frontend-design` skill on the two pages as built (spec §8: after the markup exists, before screenshots are judged). Scope: spacing, type scale and colour of the new elements only (`.breakdown__view`, `.breakdown-unit__tag`, `.badge--todo`, `.answers__options`, `.answers__header-row`, `.answers__heading`, `.answers__score`). Any change it proposes to a rule an e2e test pins must keep that test green; re-run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py` after applying.
 
-Measure `.badge--partial`'s text contrast (computed `color` against computed `background-color`) in light and dark. If either is below 4.5:1, **do not change the colour** — record the ratio for the PR body as a question for the owner (plan "Spec gaps" item 6).
+Measure `.badge--partial`'s text contrast (computed `color` against computed `background-color`) in light and dark. If either is below 4.5:1, **do not change the colour**. If Task 0 got an owner answer (recorded under "Spec gaps" item 6), report the measured ratios beside that decision; only if it got none, record the ratio for the PR body as a question for the owner.
 
 - [ ] **Step 2: Screenshots on mat-pp data (T34)**
 
@@ -3135,7 +3142,7 @@ cmd //c mklink /J media "C:\Users\krzys\Documents\Python\own\libli\media"
 uv run python manage.py shell -c "from django.conf import settings; from django.db import connection; print(settings.DEBUG, connection.settings_dict['NAME'], settings.MEDIA_ROOT)"
 ```
 
-Expected: `True`, the mat-pp database name the main checkout uses, and a `MEDIA_ROOT` whose directory lists mat-pp's files. Both `.env` and `media` are gitignored — confirm `git status --short` does not list them. Remove the junction with `cmd //c rmdir media` (never `rm -rf`, which follows it into the main checkout's media) before removing the worktree.
+Expected: `True`, the mat-pp database name the main checkout uses, and a `MEDIA_ROOT` whose directory lists mat-pp's files. Both `.env` and `media` are gitignored — confirm `git status --short` does not list them. **Teardown, before removing the worktree:** `if [ -L media ]; then cmd //c rmdir media; elif [ -d media ]; then rm -rf media; fi` — a junction is removed ONLY with `cmd //c rmdir` (`rm -rf` follows it into the main checkout's media); a plain directory (left by Step 2b's re-capture) needs `rm -rf`.
 
 
 Run the app against the local mat-pp database (use the `run` skill). Capture light **and** dark, 1280 and 390 wide:
@@ -3157,11 +3164,11 @@ uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py
 uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py
 ```
 
-If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: remove the `media` junction first (`cmd //c rmdir media` — the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media), then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. Then:
+If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: remove the `media` junction first (`cmd //c rmdir media` — the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media), then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Step 2 for more mat-pp screenshots, re-run Step 2's junction block first (it removes the seeded directory). Then:
 
 ```bash
 git status --short   # stage EVERY file listed (CSS, templates, courses/*.py, docs/help/, locale/, tests/, help PNGs) -- nothing else should be dirty
-git add core/static/core/css/app.css courses/static/courses/css/courses.css templates/courses/ courses/ docs/help/ locale/ tests/ core/static/core/img/help/
+git add core/static/core/css/app.css courses/static/courses/css/courses.css templates/courses/ courses/ docs/help/ locale/ tests/ core/static/core/img/help/drill-down.en.png core/static/core/img/help/drill-down.pl.png core/static/core/img/help/review-submission.en.png core/static/core/img/help/review-submission.pl.png
 git commit -m "style(analytics): design pass on the student pages"
 git status --short
 ```
@@ -3204,4 +3211,4 @@ git push -u origin feat/analytics-student-pages
 gh pr create --base master --title "Analytics student pages: follow the view, list every option, outcome colour" --body-file <scratchpad>/pr-b.md
 ```
 
-PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as the owner's decision); the plan's "Spec gaps" items 2 (the added „wybrana" label), 3, 5 and 6 (with the measured contrast ratios) as questions for the owner; that T5 was deleted with T28/T28b as successors and T36 replaced by T27; the help screenshots kept; the Claude Code attribution line.
+PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as the owner's decision); the plan's "Spec gaps" items 2 (the added „wybrana" label), 3 and 5 as questions for the owner; item 6 with the measured contrast ratios — as a question only if Task 0 got no answer, otherwise as a report next to the owner's decision; that T5 was deleted with T28/T28b as successors and T36 replaced by T27; the help screenshots kept; the Claude Code attribution line.
