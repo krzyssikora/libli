@@ -15,7 +15,7 @@
 - **Order key (D5):** `(polish_sort_key(u.sort_name), u.username)`. Display label: `User.list_display_name`.
 - **Mode vocabulary:** `"progress"` | `"results"`; anything else normalises to `"progress"` (via `_drill_params`, never a second rule).
 - **Never read `Choice.is_correct`** in `answer_summary.py` or the templates. The key comes from `mark_result.reveal`.
-- **`_choice` never calls `choice_marks`.** The one production call site stays in `courses/views.py::_results_row`.
+- **`_choice` never calls `choice_marks`.** The only call site feeding this page is `courses/views.py::_results_row`; `courses/models.py`'s own `self.choice_marks(...)` call is the lesson/quiz render path and unrelated. This work adds no third call site.
 - **Every §4 CSS rule goes in `core/static/core/css/app.css`** (the student results page does not link `courses.css`). The §5.4 badge modifiers go in `courses/static/courses/css/courses.css` beside `.badge--muted`.
 - **No stylesheet line citations anywhere in live code** — `tests/test_css_citations_are_durable.py` fails on any `<name>.css:<digits>` in `.py/.js/.html/.css`. Name the selector instead (``app.css's `.badge--done` ``).
 - **Django template comments:** `{# … #}` is single-line ONLY. Anything spanning lines uses `{% comment %}…{% endcomment %}`.
@@ -109,7 +109,17 @@ git -C C:/Users/krzys/Documents/Python/own/libli fetch origin
 git -C C:/Users/krzys/Documents/Python/own/libli worktree add C:/Users/krzys/Documents/Python/own/libli-analytics-pages -b feat/analytics-student-order origin/master
 ```
 
-Run every command of PR A and PR B from `C:/Users/krzys/Documents/Python/own/libli-analytics-pages`. Read the plan and spec by absolute path from the main checkout (`C:/Users/krzys/Documents/Python/own/libli/docs/superpowers/…`). A worktree has no `.env`: export `TEST_DATABASE_URL` in the shell before running tests (editing a `.env` is inert when the variable is already exported), and never run tests in two trees at once — they share the test database.
+Then, from the worktree, give it the main checkout's `.env` (gitignored; `config/settings/test.py` pins DEBUG and the vendor flag, so it is safe for tests) and prove the tests will hit the disposable container, not the local server holding mat-pp:
+
+```bash
+cp C:/Users/krzys/Documents/Python/own/libli/.env .env
+echo "$TEST_DATABASE_URL"
+uv run python -c "import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.test'); django.setup(); from django.conf import settings; print(settings.DATABASES['default']['PORT'])"
+```
+
+Expected: the URL ends `127.0.0.1:55433/libli` (the shell profile exports it in every shell — a one-off `export` would not survive between tool calls, and editing `.env` cannot override it) and the port prints `55433`. **If either differs, stop**: without it the suite creates and drops `test_libli` on the local server.
+
+Run every command of PR A and PR B from `C:/Users/krzys/Documents/Python/own/libli-analytics-pages`. Read the plan and spec by absolute path from the main checkout (`C:/Users/krzys/Documents/Python/own/libli/docs/superpowers/…`). Never run tests in two trees at once — they share the test database.
 
 ### Task 0: Owner question before execution
 
@@ -1163,7 +1173,7 @@ In `templates/courses/manage/analytics_student_quiz.html`, the back link becomes
 
 - [ ] **Step 7: Delete T5**
 
-Delete `test_t5_drill_down_headings_keep_the_display_name_until_pr_b` from `tests/test_analytics_student_order.py` (and the imports only it used — `QuizSubmission`, `Decimal`; `ruff check` flags any left behind). Its successors are T28b (here) and T28 (Task B8).
+Delete `test_t5_drill_down_headings_keep_the_display_name_until_pr_b` from `tests/test_analytics_student_order.py` (and the imports only it used — `QuizSubmission`, `Decimal`; `ruff check` flags any left behind), and change the module docstring's `(spec §3; T1-T5).` to `(spec §3; T1-T4).` on the same line. Its successors are T28b (here) and T28 (Task B8).
 
 - [ ] **Step 8: Catalogs**
 
@@ -3113,10 +3123,10 @@ Measure `.badge--partial`'s text contrast (computed `color` against computed `ba
 
 - [ ] **Step 2: Screenshots on mat-pp data (T34)**
 
-⚠️ **A worktree cannot serve the app as-is.** `config/settings/base.py` reads `.env` from `BASE_DIR` (the worktree, which has none: `DEBUG` falls back to False, so the DEBUG-only media routes vanish, and `DATABASE_URL` falls back to its hard-coded default), and `MEDIA_ROOT` is `BASE_DIR / "media"`, which holds mat-pp's images only in the main checkout. From the worktree, first:
+⚠️ **A worktree cannot serve the app as-is.** `config/settings/base.py` reads `.env` from `BASE_DIR` (the worktree — copied there at creation; without it `DEBUG` falls back to False, so the DEBUG-only media routes vanish, and `DATABASE_URL` falls back to its hard-coded default), and `MEDIA_ROOT` is `BASE_DIR / "media"`, which holds mat-pp's images only in the main checkout. From the worktree, first:
 
 ```bash
-cp C:/Users/krzys/Documents/Python/own/libli/.env .env
+# .env was copied when the worktree was created (PR A, "Where to work").
 # The help-screenshot captures (A3, B10) seeded a REAL media/ directory here
 # (seed_demo_course saves demo.png under MEDIA_ROOT). mklink refuses an existing
 # path, so remove it -- only if it is a plain directory, never a junction:
@@ -3150,7 +3160,8 @@ uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_
 If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: remove the `media` junction first (`cmd //c rmdir media` — the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media), then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. Then:
 
 ```bash
-git add core/static/core/css/app.css courses/static/courses/css/courses.css templates/courses/ locale/ tests/ core/static/core/img/help/
+git status --short   # stage EVERY file listed (CSS, templates, courses/*.py, docs/help/, locale/, tests/, help PNGs) -- nothing else should be dirty
+git add core/static/core/css/app.css courses/static/courses/css/courses.css templates/courses/ courses/ docs/help/ locale/ tests/ core/static/core/img/help/
 git commit -m "style(analytics): design pass on the student pages"
 git status --short
 ```
