@@ -141,8 +141,8 @@
                 <td class="analytics__rowhead">
                   <input type="checkbox" name="student" value="{{ row.student.pk }}"
                          {% if row.student.pk in subset_pks %}checked{% endif %}
-                         aria-label="{% blocktrans with name=row.student.display_name|default:row.student.username %}Select {{ name }}{% endblocktrans %}">
-                  {% if row.breakdown_url %}<a href="{{ row.breakdown_url }}">{{ row.student.display_name|default:row.student.username }}</a>{% else %}{{ row.student.display_name|default:row.student.username }}{% endif %}</td>
+                         aria-label="{% blocktrans with name=row.student.list_display_name %}Select {{ name }}{% endblocktrans %}">
+                  {% if row.breakdown_url %}<a href="{{ row.breakdown_url }}">{{ row.student.list_display_name }}</a>{% else %}{{ row.student.list_display_name }}{% endif %}</td>
                 {% for cell in row.cells %}
                   {% include "courses/manage/_analytics_cell.html" %}
                 {% endfor %}

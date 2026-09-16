@@ -45,8 +45,8 @@ def test_the_reps_student_can_reach_a_quiz_and_shows_a_human_name():
     assert not kit.student.is_staff
     assert GroupMembership.objects.filter(group=kit.group, student=kit.student).exists()
     assert can_access_course(kit.student, course)
-    # The analytics templates render display_name|default:username and nothing
-    # else, so a pupil without one shows as "sp-12-p01".
+    # Analytics names students by list_display_name, which falls back to the
+    # display name, so a student without one would show as "sp-12-p01".
     pupil = kit.users.exclude(pk__in=[kit.teacher_id, kit.student_id]).first()
     assert pupil.display_name and " " in pupil.display_name
 

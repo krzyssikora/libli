@@ -3,6 +3,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
+from core.collation import polish_sort_key
 from courses.models import Enrollment
 from grouping.models import Allocation
 from grouping.models import Collection
@@ -166,3 +167,10 @@ def students_in_scope(user, course, scope):
                 return User.objects.filter(pk__in=student_ids).distinct()
     # default / fallback
     return reviewable_students(user, course)
+
+
+def ordered_students(students):
+    """Register order: surname, then first name, Polish alphabetical; username
+    breaks ties (spec §3.1). The same key grouping/views.py's rosters use.
+    Returns a LIST -- every consumer already calls list() or iterates."""
+    return sorted(students, key=lambda u: (polish_sort_key(u.sort_name), u.username))

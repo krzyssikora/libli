@@ -11,7 +11,9 @@ collection's course.
 
 ## Reading the grid
 
-- **Rows** are students, one per line.
+- **Rows** are students, one per line, in register order: by surname, then first
+  name, alphabetically. A student whose account lacks either a first name or a
+  surname is placed by their display name.
 - **Columns** mirror the course structure — parts, chapters, sections, and
   units, in the same order as the builder outline.
 - Click a column header to **drill down**: a part column expands into its

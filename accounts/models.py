@@ -47,7 +47,7 @@ class User(AbstractUser):
         (populated for SSO users via allauth's default given_name/family_name
         mapping), else display_name-or-username. Callers case-fold it. NOTE:
         Python's default string order mis-sorts Polish diacritics (ł/ń/ś/ż land
-        after z) — the app does no locale-aware collation anywhere yet."""
+        after z) — pass it through core.collation.polish_sort_key."""
         first = (self.first_name or "").strip()
         last = (self.last_name or "").strip()
         if first and last:

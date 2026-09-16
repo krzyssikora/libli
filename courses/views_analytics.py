@@ -104,10 +104,9 @@ def analytics_matrix(request, slug):
     subset_pks = (
         (raw_subset & set(pool.values_list("pk", flat=True))) if raw_subset else set()
     )
-    if subset_pks:
-        students = pool.filter(pk__in=subset_pks).order_by("username")
-    else:
-        students = pool.order_by("username")
+    students = scoping.ordered_students(
+        pool.filter(pk__in=subset_pks) if subset_pks else pool
+    )
     with_data = _with_data_for(course)
     if mode == "results":
         matrix = build_results_matrix(
