@@ -3194,7 +3194,7 @@ for node in (marked, review, unstarted):
 
 Expected: three lines, `T34 marked /courses/t34-throwaway/u/<pk>/quiz/`, then `T34 review …` and `T34 unstarted …`. If `Course.objects.get(slug='mat-pp')` fails, the local slug differs (imports re-slug from the title): list `Course.objects.values_list('slug', 'title')` and substitute it. Then, with the server running (below), log in as `t34student` / `T34-local-only!` and, through the UI:
 - open **T34 marked** and answer **„Warszawa"** (correct), blanks **„2" and „5"** (partial), **„Londyn"** (incorrect); finish the quiz;
-- open **T34 review**, type any sentence, finish the quiz — it now awaits review;
+- open **T34 review**, type any sentence, finish the quiz — it now awaits review. Do this AFTER the owner's mat-pp captures in Step 2: finishing it sends the real mat-pp owner a notification, whose unread badge would otherwise sit in the header of those screenshots (Task B12 deletes it);
 - **never open T34 unstarted** — it is what renders a „not started" `.badge--muted` row on `course_results.html`.
 
 Step 1 measures `.badge--partial` on this student's own `quiz_results.html`, switching only the THROWAWAY user's theme (`User.objects.filter(username='t34student').update(theme='light')`, measure, then `'dark'`, measure) — it needs no restore. Task B12 deletes the throwaway course and student.
@@ -3294,16 +3294,16 @@ PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as t
 From the worktree (its `.env` points at the local mat-pp DB), before Step 1 removes anything:
 
 ```bash
-uv run python manage.py shell -c "from accounts.models import User; from courses.models import Course; c = Course.objects.filter(slug='t34-throwaway').first(); print(c.delete() if c else 'no course'); print(User.objects.filter(username='t34student').delete())"
+uv run python manage.py shell -c "from accounts.models import User; from courses.models import Course; from notifications.models import Notification; print(Notification.objects.filter(data__course_slug='t34-throwaway').delete()); c = Course.objects.filter(slug='t34-throwaway').first(); print(c.delete() if c else 'no course'); print(User.objects.filter(username='t34student').delete())"
 ```
 
-⚠️ Delete the course through the INSTANCE (`c.delete()`), never `Course.objects.filter(...).delete()`: `Course.delete` is overridden to remove the concrete question rows first, and a queryset delete skips it, orphaning them. Expected: the first tuple includes `'courses.Course': 1` plus cascaded rows (`ContentNode`, `Enrollment`, `QuizSubmission`, …) — it does NOT list the question models, because `Course.delete` removes those BEFORE the cascade whose counts it prints; the second includes `'accounts.User': 1`. `no course` or `(0, {})` means the wrong database or an already-cleaned copy — check `.env` before going on. Then prove nothing was orphaned:
+⚠️ Delete the course through the INSTANCE (`c.delete()`), never `Course.objects.filter(...).delete()`: `Course.delete` is overridden to remove the concrete question rows first, and a queryset delete skips it, orphaning them. Expected: the notification tuple includes `'notifications.Notification': 1` — finishing **T34 review** notified the REAL mat-pp owner (the student is in no group, so the course owner is the reviewer), and that row references the course only through its `data`, so no cascade reaches it. The course tuple includes `'courses.Course': 1` plus cascaded rows (`ContentNode`, `Enrollment`, `QuizSubmission`, …) — it does NOT list the question models, because `Course.delete` removes those BEFORE the cascade whose counts it prints; the second includes `'accounts.User': 1`. `no course` or `(0, {})` means the wrong database or an already-cleaned copy — check `.env` before going on. Then prove nothing was orphaned:
 
 ```bash
-uv run python manage.py shell -c "from courses.models import Blank, FillBlankQuestionElement, ShortTextQuestionElement; print(ShortTextQuestionElement.objects.filter(stem__contains='T34:').count(), FillBlankQuestionElement.objects.filter(stem__contains='T34:').count(), Blank.objects.filter(question__stem__contains='T34:').count())"
+uv run python manage.py shell -c "from courses.models import Blank, FillBlankQuestionElement, ShortTextQuestionElement; from notifications.models import Notification; print(ShortTextQuestionElement.objects.filter(stem__contains='T34:').count(), FillBlankQuestionElement.objects.filter(stem__contains='T34:').count(), Blank.objects.filter(question__stem__contains='T34:').count(), Notification.objects.filter(data__course_slug='t34-throwaway').count())"
 ```
 
-Expected: `0 0 0`.
+Expected: `0 0 0 0`.
 
 - [ ] **Step 1: Remove the `media` link or directory — junction-aware**
 
