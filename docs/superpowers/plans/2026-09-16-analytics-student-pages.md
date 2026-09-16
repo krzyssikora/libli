@@ -3144,7 +3144,27 @@ uv run python manage.py shell -c "from django.conf import settings; from django.
 
 Expected: `True`, the mat-pp database name the main checkout uses, and a `MEDIA_ROOT` whose directory lists mat-pp's files. Both `.env` and `media` are gitignored — confirm `git status --short` does not list them.
 
-Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2.
+**A student to log in as.** `quiz_results.html` and `course_results.html` are a student's OWN pages — a teacher cannot open them for someone else, and no mat-pp student's password is known. On the LOCAL copy only (prod is the source of truth and is never touched), create a throwaway student with a known password and a submission carrying correct, partial and incorrect rows on a quiz of three auto-marked short-text questions — pick such a quiz in the mat-pp course, or accept whatever three AUTO questions its first quiz has:
+
+```bash
+uv run python manage.py shell -c "
+from decimal import Decimal
+from courses.models import ContentNode, Enrollment, QuestionElement, QuestionResponse, QuizSubmission
+from tests.factories import make_verified_user
+quiz = ContentNode.objects.filter(course__slug='mat-pp', unit_type='quiz').order_by('pk').first()
+student = make_verified_user(username='t34student', email='t34student@example.invalid', password='T34-local-only!')
+Enrollment.objects.get_or_create(student=student, course=quiz.course)
+sub = QuizSubmission.objects.create(student=student, unit=quiz, status='submitted', score=Decimal('1.5'), max_score=Decimal('3'))
+auto = [el for el in quiz.elements.order_by('order', 'pk') if isinstance(el.content_object, QuestionElement) and el.content_object.marking_mode == QuestionElement.MarkingMode.AUTO][:3]
+for el, fraction in zip(auto, ('1', '0.5', '0')):
+    QuestionResponse.objects.create(submission=sub, element=el, latest_answer='x', fraction=Decimal(fraction), attempt_count=1)
+print(quiz.pk, quiz.title, len(auto))
+"
+```
+
+Expected: a quiz pk and title, and `3`. If the mat-pp slug differs locally, look it up first (`Course.objects.values_list('slug', flat=True)`). Log in as `t34student` / `T34-local-only!` for the student pages; switch its theme with `User.objects.filter(username='t34student').update(theme='dark')`. The partial badge's contrast can ALSO be measured on the teacher's per-question page for this student, which needs no student login. Delete the throwaway student in Task B12.
+
+Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2. Note its port.
 
 - [ ] **Step 1: `frontend-design` pass**
 
@@ -3162,6 +3182,8 @@ With the server from Step 0 running, capture light **and** dark, 1280 and 390 wi
 
 Save them under the scratchpad directory, open each with the Read tool, and judge dark on its own terms (legibility of `--warning` text, the badge surface against the card, the pill tokens). Fix what is wrong before continuing.
 
+**Stop the Step 0 server now** (it would otherwise keep running through the gate and the rebase, autoreloading on every rewritten file, and hold files in the worktree that block Task B12). Stop it the way the `run` skill started it, then confirm nothing listens on its port: `netstat -ano | grep ":<port> " | grep LISTENING` prints nothing.
+
 - [ ] **Step 2b: Commit the design-pass and screenshot fixes**
 
 If `git status --short` is clean, skip this step. Otherwise:
@@ -3173,7 +3195,7 @@ uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py
 uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py
 ```
 
-If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: remove the `media` junction first (`cmd //c rmdir media` — the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media), then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Steps 0-2 for more mat-pp screenshots, re-run Step 0's junction block first (it removes the seeded directory). Then:
+If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: first take `media` out of the way with the same junction-aware command Task B12 uses — `if [ -L media ]; then MSYS_NO_PATHCONV=1 cmd /c rmdir media; elif [ -d media ]; then rm -rf media; fi` — because the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media, then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Steps 0-2 for more mat-pp screenshots, re-run Step 0's junction block first (it removes the seeded directory). Then:
 
 ```bash
 git status --short   # stage EVERY file listed (CSS, templates, courses/*.py, docs/help/, locale/, tests/, help PNGs) -- nothing else should be dirty
@@ -3224,6 +3246,14 @@ PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as t
 
 ### Task B12: Clean up after PR B merges
 
+**Precondition:** no process runs from the worktree (the B11 Step 0 server is stopped — `netstat -ano | grep LISTENING` shows nothing on its port) and no shell's cwd is inside it.
+
+- [ ] **Step 0: Delete the throwaway T34 student (local copy only)**
+
+```bash
+uv run python manage.py shell -c "from accounts.models import User; print(User.objects.filter(username='t34student').delete())"
+```
+
 - [ ] **Step 1: Remove the `media` link or directory — junction-aware**
 
 From the worktree:
@@ -3241,8 +3271,15 @@ ls C:/Users/krzys/Documents/Python/own/libli/media | head -3
 From the main checkout:
 
 ```bash
+gh pr view feat/analytics-student-order --json state -q .state
+gh pr view feat/analytics-student-pages --json state -q .state
+```
+
+Expected: `MERGED` twice. **If either is not `MERGED`, stop.** `git branch -d` is not a safety check here: both branches track their pushed upstream, so it deletes them whether or not the PR merged. Then:
+
+```bash
 git -C C:/Users/krzys/Documents/Python/own/libli worktree remove C:/Users/krzys/Documents/Python/own/libli-analytics-pages
 git -C C:/Users/krzys/Documents/Python/own/libli branch -d feat/analytics-student-order feat/analytics-student-pages
 ```
 
-`worktree remove` refuses if the tree is dirty (the copied `.env` is ignored and does not block it). `branch -d` refuses an unmerged branch — if it does, check the PR really merged rather than forcing with `-D`.
+`worktree remove` refuses if the tree is dirty (the copied `.env` is ignored and does not block it) or if a process still holds its files.
