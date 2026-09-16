@@ -3152,45 +3152,72 @@ from decimal import Decimal
 from django.db import transaction
 from django.urls import reverse
 from courses.fillblank import SENTINEL
-from courses.models import Blank, Course, ContentNode, Element, Enrollment, FillBlankQuestionElement, ShortTextQuestionElement
+from courses.models import Blank, Course, ContentNode, Element, Enrollment, FillBlankQuestionElement, QuestionElement, ShortTextQuestionElement
 from accounts.models import User
 from tests.factories import make_verified_user
 matpp = Course.objects.get(slug='mat-pp')
 course, _ = Course.objects.get_or_create(slug='t34-throwaway', defaults={'title': 'T34 throwaway', 'language': matpp.language, 'owner': matpp.owner})
-quiz, _ = ContentNode.objects.get_or_create(course=course, kind='unit', unit_type='quiz', defaults={'title': 'T34 quiz', 'published': True})
-if not quiz.elements.exists():  # not `made`: a run that failed after creating the node must still fill it
+def quiz(title):
+    node, _ = ContentNode.objects.get_or_create(course=course, kind='unit', unit_type='quiz', title=title, defaults={'published': True})
+    return node
+def fill(node, build):
+    # keyed on existing elements, not on get_or_create: a failed run must still fill the node
+    if node.elements.exists():
+        return
     with transaction.atomic():  # all-or-nothing: a failed run leaves no question rows to orphan
-        t0, t1 = f'{SENTINEL}0{SENTINEL}', f'{SENTINEL}1{SENTINEL}'
-        q1 = ShortTextQuestionElement.objects.create(stem='<p>Capital of Poland?</p>', accepted='Warszawa', max_marks=Decimal('1'))
-        q2 = FillBlankQuestionElement.objects.create(stem=f'<p>1 + 1 = {t0}, 2 + 2 = {t1}</p>', max_marks=Decimal('1'))
-        Blank.objects.create(question=q2, accepted='2', order=0)
-        Blank.objects.create(question=q2, accepted='4', order=1)
-        q3 = ShortTextQuestionElement.objects.create(stem='<p>Capital of France?</p>', accepted='Paryż', max_marks=Decimal('1'))
-        for order, q in enumerate((q1, q2, q3)):
-            Element.objects.create(unit=quiz, content_object=q, order=order)
+        for order, q in enumerate(build()):
+            Element.objects.create(unit=node, content_object=q, order=order)
+def marked_questions():
+    t0, t1 = f'{SENTINEL}0{SENTINEL}', f'{SENTINEL}1{SENTINEL}'
+    q1 = ShortTextQuestionElement.objects.create(stem='<p>T34: capital of Poland?</p>', accepted='Warszawa', max_marks=Decimal('1'))
+    q2 = FillBlankQuestionElement.objects.create(stem=f'<p>T34: 1 + 1 = {t0}, 2 + 2 = {t1}</p>', max_marks=Decimal('1'))
+    Blank.objects.create(question=q2, accepted='2', order=0)
+    Blank.objects.create(question=q2, accepted='4', order=1)
+    q3 = ShortTextQuestionElement.objects.create(stem='<p>T34: capital of France?</p>', accepted='Paryż', max_marks=Decimal('1'))
+    return [q1, q2, q3]
+def review_questions():
+    return [ShortTextQuestionElement.objects.create(stem='<p>T34: describe a set in one sentence.</p>', accepted='x', marking_mode=QuestionElement.MarkingMode.REVIEW, max_marks=Decimal('1'))]
+def unstarted_questions():
+    return [ShortTextQuestionElement.objects.create(stem='<p>T34: never opened.</p>', accepted='x', max_marks=Decimal('1'))]
+marked, review, unstarted = quiz('T34 marked'), quiz('T34 review'), quiz('T34 unstarted')
+fill(marked, marked_questions)
+fill(review, review_questions)
+fill(unstarted, unstarted_questions)
 student = User.objects.filter(username='t34student').first() or make_verified_user(username='t34student', email='t34student@example.invalid', password='T34-local-only!')
 Enrollment.objects.get_or_create(student=student, course=course)
-print(reverse('courses:quiz_unit', kwargs={'slug': course.slug, 'node_pk': quiz.pk}))
+for node in (marked, review, unstarted):
+    print(node.title, reverse('courses:quiz_unit', kwargs={'slug': course.slug, 'node_pk': node.pk}))
 "
 ```
 
-Expected: a `/courses/t34-throwaway/u/<pk>/quiz/…` path. If `Course.objects.get(slug='mat-pp')` fails, the local slug differs (imports re-slug from the title): list `Course.objects.values_list('slug', 'title')` and substitute it. Then, with the server running (below), log in as `t34student` / `T34-local-only!`, open that path, and answer through the UI: **„Warszawa"** (correct), blanks **„2" and „5"** (partial), **„Londyn"** (incorrect); finish the quiz. Step 1 measures `.badge--partial` on this student's own `quiz_results.html`, switching only the THROWAWAY user's theme (`User.objects.filter(username='t34student').update(theme='light')`, measure, then `'dark'`, measure) — it needs no restore. The mat-pp screenshots in Step 2 („Zbiory - quiz" and the other teacher pages) use REAL mat-pp submissions, never this student. Task B12 deletes the throwaway course and student.
+(Every stem starts `T34:` — Task B12's orphan check keys on that. The snippet contains no backticks and no `$`: inside the double-quoted `-c` string bash would expand them.)
 
-Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2. **Record its port** where Task B12 can find it in a later session without publishing it: `echo <port> > .env.t34-port` in the worktree (the `.env*` ignore rule keeps it out of git).
+Expected: three lines, `T34 marked /courses/t34-throwaway/u/<pk>/quiz/`, then `T34 review …` and `T34 unstarted …`. If `Course.objects.get(slug='mat-pp')` fails, the local slug differs (imports re-slug from the title): list `Course.objects.values_list('slug', 'title')` and substitute it. Then, with the server running (below), log in as `t34student` / `T34-local-only!` and, through the UI:
+- open **T34 marked** and answer **„Warszawa"** (correct), blanks **„2" and „5"** (partial), **„Londyn"** (incorrect); finish the quiz;
+- open **T34 review**, type any sentence, finish the quiz — it now awaits review;
+- **never open T34 unstarted** — it is what renders a „not started" `.badge--muted` row on `course_results.html`.
+
+Step 1 measures `.badge--partial` on this student's own `quiz_results.html`, switching only the THROWAWAY user's theme (`User.objects.filter(username='t34student').update(theme='light')`, measure, then `'dark'`, measure) — it needs no restore. Task B12 deletes the throwaway course and student.
+
+Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2. ⚠️ Expect an "unapplied migration" warning: `origin/master` carries a data-only migration (`courses` 0065, blank-stem cleanup) that the local mat-pp DB and the main checkout's docs branch do not have. **Do not run `migrate` from the worktree** — it would rewrite the shared local DB and record a migration the main checkout cannot see. The warning is harmless for these pages. **Record its port** where Task B12 can find it in a later session without publishing it: `echo <port> > .env.t34-port` in the worktree (the `.env*` ignore rule keeps it out of git).
 
 - [ ] **Step 1: `frontend-design` pass**
 
 Invoke the `frontend-design:frontend-design` skill on the two pages as built (spec §8: after the markup exists, before screenshots are judged). Scope: spacing, type scale and colour of the new elements only (`.breakdown__view`, `.breakdown-unit__tag`, `.badge--todo`, `.answers__options`, `.answers__header-row`, `.answers__heading`, `.answers__score`). Any change it proposes to a rule an e2e test pins must keep that test green; re-run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py` after applying.
 
-On the Step 0 server, logged in as `t34student`, open the throwaway quiz's `quiz_results.html` and measure the partial row's `.badge--partial` text contrast (computed `color` against computed `background-color`) with `t34student`'s theme set to `light`, then to `dark` (the `theme` field as in Step 0, never a cookie; reload after each change). If either is below 4.5:1, **do not change the colour**. If Task 0 got an owner answer (recorded under "Spec gaps" item 6), report the measured ratios beside that decision; only if it got none, record the ratio for the PR body as a question for the owner.
+On the Step 0 server, logged in as `t34student`, open **T34 marked**'s `quiz_results.html` and measure the partial row's `.badge--partial` text contrast (computed `color` against computed `background-color`) with `t34student`'s theme set to `light`, then to `dark` (the `theme` field as in Step 0, never a cookie; reload after each change). If either is below 4.5:1, **do not change the colour**. If Task 0 got an owner answer (recorded under "Spec gaps" item 6), report the measured ratios beside that decision; only if it got none, record the ratio for the PR body as a question for the owner.
 
 - [ ] **Step 2: Screenshots on mat-pp data (T34)**
 
-With the server from Step 0 running, capture light **and** dark, 1280 and 390 wide:
-- the student results page in Results and in Progress mode;
-- the per-question page: the owner's „Zbiory - quiz" with a wrong choice answer on question 1; an in-progress quiz; a quiz awaiting review;
-- `quiz_results.html` for a student with correct/partial/incorrect rows;
-- `course_results.html` and `review_submission.html` (the `.badge--muted` recolour).
+With the server from Step 0 running, capture light **and** dark, 1280 and 390 wide.
+
+**As the mat-pp owner** (theme switched via the owner's `theme` field — see the restore note below):
+- on **mat-pp**, from REAL submissions: the student results page in Results and in Progress mode; the per-question page for „Zbiory - quiz" with a wrong choice answer on question 1; the per-question page for an in-progress quiz;
+- on **t34-throwaway** — the one exception to "real mat-pp submissions", because the local mat-pp copy holds NO submission awaiting review: `t34student`'s per-question page for **T34 review**, and that submission's `review_submission.html` (reached from its Review link).
+
+**As `t34student`** (the only student with a known password; theme via `User.objects.filter(username='t34student').update(theme='light')`, then `'dark'`, reloading after each):
+- `quiz_results.html` for **T34 marked** (correct/partial/incorrect rows on tinted panels);
+- `course_results.html` for **t34-throwaway** — its **T34 unstarted** row is the „not started" `.badge--muted` surface this capture exists to judge.
 
 Save them under the scratchpad directory, open each with the Read tool, and judge dark on its own terms (legibility of `--warning` text, the badge surface against the card, the pill tokens). Fix what is wrong before continuing.
 
@@ -3273,7 +3300,7 @@ uv run python manage.py shell -c "from accounts.models import User; from courses
 ⚠️ Delete the course through the INSTANCE (`c.delete()`), never `Course.objects.filter(...).delete()`: `Course.delete` is overridden to remove the concrete question rows first, and a queryset delete skips it, orphaning them. Expected: the first tuple includes `'courses.Course': 1` plus cascaded rows (`ContentNode`, `Enrollment`, `QuizSubmission`, …) — it does NOT list the question models, because `Course.delete` removes those BEFORE the cascade whose counts it prints; the second includes `'accounts.User': 1`. `no course` or `(0, {})` means the wrong database or an already-cleaned copy — check `.env` before going on. Then prove nothing was orphaned:
 
 ```bash
-uv run python manage.py shell -c "from courses.models import Blank, FillBlankQuestionElement, ShortTextQuestionElement; print(ShortTextQuestionElement.objects.filter(stem__in=['<p>Capital of Poland?</p>', '<p>Capital of France?</p>']).count(), FillBlankQuestionElement.objects.filter(stem__contains='1 + 1 =').count(), Blank.objects.filter(question__stem__contains='1 + 1 =').count())"
+uv run python manage.py shell -c "from courses.models import Blank, FillBlankQuestionElement, ShortTextQuestionElement; print(ShortTextQuestionElement.objects.filter(stem__contains='T34:').count(), FillBlankQuestionElement.objects.filter(stem__contains='T34:').count(), Blank.objects.filter(question__stem__contains='T34:').count())"
 ```
 
 Expected: `0 0 0`.
