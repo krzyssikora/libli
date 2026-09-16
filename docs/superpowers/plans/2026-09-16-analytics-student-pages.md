@@ -3156,8 +3156,8 @@ from accounts.models import User
 from tests.factories import make_verified_user
 matpp = Course.objects.get(slug='mat-pp')
 course, _ = Course.objects.get_or_create(slug='t34-throwaway', defaults={'title': 'T34 throwaway', 'language': matpp.language, 'owner': matpp.owner})
-quiz, made = ContentNode.objects.get_or_create(course=course, kind='unit', unit_type='quiz', defaults={'title': 'T34 quiz', 'published': True})
-if made:
+quiz, _ = ContentNode.objects.get_or_create(course=course, kind='unit', unit_type='quiz', defaults={'title': 'T34 quiz', 'published': True})
+if not quiz.elements.exists():  # not `made`: a run that failed after creating the node must still fill it
     t0, t1 = f'{SENTINEL}0{SENTINEL}', f'{SENTINEL}1{SENTINEL}'
     q1 = ShortTextQuestionElement.objects.create(stem='<p>Capital of Poland?</p>', accepted='Warszawa', max_marks=Decimal('1'))
     q2 = FillBlankQuestionElement.objects.create(stem=f'<p>1 + 1 = {t0}, 2 + 2 = {t1}</p>', max_marks=Decimal('1'))
@@ -3174,7 +3174,7 @@ print(reverse('courses:quiz_unit', kwargs={'slug': course.slug, 'node_pk': quiz.
 
 Expected: a `/courses/t34-throwaway/u/<pk>/quiz/…` path. If `Course.objects.get(slug='mat-pp')` fails, the local slug differs (imports re-slug from the title): list `Course.objects.values_list('slug', 'title')` and substitute it. Then, with the server running (below), log in as `t34student` / `T34-local-only!`, open that path, and answer through the UI: **„Warszawa"** (correct), blanks **„2" and „5"** (partial), **„Londyn"** (incorrect); finish the quiz. Switch the student's theme with `User.objects.filter(username='t34student').update(theme='dark')`. The owner's per-question page for this student (reached from the throwaway course's analytics) shows the same badges without a student login, which is where Step 1 measures `.badge--partial`. The mat-pp screenshots in Step 2 („Zbiory - quiz" and the other teacher pages) use REAL mat-pp submissions, never this student. Task B12 deletes the throwaway course and student.
 
-Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2. **Record its port** in the PR B body draft (`<scratchpad>/pr-b.md`, a line `dev server port: <n>`) — Task B12's precondition checks it, possibly in a later session.
+Then start the app against the local mat-pp database (use the `run` skill) and leave it running through Step 2. **Record its port** where Task B12 can find it in a later session without publishing it: `echo <port> > .env.t34-port` in the worktree (the `.env*` ignore rule keeps it out of git).
 
 - [ ] **Step 1: `frontend-design` pass**
 
@@ -3205,7 +3205,7 @@ uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py
 uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py
 ```
 
-If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: first take `media` out of the way with the same junction-aware command Task B12 uses — `if [ -L media ]; then MSYS_NO_PATHCONV=1 cmd /c rmdir media; elif [ -d media ]; then rm -rf media; fi` — because the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media, then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Steps 0-2 for more mat-pp screenshots, re-run Step 0's junction block, then restart the server (the throwaway-course snippet is idempotent, and the student's quiz is already taken — do not take it again) (it removes the seeded directory). Then:
+If a msgid changed, run the Catalog procedure too. If any CSS or template changed, the help screenshots committed in Task B10 are stale: first take `media` out of the way with the same junction-aware command Task B12 uses — `if [ -L media ]; then MSYS_NO_PATHCONV=1 cmd /c rmdir media; elif [ -d media ]; then rm -rf media; fi` — because the capture seeds files under `MEDIA_ROOT` and must not write into the main checkout's media, then re-run Task B10 Step 3's capture-and-restore commands exactly, and include the kept PNGs in this commit. The re-capture leaves a plain `media/` directory behind: if you go back to Steps 0-2 for more mat-pp screenshots, re-run Step 0's junction block (it removes the seeded directory), then restart the server (the throwaway-course snippet is idempotent, and the student's quiz is already taken — do not take it again). Then:
 
 ```bash
 git status --short   # stage EVERY file listed (CSS, templates, courses/*.py, docs/help/, locale/, tests/, help PNGs) -- nothing else should be dirty
@@ -3256,17 +3256,17 @@ PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as t
 
 ### Task B12: Clean up after PR B merges
 
-**Precondition:** no process runs from the worktree (the B11 Step 0 server is stopped — `netstat -ano | grep ":<port> " | grep LISTENING`, with the port recorded in PR B's body, prints nothing) and no shell's cwd is inside it.
+**Precondition:** no process runs from the worktree (the B11 Step 0 server is stopped — `netstat -ano | grep ":<port> " | grep LISTENING`, with the port from `cat .env.t34-port` in the worktree, prints nothing) and no shell's cwd is inside it.
 
 - [ ] **Step 0: Delete the throwaway T34 course and student (local copy only)**
 
 From the worktree (its `.env` points at the local mat-pp DB), before Step 1 removes anything:
 
 ```bash
-uv run python manage.py shell -c "from accounts.models import User; from courses.models import Course; print(Course.objects.filter(slug='t34-throwaway').delete()); print(User.objects.filter(username='t34student').delete())"
+uv run python manage.py shell -c "from accounts.models import User; from courses.models import Course; c = Course.objects.filter(slug='t34-throwaway').first(); print(c.delete() if c else 'no course'); print(User.objects.filter(username='t34student').delete())"
 ```
 
-Expected: two tuples; the first includes `'courses.Course': 1`, the second `'accounts.User': 1`. A `(0, {})` means the wrong database or an already-cleaned copy — check `.env` before going on.
+⚠️ Delete the course through the INSTANCE (`c.delete()`), never `Course.objects.filter(...).delete()`: `Course.delete` is overridden to remove the concrete question rows first, and a queryset delete skips it, orphaning them. Expected: the first tuple includes `'courses.Course': 1`, `'courses.ShortTextQuestionElement': 2`, `'courses.FillBlankQuestionElement': 1` and `'courses.Blank': 2`; the second includes `'accounts.User': 1`. `no course` or `(0, {})` means the wrong database or an already-cleaned copy — check `.env` before going on.
 
 - [ ] **Step 1: Remove the `media` link or directory — junction-aware**
 
