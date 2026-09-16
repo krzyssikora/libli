@@ -102,7 +102,14 @@
 
 # PR A — student order and names (§3)
 
-Branch: `git fetch origin && git switch -c feat/analytics-student-order origin/master` (local `master` may be behind).
+**Where to work.** This plan and its spec live ONLY on the local, unpushed `docs/analytics-pupil-pages-spec` branch; switching the main checkout to a branch cut from `origin/master` would remove both from the working tree. So execute in a **separate worktree** and leave the main checkout on the docs branch:
+
+```bash
+git -C C:/Users/krzys/Documents/Python/own/libli fetch origin
+git -C C:/Users/krzys/Documents/Python/own/libli worktree add C:/Users/krzys/Documents/Python/own/libli-analytics-pages -b feat/analytics-student-order origin/master
+```
+
+Run every command of PR A and PR B from `C:/Users/krzys/Documents/Python/own/libli-analytics-pages`. Read the plan and spec by absolute path from the main checkout (`C:/Users/krzys/Documents/Python/own/libli/docs/superpowers/…`). A worktree has no `.env`: export `TEST_DATABASE_URL` in the shell before running tests (editing a `.env` is inert when the variable is already exported), and never run tests in two trees at once — they share the test database.
 
 ### Task A1: One ordering helper, used by the matrix and the export
 
@@ -543,7 +550,7 @@ PR body: what changed (§3), T1–T5, that T5 is a boundary test PR B deletes, t
 
 # PR B — the two pages (§4, §5, §6)
 
-Branch: `feat/analytics-student-pages`, created from the tip of `feat/analytics-student-order`. After PR A merges, `git rebase origin/master` before opening PR B.
+Branch: `feat/analytics-student-pages`, created in the same worktree from the tip of PR A's branch — `git switch -c feat/analytics-student-pages feat/analytics-student-order` — once PR A is pushed. After PR A merges, `git rebase origin/master` before opening PR B (Task B11 Step 4).
 
 ### Task B1: Marks read the same everywhere (§5.5)
 
@@ -2548,7 +2555,7 @@ git commit -m "feat(analytics): label the student's answer; align multi-part ans
 
 - [ ] **Step 1: Write the failing tests**
 
-In `tests/test_analytics_student_quiz.py`, **delete** `test_t36_header_pill_matches_the_breakdown_pill` and append:
+In `tests/test_analytics_student_quiz.py`, **delete** `test_t36_header_pill_matches_the_breakdown_pill`, rewrite the two section comments that name it **in place** (same line count, keep the dashes padding to the same width) — `# --- header pill + Review link (full parity is T36, Task 7) ---…` → `# --- header pill + Review link (full parity is T27) ---…` and `# --- T36 header parity ---…` → `# --- T27 header parity ---…` — and append:
 
 ```python
 def _status(client, course, pupil, quiz):
@@ -2886,7 +2893,7 @@ and replace the two hard-coded pills:
 
 - [ ] **Step 5: Run to verify**
 
-Run: `uv run pytest tests/test_analytics_student_quiz.py tests/test_consumption_pages.py tests/test_courses_views.py tests/test_css_citations_are_durable.py tests/test_css_comments_are_terminated_once.py tests/test_border_contrast_css.py tests/test_text_colour_css.py`
+Run: `uv run pytest tests/test_analytics_student_quiz.py tests/test_consumption_pages.py tests/test_courses_views.py tests/test_quiz_results_choice_reveal.py tests/test_ux_roster_and_feedback.py tests/test_css_citations_are_durable.py tests/test_css_comments_are_terminated_once.py tests/test_border_contrast_css.py tests/test_text_colour_css.py`
 Expected: all PASS.
 
 - [ ] **Step 6: Falsify T25**
@@ -3135,7 +3142,7 @@ Expected: fuzzy counts `0`; every summary line `N passed` with no `failed`/`erro
 
 - [ ] **Step 4: Rebase and open PR B**
 
-Once PR A is merged:
+**Stop here until PR A is merged** — Steps 1–3 may finish while PR A is still in review. If PR A took review changes after `feat/analytics-student-pages` was cut, they arrive through this rebase; on a conflict in `tests/test_analytics_student_order.py`, keep B3's deletion of T5 and keep PR A's other changes. Once PR A is merged:
 
 ```bash
 git fetch origin
