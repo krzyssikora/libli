@@ -72,7 +72,7 @@
 3. **T33b as written passes on a transparent badge.** A transparent computed background (`rgba(0, 0, 0, 0)`) "differs" from the panel tint while showing it through — the exact green-on-green §2.7 warns about. Task B9's e2e also asserts the badge background is **opaque**.
 4. **`quiz_results.html` carries no drift note today** (only `analytics_student_quiz.html` does). Task B9 adds a single-line `{# … #}` to it, appended to an existing line so the file's line count is unchanged.
 5. **`.pill--awaiting`'s token re-expression (§5.4) names no tokens.** Task B9 uses `--warning-subtle` fill, `--warning` border, `--text-primary` text (AA-safe in both themes; `--warning` text on `--warning-subtle` is ~2.9:1 in light).
-6. **`--warning` text on `--surface-sunken` (§5.4 `.badge--partial`) FAILS AA in light mode: 3.19:1** (`#B8811F` on `#FAF8F3`, computed from `tokens.css`; dark `#E8B761` on `#15130F` passes easily). This is an owner question raised **before** execution starts; absent an answer, Task B9 implements the spec as written, Task B11 re-measures it in the browser as confirmation, and the PR body quotes the ratio. The colour is never changed unilaterally.
+6. **`--warning` text on `--surface-sunken` (§5.4 `.badge--partial`) FAILS AA in light mode: 3.19:1** (`#B8811F` on `#FAF8F3`, computed from `tokens.css`; dark `#E8B761` on `#15130F` passes easily). Asked in **Task 0** below; if the owner has not answered, Task B9 implements the spec as written, Task B11 re-measures it in the browser as confirmation, and the PR body quotes the ratio. The colour is never changed unilaterally.
 7. **T19 cannot catch a re-deriving builder.** A `_choice` that calls `choice_marks` itself computes the very dict the page computed, so T19's equality stays green. Task B5 adds **T19b**: the builder is handed a doctored dict and must follow it.
 
 ## File map
@@ -110,6 +110,11 @@ git -C C:/Users/krzys/Documents/Python/own/libli worktree add C:/Users/krzys/Doc
 ```
 
 Run every command of PR A and PR B from `C:/Users/krzys/Documents/Python/own/libli-analytics-pages`. Read the plan and spec by absolute path from the main checkout (`C:/Users/krzys/Documents/Python/own/libli/docs/superpowers/…`). A worktree has no `.env`: export `TEST_DATABASE_URL` in the shell before running tests (editing a `.env` is inert when the variable is already exported), and never run tests in two trees at once — they share the test database.
+
+### Task 0: Owner question before execution
+
+- [ ] **Step 1:** Ask the owner (plain text, not a dialog): "`.badge--partial` (§5.4) is `--warning` text on `--surface-sunken`, 3.19:1 in light mode — below AA. Keep it as specified, or use a different text colour for the partial badge (e.g. `--text-primary` with the `--warning` border)?"
+- [ ] **Step 2:** Record the answer as one line under "Spec gaps" item 6 in this plan (in the main checkout, committed on the docs branch). Task B9 Step 4 follows it: "keep" or no answer → the CSS as written; a named alternative → change only `.badge--partial`'s `color` declaration, and keep T33b's assertions unchanged.
 
 ### Task A1: One ordering helper, used by the matrix and the export
 
@@ -533,7 +538,7 @@ uv run pytest tests/test_[p-z]*.py tests/demo tests/lal_import
 uv run pytest accounts courses core demo grouping institution integrations notes notifications support tags
 ```
 
-Expected: each summary line reads `N passed` with no `failed`/`error`. Read the summary, not the exit code. Then `uv run pytest -m e2e tests/test_e2e_analytics.py`.
+Expected: each summary line reads `N passed` with no `failed`/`error`. Read the summary, not the exit code. Then `uv run pytest -m e2e tests/test_e2e_analytics.py tests/test_e2e_demo_tab.py` (the second loads the matrix as a kit teacher).
 
 - [ ] **Step 7: Commit and open PR A**
 
@@ -596,6 +601,18 @@ Add `from django.utils import translation` to the imports; add `import pytest` i
 (No grouping case — spec §2.9: `force_grouping` cannot suppress grouping, so such a test could never go red.)
 
 - [ ] **Step 2: Write the page tests (T29 badge + pill, T30)**
+
+First update the module docstring of `tests/test_analytics_student_quiz.py`. Its first line reads `"""The per-question drill-down page (spec §3, §5; T30, T31, T31b, T33, T35-T39, T41).`; replace that one line with:
+
+```python
+"""The per-question drill-down page. Two specs' test ids live here: T30, T31, T31b,
+T33, T35-T39, T41 are the per-question drill-down spec's (2026-09-14); T18-T32 added
+from Task B1 on are the analytics student pages spec's (2026-09-16). Same number, two
+tests (e.g. test_t31_each_path_segment_… vs test_t31_option_table_…): -k by NAME.
+```
+
+Keep the rest of the docstring. The file grows three lines at the top; no live-code file cites its line numbers.
+
 
 Append to `tests/test_analytics_student_quiz.py` (`QuestionElement` is already imported; add the `_polish` helper from Global Constraints near `_owner_view`):
 
@@ -3096,6 +3113,17 @@ Measure `.badge--partial`'s text contrast (computed `color` against computed `ba
 
 - [ ] **Step 2: Screenshots on mat-pp data (T34)**
 
+⚠️ **A worktree cannot serve the app as-is.** `config/settings/base.py` reads `.env` from `BASE_DIR` (the worktree, which has none: `DEBUG` falls back to False, so the DEBUG-only media routes vanish, and `DATABASE_URL` falls back to its hard-coded default), and `MEDIA_ROOT` is `BASE_DIR / "media"`, which holds mat-pp's images only in the main checkout. From the worktree, first:
+
+```bash
+cp C:/Users/krzys/Documents/Python/own/libli/.env .env
+cmd //c mklink /J media "C:\Users\krzys\Documents\Python\own\libli\media"
+uv run python manage.py shell -c "from django.conf import settings; from django.db import connection; print(settings.DEBUG, connection.settings_dict['NAME'], settings.MEDIA_ROOT)"
+```
+
+Expected: `True`, the mat-pp database name the main checkout uses, and a `MEDIA_ROOT` whose directory lists mat-pp's files. Both `.env` and `media` are gitignored — confirm `git status --short` does not list them. Remove the junction with `cmd //c rmdir media` (never `rm -rf`, which follows it into the main checkout's media) before removing the worktree.
+
+
 Run the app against the local mat-pp database (use the `run` skill). Capture light **and** dark, 1280 and 390 wide:
 - the student results page in Results and in Progress mode;
 - the per-question page: the owner's „Zbiory - quiz" with a wrong choice answer on question 1; an in-progress quiz; a quiz awaiting review;
@@ -3135,7 +3163,7 @@ uv run pytest tests/test_[a-f]*.py
 uv run pytest tests/test_[g-o]*.py
 uv run pytest tests/test_[p-z]*.py tests/demo tests/lal_import
 uv run pytest accounts courses core demo grouping institution integrations notes notifications support tags
-uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py tests/test_e2e_analytics.py tests/test_e2e_results.py tests/test_e2e_review.py tests/test_e2e_unit_nav.py tests/test_e2e_outline_tree.py tests/test_e2e_quiz_math.py tests/test_e2e_quiz.py tests/test_e2e_choicegrid.py
+uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py tests/test_e2e_analytics.py tests/test_e2e_results.py tests/test_e2e_review.py tests/test_e2e_unit_nav.py tests/test_e2e_outline_tree.py tests/test_e2e_quiz_math.py tests/test_e2e_quiz.py tests/test_e2e_choicegrid.py tests/test_e2e_questions_2diii.py tests/test_e2e_demo_tab.py
 ```
 
 Expected: fuzzy counts `0`; every summary line `N passed` with no `failed`/`error`. If an e2e fails, re-run it alone before believing it (parallel-load flakes are known); a real failure is fixed, not retried away.
