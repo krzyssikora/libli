@@ -1,15 +1,13 @@
 """Student order and names in the analytics matrix and gradebook export
-(spec §3; T1-T5)."""
+(spec §3; T1-T4)."""
 
 import csv
 import io
-from decimal import Decimal
 
 import pytest
 from bs4 import BeautifulSoup
 from django.urls import reverse
 
-from courses.models import QuizSubmission
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
@@ -139,39 +137,3 @@ def test_t3_export_names_students_first_name_first(client, shape):
         "Iga Świątek",
         "Tomasz Zych (TZ nick)",
     ]
-
-
-def test_t5_drill_down_headings_keep_the_display_name_until_pr_b(client):
-    """PR A's boundary (spec §8). PR B DELETES this test -- it rewrites both
-    headings by design, and T28/T28b are the successors."""
-    course, users = _class(client)
-    student = users["d_zych"]
-    quiz = ContentNodeFactory(
-        course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
-    )
-    QuizSubmission.objects.create(
-        student=student,
-        unit=quiz,
-        status="submitted",
-        score=Decimal("0"),
-        max_score=Decimal("0"),
-    )
-    student_page = client.get(
-        reverse(
-            "courses:manage_analytics_student",
-            kwargs={"slug": course.slug, "student_pk": student.pk},
-        )
-    ).content.decode()
-    quiz_page = client.get(
-        reverse(
-            "courses:manage_analytics_student_quiz",
-            kwargs={"slug": course.slug, "student_pk": student.pk, "node_pk": quiz.pk},
-        )
-    ).content.decode()
-    for html in (student_page, quiz_page):
-        h1 = (
-            BeautifulSoup(html, "html.parser")
-            .select_one("h1")
-            .get_text(" ", strip=True)
-        )
-        assert "TZ nick" in h1 and "Tomasz" not in h1

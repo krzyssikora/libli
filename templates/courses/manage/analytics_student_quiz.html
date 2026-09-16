@@ -9,7 +9,7 @@
 <section class="manage answers">
   <header class="manage__head">
     <h1 class="manage__title"><span lang="{{ course.language }}" data-math-title>{{ unit.title }}</span> — {{ student.display_name|default:student.username }}</h1>
-    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Breakdown" %}</a>
+    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Student results" %}</a>
   </header>
   <p class="answers__status">
     {% with p=pill %}

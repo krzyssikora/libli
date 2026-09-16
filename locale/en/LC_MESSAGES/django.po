@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-15 22:42+0200\n"
+"POT-Creation-Date: 2026-09-16 20:23+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -1150,32 +1150,32 @@ msgstr ""
 msgid "Additional"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:381
+#: .\courses\templatetags\courses_extras.py:382
 #: .\templates\courses\elements\fillgateelement.html:13
 msgid "Confirm"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:396
+#: .\courses\templatetags\courses_extras.py:397
 msgid "Choose ▾"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:398
+#: .\courses\templatetags\courses_extras.py:399
 msgid "Choose an option"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:400
-#: .\courses\templatetags\courses_extras.py:571
+#: .\courses\templatetags\courses_extras.py:401
+#: .\courses\templatetags\courses_extras.py:572
 #: .\templates\courses\elements\filltableelement.html:15
 msgid "Try again"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:439
-#: .\courses\templatetags\courses_extras.py:446
+#: .\courses\templatetags\courses_extras.py:440
+#: .\courses\templatetags\courses_extras.py:447
 msgid "Your answer"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:447
-#: .\courses\templatetags\courses_extras.py:547
+#: .\courses\templatetags\courses_extras.py:448
+#: .\courses\templatetags\courses_extras.py:548
 #: .\templates\courses\elements\choicegridquestionelement.html:18
 #: .\templates\courses\elements\choicequestion.html:51
 #: .\templates\courses\elements\dragfillblankquestionelement.html:16
@@ -1189,24 +1189,24 @@ msgstr ""
 msgid "Check"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:452
+#: .\courses\templatetags\courses_extras.py:453
 msgid "Correct!"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:465
+#: .\courses\templatetags\courses_extras.py:466
 msgid "The number is too big, try again."
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:466
+#: .\courses\templatetags\courses_extras.py:467
 msgid "The number is too small, try again."
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:524
+#: .\courses\templatetags\courses_extras.py:525
 msgid "Cycle options"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:552
-#: .\courses\templatetags\courses_extras.py:570
+#: .\courses\templatetags\courses_extras.py:553
+#: .\courses\templatetags\courses_extras.py:571
 #: .\templates\courses\elements\filltableelement.html:14
 #: .\templates\courses\elements\filltableelement.html:43
 msgid "Great!"
@@ -2492,33 +2492,37 @@ msgstr ""
 msgid "You're now enrolled in %(course)s."
 msgstr ""
 
-#: .\courses\views_analytics.py:418
+#: .\courses\views_analytics.py:427
 msgid "Colours reset to defaults."
 msgstr ""
 
-#: .\courses\views_analytics.py:424
+#: .\courses\views_analytics.py:433
 msgid "Colours saved."
 msgstr ""
 
-#: .\courses\views_export.py:26 .\grouping\scoping.py:131
+#: .\courses\views_export.py:26 .\grouping\scoping.py:132
 msgid "All my students"
 msgstr ""
 
-#: .\courses\views_export.py:65
+#: .\courses\views_export.py:63
 msgid "Quiz gradebook"
 msgstr ""
 
-#: .\courses\views_export.py:75
+#: .\courses\views_export.py:73
 #: .\templates\courses\manage\analytics_matrix.html:66
+#: .\templates\courses\manage\analytics_student.html:18
+#: .\templates\courses\manage\analytics_student.html:21
 msgid "Results"
 msgstr ""
 
-#: .\courses\views_export.py:75
+#: .\courses\views_export.py:73
 #: .\templates\courses\manage\analytics_matrix.html:64
+#: .\templates\courses\manage\analytics_student.html:17
+#: .\templates\courses\manage\analytics_student.html:20
 msgid "Progress"
 msgstr ""
 
-#: .\courses\views_export.py:80
+#: .\courses\views_export.py:78
 #, python-format
 msgid "Generated %(date)s · Scope: %(scope)s"
 msgstr ""
@@ -4757,7 +4761,7 @@ msgstr ""
 #: .\templates\courses\manage\_course_panel.html:8
 #: .\templates\courses\manage\analytics_matrix.html:3
 #: .\templates\courses\manage\analytics_matrix.html:8
-#: .\templates\courses\manage\analytics_student.html:10
+#: .\templates\courses\manage\analytics_student.html:9
 #: .\templates\grouping\collection_detail.html:9
 #: .\templates\grouping\group_detail.html:9
 #: .\templates\grouping\my_groups.html:16
@@ -5863,6 +5867,7 @@ msgid "Students"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_matrix.html:62
+#: .\templates\courses\manage\analytics_student.html:15
 msgid "Metric"
 msgstr ""
 
@@ -5958,7 +5963,7 @@ msgstr ""
 #: .\templates\courses\manage\analytics_student.html:3
 #: .\templates\courses\manage\analytics_student.html:8
 #: .\templates\courses\manage\analytics_student_quiz.html:12
-msgid "Breakdown"
+msgid "Student results"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_student_quiz.html:3

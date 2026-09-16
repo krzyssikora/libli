@@ -931,3 +931,14 @@ def test_t30_polish_export_keeps_a_decimal_point(client):
     ).content.decode("utf-8-sig")
     assert "0.5" in body
     assert "0,5" not in body
+
+
+def test_t28b_per_question_back_link_names_the_student_results_page(client):
+    course, pupil = _owner_view(client)
+    _polish(client)
+    quiz = _empty_quiz(course, "Back word")
+    _add(quiz)
+    _submitted(pupil, quiz, score=Decimal("1"), max_score=Decimal("1"))
+    soup = _soup(client.get(_url(course, pupil.pk, quiz.pk)))
+    back = soup.select_one("section.answers .manage__head a")
+    assert back.get_text(" ", strip=True) == "← Wyniki ucznia"

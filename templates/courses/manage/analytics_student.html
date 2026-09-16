@@ -1,14 +1,26 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block head_title %}{% trans "Breakdown" %} · {{ course.title }} · libli{% endblock %}
+{% block head_title %}{% trans "Student results" %} · {{ course.title }} · libli{% endblock %}
 {% block extra_css %}{% if has_math %}{% include "courses/_katex_css.html" %}{% endif %}{% endblock %}
 {% block content %}
 <section class="manage breakdown">
   <header class="manage__head">
-    <h1 class="manage__title">{% trans "Breakdown" %} —
-      {{ student.display_name|default:student.username }}</h1>
+    <h1 class="manage__title">{% trans "Student results" %} — {{ student.list_display_name }}</h1>
     <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Analytics" %}</a>
   </header>
+  {% comment %}The view switch sits BELOW .manage__head, never inside it: the header's
+  wrap behaviour is shared by fifteen templates (spec §5.3).{% endcomment %}
+  <p class="breakdown__view">
+    <span class="analytics__toggle" role="group" aria-label="{% trans 'Metric' %}">
+      {% if mode == "results" %}
+        <a class="btn btn--small" href="{{ other_view_url }}">{% trans "Progress" %}</a>
+        <a class="btn btn--small is-active" aria-current="page" href="?{{ drill_qs }}">{% trans "Results" %}</a>
+      {% else %}
+        <a class="btn btn--small is-active" aria-current="page" href="?{{ drill_qs }}">{% trans "Progress" %}</a>
+        <a class="btn btn--small" href="{{ other_view_url }}">{% trans "Results" %}</a>
+      {% endif %}
+    </span>
+  </p>
   <ul class="breakdown__tree">
     {% for item in breakdown.tree %}
       {% include "courses/manage/_breakdown_node.html" with item=item course=course %}

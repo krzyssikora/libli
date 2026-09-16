@@ -1005,6 +1005,7 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 
 /* Per-student breakdown tree (reuses the outline visual language) */
 .breakdown__tree,.breakdown-node ul{list-style:none;margin:0;padding:0}
+.breakdown__view{margin:0 0 var(--space-3)}
 .breakdown-node ul{margin-left:1rem;padding-left:.75rem;border-left:1px solid var(--border-default)}
 .breakdown-node__head{display:flex;align-items:baseline;gap:.6rem;
   margin:.5rem 0 .25rem;font-weight:600}
