@@ -1041,6 +1041,10 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .answers__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1rem}
 .answers__item{border:1px solid var(--border-default);border-radius:var(--radius-md);
   padding:.75rem 1rem;background:var(--surface-raised)}
+/* The teacher's card edge mirrors the student page's tinted verdict panel. */
+.answers__item.is-correct{border-left:4px solid var(--success)}
+.answers__item.is-partial{border-left:4px solid var(--warning)}
+.answers__item.is-incorrect{border-left:4px solid var(--danger)}
 .answers__head{display:flex;gap:.5rem;align-items:baseline}
 .answers__qnum{font-weight:600}
 .answers__verdict{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.5rem 0}
@@ -1100,10 +1104,11 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 /* Status pills */
 .pill{display:inline-block;padding:.1rem .55rem;border-radius:999px;font-size:.75rem;
   font-weight:600;white-space:nowrap}
-.pill--scored{background:var(--primary);color:#fff}
+.pill--scored{background:var(--primary);color:var(--text-inverse)}
 .pill--submitted{background:var(--surface-sunken);color:var(--text-secondary);
   border:1px solid var(--border-strong)}
-.pill--awaiting{background:#f5b942;color:#3a2a00}
+.pill--awaiting{background:var(--warning-subtle);color:var(--text-primary);
+  border:1px solid var(--warning)}
 .pill--progress{background:var(--surface-sunken);color:var(--text-secondary);
   border:1px solid var(--border-strong)}
 .pill--none{background:transparent;color:var(--text-tertiary);

@@ -397,3 +397,109 @@ def test_t33_back_button_stays_beside_a_long_title(page, live_server, client, wi
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
     page.goto(f"{live_server.url}{matrix_path}")
     assert _style(page.locator(".manage__head").first, "flexWrap") == "wrap"
+
+
+def _seed_outcomes(client, username):
+    from courses.models import Element
+    from courses.models import QuestionResponse
+    from courses.models import QuizSubmission
+    from courses.models import ShortTextQuestionElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_pa
+    from tests.factories import make_verified_user
+
+    pa = make_pa(client, username)
+    course = CourseFactory(owner=pa)
+    quiz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Outcomes"
+    )
+    student = make_verified_user(
+        username=f"{username}_s",
+        email=f"{username}_s@t.example.com",
+        password=TEST_PASSWORD,
+    )
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=quiz,
+        status="submitted",
+        score=Decimal("1.5"),
+        max_score=Decimal("3"),
+    )
+    for fraction in ("1", "0.5", "0"):
+        el = Element.objects.create(
+            unit=quiz,
+            content_object=ShortTextQuestionElement.objects.create(
+                stem="<p>Q</p>", accepted="a", max_marks=Decimal("1")
+            ),
+        )
+        QuestionResponse.objects.create(
+            submission=sub,
+            element=el,
+            latest_answer="x",
+            fraction=Decimal(fraction),
+            attempt_count=1,
+        )
+    return pa, student, course, quiz
+
+
+OUTCOMES = ("correct", "partial", "incorrect")
+
+
+def _contrast(fg, bg):
+    """WCAG contrast ratio of two computed `rgb(...)`/`rgba(...)` colours (opaque)."""
+
+    def luminance(css):
+        inner = css[css.index("(") + 1 : css.index(")")]
+        r, g, b = (int(v) / 255 for v in inner.split(",")[:3])
+        lin = [
+            c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+            for c in (r, g, b)
+        ]
+        return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+    hi, lo = sorted((luminance(fg), luminance(bg)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_t33b_badge_has_its_own_opaque_surface_on_both_pages(
+    page, live_server, client, theme
+):
+    username = f"e2e_sp_badge_{theme}"
+    pa, student, course, quiz = _seed_outcomes(client, username)
+    for user in (pa, student):
+        user.theme = theme
+        user.save(update_fields=["theme"])
+
+    _login(page, live_server, username)
+    teacher_path = reverse(
+        "courses:manage_analytics_student_quiz",
+        kwargs={"slug": course.slug, "student_pk": student.pk, "node_pk": quiz.pk},
+    )
+    page.goto(f"{live_server.url}{teacher_path}")
+    for outcome in OUTCOMES:
+        item = page.locator(f"li.answers__item.is-{outcome}")
+        badge = item.locator(".answers__verdict .badge")
+        bg = _style(badge, "backgroundColor")
+        assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), outcome
+        assert bg != _style(item, "backgroundColor"), outcome
+        assert _contrast(_style(badge, "color"), bg) >= 4.5, (outcome, theme)
+        assert _style(badge, "borderTopColor") != _style(badge, "color"), outcome
+        assert _style(item, "borderLeftWidth") == "4px", outcome
+
+    page.context.clear_cookies()
+    _login(page, live_server, f"{username}_s")
+    results_path = reverse(
+        "courses:quiz_results", kwargs={"slug": course.slug, "node_pk": quiz.pk}
+    )
+    page.goto(f"{live_server.url}{results_path}")
+    for outcome in OUTCOMES:
+        panel = page.locator(f".question__feedback-panel--{outcome}")
+        badge = panel.locator(".badge")
+        bg = _style(badge, "backgroundColor")
+        assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), outcome
+        assert bg != _style(panel, "backgroundColor"), outcome
+        assert _contrast(_style(badge, "color"), bg) >= 4.5, (outcome, theme)

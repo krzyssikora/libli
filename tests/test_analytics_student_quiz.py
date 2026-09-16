@@ -1386,3 +1386,54 @@ def test_t24c_every_columned_part_emits_three_children(client):
         "Odpowiedź ucznia",
         "Klucz",
     ]
+
+
+def _outcome_quiz(course, pupil):
+    quiz = _empty_quiz(course, "Outcomes")
+    sub = _submitted(pupil, quiz, score=Decimal("1.5"), max_score=Decimal("4"))
+    for fraction in ("1", "0.5", "0"):
+        el = _add(quiz)
+        _respond(
+            sub, el, latest_answer="x", fraction=Decimal(fraction), attempt_count=1
+        )
+    _add(quiz)  # untouched -> not_answered
+    return quiz
+
+
+EXPECTED_BADGES = [
+    ("is-correct", "badge--correct"),
+    ("is-partial", "badge--partial"),
+    ("is-incorrect", "badge--incorrect"),
+    ("is-not_answered", "badge--muted"),
+]
+
+
+def test_t25_badge_modifier_per_outcome_on_both_verdict_pages(client):
+    course, _factory_pupil = _owner_view(client)
+    # _loginable_pupil is defined in Task B6; see its docstring
+    pupil = _loginable_pupil(course, "outcomes")
+    quiz = _outcome_quiz(course, pupil)
+    items = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
+    got = [
+        (
+            next(c for c in item["class"] if c.startswith("is-")),
+            item.select_one(".answers__verdict .badge")["class"][1],
+        )
+        for item in items
+    ]
+    assert got == EXPECTED_BADGES
+    client.force_login(pupil)
+    resp = client.get(
+        reverse(
+            "courses:quiz_results", kwargs={"slug": course.slug, "node_pk": quiz.pk}
+        )
+    )
+    assert resp.status_code == 200
+    student = [
+        (
+            next(c for c in li["class"] if c.startswith("is-")),
+            li.select_one(".question__feedback-panel .badge")["class"][1],
+        )
+        for li in _soup(resp).select("li.quiz-results__item")
+    ]
+    assert student == EXPECTED_BADGES

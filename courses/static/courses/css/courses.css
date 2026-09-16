@@ -713,7 +713,18 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   background: var(--warning-subtle); color: var(--warning);
   border-color: color-mix(in srgb, var(--warning) 40%, var(--border-default));
 }
-.badge--muted { color: var(--text-tertiary); }
+/* The muted chip reads at body size: --text-tertiary fails AA there. */
+.badge--muted { color: var(--text-secondary); }
+/* Outcome badges (analytics student pages spec §5.4). The fill stays the base
+   .badge's --surface-sunken: it differs from the student page's tinted
+   .question__feedback-panel--* AND from the teacher page's raised .answers__item,
+   so the badge never sits green-on-green or raised-on-raised. */
+/* Text is --text-primary, not the outcome colour: --warning (3.19:1) and --success (4.46:1)
+   fail AA on --surface-sunken in light mode. The colour lives on the border. */
+.badge--correct, .badge--partial, .badge--incorrect { color: var(--text-primary); }
+.badge--correct { border-color: var(--success); }
+.badge--partial { border-color: var(--warning); }
+.badge--incorrect { border-color: var(--danger); }
 
 @media (max-width: 640px) {
   .result-summary__meta { margin-left: 0; }
