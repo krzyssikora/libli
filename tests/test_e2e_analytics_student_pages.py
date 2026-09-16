@@ -365,3 +365,35 @@ def test_t33_multi_part_block_fallback_on_a_phone(page, live_server, client):
     assert _style(part, "flexDirection") == "column"
     label = part.locator(".answers__expected-label")
     assert _style(label, "display") != "none" and _box(label)["w"] > 0
+
+
+@pytest.mark.parametrize("width", [1280, 390])
+def test_t33_back_button_stays_beside_a_long_title(page, live_server, client, width):
+    from courses.models import ContentNode
+
+    username = f"e2e_sp_head{width}"
+    course, student, awaiting = _seed_breakdown(client, username)
+    ContentNode.objects.filter(pk=awaiting.pk).update(
+        title="A deliberately long quiz title that would push the back button " * 2
+    )
+    _login(page, live_server, username)
+    page.set_viewport_size({"width": width, "height": 900})
+    path = reverse(
+        "courses:manage_analytics_student_quiz",
+        kwargs={"slug": course.slug, "student_pk": student.pk, "node_pk": awaiting.pk},
+    )
+    page.goto(f"{live_server.url}{path}")
+    head = page.locator(".answers .manage__head")
+    heading, button = head.locator(".answers__heading"), head.locator(".btn")
+    if width == 1280:
+        assert _box(button)["t"] < _box(heading)["b"]  # same line
+        assert abs(_box(head)["r"] - _box(button)["r"]) <= 1
+        _neutralise(page, ".answers .manage__head{flex-wrap:wrap}")
+        assert _box(button)["t"] >= _box(heading)["b"] - 1
+    else:
+        assert _box(button)["t"] >= _box(heading)["b"] - 1  # wraps below, as today
+    # the shared header on another page still wraps
+    page.set_viewport_size({"width": 1280, "height": 900})
+    matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    page.goto(f"{live_server.url}{matrix_path}")
+    assert _style(page.locator(".manage__head").first, "flexWrap") == "wrap"

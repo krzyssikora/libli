@@ -8,12 +8,22 @@
 {% block content %}
 <section class="manage answers">
   <header class="manage__head">
-    <h1 class="manage__title"><span lang="{{ course.language }}" data-math-title>{{ unit.title }}</span> — {{ student.display_name|default:student.username }}</h1>
+    <div class="answers__heading">
+      <p class="answers__student">{{ student.list_display_name }}</p>
+      <h1 class="manage__title"><span lang="{{ course.language }}" data-math-title>{{ unit.title }}</span></h1>
+    </div>
     <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Student results" %}</a>
   </header>
   <p class="answers__status">
     {% with p=pill %}
-      {% include "courses/manage/_quiz_pill.html" %}
+      {% comment %}A scored quiz shows its score INSTEAD of the shared pill; the pill
+      partial's logic is untouched and still serves every other kind (spec §5.3).{% endcomment %}
+      {% if p.kind == "scored" %}
+        <span class="answers__score">{% blocktrans with s=p.score|marks m=p.max_score|marks %}{{ s }} / {{ m }} marks{% endblocktrans %}</span>
+        <span class="answers__percent">{{ p.percent }}%</span>
+      {% else %}
+        {% include "courses/manage/_quiz_pill.html" %}
+      {% endif %}
       {% if p.kind == "awaiting" %}
         <a class="answers__review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">{% trans "Review" %}</a>
       {% endif %}

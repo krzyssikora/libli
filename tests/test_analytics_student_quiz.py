@@ -175,7 +175,7 @@ def test_t31b_group_teacher_opens_a_draft_quiz_the_pupil_has_data_on(client):
     assert client.get(_url(course, pupil.pk, quiz.pk)).status_code == 200
 
 
-# --- header pill + Review link (full parity is T36, Task 7) -------------------
+# --- header pill + Review link (full parity is T27) ---------------------------
 def test_awaiting_header_has_one_review_link(client):
     from courses.models import ExtendedResponseQuestionElement
     from courses.models import QuestionElement
@@ -355,7 +355,7 @@ def test_t35_teacher_voice_only(client):
     assert "chosen, incorrect" in text and "correct, not chosen" in text
 
 
-# --- T36 header parity ----------------------------------------------------------
+# --- T27 header parity ----------------------------------------------------------
 def _breakdown_pill(soup, title):
     for unit in soup.select("div.breakdown-unit"):
         if unit.select_one(".breakdown-unit__title").get_text(strip=True) == title:
@@ -363,11 +363,16 @@ def _breakdown_pill(soup, title):
     raise AssertionError(f"no breakdown row titled {title!r}")
 
 
-def test_t36_header_pill_matches_the_breakdown_pill(client):
-    course, pupil = _owner_view(client)
+def _status(client, course, pupil, quiz):
+    return _soup(client.get(_url(course, pupil.pk, quiz.pk))).select_one(
+        ".answers__status"
+    )
+
+
+def _pill_quizzes(course, pupil):
     scored = _empty_quiz(course, "Q scored")
     _add(scored)
-    _submitted(pupil, scored, score=Decimal("1"), max_score=Decimal("1"))
+    _submitted(pupil, scored, score=Decimal("1"), max_score=Decimal("5"))
     ungraded = _empty_quiz(course, "Q ungraded")
     _submitted(pupil, ungraded, score=Decimal("0"), max_score=Decimal("0"))
     awaiting = _empty_quiz(course, "Q awaiting")
@@ -391,8 +396,42 @@ def test_t36_header_pill_matches_the_breakdown_pill(client):
     )
     live = _empty_quiz(course, "Q live")
     _add(live)
-    _submitted(pupil, live, status=QuizSubmission.Status.IN_PROGRESS)
+    _add(live)
+    live_sub = _submitted(pupil, live, status=QuizSubmission.Status.IN_PROGRESS)
+    _respond(
+        live_sub,
+        live.elements.order_by("order", "pk").first(),
+        latest_answer="x",
+        attempt_count=1,
+    )
+    return scored, ungraded, awaiting, awaiting_sub, reviewed, live
 
+
+def test_t26_header_by_pill_kind(client):
+    course, pupil = _owner_view(client)
+    scored, ungraded, awaiting, _sub, _reviewed, live = _pill_quizzes(course, pupil)
+    s = _status(client, course, pupil, scored)
+    assert s.select_one(".pill") is None
+    assert s.select_one(".answers__score").get_text(" ", strip=True) == "1 / 5 marks"
+    assert s.select_one(".answers__percent").get_text(strip=True) == "20%"
+    for quiz, kind in (
+        (ungraded, "pill--submitted"),
+        (awaiting, "pill--awaiting"),
+        (live, "pill--progress"),
+    ):
+        status = _status(client, course, pupil, quiz)
+        assert kind in status.select_one(".pill")["class"]
+        assert status.select_one(".answers__score") is None
+    assert "1 of 2 questions answered" in _status(client, course, pupil, live).get_text(
+        " ", strip=True
+    )
+
+
+def test_t27_header_pill_matches_the_breakdown_pill_except_scored(client):
+    course, pupil = _owner_view(client)
+    scored, ungraded, awaiting, awaiting_sub, reviewed, live = _pill_quizzes(
+        course, pupil
+    )
     breakdown = _soup(
         client.get(
             reverse(
@@ -401,30 +440,70 @@ def test_t36_header_pill_matches_the_breakdown_pill(client):
             )
         )
     )
-    expected_kinds = {
-        scored: "pill--scored",
-        ungraded: "pill--submitted",
-        awaiting: "pill--awaiting",
-        reviewed: "pill--submitted",
-        live: "pill--progress",
-    }
-    for quiz, kind in expected_kinds.items():
-        header = _soup(client.get(_url(course, pupil.pk, quiz.pk))).select_one(
-            ".answers__status .pill"
-        )
+    # (1) parity for every kind that still renders a pill; `reviewed` resolves to
+    # `submitted` (spec §2.8)
+    for quiz, kind in (
+        (ungraded, "pill--submitted"),
+        (awaiting, "pill--awaiting"),
+        (reviewed, "pill--submitted"),
+        (live, "pill--progress"),
+    ):
+        header = _status(client, course, pupil, quiz).select_one(".pill")
         row = _breakdown_pill(breakdown, quiz.title)
-        assert kind in header["class"], (quiz.title, header["class"])
+        assert kind in header["class"], quiz.title
         assert header["class"] == row["class"], quiz.title
         assert header.get_text(" ", strip=True) == row.get_text(" ", strip=True)
-    awaiting_status = _soup(client.get(_url(course, pupil.pk, awaiting.pk))).select_one(
-        ".answers__status"
+    # (2) scored: no header pill; the breakdown keeps its pill, same numbers
+    status = _status(client, course, pupil, scored)
+    assert status.select_one(".pill") is None
+    assert (
+        _breakdown_pill(breakdown, "Q scored").get_text(" ", strip=True)
+        == "scored 1/5 (20%)"
     )
-    awaiting_review_url = reverse(
+    assert (
+        status.select_one(".answers__score").get_text(" ", strip=True) == "1 / 5 marks"
+    )
+    # (3) exactly one Review link; (4) no "scored" text on the awaiting strip
+    awaiting_status = _status(client, course, pupil, awaiting)
+    review_url = reverse(
         "courses:manage_review_submission",
         kwargs={"slug": course.slug, "submission_pk": awaiting_sub.pk},
     )
-    assert len(awaiting_status.select(f'a[href="{awaiting_review_url}"]')) == 1
+    assert len(awaiting_status.select(f'a[href="{review_url}"]')) == 1
     assert "scored" not in awaiting_status.get_text(" ", strip=True)
+
+
+def test_t28_heading_is_name_then_title(client):
+    course, pupil = _owner_view(client)
+    pupil.first_name, pupil.last_name = "Anna", "Nowak"
+    pupil.save()
+    quiz = _empty_quiz(course, r"Sets \(A\)")
+    _add(quiz)
+    _submitted(pupil, quiz, score=Decimal("1"), max_score=Decimal("1"))
+    head = _soup(client.get(_url(course, pupil.pk, quiz.pk))).select_one(
+        ".manage__head"
+    )
+    assert (
+        head.select_one(".answers__student").get_text(strip=True)
+        == pupil.list_display_name
+    )
+    h1 = head.select_one("h1")
+    assert h1.get_text(" ", strip=True) == r"Sets \(A\)"
+    assert "—" not in h1.get_text()
+    assert h1.select_one("[data-math-title]") is not None
+    assert head.select_one(".answers__student").get("data-math-title") is None
+
+
+def test_t29_polish_header_score_uses_a_decimal_comma(client):
+    course, pupil = _owner_view(client)
+    _polish(client)
+    thirds = _empty_quiz(course, "Thirds")
+    _add(thirds)
+    _submitted(pupil, thirds, score=Decimal("0.67"), max_score=Decimal("1"))
+    status = _status(client, course, pupil, thirds)
+    assert (
+        status.select_one(".answers__score").get_text(" ", strip=True) == "0,67 / 1 pkt"
+    )
 
 
 # --- T41 on the page: grids reach the header --------------------------------------

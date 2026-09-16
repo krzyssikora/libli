@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-16 21:27+0200\n"
+"POT-Creation-Date: 2026-09-16 21:45+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -445,7 +445,7 @@ msgid "Zone %(n)s"
 msgstr "Strefa %(n)s"
 
 #: .\courses\answer_summary.py:340
-#: .\templates\courses\manage\analytics_student_quiz.html:77
+#: .\templates\courses\manage\analytics_student_quiz.html:88
 msgid "(none)"
 msgstr "(brak)"
 
@@ -5380,7 +5380,7 @@ msgid "details"
 msgstr "szczegóły"
 
 #: .\templates\courses\course_results.html:28
-#: .\templates\courses\manage\analytics_student_quiz.html:54
+#: .\templates\courses\manage\analytics_student_quiz.html:65
 #: .\templates\courses\manage\review_queue.html:11
 #: .\templates\courses\quiz_results.html:37
 msgid "Awaiting review"
@@ -5420,8 +5420,8 @@ msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s"
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
-#: .\templates\courses\manage\analytics_student_quiz.html:48
-#: .\templates\courses\manage\analytics_student_quiz.html:115
+#: .\templates\courses\manage\analytics_student_quiz.html:59
+#: .\templates\courses\manage\analytics_student_quiz.html:126
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:39
 #: .\templates\courses\quiz_results.html:31
 msgid "Correct"
@@ -5429,8 +5429,8 @@ msgstr "Poprawnie"
 
 #: .\templates\courses\elements\_question_feedback.html:7
 #: .\templates\courses\elements\_quiz_question_feedback.html:35
-#: .\templates\courses\manage\analytics_student_quiz.html:50
-#: .\templates\courses\manage\analytics_student_quiz.html:116
+#: .\templates\courses\manage\analytics_student_quiz.html:61
+#: .\templates\courses\manage\analytics_student_quiz.html:127
 #: .\templates\courses\quiz_results.html:33
 msgid "Incorrect"
 msgstr "Niepoprawnie"
@@ -5444,7 +5444,7 @@ msgid "Submitted for review"
 msgstr "Przesłano do oceny"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
-#: .\templates\courses\manage\analytics_student_quiz.html:52
+#: .\templates\courses\manage\analytics_student_quiz.html:63
 #: .\templates\courses\quiz_results.html:35
 msgid "Answer recorded"
 msgstr "Odpowiedź zapisana"
@@ -5460,7 +5460,7 @@ msgstr[2] "%(n)s prób pozostało"
 #: .\templates\courses\elements\_reveal_choicegrid.html:11
 #: .\templates\courses\elements\_reveal_fillblank.html:9
 #: .\templates\courses\elements\_reveal_shorttext.html:2
-#: .\templates\courses\manage\analytics_student_quiz.html:120
+#: .\templates\courses\manage\analytics_student_quiz.html:131
 msgid "Correct answer:"
 msgstr "Poprawna odpowiedź:"
 
@@ -5632,8 +5632,8 @@ msgid "More kinds"
 msgstr "Więcej typów"
 
 #: .\templates\courses\manage\_breakdown_node.html:10
-#: .\templates\courses\manage\analytics_student_quiz.html:18
-#: .\templates\courses\manage\analytics_student_quiz.html:56
+#: .\templates\courses\manage\analytics_student_quiz.html:29
+#: .\templates\courses\manage\analytics_student_quiz.html:67
 #: .\templates\courses\manage\review_queue.html:18
 #: .\templates\courses\manage\review_submission.html:3
 #: .\templates\courses\manage\review_submission.html:59
@@ -6226,7 +6226,7 @@ msgstr "Brak lekcji wliczanych do postępów w tym kursie."
 
 #: .\templates\courses\manage\analytics_student.html:3
 #: .\templates\courses\manage\analytics_student.html:8
-#: .\templates\courses\manage\analytics_student_quiz.html:12
+#: .\templates\courses\manage\analytics_student_quiz.html:15
 msgid "Student results"
 msgstr "Wyniki ucznia"
 
@@ -6234,7 +6234,12 @@ msgstr "Wyniki ucznia"
 msgid "Answers"
 msgstr "Odpowiedzi"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:21
+#: .\templates\courses\manage\analytics_student_quiz.html:23
+#, python-format
+msgid "%(s)s / %(m)s marks"
+msgstr "%(s)s / %(m)s pkt"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:32
 #, python-format
 msgid "%(k)s of %(n)s question answered"
 msgid_plural "%(k)s of %(n)s questions answered"
@@ -6242,97 +6247,97 @@ msgstr[0] "Odpowiedzi: %(k)s z %(n)s pytania"
 msgstr[1] "Odpowiedzi: %(k)s z %(n)s pytań"
 msgstr[2] "Odpowiedzi: %(k)s z %(n)s pytań"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:49
+#: .\templates\courses\manage\analytics_student_quiz.html:60
 #: .\templates\courses\quiz_results.html:32
 msgid "Partial"
 msgstr "Częściowo poprawnie"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:51
-#: .\templates\courses\manage\analytics_student_quiz.html:110
+#: .\templates\courses\manage\analytics_student_quiz.html:62
+#: .\templates\courses\manage\analytics_student_quiz.html:121
 #: .\templates\courses\quiz_results.html:34
 msgid "Not answered"
 msgstr "Bez odpowiedzi"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:53
+#: .\templates\courses\manage\analytics_student_quiz.html:64
 #: .\templates\courses\manage\review_submission.html:50
 #: .\templates\courses\quiz_results.html:36
 msgid "Reviewed"
 msgstr "Sprawdzone"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:54
+#: .\templates\courses\manage\analytics_student_quiz.html:65
 #: .\templates\courses\quiz_results.html:37
 msgid "up to 1 mark"
 msgstr "do 1 punktu"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:54
+#: .\templates\courses\manage\analytics_student_quiz.html:65
 #: .\templates\courses\quiz_results.html:37
 #, python-format
 msgid "up to %(m)s marks"
 msgstr "do %(m)s punktów"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:56
+#: .\templates\courses\manage\analytics_student_quiz.html:67
 #, python-format
 msgid "question %(n)s"
 msgstr "pytanie %(n)s"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:59
+#: .\templates\courses\manage\analytics_student_quiz.html:70
 #, python-format
 msgid "attempt %(n)s of %(max)s"
 msgstr "próba %(n)s z %(max)s"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:59
+#: .\templates\courses\manage\analytics_student_quiz.html:70
 #, python-format
 msgid "attempt %(n)s"
 msgstr "próba %(n)s"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:67
+#: .\templates\courses\manage\analytics_student_quiz.html:78
 msgid "Student's answer"
 msgstr "Odpowiedź ucznia"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:67
-#: .\templates\courses\manage\analytics_student_quiz.html:80
+#: .\templates\courses\manage\analytics_student_quiz.html:78
+#: .\templates\courses\manage\analytics_student_quiz.html:91
 msgid "Answer key"
 msgstr "Klucz"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:77
+#: .\templates\courses\manage\analytics_student_quiz.html:88
 #, python-format
 msgid "correct answer: %(key)s"
 msgstr "poprawna odpowiedź: %(key)s"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:79
+#: .\templates\courses\manage\analytics_student_quiz.html:90
 msgid "Student's choice"
 msgstr "Wybór ucznia"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:81
+#: .\templates\courses\manage\analytics_student_quiz.html:92
 #: .\templates\courses\manage\review_submission.html:92
 msgid "Answer"
 msgstr "Odpowiedź"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:86
+#: .\templates\courses\manage\analytics_student_quiz.html:97
 msgid "chosen, correct"
 msgstr "wybrana, poprawna"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:86
+#: .\templates\courses\manage\analytics_student_quiz.html:97
 msgid "chosen, incorrect"
 msgstr "wybrana, niepoprawna"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:86
+#: .\templates\courses\manage\analytics_student_quiz.html:97
 msgid "correct, not chosen"
 msgstr "poprawna, niewybrana"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:86
+#: .\templates\courses\manage\analytics_student_quiz.html:97
 msgid "chosen"
 msgstr "wybrana"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:105
+#: .\templates\courses\manage\analytics_student_quiz.html:116
 msgid "Student's answer:"
 msgstr "Odpowiedź ucznia:"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:124
+#: .\templates\courses\manage\analytics_student_quiz.html:135
 msgid "(this question no longer has any parts)"
 msgstr "(to pytanie nie ma już żadnych części)"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:134
+#: .\templates\courses\manage\analytics_student_quiz.html:145
 msgid "This quiz has no questions."
 msgstr "Ten quiz nie ma pytań."
 
