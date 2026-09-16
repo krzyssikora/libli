@@ -61,7 +61,7 @@
   - e2e tests need `-m e2e` (addopts deselects them).
   - Read the pytest summary line, not just the exit code.
   - Scope runs to the files a task touches; whole-suite runs are a branch gate (last task of each PR), in chunks.
-  - Before each commit: `uv run ruff check --no-cache .` and `uv run ruff format --check .`.
+  - Before each commit: `uv run ruff format <every .py file the task touched>`, then `uv run ruff check --no-cache .` and `uv run ruff format --check .`. The plan's code blocks are **not** pre-formatted — the formatter's output wins. A line the formatter cannot break (a long string literal, a long f-string, a long line inside a triple-quoted JS string) must be split by hand — implicit string concatenation or a local variable — so E501 (88 columns) passes.
 - **Falsification (every test marked *Mutant*):** apply the mutant **by hand with Edit**, run the one test, observe **red for the stated reason**, revert **by hand with Edit**, then `git diff` to confirm only intended changes remain. **Never `git checkout -- <file>` to revert a mutant** — it destroys the uncommitted implementation.
 - **No assertion may rest on database ids** (pks of different models are independent sequences). Compare usernames, titles and rendered text; build expected hrefs with `reverse`/`_expand_qs` from the objects themselves.
 
@@ -412,7 +412,7 @@ In `courses/gradebook.py`, both row dicts: replace `"name": r["student"].display
 
 - [ ] **Step 5: Run to verify**
 
-Run: `uv run pytest tests/test_analytics_student_order.py tests/test_analytics_views.py tests/test_views_export.py tests/test_exporters.py tests/test_grouping_analytics_links.py tests/test_dashboard_panels.py tests/demo/test_provision.py`
+Run: `uv run pytest tests/test_analytics_student_order.py tests/test_analytics_views.py tests/test_views_export.py tests/test_exporters.py tests/test_gradebook.py tests/test_grouping_analytics_links.py tests/test_dashboard_panels.py tests/demo/test_provision.py`
 Expected: all PASS.
 
 - [ ] **Step 6: Falsify**
@@ -468,7 +468,7 @@ Leave the `pupil` variable as is (the rename is optional per spec §2.10; not do
 
 - [ ] **Step 3: Run the §2.10 inventory (expected empty)**
 
-Run: `uv run pytest tests/ -k "analytics or gradebook or export or provision or dashboard or grouping"`
+Run: `uv run pytest tests/test_analytics_views.py tests/test_analytics_rollups.py tests/test_analytics_scoping.py tests/test_analytics_student_quiz.py tests/test_views_export.py tests/test_exporters.py tests/test_gradebook.py tests/test_grouping_analytics_links.py tests/test_dashboard_panels.py tests/demo/test_provision.py tests/test_e2e_analytics.py`
 Expected: PASS. If anything fails on a rendered student name, stop and report — spec §2.10 predicts none, because `UserFactory` sets no structured names.
 
 - [ ] **Step 4: Help text**
@@ -725,17 +725,12 @@ Create `tests/test_analytics_student_page.py`:
 from decimal import Decimal
 
 import pytest
-from bs4 import BeautifulSoup
-from django.urls import reverse
 
 from courses.models import QuizSubmission
 from courses.rollups import build_student_breakdown
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
-from tests.factories import EnrollmentFactory
-from tests.factories import UnitProgressFactory
 from tests.factories import UserFactory
-from tests.factories import make_login
 
 pytestmark = pytest.mark.django_db
 
@@ -909,7 +904,7 @@ git commit -m "feat(analytics): the student breakdown prunes to quizzes in Resul
 
 - [ ] **Step 1: Write the failing page tests (T6–T9, T11, T16, T28b)**
 
-Append to `tests/test_analytics_student_page.py` (add `from courses.views_analytics import _expand_qs` and the `_polish` helper from Global Constraints):
+Append to `tests/test_analytics_student_page.py`. Add to its import block (isort order) `from bs4 import BeautifulSoup`, `from django.urls import reverse`, `from courses.views_analytics import _expand_qs`, `from tests.factories import EnrollmentFactory`, `from tests.factories import UnitProgressFactory`, `from tests.factories import make_login` — B2 left them out so its commit passes F401 — and add the `_polish` helper from Global Constraints:
 
 ```python
 def _page_fixture(client):
@@ -1351,8 +1346,10 @@ def _neutralise(page, css):
 
 def _box(locator):
     return locator.evaluate(
-        """el => { const r = el.getBoundingClientRect();
-                   return {l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width}; }"""
+        """el => {
+             const r = el.getBoundingClientRect();
+             return {l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width};
+           }"""
     )
 
 
@@ -1844,9 +1841,8 @@ Run: `uv run pytest tests/test_answer_summary.py tests/test_analytics_student_qu
 - *Mutant 3:* remove the `if _answered(response) else set()` guard (`picked = set(response.latest_answer or [])`) → `AttributeError` on the no-response case. Revert.
 - *Mutant 4:* emit one placeholder (`if picked - live: options.append(Option(...))`) → T17b red. Revert.
 - *Mutant 5:* removed rows `mark="wrong"` → T17b red. Revert.
-- *Mutant 6:* default `option_marks=None` and `if option_marks is None: raise TypeError(...)` → T17c red on its second half. Revert.
+- *Mutant 6:* replace the sentinel guard with a falsy check — `if not option_marks: raise TypeError(...)` → T17c red on its second half (`option_marks={}` now raises, i.e. every non-auto choice question would 500). Revert.
 - *Mutant 7:* `correct=c.is_correct` → T18 red (and T32). Revert.
-- *Mutant 8:* in the view, drop `or {}` → `AttributeError: 'NoneType' object has no attribute 'get'` on any non-auto choice page (run T18 page test in B6, or add the REVIEW quiz from `_choice_quiz(..., marking_mode=REVIEW)` to a quick local check). Revert.
 - *Mutant 9 (T19b):* in `_choice`, re-derive the marks — as its first statement, `option_marks = question.choice_marks(list(question.choices.all()), set(response.latest_answer or []) if _answered(response) else set(), mark_result, "quiz", True)` → T19b red (the doctored dict is ignored). Revert. ⚠️ T19 stays GREEN under this mutant — a re-deriving builder computes the same dict the page did — which is exactly why T19b exists.
 
 - [ ] **Step 9: Commit**
@@ -1950,8 +1946,19 @@ def test_t32_empty_key_caption_distinguishes_it_from_non_auto(client):
     assert "is-wrong" in _option_rows(item)[0]["class"]
 
 
+def _loginable_pupil(course, username):
+    """A student the test client can log in as. NOT UserFactory: it sets
+    skip_postgeneration_save, so its password never reaches the database, the
+    session auth hash fails on the next request, and a @login_required page
+    answers 302."""
+    pupil = make_verified_user(username=username, email=f"{username}@test.example.com")
+    EnrollmentFactory(student=pupil, course=course)
+    return pupil
+
+
 def test_t19_student_results_page_shows_the_same_kinds(client):
-    course, pupil = _owner_view(client)
+    course, _factory_pupil = _owner_view(client)
+    pupil = _loginable_pupil(course, "parity")
     quiz, question, el = _choice_quiz(course, "Parity", correct=("B", "C"))
     sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
     _respond(sub, el, latest_answer=_pick(question, "A", "B"), fraction=Decimal("0"), attempt_count=1)
@@ -1977,7 +1984,7 @@ def test_t19_student_results_page_shows_the_same_kinds(client):
     assert teacher == student == {"A": "wrong", "B": "correct", "C": "missed"}
 ```
 
-`REVIEW` is already defined in this test module (used by T36); if not, add `REVIEW = QuestionElement.MarkingMode.REVIEW`. `force_login` on `pupil` works because `UserFactory` users are real rows; if `quiz_results` raises `PermissionDenied`, the fixture needs the course/quiz published (`ContentNodeFactory` defaults `published=True`) — check `EnrollmentFactory` created the enrolment in `_owner_view`.
+`REVIEW` is already defined in this test module (used by T36); if not, add `REVIEW = QuestionElement.MarkingMode.REVIEW`. The teacher half runs FIRST, while the owner is still logged in; `force_login(pupil)` then switches the client for the student half. ⚠️ The student must come from `_loginable_pupil` (`make_verified_user`), never `_owner_view`'s `UserFactory` pupil — see its docstring.
 
 Extend `test_t35_teacher_voice_only` (T21): before the `text = …` line add a choice question answered wrongly:
 
@@ -2095,6 +2102,7 @@ Expected: all PASS, including `test_t38_query_count_does_not_grow_with_questions
 - *Mutant 8 (T23):* in `_choice`, `choices = list(question.choices.all().order_by("order", "pk"))` → `test_t38_…` red. Revert.
 - *Mutant 9 (T32):* delete the caption → T32 page red. Revert.
 - *Mutant 10 (T19):* in `_choice`, `mark=None` for every live option → both T19 tests red. Revert.
+- *Mutant 11 (T18 page, moved here from B5):* in `_quiz_answer_rows`, drop `or {}` from `option_marks=row["marks"] or {}` → `test_t18_non_auto_choice_table_has_no_key_column` errors with `AttributeError: 'NoneType' object has no attribute 'get'`. Revert.
 
 - [ ] **Step 8: e2e — the header words collapse on a phone (T33, §5.1)**
 
@@ -2158,7 +2166,11 @@ def test_t33_option_headers_visible_on_desktop_hidden_on_a_phone(
         assert _box(th)["w"] > 20
     else:
         assert _box(th)["w"] <= 1
-        _neutralise(page, ".answers__options th{position:static;width:auto;height:auto;clip:auto;margin:0}")
+        _neutralise(
+            page,
+            ".answers__options th{position:static;width:auto;height:auto;"
+            "clip:auto;margin:0}",
+        )
         assert _box(th)["w"] > 20
 ```
 
@@ -2206,6 +2218,21 @@ def _answered_page(client, course, pupil, quiz, el, answers, fraction):
     _respond(sub, el, latest_answer=answers, fraction=fraction, attempt_count=1)
     resp = client.get(_url(course, pupil.pk, quiz.pk))
     return resp, _items(_soup(resp))[0]
+
+
+def test_blank_grid_statement_never_borrows_the_student_answer_label(client):
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Blank row")
+    grid = ChoiceGridQuestionElement.objects.create(stem="<p>G</p>", max_marks=Decimal("1"))
+    yes = GridColumn.objects.create(question=grid, label="yes", order=0)
+    no = GridColumn.objects.create(question=grid, label="no", order=1)
+    GridRow.objects.create(question=grid, statement="", correct_column=yes, order=0)
+    GridRow.objects.create(question=grid, statement="r2", correct_column=no, order=1)
+    el = Element.objects.create(unit=quiz, content_object=grid)
+    # all correct -> NOT columned, so the non-columned label branch renders
+    resp, item = _answered_page(client, course, pupil, quiz, el, [yes.pk, no.pk], Decimal("1"))
+    assert resp.context["rows"][0]["columned"] is False
+    assert "Student's answer:" not in item.get_text(" ", strip=True)
 
 
 def test_single_part_answer_is_labelled(client):
@@ -2281,8 +2308,8 @@ Adjust the grid's stored-answer shape if `answer_from_json` for a choice grid ex
 
 - [ ] **Step 2: Run to verify they fail**
 
-Run: `uv run pytest tests/test_analytics_student_quiz.py -k "single_part_answer or t24"`
-Expected: all FAIL (`KeyError: 'columned'`, no label, no header row).
+Run: `uv run pytest tests/test_analytics_student_quiz.py -k "single_part_answer or t24 or blank_grid"`
+Expected: `blank_grid` PASSES (today no fallback label exists — it guards Step 4's condition); the rest FAIL (`KeyError: 'columned'`, no label, no header row).
 
 - [ ] **Step 3: The predicate**
 
@@ -2325,7 +2352,10 @@ Replace the whole `<div class="answers__parts">…</div>` block with:
               <span class="answers__label"{% if part.label_is_content %} lang="{{ course.language }}"{% endif %}>{{ part.label|default:"" }}</span>
             {% elif part.label %}
               <span class="answers__label"{% if part.label_is_content %} lang="{{ course.language }}"{% endif %}>{{ part.label }}</span>
-            {% elif part.kind == "answer" %}
+            {% elif part.kind == "answer" and not part.label_is_content %}
+              {% comment %}Only a part whose label is interface text can be "the student's
+              answer": a grid/match row's label is CONTENT, and a blank statement there must
+              stay blank rather than borrow this word.{% endcomment %}
               <span class="answers__label">{% trans "Student's answer:" %}</span>
             {% endif %}
             {% if part.kind != "options" %}
@@ -2403,6 +2433,7 @@ Expected: all PASS — including the existing `Correct answer: Warsaw` / `Correc
 - *Mutant 3 (T24c):* in the columned branch wrap the expected span in `{% if part.expected %}` → T24c red (two children). Revert.
 - *Mutant 4 (T24c):* replace the columned label branch with `{% if part.label %}…{% endif %}` → T24c red on the blank-statement part. Revert.
 - *Mutant 5:* use `{% trans "Key" %}` in the header row → T24c red („Legenda"). Revert.
+- *Mutant 6:* drop `and not part.label_is_content` from the label fallback → `test_blank_grid_statement_never_borrows_the_student_answer_label` red. Revert.
 
 - [ ] **Step 9: e2e — grid, fallback, prefix (T33, §5.2)**
 
@@ -2725,7 +2756,8 @@ def test_t33_back_button_stays_beside_a_long_title(page, live_server, client, wi
         assert _box(button)["t"] >= _box(heading)["b"] - 1  # wraps below, as today
     # the shared header on another page still wraps
     page.set_viewport_size({"width": 1280, "height": 900})
-    page.goto(f"{live_server.url}{reverse('courses:manage_analytics', kwargs={'slug': course.slug})}")
+    matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    page.goto(f"{live_server.url}{matrix_path}")
     assert _style(page.locator(".manage__head").first, "flexWrap") == "wrap"
 ```
 
@@ -2772,7 +2804,8 @@ EXPECTED_BADGES = [
 
 
 def test_t25_badge_modifier_per_outcome_on_both_verdict_pages(client):
-    course, pupil = _owner_view(client)
+    course, _factory_pupil = _owner_view(client)
+    pupil = _loginable_pupil(course, "outcomes")  # defined in Task B6; see its docstring
     quiz = _outcome_quiz(course, pupil)
     items = _items(_soup(client.get(_url(course, pupil.pk, quiz.pk))))
     got = [
