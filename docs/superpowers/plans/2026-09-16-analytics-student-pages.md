@@ -3137,8 +3137,12 @@ Measure `.badge--partial`'s text contrast (computed `color` against computed `ba
 # The help-screenshot captures (A3, B10) seeded a REAL media/ directory here
 # (seed_demo_course saves demo.png under MEDIA_ROOT). mklink refuses an existing
 # path, so remove it -- only if it is a plain directory, never a junction:
-if [ -L media ]; then echo "media is already a junction - skip the mklink"; elif [ -d media ]; then rm -rf media; fi
-cmd //c mklink /J media "C:\Users\krzys\Documents\Python\own\libli\media"
+# MSYS_NO_PATHCONV=1 is required: Git Bash rewrites the bare /J switch to J:/.
+if [ ! -L media ]; then
+  [ -d media ] && rm -rf media
+  MSYS_NO_PATHCONV=1 cmd /c mklink /J media "C:\Users\krzys\Documents\Python\own\libli\media"
+fi
+[ -L media ] || { echo "junction not created"; exit 1; }
 uv run python manage.py shell -c "from django.conf import settings; from django.db import connection; print(settings.DEBUG, connection.settings_dict['NAME'], settings.MEDIA_ROOT)"
 ```
 
