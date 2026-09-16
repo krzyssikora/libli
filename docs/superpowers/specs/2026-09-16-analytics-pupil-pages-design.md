@@ -192,10 +192,9 @@ lookups off the row (`.breakdown-unit__title`, then `.pill`), not a nested selec
 `tests/test_title_math_assets.py:460,474` asserts only that the breakdown view loads KaTeX or does
 not — which is what T16's `has_math` rule interacts with, not the markup.
 
-**A wrapper element around the title would break the THREE direct-child selectors** (the three
-assertions at `test_title_math_markers.py:454,459,463` and the one at
-`test_analytics_student_quiz.py:759`) with a failure that reads as "title maths marker missing".
-§4.2 adds none.
+**A wrapper element around the title would break FOUR direct-child selectors** — the three at
+`test_title_math_markers.py:454,459,463` plus `test_analytics_student_quiz.py:759` — with a failure
+that reads as "title maths marker missing". §4.2 adds none.
 
 ✅ **The right-hand column has a precedent three lines away:** `.rollup` (`app.css:608-612`) sits at
 the right of `.breakdown-node__head` via `margin-left:auto`, and `.rollup + .rollup` (`:611`) shows
@@ -468,7 +467,13 @@ that template loads `i18n` alone — an included template does not inherit its i
 and `analytics_student.html:2` loads only `i18n` either way. This is the same hazard §5.5 handles
 for `_quiz_pill.html`. ⚠️ **The tempting workaround is worse than the failure**: writing
 `{% trans "Additional" %}` in the template would re-create the label outside
-`UNIT_MARKER_LABELS`, which is exactly what D8 exists to prevent — so T12 carries a mutant for it.
+`UNIT_MARKER_LABELS`, which is exactly what D8 exists to prevent.
+⚠️ **And it is invisible to any test that compares rendered text.**
+`UNIT_MARKER_LABELS[MARKER_ADDITIONAL]` is `gettext_lazy("Additional")` (`rollups.py:163-166`),
+i.e. the **same msgid** `{% trans "Additional" %}` resolves — so the two implementations render
+byte-identically in every language. T12 therefore pins the rule **structurally**, by
+monkeypatching that dict entry to a sentinel and asserting the sentinel reaches the page
+(§7.2).
 
 **The view (`analytics_student`, `views_analytics.py:257-289`) changes in four ways:**
 
@@ -1000,11 +1005,17 @@ Every rule below is falsified against a named mutant, run and observed red, then
   and values, and marks the current view. *Mutant:* drop `subset_pks` → red.
 - **T12** A non-obligatory lesson carries the „Dodatkowa" tag **between the title and the marker**;
   an obligatory one does not; **a quiz row carries no kind chip**.
+  ⚠️ **The label's source is asserted structurally**: the test monkeypatches
+  `rollups.UNIT_MARKER_LABELS[MARKER_ADDITIONAL]` to a sentinel string and asserts the rendered tag
+  shows the sentinel.
   *Mutants:* tag every lesson → red; stamp the raw `unit_marker` and render it unguarded → red
   („Kwiz" appears); emit the tag after the marker → red on the order assertion; **replace
-  `marker_label` with a hardcoded `{% trans "Additional" %}` → red**, because the test asserts the
-  rendered word equals `marker_label(MARKER_ADDITIONAL)` resolved in the active language rather
-  than a literal (§4.1's `{% load %}` hazard).
+  `marker_label` with a hardcoded `{% trans "Additional" %}` → red on the sentinel assertion**
+  (it renders "Additional" instead).
+  ⚠️ **A rendered-text comparison cannot catch that last mutant** — `marker_label` resolves the
+  same msgid as `{% trans "Additional" %}`, so both produce identical output (§4.1). An earlier
+  draft of this spec specified exactly that comparison and would have shipped a guard that always
+  runs green.
 - **T13** A quiz row carries a pill and no completion marker; a lesson row a marker and no pill;
   the unfinished marker is `.badge--todo` with its accessible name.
   *Mutant:* render the marker on every unit → red.
@@ -1022,7 +1033,12 @@ Every rule below is falsified against a named mutant, run and observed red, then
 ### 7.3 The per-question page (§5)
 
 - **T17** Builder, one case each: picked-and-correct, picked-and-wrong, missed, untouched,
-  **not answered with NO response row** (§2.6), `multiple=True`. Each asserts `Option`'s fields.
+  **not answered with NO response row** (§2.6), `multiple=True` **and `multiple=False`**. Each
+  asserts `Option`'s fields. ⚠️ **The single-select case is not optional**: it is the successor
+  `test_choice_single_select` is mapped to below, and it is what pins §2.6's decision that both
+  kinds render identically — the shared fixture builds `multiple=True`
+  (`tests/answer_summary_fixtures.py:46-47`), so without an explicit case single-select coverage
+  disappears.
   *Mutants:* invert `picked`; drop `missed`; drop the `_answered` guard → `AttributeError` on the
   no-response case.
 - **T17b** **Two** picked-but-deleted options render **two** rows, last, each `picked=True`,
@@ -1191,7 +1207,7 @@ noticed.
    Accepted deliberately: one rule for marks across the product beats two.
 5. **Screenshot regeneration side effects (§2.11).** A careless run rewrites all 58 PNGs; §8's
    checklist is per PR and asserts no collateral diff.
-6. **Structural test dependencies (§2.5).** **Three** selectors reach into the breakdown tree by
+6. **Structural test dependencies (§2.5).** **Four** selectors reach into the breakdown tree by
    direct child; a wrapper element added for §4.2's column breaks them with a misleading message.
    (Two further tests touch the same markup but survive a wrapper — §2.5 lists them so the count
    is not inflated.)
