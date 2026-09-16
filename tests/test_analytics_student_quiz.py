@@ -1,4 +1,7 @@
-"""The per-question drill-down page (spec §3, §5; T30, T31, T31b, T33, T35-T39, T41).
+"""The per-question drill-down page. Two specs' test ids live here: T30, T31, T31b,
+T33, T35-T39, T41 are the per-question drill-down spec's (2026-09-14); T18-T32 added
+from Task B1 on are the analytics student pages spec's (2026-09-16). Same number, two
+tests (e.g. test_t31_each_path_segment_… vs test_t31_option_table_…): -k by NAME.
 
 Every PA/owner-viewed pupil gets an Enrollment row: reviewable_students serves
 PA and owner from Enrollment alone, and GroupMembershipFactory creates none."""
@@ -226,6 +229,14 @@ def _owner_view(client):
     pupil = UserFactory()
     EnrollmentFactory(student=pupil, course=course)
     return course, pupil
+
+
+def _polish(client):
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
 
 
 def _items(soup):
@@ -861,3 +872,62 @@ def test_t38_query_count_does_not_grow_with_questions(client):
     assert _page_queries(client, _url(course, pupil.pk, one.pk)) == _page_queries(
         client, _url(course, pupil.pk, two.pk)
     )
+
+
+# --- T29 / T30 marks read the same everywhere (spec §5.5) --------------------------
+def test_t29_polish_marks_use_a_decimal_comma_in_badge_and_pill(client):
+    course, pupil = _owner_view(client)
+    _polish(client)
+    half = _empty_quiz(course, "Half")
+    el = _add(half)
+    sub = _submitted(pupil, half, score=Decimal("0.5"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer="x", fraction=Decimal("0.5"), attempt_count=1)
+    thirds = _empty_quiz(course, "Thirds")
+    _add(thirds)
+    _submitted(pupil, thirds, score=Decimal("0.67"), max_score=Decimal("1"))
+
+    badge = _badge(_items(_soup(client.get(_url(course, pupil.pk, half.pk))))[0])
+    assert "(0,5/1)" in badge
+    breakdown = _soup(
+        client.get(
+            reverse(
+                "courses:manage_analytics_student",
+                kwargs={"slug": course.slug, "student_pk": pupil.pk},
+            )
+        )
+    )
+    assert _breakdown_pill(breakdown, "Thirds").get_text(" ", strip=True) == (
+        "wynik 0,67/1 (67%)"
+    )
+
+
+def test_t29_english_marks_keep_a_decimal_point(client):
+    course, pupil = _owner_view(client)
+    thirds = _empty_quiz(course, "Thirds")
+    _add(thirds)
+    _submitted(pupil, thirds, score=Decimal("0.67"), max_score=Decimal("1"))
+    breakdown = _soup(
+        client.get(
+            reverse(
+                "courses:manage_analytics_student",
+                kwargs={"slug": course.slug, "student_pk": pupil.pk},
+            )
+        )
+    )
+    assert _breakdown_pill(breakdown, "Thirds").get_text(" ", strip=True) == (
+        "scored 0.67/1 (67%)"
+    )
+
+
+def test_t30_polish_export_keeps_a_decimal_point(client):
+    course, pupil = _owner_view(client)
+    _polish(client)
+    quiz = _empty_quiz(course, "Exported")
+    _add(quiz, marking_mode=QuestionElement.MarkingMode.AUTO)
+    _submitted(pupil, quiz, score=Decimal("0.5"), max_score=Decimal("1"))
+    body = client.get(
+        reverse("courses:manage_analytics_export", kwargs={"slug": course.slug}),
+        {"shape": "quiz", "format": "csv"},
+    ).content.decode("utf-8-sig")
+    assert "0.5" in body
+    assert "0,5" not in body

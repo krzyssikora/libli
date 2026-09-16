@@ -1,5 +1,8 @@
 from decimal import Decimal
 
+import pytest
+from django.utils import translation
+
 from courses.scoring import earned_marks
 from courses.scoring import to_stored_fraction
 from courses.templatetags.courses_extras import marks_filter
@@ -30,16 +33,27 @@ def test_earned_marks_full_and_zero():
     assert earned_marks(Decimal("0.0000"), Decimal("2.5")) == Decimal("0.00")
 
 
-def test_marks_filter_trims_trailing_zeros():
-    assert marks_filter(Decimal("2.00")) == "2"
-    assert marks_filter(Decimal("1.50")) == "1.5"
-    assert marks_filter(Decimal("0.67")) == "0.67"
+@pytest.mark.parametrize(
+    ("language", "value", "expected"),
+    [
+        ("en", "2.00", "2"),
+        ("en", "1.50", "1.5"),
+        ("en", "0.67", "0.67"),
+        ("en", "10.00", "10"),  # regression: normalize() gives "1E+1"
+        ("en", "1234.50", "1234.5"),
+        ("pl", "2.00", "2"),
+        ("pl", "1.50", "1,5"),
+        ("pl", "0.67", "0,67"),
+        ("pl", "10.00", "10"),
+        ("pl", "1234.50", "1234,5"),
+    ],
+)
+def test_marks_filter_trims_and_localises(language, value, expected):
+    with translation.override(language):
+        assert marks_filter(Decimal(value)) == expected
 
 
-def test_marks_filter_whole_tens_not_scientific():
-    # regression: Decimal.normalize() would give "1E+1" — must be "10"
-    assert marks_filter(Decimal("10.00")) == "10"
-
-
-def test_marks_filter_none_is_dash():
-    assert marks_filter(None) == "—"
+@pytest.mark.parametrize("language", ["en", "pl"])
+def test_marks_filter_none_is_dash(language):
+    with translation.override(language):
+        assert marks_filter(None) == "—"
