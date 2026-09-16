@@ -1,10 +1,10 @@
-{% load i18n %}
+{% load i18n courses_extras %}
 {% comment %}The quiz status pill, shared by the analytics breakdown and the
 per-question page header (spec D8). Reads `p`, a rollups._quiz_pill dict. The
 awaiting-review "Review" link is NOT here: each caller renders its own after
 this include, so no page shows it twice.{% endcomment %}
 {% if p.kind == "scored" %}
-  <span class="pill pill--scored">{% blocktrans with s=p.score|floatformat m=p.max_score|floatformat %}scored {{ s }}/{{ m }}{% endblocktrans %} ({{ p.percent }}%)</span>
+  <span class="pill pill--scored">{% blocktrans with s=p.score|marks m=p.max_score|marks %}scored {{ s }}/{{ m }}{% endblocktrans %} ({{ p.percent }}%)</span>
 {% elif p.kind == "submitted" %}
   <span class="pill pill--submitted">{% trans "submitted" %}</span>
 {% elif p.kind == "awaiting" %}

@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from django import template
 from django.urls import reverse
+from django.utils.formats import number_format
 from django.utils.html import format_html
 from django.utils.html import format_html_join
 from django.utils.html import strip_tags
@@ -576,17 +577,20 @@ def render_switch_grid(el, eid, mine=None, mine_json="{}", save_url=""):
 
 @register.filter(name="marks")
 def marks_filter(value):
-    """Format a marks Decimal for display: 2dp, trailing zeros + trailing '.' trimmed.
+    """Format a marks Decimal for display: at most 2dp, trailing zeros + a trailing
+    separator trimmed, decimal separator localised (spec §5.5).
 
-    NOT Decimal.normalize() — that yields scientific notation for whole tens
-    (Decimal("10.00").normalize() == Decimal("1E+1")).
+    NOT Decimal.normalize() -- that yields scientific notation for whole tens
+    (Decimal("10.00").normalize() == Decimal("1E+1")). Grouping is left to the
+    USE_THOUSAND_SEPARATOR setting: number_format's force_grouping can only ADD
+    grouping, never suppress it.
     """
     if value is None:
         return "—"
     s = f"{Decimal(value).quantize(Decimal('0.01')):f}"
     if "." in s:
         s = s.rstrip("0").rstrip(".")
-    return s
+    return number_format(Decimal(s), decimal_pos=None)
 
 
 @register.filter

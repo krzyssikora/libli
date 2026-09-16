@@ -8,7 +8,7 @@ kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grupy ma
 odnośnik **Analityka** ograniczony do tej grupy. Karta kolekcji ma go
 również, jeśli możesz przeglądać kurs tej kolekcji.
 
-![Szczegółowe wyniki ucznia](static:core/img/help/drill-down.pl.png)
+![Wyniki ucznia](static:core/img/help/drill-down.pl.png)
 
 ## Rozwijanie kolumny
 
@@ -49,20 +49,31 @@ Twoje wybory rozwinięcia i podzbioru podróżują z tobą: przenoszą się prze
 przełącznik Postęp ↔ Wyniki oraz odnośnik eksportu, więc nigdy nie tracisz
 swojego miejsca przy zmianie tego, co mierzy macierz.
 
-## Wyniki pojedynczego ucznia
+## Wyniki ucznia
 
-Kliknij nazwisko ucznia, aby otworzyć jego wyniki w bieżącym kursie. Odnośnik **← Analityka** przywraca dokładny zakres, tryb, rozwinięte
-kolumny i podzbiór, z których przyszedłeś, więc możesz zajrzeć do jednego
-ucznia i wrócić prosto do tej samej siatki.
+Kliknij imię i nazwisko ucznia, aby otworzyć stronę jego wyników w bieżącym
+kursie. Otwiera się w tym samym widoku, z którego przyszedłeś w macierzy, a
+przełącznik **Postęp / Wyniki** pod nagłówkiem zmienia go bez powrotu:
 
-## Odpowiedzi na poszczególne pytania
+- **Postęp** pokazuje wszystkie lekcje i quizy. Ukończona lekcja ma ✓,
+  nieukończona puste ○, a lekcja nieobowiązkowa jest oznaczona jako
+  **Dodatkowa**. Nagłówki rozdziałów pokazują, ile obowiązkowych lekcji ukończono.
+- **Wyniki** pokazuje tylko quizy — z ich stanem lub wynikiem — i rozdziały,
+  które je zawierają.
 
-W wynikach ucznia tytuł każdego rozpoczętego przez niego quizu jest odnośnikiem.
-Kliknij, aby zobaczyć quiz pytanie po pytaniu: treść pytania, odpowiedź
-ucznia, poprawną odpowiedź tam, gdzie jego była błędna, punkty oraz liczbę
-wykorzystanych prób. Quiz w toku pokazuje dotychczasowe odpowiedzi. Pytanie
-czekające na sprawdzenie prowadzi prosto do strony sprawdzania. Odnośnik
-**← Szczegóły ucznia** wraca do wyników ucznia bez zmiany widoku analityki.
+Odnośnik **← Analityka** przywraca dokładnie ten zakres, widok, rozwinięte kolumny i
+wybór uczniów, z którego przyszedłeś.
+
+## Odpowiedzi na pytania
+
+Na stronie wyników ucznia tytuł każdego rozpoczętego przez niego quizu jest
+odnośnikiem. Kliknij go, aby zobaczyć quiz pytanie po pytaniu: odpowiedź ucznia,
+klucz tam, gdzie odpowiedź była błędna, punkty i liczbę prób. Pytanie
+wielokrotnego wyboru pokazuje **wszystkie** opcje — co uczeń wybrał i które
+opcje są poprawne; pytanie z kilkoma częściami układa odpowiedzi ucznia i klucz
+w kolumnach. Quiz w toku pokazuje dotychczasowe odpowiedzi. Pytanie czekające
+na sprawdzenie prowadzi prosto do strony sprawdzania. Odnośnik **← Wyniki ucznia**
+wraca z niezmienionym widokiem analityki.
 
 ## Powiązane tematy
 

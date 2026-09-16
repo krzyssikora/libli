@@ -10,6 +10,7 @@ from django.utils.translation import gettext as _
 
 from courses.access import can_manage_course
 from courses.access import get_node_or_404
+from courses.answer_summary import ANSWER
 from courses.answer_summary import stem_html
 from courses.answer_summary import summarise
 from courses.color_bands import band_style
@@ -263,16 +264,24 @@ def analytics_student(request, slug, student_pk):
     if student is None:
         # non-existent OR out-of-reach -> 404, never 403 (manage convention)
         raise Http404
+    # Parsed BEFORE the builder: the mode decides the tree (spec §4.1).
+    scope, mode, expand_pks, subset_pks, values = _drill_params(request)
     with_data = _with_data_for(course)
     breakdown = build_student_breakdown(
-        course, student, drafts="keep-with-data", with_data=with_data
+        course, student, drafts="keep-with-data", with_data=with_data, mode=mode
     )
-    scope, mode, expand_pks, subset_pks, values = _drill_params(request)
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    student_path = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": student.pk},
+    )
     back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
+    other_mode = "progress" if mode == "results" else "results"
+    other_qs = _expand_qs(scope, other_mode, expand_pks, subset_pks, values)
     # build_student_breakdown returns a DICT WRAPPER, {"student": …, "tree": …};
     # passing `breakdown` itself would iterate the dict's keys and raise
-    # TypeError -- a 500 on this page.
+    # TypeError -- a 500 on this page. The tree is already pruned for the mode,
+    # so KaTeX loads only for titles the page renders.
     has_math = tree_titles_have_math(breakdown["tree"])
     return render(
         request,
@@ -281,6 +290,8 @@ def analytics_student(request, slug, student_pk):
             "course": course,
             "student": student,
             "breakdown": breakdown,
+            "mode": mode,
+            "other_view_url": f"{student_path}?{other_qs}",
             "back_url": f"{matrix_path}?{back_qs}",
             "drill_qs": back_qs,
             "has_math": has_math,
@@ -328,7 +339,25 @@ def _quiz_answer_rows(unit, submission):
         response = responses.get(el.pk)
         row = _results_row(question, response)
         row["outcome"] = _override_outcome(question, response, row, in_progress)
-        row["parts"] = summarise(question, response, row["reveal_result"])
+        # row["marks"] is None outside _results_row's AUTO branch; {} is the
+        # builder's "no verdicts" (spec §5.1).
+        row["parts"] = summarise(
+            question, response, row["reveal_result"], option_marks=row["marks"] or {}
+        )
+        parts = row["parts"]
+        # ONE predicate for the grid and its header row (spec §5.2): several parts,
+        # all plain answers (not extended response's keyword parts, not an options
+        # table), and at least one carrying a key -- so neither an all-correct
+        # question nor a non-auto one (every part expected=None) gets an empty
+        # third column.
+        # all(...) is defensive: with today's adapters no part carrying `expected`
+        # is ever a keyword or options part, so no test can falsify that clause
+        # alone (T24's mutant removes both clauses).
+        row["columned"] = (
+            len(parts) > 1
+            and all(p.kind == ANSWER for p in parts)
+            and any(p.expected for p in parts)
+        )
         row["qnum"] = qnum
         row["stem_html"] = stem_html(question)
         attempts = response.attempt_count if response is not None else 0

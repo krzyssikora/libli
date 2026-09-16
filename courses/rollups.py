@@ -519,13 +519,20 @@ def _quiz_pill(row):
     return {"kind": "not_started"}
 
 
-def build_student_breakdown(course, student, *, drafts, with_data=None):
+def build_student_breakdown(
+    course, student, *, drafts, with_data=None, mode="progress"
+):
     """Compose build_outline + build_course_results into one teacher-facing tree
-    (spec §3). NOT pure — calls two query-backed builders. Quiz units gain `pill`.
+    (spec §3). NOT pure — calls two query-backed builders. Quiz units gain `pill`;
+    every unit gains `additional` (a BOOLEAN from unit_marker, so no template can
+    render the raw "quiz" marker as a chip).
 
     Forwards drafts/with_data into BOTH internal calls: build_outline defaults to
     "hide", so leaving it unthreaded would drop draft units from the tree while
     pill_by_unit (from build_course_results) still carries their results.
+
+    mode="results" returns the tree already pruned to quizzes (analytics student
+    pages spec §4.1). The default keeps every existing caller's tree unchanged.
     """
     tree = build_outline(course, student, drafts=drafts, with_data=with_data)
     results = build_course_results(course, student, drafts=drafts, with_data=with_data)
@@ -534,12 +541,34 @@ def build_student_breakdown(course, student, *, drafts, with_data=None):
     def attach(nodes):
         for d in nodes:
             node = d["node"]
-            if d["is_unit"] and node.unit_type == ContentNode.UnitType.QUIZ:
-                d["pill"] = pill_by_unit.get(node.pk)
+            if d["is_unit"]:
+                if node.unit_type == ContentNode.UnitType.QUIZ:
+                    d["pill"] = pill_by_unit.get(node.pk)
+                d["additional"] = unit_marker(node) == MARKER_ADDITIONAL
             attach(d["children"])
 
     attach(tree)
+    if mode == "results":
+        tree = _keep_quizzes(tree)
     return {"student": student, "tree": tree}
+
+
+def _keep_quizzes(nodes):
+    """The Results view's prune (spec §4.1): a unit stays iff is_quiz_unit — ONE
+    predicate, so a unit with no unit_type is dropped, never kept by a "not a
+    lesson" reading — and a container stays iff a descendant stayed. Runs after
+    attach, on a tree build_outline just built, so rewriting `children` in place
+    is safe."""
+    kept = []
+    for d in nodes:
+        if d["is_unit"]:
+            if is_quiz_unit(d["node"]):
+                kept.append(d)
+            continue
+        d["children"] = _keep_quizzes(d["children"])
+        if d["children"]:
+            kept.append(d)
+    return kept
 
 
 def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):

@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n courses_extras %}
 <li class="breakdown-node breakdown-node--{{ item.node.kind }}">
   {% if item.is_unit %}
     {% if item.node.unit_type == "quiz" %}
@@ -14,13 +14,14 @@
     {% else %}
       <div class="breakdown-unit">
         <span class="breakdown-unit__title{% if item.completed %} is-done{% endif %}" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
-        {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
+        {% if item.additional %}<span class="badge breakdown-unit__tag">{% marker_label "additional" %}</span>{% endif %}
+        {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% else %}<span class="badge badge--todo" aria-label="{% trans 'Not completed' %}">○</span>{% endif %}
       </div>
     {% endif %}
   {% else %}
     <div class="breakdown-node__head">
       <span class="breakdown-node__title" lang="{{ course.language }}" data-math-title>{{ item.node.title }}</span>
-      {% if item.required_total %}<span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>{% endif %}
+      {% if item.required_total and mode != "results" %}<span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>{% endif %}
     </div>
     {% if item.children %}
       <ul>{% for child in item.children %}{% include "courses/manage/_breakdown_node.html" with item=child course=course %}{% endfor %}</ul>

@@ -736,8 +736,12 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
   opacity: 1; background: var(--surface-sunken);
 }
 
-.badge--done { margin-left: auto; background: var(--success-subtle); color: var(--success);
+/* Alignment ONLY is shared: .badge--done also carries the green fill, which must
+   never reach "not completed". courses.css's `.unit-tree__check` resets the margin. */
+.badge--done, .badge--todo { margin-left: auto; }
+.badge--done { background: var(--success-subtle); color: var(--success);
   border-color: color-mix(in srgb, var(--success) 45%, var(--border-default)); }
+.badge--todo { background: transparent; color: var(--text-secondary); }
 
 /* --- Practice-state reset controls --- */
 .lesson-unit__reset,
@@ -1005,23 +1009,42 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 
 /* Per-student breakdown tree (reuses the outline visual language) */
 .breakdown__tree,.breakdown-node ul{list-style:none;margin:0;padding:0}
+.breakdown__view{margin:0 0 var(--space-3)}
 .breakdown-node ul{margin-left:1rem;padding-left:.75rem;border-left:1px solid var(--border-default)}
 .breakdown-node__head{display:flex;align-items:baseline;gap:.6rem;
   margin:.5rem 0 .25rem;font-weight:600}
 .breakdown-unit{display:flex;align-items:center;gap:.6rem;padding:.25rem 0}
-.breakdown-unit__title.is-done{color:var(--text-secondary)}
+/* No colour on .is-done: a finished lesson must not look dimmer than an unfinished
+   one. The class stays in the markup as the row's completion record. */
 .breakdown-unit__review{font-size:.8rem}
-.breakdown-unit__link{color:inherit;text-decoration:none}
-.breakdown-unit__link:hover,.breakdown-unit__link:focus-visible{text-decoration:underline}
+/* The one clickable thing on the page reads as a link without hovering. */
+.breakdown-unit__link{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+.breakdown-unit__link:hover,.breakdown-unit__link:focus-visible{text-decoration-thickness:2px}
+/* Scoped: .pill is global and also sits in the per-question .answers__status strip. */
+.breakdown-unit .pill{margin-left:auto}
 
 /* --- Per-question answers page (analytics drill-down, spec PR 5) --- */
 /* The number is the visible qnum, so the list draws no marker. Muted text uses
    the secondary token: the tertiary one fails AA at body size. */
 .answers__status{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin:0 0 1rem}
+.answers__heading{min-width:0}
+.answers__student{margin:0 0 .15rem;font-size:.875rem;color:var(--text-secondary)}
+.answers .manage__head .btn{flex-shrink:0}
+/* Scoped by class AND width: .manage__head is shared and wraps on purpose, and below
+   641px app.css cancels the button's auto-push precisely because the header wraps. */
+@media (min-width:641px){.answers .manage__head{flex-wrap:nowrap}}
+.answers__score{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
+.answers__percent{font-variant-numeric:tabular-nums;color:var(--text-secondary)}
+.answers__score + .answers__percent::before{content:"·";margin-right:.6rem;
+  color:var(--text-tertiary)}
 .answers__count,.answers__attempts,.answers__muted,.answers__expected{color:var(--text-secondary)}
 .answers__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1rem}
 .answers__item{border:1px solid var(--border-default);border-radius:var(--radius-md);
   padding:.75rem 1rem;background:var(--surface-raised)}
+/* The teacher's card edge mirrors the student page's tinted verdict panel. */
+.answers__item.is-correct{border-left:4px solid var(--success)}
+.answers__item.is-partial{border-left:4px solid var(--warning)}
+.answers__item.is-incorrect{border-left:4px solid var(--danger)}
 .answers__head{display:flex;gap:.5rem;align-items:baseline}
 .answers__qnum{font-weight:600}
 .answers__verdict{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.5rem 0}
@@ -1033,18 +1056,59 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 .answers__glyph--incorrect{color:var(--danger)}
 .answers__gap{font-weight:600}
 .answers .dragimage__stage{max-width:32rem;margin:.5rem 0}
+/* Choice options (spec §5.1). width:100% — without it the table shrink-wraps
+   inside the flex .answers__part. Marker columns are as wide as their header. */
+.answers__options{width:100%;table-layout:auto;border-collapse:collapse;margin:.25rem 0}
+.answers__options th{font-size:.75rem;font-weight:600;color:var(--text-secondary);
+  text-align:left;padding:.15rem .5rem}
+.answers__options td{padding:.2rem .5rem;border-top:1px solid var(--border-subtle);
+  vertical-align:baseline}
+.answers__options .answers__options-mark{width:1%;white-space:nowrap;text-align:center}
+.answers__options-text{overflow-wrap:anywhere}
+.answers__options-caption{caption-side:top;text-align:left;font-size:.8rem;
+  color:var(--text-secondary);padding:0 .5rem .2rem}
+.answers__option.is-correct .answers__options-mark{color:var(--success)}
+.answers__option.is-wrong .answers__options-mark{color:var(--danger)}
+.answers__option.is-missed .answers__options-mark{color:var(--warning)}
+/* Multi-part questions (spec §5.2). .answers__given-cell groups the given value and
+   its glyph; outside the grid, above 640px, it is transparent to the flex row. */
+.answers__given-cell{display:contents}
+.answers__header-row{font-size:.75rem;font-weight:600;color:var(--text-secondary)}
+.answers__parts--columned{display:grid;grid-template-columns:auto 1fr 1fr;
+  column-gap:.6rem;row-gap:.35rem;align-items:baseline}
+.answers__parts--columned .answers__part{display:contents}
+.answers__parts--columned .answers__header-row{display:contents}
+.answers__parts--columned .answers__label,
+.answers__parts--columned .answers__given-cell,
+.answers__parts--columned .answers__expected{overflow-wrap:anywhere}
+.answers__parts--columned .answers__given-cell{display:flex;flex-wrap:wrap;
+  align-items:baseline;gap:.25rem .6rem}
+@media (min-width:641px){
+  .answers__parts--columned .answers__expected-label{display:none}
+}
 @media (max-width:640px){
   .answers__part{flex-direction:column;align-items:flex-start}
   .answers__label{min-width:0}
+  /* The header words collapse; each row's sr-only label still carries the meaning.
+     These are reset.css's nine .sr-only declarations, copied: CSS cannot add a class
+     at a breakpoint, and hiding in THIS direction never has to out-rank .sr-only.
+     The th.answers__options-mark half out-ranks the width:1% marker-column rule. */
+  .answers__options th,.answers__options th.answers__options-mark{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .answers__parts--columned{display:block}
+  .answers__parts--columned .answers__part{display:flex;flex-direction:column}
+  .answers__given-cell{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .6rem} /* the glyph stays on its value's line */
+  .answers__parts--columned .answers__header-row{display:none}
 }
 
 /* Status pills */
 .pill{display:inline-block;padding:.1rem .55rem;border-radius:999px;font-size:.75rem;
   font-weight:600;white-space:nowrap}
-.pill--scored{background:var(--primary);color:#fff}
+.pill--scored{background:var(--primary);color:var(--text-inverse)}
 .pill--submitted{background:var(--surface-sunken);color:var(--text-secondary);
   border:1px solid var(--border-strong)}
-.pill--awaiting{background:#f5b942;color:#3a2a00}
+.pill--awaiting{background:var(--warning-subtle);color:var(--text-primary);
+  border:1px solid var(--warning)}
 .pill--progress{background:var(--surface-sunken);color:var(--text-secondary);
   border:1px solid var(--border-strong)}
 .pill--none{background:transparent;color:var(--text-tertiary);

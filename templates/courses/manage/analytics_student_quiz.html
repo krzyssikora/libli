@@ -8,12 +8,22 @@
 {% block content %}
 <section class="manage answers">
   <header class="manage__head">
-    <h1 class="manage__title"><span lang="{{ course.language }}" data-math-title>{{ unit.title }}</span> — {{ student.display_name|default:student.username }}</h1>
-    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Breakdown" %}</a>
+    <div class="answers__heading">
+      <p class="answers__student">{{ student.list_display_name }}</p>
+      <h1 class="manage__title"><span lang="{{ course.language }}" data-math-title>{{ unit.title }}</span></h1>
+    </div>
+    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Student results" %}</a>
   </header>
   <p class="answers__status">
     {% with p=pill %}
-      {% include "courses/manage/_quiz_pill.html" %}
+      {% comment %}A scored quiz shows its score INSTEAD of the shared pill; the pill
+      partial's logic is untouched and still serves every other kind (spec §5.3).{% endcomment %}
+      {% if p.kind == "scored" %}
+        <span class="answers__score">{% blocktrans with s=p.score|marks m=p.max_score|marks %}{{ s }} / {{ m }} marks{% endblocktrans %}</span>
+        <span class="answers__percent">{{ p.percent }}%</span>
+      {% else %}
+        {% include "courses/manage/_quiz_pill.html" %}
+      {% endif %}
       {% if p.kind == "awaiting" %}
         <a class="answers__review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">{% trans "Review" %}</a>
       {% endif %}
@@ -42,10 +52,10 @@
       {% endif %}
       <div class="answers__verdict">
         {% comment %}A deliberate copy of quiz_results.html's badge markup and msgids
-        (spec §5.1): extracting a partial would change the pupil's results page.{% endcomment %}
-        {% if row.outcome == "correct" %}<span class="badge">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
-        {% elif row.outcome == "partial" %}<span class="badge">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
-        {% elif row.outcome == "incorrect" %}<span class="badge">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
+        (spec §5.1), outcome modifiers included: extracting a partial would change the pupil's page.{% endcomment %}
+        {% if row.outcome == "correct" %}<span class="badge badge--correct">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+        {% elif row.outcome == "partial" %}<span class="badge badge--partial">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+        {% elif row.outcome == "incorrect" %}<span class="badge badge--incorrect">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
         {% elif row.outcome == "not_answered" %}<span class="badge badge--muted">{% trans "Not answered" %}</span>
         {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
         {% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
@@ -57,18 +67,61 @@
           <span class="answers__attempts">{% if row.attempt_max %}{% blocktrans with n=row.attempt_count max=row.attempt_max %}attempt {{ n }} of {{ max }}{% endblocktrans %}{% else %}{% blocktrans with n=row.attempt_count %}attempt {{ n }}{% endblocktrans %}{% endif %}</span>
         {% endif %}
       </div>
-      <div class="answers__parts">
+      <div class="answers__parts{% if row.columned %} answers__parts--columned{% endif %}">
+        {% if row.columned %}
+          {% comment %}Three spans, one per grid column; the first is empty because the
+          labels name their own rows. display:contents puts each span in a track.{% endcomment %}
+          <div class="answers__header-row"><span></span><span>{% trans "Student's answer" %}</span><span>{% trans "Answer key" %}</span></div>
+        {% endif %}
         {% for part in row.parts %}
           <div class="answers__part answers__part--{{ part.kind }}">
-            {% if part.label %}<span class="answers__label"{% if part.label_is_content %} lang="{{ course.language }}"{% endif %}>{{ part.label }}</span>{% endif %}
-            {% if part.kind == "answer" %}
-              {% if part.given is not None %}<span class="answers__given" lang="{{ course.language }}">{{ part.given }}</span>{% else %}<span class="answers__muted">{% trans "Not answered" %}</span>{% endif %}
+            {% if part.kind == "options" %}
+              {% comment %}Every option (spec §5.1). Glyphs are aria-hidden; each row's ONE
+              sr-only label sits in column 1. A picked row with no verdict (a question
+              that is not auto-marked) still says it was chosen.{% endcomment %}
+              <table class="answers__options">
+                {% if part.options_empty_key %}{% trans "(none)" as none_label %}<caption class="answers__options-caption">{% blocktrans with key=none_label %}correct answer: {{ key }}{% endblocktrans %}</caption>{% endif %}
+                <thead><tr>
+                  <th scope="col" class="answers__options-mark">{% trans "Student's choice" %}</th>
+                  {% if part.options_auto %}<th scope="col" class="answers__options-mark">{% trans "Answer key" %}</th>{% endif %}
+                  <th scope="col">{% trans "Answer" %}</th>
+                </tr></thead>
+                <tbody>
+                  {% for option in part.options %}
+                    <tr class="answers__option{% if option.mark %} is-{{ option.mark }}{% endif %}">
+                      <td class="answers__options-mark"><span aria-hidden="true">{% if option.picked %}●{% else %}○{% endif %}</span>{% if option.mark == "correct" %}<span class="sr-only">{% trans "chosen, correct" %}</span>{% elif option.mark == "wrong" %}<span class="sr-only">{% trans "chosen, incorrect" %}</span>{% elif option.mark == "missed" %}<span class="sr-only">{% trans "correct, not chosen" %}</span>{% elif option.picked %}<span class="sr-only">{% trans "chosen" %}</span>{% endif %}</td>
+                      {% if part.options_auto %}<td class="answers__options-mark">{% if option.correct %}<span aria-hidden="true">✓</span>{% endif %}</td>{% endif %}
+                      <td class="answers__options-text" lang="{{ course.language }}">{{ option.text }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             {% endif %}
-            {% comment %}The glyph and its sr-only label are ONE unit, keyed on
-            Part.mark, which already suppresses a tick on an empty part.{% endcomment %}
-            {% if part.mark == "correct" %}<span class="answers__glyph answers__glyph--correct" aria-hidden="true">✓</span><span class="sr-only">{% trans "Correct" %}</span>
-            {% elif part.mark == "incorrect" %}<span class="answers__glyph answers__glyph--incorrect" aria-hidden="true">✗</span><span class="sr-only">{% trans "Incorrect" %}</span>{% endif %}
-            {% if part.expected %}<span class="answers__expected">{% trans "Correct answer:" %} <strong lang="{{ course.language }}">{{ part.expected }}</strong></span>{% endif %}
+            {% comment %}A columned part emits EXACTLY three children -- label, given-cell,
+            expected -- each unconditionally: under display:contents a missing child
+            slides every later row one track left.{% endcomment %}
+            {% if row.columned or part.label %}
+              <span class="answers__label"{% if part.label_is_content %} lang="{{ course.language }}"{% endif %}>{{ part.label|default:"" }}</span>
+            {% elif part.kind == "answer" and not part.label_is_content %}
+              {% comment %}Only a part whose label is interface text can be "the student's
+              answer": a grid/match row's label is CONTENT, and a blank statement there must
+              stay blank rather than borrow this word.{% endcomment %}
+              <span class="answers__label">{% trans "Student's answer:" %}</span>
+            {% endif %}
+            {% if part.kind != "options" %}
+            <span class="answers__given-cell">
+              {% if part.kind == "answer" %}
+                {% if part.given is not None %}<span class="answers__given" lang="{{ course.language }}">{{ part.given }}</span>{% else %}<span class="answers__muted">{% trans "Not answered" %}</span>{% endif %}
+              {% endif %}
+              {% comment %}The glyph and its sr-only label are ONE unit, keyed on
+              Part.mark, which already suppresses a tick on an empty part.{% endcomment %}
+              {% if part.mark == "correct" %}<span class="answers__glyph answers__glyph--correct" aria-hidden="true">✓</span><span class="sr-only">{% trans "Correct" %}</span>
+              {% elif part.mark == "incorrect" %}<span class="answers__glyph answers__glyph--incorrect" aria-hidden="true">✗</span><span class="sr-only">{% trans "Incorrect" %}</span>{% endif %}
+            </span>
+            {% endif %}
+            {% if row.columned or part.expected %}
+              <span class="answers__expected">{% if part.expected %}<span class="answers__expected-label">{% trans "Correct answer:" %}</span> <strong lang="{{ course.language }}">{{ part.expected }}</strong>{% endif %}</span>
+            {% endif %}
           </div>
         {% empty %}
           <p class="answers__muted">{% trans "(this question no longer has any parts)" %}</p>

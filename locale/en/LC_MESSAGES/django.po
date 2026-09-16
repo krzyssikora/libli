@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-15 22:42+0200\n"
+"POT-Creation-Date: 2026-09-16 21:45+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -403,34 +403,35 @@ msgstr ""
 msgid "Your settings have been saved."
 msgstr ""
 
-#: .\courses\answer_summary.py:94 .\courses\answer_summary.py:270
-#: .\courses\answer_summary.py:294
+#: .\courses\answer_summary.py:124 .\courses\answer_summary.py:305
+#: .\courses\answer_summary.py:329
 msgid "(removed option)"
 msgstr ""
 
-#: .\courses\answer_summary.py:101 .\courses\answer_summary.py:305
-msgid "(none)"
-msgstr ""
-
-#: .\courses\answer_summary.py:140
+#: .\courses\answer_summary.py:175
 #: .\templates\courses\elements\_reveal_extendedresponse.html:8
 #: .\templates\courses\manage\_flag_legend.html:53
 msgid "Required"
 msgstr ""
 
-#: .\courses\answer_summary.py:140
+#: .\courses\answer_summary.py:175
 #: .\templates\courses\elements\_reveal_extendedresponse.html:13
 msgid "Avoid"
 msgstr ""
 
-#: .\courses\answer_summary.py:213 .\courses\answer_summary.py:227
+#: .\courses\answer_summary.py:248 .\courses\answer_summary.py:262
 #, python-format
 msgid "Gap %(n)s"
 msgstr ""
 
-#: .\courses\answer_summary.py:241
+#: .\courses\answer_summary.py:276
 #, python-format
 msgid "Zone %(n)s"
+msgstr ""
+
+#: .\courses\answer_summary.py:340
+#: .\templates\courses\manage\analytics_student_quiz.html:88
+msgid "(none)"
 msgstr ""
 
 #: .\courses\builder.py:786
@@ -1150,32 +1151,32 @@ msgstr ""
 msgid "Additional"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:381
+#: .\courses\templatetags\courses_extras.py:382
 #: .\templates\courses\elements\fillgateelement.html:13
 msgid "Confirm"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:396
+#: .\courses\templatetags\courses_extras.py:397
 msgid "Choose ▾"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:398
+#: .\courses\templatetags\courses_extras.py:399
 msgid "Choose an option"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:400
-#: .\courses\templatetags\courses_extras.py:571
+#: .\courses\templatetags\courses_extras.py:401
+#: .\courses\templatetags\courses_extras.py:572
 #: .\templates\courses\elements\filltableelement.html:15
 msgid "Try again"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:439
-#: .\courses\templatetags\courses_extras.py:446
+#: .\courses\templatetags\courses_extras.py:440
+#: .\courses\templatetags\courses_extras.py:447
 msgid "Your answer"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:447
-#: .\courses\templatetags\courses_extras.py:547
+#: .\courses\templatetags\courses_extras.py:448
+#: .\courses\templatetags\courses_extras.py:548
 #: .\templates\courses\elements\choicegridquestionelement.html:18
 #: .\templates\courses\elements\choicequestion.html:51
 #: .\templates\courses\elements\dragfillblankquestionelement.html:16
@@ -1189,24 +1190,24 @@ msgstr ""
 msgid "Check"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:452
+#: .\courses\templatetags\courses_extras.py:453
 msgid "Correct!"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:465
+#: .\courses\templatetags\courses_extras.py:466
 msgid "The number is too big, try again."
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:466
+#: .\courses\templatetags\courses_extras.py:467
 msgid "The number is too small, try again."
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:524
+#: .\courses\templatetags\courses_extras.py:525
 msgid "Cycle options"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:552
-#: .\courses\templatetags\courses_extras.py:570
+#: .\courses\templatetags\courses_extras.py:553
+#: .\courses\templatetags\courses_extras.py:571
 #: .\templates\courses\elements\filltableelement.html:14
 #: .\templates\courses\elements\filltableelement.html:43
 msgid "Great!"
@@ -2492,33 +2493,37 @@ msgstr ""
 msgid "You're now enrolled in %(course)s."
 msgstr ""
 
-#: .\courses\views_analytics.py:418
+#: .\courses\views_analytics.py:446
 msgid "Colours reset to defaults."
 msgstr ""
 
-#: .\courses\views_analytics.py:424
+#: .\courses\views_analytics.py:452
 msgid "Colours saved."
 msgstr ""
 
-#: .\courses\views_export.py:26 .\grouping\scoping.py:131
+#: .\courses\views_export.py:26 .\grouping\scoping.py:132
 msgid "All my students"
 msgstr ""
 
-#: .\courses\views_export.py:65
+#: .\courses\views_export.py:63
 msgid "Quiz gradebook"
 msgstr ""
 
-#: .\courses\views_export.py:75
+#: .\courses\views_export.py:73
 #: .\templates\courses\manage\analytics_matrix.html:66
+#: .\templates\courses\manage\analytics_student.html:18
+#: .\templates\courses\manage\analytics_student.html:21
 msgid "Results"
 msgstr ""
 
-#: .\courses\views_export.py:75
+#: .\courses\views_export.py:73
 #: .\templates\courses\manage\analytics_matrix.html:64
+#: .\templates\courses\manage\analytics_student.html:17
+#: .\templates\courses\manage\analytics_student.html:20
 msgid "Progress"
 msgstr ""
 
-#: .\courses\views_export.py:80
+#: .\courses\views_export.py:78
 #, python-format
 msgid "Generated %(date)s · Scope: %(scope)s"
 msgstr ""
@@ -4757,7 +4762,7 @@ msgstr ""
 #: .\templates\courses\manage\_course_panel.html:8
 #: .\templates\courses\manage\analytics_matrix.html:3
 #: .\templates\courses\manage\analytics_matrix.html:8
-#: .\templates\courses\manage\analytics_student.html:10
+#: .\templates\courses\manage\analytics_student.html:9
 #: .\templates\grouping\collection_detail.html:9
 #: .\templates\grouping\group_detail.html:9
 #: .\templates\grouping\my_groups.html:16
@@ -4940,7 +4945,7 @@ msgstr ""
 #: .\templates\courses\_lesson_article.html:23
 #: .\templates\courses\_outline_node.html:9
 #: .\templates\courses\_unit_tree_node.html:11
-#: .\templates\courses\manage\_breakdown_node.html:17
+#: .\templates\courses\manage\_breakdown_node.html:18
 msgid "Completed"
 msgstr ""
 
@@ -4966,7 +4971,7 @@ msgstr ""
 
 #: .\templates\courses\_outline_node.html:40
 #: .\templates\courses\_outline_node.html:55
-#: .\templates\courses\manage\_breakdown_node.html:23
+#: .\templates\courses\manage\_breakdown_node.html:24
 msgid "required"
 msgstr ""
 
@@ -5146,7 +5151,7 @@ msgid "details"
 msgstr ""
 
 #: .\templates\courses\course_results.html:28
-#: .\templates\courses\manage\analytics_student_quiz.html:54
+#: .\templates\courses\manage\analytics_student_quiz.html:65
 #: .\templates\courses\manage\review_queue.html:11
 #: .\templates\courses\quiz_results.html:37
 msgid "Awaiting review"
@@ -5186,8 +5191,8 @@ msgstr ""
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
-#: .\templates\courses\manage\analytics_student_quiz.html:48
-#: .\templates\courses\manage\analytics_student_quiz.html:72
+#: .\templates\courses\manage\analytics_student_quiz.html:59
+#: .\templates\courses\manage\analytics_student_quiz.html:126
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:39
 #: .\templates\courses\quiz_results.html:31
 msgid "Correct"
@@ -5195,8 +5200,8 @@ msgstr ""
 
 #: .\templates\courses\elements\_question_feedback.html:7
 #: .\templates\courses\elements\_quiz_question_feedback.html:35
-#: .\templates\courses\manage\analytics_student_quiz.html:50
-#: .\templates\courses\manage\analytics_student_quiz.html:73
+#: .\templates\courses\manage\analytics_student_quiz.html:61
+#: .\templates\courses\manage\analytics_student_quiz.html:127
 #: .\templates\courses\quiz_results.html:33
 msgid "Incorrect"
 msgstr ""
@@ -5210,7 +5215,7 @@ msgid "Submitted for review"
 msgstr ""
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
-#: .\templates\courses\manage\analytics_student_quiz.html:52
+#: .\templates\courses\manage\analytics_student_quiz.html:63
 #: .\templates\courses\quiz_results.html:35
 msgid "Answer recorded"
 msgstr ""
@@ -5225,7 +5230,7 @@ msgstr[1] ""
 #: .\templates\courses\elements\_reveal_choicegrid.html:11
 #: .\templates\courses\elements\_reveal_fillblank.html:9
 #: .\templates\courses\elements\_reveal_shorttext.html:2
-#: .\templates\courses\manage\analytics_student_quiz.html:74
+#: .\templates\courses\manage\analytics_student_quiz.html:131
 msgid "Correct answer:"
 msgstr ""
 
@@ -5397,13 +5402,17 @@ msgid "More kinds"
 msgstr ""
 
 #: .\templates\courses\manage\_breakdown_node.html:10
-#: .\templates\courses\manage\analytics_student_quiz.html:18
-#: .\templates\courses\manage\analytics_student_quiz.html:56
+#: .\templates\courses\manage\analytics_student_quiz.html:29
+#: .\templates\courses\manage\analytics_student_quiz.html:67
 #: .\templates\courses\manage\review_queue.html:18
 #: .\templates\courses\manage\review_submission.html:3
 #: .\templates\courses\manage\review_submission.html:59
 #: .\tests\test_title_math_filter.py:65
 msgid "Review"
+msgstr ""
+
+#: .\templates\courses\manage\_breakdown_node.html:18
+msgid "Not completed"
 msgstr ""
 
 #: .\templates\courses\manage\_course_panel.html:5
@@ -5863,6 +5872,7 @@ msgid "Students"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_matrix.html:62
+#: .\templates\courses\manage\analytics_student.html:15
 msgid "Metric"
 msgstr ""
 
@@ -5957,69 +5967,117 @@ msgstr ""
 
 #: .\templates\courses\manage\analytics_student.html:3
 #: .\templates\courses\manage\analytics_student.html:8
-#: .\templates\courses\manage\analytics_student_quiz.html:12
-msgid "Breakdown"
+#: .\templates\courses\manage\analytics_student_quiz.html:15
+msgid "Student results"
 msgstr ""
 
 #: .\templates\courses\manage\analytics_student_quiz.html:3
 msgid "Answers"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:21
+#: .\templates\courses\manage\analytics_student_quiz.html:23
+#, python-format
+msgid "%(s)s / %(m)s marks"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:32
 #, python-format
 msgid "%(k)s of %(n)s question answered"
 msgid_plural "%(k)s of %(n)s questions answered"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:49
+#: .\templates\courses\manage\analytics_student_quiz.html:60
 #: .\templates\courses\quiz_results.html:32
 msgid "Partial"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:51
-#: .\templates\courses\manage\analytics_student_quiz.html:67
+#: .\templates\courses\manage\analytics_student_quiz.html:62
+#: .\templates\courses\manage\analytics_student_quiz.html:121
 #: .\templates\courses\quiz_results.html:34
 msgid "Not answered"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:53
+#: .\templates\courses\manage\analytics_student_quiz.html:64
 #: .\templates\courses\manage\review_submission.html:50
 #: .\templates\courses\quiz_results.html:36
 msgid "Reviewed"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:54
+#: .\templates\courses\manage\analytics_student_quiz.html:65
 #: .\templates\courses\quiz_results.html:37
 msgid "up to 1 mark"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:54
+#: .\templates\courses\manage\analytics_student_quiz.html:65
 #: .\templates\courses\quiz_results.html:37
 #, python-format
 msgid "up to %(m)s marks"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:56
+#: .\templates\courses\manage\analytics_student_quiz.html:67
 #, python-format
 msgid "question %(n)s"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:59
+#: .\templates\courses\manage\analytics_student_quiz.html:70
 #, python-format
 msgid "attempt %(n)s of %(max)s"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:59
+#: .\templates\courses\manage\analytics_student_quiz.html:70
 #, python-format
 msgid "attempt %(n)s"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:77
+#: .\templates\courses\manage\analytics_student_quiz.html:78
+msgid "Student's answer"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:78
+#: .\templates\courses\manage\analytics_student_quiz.html:91
+msgid "Answer key"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:88
+#, python-format
+msgid "correct answer: %(key)s"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:90
+msgid "Student's choice"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:92
+#: .\templates\courses\manage\review_submission.html:92
+msgid "Answer"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:97
+msgid "chosen, correct"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:97
+msgid "chosen, incorrect"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:97
+msgid "correct, not chosen"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:97
+msgid "chosen"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:116
+msgid "Student's answer:"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student_quiz.html:135
 msgid "(this question no longer has any parts)"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_student_quiz.html:87
+#: .\templates\courses\manage\analytics_student_quiz.html:145
 msgid "This quiz has no questions."
 msgstr ""
 
@@ -7624,10 +7682,6 @@ msgstr ""
 #: .\templates\courses\manage\review_submission.html:80
 #, python-format
 msgid "%(done)s of %(total)s reviewed"
-msgstr ""
-
-#: .\templates\courses\manage\review_submission.html:92
-msgid "Answer"
 msgstr ""
 
 #: .\templates\courses\manage\review_submission.html:96

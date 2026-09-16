@@ -30,6 +30,7 @@ from courses.models import QuestionElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.quiz import answer_from_json
+from courses.quiz import selected_ids
 from tests.factories import MediaAssetFactory
 
 AUTO = QuestionElement.MarkingMode.AUTO
@@ -115,7 +116,9 @@ def build_all_types(mode=AUTO):
 
 
 def summarise_stored(question, stored, *, unanswered=False):
-    """summarise() fed exactly as views._results_row feeds it."""
+    """summarise() fed exactly as views._results_row + _quiz_answer_rows feed it:
+    for a choice question that includes the choice_marks dict the view computes
+    (spec §5.1). Every question type's builder tests go through here."""
     from courses.answer_summary import summarise
 
     response = None if unanswered else SimpleNamespace(latest_answer=stored)
@@ -125,4 +128,16 @@ def summarise_stored(question, stored, *, unanswered=False):
         mark_result = question.mark(question.build_answer(QueryDict()))
     else:
         mark_result = question.mark(answer_from_json(question, stored))
-    return summarise(question, response, mark_result)
+    if not isinstance(question, ChoiceQuestionElement):
+        return summarise(question, response, mark_result)
+    marks = None
+    if mark_result is not None:
+        picked = (
+            selected_ids(answer_from_json(question, stored))
+            if response is not None and stored is not None
+            else set()
+        )
+        marks = question.choice_marks(
+            list(question.choices.all()), picked, mark_result, "quiz", True
+        )
+    return summarise(question, response, mark_result, option_marks=marks or {})
