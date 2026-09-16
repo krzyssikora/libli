@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-16 21:05+0200\n"
+"POT-Creation-Date: 2026-09-16 21:27+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -445,7 +445,7 @@ msgid "Zone %(n)s"
 msgstr "Strefa %(n)s"
 
 #: .\courses\answer_summary.py:340
-#: .\templates\courses\manage\analytics_student_quiz.html:71
+#: .\templates\courses\manage\analytics_student_quiz.html:77
 msgid "(none)"
 msgstr "(brak)"
 
@@ -2608,11 +2608,11 @@ msgstr "Ten quiz został już przesłany."
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
 
-#: .\courses\views_analytics.py:431
+#: .\courses\views_analytics.py:446
 msgid "Colours reset to defaults."
 msgstr "Przywrócono domyślne kolory."
 
-#: .\courses\views_analytics.py:437
+#: .\courses\views_analytics.py:452
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
@@ -5421,7 +5421,7 @@ msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s"
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
 #: .\templates\courses\manage\analytics_student_quiz.html:48
-#: .\templates\courses\manage\analytics_student_quiz.html:95
+#: .\templates\courses\manage\analytics_student_quiz.html:115
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:39
 #: .\templates\courses\quiz_results.html:31
 msgid "Correct"
@@ -5430,7 +5430,7 @@ msgstr "Poprawnie"
 #: .\templates\courses\elements\_question_feedback.html:7
 #: .\templates\courses\elements\_quiz_question_feedback.html:35
 #: .\templates\courses\manage\analytics_student_quiz.html:50
-#: .\templates\courses\manage\analytics_student_quiz.html:96
+#: .\templates\courses\manage\analytics_student_quiz.html:116
 #: .\templates\courses\quiz_results.html:33
 msgid "Incorrect"
 msgstr "Niepoprawnie"
@@ -5460,7 +5460,7 @@ msgstr[2] "%(n)s prób pozostało"
 #: .\templates\courses\elements\_reveal_choicegrid.html:11
 #: .\templates\courses\elements\_reveal_fillblank.html:9
 #: .\templates\courses\elements\_reveal_shorttext.html:2
-#: .\templates\courses\manage\analytics_student_quiz.html:97
+#: .\templates\courses\manage\analytics_student_quiz.html:120
 msgid "Correct answer:"
 msgstr "Poprawna odpowiedź:"
 
@@ -6248,7 +6248,7 @@ msgid "Partial"
 msgstr "Częściowo poprawnie"
 
 #: .\templates\courses\manage\analytics_student_quiz.html:51
-#: .\templates\courses\manage\analytics_student_quiz.html:90
+#: .\templates\courses\manage\analytics_student_quiz.html:110
 #: .\templates\courses\quiz_results.html:34
 msgid "Not answered"
 msgstr "Bez odpowiedzi"
@@ -6285,45 +6285,54 @@ msgstr "próba %(n)s z %(max)s"
 msgid "attempt %(n)s"
 msgstr "próba %(n)s"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:71
+#: .\templates\courses\manage\analytics_student_quiz.html:67
+msgid "Student's answer"
+msgstr "Odpowiedź ucznia"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:67
+#: .\templates\courses\manage\analytics_student_quiz.html:80
+msgid "Answer key"
+msgstr "Klucz"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:77
 #, python-format
 msgid "correct answer: %(key)s"
 msgstr "poprawna odpowiedź: %(key)s"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:73
+#: .\templates\courses\manage\analytics_student_quiz.html:79
 msgid "Student's choice"
 msgstr "Wybór ucznia"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:74
-msgid "Answer key"
-msgstr "Klucz"
-
-#: .\templates\courses\manage\analytics_student_quiz.html:75
+#: .\templates\courses\manage\analytics_student_quiz.html:81
 #: .\templates\courses\manage\review_submission.html:92
 msgid "Answer"
 msgstr "Odpowiedź"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:80
+#: .\templates\courses\manage\analytics_student_quiz.html:86
 msgid "chosen, correct"
 msgstr "wybrana, poprawna"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:80
+#: .\templates\courses\manage\analytics_student_quiz.html:86
 msgid "chosen, incorrect"
 msgstr "wybrana, niepoprawna"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:80
+#: .\templates\courses\manage\analytics_student_quiz.html:86
 msgid "correct, not chosen"
 msgstr "poprawna, niewybrana"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:80
+#: .\templates\courses\manage\analytics_student_quiz.html:86
 msgid "chosen"
 msgstr "wybrana"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:100
+#: .\templates\courses\manage\analytics_student_quiz.html:105
+msgid "Student's answer:"
+msgstr "Odpowiedź ucznia:"
+
+#: .\templates\courses\manage\analytics_student_quiz.html:124
 msgid "(this question no longer has any parts)"
 msgstr "(to pytanie nie ma już żadnych części)"
 
-#: .\templates\courses\manage\analytics_student_quiz.html:110
+#: .\templates\courses\manage\analytics_student_quiz.html:134
 msgid "This quiz has no questions."
 msgstr "Ten quiz nie ma pytań."
 

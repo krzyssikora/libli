@@ -16,16 +16,23 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
+from courses.models import Blank
 from courses.models import Choice
+from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
+from courses.models import FillBlankQuestionElement
+from courses.models import GridColumn
+from courses.models import GridRow
 from courses.models import QuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.views_analytics import _expand_qs
+from tests.answer_summary_fixtures import TOKEN0
+from tests.answer_summary_fixtures import TOKEN1
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
@@ -1175,3 +1182,128 @@ def test_t22_maths_in_an_option_loads_katex(client):
     )
     soup = _soup(client.get(_url(course, pupil.pk, quiz.pk)))
     assert any("katex" in src for src in _script_srcs(soup))
+
+
+# --- T24 labels + grid for multi-part questions -------------------------------
+def _fillblank_quiz(course, title, *, marking_mode=None):
+    quiz = _empty_quiz(course, title)
+    fields = {"stem": f"<p>2 + {TOKEN0} = {TOKEN1}</p>", "max_marks": Decimal("1")}
+    if marking_mode is not None:
+        fields["marking_mode"] = marking_mode
+    question = FillBlankQuestionElement.objects.create(**fields)
+    Blank.objects.create(question=question, accepted="2", order=0)
+    Blank.objects.create(question=question, accepted="4", order=1)
+    el = Element.objects.create(unit=quiz, content_object=question)
+    return quiz, el
+
+
+def _answered_page(client, course, pupil, quiz, el, answers, fraction):
+    sub = _submitted(pupil, quiz, score=Decimal("0"), max_score=Decimal("1"))
+    _respond(sub, el, latest_answer=answers, fraction=fraction, attempt_count=1)
+    resp = client.get(_url(course, pupil.pk, quiz.pk))
+    return resp, _items(_soup(resp))[0]
+
+
+def test_blank_grid_statement_never_borrows_the_student_answer_label(client):
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Blank row")
+    grid = ChoiceGridQuestionElement.objects.create(
+        stem="<p>G</p>", max_marks=Decimal("1")
+    )
+    yes = GridColumn.objects.create(question=grid, label="yes", order=0)
+    no = GridColumn.objects.create(question=grid, label="no", order=1)
+    GridRow.objects.create(question=grid, statement="", correct_column=yes, order=0)
+    GridRow.objects.create(question=grid, statement="r2", correct_column=no, order=1)
+    el = Element.objects.create(unit=quiz, content_object=grid)
+    # all correct -> NOT columned, so the non-columned label branch renders
+    resp, item = _answered_page(
+        client, course, pupil, quiz, el, [yes.pk, no.pk], Decimal("1")
+    )
+    assert resp.context["rows"][0]["columned"] is False
+    assert "Student's answer:" not in item.get_text(" ", strip=True)
+
+
+def test_single_part_answer_is_labelled(client):
+    course, pupil = _owner_view(client)
+    _polish(client)
+    quiz = _empty_quiz(course, "Single")
+    el = _add(quiz)
+    _resp, item = _answered_page(
+        client, course, pupil, quiz, el, "Krakow", Decimal("0")
+    )
+    part = item.select_one(".answers__part")
+    assert (
+        part.select_one(".answers__label").get_text(strip=True) == "Odpowiedź ucznia:"
+    )
+    assert "Poprawna odpowiedź: Warsaw" in part.get_text(" ", strip=True)
+    assert item.select_one(".answers__header-row") is None
+
+
+def test_t24_extended_response_with_keywords_is_not_columned(client):
+    course, pupil = _owner_view(client)
+    quiz = _empty_quiz(course, "Essay")
+    el = _add(quiz, ExtendedResponseQuestionElement, required_keywords="alpha\nbeta")
+    resp, item = _answered_page(
+        client, course, pupil, quiz, el, "alpha", Decimal("0.5")
+    )
+    assert resp.context["rows"][0]["columned"] is False
+    parts = item.select(".answers__part")
+    assert (
+        parts[0].select_one(".answers__label").get_text(strip=True)
+        == "Student's answer:"
+    )
+    assert item.select_one(".answers__header-row") is None
+
+
+def test_t24b_the_expected_term(client):
+    course, pupil = _owner_view(client)
+    right, rel = _fillblank_quiz(course, "All right")
+    partly, pel = _fillblank_quiz(course, "Partly")
+    review, vel = _fillblank_quiz(course, "Review", marking_mode=REVIEW)
+    all_right, _i = _answered_page(
+        client, course, pupil, right, rel, ["2", "4"], Decimal("1")
+    )
+    partial, _i = _answered_page(
+        client, course, pupil, partly, pel, ["2", "5"], Decimal("0.5")
+    )
+    sub = _submitted(pupil, review)
+    _respond(sub, vel, latest_answer=["2", "5"], attempt_count=1)
+    non_auto = client.get(_url(course, pupil.pk, review.pk))
+    assert all_right.context["rows"][0]["columned"] is False
+    assert partial.context["rows"][0]["columned"] is True
+    assert non_auto.context["rows"][0]["columned"] is False
+
+
+def test_t24c_every_columned_part_emits_three_children(client):
+    course, pupil = _owner_view(client)
+    _polish(client)
+    quiz = _empty_quiz(course, "Grid")
+    grid = ChoiceGridQuestionElement.objects.create(
+        stem="<p>G</p>", max_marks=Decimal("1")
+    )
+    yes = GridColumn.objects.create(question=grid, label="yes", order=0)
+    no = GridColumn.objects.create(question=grid, label="no", order=1)
+    GridRow.objects.create(question=grid, statement="", correct_column=yes, order=0)
+    GridRow.objects.create(question=grid, statement="r2", correct_column=no, order=1)
+    el = Element.objects.create(unit=quiz, content_object=grid)
+    # row 1 (blank statement) answered right, row 2 wrong -> partially correct
+    resp, item = _answered_page(
+        client, course, pupil, quiz, el, [yes.pk, yes.pk], Decimal("0.5")
+    )
+    assert resp.context["rows"][0]["columned"] is True
+    parts = item.select(".answers__parts--columned > .answers__part")
+    assert len(parts) == 2
+    for part in parts:
+        assert [c["class"][0] for c in part.find_all(recursive=False)] == [
+            "answers__label",
+            "answers__given-cell",
+            "answers__expected",
+        ]
+    assert parts[0].select_one(".answers__label").get_text(strip=True) == ""
+    assert parts[0].select_one(".answers__expected").get_text(strip=True) == ""
+    header = item.select_one(".answers__parts--columned > .answers__header-row")
+    assert [s.get_text(strip=True) for s in header.find_all(recursive=False)] == [
+        "",
+        "Odpowiedź ucznia",
+        "Klucz",
+    ]

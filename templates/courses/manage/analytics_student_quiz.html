@@ -57,7 +57,12 @@
           <span class="answers__attempts">{% if row.attempt_max %}{% blocktrans with n=row.attempt_count max=row.attempt_max %}attempt {{ n }} of {{ max }}{% endblocktrans %}{% else %}{% blocktrans with n=row.attempt_count %}attempt {{ n }}{% endblocktrans %}{% endif %}</span>
         {% endif %}
       </div>
-      <div class="answers__parts">
+      <div class="answers__parts{% if row.columned %} answers__parts--columned{% endif %}">
+        {% if row.columned %}
+          {% comment %}Three spans, one per grid column; the first is empty because the
+          labels name their own rows. display:contents puts each span in a track.{% endcomment %}
+          <div class="answers__header-row"><span></span><span>{% trans "Student's answer" %}</span><span>{% trans "Answer key" %}</span></div>
+        {% endif %}
         {% for part in row.parts %}
           <div class="answers__part answers__part--{{ part.kind }}">
             {% if part.kind == "options" %}
@@ -82,15 +87,31 @@
                 </tbody>
               </table>
             {% endif %}
-            {% if part.label %}<span class="answers__label"{% if part.label_is_content %} lang="{{ course.language }}"{% endif %}>{{ part.label }}</span>{% endif %}
-            {% if part.kind == "answer" %}
-              {% if part.given is not None %}<span class="answers__given" lang="{{ course.language }}">{{ part.given }}</span>{% else %}<span class="answers__muted">{% trans "Not answered" %}</span>{% endif %}
+            {% comment %}A columned part emits EXACTLY three children -- label, given-cell,
+            expected -- each unconditionally: under display:contents a missing child
+            slides every later row one track left.{% endcomment %}
+            {% if row.columned or part.label %}
+              <span class="answers__label"{% if part.label_is_content %} lang="{{ course.language }}"{% endif %}>{{ part.label|default:"" }}</span>
+            {% elif part.kind == "answer" and not part.label_is_content %}
+              {% comment %}Only a part whose label is interface text can be "the student's
+              answer": a grid/match row's label is CONTENT, and a blank statement there must
+              stay blank rather than borrow this word.{% endcomment %}
+              <span class="answers__label">{% trans "Student's answer:" %}</span>
             {% endif %}
-            {% comment %}The glyph and its sr-only label are ONE unit, keyed on
-            Part.mark, which already suppresses a tick on an empty part.{% endcomment %}
-            {% if part.mark == "correct" %}<span class="answers__glyph answers__glyph--correct" aria-hidden="true">✓</span><span class="sr-only">{% trans "Correct" %}</span>
-            {% elif part.mark == "incorrect" %}<span class="answers__glyph answers__glyph--incorrect" aria-hidden="true">✗</span><span class="sr-only">{% trans "Incorrect" %}</span>{% endif %}
-            {% if part.expected %}<span class="answers__expected">{% trans "Correct answer:" %} <strong lang="{{ course.language }}">{{ part.expected }}</strong></span>{% endif %}
+            {% if part.kind != "options" %}
+            <span class="answers__given-cell">
+              {% if part.kind == "answer" %}
+                {% if part.given is not None %}<span class="answers__given" lang="{{ course.language }}">{{ part.given }}</span>{% else %}<span class="answers__muted">{% trans "Not answered" %}</span>{% endif %}
+              {% endif %}
+              {% comment %}The glyph and its sr-only label are ONE unit, keyed on
+              Part.mark, which already suppresses a tick on an empty part.{% endcomment %}
+              {% if part.mark == "correct" %}<span class="answers__glyph answers__glyph--correct" aria-hidden="true">✓</span><span class="sr-only">{% trans "Correct" %}</span>
+              {% elif part.mark == "incorrect" %}<span class="answers__glyph answers__glyph--incorrect" aria-hidden="true">✗</span><span class="sr-only">{% trans "Incorrect" %}</span>{% endif %}
+            </span>
+            {% endif %}
+            {% if row.columned or part.expected %}
+              <span class="answers__expected">{% if part.expected %}<span class="answers__expected-label">{% trans "Correct answer:" %}</span> <strong lang="{{ course.language }}">{{ part.expected }}</strong>{% endif %}</span>
+            {% endif %}
           </div>
         {% empty %}
           <p class="answers__muted">{% trans "(this question no longer has any parts)" %}</p>

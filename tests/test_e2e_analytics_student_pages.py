@@ -280,3 +280,88 @@ def test_t33_option_headers_visible_on_desktop_hidden_on_a_phone(
             "height:auto;clip:auto;margin:0}",
         )
         assert _box(th)["w"] > 20
+
+
+def _seed_fillblank_page(client, username):
+    from courses.fillblank import SENTINEL
+    from courses.models import Blank
+    from courses.models import Element
+    from courses.models import FillBlankQuestionElement
+    from courses.models import QuestionResponse
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import UserFactory
+    from tests.factories import make_pa
+
+    pa = make_pa(client, username)
+    course = CourseFactory(owner=pa)
+    quiz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Gaps quiz"
+    )
+    t0, t1 = f"{SENTINEL}0{SENTINEL}", f"{SENTINEL}1{SENTINEL}"
+    question = FillBlankQuestionElement.objects.create(
+        stem=f"<p>{t0} and {t1}</p>", max_marks=Decimal("1")
+    )
+    Blank.objects.create(question=question, accepted="2", order=0)
+    Blank.objects.create(question=question, accepted="4", order=1)
+    el = Element.objects.create(unit=quiz, content_object=question)
+    student = UserFactory(first_name="Anna", last_name="Nowak")
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=quiz,
+        status="submitted",
+        score=Decimal("0.5"),
+        max_score=Decimal("1"),
+    )
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=el,
+        latest_answer=["2", "a considerably longer wrong answer"],
+        fraction=Decimal("0.5"),
+        attempt_count=1,
+    )
+    return reverse(
+        "courses:manage_analytics_student_quiz",
+        kwargs={"slug": course.slug, "student_pk": student.pk, "node_pk": quiz.pk},
+    )
+
+
+def test_t33_multi_part_grid_aligns_columns_on_desktop(page, live_server, client):
+    path = _seed_fillblank_page(client, "e2e_sp_grid")
+    _login(page, live_server, "e2e_sp_grid")
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(f"{live_server.url}{path}")
+    parts = page.locator(".answers__parts--columned > .answers__part")
+    given = [_box(parts.nth(i).locator(".answers__given-cell")) for i in range(2)]
+    expected_cells = [
+        _box(parts.nth(i).locator(".answers__expected")) for i in range(2)
+    ]
+    assert abs(given[0]["l"] - given[1]["l"]) <= 1
+    assert abs(expected_cells[0]["l"] - expected_cells[1]["l"]) <= 1
+    header = page.locator(".answers__header-row > span")
+    assert abs(_box(header.nth(2))["l"] - expected_cells[1]["l"]) <= 1
+    assert _style(parts.nth(1).locator(".answers__expected-label"), "display") == "none"
+    # B leg: without the grid the rows are independent flex lines again.
+    _neutralise(
+        page,
+        ".answers__parts--columned{display:block}"
+        ".answers__parts--columned .answers__part{display:flex}",
+    )
+    moved = [_box(parts.nth(i).locator(".answers__expected")) for i in range(2)]
+    assert abs(moved[0]["l"] - moved[1]["l"]) > 20
+
+
+def test_t33_multi_part_block_fallback_on_a_phone(page, live_server, client):
+    path = _seed_fillblank_page(client, "e2e_sp_grid390")
+    _login(page, live_server, "e2e_sp_grid390")
+    page.set_viewport_size({"width": 390, "height": 900})
+    page.goto(f"{live_server.url}{path}")
+    part = page.locator(".answers__parts--columned > .answers__part").nth(1)
+    assert _style(page.locator(".answers__header-row"), "display") == "none"
+    assert _style(page.locator(".answers__parts--columned"), "display") == "block"
+    assert _style(part, "flexDirection") == "column"
+    label = part.locator(".answers__expected-label")
+    assert _style(label, "display") != "none" and _box(label)["w"] > 0

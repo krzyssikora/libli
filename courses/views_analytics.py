@@ -10,6 +10,7 @@ from django.utils.translation import gettext as _
 
 from courses.access import can_manage_course
 from courses.access import get_node_or_404
+from courses.answer_summary import ANSWER
 from courses.answer_summary import stem_html
 from courses.answer_summary import summarise
 from courses.color_bands import band_style
@@ -342,6 +343,20 @@ def _quiz_answer_rows(unit, submission):
         # builder's "no verdicts" (spec §5.1).
         row["parts"] = summarise(
             question, response, row["reveal_result"], option_marks=row["marks"] or {}
+        )
+        parts = row["parts"]
+        # ONE predicate for the grid and its header row (spec §5.2): several parts,
+        # all plain answers (not extended response's keyword parts, not an options
+        # table), and at least one carrying a key -- so neither an all-correct
+        # question nor a non-auto one (every part expected=None) gets an empty
+        # third column.
+        # all(...) is defensive: with today's adapters no part carrying `expected`
+        # is ever a keyword or options part, so no test can falsify that clause
+        # alone (T24's mutant removes both clauses).
+        row["columned"] = (
+            len(parts) > 1
+            and all(p.kind == ANSWER for p in parts)
+            and any(p.expected for p in parts)
         )
         row["qnum"] = qnum
         row["stem_html"] = stem_html(question)
