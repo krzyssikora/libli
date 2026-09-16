@@ -47,10 +47,8 @@ def gradebook_export(request, slug):
     subset_pks = (
         (raw_subset & set(pool.values_list("pk", flat=True))) if raw_subset else set()
     )
-    students = (
-        pool.filter(pk__in=subset_pks).order_by("username")
-        if subset_pks
-        else pool.order_by("username")
+    students = scoping.ordered_students(
+        pool.filter(pk__in=subset_pks) if subset_pks else pool
     )
 
     with_data = _with_data_for(course)
