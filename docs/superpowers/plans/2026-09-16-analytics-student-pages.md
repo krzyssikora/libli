@@ -468,7 +468,7 @@ Leave the `pupil` variable as is (the rename is optional per spec §2.10; not do
 
 - [ ] **Step 3: Run the §2.10 inventory (expected empty)**
 
-Run: `uv run pytest tests/test_analytics_views.py tests/test_analytics_rollups.py tests/test_analytics_scoping.py tests/test_analytics_student_quiz.py tests/test_views_export.py tests/test_exporters.py tests/test_gradebook.py tests/test_grouping_analytics_links.py tests/test_dashboard_panels.py tests/demo/test_provision.py tests/test_e2e_analytics.py`
+Run: `uv run pytest tests/test_analytics_views.py tests/test_analytics_rollups.py tests/test_analytics_scoping.py tests/test_analytics_student_quiz.py tests/test_views_export.py tests/test_exporters.py tests/test_gradebook.py tests/test_grouping_analytics_links.py tests/test_dashboard_panels.py tests/demo/test_provision.py` (`tests/test_e2e_analytics.py` — whose locators find students by name — runs under `-m e2e` in Step 6.)
 Expected: PASS. If anything fails on a rendered student name, stop and report — spec §2.10 predicts none, because `UserFactory` sets no structured names.
 
 - [ ] **Step 4: Help text**
@@ -588,7 +588,7 @@ Add `from django.utils import translation` to the imports; add `import pytest` i
 
 - [ ] **Step 2: Write the page tests (T29 badge + pill, T30)**
 
-Append to `tests/test_analytics_student_quiz.py` (add `from courses.models import QuestionElement` is already imported; add the `_polish` helper from Global Constraints near `_owner_view`):
+Append to `tests/test_analytics_student_quiz.py` (`QuestionElement` is already imported; add the `_polish` helper from Global Constraints near `_owner_view`):
 
 ```python
 # --- T29 / T30 marks read the same everywhere (spec §5.5) --------------------------
@@ -653,7 +653,7 @@ def test_t30_polish_export_keeps_a_decimal_point(client):
 - [ ] **Step 3: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_scoring.py tests/test_analytics_student_quiz.py -k "marks_filter or t29 or t30"`
-Expected: the `pl` filter cases with a fraction FAIL (`1.5`); T29 Polish FAILS (`0.5/1`, pill `wynik 0,7/1`); T29 English FAILS (`scored 0.7/1`); T30 PASSES (the export never used the filter — it is a guard).
+Expected: the `pl` filter cases with a fraction FAIL (`1.5`); `test_t29_polish_marks_use_a_decimal_comma_in_badge_and_pill` FAILS (`0.5/1`, pill `wynik 0,7/1`); `test_t29_english_marks_keep_a_decimal_point` FAILS (`scored 0.7/1`); `test_t30_polish_export_keeps_a_decimal_point` PASSES (a guard — the export never used the filter). The `-k t30` filter also selects the existing `test_t30_access_matrix`, which PASSES.
 
 - [ ] **Step 4: Localise the filter**
 
@@ -1837,13 +1837,13 @@ def test_t19b_choice_marks_come_from_the_caller_never_the_builder():
 Run: `uv run pytest tests/test_answer_summary.py tests/test_analytics_student_quiz.py -k "t17 or t18 or t19 or t32"` → PASS.
 
 - *Mutant 1:* `picked=c.pk not in picked` → T17 red. Revert.
-- *Mutant 2:* `mark=option_marks.get(c.pk, {}).get("kind") if … != "missed"` — i.e. drop `missed`: `mark=(lambda k: None if k == "missed" else k)(option_marks.get(c.pk, {}).get("kind"))` → T17 red. Revert.
+- *Mutant 2 (drop `missed`):* `mark=(lambda k: None if k == "missed" else k)(option_marks.get(c.pk, {}).get("kind"))` → T17 red. Revert.
 - *Mutant 3:* remove the `if _answered(response) else set()` guard (`picked = set(response.latest_answer or [])`) → `AttributeError` on the no-response case. Revert.
 - *Mutant 4:* emit one placeholder (`if picked - live: options.append(Option(...))`) → T17b red. Revert.
 - *Mutant 5:* removed rows `mark="wrong"` → T17b red. Revert.
 - *Mutant 6:* replace the sentinel guard with a falsy check — `if not option_marks: raise TypeError(...)` → T17c red on its second half (`option_marks={}` now raises, i.e. every non-auto choice question would 500). Revert.
-- *Mutant 7:* `correct=c.is_correct` → T18 red (and T32). Revert.
-- *Mutant 9 (T19b):* in `_choice`, re-derive the marks — as its first statement, `option_marks = question.choice_marks(list(question.choices.all()), set(response.latest_answer or []) if _answered(response) else set(), mark_result, "quiz", True)` → T19b red (the doctored dict is ignored). Revert. ⚠️ T19 stays GREEN under this mutant — a re-deriving builder computes the same dict the page did — which is exactly why T19b exists.
+- *Mutant 7:* `correct=c.is_correct` → T18 red. Revert.
+- *Mutant 8 (T19b):* in `_choice`, re-derive the marks — as its first statement, `option_marks = question.choice_marks(list(question.choices.all()), set(response.latest_answer or []) if _answered(response) else set(), mark_result, "quiz", True)` → T19b red (the doctored dict is ignored). Revert. ⚠️ T19 stays GREEN under this mutant — a re-deriving builder computes the same dict the page did — which is exactly why T19b exists.
 
 - [ ] **Step 9: Commit**
 
@@ -2015,7 +2015,7 @@ def test_t22_maths_in_an_option_loads_katex(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_analytics_student_quiz.py -k "t18 or t19 or t20 or t21 or t22 or t31 or t32 or t35"`
-Expected: T31, T21b, T18 page, T20, T32 page, T19 student-page and T35 FAIL (no table); T22 PASSES (a guard — `_question_has_math` already scans options).
+Expected FAIL (no table): `test_t31_option_table_columns_and_cells`, `test_t21b_…`, `test_t18_non_auto_choice_table_has_no_key_column`, `test_t20_…`, `test_t32_empty_key_caption_…`, `test_t19_student_results_page_shows_the_same_kinds`, `test_t35_teacher_voice_only`. Expected PASS: `test_t22_maths_in_an_option_loads_katex` (a guard — `_question_has_math` already scans options), `test_t19_option_kinds_equal_the_marks_the_page_computed` (B5), and the pre-existing tests the `-k` filter also selects (`test_t31_each_path_segment_404s_on_its_own`, `test_t31b_…`, the other two `test_t35_*`).
 
 - [ ] **Step 3: The markup**
 
@@ -2076,8 +2076,9 @@ and inside the existing `@media (max-width:640px){ … }` block that follows the
 ```css
   /* The header words collapse; each row's sr-only label still carries the meaning.
      These are reset.css's nine .sr-only declarations, copied: CSS cannot add a class
-     at a breakpoint, and hiding in THIS direction never has to out-rank .sr-only. */
-  .answers__options th{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+     at a breakpoint, and hiding in THIS direction never has to out-rank .sr-only.
+     The th.answers__options-mark half out-ranks the width:1% marker-column rule. */
+  .answers__options th,.answers__options th.answers__options-mark{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
     overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 ```
 
@@ -2095,6 +2096,7 @@ Expected: all PASS, including `test_t38_query_count_does_not_grow_with_questions
 - *Mutant 1 (T31):* column 1 from `option.correct` instead of `option.picked` → T31 red. Revert.
 - *Mutant 2 (T31/T18):* drop `{% if part.options_auto %}` around the key `<td>`/`<th>` → T18 page red. Revert.
 - *Mutant 3 (T31):* emit `<th scope="col"></th>` for the third header → T31 red. Revert.
+- *Mutant 3b (T31):* `{% trans "Answer key" %}` → `{% trans "Key" %}` in the options table's second `<th>`, then re-run `compilemessages` is NOT needed (`Key` already exists) → T31 red („Legenda"). Revert.
 - *Mutant 4 (T21b):* repeat the verdict label in the key `<td>` → T21b red. Revert.
 - *Mutant 5 (T20):* `{% for option in part.options %}{% if option.picked %}…{% endif %}` → T20 red. Revert.
 - *Mutant 6 (T21):* render `{{ … }}` from `MARK_GLYPHS` labels — replace `{% trans "chosen, incorrect" %}` with `{% trans "your answer, incorrect" %}` → T35 red. Revert.
@@ -2168,13 +2170,14 @@ def test_t33_option_headers_visible_on_desktop_hidden_on_a_phone(
         assert _box(th)["w"] <= 1
         _neutralise(
             page,
-            ".answers__options th{position:static;width:auto;height:auto;"
-            "clip:auto;margin:0}",
+            # (0,2,1): must out-rank the collapse rule's th.answers__options-mark half
+            ".answers__options th.answers__options-mark{position:static;width:auto;"
+            "height:auto;clip:auto;margin:0}",
         )
         assert _box(th)["w"] > 20
 ```
 
-Run: `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py -k option_headers` → PASS.
+Run: `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py -k option_headers` → PASS. (The first `<th>` carries `answers__options-mark`, so this measures the collapse against the `width:1%` rule — the case that needs the higher-specificity selector.)
 *Mutant:* delete the `@media` `th` rule → the 390 case red. Revert. *Mutant:* move the declarations out of the media query → the 1280 case red. Revert.
 
 - [ ] **Step 9: Commit**
@@ -2309,7 +2312,7 @@ Adjust the grid's stored-answer shape if `answer_from_json` for a choice grid ex
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_analytics_student_quiz.py -k "single_part_answer or t24 or blank_grid"`
-Expected: `blank_grid` PASSES (today no fallback label exists — it guards Step 4's condition); the rest FAIL (`KeyError: 'columned'`, no label, no header row).
+Expected: all FAIL — `test_blank_grid_statement_never_borrows_the_student_answer_label` with `KeyError: 'columned'` (its label half is a guard for Step 4's condition, but `columned` does not exist until Step 3), the others with `KeyError: 'columned'`, no label, or no header row.
 
 - [ ] **Step 3: The predicate**
 
@@ -2512,6 +2515,7 @@ def test_t33_multi_part_block_fallback_on_a_phone(page, live_server, client):
     page.goto(f"{live_server.url}{path}")
     part = page.locator(".answers__parts--columned > .answers__part").nth(1)
     assert _style(page.locator(".answers__header-row"), "display") == "none"
+    assert _style(page.locator(".answers__parts--columned"), "display") == "block"
     assert _style(part, "flexDirection") == "column"
     label = part.locator(".answers__expected-label")
     assert _style(label, "display") != "none" and _box(label)["w"] > 0
@@ -2519,7 +2523,7 @@ def test_t33_multi_part_block_fallback_on_a_phone(page, live_server, client):
 
 Run: `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py -k multi_part` → PASS.
 
-*Mutants:* move `.answers__expected-label{display:none}` out of its `min-width` query → the phone test red. Revert. Delete `.answers__parts--columned .answers__header-row{display:contents}` → the desktop header-alignment assertion red. Revert. Delete the 640px `display:block` line → the phone `flexDirection` assertion red. Revert.
+*Mutants:* move `.answers__expected-label{display:none}` out of its `min-width` query → the phone test red. Revert. Delete `.answers__parts--columned .answers__header-row{display:contents}` → the desktop header-alignment assertion red. Revert. Delete the 640px `display:block` line → the phone test red on the container's `display == "block"` assertion (the part's own `flexDirection` stays `column` — that assertion alone could not catch it). Revert.
 
 - [ ] **Step 10: Commit**
 
@@ -2655,7 +2659,7 @@ def test_t29_polish_header_score_uses_a_decimal_comma(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_analytics_student_quiz.py -k "t26 or t27 or t28 or t29"`
-Expected: T26, T27 (scored half), T28, T29 header FAIL; the two earlier T29 tests PASS.
+Expected FAIL: `test_t26_header_by_pill_kind`, `test_t27_…` (scored half), `test_t28_heading_is_name_then_title`, `test_t29_polish_header_score_uses_a_decimal_comma`. Expected PASS: the two B1 `test_t29_*` tests, and any pre-existing `t28`-matching test.
 
 - [ ] **Step 3: The markup**
 
@@ -3027,28 +3031,28 @@ Kliknij imię i nazwisko ucznia, aby otworzyć stronę jego wyników w bieżący
 kursie. Otwiera się w tym samym widoku, z którego przyszedłeś w macierzy, a
 przełącznik **Postęp / Wyniki** pod nagłówkiem zmienia go bez powrotu:
 
-- **Postęp** pokazuje wszystkie lekcje i kwizy. Ukończona lekcja ma ✓,
+- **Postęp** pokazuje wszystkie lekcje i quizy. Ukończona lekcja ma ✓,
   nieukończona puste ○, a lekcja nieobowiązkowa jest oznaczona jako
   **Dodatkowa**. Nagłówki rozdziałów pokazują, ile obowiązkowych lekcji ukończono.
-- **Wyniki** pokazuje tylko kwizy — z ich stanem lub wynikiem — i rozdziały,
+- **Wyniki** pokazuje tylko quizy — z ich stanem lub wynikiem — i rozdziały,
   które je zawierają.
 
-Link **← Analityka** przywraca dokładnie ten zakres, widok, rozwinięte kolumny i
+Odnośnik **← Analityka** przywraca dokładnie ten zakres, widok, rozwinięte kolumny i
 wybór uczniów, z którego przyszedłeś.
 
 ## Odpowiedzi na pytania
 
-Na stronie wyników ucznia tytuł każdego rozpoczętego przez niego kwizu jest
-linkiem. Kliknij go, aby zobaczyć kwiz pytanie po pytaniu: odpowiedź ucznia,
+Na stronie wyników ucznia tytuł każdego rozpoczętego przez niego quizu jest
+odnośnikiem. Kliknij go, aby zobaczyć quiz pytanie po pytaniu: odpowiedź ucznia,
 klucz tam, gdzie odpowiedź była błędna, punkty i liczbę prób. Pytanie
 wielokrotnego wyboru pokazuje **wszystkie** opcje — co uczeń wybrał i które
 opcje są poprawne; pytanie z kilkoma częściami układa odpowiedzi ucznia i klucz
-w kolumnach. Kwiz w toku pokazuje dotychczasowe odpowiedzi. Pytanie czekające
-na Twoją ocenę prowadzi prosto do strony oceniania. Link **← Wyniki ucznia**
+w kolumnach. Quiz w toku pokazuje dotychczasowe odpowiedzi. Pytanie czekające
+na Twoją ocenę prowadzi prosto do strony oceniania. Odnośnik **← Wyniki ucznia**
 wraca z niezmienionym widokiem analityki.
 ```
 
-Keep the page's existing link words exactly as the Polish UI renders them: check „Analityka" and „Postęp"/„Wyniki" against `locale/pl` (`Analytics`, `Progress`, `Results`) and „Dodatkowa" against `Additional`; if the file uses a different register (e.g. no „Ty"-form), match the file.
+Keep the page's existing link words exactly as the Polish UI renders them: check „Analityka" and „Postęp"/„Wyniki" against `locale/pl` (`Analytics`, `Progress`, `Results`) and „Dodatkowa" against `Additional`; match the file's and the catalog's vocabulary throughout — „quiz/quizy/quizu" (never „kwiz"; `Quiz` is „Quiz" in `locale/pl`) and „odnośnik" (never „link") — and if the file uses a different register (e.g. no „Ty"-form), match the file.
 
 - [ ] **Step 3: Help screenshots (manual checklist)**
 
@@ -3063,7 +3067,7 @@ Expected final status: only files from those four (any of them may be unchanged)
 
 - [ ] **Step 4: Run and commit**
 
-Run: `uv run pytest tests/ -k "help"` → PASS.
+Run: `uv run pytest tests/test_help.py tests/test_help_capture_isolation.py` → PASS.
 
 ```bash
 git add docs/help/teacher/drill-down.md docs/help/teacher/drill-down.pl.md core/static/core/img/help/
