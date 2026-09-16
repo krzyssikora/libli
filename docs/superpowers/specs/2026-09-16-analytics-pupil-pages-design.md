@@ -1,4 +1,4 @@
-# Analytics pupil pages — order, breakdown, per-question — design
+# Analytics student pages — order, breakdown, per-question — design
 
 **Status:** approved in brainstorming 2026-09-16 (three sections, each approved in turn).
 spec-review in progress. Not planned, not built.
@@ -10,16 +10,16 @@ spec"), shipped as #322; and `docs/superpowers/specs/2026-09-12-demo-access-for-
 on prod on 2026-09-15 and had to stop and work out what he was looking at. The defects are not
 bugs in the sense of wrong data — every number is right — but the pages do not say what they mean.
 The PR 5 spec ran no design pass (no `frontend-design`, no design section beyond "Styling"), and
-the pupil breakdown page predates it entirely.
+the student breakdown page predates it entirely.
 
 **Scope.** Three changes, in rising size:
 
-1. **Pupil order and names** in the analytics matrix and the gradebook export.
-2. **The pupil results page** (`analytics_student.html` + `_breakdown_node.html`) follows the
+1. **Student order and names** in the analytics matrix and the gradebook export.
+2. **The student results page** (`analytics_student.html` + `_breakdown_node.html`) follows the
    matrix's Progress/Results view, and its emphasis is corrected.
 3. **The per-question page** (`analytics_student_quiz.html`) shows every option of a choice
-   question, labels the pupil's answer, and carries the outcome in colour — with the outcome
-   colours reconciled with what the pupil's own results page already paints.
+   question, labels the student's answer, and carries the outcome in colour — with the outcome
+   colours reconciled with what the student's own results page already paints.
 
 ---
 
@@ -27,24 +27,24 @@ the pupil breakdown page predates it entirely.
 
 Each was the owner's choice, recorded here so the plan does not re-open them.
 
-- **D1 — The pupil page follows the matrix mode.** Not a page-local toggle as the only source, and
+- **D1 — The student page follows the matrix mode.** Not a page-local toggle as the only source, and
   not "results first, always". The mode already reaches the view; it is simply unused (§2.4).
-- **D2 — A choice question shows EVERY option**, marked with what the pupil picked and what was
+- **D2 — A choice question shows EVERY option**, marked with what the student picked and what was
   correct. Rejected: labelled lines only (keeps the defect); options only when wrong (two layouts
   for one type).
 - **D3 — The full option list is built teacher-side**, by extending the PR 5 answer builder.
-  Rejected: reusing the pupil's own interactive choice markup, which is pupil-voice and carries
+  Rejected: reusing the student's own interactive choice markup, which is student-voice and carries
   inputs and scripts (§2.6). ⚠️ **Refined twice in review:** the builder does not re-derive the
   per-option verdicts, and it does not re-issue the `choice_marks` call either — the marks dict the
   page already computes is **passed in** (§5.1), so there is exactly one call site.
 - **D4 — Outcome colour is reconciled across both pages.** The badge markup on the two pages is a
-  deliberate copy (PR 5 spec §5.1), and a demo rep sees the pupil page through the Student login.
-  ⚠️ **Amended in review:** the pupil page already tints its whole question panel by outcome
+  deliberate copy (PR 5 spec §5.1), and a demo rep sees the student page through the Student login.
+  ⚠️ **Amended in review:** the student page already tints its whole question panel by outcome
   (§2.7), so "add the same filled badge to both" would have painted green on green. §5.4 settles
   the treatment that satisfies the decision without that collision.
 - **D5 — Order: surname, then first name, Polish alphabetical, username as tiebreak. Display:
   "First Surname".** The owner stated this explicitly against a three-option question.
-- **D6 — The pupil page carries a switch to the other view**, so a teacher need not go back to the
+- **D6 — The student page carries a switch to the other view**, so a teacher need not go back to the
   matrix. Approved as one of three "my call" items in section 2.
 - **D7 — Chapter headings drop the `x/y required` chip in Results mode** (it counts lessons only,
   §2.3). Approved with D6.
@@ -55,8 +55,8 @@ Each was the owner's choice, recorded here so the plan does not re-open them.
 
 **Non-goals.** N1 no new analytics numbers — nothing here changes a score, a percentage or a
 rollup. N2 the review queue's own order is untouched (it sorts by title then username, demo spec
-§3.2), and so is how it names a pupil. N3 no change to what the matrix itself renders per cell.
-N4 no pagination of the pupil page. N5 the Groups pages keep their current sort and labels — this
+§3.2), and so is how it names a student. N3 no change to what the matrix itself renders per cell.
+N4 no pagination of the student page. N5 the Groups pages keep their current sort and labels — this
 design borrows their key, it does not change them (see §3.1's follow-up note).
 
 ---
@@ -69,7 +69,7 @@ All verified against master `359b4d1b` on 2026-09-16.
 
 `courses/views_analytics.py:108,110` order the pool by `username` (subset branch and full branch);
 `courses/views_export.py:50-54` repeats the identical expression for the gradebook export. A grep
-over `tests/` and `courses/tests/` found **no test asserting pupil row order** on either surface,
+over `tests/` and `courses/tests/` found **no test asserting student row order** on either surface,
 so the current order is unpinned in both directions: changing it breaks nothing, and nothing would
 notice if it silently reverted. §7.1's tests must therefore create the pinning that does not exist.
 
@@ -100,21 +100,21 @@ expression the Groups pages already use, not a second ordering.
 on the viewer.** `reviewable_students` (`grouping/scoping.py:76-93`) returns
 `Enrollment`-derived users for a PA or the course owner, and **`GroupMembership`-derived users for
 a group teacher**. `demo/services.py` attaches the kit Teacher with `group.teachers.add(teacher)`
-(`:301`) and enrols only the Student and the pupils
+(`:301`) and enrols only the Student and the students
 (`add_students_to_group(group, [student, *pupil_users], …)`, `:337`).
 
 - **Viewed as the kit Teacher — the demo path this design exists for — the Teacher's own row is not
   in the matrix at all.** Only the Student („Uczeń demo — <label> (#pk)", `:305`) appears among the
-  pupils, sorting under **"U"**.
+  students, sorting under **"U"**.
 - Viewed as the owner or a PA, the roster is enrolment-derived, so the same holds: the Teacher
   („Nauczyciel demo — …", `:289`) has no `Enrollment` and does not appear.
 
-The kit's generated pupils DO carry `first_name`/`last_name` plus a matching `display_name`
+The kit's generated students DO carry `first_name`/`last_name` plus a matching `display_name`
 (`:320`), so they sort by surname properly. The Student's placement under "U" is accepted, not a
 defect to fix here. ⚠️ An earlier draft of this spec claimed both kit logins sit among the
 surnames; the Teacher never does.
 
-### 2.3 What the pupil page's tree actually holds
+### 2.3 What the student page's tree actually holds
 
 `courses/rollups.py:215-263` (`build_outline`) yields node dicts with `node`, `children`,
 `required_total`, `required_done`, `additional_done`, `is_unit`, `completed`, `depth`.
@@ -148,20 +148,20 @@ surnames; the Teacher never does.
 ### 2.4 The mode already reaches both drill-down pages — but too late, and not into the context
 
 `_drill_params` (`courses/views_analytics.py:214-222`) parses `scope, mode, expand_pks,
-subset_pks, values` from the querystring, and both the pupil page (`:271`) and the per-question
+subset_pks, values` from the querystring, and both the student page (`:271`) and the per-question
 page (`:384`) already call it — to rebuild the *back* link only.
 
 - ⚠️ **`build_student_breakdown` is called at `:268`, before `_drill_params` runs at `:271`.**
-- ⚠️ **The pupil view's context is `course, student, breakdown, back_url, drill_qs, has_math`
+- ⚠️ **The student view's context is `course, student, breakdown, back_url, drill_qs, has_math`
   (`:281-288`) — no `mode`.** A missing context key is silently falsy in a Django template, so
   every mode-conditional rule would no-op with no error.
 - ⚠️ **That view computes `matrix_path` only** (`:272`); it has no `student_path`.
 
 `_expand_qs(scope, mode, …)` (`:196-211`) is the single builder for such a querystring, and the
 matrix's own view switch is two calls to it with `"progress"` / `"results"` hardcoded
-(`:137-138`). D1 and D6 reuse that pattern against the pupil page's own path.
+(`:137-138`). D1 and D6 reuse that pattern against the student page's own path.
 
-⚠️ **Unknown values already normalise to `progress`** (`:218`). The pupil page must not invent a
+⚠️ **Unknown values already normalise to `progress`** (`:218`). The student page must not invent a
 second rule.
 
 ### 2.5 Why finished lessons look dimmer than unfinished ones
@@ -204,7 +204,7 @@ how a second right-hand item avoids re-pushing.
 `courses.css:897`'s `.unit-tree__check{margin-left:0}` exists **specifically to cancel it** on
 rows where the tick leads rather than trails (`courses.css:870-873` says so). Any new rule must
 therefore join the `app.css:739` selector list — a duplicate landing in `courses.css` after `:897`
-would silently un-cancel that reset on the unit tree and the pupil outline.
+would silently un-cancel that reset on the unit tree and the student outline.
 
 ### 2.6 The per-question page and its answer builder
 
@@ -230,7 +230,7 @@ would silently un-cancel that reset on the unit tree and the pupil outline.
   PRODUCTION code**, and the fixture's whole purpose is to imitate the view. §5.1 says what the
   helper does; §7.3 treats it as a named deliverable, not an incidental edit.
 - ⚠️ **`response` may be `None`.** `_quiz_answer_rows` does `response = responses.get(el.pk)`
-  (`views_analytics.py:329`) — a question the pupil never touched has no row at all. Today's
+  (`views_analytics.py:329`) — a question the student never touched has no row at all. Today's
   `_choice` reads `latest_answer` only inside `if _answered(response)` (`:90-91`); §5.1 keeps that
   guard, because the unguarded expression raises `AttributeError`.
 - ⚠️ **What `_results_row` actually hands over** (`courses/views.py:1770-1830`):
@@ -244,7 +244,7 @@ would silently un-cancel that reset on the unit tree and the pupil outline.
 - ⚠️ **`choice_marks` marks a picked option `wrong` when the key is EMPTY.** `models.py:2346-2347`
   is `elif picked: marks[c.pk] = "correct" if c.pk in correct else "wrong"`, and an empty
   `reveal` makes every pick `wrong`. So "an empty-key question renders every option unmarked" is
-  false for any pupil who answered (§5.1 states what actually happens).
+  false for any student who answered (§5.1 states what actually happens).
 - ✅ **`reveal_result` is `None` outside the AUTO branch**, so `choice_marks` is never called for a
   non-auto question — which is what makes "no verdict without a key" a property of the data.
 - `question.choices.all()` is already prefetched (`courses/views.py:354`), so D2 adds **no
@@ -257,7 +257,7 @@ would silently un-cancel that reset on the unit tree and the pupil outline.
   table renders identically for both, deliberately.**
 - **The per-option vocabulary already exists:** `MARK_GLYPHS` (`courses/models.py:2309-2313`) maps
   `correct → ("✓", "your answer, correct")`, `wrong → ("✗", …)`, `missed → ("＋", …)`.
-  ⚠️ **Those labels are pupil-voice**, so the teacher page reuses the *kinds* and needs its own
+  ⚠️ **Those labels are student-voice**, so the teacher page reuses the *kinds* and needs its own
   labels (§6). `test_t35_teacher_voice_only` is the guard. Colours exist at
   `courses/static/courses/css/courses.css:377,382-386`.
 - ✅ **Maths inside option texts already loads KaTeX.** `_answers_have_math`
@@ -265,7 +265,7 @@ would silently un-cancel that reset on the unit tree and the pupil outline.
   whose `ChoiceQuestionElement` branch scans `c.text` and `c.feedback`. §7.3's T22 mutates
   `views.py:104-107`.
 
-### 2.7 The pupil's results page already carries outcome colour
+### 2.7 The student's results page already carries outcome colour
 
 `templates/courses/quiz_results.html:30` wraps every verdict in `question__feedback-panel
 question__feedback-panel--{{ row.outcome }}`, and `courses.css:281-302` paints those panels:
@@ -335,15 +335,18 @@ fixing only the separator leaves the page disagreeing with itself.
 - ⚠️ **The CSV/XLSX export does NOT use this filter** — `courses/gradebook.py` builds Decimals in
   Python (`:80-140`) — so localising cannot corrupt an exported file.
 
-### 2.10 Existing tests that assert a rendered pupil name
+### 2.10 Existing tests that assert a rendered student name
 
 - `tests/demo/test_provision.py:48-49` carries a comment stating the analytics templates render
   `display_name|default:username` "and nothing else" — which §3.2 falsifies. Repaired
-  line-count-neutral (repo convention).
+  line-count-neutral (repo convention). ⚠️ **That comment also says "pupil"**, as does its local
+  variable; the repair uses "student", matching the product's English everywhere else (the app's
+  own strings, `privacy.md` and the help pages). The variable rename is optional and stays inside
+  that test.
 - ✅ **`UserFactory` sets `display_name = Faker("name")` and NO `first_name`/`last_name`**
   (`tests/factories.py:58-65`), so `list_display_name` returns the display name unchanged for every
-  factory-built pupil. **The §3.2 switch is invisible to the existing suite, and the inventory the
-  plan runs is expected to come back EMPTY.** T3 must build its own first+last pupil.
+  factory-built student. **The §3.2 switch is invisible to the existing suite, and the inventory the
+  plan runs is expected to come back EMPTY.** T3 must build its own first+last student.
 
 ### 2.11 The help screenshots these changes invalidate
 
@@ -355,13 +358,13 @@ fixing only the separator leaves the page disagreeing with itself.
 
 | shot | clip | why it changes | PR |
 |---|---|---|---|
-| `analytics-matrix` (`:174-180`) | `section.manage` | pupil names respelled/reordered (§3) | A |
+| `analytics-matrix` (`:174-180`) | `section.manage` | student names respelled/reordered (§3) | A |
 | `drill-down` (`:181-187`) | `section.manage` | the tree, the `h1` and the back link (§4) | B |
 | `review-submission` (`:196-201`) | `.review-shell` | renders `.badge--muted` twice (`review_submission.html:76,78`), which §5.4 recolours | B |
 
 ⚠️ **An earlier draft named the two *wait* selectors as clips and analysed the wrong region**, and
-its "no other shot is affected" check tested only for pupil names — which cannot see a shared
-class. `review-queue` also clips `section.manage` and renders pupil names, but N2 leaves that
+its "no other shot is affected" check tested only for student names — which cannot see a shared
+class. `review-queue` also clips `section.manage` and renders student names, but N2 leaves that
 template alone.
 
 ⚠️ **PR A's shot may come out byte-identical.** `courses/management/commands/seed_demo_course.py:
@@ -376,7 +379,7 @@ regenerates its own shots and restores the rest with
 
 ---
 
-## 3. Pupil order and names
+## 3. Student order and names
 
 ### 3.1 One ordering helper
 
@@ -393,7 +396,7 @@ def ordered_students(students):
 ```
 
 **Rejected: `courses/ordering.py`** — that module is the *content-node* ordering space (move /
-assign / compact / place); a pupil-display helper there would overload the name.
+assign / compact / place); a student-display helper there would overload the name.
 
 Both matrix builders already call `list(students)` (`courses/rollups.py:753,811`), and both
 gradebook builders preserve the order they are handed (`courses/gradebook.py:76,105`;
@@ -409,7 +412,7 @@ students = scoping.ordered_students(
 ```
 
 ⚠️ **`grouping/views.py:434,561,605,612,712` keep their inline copies of the key** — deliberately
-out of scope. Those five sites sort teachers and memberships as well as pupils, and repointing them
+out of scope. Those five sites sort teachers and memberships as well as students, and repointing them
 widens PR A from two views to a second app's page set. **Recorded as follow-up work**, not as an
 oversight; §9 lists the duplication as a risk.
 
@@ -424,7 +427,7 @@ oversight; §9 lists the duplication as a risk.
 The two drill-down headings (`analytics_student.html:8-9`, `analytics_student_quiz.html:11`) switch
 too, but **in PR B**, where they are rewritten anyway (§8).
 
-⚠️ **The parenthetical branch is reachable here.** A pupil with first + last **and** an unrelated
+⚠️ **The parenthetical branch is reachable here.** A student with first + last **and** an unrelated
 display name renders `"Anna Nowak (Uczeń demo — sp-12 (#41))"` (`accounts/models.py:69-71`).
 Accepted as-is on every surface: it is the app-wide roster convention, and truncating it in a row
 header would hide exactly the disambiguation it exists for. §7.1 T3 pins it.
@@ -435,12 +438,12 @@ Unchanged by decision: the review queue and review submission screens (N2), and 
 ### 3.3 What this does not do
 
 No index, no `db_collation`, no SQL-side ordering. The sort is in Python over a pool already
-materialised for rendering; a class is tens of pupils. Thousands of rows on one screen is a
+materialised for rendering; a class is tens of students. Thousands of rows on one screen is a
 different design.
 
 ---
 
-## 4. The pupil results page
+## 4. The student results page
 
 ### 4.1 Mode reaches the tree, the context and the template
 
@@ -565,7 +568,7 @@ link, which gave one page two names again, and made the Progress view's tab say 
 
 | surface | today | after |
 |---|---|---|
-| `analytics_student.html:3` `head_title` | `Breakdown` / „Szczegóły ucznia" | `Pupil results` / „Wyniki ucznia" |
+| `analytics_student.html:3` `head_title` | `Breakdown` / „Szczegóły ucznia" | `Student results` / „Wyniki ucznia" |
 | `analytics_student.html:8-9` `h1` | „Szczegóły ucznia — X" | „Wyniki ucznia — X" (mode-independent) |
 | the view | not shown | **the switch below the heading**, two links marked current/other |
 | `analytics_student_quiz.html:12` back link | „← Szczegóły ucznia" | „← Wyniki ucznia" |
@@ -667,7 +670,7 @@ question).
   deleted option's correctness is unknowable.
 - **An AUTO question whose key is empty** (`options_empty_key`): ⚠️ **every PICKED option is marked
   `wrong`**, because that is what `choice_marks` does with an empty key (§2.6); unpicked options
-  are unmarked, and only an *unanswered* pupil's table is fully unmarked. The table carries a
+  are unmarked, and only an *unanswered* student's table is fully unmarked. The table carries a
   caption reusing the „(none)" msgid — „poprawna odpowiedź: (brak)" — which is the element that
   distinguishes this case from a non-auto one.
 - **Not answered** — every option listed, none picked, the key still marked. The row badge („Bez
@@ -805,12 +808,12 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
 
 ### 5.3 The header
 
-- **Two lines, not one dash-joined title:** the pupil's `list_display_name` on a small line above,
+- **Two lines, not one dash-joined title:** the student's `list_display_name` on a small line above,
   the quiz title as the `h1` below (today: `"{{ unit.title }} — {{ student… }}"`, `:11`).
   ⚠️ **The title keeps its `<span lang="{{ course.language }}" data-math-title>` wrapper.** That
   marker is what typesets maths in a quiz title, and `has_math` still counts the title
   (`views_analytics.py:350`), so dropping the span would silently stop typesetting with KaTeX
-  still loaded — no error, just raw LaTeX. The new pupil-name line carries neither attribute: a
+  still loaded — no error, just raw LaTeX. The new student-name line carries neither attribute: a
   name is not course content. T28 asserts the marker survives.
 - **The back button does not wrap beneath a long title**, by rule rather than by hope:
   **`@media (min-width:641px){.answers .manage__head{flex-wrap:nowrap}}`**, `min-width:0` on the
@@ -826,7 +829,7 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
   documents the builder's filter row as depending on that wrap ("once the floor no longer fits
   alongside its siblings the whole form wraps onto its own line"), and `app.css:844` lets narrow
   manage headers stack. The shared declaration is untouched.
-  ⚠️ **The pupil page's view switch (§4.3) sits BELOW `.manage__head`, not inside it**, so this
+  ⚠️ **The student page's view switch (§4.3) sits BELOW `.manage__head`, not inside it**, so this
   rule cannot squeeze it; that page keeps the shared wrapping header.
 - **The header renders, by pill kind:**
 
@@ -847,7 +850,7 @@ in `analytics_student_quiz.html:61-75`, placed **before** the `kind == "answer"`
 
 ### 5.4 Outcome colour, reconciled across both pages
 
-⚠️ Per §2.7 the pupil's page already tints the whole question panel, so a transparent badge shows
+⚠️ Per §2.7 the student's page already tints the whole question panel, so a transparent badge shows
 that tint through and stays green-on-green. The badge therefore **keeps the base `.badge`'s
 `background: var(--surface-sunken)`** (`app.css:145-156`) and takes **a 1px border and text in the
 outcome colour**.
@@ -864,7 +867,7 @@ border still separates them. That is why T33b measures only the three coloured o
 ⚠️ **The fill must differ from BOTH backdrops.** An earlier draft said
 `background: var(--surface-raised)` — which is exactly what `.answers__item`, the teacher page's
 question card, already uses (`app.css:1023-1024`). That would have cured green-on-green on the
-pupil page by creating raised-on-raised on the teacher page. `--surface-sunken` differs from the
+student page by creating raised-on-raised on the teacher page. `--surface-sunken` differs from the
 card and from every `*-subtle` panel tint, and T33b measures both.
 
 | outcome | badge | class | applies to |
@@ -889,7 +892,7 @@ copies of one another (PR 5 spec §5.1); the drift note in both templates gains 
 
 **On the teacher page only, the question card's left edge takes the outcome colour**
 (`.answers__item.is-correct` / `.is-partial` / `.is-incorrect` — classes the template already emits
-at `:28` with no rules today), mirroring the pupil page's panel tint.
+at `:28` with no rules today), mirroring the student page's panel tint.
 
 **Colour is never the only signal.** The badge's word carries the outcome on every type; non-choice
 types keep their per-part ✓/✗; choice questions carry the per-option markers (§5.1).
@@ -926,9 +929,9 @@ tokens here and judged in the dark screenshots.
 
 | English (new) | Polski (proposed) | where |
 |---|---|---|
-| `Pupil's answer:` | „Odpowiedź ucznia:" | §5.2 single-part label |
-| `Pupil's answer` | „Odpowiedź ucznia" | §5.2 multi-part header row |
-| `Pupil's choice` | „Wybór ucznia" | §5.1 option column header |
+| `Student's answer:` | „Odpowiedź ucznia:" | §5.2 single-part label |
+| `Student's answer` | „Odpowiedź ucznia" | §5.2 multi-part header row |
+| `Student's choice` | „Wybór ucznia" | §5.1 option column header |
 | `Correct answer` (no colon) | „Poprawna odpowiedź" | §5.1 option column header, §5.2 header row — ⚠️ a NEW msgid: the reused `locale/pl:5459` entry carries the colon |
 | `chosen, correct` | „wybrana, poprawna" | §5.1 row label (once, column 1) |
 | `chosen, incorrect` | „wybrana, niepoprawna" | §5.1 row label |
@@ -936,7 +939,7 @@ tokens here and judged in the dark screenshots.
 | `correct answer: %(key)s` | „poprawna odpowiedź: %(key)s" | §5.1 empty-key caption (`%(key)s` is the reused „(brak)") |
 | `%(s)s / %(m)s marks` | „%(s)s / %(m)s pkt" | §5.3 score stat |
 | `Not completed` | „Nieukończone" | §4.2 empty-circle marker |
-| `Pupil results` | „Wyniki ucznia" | §4.3 page name, heading, back link |
+| `Student results` | „Wyniki ucznia" | §4.3 page name, heading, back link |
 
 ⚠️ **The score's percentage is NOT in that msgid.** „1 / 5 pkt" and „20%" are two elements —
 `<span class="answers__score">` and `<span class="answers__percent">` — with the separator supplied
@@ -970,7 +973,7 @@ Every rule below is falsified against a named mutant, run and observed red, then
 ### 7.1 Order and names (§3)
 
 - **T1** A class whose username order disagrees with surname order renders in surname-then-first-name
-  order. Fixture: `Świątek`, `Nowak`/`Nowakowska`, two pupils sharing a surname, one login with no
+  order. Fixture: `Świątek`, `Nowak`/`Nowakowska`, two students sharing a surname, one login with no
   first/last name. *Mutants:* restore `order_by("username")` → red; sort by the raw `sort_name`
   string without `polish_sort_key` → red on `Świątek`.
   ⚠️ The `_RANK_SPACE` mutant belongs to `tests/test_collation.py::test_space_sorts_before_letters`
@@ -978,8 +981,8 @@ Every rule below is falsified against a named mutant, run and observed red, then
 - **T2** The same class exports in the same order, asserted on the parsed file.
   *Mutant:* order the export by username only → red.
 - **T3** The matrix renders „Mateusz Adamczyk"; the checkbox label names the same string; a
-  no-names login falls back to its display name; a pupil with first + last + an unrelated display
-  name renders the parenthetical form in full. ⚠️ **T3 builds its own pupils with structured
+  no-names login falls back to its display name; a student with first + last + an unrelated display
+  name renders the parenthetical form in full. ⚠️ **T3 builds its own students with structured
   names** — `UserFactory` sets none (§2.10). *Mutant:* revert to `display_name|default:username`
   → red.
 - **T4** Non-vacuity: the fixture's username order and surname order genuinely differ.
@@ -988,7 +991,7 @@ Every rule below is falsified against a named mutant, run and observed red, then
   T28b. PR B's implementer deletes it rather than weakening it.
 - ⚠️ No assertion may rest on database ids.
 
-### 7.2 The pupil page (§4)
+### 7.2 The student page (§4)
 
 - **T6** `?mode=results`: quizzes present, **no lesson title**, a quiz-less chapter absent, an
   unstarted quiz present with its pill. *Mutant:* skip the prune → red.
@@ -1001,7 +1004,7 @@ Every rule below is falsified against a named mutant, run and observed red, then
 - **T8** `?mode=progress`: lessons and chips present. *Mutant:* prune unconditionally → red.
 - **T9** No `mode`, and `?mode=nonsense`, both render Progress. *Mutant:* default to results → red.
 - **T10** A quiz nested three deep keeps its part and chapter. *Mutant:* prune before `attach` → red.
-- **T11** The switch links to the same pupil in the opposite mode, preserving scope, expand, subset
+- **T11** The switch links to the same student in the opposite mode, preserving scope, expand, subset
   and values, and marks the current view. *Mutant:* drop `subset_pks` → red.
 - **T12** A non-obligatory lesson carries the „Dodatkowa" tag **between the title and the marker**;
   an obligatory one does not; **a quiz row carries no kind chip**.
@@ -1020,7 +1023,7 @@ Every rule below is falsified against a named mutant, run and observed red, then
   the unfinished marker is `.badge--todo` with its accessible name.
   *Mutant:* render the marker on every unit → red.
 - **T14** The quiz title's link is **visibly** a link — underline without hover — via T33's A/B.
-  `test_t37_quiz_titles_link_iff_the_pupil_has_a_submission` covers the `<a>`-presence half.
+  `test_t37_quiz_titles_link_iff_the_student_has_a_submission` covers the `<a>`-presence half.
 - **T15** `build_student_breakdown`'s default is `progress`: the four existing call sites still
   return an unpruned tree. *Mutant:* make `mode="results"` the default → red on the two existing
   tree-shape tests (§2.3).
@@ -1053,13 +1056,13 @@ Every rule below is falsified against a named mutant, run and observed red, then
   odpowiedź" column renders. *Mutants:* source `correct` from `Choice.is_correct` → red; drop the
   `or {}` normalisation → `AttributeError`.
 - **T19** For a **submitted, auto-marked** question over **live** options, the per-option kinds
-  equal the `choice_marks` dict the page computed, and the pupil's results page renders the same
+  equal the `choice_marks` dict the page computed, and the student's results page renders the same
   kinds, with "absent ≡ `mark is None`" asserted. ⚠️ Scoped deliberately: in-progress, non-auto and
   deleted-option cases break equality by design. *Mutant:* pass a doctored `option_marks` and
   assert the page follows it → red if `_choice` re-derives.
 - **T20** The page lists **every** option, in author order. *Mutant:* render only picked → red.
 - **T21** Teacher voice: `test_t35_teacher_voice_only` extended over the new labels.
-  *Mutant:* reuse `MARK_GLYPHS`' pupil-voice labels → red.
+  *Mutant:* reuse `MARK_GLYPHS`' student-voice labels → red.
 - **T21b** Exactly **one** `sr-only` verdict label per option row, in column 1 (§5.1).
   *Mutant:* label both marker cells → red (the verdict is announced twice).
 - **T22** Maths in an option text loads KaTeX. ⚠️ **Mutant in `_question_has_math`'s choice branch**
@@ -1096,7 +1099,7 @@ Every rule below is falsified against a named mutant, run and observed red, then
   partial and the caller → red on (3).
 - **T28** The per-question heading renders name and title as separate elements, with no „ — ".
   *Mutant:* restore the joined title → red.
-- **T28b** The pupil page's `h1` reads „Wyniki ucznia — <name>" in **both** modes, the tab title
+- **T28b** The student page's `h1` reads „Wyniki ucznia — <name>" in **both** modes, the tab title
   matches it, the back link reads „← Wyniki ucznia", and the **switch** carries the mode words with
   the current one marked (§4.3). *Mutants:* keep the `Breakdown` msgid → red; put the mode word in
   the `h1` → red (the tab and heading disagree again).
@@ -1140,14 +1143,14 @@ Every rule below is falsified against a named mutant, run and observed red, then
   (§5.1); the back button not wrapping under a long title **with the shared `.manage__head` on
   another page still wrapping** (§5.3).
 - **T33b** The badge has a surface of its own **against both backdrops**: its computed background
-  differs from the pupil page's `question__feedback-panel--*` tint **and** from the teacher page's
+  differs from the student page's `question__feedback-panel--*` tint **and** from the teacher page's
   `.answers__item` card (`--surface-raised`), for `correct`, `partial` and `incorrect`, in both
-  themes (§5.4). ⚠️ Asserting only the pupil-page half is what let an earlier draft specify a fill
+  themes (§5.4). ⚠️ Asserting only the student-page half is what let an earlier draft specify a fill
   identical to the teacher card's.
 - **T33c** `.badge--todo`'s computed background and border differ from `.badge--done`'s (§4.2), so
   "not completed" cannot inherit the completed tick's green.
 - **T34** Screenshots, light and dark, desktop and 390px, on mat-pp data:
-  - the Results and Progress pupil pages;
+  - the Results and Progress student pages;
   - the per-question page: a submitted quiz with a wrong choice answer (the owner's „Zbiory - quiz"
     question 1), an in-progress quiz, a quiz awaiting review;
   - **`quiz_results.html`** (§5.4's badge on a tinted panel);
@@ -1161,7 +1164,7 @@ Every rule below is falsified against a named mutant, run and observed red, then
 
 Two PRs, in order.
 
-**PR A — pupil order and names (§3).** The helper, the two views, the matrix template's two lines
+**PR A — student order and names (§3).** The helper, the two views, the matrix template's two lines
 and `gradebook.py`'s two name fields; T1–T5. It repairs the stale `sort_name` docstring and the
 stale `test_provision.py:48-49` comment, both line-count-neutral, and runs the §2.10 inventory
 (expected empty).
@@ -1185,10 +1188,10 @@ diff.
 
 **Docs.** `docs/help/teacher/drill-down.md` and `.pl.md` gain the Results/Progress distinction, the
 view switch, the „Dodatkowa" tag and the option list, and follow §4.3's naming.
-`docs/help/teacher/analytics.md` and `.pl.md` gain one sentence on pupil order.
+`docs/help/teacher/analytics.md` and `.pl.md` gain one sentence on student order.
 
 **Rollout.** Nothing here is gated by `LIBLI_VENDOR_INSTANCE`: these are ordinary teacher screens
-on every box, including schools' real-pupil instances. The demo kit is only why the defects were
+on every box, including schools' real-student instances. The demo kit is only why the defects were
 noticed.
 
 ---
@@ -1218,7 +1221,7 @@ noticed.
 9. **The sort key now exists twice in `grouping/` (§3.1)** — the helper and five inline copies in
    `grouping/views.py`. Deliberate scope limit, recorded so the next reader does not take the
    duplication for an accident.
-10. **The pupil results page links no page stylesheet (§4.2).** It loads `app.css` alone, so a rule
+10. **The student results page links no page stylesheet (§4.2).** It loads `app.css` alone, so a rule
     written into `courses.css` — the natural home for a badge modifier, and where §5.4's modifiers
     correctly go — renders nothing there. Every §4 rule lands in `app.css`.
 11. **The shared builder fixture (§2.6, §7.3).** `summarise_stored` is the single entry point for
