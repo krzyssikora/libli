@@ -3,10 +3,13 @@
 
 import csv
 import io
+from decimal import Decimal
 
 import pytest
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
+from courses.models import QuizSubmission
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
@@ -101,3 +104,74 @@ def test_t1_matrix_subset_keeps_the_same_order(client):
 def test_t2_export_rows_follow_the_same_order(client, shape):
     course, _users = _class(client)
     assert [row[1] for row in _export_rows(client, course, shape)] == EXPECTED_USERNAMES
+
+
+def _rowheads(client, course):
+    html = client.get(
+        reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    ).content.decode()
+    return BeautifulSoup(html, "html.parser").select("tbody td.analytics__rowhead")
+
+
+def test_t3_matrix_names_students_first_name_first(client):
+    course, _users = _class(client)
+    cells = _rowheads(client, course)
+    by_text = {cell.get_text(" ", strip=True): cell for cell in cells}
+    assert "Mateusz Adamczyk" in by_text
+    assert "Borys" in by_text  # no structured names: display name
+    assert "Tomasz Zych (TZ nick)" in by_text  # the parenthetical, in full
+    # Zych's display name differs from his label, so reverting the aria-label
+    # alone renders "Select TZ nick" and goes red.
+    checkbox = by_text["Tomasz Zych (TZ nick)"].select_one("input[type=checkbox]")
+    assert checkbox["aria-label"] == "Select Tomasz Zych (TZ nick)"
+
+
+@pytest.mark.parametrize("shape", ["matrix", "quiz"])
+def test_t3_export_names_students_first_name_first(client, shape):
+    course, _users = _class(client)
+    names = [row[0] for row in _export_rows(client, course, shape)]
+    assert names == [
+        "Kamil Adamczyk",
+        "Mateusz Adamczyk",
+        "Borys",
+        "Anna Nowak",
+        "Beata Nowakowska",
+        "Iga Świątek",
+        "Tomasz Zych (TZ nick)",
+    ]
+
+
+def test_t5_drill_down_headings_keep_the_display_name_until_pr_b(client):
+    """PR A's boundary (spec §8). PR B DELETES this test -- it rewrites both
+    headings by design, and T28/T28b are the successors."""
+    course, users = _class(client)
+    student = users["d_zych"]
+    quiz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Q"
+    )
+    QuizSubmission.objects.create(
+        student=student,
+        unit=quiz,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    student_page = client.get(
+        reverse(
+            "courses:manage_analytics_student",
+            kwargs={"slug": course.slug, "student_pk": student.pk},
+        )
+    ).content.decode()
+    quiz_page = client.get(
+        reverse(
+            "courses:manage_analytics_student_quiz",
+            kwargs={"slug": course.slug, "student_pk": student.pk, "node_pk": quiz.pk},
+        )
+    ).content.decode()
+    for html in (student_page, quiz_page):
+        h1 = (
+            BeautifulSoup(html, "html.parser")
+            .select_one("h1")
+            .get_text(" ", strip=True)
+        )
+        assert "TZ nick" in h1 and "Tomasz" not in h1

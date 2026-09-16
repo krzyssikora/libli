@@ -39,7 +39,7 @@ def build_matrix_table(course, students, mode, expanded, *, drafts, with_data=No
     ]
     rows = [
         {
-            "name": r["student"].display_name or r["student"].username,
+            "name": r["student"].list_display_name,
             "username": r["student"].username,
             "cells": [cell["percent"] for cell in r["cells"]],
             "total": r["overall"]["percent"],
@@ -130,7 +130,7 @@ def build_quiz_gradebook(course, students, numbers_only, *, drafts, with_data=No
             total_count += 1
         rows.append(
             {
-                "name": s.display_name or s.username,
+                "name": s.list_display_name,
                 "username": s.username,
                 "cells": cells,
                 "total": total,
