@@ -72,7 +72,7 @@
 3. **T33b as written passes on a transparent badge.** A transparent computed background (`rgba(0, 0, 0, 0)`) "differs" from the panel tint while showing it through — the exact green-on-green §2.7 warns about. Task B9's e2e also asserts the badge background is **opaque**.
 4. **`quiz_results.html` carries no drift note today** (only `analytics_student_quiz.html` does). Task B9 adds a single-line `{# … #}` to it, appended to an existing line so the file's line count is unchanged.
 5. **`.pill--awaiting`'s token re-expression (§5.4) names no tokens.** Task B9 uses `--warning-subtle` fill, `--warning` border, `--text-primary` text (AA-safe in both themes; `--warning` text on `--warning-subtle` is ~2.9:1 in light).
-6. **`--warning` text on `--surface-sunken` (§5.4 `.badge--partial`) FAILS AA in light mode: 3.19:1** (`#B8811F` on `#FAF8F3`, computed from `tokens.css`; dark `#E8B761` on `#15130F` passes easily). Asked in **Task 0** below; if the owner has not answered, Task B9 implements the spec as written, Task B11 re-measures it in the browser as confirmation, and the PR body quotes the ratio. The colour is never changed unilaterally.
+6. **Outcome-badge text in the outcome colour fails AA in light mode** (computed from `tokens.css` against `--surface-sunken` `#FAF8F3`): `--warning` **3.19:1**, `--success` **4.46:1**; `--danger` 6.01:1 passes; every dark pair passes (≥ 6.2:1). ✅ **Owner decision (Task 0, 2026-09-16): "switch, make the visibility better."** All three outcome badges (`.badge--correct`, `.badge--partial`, `.badge--incorrect`) take `--text-primary` text (16.0:1 light, 16.2:1 dark) and keep the outcome colour on their 1px border — so the three stay consistent and `--success` is fixed along with `--warning`. The outcome colour still reaches the eye through the border, the teacher card's 4px edge and the student panel's tint; the word carries the meaning. T33b asserts ≥ 4.5:1 in both themes.
 7. **T19 cannot catch a re-deriving builder.** A `_choice` that calls `choice_marks` itself computes the very dict the page computed, so T19's equality stays green. Task B5 adds **T19b**: the builder is handed a doctored dict and must follow it.
 
 ## File map
@@ -123,8 +123,8 @@ Run every command of PR A and PR B from `C:/Users/krzys/Documents/Python/own/lib
 
 ### Task 0: Owner question before execution
 
-- [ ] **Step 1:** Ask the owner (plain text, not a dialog): "`.badge--partial` (§5.4) is `--warning` text on `--surface-sunken`, 3.19:1 in light mode — below AA. Keep it as specified, or use a different text colour for the partial badge (e.g. `--text-primary` with the `--warning` border)?"
-- [ ] **Step 2:** Record the answer as one line under "Spec gaps" item 6 in this plan (in the main checkout, committed on the docs branch). Task B9 Step 4 follows it: "keep" or no answer → the CSS as written; a named alternative → change only `.badge--partial`'s `color` declaration, and keep T33b's assertions unchanged.
+- [x] **Step 1:** Asked 2026-09-16: `.badge--partial` is `--warning` text on `--surface-sunken`, 3.19:1 in light mode.
+- [x] **Step 2:** Answer recorded under "Spec gaps" item 6 — **switch**: all three outcome badges use `--text-primary` text with the outcome colour on the border. Task B9 Step 4 already carries it; nothing to do here.
 
 ### Task A1: One ordering helper, used by the matrix and the export
 
@@ -2887,7 +2887,7 @@ In `quiz_results.html`, make the same three class changes, and append a single-l
 
 - [ ] **Step 4: The CSS**
 
-First read "Spec gaps" item 6 in the plan for the owner's Task 0 answer. "Keep" or no answer → the block below as written. A named alternative → use it for `.badge--partial`'s `color` declaration only (border stays `--warning`); T33b's assertions are unchanged either way.
+The block below already applies the owner's Task 0 decision ("Spec gaps" item 6): outcome-colour BORDER, `--text-primary` TEXT, on all three outcome badges — a deliberate departure from spec §5.4's "border + text" table, which failed AA.
 
 `courses/static/courses/css/courses.css`, replace `.badge--muted { color: var(--text-tertiary); }` with:
 
@@ -2898,9 +2898,12 @@ First read "Spec gaps" item 6 in the plan for the owner's Task 0 answer. "Keep" 
    .badge's --surface-sunken: it differs from the student page's tinted
    .question__feedback-panel--* AND from the teacher page's raised .answers__item,
    so the badge never sits green-on-green or raised-on-raised. */
-.badge--correct { color: var(--success); border-color: var(--success); }
-.badge--partial { color: var(--warning); border-color: var(--warning); }
-.badge--incorrect { color: var(--danger); border-color: var(--danger); }
+/* Text is --text-primary, not the outcome colour: --warning (3.19:1) and --success (4.46:1)
+   fail AA on --surface-sunken in light mode. The colour lives on the border. */
+.badge--correct, .badge--partial, .badge--incorrect { color: var(--text-primary); }
+.badge--correct { border-color: var(--success); }
+.badge--partial { border-color: var(--warning); }
+.badge--incorrect { border-color: var(--danger); }
 ```
 
 `core/static/core/css/app.css`, after `.answers__item{…}`:
@@ -2978,6 +2981,21 @@ def _seed_outcomes(client, username):
 OUTCOMES = ("correct", "partial", "incorrect")
 
 
+def _contrast(fg, bg):
+    """WCAG contrast ratio of two computed `rgb(...)`/`rgba(...)` colours (opaque)."""
+
+    def luminance(css):
+        inner = css[css.index("(") + 1 : css.index(")")]
+        r, g, b = (int(v) / 255 for v in inner.split(",")[:3])
+        lin = [
+            c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (r, g, b)
+        ]
+        return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+    hi, lo = sorted((luminance(fg), luminance(bg)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_t33b_badge_has_its_own_opaque_surface_on_both_pages(page, live_server, client, theme):
     username = f"e2e_sp_badge_{theme}"
@@ -2998,6 +3016,8 @@ def test_t33b_badge_has_its_own_opaque_surface_on_both_pages(page, live_server, 
         bg = _style(badge, "backgroundColor")
         assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), outcome
         assert bg != _style(item, "backgroundColor"), outcome
+        assert _contrast(_style(badge, "color"), bg) >= 4.5, (outcome, theme)
+        assert _style(badge, "borderTopColor") != _style(badge, "color"), outcome
         assert _style(item, "borderLeftWidth") == "4px", outcome
 
     page.context.clear_cookies()
@@ -3012,10 +3032,11 @@ def test_t33b_badge_has_its_own_opaque_surface_on_both_pages(page, live_server, 
         bg = _style(badge, "backgroundColor")
         assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), outcome
         assert bg != _style(panel, "backgroundColor"), outcome
+        assert _contrast(_style(badge, "color"), bg) >= 4.5, (outcome, theme)
 ```
 
 Run: `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py -k t33b` → PASS.
-*Mutants:* `.badge--correct { background: transparent; … }` → red on the opaque assertion. Revert. `.badge--correct { background: var(--surface-raised); … }` → red on the teacher page. Revert. `.badge--correct { background: var(--success-subtle); … }` → red on the student page. Revert. Delete the `.answers__item.is-partial` edge → red on `borderLeftWidth`. Revert.
+*Mutants:* `.badge--correct { background: transparent; … }` → red on the opaque assertion. Revert. `.badge--correct { background: var(--surface-raised); … }` → red on the teacher page. Revert. `.badge--correct { background: var(--success-subtle); … }` → red on the student page. Revert. Delete the `.answers__item.is-partial` edge → red on `borderLeftWidth`. Revert. `.badge--partial { color: var(--warning); }` after the shared text rule → red on the contrast assertion, light only (3.19:1). Revert. `.badge--correct { color: var(--success); }` → red, light only (4.46:1). Revert. (The outcome-coloured BORDER is not pinned by T33b — it is judged by eye in T34's screenshots.)
 
 - [ ] **Step 8: Commit**
 
@@ -3205,7 +3226,7 @@ Then start the app against the local mat-pp database (use the `run` skill) and l
 
 Invoke the `frontend-design:frontend-design` skill on the two pages as built (spec §8: after the markup exists, before screenshots are judged). Scope: spacing, type scale and colour of the new elements only (`.breakdown__view`, `.breakdown-unit__tag`, `.badge--todo`, `.answers__options`, `.answers__header-row`, `.answers__heading`, `.answers__score`). Any change it proposes to a rule an e2e test pins must keep that test green; re-run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py` after applying.
 
-On the Step 0 server, logged in as `t34student`, open **T34 marked**'s `quiz_results.html` and measure the partial row's `.badge--partial` text contrast (computed `color` against computed `background-color`) with `t34student`'s theme set to `light`, then to `dark` (the `theme` field as in Step 0, never a cookie; reload after each change). If either is below 4.5:1, **do not change the colour**. If Task 0 got an owner answer (recorded under "Spec gaps" item 6), report the measured ratios beside that decision; only if it got none, record the ratio for the PR body as a question for the owner.
+On the Step 0 server, logged in as `t34student`, open **T34 marked**'s `quiz_results.html` and confirm in the browser what T33b asserts: each outcome badge's text contrast (computed `color` against computed `background-color`) with `t34student`'s theme set to `light`, then to `dark` (the `theme` field as in Step 0, never a cookie; reload after each change). Expect ≥ 4.5:1 everywhere (≈ 16:1 with `--text-primary`). Record the six ratios for the PR body beside the owner's decision. Also judge by eye that the coloured 1px border still reads as the outcome on the tinted panel; if it does not, raise it with the owner — do NOT put the colour back into the text.
 
 - [ ] **Step 2: Screenshots on mat-pp data (T34)**
 
@@ -3219,7 +3240,7 @@ With the server from Step 0 running, capture light **and** dark, 1280 and 390 wi
 - `quiz_results.html` for **T34 marked** (correct/partial/incorrect rows on tinted panels);
 - `course_results.html` for **t34-throwaway** — its **T34 unstarted** row is the „not started" `.badge--muted` surface this capture exists to judge.
 
-Save them under the scratchpad directory, open each with the Read tool, and judge dark on its own terms (legibility of `--warning` text, the badge surface against the card, the pill tokens). Fix what is wrong before continuing.
+Save them under the scratchpad directory, open each with the Read tool, and judge dark on its own terms (whether the outcome borders read, the badge surface against the card, the pill tokens). Fix what is wrong before continuing.
 
 **Dark teacher pages change a REAL user's setting.** Before the first dark teacher-page capture, note the mat-pp owner's current value (`Course.objects.get(slug='mat-pp').owner.theme`); after the last capture, set it back to exactly that value with `User.objects.filter(pk=<owner pk>).update(theme='<original>')`.
 
@@ -3283,7 +3304,7 @@ git push -u origin feat/analytics-student-pages
 gh pr create --base master --title "Analytics student pages: follow the view, list every option, outcome colour" --body-file <scratchpad>/pr-b.md
 ```
 
-PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as the owner's decision); the plan's "Spec gaps" items 2 (the added „wybrana" label), 3 and 5 as questions for the owner; item 6 with the measured contrast ratios — as a question only if Task 0 got no answer, otherwise as a report next to the owner's decision; that T5 was deleted with T28/T28b as successors and T36 replaced by T27; the help screenshots kept; the Claude Code attribution line.
+PR body: the three scopes; the new and obsolete msgids (§6, with „Klucz" as the owner's decision); the plan's "Spec gaps" items 2 (the added „wybrana" label), 3 and 5 as questions for the owner; item 6 as a report: the owner's decision (outcome colour on the border, `--text-primary` text, all three badges — a departure from spec §5.4's table) with the six measured ratios; that T5 was deleted with T28/T28b as successors and T36 replaced by T27; the help screenshots kept; the Claude Code attribution line.
 
 ### Task B12: Clean up after PR B merges
 
