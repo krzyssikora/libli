@@ -2196,8 +2196,8 @@ class QuestionElement(ElementBase):
         abstract = True
 
     def save(self, *args, **kwargs):
-        self.stem = sanitize_html(self.stem)
-        self.explanation = sanitize_html(self.explanation)
+        self.stem = normalize_body(self.stem)  # a cleared RTE's <p><br></p> -> ""
+        self.explanation = normalize_body(self.explanation)
         super().save(*args, **kwargs)
 
     REVEAL_TEMPLATE = None  # each concrete type sets its per-type reveal include

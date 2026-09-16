@@ -1,6 +1,6 @@
 {% load i18n %}
 <div class="el el--question" data-question>
-  <div class="question__stem">{{ el.stem|safe }}</div>
+  {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
   {% if element %}
   <form class="question__form" method="post"
         action="{{ action_url }}">
