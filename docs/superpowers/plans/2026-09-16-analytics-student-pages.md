@@ -102,7 +102,7 @@
 
 # PR A — student order and names (§3)
 
-Branch: `feat/analytics-student-order` from `master`.
+Branch: `git fetch origin && git switch -c feat/analytics-student-order origin/master` (local `master` may be behind).
 
 ### Task A1: One ordering helper, used by the matrix and the export
 
@@ -337,8 +337,10 @@ def test_t3_matrix_names_students_first_name_first(client):
     assert "Mateusz Adamczyk" in by_text
     assert "Borys" in by_text  # no structured names: display name
     assert "Tomasz Zych (TZ nick)" in by_text  # the parenthetical, in full
-    checkbox = by_text["Mateusz Adamczyk"].select_one("input[type=checkbox]")
-    assert checkbox["aria-label"] == "Select Mateusz Adamczyk"
+    # Zych's display name differs from his label, so reverting the aria-label
+    # alone renders "Select TZ nick" and goes red.
+    checkbox = by_text["Tomasz Zych (TZ nick)"].select_one("input[type=checkbox]")
+    assert checkbox["aria-label"] == "Select Tomasz Zych (TZ nick)"
 
 
 @pytest.mark.parametrize("shape", ["matrix", "quiz"])
@@ -1841,7 +1843,7 @@ Run: `uv run pytest tests/test_answer_summary.py tests/test_analytics_student_qu
 - *Mutant 3:* remove the `if _answered(response) else set()` guard (`picked = set(response.latest_answer or [])`) → `AttributeError` on the no-response case. Revert.
 - *Mutant 4:* emit one placeholder (`if picked - live: options.append(Option(...))`) → T17b red. Revert.
 - *Mutant 5:* removed rows `mark="wrong"` → T17b red. Revert.
-- *Mutant 6:* replace the sentinel guard with a falsy check — `if not option_marks: raise TypeError(...)` → T17c red on its second half (`option_marks={}` now raises, i.e. every non-auto choice question would 500). Revert.
+- *Mutant 6 (two edits):* change the default to `option_marks=None` AND the guard to a falsy check, `if not option_marks: raise TypeError(...)` → T17c's first half still passes (`None` raises), its second half goes red (`option_marks={}` now raises — every non-auto choice question would 500). ⚠️ Changing only the guard is a different mutant: the truthy `_MISSING` default then slips through to `_MISSING.get` and errors with `AttributeError` on the first half. Revert both edits.
 - *Mutant 7:* `correct=c.is_correct` → T18 red. Revert.
 - *Mutant 8 (T19b):* in `_choice`, re-derive the marks — as its first statement, `option_marks = question.choice_marks(list(question.choices.all()), set(response.latest_answer or []) if _answered(response) else set(), mark_result, "quiz", True)` → T19b red (the doctored dict is ignored). Revert. ⚠️ T19 stays GREEN under this mutant — a re-deriving builder computes the same dict the page did — which is exactly why T19b exists.
 
@@ -2103,7 +2105,7 @@ Expected: all PASS, including `test_t38_query_count_does_not_grow_with_questions
 - *Mutant 7 (T22):* delete the `ChoiceQuestionElement` branch of `courses/views.py::_question_has_math` → T22 red. Revert.
 - *Mutant 8 (T23):* in `_choice`, `choices = list(question.choices.all().order_by("order", "pk"))` → `test_t38_…` red. Revert.
 - *Mutant 9 (T32):* delete the caption → T32 page red. Revert.
-- *Mutant 10 (T19):* in `_choice`, `mark=None` for every live option → both T19 tests red. Revert.
+- *Mutant 10 (T19):* in `_choice`, `mark=None` for every live option → `test_t19_option_kinds_equal_the_marks_the_page_computed`, `test_t19b_choice_marks_come_from_the_caller_never_the_builder` and `test_t19_student_results_page_shows_the_same_kinds` red. Revert.
 - *Mutant 11 (T18 page, moved here from B5):* in `_quiz_answer_rows`, drop `or {}` from `option_marks=row["marks"] or {}` → `test_t18_non_auto_choice_table_has_no_key_column` errors with `AttributeError: 'NoneType' object has no attribute 'get'`. Revert.
 
 - [ ] **Step 8: e2e — the header words collapse on a phone (T33, §5.1)**
@@ -2325,6 +2327,9 @@ In `courses/views_analytics.py`, add `from courses.answer_summary import ANSWER`
         # table), and at least one carrying a key -- so neither an all-correct
         # question nor a non-auto one (every part expected=None) gets an empty
         # third column.
+        # all(...) is defensive: with today's adapters no part carrying `expected`
+        # is ever a keyword or options part, so no test can falsify that clause
+        # alone (T24's mutant removes both clauses).
         row["columned"] = (
             len(parts) > 1
             and all(p.kind == ANSWER for p in parts)
