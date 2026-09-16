@@ -2988,7 +2988,8 @@ def _contrast(fg, bg):
         inner = css[css.index("(") + 1 : css.index(")")]
         r, g, b = (int(v) / 255 for v in inner.split(",")[:3])
         lin = [
-            c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (r, g, b)
+            c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+            for c in (r, g, b)
         ]
         return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
 
