@@ -47,6 +47,18 @@ def _style(locator, prop):
     return locator.evaluate("(el, p) => getComputedStyle(el)[p]", prop)
 
 
+def _token_colour(page, token):
+    """The browser's resolved `color: var(<token>)`, via a throwaway probe
+    element (a CSS custom property cannot be read directly from `getComputedStyle`
+    on `:root`; it must be applied to a `color`-like property first)."""
+    return page.evaluate(
+        """(t) => { const p = document.createElement('span');
+                     p.style.color = `var(${t})`; document.body.appendChild(p);
+                     const c = getComputedStyle(p).color; p.remove(); return c; }""",
+        token,
+    )
+
+
 def _seed_breakdown(client, username):
     from courses.models import Element
     from courses.models import ExtendedResponseQuestionElement
@@ -139,12 +151,7 @@ def test_t14_quiz_title_link_is_underlined_without_hover(page, live_server, clie
     _open_breakdown(page, live_server, client, "e2e_sp_link")
     link = _row(page, "Scored quiz").locator("a.breakdown-unit__link")
     assert "underline" in _style(link, "textDecorationLine")
-    accent = page.evaluate(
-        """() => { const p = document.createElement('span');
-                   p.style.color = 'var(--accent)'; document.body.appendChild(p);
-                   const c = getComputedStyle(p).color; p.remove(); return c; }"""
-    )
-    assert _style(link, "color") == accent
+    assert _style(link, "color") == _token_colour(page, "--accent")
     _neutralise(page, ".breakdown-unit__link{text-decoration:none;color:inherit}")
     assert "underline" not in _style(link, "textDecorationLine")
 
@@ -268,11 +275,18 @@ def test_t33_option_headers_visible_on_desktop_hidden_on_a_phone(
     _login(page, live_server, f"e2e_sp_th{width}")
     page.set_viewport_size({"width": width, "height": 900})
     page.goto(f"{live_server.url}{path}")
-    th = page.locator("table.answers__options th").first
+    ths = page.locator("table.answers__options th")
+    # Every th, not just the first: the trailing plain th (no -mark class) is
+    # collapsed ONLY by the ".answers__options th" half of the selector.
+    count = ths.count()
+    assert count >= 2
     if width == 1280:
-        assert _box(th)["w"] > 20
+        for i in range(count):
+            assert _box(ths.nth(i))["w"] > 20
     else:
-        assert _box(th)["w"] <= 1
+        for i in range(count):
+            assert _box(ths.nth(i))["w"] <= 1
+        th = ths.first
         _neutralise(
             page,
             # (0,2,1): must out-rank the collapse rule's th.answers__options-mark half
@@ -446,6 +460,11 @@ def _seed_outcomes(client, username):
 
 
 OUTCOMES = ("correct", "partial", "incorrect")
+OUTCOME_TOKEN = {
+    "correct": "--success",
+    "partial": "--warning",
+    "incorrect": "--danger",
+}
 
 
 def _contrast(fg, bg):
@@ -480,15 +499,19 @@ def test_t33b_badge_has_its_own_opaque_surface_on_both_pages(
         kwargs={"slug": course.slug, "student_pk": student.pk, "node_pk": quiz.pk},
     )
     page.goto(f"{live_server.url}{teacher_path}")
+    text_primary = _token_colour(page, "--text-primary")
     for outcome in OUTCOMES:
+        outcome_colour = _token_colour(page, OUTCOME_TOKEN[outcome])
         item = page.locator(f"li.answers__item.is-{outcome}")
         badge = item.locator(".answers__verdict .badge")
         bg = _style(badge, "backgroundColor")
         assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), outcome
         assert bg != _style(item, "backgroundColor"), outcome
         assert _contrast(_style(badge, "color"), bg) >= 4.5, (outcome, theme)
-        assert _style(badge, "borderTopColor") != _style(badge, "color"), outcome
+        assert _style(badge, "color") == text_primary, outcome
+        assert _style(badge, "borderTopColor") == outcome_colour, outcome
         assert _style(item, "borderLeftWidth") == "4px", outcome
+        assert _style(item, "borderLeftColor") == outcome_colour, outcome
 
     page.context.clear_cookies()
     _login(page, live_server, f"{username}_s")
@@ -497,9 +520,12 @@ def test_t33b_badge_has_its_own_opaque_surface_on_both_pages(
     )
     page.goto(f"{live_server.url}{results_path}")
     for outcome in OUTCOMES:
+        outcome_colour = _token_colour(page, OUTCOME_TOKEN[outcome])
         panel = page.locator(f".question__feedback-panel--{outcome}")
         badge = panel.locator(".badge")
         bg = _style(badge, "backgroundColor")
         assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), outcome
         assert bg != _style(panel, "backgroundColor"), outcome
         assert _contrast(_style(badge, "color"), bg) >= 4.5, (outcome, theme)
+        assert _style(badge, "color") == text_primary, outcome
+        assert _style(badge, "borderTopColor") == outcome_colour, outcome

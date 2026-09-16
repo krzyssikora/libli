@@ -122,7 +122,7 @@ def _choice(question, response, mark_result, option_marks):
     # One row per missing pk: a deleted option's correctness is unknowable.
     options += [
         Option(text=_("(removed option)"), picked=True, correct=None, mark=None)
-        for _missing in sorted(picked - live)
+        for _missing in range(len(picked - live))
     ]
     return [
         Part(
