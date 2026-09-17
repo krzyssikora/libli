@@ -60,9 +60,10 @@ def _finished_review_quiz(client, marks):
     EnrollmentFactory(student=user, course=unit.course)
     for max_marks in marks:
         add_element(unit, _review_question(max_marks))
-    base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
-    client.get(f"{base}/")  # materialise the QuizSubmission
-    client.post(f"{base}/finish/")
+    quiz_kwargs = {"slug": unit.course.slug, "node_pk": unit.pk}
+    # materialise the QuizSubmission
+    client.get(reverse("courses:quiz_unit", kwargs=quiz_kwargs))
+    client.post(reverse("courses:quiz_finish", kwargs=quiz_kwargs))
     return unit
 
 
@@ -85,7 +86,14 @@ def _finished_review_quiz(client, marks):
 )
 def test_rt_t14_quiz_results_badge_and_all_six_plural_forms(client, marks, footer):
     unit = _finished_review_quiz(client, marks)
-    soup = _soup(client.get(f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/results/"))
+    soup = _soup(
+        client.get(
+            reverse(
+                "courses:quiz_results",
+                kwargs={"slug": unit.course.slug, "node_pk": unit.pk},
+            )
+        )
+    )
     meta = soup.select_one(".result-summary__meta").get_text(" ", strip=True)
     assert meta == footer
     badge = soup.select_one(".badge--review").get_text(" ", strip=True)
@@ -95,7 +103,9 @@ def test_rt_t14_quiz_results_badge_and_all_six_plural_forms(client, marks, foote
 
 def test_rt_t14_course_results_awaiting_badge(client):
     unit = _finished_review_quiz(client, ["1"])
-    soup = _soup(client.get(f"/courses/{unit.course.slug}/results/"))
+    soup = _soup(
+        client.get(reverse("courses:course_results", kwargs={"slug": unit.course.slug}))
+    )
     badge = soup.select_one("li.result-row .badge--review")
     assert badge.get_text(strip=True) == "Oczekuje na sprawdzenie"
     assert OLD not in soup.select_one("article.course-results").get_text(" ")

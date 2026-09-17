@@ -606,7 +606,9 @@ def test_rt_t15_course_results_scores_a_reviewed_review_only_quiz(client):
         max_score=Decimal("0.00"),
     )
     soup = BeautifulSoup(
-        client.get(f"/courses/{course.slug}/results/").content.decode(),
+        client.get(
+            reverse("courses:course_results", kwargs={"slug": course.slug})
+        ).content.decode(),
         "html.parser",
     )
     rows = {
