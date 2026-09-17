@@ -1954,7 +1954,7 @@ git commit -m "feat(analytics): the Results view is a table with section sums; h
 - Modify: `templates/courses/manage/_breakdown_node.html` (line 24, line-count neutral), `templates/courses/_outline_node.html` (the two chip lines, line-count neutral)
 - Modify: `locale/{pl,en}/LC_MESSAGES/django.{po,mo}`
 - Modify: `docs/help/teacher/quiz-review.pl.md`
-- Test: `tests/test_analytics_student_page.py` (T11), create `tests/test_review_wording_pl.py` (T14)
+- Test: `tests/test_analytics_student_page.py` (T11), create `tests/test_review_wording_pl.py` (T14), `tests/test_e2e_outline_tree.py` (stale rationale comment, line-count neutral)
 
 **Interfaces:**
 - Consumes: node dicts' `required_done` / `required_total` (unchanged); the msgids of the Global Constraints table.
@@ -2256,6 +2256,18 @@ with:
 
 Then confirm both files kept their line counts: `git diff --stat -- templates/courses/manage/_breakdown_node.html templates/courses/_outline_node.html` shows `1 insertion(+), 1 deletion(-)` and `2 insertions(+), 2 deletions(-)`.
 
+In `tests/test_e2e_outline_tree.py`, its comment near line 160 still names the old chip wording. Replace the single line:
+
+```python
+    # becomes "Chapter A 0/1 required Start fresh", which still matches
+```
+
+with the single line:
+
+```python
+    # becomes "Chapter A lessons: 0/1 Start fresh", which still matches
+```
+
 - [ ] **Step 5: Catalog procedure**
 
 Run the Global Constraints catalog procedure for this task's rows: add `lessons: %(done)s/%(total)s` → „lekcje: %(done)s/%(total)s"; overwrite the msgstrs of `Awaiting review`, `awaiting review`, `Submitted for review` and all three `msgstr[i]` of the two `… question awaiting review (up to …)` plural entries exactly as the table gives them. Then:
@@ -2305,7 +2317,7 @@ Expected: all pass.
 
 - [ ] **Step 8: Falsify**
 
-1. *Mutant (T11, outline):* in `_outline_node.html`, in the **childless** arm only (the `<div class="outline-node__head">` line, the second chip in the file), replace `{% blocktrans with done=item.required_done total=item.required_total %}lessons: {{ done }}/{{ total }}{% endblocktrans %}` with `{{ item.required_done }}/{{ item.required_total }}`. → `rt_t11_childless_outline_branch_chip_reads_lekcje` red („1/2"), while `rt_t11_student_outline_chip_reads_lekcje` stays green (a view only reaches the `<details>` arm) — which is why the bare render exists. Revert.
+1. *Mutant (T11, outline):* in `_outline_node.html`, in the **childless** arm only (the second `lessons:` chip in the file — the `<span class="rollup">` line inside the `<div class="outline-node__head">` arm), replace `{% blocktrans with done=item.required_done total=item.required_total %}lessons: {{ done }}/{{ total }}{% endblocktrans %}` with `{{ item.required_done }}/{{ item.required_total }}`. → `rt_t11_childless_outline_branch_chip_reads_lekcje` red („1/2"), while `rt_t11_student_outline_chip_reads_lekcje` stays green (a view only reaches the `<details>` arm) — which is why the bare render exists. Revert.
 2. *Mutant (T14):* in `locale/pl/LC_MESSAGES/django.po`, set `msgstr[1]` of `%(n)s question awaiting review (up to 1 more mark)` back to „%(n)s pytania oczekują na ocenę (do 1 dodatkowego punktu)" and run `uv run python manage.py compilemessages -l pl`. Run `uv run pytest tests/test_review_wording_pl.py -k test_rt_t14_quiz_results` → red on exactly one case (the `["0.5", "0.5"]` one). Revert the `.po` by hand, re-run `compilemessages -l pl`, re-run the test → green.
 
 `git diff` shows only Steps 1, 2 and 4–6.
@@ -2316,7 +2328,7 @@ Expected: all pass.
 uv run ruff format tests/test_analytics_student_page.py tests/test_review_wording_pl.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
-git add templates/courses/manage/_breakdown_node.html templates/courses/_outline_node.html locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo docs/help/teacher/quiz-review.pl.md tests/test_analytics_student_page.py tests/test_review_wording_pl.py
+git add templates/courses/manage/_breakdown_node.html templates/courses/_outline_node.html locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo docs/help/teacher/quiz-review.pl.md tests/test_analytics_student_page.py tests/test_review_wording_pl.py tests/test_e2e_outline_tree.py
 git commit -m "feat(i18n): lekcje: 1/2 on both chips; sprawdzenie for review waiting (O6, O12-O14)"
 ```
 
@@ -2365,10 +2377,11 @@ Append to the end of the file:
 RT_LONG_TITLE = "Bardzo długi tytuł quizu na trzecim poziomie zagnieżdżenia tego kursu"
 RT_MATH_TITLE = (
     # A SINGLE brace group around the whole formula body: no top-level relation
-    # or binary operator, so KaTeX emits exactly one `.base` run and
-    # `.katex:not(:has(.base ~ .base))` makes it unbreakable (app.css). Without
-    # the wrapping braces the top-level `=`/`+` would split it into several
-    # `.base` runs, which wraps instead of widening the table (T8b).
+    # or binary operator, so KaTeX emits exactly one `.base` run, which the
+    # vendored `.katex .base{display:inline-block; white-space:nowrap}` makes
+    # one atomic inline box (unbreakable) -- not the app.css punctuation rule.
+    # Without the wrapping braces the top-level `=`/`+` would split it into
+    # several `.base` runs, which wraps instead of widening the table (T8b).
     r"Wzór \({\sum_{k=1}^{n} k^{2} = \frac{n(n+1)(2n+1)}{6}"
     r" = \int_{0}^{n} x^{2}\,dx + \sqrt{a^{2}+b^{2}+c^{2}+d^{2}+e^{2}}}\)"
 )
@@ -2723,11 +2736,13 @@ with:
    right-hand column), which this table's title column normally does not do. */
 .results-table-wrap{overflow-x:auto;position:relative}
 .results-table{width:100%;border-collapse:collapse;background:var(--surface-raised)}
-/* A SINGLE-run formula (matched by `.katex:not(:has(.base ~ .base))`, no
-   top-level relation or binary operator) is an unbreakable inline-block: the
-   table then scrolls inside .results-table-wrap, never the page. A MULTI-run
-   formula (one that has a top-level relation or binary operator) wraps
-   internally instead, as KaTeX intends. */
+/* overflow-wrap:anywhere breaks text titles; it cannot split a single-run
+   formula (the vendored `.katex .base{display:inline-block; white-space:
+   nowrap}` makes it one atomic inline box), whose width sets the title
+   column's min-content -- the table then scrolls in .results-table-wrap,
+   never the page. A MULTI-run formula (a top-level relation or binary
+   operator splits it into several `.base` runs) wraps internally instead,
+   as KaTeX intends. */
 .results-table .results-table__title{overflow-wrap:anywhere}
 .results-table .results-table__status{width:1%;white-space:nowrap;text-align:start}
 .results-table .results-table__num{width:1%;white-space:nowrap}
@@ -2802,9 +2817,9 @@ Expected: `rtadmin True`. (The snippet contains no backticks and no `$`: inside 
 uv run python manage.py shell -c "
 from django.db.models import Count
 from django.urls import reverse
-from courses.models import Course, QuizSubmission
+from courses.models import Course, Enrollment, QuizSubmission
 c = Course.objects.get(slug='mat-pp')
-top = QuizSubmission.objects.filter(unit__course=c).values('student_id').annotate(n=Count('id')).order_by('-n')[:3]
+top = QuizSubmission.objects.filter(unit__course=c).filter(student__in=Enrollment.objects.filter(course=c).values('student_id')).values('student_id').annotate(n=Count('id')).order_by('-n')[:3]
 for row in top:
     print(row['n'], reverse('courses:manage_analytics_student', kwargs={'slug': c.slug, 'student_pk': row['student_id']}) + '?mode=results')
 "
@@ -2857,15 +2872,20 @@ with sync_playwright() as p:
     form.locator("button[type='submit']").click()
     page.wait_for_load_state()
     resp = page.goto(f"{base}{path}")
-    page.wait_for_load_state("networkidle")
+    try:
+        page.wait_for_load_state("networkidle", timeout=5000)
+    except Exception:  # noqa: S110 - bounded, third-party-only wait
+        pass
     if out != "-":
         page.screenshot(path=out, full_page=True)
-    if not measure:
+    status = resp.status if resp else "?"
+    print(f"status={status} url={page.url}")
+    failed = (resp is not None and resp.status >= 400) or "/accounts/login/" in page.url
+    if failed or not measure:
         browser.close()
-        sys.exit(0)
+        sys.exit(1 if failed else 0)
     result = page.evaluate(MEASURE)
     if result is None:
-        status = resp.status if resp else "?"
         print(f"width={width} NO TABLE (status={status} url={page.url})")
         browser.close()
         sys.exit(1)
@@ -2873,14 +2893,18 @@ with sync_playwright() as p:
     browser.close()
 ```
 
-The screenshot is taken before `MEASURE` runs, so a page that fails the
-measurement (or never had a table to measure) still leaves its PNG behind.
-Without the `measure` argument the script never evaluates `MEASURE` at all —
-it only screenshots and exits 0 — so `NO TABLE` can only ever appear on a
-`measure` invocation. When `measure` is passed and `MEASURE` finds no
-`table.results-table`, the script prints the response status and URL and
-exits non-zero instead of printing `None`: a failed render (no table) is
-never a pass for the 30% floor — fix the URL, login or enrolment and re-run.
+The screenshot is taken before any exit, so a page that fails still leaves
+its PNG behind. Every run prints `status=<code> url=<url>` and exits
+non-zero — with or without `measure` — when the response status is >= 400 or
+the page ends on `/accounts/login/…` (an expired session or a bad login):
+that failure is caught here rather than misread as a passing screenshot.
+Only when the page loaded correctly and `measure` was passed does the script
+evaluate `MEASURE`; if it finds no `table.results-table`, it prints
+`NO TABLE` with the status and URL and exits non-zero instead of printing
+`None` — a failed render (no table) is never a pass for the 30% floor. On a
+correctly loaded page without `measure`, the script exits 0 after the
+screenshot. Fix the URL, login or enrolment and re-run whenever the exit
+code is non-zero.
 
 5e. Start the app from the worktree with the `run` skill (or `Start-Process` running `uv run python manage.py runserver 127.0.0.1:8765 --noreload` from the worktree), record its port with `echo <port> > .env.rt-port` (the `.env*` ignore rule keeps it out of git), then for each URL from 5c:
 
@@ -2918,7 +2942,7 @@ For each: apply by hand, run `uv run pytest -m e2e tests/test_e2e_analytics_stud
 13. *A/B (spec T13, specificity not order):* change that rule's selector to `.results-table__section th,.results-table__section td` (0,1,1) and move it to just after `.results-table tbody th{text-align:start;font-weight:normal}`. → `rt_t13` red on the section `<th>` (the (0,1,2) reset wins although it comes first). Revert.
 14. *A/B (spec T13, reset):* delete `.results-table tbody th{text-align:start;font-weight:normal}`. → `rt_t13` red on the quiz `<th>` weight and alignment. Revert.
 15. *A/B (spec T13b):* add the line `.results-table .pill{white-space:normal}` directly after `.results-table-empty{…}` (unconditional). → `rt_t13b` red (pills break at every space in a `width:1%` column). Revert.
-16. *A/B (spec T13c):* in `templates/courses/manage/_results_table_rows.html`, delete the heading row's `{% if item.summary and item.percent is not None %} style="…"{% endif %}` on the % cell. → `rt_t13c` red (the cell shows the section tint, not the band). Revert.
+16. *A/B (spec T13c):* in `templates/courses/manage/_results_table_rows.html`, delete the heading row's `{% if item.summary and item.percent is not None %} style="…"{% endif %}` on the % cell. → `rt_t13c` red: the cell's own computed `backgroundColor` is transparent (`rgba(0, 0, 0, 0)`); the tint visible there belongs to the row. Revert.
 17. *A/B (spec T13d):* delete `.results-table__total > th,.results-table__total > td{…}`. → `rt_t13d` red (`0px`). Revert.
 
 `git diff` shows only Steps 1 and 3 (plus item 6's comment if it applied). `git status --short` must not list `rt_page.py`, `.env.rt-port` or any PNG.
@@ -3271,7 +3295,7 @@ print('course-results', reverse('courses:course_results', kwargs={'slug': course
 "
 ```
 
-Expected: four quiz lines, two lesson lines, and the three page URLs. Start the app from the worktree with the `run` skill (or `Start-Process` running `uv run python manage.py runserver 127.0.0.1:8765 --noreload`) and record its port: `echo <port> > .env.rt-port`. Leave it running through Step 3.
+Expected: four quiz lines, two lesson lines, and the three page URLs. Start the app from the worktree with the `run` skill (or `Start-Process` running `uv run python manage.py runserver 127.0.0.1:8765 --noreload`) and record its port: `echo <port> > .env.rt-port`. Leave it running through Step 2.
 
 The throwaway student's rows must come from REAL answers (never hand-written `QuestionResponse` rows: a fraction that disagrees with the stored answer renders incoherent pages). **After Step 2a's mat-pp captures** (finishing a REVIEW quiz notifies `rtadmin`, whose unread badge would otherwise sit in those headers), log in as `rtstudent` / `RT-local-only!` in a browser and, through the UI:
 - **RT oceniany**: answer „Warszawa" and „Londyn", finish the quiz (1/2);
@@ -3290,7 +3314,7 @@ Invoke the `frontend-design:frontend-design` skill on the Results table as built
 
 - [ ] **Step 2: Screenshots, measured, judged**
 
-2a. **As `rtadmin`, on mat-pp, before any `rtstudent` quiz is finished** — for the top student URL of Task 7 Step 5c, and for one per-question page reached from a quiz title link in the table:
+2a. **As `rtadmin`, on mat-pp, before any `rtstudent` quiz is finished** — for the top student URL of Task 7 Step 5c, and for one per-question page reached from a quiz title link in the table (open that Results page in a browser as `rtadmin` and copy the `href` of an `a.breakdown-unit__link` for a submitted quiz):
 
 ```bash
 for theme in light dark; do
@@ -3307,7 +3331,7 @@ done
 
 (Here `$theme` and `$width` are meant to expand: this is a plain bash loop, not a `-c` string.)
 
-2b. Do the `rtstudent` UI steps of Step 0 and the review. Then, as `rtadmin`, the throwaway teacher page (`teacher-results` URL) in both themes at 1280, 600 and 390, the same loop (with `measure`) with `rt-throwaway-results-…` names.
+2b. Do the `rtstudent` UI steps of Step 0 and the review. Then, as `rtadmin`, for the throwaway teacher page (`teacher-results` URL) in both themes, repeat ONLY the inner `for width in 1280 600 390` Results-URL invocation (with `measure`) — not the Progress or per-question invocations of 2a — using `rt-throwaway-results-…` names.
 
 2c. **As `rtstudent`** (theme via `User.objects.filter(username='rtstudent').update(theme=…)`), light and dark, 1280 and 390: the `outline` URL, the `course-results` URL, and the long-titled quiz's results page (`/courses/rt-throwaway/u/<pk>/quiz/results/`, pk from Step 0's output).
 
