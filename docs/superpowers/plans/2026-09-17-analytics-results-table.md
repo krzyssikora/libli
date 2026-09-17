@@ -100,7 +100,7 @@ The spec body and the O-rows agree everywhere; no O-row needed a tie-break. The 
 1. **A class-only right-align rule would make T13's `thead` A/B vacuous.** §2.4 gives `results-table__num` cells `text-align:right` without a selector. Written as `.results-table .results-table__num` (0,2,0) it also out-ranks `.results-table thead th` (0,1,2) on „Wynik" and „%", so removing `.results-table thead th.results-table__num` (0,2,2) changes nothing and T13's A/B stays green. Task 7 writes the right-align as `.results-table td.results-table__num` (0,2,1) — body cells only — so the `thead` rule is the one that right-aligns the headers.
 2. **T8a's 5-point margin has no fallback.** §7 says the correct build must clear the 30% floor by ≥ 5 points "for this A/B to mean anything" but not what to do if it does not. Tasks 7 and 9: if the measured share is below 35%, run the nowrap A/B anyway; if it still goes red, continue and record the margin in the PR body; if it does not go red, **STOP and ask the owner** (the levers that widen the margin — merging or dropping a column — touch O1).
 3. **T13d measures the declared border, not the painted winner.** `getComputedStyle` on a cell in a `border-collapse` table reports the cell's own declared `border-bottom` (2px, `--border-strong`), not the result of the collapse. The test pins the rule the spec names; whether the 2px border visibly wins over the next row's 1px `border-top` is judged in Task 9's screenshots.
-4. **The builder invariant has no test in §7.** §2.1 requires `rows_by_unit[node.pk]` so a quiz node without a `build_course_results` row raises instead of rendering unscored. Task 3 adds `test_rt_invariant_a_quiz_without_a_row_raises` (monkeypatched builder drops a row; *Mutant:* `.get()` → green-on-broken, red here).
+4. **The builder invariant has no test in §7.** §2.1 requires `rows_by_unit[node.pk]` so a quiz node without a `build_course_results` row raises instead of rendering unscored. Task 3 adds `test_rt_invariant_a_quiz_without_a_row_raises` (monkeypatched builder drops a row; *Mutant:* `if d["node"].pk not in rows_by_unit: continue` → the must-raise test goes red).
 5. **T10b's "same figures as its table row" needs the table.** Task 1 pins the header (T10b) and the Progress pill (T10d); Task 5 adds `test_rt_t10b_header_matches_the_table_row` once the table exists.
 
 ## File map
@@ -2254,7 +2254,7 @@ with:
 <span class="rollup">{% blocktrans with done=item.required_done total=item.required_total %}lessons: {{ done }}/{{ total }}{% endblocktrans %}</span>
 ```
 
-Then confirm both files kept their line counts: `git diff --stat -- templates/courses/manage/_breakdown_node.html templates/courses/_outline_node.html` shows `1 insertion(+), 1 deletion(-)` and `2 insertions(+), 2 deletions(-)`.
+Then confirm both files kept their line counts: `git diff --numstat -- templates/courses/manage/_breakdown_node.html templates/courses/_outline_node.html` shows `1	1	templates/courses/manage/_breakdown_node.html` and `2	2	templates/courses/_outline_node.html` (tab-separated).
 
 In `tests/test_e2e_outline_tree.py`, its comment near line 160 still names the old chip wording. Replace the single line:
 
@@ -2705,7 +2705,9 @@ with:
    indentation come in three bands with EQUAL selectors, so source order decides:
    the unconditional rules, then the 640px block, then the 480px block. The depth
    rules are (0,3,0) and beat the (0,1,1) padding shorthand wherever they sit; each
-   depth ADDS to the base inline padding. Nothing but padding changes per band. */
+   depth ADDS to the base inline padding. Padding and indentation are the only
+   per-band changes at 640px; the 480px block also shrinks the type and lets
+   pills wrap. */
 .results-table th,.results-table td{padding:.375rem .5rem;border-top:1px solid var(--border-subtle)}
 .results-table .results-table__title.results-table__d0{padding-inline-start:.5rem}
 .results-table .results-table__title.results-table__d1{padding-inline-start:1.5rem}
@@ -2915,6 +2917,7 @@ uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<url from 5c>" 39
 Expected per line: `pageFits: True`, `wrapFits: True` unless `katex > 0` (a formula may scroll the table), and `share ≥ 0.30`. A render with `katex > 0` is not a floor check (a formula sets the title column's width); judge the others. Every URL from 5c is a Results URL, so every invocation here passes `measure`; a `NO TABLE` line (possible only on a `measure` invocation) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run.
 
 - **STOP (spec §2.4 / T8a floor):** if any formula-free mat-pp render has `share < 0.30`, do not commit; ask the owner with the measured shares and the screenshots (`rt_page.py … 390 <scratchpad>/matpp-390.png …`).
+- A share below 0.35 → for that mat-pp or throwaway page, temporarily apply the nowrap pill change to `app.css`, re-run `rt_page.py … 390 … measure` on that same URL and expect a share below 0.30, then revert by hand; if it does not drop below 0.30, record the margin in the PR body.
 - Otherwise keep `RT_TITLE_SHARE_FLOOR = 0.30` (confirmed); record the fixture's and mat-pp's shares for the PR body.
 
 5f. Stop the server the way it was started, then confirm nothing listens: `netstat -ano | grep ":<port> " | grep LISTENING` prints nothing.
@@ -2927,7 +2930,9 @@ For each: apply by hand, run `uv run pytest -m e2e tests/test_e2e_analytics_stud
 2. *A/B (spec T5d, 640 band):* delete the four depth rules inside `@media (max-width:640px)`. → `rt_t5d[600]` red (desktop values). Revert.
 3. *A/B (spec T5d, order):* move the whole `@media (max-width:640px){…}` block above the unconditional `.results-table th,.results-table td{…}` rule. → `rt_t5d[600]` red: equal selectors, the later unconditional rules win. Revert.
 4. *Falsifier (spec T8a, wrapper fit):* change `.results-table .results-table__title{overflow-wrap:anywhere}` to `.results-table .results-table__title{overflow-wrap:anywhere;white-space:nowrap}`. → `rt_t8a` red on `scroll_w <= client_w` (the long depth-3 title outgrows the wrapper while the page check stays green). Revert.
-5. *A/B (spec T8a, pill wrap):* inside `@media (max-width:480px)`, change the pill's `white-space:normal` to `white-space:nowrap`. → `rt_t8a` red on the title share (a one-line „oczekuje na sprawdzenie" pill takes the title column below 30%). Revert.
+5. *A/B (spec T8a, pill wrap):* inside `@media (max-width:480px)`, change the pill's `white-space:normal` to `white-space:nowrap`. → `rt_t8a` red on the title share (a one-line „oczekuje na sprawdzenie" pill takes the title column below 30%).
+   - If it goes **red**: revert; the test's A/B stands.
+   - If it stays **green** at a share ≥ 0.35: revert it, record the in-table pill `white-space:normal` as defensive only (no A/B claimed) in the PR body.
 6. *A/B first (spec T8a, number-cell nowrap):* delete `white-space:nowrap` from `.results-table .results-table__num{width:1%;white-space:nowrap}` and run `rt_t8a` at 390px. Their content has no line-break opportunity (UAX #14 LB25), so this likely stays green.
    - If it goes **red** on the single-line assertion: revert; the test's A/B stands.
    - If it stays **green**: revert, and record in the PR body that the number-cell `nowrap` is **defensive only** (no A/B claimed); also replace the rule's line with the two lines `/* nowrap here is defensive: „812,5/960,5" and „100%" have no break opportunity. */` and `.results-table .results-table__num{width:1%;white-space:nowrap}` (the test keeps only its single-line assertion).
@@ -3295,7 +3300,7 @@ print('course-results', reverse('courses:course_results', kwargs={'slug': course
 "
 ```
 
-Expected: four quiz lines, two lesson lines, and the three page URLs. Start the app from the worktree with the `run` skill (or `Start-Process` running `uv run python manage.py runserver 127.0.0.1:8765 --noreload`) and record its port: `echo <port> > .env.rt-port`. Leave it running through Step 2.
+Expected: four quiz lines, two lesson lines, and the three page URLs. Start the app from the worktree with the `run` skill (or `Start-Process` running `uv run python manage.py runserver 127.0.0.1:8765`) and record its port: `echo <port> > .env.rt-port`. Leave it running through Step 2.
 
 The throwaway student's rows must come from REAL answers (never hand-written `QuestionResponse` rows: a fraction that disagrees with the stored answer renders incoherent pages). **After Step 2a's mat-pp captures** (finishing a REVIEW quiz notifies `rtadmin`, whose unread badge would otherwise sit in those headers), log in as `rtstudent` / `RT-local-only!` in a browser and, through the UI:
 - **RT oceniany**: answer „Warszawa" and „Londyn", finish the quiz (1/2);
@@ -3310,7 +3315,7 @@ The throwaway course now carries, at depth 3, a scored quiz, a REVIEW-only score
 
 - [ ] **Step 1: `frontend-design` pass**
 
-Invoke the `frontend-design:frontend-design` skill on the Results table as built (spec §9: after the markup exists, before screenshots are judged). Scope: spacing, type scale, vertical alignment and colour of `.results-table*`, `.results-table-empty` and the chip only. It must not touch the Progress view's layout (O5), the options table (O9, O10), a column or a row kind (O1, O11), or any owner-decided wording. Any change to a rule an e2e test pins must keep that test green: re-run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py` after applying.
+Invoke the `frontend-design:frontend-design` skill on the Results table as built (spec §9: after the markup exists, before screenshots are judged). Scope: spacing, type scale, vertical alignment and colour of `.results-table*`, `.results-table-empty` and the chip only. It must not touch the Progress view's layout (O5), the options table (O9, O10), a column or a row kind (O1, O11), or any owner-decided wording. Any change to a rule an e2e test pins must keep that test green: re-run `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py` after applying. After any template or `.py` edit, restart the server (stop it, confirm the port is free, start it again) before shooting or re-shooting; CSS changes are served fresh without a restart.
 
 - [ ] **Step 2: Screenshots, measured, judged**
 
@@ -3333,18 +3338,29 @@ done
 
 2b. Do the `rtstudent` UI steps of Step 0 and the review. Then, as `rtadmin`, for the throwaway teacher page (`teacher-results` URL) in both themes, repeat ONLY the inner `for width in 1280 600 390` Results-URL invocation (with `measure`) — not the Progress or per-question invocations of 2a — using `rt-throwaway-results-…` names.
 
-2c. **As `rtstudent`** (theme via `User.objects.filter(username='rtstudent').update(theme=…)`), light and dark, 1280 and 390: the `outline` URL, the `course-results` URL, and the long-titled quiz's results page (`/courses/rt-throwaway/u/<pk>/quiz/results/`, pk from Step 0's output).
+2c. **As `rtstudent`** (theme via `User.objects.filter(username='rtstudent').update(theme=…)`), light and dark, 1280 and 390: the `outline` URL, the `course-results` URL, and the long-titled quiz's results page (`/courses/rt-throwaway/u/<pk>/quiz/results/`, pk from Step 0's output):
+
+```bash
+for theme in light dark; do
+  uv run python manage.py shell -c "from accounts.models import User; User.objects.filter(username='rtstudent').update(theme='$theme')"
+  for width in 1280 390; do
+    uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<outline URL>" $width <scratchpad>/rt-student-outline-$theme-$width.png rtstudent 'RT-local-only!'
+    uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<course-results URL>" $width <scratchpad>/rt-student-course-results-$theme-$width.png rtstudent 'RT-local-only!'
+    uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<long-titled quiz's results URL>" $width <scratchpad>/rt-student-quiz-results-$theme-$width.png rtstudent 'RT-local-only!'
+  done
+done
+```
 
 2d. **Measure and gate** from the `rt_page.py` output lines. Only Step 2a's and 2b's Results-URL invocations pass `measure` and print a measurement line at all; the Progress, per-question, outline, course-results and quiz_results invocations of 2a/2c never pass `measure`, so they print nothing to gate on here — they contribute PNGs to Step 2e only.
 - a `NO TABLE` line (possible only from a `measure` invocation) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run before judging anything else.
 - every 390px Results line: `pageFits: True`; `wrapFits: True` unless `katex > 0`; formula-free lines `share ≥ 0.30`.
   - **STOP (T8a floor):** a formula-free render below 0.30 → do not continue; ask the owner with the shares and screenshots (the levers touch O1).
-  - A share below 0.35 → apply Task 7 Step 6 item 5 (nowrap pill A/B) and run `rt_t8a`; if it does not go red, **STOP and ask the owner** (Spec gaps item 2).
+  - A share below 0.35 → for that mat-pp or throwaway page, temporarily apply the nowrap pill change to `app.css`, re-run `rt_page.py … 390 … measure` on that same URL and expect a share below 0.30, then revert by hand; if it does not drop below 0.30, record the margin in the PR body.
 - every 600px and 1280px Results line: `maxPillLines: 1` (pills on one line above 480px).
 - the 390px throwaway line: `maxPillLines` is expected to be 2–3 („oczekuje / na / sprawdzenie").
   - **STOP (three-line pills, spec §2.4):** open `rt-throwaway-results-light-390.png` and `…-dark-390.png` and judge whether the three-line awaiting pill with „Sprawdź" under it reads acceptably. If it does not, ask the owner with both screenshots before changing anything: the alternatives touch O1.
 
-2e. **Judge by eye**, with the Read tool, every PNG, dark on its own terms: the sums read clearly at full depth (the owner's stated worry); the heading tint is visible against quiz rows in both themes; the 2px rule under „Cały kurs" visibly wins over the next row's 1px border (Spec gaps item 3); coloured % cells keep readable text; the `pill--none` text is legible (contrast with `--text-secondary`); the Progress view looks as before apart from „lekcje: …" (O5); the per-question back link reads „← Wyniki"; the student's outline chip, `course_results.html` and `quiz_results.html` show O12–O15's wording and figures. Fix what is wrong (design-level only, Step 1's scope) and re-shoot.
+2e. **Judge by eye**, with the Read tool, every PNG, dark on its own terms: the sums read clearly at full depth (the owner's stated worry); the heading tint is visible against quiz rows in both themes; the 2px rule under „Cały kurs" visibly wins over the next row's 1px border (Spec gaps item 3); coloured % cells keep readable text; the `pill--none` text is legible (contrast with `--text-secondary`); the Progress view looks as before apart from „lekcje: …" (O5); the per-question back link reads „← Wyniki"; the student's outline chip, `course_results.html` and `quiz_results.html` show O12–O15's wording and figures. Fix what is wrong (design-level only, Step 1's scope) and re-shoot. After any template or `.py` edit, restart the server (stop it, confirm the port is free, start it again) before shooting or re-shooting; CSS changes are served fresh without a restart.
 
 **Restore the throwaway users' themes** is unnecessary (Task 10 deletes them). No real user's setting was changed.
 
