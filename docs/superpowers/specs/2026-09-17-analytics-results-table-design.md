@@ -1,6 +1,6 @@
 # Student results page: a Results table with section sums — design
 
-**Status:** draft for the owner's review, 2026-09-17. **Spec-review rounds 1–4 applied**; open owner
+**Status:** draft for the owner's review, 2026-09-17. **Spec-review rounds applied: see the `spec(analytics-results-table)` commits**; open owner
 questions are listed in §0. The owner-decisions
 table below is protected: a review catch that would change a row is **not applied**. It goes back to
 the owner as a question.
@@ -105,8 +105,9 @@ the grid's cells. A test pins this (§7, T4).
 
 The view resolves `bands = course_color_bands(course)`, the same call the matrix makes, and paints
 every `percent` it renders with `color_bands.band_style(percent, bands)`. It walks the pruned tree
-**recursively** and sets `color` / `text_color` on **every node dict** that carries `percent` (quiz
-nodes with `shows_score`, container nodes with `summary`), and on `breakdown["total"]`. The matrix's
+**recursively** and sets `color` / `text_color` on **every node dict in the pruned tree** (every quiz
+node and every container node, whatever its `shows_score` / `summary`) and on `breakdown["total"]`.
+Unrendered cells simply ignore it; a `None` percent paints nothing. The matrix's
 `_decorate` walks a flat structure, so it is not reused; the new walk is a small helper in
 `views_analytics.py`. A `None` percent gets `color = text_color = None` and renders neutral. The
 template only reads `color` / `text_color`.
@@ -120,7 +121,7 @@ Each row carries its depth, so indentation shows nesting:
 
 | Row kind | First cell | Count / status cell | Score | % |
 |---|---|---|---|---|
-| Course total (first row, only if `total.summary`; when all quizzes sit in one top-level section it repeats that section's figures, which is accepted per O11 and not suppressed) | „Cały kurs" | `counted/quiz_total` | `score_sum/max_sum` | coloured `percent` |
+| Course total (first row, only if `total.summary`; whenever a container's figures equal those of its only child (the course total over one top-level section, or a chapter holding a single summary section), both rows show the same figures; this is accepted per O11 and **not suppressed** at any level) | „Cały kurs" | `counted/quiz_total` | `score_sum/max_sum` | coloured `percent` |
 | Section heading with `summary` | section title | `counted/quiz_total` | `score_sum/max_sum` | coloured `percent` |
 | Section heading without `summary` (one quiz below) | section title | empty | empty | empty |
 | Quiz | quiz title, linked to the per-question page when it has a submission: `<a class="breakdown-unit__link" href="{% url 'courses:manage_analytics_student_quiz' … %}?{{ drill_qs }}">`, the **same class and href** as today, so the accent colour + underline rule and existing selectors keep working | **empty** when `shows_score`; otherwise the status pill (below) | `score/max` when `shows_score`, else empty | coloured `percent` when `shows_score`, else empty |
@@ -173,8 +174,21 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 
 - `.results-table { width:100%; border-collapse:collapse; }`. Cells get `padding` and a
   `border-top:1px solid var(--border-subtle)`.
-- The title column takes the free width and wraps (`overflow-wrap:anywhere`). The score and %
-  columns are `width:1%; white-space:nowrap; text-align:right`.
+- **Cell classes** (every body row, every kind): the title cell `results-table__title`, the count/status
+  cell `results-table__status`, the score and % cells `results-table__num`. Rules target these classes.
+- **Wrapper and backgrounds.** The table sits in `<div class="results-table-wrap">` with
+  `overflow-x:auto; position:relative` (the `position` is required: KaTeX's `.katex-mathml` is
+  `position:absolute` and would otherwise escape a static scroller and widen the page — a known trap).
+  The table has `background: var(--surface-raised)`. Heading and total rows use `var(--surface-base)`,
+  which differs from raised in **both** themes (light `#F4F1EA` on `#FFFFFF`, dark `#1A1816` on
+  `#2C2925`); `--surface-sunken` is **not** used, because in light mode it is lighter than the page
+  (`#FAF8F3` on `#F4F1EA`) and in dark mode darker, so it would not read as a tint.
+- The title cell takes the free width and wraps (`overflow-wrap:anywhere`). The `results-table__num`
+  cells are `width:1%; white-space:nowrap; text-align:right`.
+- **Maths titles.** KaTeX renders inline maths as unbreakable inline-blocks, so a long formula sets the
+  title column's minimum width and `overflow-wrap:anywhere` cannot split it. That is **accepted by
+  design**: the page never scrolls sideways, and the **table** scrolls inside `.results-table-wrap`
+  instead.
 - **`<th>` browser defaults are overridden, by specificity, not by source order** (`reset.css` has no
   `th` rule, so a `<th>` is bold and centred by default):
   - `.results-table tbody th{text-align:start;font-weight:normal}` (0,1,2) — every row-header title.
@@ -186,15 +200,17 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 - The **status column** is `width:1%; white-space:nowrap; text-align:start` by default, so at desktop
   width every pill stays on one line and the column takes its max-content width. Its cells (the „1/3"
   fractions on heading rows and the pills on quiz rows) are start-aligned, matching the „Quizy" header.
-  **Only inside the `@media (max-width:640px)` block** do the status cell and the pill wrap
-  (`.results-table__status{white-space:normal}`, `.results-table .pill{white-space:normal;
-  border-radius:.5rem;text-align:center}`). The „Sprawdź" link is `display:block` at every width. The
+  **Only inside the `@media (max-width:640px)` block** does the pill wrap
+  (`.results-table .pill{white-space:normal; border-radius:.5rem;text-align:center}`); the cell's own
+  `white-space` is not changed there (its content is a space-free fraction, an inline-block pill that sets
+  its own `white-space`, or a block link, so a cell-level rule would be dead CSS). The „Sprawdź" link is `display:block` at every width. The
   longest content is „oczekuje na sprawdzenie" plus „Sprawdź": a nowrap pill is ~160–175px at `.75rem`/600,
   which at 390px (358px table) would leave the title column 30–60px, so on phones wrapping it to
   „oczekuje na / sprawdzenie" is the lesser cost. A wrapped pill with the base `border-radius:999px`
   becomes an oval whose corners touch the text, hence the smaller radius there. The design-pass
   screenshots check it.
-- `.results-table__section` gets `background: var(--surface-sunken)` and `font-weight:600`. A coloured
+- `.results-table__section` gets `background: var(--surface-base)` (weight is set by the specificity rules
+  above). A coloured
   % cell's inline background paints over it, which is intended.
 - **Phone (≤ 640px):** the table stays a table. Only the title wraps, and the three number columns
   shrink to their content. At 390px a 4-level title plus „16,5/22" and „100%" must not scroll the page
@@ -220,9 +236,9 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 
 `<h1>` reads `{% trans "Results" %} — {{ student.list_display_name }}` in Results mode and
 `{% trans "Progress" %} — …` in Progress mode. It reuses the existing msgids („Wyniki", „Postęp"),
-the same words the switch under the heading uses. `<title>` follows the same pattern, one per mode:
-`{% trans "Results" %} · {{ student.list_display_name }} · {{ course.title }} · libli` and
-`{% trans "Progress" %} · {{ student.list_display_name }} · {{ course.title }} · libli`.
+the same words the switch under the heading uses. `<title>` names the view but **not** the student, as today's title has no student name (a name in the
+title would land in browser history, tabs and bookmarks, which no owner row asks for):
+`{% trans "Results" %} · {{ course.title }} · libli` and `{% trans "Progress" %} · {{ course.title }} · libli`.
 
 ### 3.2 Per-question back link (O8)
 
@@ -262,7 +278,9 @@ shows fewer in the chip than it has rows.
   ```
 
   `shows_score` is `row["status"] == "submitted" and (row["max_score"] or 0) > 0` (a `submitted` row is
-  already not pending). `score` is `row["score"] or Decimal("0")`. `percent` is `_pct(score, max_score)`
+  already not pending). `score` is `row["score"] or Decimal("0")` and `max_score` is `row["max_score"] or Decimal("0")` (both
+  always `Decimal`, never `None`, including not-started and in-progress rows). Containers sum only the
+  nodes whose `shows_score` is true. `percent` is `_pct(score, max_score)`
   when `shows_score`, else `None`. `_quiz_pill` returns `kind == "scored"` (with `score`, `max_score`,
   `percent` from this helper) **iff** `shows_score`; a submitted row without it stays `submitted`.
   `build_student_breakdown` stamps its quiz nodes from the same helper. Consequently the Progress pills,
@@ -392,24 +410,29 @@ assertions in `tests/test_analytics_student_page.py` („Wyniki ucznia — Anna 
 
 e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
 
-- **T8** — at 390px there is no horizontal page scroll with a depth-3 quiz title, wide numbers
+- **T8** — at 390px `document.documentElement.scrollWidth` equals the viewport width (no horizontal
+  **page** scroll) with a depth-3 quiz title, a depth-3 quiz title containing a long inline formula
+  (KaTeX loaded; the table may scroll inside `.results-table-wrap`, the page may not), wide numbers
   („16,5/22", „100%") **and an awaiting-review row with its „Sprawdź" link at depth 3**. The score and %
   columns do not wrap, and the title column's measured width is at least **30%** of the table's
   (estimate: 358px table − a wrapped status ~95px − score ~55px − % ~40px − cell padding ≈ 125px ≈ 35%).
   The threshold is checked against a real render in the design pass before the test is committed; if
   the render cannot reach 30% the plan stops and reports, rather than lowering it silently.
-  *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. At 1280px the score and % cells are right-aligned (their text's right edge sits at the cell's content
+  *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. *A/B:* remove
+  `position:relative` from `.results-table-wrap` → the page scrolls sideways with the formula title, red. At 1280px the score and % cells are right-aligned (their text's right edge sits at the cell's content
   edge). *A/B (390px):* neutralise the score/% columns' `white-space:nowrap` and re-measure → the
   „16,5/22" cell wraps, red. *A/B (1280px):* neutralise `text-align:right` → red on the alignment check.
-- **T13** — a section row's computed background equals `--surface-sunken` (probe token); a section row's
+- **T13** — a section row's computed background equals `--surface-base` (probe token) **and differs from
+  a quiz row's effective background** (the table's `--surface-raised`), in both themes; a section row's
   `<th>` **and** count/score `<td>`, and the total row's `<th>`, are bold (weight ≥ 600); a quiz row's
   title `<th>` is **not** bold (weight < 600) and is start-aligned; the „Wynik" and „%" column headers are
-  right-aligned. *A/B:* remove the section `font-weight` rule → red on the section `<th>`, `<td>` and total
+  right-aligned. *A/B:* set the section background to `var(--surface-sunken)` → red on the token check; remove the
+  table's `--surface-raised` background → red on the differs-from check in at least one theme. *A/B:*
+  remove the section `font-weight` rule → red on the section `<th>`, `<td>` and total
   `<th>`; lower that rule's specificity to `.results-table__section th` and place it before the reset →
   red on the section `<th>`; remove the `tbody th` reset → red on the quiz `<th>` weight and alignment.
 - **T13b** — at 1280px every status pill in the table is a single line (its height equals one line box).
-  *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red. A coloured % cell's background equals its band colour, not the tint. *A/B:* neutralise
-  `.results-table__section`'s background → red on the tint check; remove the inline style on a coloured
+  *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red. A coloured % cell's background equals its band colour, not the tint.  remove the inline style on a coloured
   cell → red on the band check.
 
 Screenshots (design pass, as in B11): mat-pp Results view, light and dark, 1280 and 390. Judge whether
