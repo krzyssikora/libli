@@ -202,7 +202,10 @@ trap, previous spec §2). No stylesheet line citations anywhere.
     {font-weight:600}` (0,2,2) — heading and total rows; it beats the reset wherever it is written.
   - `<thead>`: `.results-table thead th{font-weight:600;text-align:start}` (0,1,2), and
     `.results-table thead th.results-table__num{text-align:right}` (0,2,2) on „Wynik" and „%", whose
-    `<th>` carry the `results-table__num` class. „Tytuł" and „Quizy" stay start-aligned.
+    `<th>` carry the `results-table__num` class. The four `<thead>` cells carry the same column classes as
+    the body: „Tytuł" `results-table__title`, „Quizy" `results-table__status` (so the column's
+    `width:1%; white-space:nowrap` applies to its header too), „Wynik" and „%" `results-table__num`.
+    „Tytuł" and „Quizy" stay start-aligned.
 - The **status column** is `width:1%; white-space:nowrap; text-align:start` by default, so at desktop
   width every pill stays on one line and the column takes its max-content width. Its cells (the „1/3"
   fractions on heading rows and the pills on quiz rows) are start-aligned, matching the „Quizy" header.
@@ -289,7 +292,9 @@ shows fewer in the chip than it has rows.
   always `Decimal`, never `None`, including not-started and in-progress rows). Containers sum only the
   nodes whose `shows_score` is true. `percent` is `_pct(score, max_score)`
   when `shows_score`, else `None`. `_quiz_pill` returns `kind == "scored"` (with `score`, `max_score`,
-  `percent` from this helper) **iff** `shows_score`; a submitted row without it stays `submitted`.
+  `percent` from this helper) **iff** `shows_score`; a submitted row without it stays `submitted`. Every
+  pill kind other than `not_started` **keeps `submission_pk`**, including the scored one (the helper does
+  not return it; `_quiz_pill` copies it from the row), because the quiz title link depends on it.
   `build_student_breakdown` stamps its quiz nodes from the same helper. Consequently the Progress pills,
   the per-question header (which keeps branching on `p.kind`) and the Results table all agree, and no
   caller re-derives the rule. This changes what a pill **says** for REVIEW-only quizzes, not the Progress
@@ -348,7 +353,8 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   summary heading's `percent`, `score_sum` and `max_sum` with the `build_results_matrix` cell **whose
   column `node` is that section**. To get that column, expand the section's **ancestors, not the section
   itself**: `frontier_columns` turns an expanded node into a spanning header, which has no cell. Cover
-  a top-level section **and** a nested one. Call `build_results_matrix(..., values="raw")`: its cells
+  a top-level section **and** a nested one. Call `build_results_matrix(..., values="raw")` exactly as the view calls it
+  (`drafts="keep-with-data", with_data=_with_data_for(course)`): its cells
   carry only `percent` and `label`, and only raw mode puts the marks in `label`. Compare `percent`
   directly, and compare `label` with `f"{_fmt_mark(score_sum)}/{_fmt_mark(max_sum)}"`, so that a wrong
   sum which happens to round to the same % still goes red. **When `counted == 0`** the grid returns
@@ -370,7 +376,19 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T4** — drafts: a draft quiz **with** data counts on both pages (its marks are in the section cell and
   the heading); *Mutant:* call the builder with `drafts="hide"` → red. A draft quiz **without** data has
   no row on the page and is **not** in its heading's `quiz_total` (the grid has nothing to compare, since
-  it changes no sum); *Mutant:* call the builder with `drafts="keep"` → red on that denominator.
+  it changes no sum); *Mutant:* call the builder with `drafts="keep"` → red on that denominator. "Data"
+  is **course-wide** (`_with_data_for`: any student's `QuizSubmission` or `UnitProgress`), so the
+  without-data quiz must have no data from **any** student. A third case is pinned too: a draft quiz
+  attempted only by **another** student is shown on this student's page as „nie rozpoczęto" and counts
+  in `quiz_total`.
+- **T5b** — rendered text, in Polish: for one `counted > 0` summary heading, the course total row and one
+  scored quiz row, assert the exact text of the count cell (e.g. „2/3"), the score cell with a decimal
+  comma (e.g. „16,5/22") and the % cell (e.g. „75%"). *Mutants:* drop `|marks` from the score cell → red
+  („16.5"); swap the score and % cells → red; drop the `%` sign → red.
+- **T5c** — row order and indent: for a course with parts, the table body's sequence of (title,
+  `results-table__dN` class) pairs is the total first, then the pruned tree in pre-order with each
+  class equal to the node's `depth`. *Mutant:* derive the class from `ContentNode.RANK` instead of
+  `depth` (differs in a course without parts) → red; include a course without parts.
 - **T5** — `counted` leaves out a submitted quiz with `max_score == 0` but keeps it in `quiz_total`.
   *Mutant:* in the container aggregation only, count a quiz as `counted` when its row's status is
   `submitted` (ignoring `shows_score`) → red, the heading shows 1/N instead of 0/N. (Dropping the conjunct
@@ -397,7 +415,8 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   unlinked quiz `<th>` each carry `data-math-title` and `lang="{{ course.language }}"`, asserted
   separately; the „Cały kurs" `<th>` carries neither. The existing
   `tests/test_title_math_markers.py::test_analytics_breakdown_titles_are_marked` loads Progress mode
-  only and stays as it is. *Mutant:* drop `data-math-title` from the linked-quiz title → red.
+  only and stays as it is. *Mutant:* drop `data-math-title` from the linked-quiz title → red. The linked quiz in this fixture is
+  a **scored** one, so a scored pill that lost `submission_pk` (and with it the link) also goes red.
 - **T11** — the chip reads „lekcje: 1/2" on the teacher page and on the student outline, and the `.po`
   has no `required` or `Student results` entry left.
 - **T14** — O13: in Polish, the three msgids O13 names render their new msgstrs wherever they appear:
@@ -431,7 +450,7 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   (estimate: 358px table − a wrapped status ~95px − score ~75px for a course total like „812,5/960" −
   % ~40px − cell padding ≈ 105px ≈ 29%, of which a depth-3 title loses 1.5rem of indent). Because the
   estimate sits at the threshold, the **fixture's course-total row must carry a realistic wide sum** (at
-  least three integer digits plus a decimal on both sides, e.g. „812,5/960.5"), and the design-pass render
+  least three integer digits plus a decimal on both sides, e.g. „812,5/960,5"), and the design-pass render
   on mat-pp data **sets** the final threshold, recorded in the plan before the test is committed.
   The threshold is checked against a real render in the design pass before the test is committed; if
   the render cannot reach 30% the plan stops and reports, rather than lowering it silently.
@@ -467,7 +486,10 @@ the course total and the colours, and in one sentence what the quiz fraction on 
 (quizzes whose score is included / quizzes in the section; a quiz awaiting review is not yet included). In `drill-down.md` the **← Student results** link text becomes **← Results** / **← Progress**; in
 `drill-down.pl.md` **← Wyniki ucznia** becomes **← Wyniki** / **← Postęp**. The English image alt text
 "A student's results page" stays. The `drill-down.{en,pl}.png` capture shows Results mode: its entry in
-`tests/capture_help_screenshots.py` passes `mode=results` and waits for `.results-table` (today it opens
+`tests/capture_help_screenshots.py` passes `mode=results` and waits for `.results-table`, and its URL
+helper `_u`'s `manage_analytics_student` branch appends `?mode=results` when a `mode` is given, as its
+`manage_analytics` branch already does (today it reads only `username`, so the entry alone would still
+open Progress mode and the wait would time out). Today it opens
 the page with no `mode`, i.e. Progress, and waits for `.breakdown__tree`, which Results mode no longer
 renders).
 
