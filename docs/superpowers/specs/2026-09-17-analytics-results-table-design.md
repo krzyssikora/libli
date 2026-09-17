@@ -24,16 +24,12 @@ Verbatim quotes, 2026-09-17. „Proposal" rows are mine, and the owner accepted 
 | O7 | The **heading names the view**: „Wyniki — Imię Nazwisko" / „Postęp — Imię Nazwisko". No „ucznia", which is wrong for a girl | "is better than "Wyniki ucznia", as in the latter case for a girl it should be "Wyniki uczennicy"" |
 | O8 | Proposal: the per-question page's back link names the same view, „← Wyniki" / „← Postęp" | "All good" |
 | O9 | The options table's pick marker stays the same for single- and multiple-answer questions | "This is not that important, I can accept the current form." |
-| O10 | Options table: **only the icons are coloured**, not the whole row | "only the icons coloured would be better than the whole row" — ⚠️ see §6 |
+| O10 | Options table: **only the icons are coloured**, not the whole row. **Already true in the merged CSS — no change** (§6) | "only the icons coloured would be better than the whole row"; after §6 was shown: "you are right, it is already fine" |
 | O11 | **Sums sit on the section's own heading row**, with the course total („Cały kurs") at the top. There are no „Razem" rows underneath | "yes, this is clever" |
+| O12 | The **student's course outline** chip reads „lekcje: 1/2" too (one wording for the one shared chip) | "1 yes" |
+| O13 | Review-waiting wording uses **„sprawdzanie"**, not „ocena": `Awaiting review` → „Oczekuje na sprawdzenie", `awaiting review` → „oczekuje na sprawdzenie", `Submitted for review` → „Przesłano do sprawdzenia" | "\"Sprawdzanie\" sounds better than \"ocena\"" |
 
-**Open questions for the owner** (not decided; the plan must not guess):
-
-- **Q1 — The student's own course outline.** The „x/y wymagane" chip is ONE msgid (`required`)
-  shared by the teacher page and the **student's course outline** (`_outline_node.html`, twice).
-  Should the student outline also read „lekcje: 1/2"? This spec assumes **yes** (one wording for one
-  chip), and §3.3 is written that way.
-- **Q2 — O10 may already be true.** See §6.
+**Open questions for the owner:** none (Q1 → O12, Q2 → O10, both answered 2026-09-17).
 
 ---
 
@@ -161,8 +157,7 @@ becomes unused and is dropped with `makemessages --no-obsolete` (the repo forbid
 
 `{{ done }}/{{ total }} {% trans "required" %}` becomes one translatable string with its numbers
 inside: `{% blocktrans with done=… total=… %}lessons: {{ done }}/{{ total }}{% endblocktrans %}`,
-pl „lekcje: %(done)s/%(total)s". It changes in `_breakdown_node.html` and, **if Q1 is yes**, in both
-`_outline_node.html` sites. The `required` msgid then becomes unused and is dropped. The chip counts
+pl „lekcje: %(done)s/%(total)s". It changes in `_breakdown_node.html` and in both `_outline_node.html` sites (O12). The `required` msgid then becomes unused and is dropped. The chip counts
 **required** lessons only, as today. The owner accepted that a chapter with an „Dodatkowa" lesson
 shows fewer in the chip than it has rows.
 
@@ -195,31 +190,20 @@ Reused, never re-created (all verified present in `locale/pl` on 2026-09-17): `Q
 `Quizzes` („Quizy"), `Score` („Wynik") for the column headers; `Results` („Wyniki"), `Progress`
 („Postęp"); the pill status words `not started` („nie rozpoczęto"), `in progress` („w toku"),
 `awaiting review` („oczekuje na ocenę"), `submitted` („przesłano"); `Review` („Sprawdź").
-⚠️ „oczekuje na ocenę" uses „ocena", which elsewhere the product avoids in favour of „sprawdzanie".
-That is out of scope here; noted for the owner.
-Dropped as unused: `Student results`, `required` (if Q1 is yes).
+The status words above include `awaiting review`, whose msgstr O13 changes.
+Dropped as unused: `Student results`, `required`.
+
+Changed msgstr only (O13), msgids untouched: `Awaiting review` → „Oczekuje na sprawdzenie" (review queue, per-question page, the student's own `quiz_results.html`), `awaiting review` → „oczekuje na sprawdzenie" (pill), `Submitted for review` → „Przesłano do sprawdzenia" (the student's question feedback). The **graded** msgids (`Your quiz was graded`, `Quiz graded`, `submitted — not graded`) keep „ocena": grading is what they mean.
 Catalog procedure: as in the previous plan's Global Constraints, **plus `--no-obsolete`**.
 
 ---
 
-## 6. O10 — the options table is probably already icons-only
+## 6. O10 — the options table is already icons-only (no change)
 
-⚠️ **Owner, please check this one.** In the merged CSS the verdict colour is applied **only to the
-icon cells**:
-
-```css
-.answers__option.is-correct .answers__options-mark{color:var(--success)}
-.answers__option.is-wrong   .answers__options-mark{color:var(--danger)}
-.answers__option.is-missed  .answers__options-mark{color:var(--warning)}
-```
-
-The class sits on the row, but the colour reaches only the ●/○ and ✓ cells. The option text stays
-`--text-primary`, as the B11 screenshots of „Zbiory - quiz" Q1 show. So O10 may need no change.
-
-If what looked like "the whole row coloured" was the **4px coloured left edge of the whole question
-card** (`.answers__item.is-correct/-partial/-incorrect`), that is a different element, and the owner
-decides whether it stays. **This spec changes nothing in the options table until the owner says which
-he meant.**
+In the merged CSS the verdict colour reaches **only the icon cells**
+(`.answers__option.is-correct/.is-wrong/.is-missed .answers__options-mark`); the option text keeps
+`--text-primary`. The owner confirmed this is what he wants. The options table is **not touched** by
+this work.
 
 ---
 
@@ -244,8 +228,10 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T9** — heading and `<title>` in both modes, in Polish, for a female student („Wyniki — Anna
   Nowak"), with no „ucznia" anywhere on either page.
 - **T10** — the per-question back link reads „← Wyniki" / „← Postęp" to match the mode.
-- **T11** — the chip reads „lekcje: 1/2" on the teacher page (and on the student outline if Q1 is yes),
-  and the `.po` has no `required` or `Student results` entry left.
+- **T11** — the chip reads „lekcje: 1/2" on the teacher page and on the student outline, and the `.po`
+  has no `required` or `Student results` entry left.
+- **T14** — O13: in Polish, the pill, the review queue and the student's `quiz_results.html` render
+  „sprawdzenie" wording and no „ocenę"; the graded notification strings are unchanged.
 - **T12** — assertions never rest on database ids (known trap).
 
 e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
@@ -282,7 +268,7 @@ with `--no-obsolete`, falsified tests, and a design-pass screenshot step on mat-
 - **The grid and the page disagree on a number.** T1/T3/T4 compare against `build_results_matrix`
   itself rather than restating its rule, so a later change to the grid's rule turns them red instead
   of silently diverging.
-- **Q1 changes a student-facing page.** The student outline chip changes wording for every student.
-  Screenshot it too if Q1 is yes.
+- **O12/O13 change student-facing pages.** The outline chip and the review-waiting words change for every
+  student. Screenshot the student outline and `quiz_results.html` too.
 - **Reviews reversing owner rows.** Any spec-review or plan-review catch touching O1–O11 goes to the
   owner, never applied (a lesson from the previous spec).
