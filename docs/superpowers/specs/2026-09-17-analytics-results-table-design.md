@@ -166,9 +166,20 @@ Each row carries its depth, so indentation shows nesting:
 - **Indentation:** the first cell gets `padding-inline-start` from the node dict's **`depth`** (as
   `build_outline` stamps it: 0 for any root node, so in a course without parts a chapter is d0), not
   from its kind. Rows keep their own depth; they are **not** shifted under „Cały kurs", which is
-  already set apart by its tint and border. The indent step is `1rem` per depth (d1 1rem, d2 2rem,
-  d3 3rem) above 640px and `.5rem` per depth (d3 1.5rem) at ≤640px. The class is
-  `results-table__d0` … `__d3`. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
+  already set apart by its tint and border. The indent is **added to** the cell's base inline
+  padding, never a replacement for it, and each level differs from the one above it at every width.
+  The class is `results-table__d0` … `__d3`. Computed `padding-inline-start` of the title cell:
+
+  | band | base | d0 | d1 | d2 | d3 |
+  |---|---|---|---|---|---|
+  | > 640px | .5rem | .5rem | 1.5rem | 2.5rem | 3.5rem |
+  | 481–640px | .5rem | .5rem | 1rem | 1.5rem | 2rem |
+  | ≤ 480px | .25rem | .25rem | .75rem | 1.25rem | 1.75rem |
+
+  **Selectors and specificity.** Base padding: `.results-table th, .results-table td{padding:.375rem .5rem}`
+  (0,1,1). Depth: `.results-table .results-table__title.results-table__d1{padding-inline-start:1.5rem}` …
+  (0,3,0), which beats the base (0,1,1) wherever it is written; the two media blocks repeat both the base
+  and the depth rules with the same selectors, so each band's values win inside that band. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
   the maximum at 3. No inline style.
 - **Numbers:** marks go through the `marks` filter (decimal comma in Polish, #327). Percent renders as
   `{{ percent }}%`. An empty summary cell is empty; it never shows „—".
@@ -189,11 +200,12 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 - `.results-table { width:100%; border-collapse:collapse; }`. Cells get `padding:.375rem .5rem` and a
   `border-top:1px solid var(--border-subtle)`.
 - **Narrow phones (≤ 480px)** get a denser table, within O1's four columns (no column is dropped or
-  merged — that would change O1): cell padding `.25rem .25rem`; `.results-table{font-size:.875rem}`;
+  merged — that would change O1): cell padding `.25rem .25rem` (same (0,1,1) selector); `.results-table{font-size:.875rem}`;
   the pill inside the table `font-size:.7rem; padding:.05rem .3rem` (and it wraps, below). Estimate at
   390px (358px table): status column at min-content ≈ „sprawdzenie" at .7rem/600 + pill padding ≈ 75px;
   score „812,5/960,5" at .875rem ≈ 75px; „100%" ≈ 35px; padding 4 × 8px = 32px → title column ≈ 141px ≈
-  **39%**, of which a depth-3 title loses 1.5rem of indent. If the design-pass render still misses the
+  **39%**, of which a depth-3 title's padding-inline-start takes 1.75rem (28px, rem is not scaled by the
+  table's `font-size`), leaving its text ≈ 109px. If the design-pass render still misses the
   30% floor, the plan **stops and asks the owner**: the remaining levers (merging or dropping a column)
   touch O1.
 - **Cell classes** (every body row, every kind): the title cell `results-table__title`, the count/status
@@ -416,6 +428,10 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   `results-table__dN` class) pairs is the total first, then the pruned tree in pre-order with each
   class equal to the node's `depth`. *Mutant:* derive the class from `ContentNode.RANK` instead of
   `depth` (differs in a course without parts) → red; include a course without parts.
+- **T5d** (e2e) — the class name is not enough: at 1280px, ~600px and 390px, each d(N+1) title cell's
+  computed `padding-inline-start` is larger than the d(N) cell's, and equals §2.3's table value. *A/B:*
+  lower the depth selector to `.results-table__d1` (0,1,0) so the base rule out-ranks it → red; remove the
+  481–640px depth block → red at ~600px.
 - **T5** — `counted` leaves out a submitted quiz with `max_score == 0` but keeps it in `quiz_total`.
   *Mutant:* in the container aggregation only, count a quiz as `counted` when its row's status is
   `submitted` (ignoring `shows_score`) → red, the heading shows 1/N instead of 0/N. (Dropping the conjunct
@@ -532,9 +548,8 @@ the course total and the colours, and in one sentence what the quiz fraction on 
 `tests/capture_help_screenshots.py` passes `mode=results` and waits for `.results-table`, and its URL
 helper `_u`'s `manage_analytics_student` branch appends `?mode=results` when a `mode` is given, as its
 `manage_analytics` branch already does (today it reads only `username`, so the entry alone would still
-open Progress mode and the wait would time out). Today it opens
-the page with no `mode`, i.e. Progress, and waits for `.breakdown__tree`, which Results mode no longer
-renders).
+open Progress mode and the wait would time out). Today the entry opens the page with no `mode`, i.e.
+Progress, and waits for `.breakdown__tree`, which Results mode no longer renders.
 
 **Review-queue help (O13).** `docs/help/teacher/quiz-review.pl.md` names the label: line 15
 „**Oczekuje na ocenę**" becomes „**Oczekuje na sprawdzenie**", and line 5's „czekają na ocenę" becomes
