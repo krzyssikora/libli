@@ -1102,7 +1102,7 @@ Run each mutant with `uv run pytest tests/test_analytics_student_page.py -k "<te
 3. *Mutant (spec T2):* in `_stamp_results`, `"summary": quiz_total > 1` → `"summary": quiz_total >= 1`. → `rt_t2` red (`summary` True) and `rt_t3_a_one_quiz…` red. Revert.
 4. *Mutant (spec T3):* in `build_student_breakdown`, insert `total["summary"] = total["quiz_total"] >= 1` just before the Results `return`. → `rt_t3_a_one_quiz_course_has_no_total_summary` red. Revert.
 5. *Mutant (spec T4, drafts hidden):* in `courses/views_analytics.py::analytics_student`, change `drafts="keep-with-data"` to `drafts="hide"` in the `build_student_breakdown` call. → `rt_t4` red (Rozdział is 2/4 · 50% against the grid's 5/8). Revert.
-6. *Mutant (spec T4, drafts kept):* same call, `drafts="keep"`. → `rt_t4` red on `quiz_total == 3` (4). Revert.
+6. *Mutant (spec T4, drafts kept):* same call, `drafts="keep"`. → `rt_t4` red on `_find(tree, "Szkic bez danych") is None` (the draft without data appears in the tree), before its `quiz_total == 3` check. Revert.
 7. *Mutant (spec T5):* in `_stamp_results`, change `if d["shows_score"]:` to `if rows_by_unit[d["node"].pk]["status"] == "submitted":` (container aggregation only; the quiz node's own `shows_score` is untouched). → `rt_t5` red: `counted` 2, heading 2/2 instead of 1/2. Revert.
 8. *Mutant (spec T7, crashes before the check):* in `build_student_breakdown`, insert `_stamp_results(tree, {r["unit"].pk: r for r in results["rows"]})` directly after `attach(tree)`. → `rt_t7` errors: `KeyError` on the unpruned lesson node (`Lekcja A` is `is_unit` but not a quiz, so it has no row in `rows_by_unit`), before the test's key-leak check runs. Revert.
 9. *Mutant (spec T7, crash-free):* first change `_stamp_results`'s unit test from `if d["is_unit"]:` to `if d["is_unit"] and is_quiz_unit(d["node"]):` (skipping lessons; `is_quiz_unit` lives in `courses/rollups.py`, so no import is needed), then insert `_stamp_results(tree, {r["unit"].pk: r for r in results["rows"]})` directly after `attach(tree)`. → `rt_t7` red: Progress nodes now carry `quiz_total` / `counted` etc. Revert both edits by hand.
@@ -1757,7 +1757,7 @@ def test_rt_t10c_results_table_titles_are_marked(client):
 uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py tests/test_title_math_markers.py -k "test_rt_ or t6_results or t7_results or t37"
 ```
 
-Expected: every rendered-table test fails (`table.results-table` does not exist: `_table_rows` returns `[]`, so `[0]` raises `IndexError` and `_table_row` raises `AssertionError: no Results-table row`); `test_rt_t9_…` fails on „Wyniki ucznia — Anna Nowak"; `test_rt_t10_…` fails on „← Wyniki ucznia"; `test_t37_…[results]` fails (no table), `[progress]` passes; `test_rt_t7_progress_renders_the_tree_not_the_table` passes already (a guard, falsified in Step 9).
+Expected: every rendered-table test fails (`table.results-table` does not exist: `_table_rows` returns `[]`, so `[0]` raises `IndexError` and `_table_row` raises `AssertionError: no Results-table row`); `test_rt_t9_…` fails on „Wyniki ucznia — Anna Nowak"; `test_rt_t10_…` fails on „← Wyniki ucznia"; `test_t37_…[results]` fails (no table), `[progress]` passes; `test_rt_t7_progress_renders_the_tree_not_the_table` passes already (a guard, falsified in Step 9); `test_t7_results_mode_hides_the_chapter_chip_progress_shows_it` passes already too (Results mode already hides `.rollup`, Progress shows it).
 
 - [ ] **Step 4: Create the rows template**
 
@@ -1921,7 +1921,7 @@ For each: apply by hand, run the named test with `uv run pytest <file> -k "<test
 1. *Mutant (T1c):* in `_results_table_rows.html`'s heading row, change the score cell's `{% if item.summary and item.percent is not None %}` to `{% if item.summary %}`. → `rt_t1c_an_uncounted_summary…` red („0/0"). Revert.
 2. *Mutant (spec T2):* drop `item.summary and` from BOTH the heading score and % conditions (the three `{% if … %}` on those two cells). → `rt_t2_one_quiz_headings…` red (Sekcja C1 shows „3/4", „75%" and a style). Revert.
 3. *Mutant (T3 render):* in `analytics_student.html`, change `{% if t.summary %}` to `{% if True %}`. → `rt_t3_a_one_quiz_course_renders_no_total_row` red. Revert.
-4. *Mutant (spec T5b):* on the heading score cell, drop `|marks` from `item.score_sum|marks`. → `rt_t5b` red („16.5/22" on Rozdział B). Revert.
+4. *Mutant (spec T5b):* on the heading score cell, drop `|marks` from `item.score_sum|marks`. → `rt_t5b` red („16,50/22" on Rozdział B — Django localises the bare stored two-decimal Decimal in Polish). Revert.
 5. *Mutant (spec T5b):* swap the heading row's score and % `<td>` contents (move `{{ item.score_sum|marks }}/{{ item.max_sum|marks }}` into the last cell and `{{ item.percent }}%` into the third). → `rt_t5b` red. Revert.
 6. *Mutant (spec T5b):* drop the `%` after `{{ item.percent }}` on the quiz row. → `rt_t5b` red („75" on B połowa). Revert.
 7. *Mutant (spec T5c):* in `courses/rollups.py::_stamp_results`, add `d["depth"] = ContentNode.RANK[d["node"].kind]` as the first line inside `for d in nodes:`. → `rt_t5c` red for both parameters (Q3 under a chapter becomes d3; in the course without parts the chapter becomes d1). Revert.
@@ -2718,8 +2718,9 @@ with:
   .results-table .pill{font-size:.7rem;padding:.05rem .3rem;white-space:normal;
     border-radius:.5rem;text-align:center}
 }
-/* position:relative is required: KaTeX's .katex-mathml is position:absolute and
-   would escape a static scroller and widen the page. */
+/* position:relative is kept defensively: KaTeX's absolutely positioned .katex-mathml
+   escapes a static scroller whenever a formula starts beyond the viewport (e.g. in a
+   right-hand column), which this table's title column normally does not do. */
 .results-table-wrap{overflow-x:auto;position:relative}
 .results-table{width:100%;border-collapse:collapse;background:var(--surface-raised)}
 /* A SINGLE-run formula (matched by `.katex:not(:has(.base ~ .base))`, no
@@ -2851,13 +2852,24 @@ with sync_playwright() as p:
     form.locator("input[name='password']").fill(password)
     form.locator("button[type='submit']").click()
     page.wait_for_load_state()
-    page.goto(f"{base}{path}")
+    resp = page.goto(f"{base}{path}")
     page.wait_for_load_state("networkidle")
-    print(f"width={width} {page.evaluate(MEASURE)}")
+    result = page.evaluate(MEASURE)
+    if result is None:
+        status = resp.status if resp else "?"
+        print(f"width={width} NO TABLE (status={status} url={page.url})")
+        browser.close()
+        sys.exit(1)
+    print(f"width={width} {result}")
     if out != "-":
         page.screenshot(path=out, full_page=True)
     browser.close()
 ```
+
+If `MEASURE` finds no `table.results-table`, the script prints the response
+status and URL and exits non-zero instead of printing `None`: a failed render
+(no table) is never a pass for the 30% floor — fix the URL, login or
+enrolment and re-run.
 
 5e. Start the app from the worktree with the `run` skill (or `Start-Process` running `uv run python manage.py runserver 127.0.0.1:8765 --noreload` from the worktree), record its port with `echo <port> > .env.rt-port` (the `.env*` ignore rule keeps it out of git), then for each URL from 5c:
 
@@ -2865,7 +2877,7 @@ with sync_playwright() as p:
 uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<url from 5c>" 390 - rtadmin 'RT-local-only!'
 ```
 
-Expected per line: `pageFits: True`, `wrapFits: True` unless `katex > 0` (a formula may scroll the table), and `share ≥ 0.30`. A render with `katex > 0` is not a floor check (a formula sets the title column's width); judge the others.
+Expected per line: `pageFits: True`, `wrapFits: True` unless `katex > 0` (a formula may scroll the table), and `share ≥ 0.30`. A render with `katex > 0` is not a floor check (a formula sets the title column's width); judge the others. A `NO TABLE` line (failed render) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run.
 
 - **STOP (spec §2.4 / T8a floor):** if any formula-free mat-pp render has `share < 0.30`, do not commit; ask the owner with the measured shares and the screenshots (`rt_page.py … 390 <scratchpad>/matpp-390.png …`).
 - Otherwise keep `RT_TITLE_SHARE_FLOOR = 0.30` (confirmed); record the fixture's and mat-pp's shares for the PR body.
@@ -2884,7 +2896,9 @@ For each: apply by hand, run `uv run pytest -m e2e tests/test_e2e_analytics_stud
 6. *A/B first (spec T8a, number-cell nowrap):* delete `white-space:nowrap` from `.results-table .results-table__num{width:1%;white-space:nowrap}` and run `rt_t8a` at 390px. Their content has no line-break opportunity (UAX #14 LB25), so this likely stays green.
    - If it goes **red** on the single-line assertion: revert; the test's A/B stands.
    - If it stays **green**: revert, and record in the PR body that the number-cell `nowrap` is **defensive only** (no A/B claimed); also replace the rule's line with the two lines `/* nowrap here is defensive: „812,5/960,5" and „100%" have no break opportunity. */` and `.results-table .results-table__num{width:1%;white-space:nowrap}` (the test keeps only its single-line assertion).
-7. *A/B (spec T8b):* change `.results-table-wrap{overflow-x:auto;position:relative}` to `.results-table-wrap{overflow-x:auto}`. → `rt_t8b` red: KaTeX's absolute `.katex-mathml` escapes and the page scrolls. Revert.
+7. *A/B first (spec T8b):* change `.results-table-wrap{overflow-x:auto;position:relative}` to `.results-table-wrap{overflow-x:auto}`. This likely stays green here: `.katex-mathml`'s static position falls inside the viewport (the title column), so dropping `position:relative` does not widen the page in this fixture.
+   - If it goes **red**: KaTeX's absolute `.katex-mathml` escapes and the page scrolls; revert, the test's A/B stands.
+   - If it stays **green**: revert it, and record `position:relative` as defensive only (no A/B claimed) in the PR body.
 8. *A/B (spec T8c):* change `.results-table td.results-table__num{text-align:right}` to `text-align:start`. → `rt_t8c` red on `edges["left"] > 1`. Revert.
 9. *A/B (spec T13, headers):* delete `.results-table thead th.results-table__num{text-align:right}`. → `rt_t13[light]` red on the header alignment (proves Spec gaps item 1). Revert.
 10. *A/B (spec T13, token):* change `.results-table__section{background:var(--surface-base)}` to `var(--surface-sunken)`. → `rt_t13` red on `backgroundColor == base`. Revert.
@@ -2915,6 +2929,7 @@ git commit -m "style(analytics): the Results table, dense at 480px; computed-sty
 - Modify: `docs/help/teacher/drill-down.md`, `docs/help/teacher/drill-down.pl.md`
 - Modify: `tests/capture_help_screenshots.py` (`_u`'s `manage_analytics_student` branch, the `drill-down` entry), `tests/capture_title_math_screenshots.py` (row 11b)
 - Modify: `core/static/core/img/help/drill-down.en.png`, `drill-down.pl.png`, `review-queue.pl.png`
+- Modify: `courses/geogebra.py` (stale line-number citation only)
 
 **Interfaces:**
 - Consumes: the finished pages of Tasks 5–7.
@@ -3138,14 +3153,32 @@ git status --short core/static/core/img/help/
 
 (`git checkout --` here restores unrelated, byte-churned PNGs the capture rewrote; it never touches the implementation.) Expected final status: at most `drill-down.en.png`, `drill-down.pl.png`, `review-queue.pl.png`; `git clean -n` lists nothing. Open each changed PNG with the Read tool: both drill-down shots show the Results table with „Whole course"/„Cały kurs"; the Polish review queue shows „Oczekuje na sprawdzenie".
 
-- [ ] **Step 7: Run and commit**
+- [ ] **Step 7: Fix a stale line citation in `courses/geogebra.py`**
+
+Step 4 shifted this file's S110 handler by one line; `courses/geogebra.py` still
+cites the old line number. Replace it with a reference that survives future
+line shifts (name the function, not a line number):
+
+In `courses/geogebra.py`, replace:
+
+```python
+        # Precedent for S110 on a handler line: tests/capture_help_screenshots.py:460.
+```
+
+with:
+
+```python
+        # S110 precedent: capture_help_screenshots.py::test_capture_help_screenshots.
+```
+
+- [ ] **Step 8: Run and commit**
 
 ```bash
-uv run ruff format tests/capture_help_screenshots.py tests/capture_title_math_screenshots.py
+uv run ruff format tests/capture_help_screenshots.py tests/capture_title_math_screenshots.py courses/geogebra.py
 uv run ruff check --no-cache .
 uv run ruff format --check .
 uv run pytest tests/test_help.py tests/test_help_capture_isolation.py
-git add docs/help/teacher/drill-down.md docs/help/teacher/drill-down.pl.md tests/capture_help_screenshots.py tests/capture_title_math_screenshots.py core/static/core/img/help/
+git add docs/help/teacher/drill-down.md docs/help/teacher/drill-down.pl.md tests/capture_help_screenshots.py tests/capture_title_math_screenshots.py core/static/core/img/help/ courses/geogebra.py
 git commit -m "docs(help): results and progress, the table's sums; Results-mode captures"
 ```
 
@@ -3268,6 +3301,7 @@ done
 2c. **As `rtstudent`** (theme via `User.objects.filter(username='rtstudent').update(theme=…)`), light and dark, 1280 and 390: the `outline` URL, the `course-results` URL, and the long-titled quiz's results page (`/courses/rt-throwaway/u/<pk>/quiz/results/`, pk from Step 0's output).
 
 2d. **Measure and gate** from the `rt_page.py` output lines:
+- a `NO TABLE` line (failed render) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run before judging anything else.
 - every 390px Results line: `pageFits: True`; `wrapFits: True` unless `katex > 0`; formula-free lines `share ≥ 0.30`.
   - **STOP (T8a floor):** a formula-free render below 0.30 → do not continue; ask the owner with the shares and screenshots (the levers touch O1).
   - A share below 0.35 → apply Task 7 Step 6 item 5 (nowrap pill A/B) and run `rt_t8a`; if it does not go red, **STOP and ask the owner** (Spec gaps item 2).
