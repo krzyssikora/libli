@@ -190,12 +190,16 @@ Each row carries its depth, so indentation shows nesting:
 
   **Selectors and specificity.** Base padding: `.results-table th, .results-table td{padding:.375rem .5rem}`
   (0,1,1). Depth: `.results-table .results-table__title.results-table__d1{padding-inline-start:1.5rem}` …
-  (0,3,0), which beats the base (0,1,1) wherever it is written; the two media blocks repeat both the base
-  and the depth rules with the same selectors and **do not overlap**: the middle band is written
-  `@media (min-width:481px) and (max-width:640px)` and the narrow band `@media (max-width:480px)`, so each
-  band's values win inside that band. **The desktop rules are also wrapped, in
-  `@media (min-width:641px)`**, so all three bands are mutually exclusive and none of the padding or
-  depth rules applies outside its own band; source order then genuinely does not matter. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
+  (0,3,0), which beats the base (0,1,1) wherever it is written; the padding and depth rules live in **three
+  mutually exclusive, gap-free bands written in media-query range syntax**, each with the full padding
+  shorthand and all four depth rules: `@media (width > 640px)` (`padding:.375rem .5rem`),
+  `@media (480px < width <= 640px)` (`padding:.375rem .5rem`, the table's middle-band indents) and
+  `@media (width <= 480px)` (`padding:.25rem .25rem`). Range syntax leaves no fractional-width gap
+  (zoom and non-integer pixel ratios give widths such as 480.5px, which `max-width:480px` /
+  `min-width:481px` would both miss, dropping all padding and indentation). Source order does not matter.
+  Everything that is **not** padding or indentation — `border-top`, `border-collapse`, the backgrounds,
+  weights and alignments — stays **outside** the media blocks. The other ≤480px rules (font size, pill
+  size and wrapping) use `@media (width <= 480px)` too. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
   the maximum at 3. No inline style.
 - **Numbers:** marks go through the `marks` filter (decimal comma in Polish, #327). Percent renders as
   `{{ percent }}%`. An empty summary cell is empty; it never shows „—".
@@ -215,8 +219,8 @@ under the view switch. That msgid **already exists** (it is used by `course_resu
 Every rule goes in `core/static/core/css/app.css`: the student page links no page stylesheet (known
 trap, previous spec §2). No stylesheet line citations anywhere.
 
-- `.results-table { width:100%; border-collapse:collapse; }`. Cells get `padding:.375rem .5rem` and a
-  `border-top:1px solid var(--border-subtle)`.
+- `.results-table { width:100%; border-collapse:collapse; }`. Cells get `border-top:1px solid
+  var(--border-subtle)` (unconditional) and the band padding of §2.3 (`.375rem .5rem` above 480px).
 - **Narrow phones (≤ 480px)** get a denser table, within O1's four columns (no column is dropped or
   merged — that would change O1): cell padding `.25rem .25rem` (same (0,1,1) selector); `.results-table{font-size:.875rem}`;
   the pill inside the table `font-size:.7rem; padding:.05rem .3rem` (and it wraps, below). Estimate at
@@ -264,8 +268,10 @@ trap, previous spec §2). No stylesheet line citations anywhere.
   its own `white-space`, or a block link, so a cell-level rule would be dead CSS). The „Sprawdź" link is `display:block` at every width, via `.results-table .breakdown-unit__review
   {display:block}`, scoped to the table so the Progress view's inline link is unchanged (O5). The
   longest content is „oczekuje na sprawdzenie" plus „Sprawdź": a nowrap pill is ~160–175px at `.75rem`/600,
-  which at 390px (358px table) would leave the title column 30–60px, so on phones wrapping it to
-  „oczekuje na / sprawdzenie" is the lesser cost. A wrapped pill with the base `border-radius:999px`
+  which at 390px (358px table) would leave the title column 30–60px, so on phones wrapping it is the lesser
+  cost. In a `width:1%` column the pill shrinks to its widest word and **breaks at every space**
+  („oczekuje / na / sprawdzenie", „nie / rozpoczęto", „w / toku"); the 390px design-pass screenshot judges
+  whether three-line pills are acceptable, and if not the plan stops and asks the owner. A wrapped pill with the base `border-radius:999px`
   becomes an oval whose corners touch the text, hence the smaller radius there. The design-pass
   screenshots check it.
 - `.results-table__section` gets `background: var(--surface-base)` (weight is set by the specificity rules
@@ -285,8 +291,9 @@ trap, previous spec §2). No stylesheet line citations anywhere.
   `aria-level` on table rows is poorly supported.
 - Colour is never the only carrier: the % text is always present.
 - The scrolling wrapper is reachable by keyboard: `<div class="results-table-wrap" role="region"
-  tabindex="0" aria-labelledby="…">` pointing at the table's caption id, so Firefox and Safari users can
-  scroll a table widened by a long formula (axe `scrollable-region-focusable`).
+  aria-labelledby="…">` pointing at the table's caption id, with `tabindex="0"` **only when `has_math`**
+  (the one case §2.4 says can scroll), so Firefox and Safari users can scroll a table widened by a long
+  formula (axe `scrollable-region-focusable`), and nobody gets an extra, useless Tab stop otherwise.
 - A heading row with no summary has empty cells. It gets no „brak" text, because a screen reader
   reads the quiz row just below it.
 
@@ -448,7 +455,7 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   `results-table__dN` class) pairs is the total first, then the pruned tree in pre-order with each
   class equal to the node's `depth`. *Mutant:* derive the class from `ContentNode.RANK` instead of
   `depth` (differs in a course without parts) → red; include a course without parts.
-- **T5d** (e2e) — the class name is not enough: at 1280px, ~600px and 390px, each d(N+1) title cell's
+- **T5d** (e2e) — the class name is not enough: at 1280px, ~600px, 390px **and 480.5px**, each d(N+1) title cell's
   computed `padding-inline-start` is larger than the d(N) cell's, and equals §2.3's table value. *A/B:*
   lower the depth selector to `.results-table__d1` (0,1,0) so the base rule out-ranks it → red; remove the
   481–640px depth block → red at ~600px.
@@ -557,8 +564,8 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   `thead th.results-table__num` (0,2,2) rule → red. *A/B:* set the section background to `var(--surface-sunken)` → red on the token check; remove the
   table's `--surface-raised` background → red on the differs-from check in at least one theme. *A/B:*
   remove the section `font-weight` rule → red on the section `<th>`, `<td>` and total
-  `<th>`; lower that rule's specificity to `.results-table__section th` and place it before the reset →
-  red on the section `<th>`; remove the `tbody th` reset → red on the quiz `<th>` weight and alignment.
+  `<th>`; lower that rule's specificity to `.results-table__section th` (0,1,1) and place it **after** the
+  reset (0,1,2) → red on the section `<th>` (specificity, not order, decides); remove the `tbody th` reset → red on the quiz `<th>` weight and alignment.
 - **T13b** — at 1280px every status pill in the table is a single line (its height equals one line box).
   *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red.
 - **T13d** — the border between the total row and the next row is 2px in `--border-strong` (computed on
