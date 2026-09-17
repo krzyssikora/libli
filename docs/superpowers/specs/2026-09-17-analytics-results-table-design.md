@@ -150,10 +150,7 @@ Each row carries its depth, so indentation shows nesting:
 - **What „1/3" means.** The fraction is **quizzes whose score is in the sum / quizzes in the section**.
   It is **not** "quizzes done": a submitted quiz still awaiting review is not in the numerator. The help
   page must say this in one sentence (§8), because a teacher will otherwise read „1/3" as "did 1 of 3".
-  ⚠️ **Owner question:** O1 fixes the column's role ("quiz count or status"), but not which count. Is
-  "counted in the sum" what the owner wants, or "submitted" (which would put awaiting-review quizzes in
-  the numerator while their marks stay out of the sum)? This spec uses "counted in the sum", because it
-  describes the numbers beside it.
+  ⚠️ See owner question **Q3** in §0 (default: counted in the sum).
   Final wording is in §5.
 - **"Section" / "heading row" in §2.3–§2.5 means any container node** (part, chapter or section) —
   §2.1 stamps every container, and a chapter with more than one quiz gets its sums exactly like a section.
@@ -189,8 +186,16 @@ under the view switch. That msgid **already exists** (it is used by `course_resu
 Every rule goes in `core/static/core/css/app.css`: the student page links no page stylesheet (known
 trap, previous spec §2). No stylesheet line citations anywhere.
 
-- `.results-table { width:100%; border-collapse:collapse; }`. Cells get `padding` and a
+- `.results-table { width:100%; border-collapse:collapse; }`. Cells get `padding:.375rem .5rem` and a
   `border-top:1px solid var(--border-subtle)`.
+- **Narrow phones (≤ 480px)** get a denser table, within O1's four columns (no column is dropped or
+  merged — that would change O1): cell padding `.25rem .25rem`; `.results-table{font-size:.875rem}`;
+  the pill inside the table `font-size:.7rem; padding:.05rem .3rem` (and it wraps, below). Estimate at
+  390px (358px table): status column at min-content ≈ „sprawdzenie" at .7rem/600 + pill padding ≈ 75px;
+  score „812,5/960,5" at .875rem ≈ 75px; „100%" ≈ 35px; padding 4 × 8px = 32px → title column ≈ 141px ≈
+  **39%**, of which a depth-3 title loses 1.5rem of indent. If the design-pass render still misses the
+  30% floor, the plan **stops and asks the owner**: the remaining levers (merging or dropping a column)
+  touch O1.
 - **Cell classes** (every body row, every kind): the title cell `results-table__title`, the count/status
   cell `results-table__status`, the score and % cells `results-table__num`. Rules target these classes.
 - **Wrapper and backgrounds.** The table sits in `<div class="results-table-wrap">` with
@@ -236,8 +241,8 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 - `.results-table__section` gets `background: var(--surface-base)` (weight is set by the specificity rules
   above). A coloured
   % cell's inline background paints over it, which is intended.
-- **Phone (≤ 640px):** the table stays a table. Only the title wraps, and the three number columns
-  shrink to their content. At 390px a 4-level title plus „16,5/22" and „100%" must not scroll the page
+- **Phone (≤ 640px):** the table stays a table. The title wraps; the score and % columns shrink to their
+  content and never wrap; the status column wraps its pill only at ≤ 480px. At 390px a 4-level title plus „16,5/22" and „100%" must not scroll the page
   sideways (T8).
 
 ### 2.5 Accessibility
@@ -423,7 +428,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T7** — Progress mode renders no `results-table` class anywhere and still renders
   `ul.breakdown__tree` with `_breakdown_node.html` rows (the lesson ✓/○ markers are present). In the
   view's context the breakdown has **no `total` key**, and **no node** anywhere in the tree has `color`,
-  `text_color`, `percent`, `shows_score` or `summary`. *Mutant:* run the colour walk in both modes with
+  `text_color`, `percent`, `shows_score` or `summary` — checked on each node dict's **own top-level keys**,
+  walked through `children` only, never inside a node's nested `pill` dict (a scored Progress pill
+  legitimately carries `percent`). *Mutant:* run the colour walk in both modes with
   `.get()` guards → red on the `color` check; run it unguarded → the Progress page 500s, red.
 - **T7b** — an empty Results view: a course whose only units are lessons renders no table and shows the
   „No quizzes in this course yet" text.
@@ -476,19 +483,22 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   (KaTeX loaded; the table may scroll inside `.results-table-wrap`, the page may not), wide numbers
   („16,5/22", „100%") **and an awaiting-review row with its „Sprawdź" link at depth 3**. The score and %
   columns do not wrap, and the title column's measured width is at least **30%** of the table's
-  (estimate with the fixture's own widest sum „812,5/960,5": 358px table − a wrapped status ~95px − score
-  ~85px − % ~40px − cell padding ≈ 95px ≈ 27%, of which a depth-3 title loses 1.5rem of indent). Because the
-  estimate sits at the threshold, the **fixture's course-total row must carry a realistic wide sum** (at
+  (estimate with the fixture's own widest sum „812,5/960,5" and the ≤480px density of §2.4: ≈ 141px ≈ 39%).
+  Because the margin over the floor is modest, the **fixture's course-total row must carry a realistic wide sum** (at
   least three integer digits plus a decimal on both sides, e.g. „812,5/960,5"), and **30% is a floor**: the design-pass
-  render on mat-pp data may confirm or raise it, never lower it. The estimate is below the floor, so the
-  render will likely show the layout needs a cheaper status or score column on phones; that is a design
-  fix to make in the design pass, not a threshold to relax.
+  render on mat-pp data may confirm or raise it, never lower it. If the render falls below it despite
+  §2.4's density, the plan stops and asks the owner (the remaining levers touch O1), never relaxes the floor.
   The threshold is checked against a real render in the design pass before the test is committed; if
   the render cannot reach 30% the plan stops and reports, rather than lowering it silently.
-  *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. *A/B:* remove
+  *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red **on the title-share assertion**
+  (a nowrap „oczekuje na sprawdzenie" pill ≈ 130px at .7rem would drop the title to ≈ 86px ≈ 24%); the
+  correct build must clear 30% by at least 5 percentage points for this A/B to be meaningful, which the
+  design-pass render confirms. *A/B:* remove
   `position:relative` from `.results-table-wrap` → the page scrolls sideways with the formula title, red. At 1280px the score and % cells are right-aligned (their text's right edge sits at the cell's content
   edge). *A/B (390px):* neutralise the score/% columns' `white-space:nowrap` and re-measure → the
   „16,5/22" cell wraps, red. *A/B (1280px):* neutralise `text-align:right` → red on the alignment check.
+- **Every container row carries `results-table__section`**, summary or not (a single-quiz section is
+  still a heading: tinted and bold, just with empty number cells). T13's fixture includes one of each.
 - **T13** — a section row's computed background equals `--surface-base` (probe token) **and differs from
   a quiz row's effective background** (the table's `--surface-raised`), in both themes; a section row's
   `<th>` **and** count/score `<td>`, and the total row's `<th>`, are bold (weight ≥ 600); a quiz row's
