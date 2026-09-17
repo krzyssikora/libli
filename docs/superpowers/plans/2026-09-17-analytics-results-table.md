@@ -3469,6 +3469,8 @@ if __name__ == "__main__":
         sys.exit(1)
 ```
 
+⚠️ **Do NOT run the next two command blocks now — Step 2b runs them, after Step 2a's mat-pp captures** (finishing the review quizzes notifies `rtadmin`, whose unread badge would otherwise appear in those screenshots).
+
 Run it with the four paths from the snippet's output above (the `RT oceniany`, `RT esej`, long-titled quiz and `RT lekcja 1` lines; never pass `RT lekcja 2` or `RT nierozpoczęty`):
 
 ```bash
@@ -3477,7 +3479,7 @@ uv run python <scratchpad>/rt_seed_ui.py http://127.0.0.1:<port> rtstudent 'RT-l
 
 Expected: exit code 0 and `finished:` (or `skip`) lines for the three quizzes, `lesson done:`, and `reviewed: RT esej 1.5/2` (or its `skip`). A non-zero exit: fix the cause and re-run (the script is idempotent).
 
-Then verify the stored state, read-only (no backticks, no `$`):
+Then verify the stored state, read-only (no backticks, no `$`; also run in Step 2b, not now):
 
 ```bash
 uv run python manage.py shell -c "
