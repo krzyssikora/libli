@@ -31,23 +31,14 @@ Verbatim quotes, 2026-09-17. „Proposal" rows are mine, and the owner accepted 
 | O13 | Review-waiting wording uses **„sprawdzanie"**, not „ocena": `Awaiting review` → „Oczekuje na sprawdzenie", `awaiting review` → „oczekuje na sprawdzenie", `Submitted for review` → „Przesłano do sprawdzenia" | "\"Sprawdzanie\" sounds better than \"ocena\"" |
 | O14 | The two plural „awaiting review" entries on the student's `quiz_results.html` also use „sprawdzenie" (six Polish forms: „oczekuje/oczekują na sprawdzenie") | "Q4 yes" |
 | O15 | The student's own `course_results.html` uses `quiz_score_view`, so a marked REVIEW-only quiz shows its score there too (test mirroring T10b) | "Q5 yes" |
+| O16 | Q3 → a heading's score and % are Σ score ÷ Σ max over the section's **marked** quizzes only (the grid's figure); not-started and awaiting-review quizzes are left out, never counted as zero | "1 a" (asked with the example: A marked 8/10, B awaiting review, C not started → (a) „8 / 10 · 80%" vs (b) „8 / 30 · 27%") |
+| O17 | Q3 → heading rows **keep** the quiz count „1/3" (quizzes whose score is in the sum / quizzes in the section) | "2. Yes, keep, please" |
 
-**Open questions for the owner** (Q1 → O12 and Q2 → O10 were answered 2026-09-17):
+**Open questions for the owner:** none — all answered 2026-09-17 (Q1 → O12, Q2 → O10, Q3 → O16/O17, Q4 → O14, Q5 → O15).
 
-- **Q3 — What the heading fraction counts** (§2.3). "Quizzes whose score is in the sum / quizzes in the
-  section", or "quizzes submitted / quizzes in the section" (awaiting-review quizzes then count in the
-  numerator while their marks stay out of the sum)? **Default until answered:** counted in the sum.
-  **If the answer is "submitted",** these change together: a new container key for the numerator (e.g.
-  `submitted`, leaving `counted` as the sum's count); §2.3 "What „1/3" means" and the count cell; the §8
-  help sentence; T1c ("0/N" becomes submitted/N); T5 and its mutant; T5b's count-cell text.
-- **Q4 — The two plural „awaiting review" entries** on the student's `quiz_results.html` (§5). Should
-  their six Polish forms say „oczekuje/oczekują na sprawdzenie" too? **Default until answered:** not
-  changed.
-- **Q5 — The student's own `course_results.html`.** It labels a quiz by `row.graded` (an AUTO question
-  exists), so for a fully reviewed REVIEW-only quiz with `max_score > 0` the student reads „przesłano —
-  bez oceny" while its marks are already in that page's own sum, and the teacher (after §4) sees
-  „4/5 · 80%". Should the student page use `quiz_score_view` too, so both sides show the score?
-  **Default until answered:** not changed (out of scope); if yes, it is added with a test mirroring T10b.
+- **Q3** answered 2026-09-17 → O16, O17.
+- **Q4** answered → O14.
+- **Q5** answered → O15.
 
 ---
 
