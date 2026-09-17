@@ -122,16 +122,28 @@ Each row carries its depth, so indentation shows nesting:
   same cell. A REVIEW-only quiz that `shows_score` shows its score like any other row, with no pill.
 - **Header:** `<thead>` with column headers „Quiz", „Quizy", „Wynik", „%". The second column's header
   counts quizzes, since that is what a heading row shows there; a quiz row puts its status in it.
+- **What „1/3" means.** The fraction is **quizzes whose score is in the sum / quizzes in the section**.
+  It is **not** "quizzes done": a submitted quiz still awaiting review is not in the numerator. The help
+  page must say this in one sentence (§8), because a teacher will otherwise read „1/3" as "did 1 of 3".
+  ⚠️ **Owner question:** O1 fixes the column's role ("quiz count or status"), but not which count. Is
+  "counted in the sum" what the owner wants, or "submitted" (which would put awaiting-review quizzes in
+  the numerator while their marks stay out of the sum)? This spec uses "counted in the sum", because it
+  describes the numbers beside it.
   Final wording is in §5.
-- **Headings are row headers:** `<th scope="row">` in the first cell of every heading row, and a
+- **Headings are row headers:** `<th scope="row">` in the first cell of every heading row (quiz rows
+  use a non-bold `<th scope="row">` too, §2.5), and a
   `results-table__section` class that gives the whole row a light neutral tint and bold text (O11
-  rule 1). Quiz rows are plain `<td>`.
+  rule 1). Quiz rows have plain `<td>` number cells.
 - **Course total row:** marked up and styled exactly like a summary heading row: `<th scope="row">`,
   `results-table__section`, tint and bold. A `results-table__total` class only adds a slightly stronger
-  bottom border to separate it from the first section. Its first cell reads „Cały kurs" at depth 0.
-- **Indentation:** the first cell gets `padding-inline-start` from its depth through a class
-  (`results-table__d0` … `__d3`: `ContentNode.RANK` is part 0, chapter 1, section 2, unit 3, and
-  `build_outline` depth starts at 0, so d3 is the deepest row). No inline style.
+  bottom border to separate it from the first section. Its first cell reads „Cały kurs" at depth 0 and carries **neither** `lang="{{ course.language }}"` nor
+  `data-math-title`: it is an interface string, not course content.
+- **Indentation:** the first cell gets `padding-inline-start` from the node dict's **`depth`** (as
+  `build_outline` stamps it: 0 for any root node, so in a course without parts a chapter is d0), not
+  from its kind. Rows keep their own depth; they are **not** shifted under „Cały kurs", which is
+  already set apart by its tint and border. The class is
+  `results-table__d0` … `__d3`. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
+  the maximum at 3.. No inline style.
 - **Numbers:** marks go through the `marks` filter (decimal comma in Polish, #327). Percent renders as
   `{{ percent }}%`. An empty summary cell is empty; it never shows „—".
 - **Maths in titles:** the title cells keep `lang` and `data-math-title`, as the breakdown rows do, and
@@ -164,7 +176,11 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 ### 2.5 Accessibility
 
 - `<caption class="sr-only">` naming the table, e.g. „Wyniki quizów".
-- Headings are `<th scope="row">`. The column headers are `<th scope="col">`.
+- Headings **and quiz titles** are `<th scope="row">` (quiz titles not bold), so a screen reader names
+  every row while moving across its cells. The column headers are `<th scope="col">`.
+- The section hierarchy is shown visually (indent, tint) and is **deliberately not** exposed as ARIA
+  tree structure: row headers plus the section names read in document order are enough, and
+  `aria-level` on table rows is poorly supported.
 - Colour is never the only carrier: the % text is always present.
 - A heading row with no summary has empty cells. It gets no „brak" text, because a screen reader
   reads the quiz row just below it.
@@ -192,7 +208,9 @@ becomes unused and is dropped with `makemessages --no-obsolete` (the repo forbid
 
 `{{ done }}/{{ total }} {% trans "required" %}` becomes one translatable string with its numbers
 inside: `{% blocktrans with done=… total=… %}lessons: {{ done }}/{{ total }}{% endblocktrans %}`,
-pl „lekcje: %(done)s/%(total)s". It changes in `_breakdown_node.html` and in both `_outline_node.html` sites (O12). The `required` msgid then becomes unused and is dropped. The chip counts
+pl „lekcje: %(done)s/%(total)s". It changes in `_breakdown_node.html` and in both `_outline_node.html` sites (O12). In
+`_breakdown_node.html` the `and mode != "results"` guard is **removed** while that line is rewritten:
+Results mode no longer renders this template, so the guard is dead code. The `required` msgid then becomes unused and is dropped. The chip counts
 **required** lessons only, as today. The owner accepted that a chapter with an „Dodatkowa" lesson
 shows fewer in the chip than it has rows.
 
@@ -202,8 +220,14 @@ shows fewer in the chip than it has rows.
 
 - Progress mode's tree, markers, „Dodatkowa" tags and view switch (O5).
 - The matrix, the export and the per-question page body.
-- The pill markup (`_quiz_pill.html`) where it is still used: the Progress view and the per-question
-  header.
+- The pill markup (`_quiz_pill.html`) where it is still used: the Progress view, the per-question
+  header, and the Results table's status cell (§2.3).
+- ⚠️ **Exception: the per-question header's score follows §2.1's rule.** Today
+  `analytics_student_quiz` shows „4 / 5 pkt · 80%" only when `p.kind == "scored"`, which needs an AUTO
+  question. Left alone, a fully reviewed REVIEW-only quiz would show „4/5 · 80%" in the table and
+  „przesłano" one click away. The header therefore shows the score whenever the row is counted and
+  `max_score > 0` (the same `shows_score` predicate, taken from one shared helper in `rollups.py`, not
+  re-derived), and falls back to the pill otherwise. Test **T10b**.
 - Any number anywhere: this adds sums the grid already shows; it computes nothing new (N1 of the
   previous spec still holds).
 
@@ -254,7 +278,10 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   summary heading's `percent`, `score_sum` and `max_sum` with the `build_results_matrix` cell **whose
   column `node` is that section**. To get that column, expand the section's **ancestors, not the section
   itself**: `frontier_columns` turns an expanded node into a spanning header, which has no cell. Cover
-  a top-level section **and** a nested one. Include a not-started, an in-progress and an awaiting-review quiz,
+  a top-level section **and** a nested one. Call `build_results_matrix(..., values="raw")`: its cells
+  carry only `percent` and `label`, and only raw mode puts the marks in `label`. Compare `percent`
+  directly, and compare `label` with `f"{_fmt_mark(score_sum)}/{_fmt_mark(max_sum)}"`, so that a wrong
+  sum which happens to round to the same % still goes red. Include a not-started, an in-progress and an awaiting-review quiz,
   which both must leave out. *Mutant:* count awaiting-review scores → red.
 - **T1b** — a REVIEW-only quiz, fully reviewed, with `max_score > 0`: its row shows `score/max` and a
   %, and its marks are in the heading's sum, matching the grid. *Mutant:* decide the row's score by
@@ -263,7 +290,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   cells, never „0/0". The same holds for the course total.
 - **T2** — `summary` only when `quiz_total > 1`: a section with one quiz renders an empty count, score
   and % in its heading row. *Mutant:* `>= 1` → red.
-- **T3** — the course total row is first and matches the grid's overall cell for the student.
+- **T3** — the course total row is first and matches the grid's `overall` cell for the student, compared
+  the same way as T1 (raw mode, `percent` and `label`). A course with **exactly one quiz** renders
+  **no** total row. *Mutant:* `total.summary` true for `>= 1` quiz → red.
 - **T4** — drafts: a draft quiz with data counts on both pages, and a draft quiz without data on
   neither. *Mutant:* call the builder with `drafts="hide"` → red.
 - **T5** — `counted` leaves out a submitted quiz with `max_score == 0` but keeps it in `quiz_total`.
@@ -278,6 +307,8 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T9** — heading and `<title>` in both modes, in Polish, for a female student („Wyniki — Anna
   Nowak"), with no „ucznia" anywhere on either page.
 - **T10** — the per-question back link reads „← Wyniki" / „← Postęp" to match the mode.
+- **T10b** — the per-question header of a fully reviewed REVIEW-only quiz with `max_score > 0` shows
+  „score / max pkt · %", the same figures as its table row. *Mutant:* keep `p.kind == "scored"` → red.
 - **T11** — the chip reads „lekcje: 1/2" on the teacher page and on the student outline, and the `.po`
   has no `required` or `Student results` entry left.
 - **T14** — O13: in Polish, the three msgids O13 names render their new msgstrs wherever they appear:
@@ -288,12 +319,15 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **Constraint for every test:** assertions never rest on database ids (known trap).
 
 **Existing tests written for the merged tree view.** Before writing new tests, the plan lists every
-existing assertion that runs the student page in **Results** mode, and says for each one whether it
+existing assertion on text or markup this spec changes (the Results-mode tree and pills, the heading,
+the `<title>`, the back link, the lesson chip, the O13 strings), and says for each one whether it
 is **re-pointed at Progress mode** (where `.breakdown-unit` still exists), **replaced** by a test named
 here, or **retired**, with the reason. None is deleted silently. At least:
 `tests/test_analytics_student_page.py` (pill selectors such as `.pill.pill--none`, and the
 Results-mode prune tests) and `tests/test_e2e_analytics_student_pages.py` (the `.breakdown-unit` pill
-and Review-link geometry, and its `_neutralise(".breakdown-unit .pill…")` A/B).
+and Review-link geometry, and its `_neutralise(".breakdown-unit .pill…")` A/B), plus
+`tests/test_analytics_student_quiz.py` (it asserts „← Wyniki ucznia") and the heading/`<title>`
+assertions in `tests/test_analytics_student_page.py` („Wyniki ucznia — Anna Nowak", „Wyniki ucznia ·").
 
 e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
 
@@ -314,7 +348,8 @@ the sums read clearly at full depth; that is the owner's stated worry.
 `docs/help/teacher/drill-down.md`: the "Student results" section heading becomes "Results and
 progress". `docs/help/teacher/drill-down.pl.md`: the „Wyniki ucznia" heading becomes „Wyniki i postęp",
 and the image alt text `![Wyniki ucznia](…)` becomes `![Wyniki quizów w kursie](…)` (no „ucznia", O7). It describes the table, the sums on heading rows,
-the course total and the colours. The **← Student results** link text changes to „← Wyniki" /
+the course total and the colours, and in one sentence what the quiz fraction on a heading row means
+(quizzes whose score is included / quizzes in the section; a quiz awaiting review is not yet included). The **← Student results** link text changes to „← Wyniki" /
 „← Postęp". The `drill-down.{en,pl}.png` capture shows Results mode.
 
 ---
