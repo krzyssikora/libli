@@ -78,7 +78,8 @@ returns a **course total**:
   and `build_course_results` do (`sub.score or Decimal("0")`); `_pct(None, …)` would raise.
   The reverse case (`graded`, but a stored `max_score == 0`) shows no score and is not counted, again
   matching the grid.
-- `score_sum`, `max_sum` — Σ `score`, Σ `max_score` over the counted quizzes (`Decimal`).
+- `score_sum`, `max_sum` — Σ `score`, Σ `max_score` over the counted quizzes (`Decimal`). With
+  `counted == 0` both are `Decimal("0")` (never `None`), and `percent` is `None`.
 - `percent` — `_pct(score_sum, max_sum)` when `max_sum > 0`, else `None`. This is the one percent rule
   the grid uses, so a heading's % equals the grid's Results cell for that section **by construction**.
 - `summary` — `True` iff `quiz_total > 1` (O2). The template renders numbers only when it is true.
@@ -174,18 +175,25 @@ trap, previous spec §2). No stylesheet line citations anywhere.
   `border-top:1px solid var(--border-subtle)`.
 - The title column takes the free width and wraps (`overflow-wrap:anywhere`). The score and %
   columns are `width:1%; white-space:nowrap; text-align:right`.
-- **`<th>` browser defaults are overridden** (`reset.css` has no `th` rule, so a `<th>` is bold and
-  centred by default): `.results-table th{text-align:start;font-weight:normal}` for every row-header
-  title; `.results-table__section th, .results-table__section td{font-weight:600}` for heading and total
-  rows. In `<thead>`, „Tytuł" is start-aligned, „Quizy" start-aligned, and „Wynik" / „%" right-aligned to
-  match their cells.
-- The **status column may wrap** (`width:1%`, `white-space:normal`, so it takes only what it needs).
-  Inside the table the pill **may wrap too** (`.results-table .pill{white-space:normal}`), and the
-  „Sprawdź" link is `display:block`. Its longest content is „oczekuje na sprawdzenie" plus „Sprawdź".
-  A nowrap pill is ~160–175px at `.75rem`/600, which at 390px (358px table) would leave the title
-  column 30–60px; wrapping it to „oczekuje na / sprawdzenie" is the lesser cost. A wrapped pill with the base
-  `border-radius:999px` turns into an oval whose corners touch the text, so inside the table the pill
-  also gets `border-radius:.5rem` and `text-align:center`. The design-pass screenshots check it.
+- **`<th>` browser defaults are overridden, by specificity, not by source order** (`reset.css` has no
+  `th` rule, so a `<th>` is bold and centred by default):
+  - `.results-table tbody th{text-align:start;font-weight:normal}` (0,1,2) — every row-header title.
+  - `.results-table tbody .results-table__section th, .results-table tbody .results-table__section td
+    {font-weight:600}` (0,2,2) — heading and total rows; it beats the reset wherever it is written.
+  - `<thead>`: `.results-table thead th{font-weight:600;text-align:start}` (0,1,2), and
+    `.results-table thead th.results-table__num{text-align:right}` (0,2,2) on „Wynik" and „%", whose
+    `<th>` carry the `results-table__num` class. „Tytuł" and „Quizy" stay start-aligned.
+- The **status column** is `width:1%; white-space:nowrap; text-align:start` by default, so at desktop
+  width every pill stays on one line and the column takes its max-content width. Its cells (the „1/3"
+  fractions on heading rows and the pills on quiz rows) are start-aligned, matching the „Quizy" header.
+  **Only inside the `@media (max-width:640px)` block** do the status cell and the pill wrap
+  (`.results-table__status{white-space:normal}`, `.results-table .pill{white-space:normal;
+  border-radius:.5rem;text-align:center}`). The „Sprawdź" link is `display:block` at every width. The
+  longest content is „oczekuje na sprawdzenie" plus „Sprawdź": a nowrap pill is ~160–175px at `.75rem`/600,
+  which at 390px (358px table) would leave the title column 30–60px, so on phones wrapping it to
+  „oczekuje na / sprawdzenie" is the lesser cost. A wrapped pill with the base `border-radius:999px`
+  becomes an oval whose corners touch the text, hence the smaller radius there. The design-pass
+  screenshots check it.
 - `.results-table__section` gets `background: var(--surface-sunken)` and `font-weight:600`. A coloured
   % cell's inline background paints over it, which is intended.
 - **Phone (≤ 640px):** the table stays a table. Only the title wraps, and the three number columns
@@ -315,7 +323,10 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   a top-level section **and** a nested one. Call `build_results_matrix(..., values="raw")`: its cells
   carry only `percent` and `label`, and only raw mode puts the marks in `label`. Compare `percent`
   directly, and compare `label` with `f"{_fmt_mark(score_sum)}/{_fmt_mark(max_sum)}"`, so that a wrong
-  sum which happens to round to the same % still goes red. Include a not-started, an in-progress and an awaiting-review quiz,
+  sum which happens to round to the same % still goes red. **When `counted == 0`** the grid returns
+  `_cell(None)` (label „—"), so for those sections assert instead that the grid cell has
+  `percent is None` and label „—" and the page's `percent` is `None`. The fixture must contain **at least
+  one summary section of each kind** (`counted > 0` and `counted == 0`), so both branches run. Include a not-started, an in-progress and an awaiting-review quiz,
   which the page and the grid must each leave out. *Mutant:* count awaiting-review scores → red.
 - **T1b** — a REVIEW-only quiz, fully reviewed, with `max_score > 0`: its row shows `score/max` and a
   %, and its marks are in the heading's sum, matching the grid. *Mutant:* decide the row's score by
@@ -390,11 +401,14 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. At 1280px the score and % cells are right-aligned (their text's right edge sits at the cell's content
   edge). *A/B (390px):* neutralise the score/% columns' `white-space:nowrap` and re-measure → the
   „16,5/22" cell wraps, red. *A/B (1280px):* neutralise `text-align:right` → red on the alignment check.
-- **T13** — a section row's computed background equals `--surface-sunken` (probe token), a section
-  row's count/score `<td>` is bold (weight ≥ 600), and a quiz row's title `<th>` is **not** bold (weight
-  < 600) and is start-aligned. (A section's `<th>` would be bold by browser default, so it is not the
-  cell checked.) *A/B:* remove the section `font-weight` → red on the `<td>`; remove the
-  `.results-table th` reset → red on the quiz `<th>` weight and alignment. A coloured % cell's background equals its band colour, not the tint. *A/B:* neutralise
+- **T13** — a section row's computed background equals `--surface-sunken` (probe token); a section row's
+  `<th>` **and** count/score `<td>`, and the total row's `<th>`, are bold (weight ≥ 600); a quiz row's
+  title `<th>` is **not** bold (weight < 600) and is start-aligned; the „Wynik" and „%" column headers are
+  right-aligned. *A/B:* remove the section `font-weight` rule → red on the section `<th>`, `<td>` and total
+  `<th>`; lower that rule's specificity to `.results-table__section th` and place it before the reset →
+  red on the section `<th>`; remove the `tbody th` reset → red on the quiz `<th>` weight and alignment.
+- **T13b** — at 1280px every status pill in the table is a single line (its height equals one line box).
+  *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red. A coloured % cell's background equals its band colour, not the tint. *A/B:* neutralise
   `.results-table__section`'s background → red on the tint check; remove the inline style on a coloured
   cell → red on the band check.
 
