@@ -119,7 +119,7 @@ Each row carries its depth, so indentation shows nesting:
 
 | Row kind | First cell | Count / status cell | Score | % |
 |---|---|---|---|---|
-| Course total (first row, only if `total.summary`) | „Cały kurs" | `counted/quiz_total` | `score_sum/max_sum` | coloured `percent` |
+| Course total (first row, only if `total.summary`; when all quizzes sit in one top-level section it repeats that section's figures, which is accepted per O11 and not suppressed) | „Cały kurs" | `counted/quiz_total` | `score_sum/max_sum` | coloured `percent` |
 | Section heading with `summary` | section title | `counted/quiz_total` | `score_sum/max_sum` | coloured `percent` |
 | Section heading without `summary` (one quiz below) | section title | empty | empty | empty |
 | Quiz | quiz title, linked to the per-question page when it has a submission: `<a class="breakdown-unit__link" href="{% url 'courses:manage_analytics_student_quiz' … %}?{{ drill_qs }}">`, the **same class and href** as today, so the accent colour + underline rule and existing selectors keep working | **empty** when `shows_score`; otherwise the status pill (below) | `score/max` when `shows_score`, else empty | coloured `percent` when `shows_score`, else empty |
@@ -143,8 +143,7 @@ Each row carries its depth, so indentation shows nesting:
   Final wording is in §5.
 - **Headings are row headers:** `<th scope="row">` in the first cell of every heading row (quiz rows
   use a non-bold `<th scope="row">` too, §2.5), and a
-  `results-table__section` class that gives the whole row a light neutral tint and bold text (O11
-  rule 1). Quiz rows have plain `<td>` number cells.
+  `results-table__section` class that gives the whole row a light neutral tint and bold text (O11). Quiz rows have plain `<td>` number cells.
 - **Course total row:** marked up and styled exactly like a summary heading row: `<th scope="row">`,
   `results-table__section`, tint and bold. A `results-table__total` class only adds a slightly stronger
   bottom border to separate it from the first section. Its first cell reads „Cały kurs" at depth 0 and carries **neither** `lang="{{ course.language }}"` nor
@@ -175,11 +174,18 @@ trap, previous spec §2). No stylesheet line citations anywhere.
   `border-top:1px solid var(--border-subtle)`.
 - The title column takes the free width and wraps (`overflow-wrap:anywhere`). The score and %
   columns are `width:1%; white-space:nowrap; text-align:right`.
+- **`<th>` browser defaults are overridden** (`reset.css` has no `th` rule, so a `<th>` is bold and
+  centred by default): `.results-table th{text-align:start;font-weight:normal}` for every row-header
+  title; `.results-table__section th, .results-table__section td{font-weight:600}` for heading and total
+  rows. In `<thead>`, „Tytuł" is start-aligned, „Quizy" start-aligned, and „Wynik" / „%" right-aligned to
+  match their cells.
 - The **status column may wrap** (`width:1%`, `white-space:normal`, so it takes only what it needs).
   Inside the table the pill **may wrap too** (`.results-table .pill{white-space:normal}`), and the
   „Sprawdź" link is `display:block`. Its longest content is „oczekuje na sprawdzenie" plus „Sprawdź".
   A nowrap pill is ~160–175px at `.75rem`/600, which at 390px (358px table) would leave the title
-  column 30–60px; wrapping it to „oczekuje na / sprawdzenie" is the lesser cost.
+  column 30–60px; wrapping it to „oczekuje na / sprawdzenie" is the lesser cost. A wrapped pill with the base
+  `border-radius:999px` turns into an oval whose corners touch the text, so inside the table the pill
+  also gets `border-radius:.5rem` and `text-align:center`. The design-pass screenshots check it.
 - `.results-table__section` gets `background: var(--surface-sunken)` and `font-weight:600`. A coloured
   % cell's inline background paints over it, which is intended.
 - **Phone (≤ 640px):** the table stays a table. Only the title wraps, and the three number columns
@@ -235,12 +241,27 @@ shows fewer in the chip than it has rows.
 - The matrix, the export and the per-question page body.
 - The pill markup (`_quiz_pill.html`) where it is still used: the Progress view, the per-question
   header, and the Results table's status cell (§2.3).
-- ⚠️ **Exception: the per-question header's score follows §2.1's rule.** Today
-  `analytics_student_quiz` shows „4 / 5 pkt · 80%" only when `p.kind == "scored"`, which needs an AUTO
-  question. Left alone, a fully reviewed REVIEW-only quiz would show „4/5 · 80%" in the table and
-  „przesłano" one click away. The header therefore shows the score whenever the row is counted and
-  `max_score > 0` (the same `shows_score` predicate, taken from one shared helper in `rollups.py`, not
-  re-derived), and falls back to the pill otherwise. Test **T10b**.
+- ⚠️ **Exception: every pill follows §2.1's scoring rule.** Today `_quiz_pill` returns `kind == "scored"`
+  only when `graded` (at least one AUTO question). Left alone, a fully reviewed REVIEW-only quiz would
+  show „4/5 · 80%" in the Results table but „przesłano" in the Progress view (one click on the switch)
+  and in the per-question header (one click on the title). So the rule lives in **one helper**, and
+  `_quiz_pill` uses it:
+
+  ```python
+  def quiz_score_view(row):
+      """The grid's "this quiz shows a score" rule for one _course_results_row row."""
+      # returns {"shows_score": bool, "score": Decimal, "max_score": Decimal, "percent": int | None}
+  ```
+
+  `shows_score` is `row["status"] == "submitted" and (row["max_score"] or 0) > 0` (a `submitted` row is
+  already not pending). `score` is `row["score"] or Decimal("0")`. `percent` is `_pct(score, max_score)`
+  when `shows_score`, else `None`. `_quiz_pill` returns `kind == "scored"` (with `score`, `max_score`,
+  `percent` from this helper) **iff** `shows_score`; a submitted row without it stays `submitted`.
+  `build_student_breakdown` stamps its quiz nodes from the same helper. Consequently the Progress pills,
+  the per-question header (which keeps branching on `p.kind`) and the Results table all agree, and no
+  caller re-derives the rule. This changes what a pill **says** for REVIEW-only quizzes, not the Progress
+  **layout** (O5). The student's own `course_results.html` builds its labels separately and is out of
+  scope. Tests **T10b** and **T10d**.
 - Any number anywhere: this adds sums the grid already shows; it computes nothing new (N1 of the
   previous spec still holds).
 
@@ -309,8 +330,10 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T4** — drafts: a draft quiz with data counts on both pages, and a draft quiz without data on
   neither. *Mutant:* call the builder with `drafts="hide"` → red.
 - **T5** — `counted` leaves out a submitted quiz with `max_score == 0` but keeps it in `quiz_total`.
-  *Mutant:* drop the `max_score > 0` conjunct from `shows_score` → red (the heading shows 1/N instead of
-  0/N).
+  *Mutant:* in the container aggregation only, count a quiz as `counted` when its row's status is
+  `submitted` (ignoring `shows_score`) → red, the heading shows 1/N instead of 0/N. (Dropping the conjunct
+  from `quiz_score_view` itself would instead raise in `_pct(score, 0)`, a crash rather than the count
+  this test targets.)
 - **T6** — colour: a summary % cell's **and a quiz row's** % cell's inline background equals `band_style(percent,
   course_color_bands(course))["bg"]` for a course with **custom** bands. With the default bands, a
   hard-coded palette would pass. *Mutant:* use `default_color_bands()` → red. *Mutant:* paint only container nodes → red on the
@@ -325,7 +348,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   page body keeps „Odpowiedź ucznia", „Wybór ucznia" and „Odpowiedź ucznia:", which O7 does not cover.
 - **T10** — the per-question back link reads „← Wyniki" / „← Postęp" to match the mode.
 - **T10b** — the per-question header of a fully reviewed REVIEW-only quiz with `max_score > 0` shows
-  „score / max pkt · %", the same figures as its table row. *Mutant:* keep `p.kind == "scored"` → red.
+  „score / max pkt · %", the same figures as its table row. *Mutant:* in `_quiz_pill`, keep the old `row["graded"] and row["max_score"]` condition → red.
+- **T10d** — the same quiz in **Progress** mode renders the scored pill („wynik 4/5 (80%)"), not
+  „przesłano". Same mutant → red.
 - **T10c** — maths-title markers in **Results mode**: the section `<th>`, a linked quiz `<th>` and an
   unlinked quiz `<th>` each carry `data-math-title` and `lang="{{ course.language }}"`, asserted
   separately; the „Cały kurs" `<th>` carries neither. The existing
@@ -365,8 +390,11 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. At 1280px the score and % cells are right-aligned (their text's right edge sits at the cell's content
   edge). *A/B (390px):* neutralise the score/% columns' `white-space:nowrap` and re-measure → the
   „16,5/22" cell wraps, red. *A/B (1280px):* neutralise `text-align:right` → red on the alignment check.
-- **T13** — a section row's computed background equals `--surface-sunken` (probe token) and its first
-  cell is bold. A coloured % cell's background equals its band colour, not the tint. *A/B:* neutralise
+- **T13** — a section row's computed background equals `--surface-sunken` (probe token), a section
+  row's count/score `<td>` is bold (weight ≥ 600), and a quiz row's title `<th>` is **not** bold (weight
+  < 600) and is start-aligned. (A section's `<th>` would be bold by browser default, so it is not the
+  cell checked.) *A/B:* remove the section `font-weight` → red on the `<td>`; remove the
+  `.results-table th` reset → red on the quiz `<th>` weight and alignment. A coloured % cell's background equals its band colour, not the tint. *A/B:* neutralise
   `.results-table__section`'s background → red on the tint check; remove the inline style on a coloured
   cell → red on the band check.
 
