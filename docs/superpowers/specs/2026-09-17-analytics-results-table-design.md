@@ -149,7 +149,9 @@ Each row carries its depth, so indentation shows nesting:
 | Quiz | quiz title, linked to the per-question page when it has a submission: `<a class="breakdown-unit__link" href="{% url 'courses:manage_analytics_student_quiz' … %}?{{ drill_qs }}">`, the **same class and href** as today, so the accent colour + underline rule and existing selectors keep working | **empty** when `shows_score`; otherwise the status pill (below) | `score/max` when `shows_score`, else empty | coloured `percent` when `shows_score`, else empty |
 
 - **Status cell (a quiz row without a score):** the existing pill span for the row's status, rendered
-  by including `_quiz_pill.html`: `pill--none` „nie rozpoczęto" (inside the table
+  by `{% with p=item.pill %}{% include "courses/manage/_quiz_pill.html" %}…{% endwith %}` (the partial
+  reads only `p`; a bare include would render every quiz as `pill--none`), with the awaiting row's
+  „Sprawdź" link inside the same `with`, as in `_breakdown_node.html`: `pill--none` „nie rozpoczęto" (inside the table
   `.results-table .pill--none{color:var(--text-secondary)}`, because the base `--text-tertiary` fails AA
   and the ≤480px pill is smaller still; the design pass checks its contrast), `pill--progress` „w toku",
   `pill--awaiting` „oczekuje na sprawdzenie", `pill--submitted` „przesłano". Its `scored` branch never
@@ -290,10 +292,13 @@ trap, previous spec §2). No stylesheet line citations anywhere.
   tree structure: row headers plus the section names read in document order are enough, and
   `aria-level` on table rows is poorly supported.
 - Colour is never the only carrier: the % text is always present.
-- The scrolling wrapper is reachable by keyboard: `<div class="results-table-wrap" role="region"
-  aria-labelledby="…">` pointing at the table's caption id, with `tabindex="0"` **only when `has_math`**
-  (the one case §2.4 says can scroll), so Firefox and Safari users can scroll a table widened by a long
-  formula (axe `scrollable-region-focusable`), and nobody gets an extra, useless Tab stop otherwise.
+- The scrolling wrapper is reachable by keyboard **only when it can scroll**: when `has_math` (the one
+  case §2.4 says can scroll) it is `<div class="results-table-wrap" role="region" aria-labelledby="…"
+  tabindex="0">`, pointing at the table's caption id, so Firefox and Safari users can scroll a table
+  widened by a long formula (axe `scrollable-region-focusable`). Without maths it is a plain
+  `<div class="results-table-wrap">`: no landmark, no Tab stop, and no name announced twice. On a maths
+  render the duplicate name (region and table both „Wyniki quizów") is accepted as the cost of a
+  scrollable region's required label.
 - A heading row with no summary has empty cells. It gets no „brak" text, because a screen reader
   reads the quiz row just below it.
 
@@ -460,6 +465,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   equals §2.3's table value for that band. *A/B:* lower the depth selector to `.results-table__d1` (0,1,0)
   so the base rule out-ranks it → red; remove the `max-width:640px` depth rules → red at ~600px; move the
   `max-width:640px` block **above** the unconditional rules → red at ~600px (order decides).
+- **T5e** — the table's status cells show the right pill per status: a not-started, an in-progress and
+  an awaiting-review quiz render `pill--none`, `pill--progress` and `pill--awaiting` respectively (the
+  last with its „Sprawdź" link). *Mutant:* drop the `{% with p=item.pill %}` → red (all `pill--none`).
 - **T5** — `counted` leaves out a submitted quiz with `max_score == 0` but keeps it in `quiz_total`.
   *Mutant:* in the container aggregation only, count a quiz as `counted` when its row's status is
   `submitted` (ignoring `shows_score`) → red, the heading shows 1/N instead of 0/N. (Dropping the conjunct
@@ -477,8 +485,13 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   walked through `children` only, never inside a node's nested `pill` dict (a scored Progress pill
   legitimately carries `percent`). *Mutant:* run the colour walk in both modes with
   `.get()` guards → red on the `color` check; run it unguarded → the Progress page 500s, red.
-- **T7b** — an empty Results view: a course whose only units are lessons renders no table and shows the
-  „No quizzes in this course yet" text.
+- **T8d** (view test, `tests/test_analytics_student_page.py`) — the scroll wrapper's markup on two
+  fixtures of its own: with a maths quiz title (`has_math` true) the wrapper has `role="region"`,
+  `tabindex="0"` and an `aria-labelledby` equal to the `<caption>`'s `id`; with no maths title it has none
+  of the three attributes. *Mutants:* drop the `has_math` guard → red on the no-maths fixture; drop the
+  caption `id` → red on the maths fixture.
+- **T7b** — an empty Results view, in Polish: a course whose only units are lessons renders no table and
+  shows „Ten kurs nie ma jeszcze quizów" inside `p.results-table-empty`.
 - **T9** — heading and `<title>` in both modes, in Polish, for a female student („Wyniki — Anna
   Nowak"). On the student page the `<h1>` and `<title>`, and on the per-question page the back link,
   contain no „Wyniki ucznia". The assertion is **scoped to those three elements**: the per-question
@@ -552,10 +565,6 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   loaded): the table may scroll inside `.results-table-wrap`, the **page** may not
   (`scrollWidth` equals the viewport width). No share or wrapping checks run on this render. *A/B:*
   remove `position:relative` from `.results-table-wrap` → the page scrolls sideways, red.
-- **T8d** — the scroll wrapper's markup, as a view test on both renders: `role="region"`; its
-  `aria-labelledby` equals the `<caption>`'s `id`; `tabindex="0"` present on the T8b render (`has_math`
-  true) and absent on the T8a render. *Mutants:* drop the `has_math` guard → red on T8a; drop the caption
-  `id` → red.
 - **T8c** — at 1280px the score and % cells are right-aligned, measured on a cell whose text is
   **visibly narrower than its column** (a quiz row's „4/5" under the total's „812,5/960,5", and „8%" under
   „100%"): its text's right edge sits at the cell's content edge **and** the gap on its left is larger than
