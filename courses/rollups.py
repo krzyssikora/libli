@@ -608,7 +608,7 @@ def _stamp_results(nodes, rows_by_unit):
     _keep_quizzes has pruned, so every unit left is a quiz.
 
     A quiz node gets quiz_score_view's four keys, read from ITS
-    build_course_results row's already-computed `score_view` (Task 1/2) rather
+    build_course_results row's already-computed `score_view` field rather
     than re-deriving them -- every caller reads its result. A container gets
     quiz_total (quizzes below), counted (those with shows_score), score_sum/
     max_sum (Decimal, 0 when nothing counts), percent (_pct when max_sum > 0,

@@ -791,9 +791,8 @@ def test_rt_t13_heading_rows_are_tinted_and_bold_and_headers_align(
     )
     base = _token_colour(page, "--surface-base")
     heading = _rt_row(page, "Sekcja pełna")
-    lone_heading = _rt_row(
-        page, "Sekcja z jednym quizem"
-    )  # no figures, still a heading
+    # no figures, still a heading
+    lone_heading = _rt_row(page, "Sekcja z jednym quizem")
     total = page.locator("tr.results-table__total")
     for row in (heading, lone_heading, total):
         assert "results-table__section" in row.get_attribute("class")

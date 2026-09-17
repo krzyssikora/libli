@@ -1062,7 +1062,7 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 }
 /* position:relative is defensive, no A/B claimed: removing it leaves the T8b e2e test
    green. It makes this scroller the containing block of KaTeX's absolutely positioned
-   .katex-mathml, which a static scroller would let escape and widen the page. */
+   .katex-mathml, which a static scroller could let escape and widen the page if the formula sat beyond the viewport. */
 .results-table-wrap{overflow-x:auto;position:relative}
 .results-table{width:100%;border-collapse:collapse;background:var(--surface-raised)}
 /* overflow-wrap:anywhere breaks text titles; it cannot split a single-run

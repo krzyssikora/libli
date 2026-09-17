@@ -61,8 +61,9 @@ without going back:
   that contain them. A quiz with a score shows its marks and percentage; any
   other quiz shows its status, and one awaiting review links to the review page.
   Every heading that holds more than one quiz shows on its own row a quiz
-  fraction such as **1/3**, the summed marks and the percentage, and **Whole
-  course** at the top does the same for the whole course. The fraction counts
+  fraction such as **1/3**, and, once at least one of them is marked, the
+  summed marks and the percentage; **Whole course** at the top does the same
+  for the whole course. The fraction counts
   the quizzes whose score is included in the sum out of all the quizzes in that
   section, so a quiz still awaiting review is not included yet. The sums and the
   colours of the percentages are the analytics matrix's own, so a heading row

@@ -64,8 +64,9 @@ zmienia widok bez powrotu:
   zawierają. Quiz z wynikiem pokazuje punkty i procent; każdy inny quiz pokazuje
   swój stan, a quiz czekający na sprawdzenie ma odnośnik do strony sprawdzania.
   Każdy nagłówek, pod którym jest więcej niż jeden quiz, pokazuje w swoim
-  wierszu ułamek quizów, np. **1/3**, sumę punktów i procent, a **Cały kurs** na
-  górze robi to samo dla całego kursu. Ułamek to liczba quizów, których wynik
+  wierszu ułamek quizów, np. **1/3**, a gdy co najmniej jeden z nich jest
+  sprawdzony — także sumę punktów i procent; **Cały kurs** na górze robi to
+  samo dla całego kursu. Ułamek to liczba quizów, których wynik
   wliczono do sumy, spośród wszystkich quizów w sekcji, więc quiz czekający na
   sprawdzenie nie jest jeszcze wliczony. Sumy i kolory procentów pochodzą z
   macierzy analitycznej, więc wiersz nagłówka zgadza się z komórką tej sekcji w

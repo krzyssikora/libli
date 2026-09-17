@@ -560,8 +560,8 @@ def test_rt_t4_drafts_are_the_grids_drafts(client):
     cell = _grid_cell(course, student, chapter)
     assert heading["percent"] == cell["percent"]
     assert _label(heading) == cell["label"] == "5/8"
-    # R-a: assert the denominator BEFORE the absence check, so the spec's
-    # drafts="keep" mutant goes red here, not one line earlier.
+    # Denominator first: under drafts="keep" this goes red before the
+    # absence check below.
     assert heading["quiz_total"] == 3
     # A draft with no data from ANY student has no row and no share of quiz_total.
     assert _find(tree, "Szkic bez danych") is None
@@ -652,7 +652,11 @@ def test_rt_t6_results_nodes_carry_the_course_band_colours(client):
         assert (d["color"], d["text_color"]) == (style["bg"], style["fg"]), title
         assert d["color"] == "#404040", title  # precondition: a CUSTOM band
     total = breakdown["total"]
-    assert total["color"] == band_style(total["percent"], bands)["bg"]
+    total_style = band_style(total["percent"], bands)
+    assert (total["color"], total["text_color"]) == (
+        total_style["bg"],
+        total_style["fg"],
+    )
     # Every node is painted, whatever it renders; a None percent paints nothing.
     for title in ("Sekcja A2", "A1 w toku"):
         d = _find(tree, title)
@@ -851,6 +855,9 @@ def test_rt_t6_percent_cells_carry_the_band_inline(client):
         style = band_style(80, bands)
         expected = f"background:{style['bg']};color:{style['fg']}"
         assert _table_row(soup, title)["pct"].get("style") == expected, title
+    total_style = band_style(77, bands)  # Whole course row: 31.5/41 (fixture docstring)
+    total_expected = f"background:{total_style['bg']};color:{total_style['fg']}"
+    assert _table_rows(soup)[0]["pct"].get("style") == total_expected
 
 
 def test_rt_t7_progress_renders_the_tree_not_the_table(client):
