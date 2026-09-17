@@ -65,7 +65,9 @@ returns a **course total**:
   (`has_auto`: at least one AUTO question). The grid counts a REVIEW-only quiz that is fully reviewed
   with `max_score > 0`. Under the pill rule its row would say „przesłano" while its marks sat in the
   heading's sum. The builder stamps each quiz node with `shows_score` (bool), `score`, `max_score` and
-  `percent` from the `build_course_results` row, and the table reads those, never the pill kind.
+  `percent` from the `build_course_results` row, and the table reads those, never the pill kind. A
+  `NULL` `score` is coerced to `Decimal("0")` in the shared helper, exactly as `build_results_matrix`
+  and `build_course_results` do (`sub.score or Decimal("0")`); `_pct(None, …)` would raise.
   The reverse case (`graded`, but a stored `max_score == 0`) shows no score and is not counted, again
   matching the grid.
 - `score_sum`, `max_sum` — Σ `score`, Σ `max_score` over the counted quizzes (`Decimal`).
@@ -112,7 +114,7 @@ Each row carries its depth, so indentation shows nesting:
 | Course total (first row, only if `total.summary`) | „Cały kurs" | `counted/quiz_total` | `score_sum/max_sum` | coloured `percent` |
 | Section heading with `summary` | section title | `counted/quiz_total` | `score_sum/max_sum` | coloured `percent` |
 | Section heading without `summary` (one quiz below) | section title | empty | empty | empty |
-| Quiz | quiz title (linked to the per-question page when it has a submission, as today) | **empty** when `shows_score`; otherwise the status pill (below) | `score/max` when `shows_score`, else empty | coloured `percent` when `shows_score`, else empty |
+| Quiz | quiz title, linked to the per-question page when it has a submission: `<a class="breakdown-unit__link" href="{% url 'courses:manage_analytics_student_quiz' … %}?{{ drill_qs }}">`, the **same class and href** as today, so the accent colour + underline rule and existing selectors keep working | **empty** when `shows_score`; otherwise the status pill (below) | `score/max` when `shows_score`, else empty | coloured `percent` when `shows_score`, else empty |
 
 - **Status cell (a quiz row without a score):** the existing pill span for the row's status, rendered
   by including `_quiz_pill.html`: `pill--none` „nie rozpoczęto", `pill--progress` „w toku",
@@ -143,7 +145,7 @@ Each row carries its depth, so indentation shows nesting:
   from its kind. Rows keep their own depth; they are **not** shifted under „Cały kurs", which is
   already set apart by its tint and border. The class is
   `results-table__d0` … `__d3`. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
-  the maximum at 3.. No inline style.
+  the maximum at 3. No inline style.
 - **Numbers:** marks go through the `marks` filter (decimal comma in Polish, #327). Percent renders as
   `{{ percent }}%`. An empty summary cell is empty; it never shows „—".
 - **Maths in titles:** the title cells keep `lang` and `data-math-title`, as the breakdown rows do, and
@@ -165,8 +167,10 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 - The title column takes the free width and wraps (`overflow-wrap:anywhere`). The score and %
   columns are `width:1%; white-space:nowrap; text-align:right`.
 - The **status column may wrap** (`width:1%`, `white-space:normal`, so it takes only what it needs).
-  The pill itself keeps `white-space:nowrap`, and the „Sprawdź" link is `display:block`. Its longest
-  content is „oczekuje na sprawdzenie" plus „Sprawdź".
+  Inside the table the pill **may wrap too** (`.results-table .pill{white-space:normal}`), and the
+  „Sprawdź" link is `display:block`. Its longest content is „oczekuje na sprawdzenie" plus „Sprawdź".
+  A nowrap pill is ~160–175px at `.75rem`/600, which at 390px (358px table) would leave the title
+  column 30–60px; wrapping it to „oczekuje na / sprawdzenie" is the lesser cost.
 - `.results-table__section` gets `background: var(--surface-sunken)` and `font-weight:600`. A coloured
   % cell's inline background paints over it, which is intended.
 - **Phone (≤ 640px):** the table stays a table. Only the title wraps, and the three number columns
@@ -282,7 +286,7 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   carry only `percent` and `label`, and only raw mode puts the marks in `label`. Compare `percent`
   directly, and compare `label` with `f"{_fmt_mark(score_sum)}/{_fmt_mark(max_sum)}"`, so that a wrong
   sum which happens to round to the same % still goes red. Include a not-started, an in-progress and an awaiting-review quiz,
-  which both must leave out. *Mutant:* count awaiting-review scores → red.
+  which the page and the grid must each leave out. *Mutant:* count awaiting-review scores → red.
 - **T1b** — a REVIEW-only quiz, fully reviewed, with `max_score > 0`: its row shows `score/max` and a
   %, and its marks are in the heading's sum, matching the grid. *Mutant:* decide the row's score by
   `pill.kind == "scored"` → red.
@@ -309,6 +313,11 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T10** — the per-question back link reads „← Wyniki" / „← Postęp" to match the mode.
 - **T10b** — the per-question header of a fully reviewed REVIEW-only quiz with `max_score > 0` shows
   „score / max pkt · %", the same figures as its table row. *Mutant:* keep `p.kind == "scored"` → red.
+- **T10c** — maths-title markers in **Results mode**: the section `<th>`, a linked quiz `<th>` and an
+  unlinked quiz `<th>` each carry `data-math-title` and `lang="{{ course.language }}"`, asserted
+  separately; the „Cały kurs" `<th>` carries neither. The existing
+  `tests/test_title_math_markers.py::test_analytics_breakdown_titles_are_marked` loads Progress mode
+  only and stays as it is. *Mutant:* drop `data-math-title` from the linked-quiz title → red.
 - **T11** — the chip reads „lekcje: 1/2" on the teacher page and on the student outline, and the `.po`
   has no `required` or `Student results` entry left.
 - **T14** — O13: in Polish, the three msgids O13 names render their new msgstrs wherever they appear:
@@ -326,14 +335,21 @@ here, or **retired**, with the reason. None is deleted silently. At least:
 `tests/test_analytics_student_page.py` (pill selectors such as `.pill.pill--none`, and the
 Results-mode prune tests) and `tests/test_e2e_analytics_student_pages.py` (the `.breakdown-unit` pill
 and Review-link geometry, and its `_neutralise(".breakdown-unit .pill…")` A/B), plus
-`tests/test_analytics_student_quiz.py` (it asserts „← Wyniki ucznia") and the heading/`<title>`
+`tests/test_analytics_student_quiz.py` (it asserts „← Wyniki ucznia", and around its Results-mode
+breakdown test selects `a.breakdown-unit__link`), `tests/test_e2e_analytics.py` (a
+`breakdown-unit__link` selector), `tests/capture_title_math_screenshots.py` (its breakdown row shoots
+Progress mode only; add a Results-mode row) and the heading/`<title>`
 assertions in `tests/test_analytics_student_page.py` („Wyniki ucznia — Anna Nowak", „Wyniki ucznia ·").
 
 e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
 
 - **T8** — at 390px there is no horizontal page scroll with a depth-3 quiz title, wide numbers
   („16,5/22", „100%") **and an awaiting-review row with its „Sprawdź" link at depth 3**. The score and %
-  columns do not wrap, and the title column keeps a usable width (at least 40% of the table). At 1280px, number columns are right-aligned. A/B: neutralise
+  columns do not wrap, and the title column's measured width is at least **30%** of the table's
+  (estimate: 358px table − a wrapped status ~95px − score ~55px − % ~40px − cell padding ≈ 125px ≈ 35%).
+  The threshold is checked against a real render in the design pass before the test is committed; if
+  the render cannot reach 30% the plan stops and reports, rather than lowering it silently.
+  *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. At 1280px, number columns are right-aligned. A/B: neutralise
   `white-space:nowrap` → red.
 - **T13** — a section row's computed background equals `--surface-sunken` (probe token) and its first
   cell is bold. A coloured % cell's background equals its band colour, not the tint.
@@ -349,8 +365,16 @@ the sums read clearly at full depth; that is the owner's stated worry.
 progress". `docs/help/teacher/drill-down.pl.md`: the „Wyniki ucznia" heading becomes „Wyniki i postęp",
 and the image alt text `![Wyniki ucznia](…)` becomes `![Wyniki quizów w kursie](…)` (no „ucznia", O7). It describes the table, the sums on heading rows,
 the course total and the colours, and in one sentence what the quiz fraction on a heading row means
-(quizzes whose score is included / quizzes in the section; a quiz awaiting review is not yet included). The **← Student results** link text changes to „← Wyniki" /
-„← Postęp". The `drill-down.{en,pl}.png` capture shows Results mode.
+(quizzes whose score is included / quizzes in the section; a quiz awaiting review is not yet included). In `drill-down.md` the **← Student results** link text becomes **← Results** / **← Progress**; in
+`drill-down.pl.md` **← Wyniki ucznia** becomes **← Wyniki** / **← Postęp**. The English image alt text
+"A student's results page" stays. The `drill-down.{en,pl}.png` capture shows Results mode: its entry in
+`tests/capture_help_screenshots.py` passes `mode=results` and waits for `.results-table` (today it opens
+the page with no `mode`, i.e. Progress, and waits for `.breakdown__tree`, which Results mode no longer
+renders).
+
+**Anchors.** Renaming the two help headings changes their generated anchors. The plan greps the repo
+(templates, `docs/help`, `.py`) for `#student-results` and `#wyniki-ucznia` and updates any hit; none
+was found on 2026-09-17.
 
 ---
 
