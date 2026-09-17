@@ -157,7 +157,7 @@ Each row carries its depth, so indentation shows nesting:
 - **What „1/3" means.** The fraction is **quizzes whose score is in the sum / quizzes in the section**.
   It is **not** "quizzes done": a submitted quiz still awaiting review is not in the numerator. The help
   page must say this in one sentence (§8), because a teacher will otherwise read „1/3" as "did 1 of 3".
-  ⚠️ See owner question **Q3** in §0 (default: counted in the sum).
+  The owner kept this count (O17) and confirmed the sums count marked quizzes only (O16).
   Final wording is in §5.
 - **"Section" / "heading row" in §2.3–§2.5 means any container node** (part, chapter or section) —
   §2.1 stamps every container, and a chapter with more than one quiz gets its sums exactly like a section.
@@ -361,8 +361,12 @@ shows fewer in the chip than it has rows.
   `build_student_breakdown` stamps its quiz nodes from the same helper **in Results mode only** (§2.1). Consequently the Progress pills,
   the per-question header (which keeps branching on `p.kind`) and the Results table all agree, and no
   caller re-derives the rule. This changes what a pill **says** for REVIEW-only quizzes, not the Progress
-  **layout** (O5). The student's own `course_results.html` builds its labels separately; whether it follows is
-  owner question **Q5** (default: unchanged). Tests **T10b** and **T10d**. The same PR corrects the misleading comment in `_course_results_row`,
+  **layout** (O5). The student's own `course_results.html` follows too (O15): in its `row.status == "submitted"` branch
+  it shows `score / max_score` iff `quiz_score_view(row)["shows_score"]` (instead of `row.graded`), else
+  „przesłano — bez oceny"; the view passes each row's helper result alongside the row (e.g. a
+  `score_view` key added to every row by `build_course_results`, computed by the same helper). Its
+  `awaiting_review` branch is unchanged (it keeps showing the partial auto score when `row.graded`).
+  Test **T15**. Tests **T10b** and **T10d**. The same PR corrects the misleading comment in `_course_results_row`,
   `graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0`: `graded` means "has a top-level AUTO
   question", which a REVIEW-only quiz with `max_score > 0` does not, and that difference is exactly
   what this section is about.
@@ -390,11 +394,12 @@ Dropped as unused: `Student results`, `required`.
 
 Changed msgstr only (O13), msgids untouched: `Awaiting review` → „Oczekuje na sprawdzenie" (review queue, per-question page, the student's own `quiz_results.html`), `awaiting review` → „oczekuje na sprawdzenie" (pill), `Submitted for review` → „Przesłano do sprawdzenia" (the student's question feedback). `Awaiting review` also renders on the student's own **`course_results.html`**, so the change reaches that page too.
 
-⚠️ **Owner question (not applied, because O13 is protected).** `quiz_results.html` also shows two
-**plural** entries, `%(n)s question awaiting review (up to 1 more mark)` and `… (up to %(m)s more
-marks)`. Their six Polish forms say „oczekuje/oczekują na ocenę", and they are not in O13's list.
-Should they say „oczekuje/oczekują na sprawdzenie" as well? Until the owner answers, the plan changes
-only the three msgids O13 names, and T14 asserts only those. The **graded** msgids (`Your quiz was graded`, `Quiz graded`, `submitted — not graded`) keep „ocena": grading is what they mean.
+**O14 — the two plural entries on `quiz_results.html`** also change msgstr only, msgids untouched:
+`%(n)s question awaiting review (up to 1 more mark)` → „%(n)s pytanie oczekuje na sprawdzenie (do 1
+dodatkowego punktu)" / „%(n)s pytania oczekują na sprawdzenie (do 1 dodatkowego punktu)" / „%(n)s pytań
+oczekuje na sprawdzenie (do 1 dodatkowego punktu)", and `%(n)s question awaiting review (up to %(m)s
+more marks)` → the same three forms with „(do %(m)s dodatkowych punktów)". Only „na ocenę" becomes „na
+sprawdzenie"; the rest of each form stays exactly as it is. The **graded** msgids (`Your quiz was graded`, `Quiz graded`, `submitted — not graded`) keep „ocena": grading is what they mean.
 Catalog procedure: as in the previous plan's Global Constraints, **plus `--no-obsolete`**.
 
 ---
@@ -505,9 +510,12 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   entry left.
 - **T14** — O13: in Polish, the three msgids O13 names render their new msgstrs wherever they appear:
   the pill, the review queue, the per-question page, the student's `quiz_results.html` and
-  `course_results.html`, and the question feedback. The test asserts **those strings**, not the absence
-  of „ocenę", because the plural entries are an open owner question. The graded notification strings
-  stay unchanged.
+  `course_results.html`, and the question feedback. The test also renders `quiz_results.html` with one and with several
+  pending questions and asserts the O14 plural forms. On those pages no „na ocenę" remains; the graded
+  notification strings (`Quiz graded` etc.) stay unchanged.
+- **T15** — O15: the student's own `course_results.html`, in Polish, shows „4 / 5" (not „przesłano — bez
+  oceny") for a fully reviewed REVIEW-only quiz with `max_score > 0`, and still shows „przesłano — bez
+  oceny" for a submitted quiz with `max_score == 0`. *Mutant:* keep the `row.graded` condition → red.
 - **Constraint for every test:** assertions never rest on database ids (known trap).
 
 **Existing tests written for the merged tree view.** Before writing new tests, the plan lists every
