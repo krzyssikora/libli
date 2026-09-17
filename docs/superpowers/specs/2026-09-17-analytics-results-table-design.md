@@ -38,6 +38,11 @@ Verbatim quotes, 2026-09-17. „Proposal" rows are mine, and the owner accepted 
 - **Q4 — The two plural „awaiting review" entries** on the student's `quiz_results.html` (§5). Should
   their six Polish forms say „oczekuje/oczekują na sprawdzenie" too? **Default until answered:** not
   changed.
+- **Q5 — The student's own `course_results.html`.** It labels a quiz by `row.graded` (an AUTO question
+  exists), so for a fully reviewed REVIEW-only quiz with `max_score > 0` the student reads „przesłano —
+  bez oceny" while its marks are already in that page's own sum, and the teacher (after §4) sees
+  „4/5 · 80%". Should the student page use `quiz_score_view` too, so both sides show the score?
+  **Default until answered:** not changed (out of scope); if yes, it is added with a test mirroring T10b.
 
 ---
 
@@ -69,10 +74,10 @@ returns a **course total**:
   `quiz_total` but not in `counted`.
 - ⚠️ **One rule for "this quiz shows a score", and it is the grid's.** A quiz row shows `score/max`
   and a % **iff** its row is counted (`status == "submitted"`, i.e. not pending) **and**
-  `max_score > 0`. It is **not** `_quiz_pill`'s `kind == "scored"`, which also requires `graded`
-  (`has_auto`: at least one AUTO question). The grid counts a REVIEW-only quiz that is fully reviewed
-  with `max_score > 0`. Under the pill rule its row would say „przesłano" while its marks sat in the
-  heading's sum. The builder stamps each quiz node with `shows_score` (bool), `score`, `max_score` and
+  `max_score > 0`. It is **not** today's `_quiz_pill` rule (`kind == "scored"` only when `graded`, i.e. at least one
+  AUTO question): the grid counts a REVIEW-only quiz that is fully reviewed with `max_score > 0`, and
+  under today's pill rule its row would say „przesłano" while its marks sat in the heading's sum. §4
+  moves `_quiz_pill` onto the same helper, so in the finished code the two agree. The builder stamps each quiz node with `shows_score` (bool), `score`, `max_score` and
   `percent` from the `build_course_results` row, and the table reads those, never the pill kind. A
   `NULL` `score` is coerced to `Decimal("0")` in the shared helper, exactly as `build_results_matrix`
   and `build_course_results` do (`sub.score or Decimal("0")`); `_pct(None, …)` would raise.
@@ -153,7 +158,8 @@ Each row carries its depth, so indentation shows nesting:
 - **Indentation:** the first cell gets `padding-inline-start` from the node dict's **`depth`** (as
   `build_outline` stamps it: 0 for any root node, so in a course without parts a chapter is d0), not
   from its kind. Rows keep their own depth; they are **not** shifted under „Cały kurs", which is
-  already set apart by its tint and border. The class is
+  already set apart by its tint and border. The indent step is `1rem` per depth (d1 1rem, d2 2rem,
+  d3 3rem) above 640px and `.5rem` per depth (d3 1.5rem) at ≤640px. The class is
   `results-table__d0` … `__d3`. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
   the maximum at 3. No inline style.
 - **Numbers:** marks go through the `marks` filter (decimal comma in Polish, #327). Percent renders as
@@ -203,7 +209,8 @@ trap, previous spec §2). No stylesheet line citations anywhere.
   **Only inside the `@media (max-width:640px)` block** does the pill wrap
   (`.results-table .pill{white-space:normal; border-radius:.5rem;text-align:center}`); the cell's own
   `white-space` is not changed there (its content is a space-free fraction, an inline-block pill that sets
-  its own `white-space`, or a block link, so a cell-level rule would be dead CSS). The „Sprawdź" link is `display:block` at every width. The
+  its own `white-space`, or a block link, so a cell-level rule would be dead CSS). The „Sprawdź" link is `display:block` at every width, via `.results-table .breakdown-unit__review
+  {display:block}`, scoped to the table so the Progress view's inline link is unchanged (O5). The
   longest content is „oczekuje na sprawdzenie" plus „Sprawdź": a nowrap pill is ~160–175px at `.75rem`/600,
   which at 390px (358px table) would leave the title column 30–60px, so on phones wrapping it to
   „oczekuje na / sprawdzenie" is the lesser cost. A wrapped pill with the base `border-radius:999px`
@@ -286,8 +293,11 @@ shows fewer in the chip than it has rows.
   `build_student_breakdown` stamps its quiz nodes from the same helper. Consequently the Progress pills,
   the per-question header (which keeps branching on `p.kind`) and the Results table all agree, and no
   caller re-derives the rule. This changes what a pill **says** for REVIEW-only quizzes, not the Progress
-  **layout** (O5). The student's own `course_results.html` builds its labels separately and is out of
-  scope. Tests **T10b** and **T10d**.
+  **layout** (O5). The student's own `course_results.html` builds its labels separately; whether it follows is
+  owner question **Q5** (default: unchanged). Tests **T10b** and **T10d**. The same PR corrects the misleading comment in `_course_results_row`,
+  `graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0`: `graded` means "has a top-level AUTO
+  question", which a REVIEW-only quiz with `max_score > 0` does not, and that difference is exactly
+  what this section is about.
 - Any number anywhere: this adds sums the grid already shows; it computes nothing new (N1 of the
   previous spec still holds).
 
@@ -347,8 +357,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   one summary section of each kind** (`counted > 0` and `counted == 0`), so both branches run. Include a not-started, an in-progress and an awaiting-review quiz,
   which the page and the grid must each leave out. *Mutant:* count awaiting-review scores → red.
 - **T1b** — a REVIEW-only quiz, fully reviewed, with `max_score > 0`: its row shows `score/max` and a
-  %, and its marks are in the heading's sum, matching the grid. *Mutant:* decide the row's score by
-  `pill.kind == "scored"` → red.
+  %, and its marks are in the heading's sum, matching the grid. *Mutant:* in `quiz_score_view`, add `row["graded"]` to the `shows_score` condition → red (T10b and
+  T10d go red with it). (Reading `pill.kind` instead of `shows_score` is **not** a usable mutant after
+  §4: the two are the same predicate.)
 - **T1c** — a summary section with no counted quiz renders „0/N" with empty, uncoloured score and %
   cells, never „0/0". The same holds for the course total.
 - **T2** — `summary` only when `quiz_total > 1`: a section with one quiz renders an empty count, score
@@ -356,8 +367,10 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
 - **T3** — the course total row is first and matches the grid's `overall` cell for the student, compared
   the same way as T1 (raw mode, `percent` and `label`). A course with **exactly one quiz** renders
   **no** total row. *Mutant:* `total.summary` true for `>= 1` quiz → red.
-- **T4** — drafts: a draft quiz with data counts on both pages, and a draft quiz without data on
-  neither. *Mutant:* call the builder with `drafts="hide"` → red.
+- **T4** — drafts: a draft quiz **with** data counts on both pages (its marks are in the section cell and
+  the heading); *Mutant:* call the builder with `drafts="hide"` → red. A draft quiz **without** data has
+  no row on the page and is **not** in its heading's `quiz_total` (the grid has nothing to compare, since
+  it changes no sum); *Mutant:* call the builder with `drafts="keep"` → red on that denominator.
 - **T5** — `counted` leaves out a submitted quiz with `max_score == 0` but keeps it in `quiz_total`.
   *Mutant:* in the container aggregation only, count a quiz as `counted` when its row's status is
   `submitted` (ignoring `shows_score`) → red, the heading shows 1/N instead of 0/N. (Dropping the conjunct
@@ -415,7 +428,11 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   (KaTeX loaded; the table may scroll inside `.results-table-wrap`, the page may not), wide numbers
   („16,5/22", „100%") **and an awaiting-review row with its „Sprawdź" link at depth 3**. The score and %
   columns do not wrap, and the title column's measured width is at least **30%** of the table's
-  (estimate: 358px table − a wrapped status ~95px − score ~55px − % ~40px − cell padding ≈ 125px ≈ 35%).
+  (estimate: 358px table − a wrapped status ~95px − score ~75px for a course total like „812,5/960" −
+  % ~40px − cell padding ≈ 105px ≈ 29%, of which a depth-3 title loses 1.5rem of indent). Because the
+  estimate sits at the threshold, the **fixture's course-total row must carry a realistic wide sum** (at
+  least three integer digits plus a decimal on both sides, e.g. „812,5/960.5"), and the design-pass render
+  on mat-pp data **sets** the final threshold, recorded in the plan before the test is committed.
   The threshold is checked against a real render in the design pass before the test is committed; if
   the render cannot reach 30% the plan stops and reports, rather than lowering it silently.
   *A/B:* restore `white-space:nowrap` on `.results-table .pill` → red. *A/B:* remove
@@ -432,8 +449,8 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   `<th>`; lower that rule's specificity to `.results-table__section th` and place it before the reset →
   red on the section `<th>`; remove the `tbody th` reset → red on the quiz `<th>` weight and alignment.
 - **T13b** — at 1280px every status pill in the table is a single line (its height equals one line box).
-  *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red. A coloured % cell's background equals its band colour, not the tint.  remove the inline style on a coloured
-  cell → red on the band check.
+  *A/B:* force `.results-table .pill{white-space:normal}` at desktop width → red. - **T13c** — a coloured % cell's computed background equals its band colour, not the section tint.
+  *A/B:* remove the inline style on a coloured cell → red on the band check.
 
 Screenshots (design pass, as in B11): mat-pp Results view, light and dark, 1280 and 390. Judge whether
 the sums read clearly at full depth; that is the owner's stated worry.
