@@ -559,7 +559,9 @@ def build_student_breakdown(
     pill_by_unit (from build_course_results) still carries their results.
 
     mode="results" returns the tree already pruned to quizzes (analytics student
-    pages spec §4.1). The default keeps every existing caller's tree unchanged.
+    pages spec §4.1), stamped by _stamp_results, plus the course `total`
+    (results-table spec §2.1). The default keeps every existing caller's tree
+    unchanged and stamps NOTHING (O5).
     """
     tree = build_outline(course, student, drafts=drafts, with_data=with_data)
     results = build_course_results(course, student, drafts=drafts, with_data=with_data)
@@ -575,9 +577,12 @@ def build_student_breakdown(
             attach(d["children"])
 
     attach(tree)
-    if mode == "results":
-        tree = _keep_quizzes(tree)
-    return {"student": student, "tree": tree}
+    if mode != "results":
+        return {"student": student, "tree": tree}
+    tree = _keep_quizzes(tree)
+    rows_by_unit = {r["unit"].pk: r for r in results["rows"]}
+    total = _stamp_results(tree, rows_by_unit)
+    return {"student": student, "tree": tree, "total": total}
 
 
 def _keep_quizzes(nodes):
@@ -596,6 +601,50 @@ def _keep_quizzes(nodes):
         if d["children"]:
             kept.append(d)
     return kept
+
+
+def _stamp_results(nodes, rows_by_unit):
+    """Results-mode figures (results-table spec §2.1), stamped IN PLACE on a tree
+    _keep_quizzes has pruned, so every unit left is a quiz.
+
+    A quiz node gets quiz_score_view's four keys, read from ITS
+    build_course_results row's already-computed `score_view` (Task 1/2) rather
+    than re-deriving them -- every caller reads its result. A container gets
+    quiz_total (quizzes below), counted (those with shows_score), score_sum/
+    max_sum (Decimal, 0 when nothing counts), percent (_pct when max_sum > 0,
+    else None -- the grid's own cell rule, so a heading equals its grid cell by
+    construction) and summary (quiz_total > 1, O2). Returns the same six
+    figures for `nodes` taken together: the course total when `nodes` is the
+    whole tree.
+
+    rows_by_unit[...] and never .get(): both sides apply is_quiz_unit with the
+    same drafts/with_data, so a quiz without a row is a bug and must raise.
+    """
+    quiz_total = counted = 0
+    score_sum = max_sum = Decimal("0")
+    for d in nodes:
+        if d["is_unit"]:
+            d.update(rows_by_unit[d["node"].pk]["score_view"])
+            quiz_total += 1
+            if d["shows_score"]:
+                counted += 1
+                score_sum += d["score"]
+                max_sum += d["max_score"]
+        else:
+            figures = _stamp_results(d["children"], rows_by_unit)
+            d.update(figures)
+            quiz_total += figures["quiz_total"]
+            counted += figures["counted"]
+            score_sum += figures["score_sum"]
+            max_sum += figures["max_sum"]
+    return {
+        "quiz_total": quiz_total,
+        "counted": counted,
+        "score_sum": score_sum,
+        "max_sum": max_sum,
+        "percent": _pct(score_sum, max_sum) if max_sum > 0 else None,
+        "summary": quiz_total > 1,
+    }
 
 
 def frontier_columns(course, expanded_pks, *, drafts="keep", with_data=None):

@@ -1,15 +1,26 @@
-"""The student results page (spec §4; T6-T13, T15, T16, T28b)."""
+"""The teacher's student page. Two specs' ids live here: test_t6…test_t28b are the
+student-pages spec's (2026-09-16); test_rt_* are the results-table spec's
+(2026-09-17). Select by NAME."""
 
 from decimal import Decimal
 
 import pytest
 from bs4 import BeautifulSoup
 from django.urls import reverse
+from django.utils import timezone
 
 from courses import rollups
+from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
+from courses.models import QuestionElement
+from courses.models import QuestionResponse
 from courses.models import QuizSubmission
+from courses.models import ShortTextQuestionElement
+from courses.rollups import _fmt_mark
+from courses.rollups import build_results_matrix
 from courses.rollups import build_student_breakdown
 from courses.views_analytics import _expand_qs
+from courses.views_analytics import _with_data_for
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
@@ -269,3 +280,353 @@ def test_t13_quiz_rows_carry_a_pill_lesson_rows_a_marker(client):
     todo = _row(soup, "Lonely lesson")
     assert todo.select_one(".badge--done") is None
     assert todo.select_one(".badge--todo")["aria-label"] == "Not completed"
+
+
+# --- results-table spec (2026-09-17): Results-mode sums ---------------------------
+def _auto(quiz, max_marks):
+    question = ShortTextQuestionElement.objects.create(
+        stem="<p>Q</p>", accepted="a", max_marks=Decimal(max_marks)
+    )
+    return Element.objects.create(unit=quiz, content_object=question)
+
+
+def _review(quiz, max_marks):
+    question = ExtendedResponseQuestionElement.objects.create(
+        stem="<p>E</p>",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal(max_marks),
+    )
+    return Element.objects.create(unit=quiz, content_object=question)
+
+
+def _sub(student, quiz, score, max_score):
+    return QuizSubmission.objects.create(
+        student=student,
+        unit=quiz,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal(score),
+        max_score=Decimal(max_score),
+    )
+
+
+def _quiz(course, parent, title, **kw):
+    return _node(course, parent, "unit", title, unit_type="quiz", **kw)
+
+
+def _student_path(course, student):
+    return reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": course.slug, "student_pk": student.pk},
+    )
+
+
+def _results_fixture(client):
+    """One student, three root chapters (spec §7 T1-T6):
+
+    Rozdział A (d0)          2/7   12/15   80%
+      Sekcja A1 (d1)         2/5   12/15   80%
+        A1 oceniony          8/10 (AUTO)
+        A1 sprawdzony        4/5  (REVIEW-only, fully reviewed: T1b)
+        A1 do sprawdzenia    awaiting review, stored 3/5 -- never counted
+        A1 w toku            in progress
+        A1 nierozpoczęty     not started
+      Lekcja A               a lesson: pruned
+      Sekcja A2 (d1)         0/2   no counted quiz (T1c)
+        A2 nierozpoczęty, A2 do sprawdzenia
+    Rozdział B (d0)          1/2   16.5/22  75%
+      B połowa               16.5/22
+      B bez punktów          submitted, max_score 0 (T5)
+    Rozdział C (d0)          one quiz: a percent, no summary (T2)
+      Sekcja C1 (d1)
+        C1 jedyny            3/4
+    Whole course             4/10  31.5/41  77%
+    """
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    student = UserFactory(
+        first_name="Anna", last_name="Nowak", display_name="Anna Nowak"
+    )
+    EnrollmentFactory(student=student, course=course)
+    a = _node(course, None, "chapter", "Rozdział A")
+    a1 = _node(course, a, "section", "Sekcja A1")
+    marked = _quiz(course, a1, "A1 oceniony")
+    _auto(marked, "10")
+    _sub(student, marked, "8", "10")
+    reviewed = _quiz(course, a1, "A1 sprawdzony")
+    essay = _review(reviewed, "5")
+    QuestionResponse.objects.create(
+        submission=_sub(student, reviewed, "4", "5"),
+        element=essay,
+        latest_answer="esej",
+        attempt_count=1,
+        locked=True,
+        earned_marks=Decimal("4"),
+        fraction=Decimal("0.8"),
+        reviewed_at=timezone.now(),
+    )
+    awaiting = _quiz(course, a1, "A1 do sprawdzenia")
+    _review(awaiting, "5")
+    _sub(student, awaiting, "3", "5")
+    live = _quiz(course, a1, "A1 w toku")
+    _auto(live, "5")
+    QuizSubmission.objects.create(
+        student=student, unit=live, status=QuizSubmission.Status.IN_PROGRESS
+    )
+    _auto(_quiz(course, a1, "A1 nierozpoczęty"), "5")
+    _node(course, a, "unit", "Lekcja A", unit_type="lesson", obligatory=True)
+    a2 = _node(course, a, "section", "Sekcja A2")
+    _auto(_quiz(course, a2, "A2 nierozpoczęty"), "2")
+    pending = _quiz(course, a2, "A2 do sprawdzenia")
+    _review(pending, "2")
+    _sub(student, pending, "0", "0")
+    b = _node(course, None, "chapter", "Rozdział B")
+    half = _quiz(course, b, "B połowa")
+    _auto(half, "22")
+    _sub(student, half, "16.5", "22")
+    _sub(student, _quiz(course, b, "B bez punktów"), "0", "0")
+    c = _node(course, None, "chapter", "Rozdział C")
+    c1 = _node(course, c, "section", "Sekcja C1")
+    single = _quiz(course, c1, "C1 jedyny")
+    _auto(single, "4")
+    _sub(student, single, "3", "4")
+    return course, student, _student_path(course, student)
+
+
+def _grid(course, student, expand=()):
+    """The matrix exactly as analytics_matrix builds it in Results + raw mode."""
+    return build_results_matrix(
+        course,
+        [student],
+        {node.pk for node in expand},
+        "raw",
+        drafts="keep-with-data",
+        with_data=_with_data_for(course),
+    )
+
+
+def _grid_cell(course, student, node, expand=()):
+    matrix = _grid(course, student, expand)
+    cells = matrix["rows"][0]["cells"]
+    for column, cell in zip(matrix["columns"], cells, strict=True):
+        if column["node"] == node:
+            return cell
+    raise AssertionError(f"no grid column for {node.title!r}")
+
+
+def _label(d):
+    return f"{_fmt_mark(d['score_sum'])}/{_fmt_mark(d['max_sum'])}"
+
+
+def _results(client, path):
+    resp, soup = _get(client, f"{path}?mode=results")
+    return resp.context["breakdown"], soup
+
+
+def _all_nodes(tree):
+    for d in tree:
+        yield d
+        yield from _all_nodes(d["children"])
+
+
+def test_rt_t1_results_summaries_equal_the_grid(client):
+    course, student, path = _results_fixture(client)
+    breakdown, _soup = _results(client, path)
+    tree = breakdown["tree"]
+    chapter_a = _find(tree, "Rozdział A")
+    a1, a2 = _find(tree, "Sekcja A1"), _find(tree, "Sekcja A2")
+    # Both branches below run: a summary heading with a counted quiz, one without.
+    assert a1["summary"] and a1["counted"] > 0
+    assert a2["summary"] and a2["counted"] == 0
+    cases = (
+        (chapter_a, ()),  # top-level
+        (_find(tree, "Rozdział B"), ()),  # top-level
+        # Nested: expand the ANCESTOR, never the section itself -- an expanded
+        # node becomes a spanning header with no cell.
+        (a1, (chapter_a["node"],)),
+        (a2, (chapter_a["node"],)),
+    )
+    for d, ancestors in cases:
+        title = d["node"].title
+        cell = _grid_cell(course, student, d["node"], ancestors)
+        if d["counted"] == 0:
+            assert cell["percent"] is None and cell["label"] == "—", title
+            assert d["percent"] is None, title
+        else:
+            assert d["percent"] == cell["percent"], title
+            assert _label(d) == cell["label"], title
+
+
+def test_rt_t1b_a_reviewed_review_only_quiz_is_scored_and_summed(client):
+    course, student, path = _results_fixture(client)
+    breakdown, _soup = _results(client, path)
+    tree = breakdown["tree"]
+    quiz = _find(tree, "A1 sprawdzony")
+    got = (quiz["shows_score"], quiz["score"], quiz["max_score"], quiz["percent"])
+    assert got == (True, Decimal("4"), Decimal("5"), 80)
+    a1 = _find(tree, "Sekcja A1")
+    assert _label(a1) == "12/15"
+    ancestors = (_find(tree, "Rozdział A")["node"],)
+    assert _grid_cell(course, student, a1["node"], ancestors)["label"] == "12/15"
+
+
+def test_rt_t1c_a_summary_with_no_counted_quiz_has_no_percent(client):
+    _course, _student, path = _results_fixture(client)
+    breakdown, _soup = _results(client, path)
+    a2 = _find(breakdown["tree"], "Sekcja A2")
+    assert (a2["quiz_total"], a2["counted"], a2["summary"]) == (2, 0, True)
+    assert (a2["score_sum"], a2["max_sum"], a2["percent"]) == (0, 0, None)
+    assert isinstance(a2["score_sum"], Decimal)
+    assert isinstance(a2["max_sum"], Decimal)
+
+
+def _uncounted_course(client):
+    """Two quizzes, neither started: the course total has no counted quiz."""
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    chapter = _node(course, None, "chapter", "Rozdział")
+    _auto(_quiz(course, chapter, "Pierwszy"), "1")
+    _auto(_quiz(course, chapter, "Drugi"), "1")
+    return _student_path(course, student)
+
+
+def test_rt_t1c_a_course_total_with_no_counted_quiz_has_no_percent(client):
+    breakdown, _soup = _results(client, _uncounted_course(client))
+    total = breakdown["total"]
+    assert (total["quiz_total"], total["counted"], total["summary"]) == (2, 0, True)
+    assert (total["score_sum"], total["max_sum"], total["percent"]) == (0, 0, None)
+    assert isinstance(total["score_sum"], Decimal)
+
+
+def test_rt_t2_a_one_quiz_section_has_a_percent_but_no_summary(client):
+    _course, _student, path = _results_fixture(client)
+    breakdown, _soup = _results(client, path)
+    for title in ("Sekcja C1", "Rozdział C"):
+        d = _find(breakdown["tree"], title)
+        assert (d["quiz_total"], d["percent"], d["summary"]) == (1, 75, False), title
+
+
+def test_rt_t3_course_total_equals_the_grids_overall(client):
+    course, student, path = _results_fixture(client)
+    breakdown, _soup = _results(client, path)
+    total = breakdown["total"]
+    overall = _grid(course, student)["rows"][0]["overall"]
+    assert (total["quiz_total"], total["counted"], total["summary"]) == (10, 4, True)
+    assert total["percent"] == overall["percent"]
+    assert _label(total) == overall["label"]
+
+
+def _one_quiz_course(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    quiz = _quiz(course, _node(course, None, "chapter", "Rozdział"), "Jedyny")
+    _auto(quiz, "2")
+    _sub(student, quiz, "1", "2")
+    return _student_path(course, student)
+
+
+def test_rt_t3_a_one_quiz_course_has_no_total_summary(client):
+    breakdown, _soup = _results(client, _one_quiz_course(client))
+    assert breakdown["total"]["quiz_total"] == 1
+    assert breakdown["total"]["summary"] is False
+
+
+def _drafts_fixture(client):
+    """Spec T4. Data is COURSE-wide (_with_data_for): 'Szkic bez danych' has none
+    from any student; 'Szkic cudzy' has data from ANOTHER student only."""
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    student, other = UserFactory(), UserFactory()
+    for pupil in (student, other):
+        EnrollmentFactory(student=pupil, course=course)
+    chapter = _node(course, None, "chapter", "Rozdział")
+    live = _quiz(course, chapter, "Opublikowany")
+    _auto(live, "4")
+    _sub(student, live, "2", "4")
+    kept = _quiz(course, chapter, "Szkic z danymi", published=False)
+    _auto(kept, "4")
+    _sub(student, kept, "3", "4")
+    _auto(_quiz(course, chapter, "Szkic bez danych", published=False), "4")
+    theirs = _quiz(course, chapter, "Szkic cudzy", published=False)
+    _auto(theirs, "4")
+    _sub(other, theirs, "4", "4")
+    return course, student, chapter, _student_path(course, student)
+
+
+def test_rt_t4_drafts_are_the_grids_drafts(client):
+    course, student, chapter, path = _drafts_fixture(client)
+    breakdown, _soup = _results(client, path)
+    tree = breakdown["tree"]
+    heading = _find(tree, "Rozdział")
+    # A draft WITH data counts on both pages: its 3/4 is inside 5/8.
+    cell = _grid_cell(course, student, chapter)
+    assert heading["percent"] == cell["percent"]
+    assert _label(heading) == cell["label"] == "5/8"
+    # R-a: assert the denominator BEFORE the absence check, so the spec's
+    # drafts="keep" mutant goes red here, not one line earlier.
+    assert heading["quiz_total"] == 3
+    # A draft with no data from ANY student has no row and no share of quiz_total.
+    assert _find(tree, "Szkic bez danych") is None
+    # A draft only ANOTHER student attempted is on this page, not started.
+    assert _find(tree, "Szkic cudzy")["pill"] == {"kind": "not_started"}
+
+
+def test_rt_t5_a_zero_max_quiz_is_in_quiz_total_not_in_counted(client):
+    _course, _student, path = _results_fixture(client)
+    breakdown, _soup = _results(client, path)
+    b = _find(breakdown["tree"], "Rozdział B")
+    assert (b["quiz_total"], b["counted"]) == (2, 1)
+    assert _find(breakdown["tree"], "B bez punktów")["shows_score"] is False
+
+
+RESULTS_ONLY_KEYS = frozenset(
+    {
+        "quiz_total",
+        "counted",
+        "score_sum",
+        "max_sum",
+        "percent",
+        "summary",
+        "shows_score",
+        "score",
+        "max_score",
+        "color",
+        "text_color",
+    }
+)
+
+
+def test_rt_t7_progress_mode_carries_no_results_keys(client):
+    """Each node dict's OWN top-level keys, walked through `children` only -- never
+    inside `pill`: a scored Progress pill legitimately carries `percent`."""
+    _course, _student, path = _results_fixture(client)
+    resp, _soup = _get(client, f"{path}?mode=progress")
+    breakdown = resp.context["breakdown"]
+    assert "total" not in breakdown
+    nodes = list(_all_nodes(breakdown["tree"]))
+    assert any((d.get("pill") or {}).get("kind") == "scored" for d in nodes)
+    for d in nodes:
+        leaked = sorted(RESULTS_ONLY_KEYS & set(d))
+        assert not leaked, (d["node"].title, leaked)
+
+
+def test_rt_invariant_a_quiz_without_a_row_raises(monkeypatch):
+    """Spec §2.1: the pruned tree's quiz nodes ARE build_course_results's rows, so a
+    missing row is a bug and must raise, never render an unscored quiz."""
+    course = CourseFactory()
+    _quiz(course, _node(course, None, "chapter", "Rozdział"), "Quiz")
+    real = rollups.build_course_results
+
+    def without_rows(*args, **kwargs):
+        results = real(*args, **kwargs)
+        results["rows"] = []
+        return results
+
+    monkeypatch.setattr(rollups, "build_course_results", without_rows)
+    with pytest.raises(KeyError):
+        build_student_breakdown(course, UserFactory(), drafts="keep", mode="results")
