@@ -1095,7 +1095,7 @@ summary.outline-node__head:focus-visible { outline: 2px solid var(--primary); ou
 /* The base .pill--none colour (--text-tertiary) fails AA, and the phone pill is smaller. */
 .results-table .pill--none{color:var(--text-secondary)}
 /* Scoped to the table: the Progress view's inline Review link is unchanged (O5). */
-.results-table .breakdown-unit__review{display:block}
+.results-table .breakdown-unit__review{display:block;margin-top:.25rem}
 .results-table-empty{color:var(--text-secondary)}
 
 /* --- Per-question answers page (analytics drill-down, spec PR 5) --- */
