@@ -157,7 +157,7 @@ def test_first_visit_opens_depth0_only(page, live_server):
     # resolves to ZERO elements and fails on a correct build. Nor
     # page.accessibility.snapshot(), which no longer exists in this version.
     # Only the negative assertion discriminates: under the T6 mutant the name
-    # becomes "Chapter A 0/1 required Start fresh", which still matches
+    # becomes "Chapter A lessons: 0/1 Start fresh", which still matches
     # ^Chapter A. The positive one is a liveness check that the locator resolves
     # and the name is computed at all.
     summary = page.locator(f"[data-node='{f['chap_a'].pk}'] > summary")

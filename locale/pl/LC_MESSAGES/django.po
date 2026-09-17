@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-17 17:18+0200\n"
+"POT-Creation-Date: 2026-09-17 17:34+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -3935,7 +3935,7 @@ msgid "%(student)s submitted %(unit)s in %(course)s and it needs review."
 msgstr ""
 "%(student)s przesłał(a) %(unit)s w kursie %(course)s — wymaga sprawdzenia."
 
-#: .\notifications\emails.py:61
+#: .\notifications\emails.py:61 .\tests\test_review_wording_pl.py:166
 msgid "Your quiz was graded"
 msgstr "Twój quiz został oceniony"
 
@@ -3959,6 +3959,7 @@ msgid "Quiz needs review"
 msgstr "Quiz wymaga sprawdzenia"
 
 #: .\notifications\models.py:10 .\templates\core\user_settings.html:122
+#: .\tests\test_review_wording_pl.py:165
 msgid "Quiz graded"
 msgstr "Quiz oceniony"
 
@@ -5206,8 +5207,9 @@ msgstr "Edytuj tagi"
 #: .\templates\courses\_outline_node.html:40
 #: .\templates\courses\_outline_node.html:55
 #: .\templates\courses\manage\_breakdown_node.html:24
-msgid "required"
-msgstr "wymagane"
+#, python-format
+msgid "lessons: %(done)s/%(total)s"
+msgstr "lekcje: %(done)s/%(total)s"
 
 #: .\templates\courses\_outline_node.html:41
 #: .\templates\courses\_outline_node.html:56
@@ -5379,6 +5381,7 @@ msgid "%(done)s / %(total)s"
 msgstr "%(done)s / %(total)s"
 
 #: .\templates\courses\course_results.html:24
+#: .\tests\test_review_wording_pl.py:167
 msgid "submitted — not graded"
 msgstr "przesłano — bez oceny"
 
@@ -5392,7 +5395,7 @@ msgstr "szczegóły"
 #: .\templates\courses\manage\review_queue.html:11
 #: .\templates\courses\quiz_results.html:37
 msgid "Awaiting review"
-msgstr "Oczekuje na ocenę"
+msgstr "Oczekuje na sprawdzenie"
 
 #: .\templates\courses\course_results.html:31
 #: .\templates\courses\manage\_quiz_pill.html:14
@@ -5450,7 +5453,7 @@ msgstr "Wpisz odpowiedź"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
 msgid "Submitted for review"
-msgstr "Przesłano do oceny"
+msgstr "Przesłano do sprawdzenia"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
 #: .\templates\courses\manage\analytics_student_quiz.html:63
@@ -5937,7 +5940,7 @@ msgstr "przesłano"
 
 #: .\templates\courses\manage\_quiz_pill.html:12
 msgid "awaiting review"
-msgstr "oczekuje na ocenę"
+msgstr "oczekuje na sprawdzenie"
 
 #: .\templates\courses\manage\_roster_row.html:25
 #: .\templates\courses\manage\review_queue.html:34
@@ -8161,17 +8164,17 @@ msgstr "wyniki"
 #, python-format
 msgid "%(n)s question awaiting review (up to 1 more mark)"
 msgid_plural "%(n)s questions awaiting review (up to 1 more mark)"
-msgstr[0] "%(n)s pytanie oczekuje na ocenę (do 1 dodatkowego punktu)"
-msgstr[1] "%(n)s pytania oczekują na ocenę (do 1 dodatkowego punktu)"
-msgstr[2] "%(n)s pytań oczekuje na ocenę (do 1 dodatkowego punktu)"
+msgstr[0] "%(n)s pytanie oczekuje na sprawdzenie (do 1 dodatkowego punktu)"
+msgstr[1] "%(n)s pytania oczekują na sprawdzenie (do 1 dodatkowego punktu)"
+msgstr[2] "%(n)s pytań oczekuje na sprawdzenie (do 1 dodatkowego punktu)"
 
 #: .\templates\courses\quiz_results.html:22
 #, python-format
 msgid "%(n)s question awaiting review (up to %(m)s more marks)"
 msgid_plural "%(n)s questions awaiting review (up to %(m)s more marks)"
-msgstr[0] "%(n)s pytanie oczekuje na ocenę (do %(m)s dodatkowych punktów)"
-msgstr[1] "%(n)s pytania oczekują na ocenę (do %(m)s dodatkowych punktów)"
-msgstr[2] "%(n)s pytań oczekuje na ocenę (do %(m)s dodatkowych punktów)"
+msgstr[0] "%(n)s pytanie oczekuje na sprawdzenie (do %(m)s dodatkowych punktów)"
+msgstr[1] "%(n)s pytania oczekują na sprawdzenie (do %(m)s dodatkowych punktów)"
+msgstr[2] "%(n)s pytań oczekuje na sprawdzenie (do %(m)s dodatkowych punktów)"
 
 #: .\templates\grouping\allocation_assign.html:10
 msgid "Back to allocations"

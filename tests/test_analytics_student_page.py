@@ -6,8 +6,10 @@ from decimal import Decimal
 
 import pytest
 from bs4 import BeautifulSoup
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils import translation
 
 from courses import rollups
 from courses.color_bands import band_style
@@ -29,6 +31,10 @@ from tests.factories import EnrollmentFactory
 from tests.factories import UnitProgressFactory
 from tests.factories import UserFactory
 from tests.factories import make_login
+from tests.helpers_title_math import login_student
+from tests.helpers_title_math import make_title_course
+from tests.test_i18n_po_health import CATALOGS
+from tests.test_i18n_po_health import _entries
 
 pytestmark = pytest.mark.django_db
 
@@ -909,3 +915,70 @@ def test_rt_t9_heading_and_title_name_the_view(client):
         assert "ucznia" not in h1 and "ucznia" not in title, mode
         current = soup.select_one('.breakdown__view a[aria-current="page"]')
         assert current.get_text(strip=True) == word
+
+
+# --- results-table spec T11 (O6, O12): one chip wording on both pages ------------
+def test_rt_t11_teacher_chip_reads_lekcje(client):
+    _course, _student, _mixed, path = _page_fixture(client)
+    _polish(client)
+    _resp, soup = _get(client, f"{path}?mode=progress")
+    mixed = _head(soup, "Mixed chapter").select_one(".rollup")
+    lonely = _head(soup, "Lessons-only chapter").select_one(".rollup")
+    assert mixed.get_text(" ", strip=True) == "lekcje: 1/1"
+    assert lonely.get_text(" ", strip=True) == "lekcje: 0/1"
+
+
+def test_rt_t11_student_outline_chip_reads_lekcje(client):
+    course, _unit, nodes = make_title_course(maths_on="none")
+    student = login_student(client, course)
+    UnitProgressFactory(student=student, unit=nodes["unitA"], completed=True)
+    _polish(client)
+    outline = reverse("courses:course_outline", kwargs={"slug": course.slug})
+    _resp, soup = _get(client, outline)
+    chips = {
+        summary.select_one(".outline-node__title").get_text(strip=True): (
+            summary.select_one(".rollup").get_text(" ", strip=True)
+        )
+        for summary in soup.select("summary.outline-node__head")
+        if summary.select_one(".rollup") is not None
+    }
+    assert chips["Czesc pierwsza"] == "lekcje: 1/2"
+    assert chips["Czesc druga"] == "lekcje: 0/1"
+
+
+def test_rt_t11_childless_outline_branch_chip_reads_lekcje():
+    """_outline_node.html's childless container arm is unreachable through a view
+    (build_outline prunes empty containers), so it is rendered bare."""
+
+    class _Node:
+        pk = 1
+        kind = "chapter"
+        title = "Rozdział"
+
+    class _Course:
+        language = "pl"
+        slug = "c"
+
+    item = {
+        "node": _Node(),
+        "is_unit": False,
+        "children": [],
+        "required_total": 2,
+        "required_done": 1,
+        "additional_done": 0,
+        "depth": 0,
+    }
+    with translation.override("pl"):
+        html = render_to_string(
+            "courses/_outline_node.html",
+            {"item": item, "course": _Course(), "note_counts": {}},
+        )
+    chip = BeautifulSoup(html, "html.parser").select_one(".outline-node__head .rollup")
+    assert chip.get_text(" ", strip=True) == "lekcje: 1/2"
+
+
+def test_rt_t11_catalogs_drop_the_unused_msgids():
+    for locale, path in CATALOGS.items():
+        msgids = {entry["msgid"] for entry in _entries(path)}
+        assert "required" not in msgids, locale
+        assert "Student results" not in msgids, locale

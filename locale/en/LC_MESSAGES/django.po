@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-17 17:18+0200\n"
+"POT-Creation-Date: 2026-09-17 17:34+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -3737,7 +3737,7 @@ msgstr ""
 msgid "%(student)s submitted %(unit)s in %(course)s and it needs review."
 msgstr ""
 
-#: .\notifications\emails.py:61
+#: .\notifications\emails.py:61 .\tests\test_review_wording_pl.py:166
 msgid "Your quiz was graded"
 msgstr ""
 
@@ -3761,6 +3761,7 @@ msgid "Quiz needs review"
 msgstr ""
 
 #: .\notifications\models.py:10 .\templates\core\user_settings.html:122
+#: .\tests\test_review_wording_pl.py:165
 msgid "Quiz graded"
 msgstr ""
 
@@ -4979,7 +4980,8 @@ msgstr ""
 #: .\templates\courses\_outline_node.html:40
 #: .\templates\courses\_outline_node.html:55
 #: .\templates\courses\manage\_breakdown_node.html:24
-msgid "required"
+#, python-format
+msgid "lessons: %(done)s/%(total)s"
 msgstr ""
 
 #: .\templates\courses\_outline_node.html:41
@@ -5150,6 +5152,7 @@ msgid "%(done)s / %(total)s"
 msgstr ""
 
 #: .\templates\courses\course_results.html:24
+#: .\tests\test_review_wording_pl.py:167
 msgid "submitted — not graded"
 msgstr ""
 
