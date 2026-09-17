@@ -10,6 +10,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from courses import rollups
+from courses.color_bands import band_style
+from courses.color_bands import course_color_bands
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import QuestionElement
@@ -630,3 +632,37 @@ def test_rt_invariant_a_quiz_without_a_row_raises(monkeypatch):
     monkeypatch.setattr(rollups, "build_course_results", without_rows)
     with pytest.raises(KeyError):
         build_student_breakdown(course, UserFactory(), drafts="keep", mode="results")
+
+
+# Custom bands: with the defaults, a hard-coded palette would pass (spec T6).
+CUSTOM_BANDS = [
+    {"key": "none", "min": 0, "color": "#101010"},
+    {"key": "weak", "min": 40, "color": "#202020"},
+    {"key": "ok", "min": 60, "color": "#303030"},
+    {"key": "good", "min": 75, "color": "#404040"},
+    {"key": "excellent", "min": 90, "color": "#f0f0f0"},
+]
+
+
+def _custom_bands(course):
+    course.color_bands = CUSTOM_BANDS
+    course.save(update_fields=["color_bands"])
+    return course_color_bands(course)
+
+
+def test_rt_t6_results_nodes_carry_the_course_band_colours(client):
+    course, _student, path = _results_fixture(client)
+    bands = _custom_bands(course)
+    breakdown, _soup = _results(client, path)
+    tree = breakdown["tree"]
+    for title in ("Rozdział A", "A1 oceniony"):  # a container AND a quiz, both 80%
+        d = _find(tree, title)
+        style = band_style(d["percent"], bands)
+        assert (d["color"], d["text_color"]) == (style["bg"], style["fg"]), title
+        assert d["color"] == "#404040", title  # precondition: a CUSTOM band
+    total = breakdown["total"]
+    assert total["color"] == band_style(total["percent"], bands)["bg"]
+    # Every node is painted, whatever it renders; a None percent paints nothing.
+    for title in ("Sekcja A2", "A1 w toku"):
+        d = _find(tree, title)
+        assert (d["color"], d["text_color"]) == (None, None), title

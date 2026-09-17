@@ -85,6 +85,27 @@ def _decorate(matrix, bands):
     paint(matrix["overall_average"])
 
 
+def _paint_results(breakdown, bands):
+    """Band colour + readable text colour on EVERY node dict of a Results-mode
+    breakdown tree (quiz and container alike, rendered or not) and on its total
+    (results-table spec §2.2). _decorate walks the matrix's flat structure, so
+    it is not reused. A None percent gets color/text_color None (neutral).
+    Results mode only: a Progress tree has no `percent` and no `total`."""
+
+    def paint(d):
+        style = band_style(d["percent"], bands)
+        d["color"] = style["bg"]
+        d["text_color"] = style["fg"]
+
+    def walk(nodes):
+        for d in nodes:
+            paint(d)
+            walk(d["children"])
+
+    walk(breakdown["tree"])
+    paint(breakdown["total"])
+
+
 @login_required
 def analytics_matrix(request, slug):
     course = get_object_or_404(Course, slug=slug)
@@ -283,6 +304,9 @@ def analytics_student(request, slug, student_pk):
     # TypeError -- a 500 on this page. The tree is already pruned for the mode,
     # so KaTeX loads only for titles the page renders.
     has_math = tree_titles_have_math(breakdown["tree"])
+    if mode == "results":
+        # The matrix's own call, so a heading's colour is its grid cell's (O4).
+        _paint_results(breakdown, course_color_bands(course))
     return render(
         request,
         "courses/manage/analytics_student.html",
