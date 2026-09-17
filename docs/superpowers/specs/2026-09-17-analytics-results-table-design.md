@@ -35,6 +35,9 @@ Verbatim quotes, 2026-09-17. „Proposal" rows are mine, and the owner accepted 
 - **Q3 — What the heading fraction counts** (§2.3). "Quizzes whose score is in the sum / quizzes in the
   section", or "quizzes submitted / quizzes in the section" (awaiting-review quizzes then count in the
   numerator while their marks stay out of the sum)? **Default until answered:** counted in the sum.
+  **If the answer is "submitted",** these change together: a new container key for the numerator (e.g.
+  `submitted`, leaving `counted` as the sum's count); §2.3 "What „1/3" means" and the count cell; the §8
+  help sentence; T1c ("0/N" becomes submitted/N); T5 and its mutant; T5b's count-cell text.
 - **Q4 — The two plural „awaiting review" entries** on the student's `quiz_results.html` (§5). Should
   their six Polish forms say „oczekuje/oczekują na sprawdzenie" too? **Default until answered:** not
   changed.
@@ -106,7 +109,9 @@ counting rule. `counted` (on containers) is exactly the number of quiz nodes bel
 
 **A summary section with no counted quiz.** When `summary` is true but `counted == 0` (every quiz below
 is not started, in progress or awaiting review), the heading shows the count („0/3") and leaves the
-score and % cells empty and uncoloured. It never renders „0/0". The course total follows the same rule.
+score and % cells empty and uncoloured. It never renders „0/0". **The template renders the score and
+% cells iff `percent is not None`** (equivalently `max_sum > 0`), and the count cell whenever `summary`
+is true; it never branches on `counted` for the number cells. The course total follows the same rule.
 
 ⚠️ **Drafts.** The page calls the builder with `drafts="keep-with-data"`, exactly as the matrix does
 (`views_analytics.py`, both call sites). The two therefore see the same quiz set, so the sums match
@@ -139,7 +144,9 @@ Each row carries its depth, so indentation shows nesting:
 | Quiz | quiz title, linked to the per-question page when it has a submission: `<a class="breakdown-unit__link" href="{% url 'courses:manage_analytics_student_quiz' … %}?{{ drill_qs }}">`, the **same class and href** as today, so the accent colour + underline rule and existing selectors keep working | **empty** when `shows_score`; otherwise the status pill (below) | `score/max` when `shows_score`, else empty | coloured `percent` when `shows_score`, else empty |
 
 - **Status cell (a quiz row without a score):** the existing pill span for the row's status, rendered
-  by including `_quiz_pill.html`: `pill--none` „nie rozpoczęto", `pill--progress` „w toku",
+  by including `_quiz_pill.html`: `pill--none` „nie rozpoczęto" (inside the table
+  `.results-table .pill--none{color:var(--text-secondary)}`, because the base `--text-tertiary` fails AA
+  and the ≤480px pill is smaller still; the design pass checks its contrast), `pill--progress` „w toku",
   `pill--awaiting` „oczekuje na sprawdzenie", `pill--submitted` „przesłano". Its `scored` branch never
   fires here, because a scored row leaves this cell empty. On an awaiting-review row the „Sprawdź" link
   (the `breakdown-unit__review` markup and URL, as today) follows the pill **on its own line** in the
@@ -179,7 +186,9 @@ Each row carries its depth, so indentation shows nesting:
   **Selectors and specificity.** Base padding: `.results-table th, .results-table td{padding:.375rem .5rem}`
   (0,1,1). Depth: `.results-table .results-table__title.results-table__d1{padding-inline-start:1.5rem}` …
   (0,3,0), which beats the base (0,1,1) wherever it is written; the two media blocks repeat both the base
-  and the depth rules with the same selectors, so each band's values win inside that band. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
+  and the depth rules with the same selectors and **do not overlap**: the middle band is written
+  `@media (min-width:481px) and (max-width:640px)` and the narrow band `@media (max-width:480px)`, so each
+  band's values win inside that band regardless of where the blocks sit in `app.css`. `ContentNode.RANK` (part 0, chapter 1, section 2, unit 3) only bounds
   the maximum at 3. No inline style.
 - **Numbers:** marks go through the `marks` filter (decimal comma in Polish, #327). Percent renders as
   `{{ percent }}%`. An empty summary cell is empty; it never shows „—".
@@ -468,8 +477,9 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   `tests/test_title_math_markers.py::test_analytics_breakdown_titles_are_marked` loads Progress mode
   only and stays as it is. *Mutant:* drop `data-math-title` from the linked-quiz title → red. The linked quiz in this fixture is
   a **scored** one, so a scored pill that lost `submission_pk` (and with it the link) also goes red.
-- **T11** — the chip reads „lekcje: 1/2" on the teacher page and on the student outline, and the `.po`
-  has no `required` or `Student results` entry left.
+- **T11** — the chip reads „lekcje: 1/2" on the teacher page and on the student outline, and **both** `locale/pl`
+  and `locale/en` `.po` files (regenerated with `--no-obsolete`) have no `required` or `Student results`
+  entry left.
 - **T14** — O13: in Polish, the three msgids O13 names render their new msgstrs wherever they appear:
   the pill, the review queue, the per-question page, the student's `quiz_results.html` and
   `course_results.html`, and the question feedback. The test asserts **those strings**, not the absence
@@ -501,7 +511,10 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   title column's minimum width, which would make any share check meaningless): a depth-3 quiz title, a
   course-total row with a realistic wide sum („812,5/960,5": at least three integer digits plus a decimal
   on both sides), and an awaiting-review row with its „Sprawdź" link at depth 3.
-  - No horizontal page scroll (`document.documentElement.scrollWidth` equals the viewport width).
+  - No horizontal page scroll (`document.documentElement.scrollWidth` equals the viewport width), **and
+    the table fits its wrapper** (`wrap.scrollWidth <= wrap.clientWidth`): without a formula the wrapper
+    would otherwise absorb an overflowing table and hide the % column while the page check stays green.
+    *A/B:* remove the ≤480px density rules → red on the wrapper-fit check.
   - The title column's measured width is at least **30%** of the table's (estimate with §2.4's ≤480px
     density ≈ 141px ≈ 39%). **30% is a floor**: the design-pass render on mat-pp data may confirm or raise
     it, never lower it; if the render falls below it despite §2.4's density, the plan stops and asks the
@@ -519,15 +532,20 @@ e2e (Playwright, `tests/test_e2e_analytics_student_pages.py`):
   loaded): the table may scroll inside `.results-table-wrap`, the **page** may not
   (`scrollWidth` equals the viewport width). No share or wrapping checks run on this render. *A/B:*
   remove `position:relative` from `.results-table-wrap` → the page scrolls sideways, red.
-- **T8c** — at 1280px the score and % cells are right-aligned (their text's right edge sits at the
-  cell's content edge). *A/B:* neutralise `text-align:right` → red.
+- **T8c** — at 1280px the score and % cells are right-aligned, measured on a cell whose text is
+  **visibly narrower than its column** (a quiz row's „4/5" under the total's „812,5/960,5", and „8%" under
+  „100%"): its text's right edge sits at the cell's content edge **and** the gap on its left is larger than
+  zero. (The widest cell in a `width:1%` column touches both edges whatever the alignment.) *A/B:*
+  neutralise `text-align:right` → red.
 - **Every container row carries `results-table__section`**, summary or not (a single-quiz section is
   still a heading: tinted and bold, just with empty number cells). T13's fixture includes one of each.
 - **T13** — a section row's computed background equals `--surface-base` (probe token) **and differs from
   a quiz row's effective background** (the table's `--surface-raised`), in both themes; a section row's
   `<th>` **and** count/score `<td>`, and the total row's `<th>`, are bold (weight ≥ 600); a quiz row's
   title `<th>` is **not** bold (weight < 600) and is start-aligned; the „Wynik" and „%" column headers are
-  right-aligned. *A/B:* set the section background to `var(--surface-sunken)` → red on the token check; remove the
+  right-aligned, on a fixture where a data cell is wider than the header text in both columns
+  („812,5/960,5", „100%"), measured by the header's left gap > 0; *A/B:* remove the
+  `thead th.results-table__num` (0,2,2) rule → red. *A/B:* set the section background to `var(--surface-sunken)` → red on the token check; remove the
   table's `--surface-raised` background → red on the differs-from check in at least one theme. *A/B:*
   remove the section `font-weight` rule → red on the section `<th>`, `<td>` and total
   `<th>`; lower that rule's specificity to `.results-table__section th` and place it before the reset →
