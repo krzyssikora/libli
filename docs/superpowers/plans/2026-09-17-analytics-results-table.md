@@ -14,7 +14,7 @@
 
 - **Read the spec alongside this plan**, by absolute path from the main checkout: `C:/Users/krzys/Documents/Python/own/libli/docs/superpowers/specs/2026-09-17-analytics-results-table-design.md`. This plan lives at `C:/Users/krzys/Documents/Python/own/libli/docs/superpowers/plans/2026-09-17-analytics-results-table.md`. Both exist ONLY on the local, unpushed `docs/analytics-results-table-spec` branch; the worktree below never contains them. Section numbers (§) and test ids (T1…T15) are the spec's.
 - **Owner rows are protected.** Nothing in this plan, a review round, or a design pass may change what an O-row in the table below says. A catch that would is raised with the owner as a question, never applied.
-- **Test names carry an `rt_` prefix** (`test_rt_t1_…`): `tests/test_analytics_student_page.py` and `tests/test_analytics_student_quiz.py` already hold T1–T41 of two earlier specs, so a bare `test_t5…` would collide in `-k`. Select by NAME.
+- **Test names carry an `rt_` prefix** (`test_rt_t1_…`): `tests/test_analytics_student_page.py` and `tests/test_analytics_student_quiz.py` already hold T1–T41 of two earlier specs, so a bare `test_t5…` would collide in `-k`. Select by NAME, and in a `-k` expression write `test_rt_`, never bare `rt_` — the substring also matches unrelated existing tests (`test_t30_polish_export…`, `test_zero_question_quiz…`, `test_single_part_answer…`, `test_t24c_every_columned_part…`, `test_t33_multi_part_grid…`, `test_t33_multi_part_block…`).
 - **Mode vocabulary:** `"progress"` | `"results"`; anything else normalises to `"progress"` via `_drill_params`, never a second rule.
 - **One scoring rule.** `rollups.quiz_score_view(row)` is the ONLY place that decides whether a quiz shows a score. `_quiz_pill`, `build_course_results` (the `score_view` key), `_stamp_results` and every template read its result; no caller re-derives `status == "submitted" and max_score > 0`, and nothing reads `row["graded"]` to decide a score (the `awaiting_review` branch of `course_results.html` keeps its `row.graded`, unchanged, spec §4).
 - **Results-only keys (spec §2.1).** Container nodes: `quiz_total`, `counted`, `score_sum`, `max_sum`, `percent`, `summary`. Quiz nodes: `shows_score`, `score`, `max_score`, `percent`. The view adds `color`, `text_color` to every node and to `breakdown["total"]`. Progress mode stamps none of these and has no `total` key (O5).
@@ -300,7 +300,7 @@ def test_rt_t10d_reviewed_review_only_progress_pill_is_scored(client):
 
 ```bash
 docker compose -p libli-test -f docker-compose.test.yml up -d --wait
-uv run pytest tests/test_analytics_rollups.py tests/test_analytics_student_quiz.py -k "rt_ or t27 or t26"
+uv run pytest tests/test_analytics_rollups.py tests/test_analytics_student_quiz.py -k "test_rt_ or t27 or t26"
 ```
 
 Expected: `test_rt_quiz_score_view_is_the_grids_rule` fails with `ImportError` (no `quiz_score_view`); `test_rt_t10b_…` fails on `status.select_one(".pill") is None` (today's `_quiz_pill` returns `submitted` because `graded` is False); `test_rt_t10d_…` fails on `"pill--scored" in pill["class"]`; `test_t27_…` fails on `status.select_one(".pill") is None` for `Q reviewed`. `test_t26_header_by_pill_kind` passes (it never asserts `reviewed`).
@@ -403,9 +403,9 @@ Expected: all pass. `test_build_student_breakdown_pills` still sees the exact sc
 
 - [ ] **Step 6: Falsify**
 
-1. *Mutant (spec T1b/T10b/T10d):* in `quiz_score_view`, change `shows_score = row["status"] == "submitted" and max_score > 0` to `shows_score = row["status"] == "submitted" and row["graded"] and max_score > 0`. Run `uv run pytest tests/test_analytics_rollups.py tests/test_analytics_student_quiz.py -k "rt_"` → red: the REVIEW-only parametrize case, `test_rt_t10b_…` (a pill is rendered) and `test_rt_t10d_…` (`pill--submitted`). Revert by hand.
-2. *Mutant (spec T10b/T10d, "keep the old condition"):* in `_quiz_pill`, change `if view["shows_score"]:` to `if row["graded"] and row["max_score"]:`. Run `uv run pytest tests/test_analytics_student_quiz.py -k "rt_t10 or t27"` → red on `test_rt_t10b_…`, `test_rt_t10d_…` and `test_t27_…`. Revert by hand.
-3. *Mutant (always-Decimal):* in `quiz_score_view`, change `score = row["score"] or Decimal("0")` to `score = row["score"]`. Run `uv run pytest tests/test_analytics_rollups.py -k rt_quiz_score_view` → red (the `not_started` case gets `None`). Revert by hand.
+1. *Mutant (spec T1b/T10b/T10d):* in `quiz_score_view`, change `shows_score = row["status"] == "submitted" and max_score > 0` to `shows_score = row["status"] == "submitted" and row["graded"] and max_score > 0`. Run `uv run pytest tests/test_analytics_rollups.py tests/test_analytics_student_quiz.py -k "test_rt_"` → red: the REVIEW-only parametrize case, `test_rt_t10b_…` (a pill is rendered) and `test_rt_t10d_…` (`pill--submitted`). Revert by hand.
+2. *Mutant (spec T10b/T10d, "keep the old condition"):* in `_quiz_pill`, change `if view["shows_score"]:` to `if row["graded"] and row["max_score"]:`. Run `uv run pytest tests/test_analytics_student_quiz.py -k "test_rt_t10 or t27"` → red on `test_rt_t10b_…`, `test_rt_t10d_…` and `test_t27_…`. Revert by hand.
+3. *Mutant (always-Decimal):* in `quiz_score_view`, change `score = row["score"] or Decimal("0")` to `score = row["score"]`. Run `uv run pytest tests/test_analytics_rollups.py -k test_rt_quiz_score_view` → red (the `not_started` case gets `None`). Revert by hand.
 
 `git diff` shows only Steps 1, 3 and 4.
 
@@ -513,7 +513,7 @@ def test_rt_t15_course_results_scores_a_reviewed_review_only_quiz(client):
 
 - [ ] **Step 2: Run it — expect RED**
 
-Run: `uv run pytest tests/test_courses_views.py -k rt_t15`
+Run: `uv run pytest tests/test_courses_views.py -k test_rt_t15`
 
 Expected: FAIL — `essay_row.select_one(".result-row__score")` is `None` (the template branches on `row.graded`, False for a REVIEW-only quiz), so `.get_text` raises `AttributeError`.
 
@@ -554,13 +554,13 @@ The `awaiting_review` branch (`{% if row.graded %}` before the `Awaiting review`
 
 - [ ] **Step 5: Run — expect GREEN**
 
-Run: `uv run pytest tests/test_courses_views.py tests/test_courses_rollups.py tests/test_i18n_results.py tests/test_consumption_pages.py tests/test_title_math_markers.py -k "course_results or rt_t15 or build_course_results or awaiting or graded"`
+Run: `uv run pytest tests/test_courses_views.py tests/test_courses_rollups.py tests/test_i18n_results.py tests/test_consumption_pages.py tests/test_title_math_markers.py -k "course_results or test_rt_t15 or build_course_results or awaiting or graded"`
 
 Expected: all selected tests pass (`test_course_results_enrolled_renders_rows_and_drilldown` still shows „8 / 10").
 
 - [ ] **Step 6: Falsify**
 
-*Mutant (spec T15):* in `course_results.html`, change `{% if row.score_view.shows_score %}` back to `{% if row.graded %}`. Run `uv run pytest tests/test_courses_views.py -k rt_t15` → red (`AttributeError` on the missing score). Revert by hand; `git diff` shows only Steps 3–4 and the test.
+*Mutant (spec T15):* in `course_results.html`, change `{% if row.score_view.shows_score %}` back to `{% if row.graded %}`. Run `uv run pytest tests/test_courses_views.py -k test_rt_t15` → red (`AttributeError` on the missing score). Revert by hand; `git diff` shows only Steps 3–4 and the test.
 
 - [ ] **Step 7: Ruff and commit**
 
@@ -978,7 +978,7 @@ def test_rt_invariant_a_quiz_without_a_row_raises(monkeypatch):
 
 - [ ] **Step 2: Run them — expect RED (except T7)**
 
-Run: `uv run pytest tests/test_analytics_student_page.py -k "rt_"`
+Run: `uv run pytest tests/test_analytics_student_page.py -k "test_rt_"`
 
 Expected: every `test_rt_t1…t5` fails with `KeyError` (`summary`, `total`, `shows_score` … are not stamped); `test_rt_invariant_…` fails with `DID NOT RAISE`. `test_rt_t7_progress_mode_carries_no_results_keys` **passes already** — it guards what this task must not break; Step 6 falsifies it.
 
@@ -1104,8 +1104,9 @@ Run each mutant with `uv run pytest tests/test_analytics_student_page.py -k "<te
 5. *Mutant (spec T4, drafts hidden):* in `courses/views_analytics.py::analytics_student`, change `drafts="keep-with-data"` to `drafts="hide"` in the `build_student_breakdown` call. → `rt_t4` red (Rozdział is 2/4 · 50% against the grid's 5/8). Revert.
 6. *Mutant (spec T4, drafts kept):* same call, `drafts="keep"`. → `rt_t4` red on `quiz_total == 3` (4). Revert.
 7. *Mutant (spec T5):* in `_stamp_results`, change `if d["shows_score"]:` to `if rows_by_unit[d["node"].pk]["status"] == "submitted":` (container aggregation only; the quiz node's own `shows_score` is untouched). → `rt_t5` red: `counted` 2, heading 2/2 instead of 1/2. Revert.
-8. *Mutant (spec T7):* in `build_student_breakdown`, insert `_stamp_results(tree, {r["unit"].pk: r for r in results["rows"]})` directly after `attach(tree)`. → `rt_t7` red (Progress nodes carry `quiz_total` …). Revert.
-9. *Mutant (invariant):* in `_stamp_results`, insert `if d["node"].pk not in rows_by_unit: continue` as the first line of the `if d["is_unit"]:` branch. → `rt_invariant` red (`DID NOT RAISE`). Revert.
+8. *Mutant (spec T7, crashes before the check):* in `build_student_breakdown`, insert `_stamp_results(tree, {r["unit"].pk: r for r in results["rows"]})` directly after `attach(tree)`. → `rt_t7` errors: `KeyError` on the unpruned lesson node (`Lekcja A` is `is_unit` but not a quiz, so it has no row in `rows_by_unit`), before the test's key-leak check runs. Revert.
+9. *Mutant (spec T7, crash-free):* first change `_stamp_results`'s unit test from `if d["is_unit"]:` to `if d["is_unit"] and is_quiz_unit(d["node"]):` (skipping lessons; `is_quiz_unit` lives in `courses/rollups.py`, so no import is needed), then insert `_stamp_results(tree, {r["unit"].pk: r for r in results["rows"]})` directly after `attach(tree)`. → `rt_t7` red: Progress nodes now carry `quiz_total` / `counted` etc. Revert both edits by hand.
+10. *Mutant (invariant):* in `_stamp_results`, insert `if d["node"].pk not in rows_by_unit: continue` as the first line of the `if d["is_unit"]:` branch. → `rt_invariant` red (`DID NOT RAISE`). Revert.
 
 `git diff` shows only Steps 1, 3 and 4.
 
@@ -1179,7 +1180,7 @@ def test_rt_t6_results_nodes_carry_the_course_band_colours(client):
 
 - [ ] **Step 2: Run it — expect RED**
 
-Run: `uv run pytest tests/test_analytics_student_page.py -k "rt_t6 or rt_t7"`
+Run: `uv run pytest tests/test_analytics_student_page.py -k "test_rt_t6 or test_rt_t7"`
 
 Expected: `rt_t6` fails with `KeyError: 'color'`; `rt_t7` passes.
 
@@ -1556,7 +1557,9 @@ def test_rt_t7b_a_course_without_quizzes_says_so(client):
 
 
 @pytest.mark.parametrize(
-    ("title", "has_math"), [(r"Quiz \(x^2\)", True), ("Quiz bez wzorów", False)]
+    ("title", "has_math"),
+    [(r"Quiz \(x^2\)", True), ("Quiz bez wzorów", False)],
+    ids=["maths", "plain"],
 )
 def test_rt_t8d_scroll_wrapper_is_a_region_only_with_maths(client, title, has_math):
     owner = make_login(client, "owner")
@@ -1751,7 +1754,7 @@ def test_rt_t10c_results_table_titles_are_marked(client):
 - [ ] **Step 3: Run them — expect RED**
 
 ```bash
-uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py tests/test_title_math_markers.py -k "rt_ or t6_results or t7_results or t37"
+uv run pytest tests/test_analytics_student_page.py tests/test_analytics_student_quiz.py tests/test_title_math_markers.py -k "test_rt_ or t6_results or t7_results or t37"
 ```
 
 Expected: every rendered-table test fails (`table.results-table` does not exist: `_table_rows` returns `[]`, so `[0]` raises `IndexError` and `_table_row` raises `AssertionError: no Results-table row`); `test_rt_t9_…` fails on „Wyniki ucznia — Anna Nowak"; `test_rt_t10_…` fails on „← Wyniki ucznia"; `test_t37_…[results]` fails (no table), `[progress]` passes; `test_rt_t7_progress_renders_the_tree_not_the_table` passes already (a guard, falsified in Step 9).
@@ -1926,8 +1929,8 @@ For each: apply by hand, run the named test with `uv run pytest <file> -k "<test
 9. *Mutant (T6 render):* delete the quiz row's `{% if item.shows_score %} style="…"{% endif %}`. → `rt_t6_percent_cells…` red on „A1 oceniony". Revert.
 10. *Mutant (T7 render):* in `analytics_student.html`, change `{% if mode == "results" %}` (the one around the table, not the switch) to `{% if True %}`. → `rt_t7_progress_renders_the_tree_not_the_table` red. Revert.
 11. *Mutant (T7b):* change `{% if breakdown.tree %}` to `{% if True %}`. → `rt_t7b` red (no `p.results-table-empty`). Revert.
-12. *Mutant (spec T8d):* change `{% if has_math %} role="region"…{% endif %}` to always emit the three attributes. → `rt_t8d[Quiz bez wzorów-False]` red. Revert.
-13. *Mutant (spec T8d):* delete `id="results-table-caption"` from the `<caption>`. → `rt_t8d[Quiz \(x^2\)-True]` red. Revert.
+12. *Mutant (spec T8d):* change `{% if has_math %} role="region"…{% endif %}` to always emit the three attributes. → `rt_t8d[plain]` red. Revert.
+13. *Mutant (spec T8d):* delete `id="results-table-caption"` from the `<caption>`. → `rt_t8d[maths]` red. Revert.
 14. *Mutant (T9):* change the `<h1>`'s `{% trans "Results" %}` to `{% trans "Student results" %}` (no catalog run: English msgid fallback). → `rt_t9` red. Revert.
 15. *Mutant (T10):* delete the `"mode": mode,` line from `analytics_student_quiz`'s context. → `rt_t10[results-Wyniki]` red („← Postęp"). Revert.
 16. *Mutant (spec T10c):* delete `data-math-title` from the quiz row's `<th>` in `_results_table_rows.html`. → `rt_t10c` red on „linked quiz". Revert.
@@ -2220,7 +2223,7 @@ def test_rt_t14_graded_wording_keeps_ocena():
 - [ ] **Step 3: Run them — expect RED**
 
 ```bash
-uv run pytest tests/test_analytics_student_page.py tests/test_review_wording_pl.py -k "rt_t11 or rt_t14"
+uv run pytest tests/test_analytics_student_page.py tests/test_review_wording_pl.py -k "test_rt_t11 or test_rt_t14"
 ```
 
 Expected: the three chip tests fail („1/1 wymagane" ≠ „lekcje: 1/1"); `rt_t11_catalogs…` fails on `required`; every `rt_t14` rendering test fails on „oczekuje na ocenę" / „Oczekuje na ocenę" / „Przesłano do oceny"; `rt_t14_graded_wording_keeps_ocena` passes (a guard).
@@ -2303,7 +2306,7 @@ Expected: all pass.
 - [ ] **Step 8: Falsify**
 
 1. *Mutant (T11, outline):* in `_outline_node.html`, in the **childless** arm only (the `<div class="outline-node__head">` line, the second chip in the file), replace `{% blocktrans with done=item.required_done total=item.required_total %}lessons: {{ done }}/{{ total }}{% endblocktrans %}` with `{{ item.required_done }}/{{ item.required_total }}`. → `rt_t11_childless_outline_branch_chip_reads_lekcje` red („1/2"), while `rt_t11_student_outline_chip_reads_lekcje` stays green (a view only reaches the `<details>` arm) — which is why the bare render exists. Revert.
-2. *Mutant (T14):* in `locale/pl/LC_MESSAGES/django.po`, set `msgstr[1]` of `%(n)s question awaiting review (up to 1 more mark)` back to „%(n)s pytania oczekują na ocenę (do 1 dodatkowego punktu)" and run `uv run python manage.py compilemessages -l pl`. Run `uv run pytest tests/test_review_wording_pl.py -k rt_t14_quiz_results` → red on exactly one case (the `["0.5", "0.5"]` one). Revert the `.po` by hand, re-run `compilemessages -l pl`, re-run the test → green.
+2. *Mutant (T14):* in `locale/pl/LC_MESSAGES/django.po`, set `msgstr[1]` of `%(n)s question awaiting review (up to 1 more mark)` back to „%(n)s pytania oczekują na ocenę (do 1 dodatkowego punktu)" and run `uv run python manage.py compilemessages -l pl`. Run `uv run pytest tests/test_review_wording_pl.py -k test_rt_t14_quiz_results` → red on exactly one case (the `["0.5", "0.5"]` one). Revert the `.po` by hand, re-run `compilemessages -l pl`, re-run the test → green.
 
 `git diff` shows only Steps 1, 2 and 4–6.
 
@@ -2361,8 +2364,13 @@ Append to the end of the file:
 # --- results-table spec (2026-09-17) §2.4 / §7: the Results table --------------------
 RT_LONG_TITLE = "Bardzo długi tytuł quizu na trzecim poziomie zagnieżdżenia tego kursu"
 RT_MATH_TITLE = (
-    r"Wzór \(\sum_{k=1}^{n} k^{2} = \frac{n(n+1)(2n+1)}{6}"
-    r" = \int_{0}^{n} x^{2}\,dx + \sqrt{a^{2}+b^{2}+c^{2}+d^{2}+e^{2}}\)"
+    # A SINGLE brace group around the whole formula body: no top-level relation
+    # or binary operator, so KaTeX emits exactly one `.base` run and
+    # `.katex:not(:has(.base ~ .base))` makes it unbreakable (app.css). Without
+    # the wrapping braces the top-level `=`/`+` would split it into several
+    # `.base` runs, which wraps instead of widening the table (T8b).
+    r"Wzór \({\sum_{k=1}^{n} k^{2} = \frac{n(n+1)(2n+1)}{6}"
+    r" = \int_{0}^{n} x^{2}\,dx + \sqrt{a^{2}+b^{2}+c^{2}+d^{2}+e^{2}}}\)"
 )
 # Spec §7 T8a: a FLOOR, measured by plan Task 7 on this fixture and on mat-pp before
 # it was committed. A design pass may raise it, never lower it.
@@ -2660,7 +2668,7 @@ def test_rt_t13d_the_total_row_has_a_heavier_rule_below(page, live_server, clien
 
 - [ ] **Step 2: Run them — expect RED**
 
-Run: `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py -k "rt_"`
+Run: `uv run pytest -m e2e tests/test_e2e_analytics_student_pages.py -k "test_rt_"`
 
 Expected (no table CSS yet): `rt_t5d` fails (the UA `<th>` padding is not the table values); `rt_t8a` fails (the title share or the wrapper fit — the unstyled pills never wrap); `rt_t8c` fails at `edges["left"] > 1` (UA `<td>` is start-aligned); `rt_t13` fails on `backgroundColor == base`; `rt_t13d` fails on `2px`; `rt_t13c` passes (the inline style exists since Task 5); `rt_t8b` may pass or fail — it is falsified in Step 6 either way; `rt_t13b` may pass (unstyled pills do not wrap).
 
@@ -2714,8 +2722,11 @@ with:
    would escape a static scroller and widen the page. */
 .results-table-wrap{overflow-x:auto;position:relative}
 .results-table{width:100%;border-collapse:collapse;background:var(--surface-raised)}
-/* Maths in a title is an unbreakable inline-block: the table then scrolls inside
-   .results-table-wrap, never the page. */
+/* A SINGLE-run formula (matched by `.katex:not(:has(.base ~ .base))`, no
+   top-level relation or binary operator) is an unbreakable inline-block: the
+   table then scrolls inside .results-table-wrap, never the page. A MULTI-run
+   formula (one that has a top-level relation or binary operator) wraps
+   internally instead, as KaTeX intends. */
 .results-table .results-table__title{overflow-wrap:anywhere}
 .results-table .results-table__status{width:1%;white-space:nowrap;text-align:start}
 .results-table .results-table__num{width:1%;white-space:nowrap}
@@ -2753,6 +2764,7 @@ Expected: every test passes, including the pre-existing Progress-mode tests in t
 
 - **STOP (spec §2.4 / T8a floor):** if the share is below `0.300`, do not commit. Ask the owner, giving the measured share and a 390px screenshot of the fixture: the remaining levers (merging or dropping a column) touch O1.
 - If the share is below `0.350`, run the nowrap A/B of Step 6 item 5 now. If it goes red, continue and record the margin for the PR body; if it does **not** go red, **STOP and ask the owner** (Spec gaps item 2).
+- **STOP (spec T8b precondition):** `test_rt_t8b_a_long_formula_scrolls_the_table_not_the_page` asserts `scroll_w > client_w` as a precondition before checking `_page_fits`. `RT_MATH_TITLE` is a single `.base` run (unbreakable), so this should hold; if it still fails on this correct build, stop and report it rather than weakening the assertion, widening the viewport, or lengthening the formula further.
 
 - [ ] **Step 5: Measure the floor on mat-pp before committing it**
 
