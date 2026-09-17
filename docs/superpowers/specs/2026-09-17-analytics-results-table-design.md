@@ -93,8 +93,11 @@ returns a **course total**:
 - `summary` — `True` iff `quiz_total > 1` (O2). The template renders numbers only when it is true.
 
 The wrapper gains `total`, built the same way over the whole pruned tree (`summary` true iff the
-course has more than one quiz). Progress mode stamps none of these keys and returns no `total`, so
-Progress is untouched (O5).
+course has more than one quiz). Progress mode stamps **none** of these keys — neither the container keys
+(`quiz_total`, `counted`, `score_sum`, `max_sum`, `percent`, `summary`) nor the quiz-node keys
+(`shows_score`, `score`, `max_score`, `percent`) — and returns no `total`, so Progress is untouched (O5).
+Progress pills still get their scored kind from `quiz_score_view` **through `_quiz_pill`** (§4), not from
+node keys.
 
 The per-quiz `score`, `max_score` and whether it counts are read from the **same
 `build_course_results` rows** the pills are built from. There is no second query and no second
@@ -111,7 +114,7 @@ the grid's cells. A test pins this (§7, T4).
 
 ### 2.2 Colour (O4)
 
-The view resolves `bands = course_color_bands(course)`, the same call the matrix makes, and paints
+**Only when `mode == "results"`**, the view resolves `bands = course_color_bands(course)`, the same call the matrix makes, and paints
 every `percent` it renders with `color_bands.band_style(percent, bands)`. It walks the pruned tree
 **recursively** and sets `color = style["bg"]` / `text_color = style["fg"]` (from `band_style`'s
 `{"bg", "fg"}`) on **every node dict in the pruned tree** (every quiz
@@ -217,7 +220,10 @@ trap, previous spec §2). No stylesheet line citations anywhere.
 - The **status column** is `width:1%; white-space:nowrap; text-align:start` by default, so at desktop
   width every pill stays on one line and the column takes its max-content width. Its cells (the „1/3"
   fractions on heading rows and the pills on quiz rows) are start-aligned, matching the „Quizy" header.
-  **Only inside the `@media (max-width:640px)` block** does the pill wrap
+  **Only inside the `@media (max-width:480px)` block** does the pill wrap (moved down from 640px: a
+  `width:1%` column shrinks to min-content, so a wrappable pill breaks at every space at **every** width
+  under the breakpoint, including ~600px where it would fit; at ≤480px that narrowest form is what the
+  space needs, and the design pass checks both ~600px (pills on one line) and 390px (wrapped)). The rule is
   (`.results-table .pill{white-space:normal; border-radius:.5rem;text-align:center}`); the cell's own
   `white-space` is not changed there (its content is a space-free fraction, an inline-block pill that sets
   its own `white-space`, or a block link, so a cell-level rule would be dead CSS). The „Sprawdź" link is `display:block` at every width, via `.results-table .breakdown-unit__review
@@ -243,6 +249,9 @@ trap, previous spec §2). No stylesheet line citations anywhere.
   tree structure: row headers plus the section names read in document order are enough, and
   `aria-level` on table rows is poorly supported.
 - Colour is never the only carrier: the % text is always present.
+- The scrolling wrapper is reachable by keyboard: `<div class="results-table-wrap" role="region"
+  tabindex="0" aria-labelledby="…">` pointing at the table's caption id, so Firefox and Safari users can
+  scroll a table widened by a long formula (axe `scrollable-region-focusable`).
 - A heading row with no summary has empty cells. It gets no „brak" text, because a screen reader
   reads the quiz row just below it.
 
@@ -261,7 +270,9 @@ title would land in browser history, tabs and bookmarks, which no owner row asks
 ### 3.2 Per-question back link (O8)
 
 `analytics_student_quiz.html`'s back link reads `← {% trans "Results" %}` or `← {% trans "Progress" %}`
-for the mode in `_drill_params`. The view already parses `mode` there. The `Student results` msgid
+for the mode in `_drill_params`. The view already parses `mode` there, but its `render()` context does not include it, so the view
+**adds `"mode": mode`** to that context alongside the template change (a template-only edit would always
+render „← Postęp"). The `Student results` msgid
 becomes unused and is dropped with `makemessages --no-obsolete` (the repo forbids `#~` entries;
 `tests/test_i18n_po_health.py`).
 
@@ -306,7 +317,7 @@ shows fewer in the chip than it has rows.
   `percent` from this helper) **iff** `shows_score`; a submitted row without it stays `submitted`. Every
   pill kind other than `not_started` **keeps `submission_pk`**, including the scored one (the helper does
   not return it; `_quiz_pill` copies it from the row), because the quiz title link depends on it.
-  `build_student_breakdown` stamps its quiz nodes from the same helper. Consequently the Progress pills,
+  `build_student_breakdown` stamps its quiz nodes from the same helper **in Results mode only** (§2.1). Consequently the Progress pills,
   the per-question header (which keeps branching on `p.kind`) and the Results table all agree, and no
   caller re-derives the rule. This changes what a pill **says** for REVIEW-only quizzes, not the Progress
   **layout** (O5). The student's own `course_results.html` builds its labels separately; whether it follows is
@@ -410,7 +421,10 @@ View / builder (pytest, `tests/test_analytics_student_page.py`):
   hard-coded palette would pass. *Mutant:* use `default_color_bands()` → red. *Mutant:* paint only container nodes → red on the
   quiz row.
 - **T7** — Progress mode renders no `results-table` class anywhere and still renders
-  `ul.breakdown__tree` with `_breakdown_node.html` rows (the lesson ✓/○ markers are present).
+  `ul.breakdown__tree` with `_breakdown_node.html` rows (the lesson ✓/○ markers are present). In the
+  view's context the breakdown has **no `total` key**, and **no node** anywhere in the tree has `color`,
+  `text_color`, `percent`, `shows_score` or `summary`. *Mutant:* run the colour walk in both modes with
+  `.get()` guards → red on the `color` check; run it unguarded → the Progress page 500s, red.
 - **T7b** — an empty Results view: a course whose only units are lessons renders no table and shows the
   „No quizzes in this course yet" text.
 - **T9** — heading and `<title>` in both modes, in Polish, for a female student („Wyniki — Anna
