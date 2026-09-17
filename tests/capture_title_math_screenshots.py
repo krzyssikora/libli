@@ -344,6 +344,21 @@ def test_capture(browser, live_server):
             # (lesson_mixed) against a maths-free one (lesson_plain), both
             # visible in the same tree.
             page.goto(_url("courses:course_outline", slug=slug))
+            # Every unit this row compares lives under chapter A1, whose
+            # <details> renders CLOSED (_outline_node.html opens depth 0
+            # only). A closed <details> hides its rows from Playwright's
+            # visibility checks while querySelectorAll still sees them, so
+            # the wait below times out on the first (hidden) match and
+            # bounding_box() returns None for it. Open every group first:
+            # the maths row and the plain row are then both measurable AND
+            # both in the shot. Programmatic, not the "Expand all" control,
+            # which TOGGLES -- outline_tree.js persists the open set to
+            # localStorage, so the dark pass through this loop would arrive
+            # with everything already open and the click would collapse it.
+            page.evaluate(
+                """() => document.querySelectorAll('.outline-node__group')
+                    .forEach(d => { d.open = true; })"""
+            )
             page.wait_for_selector(".outline-unit__title .katex")
             shoot(f"title-math-10-outline-{theme}", page.locator(".outline-tree"))
             with_math_h = page.locator(
