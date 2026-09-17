@@ -3421,8 +3421,16 @@ def main(base, student, password, admin, admin_password, oceniany, esej, long_qu
         finish_quiz(page, base, long_quiz, ["Pierwsza odpowiedź.", "Druga odpowiedź."])
         open_ok(page, f"{base}{lekcja1}")
         page.wait_for_selector("[data-unit-done]")
+        try:
+            page.wait_for_load_state("networkidle", timeout=5000)
+        except Exception:  # noqa: S110 - bounded, third-party-only wait
+            pass
         if page.locator("[data-unit-done].is-complete").count() == 0:
-            page.locator("form.unit-progress button[type='submit']").click()
+            try:
+                page.locator("form.unit-progress button[type='submit']").click()
+            except Exception:  # a timeout here can mean progress.js already auto-completed
+                if page.locator("[data-unit-done].is-complete").count() == 0:
+                    raise
         page.wait_for_selector("[data-unit-done].is-complete")
         print(f"lesson done: {lekcja1}")
         page.context.close()
@@ -3493,14 +3501,17 @@ check('RT esej REVIEW response reviewed', s is not None and QuestionResponse.obj
 s = sub('RT bardzo długi tytuł quizu, który czeka na sprawdzenie')
 check('long quiz submitted, 2 unreviewed REVIEW responses', s is not None and s.status == 'submitted' and QuestionResponse.objects.filter(submission=s, reviewed_at__isnull=True).count() == 2 and not QuestionResponse.objects.filter(submission=s, reviewed_at__isnull=False).exists())
 check('RT nierozpoczety has no submission', sub('RT nierozpoczęty') is None)
-done = sorted(UnitProgress.objects.filter(student=student, unit__course__slug='rt-throwaway', completed=True).values_list('unit__title', flat=True))
-check('completed units are exactly RT lekcja 1: ' + repr(done), done == ['RT lekcja 1'])
+done_lessons = sorted(UnitProgress.objects.filter(student=student, unit__course__slug='rt-throwaway', unit__unit_type='lesson', completed=True).values_list('unit__title', flat=True))
+check('completed lessons are exactly RT lekcja 1: ' + repr(done_lessons), done_lessons == ['RT lekcja 1'])
+done_quizzes = sorted(UnitProgress.objects.filter(student=student, unit__course__slug='rt-throwaway', unit__unit_type='quiz', completed=True).values_list('unit__title', flat=True))
+expected_quizzes = sorted(['RT oceniany', 'RT esej', 'RT bardzo długi tytuł quizu, który czeka na sprawdzenie'])
+check('completed quizzes are exactly the three finished quizzes: ' + repr(done_quizzes), done_quizzes == expected_quizzes)
 if problems:
     raise SystemExit(1)
 "
 ```
 
-Expected: six `OK` lines and exit code 0. (The printed labels are ASCII on purpose: a cp1250 console aborts on some Unicode prints.) **If any line says `MISMATCH` or the exit code is non-zero: STOP, fix the seed (on this local throwaway course only), re-run the script and this check.** Note: the plan left the essay answers' wording open; the script fixes „Zbiór to kolekcja elementów." and „Pierwsza/Druga odpowiedź." — any text works, since REVIEW answers are not auto-marked and no screenshot or figure depends on them.
+Expected: seven `OK` lines and exit code 0. (The printed labels are ASCII on purpose: a cp1250 console aborts on some Unicode prints.) **If any line says `MISMATCH` or the exit code is non-zero: STOP, fix the seed (on this local throwaway course only), re-run the script and this check.** Note: the plan left the essay answers' wording open; the script fixes „Zbiór to kolekcja elementów." and „Pierwsza/Druga odpowiedź." — any text works, since REVIEW answers are not auto-marked and no screenshot or figure depends on them.
 
 The throwaway course now carries, at depth 3, a scored quiz, a REVIEW-only scored quiz (1,5/2), a quiz awaiting review with a long title and its „Sprawdź" link, and a not-started quiz; the student's outline shows „lekcje: 1/2" (O12); their `quiz_results.html` for the long-titled quiz shows „2 pytania oczekują na sprawdzenie (do 2 dodatkowych punktów)" (O14); their `course_results.html` shows „1,5 / 2" for RT esej (O15) and „Oczekuje na sprawdzenie" (O13).
 
@@ -3527,7 +3538,7 @@ done
 
 (Here `$theme` and `$width` are meant to expand: this is a plain bash loop, not a `-c` string.)
 
-2b. Run Step 0's `rt_seed_ui.py` (the `rtstudent` answers, the lesson and the `rtadmin` review) and then Step 0's read-only verification; continue only on its exit code 0 with six `OK` lines. Then, as `rtadmin`, for the throwaway teacher page (`teacher-results` URL) in both themes, repeat ONLY the inner `for width in 1280 600 390` Results-URL invocation (with `measure`) — not the Progress or per-question invocations of 2a — using `rt-throwaway-results-…` names.
+2b. Run Step 0's `rt_seed_ui.py` (the `rtstudent` answers, the lesson and the `rtadmin` review) and then Step 0's read-only verification; continue only on its exit code 0 with seven `OK` lines. Then, as `rtadmin`, for the throwaway teacher page (`teacher-results` URL) in both themes, repeat ONLY the inner `for width in 1280 600 390` Results-URL invocation (with `measure`) — not the Progress or per-question invocations of 2a — using `rt-throwaway-results-…` names.
 
 2c. **As `rtstudent`** (theme via `User.objects.filter(username='rtstudent').update(theme=…)`), light and dark, 1280 and 390: the `outline` URL, the `course-results` URL, and the long-titled quiz's results page (`/courses/rt-throwaway/u/<pk>/quiz/results/`, pk from Step 0's output):
 
