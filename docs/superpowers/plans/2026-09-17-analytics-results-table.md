@@ -2815,9 +2815,12 @@ If `Course.objects.get(slug='mat-pp')` fails, the local slug differs (imports re
 5d. Write `<scratchpad>/rt_page.py` with the Write tool (never commit it):
 
 ```python
-"""Measure and/or shoot one page of the local server (results-table plan, Tasks 7, 9).
+"""Screenshot, and optionally measure, one page of the local server (results-table
+plan, Tasks 7, 9). The screenshot always happens; MEASURE only runs when the
+final `measure` argument is passed (Results URLs only — every other page never
+renders `table.results-table`).
 
-usage: uv run python rt_page.py BASE PATH WIDTH OUT_PNG_OR_DASH USERNAME PASSWORD
+usage: uv run python rt_page.py BASE PATH WIDTH OUT_PNG_OR_DASH USERNAME PASSWORD [measure]
 """
 
 import sys
@@ -2843,6 +2846,7 @@ MEASURE = """() => {
 }"""
 
 base, path, width, out, username, password = sys.argv[1:7]
+measure = len(sys.argv) > 7 and sys.argv[7] == "measure"
 with sync_playwright() as p:
     browser = p.chromium.launch()
     page = browser.new_page(viewport={"width": int(width), "height": 900})
@@ -2854,6 +2858,11 @@ with sync_playwright() as p:
     page.wait_for_load_state()
     resp = page.goto(f"{base}{path}")
     page.wait_for_load_state("networkidle")
+    if out != "-":
+        page.screenshot(path=out, full_page=True)
+    if not measure:
+        browser.close()
+        sys.exit(0)
     result = page.evaluate(MEASURE)
     if result is None:
         status = resp.status if resp else "?"
@@ -2861,23 +2870,25 @@ with sync_playwright() as p:
         browser.close()
         sys.exit(1)
     print(f"width={width} {result}")
-    if out != "-":
-        page.screenshot(path=out, full_page=True)
     browser.close()
 ```
 
-If `MEASURE` finds no `table.results-table`, the script prints the response
-status and URL and exits non-zero instead of printing `None`: a failed render
-(no table) is never a pass for the 30% floor — fix the URL, login or
-enrolment and re-run.
+The screenshot is taken before `MEASURE` runs, so a page that fails the
+measurement (or never had a table to measure) still leaves its PNG behind.
+Without the `measure` argument the script never evaluates `MEASURE` at all —
+it only screenshots and exits 0 — so `NO TABLE` can only ever appear on a
+`measure` invocation. When `measure` is passed and `MEASURE` finds no
+`table.results-table`, the script prints the response status and URL and
+exits non-zero instead of printing `None`: a failed render (no table) is
+never a pass for the 30% floor — fix the URL, login or enrolment and re-run.
 
 5e. Start the app from the worktree with the `run` skill (or `Start-Process` running `uv run python manage.py runserver 127.0.0.1:8765 --noreload` from the worktree), record its port with `echo <port> > .env.rt-port` (the `.env*` ignore rule keeps it out of git), then for each URL from 5c:
 
 ```bash
-uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<url from 5c>" 390 - rtadmin 'RT-local-only!'
+uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<url from 5c>" 390 - rtadmin 'RT-local-only!' measure
 ```
 
-Expected per line: `pageFits: True`, `wrapFits: True` unless `katex > 0` (a formula may scroll the table), and `share ≥ 0.30`. A render with `katex > 0` is not a floor check (a formula sets the title column's width); judge the others. A `NO TABLE` line (failed render) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run.
+Expected per line: `pageFits: True`, `wrapFits: True` unless `katex > 0` (a formula may scroll the table), and `share ≥ 0.30`. A render with `katex > 0` is not a floor check (a formula sets the title column's width); judge the others. Every URL from 5c is a Results URL, so every invocation here passes `measure`; a `NO TABLE` line (possible only on a `measure` invocation) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run.
 
 - **STOP (spec §2.4 / T8a floor):** if any formula-free mat-pp render has `share < 0.30`, do not commit; ask the owner with the measured shares and the screenshots (`rt_page.py … 390 <scratchpad>/matpp-390.png …`).
 - Otherwise keep `RT_TITLE_SHARE_FLOOR = 0.30` (confirmed); record the fixture's and mat-pp's shares for the PR body.
@@ -3155,9 +3166,9 @@ git status --short core/static/core/img/help/
 
 - [ ] **Step 7: Fix a stale line citation in `courses/geogebra.py`**
 
-Step 4 shifted this file's S110 handler by one line; `courses/geogebra.py` still
-cites the old line number. Replace it with a reference that survives future
-line shifts (name the function, not a line number):
+The citation is already off by one on master (it cites line 460; the `# noqa:
+S110` handler is at 461), and Step 4 adds three more lines above the handler,
+so replace the number with a named reference:
 
 In `courses/geogebra.py`, replace:
 
@@ -3285,7 +3296,7 @@ Invoke the `frontend-design:frontend-design` skill on the Results table as built
 for theme in light dark; do
   uv run python manage.py shell -c "from accounts.models import User; User.objects.filter(username='rtadmin').update(theme='$theme')"
   for width in 1280 600 390; do
-    uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<mat-pp results url>" $width <scratchpad>/rt-matpp-results-$theme-$width.png rtadmin 'RT-local-only!'
+    uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<mat-pp results url>" $width <scratchpad>/rt-matpp-results-$theme-$width.png rtadmin 'RT-local-only!' measure
   done
   for width in 1280 390; do
     uv run python <scratchpad>/rt_page.py http://127.0.0.1:<port> "<same url with mode=progress>" $width <scratchpad>/rt-matpp-progress-$theme-$width.png rtadmin 'RT-local-only!'
@@ -3296,12 +3307,12 @@ done
 
 (Here `$theme` and `$width` are meant to expand: this is a plain bash loop, not a `-c` string.)
 
-2b. Do the `rtstudent` UI steps of Step 0 and the review. Then, as `rtadmin`, the throwaway teacher page (`teacher-results` URL) in both themes at 1280, 600 and 390, the same loop with `rt-throwaway-results-…` names.
+2b. Do the `rtstudent` UI steps of Step 0 and the review. Then, as `rtadmin`, the throwaway teacher page (`teacher-results` URL) in both themes at 1280, 600 and 390, the same loop (with `measure`) with `rt-throwaway-results-…` names.
 
 2c. **As `rtstudent`** (theme via `User.objects.filter(username='rtstudent').update(theme=…)`), light and dark, 1280 and 390: the `outline` URL, the `course-results` URL, and the long-titled quiz's results page (`/courses/rt-throwaway/u/<pk>/quiz/results/`, pk from Step 0's output).
 
-2d. **Measure and gate** from the `rt_page.py` output lines:
-- a `NO TABLE` line (failed render) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run before judging anything else.
+2d. **Measure and gate** from the `rt_page.py` output lines. Only Step 2a's and 2b's Results-URL invocations pass `measure` and print a measurement line at all; the Progress, per-question, outline, course-results and quiz_results invocations of 2a/2c never pass `measure`, so they print nothing to gate on here — they contribute PNGs to Step 2e only.
+- a `NO TABLE` line (possible only from a `measure` invocation) is never a pass for the 30% floor — fix the URL, login or enrolment and re-run before judging anything else.
 - every 390px Results line: `pageFits: True`; `wrapFits: True` unless `katex > 0`; formula-free lines `share ≥ 0.30`.
   - **STOP (T8a floor):** a formula-free render below 0.30 → do not continue; ask the owner with the shares and screenshots (the levers touch O1).
   - A share below 0.35 → apply Task 7 Step 6 item 5 (nowrap pill A/B) and run `rt_t8a`; if it does not go red, **STOP and ask the owner** (Spec gaps item 2).
