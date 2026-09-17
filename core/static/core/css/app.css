@@ -536,6 +536,10 @@ input[type=number] {
 }
 .outline__title { margin: 0; }
 .outline__results { margin-left: auto; }
+/* The head is align-items: baseline, and a .btn whose first item is an <svg class="icon">
+   takes its baseline from the svg's bottom edge -- so the icon buttons rode ~2px above
+   the text-only ones. Centre every head button so the row reads as one level. */
+.outline__head > .btn { align-self: center; }
 
 /* Resume card: the one thing a returning student should be able to hit without
    reading the tree. Ground it on --surface-raised and cut the border against THAT,
